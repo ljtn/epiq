@@ -1,7 +1,7 @@
-import {Box, Text, render, useApp, useInput} from 'ink';
+import {Box, Text, useApp, useInput} from 'ink';
 import React from 'react';
 import {Board} from '../lib/types/board.model.js';
-import {SwimlaneBox} from './SwimlaneBox.js';
+import {SwimlaneUI} from './Swimlane.js';
 
 export const BoardUI: React.FC<{board: Board}> = ({board}) => {
 	const {exit} = useApp();
@@ -16,22 +16,12 @@ export const BoardUI: React.FC<{board: Board}> = ({board}) => {
 	});
 
 	return (
-		<Box borderStyle="single" flexDirection="column" padding={1}>
-			<Text>{'   ' + board.name.toUpperCase()}</Text>
+		<Box flexDirection="column">
+			<Text>{board.name.toUpperCase()}</Text>
 
-			<Box flexDirection="row" padding={1}>
-				<SwimlaneBox
-					items={board.children}
-					width={swimlaneWidth}
-					colSeparator="  |  "
-					highlightIndex={1}
-				/>
+			<Box flexDirection="row">
+				<SwimlaneUI items={board.children} width={swimlaneWidth} />
 			</Box>
 		</Box>
 	);
-};
-
-// Entry point
-export const renderBoard = (board: Board) => {
-	render(<BoardUI board={board} />);
 };
