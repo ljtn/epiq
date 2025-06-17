@@ -28,22 +28,20 @@ export function navigate<T extends NavigationTree>({
 		onExit = () => {},
 	} = callbacks;
 
-	const targetParent = breadCrumb.at(-1);
-	if (!targetParent) {
-		// console.warn('Empty breadCrumb — nothing to navigate.');
+	const navigationNode = breadCrumb.at(-1);
+	if (!navigationNode) {
 		return;
 	}
 
-	const children = targetParent.children ?? [];
+	const children = navigationNode.children ?? [];
 	if (children.length === 0) {
-		// console.warn('No children to navigate.');
 		return;
 	}
 
 	let selectedIndex = children.findIndex(c => c.isSelected);
 	if (selectedIndex === -1) selectedIndex = 0;
 
-	updateSelection(targetParent, selectedIndex, onSelectChange);
+	updateSelection(navigationNode, selectedIndex, onSelectChange);
 	const onKeyPress = (
 		_: string,
 		key: {
@@ -65,21 +63,37 @@ export function navigate<T extends NavigationTree>({
 
 		switch (key.name) {
 			case 'return':
-				updateSelection(targetParent, -1, onSelectChange);
+				updateSelection(navigationNode, -1, onSelectChange);
 				if (!selected.children?.length) return onExit(selected);
-				return nav()({
+				return prepareNavigation()({
 					breadCrumb: [...breadCrumb, selected],
 					callbacks,
 				});
 
-			case 'escape':
-				const parent = breadCrumb.at(-1);
-				if (!parent) return exit();
-				updateSelection(targetParent, -1, onSelectChange);
-				return nav()({
+			case 'escape': {
+				const navigationNode = breadCrumb.at(-1);
+				const grandParent = breadCrumb.at(-2);
+
+				if (!navigationNode || !grandParent) {
+					return exit();
+				}
+
+				// Deselect the current node
+				updateSelection(navigationNode, -1, onSelectChange);
+
+				// Reselect the parent in its own parent (i.e., grandparent)
+				const parentIndex = grandParent.children.findIndex(
+					child => child.id === navigationNode.id,
+				);
+				if (parentIndex !== -1) {
+					updateSelection(grandParent, parentIndex, onSelectChange);
+				}
+
+				return prepareNavigation()({
 					breadCrumb: breadCrumb.slice(0, -1),
 					callbacks,
 				});
+			}
 
 			case 'up':
 			case 'left':
@@ -89,7 +103,7 @@ export function navigate<T extends NavigationTree>({
 				) {
 					selectedIndex =
 						(selectedIndex - 1 + children.length) % children.length;
-					updateSelection(targetParent, selectedIndex, onSelectChange);
+					updateSelection(navigationNode, selectedIndex, onSelectChange);
 				}
 				break;
 
@@ -100,7 +114,7 @@ export function navigate<T extends NavigationTree>({
 					(navMode === 'horizontal' && key.name === 'right')
 				) {
 					selectedIndex = (selectedIndex + 1) % children.length;
-					updateSelection(targetParent, selectedIndex, onSelectChange);
+					updateSelection(navigationNode, selectedIndex, onSelectChange);
 				}
 				break;
 
@@ -115,7 +129,7 @@ export function navigate<T extends NavigationTree>({
 		process.stdin.removeListener('keypress', onKeyPress);
 	};
 
-	const nav = () => {
+	const prepareNavigation = () => {
 		cleanup();
 		return navigate;
 	};
