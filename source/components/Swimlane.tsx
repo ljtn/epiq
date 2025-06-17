@@ -21,6 +21,7 @@ export const SwimlaneUI: React.FC<Props> = ({items, width}) => {
 						paddingRight={1}
 						paddingLeft={1}
 						paddingBottom={1}
+						minHeight={15}
 					>
 						<Box
 							borderStyle="round"

@@ -1,8 +1,8 @@
+import {Box, Text} from 'ink';
 import React from 'react';
 import {BoardUI} from './components/Board.js';
-import {Board} from './lib/types/board.model.js';
-import {Box, Text} from 'ink';
 import {navigationState} from './lib/state.js';
+import {Board} from './lib/types/board.model.js';
 
 process.stdout.write('\x1B[2J\x1B[0f');
 
@@ -10,6 +10,8 @@ export default function App({board}: {board: Board}) {
 	const width = process.stdout.columns || 120;
 	const swimlaneWidth = Math.floor(width / board.children.length);
 	const renderedWidth = swimlaneWidth * board.children.length;
+	const availableActions = navigationState.availableActions;
+
 	return (
 		<Box flexDirection="column">
 			<BoardUI board={board} swimlaneWidth={swimlaneWidth} />
@@ -23,7 +25,7 @@ export default function App({board}: {board: Board}) {
 				width={renderedWidth}
 			>
 				<Text color="#333">ACTIONS:</Text>
-				{navigationState.availableActions.map((action, index) => (
+				{availableActions.map((action, index) => (
 					<Text key={index} color="gray">
 						{action.description}
 					</Text>

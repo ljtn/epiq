@@ -1,5 +1,3 @@
-import {Actions} from './action-map.js';
-import {navigationState} from './state.js';
 import {NavigationTree} from './types/navigation.model.js';
 import {keys} from './utils.js';
 
@@ -21,7 +19,6 @@ const updateSelection = <T>(
 ) => {
 	children.forEach((c, i) => (c.isSelected = i === idx));
 	const selected = children[idx];
-	navigationState.availableActions = Actions['SWIMLANE'];
 	onSelectChange(selected as any);
 };
 

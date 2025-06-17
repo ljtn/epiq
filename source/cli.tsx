@@ -5,7 +5,9 @@ import meow from 'meow';
 import App from './app.js';
 import {navigate} from './lib/navigation.js';
 import {board} from './mock/board.js';
-import {Board} from './lib/types/board.model.js';
+import {Board, Swimlane, Ticket} from './lib/types/board.model.js';
+import {navigationState} from './lib/state.js';
+import {Actions} from './lib/action-map.js';
 
 const cli = meow(
 	`
@@ -40,6 +42,11 @@ export const main = () => {
 		callbacks: {
 			render: () => {
 				renderBoard(board);
+			},
+			onSelectChange: selected => {
+				if (!selected) return;
+				const type = (selected as Ticket | Swimlane | Board).type;
+				navigationState.availableActions = Actions[type];
 			},
 		},
 	});
