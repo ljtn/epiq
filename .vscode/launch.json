@@ -9,6 +9,7 @@
 			"request": "launch",
 			"name": "Launch TSX CLI",
 			"runtimeExecutable": "npx",
+			"console": "integratedTerminal",
 			"runtimeArgs": ["tsx", "source/cli.tsx"],
 			"skipFiles": ["<node_internals>/**"]
 		}

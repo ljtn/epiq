@@ -32,16 +32,12 @@ const cli = meow(
 );
 cli;
 
-function renderBoard(board: Board) {
-	render(<App board={board} />);
-}
-
 export const main = () => {
 	navigate({
 		breadCrumb: [board],
 		callbacks: {
 			render: () => {
-				renderBoard(board);
+				render(<App board={board} />);
 			},
 			onSelectChange: selected => {
 				if (!selected) return;
@@ -55,5 +51,5 @@ export const main = () => {
 main();
 
 process.stdout.on('resize', () => {
-	renderBoard(board);
+	main();
 });

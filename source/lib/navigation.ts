@@ -1,16 +1,5 @@
+import readline from 'readline';
 import {NavigationTree} from './types/navigation.model.js';
-import {keys} from './utils.js';
-
-const cleanup = () => {
-	process.stdin.removeAllListeners('data');
-	process.stdin.setRawMode(false);
-	process.stdin.pause();
-};
-
-const exit = () => {
-	cleanup();
-	process.exit();
-};
 
 const updateSelection = <T>(
 	{children}: NavigationTree<T>,
@@ -41,14 +30,13 @@ export function navigate<T extends NavigationTree>({
 
 	const targetParent = breadCrumb.at(-1);
 	if (!targetParent) {
-		console.warn('Empty breadCrumb — nothing to navigate.');
+		// console.warn('Empty breadCrumb — nothing to navigate.');
 		return;
 	}
 
 	const children = targetParent.children ?? [];
-
 	if (children.length === 0) {
-		console.warn('No children to navigate.');
+		// console.warn('No children to navigate.');
 		return;
 	}
 
@@ -56,40 +44,48 @@ export function navigate<T extends NavigationTree>({
 	if (selectedIndex === -1) selectedIndex = 0;
 
 	updateSelection(targetParent, selectedIndex, onSelectChange);
-
-	const onKeyPress = (key: string) => {
-		if (!key) return;
+	const onKeyPress = (
+		_: string,
+		key: {
+			name?: string;
+			ctrl: boolean;
+			meta: boolean;
+			shift: boolean;
+			sequence: string;
+		},
+	) => {
 		const selected = children[selectedIndex];
 		const navMode = children[0]?.navigationMode || 'vertical';
 		if (!selected) return;
 
-		switch (key) {
-			case keys.CTRL_C:
-				exit();
-				return;
+		if (key.ctrl && key.name === 'c') {
+			exit();
+			return;
+		}
 
-			case keys.ENTER:
+		switch (key.name) {
+			case 'return':
 				updateSelection(targetParent, -1, onSelectChange);
 				if (!selected.children?.length) return onExit(selected);
-				return navigate({
+				return nav()({
 					breadCrumb: [...breadCrumb, selected],
 					callbacks,
 				});
 
-			case keys.ESCAPE:
+			case 'escape':
 				const parent = breadCrumb.at(-1);
 				if (!parent) return exit();
 				updateSelection(targetParent, -1, onSelectChange);
-				return navigate({
+				return nav()({
 					breadCrumb: breadCrumb.slice(0, -1),
 					callbacks,
 				});
 
-			case keys.ARROW_UP:
-			case keys.ARROW_LEFT:
+			case 'up':
+			case 'left':
 				if (
-					(navMode === 'vertical' && key === keys.ARROW_UP) ||
-					(navMode === 'horizontal' && key === keys.ARROW_LEFT)
+					(navMode === 'vertical' && key.name === 'up') ||
+					(navMode === 'horizontal' && key.name === 'left')
 				) {
 					selectedIndex =
 						(selectedIndex - 1 + children.length) % children.length;
@@ -97,11 +93,11 @@ export function navigate<T extends NavigationTree>({
 				}
 				break;
 
-			case keys.ARROW_DOWN:
-			case keys.ARROW_RIGHT:
+			case 'down':
+			case 'right':
 				if (
-					(navMode === 'vertical' && key === keys.ARROW_DOWN) ||
-					(navMode === 'horizontal' && key === keys.ARROW_RIGHT)
+					(navMode === 'vertical' && key.name === 'down') ||
+					(navMode === 'horizontal' && key.name === 'right')
 				) {
 					selectedIndex = (selectedIndex + 1) % children.length;
 					updateSelection(targetParent, selectedIndex, onSelectChange);
@@ -115,11 +111,27 @@ export function navigate<T extends NavigationTree>({
 		render();
 	};
 
-	cleanup(); // in case this isn't the first time
-	process.stdin.setRawMode(true);
-	process.stdin.resume();
-	process.stdin.setEncoding('utf8');
-	process.stdin.on('data', onKeyPress);
+	const cleanup = () => {
+		process.stdin.removeListener('keypress', onKeyPress);
+	};
+
+	const nav = () => {
+		cleanup();
+		return navigate;
+	};
+
+	const exit = () => {
+		cleanup();
+		process.stdin.setRawMode(false);
+		process.stdin.pause();
+		process.exit();
+	};
 
 	render();
+
+	readline.emitKeypressEvents(process.stdin);
+	if (process.stdin.isTTY) {
+		process.stdin.setRawMode(true);
+	}
+	process.stdin.on('keypress', onKeyPress);
 }
