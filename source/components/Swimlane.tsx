@@ -31,7 +31,11 @@ export const SwimlaneUI: React.FC<Props> = ({items, width}) => {
 						</Box>
 
 						{lane.children.map((ticket, index) => (
-							<TicketListItemUI key={index} ticket={ticket as Ticket} />
+							<TicketListItemUI
+								key={index}
+								width={width}
+								ticket={ticket as Ticket}
+							/>
 						))}
 					</Box>
 				</React.Fragment>

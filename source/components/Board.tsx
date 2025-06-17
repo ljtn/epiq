@@ -3,11 +3,11 @@ import React from 'react';
 import {Board} from '../lib/types/board.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 
-export const BoardUI: React.FC<{board: Board}> = ({board}) => {
+export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({
+	board,
+	swimlaneWidth,
+}) => {
 	const {exit} = useApp();
-	const swimlanes = board.children;
-	const totalWidth = process.stdout.columns || 120;
-	const swimlaneWidth = Math.floor(totalWidth / swimlanes.length);
 
 	useInput((input, key) => {
 		if (key.escape || input === 'q') {
