@@ -77,9 +77,9 @@ export function navigate<T extends NavigationTree>({
 				});
 
 			case keys.ESCAPE:
-				updateSelection(targetParent, -1, onSelectChange);
 				const parent = breadCrumb.at(-1);
 				if (!parent) return exit();
+				updateSelection(targetParent, -1, onSelectChange);
 				return navigate({
 					breadCrumb: breadCrumb.slice(0, -1),
 					callbacks,

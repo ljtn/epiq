@@ -45,7 +45,7 @@ export const main = () => {
 			},
 			onSelectChange: selected => {
 				if (!selected) return;
-				const type = (selected as Ticket | Swimlane | Board).type;
+				const type = (selected as Ticket | Swimlane | Board).type; // Fix so that we can infer this type
 				navigationState.availableActions = Actions[type];
 			},
 		},
