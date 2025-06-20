@@ -19,7 +19,7 @@ export function moveTicket(ticket: Ticket, destination: Swimlane) {
 	}
 
 	// Step 2: Add it to the destination swimlane
-	if (realTicket && destination.type === 'SWIMLANE') {
+	if (realTicket && destination.actionContext === 'SWIMLANE') {
 		destination.children.push(realTicket);
 	} else {
 		console.warn('Ticket not found or destination invalid. No move performed.');

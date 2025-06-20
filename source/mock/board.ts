@@ -4,7 +4,7 @@ export const board: Board = {
 	id: 'b1',
 	isSelected: false,
 	name: 'Product Development Board',
-	type: 'BOARD',
+	actionContext: 'BOARD',
 	navigationMode: 'vertical',
 	children: [
 		{
@@ -12,13 +12,13 @@ export const board: Board = {
 			id: 's1',
 			name: 'To Do',
 			navigationMode: 'horizontal',
-			type: BoardItemTypes.SWIMLANE,
+			actionContext: BoardItemTypes.SWIMLANE,
 			children: [
 				{
 					isSelected: false,
 					id: 't1',
 					name: 'Setup CI/CD pipeline',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description:
 						'Configure GitHub Actions for test, build, and deploy stages.',
@@ -28,7 +28,7 @@ export const board: Board = {
 					isSelected: false,
 					id: 't2',
 					name: 'Create API contract for auth service',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description:
 						'Define request/response formats, error handling, and versioning.',
@@ -38,7 +38,7 @@ export const board: Board = {
 					isSelected: false,
 					id: 't3',
 					name: 'Draft OKRs for Q4',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description:
 						'Collaborate with leads to define team goals and key results.',
@@ -51,13 +51,13 @@ export const board: Board = {
 			id: 's2',
 			name: 'In Progress',
 			navigationMode: 'vertical',
-			type: 'SWIMLANE',
+			actionContext: 'SWIMLANE',
 			children: [
 				{
 					isSelected: false,
 					id: 't4',
 					name: 'Implement user login flow',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description:
 						'Integrate frontend with backend auth API and handle edge cases.',
@@ -67,7 +67,7 @@ export const board: Board = {
 					isSelected: false,
 					id: 't5',
 					name: 'Design new dashboard layout',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description:
 						'Collaborate with UX to create a grid-based responsive dashboard.',
@@ -77,7 +77,7 @@ export const board: Board = {
 					isSelected: false,
 					id: 't6',
 					name: 'Accessibility audit',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description: 'Evaluate color contrast, ARIA usage, and keyboard nav.',
 					children: [],
@@ -89,13 +89,13 @@ export const board: Board = {
 			id: 's3',
 			name: 'Review',
 			navigationMode: 'vertical',
-			type: 'SWIMLANE',
+			actionContext: 'SWIMLANE',
 			children: [
 				{
 					isSelected: false,
 					id: 't7',
 					name: 'Code review for analytics module',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description:
 						'Ensure test coverage, types, and data validation are in place.',
@@ -105,7 +105,7 @@ export const board: Board = {
 					isSelected: false,
 					id: 't8',
 					name: 'Review UI polish for mobile view',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description: 'Verify spacing, responsiveness, and visual hierarchy.',
 					children: [],
@@ -117,13 +117,13 @@ export const board: Board = {
 			id: 's4',
 			name: 'Done',
 			navigationMode: 'vertical',
-			type: 'SWIMLANE',
+			actionContext: 'SWIMLANE',
 			children: [
 				{
 					isSelected: false,
 					id: 't9',
 					name: 'Setup Storybook',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description: 'Document reusable components and tokens in Storybook.',
 					children: [],
@@ -132,7 +132,7 @@ export const board: Board = {
 					isSelected: false,
 					id: 't10',
 					name: 'Deploy v1.2 to staging',
-					type: 'TICKET',
+					actionContext: 'TICKET',
 					navigationMode: 'vertical',
 					description: 'All pipelines green. Ready for product team QA.',
 					children: [],

@@ -1,48 +1,44 @@
+import {NavigateCtx} from './navigation-context.js';
 import {ActionMap} from './types/action-map.model.js';
-import {navigate} from './navigation.js';
 import {BoardItemTypes} from './types/board.model.js';
 import {keys} from './utils.js';
 
-export const Actions: ActionMap = {
+type BoardActionMap = ActionMap<{
+	BOARD: [NavigateCtx];
+	SWIMLANE: [NavigateCtx];
+	TICKET: [NavigateCtx];
+}>;
+
+export const BoardActions: BoardActionMap = {
 	[BoardItemTypes.BOARD]: [],
+
 	[BoardItemTypes.SWIMLANE]: [
 		{
 			key: keys.ARROW_DOWN,
 			mode: 'default',
 			description: '[ARROW_DOWN] - Enter swimlane',
 			action: () => {
-				// navigate({
-				//   breadCrumb: [board, swimlane, swimlane.children[0]],
-				//   callbacks: { render: () => renderBoard },
-				// });
+				// const [board, swimlane] = ctx.breadCrumb;
+				// const target = swimlane.children?.[0];
+				// if (target) {
+				// 	ctx.push(target);
+				// }
 			},
 		},
 	],
+
 	[BoardItemTypes.TICKET]: [
 		{
 			key: 'm',
 			mode: 'default',
-			description: 'm = Move ticket',
-			action: ([board]) => {
+			description: 'M = Move ticket',
+			action: () => {
+				// const [board, swimlane, ticket] = ctx.breadCrumb;
+				// Example: navigate into move mode
 				// navigationState.mode = "move";
-				navigate({
-					breadCrumb: [board],
-					callbacks: {
-						// render: () => renderBoard(board),
-						onSelectChange: () => {
-							// const realDestination = findNodeById(board, selected.id);
-							// if (realDestination?.type === BoardItemTypes.SWIMLANE) {
-							//   moveTicket(ticket, realDestination);
-							//   // bootBoard();
-							// }
-						},
-						onExit: () => {
-							console.log('make api call');
-							// navigationState.mode = "default";
-						},
-					},
-				});
+				// ctx.push(board); // or perhaps navigate to a target selection list?
+				// You can trigger more complex behavior through ctx.confirm or ctx.render
 			},
 		},
 	],
-} as const;
+};

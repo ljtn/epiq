@@ -7,17 +7,14 @@ export const BoardItemTypes = {
 } as const;
 
 export type Ticket = NavigationTree<{
-	type: (typeof BoardItemTypes)['TICKET'];
-	id: string;
+	actionContext: (typeof BoardItemTypes)['TICKET'];
 	description?: string;
 }>;
 
 export type Swimlane = NavigationTree<{
-	type: (typeof BoardItemTypes)['SWIMLANE'];
-	id: string;
+	actionContext: (typeof BoardItemTypes)['SWIMLANE'];
 }> & {children: Ticket[]};
 
 export type Board = NavigationTree<{
-	type: (typeof BoardItemTypes)['BOARD'];
-	id: string;
+	actionContext: (typeof BoardItemTypes)['BOARD'];
 }> & {children: Swimlane[]};

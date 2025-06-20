@@ -1,15 +1,8 @@
 import readline from 'readline';
 import {NavigationTree} from './types/navigation.model.js';
-
-const updateSelection = <T>(
-	{children}: NavigationTree<T>,
-	idx: number,
-	onSelectChange: (selected: (typeof children)[number]) => void,
-) => {
-	children.forEach((c, i) => (c.isSelected = i === idx));
-	const selected = children[idx];
-	onSelectChange(selected as any);
-};
+import {ActionEntry} from './types/action-map.model.js';
+import {NavigateCtx} from './navigation-context.js';
+import {buildDefaultActions} from './default-actions.js';
 
 export function navigate<T extends NavigationTree>({
 	breadCrumb,
@@ -18,134 +11,89 @@ export function navigate<T extends NavigationTree>({
 	breadCrumb: Array<NavigationTree<NavigationTree>>;
 	callbacks: Partial<{
 		render: () => void;
-		onSelectChange: (selected: T['children'][number]) => void;
-		onExit: (selected: T['children'][number]) => void;
+		onSelectChange: (s: T['children'][number]) => void;
+		onConfirm: (s: T['children'][number]) => void;
+		actionMap: ActionEntry<[NavigateCtx]>[];
 	}>;
-}): void {
+}) {
 	const {
 		render = () => {},
 		onSelectChange = () => {},
-		onExit = () => {},
+		onConfirm = () => {},
+		actionMap: userActions = [],
 	} = callbacks;
 
-	const navigationNode = breadCrumb.at(-1);
-	if (!navigationNode) {
-		return;
-	}
-
-	const children = navigationNode.children ?? [];
-	if (children.length === 0) {
-		return;
-	}
-
-	let selectedIndex = children.findIndex(c => c.isSelected);
-	if (selectedIndex === -1) selectedIndex = 0;
-
-	updateSelection(navigationNode, selectedIndex, onSelectChange);
-	const onKeyPress = (
-		_: string,
-		key: {
-			name?: string;
-			ctrl: boolean;
-			meta: boolean;
-			shift: boolean;
-			sequence: string;
+	const ctx: NavigateCtx = {
+		breadCrumb,
+		get navigationNode() {
+			return this.breadCrumb.at(-1)!;
 		},
-	) => {
-		const selected = children[selectedIndex];
-		const navMode = children[0]?.navigationMode || 'vertical';
-		if (!selected) return;
-
-		if (key.ctrl && key.name === 'c') {
-			exit();
-			return;
-		}
-
-		switch (key.name) {
-			case 'return':
-				updateSelection(navigationNode, -1, onSelectChange);
-				if (!selected.children?.length) return onExit(selected);
-				return prepareNavigation()({
-					breadCrumb: [...breadCrumb, selected],
-					callbacks,
-				});
-
-			case 'escape': {
-				const navigationNode = breadCrumb.at(-1);
-				const grandParent = breadCrumb.at(-2);
-
-				if (!navigationNode || !grandParent) {
-					return exit();
-				}
-
-				// Deselect the current node
-				updateSelection(navigationNode, -1, onSelectChange);
-
-				// Reselect the parent in its own parent (i.e., grandparent)
-				const parentIndex = grandParent.children.findIndex(
-					child => child.id === navigationNode.id,
-				);
-				if (parentIndex !== -1) {
-					updateSelection(grandParent, parentIndex, onSelectChange);
-				}
-
-				return prepareNavigation()({
-					breadCrumb: breadCrumb.slice(0, -1),
-					callbacks,
-				});
-			}
-
-			case 'up':
-			case 'left':
-				if (
-					(navMode === 'vertical' && key.name === 'up') ||
-					(navMode === 'horizontal' && key.name === 'left')
-				) {
-					selectedIndex =
-						(selectedIndex - 1 + children.length) % children.length;
-					updateSelection(navigationNode, selectedIndex, onSelectChange);
-				}
-				break;
-
-			case 'down':
-			case 'right':
-				if (
-					(navMode === 'vertical' && key.name === 'down') ||
-					(navMode === 'horizontal' && key.name === 'right')
-				) {
-					selectedIndex = (selectedIndex + 1) % children.length;
-					updateSelection(navigationNode, selectedIndex, onSelectChange);
-				}
-				break;
-
-			default:
-				return;
-		}
-
-		render();
+		get children() {
+			return this.navigationNode.children ?? [];
+		},
+		select: index => {
+			ctx.setSelectedIndex(index);
+			ctx.updateSelection(index);
+		},
+		selectNone: () => {
+			ctx.select(-1);
+		},
+		_selectedIndex: 0,
+		getSelectedIndex() {
+			return this._selectedIndex;
+		},
+		setSelectedIndex(i) {
+			this._selectedIndex = i;
+		},
+		updateSelection: idx =>
+			updateSelection(ctx.navigationNode, idx, onSelectChange),
+		render,
+		confirm: sel => onConfirm(sel as any),
+		exit: () => {
+			cleanup();
+			process.exit(0);
+		},
+		push: node => reInvokeNavigate([...breadCrumb, node]),
+		pop: () => reInvokeNavigate(breadCrumb.slice(0, -1)),
 	};
 
-	const cleanup = () => {
-		process.stdin.removeListener('keypress', onKeyPress);
-	};
+	if (ctx.children.length === 0) return;
+	ctx._selectedIndex = Math.max(
+		0,
+		ctx.children.findIndex(c => c.isSelected),
+	);
+	ctx.updateSelection(ctx._selectedIndex);
 
-	const prepareNavigation = () => {
+	function onKeyPress(_: string, key: readline.Key) {
+		if (key.ctrl && key.name === 'c') return ctx.exit();
+
+		const action = [...buildDefaultActions(), ...userActions]?.find(
+			a => a.key === key.name,
+		);
+		action?.action(ctx);
+
+		ctx.render();
+	}
+
+	const cleanup = () => process.stdin.removeListener('keypress', onKeyPress);
+
+	const reInvokeNavigate = (crumb: typeof breadCrumb) => {
 		cleanup();
-		return navigate;
-	};
-
-	const exit = () => {
-		cleanup();
-		process.stdin.setRawMode(false);
-		process.stdin.pause();
-		process.exit();
+		navigate({breadCrumb: crumb, callbacks});
 	};
 
 	render();
 
 	readline.emitKeypressEvents(process.stdin);
-	if (process.stdin.isTTY) {
-		process.stdin.setRawMode(true);
-	}
+	if (process.stdin.isTTY) process.stdin.setRawMode(true);
 	process.stdin.on('keypress', onKeyPress);
+}
+
+function updateSelection<T>(
+	{children}: NavigationTree<T>,
+	idx: number,
+	onSelectChange: (sel: (typeof children)[number]) => void,
+) {
+	children.forEach((c, i) => (c.isSelected = i === idx));
+	onSelectChange(children[idx] as any);
 }
