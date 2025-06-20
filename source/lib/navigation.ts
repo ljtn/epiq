@@ -5,9 +5,11 @@ import {NavigateCtx} from './navigation-context.js';
 import {buildDefaultActions} from './default-actions.js';
 
 export function navigate<T extends NavigationTree>({
+	index = 0,
 	breadCrumb,
 	callbacks,
 }: {
+	index: number;
 	breadCrumb: Array<NavigationTree<NavigationTree>>;
 	callbacks: Partial<{
 		render: () => void;
@@ -31,10 +33,6 @@ export function navigate<T extends NavigationTree>({
 		get children() {
 			return this.navigationNode.children ?? [];
 		},
-		select: index => {
-			ctx.setSelectedIndex(index);
-			ctx.updateSelection(index);
-		},
 		selectNone: () => {
 			ctx.select(-1);
 		},
@@ -42,27 +40,31 @@ export function navigate<T extends NavigationTree>({
 		getSelectedIndex() {
 			return this._selectedIndex;
 		},
-		setSelectedIndex(i) {
+		select(i) {
 			this._selectedIndex = i;
+			updateSelection(ctx.navigationNode, i, onSelectChange);
 		},
-		updateSelection: idx =>
-			updateSelection(ctx.navigationNode, idx, onSelectChange),
 		render,
 		confirm: sel => onConfirm(sel as any),
 		exit: () => {
 			cleanup();
 			process.exit(0);
 		},
-		push: node => reInvokeNavigate([...breadCrumb, node]),
-		pop: () => reInvokeNavigate(breadCrumb.slice(0, -1)),
+		push: node => reInvokeNavigate(0, [...breadCrumb, node]),
+		pop: () => {
+			ctx.select(-1); // Clear all on this level
+			const ancestors = breadCrumb;
+			const parent = ancestors[ancestors.length - 1];
+			const grandParent = ancestors[ancestors.length - 2];
+			if (!parent || !grandParent) return;
+			const parentIndex = grandParent?.children.findIndex(
+				x => parent.id === x.id,
+			);
+			reInvokeNavigate(parentIndex, breadCrumb.slice(0, -1)); // Go to parent level
+		},
 	};
 
-	if (ctx.children.length === 0) return;
-	ctx._selectedIndex = Math.max(
-		0,
-		ctx.children.findIndex(c => c.isSelected),
-	);
-	ctx.updateSelection(ctx._selectedIndex);
+	ctx.select(index);
 
 	function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();
@@ -77,9 +79,9 @@ export function navigate<T extends NavigationTree>({
 
 	const cleanup = () => process.stdin.removeListener('keypress', onKeyPress);
 
-	const reInvokeNavigate = (crumb: typeof breadCrumb) => {
+	const reInvokeNavigate = (idx: number, crumb: typeof breadCrumb) => {
 		cleanup();
-		navigate({breadCrumb: crumb, callbacks});
+		navigate({index: idx, breadCrumb: crumb, callbacks});
 	};
 
 	render();

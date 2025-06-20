@@ -10,7 +10,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		action: ctx => {
 			const idx = ctx.getSelectedIndex();
 			const selected = ctx.children[idx];
-			ctx.updateSelection(-1); // deselect in current node
+			ctx.select(-1); // deselect in current node
 
 			if (!selected) return;
 
@@ -27,7 +27,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		action: ctx => {
 			const fromNode = ctx.breadCrumb.at(-1);
 			const toNode = ctx.breadCrumb.at(-2);
-			const grandNode = ctx.breadCrumb.at(-3);
+			// const grandNode = ctx.breadCrumb.at(-3);
 
 			if (!fromNode || !toNode) return ctx.exit();
 
@@ -35,13 +35,13 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			ctx.pop(); // now toNode is the selected level
 
 			// In the parent level (grandNode), select the child that matches toNode
-			const newSelectionIndex =
-				grandNode?.children?.findIndex(c => c.id === toNode.id) ?? -1;
-			if (newSelectionIndex !== -1) {
-				ctx.select(newSelectionIndex); // highlight the node you just came from
-			} else {
-				ctx.selectNone();
-			}
+			// const newSelectionIndex =
+			// 	grandNode?.children?.findIndex(c => c.id === toNode.id) ?? -1;
+			// if (newSelectionIndex !== -1) {
+			// 	ctx.select(newSelectionIndex); // highlight the node you just came from
+			// } else {
+			// 	ctx.selectNone();
+			// }
 		},
 	},
 	{
@@ -52,7 +52,6 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			const len = ctx.children.length;
 			const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
 			ctx.select(newIndex);
-			ctx.updateSelection(newIndex);
 		},
 	},
 	{
@@ -63,7 +62,6 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			const len = ctx.children.length;
 			const newIndex = (ctx.getSelectedIndex() + 1) % len;
 			ctx.select(newIndex);
-			ctx.updateSelection(newIndex);
 		},
 	},
 	{
@@ -74,7 +72,6 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			const len = ctx.children.length;
 			const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
 			ctx.select(newIndex);
-			ctx.updateSelection(newIndex);
 		},
 	},
 	{
@@ -85,7 +82,6 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			const len = ctx.children.length;
 			const newIndex = (ctx.getSelectedIndex() + 1) % len;
 			ctx.select(newIndex);
-			ctx.updateSelection(newIndex);
 		},
 	},
 ];

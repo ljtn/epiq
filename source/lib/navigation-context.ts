@@ -7,8 +7,6 @@ export interface NavigateCtx {
 	navigationNode: NavigationTree<NavigationTree>;
 	children: NavigationTree[];
 	getSelectedIndex(): number;
-	setSelectedIndex(idx: number): void;
-	updateSelection(idx: number): void;
 	select(index: number): void;
 	selectNone(): void;
 	render(): void;

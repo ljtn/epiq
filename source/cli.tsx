@@ -34,6 +34,7 @@ cli;
 
 export const main = () => {
 	navigate({
+		index: 0,
 		breadCrumb: [board],
 		callbacks: {
 			render: () => {
