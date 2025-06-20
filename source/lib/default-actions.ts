@@ -15,7 +15,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		action: () => {
 			navigationState.viewHelp = !navigationState.viewHelp;
 		},
-		description: '[H] Toggle view help',
+		description: '',
 	},
 	{
 		key: 'return',

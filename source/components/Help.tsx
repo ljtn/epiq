@@ -7,13 +7,12 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 		flexDirection="column"
 		paddingLeft={1}
 		paddingRight={1}
-		paddingBottom={1}
 		borderColor="gray"
 		borderStyle="round"
 		width={width}
 	>
-		<Box paddingBottom={1}>
-			<Text color="gray">Actions:</Text>
+		<Box>
+			<Text color="gray">Toggle help with "H"</Text>
 		</Box>
 		{navigationState.viewHelp
 			? navigationState.availableActions
@@ -21,20 +20,20 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 					.filter(action => !/\[(↑|↓|←|→)]/.test(action.description as string)) // Remove arrow
 					.map((action, index) => {
 						const [leftRaw, rightRaw] = action.description!.split(']');
-						const left = leftRaw?.trim() + ']'; // add bracket back
+						const left = leftRaw?.replace('[', '');
 						const right = rightRaw?.trim(); // no extra space
 
 						return (
-							<Box key={index} flexDirection="row">
-								<Box width={15}>
-									<Text color="gray">{left}</Text>
+							<Box paddingLeft={1} key={index} flexDirection="row">
+								<Box width={20}>
+									<Text color="gray">{'- ' + right}</Text>
 								</Box>
 								<Box flexGrow={1}>
-									<Text color="gray">{right}</Text>
+									<Text color="gray">{left}</Text>
 								</Box>
 							</Box>
 						);
 					})
-			: ''}
+			: null}
 	</Box>
 );

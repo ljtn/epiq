@@ -8,5 +8,5 @@ export const navigationState: {
 } = {
 	mode: 'default',
 	availableActions: [],
-	viewHelp: true,
+	viewHelp: false,
 };
