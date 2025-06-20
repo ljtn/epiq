@@ -12,6 +12,6 @@ export interface NavigateCtx {
 	render(): void;
 	confirm(selected: NavigationTree): void;
 	exit(): void;
-	push(node: NavigationTree): void; // enter child
-	pop(): void; // go to parent
+	enterChild(node: NavigationTree): void; // enter child
+	enterParent(): void; // go to parent
 }

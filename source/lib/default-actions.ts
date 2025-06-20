@@ -1,12 +1,25 @@
 import {NavigateCtx} from './navigation-context.js';
+import {navigationState} from './state.js';
 import {ActionEntry} from './types/action-map.model.js';
 
 export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
+		key: '',
+		action: () => {},
+		description: '[ARROW KEYS] Navigate',
+	},
+	{
+		key: 'h',
+		action: () => {
+			navigationState.viewHelp = !navigationState.viewHelp;
+		},
+		description: '[H] Toggle view help',
+	},
+	{
 		key: 'return',
-		description: '[ENTER] - drill down / confirm',
+		description: '[ENTER] Confirm',
 		action: ctx => {
 			const idx = ctx.getSelectedIndex();
 			const selected = ctx.children[idx];
@@ -17,36 +30,18 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			if (!selected.children?.length) {
 				ctx.confirm(selected); // call onConfirm for leaf
 			} else {
-				ctx.push(selected); // dive deeper
+				ctx.enterChild(selected); // dive deeper
 			}
 		},
 	},
 	{
-		key: 'escape',
-		description: '[ESC] - go up / select previous container',
-		action: ctx => {
-			const fromNode = ctx.breadCrumb.at(-1);
-			const toNode = ctx.breadCrumb.at(-2);
-			// const grandNode = ctx.breadCrumb.at(-3);
-
-			if (!fromNode || !toNode) return ctx.exit();
-
-			// Pop to the parent
-			ctx.pop(); // now toNode is the selected level
-
-			// In the parent level (grandNode), select the child that matches toNode
-			// const newSelectionIndex =
-			// 	grandNode?.children?.findIndex(c => c.id === toNode.id) ?? -1;
-			// if (newSelectionIndex !== -1) {
-			// 	ctx.select(newSelectionIndex); // highlight the node you just came from
-			// } else {
-			// 	ctx.selectNone();
-			// }
-		},
+		key: 'e',
+		description: '[E] Exit container',
+		action: ctx => ctx.enterParent(),
 	},
 	{
 		key: 'up',
-		description: '[↑] - previous item (vertical)',
+		description: '[↑]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'vertical') return;
 			const len = ctx.children.length;
@@ -54,9 +49,10 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			ctx.select(newIndex);
 		},
 	},
+
 	{
 		key: 'down',
-		description: '[↓] - next item (vertical)',
+		description: '[↓]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'vertical') return;
 			const len = ctx.children.length;
@@ -66,7 +62,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		key: 'left',
-		description: '[←] - previous item (horizontal)',
+		description: '[←]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'horizontal') return;
 			const len = ctx.children.length;
@@ -76,7 +72,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		key: 'right',
-		description: '[→] - next item (horizontal)',
+		description: '[→]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'horizontal') return;
 			const len = ctx.children.length;

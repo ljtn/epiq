@@ -8,6 +8,7 @@ import {board} from './mock/board.js';
 import {Board, Swimlane, Ticket} from './lib/types/board.model.js';
 import {navigationState} from './lib/state.js';
 import {BoardActions} from './lib/action-map.js';
+import {buildDefaultActions} from './lib/default-actions.js';
 
 const cli = meow(
 	`
@@ -32,6 +33,8 @@ const cli = meow(
 );
 cli;
 
+let allActions = [...buildDefaultActions()];
+
 export const main = () => {
 	navigate({
 		index: 0,
@@ -43,9 +46,10 @@ export const main = () => {
 			onSelectChange: selected => {
 				if (!selected) return;
 				const type = (selected as Ticket | Swimlane | Board).actionContext; // Fix so that we can infer this type
-				navigationState.availableActions = BoardActions[type];
+				allActions = [...buildDefaultActions(), ...BoardActions[type]];
+				navigationState.availableActions = allActions;
 			},
-			actionMap: navigationState.availableActions,
+			actionMap: allActions,
 		},
 	});
 };

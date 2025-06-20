@@ -1,8 +1,7 @@
 import readline from 'readline';
-import {NavigationTree} from './types/navigation.model.js';
-import {ActionEntry} from './types/action-map.model.js';
 import {NavigateCtx} from './navigation-context.js';
-import {buildDefaultActions} from './default-actions.js';
+import {ActionEntry} from './types/action-map.model.js';
+import {NavigationTree} from './types/navigation.model.js';
 
 export function navigate<T extends NavigationTree>({
 	index = 0,
@@ -22,7 +21,7 @@ export function navigate<T extends NavigationTree>({
 		render = () => {},
 		onSelectChange = () => {},
 		onConfirm = () => {},
-		actionMap: userActions = [],
+		actionMap = [],
 	} = callbacks;
 
 	const ctx: NavigateCtx = {
@@ -50,9 +49,11 @@ export function navigate<T extends NavigationTree>({
 			cleanup();
 			process.exit(0);
 		},
-		push: node => reInvokeNavigate(0, [...breadCrumb, node]),
-		pop: () => {
+		enterChild: node => reInvokeNavigate(0, [...breadCrumb, node]),
+		enterParent: () => {
 			ctx.select(-1); // Clear all on this level
+			if (breadCrumb.length < 2) return; // Need at least grandparent + parent
+
 			const ancestors = breadCrumb;
 			const parent = ancestors[ancestors.length - 1];
 			const grandParent = ancestors[ancestors.length - 2];
@@ -69,9 +70,7 @@ export function navigate<T extends NavigationTree>({
 	function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();
 
-		const action = [...buildDefaultActions(), ...userActions]?.find(
-			a => a.key === key.name,
-		);
+		const action = actionMap?.find(a => a.key === key.name);
 		action?.action(ctx);
 
 		ctx.render();
