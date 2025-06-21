@@ -2,7 +2,6 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {Swimlane, Ticket} from '../lib/types/board.model.js';
 import {TicketListItemUI} from './TicketListItem.js';
-import {navigationState} from '../lib/state.js';
 
 type Props = {
 	items: Swimlane[];
@@ -17,7 +16,7 @@ export const SwimlaneUI: React.FC<Props> = ({items, width}) => {
 					<Box
 						flexDirection="column"
 						width={width}
-						borderStyle={navigationState.mode === 'default' ? 'round' : 'arrow'}
+						borderStyle="round"
 						borderColor={lane.isSelected ? 'green' : 'gray'}
 						paddingRight={1}
 						paddingLeft={1}

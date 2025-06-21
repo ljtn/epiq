@@ -24,6 +24,8 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		mode: 'default',
 		description: '[ENTER] Confirm',
 		action: ctx => {
+			if (!ctx.navigationNode.children[ctx._selectedIndex]?.children.length)
+				return;
 			const idx = ctx.getSelectedIndex();
 			const selected = ctx.children[idx];
 			ctx.select(-1); // deselect in current node
