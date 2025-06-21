@@ -2,6 +2,7 @@ import readline from 'readline';
 import {NavigateCtx} from './navigation-context.js';
 import {ActionEntry} from './types/action-map.model.js';
 import {NavigationTree} from './types/navigation.model.js';
+import {navigationState} from './state.js';
 
 export function navigate<T extends NavigationTree>({
 	index = 0,
@@ -70,7 +71,9 @@ export function navigate<T extends NavigationTree>({
 	function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();
 
-		const action = actionMap?.find(a => a.key === key.name);
+		const action = actionMap
+			.filter(x => x.mode === navigationState.mode)
+			?.find(a => a.key === key.name);
 		action?.action(ctx);
 
 		ctx.render();

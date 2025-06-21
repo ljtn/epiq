@@ -7,11 +7,13 @@ export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
 		key: '',
+		mode: 'default',
 		action: () => {},
 		description: '[ARROW KEYS] Navigate',
 	},
 	{
 		key: 'h',
+		mode: 'default',
 		action: () => {
 			navigationState.viewHelp = !navigationState.viewHelp;
 		},
@@ -19,6 +21,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		key: 'return',
+		mode: 'default',
 		description: '[ENTER] Confirm',
 		action: ctx => {
 			const idx = ctx.getSelectedIndex();
@@ -36,11 +39,13 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		key: 'e',
+		mode: 'default',
 		description: '[E] Exit container',
 		action: ctx => ctx.enterParent(),
 	},
 	{
 		key: 'up',
+		mode: 'default',
 		description: '[↑]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'vertical') return;
@@ -52,6 +57,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 
 	{
 		key: 'down',
+		mode: 'default',
 		description: '[↓]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'vertical') return;
@@ -62,6 +68,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		key: 'left',
+		mode: 'default',
 		description: '[←]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'horizontal') return;
@@ -72,6 +79,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		key: 'right',
+		mode: 'default',
 		description: '[→]',
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'horizontal') return;

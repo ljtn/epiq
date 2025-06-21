@@ -1,4 +1,5 @@
 import {NavigateCtx} from './navigation-context.js';
+import {navigationState} from './state.js';
 import {ActionMap} from './types/action-map.model.js';
 import {BoardItemTypes} from './types/board.model.js';
 
@@ -10,33 +11,34 @@ type BoardActionMap = ActionMap<{
 
 export const BoardActions: BoardActionMap = {
 	[BoardItemTypes.BOARD]: [],
-
-	[BoardItemTypes.SWIMLANE]: [
-		// {
-		// 	key: keys.ARROW_DOWN,
-		// 	mode: 'default',
-		// 	description: '[ARROW_DOWN] - Enter swimlane',
-		// 	action: () => {
-		// 		// const [board, swimlane] = ctx.breadCrumb;
-		// 		// const target = swimlane.children?.[0];
-		// 		// if (target) {
-		// 		// 	ctx.push(target);
-		// 		// }
-		// 	},
-		// },
-	],
-
+	[BoardItemTypes.SWIMLANE]: [],
 	[BoardItemTypes.TICKET]: [
 		{
 			key: 'm',
 			mode: 'default',
 			description: '[M] Move ticket',
 			action: () => {
-				// const [board, swimlane, ticket] = ctx.breadCrumb;
-				// Example: navigate into move mode
-				// navigationState.mode = "move";
-				// ctx.push(board); // or perhaps navigate to a target selection list?
-				// You can trigger more complex behavior through ctx.confirm or ctx.render
+				navigationState.mode = 'move';
+			},
+		},
+		{
+			key: 'right',
+			mode: 'move',
+			description: '[right] Move to left',
+			action: ctx => {
+				const ancestors = ctx.breadCrumb;
+				const parent = ancestors[ancestors.length - 1];
+				const grandParent = ancestors[ancestors.length - 2];
+				if (!parent || !grandParent) return;
+				const parentIndex = grandParent?.children.findIndex(
+					x => parent.id === x.id,
+				);
+				if (!(parentIndex > 0)) return;
+				if (!grandParent.children.length) return;
+				parent.children.splice(ctx._selectedIndex, 1);
+				grandParent.children[parentIndex + 1]?.children.push(
+					ctx.navigationNode,
+				);
 			},
 		},
 	],
