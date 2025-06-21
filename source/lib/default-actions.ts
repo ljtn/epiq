@@ -24,18 +24,13 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		mode: 'default',
 		description: '[ENTER] Confirm',
 		action: ctx => {
-			if (!ctx.navigationNode.children[ctx._selectedIndex]?.children.length)
-				return;
-			const idx = ctx.getSelectedIndex();
-			const selected = ctx.children[idx];
-			ctx.select(-1); // deselect in current node
-
-			if (!selected) return;
-
-			if (!selected.children?.length) {
-				ctx.confirm(selected); // call onConfirm for leaf
+			const current = ctx.navigationNode.children[ctx._selectedIndex];
+			if (!current) return;
+			if (!current.children?.length) {
+				ctx.confirm(current);
 			} else {
-				ctx.enterChildNode(selected); // dive deeper
+				ctx.select(-1);
+				ctx.enterChildNode(current);
 			}
 		},
 	},
@@ -45,6 +40,8 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		description: '[E] Exit container',
 		action: ctx => ctx.enterParentNode(),
 	},
+
+	// Vertical movement
 	{
 		key: 'up',
 		mode: 'default',
@@ -56,7 +53,6 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			ctx.select(newIndex);
 		},
 	},
-
 	{
 		key: 'down',
 		mode: 'default',
@@ -68,15 +64,43 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			ctx.select(newIndex);
 		},
 	},
+
+	// Horizontal movement within current node
 	{
 		key: 'left',
 		mode: 'default',
 		description: '[←]',
 		action: ctx => {
-			if (ctx.children[0]?.navigationMode !== 'horizontal') return;
-			const len = ctx.children.length;
-			const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
-			ctx.select(newIndex);
+			const navMode = ctx.children[0]?.navigationMode;
+			if (navMode === 'horizontal') {
+				const len = ctx.children.length;
+				const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
+				ctx.select(newIndex);
+				return;
+			}
+
+			if (navMode !== 'vertical') return;
+
+			const ancestors = ctx.breadCrumb;
+			const parent = ancestors.at(-1);
+			const grandParent = ancestors.at(-2);
+			if (!parent || !grandParent) return;
+
+			const parentIndex = grandParent.children.findIndex(
+				x => x.id === parent.id,
+			);
+			if (parentIndex <= 0) return;
+
+			const leftSibling = grandParent.children[parentIndex - 1];
+			if (!leftSibling?.children?.length) return;
+
+			const prevIndex = ctx.getSelectedIndex();
+			const boundedIndex = Math.min(prevIndex, leftSibling.children.length - 1);
+			ctx.selectNone();
+			ctx.reInvokeNavigate(boundedIndex, [
+				...ctx.breadCrumb.slice(0, -1),
+				leftSibling,
+			]);
 		},
 	},
 	{
@@ -84,10 +108,40 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		mode: 'default',
 		description: '[→]',
 		action: ctx => {
-			if (ctx.children[0]?.navigationMode !== 'horizontal') return;
-			const len = ctx.children.length;
-			const newIndex = (ctx.getSelectedIndex() + 1) % len;
-			ctx.select(newIndex);
+			const navMode = ctx.children[0]?.navigationMode;
+			if (navMode === 'horizontal') {
+				const len = ctx.children.length;
+				const newIndex = (ctx.getSelectedIndex() + 1) % len;
+				ctx.select(newIndex);
+				return;
+			}
+
+			if (navMode !== 'vertical') return;
+
+			const ancestors = ctx.breadCrumb;
+			const parent = ancestors.at(-1);
+			const grandParent = ancestors.at(-2);
+			if (!parent || !grandParent) return;
+
+			const parentIndex = grandParent.children.findIndex(
+				x => x.id === parent.id,
+			);
+			if (parentIndex < 0 || parentIndex >= grandParent.children.length - 1)
+				return;
+
+			const rightSibling = grandParent.children[parentIndex + 1];
+			if (!rightSibling?.children?.length) return;
+
+			const prevIndex = ctx.getSelectedIndex();
+			const boundedIndex = Math.min(
+				prevIndex,
+				rightSibling.children.length - 1,
+			);
+			ctx.selectNone();
+			ctx.reInvokeNavigate(boundedIndex, [
+				...ctx.breadCrumb.slice(0, -1),
+				rightSibling,
+			]);
 		},
 	},
 ];
