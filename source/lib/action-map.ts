@@ -1,3 +1,14 @@
+import {NavigateCtx} from './navigation-context.js';
+import {navigationState} from './state.js';
+import {ActionMap} from './types/action-map.model.js';
+import {BoardItemTypes} from './types/board.model.js';
+import {NavigationTree} from './types/navigation.model.js';
+
+type BoardActionMap = ActionMap<{
+	BOARD: [NavigateCtx];
+	SWIMLANE: [NavigateCtx];
+	TICKET: [NavigateCtx];
+}>;
 export const BoardActions: BoardActionMap = {
 	[BoardItemTypes.BOARD]: [],
 	[BoardItemTypes.SWIMLANE]: [],
@@ -11,7 +22,7 @@ export const BoardActions: BoardActionMap = {
 			},
 		},
 		{
-			key: 'enter',
+			key: 'return',
 			description: '[ENTER] Confirm move',
 			mode: 'move',
 			action: () => {
@@ -41,7 +52,7 @@ export const BoardActions: BoardActionMap = {
 				if (index < 0 || index >= parent.children.length) return;
 
 				const [node] = parent.children.splice(index, 1);
-				rightSibling.children.push(node);
+				rightSibling.children.push(node as NavigationTree);
 
 				const newBreadCrumb = [...ctx.breadCrumb.slice(0, -1), rightSibling];
 				const newIndex = rightSibling.children.length - 1;
@@ -70,7 +81,7 @@ export const BoardActions: BoardActionMap = {
 				if (index < 0 || index >= parent.children.length) return;
 
 				const [node] = parent.children.splice(index, 1);
-				leftSibling.children.push(node);
+				leftSibling.children.push(node as NavigationTree);
 
 				const newBreadCrumb = [...ctx.breadCrumb.slice(0, -1), leftSibling];
 				const newIndex = leftSibling.children.length - 1;
