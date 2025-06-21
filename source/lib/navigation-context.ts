@@ -9,9 +9,13 @@ export interface NavigateCtx {
 	getSelectedIndex(): number;
 	select(index: number): void;
 	selectNone(): void;
+	reInvokeNavigate(
+		index: number,
+		breadCrumb: NavigationTree<NavigationTree>[],
+	): void;
 	render(): void;
-	confirm(selected: NavigationTree): void;
+	confirm(selected: NavigationTree<NavigationTree>): void;
 	exit(): void;
-	enterChild(node: NavigationTree): void; // enter child
-	enterParent(): void; // go to parent
+	enterChildNode(node: NavigationTree<NavigationTree>): void; // enter child
+	enterParentNode(): void; // go to parent
 }

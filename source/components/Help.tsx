@@ -17,6 +17,7 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 		{navigationState.viewHelp
 			? navigationState.availableActions
 					.filter(action => Boolean(action.description))
+					.filter(x => x.mode === navigationState.mode)
 					.filter(action => !/\[(↑|↓|←|→)]/.test(action.description as string)) // Remove arrow
 					.map((action, index) => {
 						const [leftRaw, rightRaw] = action.description!.split(']');

@@ -1,6 +1,5 @@
 import readline from 'readline';
 import {NavigateCtx} from './navigation-context.js';
-import {ActionEntry} from './types/action-map.model.js';
 import {NavigationTree} from './types/navigation.model.js';
 import {navigationState} from './state.js';
 
@@ -15,14 +14,12 @@ export function navigate<T extends NavigationTree>({
 		render: () => void;
 		onSelectChange: (s: T['children'][number]) => void;
 		onConfirm: (s: T['children'][number]) => void;
-		actionMap: ActionEntry<[NavigateCtx]>[];
 	}>;
 }) {
 	const {
 		render = () => {},
 		onSelectChange = () => {},
 		onConfirm = () => {},
-		actionMap = [],
 	} = callbacks;
 
 	const ctx: NavigateCtx = {
@@ -45,13 +42,16 @@ export function navigate<T extends NavigationTree>({
 			updateSelection(ctx.navigationNode, i, onSelectChange);
 		},
 		render,
+		reInvokeNavigate(index, breadCrumb) {
+			return reInvokeNavigate(index, breadCrumb);
+		},
 		confirm: sel => onConfirm(sel as any),
 		exit: () => {
 			cleanup();
 			process.exit(0);
 		},
-		enterChild: node => reInvokeNavigate(0, [...breadCrumb, node]),
-		enterParent: () => {
+		enterChildNode: node => reInvokeNavigate(0, [...breadCrumb, node]),
+		enterParentNode: () => {
 			ctx.select(-1); // Clear all on this level
 			if (breadCrumb.length < 2) return; // Need at least grandparent + parent
 
@@ -71,9 +71,11 @@ export function navigate<T extends NavigationTree>({
 	function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();
 
-		const action = actionMap
-			.filter(x => x.mode === navigationState.mode)
-			?.find(a => a.key === key.name);
+		const filteredActions = navigationState.availableActions.filter(
+			x => x.mode === navigationState.mode,
+		);
+
+		const action = filteredActions?.find(a => a.key === key.name);
 		action?.action(ctx);
 
 		ctx.render();
@@ -83,7 +85,7 @@ export function navigate<T extends NavigationTree>({
 
 	const reInvokeNavigate = (idx: number, crumb: typeof breadCrumb) => {
 		cleanup();
-		navigate({index: idx, breadCrumb: crumb, callbacks});
+		navigate({index: idx, breadCrumb: [...crumb], callbacks});
 	};
 
 	render();

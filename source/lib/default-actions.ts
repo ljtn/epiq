@@ -33,7 +33,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			if (!selected.children?.length) {
 				ctx.confirm(selected); // call onConfirm for leaf
 			} else {
-				ctx.enterChild(selected); // dive deeper
+				ctx.enterChildNode(selected); // dive deeper
 			}
 		},
 	},
@@ -41,7 +41,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		key: 'e',
 		mode: 'default',
 		description: '[E] Exit container',
-		action: ctx => ctx.enterParent(),
+		action: ctx => ctx.enterParentNode(),
 	},
 	{
 		key: 'up',

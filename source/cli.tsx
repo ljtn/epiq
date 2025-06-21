@@ -15,7 +15,7 @@ const cli = meow(
 	Usage
 	  $ epiq
 
-	Options∏
+	Options
 		--name  Your name
 
 	Examples
@@ -33,8 +33,6 @@ const cli = meow(
 );
 cli;
 
-let allActions = [...buildDefaultActions()];
-
 export const main = () => {
 	navigate({
 		index: 0,
@@ -46,10 +44,11 @@ export const main = () => {
 			onSelectChange: selected => {
 				if (!selected) return;
 				const type = (selected as Ticket | Swimlane | Board).actionContext; // Fix so that we can infer this type
-				allActions = [...buildDefaultActions(), ...BoardActions[type]];
-				navigationState.availableActions = allActions;
+				navigationState.availableActions = [
+					...buildDefaultActions(),
+					...BoardActions[type],
+				];
 			},
-			actionMap: allActions,
 		},
 	});
 };
@@ -57,5 +56,5 @@ export const main = () => {
 main();
 
 process.stdout.on('resize', () => {
-	main();
+	render(<App board={board} />);
 });
