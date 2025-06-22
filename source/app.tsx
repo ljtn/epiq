@@ -2,7 +2,6 @@ import {Box} from 'ink';
 import React from 'react';
 import {BoardUI} from './board/components/Board.js';
 import {HelpUI} from './board/components/Help.js';
-import Logo from './board/components/Logo.js';
 import {Board} from './board/model/board.model.js';
 
 export default function App({board}: {board: Board}) {
@@ -12,7 +11,7 @@ export default function App({board}: {board: Board}) {
 
 	return (
 		<Box flexDirection="column">
-			<Logo></Logo>
+			{/* <Logo></Logo> */}
 			<BoardUI board={board} swimlaneWidth={swimlaneWidth} />
 			<HelpUI width={renderedWidth} />
 		</Box>
