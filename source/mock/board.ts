@@ -54,6 +54,15 @@ export const board: Board = {
 			childrenRenderAxis: 'vertical',
 			actionContext: 'SWIMLANE',
 			enableChildNavigationAcrossContainers: true,
+			children: [],
+		},
+		{
+			isSelected: false,
+			id: 's3',
+			name: 'Review',
+			childrenRenderAxis: 'vertical',
+			actionContext: 'SWIMLANE',
+			enableChildNavigationAcrossContainers: true,
 			children: [
 				{
 					isSelected: false,
@@ -84,16 +93,6 @@ export const board: Board = {
 					description: 'Evaluate color contrast, ARIA usage, and keyboard nav.',
 					children: [],
 				},
-			],
-		},
-		{
-			isSelected: false,
-			id: 's3',
-			name: 'Review',
-			childrenRenderAxis: 'vertical',
-			actionContext: 'SWIMLANE',
-			enableChildNavigationAcrossContainers: true,
-			children: [
 				{
 					isSelected: false,
 					id: 't7',

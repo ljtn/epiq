@@ -3,18 +3,18 @@ import {setState} from '../state.js';
 import {ActionEntry, Mode} from '../types/action-map.model.js';
 import {NavigationTree} from '../types/navigation.model.js';
 import {moveItemInArray} from '../utils/array-utils.js';
-import {isMoveNextKey, isMovePreviousKey} from './navigation-utils.js';
+import {KeyIntent} from '../utils/key-intent.js';
 
 // --- Mode Toggle Actions ---
 export const initMoveMode: ActionEntry<[NavigateCtx]>[] = [
 	{
-		mapKey: 'm',
+		mapKey: KeyIntent.Move,
 		description: '[M] Move',
 		mode: Mode.DEFAULT,
 		action: () => setState({mode: Mode.MOVE}),
 	},
 	{
-		mapKey: 'm',
+		mapKey: KeyIntent.Move,
 		description: '[M] Confirm move',
 		mode: Mode.MOVE,
 		action: () => setState({mode: Mode.DEFAULT}),
@@ -83,13 +83,13 @@ export const moveChildDownWithinParent = (ctx: NavigateCtx) =>
 // --- Move Actions Map ---
 export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 	{
-		mapKey: isMovePreviousKey,
+		mapKey: KeyIntent.MovePreviousItem,
 		mode: Mode.MOVE,
 		description: '[Arrow up] Move up',
 		action: moveChildUpWithinParent,
 	},
 	{
-		mapKey: isMoveNextKey,
+		mapKey: KeyIntent.MoveNextItem,
 		mode: Mode.MOVE,
 		description: '[Arrow down] Move down',
 		action: moveChildDownWithinParent,
@@ -97,13 +97,13 @@ export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 ];
 export const moveAcrossParents: ActionEntry<[NavigateCtx]>[] = [
 	{
-		mapKey: 'right',
+		mapKey: KeyIntent.MoveToNextContainer,
 		mode: Mode.MOVE,
 		description: '[Right arrow] Move to the right',
 		action: moveChildToNextParent,
 	},
 	{
-		mapKey: 'left',
+		mapKey: KeyIntent.MoveToPreviousContainer,
 		mode: Mode.MOVE,
 		description: '[Left arrow] Move to the left',
 		action: moveChildToPreviousParent,

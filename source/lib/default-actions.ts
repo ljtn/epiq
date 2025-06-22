@@ -1,18 +1,19 @@
 import {NavigateCtx} from './navigation-context.js';
 import {navigationState, setState} from './state.js';
 import {ActionEntry} from './types/action-map.model.js';
+import {KeyIntent} from './utils/key-intent.js';
 
 export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
-		key: '',
+		mapKey: '',
 		mode: 'default',
 		action: () => {},
 		description: '[ARROW KEYS] Navigate',
 	},
 	{
-		key: 'h',
+		mapKey: KeyIntent.Help,
 		mode: 'default',
 		action: () => {
 			setState({viewHelp: !navigationState.viewHelp});
@@ -20,7 +21,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		description: '',
 	},
 	{
-		key: 'return',
+		mapKey: KeyIntent.Confirm,
 		mode: 'default',
 		description: '[ENTER] Confirm',
 		action: ctx => {
@@ -35,7 +36,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		key: 'e',
+		mapKey: KeyIntent.Exit,
 		mode: 'default',
 		description: '[E] Exit container',
 		action: ctx => {
@@ -46,46 +47,27 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 
 	{
-		key: 'up',
+		mapKey: KeyIntent.MovePreviousItem,
 		mode: 'default',
 		description: '[↑]',
 		hideInHelp: true,
 		action: ctx => {
-			if (ctx.children[0]?.navigationMode !== 'vertical') return;
 			const len = ctx.children.length;
 			const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
 			ctx.select(newIndex);
 		},
 	},
 	{
-		key: 'down',
+		mapKey: KeyIntent.MoveToPreviousContainer,
 		mode: 'default',
-		description: '[↓]',
+		description: '[↑]',
 		hideInHelp: true,
 		action: ctx => {
-			if (ctx.children[0]?.navigationMode !== 'vertical') return;
 			const len = ctx.children.length;
-			const newIndex = (ctx.getSelectedIndex() + 1) % len;
+			const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
 			ctx.select(newIndex);
-		},
-	},
-
-	{
-		key: 'left',
-		mode: 'default',
-		description: '[←]',
-		hideInHelp: true,
-		action: ctx => {
-			const navMode = ctx.children[0]?.navigationMode;
-			if (navMode === 'horizontal') {
-				const len = ctx.children.length;
-				const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
-				ctx.select(newIndex);
-				return;
-			}
 
 			if (!ctx.navigationNode.enableChildNavigationAcrossContainers) return;
-			if (navMode !== 'vertical') return;
 
 			const ancestors = ctx.breadCrumb;
 			const parent = ancestors.at(-1);
@@ -116,22 +98,27 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		key: 'right',
+		mapKey: KeyIntent.MoveNextItem,
 		mode: 'default',
-		description: '[→]',
+		description: '[↓]',
 		hideInHelp: true,
 		action: ctx => {
-			const navMode = ctx.children[0]?.navigationMode;
-			if (navMode === 'horizontal') {
-				const len = ctx.children.length;
-				const newIndex = (ctx.getSelectedIndex() + 1) % len;
-				ctx.select(newIndex);
-				return;
-			}
+			const len = ctx.children.length;
+			const newIndex = (ctx.getSelectedIndex() + 1) % len;
+			ctx.select(newIndex);
+		},
+	},
+	{
+		mapKey: KeyIntent.MoveToNextContainer,
+		mode: 'default',
+		description: '[↓]',
+		hideInHelp: true,
+		action: ctx => {
+			const len = ctx.children.length;
+			const newIndex = (ctx.getSelectedIndex() + 1) % len;
+			ctx.select(newIndex);
 
 			if (!ctx.navigationNode.enableChildNavigationAcrossContainers) return;
-			if (navMode !== 'vertical') return;
-
 			const ancestors = ctx.breadCrumb;
 			const parent = ancestors.at(-1);
 			const grandParent = ancestors.at(-2);

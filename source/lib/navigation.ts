@@ -2,6 +2,7 @@ import readline from 'readline';
 import {NavigateCtx} from './navigation-context.js';
 import {NavigationTree} from './types/navigation.model.js';
 import {navigationState} from './state.js';
+import {getKeyIntent} from './utils/key-intent.js';
 
 export function navigate<T extends NavigationTree>({
 	index = 0,
@@ -76,8 +77,9 @@ export function navigate<T extends NavigationTree>({
 		);
 
 		const action = filteredActions?.find(action => {
+			const intent = getKeyIntent(key, ctx);
 			if (typeof action.mapKey === 'string') {
-				return action.mapKey === key.name;
+				return intent === action.mapKey;
 			} else if (typeof action.mapKey === 'function') {
 				return action.mapKey(key, ctx).isMatch;
 			}
