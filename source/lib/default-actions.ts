@@ -13,7 +13,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		description: '[ARROW KEYS] Navigate',
 	},
 	{
-		intent: KeyIntent.Help,
+		intent: KeyIntent.ToggleHelp,
 		mode: 'default',
 		action: () => {
 			setState({viewHelp: !navigationState.viewHelp});

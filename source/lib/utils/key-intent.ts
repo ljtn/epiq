@@ -9,7 +9,7 @@ export enum KeyIntent {
 	Confirm = 'confirm',
 	Exit = 'exit',
 	Move = 'move',
-	Help = 'help',
+	ToggleHelp = 'toggle-help',
 }
 
 export function getKeyIntent(
@@ -20,7 +20,7 @@ export function getKeyIntent(
 
 	switch (key.name) {
 		case 'h':
-			return KeyIntent.Help;
+			return KeyIntent.ToggleHelp;
 		case 'm':
 			return KeyIntent.Move;
 		case 'up':
