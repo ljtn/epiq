@@ -5,5 +5,5 @@ export type NavigationTree<TMeta = Record<string, unknown>> = {
 	name: string;
 	children: NavigationTree<unknown>[];
 	actionContext: string;
-	enableChildSelectionAcrossContainers?: boolean;
+	enableChildNavigationAcrossContainers?: boolean;
 } & TMeta;

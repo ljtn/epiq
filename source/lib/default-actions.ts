@@ -49,6 +49,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		key: 'up',
 		mode: 'default',
 		description: '[↑]',
+		hideInHelp: true,
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'vertical') return;
 			const len = ctx.children.length;
@@ -60,6 +61,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		key: 'down',
 		mode: 'default',
 		description: '[↓]',
+		hideInHelp: true,
 		action: ctx => {
 			if (ctx.children[0]?.navigationMode !== 'vertical') return;
 			const len = ctx.children.length;
@@ -72,6 +74,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		key: 'left',
 		mode: 'default',
 		description: '[←]',
+		hideInHelp: true,
 		action: ctx => {
 			const navMode = ctx.children[0]?.navigationMode;
 			if (navMode === 'horizontal') {
@@ -81,7 +84,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 				return;
 			}
 
-			if (!ctx.navigationNode.enableChildSelectionAcrossContainers) return;
+			if (!ctx.navigationNode.enableChildNavigationAcrossContainers) return;
 			if (navMode !== 'vertical') return;
 
 			const ancestors = ctx.breadCrumb;
@@ -116,6 +119,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		key: 'right',
 		mode: 'default',
 		description: '[→]',
+		hideInHelp: true,
 		action: ctx => {
 			const navMode = ctx.children[0]?.navigationMode;
 			if (navMode === 'horizontal') {
@@ -125,7 +129,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 				return;
 			}
 
-			if (!ctx.navigationNode.enableChildSelectionAcrossContainers) return;
+			if (!ctx.navigationNode.enableChildNavigationAcrossContainers) return;
 			if (navMode !== 'vertical') return;
 
 			const ancestors = ctx.breadCrumb;

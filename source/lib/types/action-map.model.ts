@@ -1,8 +1,15 @@
-export type Mode = 'default' | 'move';
+export const Mode = {
+	DEFAULT: 'default',
+	MOVE: 'move',
+} as const;
+
+export type ModeOptions = (typeof Mode)[keyof typeof Mode];
+
 export type ActionEntry<TArgs extends any[] = []> = {
 	key: string; // physical key (readline `key.name`)
 	mode: string;
 	description?: string;
+	hideInHelp?: true;
 	action: (...args: TArgs) => void; // receives whatever we decide to pass
 };
 

@@ -13,7 +13,7 @@ export type Ticket = NavigationTree<{
 
 export type Swimlane = NavigationTree<{
 	actionContext: (typeof BoardItemTypes)['SWIMLANE'];
-	enableChildSelectionAcrossContainers: true;
+	enableChildNavigationAcrossContainers: true;
 }> & {children: Ticket[]};
 
 export type Board = NavigationTree<{
