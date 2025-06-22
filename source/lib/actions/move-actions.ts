@@ -22,10 +22,8 @@ export const initMoveMode: ActionEntry<NavigateCtx[]>[] = [
 	},
 ];
 
-const moveChildToNextParent = (
-	ctx: NavigateCtx,
-	ancestors: NavigationTree<NavigationTree>[],
-) => {
+const moveChildToNextParent = (ctx: NavigateCtx) => {
+	const ancestors = ctx.breadCrumb;
 	const parent = ancestors.at(-1);
 	const grandParent = ancestors.at(-2);
 	if (!parent || !grandParent) return;
@@ -47,10 +45,8 @@ const moveChildToNextParent = (
 	ctx.reInvokeNavigate(newIndex, newBreadCrumb);
 };
 
-export const moveChildToPreviousParent = (
-	ctx: NavigateCtx,
-	ancestors: NavigationTree<NavigationTree>[],
-) => {
+export const moveChildToPreviousParent = (ctx: NavigateCtx) => {
+	const ancestors = ctx.breadCrumb;
 	const parent = ancestors.at(-1);
 	const grandParent = ancestors.at(-2);
 	if (!parent || !grandParent) return;
@@ -72,16 +68,51 @@ export const moveChildToPreviousParent = (
 	ctx.reInvokeNavigate(newIndex, newBreadCrumb);
 };
 
+export function moveItemInArray<T>({
+	array,
+	from,
+	to,
+}: {
+	array: T[];
+	from: number;
+	to: number;
+}): void {
+	if (from < 0 || from >= array.length || to < 0 || to >= array.length) return;
+	const [item] = array.splice(from, 1);
+	if (!item) return;
+	array.splice(to, 0, item);
+}
+
+export const moveChildUpWithinParent = (ctx: NavigateCtx) => {
+	const newIndex = ctx._selectedIndex - 1;
+	if (newIndex < 0) return;
+	moveItemInArray({
+		array: ctx.navigationNode.children,
+		from: ctx._selectedIndex,
+		to: newIndex,
+	});
+	ctx.select(newIndex);
+};
+export const moveChildDownWithinParent = (ctx: NavigateCtx) => {
+	const newIndex = ctx._selectedIndex + 1;
+	if (newIndex > ctx.navigationNode.children.length - 1) return;
+	moveItemInArray({
+		array: ctx.navigationNode.children,
+		from: ctx._selectedIndex,
+		to: newIndex,
+	});
+	ctx.select(newIndex);
+};
+
 export const moveActions: ActionEntry<NavigateCtx[]>[] = [
 	{
 		key: 'right',
 		mode: Mode.MOVE,
 		description: '[Right arrow] Move to the right',
 		action: ctx => {
-			const ancestors = ctx.breadCrumb;
-			const parent = ancestors.at(-1);
+			const parent = ctx.breadCrumb.at(-1);
 			if (parent?.enableChildNavigationAcrossContainers) {
-				moveChildToNextParent(ctx, ancestors);
+				moveChildToNextParent(ctx);
 			}
 		},
 	},
@@ -90,11 +121,26 @@ export const moveActions: ActionEntry<NavigateCtx[]>[] = [
 		mode: Mode.MOVE,
 		description: '[Left arrow] Move to the left',
 		action: ctx => {
-			const ancestors = ctx.breadCrumb;
-			const parent = ancestors.at(-1);
+			const parent = ctx.breadCrumb.at(-1);
 			if (parent?.enableChildNavigationAcrossContainers) {
-				moveChildToPreviousParent(ctx, ancestors);
+				moveChildToPreviousParent(ctx);
 			}
+		},
+	},
+	{
+		key: 'up',
+		mode: Mode.MOVE,
+		description: '[Arrow up] Move up',
+		action: ctx => {
+			moveChildUpWithinParent(ctx);
+		},
+	},
+	{
+		key: 'down',
+		mode: Mode.MOVE,
+		description: '[Arrow up] Move up',
+		action: ctx => {
+			moveChildDownWithinParent(ctx);
 		},
 	},
 ];
