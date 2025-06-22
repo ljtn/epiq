@@ -14,13 +14,13 @@ Run app with:
 $ npm run execute
 ```
 
-## Install (WIP)
+## Install (WIP!)
 
 ```bash
 $ npm install --global epiq
 ```
 
-## CLI
+## CLI (WIP!)
 
 ```
 $ epiq --help
