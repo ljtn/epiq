@@ -7,13 +7,13 @@ export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
-		mapKey: '',
+		intent: '',
 		mode: 'default',
 		action: () => {},
 		description: '[ARROW KEYS] Navigate',
 	},
 	{
-		mapKey: KeyIntent.Help,
+		intent: KeyIntent.Help,
 		mode: 'default',
 		action: () => {
 			setState({viewHelp: !navigationState.viewHelp});
@@ -21,7 +21,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		description: '',
 	},
 	{
-		mapKey: KeyIntent.Confirm,
+		intent: KeyIntent.Confirm,
 		mode: 'default',
 		description: '[ENTER] Confirm',
 		action: ctx => {
@@ -36,7 +36,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		mapKey: KeyIntent.Exit,
+		intent: KeyIntent.Exit,
 		mode: 'default',
 		description: '[E] Exit container',
 		action: ctx => {
@@ -47,7 +47,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 
 	{
-		mapKey: KeyIntent.MovePreviousItem,
+		intent: KeyIntent.MovePreviousItem,
 		mode: 'default',
 		description: '[↑]',
 		hideInHelp: true,
@@ -58,7 +58,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		mapKey: KeyIntent.MoveToPreviousContainer,
+		intent: KeyIntent.MoveToPreviousContainer,
 		mode: 'default',
 		description: '[↑]',
 		hideInHelp: true,
@@ -98,7 +98,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		mapKey: KeyIntent.MoveNextItem,
+		intent: KeyIntent.MoveNextItem,
 		mode: 'default',
 		description: '[↓]',
 		hideInHelp: true,
@@ -109,7 +109,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		mapKey: KeyIntent.MoveToNextContainer,
+		intent: KeyIntent.MoveToNextContainer,
 		mode: 'default',
 		description: '[↓]',
 		hideInHelp: true,

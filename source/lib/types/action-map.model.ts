@@ -8,7 +8,7 @@ export const Mode = {
 export type ModeOptions = (typeof Mode)[keyof typeof Mode];
 
 export type ActionEntry<TArgs extends any[] = []> = {
-	mapKey:
+	intent:
 		| ((key: readline.Key, ctx: NavigateCtx) => {isMatch: boolean})
 		| string;
 	mode: string;

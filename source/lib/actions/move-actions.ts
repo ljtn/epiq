@@ -8,13 +8,13 @@ import {KeyIntent} from '../utils/key-intent.js';
 // --- Mode Toggle Actions ---
 export const initMoveMode: ActionEntry<[NavigateCtx]>[] = [
 	{
-		mapKey: KeyIntent.Move,
+		intent: KeyIntent.Move,
 		description: '[M] Move',
 		mode: Mode.DEFAULT,
 		action: () => setState({mode: Mode.MOVE}),
 	},
 	{
-		mapKey: KeyIntent.Move,
+		intent: KeyIntent.Move,
 		description: '[M] Confirm move',
 		mode: Mode.MOVE,
 		action: () => setState({mode: Mode.DEFAULT}),
@@ -83,13 +83,13 @@ export const moveChildDownWithinParent = (ctx: NavigateCtx) =>
 // --- Move Actions Map ---
 export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 	{
-		mapKey: KeyIntent.MovePreviousItem,
+		intent: KeyIntent.MovePreviousItem,
 		mode: Mode.MOVE,
 		description: '[Arrow up] Move up',
 		action: moveChildUpWithinParent,
 	},
 	{
-		mapKey: KeyIntent.MoveNextItem,
+		intent: KeyIntent.MoveNextItem,
 		mode: Mode.MOVE,
 		description: '[Arrow down] Move down',
 		action: moveChildDownWithinParent,
@@ -97,13 +97,13 @@ export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 ];
 export const moveAcrossParents: ActionEntry<[NavigateCtx]>[] = [
 	{
-		mapKey: KeyIntent.MoveToNextContainer,
+		intent: KeyIntent.MoveToNextContainer,
 		mode: Mode.MOVE,
 		description: '[Right arrow] Move to the right',
 		action: moveChildToNextParent,
 	},
 	{
-		mapKey: KeyIntent.MoveToPreviousContainer,
+		intent: KeyIntent.MoveToPreviousContainer,
 		mode: Mode.MOVE,
 		description: '[Left arrow] Move to the left',
 		action: moveChildToPreviousParent,

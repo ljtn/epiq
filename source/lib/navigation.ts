@@ -78,10 +78,10 @@ export function navigate<T extends NavigationTree>({
 
 		const action = filteredActions?.find(action => {
 			const intent = getKeyIntent(key, ctx);
-			if (typeof action.mapKey === 'string') {
-				return intent === action.mapKey;
-			} else if (typeof action.mapKey === 'function') {
-				return action.mapKey(key, ctx).isMatch;
+			if (typeof action.intent === 'string') {
+				return intent === action.intent;
+			} else if (typeof action.intent === 'function') {
+				return action.intent(key, ctx).isMatch;
 			}
 			return false;
 		});
