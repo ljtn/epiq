@@ -1,3 +1,5 @@
+import readline from 'readline';
+import {NavigateCtx} from '../navigation-context.js';
 export const Mode = {
 	DEFAULT: 'default',
 	MOVE: 'move',
@@ -6,7 +8,9 @@ export const Mode = {
 export type ModeOptions = (typeof Mode)[keyof typeof Mode];
 
 export type ActionEntry<TArgs extends any[] = []> = {
-	key: string; // physical key (readline `key.name`)
+	mapKey:
+		| ((key: readline.Key, ctx: NavigateCtx) => {isMatch: boolean})
+		| string;
 	mode: string;
 	description?: string;
 	hideInHelp?: true;

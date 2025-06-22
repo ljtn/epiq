@@ -2,17 +2,19 @@ import {NavigateCtx} from '../navigation-context.js';
 import {setState} from '../state.js';
 import {ActionEntry, Mode} from '../types/action-map.model.js';
 import {NavigationTree} from '../types/navigation.model.js';
+import {moveItemInArray} from '../utils/array-utils.js';
+import {isMoveNextKey, isMovePreviousKey} from './navigation-utils.js';
 
 // --- Mode Toggle Actions ---
 export const initMoveMode: ActionEntry<[NavigateCtx]>[] = [
 	{
-		key: 'm',
+		mapKey: 'm',
 		description: '[M] Move',
 		mode: Mode.DEFAULT,
 		action: () => setState({mode: Mode.MOVE}),
 	},
 	{
-		key: 'm',
+		mapKey: 'm',
 		description: '[M] Confirm move',
 		mode: Mode.MOVE,
 		action: () => setState({mode: Mode.DEFAULT}),
@@ -52,28 +54,14 @@ function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
 
 export const moveChildToNextParent = (ctx: NavigateCtx) => {
 	if (ctx.breadCrumb.at(-1)?.enableChildNavigationAcrossContainers) {
+		moveNodeToSiblingContainer(ctx, 1);
 	}
-	moveNodeToSiblingContainer(ctx, 1);
 };
 export const moveChildToPreviousParent = (ctx: NavigateCtx) => {
 	if (ctx.breadCrumb.at(-1)?.enableChildNavigationAcrossContainers) {
 		moveNodeToSiblingContainer(ctx, -1);
 	}
 };
-
-export function moveItemInArray<T>({
-	array,
-	from,
-	to,
-}: {
-	array: T[];
-	from: number;
-	to: number;
-}) {
-	if (from < 0 || from >= array.length || to < 0 || to >= array.length) return;
-	const [item] = array.splice(from, 1);
-	if (item) array.splice(to, 0, item);
-}
 
 function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
 	const from = ctx._selectedIndex;
@@ -93,29 +81,31 @@ export const moveChildDownWithinParent = (ctx: NavigateCtx) =>
 	moveChildWithinParent(ctx, 1);
 
 // --- Move Actions Map ---
-export const moveActions: ActionEntry<[NavigateCtx]>[] = [
+export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 	{
-		key: 'right',
-		mode: Mode.MOVE,
-		description: '[Right arrow] Move to the right',
-		action: moveChildToNextParent,
-	},
-	{
-		key: 'left',
-		mode: Mode.MOVE,
-		description: '[Left arrow] Move to the left',
-		action: moveChildToPreviousParent,
-	},
-	{
-		key: 'up',
+		mapKey: isMovePreviousKey,
 		mode: Mode.MOVE,
 		description: '[Arrow up] Move up',
 		action: moveChildUpWithinParent,
 	},
 	{
-		key: 'down',
+		mapKey: isMoveNextKey,
 		mode: Mode.MOVE,
 		description: '[Arrow down] Move down',
 		action: moveChildDownWithinParent,
+	},
+];
+export const moveAcrossParents: ActionEntry<[NavigateCtx]>[] = [
+	{
+		mapKey: 'right',
+		mode: Mode.MOVE,
+		description: '[Right arrow] Move to the right',
+		action: moveChildToNextParent,
+	},
+	{
+		mapKey: 'left',
+		mode: Mode.MOVE,
+		description: '[Left arrow] Move to the left',
+		action: moveChildToPreviousParent,
 	},
 ];

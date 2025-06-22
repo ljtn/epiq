@@ -75,7 +75,14 @@ export function navigate<T extends NavigationTree>({
 			x => x.mode === navigationState.mode,
 		);
 
-		const action = filteredActions?.find(a => a.key === key.name);
+		const action = filteredActions?.find(action => {
+			if (typeof action.mapKey === 'string') {
+				return action.mapKey === key.name;
+			} else if (typeof action.mapKey === 'function') {
+				return action.mapKey(key, ctx).isMatch;
+			}
+			return false;
+		});
 		action?.action(ctx);
 
 		ctx.render();

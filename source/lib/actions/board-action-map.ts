@@ -1,7 +1,11 @@
-import {initMoveMode, moveActions} from './move-actions.js';
 import {NavigateCtx} from '../navigation-context.js';
 import {ActionMap} from '../types/action-map.model.js';
 import {BoardItemTypes} from '../types/board.model.js';
+import {
+	initMoveMode,
+	moveAcrossParents,
+	moveWithinParent,
+} from './move-actions.js';
 
 type BoardActionMap = ActionMap<{
 	BOARD: [NavigateCtx];
@@ -11,6 +15,10 @@ type BoardActionMap = ActionMap<{
 
 export const BoardActions: BoardActionMap = {
 	[BoardItemTypes.BOARD]: [],
-	[BoardItemTypes.SWIMLANE]: [...initMoveMode, ...moveActions],
-	[BoardItemTypes.TICKET]: [...initMoveMode, ...moveActions],
+	[BoardItemTypes.SWIMLANE]: [...initMoveMode, ...moveWithinParent],
+	[BoardItemTypes.TICKET]: [
+		...initMoveMode,
+		...moveWithinParent,
+		...moveAcrossParents,
+	],
 };
