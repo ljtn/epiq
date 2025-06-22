@@ -1,6 +1,19 @@
-import {NavigateCtx} from '../navigation-context.js';
-import {NavigationTree} from '../types/navigation.model.js';
-import {moveItemInArray} from '../utils/array-utils.js';
+import {NavigateCtx} from '../navigation/model/navigation-ctx.model.js';
+import {NavigationTree} from '../navigation/model/navigation-tree.model.js';
+
+function moveItemInArray<T>({
+	array,
+	from,
+	to,
+}: {
+	array: T[];
+	from: number;
+	to: number;
+}) {
+	if (from < 0 || from >= array.length || to < 0 || to >= array.length) return;
+	const [item] = array.splice(from, 1);
+	if (item) array.splice(to, 0, item);
+}
 
 function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
 	const ancestors = ctx.breadCrumb;

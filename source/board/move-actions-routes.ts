@@ -1,5 +1,5 @@
 import {ActionEntry, Mode} from '../navigation/model/action-map.model.js';
-import {NavigateCtx} from '../navigation/navigation-context.js';
+import {NavigateCtx} from '../navigation/model/navigation-ctx.model.js';
 import {KeyIntent} from '../navigation/utils/key-intent.js';
 import {
 	moveChildNextWithinParent,
