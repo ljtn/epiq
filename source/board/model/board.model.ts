@@ -1,4 +1,4 @@
-import type {NavigationTree} from './navigation.model.js';
+import type {NavigationTree} from '../../navigation/model/navigation-tree.model.js';
 
 export const BoardItemTypes = {
 	TICKET: 'TICKET',

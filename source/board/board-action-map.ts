@@ -1,6 +1,6 @@
-import {NavigateCtx} from '../navigation-context.js';
-import {ActionMap} from '../types/action-map.model.js';
-import {BoardItemTypes} from '../types/board.model.js';
+import {ActionMap} from '../navigation/model/action-map.model.js';
+import {NavigateCtx} from '../navigation/navigation-context.js';
+import {BoardItemTypes} from './model/board.model.js';
 import {moveAcrossParents, moveWithinParent} from './move-actions-routes.js';
 
 type BoardActionMap = ActionMap<{

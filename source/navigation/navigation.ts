@@ -1,7 +1,7 @@
 import readline from 'readline';
-import {NavigateCtx} from './navigation-context.js';
-import {NavigationTree} from './types/navigation.model.js';
-import {navigationState} from './state.js';
+import {NavigateCtx} from './model/navigation-ctx.model.js';
+import {NavigationTree} from './model/navigation-tree.model.js';
+import {navigationState} from './state/state.js';
 import {getKeyIntent} from './utils/key-intent.js';
 
 export function navigate<T extends NavigationTree>({

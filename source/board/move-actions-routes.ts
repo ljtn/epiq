@@ -1,6 +1,6 @@
-import {NavigateCtx} from '../navigation-context.js';
-import {ActionEntry, Mode} from '../types/action-map.model.js';
-import {KeyIntent} from '../utils/key-intent.js';
+import {ActionEntry, Mode} from '../navigation/model/action-map.model.js';
+import {NavigateCtx} from '../navigation/navigation-context.js';
+import {KeyIntent} from '../navigation/utils/key-intent.js';
 import {
 	moveChildNextWithinParent,
 	moveChildPreviousWithinParent,

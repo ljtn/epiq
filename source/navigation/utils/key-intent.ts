@@ -1,5 +1,5 @@
 import readline from 'readline';
-import {NavigateCtx} from '../navigation-context.js';
+import {NavigateCtx} from '../model/navigation-ctx.model.js';
 
 export enum KeyIntent {
 	NavPreviousItem = 'nav-previous-item',

@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Swimlane, Ticket} from '../lib/types/board.model.js';
+import {Swimlane, Ticket} from '../model/board.model.js';
 import {TicketListItemUI} from './TicketListItem.js';
 
 type Props = {

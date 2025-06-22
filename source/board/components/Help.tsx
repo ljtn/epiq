@@ -1,5 +1,5 @@
 import {Box, Text} from 'ink';
-import {navigationState} from '../lib/state.js';
+import {navigationState} from '../../navigation/state/state.js';
 import React from 'react';
 
 export const HelpUI: React.FC<{width: number}> = ({width}) => (

@@ -1,5 +1,6 @@
 // navigation-context.ts
-import {NavigationTree} from './types/navigation.model.js';
+
+import {NavigationTree} from './navigation-tree.model.js';
 
 export interface NavigateCtx {
 	_selectedIndex: number;

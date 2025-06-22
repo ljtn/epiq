@@ -1,7 +1,7 @@
 import React from 'react';
 import {Box, Text} from 'ink';
-import {Ticket} from '../lib/types/board.model.js';
-import {navigationState} from '../lib/state.js';
+import {Ticket} from '../model/board.model.js';
+import {navigationState} from '../../navigation/state/state.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
 	str.length >= width ? str.slice(0, width - 3) + '...' : str;

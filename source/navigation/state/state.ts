@@ -1,5 +1,5 @@
-import {NavigateCtx} from './navigation-context.js';
-import {ActionEntry, ModeOptions} from './types/action-map.model.js';
+import {ActionEntry, ModeOptions} from '../model/action-map.model.js';
+import {NavigateCtx} from '../model/navigation-ctx.model.js';
 
 export let navigationState: {
 	mode: ModeOptions;

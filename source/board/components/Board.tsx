@@ -1,6 +1,6 @@
 import {Box, Text, useApp, useInput} from 'ink';
 import React from 'react';
-import {Board} from '../lib/types/board.model.js';
+import {Board} from '../model/board.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 
 export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({

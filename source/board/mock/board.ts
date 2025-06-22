@@ -1,4 +1,4 @@
-import {BoardItemTypes, type Board} from '../lib/types/board.model.js';
+import {BoardItemTypes, type Board} from '../board/model/board.model.js';
 
 export const board: Board = {
 	id: 'b1',

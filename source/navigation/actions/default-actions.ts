@@ -1,6 +1,5 @@
-import {NavigateCtx} from '../navigation-context.js';
+import {NavigateCtx} from '../model/navigation-ctx.model.js';
 
-// -- Basic item navigation --
 const navigateByOffset = (ctx: NavigateCtx, offset: number) => {
 	const len = ctx.children.length;
 	const newIndex = (ctx.getSelectedIndex() + offset + len) % len;
@@ -12,7 +11,6 @@ export const navigateToNextItem = (ctx: NavigateCtx) =>
 export const navigateToPreviousItem = (ctx: NavigateCtx) =>
 	navigateByOffset(ctx, -1);
 
-// -- Cross-container navigation --
 const navigateToSiblingContainer = (ctx: NavigateCtx, direction: -1 | 1) => {
 	if (!ctx.navigationNode.enableChildNavigationAcrossContainers) return;
 

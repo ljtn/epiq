@@ -1,8 +1,8 @@
 import {Box} from 'ink';
 import React from 'react';
-import {BoardUI} from './components/Board.js';
-import {HelpUI} from './components/Help.js';
-import {Board} from './lib/types/board.model.js';
+import {BoardUI} from './board/components/Board.js';
+import {HelpUI} from './board/components/Help.js';
+import {Board} from './board/model/board.model.js';
 
 process.stdout.write('\x1B[2J\x1B[0f');
 

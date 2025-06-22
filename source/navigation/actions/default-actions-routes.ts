@@ -1,6 +1,5 @@
-import {NavigateCtx} from './navigation-context.js';
-import {setState} from './state.js';
-import {ActionEntry, Mode} from './types/action-map.model.js';
+import {setState} from '../state/state.js';
+import {ActionEntry, Mode} from '../model/action-map.model.js';
 import {
 	enterChildNode,
 	exitToParentNode,
@@ -8,8 +7,9 @@ import {
 	navigateToNextItem,
 	navigateToPreviousContainer,
 	navigateToPreviousItem,
-} from './utils/default-actions.js';
-import {KeyIntent} from './utils/key-intent.js';
+} from './default-actions.js';
+import {KeyIntent} from '../utils/key-intent.js';
+import {NavigateCtx} from '../model/navigation-ctx.model.js';
 
 export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 
