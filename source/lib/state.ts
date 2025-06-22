@@ -11,9 +11,8 @@ export let navigationState: {
 	viewHelp: false,
 };
 
-export const setState = (newState: Partial<typeof navigationState>) => {
-	return (navigationState = {
-		...navigationState,
-		...newState,
-	});
+export const setState = (
+	cb: (oldState: typeof navigationState) => typeof navigationState,
+) => {
+	navigationState = cb(navigationState);
 };

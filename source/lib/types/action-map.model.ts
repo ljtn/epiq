@@ -6,10 +6,9 @@ export const Mode = {
 export type ModeOptions = (typeof Mode)[keyof typeof Mode];
 
 export type ActionEntry<TArgs extends any[] = []> = {
-	intent: string;
+	intent?: string;
 	mode: string;
 	description?: `[${string}] ${string}`;
-	hideInHelpMenu?: true;
 	action?: (...args: TArgs) => void; // receives whatever we decide to pass
 };
 

@@ -1,0 +1,58 @@
+import {NavigateCtx} from './navigation-context.js';
+import {setState} from './state.js';
+import {ActionEntry, Mode} from './types/action-map.model.js';
+import {
+	enterChildNode,
+	exitToParentNode,
+	navigateToNextContainer,
+	navigateToNextItem,
+	navigateToPreviousContainer,
+	navigateToPreviousItem,
+} from './utils/default-actions.js';
+import {KeyIntent} from './utils/key-intent.js';
+
+export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
+
+export const buildDefaultActions = (): DefaultActionMap => [
+	{
+		mode: Mode.DEFAULT,
+		description: '[ARROW KEYS] Navigate',
+	},
+	{
+		intent: KeyIntent.ToggleHelp,
+		mode: Mode.DEFAULT,
+		action: () => setState(state => ({...state, viewHelp: !state.viewHelp})),
+	},
+	{
+		intent: KeyIntent.Confirm,
+		mode: Mode.DEFAULT,
+		description: '[ENTER] Confirm',
+		action: enterChildNode,
+	},
+	{
+		intent: KeyIntent.Exit,
+		mode: Mode.DEFAULT,
+		description: '[E] Exit container',
+		action: exitToParentNode,
+	},
+	{
+		intent: KeyIntent.NavPreviousItem,
+		mode: Mode.DEFAULT,
+		action: navigateToPreviousItem,
+	},
+	{
+		intent: KeyIntent.NavNextItem,
+		mode: Mode.DEFAULT,
+		action: navigateToNextItem,
+	},
+	{
+		intent: KeyIntent.NavToPreviousContainer,
+		mode: Mode.DEFAULT,
+		action: navigateToPreviousContainer,
+	},
+	{
+		intent: KeyIntent.NavToNextContainer,
+		mode: Mode.DEFAULT,
+		action: navigateToNextContainer,
+	},
+];

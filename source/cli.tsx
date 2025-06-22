@@ -3,12 +3,12 @@ import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
-import {BoardActions} from './lib/actions/board-action-map.js';
+import {BoardActions} from './lib/board/board-action-map.js';
 import {navigate} from './lib/navigation.js';
 import {navigationState} from './lib/state.js';
 import {Board, Swimlane, Ticket} from './lib/types/board.model.js';
 import {board} from './mock/board.js';
-import {buildDefaultActions} from './lib/default-actions.js';
+import {buildDefaultActions} from './lib/default-actions-routes.js';
 
 const cli = meow(
 	`

@@ -18,7 +18,6 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 			? navigationState.availableActions
 					.filter(action => Boolean(action.description))
 					.filter(x => x.mode === navigationState.mode)
-					.filter(action => !action.hideInHelpMenu)
 					.map((action, index) => {
 						const [leftRaw, rightRaw] = action.description!.split(']');
 						const left = leftRaw?.replace('[', '');

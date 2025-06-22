@@ -1,10 +1,7 @@
 import {NavigateCtx} from '../navigation-context.js';
-import {ActionEntry, Mode} from '../types/action-map.model.js';
 import {NavigationTree} from '../types/navigation.model.js';
 import {moveItemInArray} from '../utils/array-utils.js';
-import {KeyIntent} from '../utils/key-intent.js';
 
-// --- Core Move Helpers ---
 function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
 	const ancestors = ctx.breadCrumb;
 	const parent = ancestors.at(-1);
@@ -57,43 +54,3 @@ export const moveChildPreviousWithinParent = (ctx: NavigateCtx) =>
 
 export const moveChildNextWithinParent = (ctx: NavigateCtx) =>
 	moveChildWithinParent(ctx, 1);
-
-// --- Move Actions Map ---
-export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
-	{
-		intent: KeyIntent.MovePreviousItem,
-		mode: Mode.DEFAULT,
-		description: '[Shift + direction] Move backward',
-		hideInHelpMenu: true,
-		action: moveChildPreviousWithinParent,
-	},
-	{
-		intent: KeyIntent.MoveNextItem,
-		mode: Mode.DEFAULT,
-		description: '[Shift + direction] Move forward',
-		hideInHelpMenu: true,
-		action: moveChildNextWithinParent,
-	},
-	{
-		intent: '',
-		mode: Mode.DEFAULT,
-		description: '[Shift + direction] Move item',
-		action: () => {},
-	},
-];
-export const moveAcrossParents: ActionEntry<[NavigateCtx]>[] = [
-	{
-		intent: KeyIntent.MoveToNextContainer,
-		mode: Mode.DEFAULT,
-		description: '[Shift + direction] Move to next container',
-		hideInHelpMenu: true,
-		action: moveChildToNextParent,
-	},
-	{
-		intent: KeyIntent.MoveToPreviousContainer,
-		mode: Mode.DEFAULT,
-		description: '[Shift + direction] Move to previous container',
-		hideInHelpMenu: true,
-		action: moveChildToPreviousParent,
-	},
-];
