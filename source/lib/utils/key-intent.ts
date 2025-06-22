@@ -30,11 +30,15 @@ export function getKeyIntent(
 		case 'left':
 			return axis === 'horizontal'
 				? KeyIntent.MovePreviousItem
-				: KeyIntent.MoveToPreviousContainer;
+				: ctx.navigationNode.enableChildNavigationAcrossContainers
+				? KeyIntent.MoveToPreviousContainer
+				: null;
 		case 'right':
 			return axis === 'horizontal'
 				? KeyIntent.MoveNextItem
-				: KeyIntent.MoveToNextContainer;
+				: ctx.navigationNode.enableChildNavigationAcrossContainers
+				? KeyIntent.MoveToNextContainer
+				: null;
 		case 'return':
 			return KeyIntent.Confirm;
 		case 'e':
