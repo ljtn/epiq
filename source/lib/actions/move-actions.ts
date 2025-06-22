@@ -1,25 +1,8 @@
 import {NavigateCtx} from '../navigation-context.js';
-import {setState} from '../state.js';
 import {ActionEntry, Mode} from '../types/action-map.model.js';
 import {NavigationTree} from '../types/navigation.model.js';
 import {moveItemInArray} from '../utils/array-utils.js';
 import {KeyIntent} from '../utils/key-intent.js';
-
-// --- Mode Toggle Actions ---
-export const initMoveMode: ActionEntry<[NavigateCtx]>[] = [
-	{
-		intent: KeyIntent.Move,
-		description: '[M] Move',
-		mode: Mode.DEFAULT,
-		action: () => setState({mode: Mode.MOVE}),
-	},
-	{
-		intent: KeyIntent.Move,
-		description: '[M] Confirm move',
-		mode: Mode.MOVE,
-		action: () => setState({mode: Mode.DEFAULT}),
-	},
-];
 
 // --- Core Move Helpers ---
 function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
@@ -52,16 +35,10 @@ function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
 	ctx.reInvokeNavigate(newIndex, newBreadCrumb);
 }
 
-export const moveChildToNextParent = (ctx: NavigateCtx) => {
-	if (ctx.breadCrumb.at(-1)?.enableChildNavigationAcrossContainers) {
-		moveNodeToSiblingContainer(ctx, 1);
-	}
-};
-export const moveChildToPreviousParent = (ctx: NavigateCtx) => {
-	if (ctx.breadCrumb.at(-1)?.enableChildNavigationAcrossContainers) {
-		moveNodeToSiblingContainer(ctx, -1);
-	}
-};
+export const moveChildToNextParent = (ctx: NavigateCtx) =>
+	moveNodeToSiblingContainer(ctx, 1);
+export const moveChildToPreviousParent = (ctx: NavigateCtx) =>
+	moveNodeToSiblingContainer(ctx, -1);
 
 function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
 	const from = ctx._selectedIndex;
@@ -75,36 +52,37 @@ function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
 	ctx.select(to);
 }
 
-export const moveChildUpWithinParent = (ctx: NavigateCtx) =>
+export const moveChildPreviousWithinParent = (ctx: NavigateCtx) =>
 	moveChildWithinParent(ctx, -1);
-export const moveChildDownWithinParent = (ctx: NavigateCtx) =>
+
+export const moveChildNextWithinParent = (ctx: NavigateCtx) =>
 	moveChildWithinParent(ctx, 1);
 
 // --- Move Actions Map ---
 export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 	{
 		intent: KeyIntent.MovePreviousItem,
-		mode: Mode.MOVE,
+		mode: Mode.DEFAULT,
 		description: '[Arrow up] Move up',
-		action: moveChildUpWithinParent,
+		action: moveChildPreviousWithinParent,
 	},
 	{
 		intent: KeyIntent.MoveNextItem,
-		mode: Mode.MOVE,
+		mode: Mode.DEFAULT,
 		description: '[Arrow down] Move down',
-		action: moveChildDownWithinParent,
+		action: moveChildNextWithinParent,
 	},
 ];
 export const moveAcrossParents: ActionEntry<[NavigateCtx]>[] = [
 	{
 		intent: KeyIntent.MoveToNextContainer,
-		mode: Mode.MOVE,
+		mode: Mode.DEFAULT,
 		description: '[Right arrow] Move to the right',
 		action: moveChildToNextParent,
 	},
 	{
 		intent: KeyIntent.MoveToPreviousContainer,
-		mode: Mode.MOVE,
+		mode: Mode.DEFAULT,
 		description: '[Left arrow] Move to the left',
 		action: moveChildToPreviousParent,
 	},

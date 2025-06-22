@@ -15,9 +15,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	{
 		intent: KeyIntent.ToggleHelp,
 		mode: 'default',
-		action: () => {
-			setState({viewHelp: !navigationState.viewHelp});
-		},
+		action: () => setState({viewHelp: !navigationState.viewHelp}),
 		description: '',
 	},
 	{
@@ -47,7 +45,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 
 	{
-		intent: KeyIntent.MovePreviousItem,
+		intent: KeyIntent.NavPreviousItem,
 		mode: 'default',
 		description: '[↑]',
 		hideInHelp: true,
@@ -58,7 +56,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		intent: KeyIntent.MoveToPreviousContainer,
+		intent: KeyIntent.NavToPreviousContainer,
 		mode: 'default',
 		description: '[↑]',
 		hideInHelp: true,
@@ -98,7 +96,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		intent: KeyIntent.MoveNextItem,
+		intent: KeyIntent.NavNextItem,
 		mode: 'default',
 		description: '[↓]',
 		hideInHelp: true,
@@ -109,7 +107,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 	{
-		intent: KeyIntent.MoveToNextContainer,
+		intent: KeyIntent.NavToNextContainer,
 		mode: 'default',
 		description: '[↓]',
 		hideInHelp: true,

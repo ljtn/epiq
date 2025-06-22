@@ -2,13 +2,18 @@ import readline from 'readline';
 import {NavigateCtx} from '../navigation-context.js';
 
 export enum KeyIntent {
+	NavPreviousItem = 'nav-previous-item',
+	NavNextItem = 'nav-next-item',
+	NavToPreviousContainer = 'nav-to-previous-container',
+	NavToNextContainer = 'nav-to-next-container',
+
 	MovePreviousItem = 'move-previous-item',
 	MoveNextItem = 'move-next-item',
 	MoveToPreviousContainer = 'move-to-previous-container',
 	MoveToNextContainer = 'move-to-next-container',
+
 	Confirm = 'confirm',
 	Exit = 'exit',
-	Move = 'move',
 	ToggleHelp = 'toggle-help',
 }
 
@@ -18,26 +23,47 @@ export function getKeyIntent(
 ): KeyIntent | null {
 	const axis = ctx.navigationNode.childrenRenderAxis;
 
+	if (key.shift) {
+		switch (key.name) {
+			case 'up':
+				return axis === 'vertical' ? KeyIntent.MovePreviousItem : null;
+			case 'down':
+				return axis === 'vertical' ? KeyIntent.MoveNextItem : null;
+			case 'left':
+				return axis === 'horizontal'
+					? KeyIntent.MovePreviousItem
+					: ctx.navigationNode.enableChildNavigationAcrossContainers
+					? KeyIntent.MoveToPreviousContainer
+					: null;
+			case 'right':
+				return axis === 'horizontal'
+					? KeyIntent.MoveNextItem
+					: ctx.navigationNode.enableChildNavigationAcrossContainers
+					? KeyIntent.MoveToNextContainer
+					: null;
+			default:
+				return null;
+		}
+	}
+
 	switch (key.name) {
 		case 'h':
 			return KeyIntent.ToggleHelp;
-		case 'm':
-			return KeyIntent.Move;
 		case 'up':
-			return axis === 'vertical' ? KeyIntent.MovePreviousItem : null;
+			return axis === 'vertical' ? KeyIntent.NavPreviousItem : null;
 		case 'down':
-			return axis === 'vertical' ? KeyIntent.MoveNextItem : null;
+			return axis === 'vertical' ? KeyIntent.NavNextItem : null;
 		case 'left':
 			return axis === 'horizontal'
-				? KeyIntent.MovePreviousItem
+				? KeyIntent.NavPreviousItem
 				: ctx.navigationNode.enableChildNavigationAcrossContainers
-				? KeyIntent.MoveToPreviousContainer
+				? KeyIntent.NavToPreviousContainer
 				: null;
 		case 'right':
 			return axis === 'horizontal'
-				? KeyIntent.MoveNextItem
+				? KeyIntent.NavNextItem
 				: ctx.navigationNode.enableChildNavigationAcrossContainers
-				? KeyIntent.MoveToNextContainer
+				? KeyIntent.NavToNextContainer
 				: null;
 		case 'return':
 			return KeyIntent.Confirm;
