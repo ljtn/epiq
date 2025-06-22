@@ -11,7 +11,7 @@ import {
 export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 	{
 		mode: Mode.DEFAULT,
-		description: '[Shift + direction] Move item',
+		description: '[SHIFT + ARROW KEYS] Move item',
 	},
 	{
 		intent: KeyIntent.MovePreviousItem,

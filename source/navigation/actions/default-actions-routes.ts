@@ -15,18 +15,9 @@ export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
-		mode: Mode.DEFAULT,
-		description: '[ARROW KEYS] Navigate',
-	},
-	{
-		intent: KeyIntent.ToggleHelp,
-		mode: Mode.DEFAULT,
-		action: () => setState(state => ({...state, viewHelp: !state.viewHelp})),
-	},
-	{
 		intent: KeyIntent.Confirm,
 		mode: Mode.DEFAULT,
-		description: '[ENTER] Confirm',
+		description: '[ENTER] Enter',
 		action: enterChildNode,
 	},
 	{
@@ -34,6 +25,15 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		mode: Mode.DEFAULT,
 		description: '[E] Exit container',
 		action: exitToParentNode,
+	},
+	{
+		mode: Mode.DEFAULT,
+		description: '[ARROW KEYS] Navigate',
+	},
+	{
+		intent: KeyIntent.ToggleHelp,
+		mode: Mode.DEFAULT,
+		action: () => setState(state => ({...state, viewHelp: !state.viewHelp})),
 	},
 	{
 		intent: KeyIntent.NavPreviousItem,
