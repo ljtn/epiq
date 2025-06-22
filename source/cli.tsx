@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import React from 'react';
 import {render} from 'ink';
 import meow from 'meow';
+import React from 'react';
 import App from './app.js';
-import {navigate} from './lib/navigation.js';
-import {board} from './mock/board.js';
-import {Board, Swimlane, Ticket} from './lib/types/board.model.js';
-import {navigationState} from './lib/state.js';
 import {BoardActions} from './lib/action-map.js';
 import {buildDefaultActions} from './lib/default-actions.js';
+import {navigate} from './lib/navigation.js';
+import {navigationState} from './lib/state.js';
+import {Board, Swimlane, Ticket} from './lib/types/board.model.js';
+import {board} from './mock/board.js';
 
 const cli = meow(
 	`

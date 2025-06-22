@@ -22,8 +22,8 @@ export const BoardActions: BoardActionMap = {
 			},
 		},
 		{
-			key: 'return',
-			description: '[ENTER] Confirm move',
+			key: 'm',
+			description: '[M] Confirm move',
 			mode: 'move',
 			action: () => {
 				navigationState.mode = 'default';

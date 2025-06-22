@@ -38,10 +38,13 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		key: 'e',
 		mode: 'default',
 		description: '[E] Exit container',
-		action: ctx => ctx.enterParentNode(),
+		action: ctx => {
+			const grandParent = ctx.breadCrumb.at(-2);
+			if (!grandParent) return;
+			ctx.enterParentNode();
+		},
 	},
 
-	// Vertical movement
 	{
 		key: 'up',
 		mode: 'default',
@@ -65,7 +68,6 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		},
 	},
 
-	// Horizontal movement within current node
 	{
 		key: 'left',
 		mode: 'default',
@@ -91,15 +93,21 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			);
 			if (parentIndex <= 0) return;
 
-			const leftSibling = grandParent.children[parentIndex - 1];
-			if (!leftSibling?.children?.length) return;
+			const [nextLeftSibling] = grandParent.children
+				.toSpliced(parentIndex)
+				.toReversed()
+				.filter(x => x.children.length);
+			if (!nextLeftSibling?.children?.length) return;
 
 			const prevIndex = ctx.getSelectedIndex();
-			const boundedIndex = Math.min(prevIndex, leftSibling.children.length - 1);
+			const boundedIndex = Math.min(
+				prevIndex,
+				nextLeftSibling.children.length - 1,
+			);
 			ctx.selectNone();
 			ctx.reInvokeNavigate(boundedIndex, [
 				...ctx.breadCrumb.slice(0, -1),
-				leftSibling,
+				nextLeftSibling,
 			]);
 		},
 	},
@@ -129,18 +137,20 @@ export const buildDefaultActions = (): DefaultActionMap => [
 			if (parentIndex < 0 || parentIndex >= grandParent.children.length - 1)
 				return;
 
-			const rightSibling = grandParent.children[parentIndex + 1];
-			if (!rightSibling?.children?.length) return;
+			const [nextRightSibling] = [...grandParent.children]
+				.splice(parentIndex + 1)
+				.filter(x => x.children.length);
+			if (!nextRightSibling?.children?.length) return;
 
 			const prevIndex = ctx.getSelectedIndex();
 			const boundedIndex = Math.min(
 				prevIndex,
-				rightSibling.children.length - 1,
+				nextRightSibling.children.length - 1,
 			);
 			ctx.selectNone();
 			ctx.reInvokeNavigate(boundedIndex, [
 				...ctx.breadCrumb.slice(0, -1),
-				rightSibling,
+				nextRightSibling,
 			]);
 		},
 	},
