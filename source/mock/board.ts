@@ -13,6 +13,7 @@ export const board: Board = {
 			name: 'To Do',
 			navigationMode: 'horizontal',
 			actionContext: BoardItemTypes.SWIMLANE,
+			enableChildSelectionAcrossContainers: true,
 			children: [
 				{
 					isSelected: false,
@@ -52,6 +53,7 @@ export const board: Board = {
 			name: 'In Progress',
 			navigationMode: 'vertical',
 			actionContext: 'SWIMLANE',
+			enableChildSelectionAcrossContainers: true,
 			children: [
 				{
 					isSelected: false,
@@ -90,6 +92,7 @@ export const board: Board = {
 			name: 'Review',
 			navigationMode: 'vertical',
 			actionContext: 'SWIMLANE',
+			enableChildSelectionAcrossContainers: true,
 			children: [
 				{
 					isSelected: false,
@@ -118,6 +121,7 @@ export const board: Board = {
 			name: 'Done',
 			navigationMode: 'vertical',
 			actionContext: 'SWIMLANE',
+			enableChildSelectionAcrossContainers: true,
 			children: [
 				{
 					isSelected: false,

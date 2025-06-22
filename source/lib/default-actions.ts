@@ -81,6 +81,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 				return;
 			}
 
+			if (!ctx.navigationNode.enableChildSelectionAcrossContainers) return;
 			if (navMode !== 'vertical') return;
 
 			const ancestors = ctx.breadCrumb;
@@ -124,6 +125,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 				return;
 			}
 
+			if (!ctx.navigationNode.enableChildSelectionAcrossContainers) return;
 			if (navMode !== 'vertical') return;
 
 			const ancestors = ctx.breadCrumb;
