@@ -18,7 +18,7 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 			? navigationState.availableActions
 					.filter(action => Boolean(action.description))
 					.filter(x => x.mode === navigationState.mode)
-					.filter(action => !action.hideInHelp)
+					.filter(action => !action.hideInHelpMenu)
 					.map((action, index) => {
 						const [leftRaw, rightRaw] = action.description!.split(']');
 						const left = leftRaw?.replace('[', '');
@@ -27,7 +27,7 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 						return (
 							<Box paddingLeft={1} key={index} flexDirection="row">
 								<Box width={20}>
-									<Text color="gray">{'- ' + right}</Text>
+									<Text color="gray">{right}</Text>
 								</Box>
 								<Box flexGrow={1}>
 									<Text color="gray">{left}</Text>

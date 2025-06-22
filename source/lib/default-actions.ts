@@ -1,26 +1,36 @@
 import {NavigateCtx} from './navigation-context.js';
 import {navigationState, setState} from './state.js';
-import {ActionEntry} from './types/action-map.model.js';
+import {ActionEntry, Mode} from './types/action-map.model.js';
 import {KeyIntent} from './utils/key-intent.js';
+
+const navigateToNextItem = (ctx: NavigateCtx) => {
+	const len = ctx.children.length;
+	const newIndex = (ctx.getSelectedIndex() + 1) % len;
+	ctx.select(newIndex);
+};
+
+const navigateToPreviousItem = (ctx: NavigateCtx) => {
+	const len = ctx.children.length;
+	const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
+	ctx.select(newIndex);
+};
 
 export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
 		intent: '',
-		mode: 'default',
-		action: () => {},
+		mode: Mode.DEFAULT,
 		description: '[ARROW KEYS] Navigate',
 	},
 	{
 		intent: KeyIntent.ToggleHelp,
-		mode: 'default',
+		mode: Mode.DEFAULT,
 		action: () => setState({viewHelp: !navigationState.viewHelp}),
-		description: '',
 	},
 	{
 		intent: KeyIntent.Confirm,
-		mode: 'default',
+		mode: Mode.DEFAULT,
 		description: '[ENTER] Confirm',
 		action: ctx => {
 			const current = ctx.navigationNode.children[ctx._selectedIndex];
@@ -35,7 +45,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		intent: KeyIntent.Exit,
-		mode: 'default',
+		mode: Mode.DEFAULT,
 		description: '[E] Exit container',
 		action: ctx => {
 			const grandParent = ctx.breadCrumb.at(-2);
@@ -46,25 +56,15 @@ export const buildDefaultActions = (): DefaultActionMap => [
 
 	{
 		intent: KeyIntent.NavPreviousItem,
-		mode: 'default',
-		description: '[↑]',
-		hideInHelp: true,
-		action: ctx => {
-			const len = ctx.children.length;
-			const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
-			ctx.select(newIndex);
-		},
+		mode: Mode.DEFAULT,
+		hideInHelpMenu: true,
+		action: navigateToPreviousItem,
 	},
 	{
 		intent: KeyIntent.NavToPreviousContainer,
-		mode: 'default',
-		description: '[↑]',
-		hideInHelp: true,
+		mode: Mode.DEFAULT,
+		hideInHelpMenu: true,
 		action: ctx => {
-			const len = ctx.children.length;
-			const newIndex = (ctx.getSelectedIndex() - 1 + len) % len;
-			ctx.select(newIndex);
-
 			if (!ctx.navigationNode.enableChildNavigationAcrossContainers) return;
 
 			const ancestors = ctx.breadCrumb;
@@ -97,25 +97,15 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		intent: KeyIntent.NavNextItem,
-		mode: 'default',
-		description: '[↓]',
-		hideInHelp: true,
-		action: ctx => {
-			const len = ctx.children.length;
-			const newIndex = (ctx.getSelectedIndex() + 1) % len;
-			ctx.select(newIndex);
-		},
+		mode: Mode.DEFAULT,
+		hideInHelpMenu: true,
+		action: navigateToNextItem,
 	},
 	{
 		intent: KeyIntent.NavToNextContainer,
-		mode: 'default',
-		description: '[↓]',
-		hideInHelp: true,
+		mode: Mode.DEFAULT,
+		hideInHelpMenu: true,
 		action: ctx => {
-			const len = ctx.children.length;
-			const newIndex = (ctx.getSelectedIndex() + 1) % len;
-			ctx.select(newIndex);
-
 			if (!ctx.navigationNode.enableChildNavigationAcrossContainers) return;
 			const ancestors = ctx.breadCrumb;
 			const parent = ancestors.at(-1);

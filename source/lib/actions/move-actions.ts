@@ -63,27 +63,37 @@ export const moveWithinParent: ActionEntry<[NavigateCtx]>[] = [
 	{
 		intent: KeyIntent.MovePreviousItem,
 		mode: Mode.DEFAULT,
-		description: '[Arrow up] Move up',
+		description: '[Shift + direction] Move backward',
+		hideInHelpMenu: true,
 		action: moveChildPreviousWithinParent,
 	},
 	{
 		intent: KeyIntent.MoveNextItem,
 		mode: Mode.DEFAULT,
-		description: '[Arrow down] Move down',
+		description: '[Shift + direction] Move forward',
+		hideInHelpMenu: true,
 		action: moveChildNextWithinParent,
+	},
+	{
+		intent: '',
+		mode: Mode.DEFAULT,
+		description: '[Shift + direction] Move item',
+		action: () => {},
 	},
 ];
 export const moveAcrossParents: ActionEntry<[NavigateCtx]>[] = [
 	{
 		intent: KeyIntent.MoveToNextContainer,
 		mode: Mode.DEFAULT,
-		description: '[Right arrow] Move to the right',
+		description: '[Shift + direction] Move to next container',
+		hideInHelpMenu: true,
 		action: moveChildToNextParent,
 	},
 	{
 		intent: KeyIntent.MoveToPreviousContainer,
 		mode: Mode.DEFAULT,
-		description: '[Left arrow] Move to the left',
+		description: '[Shift + direction] Move to previous container',
+		hideInHelpMenu: true,
 		action: moveChildToPreviousParent,
 	},
 ];

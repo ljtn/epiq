@@ -1,5 +1,3 @@
-import readline from 'readline';
-import {NavigateCtx} from '../navigation-context.js';
 export const Mode = {
 	DEFAULT: 'default',
 	MOVE: 'move',
@@ -8,13 +6,11 @@ export const Mode = {
 export type ModeOptions = (typeof Mode)[keyof typeof Mode];
 
 export type ActionEntry<TArgs extends any[] = []> = {
-	intent:
-		| ((key: readline.Key, ctx: NavigateCtx) => {isMatch: boolean})
-		| string;
+	intent: string;
 	mode: string;
-	description?: string;
-	hideInHelp?: true;
-	action: (...args: TArgs) => void; // receives whatever we decide to pass
+	description?: `[${string}] ${string}`;
+	hideInHelpMenu?: true;
+	action?: (...args: TArgs) => void; // receives whatever we decide to pass
 };
 
 export type ActionMap<T extends Record<string, any[]>> = {

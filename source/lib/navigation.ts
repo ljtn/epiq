@@ -76,16 +76,11 @@ export function navigate<T extends NavigationTree>({
 			x => x.mode === navigationState.mode,
 		);
 
-		const action = filteredActions?.find(action => {
+		const action = filteredActions?.find(actionMeta => {
 			const intent = getKeyIntent(key, ctx);
-			if (typeof action.intent === 'string') {
-				return intent === action.intent;
-			} else if (typeof action.intent === 'function') {
-				return action.intent(key, ctx).isMatch;
-			}
-			return false;
+			return intent === actionMeta.intent;
 		});
-		action?.action(ctx);
+		action?.action?.(ctx);
 
 		ctx.render();
 	}
