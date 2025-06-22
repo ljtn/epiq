@@ -1,7 +1,7 @@
 import {NavigateCtx} from './navigation-context.js';
 import {ActionEntry, Mode} from './types/action-map.model.js';
 
-export const navigationState: {
+export let navigationState: {
 	mode: Mode;
 	availableActions: ActionEntry<[NavigateCtx]>[];
 	viewHelp: boolean;
@@ -9,4 +9,11 @@ export const navigationState: {
 	mode: 'default',
 	availableActions: [],
 	viewHelp: false,
+};
+
+export const setState = (newState: Partial<typeof navigationState>) => {
+	return (navigationState = {
+		...navigationState,
+		...newState,
+	});
 };

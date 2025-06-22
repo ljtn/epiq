@@ -1,5 +1,5 @@
 import {NavigateCtx} from './navigation-context.js';
-import {navigationState} from './state.js';
+import {setState} from './state.js';
 import {ActionMap} from './types/action-map.model.js';
 import {BoardItemTypes} from './types/board.model.js';
 import {NavigationTree} from './types/navigation.model.js';
@@ -18,7 +18,7 @@ export const BoardActions: BoardActionMap = {
 			description: '[M] Move ticket',
 			mode: 'default',
 			action: () => {
-				navigationState.mode = 'move';
+				setState({mode: 'move'});
 			},
 		},
 		{
@@ -26,7 +26,7 @@ export const BoardActions: BoardActionMap = {
 			description: '[M] Confirm move',
 			mode: 'move',
 			action: () => {
-				navigationState.mode = 'default';
+				setState({mode: 'default'});
 			},
 		},
 		{

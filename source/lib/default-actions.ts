@@ -1,5 +1,5 @@
 import {NavigateCtx} from './navigation-context.js';
-import {navigationState} from './state.js';
+import {navigationState, setState} from './state.js';
 import {ActionEntry} from './types/action-map.model.js';
 
 export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
@@ -15,7 +15,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 		key: 'h',
 		mode: 'default',
 		action: () => {
-			navigationState.viewHelp = !navigationState.viewHelp;
+			setState({viewHelp: !navigationState.viewHelp});
 		},
 		description: '',
 	},
