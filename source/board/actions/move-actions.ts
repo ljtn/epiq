@@ -1,5 +1,5 @@
-import {NavigateCtx} from '../navigation/model/navigation-ctx.model.js';
-import {NavigationTree} from '../navigation/model/navigation-tree.model.js';
+import {NavigateCtx} from '../../navigation/model/navigation-ctx.model.js';
+import {NavigationTree} from '../../navigation/model/navigation-tree.model.js';
 
 function moveItemInArray<T>({
 	array,

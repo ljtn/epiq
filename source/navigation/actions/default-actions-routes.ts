@@ -15,9 +15,15 @@ export type DefaultActionMap = ActionEntry<[NavigateCtx]>[];
 
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
+		intent: KeyIntent.EnterContainer,
+		mode: Mode.DEFAULT,
+		description: '[I] Enter container',
+		action: enterChildNode,
+	},
+	{
 		intent: KeyIntent.Confirm,
 		mode: Mode.DEFAULT,
-		description: '[ENTER] Enter',
+		description: '[ENTER] Confirm',
 		action: enterChildNode,
 	},
 	{

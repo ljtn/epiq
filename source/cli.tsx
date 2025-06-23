@@ -7,7 +7,7 @@ import {navigate} from './navigation/navigation.js';
 import {navigationState} from './navigation/state/state.js';
 import {Board, Swimlane, Ticket} from './board/model/board.model.js';
 import {buildDefaultActions} from './navigation/actions/default-actions-routes.js';
-import {BoardActions} from './board/board-action-map.js';
+import {BoardActions} from './board/actions/board-action-map.js';
 import {board} from './board/mock/board.js';
 
 const cli = meow(

@@ -1,5 +1,5 @@
 import {Box, Text} from 'ink';
-import {color} from '../render/color.js';
+import {highlight} from '../render/color.js';
 import React from 'react';
 
 function replaceRange(
@@ -21,8 +21,10 @@ const logoLines = [
 	`                           (_|`,
 ];
 const coloredLogo = logoLines
-	.map(line => replaceRange(line, 0, 7, color(line.slice(0, 7), 'cyan')))
-	.map(line => replaceRange(line, 31, 39, color(line.slice(31, 39), 'yellow')));
+	.map(line => replaceRange(line, 0, 7, highlight(line.slice(0, 7), 'cyan')))
+	.map(line =>
+		replaceRange(line, 31, 39, highlight(line.slice(31, 39), 'yellow')),
+	);
 
 export default function Logo() {
 	return (

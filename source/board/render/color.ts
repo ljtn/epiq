@@ -4,7 +4,7 @@
  * @param color One of: black, red, green, yellow, blue, magenta, cyan, white
  * @returns A colorized string using ANSI escape codes
  */
-export function color(text: string, color: string): string {
+export function highlight(text: string, color: string): string {
 	const colors: Record<string, string> = {
 		black: '\x1b[30m',
 		red: '\x1b[31m',
