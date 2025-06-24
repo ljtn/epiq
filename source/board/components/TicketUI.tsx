@@ -7,10 +7,23 @@ type Props = {
 	width: number;
 };
 
-export const TicketUI: React.FC<Props> = ({item}) => {
+export const TicketUI: React.FC<Props> = ({item, width}) => {
 	return (
-		<Box flexDirection="row">
-			<Text>{'TICKET: ' + item.name}</Text>
+		<Box
+			flexDirection="row"
+			padding={1}
+			paddingLeft={2}
+			borderStyle={'round'}
+			width={width}
+			minHeight={16}
+			borderColor={'gray'}
+		>
+			<Box flexDirection="row">
+				<Box width={20}>
+					<Text color={'cyan'}>{'Description: '}</Text>
+				</Box>
+				<Text>{item.name}</Text>
+			</Box>
 		</Box>
 	);
 };

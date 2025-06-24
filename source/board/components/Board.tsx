@@ -1,7 +1,7 @@
 import {Box, Text, useApp, useInput} from 'ink';
 import React from 'react';
 import {Board} from '../model/board.model.js';
-import {SwimlanesUI} from './Swimlanes.js';
+import {BoardContentUI} from './Swimlanes.js';
 
 export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({
 	board,
@@ -22,7 +22,7 @@ export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({
 			</Box>
 
 			<Box flexDirection="row">
-				<SwimlanesUI items={board.children} width={swimlaneWidth} />
+				<BoardContentUI items={board.children} width={swimlaneWidth} />
 			</Box>
 		</Box>
 	);
