@@ -4,13 +4,18 @@ import {BoardItemTypes} from '../model/board.model.js';
 import {moveAcrossParents, moveWithinParent} from './move-actions-routes.js';
 
 type BoardActionMap = ActionMap<{
-	BOARD: [NavigateCtx];
-	SWIMLANE: [NavigateCtx];
-	TICKET: [NavigateCtx];
+	[BoardItemTypes.BOARD]: [NavigateCtx];
+	[BoardItemTypes.SWIMLANE]: [NavigateCtx];
+	[BoardItemTypes.TICKET_LIST_ITEM]: [NavigateCtx];
+	[BoardItemTypes.TICKET]: [NavigateCtx];
 }>;
 
 export const BoardActions: BoardActionMap = {
 	[BoardItemTypes.BOARD]: [],
 	[BoardItemTypes.SWIMLANE]: [...moveWithinParent],
-	[BoardItemTypes.TICKET]: [...moveWithinParent, ...moveAcrossParents],
+	[BoardItemTypes.TICKET_LIST_ITEM]: [
+		...moveWithinParent,
+		...moveAcrossParents,
+	],
+	[BoardItemTypes.TICKET]: [],
 };

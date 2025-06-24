@@ -13,7 +13,10 @@ export function navigate<T extends NavigationTree>({
 	breadCrumb: Array<NavigationTree<NavigationTree>>;
 	callbacks: Partial<{
 		render: () => void;
-		onSelectChange: (s: T['children'][number]) => void;
+		onSelectChange: (
+			s: T['children'][number],
+			breadCrumb: T['children'],
+		) => void;
 		onConfirm: (s: T['children'][number]) => void;
 	}>;
 }) {
@@ -40,7 +43,7 @@ export function navigate<T extends NavigationTree>({
 		},
 		select(i) {
 			this._selectedIndex = i;
-			updateSelection(ctx.navigationNode, i, onSelectChange);
+			updateSelection(ctx.navigationNode, breadCrumb, i, onSelectChange);
 		},
 		render,
 		reInvokeNavigate(index, breadCrumb) {
@@ -101,9 +104,13 @@ export function navigate<T extends NavigationTree>({
 
 function updateSelection<T>(
 	{children}: NavigationTree<T>,
+	breadCrumb: NavigationTree<T>[],
 	idx: number,
-	onSelectChange: (sel: (typeof children)[number]) => void,
+	onSelectChange: (
+		selection: (typeof children)[number],
+		breadCrumb: typeof children,
+	) => void,
 ) {
 	children.forEach((c, i) => (c.isSelected = i === idx));
-	onSelectChange(children[idx] as any);
+	onSelectChange(children[idx] as any, breadCrumb);
 }

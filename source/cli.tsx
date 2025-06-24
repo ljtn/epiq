@@ -3,12 +3,12 @@ import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
-import {navigate} from './navigation/navigation.js';
-import {navigationState} from './navigation/state/state.js';
-import {Board, Swimlane, Ticket} from './board/model/board.model.js';
-import {buildDefaultActions} from './navigation/actions/default-actions-routes.js';
 import {BoardActions} from './board/actions/board-action-map.js';
 import {board} from './board/mock/board.js';
+import {Board, Swimlane, TicketListItem} from './board/model/board.model.js';
+import {buildDefaultActions} from './navigation/actions/default-actions-routes.js';
+import {navigate} from './navigation/navigation.js';
+import {setState} from './navigation/state/state.js';
 
 const cli = meow(
 	`
@@ -43,13 +43,16 @@ export const main = () => {
 			render: () => {
 				render(<App board={board} />);
 			},
-			onSelectChange: selected => {
+			onSelectChange: (selected, breadCrumb) => {
 				if (!selected) return;
-				const type = (selected as Ticket | Swimlane | Board).actionContext; // Fix so that we can infer this type
-				navigationState.availableActions = [
-					...buildDefaultActions(),
-					...BoardActions[type],
-				];
+				const type = (selected as TicketListItem | Swimlane | Board)
+					.actionContext; // Fix so that we can infer this type
+				setState(state => ({
+					...state,
+					currentNode: selected,
+					breadCrumb,
+					availableActions: [...buildDefaultActions(), ...BoardActions[type]],
+				}));
 			},
 		},
 	});
