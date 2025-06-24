@@ -26,10 +26,10 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 						return (
 							<Box paddingLeft={1} key={index} flexDirection="row">
 								<Box width={20}>
-									<Text color="gray">{right}</Text>
+									<Text color="cyan">{right}</Text>
 								</Box>
 								<Box flexGrow={1}>
-									<Text color="gray">{left}</Text>
+									<Text color="white">{left}</Text>
 								</Box>
 							</Box>
 						);

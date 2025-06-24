@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {Swimlane, Ticket} from '../model/board.model.js';
 import {TicketListItemUI} from './TicketListItem.js';
+import {ScrollBoxUI} from './ScrollBox.js';
 
 type Props = {
 	items: Swimlane[];
@@ -31,13 +32,18 @@ export const SwimlaneUI: React.FC<Props> = ({items, width}) => {
 							<Text bold>{lane.name}</Text>
 						</Box>
 
-						{lane.children.map((ticket, index) => (
-							<TicketListItemUI
-								key={index}
-								width={width}
-								ticket={ticket as Ticket}
-							/>
-						))}
+						<ScrollBoxUI
+							selectedIndex={lane.children.findIndex(x => x.isSelected)}
+							width={width}
+							size={10}
+							children={lane.children.map((ticket, index) => (
+								<TicketListItemUI
+									key={index}
+									width={width}
+									ticket={ticket as Ticket}
+								/>
+							))}
+						></ScrollBoxUI>
 					</Box>
 				</React.Fragment>
 			))}

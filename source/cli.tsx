@@ -34,6 +34,8 @@ const cli = meow(
 cli;
 
 export const main = () => {
+	console.clear();
+
 	navigate({
 		index: 0,
 		breadCrumb: [board],

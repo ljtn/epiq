@@ -17,7 +17,9 @@ export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({
 
 	return (
 		<Box flexDirection="column">
-			<Text>{board.name.toUpperCase()}</Text>
+			<Box padding={1} justifyContent="center">
+				<Text>--- {board.name} ---</Text>
+			</Box>
 
 			<Box flexDirection="row">
 				<SwimlaneUI items={board.children} width={swimlaneWidth} />
