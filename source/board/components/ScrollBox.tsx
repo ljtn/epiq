@@ -45,7 +45,7 @@ export const ScrollBoxUI: React.FC<Props> = ({
 							key={i}
 							color={
 								i >= barOffset && i < barOffset + indexBarHeight
-									? 'green'
+									? 'cyan'
 									: 'gray'
 							}
 						>

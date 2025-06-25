@@ -15,7 +15,7 @@ export const SwimlaneUI: React.FC<Props> = ({item, width}) => {
 			flexDirection="column"
 			width={width}
 			borderStyle="round"
-			borderColor={item.isSelected ? 'green' : 'gray'}
+			borderColor={item.isSelected ? 'cyan' : 'gray'}
 			paddingRight={1}
 			paddingLeft={1}
 			paddingBottom={1}

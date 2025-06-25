@@ -12,7 +12,7 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 		width={width}
 	>
 		<Box>
-			<Text color="gray">Toggle help with "H"</Text>
+			<Text color="gray">"H": help</Text>
 		</Box>
 		{navigationState.viewHelp
 			? navigationState.availableActions

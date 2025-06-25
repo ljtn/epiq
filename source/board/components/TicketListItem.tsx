@@ -16,7 +16,7 @@ export const TicketListItemUI: React.FC<{
 				ticket.isSelected && navigationState.mode === 'move'
 					? 'white'
 					: ticket.isSelected
-					? 'green'
+					? 'cyan'
 					: navigationState.mode === 'move'
 					? 'gray'
 					: 'white'
