@@ -12,7 +12,7 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 		width={width}
 	>
 		<Box>
-			<Text color="gray">"H": help</Text>
+			<Text color="gray">H: help</Text>
 		</Box>
 		{navigationState.viewHelp
 			? navigationState.availableActions
@@ -26,10 +26,10 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 						return (
 							<Box paddingLeft={1} key={index} flexDirection="row">
 								<Box width={20}>
-									<Text color="cyan">{right}</Text>
+									<Text color="cyan">{left}</Text>
 								</Box>
 								<Box flexGrow={1}>
-									<Text color="white">{left}</Text>
+									<Text color="white">{right}</Text>
 								</Box>
 							</Box>
 						);
