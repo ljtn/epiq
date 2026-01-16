@@ -17,7 +17,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	{
 		intent: KeyIntent.Confirm,
 		mode: Mode.DEFAULT,
-		description: '[ENTER] Confirm',
+		description: '[ENTER] Confirm navigation',
 		action: enterChildNode,
 	},
 	{
@@ -28,7 +28,7 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	},
 	{
 		mode: Mode.DEFAULT,
-		description: '[ARROW KEYS] Navigate',
+		description: '[ARROW KEYS] Navigate gui with',
 	},
 	{
 		intent: KeyIntent.ToggleHelp,

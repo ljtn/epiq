@@ -1,6 +1,6 @@
 {
 	"name": "epiq",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"license": "MIT",
 	"bin": "dist/cli.js",
 	"type": "module",
@@ -12,7 +12,7 @@
 		"build": "tsc",
 		"dev": "tsc --watch",
 		"test": "prettier --check . && xo && ava",
-		"execute": "node dist/cli.js"
+		"start": "node dist/cli.js"
 	},
 	"files": [
 		"dist"
