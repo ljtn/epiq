@@ -9,6 +9,7 @@ import {Board, Swimlane, TicketListItem} from './board/model/board.model.js';
 import {buildDefaultActions} from './navigation/actions/default-actions-routes.js';
 import {navigate} from './navigation/navigation.js';
 import {setState} from './navigation/state/state.js';
+import {Hints} from './board/hints/hints.js';
 
 const cli = meow(
 	`
@@ -36,11 +37,26 @@ cli;
 export const main = () => {
 	console.clear();
 
+	const onBeforeRender = () => {
+		setState(state => {
+			const {currentNode, mode} = state;
+
+			const hints = (currentNode && Hints[currentNode.actionContext + mode]) ??
+				(currentNode && Hints[currentNode.actionContext]) ?? [''];
+
+			return {
+				...state,
+				availableHints: hints as string[],
+			};
+		});
+	};
 	navigate({
 		index: 0,
 		breadCrumb: [board],
 		callbacks: {
 			render: () => {
+				onBeforeRender();
+
 				render(<App board={board} />);
 			},
 			onSelectChange: (selected, breadCrumb) => {

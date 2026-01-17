@@ -4,11 +4,13 @@ import {NavigationTree} from '../model/navigation-tree.model.js';
 export let navigationState: {
 	mode: ModeUnion;
 	availableActions: ActionEntryRecursive[];
+	availableHints: string[];
 	currentNode: NavigationTree<NavigationTree> | null;
 	breadCrumb: NavigationTree<NavigationTree>[];
 } = {
 	mode: 'default',
 	availableActions: [],
+	availableHints: [],
 	currentNode: null,
 	breadCrumb: [],
 };

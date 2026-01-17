@@ -6,15 +6,12 @@ import {Mode} from '../../navigation/model/action-map.model.js';
 export const HelpUI: React.FC<{width: number}> = ({width}) => (
 	<Box
 		flexDirection="column"
-		marginTop={2}
+		marginTop={3}
 		borderColor="gray"
 		borderStyle="round"
 		width={width}
-		minHeight={15}
+		minHeight={19}
 	>
-		<Box paddingLeft={1} flexDirection="row" paddingBottom={2}>
-			<Text color="gray">(Press H to toggle this help menu)</Text>
-		</Box>
 		<Box flexDirection="column" width={width}>
 			{navigationState.mode === Mode.HELP
 				? [
@@ -39,11 +36,11 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 										flexDirection="row"
 										paddingBottom={index ? 0 : 1}
 									>
-										<Box width={20}>
-											<Text color={index ? 'yellow' : 'gray'}>{left}</Text>
-										</Box>
 										<Box flexGrow={1} width={30}>
 											<Text color={index ? 'white' : 'gray'}>{right}</Text>
+										</Box>
+										<Box width={20}>
+											<Text color={index ? 'yellow' : 'gray'}>{left}</Text>
 										</Box>
 									</Box>
 								</Box>

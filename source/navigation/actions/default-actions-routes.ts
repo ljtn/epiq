@@ -14,30 +14,32 @@ export type DefaultActionMap = ActionEntryRecursive[];
 
 export const buildDefaultActions = (): DefaultActionMap => [
 	{
-		intent: KeyIntent.Confirm,
-		mode: Mode.DEFAULT,
-		description: '[ENTER] Confirm navigation',
-		action: enterChildNode,
-	},
-	{
-		intent: KeyIntent.Exit,
-		mode: Mode.DEFAULT,
-		description: '[E] Exit container',
-		action: exitToParentNode,
-	},
-	{
-		mode: Mode.DEFAULT,
-		description: '[ARROW KEYS] Navigate gui with',
-	},
-	{
 		intent: KeyIntent.ToggleHelp,
 		mode: Mode.DEFAULT,
+		description: '[H] Toggle HELP menu',
 		action: () =>
 			setState(state => ({
 				...state,
 				mode: Mode.HELP,
 			})),
 	},
+	{
+		intent: KeyIntent.Confirm,
+		mode: Mode.DEFAULT,
+		description: '[ENTER] Confirm / Enter context',
+		action: enterChildNode,
+	},
+	{
+		intent: KeyIntent.Exit,
+		mode: Mode.DEFAULT,
+		description: '[E] Exit context to parent',
+		action: exitToParentNode,
+	},
+	{
+		mode: Mode.DEFAULT,
+		description: '[ARROW KEYS] Navigate',
+	},
+
 	{
 		intent: KeyIntent.ToggleHelp,
 		mode: Mode.HELP,
