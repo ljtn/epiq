@@ -102,7 +102,7 @@ export function getKeyIntent(
 
 	// Move mode
 	if (mode === Mode.MOVE) {
-		if (key.name === 'm') return KeyIntent.ToggleMove;
+		if (key.name === 'y') return KeyIntent.ToggleMove;
 
 		const dir = getDir(key);
 		if (!dir) return null;
@@ -116,7 +116,7 @@ export function getKeyIntent(
 	}
 
 	// Normal mode
-	if (key.name === 'm') return KeyIntent.ToggleMove;
+	if (key.name === 'y') return KeyIntent.ToggleMove;
 	if (isHelpKey(key)) return KeyIntent.ToggleHelp;
 
 	// Edit (vim-ish)

@@ -13,18 +13,18 @@ export const Hints = {
 		'ARROWS/HJKL: move between tickets',
 		'E/ENTER: view ticket details',
 		'I: edit',
-		'M: select for moving',
+		'Y: select for yank/move',
 		'ESC/Q: exit',
 	],
 	[BoardItemTypes.TICKET]: ['E: back', 'I: edit field', 'ESC/Q: exit'],
 	[BoardItemTypes.SWIMLANE + Mode.MOVE]: [
 		'ARROWS/HJKL: move selection',
-		'M: confirm move',
+		'Y: confirm move/yank',
 		'ESC/Q: exit',
 	],
 	[BoardItemTypes.TICKET_LIST_ITEM + Mode.MOVE]: [
 		'ARROWS/HJKL: move selection',
-		'M: confirm move',
+		'Y: confirm move/yank',
 		'ESC/Q: exit',
 	],
 } as const;

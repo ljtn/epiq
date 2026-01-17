@@ -12,7 +12,7 @@ export const toggleMode: ActionEntry[] = [
 	{
 		intent: KeyIntent.ToggleMove,
 		mode: Mode.DEFAULT,
-		description: '[M] Toggle MOVE mode',
+		description: '[Y] Toggle move/yank mode',
 		action: () => {
 			setState(state => ({
 				...state,
@@ -34,7 +34,7 @@ export const toggleMode: ActionEntry[] = [
 export const moveWithinParent: ActionEntry[] = [
 	{
 		mode: Mode.MOVE,
-		description: '[M, ARROW KEYS] Move item',
+		description: '[Y, ARROW KEYS] Move item',
 	},
 	{
 		intent: KeyIntent.MovePreviousItem,
