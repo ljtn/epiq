@@ -7,15 +7,24 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 		flexDirection="column"
 		paddingLeft={1}
 		paddingRight={1}
+		marginTop={2}
 		borderColor="gray"
 		borderStyle="round"
 		width={width}
+		minHeight={20}
 	>
-		<Box>
-			<Text color="gray">H: help</Text>
+		<Box paddingLeft={1} paddingBottom={1}>
+			<Text color="gray">Press H to toggle this help menu.</Text>
 		</Box>
 		{navigationState.viewHelp
-			? navigationState.availableActions
+			? [
+					{
+						action: '',
+						description: '[KEY] DESCRIPTION',
+						mode: navigationState.mode,
+					},
+					...navigationState.availableActions,
+			  ]
 					.filter(action => Boolean(action.description))
 					.filter(x => x.mode === navigationState.mode)
 					.map((action, index) => {
@@ -25,11 +34,17 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 
 						return (
 							<Box paddingLeft={1} key={index} flexDirection="row">
-								<Box flexGrow={1}>
-									<Text color="white">{right}</Text>
-								</Box>
-								<Box width={20}>
-									<Text color="cyan">{left}</Text>
+								<Box
+									key={index}
+									flexDirection="row"
+									paddingBottom={index ? 0 : 1}
+								>
+									<Box width={20}>
+										<Text color={index ? 'yellow' : 'gray'}>{left}</Text>
+									</Box>
+									<Box flexGrow={1} width={30}>
+										<Text color={index ? 'white' : 'gray'}>{right}</Text>
+									</Box>
 								</Box>
 							</Box>
 						);

@@ -1,10 +1,9 @@
-import {ActionEntry, ModeOptions} from '../model/action-map.model.js';
-import {NavigateCtx} from '../model/navigation-ctx.model.js';
+import {ActionEntryRecursive, ModeUnion} from '../model/action-map.model.js';
 import {NavigationTree} from '../model/navigation-tree.model.js';
 
 export let navigationState: {
-	mode: ModeOptions;
-	availableActions: ActionEntry<[NavigateCtx]>[];
+	mode: ModeUnion;
+	availableActions: ActionEntryRecursive[];
 	viewHelp: boolean;
 	currentNode: NavigationTree<NavigationTree> | null;
 	breadCrumb: NavigationTree<NavigationTree>[];

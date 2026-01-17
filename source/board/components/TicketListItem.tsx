@@ -1,5 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {Mode} from '../../navigation/model/action-map.model.js';
 import {navigationState} from '../../navigation/state/state.js';
 import {TicketListItem} from '../model/board.model.js';
 
@@ -13,11 +14,11 @@ export const TicketListItemUI: React.FC<{
 	<Box borderBottom>
 		<Text
 			color={
-				ticket.isSelected && navigationState.mode === 'move'
-					? 'white'
+				ticket.isSelected && navigationState.mode === Mode.MOVE
+					? 'cyan'
 					: ticket.isSelected
 					? 'cyan'
-					: navigationState.mode === 'move'
+					: navigationState.mode === Mode.MOVE
 					? 'gray'
 					: 'white'
 			}

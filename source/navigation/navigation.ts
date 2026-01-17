@@ -79,11 +79,11 @@ export function navigate<T extends NavigationTree>({
 			x => x.mode === navigationState.mode,
 		);
 
-		const action = filteredActions?.find(actionMeta => {
-			const intent = getKeyIntent(key, ctx);
-			return intent === actionMeta.intent;
+		const actionMeta = filteredActions?.find(actionMetaItem => {
+			const intent = getKeyIntent(key, ctx, actionMetaItem.mode);
+			return intent === actionMetaItem.intent;
 		});
-		action?.action?.(ctx);
+		actionMeta?.action?.(ctx, actionMeta);
 
 		ctx.render();
 	}

@@ -1,4 +1,4 @@
-import {Box, Text, useApp, useInput} from 'ink';
+import {Box, Text} from 'ink';
 import React from 'react';
 import {Board} from '../model/board.model.js';
 import {BoardContentUI} from './Swimlanes.js';
@@ -7,14 +7,6 @@ export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({
 	board,
 	swimlaneWidth,
 }) => {
-	const {exit} = useApp();
-
-	useInput((input, key) => {
-		if (key.escape || input === 'q') {
-			exit();
-		}
-	});
-
 	return (
 		<Box flexDirection="column">
 			<Box padding={1} justifyContent="center">
