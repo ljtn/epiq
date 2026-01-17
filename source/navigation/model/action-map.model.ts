@@ -3,6 +3,7 @@ import {NavigateCtx} from './navigation-ctx.model.js';
 export const Mode = {
 	DEFAULT: 'default',
 	MOVE: 'move',
+	HELP: 'help',
 } as const;
 export type ModeUnion = (typeof Mode)[keyof typeof Mode];
 

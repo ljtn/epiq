@@ -5,6 +5,7 @@ import {ContextBar} from './board/components/ContextBar.js';
 import {HelpUI} from './board/components/Help.js';
 import {Board} from './board/model/board.model.js';
 import {navigationState} from './navigation/state/state.js';
+import {Mode} from './navigation/model/action-map.model.js';
 
 export default function App({board}: {board: Board}) {
 	const {exit} = useApp();
@@ -21,14 +22,14 @@ export default function App({board}: {board: Board}) {
 	return (
 		<Box flexDirection="column">
 			{/* <Logo></Logo> */}
-			{!navigationState.viewHelp && (
+			{!(navigationState.mode === Mode.HELP) && (
 				<>
 					<BoardUI board={board} swimlaneWidth={swimlaneWidth} />
 					<ContextBar width={renderedWidth} />
 				</>
 			)}
 
-			{navigationState.viewHelp && <HelpUI width={renderedWidth} />}
+			{navigationState.mode === Mode.HELP && <HelpUI width={renderedWidth} />}
 		</Box>
 	);
 }

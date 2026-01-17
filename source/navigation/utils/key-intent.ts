@@ -1,6 +1,6 @@
 import readline from 'readline';
 import {NavigateCtx} from '../model/navigation-ctx.model.js';
-import {ModeUnion} from '../model/action-map.model.js';
+import {Mode, ModeUnion} from '../model/action-map.model.js';
 
 export enum KeyIntent {
 	NavPreviousItem = 'nav-previous-item',
@@ -25,7 +25,7 @@ export function getKeyIntent(
 	mode: ModeUnion,
 ): KeyIntent | null {
 	const axis = ctx.navigationNode.childrenRenderAxis;
-	if (mode === 'move') {
+	if (mode === Mode.MOVE) {
 		switch (key.name) {
 			case 'm':
 				return KeyIntent.ToggleMove;
@@ -50,36 +50,32 @@ export function getKeyIntent(
 		}
 	}
 
-	if (mode === 'default') {
-		switch (key.name) {
-			case 'm':
-				return KeyIntent.ToggleMove;
-			case 'h':
-				return KeyIntent.ToggleHelp;
-			case 'up':
-				return axis === 'vertical' ? KeyIntent.NavPreviousItem : null;
-			case 'down':
-				return axis === 'vertical' ? KeyIntent.NavNextItem : null;
-			case 'left':
-				return axis === 'horizontal'
-					? KeyIntent.NavPreviousItem
-					: ctx.navigationNode.enableChildNavigationAcrossContainers
-					? KeyIntent.NavToPreviousContainer
-					: null;
-			case 'right':
-				return axis === 'horizontal'
-					? KeyIntent.NavNextItem
-					: ctx.navigationNode.enableChildNavigationAcrossContainers
-					? KeyIntent.NavToNextContainer
-					: null;
-			case 'return':
-				return KeyIntent.Confirm;
-			case 'e':
-				return KeyIntent.Exit;
-			default:
-				return null;
-		}
+	switch (key.name) {
+		case 'm':
+			return KeyIntent.ToggleMove;
+		case 'h':
+			return KeyIntent.ToggleHelp;
+		case 'up':
+			return axis === 'vertical' ? KeyIntent.NavPreviousItem : null;
+		case 'down':
+			return axis === 'vertical' ? KeyIntent.NavNextItem : null;
+		case 'left':
+			return axis === 'horizontal'
+				? KeyIntent.NavPreviousItem
+				: ctx.navigationNode.enableChildNavigationAcrossContainers
+				? KeyIntent.NavToPreviousContainer
+				: null;
+		case 'right':
+			return axis === 'horizontal'
+				? KeyIntent.NavNextItem
+				: ctx.navigationNode.enableChildNavigationAcrossContainers
+				? KeyIntent.NavToNextContainer
+				: null;
+		case 'return':
+			return KeyIntent.Confirm;
+		case 'e':
+			return KeyIntent.Exit;
+		default:
+			return null;
 	}
-
-	return null;
 }

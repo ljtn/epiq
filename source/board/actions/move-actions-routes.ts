@@ -2,7 +2,7 @@ import {
 	ActionEntryRecursive,
 	Mode,
 } from '../../navigation/model/action-map.model.js';
-import {navigationState, setState} from '../../navigation/state/state.js';
+import {setState} from '../../navigation/state/state.js';
 import {KeyIntent} from '../../navigation/utils/key-intent.js';
 import {
 	moveChildNextWithinParent,
@@ -17,7 +17,6 @@ export const toggleMode: ActionEntryRecursive[] = [
 		mode: Mode.DEFAULT,
 		description: '[M] Toggle MOVE mode',
 		action: () => {
-			if (navigationState.viewHelp) return;
 			setState(state => ({
 				...state,
 				mode: Mode.MOVE,
@@ -28,7 +27,6 @@ export const toggleMode: ActionEntryRecursive[] = [
 		intent: KeyIntent.ToggleMove,
 		mode: Mode.MOVE,
 		action: () => {
-			if (navigationState.viewHelp) return;
 			setState(state => ({
 				...state,
 				mode: Mode.DEFAULT,
@@ -39,7 +37,7 @@ export const toggleMode: ActionEntryRecursive[] = [
 export const moveWithinParent: ActionEntryRecursive[] = [
 	{
 		mode: Mode.MOVE,
-		description: '[SHIFT + ARROW KEYS] Move item',
+		description: '[M, ARROW KEYS] Move item',
 	},
 	{
 		intent: KeyIntent.MovePreviousItem,

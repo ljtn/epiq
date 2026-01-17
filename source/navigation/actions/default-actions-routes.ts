@@ -32,7 +32,20 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	{
 		intent: KeyIntent.ToggleHelp,
 		mode: Mode.DEFAULT,
-		action: () => setState(state => ({...state, viewHelp: !state.viewHelp})),
+		action: () =>
+			setState(state => ({
+				...state,
+				mode: Mode.HELP,
+			})),
+	},
+	{
+		intent: KeyIntent.ToggleHelp,
+		mode: Mode.HELP,
+		action: () =>
+			setState(state => ({
+				...state,
+				mode: Mode.DEFAULT,
+			})),
 	},
 	{
 		intent: KeyIntent.NavPreviousItem,
