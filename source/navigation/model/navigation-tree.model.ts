@@ -3,6 +3,7 @@ export type NavigationTree<TMeta = Record<string, unknown>> = {
 	isSelected: boolean;
 	childrenRenderAxis: 'vertical' | 'horizontal';
 	name: string;
+	description?: string;
 	children: NavigationTree<unknown>[];
 	actionContext: string;
 	enableChildNavigationAcrossContainers?: boolean;

@@ -3,13 +3,13 @@ import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
-import {BoardActions} from './board/actions/board-action-map.js';
+import {ContextualActionMap} from './navigation/actions/board-action-map.js';
 import {board} from './board/mock/board.js';
 import {Board, Swimlane, TicketListItem} from './board/model/board.model.js';
-import {buildDefaultActions} from './navigation/actions/default-actions-routes.js';
 import {navigate} from './navigation/navigation.js';
 import {setState} from './navigation/state/state.js';
 import {Hints} from './board/hints/hints.js';
+import {NavigationActions} from './navigation/actions/navigate/navigation-actions.js';
 
 const cli = meow(
 	`
@@ -67,7 +67,10 @@ export const main = () => {
 					...state,
 					currentNode: selected,
 					breadCrumb,
-					availableActions: [...buildDefaultActions(), ...BoardActions[type]],
+					availableActions: [
+						...NavigationActions,
+						...ContextualActionMap[type],
+					],
 				}));
 			},
 		},

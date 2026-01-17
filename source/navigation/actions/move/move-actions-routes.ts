@@ -1,17 +1,14 @@
-import {
-	ActionEntryRecursive,
-	Mode,
-} from '../../navigation/model/action-map.model.js';
-import {setState} from '../../navigation/state/state.js';
-import {KeyIntent} from '../../navigation/utils/key-intent.js';
+import {ActionEntry, Mode} from '../../model/action-map.model.js';
+import {setState} from '../../state/state.js';
+import {KeyIntent} from '../../utils/key-intent.js';
 import {
 	moveChildNextWithinParent,
 	moveChildPreviousWithinParent,
 	moveChildToNextParent,
 	moveChildToPreviousParent,
-} from './move-actions.js';
+} from './move-actions-utils.js';
 
-export const toggleMode: ActionEntryRecursive[] = [
+export const toggleMode: ActionEntry[] = [
 	{
 		intent: KeyIntent.ToggleMove,
 		mode: Mode.DEFAULT,
@@ -34,7 +31,7 @@ export const toggleMode: ActionEntryRecursive[] = [
 		},
 	},
 ];
-export const moveWithinParent: ActionEntryRecursive[] = [
+export const moveWithinParent: ActionEntry[] = [
 	{
 		mode: Mode.MOVE,
 		description: '[M, ARROW KEYS] Move item',
@@ -50,7 +47,7 @@ export const moveWithinParent: ActionEntryRecursive[] = [
 		action: moveChildNextWithinParent,
 	},
 ];
-export const moveAcrossParents: ActionEntryRecursive[] = [
+export const moveAcrossParents: ActionEntry[] = [
 	{
 		intent: KeyIntent.MoveToNextContainer,
 		mode: Mode.MOVE,

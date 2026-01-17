@@ -7,23 +7,29 @@ type Props = {
 	width: number;
 };
 
-export const TicketUI: React.FC<Props> = ({item, width}) => {
-	return (
-		<Box
-			flexDirection="row"
-			padding={1}
-			paddingLeft={2}
-			borderStyle={'round'}
-			width={width}
-			minHeight={16}
-			borderColor={'gray'}
-		>
-			<Box flexDirection="row">
-				<Box width={20}>
-					<Text color={'cyan'}>{'Description: '}</Text>
+export const TicketUI: React.FC<Props> = ({item, width}) => (
+	<Box
+		flexDirection="column"
+		padding={1}
+		paddingLeft={2}
+		borderStyle="round"
+		width={width}
+		minHeight={16}
+		borderColor="gray"
+	>
+		{item.children.map(child => (
+			<Box
+				key={child.id}
+				flexDirection="row"
+				borderStyle={'round'}
+				borderColor={child.isSelected ? 'cyan' : 'gray'}
+				paddingLeft={1}
+			>
+				<Box width={30}>
+					<Text color="cyan">{child.name}:</Text>
 				</Box>
-				<Text>{item.name}</Text>
+				<Text>{child.description}</Text>
 			</Box>
-		</Box>
-	);
-};
+		))}
+	</Box>
+);

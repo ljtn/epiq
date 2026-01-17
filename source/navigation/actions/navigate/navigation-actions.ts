@@ -1,6 +1,6 @@
-import {ActionEntryRecursive, Mode} from '../model/action-map.model.js';
-import {setState} from '../state/state.js';
-import {KeyIntent} from '../utils/key-intent.js';
+import {ActionEntry, Mode} from '../../model/action-map.model.js';
+import {setState} from '../../state/state.js';
+import {KeyIntent} from '../../utils/key-intent.js';
 import {
 	enterChildNode,
 	exitToParentNode,
@@ -8,15 +8,13 @@ import {
 	navigateToNextItem,
 	navigateToPreviousContainer,
 	navigateToPreviousItem,
-} from './default-actions.js';
+} from './navigation-action-utils.js';
 
-export type DefaultActionMap = ActionEntryRecursive[];
-
-export const buildDefaultActions = (): DefaultActionMap => [
+export const NavigationActions: ActionEntry[] = [
 	{
 		intent: KeyIntent.ToggleHelp,
 		mode: Mode.DEFAULT,
-		description: '[H] Toggle HELP menu',
+		description: '[F1/H] Toggle HELP menu',
 		action: () =>
 			setState(state => ({
 				...state,
@@ -26,29 +24,31 @@ export const buildDefaultActions = (): DefaultActionMap => [
 	{
 		intent: KeyIntent.Confirm,
 		mode: Mode.DEFAULT,
-		description: '[ENTER] Confirm / Enter context',
+		description: '[ENTER/E] Confirm/Enter context',
 		action: enterChildNode,
 	},
 	{
 		intent: KeyIntent.Exit,
 		mode: Mode.DEFAULT,
-		description: '[E] Exit context to parent',
+		description: '[ESC/Q] Exit application',
 		action: exitToParentNode,
 	},
 	{
 		mode: Mode.DEFAULT,
-		description: '[ARROW KEYS] Navigate',
+		description: '[ARROWS/HJKL] Navigate',
 	},
 
 	{
 		intent: KeyIntent.ToggleHelp,
 		mode: Mode.HELP,
+		description: '[F1/H] Close HELP menu',
 		action: () =>
 			setState(state => ({
 				...state,
 				mode: Mode.DEFAULT,
 			})),
 	},
+
 	{
 		intent: KeyIntent.NavPreviousItem,
 		mode: Mode.DEFAULT,

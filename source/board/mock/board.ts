@@ -25,7 +25,18 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't1-desc',
-							name: 'Configure GitHub Actions for test, build, and deploy stages.',
+							name: 'Description',
+							description:
+								'Configure GitHub Actions for test, build, and deploy stages.',
+							actionContext: BoardItemTypes.TICKET,
+							childrenRenderAxis: 'vertical',
+							children: [],
+						},
+						{
+							isSelected: false,
+							id: 't1-desc',
+							name: 'Tag',
+							description: 'Urgent',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -42,7 +53,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't2-desc',
-							name: 'Define request/response formats, error handling, and versioning.',
+							name: 'Description',
+							description:
+								'Define request/response formats, error handling, and versioning.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -59,7 +72,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't3-desc',
-							name: 'Collaborate with leads to define team goals and key results.',
+							name: 'Description',
+							description:
+								'Collaborate with leads to define team goals and key results.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -76,7 +91,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't11-desc',
-							name: 'Create high-level overview of services, databases, and communication flows.',
+							name: 'Description',
+							description:
+								'Create high-level overview of services, databases, and communication flows.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -93,7 +110,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't12-desc',
-							name: 'Integrate tools like Prometheus and Grafana; define alert thresholds.',
+							name: 'Description',
+							description:
+								'Integrate tools like Prometheus and Grafana; define alert thresholds.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -110,7 +129,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't13-desc',
-							name: 'Identify GDPR and CCPA implications for data handling and user consent.',
+							name: 'Description',
+							description:
+								'Identify GDPR and CCPA implications for data handling and user consent.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -127,7 +148,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't14-desc',
-							name: 'Write setup instructions, repo structure, and coding standards.',
+							name: 'Description',
+							description:
+								'Write setup instructions, repo structure, and coding standards.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -144,7 +167,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't15-desc',
-							name: 'Compare Redux Toolkit, Zustand, and Jotai for frontend scalability.',
+							name: 'Description',
+							description:
+								'Compare Redux Toolkit, Zustand, and Jotai for frontend scalability.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -161,7 +186,8 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't16-desc',
-							name: 'Define test scenarios covering API and UI flows.',
+							name: 'Description',
+							description: 'Define test scenarios covering API and UI flows.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -178,7 +204,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't17-desc',
-							name: 'Set baseline response times for key endpoints and UI interactions.',
+							name: 'Description',
+							description:
+								'Set baseline response times for key endpoints and UI interactions.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -195,7 +223,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't18-desc',
-							name: 'Standardize client and server error formats and fallback UIs.',
+							name: 'Description',
+							description:
+								'Standardize client and server error formats and fallback UIs.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -212,7 +242,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't19-desc',
-							name: 'Choose log levels, format, and storage mechanisms for observability.',
+							name: 'Description',
+							description:
+								'Choose log levels, format, and storage mechanisms for observability.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -229,7 +261,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't20-desc',
-							name: 'Enable gradual rollouts using LaunchDarkly or Unleash.',
+							name: 'Description',
+							description:
+								'Enable gradual rollouts using LaunchDarkly or Unleash.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -246,7 +280,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't21-desc',
-							name: 'List comparable products and key differentiators for positioning.',
+							name: 'Description',
+							description:
+								'List comparable products and key differentiators for positioning.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -263,7 +299,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't22-desc',
-							name: 'Schedule initial sync with stakeholders and present roadmap.',
+							name: 'Description',
+							description:
+								'Schedule initial sync with stakeholders and present roadmap.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -280,7 +318,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't23-desc',
-							name: 'Set up base AWS resources using Terraform templates.',
+							name: 'Description',
+							description:
+								'Set up base AWS resources using Terraform templates.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -297,7 +337,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't24-desc',
-							name: 'Collaborate with design to outline primary users and their needs.',
+							name: 'Description',
+							description:
+								'Collaborate with design to outline primary users and their needs.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -314,7 +356,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't25-desc',
-							name: 'Decide on tools, frequency, and feedback channels for retrospectives.',
+							name: 'Description',
+							description:
+								'Decide on tools, frequency, and feedback channels for retrospectives.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -350,7 +394,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't4-desc',
-							name: 'Integrate frontend with backend auth API and handle edge cases.',
+							name: 'Description',
+							description:
+								'Integrate frontend with backend auth API and handle edge cases.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -367,7 +413,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't5-desc',
-							name: 'Collaborate with UX to create a grid-based responsive dashboard.',
+							name: 'Description',
+							description:
+								'Collaborate with UX to create a grid-based responsive dashboard.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -384,7 +432,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't6-desc',
-							name: 'Evaluate color contrast, ARIA usage, and keyboard nav.',
+							name: 'Description',
+							description:
+								'Evaluate color contrast, ARIA usage, and keyboard nav.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -401,7 +451,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't7-desc',
-							name: 'Ensure test coverage, types, and data validation are in place.',
+							name: 'Description',
+							description:
+								'Ensure test coverage, types, and data validation are in place.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -418,7 +470,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't8-desc',
-							name: 'Verify spacing, responsiveness, and visual hierarchy.',
+							name: 'Description',
+							description:
+								'Verify spacing, responsiveness, and visual hierarchy.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -445,7 +499,9 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't9-desc',
-							name: 'Document reusable components and tokens in Storybook.',
+							name: 'Description',
+							description:
+								'Document reusable components and tokens in Storybook.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],
@@ -462,7 +518,8 @@ export const board: Board = {
 						{
 							isSelected: false,
 							id: 't10-desc',
-							name: 'All pipelines green. Ready for product team QA.',
+							name: 'Description',
+							description: 'All pipelines green. Ready for product team QA.',
 							actionContext: BoardItemTypes.TICKET,
 							childrenRenderAxis: 'vertical',
 							children: [],

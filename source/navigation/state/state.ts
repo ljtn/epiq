@@ -1,9 +1,9 @@
-import {ActionEntryRecursive, ModeUnion} from '../model/action-map.model.js';
+import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
 import {NavigationTree} from '../model/navigation-tree.model.js';
 
 export let navigationState: {
 	mode: ModeUnion;
-	availableActions: ActionEntryRecursive[];
+	availableActions: ActionEntry[];
 	availableHints: string[];
 	currentNode: NavigationTree<NavigationTree> | null;
 	breadCrumb: NavigationTree<NavigationTree>[];

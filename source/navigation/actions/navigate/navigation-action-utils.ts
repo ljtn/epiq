@@ -1,4 +1,4 @@
-import {NavigateCtx} from '../model/navigation-ctx.model.js';
+import {NavigateCtx} from '../../model/navigation-ctx.model.js';
 
 const navigateByOffset = (ctx: NavigateCtx, offset: number) => {
 	const len = ctx.children.length;

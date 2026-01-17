@@ -10,7 +10,7 @@ export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({
 	return (
 		<Box flexDirection="column">
 			<Box padding={1} justifyContent="center">
-				<Text>--- {board.name} ---</Text>
+				<Text>{board.name}</Text>
 			</Box>
 
 			<Box flexDirection="row">

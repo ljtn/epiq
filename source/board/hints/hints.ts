@@ -4,22 +4,27 @@ import {BoardItemTypes} from '../model/board.model.js';
 export const Hints = {
 	[BoardItemTypes.BOARD]: [],
 	[BoardItemTypes.SWIMLANE]: [
-		'Arrows: move between lists',
-		'Enter: open list',
-		'M: select for moving',
-		'Help: toggle help menu',
+		'?: help',
+		'ARROWS/HJKL: move between swimlanes',
+		'E/ENTER: enter swimlane',
+		'ESC/Q: exit',
 	],
 	[BoardItemTypes.TICKET_LIST_ITEM]: [
-		'Arrows: move between tickets',
-		'Enter: open ticket',
+		'ARROWS/HJKL: move between tickets',
+		'E/ENTER: view ticket details',
+		'I: edit',
 		'M: select for moving',
-		'E: back to swimlane',
+		'ESC/Q: exit',
 	],
-	[BoardItemTypes.TICKET]: [
-		'Esc: back to list',
-		'Arrows: move between fields',
-		'E: back to list view',
+	[BoardItemTypes.TICKET]: ['E: back', 'I: edit field', 'ESC/Q: exit'],
+	[BoardItemTypes.SWIMLANE + Mode.MOVE]: [
+		'ARROWS/HJKL: move selection',
+		'M: confirm move',
+		'ESC/Q: exit',
 	],
-	[BoardItemTypes.SWIMLANE + Mode.MOVE]: ['M: confirm move'],
-	[BoardItemTypes.TICKET_LIST_ITEM + Mode.MOVE]: ['M: confirm move'],
+	[BoardItemTypes.TICKET_LIST_ITEM + Mode.MOVE]: [
+		'ARROWS/HJKL: move selection',
+		'M: confirm move',
+		'ESC/Q: exit',
+	],
 } as const;

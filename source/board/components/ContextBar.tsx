@@ -13,7 +13,7 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => (
 	>
 		<Box>
 			<Text color="gray">
-				{'💡 ' + navigationState.availableHints.join(' 💡 ')}
+				{'💡 ' + navigationState.availableHints.join('  ')}
 			</Text>
 		</Box>
 	</Box>

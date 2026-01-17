@@ -32,7 +32,11 @@ export const BoardContentUI: React.FC<Props> = ({items, width}) => {
 			{isTicketContext && navigationState.currentNode && (
 				<TicketUI
 					width={width * items.length}
-					item={navigationState.currentNode as Ticket}
+					item={
+						navigationState.breadCrumb[
+							navigationState.breadCrumb.length - 1
+						] as Ticket
+					}
 				/>
 			)}
 		</Box>
