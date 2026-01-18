@@ -16,7 +16,7 @@ export const Hints = {
 		'Y: select for yank/move',
 		'ESC/Q: exit',
 	],
-	[BoardItemTypes.TICKET]: ['E: back', 'I: edit field', 'ESC/Q: exit'],
+	[BoardItemTypes.TICKET]: ['ESC/Q: exit', 'I: edit field'],
 	[BoardItemTypes.SWIMLANE + Mode.MOVE]: [
 		'ARROWS/HJKL: move selection',
 		'Y: confirm move/yank',

@@ -3,7 +3,7 @@ import {ActionEntry, ActionMap} from '../model/action-map.model.js';
 import {
 	moveAcrossParents,
 	moveWithinParent,
-	toggleMode,
+	toggleMoveMode,
 } from './move/move-actions-routes.js';
 
 type BoardActionMap = ActionMap<{
@@ -15,9 +15,9 @@ type BoardActionMap = ActionMap<{
 
 export const ContextualActionMap: BoardActionMap = {
 	[BoardItemTypes.BOARD]: [],
-	[BoardItemTypes.SWIMLANE]: [...toggleMode, ...moveWithinParent],
+	[BoardItemTypes.SWIMLANE]: [...toggleMoveMode, ...moveWithinParent],
 	[BoardItemTypes.TICKET_LIST_ITEM]: [
-		...toggleMode,
+		...toggleMoveMode,
 		...moveWithinParent,
 		...moveAcrossParents,
 	],

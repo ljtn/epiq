@@ -8,7 +8,7 @@ import {
 	moveChildToPreviousParent,
 } from './move-actions-utils.js';
 
-export const toggleMode: ActionEntry[] = [
+export const toggleMoveMode: ActionEntry[] = [
 	{
 		intent: KeyIntent.ToggleMove,
 		mode: Mode.DEFAULT,

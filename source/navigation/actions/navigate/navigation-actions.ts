@@ -10,17 +10,37 @@ import {
 	navigateToPreviousItem,
 } from './navigation-action-utils.js';
 
-export const NavigationActions: ActionEntry[] = [
+export const DefaultActions: ActionEntry[] = [
 	{
-		intent: KeyIntent.ToggleHelp,
+		intent: KeyIntent.ToggleCommandLine,
 		mode: Mode.DEFAULT,
-		description: '[F1/H] Toggle HELP menu',
+		description: '[:h] Toggle command line',
 		action: () =>
 			setState(state => ({
 				...state,
-				mode: Mode.HELP,
+				mode: Mode.COMMAND_LINE,
 			})),
 	},
+	// {
+	// 	intent: KeyIntent.ToggleHelp,
+	// 	mode: Mode.DEFAULT,
+	// 	description: '[F1] Toggle HELP menu',
+	// 	action: () =>
+	// 		setState(state => ({
+	// 			...state,
+	// 			mode: Mode.HELP,
+	// 		})),
+	// },
+	// {
+	// 	intent: KeyIntent.ToggleHelp,
+	// 	mode: Mode.HELP,
+	// 	description: '[F1] Close HELP menu',
+	// 	action: () =>
+	// 		setState(state => ({
+	// 			...state,
+	// 			mode: Mode.DEFAULT,
+	// 		})),
+	// },
 	{
 		intent: KeyIntent.Confirm,
 		mode: Mode.DEFAULT,
@@ -36,17 +56,6 @@ export const NavigationActions: ActionEntry[] = [
 	{
 		mode: Mode.DEFAULT,
 		description: '[ARROWS/HJKL] Navigate',
-	},
-
-	{
-		intent: KeyIntent.ToggleHelp,
-		mode: Mode.HELP,
-		description: '[F1/H] Close HELP menu',
-		action: () =>
-			setState(state => ({
-				...state,
-				mode: Mode.DEFAULT,
-			})),
 	},
 
 	{

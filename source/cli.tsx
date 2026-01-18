@@ -9,7 +9,7 @@ import {Board, Swimlane, TicketListItem} from './board/model/board.model.js';
 import {navigate} from './navigation/navigation.js';
 import {setState} from './navigation/state/state.js';
 import {Hints} from './board/hints/hints.js';
-import {NavigationActions} from './navigation/actions/navigate/navigation-actions.js';
+import {DefaultActions} from './navigation/actions/navigate/navigation-actions.js';
 
 const cli = meow(
 	`
@@ -34,7 +34,14 @@ const cli = meow(
 );
 cli;
 
-export const main = () => {
+process.stdout.on('resize', () => {
+	render(<App board={board} />);
+});
+
+export let triggerRender = () => {
+	render(<App board={board} />);
+};
+(() => {
 	console.clear();
 
 	const onBeforeRender = () => {
@@ -67,18 +74,9 @@ export const main = () => {
 					...state,
 					currentNode: selected,
 					breadCrumb,
-					availableActions: [
-						...NavigationActions,
-						...ContextualActionMap[type],
-					],
+					availableActions: [...DefaultActions, ...ContextualActionMap[type]],
 				}));
 			},
 		},
 	});
-};
-
-main();
-
-process.stdout.on('resize', () => {
-	render(<App board={board} />);
-});
+})();

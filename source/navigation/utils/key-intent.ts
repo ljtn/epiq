@@ -18,6 +18,7 @@ export enum KeyIntent {
 	Exit = 'exit',
 	ToggleHelp = 'toggle-help',
 	ToggleMove = 'toggle-move',
+	ToggleCommandLine = 'toggle-command-line',
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -92,6 +93,10 @@ export function getKeyIntent(
 	ctx: NavigateCtx,
 	mode: ModeUnion,
 ): KeyIntent | null {
+	if (key.sequence === ':') {
+		return KeyIntent.ToggleCommandLine;
+	}
+
 	const axis = ctx.navigationNode.childrenRenderAxis;
 	const enableAcrossContainers =
 		ctx.navigationNode.enableChildNavigationAcrossContainers;
