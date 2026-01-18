@@ -4,7 +4,7 @@ import {
 	moveAcrossParents,
 	moveWithinParent,
 	toggleMoveMode,
-} from './move/move-actions-routes.js';
+} from './move/move-actions.js';
 
 type BoardActionMap = ActionMap<{
 	[BoardItemTypes.BOARD]: ActionEntry[];

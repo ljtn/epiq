@@ -1,6 +1,6 @@
 import readline from 'readline';
-import {NavigateCtx} from '../model/navigation-ctx.model.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
+import {NavigateCtx} from '../model/navigation-ctx.model.js';
 
 export enum KeyIntent {
 	NavPreviousItem = 'nav-previous-item',
@@ -19,6 +19,8 @@ export enum KeyIntent {
 	ToggleHelp = 'toggle-help',
 	ToggleMove = 'toggle-move',
 	ToggleCommandLine = 'toggle-command-line',
+	CaptureInput = 'CaptureInput',
+	EraseInput = 'EraseInput',
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -96,10 +98,26 @@ export function getKeyIntent(
 	if (key.sequence === ':') {
 		return KeyIntent.ToggleCommandLine;
 	}
+	if (mode === Mode.COMMAND_LINE) {
+		switch (key.name) {
+			case 'return':
+				return KeyIntent.Confirm;
+			case 'backspace':
+				return KeyIntent.EraseInput;
+			case 'escape':
+				return KeyIntent.ToggleCommandLine;
+			default:
+				return KeyIntent.CaptureInput;
+		}
+	}
 
 	const axis = ctx.navigationNode.childrenRenderAxis;
 	const enableAcrossContainers =
 		ctx.navigationNode.enableChildNavigationAcrossContainers;
+
+	if (key.name === 'escape' && mode === Mode.HELP) {
+		return KeyIntent.ToggleHelp;
+	}
 
 	// Hard exits
 	if (key.ctrl && key.name === 'c') return KeyIntent.Exit;

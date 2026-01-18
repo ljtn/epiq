@@ -83,7 +83,7 @@ export function navigate<T extends NavigationTree>({
 			const intent = getKeyIntent(key, ctx, actionMetaItem.mode);
 			return intent === actionMetaItem.intent;
 		});
-		actionMeta?.action?.(ctx, actionMeta);
+		actionMeta?.action?.(ctx, actionMeta, key);
 
 		ctx.render();
 	}

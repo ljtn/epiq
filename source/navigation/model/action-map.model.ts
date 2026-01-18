@@ -1,4 +1,5 @@
 import {NavigateCtx} from './navigation-ctx.model.js';
+import readline from 'readline';
 
 export const Mode = {
 	DEFAULT: 'default',
@@ -12,7 +13,7 @@ export type ActionEntry = {
 	intent?: string;
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
-	action?: (...args: [NavigateCtx, ActionEntry]) => void; // receives whatever we decide to pass
+	action?: (...args: [NavigateCtx, ActionEntry, readline.Key]) => void; // receives whatever we decide to pass
 };
 
 export type ActionMap<T extends Record<string, any[]>> = {

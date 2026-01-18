@@ -1,5 +1,5 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {setState} from '../../state/state.js';
+import {patchState} from '../../state/state.js';
 import {KeyIntent} from '../../utils/key-intent.js';
 import {
 	enterChildNode,
@@ -14,12 +14,20 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: KeyIntent.ToggleCommandLine,
 		mode: Mode.DEFAULT,
-		description: '[:h] Toggle command line',
+		description: '[:] Toggle command line',
 		action: () =>
-			setState(state => ({
-				...state,
+			patchState({
 				mode: Mode.COMMAND_LINE,
-			})),
+			}),
+	},
+	{
+		intent: KeyIntent.ToggleCommandLine,
+		mode: Mode.COMMAND_LINE,
+		description: '[ESC] Toggle command line',
+		action: () =>
+			patchState({
+				mode: Mode.DEFAULT,
+			}),
 	},
 	// {
 	// 	intent: KeyIntent.ToggleHelp,

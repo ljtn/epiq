@@ -1,6 +1,8 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {Mode} from '../../navigation/model/action-map.model.js';
 import {navigationState} from '../../navigation/state/state.js';
+import {CommandLine} from './CommandLine.js';
 
 export const ContextBar: React.FC<{width: number}> = ({width}) => (
 	<Box
@@ -12,9 +14,15 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => (
 		width={width}
 	>
 		<Box>
-			<Text color="gray">
-				{'💡 ' + navigationState.availableHints.join('  ')}
-			</Text>
+			{navigationState.mode === Mode.COMMAND_LINE ? (
+				<Box>
+					<CommandLine></CommandLine>
+				</Box>
+			) : (
+				<Text color="yellow">
+					{'💡 ' + navigationState.availableHints.join('  ')}
+				</Text>
+			)}
 		</Box>
 	</Box>
 );

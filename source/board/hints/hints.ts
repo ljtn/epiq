@@ -4,7 +4,7 @@ import {BoardItemTypes} from '../model/board.model.js';
 export const Hints = {
 	[BoardItemTypes.BOARD]: [],
 	[BoardItemTypes.SWIMLANE]: [
-		'?: help',
+		':h Help',
 		'ARROWS/HJKL: move between swimlanes',
 		'E/ENTER: enter swimlane',
 		'ESC/Q: exit',

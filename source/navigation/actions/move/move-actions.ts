@@ -1,5 +1,5 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {setState} from '../../state/state.js';
+import {patchState} from '../../state/state.js';
 import {KeyIntent} from '../../utils/key-intent.js';
 import {
 	moveChildNextWithinParent,
@@ -14,20 +14,18 @@ export const toggleMoveMode: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[Y] Toggle move/yank mode',
 		action: () => {
-			setState(state => ({
-				...state,
+			patchState({
 				mode: Mode.MOVE,
-			}));
+			});
 		},
 	},
 	{
 		intent: KeyIntent.ToggleMove,
 		mode: Mode.MOVE,
 		action: () => {
-			setState(state => ({
-				...state,
+			patchState({
 				mode: Mode.DEFAULT,
-			}));
+			});
 		},
 	},
 ];
