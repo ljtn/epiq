@@ -2,7 +2,7 @@ import {Mode} from '../../navigation/model/action-map.model.js';
 import {BoardItemTypes} from '../model/board.model.js';
 
 export const Hints = {
-	[BoardItemTypes.BOARD]: [],
+	[BoardItemTypes.BOARD]: ['A: add swimlane'],
 	[BoardItemTypes.SWIMLANE]: [
 		':h Help',
 		'ARROWS/HJKL: move between swimlanes',

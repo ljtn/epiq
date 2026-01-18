@@ -21,6 +21,7 @@ export enum KeyIntent {
 	ToggleCommandLine = 'toggle-command-line',
 	CaptureInput = 'CaptureInput',
 	EraseInput = 'EraseInput',
+	AddItem = 'AddItem',
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -158,6 +159,8 @@ export function getKeyIntent(
 
 	// Actions
 	switch (key.name) {
+		case 'a':
+			return KeyIntent.AddItem;
 		case 'return':
 		case 'e':
 			return KeyIntent.Confirm;

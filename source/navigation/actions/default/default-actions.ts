@@ -8,7 +8,7 @@ import {
 	navigateToNextItem,
 	navigateToPreviousContainer,
 	navigateToPreviousItem,
-} from './navigation-action-utils.js';
+} from './default-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
 	{

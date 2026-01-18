@@ -29,7 +29,7 @@ export function navigate<T extends NavigationTree>({
 	const ctx: NavigateCtx = {
 		breadCrumb,
 		get navigationNode() {
-			return this.breadCrumb.at(-1)!;
+			return this.breadCrumb?.at(-1)! ?? breadCrumb[0];
 		},
 		get children() {
 			return this.navigationNode.children ?? [];
@@ -103,14 +103,14 @@ export function navigate<T extends NavigationTree>({
 }
 
 function updateSelection<T>(
-	{children}: NavigationTree<T>,
+	currentNode: NavigationTree<T>,
 	breadCrumb: NavigationTree<T>[],
 	idx: number,
 	onSelectChange: (
-		selection: (typeof children)[number],
-		breadCrumb: typeof children,
+		selection: (typeof currentNode.children)[number],
+		breadCrumb: typeof currentNode.children,
 	) => void,
 ) {
-	children.forEach((c, i) => (c.isSelected = i === idx));
-	onSelectChange(children[idx] as any, breadCrumb);
+	currentNode.children.forEach((c, i) => (c.isSelected = i === idx));
+	onSelectChange(currentNode.children[idx] as any, breadCrumb);
 }

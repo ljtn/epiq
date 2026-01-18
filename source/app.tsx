@@ -9,8 +9,10 @@ import {navigationState} from './navigation/state/state.js';
 
 export default function App({board}: {board: Board}) {
 	const width = process.stdout.columns || 120;
-	const swimlaneWidth = Math.floor(width / board.children.length);
-	const renderedWidth = swimlaneWidth * board.children.length;
+	const swimlaneMaxWidth = Math.floor(process.stdout.columns / 3);
+	const swimlaneDynamicWidth = Math.floor(width / board.children.length);
+	const renderedWidth = swimlaneDynamicWidth * board.children.length;
+	const swimlaneWidth = Math.min(renderedWidth, swimlaneMaxWidth);
 
 	return (
 		<Box flexDirection="column">
@@ -18,7 +20,7 @@ export default function App({board}: {board: Board}) {
 			{!(navigationState.mode === Mode.HELP) && (
 				<>
 					<BoardUI board={board} swimlaneWidth={swimlaneWidth} />
-					<ContextBar width={renderedWidth} />
+					<ContextBar width={width} />
 				</>
 			)}
 

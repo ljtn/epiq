@@ -8,9 +8,9 @@ import {board} from './board/mock/board.js';
 import {Board, Swimlane, TicketListItem} from './board/model/board.model.js';
 import {ContextualActionMap} from './navigation/actions/board-action-map.js';
 import {inputActions} from './navigation/actions/input/input-actions.js';
-import {DefaultActions} from './navigation/actions/navigate/navigation-actions.js';
+import {DefaultActions} from './navigation/actions/default/default-actions.js';
 import {navigate} from './navigation/navigation.js';
-import {updateState} from './navigation/state/state.js';
+import {patchState, updateState} from './navigation/state/state.js';
 
 const cli = meow(
 	`
@@ -34,21 +34,12 @@ const cli = meow(
 	},
 );
 cli;
-
-process.stdout.on('resize', () => {
-	render(<App board={board} />);
-});
-
-export let triggerRender = () => {
-	render(<App board={board} />);
-};
 (() => {
 	console.clear();
 
 	const onBeforeRender = () => {
 		updateState(state => {
 			const {currentNode, mode} = state;
-
 			const hints = (currentNode && Hints[currentNode.actionContext + mode]) ??
 				(currentNode && Hints[currentNode.actionContext]) ?? [''];
 
@@ -71,8 +62,7 @@ export let triggerRender = () => {
 				if (!selected) return;
 				const type = (selected as TicketListItem | Swimlane | Board)
 					.actionContext; // Fix so that we can infer this type
-				updateState(state => ({
-					...state,
+				patchState({
 					currentNode: selected,
 					breadCrumb,
 					availableActions: [
@@ -80,8 +70,16 @@ export let triggerRender = () => {
 						...ContextualActionMap[type],
 						...inputActions,
 					],
-				}));
+				});
 			},
 		},
 	});
 })();
+
+export let triggerRender = () => {
+	render(<App board={board} />);
+};
+
+process.stdout.on('resize', () => {
+	render(<App board={board} />);
+});
