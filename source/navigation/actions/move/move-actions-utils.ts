@@ -59,7 +59,7 @@ function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
 		from,
 		to,
 	});
-	ctx.select(to);
+	ctx.updateSelection(to);
 }
 
 export const moveChildPreviousWithinParent = (ctx: NavigateCtx) =>

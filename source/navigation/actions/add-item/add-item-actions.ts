@@ -1,4 +1,3 @@
-import {board} from '../../../board/mock/board.js';
 import {
 	BoardItemTypes,
 	Swimlane,
@@ -25,9 +24,7 @@ export const addSwimlaneAction: ActionEntry = {
 			enableChildNavigationAcrossContainers: true,
 			description: '',
 		};
-		console.clear();
-		console.log('Adding new swimlane:', newItem);
-		board.children.push(newItem);
+		navigationState?.breadCrumb?.at(0)?.children.push(newItem);
 		triggerRender();
 	},
 };
@@ -46,7 +43,7 @@ export const addTicketAction: ActionEntry = {
 			childrenRenderAxis: 'vertical',
 			description: '',
 		};
-		navigationState?.currentNode?.children.push(newItem);
+		navigationState?.breadCrumb?.at(1)?.children.push(newItem);
 		triggerRender();
 	},
 };

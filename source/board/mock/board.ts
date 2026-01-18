@@ -4,7 +4,7 @@ import {Board, BoardItemTypes} from '../model/board.model.js';
 export const board: Board = {
 	id: 'b1',
 	isSelected: false,
-	name: 'Product Development Board',
+	name: 'Board',
 	actionContext: BoardItemTypes.BOARD,
 	childrenRenderAxis: 'horizontal',
 	children: [

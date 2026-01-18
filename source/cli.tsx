@@ -60,7 +60,7 @@ cli;
 			},
 			onSelectChange: (selected, breadCrumb) => {
 				if (!selected) return;
-				const type = (selected as TicketListItem | Swimlane | Board)
+				const type = (breadCrumb.at(-1) as TicketListItem | Swimlane | Board)
 					.actionContext; // Fix so that we can infer this type
 				patchState({
 					currentNode: selected,

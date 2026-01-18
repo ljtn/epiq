@@ -35,13 +35,14 @@ export function navigate<T extends NavigationTree>({
 			return this.navigationNode.children ?? [];
 		},
 		selectNone: () => {
-			ctx.select(-1);
+			ctx.updateSelection(-1);
 		},
 		_selectedIndex: 0,
 		getSelectedIndex() {
 			return this._selectedIndex;
 		},
-		select(i) {
+		// Rename this to something more accurate, like updateSelection
+		updateSelection(i) {
 			this._selectedIndex = i;
 			updateSelection(ctx.navigationNode, breadCrumb, i, onSelectChange);
 		},
@@ -56,7 +57,7 @@ export function navigate<T extends NavigationTree>({
 		},
 		enterChildNode: node => reInvokeNavigate(0, [...breadCrumb, node]),
 		enterParentNode: () => {
-			ctx.select(-1); // Clear all on this level
+			ctx.updateSelection(-1); // Clear all on this level
 			if (breadCrumb.length < 2) return; // Need at least grandparent + parent
 
 			const ancestors = breadCrumb;
@@ -70,7 +71,7 @@ export function navigate<T extends NavigationTree>({
 		},
 	};
 
-	ctx.select(index);
+	ctx.updateSelection(index);
 
 	function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();

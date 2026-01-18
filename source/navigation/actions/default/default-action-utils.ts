@@ -3,7 +3,7 @@ import {NavigateCtx} from '../../model/navigation-ctx.model.js';
 const navigateByOffset = (ctx: NavigateCtx, offset: number) => {
 	const len = ctx.children.length;
 	const newIndex = (ctx.getSelectedIndex() + offset + len) % len;
-	ctx.select(newIndex);
+	ctx.updateSelection(newIndex);
 };
 
 export const navigateToNextItem = (ctx: NavigateCtx) =>
@@ -48,7 +48,7 @@ export const enterChildNode = (ctx: NavigateCtx) => {
 	if (!current.children?.length) {
 		ctx.confirm(current);
 	} else {
-		ctx.select(-1);
+		ctx.updateSelection(-1);
 		ctx.enterChildNode(current);
 	}
 };
