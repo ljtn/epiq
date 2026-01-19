@@ -16,10 +16,11 @@ function moveItemInArray<T>({
 }
 
 function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
-	const ancestors = ctx.breadCrumb;
-	const parent = ancestors.at(-1);
-	const grandParent = ancestors.at(-2);
+	const parent = ctx.breadCrumb.at(-1);
+	const grandParent = ctx.breadCrumb.at(-2);
 	if (!parent || !grandParent) return;
+
+	if (!Array.isArray(grandParent.children)) return;
 
 	const parentIndex = grandParent.children.findIndex(x => x.id === parent.id);
 	const targetIndex = parentIndex + direction;
@@ -32,17 +33,20 @@ function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
 
 	const sibling = grandParent.children[targetIndex];
 	if (!sibling) return;
-	if (!sibling?.children?.length && !Array.isArray(sibling.children)) return;
 
-	const currentIndex = ctx._selectedIndex;
+	if (!Array.isArray(parent.children)) return;
+	if (!Array.isArray(sibling.children)) sibling.children = []; // normalize empty container
+
+	const currentIndex = ctx.getSelectedIndex();
 	if (currentIndex < 0 || currentIndex >= parent.children.length) return;
 
 	const [node] = parent.children.splice(currentIndex, 1);
+	if (!node) return;
+
 	sibling.children.push(node as NavigationTree);
 
 	const newBreadCrumb = [...ctx.breadCrumb.slice(0, -1), sibling];
-	const newIndex = sibling.children.length - 1;
-	ctx.reInvokeNavigate(newIndex, newBreadCrumb);
+	ctx.reInvokeNavigate(sibling.children.length - 1, newBreadCrumb);
 }
 
 export const moveChildToNextParent = (ctx: NavigateCtx) =>
@@ -51,7 +55,7 @@ export const moveChildToPreviousParent = (ctx: NavigateCtx) =>
 	moveNodeToSiblingContainer(ctx, -1);
 
 function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
-	const from = ctx._selectedIndex;
+	const from = ctx._selectionIndex;
 	const to = from + direction;
 	if (to < 0 || to >= ctx.navigationNode.children.length) return;
 	moveItemInArray({

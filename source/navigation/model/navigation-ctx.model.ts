@@ -3,7 +3,7 @@
 import {NavigationTree} from './navigation-tree.model.js';
 
 export interface NavigateCtx {
-	_selectedIndex: number;
+	_selectionIndex: number;
 	breadCrumb: Array<NavigationTree<NavigationTree>>;
 	navigationNode: NavigationTree<NavigationTree>;
 	children: NavigationTree[];

@@ -13,7 +13,9 @@ export type ActionEntry = {
 	intent?: string;
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
-	action?: (...args: [NavigateCtx, ActionEntry, readline.Key]) => void; // receives whatever we decide to pass
+	action?: (
+		...args: [NavigateCtx, ActionEntry, readline.Key]
+	) => void | Promise<void>;
 };
 
 export type ActionMap<T extends Record<string, any[]>> = {

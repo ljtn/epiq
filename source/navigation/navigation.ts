@@ -14,49 +14,56 @@ export function navigate<T extends NavigationTree>({
 	callbacks: Partial<{
 		render: () => void;
 		onSelectChange: (
-			s: T['children'][number],
+			s: T['children'][number] | undefined,
 			breadCrumb: T['children'],
 		) => void;
 		onConfirm: (s: T['children'][number]) => void;
 	}>;
 }) {
-	const {
-		render = () => {},
-		onSelectChange = () => {},
-		onConfirm = () => {},
-	} = callbacks;
-
 	const ctx: NavigateCtx = {
-		breadCrumb,
+		_selectionIndex: 0,
+		breadCrumb: breadCrumb,
+		render() {
+			callbacks.render?.();
+		},
 		get navigationNode() {
 			return this.breadCrumb?.at(-1)! ?? breadCrumb[0];
 		},
 		get children() {
 			return this.navigationNode.children ?? [];
 		},
-		selectNone: () => {
+		selectNone() {
 			ctx.updateSelection(-1);
 		},
-		_selectedIndex: 0,
 		getSelectedIndex() {
-			return this._selectedIndex;
+			return this._selectionIndex;
 		},
-		// Rename this to something more accurate, like updateSelection
-		updateSelection(i) {
-			this._selectedIndex = i;
-			updateSelection(ctx.navigationNode, breadCrumb, i, onSelectChange);
+		updateSelection(idx) {
+			this._selectionIndex = idx;
+			const children = this.navigationNode.children ?? [];
+			children.forEach((c, i) => (c.isSelected = i === idx));
+			if (idx < 0 || idx >= children.length) {
+				callbacks.onSelectChange?.(undefined, breadCrumb);
+				return;
+			}
+			callbacks.onSelectChange?.(children[idx], breadCrumb);
 		},
-		render,
-		reInvokeNavigate(index, breadCrumb) {
-			return reInvokeNavigate(index, breadCrumb);
+		reInvokeNavigate(idx: number, crumb: typeof breadCrumb) {
+			cleanup();
+			navigate({index: idx, breadCrumb: [...crumb], callbacks});
 		},
-		confirm: sel => onConfirm(sel as any),
-		exit: () => {
+		confirm(sel) {
+			return callbacks.onConfirm?.(sel);
+		},
+		exit() {
 			cleanup();
 			process.exit(0);
 		},
-		enterChildNode: node => reInvokeNavigate(0, [...breadCrumb, node]),
-		enterParentNode: () => {
+		enterChildNode(childNode) {
+			this.updateSelection(-1); // Clear all on this level
+			this.reInvokeNavigate(0, [...breadCrumb, childNode]);
+		},
+		enterParentNode() {
 			ctx.updateSelection(-1); // Clear all on this level
 			if (breadCrumb.length < 2) return; // Need at least grandparent + parent
 
@@ -67,51 +74,41 @@ export function navigate<T extends NavigationTree>({
 			const parentIndex = grandParent?.children.findIndex(
 				x => parent.id === x.id,
 			);
-			reInvokeNavigate(parentIndex, breadCrumb.slice(0, -1)); // Go to parent level
+			this.reInvokeNavigate(parentIndex, breadCrumb.slice(0, -1)); // Go to parent level
 		},
 	};
 
 	ctx.updateSelection(index);
 
-	function onKeyPress(_: string, key: readline.Key) {
+	async function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();
 
 		const filteredActions = navigationState.availableActions.filter(
 			x => x.mode === navigationState.mode,
 		);
 
-		const actionMeta = filteredActions?.find(actionMetaItem => {
+		const actionMeta = filteredActions.find(actionMetaItem => {
 			const intent = getKeyIntent(key, ctx, actionMetaItem.mode);
 			return intent === actionMetaItem.intent;
 		});
-		actionMeta?.action?.(ctx, actionMeta, key);
+
+		if (actionMeta?.action) {
+			try {
+				const res = actionMeta.action(ctx, actionMeta, key);
+				if (res instanceof Promise) await res;
+			} catch (err) {
+				console.error(err);
+			}
+		}
 
 		ctx.render();
 	}
 
 	const cleanup = () => process.stdin.removeListener('keypress', onKeyPress);
 
-	const reInvokeNavigate = (idx: number, crumb: typeof breadCrumb) => {
-		cleanup();
-		navigate({index: idx, breadCrumb: [...crumb], callbacks});
-	};
-
-	render();
+	callbacks.render?.();
 
 	readline.emitKeypressEvents(process.stdin);
 	if (process.stdin.isTTY) process.stdin.setRawMode(true);
 	process.stdin.on('keypress', onKeyPress);
-}
-
-function updateSelection<T>(
-	currentNode: NavigationTree<T>,
-	breadCrumb: NavigationTree<T>[],
-	idx: number,
-	onSelectChange: (
-		selection: (typeof currentNode.children)[number],
-		breadCrumb: typeof currentNode.children,
-	) => void,
-) {
-	currentNode.children.forEach((c, i) => (c.isSelected = i === idx));
-	onSelectChange(currentNode.children[idx] as any, breadCrumb);
 }

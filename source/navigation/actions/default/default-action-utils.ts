@@ -2,6 +2,8 @@ import {NavigateCtx} from '../../model/navigation-ctx.model.js';
 
 const navigateByOffset = (ctx: NavigateCtx, offset: number) => {
 	const len = ctx.children.length;
+	if (len === 0) return;
+
 	const newIndex = (ctx.getSelectedIndex() + offset + len) % len;
 	ctx.updateSelection(newIndex);
 };
@@ -42,14 +44,15 @@ export const navigateToNextContainer = (ctx: NavigateCtx) =>
 export const navigateToPreviousContainer = (ctx: NavigateCtx) =>
 	navigateToSiblingContainer(ctx, -1);
 
-export const enterChildNode = (ctx: NavigateCtx) => {
-	const current = ctx.navigationNode.children[ctx._selectedIndex];
-	if (!current) return;
-	if (!current.children?.length) {
-		ctx.confirm(current);
+export const enterChildNode = async (ctx: NavigateCtx) => {
+	const currentNode = ctx.breadCrumb.at(-1);
+	const focusNode = currentNode?.children[ctx.getSelectedIndex()];
+	if (!currentNode || !focusNode) return;
+	if (!focusNode?.children?.length) {
+		await ctx.enterChildNode(focusNode);
+		return;
 	} else {
-		ctx.updateSelection(-1);
-		ctx.enterChildNode(current);
+		ctx.enterChildNode(focusNode);
 	}
 };
 

@@ -42,7 +42,6 @@ cli;
 			const {currentNode, mode} = state;
 			const hints = (currentNode && Hints[currentNode.actionContext + mode]) ??
 				(currentNode && Hints[currentNode.actionContext]) ?? [''];
-
 			return {
 				...state,
 				availableHints: hints as string[],
@@ -59,15 +58,22 @@ cli;
 				render(<App board={board} />);
 			},
 			onSelectChange: (selected, breadCrumb) => {
-				if (!selected) return;
-				const type = (breadCrumb.at(-1) as TicketListItem | Swimlane | Board)
-					.actionContext; // Fix so that we can infer this type
+				// container is the "list" we are navigating in (board → swimlanes, swimlane → tickets, etc)
+				const container = breadCrumb.at(-1)!;
+
+				// still remember which *child* is selected for rendering
+				const currentNode = selected ?? container;
+
+				// but build actions from the container type, not the selected child
+				const containerType = (container as TicketListItem | Swimlane | Board)
+					.actionContext;
+
 				patchState({
-					currentNode: selected,
+					currentNode,
 					breadCrumb,
 					availableActions: [
 						...DefaultActions,
-						...ContextualActionMap[type],
+						...ContextualActionMap[containerType],
 						...inputActions,
 					],
 				});
