@@ -23,9 +23,9 @@ export type ActionMap<T extends Record<string, any[]>> = {
 };
 
 // Command Line
-type CommandLineSequence = string;
+type CommandLineInput = {value: string; command: string};
 export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
 	action?: (
-		...args: [NavigateCtx, CommandLineActionEntry, CommandLineSequence]
+		...args: [NavigateCtx, CommandLineActionEntry, CommandLineInput]
 	) => void | Promise<void>;
 };

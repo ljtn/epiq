@@ -8,10 +8,10 @@ import {NavigationTree} from '../../model/navigation-tree.model.js';
 
 export const addSwimlaneAction: NonNullable<
 	CommandLineActionEntry['action']
-> = async ctx => {
+> = async (ctx, _, {value}) => {
 	const newItem: NavigationTree<Swimlane> = {
 		id: `${Date.now()}`,
-		name: `New Item ${Date.now()}`,
+		name: `${value}`,
 		description: '...',
 		actionContext: BoardItemTypes.SWIMLANE,
 		children: [],
@@ -30,10 +30,10 @@ export const addSwimlaneAction: NonNullable<
 
 export const addTicketAction: NonNullable<
 	CommandLineActionEntry['action']
-> = ctx => {
+> = async (ctx, _, {value}) => {
 	const newItem: NavigationTree<TicketListItem> = {
 		id: `asdf${Date.now()}`,
-		name: 'New ticket',
+		name: `${value}`,
 		actionContext: BoardItemTypes.TICKET_LIST_ITEM,
 		children: [],
 		isSelected: false,
