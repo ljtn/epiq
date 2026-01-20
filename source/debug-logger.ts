@@ -15,3 +15,8 @@ export function bug(...args: any[]) {
 	// appendFileSync creates the file if it does not exist
 	fs.appendFileSync(DEFAULT_PATH, line, 'utf8');
 }
+
+// make it global
+(globalThis as any).bug = bug;
+
+export {};

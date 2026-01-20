@@ -11,6 +11,7 @@ import {inputActions} from './navigation/actions/input/input-actions.js';
 import {DefaultActions} from './navigation/actions/default/default-actions.js';
 import {navigate} from './navigation/navigation.js';
 import {patchState, updateState} from './navigation/state/state.js';
+import './debug-logger.js';
 
 const cli = meow(
 	`
