@@ -11,7 +11,7 @@ export const addSwimlaneAction: NonNullable<
 > = async (ctx, _, {value}) => {
 	const newItem: NavigationTree<Swimlane> = {
 		id: `${Date.now()}`,
-		name: `${value}`,
+		name: value || 'New lane',
 		description: '...',
 		actionContext: BoardItemTypes.SWIMLANE,
 		children: [],
@@ -33,7 +33,7 @@ export const addTicketAction: NonNullable<
 > = async (ctx, _, {value}) => {
 	const newItem: NavigationTree<TicketListItem> = {
 		id: `asdf${Date.now()}`,
-		name: `${value}`,
+		name: value || 'New issue',
 		actionContext: BoardItemTypes.TICKET_LIST_ITEM,
 		children: [],
 		isSelected: false,

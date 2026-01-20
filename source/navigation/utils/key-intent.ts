@@ -1,27 +1,30 @@
 import readline from 'readline';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {NavigateCtx} from '../model/navigation-ctx.model.js';
+import {getCommandLineIntent} from './get-command-line-intent.js';
 
 export enum KeyIntent {
-	NavPreviousItem = 'nav-previous-item',
-	NavNextItem = 'nav-next-item',
-	NavToPreviousContainer = 'nav-to-previous-container',
-	NavToNextContainer = 'nav-to-next-container',
+	NavPreviousItem = 'navPreviousItem',
+	NavNextItem = 'navNextItem',
+	NavToPreviousContainer = 'navToPreviousContainer',
+	NavToNextContainer = 'navToNextContainer',
 
-	MovePreviousItem = 'move-previous-item',
-	MoveNextItem = 'move-next-item',
-	MoveToPreviousContainer = 'move-to-previous-container',
-	MoveToNextContainer = 'move-to-next-container',
+	MovePreviousItem = 'movePreviousItem',
+	MoveNextItem = 'moveNextItem',
+	MoveToPreviousContainer = 'moveToPreviousContainer',
+	MoveToNextContainer = 'moveToNextContainer',
 
-	Confirm = 'confirm', // open / activate (Enter, e)
-	Edit = 'edit', // vim-ish edit (i)
+	Confirm = 'confirm',
+	Edit = 'edit',
 	Exit = 'exit',
-	ToggleHelp = 'toggle-help',
-	ToggleMove = 'toggle-move',
-	ToggleCommandLine = 'toggle-command-line',
-	CaptureInput = 'CaptureInput',
-	EraseInput = 'EraseInput',
-	AddItem = 'AddItem',
+	ToggleHelp = 'toggleHelp',
+	ToggleMove = 'toggleMove',
+	ToggleCommandLine = 'toggleCommandLine',
+	CaptureInput = 'captureInput',
+	EraseInput = 'eraseInput',
+	AddItem = 'addItem',
+	GetLastCommandFromHistory = 'getLastCommandFromHistory',
+	GetNextCommandFromHistory = 'getNextCommandFromHistory',
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -90,16 +93,7 @@ export function getKeyIntent(
 		return KeyIntent.ToggleCommandLine;
 	}
 	if (mode === Mode.COMMAND_LINE) {
-		switch (key.name) {
-			case 'return':
-				return KeyIntent.Confirm;
-			case 'backspace':
-				return KeyIntent.EraseInput;
-			case 'escape':
-				return KeyIntent.ToggleCommandLine;
-			default:
-				return KeyIntent.CaptureInput;
-		}
+		return getCommandLineIntent(key);
 	}
 
 	const axis = ctx.navigationNode.childrenRenderAxis;

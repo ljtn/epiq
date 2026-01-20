@@ -1,10 +1,10 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {navigationState} from '../../navigation/state/state.js';
+import {getCommandLineInput} from '../../navigation/state/command-line.state.js';
 
 export const CommandLine: React.FC = () => (
 	<Box>
 		<Text color={'gray'}>:</Text>
-		<Text>{navigationState.commandLineInput}</Text>
+		<Text>{getCommandLineInput()}</Text>
 	</Box>
 );

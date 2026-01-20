@@ -1,7 +1,12 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {navigationState, patchState, updateState} from '../../state/state.js';
+import {
+	getNextCommand,
+	getPrevCommand,
+	updateCommandLineInput,
+} from '../../state/command-line.state.js';
+import {patchState} from '../../state/state.js';
 import {KeyIntent} from '../../utils/key-intent.js';
-import {onConfirmCommandLineInput} from './command-line-input.js';
+import {onConfirmCommandLineSequenceInput} from './command-line-input.js';
 export const inputActions: ActionEntry[] = [
 	{
 		intent: KeyIntent.ToggleHelp,
@@ -16,27 +21,27 @@ export const inputActions: ActionEntry[] = [
 		intent: KeyIntent.Confirm,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
-			onConfirmCommandLineInput(...args, navigationState.commandLineInput);
+			onConfirmCommandLineSequenceInput(...args);
 		},
 	},
 	{
 		intent: KeyIntent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
-		action: (_1, _2, {sequence}) => {
-			updateState(s => ({
-				...s,
-				commandLineInput: s.commandLineInput + sequence,
-			}));
-		},
+		action: (_1, _2, {sequence}) => updateCommandLineInput(s => s + sequence),
 	},
 	{
 		intent: KeyIntent.EraseInput,
 		mode: Mode.COMMAND_LINE,
-		action: () => {
-			updateState(s => ({
-				...s,
-				commandLineInput: s.commandLineInput.slice(0, -1),
-			}));
-		},
+		action: () => updateCommandLineInput(s => s.slice(0, -1)),
+	},
+	{
+		intent: KeyIntent.GetLastCommandFromHistory,
+		mode: Mode.COMMAND_LINE,
+		action: () => getPrevCommand(),
+	},
+	{
+		intent: KeyIntent.GetNextCommandFromHistory,
+		mode: Mode.COMMAND_LINE,
+		action: () => getNextCommand(),
 	},
 ];

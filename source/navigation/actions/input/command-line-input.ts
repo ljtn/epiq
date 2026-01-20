@@ -1,17 +1,25 @@
-import {commandLineActions} from '../../command-line/command-line-actions.js';
-import {getCommandLineIntent} from '../../command-line/command-line-intent.js';
+import {commandLineSequenceActions} from '../../command-line/command-line-sequence-actions.js';
+import {getCommandLineIntent} from '../../command-line/command-line-sequence-intent.js';
 import {ActionEntry} from '../../model/action-map.model.js';
+import {
+	clearCommandLine,
+	getCommandLineInput,
+	updateCommandHistory,
+} from '../../state/command-line.state.js';
 
-export const onConfirmCommandLineInput = (
-	...args: [...Parameters<NonNullable<ActionEntry['action']>>, string]
+export const onConfirmCommandLineSequenceInput = (
+	...args: Parameters<NonNullable<ActionEntry['action']>>
 ) => {
-	const [ctx, , , commandSequence] = [...args];
+	const commandSequence = getCommandLineInput();
+	const [ctx] = [...args];
 	const [firstItem, ...rest] = commandSequence.split(' ');
 	const command = (firstItem || '').trim();
 	const value = rest.join(' ').trim();
 	if (!command) return;
-	if (!value) return; // Consider helping with auto completion, or showing a hint?
 	const intent = getCommandLineIntent(command);
-	const actionMeta = commandLineActions.find(x => x.intent === intent);
-	return actionMeta?.action?.(ctx, actionMeta, {command, value});
+	const actionMeta = commandLineSequenceActions.find(x => x.intent === intent);
+	actionMeta?.action?.(ctx, actionMeta, {command, value});
+	updateCommandHistory();
+	clearCommandLine();
+	return;
 };
