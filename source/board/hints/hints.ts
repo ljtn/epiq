@@ -5,7 +5,6 @@ export const Hints = {
 	[BoardItemTypes.BOARD]: [],
 	[BoardItemTypes.SWIMLANE]: [
 		':h Help',
-		'a: add swimlane',
 		'hjkl: move between swimlanes',
 		'e: enter swimlane',
 		'q: exit',

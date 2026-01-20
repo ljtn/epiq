@@ -11,7 +11,7 @@ export type ModeUnion = (typeof Mode)[keyof typeof Mode];
 
 export type ActionEntry = {
 	intent?: string;
-	mode: ModeUnion;
+	mode: ModeUnion | ModeUnion[];
 	description?: `[${string}] ${string}`;
 	action?: (
 		...args: [NavigateCtx, ActionEntry, readline.Key]
@@ -20,4 +20,12 @@ export type ActionEntry = {
 
 export type ActionMap<T extends Record<string, any[]>> = {
 	[K in keyof T]: ActionEntry[];
+};
+
+// Command Line
+type CommandLineSequence = string;
+export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
+	action?: (
+		...args: [NavigateCtx, CommandLineActionEntry, CommandLineSequence]
+	) => void | Promise<void>;
 };

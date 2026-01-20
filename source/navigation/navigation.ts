@@ -88,7 +88,7 @@ export function navigate<T extends NavigationTree>({
 		);
 
 		const actionMeta = filteredActions.find(actionMetaItem => {
-			const intent = getKeyIntent(key, ctx, actionMetaItem.mode);
+			const intent = getKeyIntent(key, ctx, navigationState.mode);
 			return intent === actionMetaItem.intent;
 		});
 

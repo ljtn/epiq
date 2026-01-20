@@ -1,10 +1,6 @@
 import {BoardItemTypes} from '../../board/model/board.model.js';
 import {ActionEntry, ActionMap} from '../model/action-map.model.js';
 import {
-	addSwimlaneAction,
-	addTicketAction,
-} from './add-item/add-item-actions.js';
-import {
 	moveAcrossParents,
 	moveWithinParent,
 	toggleMoveMode,
@@ -18,12 +14,8 @@ type BoardActionMap = ActionMap<{
 }>;
 
 export const ContextualActionMap: BoardActionMap = {
-	[BoardItemTypes.BOARD]: [addSwimlaneAction],
-	[BoardItemTypes.SWIMLANE]: [
-		...toggleMoveMode,
-		...moveWithinParent,
-		addTicketAction,
-	],
+	[BoardItemTypes.BOARD]: [],
+	[BoardItemTypes.SWIMLANE]: [...toggleMoveMode, ...moveWithinParent],
 	[BoardItemTypes.TICKET_LIST_ITEM]: [
 		...toggleMoveMode,
 		...moveWithinParent,

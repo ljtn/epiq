@@ -50,16 +50,6 @@ function getDir(key: readline.Key): Dir | null {
 	}
 }
 
-function isHelpKey(key: readline.Key): boolean {
-	// '?' like vim / less / man
-	if (key.name === 'slash' && key.shift) return true;
-
-	// Optional: Shift+H as secondary help
-	if (key.name === 'h' && key.shift) return true;
-
-	return false;
-}
-
 function mapDirectionalIntent(
 	dir: Dir,
 	axis: 'vertical' | 'horizontal',
@@ -141,7 +131,6 @@ export function getKeyIntent(
 
 	// Normal mode
 	if (key.name === 'y') return KeyIntent.ToggleMove;
-	if (isHelpKey(key)) return KeyIntent.ToggleHelp;
 
 	// Edit (vim-ish)
 	if (key.name === 'i') return KeyIntent.Edit;
