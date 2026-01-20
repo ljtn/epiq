@@ -23,7 +23,7 @@ export const TicketListItemUI: React.FC<{
 					: 'white'
 			}
 		>
-			{truncateWithEllipsis(ticket.id + ' - ' + ticket.name, width - 6)}
+			{truncateWithEllipsis(ticket.name, width - 6)}
 		</Text>
 	</Box>
 );
