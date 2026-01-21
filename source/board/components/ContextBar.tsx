@@ -19,9 +19,7 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => (
 					<CommandLine></CommandLine>
 				</Box>
 			) : (
-				<Text color="yellow">
-					{'💡 ' + navigationState.availableHints.join('  ')}
-				</Text>
+				<Text>{navigationState.availableHints.join('  ')}</Text>
 			)}
 		</Box>
 	</Box>
