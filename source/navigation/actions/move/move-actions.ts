@@ -20,7 +20,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: KeyIntent.ToggleMove,
+		intent: KeyIntent.InitMove,
 		mode: Mode.DEFAULT,
 		description: '[Y] Toggle move/yank mode',
 		action: () => {
@@ -30,7 +30,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: KeyIntent.ToggleMove,
+		intent: KeyIntent.Confirm,
 		mode: Mode.MOVE,
 		action: () => {
 			patchState({

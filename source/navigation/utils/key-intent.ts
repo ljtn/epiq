@@ -17,8 +17,11 @@ export enum KeyIntent {
 	Confirm = 'confirm',
 	Edit = 'edit',
 	Exit = 'exit',
-	ToggleHelp = 'toggleHelp',
-	ToggleMove = 'toggleMove',
+	ViewHelp = 'viewHelp',
+	HideHelp = 'hideHelp',
+	InitMove = 'initMove',
+
+	// Command line
 	ToggleCommandLine = 'toggleCommandLine',
 	CaptureInput = 'captureInput',
 	EraseInput = 'eraseInput',
@@ -54,9 +57,8 @@ function getDir(key: readline.Key): Dir | null {
 }
 
 function mapDirectionalIntent(
+	ctx: NavigateCtx,
 	dir: Dir,
-	axis: 'vertical' | 'horizontal',
-	enableAcrossContainers: boolean,
 	intents: {
 		prevItem: KeyIntent;
 		nextItem: KeyIntent;
@@ -64,6 +66,9 @@ function mapDirectionalIntent(
 		nextContainer: KeyIntent;
 	},
 ): KeyIntent | null {
+	const axis = ctx.navigationNode.childrenRenderAxis;
+	const enableAcrossContainers =
+		ctx.navigationNode.enableChildNavigationAcrossContainers;
 	switch (dir) {
 		case 'up':
 			return axis === 'vertical'
@@ -100,72 +105,43 @@ export function getKeyIntent(
 	ctx: NavigateCtx,
 	mode: ModeUnion,
 ): KeyIntent | null {
-	if (key.sequence === ':') {
-		return KeyIntent.ToggleCommandLine;
-	}
-	if (mode.includes(Mode.COMMAND_LINE)) {
-		return getCommandLineIntent(key);
-	}
+	if (key.sequence === ':') return KeyIntent.ToggleCommandLine;
+	if (mode === Mode.COMMAND_LINE) return getCommandLineIntent(key);
 
-	const axis = ctx.navigationNode.childrenRenderAxis;
-	const enableAcrossContainers =
-		ctx.navigationNode.enableChildNavigationAcrossContainers;
-
-	if (key.name === 'escape' && mode.includes(Mode.HELP)) {
-		return KeyIntent.ToggleHelp;
-	}
-
-	// Hard exits
-	if (key.ctrl && key.name === 'c') return KeyIntent.Exit;
-	if (key.name === 'escape') return KeyIntent.Exit;
-
-	// Move mode
-
-	if (mode.includes(Mode.MOVE)) {
-		if (key.name === 'y') return KeyIntent.ToggleMove;
-
-		const dir = getDir(key);
-		if (!dir) return null;
-
-		const intent = mapDirectionalIntent(
-			dir,
-			axis,
-			Boolean(enableAcrossContainers),
-			{
-				prevItem: KeyIntent.MovePreviousItem,
-				nextItem: KeyIntent.MoveNextItem,
-				prevContainer: KeyIntent.MoveToPreviousContainer,
-				nextContainer: KeyIntent.MoveToNextContainer,
-			},
-		);
-		return intent;
-	}
-
-	// Normal mode
-	if (key.name === 'y') return KeyIntent.ToggleMove;
-
-	// Edit (vim-ish)
-	if (key.name === 'i') return KeyIntent.Edit;
-
-	// Navigation (arrows + vim hjkl)
+	// Navigation keys
 	const dir = getDir(key);
 	if (dir) {
-		return mapDirectionalIntent(dir, axis, Boolean(enableAcrossContainers), {
-			prevItem: KeyIntent.NavPreviousItem,
-			nextItem: KeyIntent.NavNextItem,
-			prevContainer: KeyIntent.NavToPreviousContainer,
-			nextContainer: KeyIntent.NavToNextContainer,
-		});
+		let dirMap =
+			mode === Mode.MOVE
+				? {
+						prevItem: KeyIntent.MovePreviousItem,
+						nextItem: KeyIntent.MoveNextItem,
+						prevContainer: KeyIntent.MoveToPreviousContainer,
+						nextContainer: KeyIntent.MoveToNextContainer,
+				  }
+				: {
+						prevItem: KeyIntent.NavPreviousItem,
+						nextItem: KeyIntent.NavNextItem,
+						prevContainer: KeyIntent.NavToPreviousContainer,
+						nextContainer: KeyIntent.NavToNextContainer,
+				  };
+
+		return mapDirectionalIntent(ctx, dir, dirMap);
 	}
 
-	// Actions
+	// Hard exit
+	if (key.ctrl && key.name === 'c') return KeyIntent.Exit;
+
+	// Default actions
 	switch (key.name) {
-		case 'a':
-			return KeyIntent.AddItem;
+		case 'i':
+			return KeyIntent.Edit;
+		case 'y':
+			return KeyIntent.InitMove;
 		case 'return':
-		case 'e':
 			return KeyIntent.Confirm;
 		case 'q':
+		case 'escape':
 			return KeyIntent.Exit;
 		default:
 			return null;

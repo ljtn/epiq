@@ -9,13 +9,14 @@ import {KeyIntent} from '../../utils/key-intent.js';
 import {onConfirmCommandLineSequenceInput} from './command-line-input.js';
 export const inputActions: ActionEntry[] = [
 	{
-		intent: KeyIntent.ToggleHelp,
+		intent: KeyIntent.ViewHelp,
+		mode: Mode.DEFAULT,
+		action: () => patchState({mode: Mode.HELP}),
+	},
+	{
+		intent: KeyIntent.Exit,
 		mode: Mode.HELP,
-		action: () => {
-			patchState({
-				mode: Mode.DEFAULT,
-			});
-		},
+		action: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
 		intent: KeyIntent.Confirm,
