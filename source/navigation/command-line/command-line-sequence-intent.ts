@@ -1,7 +1,7 @@
 import {BoardItemTypes} from '../../board/model/board.model.js';
 import {navigationState} from '../state/state.js';
 
-export const CommandLineSequenceIntent = {
+export const CmdIntent = {
 	None: 'none',
 	AddSwimlane: 'add-swimlane',
 	AddTicket: 'add-ticket',
@@ -10,24 +10,24 @@ export const CommandLineSequenceIntent = {
 
 export const getCommandLineIntent = (
 	command: string,
-): (typeof CommandLineSequenceIntent)[keyof typeof CommandLineSequenceIntent] => {
+): (typeof CmdIntent)[keyof typeof CmdIntent] => {
 	const actionContext = navigationState?.currentNode?.actionContext;
-	if (!actionContext) return CommandLineSequenceIntent.None;
+	if (!actionContext) return CmdIntent.None;
 
 	switch (command) {
 		case 'help':
 		case 'he':
-			return CommandLineSequenceIntent.ViewHelp;
+			return CmdIntent.ViewHelp;
 		case 'add':
 			switch (actionContext) {
 				case BoardItemTypes.SWIMLANE:
-					return CommandLineSequenceIntent.AddSwimlane;
+					return CmdIntent.AddSwimlane;
 				case BoardItemTypes.TICKET:
-					return CommandLineSequenceIntent.AddTicket;
+					return CmdIntent.AddTicket;
 				default:
-					return CommandLineSequenceIntent.None;
+					return CmdIntent.None;
 			}
 		default:
-			return CommandLineSequenceIntent.None;
+			return CmdIntent.None;
 	}
 };

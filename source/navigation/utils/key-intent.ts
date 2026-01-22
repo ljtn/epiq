@@ -3,7 +3,7 @@ import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {NavigateCtx} from '../model/navigation-ctx.model.js';
 import {getCommandLineIntent} from './get-command-line-intent.js';
 
-export enum KeyIntent {
+export enum Intent {
 	NavPreviousItem = 'navPreviousItem',
 	NavNextItem = 'navNextItem',
 	NavToPreviousContainer = 'navToPreviousContainer',
@@ -60,12 +60,12 @@ function mapDirectionalIntent(
 	ctx: NavigateCtx,
 	dir: Dir,
 	intents: {
-		prevItem: KeyIntent;
-		nextItem: KeyIntent;
-		prevContainer: KeyIntent;
-		nextContainer: KeyIntent;
+		prevItem: Intent;
+		nextItem: Intent;
+		prevContainer: Intent;
+		nextContainer: Intent;
 	},
-): KeyIntent | null {
+): Intent | null {
 	const axis = ctx.navigationNode.childrenRenderAxis;
 	const enableAcrossContainers =
 		ctx.navigationNode.enableChildNavigationAcrossContainers;
@@ -104,8 +104,8 @@ export function getKeyIntent(
 	key: readline.Key,
 	ctx: NavigateCtx,
 	mode: ModeUnion,
-): KeyIntent | null {
-	if (key.sequence === ':') return KeyIntent.ToggleCommandLine;
+): Intent | null {
+	if (key.sequence === ':') return Intent.ToggleCommandLine;
 	if (mode === Mode.COMMAND_LINE) return getCommandLineIntent(key);
 
 	// Navigation keys
@@ -114,35 +114,35 @@ export function getKeyIntent(
 		let dirMap =
 			mode === Mode.MOVE
 				? {
-						prevItem: KeyIntent.MovePreviousItem,
-						nextItem: KeyIntent.MoveNextItem,
-						prevContainer: KeyIntent.MoveToPreviousContainer,
-						nextContainer: KeyIntent.MoveToNextContainer,
+						prevItem: Intent.MovePreviousItem,
+						nextItem: Intent.MoveNextItem,
+						prevContainer: Intent.MoveToPreviousContainer,
+						nextContainer: Intent.MoveToNextContainer,
 				  }
 				: {
-						prevItem: KeyIntent.NavPreviousItem,
-						nextItem: KeyIntent.NavNextItem,
-						prevContainer: KeyIntent.NavToPreviousContainer,
-						nextContainer: KeyIntent.NavToNextContainer,
+						prevItem: Intent.NavPreviousItem,
+						nextItem: Intent.NavNextItem,
+						prevContainer: Intent.NavToPreviousContainer,
+						nextContainer: Intent.NavToNextContainer,
 				  };
 
 		return mapDirectionalIntent(ctx, dir, dirMap);
 	}
 
 	// Hard exit
-	if (key.ctrl && key.name === 'c') return KeyIntent.Exit;
+	if (key.ctrl && key.name === 'c') return Intent.Exit;
 
 	// Default actions
 	switch (key.name) {
 		case 'i':
-			return KeyIntent.Edit;
+			return Intent.Edit;
 		case 'y':
-			return KeyIntent.InitMove;
+			return Intent.InitMove;
 		case 'return':
-			return KeyIntent.Confirm;
+			return Intent.Confirm;
 		case 'q':
 		case 'escape':
-			return KeyIntent.Exit;
+			return Intent.Exit;
 		default:
 			return null;
 	}

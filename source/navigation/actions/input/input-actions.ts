@@ -5,43 +5,43 @@ import {
 	updateCommandLineInput,
 } from '../../state/command-line.state.js';
 import {patchState} from '../../state/state.js';
-import {KeyIntent} from '../../utils/key-intent.js';
+import {Intent} from '../../utils/key-intent.js';
 import {onConfirmCommandLineSequenceInput} from './command-line-input.js';
 export const inputActions: ActionEntry[] = [
 	{
-		intent: KeyIntent.ViewHelp,
+		intent: Intent.ViewHelp,
 		mode: Mode.DEFAULT,
 		action: () => patchState({mode: Mode.HELP}),
 	},
 	{
-		intent: KeyIntent.Exit,
+		intent: Intent.Exit,
 		mode: Mode.HELP,
 		action: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
-		intent: KeyIntent.Confirm,
+		intent: Intent.Confirm,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
 			onConfirmCommandLineSequenceInput(...args);
 		},
 	},
 	{
-		intent: KeyIntent.CaptureInput,
+		intent: Intent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
 		action: (_1, _2, {sequence}) => updateCommandLineInput(s => s + sequence),
 	},
 	{
-		intent: KeyIntent.EraseInput,
+		intent: Intent.EraseInput,
 		mode: Mode.COMMAND_LINE,
 		action: () => updateCommandLineInput(s => s.slice(0, -1)),
 	},
 	{
-		intent: KeyIntent.GetLastCommandFromHistory,
+		intent: Intent.GetLastCommandFromHistory,
 		mode: Mode.COMMAND_LINE,
 		action: () => getPrevCommand(),
 	},
 	{
-		intent: KeyIntent.GetNextCommandFromHistory,
+		intent: Intent.GetNextCommandFromHistory,
 		mode: Mode.COMMAND_LINE,
 		action: () => getNextCommand(),
 	},

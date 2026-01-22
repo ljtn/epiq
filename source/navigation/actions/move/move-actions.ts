@@ -1,6 +1,6 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {patchState} from '../../state/state.js';
-import {KeyIntent} from '../../utils/key-intent.js';
+import {Intent} from '../../utils/key-intent.js';
 import {
 	moveChildNextWithinParent,
 	moveChildPreviousWithinParent,
@@ -10,7 +10,7 @@ import {
 
 export const toggleMoveMode: ActionEntry[] = [
 	{
-		intent: KeyIntent.Exit,
+		intent: Intent.Exit,
 		mode: Mode.MOVE,
 		description: '[Y] Exit yank mode',
 		action: () => {
@@ -20,7 +20,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: KeyIntent.InitMove,
+		intent: Intent.InitMove,
 		mode: Mode.DEFAULT,
 		description: '[Y] Toggle move/yank mode',
 		action: () => {
@@ -30,7 +30,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: KeyIntent.Confirm,
+		intent: Intent.Confirm,
 		mode: Mode.MOVE,
 		action: () => {
 			patchState({
@@ -41,24 +41,24 @@ export const toggleMoveMode: ActionEntry[] = [
 ];
 export const moveWithinParent: ActionEntry[] = [
 	{
-		intent: KeyIntent.MovePreviousItem,
+		intent: Intent.MovePreviousItem,
 		mode: Mode.MOVE,
 		action: moveChildPreviousWithinParent,
 	},
 	{
-		intent: KeyIntent.MoveNextItem,
+		intent: Intent.MoveNextItem,
 		mode: Mode.MOVE,
 		action: moveChildNextWithinParent,
 	},
 ];
 export const moveAcrossParents: ActionEntry[] = [
 	{
-		intent: KeyIntent.MoveToNextContainer,
+		intent: Intent.MoveToNextContainer,
 		mode: Mode.MOVE,
 		action: moveChildToNextParent,
 	},
 	{
-		intent: KeyIntent.MoveToPreviousContainer,
+		intent: Intent.MoveToPreviousContainer,
 		mode: Mode.MOVE,
 		action: moveChildToPreviousParent,
 	},

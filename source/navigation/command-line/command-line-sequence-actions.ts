@@ -4,11 +4,11 @@ import {
 } from '../actions/add-item/add-item-actions.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {patchState} from '../state/state.js';
-import {CommandLineSequenceIntent} from './command-line-sequence-intent.js';
+import {CmdIntent} from './command-line-sequence-intent.js';
 
 export const commandLineSequenceActions: CommandLineActionEntry[] = [
 	{
-		intent: CommandLineSequenceIntent.ViewHelp,
+		intent: CmdIntent.ViewHelp,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			patchState({
@@ -17,7 +17,7 @@ export const commandLineSequenceActions: CommandLineActionEntry[] = [
 		},
 	},
 	{
-		intent: CommandLineSequenceIntent.AddSwimlane,
+		intent: CmdIntent.AddSwimlane,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
 			addSwimlaneAction(...args);
@@ -25,7 +25,7 @@ export const commandLineSequenceActions: CommandLineActionEntry[] = [
 		},
 	},
 	{
-		intent: CommandLineSequenceIntent.AddTicket,
+		intent: CmdIntent.AddTicket,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
 			addTicketAction(...args);

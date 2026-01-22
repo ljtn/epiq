@@ -1,6 +1,6 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {patchState} from '../../state/state.js';
-import {KeyIntent} from '../../utils/key-intent.js';
+import {Intent} from '../../utils/key-intent.js';
 import {
 	enterChildNode,
 	exitToParentNode,
@@ -12,7 +12,7 @@ import {
 
 export const DefaultActions: ActionEntry[] = [
 	{
-		intent: KeyIntent.ToggleCommandLine,
+		intent: Intent.ToggleCommandLine,
 		mode: Mode.DEFAULT,
 		description: '[:] Toggle command line',
 		action: () =>
@@ -21,42 +21,19 @@ export const DefaultActions: ActionEntry[] = [
 			}),
 	},
 	{
-		intent: KeyIntent.ToggleCommandLine,
+		intent: Intent.ToggleCommandLine,
 		mode: Mode.COMMAND_LINE,
 		description: '[ESC] Toggle command line',
-		action: () =>
-			patchState({
-				mode: Mode.DEFAULT,
-			}),
+		action: () => patchState({mode: Mode.DEFAULT}),
 	},
-	// {
-	// 	intent: KeyIntent.ToggleHelp,
-	// 	mode: Mode.DEFAULT,
-	// 	description: '[F1] Toggle HELP menu',
-	// 	action: () =>
-	// 		setState(state => ({
-	// 			...state,
-	// 			mode: Mode.HELP,
-	// 		})),
-	// },
-	// {
-	// 	intent: KeyIntent.ToggleHelp,
-	// 	mode: Mode.HELP,
-	// 	description: '[F1] Close HELP menu',
-	// 	action: () =>
-	// 		setState(state => ({
-	// 			...state,
-	// 			mode: Mode.DEFAULT,
-	// 		})),
-	// },
 	{
-		intent: KeyIntent.Confirm,
+		intent: Intent.Confirm,
 		mode: Mode.DEFAULT,
-		description: '[ENTER/E] Confirm/Enter context',
+		description: '[ENTER] Confirm/Enter context',
 		action: enterChildNode,
 	},
 	{
-		intent: KeyIntent.Exit,
+		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
 		description: '[ESC/Q] Exit application',
 		action: exitToParentNode,
@@ -67,22 +44,22 @@ export const DefaultActions: ActionEntry[] = [
 	},
 
 	{
-		intent: KeyIntent.NavPreviousItem,
+		intent: Intent.NavPreviousItem,
 		mode: Mode.DEFAULT,
 		action: navigateToPreviousItem,
 	},
 	{
-		intent: KeyIntent.NavNextItem,
+		intent: Intent.NavNextItem,
 		mode: Mode.DEFAULT,
 		action: navigateToNextItem,
 	},
 	{
-		intent: KeyIntent.NavToPreviousContainer,
+		intent: Intent.NavToPreviousContainer,
 		mode: Mode.DEFAULT,
 		action: navigateToPreviousContainer,
 	},
 	{
-		intent: KeyIntent.NavToNextContainer,
+		intent: Intent.NavToNextContainer,
 		mode: Mode.DEFAULT,
 		action: navigateToNextContainer,
 	},

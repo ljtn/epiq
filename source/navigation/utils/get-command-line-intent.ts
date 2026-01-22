@@ -1,19 +1,19 @@
-import {KeyIntent} from './key-intent.js';
+import {Intent} from './key-intent.js';
 import readline from 'readline';
 
 export const getCommandLineIntent = (key: readline.Key) => {
 	switch (key.name) {
 		case 'up':
-			return KeyIntent.GetLastCommandFromHistory;
+			return Intent.GetLastCommandFromHistory;
 		case 'down':
-			return KeyIntent.GetNextCommandFromHistory;
+			return Intent.GetNextCommandFromHistory;
 		case 'return':
-			return KeyIntent.Confirm;
+			return Intent.Confirm;
 		case 'backspace':
-			return KeyIntent.EraseInput;
+			return Intent.EraseInput;
 		case 'escape':
-			return KeyIntent.ToggleCommandLine;
+			return Intent.ToggleCommandLine;
 		default:
-			return KeyIntent.CaptureInput;
+			return Intent.CaptureInput;
 	}
 };
