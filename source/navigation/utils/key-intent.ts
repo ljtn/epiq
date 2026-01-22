@@ -66,15 +66,26 @@ function mapDirectionalIntent(
 ): KeyIntent | null {
 	switch (dir) {
 		case 'up':
-			return axis === 'vertical' ? intents.prevItem : null;
+			return axis === 'vertical'
+				? intents.prevItem
+				: enableAcrossContainers
+				? intents.prevContainer
+				: null;
+
 		case 'down':
-			return axis === 'vertical' ? intents.nextItem : null;
+			return axis === 'vertical'
+				? intents.nextItem
+				: enableAcrossContainers
+				? intents.nextContainer
+				: null;
+
 		case 'left':
 			return axis === 'horizontal'
 				? intents.prevItem
 				: enableAcrossContainers
 				? intents.prevContainer
 				: null;
+
 		case 'right':
 			return axis === 'horizontal'
 				? intents.nextItem
@@ -92,7 +103,7 @@ export function getKeyIntent(
 	if (key.sequence === ':') {
 		return KeyIntent.ToggleCommandLine;
 	}
-	if (mode === Mode.COMMAND_LINE) {
+	if (mode.includes(Mode.COMMAND_LINE)) {
 		return getCommandLineIntent(key);
 	}
 
@@ -100,7 +111,7 @@ export function getKeyIntent(
 	const enableAcrossContainers =
 		ctx.navigationNode.enableChildNavigationAcrossContainers;
 
-	if (key.name === 'escape' && mode === Mode.HELP) {
+	if (key.name === 'escape' && mode.includes(Mode.HELP)) {
 		return KeyIntent.ToggleHelp;
 	}
 
@@ -109,18 +120,25 @@ export function getKeyIntent(
 	if (key.name === 'escape') return KeyIntent.Exit;
 
 	// Move mode
-	if (mode === Mode.MOVE) {
+
+	if (mode.includes(Mode.MOVE)) {
 		if (key.name === 'y') return KeyIntent.ToggleMove;
 
 		const dir = getDir(key);
 		if (!dir) return null;
 
-		return mapDirectionalIntent(dir, axis, Boolean(enableAcrossContainers), {
-			prevItem: KeyIntent.MovePreviousItem,
-			nextItem: KeyIntent.MoveNextItem,
-			prevContainer: KeyIntent.MoveToPreviousContainer,
-			nextContainer: KeyIntent.MoveToNextContainer,
-		});
+		const intent = mapDirectionalIntent(
+			dir,
+			axis,
+			Boolean(enableAcrossContainers),
+			{
+				prevItem: KeyIntent.MovePreviousItem,
+				nextItem: KeyIntent.MoveNextItem,
+				prevContainer: KeyIntent.MoveToPreviousContainer,
+				nextContainer: KeyIntent.MoveToNextContainer,
+			},
+		);
+		return intent;
 	}
 
 	// Normal mode

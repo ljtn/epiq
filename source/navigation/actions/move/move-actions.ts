@@ -10,6 +10,16 @@ import {
 
 export const toggleMoveMode: ActionEntry[] = [
 	{
+		intent: KeyIntent.Exit,
+		mode: Mode.MOVE,
+		description: '[Y] Exit yank mode',
+		action: () => {
+			patchState({
+				mode: Mode.DEFAULT,
+			});
+		},
+	},
+	{
 		intent: KeyIntent.ToggleMove,
 		mode: Mode.DEFAULT,
 		description: '[Y] Toggle move/yank mode',
@@ -30,10 +40,6 @@ export const toggleMoveMode: ActionEntry[] = [
 	},
 ];
 export const moveWithinParent: ActionEntry[] = [
-	{
-		mode: Mode.MOVE,
-		description: '[Y, ARROW KEYS] Move item',
-	},
 	{
 		intent: KeyIntent.MovePreviousItem,
 		mode: Mode.MOVE,

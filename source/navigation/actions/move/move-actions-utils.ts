@@ -49,10 +49,12 @@ function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
 	ctx.reInvokeNavigate(sibling.children.length - 1, newBreadCrumb);
 }
 
-export const moveChildToNextParent = (ctx: NavigateCtx) =>
+export const moveChildToNextParent = (ctx: NavigateCtx) => {
 	moveNodeToSiblingContainer(ctx, 1);
-export const moveChildToPreviousParent = (ctx: NavigateCtx) =>
+};
+export const moveChildToPreviousParent = (ctx: NavigateCtx) => {
 	moveNodeToSiblingContainer(ctx, -1);
+};
 
 function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
 	const from = ctx._selectionIndex;
@@ -66,8 +68,10 @@ function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
 	ctx.updateSelection(to);
 }
 
-export const moveChildPreviousWithinParent = (ctx: NavigateCtx) =>
+export const moveChildPreviousWithinParent = (ctx: NavigateCtx) => {
 	moveChildWithinParent(ctx, -1);
+};
 
-export const moveChildNextWithinParent = (ctx: NavigateCtx) =>
+export const moveChildNextWithinParent = (ctx: NavigateCtx) => {
 	moveChildWithinParent(ctx, 1);
+};

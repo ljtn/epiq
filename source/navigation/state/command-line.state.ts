@@ -13,7 +13,6 @@ export let commandLineState: CommandLineState = {
 export const updateCommandLineState = (
 	cb: (old: CommandLineState) => CommandLineState,
 ) => {
-	bug(commandLineState);
 	commandLineState = cb(structuredClone(commandLineState));
 };
 

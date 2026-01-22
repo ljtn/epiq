@@ -43,7 +43,6 @@ export function navigate<T extends NavigationTree>({
 			const children = this.navigationNode.children ?? [];
 			children.forEach((c, i) => (c.isSelected = i === idx));
 			if (idx < 0 || idx >= children.length) {
-				callbacks.onSelectChange?.(undefined, breadCrumb);
 				return;
 			}
 			callbacks.onSelectChange?.(children[idx], breadCrumb);
@@ -83,22 +82,20 @@ export function navigate<T extends NavigationTree>({
 	async function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();
 
-		const filteredActions = navigationState.availableActions.filter(
-			x => x.mode === navigationState.mode,
+		const {availableActions} = navigationState;
+		const filteredActions = availableActions.filter(
+			({mode}) => mode === navigationState.mode,
+		);
+		const actionMeta = filteredActions.find(
+			({intent, mode}) => getKeyIntent(key, ctx, mode) === intent,
 		);
 
-		const actionMeta = filteredActions.find(actionMetaItem => {
-			const intent = getKeyIntent(key, ctx, navigationState.mode);
-			return intent === actionMetaItem.intent;
-		});
-
-		if (actionMeta?.action) {
-			try {
-				const res = actionMeta.action(ctx, actionMeta, key);
-				if (res instanceof Promise) await res;
-			} catch (err) {
-				console.error(err);
-			}
+		if (!actionMeta?.action) return;
+		try {
+			const res = actionMeta.action(ctx, actionMeta, key);
+			if (res instanceof Promise) await res;
+		} catch (err) {
+			console.error(err);
 		}
 
 		ctx.render();

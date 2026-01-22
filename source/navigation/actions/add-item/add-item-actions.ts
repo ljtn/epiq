@@ -14,10 +14,10 @@ export const addSwimlaneAction: NonNullable<
 		name: value || 'New lane',
 		description: '...',
 		actionContext: BoardItemTypes.SWIMLANE,
-		children: [],
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
 		enableChildNavigationAcrossContainers: true,
+		children: [],
 	};
 	const parent = ctx.navigationNode;
 	parent.children ??= [];
@@ -32,13 +32,22 @@ export const addTicketAction: NonNullable<
 	CommandLineActionEntry['action']
 > = async (ctx, _, {value}) => {
 	const newItem: NavigationTree<TicketListItem> = {
-		id: `asdf${Date.now()}`,
+		id: `${Date.now()}`,
 		name: value || 'New issue',
 		actionContext: BoardItemTypes.TICKET_LIST_ITEM,
-		children: [],
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
-		description: '',
+		children: [
+			{
+				isSelected: false,
+				id: `${Date.now()}`,
+				name: 'Description',
+				description: '...add description',
+				actionContext: BoardItemTypes.TICKET,
+				childrenRenderAxis: 'vertical',
+				children: [],
+			},
+		],
 	};
 	const parent = ctx.navigationNode;
 	parent.children ??= [];

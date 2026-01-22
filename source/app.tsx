@@ -18,13 +18,10 @@ export default function App({board}: {board: Board}) {
 		<Box flexDirection="column">
 			{/* <Logo></Logo> */}
 			{!(navigationState.mode === Mode.HELP) && (
-				<>
-					<BoardUI board={board} swimlaneWidth={swimlaneWidth} />
-					<ContextBar width={width} />
-				</>
+				<BoardUI board={board} swimlaneWidth={swimlaneWidth} />
 			)}
-
 			{navigationState.mode === Mode.HELP && <HelpUI width={renderedWidth} />}
+			<ContextBar width={width} />
 		</Box>
 	);
 }

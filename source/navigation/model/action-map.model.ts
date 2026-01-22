@@ -11,7 +11,7 @@ export type ModeUnion = (typeof Mode)[keyof typeof Mode];
 
 export type ActionEntry = {
 	intent?: string;
-	mode: ModeUnion | ModeUnion[];
+	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
 	action?: (
 		...args: [NavigateCtx, ActionEntry, readline.Key]

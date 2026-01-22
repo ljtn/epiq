@@ -5,13 +5,12 @@ import React from 'react';
 import App from './app.js';
 import {Hints} from './board/hints/hints.js';
 import {board} from './board/mock/board.js';
-import {Board, Swimlane, TicketListItem} from './board/model/board.model.js';
+import './debug-logger.js';
 import {ContextualActionMap} from './navigation/actions/board-action-map.js';
-import {inputActions} from './navigation/actions/input/input-actions.js';
 import {DefaultActions} from './navigation/actions/default/default-actions.js';
+import {inputActions} from './navigation/actions/input/input-actions.js';
 import {navigate} from './navigation/navigation.js';
 import {patchState, updateState} from './navigation/state/state.js';
-import './debug-logger.js';
 
 const cli = meow(
 	`
@@ -59,22 +58,15 @@ cli;
 				render(<App board={board} />);
 			},
 			onSelectChange: (selected, breadCrumb) => {
-				// container is the "list" we are navigating in (board → swimlanes, swimlane → tickets, etc)
-				const container = breadCrumb.at(-1)!;
-
-				// still remember which *child* is selected for rendering
-				const currentNode = selected ?? container;
-
-				// but build actions from the container type, not the selected child
-				const containerType = (container as TicketListItem | Swimlane | Board)
-					.actionContext;
-
+				const currentNode = selected;
+				const actionContext = selected?.actionContext;
+				if (!selected) return;
 				patchState({
 					currentNode,
 					breadCrumb,
 					availableActions: [
 						...DefaultActions,
-						...ContextualActionMap[containerType],
+						...(actionContext ? ContextualActionMap[actionContext] : []),
 						...inputActions,
 					],
 				});

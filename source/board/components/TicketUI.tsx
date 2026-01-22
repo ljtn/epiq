@@ -14,7 +14,7 @@ export const TicketUI: React.FC<Props> = ({item, width}) => (
 		paddingLeft={2}
 		borderStyle="round"
 		width={width}
-		minHeight={16}
+		minHeight={20}
 		borderColor="gray"
 	>
 		{item.children.map(child => (
