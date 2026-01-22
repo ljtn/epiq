@@ -15,11 +15,26 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => (
 	>
 		<Box>
 			{navigationState.mode === Mode.COMMAND_LINE ? (
-				<Box>
-					<CommandLine></CommandLine>
-				</Box>
+				<CommandLine />
 			) : (
-				<Text>{navigationState.availableHints.join('  ')}</Text>
+				<Box flexDirection="row" gap={2}>
+					<Text>💡</Text>
+					{navigationState.availableHints.map((x, index) => {
+						const [command, ...rest] = x.split(' ');
+						const argument = rest.join(' ');
+						return (
+							<Box key={index}>
+								<Text color="cyan">{command}</Text>
+								{argument && (
+									<>
+										<Text> </Text>
+										<Text color="gray">{argument}</Text>
+									</>
+								)}
+							</Box>
+						);
+					})}
+				</Box>
 			)}
 		</Box>
 	</Box>

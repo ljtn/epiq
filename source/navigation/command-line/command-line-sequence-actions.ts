@@ -10,11 +10,7 @@ export const commandLineSequenceActions: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.ViewHelp,
 		mode: Mode.COMMAND_LINE,
-		action: () => {
-			patchState({
-				mode: Mode.HELP,
-			});
-		},
+		action: () => patchState({mode: Mode.HELP}),
 	},
 	{
 		intent: CmdIntent.AddSwimlane,

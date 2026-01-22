@@ -138,6 +138,7 @@ export function getKeyIntent(
 			return Intent.Edit;
 		case 'y':
 			return Intent.InitMove;
+		case 'e':
 		case 'return':
 			return Intent.Confirm;
 		case 'q':
