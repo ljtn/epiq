@@ -1,7 +1,7 @@
 import readline from 'readline';
 import {NavigateCtx} from './model/navigation-ctx.model.js';
 import {NavigationTree} from './model/navigation-tree.model.js';
-import {navigationState} from './state/state.js';
+import {appState} from './state/state.js';
 import {getKeyIntent} from './utils/key-intent.js';
 
 export function navigate<T extends NavigationTree>({
@@ -82,9 +82,9 @@ export function navigate<T extends NavigationTree>({
 	async function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') return ctx.exit();
 
-		const {availableActions} = navigationState;
+		const {availableActions} = appState;
 		const filteredActions = availableActions.filter(
-			({mode}) => mode === navigationState.mode,
+			({mode}) => mode === appState.mode,
 		);
 		const actionMeta = filteredActions.find(
 			({intent, mode}) => getKeyIntent(key, ctx, mode) === intent,

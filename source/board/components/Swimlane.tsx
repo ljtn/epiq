@@ -3,7 +3,7 @@ import React from 'react';
 import {Swimlane, TicketListItem} from '../model/board.model.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
-import {navigationState} from '../../navigation/state/state.js';
+import {appState} from '../../navigation/state/state.js';
 
 type Props = {
 	item: Swimlane;
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export const SwimlaneUI: React.FC<Props> = ({item, width}) => {
-	const color = navigationState.currentNode?.id === item.id ? 'cyan' : 'gray';
+	const color = appState.currentNode?.id === item.id ? 'cyan' : 'gray';
 	return (
 		<Box
 			flexDirection="column"

@@ -1,5 +1,5 @@
 import {BoardItemTypes} from '../../board/model/board.model.js';
-import {navigationState} from '../state/state.js';
+import {appState} from '../state/state.js';
 
 export const CmdIntent = {
 	None: 'none',
@@ -11,7 +11,7 @@ export const CmdIntent = {
 export const getCommandLineIntent = (
 	command: string,
 ): (typeof CmdIntent)[keyof typeof CmdIntent] => {
-	const actionContext = navigationState?.currentNode?.actionContext;
+	const actionContext = appState?.currentNode?.actionContext;
 	if (!actionContext) return CmdIntent.None;
 
 	switch (command) {

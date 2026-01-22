@@ -5,7 +5,7 @@ import {ContextBar} from './board/components/ContextBar.js';
 import {HelpUI} from './board/components/Help.js';
 import {Board} from './board/model/board.model.js';
 import {Mode} from './navigation/model/action-map.model.js';
-import {navigationState} from './navigation/state/state.js';
+import {appState} from './navigation/state/state.js';
 
 export default function App({board}: {board: Board}) {
 	const width = process.stdout.columns || 120;
@@ -17,10 +17,10 @@ export default function App({board}: {board: Board}) {
 	return (
 		<Box flexDirection="column">
 			{/* <Logo></Logo> */}
-			{!(navigationState.mode === Mode.HELP) && (
+			{!(appState.mode === Mode.HELP) && (
 				<BoardUI board={board} swimlaneWidth={swimlaneWidth} />
 			)}
-			{navigationState.mode === Mode.HELP && <HelpUI width={renderedWidth} />}
+			{appState.mode === Mode.HELP && <HelpUI width={renderedWidth} />}
 			<ContextBar width={width} />
 		</Box>
 	);

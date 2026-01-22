@@ -3,7 +3,7 @@ import {triggerRender} from '../../cli.js';
 import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
 import {NavigationTree} from '../model/navigation-tree.model.js';
 
-export let navigationState: {
+export let appState: {
 	mode: ModeUnion;
 	availableActions: ActionEntry[];
 	availableHints: readonly string[];
@@ -18,12 +18,12 @@ export let navigationState: {
 };
 
 export const updateState = (
-	cb: (oldState: typeof navigationState) => typeof navigationState,
+	cb: (oldState: typeof appState) => typeof appState,
 ) => {
-	navigationState = cb(navigationState);
+	appState = cb(appState);
 };
 
-export const patchState = (patch: Partial<typeof navigationState>) =>
+export const patchState = (patch: Partial<typeof appState>) =>
 	updateState(oldState => ({
 		...oldState,
 		...patch,
