@@ -1,4 +1,5 @@
 import {Hints} from '../../board/hints/hints.js';
+import {Board} from '../../board/model/board.model.js';
 import {triggerRender} from '../../cli.js';
 import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
 import {NavigationTree} from '../model/navigation-tree.model.js';
@@ -9,12 +10,18 @@ export let appState: {
 	availableHints: readonly string[];
 	currentNode: NavigationTree<NavigationTree> | null;
 	breadCrumb: NavigationTree<NavigationTree>[];
+	board: Board | undefined;
 } = {
 	mode: 'default',
 	availableActions: [],
 	availableHints: [],
 	currentNode: null,
 	breadCrumb: [],
+	board: undefined,
+};
+
+export const initAppState = (board: Board) => {
+	appState = {...appState, board};
 };
 
 export const updateState = (

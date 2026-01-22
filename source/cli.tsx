@@ -10,7 +10,12 @@ import {ContextualActionMap} from './navigation/actions/board-action-map.js';
 import {DefaultActions} from './navigation/actions/default/default-actions.js';
 import {inputActions} from './navigation/actions/input/input-actions.js';
 import {navigate} from './navigation/navigation.js';
-import {patchState, updateState} from './navigation/state/state.js';
+import {
+	appState,
+	initAppState,
+	patchState,
+	updateState,
+} from './navigation/state/state.js';
 
 const cli = meow(
 	`
@@ -37,6 +42,8 @@ cli;
 (() => {
 	console.clear();
 
+	initAppState(board);
+
 	const onBeforeRender = () => {
 		updateState(state => {
 			const {currentNode, mode} = state;
@@ -50,12 +57,12 @@ cli;
 	};
 	navigate({
 		index: 0,
-		breadCrumb: [board],
+		breadCrumb: [appState.board!],
 		callbacks: {
 			render: () => {
 				onBeforeRender();
 
-				render(<App board={board} />);
+				render(<App board={appState.board!} />);
 			},
 			onSelectChange: (selected, breadCrumb) => {
 				const currentNode = selected;
@@ -76,9 +83,9 @@ cli;
 })();
 
 export let triggerRender = () => {
-	render(<App board={board} />);
+	render(<App board={appState.board!} />);
 };
 
 process.stdout.on('resize', () => {
-	render(<App board={board} />);
+	render(<App board={appState.board!} />);
 });

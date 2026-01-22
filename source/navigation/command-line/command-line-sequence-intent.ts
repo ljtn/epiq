@@ -6,9 +6,10 @@ export const CmdIntent = {
 	AddSwimlane: 'add-swimlane',
 	AddTicket: 'add-ticket',
 	ViewHelp: 'view-help',
+	Rename: 'rename',
 } as const;
 
-export const getCommandLineIntent = (
+export const getCommandIntent = (
 	command: string,
 ): (typeof CmdIntent)[keyof typeof CmdIntent] => {
 	const actionContext = appState?.currentNode?.actionContext;
@@ -18,6 +19,8 @@ export const getCommandLineIntent = (
 		case 'help':
 		case 'he':
 			return CmdIntent.ViewHelp;
+		case 'rename':
+			return CmdIntent.Rename;
 		case 'add':
 			switch (actionContext) {
 				case BoardItemTypes.SWIMLANE:

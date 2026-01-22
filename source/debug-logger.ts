@@ -8,7 +8,7 @@ export function bug(...args: any[]) {
 	// const timestamp = new Date().toISOString();
 	const message = util.format(...args);
 	// const line = `[${timestamp}] ${message}\n`;
-	const line = `[${message}\n`;
+	const line = `${message}\n`;
 
 	// Ensure parent directory exists
 	fs.mkdirSync(path.dirname(DEFAULT_PATH), {recursive: true});

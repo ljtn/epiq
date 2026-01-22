@@ -1,5 +1,5 @@
-import {commandLineSequenceActions} from '../../command-line/command-line-sequence-actions.js';
-import {getCommandLineIntent} from '../../command-line/command-line-sequence-intent.js';
+import {getCommandIntent} from '../../command-line/command-line-sequence-intent.js';
+import {commands} from '../../command-line/commands.js';
 import {ActionEntry} from '../../model/action-map.model.js';
 import {
 	clearCommandLine,
@@ -16,8 +16,8 @@ export const onConfirmCommandLineSequenceInput = (
 	const command = (firstItem || '').trim();
 	const value = rest.join(' ').trim();
 	if (!command) return;
-	const intent = getCommandLineIntent(command);
-	const actionMeta = commandLineSequenceActions.find(x => x.intent === intent);
+	const intent = getCommandIntent(command);
+	const actionMeta = commands.find(x => x.intent === intent);
 	actionMeta?.action?.(ctx, actionMeta, {command, value});
 	updateCommandHistory();
 	clearCommandLine();

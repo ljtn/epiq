@@ -1,3 +1,4 @@
+export const commandDelimiter = ' ';
 export type CommandLineState = {
 	value: string;
 	commandHistory: string[];
@@ -59,3 +60,10 @@ export const getNextCommand = () => {
 export const clearCommandLine = () => updateCommandLineInput(() => '');
 
 export const getCommandLineInput = () => commandLineState.value;
+
+export const getCommandLineArgumentValue = () => {
+	const [_, ...rest] = commandLineState.value.split(commandDelimiter);
+	const value = rest.join(commandDelimiter);
+	bug(value);
+	return value;
+};

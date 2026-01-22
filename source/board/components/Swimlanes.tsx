@@ -14,7 +14,6 @@ export const BoardContentUI: React.FC<Props> = ({items, width}) => {
 	const actionContext = appState?.currentNode?.actionContext as any;
 
 	const isSwimlaneContext = [
-		undefined,
 		BoardItemTypes.BOARD,
 		BoardItemTypes.SWIMLANE,
 		BoardItemTypes.TICKET_LIST_ITEM,

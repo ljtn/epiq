@@ -1,5 +1,7 @@
+import {CmdIntent} from '../../command-line/command-line-sequence-intent.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {patchState} from '../../state/state.js';
+import {updateCommandLineInput} from '../../state/command-line.state.js';
+import {appState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {
 	enterChildNode,
@@ -15,10 +17,7 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.ToggleCommandLine,
 		mode: Mode.DEFAULT,
 		description: '[:] Toggle command line',
-		action: () =>
-			patchState({
-				mode: Mode.COMMAND_LINE,
-			}),
+		action: () => patchState({mode: Mode.COMMAND_LINE}),
 	},
 	{
 		intent: Intent.ToggleCommandLine,
@@ -62,5 +61,15 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.NavToNextContainer,
 		mode: Mode.DEFAULT,
 		action: navigateToNextContainer,
+	},
+	{
+		intent: Intent.Edit,
+		mode: Mode.DEFAULT,
+		action: () => {
+			patchState({mode: Mode.COMMAND_LINE});
+			updateCommandLineInput(
+				() => `${CmdIntent.Rename} ${appState.currentNode?.name}`,
+			);
+		},
 	},
 ];

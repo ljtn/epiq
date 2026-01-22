@@ -7,7 +7,7 @@ export const Hints = {
 	[BoardItemTypes.TICKET_LIST_ITEM + Mode.HELP]: ['q: exit'],
 	[BoardItemTypes.SWIMLANE + Mode.HELP]: ['q: exit'],
 	[BoardItemTypes.TICKET_LIST_ITEM]: ['i: edit', 'y: yank/move'],
-	[BoardItemTypes.TICKET]: ['q: exit', 'I: edit'],
+	[BoardItemTypes.TICKET]: ['q: exit', 'i: edit'],
 	[BoardItemTypes.SWIMLANE + Mode.MOVE]: [
 		'hjkl: move selection',
 		'e/enter: confirm move/yank',
