@@ -1,7 +1,7 @@
 import {NavigationTree} from '../../model/navigation-tree.model.js';
 import {appState, patchState} from '../../state/state.js';
 
-export interface NavigateUtils {
+export interface Navigator {
 	navigate({
 		currentNode,
 		selectedIndex,
@@ -19,7 +19,7 @@ export interface NavigateUtils {
 	navigateToPreviousContainer: () => void;
 }
 
-export const navigator: NavigateUtils = {
+export const navigator: Navigator = {
 	confirm(sel) {
 		console.log(sel);
 	},
@@ -121,7 +121,6 @@ const navigateByOffset = (offset: number) => {
 	if (len === 0) return;
 
 	const newIndex = (appState.selectedIndex + offset + len) % len;
-	debug(newIndex);
 	navigator.navigate({selectedIndex: newIndex});
 };
 const navigateToSiblingContainer = (direction: -1 | 1) => {

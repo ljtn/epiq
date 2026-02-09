@@ -1,4 +1,4 @@
-import {NavigateUtils} from '../actions/default/navigation-action-utils.js';
+import {Navigator} from '../actions/default/navigation-action-utils.js';
 import readline from 'readline';
 
 export const Mode = {
@@ -14,7 +14,7 @@ export type ActionEntry = {
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
 	action?: (
-		...args: [NavigateUtils, ActionEntry, readline.Key]
+		...args: [Navigator, ActionEntry, readline.Key]
 	) => void | Promise<void>;
 };
 
@@ -25,6 +25,6 @@ export type ActionMap<T extends Record<string, any[]>> = {
 type CommandLineInput = {value: string; command: string};
 export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
 	action?: (
-		...args: [NavigateUtils, CommandLineActionEntry, CommandLineInput]
+		...args: [Navigator, CommandLineActionEntry, CommandLineInput]
 	) => void | Promise<void>;
 };

@@ -1,4 +1,5 @@
 export const commandDelimiter = ' ';
+
 export type CommandLineState = {
 	value: string;
 	commandHistory: string[];
@@ -11,10 +12,26 @@ export let commandLineState: CommandLineState = {
 	commandHistoryIndex: -1,
 };
 
+// ===== Subscriptions =====
+type Listener = () => void;
+const listeners = new Set<Listener>();
+
+const notify = () => {
+	for (const l of listeners) l();
+};
+
+export const subscribeCommandLineState = (listener: Listener) => {
+	listeners.add(listener);
+	return () => listeners.delete(listener);
+};
+
+// ===== Updates =====
 export const updateCommandLineState = (
 	cb: (old: CommandLineState) => CommandLineState,
 ) => {
-	commandLineState = cb(structuredClone(commandLineState));
+	const next = cb(structuredClone(commandLineState));
+	commandLineState = next;
+	notify();
 };
 
 export const updateCommandLineInput = (cb: (previous: string) => string) => {
@@ -30,6 +47,7 @@ export const updateCommandHistory = () => {
 		commandHistory: [state.value, ...state.commandHistory].slice(0, 20),
 	}));
 };
+
 export const getPrevCommand = () => {
 	updateCommandLineState(s => {
 		const nextIndex = Math.min(
@@ -43,16 +61,15 @@ export const getPrevCommand = () => {
 		};
 	});
 };
+
 export const getNextCommand = () => {
 	updateCommandLineState(s => {
-		const nextIndex = Math.min(
-			s.commandHistoryIndex - 1,
-			s.commandHistory.length - 1,
-		);
+		// typically you want to clamp down to -1 (meaning "no selection")
+		const nextIndex = Math.max(s.commandHistoryIndex - 1, -1);
 		return {
 			...s,
 			commandHistoryIndex: nextIndex,
-			value: s.commandHistory[nextIndex] ?? '',
+			value: nextIndex === -1 ? '' : s.commandHistory[nextIndex] ?? '',
 		};
 	});
 };
@@ -63,6 +80,5 @@ export const getCommandLineInput = () => commandLineState.value;
 
 export const getCommandLineArgumentValue = () => {
 	const [_, ...rest] = commandLineState.value.split(commandDelimiter);
-	const value = rest.join(commandDelimiter);
-	return value;
+	return rest.join(commandDelimiter);
 };

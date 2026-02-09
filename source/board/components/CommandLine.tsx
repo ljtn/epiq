@@ -1,6 +1,9 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {Box, Text} from 'ink';
-import {getCommandLineInput} from '../../navigation/state/command-line.state.js';
+import {
+	getCommandLineInput,
+	subscribeCommandLineState,
+} from '../../navigation/state/command-line.state.js';
 
 const roleColors: Record<'command' | 'argument', string> = {
 	command: 'cyan',
@@ -8,9 +11,17 @@ const roleColors: Record<'command' | 'argument', string> = {
 };
 
 export const CommandLine: React.FC = () => {
-	const input = getCommandLineInput();
+	const [input, setInput] = useState(getCommandLineInput());
 
-	// Split only on the FIRST space
+	useEffect(() => {
+		const unsubscribe = subscribeCommandLineState(() => {
+			setInput(getCommandLineInput());
+		});
+		return () => {
+			unsubscribe();
+		};
+	}, []);
+
 	const [command, ...rest] = input.split(' ');
 	const argument = rest.join(' ');
 
