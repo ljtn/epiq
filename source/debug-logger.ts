@@ -4,7 +4,7 @@ import util from 'util';
 
 const DEFAULT_PATH = path.resolve(process.cwd(), 'debug.log');
 
-export function bug(...args: any[]) {
+export function debug(...args: any[]) {
 	// const timestamp = new Date().toISOString();
 	const message = util.format(...args);
 	// const line = `[${timestamp}] ${message}\n`;
@@ -18,6 +18,6 @@ export function bug(...args: any[]) {
 }
 
 // make it global
-(globalThis as any).bug = bug;
+(globalThis as any).debug = debug;
 
 export {};

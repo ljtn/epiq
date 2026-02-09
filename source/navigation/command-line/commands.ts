@@ -35,7 +35,7 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			updateState(s => {
 				// Update board on file
-				const newBoard = appState.board!;
+				const newBoard = appState.rootNode!;
 				const currentId = s.currentNode?.id;
 				if (!currentId) return s;
 				const findItemInBoard = (item: any, id: string) => {
@@ -52,11 +52,10 @@ export const commands: CommandLineActionEntry[] = [
 				return {
 					...s,
 					mode: Mode.DEFAULT,
-					board: newBoard,
+					rootNode: newBoard,
 					currentNode: itemInBoard,
 				};
 			});
-			bug(appState.currentNode?.name);
 		},
 	},
 ];

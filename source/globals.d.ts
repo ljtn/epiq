@@ -1,5 +1,5 @@
 export {};
 
 declare global {
-	function bug(...args: any[]): void;
+	function debug(...args: any[]): void;
 }

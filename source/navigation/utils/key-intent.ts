@@ -1,6 +1,6 @@
 import readline from 'readline';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
-import {NavigateCtx} from '../model/navigation-ctx.model.js';
+import {appState} from '../state/state.js';
 import {getCommandLineIntent} from './get-command-line-intent.js';
 
 export enum Intent {
@@ -57,7 +57,7 @@ function getDir(key: readline.Key): Dir | null {
 }
 
 function mapDirectionalIntent(
-	ctx: NavigateCtx,
+	axis: 'vertical' | 'horizontal',
 	dir: Dir,
 	intents: {
 		prevItem: Intent;
@@ -66,9 +66,8 @@ function mapDirectionalIntent(
 		nextContainer: Intent;
 	},
 ): Intent | null {
-	const axis = ctx.navigationNode.childrenRenderAxis;
 	const enableAcrossContainers =
-		ctx.navigationNode.enableChildNavigationAcrossContainers;
+		appState.currentNode.enableChildNavigationAcrossContainers;
 	switch (dir) {
 		case 'up':
 			return axis === 'vertical'
@@ -102,7 +101,6 @@ function mapDirectionalIntent(
 
 export function getKeyIntent(
 	key: readline.Key,
-	ctx: NavigateCtx,
 	mode: ModeUnion,
 ): Intent | null {
 	if (key.sequence === ':') return Intent.ToggleCommandLine;
@@ -126,7 +124,11 @@ export function getKeyIntent(
 						nextContainer: Intent.NavToNextContainer,
 				  };
 
-		return mapDirectionalIntent(ctx, dir, dirMap);
+		return mapDirectionalIntent(
+			appState.currentNode.childrenRenderAxis,
+			dir,
+			dirMap,
+		);
 	}
 
 	// Hard exit

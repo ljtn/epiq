@@ -1,61 +1,65 @@
 import {Hints} from '../../board/hints/hints.js';
 import {Board} from '../../board/model/board.model.js';
 import {triggerRender} from '../../cli.js';
+import {ContextualActionMap} from '../actions/board-action-map.js';
+import {DefaultActions} from '../actions/default/default-actions.js';
+import {inputActions} from '../actions/input/input-actions.js';
 import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
 import {NavigationTree} from '../model/navigation-tree.model.js';
 
-export let appState: {
-	mode: ModeUnion;
-	availableActions: ActionEntry[];
-	availableHints: readonly string[];
-	currentNode: NavigationTree<NavigationTree> | null;
-	breadCrumb: NavigationTree<NavigationTree>[];
-	board: Board | undefined;
-} = {
-	mode: 'default',
-	availableActions: [],
-	availableHints: [],
-	currentNode: null,
-	breadCrumb: [],
-	board: undefined,
+export type AppState = {
+	readonly selectedIndex: number;
+	readonly mode: ModeUnion;
+	readonly availableActions: ActionEntry[];
+	readonly availableHints: readonly string[];
+	readonly currentNode: NavigationTree<NavigationTree>;
+	readonly breadCrumb: NavigationTree<NavigationTree>[];
+	readonly rootNode: Board;
+};
+
+export let appState: AppState;
+
+const derived = (state: typeof appState): typeof appState => {
+	const {currentNode, mode} = state;
+
+	const availableHints =
+		Hints[currentNode.actionContext + mode] ?? Hints[currentNode.actionContext];
+
+	const actionContext = currentNode?.actionContext;
+	const availableActions = [
+		...DefaultActions,
+		...ContextualActionMap[actionContext],
+		...inputActions,
+	];
+
+	return {
+		...state,
+		availableHints,
+		availableActions,
+	};
 };
 
 export const initAppState = (board: Board) => {
-	appState = {...appState, board};
+	appState = derived({
+		...appState,
+		rootNode: board,
+		breadCrumb: [board],
+		selectedIndex: 0,
+		mode: 'default',
+		currentNode: board,
+	});
+	triggerRender();
 };
 
 export const updateState = (
 	cb: (oldState: typeof appState) => typeof appState,
+	opts: {render?: boolean} = {render: true},
 ) => {
-	appState = cb(appState);
+	appState = derived(cb(appState));
+	if (opts.render) triggerRender();
 };
 
-export const patchState = (patch: Partial<typeof appState>) =>
-	updateState(oldState => ({
-		...oldState,
-		...patch,
-	}));
-
-// Utilities for updating specific parts of the state
-export const flashHint = async (hints: string[]): Promise<void> => {
-	await new Promise<void>(resolve => {
-		setTimeout(() => {
-			updateState(state => {
-				const {currentNode, mode} = state;
-				const contextualHints = (currentNode &&
-					Hints[currentNode.actionContext + mode]) ??
-					(currentNode && Hints[currentNode.actionContext]) ?? [''];
-				return {
-					...state,
-					availableHints: contextualHints,
-				};
-			});
-			triggerRender();
-			resolve();
-		}, 3_000);
-		patchState({
-			availableHints: hints,
-		});
-		triggerRender();
-	});
-};
+export const patchState = (
+	patch: Partial<typeof appState>,
+	opts: {render?: boolean} = {render: true},
+) => updateState(old => ({...old, ...patch}), opts);

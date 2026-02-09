@@ -25,7 +25,15 @@ export const BoardContentUI: React.FC<Props> = ({items, width}) => {
 		<Box flexDirection="row">
 			{isSwimlaneContext &&
 				items.map((lane, index) => (
-					<SwimlaneUI key={index} width={width} item={lane} />
+					<SwimlaneUI
+						key={index}
+						width={width}
+						isSelected={
+							appState.currentNode.actionContext === 'BOARD' &&
+							appState.selectedIndex === index
+						}
+						item={lane}
+					/>
 				))}
 
 			{isTicketContext && appState.currentNode && (

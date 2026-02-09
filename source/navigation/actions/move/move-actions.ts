@@ -30,7 +30,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: Intent.Confirm,
+		intent: Intent.InitMove, // Change name to toggle move?
 		mode: Mode.MOVE,
 		action: () => {
 			patchState({

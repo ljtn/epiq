@@ -14,12 +14,12 @@ type BoardActionMap = ActionMap<{
 }>;
 
 export const ContextualActionMap: BoardActionMap = {
-	[BoardItemTypes.BOARD]: [],
-	[BoardItemTypes.SWIMLANE]: [...toggleMoveMode, ...moveWithinParent],
-	[BoardItemTypes.TICKET_LIST_ITEM]: [
+	[BoardItemTypes.BOARD]: [...toggleMoveMode, ...moveWithinParent],
+	[BoardItemTypes.SWIMLANE]: [
 		...toggleMoveMode,
 		...moveWithinParent,
 		...moveAcrossParents,
 	],
+	[BoardItemTypes.TICKET_LIST_ITEM]: [],
 	[BoardItemTypes.TICKET]: [],
 };

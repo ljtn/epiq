@@ -3,15 +3,15 @@ import React from 'react';
 import {Swimlane, TicketListItem} from '../model/board.model.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
-import {appState} from '../../navigation/state/state.js';
 
 type Props = {
 	item: Swimlane;
 	width: number;
+	isSelected: boolean;
 };
 
-export const SwimlaneUI: React.FC<Props> = ({item, width}) => {
-	const color = appState.currentNode?.id === item.id ? 'cyan' : 'gray';
+export const SwimlaneUI: React.FC<Props> = ({item, isSelected, width}) => {
+	const color = isSelected ? 'cyan' : 'gray';
 	return (
 		<Box
 			flexDirection="column"

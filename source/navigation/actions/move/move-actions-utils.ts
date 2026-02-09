@@ -1,5 +1,6 @@
-import {NavigateCtx} from '../../model/navigation-ctx.model.js';
 import {NavigationTree} from '../../model/navigation-tree.model.js';
+import {appState} from '../../state/state.js';
+import {navigationUtils} from '../default/navigation-action-utils.js';
 
 function moveItemInArray<T>({
 	array,
@@ -15,63 +16,71 @@ function moveItemInArray<T>({
 	if (item) array.splice(to, 0, item);
 }
 
-function moveNodeToSiblingContainer(ctx: NavigateCtx, direction: -1 | 1) {
-	const parent = ctx.breadCrumb.at(-1);
-	const grandParent = ctx.breadCrumb.at(-2);
-	if (!parent || !grandParent) return;
+function moveNodeToSiblingContainer(direction: -1 | 1) {
+	const currentNode = appState.breadCrumb.at(-1);
+	const parentNode = appState.breadCrumb.at(-2);
+	if (!currentNode || !parentNode) return;
 
-	if (!Array.isArray(grandParent.children)) return;
+	if (!Array.isArray(parentNode.children)) return;
 
-	const parentIndex = grandParent.children.findIndex(x => x.id === parent.id);
-	const targetIndex = parentIndex + direction;
+	const currentNodeIndex = parentNode.children.findIndex(
+		x => x.id === currentNode.id,
+	);
+	const targetNodeIndex = currentNodeIndex + direction;
 	if (
-		parentIndex < 0 ||
-		targetIndex < 0 ||
-		targetIndex >= grandParent.children.length
+		currentNodeIndex < 0 ||
+		targetNodeIndex < 0 ||
+		targetNodeIndex >= parentNode.children.length
 	)
 		return;
 
-	const sibling = grandParent.children[targetIndex];
-	if (!sibling) return;
+	const siblingNode = parentNode.children[targetNodeIndex];
+	if (!siblingNode) return;
 
-	if (!Array.isArray(parent.children)) return;
-	if (!Array.isArray(sibling.children)) sibling.children = []; // normalize empty container
+	if (!Array.isArray(currentNode.children)) return;
+	if (!Array.isArray(siblingNode.children)) siblingNode.children = []; // normalize empty container
 
-	const currentIndex = ctx.getSelectedIndex();
-	if (currentIndex < 0 || currentIndex >= parent.children.length) return;
+	const currentSelectionIndex = appState.selectedIndex;
+	if (
+		currentSelectionIndex < 0 ||
+		currentSelectionIndex >= currentNode.children.length
+	)
+		return;
 
-	const [node] = parent.children.splice(currentIndex, 1);
-	if (!node) return;
+	const [moveNode] = currentNode.children.splice(currentSelectionIndex, 1);
+	if (!moveNode) return;
 
-	sibling.children.push(node as NavigationTree);
+	siblingNode.children.push(moveNode as NavigationTree);
 
-	const newBreadCrumb = [...ctx.breadCrumb.slice(0, -1), sibling];
-	ctx.reInvokeNavigate(sibling.children.length - 1, newBreadCrumb);
+	navigationUtils.navigate({
+		selectedIndex: siblingNode.children.length - 1,
+		currentNode: siblingNode,
+	});
 }
 
-export const moveChildToNextParent = (ctx: NavigateCtx) => {
-	moveNodeToSiblingContainer(ctx, 1);
+export const moveChildToNextParent = () => {
+	moveNodeToSiblingContainer(1);
 };
-export const moveChildToPreviousParent = (ctx: NavigateCtx) => {
-	moveNodeToSiblingContainer(ctx, -1);
+export const moveChildToPreviousParent = () => {
+	moveNodeToSiblingContainer(-1);
 };
 
-function moveChildWithinParent(ctx: NavigateCtx, direction: -1 | 1) {
-	const from = ctx._selectionIndex;
+function moveChildWithinParent(direction: -1 | 1) {
+	const from = appState.selectedIndex;
 	const to = from + direction;
-	if (to < 0 || to >= ctx.navigationNode.children.length) return;
+	if (to < 0 || to >= appState.currentNode.children.length) return;
 	moveItemInArray({
-		array: ctx.navigationNode.children,
+		array: appState.currentNode.children,
 		from,
 		to,
 	});
-	ctx.updateSelection(to);
+	navigationUtils.navigate({selectedIndex: to});
 }
 
-export const moveChildPreviousWithinParent = (ctx: NavigateCtx) => {
-	moveChildWithinParent(ctx, -1);
+export const moveChildPreviousWithinParent = () => {
+	moveChildWithinParent(-1);
 };
 
-export const moveChildNextWithinParent = (ctx: NavigateCtx) => {
-	moveChildWithinParent(ctx, 1);
+export const moveChildNextWithinParent = () => {
+	moveChildWithinParent(1);
 };

@@ -64,6 +64,5 @@ export const getCommandLineInput = () => commandLineState.value;
 export const getCommandLineArgumentValue = () => {
 	const [_, ...rest] = commandLineState.value.split(commandDelimiter);
 	const value = rest.join(commandDelimiter);
-	bug(value);
 	return value;
 };

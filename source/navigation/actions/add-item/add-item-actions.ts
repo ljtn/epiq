@@ -5,10 +5,12 @@ import {
 } from '../../../board/model/board.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {NavigationTree} from '../../model/navigation-tree.model.js';
+import {appState} from '../../state/state.js';
+import {navigationUtils} from '../default/navigation-action-utils.js';
 
 export const addSwimlaneAction: NonNullable<
 	CommandLineActionEntry['action']
-> = async (ctx, _, {value}) => {
+> = async (_ctx, _cmd, {value}) => {
 	const newItem: NavigationTree<Swimlane> = {
 		id: `${Date.now()}`,
 		name: value || 'New lane',
@@ -19,18 +21,18 @@ export const addSwimlaneAction: NonNullable<
 		enableChildNavigationAcrossContainers: true,
 		children: [],
 	};
-	const parent = ctx.navigationNode;
+	const parent = appState.currentNode;
 	parent.children ??= [];
 
 	const newItemIndex = parent.children.length;
 	parent.children.push(newItem);
 
-	ctx.updateSelection(newItemIndex);
+	navigationUtils.navigate({selectedIndex: newItemIndex});
 };
 
 export const addTicketAction: NonNullable<
 	CommandLineActionEntry['action']
-> = async (ctx, _, {value}) => {
+> = async (_ctx, _cmd, {value}) => {
 	const newItem: NavigationTree<TicketListItem> = {
 		id: `${Date.now()}`,
 		name: value || 'New issue',
@@ -49,11 +51,11 @@ export const addTicketAction: NonNullable<
 			},
 		],
 	};
-	const parent = ctx.navigationNode;
+	const parent = appState.currentNode;
 	parent.children ??= [];
 
 	const newItemIndex = parent.children.length;
 	parent.children.push(newItem);
 
-	ctx.updateSelection(newItemIndex);
+	navigationUtils.navigate({selectedIndex: newItemIndex});
 };
