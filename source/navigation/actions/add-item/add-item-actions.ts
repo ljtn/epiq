@@ -6,7 +6,7 @@ import {
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {NavigationTree} from '../../model/navigation-tree.model.js';
 import {appState} from '../../state/state.js';
-import {navigationUtils} from '../default/navigation-action-utils.js';
+import {navigator} from '../default/navigation-action-utils.js';
 
 export const addSwimlaneAction: NonNullable<
 	CommandLineActionEntry['action']
@@ -27,7 +27,7 @@ export const addSwimlaneAction: NonNullable<
 	const newItemIndex = parent.children.length;
 	parent.children.push(newItem);
 
-	navigationUtils.navigate({selectedIndex: newItemIndex});
+	navigator.navigate({selectedIndex: newItemIndex});
 };
 
 export const addTicketAction: NonNullable<
@@ -57,5 +57,5 @@ export const addTicketAction: NonNullable<
 	const newItemIndex = parent.children.length;
 	parent.children.push(newItem);
 
-	navigationUtils.navigate({selectedIndex: newItemIndex});
+	navigator.navigate({selectedIndex: newItemIndex});
 };

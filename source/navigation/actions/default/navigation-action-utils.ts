@@ -19,7 +19,7 @@ export interface NavigateUtils {
 	navigateToPreviousContainer: () => void;
 }
 
-export const navigationUtils: NavigateUtils = {
+export const navigator: NavigateUtils = {
 	confirm(sel) {
 		console.log(sel);
 	},
@@ -33,7 +33,7 @@ export const navigationUtils: NavigateUtils = {
 
 		if (!currentNode || !focusNode) return;
 
-		navigationUtils.navigate({
+		navigator.navigate({
 			currentNode: focusNode,
 			selectedIndex: 0,
 		});
@@ -50,10 +50,7 @@ export const navigationUtils: NavigateUtils = {
 		const newIndex =
 			newCurrentNode?.children?.findIndex(x => x.id === prevNode.id) ?? 0;
 
-		// Reset kids
-		appState.currentNode.children?.forEach(child => (child.isSelected = false));
-
-		navigationUtils.navigate({
+		navigator.navigate({
 			currentNode: newCurrentNode,
 			selectedIndex: newIndex,
 		});
@@ -125,7 +122,7 @@ const navigateByOffset = (offset: number) => {
 
 	const newIndex = (appState.selectedIndex + offset + len) % len;
 	debug(newIndex);
-	navigationUtils.navigate({selectedIndex: newIndex});
+	navigator.navigate({selectedIndex: newIndex});
 };
 const navigateToSiblingContainer = (direction: -1 | 1) => {
 	if (!appState.currentNode.enableChildNavigationAcrossContainers) return;
@@ -151,7 +148,7 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 	const prevIndex = appState.selectedIndex;
 	const boundedIndex = Math.min(prevIndex, nextSibling.children.length - 1);
 
-	navigationUtils.navigate({
+	navigator.navigate({
 		currentNode: nextSibling,
 		selectedIndex: boundedIndex,
 	});

@@ -3,7 +3,7 @@ import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {updateCommandLineInput} from '../../state/command-line.state.js';
 import {appState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
-import {navigationUtils} from './navigation-action-utils.js';
+import {navigator} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
 	{
@@ -22,13 +22,13 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.Confirm,
 		mode: Mode.DEFAULT,
 		description: '[ENTER] Confirm/Enter context',
-		action: navigationUtils.enterChildNode,
+		action: navigator.enterChildNode,
 	},
 	{
 		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
 		description: '[ESC/Q] Exit application',
-		action: navigationUtils.enterParentNode,
+		action: navigator.enterParentNode,
 	},
 	{
 		mode: Mode.DEFAULT,
@@ -38,22 +38,22 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.NavPreviousItem,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToPreviousItem,
+		action: navigator.navigateToPreviousItem,
 	},
 	{
 		intent: Intent.NavNextItem,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToNextItem,
+		action: navigator.navigateToNextItem,
 	},
 	{
 		intent: Intent.NavToPreviousContainer,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToPreviousContainer,
+		action: navigator.navigateToPreviousContainer,
 	},
 	{
 		intent: Intent.NavToNextContainer,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToNextContainer,
+		action: navigator.navigateToNextContainer,
 	},
 	{
 		intent: Intent.Edit,

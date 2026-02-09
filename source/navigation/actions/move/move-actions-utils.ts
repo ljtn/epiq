@@ -1,6 +1,6 @@
 import {NavigationTree} from '../../model/navigation-tree.model.js';
 import {appState} from '../../state/state.js';
-import {navigationUtils} from '../default/navigation-action-utils.js';
+import {navigator} from '../default/navigation-action-utils.js';
 
 function moveItemInArray<T>({
 	array,
@@ -52,7 +52,7 @@ function moveNodeToSiblingContainer(direction: -1 | 1) {
 
 	siblingNode.children.push(moveNode as NavigationTree);
 
-	navigationUtils.navigate({
+	navigator.navigate({
 		selectedIndex: siblingNode.children.length - 1,
 		currentNode: siblingNode,
 	});
@@ -74,7 +74,7 @@ function moveChildWithinParent(direction: -1 | 1) {
 		from,
 		to,
 	});
-	navigationUtils.navigate({selectedIndex: to});
+	navigator.navigate({selectedIndex: to});
 }
 
 export const moveChildPreviousWithinParent = () => {

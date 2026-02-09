@@ -11,15 +11,11 @@ type Props = {
 };
 
 export const BoardContentUI: React.FC<Props> = ({items, width}) => {
-	const actionContext = appState?.currentNode?.actionContext as any;
-
-	const isSwimlaneContext = [
-		BoardItemTypes.BOARD,
-		BoardItemTypes.SWIMLANE,
-		BoardItemTypes.TICKET_LIST_ITEM,
-	].includes(actionContext);
-
-	const isTicketContext = actionContext === BoardItemTypes.TICKET;
+	const actionContext = appState.currentNode.actionContext;
+	const isTicketContext = actionContext === BoardItemTypes.TICKET_LIST_ITEM;
+	const isSwimlaneContext =
+		actionContext === BoardItemTypes.BOARD ||
+		actionContext === BoardItemTypes.SWIMLANE;
 
 	return (
 		<Box flexDirection="row">
