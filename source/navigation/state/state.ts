@@ -1,6 +1,6 @@
 import {Hints} from '../../board/hints/hints.js';
 import {Board} from '../../board/model/board.model.js';
-import {triggerRender} from '../../cli.js';
+import {renderBoard} from '../../cli.js';
 import {ContextualActionMap} from '../actions/board-action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
@@ -48,7 +48,7 @@ export const initAppState = (board: Board) => {
 		mode: 'default',
 		currentNode: board,
 	});
-	triggerRender();
+	renderBoard();
 };
 
 export const updateState = (
@@ -56,7 +56,7 @@ export const updateState = (
 	opts: {render?: boolean} = {render: true},
 ) => {
 	appState = derived(cb(appState));
-	if (opts.render) triggerRender();
+	if (opts.render) renderBoard();
 };
 
 export const patchState = (

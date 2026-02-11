@@ -4,7 +4,7 @@
 	"license": "MIT",
 	"bin": "dist/cli.js",
 	"type": "module",
-	"description": "CLI based issue tracking manager",
+	"description": "EPIQ - CLI based issue tracker",
 	"engines": {
 		"node": ">=16"
 	},

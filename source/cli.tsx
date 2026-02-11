@@ -1,29 +1,26 @@
 #!/usr/bin/env node
+import './debug-logger.js';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
-import './debug-logger.js';
 import {initListeners} from './navigation/keypress-listener.js';
 import {appState, initAppState} from './navigation/state/state.js';
 import {board} from './board/mock/board.js';
+import {initProject} from './init-project.js';
 
 const cli = meow(
 	`
-	Usage
+	  View board in directory:
 	  $ epiq
 
-	Options
-		--name  Your name
-
-	Examples
-	  $ epiq --name=Jane
-	  Hello, Jane
+	  Init project in directory:
+	  $ epiq --init "Project Name"
 `,
 	{
 		importMeta: import.meta,
 		flags: {
-			name: {
+			init: {
 				type: 'string',
 			},
 		},
@@ -31,14 +28,18 @@ const cli = meow(
 );
 cli;
 
-export let triggerRender = () => {
-	render(<App board={appState.rootNode!} />);
+export let renderBoard = () => {
+	render(<App board={appState.rootNode} />);
 };
 
-process.stdout.on('resize', () => triggerRender());
+process.stdout.on('resize', () => renderBoard());
 
 (() => {
-	console.clear();
-	initAppState(board);
-	initListeners();
+	debug(cli);
+	if (cli.flags.init) {
+		initProject();
+	} else if (!Object.keys(cli.flags).length) {
+		initAppState(board);
+		initListeners();
+	}
 })();
