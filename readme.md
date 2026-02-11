@@ -1,37 +1,74 @@
 # epiq
 
-## Local dev
+> **The ultimate productivity tool** — a CLI-based issue tracking client powered by Git as its backend, living directly inside the repository you work in.
+> No external services. No context switching. Just tickets, versioned and colocated with your code.
 
-Start dev server in background terminal session:
+---
+
+## Why epiq?
+
+- **Simplicity** — Skip the additional tooling complexity
+- **Repo-native** — Lives inside your project directory
+- **Offline-ready** — Works wherever Git works
+- **Team-friendly** — Collaborate through normal Git workflows
+- **Shareable** — ASCII board exported to `.md`, viewable in the CLI, on GitHub/GitLab, or as your project README.
+- **CLI-first** — Fast, scriptable, and developer/agent-friendly
+
+---
+
+## 📦 Installation
+
+Install globally using npm:
 
 ```bash
-$ npm run dev
+npm install --global epiq
 ```
 
-Run app with:
+Verify installation:
 
 ```bash
-$ npm run execute
+epiq --version
 ```
 
-## Install (WIP!)
+---
+
+## 🚀 Getting Started
+
+### Initialize a project
+
+Create a new epiq workspace inside your current directory:
 
 ```bash
-$ npm install --global epiq
+epiq --init "Project Name"
 ```
 
-## CLI (WIP!)
+This sets up epiq in your repository and prepares it for issue tracking.
 
+---
+
+### Open the workspace
+
+Run epiq inside any initialized repository:
+
+```bash
+epiq
 ```
-$ epiq --help
 
-  Usage
-    $ epiq
+This opens the interactive CLI workspace.
 
-  Options
-    --name  Your name
+---
 
-  Examples
-    $ epiq --name=Jane
-    Hello, Jane
-```
+## 🛠 Philosophy
+
+epiq keeps issue tracking:
+
+- Close to your code
+- Versioned with your commits
+- Simple and transparent
+- Independent from external platforms
+
+If you use Git, you already have everything you need.
+
+---
+
+Built for developers who live in the terminal.
