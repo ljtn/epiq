@@ -1,6 +1,6 @@
 {
 	"name": "epiq",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"license": "MIT",
 	"bin": "dist/cli.js",
 	"type": "module",
