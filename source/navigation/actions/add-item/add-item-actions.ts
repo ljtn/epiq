@@ -1,8 +1,8 @@
 import {
-	BoardItemTypes,
+	Context,
 	Swimlane,
 	TicketListItem,
-} from '../../../board/model/board.model.js';
+} from '../../../board/model/context.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {NavigationTree} from '../../model/navigation-tree.model.js';
 import {appState} from '../../state/state.js';
@@ -15,7 +15,7 @@ export const addSwimlaneAction: NonNullable<
 		id: `${Date.now()}`,
 		name: value || 'New lane',
 		description: '...',
-		actionContext: BoardItemTypes.SWIMLANE,
+		actionContext: Context.SWIMLANE,
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
 		enableChildNavigationAcrossContainers: true,
@@ -36,7 +36,7 @@ export const addTicketAction: NonNullable<
 	const newItem: NavigationTree<TicketListItem> = {
 		id: `${Date.now()}`,
 		name: value || 'New issue',
-		actionContext: BoardItemTypes.TICKET_LIST_ITEM,
+		actionContext: Context.TICKET_LIST_ITEM,
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
 		children: [
@@ -45,7 +45,7 @@ export const addTicketAction: NonNullable<
 				id: `${Date.now()}`,
 				name: 'Description',
 				description: '...add description',
-				actionContext: BoardItemTypes.TICKET,
+				actionContext: Context.TICKET,
 				childrenRenderAxis: 'vertical',
 				children: [],
 			},

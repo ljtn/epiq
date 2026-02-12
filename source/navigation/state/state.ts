@@ -1,7 +1,7 @@
 import {Hints} from '../../board/hints/hints.js';
-import {Board} from '../../board/model/board.model.js';
+import {Board} from '../../board/model/context.model.js';
 import {renderBoard} from '../../cli.js';
-import {ContextualActionMap} from '../actions/board-action-map.js';
+import {contextActions} from '../actions/board-action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
 import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
@@ -28,7 +28,7 @@ const derived = (state: typeof appState): typeof appState => {
 	const actionContext = currentNode?.actionContext;
 	const availableActions = [
 		...DefaultActions,
-		...ContextualActionMap[actionContext],
+		...contextActions[actionContext],
 		...inputActions,
 	];
 

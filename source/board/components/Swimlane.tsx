@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Swimlane, TicketListItem} from '../model/board.model.js';
+import {Swimlane, TicketListItem} from '../model/context.model.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 

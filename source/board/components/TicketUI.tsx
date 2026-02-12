@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Ticket} from '../model/board.model.js';
+import {Ticket} from '../model/context.model.js';
 
 type Props = {
 	item: Ticket;

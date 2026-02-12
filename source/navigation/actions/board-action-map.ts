@@ -1,4 +1,4 @@
-import {BoardItemTypes} from '../../board/model/board.model.js';
+import {Context} from '../../board/model/context.model.js';
 import {ActionEntry, ActionMap} from '../model/action-map.model.js';
 import {
 	moveAcrossParents,
@@ -6,20 +6,22 @@ import {
 	toggleMoveMode,
 } from './move/move-actions.js';
 
-type BoardActionMap = ActionMap<{
-	[BoardItemTypes.BOARD]: ActionEntry[];
-	[BoardItemTypes.SWIMLANE]: ActionEntry[];
-	[BoardItemTypes.TICKET_LIST_ITEM]: ActionEntry[];
-	[BoardItemTypes.TICKET]: ActionEntry[];
+type ContextActions = ActionMap<{
+	[Context.WORKSPACE]: ActionEntry[];
+	[Context.BOARD]: ActionEntry[];
+	[Context.SWIMLANE]: ActionEntry[];
+	[Context.TICKET_LIST_ITEM]: ActionEntry[];
+	[Context.TICKET]: ActionEntry[];
 }>;
 
-export const ContextualActionMap: BoardActionMap = {
-	[BoardItemTypes.BOARD]: [...toggleMoveMode, ...moveWithinParent],
-	[BoardItemTypes.SWIMLANE]: [
+export const contextActions: ContextActions = {
+	[Context.WORKSPACE]: [],
+	[Context.BOARD]: [...toggleMoveMode, ...moveWithinParent],
+	[Context.SWIMLANE]: [
 		...toggleMoveMode,
 		...moveWithinParent,
 		...moveAcrossParents,
 	],
-	[BoardItemTypes.TICKET_LIST_ITEM]: [],
-	[BoardItemTypes.TICKET]: [],
+	[Context.TICKET_LIST_ITEM]: [],
+	[Context.TICKET]: [],
 };

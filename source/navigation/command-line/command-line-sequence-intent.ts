@@ -1,4 +1,4 @@
-import {BoardItemTypes} from '../../board/model/board.model.js';
+import {Context} from '../../board/model/context.model.js';
 import {appState} from '../state/state.js';
 
 export const CmdIntent = {
@@ -22,9 +22,9 @@ export const getCommandIntent = (
 		case 'a':
 		case 'add':
 			switch (actionContext) {
-				case BoardItemTypes.BOARD:
+				case Context.BOARD:
 					return CmdIntent.AddSwimlane;
-				case BoardItemTypes.SWIMLANE:
+				case Context.SWIMLANE:
 					return CmdIntent.AddTicket;
 				default:
 					return CmdIntent.None;

@@ -3,7 +3,7 @@ import React from 'react';
 import {BoardUI} from './board/components/Board.js';
 import {ContextBar} from './board/components/ContextBar.js';
 import {HelpUI} from './board/components/Help.js';
-import {Board} from './board/model/board.model.js';
+import {Board} from './board/model/context.model.js';
 import {Mode} from './navigation/model/action-map.model.js';
 import {appState} from './navigation/state/state.js';
 

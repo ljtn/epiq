@@ -1,4 +1,4 @@
-import {BoardItemTypes} from '../../board/model/board.model.js';
+import {Context} from '../../board/model/context.model.js';
 
 export type NavigationTree<TMeta = Record<string, unknown>> = {
 	id: string;
@@ -7,6 +7,6 @@ export type NavigationTree<TMeta = Record<string, unknown>> = {
 	name: string;
 	description?: string;
 	children: NavigationTree<unknown>[];
-	actionContext: (typeof BoardItemTypes)[keyof typeof BoardItemTypes];
+	actionContext: (typeof Context)[keyof typeof Context];
 	enableChildNavigationAcrossContainers?: boolean;
 } & TMeta;

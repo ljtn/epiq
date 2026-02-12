@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {appState} from '../../navigation/state/state.js';
-import {Board} from '../model/board.model.js';
+import {Board} from '../model/context.model.js';
 import {BoardContentUI} from './Swimlanes.js';
 
 export const BoardUI: React.FC<{board: Board; swimlaneWidth: number}> = ({
