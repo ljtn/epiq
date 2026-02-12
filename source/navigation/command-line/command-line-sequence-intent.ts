@@ -14,18 +14,17 @@ export const getCommandIntent = (
 ): (typeof CmdIntent)[keyof typeof CmdIntent] => {
 	const actionContext = appState?.currentNode?.actionContext;
 	if (!actionContext) return CmdIntent.None;
-
 	switch (command) {
 		case 'help':
-		case 'he':
 			return CmdIntent.ViewHelp;
 		case 'rename':
 			return CmdIntent.Rename;
+		case 'a':
 		case 'add':
 			switch (actionContext) {
-				case BoardItemTypes.SWIMLANE:
+				case BoardItemTypes.BOARD:
 					return CmdIntent.AddSwimlane;
-				case BoardItemTypes.TICKET:
+				case BoardItemTypes.SWIMLANE:
 					return CmdIntent.AddTicket;
 				default:
 					return CmdIntent.None;

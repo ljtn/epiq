@@ -35,7 +35,7 @@ export let renderBoard = () => {
 process.stdout.on('resize', () => renderBoard());
 
 (() => {
-	debug(cli);
+	console.clear();
 	if (cli.flags.init) {
 		initProject();
 	} else if (!Object.keys(cli.flags).length) {
