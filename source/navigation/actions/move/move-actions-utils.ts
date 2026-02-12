@@ -20,11 +20,10 @@ function moveNodeToSiblingContainer(direction: -1 | 1) {
 	const currentNodeIndex = parentNode?.children.findIndex(
 		({id}) => id === appState.currentNode.id,
 	);
-	if (!currentNodeIndex || !parentNode) return;
+	if (currentNodeIndex === undefined || !parentNode) return;
 	if (!Array.isArray(parentNode.children)) return;
 
 	const currentNode = parentNode.children[currentNodeIndex];
-
 	if (!currentNode) return;
 
 	const targetNodeIndex = currentNodeIndex + direction;
@@ -50,9 +49,7 @@ function moveNodeToSiblingContainer(direction: -1 | 1) {
 
 	const [moveNode] = currentNode.children.splice(currentSelectionIndex, 1);
 	if (!moveNode) return;
-	siblingNode.children
-		.filter(x => x.context === moveNode.context) // Needed for type narrowing. Consider other approach
-		.push(moveNode);
+	siblingNode.children.push(moveNode as any); // Work on type narrowing
 
 	navigator.navigate({
 		selectedIndex: siblingNode.children.length - 1,

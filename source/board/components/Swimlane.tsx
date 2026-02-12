@@ -11,7 +11,7 @@ type Props = {
 };
 
 export const SwimlaneUI: React.FC<Props> = ({item, isSelected, width}) => {
-	const color = isSelected ? 'cyan' : 'gray';
+	const isParentOfCurrentContext = isSelected;
 	return (
 		<Box
 			flexDirection="column"
@@ -23,8 +23,17 @@ export const SwimlaneUI: React.FC<Props> = ({item, isSelected, width}) => {
 			minHeight={15}
 			height={20}
 		>
-			<Box borderStyle="round" borderColor={color} justifyContent="center">
-				<Text bold>{item.name}</Text>
+			<Box
+				borderStyle={'round'}
+				borderColor={isParentOfCurrentContext ? 'cyan' : 'white'}
+				justifyContent="center"
+				borderLeft={false}
+				borderTop={false}
+				borderRight={false}
+			>
+				<Text bold color={isParentOfCurrentContext ? 'cyan' : 'white'}>
+					{item.name}
+				</Text>
 			</Box>
 			<Box padding={1}>
 				<ScrollBoxUI
