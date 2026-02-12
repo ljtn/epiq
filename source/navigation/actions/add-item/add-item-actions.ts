@@ -1,7 +1,7 @@
 import {
-	Context,
-	Swimlane,
-	TicketListItem,
+	contextMap,
+	SwimlaneContext,
+	TicketListItemContext,
 } from '../../../board/model/context.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {NavigationTree} from '../../model/navigation-tree.model.js';
@@ -11,11 +11,11 @@ import {navigator} from '../default/navigation-action-utils.js';
 export const addSwimlaneAction: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {
-	const newItem: NavigationTree<Swimlane> = {
+	const newItem: NavigationTree<SwimlaneContext> = {
 		id: `${Date.now()}`,
 		name: value || 'New lane',
 		description: '...',
-		actionContext: Context.SWIMLANE,
+		context: contextMap.SWIMLANE,
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
 		enableChildNavigationAcrossContainers: true,
@@ -33,10 +33,10 @@ export const addSwimlaneAction: NonNullable<
 export const addTicketAction: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {
-	const newItem: NavigationTree<TicketListItem> = {
+	const newItem: NavigationTree<TicketListItemContext> = {
 		id: `${Date.now()}`,
 		name: value || 'New issue',
-		actionContext: Context.TICKET_LIST_ITEM,
+		context: contextMap.TICKET_LIST_ITEM,
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
 		children: [
@@ -45,7 +45,7 @@ export const addTicketAction: NonNullable<
 				id: `${Date.now()}`,
 				name: 'Description',
 				description: '...add description',
-				actionContext: Context.TICKET,
+				context: contextMap.TICKET,
 				childrenRenderAxis: 'vertical',
 				children: [],
 			},

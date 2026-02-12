@@ -5,8 +5,8 @@ import meow from 'meow';
 import React from 'react';
 import App from './app.js';
 import {initListeners} from './navigation/keypress-listener.js';
-import {appState, initAppState} from './navigation/state/state.js';
-import {board} from './board/mock/board.js';
+import {appState, initWorkspaceState} from './navigation/state/state.js';
+import {workspace} from './board/mock/board.js';
 import {initProject} from './init-project.js';
 
 const cli = meow(
@@ -28,18 +28,18 @@ const cli = meow(
 );
 cli;
 
-export let renderBoard = () => {
-	render(<App board={appState.rootNode} />);
+export let renderWorkspace = () => {
+	render(<App workspace={appState.rootNode} />);
 };
 
-process.stdout.on('resize', () => renderBoard());
+process.stdout.on('resize', () => renderWorkspace());
 
 (() => {
 	console.clear();
 	if (cli.flags.init) {
 		initProject();
 	} else if (!Object.keys(cli.flags).length) {
-		initAppState(board);
+		initWorkspaceState(workspace);
 		initListeners();
 	}
 })();

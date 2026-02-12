@@ -1,6 +1,6 @@
 import type {NavigationTree} from '../../navigation/model/navigation-tree.model.js';
 
-export const Context = {
+export const contextMap = {
 	WORKSPACE: 'WORKSPACE',
 	BOARD: 'BOARD',
 	SWIMLANE: 'SWIMLANE',
@@ -8,23 +8,17 @@ export const Context = {
 	TICKET: 'TICKET',
 } as const;
 
-export type Workspace = NavigationTree<{
-	actionContext: (typeof Context)['WORKSPACE'];
-}> & {children: Board[]};
+export type Workspace = NavigationTree<'WORKSPACE'>;
+export type Board = NavigationTree<'BOARD'>;
+export type Swimlane = NavigationTree<'SWIMLANE'>;
+export type TicketListItem = NavigationTree<'TICKET_LIST_ITEM'>;
+export type Ticket = NavigationTree<'TICKET'>;
 
-export type Board = NavigationTree<{
-	actionContext: (typeof Context)['BOARD'];
-}> & {children: Swimlane[]};
+export type WorkspaceContext = typeof contextMap.WORKSPACE;
+export type BoardContext = typeof contextMap.BOARD;
+export type SwimlaneContext = typeof contextMap.SWIMLANE;
+export type TicketListItemContext = typeof contextMap.TICKET_LIST_ITEM;
+export type TicketContext = typeof contextMap.TICKET;
 
-export type Swimlane = NavigationTree<{
-	actionContext: (typeof Context)['SWIMLANE'];
-	enableChildNavigationAcrossContainers: true;
-}> & {children: TicketListItem[]};
-
-export type TicketListItem = NavigationTree<{
-	actionContext: (typeof Context)['TICKET_LIST_ITEM'];
-}> & {children: Ticket[]};
-
-export type Ticket = NavigationTree<{
-	actionContext: (typeof Context)['TICKET'];
-}>;
+export type AnyContext = ContextMap[keyof ContextMap];
+export type ContextMap = typeof contextMap;

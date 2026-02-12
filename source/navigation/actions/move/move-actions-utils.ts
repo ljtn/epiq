@@ -1,4 +1,3 @@
-import {NavigationTree} from '../../model/navigation-tree.model.js';
 import {appState} from '../../state/state.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
@@ -17,15 +16,17 @@ function moveItemInArray<T>({
 }
 
 function moveNodeToSiblingContainer(direction: -1 | 1) {
-	const currentNode = appState.breadCrumb.at(-1);
 	const parentNode = appState.breadCrumb.at(-2);
-	if (!currentNode || !parentNode) return;
-
+	const currentNodeIndex = parentNode?.children.findIndex(
+		({id}) => id === appState.currentNode.id,
+	);
+	if (!currentNodeIndex || !parentNode) return;
 	if (!Array.isArray(parentNode.children)) return;
 
-	const currentNodeIndex = parentNode.children.findIndex(
-		x => x.id === currentNode.id,
-	);
+	const currentNode = parentNode.children[currentNodeIndex];
+
+	if (!currentNode) return;
+
 	const targetNodeIndex = currentNodeIndex + direction;
 	if (
 		currentNodeIndex < 0 ||
@@ -49,8 +50,9 @@ function moveNodeToSiblingContainer(direction: -1 | 1) {
 
 	const [moveNode] = currentNode.children.splice(currentSelectionIndex, 1);
 	if (!moveNode) return;
-
-	siblingNode.children.push(moveNode as NavigationTree);
+	siblingNode.children
+		.filter(x => x.context === moveNode.context) // Needed for type narrowing. Consider other approach
+		.push(moveNode);
 
 	navigator.navigate({
 		selectedIndex: siblingNode.children.length - 1,

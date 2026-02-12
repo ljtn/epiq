@@ -1,6 +1,6 @@
 import {Hints} from '../../board/hints/hints.js';
-import {Board} from '../../board/model/context.model.js';
-import {renderBoard} from '../../cli.js';
+import {AnyContext, Board, Workspace} from '../../board/model/context.model.js';
+import {renderWorkspace} from '../../cli.js';
 import {contextActions} from '../actions/board-action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
@@ -12,9 +12,9 @@ export type AppState = {
 	readonly mode: ModeUnion;
 	readonly availableActions: ActionEntry[];
 	readonly availableHints: readonly string[];
-	readonly currentNode: NavigationTree<NavigationTree>;
-	readonly breadCrumb: NavigationTree<NavigationTree>[];
-	readonly rootNode: Board;
+	readonly currentNode: NavigationTree<AnyContext>;
+	readonly breadCrumb: NavigationTree<AnyContext>[];
+	readonly rootNode: Workspace;
 };
 
 export let appState: AppState;
@@ -23,9 +23,9 @@ const derived = (state: typeof appState): typeof appState => {
 	const {currentNode, mode} = state;
 
 	const availableHints =
-		Hints[currentNode.actionContext + mode] ?? Hints[currentNode.actionContext];
+		Hints[currentNode.context + mode] ?? Hints[currentNode.context];
 
-	const actionContext = currentNode?.actionContext;
+	const actionContext = currentNode?.context;
 	const availableActions = [
 		...DefaultActions,
 		...contextActions[actionContext],
@@ -39,16 +39,17 @@ const derived = (state: typeof appState): typeof appState => {
 	};
 };
 
-export const initAppState = (board: Board) => {
+export const initWorkspaceState = (workspace: Workspace) => {
+	const selectedBoard = workspace.children.at(0) as Board;
 	appState = derived({
 		...appState,
-		rootNode: board,
-		breadCrumb: [board],
+		rootNode: workspace,
+		breadCrumb: [workspace, selectedBoard],
 		selectedIndex: 0,
 		mode: 'default',
-		currentNode: board,
+		currentNode: selectedBoard,
 	});
-	renderBoard();
+	renderWorkspace();
 };
 
 export const updateState = (
@@ -56,7 +57,7 @@ export const updateState = (
 	opts: {render?: boolean} = {render: true},
 ) => {
 	appState = derived(cb(appState));
-	if (opts.render) renderBoard();
+	if (opts.render) renderWorkspace();
 };
 
 export const patchState = (

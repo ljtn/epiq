@@ -1,7 +1,7 @@
 import React from 'react';
 import {Box} from 'ink';
 import {appState} from '../../navigation/state/state.js';
-import {Context, Swimlane, Ticket} from '../model/context.model.js';
+import {contextMap, Swimlane, Ticket} from '../model/context.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
 
@@ -11,10 +11,10 @@ type Props = {
 };
 
 export const BoardContentUI: React.FC<Props> = ({items, width}) => {
-	const actionContext = appState.currentNode.actionContext;
-	const isTicketContext = actionContext === Context.TICKET_LIST_ITEM;
+	const actionContext = appState.currentNode.context;
+	const isTicketContext = actionContext === contextMap.TICKET_LIST_ITEM;
 	const isSwimlaneContext =
-		actionContext === Context.BOARD || actionContext === Context.SWIMLANE;
+		actionContext === contextMap.BOARD || actionContext === contextMap.SWIMLANE;
 
 	return (
 		<Box flexDirection="row">
@@ -24,7 +24,7 @@ export const BoardContentUI: React.FC<Props> = ({items, width}) => {
 						key={index}
 						width={width}
 						isSelected={
-							appState.currentNode.actionContext === 'BOARD' &&
+							appState.currentNode.context === 'BOARD' &&
 							appState.selectedIndex === index
 						}
 						item={lane}

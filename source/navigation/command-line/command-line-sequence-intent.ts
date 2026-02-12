@@ -1,4 +1,4 @@
-import {Context} from '../../board/model/context.model.js';
+import {contextMap} from '../../board/model/context.model.js';
 import {appState} from '../state/state.js';
 
 export const CmdIntent = {
@@ -12,7 +12,7 @@ export const CmdIntent = {
 export const getCommandIntent = (
 	command: string,
 ): (typeof CmdIntent)[keyof typeof CmdIntent] => {
-	const actionContext = appState?.currentNode?.actionContext;
+	const actionContext = appState?.currentNode?.context;
 	if (!actionContext) return CmdIntent.None;
 	switch (command) {
 		case 'help':
@@ -22,9 +22,9 @@ export const getCommandIntent = (
 		case 'a':
 		case 'add':
 			switch (actionContext) {
-				case Context.BOARD:
+				case contextMap.BOARD:
 					return CmdIntent.AddSwimlane;
-				case Context.SWIMLANE:
+				case contextMap.SWIMLANE:
 					return CmdIntent.AddTicket;
 				default:
 					return CmdIntent.None;

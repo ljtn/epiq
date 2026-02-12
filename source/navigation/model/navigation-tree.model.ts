@@ -1,12 +1,20 @@
-import {Context} from '../../board/model/context.model.js';
+import {ContextMap, AnyContext} from '../../board/model/context.model.js';
 
-export type NavigationTree<TMeta = Record<string, unknown>> = {
+export type NavigationTree<U extends AnyContext = 'WORKSPACE'> = {
 	id: string;
 	isSelected: boolean;
 	childrenRenderAxis: 'vertical' | 'horizontal';
 	name: string;
 	description?: string;
-	children: NavigationTree<unknown>[];
-	actionContext: (typeof Context)[keyof typeof Context];
+	context: U;
+	children: (U extends ContextMap['WORKSPACE']
+		? NavigationTree<'BOARD'>
+		: U extends ContextMap['BOARD']
+		? NavigationTree<'SWIMLANE'>
+		: U extends ContextMap['SWIMLANE']
+		? NavigationTree<'TICKET_LIST_ITEM'>
+		: U extends ContextMap['TICKET_LIST_ITEM']
+		? NavigationTree<'TICKET'>
+		: NavigationTree<'TICKET'>)[];
 	enableChildNavigationAcrossContainers?: boolean;
-} & TMeta;
+};

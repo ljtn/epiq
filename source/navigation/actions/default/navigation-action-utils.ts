@@ -1,15 +1,16 @@
+import {AnyContext} from '../../../board/model/context.model.js';
 import {NavigationTree} from '../../model/navigation-tree.model.js';
 import {appState, patchState} from '../../state/state.js';
 
 export interface Navigator {
-	navigate({
+	navigate<T extends AnyContext>({
 		currentNode,
 		selectedIndex,
 	}: {
-		currentNode?: NavigationTree<NavigationTree>;
+		currentNode?: NavigationTree<T>;
 		selectedIndex: number;
 	}): void;
-	confirm(selected: NavigationTree<NavigationTree>): void;
+	confirm<T extends AnyContext>(selected: NavigationTree<T>): void;
 	exit(): void;
 	enterChildNode(): void;
 	enterParentNode(): void;
@@ -62,16 +63,12 @@ export const navigator: Navigator = {
 	navigateToNextContainer: () => navigateToSiblingContainer(1),
 	navigateToPreviousContainer: () => navigateToSiblingContainer(-1),
 
-	navigate: ({currentNode, selectedIndex}) => {
-		if (!currentNode) {
-			currentNode = appState.currentNode;
-		}
-
+	navigate: ({currentNode = appState.currentNode, selectedIndex}) => {
 		const findBreadCrumb = (
-			node: NavigationTree<NavigationTree>,
+			node: NavigationTree<AnyContext>,
 			targetId: string,
-			path: NavigationTree<NavigationTree>[] = [],
-		): NavigationTree<NavigationTree>[] => {
+			path: NavigationTree<AnyContext>[] = [],
+		): NavigationTree<AnyContext>[] => {
 			const nextPath = [...path, node];
 			if (node.id === targetId) return nextPath;
 
@@ -83,7 +80,7 @@ export const navigator: Navigator = {
 		};
 
 		const setIsSelected = (
-			node: NavigationTree<NavigationTree>,
+			node: NavigationTree<AnyContext>,
 			targetId: string,
 			selectedIndex: number,
 		) => {
