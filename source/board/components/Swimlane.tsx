@@ -32,7 +32,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 		>
 			<Box
 				borderStyle={'round'}
-				borderColor={isParentOfCurrentContext ? 'cyan' : 'white'}
+				borderColor={isParentOfCurrentContext ? 'cyan' : 'gray'}
 				justifyContent="center"
 				borderLeft={false}
 				borderTop={false}

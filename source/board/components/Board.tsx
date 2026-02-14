@@ -9,7 +9,9 @@ export const BoardUI: React.FC<{board: Board}> = ({board}) => {
 	return (
 		<Box flexDirection="column">
 			<Box paddingLeft={1}>
-				<Text>{[...rest].map(b => ' > ' + b.name)}</Text>
+				<Text color={'gray'}>
+					{[...rest].map((b, i) => (i ? ' / ' : '') + b.name)}
+				</Text>
 			</Box>
 
 			<Box flexDirection="row">

@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from 'react';
 import {Box, Text} from 'ink';
+import React, {useEffect, useState} from 'react';
 import {
 	getCommandLineInput,
 	subscribeCommandLineState,
@@ -27,7 +27,7 @@ export const CommandLine: React.FC = () => {
 
 	return (
 		<Box>
-			<Text color="gray">:</Text>
+			<Text>:</Text>
 			{command && <Text color={roleColors.command}>{command}</Text>}
 			{argument && (
 				<Text>

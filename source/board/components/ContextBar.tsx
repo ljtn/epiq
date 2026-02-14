@@ -9,7 +9,7 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => (
 		flexDirection="column"
 		paddingLeft={1}
 		paddingRight={1}
-		borderColor="gray"
+		borderColor={'gray'}
 		borderStyle="round"
 		width={width}
 	>
