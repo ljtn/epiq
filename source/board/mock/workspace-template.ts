@@ -78,7 +78,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't1-desc',
 									name: 'Description',
-									description:
+									value:
 										'Configure GitHub Actions for test, build, and deploy stages. \nAlso other cool stuff that I don`t know that to do about. This is such a long description. \n\nAnd it keeps going. It basically never ends.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -87,8 +87,8 @@ export const workspace: Workspace = {
 								{
 									isSelected: false,
 									id: 't1-desc',
-									name: 'Tag',
-									description: 'Urgent',
+									name: 'Tags',
+									value: 'Urgent',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
@@ -106,7 +106,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't2-desc',
 									name: 'Description',
-									description:
+									value:
 										'Define request/response formats, error handling, and versioning.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -125,7 +125,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't3-desc',
 									name: 'Description',
-									description:
+									value:
 										'Collaborate with leads to define team goals and key results.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -144,7 +144,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't11-desc',
 									name: 'Description',
-									description:
+									value:
 										'Create high-level overview of services, databases, and communication flows.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -163,7 +163,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't12-desc',
 									name: 'Description',
-									description:
+									value:
 										'Integrate tools like Prometheus and Grafana; define alert thresholds.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -182,7 +182,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't13-desc',
 									name: 'Description',
-									description:
+									value:
 										'Identify GDPR and CCPA implications for data handling and user consent.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -201,7 +201,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't14-desc',
 									name: 'Description',
-									description:
+									value:
 										'Write setup instructions, repo structure, and coding standards.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -220,7 +220,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't15-desc',
 									name: 'Description',
-									description:
+									value:
 										'Compare Redux Toolkit, Zustand, and Jotai for frontend scalability.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -239,8 +239,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't16-desc',
 									name: 'Description',
-									description:
-										'Define test scenarios covering API and UI flows.',
+									value: 'Define test scenarios covering API and UI flows.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
@@ -258,7 +257,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't17-desc',
 									name: 'Description',
-									description:
+									value:
 										'Set baseline response times for key endpoints and UI interactions.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -277,7 +276,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't18-desc',
 									name: 'Description',
-									description:
+									value:
 										'Standardize client and server error formats and fallback UIs.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -296,7 +295,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't19-desc',
 									name: 'Description',
-									description:
+									value:
 										'Choose log levels, format, and storage mechanisms for observability.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -315,7 +314,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't20-desc',
 									name: 'Description',
-									description:
+									value:
 										'Enable gradual rollouts using LaunchDarkly or Unleash.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -334,7 +333,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't21-desc',
 									name: 'Description',
-									description:
+									value:
 										'List comparable products and key differentiators for positioning.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -353,7 +352,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't22-desc',
 									name: 'Description',
-									description:
+									value:
 										'Schedule initial sync with stakeholders and present roadmap.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -372,8 +371,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't23-desc',
 									name: 'Description',
-									description:
-										'Set up base AWS resources using Terraform templates.',
+									value: 'Set up base AWS resources using Terraform templates.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
@@ -391,7 +389,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't24-desc',
 									name: 'Description',
-									description:
+									value:
 										'Collaborate with design to outline primary users and their needs.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -410,7 +408,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't25-desc',
 									name: 'Description',
-									description:
+									value:
 										'Decide on tools, frequency, and feedback channels for retrospectives.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -448,7 +446,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't4-desc',
 									name: 'Description',
-									description:
+									value:
 										'Integrate frontend with backend auth API and handle edge cases.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -467,7 +465,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't5-desc',
 									name: 'Description',
-									description:
+									value:
 										'Collaborate with UX to create a grid-based responsive dashboard.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -486,7 +484,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't6-desc',
 									name: 'Description',
-									description:
+									value:
 										'Evaluate color contrast, ARIA usage, and keyboard nav.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -505,7 +503,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't7-desc',
 									name: 'Description',
-									description:
+									value:
 										'Ensure test coverage, types, and data validation are in place.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -524,7 +522,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't8-desc',
 									name: 'Description',
-									description:
+									value:
 										'Verify spacing, responsiveness, and visual hierarchy.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -553,7 +551,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't9-desc',
 									name: 'Description',
-									description:
+									value:
 										'Document reusable components and tokens in Storybook.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
@@ -572,8 +570,7 @@ export const workspace: Workspace = {
 									isSelected: false,
 									id: 't10-desc',
 									name: 'Description',
-									description:
-										'All pipelines green. Ready for product team QA.',
+									value: 'All pipelines green. Ready for product team QA.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],

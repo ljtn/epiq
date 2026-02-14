@@ -1,20 +1,20 @@
 import {ContextMap, AnyContext} from '../../board/model/context.model.js';
 
-export type NavigationTree<U extends AnyContext = 'WORKSPACE'> = {
+export type NavNode<U extends AnyContext = 'WORKSPACE'> = {
 	id: string;
 	isSelected: boolean;
 	childrenRenderAxis: 'vertical' | 'horizontal';
 	name: string;
-	description?: string;
+	value?: string;
 	context: U;
 	children: (U extends ContextMap['WORKSPACE']
-		? NavigationTree<'BOARD'>
+		? NavNode<'BOARD'>
 		: U extends ContextMap['BOARD']
-		? NavigationTree<'SWIMLANE'>
+		? NavNode<'SWIMLANE'>
 		: U extends ContextMap['SWIMLANE']
-		? NavigationTree<'TICKET_LIST_ITEM'>
+		? NavNode<'TICKET_LIST_ITEM'>
 		: U extends ContextMap['TICKET_LIST_ITEM']
-		? NavigationTree<'TICKET'>
-		: NavigationTree<'TICKET'>)[];
+		? NavNode<'TICKET'>
+		: NavNode<'TICKET'>)[];
 	enableChildNavigationAcrossContainers?: boolean;
 };

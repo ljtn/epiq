@@ -1,4 +1,4 @@
-import type {NavigationTree} from '../../navigation/model/navigation-tree.model.js';
+import type {NavNode} from '../../navigation/model/navigation-tree.model.js';
 
 export const contextMap = {
 	WORKSPACE: 'WORKSPACE',
@@ -8,11 +8,11 @@ export const contextMap = {
 	TICKET: 'TICKET',
 } as const;
 
-export type Workspace = NavigationTree<'WORKSPACE'>;
-export type Board = NavigationTree<'BOARD'>;
-export type Swimlane = NavigationTree<'SWIMLANE'>;
-export type TicketListItem = NavigationTree<'TICKET_LIST_ITEM'>;
-export type Ticket = NavigationTree<'TICKET'>;
+export type Workspace = NavNode<'WORKSPACE'>;
+export type Board = NavNode<'BOARD'>;
+export type Swimlane = NavNode<'SWIMLANE'>;
+export type TicketListItem = NavNode<'TICKET_LIST_ITEM'>;
+export type Ticket = NavNode<'TICKET'>;
 
 export type WorkspaceContext = typeof contextMap.WORKSPACE;
 export type BoardContext = typeof contextMap.BOARD;

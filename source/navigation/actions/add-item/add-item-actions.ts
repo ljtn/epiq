@@ -4,17 +4,17 @@ import {
 	TicketListItemContext,
 } from '../../../board/model/context.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
-import {NavigationTree} from '../../model/navigation-tree.model.js';
+import {NavNode} from '../../model/navigation-tree.model.js';
 import {appState} from '../../state/state.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
 export const addSwimlaneAction: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {
-	const newItem: NavigationTree<SwimlaneContext> = {
+	const newItem: NavNode<SwimlaneContext> = {
 		id: `${Date.now()}`,
 		name: value || 'New lane',
-		description: '...',
+		value: '...',
 		context: contextMap.SWIMLANE,
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
@@ -33,7 +33,7 @@ export const addSwimlaneAction: NonNullable<
 export const addTicketAction: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {
-	const newItem: NavigationTree<TicketListItemContext> = {
+	const newItem: NavNode<TicketListItemContext> = {
 		id: `${Date.now()}`,
 		name: value || 'New issue',
 		context: contextMap.TICKET_LIST_ITEM,
@@ -44,7 +44,16 @@ export const addTicketAction: NonNullable<
 				isSelected: false,
 				id: `${Date.now()}`,
 				name: 'Description',
-				description: '...add description',
+				value: '...add description',
+				context: contextMap.TICKET,
+				childrenRenderAxis: 'vertical',
+				children: [],
+			},
+			{
+				isSelected: false,
+				id: `${Date.now()}`,
+				name: 'Tags',
+				value: '',
 				context: contextMap.TICKET,
 				childrenRenderAxis: 'vertical',
 				children: [],

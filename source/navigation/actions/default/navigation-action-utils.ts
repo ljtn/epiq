@@ -1,5 +1,5 @@
 import {AnyContext} from '../../../board/model/context.model.js';
-import {NavigationTree} from '../../model/navigation-tree.model.js';
+import {NavNode} from '../../model/navigation-tree.model.js';
 import {appState, BreadCrumb, patchState} from '../../state/state.js';
 
 export interface Navigator {
@@ -7,10 +7,10 @@ export interface Navigator {
 		currentNode,
 		selectedIndex,
 	}: {
-		currentNode?: NavigationTree<T>;
+		currentNode?: NavNode<T>;
 		selectedIndex: number;
 	}): void;
-	confirm<T extends AnyContext>(selected: NavigationTree<T>): void;
+	confirm<T extends AnyContext>(selected: NavNode<T>): void;
 	exit(): void;
 	enterChildNode(): void;
 	enterParentNode(): void;
@@ -32,7 +32,8 @@ export const navigator: Navigator = {
 		const currentNode = appState.currentNode;
 		const focusNode = currentNode?.children[appState.selectedIndex];
 
-		if (!currentNode || !focusNode || !focusNode.children.length) return;
+		const isEndNode = focusNode?.context === 'TICKET';
+		if (!currentNode || !focusNode || isEndNode) return;
 
 		navigator.navigate({
 			currentNode: focusNode,
@@ -65,7 +66,7 @@ export const navigator: Navigator = {
 
 	navigate: ({currentNode = appState.currentNode, selectedIndex}) => {
 		const findBreadCrumb = (
-			node: NavigationTree<AnyContext>,
+			node: NavNode<AnyContext>,
 			targetId: string,
 			path?: BreadCrumb,
 		): BreadCrumb | void => {
@@ -80,7 +81,7 @@ export const navigator: Navigator = {
 		};
 
 		const setIsSelected = (
-			node: NavigationTree<AnyContext>,
+			node: NavNode<AnyContext>,
 			targetId: string,
 			selectedIndex: number,
 		) => {

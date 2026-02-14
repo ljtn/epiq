@@ -28,9 +28,7 @@ export const TicketUI: React.FC<Props> = ({item, width, height}) => (
 				<Box width={30}>
 					<Text color={'gray'}>{child.name}:</Text>
 				</Box>
-				<Text color={child.isSelected ? 'cyan' : 'white'}>
-					{child.description}
-				</Text>
+				<Text color={child.isSelected ? 'cyan' : 'white'}>{child.value}</Text>
 			</Box>
 		))}
 	</Box>

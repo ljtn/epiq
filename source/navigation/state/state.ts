@@ -5,35 +5,31 @@ import {contextActions} from '../actions/board-action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
 import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
-import {NavigationTree} from '../model/navigation-tree.model.js';
+import {NavNode} from '../model/navigation-tree.model.js';
 
 export type BreadCrumb =
-	| [NavigationTree<'WORKSPACE'>]
-	| [NavigationTree<'WORKSPACE'>, NavigationTree<'BOARD'>]
+	| [NavNode<'WORKSPACE'>]
+	| [NavNode<'WORKSPACE'>, NavNode<'BOARD'>]
+	| [NavNode<'WORKSPACE'>, NavNode<'BOARD'>, NavNode<'SWIMLANE'>]
 	| [
-			NavigationTree<'WORKSPACE'>,
-			NavigationTree<'BOARD'>,
-			NavigationTree<'SWIMLANE'>,
+			NavNode<'WORKSPACE'>,
+			NavNode<'BOARD'>,
+			NavNode<'SWIMLANE'>,
+			NavNode<'TICKET_LIST_ITEM'>,
 	  ]
 	| [
-			NavigationTree<'WORKSPACE'>,
-			NavigationTree<'BOARD'>,
-			NavigationTree<'SWIMLANE'>,
-			NavigationTree<'TICKET_LIST_ITEM'>,
-	  ]
-	| [
-			NavigationTree<'WORKSPACE'>,
-			NavigationTree<'BOARD'>,
-			NavigationTree<'SWIMLANE'>,
-			NavigationTree<'TICKET_LIST_ITEM'>,
-			NavigationTree<'TICKET'>,
+			NavNode<'WORKSPACE'>,
+			NavNode<'BOARD'>,
+			NavNode<'SWIMLANE'>,
+			NavNode<'TICKET_LIST_ITEM'>,
+			NavNode<'TICKET'>,
 	  ];
 export type AppState = {
 	readonly selectedIndex: number;
 	readonly mode: ModeUnion;
 	readonly availableActions: ActionEntry[];
 	readonly availableHints: readonly string[];
-	readonly currentNode: NavigationTree<AnyContext>;
+	readonly currentNode: NavNode<AnyContext>;
 	readonly breadCrumb: BreadCrumb;
 	readonly rootNode: Workspace;
 };
