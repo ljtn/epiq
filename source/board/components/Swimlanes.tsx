@@ -7,14 +7,23 @@ import {TicketUI} from './TicketUI.js';
 
 type Props = {
 	items: Swimlane[];
-	width: number;
 };
 
-export const BoardContentUI: React.FC<Props> = ({items, width}) => {
+export const BoardContentUI: React.FC<Props> = ({items}) => {
 	const actionContext = appState.currentNode.context;
 	const isTicketContext = actionContext === contextMap.TICKET_LIST_ITEM;
 	const isSwimlaneContext =
 		actionContext === contextMap.BOARD || actionContext === contextMap.SWIMLANE;
+
+	const width = process.stdout.columns || 120;
+	const swimlaneMaxWidth = Math.floor(process.stdout.columns / 3);
+	const swimlaneDynamicWidth = Math.floor(width / items.length);
+	const renderedWidth = swimlaneDynamicWidth * items.length;
+	const colWidth = Math.min(renderedWidth, swimlaneMaxWidth);
+
+	const breadCrumbHeight = 1;
+	const commandLineHeight = 3;
+	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
 
 	return (
 		<Box flexDirection="row">
@@ -22,7 +31,8 @@ export const BoardContentUI: React.FC<Props> = ({items, width}) => {
 				items.map((lane, index) => (
 					<SwimlaneUI
 						key={index}
-						width={width}
+						height={height}
+						width={colWidth}
 						isSelected={
 							appState.currentNode.context === 'BOARD' &&
 							appState.selectedIndex === index
@@ -33,7 +43,8 @@ export const BoardContentUI: React.FC<Props> = ({items, width}) => {
 
 			{isTicketContext && appState.currentNode && (
 				<TicketUI
-					width={width * items.length}
+					height={height}
+					width={colWidth * items.length}
 					item={appState.breadCrumb[appState.breadCrumb.length - 1] as Ticket}
 				/>
 			)}

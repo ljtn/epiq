@@ -4,36 +4,35 @@ import React from 'react';
 type Props = {
 	width: number;
 	children?: React.ReactNode[];
-	size: number;
+	height: number;
 	selectedIndex: number;
 };
 
 export const ScrollBoxUI: React.FC<Props> = ({
 	children = [],
-	size,
+	height,
 	selectedIndex,
 }) => {
 	if (children.length === 0) {
 		return null;
 	}
-
-	const scrollIndex = Math.floor(Math.max(selectedIndex, 0) / size);
-	const start = scrollIndex * size;
-	const end = start + size;
+	const scrollIndex = Math.floor(Math.max(selectedIndex, 0) / height);
+	const start = scrollIndex * height;
+	const end = start + height;
 
 	// Clamp values to avoid overflow
 	const visibleChildren = children.slice(start, end);
 
 	// Scrollbar calculations
-	const scrollBarHeight = size;
-	const scrollSteps = Math.floor(children.length / size) + 1;
+	const scrollBarHeight = height;
+	const scrollSteps = Math.floor(children.length / height) + 1;
 	const indexBarHeight = Math.ceil(scrollBarHeight / scrollSteps);
 	const barOffset = scrollIndex * indexBarHeight;
 
 	return (
 		<Box flexDirection="row">
 			{/* Scrollbar */}
-			{children.length > size && (
+			{children.length > height && (
 				<Box
 					flexDirection="column"
 					width={1}

@@ -7,11 +7,19 @@ import {TicketListItemUI} from './TicketListItem.js';
 type Props = {
 	item: Swimlane;
 	width: number;
+	height: number;
 	isSelected: boolean;
 };
 
-export const SwimlaneUI: React.FC<Props> = ({item, isSelected, width}) => {
+export const SwimlaneUI: React.FC<Props> = ({
+	item,
+	isSelected,
+	width,
+	height,
+}) => {
 	const isParentOfCurrentContext = isSelected;
+	const paddingTop = 4;
+	const paddingBottom = 2;
 	return (
 		<Box
 			flexDirection="column"
@@ -20,8 +28,7 @@ export const SwimlaneUI: React.FC<Props> = ({item, isSelected, width}) => {
 			borderColor={'gray'}
 			paddingRight={1}
 			paddingLeft={1}
-			minHeight={15}
-			height={20}
+			height={height}
 		>
 			<Box
 				borderStyle={'round'}
@@ -39,7 +46,7 @@ export const SwimlaneUI: React.FC<Props> = ({item, isSelected, width}) => {
 				<ScrollBoxUI
 					selectedIndex={item.children.findIndex(x => x.isSelected)}
 					width={width}
-					size={10}
+					height={height - paddingTop - paddingBottom}
 					children={item.children.map((ticket, index) => (
 						<TicketListItemUI
 							key={index}

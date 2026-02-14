@@ -5,21 +5,22 @@ import {Ticket} from '../model/context.model.js';
 type Props = {
 	item: Ticket;
 	width: number;
+	height: number;
 };
 
-export const TicketUI: React.FC<Props> = ({item, width}) => (
+export const TicketUI: React.FC<Props> = ({item, width, height}) => (
 	<Box
 		flexDirection="column"
 		padding={1}
 		paddingLeft={2}
 		borderStyle="round"
 		width={width}
-		minHeight={20}
+		minHeight={height}
 		borderColor="gray"
 	>
-		{item.children.map(child => (
+		{item.children.map((child, index) => (
 			<Box
-				key={child.id}
+				key={index}
 				flexDirection="row"
 				borderStyle={'round'}
 				borderColor={child.isSelected ? 'cyan' : 'gray'}
