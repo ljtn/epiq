@@ -32,7 +32,7 @@ export const navigator: Navigator = {
 		const currentNode = appState.currentNode;
 		const focusNode = currentNode?.children[appState.selectedIndex];
 
-		if (!currentNode || !focusNode) return;
+		if (!currentNode || !focusNode || !focusNode.children.length) return;
 
 		navigator.navigate({
 			currentNode: focusNode,
