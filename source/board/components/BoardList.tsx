@@ -1,0 +1,40 @@
+import {Box, Text} from 'ink';
+import React from 'react';
+import {Workspace} from '../model/context.model.js';
+import {appState} from '../../navigation/state/state.js';
+
+export default function BoardList({workspace}: {workspace: Workspace}) {
+	const breadCrumbHeight = 1;
+	const commandLineHeight = 3;
+	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
+	const width = process.stdout.columns || 120;
+	return (
+		<Box
+			flexDirection="column"
+			height={height}
+			padding={1}
+			borderStyle={'round'}
+			borderColor={'gray'}
+			width={width}
+		>
+			<Box padding={1} paddingTop={0} paddingBottom={0}>
+				<Text>Select a board:</Text>
+			</Box>
+			<Box padding={1} flexDirection="column">
+				{workspace.children.map((board, i) => (
+					<Box key={i}>
+						<Text color={appState.selectedIndex === i ? 'cyan' : 'gray'}>
+							{appState.selectedIndex === i ? '◆  ' : '   '}
+						</Text>
+						<Text color={appState.selectedIndex === i ? 'cyan' : 'gray'}>
+							{board.name}{' '}
+							{'(' +
+								board.children.flatMap(x => x.children).length +
+								' issues)'}
+						</Text>
+					</Box>
+				))}
+			</Box>
+		</Box>
+	);
+}

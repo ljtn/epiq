@@ -1,6 +1,6 @@
 import {Box} from 'ink';
 import React from 'react';
-import {BoardUI} from './board/components/Board.js';
+import {WorkspaceUI} from './board/components/WorkspaceUI.js';
 import {ContextBar} from './board/components/ContextBar.js';
 import {HelpUI} from './board/components/Help.js';
 import {Workspace} from './board/model/context.model.js';
@@ -12,8 +12,7 @@ export default function App({workspace}: {workspace: Workspace}) {
 	return (
 		<Box flexDirection="column">
 			{/* <Logo></Logo> */}
-			{!(appState.mode === Mode.HELP) &&
-				workspace.children.map((board, i) => <BoardUI board={board} key={i} />)}
+			{!(appState.mode === Mode.HELP) && <WorkspaceUI workspace={workspace} />}
 			{appState.mode === Mode.HELP && <HelpUI width={width} />}
 			<ContextBar width={width} />
 		</Box>

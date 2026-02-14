@@ -1,6 +1,6 @@
 import {AnyContext} from '../../../board/model/context.model.js';
 import {NavigationTree} from '../../model/navigation-tree.model.js';
-import {appState, patchState} from '../../state/state.js';
+import {appState, BreadCrumb, patchState} from '../../state/state.js';
 
 export interface Navigator {
 	navigate<T extends AnyContext>({
@@ -67,16 +67,16 @@ export const navigator: Navigator = {
 		const findBreadCrumb = (
 			node: NavigationTree<AnyContext>,
 			targetId: string,
-			path: NavigationTree<AnyContext>[] = [],
-		): NavigationTree<AnyContext>[] => {
-			const nextPath = [...path, node];
+			path?: BreadCrumb,
+		): BreadCrumb | void => {
+			const nextPath = [...(path ?? []), node] as BreadCrumb;
 			if (node.id === targetId) return nextPath;
 
 			for (const child of node.children ?? []) {
 				const found = findBreadCrumb(child, targetId, nextPath);
-				if (found.length) return found;
+				if (found?.length) return found;
 			}
-			return [];
+			return;
 		};
 
 		const setIsSelected = (
@@ -103,6 +103,7 @@ export const navigator: Navigator = {
 
 		const root = appState.rootNode;
 		const breadCrumb = findBreadCrumb(root, currentNode.id);
+		if (!breadCrumb) return;
 
 		setIsSelected(root, currentNode.id, selectedIndex);
 		patchState({

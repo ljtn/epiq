@@ -1,15 +1,15 @@
-import React from 'react';
 import {Box} from 'ink';
+import React from 'react';
 import {appState} from '../../navigation/state/state.js';
 import {contextMap, Swimlane, Ticket} from '../model/context.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
 
 type Props = {
-	items: Swimlane[];
+	swimlanes: Swimlane[];
 };
 
-export const BoardContentUI: React.FC<Props> = ({items}) => {
+export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 	const actionContext = appState.currentNode.context;
 	const isTicketContext = actionContext === contextMap.TICKET_LIST_ITEM;
 	const isSwimlaneContext =
@@ -17,8 +17,8 @@ export const BoardContentUI: React.FC<Props> = ({items}) => {
 
 	const width = process.stdout.columns || 120;
 	const swimlaneMaxWidth = Math.floor(process.stdout.columns / 3);
-	const swimlaneDynamicWidth = Math.floor(width / items.length);
-	const renderedWidth = swimlaneDynamicWidth * items.length;
+	const swimlaneDynamicWidth = Math.floor(width / swimlanes.length);
+	const renderedWidth = swimlaneDynamicWidth * swimlanes.length;
 	const colWidth = Math.min(renderedWidth, swimlaneMaxWidth);
 
 	const breadCrumbHeight = 1;
@@ -26,9 +26,9 @@ export const BoardContentUI: React.FC<Props> = ({items}) => {
 	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
 
 	return (
-		<Box flexDirection="row">
+		<Box flexDirection="row" height={height}>
 			{isSwimlaneContext &&
-				items.map((lane, index) => (
+				swimlanes.map((lane, index) => (
 					<SwimlaneUI
 						key={index}
 						height={height}
@@ -44,7 +44,7 @@ export const BoardContentUI: React.FC<Props> = ({items}) => {
 			{isTicketContext && appState.currentNode && (
 				<TicketUI
 					height={height}
-					width={colWidth * items.length}
+					width={colWidth * swimlanes.length}
 					item={appState.breadCrumb[appState.breadCrumb.length - 1] as Ticket}
 				/>
 			)}

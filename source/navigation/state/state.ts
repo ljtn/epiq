@@ -7,13 +7,34 @@ import {inputActions} from '../actions/input/input-actions.js';
 import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
 import {NavigationTree} from '../model/navigation-tree.model.js';
 
+export type BreadCrumb =
+	| [NavigationTree<'WORKSPACE'>]
+	| [NavigationTree<'WORKSPACE'>, NavigationTree<'BOARD'>]
+	| [
+			NavigationTree<'WORKSPACE'>,
+			NavigationTree<'BOARD'>,
+			NavigationTree<'SWIMLANE'>,
+	  ]
+	| [
+			NavigationTree<'WORKSPACE'>,
+			NavigationTree<'BOARD'>,
+			NavigationTree<'SWIMLANE'>,
+			NavigationTree<'TICKET_LIST_ITEM'>,
+	  ]
+	| [
+			NavigationTree<'WORKSPACE'>,
+			NavigationTree<'BOARD'>,
+			NavigationTree<'SWIMLANE'>,
+			NavigationTree<'TICKET_LIST_ITEM'>,
+			NavigationTree<'TICKET'>,
+	  ];
 export type AppState = {
 	readonly selectedIndex: number;
 	readonly mode: ModeUnion;
 	readonly availableActions: ActionEntry[];
 	readonly availableHints: readonly string[];
 	readonly currentNode: NavigationTree<AnyContext>;
-	readonly breadCrumb: NavigationTree<AnyContext>[];
+	readonly breadCrumb: BreadCrumb;
 	readonly rootNode: Workspace;
 };
 
