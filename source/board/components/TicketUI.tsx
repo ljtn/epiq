@@ -11,8 +11,8 @@ type Props = {
 export const TicketUI: React.FC<Props> = ({item, width, height}) => (
 	<Box
 		flexDirection="column"
-		padding={1}
-		paddingLeft={2}
+		paddingLeft={1}
+		paddingRight={1}
 		borderStyle="round"
 		width={width}
 		minHeight={height}
@@ -23,13 +23,14 @@ export const TicketUI: React.FC<Props> = ({item, width, height}) => (
 				key={index}
 				flexDirection="row"
 				borderStyle={'round'}
-				borderColor={child.isSelected ? 'cyan' : 'gray'}
-				paddingLeft={1}
+				borderColor={'gray'}
 			>
 				<Box width={30}>
-					<Text color="cyan">{child.name}:</Text>
+					<Text color={'gray'}>{child.name}:</Text>
 				</Box>
-				<Text>{child.description}</Text>
+				<Text color={child.isSelected ? 'cyan' : 'white'}>
+					{child.description}
+				</Text>
 			</Box>
 		))}
 	</Box>

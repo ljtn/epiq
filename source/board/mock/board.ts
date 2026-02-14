@@ -34,7 +34,7 @@ export const workspace: Workspace = {
 									id: 't1-desc',
 									name: 'Description',
 									description:
-										'Configure GitHub Actions for test, build, and deploy stages.',
+										'Configure GitHub Actions for test, build, and deploy stages. \nAlso other cool stuff that I don`t know that to do about. This is such a long description. \n\nAnd it keeps going. It basically never ends.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
