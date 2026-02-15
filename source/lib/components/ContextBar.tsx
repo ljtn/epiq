@@ -5,38 +5,39 @@ import {appState} from '../navigation/state/state.js';
 import {CommandLine} from './CommandLine.js';
 import {theme} from '../theme/themes.js';
 
-export const ContextBar: React.FC<{width: number}> = ({width}) => (
-	<Box
-		flexDirection="column"
-		paddingLeft={1}
-		paddingRight={1}
-		borderColor={theme.secondary}
-		borderStyle="round"
-		width={width}
-	>
-		<Box>
-			{appState.mode === Mode.COMMAND_LINE ? (
-				<CommandLine />
-			) : (
-				<Box flexDirection="row" gap={2}>
-					<Text>💡</Text>
-					{appState.availableHints.map((x, index) => {
-						const [command, ...rest] = x.split(' ');
-						const argument = rest.join(' ');
-						return (
-							<Box key={index}>
-								<Text color={theme.accent}>{command}</Text>
-								{argument && (
-									<>
-										<Text> </Text>
-										<Text color={theme.secondary}>{argument}</Text>
-									</>
-								)}
-							</Box>
-						);
-					})}
-				</Box>
-			)}
+export const ContextBar: React.FC<{width: number}> = ({width}) => {
+	const {mode, availableHints} = appState;
+	const hasHints = availableHints.length > 0;
+
+	return (
+		<Box
+			flexDirection="column"
+			paddingX={1}
+			borderColor={theme.secondary}
+			borderStyle="round"
+			width={width}
+		>
+			<Box>
+				{mode === Mode.COMMAND_LINE ? (
+					<CommandLine />
+				) : (
+					<Box flexDirection="row" gap={2}>
+						<Text>{hasHints ? '💡' : ' '}</Text>
+
+						{availableHints.map((hint, index) => {
+							const [command, ...rest] = hint.split(' ');
+							const argument = rest.join(' ');
+
+							return (
+								<Box key={index}>
+									<Text color={theme.accent}>{command}</Text>
+									{argument && <Text color={theme.secondary}> {argument}</Text>}
+								</Box>
+							);
+						})}
+					</Box>
+				)}
+			</Box>
 		</Box>
-	</Box>
-);
+	);
+};
