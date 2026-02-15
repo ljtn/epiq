@@ -1,0 +1,26 @@
+export const colors = {
+	black: 'black',
+	red: 'red',
+	green: 'green',
+	yellow: 'yellow',
+	blue: 'blue',
+	cyan: 'cyan',
+	magenta: 'magenta',
+	white: 'white',
+	gray: 'gray',
+	grey: 'grey',
+	blackBright: 'blackBright',
+	redBright: 'redBright',
+	greenBright: 'greenBright',
+	yellowBright: 'yellowBright',
+	blueBright: 'blueBright',
+	cyanBright: 'cyanBright',
+	magentaBright: 'magentaBright',
+	whiteBright: 'whiteBright',
+} as const;
+
+export const theme = {
+	accent: colors.cyan,
+	primary: colors.white,
+	secondary: colors.gray,
+};

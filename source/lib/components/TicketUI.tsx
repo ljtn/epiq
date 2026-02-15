@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
 import {ScrollBoxUI} from './ScrollBox.js';
+import {theme} from '../theme/themes.js';
 
 type Props = {
 	item: Ticket;
@@ -20,7 +21,7 @@ export const TicketUI: React.FC<Props> = ({item, width, height}) => {
 			borderStyle="round"
 			width={width}
 			minHeight={height}
-			borderColor="gray"
+			borderColor={theme.secondary}
 		>
 			<ScrollBoxUI
 				selectedIndex={item.children.findIndex(x => x.isSelected)}
@@ -31,12 +32,12 @@ export const TicketUI: React.FC<Props> = ({item, width, height}) => {
 						key={index}
 						flexDirection="row"
 						borderStyle={'round'}
-						borderColor={'gray'}
+						borderColor={theme.secondary}
 					>
 						<Box minWidth={20}>
-							<Text color={'gray'}>{child.name}:</Text>
+							<Text color={theme.secondary}>{child.name}:</Text>
 						</Box>
-						<Text color={child.isSelected ? 'cyan' : 'white'}>
+						<Text color={child.isSelected ? theme.accent : theme.primary}>
 							{child.value}
 						</Text>
 					</Box>

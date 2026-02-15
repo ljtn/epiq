@@ -4,6 +4,7 @@ import {appState} from '../navigation/state/state.js';
 import {Workspace} from '../model/context.model.js';
 import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';
+import {theme} from '../theme/themes.js';
 
 export const WorkspaceUI: React.FC<{workspace: Workspace}> = ({workspace}) => {
 	const [...rest] = appState.breadCrumb;
@@ -14,7 +15,9 @@ export const WorkspaceUI: React.FC<{workspace: Workspace}> = ({workspace}) => {
 					{[...rest].map((b, i) => (
 						<Box key={i}>
 							<Text>{i ? ' / ' : ''}</Text>
-							<Text color={i === rest.length - 1 ? 'cyan' : 'gray'}>
+							<Text
+								color={i === rest.length - 1 ? theme.accent : theme.secondary}
+							>
 								{b.name}
 							</Text>
 						</Box>

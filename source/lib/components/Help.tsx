@@ -2,12 +2,13 @@ import {Box, Text} from 'ink';
 import {appState} from '../navigation/state/state.js';
 import React from 'react';
 import {Mode} from '../navigation/model/action-map.model.js';
+import {theme} from '../theme/themes.js';
 
 export const HelpUI: React.FC<{width: number}> = ({width}) => (
 	<Box
 		flexDirection="column"
 		marginTop={3}
-		borderColor="gray"
+		borderColor={theme.secondary}
 		borderStyle="round"
 		width={width}
 		minHeight={19}
@@ -37,10 +38,14 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 										paddingBottom={index ? 0 : 1}
 									>
 										<Box flexGrow={1} width={30}>
-											<Text color={index ? 'white' : 'gray'}>{right}</Text>
+											<Text color={index ? theme.primary : theme.secondary}>
+												{right}
+											</Text>
 										</Box>
 										<Box width={20}>
-											<Text color={index ? 'yellow' : 'gray'}>{left}</Text>
+											<Text color={index ? theme.accent : theme.secondary}>
+												{left}
+											</Text>
 										</Box>
 									</Box>
 								</Box>

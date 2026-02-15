@@ -3,6 +3,7 @@ import React from 'react';
 import {Swimlane, TicketListItem} from '../model/context.model.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
+import {theme} from '../theme/themes.js';
 
 type Props = {
 	item: Swimlane;
@@ -25,20 +26,23 @@ export const SwimlaneUI: React.FC<Props> = ({
 			flexDirection="column"
 			width={width}
 			borderStyle="round"
-			borderColor={'gray'}
+			borderColor={theme.secondary}
 			paddingRight={1}
 			paddingLeft={1}
 			height={height}
 		>
 			<Box
 				borderStyle={'round'}
-				borderColor={isParentOfCurrentContext ? 'cyan' : 'gray'}
+				borderColor={isParentOfCurrentContext ? theme.accent : theme.secondary}
 				justifyContent="center"
 				borderLeft={false}
 				borderTop={false}
 				borderRight={false}
 			>
-				<Text bold color={isParentOfCurrentContext ? 'cyan' : 'white'}>
+				<Text
+					bold
+					color={isParentOfCurrentContext ? theme.accent : theme.primary}
+				>
 					{item.name}
 				</Text>
 			</Box>

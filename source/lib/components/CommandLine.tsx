@@ -4,10 +4,11 @@ import {
 	getCommandLineInput,
 	subscribeCommandLineState,
 } from '../navigation/state/command-line.state.js';
+import {theme} from '../theme/themes.js';
 
 const roleColors: Record<'command' | 'argument', string> = {
-	command: 'cyan',
-	argument: 'white',
+	command: theme.accent,
+	argument: theme.primary,
 };
 
 export const CommandLine: React.FC = () => {

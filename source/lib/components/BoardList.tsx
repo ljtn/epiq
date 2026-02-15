@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {Workspace} from '../model/context.model.js';
 import {appState} from '../navigation/state/state.js';
+import {theme} from '../theme/themes.js';
 
 export default function BoardList({workspace}: {workspace: Workspace}) {
 	const breadCrumbHeight = 1;
@@ -14,7 +15,7 @@ export default function BoardList({workspace}: {workspace: Workspace}) {
 			height={height}
 			padding={1}
 			borderStyle={'round'}
-			borderColor={'gray'}
+			borderColor={theme.secondary}
 			width={width}
 		>
 			<Box padding={1} paddingTop={0} paddingBottom={0}>
@@ -23,10 +24,18 @@ export default function BoardList({workspace}: {workspace: Workspace}) {
 			<Box padding={1} flexDirection="column">
 				{workspace.children.map((board, i) => (
 					<Box key={i}>
-						<Text color={appState.selectedIndex === i ? 'cyan' : 'gray'}>
+						<Text
+							color={
+								appState.selectedIndex === i ? theme.accent : theme.secondary
+							}
+						>
 							{appState.selectedIndex === i ? '◆  ' : '   '}
 						</Text>
-						<Text color={appState.selectedIndex === i ? 'cyan' : 'gray'}>
+						<Text
+							color={
+								appState.selectedIndex === i ? theme.accent : theme.secondary
+							}
+						>
 							{board.name}{' '}
 							{'(' +
 								board.children.flatMap(x => x.children).length +

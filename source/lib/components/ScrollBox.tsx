@@ -1,5 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {theme} from '../theme/themes.js';
 
 type Props = {
 	width: number;
@@ -44,8 +45,8 @@ export const ScrollBoxUI: React.FC<Props> = ({
 							key={i}
 							color={
 								i >= barOffset && i < barOffset + indexBarHeight
-									? 'cyan'
-									: 'gray'
+									? theme.accent
+									: theme.secondary
 							}
 						>
 							│
