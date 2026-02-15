@@ -4,7 +4,7 @@ import {
 	TicketListItemContext,
 } from '../../../board/model/context.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
-import {NavNode} from '../../model/navigation-tree.model.js';
+import {NavNode} from '../../model/navigation-node.model.js';
 import {appState} from '../../state/state.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
@@ -44,7 +44,7 @@ export const addTicketAction: NonNullable<
 				isSelected: false,
 				id: `${Date.now()}`,
 				name: 'Description',
-				value: '...add description',
+				value: 'No description added',
 				context: contextMap.TICKET,
 				childrenRenderAxis: 'vertical',
 				children: [],
@@ -53,7 +53,7 @@ export const addTicketAction: NonNullable<
 				isSelected: false,
 				id: `${Date.now()}`,
 				name: 'Tags',
-				value: '',
+				value: 'default',
 				context: contextMap.TICKET,
 				childrenRenderAxis: 'vertical',
 				children: [],

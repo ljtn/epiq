@@ -1,5 +1,5 @@
 import {AnyContext} from '../../../board/model/context.model.js';
-import {NavNode} from '../../model/navigation-tree.model.js';
+import {NavNode} from '../../model/navigation-node.model.js';
 import {appState, BreadCrumb, patchState} from '../../state/state.js';
 
 export interface Navigator {

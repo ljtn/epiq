@@ -11,12 +11,13 @@ export const workspace: Workspace = {
 			id: 'b1',
 			isSelected: false,
 			name: 'Default Board',
+			value: 'default',
 			context: contextMap.BOARD,
 			childrenRenderAxis: 'horizontal',
 			children: [
 				{
 					isSelected: false,
-					id: '17a78331-7ad0-4389-a5bd-e05e54c8d6a4',
+					id: 'e2b30f64-2c77-4c43-8a7d-2b6b9d0c2e11',
 					name: 'To Do',
 					childrenRenderAxis: 'vertical',
 					context: contextMap.SWIMLANE,
@@ -25,7 +26,7 @@ export const workspace: Workspace = {
 				},
 				{
 					isSelected: false,
-					id: 'c4d74a6b-37cf-447f-8d4c-8b3288320ccc',
+					id: '6f8a2e6a-2b6c-4a14-bcb2-7d1f55b0e0b4',
 					name: 'In progress',
 					childrenRenderAxis: 'vertical',
 					context: contextMap.SWIMLANE,
@@ -34,7 +35,7 @@ export const workspace: Workspace = {
 				},
 				{
 					isSelected: false,
-					id: '207b58f5-093e-47b7-84e4-f9e75a446285',
+					id: 'a8e4d7e1-5c5f-44d4-90bf-0a0f4b7f0b52',
 					name: 'Review',
 					childrenRenderAxis: 'vertical',
 					context: contextMap.SWIMLANE,
@@ -43,7 +44,7 @@ export const workspace: Workspace = {
 				},
 				{
 					isSelected: false,
-					id: 'fa5bbe26-5b22-40f7-9d3c-612185d152fe',
+					id: 'b9b7a9f4-7f41-4c61-a1cc-3c0a0c7398a6',
 					name: 'Done',
 					childrenRenderAxis: 'vertical',
 					context: contextMap.SWIMLANE,
@@ -56,6 +57,7 @@ export const workspace: Workspace = {
 			id: 'b2',
 			isSelected: false,
 			name: 'Demo',
+			value: 'demo',
 			context: contextMap.BOARD,
 			childrenRenderAxis: 'horizontal',
 			children: [
@@ -64,7 +66,7 @@ export const workspace: Workspace = {
 					id: 's1',
 					name: 'To Do',
 					childrenRenderAxis: 'vertical',
-					context: contextMap.SWIMLANE,
+					context: 'SWIMLANE',
 					enableChildNavigationAcrossContainers: true,
 					children: [
 						{
@@ -79,16 +81,16 @@ export const workspace: Workspace = {
 									id: 't1-desc',
 									name: 'Description',
 									value:
-										'Configure GitHub Actions for test, build, and deploy stages. \nAlso other cool stuff that I don`t know that to do about. This is such a long description. \n\nAnd it keeps going. It basically never ends.',
+										'OVERVIEW\nSet up an end-to-end pipeline so every change is validated before release.\n\nSCOPE\n- Typecheck + lint\n- Unit tests\n- Build artifacts\n- Optional release step\n\nACCEPTANCE CRITERIA\n- Runs on PR and main\n- Failing checks block merge\n- Produces a versioned build artifact\n\nNOTES\nKeep execution time low using caching where possible.',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
 								},
 								{
 									isSelected: false,
-									id: 't1-desc',
+									id: 't1-tags',
 									name: 'Tags',
-									value: 'Urgent',
+									value: 'demo, priority:high, team:platform',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
@@ -107,309 +109,16 @@ export const workspace: Workspace = {
 									id: 't2-desc',
 									name: 'Description',
 									value:
-										'Define request/response formats, error handling, and versioning.',
+										'OVERVIEW\nDefine a stable authentication contract to unblock frontend and integration work.\n\nENDPOINTS\n- Login\n- Refresh token\n- Logout\n\nERROR MODEL\n- Standard error envelope\n- Stable error codes for UI handling\n\nACCEPTANCE CRITERIA\n- Request/response examples documented\n- Versioning strategy decided\n- Reviewed by frontend and backend',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
 								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't3',
-							name: 'Draft OKRs for Q4',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
 								{
 									isSelected: false,
-									id: 't3-desc',
-									name: 'Description',
-									value:
-										'Collaborate with leads to define team goals and key results.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't11',
-							name: 'Define system architecture diagram',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't11-desc',
-									name: 'Description',
-									value:
-										'Create high-level overview of services, databases, and communication flows.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't12',
-							name: 'Setup monitoring and alerting',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't12-desc',
-									name: 'Description',
-									value:
-										'Integrate tools like Prometheus and Grafana; define alert thresholds.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't13',
-							name: 'Research data privacy regulations',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't13-desc',
-									name: 'Description',
-									value:
-										'Identify GDPR and CCPA implications for data handling and user consent.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't14',
-							name: 'Draft project onboarding guide',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't14-desc',
-									name: 'Description',
-									value:
-										'Write setup instructions, repo structure, and coding standards.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't15',
-							name: 'Evaluate state management solutions',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't15-desc',
-									name: 'Description',
-									value:
-										'Compare Redux Toolkit, Zustand, and Jotai for frontend scalability.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't16',
-							name: 'Write integration test plan',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't16-desc',
-									name: 'Description',
-									value: 'Define test scenarios covering API and UI flows.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't17',
-							name: 'Create performance benchmarks',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't17-desc',
-									name: 'Description',
-									value:
-										'Set baseline response times for key endpoints and UI interactions.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't18',
-							name: 'Design error handling strategy',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't18-desc',
-									name: 'Description',
-									value:
-										'Standardize client and server error formats and fallback UIs.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't19',
-							name: 'Define logging strategy',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't19-desc',
-									name: 'Description',
-									value:
-										'Choose log levels, format, and storage mechanisms for observability.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't20',
-							name: 'Setup feature flag framework',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't20-desc',
-									name: 'Description',
-									value:
-										'Enable gradual rollouts using LaunchDarkly or Unleash.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't21',
-							name: 'Conduct competitor analysis',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't21-desc',
-									name: 'Description',
-									value:
-										'List comparable products and key differentiators for positioning.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't22',
-							name: 'Organize kick-off meeting',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't22-desc',
-									name: 'Description',
-									value:
-										'Schedule initial sync with stakeholders and present roadmap.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't23',
-							name: 'Provision cloud infrastructure',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't23-desc',
-									name: 'Description',
-									value: 'Set up base AWS resources using Terraform templates.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't24',
-							name: 'Define user personas',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't24-desc',
-									name: 'Description',
-									value:
-										'Collaborate with design to outline primary users and their needs.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't25',
-							name: 'Plan retro cadence and format',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't25-desc',
-									name: 'Description',
-									value:
-										'Decide on tools, frequency, and feedback channels for retrospectives.',
+									id: 't2-tags',
+									name: 'Tags',
+									value: 'demo, priority:high, team:platform',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
@@ -425,7 +134,36 @@ export const workspace: Workspace = {
 					childrenRenderAxis: 'vertical',
 					context: 'SWIMLANE',
 					enableChildNavigationAcrossContainers: true,
-					children: [],
+					children: [
+						{
+							isSelected: false,
+							id: 't3',
+							name: 'Draft OKRs for Q4',
+							context: contextMap.TICKET_LIST_ITEM,
+							childrenRenderAxis: 'vertical',
+							children: [
+								{
+									isSelected: false,
+									id: 't3-desc',
+									name: 'Description',
+									value:
+										'OVERVIEW\nDraft OKRs for the next quarter to align roadmap, delivery, and stakeholder expectations.\n\nINPUTS\n- Roadmap and current initiatives\n- Stakeholder requests\n- Capacity assumptions\n\nDELIVERABLE\nA short OKR doc with objectives, measurable key results, and owners.\n\nACCEPTANCE CRITERIA\n- Reviewed with leads\n- Key results measurable\n- Risks and dependencies listed',
+									context: contextMap.TICKET,
+									childrenRenderAxis: 'vertical',
+									children: [],
+								},
+								{
+									isSelected: false,
+									id: 't3-tags',
+									name: 'Tags',
+									value: 'demo, priority:high, team:platform',
+									context: contextMap.TICKET,
+									childrenRenderAxis: 'vertical',
+									children: [],
+								},
+							],
+						},
+					],
 				},
 				{
 					isSelected: false,
@@ -447,7 +185,16 @@ export const workspace: Workspace = {
 									id: 't4-desc',
 									name: 'Description',
 									value:
-										'Integrate frontend with backend auth API and handle edge cases.',
+										'OVERVIEW\nImplement the login flow end-to-end, including UI states and error handling.\n\nUX STATES\n- Empty form\n- Loading\n- Invalid credentials\n- Network failure\n\nTECHNICAL NOTES\n- Use auth contract\n- Persist session securely\n\nACCEPTANCE CRITERIA\n- Happy path works\n- Errors are user-friendly\n- Covered by integration tests',
+									context: contextMap.TICKET,
+									childrenRenderAxis: 'vertical',
+									children: [],
+								},
+								{
+									isSelected: false,
+									id: 't4-tags',
+									name: 'Tags',
+									value: 'demo, priority:high, team:platform',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
@@ -466,64 +213,16 @@ export const workspace: Workspace = {
 									id: 't5-desc',
 									name: 'Description',
 									value:
-										'Collaborate with UX to create a grid-based responsive dashboard.',
+										'OVERVIEW\nDesign a refreshed dashboard layout that scales across terminal sizes.\n\nLAYOUT GOALS\n- Clear hierarchy\n- Consistent spacing\n- Responsive behavior\n\nCONTENT\n- Summary panel\n- Recent activity\n- Quick actions\n\nACCEPTANCE CRITERIA\n- Works in narrow terminals\n- No overlap/clipping\n- Reviewed with UX',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
 								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't6',
-							name: 'Accessibility audit',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
 								{
 									isSelected: false,
-									id: 't6-desc',
-									name: 'Description',
-									value:
-										'Evaluate color contrast, ARIA usage, and keyboard nav.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't7',
-							name: 'Code review for analytics module',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't7-desc',
-									name: 'Description',
-									value:
-										'Ensure test coverage, types, and data validation are in place.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't8',
-							name: 'Review UI polish for mobile view',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't8-desc',
-									name: 'Description',
-									value:
-										'Verify spacing, responsiveness, and visual hierarchy.',
+									id: 't5-tags',
+									name: 'Tags',
+									value: 'demo, priority:high, team:platform',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
@@ -542,35 +241,26 @@ export const workspace: Workspace = {
 					children: [
 						{
 							isSelected: false,
-							id: 't9',
-							name: 'Setup Storybook',
-							context: contextMap.TICKET_LIST_ITEM,
-							childrenRenderAxis: 'vertical',
-							children: [
-								{
-									isSelected: false,
-									id: 't9-desc',
-									name: 'Description',
-									value:
-										'Document reusable components and tokens in Storybook.',
-									context: contextMap.TICKET,
-									childrenRenderAxis: 'vertical',
-									children: [],
-								},
-							],
-						},
-						{
-							isSelected: false,
-							id: 't10',
+							id: 't6',
 							name: 'Deploy v1.2 to staging',
 							context: contextMap.TICKET_LIST_ITEM,
 							childrenRenderAxis: 'vertical',
 							children: [
 								{
 									isSelected: false,
-									id: 't10-desc',
+									id: 't6-desc',
 									name: 'Description',
-									value: 'All pipelines green. Ready for product team QA.',
+									value:
+										'OVERVIEW\nDeploy the release candidate to staging for stakeholder verification.\n\nCHECKLIST\n- Build artifacts produced\n- Migrations applied (if any)\n- Smoke tests executed\n\nVALIDATION\n- CLI starts correctly\n- Core flows work end-to-end\n- No regressions observed\n\nACCEPTANCE CRITERIA\n- Stakeholder sign-off captured\n- Release notes drafted\n- Rollback steps documented',
+									context: contextMap.TICKET,
+									childrenRenderAxis: 'vertical',
+									children: [],
+								},
+								{
+									isSelected: false,
+									id: 't6-tags',
+									name: 'Tags',
+									value: 'demo, priority:high, team:platform',
 									context: contextMap.TICKET,
 									childrenRenderAxis: 'vertical',
 									children: [],
