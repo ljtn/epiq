@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {appState} from '../../navigation/state/state.js';
+import {appState} from '../navigation/state/state.js';
 import {Workspace} from '../model/context.model.js';
 import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';

@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Workspace} from '../model/context.model.js';
-import {appState} from '../../navigation/state/state.js';
+import {appState} from '../navigation/state/state.js';
 
 export default function BoardList({workspace}: {workspace: Workspace}) {
 	const breadCrumbHeight = 1;

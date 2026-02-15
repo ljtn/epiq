@@ -1,4 +1,4 @@
-import {Mode} from '../../navigation/model/action-map.model.js';
+import {Mode} from '../navigation/model/action-map.model.js';
 import {contextMap} from '../model/context.model.js';
 
 export const Hints = {

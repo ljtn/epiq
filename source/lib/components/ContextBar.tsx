@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Mode} from '../../navigation/model/action-map.model.js';
-import {appState} from '../../navigation/state/state.js';
+import {Mode} from '../navigation/model/action-map.model.js';
+import {appState} from '../navigation/state/state.js';
 import {CommandLine} from './CommandLine.js';
 
 export const ContextBar: React.FC<{width: number}> = ({width}) => (

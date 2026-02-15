@@ -1,11 +1,11 @@
 import {Box} from 'ink';
 import React from 'react';
-import {WorkspaceUI} from './board/components/WorkspaceUI.js';
-import {ContextBar} from './board/components/ContextBar.js';
-import {HelpUI} from './board/components/Help.js';
-import {Workspace} from './board/model/context.model.js';
-import {Mode} from './navigation/model/action-map.model.js';
-import {appState} from './navigation/state/state.js';
+import {WorkspaceUI} from './lib/components/WorkspaceUI.js';
+import {ContextBar} from './lib/components/ContextBar.js';
+import {HelpUI} from './lib/components/Help.js';
+import {Workspace} from './lib/model/context.model.js';
+import {Mode} from './lib/navigation/model/action-map.model.js';
+import {appState} from './lib/navigation/state/state.js';
 
 export default function App({workspace}: {workspace: Workspace}) {
 	const width = process.stdout.columns || 120;

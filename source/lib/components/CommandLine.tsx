@@ -3,7 +3,7 @@ import React, {useEffect, useState} from 'react';
 import {
 	getCommandLineInput,
 	subscribeCommandLineState,
-} from '../../navigation/state/command-line.state.js';
+} from '../navigation/state/command-line.state.js';
 
 const roleColors: Record<'command' | 'argument', string> = {
 	command: 'cyan',

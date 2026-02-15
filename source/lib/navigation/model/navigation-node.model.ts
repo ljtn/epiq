@@ -1,4 +1,4 @@
-import {ContextMap, AnyContext} from '../../board/model/context.model.js';
+import {ContextMap, AnyContext} from '../../model/context.model.js';
 
 export type NavNode<U extends AnyContext = 'WORKSPACE'> = {
 	id: string;

@@ -4,9 +4,9 @@ import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
-import {initListeners} from './navigation/keypress-listener.js';
-import {appState, initWorkspaceState} from './navigation/state/state.js';
-import {workspace} from './board/mock/workspace-template.js';
+import {initListeners} from './lib/navigation/keypress-listener.js';
+import {appState, initWorkspaceState} from './lib/navigation/state/state.js';
+import {workspace} from './lib/mock/workspace-template.js';
 import {initProject} from './init-project.js';
 
 const cli = meow(

@@ -2,7 +2,7 @@ import {
 	contextMap,
 	SwimlaneContext,
 	TicketListItemContext,
-} from '../../../board/model/context.model.js';
+} from '../../../model/context.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {appState} from '../../state/state.js';
