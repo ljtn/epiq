@@ -7,16 +7,10 @@ import {navigator} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
 	{
-		intent: Intent.ToggleCommandLine,
+		intent: Intent.InitCommandLine,
 		mode: Mode.DEFAULT,
 		description: '[:] Toggle command line',
 		action: () => patchState({mode: Mode.COMMAND_LINE}),
-	},
-	{
-		intent: Intent.ToggleCommandLine,
-		mode: Mode.COMMAND_LINE,
-		description: '[ESC] Toggle command line',
-		action: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
 		intent: Intent.Confirm,

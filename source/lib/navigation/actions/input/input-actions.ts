@@ -33,6 +33,13 @@ export const inputActions: ActionEntry[] = [
 		},
 	},
 	{
+		intent: Intent.AutoCompleteCommand,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			updateCommandLineInput((_prev, hint) => hint);
+		},
+	},
+	{
 		intent: Intent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
 		action: (_1, _2, {sequence}) => updateCommandLineInput(s => s + sequence),

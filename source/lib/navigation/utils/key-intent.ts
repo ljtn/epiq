@@ -2,6 +2,7 @@ import readline from 'readline';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {appState} from '../state/state.js';
 import {getCommandLineIntent} from './get-command-line-intent.js';
+import {commandLineState} from '../state/command-line.state.js';
 
 export enum Intent {
 	NavPreviousItem = 'navPreviousItem',
@@ -22,13 +23,14 @@ export enum Intent {
 	InitMove = 'initMove',
 
 	// Command line
-	ToggleCommandLine = 'toggleCommandLine',
+	InitCommandLine = 'initCommandLine',
+	ExitCommandLine = 'exitCommandLine',
 	CaptureInput = 'captureInput',
 	EraseInput = 'eraseInput',
 	AddItem = 'addItem',
 	GetLastCommandFromHistory = 'getLastCommandFromHistory',
 	GetNextCommandFromHistory = 'getNextCommandFromHistory',
-	ExitCommandLine = 'exitCommandLine',
+	AutoCompleteCommand = 'autoCompleteCommand',
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -104,8 +106,10 @@ export function getKeyIntent(
 	key: readline.Key,
 	mode: ModeUnion,
 ): Intent | null {
-	if (key.sequence === ':') return Intent.ToggleCommandLine;
-	if (mode === Mode.COMMAND_LINE) return getCommandLineIntent(key);
+	if (key.sequence === ':' && commandLineState.value === '')
+		return Intent.InitCommandLine;
+	if (mode === Mode.COMMAND_LINE)
+		return getCommandLineIntent(key, commandLineState.value);
 
 	// Navigation keys
 	const dir = getDir(key);

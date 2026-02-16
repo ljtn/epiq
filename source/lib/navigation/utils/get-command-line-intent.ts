@@ -1,10 +1,10 @@
 import {Intent} from './key-intent.js';
 import readline from 'readline';
 
-export const getCommandLineIntent = (key: readline.Key) => {
+export const getCommandLineIntent = (key: readline.Key, sequence: string) => {
 	switch (key.name) {
-		case 'backspace':
-			return Intent.ExitCommandLine;
+		case 'tab':
+			return Intent.AutoCompleteCommand;
 		case 'up':
 			return Intent.GetLastCommandFromHistory;
 		case 'down':
@@ -12,9 +12,9 @@ export const getCommandLineIntent = (key: readline.Key) => {
 		case 'return':
 			return Intent.Confirm;
 		case 'backspace':
-			return Intent.EraseInput;
+			return sequence ? Intent.EraseInput : Intent.ExitCommandLine;
 		case 'escape':
-			return Intent.ToggleCommandLine;
+			return Intent.ExitCommandLine;
 		default:
 			return Intent.CaptureInput;
 	}

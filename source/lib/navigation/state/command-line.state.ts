@@ -1,15 +1,19 @@
+import {CmdKeywords} from '../command-line/command-line-sequence-intent.js';
+
 export const commandDelimiter = ' ';
 
 export type CommandLineState = {
 	value: string;
 	commandHistory: string[];
 	commandHistoryIndex: number;
+	autoCompleteHint: string;
 };
 
 export let commandLineState: CommandLineState = {
 	commandHistory: [],
 	value: '',
 	commandHistoryIndex: -1,
+	autoCompleteHint: '',
 };
 
 // ===== Subscriptions =====
@@ -34,10 +38,22 @@ export const updateCommandLineState = (
 	notify();
 };
 
-export const updateCommandLineInput = (cb: (previous: string) => string) => {
+const getAutoCompleteHint = (command: string) => {
+	if (!command) return '';
+	const hints = Object.values(CmdKeywords);
+	const [hint] = hints.filter(x => x.startsWith(command));
+	return hint || '';
+};
+
+export const updateCommandLineInput = (
+	cb: (previous: string, hint: string) => string,
+) => {
 	updateCommandLineState(state => ({
 		...state,
-		value: cb(state.value),
+		value: cb(state.value, state.autoCompleteHint),
+		autoCompleteHint: getAutoCompleteHint(
+			cb(state.value, state.autoCompleteHint),
+		),
 	}));
 };
 

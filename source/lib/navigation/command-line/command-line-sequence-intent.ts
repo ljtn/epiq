@@ -9,19 +9,24 @@ export const CmdIntent = {
 	Rename: 'rename',
 } as const;
 
+export const CmdKeywords = {
+	HELP: 'help',
+	RENAME: 'rename',
+	ADD: 'add',
+} as const;
+
 export const getCommandIntent = (
 	command: string,
 ): (typeof CmdIntent)[keyof typeof CmdIntent] => {
-	const actionContext = appState?.currentNode?.context;
-	if (!actionContext) return CmdIntent.None;
+	const {context} = appState?.currentNode;
+	if (!context) return CmdIntent.None;
 	switch (command) {
-		case 'help':
+		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
-		case 'rename':
+		case CmdKeywords.RENAME:
 			return CmdIntent.Rename;
-		case 'a':
-		case 'add':
-			switch (actionContext) {
+		case CmdKeywords.ADD:
+			switch (context) {
 				case contextMap.BOARD:
 					return CmdIntent.AddSwimlane;
 				case contextMap.SWIMLANE:
