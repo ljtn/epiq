@@ -26,6 +26,13 @@ export const inputActions: ActionEntry[] = [
 		},
 	},
 	{
+		intent: Intent.ExitCommandLine,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			patchState({mode: Mode.DEFAULT});
+		},
+	},
+	{
 		intent: Intent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
 		action: (_1, _2, {sequence}) => updateCommandLineInput(s => s + sequence),

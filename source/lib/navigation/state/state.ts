@@ -38,14 +38,11 @@ export let appState: AppState;
 
 const derived = (state: typeof appState): typeof appState => {
 	const {currentNode, mode} = state;
-
-	const availableHints =
-		Hints[currentNode.context + mode] ?? Hints[currentNode.context];
-
-	const actionContext = currentNode?.context;
+	const {context} = currentNode;
+	const availableHints = Hints[context + mode] ?? Hints[context];
 	const availableActions = [
 		...DefaultActions,
-		...contextActions[actionContext],
+		...contextActions[context],
 		...inputActions,
 	];
 

@@ -32,7 +32,7 @@ export const navigator: Navigator = {
 		const currentNode = appState.currentNode;
 		const focusNode = currentNode?.children[appState.selectedIndex];
 
-		const isEndNode = focusNode?.context === 'TICKET';
+		const isEndNode = focusNode?.context === 'TICKET'; // Reconsider. Not sure we want this to be the end node in the future
 		if (!currentNode || !focusNode || isEndNode) return;
 
 		navigator.navigate({
@@ -133,18 +133,13 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 	const currentNodeIndex = siblings.findIndex(x => x.id === currentNode.id);
 	if (currentNodeIndex < 0) return;
 
-	// Look for the next sibling "container" that actually has children
-	const candidates =
-		direction === -1
-			? siblings.slice(0, currentNodeIndex).toReversed()
-			: siblings.slice(currentNodeIndex + 1);
-
-	const nextSibling = candidates.find(x => (x.children?.length ?? 0) > 0);
-	if (!nextSibling?.children?.length) return;
+	const nextSibling =
+		siblings.at(currentNodeIndex + direction) || siblings.at(0);
+	if (!nextSibling) return;
 
 	// Keep the same child index if possible, otherwise clamp to last child
 	const prevIndex = appState.selectedIndex;
-	const boundedIndex = Math.min(prevIndex, nextSibling.children.length - 1);
+	const boundedIndex = Math.min(prevIndex, nextSibling.children.length);
 
 	navigator.navigate({
 		currentNode: nextSibling,

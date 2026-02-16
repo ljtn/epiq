@@ -1,19 +1,20 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Swimlane, TicketListItem} from '../model/context.model.js';
+import {appState} from '../navigation/state/state.js';
+import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
-import {theme} from '../theme/themes.js';
 
 type Props = {
-	item: Swimlane;
+	swimlane: Swimlane;
 	width: number;
 	height: number;
 	isSelected: boolean;
 };
 
 export const SwimlaneUI: React.FC<Props> = ({
-	item,
+	swimlane,
 	isSelected,
 	width,
 	height,
@@ -43,22 +44,29 @@ export const SwimlaneUI: React.FC<Props> = ({
 					bold
 					color={isParentOfCurrentContext ? theme.accent : theme.primary}
 				>
-					{item.name}
+					{swimlane.name}
 				</Text>
 			</Box>
 			<Box padding={1}>
-				<ScrollBoxUI
-					selectedIndex={item.children.findIndex(x => x.isSelected)}
-					width={width}
-					height={height - paddingTop - paddingBottom}
-					children={item.children.map((ticket, index) => (
-						<TicketListItemUI
-							key={index}
-							width={width}
-							ticket={ticket as TicketListItem}
-						/>
-					))}
-				></ScrollBoxUI>
+				{swimlane.children.length > 0 && (
+					<ScrollBoxUI
+						selectedIndex={swimlane.children.findIndex(x => x.isSelected)}
+						width={width}
+						height={height - paddingTop - paddingBottom}
+						children={swimlane.children.map((ticket, index) => (
+							<TicketListItemUI
+								key={index}
+								width={width}
+								ticket={ticket as TicketListItem}
+							/>
+						))}
+					></ScrollBoxUI>
+				)}
+				{!swimlane.children.length &&
+					appState.currentNode.id === swimlane.id &&
+					appState.selectedIndex === 0 && (
+						<Text color={theme.accent}>{'$'}</Text>
+					)}
 			</Box>
 		</Box>
 	);

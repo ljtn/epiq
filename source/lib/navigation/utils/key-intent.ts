@@ -28,6 +28,7 @@ export enum Intent {
 	AddItem = 'addItem',
 	GetLastCommandFromHistory = 'getLastCommandFromHistory',
 	GetNextCommandFromHistory = 'getNextCommandFromHistory',
+	ExitCommandLine = 'exitCommandLine',
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';

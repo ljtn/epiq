@@ -2,8 +2,8 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {Mode} from '../navigation/model/action-map.model.js';
 import {appState} from '../navigation/state/state.js';
-import {CommandLine} from './CommandLine.js';
 import {theme} from '../theme/themes.js';
+import {CommandLine} from './CommandLine.js';
 
 export const ContextBar: React.FC<{width: number}> = ({width}) => {
 	const {mode, availableHints} = appState;
@@ -22,8 +22,7 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => {
 					<CommandLine />
 				) : (
 					<Box flexDirection="row" gap={2}>
-						<Text>{hasHints ? '💡' : ' '}</Text>
-
+						<Text color={theme.secondary}>{hasHints ? '💡 Hints:' : ' '}</Text>
 						{availableHints.map((hint, index) => {
 							const [command, ...rest] = hint.split(' ');
 							const argument = rest.join(' ');
@@ -35,6 +34,7 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => {
 								</Box>
 							);
 						})}
+						<Text> </Text>
 					</Box>
 				)}
 			</Box>

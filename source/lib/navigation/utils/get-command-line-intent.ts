@@ -3,6 +3,8 @@ import readline from 'readline';
 
 export const getCommandLineIntent = (key: readline.Key) => {
 	switch (key.name) {
+		case 'backspace':
+			return Intent.ExitCommandLine;
 		case 'up':
 			return Intent.GetLastCommandFromHistory;
 		case 'down':

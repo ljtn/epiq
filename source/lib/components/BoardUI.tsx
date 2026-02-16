@@ -37,7 +37,7 @@ export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 							appState.currentNode.context === 'BOARD' &&
 							appState.selectedIndex === index
 						}
-						item={lane}
+						swimlane={lane}
 					/>
 				))}
 
