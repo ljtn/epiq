@@ -14,7 +14,7 @@ export default function App({workspace}: {workspace: Workspace}) {
 			{/* <Logo></Logo> */}
 			{!(appState.mode === Mode.HELP) && <WorkspaceUI workspace={workspace} />}
 			{appState.mode === Mode.HELP && <HelpUI width={width} />}
-			<ContextBar width={width} />
+			{!(appState.mode === Mode.HELP) && <ContextBar width={width} />}
 		</Box>
 	);
 }
