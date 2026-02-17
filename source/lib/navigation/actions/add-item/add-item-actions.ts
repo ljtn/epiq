@@ -1,7 +1,7 @@
 import {
 	contextMap,
 	SwimlaneContext,
-	TicketListItemContext,
+	TicketContext,
 } from '../../../model/context.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
@@ -33,10 +33,10 @@ export const addSwimlaneAction: NonNullable<
 export const addTicketAction: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {
-	const newItem: NavNode<TicketListItemContext> = {
+	const newItem: NavNode<TicketContext> = {
 		id: `${Date.now()}`,
 		name: value || 'New issue',
-		context: contextMap.TICKET_LIST_ITEM,
+		context: contextMap.TICKET,
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
 		children: [
@@ -45,7 +45,7 @@ export const addTicketAction: NonNullable<
 				id: `${Date.now()}`,
 				name: 'Description',
 				value: 'No description added',
-				context: contextMap.TICKET,
+				context: contextMap.TICKET_FIELD,
 				childrenRenderAxis: 'vertical',
 				children: [],
 			},
@@ -54,7 +54,7 @@ export const addTicketAction: NonNullable<
 				id: `${Date.now()}`,
 				name: 'Tags',
 				value: 'default',
-				context: contextMap.TICKET,
+				context: contextMap.TICKET_FIELD,
 				childrenRenderAxis: 'vertical',
 				children: [],
 			},

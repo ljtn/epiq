@@ -1,0 +1,267 @@
+{
+	"id": "w1",
+	"isSelected": false,
+	"name": "Workspace",
+	"context": "WORKSPACE",
+	"childrenRenderAxis": "vertical",
+	"children": [
+		{
+			"id": "b1",
+			"isSelected": false,
+			"name": "Default Board",
+			"value": "default",
+			"context": "BOARD",
+			"childrenRenderAxis": "horizontal",
+			"children": [
+				{
+					"isSelected": false,
+					"id": "e2b30f64-2c77-4c43-8a7d-2b6b9d0c2e11",
+					"name": "To Do",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": []
+				},
+				{
+					"isSelected": false,
+					"id": "6f8a2e6a-2b6c-4a14-bcb2-7d1f55b0e0b4",
+					"name": "In progress",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": []
+				},
+				{
+					"isSelected": false,
+					"id": "a8e4d7e1-5c5f-44d4-90bf-0a0f4b7f0b52",
+					"name": "Review",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": []
+				},
+				{
+					"isSelected": false,
+					"id": "b9b7a9f4-7f41-4c61-a1cc-3c0a0c7398a6",
+					"name": "Done",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": []
+				}
+			]
+		},
+		{
+			"id": "b2",
+			"isSelected": false,
+			"name": "Demo",
+			"value": "demo",
+			"context": "BOARD",
+			"childrenRenderAxis": "horizontal",
+			"children": [
+				{
+					"isSelected": false,
+					"id": "s1",
+					"name": "To Do",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": [
+						{
+							"isSelected": false,
+							"id": "t1",
+							"name": "Setup CI/CD pipeline",
+							"context": "TICKET",
+							"childrenRenderAxis": "vertical",
+							"children": [
+								{
+									"isSelected": false,
+									"id": "t1-desc",
+									"name": "Description",
+									"value": "t_0001",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								},
+								{
+									"isSelected": false,
+									"id": "t1-tags",
+									"name": "Tags",
+									"value": "demo, priority:high, team:platform",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								}
+							]
+						},
+						{
+							"isSelected": false,
+							"id": "t2",
+							"name": "Create API contract for auth service",
+							"context": "TICKET",
+							"childrenRenderAxis": "vertical",
+							"children": [
+								{
+									"isSelected": false,
+									"id": "t2-desc",
+									"name": "Description",
+									"value": "t_0002",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								},
+								{
+									"isSelected": false,
+									"id": "t2-tags",
+									"name": "Tags",
+									"value": "demo, priority:high, team:platform",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								}
+							]
+						}
+					]
+				},
+				{
+					"isSelected": false,
+					"id": "s2",
+					"name": "In Progress",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": [
+						{
+							"isSelected": false,
+							"id": "t3",
+							"name": "Draft OKRs for Q4",
+							"context": "TICKET",
+							"childrenRenderAxis": "vertical",
+							"children": [
+								{
+									"isSelected": false,
+									"id": "t3-desc",
+									"name": "Description",
+									"value": "t_0003",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								},
+								{
+									"isSelected": false,
+									"id": "t3-tags",
+									"name": "Tags",
+									"value": "demo, priority:high, team:platform",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								}
+							]
+						}
+					]
+				},
+				{
+					"isSelected": false,
+					"id": "s3",
+					"name": "Review",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": [
+						{
+							"isSelected": false,
+							"id": "t4",
+							"name": "Implement user login flow",
+							"context": "TICKET",
+							"childrenRenderAxis": "vertical",
+							"children": [
+								{
+									"isSelected": false,
+									"id": "t4-desc",
+									"name": "Description",
+									"value": "t_0004",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								},
+								{
+									"isSelected": false,
+									"id": "t4-tags",
+									"name": "Tags",
+									"value": "demo, priority:high, team:platform",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								}
+							]
+						},
+						{
+							"isSelected": false,
+							"id": "t5",
+							"name": "Design new dashboard layout",
+							"context": "TICKET",
+							"childrenRenderAxis": "vertical",
+							"children": [
+								{
+									"isSelected": false,
+									"id": "t5-desc",
+									"name": "Description",
+									"value": "t_0005",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								},
+								{
+									"isSelected": false,
+									"id": "t5-tags",
+									"name": "Tags",
+									"value": "demo, priority:high, team:platform",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								}
+							]
+						}
+					]
+				},
+				{
+					"isSelected": false,
+					"id": "s4",
+					"name": "Done",
+					"childrenRenderAxis": "vertical",
+					"context": "SWIMLANE",
+					"enableChildNavigationAcrossContainers": true,
+					"children": [
+						{
+							"isSelected": false,
+							"id": "t6",
+							"name": "Deploy v1.2 to staging",
+							"context": "TICKET",
+							"childrenRenderAxis": "vertical",
+							"children": [
+								{
+									"isSelected": false,
+									"id": "t6-desc",
+									"name": "Description",
+									"value": "t_0006",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								},
+								{
+									"isSelected": false,
+									"id": "t6-tags",
+									"name": "Tags",
+									"value": "demo, priority:high, team:platform",
+									"context": "TICKET_FIELD",
+									"childrenRenderAxis": "vertical",
+									"children": []
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	]
+}

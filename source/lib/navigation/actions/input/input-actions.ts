@@ -68,7 +68,6 @@ export const inputActions: ActionEntry[] = [
 			setCmdInput((previousInput, hint) => {
 				let lastWord = previousInput.split(' ').at(-1) || '';
 				const overlap = findOverlap(lastWord, hint);
-				debug(overlap);
 				return hint ? previousInput + hint.slice(overlap) : previousInput;
 			});
 		},

@@ -1,18 +1,21 @@
-import {Box, Text} from 'ink';
+import {Box} from 'ink';
 import React from 'react';
-import {Ticket} from '../model/context.model.js';
-import {ScrollBoxUI} from './ScrollBox.js';
+import {TicketField} from '../model/context.model.js';
+import {fileManager} from '../storage/file-manager.js';
 import {theme} from '../theme/themes.js';
+import {TicketFieldUI} from './TicketField.js';
 
 type Props = {
-	item: Ticket;
+	ticket: TicketField;
 	width: number;
 	height: number;
 };
 
-export const TicketUI: React.FC<Props> = ({item, width, height}) => {
-	const description = item.children.find(x => x.name === 'Description');
-	const descriptionRows = description?.value?.split('\n').length ?? 1;
+export const TicketUI: React.FC<Props> = ({ticket, width, height}) => {
+	const descriptionNode = ticket.children.find(x => x.name === 'Description');
+	const descriptionId = descriptionNode?.value;
+	const description = descriptionId ? fileManager.getIssue(descriptionId) : '';
+	debug('Description', description);
 	return (
 		<Box
 			flexDirection="column"
@@ -23,26 +26,9 @@ export const TicketUI: React.FC<Props> = ({item, width, height}) => {
 			minHeight={height}
 			borderColor={theme.secondary}
 		>
-			<ScrollBoxUI
-				selectedIndex={item.children.findIndex(x => x.isSelected)}
-				width={width}
-				height={descriptionRows - 8}
-				children={item.children.map((child, index) => (
-					<Box
-						key={index}
-						flexDirection="row"
-						borderStyle={'round'}
-						borderColor={theme.secondary}
-					>
-						<Box minWidth={20}>
-							<Text color={theme.secondary}>{child.name}:</Text>
-						</Box>
-						<Text color={child.isSelected ? theme.accent : theme.primary}>
-							{child.value}
-						</Text>
-					</Box>
-				))}
-			></ScrollBoxUI>
+			{ticket.children.map((child, index) => (
+				<TicketFieldUI key={index} field={child}></TicketFieldUI>
+			))}
 		</Box>
 	);
 };

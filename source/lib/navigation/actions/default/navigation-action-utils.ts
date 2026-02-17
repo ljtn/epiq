@@ -32,7 +32,7 @@ export const navigator: Navigator = {
 		const currentNode = appState.currentNode;
 		const focusNode = currentNode?.children[appState.selectedIndex];
 
-		const isEndNode = focusNode?.context === 'TICKET'; // Reconsider. Not sure we want this to be the end node in the future
+		const isEndNode = focusNode?.context === 'TICKET_FIELD'; // Reconsider. Not sure we want this to be the end node in the future
 		if (!currentNode || !focusNode || isEndNode) return;
 
 		navigator.navigate({

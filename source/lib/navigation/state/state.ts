@@ -15,14 +15,14 @@ export type BreadCrumb =
 			NavNode<'WORKSPACE'>,
 			NavNode<'BOARD'>,
 			NavNode<'SWIMLANE'>,
-			NavNode<'TICKET_LIST_ITEM'>,
+			NavNode<'TICKET'>,
 	  ]
 	| [
 			NavNode<'WORKSPACE'>,
 			NavNode<'BOARD'>,
 			NavNode<'SWIMLANE'>,
-			NavNode<'TICKET_LIST_ITEM'>,
 			NavNode<'TICKET'>,
+			NavNode<'TICKET_FIELD'>,
 	  ];
 export type AppState = {
 	readonly selectedIndex: number;

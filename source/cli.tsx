@@ -6,8 +6,8 @@ import React from 'react';
 import App from './app.js';
 import {initListeners} from './lib/navigation/keypress-listener.js';
 import {appState, initWorkspaceState} from './lib/navigation/state/state.js';
-import {workspace} from './lib/mock/workspace-template.js';
 import {initProject} from './init-project.js';
+import {loadWorkspace} from './lib/storage/storage-manager.js';
 
 const cli = meow(
 	`
@@ -39,6 +39,11 @@ process.stdout.on('resize', () => renderWorkspace());
 	if (cli.flags.init) {
 		initProject();
 	} else if (!Object.keys(cli.flags).length) {
+		const workspace = loadWorkspace();
+		if (!workspace) {
+			console.error('Failed to load workspace.');
+			return;
+		}
 		initWorkspaceState(workspace);
 		initListeners();
 	}

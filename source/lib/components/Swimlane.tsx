@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Swimlane, TicketListItem} from '../model/context.model.js';
+import {Swimlane, Ticket} from '../model/context.model.js';
 import {appState} from '../navigation/state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
@@ -57,7 +57,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 							<TicketListItemUI
 								key={index}
 								width={width}
-								ticket={ticket as TicketListItem}
+								ticket={ticket as Ticket}
 							/>
 						))}
 					></ScrollBoxUI>
@@ -65,7 +65,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 				{!swimlane.children.length &&
 					appState.currentNode.id === swimlane.id &&
 					appState.selectedIndex === 0 && (
-						<Text color={theme.accent}>{'$'}</Text>
+						<Text color={theme.accent}>{'_'}</Text>
 					)}
 			</Box>
 		</Box>

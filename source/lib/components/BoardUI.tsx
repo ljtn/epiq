@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
 import {appState} from '../navigation/state/state.js';
-import {contextMap, Swimlane, Ticket} from '../model/context.model.js';
+import {contextMap, Swimlane, TicketField} from '../model/context.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
 
@@ -11,7 +11,7 @@ type Props = {
 
 export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 	const actionContext = appState.currentNode.context;
-	const isTicketContext = actionContext === contextMap.TICKET_LIST_ITEM;
+	const isTicketContext = actionContext === contextMap.TICKET;
 	const isSwimlaneContext =
 		actionContext === contextMap.BOARD || actionContext === contextMap.SWIMLANE;
 
@@ -45,7 +45,9 @@ export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 				<TicketUI
 					height={height}
 					width={colWidth * swimlanes.length}
-					item={appState.breadCrumb[appState.breadCrumb.length - 1] as Ticket}
+					ticket={
+						appState.breadCrumb[appState.breadCrumb.length - 1] as TicketField
+					}
 				/>
 			)}
 		</Box>

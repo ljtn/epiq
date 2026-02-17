@@ -2,7 +2,7 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {Mode} from '../navigation/model/action-map.model.js';
 import {appState} from '../navigation/state/state.js';
-import {TicketListItem} from '../model/context.model.js';
+import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
@@ -10,7 +10,7 @@ const truncateWithEllipsis = (str: string, width: number): string =>
 
 export const TicketListItemUI: React.FC<{
 	width: number;
-	ticket: TicketListItem;
+	ticket: Ticket;
 }> = ({width, ticket}) => (
 	<Box borderBottom>
 		<Text

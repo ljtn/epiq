@@ -12,9 +12,9 @@ export type NavNode<U extends AnyContext = 'WORKSPACE'> = {
 		: U extends ContextMap['BOARD']
 		? NavNode<'SWIMLANE'>
 		: U extends ContextMap['SWIMLANE']
-		? NavNode<'TICKET_LIST_ITEM'>
-		: U extends ContextMap['TICKET_LIST_ITEM']
 		? NavNode<'TICKET'>
-		: NavNode<'TICKET'>)[];
+		: U extends ContextMap['TICKET']
+		? NavNode<'TICKET_FIELD'>
+		: NavNode<'TICKET_FIELD'>)[];
 	enableChildNavigationAcrossContainers?: boolean;
 };

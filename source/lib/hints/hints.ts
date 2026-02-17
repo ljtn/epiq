@@ -19,14 +19,10 @@ export const Hints = {
 	[contextMap.BOARD]: [initCommandPalette],
 	[contextMap.BOARD + Mode.COMMAND_LINE]: [],
 	[contextMap.SWIMLANE]: [initMove, exit, addIssue],
-	[contextMap.TICKET_LIST_ITEM + Mode.HELP]: [exit],
+	[contextMap.TICKET + Mode.HELP]: [exit],
 	[contextMap.SWIMLANE + Mode.HELP]: [exit],
-	[contextMap.TICKET_LIST_ITEM]: [edit, initMove],
-	[contextMap.TICKET]: [],
+	[contextMap.TICKET]: [edit, initMove],
+	[contextMap.TICKET_FIELD]: [],
 	[contextMap.SWIMLANE + Mode.MOVE]: [moveSelection, confirmMove],
-	[contextMap.TICKET_LIST_ITEM + Mode.MOVE]: [
-		moveSelection,
-		enter,
-		confirmMove,
-	],
+	[contextMap.TICKET + Mode.MOVE]: [moveSelection, enter, confirmMove],
 } as const;

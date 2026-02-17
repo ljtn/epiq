@@ -165,10 +165,12 @@ export const getPrevCmd = () => {
 			s.commandHistoryIndex + 1,
 			s.commandHistory.length - 1,
 		);
+		const value = s.commandHistory[nextIndex] ?? '';
 		return {
 			...s,
 			commandHistoryIndex: nextIndex,
-			value: s.commandHistory[nextIndex] ?? '',
+			value,
+			cursorPosition: value.length,
 		};
 	});
 };
@@ -176,10 +178,12 @@ export const getPrevCmd = () => {
 export const getNextCmd = () => {
 	setState(s => {
 		const nextIndex = Math.max(s.commandHistoryIndex - 1, -1);
+		const value = nextIndex === -1 ? '' : s.commandHistory[nextIndex] ?? '';
 		return {
 			...s,
 			commandHistoryIndex: nextIndex,
-			value: nextIndex === -1 ? '' : s.commandHistory[nextIndex] ?? '',
+			value,
+			cursorPosition: value.length,
 		};
 	});
 };
