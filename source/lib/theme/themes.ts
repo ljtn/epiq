@@ -24,3 +24,11 @@ export const theme = {
 	primary: colors.white,
 	secondary: colors.gray,
 };
+
+export const chalkColors = {
+	cyan: '#7DCFFF',
+	cyanSoft: '#89DDFF',
+	gray: '#C0CAF5',
+	grayLight: '#9AA5CE',
+	grayDark: '#565F89',
+} as const;

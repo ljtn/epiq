@@ -2,15 +2,15 @@ import {getCommandIntent} from '../../command-line/command-line-sequence-intent.
 import {commands} from '../../command-line/commands.js';
 import {ActionEntry} from '../../model/action-map.model.js';
 import {
-	clearCommandLine,
-	getCommandLineInput,
-	updateCommandHistory,
-} from '../../state/command-line.state.js';
+	clearCmd,
+	getCmdValue,
+	updateCmdHistory,
+} from '../../state/cmd.state.js';
 
 export const onConfirmCommandLineSequenceInput = (
 	...args: Parameters<NonNullable<ActionEntry['action']>>
 ) => {
-	const commandSequence = getCommandLineInput();
+	const commandSequence = getCmdValue();
 	const [ctx] = [...args];
 	const [firstItem, ...rest] = commandSequence.split(' ');
 	const command = (firstItem || '').trim();
@@ -19,7 +19,7 @@ export const onConfirmCommandLineSequenceInput = (
 	const intent = getCommandIntent(command);
 	const actionMeta = commands.find(x => x.intent === intent);
 	actionMeta?.action?.(ctx, actionMeta, {command, value});
-	updateCommandHistory();
-	clearCommandLine();
+	updateCmdHistory();
+	clearCmd();
 	return;
 };

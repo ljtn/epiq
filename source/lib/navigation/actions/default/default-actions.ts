@@ -1,6 +1,6 @@
 import {CmdIntent} from '../../command-line/command-line-sequence-intent.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {updateCommandLineInput} from '../../state/command-line.state.js';
+import {setCmdInput} from '../../state/cmd.state.js';
 import {appState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {navigator} from './navigation-action-utils.js';
@@ -54,9 +54,7 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			updateCommandLineInput(
-				() => `${CmdIntent.Rename} ${appState.currentNode?.name}`,
-			);
+			setCmdInput(() => `${CmdIntent.Rename} ${appState.currentNode?.name}`);
 		},
 	},
 ];

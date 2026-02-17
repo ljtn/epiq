@@ -2,7 +2,7 @@ import readline from 'readline';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {appState} from '../state/state.js';
 import {getCommandLineIntent} from './get-command-line-intent.js';
-import {commandLineState} from '../state/command-line.state.js';
+import {commandLineState} from '../state/cmd.state.js';
 
 export enum Intent {
 	NavPreviousItem = 'navPreviousItem',
@@ -31,6 +31,12 @@ export enum Intent {
 	GetLastCommandFromHistory = 'getLastCommandFromHistory',
 	GetNextCommandFromHistory = 'getNextCommandFromHistory',
 	AutoCompleteCommand = 'autoCompleteCommand',
+	MoveCursorLeft = 'MoveCursorLeft',
+	MoveCursorRight = 'MoveCursorRight',
+	MoveCursorLeftOfWord = 'MoveCursorLeftOfWord',
+	MoveCursorRightOfWord = 'MoveCursorRightOfWord',
+	EraseInputWord = 'EraseInputWord',
+	None = 'None',
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';

@@ -3,7 +3,7 @@ import {
 	addTicketAction,
 } from '../actions/add-item/add-item-actions.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
-import {getCommandLineArgumentValue} from '../state/command-line.state.js';
+import {getCmdArg} from '../state/cmd.state.js';
 import {appState, patchState, updateState} from '../state/state.js';
 import {CmdIntent} from './command-line-sequence-intent.js';
 
@@ -45,7 +45,7 @@ export const commands: CommandLineActionEntry[] = [
 						undefined
 					);
 				};
-				const newName = getCommandLineArgumentValue();
+				const newName = getCmdArg();
 				const itemInBoard = findItemInBoard(newBoard, currentId);
 				if (!itemInBoard) return s;
 				itemInBoard.name = newName;

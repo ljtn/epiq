@@ -1,11 +1,16 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {
-	getNextCommand,
-	getPrevCommand,
-	updateCommandLineInput,
-} from '../../state/command-line.state.js';
+	eraseInput,
+	eraseInputWord,
+	getNextCmd,
+	getPrevCmd,
+	moveCursorPosition,
+	moveCursorPositionOfWord,
+	setCmdInput,
+} from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
+import {findOverlap} from '../../utils/stirng.utils.js';
 import {onConfirmCommandLineSequenceInput} from './command-line-input.js';
 export const inputActions: ActionEntry[] = [
 	{
@@ -26,6 +31,30 @@ export const inputActions: ActionEntry[] = [
 		},
 	},
 	{
+		intent: Intent.MoveCursorLeft,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			moveCursorPosition(-1);
+		},
+	},
+	{
+		intent: Intent.MoveCursorRight,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			moveCursorPosition(1);
+		},
+	},
+	{
+		intent: Intent.MoveCursorLeftOfWord,
+		mode: Mode.COMMAND_LINE,
+		action: () => moveCursorPositionOfWord('left'),
+	},
+	{
+		intent: Intent.MoveCursorRightOfWord,
+		mode: Mode.COMMAND_LINE,
+		action: () => moveCursorPositionOfWord('right'),
+	},
+	{
 		intent: Intent.ExitCommandLine,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
@@ -36,27 +65,37 @@ export const inputActions: ActionEntry[] = [
 		intent: Intent.AutoCompleteCommand,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			updateCommandLineInput((_prev, hint) => hint);
+			setCmdInput((previousInput, hint) => {
+				let lastWord = previousInput.split(' ').at(-1) || '';
+				const overlap = findOverlap(lastWord, hint);
+				debug(overlap);
+				return hint ? previousInput + hint.slice(overlap) : previousInput;
+			});
 		},
 	},
 	{
 		intent: Intent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
-		action: (_1, _2, {sequence}) => updateCommandLineInput(s => s + sequence),
+		action: (_1, _2, {sequence}) => setCmdInput(s => s + sequence),
 	},
 	{
 		intent: Intent.EraseInput,
 		mode: Mode.COMMAND_LINE,
-		action: () => updateCommandLineInput(s => s.slice(0, -1)),
+		action: () => eraseInput(),
+	},
+	{
+		intent: Intent.EraseInputWord,
+		mode: Mode.COMMAND_LINE,
+		action: () => eraseInputWord(),
 	},
 	{
 		intent: Intent.GetLastCommandFromHistory,
 		mode: Mode.COMMAND_LINE,
-		action: () => getPrevCommand(),
+		action: () => getPrevCmd(),
 	},
 	{
 		intent: Intent.GetNextCommandFromHistory,
 		mode: Mode.COMMAND_LINE,
-		action: () => getNextCommand(),
+		action: () => getNextCmd(),
 	},
 ];
