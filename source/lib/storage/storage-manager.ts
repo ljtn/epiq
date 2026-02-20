@@ -28,7 +28,7 @@ const createWorkspace = (targetPath: string) => {
 		'storage',
 		'default-workspace.json',
 	);
-	const defaultWorkspace = fileManager.readFile(templatePath);
+	const defaultWorkspace = fileManager.readJsonFile(templatePath);
 	if (!defaultWorkspace) {
 		console.error('Failed to read default workspace template.');
 		return;

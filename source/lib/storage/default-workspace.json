@@ -66,62 +66,7 @@
 					"childrenRenderAxis": "vertical",
 					"context": "SWIMLANE",
 					"enableChildNavigationAcrossContainers": true,
-					"children": [
-						{
-							"isSelected": false,
-							"id": "t1",
-							"name": "Setup CI/CD pipeline",
-							"context": "TICKET",
-							"childrenRenderAxis": "vertical",
-							"children": [
-								{
-									"isSelected": false,
-									"id": "t1-desc",
-									"name": "Description",
-									"value": "t_0001",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								},
-								{
-									"isSelected": false,
-									"id": "t1-tags",
-									"name": "Tags",
-									"value": "demo, priority:high, team:platform",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								}
-							]
-						},
-						{
-							"isSelected": false,
-							"id": "t2",
-							"name": "Create API contract for auth service",
-							"context": "TICKET",
-							"childrenRenderAxis": "vertical",
-							"children": [
-								{
-									"isSelected": false,
-									"id": "t2-desc",
-									"name": "Description",
-									"value": "t_0002",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								},
-								{
-									"isSelected": false,
-									"id": "t2-tags",
-									"name": "Tags",
-									"value": "demo, priority:high, team:platform",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								}
-							]
-						}
-					]
+					"children": ["t_0009", "t_0010"]
 				},
 				{
 					"isSelected": false,
@@ -130,35 +75,7 @@
 					"childrenRenderAxis": "vertical",
 					"context": "SWIMLANE",
 					"enableChildNavigationAcrossContainers": true,
-					"children": [
-						{
-							"isSelected": false,
-							"id": "t3",
-							"name": "Draft OKRs for Q4",
-							"context": "TICKET",
-							"childrenRenderAxis": "vertical",
-							"children": [
-								{
-									"isSelected": false,
-									"id": "t3-desc",
-									"name": "Description",
-									"value": "t_0003",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								},
-								{
-									"isSelected": false,
-									"id": "t3-tags",
-									"name": "Tags",
-									"value": "demo, priority:high, team:platform",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								}
-							]
-						}
-					]
+					"children": []
 				},
 				{
 					"isSelected": false,
@@ -167,62 +84,7 @@
 					"childrenRenderAxis": "vertical",
 					"context": "SWIMLANE",
 					"enableChildNavigationAcrossContainers": true,
-					"children": [
-						{
-							"isSelected": false,
-							"id": "t4",
-							"name": "Implement user login flow",
-							"context": "TICKET",
-							"childrenRenderAxis": "vertical",
-							"children": [
-								{
-									"isSelected": false,
-									"id": "t4-desc",
-									"name": "Description",
-									"value": "t_0004",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								},
-								{
-									"isSelected": false,
-									"id": "t4-tags",
-									"name": "Tags",
-									"value": "demo, priority:high, team:platform",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								}
-							]
-						},
-						{
-							"isSelected": false,
-							"id": "t5",
-							"name": "Design new dashboard layout",
-							"context": "TICKET",
-							"childrenRenderAxis": "vertical",
-							"children": [
-								{
-									"isSelected": false,
-									"id": "t5-desc",
-									"name": "Description",
-									"value": "t_0005",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								},
-								{
-									"isSelected": false,
-									"id": "t5-tags",
-									"name": "Tags",
-									"value": "demo, priority:high, team:platform",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								}
-							]
-						}
-					]
+					"children": []
 				},
 				{
 					"isSelected": false,
@@ -231,35 +93,7 @@
 					"childrenRenderAxis": "vertical",
 					"context": "SWIMLANE",
 					"enableChildNavigationAcrossContainers": true,
-					"children": [
-						{
-							"isSelected": false,
-							"id": "t6",
-							"name": "Deploy v1.2 to staging",
-							"context": "TICKET",
-							"childrenRenderAxis": "vertical",
-							"children": [
-								{
-									"isSelected": false,
-									"id": "t6-desc",
-									"name": "Description",
-									"value": "t_0006",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								},
-								{
-									"isSelected": false,
-									"id": "t6-tags",
-									"name": "Tags",
-									"value": "demo, priority:high, team:platform",
-									"context": "TICKET_FIELD",
-									"childrenRenderAxis": "vertical",
-									"children": []
-								}
-							]
-						}
-					]
+					"children": []
 				}
 			]
 		}

@@ -1,10 +1,37 @@
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {Workspace} from '../model/context.model.js';
+import {ticketFromData} from '../navigation/actions/add-item/add-item-actions.js';
+
+export type DiscWorkspace = {
+	id: string;
+	name: string;
+	children: string[];
+};
+
+export type DiscBoard = {
+	name: string;
+	children: string[];
+};
+
+export type DiscSwimlane = {
+	name: string;
+	children: string[];
+};
+
+export type DiscTicket = {
+	name: string;
+	children: string[]; // List of issue IDs
+};
+
+export type DiscField = {
+	name: string;
+	children: string[]; //
+};
 
 export type WorkspaceDiskData = {
 	// Pick up settings and other metadata in the future
-	workspace: Workspace;
+	workspace: DiscWorkspace;
 };
 
 export const fileManager = {
@@ -20,23 +47,32 @@ export const fileManager = {
 		}
 	},
 
-	getIssue(issueId: string): string {
+	getField(fieldId: string) {
+		const filePath = path.join(
+			this.locateWorkspaceFolder()!,
+			'fields',
+			fieldId + '.json',
+		);
+		const field = this.readJsonFile(filePath);
+		if (!field) {
+			console.warn(`Field file not found for ID ${fieldId}: ${filePath}`);
+			return null;
+		}
+		return field;
+	},
+
+	getIssue(issueId: string) {
 		const filePath = path.join(
 			this.locateWorkspaceFolder()!,
 			'issues',
-			issueId + '.txt',
+			issueId + '.json',
 		);
-		try {
-			return readFileSync(filePath, 'utf-8');
-		} catch (e) {
-			console.error(`Failed to read file at ${filePath}:`, e);
-			return '';
-		}
+		return this.readJsonFile(filePath);
 	},
 
-	readFile: (filePath: string): string | null => {
+	readJsonFile: (filePath: string): any | null => {
 		try {
-			return readFileSync(filePath, 'utf-8');
+			return JSON.parse(readFileSync(filePath, 'utf-8'));
 		} catch (e) {
 			console.error(`Failed to read file at ${filePath}:`, e);
 			return null;
@@ -69,8 +105,25 @@ export const fileManager = {
 
 		// Todo add schema validation for workspace data
 		const workspace: Workspace = JSON.parse(
-			this.readFile(workspaceFile) ?? '{}',
+			this.readJsonFile(workspaceFile) ?? '{}',
 		);
+
+		const issuesIds = workspace.children.map(board =>
+			board.children.map(lane =>
+				lane.children.map(ticket => ticketFromData(ticket)),
+			),
+		);
+
+		issuesIds.map(issueId => {
+			const issueFile = path.join(workspaceFolder, 'issues', issueId + '.json');
+			if (!existsSync(issueFile)) {
+				console.warn(`Issue file not found for ID ${issueId}: ${issueFile}`);
+				return;
+			}
+			const issueData = JSON.parse(this.readJsonFile(issueFile) ?? '{}');
+			return {issueId, issueData};
+		});
+
 		return {workspace};
 	},
 };
