@@ -1,7 +1,7 @@
 # epiq
 
 > **The ultimate productivity tool** — a CLI-based issue tracking client powered by Git as its backend, living directly inside the repository you work in.
-> No external services. No context switching. Just tickets, versioned and colocated with your code.
+> No external services. No context switching. Just tickets - versioned and colocated with your code.
 
 ---
 
