@@ -18,7 +18,7 @@ export const WorkspaceUI: React.FC<{workspace: Workspace}> = ({workspace}) => {
 							<Text
 								color={i === rest.length - 1 ? theme.accent : theme.secondary}
 							>
-								{b.name}
+								{b.title}
 							</Text>
 						</Box>
 					))}

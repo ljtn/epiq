@@ -35,7 +35,7 @@ export const TicketFieldUI: React.FC<Props> = ({field, selected}) => {
 			borderColor={selected ? theme.accent : theme.secondary}
 		>
 			<Box minWidth={20}>
-				<Text color={theme.secondary}> {field.name}:</Text>
+				<Text color={theme.secondary}> {field.title}:</Text>
 			</Box>
 			<Text>{value}</Text>
 		</Box>

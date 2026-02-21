@@ -3,8 +3,8 @@ import {ContextMap, AnyContext} from '../../model/context.model.js';
 export type NavNode<U extends AnyContext = 'WORKSPACE'> = {
 	id: string;
 	isSelected: boolean;
-	childrenRenderAxis: 'vertical' | 'horizontal';
-	name: string;
+	childRenderAxis: 'vertical' | 'horizontal';
+	title: string;
 	value: string;
 	context: U;
 	children: (U extends ContextMap['WORKSPACE']
@@ -16,5 +16,5 @@ export type NavNode<U extends AnyContext = 'WORKSPACE'> = {
 		: U extends ContextMap['TICKET']
 		? NavNode<'TICKET_FIELD'>
 		: NavNode<'TICKET_FIELD'>)[];
-	enableChildNavigationAcrossContainers?: boolean;
+	childNavigationAcrossParents?: boolean;
 };

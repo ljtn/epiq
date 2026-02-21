@@ -14,12 +14,12 @@ export const addSwimlaneAction: NonNullable<
 > = async (_ctx, _cmd, {value}) => {
 	const newItem: NavNode<SwimlaneContext> = {
 		id: `${Date.now()}`,
-		name: value || 'New lane',
+		title: value || 'New lane',
 		value: '...',
 		context: contextMap.SWIMLANE,
 		isSelected: false,
-		childrenRenderAxis: 'vertical',
-		enableChildNavigationAcrossContainers: true,
+		childRenderAxis: 'vertical',
+		childNavigationAcrossParents: true,
 		children: [],
 	};
 	const parent = appState.currentNode;

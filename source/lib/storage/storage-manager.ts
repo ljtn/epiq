@@ -98,7 +98,7 @@ export const storageManager = {
 	) {
 		const folder = path.join(this.rootPath, nodeType, `${node.id}.json`);
 
-		const content = stringify(node, { maxLength: 1, indent: 2 }));
+		const content = stringify(node, {maxLength: 1, indent: 2});
 		fileManager.writeToFile(folder, content);
 		return content;
 	},
@@ -110,7 +110,10 @@ export const storageManager = {
 		const id = ulid();
 		const folder = path.join(this.rootPath, nodeType, `${id}.json`);
 		const newNode = {...node, id};
-		fileManager.writeToFile(folder, stringify(newNode, { maxLength: 1, indent: 2 }));
+		fileManager.writeToFile(
+			folder,
+			stringify(newNode, {maxLength: 1, indent: 2}),
+		);
 		return newNode;
 	},
 
@@ -198,11 +201,11 @@ export const storageManager = {
 	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
 		return {
 			id: 'WORKSPACE_ID',
-			name: this.getValue(data.name),
+			title: this.getValue(data.name),
 			value: this.getValue(data.value),
 			context: contextMap.WORKSPACE,
 			isSelected: false,
-			childrenRenderAxis: 'vertical',
+			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getBoard(childId);
 				if (item) acc.push(this.toBoard(item));
@@ -214,11 +217,11 @@ export const storageManager = {
 	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
 		return {
 			id: data.id,
-			name: this.getValue(data.name),
+			title: this.getValue(data.name),
 			value: this.getValue(data.value),
 			context: contextMap.BOARD,
 			isSelected: false,
-			childrenRenderAxis: 'horizontal',
+			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getSwimlane(childId);
 				if (item) acc.push(this.toSwimlane(item));
@@ -230,11 +233,11 @@ export const storageManager = {
 	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
 		return {
 			id: data.id,
-			name: this.getValue(data.name),
+			title: this.getValue(data.name),
 			value: this.getValue(data.value),
 			context: contextMap.SWIMLANE,
 			isSelected: false,
-			childrenRenderAxis: 'vertical',
+			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getIssue(childId);
 				if (item) acc.push(this.toIssue(item));
@@ -246,11 +249,11 @@ export const storageManager = {
 	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
 		return {
 			id: data.id,
-			name: this.getValue(data.name),
+			title: this.getValue(data.name),
 			value: this.getValue(data.value),
 			context: contextMap.TICKET,
 			isSelected: false,
-			childrenRenderAxis: 'vertical',
+			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getField(childId);
 				if (item) acc.push(this.toField(item));
@@ -262,11 +265,11 @@ export const storageManager = {
 	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
 		return {
 			id: data.id,
-			name: this.getValue(data.name),
+			title: this.getValue(data.name),
 			value: this.getValues(data.children),
 			context: contextMap.TICKET_FIELD,
 			isSelected: false,
-			childrenRenderAxis: 'vertical',
+			childRenderAxis: 'vertical',
 			children: [],
 		};
 	},

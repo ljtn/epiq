@@ -76,7 +76,7 @@ function mapDirectionalIntent(
 	},
 ): Intent | null {
 	const enableAcrossContainers =
-		appState.currentNode.enableChildNavigationAcrossContainers;
+		appState.currentNode.childNavigationAcrossParents;
 	switch (dir) {
 		case 'up':
 			return axis === 'vertical'
@@ -136,7 +136,7 @@ export function getKeyIntent(
 				  };
 
 		return mapDirectionalIntent(
-			appState.currentNode.childrenRenderAxis,
+			appState.currentNode.childRenderAxis,
 			dir,
 			dirMap,
 		);

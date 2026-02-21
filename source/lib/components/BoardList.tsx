@@ -36,7 +36,7 @@ export default function BoardList({workspace}: {workspace: Workspace}) {
 								appState.selectedIndex === i ? theme.accent : theme.secondary
 							}
 						>
-							{board.name}{' '}
+							{board.title}{' '}
 							{'(' +
 								board.children.flatMap(x => x.children).length +
 								' issues)'}

@@ -54,7 +54,7 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => `${CmdIntent.Rename} ${appState.currentNode?.name}`);
+			setCmdInput(() => `${CmdIntent.Rename} ${appState.currentNode?.title}`);
 		},
 	},
 ];

@@ -123,7 +123,7 @@ const navigateByOffset = (offset: number) => {
 	navigator.navigate({selectedIndex: newIndex});
 };
 const navigateToSiblingContainer = (direction: -1 | 1) => {
-	if (!appState.currentNode.enableChildNavigationAcrossContainers) return;
+	if (!appState.currentNode.childNavigationAcrossParents) return;
 
 	const currentNode = appState.breadCrumb.at(-1);
 	const parentNode = appState.breadCrumb.at(-2);
