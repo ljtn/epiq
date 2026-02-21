@@ -39,7 +39,6 @@ process.stdout.on('resize', () => renderWorkspace());
 	if (cli.flags.init) {
 		initProject();
 	} else if (!Object.keys(cli.flags).length) {
-		logger.error('haha');
 		const workspace = storageManager.getWorkspace();
 		if (!workspace) {
 			logger.error('Failed to load workspace.');

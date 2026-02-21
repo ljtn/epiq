@@ -2,7 +2,7 @@ import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 
 export const fileManager = {
-	createFile: (filePath: string, content: string) => {
+	writeToFile: (filePath: string, content: string) => {
 		try {
 			const dir = path.dirname(filePath);
 			if (!existsSync(dir)) {

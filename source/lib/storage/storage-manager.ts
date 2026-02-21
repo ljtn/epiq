@@ -10,6 +10,8 @@ import {
 } from '../model/context.model.js';
 import {NavNode} from '../navigation/model/navigation-node.model.js';
 import {fileManager} from './file-manager.js';
+import {ulid} from 'ulid';
+import stringify from 'json-stringify-pretty-compact';
 
 export type WorkspaceDiskNode = {
 	id: string;
@@ -60,7 +62,7 @@ export const storageManager = {
 		}
 
 		try {
-			return fileManager.createFile(
+			return fileManager.writeToFile(
 				path.join(targetPath, 'workspace.json'),
 				defaultWorkspace,
 			);
@@ -81,6 +83,83 @@ export const storageManager = {
 		const workspaceDiskData = fileManager.readFileJSON(workspaceFilePath);
 		const workspace = this.toWorkspace(workspaceDiskData);
 		return workspace;
+	},
+
+	createValue(value: string) {
+		const id = ulid();
+		const folder = path.join(this.rootPath, 'values', `${id}.txt`);
+		fileManager.writeToFile(folder, value ?? '');
+		return {value: value ?? '', id};
+	},
+
+	updateNode(
+		node: WorkspaceDiskNode,
+		nodeType: 'boards' | 'swimlanes' | 'issues' | 'fields',
+	) {
+		const folder = path.join(this.rootPath, nodeType, `${node.id}.json`);
+
+		const content = stringify(node, { maxLength: 1, indent: 2 }));
+		fileManager.writeToFile(folder, content);
+		return content;
+	},
+
+	createNode(
+		node: WorkspaceDiskNode,
+		nodeType: 'boards' | 'swimlanes' | 'issues' | 'fields',
+	) {
+		const id = ulid();
+		const folder = path.join(this.rootPath, nodeType, `${id}.json`);
+		const newNode = {...node, id};
+		fileManager.writeToFile(folder, stringify(newNode, { maxLength: 1, indent: 2 }));
+		return newNode;
+	},
+
+	createBoard(node: WorkspaceDiskNode): WorkspaceDiskNode {
+		return this.createNode(node, 'boards');
+	},
+
+	createSwimlane(node: WorkspaceDiskNode): WorkspaceDiskNode {
+		return this.createNode(node, 'swimlanes');
+	},
+
+	createIssue(parentId: string, node: WorkspaceDiskNode): WorkspaceDiskNode {
+		// Create fields
+		const description = this.createField('Description', ['']);
+		const tags = this.createField('Tags', ['demo']);
+
+		// Create issue
+		const newNode = this.createNode(
+			{
+				...node,
+				name: this.createValue(node.name).id,
+				children: [description.id, tags.id],
+			},
+			'issues',
+		);
+
+		// Add to parent
+		const parent = this.getSwimlane(parentId);
+		if (parent) {
+			this.updateNode(
+				{...parent, children: [...parent.children, newNode.id]},
+				'swimlanes',
+			);
+			logger.debug(parentId, this.getSwimlane(parentId));
+		}
+
+		return newNode;
+	},
+
+	createField(name: string, values: string[]): WorkspaceDiskNode {
+		const valueIds = values.map(v => this.createValue(v).id);
+		const field: WorkspaceDiskNode = {
+			id: '',
+			name: this.createValue(name).id, // <-- store id
+			value: '',
+			children: valueIds,
+		};
+
+		return this.createNode(field, 'fields');
 	},
 
 	getBoard(id: string): WorkspaceDiskNode | null {
@@ -126,15 +205,15 @@ export const storageManager = {
 			childrenRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getBoard(childId);
-				if (item) acc.push(this.toBoard(item, childId));
+				if (item) acc.push(this.toBoard(item));
 				return acc;
 			}, [] as NavNode<BoardContext>[]),
 		};
 	},
 
-	toBoard(data: WorkspaceDiskNode, id: string): NavNode<BoardContext> {
+	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
 		return {
-			id,
+			id: data.id,
 			name: this.getValue(data.name),
 			value: this.getValue(data.value),
 			context: contextMap.BOARD,
@@ -142,15 +221,15 @@ export const storageManager = {
 			childrenRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getSwimlane(childId);
-				if (item) acc.push(this.toSwimlane(item, childId));
+				if (item) acc.push(this.toSwimlane(item));
 				return acc;
 			}, [] as NavNode<SwimlaneContext>[]),
 		};
 	},
 
-	toSwimlane(data: WorkspaceDiskNode, id: string): NavNode<SwimlaneContext> {
+	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
 		return {
-			id,
+			id: data.id,
 			name: this.getValue(data.name),
 			value: this.getValue(data.value),
 			context: contextMap.SWIMLANE,
@@ -158,15 +237,15 @@ export const storageManager = {
 			childrenRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getIssue(childId);
-				if (item) acc.push(this.toIssue(item, childId));
+				if (item) acc.push(this.toIssue(item));
 				return acc;
 			}, [] as NavNode<TicketContext>[]),
 		};
 	},
 
-	toIssue(data: WorkspaceDiskNode, id: string): NavNode<TicketContext> {
+	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
 		return {
-			id,
+			id: data.id,
 			name: this.getValue(data.name),
 			value: this.getValue(data.value),
 			context: contextMap.TICKET,
@@ -174,15 +253,15 @@ export const storageManager = {
 			childrenRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
 				let item = this.getField(childId);
-				if (item) acc.push(this.toField(item, childId));
+				if (item) acc.push(this.toField(item));
 				return acc;
 			}, [] as NavNode<TicketFieldContext>[]),
 		};
 	},
 
-	toField(data: WorkspaceDiskNode, id: string): NavNode<TicketFieldContext> {
+	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
 		return {
-			id,
+			id: data.id,
 			name: this.getValue(data.name),
 			value: this.getValues(data.children),
 			context: contextMap.TICKET_FIELD,
