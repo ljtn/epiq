@@ -1,5 +1,5 @@
 export {};
 
 declare global {
-	function debug(...args: any[]): void;
+	const logger: typeof logger;
 }

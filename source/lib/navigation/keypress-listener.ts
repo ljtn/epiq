@@ -23,7 +23,7 @@ const getKeyPressListener = () => {
 			const res = actionMeta.action(navigator, actionMeta, key);
 			if (res instanceof Promise) await res;
 		} catch (err) {
-			console.error(err);
+			logger.error(err);
 		}
 	};
 };

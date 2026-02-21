@@ -2,9 +2,7 @@ import {
 	contextMap,
 	SwimlaneContext,
 	TicketContext,
-	TicketFieldContext,
 } from '../../../model/context.model.js';
-import {DiscTicket, fileManager} from '../../../storage/file-manager.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {appState} from '../../state/state.js';
@@ -38,6 +36,7 @@ export const addTicketAction: NonNullable<
 	const newItem: NavNode<TicketContext> = {
 		id: `${Date.now()}`,
 		name: value || 'New issue',
+		value: '',
 		context: contextMap.TICKET,
 		isSelected: false,
 		childrenRenderAxis: 'vertical',
@@ -70,38 +69,3 @@ export const addTicketAction: NonNullable<
 
 	navigator.navigate({selectedIndex: newItemIndex});
 };
-
-export const ticketFromData = (data: DiscTicket): NavNode<TicketContext> => ({
-	id: data.id,
-	name: data.name,
-	context: contextMap.TICKET,
-	isSelected: false,
-	childrenRenderAxis: 'vertical',
-	children: data.fields
-		.map(fieldId => {
-			const fieldData = fileManager.getField(fieldId);
-			if (!fieldData) {
-				return null;
-			}
-			return fieldFromData({
-				id: fieldId,
-				name: fieldData.name,
-				value: fieldData.value || '',
-			});
-		})
-		.filter(x => x !== null),
-});
-
-const fieldFromData = (data: {
-	id: string;
-	name: string;
-	value: string;
-}): NavNode<TicketFieldContext> => ({
-	id: data.id,
-	name: data.name,
-	value: data.value,
-	context: contextMap.TICKET_FIELD,
-	isSelected: false,
-	childrenRenderAxis: 'vertical',
-	children: [],
-});

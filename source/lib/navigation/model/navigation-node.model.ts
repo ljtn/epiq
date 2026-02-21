@@ -5,7 +5,7 @@ export type NavNode<U extends AnyContext = 'WORKSPACE'> = {
 	isSelected: boolean;
 	childrenRenderAxis: 'vertical' | 'horizontal';
 	name: string;
-	value?: string;
+	value: string;
 	context: U;
 	children: (U extends ContextMap['WORKSPACE']
 		? NavNode<'BOARD'>

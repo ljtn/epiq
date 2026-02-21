@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
+import {contextMap, Swimlane, Ticket} from '../model/context.model.js';
 import {appState} from '../navigation/state/state.js';
-import {contextMap, Swimlane, TicketField} from '../model/context.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
 
@@ -42,13 +42,7 @@ export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 				))}
 
 			{isTicketContext && appState.currentNode && (
-				<TicketUI
-					height={height}
-					width={colWidth * swimlanes.length}
-					ticket={
-						appState.breadCrumb[appState.breadCrumb.length - 1] as TicketField
-					}
-				/>
+				<TicketUI height={height} ticket={appState.currentNode as Ticket} />
 			)}
 		</Box>
 	);
