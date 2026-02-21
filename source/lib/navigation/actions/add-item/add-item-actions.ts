@@ -3,6 +3,15 @@ import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {appState} from '../../state/state.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
+export const addBoardAction: NonNullable<
+	CommandLineActionEntry['action']
+> = async (_ctx, _cmd, {value}) => {
+	const parent = appState.currentNode;
+	const newItem = storageManager.createBoard(parent.id, value || 'New board');
+	parent.children.push(newItem);
+	navigator.navigate({selectedIndex: parent.children.length});
+};
+
 export const addSwimlaneAction: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {

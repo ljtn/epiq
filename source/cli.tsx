@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import './debug-logger.js';
+import './logger.js';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
@@ -39,7 +39,7 @@ process.stdout.on('resize', () => renderWorkspace());
 	if (cli.flags.init) {
 		initProject();
 	} else if (!Object.keys(cli.flags).length) {
-		const workspace = storageManager.getWorkspace();
+		const workspace = storageManager.loadWorkspace();
 		if (!workspace) {
 			logger.error('Failed to load workspace.');
 			return;

@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import util from 'util';
 
-const DEBUG_PATH = path.resolve(process.cwd(), '.epiq', 'debug.log');
-const ERROR_PATH = path.resolve(process.cwd(), '.epiq', 'error.log');
+const DEBUG_PATH = path.resolve(process.cwd(), '.epiq', 'log', 'debug.log');
+const ERROR_PATH = path.resolve(process.cwd(), '.epiq', 'log', 'error.log');
 
 export const logger = {
 	debug(...args: any[]) {

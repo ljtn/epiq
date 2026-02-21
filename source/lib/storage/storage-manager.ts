@@ -1,17 +1,16 @@
+import stringify from 'json-stringify-pretty-compact';
 import path from 'node:path';
+import {ulid} from 'ulid';
 import {
 	BoardContext,
 	contextMap,
 	SwimlaneContext,
 	TicketContext,
 	TicketFieldContext,
-	Workspace,
 	WorkspaceContext,
 } from '../model/context.model.js';
 import {NavNode} from '../navigation/model/navigation-node.model.js';
 import {fileManager} from './file-manager.js';
-import {ulid} from 'ulid';
-import stringify from 'json-stringify-pretty-compact';
 
 type DiskStorageDir =
 	| 'workspaces'
@@ -34,6 +33,33 @@ export type WorkspaceDiskData = {
 
 export const storageManager = {
 	rootPath: '',
+	statePath: '',
+
+	loadWorkspace() {
+		const root = fileManager.locateFolder('.epiq');
+		if (!root) {
+			return logger.error('No project path found');
+		}
+
+		this.rootPath = root;
+		this.statePath = path.join(this.rootPath, 'state');
+
+		// State folder
+		if (!fileManager.dirExists(this.statePath)) {
+			fileManager.mkDir(this.statePath);
+		}
+
+		let workspaceJSON = fileManager.readFirstJSON<WorkspaceDiskNode>(
+			path.join(this.statePath, 'workspaces'),
+		);
+
+		logger.debug(workspaceJSON);
+		const ws = workspaceJSON || this.createWorkspace();
+		if (!ws) {
+			return logger.error('Could not initialize workspace');
+		}
+		return this.toWorkspace(ws);
+	},
 
 	createWorkspace() {
 		try {
@@ -44,41 +70,22 @@ export const storageManager = {
 				{title: 'Workspace', children: [board.id]},
 				'workspaces',
 			);
-			return workspace;
+			return workspace as WorkspaceDiskNode;
 		} catch (e) {
 			logger.error('Failed to create workspace file:', e);
 			return;
 		}
 	},
 
-	getWorkspace(): Workspace | undefined {
-		const projPath = fileManager.locateFolder(path.join('.epiq', 'index.json'));
-		if (!projPath) {
-			return logger.error('No workspace path found');
-		}
-
-		this.rootPath = path.join(projPath, '.epiq') || '';
-
-		const workspaceJSON =
-			fileManager.readFirstJSON<WorkspaceDiskNode>(
-				path.join(projPath, 'workspaces'),
-			) ?? this.createWorkspace();
-
-		if (!workspaceJSON) {
-			return logger.error('Workspace initialization failed');
-		}
-		return this.toWorkspace(workspaceJSON);
-	},
-
 	createValue(value: string) {
 		const id = ulid();
-		const folder = path.join(this.rootPath, 'values', `${id}.txt`);
+		const folder = path.join(this.statePath, 'values', `${id}.txt`);
 		fileManager.writeToFile(folder, value ?? '');
 		return {value: value ?? '', id};
 	},
 
 	updateNode(node: WorkspaceDiskNode, nodeType: DiskStorageDir) {
-		const folder = path.join(this.rootPath, nodeType, `${node.id}.json`);
+		const folder = path.join(this.statePath, nodeType, `${node.id}.json`);
 
 		const content = stringify(node, {maxLength: 1, indent: 2});
 		fileManager.writeToFile(folder, content);
@@ -93,8 +100,7 @@ export const storageManager = {
 		nodeType: DiskStorageDir,
 	) {
 		const id = ulid();
-		const folder = path.join(this.rootPath, nodeType, `${id}.json`);
-		logger.debug(this.rootPath);
+		const folder = path.join(this.statePath, nodeType, `${id}.json`);
 		const newNode = {
 			title: this.createValue(title).id,
 			children: children || [],
@@ -107,35 +113,18 @@ export const storageManager = {
 		return newNode;
 	},
 
-	createBoard(title: string): NavNode<BoardContext> {
-		// Create the board node itself
-		const newBoard = this.createNode({title}, 'boards');
+	createBoard(parentId: string, title: string): NavNode<BoardContext> {
+		const newNode = this.createNode({title}, 'boards');
+		const parent = this.getWorkspace(parentId);
 
-		// Load + update workspace.json to include the new board id
-		const workspaceFilePath = path.join(this.rootPath, 'workspace.json');
-		const diskData = fileManager.readFileJSON(
-			workspaceFilePath,
-		) as WorkspaceDiskData | null;
-
-		if (!diskData?.workspace) {
-			logger.error('Failed to load workspace.json when creating board');
-			return this.toBoard(newBoard);
+		if (parent) {
+			this.updateNode(
+				{...parent, children: [...parent.children, newNode.id]},
+				'workspaces',
+			);
 		}
 
-		const updated: WorkspaceDiskData = {
-			...diskData,
-			workspace: {
-				...diskData.workspace,
-				children: [...diskData.workspace.children, newBoard.id],
-			},
-		};
-
-		fileManager.writeToFile(
-			workspaceFilePath,
-			stringify(updated, {maxLength: 1, indent: 2}),
-		);
-
-		return this.toBoard(newBoard);
+		return this.toBoard(newNode);
 	},
 
 	createSwimlane(parentId: string, title: string): NavNode<'SWIMLANE'> {
@@ -188,29 +177,34 @@ export const storageManager = {
 		return this.createNode(field, 'fields');
 	},
 
+	getWorkspace(id: string): WorkspaceDiskNode | null {
+		const folder = path.join(this.statePath, 'workspaces', `${id}.json`);
+		return fileManager.readFileJSON(folder);
+	},
+
 	getBoard(id: string): WorkspaceDiskNode | null {
-		const folder = path.join(this.rootPath, 'boards', `${id}.json`);
+		const folder = path.join(this.statePath, 'boards', `${id}.json`);
 		return fileManager.readFileJSON(folder);
 	},
 
 	getSwimlane(id: string): WorkspaceDiskNode | null {
-		const folder = path.join(this.rootPath, 'swimlanes', `${id}.json`);
+		const folder = path.join(this.statePath, 'swimlanes', `${id}.json`);
 		return fileManager.readFileJSON(folder);
 	},
 
 	getIssue(id: string): WorkspaceDiskNode | null {
-		const folder = path.join(this.rootPath, 'issues', `${id}.json`);
+		const folder = path.join(this.statePath, 'issues', `${id}.json`);
 		return fileManager.readFileJSON(folder);
 	},
 
 	getField(id: string): WorkspaceDiskNode | null {
-		const folder = path.join(this.rootPath, 'fields', `${id}.json`);
+		const folder = path.join(this.statePath, 'fields', `${id}.json`);
 		return fileManager.readFileJSON(folder);
 	},
 
 	getValue(id: string | undefined): string {
 		if (!id) return '';
-		const folder = path.join(this.rootPath, 'values', `${id}.txt`);
+		const folder = path.join(this.statePath, 'values', `${id}.txt`);
 		const value = fileManager.readFile(folder) ?? '';
 		const withoutTrailingLineBreak = value.replace(/\r?\n$/, '');
 		return withoutTrailingLineBreak;

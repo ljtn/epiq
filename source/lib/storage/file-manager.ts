@@ -3,6 +3,7 @@ import {
 	mkdirSync,
 	readdirSync,
 	readFileSync,
+	statSync,
 	writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -38,13 +39,22 @@ export const fileManager = {
 		}
 	},
 
-	locateFolder: (targetName: string): string | null => {
+	dirExists(dir: string) {
+		return existsSync(dir) && statSync(dir).isDirectory();
+	},
+	mkDir(dir: string) {
+		return mkdirSync(dir, {recursive: true});
+	},
+
+	locateFolder: (folderName: string): string | null => {
 		let currentPath = process.cwd();
 		const {root} = path.parse(currentPath);
+
 		while (true) {
-			const candidatePath = path.join(currentPath, targetName);
-			if (existsSync(candidatePath)) {
-				return currentPath;
+			const candidatePath = path.join(currentPath, folderName);
+
+			if (existsSync(candidatePath) && statSync(candidatePath).isDirectory()) {
+				return candidatePath; // <-- return full folder path
 			}
 
 			if (currentPath === root) {
@@ -62,15 +72,17 @@ export const fileManager = {
 
 		const entries = readdirSync(folderPath, {withFileTypes: true});
 
-		const firstFile = entries.find(e => e.isFile());
+		const firstFile = entries.find(e => e.isFile() && e.name.endsWith('.json'));
 		if (!firstFile) return null;
 
-		let json: T | null = null;
+		const filePath = path.join(folderPath, firstFile.name);
+
 		try {
-			json = JSON.parse(path.join(folderPath, firstFile.name)) as T;
-		} catch {
-			logger.error('Could not parse json');
+			const content = readFileSync(filePath, 'utf-8');
+			return JSON.parse(content) as T;
+		} catch (e) {
+			logger.error(`Could not read/parse json file at ${filePath}`, e);
+			return null;
 		}
-		return json;
 	},
 };
