@@ -13,9 +13,16 @@ import {fileManager} from './file-manager.js';
 import {ulid} from 'ulid';
 import stringify from 'json-stringify-pretty-compact';
 
+type DiskStorageDir =
+	| 'workspaces'
+	| 'boards'
+	| 'swimlanes'
+	| 'issues'
+	| 'fields';
+
 export type WorkspaceDiskNode = {
 	id: string;
-	name: string;
+	title: string;
 	value?: string;
 	children: string[] | [];
 };
@@ -27,45 +34,17 @@ export type WorkspaceDiskData = {
 
 export const storageManager = {
 	rootPath: '',
-	loadWorkspace(): Workspace | null {
-		let workspaceFolder = fileManager.locateFolder('.epiq');
-		if (!workspaceFolder) {
-			// TODO: Move to wizard flow to create workspace if not found
-			this.rootPath = path.join(process.cwd(), '.epiq');
-			this.createWorkspace(this.rootPath);
-		}
 
-		const workspaceDiskData = this.getWorkspace();
-		// const workspace: Workspace = this.getWorkspace(workspaceDiskData);
-		if (!workspaceDiskData) return null;
+	createWorkspace() {
 		try {
-			// return workspaceDiskData.workspace;
-			return {} as Workspace;
-		} catch (e) {
-			logger.error('Failed to parse workspace data:', e);
-			return null;
-		}
-	},
-
-	createWorkspace(targetPath: string) {
-		const templatePath = path.join(
-			process.cwd(),
-			'source',
-			'lib',
-			'storage',
-			'default-workspace.json',
-		);
-		const defaultWorkspace = fileManager.readFileJSON(templatePath);
-		if (!defaultWorkspace) {
-			logger.error('Failed to read default workspace template.');
-			return;
-		}
-
-		try {
-			return fileManager.writeToFile(
-				path.join(targetPath, 'workspace.json'),
-				defaultWorkspace,
+			logger.debug('hahah');
+			const board = this.createNode({title: 'Board'}, 'boards');
+			logger.debug(board);
+			const workspace = this.createNode(
+				{title: 'Workspace', children: [board.id]},
+				'workspaces',
 			);
+			return workspace;
 		} catch (e) {
 			logger.error('Failed to create workspace file:', e);
 			return;
@@ -73,16 +52,22 @@ export const storageManager = {
 	},
 
 	getWorkspace(): Workspace | undefined {
-		const workspaceFilePath = path.join('.epiq', 'workspace.json');
-		const projPath = fileManager.locateFolder(workspaceFilePath);
+		const projPath = fileManager.locateFolder(path.join('.epiq', 'index.json'));
 		if (!projPath) {
-			throw new Error('No project path found');
-			return;
+			return logger.error('No workspace path found');
 		}
+
 		this.rootPath = path.join(projPath, '.epiq') || '';
-		const workspaceDiskData = fileManager.readFileJSON(workspaceFilePath);
-		const workspace = this.toWorkspace(workspaceDiskData);
-		return workspace;
+
+		const workspaceJSON =
+			fileManager.readFirstJSON<WorkspaceDiskNode>(
+				path.join(projPath, 'workspaces'),
+			) ?? this.createWorkspace();
+
+		if (!workspaceJSON) {
+			return logger.error('Workspace initialization failed');
+		}
+		return this.toWorkspace(workspaceJSON);
 	},
 
 	createValue(value: string) {
@@ -92,10 +77,7 @@ export const storageManager = {
 		return {value: value ?? '', id};
 	},
 
-	updateNode(
-		node: WorkspaceDiskNode,
-		nodeType: 'boards' | 'swimlanes' | 'issues' | 'fields',
-	) {
+	updateNode(node: WorkspaceDiskNode, nodeType: DiskStorageDir) {
 		const folder = path.join(this.rootPath, nodeType, `${node.id}.json`);
 
 		const content = stringify(node, {maxLength: 1, indent: 2});
@@ -104,12 +86,20 @@ export const storageManager = {
 	},
 
 	createNode(
-		node: WorkspaceDiskNode,
-		nodeType: 'boards' | 'swimlanes' | 'issues' | 'fields',
+		{
+			title,
+			children,
+		}: {title: string; children?: WorkspaceDiskNode['children']},
+		nodeType: DiskStorageDir,
 	) {
 		const id = ulid();
 		const folder = path.join(this.rootPath, nodeType, `${id}.json`);
-		const newNode = {...node, id};
+		logger.debug(this.rootPath);
+		const newNode = {
+			title: this.createValue(title).id,
+			children: children || [],
+			id,
+		};
 		fileManager.writeToFile(
 			folder,
 			stringify(newNode, {maxLength: 1, indent: 2}),
@@ -117,15 +107,50 @@ export const storageManager = {
 		return newNode;
 	},
 
-	createBoard(node: WorkspaceDiskNode): WorkspaceDiskNode {
-		return this.createNode(node, 'boards');
+	createBoard(title: string): NavNode<BoardContext> {
+		// Create the board node itself
+		const newBoard = this.createNode({title}, 'boards');
+
+		// Load + update workspace.json to include the new board id
+		const workspaceFilePath = path.join(this.rootPath, 'workspace.json');
+		const diskData = fileManager.readFileJSON(
+			workspaceFilePath,
+		) as WorkspaceDiskData | null;
+
+		if (!diskData?.workspace) {
+			logger.error('Failed to load workspace.json when creating board');
+			return this.toBoard(newBoard);
+		}
+
+		const updated: WorkspaceDiskData = {
+			...diskData,
+			workspace: {
+				...diskData.workspace,
+				children: [...diskData.workspace.children, newBoard.id],
+			},
+		};
+
+		fileManager.writeToFile(
+			workspaceFilePath,
+			stringify(updated, {maxLength: 1, indent: 2}),
+		);
+
+		return this.toBoard(newBoard);
 	},
 
-	createSwimlane(node: WorkspaceDiskNode): WorkspaceDiskNode {
-		return this.createNode(node, 'swimlanes');
+	createSwimlane(parentId: string, title: string): NavNode<'SWIMLANE'> {
+		const newNode = this.createNode({title, children: []}, 'swimlanes');
+		const parent = this.getBoard(parentId);
+		if (parent) {
+			this.updateNode(
+				{...parent, children: [...parent.children, newNode.id]},
+				'boards',
+			);
+		}
+		return this.toSwimlane(newNode);
 	},
 
-	createIssue(parentId: string, node: WorkspaceDiskNode): WorkspaceDiskNode {
+	createIssue(parentId: string, title: string): NavNode<'TICKET'> {
 		// Create fields
 		const description = this.createField('Description', ['']);
 		const tags = this.createField('Tags', ['demo']);
@@ -133,8 +158,7 @@ export const storageManager = {
 		// Create issue
 		const newNode = this.createNode(
 			{
-				...node,
-				name: this.createValue(node.name).id,
+				title: title,
 				children: [description.id, tags.id],
 			},
 			'issues',
@@ -147,17 +171,16 @@ export const storageManager = {
 				{...parent, children: [...parent.children, newNode.id]},
 				'swimlanes',
 			);
-			logger.debug(parentId, this.getSwimlane(parentId));
 		}
 
-		return newNode;
+		return this.toIssue(newNode);
 	},
 
-	createField(name: string, values: string[]): WorkspaceDiskNode {
+	createField(title: string, values: string[]): WorkspaceDiskNode {
 		const valueIds = values.map(v => this.createValue(v).id);
 		const field: WorkspaceDiskNode = {
 			id: '',
-			name: this.createValue(name).id, // <-- store id
+			title: this.createValue(title).id, // <-- store id
 			value: '',
 			children: valueIds,
 		};
@@ -201,7 +224,7 @@ export const storageManager = {
 	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
 		return {
 			id: 'WORKSPACE_ID',
-			title: this.getValue(data.name),
+			title: this.getValue(data.title),
 			value: this.getValue(data.value),
 			context: contextMap.WORKSPACE,
 			isSelected: false,
@@ -217,7 +240,7 @@ export const storageManager = {
 	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.name),
+			title: this.getValue(data.title),
 			value: this.getValue(data.value),
 			context: contextMap.BOARD,
 			isSelected: false,
@@ -233,7 +256,7 @@ export const storageManager = {
 	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.name),
+			title: this.getValue(data.title),
 			value: this.getValue(data.value),
 			context: contextMap.SWIMLANE,
 			isSelected: false,
@@ -249,7 +272,7 @@ export const storageManager = {
 	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.name),
+			title: this.getValue(data.title),
 			value: this.getValue(data.value),
 			context: contextMap.TICKET,
 			isSelected: false,
@@ -265,7 +288,7 @@ export const storageManager = {
 	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.name),
+			title: this.getValue(data.title),
 			value: this.getValues(data.children),
 			context: contextMap.TICKET_FIELD,
 			isSelected: false,

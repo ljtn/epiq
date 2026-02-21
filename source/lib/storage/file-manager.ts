@@ -1,4 +1,10 @@
-import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 export const fileManager = {
@@ -49,5 +55,22 @@ export const fileManager = {
 		}
 
 		return null;
+	},
+
+	readFirstJSON<T>(folderPath: string): T | null {
+		if (!existsSync(folderPath)) return null;
+
+		const entries = readdirSync(folderPath, {withFileTypes: true});
+
+		const firstFile = entries.find(e => e.isFile());
+		if (!firstFile) return null;
+
+		let json: T | null = null;
+		try {
+			json = JSON.parse(path.join(folderPath, firstFile.name)) as T;
+		} catch {
+			logger.error('Could not parse json');
+		}
+		return json;
 	},
 };
