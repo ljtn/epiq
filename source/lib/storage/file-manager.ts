@@ -9,40 +9,53 @@ import {
 import path from 'node:path';
 
 export const fileManager = {
-	writeToFile: (filePath: string, content: string) => {
+	writeToFile: (filePath: string, content: unknown) => {
 		try {
 			const dir = path.dirname(filePath);
 			if (!existsSync(dir)) {
 				mkdirSync(dir, {recursive: true});
 			}
-			writeFileSync(filePath, content, 'utf-8');
+
+			const data =
+				typeof content === 'string'
+					? content
+					: JSON.stringify(content, null, 2);
+
+			writeFileSync(filePath, data, 'utf-8');
 		} catch (e) {
-			logger.error(`Failed to create file at ${filePath}:`, e);
+			logger.error(`Failed to write file at ${filePath}:`, e);
 		}
 	},
 
-	readFile: (filePath: string): any | null => {
+	readFile: (filePath: string): string | null => {
 		try {
 			return readFileSync(filePath, 'utf-8');
 		} catch (e) {
 			logger.error(`Failed to read file at ${filePath}:`, e);
-			return '';
+			return null;
 		}
 	},
 
-	readFileJSON(filePath: string): any | null {
+	readFileJSON<T = unknown>(filePath: string): T | null {
 		try {
-			return JSON.parse(this.readFile(filePath));
+			const raw = fileManager.readFile(filePath);
+			if (raw === null) return null;
+			return JSON.parse(raw) as T;
 		} catch (e) {
 			logger.error(`Failed to read JSON at ${filePath}:`, e);
-			return '';
+			return null;
 		}
 	},
 
-	dirExists(dir: string) {
-		return existsSync(dir) && statSync(dir).isDirectory();
+	dirExists: (dir: string): boolean => {
+		try {
+			return existsSync(dir) && statSync(dir).isDirectory();
+		} catch {
+			return false;
+		}
 	},
-	mkDir(dir: string) {
+
+	mkDir: (dir: string) => {
 		return mkdirSync(dir, {recursive: true});
 	},
 
@@ -53,14 +66,18 @@ export const fileManager = {
 		while (true) {
 			const candidatePath = path.join(currentPath, folderName);
 
-			if (existsSync(candidatePath) && statSync(candidatePath).isDirectory()) {
-				return candidatePath; // <-- return full folder path
+			try {
+				if (
+					existsSync(candidatePath) &&
+					statSync(candidatePath).isDirectory()
+				) {
+					return candidatePath; // full path including folder
+				}
+			} catch {
+				// ignore (race/permission/etc)
 			}
 
-			if (currentPath === root) {
-				break;
-			}
-
+			if (currentPath === root) break;
 			currentPath = path.dirname(currentPath);
 		}
 
@@ -68,21 +85,32 @@ export const fileManager = {
 	},
 
 	readFirstJSON<T>(folderPath: string): T | null {
-		if (!existsSync(folderPath)) return null;
-
-		const entries = readdirSync(folderPath, {withFileTypes: true});
-
-		const firstFile = entries.find(e => e.isFile() && e.name.endsWith('.json'));
-		if (!firstFile) return null;
-
-		const filePath = path.join(folderPath, firstFile.name);
-
 		try {
-			const content = readFileSync(filePath, 'utf-8');
-			return JSON.parse(content) as T;
+			if (!fileManager.dirExists(folderPath)) return null;
+
+			// deterministic: alphabetical (ULIDs will be time-sortable)
+			const firstJsonName = readdirSync(folderPath)
+				.filter(name => name.endsWith('.json'))
+				.sort()[0];
+
+			if (!firstJsonName) return null;
+
+			const filePath = path.join(folderPath, firstJsonName);
+			return fileManager.readFileJSON<T>(filePath);
 		} catch (e) {
-			logger.error(`Could not read/parse json file at ${filePath}`, e);
+			logger.error(`Could not read first JSON in folder ${folderPath}`, e);
 			return null;
+		}
+	},
+
+	// handy for your snapshot approach
+	listDir: (folderPath: string): string[] => {
+		try {
+			if (!fileManager.dirExists(folderPath)) return [];
+			return readdirSync(folderPath);
+		} catch (e) {
+			logger.error(`Failed to list dir ${folderPath}`, e);
+			return [];
 		}
 	},
 };
