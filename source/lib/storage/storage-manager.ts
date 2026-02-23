@@ -396,4 +396,77 @@ export const storageManager = {
 			children: [],
 		};
 	},
+
+	move({
+		parentType,
+		fromParentId,
+		fromIndex,
+		toParentId,
+		toIndex,
+	}: {
+		parentType: NodeType;
+		fromParentId: string;
+		fromIndex: number;
+		toParentId: string;
+		toIndex: number;
+	}): {snap: WorkspaceSnapshot; nodeId: string} | null {
+		const result = this.mutate(draft => {
+			const fromParent = draft.nodes[parentType][fromParentId];
+			const toParent = draft.nodes[parentType][toParentId];
+
+			if (!fromParent) {
+				return logger.error(
+					`fromParent ${fromParentId} not found in ${parentType}`,
+				);
+			}
+
+			if (!toParent) {
+				return logger.error(
+					`toParent ${toParentId} not found in ${parentType}`,
+				);
+			}
+
+			if (fromIndex < 0 || fromIndex >= fromParent.children.length) {
+				return logger.error(`fromIndex ${fromIndex} out of bounds`);
+			}
+
+			const fromChildren = [...fromParent.children];
+
+			// Remove node
+			const [movedId] = fromChildren.splice(fromIndex, 1);
+
+			// Update from parent
+			draft.nodes[parentType][fromParentId] = {
+				...fromParent,
+				children: fromChildren,
+			};
+
+			// If same parent, use updated children
+			const baseChildren =
+				fromParentId === toParentId ? fromChildren : [...toParent.children];
+
+			const clampedIndex = Math.max(0, Math.min(toIndex, baseChildren.length));
+
+			if (movedId) {
+				baseChildren.splice(clampedIndex, 0, movedId);
+			}
+
+			draft.nodes[parentType][toParentId] = {
+				...toParent,
+				children: baseChildren,
+			};
+
+			return movedId;
+		});
+
+		// If mutation returned undefined or logger.error was triggered
+		if (!result || !result.result) {
+			return null;
+		}
+
+		return {
+			snap: result.snap,
+			nodeId: result.result,
+		};
+	},
 };
