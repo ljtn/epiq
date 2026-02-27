@@ -9,7 +9,7 @@ export const addBoardAction: NonNullable<
 	const parent = appState.currentNode;
 	const newItem = storageManager.createBoard(parent.id, value || 'New board');
 	parent.children.push(newItem);
-	navigator.navigate({selectedIndex: parent.children.length});
+	navigator.navigate({selectedIndex: parent.children.length - 1});
 };
 
 export const addSwimlaneAction: NonNullable<
@@ -18,7 +18,7 @@ export const addSwimlaneAction: NonNullable<
 	const parent = appState.currentNode;
 	const newItem = storageManager.createSwimlane(parent.id, value || 'New lane');
 	parent.children.push(newItem);
-	navigator.navigate({selectedIndex: parent.children.length});
+	navigator.navigate({selectedIndex: parent.children.length - 1});
 };
 
 export const addTicketAction: NonNullable<
@@ -27,5 +27,5 @@ export const addTicketAction: NonNullable<
 	const parent = appState.currentNode;
 	const newItem = storageManager.createIssue(parent.id, value || 'New Issue');
 	parent.children.push(newItem);
-	navigator.navigate({selectedIndex: parent.children.length});
+	navigator.navigate({selectedIndex: parent.children.length - 1});
 };
