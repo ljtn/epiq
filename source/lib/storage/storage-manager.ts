@@ -3,7 +3,12 @@ import path from 'node:path';
 import {ulid} from 'ulid';
 import {fileManager} from './file-manager.js';
 
-type NodeType = 'workspaces' | 'boards' | 'swimlanes' | 'issues' | 'fields';
+export type NodeType =
+	| 'workspaces'
+	| 'boards'
+	| 'swimlanes'
+	| 'issues'
+	| 'fields';
 
 export type WorkspaceDiskNode = {
 	id: string;

@@ -1,4 +1,4 @@
 dist
 node_modules
-debug.log
+app.log
 .epiq

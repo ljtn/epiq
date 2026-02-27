@@ -2,10 +2,8 @@ import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {appState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {
-	moveChildNextWithinParent,
-	moveChildPreviousWithinParent,
-	moveChildToNextParent,
-	moveChildToPreviousParent,
+	moveChildWithinParent,
+	moveNodeToSiblingContainer,
 } from './move-actions-utils.js';
 
 export const toggleMoveMode: ActionEntry[] = [
@@ -44,23 +42,23 @@ export const moveWithinParent: ActionEntry[] = [
 	{
 		intent: Intent.MovePreviousItem,
 		mode: Mode.MOVE,
-		action: moveChildPreviousWithinParent,
+		action: () => moveChildWithinParent(-1),
 	},
 	{
 		intent: Intent.MoveNextItem,
 		mode: Mode.MOVE,
-		action: moveChildNextWithinParent,
+		action: () => moveChildWithinParent(1),
 	},
 ];
 export const moveAcrossParents: ActionEntry[] = [
 	{
 		intent: Intent.MoveToNextContainer,
 		mode: Mode.MOVE,
-		action: moveChildToNextParent,
+		action: () => moveNodeToSiblingContainer(1),
 	},
 	{
 		intent: Intent.MoveToPreviousContainer,
 		mode: Mode.MOVE,
-		action: moveChildToPreviousParent,
+		action: () => moveNodeToSiblingContainer(-1),
 	},
 ];

@@ -1,4 +1,5 @@
 import {
+	AnyContext,
 	BoardContext,
 	contextMap,
 	SwimlaneContext,
@@ -7,12 +8,24 @@ import {
 	WorkspaceContext,
 } from '../../model/context.model.js';
 import {
+	NodeType,
 	storageManager,
 	WorkspaceDiskNode,
 } from '../../storage/storage-manager.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
 export const nodeMapper = {
+	contextToNodeTypeMap(ctx: AnyContext): NodeType {
+		const ctxMap = {
+			WORKSPACE: 'workspaces',
+			BOARD: 'boards',
+			SWIMLANE: 'swimlanes',
+			TICKET: 'issues',
+			TICKET_FIELD: 'fields',
+		} as const;
+		return ctxMap[ctx];
+	},
+
 	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
 		return {
 			id: data.id,
