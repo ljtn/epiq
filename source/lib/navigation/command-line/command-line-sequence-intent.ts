@@ -3,6 +3,7 @@ import {appState} from '../state/state.js';
 
 export const CmdIntent = {
 	None: 'none',
+	AddBoard: 'add-board',
 	AddSwimlane: 'add-swimlane',
 	AddTicket: 'add-ticket',
 	ViewHelp: 'view-help',
@@ -27,6 +28,8 @@ export const getCommandIntent = (
 			return CmdIntent.Rename;
 		case CmdKeywords.ADD:
 			switch (context) {
+				case contextMap.WORKSPACE:
+					return CmdIntent.AddBoard;
 				case contextMap.BOARD:
 					return CmdIntent.AddSwimlane;
 				case contextMap.SWIMLANE:

@@ -1,4 +1,5 @@
 import {
+	addBoardAction,
 	addSwimlaneAction,
 	addTicketAction,
 } from '../actions/add-item/add-item-actions.js';
@@ -12,6 +13,14 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.ViewHelp,
 		mode: Mode.COMMAND_LINE,
 		action: () => patchState({mode: Mode.HELP}),
+	},
+	{
+		intent: CmdIntent.AddBoard,
+		mode: Mode.COMMAND_LINE,
+		action: (...args) => {
+			addBoardAction(...args);
+			patchState({mode: Mode.DEFAULT});
+		},
 	},
 	{
 		intent: CmdIntent.AddSwimlane,
