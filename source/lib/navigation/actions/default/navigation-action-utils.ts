@@ -122,7 +122,6 @@ const navigateByOffset = (offset: number) => {
 	const newIndex = (appState.selectedIndex + offset + len) % len;
 	navigator.navigate({selectedIndex: newIndex});
 };
-
 const navigateToSiblingContainer = (direction: -1 | 1) => {
 	if (!appState.currentNode.childNavigationAcrossParents) return;
 
@@ -140,10 +139,9 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 
 	// Keep the same child index if possible, otherwise clamp to last child
 	const prevIndex = appState.selectedIndex;
-	const boundedIndex = Math.min(
-		Math.max(0, prevIndex),
-		nextSibling.children.length,
-	);
+	const maxIndex = Math.max(0, nextSibling.children.length - 1);
+	const boundedIndex = Math.min(Math.max(0, prevIndex), maxIndex);
+
 	const selectedIndex = nextSibling.children.length ? boundedIndex : -1;
 
 	logger.debug(selectedIndex);
