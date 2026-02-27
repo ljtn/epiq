@@ -39,9 +39,7 @@ export enum Intent {
 	None = 'None',
 }
 
-type Dir = 'up' | 'down' | 'left' | 'right';
-
-function getDir(key: readline.Key): Dir | null {
+function getDir(key: readline.Key): 'up' | 'down' | 'left' | 'right' | null {
 	switch (key.name) {
 		// arrows
 		case 'up':
@@ -67,7 +65,7 @@ function getDir(key: readline.Key): Dir | null {
 
 function mapDirectionalIntent(
 	axis: 'vertical' | 'horizontal',
-	dir: Dir,
+	dir: 'up' | 'down' | 'left' | 'right',
 	intents: {
 		prevItem: Intent;
 		nextItem: Intent;
@@ -149,7 +147,7 @@ export function getKeyIntent(
 	switch (key.name) {
 		case 'i':
 			return Intent.Edit;
-		case 'y':
+		case 'd':
 			return Intent.InitMove;
 		case 'e':
 		case 'return':

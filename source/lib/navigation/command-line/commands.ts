@@ -1,7 +1,7 @@
 import {
-	addBoardAction,
-	addSwimlaneAction,
-	addTicketAction,
+	addBoard,
+	addSwimlane,
+	addTicket,
 } from '../actions/add-item/add-item-actions.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {getCmdArg} from '../state/cmd.state.js';
@@ -18,7 +18,7 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.AddBoard,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
-			addBoardAction(...args);
+			addBoard(...args);
 			patchState({mode: Mode.DEFAULT});
 		},
 	},
@@ -26,7 +26,7 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.AddSwimlane,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
-			addSwimlaneAction(...args);
+			addSwimlane(...args);
 			patchState({mode: Mode.DEFAULT});
 		},
 	},
@@ -34,7 +34,7 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.AddTicket,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
-			addTicketAction(...args);
+			addTicket(...args);
 			patchState({mode: Mode.DEFAULT});
 		},
 	},

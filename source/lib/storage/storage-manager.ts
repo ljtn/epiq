@@ -1,15 +1,6 @@
 import stringify from 'json-stringify-pretty-compact';
 import path from 'node:path';
 import {ulid} from 'ulid';
-import {
-	BoardContext,
-	contextMap,
-	SwimlaneContext,
-	TicketContext,
-	TicketFieldContext,
-	WorkspaceContext,
-} from '../model/context.model.js';
-import {NavNode} from '../navigation/model/navigation-node.model.js';
 import {fileManager} from './file-manager.js';
 
 type NodeType = 'workspaces' | 'boards' | 'swimlanes' | 'issues' | 'fields';
@@ -74,7 +65,7 @@ export const storageManager = {
 			return null;
 		}
 
-		return this.toWorkspace(ws);
+		return ws;
 	},
 
 	// -------------------------
@@ -334,7 +325,7 @@ export const storageManager = {
 	},
 
 	// ---------- create operations ----------
-	createBoard(parentWorkspaceId: string, title: string): NavNode<BoardContext> {
+	createBoard(parentWorkspaceId: string, title: string): WorkspaceDiskNode {
 		const {snap, result: boardId} = this.mutate(draft => {
 			const board = this.createNodeInMemory(draft, 'boards', {
 				title,
@@ -354,13 +345,10 @@ export const storageManager = {
 
 		const board = snap.nodes.boards[boardId];
 		if (!board) return logger.error('Unable to create board');
-		return this.toBoard(board);
+		return board;
 	},
 
-	createSwimlane(
-		parentBoardId: string,
-		title: string,
-	): NavNode<SwimlaneContext> {
+	createSwimlane(parentBoardId: string, title: string): WorkspaceDiskNode {
 		const {snap, result: laneId} = this.mutate(draft => {
 			const lane = this.createNodeInMemory(draft, 'swimlanes', {
 				title,
@@ -380,10 +368,10 @@ export const storageManager = {
 
 		const swimlane = snap.nodes.swimlanes[laneId];
 		if (!swimlane) return logger.error('Unable to create swimlane');
-		return this.toSwimlane(swimlane);
+		return swimlane;
 	},
 
-	createIssue(parentSwimlaneId: string, title: string): NavNode<TicketContext> {
+	createIssue(parentSwimlaneId: string, title: string): WorkspaceDiskNode {
 		const {snap, result: issueId} = this.mutate(draft => {
 			const descriptionField = this.createFieldInDraft(draft, 'Description', [
 				'',
@@ -408,7 +396,7 @@ export const storageManager = {
 
 		const issue = snap.nodes.issues[issueId];
 		if (!issue) return logger.error('Unable to create issue');
-		return this.toIssue(issue);
+		return issue;
 	},
 
 	createFieldInDraft(
@@ -422,84 +410,6 @@ export const storageManager = {
 			children: resourceIds,
 		});
 	},
-
-	// ---------- mapping ----------
-	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
-		return {
-			id: data.id,
-			title: this.getResource(data.title),
-			value: this.getResource(data.value),
-			context: contextMap.WORKSPACE,
-			isSelected: false,
-			childRenderAxis: 'vertical',
-			children: data.children.reduce((acc, childId) => {
-				const item = this.getNode('boards', childId);
-				if (item) acc.push(this.toBoard(item));
-				return acc;
-			}, [] as NavNode<BoardContext>[]),
-		};
-	},
-
-	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
-		return {
-			id: data.id,
-			title: this.getResource(data.title),
-			value: this.getResource(data.value),
-			context: contextMap.BOARD,
-			isSelected: false,
-			childRenderAxis: 'horizontal',
-			children: data.children.reduce((acc, childId) => {
-				const item = this.getNode('swimlanes', childId);
-				if (item) acc.push(this.toSwimlane(item));
-				return acc;
-			}, [] as NavNode<SwimlaneContext>[]),
-		};
-	},
-
-	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
-		return {
-			id: data.id,
-			title: this.getResource(data.title),
-			value: this.getResource(data.value),
-			context: contextMap.SWIMLANE,
-			isSelected: false,
-			childRenderAxis: 'vertical',
-			children: data.children.reduce((acc, childId) => {
-				const item = this.getNode('issues', childId);
-				if (item) acc.push(this.toIssue(item));
-				return acc;
-			}, [] as NavNode<TicketContext>[]),
-		};
-	},
-
-	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
-		return {
-			id: data.id,
-			title: this.getResource(data.title),
-			value: this.getResource(data.value),
-			context: contextMap.TICKET,
-			isSelected: false,
-			childRenderAxis: 'vertical',
-			children: data.children.reduce((acc, childId) => {
-				const item = this.getNode('fields', childId);
-				if (item) acc.push(this.toField(item));
-				return acc;
-			}, [] as NavNode<TicketFieldContext>[]),
-		};
-	},
-
-	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
-		return {
-			id: data.id,
-			title: this.getResource(data.title),
-			value: this.getResources(data.children),
-			context: contextMap.TICKET_FIELD,
-			isSelected: false,
-			childRenderAxis: 'vertical',
-			children: [],
-		};
-	},
-
 	// ---------- move ----------
 	move({
 		parentType,

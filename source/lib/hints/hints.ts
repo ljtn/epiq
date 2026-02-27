@@ -8,9 +8,9 @@ const exit = 'q (exit)';
 const edit = 'i (edit)';
 const enter = 'e/enter (confirm)';
 
-const initMove = 'y (move/yank)';
+const initMove = 'd (cut)';
 const moveSelection = 'hjkl (move issue)';
-const confirmMove = 'y (confirm move/yank)';
+const confirmMove = 'd (paste)';
 
 const addIssue = ':add name_of_issue (add issue)';
 

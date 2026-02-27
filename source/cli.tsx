@@ -8,6 +8,7 @@ import {initListeners} from './lib/navigation/keypress-listener.js';
 import {appState, initWorkspaceState} from './lib/navigation/state/state.js';
 import {initProject} from './init-project.js';
 import {storageManager} from './lib/storage/storage-manager.js';
+import {nodeMapper} from './lib/navigation/utils/node-mapper.js';
 
 const cli = meow(
 	`
@@ -44,7 +45,7 @@ process.stdout.on('resize', () => renderWorkspace());
 			logger.error('Failed to load workspace.');
 			return;
 		}
-		initWorkspaceState(workspace);
+		initWorkspaceState(nodeMapper.toWorkspace(workspace));
 		initListeners();
 	}
 })();

@@ -1,5 +1,5 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {patchState} from '../../state/state.js';
+import {patchState, updateState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {
 	moveChildNextWithinParent,
@@ -12,7 +12,7 @@ export const toggleMoveMode: ActionEntry[] = [
 	{
 		intent: Intent.Exit,
 		mode: Mode.MOVE,
-		description: '[Y] Exit yank mode',
+		description: '[d] paste',
 		action: () => {
 			patchState({
 				mode: Mode.DEFAULT,
@@ -22,11 +22,16 @@ export const toggleMoveMode: ActionEntry[] = [
 	{
 		intent: Intent.InitMove,
 		mode: Mode.DEFAULT,
-		description: '[Y] Toggle move/yank mode',
+		description: '[d] cut',
 		action: () => {
-			patchState({
-				mode: Mode.MOVE,
-			});
+			updateState(state =>
+				state.currentNode.children.length > 0 // We do not allow to enter move state if there is no child
+					? {
+							...state,
+							mode: Mode.MOVE,
+					  }
+					: state,
+			);
 		},
 	},
 	{
