@@ -16,13 +16,13 @@ type NodeType = 'workspaces' | 'boards' | 'swimlanes' | 'issues' | 'fields';
 
 export type WorkspaceDiskNode = {
 	id: string;
-	title: string; // value-id
-	value?: string; // value-id
+	title: string; // resource id (versioned)
+	value?: string; // resource id (versioned)
 	children: string[] | [];
 };
 
 export type WorkspaceSnapshot = {
-	id: string; // snapshot id (ulid)
+	id: string; // version id (ulid)
 	createdAt: string;
 	rootWorkspaceId: string;
 	nodes: {
@@ -34,12 +34,14 @@ export type WorkspaceSnapshot = {
 	};
 };
 
-const SNAPSHOT_DIR = path.join('state', 'snapshots');
-const VALUES_DIR = path.join('state', 'values');
+const STATE_DIR = path.join('snapshots', 'state');
+const RESOURCES_DIR = path.join('snapshots', 'resources');
+
+// logical state “resource” id (single stream of versions)
+const WORKSPACE_STATE_ID = 'workspace';
 
 export const storageManager = {
 	rootPath: '',
-	statePath: '',
 	snapshot: null as WorkspaceSnapshot | null,
 
 	loadWorkspace() {
@@ -50,10 +52,13 @@ export const storageManager = {
 		}
 
 		this.rootPath = root;
-		this.statePath = path.join(this.rootPath, 'state');
 
-		fileManager.mkDir(path.join(this.rootPath, SNAPSHOT_DIR));
-		fileManager.mkDir(path.join(this.rootPath, VALUES_DIR));
+		// base dirs
+		fileManager.mkDir(path.join(this.rootPath, STATE_DIR));
+		fileManager.mkDir(path.join(this.rootPath, RESOURCES_DIR));
+
+		// ensure logical state folder exists
+		fileManager.mkDir(this.stateFolder(WORKSPACE_STATE_ID));
 
 		const snap = this.readLatestSnapshot() ?? this.createInitialSnapshot();
 		if (!snap) {
@@ -72,48 +77,174 @@ export const storageManager = {
 		return this.toWorkspace(ws);
 	},
 
-	snapshotFolder() {
-		return path.join(this.rootPath, SNAPSHOT_DIR);
+	// -------------------------
+	// Versioned state snapshots
+	// -------------------------
+
+	stateFolder(stateId: string) {
+		return path.join(this.rootPath, STATE_DIR, stateId);
 	},
-	snapshotPath(id: string) {
-		return path.join(this.rootPath, SNAPSHOT_DIR, `${id}.json`);
+
+	stateVersionPath(stateId: string, versionId: string) {
+		return path.join(this.stateFolder(stateId), `${versionId}.json`);
 	},
-	valuePath(id: string) {
-		return path.join(this.rootPath, VALUES_DIR, `${id}.txt`);
+
+	listStateVersions(stateId: string): string[] {
+		const folder = this.stateFolder(stateId);
+		if (!fileManager.dirExists(folder)) return [];
+
+		return fileManager
+			.listDir(folder)
+			.filter((name: string) => name.endsWith('.json'))
+			.sort(); // ulid sort === time sort
+	},
+
+	// indexFromLatest: 0 = latest, 1 = previous, ...
+	readSnapshot(
+		stateId = WORKSPACE_STATE_ID,
+		indexFromLatest = 0,
+	): WorkspaceSnapshot | null {
+		const versions = this.listStateVersions(stateId);
+		if (!versions.length) return null;
+
+		const pickIdx = versions.length - 1 - Math.max(0, indexFromLatest);
+		const file = versions[pickIdx];
+		if (!file) return null;
+
+		return fileManager.readFileJSON<WorkspaceSnapshot>(
+			path.join(this.stateFolder(stateId), file),
+		);
 	},
 
 	readLatestSnapshot(): WorkspaceSnapshot | null {
-		const folder = this.snapshotFolder();
-		if (!fileManager.dirExists(folder)) return null;
-
-		const entries = fileManager
-			.listDir(folder)
-			.filter((name: string) => name.endsWith('.json'))
-			.sort();
-
-		if (!entries.length) return null;
-
-		const latestFile = entries.at(-1);
-		if (!latestFile) return null;
-
-		const latestPath = path.join(folder, latestFile);
-		return fileManager.readFileJSON<WorkspaceSnapshot>(latestPath);
+		return this.readSnapshot(WORKSPACE_STATE_ID, 0);
 	},
 
-	writeSnapshot(next: WorkspaceSnapshot): WorkspaceSnapshot {
-		const id = ulid();
+	writeSnapshot(
+		next: WorkspaceSnapshot,
+		stateId = WORKSPACE_STATE_ID,
+	): WorkspaceSnapshot {
+		const versionId = ulid();
+
 		const snap: WorkspaceSnapshot = {
 			...next,
-			id,
+			id: versionId,
 			createdAt: new Date().toISOString(),
 		};
 
+		// ensure folder exists
+		fileManager.mkDir(this.stateFolder(stateId));
+
 		fileManager.writeToFile(
-			this.snapshotPath(id),
+			this.stateVersionPath(stateId, versionId),
 			stringify(snap, {maxLength: 1, indent: 2}),
 		);
+
 		this.snapshot = snap;
 		return snap;
+	},
+
+	// -------------------------
+	// Versioned resources
+	// -------------------------
+
+	resourceFolder(resourceId: string) {
+		return path.join(this.rootPath, RESOURCES_DIR, resourceId);
+	},
+
+	resourceVersionPath(resourceId: string, versionId: string) {
+		return path.join(this.resourceFolder(resourceId), `${versionId}.txt`);
+	},
+
+	listResourceVersions(resourceId: string): string[] {
+		const folder = this.resourceFolder(resourceId);
+		if (!fileManager.dirExists(folder)) return [];
+
+		return fileManager
+			.listDir(folder)
+			.filter((name: string) => name.endsWith('.txt'))
+			.sort();
+	},
+
+	// indexFromLatest: 0 = latest, 1 = previous, ...
+	resolveResourceVersion(
+		resourceId: string,
+		indexFromLatest = 0,
+	): string | null {
+		const versions = this.listResourceVersions(resourceId);
+		if (!versions.length) return null;
+
+		const pickIdx = versions.length - 1 - Math.max(0, indexFromLatest);
+		const file = versions[pickIdx];
+		return file ? file.replace(/\.txt$/, '') : null;
+	},
+
+	/**
+	 * Create a new logical resource (new folder) with initial version.
+	 * Returns the resource id (stable), not the version id.
+	 */
+	createResource(value: string) {
+		const resourceId = ulid();
+		fileManager.mkDir(this.resourceFolder(resourceId));
+
+		const versionId = ulid();
+		fileManager.writeToFile(
+			this.resourceVersionPath(resourceId, versionId),
+			value ?? '',
+		);
+
+		return {value: value ?? '', id: resourceId, versionId};
+	},
+
+	/**
+	 * Append a new version to an existing resource id.
+	 * If resource doesn't exist, creates it (handy for migrations).
+	 */
+	updateResource(resourceId: string, nextValue: string) {
+		fileManager.mkDir(this.resourceFolder(resourceId));
+
+		const versionId = ulid();
+		fileManager.writeToFile(
+			this.resourceVersionPath(resourceId, versionId),
+			nextValue ?? '',
+		);
+
+		return {value: nextValue ?? '', id: resourceId, versionId};
+	},
+
+	/**
+	 * Default latest. Pass indexFromLatest to read older versions.
+	 * indexFromLatest = 0 => latest
+	 * indexFromLatest = 1 => previous
+	 */
+	getResource(resourceId: string | undefined, indexFromLatest = 0): string {
+		if (!resourceId) return '';
+
+		const versionId = this.resolveResourceVersion(resourceId, indexFromLatest);
+		if (!versionId) return '';
+
+		const raw =
+			fileManager.readFile(this.resourceVersionPath(resourceId, versionId)) ??
+			'';
+		return raw.replace(/\r?\n$/, '');
+	},
+
+	getResources(resourceIds: string[] | [], indexFromLatest = 0): string {
+		if (!resourceIds.length) return '';
+		return resourceIds
+			.map(id => this.getResource(id, indexFromLatest))
+			.join(', ');
+	},
+
+	// ---------- node access ----------
+	requireSnapshot(): WorkspaceSnapshot {
+		if (!this.snapshot) return logger.error('Snapshot not loaded');
+		return this.snapshot;
+	},
+
+	getNode(type: NodeType, id: string): WorkspaceDiskNode | null {
+		const snap = this.requireSnapshot();
+		return snap.nodes[type][id] ?? null;
 	},
 
 	// ---------- initial state ----------
@@ -154,35 +285,6 @@ export const storageManager = {
 		};
 	},
 
-	// ---------- values ----------
-	createValue(value: string) {
-		const id = ulid();
-		fileManager.writeToFile(this.valuePath(id), value ?? '');
-		return {value: value ?? '', id};
-	},
-
-	getValue(id: string | undefined): string {
-		if (!id) return '';
-		const value = fileManager.readFile(this.valuePath(id)) ?? '';
-		return value.replace(/\r?\n$/, '');
-	},
-
-	getValues(ids: string[] | []): string {
-		if (!ids.length) return '';
-		return ids.map(x => this.getValue(x)).join(', ');
-	},
-
-	// ---------- node access ----------
-	requireSnapshot(): WorkspaceSnapshot {
-		if (!this.snapshot) return logger.error('Snapshot not loaded');
-		return this.snapshot;
-	},
-
-	getNode(type: NodeType, id: string): WorkspaceDiskNode | null {
-		const snap = this.requireSnapshot();
-		return snap.nodes[type][id] ?? null;
-	},
-
 	// ---------- in-memory node creation ----------
 	createNodeInMemory(
 		draft: WorkspaceSnapshot,
@@ -193,11 +295,13 @@ export const storageManager = {
 		}: {title: string; children?: WorkspaceDiskNode['children']},
 	): WorkspaceDiskNode {
 		const id = ulid();
-		const titleId = this.createValue(title).id;
+
+		// title is a versioned resource id
+		const titleResourceId = this.createResource(title).id;
 
 		const node: WorkspaceDiskNode = {
 			id,
-			title: titleId,
+			title: titleResourceId,
 			children: children ?? [],
 		};
 
@@ -218,7 +322,6 @@ export const storageManager = {
 		};
 	},
 
-	// ---------- mutation helpers ----------
 	mutate<T>(mutator: (draft: WorkspaceSnapshot) => T): {
 		snap: WorkspaceSnapshot;
 		result: T;
@@ -313,10 +416,10 @@ export const storageManager = {
 		title: string,
 		values: string[],
 	): WorkspaceDiskNode {
-		const valueIds = values.map(v => this.createValue(v).id);
+		const resourceIds = values.map(v => this.createResource(v).id);
 		return this.createNodeInMemory(draft, 'fields', {
 			title,
-			children: valueIds,
+			children: resourceIds,
 		});
 	},
 
@@ -324,8 +427,8 @@ export const storageManager = {
 	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.title),
-			value: this.getValue(data.value),
+			title: this.getResource(data.title),
+			value: this.getResource(data.value),
 			context: contextMap.WORKSPACE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -340,8 +443,8 @@ export const storageManager = {
 	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.title),
-			value: this.getValue(data.value),
+			title: this.getResource(data.title),
+			value: this.getResource(data.value),
 			context: contextMap.BOARD,
 			isSelected: false,
 			childRenderAxis: 'horizontal',
@@ -356,8 +459,8 @@ export const storageManager = {
 	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.title),
-			value: this.getValue(data.value),
+			title: this.getResource(data.title),
+			value: this.getResource(data.value),
 			context: contextMap.SWIMLANE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -372,8 +475,8 @@ export const storageManager = {
 	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.title),
-			value: this.getValue(data.value),
+			title: this.getResource(data.title),
+			value: this.getResource(data.value),
 			context: contextMap.TICKET,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -388,8 +491,8 @@ export const storageManager = {
 	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
 		return {
 			id: data.id,
-			title: this.getValue(data.title),
-			value: this.getValues(data.children),
+			title: this.getResource(data.title),
+			value: this.getResources(data.children),
 			context: contextMap.TICKET_FIELD,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -397,6 +500,7 @@ export const storageManager = {
 		};
 	},
 
+	// ---------- move ----------
 	move({
 		parentType,
 		fromParentId,
@@ -432,16 +536,13 @@ export const storageManager = {
 
 			const fromChildren = [...fromParent.children];
 
-			// Remove node
 			const [movedId] = fromChildren.splice(fromIndex, 1);
 
-			// Update from parent
 			draft.nodes[parentType][fromParentId] = {
 				...fromParent,
 				children: fromChildren,
 			};
 
-			// If same parent, use updated children
 			const baseChildren =
 				fromParentId === toParentId ? fromChildren : [...toParent.children];
 
@@ -459,14 +560,33 @@ export const storageManager = {
 			return movedId;
 		});
 
-		// If mutation returned undefined or logger.error was triggered
-		if (!result || !result.result) {
-			return null;
-		}
+		if (!result || !result.result) return null;
 
 		return {
 			snap: result.snap,
 			nodeId: result.result,
 		};
+	},
+
+	// -------------------------
+	// Convenience “require” APIs
+	// -------------------------
+
+	/**
+	 * Require state snapshot version; defaults to latest.
+	 * indexFromLatest=1 gets previous snapshot, etc.
+	 */
+	requireState(indexFromLatest = 0): WorkspaceSnapshot {
+		const snap = this.readSnapshot(WORKSPACE_STATE_ID, indexFromLatest);
+		if (!snap) return logger.error('No snapshot found');
+		return snap;
+	},
+
+	/**
+	 * Require resource; defaults to latest.
+	 * indexFromLatest=1 gets previous version, etc.
+	 */
+	requireResource(resourceId: string, indexFromLatest = 0): string {
+		return this.getResource(resourceId, indexFromLatest);
 	},
 };
