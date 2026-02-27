@@ -7,7 +7,7 @@ import {CommandLine} from './CommandLine.js';
 
 export const ContextBar: React.FC<{width: number}> = ({width}) => {
 	const {mode, availableHints} = appState;
-	const hasHints = availableHints.length > 0;
+	// const hasHints = availableHints.length > 0;
 
 	return (
 		<Box
@@ -22,7 +22,7 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => {
 					<CommandLine />
 				) : (
 					<Box flexDirection="row" gap={2}>
-						<Text color={theme.secondary}>{hasHints ? '💡 Hints:' : ' '}</Text>
+						{/* <Text color={theme.secondary}>{hasHints ? '💡 Hints:' : ' '}</Text> */}
 						{availableHints.map((hint, index) => {
 							const [command, ...rest] = hint.split(' ');
 							const argument = rest.join(' ');

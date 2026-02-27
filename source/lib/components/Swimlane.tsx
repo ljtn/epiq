@@ -27,14 +27,14 @@ export const SwimlaneUI: React.FC<Props> = ({
 			flexDirection="column"
 			width={width}
 			borderStyle="round"
-			borderColor={theme.secondary}
+			borderColor={isParentOfCurrentContext ? theme.accent : theme.secondary}
 			paddingRight={1}
 			paddingLeft={1}
 			height={height}
 		>
 			<Box
 				borderStyle={'round'}
-				borderColor={isParentOfCurrentContext ? theme.accent : theme.secondary}
+				borderColor={theme.secondary}
 				justifyContent="center"
 				borderLeft={false}
 				borderTop={false}
