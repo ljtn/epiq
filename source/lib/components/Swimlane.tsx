@@ -62,9 +62,8 @@ export const SwimlaneUI: React.FC<Props> = ({
 						))}
 					></ScrollBoxUI>
 				)}
-				{!swimlane.children.length &&
-					appState.currentNode.id === swimlane.id &&
-					appState.selectedIndex === 0 && (
+				{appState.currentNode.id === swimlane.id &&
+					appState.selectedIndex === -1 && (
 						<Text color={theme.accent}>{'_'}</Text>
 					)}
 			</Box>
