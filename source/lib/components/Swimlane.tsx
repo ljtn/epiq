@@ -64,7 +64,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 				)}
 				{appState.currentNode.id === swimlane.id &&
 					appState.selectedIndex === -1 && (
-						<Text color={theme.accent}>{'_'}</Text>
+						<Text color={theme.accent}>{'⸬'}</Text>
 					)}
 			</Box>
 		</Box>

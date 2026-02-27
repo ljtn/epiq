@@ -24,6 +24,19 @@ export const TicketListItemUI: React.FC<{
 					: theme.primary
 			}
 		>
+			{ticket.isSelected ? '⸬ ' : '  '}
+		</Text>
+		<Text
+			color={
+				ticket.isSelected && appState.mode === Mode.MOVE
+					? theme.accent
+					: ticket.isSelected
+					? theme.accent
+					: appState.mode === Mode.MOVE
+					? theme.secondary
+					: theme.primary
+			}
+		>
 			{truncateWithEllipsis(ticket.title, width - 6)}
 		</Text>
 	</Box>

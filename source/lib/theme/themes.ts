@@ -19,12 +19,6 @@ export const colors = {
 	whiteBright: 'whiteBright',
 } as const;
 
-export const theme = {
-	accent: colors.cyan,
-	primary: colors.white,
-	secondary: colors.gray,
-};
-
 export const chalkColors = {
 	cyan: '#7DCFFF',
 	cyanSoft: '#89DDFF',
@@ -32,3 +26,10 @@ export const chalkColors = {
 	grayLight: '#9AA5CE',
 	grayDark: '#565F89',
 } as const;
+
+export const theme = {
+	accent: colors.cyan,
+	accent2: colors.magenta,
+	primary: colors.white,
+	secondary: colors.gray,
+};
