@@ -29,15 +29,19 @@ export const TicketFieldUI: React.FC<Props> = ({field, selected}) => {
 	}, [field.value]);
 
 	return (
-		<Box
-			flexDirection="row"
-			borderStyle="round"
-			borderColor={selected ? theme.accent : theme.secondary}
-		>
-			<Box minWidth={20}>
-				<Text color={theme.secondary}> {field.title}:</Text>
+		<Box flexDirection="column" paddingTop={1}>
+			<Text color={selected ? theme.primary : theme.secondary}>
+				{' ' + field.title}:
+			</Text>
+			<Box
+				flexDirection="row"
+				borderStyle="round"
+				borderColor={selected ? theme.accent : theme.secondary}
+				paddingLeft={1}
+				paddingRight={1}
+			>
+				<Text>{value || ' '}</Text>
 			</Box>
-			<Text>{value}</Text>
 		</Box>
 	);
 };

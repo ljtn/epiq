@@ -10,9 +10,12 @@ type Props = {
 };
 
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
+	const maxWidth = process.stdout.columns || 120;
 	return (
 		<Box
+			width={maxWidth}
 			flexDirection="column"
+			paddingTop={1}
 			paddingLeft={1}
 			paddingRight={1}
 			minHeight={height}

@@ -144,7 +144,6 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 
 	const selectedIndex = nextSibling.children.length ? boundedIndex : -1;
 
-	logger.debug(selectedIndex);
 	navigator.navigate({
 		currentNode: nextSibling,
 		selectedIndex,
