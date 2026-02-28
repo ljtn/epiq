@@ -1,4 +1,4 @@
-import {NavNodeType} from '../model/context.model.js';
+import {NavNodeCtx} from '../model/context.model.js';
 import {ActionEntry, ActionMap} from '../model/action-map.model.js';
 import {
 	moveAcrossParents,
@@ -7,21 +7,21 @@ import {
 } from './move/move-actions.js';
 
 type ContextActions = ActionMap<{
-	[NavNodeType.WORKSPACE]: ActionEntry[];
-	[NavNodeType.BOARD]: ActionEntry[];
-	[NavNodeType.SWIMLANE]: ActionEntry[];
-	[NavNodeType.TICKET]: ActionEntry[];
-	[NavNodeType.FIELD]: ActionEntry[];
+	[NavNodeCtx.WORKSPACE]: ActionEntry[];
+	[NavNodeCtx.BOARD]: ActionEntry[];
+	[NavNodeCtx.SWIMLANE]: ActionEntry[];
+	[NavNodeCtx.TICKET]: ActionEntry[];
+	[NavNodeCtx.FIELD]: ActionEntry[];
 }>;
 
 export const contextActions: ContextActions = {
-	[NavNodeType.WORKSPACE]: [],
-	[NavNodeType.BOARD]: [...toggleMoveMode, ...moveWithinParent],
-	[NavNodeType.SWIMLANE]: [
+	[NavNodeCtx.WORKSPACE]: [],
+	[NavNodeCtx.BOARD]: [...toggleMoveMode, ...moveWithinParent],
+	[NavNodeCtx.SWIMLANE]: [
 		...toggleMoveMode,
 		...moveWithinParent,
 		...moveAcrossParents,
 	],
-	[NavNodeType.TICKET]: [],
-	[NavNodeType.FIELD]: [],
+	[NavNodeCtx.TICKET]: [],
+	[NavNodeCtx.FIELD]: [],
 };

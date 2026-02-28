@@ -1,4 +1,4 @@
-import {NavNodeType} from '../model/context.model.js';
+import {NavNodeCtx} from '../model/context.model.js';
 import {appState} from '../state/state.js';
 
 export const CmdIntent = {
@@ -28,11 +28,11 @@ export const getCommandIntent = (
 			return CmdIntent.Rename;
 		case CmdKeywords.ADD:
 			switch (context) {
-				case NavNodeType.WORKSPACE:
+				case NavNodeCtx.WORKSPACE:
 					return CmdIntent.AddBoard;
-				case NavNodeType.BOARD:
+				case NavNodeCtx.BOARD:
 					return CmdIntent.AddSwimlane;
-				case NavNodeType.SWIMLANE:
+				case NavNodeCtx.SWIMLANE:
 					return CmdIntent.AddTicket;
 				default:
 					return CmdIntent.None;

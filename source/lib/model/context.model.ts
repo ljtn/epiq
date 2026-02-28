@@ -1,6 +1,6 @@
 import type {NavNode} from './navigation-node.model.js';
 
-export const NavNodeType = {
+export const NavNodeCtx = {
 	WORKSPACE: 'WORKSPACE',
 	BOARD: 'BOARD',
 	SWIMLANE: 'SWIMLANE',
@@ -14,11 +14,11 @@ export type Swimlane = NavNode<'SWIMLANE'>;
 export type Ticket = NavNode<'TICKET'>;
 export type Field = NavNode<'FIELD'>;
 
-export type WorkspaceContext = typeof NavNodeType.WORKSPACE;
-export type BoardContext = typeof NavNodeType.BOARD;
-export type SwimlaneContext = typeof NavNodeType.SWIMLANE;
-export type TicketContext = typeof NavNodeType.TICKET;
-export type TicketFieldContext = typeof NavNodeType.FIELD;
+export type WorkspaceContext = typeof NavNodeCtx.WORKSPACE;
+export type BoardContext = typeof NavNodeCtx.BOARD;
+export type SwimlaneContext = typeof NavNodeCtx.SWIMLANE;
+export type TicketContext = typeof NavNodeCtx.TICKET;
+export type TicketFieldContext = typeof NavNodeCtx.FIELD;
 
 export type AnyContext = ContextMap[keyof ContextMap];
-export type ContextMap = typeof NavNodeType;
+export type ContextMap = typeof NavNodeCtx;

@@ -1,5 +1,5 @@
 import {Mode} from '../model/action-map.model.js';
-import {NavNodeType} from '../model/context.model.js';
+import {NavNodeCtx} from '../model/context.model.js';
 
 const initCommandPalette = 'Press : for command line';
 
@@ -15,14 +15,14 @@ const confirmMove = 'd (paste)';
 const addIssue = ':add name_of_issue (add issue)';
 
 export const Hints = {
-	[NavNodeType.WORKSPACE]: [navigate],
-	[NavNodeType.BOARD]: [initCommandPalette],
-	[NavNodeType.BOARD + Mode.COMMAND_LINE]: [],
-	[NavNodeType.SWIMLANE]: [initMove, exit, addIssue],
-	[NavNodeType.TICKET + Mode.HELP]: [exit],
-	[NavNodeType.SWIMLANE + Mode.HELP]: [exit],
-	[NavNodeType.TICKET]: [edit, initMove],
-	[NavNodeType.FIELD]: [],
-	[NavNodeType.SWIMLANE + Mode.MOVE]: [moveSelection, confirmMove],
-	[NavNodeType.TICKET + Mode.MOVE]: [moveSelection, enter, confirmMove],
+	[NavNodeCtx.WORKSPACE]: [navigate],
+	[NavNodeCtx.BOARD]: [initCommandPalette],
+	[NavNodeCtx.BOARD + Mode.COMMAND_LINE]: [],
+	[NavNodeCtx.SWIMLANE]: [initMove, exit, addIssue],
+	[NavNodeCtx.TICKET + Mode.HELP]: [exit],
+	[NavNodeCtx.SWIMLANE + Mode.HELP]: [exit],
+	[NavNodeCtx.TICKET]: [edit, initMove],
+	[NavNodeCtx.FIELD]: [],
+	[NavNodeCtx.SWIMLANE + Mode.MOVE]: [moveSelection, confirmMove],
+	[NavNodeCtx.TICKET + Mode.MOVE]: [moveSelection, enter, confirmMove],
 } as const;

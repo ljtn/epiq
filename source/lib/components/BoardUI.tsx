@@ -1,6 +1,6 @@
 import {Box} from 'ink';
 import React from 'react';
-import {NavNodeType, Swimlane, Ticket} from '../model/context.model.js';
+import {NavNodeCtx, Swimlane, Ticket} from '../model/context.model.js';
 import {appState} from '../state/state.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
@@ -11,10 +11,9 @@ type Props = {
 
 export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 	const actionContext = appState.currentNode.context;
-	const isTicketContext = actionContext === NavNodeType.TICKET;
+	const isTicketContext = actionContext === NavNodeCtx.TICKET;
 	const isSwimlaneContext =
-		actionContext === NavNodeType.BOARD ||
-		actionContext === NavNodeType.SWIMLANE;
+		actionContext === NavNodeCtx.BOARD || actionContext === NavNodeCtx.SWIMLANE;
 
 	const width = process.stdout.columns || 120;
 	const swimlaneMaxWidth = Math.floor(process.stdout.columns / 3);

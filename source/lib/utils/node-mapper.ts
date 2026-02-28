@@ -1,7 +1,7 @@
 import {
 	AnyContext,
 	BoardContext,
-	NavNodeType,
+	NavNodeCtx,
 	SwimlaneContext,
 	TicketContext,
 	TicketFieldContext,
@@ -61,7 +61,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: NavNodeType.WORKSPACE,
+			context: NavNodeCtx.WORKSPACE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
@@ -76,7 +76,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: NavNodeType.BOARD,
+			context: NavNodeCtx.BOARD,
 			isSelected: false,
 			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
@@ -91,7 +91,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: NavNodeType.SWIMLANE,
+			context: NavNodeCtx.SWIMLANE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 			childNavigationAcrossParents: true,
@@ -107,7 +107,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: NavNodeType.TICKET,
+			context: NavNodeCtx.TICKET,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 
@@ -123,7 +123,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: NavNodeType.FIELD,
+			context: NavNodeCtx.FIELD,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 			children: [],
