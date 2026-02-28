@@ -1,4 +1,4 @@
-import {Navigator} from '../actions/default/navigation-action-utils.js';
+import {Navigator} from '../../actions/default/navigation-action-utils.js';
 import readline from 'readline';
 
 export const Mode = {

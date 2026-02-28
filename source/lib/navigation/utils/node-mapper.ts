@@ -18,7 +18,6 @@ export const nodeMapper = {
 	resolveFields(data: WorkspaceDiskNode): Record<string, string> {
 		return Object.fromEntries(
 			Object.entries(data.fields).map(([key, resourceId]) => {
-				logger.debug(key, resourceId);
 				return [key, storageManager.getResource(resourceId)];
 			}),
 		);

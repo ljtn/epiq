@@ -16,7 +16,7 @@ export enum Intent {
 	MoveToNextContainer = 'moveToNextContainer',
 
 	Confirm = 'confirm',
-	Edit = 'edit',
+
 	Exit = 'exit',
 	ViewHelp = 'viewHelp',
 	HideHelp = 'hideHelp',
@@ -37,6 +37,9 @@ export enum Intent {
 	MoveCursorRightOfWord = 'MoveCursorRightOfWord',
 	EraseInputWord = 'EraseInputWord',
 	None = 'None',
+
+	// Editor
+	Edit = 'edit',
 }
 
 function getDir(key: readline.Key): 'up' | 'down' | 'left' | 'right' | null {
@@ -153,8 +156,6 @@ export function getKeyIntent(
 		case 'return':
 			return Intent.Confirm;
 		case 'q':
-		case 'backspace':
-			return Intent.Exit;
 		case 'escape':
 			return Intent.Exit;
 		default:
