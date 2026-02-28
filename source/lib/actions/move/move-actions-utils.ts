@@ -1,6 +1,6 @@
 import {storageManager} from '../../storage/storage-manager.js';
-import {appState} from '../../navigation/state/state.js';
-import {nodeMapper} from '../../navigation/utils/node-mapper.js';
+import {appState} from '../../state/state.js';
+import {nodeMapper} from '../../utils/node-mapper.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
 function moveItemInArray<T>({

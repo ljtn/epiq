@@ -2,7 +2,7 @@ import {
 	addBoard,
 	addSwimlane,
 	addTicket,
-} from '../../actions/add-item/add-item-actions.js';
+} from '../actions/add-item/add-item-actions.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {getCmdArg} from '../state/cmd.state.js';
 import {appState, patchState, updateState} from '../state/state.js';

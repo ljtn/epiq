@@ -1,4 +1,4 @@
-import type {NavNode} from '../navigation/model/navigation-node.model.js';
+import type {NavNode} from './navigation-node.model.js';
 
 export const contextMap = {
 	WORKSPACE: 'WORKSPACE',

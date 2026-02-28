@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
-import {appState} from '../navigation/state/state.js';
+import {appState} from '../state/state.js';
 import React from 'react';
-import {Mode} from '../navigation/model/action-map.model.js';
+import {Mode} from '../model/action-map.model.js';
 import {theme} from '../theme/themes.js';
 
 export const HelpUI: React.FC<{width: number}> = ({width}) => (

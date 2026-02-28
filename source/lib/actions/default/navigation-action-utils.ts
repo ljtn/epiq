@@ -1,10 +1,6 @@
 import {AnyContext} from '../../model/context.model.js';
-import {NavNode} from '../../navigation/model/navigation-node.model.js';
-import {
-	appState,
-	BreadCrumb,
-	patchState,
-} from '../../navigation/state/state.js';
+import {NavNode} from '../../model/navigation-node.model.js';
+import {appState, BreadCrumb, patchState} from '../../state/state.js';
 
 export interface Navigator {
 	navigate<T extends AnyContext>({

@@ -1,6 +1,6 @@
 import readline from 'readline';
-import {appState} from './state/state.js';
-import {getKeyIntent} from './utils/key-intent.js';
+import {appState} from '../state/state.js';
+import {getKeyIntent} from '../utils/key-intent.js';
 import {navigator} from '../actions/default/navigation-action-utils.js';
 
 let currentKeypressListener: ((s: string, k: readline.Key) => void) | undefined;

@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Mode} from '../navigation/model/action-map.model.js';
-import {appState} from '../navigation/state/state.js';
+import {Mode} from '../model/action-map.model.js';
+import {appState} from '../state/state.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 

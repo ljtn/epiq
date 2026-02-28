@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
 import {contextMap, Swimlane, Ticket} from '../model/context.model.js';
-import {appState} from '../navigation/state/state.js';
+import {appState} from '../state/state.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
 

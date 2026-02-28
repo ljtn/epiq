@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Swimlane, Ticket} from '../model/context.model.js';
-import {appState} from '../navigation/state/state.js';
+import {appState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';

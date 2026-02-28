@@ -4,11 +4,11 @@ import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
-import {initListeners} from './lib/navigation/keypress-listener.js';
-import {appState, initWorkspaceState} from './lib/navigation/state/state.js';
+import {initListeners} from './lib/listeners/keypress-listener.js';
+import {appState, initWorkspaceState} from './lib/state/state.js';
 import {initProject} from './init-project.js';
 import {storageManager} from './lib/storage/storage-manager.js';
-import {nodeMapper} from './lib/navigation/utils/node-mapper.js';
+import {nodeMapper} from './lib/utils/node-mapper.js';
 
 const cli = meow(
 	`

@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
-import {appState} from '../navigation/state/state.js';
+import {appState} from '../state/state.js';
 import {TicketFieldUI} from './TicketField.js';
 
 type Props = {

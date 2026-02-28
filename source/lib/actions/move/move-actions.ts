@@ -1,6 +1,6 @@
-import {ActionEntry, Mode} from '../../navigation/model/action-map.model.js';
-import {appState, patchState} from '../../navigation/state/state.js';
-import {Intent} from '../../navigation/utils/key-intent.js';
+import {ActionEntry, Mode} from '../../model/action-map.model.js';
+import {appState, patchState} from '../../state/state.js';
+import {Intent} from '../../utils/key-intent.js';
 import {
 	moveChildWithinParent,
 	moveNodeToSiblingContainer,

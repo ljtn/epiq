@@ -6,12 +6,12 @@ import {
 	TicketContext,
 	TicketFieldContext,
 	WorkspaceContext,
-} from '../../model/context.model.js';
+} from '../model/context.model.js';
 import {
 	NodeType,
 	storageManager,
 	WorkspaceDiskNode,
-} from '../../storage/storage-manager.js';
+} from '../storage/storage-manager.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
 export const nodeMapper = {

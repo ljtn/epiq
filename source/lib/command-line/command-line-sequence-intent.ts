@@ -1,4 +1,4 @@
-import {contextMap} from '../../model/context.model.js';
+import {contextMap} from '../model/context.model.js';
 import {appState} from '../state/state.js';
 
 export const CmdIntent = {

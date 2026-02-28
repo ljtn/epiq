@@ -1,14 +1,14 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React, {useEffect, useState} from 'react';
-import {CmdKeywords} from '../navigation/command-line/command-line-sequence-intent.js';
+import {CmdKeywords} from '../command-line/command-line-sequence-intent.js';
 import {
 	commandLineState,
 	getCmdValue,
 	subscribeCommandLineState,
-} from '../navigation/state/cmd.state.js';
+} from '../state/cmd.state.js';
 import {chalkColors} from '../theme/themes.js';
-import {findOverlap} from '../navigation/utils/stirng.utils.js';
+import {findOverlap} from '../utils/stirng.utils.js';
 
 export const CommandLine: React.FC = () => {
 	const [input, setInput] = useState(getCmdValue());

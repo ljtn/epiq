@@ -1,9 +1,9 @@
-import {Hints} from '../../hints/hints.js';
-import {AnyContext, Board, Workspace} from '../../model/context.model.js';
-import {renderWorkspace} from '../../../cli.js';
-import {contextActions} from '../../actions/board-action-map.js';
-import {DefaultActions} from '../../actions/default/default-actions.js';
-import {inputActions} from '../../actions/input/input-actions.js';
+import {Hints} from '../hints/hints.js';
+import {AnyContext, Board, Workspace} from '../model/context.model.js';
+import {renderWorkspace} from '../../cli.js';
+import {contextActions} from '../actions/board-action-map.js';
+import {DefaultActions} from '../actions/default/default-actions.js';
+import {inputActions} from '../actions/input/input-actions.js';
 import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 

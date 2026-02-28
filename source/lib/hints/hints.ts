@@ -1,4 +1,4 @@
-import {Mode} from '../navigation/model/action-map.model.js';
+import {Mode} from '../model/action-map.model.js';
 import {contextMap} from '../model/context.model.js';
 
 const initCommandPalette = ': (command palette)';
