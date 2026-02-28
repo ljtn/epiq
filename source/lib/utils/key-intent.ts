@@ -155,6 +155,8 @@ export function getKeyIntent(
 		case 'e':
 		case 'return':
 			return Intent.Confirm;
+		case 'space':
+			return Intent.Confirm;
 		case 'q':
 		case 'escape':
 			return Intent.Exit;
