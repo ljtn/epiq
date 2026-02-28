@@ -1,18 +1,19 @@
 import {
 	AnyContext,
 	BoardContext,
-	contextMap,
+	NavNodeType,
 	SwimlaneContext,
 	TicketContext,
 	TicketFieldContext,
 	WorkspaceContext,
 } from '../model/context.model.js';
-import {
-	NodeType,
-	storageManager,
-	WorkspaceDiskNode,
-} from '../storage/storage-manager.js';
+import {storageManager} from '../storage/storage-manager.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {
+	StorageNodeType,
+	StorageNodeTypes,
+	WorkspaceDiskNode,
+} from '../model/storage-node.model.js';
 
 export const nodeMapper = {
 	resolveFields(data: WorkspaceDiskNode): Record<string, string> {
@@ -34,22 +35,33 @@ export const nodeMapper = {
 		return mapMethods[ctx];
 	},
 
-	contextToNodeTypeMap(ctx: AnyContext): NodeType {
+	contextToNodeTypeMap(ctx: AnyContext): StorageNodeType {
 		const ctxMap = {
-			WORKSPACE: 'workspaces',
-			BOARD: 'boards',
-			SWIMLANE: 'swimlanes',
-			TICKET: 'issues',
-			FIELD: 'fields',
+			WORKSPACE: StorageNodeTypes.WORKSPACE,
+			BOARD: StorageNodeTypes.BOARD,
+			SWIMLANE: StorageNodeTypes.SWIMLANE,
+			TICKET: StorageNodeTypes.ISSUE,
+			FIELD: StorageNodeTypes.FIELD,
 		} as const;
 		return ctxMap[ctx];
+	},
+
+	toParentNodeType(nodeType: StorageNodeType): StorageNodeType | null {
+		const typeMap = {
+			workspaces: null,
+			boards: StorageNodeTypes.WORKSPACE,
+			swimlanes: StorageNodeTypes.BOARD,
+			issues: StorageNodeTypes.SWIMLANE,
+			fields: StorageNodeTypes.ISSUE,
+		} as const;
+		return typeMap[nodeType];
 	},
 
 	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: contextMap.WORKSPACE,
+			context: NavNodeType.WORKSPACE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
@@ -64,7 +76,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: contextMap.BOARD,
+			context: NavNodeType.BOARD,
 			isSelected: false,
 			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
@@ -79,7 +91,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: contextMap.SWIMLANE,
+			context: NavNodeType.SWIMLANE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 			childNavigationAcrossParents: true,
@@ -95,7 +107,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: contextMap.TICKET,
+			context: NavNodeType.TICKET,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 
@@ -111,7 +123,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: contextMap.FIELD,
+			context: NavNodeType.FIELD,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 			children: [],

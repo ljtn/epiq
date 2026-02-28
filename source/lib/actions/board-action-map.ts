@@ -1,4 +1,4 @@
-import {contextMap} from '../model/context.model.js';
+import {NavNodeType} from '../model/context.model.js';
 import {ActionEntry, ActionMap} from '../model/action-map.model.js';
 import {
 	moveAcrossParents,
@@ -7,21 +7,21 @@ import {
 } from './move/move-actions.js';
 
 type ContextActions = ActionMap<{
-	[contextMap.WORKSPACE]: ActionEntry[];
-	[contextMap.BOARD]: ActionEntry[];
-	[contextMap.SWIMLANE]: ActionEntry[];
-	[contextMap.TICKET]: ActionEntry[];
-	[contextMap.FIELD]: ActionEntry[];
+	[NavNodeType.WORKSPACE]: ActionEntry[];
+	[NavNodeType.BOARD]: ActionEntry[];
+	[NavNodeType.SWIMLANE]: ActionEntry[];
+	[NavNodeType.TICKET]: ActionEntry[];
+	[NavNodeType.FIELD]: ActionEntry[];
 }>;
 
 export const contextActions: ContextActions = {
-	[contextMap.WORKSPACE]: [],
-	[contextMap.BOARD]: [...toggleMoveMode, ...moveWithinParent],
-	[contextMap.SWIMLANE]: [
+	[NavNodeType.WORKSPACE]: [],
+	[NavNodeType.BOARD]: [...toggleMoveMode, ...moveWithinParent],
+	[NavNodeType.SWIMLANE]: [
 		...toggleMoveMode,
 		...moveWithinParent,
 		...moveAcrossParents,
 	],
-	[contextMap.TICKET]: [],
-	[contextMap.FIELD]: [],
+	[NavNodeType.TICKET]: [],
+	[NavNodeType.FIELD]: [],
 };
