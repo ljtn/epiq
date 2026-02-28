@@ -1,8 +1,8 @@
-import {CmdIntent} from '../../command-line/command-line-sequence-intent.js';
-import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {setCmdInput} from '../../state/cmd.state.js';
-import {appState, patchState} from '../../state/state.js';
-import {Intent} from '../../utils/key-intent.js';
+import {CmdIntent} from '../../navigation/command-line/command-line-sequence-intent.js';
+import {ActionEntry, Mode} from '../../navigation/model/action-map.model.js';
+import {setCmdInput} from '../../navigation/state/cmd.state.js';
+import {appState, patchState} from '../../navigation/state/state.js';
+import {Intent} from '../../navigation/utils/key-intent.js';
 import {navigator} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
@@ -53,10 +53,21 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.Edit,
 		mode: Mode.DEFAULT,
 		action: () => {
-			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(
-				() => `${CmdIntent.Rename} ${appState.currentNode?.fields['title']}`,
-			);
+			if (appState.currentNode.context === 'TICKET') {
+				// Use editor
+				logger.debug(CmdIntent.Rename, appState.currentNode.fields.title);
+			} else {
+				// Use command line
+				logger.debug(CmdIntent.Rename, appState.currentNode.fields.title);
+				patchState({mode: Mode.COMMAND_LINE});
+				setCmdInput(
+					() =>
+						`${CmdIntent.Rename} ${
+							appState.currentNode.children[appState.selectedIndex]?.fields
+								.title
+						}`,
+				);
+			}
 		},
 	},
 ];

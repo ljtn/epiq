@@ -1,7 +1,7 @@
-import {storageManager} from '../../../storage/storage-manager.js';
-import {CommandLineActionEntry} from '../../model/action-map.model.js';
-import {appState} from '../../state/state.js';
-import {nodeMapper} from '../../utils/node-mapper.js';
+import {storageManager} from '../../storage/storage-manager.js';
+import {CommandLineActionEntry} from '../../navigation/model/action-map.model.js';
+import {appState} from '../../navigation/state/state.js';
+import {nodeMapper} from '../../navigation/utils/node-mapper.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
 export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (

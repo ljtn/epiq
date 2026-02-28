@@ -1,4 +1,4 @@
-import {ActionEntry, Mode} from '../../model/action-map.model.js';
+import {ActionEntry, Mode} from '../../navigation/model/action-map.model.js';
 import {
 	eraseInput,
 	eraseInputWord,
@@ -7,10 +7,10 @@ import {
 	moveCursorPosition,
 	moveCursorPositionOfWord,
 	setCmdInput,
-} from '../../state/cmd.state.js';
-import {patchState} from '../../state/state.js';
-import {Intent} from '../../utils/key-intent.js';
-import {findOverlap} from '../../utils/stirng.utils.js';
+} from '../../navigation/state/cmd.state.js';
+import {patchState} from '../../navigation/state/state.js';
+import {Intent} from '../../navigation/utils/key-intent.js';
+import {findOverlap} from '../../navigation/utils/stirng.utils.js';
 import {onConfirmCommandLineSequenceInput} from './command-line-input.js';
 export const inputActions: ActionEntry[] = [
 	{

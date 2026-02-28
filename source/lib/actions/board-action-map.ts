@@ -1,5 +1,5 @@
-import {contextMap} from '../../model/context.model.js';
-import {ActionEntry, ActionMap} from '../model/action-map.model.js';
+import {contextMap} from '../model/context.model.js';
+import {ActionEntry, ActionMap} from '../navigation/model/action-map.model.js';
 import {
 	moveAcrossParents,
 	moveWithinParent,

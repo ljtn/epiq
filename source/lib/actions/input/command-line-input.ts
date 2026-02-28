@@ -1,11 +1,11 @@
-import {getCommandIntent} from '../../command-line/command-line-sequence-intent.js';
-import {commands} from '../../command-line/commands.js';
-import {ActionEntry} from '../../model/action-map.model.js';
+import {getCommandIntent} from '../../navigation/command-line/command-line-sequence-intent.js';
+import {commands} from '../../navigation/command-line/commands.js';
+import {ActionEntry} from '../../navigation/model/action-map.model.js';
 import {
 	clearCmd,
 	getCmdValue,
 	updateCmdHistory,
-} from '../../state/cmd.state.js';
+} from '../../navigation/state/cmd.state.js';
 
 export const onConfirmCommandLineSequenceInput = (
 	...args: Parameters<NonNullable<ActionEntry['action']>>
