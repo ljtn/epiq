@@ -24,13 +24,9 @@ export const ContextBar: React.FC<{width: number}> = ({width}) => {
 					<Box flexDirection="row" gap={2}>
 						{/* <Text color={theme.secondary}>{hasHints ? '💡 Hints:' : ' '}</Text> */}
 						{availableHints.map((hint, index) => {
-							const [command, ...rest] = hint.split(' ');
-							const argument = rest.join(' ');
-
 							return (
 								<Box key={index}>
-									<Text color={theme.accent}>{command}</Text>
-									{argument && <Text color={theme.secondary}> {argument}</Text>}
+									<Text color={theme.secondary}>{hint}</Text>
 								</Box>
 							);
 						})}

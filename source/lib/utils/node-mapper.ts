@@ -23,6 +23,17 @@ export const nodeMapper = {
 		);
 	},
 
+	toNavNode(ctx: AnyContext, node: any) {
+		const mapMethods = {
+			WORKSPACE: this.toWorkspace(node),
+			BOARD: this.toBoard(node),
+			SWIMLANE: this.toSwimlane(node),
+			TICKET: this.toIssue(node),
+			TICKET_FIELD: this.toField(node),
+		};
+		return mapMethods[ctx];
+	},
+
 	contextToNodeTypeMap(ctx: AnyContext): NodeType {
 		const ctxMap = {
 			WORKSPACE: 'workspaces',

@@ -58,7 +58,6 @@ export const DefaultActions: ActionEntry[] = [
 				logger.debug(CmdIntent.Rename, appState.currentNode.fields.title);
 			} else {
 				// Use command line
-				logger.debug(CmdIntent.Rename, appState.currentNode.fields.title);
 				patchState({mode: Mode.COMMAND_LINE});
 				setCmdInput(
 					() =>

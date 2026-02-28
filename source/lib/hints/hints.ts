@@ -1,7 +1,7 @@
 import {Mode} from '../model/action-map.model.js';
 import {contextMap} from '../model/context.model.js';
 
-const initCommandPalette = ': (command palette)';
+const initCommandPalette = 'Press : for command line';
 
 const navigate = 'hjkl (navigate)';
 const exit = 'q (exit)';

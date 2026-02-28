@@ -36,8 +36,8 @@ const RESOURCES_DIR = path.join('snapshots', 'resources');
 const WORKSPACE_STATE_ID = 'workspace';
 
 const SEED_RESOURCES = {
-	fieldTitleDescription: 'seed:field-title:description',
-	fieldTitleTags: 'seed:field-title:tags',
+	fieldTitle: 'seed:field-title:description',
+	fieldTags: 'seed:field-title:tags',
 } as const;
 
 const DESCRIPTION_PLACEHOLDER = `...add description
@@ -96,11 +96,8 @@ export const storageManager = {
 	},
 
 	ensureSeeds() {
-		this.ensureSeedResource(
-			SEED_RESOURCES.fieldTitleDescription,
-			'Description',
-		);
-		this.ensureSeedResource(SEED_RESOURCES.fieldTitleTags, 'Tags');
+		this.ensureSeedResource(SEED_RESOURCES.fieldTitle, 'Description');
+		this.ensureSeedResource(SEED_RESOURCES.fieldTags, 'Tags');
 	},
 
 	// -------------------------
@@ -401,12 +398,12 @@ export const storageManager = {
 	createIssue(parentSwimlaneId: string, title: string): WorkspaceDiskNode {
 		const {snap, result: issueId} = this.mutate(draft => {
 			const descriptionField = this.createFieldInDraft(draft, {
-				labelResourceId: SEED_RESOURCES.fieldTitleDescription,
+				labelResourceId: SEED_RESOURCES.fieldTitle,
 				initialValue: DESCRIPTION_PLACEHOLDER,
 			});
 
 			const tagsField = this.createFieldInDraft(draft, {
-				labelResourceId: SEED_RESOURCES.fieldTitleTags,
+				labelResourceId: SEED_RESOURCES.fieldTags,
 				initialValue: 'demo',
 			});
 
@@ -522,6 +519,40 @@ export const storageManager = {
 			snap: result.snap,
 			nodeId: result.result,
 		};
+	},
+
+	isSeedResource(resourceId: string) {
+		return resourceId.startsWith('seed:');
+	},
+
+	renameNodeTitle(nodeType: NodeType, nodeId: string, nextTitle: string) {
+		const res = this.mutate(draft => {
+			const node = draft.nodes[nodeType][nodeId];
+			if (!node) return logger.error(`Node ${nodeId} not found in ${nodeType}`);
+
+			const currentTitleResId = node.fields['title'];
+			if (!currentTitleResId)
+				return logger.error(`Node ${nodeId} missing fields.title`);
+
+			// Fork if seeded, so renaming doesn’t rename the shared seed
+			if (this.isSeedResource(currentTitleResId)) {
+				const newTitleResId = this.createResource(nextTitle).id;
+				draft.nodes[nodeType][nodeId] = {
+					...node,
+					fields: {
+						...node.fields,
+						title: newTitleResId,
+					},
+				};
+				return nodeId;
+			}
+
+			// Normal case: append a new version to the existing title resource
+			this.updateResource(currentTitleResId, nextTitle);
+			return nodeId;
+		});
+
+		return res?.result ? {snap: res.snap, nodeId: res.result} : null;
 	},
 
 	// -------------------------

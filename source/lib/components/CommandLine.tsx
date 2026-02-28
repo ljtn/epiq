@@ -4,21 +4,24 @@ import React, {useEffect, useState} from 'react';
 import {CmdKeywords} from '../command-line/command-line-sequence-intent.js';
 import {
 	commandLineState,
-	getCmdValue,
 	subscribeCommandLineState,
 } from '../state/cmd.state.js';
 import {chalkColors} from '../theme/themes.js';
 import {findOverlap} from '../utils/stirng.utils.js';
 
 export const CommandLine: React.FC = () => {
-	const [input, setInput] = useState(getCmdValue());
+	const [input, setInput] = useState(commandLineState.value);
 	const [cursorPos, setCursorPos] = useState(commandLineState.cursorPosition);
 
 	useEffect(() => {
-		const unsubscribe = subscribeCommandLineState(() => {
-			setInput(getCmdValue());
+		const sync = () => {
+			setInput(commandLineState.value);
 			setCursorPos(commandLineState.cursorPosition);
-		});
+		};
+
+		const unsubscribe = subscribeCommandLineState(sync);
+
+		sync(); // ensure initial render reflects store
 		return () => {
 			unsubscribe();
 		};
