@@ -1,11 +1,10 @@
 import {ContextMap, AnyContext} from '../../model/context.model.js';
 
-export type NavNode<U extends AnyContext = 'WORKSPACE'> = {
+export type NavNode<U extends AnyContext> = {
 	id: string;
 	isSelected: boolean;
 	childRenderAxis: 'vertical' | 'horizontal';
-	title: string;
-	value: string;
+	fields: Record<'title' | 'value', string> | Record<string, string>;
 	context: U;
 	children: (U extends ContextMap['WORKSPACE']
 		? NavNode<'BOARD'>

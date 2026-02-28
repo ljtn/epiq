@@ -12,8 +12,7 @@ export type NodeType =
 
 export type WorkspaceDiskNode = {
 	id: string;
-	title: string; // resource id (versioned)
-	value?: string; // resource id (versioned)
+	fields: Record<string, string>;
 	children: string[] | [];
 };
 
@@ -41,6 +40,9 @@ const SEED_RESOURCES = {
 	fieldTitleTags: 'seed:field-title:tags',
 } as const;
 
+const DESCRIPTION_PLACEHOLDER = `...add description
+`;
+
 export const storageManager = {
 	rootPath: '',
 	snapshot: null as WorkspaceSnapshot | null,
@@ -61,7 +63,7 @@ export const storageManager = {
 		// ensure logical state folder exists
 		fileManager.mkDir(this.stateFolder(WORKSPACE_STATE_ID));
 
-		// Create seeded fields
+		// Create seeded field
 		this.ensureSeeds();
 
 		const snap = this.readLatestSnapshot() ?? this.createInitialSnapshot();
@@ -156,7 +158,6 @@ export const storageManager = {
 			createdAt: new Date().toISOString(),
 		};
 
-		// ensure folder exists
 		fileManager.mkDir(this.stateFolder(stateId));
 
 		fileManager.writeToFile(
@@ -190,7 +191,6 @@ export const storageManager = {
 			.sort();
 	},
 
-	// indexFromLatest: 0 = latest, 1 = previous, ...
 	resolveResourceVersion(
 		resourceId: string,
 		indexFromLatest = 0,
@@ -203,10 +203,6 @@ export const storageManager = {
 		return file ? file.replace(/\.txt$/, '') : null;
 	},
 
-	/**
-	 * Create a new logical resource (new folder) with initial version.
-	 * Returns the resource id (stable), not the version id.
-	 */
 	createResource(value: string) {
 		const resourceId = ulid();
 		fileManager.mkDir(this.resourceFolder(resourceId));
@@ -220,10 +216,6 @@ export const storageManager = {
 		return {value: value ?? '', id: resourceId, versionId};
 	},
 
-	/**
-	 * Append a new version to an existing resource id.
-	 * If resource doesn't exist, creates it (handy for migrations).
-	 */
 	updateResource(resourceId: string, nextValue: string) {
 		fileManager.mkDir(this.resourceFolder(resourceId));
 
@@ -236,11 +228,6 @@ export const storageManager = {
 		return {value: nextValue ?? '', id: resourceId, versionId};
 	},
 
-	/**
-	 * Default latest. Pass indexFromLatest to read older versions.
-	 * indexFromLatest = 0 => latest
-	 * indexFromLatest = 1 => previous
-	 */
 	getResource(resourceId: string | undefined, indexFromLatest = 0): string {
 		if (!resourceId) return '';
 
@@ -316,7 +303,12 @@ export const storageManager = {
 		{
 			title,
 			children,
-		}: {title: string; children?: WorkspaceDiskNode['children']},
+			fields,
+		}: {
+			title: string;
+			children?: WorkspaceDiskNode['children'];
+			fields?: Record<string, string>;
+		},
 		titleResourceId?: string,
 	): WorkspaceDiskNode {
 		const id = ulid();
@@ -324,7 +316,10 @@ export const storageManager = {
 
 		const node: WorkspaceDiskNode = {
 			id,
-			title: effectiveTitleId,
+			fields: {
+				title: effectiveTitleId,
+				...(fields ?? {}),
+			},
 			children: children ?? [],
 		};
 
@@ -405,18 +400,15 @@ export const storageManager = {
 
 	createIssue(parentSwimlaneId: string, title: string): WorkspaceDiskNode {
 		const {snap, result: issueId} = this.mutate(draft => {
-			const descriptionField = this.createFieldInDraft(
-				draft,
-				'Description',
-				[''],
-				SEED_RESOURCES.fieldTitleDescription,
-			);
-			const tagsField = this.createFieldInDraft(
-				draft,
-				'Description',
-				[''],
-				SEED_RESOURCES.fieldTitleTags,
-			);
+			const descriptionField = this.createFieldInDraft(draft, {
+				labelResourceId: SEED_RESOURCES.fieldTitleDescription,
+				initialValue: DESCRIPTION_PLACEHOLDER,
+			});
+
+			const tagsField = this.createFieldInDraft(draft, {
+				labelResourceId: SEED_RESOURCES.fieldTitleTags,
+				initialValue: 'demo',
+			});
 
 			const issue = this.createNodeInMemory(draft, 'issues', {
 				title,
@@ -439,21 +431,32 @@ export const storageManager = {
 		return issue;
 	},
 
+	/**
+	 * Field nodes:
+	 * - fields.title is the label (seeded resource id)
+	 * - fields.value is the value (resource id)
+	 * - children is for nested nodes
+	 */
 	createFieldInDraft(
 		draft: WorkspaceSnapshot,
-		title: string,
-		values: string[],
-		titleResourceId?: string,
+		{
+			labelResourceId,
+			initialValue,
+		}: {labelResourceId: string; initialValue: string},
 	): WorkspaceDiskNode {
-		const resourceIds = values.map(v => this.createResource(v).id);
+		const valueResourceId = this.createResource(initialValue).id;
+
 		return this.createNodeInMemory(
 			draft,
 			'fields',
 			{
-				title, // only used to create resource if override not provided
-				children: resourceIds,
+				title: 'PLACEHOLDER', // ignored because we pass titleResourceId
+				children: [],
+				fields: {
+					value: valueResourceId,
+				},
 			},
-			titleResourceId,
+			labelResourceId,
 		);
 	},
 
@@ -492,7 +495,6 @@ export const storageManager = {
 			}
 
 			const fromChildren = [...fromParent.children];
-
 			const [movedId] = fromChildren.splice(fromIndex, 1);
 
 			draft.nodes[parentType][fromParentId] = {
@@ -504,10 +506,7 @@ export const storageManager = {
 				fromParentId === toParentId ? fromChildren : [...toParent.children];
 
 			const clampedIndex = Math.max(0, Math.min(toIndex, baseChildren.length));
-
-			if (movedId) {
-				baseChildren.splice(clampedIndex, 0, movedId);
-			}
+			if (movedId) baseChildren.splice(clampedIndex, 0, movedId);
 
 			draft.nodes[parentType][toParentId] = {
 				...toParent,
@@ -529,20 +528,12 @@ export const storageManager = {
 	// Convenience “require” APIs
 	// -------------------------
 
-	/**
-	 * Require state snapshot version; defaults to latest.
-	 * indexFromLatest=1 gets previous snapshot, etc.
-	 */
 	requireState(indexFromLatest = 0): WorkspaceSnapshot {
 		const snap = this.readSnapshot(WORKSPACE_STATE_ID, indexFromLatest);
 		if (!snap) return logger.error('No snapshot found');
 		return snap;
 	},
 
-	/**
-	 * Require resource; defaults to latest.
-	 * indexFromLatest=1 gets previous version, etc.
-	 */
 	requireResource(resourceId: string, indexFromLatest = 0): string {
 		return this.getResource(resourceId, indexFromLatest);
 	},

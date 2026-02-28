@@ -44,7 +44,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 					bold
 					color={isParentOfCurrentContext ? theme.accent : theme.primary}
 				>
-					{swimlane.title}
+					{swimlane.fields['title']}
 				</Text>
 			</Box>
 			<Box padding={1}>

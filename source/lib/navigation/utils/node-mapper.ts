@@ -15,6 +15,15 @@ import {
 import {NavNode} from '../model/navigation-node.model.js';
 
 export const nodeMapper = {
+	resolveFields(data: WorkspaceDiskNode): Record<string, string> {
+		return Object.fromEntries(
+			Object.entries(data.fields).map(([key, resourceId]) => {
+				logger.debug(key, resourceId);
+				return [key, storageManager.getResource(resourceId)];
+			}),
+		);
+	},
+
 	contextToNodeTypeMap(ctx: AnyContext): NodeType {
 		const ctxMap = {
 			WORKSPACE: 'workspaces',
@@ -29,8 +38,7 @@ export const nodeMapper = {
 	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
 		return {
 			id: data.id,
-			title: storageManager.getResource(data.title),
-			value: storageManager.getResource(data.value),
+			fields: this.resolveFields(data),
 			context: contextMap.WORKSPACE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -45,8 +53,7 @@ export const nodeMapper = {
 	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
 		return {
 			id: data.id,
-			title: storageManager.getResource(data.title),
-			value: storageManager.getResource(data.value),
+			fields: this.resolveFields(data),
 			context: contextMap.BOARD,
 			isSelected: false,
 			childRenderAxis: 'horizontal',
@@ -61,8 +68,7 @@ export const nodeMapper = {
 	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
 		return {
 			id: data.id,
-			title: storageManager.getResource(data.title),
-			value: storageManager.getResource(data.value),
+			fields: this.resolveFields(data),
 			context: contextMap.SWIMLANE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -78,8 +84,7 @@ export const nodeMapper = {
 	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
 		return {
 			id: data.id,
-			title: storageManager.getResource(data.title),
-			value: storageManager.getResource(data.value),
+			fields: this.resolveFields(data),
 			context: contextMap.TICKET,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -95,8 +100,7 @@ export const nodeMapper = {
 	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
 		return {
 			id: data.id,
-			title: storageManager.getResource(data.title),
-			value: storageManager.getResources(data.children),
+			fields: this.resolveFields(data),
 			context: contextMap.TICKET_FIELD,
 			isSelected: false,
 			childRenderAxis: 'vertical',

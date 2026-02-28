@@ -1,11 +1,7 @@
 import {Box, Text} from 'ink';
-import {marked} from 'marked';
-import {markedTerminal} from 'marked-terminal';
-import React, {useEffect, useState} from 'react';
+import React from 'react';
 import {TicketField} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
-
-marked.use(markedTerminal() as any);
 
 type Props = {
 	field: TicketField;
@@ -13,26 +9,14 @@ type Props = {
 };
 
 export const TicketFieldUI: React.FC<Props> = ({field, selected}) => {
-	const [value, setValue] = useState<string>('');
-
-	useEffect(() => {
-		let cancelled = false;
-
-		(async () => {
-			const rendered = await marked.parse(field.value);
-			if (!cancelled) setValue(rendered);
-		})();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [field.value]);
-
 	return (
 		<Box flexDirection="column" paddingTop={1}>
+			{/* Label */}
 			<Text color={selected ? theme.primary : theme.secondary}>
-				{' ' + field.title}:
+				{' ' + field.fields.title}:
 			</Text>
+
+			{/* Value Box */}
 			<Box
 				flexDirection="row"
 				borderStyle="round"
@@ -40,7 +24,7 @@ export const TicketFieldUI: React.FC<Props> = ({field, selected}) => {
 				paddingLeft={1}
 				paddingRight={1}
 			>
-				<Text>{value || ' '}</Text>
+				<Text>{field.fields.value}</Text>
 			</Box>
 		</Box>
 	);
