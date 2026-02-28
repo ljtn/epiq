@@ -36,6 +36,11 @@ const RESOURCES_DIR = path.join('snapshots', 'resources');
 // logical state “resource” id (single stream of versions)
 const WORKSPACE_STATE_ID = 'workspace';
 
+const SEED_RESOURCES = {
+	fieldTitleDescription: 'seed:field-title:description',
+	fieldTitleTags: 'seed:field-title:tags',
+} as const;
+
 export const storageManager = {
 	rootPath: '',
 	snapshot: null as WorkspaceSnapshot | null,
@@ -56,6 +61,9 @@ export const storageManager = {
 		// ensure logical state folder exists
 		fileManager.mkDir(this.stateFolder(WORKSPACE_STATE_ID));
 
+		// Create seeded fields
+		this.ensureSeeds();
+
 		const snap = this.readLatestSnapshot() ?? this.createInitialSnapshot();
 		if (!snap) {
 			logger.error('Could not initialize workspace snapshot');
@@ -71,6 +79,26 @@ export const storageManager = {
 		}
 
 		return ws;
+	},
+
+	ensureSeedResource(resourceId: string, initialValue: string) {
+		// If folder exists, assume it has at least one version.
+		if (fileManager.dirExists(this.resourceFolder(resourceId))) return;
+
+		fileManager.mkDir(this.resourceFolder(resourceId));
+		const versionId = ulid();
+		fileManager.writeToFile(
+			this.resourceVersionPath(resourceId, versionId),
+			initialValue,
+		);
+	},
+
+	ensureSeeds() {
+		this.ensureSeedResource(
+			SEED_RESOURCES.fieldTitleDescription,
+			'Description',
+		);
+		this.ensureSeedResource(SEED_RESOURCES.fieldTitleTags, 'Tags');
 	},
 
 	// -------------------------
@@ -289,15 +317,14 @@ export const storageManager = {
 			title,
 			children,
 		}: {title: string; children?: WorkspaceDiskNode['children']},
+		titleResourceId?: string,
 	): WorkspaceDiskNode {
 		const id = ulid();
-
-		// title is a versioned resource id
-		const titleResourceId = this.createResource(title).id;
+		const effectiveTitleId = titleResourceId ?? this.createResource(title).id;
 
 		const node: WorkspaceDiskNode = {
 			id,
-			title: titleResourceId,
+			title: effectiveTitleId,
 			children: children ?? [],
 		};
 
@@ -378,10 +405,18 @@ export const storageManager = {
 
 	createIssue(parentSwimlaneId: string, title: string): WorkspaceDiskNode {
 		const {snap, result: issueId} = this.mutate(draft => {
-			const descriptionField = this.createFieldInDraft(draft, 'Description', [
-				'',
-			]);
-			const tagsField = this.createFieldInDraft(draft, 'Tags', ['demo']);
+			const descriptionField = this.createFieldInDraft(
+				draft,
+				'Description',
+				[''],
+				SEED_RESOURCES.fieldTitleDescription,
+			);
+			const tagsField = this.createFieldInDraft(
+				draft,
+				'Description',
+				[''],
+				SEED_RESOURCES.fieldTitleTags,
+			);
 
 			const issue = this.createNodeInMemory(draft, 'issues', {
 				title,
@@ -408,13 +443,20 @@ export const storageManager = {
 		draft: WorkspaceSnapshot,
 		title: string,
 		values: string[],
+		titleResourceId?: string,
 	): WorkspaceDiskNode {
 		const resourceIds = values.map(v => this.createResource(v).id);
-		return this.createNodeInMemory(draft, 'fields', {
-			title,
-			children: resourceIds,
-		});
+		return this.createNodeInMemory(
+			draft,
+			'fields',
+			{
+				title, // only used to create resource if override not provided
+				children: resourceIds,
+			},
+			titleResourceId,
+		);
 	},
+
 	// ---------- move ----------
 	move({
 		parentType,
