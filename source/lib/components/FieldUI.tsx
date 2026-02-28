@@ -1,14 +1,14 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {TicketField} from '../model/context.model.js';
+import {Field} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 
 type Props = {
-	field: TicketField;
+	field: Field;
 	selected: boolean;
 };
 
-export const TicketFieldUI: React.FC<Props> = ({field, selected}) => {
+export const FieldUI: React.FC<Props> = ({field, selected}) => {
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			{/* Label */}

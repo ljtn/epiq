@@ -29,22 +29,19 @@ export type WorkspaceSnapshot = {
 	};
 };
 
-const STATE_DIR = path.join('snapshots', 'state');
-const RESOURCES_DIR = path.join('snapshots', 'resources');
-
 // logical state “resource” id (single stream of versions)
 const WORKSPACE_STATE_ID = 'workspace';
 
 const SEED_RESOURCES = {
-	fieldTitle: 'seed:field-title:description',
-	fieldTags: 'seed:field-title:tags',
+	name: 'seed:fieldName:name',
+	tags: 'seed:fieldName:tags',
+	assignees: 'seed:fieldName:assignees',
 } as const;
 
-const DESCRIPTION_PLACEHOLDER = `...add description
-`;
-
 export const storageManager = {
-	rootPath: '',
+	ROOT_DIR: '',
+	RESOURCES_DIR: '',
+	STATE_DIR: '',
 	snapshot: null as WorkspaceSnapshot | null,
 
 	loadWorkspace() {
@@ -54,11 +51,13 @@ export const storageManager = {
 			return null;
 		}
 
-		this.rootPath = root;
+		this.ROOT_DIR = root;
+		this.RESOURCES_DIR = path.join(this.ROOT_DIR, 'snapshots', 'resources');
+		this.STATE_DIR = path.join(this.ROOT_DIR, 'snapshots', 'state');
 
 		// base dirs
-		fileManager.mkDir(path.join(this.rootPath, STATE_DIR));
-		fileManager.mkDir(path.join(this.rootPath, RESOURCES_DIR));
+		fileManager.mkDir(this.STATE_DIR);
+		fileManager.mkDir(this.RESOURCES_DIR);
 
 		// ensure logical state folder exists
 		fileManager.mkDir(this.stateFolder(WORKSPACE_STATE_ID));
@@ -96,8 +95,8 @@ export const storageManager = {
 	},
 
 	ensureSeeds() {
-		this.ensureSeedResource(SEED_RESOURCES.fieldTitle, 'Description');
-		this.ensureSeedResource(SEED_RESOURCES.fieldTags, 'Tags');
+		this.ensureSeedResource(SEED_RESOURCES.name, 'Description');
+		this.ensureSeedResource(SEED_RESOURCES.tags, 'Tags');
 	},
 
 	// -------------------------
@@ -105,7 +104,7 @@ export const storageManager = {
 	// -------------------------
 
 	stateFolder(stateId: string) {
-		return path.join(this.rootPath, STATE_DIR, stateId);
+		return path.join(this.STATE_DIR, stateId);
 	},
 
 	stateVersionPath(stateId: string, versionId: string) {
@@ -171,7 +170,7 @@ export const storageManager = {
 	// -------------------------
 
 	resourceFolder(resourceId: string) {
-		return path.join(this.rootPath, RESOURCES_DIR, resourceId);
+		return path.join(this.RESOURCES_DIR, resourceId);
 	},
 
 	resourceVersionPath(resourceId: string, versionId: string) {
@@ -396,20 +395,27 @@ export const storageManager = {
 	},
 
 	createIssue(parentSwimlaneId: string, title: string): WorkspaceDiskNode {
+		const DESCRIPTION_PLACEHOLDER = `...`;
+
 		const {snap, result: issueId} = this.mutate(draft => {
 			const descriptionField = this.createFieldInDraft(draft, {
-				labelResourceId: SEED_RESOURCES.fieldTitle,
+				labelResourceId: SEED_RESOURCES.name,
 				initialValue: DESCRIPTION_PLACEHOLDER,
 			});
 
 			const tagsField = this.createFieldInDraft(draft, {
-				labelResourceId: SEED_RESOURCES.fieldTags,
+				labelResourceId: SEED_RESOURCES.tags,
 				initialValue: 'demo',
+			});
+
+			const assigneesField = this.createFieldInDraft(draft, {
+				labelResourceId: SEED_RESOURCES.assignees,
+				initialValue: '',
 			});
 
 			const issue = this.createNodeInMemory(draft, 'issues', {
 				title,
-				children: [descriptionField.id, tagsField.id],
+				children: [assigneesField.id, descriptionField.id, tagsField.id],
 			});
 
 			const lane = draft.nodes.swimlanes[parentSwimlaneId];
@@ -427,6 +433,32 @@ export const storageManager = {
 		if (!issue) return logger.error('Unable to create issue');
 		return issue;
 	},
+
+	// createUser(title: string): WorkspaceDiskNode {
+	// 	const NAME_PLACEHOLDER = `createRandom8CharName()`;
+
+	// 	const {snap, result: userId} = this.mutate(draft => {
+	// 		const nameField = this.createFieldInDraft(draft, {
+	// 			labelResourceId: SEED_RESOURCES.name,
+	// 			initialValue: NAME_PLACEHOLDER,
+	// 		});
+
+	// 		const user = this.createNodeInMemory(draft, 'issues', {
+	// 			title,
+	// 			children: [nameField.id],
+	// 		});
+
+	// 		draft.nodes.settings.users[user.id] = {
+	// 			...user,
+	// 		};
+
+	// 		return user.id;
+	// 	});
+
+	// 	const userRef = snap.nodes.settings[userId];
+	// 	if (!userRef) return logger.error('Unable to create issue');
+	// 	return userRef;
+	// },
 
 	/**
 	 * Field nodes:

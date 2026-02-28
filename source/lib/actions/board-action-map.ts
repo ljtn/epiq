@@ -11,7 +11,7 @@ type ContextActions = ActionMap<{
 	[contextMap.BOARD]: ActionEntry[];
 	[contextMap.SWIMLANE]: ActionEntry[];
 	[contextMap.TICKET]: ActionEntry[];
-	[contextMap.TICKET_FIELD]: ActionEntry[];
+	[contextMap.FIELD]: ActionEntry[];
 }>;
 
 export const contextActions: ContextActions = {
@@ -23,5 +23,5 @@ export const contextActions: ContextActions = {
 		...moveAcrossParents,
 	],
 	[contextMap.TICKET]: [],
-	[contextMap.TICKET_FIELD]: [],
+	[contextMap.FIELD]: [],
 };

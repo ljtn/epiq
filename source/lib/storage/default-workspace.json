@@ -14,7 +14,7 @@
 									"name": "Tags",
 									"children": [],
 									"value": "demo",
-									"context": "TICKET_FIELD",
+									"context": "FIELD",
 									"isSelected": false,
 									"childrenRenderAxis": "vertical"
 								},
@@ -22,7 +22,7 @@
 									"name": "Description",
 									"children": [],
 									"value": "OVERVIEW\\nSet up an end-to-end pipeline so every change is validated before release.\\n\\nSCOPE\\n- Typecheck + lint\\n- Unit tests\\n- Build artifacts\\n- Optional release step\\n\\nACCEPTANCE CRITERIA\\n- Runs on PR and main\\n- Failing checks block merge\\n- Produces a versioned build artifact\\n\\nNOTES\\nKeep execution time low using caching where possible.",
-									"context": "TICKET_FIELD",
+									"context": "FIELD",
 									"isSelected": false,
 									"childrenRenderAxis": "vertical"
 								}

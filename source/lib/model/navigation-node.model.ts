@@ -13,7 +13,7 @@ export type NavNode<U extends AnyContext> = {
 		: U extends ContextMap['SWIMLANE']
 		? NavNode<'TICKET'>
 		: U extends ContextMap['TICKET']
-		? NavNode<'TICKET_FIELD'>
-		: NavNode<'TICKET_FIELD'>)[];
+		? NavNode<'FIELD'>
+		: NavNode<'FIELD'>)[];
 	childNavigationAcrossParents?: boolean;
 };

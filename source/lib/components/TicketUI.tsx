@@ -2,7 +2,7 @@ import {Box} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
 import {appState} from '../state/state.js';
-import {TicketFieldUI} from './TicketField.js';
+import {FieldUI} from './FieldUI.js';
 
 type Props = {
 	ticket: Ticket;
@@ -21,11 +21,11 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			minHeight={height}
 		>
 			{ticket.children.map((child, index) => (
-				<TicketFieldUI
+				<FieldUI
 					key={index}
 					field={child}
 					selected={appState.selectedIndex === index}
-				></TicketFieldUI>
+				></FieldUI>
 			))}
 		</Box>
 	);

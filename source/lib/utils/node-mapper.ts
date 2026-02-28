@@ -29,7 +29,7 @@ export const nodeMapper = {
 			BOARD: this.toBoard(node),
 			SWIMLANE: this.toSwimlane(node),
 			TICKET: this.toIssue(node),
-			TICKET_FIELD: this.toField(node),
+			FIELD: this.toField(node),
 		};
 		return mapMethods[ctx];
 	},
@@ -40,7 +40,7 @@ export const nodeMapper = {
 			BOARD: 'boards',
 			SWIMLANE: 'swimlanes',
 			TICKET: 'issues',
-			TICKET_FIELD: 'fields',
+			FIELD: 'fields',
 		} as const;
 		return ctxMap[ctx];
 	},
@@ -111,7 +111,7 @@ export const nodeMapper = {
 		return {
 			id: data.id,
 			fields: this.resolveFields(data),
-			context: contextMap.TICKET_FIELD,
+			context: contextMap.FIELD,
 			isSelected: false,
 			childRenderAxis: 'vertical',
 			children: [],

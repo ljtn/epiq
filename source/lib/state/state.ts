@@ -22,7 +22,7 @@ export type BreadCrumb =
 			NavNode<'BOARD'>,
 			NavNode<'SWIMLANE'>,
 			NavNode<'TICKET'>,
-			NavNode<'TICKET_FIELD'>,
+			NavNode<'FIELD'>,
 	  ];
 export type AppState = {
 	readonly selectedIndex: number;

@@ -22,7 +22,7 @@ export const Hints = {
 	[contextMap.TICKET + Mode.HELP]: [exit],
 	[contextMap.SWIMLANE + Mode.HELP]: [exit],
 	[contextMap.TICKET]: [edit, initMove],
-	[contextMap.TICKET_FIELD]: [],
+	[contextMap.FIELD]: [],
 	[contextMap.SWIMLANE + Mode.MOVE]: [moveSelection, confirmMove],
 	[contextMap.TICKET + Mode.MOVE]: [moveSelection, enter, confirmMove],
 } as const;
