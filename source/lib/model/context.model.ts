@@ -8,7 +8,7 @@ export const contextMap = {
 	FIELD: 'FIELD',
 } as const;
 
-export type Workspace = NavNode<'WORKSPACE'> & {settings: NavNode<'FIELD'>};
+export type Workspace = NavNode<'WORKSPACE'>;
 export type Board = NavNode<'BOARD'>;
 export type Swimlane = NavNode<'SWIMLANE'>;
 export type Ticket = NavNode<'TICKET'>;

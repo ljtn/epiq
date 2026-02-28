@@ -1,4 +1,5 @@
 import {
+	accessSync,
 	existsSync,
 	mkdirSync,
 	readdirSync,
@@ -50,6 +51,15 @@ export const fileManager = {
 	dirExists: (dir: string): boolean => {
 		try {
 			return existsSync(dir) && statSync(dir).isDirectory();
+		} catch {
+			return false;
+		}
+	},
+
+	async fileExists(p: string) {
+		try {
+			await accessSync(p);
+			return true;
 		} catch {
 			return false;
 		}

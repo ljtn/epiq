@@ -6,7 +6,7 @@ import React from 'react';
 import App from './app.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import {appState, initWorkspaceState} from './lib/state/state.js';
-import {initProject} from './init-project.js';
+import {initProject} from './InitView.js';
 import {storageManager} from './lib/storage/storage-manager.js';
 import {nodeMapper} from './lib/utils/node-mapper.js';
 
