@@ -35,11 +35,17 @@ export const SwimlaneUI: React.FC<Props> = ({
 			<Box
 				borderStyle={'round'}
 				borderColor={theme.secondary}
-				justifyContent="center"
+				justifyContent="flex-start"
 				borderLeft={false}
 				borderTop={false}
 				borderRight={false}
 			>
+				<Text
+					bold
+					color={isParentOfCurrentContext ? theme.accent : theme.primary}
+				>
+					{swimlane.isSelected ? '⸬ ' : '  '}
+				</Text>
 				<Text
 					bold
 					color={isParentOfCurrentContext ? theme.accent : theme.primary}

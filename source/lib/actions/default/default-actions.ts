@@ -1,3 +1,4 @@
+import {editSelectedTicketFieldValue} from '../../../editor/editor.js';
 import {CmdIntent} from '../../command-line/command-line-sequence-intent.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
@@ -56,6 +57,13 @@ export const DefaultActions: ActionEntry[] = [
 			if (appState.currentNode.context === 'TICKET') {
 				// Use editor
 				logger.debug(CmdIntent.Rename, appState.currentNode.fields.title);
+				editSelectedTicketFieldValue();
+				patchState({mode: Mode.DEFAULT});
+				navigator.navigate({
+					currentNode: appState.currentNode,
+					selectedIndex: appState.selectedIndex,
+				});
+				return;
 			} else {
 				// Use command line
 				patchState({mode: Mode.COMMAND_LINE});
