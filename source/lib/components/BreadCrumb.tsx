@@ -14,14 +14,14 @@ export const Breadcrumb: React.FC = () => {
 
 				// Only the last crumb level should use the current selectedIndex
 				const selectedChildTitle = isLast
-					? b.children?.[appState.selectedIndex]?.fields?.['title']
+					? b.children?.[appState.selectedIndex]?.name
 					: undefined;
 
 				return (
 					<Box key={`${b.id ?? i}-${i}`}>
 						<Text color={theme.secondary}>{i ? ' / ' : ''}</Text>
 
-						<Text color={theme.secondary}>{b.fields?.['title'] ?? ''}</Text>
+						<Text color={theme.secondary}>{b.name ?? ''}</Text>
 
 						{selectedChildTitle ? (
 							<Text color={theme.primary}>{` ⸬ ${selectedChildTitle}`}</Text>

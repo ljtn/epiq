@@ -11,8 +11,9 @@ export type StorageNodeType =
 
 export type WorkspaceDiskNode = {
 	id: string;
-	fields: Record<string, string>;
+	name: string;
 	children: string[] | [];
+	props: Record<string, string>;
 };
 
 export type WorkspaceSnapshot = {

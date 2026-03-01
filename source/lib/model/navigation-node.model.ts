@@ -4,7 +4,8 @@ export type NavNode<U extends AnyContext> = {
 	id: string;
 	isSelected: boolean;
 	childRenderAxis: 'vertical' | 'horizontal';
-	fields: Record<'title' | 'value', string> | Record<string, string>;
+	name: string;
+	props: Record<string, string>;
 	context: U;
 	children: (U extends ContextMap['WORKSPACE']
 		? NavNode<'BOARD'>

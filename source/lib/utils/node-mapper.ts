@@ -16,14 +16,6 @@ import {
 } from '../model/storage-node.model.js';
 
 export const nodeMapper = {
-	resolveFields(data: WorkspaceDiskNode): Record<string, string> {
-		return Object.fromEntries(
-			Object.entries(data.fields).map(([key, resourceId]) => {
-				return [key, storageManager.getResource(resourceId)];
-			}),
-		);
-	},
-
 	toNavNode(ctx: AnyContext, node: any) {
 		const mapMethods = {
 			WORKSPACE: this.toWorkspace(node),
@@ -46,24 +38,39 @@ export const nodeMapper = {
 		return ctxMap[ctx];
 	},
 
+	toChildNodeType(nodeType: StorageNodeType): StorageNodeType | null {
+		const typeMap = {
+			[StorageNodeTypes.WORKSPACE]: StorageNodeTypes.BOARD,
+			[StorageNodeTypes.BOARD]: StorageNodeTypes.SWIMLANE,
+			[StorageNodeTypes.SWIMLANE]: StorageNodeTypes.ISSUE,
+			[StorageNodeTypes.ISSUE]: StorageNodeTypes.FIELD,
+			[StorageNodeTypes.FIELD]: null,
+		} as const;
+		return typeMap[nodeType];
+	},
+
 	toParentNodeType(nodeType: StorageNodeType): StorageNodeType | null {
 		const typeMap = {
-			workspaces: null,
-			boards: StorageNodeTypes.WORKSPACE,
-			swimlanes: StorageNodeTypes.BOARD,
-			issues: StorageNodeTypes.SWIMLANE,
-			fields: StorageNodeTypes.ISSUE,
+			[StorageNodeTypes.WORKSPACE]: null,
+			[StorageNodeTypes.BOARD]: StorageNodeTypes.WORKSPACE,
+			[StorageNodeTypes.SWIMLANE]: StorageNodeTypes.BOARD,
+			[StorageNodeTypes.ISSUE]: StorageNodeTypes.SWIMLANE,
+			[StorageNodeTypes.FIELD]: StorageNodeTypes.ISSUE,
 		} as const;
 		return typeMap[nodeType];
 	},
 
 	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
+		const label = storageManager.getResource(data.name, 0);
+		const value = storageManager.getResource(data.props['value'], 0);
 		return {
 			id: data.id,
-			fields: this.resolveFields(data),
+			name: label,
+			props: {value},
 			context: NavNodeCtx.WORKSPACE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
+
 			children: data.children.reduce((acc, childId) => {
 				const item = storageManager.getNode('boards', childId);
 				if (item) acc.push(this.toBoard(item));
@@ -73,10 +80,14 @@ export const nodeMapper = {
 	},
 
 	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
+		const label = storageManager.getResource(data.name, 0);
+		const value = storageManager.getResource(data.props['value'], 0);
 		return {
 			id: data.id,
-			fields: this.resolveFields(data),
+			name: label,
+			props: {value},
 			context: NavNodeCtx.BOARD,
+
 			isSelected: false,
 			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
@@ -88,9 +99,12 @@ export const nodeMapper = {
 	},
 
 	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
+		const label = storageManager.getResource(data.name, 0);
+		const value = storageManager.getResource(data.props['value'], 0);
 		return {
 			id: data.id,
-			fields: this.resolveFields(data),
+			name: label,
+			props: {value},
 			context: NavNodeCtx.SWIMLANE,
 			isSelected: false,
 			childRenderAxis: 'vertical',
@@ -104,13 +118,15 @@ export const nodeMapper = {
 	},
 
 	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
+		const label = storageManager.getResource(data.name, 0);
+		const value = storageManager.getResource(data.props['value'], 0);
 		return {
 			id: data.id,
-			fields: this.resolveFields(data),
+			name: label,
+			props: {value},
 			context: NavNodeCtx.TICKET,
 			isSelected: false,
 			childRenderAxis: 'vertical',
-
 			children: data.children.reduce((acc, childId) => {
 				const item = storageManager.getNode('fields', childId);
 				if (item) acc.push(this.toField(item));
@@ -120,9 +136,12 @@ export const nodeMapper = {
 	},
 
 	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
+		const label = storageManager.getResource(data.name, 0);
+		const value = storageManager.getResource(data.props['value'], 0);
 		return {
 			id: data.id,
-			fields: this.resolveFields(data),
+			name: label,
+			props: {value},
 			context: NavNodeCtx.FIELD,
 			isSelected: false,
 			childRenderAxis: 'vertical',

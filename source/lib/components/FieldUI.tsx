@@ -13,7 +13,7 @@ export const FieldUI: React.FC<Props> = ({field, selected}) => {
 		<Box flexDirection="column" paddingTop={1}>
 			{/* Label */}
 			<Text color={selected ? theme.primary : theme.secondary}>
-				{' ' + field.fields.title}:
+				{' ' + field.name}:
 			</Text>
 
 			{/* Value Box */}
@@ -24,7 +24,7 @@ export const FieldUI: React.FC<Props> = ({field, selected}) => {
 				paddingLeft={1}
 				paddingRight={1}
 			>
-				<Text>{field.fields.value}</Text>
+				<Text>{field.props['value']}</Text>
 			</Box>
 		</Box>
 	);

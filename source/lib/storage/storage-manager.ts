@@ -9,6 +9,7 @@ import {
 	WorkspaceDiskNode,
 	WorkspaceSnapshot,
 } from '../model/storage-node.model.js';
+import {TEMPLATES} from './templates.js';
 
 // logical state “resource” id (single stream of versions)
 const WORKSPACE_STATE_ID = 'workspace';
@@ -25,25 +26,26 @@ export const storageManager = {
 	STATE_DIR: '',
 	snapshot: null as WorkspaceSnapshot | null,
 
+	createWorkspace() {
+		// ... implement create workspace
+	},
+
 	loadWorkspace() {
 		const root = fileManager.locateFolder('.epiq');
 		if (!root) {
 			logger.error('No project path found');
-			return null;
+			return this.createWorkspace();
 		}
 
 		this.ROOT_DIR = root;
 		this.RESOURCES_DIR = path.join(this.ROOT_DIR, 'snapshots', 'resources');
 		this.STATE_DIR = path.join(this.ROOT_DIR, 'snapshots', 'state');
 
-		// base dirs
 		fileManager.mkDir(this.STATE_DIR);
 		fileManager.mkDir(this.RESOURCES_DIR);
-
-		// ensure logical state folder exists
 		fileManager.mkDir(this.stateFolder(WORKSPACE_STATE_ID));
 
-		// Create seeded field
+		// Create seeded fields
 		this.ensureSeeds();
 
 		const snap = this.readLatestSnapshot() ?? this.createInitialSnapshot();
@@ -78,6 +80,7 @@ export const storageManager = {
 	ensureSeeds() {
 		this.ensureSeedResource(SEED_RESOURCES.name, 'Description');
 		this.ensureSeedResource(SEED_RESOURCES.tags, 'Tags');
+		this.ensureSeedResource(SEED_RESOURCES.assignees, 'Assignees');
 	},
 
 	// -------------------------
@@ -102,7 +105,6 @@ export const storageManager = {
 			.sort(); // ulid sort === time sort
 	},
 
-	// indexFromLatest: 0 = latest, 1 = previous, ...
 	readSnapshot(
 		stateId = WORKSPACE_STATE_ID,
 		indexFromLatest = 0,
@@ -206,7 +208,8 @@ export const storageManager = {
 	},
 
 	getResource(resourceId: string | undefined, indexFromLatest = 0): string {
-		if (!resourceId) return '';
+		if (!resourceId)
+			return logger.error('Missing id - unable to resolve resource');
 
 		const versionId = this.resolveResourceVersion(resourceId, indexFromLatest);
 		if (!versionId) return logger.error('Unable to resolve resource version');
@@ -233,16 +236,28 @@ export const storageManager = {
 		try {
 			const draft = this.emptySnapshotDraft();
 
+			const swimlanesIds = TEMPLATES.swimlanes.map(
+				name =>
+					this.createNodeInMemory(draft, StorageNodeTypes.SWIMLANE, {
+						name,
+						children: [],
+						props: {},
+					}).id,
+			);
+			logger.debug(swimlanesIds);
+
 			const board = this.createNodeInMemory(draft, StorageNodeTypes.BOARD, {
-				title: 'Board',
-				children: [],
+				name: 'Board',
+				children: swimlanesIds,
+				props: {},
 			});
 			const workspace = this.createNodeInMemory(
 				draft,
 				StorageNodeTypes.WORKSPACE,
 				{
-					title: 'Workspace',
+					name: 'Workspace',
 					children: [board.id],
+					props: {},
 				},
 			);
 
@@ -275,33 +290,29 @@ export const storageManager = {
 		draft: WorkspaceSnapshot,
 		nodeType: StorageNodeType,
 		{
-			title,
+			name,
 			children,
-			fields,
+			props,
 		}: {
-			title: string;
-			children?: WorkspaceDiskNode['children'];
-			fields?: Record<string, string>;
+			name: string;
+			children?: string[];
+			props?: Record<string, string>;
 		},
-		titleResourceId?: string,
 	): WorkspaceDiskNode {
 		const id = ulid();
-		const effectiveTitleId = titleResourceId ?? this.createResource(title).id;
 
 		const node: WorkspaceDiskNode = {
 			id,
-			fields: {
-				title: effectiveTitleId,
-				...(fields ?? {}),
-			},
+			name: this.createResource(name).id,
 			children: children ?? [],
+			props: props ?? {},
 		};
 
 		draft.nodes[nodeType][id] = node;
 		return node;
 	},
 
-	mutate<T>(mutator: (draftWs: WorkspaceSnapshot) => T): {
+	mutateState<T>(mutator: (draftWs: WorkspaceSnapshot) => T): {
 		snap: WorkspaceSnapshot;
 		result: T;
 	} {
@@ -314,31 +325,55 @@ export const storageManager = {
 
 	createNode(
 		parentId: string,
-		title: string,
+		name: string,
 		nodeType: StorageNodeType,
-		children?: {id: string; initialValue: string}[],
+		children?: {id?: string; initialValue: string}[],
 	): WorkspaceDiskNode {
-		const {snap, result: id} = this.mutate(draft => {
-			const childFields = children
-				? children.map(
-						child =>
-							this.createFieldInDraft(draft, {
-								labelResourceId: child.id,
-								initialValue: child.initialValue,
-							}).id,
-				  )
-				: [];
+		const {snap, result: nodeId} = this.mutateState(draft => {
+			const childNodeType = nodeMapper.toChildNodeType(nodeType);
+
+			const childIds: string[] = (children ?? []).map(child => {
+				if (!childNodeType) {
+					throw new Error(`Unable to map child node type from ${nodeType}`);
+				}
+
+				// ✅ Case 1: FIELD children => label/value
+				if (childNodeType === StorageNodeTypes.FIELD) {
+					const labelResId = child.id ?? SEED_RESOURCES.name;
+					const labelText = this.getResource(labelResId) || 'Field';
+					const valueResId = this.createResource(child.initialValue).id;
+
+					return this.createNodeInMemory(draft, childNodeType, {
+						name: labelText,
+						children: [],
+						props: {value: valueResId},
+					}).id;
+				}
+
+				// ✅ Case 2: non-FIELD children => normal nodes
+				// (swimlanes, issues, boards, etc)
+				return this.createNodeInMemory(draft, childNodeType, {
+					name: child.initialValue,
+					children: [],
+					props: {},
+				}).id;
+			});
 
 			const node = this.createNodeInMemory(draft, nodeType, {
-				title,
-				children: childFields,
+				name,
+				children: childIds,
+				props: {},
 			});
 
 			const parentType = nodeMapper.toParentNodeType(nodeType);
+			if (!parentType) {
+				throw new Error(`Parent node type not found for ${nodeType}`);
+			}
 
-			if (!parentType) return logger.error('Parent node type not found');
 			const parent = draft.nodes[parentType][parentId];
-			if (!parent) throw new Error(`Parent ${parentId} not found`);
+			if (!parent) {
+				throw new Error(`Parent ${parentId} not found in ${parentType}`);
+			}
 
 			draft.nodes[parentType][parentId] = {
 				...parent,
@@ -348,30 +383,9 @@ export const storageManager = {
 			return node.id;
 		});
 
-		const issue = snap.nodes.issues[id];
-		if (!issue) return logger.error('Unable to create issue');
-		return issue;
-	},
-
-	createFieldInDraft(
-		draft: WorkspaceSnapshot,
-		{
-			labelResourceId,
-			initialValue,
-		}: {labelResourceId: string; initialValue: string},
-	): WorkspaceDiskNode {
-		return this.createNodeInMemory(
-			draft,
-			StorageNodeTypes.FIELD,
-			{
-				title: 'PLACEHOLDER', // ignored because we pass titleResourceId
-				children: [],
-				fields: {
-					value: this.createResource(initialValue).id,
-				},
-			},
-			labelResourceId,
-		);
+		const newNode = snap.nodes[nodeType][nodeId];
+		if (!newNode) return logger.error('Unable to create node');
+		return newNode;
 	},
 
 	// ---------- move ----------
@@ -388,7 +402,7 @@ export const storageManager = {
 		toParentId: string;
 		toIndex: number;
 	}): {snap: WorkspaceSnapshot; nodeId: string} | null {
-		const {result, snap} = this.mutate(draft => {
+		const {result, snap} = this.mutateState(draft => {
 			const fromParent = draft.nodes[parentType][fromParentId];
 			const toParent = draft.nodes[parentType][toParentId];
 
@@ -437,30 +451,26 @@ export const storageManager = {
 		nodeId: string,
 		nextTitle: string,
 	) {
-		const {result, snap} = this.mutate(ws => {
+		const {result, snap} = this.mutateState(ws => {
 			const node = ws.nodes[nodeType][nodeId];
 			if (!node) return logger.error(`Node ${nodeId} not found in ${nodeType}`);
 
-			const currentTitleResId = node.fields['title'];
-			if (!currentTitleResId)
-				return logger.error(`Node ${nodeId} missing fields.title`);
+			const currentNameResId = node.name;
+			if (!currentNameResId) return logger.error(`Node ${nodeId} missing name`);
 
 			// Fork if seeded, so renaming doesn’t rename the shared seed
-			const isSeeded = currentTitleResId.startsWith('seed:');
+			const isSeeded = currentNameResId.startsWith('seed:');
 			if (isSeeded) {
 				const newTitleResId = this.createResource(nextTitle).id;
 				ws.nodes[nodeType][nodeId] = {
 					...node,
-					fields: {
-						...node.fields,
-						title: newTitleResId,
-					},
+					name: newTitleResId,
 				};
 				return nodeId;
 			}
 
 			// Normal case: append a new version to the existing title resource
-			this.updateResource(currentTitleResId, nextTitle);
+			this.updateResource(currentNameResId, nextTitle);
 			return nodeId;
 		});
 

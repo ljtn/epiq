@@ -45,7 +45,7 @@ export function editSelectedTicketFieldValue(): void {
 	const fieldDisk = storageManager.getNode('fields', selectedFieldNav.id);
 	if (!fieldDisk) return;
 
-	const valueResId = fieldDisk.fields['value'];
+	const valueResId = fieldDisk.name;
 	if (!valueResId) {
 		logger.error(`Field ${fieldDisk.id} is missing fields.value`);
 		return;

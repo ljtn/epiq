@@ -37,7 +37,7 @@ export const TicketListItemUI: React.FC<{
 					: theme.primary
 			}
 		>
-			{truncateWithEllipsis(ticket.fields['title'], width - 25)}
+			{truncateWithEllipsis(ticket.name, width - 25)}
 		</Text>
 	</Box>
 );

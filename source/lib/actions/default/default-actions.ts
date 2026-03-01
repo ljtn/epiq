@@ -56,7 +56,7 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			if (appState.currentNode.context === 'TICKET') {
 				// Use editor
-				logger.debug(CmdIntent.Rename, appState.currentNode.fields.title);
+				logger.debug(CmdIntent.Rename, appState.currentNode.name);
 				editSelectedTicketFieldValue();
 				patchState({mode: Mode.DEFAULT});
 				navigator.navigate({
@@ -70,8 +70,7 @@ export const DefaultActions: ActionEntry[] = [
 				setCmdInput(
 					() =>
 						`${CmdIntent.Rename} ${
-							appState.currentNode.children[appState.selectedIndex]?.fields
-								.title
+							appState.currentNode.children[appState.selectedIndex]?.name
 						}`,
 				);
 			}

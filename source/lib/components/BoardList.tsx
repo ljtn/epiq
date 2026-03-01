@@ -29,14 +29,14 @@ export default function BoardList({workspace}: {workspace: Workspace}) {
 								appState.selectedIndex === i ? theme.accent : theme.secondary
 							}
 						>
-							{appState.selectedIndex === i ? '◆  ' : '   '}
+							{appState.selectedIndex === i ? '⸬  ' : '   '}
 						</Text>
 						<Text
 							color={
 								appState.selectedIndex === i ? theme.accent : theme.secondary
 							}
 						>
-							{board.fields['title']}{' '}
+							{board.name}{' '}
 							{'(' +
 								board.children.flatMap(x => x.children).length +
 								' issues)'}
