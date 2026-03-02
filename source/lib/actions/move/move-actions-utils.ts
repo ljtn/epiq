@@ -1,6 +1,5 @@
-import {storageManager} from '../../storage/storage-manager.js';
 import {appState} from '../../state/state.js';
-import {nodeMapper} from '../../utils/node-mapper.js';
+import {storageManager} from '../../storage/storage-manager.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
 function moveItemInArray<T>({
@@ -47,14 +46,12 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 		return;
 
 	// Build storageManager.move arguments
-	const parentType = nodeMapper.contextToNodeTypeMap(currentNode.context);
 	const fromParentId = currentNode.id;
 	const fromIndex = currentSelectionIndex;
 	const toParentId = siblingNode.id;
 	const toIndex = siblingNode.children.length;
 
 	const moveResult = storageManager.move({
-		parentType,
 		fromParentId,
 		fromIndex,
 		toParentId,
@@ -95,13 +92,10 @@ export function moveChildWithinParent(direction: -1 | 1) {
 	if (to < 0 || to >= children.length) return;
 
 	// parentType and id come from currentNode
-	const {currentNode} = appState;
-	const parentType = nodeMapper.contextToNodeTypeMap(currentNode.context);
 	const parentId = appState.currentNode.id;
 
 	// Call storageManager.move to reorder within the same parent
 	const moveResult = storageManager.move({
-		parentType,
 		fromParentId: parentId,
 		fromIndex: from,
 		toParentId: parentId,

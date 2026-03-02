@@ -12,8 +12,14 @@ export type StorageNodeType =
 export type WorkspaceDiskNode = {
 	id: string;
 	name: string;
-	children: string[] | [];
 	props: Record<string, string>;
+};
+
+export type WorkspaceDiskNodeComposed = {
+	id: string;
+	name: string;
+	props: Record<string, string>;
+	children: string[] | [];
 };
 
 export type WorkspaceSnapshot = {

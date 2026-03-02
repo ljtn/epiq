@@ -9,7 +9,6 @@ import {nodeMapper} from '../lib/utils/node-mapper.js';
 function pickEditor(): string {
 	return process.env['VISUAL'] || process.env['EDITOR'] || 'vim';
 }
-
 function openEditorOnText(initial: string, fileLabel: string): string | null {
 	const editor = pickEditor();
 
@@ -19,17 +18,23 @@ function openEditorOnText(initial: string, fileLabel: string): string | null {
 	const tmpPath = path.join(tmpDir, fileLabel);
 	fileManager.writeToFile(tmpPath, initial ?? '');
 
-	const result = spawnSync(`${editor} "${tmpPath}"`, {
+	const isVSCode = /(^|\/)code(-insiders)?$/.test(editor);
+	const cmd = isVSCode
+		? `${editor} --wait "${tmpPath}"`
+		: `${editor} "${tmpPath}"`;
+
+	const result = spawnSync(cmd, {
 		stdio: 'inherit',
 		shell: true,
 	});
 
 	if (result.error) {
-		logger.error('Failed to launch editor', result.error);
+		console.error('Editor failed:', result.error);
 		return null;
 	}
 
-	return fileManager.readFile(tmpPath) ?? '';
+	const updated = fileManager.readFile(tmpPath);
+	return updated ?? null;
 }
 
 export function editSelectedTicketFieldValue(): void {
@@ -45,15 +50,15 @@ export function editSelectedTicketFieldValue(): void {
 	const fieldDisk = storageManager.getNode('fields', selectedFieldNav.id);
 	if (!fieldDisk) return;
 
-	const valueResId = fieldDisk.name;
+	const valueResId = fieldDisk.props?.['value'];
 	if (!valueResId) {
-		logger.error(`Field ${fieldDisk.id} is missing fields.value`);
+		logger.error(`Field ${fieldDisk.id} is missing props.value`);
 		return;
 	}
 
 	const before = storageManager.getResource(valueResId);
 
-	const edited = openEditorOnText(before, `${valueResId}.md`);
+	const edited = openEditorOnText(before, `${fieldDisk.id}.value.md`);
 	if (edited === null) return;
 
 	if (edited !== before) {

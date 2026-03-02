@@ -13,6 +13,7 @@ import {
 	StorageNodeType,
 	StorageNodeTypes,
 	WorkspaceDiskNode,
+	WorkspaceDiskNodeComposed,
 } from '../model/storage-node.model.js';
 
 export const nodeMapper = {
@@ -60,7 +61,7 @@ export const nodeMapper = {
 		return typeMap[nodeType];
 	},
 
-	toWorkspace(data: WorkspaceDiskNode): NavNode<WorkspaceContext> {
+	toWorkspace(data: WorkspaceDiskNodeComposed): NavNode<WorkspaceContext> {
 		const label = storageManager.getResource(data.name, 0);
 		const value = storageManager.getResource(data.props['value'], 0);
 		return {
@@ -79,7 +80,7 @@ export const nodeMapper = {
 		} satisfies NavNode<WorkspaceContext>;
 	},
 
-	toBoard(data: WorkspaceDiskNode): NavNode<BoardContext> {
+	toBoard(data: WorkspaceDiskNodeComposed): NavNode<BoardContext> {
 		const label = storageManager.getResource(data.name, 0);
 		const value = storageManager.getResource(data.props['value'], 0);
 		return {
@@ -98,7 +99,7 @@ export const nodeMapper = {
 		} satisfies NavNode<BoardContext>;
 	},
 
-	toSwimlane(data: WorkspaceDiskNode): NavNode<SwimlaneContext> {
+	toSwimlane(data: WorkspaceDiskNodeComposed): NavNode<SwimlaneContext> {
 		const label = storageManager.getResource(data.name, 0);
 		const value = storageManager.getResource(data.props['value'], 0);
 		return {
@@ -117,7 +118,7 @@ export const nodeMapper = {
 		} satisfies NavNode<SwimlaneContext>;
 	},
 
-	toIssue(data: WorkspaceDiskNode): NavNode<TicketContext> {
+	toIssue(data: WorkspaceDiskNodeComposed): NavNode<TicketContext> {
 		const label = storageManager.getResource(data.name, 0);
 		const value = storageManager.getResource(data.props['value'], 0);
 		return {

@@ -4,7 +4,9 @@ import {
 	mkdirSync,
 	readdirSync,
 	readFileSync,
+	rmSync,
 	statSync,
+	unlinkSync,
 	writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -121,6 +123,23 @@ export const fileManager = {
 		} catch (e) {
 			logger.error(`Failed to list dir ${folderPath}`, e);
 			return [];
+		}
+	},
+
+	rmFile(filePath: string) {
+		try {
+			unlinkSync(filePath);
+		} catch (e: any) {
+			// ignore if file doesn't exist
+			if (e?.code !== 'ENOENT') throw e;
+		}
+	},
+
+	rmDir(dirPath: string) {
+		try {
+			rmSync(dirPath, {recursive: true, force: true});
+		} catch (e: any) {
+			if (e?.code !== 'ENOENT') throw e;
 		}
 	},
 };

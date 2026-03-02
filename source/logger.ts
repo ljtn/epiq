@@ -21,7 +21,7 @@ export const logger = {
 		write('[DEBUG]', args);
 	},
 	error(...args: any[]) {
-		write('[ERROR]', args);
+		write('[ERROR]', [...args, new Error().stack]);
 	},
 };
 
