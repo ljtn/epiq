@@ -7,7 +7,7 @@ import {
 	subscribeCommandLineState,
 } from '../state/cmd.state.js';
 import {chalkColors} from '../theme/themes.js';
-import {findOverlap} from '../utils/stirng.utils.js';
+import {findOverlap} from '../utils/string.utils.js';
 
 export const CommandLine: React.FC = () => {
 	const [input, setInput] = useState(commandLineState.value);

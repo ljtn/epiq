@@ -1,9 +1,11 @@
 import {
 	accessSync,
+	copyFileSync,
 	existsSync,
 	mkdirSync,
 	readdirSync,
 	readFileSync,
+	renameSync,
 	rmSync,
 	statSync,
 	unlinkSync,
@@ -83,10 +85,10 @@ export const fileManager = {
 					existsSync(candidatePath) &&
 					statSync(candidatePath).isDirectory()
 				) {
-					return candidatePath; // full path including folder
+					return candidatePath;
 				}
 			} catch {
-				// ignore (race/permission/etc)
+				logger.error(`Unable to locate folder ${folderName}`);
 			}
 
 			if (currentPath === root) break;
@@ -115,7 +117,6 @@ export const fileManager = {
 		}
 	},
 
-	// handy for your snapshot approach
 	listDir: (folderPath: string): string[] => {
 		try {
 			if (!fileManager.dirExists(folderPath)) return [];
@@ -130,8 +131,8 @@ export const fileManager = {
 		try {
 			unlinkSync(filePath);
 		} catch (e: any) {
-			// ignore if file doesn't exist
-			if (e?.code !== 'ENOENT') throw e;
+			if (e?.code !== 'ENOENT')
+				logger.error(`Unable to remove file ${filePath}`);
 		}
 	},
 
@@ -139,7 +140,30 @@ export const fileManager = {
 		try {
 			rmSync(dirPath, {recursive: true, force: true});
 		} catch (e: any) {
-			if (e?.code !== 'ENOENT') throw e;
+			if (e?.code !== 'ENOENT') logger.error(`Unable to remove dir ${dirPath}`);
+		}
+	},
+
+	moveFile(fromPath: string, toPath: string, opts?: {overwrite?: boolean}) {
+		this.mkDir(path.dirname(toPath));
+
+		if (!opts?.overwrite && existsSync(toPath)) {
+			throw new Error(`moveFile: destination exists: ${toPath}`);
+		}
+
+		// If overwriting, remove first (works on Windows too)
+		if (opts?.overwrite) this.rmFile(toPath);
+
+		try {
+			renameSync(fromPath, toPath);
+		} catch (e: any) {
+			// Cross-device rename not permitted -> copy + delete fallback
+			if (e?.code === 'EXDEV') {
+				copyFileSync(fromPath, toPath);
+				this.rmFile(fromPath);
+				return;
+			}
+			throw e;
 		}
 	},
 };

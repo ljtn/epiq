@@ -1,15 +1,24 @@
 import stringify from 'json-stringify-pretty-compact';
 import path from 'node:path';
 import {ulid} from 'ulid';
-import {fileManager} from './file-manager.js';
-import {nodeMapper} from '../utils/node-mapper.js';
 import {
 	StorageNodeType,
 	StorageNodeTypes,
 	WorkspaceDiskNode,
 	WorkspaceDiskNodeComposed,
-	WorkspaceSnapshot,
 } from '../model/storage-node.model.js';
+import {nodeMapper} from '../utils/node-mapper.js';
+import {clamp} from '../utils/number.js';
+import {
+	bigIntToHex,
+	evenlySpacedRanks,
+	HEX_LEN,
+	hexToBigInt,
+	MAX_RANK,
+	midRank,
+	rankBetween,
+} from '../utils/rank.js';
+import {fileManager} from './file-manager.js';
 import {TEMPLATES} from './templates.js';
 
 export const SEED_RESOURCES = {
@@ -20,37 +29,6 @@ export const SEED_RESOURCES = {
 
 type Meta = {rootWorkspaceId: string};
 
-const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-const RANK_LEN = 16n; // fixed-length rank string (base62)
-const MAX_RANK = 62n ** RANK_LEN - 1n;
-
-function base62ToBigInt(s: string): bigint {
-	let n = 0n;
-	for (const ch of s) {
-		const i = BASE62.indexOf(ch);
-		if (i < 0) throw new Error(`Invalid rank char: ${ch}`);
-		n = n * 62n + BigInt(i);
-	}
-	return n;
-}
-
-function bigIntToBase62(n: bigint, len: bigint): string {
-	let x = n;
-	const out: string[] = [];
-	for (let i = 0n; i < len; i++) {
-		const r = x % 62n;
-		const ch = BASE62.charAt(Number(r));
-		if (!ch) throw new Error('Rank encoding failed');
-		out.push(ch);
-		x = x / 62n;
-	}
-	return out.reverse().join('');
-}
-
-function clamp(n: number, min: number, max: number) {
-	return Math.max(min, Math.min(max, n));
-}
-
 export const storageManager = {
 	ROOT_DIR: '',
 	RESOURCES_DIR: '',
@@ -58,7 +36,6 @@ export const storageManager = {
 	NODES_DIR: '',
 	ORDER_DIR: '',
 	META_PATH: '',
-	snapshot: null as WorkspaceSnapshot | null,
 
 	// -------------------------
 	// Idempotent bootstrap
@@ -71,10 +48,7 @@ export const storageManager = {
 		// Ensure base folder exists
 		fileManager.mkDir(epiqDir);
 
-		// Ensure snapshots/resources exists even if snapshots folder was deleted/missing
-		const snapshotsDir = path.join(epiqDir, 'snapshots');
-		this.RESOURCES_DIR = path.join(snapshotsDir, 'resources');
-		fileManager.mkDir(snapshotsDir);
+		this.RESOURCES_DIR = path.join(epiqDir, 'resources');
 		fileManager.mkDir(this.RESOURCES_DIR);
 
 		// Store dirs
@@ -97,8 +71,7 @@ export const storageManager = {
 	},
 
 	createWorkspace(): WorkspaceDiskNodeComposed | null {
-		const rootDir = process.cwd();
-		this.initStoreAtRoot(rootDir);
+		this.initStoreAtRoot(process.cwd());
 		return this.createInitialWorkspace();
 	},
 
@@ -114,7 +87,6 @@ export const storageManager = {
 
 		const rootDir = path.dirname(epiqFolder);
 
-		// This will recreate missing snapshots/resources/store subfolders if needed
 		this.initStoreAtRoot(rootDir);
 
 		const meta = this.readMeta();
@@ -153,7 +125,7 @@ export const storageManager = {
 	},
 
 	// -------------------------
-	// Versioned resources (unchanged)
+	// Versioned resources
 	// -------------------------
 
 	resourceFolder(resourceId: string) {
@@ -188,21 +160,23 @@ export const storageManager = {
 		const id = ulid();
 		fileManager.mkDir(this.resourceFolder(id));
 		const versionId = ulid();
+		const resolvedValue = value ?? '';
 		fileManager.writeToFile(
 			this.resourceVersionPath(id, versionId),
-			value ?? '',
+			resolvedValue,
 		);
-		return {value: value ?? '', id, versionId};
+		return {value: resolvedValue, id, versionId};
 	},
 
 	updateResource(id: string, nextValue: string) {
 		fileManager.mkDir(this.resourceFolder(id));
 		const versionId = ulid();
+		const resolvedValue = nextValue ?? '';
 		fileManager.writeToFile(
 			this.resourceVersionPath(id, versionId),
-			nextValue ?? '',
+			resolvedValue,
 		);
-		return {value: nextValue ?? '', id, versionId};
+		return {value: resolvedValue, id, versionId};
 	},
 
 	getResource(resourceId: string | undefined, indexFromLatest = 0): string {
@@ -314,45 +288,44 @@ export const storageManager = {
 
 	rankBetween(prev?: string, next?: string): string {
 		if (!prev && !next) {
-			// centered
-			return bigIntToBase62(MAX_RANK / 2n, RANK_LEN);
+			// Center of entire space
+			return bigIntToHex(MAX_RANK / 2n, HEX_LEN);
 		}
 
-		const a = prev ? base62ToBigInt(prev) : 0n;
-		const b = next ? base62ToBigInt(next) : MAX_RANK;
+		const a = prev ? hexToBigInt(prev) : 0n;
+		const b = next ? hexToBigInt(next) : MAX_RANK;
 
 		if (b <= a) {
-			// should never happen, but recover by putting in the middle of range
-			return bigIntToBase62(MAX_RANK / 2n, RANK_LEN);
+			// Recovery fallback
+			return bigIntToHex(MAX_RANK / 2n, HEX_LEN);
 		}
 
-		// Need at least one integer of gap; otherwise caller should rebalance.
 		const mid = (a + b) / 2n;
-		if (mid === a || mid === b) return ''; // signals "no room"
-		return bigIntToBase62(mid, RANK_LEN);
+
+		// No room between them
+		if (mid === a || mid === b) return '';
+
+		return bigIntToHex(mid, HEX_LEN);
 	},
 
 	rebalanceOrder(parentId: string) {
 		const folder = this.orderFolder(parentId);
 		fileManager.mkDir(folder);
+
 		const entries = this.listChildrenOrdered(parentId);
 		if (!entries.length) return;
 
-		// Evenly space ranks across [0..MAX]
-		const n = BigInt(entries.length);
+		const ranks = evenlySpacedRanks(entries.length);
+
 		for (let i = 0; i < entries.length; i++) {
 			const childId = entries[i]!.childId;
-			const rank = bigIntToBase62(
-				(MAX_RANK * BigInt(i + 1)) / (n + 1n),
-				RANK_LEN,
-			);
+			const rank = ranks[i]!;
 			const nextFile = `${rank}.${childId}.link`;
 
-			// rename by write+delete to stay compatible with simple fileManager
 			const oldPath = path.join(folder, entries[i]!.file);
 			const newPath = path.join(folder, nextFile);
-			fileManager.writeToFile(newPath, '');
-			fileManager.rmFile?.(oldPath);
+
+			fileManager.moveFile(oldPath, newPath, {overwrite: true});
 		}
 	},
 
@@ -366,16 +339,17 @@ export const storageManager = {
 		const prev = idx === 0 ? undefined : entries[idx - 1]?.rank;
 		const next = idx === entries.length ? undefined : entries[idx]?.rank;
 
-		let rank = this.rankBetween(prev, next);
+		let rank = rankBetween(prev, next);
+
 		if (!rank) {
 			// no space: rebalance and retry once
 			this.rebalanceOrder(parentId);
+
 			const after = this.listChildrenOrdered(parentId);
 			const prev2 = idx === 0 ? undefined : after[idx - 1]?.rank;
 			const next2 = idx === after.length ? undefined : after[idx]?.rank;
-			rank =
-				this.rankBetween(prev2, next2) ||
-				bigIntToBase62(MAX_RANK / 2n, RANK_LEN);
+
+			rank = rankBetween(prev2, next2) || midRank();
 		}
 
 		fileManager.writeToFile(path.join(folder, `${rank}.${childId}.link`), '');
@@ -400,12 +374,11 @@ export const storageManager = {
 
 		const children = this.listChildrenOrdered(id).map(e => e.childId);
 
-		// return full WorkspaceDiskNode for compatibility with existing callers
 		return {...node, children};
 	},
 
 	// -------------------------
-	// Initial state (no snapshots)
+	// Initial state
 	// -------------------------
 
 	createInitialWorkspace(): WorkspaceDiskNodeComposed | null {
@@ -457,7 +430,6 @@ export const storageManager = {
 
 		this.writeNodeFile(type, {id, name: nameResId, props});
 
-		// ordering entries
 		for (let i = 0; i < initialChildren.length; i++) {
 			this.linkChildAt(id, initialChildren[i]!, i);
 		}
@@ -466,7 +438,7 @@ export const storageManager = {
 	},
 
 	// -------------------------
-	// Public mutations (drop-in)
+	// Public mutations
 	// -------------------------
 
 	createNode(
@@ -480,9 +452,9 @@ export const storageManager = {
 			throw new Error(`Unable to map child node type from ${nodeType}`);
 		}
 
-		// 1) Create child nodes (if any) and collect their ids
+		// 1) Create child nodes and collect their ids
 		const childIds: string[] = (children ?? []).map(child => {
-			// ✅ Case 1: FIELD children => label/value
+			// Case 1: FIELD children => label/value
 			if (childNodeType === StorageNodeTypes.FIELD) {
 				// IMPORTANT:
 				// - label is a resource-id reference (seed or ULID) => store it directly in `name`
@@ -493,14 +465,14 @@ export const storageManager = {
 				const fieldId = ulid();
 				this.writeNodeFile(StorageNodeTypes.FIELD, {
 					id: fieldId,
-					name: labelResId, // ✅ keep seed reference, do NOT resolve text
+					name: labelResId, // keep seed reference, do NOT resolve text
 					props: {value: valueResId},
 				});
 
 				return fieldId;
 			}
 
-			// ✅ Case 2: non-FIELD children => normal nodes
+			// Case 2: non-FIELD children => normal nodes
 			const childId = ulid();
 			const childNameResId = this.createResource(child.initialValue).id;
 
@@ -549,8 +521,7 @@ export const storageManager = {
 		fromIndex: number;
 		toParentId: string;
 		toIndex: number;
-	}): {snap: WorkspaceSnapshot; nodeId: string} | null {
-		// NOTE: `snap` is kept for drop-in compatibility; it is a dummy object.
+	}): {nodeId: string} | null {
 		const fromChildren = this.listChildrenOrdered(fromParentId).map(
 			e => e.childId,
 		);
@@ -567,20 +538,7 @@ export const storageManager = {
 		const idx = clamp(toIndex, 0, effective.length);
 		this.linkChildAt(toParentId, movedId, idx);
 
-		const dummySnap = {
-			id: 'NO_SNAPSHOT',
-			createdAt: new Date().toISOString(),
-			rootWorkspaceId: this.readMeta()?.rootWorkspaceId ?? 'UNKNOWN',
-			nodes: {
-				[StorageNodeTypes.WORKSPACE]: {},
-				[StorageNodeTypes.BOARD]: {},
-				[StorageNodeTypes.SWIMLANE]: {},
-				[StorageNodeTypes.ISSUE]: {},
-				[StorageNodeTypes.FIELD]: {},
-			},
-		} satisfies WorkspaceSnapshot;
-
-		return {snap: dummySnap, nodeId: movedId};
+		return {nodeId: movedId};
 	},
 
 	renameNodeTitle(
@@ -601,23 +559,9 @@ export const storageManager = {
 			this.writeNodeFile(nodeType, {...node, name: newTitleResId});
 		} else {
 			this.updateResource(currentNameResId, nextTitle);
-			// node file unchanged
 		}
 
-		const dummySnap = {
-			id: 'NO_SNAPSHOT',
-			createdAt: new Date().toISOString(),
-			rootWorkspaceId: this.readMeta()?.rootWorkspaceId ?? 'UNKNOWN',
-			nodes: {
-				[StorageNodeTypes.WORKSPACE]: {},
-				[StorageNodeTypes.BOARD]: {},
-				[StorageNodeTypes.SWIMLANE]: {},
-				[StorageNodeTypes.ISSUE]: {},
-				[StorageNodeTypes.FIELD]: {},
-			},
-		} satisfies WorkspaceSnapshot;
-
-		return {snap: dummySnap, nodeId};
+		return {nodeId};
 	},
 
 	updateNodeValue(
@@ -640,19 +584,6 @@ export const storageManager = {
 		// Append new version to the existing value resource
 		this.updateResource(currentValueResId, nextValue);
 
-		const compatSnap = {
-			id: 'NO_SNAPSHOT',
-			createdAt: new Date().toISOString(),
-			rootWorkspaceId: this.readMeta()?.rootWorkspaceId ?? 'UNKNOWN',
-			nodes: {
-				[StorageNodeTypes.WORKSPACE]: {},
-				[StorageNodeTypes.BOARD]: {},
-				[StorageNodeTypes.SWIMLANE]: {},
-				[StorageNodeTypes.ISSUE]: {},
-				[StorageNodeTypes.FIELD]: {},
-			},
-		} as WorkspaceSnapshot;
-
-		return {snap: compatSnap, nodeId};
+		return {nodeId};
 	},
 };

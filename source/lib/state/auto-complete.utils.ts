@@ -1,5 +1,5 @@
 import {CmdKeywords} from '../command-line/command-line-sequence-intent.js';
-import {findOverlap} from '../utils/stirng.utils.js';
+import {findOverlap} from '../utils/string.utils.js';
 
 const COMMON_WORDS = [
 	// Add custom project terms here

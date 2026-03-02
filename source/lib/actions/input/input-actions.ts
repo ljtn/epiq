@@ -10,7 +10,7 @@ import {
 } from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
-import {findOverlap} from '../../utils/stirng.utils.js';
+import {findOverlap} from '../../utils/string.utils.js';
 import {onConfirmCommandLineSequenceInput} from './command-line-input.js';
 export const inputActions: ActionEntry[] = [
 	{

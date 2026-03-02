@@ -21,16 +21,3 @@ export type WorkspaceDiskNodeComposed = {
 	props: Record<string, string>;
 	children: string[] | [];
 };
-
-export type WorkspaceSnapshot = {
-	id: string; // version id (ulid)
-	createdAt: string;
-	rootWorkspaceId: string;
-	nodes: {
-		[StorageNodeTypes.WORKSPACE]: Record<string, WorkspaceDiskNode>;
-		[StorageNodeTypes.BOARD]: Record<string, WorkspaceDiskNode>;
-		[StorageNodeTypes.SWIMLANE]: Record<string, WorkspaceDiskNode>;
-		[StorageNodeTypes.ISSUE]: Record<string, WorkspaceDiskNode>;
-		[StorageNodeTypes.FIELD]: Record<string, WorkspaceDiskNode>;
-	};
-};
