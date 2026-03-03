@@ -11,7 +11,7 @@ import {
 import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {findOverlap} from '../../utils/string.utils.js';
-import {onConfirmCommandLineSequenceInput} from './command-line-input.js';
+import {onConfirmCommandLineSequenceInput} from './on-cmd-input-confirm.js';
 export const inputActions: ActionEntry[] = [
 	{
 		intent: Intent.ViewHelp,
