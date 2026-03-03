@@ -15,7 +15,7 @@ type ContextActions = ActionMap<{
 }>;
 
 export const contextActions: ContextActions = {
-	[NavNodeCtx.WORKSPACE]: [],
+	[NavNodeCtx.WORKSPACE]: [...toggleMoveMode, ...moveWithinParent],
 	[NavNodeCtx.BOARD]: [...toggleMoveMode, ...moveWithinParent],
 	[NavNodeCtx.SWIMLANE]: [
 		...toggleMoveMode,
