@@ -153,7 +153,6 @@ export const patchState = (
 
 /**
  * Update current node immutably AND keep the whole tree consistent.
- * This fixes "adding a board doesn't show up" because rootNode changes too.
  */
 export const updateCurrentNode = (
 	mapper: (node: NavNode<AnyContext>) => NavNode<AnyContext>,

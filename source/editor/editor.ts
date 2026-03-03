@@ -7,7 +7,7 @@ import {storageManager} from '../lib/storage/storage-manager.js';
 import {nodeMapper} from '../lib/utils/node-mapper.js';
 
 function pickEditor(): string {
-	return process.env['VISUAL'] || process.env['EDITOR'] || 'vim';
+	return process.env['VISUAL'] || process.env['EDITOR'] || 'vi';
 }
 function openEditorOnText(initial: string, fileLabel: string): string | null {
 	const editor = pickEditor();
