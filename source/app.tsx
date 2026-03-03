@@ -5,16 +5,17 @@ import {ContextBar} from './lib/components/ContextBar.js';
 import {HelpUI} from './lib/components/Help.js';
 import {Workspace} from './lib/model/context.model.js';
 import {Mode} from './lib/model/action-map.model.js';
-import {appState} from './lib/state/state.js';
+import {useAppState} from './lib/state/state.js';
 
 export default function App({workspace}: {workspace: Workspace}) {
+	const {mode} = useAppState();
 	const width = process.stdout.columns || 120;
+
 	return (
 		<Box flexDirection="column">
-			{/* <Logo></Logo> */}
-			{!(appState.mode === Mode.HELP) && <WorkspaceUI workspace={workspace} />}
-			{appState.mode === Mode.HELP && <HelpUI width={width} />}
-			{!(appState.mode === Mode.HELP) && <ContextBar width={width} />}
+			{mode !== Mode.HELP && <WorkspaceUI workspace={workspace} />}
+			{mode === Mode.HELP && <HelpUI width={width} />}
+			{mode !== Mode.HELP && <ContextBar width={width} />}
 		</Box>
 	);
 }

@@ -1,6 +1,6 @@
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
-import {appState, BreadCrumb, patchState} from '../../state/state.js';
+import {BreadCrumb, getState, patchState} from '../../state/state.js';
 
 export interface Navigator {
 	navigate<T extends AnyContext>({
@@ -22,18 +22,22 @@ export interface Navigator {
 
 export const navigator: Navigator = {
 	confirm(sel) {
-		console.log(sel);
+		logger.info(sel);
 	},
+
 	exit() {
 		process.exit(0);
 	},
 
 	enterChildNode() {
-		const currentNode = appState.currentNode;
-		const focusNode = currentNode?.children[appState.selectedIndex];
+		const state = getState();
+		const currentNode = state.currentNode;
 
-		const isEndNode = focusNode?.context === 'FIELD'; // Reconsider. Not sure we want this to be the end node in the future
-		if (!currentNode || !focusNode || isEndNode) return;
+		if (!currentNode || currentNode.children.length === 0) return;
+
+		const idx = state.selectedIndex < 0 ? 0 : state.selectedIndex;
+		const focusNode = currentNode.children[idx];
+		if (!focusNode || focusNode.context === 'FIELD') return;
 
 		navigator.navigate({
 			currentNode: focusNode,
@@ -42,20 +46,17 @@ export const navigator: Navigator = {
 	},
 
 	enterParentNode() {
-		const breadCrumb = appState.breadCrumb;
+		const breadCrumb = getState().breadCrumb;
 		if (breadCrumb.length < 2) return;
 
-		const prevNode = breadCrumb.at(-1);
-		if (!prevNode) return;
+		const current = breadCrumb.at(-1)!;
+		const parent = breadCrumb.at(-2)!;
 
-		const newCurrentNode = breadCrumb.at(-2)!;
-		const newIndex =
-			newCurrentNode?.children?.findIndex(x => x.id === prevNode.id) ?? 0;
+		const idx = parent.children.findIndex(x => x.id === current.id);
+		const selectedIndex =
+			parent.children.length === 0 ? -1 : idx >= 0 ? idx : 0;
 
-		navigator.navigate({
-			currentNode: newCurrentNode,
-			selectedIndex: newIndex,
-		});
+		navigator.navigate({currentNode: parent, selectedIndex});
 	},
 
 	navigateToNextItem: () => navigateByOffset(1),
@@ -64,88 +65,68 @@ export const navigator: Navigator = {
 	navigateToNextContainer: () => navigateToSiblingContainer(1),
 	navigateToPreviousContainer: () => navigateToSiblingContainer(-1),
 
-	navigate: ({currentNode = appState.currentNode, selectedIndex}) => {
+	navigate: ({currentNode = getState().currentNode, selectedIndex}) => {
 		const findBreadCrumb = (
 			node: NavNode<AnyContext>,
 			targetId: string,
-			path?: BreadCrumb,
-		): BreadCrumb | void => {
-			const nextPath = [...(path ?? []), node] as BreadCrumb;
+			path: BreadCrumb | [] = [],
+		): BreadCrumb | undefined => {
+			const nextPath = [...path, node] as BreadCrumb;
 			if (node.id === targetId) return nextPath;
 
-			for (const child of node.children ?? []) {
-				const found = findBreadCrumb(child, targetId, nextPath);
-				if (found?.length) return found;
+			for (const child of node.children) {
+				const found = findBreadCrumb(
+					child as NavNode<AnyContext>,
+					targetId,
+					nextPath,
+				);
+				if (found) return found;
 			}
 			return;
 		};
 
-		const setIsSelected = (
-			node: NavNode<AnyContext>,
-			targetId: string,
-			selectedIndex: number,
-		) => {
-			// Clear selection for all children at this node
-			for (const child of node.children ?? []) {
-				child.isSelected = false;
-				setIsSelected(child, targetId, selectedIndex);
-			}
-
-			// If this is the target container, select its child at selectedIndex
-			if (node.id === targetId) {
-				const children = node.children;
-
-				const idx = Math.max(0, Math.min(selectedIndex, children.length - 1));
-				if (children[idx]) {
-					children[idx].isSelected = true;
-				}
-			}
-		};
-
-		const root = appState.rootNode;
+		const root = getState().rootNode;
 		const breadCrumb = findBreadCrumb(root, currentNode.id);
 		if (!breadCrumb) return;
 
-		setIsSelected(root, currentNode.id, selectedIndex);
 		patchState({
 			breadCrumb,
-			currentNode,
+			currentNode: breadCrumb.at(-1)!,
 			selectedIndex,
 		});
 	},
 };
 
 const navigateByOffset = (offset: number) => {
-	const len = appState.currentNode.children.length;
+	const state = getState();
+	const len = state.currentNode.children.length;
 	if (len === 0) return;
 
-	const newIndex = (appState.selectedIndex + offset + len) % len;
+	const base = state.selectedIndex < 0 ? 0 : state.selectedIndex;
+	const newIndex = (base + offset + len) % len;
+
 	navigator.navigate({selectedIndex: newIndex});
 };
-const navigateToSiblingContainer = (direction: -1 | 1) => {
-	if (!appState.currentNode.childNavigationAcrossParents) return;
 
-	const currentNode = appState.breadCrumb.at(-1);
-	const parentNode = appState.breadCrumb.at(-2);
+const navigateToSiblingContainer = (direction: -1 | 1) => {
+	const state = getState();
+	if (!state.currentNode.childNavigationAcrossParents) return;
+
+	const currentNode = state.breadCrumb.at(-1);
+	const parentNode = state.breadCrumb.at(-2);
 	if (!currentNode || !parentNode) return;
 
-	const siblings = parentNode.children ?? [];
+	const siblings = parentNode.children;
 	const currentNodeIndex = siblings.findIndex(x => x.id === currentNode.id);
 	if (currentNodeIndex < 0) return;
 
 	const nextSibling =
-		siblings.at(currentNodeIndex + direction) || siblings.at(0);
+		siblings.at(currentNodeIndex + direction) ?? siblings.at(0);
 	if (!nextSibling) return;
 
-	// Keep the same child index if possible, otherwise clamp to last child
-	const prevIndex = appState.selectedIndex;
 	const maxIndex = Math.max(0, nextSibling.children.length - 1);
-	const boundedIndex = Math.min(Math.max(0, prevIndex), maxIndex);
-
+	const boundedIndex = Math.min(Math.max(0, state.selectedIndex), maxIndex);
 	const selectedIndex = nextSibling.children.length ? boundedIndex : -1;
 
-	navigator.navigate({
-		currentNode: nextSibling,
-		selectedIndex,
-	});
+	navigator.navigate({currentNode: nextSibling, selectedIndex});
 };

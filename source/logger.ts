@@ -38,6 +38,9 @@ function write(prefix: string, args: any[]) {
 }
 
 export const logger = {
+	info(...args: any[]) {
+		write('[INFO]', args);
+	},
 	debug(...args: any[]) {
 		write('[DEBUG]', args);
 	},

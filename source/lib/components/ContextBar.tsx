@@ -1,12 +1,12 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Mode} from '../model/action-map.model.js';
-import {appState} from '../state/state.js';
+import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {CommandLine} from './CommandLine.js';
 
 export const ContextBar: React.FC<{width: number}> = ({width}) => {
-	const {mode, availableHints} = appState;
+	const {mode, availableHints} = getState();
 	// const hasHints = availableHints.length > 0;
 
 	return (

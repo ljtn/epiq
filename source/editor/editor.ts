@@ -1,7 +1,7 @@
 import {spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import {appState} from '../lib/state/state.js';
+import {getState} from '../lib/state/state.js';
 import {fileManager} from '../lib/storage/file-manager.js';
 import {storageManager} from '../lib/storage/storage-manager.js';
 import {nodeMapper} from '../lib/utils/node-mapper.js';
@@ -38,10 +38,10 @@ function openEditorOnText(initial: string, fileLabel: string): string | null {
 }
 
 export function editSelectedTicketFieldValue(): void {
-	const ticket = appState.currentNode;
+	const ticket = getState().currentNode;
 	if (ticket.context !== 'TICKET') return;
 
-	const selectedFieldNav = ticket.children[appState.selectedIndex];
+	const selectedFieldNav = ticket.children[getState().selectedIndex];
 	if (!selectedFieldNav) return;
 
 	const nodeType = nodeMapper.contextToNodeTypeMap(selectedFieldNav.context);

@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
-import {appState} from '../state/state.js';
 import React from 'react';
 import {Mode} from '../model/action-map.model.js';
+import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 
 export const HelpUI: React.FC<{width: number}> = ({width}) => (
@@ -14,14 +14,14 @@ export const HelpUI: React.FC<{width: number}> = ({width}) => (
 		minHeight={19}
 	>
 		<Box flexDirection="column" width={width}>
-			{appState.mode === Mode.HELP
+			{getState().mode === Mode.HELP
 				? [
 						{
 							action: '',
 							description: '[COMMAND] DESCRIPTION',
-							mode: appState.mode,
+							mode: getState().mode,
 						},
-						...appState.availableActions,
+						...getState().availableActions,
 				  ]
 						.filter(action => Boolean(action.description))
 						// .filter(x => x.mode === navigationState.mode)

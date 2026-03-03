@@ -1,5 +1,5 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {appState, patchState} from '../../state/state.js';
+import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {
 	moveChildWithinParent,
@@ -22,7 +22,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[d] cut',
 		action: () => {
-			if (appState.selectedIndex === -1) return; // Block move if no children
+			if (getState().selectedIndex === -1) return; // Block move if no children
 			patchState({
 				mode: Mode.MOVE,
 			});

@@ -1,10 +1,10 @@
-import React from 'react';
 import {Box, Text} from 'ink';
-import {appState} from '../state/state.js';
+import React from 'react';
+import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 
 export const Breadcrumb: React.FC = () => {
-	const crumbs = appState.breadCrumb;
+	const crumbs = getState().breadCrumb;
 	const lastIndex = crumbs.length - 1;
 
 	return (
@@ -14,7 +14,7 @@ export const Breadcrumb: React.FC = () => {
 
 				// Only the last crumb level should use the current selectedIndex
 				const selectedChildTitle = isLast
-					? b.children?.[appState.selectedIndex]?.name
+					? b.children?.[getState().selectedIndex]?.name
 					: undefined;
 
 				return (

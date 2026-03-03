@@ -1,8 +1,8 @@
 import readline from 'readline';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
-import {appState} from '../state/state.js';
 import {getCommandLineIntent} from './get-command-line-intent.js';
 import {commandLineState} from '../state/cmd.state.js';
+import {getState} from '../state/state.js';
 
 export enum Intent {
 	NavPreviousItem = 'navPreviousItem',
@@ -77,7 +77,7 @@ function mapDirectionalIntent(
 	},
 ): Intent | null {
 	const enableAcrossContainers =
-		appState.currentNode.childNavigationAcrossParents;
+		getState().currentNode.childNavigationAcrossParents;
 	switch (dir) {
 		case 'up':
 			return axis === 'vertical'
@@ -137,7 +137,7 @@ export function getKeyIntent(
 				  };
 
 		return mapDirectionalIntent(
-			appState.currentNode.childRenderAxis,
+			getState().currentNode.childRenderAxis,
 			dir,
 			dirMap,
 		);

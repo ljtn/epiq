@@ -1,42 +1,43 @@
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {StorageNodeTypes} from '../../model/storage-node.model.js';
-import {appState} from '../../state/state.js';
+import {
+	appendChildToCurrentNodeAndSelect,
+	getState,
+} from '../../state/state.js';
 import {SEED_RESOURCES, storageManager} from '../../storage/storage-manager.js';
 import {TEMPLATES} from '../../storage/templates.js';
 import {nodeMapper} from '../../utils/node-mapper.js';
-import {navigator} from '../default/navigation-action-utils.js';
 
 export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
 	_ctx,
 	_cmd,
 	{value},
 ) => {
-	const parent = appState.currentNode;
+	const parent = getState().currentNode;
+
 	const newItem = storageManager.createNode(
 		parent.id,
 		value,
 		StorageNodeTypes.BOARD,
-		TEMPLATES.swimlanes.map(value => ({
-			id: SEED_RESOURCES.name,
-			initialValue: value,
-		})),
+		TEMPLATES.swimlanes.map(v => ({id: SEED_RESOURCES.name, initialValue: v})),
 	);
-	parent.children.push(nodeMapper.toBoard(newItem));
-	navigator.navigate({selectedIndex: parent.children.length - 1});
+
+	appendChildToCurrentNodeAndSelect(nodeMapper.toBoard(newItem));
 };
 
 export const addSwimlane: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {
-	const parent = appState.currentNode;
-	value = value || 'New lane';
+	const parent = getState().currentNode;
+	const title = value || 'New lane';
+
 	const diskNode = storageManager.createNode(
 		parent.id,
-		value,
+		title,
 		StorageNodeTypes.SWIMLANE,
 	);
-	parent.children.push(nodeMapper.toSwimlane(diskNode));
-	navigator.navigate({selectedIndex: parent.children.length - 1});
+
+	appendChildToCurrentNodeAndSelect(nodeMapper.toSwimlane(diskNode));
 };
 
 export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
@@ -44,7 +45,8 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 	_cmd,
 	{value},
 ) => {
-	const parent = appState.currentNode;
+	const parent = getState().currentNode;
+
 	const newItem = storageManager.createNode(
 		parent.id,
 		value,
@@ -55,6 +57,6 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 			{id: SEED_RESOURCES.tags, initialValue: 'default'},
 		],
 	);
-	parent.children.push(nodeMapper.toIssue(newItem));
-	navigator.navigate({selectedIndex: parent.children.length - 1});
+
+	appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
 };

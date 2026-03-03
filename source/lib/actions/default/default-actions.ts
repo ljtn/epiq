@@ -2,7 +2,7 @@ import {editSelectedTicketFieldValue} from '../../../editor/editor.js';
 import {CmdIntent} from '../../command-line/command-line-sequence-intent.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
-import {appState, patchState} from '../../state/state.js';
+import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {navigator} from './navigation-action-utils.js';
 
@@ -22,7 +22,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
-		description: '[ESC/Q] Exit application',
+		description: '[ESC/Q] Exit context',
 		action: navigator.enterParentNode,
 	},
 	{
@@ -54,25 +54,30 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.Edit,
 		mode: Mode.DEFAULT,
 		action: () => {
-			if (appState.currentNode.context === 'TICKET') {
-				// Use editor
-				logger.debug(CmdIntent.Rename, appState.currentNode.name);
-				editSelectedTicketFieldValue();
-				patchState({mode: Mode.DEFAULT});
-				navigator.navigate({
-					currentNode: appState.currentNode,
-					selectedIndex: appState.selectedIndex,
-				});
-				return;
-			} else {
-				// Use command line
-				patchState({mode: Mode.COMMAND_LINE});
-				setCmdInput(
-					() =>
-						`${CmdIntent.Rename} ${
-							appState.currentNode.children[appState.selectedIndex]?.name
-						}`,
-				);
+			try {
+				if (getState().currentNode.context === 'TICKET') {
+					// Use editor
+					logger.debug(CmdIntent.Rename, getState().currentNode.name);
+					editSelectedTicketFieldValue();
+
+					patchState({mode: Mode.DEFAULT});
+					navigator.navigate({
+						currentNode: getState().currentNode,
+						selectedIndex: getState().selectedIndex,
+					});
+					return;
+				} else {
+					// Use command line
+					patchState({mode: Mode.COMMAND_LINE});
+					setCmdInput(
+						() =>
+							`${CmdIntent.Rename} ${
+								getState().currentNode.children[getState().selectedIndex]?.name
+							}`,
+					);
+				}
+			} catch (err) {
+				logger.error('Unable to edit selected field', err);
 			}
 		},
 	},

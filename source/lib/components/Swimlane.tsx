@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Swimlane, Ticket} from '../model/context.model.js';
-import {appState} from '../state/state.js';
+import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
@@ -19,59 +19,62 @@ export const SwimlaneUI: React.FC<Props> = ({
 	width,
 	height,
 }) => {
-	const isParentOfCurrentContext = isSelected;
+	const state = useAppState();
+
+	const isFocused = state.currentNode.id === swimlane.id;
+
 	const paddingTop = 4;
 	const paddingBottom = 2;
+
+	const listSelectedIndex = isFocused ? state.selectedIndex : -1;
+
 	return (
 		<Box
 			flexDirection="column"
 			width={width}
 			borderStyle="round"
-			borderColor={isParentOfCurrentContext ? theme.accent : theme.secondary}
+			borderColor={isSelected ? theme.accent : theme.secondary}
 			paddingRight={1}
 			paddingLeft={1}
 			height={height}
 		>
 			<Box
-				borderStyle={'round'}
+				borderStyle="round"
 				borderColor={theme.secondary}
 				justifyContent="flex-start"
 				borderLeft={false}
 				borderTop={false}
 				borderRight={false}
 			>
-				<Text
-					bold
-					color={isParentOfCurrentContext ? theme.accent : theme.primary}
-				>
-					{swimlane.isSelected ? '⸬ ' : '  '}
+				<Text bold color={isSelected ? theme.accent : theme.primary}>
+					{isSelected ? '⸬ ' : '  '}
 				</Text>
-				<Text
-					bold
-					color={isParentOfCurrentContext ? theme.accent : theme.primary}
-				>
+				<Text bold color={isSelected ? theme.accent : theme.primary}>
 					{swimlane.name}
 				</Text>
 			</Box>
+
 			<Box padding={1}>
 				{swimlane.children.length > 0 && (
 					<ScrollBoxUI
-						selectedIndex={swimlane.children.findIndex(x => x.isSelected)}
+						selectedIndex={listSelectedIndex}
 						width={width}
 						height={height - paddingTop - paddingBottom}
-						children={swimlane.children.map((ticket, index) => (
+					>
+						{swimlane.children.map((ticket, index) => (
 							<TicketListItemUI
-								key={index}
+								key={(ticket as Ticket).id ?? index}
 								width={width}
 								ticket={ticket as Ticket}
+								isSelected={isFocused && state.selectedIndex === index}
 							/>
 						))}
-					></ScrollBoxUI>
+					</ScrollBoxUI>
 				)}
-				{appState.currentNode.id === swimlane.id &&
-					appState.selectedIndex === -1 && (
-						<Text color={theme.accent}>{'⸬'}</Text>
-					)}
+
+				{isFocused && state.selectedIndex === -1 && (
+					<Text color={theme.accent}>⸬</Text>
+				)}
 			</Box>
 		</Box>
 	);

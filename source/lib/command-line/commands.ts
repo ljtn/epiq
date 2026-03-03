@@ -6,19 +6,10 @@ import {
 import {navigator} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {getCmdArg} from '../state/cmd.state.js';
-import {appState, patchState} from '../state/state.js';
+import {getState, patchState} from '../state/state.js';
 import {storageManager} from '../storage/storage-manager.js';
 import {nodeMapper} from '../utils/node-mapper.js';
 import {CmdIntent} from './command-line-sequence-intent.js';
-function findNavNode(root: any, id: string): any | null {
-	if (!root) return null;
-	if (root.id === id) return root;
-	for (const child of root.children ?? []) {
-		const hit = findNavNode(child, id);
-		if (hit) return hit;
-	}
-	return null;
-}
 
 export const commands: CommandLineActionEntry[] = [
 	{
@@ -57,43 +48,41 @@ export const commands: CommandLineActionEntry[] = [
 			const newName = getCmdArg().trim();
 			if (!newName) return;
 
-			const current = appState.currentNode;
+			const state = getState();
+			const current = state.currentNode;
 			if (!current) return;
 
-			const targetNode = current.children[appState.selectedIndex];
+			const targetNode = current.children[state.selectedIndex];
 			if (!targetNode) return;
 
 			const nodeType = nodeMapper.contextToNodeTypeMap(targetNode.context);
 			if (!nodeType) return;
 
-			const result = storageManager.renameNodeTitle(
+			// now returns only nodeId (persisted to disk)
+			const nodeId = storageManager.renameNodeTitle(
 				nodeType,
 				targetNode.id,
 				newName,
 			);
-			if (!result) return;
+			if (!nodeId) return;
 
-			const updatedNode = result.snap.nodes[nodeType][result.nodeId];
-			if (!updatedNode) return;
+			// reload from disk and remap (source of truth)
+			const workspaceDisk = storageManager.loadWorkspace();
+			if (!workspaceDisk) return;
 
-			const newRootDisk =
-				result.snap.nodes.workspaces[result.snap.rootWorkspaceId];
-			if (!newRootDisk) return;
-			const newRootNav = nodeMapper.toWorkspace(newRootDisk); // whatever your root mapper is
+			const newRootNav = nodeMapper.toWorkspace(workspaceDisk);
 			if (!newRootNav) return;
-
-			const updatedCurrent = findNavNode(newRootNav, current.id) ?? current;
 
 			patchState({
 				rootNode: newRootNav,
-				currentNode: updatedCurrent,
 				mode: Mode.DEFAULT,
 			});
+
+			// re-sync breadcrumb/currentNode via navigator (uses ids)
 			navigator.navigate({
-				currentNode: updatedCurrent,
-				selectedIndex: appState.selectedIndex,
+				currentNode: current, // id-based lookup will resolve to tree instance
+				selectedIndex: state.selectedIndex,
 			});
-			// navigator.enterChildNode();
 		},
 	},
 ];

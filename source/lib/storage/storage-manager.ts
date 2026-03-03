@@ -447,7 +447,7 @@ export const storageManager = {
 		nodeType: StorageNodeType,
 		children?: {id?: string; initialValue: string}[],
 	): WorkspaceDiskNodeComposed {
-		const childNodeType = nodeMapper.toChildNodeType(nodeType);
+		const childNodeType = nodeMapper.toChildStorageNodeType(nodeType);
 		if (!childNodeType) {
 			throw new Error(`Unable to map child node type from ${nodeType}`);
 		}
@@ -545,7 +545,7 @@ export const storageManager = {
 		nodeType: StorageNodeType,
 		nodeId: string,
 		nextTitle: string,
-	) {
+	): {nodeId: string} {
 		const node = this.readNodeFile(nodeType, nodeId);
 		if (!node) return logger.error(`Node ${nodeId} not found in ${nodeType}`);
 

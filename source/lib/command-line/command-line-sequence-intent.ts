@@ -1,5 +1,5 @@
 import {NavNodeCtx} from '../model/context.model.js';
-import {appState} from '../state/state.js';
+import {getState} from '../state/state.js';
 
 export const CmdIntent = {
 	None: 'none',
@@ -19,7 +19,7 @@ export const CmdKeywords = {
 export const getCommandIntent = (
 	command: string,
 ): (typeof CmdIntent)[keyof typeof CmdIntent] => {
-	const {context} = appState?.currentNode;
+	const {context} = getState()?.currentNode;
 	if (!context) return CmdIntent.None;
 	switch (command) {
 		case CmdKeywords.HELP:

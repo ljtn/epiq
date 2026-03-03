@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
-import {appState} from '../state/state.js';
+import {useAppState} from '../state/state.js';
 import {FieldUI} from './FieldUI.js';
 
 type Props = {
@@ -10,7 +10,9 @@ type Props = {
 };
 
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
+	const {selectedIndex} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
+
 	return (
 		<Box
 			width={maxWidth}
@@ -21,11 +23,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			minHeight={height}
 		>
 			{ticket.children.map((child, index) => (
-				<FieldUI
-					key={index}
-					field={child}
-					selected={appState.selectedIndex === index}
-				></FieldUI>
+				<FieldUI key={index} field={child} selected={selectedIndex === index} />
 			))}
 		</Box>
 	);

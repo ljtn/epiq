@@ -1,16 +1,16 @@
 import {Box} from 'ink';
 import React from 'react';
 import {NavNodeCtx, Swimlane, Ticket} from '../model/context.model.js';
-import {appState} from '../state/state.js';
+import {getState} from '../state/state.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
 
 type Props = {
-	swimlanes: Swimlane[];
+	swimlanes: readonly Swimlane[];
 };
 
 export const BoardUI: React.FC<Props> = ({swimlanes}) => {
-	const actionContext = appState.currentNode.context;
+	const actionContext = getState().currentNode.context;
 	const isTicketContext = actionContext === NavNodeCtx.TICKET;
 	const isSwimlaneContext =
 		actionContext === NavNodeCtx.BOARD || actionContext === NavNodeCtx.SWIMLANE;
@@ -34,15 +34,15 @@ export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 						height={height}
 						width={colWidth}
 						isSelected={
-							appState.currentNode.context === 'BOARD' &&
-							appState.selectedIndex === index
+							getState().currentNode.context === 'BOARD' &&
+							getState().selectedIndex === index
 						}
 						swimlane={lane}
 					/>
 				))}
 
-			{isTicketContext && appState.currentNode && (
-				<TicketUI height={height} ticket={appState.currentNode as Ticket} />
+			{isTicketContext && getState().currentNode && (
+				<TicketUI height={height} ticket={getState().currentNode as Ticket} />
 			)}
 		</Box>
 	);

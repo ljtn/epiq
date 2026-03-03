@@ -1,6 +1,6 @@
 // import {Workspace} from './lib/model/context.model.js';
 
-export const initProject = () => console.log('initProject');
+export const initProject = () => logger.info('initProject');
 
 // type Props = {
 // 	workspace: Workspace;
@@ -24,7 +24,7 @@ export const initProject = () => console.log('initProject');
 // 					field={
 // 						workspace.fields.[key as keyof typeof workspace.fields]['title']
 // 					}
-// 					selected={appState.selectedIndex === index}
+// 					selected={getState().selectedIndex === index}
 // 				></FieldUI>
 // 			))} */}
 // 		</Box>

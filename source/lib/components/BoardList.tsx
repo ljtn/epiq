@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Workspace} from '../model/context.model.js';
-import {appState} from '../state/state.js';
+import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 
 export default function BoardList({workspace}: {workspace: Workspace}) {
@@ -26,14 +26,14 @@ export default function BoardList({workspace}: {workspace: Workspace}) {
 					<Box key={i}>
 						<Text
 							color={
-								appState.selectedIndex === i ? theme.accent : theme.secondary
+								getState().selectedIndex === i ? theme.accent : theme.secondary
 							}
 						>
-							{appState.selectedIndex === i ? '⸬  ' : '   '}
+							{getState().selectedIndex === i ? '⸬  ' : '   '}
 						</Text>
 						<Text
 							color={
-								appState.selectedIndex === i ? theme.accent : theme.secondary
+								getState().selectedIndex === i ? theme.accent : theme.secondary
 							}
 						>
 							{board.name}{' '}
