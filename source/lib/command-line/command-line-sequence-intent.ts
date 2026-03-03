@@ -8,12 +8,14 @@ export const CmdIntent = {
 	AddTicket: 'add-ticket',
 	ViewHelp: 'view-help',
 	Rename: 'rename',
+	Delete: 'delete',
 } as const;
 
 export const CmdKeywords = {
 	HELP: 'help',
 	RENAME: 'rename',
 	ADD: 'add',
+	DELETE: 'delete',
 } as const;
 
 export const getCommandIntent = (
@@ -22,6 +24,8 @@ export const getCommandIntent = (
 	const {context} = getState()?.currentNode;
 	if (!context) return CmdIntent.None;
 	switch (command) {
+		case CmdKeywords.DELETE:
+			return CmdIntent.Delete;
 		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
 		case CmdKeywords.RENAME:

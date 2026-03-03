@@ -20,7 +20,9 @@ export enum Intent {
 	Exit = 'exit',
 	ViewHelp = 'viewHelp',
 	HideHelp = 'hideHelp',
-	InitMove = 'initMove',
+	Cut = 'cut',
+	Paste = 'paste',
+	Delete = 'Delete',
 
 	// Command line
 	InitCommandLine = 'initCommandLine',
@@ -113,8 +115,20 @@ export function getKeyIntent(
 	key: readline.Key,
 	mode: ModeUnion,
 ): Intent | null {
+	// Handle forks
 	if (key.sequence === ':' && commandLineState.value === '')
 		return Intent.InitCommandLine;
+
+	if (mode === Mode.MOVE) {
+		switch (key.name) {
+			case 'd':
+				return Intent.Delete;
+			case 'p':
+			case 'return':
+				return Intent.Paste;
+		}
+	}
+
 	if (mode === Mode.COMMAND_LINE)
 		return getCommandLineIntent(key, commandLineState.value);
 
@@ -151,7 +165,7 @@ export function getKeyIntent(
 		case 'i':
 			return Intent.Edit;
 		case 'd':
-			return Intent.InitMove;
+			return Intent.Cut;
 		case 'e':
 		case 'return':
 			return Intent.Confirm;

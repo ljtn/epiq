@@ -31,12 +31,16 @@ export const subscribeCommandLineState = (listener: Listener) => {
 	return () => listeners.delete(listener);
 };
 
+type SetStateCb = (old: CommandLineState) => CommandLineState;
+
 // ===== Updates =====
-const setState = (cb: (old: CommandLineState) => CommandLineState) => {
+const setState = (cb: SetStateCb, overrideHint?: string) => {
 	const next = cb(structuredClone(commandLineState));
 	if (next.cursorPosition === next.value.length) {
 		const isFirstWord = next.value.split(' ').length === 1;
-		next.autoCompleteHint = isFirstWord
+		next.autoCompleteHint = overrideHint
+			? overrideHint
+			: isFirstWord
 			? getCommandHint(next.value)
 			: getWordHint(next.value);
 	} else {
@@ -123,7 +127,10 @@ export const eraseInputWord = () => {
 		};
 	});
 };
-export const setCmdInput = (cb: (previous: string, hint: string) => string) => {
+
+type SetCmdStateCallback = (previous: string, hint: string) => string;
+
+export const setCmdInput = (cb: SetCmdStateCallback, overrideHint?: string) => {
 	setState(state => {
 		const cursor = Math.max(
 			0,
@@ -149,7 +156,7 @@ export const setCmdInput = (cb: (previous: string, hint: string) => string) => {
 			value: nextValue,
 			cursorPosition: nextCursor,
 		};
-	});
+	}, overrideHint);
 };
 
 export const updateCmdHistory = () => {

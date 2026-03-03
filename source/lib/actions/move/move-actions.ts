@@ -1,4 +1,5 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
+import {setCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {
@@ -8,9 +9,19 @@ import {
 
 export const toggleMoveMode: ActionEntry[] = [
 	{
+		intent: Intent.Delete,
+		mode: Mode.MOVE,
+		description: '[d] delete',
+		action: () => {
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => 'delete ', 'confirm');
+		},
+	},
+	{
+		// Reconsider. We should probably not move before confirm (paste)
 		intent: Intent.Exit,
 		mode: Mode.MOVE,
-		description: '[d] paste',
+		description: '[esc] paste',
 		action: () => {
 			patchState({
 				mode: Mode.DEFAULT,
@@ -18,7 +29,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: Intent.InitMove,
+		intent: Intent.Cut,
 		mode: Mode.DEFAULT,
 		description: '[d] cut',
 		action: () => {
@@ -29,7 +40,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: Intent.InitMove,
+		intent: Intent.Paste,
 		mode: Mode.MOVE,
 		action: () => {
 			patchState({

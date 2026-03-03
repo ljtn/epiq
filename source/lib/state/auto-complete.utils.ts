@@ -110,10 +110,12 @@ const COMMON_WORDS = [
 ];
 
 export const getCommandHint = (command: string) => {
-	return getHint(Object.values(CmdKeywords), command, 1);
+	const space = ' ';
+	return getHint(Object.values(CmdKeywords), command, 1) + space;
 };
 export const getWordHint = (command: string) => {
-	return getHint([...COMMON_WORDS], command, 3);
+	const space = ' ';
+	return getHint([...COMMON_WORDS], command, 3) + space;
 };
 
 const getHint = (wordList: string[], command: string, overlapThreshold = 1) => {

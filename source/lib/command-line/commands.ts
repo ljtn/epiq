@@ -13,6 +13,18 @@ import {CmdIntent} from './command-line-sequence-intent.js';
 
 export const commands: CommandLineActionEntry[] = [
 	{
+		intent: CmdIntent.Delete,
+		mode: Mode.COMMAND_LINE,
+		action: (_, _2, {value}) => {
+			if (value !== 'confirm') return;
+			const {currentNode, selectedIndex} = getState();
+			const child = currentNode.children.find((_, i) => i === selectedIndex);
+			logger.info(child?.id);
+			if (!child) return logger.error('Unable to resolve child to delete');
+			storageManager.unlinkChild(currentNode.id, child.id);
+		},
+	},
+	{
 		intent: CmdIntent.ViewHelp,
 		mode: Mode.COMMAND_LINE,
 		action: () => patchState({mode: Mode.HELP}),
