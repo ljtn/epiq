@@ -40,11 +40,9 @@ export type AppState = DeepReadonly<{
 let _appState: AppState;
 
 const listeners = new Set<() => void>();
-
 const emit = () => {
 	for (const l of listeners) l();
 };
-
 const subscribe = (listener: () => void) => {
 	listeners.add(listener);
 	return () => listeners.delete(listener);
@@ -52,9 +50,7 @@ const subscribe = (listener: () => void) => {
 
 export const getState = () => _appState;
 
-/**
- * Ink/React hook: components that call this will re-render on state changes.
- */
+/** Ink/React hook: components re-render on state changes. */
 export const useAppState = () =>
 	useSyncExternalStore(subscribe, getState, getState);
 
@@ -63,7 +59,6 @@ const derived = (state: AppState): AppState => {
 	const {context} = currentNode;
 
 	const availableHints = Hints[context + mode] ?? Hints[context];
-
 	const availableActions = [
 		...DefaultActions,
 		...contextActions[context],
@@ -75,6 +70,55 @@ const derived = (state: AppState): AppState => {
 		availableHints,
 		availableActions,
 	});
+};
+
+/** Replace a direct child by id (structural sharing). */
+const replaceChildById = <P extends NavNode<any>>(
+	parent: P,
+	childId: string,
+	nextChild: NavNode<AnyContext>,
+): P => {
+	const idx = parent.children.findIndex(c => c.id === childId);
+	if (idx < 0) return parent;
+
+	const nextChildren = parent.children.map((c, i) =>
+		i === idx ? (nextChild as any) : c,
+	) as typeof parent.children;
+
+	// no-op
+	if (nextChildren.every((c, i) => c === parent.children[i])) return parent;
+
+	return {...parent, children: nextChildren} as P;
+};
+
+/**
+ * Given the existing breadcrumb and a new leaf node, rebuild:
+ * - rootNode
+ * - breadCrumb (with updated instances)
+ * - currentNode (tree instance)
+ */
+const rebuildFromBreadCrumb = (
+	breadCrumb: BreadCrumb,
+	nextLeaf: NavNode<AnyContext>,
+): {
+	rootNode: Workspace;
+	breadCrumb: BreadCrumb;
+	currentNode: NavNode<AnyContext>;
+} => {
+	const nextPath: any[] = Array(breadCrumb.length);
+	nextPath[nextPath.length - 1] = nextLeaf;
+
+	for (let i = breadCrumb.length - 2; i >= 0; i--) {
+		const parent = breadCrumb[i] as unknown as NavNode<AnyContext>;
+		const child = nextPath[i + 1] as NavNode<AnyContext>;
+		nextPath[i] = replaceChildById(parent, child.id, child);
+	}
+
+	return {
+		rootNode: nextPath[0] as Workspace,
+		breadCrumb: nextPath as BreadCrumb,
+		currentNode: nextPath[nextPath.length - 1] as NavNode<AnyContext>,
+	};
 };
 
 export const initWorkspaceState = (workspace: Workspace) => {
@@ -90,8 +134,6 @@ export const initWorkspaceState = (workspace: Workspace) => {
 		availableHints: [],
 	});
 
-	// With useSyncExternalStore, React/Ink will re-render from subscriptions.
-	// If you still bootstrap manually, emit ensures any mounted UI updates.
 	emit();
 };
 
@@ -109,44 +151,37 @@ export const patchState = (
 	opts: {render?: boolean} = {render: true},
 ) => updateState(old => ({...old, ...patch}), opts);
 
+/**
+ * Update current node immutably AND keep the whole tree consistent.
+ * This fixes "adding a board doesn't show up" because rootNode changes too.
+ */
 export const updateCurrentNode = (
 	mapper: (node: NavNode<AnyContext>) => NavNode<AnyContext>,
 	opts: {render?: boolean} = {render: true},
 ) =>
 	updateState(old => {
-		const current = old.currentNode;
-		const next = mapper(current);
-
-		// keep breadcrumb consistent: replace last entry
-		const nextBreadCrumb = [
-			...old.breadCrumb.slice(0, -1),
-			next,
-		] as unknown as typeof old.breadCrumb;
+		const nextLeaf = mapper(old.currentNode);
+		const rebuilt = rebuildFromBreadCrumb(
+			old.breadCrumb as BreadCrumb,
+			nextLeaf,
+		);
 
 		return {
 			...old,
-			currentNode: next,
-			breadCrumb: nextBreadCrumb,
+			...rebuilt,
 		};
 	}, opts);
 
 export const appendChildToCurrentNode = <C extends NavNode<any>>(
 	child: C,
-	opts: {selectNewChild?: boolean; render?: boolean} = {
-		selectNewChild: true,
-		render: true,
-	},
+	opts: {render?: boolean} = {render: true},
 ) =>
 	updateCurrentNode(
-		node => {
-			const nextChildren = [...node.children, child] as typeof node.children;
-
-			return {
-				...node,
-				children: nextChildren,
-			};
-		},
-		{render: opts.render},
+		node => ({
+			...node,
+			children: [...node.children, child] as typeof node.children,
+		}),
+		opts,
 	);
 
 export const appendChildToCurrentNodeAndSelect = <C extends NavNode<any>>(
@@ -154,20 +189,23 @@ export const appendChildToCurrentNodeAndSelect = <C extends NavNode<any>>(
 	opts: {render?: boolean} = {render: true},
 ) =>
 	updateState(old => {
-		const node = old.currentNode;
-		const nextChildren = [...node.children, child] as typeof node.children;
-		const nextNode = {...node, children: nextChildren};
+		const nextLeaf = {
+			...old.currentNode,
+			children: [
+				...old.currentNode.children,
+				child,
+			] as typeof old.currentNode.children,
+		};
 
-		const nextBreadCrumb = [
-			...old.breadCrumb.slice(0, -1),
-			nextNode,
-		] as unknown as typeof old.breadCrumb;
+		const rebuilt = rebuildFromBreadCrumb(
+			old.breadCrumb as BreadCrumb,
+			nextLeaf,
+		);
 
 		return {
 			...old,
-			currentNode: nextNode,
-			breadCrumb: nextBreadCrumb,
-			selectedIndex: nextChildren.length - 1,
+			...rebuilt,
+			selectedIndex: nextLeaf.children.length - 1,
 		};
 	}, opts);
 

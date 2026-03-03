@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import './logger.js';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
 import {initProject} from './InitView.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
-import {getState, initWorkspaceState} from './lib/state/state.js';
+import {initWorkspaceState} from './lib/state/state.js';
 import {storageManager} from './lib/storage/storage-manager.js';
 import {nodeMapper} from './lib/utils/node-mapper.js';
+import './logger.js';
 
 const cli = meow(
 	`
@@ -30,14 +30,14 @@ let ink: ReturnType<typeof render> | null = null;
 
 const mountApp = () => {
 	if (!ink) {
-		ink = render(<App workspace={getState().rootNode} />);
+		ink = render(<App />);
 	} else {
-		ink.rerender(<App workspace={getState().rootNode} />);
+		ink.rerender(<App />);
 	}
 };
 
 process.stdout.on('resize', () => {
-	if (ink) ink.rerender(<App workspace={getState().rootNode} />);
+	if (ink) ink.rerender(<App />);
 });
 
 (() => {

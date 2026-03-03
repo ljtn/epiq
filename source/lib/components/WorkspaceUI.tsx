@@ -1,27 +1,24 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Workspace} from '../model/context.model.js';
 import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';
 import {Breadcrumb} from './BreadCrumb.js';
 import {useAppState} from '../state/state.js';
 
-export const WorkspaceUI: React.FC<{workspace: Workspace}> = ({workspace}) => {
-	const appState = useAppState();
+export const WorkspaceUI: React.FC = () => {
+	const state = useAppState();
 
 	const board =
-		appState.breadCrumb.length >= 2 &&
-		appState.breadCrumb[1]?.context === 'BOARD'
-			? appState.breadCrumb[1]
+		state.breadCrumb.length >= 2 && state.breadCrumb[1]?.context === 'BOARD'
+			? state.breadCrumb[1]
 			: undefined;
 
 	return (
 		<Box flexDirection="column">
 			<Breadcrumb />
-
 			<Box flexDirection="row">
-				{appState.currentNode.context === 'WORKSPACE' ? (
-					<BoardList workspace={workspace} />
+				{state.currentNode.context === 'WORKSPACE' ? (
+					<BoardList />
 				) : board ? (
 					<BoardUI swimlanes={board.children} />
 				) : (
