@@ -33,7 +33,12 @@ function openEditorOnText(initial: string, fileLabel: string): string | null {
 	}
 
 	const updated = fileManager.readFile(tmpPath);
-	return updated ?? null;
+	if (updated == null) return null;
+
+	// Remove trailing new line
+	const normalized = updated.replace(/\r?\n$/, '');
+
+	return normalized;
 }
 
 export function editSelectedTicketFieldValue(field: NavNode<'FIELD'>): {

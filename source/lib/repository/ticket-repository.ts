@@ -34,7 +34,10 @@ export const ticketRepository = {
 				storageManager.updateResource(editResult.resourceId, value);
 				nodeRepository.updateNode({
 					...fieldNode,
-					props: {...fieldNode.props, value},
+					props: {
+						...fieldNode.props,
+						value: value ? value : fieldNode.props['value'] || '',
+					},
 				});
 			}
 
