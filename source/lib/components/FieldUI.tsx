@@ -9,6 +9,7 @@ type Props = {
 };
 
 export const FieldUI: React.FC<Props> = ({field, selected}) => {
+	const EMPTY_PLACEHOLDER = ' ';
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			{/* Label */}
@@ -24,7 +25,7 @@ export const FieldUI: React.FC<Props> = ({field, selected}) => {
 				paddingLeft={1}
 				paddingRight={1}
 			>
-				<Text>{field.props['value']}</Text>
+				<Text>{field.props['value'] || EMPTY_PLACEHOLDER}</Text>
 			</Box>
 		</Box>
 	);
