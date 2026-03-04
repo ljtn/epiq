@@ -78,8 +78,8 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label,
-			props: {value},
+			name: label || '',
+			props: {value: value || ''},
 			context: NavNodeCtx.WORKSPACE,
 			childRenderAxis: 'vertical',
 
@@ -98,8 +98,8 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label,
-			props: {value},
+			name: label || '',
+			props: {value: value || ''},
 			context: NavNodeCtx.BOARD,
 			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
@@ -117,8 +117,8 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label,
-			props: {value},
+			name: label || '',
+			props: {value: value || ''},
 			context: NavNodeCtx.SWIMLANE,
 			childRenderAxis: 'vertical',
 			childNavigationAcrossParents: true,
@@ -137,8 +137,8 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label,
-			props: {value},
+			name: label || '',
+			props: {value: value || ''},
 			context: NavNodeCtx.TICKET,
 			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
@@ -156,8 +156,8 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label,
-			props: {value},
+			name: label || '',
+			props: {value: value || ''},
 			context: NavNodeCtx.FIELD,
 			childRenderAxis: 'vertical',
 			children: [],

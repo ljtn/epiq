@@ -20,6 +20,10 @@ export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
 		TEMPLATES.swimlanes.map(v => ({id: SEED_RESOURCES.name, initialValue: v})),
 	);
 
+	if (!newItem) {
+		logger.error('Unable to add board');
+		return;
+	}
 	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toBoard(newItem));
 };
 
@@ -35,6 +39,10 @@ export const addSwimlane: NonNullable<
 		StorageNodeTypes.SWIMLANE,
 	);
 
+	if (!diskNode) {
+		logger.error('Unable to add swimlane');
+		return;
+	}
 	nodeRepository.appendChildToCurrentNodeAndSelect(
 		nodeMapper.toSwimlane(diskNode),
 	);
@@ -57,6 +65,11 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 			{id: SEED_RESOURCES.tags, initialValue: 'default'},
 		],
 	);
+
+	if (!newItem) {
+		logger.error('Unable to create ticket');
+		return;
+	}
 
 	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
 };

@@ -238,7 +238,7 @@ export const nodeRepository = {
 			};
 		}),
 
-	updateCurrentNode(newNode: NavNode<AnyContext>) {
+	updateNode(newNode: NavNode<AnyContext>) {
 		const result = replaceNodeInTree(
 			newNode.id,
 			getState().rootNode,

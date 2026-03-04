@@ -38,13 +38,13 @@ function write(prefix: string, args: any[]) {
 }
 
 export const logger = {
-	info(...args: any[]) {
+	info(...args: any[]): void {
 		write('[INFO]', args);
 	},
-	debug(...args: any[]) {
+	debug(...args: any[]): void {
 		write('[DEBUG]', args);
 	},
-	error(...args: any[]) {
+	error(...args: any[]): void {
 		write('[ERROR]', [...args, new Error().stack]);
 	},
 };

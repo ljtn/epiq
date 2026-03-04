@@ -179,13 +179,20 @@ export const storageManager = {
 		return {value: resolvedValue, id, versionId};
 	},
 
-	getResource(resourceId: string | undefined, indexFromLatest = 0): string {
+	getResource(
+		resourceId: string | undefined,
+		indexFromLatest = 0,
+	): string | null {
 		if (!resourceId) {
-			return logger.error('Missing id - unable to resolve resource');
+			logger.error('Missing id - unable to resolve resource');
+			return null;
 		}
 
 		const versionId = this.resolveResourceVersion(resourceId, indexFromLatest);
-		if (!versionId) return logger.error('Unable to resolve resource version');
+		if (!versionId) {
+			logger.error('Unable to resolve resource version');
+			return null;
+		}
 
 		const raw =
 			fileManager.readFile(this.resourceVersionPath(resourceId, versionId)) ??
@@ -500,7 +507,7 @@ export const storageManager = {
 		name: string,
 		nodeType: StorageNodeType,
 		children?: {id?: string; initialValue: string}[],
-	): WorkspaceDiskNodeComposed {
+	): WorkspaceDiskNodeComposed | null {
 		const childNodeType = nodeMapper.toChildStorageNodeType(nodeType);
 		if (!childNodeType) {
 			throw new Error(`Unable to map child node type from ${nodeType}`);
@@ -561,7 +568,10 @@ export const storageManager = {
 
 		// 5) Return the created node as callers expect (with derived children)
 		const created = this.getNode(nodeType, nodeId);
-		if (!created) return logger.error('Unable to create node');
+		if (!created) {
+			logger.error('Unable to create node');
+			return null;
+		}
 		return created;
 	},
 
@@ -579,8 +589,10 @@ export const storageManager = {
 		const fromChildren = this.listChildrenOrdered(fromParentId).map(
 			e => e.childId,
 		);
-		if (fromIndex < 0 || fromIndex >= fromChildren.length)
-			return logger.error(`fromIndex ${fromIndex} out of bounds`);
+		if (fromIndex < 0 || fromIndex >= fromChildren.length) {
+			logger.error(`fromIndex ${fromIndex} out of bounds`);
+			return null;
+		}
 
 		const movedId = fromChildren[fromIndex]!;
 		this.unlinkChild(fromParentId, movedId);
@@ -599,7 +611,7 @@ export const storageManager = {
 		nodeType: StorageNodeType,
 		nodeId: string,
 		nextTitle: string,
-	): {nodeId: string} {
+	): {nodeId: string} | void {
 		const node = this.readNodeFile(nodeType, nodeId);
 		if (!node) return logger.error(`Node ${nodeId} not found in ${nodeType}`);
 

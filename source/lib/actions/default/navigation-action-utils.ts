@@ -91,8 +91,7 @@ export const navigator: Navigator = {
 		if (!breadCrumb) return;
 
 		patchState({
-			breadCrumb,
-			currentNode: breadCrumb.at(-1)!,
+			currentNodeId: breadCrumb.at(-1)!.id,
 			selectedIndex,
 		});
 	},

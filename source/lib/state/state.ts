@@ -30,16 +30,22 @@ const derived = (
 		  >,
 ): AppState => {
 	const {currentNodeId, mode, rootNode} = state;
-	if (currentNodeId === undefined)
-		return logger.error('Unable to derive state from undefined currentNodeId');
-	if (rootNode === undefined)
-		return logger.error('Unable to derive state from undefined root node');
+	if (currentNodeId === undefined) {
+		logger.error('Unable to derive state from undefined currentNodeId');
+		return _appState;
+	}
+	if (rootNode === undefined) {
+		logger.error('Unable to derive state from undefined root node');
+		return _appState;
+	}
 
 	let breadCrumb: BreadCrumb;
 	const result = findNodeInTree(currentNodeId, rootNode, []);
 
-	if (!result?.node || !result?.breadCrumb)
-		return logger.error('Unable to find node in tree');
+	if (!result?.node || !result?.breadCrumb) {
+		logger.error('Unable to find node in tree');
+		return _appState;
+	}
 
 	breadCrumb = result.breadCrumb;
 	const currentNode = result.node;
@@ -82,8 +88,9 @@ export const updateState = (cb: (oldState: AppState) => AppState) => {
 	emit();
 };
 
-export const patchState = (patch: Partial<AppState>) =>
-	updateState(old => ({...old, ...patch}));
+export const patchState = (
+	patch: Omit<Partial<AppState>, 'currentNode' | 'breadCrumb'>,
+) => updateState(old => ({...old, ...patch}));
 
 // export const appendChildToCurrentNode = <C extends NavNode<any>>(child: C) =>
 // 	updateCurrentNode(node => ({

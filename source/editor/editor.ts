@@ -1,10 +1,9 @@
 import {spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import {getState} from '../lib/state/state.js';
+import {NavNode} from '../lib/model/navigation-node.model.js';
 import {fileManager} from '../lib/storage/file-manager.js';
 import {storageManager} from '../lib/storage/storage-manager.js';
-import {nodeMapper} from '../lib/utils/node-mapper.js';
 
 function pickEditor(): string {
 	return process.env['VISUAL'] || process.env['EDITOR'] || 'vi';
@@ -37,31 +36,32 @@ function openEditorOnText(initial: string, fileLabel: string): string | null {
 	return updated ?? null;
 }
 
-export function editSelectedTicketFieldValue(): void {
-	const ticket = getState().currentNode;
-	if (ticket.context !== 'TICKET') return;
+export function editSelectedTicketFieldValue(field: NavNode<'FIELD'>): {
+	isUpdated: boolean;
+	resourceId: string;
+	value: string | null;
+} | null {
+	if (field.context !== 'FIELD') {
+		logger.error('Node is not of type field');
+		return null;
+	}
 
-	const selectedFieldNav = ticket.children[getState().selectedIndex];
-	if (!selectedFieldNav) return;
-
-	const nodeType = nodeMapper.contextToNodeTypeMap(selectedFieldNav.context);
-	if (nodeType !== 'fields') return;
-
-	const fieldDisk = storageManager.getNode('fields', selectedFieldNav.id);
-	if (!fieldDisk) return;
+	const fieldDisk = storageManager.getNode('fields', field.id);
+	if (!fieldDisk) {
+		logger.error('Unable to locate field on disk');
+		return null;
+	}
 
 	const valueResId = fieldDisk.props?.['value'];
 	if (!valueResId) {
 		logger.error(`Field ${fieldDisk.id} is missing props.value`);
-		return;
+		return null;
 	}
 
 	const before = storageManager.getResource(valueResId);
-
-	const edited = openEditorOnText(before, `${fieldDisk.id}.value.md`);
-	if (edited === null) return;
-
-	if (edited !== before) {
-		storageManager.updateResource(valueResId, edited);
+	if (!before) {
+		return null;
 	}
+	const value = openEditorOnText(before, `${fieldDisk.id}.value.md`);
+	return {isUpdated: value !== before, resourceId: valueResId, value};
 }
