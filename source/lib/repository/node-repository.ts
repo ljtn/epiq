@@ -1,5 +1,8 @@
+import {AnyContext} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
 import {getState, updateState} from '../state/state.js';
 import {storageManager} from '../storage/storage-manager.js';
+import {replaceNodeInTree} from '../utils/nav-tree.js';
 
 function moveItemInArray<T>({
 	array,
@@ -201,5 +204,53 @@ export const nodeRepository = {
 			targetNodeId: siblingNode.id,
 			selectedIndex: siblingNode.children.length, // UI layer can clamp after refresh
 		};
+	},
+
+	appendChildToCurrentNodeAndSelect: <C extends NavNode<AnyContext>>(
+		child: C,
+	) =>
+		updateState(old => {
+			const currentId = old.currentNode.id;
+
+			const result = replaceNodeInTree(currentId, old.rootNode, prev => {
+				return {
+					...prev,
+					children: [...(prev.children ?? []), child] as typeof prev.children,
+				};
+			});
+
+			if (!result) {
+				logger.error(
+					'appendChildToCurrentNodeAndSelect: unable to replace node in tree',
+				);
+				return old;
+			}
+
+			const nextCurrent = result.breadCrumb.at(-1)!;
+			const nextSelectedIndex = (nextCurrent.children?.length ?? 1) - 1;
+
+			return {
+				...old,
+				rootNode: result.root,
+				breadCrumb: result.breadCrumb as any,
+				currentNode: nextCurrent,
+				selectedIndex: nextSelectedIndex,
+			};
+		}),
+
+	updateCurrentNode(newNode: NavNode<AnyContext>) {
+		const result = replaceNodeInTree(
+			newNode.id,
+			getState().rootNode,
+			() => newNode,
+		);
+		if (!result) return logger.error('Unable to replace node in tree');
+
+		return updateState(state => {
+			return {
+				...state,
+				rootNode: result.root,
+			};
+		});
 	},
 };

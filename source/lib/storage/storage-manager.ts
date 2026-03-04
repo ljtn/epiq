@@ -377,6 +377,60 @@ export const storageManager = {
 		return {...node, children};
 	},
 
+	// ---------- node access ----------
+
+	async findNodeTypeById(id: string): Promise<StorageNodeType | null> {
+		for (const t of Object.values(StorageNodeTypes)) {
+			const type = t as StorageNodeType;
+			const p = this.nodePath(type, id);
+
+			// Prefer fileExists if available (cheap & safe)
+			try {
+				if (typeof fileManager.fileExists === 'function') {
+					if (await fileManager.fileExists(p)) return type;
+					continue;
+				}
+
+				// Fallback: try reading but swallow ENOENT (file not found)
+				if (typeof fileManager.readFile === 'function') {
+					try {
+						const raw = fileManager.readFile(p);
+						if (raw) return type;
+					} catch (err: any) {
+						// Expected when file doesn't exist; ignore
+						if (err && err.code === 'ENOENT') {
+							// not found for this type — continue to next
+							continue;
+						}
+						// Unexpected IO error — log once and continue
+						logger.error(
+							`findNodeTypeById: unexpected error reading ${p}:`,
+							err,
+						);
+						continue;
+					}
+				}
+			} catch (err) {
+				// Defensive: if fileManager implementations throw in fileExists, log and continue
+				logger.error(`findNodeTypeById: error while probing ${p}:`, err);
+				continue;
+			}
+		}
+		return null;
+	},
+
+	async readNode(id: string): Promise<WorkspaceDiskNodeComposed | null> {
+		try {
+			const type = await this.findNodeTypeById(id);
+			if (!type) return null;
+			return this.getNode(type, id);
+		} catch (err) {
+			// Defensive: surface unexpected errors but avoid hard crashes
+			logger.error(`readNode: unable to read node ${id}:`, err);
+			return null;
+		}
+	},
+
 	// -------------------------
 	// Initial state
 	// -------------------------

@@ -1,6 +1,7 @@
+import {BreadCrumb} from '../../model/app-state.model.js';
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
-import {BreadCrumb, getState, patchState} from '../../state/state.js';
+import {getState, patchState} from '../../state/state.js';
 
 export interface Navigator {
 	navigate<T extends AnyContext>({

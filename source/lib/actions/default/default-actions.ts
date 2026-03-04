@@ -1,6 +1,6 @@
-import {editSelectedTicketFieldValue} from '../../../editor/editor.js';
 import {CmdIntent} from '../../command-line/command-line-sequence-intent.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
+import {ticketRepository} from '../../repository/ticket-repository.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
@@ -54,31 +54,28 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.Edit,
 		mode: Mode.DEFAULT,
 		action: () => {
-			try {
-				if (getState().currentNode.context === 'TICKET') {
-					// Use editor
-					logger.debug(CmdIntent.Rename, getState().currentNode.name);
-					editSelectedTicketFieldValue();
+			const state = getState();
 
+			// Ticket: use editor + repository sync
+			if (state.currentNode.context === 'TICKET') {
+				const didEdit =
+					ticketRepository.editSelectedTicketFieldValueFromState();
+				if (didEdit) {
 					patchState({mode: Mode.DEFAULT});
-					navigator.navigate({
-						currentNode: getState().currentNode,
-						selectedIndex: getState().selectedIndex,
-					});
-					return;
-				} else {
-					// Use command line
-					patchState({mode: Mode.COMMAND_LINE});
-					setCmdInput(
-						() =>
-							`${CmdIntent.Rename} ${
-								getState().currentNode.children[getState().selectedIndex]?.name
-							}`,
-					);
+					// IMPORTANT: don’t pass stale node objects into navigate
+					navigator.navigate({selectedIndex: getState().selectedIndex});
 				}
-			} catch (err) {
-				logger.error('Unable to edit selected field', err);
+				return;
 			}
+
+			// Otherwise: use command line
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => {
+				const s = getState();
+				return `${CmdIntent.Rename} ${
+					s.currentNode.children[s.selectedIndex]?.name ?? ''
+				}`;
+			});
 		},
 	},
 ];

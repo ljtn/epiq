@@ -34,7 +34,6 @@ export const toggleMoveMode: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[d] cut',
 		action: () => {
-			logger.info('HERE WE GO', getState().selectedIndex);
 			if (getState().selectedIndex === -1) return; // Block move if no children
 			patchState({
 				mode: Mode.MOVE,

@@ -1,9 +1,7 @@
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {StorageNodeTypes} from '../../model/storage-node.model.js';
-import {
-	appendChildToCurrentNodeAndSelect,
-	getState,
-} from '../../state/state.js';
+import {nodeRepository} from '../../repository/node-repository.js';
+import {getState} from '../../state/state.js';
 import {SEED_RESOURCES, storageManager} from '../../storage/storage-manager.js';
 import {TEMPLATES} from '../../storage/templates.js';
 import {nodeMapper} from '../../utils/node-mapper.js';
@@ -22,7 +20,7 @@ export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
 		TEMPLATES.swimlanes.map(v => ({id: SEED_RESOURCES.name, initialValue: v})),
 	);
 
-	appendChildToCurrentNodeAndSelect(nodeMapper.toBoard(newItem));
+	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toBoard(newItem));
 };
 
 export const addSwimlane: NonNullable<
@@ -37,7 +35,9 @@ export const addSwimlane: NonNullable<
 		StorageNodeTypes.SWIMLANE,
 	);
 
-	appendChildToCurrentNodeAndSelect(nodeMapper.toSwimlane(diskNode));
+	nodeRepository.appendChildToCurrentNodeAndSelect(
+		nodeMapper.toSwimlane(diskNode),
+	);
 };
 
 export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
@@ -58,5 +58,5 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 		],
 	);
 
-	appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
+	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
 };
