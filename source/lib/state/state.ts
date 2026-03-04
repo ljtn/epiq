@@ -92,12 +92,6 @@ export const patchState = (
 	patch: Omit<Partial<AppState>, 'currentNode' | 'breadCrumb'>,
 ) => updateState(old => ({...old, ...patch}));
 
-// export const appendChildToCurrentNode = <C extends NavNode<any>>(child: C) =>
-// 	updateCurrentNode(node => ({
-// 		...node,
-// 		children: [...node.children, child] as typeof node.children,
-// 	}));
-
 export const isChildSelected = (
 	parent: NavNode<AnyContext>,
 	i: number,
