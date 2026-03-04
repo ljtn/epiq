@@ -1,15 +1,26 @@
+// state/state.ts
 import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/board-action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
 import {Hints} from '../hints/hints.js';
 import {Mode} from '../model/action-map.model.js';
-import {AppState, BreadCrumb} from '../model/app-state.model.js';
-import {AnyContext, Board, Workspace} from '../model/context.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
+import type {AppState, BreadCrumb} from '../model/app-state.model.js';
+import type {AnyContext, Board, Workspace} from '../model/context.model.js';
+import type {NavNode} from '../model/navigation-node.model.js';
 import {deepFreeze} from '../utils/immutable.js';
 import {findNodeInTree} from '../utils/nav-tree.js';
 
+type DerivedKeys =
+	| 'availableActions'
+	| 'availableHints'
+	| 'breadCrumb'
+	| 'currentNode';
+export type BaseState = Omit<AppState, DerivedKeys>;
+
+// -----------------------------
+// Internal store
+// -----------------------------
 let _appState: AppState;
 
 const listeners = new Set<() => void>();
@@ -21,43 +32,38 @@ const subscribe = (listener: () => void) => {
 	return () => listeners.delete(listener);
 };
 
-const derived = (
-	state:
-		| AppState
-		| Omit<
-				AppState,
-				'availableActions' | 'availableHints' | 'breadCrumb' | 'currentNode'
-		  >,
-): AppState => {
+// -----------------------------
+// Derivation
+// -----------------------------
+function derive(state: BaseState): AppState {
 	const {currentNodeId, mode, rootNode} = state;
-	if (currentNodeId === undefined) {
-		logger.error('Unable to derive state from undefined currentNodeId');
-		return _appState;
-	}
-	if (rootNode === undefined) {
-		logger.error('Unable to derive state from undefined root node');
-		return _appState;
-	}
 
-	let breadCrumb: BreadCrumb;
-	const result = findNodeInTree(currentNodeId, rootNode, []);
-
-	if (!result?.node || !result?.breadCrumb) {
-		logger.error('Unable to find node in tree');
-		return _appState;
+	if (!currentNodeId) {
+		throw new Error('derive(): currentNodeId is missing');
+	}
+	if (!rootNode) {
+		throw new Error('derive(): rootNode is missing');
 	}
 
-	breadCrumb = result.breadCrumb;
-	const currentNode = result.node;
+	const found = findNodeInTree(currentNodeId, rootNode, []);
+	if (!found?.node || !found?.breadCrumb) {
+		throw new Error(`derive(): unable to find node ${currentNodeId} in tree`);
+	}
+
+	const currentNode = found.node;
+	const breadCrumb: BreadCrumb = found.breadCrumb;
+
 	const {context} = currentNode;
+	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
 
-	const availableHints = Hints[context + mode] ?? Hints[context];
-	const availableActions = [
+	// Consider not freezing if performance issues
+	const availableActions = deepFreeze([
 		...DefaultActions,
-		...contextActions[context],
+		...(contextActions[context] ?? []),
 		...inputActions,
-	];
+	]);
 
+	// Consider not freezing if performance issues
 	return deepFreeze({
 		...state,
 		currentNode,
@@ -65,32 +71,45 @@ const derived = (
 		availableHints,
 		availableActions,
 	});
+}
+
+// -----------------------------
+// Public API
+// -----------------------------
+export const getState = () => {
+	if (!_appState) {
+		logger.error('State not initialized. Call initWorkspaceState() first.');
+	}
+	return _appState;
 };
 
-export const getState = () => _appState;
+export function initWorkspaceState(workspace: Workspace) {
+	const firstBoard = workspace.children?.[0] as Board | undefined;
 
-export const initWorkspaceState = (workspace: Workspace) => {
-	const selectedBoard = workspace.children.at(0) as Board;
-
-	_appState = derived({
+	const base: BaseState = {
 		mode: Mode.DEFAULT,
 		rootNode: workspace,
-		currentNodeId: selectedBoard.id,
+		currentNodeId: firstBoard?.id ?? workspace.id, // fallback: workspace
 		selectedIndex: 0,
-	});
+	};
 
+	_appState = derive(base);
 	emit();
-};
+}
 
-export const updateState = (cb: (oldState: AppState) => AppState) => {
-	const next = cb(_appState);
-	_appState = derived(next);
+/**
+ * Derived fields are always recomputed.
+ * Callers can *read* full AppState via getState(), but can’t *write* derived keys.
+ */
+export function updateState(cb: (old: AppState) => BaseState) {
+	const prev = getState();
+	const nextBase = cb(prev);
+	_appState = derive(nextBase);
 	emit();
-};
+}
 
-export const patchState = (
-	patch: Omit<Partial<AppState>, 'currentNode' | 'breadCrumb'>,
-) => updateState(old => ({...old, ...patch}));
+export const patchState = (patch: Partial<BaseState>) =>
+	updateState(old => ({...old, ...patch}));
 
 export const isChildSelected = (
 	parent: NavNode<AnyContext>,

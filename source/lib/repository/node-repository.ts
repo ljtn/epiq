@@ -1,6 +1,6 @@
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {getState, updateState} from '../state/state.js';
+import {BaseState, getState, updateState} from '../state/state.js';
 import {storageManager} from '../storage/storage-manager.js';
 import {replaceNodeInTree} from '../utils/nav-tree.js';
 
@@ -95,10 +95,9 @@ export const nodeRepository = {
 			return {
 				...old,
 				rootNode: nextRoot,
-				breadCrumb: nextBreadCrumb as any,
-				currentNode: nextBreadCrumb.at(-1)!,
+				currentNodeId: nextBreadCrumb.at(-1)!.id,
 				selectedIndex: to,
-			};
+			} satisfies BaseState;
 		});
 
 		return to;
@@ -194,10 +193,9 @@ export const nodeRepository = {
 			return {
 				...old,
 				rootNode: nextRoot,
-				breadCrumb: nextBreadCrumb as any,
-				currentNode: nextCurrent,
+				currentNodeId: nextCurrent.id,
 				selectedIndex: (nextCurrent.children?.length ?? 1) - 1,
-			};
+			} satisfies BaseState;
 		});
 
 		return {
@@ -232,10 +230,9 @@ export const nodeRepository = {
 			return {
 				...old,
 				rootNode: result.root,
-				breadCrumb: result.breadCrumb as any,
-				currentNode: nextCurrent,
+				currentNodeId: nextCurrent.id,
 				selectedIndex: nextSelectedIndex,
-			};
+			} satisfies BaseState;
 		}),
 
 	updateNode(newNode: NavNode<AnyContext>) {
@@ -250,7 +247,7 @@ export const nodeRepository = {
 			return {
 				...state,
 				rootNode: result.root,
-			};
+			} satisfies BaseState;
 		});
 	},
 };
