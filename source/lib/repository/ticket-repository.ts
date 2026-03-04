@@ -2,7 +2,7 @@ import {editSelectedTicketFieldValue} from '../../editor/editor.js';
 import {AnyContext, TicketContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
-import {storageManager} from '../storage/storage-manager.js';
+import {storage} from '../storage/storage.js';
 import {nodeRepository} from './node-repository.js';
 
 function isTicketNode(
@@ -31,7 +31,7 @@ export const ticketRepository = {
 			if (editResult?.isUpdated) {
 				logger.info(`Updated ${editResult.resourceId}`);
 				const value = editResult.value || '';
-				storageManager.updateResource(editResult.resourceId, value);
+				storage.updateResource(editResult.resourceId, value);
 				nodeRepository.updateNode({
 					...fieldNode,
 					props: {
@@ -41,7 +41,7 @@ export const ticketRepository = {
 				});
 			}
 
-			const updatedField = storageManager.readNode?.(fieldNode.id);
+			const updatedField = storage.readNode?.(fieldNode.id);
 			if (!updatedField) {
 				logger.error(
 					'editSelectedTicketFieldValue: could not reload updated field from storage',
@@ -49,7 +49,7 @@ export const ticketRepository = {
 				return true; // edit happened, but state sync failed
 			}
 
-			const workspace = storageManager.loadWorkspace();
+			const workspace = storage.loadWorkspace();
 			if (!workspace) {
 				logger.error('Failed to load workspace.');
 				return false;

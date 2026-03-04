@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 import {fileManager} from '../lib/storage/file-manager.js';
-import {storageManager} from '../lib/storage/storage-manager.js';
+import {storage} from '../lib/storage/storage.js';
 
 function pickEditor(): string {
 	return process.env['VISUAL'] || process.env['EDITOR'] || 'vi';
@@ -51,7 +51,7 @@ export function editSelectedTicketFieldValue(field: NavNode<'FIELD'>): {
 		return null;
 	}
 
-	const fieldDisk = storageManager.getNode('fields', field.id);
+	const fieldDisk = storage.getNode('fields', field.id);
 	if (!fieldDisk) {
 		logger.error('Unable to locate field on disk');
 		return null;
@@ -63,7 +63,7 @@ export function editSelectedTicketFieldValue(field: NavNode<'FIELD'>): {
 		return null;
 	}
 
-	const before = storageManager.getResource(valueResId);
+	const before = storage.getResource(valueResId);
 	if (!before) {
 		return null;
 	}

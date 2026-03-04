@@ -2,7 +2,7 @@ import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {StorageNodeTypes} from '../../model/storage-node.model.js';
 import {nodeRepository} from '../../repository/node-repository.js';
 import {getState} from '../../state/state.js';
-import {SEED_RESOURCES, storageManager} from '../../storage/storage-manager.js';
+import {SEED_RESOURCES, storage} from '../../storage/storage.js';
 import {TEMPLATES} from '../../storage/templates.js';
 import {nodeMapper} from '../../utils/node-mapper.js';
 
@@ -13,7 +13,7 @@ export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
 ) => {
 	const parent = getState().currentNode;
 
-	const newItem = storageManager.createNode(
+	const newItem = storage.createNode(
 		parent.id,
 		value,
 		StorageNodeTypes.BOARD,
@@ -33,7 +33,7 @@ export const addSwimlane: NonNullable<
 	const parent = getState().currentNode;
 	const title = value || 'New lane';
 
-	const diskNode = storageManager.createNode(
+	const diskNode = storage.createNode(
 		parent.id,
 		title,
 		StorageNodeTypes.SWIMLANE,
@@ -55,16 +55,11 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 ) => {
 	const parent = getState().currentNode;
 
-	const newItem = storageManager.createNode(
-		parent.id,
-		value,
-		StorageNodeTypes.ISSUE,
-		[
-			{id: SEED_RESOURCES.name, initialValue: '...'},
-			{id: SEED_RESOURCES.assignees, initialValue: 'None'},
-			{id: SEED_RESOURCES.tags, initialValue: 'default'},
-		],
-	);
+	const newItem = storage.createNode(parent.id, value, StorageNodeTypes.ISSUE, [
+		{id: SEED_RESOURCES.name, initialValue: '...'},
+		{id: SEED_RESOURCES.assignees, initialValue: 'None'},
+		{id: SEED_RESOURCES.tags, initialValue: 'default'},
+	]);
 
 	if (!newItem) {
 		logger.error('Unable to create ticket');

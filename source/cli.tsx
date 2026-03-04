@@ -6,7 +6,7 @@ import App from './app.js';
 import {initProject} from './InitView.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import {initWorkspaceState} from './lib/state/state.js';
-import {storageManager} from './lib/storage/storage-manager.js';
+import {storage} from './lib/storage/storage.js';
 import {nodeMapper} from './lib/utils/node-mapper.js';
 import './logger.js';
 
@@ -48,7 +48,7 @@ process.stdout.on('resize', () => {
 	}
 
 	if (!Object.keys(cli.flags).length) {
-		const workspace = storageManager.loadWorkspace();
+		const workspace = storage.loadWorkspace();
 		if (!workspace) {
 			logger.error('Failed to load workspace.');
 			return;

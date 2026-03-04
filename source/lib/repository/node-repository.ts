@@ -1,7 +1,7 @@
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {BaseState, getState, updateState} from '../state/state.js';
-import {storageManager} from '../storage/storage-manager.js';
+import {storage} from '../storage/storage.js';
 import {replaceNodeInTree} from '../utils/nav-tree.js';
 
 function moveItemInArray<T>({
@@ -56,7 +56,7 @@ export const nodeRepository = {
 
 		const parentId = state.currentNode.id;
 
-		const moveResult = storageManager.move({
+		const moveResult = storage.move({
 			fromParentId: parentId,
 			fromIndex: from,
 			toParentId: parentId,
@@ -129,7 +129,7 @@ export const nodeRepository = {
 		const fromIndex = state.selectedIndex;
 		if (fromIndex < 0 || fromIndex >= currentNode.children.length) return null;
 
-		const moveResult = storageManager.move({
+		const moveResult = storage.move({
 			fromParentId: currentNode.id,
 			fromIndex,
 			toParentId: siblingNode.id,

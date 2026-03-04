@@ -29,7 +29,7 @@ export const SEED_RESOURCES = {
 
 type Meta = {rootWorkspaceId: string};
 
-export const storageManager = {
+export const storage = {
 	ROOT_DIR: '',
 	RESOURCES_DIR: '',
 	STORE_DIR: '',

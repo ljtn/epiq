@@ -7,7 +7,7 @@ import {navigator} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {getCmdArg} from '../state/cmd.state.js';
 import {getState, patchState} from '../state/state.js';
-import {storageManager} from '../storage/storage-manager.js';
+import {storage} from '../storage/storage.js';
 import {nodeMapper} from '../utils/node-mapper.js';
 import {CmdIntent} from './command-line-sequence-intent.js';
 
@@ -21,7 +21,7 @@ export const commands: CommandLineActionEntry[] = [
 			const child = currentNode.children.find((_, i) => i === selectedIndex);
 			logger.info(child?.id);
 			if (!child) return logger.error('Unable to resolve child to delete');
-			storageManager.unlinkChild(currentNode.id, child.id);
+			storage.unlinkChild(currentNode.id, child.id);
 		},
 	},
 	{
@@ -71,15 +71,11 @@ export const commands: CommandLineActionEntry[] = [
 			if (!nodeType) return;
 
 			// now returns only nodeId (persisted to disk)
-			const nodeId = storageManager.renameNodeTitle(
-				nodeType,
-				targetNode.id,
-				newName,
-			);
+			const nodeId = storage.renameNodeTitle(nodeType, targetNode.id, newName);
 			if (!nodeId) return;
 
 			// reload from disk and remap (source of truth)
-			const workspaceDisk = storageManager.loadWorkspace();
+			const workspaceDisk = storage.loadWorkspace();
 			if (!workspaceDisk) return;
 
 			const newRootNav = nodeMapper.toWorkspace(workspaceDisk);
