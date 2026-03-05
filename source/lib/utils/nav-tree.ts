@@ -80,6 +80,102 @@ export function replaceNodeInTree<T extends NavNode<AnyContext>>(
 	};
 }
 
+/**
+ * Remove a node by id with structural sharing.
+ *
+ * Notes:
+ * - If you remove the root itself, this returns undefined (caller decides what to do).
+ * - `removedBreadCrumb` is the path to the removed node (includes the removed node),
+ *   which is useful for selecting a sensible fallback (parent/prev sibling/next sibling).
+ */
+export function removeNodeInTree<T extends NavNode<AnyContext>>(
+	targetId: string,
+	root: T,
+):
+	| {
+			root: T; // overall tree root (new)
+			host: NavNode<AnyContext>; // parent/container the node was removed from (rebuilt reference)
+			removed: NavNode<AnyContext>; // the node that was removed
+			removedIndex: number; // index it had in host.children
+			removedBreadCrumb: NavNode<AnyContext>[]; // path to removed node (includes removed node)
+	  }
+	| undefined {
+	const walk = (
+		node: NavNode<AnyContext>,
+		path: NavNode<AnyContext>[],
+	):
+		| {
+				rebuilt: NavNode<AnyContext>;
+				host: NavNode<AnyContext>;
+				removed: NavNode<AnyContext>;
+				removedIndex: number;
+				removedBreadCrumb: NavNode<AnyContext>[];
+		  }
+		| undefined => {
+		const nextPath = [...path, node];
+
+		// Root removal: let caller decide (we can't return a different root safely)
+		if (node.id === targetId) return undefined;
+
+		for (let i = 0; i < node.children.length; i++) {
+			const child = node.children[i]!;
+			if (child.id === targetId) {
+				const nextChildren = node.children.slice();
+				const removed = nextChildren.splice(i, 1)[0]!;
+				const rebuiltHost: NavNode<AnyContext> = {
+					...node,
+					children: nextChildren,
+				};
+
+				return {
+					rebuilt: rebuiltHost,
+					host: rebuiltHost,
+					removed,
+					removedIndex: i,
+					removedBreadCrumb: [...nextPath, removed],
+				};
+			}
+
+			const res = walk(child, nextPath);
+			if (!res) continue;
+
+			// Rebuild this node with the rebuilt subtree
+			const nextChildren = node.children.slice();
+			const childIdx = i;
+			(nextChildren[childIdx] as NavNode<AnyContext>) = res.rebuilt;
+
+			const rebuiltNode: NavNode<AnyContext> = {
+				...node,
+				children: nextChildren,
+			};
+
+			// If removal happened inside the direct child we just rebuilt,
+			// the host reference must be the rebuilt version coming from `res`,
+			// not this node.
+			return {
+				rebuilt: rebuiltNode,
+				host: res.host,
+				removed: res.removed,
+				removedIndex: res.removedIndex,
+				removedBreadCrumb: res.removedBreadCrumb,
+			};
+		}
+
+		return undefined;
+	};
+
+	const res = walk(root, []);
+	if (!res) return undefined;
+
+	return {
+		root: res.rebuilt as T,
+		host: res.host,
+		removed: res.removed,
+		removedIndex: res.removedIndex,
+		removedBreadCrumb: res.removedBreadCrumb,
+	};
+}
+
 export const findNodeInTree = (
 	nodeId: string,
 	ctx: NavNode<AnyContext>,

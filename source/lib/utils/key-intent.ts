@@ -121,9 +121,7 @@ export function getKeyIntent(
 
 	if (mode === Mode.MOVE) {
 		switch (key.name) {
-			case 'd':
-				return Intent.Delete;
-			case 'p':
+			case 'm':
 			case 'return':
 				return Intent.Paste;
 		}
@@ -164,8 +162,10 @@ export function getKeyIntent(
 	switch (key.name) {
 		case 'i':
 			return Intent.Edit;
-		case 'd':
+		case 'm':
 			return Intent.Cut;
+		case 'd':
+			return Intent.Delete;
 		case 'e':
 		case 'return':
 			return Intent.Confirm;

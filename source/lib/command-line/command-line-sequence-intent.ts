@@ -16,6 +16,7 @@ export const CmdKeywords = {
 	RENAME: 'rename',
 	ADD: 'add',
 	DELETE: 'delete',
+	CONFIRM: 'yes',
 } as const;
 
 export const getCommandIntent = (

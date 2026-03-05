@@ -7,6 +7,16 @@ import {Intent} from '../../utils/key-intent.js';
 import {navigator} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
+	// Revisit. Perhaps implement an operator input state for this in vim style. For now restrict delete to command line
+	{
+		intent: Intent.Delete,
+		mode: Mode.DEFAULT,
+		description: '[d] delete',
+		action: () => {
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => 'delete ', 'to confirm deletion type: "yes"');
+		},
+	},
 	{
 		intent: Intent.InitCommandLine,
 		mode: Mode.DEFAULT,

@@ -1,8 +1,13 @@
+import {Mode} from '../model/action-map.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {BaseState, getState, updateState} from '../state/state.js';
+import {BaseState, getState, patchState, updateState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
-import {replaceNodeInTree} from '../utils/nav-tree.js';
+import {
+	findNodeInTree,
+	removeNodeInTree,
+	replaceNodeInTree,
+} from '../utils/nav-tree.js';
 
 function moveItemInArray<T>({
 	array,
@@ -248,6 +253,31 @@ export const nodeRepository = {
 				...state,
 				rootNode: result.root,
 			} satisfies BaseState;
+		});
+	},
+
+	deleteNode(parentNodeId: string, deleteNodeId: string): void {
+		storage.unlinkChild(parentNodeId, deleteNodeId);
+		const rootNode = removeNodeInTree(deleteNodeId, getState().rootNode)?.root;
+		if (!rootNode) {
+			logger.info('Unable to delete node due to failed remove operation');
+			return;
+		}
+
+		const res = findNodeInTree(parentNodeId, rootNode, []);
+		if (!res) return;
+		const {node, breadCrumb} = res;
+		// If parent has children, focus on first
+		let selectedIndex = -1;
+		if (node?.children.length) {
+			// If parent has no children, focus on the parent
+			selectedIndex = 0;
+		}
+		patchState({
+			rootNode: breadCrumb[0],
+			currentNodeId: breadCrumb.at(-1)?.id,
+			selectedIndex,
+			mode: Mode.DEFAULT,
 		});
 	},
 };

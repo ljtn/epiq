@@ -1,5 +1,4 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-// import {setCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {
@@ -8,21 +7,11 @@ import {
 } from './move-actions-utils.js';
 
 export const toggleMoveMode: ActionEntry[] = [
-	// Revisit. Perhaps implement an operator input state for this in vim style. For now restrict delete to command line
-	// {
-	// 	intent: Intent.Delete,
-	// 	mode: Mode.MOVE,
-	// 	description: '[d] delete',
-	// 	action: () => {
-	// 		patchState({mode: Mode.COMMAND_LINE});
-	// 		setCmdInput(() => 'delete ', 'confirm');
-	// 	},
-	// },
 	{
 		// Reconsider. We should probably not move before confirm (paste)
 		intent: Intent.Exit,
 		mode: Mode.MOVE,
-		description: '[esc] paste',
+		description: '[esc] cancel',
 		action: () => {
 			patchState({
 				mode: Mode.DEFAULT,
