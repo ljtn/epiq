@@ -17,6 +17,8 @@ export const getHint = (value: string): string => {
 		const meta = CmdMeta[firstWord as keyof typeof CmdMeta];
 		if (meta) {
 			hint = meta.hint;
+		} else {
+			hint = getWordHint(value);
 		}
 	} else {
 		hint = getWordHint(value);
