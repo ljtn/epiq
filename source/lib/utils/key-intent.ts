@@ -162,6 +162,8 @@ export function getKeyIntent(
 	switch (key.name) {
 		case 'i':
 			return Intent.Edit;
+		case 'a':
+			return Intent.AddItem;
 		case 'm':
 			return Intent.Cut;
 		case 'd':

@@ -1,5 +1,6 @@
 import {Navigator} from '../actions/default/navigation-action-utils.js';
 import readline from 'readline';
+import {CmdResult} from '../command-line/cmd-utils.js';
 
 export const Mode = {
 	DEFAULT: 'default',
@@ -26,5 +27,7 @@ type CommandLineInput = {value: string; command: string};
 export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
 	action?: (
 		...args: [Navigator, CommandLineActionEntry, CommandLineInput]
-	) => void | Promise<void>;
+	) => void | Promise<void> | CmdResult | Promise<CmdResult>;
+	onSuccess?: CommandLineActionEntry;
+	onFail?: CommandLineActionEntry;
 };

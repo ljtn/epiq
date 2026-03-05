@@ -1,13 +1,18 @@
-import {getCommandHint, getWordHint} from './auto-complete.utils.js';
+import {getHint} from '../command-line/auto-complete.utils.js';
+import {CmdResult, CmdResults, getCmdMeta} from '../command-line/cmd-utils.js';
 
 export const commandDelimiter = ' ';
-
+export type CurrentCmdMeta = {
+	hint: string;
+	validationStatus: CmdResult;
+};
 export type CommandLineState = {
 	value: string;
 	commandHistory: string[];
 	commandHistoryIndex: number;
 	autoCompleteHint: string;
 	cursorPosition: number;
+	commandMeta: CurrentCmdMeta;
 };
 
 export let commandLineState: CommandLineState = {
@@ -16,6 +21,10 @@ export let commandLineState: CommandLineState = {
 	commandHistoryIndex: -1,
 	autoCompleteHint: '',
 	cursorPosition: 0,
+	commandMeta: {
+		hint: '',
+		validationStatus: CmdResults.None,
+	},
 };
 
 // ===== Subscriptions =====
@@ -34,18 +43,11 @@ export const subscribeCommandLineState = (listener: Listener) => {
 type SetStateCb = (old: CommandLineState) => CommandLineState;
 
 // ===== Updates =====
-const setState = (cb: SetStateCb, overrideHint?: string) => {
+const setState = (cb: SetStateCb) => {
 	const next = cb(structuredClone(commandLineState));
-	if (next.cursorPosition === next.value.length) {
-		const isFirstWord = next.value.split(' ').length === 1;
-		next.autoCompleteHint = overrideHint
-			? overrideHint
-			: isFirstWord
-			? getCommandHint(next.value)
-			: getWordHint(next.value);
-	} else {
-		next.autoCompleteHint = '';
-	}
+	const isCursorAtEndOfLine = next.cursorPosition === next.value.length;
+	next.commandMeta = getCmdMeta(next.value);
+	next.autoCompleteHint = isCursorAtEndOfLine ? getHint(next.value) : '';
 	commandLineState = next;
 	notify();
 };
@@ -130,7 +132,7 @@ export const eraseInputWord = () => {
 
 type SetCmdStateCallback = (previous: string, hint: string) => string;
 
-export const setCmdInput = (cb: SetCmdStateCallback, overrideHint?: string) => {
+export const setCmdInput = (cb: SetCmdStateCallback) => {
 	setState(state => {
 		const cursor = Math.max(
 			0,
@@ -156,7 +158,7 @@ export const setCmdInput = (cb: SetCmdStateCallback, overrideHint?: string) => {
 			value: nextValue,
 			cursorPosition: nextCursor,
 		};
-	}, overrideHint);
+	});
 };
 
 export const updateCmdHistory = () => {
@@ -197,7 +199,7 @@ export const getNextCmd = () => {
 
 export const clearCmd = () => setCmdInput(() => '');
 
-export const getCmdValue = () => commandLineState.value;
+export const getCmdState = () => commandLineState;
 
 export const getCmdArg = () => {
 	const [_, ...rest] = commandLineState.value.split(commandDelimiter);

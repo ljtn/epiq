@@ -1,23 +1,6 @@
 import {NavNodeCtx} from '../model/context.model.js';
 import {getState} from '../state/state.js';
-
-export const CmdIntent = {
-	None: 'none',
-	AddBoard: 'add-board',
-	AddSwimlane: 'add-swimlane',
-	AddTicket: 'add-ticket',
-	ViewHelp: 'view-help',
-	Rename: 'rename',
-	Delete: 'delete',
-} as const;
-
-export const CmdKeywords = {
-	HELP: 'help',
-	RENAME: 'rename',
-	ADD: 'add',
-	DELETE: 'delete',
-	CONFIRM: 'yes',
-} as const;
+import {CmdIntent, CmdKeywords} from './cmd-utils.js';
 
 export const getCommandIntent = (
 	command: string,

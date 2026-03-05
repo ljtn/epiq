@@ -1,7 +1,4 @@
-import {CmdKeywords} from '../command-line/command-line-sequence-intent.js';
-import {findOverlap} from '../utils/string.utils.js';
-
-const COMMON_WORDS = [
+export const wordList = [
 	// Add custom project terms here
 	// ...
 	// ... or use a llm for dynamic suggestions based on project context
@@ -108,28 +105,3 @@ const COMMON_WORDS = [
 	'requirement',
 	'recommendation',
 ];
-
-export const getCommandHint = (command: string) => {
-	const space = ' ';
-	return getHint(Object.values(CmdKeywords), command, 1) + space;
-};
-export const getWordHint = (command: string) => {
-	const space = ' ';
-	return getHint([...COMMON_WORDS], command, 3) + space;
-};
-
-const getHint = (wordList: string[], command: string, overlapThreshold = 1) => {
-	if (!command) return '';
-
-	const words = command.split(' ');
-	const lastWord = words.at(-1) || '';
-	if (!lastWord) return '';
-
-	const hint = wordList.find(
-		term =>
-			term.startsWith(lastWord) &&
-			findOverlap(lastWord, term) >= overlapThreshold,
-	);
-
-	return hint || '';
-};

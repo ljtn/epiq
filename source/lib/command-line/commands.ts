@@ -6,22 +6,41 @@ import {
 import {navigator} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {nodeRepository} from '../repository/node-repository.js';
-import {getCmdArg} from '../state/cmd.state.js';
+import {
+	getCmdArg,
+	getCmdState,
+	getPrevCmd,
+	setCmdInput,
+} from '../state/cmd.state.js';
 import {getState, patchState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
 import {nodeMapper} from '../utils/node-mapper.js';
-import {CmdIntent, CmdKeywords} from './command-line-sequence-intent.js';
+import {CmdIntent, CmdResults} from './cmd-utils.js';
 
 export const commands: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.Delete,
 		mode: Mode.COMMAND_LINE,
-		action: (_, _2, {value}) => {
-			if (value !== CmdKeywords.CONFIRM) return;
+		action: (_, _2) => {
+			if (getCmdState().commandMeta.validationStatus === CmdResults.Fail) {
+				return CmdResults.Fail;
+			}
 			const {currentNode: currentNode, selectedIndex} = getState();
 			const child = currentNode.children.find((_, i) => i === selectedIndex);
 			if (!child) return logger.error('Unable to resolve child to delete');
 			nodeRepository.deleteNode(currentNode.id, child.id);
+			return CmdResults.Succeed;
+		},
+		onFail: {
+			mode: Mode.DEFAULT,
+			intent: CmdIntent.None,
+			action: () => {
+				getPrevCmd();
+				const value = getCmdState().value;
+				const [firstWord] = value.split(' ');
+
+				setCmdInput(() => firstWord + ' ' || '');
+			},
 		},
 	},
 	{
