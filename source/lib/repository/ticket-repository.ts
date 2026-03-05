@@ -1,5 +1,9 @@
 import {editSelectedTicketFieldValue} from '../../editor/editor.js';
-import {AnyContext, TicketContext} from '../model/context.model.js';
+import {
+	AnyContext,
+	TicketContext,
+	TicketFieldContext,
+} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
@@ -9,6 +13,11 @@ function isTicketNode(
 	node: NavNode<AnyContext>,
 ): node is NavNode<TicketContext> {
 	return node.context === 'TICKET';
+}
+function isFieldNode(
+	node: NavNode<AnyContext>,
+): node is NavNode<TicketFieldContext> {
+	return node.context === 'FIELD';
 }
 
 export const ticketRepository = {
@@ -25,6 +34,10 @@ export const ticketRepository = {
 		if (!isTicketNode(ticketNode)) return false;
 		const fieldNode = ticketNode.children[state.selectedIndex];
 		if (!fieldNode) return false;
+		if (!isFieldNode(fieldNode)) {
+			logger.error('Node type not editable');
+			return false;
+		}
 
 		try {
 			const editResult = editSelectedTicketFieldValue(fieldNode);

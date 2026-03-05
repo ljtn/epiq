@@ -24,10 +24,19 @@ import {TEMPLATES} from './templates.js';
 export const SEED_RESOURCES = {
 	name: 'seed:fieldName:name',
 	tags: 'seed:fieldName:tags',
+	tag: 'seed:fieldName:tag',
 	assignees: 'seed:fieldName:assignees',
 } as const;
 
 type Meta = {rootWorkspaceId: string};
+
+type CreateNodeDefinitionTemplate = {
+	id?: string;
+	name: string;
+	type: StorageNodeType;
+	initialValue: string;
+	children?: CreateNodeDefinitionTemplate[];
+};
 
 export const storage = {
 	ROOT_DIR: '',
@@ -79,7 +88,7 @@ export const storage = {
 		const epiqFolder = fileManager.locateFolder('.epiq');
 
 		if (!epiqFolder) {
-			logger.error(
+			logger.info(
 				'No .epiq folder found — creating new workspace in current directory',
 			);
 			return this.createWorkspace();
@@ -506,48 +515,14 @@ export const storage = {
 		parentId: string,
 		name: string,
 		nodeType: StorageNodeType,
-		children?: {id?: string; initialValue: string}[],
+		children?: CreateNodeDefinitionTemplate[],
 	): WorkspaceDiskNodeComposed | null {
 		const childNodeType = nodeMapper.toChildStorageNodeType(nodeType);
 		if (!childNodeType) {
 			throw new Error(`Unable to map child node type from ${nodeType}`);
 		}
 
-		// 1) Create child nodes and collect their ids
-		const childIds: string[] = (children ?? []).map(child => {
-			// Case 1: FIELD children => label/value
-			if (childNodeType === StorageNodeTypes.FIELD) {
-				// IMPORTANT:
-				// - label is a resource-id reference (seed or ULID) => store it directly in `name`
-				// - value is always a new (versioned) resource => store in props.value
-				const labelResId = child.id ?? SEED_RESOURCES.name;
-				const valueResId = this.createResource(child.initialValue).id;
-
-				const fieldId = ulid();
-				this.writeNodeFile(StorageNodeTypes.FIELD, {
-					id: fieldId,
-					name: labelResId, // keep seed reference, do NOT resolve text
-					props: {value: valueResId},
-				});
-
-				return fieldId;
-			}
-
-			// Case 2: non-FIELD children => normal nodes
-			const childId = ulid();
-			const childNameResId = this.createResource(child.initialValue).id;
-
-			this.writeNodeFile(childNodeType, {
-				id: childId,
-				name: childNameResId,
-				props: {},
-			});
-
-			// children of these created nodes start empty; ordering folder will be empty
-			return childId;
-		});
-
-		// 2) Create the node itself
+		// 1) Create the node itself
 		const nodeId = ulid();
 		const nodeNameResId = this.createResource(name).id;
 
@@ -557,22 +532,74 @@ export const storage = {
 			props: {},
 		});
 
-		// 3) Initialize this node's own children ordering (if any)
+		// 2) Create children
+		const childIds: string[] = [];
+
+		for (const child of children ?? []) {
+			// Always generate a REAL node id
+			const childId = ulid();
+
+			if (childNodeType === StorageNodeTypes.FIELD) {
+				const fieldId = this.createFieldFromTemplateNoLink(child).id;
+				childIds.push(fieldId); // step 3 links to nodeId
+				continue;
+			} else {
+				// non-FIELD child node
+				this.writeNodeFile(childNodeType, {
+					id: childId,
+					name: this.createResource(child.name).id, // label
+					props: {value: this.createResource(child.initialValue ?? '').id}, // optional value pattern
+				});
+
+				if (child.children?.length) {
+					for (const grandChild of child.children) {
+						this.createNode(
+							childId,
+							grandChild.name,
+							grandChild.type,
+							grandChild.children,
+						);
+					}
+				}
+			}
+
+			childIds.push(childId);
+		}
+
+		// 3) Link children under node
 		for (let i = 0; i < childIds.length; i++) {
 			this.linkChildAt(nodeId, childIds[i]!, i);
 		}
 
-		// 4) Attach the new node to the parent ordering (append)
+		// 4) Attach new node under parent
 		const parentChildren = this.listChildrenOrdered(parentId);
 		this.linkChildAt(parentId, nodeId, parentChildren.length);
 
-		// 5) Return the created node as callers expect (with derived children)
-		const created = this.getNode(nodeType, nodeId);
-		if (!created) {
-			logger.error('Unable to create node');
-			return null;
+		// 5) Return composed
+		return this.getNode(nodeType, nodeId);
+	},
+
+	createFieldFromTemplateNoLink(tmpl: CreateNodeDefinitionTemplate): {
+		id: string;
+	} {
+		const fieldId = ulid();
+		const labelResId = tmpl.id ?? this.createResource(tmpl.name).id;
+		const valueResId = this.createResource(tmpl.initialValue ?? '').id;
+
+		this.writeNodeFile(StorageNodeTypes.FIELD, {
+			id: fieldId,
+			name: labelResId,
+			props: {value: valueResId},
+		});
+
+		// create + link nested under this field
+		for (const child of tmpl.children ?? []) {
+			const nested = this.createFieldFromTemplateNoLink(child).id;
+			const existing = this.listChildrenOrdered(fieldId);
+			this.linkChildAt(fieldId, nested, existing.length);
 		}
-		return created;
+
+		return {id: fieldId};
 	},
 
 	move({

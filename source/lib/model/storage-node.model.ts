@@ -1,9 +1,9 @@
 export const StorageNodeTypes = {
-	WORKSPACE: 'workspaces',
-	BOARD: 'boards',
-	SWIMLANE: 'swimlanes',
-	ISSUE: 'issues',
-	FIELD: 'fields',
+	WORKSPACE: 'workspace',
+	BOARD: 'board',
+	SWIMLANE: 'swimlane',
+	ISSUE: 'issue',
+	FIELD: 'field',
 } as const;
 
 export type StorageNodeType =

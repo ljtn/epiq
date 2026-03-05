@@ -3,6 +3,8 @@ import React from 'react';
 import {Ticket} from '../model/context.model.js';
 import {useAppState} from '../state/state.js';
 import {FieldUI} from './FieldUI.js';
+import {FieldListUI} from './FieldListUI.js';
+import {NavNode} from '../model/navigation-node.model.js';
 
 type Props = {
 	ticket: Ticket;
@@ -10,9 +12,9 @@ type Props = {
 };
 
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
-	const {selectedIndex} = useAppState();
+	const {selectedIndex, currentNode} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
-
+	const isInTicket = currentNode.id === ticket.id;
 	return (
 		<Box
 			width={maxWidth}
@@ -22,9 +24,21 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			paddingRight={1}
 			minHeight={height}
 		>
-			{ticket.children.map((child, index) => (
-				<FieldUI key={index} field={child} selected={selectedIndex === index} />
-			))}
+			{ticket.children.map((child, index) =>
+				child.children.length ? (
+					<FieldListUI
+						key={child.id} // use stable key
+						fieldList={child as NavNode<'FIELD_LIST'>}
+						selected={isInTicket && selectedIndex === index}
+					/>
+				) : (
+					<FieldUI
+						key={child.id} // use stable key
+						field={child as NavNode<'FIELD'>}
+						selected={isInTicket && selectedIndex === index}
+					/>
+				),
+			)}
 		</Box>
 	);
 };

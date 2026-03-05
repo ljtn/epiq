@@ -17,7 +17,12 @@ export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
 		parent.id,
 		value,
 		StorageNodeTypes.BOARD,
-		TEMPLATES.swimlanes.map(v => ({id: SEED_RESOURCES.name, initialValue: v})),
+		TEMPLATES.swimlanes.map(v => ({
+			id: SEED_RESOURCES.name,
+			initialValue: v,
+			name: v,
+			type: StorageNodeTypes.SWIMLANE,
+		})),
 	);
 
 	if (!newItem) {
@@ -31,11 +36,11 @@ export const addSwimlane: NonNullable<
 	CommandLineActionEntry['action']
 > = async (_ctx, _cmd, {value}) => {
 	const parent = getState().currentNode;
-	const title = value || 'New lane';
+	const name = value || 'New lane';
 
 	const diskNode = storage.createNode(
 		parent.id,
-		title,
+		name,
 		StorageNodeTypes.SWIMLANE,
 	);
 
@@ -56,9 +61,36 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 	const parent = getState().currentNode;
 
 	const newItem = storage.createNode(parent.id, value, StorageNodeTypes.ISSUE, [
-		{id: SEED_RESOURCES.name, initialValue: '...'},
-		{id: SEED_RESOURCES.assignees, initialValue: 'None'},
-		{id: SEED_RESOURCES.tags, initialValue: 'default'},
+		{
+			id: SEED_RESOURCES.name,
+			name: 'Name',
+			initialValue: '...',
+			type: StorageNodeTypes.FIELD,
+		},
+		{
+			id: SEED_RESOURCES.assignees,
+			name: 'Assignees',
+			initialValue: 'None',
+			type: StorageNodeTypes.FIELD,
+		},
+		{
+			id: SEED_RESOURCES.tags,
+			name: 'Tags',
+			initialValue: '',
+			type: StorageNodeTypes.FIELD,
+			children: [
+				{
+					name: SEED_RESOURCES.tag,
+					initialValue: 'default',
+					type: StorageNodeTypes.FIELD,
+				},
+				{
+					name: SEED_RESOURCES.tag,
+					initialValue: 'urgent',
+					type: StorageNodeTypes.FIELD,
+				},
+			],
+		},
 	]);
 
 	if (!newItem) {

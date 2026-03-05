@@ -5,29 +5,18 @@ import {
 	SwimlaneContext,
 	TicketContext,
 	TicketFieldContext,
+	TicketFieldListContext,
 	WorkspaceContext,
 } from '../model/context.model.js';
-import {storage} from '../storage/storage.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {
 	StorageNodeType,
 	StorageNodeTypes,
-	WorkspaceDiskNode,
 	WorkspaceDiskNodeComposed,
 } from '../model/storage-node.model.js';
+import {storage} from '../storage/storage.js';
 
 export const nodeMapper = {
-	toNavNode(ctx: AnyContext, node: any) {
-		const mapMethods = {
-			WORKSPACE: this.toWorkspace(node),
-			BOARD: this.toBoard(node),
-			SWIMLANE: this.toSwimlane(node),
-			TICKET: this.toIssue(node),
-			FIELD: this.toField(node),
-		};
-		return mapMethods[ctx];
-	},
-
 	contextToNodeTypeMap(ctx: AnyContext): StorageNodeType {
 		const ctxMap = {
 			WORKSPACE: StorageNodeTypes.WORKSPACE,
@@ -35,6 +24,7 @@ export const nodeMapper = {
 			SWIMLANE: StorageNodeTypes.SWIMLANE,
 			TICKET: StorageNodeTypes.ISSUE,
 			FIELD: StorageNodeTypes.FIELD,
+			FIELD_LIST: StorageNodeTypes.FIELD,
 		} as const;
 		return ctxMap[ctx];
 	},
@@ -46,6 +36,7 @@ export const nodeMapper = {
 			[NavNodeCtx.SWIMLANE]: NavNodeCtx.BOARD,
 			[NavNodeCtx.TICKET]: NavNodeCtx.SWIMLANE,
 			[NavNodeCtx.FIELD]: NavNodeCtx.TICKET,
+			[NavNodeCtx.FIELD_LIST]: NavNodeCtx.TICKET,
 		} as const;
 		return typeMap[nodeType];
 	},
@@ -55,7 +46,7 @@ export const nodeMapper = {
 			[StorageNodeTypes.BOARD]: StorageNodeTypes.SWIMLANE,
 			[StorageNodeTypes.SWIMLANE]: StorageNodeTypes.ISSUE,
 			[StorageNodeTypes.ISSUE]: StorageNodeTypes.FIELD,
-			[StorageNodeTypes.FIELD]: null,
+			[StorageNodeTypes.FIELD]: StorageNodeTypes.FIELD,
 		} as const;
 		return typeMap[nodeType];
 	},
@@ -84,7 +75,7 @@ export const nodeMapper = {
 			childRenderAxis: 'vertical',
 
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode('boards', childId);
+				const item = storage.getNode(StorageNodeTypes.BOARD, childId);
 				if (item) acc.push(this.toBoard(item));
 				return acc;
 			}, [] as NavNode<BoardContext>[]),
@@ -103,7 +94,7 @@ export const nodeMapper = {
 			context: NavNodeCtx.BOARD,
 			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode('swimlanes', childId);
+				const item = storage.getNode(StorageNodeTypes.SWIMLANE, childId);
 				if (item) acc.push(this.toSwimlane(item));
 				return acc;
 			}, [] as NavNode<SwimlaneContext>[]),
@@ -123,7 +114,7 @@ export const nodeMapper = {
 			childRenderAxis: 'vertical',
 			childNavigationAcrossParents: true,
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode('issues', childId);
+				const item = storage.getNode(StorageNodeTypes.ISSUE, childId);
 				if (item) acc.push(this.toIssue(item));
 				return acc;
 			}, [] as NavNode<TicketContext>[]),
@@ -142,14 +133,17 @@ export const nodeMapper = {
 			context: NavNodeCtx.TICKET,
 			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode('fields', childId);
-				if (item) acc.push(this.toField(item));
+				const item = storage.getNode(StorageNodeTypes.FIELD, childId);
+				if (item)
+					acc.push(
+						item.children.length ? this.toFieldList(item) : this.toField(item),
+					);
 				return acc;
-			}, [] as NavNode<TicketFieldContext>[]),
+			}, [] as (NavNode<TicketFieldContext> | NavNode<TicketFieldListContext>)[]),
 		} satisfies NavNode<TicketContext>;
 	},
 
-	toField(data: WorkspaceDiskNode): NavNode<TicketFieldContext> {
+	toField(data: WorkspaceDiskNodeComposed): NavNode<TicketFieldContext> {
 		const label = storage.getResource(data.name, 0);
 		const value = data.props['value']
 			? storage.getResource(data.props['value'], 0)
@@ -162,5 +156,26 @@ export const nodeMapper = {
 			childRenderAxis: 'vertical',
 			children: [],
 		} satisfies NavNode<TicketFieldContext>;
+	},
+
+	toFieldList(
+		data: WorkspaceDiskNodeComposed,
+	): NavNode<TicketFieldListContext> {
+		const label = storage.getResource(data.name, 0);
+		const value = data.props['value']
+			? storage.getResource(data.props['value'], 0)
+			: '';
+		return {
+			id: data.id,
+			name: label || '',
+			props: {value: value || ''},
+			context: NavNodeCtx.FIELD_LIST,
+			childRenderAxis: 'horizontal',
+			children: data.children.reduce((acc, childId) => {
+				const item = storage.getNode(StorageNodeTypes.FIELD, childId);
+				if (item) acc.push(this.toField(item));
+				return acc;
+			}, [] as NavNode<TicketFieldContext>[]),
+		} satisfies NavNode<TicketFieldListContext>;
 	},
 };
