@@ -5,6 +5,7 @@ export const CmdIntent = {
 	AddBoard: 'add-board',
 	AddSwimlane: 'add-swimlane',
 	AddTicket: 'add-ticket',
+	AddListItem: 'add-list-item',
 	ViewHelp: 'view-help',
 	Rename: 'rename',
 	Delete: 'delete',
@@ -16,23 +17,24 @@ export const CmdKeywords = {
 	ADD: 'add',
 	DELETE: 'delete',
 } as const;
-export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
-
-export const isCmdKeyword = (word: CmdKeyword): boolean =>
-	Object.values(CmdKeywords).includes(word);
 
 export const CmdModifiers = {
 	None: 'none',
 	All: 'all',
 	Node: 'node',
 } as const;
-export type CmdModifier = (typeof CmdModifiers)[keyof typeof CmdModifiers];
 
 export const CmdResults = {
 	None: 'none',
 	Fail: 'fail',
 	Succeed: 'succeed',
 } as const;
+
+export const isCmdKeyword = (word: CmdKeyword): boolean =>
+	Object.values(CmdKeywords).includes(word);
+
+export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
+export type CmdModifier = (typeof CmdModifiers)[keyof typeof CmdModifiers];
 export type CmdResult = (typeof CmdResults)[keyof typeof CmdResults];
 
 export const CmdMeta: Record<
@@ -43,7 +45,7 @@ export const CmdMeta: Record<
 	}
 > = {
 	[CmdKeywords.DELETE]: {
-		hint: `'node'`,
+		hint: `node`,
 		validateModifier: (_command, modifier) =>
 			modifier === CmdModifiers.Node ? CmdResults.Succeed : CmdResults.Fail,
 	},

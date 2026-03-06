@@ -27,6 +27,17 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 					<Box>
 						<Text color={theme.secondary}>{index > 0 ? ', ' : ''}</Text>
 						<Text
+							color={
+								currentNode.id === fieldList.id && selectedIndex === index
+									? theme.accent
+									: theme.secondary
+							}
+						>
+							{currentNode.id === fieldList.id && selectedIndex === index
+								? '⸬ '
+								: '  '}
+						</Text>
+						<Text
 							backgroundColor={theme.secondary}
 							color={
 								currentNode.id === fieldList.id && selectedIndex === index

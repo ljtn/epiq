@@ -511,12 +511,19 @@ export const storage = {
 	// Public mutations
 	// -------------------------
 
-	createNode(
-		parentId: string,
-		name: string,
-		nodeType: StorageNodeType,
-		children?: CreateNodeDefinitionTemplate[],
-	): WorkspaceDiskNodeComposed | null {
+	createNode({
+		parentId,
+		name,
+		nodeType,
+		props,
+		children,
+	}: {
+		parentId: string;
+		name: string;
+		nodeType: StorageNodeType;
+		props?: Record<string, string>;
+		children?: CreateNodeDefinitionTemplate[];
+	}): WorkspaceDiskNodeComposed | null {
 		const childNodeType = nodeMapper.toChildStorageNodeType(nodeType);
 		if (!childNodeType) {
 			throw new Error(`Unable to map child node type from ${nodeType}`);
@@ -529,7 +536,7 @@ export const storage = {
 		this.writeNodeFile(nodeType, {
 			id: nodeId,
 			name: nodeNameResId,
-			props: {},
+			props: props ?? {},
 		});
 
 		// 2) Create children
@@ -553,12 +560,12 @@ export const storage = {
 
 				if (child.children?.length) {
 					for (const grandChild of child.children) {
-						this.createNode(
-							childId,
-							grandChild.name,
-							grandChild.type,
-							grandChild.children,
-						);
+						this.createNode({
+							parentId: childId,
+							name: grandChild.name,
+							nodeType: grandChild.type,
+							children: grandChild.children,
+						});
 					}
 				}
 			}
@@ -678,5 +685,16 @@ export const storage = {
 		this.updateResource(currentValueResId, nextValue);
 
 		return {nodeId};
+	},
+
+	canDeleteNode(nodeType: StorageNodeType, nodeId: string): boolean {
+		const node = this.readNodeFile(nodeType, nodeId);
+		if (!node) return false;
+		const nameResId = node.name ?? '';
+		const isSeedLabel =
+			nameResId.startsWith('seed:') ||
+			(Object.values(SEED_RESOURCES) as readonly string[]).includes(nameResId);
+
+		return !isSeedLabel;
 	},
 };

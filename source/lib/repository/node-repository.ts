@@ -8,6 +8,7 @@ import {
 	removeNodeInTree,
 	replaceNodeInTree,
 } from '../utils/nav-tree.js';
+import {nodeMapper} from '../utils/node-mapper.js';
 
 function moveItemInArray<T>({
 	array,
@@ -256,7 +257,18 @@ export const nodeRepository = {
 		});
 	},
 
-	deleteNode(parentNodeId: string, deleteNodeId: string): void {
+	deleteNode<T extends AnyContext>(
+		parentNodeId: string,
+		deleteNodeId: string,
+		ctx: T,
+	): void {
+		if (
+			!storage.canDeleteNode(nodeMapper.contextToNodeTypeMap(ctx), deleteNodeId)
+		) {
+			logger.info('Attempted to delete protected node');
+			return;
+		}
+
 		storage.unlinkChild(parentNodeId, deleteNodeId);
 		const rootNode = removeNodeInTree(deleteNodeId, getState().rootNode)?.root;
 		if (!rootNode) {

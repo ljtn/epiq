@@ -1,6 +1,7 @@
 import {
 	addBoard,
 	addSwimlane,
+	addListItem,
 	addTicket,
 } from '../actions/add-item/add-item-actions.js';
 import {navigator} from '../actions/default/navigation-action-utils.js';
@@ -28,7 +29,7 @@ export const commands: CommandLineActionEntry[] = [
 			const {currentNode: currentNode, selectedIndex} = getState();
 			const child = currentNode.children.find((_, i) => i === selectedIndex);
 			if (!child) return logger.error('Unable to resolve child to delete');
-			nodeRepository.deleteNode(currentNode.id, child.id);
+			nodeRepository.deleteNode(currentNode.id, child.id, child.context);
 			return CmdResults.Succeed;
 		},
 		onFail: {
@@ -69,6 +70,14 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
 			addTicket(...args);
+			patchState({mode: Mode.DEFAULT});
+		},
+	},
+	{
+		intent: CmdIntent.AddListItem,
+		mode: Mode.COMMAND_LINE,
+		action: (...args) => {
+			addListItem(...args);
 			patchState({mode: Mode.DEFAULT});
 		},
 	},

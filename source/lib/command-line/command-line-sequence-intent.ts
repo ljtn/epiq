@@ -22,6 +22,8 @@ export const getCommandIntent = (
 					return CmdIntent.AddSwimlane;
 				case NavNodeCtx.SWIMLANE:
 					return CmdIntent.AddTicket;
+				case NavNodeCtx.FIELD_LIST:
+					return CmdIntent.AddListItem;
 				default:
 					return CmdIntent.None;
 			}

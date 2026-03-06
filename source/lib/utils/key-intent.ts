@@ -166,7 +166,7 @@ export function getKeyIntent(
 			return Intent.AddItem;
 		case 'm':
 			return Intent.Cut;
-		case 'd':
+		case 'd': // It cannot be 'backspace' as we then end up in an infinite loop if we erase from cmd line
 			return Intent.Delete;
 		case 'e':
 		case 'return':

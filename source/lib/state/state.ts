@@ -85,12 +85,14 @@ export const getState = () => {
 
 export function initWorkspaceState(workspace: Workspace) {
 	const firstBoard = workspace.children?.[0] as Board | undefined;
+	const firstTicket = workspace.children?.[0]?.children[0] as Board | undefined;
+	const currentNode = firstTicket ?? firstBoard ?? workspace;
 
 	const base: BaseState = {
 		mode: Mode.DEFAULT,
 		rootNode: workspace,
-		currentNodeId: firstBoard?.id ?? workspace.id, // fallback: workspace
-		selectedIndex: 0,
+		currentNodeId: currentNode.id,
+		selectedIndex: currentNode.children.length ? 0 : -1,
 	};
 
 	_appState = derive(base);
