@@ -3,6 +3,8 @@ import {CmdResult, CmdResults, getCmdMeta} from '../command-line/cmd-utils.js';
 
 export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
+	modifier: string;
+	command: string;
 	hint: string;
 	validationStatus: CmdResult;
 };
@@ -22,6 +24,8 @@ export let commandLineState: CommandLineState = {
 	autoCompleteHint: '',
 	cursorPosition: 0,
 	commandMeta: {
+		command: '',
+		modifier: '',
 		hint: '',
 		validationStatus: CmdResults.None,
 	},

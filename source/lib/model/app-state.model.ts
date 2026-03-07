@@ -21,6 +21,8 @@ export type BreadCrumb =
 			NavNode<'FIELD'>,
 	  ];
 
+export type ViewMode = 'wide' | 'dense';
+
 export type AppState = DeepReadonly<{
 	selectedIndex: number;
 	currentNodeId: string;
@@ -30,4 +32,5 @@ export type AppState = DeepReadonly<{
 	currentNode: NavNode<AnyContext>;
 	breadCrumb: BreadCrumb;
 	rootNode: Workspace;
+	viewMode: ViewMode;
 }>;

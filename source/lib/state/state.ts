@@ -93,6 +93,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		rootNode: workspace,
 		currentNodeId: currentNode.id,
 		selectedIndex: currentNode.children.length ? 0 : -1,
+		viewMode: 'dense',
 	};
 
 	_appState = derive(base);

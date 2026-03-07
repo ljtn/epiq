@@ -21,14 +21,14 @@ export const SwimlaneUI: React.FC<Props> = ({
 	height,
 }) => {
 	const state = useAppState();
-	const compact = true;
+	const isDense = state.viewMode === 'dense';
 	const isFocused = state.currentNode.id === swimlane.id;
 	const paddingTop = 4;
 	const paddingBottom = 2;
 	const listSelectedIndex = isFocused ? state.selectedIndex : -1;
 	const title = swimlane.name + ' (' + swimlane.children.length + ')';
 
-	return compact ? (
+	return isDense ? (
 		// Compact
 		<Box
 			flexDirection="column"

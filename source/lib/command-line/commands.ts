@@ -1,7 +1,7 @@
 import {
 	addBoard,
-	addSwimlane,
 	addListItem,
+	addSwimlane,
 	addTicket,
 } from '../actions/add-item/add-item-actions.js';
 import {navigator} from '../actions/default/navigation-action-utils.js';
@@ -13,7 +13,7 @@ import {
 	getPrevCmd,
 	setCmdInput,
 } from '../state/cmd.state.js';
-import {getState, patchState} from '../state/state.js';
+import {getState, patchState, updateState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
 import {nodeMapper} from '../utils/node-mapper.js';
 import {CmdIntent, CmdResults} from './cmd-utils.js';
@@ -71,6 +71,28 @@ export const commands: CommandLineActionEntry[] = [
 		action: (...args) => {
 			addTicket(...args);
 			patchState({mode: Mode.DEFAULT});
+		},
+	},
+	{
+		intent: CmdIntent.SetView,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const {commandMeta} = getCmdState();
+			logger.info('made it so far');
+			if (commandMeta.validationStatus === CmdResults.Fail) {
+				return CmdResults.Fail;
+			}
+			logger.info('made it');
+			return updateState(s => ({
+				...s,
+				mode: Mode.DEFAULT,
+				viewMode:
+					commandMeta.modifier === 'wide'
+						? 'wide'
+						: commandMeta.modifier === 'dense'
+						? 'dense'
+						: s.viewMode,
+			}));
 		},
 	},
 	{

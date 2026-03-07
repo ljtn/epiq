@@ -9,6 +9,7 @@ export const CmdIntent = {
 	ViewHelp: 'view-help',
 	Rename: 'rename',
 	Delete: 'delete',
+	SetView: 'set-view',
 } as const;
 
 export const CmdKeywords = {
@@ -16,6 +17,7 @@ export const CmdKeywords = {
 	RENAME: 'rename',
 	ADD: 'add',
 	DELETE: 'delete',
+	VIEW: 'view',
 } as const;
 
 export const CmdModifiers = {
@@ -34,14 +36,18 @@ export const isCmdKeyword = (word: CmdKeyword): boolean =>
 	Object.values(CmdKeywords).includes(word);
 
 export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
-export type CmdModifier = (typeof CmdModifiers)[keyof typeof CmdModifiers];
+export type DefaultCmdModifier =
+	(typeof CmdModifiers)[keyof typeof CmdModifiers];
 export type CmdResult = (typeof CmdResults)[keyof typeof CmdResults];
 
 export const CmdMeta: Record<
 	CmdKeyword,
 	{
 		hint: string;
-		validateModifier: (cw: CmdKeyword, cm: CmdModifier) => CmdResult;
+		validateModifier: (
+			cw: CmdKeyword,
+			cm: DefaultCmdModifier | string,
+		) => CmdResult;
 	}
 > = {
 	[CmdKeywords.DELETE]: {
@@ -61,22 +67,39 @@ export const CmdMeta: Record<
 		hint: ``,
 		validateModifier: (_command, _modifier) => CmdResults.None,
 	},
+	[CmdKeywords.VIEW]: {
+		hint: `'dense' or 'wide'`,
+		validateModifier: (_command, modifier) => {
+			const success = modifier === 'dense' || modifier === 'wide';
+			logger.info('success', success);
+			return success ? CmdResults.Succeed : CmdResults.Fail;
+		},
+	},
 } as const;
 
 export const getCmdMeta = (value: string): CurrentCmdMeta => {
 	const words = value.split(' ');
-	const [firstWord, secondWord] = words;
+	const [firstWord, ...rest] = words;
+	const [secondWord] = rest;
 	const firstWordIsCmdKeyword = isCmdKeyword(words[0] as CmdKeyword);
 
+	const modifier = rest.join?.(' ') ?? '';
 	if (firstWord && firstWordIsCmdKeyword) {
 		const meta = CmdMeta[firstWord as CmdKeyword];
 		return {
+			command: firstWord,
+			modifier,
 			hint: meta.hint,
 			validationStatus: meta.validateModifier(
 				firstWord as CmdKeyword,
-				secondWord as CmdModifier,
+				secondWord as DefaultCmdModifier,
 			),
 		};
 	}
-	return {validationStatus: CmdResults.None, hint: ''};
+	return {
+		validationStatus: CmdResults.None,
+		hint: '',
+		command: firstWord ?? '',
+		modifier,
+	};
 };

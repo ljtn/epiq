@@ -74,4 +74,22 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		action: () => ticketRepository.edit(),
 	},
+	{
+		intent: Intent.CmdSetViewDense,
+		mode: Mode.DEFAULT,
+		action: () => {
+			logger.info('aha');
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => 'view dense');
+		},
+	},
+	{
+		intent: Intent.CmdSetViewWide,
+		mode: Mode.DEFAULT,
+		action: () => {
+			logger.info('iii');
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => 'view wide');
+		},
+	},
 ];

@@ -12,6 +12,8 @@ export const getCommandIntent = (
 			return CmdIntent.Delete;
 		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
+		case CmdKeywords.VIEW:
+			return CmdIntent.SetView;
 		case CmdKeywords.RENAME:
 			return CmdIntent.Rename;
 		case CmdKeywords.ADD:
