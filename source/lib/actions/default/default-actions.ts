@@ -86,7 +86,6 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.CmdSetViewWide,
 		mode: Mode.DEFAULT,
 		action: () => {
-			logger.info('iii');
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => 'view wide');
 		},

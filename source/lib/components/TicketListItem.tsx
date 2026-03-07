@@ -16,7 +16,7 @@ type TicketFieldMap = Record<
 	}
 >;
 
-const getTicketFields = (ticket: Ticket): TicketFieldMap => {
+export const getTicketFields = (ticket: Ticket): TicketFieldMap => {
 	const fields: TicketFieldMap = {};
 
 	for (const field of ticket.children) {
@@ -58,7 +58,7 @@ export const TicketListItemUI: React.FC<{
 		<Box
 			borderStyle="round"
 			width={width - 6}
-			height={5}
+			height={4}
 			flexDirection="column"
 			borderColor={isSelected ? theme.accent : theme.secondary}
 			justifyContent="space-between"

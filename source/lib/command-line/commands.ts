@@ -78,11 +78,9 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {commandMeta} = getCmdState();
-			logger.info('made it so far');
 			if (commandMeta.validationStatus === CmdResults.Fail) {
 				return CmdResults.Fail;
 			}
-			logger.info('made it');
 			return updateState(s => ({
 				...s,
 				mode: Mode.DEFAULT,

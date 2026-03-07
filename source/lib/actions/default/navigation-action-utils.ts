@@ -11,7 +11,6 @@ export interface Navigator {
 		currentNode?: NavNode<T>;
 		selectedIndex: number;
 	}): void;
-	confirm<T extends AnyContext>(selected: NavNode<T>): void;
 	exit(): void;
 	enterChildNode(): void;
 	enterParentNode(): void;
@@ -22,10 +21,6 @@ export interface Navigator {
 }
 
 export const navigator: Navigator = {
-	confirm(sel) {
-		logger.info(sel);
-	},
-
 	exit() {
 		process.exit(0);
 	},

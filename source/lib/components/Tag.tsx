@@ -197,7 +197,7 @@ export const TagUI: React.FC<Props> = ({name}) => {
 
 	return (
 		<Text backgroundColor={backgroundColor} color={theme.primary}>
-			{' ' + name + ' '}
+			{'' + name + ''}
 		</Text>
 	);
 };

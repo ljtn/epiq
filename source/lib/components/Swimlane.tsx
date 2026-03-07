@@ -99,7 +99,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 					<ScrollBoxUI
 						selectedIndex={listSelectedIndex}
 						height={height - cmdInputHeight - 1}
-						itemHeight={5}
+						itemHeight={4}
 					>
 						{swimlane.children.map((ticket, index) => (
 							<TicketListItemUI

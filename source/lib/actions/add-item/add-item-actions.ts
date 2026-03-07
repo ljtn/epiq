@@ -116,7 +116,6 @@ export const addListItem: NonNullable<
 		logger.error('Field item can only be added inside a FIELD node');
 		return;
 	}
-	logger.info(value);
 
 	// Default value if empty
 	const itemValue = value || '';

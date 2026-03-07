@@ -71,7 +71,6 @@ export const CmdMeta: Record<
 		hint: `'dense' or 'wide'`,
 		validateModifier: (_command, modifier) => {
 			const success = modifier === 'dense' || modifier === 'wide';
-			logger.info('success', success);
 			return success ? CmdResults.Succeed : CmdResults.Fail;
 		},
 	},
