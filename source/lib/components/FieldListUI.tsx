@@ -3,6 +3,7 @@ import React from 'react';
 import {FieldList} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 import {useAppState} from '../state/state.js';
+import {TagUI} from './Tag.js';
 
 type Props = {
 	fieldList: FieldList;
@@ -37,16 +38,12 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 								? '⸬ '
 								: '  '}
 						</Text>
-						<Text
-							backgroundColor={theme.secondary}
-							color={
+						<TagUI
+							name={field.props['value'] ?? ''}
+							selected={
 								currentNode.id === fieldList.id && selectedIndex === index
-									? theme.accent
-									: theme.secondary
 							}
-						>
-							{' ' + field.props['value'] + ' '}
-						</Text>
+						></TagUI>
 					</Box>
 				))}
 			</Box>
