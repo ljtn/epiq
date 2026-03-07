@@ -12,10 +12,11 @@ const truncateWithEllipsis = (str: string, width: number): string =>
 	str.length >= width ? str.slice(0, width - 3) + '...' : str;
 
 export const TicketListItemCompactUI: React.FC<{
+	index: number;
 	width: number;
 	ticket: Ticket;
 	isSelected: boolean;
-}> = ({width, ticket, isSelected}) => {
+}> = ({width, ticket, isSelected, index}) => {
 	const {mode} = useAppState();
 
 	const fields = getTicketFields(ticket);
@@ -26,8 +27,8 @@ export const TicketListItemCompactUI: React.FC<{
 		0,
 	);
 
-	const tagsRendered = tags.flatMap((tag, index) => (
-		<Box key={`${tag}-${index}`} paddingRight={paddingRight}>
+	const tagsRendered = tags.flatMap((tag, i) => (
+		<Box key={`${tag}-${i}`} paddingRight={paddingRight}>
 			<TagUI name={tag} />
 		</Box>
 	));
@@ -41,7 +42,11 @@ export const TicketListItemCompactUI: React.FC<{
 	return (
 		<Box borderBottom justifyContent="space-between">
 			<Box>
-				<Text color={color}>{isSelected ? '⸬ ' : '  '}</Text>
+				{isSelected ? (
+					<Text color={color}>{'⸬  '}</Text>
+				) : (
+					<Text color={theme.secondary}>{index + 1 + '. '}</Text>
+				)}
 				<Text color={color}>
 					{truncateWithEllipsis(ticket.name, width - tagsWidth - 14)}
 				</Text>

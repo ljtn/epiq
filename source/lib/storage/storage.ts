@@ -26,6 +26,7 @@ export const SEED_RESOURCES = {
 	tags: 'seed:fieldName:tags',
 	tag: 'seed:fieldName:tag',
 	assignees: 'seed:fieldName:assignees',
+	assignee: 'seed:fieldName:assignee',
 } as const;
 
 type Meta = {rootWorkspaceId: string};

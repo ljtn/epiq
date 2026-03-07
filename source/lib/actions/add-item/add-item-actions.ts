@@ -77,24 +77,26 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 				name: 'Assignees',
 				initialValue: 'None',
 				type: StorageNodeTypes.FIELD,
+				// children: [
+				// 	{
+				// 		name: SEED_RESOURCES.assignee,
+				// 		initialValue: getUser(),
+				// 		type: StorageNodeTypes.FIELD,
+				// 	},
+				// ],
 			},
 			{
 				id: SEED_RESOURCES.tags,
 				name: 'Tags',
 				initialValue: '',
 				type: StorageNodeTypes.FIELD,
-				children: [
-					{
-						name: SEED_RESOURCES.tag,
-						initialValue: 'default',
-						type: StorageNodeTypes.FIELD,
-					},
-					{
-						name: SEED_RESOURCES.tag,
-						initialValue: 'urgent',
-						type: StorageNodeTypes.FIELD,
-					},
-				],
+				// children: [
+				// 	{
+				// 		name: SEED_RESOURCES.tag,
+				// 		initialValue: 'todo',
+				// 		type: StorageNodeTypes.FIELD,
+				// 	},
+				// ],
 			},
 		],
 	});

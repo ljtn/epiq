@@ -44,8 +44,8 @@ export enum Intent {
 	Edit = 'edit',
 
 	// View
-	CmdSetViewDense = 'CmdSetViewDense',
-	CmdSetViewWide = 'CmdSetViewWide',
+	SetViewDense = 'SetViewDense',
+	SetViewWide = 'SetViewWide',
 }
 
 function getDir(key: readline.Key): 'up' | 'down' | 'left' | 'right' | null {
@@ -179,8 +179,8 @@ export function getKeyIntent(
 			return Intent.Confirm;
 		case 'v':
 			return getState().viewMode === 'wide'
-				? Intent.CmdSetViewDense
-				: Intent.CmdSetViewWide;
+				? Intent.SetViewDense
+				: Intent.SetViewWide;
 		case 'q':
 		case 'escape':
 			return Intent.Exit;

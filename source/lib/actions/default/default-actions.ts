@@ -75,19 +75,21 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => ticketRepository.edit(),
 	},
 	{
-		intent: Intent.CmdSetViewDense,
+		intent: Intent.SetViewDense,
 		mode: Mode.DEFAULT,
 		action: () => {
-			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => 'view dense');
+			return patchState({
+				viewMode: 'dense',
+			});
 		},
 	},
 	{
-		intent: Intent.CmdSetViewWide,
+		intent: Intent.SetViewWide,
 		mode: Mode.DEFAULT,
 		action: () => {
-			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => 'view wide');
+			return patchState({
+				viewMode: 'wide',
+			});
 		},
 	},
 ];

@@ -37,7 +37,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 			borderRight={false}
 		>
 			<Text bold color={isSelected ? theme.accent : theme.primary}>
-				{isSelected ? ' ⸬ ' : '  '}
+				{isSelected ? '⸬ ' : '  '}
 			</Text>
 			<Text bold color={isSelected ? theme.accent : theme.primary}>
 				{title}
@@ -68,6 +68,7 @@ export const SwimlaneUI: React.FC<Props> = ({
 						{swimlane.children.map((ticket, index) => (
 							<TicketListItemCompactUI
 								key={ticket.id ?? index}
+								index={index}
 								width={width}
 								ticket={ticket}
 								isSelected={isFocused && state.selectedIndex === index}
