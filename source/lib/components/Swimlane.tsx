@@ -23,10 +23,27 @@ export const SwimlaneUI: React.FC<Props> = ({
 	const state = useAppState();
 	const isDense = state.viewMode === 'dense';
 	const isFocused = state.currentNode.id === swimlane.id;
-	const paddingTop = 4;
-	const paddingBottom = 2;
 	const listSelectedIndex = isFocused ? state.selectedIndex : -1;
 	const title = swimlane.name + ' (' + swimlane.children.length + ')';
+	const cmdInputHeight = 3;
+
+	const swimlaneHeading = (
+		<Box
+			borderStyle="round"
+			borderColor={theme.secondary}
+			justifyContent="flex-start"
+			borderLeft={false}
+			borderTop={false}
+			borderRight={false}
+		>
+			<Text bold color={isSelected ? theme.accent : theme.primary}>
+				{isSelected ? ' ⸬ ' : '  '}
+			</Text>
+			<Text bold color={isSelected ? theme.accent : theme.primary}>
+				{title}
+			</Text>
+		</Box>
+	);
 
 	return isDense ? (
 		// Compact
@@ -39,27 +56,14 @@ export const SwimlaneUI: React.FC<Props> = ({
 			paddingLeft={1}
 			height={height}
 		>
-			<Box
-				borderStyle="round"
-				borderColor={theme.secondary}
-				justifyContent="flex-start"
-				borderLeft={false}
-				borderTop={false}
-				borderRight={false}
-			>
-				<Text bold color={isSelected ? theme.accent : theme.primary}>
-					{isSelected ? ' ⸬ ' : '  '}
-				</Text>
-				<Text bold color={isSelected ? theme.accent : theme.primary}>
-					{title}
-				</Text>
-			</Box>
+			{swimlaneHeading}
 
 			<Box padding={1}>
 				{swimlane.children.length > 0 && (
 					<ScrollBoxUI
 						selectedIndex={listSelectedIndex}
-						height={height - paddingTop - paddingBottom}
+						height={height - cmdInputHeight - 2}
+						itemHeight={1}
 					>
 						{swimlane.children.map((ticket, index) => (
 							<TicketListItemCompactUI
@@ -83,36 +87,19 @@ export const SwimlaneUI: React.FC<Props> = ({
 			flexDirection="column"
 			width={width}
 			borderStyle="round"
-			paddingTop={1}
-			borderRight={true}
-			borderLeft={false}
-			borderTop={false}
-			borderBottom={false}
-			borderColor={theme.secondary}
+			borderColor={isSelected ? theme.accent : theme.secondary}
+			paddingRight={1}
+			paddingLeft={1}
 			height={height}
 		>
-			<Box
-				borderStyle="round"
-				borderColor={theme.secondary}
-				justifyContent="flex-start"
-				borderLeft={false}
-				borderTop={false}
-				borderRight={false}
-			>
-				<Text bold color={isSelected ? theme.accent : theme.primary}>
-					{isSelected ? ' ⸬ ' : '   '}
-				</Text>
-				<Text bold color={isSelected ? theme.accent : theme.primary}>
-					{title}
-				</Text>
-			</Box>
+			{swimlaneHeading}
 
-			<Box padding={1}>
+			<Box>
 				{swimlane.children.length > 0 && (
 					<ScrollBoxUI
 						selectedIndex={listSelectedIndex}
-						height={height - paddingTop - paddingBottom}
-						itemHeight={4}
+						height={height - cmdInputHeight - 1}
+						itemHeight={5}
 					>
 						{swimlane.children.map((ticket, index) => (
 							<TicketListItemUI

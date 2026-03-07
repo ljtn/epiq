@@ -78,7 +78,6 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.CmdSetViewDense,
 		mode: Mode.DEFAULT,
 		action: () => {
-			logger.info('aha');
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => 'view dense');
 		},

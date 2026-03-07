@@ -19,58 +19,62 @@ export const ScrollBoxUI: React.FC<Props> = ({
 		return null;
 	}
 
-	const visibleItemCount = Math.max(1, Math.floor(height / itemHeight));
+	const safeHeight = Math.max(1, Math.floor(height));
+	const safeItemHeight = Math.max(1, Math.ceil(itemHeight));
+
+	const visibleItemCount = Math.max(1, Math.floor(safeHeight / safeItemHeight));
+
 	const clampedSelectedIndex = Math.max(
 		0,
 		Math.min(selectedIndex, children.length - 1),
 	);
 
-	const scrollIndex = Math.floor(clampedSelectedIndex / visibleItemCount);
-	const start = scrollIndex * visibleItemCount;
+	const maxStart = Math.max(0, children.length - visibleItemCount);
+	const start = Math.min(
+		maxStart,
+		Math.floor(clampedSelectedIndex / visibleItemCount) * visibleItemCount,
+	);
 	const end = start + visibleItemCount;
 
 	const visibleChildren = children.slice(start, end);
 
-	const scrollBarHeight = height;
-	const scrollSteps = Math.max(
-		1,
-		Math.ceil(children.length / visibleItemCount),
-	);
-	const indexBarHeight = Math.max(1, Math.ceil(scrollBarHeight / scrollSteps));
-	const maxBarOffset = Math.max(0, scrollBarHeight - indexBarHeight);
-	const barOffset =
-		scrollSteps <= 1
-			? 0
-			: Math.min(
-					maxBarOffset,
-					Math.round((scrollIndex / (scrollSteps - 1)) * maxBarOffset),
-			  );
-
 	const showScrollbar = children.length > visibleItemCount;
 
+	const scrollBarHeight = safeHeight;
+
+	const thumbHeight = showScrollbar
+		? Math.max(
+				1,
+				Math.floor((visibleItemCount / children.length) * scrollBarHeight),
+		  )
+		: scrollBarHeight;
+
+	const maxThumbOffset = Math.max(0, scrollBarHeight - thumbHeight);
+	const maxScrollStart = Math.max(1, children.length - visibleItemCount);
+
+	const thumbOffset = showScrollbar
+		? Math.floor((start / maxScrollStart) * maxThumbOffset)
+		: 0;
+
 	return (
-		<Box flexDirection="row" height={height} width="100%">
-			<Box flexDirection="column" flexGrow={1}>
+		<Box flexDirection="row" height={safeHeight} width="100%">
+			<Box flexDirection="column" flexGrow={1} height={safeHeight}>
 				{visibleChildren}
 			</Box>
 
 			<Box flexDirection="column" width={1} height={scrollBarHeight}>
-				{showScrollbar
-					? Array.from({length: scrollBarHeight}).map((_, i) => (
-							<Text
-								key={i}
-								color={
-									i >= barOffset && i < barOffset + indexBarHeight
-										? theme.accent
-										: theme.secondary
-								}
-							>
-								│
-							</Text>
-					  ))
-					: Array.from({length: scrollBarHeight}).map((_, i) => (
-							<Text key={i}></Text>
-					  ))}
+				{Array.from({length: scrollBarHeight}).map((_, i) => (
+					<Text
+						key={i}
+						color={
+							showScrollbar && i >= thumbOffset && i < thumbOffset + thumbHeight
+								? theme.accent
+								: theme.secondary
+						}
+					>
+						{showScrollbar ? '│' : ' '}
+					</Text>
+				))}
 			</Box>
 		</Box>
 	);

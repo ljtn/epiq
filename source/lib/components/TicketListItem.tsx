@@ -2,10 +2,35 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
+import {
+	sanitizeInlineText,
+	truncateWithEllipsis,
+} from '../utils/string.utils.js';
 import {TagUI} from './Tag.js';
 
-const truncateWithEllipsis = (str: string, width: number): string => {
-	return str.length >= width ? str.slice(0, width - 3) + '...' : str;
+type TicketFieldMap = Record<
+	string,
+	{
+		value: string;
+		values: string[];
+	}
+>;
+
+const getTicketFields = (ticket: Ticket): TicketFieldMap => {
+	const fields: TicketFieldMap = {};
+
+	for (const field of ticket.children) {
+		if (!field.name) continue;
+
+		fields[field.name] = {
+			value: sanitizeInlineText(field.props['value']),
+			values: field.children
+				.map(child => sanitizeInlineText(child.props['value']))
+				.filter(Boolean),
+		};
+	}
+
+	return fields;
 };
 
 export const TicketListItemUI: React.FC<{
@@ -13,28 +38,44 @@ export const TicketListItemUI: React.FC<{
 	ticket: Ticket;
 	isSelected: boolean;
 }> = ({width, ticket, isSelected}) => {
+	const fields = getTicketFields(ticket);
+
+	const contentWidth = width - 12;
+
+	const title = truncateWithEllipsis(
+		sanitizeInlineText(ticket.name),
+		contentWidth,
+	);
+
+	// const description = truncateWithEllipsis(
+	// 	fields['Description']?.value ?? '',
+	// 	contentWidth,
+	// );
+
+	const tags = fields['Tags']?.values ?? [];
+
 	return (
 		<Box
-			borderStyle={'round'}
-			width={width - 5}
-			borderColor={isSelected ? theme.accent : theme.secondary}
+			borderStyle="round"
+			width={width - 6}
+			height={5}
 			flexDirection="column"
+			borderColor={isSelected ? theme.accent : theme.secondary}
+			justifyContent="space-between"
 		>
 			<Box borderBottom>
-				{/* <Text color={color}>{isSelected ? ' ⸬' : '  '}</Text> */}
-				<Box paddingLeft={1}>
-					<Text color={theme.primary}>
-						{truncateWithEllipsis(ticket.name, width - 12)}
-					</Text>
+				<Box paddingLeft={1} flexDirection="column">
+					<Text color={theme.primary}>{title}</Text>
+					{/* <Text color={theme.secondary}>{description}</Text> */}
 				</Box>
 			</Box>
-			<Box flexDirection="row" paddingLeft={0}>
-				<Box paddingLeft={1}>
-					<TagUI name={'urgent'}></TagUI>
-				</Box>
-				<Box paddingLeft={1}>
-					<TagUI name={'urgent'}></TagUI>
-				</Box>
+
+			<Box flexDirection="row" paddingLeft={1}>
+				{tags.map((tag, index) => (
+					<Box key={`${tag}-${index}`} paddingRight={1}>
+						<TagUI name={tag} />
+					</Box>
+				))}
 			</Box>
 		</Box>
 	);
