@@ -7,7 +7,6 @@ import {
 	WorkspaceDiskNode,
 	WorkspaceDiskNodeComposed,
 } from '../model/storage-node.model.js';
-import {nodeMapper} from '../utils/node-mapper.js';
 import {clamp} from '../utils/number.js';
 import {
 	bigIntToHex,
@@ -31,12 +30,12 @@ export const SEED_RESOURCES = {
 
 type Meta = {rootWorkspaceId: string};
 
-type CreateNodeDefinitionTemplate = {
-	id?: string;
-	name: string;
+type NodeDefinitionTemplate = {
+	name?: string;
+	nameId?: string;
 	type: StorageNodeType;
-	initialValue: string;
-	children?: CreateNodeDefinitionTemplate[];
+	initialValue?: string;
+	children?: NodeDefinitionTemplate[];
 };
 
 export const storage = {
@@ -71,11 +70,6 @@ export const storage = {
 		fileManager.mkDir(this.NODES_DIR);
 		fileManager.mkDir(this.ORDER_DIR);
 
-		// Ensure per-type node dirs exist
-		for (const t of Object.values(StorageNodeTypes)) {
-			fileManager.mkDir(this.nodesTypeDir(t as StorageNodeType));
-		}
-
 		// Ensure seeds exist (idempotent)
 		this.ensureSeeds();
 	},
@@ -104,7 +98,7 @@ export const storage = {
 			return this.createInitialWorkspace();
 		}
 
-		const ws = this.getNode(StorageNodeTypes.WORKSPACE, meta.rootWorkspaceId);
+		const ws = this.getNode(meta.rootWorkspaceId);
 		if (!ws) {
 			logger.error('Workspace root missing from store');
 			return this.createInitialWorkspace();
@@ -200,7 +194,7 @@ export const storage = {
 
 		const versionId = this.resolveResourceVersion(resourceId, indexFromLatest);
 		if (!versionId) {
-			logger.error('Unable to resolve resource version');
+			logger.error('Unable to resolve resource version for: ', resourceId);
 			return null;
 		}
 
@@ -223,19 +217,17 @@ export const storage = {
 	ensureSeeds() {
 		this.ensureSeedResource(SEED_RESOURCES.name, 'Description');
 		this.ensureSeedResource(SEED_RESOURCES.tags, 'Tags');
+		this.ensureSeedResource(SEED_RESOURCES.tag, 'Tag');
 		this.ensureSeedResource(SEED_RESOURCES.assignees, 'Assignees');
+		this.ensureSeedResource(SEED_RESOURCES.assignee, 'Assignee');
 	},
 
 	// -------------------------
 	// Per-node files
 	// -------------------------
 
-	nodesTypeDir(type: StorageNodeType) {
-		return path.join(this.NODES_DIR, type);
-	},
-
-	nodePath(type: StorageNodeType, id: string) {
-		return path.join(this.nodesTypeDir(type), `${id}.json`);
+	nodePath(id: string) {
+		return path.join(this.NODES_DIR, `${id}.json`);
 	},
 
 	writeNodeFile(
@@ -244,20 +236,22 @@ export const storage = {
 	) {
 		const onDisk: WorkspaceDiskNode = {
 			id: node.id,
+			type,
 			name: node.name,
 			props: node.props ?? {},
 		};
 
 		fileManager.writeToFile(
-			this.nodePath(type, node.id),
+			this.nodePath(node.id),
 			stringify(onDisk, {maxLength: 1, indent: 2}),
 		);
 	},
 
-	readNodeFile(type: StorageNodeType, id: string): WorkspaceDiskNode | null {
-		const p = this.nodePath(type, id);
+	readNodeFile(id: string): WorkspaceDiskNode | null {
+		const p = this.nodePath(id);
 		const raw = fileManager.readFile(p);
 		if (!raw) return null;
+
 		try {
 			return fileManager.readFileJSON<WorkspaceDiskNode>(p);
 		} catch {
@@ -385,67 +379,13 @@ export const storage = {
 
 	// ---------- node access ----------
 
-	getNode(type: StorageNodeType, id: string): WorkspaceDiskNodeComposed | null {
-		const node = this.readNodeFile(type, id);
+	getNode(id: string): WorkspaceDiskNodeComposed | null {
+		const node = this.readNodeFile(id);
 		if (!node) return null;
 
 		const children = this.listChildrenOrdered(id).map(e => e.childId);
 
 		return {...node, children};
-	},
-
-	// ---------- node access ----------
-
-	async findNodeTypeById(id: string): Promise<StorageNodeType | null> {
-		for (const t of Object.values(StorageNodeTypes)) {
-			const type = t as StorageNodeType;
-			const p = this.nodePath(type, id);
-
-			// Prefer fileExists if available (cheap & safe)
-			try {
-				if (typeof fileManager.fileExists === 'function') {
-					if (await fileManager.fileExists(p)) return type;
-					continue;
-				}
-
-				// Fallback: try reading but swallow ENOENT (file not found)
-				if (typeof fileManager.readFile === 'function') {
-					try {
-						const raw = fileManager.readFile(p);
-						if (raw) return type;
-					} catch (err: any) {
-						// Expected when file doesn't exist; ignore
-						if (err && err.code === 'ENOENT') {
-							// not found for this type — continue to next
-							continue;
-						}
-						// Unexpected IO error — log once and continue
-						logger.error(
-							`findNodeTypeById: unexpected error reading ${p}:`,
-							err,
-						);
-						continue;
-					}
-				}
-			} catch (err) {
-				// Defensive: if fileManager implementations throw in fileExists, log and continue
-				logger.error(`findNodeTypeById: error while probing ${p}:`, err);
-				continue;
-			}
-		}
-		return null;
-	},
-
-	async readNode(id: string): Promise<WorkspaceDiskNodeComposed | null> {
-		try {
-			const type = await this.findNodeTypeById(id);
-			if (!type) return null;
-			return this.getNode(type, id);
-		} catch (err) {
-			// Defensive: surface unexpected errors but avoid hard crashes
-			logger.error(`readNode: unable to read node ${id}:`, err);
-			return null;
-		}
 	},
 
 	// -------------------------
@@ -483,7 +423,7 @@ export const storage = {
 
 			this.writeMeta({rootWorkspaceId: workspace.id});
 
-			return this.getNode(StorageNodeTypes.WORKSPACE, workspace.id);
+			return this.getNode(workspace.id);
 		} catch (e) {
 			logger.error('Failed to create initial workspace', e);
 			return null;
@@ -505,7 +445,7 @@ export const storage = {
 			this.linkChildAt(id, initialChildren[i]!, i);
 		}
 
-		return {id, name: nameResId, children: initialChildren, props};
+		return {id, name: nameResId, children: initialChildren, props, type};
 	},
 
 	// -------------------------
@@ -514,100 +454,42 @@ export const storage = {
 
 	createNode({
 		parentId,
-		name,
-		nodeType,
-		props,
-		children,
+		definition,
 	}: {
 		parentId: string;
-		name: string;
-		nodeType: StorageNodeType;
-		props?: Record<string, string>;
-		children?: CreateNodeDefinitionTemplate[];
+		definition: NodeDefinitionTemplate;
 	}): WorkspaceDiskNodeComposed | null {
-		const childNodeType = nodeMapper.toChildStorageNodeType(nodeType);
-		if (!childNodeType) {
-			throw new Error(`Unable to map child node type from ${nodeType}`);
-		}
-
-		// 1) Create the node itself
-		const nodeId = ulid();
-		const nodeNameResId = this.createResource(name).id;
-
-		this.writeNodeFile(nodeType, {
-			id: nodeId,
-			name: nodeNameResId,
-			props: props ?? {},
-		});
-
-		// 2) Create children
-		const childIds: string[] = [];
-
-		for (const child of children ?? []) {
-			// Always generate a REAL node id
-			const childId = ulid();
-
-			if (childNodeType === StorageNodeTypes.FIELD) {
-				const fieldId = this.createFieldFromTemplateNoLink(child).id;
-				childIds.push(fieldId); // step 3 links to nodeId
-				continue;
-			} else {
-				// non-FIELD child node
-				this.writeNodeFile(childNodeType, {
-					id: childId,
-					name: this.createResource(child.name).id, // label
-					props: {value: this.createResource(child.initialValue ?? '').id}, // optional value pattern
-				});
-
-				if (child.children?.length) {
-					for (const grandChild of child.children) {
-						this.createNode({
-							parentId: childId,
-							name: grandChild.name,
-							nodeType: grandChild.type,
-							children: grandChild.children,
-						});
-					}
-				}
-			}
-
-			childIds.push(childId);
-		}
-
-		// 3) Link children under node
-		for (let i = 0; i < childIds.length; i++) {
-			this.linkChildAt(nodeId, childIds[i]!, i);
-		}
-
-		// 4) Attach new node under parent
+		const nodeId = this.createNodeFromDefinitionNoLink(definition).id;
 		const parentChildren = this.listChildrenOrdered(parentId);
 		this.linkChildAt(parentId, nodeId, parentChildren.length);
-
-		// 5) Return composed
-		return this.getNode(nodeType, nodeId);
+		return this.getNode(nodeId);
 	},
 
-	createFieldFromTemplateNoLink(tmpl: CreateNodeDefinitionTemplate): {
+	createNodeFromDefinitionNoLink({
+		name,
+		nameId,
+		initialValue,
+		type,
+		children,
+	}: NodeDefinitionTemplate): {
 		id: string;
 	} {
-		const fieldId = ulid();
-		const labelResId = tmpl.id ?? this.createResource(tmpl.name).id;
-		const valueResId = this.createResource(tmpl.initialValue ?? '').id;
+		const nodeId = ulid();
+		nameId = nameId ?? (name ? this.createResource(name).id : '');
+		const valueId = this.createResource(initialValue ?? '').id;
 
-		this.writeNodeFile(StorageNodeTypes.FIELD, {
-			id: fieldId,
-			name: labelResId,
-			props: {value: valueResId},
+		this.writeNodeFile(type, {
+			id: nodeId,
+			name: nameId,
+			props: {value: valueId},
 		});
 
-		// create + link nested under this field
-		for (const child of tmpl.children ?? []) {
-			const nested = this.createFieldFromTemplateNoLink(child).id;
-			const existing = this.listChildrenOrdered(fieldId);
-			this.linkChildAt(fieldId, nested, existing.length);
+		for (const [index, child] of (children ?? []).entries()) {
+			const childId = this.createNodeFromDefinitionNoLink(child).id;
+			this.linkChildAt(nodeId, childId, index);
 		}
 
-		return {id: fieldId};
+		return {id: nodeId};
 	},
 
 	move({
@@ -642,22 +524,17 @@ export const storage = {
 		return {nodeId: movedId};
 	},
 
-	renameNodeTitle(
-		nodeType: StorageNodeType,
-		nodeId: string,
-		nextTitle: string,
-	): {nodeId: string} | void {
-		const node = this.readNodeFile(nodeType, nodeId);
-		if (!node) return logger.error(`Node ${nodeId} not found in ${nodeType}`);
+	renameNodeTitle(nodeId: string, nextTitle: string) {
+		const node = this.readNodeFile(nodeId);
+		if (!node) return logger.error(`Node ${nodeId} not found`);
 
 		const currentNameResId = node.name;
-		if (!currentNameResId) return logger.error(`Node ${nodeId} missing name`);
 
-		// Fork if seeded, so renaming doesn’t rename the shared seed
 		const isSeeded = currentNameResId.startsWith('seed:');
+
 		if (isSeeded) {
 			const newTitleResId = this.createResource(nextTitle).id;
-			this.writeNodeFile(nodeType, {...node, name: newTitleResId});
+			this.writeNodeFile(node.type, {...node, name: newTitleResId});
 		} else {
 			this.updateResource(currentNameResId, nextTitle);
 		}
@@ -665,33 +542,26 @@ export const storage = {
 		return {nodeId};
 	},
 
-	updateNodeValue(
-		nodeType: StorageNodeType,
-		nodeId: string,
-		nextValue: string,
-	) {
-		const node = this.readNodeFile(nodeType, nodeId);
-		if (!node) {
-			return logger.error(`Node ${nodeId} not found in ${nodeType}`);
+	updateNodeValue(nodeId: string, nextValue: string) {
+		const node = this.readNodeFile(nodeId);
+		if (!node) return logger.error(`Node ${nodeId} not found`);
+
+		const valueResId = node.props?.['value'];
+		if (!valueResId) {
+			return logger.error(`Node ${nodeId} missing props.value`);
 		}
 
-		const currentValueResId = node.props?.['value'];
-		if (!currentValueResId) {
-			return logger.error(
-				`Node ${nodeId} has no value resource (props.value missing)`,
-			);
-		}
-
-		// Append new version to the existing value resource
-		this.updateResource(currentValueResId, nextValue);
+		this.updateResource(valueResId, nextValue);
 
 		return {nodeId};
 	},
 
-	canDeleteNode(nodeType: StorageNodeType, nodeId: string): boolean {
-		const node = this.readNodeFile(nodeType, nodeId);
+	canDeleteNode(nodeId: string): boolean {
+		const node = this.readNodeFile(nodeId);
 		if (!node) return false;
+
 		const nameResId = node.name ?? '';
+
 		const isSeedLabel =
 			nameResId.startsWith('seed:') ||
 			(Object.values(SEED_RESOURCES) as readonly string[]).includes(nameResId);

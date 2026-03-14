@@ -45,7 +45,7 @@ function derive(state: BaseState): AppState {
 		throw new Error('derive(): rootNode is missing');
 	}
 
-	const found = findNodeInTree(currentNodeId, rootNode, []);
+	const found = findNodeInTree({id: currentNodeId}, rootNode, []);
 	if (!found?.node || !found?.breadCrumb) {
 		throw new Error(`derive(): unable to find node ${currentNodeId} in tree`);
 	}

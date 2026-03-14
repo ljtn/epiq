@@ -57,34 +57,29 @@ export const nodeRepository = {
 		}
 
 		const {currentNode} = getState();
-
-		const result = findNodeInTree(SEED_RESOURCES.tags, currentNode, []);
+		const result = findNodeInTree({name: 'Tags'}, currentNode, []);
 		if (!result) {
 			logger.error('Could not find tags node');
 			return;
 		}
 
-		logger.info(result.node);
-
 		this.addListItem(value, result.node);
 	},
 
 	addListItem: async (value: string, parent = getState().currentNode) => {
-		logger.info(parent);
 		if (parent.context !== NavNodeCtx.FIELD_LIST) {
-			logger.error('Field item can only be added inside a FIELD node');
+			logger.error('Field item can only be added inside a FIELD_LIST node');
 			return;
 		}
 
-		// Default value if empty
 		const itemValue = value || '';
-
-		// Create a FIELD child under current FIELD
 		const diskNode = storage.createNode({
 			parentId: parent.id,
-			name: SEED_RESOURCES.tag,
-			props: {value},
-			nodeType: StorageNodeTypes.FIELD,
+			definition: {
+				name: SEED_RESOURCES.tag,
+				initialValue: itemValue,
+				type: StorageNodeTypes.FIELD, // Perhaps parameterize
+			},
 		});
 
 		if (!diskNode) {
@@ -93,7 +88,7 @@ export const nodeRepository = {
 		}
 
 		// Now update its value resource
-		storage.updateNodeValue(StorageNodeTypes.FIELD, diskNode.id, itemValue);
+		storage.updateNodeValue(diskNode.id, itemValue);
 
 		return nodeRepository.appendChildToNode(
 			parent.id,
@@ -333,14 +328,8 @@ export const nodeRepository = {
 		});
 	},
 
-	deleteNode<T extends AnyContext>(
-		parentNodeId: string,
-		deleteNodeId: string,
-		ctx: T,
-	): void {
-		if (
-			!storage.canDeleteNode(nodeMapper.contextToNodeTypeMap(ctx), deleteNodeId)
-		) {
+	deleteNode(parentNodeId: string, deleteNodeId: string): void {
+		if (!storage.canDeleteNode(deleteNodeId)) {
 			logger.info('Attempted to delete protected node');
 			return;
 		}
@@ -352,7 +341,7 @@ export const nodeRepository = {
 			return;
 		}
 
-		const res = findNodeInTree(parentNodeId, rootNode, []);
+		const res = findNodeInTree({id: parentNodeId}, rootNode, []);
 		if (!res) return;
 		const {node, breadCrumb} = res;
 		// If parent has children, focus on first

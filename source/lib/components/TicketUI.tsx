@@ -1,6 +1,6 @@
 import {Box} from 'ink';
 import React from 'react';
-import {Ticket} from '../model/context.model.js';
+import {NavNodeCtx, Ticket} from '../model/context.model.js';
 import {useAppState} from '../state/state.js';
 import {FieldUI} from './FieldUI.js';
 import {FieldListUI} from './FieldListUI.js';
@@ -25,7 +25,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			minHeight={height}
 		>
 			{ticket.children.map((child, index) =>
-				child.children.length ? (
+				child.context === NavNodeCtx.FIELD_LIST ? (
 					<FieldListUI
 						key={child.id} // use stable key
 						fieldList={child as NavNode<'FIELD_LIST'>}

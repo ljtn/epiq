@@ -177,18 +177,21 @@ export function removeNodeInTree<T extends NavNode<AnyContext>>(
 }
 
 export const findNodeInTree = (
-	nodeId: string,
+	matcher: Partial<NavNode<AnyContext>>,
 	ctx: NavNode<AnyContext>,
 	breadCrumb: BreadCrumb | [],
 ): {node: NavNode<AnyContext>; breadCrumb: BreadCrumb} | undefined => {
 	const nextBreadCrumb = [...breadCrumb, ctx] as BreadCrumb;
 
-	if (ctx.id === nodeId) {
+	const match = Object.entries(matcher).find(
+		([key, value]) => ctx[key as keyof NavNode<AnyContext>] === value,
+	);
+	if (match) {
 		return {node: ctx, breadCrumb: nextBreadCrumb};
 	}
 
 	for (const child of ctx.children) {
-		const res = findNodeInTree(nodeId, child, nextBreadCrumb);
+		const res = findNodeInTree(matcher, child, nextBreadCrumb);
 		if (res) return res;
 	}
 

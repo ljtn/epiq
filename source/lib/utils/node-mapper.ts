@@ -24,42 +24,9 @@ export const nodeMapper = {
 			SWIMLANE: StorageNodeTypes.SWIMLANE,
 			TICKET: StorageNodeTypes.ISSUE,
 			FIELD: StorageNodeTypes.FIELD,
-			FIELD_LIST: StorageNodeTypes.FIELD,
+			FIELD_LIST: StorageNodeTypes.FIELD_LIST,
 		} as const;
 		return ctxMap[ctx];
-	},
-
-	toParentNavNodeType(nodeType: AnyContext) {
-		const typeMap = {
-			[NavNodeCtx.WORKSPACE]: null,
-			[NavNodeCtx.BOARD]: NavNodeCtx.WORKSPACE,
-			[NavNodeCtx.SWIMLANE]: NavNodeCtx.BOARD,
-			[NavNodeCtx.TICKET]: NavNodeCtx.SWIMLANE,
-			[NavNodeCtx.FIELD]: NavNodeCtx.TICKET,
-			[NavNodeCtx.FIELD_LIST]: NavNodeCtx.TICKET,
-		} as const;
-		return typeMap[nodeType];
-	},
-	toChildStorageNodeType(nodeType: StorageNodeType): StorageNodeType | null {
-		const typeMap = {
-			[StorageNodeTypes.WORKSPACE]: StorageNodeTypes.BOARD,
-			[StorageNodeTypes.BOARD]: StorageNodeTypes.SWIMLANE,
-			[StorageNodeTypes.SWIMLANE]: StorageNodeTypes.ISSUE,
-			[StorageNodeTypes.ISSUE]: StorageNodeTypes.FIELD,
-			[StorageNodeTypes.FIELD]: StorageNodeTypes.FIELD,
-		} as const;
-		return typeMap[nodeType];
-	},
-
-	toParentStorageNodeType(nodeType: StorageNodeType): StorageNodeType | null {
-		const typeMap = {
-			[StorageNodeTypes.WORKSPACE]: null,
-			[StorageNodeTypes.BOARD]: StorageNodeTypes.WORKSPACE,
-			[StorageNodeTypes.SWIMLANE]: StorageNodeTypes.BOARD,
-			[StorageNodeTypes.ISSUE]: StorageNodeTypes.SWIMLANE,
-			[StorageNodeTypes.FIELD]: StorageNodeTypes.ISSUE,
-		} as const;
-		return typeMap[nodeType];
 	},
 
 	toWorkspace(data: WorkspaceDiskNodeComposed): NavNode<WorkspaceContext> {
@@ -75,7 +42,7 @@ export const nodeMapper = {
 			childRenderAxis: 'vertical',
 
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(StorageNodeTypes.BOARD, childId);
+				const item = storage.getNode(childId);
 				if (item) acc.push(this.toBoard(item));
 				return acc;
 			}, [] as NavNode<BoardContext>[]),
@@ -94,7 +61,7 @@ export const nodeMapper = {
 			context: NavNodeCtx.BOARD,
 			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(StorageNodeTypes.SWIMLANE, childId);
+				const item = storage.getNode(childId);
 				if (item) acc.push(this.toSwimlane(item));
 				return acc;
 			}, [] as NavNode<SwimlaneContext>[]),
@@ -114,7 +81,7 @@ export const nodeMapper = {
 			childRenderAxis: 'vertical',
 			childNavigationAcrossParents: true,
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(StorageNodeTypes.ISSUE, childId);
+				const item = storage.getNode(childId);
 				if (item) acc.push(this.toIssue(item));
 				return acc;
 			}, [] as NavNode<TicketContext>[]),
@@ -133,10 +100,12 @@ export const nodeMapper = {
 			context: NavNodeCtx.TICKET,
 			childRenderAxis: 'vertical',
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(StorageNodeTypes.FIELD, childId);
+				const item = storage.getNode(childId);
 				if (item)
 					acc.push(
-						item.children.length ? this.toFieldList(item) : this.toField(item),
+						item.type === StorageNodeTypes.FIELD_LIST
+							? this.toFieldList(item)
+							: this.toField(item),
 					);
 				return acc;
 			}, [] as (NavNode<TicketFieldContext> | NavNode<TicketFieldListContext>)[]),
@@ -172,7 +141,7 @@ export const nodeMapper = {
 			context: NavNodeCtx.FIELD_LIST,
 			childRenderAxis: 'horizontal',
 			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(StorageNodeTypes.FIELD, childId);
+				const item = storage.getNode(childId);
 				if (item) acc.push(this.toField(item));
 				return acc;
 			}, [] as NavNode<TicketFieldContext>[]),
@@ -192,10 +161,10 @@ export const nodeMapper = {
 				return this.toSwimlane(data);
 			case StorageNodeTypes.ISSUE:
 				return this.toIssue(data);
+			case StorageNodeTypes.FIELD_LIST:
+				return this.toFieldList(data);
 			case StorageNodeTypes.FIELD:
-				return data.children.length
-					? this.toFieldList(data)
-					: this.toField(data);
+				return this.toField(data);
 			default:
 				throw new Error(`Unsupported node type: ${String(type)}`);
 		}

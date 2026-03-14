@@ -4,6 +4,7 @@ export const StorageNodeTypes = {
 	SWIMLANE: 'swimlane',
 	ISSUE: 'issue',
 	FIELD: 'field',
+	FIELD_LIST: 'list',
 } as const;
 
 export type StorageNodeType =
@@ -11,13 +12,11 @@ export type StorageNodeType =
 
 export type WorkspaceDiskNode = {
 	id: string;
+	type: StorageNodeType;
 	name: string;
 	props: Record<string, string>;
 };
 
-export type WorkspaceDiskNodeComposed = {
-	id: string;
-	name: string;
-	props: Record<string, string>;
+export type WorkspaceDiskNodeComposed = WorkspaceDiskNode & {
 	children: string[] | [];
 };

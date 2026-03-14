@@ -4,7 +4,6 @@ import path from 'node:path';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 import {fileManager} from '../lib/storage/file-manager.js';
 import {storage} from '../lib/storage/storage.js';
-import {StorageNodeTypes} from '../lib/model/storage-node.model.js';
 
 function pickEditor(): string {
 	return process.env['VISUAL'] || process.env['EDITOR'] || 'vi';
@@ -52,7 +51,7 @@ export function editSelectedTicketFieldValue(field: NavNode<'FIELD'>): {
 		return null;
 	}
 
-	const fieldDisk = storage.getNode(StorageNodeTypes.FIELD, field.id);
+	const fieldDisk = storage.getNode(field.id);
 	if (!fieldDisk) {
 		logger.error('Unable to locate field on disk');
 		return null;
@@ -64,9 +63,9 @@ export function editSelectedTicketFieldValue(field: NavNode<'FIELD'>): {
 		return null;
 	}
 
-	const before = storage.getResource(valueResId);
+	let before = storage.getResource(valueResId);
 	if (!before) {
-		return null;
+		before = '';
 	}
 	const value = openEditorOnText(before, `${fieldDisk.id}.value.md`);
 	return {isUpdated: value !== before, resourceId: valueResId, value};

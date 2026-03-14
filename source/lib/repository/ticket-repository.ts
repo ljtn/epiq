@@ -57,7 +57,6 @@ export const ticketRepository = {
 	 */
 	editSelectedTicketFieldValueFromState(): boolean {
 		const state = getState();
-
 		const ticketNode = state.currentNode;
 		if (!isTicketNode(ticketNode)) return false;
 		const fieldNode = ticketNode.children[state.selectedIndex];
@@ -82,7 +81,7 @@ export const ticketRepository = {
 				});
 			}
 
-			const updatedField = storage.readNode?.(fieldNode.id);
+			const updatedField = storage.getNode?.(fieldNode.id);
 			if (!updatedField) {
 				logger.error(
 					'editSelectedTicketFieldValue: could not reload updated field from storage',

@@ -29,7 +29,7 @@ export const commands: CommandLineActionEntry[] = [
 			const {currentNode: currentNode, selectedIndex} = getState();
 			const child = currentNode.children.find((_, i) => i === selectedIndex);
 			if (!child) return logger.error('Unable to resolve child to delete');
-			nodeRepository.deleteNode(currentNode.id, child.id, child.context);
+			nodeRepository.deleteNode(currentNode.id, child.id);
 			return CmdResults.Succeed;
 		},
 		onFail: {
@@ -119,7 +119,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (!nodeType) return;
 
 			// now returns only nodeId (persisted to disk)
-			const nodeId = storage.renameNodeTitle(nodeType, targetNode.id, newName);
+			const nodeId = storage.renameNodeTitle(targetNode.id, newName);
 			if (!nodeId) return;
 
 			// reload from disk and remap (source of truth)
