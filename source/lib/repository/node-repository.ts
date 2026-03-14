@@ -56,8 +56,13 @@ export const nodeRepository = {
 			return;
 		}
 
-		const {currentNode} = getState();
-		const result = findNodeInTree({name: 'Tags'}, currentNode, []);
+		const {currentNode, selectedIndex} = getState();
+		const target = currentNode.children[selectedIndex];
+		if (!target) {
+			logger.error('Missing tag target node');
+			return;
+		}
+		const result = findNodeInTree({name: 'Tags'}, target, []);
 		if (!result) {
 			logger.error('Could not find tags node');
 			return;

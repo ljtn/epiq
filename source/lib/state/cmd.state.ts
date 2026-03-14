@@ -5,7 +5,7 @@ export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
 	modifier: string;
 	command: string;
-	hint: string;
+	autoCompleteHints: string[];
 	validationStatus: CmdResult;
 };
 export type CommandLineState = {
@@ -26,7 +26,7 @@ export let commandLineState: CommandLineState = {
 	commandMeta: {
 		command: '',
 		modifier: '',
-		hint: '',
+		autoCompleteHints: [''],
 		validationStatus: CmdResults.None,
 	},
 };
@@ -207,5 +207,5 @@ export const getCmdState = () => commandLineState;
 
 export const getCmdArg = () => {
 	const [_, ...rest] = commandLineState.value.split(commandDelimiter);
-	return rest.join(commandDelimiter);
+	return rest.join(commandDelimiter).trim();
 };

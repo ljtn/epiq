@@ -11,7 +11,7 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
-		"test": "prettier --check . && xo && ava",
+		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run",
 		"start": "node dist/cli.js"
 	},
 	"files": [
@@ -31,9 +31,7 @@
 		"@types/marked-terminal": "^6.1.1",
 		"@types/react": "^18.0.32",
 		"@vdemedes/prettier-config": "^2.0.1",
-		"ava": "^5.2.0",
 		"chalk": "^5.2.0",
-		"eslint-config-xo-react": "^0.27.0",
 		"eslint-plugin-react": "^7.32.2",
 		"eslint-plugin-react-hooks": "^4.6.0",
 		"ink-testing-library": "^3.0.0",
@@ -41,6 +39,7 @@
 		"ts-node": "^10.9.1",
 		"tsx": "^4.20.3",
 		"typescript": "^5.0.3",
+		"vitest": "^4.1.0",
 		"xo": "^0.53.1"
 	},
 	"ava": {

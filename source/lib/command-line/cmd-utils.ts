@@ -1,4 +1,5 @@
 import {CurrentCmdMeta} from '../state/cmd.state.js';
+import {TAGS_DEFAULT} from '../static/default-tags.js';
 
 export const CmdIntent = {
 	// Fundamentals (tight coupling to scope)
@@ -37,8 +38,8 @@ export const CmdResults = {
 	Succeed: 'succeed',
 } as const;
 
-export const isCmdKeyword = (word: CmdKeyword): boolean =>
-	Object.values(CmdKeywords).includes(word);
+export const isCmdKeyword = (word: string): word is CmdKeyword =>
+	Object.values(CmdKeywords).includes(word as CmdKeyword);
 
 export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
 export type DefaultCmdModifier =
@@ -48,7 +49,7 @@ export type CmdResult = (typeof CmdResults)[keyof typeof CmdResults];
 export const CmdMeta: Record<
 	CmdKeyword,
 	{
-		hint: string;
+		autoCompleteHints: string[];
 		validateModifier: (
 			cw: CmdKeyword,
 			cm: DefaultCmdModifier | string,
@@ -56,31 +57,33 @@ export const CmdMeta: Record<
 	}
 > = {
 	[CmdKeywords.DELETE]: {
-		hint: `node`,
+		autoCompleteHints: ['confirm'],
 		validateModifier: (_command, modifier) =>
-			modifier === CmdModifiers.Node ? CmdResults.Succeed : CmdResults.Fail,
+			CmdModifiers.Node.includes(modifier)
+				? CmdResults.Succeed
+				: CmdResults.Fail,
 	},
 	[CmdKeywords.RENAME]: {
-		hint: `enter new name of current node`,
+		autoCompleteHints: [],
 		validateModifier: (_command, _modifier) => CmdResults.None,
 	},
 	[CmdKeywords.ADD]: {
-		hint: `enter name of the new node`,
+		autoCompleteHints: [],
 		validateModifier: (_command, _modifier) => CmdResults.None,
 	},
 	[CmdKeywords.HELP]: {
-		hint: ``,
+		autoCompleteHints: [],
 		validateModifier: (_command, _modifier) => CmdResults.None,
 	},
 	[CmdKeywords.VIEW]: {
-		hint: `dense or wide`,
+		autoCompleteHints: ['dense', 'wide'],
 		validateModifier: (_command, modifier) => {
 			const success = modifier === 'dense' || modifier === 'wide';
 			return success ? CmdResults.Succeed : CmdResults.Fail;
 		},
 	},
 	[CmdKeywords.TAG]: {
-		hint: `name of tag`,
+		autoCompleteHints: Object.keys(TAGS_DEFAULT),
 		validateModifier: (_command, modifier) => {
 			const success = modifier === 'dense' || modifier === 'wide';
 			return success ? CmdResults.Succeed : CmdResults.Fail;
@@ -94,13 +97,13 @@ export const getCmdMeta = (value: string): CurrentCmdMeta => {
 	const [secondWord] = rest;
 	const firstWordIsCmdKeyword = isCmdKeyword(words[0] as CmdKeyword);
 
-	const modifier = rest.join?.(' ') ?? '';
+	const modifier = (rest.join?.(' ') ?? '').trim();
 	if (firstWord && firstWordIsCmdKeyword) {
 		const meta = CmdMeta[firstWord as CmdKeyword];
 		return {
 			command: firstWord,
 			modifier,
-			hint: meta.hint,
+			autoCompleteHints: meta.autoCompleteHints,
 			validationStatus: meta.validateModifier(
 				firstWord as CmdKeyword,
 				secondWord as DefaultCmdModifier,
@@ -109,7 +112,7 @@ export const getCmdMeta = (value: string): CurrentCmdMeta => {
 	}
 	return {
 		validationStatus: CmdResults.None,
-		hint: '',
+		autoCompleteHints: [''],
 		command: firstWord ?? '',
 		modifier,
 	};

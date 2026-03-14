@@ -1,8 +1,4 @@
 export const wordList = [
-	// Add custom project terms here
-	// ...
-	// ... or use a llm for dynamic suggestions based on project context
-
 	// common ticket domains
 	'frontend',
 	'backend',
