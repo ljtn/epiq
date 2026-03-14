@@ -4,7 +4,7 @@ import {theme} from '../theme/themes.js';
 
 type Props = {
 	name: string;
-	selected?: boolean;
+	isSelected?: boolean;
 };
 
 type TagColor =
@@ -168,7 +168,7 @@ const tokenizeTagName = (value: string): string[] =>
 		.split(/[^a-z0-9]+/i)
 		.filter(Boolean);
 
-const getTagBackgroundColor = (
+export const getTagBackgroundColor = (
 	name: string,
 	config: TagColorConfig = TAG_COLOR_CONFIG,
 ): TagColor => {
@@ -197,7 +197,7 @@ export const TagUI: React.FC<Props> = ({name}) => {
 
 	return (
 		<Text backgroundColor={backgroundColor} color={theme.primary}>
-			{'' + name + ''}
+			{' ' + name + ' '}
 		</Text>
 	);
 };

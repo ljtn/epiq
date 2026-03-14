@@ -19,6 +19,8 @@ type TicketFieldMap = Record<
 export const getTicketFields = (ticket: Ticket): TicketFieldMap => {
 	const fields: TicketFieldMap = {};
 
+	if (!ticket) return fields;
+	if (!ticket.children) return fields;
 	for (const field of ticket.children) {
 		if (!field.name) continue;
 
@@ -38,7 +40,7 @@ export const TicketListItemUI: React.FC<{
 	ticket: Ticket;
 	isSelected: boolean;
 }> = ({width, ticket, isSelected}) => {
-	const fields = getTicketFields(ticket);
+	const fields = ticket ? getTicketFields(ticket) : null;
 
 	const contentWidth = width - 12;
 
@@ -52,7 +54,7 @@ export const TicketListItemUI: React.FC<{
 	// 	contentWidth,
 	// );
 
-	const tags = fields['Tags']?.values ?? [];
+	const tags = fields?.['Tags']?.values ?? [];
 
 	return (
 		<Box

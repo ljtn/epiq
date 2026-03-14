@@ -1,14 +1,16 @@
 import {Mode} from '../model/action-map.model.js';
-import {AnyContext} from '../model/context.model.js';
+import {AnyContext, NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {StorageNodeTypes} from '../model/storage-node.model.js';
 import {BaseState, getState, patchState, updateState} from '../state/state.js';
-import {storage} from '../storage/storage.js';
+import {SEED_RESOURCES, storage} from '../storage/storage.js';
 import {
 	findNodeInTree,
 	removeNodeInTree,
 	replaceNodeInTree,
 } from '../utils/nav-tree.js';
 import {nodeMapper} from '../utils/node-mapper.js';
+import {sanitizeInlineText} from '../utils/string.utils.js';
 
 function moveItemInArray<T>({
 	array,
@@ -47,6 +49,58 @@ function findBreadCrumb(
 }
 
 export const nodeRepository = {
+	addTag(name: string) {
+		const value = sanitizeInlineText(name);
+		if (!value) {
+			logger.error('Unable to add empty tag');
+			return;
+		}
+
+		const {currentNode} = getState();
+
+		const result = findNodeInTree(SEED_RESOURCES.tags, currentNode, []);
+		if (!result) {
+			logger.error('Could not find tags node');
+			return;
+		}
+
+		logger.info(result.node);
+
+		this.addListItem(value, result.node);
+	},
+
+	addListItem: async (value: string, parent = getState().currentNode) => {
+		logger.info(parent);
+		if (parent.context !== NavNodeCtx.FIELD_LIST) {
+			logger.error('Field item can only be added inside a FIELD node');
+			return;
+		}
+
+		// Default value if empty
+		const itemValue = value || '';
+
+		// Create a FIELD child under current FIELD
+		const diskNode = storage.createNode({
+			parentId: parent.id,
+			name: SEED_RESOURCES.tag,
+			props: {value},
+			nodeType: StorageNodeTypes.FIELD,
+		});
+
+		if (!diskNode) {
+			logger.error('Unable to add field item');
+			return;
+		}
+
+		// Now update its value resource
+		storage.updateNodeValue(StorageNodeTypes.FIELD, diskNode.id, itemValue);
+
+		return nodeRepository.appendChildToNode(
+			parent.id,
+			nodeMapper.toField(diskNode),
+		);
+	},
+
 	/**
 	 * Moves selected child within the current parent (reorder).
 	 * Returns the next selectedIndex (the "to" index) if moved, otherwise null.
@@ -252,6 +306,28 @@ export const nodeRepository = {
 		return updateState(state => {
 			return {
 				...state,
+				rootNode: result.root,
+			} satisfies BaseState;
+		});
+	},
+
+	appendChildToNode<C extends NavNode<AnyContext>>(
+		parentNodeId: string,
+		child: C,
+	) {
+		updateState(old => {
+			const result = replaceNodeInTree(parentNodeId, old.rootNode, prev => ({
+				...prev,
+				children: [...(prev.children ?? []), child] as typeof prev.children,
+			}));
+
+			if (!result) {
+				logger.error('appendChildToNode: unable to replace node in tree');
+				return old;
+			}
+
+			return {
+				...old,
 				rootNode: result.root,
 			} satisfies BaseState;
 		});

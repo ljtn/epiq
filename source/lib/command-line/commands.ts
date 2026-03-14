@@ -96,8 +96,8 @@ export const commands: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.AddListItem,
 		mode: Mode.COMMAND_LINE,
-		action: (...args) => {
-			addListItem(...args);
+		action: (_, _2, {value}) => {
+			addListItem(value);
 			patchState({mode: Mode.DEFAULT});
 		},
 	},
@@ -139,6 +139,15 @@ export const commands: CommandLineActionEntry[] = [
 				currentNode: current, // id-based lookup will resolve to tree instance
 				selectedIndex: state.selectedIndex,
 			});
+		},
+	},
+	{
+		intent: CmdIntent.TagTicket,
+		mode: Mode.COMMAND_LINE,
+		action: (..._args) => {
+			const {modifier} = getCmdState().commandMeta;
+			nodeRepository.addTag(modifier);
+			patchState({mode: Mode.DEFAULT});
 		},
 	},
 ];

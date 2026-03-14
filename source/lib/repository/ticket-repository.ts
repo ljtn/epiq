@@ -1,4 +1,5 @@
 import {editSelectedTicketFieldValue} from '../../editor/editor.js';
+import {navigator} from '../actions/default/navigation-action-utils.js';
 import {CmdIntent} from '../command-line/cmd-utils.js';
 import {Mode} from '../model/action-map.model.js';
 import {
@@ -11,7 +12,6 @@ import {setCmdInput} from '../state/cmd.state.js';
 import {getState, patchState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
 import {nodeRepository} from './node-repository.js';
-import {navigator} from '../actions/default/navigation-action-utils.js';
 
 function isTicketNode(
 	node: NavNode<AnyContext>,

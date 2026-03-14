@@ -4,8 +4,8 @@ import {Mode} from '../model/action-map.model.js';
 import {Ticket} from '../model/context.model.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {getTagBackgroundColor} from './Tag.js';
 import {getTicketFields} from './TicketListItem.js';
-import {TagUI} from './Tag.js';
 import {UserBadgeUI} from './UserBadge.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
@@ -22,14 +22,11 @@ export const TicketListItemCompactUI: React.FC<{
 	const fields = getTicketFields(ticket);
 	const tags = fields['Tags']?.values ?? [];
 	const paddingRight = 1;
-	const tagsWidth = tags.reduce(
-		(acc, curr) => (acc += curr.length + paddingRight),
-		0,
-	);
+	const tagsWidth = tags.reduce(acc => (acc += 2 + paddingRight), 0);
 
 	const tagsRendered = tags.flatMap((tag, i) => (
 		<Box key={`${tag}-${i}`} paddingRight={paddingRight}>
-			<TagUI name={tag} />
+			<Text color={getTagBackgroundColor(tag)}>■</Text>
 		</Box>
 	));
 
@@ -48,7 +45,7 @@ export const TicketListItemCompactUI: React.FC<{
 					<Text color={theme.secondary}>{index + 1 + '. '}</Text>
 				)}
 				<Text color={color}>
-					{truncateWithEllipsis(ticket.name, width - tagsWidth - 14)}
+					{truncateWithEllipsis(ticket.name, width - tagsWidth - 15)}
 				</Text>
 			</Box>
 			<Box>

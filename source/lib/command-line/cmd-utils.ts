@@ -1,6 +1,7 @@
 import {CurrentCmdMeta} from '../state/cmd.state.js';
 
 export const CmdIntent = {
+	// Fundamentals (tight coupling to scope)
 	None: 'none',
 	AddBoard: 'add-board',
 	AddSwimlane: 'add-swimlane',
@@ -10,6 +11,9 @@ export const CmdIntent = {
 	Rename: 'rename',
 	Delete: 'delete',
 	SetView: 'set-view',
+
+	// Higher order
+	TagTicket: 'tag-ticket',
 } as const;
 
 export const CmdKeywords = {
@@ -18,6 +22,7 @@ export const CmdKeywords = {
 	ADD: 'add',
 	DELETE: 'delete',
 	VIEW: 'view',
+	TAG: 'tag',
 } as const;
 
 export const CmdModifiers = {
@@ -68,7 +73,14 @@ export const CmdMeta: Record<
 		validateModifier: (_command, _modifier) => CmdResults.None,
 	},
 	[CmdKeywords.VIEW]: {
-		hint: `'dense' or 'wide'`,
+		hint: `dense or wide`,
+		validateModifier: (_command, modifier) => {
+			const success = modifier === 'dense' || modifier === 'wide';
+			return success ? CmdResults.Succeed : CmdResults.Fail;
+		},
+	},
+	[CmdKeywords.TAG]: {
+		hint: `name of tag`,
 		validateModifier: (_command, modifier) => {
 			const success = modifier === 'dense' || modifier === 'wide';
 			return success ? CmdResults.Succeed : CmdResults.Fail;

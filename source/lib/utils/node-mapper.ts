@@ -178,4 +178,26 @@ export const nodeMapper = {
 			}, [] as NavNode<TicketFieldContext>[]),
 		} satisfies NavNode<TicketFieldListContext>;
 	},
+
+	toNavNode(
+		data: WorkspaceDiskNodeComposed,
+		type: StorageNodeType,
+	): NavNode<AnyContext> {
+		switch (type) {
+			case StorageNodeTypes.WORKSPACE:
+				return this.toWorkspace(data);
+			case StorageNodeTypes.BOARD:
+				return this.toBoard(data);
+			case StorageNodeTypes.SWIMLANE:
+				return this.toSwimlane(data);
+			case StorageNodeTypes.ISSUE:
+				return this.toIssue(data);
+			case StorageNodeTypes.FIELD:
+				return data.children.length
+					? this.toFieldList(data)
+					: this.toField(data);
+			default:
+				throw new Error(`Unsupported node type: ${String(type)}`);
+		}
+	},
 };

@@ -1,11 +1,11 @@
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
-import {NavNodeCtx} from '../../model/context.model.js';
 import {StorageNodeTypes} from '../../model/storage-node.model.js';
 import {nodeRepository} from '../../repository/node-repository.js';
 import {getState} from '../../state/state.js';
 import {SEED_RESOURCES, storage} from '../../storage/storage.js';
 import {TEMPLATES} from '../../storage/templates.js';
 import {nodeMapper} from '../../utils/node-mapper.js';
+import {navigator} from '../default/navigation-action-utils.js';
 
 export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
 	_ctx,
@@ -68,35 +68,15 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 		children: [
 			{
 				id: SEED_RESOURCES.name,
-				name: 'Name',
-				initialValue: '...',
 				type: StorageNodeTypes.FIELD,
 			},
 			{
 				id: SEED_RESOURCES.assignees,
-				name: 'Assignees',
-				initialValue: 'None',
 				type: StorageNodeTypes.FIELD,
-				// children: [
-				// 	{
-				// 		name: SEED_RESOURCES.assignee,
-				// 		initialValue: getUser(),
-				// 		type: StorageNodeTypes.FIELD,
-				// 	},
-				// ],
 			},
 			{
 				id: SEED_RESOURCES.tags,
-				name: 'Tags',
-				initialValue: '',
 				type: StorageNodeTypes.FIELD,
-				// children: [
-				// 	{
-				// 		name: SEED_RESOURCES.tag,
-				// 		initialValue: 'todo',
-				// 		type: StorageNodeTypes.FIELD,
-				// 	},
-				// ],
 			},
 		],
 	});
@@ -109,36 +89,13 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
 };
 
-export const addListItem: NonNullable<
-	CommandLineActionEntry['action']
-> = async (_ctx, _cmd, {value}) => {
-	const parent = getState().currentNode;
-
-	if (parent.context !== NavNodeCtx.FIELD_LIST) {
-		logger.error('Field item can only be added inside a FIELD node');
-		return;
-	}
-
-	// Default value if empty
-	const itemValue = value || '';
-
-	// Create a FIELD child under current FIELD
-	const diskNode = storage.createNode({
-		parentId: parent.id,
-		name: SEED_RESOURCES.tag,
-		props: {value},
-		nodeType: StorageNodeTypes.FIELD,
+export const addListItem = async (
+	value: string,
+	parent = getState().currentNode,
+) => {
+	nodeRepository.addListItem(value, parent);
+	navigator.navigate({
+		currentNode: parent,
+		selectedIndex: parent.children.length,
 	});
-
-	if (!diskNode) {
-		logger.error('Unable to add field item');
-		return;
-	}
-
-	// Now update its value resource
-	storage.updateNodeValue(StorageNodeTypes.FIELD, diskNode.id, itemValue);
-
-	nodeRepository.appendChildToCurrentNodeAndSelect(
-		nodeMapper.toField(diskNode),
-	);
 };

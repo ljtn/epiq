@@ -9,7 +9,7 @@ type Props = {
 export const UserBadgeUI: React.FC<Props> = ({user, isSelected: selected}) => {
 	return (
 		<Box marginRight={1}>
-			<Text underline={true} color={selected ? theme.accent : theme.primary}>
+			<Text color={selected ? theme.accent : theme.primary}>
 				{'' + user.initials + ''}
 			</Text>
 		</Box>

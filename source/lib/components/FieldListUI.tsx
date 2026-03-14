@@ -40,7 +40,7 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 						</Text>
 						<TagUI
 							name={field.props['value'] ?? ''}
-							selected={
+							isSelected={
 								currentNode.id === fieldList.id && selectedIndex === index
 							}
 						></TagUI>
