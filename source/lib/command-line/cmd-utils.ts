@@ -1,3 +1,4 @@
+import {settings} from '../settings/settings.js';
 import {CurrentCmdMeta} from '../state/cmd.state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
 
@@ -14,7 +15,8 @@ export const CmdIntent = {
 	SetView: 'set-view',
 
 	// Higher order
-	TagTicket: 'tag-ticket',
+	TagTicket: 'ticket-tag',
+	AssignUserToTicket: 'ticket-assign-user',
 } as const;
 
 export const CmdKeywords = {
@@ -24,6 +26,7 @@ export const CmdKeywords = {
 	DELETE: 'delete',
 	VIEW: 'view',
 	TAG: 'tag',
+	ASSIGN: 'assign',
 } as const;
 
 export const CmdModifiers = {
@@ -46,47 +49,56 @@ export type DefaultCmdModifier =
 	(typeof CmdModifiers)[keyof typeof CmdModifiers];
 export type CmdResult = (typeof CmdResults)[keyof typeof CmdResults];
 
+export type Result = {result: CmdResult; hint?: string};
+
 export const CmdMeta: Record<
 	CmdKeyword,
 	{
 		autoCompleteHints: string[];
-		validateModifier: (
-			cw: CmdKeyword,
-			cm: DefaultCmdModifier | string,
-		) => CmdResult;
+		validateCmd: (cw: CmdKeyword, cm: DefaultCmdModifier | string) => Result;
 	}
 > = {
 	[CmdKeywords.DELETE]: {
 		autoCompleteHints: ['confirm'],
-		validateModifier: (_command, modifier) =>
-			CmdModifiers.Node.includes(modifier)
+		validateCmd: (_command, modifier) => ({
+			result: CmdModifiers.Node.includes(modifier)
 				? CmdResults.Succeed
 				: CmdResults.Fail,
+		}),
 	},
 	[CmdKeywords.RENAME]: {
 		autoCompleteHints: [],
-		validateModifier: (_command, _modifier) => CmdResults.None,
+		validateCmd: (_command, _modifier) => ({result: CmdResults.Succeed}),
 	},
 	[CmdKeywords.ADD]: {
 		autoCompleteHints: [],
-		validateModifier: (_command, _modifier) => CmdResults.None,
+		validateCmd: (_command, _modifier) => ({result: CmdResults.Succeed}),
 	},
 	[CmdKeywords.HELP]: {
 		autoCompleteHints: [],
-		validateModifier: (_command, _modifier) => CmdResults.None,
+		validateCmd: (_command, _modifier) => ({result: CmdResults.Succeed}),
 	},
 	[CmdKeywords.VIEW]: {
 		autoCompleteHints: ['dense', 'wide'],
-		validateModifier: (_command, modifier) => {
+		validateCmd: (_command, modifier) => {
 			const success = modifier === 'dense' || modifier === 'wide';
-			return success ? CmdResults.Succeed : CmdResults.Fail;
+			return {result: success ? CmdResults.Succeed : CmdResults.Fail};
 		},
 	},
 	[CmdKeywords.TAG]: {
 		autoCompleteHints: Object.keys(TAGS_DEFAULT),
-		validateModifier: (_command, modifier) => {
-			const success = modifier === 'dense' || modifier === 'wide';
-			return success ? CmdResults.Succeed : CmdResults.Fail;
+		validateCmd: _command => {
+			return {result: CmdResults.Succeed};
+		},
+	},
+	[CmdKeywords.ASSIGN]: {
+		autoCompleteHints: settings.users,
+		validateCmd: (_command, modifier) => {
+			const success = settings.users.includes(modifier);
+			return {
+				result: success ? CmdResults.Succeed : CmdResults.Fail,
+				hint: !success ? 'Must be existing user name' : '',
+			};
 		},
 	},
 } as const;
@@ -100,18 +112,21 @@ export const getCmdMeta = (value: string): CurrentCmdMeta => {
 	const modifier = (rest.join?.(' ') ?? '').trim();
 	if (firstWord && firstWordIsCmdKeyword) {
 		const meta = CmdMeta[firstWord as CmdKeyword];
+		const validation = meta.validateCmd(
+			firstWord as CmdKeyword,
+			secondWord as DefaultCmdModifier,
+		);
 		return {
 			command: firstWord,
 			modifier,
 			autoCompleteHints: meta.autoCompleteHints,
-			validationStatus: meta.validateModifier(
-				firstWord as CmdKeyword,
-				secondWord as DefaultCmdModifier,
-			),
+			infoHint: validation.hint ?? '',
+			validationStatus: validation.result,
 		};
 	}
 	return {
 		validationStatus: CmdResults.None,
+		infoHint: '',
 		autoCompleteHints: [''],
 		command: firstWord ?? '',
 		modifier,

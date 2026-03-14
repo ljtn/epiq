@@ -14,6 +14,8 @@ export const getCommandIntent = (
 			return CmdIntent.ViewHelp;
 		case CmdKeywords.TAG:
 			return CmdIntent.TagTicket;
+		case CmdKeywords.ASSIGN:
+			return CmdIntent.AssignUserToTicket;
 		case CmdKeywords.VIEW:
 			return CmdIntent.SetView;
 		case CmdKeywords.RENAME:

@@ -25,4 +25,8 @@ describe('getHint', () => {
 	it('does not suggests autocompletion for "add " ', () => {
 		expect(getHint('add ')).toBe('');
 	});
+
+	it('does not suggests autocompletion for "tag critical cri" ', () => {
+		expect(getHint('tag critical crime')).toBe('');
+	});
 });

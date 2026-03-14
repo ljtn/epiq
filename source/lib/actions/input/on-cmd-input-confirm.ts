@@ -1,11 +1,12 @@
-import {CmdResults} from '../../command-line/cmd-utils.js';
 import {getCommandIntent} from '../../command-line/command-line-sequence-intent.js';
 import {commands} from '../../command-line/commands.js';
 import {ActionEntry} from '../../model/action-map.model.js';
 import {
-	clearCmd,
 	getCmdState,
-	updateCmdHistory,
+	isInvalidCommand,
+	commandConfirmed,
+	overrideValidationResult,
+	commandPending,
 } from '../../state/cmd.state.js';
 
 export const onConfirmCommandLineSequenceInput = (
@@ -18,15 +19,19 @@ export const onConfirmCommandLineSequenceInput = (
 	const value = rest.join(' ').trim();
 	if (!command) return;
 	const intent = getCommandIntent(command);
+
+	commandPending();
+	if (isInvalidCommand()) {
+		// Handled by info hints
+		return;
+	}
+
 	const actionMeta = commands.find(x => x.intent === intent);
-	const actionResult = actionMeta?.action?.(ctx, actionMeta, {command, value});
-	updateCmdHistory();
-	clearCmd();
-	if (actionResult === CmdResults.Succeed && actionMeta?.onSuccess) {
-		actionMeta.onSuccess?.action?.(ctx, actionMeta, {command, value});
-	}
-	if (actionResult === CmdResults.Fail && actionMeta?.onFail) {
-		actionMeta.onFail?.action?.(ctx, actionMeta, {command, value});
-	}
+	const result = actionMeta?.action?.(ctx, actionMeta, {command, value});
+
+	if (result?.result === 'fail') return overrideValidationResult(result);
+
+	commandConfirmed();
+	actionMeta?.onSuccess?.();
 	return;
 };

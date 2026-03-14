@@ -1,22 +1,30 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React, {useEffect, useState} from 'react';
+import {CmdKeywords} from '../command-line/cmd-utils.js';
 import {
 	commandLineState,
 	subscribeCommandLineState,
 } from '../state/cmd.state.js';
 import {chalkColors} from '../theme/themes.js';
 import {findOverlap} from '../utils/string.utils.js';
-import {CmdKeywords} from '../command-line/cmd-utils.js';
 
 export const CommandLine: React.FC = () => {
 	const [input, setInput] = useState(commandLineState.value);
 	const [cursorPos, setCursorPos] = useState(commandLineState.cursorPosition);
+	const [commandIsPending, setCommandIsPending] = useState(
+		commandLineState.commandIsPending,
+	);
+	const [infoHint, setInfoHint] = useState(
+		commandLineState.commandMeta.infoHint,
+	);
 
 	useEffect(() => {
 		const sync = () => {
 			setInput(commandLineState.value);
 			setCursorPos(commandLineState.cursorPosition);
+			setCommandIsPending(commandLineState.commandIsPending);
+			setInfoHint(commandLineState.commandMeta.infoHint);
 		};
 
 		const unsubscribe = subscribeCommandLineState(sync);
@@ -75,6 +83,11 @@ export const CommandLine: React.FC = () => {
 	return (
 		<Box>
 			<Text>{fullLine}</Text>
+			{commandIsPending && infoHint && (
+				<Box paddingLeft={2}>
+					<Text color="red">{' ' + infoHint + ' '}</Text>
+				</Box>
+			)}
 		</Box>
 	);
 };

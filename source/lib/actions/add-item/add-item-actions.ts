@@ -1,3 +1,4 @@
+import {CmdResults, Result} from '../../command-line/cmd-utils.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {StorageNodeTypes} from '../../model/storage-node.model.js';
 import {nodeRepository} from '../../repository/node-repository.js';
@@ -7,11 +8,11 @@ import {TEMPLATES} from '../../storage/templates.js';
 import {nodeMapper} from '../../utils/node-mapper.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
-export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
+export const addBoard: NonNullable<CommandLineActionEntry['action']> = (
 	_ctx,
 	_cmd,
 	{value: boardName},
-) => {
+): Result => {
 	const parent = getState().currentNode;
 
 	const newItem = storage.createNode({
@@ -31,14 +32,17 @@ export const addBoard: NonNullable<CommandLineActionEntry['action']> = async (
 
 	if (!newItem) {
 		logger.error('Unable to add board');
-		return;
+		return {result: CmdResults.Fail};
 	}
 	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toBoard(newItem));
+	return {result: CmdResults.Succeed};
 };
 
-export const addSwimlane: NonNullable<
-	CommandLineActionEntry['action']
-> = async (_ctx, _cmd, {value}) => {
+export const addSwimlane: NonNullable<CommandLineActionEntry['action']> = (
+	_ctx,
+	_cmd,
+	{value},
+): Result => {
 	const parent = getState().currentNode;
 	const name = value || 'New lane';
 
@@ -52,18 +56,19 @@ export const addSwimlane: NonNullable<
 
 	if (!diskNode) {
 		logger.error('Unable to add swimlane');
-		return;
+		return {result: CmdResults.Fail};
 	}
 	nodeRepository.appendChildToCurrentNodeAndSelect(
 		nodeMapper.toSwimlane(diskNode),
 	);
+	return {result: CmdResults.Succeed};
 };
 
-export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
+export const addTicket: NonNullable<CommandLineActionEntry['action']> = (
 	_ctx,
 	_cmd,
 	{value},
-) => {
+): Result => {
 	const parent = getState().currentNode;
 
 	const newItem = storage.createNode({
@@ -78,7 +83,7 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 				},
 				{
 					nameId: SEED_RESOURCES.assignees,
-					type: StorageNodeTypes.FIELD,
+					type: StorageNodeTypes.FIELD_LIST,
 				},
 				{
 					nameId: SEED_RESOURCES.tags,
@@ -90,17 +95,18 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = async (
 
 	if (!newItem) {
 		logger.error('Unable to create ticket');
-		return;
+		return {result: CmdResults.Fail};
 	}
 
 	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
+	return {result: CmdResults.Succeed};
 };
 
 export const addListItem = async (
 	value: string,
 	parent = getState().currentNode,
 ) => {
-	nodeRepository.addListItem(value, parent);
+	nodeRepository.addListItem(SEED_RESOURCES.tag, value, parent);
 	navigator.navigate({
 		currentNode: parent,
 		selectedIndex: parent.children.length,

@@ -1,10 +1,16 @@
 import {getHint} from '../command-line/auto-complete.utils.js';
-import {CmdResult, CmdResults, getCmdMeta} from '../command-line/cmd-utils.js';
+import {
+	CmdResult,
+	CmdResults,
+	getCmdMeta,
+	Result,
+} from '../command-line/cmd-utils.js';
 
 export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
 	modifier: string;
 	command: string;
+	infoHint: string;
 	autoCompleteHints: string[];
 	validationStatus: CmdResult;
 };
@@ -14,6 +20,7 @@ export type CommandLineState = {
 	commandHistoryIndex: number;
 	autoCompleteHint: string;
 	cursorPosition: number;
+	commandIsPending: boolean;
 	commandMeta: CurrentCmdMeta;
 };
 
@@ -23,9 +30,11 @@ export let commandLineState: CommandLineState = {
 	commandHistoryIndex: -1,
 	autoCompleteHint: '',
 	cursorPosition: 0,
+	commandIsPending: false,
 	commandMeta: {
 		command: '',
 		modifier: '',
+		infoHint: '',
 		autoCompleteHints: [''],
 		validationStatus: CmdResults.None,
 	},
@@ -56,6 +65,19 @@ const setState = (cb: SetStateCb) => {
 	notify();
 };
 
+export const overrideValidationResult = ({hint, result}: Result) => {
+	const next = structuredClone(commandLineState);
+	next.commandMeta = {
+		...next.commandMeta,
+		infoHint: hint ?? '',
+		validationStatus: result,
+	};
+	next.commandIsPending = true;
+	commandLineState = next;
+	logger.info(next);
+	notify();
+};
+
 export const moveCursorPosition = (position: number) => {
 	setState(s => ({
 		...s,
@@ -72,20 +94,16 @@ export const moveCursorPositionOfWord = (direction: 'left' | 'right') => {
 		let newPos = cursorPosition;
 
 		if (direction === 'left') {
-			// Move left over spaces
 			while (newPos > 0 && value[newPos - 1] === ' ') {
 				newPos--;
 			}
-			// Move left over word characters
 			while (newPos > 0 && value[newPos - 1] !== ' ') {
 				newPos--;
 			}
 		} else {
-			// Move right over current word
 			while (newPos < value.length && value[newPos] !== ' ') {
 				newPos++;
 			}
-			// Move right over spaces
 			while (newPos < value.length && value[newPos] === ' ') {
 				newPos++;
 			}
@@ -106,6 +124,7 @@ export const eraseInput = () => {
 			...s,
 			value: s.value.slice(0, newCursorPos) + remainingValue,
 			cursorPosition: newCursorPos,
+			commandIsPending: false,
 		};
 	});
 };
@@ -116,11 +135,9 @@ export const eraseInputWord = () => {
 
 		let newCursorPos = cursorPosition;
 
-		// Move left over spaces
 		while (newCursorPos > 0 && value[newCursorPos - 1] === ' ') {
 			newCursorPos--;
 		}
-		// Move left over word characters
 		while (newCursorPos > 0 && value[newCursorPos - 1] !== ' ') {
 			newCursorPos--;
 		}
@@ -130,6 +147,7 @@ export const eraseInputWord = () => {
 			...s,
 			value: value.slice(0, newCursorPos) + remainingValue,
 			cursorPosition: newCursorPos,
+			commandIsPending: false,
 		};
 	});
 };
@@ -142,16 +160,10 @@ export const setCmdInput = (cb: SetCmdStateCallback) => {
 			0,
 			Math.min(state.cursorPosition, state.value.length),
 		);
-
 		const before = state.value.slice(0, cursor);
 		const after = state.value.slice(cursor);
-
-		// Let cb operate on the text "to the left of the cursor"
 		const newBefore = cb(before, state.autoCompleteHint);
-
 		const nextValue = newBefore + after;
-
-		// Cursor moves by the delta in "before" length
 		const nextCursor = Math.max(
 			0,
 			Math.min(newBefore.length, nextValue.length),
@@ -161,15 +173,25 @@ export const setCmdInput = (cb: SetCmdStateCallback) => {
 			...state,
 			value: nextValue,
 			cursorPosition: nextCursor,
+			commandIsPending: false,
 		};
 	});
 };
 
-export const updateCmdHistory = () => {
+export const commandPending = () => {
+	setState(state => ({
+		...state,
+		commandIsPending: true,
+	}));
+};
+export const commandConfirmed = () => {
 	setState(state => ({
 		...state,
 		commandHistory: [state.value, ...state.commandHistory].slice(0, 20),
+		commandHistoryIndex: -1,
+		commandIsPending: false,
 	}));
+	clearCmd();
 };
 
 export const getPrevCmd = () => {
@@ -208,4 +230,9 @@ export const getCmdState = () => commandLineState;
 export const getCmdArg = () => {
 	const [_, ...rest] = commandLineState.value.split(commandDelimiter);
 	return rest.join(commandDelimiter).trim();
+};
+
+export const isInvalidCommand = (): boolean => {
+	const {commandMeta} = getCmdState();
+	return commandMeta.validationStatus === CmdResults.Fail;
 };

@@ -25,3 +25,19 @@ export type TicketFieldListContext = typeof NavNodeCtx.FIELD_LIST;
 
 export type AnyContext = ContextMap[keyof ContextMap];
 export type ContextMap = typeof NavNodeCtx;
+
+export function isTicketNode(
+	node: NavNode<AnyContext>,
+): node is NavNode<TicketContext> {
+	return node.context === 'TICKET';
+}
+export function isFieldNode(
+	node: NavNode<AnyContext>,
+): node is NavNode<TicketFieldContext> {
+	return node.context === 'FIELD';
+}
+export function isFieldListNode(
+	node: NavNode<AnyContext>,
+): node is NavNode<TicketFieldListContext> {
+	return node.context === 'FIELD_LIST';
+}

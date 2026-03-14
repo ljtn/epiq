@@ -1,5 +1,10 @@
+import {CmdResults, Result} from '../command-line/cmd-utils.js';
 import {Mode} from '../model/action-map.model.js';
-import {AnyContext, NavNodeCtx} from '../model/context.model.js';
+import {
+	AnyContext,
+	isFieldListNode,
+	NavNodeCtx,
+} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {StorageNodeTypes} from '../model/storage-node.model.js';
 import {BaseState, getState, patchState, updateState} from '../state/state.js';
@@ -49,29 +54,78 @@ function findBreadCrumb(
 }
 
 export const nodeRepository = {
-	addTag(name: string) {
-		const value = sanitizeInlineText(name);
-		if (!value) {
-			logger.error('Unable to add empty tag');
-			return;
+	addTag(name: string): Result {
+		const parent = this.findListItemParent('Tags');
+		if (!parent) {
+			logger.error(`Could not find node with name "${name}"`);
+			return {result: CmdResults.Fail, hint: ''};
+		}
+		if (!isFieldListNode(parent)) {
+			logger.error(
+				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
+			);
+			return {result: CmdResults.Fail, hint: ''};
 		}
 
+		if (parent.children.some(({props}) => props['value'] === name)) {
+			logger.info('Cannot add duplicate tag with the same name');
+			return {
+				result: CmdResults.Fail,
+				hint: 'Cannot add duplicate tag with the same name',
+			};
+		}
+
+		this.addListItem(SEED_RESOURCES.tag, name, parent);
+
+		return {result: CmdResults.Succeed};
+	},
+
+	assignUser(name: string): Result {
+		const parent = this.findListItemParent('Assignees');
+		if (!parent) {
+			logger.error(`Could not find node with name "${name}"`);
+			return {result: CmdResults.Fail, hint: ''};
+		}
+		if (!isFieldListNode(parent)) {
+			logger.error(
+				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
+			);
+			return {result: CmdResults.Fail, hint: ''};
+		}
+
+		if (parent.children.some(({props}) => props['value'] === name)) {
+			logger.info('Cannot add duplicate assignee with the same name');
+			return {
+				result: CmdResults.Fail,
+				hint: 'Cannot add duplicate assignee with the same name',
+			};
+		}
+
+		this.addListItem(SEED_RESOURCES.assignee, name, parent);
+		return {result: CmdResults.Succeed};
+	},
+
+	findListItemParent(parentName: string) {
 		const {currentNode, selectedIndex} = getState();
 		const target = currentNode.children[selectedIndex];
 		if (!target) {
-			logger.error('Missing tag target node');
+			logger.error(`Missing target node`);
 			return;
 		}
-		const result = findNodeInTree({name: 'Tags'}, target, []);
-		if (!result) {
-			logger.error('Could not find tags node');
-			return;
-		}
-
-		this.addListItem(value, result.node);
+		return findNodeInTree({name: parentName}, target, [])?.node;
 	},
 
-	addListItem: async (value: string, parent = getState().currentNode) => {
+	addListItem(
+		name: (typeof SEED_RESOURCES)[keyof typeof SEED_RESOURCES],
+		valueRaw: string,
+		parent: NavNode<AnyContext>,
+	) {
+		const value = sanitizeInlineText(valueRaw);
+		if (!value) {
+			logger.error('Unable to add empty list item');
+			return;
+		}
+
 		if (parent.context !== NavNodeCtx.FIELD_LIST) {
 			logger.error('Field item can only be added inside a FIELD_LIST node');
 			return;
@@ -81,7 +135,7 @@ export const nodeRepository = {
 		const diskNode = storage.createNode({
 			parentId: parent.id,
 			definition: {
-				name: SEED_RESOURCES.tag,
+				name,
 				initialValue: itemValue,
 				type: StorageNodeTypes.FIELD, // Perhaps parameterize
 			},

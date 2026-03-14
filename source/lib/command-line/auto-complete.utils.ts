@@ -3,23 +3,32 @@ import {CmdKeywords, CmdMeta, isCmdKeyword} from './cmd-utils.js';
 import {wordList} from './word-list.js';
 
 export const getHint = (value: string): string => {
-	const words = value.trimStart() ? value.trimStart().split(/\s+/) : [];
+	const trimmedStart = value.trimStart();
+	const words = trimmedStart ? trimmedStart.split(/\s+/) : [];
 	const isSingleWord = words.length === 1;
-	const [firstWord, secondWord] = words;
+	const [firstWord] = words;
 	const firstWordIsCmdKeyword = isCmdKeyword(firstWord ?? '');
-	const isLastWordCompleted = value?.endsWith(' ');
+	const isLastWordCompleted = value.endsWith(' ');
+
+	const modifierInput = firstWord
+		? trimmedStart.slice(firstWord.length).trimStart()
+		: '';
 
 	const targetIsModifier =
-		firstWordIsCmdKeyword && firstWord && secondWord && !isLastWordCompleted;
+		firstWordIsCmdKeyword && modifierInput && !isLastWordCompleted;
 
 	if (isSingleWord && firstWord) {
 		return returnHint(getCommandHint(firstWord));
-	} else if (targetIsModifier) {
+	}
+
+	if (targetIsModifier && firstWord) {
 		const autoCompleteHints = isCmdKeyword(firstWord)
 			? CmdMeta[firstWord].autoCompleteHints
 			: [];
-		return returnHint(getModifierHint(autoCompleteHints, secondWord ?? ''));
+
+		return returnHint(getModifierHint(autoCompleteHints, modifierInput));
 	}
+
 	return returnHint(getWordHint(value));
 };
 
@@ -28,10 +37,11 @@ const returnHint = (hint: string) => (hint ? hint + ' ' : '');
 const getModifierHint = (wordList: string[], inputToMatch: string) => {
 	return hintFromWordList({
 		wordList,
-		inputToMatch,
-		overlapThreshold: 0,
+		inputToMatch: getLastWord(inputToMatch),
+		overlapThreshold: 1,
 	});
 };
+
 const getCommandHint = (command: string) => {
 	return hintFromWordList({
 		wordList: Object.values(CmdKeywords),
@@ -39,9 +49,10 @@ const getCommandHint = (command: string) => {
 		overlapThreshold: 1,
 	});
 };
+
 const getWordHint = (command: string) => {
 	return hintFromWordList({
-		wordList: [...wordList],
+		wordList,
 		inputToMatch: getLastWord(command),
 		overlapThreshold: 3,
 	});
@@ -51,9 +62,9 @@ const getLastWord = (str: string) => {
 	if (!str) {
 		return '';
 	}
-	const words = str.split(' ');
-	const lastWord = words.at(-1) || '';
-	return lastWord.trim();
+
+	const words = str.split(/\s+/);
+	return (words.at(-1) || '').trim();
 };
 
 const hintFromWordList = ({
@@ -70,5 +81,6 @@ const hintFromWordList = ({
 			term.startsWith(inputToMatch) &&
 			findOverlap(inputToMatch, term) >= overlapThreshold,
 	);
+
 	return hint || '';
 };
