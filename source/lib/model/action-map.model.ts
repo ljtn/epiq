@@ -1,6 +1,6 @@
 import readline from 'readline';
 import {Navigator} from '../actions/default/navigation-action-utils.js';
-import {Result} from '../command-line/cmd-utils.js';
+import {Result} from '../command-line/command-types.js';
 
 export const Mode = {
 	DEFAULT: 'default',

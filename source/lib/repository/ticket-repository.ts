@@ -1,6 +1,6 @@
 import {editSelectedTicketFieldValue} from '../../editor/editor.js';
 import {navigator} from '../actions/default/navigation-action-utils.js';
-import {CmdIntent} from '../command-line/cmd-utils.js';
+import {CmdIntent} from '../command-line/command-meta.js';
 import {Mode} from '../model/action-map.model.js';
 import {isFieldNode, isTicketNode} from '../model/context.model.js';
 import {setCmdInput} from '../state/cmd.state.js';

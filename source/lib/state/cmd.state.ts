@@ -1,10 +1,6 @@
-import {getHint} from '../command-line/auto-complete.utils.js';
-import {
-	CmdResult,
-	CmdResults,
-	getCmdMeta,
-	Result,
-} from '../command-line/cmd-utils.js';
+import {getAutoCompletion} from '../command-line/command-auto-complete.js';
+import {getCmdMeta} from '../command-line/command-meta.js';
+import {CmdResult, CmdResults, Result} from '../command-line/command-types.js';
 
 export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
@@ -60,7 +56,9 @@ const setState = (cb: SetStateCb) => {
 	const next = cb(structuredClone(commandLineState));
 	const isCursorAtEndOfLine = next.cursorPosition === next.value.length;
 	next.commandMeta = getCmdMeta(next.value);
-	next.autoCompleteHint = isCursorAtEndOfLine ? getHint(next.value) : '';
+	next.autoCompleteHint = isCursorAtEndOfLine
+		? getAutoCompletion(next.value)
+		: '';
 	commandLineState = next;
 	notify();
 };

@@ -10,7 +10,8 @@ import {getCmdArg, getCmdState} from '../state/cmd.state.js';
 import {getState, patchState, updateState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
 import {nodeMapper} from '../utils/node-mapper.js';
-import {CmdIntent, CmdResults} from './cmd-utils.js';
+import {CmdIntent} from './command-meta.js';
+import {CmdResults} from './command-types.js';
 
 export const commands: CommandLineActionEntry[] = [
 	{

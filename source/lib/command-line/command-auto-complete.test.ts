@@ -1,32 +1,32 @@
 import {describe, expect, it} from 'vitest';
-import {getHint} from './auto-complete.utils.js';
+import {getAutoCompletion} from './command-auto-complete.js';
 
 describe('getHint', () => {
 	it('suggests command hint for "ta"', () => {
-		expect(getHint('ta')).toBe('tag ');
+		expect(getAutoCompletion('ta')).toBe('tag ');
 	});
 
 	it('suggests modifier hint for "tag c"', () => {
-		expect(getHint('tag c')).toBe('critical ');
+		expect(getAutoCompletion('tag c')).toBe('critical ');
 	});
 
 	it('suggests command hint for "vi"', () => {
-		expect(getHint('vi')).toBe('view ');
+		expect(getAutoCompletion('vi')).toBe('view ');
 	});
 
 	it('suggests modifier hint for "view d"', () => {
-		expect(getHint('view d')).toBe('dense ');
+		expect(getAutoCompletion('view d')).toBe('dense ');
 	});
 
 	it('suggests modifier hint for "view w"', () => {
-		expect(getHint('view w')).toBe('wide ');
+		expect(getAutoCompletion('view w')).toBe('wide ');
 	});
 
 	it('does not suggests autocompletion for "add " ', () => {
-		expect(getHint('add ')).toBe('');
+		expect(getAutoCompletion('add ')).toBe('');
 	});
 
 	it('does not suggests autocompletion for "tag critical cri" ', () => {
-		expect(getHint('tag critical crime')).toBe('');
+		expect(getAutoCompletion('tag critical crime')).toBe('');
 	});
 });

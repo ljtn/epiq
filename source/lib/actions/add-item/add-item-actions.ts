@@ -1,4 +1,4 @@
-import {CmdResults, Result} from '../../command-line/cmd-utils.js';
+import {CmdResults, Result} from '../../command-line/command-types.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {StorageNodeTypes} from '../../model/storage-node.model.js';
 import {nodeRepository} from '../../repository/node-repository.js';

@@ -1,4 +1,4 @@
-import {getCommandIntent} from '../../command-line/command-line-sequence-intent.js';
+import {getCommandIntent} from '../../command-line/command-intent.js';
 import {commands} from '../../command-line/commands.js';
 import {ActionEntry} from '../../model/action-map.model.js';
 import {
@@ -29,6 +29,7 @@ export const onConfirmCommandLineSequenceInput = (
 	const actionMeta = commands.find(x => x.intent === intent);
 	const result = actionMeta?.action?.(ctx, actionMeta, {command, value});
 
+	logger.info('...', result);
 	if (result?.result === 'fail') return overrideValidationResult(result);
 
 	commandConfirmed();

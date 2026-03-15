@@ -1,6 +1,7 @@
 import {NavNodeCtx} from '../model/context.model.js';
 import {getState} from '../state/state.js';
-import {CmdIntent, CmdKeywords} from './cmd-utils.js';
+import {CmdIntent} from './command-meta.js';
+import {CmdKeywords} from './command-types.js';
 
 export const getCommandIntent = (
 	command: string,

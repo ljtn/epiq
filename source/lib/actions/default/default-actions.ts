@@ -1,4 +1,4 @@
-import {CmdKeywords} from '../../command-line/cmd-utils.js';
+import {CmdKeywords} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {ticketRepository} from '../../repository/ticket-repository.js';
 import {setCmdInput} from '../../state/cmd.state.js';

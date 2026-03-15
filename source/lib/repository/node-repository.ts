@@ -1,4 +1,4 @@
-import {CmdResults, Result} from '../command-line/cmd-utils.js';
+import {CmdResults, Result} from '../command-line/command-types.js';
 import {Mode} from '../model/action-map.model.js';
 import {
 	AnyContext,
@@ -68,10 +68,10 @@ export const nodeRepository = {
 		}
 
 		if (parent.children.some(({props}) => props['value'] === name)) {
-			logger.info('Cannot add duplicate tag with the same name');
+			logger.info('Cannot add duplicate tag');
 			return {
 				result: CmdResults.Fail,
-				hint: 'Cannot add duplicate tag with the same name',
+				hint: 'Cannot add duplicate tag',
 			};
 		}
 
@@ -93,11 +93,15 @@ export const nodeRepository = {
 			return {result: CmdResults.Fail, hint: ''};
 		}
 
+		logger.info(
+			name,
+			parent.children.map(({props}) => props['value']),
+		);
 		if (parent.children.some(({props}) => props['value'] === name)) {
-			logger.info('Cannot add duplicate assignee with the same name');
+			logger.info('Cannot add duplicate assignee');
 			return {
 				result: CmdResults.Fail,
-				hint: 'Cannot add duplicate assignee with the same name',
+				hint: 'Cannot add duplicate assignee',
 			};
 		}
 
