@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
 	commandLineState,
 	subscribeCommandLineState,
@@ -17,6 +17,13 @@ type CommandLineViewState = {
 	autoCompleteHint: string;
 };
 
+const COMMANDS = Object.values(CmdKeywords);
+const CYAN = chalk.hex(chalkColors.cyan);
+const GRAY = chalk.gray;
+const INVERSE = chalk.inverse;
+const INVERSE_CYAN = chalk.inverse.hex(chalkColors.cyan);
+const INVERSE_GRAY = chalk.inverse.gray;
+
 const getCommandLineViewState = (): CommandLineViewState => ({
 	value: commandLineState.value,
 	cursorPosition: commandLineState.cursorPosition,
@@ -31,6 +38,12 @@ const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>
 	a.commandIsPending === b.commandIsPending &&
 	a.infoHint === b.infoHint &&
 	a.autoCompleteHint === b.autoCompleteHint;
+
+const getLastWord = (value: string): string => {
+	const trimmed = value.trimEnd();
+	const lastSpace = trimmed.lastIndexOf(' ');
+	return lastSpace === -1 ? trimmed : trimmed.slice(lastSpace + 1);
+};
 
 export const CommandLine: React.FC = () => {
 	const [state, setState] = useState<CommandLineViewState>(
@@ -53,50 +66,50 @@ export const CommandLine: React.FC = () => {
 	const {value, cursorPosition, commandIsPending, infoHint, autoCompleteHint} =
 		state;
 
-	const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
+	const fullLine = useMemo(() => {
+		const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
 
-	const beforeCursor = value.slice(0, safeCursor);
-	const cursorChar = safeCursor < value.length ? value[safeCursor] : ' ';
-	const afterCursor =
-		safeCursor < value.length ? value.slice(safeCursor + 1) : '';
+		const beforeCursor = value.slice(0, safeCursor);
+		const cursorChar = safeCursor < value.length ? value[safeCursor] : ' ';
+		const afterCursor =
+			safeCursor < value.length ? value.slice(safeCursor + 1) : '';
 
-	const commands = Object.values(CmdKeywords);
-	const existingCommand = commands.find(cmd => value.startsWith(cmd + ' '));
-
-	let renderedBefore = beforeCursor;
-	let renderedAfter = afterCursor;
-	let renderedCursor = chalk.inverse(cursorChar);
-
-	if (existingCommand) {
-		const commandLength = existingCommand.length;
-
-		if (safeCursor <= commandLength) {
-			renderedBefore = chalk.hex(chalkColors.cyan)(beforeCursor);
-		} else {
-			renderedBefore =
-				chalk.hex(chalkColors.cyan)(existingCommand) +
-				beforeCursor.slice(commandLength);
-		}
-
-		if (safeCursor < commandLength) {
-			renderedCursor = chalk.inverse.hex(chalkColors.cyan)(cursorChar);
-		}
-	}
-
-	if (autoCompleteHint) {
-		const lastWord = value.split(' ').at(-1) + ' ' || '';
-		const overlap = findOverlap(lastWord, autoCompleteHint);
-
-		renderedCursor = chalk.inverse.gray(
-			autoCompleteHint[overlap - 1] ?? cursorChar,
+		const existingCommand = COMMANDS.find(
+			cmd => value.startsWith(cmd) && value[cmd.length] === ' ',
 		);
-		renderedAfter = chalk.gray(autoCompleteHint.slice(overlap) + afterCursor);
-	}
 
-	const fullLine =
-		chalk.gray(':') + renderedBefore + renderedCursor + renderedAfter;
+		let renderedBefore = beforeCursor;
+		let renderedAfter = afterCursor;
+		let renderedCursor = INVERSE(cursorChar);
 
-	logger.info('hehe');
+		if (existingCommand) {
+			const commandLength = existingCommand.length;
+
+			if (safeCursor <= commandLength) {
+				renderedBefore = CYAN(beforeCursor);
+			} else {
+				renderedBefore =
+					CYAN(existingCommand) + beforeCursor.slice(commandLength);
+			}
+
+			if (safeCursor < commandLength) {
+				renderedCursor = INVERSE_CYAN(cursorChar);
+			}
+		}
+
+		if (autoCompleteHint) {
+			const lastWord = getLastWord(value);
+			const overlap = findOverlap(`${lastWord} `, autoCompleteHint);
+
+			renderedCursor = INVERSE_GRAY(
+				autoCompleteHint[overlap - 1] ?? cursorChar,
+			);
+			renderedAfter = GRAY(autoCompleteHint.slice(overlap) + afterCursor);
+		}
+
+		return GRAY(':') + renderedBefore + renderedCursor + renderedAfter;
+	}, [value, cursorPosition, autoCompleteHint]);
+
 	return (
 		<Box>
 			<Text>{fullLine}</Text>

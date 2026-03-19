@@ -7,21 +7,23 @@ let currentKeypressListener: ((s: string, k: readline.Key) => void) | undefined;
 
 const getKeyPressListener = () => {
 	return async function onKeyPress(_: string, key: readline.Key) {
-		if (key.ctrl && key.name === 'c') return navigator.exit();
+		if (key.ctrl && key.name === 'c') {
+			return navigator.exit();
+		}
 
-		const filteredActions = getState().availableActions.filter(
-			a => a.mode === getState().mode,
+		const {availableActions, mode} = getState();
+		const intent = getKeyIntent(key, mode);
+
+		const actionMeta = availableActions.find(
+			a => a.mode === mode && a.intent === intent,
 		);
 
-		const actionMeta = filteredActions.find(
-			({intent, mode}) => getKeyIntent(key, mode) === intent,
-		);
-
-		if (!actionMeta?.action) return;
+		if (!actionMeta?.action) {
+			return;
+		}
 
 		try {
-			const res = actionMeta.action(navigator, actionMeta, key);
-			if (res instanceof Promise) await res;
+			await actionMeta.action(navigator, actionMeta, key);
 		} catch (err) {
 			logger.error(err);
 		}
@@ -36,6 +38,9 @@ export function initListeners() {
 	currentKeypressListener = getKeyPressListener();
 
 	readline.emitKeypressEvents(process.stdin);
-	if (process.stdin.isTTY) process.stdin.setRawMode(true);
+	if (process.stdin.isTTY) {
+		process.stdin.setRawMode(true);
+	}
+
 	process.stdin.on('keypress', currentKeypressListener);
 }

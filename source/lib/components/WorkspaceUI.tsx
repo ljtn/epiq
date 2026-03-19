@@ -1,26 +1,48 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {ModeUnion} from '../model/action-map.model.js';
+import {BreadCrumb, ViewMode} from '../model/app-state.model.js';
+import {AnyContext} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
+import {DeepReadonly} from '../model/readonly.model.js';
 import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';
 import {Breadcrumb} from './BreadCrumb.js';
-import {useAppState} from '../state/state.js';
 
-export const WorkspaceUI: React.FC = () => {
-	const state = useAppState();
-
+type Props = {
+	currentNode: NavNode<AnyContext>;
+	selectedIndex: number;
+	breadCrumb: DeepReadonly<BreadCrumb>;
+	viewMode: ViewMode;
+	mode: ModeUnion;
+};
+const WorkspaceUIComponent: React.FC<Props> = ({
+	currentNode,
+	selectedIndex,
+	breadCrumb,
+	mode,
+	viewMode,
+}) => {
 	const board =
-		state.breadCrumb.length >= 2 && state.breadCrumb[1]?.context === 'BOARD'
-			? state.breadCrumb[1]
+		breadCrumb.length >= 2 && breadCrumb[1]?.context === 'BOARD'
+			? breadCrumb[1]
 			: undefined;
 
 	return (
 		<Box flexDirection="column">
 			<Breadcrumb />
 			<Box flexDirection="row">
-				{state.currentNode.context === 'WORKSPACE' ? (
+				{currentNode.context === 'WORKSPACE' ? (
 					<BoardList />
 				) : board ? (
-					<BoardUI swimlanes={board.children} />
+					<BoardUI
+						swimlanes={board.children}
+						currentNode={currentNode}
+						selectedIndex={selectedIndex}
+						breadCrumb={breadCrumb}
+						viewMode={viewMode}
+						mode={mode}
+					/>
 				) : (
 					<Text />
 				)}
@@ -28,3 +50,5 @@ export const WorkspaceUI: React.FC = () => {
 		</Box>
 	);
 };
+
+export const WorkspaceUI = React.memo(WorkspaceUIComponent);

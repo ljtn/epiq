@@ -7,14 +7,30 @@ import {Mode} from './lib/model/action-map.model.js';
 import {useAppState} from './lib/state/state.js';
 
 export default function App() {
-	const {mode} = useAppState();
+	const state = useAppState();
 	const width = process.stdout.columns || 120;
 
 	return (
 		<Box flexDirection="column">
-			{mode !== Mode.HELP && <WorkspaceUI />}
-			{mode === Mode.HELP && <HelpUI width={width} />}
-			{mode !== Mode.HELP && <ContextBar width={width} />}
+			{state.mode !== Mode.HELP && (
+				<WorkspaceUI
+					currentNode={state.currentNode}
+					selectedIndex={state.selectedIndex}
+					breadCrumb={state.breadCrumb}
+					viewMode={state.viewMode}
+					mode={state.mode}
+				/>
+			)}
+
+			{state.mode === Mode.HELP && <HelpUI width={width} />}
+
+			{state.mode !== Mode.HELP && (
+				<ContextBar
+					width={width}
+					mode={state.mode}
+					availableHints={state.availableHints}
+				/>
+			)}
 		</Box>
 	);
 }

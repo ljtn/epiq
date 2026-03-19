@@ -27,13 +27,13 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			{ticket.children.map((child, index) =>
 				child.context === NavNodeCtx.FIELD_LIST ? (
 					<FieldListUI
-						key={child.id} // use stable key
+						key={child.id}
 						fieldList={child as NavNode<'FIELD_LIST'>}
 						selected={isInTicket && selectedIndex === index}
 					/>
 				) : (
 					<FieldUI
-						key={child.id} // use stable key
+						key={child.id}
 						field={child as NavNode<'FIELD'>}
 						selected={isInTicket && selectedIndex === index}
 					/>

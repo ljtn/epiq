@@ -1,17 +1,35 @@
 import {Box} from 'ink';
 import React from 'react';
-import {NavNodeCtx, Swimlane, Ticket} from '../model/context.model.js';
-import {useAppState} from '../state/state.js';
+import {ModeUnion} from '../model/action-map.model.js';
+import {BreadCrumb, ViewMode} from '../model/app-state.model.js';
+import {
+	AnyContext,
+	NavNodeCtx,
+	Swimlane,
+	Ticket,
+} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
+import {DeepReadonly} from '../model/readonly.model.js';
 
 type Props = {
 	swimlanes: readonly Swimlane[];
+	currentNode: NavNode<AnyContext>;
+	selectedIndex: number;
+	breadCrumb: DeepReadonly<BreadCrumb>;
+	viewMode: ViewMode;
+	mode: ModeUnion;
 };
 
-export const BoardUI: React.FC<Props> = ({swimlanes}) => {
-	const {currentNode, selectedIndex, breadCrumb} = useAppState();
-
+const BoardUIComponent: React.FC<Props> = ({
+	swimlanes,
+	currentNode,
+	selectedIndex,
+	breadCrumb,
+	mode,
+	viewMode,
+}) => {
 	const actionContext = currentNode.context;
 
 	const isTicketContext =
@@ -30,30 +48,41 @@ export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 					| undefined);
 
 	const width = process.stdout.columns || 120;
-	const swimlaneMaxWidth = Math.floor(process.stdout.columns / 3);
-	const swimlaneDynamicWidth = Math.floor(width / swimlanes.length);
-	const renderedWidth = swimlaneDynamicWidth * swimlanes.length;
-	const colWidth = Math.min(renderedWidth, swimlaneMaxWidth);
+	const swimlaneMaxWidth = Math.floor(width / 3);
+	const swimlaneDynamicWidth = Math.floor(
+		width / Math.max(swimlanes.length, 1),
+	);
+	const colWidth = Math.min(swimlaneDynamicWidth, swimlaneMaxWidth);
 
 	const breadCrumbHeight = 1;
 	const commandLineHeight = 3;
 	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
 
+	const isDense = viewMode === 'dense';
+
 	return (
 		<Box flexDirection="row" height={height}>
 			{isSwimlaneContext &&
-				swimlanes.map((lane, index) => (
-					<SwimlaneUI
-						key={lane.id}
-						height={height}
-						width={colWidth}
-						isSelected={
-							currentNode.context === NavNodeCtx.BOARD &&
-							selectedIndex === index
-						}
-						swimlane={lane}
-					/>
-				))}
+				swimlanes.map((lane, index) => {
+					const isFocused = currentNode.id === lane.id;
+					const listSelectedIndex = isFocused ? selectedIndex : -1;
+					const isSelected =
+						currentNode.context === NavNodeCtx.BOARD && selectedIndex === index;
+
+					return (
+						<SwimlaneUI
+							key={lane.id}
+							height={height}
+							width={colWidth}
+							swimlane={lane}
+							isSelected={isSelected}
+							isDense={isDense}
+							isFocused={isFocused}
+							listSelectedIndex={listSelectedIndex}
+							mode={mode}
+						/>
+					);
+				})}
 
 			{isTicketContext && ticketFromCrumb && (
 				<TicketUI height={height} ticket={ticketFromCrumb} />
@@ -61,3 +90,5 @@ export const BoardUI: React.FC<Props> = ({swimlanes}) => {
 		</Box>
 	);
 };
+
+export const BoardUI = React.memo(BoardUIComponent);

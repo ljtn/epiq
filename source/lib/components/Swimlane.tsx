@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {ModeUnion} from '../model/action-map.model.js';
 import {Swimlane} from '../model/context.model.js';
-import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
@@ -12,20 +12,27 @@ type Props = {
 	width: number;
 	height: number;
 	isSelected: boolean;
+	isDense: boolean;
+	isFocused: boolean;
+	listSelectedIndex: number;
+	mode: ModeUnion;
 };
 
-export const SwimlaneUI: React.FC<Props> = ({
+const SwimlaneUIComponent: React.FC<Props> = ({
 	swimlane,
 	isSelected,
 	width,
 	height,
+	isDense,
+	isFocused,
+	listSelectedIndex,
+	mode,
 }) => {
-	const state = useAppState();
-	const isDense = state.viewMode === 'dense';
-	const isFocused = state.currentNode.id === swimlane.id;
-	const listSelectedIndex = isFocused ? state.selectedIndex : -1;
-	const title = swimlane.name + ' (' + swimlane.children.length + ')';
+	const title = `${swimlane.name} (${swimlane.children.length})`;
 	const cmdInputHeight = 3;
+
+	const itemHeight = isDense ? 1 : 4;
+	const contentHeight = height - cmdInputHeight - (isDense ? 2 : 1);
 
 	const swimlaneHeading = (
 		<Box
@@ -45,8 +52,29 @@ export const SwimlaneUI: React.FC<Props> = ({
 		</Box>
 	);
 
-	return isDense ? (
-		// Compact
+	const renderItem = (ticket: any, index: number) => {
+		const isItemSelected = isFocused && listSelectedIndex === index;
+
+		return isDense ? (
+			<TicketListItemCompactUI
+				key={ticket.id}
+				index={index}
+				width={width}
+				ticket={ticket}
+				isSelected={isItemSelected}
+				mode={mode}
+			/>
+		) : (
+			<TicketListItemUI
+				key={ticket.id}
+				width={width}
+				ticket={ticket}
+				isSelected={isItemSelected}
+			/>
+		);
+	};
+
+	return (
 		<Box
 			flexDirection="column"
 			width={width}
@@ -58,65 +86,23 @@ export const SwimlaneUI: React.FC<Props> = ({
 		>
 			{swimlaneHeading}
 
-			<Box padding={1}>
+			<Box padding={isDense ? 1 : 0}>
 				{swimlane.children.length > 0 && (
 					<ScrollBoxUI
 						selectedIndex={listSelectedIndex}
-						height={height - cmdInputHeight - 2}
-						itemHeight={1}
+						height={contentHeight}
+						itemHeight={itemHeight}
 					>
-						{swimlane.children.map((ticket, index) => (
-							<TicketListItemCompactUI
-								key={ticket.id ?? index}
-								index={index}
-								width={width}
-								ticket={ticket}
-								isSelected={isFocused && state.selectedIndex === index}
-							/>
-						))}
+						{swimlane.children.map(renderItem)}
 					</ScrollBoxUI>
 				)}
 
-				{isFocused && state.selectedIndex === -1 && (
-					<Text color={theme.accent}>⸬</Text>
-				)}
-			</Box>
-		</Box>
-	) : (
-		// Non compact
-		<Box
-			flexDirection="column"
-			width={width}
-			borderStyle="round"
-			borderColor={isSelected ? theme.accent : theme.secondary}
-			paddingRight={1}
-			paddingLeft={1}
-			height={height}
-		>
-			{swimlaneHeading}
-
-			<Box>
-				{swimlane.children.length > 0 && (
-					<ScrollBoxUI
-						selectedIndex={listSelectedIndex}
-						height={height - cmdInputHeight - 1}
-						itemHeight={4}
-					>
-						{swimlane.children.map((ticket, index) => (
-							<TicketListItemUI
-								key={ticket.id ?? index}
-								width={width}
-								ticket={ticket}
-								isSelected={isFocused && state.selectedIndex === index}
-							/>
-						))}
-					</ScrollBoxUI>
-				)}
-
-				{isFocused && state.selectedIndex === -1 && (
+				{isFocused && listSelectedIndex === -1 && (
 					<Text color={theme.accent}>⸬</Text>
 				)}
 			</Box>
 		</Box>
 	);
 };
+
+export const SwimlaneUI = React.memo(SwimlaneUIComponent);

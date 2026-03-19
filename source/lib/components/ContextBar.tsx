@@ -1,14 +1,17 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Mode} from '../model/action-map.model.js';
-import {getState} from '../state/state.js';
+import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {theme} from '../theme/themes.js';
 import {CommandLine} from './CommandLine.js';
+import {AppState} from '../model/app-state.model.js';
 
-export const ContextBar: React.FC<{width: number}> = ({width}) => {
-	const {mode, availableHints} = getState();
-	// const hasHints = availableHints.length > 0;
+interface Props {
+	width: number;
+	mode: ModeUnion;
+	availableHints: AppState['availableHints'];
+}
 
+export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
 	return (
 		<Box
 			flexDirection="column"
