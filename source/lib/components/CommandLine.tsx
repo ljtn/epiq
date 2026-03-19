@@ -5,46 +5,63 @@ import {
 	commandLineState,
 	subscribeCommandLineState,
 } from '../state/cmd.state.js';
+import {CmdKeywords} from '../command-line/command-types.js';
 import {chalkColors} from '../theme/themes.js';
 import {findOverlap} from '../utils/string.utils.js';
-import {CmdKeywords} from '../command-line/command-types.js';
+
+type CommandLineViewState = {
+	value: string;
+	cursorPosition: number;
+	commandIsPending: boolean;
+	infoHint: string;
+	autoCompleteHint: string;
+};
+
+const getCommandLineViewState = (): CommandLineViewState => ({
+	value: commandLineState.value,
+	cursorPosition: commandLineState.cursorPosition,
+	commandIsPending: commandLineState.commandIsPending,
+	infoHint: commandLineState.commandMeta.infoHint,
+	autoCompleteHint: commandLineState.autoCompleteHint,
+});
+
+const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>
+	a.value === b.value &&
+	a.cursorPosition === b.cursorPosition &&
+	a.commandIsPending === b.commandIsPending &&
+	a.infoHint === b.infoHint &&
+	a.autoCompleteHint === b.autoCompleteHint;
 
 export const CommandLine: React.FC = () => {
-	const [input, setInput] = useState(commandLineState.value);
-	const [cursorPos, setCursorPos] = useState(commandLineState.cursorPosition);
-	const [commandIsPending, setCommandIsPending] = useState(
-		commandLineState.commandIsPending,
-	);
-	const [infoHint, setInfoHint] = useState(
-		commandLineState.commandMeta.infoHint,
+	const [state, setState] = useState<CommandLineViewState>(
+		getCommandLineViewState(),
 	);
 
 	useEffect(() => {
 		const sync = () => {
-			setInput(commandLineState.value);
-			setCursorPos(commandLineState.cursorPosition);
-			setCommandIsPending(commandLineState.commandIsPending);
-			setInfoHint(commandLineState.commandMeta.infoHint);
+			const next = getCommandLineViewState();
+			setState(prev => (isEqual(prev, next) ? prev : next));
 		};
 
 		const unsubscribe = subscribeCommandLineState(sync);
-
-		sync(); // ensure initial render reflects store
+		sync();
 		return () => {
 			unsubscribe();
 		};
 	}, []);
 
-	const safeCursor = Math.max(0, Math.min(cursorPos, input.length));
+	const {value, cursorPosition, commandIsPending, infoHint, autoCompleteHint} =
+		state;
 
-	const beforeCursor = input.slice(0, safeCursor);
-	const cursorChar = safeCursor < input.length ? input[safeCursor] : ' ';
+	const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
+
+	const beforeCursor = value.slice(0, safeCursor);
+	const cursorChar = safeCursor < value.length ? value[safeCursor] : ' ';
 	const afterCursor =
-		safeCursor < input.length ? input.slice(safeCursor + 1) : '';
+		safeCursor < value.length ? value.slice(safeCursor + 1) : '';
 
-	// ---- Command matching ----
 	const commands = Object.values(CmdKeywords);
-	const existingCommand = commands.find(cmd => input.startsWith(cmd + ' '));
+	const existingCommand = commands.find(cmd => value.startsWith(cmd + ' '));
 
 	let renderedBefore = beforeCursor;
 	let renderedAfter = afterCursor;
@@ -53,7 +70,6 @@ export const CommandLine: React.FC = () => {
 	if (existingCommand) {
 		const commandLength = existingCommand.length;
 
-		// Highlight command portion
 		if (safeCursor <= commandLength) {
 			renderedBefore = chalk.hex(chalkColors.cyan)(beforeCursor);
 		} else {
@@ -62,30 +78,31 @@ export const CommandLine: React.FC = () => {
 				beforeCursor.slice(commandLength);
 		}
 
-		// Highlight cursor if inside command word
 		if (safeCursor < commandLength) {
 			renderedCursor = chalk.inverse.hex(chalkColors.cyan)(cursorChar);
 		}
 	}
 
-	const hint = commandLineState.autoCompleteHint;
-	if (hint) {
-		const lastWord = commandLineState.value.split(' ').at(-1) + ' ' || '';
-		let overlap = findOverlap(lastWord, hint);
+	if (autoCompleteHint) {
+		const lastWord = value.split(' ').at(-1) + ' ' || '';
+		const overlap = findOverlap(lastWord, autoCompleteHint);
 
-		renderedCursor = chalk.inverse.gray(hint[overlap - 1] ?? cursorChar);
-		renderedAfter = chalk.gray(hint.slice(overlap, hint.length) + afterCursor);
+		renderedCursor = chalk.inverse.gray(
+			autoCompleteHint[overlap - 1] ?? cursorChar,
+		);
+		renderedAfter = chalk.gray(autoCompleteHint.slice(overlap) + afterCursor);
 	}
 
 	const fullLine =
 		chalk.gray(':') + renderedBefore + renderedCursor + renderedAfter;
 
+	logger.info('hehe');
 	return (
 		<Box>
 			<Text>{fullLine}</Text>
 			{commandIsPending && infoHint && (
 				<Box paddingLeft={2}>
-					<Text color="red">{' ' + infoHint + ' '}</Text>
+					<Text color="red">{` ${infoHint} `}</Text>
 				</Box>
 			)}
 		</Box>

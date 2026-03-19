@@ -1,7 +1,9 @@
 {
 	"extends": "@sindresorhus/tsconfig",
 	"compilerOptions": {
-		"outDir": "dist"
+		"outDir": "dist",
+		"lib": ["esnext"]
 	},
+
 	"include": ["source", "globals.d.ts"]
 }

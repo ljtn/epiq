@@ -1,16 +1,27 @@
 import readline from 'readline';
 import {Intent} from './key-intent.js';
 
+const isEraseWord = (key: readline.Key, sequence: string) =>
+	(key.ctrl && key.name === 'w') ||
+	(key.meta && key.name === 'backspace') ||
+	sequence === '\x17';
+
+const isMoveWordLeft = (key: readline.Key, sequence: string) =>
+	(key.meta && key.name === 'b') || sequence === '\x1bb';
+
+const isMoveWordRight = (key: readline.Key, sequence: string) =>
+	(key.meta && key.name === 'f') || sequence === '\x1bf';
+
 export const getCommandLineIntent = (key: readline.Key, sequence: string) => {
-	if (key.meta && key.name === 'b') {
+	if (isMoveWordLeft(key, key.sequence!)) {
 		return Intent.MoveCursorLeftOfWord;
 	}
 
-	if (key.meta && key.name === 'f') {
+	if (isMoveWordRight(key, key.sequence!)) {
 		return Intent.MoveCursorRightOfWord;
 	}
 
-	if (key.ctrl && key.name === 'w') {
+	if (isEraseWord(key, key.sequence!)) {
 		return Intent.EraseInputWord;
 	}
 
