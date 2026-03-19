@@ -10,9 +10,11 @@ import type {AnyContext, Board, Workspace} from '../model/context.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
 import {deepFreeze} from '../utils/immutable.js';
 import {findNodeInTree} from '../utils/nav-tree.js';
+import {buildActionIndex} from './action-helper.js';
 
 type DerivedKeys =
 	| 'availableActions'
+	| 'actionIndex'
 	| 'availableHints'
 	| 'breadCrumb'
 	| 'currentNode';
@@ -62,6 +64,7 @@ function derive(state: BaseState): AppState {
 		...(contextActions[context] ?? []),
 		...inputActions,
 	]);
+	const actionIndex = deepFreeze(buildActionIndex(availableActions));
 
 	// Consider not freezing if performance issues
 	return deepFreeze({
@@ -70,6 +73,7 @@ function derive(state: BaseState): AppState {
 		breadCrumb,
 		availableHints,
 		availableActions,
+		actionIndex,
 	});
 }
 

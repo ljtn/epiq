@@ -30,3 +30,7 @@ export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
 	) => void | Result;
 	onSuccess?: () => void;
 };
+
+export type ActionIndex = Partial<
+	Record<ModeUnion, Partial<Record<string, ActionEntry>>>
+>;

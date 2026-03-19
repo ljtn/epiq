@@ -11,12 +11,10 @@ const getKeyPressListener = () => {
 			return navigator.exit();
 		}
 
-		const {availableActions, mode} = getState();
+		const {actionIndex, mode} = getState();
 		const intent = getKeyIntent(key, mode);
-
-		const actionMeta = availableActions.find(
-			a => a.mode === mode && a.intent === intent,
-		);
+		if (!intent) return;
+		const actionMeta = actionIndex[mode]?.[intent];
 
 		if (!actionMeta?.action) {
 			return;

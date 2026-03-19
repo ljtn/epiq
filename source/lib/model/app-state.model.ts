@@ -1,4 +1,4 @@
-import {ActionEntry, ModeUnion} from './action-map.model.js';
+import {ActionEntry, ActionIndex, ModeUnion} from './action-map.model.js';
 import {AnyContext, Workspace} from './context.model.js';
 import {NavNode} from './navigation-node.model.js';
 import {DeepReadonly} from './readonly.model.js';
@@ -28,6 +28,7 @@ export type AppState = DeepReadonly<{
 	currentNodeId: string;
 	mode: ModeUnion;
 	availableActions: ActionEntry[];
+	actionIndex: ActionIndex;
 	availableHints: string[];
 	currentNode: NavNode<AnyContext>;
 	breadCrumb: BreadCrumb;

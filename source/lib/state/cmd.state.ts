@@ -53,12 +53,16 @@ type SetStateCb = (old: CommandLineState) => CommandLineState;
 
 // ===== Updates =====
 const setState = (cb: SetStateCb) => {
-	const next = cb(structuredClone(commandLineState));
-	const isCursorAtEndOfLine = next.cursorPosition === next.value.length;
-	next.commandMeta = getCmdMeta(next.value);
-	next.autoCompleteHint = isCursorAtEndOfLine
-		? getAutoCompletion(next.value)
-		: '';
+	const prev = commandLineState;
+	const draft = cb(prev);
+	const isCursorAtEndOfLine = draft.cursorPosition === draft.value.length;
+
+	const next: CommandLineState = {
+		...draft,
+		commandMeta: getCmdMeta(draft.value),
+		autoCompleteHint: isCursorAtEndOfLine ? getAutoCompletion(draft.value) : '',
+	};
+
 	commandLineState = next;
 	notify();
 };
@@ -72,7 +76,6 @@ export const overrideValidationResult = ({hint, result}: Result) => {
 	};
 	next.commandIsPending = true;
 	commandLineState = next;
-	logger.info(next);
 	notify();
 };
 
