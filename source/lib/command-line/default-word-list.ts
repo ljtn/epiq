@@ -1,4 +1,4 @@
-export const wordList = [
+export const DEFAULT_WORDS = [
 	// common ticket domains
 	'frontend',
 	'backend',
@@ -7,6 +7,18 @@ export const wordList = [
 	'integration',
 	'configuration',
 	'implementation',
+	'application',
+	'deployment',
+	'environment',
+	'framework',
+	'platform',
+	'service',
+	'component',
+	'module',
+	'gateway',
+	'pipeline',
+	'containerization',
+	'orchestrator',
 
 	// issue / quality language
 	'exception',
@@ -27,6 +39,17 @@ export const wordList = [
 	'optimization',
 	'stabilization',
 	'refinement',
+	'failure',
+	'outage',
+	'blocking',
+	'criticality',
+	'severity',
+	'escalation',
+	'diagnostics',
+	'analysis',
+	'resolution',
+	'corruption',
+	'inconsistency',
 
 	// correctness / safety / compliance
 	'validation',
@@ -39,6 +62,15 @@ export const wordList = [
 	'reliability',
 	'compliance',
 	'governance',
+	'encryption',
+	'decryption',
+	'integrity',
+	'auditing',
+	'traceability',
+	'accountability',
+	'protection',
+	'privileges',
+	'permissions',
 
 	// systems / platform concepts
 	'dependency',
@@ -51,6 +83,14 @@ export const wordList = [
 	'observability',
 	'instrumentation',
 	'telemetry',
+	'loadbalancing',
+	'discovery',
+	'registration',
+	'scheduling',
+	'coordination',
+	'distribution',
+	'isolation',
+	'virtualization',
 
 	// data / processing concepts
 	'serialization',
@@ -65,6 +105,14 @@ export const wordList = [
 	'transformation',
 	'reconciliation',
 	'correlation',
+	'processing',
+	'indexing',
+	'partitioning',
+	'enrichment',
+	'validation',
+	'filtering',
+	'streaming',
+	'batching',
 
 	// runtime / scaling / failure modes
 	'concurrency',
@@ -83,6 +131,11 @@ export const wordList = [
 	'failover',
 	'deprecation',
 	'obsolescence',
+	'starvation',
+	'overload',
+	'underutilization',
+	'latency',
+	'throughput',
 
 	// maintainability
 	'refactoring',
@@ -94,10 +147,29 @@ export const wordList = [
 	'maintainability',
 	'recoverability',
 	'sustainability',
+	'readability',
+	'testability',
+	'debuggability',
+	'reusability',
+	'simplicity',
+	'consistency',
 
 	// general ticket phrasing but still useful
 	'performance',
 	'functionality',
 	'requirement',
 	'recommendation',
+	'improvement',
+	'enhancement',
+	'clarification',
+	'documentation',
+	'description',
+	'acceptance',
+	'criteria',
+	'estimation',
+	'prioritization',
+	'dependency',
+	'deliverable',
+	'milestone',
+	'iteration',
 ];

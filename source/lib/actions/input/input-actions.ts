@@ -10,7 +10,6 @@ import {
 } from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
-import {findOverlap} from '../../utils/string.utils.js';
 import {onConfirmCommandLineSequenceInput} from './on-cmd-input-confirm.js';
 export const inputActions: ActionEntry[] = [
 	{
@@ -65,10 +64,8 @@ export const inputActions: ActionEntry[] = [
 		intent: Intent.AutoCompleteCommand,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			setCmdInput((previousInput, hint) => {
-				let lastWord = previousInput.split(' ').at(-1) || '';
-				const overlap = findOverlap(lastWord, hint);
-				return hint ? previousInput + hint.slice(overlap) : previousInput;
+			setCmdInput((previousInput, {remainder}) => {
+				return remainder ? previousInput + remainder : previousInput;
 			});
 		},
 	},

@@ -1,11 +1,11 @@
-export function findOverlap(wordA: string, wordB: string) {
+export function findOverlap(wordA: string, wordB: string): number {
+	const max = Math.min(wordA.length, wordB.length);
 	let overlap = 0;
-	for (let i = 0; i < wordA.length; i++) {
+
+	while (overlap < max && wordA[overlap] === wordB[overlap]) {
 		overlap++;
-		if (wordB[i] !== wordA[i]) {
-			break;
-		}
 	}
+
 	return overlap;
 }
 

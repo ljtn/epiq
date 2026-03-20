@@ -43,7 +43,7 @@ export const getCmdMeta = (value: string): CurrentCmdMeta => {
 		return {
 			command: firstWord,
 			modifier,
-			autoCompleteHints: meta.autoCompleteHints,
+			autoCompletion: meta.autoCompleteHints,
 			infoHint: validation.hint ?? '',
 			validationStatus: validation.result,
 		};
@@ -51,7 +51,7 @@ export const getCmdMeta = (value: string): CurrentCmdMeta => {
 	return {
 		validationStatus: CmdResults.None,
 		infoHint: '',
-		autoCompleteHints: [''],
+		autoCompletion: [''],
 		command: firstWord ?? '',
 		modifier,
 	};

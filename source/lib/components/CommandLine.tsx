@@ -7,14 +7,14 @@ import {
 } from '../state/cmd.state.js';
 import {CmdKeywords} from '../command-line/command-types.js';
 import {chalkColors} from '../theme/themes.js';
-import {findOverlap} from '../utils/string.utils.js';
+import {AutoCompletion} from '../command-line/command-auto-complete.js';
 
 type CommandLineViewState = {
 	value: string;
 	cursorPosition: number;
 	commandIsPending: boolean;
 	infoHint: string;
-	autoCompleteHint: string;
+	autoCompletion: AutoCompletion;
 };
 
 const COMMANDS = Object.values(CmdKeywords);
@@ -24,12 +24,19 @@ const INVERSE = chalk.inverse;
 const INVERSE_CYAN = chalk.inverse.hex(chalkColors.cyan);
 const INVERSE_GRAY = chalk.inverse.gray;
 
+const EMPTY_AUTO_COMPLETION: AutoCompletion = {
+	hint: '',
+	hints: [],
+	overlap: 0,
+	remainder: '',
+};
+
 const getCommandLineViewState = (): CommandLineViewState => ({
 	value: commandLineState.value,
 	cursorPosition: commandLineState.cursorPosition,
 	commandIsPending: commandLineState.commandIsPending,
 	infoHint: commandLineState.commandMeta.infoHint,
-	autoCompleteHint: commandLineState.autoCompleteHint,
+	autoCompletion: commandLineState.autoCompletion ?? EMPTY_AUTO_COMPLETION,
 });
 
 const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>
@@ -37,13 +44,9 @@ const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>
 	a.cursorPosition === b.cursorPosition &&
 	a.commandIsPending === b.commandIsPending &&
 	a.infoHint === b.infoHint &&
-	a.autoCompleteHint === b.autoCompleteHint;
-
-const getLastWord = (value: string): string => {
-	const trimmed = value.trimEnd();
-	const lastSpace = trimmed.lastIndexOf(' ');
-	return lastSpace === -1 ? trimmed : trimmed.slice(lastSpace + 1);
-};
+	a.autoCompletion.hint === b.autoCompletion.hint &&
+	a.autoCompletion.overlap === b.autoCompletion.overlap &&
+	a.autoCompletion.remainder === b.autoCompletion.remainder;
 
 export const CommandLine: React.FC = () => {
 	const [state, setState] = useState<CommandLineViewState>(
@@ -63,7 +66,7 @@ export const CommandLine: React.FC = () => {
 		};
 	}, []);
 
-	const {value, cursorPosition, commandIsPending, infoHint, autoCompleteHint} =
+	const {value, cursorPosition, commandIsPending, infoHint, autoCompletion} =
 		state;
 
 	const fullLine = useMemo(() => {
@@ -97,18 +100,16 @@ export const CommandLine: React.FC = () => {
 			}
 		}
 
-		if (autoCompleteHint) {
-			const lastWord = getLastWord(value);
-			const overlap = findOverlap(`${lastWord} `, autoCompleteHint);
+		if (autoCompletion.hint) {
+			const hintedChar =
+				autoCompletion.hint[autoCompletion.overlap] ?? cursorChar;
 
-			renderedCursor = INVERSE_GRAY(
-				autoCompleteHint[overlap - 1] ?? cursorChar,
-			);
-			renderedAfter = GRAY(autoCompleteHint.slice(overlap) + afterCursor);
+			renderedCursor = INVERSE_GRAY(hintedChar);
+			renderedAfter = GRAY(autoCompletion.remainder.slice(1) + afterCursor);
 		}
 
 		return GRAY(':') + renderedBefore + renderedCursor + renderedAfter;
-	}, [value, cursorPosition, autoCompleteHint]);
+	}, [value, cursorPosition, autoCompletion]);
 
 	return (
 		<Box>

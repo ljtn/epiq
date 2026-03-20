@@ -1,32 +1,40 @@
 import {describe, expect, it} from 'vitest';
 import {getAutoCompletion} from './command-auto-complete.js';
 
-describe('getHint', () => {
-	it('suggests command hint for "ta"', () => {
-		expect(getAutoCompletion('ta')).toBe('tag ');
+describe('getAutoCompletion (remainder)', () => {
+	it('returns remainder for command completion ("ta" → "tag")', () => {
+		expect(getAutoCompletion('ta').remainder).toBe('g ');
 	});
 
-	it('suggests modifier hint for "tag c"', () => {
-		expect(getAutoCompletion('tag c')).toBe('critical ');
+	it('returns remainder for modifier completion ("tag c" → "critical")', () => {
+		expect(getAutoCompletion('tag c').remainder).toBe('ritical ');
 	});
 
-	it('suggests command hint for "vi"', () => {
-		expect(getAutoCompletion('vi')).toBe('view ');
+	it('returns remainder for command completion ("vi" → "view")', () => {
+		expect(getAutoCompletion('vi').remainder).toBe('ew ');
 	});
 
-	it('suggests modifier hint for "view d"', () => {
-		expect(getAutoCompletion('view d')).toBe('dense ');
+	it('returns remainder for modifier completion ("view d" → "dense")', () => {
+		expect(getAutoCompletion('view d').remainder).toBe('ense ');
 	});
 
-	it('suggests modifier hint for "view w"', () => {
-		expect(getAutoCompletion('view w')).toBe('wide ');
+	it('returns remainder for modifier completion ("view w" → "wide")', () => {
+		expect(getAutoCompletion('view w').remainder).toBe('ide ');
 	});
 
-	it('does not suggests autocompletion for "add " ', () => {
-		expect(getAutoCompletion('add ')).toBe('');
+	it('returns empty remainder when no completion is available ("add ")', () => {
+		expect(getAutoCompletion('add ').remainder).toBe('');
 	});
 
-	it('does not suggests autocompletion for "tag critical cri" ', () => {
-		expect(getAutoCompletion('tag critical crime')).toBe('');
+	it('returns empty remainder when no matching completion exists ("tag critical crime")', () => {
+		expect(getAutoCompletion('tag critical crime').remainder).toBe('');
+	});
+
+	it('returns remainder for word completion ("add fron" → "frontend")', () => {
+		expect(getAutoCompletion('add fron').remainder).toBe('tend ');
+	});
+
+	it('is case-insensitive for completion ("add Fron" → "frontend")', () => {
+		expect(getAutoCompletion('add Fron').remainder).toBe('tend ');
 	});
 });

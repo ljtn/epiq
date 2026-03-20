@@ -1,57 +1,64 @@
-import {findOverlap} from '../utils/string.utils.js';
 import {CmdMeta} from './command-registry.js';
 import {CmdKeywords} from './command-types.js';
-import {parseCommandLine} from './command-parser.js';
-import {wordList} from './default-word-list.js';
+import {parseCommandLine, ParsedCommandLine} from './command-parser.js';
+import {DEFAULT_WORDS} from './default-word-list.js';
+import {autoCompletionFromWordList} from './command-auto-complete.utils.js';
+import {findOverlap} from '../utils/string.utils.js';
 
-export const getAutoCompletion = (value: string): string => {
+const CMD_KEYWORD_LIST = Object.values(CmdKeywords);
+
+export type AutoCompletion = {
+	hint: string;
+	hints: string[];
+	overlap: number;
+	remainder: string;
+};
+export const getAutoCompletion = (value: string): AutoCompletion => {
 	const parsed = parseCommandLine(value);
 
-	if (parsed.targetIsCommand) {
+	if (parsed.target === 'command') {
 		return returnAutoCompletion(
+			parsed,
 			autoCompletionFromWordList({
-				wordList: Object.values(CmdKeywords),
-				inputToMatch: parsed.lastWord,
+				wordList: CMD_KEYWORD_LIST,
+				inputToMatch: parsed.inputToMatch,
 				overlapThreshold: 1,
 			}),
 		);
 	}
 
-	if (parsed.targetIsModifier && parsed.command) {
-		return returnAutoCompletion(
-			autoCompletionFromWordList({
-				wordList: CmdMeta[parsed.command].autoCompleteHints,
-				inputToMatch: parsed.lastWord,
-				overlapThreshold: 1,
-			}),
-		);
-	}
-
-	return returnAutoCompletion(
-		autoCompletionFromWordList({
+	if (parsed.command && parsed.target === 'modifier') {
+		const contextualHints = CmdMeta[parsed.command].autoCompleteHints;
+		const wordList = contextualHints.length ? contextualHints : DEFAULT_WORDS;
+		const commandHint = autoCompletionFromWordList({
 			wordList,
-			inputToMatch: parsed.lastWord,
-			overlapThreshold: 3,
-		}),
-	);
+			inputToMatch: parsed.inputToMatch,
+			overlapThreshold: 1,
+		});
+
+		if (commandHint) {
+			return returnAutoCompletion(parsed, commandHint);
+		}
+	}
+
+	return {hint: '', hints: [], overlap: 0, remainder: ''};
 };
 
-const returnAutoCompletion = (hint: string) => (hint ? hint + ' ' : '');
+const returnAutoCompletion = (
+	parsed: ParsedCommandLine,
+	hints: string[],
+): AutoCompletion => {
+	const selectedHint = hints[0] ?? '';
+	const hint = selectedHint ? selectedHint + ' ' : '';
+	const input = `${parsed.lastWord} `;
+	const overlap = findOverlap(input.toLowerCase(), hint.toLowerCase());
+	const remainder = hint.slice(overlap);
 
-const autoCompletionFromWordList = ({
-	wordList,
-	inputToMatch,
-	overlapThreshold = 1,
-}: {
-	wordList: string[];
-	inputToMatch: string;
-	overlapThreshold?: number;
-}) => {
-	const hint = wordList.find(
-		term =>
-			term.startsWith(inputToMatch) &&
-			findOverlap(inputToMatch, term) >= overlapThreshold,
-	);
-
-	return hint || '';
+	const autoCompletion: AutoCompletion = {
+		hint,
+		hints,
+		overlap,
+		remainder,
+	};
+	return autoCompletion;
 };

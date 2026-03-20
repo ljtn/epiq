@@ -1,4 +1,7 @@
-import {getAutoCompletion} from '../command-line/command-auto-complete.js';
+import {
+	AutoCompletion,
+	getAutoCompletion,
+} from '../command-line/command-auto-complete.js';
 import {getCmdMeta} from '../command-line/command-meta.js';
 import {CmdResult, CmdResults, Result} from '../command-line/command-types.js';
 
@@ -7,14 +10,14 @@ export type CurrentCmdMeta = {
 	modifier: string;
 	command: string;
 	infoHint: string;
-	autoCompleteHints: string[];
+	autoCompletion: string[];
 	validationStatus: CmdResult;
 };
 export type CommandLineState = {
 	value: string;
 	commandHistory: string[];
 	commandHistoryIndex: number;
-	autoCompleteHint: string;
+	autoCompletion: AutoCompletion;
 	cursorPosition: number;
 	commandIsPending: boolean;
 	commandMeta: CurrentCmdMeta;
@@ -24,14 +27,14 @@ export let commandLineState: CommandLineState = {
 	commandHistory: [],
 	value: '',
 	commandHistoryIndex: -1,
-	autoCompleteHint: '',
+	autoCompletion: {hint: '', hints: [], remainder: '', overlap: 0},
 	cursorPosition: 0,
 	commandIsPending: false,
 	commandMeta: {
 		command: '',
 		modifier: '',
 		infoHint: '',
-		autoCompleteHints: [''],
+		autoCompletion: [''],
 		validationStatus: CmdResults.None,
 	},
 };
@@ -60,7 +63,9 @@ const setState = (cb: SetStateCb) => {
 	const next: CommandLineState = {
 		...draft,
 		commandMeta: getCmdMeta(draft.value),
-		autoCompleteHint: isCursorAtEndOfLine ? getAutoCompletion(draft.value) : '',
+		autoCompletion: isCursorAtEndOfLine
+			? getAutoCompletion(draft.value)
+			: {hint: '', hints: [], remainder: '', overlap: 0},
 	};
 
 	commandLineState = next;
@@ -153,7 +158,7 @@ export const eraseInputWord = () => {
 	});
 };
 
-type SetCmdStateCallback = (previous: string, hint: string) => string;
+type SetCmdStateCallback = (previous: string, hint: AutoCompletion) => string;
 
 export const setCmdInput = (cb: SetCmdStateCallback) => {
 	setState(state => {
@@ -163,7 +168,7 @@ export const setCmdInput = (cb: SetCmdStateCallback) => {
 		);
 		const before = state.value.slice(0, cursor);
 		const after = state.value.slice(cursor);
-		const newBefore = cb(before, state.autoCompleteHint);
+		const newBefore = cb(before, state.autoCompletion);
 		const nextValue = newBefore + after;
 		const nextCursor = Math.max(
 			0,
