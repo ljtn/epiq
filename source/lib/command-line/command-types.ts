@@ -25,4 +25,4 @@ export type DefaultCmdModifier =
 	(typeof CmdModifiers)[keyof typeof CmdModifiers];
 export type CmdResult = (typeof CmdResults)[keyof typeof CmdResults];
 
-export type Result = {result: CmdResult; hint?: string};
+export type Result = {result: CmdResult; message?: string};

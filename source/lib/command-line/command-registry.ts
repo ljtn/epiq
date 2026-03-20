@@ -12,50 +12,61 @@ import {
 export const CmdMeta: Record<
 	CmdKeyword,
 	{
-		autoCompleteHints: string[];
+		hints: string[];
 		validateCmd: (cw: CmdKeyword, cm: DefaultCmdModifier | string) => Result;
 	}
 > = {
 	[CmdKeywords.DELETE]: {
-		autoCompleteHints: ['confirm'],
-		validateCmd: (_command, modifier) => ({
-			result: CmdModifiers.Node.includes(modifier)
-				? CmdResults.Succeed
-				: CmdResults.Fail,
-		}),
+		hints: [CmdModifiers.Node],
+		validateCmd: (_command, modifier) => {
+			if (CmdModifiers.Node === modifier.trim()) {
+				return {
+					result: CmdResults.Succeed,
+					message: 'heh',
+				};
+			} else {
+				return {
+					result: CmdResults.Fail,
+					message: 'Provide name of the node to be removed',
+				};
+			}
+		},
 	},
 	[CmdKeywords.RENAME]: {
-		autoCompleteHints: [],
+		hints: [],
 		validateCmd: (_command, _modifier) => ({result: CmdResults.Succeed}),
 	},
 	[CmdKeywords.ADD]: {
-		autoCompleteHints: [],
+		hints: [],
 		validateCmd: (_command, _modifier) => ({result: CmdResults.Succeed}),
 	},
 	[CmdKeywords.HELP]: {
-		autoCompleteHints: [],
+		hints: [],
 		validateCmd: (_command, _modifier) => ({result: CmdResults.Succeed}),
 	},
 	[CmdKeywords.VIEW]: {
-		autoCompleteHints: ['dense', 'wide'],
+		hints: ['dense', 'wide'],
 		validateCmd: (_command, modifier) => {
 			const success = modifier === 'dense' || modifier === 'wide';
-			return {result: success ? CmdResults.Succeed : CmdResults.Fail};
+			return {
+				result: success ? CmdResults.Succeed : CmdResults.Fail,
+				message: success ? '' : 'view must be "wide" or "dense"',
+			};
 		},
 	},
 	[CmdKeywords.TAG]: {
-		autoCompleteHints: Object.keys(TAGS_DEFAULT),
+		hints: Object.keys(TAGS_DEFAULT),
 		validateCmd: _command => {
 			return {result: CmdResults.Succeed};
 		},
 	},
 	[CmdKeywords.ASSIGN]: {
-		autoCompleteHints: settings.users,
+		hints: settings.users,
 		validateCmd: (_command, modifier) => {
 			const success = settings.users.includes(modifier);
 			return {
 				result: success ? CmdResults.Succeed : CmdResults.Fail,
-				hint: !success ? 'Must be existing user name' : '',
+				message: !success ? 'Must be existing user name' : '',
 			};
 		},
 	},

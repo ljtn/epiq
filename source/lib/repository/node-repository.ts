@@ -58,20 +58,20 @@ export const nodeRepository = {
 		const parent = this.findListItemParent('Tags');
 		if (!parent) {
 			logger.error(`Could not find node with name "${name}"`);
-			return {result: CmdResults.Fail, hint: ''};
+			return {result: CmdResults.Fail, message: ''};
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
 				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
 			);
-			return {result: CmdResults.Fail, hint: ''};
+			return {result: CmdResults.Fail, message: ''};
 		}
 
 		if (parent.children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate tag');
 			return {
 				result: CmdResults.Fail,
-				hint: 'Cannot add duplicate tag',
+				message: 'Cannot add duplicate tag',
 			};
 		}
 
@@ -84,13 +84,13 @@ export const nodeRepository = {
 		const parent = this.findListItemParent('Assignees');
 		if (!parent) {
 			logger.error(`Could not find node with name "${name}"`);
-			return {result: CmdResults.Fail, hint: ''};
+			return {result: CmdResults.Fail, message: ''};
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
 				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
 			);
-			return {result: CmdResults.Fail, hint: ''};
+			return {result: CmdResults.Fail, message: ''};
 		}
 
 		logger.info(
@@ -101,7 +101,7 @@ export const nodeRepository = {
 			logger.info('Cannot add duplicate assignee');
 			return {
 				result: CmdResults.Fail,
-				hint: 'Cannot add duplicate assignee',
+				message: 'Cannot add duplicate assignee',
 			};
 		}
 

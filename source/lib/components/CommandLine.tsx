@@ -13,7 +13,7 @@ type CommandLineViewState = {
 	value: string;
 	cursorPosition: number;
 	commandIsPending: boolean;
-	infoHint: string;
+	infoMessage: string;
 	autoCompletion: AutoCompletion;
 };
 
@@ -35,7 +35,7 @@ const getCommandLineViewState = (): CommandLineViewState => ({
 	value: commandLineState.value,
 	cursorPosition: commandLineState.cursorPosition,
 	commandIsPending: commandLineState.commandIsPending,
-	infoHint: commandLineState.commandMeta.infoHint,
+	infoMessage: commandLineState.commandMeta.infoMessage,
 	autoCompletion: commandLineState.autoCompletion ?? EMPTY_AUTO_COMPLETION,
 });
 
@@ -43,7 +43,7 @@ const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>
 	a.value === b.value &&
 	a.cursorPosition === b.cursorPosition &&
 	a.commandIsPending === b.commandIsPending &&
-	a.infoHint === b.infoHint &&
+	a.infoMessage === b.infoMessage &&
 	a.autoCompletion.hint === b.autoCompletion.hint &&
 	a.autoCompletion.overlap === b.autoCompletion.overlap &&
 	a.autoCompletion.remainder === b.autoCompletion.remainder;
@@ -66,7 +66,7 @@ export const CommandLine: React.FC = () => {
 		};
 	}, []);
 
-	const {value, cursorPosition, commandIsPending, infoHint, autoCompletion} =
+	const {value, cursorPosition, infoMessage, commandIsPending, autoCompletion} =
 		state;
 
 	const fullLine = useMemo(() => {
@@ -114,9 +114,11 @@ export const CommandLine: React.FC = () => {
 	return (
 		<Box>
 			<Text>{fullLine}</Text>
-			{commandIsPending && infoHint && (
+			{infoMessage && (
 				<Box paddingLeft={2}>
-					<Text color="red">{` ${infoHint} `}</Text>
+					<Text
+						color={commandIsPending ? 'red' : 'blue'}
+					>{` ${infoMessage} `}</Text>
 				</Box>
 			)}
 		</Box>

@@ -37,21 +37,21 @@ export const getCmdMeta = (value: string): CurrentCmdMeta => {
 	if (firstWord && firstWordIsCmdKeyword) {
 		const meta = CmdMeta[firstWord as CmdKeyword];
 		const validation = meta.validateCmd(
-			firstWord as CmdKeyword,
-			secondWord as DefaultCmdModifier,
+			(firstWord as CmdKeyword) ?? '',
+			(secondWord as DefaultCmdModifier) ?? '',
 		);
 		return {
 			command: firstWord,
 			modifier,
-			autoCompletion: meta.autoCompleteHints,
-			infoHint: validation.hint ?? '',
+			hints: meta.hints,
+			infoMessage: validation.message ?? '',
 			validationStatus: validation.result,
 		};
 	}
 	return {
 		validationStatus: CmdResults.None,
-		infoHint: '',
-		autoCompletion: [''],
+		infoMessage: '',
+		hints: [''],
 		command: firstWord ?? '',
 		modifier,
 	};

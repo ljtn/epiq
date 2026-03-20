@@ -9,8 +9,8 @@ export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
 	modifier: string;
 	command: string;
-	infoHint: string;
-	autoCompletion: string[];
+	infoMessage: string;
+	hints: string[];
 	validationStatus: CmdResult;
 };
 export type CommandLineState = {
@@ -33,8 +33,8 @@ export let commandLineState: CommandLineState = {
 	commandMeta: {
 		command: '',
 		modifier: '',
-		infoHint: '',
-		autoCompletion: [''],
+		infoMessage: '',
+		hints: [''],
 		validationStatus: CmdResults.None,
 	},
 };
@@ -72,11 +72,11 @@ const setState = (cb: SetStateCb) => {
 	notify();
 };
 
-export const overrideValidationResult = ({hint, result}: Result) => {
+export const overrideValidationResult = ({message: hint, result}: Result) => {
 	const next = structuredClone(commandLineState);
 	next.commandMeta = {
 		...next.commandMeta,
-		infoHint: hint ?? '',
+		infoMessage: hint ?? '',
 		validationStatus: result,
 	};
 	next.commandIsPending = true;

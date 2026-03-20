@@ -28,7 +28,7 @@ export const getAutoCompletion = (value: string): AutoCompletion => {
 	}
 
 	if (parsed.command && parsed.target === 'modifier') {
-		const contextualHints = CmdMeta[parsed.command].autoCompleteHints;
+		const contextualHints = CmdMeta[parsed.command].hints;
 		const wordList = contextualHints.length ? contextualHints : DEFAULT_WORDS;
 		const commandHint = autoCompletionFromWordList({
 			wordList,
