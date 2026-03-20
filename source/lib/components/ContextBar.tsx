@@ -13,17 +13,17 @@ interface Props {
 
 export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
 	return (
-		<Box
-			flexDirection="column"
-			paddingX={1}
-			borderColor={theme.secondary}
-			borderStyle="round"
-			width={width}
-		>
-			<Box>
-				{mode === Mode.COMMAND_LINE ? (
-					<CommandLine />
-				) : (
+		<Box>
+			{mode === Mode.COMMAND_LINE ? (
+				<CommandLine width={width} />
+			) : (
+				<Box
+					flexDirection="column"
+					paddingX={1}
+					borderColor={theme.secondary}
+					borderStyle="round"
+					width={width}
+				>
 					<Box flexDirection="row" gap={2}>
 						{/* <Text color={theme.secondary}>{hasHints ? '💡 Hints:' : ' '}</Text> */}
 						{availableHints.map((hint, index) => {
@@ -35,8 +35,8 @@ export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
 						})}
 						<Text> </Text>
 					</Box>
-				)}
-			</Box>
+				</Box>
+			)}
 		</Box>
 	);
 };

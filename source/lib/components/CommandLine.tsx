@@ -1,13 +1,13 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useState} from 'react';
+import {AutoCompletion} from '../command-line/command-auto-complete.js';
+import {CmdKeywords, CmdValidity} from '../command-line/command-types.js';
 import {
 	commandLineState,
 	subscribeCommandLineState,
 } from '../state/cmd.state.js';
-import {CmdKeywords} from '../command-line/command-types.js';
-import {chalkColors} from '../theme/themes.js';
-import {AutoCompletion} from '../command-line/command-auto-complete.js';
+import {chalkColors, theme} from '../theme/themes.js';
 
 type CommandLineViewState = {
 	value: string;
@@ -15,6 +15,7 @@ type CommandLineViewState = {
 	commandIsPending: boolean;
 	infoMessage: string;
 	autoCompletion: AutoCompletion;
+	validationStatus: CmdValidity;
 };
 
 const COMMANDS = Object.values(CmdKeywords);
@@ -37,6 +38,7 @@ const getCommandLineViewState = (): CommandLineViewState => ({
 	commandIsPending: commandLineState.commandIsPending,
 	infoMessage: commandLineState.commandMeta.infoMessage,
 	autoCompletion: commandLineState.autoCompletion ?? EMPTY_AUTO_COMPLETION,
+	validationStatus: commandLineState.commandMeta.validationStatus,
 });
 
 const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>
@@ -46,9 +48,10 @@ const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>
 	a.infoMessage === b.infoMessage &&
 	a.autoCompletion.hint === b.autoCompletion.hint &&
 	a.autoCompletion.overlap === b.autoCompletion.overlap &&
-	a.autoCompletion.remainder === b.autoCompletion.remainder;
+	a.autoCompletion.remainder === b.autoCompletion.remainder &&
+	a.validationStatus === b.validationStatus;
 
-export const CommandLine: React.FC = () => {
+export const CommandLine: React.FC<{width: number}> = ({width}) => {
 	const [state, setState] = useState<CommandLineViewState>(
 		getCommandLineViewState(),
 	);
@@ -108,19 +111,28 @@ export const CommandLine: React.FC = () => {
 			renderedAfter = GRAY(autoCompletion.remainder.slice(1) + afterCursor);
 		}
 
-		return GRAY(':') + renderedBefore + renderedCursor + renderedAfter;
+		const initialChar = GRAY(':');
+		return initialChar + renderedBefore + renderedCursor + renderedAfter;
 	}, [value, cursorPosition, autoCompletion]);
 
 	return (
-		<Box>
-			<Text>{fullLine}</Text>
-			{infoMessage && (
-				<Box paddingLeft={2}>
-					<Text
-						color={commandIsPending ? 'red' : 'blue'}
-					>{` ${infoMessage} `}</Text>
-				</Box>
-			)}
+		<Box
+			flexDirection="column"
+			paddingX={1}
+			borderColor={theme.secondary}
+			borderStyle="round"
+			width={width}
+		>
+			<Box>
+				<Text>{fullLine}</Text>
+				{infoMessage && (
+					<Box>
+						<Text
+							color={commandIsPending ? 'red' : theme.secondary}
+						>{` ... ${infoMessage} `}</Text>
+					</Box>
+				)}
+			</Box>
 		</Box>
 	);
 };

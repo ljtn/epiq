@@ -11,7 +11,7 @@ import {getState, patchState, updateState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
 import {nodeMapper} from '../utils/node-mapper.js';
 import {CmdIntent} from './command-meta.js';
-import {CmdResults} from './command-types.js';
+import {cmdResult, cmdValidity} from './command-types.js';
 
 export const commands: CommandLineActionEntry[] = [
 	{
@@ -22,7 +22,7 @@ export const commands: CommandLineActionEntry[] = [
 			const child = currentNode.children.find((_, i) => i === selectedIndex);
 			if (!child) return logger.error('Unable to resolve child to delete');
 			nodeRepository.deleteNode(currentNode.id, child.id);
-			return {result: CmdResults.Succeed};
+			return {result: cmdResult.Success};
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -35,7 +35,7 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.AddBoard,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
-			addBoard(...args);
+			return addBoard(...args);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -60,8 +60,8 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {commandMeta} = getCmdState();
-			if (commandMeta.validationStatus === CmdResults.Fail) {
-				return {result: CmdResults.Fail};
+			if (commandMeta.validationStatus === cmdValidity.Invalid) {
+				return {result: cmdResult.Fail};
 			}
 			return updateState(s => ({
 				...s,

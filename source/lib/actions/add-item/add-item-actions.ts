@@ -1,4 +1,4 @@
-import {CmdResults, Result} from '../../command-line/command-types.js';
+import {cmdResult, Result} from '../../command-line/command-types.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {StorageNodeTypes} from '../../model/storage-node.model.js';
 import {nodeRepository} from '../../repository/node-repository.js';
@@ -32,10 +32,10 @@ export const addBoard: NonNullable<CommandLineActionEntry['action']> = (
 
 	if (!newItem) {
 		logger.error('Unable to add board');
-		return {result: CmdResults.Fail};
+		return {result: cmdResult.Fail};
 	}
 	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toBoard(newItem));
-	return {result: CmdResults.Succeed};
+	return {result: cmdResult.Success};
 };
 
 export const addSwimlane: NonNullable<CommandLineActionEntry['action']> = (
@@ -56,12 +56,12 @@ export const addSwimlane: NonNullable<CommandLineActionEntry['action']> = (
 
 	if (!diskNode) {
 		logger.error('Unable to add swimlane');
-		return {result: CmdResults.Fail};
+		return {result: cmdResult.Fail};
 	}
 	nodeRepository.appendChildToCurrentNodeAndSelect(
 		nodeMapper.toSwimlane(diskNode),
 	);
-	return {result: CmdResults.Succeed};
+	return {result: cmdResult.Fail};
 };
 
 export const addTicket: NonNullable<CommandLineActionEntry['action']> = (
@@ -95,11 +95,11 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = (
 
 	if (!newItem) {
 		logger.error('Unable to create ticket');
-		return {result: CmdResults.Fail};
+		return {result: cmdResult.Fail};
 	}
 
 	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
-	return {result: CmdResults.Succeed};
+	return {result: cmdResult.Fail};
 };
 
 export const addListItem = async (

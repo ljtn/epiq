@@ -1,13 +1,13 @@
 import {getCommandIntent} from '../../command-line/command-intent.js';
-import {CmdResults} from '../../command-line/command-types.js';
+import {cmdResult} from '../../command-line/command-types.js';
 import {commands} from '../../command-line/commands.js';
 import {ActionEntry} from '../../model/action-map.model.js';
 import {
+	commandConfirmed,
+	commandPending,
 	getCmdState,
 	isInvalidCommand,
-	commandConfirmed,
-	overrideValidationResult,
-	commandPending,
+	cmdResultToValidationState,
 } from '../../state/cmd.state.js';
 
 export const onConfirmCommandLineSequenceInput = (
@@ -28,10 +28,10 @@ export const onConfirmCommandLineSequenceInput = (
 	}
 
 	const actionMeta = commands.find(x => x.intent === intent);
-	const result = actionMeta?.action?.(ctx, actionMeta, {command, value});
+	const commandResult = actionMeta?.action?.(ctx, actionMeta, {command, value});
 
-	if (result && result.result === CmdResults.Fail) {
-		return overrideValidationResult(result);
+	if (commandResult && commandResult.result === cmdResult.Fail) {
+		return cmdResultToValidationState(commandResult);
 	}
 
 	commandConfirmed();

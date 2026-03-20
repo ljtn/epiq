@@ -1,9 +1,9 @@
-import {CmdMeta} from './command-registry.js';
-import {CmdKeywords} from './command-types.js';
-import {parseCommandLine, ParsedCommandLine} from './command-parser.js';
-import {DEFAULT_WORDS} from './default-word-list.js';
-import {autoCompletionFromWordList} from './command-auto-complete.utils.js';
 import {findOverlap} from '../utils/string.utils.js';
+import {cmdCompletions} from './auto-completion-commands.js';
+import {autoCompletionFromWordList} from './command-auto-complete.utils.js';
+import {parseCommandLine, ParsedCommandLine} from './command-parser.js';
+import {CmdKeywords} from './command-types.js';
+import {DEFAULT_WORDS} from './default-word-list.js';
 
 const CMD_KEYWORD_LIST = Object.values(CmdKeywords);
 
@@ -28,7 +28,7 @@ export const getAutoCompletion = (value: string): AutoCompletion => {
 	}
 
 	if (parsed.command && parsed.target === 'modifier') {
-		const contextualHints = CmdMeta[parsed.command].hints;
+		const contextualHints = cmdCompletions[parsed.command];
 		const wordList = contextualHints.length ? contextualHints : DEFAULT_WORDS;
 		const commandHint = autoCompletionFromWordList({
 			wordList,

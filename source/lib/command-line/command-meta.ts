@@ -1,11 +1,6 @@
 import {CurrentCmdMeta} from '../state/cmd.state.js';
-import {CmdMeta} from './command-registry.js';
-import {
-	CmdKeyword,
-	CmdKeywords,
-	CmdResults,
-	DefaultCmdModifier,
-} from './command-types.js';
+import {CmdValidation} from './command-validation.js';
+import {CmdKeyword, CmdKeywords, cmdValidity} from './command-types.js';
 
 export const CmdIntent = {
 	// Fundamentals (tight coupling to scope)
@@ -35,23 +30,21 @@ export const getCmdMeta = (value: string): CurrentCmdMeta => {
 
 	const modifier = (rest.join?.(' ') ?? '').trim();
 	if (firstWord && firstWordIsCmdKeyword) {
-		const meta = CmdMeta[firstWord as CmdKeyword];
-		const validation = meta.validateCmd(
+		const meta = CmdValidation[firstWord as CmdKeyword];
+		const validation = meta.validate(
 			(firstWord as CmdKeyword) ?? '',
-			(secondWord as DefaultCmdModifier) ?? '',
+			secondWord ?? '',
 		);
 		return {
 			command: firstWord,
 			modifier,
-			hints: meta.hints,
 			infoMessage: validation.message ?? '',
-			validationStatus: validation.result,
+			validationStatus: validation.validity,
 		};
 	}
 	return {
-		validationStatus: CmdResults.None,
+		validationStatus: cmdValidity.None,
 		infoMessage: '',
-		hints: [''],
 		command: firstWord ?? '',
 		modifier,
 	};

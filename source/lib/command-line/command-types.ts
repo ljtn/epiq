@@ -14,15 +14,22 @@ export const CmdModifiers = {
 	Node: 'node',
 } as const;
 
-export const CmdResults = {
+export const cmdValidity = {
 	None: 'none',
+	Invalid: 'invalid',
+	Valid: 'valid',
+} as const;
+
+export const cmdResult = {
+	None: 'none',
+	Success: 'success',
 	Fail: 'fail',
-	Succeed: 'succeed',
 } as const;
 
 export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
 export type DefaultCmdModifier =
 	(typeof CmdModifiers)[keyof typeof CmdModifiers];
-export type CmdResult = (typeof CmdResults)[keyof typeof CmdResults];
+export type CmdResult = (typeof cmdResult)[keyof typeof cmdResult];
+export type CmdValidity = (typeof cmdValidity)[keyof typeof cmdValidity];
 
 export type Result = {result: CmdResult; message?: string};

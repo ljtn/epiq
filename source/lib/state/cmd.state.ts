@@ -3,15 +3,18 @@ import {
 	getAutoCompletion,
 } from '../command-line/command-auto-complete.js';
 import {getCmdMeta} from '../command-line/command-meta.js';
-import {CmdResult, CmdResults, Result} from '../command-line/command-types.js';
+import {
+	CmdValidity,
+	cmdValidity,
+	Result,
+} from '../command-line/command-types.js';
 
 export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
 	modifier: string;
 	command: string;
 	infoMessage: string;
-	hints: string[];
-	validationStatus: CmdResult;
+	validationStatus: CmdValidity;
 };
 export type CommandLineState = {
 	value: string;
@@ -34,8 +37,7 @@ export let commandLineState: CommandLineState = {
 		command: '',
 		modifier: '',
 		infoMessage: '',
-		hints: [''],
-		validationStatus: CmdResults.None,
+		validationStatus: cmdValidity.None,
 	},
 };
 
@@ -72,12 +74,12 @@ const setState = (cb: SetStateCb) => {
 	notify();
 };
 
-export const overrideValidationResult = ({message: hint, result}: Result) => {
+export const cmdResultToValidationState = ({message, result}: Result) => {
 	const next = structuredClone(commandLineState);
 	next.commandMeta = {
 		...next.commandMeta,
-		infoMessage: hint ?? '',
-		validationStatus: result,
+		infoMessage: message ?? '',
+		validationStatus: result === 'fail' ? 'invalid' : 'valid',
 	};
 	next.commandIsPending = true;
 	commandLineState = next;
@@ -240,5 +242,5 @@ export const getCmdArg = () => {
 
 export const isInvalidCommand = (): boolean => {
 	const {commandMeta} = getCmdState();
-	return commandMeta.validationStatus === CmdResults.Fail;
+	return commandMeta.validationStatus === cmdValidity.Invalid;
 };

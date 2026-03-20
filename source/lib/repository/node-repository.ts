@@ -1,4 +1,4 @@
-import {CmdResults, Result} from '../command-line/command-types.js';
+import {cmdResult, Result} from '../command-line/command-types.js';
 import {Mode} from '../model/action-map.model.js';
 import {
 	AnyContext,
@@ -58,39 +58,39 @@ export const nodeRepository = {
 		const parent = this.findListItemParent('Tags');
 		if (!parent) {
 			logger.error(`Could not find node with name "${name}"`);
-			return {result: CmdResults.Fail, message: ''};
+			return {result: cmdResult.Fail, message: ''};
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
 				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
 			);
-			return {result: CmdResults.Fail, message: ''};
+			return {result: cmdResult.Fail, message: ''};
 		}
 
 		if (parent.children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate tag');
 			return {
-				result: CmdResults.Fail,
+				result: cmdResult.Fail,
 				message: 'Cannot add duplicate tag',
 			};
 		}
 
 		this.addListItem(SEED_RESOURCES.tag, name, parent);
 
-		return {result: CmdResults.Succeed};
+		return {result: cmdResult.Success};
 	},
 
 	assignUser(name: string): Result {
 		const parent = this.findListItemParent('Assignees');
 		if (!parent) {
 			logger.error(`Could not find node with name "${name}"`);
-			return {result: CmdResults.Fail, message: ''};
+			return {result: cmdResult.Fail, message: ''};
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
 				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
 			);
-			return {result: CmdResults.Fail, message: ''};
+			return {result: cmdResult.Fail, message: ''};
 		}
 
 		logger.info(
@@ -100,13 +100,13 @@ export const nodeRepository = {
 		if (parent.children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate assignee');
 			return {
-				result: CmdResults.Fail,
+				result: cmdResult.Fail,
 				message: 'Cannot add duplicate assignee',
 			};
 		}
 
 		this.addListItem(SEED_RESOURCES.assignee, name, parent);
-		return {result: CmdResults.Succeed};
+		return {result: cmdResult.Success};
 	},
 
 	findListItemParent(parentName: string) {
