@@ -129,7 +129,7 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 					<Box>
 						<Text
 							color={commandIsPending ? 'red' : theme.secondary}
-						>{` ... ${infoMessage} `}</Text>
+						>{` ${infoMessage} `}</Text>
 					</Box>
 				)}
 			</Box>
