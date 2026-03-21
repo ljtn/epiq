@@ -105,21 +105,22 @@ const validators: Record<CmdKeyword, Validator> = {
 	}),
 };
 
-export const cmdValidation = Object.fromEntries(
+type CmdValidator = {
+	validate: (
+		command: CmdKeyword,
+		modifier: string,
+		inputString: string,
+	) => ValidationResult;
+};
+
+type CmdValidation = Record<CmdKeyword, CmdValidator>;
+
+export const cmdValidation: CmdValidation = Object.fromEntries(
 	Object.entries(validators).map(([command, validate]) => [
 		command,
 		{
-			validate: (_command, modifier, inputString) =>
-				validate({modifier, command: _command, inputString}),
+			validate: (cmd, modifier, inputString) =>
+				validate({modifier, command: cmd, inputString}),
 		},
 	]),
-) as Record<
-	CmdKeyword,
-	{
-		validate: (
-			command: CmdKeyword,
-			modifier: string,
-			inputString: string,
-		) => ValidationResult;
-	}
->;
+) as CmdValidation;

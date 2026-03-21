@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {getAutoCompletion} from './command-auto-complete.js';
-import {parseCommandLine} from '../command-line/command-parser.js';
+import {getAutoCompletion} from '../command-auto-complete.js';
+import {parseCommandLine} from '../command-parser.js';
 
 describe('getAutoCompletion (remainder)', () => {
 	it('returns remainder for command completion ("ta" → "tag")', () => {
