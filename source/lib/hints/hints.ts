@@ -3,26 +3,27 @@ import {NavNodeCtx} from '../model/context.model.js';
 
 const initCommandPalette = 'Press : for command line';
 
-const navigate = 'hjkl (navigate)';
-const exit = 'q (exit)';
-const edit = 'i (edit)';
-const enter = 'e/enter (confirm)';
+const navigate = 'HJKL (navigate)';
+const exit = 'Q (exit)';
+const edit = 'I (edit)';
+const enter = 'E (enter)';
 
-const initMove = 'm (move)';
-const moveSelection = 'hjkl (move issue)';
-const confirmMove = 'm (move confirm)';
+const initMove = 'M (move)';
+const moveSelection = 'HJKL (move issue)';
+const confirmMove = 'M (move confirm)';
 
-const addIssue = ':add name_of_issue (add issue)';
+// const newIssue = ':new (add item)';
 
 export const Hints = {
 	[NavNodeCtx.WORKSPACE]: [navigate],
 	[NavNodeCtx.BOARD]: [initCommandPalette],
 	[NavNodeCtx.BOARD + Mode.COMMAND_LINE]: [],
-	[NavNodeCtx.SWIMLANE]: [initMove, exit, addIssue],
+	[NavNodeCtx.SWIMLANE]: [initCommandPalette, navigate, initMove],
+	// [NavNodeCtx.SWIMLANE]: [initMove, exit, newIssue],
 	[NavNodeCtx.TICKET + Mode.HELP]: [exit],
 	[NavNodeCtx.SWIMLANE + Mode.HELP]: [exit],
-	[NavNodeCtx.TICKET]: [edit, initMove],
+	[NavNodeCtx.TICKET]: [edit, enter],
 	[NavNodeCtx.FIELD]: [],
 	[NavNodeCtx.SWIMLANE + Mode.MOVE]: [moveSelection, confirmMove],
-	[NavNodeCtx.TICKET + Mode.MOVE]: [moveSelection, enter, confirmMove],
+	[NavNodeCtx.TICKET + Mode.MOVE]: [moveSelection, enter],
 } as const;
