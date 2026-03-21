@@ -1,7 +1,6 @@
 import {Text} from 'ink';
 import React from 'react';
 import {TagColor, TAGS_DEFAULT, TagsDefault} from '../static/default-tags.js';
-import {theme} from '../theme/themes.js';
 import {stringToHslHexColor} from '../utils/color.js';
 
 type Props = {
@@ -9,19 +8,17 @@ type Props = {
 	isSelected?: boolean;
 };
 
-const normalizeTagName = (value: string): string => value.toLowerCase().trim();
+const normalizeName = (value: string): string => value.toLowerCase().trim();
 
-export const getTagColor = (
+export const getColor = (
 	name: string,
 	config: TagsDefault = TAGS_DEFAULT,
 ): TagColor => {
-	const normalized = normalizeTagName(name);
+	const normalized = normalizeName(name);
 	if (config[normalized]) return config[normalized];
 	return stringToHslHexColor(normalized);
 };
 
-export const TagUI: React.FC<Props> = ({name}) => (
-	<Text backgroundColor={getTagColor(name)} color={theme.primary}>
-		{' ' + name + ' '}
-	</Text>
+export const AssigneeUI: React.FC<Props> = ({name}) => (
+	<Text color={getColor(name)}>{' @' + name + ' '}</Text>
 );

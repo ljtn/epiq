@@ -4,6 +4,7 @@ import {FieldList} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 import {useAppState} from '../state/state.js';
 import {TagUI} from './Tag.js';
+import {AssigneeUI} from './Assignee.js';
 
 type Props = {
 	fieldList: FieldList;
@@ -24,6 +25,7 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 				paddingLeft={1}
 				paddingRight={1}
 			>
+				{!fieldList.children.length ? <Text> </Text> : ''}
 				{fieldList.children.map((field, index) => (
 					<Box>
 						<Text color={theme.secondary}>{index > 0 ? ', ' : ''}</Text>
@@ -38,12 +40,22 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 								? '⸬ '
 								: '  '}
 						</Text>
-						<TagUI
-							name={field.props['value'] ?? ''}
-							isSelected={
-								currentNode.id === fieldList.id && selectedIndex === index
-							}
-						></TagUI>
+						{field.name === 'seed:fieldName:assignee' && (
+							<AssigneeUI
+								name={field.props['value'] ?? ''}
+								isSelected={
+									currentNode.id === fieldList.id && selectedIndex === index
+								}
+							></AssigneeUI>
+						)}
+						{field.name === 'seed:fieldName:tag' && (
+							<TagUI
+								name={field.props['value'] ?? ''}
+								isSelected={
+									currentNode.id === fieldList.id && selectedIndex === index
+								}
+							></TagUI>
+						)}
 					</Box>
 				))}
 			</Box>
