@@ -3,3 +3,4 @@ node_modules
 app.log
 .epiq
 .vscode/tasks.json
+.archive

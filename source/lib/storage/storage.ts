@@ -8,17 +8,10 @@ import {
 	WorkspaceDiskNodeComposed,
 } from '../model/storage-node.model.js';
 import {clamp} from '../utils/number.js';
-import {
-	bigIntToHex,
-	evenlySpacedRanks,
-	HEX_LEN,
-	hexToBigInt,
-	MAX_RANK,
-	midRank,
-	rankBetween,
-} from '../utils/rank.js';
+import {evenlySpacedRanks, midRank, rankBetween} from '../utils/rank.js';
 import {fileManager} from './file-manager.js';
 import {TEMPLATES} from './templates.js';
+import {buildStoragePaths} from './path-manager.js';
 
 export const SEED_RESOURCES = {
 	name: 'seed:fieldName:name',
@@ -40,42 +33,41 @@ type NodeDefinitionTemplate = {
 
 export const storage = {
 	ROOT_DIR: '',
+	EPIQ_DIR: '',
 	RESOURCES_DIR: '',
 	STORE_DIR: '',
 	NODES_DIR: '',
 	ORDER_DIR: '',
 	META_PATH: '',
 
+	setRootDir(rootDir: string) {
+		const paths = buildStoragePaths(rootDir);
+		this.ROOT_DIR = paths.ROOT_DIR;
+		this.EPIQ_DIR = paths.EPIQ_DIR;
+		this.RESOURCES_DIR = paths.RESOURCES_DIR;
+		this.STORE_DIR = paths.STORE_DIR;
+		this.NODES_DIR = paths.NODES_DIR;
+		this.ORDER_DIR = paths.ORDER_DIR;
+		this.META_PATH = paths.META_PATH;
+	},
+
 	// -------------------------
 	// Idempotent bootstrap
 	// -------------------------
 	initStoreAtRoot(rootDir: string) {
-		this.ROOT_DIR = rootDir;
+		this.setRootDir(rootDir);
 
-		const epiqDir = path.join(this.ROOT_DIR, '.epiq');
-
-		// Ensure base folder exists
-		fileManager.mkDir(epiqDir);
-
-		this.RESOURCES_DIR = path.join(epiqDir, 'resources');
+		fileManager.mkDir(this.EPIQ_DIR);
 		fileManager.mkDir(this.RESOURCES_DIR);
-
-		// Store dirs
-		this.STORE_DIR = path.join(epiqDir, 'store');
-		this.NODES_DIR = path.join(this.STORE_DIR, 'nodes');
-		this.ORDER_DIR = path.join(this.STORE_DIR, 'order');
-		this.META_PATH = path.join(this.STORE_DIR, 'meta.json');
-
 		fileManager.mkDir(this.STORE_DIR);
 		fileManager.mkDir(this.NODES_DIR);
 		fileManager.mkDir(this.ORDER_DIR);
 
-		// Ensure seeds exist (idempotent)
 		this.ensureSeeds();
 	},
 
-	createWorkspace(): WorkspaceDiskNodeComposed | null {
-		this.initStoreAtRoot(process.cwd());
+	createWorkspace(rootDir = process.cwd()): WorkspaceDiskNodeComposed | null {
+		this.initStoreAtRoot(rootDir);
 		return this.createInitialWorkspace();
 	},
 
@@ -86,7 +78,7 @@ export const storage = {
 			logger.info(
 				'No .epiq folder found — creating new workspace in current directory',
 			);
-			return this.createWorkspace();
+			return this.createWorkspace(process.cwd());
 		}
 
 		const rootDir = path.dirname(epiqFolder);
@@ -108,11 +100,7 @@ export const storage = {
 	},
 
 	readMeta(): Meta | null {
-		if (
-			!fileManager.fileExists?.(this.META_PATH) &&
-			!fileManager.readFile(this.META_PATH)
-		)
-			return null;
+		if (!fileManager.fileExists?.(this.META_PATH)) return null;
 
 		try {
 			return fileManager.readFileJSON<Meta>(this.META_PATH);
@@ -268,7 +256,6 @@ export const storage = {
 	},
 
 	parseOrderFileName(name: string): {rank: string; childId: string} | null {
-		// <rank>.<childId>.link
 		if (!name.endsWith('.link')) return null;
 		const base = name.slice(0, -'.link'.length);
 		const firstDot = base.indexOf('.');
@@ -295,28 +282,6 @@ export const storage = {
 			.sort((a, b) =>
 				a!.rank < b!.rank ? -1 : a!.rank > b!.rank ? 1 : 0,
 			) as any;
-	},
-
-	rankBetween(prev?: string, next?: string): string {
-		if (!prev && !next) {
-			// Center of entire space
-			return bigIntToHex(MAX_RANK / 2n, HEX_LEN);
-		}
-
-		const a = prev ? hexToBigInt(prev) : 0n;
-		const b = next ? hexToBigInt(next) : MAX_RANK;
-
-		if (b <= a) {
-			// Recovery fallback
-			return bigIntToHex(MAX_RANK / 2n, HEX_LEN);
-		}
-
-		const mid = (a + b) / 2n;
-
-		// No room between them
-		if (mid === a || mid === b) return '';
-
-		return bigIntToHex(mid, HEX_LEN);
 	},
 
 	rebalanceOrder(parentId: string) {
@@ -353,7 +318,6 @@ export const storage = {
 		let rank = rankBetween(prev, next);
 
 		if (!rank) {
-			// no space: rebalance and retry once
 			this.rebalanceOrder(parentId);
 
 			const after = this.listChildrenOrdered(parentId);
@@ -394,7 +358,6 @@ export const storage = {
 
 	createInitialWorkspace(): WorkspaceDiskNodeComposed | null {
 		try {
-			// Swimlanes
 			const swimlaneIds = TEMPLATES.swimlanes.map(name => {
 				const node = this.createNodeFile(
 					StorageNodeTypes.SWIMLANE,
@@ -405,7 +368,6 @@ export const storage = {
 				return node.id;
 			});
 
-			// Board
 			const board = this.createNodeFile(
 				StorageNodeTypes.BOARD,
 				'Board',
@@ -413,7 +375,6 @@ export const storage = {
 				swimlaneIds,
 			);
 
-			// Workspace
 			const workspace = this.createNodeFile(
 				StorageNodeTypes.WORKSPACE,
 				'Workspace',
@@ -514,11 +475,9 @@ export const storage = {
 		const movedId = fromChildren[fromIndex]!;
 		this.unlinkChild(fromParentId, movedId);
 
-		// compute target index against current target list (after unlink if same parent)
 		const toChildren = this.listChildrenOrdered(toParentId).map(e => e.childId);
-		const effective = fromParentId === toParentId ? toChildren : toChildren;
+		const idx = clamp(toIndex, 0, toChildren.length);
 
-		const idx = clamp(toIndex, 0, effective.length);
 		this.linkChildAt(toParentId, movedId, idx);
 
 		return {nodeId: movedId};
