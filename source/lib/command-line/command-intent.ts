@@ -1,4 +1,3 @@
-import {NavNodeCtx} from '../model/context.model.js';
 import {getState} from '../state/state.js';
 import {CmdIntent} from './command-meta.js';
 import {CmdKeywords} from './command-types.js';
@@ -21,19 +20,8 @@ export const getCommandIntent = (
 			return CmdIntent.SetView;
 		case CmdKeywords.RENAME:
 			return CmdIntent.Rename;
-		case CmdKeywords.ADD:
-			switch (context) {
-				case NavNodeCtx.WORKSPACE:
-					return CmdIntent.AddBoard;
-				case NavNodeCtx.BOARD:
-					return CmdIntent.AddSwimlane;
-				case NavNodeCtx.SWIMLANE:
-					return CmdIntent.AddTicket;
-				case NavNodeCtx.FIELD_LIST:
-					return CmdIntent.AddListItem;
-				default:
-					return CmdIntent.None;
-			}
+		case CmdKeywords.NEW:
+			return CmdIntent.NewItem;
 		default:
 			return CmdIntent.None;
 	}

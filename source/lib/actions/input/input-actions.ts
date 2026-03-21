@@ -72,7 +72,7 @@ export const inputActions: ActionEntry[] = [
 	{
 		intent: Intent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
-		action: (_1, _2, {sequence}) => setCmdInput(s => s + sequence),
+		action: (_1, {sequence}) => setCmdInput(s => s + sequence),
 	},
 	{
 		intent: Intent.EraseInput,

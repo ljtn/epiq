@@ -32,26 +32,22 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => patchState({mode: Mode.HELP}),
 	},
 	{
-		intent: CmdIntent.AddBoard,
+		intent: CmdIntent.NewItem,
 		mode: Mode.COMMAND_LINE,
-		action: (...args) => {
-			return addBoard(...args);
-		},
-		onSuccess: () => patchState({mode: Mode.DEFAULT}),
-	},
-	{
-		intent: CmdIntent.AddSwimlane,
-		mode: Mode.COMMAND_LINE,
-		action: (...args) => {
-			addSwimlane(...args);
-		},
-		onSuccess: () => patchState({mode: Mode.DEFAULT}),
-	},
-	{
-		intent: CmdIntent.AddTicket,
-		mode: Mode.COMMAND_LINE,
-		action: (...args) => {
-			addTicket(...args);
+		action: (cmdAction, cmdState) => {
+			if (!cmdState.inputString) {
+				return {
+					result: cmdResult.Fail,
+					message: `provide a name for your ${cmdState.modifier}`,
+				};
+			}
+			if (cmdState.modifier === 'board') {
+				return addBoard(cmdAction, cmdState);
+			} else if (cmdState.modifier === 'swimlane') {
+				return addSwimlane(cmdAction, cmdState);
+			} else if (cmdState.modifier === 'issue') {
+				return addTicket(cmdAction, cmdState);
+			}
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -60,7 +56,7 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {commandMeta} = getCmdState();
-			if (commandMeta.validationStatus === cmdValidity.Invalid) {
+			if (commandMeta.validity === cmdValidity.Invalid) {
 				return {result: cmdResult.Fail};
 			}
 			return updateState(s => ({
@@ -75,11 +71,6 @@ export const commands: CommandLineActionEntry[] = [
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
-	// {
-	// 	intent: CmdIntent.AddListItem,
-	// 	mode: Mode.COMMAND_LINE,
-	// 	action: () => {},
-	// },
 	{
 		intent: CmdIntent.Rename,
 		mode: Mode.COMMAND_LINE,
@@ -124,8 +115,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.TagTicket,
 		mode: Mode.COMMAND_LINE,
 		action: (..._args) => {
-			const {modifier} = getCmdState().commandMeta;
-			return nodeRepository.addTag(modifier);
+			const {inputString} = getCmdState().commandMeta;
+			return nodeRepository.addTag(inputString);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},

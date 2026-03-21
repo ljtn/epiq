@@ -1,7 +1,7 @@
 import {findOverlap} from '../utils/string.utils.js';
-import {cmdCompletions} from './auto-completion-commands.js';
+import {cmdModifiers} from './auto-completion-commands.js';
 import {autoCompletionFromWordList} from './command-auto-complete.utils.js';
-import {parseCommandLine, ParsedCommandLine} from './command-parser.js';
+import {ParsedCommandLine} from './command-parser.js';
 import {CmdKeywords} from './command-types.js';
 import {DEFAULT_WORDS} from './default-word-list.js';
 
@@ -13,44 +13,55 @@ export type AutoCompletion = {
 	overlap: number;
 	remainder: string;
 };
-export const getAutoCompletion = (value: string): AutoCompletion => {
-	const parsed = parseCommandLine(value);
-
-	if (parsed.target === 'command') {
+export const getAutoCompletion = ({
+	inputToMatch,
+	command,
+	lastWord,
+	target,
+}: ParsedCommandLine): AutoCompletion => {
+	if (target === 'command') {
 		return returnAutoCompletion(
-			parsed,
+			lastWord,
 			autoCompletionFromWordList({
 				wordList: CMD_KEYWORD_LIST,
-				inputToMatch: parsed.inputToMatch,
+				inputToMatch: inputToMatch,
 				overlapThreshold: 1,
 			}),
 		);
 	}
 
-	if (parsed.command && parsed.target === 'modifier') {
-		const contextualHints = cmdCompletions[parsed.command];
-		const wordList = contextualHints.length ? contextualHints : DEFAULT_WORDS;
+	if (command && target === 'modifier') {
 		const commandHint = autoCompletionFromWordList({
-			wordList,
-			inputToMatch: parsed.inputToMatch,
+			wordList: cmdModifiers[command],
+			inputToMatch: inputToMatch,
 			overlapThreshold: 1,
 		});
 
 		if (commandHint) {
-			return returnAutoCompletion(parsed, commandHint);
+			return returnAutoCompletion(lastWord, commandHint);
 		}
+	}
+
+	const commandHint = autoCompletionFromWordList({
+		wordList: DEFAULT_WORDS,
+		inputToMatch: inputToMatch,
+		overlapThreshold: 1,
+	});
+
+	if (commandHint) {
+		return returnAutoCompletion(lastWord, commandHint);
 	}
 
 	return {hint: '', hints: [], overlap: 0, remainder: ''};
 };
 
 const returnAutoCompletion = (
-	parsed: ParsedCommandLine,
+	lastWord: string,
 	hints: string[],
 ): AutoCompletion => {
 	const selectedHint = hints[0] ?? '';
 	const hint = selectedHint ? selectedHint + ' ' : '';
-	const input = `${parsed.lastWord} `;
+	const input = `${lastWord} `;
 	const overlap = findOverlap(input.toLowerCase(), hint.toLowerCase());
 	const remainder = hint.slice(overlap);
 

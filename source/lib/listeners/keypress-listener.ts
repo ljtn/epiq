@@ -21,7 +21,7 @@ const getKeyPressListener = () => {
 		}
 
 		try {
-			await actionMeta.action(navigator, actionMeta, key);
+			await actionMeta.action(actionMeta, key);
 		} catch (err) {
 			logger.error(err);
 		}

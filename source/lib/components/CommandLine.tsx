@@ -38,7 +38,7 @@ const getCommandLineViewState = (): CommandLineViewState => ({
 	commandIsPending: commandLineState.commandIsPending,
 	infoMessage: commandLineState.commandMeta.infoMessage,
 	autoCompletion: commandLineState.autoCompletion ?? EMPTY_AUTO_COMPLETION,
-	validationStatus: commandLineState.commandMeta.validationStatus,
+	validationStatus: commandLineState.commandMeta.validity,
 });
 
 const isEqual = (a: CommandLineViewState, b: CommandLineViewState): boolean =>

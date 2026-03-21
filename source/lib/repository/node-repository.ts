@@ -58,13 +58,16 @@ export const nodeRepository = {
 		const parent = this.findListItemParent('Tags');
 		if (!parent) {
 			logger.error(`Could not find node with name "${name}"`);
-			return {result: cmdResult.Fail, message: ''};
+			return {result: cmdResult.Fail, message: 'Could not find parent to tag'};
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
 				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
 			);
-			return {result: cmdResult.Fail, message: ''};
+			return {
+				result: cmdResult.Fail,
+				message: `Parent node context ${parent.context} for "${parent.name}" is not a list.`,
+			};
 		}
 
 		if (parent.children.some(({props}) => props['value'] === name)) {
@@ -322,34 +325,36 @@ export const nodeRepository = {
 		};
 	},
 
-	appendChildToCurrentNodeAndSelect: <C extends NavNode<AnyContext>>(
+	appendChildToNodeAndSelect: <C extends NavNode<AnyContext>>(
+		node: NavNode<AnyContext>,
 		child: C,
 	) =>
 		updateState(old => {
-			const currentId = old.currentNode.id;
-
-			const result = replaceNodeInTree(currentId, old.rootNode, prev => {
-				return {
-					...prev,
-					children: [...(prev.children ?? []), child] as typeof prev.children,
-				};
-			});
+			const result = replaceNodeInTree(node.id, old.rootNode, prev => ({
+				...prev,
+				children: [...(prev.children ?? []), child] as typeof prev.children,
+			}));
 
 			if (!result) {
 				logger.error(
-					'appendChildToCurrentNodeAndSelect: unable to replace node in tree',
+					'appendChildToNodeAndSelect: unable to replace node in tree',
 				);
 				return old;
 			}
 
-			const nextCurrent = result.breadCrumb.at(-1)!;
-			const nextSelectedIndex = (nextCurrent.children?.length ?? 1) - 1;
+			const updatedNode = result.breadCrumb.at(-1);
+			if (!updatedNode) {
+				logger.error(
+					'appendChildToNodeAndSelect: updated node not found in breadcrumb',
+				);
+				return old;
+			}
 
 			return {
 				...old,
 				rootNode: result.root,
-				currentNodeId: nextCurrent.id,
-				selectedIndex: nextSelectedIndex,
+				currentNodeId: updatedNode.id,
+				selectedIndex: (updatedNode.children?.length ?? 1) - 1,
 			} satisfies BaseState;
 		}),
 

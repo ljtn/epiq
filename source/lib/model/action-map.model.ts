@@ -1,6 +1,6 @@
 import readline from 'readline';
-import {Navigator} from '../actions/default/navigation-action-utils.js';
 import {Result} from '../command-line/command-types.js';
+import {ParsedCommandLine} from '../command-line/command-parser.js';
 
 export const Mode = {
 	DEFAULT: 'default',
@@ -14,19 +14,20 @@ export type ActionEntry = {
 	intent?: string;
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
-	action?: (
-		...args: [Navigator, ActionEntry, readline.Key]
-	) => void | Promise<void>;
+	action?: (...args: [ActionEntry, readline.Key]) => void | Promise<void>;
 };
 
 export type ActionMap<T extends Record<string, any[]>> = {
 	[K in keyof T]: ActionEntry[];
 };
 
-type CommandLineInput = {value: string; command: string};
+type CommandLineInput = Pick<
+	ParsedCommandLine,
+	'command' | 'modifier' | 'inputString'
+>;
 export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
 	action?: (
-		...args: [Navigator, CommandLineActionEntry, CommandLineInput]
+		...args: [CommandLineActionEntry, CommandLineInput]
 	) => void | Result;
 	onSuccess?: () => void;
 };

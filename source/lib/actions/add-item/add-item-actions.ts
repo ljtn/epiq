@@ -9,11 +9,18 @@ import {nodeMapper} from '../../utils/node-mapper.js';
 import {navigator} from '../default/navigation-action-utils.js';
 
 export const addBoard: NonNullable<CommandLineActionEntry['action']> = (
-	_ctx,
 	_cmd,
-	{value: boardName},
+	{inputString: boardName},
 ): Result => {
-	const parent = getState().currentNode;
+	const parent = getState().breadCrumb.find(
+		({context}) => context === 'WORKSPACE',
+	);
+	if (!parent) {
+		return {
+			result: cmdResult.Fail,
+			message: 'Unable to add board in this context',
+		};
+	}
 
 	const newItem = storage.createNode({
 		parentId: parent.id,
@@ -34,17 +41,25 @@ export const addBoard: NonNullable<CommandLineActionEntry['action']> = (
 		logger.error('Unable to add board');
 		return {result: cmdResult.Fail};
 	}
-	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toBoard(newItem));
+	nodeRepository.appendChildToNodeAndSelect(
+		parent,
+		nodeMapper.toBoard(newItem),
+	);
 	return {result: cmdResult.Success};
 };
 
 export const addSwimlane: NonNullable<CommandLineActionEntry['action']> = (
-	_ctx,
 	_cmd,
-	{value},
+	{inputString},
 ): Result => {
-	const parent = getState().currentNode;
-	const name = value || 'New lane';
+	const parent = getState().breadCrumb.find(({context}) => context === 'BOARD');
+	if (!parent) {
+		return {
+			result: cmdResult.Fail,
+			message: 'Unable to add swimlane in this context',
+		};
+	}
+	const name = inputString || 'New lane';
 
 	const diskNode = storage.createNode({
 		parentId: parent.id,
@@ -58,23 +73,32 @@ export const addSwimlane: NonNullable<CommandLineActionEntry['action']> = (
 		logger.error('Unable to add swimlane');
 		return {result: cmdResult.Fail};
 	}
-	nodeRepository.appendChildToCurrentNodeAndSelect(
+	nodeRepository.appendChildToNodeAndSelect(
+		parent,
 		nodeMapper.toSwimlane(diskNode),
 	);
-	return {result: cmdResult.Fail};
+	return {result: cmdResult.Success};
 };
 
 export const addTicket: NonNullable<CommandLineActionEntry['action']> = (
-	_ctx,
 	_cmd,
-	{value},
+	{inputString},
 ): Result => {
-	const parent = getState().currentNode;
+	const parent = getState().breadCrumb.find(
+		({context}) => context === 'SWIMLANE',
+	);
+
+	if (!parent) {
+		return {
+			result: cmdResult.Fail,
+			message: 'Unable to add issue in this context',
+		};
+	}
 
 	const newItem = storage.createNode({
 		parentId: parent.id,
 		definition: {
-			name: value,
+			name: inputString,
 			type: StorageNodeTypes.ISSUE,
 			children: [
 				{
@@ -98,8 +122,11 @@ export const addTicket: NonNullable<CommandLineActionEntry['action']> = (
 		return {result: cmdResult.Fail};
 	}
 
-	nodeRepository.appendChildToCurrentNodeAndSelect(nodeMapper.toIssue(newItem));
-	return {result: cmdResult.Fail};
+	nodeRepository.appendChildToNodeAndSelect(
+		parent,
+		nodeMapper.toIssue(newItem),
+	);
+	return {result: cmdResult.Success};
 };
 
 export const addListItem = async (

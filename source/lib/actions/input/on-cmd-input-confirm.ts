@@ -1,34 +1,36 @@
 import {getCommandIntent} from '../../command-line/command-intent.js';
-import {cmdResult} from '../../command-line/command-types.js';
+import {cmdResult, cmdValidity} from '../../command-line/command-types.js';
 import {commands} from '../../command-line/commands.js';
 import {ActionEntry} from '../../model/action-map.model.js';
 import {
+	cmdResultToValidationState,
 	commandConfirmed,
 	commandPending,
 	getCmdState,
-	isInvalidCommand,
-	cmdResultToValidationState,
 } from '../../state/cmd.state.js';
 
 export const onConfirmCommandLineSequenceInput = (
-	...args: Parameters<NonNullable<ActionEntry['action']>>
+	..._args: Parameters<NonNullable<ActionEntry['action']>>
 ) => {
-	const commandSequence = getCmdState().value;
-	const [ctx] = [...args];
-	const [firstItem, ...rest] = commandSequence.split(' ');
-	const command = (firstItem || '').trim();
-	const value = rest.join(' ').trim();
+	const {
+		commandMeta: {command, validity, modifier, inputString},
+	} = getCmdState();
 	if (!command) return;
 	const intent = getCommandIntent(command);
 
 	commandPending();
-	if (isInvalidCommand()) {
+
+	if (validity === cmdValidity.Invalid) {
 		// Handled by info hints
 		return;
 	}
 
-	const actionMeta = commands.find(x => x.intent === intent);
-	const commandResult = actionMeta?.action?.(ctx, actionMeta, {command, value});
+	const actionMeta = commands.find(c => c.intent === intent);
+	const commandResult = actionMeta?.action?.(actionMeta, {
+		command,
+		inputString,
+		modifier,
+	});
 
 	if (commandResult && commandResult.result === cmdResult.Fail) {
 		return cmdResultToValidationState(commandResult);

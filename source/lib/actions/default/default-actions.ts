@@ -14,7 +14,7 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[a] Add item',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => `${CmdKeywords.ADD} `);
+			setCmdInput(() => `${CmdKeywords.NEW} `);
 		},
 	},
 	{

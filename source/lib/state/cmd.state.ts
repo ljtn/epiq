@@ -3,7 +3,9 @@ import {
 	getAutoCompletion,
 } from '../command-line/command-auto-complete.js';
 import {getCmdMeta} from '../command-line/command-meta.js';
+import {parseCommandLine} from '../command-line/command-parser.js';
 import {
+	CmdKeyword,
 	CmdValidity,
 	cmdValidity,
 	Result,
@@ -12,9 +14,10 @@ import {
 export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
 	modifier: string;
-	command: string;
+	command: CmdKeyword | null;
+	inputString: string;
 	infoMessage: string;
-	validationStatus: CmdValidity;
+	validity: CmdValidity;
 };
 export type CommandLineState = {
 	value: string;
@@ -34,10 +37,11 @@ export let commandLineState: CommandLineState = {
 	cursorPosition: 0,
 	commandIsPending: false,
 	commandMeta: {
-		command: '',
+		command: null,
 		modifier: '',
 		infoMessage: '',
-		validationStatus: cmdValidity.None,
+		inputString: '',
+		validity: cmdValidity.None,
 	},
 };
 
@@ -61,12 +65,12 @@ const setState = (cb: SetStateCb) => {
 	const prev = commandLineState;
 	const draft = cb(prev);
 	const isCursorAtEndOfLine = draft.cursorPosition === draft.value.length;
-
+	const parsed = parseCommandLine(draft.value);
 	const next: CommandLineState = {
 		...draft,
-		commandMeta: getCmdMeta(draft.value),
+		commandMeta: getCmdMeta(parsed),
 		autoCompletion: isCursorAtEndOfLine
-			? getAutoCompletion(draft.value)
+			? getAutoCompletion(parsed)
 			: {hint: '', hints: [], remainder: '', overlap: 0},
 	};
 
@@ -79,7 +83,7 @@ export const cmdResultToValidationState = ({message, result}: Result) => {
 	next.commandMeta = {
 		...next.commandMeta,
 		infoMessage: message ?? '',
-		validationStatus: result === 'fail' ? 'invalid' : 'valid',
+		validity: result === 'fail' ? 'invalid' : 'valid',
 	};
 	next.commandIsPending = true;
 	commandLineState = next;
@@ -238,9 +242,4 @@ export const getCmdState = () => commandLineState;
 export const getCmdArg = () => {
 	const [_, ...rest] = commandLineState.value.split(commandDelimiter);
 	return rest.join(commandDelimiter).trim();
-};
-
-export const isInvalidCommand = (): boolean => {
-	const {commandMeta} = getCmdState();
-	return commandMeta.validationStatus === cmdValidity.Invalid;
 };

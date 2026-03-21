@@ -1,10 +1,9 @@
-import {cmdCompletions as completions} from './auto-completion-commands.js';
+import {cmdModifiers as completions} from './auto-completion-commands.js';
 import {
 	CmdKeyword,
 	CmdKeywords,
 	CmdValidity,
 	cmdValidity,
-	DefaultCmdModifier,
 } from './command-types.js';
 
 // Types
@@ -12,7 +11,14 @@ type ValidationResult = {
 	validity: CmdValidity;
 	message?: string;
 };
-type Validator = (modifier: DefaultCmdModifier | string) => ValidationResult;
+type Validator = ({
+	modifier,
+	command,
+}: {
+	modifier: string;
+	command: CmdKeyword;
+	inputString: string;
+}) => ValidationResult;
 
 // Helpers
 const valid = (): ValidationResult => ({validity: cmdValidity.Valid});
@@ -40,37 +46,40 @@ const pickRandom = <T>(arr: readonly T[], count: number): T[] => {
 const buildOptionsHint = (
 	prefix: string,
 	wordList: readonly string[],
-	postFix: string = '',
+	postfix: string = '',
+	noOfHints = 2,
 ) =>
-	`${prefix}${pickRandom(wordList, 2)
+	`${prefix}${pickRandom(wordList, noOfHints)
 		.map(word => `"${word}"`)
-		.join(' or ')}${postFix}`;
+		.join(' or ')}${postfix}`;
 const alwaysSucceed: Validator = () => valid();
 
 const requireExact =
 	(expected: string): Validator =>
-	modifier =>
+	({modifier}) =>
 		modifier === expected
 			? valid()
 			: invalid(
 					isBlank(modifier) ? `to proceed, enter "${expected}"` : undefined,
 			  );
 
-const requireOneIn = ({
-	list,
-	hint,
-}: {
-	list: readonly string[];
-	hint: string;
-}): Validator => {
-	return modifier =>
+const requireOneIn =
+	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
+	({modifier}) =>
 		list.includes(modifier)
 			? valid()
 			: invalid(isBlank(modifier) ? hint : undefined);
-};
+
+const requireNonEmptyWithSuggestions =
+	({hint}: {hint: string}): Validator =>
+	({inputString}) =>
+		isBlank(inputString) ? invalid(hint) : valid();
 
 const validators: Record<CmdKeyword, Validator> = {
-	[CmdKeywords.ADD]: alwaysSucceed,
+	[CmdKeywords.NEW]: requireOneIn({
+		list: completions[CmdKeywords.NEW],
+		hint: buildOptionsHint('', completions[CmdKeywords.NEW], '', 3),
+	}),
 	[CmdKeywords.HELP]: alwaysSucceed,
 	[CmdKeywords.RENAME]: alwaysSucceed,
 	[CmdKeywords.DELETE]: requireExact(completions[CmdKeywords.DELETE][0]!),
@@ -78,10 +87,10 @@ const validators: Record<CmdKeyword, Validator> = {
 		list: completions[CmdKeywords.VIEW],
 		hint: buildOptionsHint('', completions[CmdKeywords.VIEW]),
 	}),
-	[CmdKeywords.TAG]: requireOneIn({
-		list: completions[CmdKeywords.TAG],
+
+	[CmdKeywords.TAG]: requireNonEmptyWithSuggestions({
 		hint: buildOptionsHint(
-			' tag like ',
+			'provide tag name like ',
 			completions[CmdKeywords.TAG],
 			', etc.',
 		),
@@ -89,26 +98,19 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.ASSIGN]: requireOneIn({
 		list: completions[CmdKeywords.ASSIGN],
 		hint: buildOptionsHint(
-			' username like ',
+			'provide user name like ',
 			completions[CmdKeywords.ASSIGN],
 			', etc.',
 		),
 	}),
 };
 
-export const CmdValidation: Record<
-	CmdKeyword,
-	{
-		validate: (
-			command: CmdKeyword,
-			modifier: DefaultCmdModifier | string,
-		) => ValidationResult;
-	}
-> = Object.fromEntries(
+export const cmdValidation = Object.fromEntries(
 	Object.entries(validators).map(([command, validate]) => [
 		command,
 		{
-			validate: (_command, modifier) => validate(modifier.trim()),
+			validate: (_command, modifier, inputString) =>
+				validate({modifier, command: _command, inputString}),
 		},
 	]),
 ) as Record<
@@ -116,7 +118,8 @@ export const CmdValidation: Record<
 	{
 		validate: (
 			command: CmdKeyword,
-			modifier: DefaultCmdModifier | string,
+			modifier: string,
+			inputString: string,
 		) => ValidationResult;
 	}
 >;

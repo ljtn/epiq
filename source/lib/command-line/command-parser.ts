@@ -1,3 +1,4 @@
+import {cmdModifiers} from './auto-completion-commands.js';
 import {isCmdKeyword} from './command-meta.js';
 import {CmdKeyword} from './command-types.js';
 
@@ -13,77 +14,77 @@ export type ParsedCommandLine = {
 	command: CmdKeyword | null;
 	isCommandKeyword: boolean;
 	isLastWordCompleted: boolean;
-	modifierInput: string;
+	modifier: string;
 	target: CommandTarget;
 	inputToMatch: string;
+	inputString: string; // 👈 NEW
 };
 
 export const parseCommandLine = (raw: string): ParsedCommandLine => {
 	const trimmedStart = raw.trimStart();
 	const words = splitWords(trimmedStart);
+
 	const firstWord = words[0] ?? '';
-	const hasCommand = firstWord !== '';
+	const secondWord = words[1] ?? '';
+	const lastWord = getLastWord(raw);
+
 	const command = isCmdKeyword(firstWord) ? firstWord : null;
 	const isCommandKeyword = command !== null;
+	const hasCommand = firstWord !== '';
 	const isLastWordCompleted = raw.endsWith(' ');
 
-	const modifierInput = hasCommand
-		? trimmedStart.slice(firstWord.length).trimStart()
-		: '';
+	const modifiers = command ? cmdModifiers[command] : [];
+	const modifier = command && modifiers.includes(secondWord) ? secondWord : '';
 
-	const target = getTarget({
-		hasCommand,
-		isCommandKeyword,
-		modifierInput,
-		wordCount: words.length,
-		isLastWordCompleted,
-	});
+	let target: CommandTarget = 'word';
+	if (words.length === 1) target = 'command';
+	if (isCommandKeyword && modifiers.length && !isLastWordCompleted) {
+		target = 'modifier';
+	}
 
-	const inputToMatch =
-		target === 'modifier' ? getLastWord(modifierInput) : getLastWord(raw);
+	const inputString = extractInputString(trimmedStart, command, modifier);
 
 	return {
 		raw,
 		trimmedStart,
 		words,
 		firstWord,
-		lastWord: getLastWord(raw),
+		lastWord,
 		hasCommand,
 		command,
 		isCommandKeyword,
 		isLastWordCompleted,
-		modifierInput,
+		modifier,
 		target,
-		inputToMatch,
+		inputToMatch: lastWord,
+		inputString,
 	};
 };
 
-const getTarget = ({
-	hasCommand,
-	isCommandKeyword,
-	modifierInput,
-	wordCount,
-	isLastWordCompleted,
-}: {
-	hasCommand: boolean;
-	isCommandKeyword: boolean;
-	modifierInput: string;
-	wordCount: number;
-	isLastWordCompleted: boolean;
-}): CommandTarget => {
-	if (hasCommand && wordCount === 1) {
-		return 'command';
+const extractInputString = (
+	value: string,
+	command: string | null,
+	modifier: string,
+): string => {
+	let rest = value;
+
+	if (command && rest.startsWith(command)) {
+		rest = rest.slice(command.length);
 	}
 
-	if (isCommandKeyword && modifierInput !== '' && !isLastWordCompleted) {
-		return 'modifier';
+	// remove leading space(s) after command
+	rest = rest.replace(/^\s+/, '');
+
+	if (modifier && rest.startsWith(modifier)) {
+		rest = rest.slice(modifier.length);
+		rest = rest.replace(/^\s+/, '');
 	}
 
-	return 'word';
+	return rest;
 };
 
 const splitWords = (value: string): string[] =>
-	value === '' ? [] : value.split(/\s+/);
+	value ? value.split(/\s+/) : [];
 
 const getLastWord = (value: string): string =>
 	value.trimEnd().split(/\s+/).at(-1) ?? '';
