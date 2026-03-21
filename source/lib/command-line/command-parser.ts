@@ -1,5 +1,5 @@
-import {cmdModifiers} from './auto-completion-commands.js';
 import {isCmdKeyword} from './command-meta.js';
+import {getCmdModifiers} from './command-modifiers.js';
 import {CmdKeyword} from './command-types.js';
 
 export type CommandTarget = 'command' | 'modifier' | 'word';
@@ -33,7 +33,7 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 	const hasCommand = firstWord !== '';
 	const isLastWordCompleted = raw.endsWith(' ');
 
-	const modifiers = command ? cmdModifiers[command] : [];
+	const modifiers = command ? getCmdModifiers()[command] : [];
 	const modifier = command && modifiers.includes(secondWord) ? secondWord : '';
 
 	let target: CommandTarget = 'word';
@@ -44,6 +44,7 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 		target = 'modifier';
 	}
 	const inputString = extractInputString(trimmedStart, command, modifier);
+	logger.info('len', inputString.length);
 
 	return {
 		raw,

@@ -1,5 +1,5 @@
 import {findOverlap} from '../utils/string.utils.js';
-import {cmdModifiers} from './auto-completion-commands.js';
+import {getCmdModifiers} from './auto-completion-commands.js';
 import {autoCompletionFromWordList} from './command-auto-complete.utils.js';
 import {ParsedCommandLine} from './command-parser.js';
 import {CmdKeywords} from './command-types.js';
@@ -32,7 +32,7 @@ export const getAutoCompletion = ({
 
 	if (command && target === 'modifier') {
 		const commandHint = autoCompletionFromWordList({
-			wordList: cmdModifiers[command],
+			wordList: getCmdModifiers()[command],
 			inputToMatch: inputToMatch,
 			overlapThreshold: 1,
 		});

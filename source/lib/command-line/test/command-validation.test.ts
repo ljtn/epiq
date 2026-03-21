@@ -1,9 +1,10 @@
 import {describe, expect, it} from 'vitest';
 import {cmdValidation} from '../command-validation.js';
 import {CmdKeywords, cmdValidity} from '../command-types.js';
-import {cmdModifiers} from '../auto-completion-commands.js';
+import {getCmdModifiers} from '../auto-completion-commands.js';
 
 describe('cmdValidation', () => {
+	const cmdModifiers = getCmdModifiers();
 	describe('NEW', () => {
 		it('accepts when modifier matches one of the allowed values', () => {
 			const modifier = cmdModifiers[CmdKeywords.NEW][0]!;

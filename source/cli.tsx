@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './logger.js';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
@@ -8,7 +9,6 @@ import {initListeners} from './lib/listeners/keypress-listener.js';
 import {initWorkspaceState} from './lib/state/state.js';
 import {storage} from './lib/storage/storage.js';
 import {nodeMapper} from './lib/utils/node-mapper.js';
-import './logger.js';
 
 const cli = meow(
 	`

@@ -1,4 +1,4 @@
-import {cmdModifiers as completions} from './auto-completion-commands.js';
+import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
 	CmdKeywords,
@@ -14,6 +14,7 @@ type ValidationResult = {
 type Validator = ({
 	modifier,
 	command,
+	inputString,
 }: {
 	modifier: string;
 	command: CmdKeyword;
@@ -43,15 +44,19 @@ const pickRandom = <T>(arr: readonly T[], count: number): T[] => {
 
 	return result;
 };
+
 const buildOptionsHint = (
 	prefix: string,
 	wordList: readonly string[],
 	postfix: string = '',
 	noOfHints = 2,
 ) =>
-	`${prefix}${pickRandom(wordList, noOfHints)
-		.map(word => `"${word}"`)
-		.join(' or ')}${postfix}`;
+	wordList.length
+		? `${prefix}${pickRandom(wordList, noOfHints)
+				.map(word => `"${word}"`)
+				.join(' or ')}${postfix}`
+		: '';
+
 const alwaysSucceed: Validator = () => valid();
 
 const requireExact =
@@ -70,39 +75,45 @@ const requireOneIn =
 			? valid()
 			: invalid(isBlank(modifier) ? hint : undefined);
 
-const requireNonEmptyWithSuggestions =
+const requireModifierOrInputStr =
 	({hint}: {hint: string}): Validator =>
-	({inputString}) =>
-		isBlank(inputString) ? invalid(hint) : valid();
+	({modifier, inputString}) => {
+		return isBlank(modifier) && isBlank(inputString) ? invalid(hint) : valid();
+	};
+
+const getList = (command: CmdKeyword): string[] => getCmdModifiers()[command];
 
 const validators: Record<CmdKeyword, Validator> = {
-	[CmdKeywords.NEW]: requireOneIn({
-		list: completions[CmdKeywords.NEW],
-		hint: buildOptionsHint('', completions[CmdKeywords.NEW], '', 3),
-	}),
+	[CmdKeywords.NEW]: args =>
+		requireOneIn({
+			list: getList(CmdKeywords.NEW),
+			hint: buildOptionsHint('', getList(CmdKeywords.NEW), '', 3),
+		})(args),
 	[CmdKeywords.HELP]: alwaysSucceed,
 	[CmdKeywords.RENAME]: alwaysSucceed,
-	[CmdKeywords.DELETE]: requireExact(completions[CmdKeywords.DELETE][0]!),
-	[CmdKeywords.VIEW]: requireOneIn({
-		list: completions[CmdKeywords.VIEW],
-		hint: buildOptionsHint('', completions[CmdKeywords.VIEW]),
-	}),
-
-	[CmdKeywords.TAG]: requireNonEmptyWithSuggestions({
-		hint: buildOptionsHint(
-			'provide tag name like ',
-			completions[CmdKeywords.TAG],
-			', etc.',
-		),
-	}),
-	[CmdKeywords.ASSIGN]: requireOneIn({
-		list: completions[CmdKeywords.ASSIGN],
-		hint: buildOptionsHint(
-			'provide user name like ',
-			completions[CmdKeywords.ASSIGN],
-			', etc.',
-		),
-	}),
+	[CmdKeywords.DELETE]: args =>
+		requireExact(getList(CmdKeywords.DELETE)[0] ?? 'confirm')(args),
+	[CmdKeywords.VIEW]: args =>
+		requireOneIn({
+			list: getList(CmdKeywords.VIEW),
+			hint: buildOptionsHint('', getList(CmdKeywords.VIEW)),
+		})(args),
+	[CmdKeywords.TAG]: args =>
+		requireModifierOrInputStr({
+			hint: buildOptionsHint(
+				'provide tag name like ',
+				getList(CmdKeywords.TAG),
+				', etc.',
+			),
+		})(args),
+	[CmdKeywords.ASSIGN]: args =>
+		requireModifierOrInputStr({
+			hint: buildOptionsHint(
+				'provide user name like ',
+				getList(CmdKeywords.ASSIGN),
+				', etc.',
+			),
+		})(args),
 };
 
 type CmdValidator = {

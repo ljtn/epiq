@@ -53,7 +53,55 @@ function findBreadCrumb(
 	return;
 }
 
+function normalizeListValue(value: string): string {
+	return sanitizeInlineText(value).replace(/\s+/g, ' ').trim();
+}
+
+function collectFieldListValues(
+	node: NavNode<AnyContext> | undefined,
+	fieldName: string,
+): string[] {
+	if (!node) return [];
+
+	const values: string[] = [];
+	const seen = new Set<string>();
+
+	const visit = (current: NavNode<AnyContext>) => {
+		if (current.name === fieldName && isFieldListNode(current)) {
+			for (const child of current.children ?? []) {
+				const raw = String(child.props?.['value'] ?? child.name ?? '');
+				const value = normalizeListValue(raw);
+				const key = value.toLowerCase();
+
+				if (value && !seen.has(key)) {
+					seen.add(key);
+					values.push(value);
+				}
+			}
+		}
+
+		for (const child of current.children ?? []) {
+			visit(child);
+		}
+	};
+
+	visit(node);
+	return values.sort((a, b) => a.localeCompare(b));
+}
+
 export const nodeRepository = {
+	getExistingTags(): string[] {
+		const {rootNode} = getState();
+		if (!rootNode) return [];
+		return collectFieldListValues(rootNode, 'Tags');
+	},
+
+	getExistingAssignees(): string[] {
+		const {rootNode} = getState();
+		if (!rootNode) return [];
+		return collectFieldListValues(rootNode, 'Assignees');
+	},
+
 	addTag(name: string): Result {
 		const parent = this.findListItemParent('Tags');
 		if (!parent) {
@@ -78,9 +126,7 @@ export const nodeRepository = {
 			};
 		}
 
-		this.addListItem(SEED_RESOURCES.tag, name, parent);
-
-		return {result: cmdResult.Success};
+		return this.addListItem(SEED_RESOURCES.tag, name, parent);
 	},
 
 	assignUser(name: string): Result {
@@ -108,8 +154,7 @@ export const nodeRepository = {
 			};
 		}
 
-		this.addListItem(SEED_RESOURCES.assignee, name, parent);
-		return {result: cmdResult.Success};
+		return this.addListItem(SEED_RESOURCES.assignee, name, parent);
 	},
 
 	findListItemParent(parentName: string) {
@@ -126,16 +171,22 @@ export const nodeRepository = {
 		name: (typeof SEED_RESOURCES)[keyof typeof SEED_RESOURCES],
 		valueRaw: string,
 		parent: NavNode<AnyContext>,
-	) {
+	): Result {
 		const value = sanitizeInlineText(valueRaw);
 		if (!value) {
-			logger.error('Unable to add empty list item');
-			return;
+			logger.error('Unable to add list item without name');
+			return {
+				result: cmdResult.Fail,
+				message: 'Unable to add list item without name',
+			};
 		}
 
 		if (parent.context !== NavNodeCtx.FIELD_LIST) {
 			logger.error('Field item can only be added inside a FIELD_LIST node');
-			return;
+			return {
+				result: cmdResult.Fail,
+				message: 'Field item can only be added inside a FIELD_LIST node',
+			};
 		}
 
 		const itemValue = value || '';
@@ -150,16 +201,20 @@ export const nodeRepository = {
 
 		if (!diskNode) {
 			logger.error('Unable to add field item');
-			return;
+			return {
+				result: cmdResult.Fail,
+				message: 'Unable to add field item',
+			};
 		}
 
 		// Now update its value resource
 		storage.updateNodeValue(diskNode.id, itemValue);
 
-		return nodeRepository.appendChildToNode(
-			parent.id,
-			nodeMapper.toField(diskNode),
-		);
+		nodeRepository.appendChildToNode(parent.id, nodeMapper.toField(diskNode));
+
+		return {
+			result: cmdResult.Success,
+		};
 	},
 
 	/**

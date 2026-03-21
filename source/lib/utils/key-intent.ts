@@ -1,8 +1,8 @@
 import readline from 'readline';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {getCommandLineIntent} from './get-command-line-intent.js';
-import {commandLineState} from '../state/cmd.state.js';
 import {getState} from '../state/state.js';
+import {getCmdState} from '../state/cmd.state.js';
 
 export enum Intent {
 	NavPreviousItem = 'navPreviousItem',
@@ -120,6 +120,7 @@ export function getKeyIntent(
 	mode: ModeUnion,
 ): Intent | null {
 	// Handle forks
+	const commandLineState = getCmdState();
 	if (key.sequence === ':' && commandLineState.value === '')
 		return Intent.InitCommandLine;
 

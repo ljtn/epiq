@@ -115,8 +115,13 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.TagTicket,
 		mode: Mode.COMMAND_LINE,
 		action: (..._args) => {
-			const {inputString} = getCmdState().commandMeta;
-			return nodeRepository.addTag(inputString);
+			const {modifier, inputString} = getCmdState().commandMeta;
+			let name = modifier;
+			if (!name) {
+				name = inputString;
+				logger.info('Unknown tag, creating new tag');
+			}
+			return nodeRepository.addTag(name);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -124,8 +129,13 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.AssignUserToTicket,
 		mode: Mode.COMMAND_LINE,
 		action: (..._args) => {
-			const {modifier} = getCmdState().commandMeta;
-			return nodeRepository.assignUser(modifier);
+			const {modifier, inputString} = getCmdState().commandMeta;
+			let name = modifier;
+			if (!name) {
+				name = inputString;
+				logger.info('Unknown assignee, creating new assignee');
+			}
+			return nodeRepository.assignUser(name);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
