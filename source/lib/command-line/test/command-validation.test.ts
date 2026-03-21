@@ -1,7 +1,19 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {cmdValidation} from '../command-validation.js';
 import {CmdKeywords, cmdValidity} from '../command-types.js';
-import {getCmdModifiers} from '../auto-completion-commands.js';
+import {getCmdModifiers} from '../command-modifiers.js';
+
+vi.mock('../command-modifiers.js', () => ({
+	getCmdModifiers: () => ({
+		delete: ['confirm'],
+		view: ['dense', 'wide'],
+		tag: ['critical', 'frontend', 'backend'],
+		assign: ['john', 'jane'],
+		help: [],
+		rename: [],
+		new: ['issue', 'swimlane', 'board'],
+	}),
+}));
 
 describe('cmdValidation', () => {
 	const cmdModifiers = getCmdModifiers();
@@ -188,14 +200,14 @@ describe('cmdValidation', () => {
 			expect(result.message).toBeTruthy();
 		});
 
-		it('rejects when modifier is not one of the allowed values', () => {
+		it('accept when adding new unknown modifier', () => {
 			const result = cmdValidation[CmdKeywords.ASSIGN].validate(
 				CmdKeywords.ASSIGN,
 				'unknown-user',
 				'unknown-user',
 			);
 
-			expect(result.validity).toBe(cmdValidity.Invalid);
+			expect(result.validity).toBe(cmdValidity.Valid);
 		});
 	});
 });

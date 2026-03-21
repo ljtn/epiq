@@ -1,6 +1,6 @@
 import {findOverlap} from '../utils/string.utils.js';
-import {getCmdModifiers} from './auto-completion-commands.js';
 import {autoCompletionFromWordList} from './command-auto-complete.utils.js';
+import {getCmdModifiers} from './command-modifiers.js';
 import {ParsedCommandLine} from './command-parser.js';
 import {CmdKeywords} from './command-types.js';
 import {DEFAULT_WORDS} from './default-word-list.js';

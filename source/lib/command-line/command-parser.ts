@@ -44,7 +44,6 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 		target = 'modifier';
 	}
 	const inputString = extractInputString(trimmedStart, command, modifier);
-	logger.info('len', inputString.length);
 
 	return {
 		raw,

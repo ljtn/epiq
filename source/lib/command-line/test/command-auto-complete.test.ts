@@ -1,6 +1,18 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {getAutoCompletion} from '../command-auto-complete.js';
 import {parseCommandLine} from '../command-parser.js';
+
+vi.mock('../command-modifiers.js', () => ({
+	getCmdModifiers: () => ({
+		delete: ['confirm'],
+		view: ['dense', 'wide'],
+		tag: ['critical', 'frontend', 'backend'],
+		assign: ['john', 'jane'],
+		help: [],
+		rename: [],
+		new: ['issue', 'swimlane', 'board'],
+	}),
+}));
 
 describe('getAutoCompletion (remainder)', () => {
 	it('returns remainder for command completion ("ta" → "tag")', () => {
