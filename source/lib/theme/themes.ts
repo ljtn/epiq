@@ -25,6 +25,7 @@ export const chalkColors = {
 	gray: '#C0CAF5',
 	grayLight: '#9AA5CE',
 	grayDark: '#565F89',
+	blue: '#486aff',
 } as const;
 
 export const theme = {

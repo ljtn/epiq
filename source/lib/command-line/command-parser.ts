@@ -24,8 +24,8 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 	const trimmedStart = raw.trimStart();
 	const words = splitWords(trimmedStart);
 
-	const firstWord = words[0] ?? '';
-	const secondWord = words[1] ?? '';
+	const firstWord = (words[0] ?? '').trimStart().trimEnd();
+	const secondWord = (words[1] ?? '').trimStart().trimEnd();
 	const lastWord = getLastWord(raw);
 
 	const command = isCmdKeyword(firstWord) ? firstWord : null;
@@ -37,11 +37,12 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 	const modifier = command && modifiers.includes(secondWord) ? secondWord : '';
 
 	let target: CommandTarget = 'word';
-	if (words.length === 1) target = 'command';
-	if (isCommandKeyword && modifiers.length && !isLastWordCompleted) {
+
+	if (words.length <= 1) {
+		target = 'command';
+	} else if (words.length === 2) {
 		target = 'modifier';
 	}
-
 	const inputString = extractInputString(trimmedStart, command, modifier);
 
 	return {

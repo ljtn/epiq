@@ -28,8 +28,8 @@ describe('getAutoCompletion (remainder)', () => {
 		expect(getAutoCompletion(parsed).remainder).toBe('ide ');
 	});
 
-	it('returns empty remainder when no completion is available ("add ")', () => {
-		const parsed = parseCommandLine('add ');
+	it('returns empty remainder when no completion is available ("new ")', () => {
+		const parsed = parseCommandLine('new ');
 		expect(getAutoCompletion(parsed).remainder).toBe('');
 	});
 
@@ -38,13 +38,18 @@ describe('getAutoCompletion (remainder)', () => {
 		expect(getAutoCompletion(parsed).remainder).toBe('');
 	});
 
-	it('returns remainder for word completion ("add fron" → "frontend")', () => {
-		const parsed = parseCommandLine('add fron');
+	it('returns remainder for word completion ("new iss" → "ue")', () => {
+		const parsed = parseCommandLine('new iss');
+		expect(getAutoCompletion(parsed).remainder).toBe('ue ');
+	});
+
+	it('returns remainder for word completion ("new issue fron" → "frontend")', () => {
+		const parsed = parseCommandLine('new issue fron');
 		expect(getAutoCompletion(parsed).remainder).toBe('tend ');
 	});
 
-	it('is case-insensitive for completion ("add Fron" → "frontend")', () => {
-		const parsed = parseCommandLine('add Fron');
+	it('is case-insensitive for completion ("new issue Fron" → "frontend")', () => {
+		const parsed = parseCommandLine('new issue Fron');
 		expect(getAutoCompletion(parsed).remainder).toBe('tend ');
 	});
 });
