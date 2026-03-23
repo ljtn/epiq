@@ -12,14 +12,7 @@ import {evenlySpacedRanks, midRank, rankBetween} from '../utils/rank.js';
 import {fileManager} from './file-manager.js';
 import {TEMPLATES} from './templates.js';
 import {buildStoragePaths} from './path-manager.js';
-
-export const SEED_RESOURCES = {
-	name: 'seed:fieldName:name',
-	tags: 'seed:fieldName:tags',
-	tag: 'seed:fieldName:tag',
-	assignees: 'seed:fieldName:assignees',
-	assignee: 'seed:fieldName:assignee',
-} as const;
+import {SEED_RESOURCES} from './seed.js';
 
 type Meta = {rootWorkspaceId: string};
 

@@ -8,7 +8,8 @@ import {
 import {NavNode} from '../model/navigation-node.model.js';
 import {StorageNodeTypes} from '../model/storage-node.model.js';
 import {BaseState, getState, patchState, updateState} from '../state/state.js';
-import {SEED_RESOURCES, storage} from '../storage/storage.js';
+import {SEED_RESOURCES} from '../storage/seed.js';
+import {storage} from '../storage/storage.js';
 import {
 	findNodeInTree,
 	removeNodeInTree,
