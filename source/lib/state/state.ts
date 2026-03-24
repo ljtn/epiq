@@ -94,20 +94,17 @@ export function initWorkspaceState(
 	nodes: Record<string, NavNode<AnyContext>>,
 	workspaceId: string,
 ) {
-	logger.info(1);
 	const workspace = nodes[workspaceId];
 	const firstBoardId = workspace?.children?.[0];
 	if (!firstBoardId) {
 		logger.error('Unable to find first id');
 		return;
 	}
-	logger.info(2);
 	const firstBoard = nodes[firstBoardId];
 	if (!firstBoard) {
 		logger.error('Unable to find first board');
 		return;
 	}
-	logger.info(3);
 	const firstTicketId = firstBoard?.children[0];
 	if (!firstTicketId) return;
 	const firstTicket = nodes[firstTicketId];
@@ -115,10 +112,8 @@ export function initWorkspaceState(
 		logger.error('Unable to find first ticket');
 		return;
 	}
-	logger.info(4);
 	const currentNode = firstTicket ?? firstBoard ?? workspace;
 
-	logger.info(5);
 	const base: BaseState = {
 		nodes,
 		mode: Mode.DEFAULT,
@@ -128,7 +123,6 @@ export function initWorkspaceState(
 		viewMode: 'dense',
 	};
 
-	logger.info(6);
 	_appState = derive(base);
 	emit();
 }

@@ -25,10 +25,7 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 	viewMode,
 	nodes,
 }) => {
-	const board =
-		breadCrumb.length >= 2 && breadCrumb[1]?.context === 'BOARD'
-			? breadCrumb[1]
-			: undefined;
+	const board = breadCrumb.find(({context}) => context === 'BOARD');
 
 	return (
 		<Box flexDirection="column">

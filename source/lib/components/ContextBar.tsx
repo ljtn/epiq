@@ -27,7 +27,9 @@ export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
 					<Box flexDirection="row">
 						{/* <Text color={theme.secondary}>{hasHints ? '💡 Hints:' : ' '}</Text> */}
 						{availableHints.map((hint, index) => (
-							<Text color={theme.secondary}>{(index ? ' | ' : '') + hint}</Text>
+							<Text key={hint} color={theme.secondary}>
+								{(index ? ' | ' : '') + hint}
+							</Text>
 						))}
 						<Text> </Text>
 					</Box>
