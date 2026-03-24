@@ -1,7 +1,6 @@
 import {ActionEntry, ActionIndex, ModeUnion} from './action-map.model.js';
-import {AnyContext, Workspace} from './context.model.js';
+import {AnyContext} from './context.model.js';
 import {NavNode} from './navigation-node.model.js';
-import {DeepReadonly} from './readonly.model.js';
 
 export type BreadCrumb =
 	| [NavNode<'WORKSPACE'>]
@@ -23,7 +22,7 @@ export type BreadCrumb =
 
 export type ViewMode = 'wide' | 'dense';
 
-export type AppState = DeepReadonly<{
+export type AppState = {
 	selectedIndex: number;
 	currentNodeId: string;
 	mode: ModeUnion;
@@ -32,6 +31,7 @@ export type AppState = DeepReadonly<{
 	availableHints: string[];
 	currentNode: NavNode<AnyContext>;
 	breadCrumb: BreadCrumb;
-	rootNode: Workspace;
+	rootNodeId: string;
+	nodes: Record<string, NavNode<AnyContext>>;
 	viewMode: ViewMode;
-}>;
+};

@@ -5,13 +5,15 @@ import {theme} from '../theme/themes.js';
 import {useAppState} from '../state/state.js';
 import {TagUI} from './Tag.js';
 import {AssigneeUI} from './Assignee.js';
+import {filterMap} from '../utils/array.utils.js';
 
 type Props = {
 	fieldList: FieldList;
 	selected: boolean;
 };
 export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
-	const {currentNode, selectedIndex} = useAppState();
+	const {currentNode, selectedIndex, nodes} = useAppState();
+	const fieldListChildren = filterMap(fieldList.children, id => nodes[id]);
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			<Text color={selected ? theme.primary : theme.secondary}>
@@ -25,8 +27,8 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 				paddingLeft={1}
 				paddingRight={1}
 			>
-				{!fieldList.children.length ? <Text> </Text> : ''}
-				{fieldList.children.map((field, index) => (
+				{!fieldListChildren.length ? <Text> </Text> : ''}
+				{fieldListChildren.map((field, index) => (
 					<Box>
 						<Text color={theme.secondary}>{index > 0 ? ', ' : ''}</Text>
 						<Text

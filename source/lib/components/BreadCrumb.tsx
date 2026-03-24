@@ -6,13 +6,15 @@ import {theme} from '../theme/themes.js';
 import {TagUI} from './Tag.js';
 import {getTicketFields} from './TicketListItem.js';
 import {AssigneeUI} from './Assignee.js';
+import {filterMap} from '../utils/array.utils.js';
 
 export const Breadcrumb: React.FC = () => {
-	const {breadCrumb: crumbs, selectedIndex, viewMode} = getState();
+	const {breadCrumb: crumbs, selectedIndex, viewMode, nodes} = getState();
 	const lastIndex = crumbs.length - 1;
-	const last = crumbs.at(-1)?.children[selectedIndex];
+	const lastId = crumbs.at(-1)?.children[selectedIndex];
 
-	const fields = getTicketFields(last as Ticket);
+	if (!lastId) return;
+	const fields = getTicketFields(nodes[lastId] as Ticket, nodes);
 	const tags = fields['Tags']?.values ?? [];
 	const assignees = fields['Assignees']?.values ?? [];
 
@@ -20,9 +22,9 @@ export const Breadcrumb: React.FC = () => {
 		<Box>
 			{crumbs.map((b, i) => {
 				const isLast = i === lastIndex;
-
+				const children = filterMap(b.children, id => nodes[id]);
 				const selectedChildTitle = isLast
-					? b.children?.[selectedIndex]?.name
+					? children?.[selectedIndex]?.name
 					: undefined;
 
 				return (

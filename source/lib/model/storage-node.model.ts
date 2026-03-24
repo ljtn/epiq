@@ -13,6 +13,7 @@ export type StorageNodeType =
 export type WorkspaceDiskNode = {
 	id: string;
 	type: StorageNodeType;
+	parentNodeId: string | null;
 	name: string;
 	props: Record<string, string>;
 };

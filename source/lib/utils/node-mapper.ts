@@ -40,12 +40,8 @@ export const nodeMapper = {
 			props: {value: value || ''},
 			context: NavNodeCtx.WORKSPACE,
 			childRenderAxis: 'vertical',
-
-			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(childId);
-				if (item) acc.push(this.toBoard(item));
-				return acc;
-			}, [] as NavNode<BoardContext>[]),
+			parentNodeId: null,
+			children: data.children,
 		} satisfies NavNode<WorkspaceContext>;
 	},
 
@@ -60,11 +56,8 @@ export const nodeMapper = {
 			props: {value: value || ''},
 			context: NavNodeCtx.BOARD,
 			childRenderAxis: 'horizontal',
-			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(childId);
-				if (item) acc.push(this.toSwimlane(item));
-				return acc;
-			}, [] as NavNode<SwimlaneContext>[]),
+			parentNodeId: data.parentNodeId,
+			children: data.children,
 		} satisfies NavNode<BoardContext>;
 	},
 
@@ -80,11 +73,8 @@ export const nodeMapper = {
 			context: NavNodeCtx.SWIMLANE,
 			childRenderAxis: 'vertical',
 			childNavigationAcrossParents: true,
-			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(childId);
-				if (item) acc.push(this.toIssue(item));
-				return acc;
-			}, [] as NavNode<TicketContext>[]),
+			parentNodeId: data.parentNodeId,
+			children: data.children,
 		} satisfies NavNode<SwimlaneContext>;
 	},
 
@@ -99,16 +89,8 @@ export const nodeMapper = {
 			props: {value: value || ''},
 			context: NavNodeCtx.TICKET,
 			childRenderAxis: 'vertical',
-			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(childId);
-				if (item)
-					acc.push(
-						item.type === StorageNodeTypes.FIELD_LIST
-							? this.toFieldList(item)
-							: this.toField(item),
-					);
-				return acc;
-			}, [] as (NavNode<TicketFieldContext> | NavNode<TicketFieldListContext>)[]),
+			parentNodeId: data.parentNodeId,
+			children: data.children,
 		} satisfies NavNode<TicketContext>;
 	},
 
@@ -123,6 +105,7 @@ export const nodeMapper = {
 			props: {value: value || ''},
 			context: NavNodeCtx.FIELD,
 			childRenderAxis: 'vertical',
+			parentNodeId: data.parentNodeId,
 			children: [],
 		} satisfies NavNode<TicketFieldContext>;
 	},
@@ -140,11 +123,8 @@ export const nodeMapper = {
 			props: {value: value || ''},
 			context: NavNodeCtx.FIELD_LIST,
 			childRenderAxis: 'horizontal',
-			children: data.children.reduce((acc, childId) => {
-				const item = storage.getNode(childId);
-				if (item) acc.push(this.toField(item));
-				return acc;
-			}, [] as NavNode<TicketFieldContext>[]),
+			parentNodeId: data.parentNodeId,
+			children: data.children,
 		} satisfies NavNode<TicketFieldListContext>;
 	},
 

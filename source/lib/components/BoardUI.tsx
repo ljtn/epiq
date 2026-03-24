@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
 import {ModeUnion} from '../model/action-map.model.js';
-import {BreadCrumb, ViewMode} from '../model/app-state.model.js';
+import {AppState, BreadCrumb, ViewMode} from '../model/app-state.model.js';
 import {
 	AnyContext,
 	NavNodeCtx,
@@ -20,6 +20,7 @@ type Props = {
 	breadCrumb: DeepReadonly<BreadCrumb>;
 	viewMode: ViewMode;
 	mode: ModeUnion;
+	nodes: AppState['nodes'];
 };
 
 const BoardUIComponent: React.FC<Props> = ({
@@ -29,6 +30,7 @@ const BoardUIComponent: React.FC<Props> = ({
 	breadCrumb,
 	mode,
 	viewMode,
+	nodes,
 }) => {
 	const actionContext = currentNode.context;
 
@@ -80,12 +82,13 @@ const BoardUIComponent: React.FC<Props> = ({
 							isFocused={isFocused}
 							listSelectedIndex={listSelectedIndex}
 							mode={mode}
+							nodes={nodes}
 						/>
 					);
 				})}
 
 			{isTicketContext && ticketFromCrumb && (
-				<TicketUI height={height} ticket={ticketFromCrumb} />
+				<TicketUI height={height} ticket={ticketFromCrumb} nodes={nodes} />
 			)}
 		</Box>
 	);

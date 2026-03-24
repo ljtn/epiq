@@ -2,15 +2,19 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {filterMap} from '../utils/array.utils.js';
 
 export default function BoardList() {
 	const state = useAppState();
-	const workspace = state.rootNode;
+	const workspace = state.nodes[state.rootNodeId];
 
 	const breadCrumbHeight = 1;
 	const commandLineHeight = 3;
 	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
 	const width = process.stdout.columns || 120;
+
+	if (!workspace?.children) return;
+	const children = filterMap(workspace.children, id => state.nodes[id]);
 
 	return (
 		<Box
@@ -26,14 +30,13 @@ export default function BoardList() {
 			</Box>
 
 			<Box padding={1} flexDirection="column">
-				{workspace.children.map((board, i) => {
+				{children.map((board, i) => {
 					const isSelected =
 						state.currentNode.context === 'WORKSPACE' &&
 						state.selectedIndex === i;
 
-					const issuesCount = board.children.flatMap(
-						l => l.children ?? [],
-					).length;
+					const swimlanes = filterMap(board.children, id => state.nodes[id]);
+					const issuesCount = swimlanes.flatMap(l => l.children ?? []).length;
 
 					return (
 						<Box key={board.id ?? i}>

@@ -41,3 +41,9 @@ export function isFieldListNode(
 ): node is NavNode<TicketFieldListContext> {
 	return node.context === 'FIELD_LIST';
 }
+
+export const isSwimlaneNode = (
+	node: NavNode<AnyContext>,
+): node is NavNode<'SWIMLANE'> => {
+	return node.context === 'SWIMLANE';
+};

@@ -19,9 +19,9 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: (_, _2) => {
 			const {currentNode: currentNode, selectedIndex} = getState();
-			const child = currentNode.children.find((_, i) => i === selectedIndex);
-			if (!child) return logger.error('Unable to resolve child to delete');
-			nodeRepository.deleteNode(currentNode.id, child.id);
+			const childId = currentNode.children.find((_, i) => i === selectedIndex);
+			if (!childId) return logger.error('Unable to resolve child to delete');
+			nodeRepository.deleteNode(currentNode.id, childId);
 			return {result: cmdResult.Success};
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -34,7 +34,7 @@ export const commands: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.NewItem,
 		mode: Mode.COMMAND_LINE,
-		action: (cmdAction, cmdState) => {
+		action: (_cmdAction, cmdState) => {
 			if (!cmdState.inputString) {
 				return {
 					result: cmdResult.Fail,
@@ -42,11 +42,37 @@ export const commands: CommandLineActionEntry[] = [
 				};
 			}
 			if (cmdState.modifier === 'board') {
-				return addBoard(cmdAction, cmdState);
+				const {nodes, rootNodeId} = getState();
+				const workspace = nodes[rootNodeId];
+				if (!workspace) {
+					return {result: 'fail', message: 'Workspace not found'};
+				}
+				return addBoard(workspace, cmdState.inputString);
 			} else if (cmdState.modifier === 'swimlane') {
-				return addSwimlane(cmdAction, cmdState);
+				const board = getState().breadCrumb.find(
+					({context}) => context === 'BOARD',
+				);
+				if (!board) {
+					return {
+						result: 'fail',
+						message: 'Unable to add swimlane in this context',
+					};
+				}
+				return addSwimlane(board, cmdState.inputString);
 			} else if (cmdState.modifier === 'issue') {
-				return addTicket(cmdAction, cmdState);
+				const swimlane = getState().breadCrumb.find(
+					({context}) => context === 'SWIMLANE',
+				);
+				if (!swimlane) {
+					return {
+						result: 'fail',
+						message: 'Unable to add issue in this context',
+					};
+				}
+
+				return addTicket(swimlane, cmdState.inputString);
+			} else {
+				return {result: 'none'};
 			}
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -78,11 +104,14 @@ export const commands: CommandLineActionEntry[] = [
 			const newName = getCmdArg();
 			if (!newName) return;
 
-			const state = getState();
-			const current = state.currentNode;
+			const {nodes, currentNode, selectedIndex} = getState();
+			const current = currentNode;
 			if (!current) return;
 
-			const targetNode = current.children[state.selectedIndex];
+			const childId = current.children[selectedIndex];
+			if (!childId) return;
+
+			const targetNode = nodes[childId];
 			if (!targetNode) return;
 
 			const nodeType = nodeMapper.contextToNodeTypeMap(targetNode.context);
@@ -100,13 +129,12 @@ export const commands: CommandLineActionEntry[] = [
 			if (!newRootNav) return;
 
 			patchState({
-				rootNode: newRootNav,
+				rootNodeId: newRootNav.id,
 			});
 
-			// re-sync breadcrumb/currentNode via navigator (uses ids)
 			navigator.navigate({
 				currentNode: current, // id-based lookup will resolve to tree instance
-				selectedIndex: state.selectedIndex,
+				selectedIndex: selectedIndex,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),

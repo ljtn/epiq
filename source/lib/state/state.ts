@@ -6,9 +6,8 @@ import {inputActions} from '../actions/input/input-actions.js';
 import {Hints} from '../hints/hints.js';
 import {Mode} from '../model/action-map.model.js';
 import type {AppState, BreadCrumb} from '../model/app-state.model.js';
-import type {AnyContext, Board, Workspace} from '../model/context.model.js';
+import type {AnyContext} from '../model/context.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
-import {deepFreeze} from '../utils/immutable.js';
 import {findNodeInTree} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
 
@@ -22,7 +21,7 @@ export type BaseState = Omit<AppState, DerivedKeys>;
 
 // -----------------------------
 // Internal store
-// -----------------------------
+// -----------------------------∏
 let _appState: AppState;
 
 const listeners = new Set<() => void>();
@@ -38,16 +37,20 @@ const subscribe = (listener: () => void) => {
 // Derivation
 // -----------------------------
 function derive(state: BaseState): AppState {
-	const {currentNodeId, mode, rootNode} = state;
+	const {currentNodeId, mode, rootNodeId, nodes} = state;
 
 	if (!currentNodeId) {
 		throw new Error('derive(): currentNodeId is missing');
 	}
-	if (!rootNode) {
+	if (!rootNodeId) {
 		throw new Error('derive(): rootNode is missing');
 	}
 
-	const found = findNodeInTree({id: currentNodeId}, rootNode, []);
+	const rootNode = nodes[rootNodeId];
+	if (!rootNode) {
+		throw new Error(`derive(): unable to find root node`);
+	}
+	const found = findNodeInTree({id: currentNodeId}, rootNode, [], nodes);
 	if (!found?.node || !found?.breadCrumb) {
 		throw new Error(`derive(): unable to find node ${currentNodeId} in tree`);
 	}
@@ -59,22 +62,22 @@ function derive(state: BaseState): AppState {
 	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
 
 	// Consider not freezing if performance issues
-	const availableActions = deepFreeze([
+	const availableActions = [
 		...DefaultActions,
 		...(contextActions[context] ?? []),
 		...inputActions,
-	]);
-	const actionIndex = deepFreeze(buildActionIndex(availableActions));
+	];
+	const actionIndex = buildActionIndex(availableActions);
 
 	// Consider not freezing if performance issues
-	return deepFreeze({
+	return {
 		...state,
 		currentNode,
 		breadCrumb,
 		availableHints,
 		availableActions,
 		actionIndex,
-	});
+	};
 }
 
 // -----------------------------
@@ -87,19 +90,45 @@ export const getState = () => {
 	return _appState;
 };
 
-export function initWorkspaceState(workspace: Workspace) {
-	const firstBoard = workspace.children?.[0] as Board | undefined;
-	const firstTicket = workspace.children?.[0]?.children[0] as Board | undefined;
+export function initWorkspaceState(
+	nodes: Record<string, NavNode<AnyContext>>,
+	workspaceId: string,
+) {
+	logger.info(1);
+	const workspace = nodes[workspaceId];
+	const firstBoardId = workspace?.children?.[0];
+	if (!firstBoardId) {
+		logger.error('Unable to find first id');
+		return;
+	}
+	logger.info(2);
+	const firstBoard = nodes[firstBoardId];
+	if (!firstBoard) {
+		logger.error('Unable to find first board');
+		return;
+	}
+	logger.info(3);
+	const firstTicketId = firstBoard?.children[0];
+	if (!firstTicketId) return;
+	const firstTicket = nodes[firstTicketId];
+	if (!firstTicket) {
+		logger.error('Unable to find first ticket');
+		return;
+	}
+	logger.info(4);
 	const currentNode = firstTicket ?? firstBoard ?? workspace;
 
+	logger.info(5);
 	const base: BaseState = {
+		nodes,
 		mode: Mode.DEFAULT,
-		rootNode: workspace,
+		rootNodeId: firstBoardId,
 		currentNodeId: currentNode.id,
 		selectedIndex: currentNode.children.length ? 0 : -1,
 		viewMode: 'dense',
 	};
 
+	logger.info(6);
 	_appState = derive(base);
 	emit();
 }

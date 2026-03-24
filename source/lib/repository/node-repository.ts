@@ -10,6 +10,7 @@ import {StorageNodeTypes} from '../model/storage-node.model.js';
 import {BaseState, getState, patchState, updateState} from '../state/state.js';
 import {SEED_RESOURCES} from '../storage/seed.js';
 import {storage} from '../storage/storage.js';
+import {filterMap} from '../utils/array.utils.js';
 import {
 	findNodeInTree,
 	removeNodeInTree,
@@ -63,13 +64,15 @@ function collectFieldListValues(
 	fieldName: string,
 ): string[] {
 	if (!node) return [];
+	const {nodes} = getState();
 
 	const values: string[] = [];
 	const seen = new Set<string>();
-
 	const visit = (current: NavNode<AnyContext>) => {
+		const children = filterMap(current.children, id => nodes[id]);
 		if (current.name === fieldName && isFieldListNode(current)) {
-			for (const child of current.children ?? []) {
+			for (const child of children ?? []) {
+				if (!child) continue;
 				const raw = String(child.props?.['value'] ?? child.name ?? '');
 				const value = normalizeListValue(raw);
 				const key = value.toLowerCase();
@@ -81,7 +84,7 @@ function collectFieldListValues(
 			}
 		}
 
-		for (const child of current.children ?? []) {
+		for (const child of children ?? []) {
 			visit(child);
 		}
 	};
@@ -92,13 +95,15 @@ function collectFieldListValues(
 
 export const nodeRepository = {
 	getExistingTags(): string[] {
-		const {rootNode} = getState();
+		const {rootNodeId, nodes} = getState();
+		const rootNode = nodes[rootNodeId];
 		if (!rootNode) return [];
 		return collectFieldListValues(rootNode, 'Tags');
 	},
 
 	getExistingAssignees(): string[] {
-		const {rootNode} = getState();
+		const {rootNodeId, nodes} = getState();
+		const rootNode = nodes[rootNodeId];
 		if (!rootNode) return [];
 		return collectFieldListValues(rootNode, 'Assignees');
 	},
@@ -119,7 +124,9 @@ export const nodeRepository = {
 			};
 		}
 
-		if (parent.children.some(({props}) => props['value'] === name)) {
+		const {nodes} = getState();
+		const children = filterMap(parent.children, id => nodes[id]);
+		if (children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate tag');
 			return {
 				result: cmdResult.Fail,
@@ -143,11 +150,14 @@ export const nodeRepository = {
 			return {result: cmdResult.Fail, message: ''};
 		}
 
+		const {nodes} = getState();
+		const children = filterMap(parent.children, id => nodes[id]);
+
 		logger.info(
 			name,
-			parent.children.map(({props}) => props['value']),
+			children.map(({props}) => props['value']),
 		);
-		if (parent.children.some(({props}) => props['value'] === name)) {
+		if (children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate assignee');
 			return {
 				result: cmdResult.Fail,
@@ -158,14 +168,16 @@ export const nodeRepository = {
 		return this.addListItem(SEED_RESOURCES.assignee, name, parent);
 	},
 
-	findListItemParent(parentName: string) {
-		const {currentNode, selectedIndex} = getState();
-		const target = currentNode.children[selectedIndex];
+	findListItemParent(parentName: string): NavNode<AnyContext> | undefined {
+		const {currentNode, selectedIndex, nodes} = getState();
+		const targetId = currentNode.children[selectedIndex];
+		if (!targetId) return;
+		const target = nodes[targetId];
 		if (!target) {
 			logger.error(`Missing target node`);
 			return;
 		}
-		return findNodeInTree({name: parentName}, target, [])?.node;
+		return findNodeInTree({name: parentName}, target, [], nodes)?.node;
 	},
 
 	addListItem(
@@ -195,6 +207,7 @@ export const nodeRepository = {
 			parentId: parent.id,
 			definition: {
 				name,
+				parentNodeId: parent.id,
 				initialValue: itemValue,
 				type: StorageNodeTypes.FIELD, // Perhaps parameterize
 			},
@@ -264,14 +277,14 @@ export const nodeRepository = {
 				return changed ? {...node, children: nextChildren} : node;
 			};
 
-			const nextRoot = reorderAt(old.rootNode);
+			const nextRoot = reorderAt(old.rootNodeId);
 
 			const nextBreadCrumb = findBreadCrumb(nextRoot, parentId);
 			if (!nextBreadCrumb) return old;
 
 			return {
 				...old,
-				rootNode: nextRoot,
+				rootNodeId: nextRoot,
 				currentNodeId: nextBreadCrumb.at(-1)!.id,
 				selectedIndex: to,
 			} satisfies BaseState;
@@ -289,21 +302,27 @@ export const nodeRepository = {
 	moveNodeToSiblingContainer(
 		direction: -1 | 1,
 	): {targetNodeId: string; selectedIndex: number} | null {
-		const state = getState();
+		const {currentNode, nodes, selectedIndex} = getState();
 
-		const parentNode = state.breadCrumb.at(-2);
+		if (!currentNode.parentNodeId) {
+			logger.error('Missing parent node id');
+			return {targetNodeId: currentNode.id, selectedIndex};
+		}
+
+		const parentNode = nodes[currentNode.parentNodeId];
 		if (!parentNode) return null;
 
 		const currentNodeIndex = parentNode.children.findIndex(
-			({id}) => id === state.currentNode.id,
+			id => id === currentNode.id,
 		);
-		if (currentNodeIndex < 0) return null;
 
-		const currentNode = parentNode.children[currentNodeIndex];
-		const siblingNode = parentNode.children.at(currentNodeIndex + direction);
+		const siblingNodeId = parentNode.children.at(currentNodeIndex + direction);
+		if (!siblingNodeId) return null;
+
+		const siblingNode = nodes[siblingNodeId];
 		if (!currentNode || !siblingNode) return null;
 
-		const fromIndex = state.selectedIndex;
+		const fromIndex = selectedIndex;
 		if (fromIndex < 0 || fromIndex >= currentNode.children.length) return null;
 
 		const moveResult = storage.move({
@@ -321,7 +340,7 @@ export const nodeRepository = {
 		}
 
 		updateState(old => {
-			const root = old.rootNode;
+			const root = old.rootNodeId;
 
 			const fromParentId = currentNode.id;
 			const toParentId = siblingNode.id;
@@ -369,7 +388,7 @@ export const nodeRepository = {
 
 			return {
 				...old,
-				rootNode: nextRoot,
+				rootNodeId: nextRoot,
 				currentNodeId: nextCurrent.id,
 				selectedIndex: (nextCurrent.children?.length ?? 1) - 1,
 			} satisfies BaseState;
@@ -386,10 +405,18 @@ export const nodeRepository = {
 		child: C,
 	) =>
 		updateState(old => {
-			const result = replaceNodeInTree(node.id, old.rootNode, prev => ({
-				...prev,
-				children: [...(prev.children ?? []), child] as typeof prev.children,
-			}));
+			const rootNode = old.nodes[old.rootNodeId];
+			if (!rootNode) return old;
+
+			const result = replaceNodeInTree(
+				node.id,
+				rootNode,
+				prev => ({
+					...prev,
+					children: [...(prev.children ?? []), child] as typeof prev.children,
+				}),
+				old.nodes,
+			);
 
 			if (!result) {
 				logger.error(
@@ -408,24 +435,28 @@ export const nodeRepository = {
 
 			return {
 				...old,
-				rootNode: result.root,
+				rootNodeId: result.root.id,
 				currentNodeId: updatedNode.id,
 				selectedIndex: (updatedNode.children?.length ?? 1) - 1,
 			} satisfies BaseState;
 		}),
 
 	updateNode(newNode: NavNode<AnyContext>) {
+		const {nodes, rootNodeId} = getState();
+		const rootNode = nodes[rootNodeId];
+		if (!rootNode) return;
 		const result = replaceNodeInTree(
 			newNode.id,
-			getState().rootNode,
+			rootNode,
 			() => newNode,
+			nodes,
 		);
 		if (!result) return logger.error('Unable to replace node in tree');
 
 		return updateState(state => {
 			return {
 				...state,
-				rootNode: result.root,
+				rootNodeId: result.root.id,
 			} satisfies BaseState;
 		});
 	},
@@ -435,10 +466,18 @@ export const nodeRepository = {
 		child: C,
 	) {
 		updateState(old => {
-			const result = replaceNodeInTree(parentNodeId, old.rootNode, prev => ({
-				...prev,
-				children: [...(prev.children ?? []), child] as typeof prev.children,
-			}));
+			const rootNode = old.nodes[old.rootNodeId];
+			if (!rootNode) return old;
+
+			const result = replaceNodeInTree(
+				parentNodeId,
+				rootNode,
+				prev => ({
+					...prev,
+					children: [...(prev.children ?? []), child] as typeof prev.children,
+				}),
+				old.nodes,
+			);
 
 			if (!result) {
 				logger.error('appendChildToNode: unable to replace node in tree');
@@ -447,7 +486,7 @@ export const nodeRepository = {
 
 			return {
 				...old,
-				rootNode: result.root,
+				rootNodeId: result.root.id,
 			} satisfies BaseState;
 		});
 	},
@@ -459,13 +498,18 @@ export const nodeRepository = {
 		}
 
 		storage.unlinkChild(parentNodeId, deleteNodeId);
-		const rootNode = removeNodeInTree(deleteNodeId, getState().rootNode)?.root;
-		if (!rootNode) {
+
+		const {nodes, rootNodeId} = getState();
+		const rootNode = nodes[rootNodeId];
+		if (!rootNode) return;
+		const newRootNode = removeNodeInTree(deleteNodeId, rootNode, nodes)?.root;
+
+		if (!newRootNode) {
 			logger.info('Unable to delete node due to failed remove operation');
 			return;
 		}
 
-		const res = findNodeInTree({id: parentNodeId}, rootNode, []);
+		const res = findNodeInTree({id: parentNodeId}, newRootNode, [], nodes);
 		if (!res) return;
 		const {node, breadCrumb} = res;
 		// If parent has children, focus on first
@@ -475,7 +519,7 @@ export const nodeRepository = {
 			selectedIndex = 0;
 		}
 		patchState({
-			rootNode: breadCrumb[0],
+			rootNodeId: newRootNode.id,
 			currentNodeId: breadCrumb.at(-1)?.id,
 			selectedIndex,
 			mode: Mode.DEFAULT,

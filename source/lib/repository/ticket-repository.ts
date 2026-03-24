@@ -10,10 +10,10 @@ import {nodeRepository} from './node-repository.js';
 
 export const ticketRepository = {
 	edit() {
-		const state = getState();
+		const {nodes, currentNode} = getState();
 
 		// Ticket: use editor + repository sync
-		if (state.currentNode.context === 'TICKET') {
+		if (currentNode.context === 'TICKET') {
 			const didEdit = this.editSelectedTicketFieldValueFromState();
 			if (didEdit) {
 				patchState({mode: Mode.DEFAULT});
@@ -28,7 +28,7 @@ export const ticketRepository = {
 		setCmdInput(() => {
 			const s = getState();
 			return `${CmdIntent.Rename} ${
-				s.currentNode.children[s.selectedIndex]?.name ?? ''
+				nodes[s.currentNode.children[s.selectedIndex] ?? '']?.name ?? ''
 			}`;
 		});
 	},
@@ -43,7 +43,9 @@ export const ticketRepository = {
 		const state = getState();
 		const ticketNode = state.currentNode;
 		if (!isTicketNode(ticketNode)) return false;
-		const fieldNode = ticketNode.children[state.selectedIndex];
+		const fieldNodeId = ticketNode.children[state.selectedIndex];
+		if (!fieldNodeId) return false;
+		const fieldNode = state.nodes[fieldNodeId];
 		if (!fieldNode) return false;
 		if (!isFieldNode(fieldNode)) {
 			logger.error('Node type not editable');

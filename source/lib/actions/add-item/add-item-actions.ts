@@ -1,140 +1,166 @@
+import {ulid} from 'ulid';
 import {cmdResult, Result} from '../../command-line/command-types.js';
-import {CommandLineActionEntry} from '../../model/action-map.model.js';
-import {StorageNodeTypes} from '../../model/storage-node.model.js';
-import {nodeRepository} from '../../repository/node-repository.js';
-import {getState} from '../../state/state.js';
-import {SEED_RESOURCES} from '../../storage/seed.js';
-import {storage} from '../../storage/storage.js';
-import {TEMPLATES} from '../../storage/templates.js';
-import {nodeMapper} from '../../utils/node-mapper.js';
+import {
+	AnyContext,
+	BoardContext,
+	NavNodeCtx,
+	SwimlaneContext,
+	TicketContext,
+	TicketFieldContext,
+	TicketFieldListContext,
+	WorkspaceContext,
+} from '../../model/context.model.js';
+import {NavNode} from '../../model/navigation-node.model.js';
 import {navigator} from '../default/navigation-action-utils.js';
+import {nodeRepository} from '../../repository/node-repository.js';
 
-export const addBoard: NonNullable<CommandLineActionEntry['action']> = (
-	_cmd,
-	{inputString: boardName},
-): Result => {
-	const parent = getState().breadCrumb.find(
-		({context}) => context === 'WORKSPACE',
-	);
+const createWorkspaceNode = (name: string): NavNode<WorkspaceContext> => ({
+	id: ulid(),
+	name,
+	props: {value: ''},
+	context: NavNodeCtx.WORKSPACE,
+	childRenderAxis: 'vertical',
+	parentNodeId: null,
+	children: [],
+});
+
+const createBoardNode = (
+	name: string,
+	parentNodeId: string,
+): NavNode<BoardContext> => ({
+	id: ulid(),
+	name,
+	props: {value: ''},
+	context: NavNodeCtx.BOARD,
+	childRenderAxis: 'horizontal',
+	parentNodeId,
+	children: [],
+});
+
+const createSwimlaneNode = (
+	name: string,
+	parentNodeId: string,
+): NavNode<SwimlaneContext> => ({
+	id: ulid(),
+	name,
+	props: {value: ''},
+	context: NavNodeCtx.SWIMLANE,
+	childRenderAxis: 'vertical',
+	childNavigationAcrossParents: true,
+	parentNodeId,
+	children: [],
+});
+
+const createFieldNode = (
+	name: string,
+	parentNodeId: string,
+	value = '',
+): NavNode<TicketFieldContext> => ({
+	id: ulid(),
+	name,
+	props: {value},
+	context: NavNodeCtx.FIELD,
+	childRenderAxis: 'vertical',
+	parentNodeId,
+	children: [],
+});
+
+const createFieldListNode = (
+	name: string,
+	parentNodeId: string,
+): NavNode<TicketFieldListContext> => ({
+	id: ulid(),
+	name,
+	props: {value: ''},
+	context: NavNodeCtx.FIELD_LIST,
+	childRenderAxis: 'horizontal',
+	parentNodeId,
+	children: [],
+});
+
+const createTicketNode = (
+	name: string,
+	parentNodeId: string,
+	children: string[],
+): NavNode<TicketContext> => ({
+	id: ulid(),
+	name,
+	props: {value: ''},
+	context: NavNodeCtx.TICKET,
+	childRenderAxis: 'vertical',
+	parentNodeId,
+	children,
+});
+
+export const addWorkspace = (workspaceName = 'Workspace') => {
+	const workspace = createWorkspaceNode(workspaceName);
+	return {result: cmdResult.Success, data: workspace};
+};
+
+export const addBoard = (parent: NavNode<AnyContext>, boardName: string) => {
 	if (!parent) {
 		return {
 			result: cmdResult.Fail,
 			message: 'Unable to add board in this context',
-		};
+		} satisfies Result;
 	}
 
-	const newItem = storage.createNode({
-		parentId: parent.id,
-		definition: {
-			name: boardName,
-			type: StorageNodeTypes.BOARD,
-			children: TEMPLATES.swimlanes.map(
-				swimlaneName =>
-					({
-						name: swimlaneName,
-						type: StorageNodeTypes.SWIMLANE,
-					} as const),
-			),
-		},
-	});
+	const board = createBoardNode(boardName, parent.id);
+	// nodeRepository.appendChildToNodeAndSelect(parent, board);
 
-	if (!newItem) {
-		logger.error('Unable to add board');
-		return {result: cmdResult.Fail};
-	}
-	nodeRepository.appendChildToNodeAndSelect(
-		parent,
-		nodeMapper.toBoard(newItem),
-	);
-	return {result: cmdResult.Success};
+	return {result: cmdResult.Success, data: board};
 };
 
-export const addSwimlane: NonNullable<CommandLineActionEntry['action']> = (
-	_cmd,
-	{inputString},
-): Result => {
-	const parent = getState().breadCrumb.find(({context}) => context === 'BOARD');
+export const addSwimlane = (
+	parent: NavNode<AnyContext>,
+	inputString: string,
+) => {
 	if (!parent) {
 		return {
 			result: cmdResult.Fail,
 			message: 'Unable to add swimlane in this context',
 		};
 	}
-	const name = inputString || 'New lane';
 
-	const diskNode = storage.createNode({
-		parentId: parent.id,
-		definition: {
-			name,
-			type: StorageNodeTypes.SWIMLANE,
-		},
-	});
+	const swimlane = createSwimlaneNode(inputString || 'New lane', parent.id);
+	// nodeRepository.appendChildToNodeAndSelect(parent, swimlane);
 
-	if (!diskNode) {
-		logger.error('Unable to add swimlane');
-		return {result: cmdResult.Fail};
-	}
-	nodeRepository.appendChildToNodeAndSelect(
-		parent,
-		nodeMapper.toSwimlane(diskNode),
-	);
-	return {result: cmdResult.Success};
+	return {result: cmdResult.Success, data: swimlane};
 };
 
-export const addTicket: NonNullable<CommandLineActionEntry['action']> = (
-	_cmd,
-	{inputString},
-): Result => {
-	const parent = getState().breadCrumb.find(
-		({context}) => context === 'SWIMLANE',
-	);
-
+export const addTicket = (parent: NavNode<AnyContext>, inputString: string) => {
 	if (!parent) {
 		return {
 			result: cmdResult.Fail,
-			message: 'Unable to add issue in this context',
+			message: 'Unable to create ticket in this context',
 		};
 	}
 
-	const newItem = storage.createNode({
-		parentId: parent.id,
-		definition: {
-			name: inputString,
-			type: StorageNodeTypes.ISSUE,
-			children: [
-				{
-					nameId: SEED_RESOURCES.name,
-					type: StorageNodeTypes.FIELD,
-				},
-				{
-					nameId: SEED_RESOURCES.assignees,
-					type: StorageNodeTypes.FIELD_LIST,
-				},
-				{
-					nameId: SEED_RESOURCES.tags,
-					type: StorageNodeTypes.FIELD_LIST,
-				},
-			],
-		},
-	});
+	const ticketId = ulid();
 
-	if (!newItem) {
-		logger.error('Unable to create ticket');
-		return {result: cmdResult.Fail};
-	}
+	const descriptionField = createFieldNode('Description', ticketId);
+	const assigneesField = createFieldListNode('Assignees', ticketId);
+	const tagsField = createFieldListNode('Tags', ticketId);
 
-	nodeRepository.appendChildToNodeAndSelect(
-		parent,
-		nodeMapper.toIssue(newItem),
+	const issue: NavNode<TicketContext> = createTicketNode(
+		inputString,
+		parent.id,
+		[descriptionField.id, assigneesField.id, tagsField.id],
 	);
-	return {result: cmdResult.Success};
+
+	// nodeRepository.createNode?.(descriptionField);
+	// nodeRepository.createNode?.(assigneesField);
+	// nodeRepository.createNode?.(tagsField);
+	// nodeRepository.appendChildToNodeAndSelect(parent, issue);
+
+	return {result: cmdResult.Success, data: issue};
 };
 
 export const addListItem = async (
 	value: string,
-	parent = getState().currentNode,
+	parent: NavNode<AnyContext>,
 ) => {
-	nodeRepository.addListItem(SEED_RESOURCES.tag, value, parent);
+	nodeRepository.addListItem('seed:fieldName:tag', value, parent);
 	navigator.navigate({
 		currentNode: parent,
 		selectedIndex: parent.children.length,

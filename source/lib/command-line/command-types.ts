@@ -24,4 +24,13 @@ export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
 export type CmdResult = (typeof cmdResult)[keyof typeof cmdResult];
 export type CmdValidity = (typeof cmdValidity)[keyof typeof cmdValidity];
 
-export type Result = {result: CmdResult; message?: string};
+export type Result<T = void> = [T] extends [void]
+	? {
+			result: CmdResult;
+			message?: string;
+	  }
+	: {
+			result: CmdResult;
+			message?: string;
+			data: T;
+	  };

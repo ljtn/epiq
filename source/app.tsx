@@ -19,6 +19,7 @@ export default function App() {
 					breadCrumb={state.breadCrumb}
 					viewMode={state.viewMode}
 					mode={state.mode}
+					nodes={state.nodes}
 				/>
 			)}
 

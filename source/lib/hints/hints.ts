@@ -26,4 +26,4 @@ export const Hints = {
 	[NavNodeCtx.FIELD]: [],
 	[NavNodeCtx.SWIMLANE + Mode.MOVE]: [moveSelection, confirmMove],
 	[NavNodeCtx.TICKET + Mode.MOVE]: [moveSelection, enter],
-} as const;
+};

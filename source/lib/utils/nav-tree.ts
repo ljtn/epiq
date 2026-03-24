@@ -1,11 +1,13 @@
 import {BreadCrumb} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {filterMap} from './array.utils.js';
 
 export function replaceNodeInTree<T extends NavNode<AnyContext>>(
 	targetId: string,
 	root: T,
 	replacer: (prev: NavNode<AnyContext>) => NavNode<AnyContext>,
+	nodes: Record<string, NavNode<AnyContext>>,
 ):
 	| {
 			root: T; // overall tree root (possibly new)
@@ -40,20 +42,21 @@ export function replaceNodeInTree<T extends NavNode<AnyContext>>(
 		}
 
 		// otherwise search children
-		for (let i = 0; i < node.children.length; i++) {
-			const child = node.children[i]!;
+		const children = filterMap(node.children, id => nodes[id]);
+		for (let i = 0; i < children.length; i++) {
+			const child = children[i]!;
 			const res = walk(child, nextPath);
 			if (!res) continue;
 
 			// We found it somewhere below; rebuild this node with updated child
-			const nextChildren = node.children.slice();
+			const nextChildren = children.slice();
 			(nextChildren[i] as NavNode<AnyContext>) = res.rebuilt;
 
 			// If the direct child we replaced is *this* child, then the host should be THIS rebuilt node
 			// (not the old `node` reference).
 			const rebuiltNode: NavNode<AnyContext> = {
 				...node,
-				children: nextChildren,
+				children: nextChildren.map(({id}) => id),
 			};
 
 			const host = child.id === targetId ? rebuiltNode : res.host;
@@ -91,6 +94,7 @@ export function replaceNodeInTree<T extends NavNode<AnyContext>>(
 export function removeNodeInTree<T extends NavNode<AnyContext>>(
 	targetId: string,
 	root: T,
+	nodes: Record<string, NavNode<AnyContext>>,
 ):
 	| {
 			root: T; // overall tree root (new)
@@ -117,14 +121,15 @@ export function removeNodeInTree<T extends NavNode<AnyContext>>(
 		// Root removal: let caller decide (we can't return a different root safely)
 		if (node.id === targetId) return undefined;
 
-		for (let i = 0; i < node.children.length; i++) {
-			const child = node.children[i]!;
+		const children = filterMap(node.children, id => nodes[id]);
+		for (let i = 0; i < children.length; i++) {
+			const child = children[i]!;
 			if (child.id === targetId) {
-				const nextChildren = node.children.slice();
+				const nextChildren = children.slice();
 				const removed = nextChildren.splice(i, 1)[0]!;
 				const rebuiltHost: NavNode<AnyContext> = {
 					...node,
-					children: nextChildren,
+					children: nextChildren.map(({id}) => id),
 				};
 
 				return {
@@ -140,13 +145,13 @@ export function removeNodeInTree<T extends NavNode<AnyContext>>(
 			if (!res) continue;
 
 			// Rebuild this node with the rebuilt subtree
-			const nextChildren = node.children.slice();
+			const nextChildren = children.slice();
 			const childIdx = i;
 			(nextChildren[childIdx] as NavNode<AnyContext>) = res.rebuilt;
 
 			const rebuiltNode: NavNode<AnyContext> = {
 				...node,
-				children: nextChildren,
+				children: nextChildren.map(({id}) => id),
 			};
 
 			// If removal happened inside the direct child we just rebuilt,
@@ -180,6 +185,7 @@ export const findNodeInTree = (
 	matcher: Partial<NavNode<AnyContext>>,
 	ctx: NavNode<AnyContext>,
 	breadCrumb: BreadCrumb | [],
+	nodes: Record<string, NavNode<AnyContext>>,
 ): {node: NavNode<AnyContext>; breadCrumb: BreadCrumb} | undefined => {
 	const nextBreadCrumb = [...breadCrumb, ctx] as BreadCrumb;
 
@@ -190,8 +196,9 @@ export const findNodeInTree = (
 		return {node: ctx, breadCrumb: nextBreadCrumb};
 	}
 
-	for (const child of ctx.children) {
-		const res = findNodeInTree(matcher, child, nextBreadCrumb);
+	const children = filterMap(ctx.children, id => nodes[id]);
+	for (const child of children) {
+		const res = findNodeInTree(matcher, child, nextBreadCrumb, nodes);
 		if (res) return res;
 	}
 

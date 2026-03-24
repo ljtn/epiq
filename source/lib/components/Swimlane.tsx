@@ -1,8 +1,10 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {ModeUnion} from '../model/action-map.model.js';
+import {AppState} from '../model/app-state.model.js';
 import {Swimlane} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
+import {filterMap} from '../utils/array.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 import {TicketListItemCompactUI} from './TicketListItemCompact.js';
@@ -16,6 +18,7 @@ type Props = {
 	isFocused: boolean;
 	listSelectedIndex: number;
 	mode: ModeUnion;
+	nodes: AppState['nodes'];
 };
 
 const SwimlaneUIComponent: React.FC<Props> = ({
@@ -27,6 +30,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 	isFocused,
 	listSelectedIndex,
 	mode,
+	nodes,
 }) => {
 	const title = `${swimlane.name} (${swimlane.children.length})`;
 	const cmdInputHeight = 3;
@@ -63,6 +67,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 				ticket={ticket}
 				isSelected={isItemSelected}
 				mode={mode}
+				nodes={nodes}
 			/>
 		) : (
 			<TicketListItemUI
@@ -70,6 +75,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 				width={width}
 				ticket={ticket}
 				isSelected={isItemSelected}
+				nodes={nodes}
 			/>
 		);
 	};
@@ -93,7 +99,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 						height={contentHeight}
 						itemHeight={itemHeight}
 					>
-						{swimlane.children.map(renderItem)}
+						{filterMap(swimlane.children, id => nodes[id]).map(renderItem)}
 					</ScrollBoxUI>
 				)}
 

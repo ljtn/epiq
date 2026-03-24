@@ -1,7 +1,9 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {AppState} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
+import {filterMap} from '../utils/array.utils.js';
 import {
 	sanitizeInlineText,
 	truncateWithEllipsis,
@@ -16,17 +18,21 @@ type TicketFieldMap = Record<
 	}
 >;
 
-export const getTicketFields = (ticket: Ticket): TicketFieldMap => {
+export const getTicketFields = (
+	ticket: Ticket,
+	nodes: AppState['nodes'],
+): TicketFieldMap => {
 	const fields: TicketFieldMap = {};
 
 	if (!ticket) return fields;
-	if (!ticket.children) return fields;
-	for (const field of ticket.children) {
+	const ticketChildren = filterMap(ticket.children, id => nodes[id]);
+	if (!ticketChildren) return fields;
+	for (const field of ticketChildren) {
 		if (!field.name) continue;
-
+		const fieldChildren = filterMap(field.children, id => nodes[id]);
 		fields[field.name] = {
 			value: sanitizeInlineText(field.props['value']),
-			values: field.children
+			values: fieldChildren
 				.map(child => sanitizeInlineText(child.props['value']))
 				.filter(Boolean),
 		};
@@ -39,8 +45,9 @@ export const TicketListItemUI: React.FC<{
 	width: number;
 	ticket: Ticket;
 	isSelected: boolean;
-}> = ({width, ticket, isSelected}) => {
-	const fields = ticket ? getTicketFields(ticket) : null;
+	nodes: AppState['nodes'];
+}> = ({width, ticket, isSelected, nodes}) => {
+	const fields = ticket ? getTicketFields(ticket, nodes) : null;
 
 	const contentWidth = width - 12;
 

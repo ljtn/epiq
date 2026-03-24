@@ -6,6 +6,7 @@ import {theme} from '../theme/themes.js';
 import {getTagColor} from './Tag.js';
 import {getTicketFields} from './TicketListItem.js';
 import {stringToHslHexColor} from '../utils/color.js';
+import {AppState} from '../model/app-state.model.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
 	str.length >= width ? str.slice(0, width - 3) + '...' : str;
@@ -16,6 +17,7 @@ type Props = {
 	ticket: Ticket;
 	isSelected: boolean;
 	mode: ModeUnion;
+	nodes: AppState['nodes'];
 };
 
 export const TicketListItemCompactUI: React.FC<Props> = ({
@@ -24,8 +26,9 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	isSelected,
 	index,
 	mode,
+	nodes,
 }) => {
-	const fields = getTicketFields(ticket);
+	const fields = getTicketFields(ticket, nodes);
 	const tags = fields['Tags']?.values ?? [];
 	const assignees = fields['Assignees']?.values ?? [];
 	const paddingRight = 1;

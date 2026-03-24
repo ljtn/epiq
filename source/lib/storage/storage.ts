@@ -10,15 +10,16 @@ import {
 import {clamp} from '../utils/number.js';
 import {evenlySpacedRanks, midRank, rankBetween} from '../utils/rank.js';
 import {fileManager} from './file-manager.js';
-import {TEMPLATES} from './templates.js';
 import {buildStoragePaths} from './path-manager.js';
 import {SEED_RESOURCES} from './seed.js';
+import {TEMPLATES} from './templates.js';
 
 type Meta = {rootWorkspaceId: string};
 
 type NodeDefinitionTemplate = {
 	name?: string;
 	nameId?: string;
+	parentNodeId: string | null;
 	type: StorageNodeType;
 	initialValue?: string;
 	children?: NodeDefinitionTemplate[];
@@ -213,13 +214,14 @@ export const storage = {
 
 	writeNodeFile(
 		type: StorageNodeType,
-		node: Pick<WorkspaceDiskNode, 'id' | 'name' | 'props'>,
+		node: Pick<WorkspaceDiskNode, 'id' | 'name' | 'props' | 'parentNodeId'>,
 	) {
 		const onDisk: WorkspaceDiskNode = {
 			id: node.id,
 			type,
 			name: node.name,
 			props: node.props ?? {},
+			parentNodeId: node.parentNodeId ?? null,
 		};
 
 		fileManager.writeToFile(
@@ -351,12 +353,15 @@ export const storage = {
 
 	createInitialWorkspace(): WorkspaceDiskNodeComposed | null {
 		try {
+			const workspaceId = ulid();
+
 			const swimlaneIds = TEMPLATES.swimlanes.map(name => {
 				const node = this.createNodeFile(
 					StorageNodeTypes.SWIMLANE,
 					name,
 					{},
 					[],
+					null, // temp, fixed below
 				);
 				return node.id;
 			});
@@ -366,14 +371,27 @@ export const storage = {
 				'Board',
 				{},
 				swimlaneIds,
+				workspaceId,
 			);
+
+			// fix swimlane parents
+			for (const id of swimlaneIds) {
+				const node = this.readNodeFile(id);
+				if (node) {
+					this.writeNodeFile(node.type, {...node, parentNodeId: board.id});
+				}
+			}
 
 			const workspace = this.createNodeFile(
 				StorageNodeTypes.WORKSPACE,
 				'Workspace',
 				{},
 				[board.id],
+				null,
 			);
+
+			// fix board parent
+			this.writeNodeFile(board.type, {...board, parentNodeId: workspace.id});
 
 			this.writeMeta({rootWorkspaceId: workspace.id});
 
@@ -389,17 +407,30 @@ export const storage = {
 		name: string,
 		props: Record<string, string> = {},
 		initialChildren: string[] = [],
+		parentNodeId: string | null,
 	): WorkspaceDiskNodeComposed {
 		const id = ulid();
 		const nameResId = this.createResource(name).id;
 
-		this.writeNodeFile(type, {id, name: nameResId, props});
+		this.writeNodeFile(type, {
+			id,
+			name: nameResId,
+			props,
+			parentNodeId,
+		});
 
 		for (let i = 0; i < initialChildren.length; i++) {
 			this.linkChildAt(id, initialChildren[i]!, i);
 		}
 
-		return {id, name: nameResId, children: initialChildren, props, type};
+		return {
+			id,
+			name: nameResId,
+			children: initialChildren,
+			props,
+			type,
+			parentNodeId,
+		};
 	},
 
 	// -------------------------
@@ -413,7 +444,11 @@ export const storage = {
 		parentId: string;
 		definition: NodeDefinitionTemplate;
 	}): WorkspaceDiskNodeComposed | null {
-		const nodeId = this.createNodeFromDefinitionNoLink(definition).id;
+		const nodeId = this.createNodeFromDefinitionNoLink({
+			...definition,
+			parentNodeId: parentId,
+		}).id;
+
 		const parentChildren = this.listChildrenOrdered(parentId);
 		this.linkChildAt(parentId, nodeId, parentChildren.length);
 		return this.getNode(nodeId);
@@ -425,6 +460,7 @@ export const storage = {
 		initialValue,
 		type,
 		children,
+		parentNodeId,
 	}: NodeDefinitionTemplate): {
 		id: string;
 	} {
@@ -436,10 +472,15 @@ export const storage = {
 			id: nodeId,
 			name: nameId,
 			props: {value: valueId},
+			parentNodeId,
 		});
 
 		for (const [index, child] of (children ?? []).entries()) {
-			const childId = this.createNodeFromDefinitionNoLink(child).id;
+			const childId = this.createNodeFromDefinitionNoLink({
+				...child,
+				parentNodeId: nodeId,
+			}).id;
+
 			this.linkChildAt(nodeId, childId, index);
 		}
 
@@ -472,6 +513,14 @@ export const storage = {
 		const idx = clamp(toIndex, 0, toChildren.length);
 
 		this.linkChildAt(toParentId, movedId, idx);
+
+		const node = this.readNodeFile(movedId);
+		if (node) {
+			this.writeNodeFile(node.type, {
+				...node,
+				parentNodeId: toParentId,
+			});
+		}
 
 		return {nodeId: movedId};
 	},

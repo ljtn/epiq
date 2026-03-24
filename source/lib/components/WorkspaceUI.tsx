@@ -1,10 +1,10 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {ModeUnion} from '../model/action-map.model.js';
-import {BreadCrumb, ViewMode} from '../model/app-state.model.js';
-import {AnyContext} from '../model/context.model.js';
+import {AppState, BreadCrumb, ViewMode} from '../model/app-state.model.js';
+import {AnyContext, isSwimlaneNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {DeepReadonly} from '../model/readonly.model.js';
+import {filterMap} from '../utils/array.utils.js';
 import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';
 import {Breadcrumb} from './BreadCrumb.js';
@@ -12,9 +12,10 @@ import {Breadcrumb} from './BreadCrumb.js';
 type Props = {
 	currentNode: NavNode<AnyContext>;
 	selectedIndex: number;
-	breadCrumb: DeepReadonly<BreadCrumb>;
+	breadCrumb: BreadCrumb;
 	viewMode: ViewMode;
 	mode: ModeUnion;
+	nodes: AppState['nodes'];
 };
 const WorkspaceUIComponent: React.FC<Props> = ({
 	currentNode,
@@ -22,6 +23,7 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 	breadCrumb,
 	mode,
 	viewMode,
+	nodes,
 }) => {
 	const board =
 		breadCrumb.length >= 2 && breadCrumb[1]?.context === 'BOARD'
@@ -36,12 +38,17 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 					<BoardList />
 				) : board ? (
 					<BoardUI
-						swimlanes={board.children}
+						swimlanes={filterMap(board.children, id => {
+							const node = nodes[id];
+							if (!node) return null;
+							return isSwimlaneNode(node) ? node : null;
+						})}
 						currentNode={currentNode}
 						selectedIndex={selectedIndex}
 						breadCrumb={breadCrumb}
 						viewMode={viewMode}
 						mode={mode}
+						nodes={nodes}
 					/>
 				) : (
 					<Text />
