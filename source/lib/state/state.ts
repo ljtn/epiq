@@ -56,7 +56,11 @@ function derive(state: BaseState): AppState {
 		throw Error();
 	}
 
-	const currentNode = found.node;
+	const currentNode = nodes[currentNodeId];
+	if (!currentNode) {
+		logger.error('Unable to derive state, currentNode not found');
+		throw Error();
+	}
 	const breadCrumb: BreadCrumb = found.breadCrumb;
 
 	const {context} = currentNode;

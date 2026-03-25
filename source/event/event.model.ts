@@ -47,7 +47,6 @@ export type AppEvent = AppEventMap[keyof AppEventMap]['event'];
 
 type EventAction = keyof AppEventMap;
 
-type EventOf<A extends EventAction> = AppEventMap[A]['event'];
 type EventResult<A extends EventAction> = AppEventMap[A]['result'];
 
 export type PlayEventResult<E extends AppEvent> = ReturnedSuccess<

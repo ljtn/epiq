@@ -1,4 +1,3 @@
-import {ulid} from 'ulid';
 import {NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 

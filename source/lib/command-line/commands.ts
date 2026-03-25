@@ -1,3 +1,4 @@
+import {ulid} from 'ulid';
 import {materialize} from '../../event/event-materialize.js';
 import {nodeRepo} from '../actions/add-item/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
@@ -54,7 +55,11 @@ export const commands: CommandLineActionEntry[] = [
 
 				return materialize({
 					action: 'add.board',
-					payload: {name: cmdState.inputString, parent: workspace},
+					payload: {
+						id: ulid(),
+						name: cmdState.inputString,
+						parentId: workspace.id,
+					},
 				});
 			} else if (cmdState.modifier === 'swimlane') {
 				const board = findInBreadCrumb(getState().breadCrumb, 'BOARD');
@@ -62,7 +67,7 @@ export const commands: CommandLineActionEntry[] = [
 
 				return materialize({
 					action: 'add.swimlane',
-					payload: {name: cmdState.inputString, parent: board},
+					payload: {id: ulid(), name: cmdState.inputString, parentId: board.id},
 				});
 			} else if (cmdState.modifier === 'issue') {
 				const swimlane = findInBreadCrumb(getState().breadCrumb, 'SWIMLANE');
@@ -70,7 +75,11 @@ export const commands: CommandLineActionEntry[] = [
 
 				return materialize({
 					action: 'add.issue',
-					payload: {name: cmdState.inputString, parent: swimlane},
+					payload: {
+						id: ulid(),
+						name: cmdState.inputString,
+						parentId: swimlane.id,
+					},
 				});
 			}
 

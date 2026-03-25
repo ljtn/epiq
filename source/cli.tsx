@@ -2,13 +2,13 @@
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
+import {ulid} from 'ulid';
 import App from './app.js';
+import {materializeAll} from './event/event-materialize.js';
 import {initProject} from './InitView.js';
-import {materialize, materializeAll} from './event/event-materialize.js';
 import {navigationUtils} from './lib/actions/default/navigation-action-utils.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
-import {ulid} from 'ulid';
 
 const cli = meow(
 	`
@@ -76,8 +76,8 @@ process.stdout.on('resize', () => {
 			]);
 
 			navigationUtils.navigate({
-				currentNode: allMaterialized[0]?.data,
-				selectedIndex: 0,
+				currentNode: allMaterialized.at(-1)?.data,
+				selectedIndex: 1,
 			});
 		}
 
