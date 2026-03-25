@@ -1,13 +1,12 @@
-import {ulid} from 'ulid';
+import {nodeRepo} from '../lib/actions/add-item/node-repo.js';
 import {
 	failed,
 	ReturnedSuccess,
 	succeeded,
 } from '../lib/command-line/command-types.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
-import {nodeBuilder} from '../lib/state/node-builder.js';
-import {initWorkspaceState} from '../lib/state/state.js';
-import {nodeRepo} from '../lib/actions/add-item/node-repo.js';
+import {nodes} from '../lib/state/node-builder.js';
+import {getState, initWorkspaceState} from '../lib/state/state.js';
 
 type InitWorkspaceEvent = {
 	action: 'init.workspace';
@@ -72,7 +71,7 @@ export function playEvent(
 export function playEvent(event: AppEvent) {
 	switch (event.action) {
 		case 'init.workspace': {
-			const workspace = nodeBuilder.workspace(event.payload.name);
+			const workspace = nodes.workspace(event.payload.name);
 			initWorkspaceState(workspace);
 			nodeRepo.createNode(workspace);
 
@@ -80,7 +79,7 @@ export function playEvent(event: AppEvent) {
 		}
 		case 'add.workspace': {
 			// Unclear if we want to support this
-			const workspace = nodeBuilder.workspace(event.payload.name);
+			const workspace = nodes.workspace(event.payload.name);
 			nodeRepo.createNode(workspace);
 
 			return succeeded('Added workspace', workspace);
@@ -88,44 +87,29 @@ export function playEvent(event: AppEvent) {
 
 		case 'add.board': {
 			const {name, parent} = event.payload;
-			const board = nodeBuilder.board(name, parent.id);
-			nodeRepo.appendChildToNode(parent.id, board);
+			const board = nodeRepo.createNode(nodes.board(name, parent.id));
 
 			return succeeded('Added board', board);
 		}
 
 		case 'add.swimlane': {
 			const {name, parent} = event.payload;
-			const swimlane = nodeBuilder.swimlane(name || 'New lane', parent.id);
-			nodeRepo.appendChildToNode(parent.id, swimlane);
+			const swimlane = nodeRepo.createNode(
+				nodes.swimlane(name || 'New lane', parent.id),
+			);
 
 			return succeeded('Added swimlane', swimlane);
 		}
 
 		case 'add.issue': {
 			const {name, parent} = event.payload;
+			const issue = nodeRepo.createNode(nodes.ticket(name, parent.id));
 
-			const ticketId = ulid();
-			const descriptionField = nodeBuilder.field('Description', ticketId);
-			const assigneesField = nodeBuilder.fieldList('Assignees', ticketId);
-			const tagsField = nodeBuilder.fieldList('Tags', ticketId);
+			nodeRepo.createNode(nodes.field('Description', issue.id, ''));
+			nodeRepo.createNode(nodes.fieldList('Assignees', issue.id));
+			nodeRepo.createNode(nodes.fieldList('Tags', issue.id));
 
-			const issue = nodeBuilder.ticket(name, parent.id, [
-				descriptionField.id,
-				assigneesField.id,
-				tagsField.id,
-			]);
-
-			nodeRepo.createNode(descriptionField);
-			nodeRepo.createNode(assigneesField);
-			nodeRepo.createNode(tagsField);
-
-			nodeRepo.appendChildToNode(issue.id, descriptionField);
-			nodeRepo.appendChildToNode(issue.id, assigneesField);
-			nodeRepo.appendChildToNode(issue.id, tagsField);
-
-			nodeRepo.appendChildToNode(parent.id, issue);
-
+			logger.info(getState().nodes);
 			return succeeded('Added issue', issue);
 		}
 

@@ -2,7 +2,7 @@ import {ulid} from 'ulid';
 import {NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
-export const nodeBuilder = {
+export const nodes = {
 	workspace: (name: string): NavNode<'WORKSPACE'> => ({
 		id: ulid(),
 		name,
@@ -58,17 +58,13 @@ export const nodeBuilder = {
 		children: [],
 	}),
 
-	ticket: (
-		name: string,
-		parentNodeId: string,
-		children: string[],
-	): NavNode<'TICKET'> => ({
+	ticket: (name: string, parentNodeId: string): NavNode<'TICKET'> => ({
 		id: ulid(),
 		name,
 		props: {value: ''},
 		context: NavNodeCtx.TICKET,
 		childRenderAxis: 'vertical',
 		parentNodeId,
-		children,
+		children: [],
 	}),
 };

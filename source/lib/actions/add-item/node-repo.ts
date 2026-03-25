@@ -20,6 +20,8 @@ export const nodeRepo = {
 			},
 		}));
 
+		if (node.parentNodeId) this.appendChildToNode(node.parentNodeId, node);
+
 		return node;
 	},
 
@@ -52,7 +54,10 @@ export const nodeRepo = {
 		const {nodes} = getState();
 		const parent = this.getNode(parentId);
 		if (!parent) {
-			logger.error('Unable to add child node to undefined parent');
+			logger.error(
+				'Unable to add child node to undefined parent with id:',
+				parentId,
+			);
 			return;
 		}
 		const nextParent = appendChildId(parent, child.id);
