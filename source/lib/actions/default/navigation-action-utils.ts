@@ -43,17 +43,15 @@ export const navigationUtils: Navigator = {
 		const {currentNode, nodes} = getState();
 
 		if (!currentNode.parentNodeId) {
-			logger.error('Missing parent node id');
+			logger.info('Missing parent node id');
 			return;
 		}
 		const parent = nodes[currentNode.parentNodeId];
-		logger.debug('parent', parent);
 		if (!parent) {
 			logger.error('Parent not found');
 			return;
 		}
 		const idx = parent.children.findIndex(id => id === currentNode.id);
-		// logger.debug('hehe', currentNode.parentNodeId);
 		const selectedIndex =
 			parent.children.length === 0 ? -1 : idx >= 0 ? idx : 0;
 

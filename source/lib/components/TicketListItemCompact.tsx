@@ -60,7 +60,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 					<Text color={theme.secondary}>{index + 1 + '. '}</Text>
 				)}
 				<Text color={color}>
-					{truncateWithEllipsis(ticket.name, width - tagsWidth - 15)}
+					{truncateWithEllipsis(ticket.title, width - tagsWidth - 15)}
 				</Text>
 			</Box>
 

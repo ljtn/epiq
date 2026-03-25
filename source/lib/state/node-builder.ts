@@ -4,7 +4,7 @@ import {NavNode} from '../model/navigation-node.model.js';
 export const nodes = {
 	workspace: (id: string, name: string): NavNode<'WORKSPACE'> => ({
 		id,
-		name,
+		title: name,
 		props: {value: ''},
 		context: NavNodeCtx.WORKSPACE,
 		childRenderAxis: 'vertical',
@@ -18,7 +18,7 @@ export const nodes = {
 		parentNodeId: string,
 	): NavNode<'BOARD'> => ({
 		id,
-		name,
+		title: name,
 		props: {value: ''},
 		context: NavNodeCtx.BOARD,
 		childRenderAxis: 'horizontal',
@@ -32,7 +32,7 @@ export const nodes = {
 		parentNodeId: string,
 	): NavNode<'SWIMLANE'> => ({
 		id,
-		name,
+		title: name,
 		props: {value: ''},
 		context: NavNodeCtx.SWIMLANE,
 		childRenderAxis: 'vertical',
@@ -48,7 +48,7 @@ export const nodes = {
 		value = '',
 	): NavNode<'FIELD'> => ({
 		id,
-		name,
+		title: name,
 		props: {value},
 		context: NavNodeCtx.FIELD,
 		childRenderAxis: 'vertical',
@@ -62,7 +62,7 @@ export const nodes = {
 		parentNodeId: string,
 	): NavNode<'FIELD_LIST'> => ({
 		id,
-		name,
+		title: name,
 		props: {value: ''},
 		context: NavNodeCtx.FIELD_LIST,
 		childRenderAxis: 'horizontal',
@@ -76,7 +76,7 @@ export const nodes = {
 		parentNodeId: string,
 	): NavNode<'TICKET'> => ({
 		id,
-		name,
+		title: name,
 		props: {value: ''},
 		context: NavNodeCtx.TICKET,
 		childRenderAxis: 'vertical',

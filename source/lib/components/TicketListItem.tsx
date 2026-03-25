@@ -28,9 +28,9 @@ export const getTicketFields = (
 	const ticketChildren = filterMap(ticket.children, id => nodes[id]);
 	if (!ticketChildren) return fields;
 	for (const field of ticketChildren) {
-		if (!field.name) continue;
+		if (!field.title) continue;
 		const fieldChildren = filterMap(field.children, id => nodes[id]);
-		fields[field.name] = {
+		fields[field.title] = {
 			value: sanitizeInlineText(field.props['value']),
 			values: fieldChildren
 				.map(child => sanitizeInlineText(child.props['value']))
@@ -52,7 +52,7 @@ export const TicketListItemUI: React.FC<{
 	const contentWidth = width - 12;
 
 	const title = truncateWithEllipsis(
-		sanitizeInlineText(ticket.name),
+		sanitizeInlineText(ticket.title),
 		contentWidth,
 	);
 

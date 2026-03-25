@@ -28,7 +28,7 @@ export const ticketRepository = {
 		setCmdInput(() => {
 			const s = getState();
 			return `${CmdIntent.Rename} ${
-				nodes[s.currentNode.children[s.selectedIndex] ?? '']?.name ?? ''
+				nodes[s.currentNode.children[s.selectedIndex] ?? '']?.title ?? ''
 			}`;
 		});
 	},

@@ -32,7 +32,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 	mode,
 	nodes,
 }) => {
-	const title = `${swimlane.name} (${swimlane.children.length})`;
+	const title = `${swimlane.title} (${swimlane.children.length})`;
 	const cmdInputHeight = 3;
 
 	const itemHeight = isDense ? 1 : 4;

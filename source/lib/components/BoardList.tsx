@@ -44,7 +44,7 @@ export default function BoardList() {
 								{isSelected ? '⸬  ' : '   '}
 							</Text>
 							<Text color={isSelected ? theme.accent : theme.secondary}>
-								{board.name} ({issuesCount} issues)
+								{board.title} ({issuesCount} issues)
 							</Text>
 						</Box>
 					);

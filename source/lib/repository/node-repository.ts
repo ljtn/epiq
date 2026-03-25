@@ -74,10 +74,10 @@ function collectFieldListValues(
 	const seen = new Set<string>();
 	const visit = (current: NavNode<AnyContext>) => {
 		const children = filterMap(current.children, id => nodes[id]);
-		if (current.name === fieldName && isFieldListNode(current)) {
+		if (current.title === fieldName && isFieldListNode(current)) {
 			for (const child of children ?? []) {
 				if (!child) continue;
-				const raw = String(child.props?.['value'] ?? child.name ?? '');
+				const raw = String(child.props?.['value'] ?? child.title ?? '');
 				const value = normalizeListValue(raw);
 				const key = value.toLowerCase();
 
@@ -120,10 +120,10 @@ export const nodeRepository = {
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
-				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
+				`Parent node context ${parent.context} for "${parent.title}" is not a list.`,
 			);
 			return failed(
-				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
+				`Parent node context ${parent.context} for "${parent.title}" is not a list.`,
 			);
 		}
 
@@ -145,7 +145,7 @@ export const nodeRepository = {
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
-				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
+				`Parent node context ${parent.context} for "${parent.title}" is not a list.`,
 			);
 			return failed('Parent node context is not a list');
 		}
@@ -174,7 +174,7 @@ export const nodeRepository = {
 			logger.error(`Missing target node`);
 			return;
 		}
-		return findNodeInTree({name: parentName}, target, [], nodes)?.node;
+		return findNodeInTree({title: parentName}, target, [], nodes)?.node;
 	},
 
 	addListItem(

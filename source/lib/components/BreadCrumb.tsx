@@ -7,30 +7,29 @@ import {TagUI} from './Tag.js';
 import {getTicketFields} from './TicketListItem.js';
 import {AssigneeUI} from './Assignee.js';
 import {filterMap} from '../utils/array.utils.js';
+import {findInBreadCrumb} from '../model/app-state.model.js';
 
 export const Breadcrumb: React.FC = () => {
 	const {breadCrumb: crumbs, selectedIndex, viewMode, nodes} = getState();
-	const lastIndex = crumbs.length - 1;
-	const lastId = crumbs.at(-1)?.children[selectedIndex];
+	const ticket = findInBreadCrumb(crumbs, 'TICKET');
 
-	if (!lastId) return;
-	const fields = getTicketFields(nodes[lastId] as Ticket, nodes);
+	const fields = getTicketFields(ticket as Ticket, nodes);
 	const tags = fields['Tags']?.values ?? [];
 	const assignees = fields['Assignees']?.values ?? [];
 
 	return (
 		<Box>
 			{crumbs.map((b, i) => {
-				const isLast = i === lastIndex;
+				const isLast = i === crumbs.length - 1;
 				const children = filterMap(b.children, id => nodes[id]);
 				const selectedChildTitle = isLast
-					? children?.[selectedIndex]?.name
+					? children?.[selectedIndex]?.title
 					: undefined;
 
 				return (
 					<Box key={`${b.id ?? i}-${i}`}>
 						<Text color={theme.secondary}>{i ? ' / ' : ''}</Text>
-						<Text color={theme.secondary}>{b.name ?? ''}</Text>
+						<Text color={theme.secondary}>{b.title ?? ''}</Text>
 
 						{selectedChildTitle ? (
 							<Text color={theme.primary}>{` ⸬ ${selectedChildTitle}`}</Text>

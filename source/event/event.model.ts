@@ -1,4 +1,7 @@
-import {ReturnedSuccess} from '../lib/command-line/command-types.js';
+import {
+	ReturnedNoSuccess,
+	ReturnedSuccess,
+} from '../lib/command-line/command-types.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 
 type AppEventMap = {
@@ -41,6 +44,20 @@ type AppEventMap = {
 		};
 		result: NavNode<'TICKET'>;
 	};
+	'edit.title': {
+		event: {
+			action: 'edit.title';
+			payload: {id: string; value: string};
+		};
+		result: string;
+	};
+	'edit.description': {
+		event: {
+			action: 'edit.description';
+			payload: {id: string; resourceId: string; version: number};
+		};
+		result: string;
+	};
 };
 
 export type AppEvent = AppEventMap[keyof AppEventMap]['event'];
@@ -49,6 +66,6 @@ type EventAction = keyof AppEventMap;
 
 type EventResult<A extends EventAction> = AppEventMap[A]['result'];
 
-export type PlayEventResult<E extends AppEvent> = ReturnedSuccess<
-	EventResult<E['action']>
->;
+export type MaterializeResult<E extends AppEvent> =
+	| ReturnedSuccess<EventResult<E['action']>>
+	| ReturnedNoSuccess;

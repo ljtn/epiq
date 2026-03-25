@@ -1,14 +1,11 @@
 import {ulid} from 'ulid';
 import {materialize} from '../../event/event-materialize.js';
 import {nodeRepo} from '../actions/add-item/node-repo.js';
-import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {findInBreadCrumb} from '../model/app-state.model.js';
 import {nodeRepository} from '../repository/node-repository.js';
 import {getCmdArg, getCmdState} from '../state/cmd.state.js';
 import {getState, patchState, updateState} from '../state/state.js';
-import {storage} from '../storage/storage.js';
-import {nodeMapper} from '../utils/node-mapper.js';
 import {CmdIntent} from './command-meta.js';
 import {
 	cmdResult,
@@ -17,6 +14,7 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 
 export const commands: CommandLineActionEntry[] = [
 	{
@@ -73,13 +71,19 @@ export const commands: CommandLineActionEntry[] = [
 				const swimlane = findInBreadCrumb(getState().breadCrumb, 'SWIMLANE');
 				if (!swimlane) return failed('Unable to add issue in this context');
 
-				return materialize({
+				const materialized = materialize({
 					action: 'add.issue',
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
 						parentId: swimlane.id,
 					},
+				});
+				if (!materialized.data) return failed('Unable to materialize');
+
+				navigationUtils.navigate({
+					currentNode: swimlane,
+					selectedIndex: swimlane.children.length,
 				});
 			}
 
@@ -112,40 +116,20 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Rename,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
+			const {currentNode, selectedIndex} = getState();
+			const nodeId = currentNode.children[selectedIndex];
+			if (!nodeId) return failed('Missing node id');
+			const node = nodeRepo.getNode(nodeId);
+			if (!node) return failed('Missing node');
+
 			const newName = getCmdArg();
 			if (!newName) return failed('Provide a new name');
 
-			const {nodes, currentNode, selectedIndex} = getState();
-			const current = currentNode;
-
-			const childId = current.children[selectedIndex];
-			if (!childId) return failed('Rename failed');
-
-			const targetNode = nodes[childId];
-			if (!targetNode) return failed('Rename failed');
-
-			const nodeType = nodeMapper.contextToNodeTypeMap(targetNode.context);
-			if (!nodeType) return failed('Rename failed');
-
-			// now returns only nodeId (persisted to disk)
-			const nodeId = storage.renameNodeTitle(targetNode.id, newName);
-			if (!nodeId) return failed('Rename failed');
-
-			// reload from disk and remap (source of truth)
-			const workspaceDisk = storage.loadWorkspace();
-			if (!workspaceDisk) return failed('Rename failed');
-
-			const newRootNav = nodeMapper.toWorkspace(workspaceDisk);
-			if (!newRootNav) return failed('Rename failed');
-
-			patchState({
-				rootNodeId: newRootNav.id,
+			materialize({
+				action: 'edit.title',
+				payload: {id: node.id, value: newName},
 			});
 
-			navigationUtils.navigate({
-				currentNode: current, // id-based lookup will resolve to tree instance
-				selectedIndex: selectedIndex,
-			});
 			return succeeded('Renamed node', newName);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),

@@ -44,7 +44,7 @@ export const nodeRepo = {
 				...s.nodes,
 				[node.id]: node,
 			},
-			currentNodeId: s.currentNode.id === node.id ? s.currentNode.id : node.id,
+			currentNodeId: s.currentNode.id === node.id ? s.currentNode.id : node.id, // BIG question mark here ??
 		}));
 
 		return node;

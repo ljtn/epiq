@@ -75,9 +75,13 @@ process.stdout.on('resize', () => {
 				},
 			]);
 
+			const firstSwimlane = allMaterialized.at(2)?.data;
+			if (!firstSwimlane)
+				return logger.error('Unable to resolve navigation target');
+
 			navigationUtils.navigate({
-				currentNode: allMaterialized.at(-1)?.data,
-				selectedIndex: 1,
+				currentNode: firstSwimlane,
+				selectedIndex: -1,
 			});
 		}
 

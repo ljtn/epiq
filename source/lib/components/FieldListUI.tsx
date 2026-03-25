@@ -17,7 +17,7 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			<Text color={selected ? theme.primary : theme.secondary}>
-				{' ' + fieldList.name}:
+				{' ' + fieldList.title}:
 			</Text>
 
 			<Box
@@ -42,7 +42,7 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 								? '⸬ '
 								: '  '}
 						</Text>
-						{field.name === 'seed:fieldName:assignee' && (
+						{field.title === 'seed:fieldName:assignee' && (
 							<AssigneeUI
 								name={field.props['value'] ?? ''}
 								isSelected={
@@ -50,7 +50,7 @@ export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
 								}
 							></AssigneeUI>
 						)}
-						{field.name === 'seed:fieldName:tag' && (
+						{field.title === 'seed:fieldName:tag' && (
 							<TagUI
 								name={field.props['value'] ?? ''}
 								isSelected={

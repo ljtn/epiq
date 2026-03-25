@@ -36,7 +36,7 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label || '',
+			title: label || '',
 			props: {value: value || ''},
 			context: NavNodeCtx.WORKSPACE,
 			childRenderAxis: 'vertical',
@@ -52,7 +52,7 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label || '',
+			title: label || '',
 			props: {value: value || ''},
 			context: NavNodeCtx.BOARD,
 			childRenderAxis: 'horizontal',
@@ -68,7 +68,7 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label || '',
+			title: label || '',
 			props: {value: value || ''},
 			context: NavNodeCtx.SWIMLANE,
 			childRenderAxis: 'vertical',
@@ -85,7 +85,7 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label || '',
+			title: label || '',
 			props: {value: value || ''},
 			context: NavNodeCtx.TICKET,
 			childRenderAxis: 'vertical',
@@ -101,7 +101,7 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label || '',
+			title: label || '',
 			props: {value: value || ''},
 			context: NavNodeCtx.FIELD,
 			childRenderAxis: 'vertical',
@@ -119,7 +119,7 @@ export const nodeMapper = {
 			: '';
 		return {
 			id: data.id,
-			name: label || '',
+			title: label || '',
 			props: {value: value || ''},
 			context: NavNodeCtx.FIELD_LIST,
 			childRenderAxis: 'horizontal',
