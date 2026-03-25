@@ -6,7 +6,7 @@ import {inputActions} from '../actions/input/input-actions.js';
 import {Hints} from '../hints/hints.js';
 import {Mode} from '../model/action-map.model.js';
 import type {AppState, BreadCrumb} from '../model/app-state.model.js';
-import type {AnyContext} from '../model/context.model.js';
+import type {AnyContext, Workspace} from '../model/context.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
 import {findNodeInTree} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
@@ -52,7 +52,8 @@ function derive(state: BaseState): AppState {
 	}
 	const found = findNodeInTree({id: currentNodeId}, rootNode, [], nodes);
 	if (!found?.node || !found?.breadCrumb) {
-		throw new Error(`derive(): unable to find node ${currentNodeId} in tree`);
+		logger.error(`derive(): unable to find node ${currentNodeId} in tree`);
+		throw Error();
 	}
 
 	const currentNode = found.node;
@@ -90,37 +91,14 @@ export const getState = () => {
 	return _appState;
 };
 
-export function initWorkspaceState(
-	nodes: Record<string, NavNode<AnyContext>>,
-	workspaceId: string,
-) {
-	const workspace = nodes[workspaceId];
-	const firstBoardId = workspace?.children?.[0];
-	if (!firstBoardId) {
-		logger.error('Unable to find first id');
-		return;
-	}
-	const firstBoard = nodes[firstBoardId];
-	if (!firstBoard) {
-		logger.error('Unable to find first board');
-		return;
-	}
-	const firstTicketId = firstBoard?.children[0];
-	if (!firstTicketId) return;
-	const firstTicket = nodes[firstTicketId];
-	if (!firstTicket) {
-		logger.error('Unable to find first ticket');
-		return;
-	}
-	const currentNode = firstTicket ?? firstBoard ?? workspace;
-
+export function initWorkspaceState(workspace: Workspace) {
 	const base: BaseState = {
-		nodes,
-		mode: Mode.DEFAULT,
-		rootNodeId: firstBoardId,
-		currentNodeId: currentNode.id,
-		selectedIndex: currentNode.children.length ? 0 : -1,
 		viewMode: 'dense',
+		mode: Mode.DEFAULT,
+		nodes: {[workspace.id]: workspace},
+		rootNodeId: workspace.id,
+		currentNodeId: workspace.id,
+		selectedIndex: -1,
 	};
 
 	_appState = derive(base);

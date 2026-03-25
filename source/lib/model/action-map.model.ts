@@ -1,6 +1,6 @@
 import readline from 'readline';
-import {Result} from '../command-line/command-types.js';
 import {ParsedCommandLine} from '../command-line/command-parser.js';
+import {ReturnedResult} from '../command-line/command-types.js';
 
 export const Mode = {
 	DEFAULT: 'default',
@@ -26,9 +26,9 @@ type CommandLineInput = Pick<
 	'command' | 'modifier' | 'inputString'
 >;
 export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
-	action?: (
+	action: (
 		...args: [CommandLineActionEntry, CommandLineInput]
-	) => void | Result;
+	) => ReturnedResult;
 	onSuccess?: () => void;
 };
 

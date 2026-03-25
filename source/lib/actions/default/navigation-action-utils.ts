@@ -20,7 +20,7 @@ export interface Navigator {
 	navigateToPreviousContainer: () => void;
 }
 
-export const navigator: Navigator = {
+export const navigationUtils: Navigator = {
 	exit() {
 		process.exit(0);
 	},
@@ -33,30 +33,31 @@ export const navigator: Navigator = {
 		const focusNode = focusNodeId ? state.nodes[focusNodeId] : undefined;
 		if (!focusNode || currentNode.context === 'FIELD') return;
 
-		navigator.navigate({
+		navigationUtils.navigate({
 			currentNode: focusNode,
 			selectedIndex: focusNode.children.length ? 0 : -1,
 		});
 	},
 
 	enterParentNode() {
-		const {breadCrumb, currentNode, nodes} = getState();
-		if (breadCrumb.length < 2) return;
+		const {currentNode, nodes} = getState();
 
 		if (!currentNode.parentNodeId) {
 			logger.error('Missing parent node id');
 			return;
 		}
 		const parent = nodes[currentNode.parentNodeId];
+		logger.debug('parent', parent);
 		if (!parent) {
 			logger.error('Parent not found');
 			return;
 		}
 		const idx = parent.children.findIndex(id => id === currentNode.id);
+		// logger.debug('hehe', currentNode.parentNodeId);
 		const selectedIndex =
 			parent.children.length === 0 ? -1 : idx >= 0 ? idx : 0;
 
-		navigator.navigate({currentNode: parent, selectedIndex});
+		navigationUtils.navigate({currentNode: parent, selectedIndex});
 	},
 
 	navigateToNextItem: () => navigateByOffset(1),
@@ -66,9 +67,6 @@ export const navigator: Navigator = {
 	navigateToPreviousContainer: () => navigateToSiblingContainer(-1),
 
 	navigate: ({currentNode = getState().currentNode, selectedIndex}) => {
-		if (!currentNode.parentNodeId) {
-			return;
-		}
 		patchState({
 			currentNodeId: currentNode.id,
 			selectedIndex,
@@ -84,7 +82,7 @@ const navigateByOffset = (offset: number) => {
 	const base = Math.max(0, state.selectedIndex);
 	const newIndex = (base + offset + len) % len;
 
-	navigator.navigate({selectedIndex: newIndex});
+	navigationUtils.navigate({selectedIndex: newIndex});
 };
 
 const navigateToSiblingContainer = (direction: -1 | 1) => {
@@ -110,7 +108,7 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 	const boundedIndex = Math.min(Math.max(0, selectedIndex), maxIndex);
 	const newSelectedIndex = nextSibling.children.length ? boundedIndex : -1;
 
-	navigator.navigate({
+	navigationUtils.navigate({
 		currentNode: nextSibling,
 		selectedIndex: newSelectedIndex,
 	});

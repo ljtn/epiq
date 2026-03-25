@@ -1,4 +1,8 @@
-import {cmdResult, Result} from '../command-line/command-types.js';
+import {
+	failed,
+	ReturnedResult,
+	succeeded,
+} from '../command-line/command-types.js';
 import {Mode} from '../model/action-map.model.js';
 import {
 	AnyContext,
@@ -108,46 +112,42 @@ export const nodeRepository = {
 		return collectFieldListValues(rootNode, 'Assignees');
 	},
 
-	addTag(name: string): Result {
+	addTag(name: string): ReturnedResult {
 		const parent = this.findListItemParent('Tags');
 		if (!parent) {
 			logger.error(`Could not find node with name "${name}"`);
-			return {result: cmdResult.Fail, message: 'Could not find parent to tag'};
+			return failed('Could not find parent to tag');
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
 				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
 			);
-			return {
-				result: cmdResult.Fail,
-				message: `Parent node context ${parent.context} for "${parent.name}" is not a list.`,
-			};
+			return failed(
+				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
+			);
 		}
 
 		const {nodes} = getState();
 		const children = filterMap(parent.children, id => nodes[id]);
 		if (children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate tag');
-			return {
-				result: cmdResult.Fail,
-				message: 'Cannot add duplicate tag',
-			};
+			return failed('Cannot add duplicate tag');
 		}
 
 		return this.addListItem(SEED_RESOURCES.tag, name, parent);
 	},
 
-	assignUser(name: string): Result {
+	assignUser(name: string): ReturnedResult {
 		const parent = this.findListItemParent('Assignees');
 		if (!parent) {
 			logger.error(`Could not find node with name "${name}"`);
-			return {result: cmdResult.Fail, message: ''};
+			return failed(`Could not find node with name "${name}"`);
 		}
 		if (!isFieldListNode(parent)) {
 			logger.error(
 				`Parent node context ${parent.context} for "${parent.name}" is not a list.`,
 			);
-			return {result: cmdResult.Fail, message: ''};
+			return failed('Parent node context is not a list');
 		}
 
 		const {nodes} = getState();
@@ -159,10 +159,7 @@ export const nodeRepository = {
 		);
 		if (children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate assignee');
-			return {
-				result: cmdResult.Fail,
-				message: 'Cannot add duplicate assignee',
-			};
+			return failed('Cannot add duplicate assignee');
 		}
 
 		return this.addListItem(SEED_RESOURCES.assignee, name, parent);
@@ -184,22 +181,16 @@ export const nodeRepository = {
 		name: (typeof SEED_RESOURCES)[keyof typeof SEED_RESOURCES],
 		valueRaw: string,
 		parent: NavNode<AnyContext>,
-	): Result {
+	): ReturnedResult {
 		const value = sanitizeInlineText(valueRaw);
 		if (!value) {
 			logger.error('Unable to add list item without name');
-			return {
-				result: cmdResult.Fail,
-				message: 'Unable to add list item without name',
-			};
+			return failed('Unable to add list item without name');
 		}
 
 		if (parent.context !== NavNodeCtx.FIELD_LIST) {
 			logger.error('Field item can only be added inside a FIELD_LIST node');
-			return {
-				result: cmdResult.Fail,
-				message: 'Field item can only be added inside a FIELD_LIST node',
-			};
+			return failed('Field item can only be added inside a FIELD_LIST node');
 		}
 
 		const itemValue = value || '';
@@ -215,10 +206,7 @@ export const nodeRepository = {
 
 		if (!diskNode) {
 			logger.error('Unable to add field item');
-			return {
-				result: cmdResult.Fail,
-				message: 'Unable to add field item',
-			};
+			return failed('Unable to add field item');
 		}
 
 		// Now update its value resource
@@ -226,9 +214,7 @@ export const nodeRepository = {
 
 		nodeRepository.appendChildToNode(parent.id, nodeMapper.toField(diskNode));
 
-		return {
-			result: cmdResult.Success,
-		};
+		return succeeded('Added item ');
 	},
 
 	/**

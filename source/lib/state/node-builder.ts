@@ -1,17 +1,9 @@
 import {ulid} from 'ulid';
-import {
-	BoardContext,
-	NavNodeCtx,
-	SwimlaneContext,
-	TicketContext,
-	TicketFieldContext,
-	TicketFieldListContext,
-	WorkspaceContext,
-} from '../model/context.model.js';
+import {NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
 export const nodeBuilder = {
-	workspace: (name: string): NavNode<WorkspaceContext> => ({
+	workspace: (name: string): NavNode<'WORKSPACE'> => ({
 		id: ulid(),
 		name,
 		props: {value: ''},
@@ -21,7 +13,7 @@ export const nodeBuilder = {
 		children: [],
 	}),
 
-	board: (name: string, parentNodeId: string): NavNode<BoardContext> => ({
+	board: (name: string, parentNodeId: string): NavNode<'BOARD'> => ({
 		id: ulid(),
 		name,
 		props: {value: ''},
@@ -31,7 +23,7 @@ export const nodeBuilder = {
 		children: [],
 	}),
 
-	swimlane: (name: string, parentNodeId: string): NavNode<SwimlaneContext> => ({
+	swimlane: (name: string, parentNodeId: string): NavNode<'SWIMLANE'> => ({
 		id: ulid(),
 		name,
 		props: {value: ''},
@@ -46,7 +38,7 @@ export const nodeBuilder = {
 		name: string,
 		parentNodeId: string,
 		value = '',
-	): NavNode<TicketFieldContext> => ({
+	): NavNode<'FIELD'> => ({
 		id: ulid(),
 		name,
 		props: {value},
@@ -56,10 +48,7 @@ export const nodeBuilder = {
 		children: [],
 	}),
 
-	fieldList: (
-		name: string,
-		parentNodeId: string,
-	): NavNode<TicketFieldListContext> => ({
+	fieldList: (name: string, parentNodeId: string): NavNode<'FIELD_LIST'> => ({
 		id: ulid(),
 		name,
 		props: {value: ''},
@@ -73,7 +62,7 @@ export const nodeBuilder = {
 		name: string,
 		parentNodeId: string,
 		children: string[],
-	): NavNode<TicketContext> => ({
+	): NavNode<'TICKET'> => ({
 		id: ulid(),
 		name,
 		props: {value: ''},

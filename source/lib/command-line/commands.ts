@@ -1,17 +1,21 @@
-import {
-	addBoard,
-	addSwimlane,
-	addTicket,
-} from '../actions/add-item/add-item-actions.js';
-import {navigator} from '../actions/default/navigation-action-utils.js';
+import {playEvent} from '../../event/play.event.js';
+import {nodeRepo} from '../actions/add-item/node-repo.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
+import {findInBreadCrumb} from '../model/app-state.model.js';
 import {nodeRepository} from '../repository/node-repository.js';
 import {getCmdArg, getCmdState} from '../state/cmd.state.js';
 import {getState, patchState, updateState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
 import {nodeMapper} from '../utils/node-mapper.js';
 import {CmdIntent} from './command-meta.js';
-import {cmdResult, cmdValidity} from './command-types.js';
+import {
+	cmdResult,
+	cmdValidity,
+	failed,
+	noResult,
+	succeeded,
+} from './command-types.js';
 
 export const commands: CommandLineActionEntry[] = [
 	{
@@ -20,60 +24,57 @@ export const commands: CommandLineActionEntry[] = [
 		action: (_, _2) => {
 			const {currentNode: currentNode, selectedIndex} = getState();
 			const childId = currentNode.children.find((_, i) => i === selectedIndex);
-			if (!childId) return logger.error('Unable to resolve child to delete');
+			if (!childId) {
+				return failed('Unable to resolve child to delete');
+			}
 			nodeRepository.deleteNode(currentNode.id, childId);
-			return {result: cmdResult.Success};
+			return succeeded('Deleted node', null);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
 		intent: CmdIntent.ViewHelp,
 		mode: Mode.COMMAND_LINE,
-		action: () => patchState({mode: Mode.HELP}),
+		action: () => {
+			patchState({mode: Mode.HELP});
+			return succeeded('Viewing help', null);
+		},
 	},
 	{
 		intent: CmdIntent.NewItem,
 		mode: Mode.COMMAND_LINE,
 		action: (_cmdAction, cmdState) => {
-			if (!cmdState.inputString) {
-				return {
-					result: cmdResult.Fail,
-					message: `provide a name for your ${cmdState.modifier}`,
-				};
-			}
-			if (cmdState.modifier === 'board') {
-				const {nodes, rootNodeId} = getState();
-				const workspace = nodes[rootNodeId];
-				if (!workspace) {
-					return {result: 'fail', message: 'Workspace not found'};
-				}
-				return addBoard(workspace, cmdState.inputString);
-			} else if (cmdState.modifier === 'swimlane') {
-				const board = getState().breadCrumb.find(
-					({context}) => context === 'BOARD',
-				);
-				if (!board) {
-					return {
-						result: 'fail',
-						message: 'Unable to add swimlane in this context',
-					};
-				}
-				return addSwimlane(board, cmdState.inputString);
-			} else if (cmdState.modifier === 'issue') {
-				const swimlane = getState().breadCrumb.find(
-					({context}) => context === 'SWIMLANE',
-				);
-				if (!swimlane) {
-					return {
-						result: 'fail',
-						message: 'Unable to add issue in this context',
-					};
-				}
+			if (!cmdState.inputString)
+				return failed(`provide a name for your ${cmdState.modifier}`);
 
-				return addTicket(swimlane, cmdState.inputString);
-			} else {
-				return {result: 'none'};
+			if (cmdState.modifier === 'board') {
+				const {rootNodeId} = getState();
+				const workspace = nodeRepo.getNode<'WORKSPACE'>(rootNodeId);
+				if (!workspace) return failed('Workspace not found');
+
+				return playEvent({
+					action: 'add.board',
+					payload: {name: cmdState.inputString, parent: workspace},
+				});
+			} else if (cmdState.modifier === 'swimlane') {
+				const board = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+				if (!board) return failed('Unable to add swimlane in this context');
+
+				return playEvent({
+					action: 'add.swimlane',
+					payload: {name: cmdState.inputString, parent: board},
+				});
+			} else if (cmdState.modifier === 'issue') {
+				const swimlane = findInBreadCrumb(getState().breadCrumb, 'SWIMLANE');
+				if (!swimlane) return failed('Unable to add issue in this context');
+
+				return playEvent({
+					action: 'add.issue',
+					payload: {name: cmdState.inputString, parent: swimlane},
+				});
 			}
+
+			return noResult();
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -83,9 +84,9 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const {commandMeta} = getCmdState();
 			if (commandMeta.validity === cmdValidity.Invalid) {
-				return {result: cmdResult.Fail};
+				return failed('Invalid command ' + cmdResult);
 			}
-			return updateState(s => ({
+			updateState(s => ({
 				...s,
 				viewMode:
 					commandMeta.modifier === 'wide'
@@ -94,6 +95,7 @@ export const commands: CommandLineActionEntry[] = [
 						? 'dense'
 						: s.viewMode,
 			}));
+			return succeeded('View set', null);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -102,40 +104,40 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const newName = getCmdArg();
-			if (!newName) return;
+			if (!newName) return failed('Provide a new name');
 
 			const {nodes, currentNode, selectedIndex} = getState();
 			const current = currentNode;
-			if (!current) return;
 
 			const childId = current.children[selectedIndex];
-			if (!childId) return;
+			if (!childId) return failed('Rename failed');
 
 			const targetNode = nodes[childId];
-			if (!targetNode) return;
+			if (!targetNode) return failed('Rename failed');
 
 			const nodeType = nodeMapper.contextToNodeTypeMap(targetNode.context);
-			if (!nodeType) return;
+			if (!nodeType) return failed('Rename failed');
 
 			// now returns only nodeId (persisted to disk)
 			const nodeId = storage.renameNodeTitle(targetNode.id, newName);
-			if (!nodeId) return;
+			if (!nodeId) return failed('Rename failed');
 
 			// reload from disk and remap (source of truth)
 			const workspaceDisk = storage.loadWorkspace();
-			if (!workspaceDisk) return;
+			if (!workspaceDisk) return failed('Rename failed');
 
 			const newRootNav = nodeMapper.toWorkspace(workspaceDisk);
-			if (!newRootNav) return;
+			if (!newRootNav) return failed('Rename failed');
 
 			patchState({
 				rootNodeId: newRootNav.id,
 			});
 
-			navigator.navigate({
+			navigationUtils.navigate({
 				currentNode: current, // id-based lookup will resolve to tree instance
 				selectedIndex: selectedIndex,
 			});
+			return succeeded('Renamed node', newName);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},

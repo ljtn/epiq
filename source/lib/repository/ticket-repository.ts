@@ -1,12 +1,12 @@
 import {editSelectedTicketFieldValue} from '../../editor/editor.js';
-import {navigator} from '../actions/default/navigation-action-utils.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CmdIntent} from '../command-line/command-meta.js';
 import {Mode} from '../model/action-map.model.js';
 import {isFieldNode, isTicketNode} from '../model/context.model.js';
 import {setCmdInput} from '../state/cmd.state.js';
 import {getState, patchState} from '../state/state.js';
 import {storage} from '../storage/storage.js';
-import {nodeRepository} from './node-repository.js';
+// import {nodeRepository} from './node-repository.js';
 
 export const ticketRepository = {
 	edit() {
@@ -18,7 +18,7 @@ export const ticketRepository = {
 			if (didEdit) {
 				patchState({mode: Mode.DEFAULT});
 				// IMPORTANT: don’t pass stale node objects into navigate
-				navigator.navigate({selectedIndex: getState().selectedIndex});
+				navigationUtils.navigate({selectedIndex: getState().selectedIndex});
 			}
 			return;
 		}
@@ -58,13 +58,13 @@ export const ticketRepository = {
 				logger.info(`Updated ${editResult.resourceId}`);
 				const value = editResult.value || '';
 				storage.updateResource(editResult.resourceId, value);
-				nodeRepository.updateNode({
-					...fieldNode,
-					props: {
-						...fieldNode.props,
-						value: value ? value : fieldNode.props['value'] || '',
-					},
-				});
+				// nodeRepository.updateNode({
+				// 	...fieldNode,
+				// 	props: {
+				// 		...fieldNode.props,
+				// 		value: value ? value : fieldNode.props['value'] || '',
+				// 	},
+				// });
 			}
 
 			const updatedField = storage.getNode?.(fieldNode.id);

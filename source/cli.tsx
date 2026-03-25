@@ -4,13 +4,9 @@ import meow from 'meow';
 import React from 'react';
 import App from './app.js';
 import {initProject} from './InitView.js';
-import {
-	addBoard,
-	addSwimlane,
-	addWorkspace,
-} from './lib/actions/add-item/add-item-actions.js';
+import {playEvent} from './event/play.event.js';
+import {navigationUtils} from './lib/actions/default/navigation-action-utils.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
-import {initWorkspaceState} from './lib/state/state.js';
 import './logger.js';
 
 const cli = meow(
@@ -52,30 +48,30 @@ process.stdout.on('resize', () => {
 
 	if (!Object.keys(cli.flags).length) {
 		// const workspace = storage.loadWorkspace();
-		// if (!workspace) {
-		// 	logger.error('Failed to load workspace.');
-		// 	return;
-		// }
-		const workspace = addWorkspace('Workspace').data;
-		if (!workspace) return;
+		// const workspace = nodeBuilder.workspace('Workspace');
+		// initWorkspaceState(workspace);
 
-		const board = addBoard(workspace, 'Default').data;
-		if (!board) return;
+		const eventLog = [];
+		if (!eventLog.length) {
+			const workspace = playEvent({
+				action: 'init.workspace',
+				payload: {name: 'Workspace'},
+			}).data;
+			const board = playEvent({
+				action: 'add.board',
+				payload: {name: 'Default', parent: workspace},
+			}).data;
+			const [firstLane] = ['To do', 'Review', 'Done'].map(
+				name =>
+					playEvent({
+						action: 'add.swimlane',
+						payload: {name, parent: board},
+					}).data,
+			);
+			if (!firstLane) return logger.error('Workspace initialization failed');
 
-		const swimlanes = ['To do', 'Review', 'Done']
-			.map(name => addSwimlane(board, name).data)
-			.filter((x): x is NonNullable<typeof x> => !!x);
-
-		if (swimlanes.length !== 3) return;
-
-		const nodes = Object.fromEntries(
-			[workspace, board, ...swimlanes].map(node => [node.id, node]),
-		);
-
-		workspace.children.push(board.id);
-		board.children = swimlanes.map(({id}) => id);
-
-		initWorkspaceState(nodes, workspace.id);
+			navigationUtils.navigate({currentNode: firstLane, selectedIndex: 0});
+		}
 
 		mountApp();
 		initListeners();

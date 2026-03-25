@@ -24,13 +24,35 @@ export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
 export type CmdResult = (typeof cmdResult)[keyof typeof cmdResult];
 export type CmdValidity = (typeof cmdValidity)[keyof typeof cmdValidity];
 
-export type Result<T = void> = [T] extends [void]
-	? {
-			result: CmdResult;
-			message?: string;
-	  }
-	: {
-			result: CmdResult;
-			message?: string;
-			data: T;
-	  };
+export type ReturnedSuccess<T = unknown> = {
+	result: CmdResult;
+	message: string;
+	data: T;
+};
+export type ReturnedNoSuccess = {
+	result: CmdResult;
+	message: string;
+	data: null;
+};
+export type ReturnedResult = ReturnedSuccess | ReturnedNoSuccess;
+
+export const failed = (message: string): ReturnedNoSuccess => ({
+	result: cmdResult.Fail,
+	message,
+	data: null,
+});
+
+export const succeeded = <T>(
+	message: string,
+	data?: T,
+): ReturnedSuccess<T | null> => ({
+	result: cmdResult.Success,
+	message,
+	data: data ?? null,
+});
+
+export const noResult = (): ReturnedNoSuccess => ({
+	result: cmdResult.None,
+	message: 'No result',
+	data: null,
+});

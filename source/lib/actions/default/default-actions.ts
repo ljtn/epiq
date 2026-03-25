@@ -4,7 +4,7 @@ import {ticketRepository} from '../../repository/ticket-repository.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
-import {navigator} from './navigation-action-utils.js';
+import {navigationUtils} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
 	// Revisit. Perhaps implement an operator input state for this in vim style. For now restrict delete to command line
@@ -36,13 +36,13 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.Confirm,
 		mode: Mode.DEFAULT,
 		description: '[ENTER] Confirm/Enter context',
-		action: navigator.enterChildNode,
+		action: navigationUtils.enterChildNode,
 	},
 	{
 		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
 		description: '[ESC/Q] Exit context',
-		action: navigator.enterParentNode,
+		action: navigationUtils.enterParentNode,
 	},
 	{
 		mode: Mode.DEFAULT,
@@ -52,22 +52,22 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.NavPreviousItem,
 		mode: Mode.DEFAULT,
-		action: navigator.navigateToPreviousItem,
+		action: navigationUtils.navigateToPreviousItem,
 	},
 	{
 		intent: Intent.NavNextItem,
 		mode: Mode.DEFAULT,
-		action: navigator.navigateToNextItem,
+		action: navigationUtils.navigateToNextItem,
 	},
 	{
 		intent: Intent.NavToPreviousContainer,
 		mode: Mode.DEFAULT,
-		action: navigator.navigateToPreviousContainer,
+		action: navigationUtils.navigateToPreviousContainer,
 	},
 	{
 		intent: Intent.NavToNextContainer,
 		mode: Mode.DEFAULT,
-		action: navigator.navigateToNextContainer,
+		action: navigationUtils.navigateToNextContainer,
 	},
 	{
 		intent: Intent.Edit,

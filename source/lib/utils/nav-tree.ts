@@ -188,7 +188,6 @@ export const findNodeInTree = (
 	nodes: Record<string, NavNode<AnyContext>>,
 ): {node: NavNode<AnyContext>; breadCrumb: BreadCrumb} | undefined => {
 	const nextBreadCrumb = [...breadCrumb, ctx] as BreadCrumb;
-
 	const match = Object.entries(matcher).find(
 		([key, value]) => ctx[key as keyof NavNode<AnyContext>] === value,
 	);

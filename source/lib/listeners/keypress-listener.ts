@@ -1,5 +1,5 @@
 import readline from 'readline';
-import {navigator} from '../actions/default/navigation-action-utils.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {getState} from '../state/state.js';
 import {getKeyIntent} from '../utils/key-intent.js';
 
@@ -8,7 +8,7 @@ let currentKeypressListener: ((s: string, k: readline.Key) => void) | undefined;
 const getKeyPressListener = () => {
 	return async function onKeyPress(_: string, key: readline.Key) {
 		if (key.ctrl && key.name === 'c') {
-			return navigator.exit();
+			return navigationUtils.exit();
 		}
 
 		const {actionIndex, mode} = getState();

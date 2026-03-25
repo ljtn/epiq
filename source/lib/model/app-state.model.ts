@@ -24,7 +24,7 @@ export type ViewMode = 'wide' | 'dense';
 
 export type AppState = {
 	selectedIndex: number;
-	currentNodeId: string;
+	currentNodeId: string | null;
 	mode: ModeUnion;
 	availableActions: ActionEntry[];
 	actionIndex: ActionIndex;
@@ -35,3 +35,14 @@ export type AppState = {
 	nodes: Record<string, NavNode<AnyContext>>;
 	viewMode: ViewMode;
 };
+
+type BreadCrumbItem = BreadCrumb[number];
+
+export const findInBreadCrumb = <T extends BreadCrumbItem['context']>(
+	breadCrumb: BreadCrumb,
+	type: T,
+): Extract<BreadCrumbItem, {context: T}> | undefined =>
+	(breadCrumb as readonly BreadCrumbItem[]).find(
+		(node): node is Extract<BreadCrumbItem, {context: T}> =>
+			node.context === type,
+	);
