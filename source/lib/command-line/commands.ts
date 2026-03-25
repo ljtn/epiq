@@ -1,4 +1,4 @@
-import {playEvent} from '../../event/play.event.js';
+import {materialize} from '../../event/event-materialize.js';
 import {nodeRepo} from '../actions/add-item/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
@@ -52,7 +52,7 @@ export const commands: CommandLineActionEntry[] = [
 				const workspace = nodeRepo.getNode<'WORKSPACE'>(rootNodeId);
 				if (!workspace) return failed('Workspace not found');
 
-				return playEvent({
+				return materialize({
 					action: 'add.board',
 					payload: {name: cmdState.inputString, parent: workspace},
 				});
@@ -60,7 +60,7 @@ export const commands: CommandLineActionEntry[] = [
 				const board = findInBreadCrumb(getState().breadCrumb, 'BOARD');
 				if (!board) return failed('Unable to add swimlane in this context');
 
-				return playEvent({
+				return materialize({
 					action: 'add.swimlane',
 					payload: {name: cmdState.inputString, parent: board},
 				});
@@ -68,7 +68,7 @@ export const commands: CommandLineActionEntry[] = [
 				const swimlane = findInBreadCrumb(getState().breadCrumb, 'SWIMLANE');
 				if (!swimlane) return failed('Unable to add issue in this context');
 
-				return playEvent({
+				return materialize({
 					action: 'add.issue',
 					payload: {name: cmdState.inputString, parent: swimlane},
 				});

@@ -4,10 +4,11 @@ import meow from 'meow';
 import React from 'react';
 import App from './app.js';
 import {initProject} from './InitView.js';
-import {playEvent} from './event/play.event.js';
+import {materialize, materializeAll} from './event/event-materialize.js';
 import {navigationUtils} from './lib/actions/default/navigation-action-utils.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
+import {ulid} from 'ulid';
 
 const cli = meow(
 	`
@@ -47,30 +48,37 @@ process.stdout.on('resize', () => {
 	}
 
 	if (!Object.keys(cli.flags).length) {
-		// const workspace = storage.loadWorkspace();
-		// const workspace = nodeBuilder.workspace('Workspace');
-		// initWorkspaceState(workspace);
-
 		const eventLog = [];
 		if (!eventLog.length) {
-			const workspace = playEvent({
-				action: 'init.workspace',
-				payload: {name: 'Workspace'},
-			}).data;
-			const board = playEvent({
-				action: 'add.board',
-				payload: {name: 'Default', parent: workspace},
-			}).data;
-			const [firstLane] = ['To do', 'Review', 'Done'].map(
-				name =>
-					playEvent({
-						action: 'add.swimlane',
-						payload: {name, parent: board},
-					}).data,
-			);
-			if (!firstLane) return logger.error('Workspace initialization failed');
+			const workspaceId = ulid();
+			const boardId = ulid();
+			const allMaterialized = materializeAll([
+				{
+					action: 'init.workspace',
+					payload: {id: workspaceId, name: 'Workspace'},
+				},
+				{
+					action: 'add.board',
+					payload: {id: boardId, name: 'Default', parentId: workspaceId},
+				},
+				{
+					action: 'add.swimlane',
+					payload: {id: ulid(), name: 'Todo', parentId: boardId},
+				},
+				{
+					action: 'add.swimlane',
+					payload: {id: ulid(), name: 'Review', parentId: boardId},
+				},
+				{
+					action: 'add.swimlane',
+					payload: {id: ulid(), name: 'Done', parentId: boardId},
+				},
+			]);
 
-			navigationUtils.navigate({currentNode: firstLane, selectedIndex: 0});
+			navigationUtils.navigate({
+				currentNode: allMaterialized[0]?.data,
+				selectedIndex: 0,
+			});
 		}
 
 		mountApp();

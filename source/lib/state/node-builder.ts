@@ -3,8 +3,8 @@ import {NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
 export const nodes = {
-	workspace: (name: string): NavNode<'WORKSPACE'> => ({
-		id: ulid(),
+	workspace: (id: string, name: string): NavNode<'WORKSPACE'> => ({
+		id,
 		name,
 		props: {value: ''},
 		context: NavNodeCtx.WORKSPACE,
@@ -13,8 +13,12 @@ export const nodes = {
 		children: [],
 	}),
 
-	board: (name: string, parentNodeId: string): NavNode<'BOARD'> => ({
-		id: ulid(),
+	board: (
+		id: string,
+		name: string,
+		parentNodeId: string,
+	): NavNode<'BOARD'> => ({
+		id,
 		name,
 		props: {value: ''},
 		context: NavNodeCtx.BOARD,
@@ -23,8 +27,12 @@ export const nodes = {
 		children: [],
 	}),
 
-	swimlane: (name: string, parentNodeId: string): NavNode<'SWIMLANE'> => ({
-		id: ulid(),
+	swimlane: (
+		id: string,
+		name: string,
+		parentNodeId: string,
+	): NavNode<'SWIMLANE'> => ({
+		id,
 		name,
 		props: {value: ''},
 		context: NavNodeCtx.SWIMLANE,
@@ -35,11 +43,12 @@ export const nodes = {
 	}),
 
 	field: (
+		id: string,
 		name: string,
 		parentNodeId: string,
 		value = '',
 	): NavNode<'FIELD'> => ({
-		id: ulid(),
+		id,
 		name,
 		props: {value},
 		context: NavNodeCtx.FIELD,
@@ -48,8 +57,12 @@ export const nodes = {
 		children: [],
 	}),
 
-	fieldList: (name: string, parentNodeId: string): NavNode<'FIELD_LIST'> => ({
-		id: ulid(),
+	fieldList: (
+		id: string,
+		name: string,
+		parentNodeId: string,
+	): NavNode<'FIELD_LIST'> => ({
+		id,
 		name,
 		props: {value: ''},
 		context: NavNodeCtx.FIELD_LIST,
@@ -58,8 +71,12 @@ export const nodes = {
 		children: [],
 	}),
 
-	ticket: (name: string, parentNodeId: string): NavNode<'TICKET'> => ({
-		id: ulid(),
+	ticket: (
+		id: string,
+		name: string,
+		parentNodeId: string,
+	): NavNode<'TICKET'> => ({
+		id,
 		name,
 		props: {value: ''},
 		context: NavNodeCtx.TICKET,
