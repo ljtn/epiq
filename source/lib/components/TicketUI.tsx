@@ -34,6 +34,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height, nodes}) => {
 						key={child.id}
 						items={child.props.value}
 						title={child.title}
+						selected={isInTicket && selectedIndex === index}
 					/>
 				) : (
 					<FieldUI

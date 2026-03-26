@@ -9,6 +9,7 @@ import {
 	sanitizeInlineText,
 	truncateWithEllipsis,
 } from '../utils/string.utils.js';
+import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
 
 type TicketFieldMap = Record<
@@ -54,16 +55,20 @@ export const TicketListItemUI: React.FC<{
 		contentWidth,
 	);
 
-	const children = (ticket?.children ?? [])
-		.map(nodeRepo.getNode)
-		.filter(x => x != undefined);
+	const children = (ticket.children ?? [])
+		.map(id => nodeRepo.getNode(id))
+		.filter((node): node is NonNullable<typeof node> => node !== undefined);
 
-	const tags = children
-		.filter(x => x.title === 'Tags' && x.props.value)
-		.flatMap(({props}) =>
-			Array.isArray(props.value?.length) ? props.value : undefined,
-		)
-		.filter(x => x !== undefined);
+	const getListValues = (title: 'Tags' | 'Assignees') =>
+		children
+			.filter(
+				(node): node is typeof node & {props: {value: string[]}} =>
+					node.title === title && Array.isArray(node.props.value),
+			)
+			.flatMap(node => node.props.value);
+
+	const tags = getListValues('Tags').map(nodeRepo.getTag);
+	const assignees = getListValues('Assignees').map(nodeRepo.getContributor);
 
 	return (
 		<Box
@@ -82,10 +87,11 @@ export const TicketListItemUI: React.FC<{
 			</Box>
 
 			<Box flexDirection="row" paddingLeft={1}>
-				{tags.map(tagId => (
-					<Box key={tagId} paddingRight={1}>
-						<TagUI id={tagId} />
-					</Box>
+				{tags.map(tag => (
+					<TagUI key={tag?.id} id={tag?.id ?? ''}></TagUI>
+				))}
+				{assignees.map(assignee => (
+					<AssigneeUI key={assignee?.id} id={assignee?.id ?? ''}></AssigneeUI>
 				))}
 			</Box>
 		</Box>

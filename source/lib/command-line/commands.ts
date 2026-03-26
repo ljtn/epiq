@@ -204,8 +204,11 @@ export const commands: CommandLineActionEntry[] = [
 			const name = modifier || inputString;
 			if (!name) return failed('Provide an assignee');
 
-			const ticket = findInBreadCrumb(getState().breadCrumb, 'TICKET');
-			if (!ticket) return failed('Unable to assign user in this context');
+			const {selectedIndex, currentNode} = getState();
+			const selectedId = currentNode.children[selectedIndex];
+			if (!selectedId) return failed('Selection node not found');
+			const ticket = findAncestor(selectedId, 'TICKET').data;
+			if (!ticket) return failed('Unable to tag issue in this context');
 
 			const existingContributor = findContributorByName(name);
 

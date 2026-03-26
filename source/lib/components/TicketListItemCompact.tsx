@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {nodeRepo} from '../actions/add-item/node-repo.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
-import {AppState} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 import {stringToHslHexColor} from '../utils/color.js';
@@ -16,8 +16,6 @@ type Props = {
 	ticket: Ticket;
 	isSelected: boolean;
 	mode: ModeUnion;
-	nodes: AppState['nodes'];
-	children: string[];
 };
 
 export const TicketListItemCompactUI: React.FC<Props> = ({
@@ -26,38 +24,35 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	isSelected,
 	index,
 	mode,
-	nodes,
-	children,
 }) => {
-	const c = (children ?? []).map(x => nodes[x]).filter(x => x != undefined);
+	const children = (ticket.children ?? [])
+		.map(id => nodeRepo.getNode(id))
+		.filter((node): node is NonNullable<typeof node> => node !== undefined);
 
-	const tags = c
-		.filter(x => x.title === 'Tags' && x.props.value)
-		.flatMap(({props}) =>
-			Array.isArray(props.value?.length) ? props.value : undefined,
-		)
-		.filter(x => x !== undefined);
+	const getListValues = (title: 'Tags' | 'Assignees') =>
+		children
+			.filter(
+				(node): node is typeof node & {props: {value: string[]}} =>
+					node.title === title && Array.isArray(node.props.value),
+			)
+			.flatMap(node => node.props.value);
 
-	logger.debug(tags);
-
-	const assignees = c
-		.filter(x => x.title === 'Assignees' && x.props.value)
-		.flatMap(({props}) =>
-			Array.isArray(props.value?.length) ? props.value : undefined,
-		)
-		.filter(x => x !== undefined);
+	const tags = getListValues('Tags').map(nodeRepo.getTag);
+	const assignees = getListValues('Assignees').map(nodeRepo.getContributor);
 
 	const paddingRight = 1;
 	const tagsWidth = tags.reduce(acc => acc + 2 + paddingRight, 0);
 
 	const tagsRendered = tags.map((tag, i) => (
 		<Box key={`${tag}-${i}`} paddingRight={paddingRight}>
-			<Text color={getTagColor(tag)}>■</Text>
+			<Text color={getTagColor(tag?.name ?? '')}>■</Text>
 		</Box>
 	));
 	const assigneesRendered = assignees.map((assignee, i) => (
 		<Box key={`${assignee}-${i}`} paddingRight={paddingRight}>
-			<Text color={stringToHslHexColor(assignee)}>{'@' + assignee.at(0)}</Text>
+			<Text color={stringToHslHexColor(assignee?.name ?? '')}>
+				{'@' + assignee?.name.at(0)}
+			</Text>
 		</Box>
 	));
 
