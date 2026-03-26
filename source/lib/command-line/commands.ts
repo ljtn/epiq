@@ -1,9 +1,9 @@
 import {ulid} from 'ulid';
 import {materialize} from '../../event/event-materialize.js';
-import {nodeRepo} from '../actions/add-item/node-repo.js';
+import {findAncestor, nodeRepo} from '../actions/add-item/node-repo.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {findInBreadCrumb} from '../model/app-state.model.js';
-import {nodeRepository} from '../repository/node-repository.js';
 import {getCmdArg, getCmdState} from '../state/cmd.state.js';
 import {getState, patchState, updateState} from '../state/state.js';
 import {CmdIntent} from './command-meta.js';
@@ -14,20 +14,31 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
-import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+
+const findTagByName = (name: string) =>
+	Object.values(getState().tags).find(tag => tag.name === name);
+
+const findContributorByName = (name: string) =>
+	Object.values(getState().contributors).find(
+		contributor => contributor.name === name,
+	);
 
 export const commands: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.Delete,
 		mode: Mode.COMMAND_LINE,
-		action: (_, _2) => {
-			const {currentNode: currentNode, selectedIndex} = getState();
-			const childId = currentNode.children.find((_, i) => i === selectedIndex);
-			if (!childId) {
-				return failed('Unable to resolve child to delete');
-			}
-			nodeRepository.deleteNode(currentNode.id, childId);
-			return succeeded('Deleted node', null);
+		action: () => {
+			const {currentNode, selectedIndex} = getState();
+			const childId = currentNode.children[selectedIndex];
+			if (!childId) return failed('Unable to resolve child to delete');
+
+			return materialize({
+				action: 'delete.node',
+				payload: {
+					parentId: currentNode.id,
+					id: childId,
+				},
+			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -43,8 +54,9 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.NewItem,
 		mode: Mode.COMMAND_LINE,
 		action: (_cmdAction, cmdState) => {
-			if (!cmdState.inputString)
+			if (!cmdState.inputString) {
 				return failed(`provide a name for your ${cmdState.modifier}`);
+			}
 
 			if (cmdState.modifier === 'board') {
 				const {rootNodeId} = getState();
@@ -59,19 +71,27 @@ export const commands: CommandLineActionEntry[] = [
 						parentId: workspace.id,
 					},
 				});
-			} else if (cmdState.modifier === 'swimlane') {
+			}
+
+			if (cmdState.modifier === 'swimlane') {
 				const board = findInBreadCrumb(getState().breadCrumb, 'BOARD');
 				if (!board) return failed('Unable to add swimlane in this context');
 
 				return materialize({
 					action: 'add.swimlane',
-					payload: {id: ulid(), name: cmdState.inputString, parentId: board.id},
+					payload: {
+						id: ulid(),
+						name: cmdState.inputString,
+						parentId: board.id,
+					},
 				});
-			} else if (cmdState.modifier === 'issue') {
+			}
+
+			if (cmdState.modifier === 'issue') {
 				const swimlane = findInBreadCrumb(getState().breadCrumb, 'SWIMLANE');
 				if (!swimlane) return failed('Unable to add issue in this context');
 
-				const materialized = materialize({
+				const result = materialize({
 					action: 'add.issue',
 					payload: {
 						id: ulid(),
@@ -79,12 +99,17 @@ export const commands: CommandLineActionEntry[] = [
 						parentId: swimlane.id,
 					},
 				});
-				if (!materialized.data) return failed('Unable to materialize');
+
+				if (result.result !== 'success') {
+					return result;
+				}
 
 				navigationUtils.navigate({
 					currentNode: swimlane,
 					selectedIndex: swimlane.children.length,
 				});
+
+				return result;
 			}
 
 			return noResult();
@@ -125,40 +150,84 @@ export const commands: CommandLineActionEntry[] = [
 			const newName = getCmdArg();
 			if (!newName) return failed('Provide a new name');
 
-			materialize({
+			return materialize({
 				action: 'edit.title',
 				payload: {id: node.id, value: newName},
 			});
-
-			return succeeded('Renamed node', newName);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
 		intent: CmdIntent.TagTicket,
 		mode: Mode.COMMAND_LINE,
-		action: (..._args) => {
+		action: () => {
 			const {modifier, inputString} = getCmdState().commandMeta;
-			let name = modifier;
-			if (!name) {
-				name = inputString;
-				logger.info('Unknown tag, creating new tag');
+			const name = modifier || inputString;
+			if (!name) return failed('Provide a tag');
+
+			const {selectedIndex, currentNode} = getState();
+			const selectedId = currentNode.children[selectedIndex];
+			if (!selectedId) return failed('Selection node not found');
+			const ticket = findAncestor(selectedId, 'TICKET');
+			if (!ticket) return failed('Unable to tag issue in this context');
+
+			const existingTag = findTagByName(name);
+
+			let tagId: string | null = ulid();
+			if (!existingTag) {
+				tagId = materialize({
+					action: 'tag.create',
+					payload: {
+						id: tagId,
+						name,
+					},
+				}).data;
 			}
-			return nodeRepository.addTag(name);
+			logger.debug('existingTag', existingTag, tagId);
+			if (!tagId) return failed('Unable to resolve tag id');
+
+			return materialize({
+				action: 'issue.tag',
+				payload: {
+					targetId: selectedId,
+					tagId,
+				},
+			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
 		intent: CmdIntent.AssignUserToTicket,
 		mode: Mode.COMMAND_LINE,
-		action: (..._args) => {
+		action: () => {
 			const {modifier, inputString} = getCmdState().commandMeta;
-			let name = modifier;
-			if (!name) {
-				name = inputString;
-				logger.info('Unknown assignee, creating new assignee');
+			const name = modifier || inputString;
+			if (!name) return failed('Provide an assignee');
+
+			const ticket = findInBreadCrumb(getState().breadCrumb, 'TICKET');
+			if (!ticket) return failed('Unable to assign user in this context');
+
+			const existingContributor = findContributorByName(name);
+
+			let contributorId: string | null = ulid();
+			if (!existingContributor) {
+				contributorId = materialize({
+					action: 'contributor.create',
+					payload: {
+						id: contributorId,
+						name,
+					},
+				}).data;
 			}
-			return nodeRepository.assignUser(name);
+			if (!contributorId) return failed('Unable to resolve contributor id');
+
+			return materialize({
+				action: 'issue.assign',
+				payload: {
+					targetId: ticket.id,
+					contributorId,
+				},
+			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},

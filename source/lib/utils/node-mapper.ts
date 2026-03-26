@@ -5,7 +5,6 @@ import {
 	SwimlaneContext,
 	TicketContext,
 	TicketFieldContext,
-	TicketFieldListContext,
 	WorkspaceContext,
 } from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -31,13 +30,10 @@ export const nodeMapper = {
 
 	toWorkspace(data: WorkspaceDiskNodeComposed): NavNode<WorkspaceContext> {
 		const label = storage.getResource(data.name, 0);
-		const value = data.props['value']
-			? storage.getResource(data.props['value'], 0)
-			: '';
 		return {
 			id: data.id,
 			title: label || '',
-			props: {value: value || ''},
+			props: {},
 			context: NavNodeCtx.WORKSPACE,
 			childRenderAxis: 'vertical',
 			parentNodeId: null,
@@ -47,13 +43,10 @@ export const nodeMapper = {
 
 	toBoard(data: WorkspaceDiskNodeComposed): NavNode<BoardContext> {
 		const label = storage.getResource(data.name, 0);
-		const value = data.props['value']
-			? storage.getResource(data.props['value'], 0)
-			: '';
 		return {
 			id: data.id,
 			title: label || '',
-			props: {value: value || ''},
+			props: {},
 			context: NavNodeCtx.BOARD,
 			childRenderAxis: 'horizontal',
 			parentNodeId: data.parentNodeId,
@@ -63,13 +56,11 @@ export const nodeMapper = {
 
 	toSwimlane(data: WorkspaceDiskNodeComposed): NavNode<SwimlaneContext> {
 		const label = storage.getResource(data.name, 0);
-		const value = data.props['value']
-			? storage.getResource(data.props['value'], 0)
-			: '';
+
 		return {
 			id: data.id,
 			title: label || '',
-			props: {value: value || ''},
+			props: {},
 			context: NavNodeCtx.SWIMLANE,
 			childRenderAxis: 'vertical',
 			childNavigationAcrossParents: true,
@@ -80,13 +71,10 @@ export const nodeMapper = {
 
 	toIssue(data: WorkspaceDiskNodeComposed): NavNode<TicketContext> {
 		const label = storage.getResource(data.name, 0);
-		const value = data.props['value']
-			? storage.getResource(data.props['value'], 0)
-			: '';
 		return {
 			id: data.id,
 			title: label || '',
-			props: {value: value || ''},
+			props: {},
 			context: NavNodeCtx.TICKET,
 			childRenderAxis: 'vertical',
 			parentNodeId: data.parentNodeId,
@@ -96,36 +84,15 @@ export const nodeMapper = {
 
 	toField(data: WorkspaceDiskNodeComposed): NavNode<TicketFieldContext> {
 		const label = storage.getResource(data.name, 0);
-		const value = data.props['value']
-			? storage.getResource(data.props['value'], 0)
-			: '';
 		return {
 			id: data.id,
 			title: label || '',
-			props: {value: value || ''},
+			props: {value: ''},
 			context: NavNodeCtx.FIELD,
 			childRenderAxis: 'vertical',
 			parentNodeId: data.parentNodeId,
 			children: [],
 		} satisfies NavNode<TicketFieldContext>;
-	},
-
-	toFieldList(
-		data: WorkspaceDiskNodeComposed,
-	): NavNode<TicketFieldListContext> {
-		const label = storage.getResource(data.name, 0);
-		const value = data.props['value']
-			? storage.getResource(data.props['value'], 0)
-			: '';
-		return {
-			id: data.id,
-			title: label || '',
-			props: {value: value || ''},
-			context: NavNodeCtx.FIELD_LIST,
-			childRenderAxis: 'horizontal',
-			parentNodeId: data.parentNodeId,
-			children: data.children,
-		} satisfies NavNode<TicketFieldListContext>;
 	},
 
 	toNavNode(
@@ -141,8 +108,6 @@ export const nodeMapper = {
 				return this.toSwimlane(data);
 			case StorageNodeTypes.ISSUE:
 				return this.toIssue(data);
-			case StorageNodeTypes.FIELD_LIST:
-				return this.toFieldList(data);
 			case StorageNodeTypes.FIELD:
 				return this.toField(data);
 			default:

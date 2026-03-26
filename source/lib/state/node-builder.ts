@@ -5,7 +5,7 @@ export const nodes = {
 	workspace: (id: string, name: string): NavNode<'WORKSPACE'> => ({
 		id,
 		title: name,
-		props: {value: ''},
+		props: {},
 		context: NavNodeCtx.WORKSPACE,
 		childRenderAxis: 'vertical',
 		parentNodeId: null,
@@ -19,7 +19,7 @@ export const nodes = {
 	): NavNode<'BOARD'> => ({
 		id,
 		title: name,
-		props: {value: ''},
+		props: {},
 		context: NavNodeCtx.BOARD,
 		childRenderAxis: 'horizontal',
 		parentNodeId,
@@ -33,7 +33,7 @@ export const nodes = {
 	): NavNode<'SWIMLANE'> => ({
 		id,
 		title: name,
-		props: {value: ''},
+		props: {},
 		context: NavNodeCtx.SWIMLANE,
 		childRenderAxis: 'vertical',
 		childNavigationAcrossParents: true,
@@ -45,27 +45,13 @@ export const nodes = {
 		id: string,
 		name: string,
 		parentNodeId: string,
-		value = '',
+		props: NavNode<'FIELD'>['props'],
 	): NavNode<'FIELD'> => ({
 		id,
 		title: name,
-		props: {value},
+		props,
 		context: NavNodeCtx.FIELD,
 		childRenderAxis: 'vertical',
-		parentNodeId,
-		children: [],
-	}),
-
-	fieldList: (
-		id: string,
-		name: string,
-		parentNodeId: string,
-	): NavNode<'FIELD_LIST'> => ({
-		id,
-		title: name,
-		props: {value: ''},
-		context: NavNodeCtx.FIELD_LIST,
-		childRenderAxis: 'horizontal',
 		parentNodeId,
 		children: [],
 	}),
@@ -77,7 +63,7 @@ export const nodes = {
 	): NavNode<'TICKET'> => ({
 		id,
 		title: name,
-		props: {value: ''},
+		props: {},
 		context: NavNodeCtx.TICKET,
 		childRenderAxis: 'vertical',
 		parentNodeId,

@@ -3,9 +3,10 @@ import React from 'react';
 import {TagColor, TAGS_DEFAULT, TagsDefault} from '../static/default-tags.js';
 import {theme} from '../theme/themes.js';
 import {stringToHslHexColor} from '../utils/color.js';
+import {nodeRepo} from '../actions/add-item/node-repo.js';
 
 type Props = {
-	name: string;
+	id: string;
 	isSelected?: boolean;
 };
 
@@ -20,8 +21,12 @@ export const getTagColor = (
 	return stringToHslHexColor(normalized);
 };
 
-export const TagUI: React.FC<Props> = ({name}) => (
-	<Text backgroundColor={getTagColor(name)} color={theme.primary}>
-		{' ' + name + ' '}
-	</Text>
-);
+export const TagUI: React.FC<Props> = ({id}) => {
+	const tag = nodeRepo.getTag(id);
+	if (!tag) return;
+	return (
+		<Text backgroundColor={getTagColor(tag.name)} color={theme.primary}>
+			{' ' + tag.name + ' '}
+		</Text>
+	);
+};

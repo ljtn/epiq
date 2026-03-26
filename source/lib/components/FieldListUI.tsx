@@ -1,62 +1,34 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {FieldList} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
-import {useAppState} from '../state/state.js';
-import {TagUI} from './Tag.js';
 import {AssigneeUI} from './Assignee.js';
-import {filterMap} from '../utils/array.utils.js';
+import {TagUI} from './Tag.js';
 
 type Props = {
-	fieldList: FieldList;
-	selected: boolean;
+	title: string;
+	items: string[];
 };
-export const FieldListUI: React.FC<Props> = ({fieldList, selected}) => {
-	const {currentNode, selectedIndex, nodes} = useAppState();
-	const fieldListChildren = filterMap(fieldList.children, id => nodes[id]);
+export const FieldListUI: React.FC<Props> = ({items, title}) => {
+	logger.info(items);
 	return (
 		<Box flexDirection="column" paddingTop={1}>
-			<Text color={selected ? theme.primary : theme.secondary}>
-				{' ' + fieldList.title}:
-			</Text>
+			<Text color={theme.secondary}>{' ' + title}:</Text>
 
 			<Box
 				flexDirection="row"
 				borderStyle="round"
-				borderColor={selected ? theme.accent : theme.secondary}
+				borderColor={theme.secondary}
 				paddingLeft={1}
 				paddingRight={1}
 			>
-				{!fieldListChildren.length ? <Text> </Text> : ''}
-				{fieldListChildren.map((field, index) => (
+				{items.map(item => (
 					<Box>
-						<Text color={theme.secondary}>{index > 0 ? ', ' : ''}</Text>
-						<Text
-							color={
-								currentNode.id === fieldList.id && selectedIndex === index
-									? theme.accent
-									: theme.secondary
-							}
-						>
-							{currentNode.id === fieldList.id && selectedIndex === index
-								? '⸬ '
-								: '  '}
-						</Text>
-						{field.title === 'seed:fieldName:assignee' && (
-							<AssigneeUI
-								name={field.props['value'] ?? ''}
-								isSelected={
-									currentNode.id === fieldList.id && selectedIndex === index
-								}
-							></AssigneeUI>
-						)}
-						{field.title === 'seed:fieldName:tag' && (
-							<TagUI
-								name={field.props['value'] ?? ''}
-								isSelected={
-									currentNode.id === fieldList.id && selectedIndex === index
-								}
-							></TagUI>
+						{title === 'assignees' ? (
+							<AssigneeUI id={item}></AssigneeUI>
+						) : title === 'tags' ? (
+							<TagUI id={item}></TagUI>
+						) : (
+							''
 						)}
 					</Box>
 				))}

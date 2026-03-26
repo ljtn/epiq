@@ -97,6 +97,8 @@ export const getState = () => {
 
 export function initWorkspaceState(workspace: Workspace) {
 	const base: BaseState = {
+		tags: {},
+		contributors: {},
 		viewMode: 'dense',
 		mode: Mode.DEFAULT,
 		nodes: {[workspace.id]: workspace},

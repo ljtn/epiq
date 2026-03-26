@@ -58,12 +58,47 @@ type AppEventMap = {
 		};
 		result: string;
 	};
+	'delete.node': {
+		event: {
+			action: 'delete.node';
+			payload: {id: string; parentId: string};
+		};
+		result: string;
+	};
+	'tag.create': {
+		event: {
+			action: 'tag.create';
+			payload: {id: string; name: string};
+		};
+		result: string;
+	};
+
+	'contributor.create': {
+		event: {
+			action: 'contributor.create';
+			payload: {id: string; name: string};
+		};
+		result: string;
+	};
+	'issue.assign': {
+		event: {
+			action: 'issue.assign';
+			payload: {contributorId: string; targetId: string};
+		};
+		result: string;
+	};
+	'issue.tag': {
+		event: {
+			action: 'issue.tag';
+			payload: {tagId: string; targetId: string};
+		};
+		result: string;
+	};
 };
 
 export type AppEvent = AppEventMap[keyof AppEventMap]['event'];
 
 type EventAction = keyof AppEventMap;
-
 type EventResult<A extends EventAction> = AppEventMap[A]['result'];
 
 export type MaterializeResult<E extends AppEvent> =

@@ -153,10 +153,6 @@ export const nodeRepository = {
 		const {nodes} = getState();
 		const children = filterMap(parent.children, id => nodes[id]);
 
-		logger.info(
-			name,
-			children.map(({props}) => props['value']),
-		);
 		if (children.some(({props}) => props['value'] === name)) {
 			logger.info('Cannot add duplicate assignee');
 			return failed('Cannot add duplicate assignee');

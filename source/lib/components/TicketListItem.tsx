@@ -1,5 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {nodeRepo} from '../actions/add-item/node-repo.js';
 import {AppState} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
@@ -45,10 +46,7 @@ export const TicketListItemUI: React.FC<{
 	width: number;
 	ticket: Ticket;
 	isSelected: boolean;
-	nodes: AppState['nodes'];
-}> = ({width, ticket, isSelected, nodes}) => {
-	const fields = ticket ? getTicketFields(ticket, nodes) : null;
-
+}> = ({width, ticket, isSelected}) => {
 	const contentWidth = width - 12;
 
 	const title = truncateWithEllipsis(
@@ -56,12 +54,16 @@ export const TicketListItemUI: React.FC<{
 		contentWidth,
 	);
 
-	// const description = truncateWithEllipsis(
-	// 	fields['Description']?.value ?? '',
-	// 	contentWidth,
-	// );
+	const children = (ticket?.children ?? [])
+		.map(nodeRepo.getNode)
+		.filter(x => x != undefined);
 
-	const tags = fields?.['Tags']?.values ?? [];
+	const tags = children
+		.filter(x => x.title === 'Tags' && x.props.value)
+		.flatMap(({props}) =>
+			Array.isArray(props.value?.length) ? props.value : undefined,
+		)
+		.filter(x => x !== undefined);
 
 	return (
 		<Box
@@ -80,9 +82,9 @@ export const TicketListItemUI: React.FC<{
 			</Box>
 
 			<Box flexDirection="row" paddingLeft={1}>
-				{tags.map((tag, index) => (
-					<Box key={`${tag}-${index}`} paddingRight={1}>
-						<TagUI name={tag} />
+				{tags.map(tagId => (
+					<Box key={tagId} paddingRight={1}>
+						<TagUI id={tagId} />
 					</Box>
 				))}
 			</Box>

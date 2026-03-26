@@ -22,7 +22,12 @@ export type BreadCrumb =
 
 export type ViewMode = 'wide' | 'dense';
 
+export type Tag = {id: string; name: string};
+export type Contributor = {id: string; name: string};
+
 export type AppState = {
+	contributors: Record<string, Contributor>;
+	tags: Record<string, Tag>;
 	selectedIndex: number;
 	currentNodeId: string | null;
 	mode: ModeUnion;

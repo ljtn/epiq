@@ -68,6 +68,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 				isSelected={isItemSelected}
 				mode={mode}
 				nodes={nodes}
+				children={ticket.children}
 			/>
 		) : (
 			<TicketListItemUI
@@ -75,7 +76,6 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 				width={width}
 				ticket={ticket}
 				isSelected={isItemSelected}
-				nodes={nodes}
 			/>
 		);
 	};

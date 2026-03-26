@@ -42,26 +42,56 @@ export function materialize<E extends AppEvent>(
 		case 'add.issue': {
 			const {id, name, parentId} = event.payload;
 			const issue = nodeRepo.createNode(nodes.ticket(id, name, parentId));
-			nodeRepo.createNode(nodes.field(ulid(), 'Description', id, ''));
-			nodeRepo.createNode(nodes.fieldList(ulid(), 'Assignees', id));
-			nodeRepo.createNode(nodes.fieldList(ulid(), 'Tags', id));
+			nodeRepo.createNode(nodes.field(ulid(), 'Description', id, {value: ''}));
+			nodeRepo.createNode(nodes.field(ulid(), 'Assignees', id, {value: ''}));
+			nodeRepo.createNode(nodes.field(ulid(), 'Tags', id, {value: ''}));
 			return succeeded('Added issue', issue) as MaterializeResult<E>;
 		}
 		case 'edit.title': {
 			const {id, value} = event.payload;
 			const node = nodeRepo.getNode(id);
-			if (!node) return failed('Unable to locate node');
+			if (!node) return failed('Unable to locate node') as MaterializeResult<E>;
 
 			nodeRepo.updateNode({...node, title: value});
-			return succeeded('Edited title', '') as MaterializeResult<E>;
+
+			return succeeded('Edited title', value) as MaterializeResult<E>;
 		}
 		case 'edit.description': {
-			const {id, resourceId: _} = event.payload;
+			const {id, resourceId: _resourceId} = event.payload;
 			const node = nodeRepo.getNode(id);
-			if (!node) return failed('Unable to locate node');
+			if (!node) return failed('Unable to locate node') as MaterializeResult<E>;
 
 			nodeRepo.updateNode({...node, title: 'REPLACE WITH RESOURCE ID'});
 			return succeeded('Edited description', '') as MaterializeResult<E>;
+		}
+
+		case 'delete.node': {
+			const {parentId, id} = event.payload;
+			nodeRepo.deleteNode(parentId, id);
+			return succeeded('Deleted node', id) as MaterializeResult<E>;
+		}
+
+		case 'tag.create': {
+			const {id, name} = event.payload;
+			const tag = nodeRepo.createTag({id, name});
+			return succeeded('Tag added', tag.id) as MaterializeResult<E>;
+		}
+
+		case 'contributor.create': {
+			const {id, name} = event.payload;
+			const assignee = nodeRepo.createContributor({id, name});
+			return succeeded('Contributor created', assignee) as MaterializeResult<E>;
+		}
+
+		case 'issue.tag': {
+			const {targetId, tagId} = event.payload;
+			return nodeRepo.tag(targetId, tagId) as MaterializeResult<E>;
+		}
+
+		case 'issue.assign': {
+			const {contributorId, targetId} = event.payload;
+			nodeRepo.assign(targetId, contributorId);
+			return succeeded('Assigned successfully') as MaterializeResult<E>;
 		}
 	}
 }

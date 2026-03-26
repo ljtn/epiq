@@ -1,21 +1,31 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {Ticket} from '../model/context.model.js';
+import {findInBreadCrumb} from '../model/app-state.model.js';
 import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
-import {TagUI} from './Tag.js';
-import {getTicketFields} from './TicketListItem.js';
-import {AssigneeUI} from './Assignee.js';
 import {filterMap} from '../utils/array.utils.js';
-import {findInBreadCrumb} from '../model/app-state.model.js';
+import {AssigneeUI} from './Assignee.js';
+import {TagUI} from './Tag.js';
+import {nodeRepo} from '../actions/add-item/node-repo.js';
 
 export const Breadcrumb: React.FC = () => {
 	const {breadCrumb: crumbs, selectedIndex, viewMode, nodes} = getState();
 	const ticket = findInBreadCrumb(crumbs, 'TICKET');
 
-	const fields = getTicketFields(ticket as Ticket, nodes);
-	const tags = fields['Tags']?.values ?? [];
-	const assignees = fields['Assignees']?.values ?? [];
+	const children = (ticket?.children ?? [])
+		.map(id => nodeRepo.getNode(id))
+		.filter((node): node is NonNullable<typeof node> => node !== undefined);
+
+	const getListValues = (title: 'Tags' | 'Assignees') =>
+		children
+			.filter(
+				(node): node is typeof node & {props: {value: string[]}} =>
+					node.title === title && Array.isArray(node.props.value),
+			)
+			.flatMap(node => node.props.value);
+
+	const tags = getListValues('Tags');
+	const assignees = getListValues('Assignees');
 
 	return (
 		<Box>
@@ -35,17 +45,17 @@ export const Breadcrumb: React.FC = () => {
 							<Text color={theme.primary}>{` ⸬ ${selectedChildTitle}`}</Text>
 						) : null}
 
-						{viewMode === 'dense' && isLast && tags.length > 0
-							? tags.map(tag => (
-									<Box key={`${tag}`} paddingLeft={2}>
-										<TagUI name={tag} />
+						{viewMode === 'dense' && isLast
+							? (tags ?? []).map(tagId => (
+									<Box key={`${tagId}`} paddingLeft={2}>
+										<TagUI id={tagId} />
 									</Box>
 							  ))
 							: null}
-						{viewMode === 'dense' && isLast && assignees.length > 0
-							? assignees.map(assignee => (
-									<Box key={`${assignee}`} paddingLeft={2}>
-										<AssigneeUI name={assignee} />
+						{viewMode === 'dense' && isLast
+							? (assignees ?? []).map(assigneeId => (
+									<Box key={assigneeId} paddingLeft={2}>
+										<AssigneeUI id={assigneeId} />
 									</Box>
 							  ))
 							: null}

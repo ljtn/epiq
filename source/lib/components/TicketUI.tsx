@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
 import {AppState} from '../model/app-state.model.js';
-import {NavNodeCtx, Ticket} from '../model/context.model.js';
+import {Ticket} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {useAppState} from '../state/state.js';
 import {filterMap} from '../utils/array.utils.js';
@@ -29,11 +29,11 @@ export const TicketUI: React.FC<Props> = ({ticket, height, nodes}) => {
 			minHeight={height}
 		>
 			{children.map((child, index) =>
-				child.context === NavNodeCtx.FIELD_LIST ? (
+				Array.isArray(child.props.value) ? (
 					<FieldListUI
 						key={child.id}
-						fieldList={child as NavNode<'FIELD_LIST'>}
-						selected={isInTicket && selectedIndex === index}
+						items={child.props.value}
+						title={child.title}
 					/>
 				) : (
 					<FieldUI
