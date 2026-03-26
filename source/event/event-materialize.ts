@@ -3,98 +3,103 @@ import {nodeRepo} from '../lib/actions/add-item/node-repo.js';
 import {failed, succeeded} from '../lib/command-line/command-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
-import {AppEvent, MaterializeResult} from './event.model.js';
+import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 
-export function materialize<E extends AppEvent>(
-	event: E,
-): MaterializeResult<E> {
-	switch (event.action) {
-		case 'init.workspace': {
-			const {id, name} = event.payload;
-			const workspace = nodes.workspace(id, name);
-			initWorkspaceState(workspace);
-			nodeRepo.createNode(workspace);
-			return succeeded(
-				'Workspace initialized',
-				workspace,
-			) as MaterializeResult<E>;
-		}
+type MaterializeHandlers = {
+	[A in EventAction]: (event: AppEvent<A>) => MaterializeResult<A>;
+};
 
-		case 'add.workspace': {
-			const {id, name} = event.payload;
-			const workspace = nodes.workspace(id, name);
-			nodeRepo.createNode(workspace);
-			return succeeded('Added workspace', workspace) as MaterializeResult<E>;
-		}
+const materializeHandlers: MaterializeHandlers = {
+	'init.workspace': event => {
+		const {id, name} = event.payload;
+		const workspace = nodes.workspace(id, name);
+		initWorkspaceState(workspace);
+		nodeRepo.createNode(workspace);
+		return succeeded('Workspace initialized', workspace);
+	},
 
-		case 'add.board': {
-			const {id, name, parentId} = event.payload;
-			const board = nodeRepo.createNode(nodes.board(id, name, parentId));
-			return succeeded('Added board', board) as MaterializeResult<E>;
-		}
+	'add.workspace': event => {
+		const {id, name} = event.payload;
+		const workspace = nodes.workspace(id, name);
+		nodeRepo.createNode(workspace);
+		return succeeded('Added workspace', workspace);
+	},
 
-		case 'add.swimlane': {
-			const {id, name, parentId} = event.payload;
-			const swimlane = nodeRepo.createNode(nodes.swimlane(id, name, parentId));
-			return succeeded('Added swimlane', swimlane) as MaterializeResult<E>;
-		}
+	'add.board': event => {
+		const {id, name, parentId} = event.payload;
+		const board = nodeRepo.createNode(nodes.board(id, name, parentId));
+		return succeeded('Added board', board);
+	},
 
-		case 'add.issue': {
-			const {id, name, parentId} = event.payload;
-			const issue = nodeRepo.createNode(nodes.ticket(id, name, parentId));
-			nodeRepo.createNode(nodes.field(ulid(), 'Description', id, {value: ''}));
-			nodeRepo.createNode(nodes.field(ulid(), 'Assignees', id, {value: ''}));
-			nodeRepo.createNode(nodes.field(ulid(), 'Tags', id, {value: ''}));
-			return succeeded('Added issue', issue) as MaterializeResult<E>;
-		}
-		case 'edit.title': {
-			const {id, value} = event.payload;
-			const node = nodeRepo.getNode(id);
-			if (!node) return failed('Unable to locate node') as MaterializeResult<E>;
+	'add.swimlane': event => {
+		const {id, name, parentId} = event.payload;
+		const swimlane = nodeRepo.createNode(nodes.swimlane(id, name, parentId));
+		return succeeded('Added swimlane', swimlane);
+	},
 
-			nodeRepo.updateNode({...node, title: value});
+	'add.issue': event => {
+		const {id, name, parentId} = event.payload;
+		const issue = nodeRepo.createNode(nodes.ticket(id, name, parentId));
+		nodeRepo.createNode(nodes.field(ulid(), 'Description', id, {value: ''}));
+		nodeRepo.createNode(nodes.field(ulid(), 'Assignees', id, {value: ''}));
+		nodeRepo.createNode(nodes.field(ulid(), 'Tags', id, {value: ''}));
+		return succeeded('Added issue', issue);
+	},
 
-			return succeeded('Edited title', value) as MaterializeResult<E>;
-		}
-		case 'edit.description': {
-			const {id, resourceId: _resourceId} = event.payload;
-			const node = nodeRepo.getNode(id);
-			if (!node) return failed('Unable to locate node') as MaterializeResult<E>;
+	'edit.title': event => {
+		const {id, value} = event.payload;
+		const node = nodeRepo.getNode(id);
+		if (!node) return failed('Unable to locate node');
 
-			nodeRepo.updateNode({...node, title: 'REPLACE WITH RESOURCE ID'});
-			return succeeded('Edited description', '') as MaterializeResult<E>;
-		}
+		nodeRepo.updateNode({...node, title: value});
+		return succeeded('Edited title', value);
+	},
 
-		case 'delete.node': {
-			const {parentId, id} = event.payload;
-			nodeRepo.deleteNode(parentId, id);
-			return succeeded('Deleted node', id) as MaterializeResult<E>;
-		}
+	'edit.description': event => {
+		const {id, resourceId: _resourceId} = event.payload;
+		const node = nodeRepo.getNode(id);
+		if (!node) return failed('Unable to locate node');
 
-		case 'tag.create': {
-			const {id, name} = event.payload;
-			const tag = nodeRepo.createTag({id, name});
-			return succeeded('Tag added', tag.id) as MaterializeResult<E>;
-		}
+		nodeRepo.updateNode({...node, title: 'REPLACE WITH RESOURCE ID'});
+		return succeeded('Edited description', '');
+	},
 
-		case 'contributor.create': {
-			const {id, name} = event.payload;
-			const assignee = nodeRepo.createContributor({id, name});
-			return succeeded('Contributor created', assignee) as MaterializeResult<E>;
-		}
+	'delete.node': event => {
+		const {parentId, id} = event.payload;
+		nodeRepo.deleteNode(parentId, id);
+		return succeeded('Deleted node', id);
+	},
 
-		case 'issue.tag': {
-			const {targetId, tagId} = event.payload;
-			return nodeRepo.tag(targetId, tagId) as MaterializeResult<E>;
-		}
+	'tag.create': event => {
+		const {id, name} = event.payload;
+		const tag = nodeRepo.createTag({id, name});
+		return succeeded('Tag added', tag.id);
+	},
 
-		case 'issue.assign': {
-			const {contributorId, targetId} = event.payload;
-			nodeRepo.assign(targetId, contributorId);
-			return succeeded('Assigned successfully') as MaterializeResult<E>;
-		}
-	}
+	'contributor.create': event => {
+		const {id, name} = event.payload;
+		const contributor = nodeRepo.createContributor({id, name});
+		return succeeded('Contributor created', contributor.id);
+	},
+
+	'issue.tag': event => {
+		const {targetId, tagId} = event.payload;
+		nodeRepo.tag(targetId, tagId);
+		return succeeded('Issue tagged', tagId);
+	},
+
+	'issue.assign': event => {
+		const {contributorId, targetId} = event.payload;
+		nodeRepo.assign(targetId, contributorId);
+		return succeeded('Assigned successfully', undefined);
+	},
+};
+
+export function materialize<A extends EventAction>(
+	event: AppEvent<A>,
+): MaterializeResult<A> {
+	return materializeHandlers[event.action](event);
 }
 
-export const materializeAll = <E extends AppEvent>(events: E[]) =>
+export const materializeAll = <A extends EventAction>(events: AppEvent<A>[]) =>
 	events.map(event => materialize(event));

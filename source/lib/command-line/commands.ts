@@ -168,7 +168,7 @@ export const commands: CommandLineActionEntry[] = [
 			const {selectedIndex, currentNode} = getState();
 			const selectedId = currentNode.children[selectedIndex];
 			if (!selectedId) return failed('Selection node not found');
-			const ticket = findAncestor(selectedId, 'TICKET');
+			const ticket = findAncestor(selectedId, 'TICKET').data;
 			if (!ticket) return failed('Unable to tag issue in this context');
 
 			const existingTag = findTagByName(name);
@@ -225,7 +225,7 @@ export const commands: CommandLineActionEntry[] = [
 				action: 'issue.assign',
 				payload: {
 					targetId: ticket.id,
-					contributorId,
+					contributorId: contributorId,
 				},
 			});
 		},

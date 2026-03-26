@@ -210,7 +210,7 @@ export const nodeRepository = {
 
 		nodeRepository.appendChildToNode(parent.id, nodeMapper.toField(diskNode));
 
-		return succeeded('Added item ');
+		return succeeded('Added item', diskNode);
 	},
 
 	/**

@@ -1,18 +1,33 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {findInBreadCrumb} from '../model/app-state.model.js';
+import {findAncestor, nodeRepo} from '../actions/add-item/node-repo.js';
 import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {filterMap} from '../utils/array.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
-import {nodeRepo} from '../actions/add-item/node-repo.js';
 
 export const Breadcrumb: React.FC = () => {
-	const {breadCrumb: crumbs, selectedIndex, viewMode, nodes} = getState();
-	const ticket = findInBreadCrumb(crumbs, 'TICKET');
+	const {
+		breadCrumb: crumbs,
+		currentNode,
+		selectedIndex,
+		viewMode,
+		nodes,
+	} = getState();
 
-	const children = (ticket?.children ?? [])
+	const selectedTarget = currentNode.children[selectedIndex];
+	if (!selectedTarget) {
+		logger.error('Unable to render breadcrumb');
+		return;
+	}
+	const ticket = findAncestor(selectedTarget, 'TICKET').data;
+	if (!ticket) {
+		logger.error('Unable to render breadcrumb');
+		return;
+	}
+
+	const children = (ticket.children ?? [])
 		.map(id => nodeRepo.getNode(id))
 		.filter((node): node is NonNullable<typeof node> => node !== undefined);
 

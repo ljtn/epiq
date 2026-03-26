@@ -42,13 +42,10 @@ export const failed = (message: string): ReturnedNoSuccess => ({
 	data: null,
 });
 
-export const succeeded = <T>(
-	message: string,
-	data?: T,
-): ReturnedSuccess<T | null> => ({
+export const succeeded = <T>(message: string, data: T): ReturnedSuccess<T> => ({
 	result: cmdResult.Success,
 	message,
-	data: data ?? null,
+	data,
 });
 
 export const noResult = (): ReturnedNoSuccess => ({

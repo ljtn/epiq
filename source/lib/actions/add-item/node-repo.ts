@@ -1,4 +1,9 @@
-import {failed, succeeded} from '../../command-line/command-types.js';
+import {
+	failed,
+	ReturnedNoSuccess,
+	ReturnedSuccess,
+	succeeded,
+} from '../../command-line/command-types.js';
 import {Contributor, Tag} from '../../model/app-state.model.js';
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
@@ -11,24 +16,25 @@ export const appendChildId = <T extends AnyContext>(
 	...parent,
 	children: [...parent.children, childId],
 });
+
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
 	ctx: T,
-): NavNode<T> | ReturnType<typeof failed> => {
+): ReturnedSuccess<NavNode<T>> | ReturnedNoSuccess => {
 	const {nodes} = getState();
 
 	const start = nodes[targetId];
 	if (!start) return failed('Node not found');
 
 	if (start.context === ctx) {
-		return start as NavNode<T>;
+		return succeeded('Resolved ancestor node', start as NavNode<T>);
 	}
 
 	let current = start.parentNodeId ? nodes[start.parentNodeId] : undefined;
 
 	while (current) {
 		if (current.context === ctx) {
-			return current as NavNode<T>;
+			return succeeded('Resolved ancestor node', current as NavNode<T>);
 		}
 		current = current.parentNodeId ? nodes[current.parentNodeId] : undefined;
 	}
@@ -182,7 +188,7 @@ export const nodeRepo = {
 		return succeeded('Tag added', tag);
 	},
 
-	createNode(node: NavNode<AnyContext>) {
+	createNode<T extends AnyContext>(node: NavNode<T>) {
 		updateState(s => ({
 			...s,
 			nodes: {
@@ -193,7 +199,7 @@ export const nodeRepo = {
 
 		if (node.parentNodeId) this.appendChildToNode(node.parentNodeId, node);
 
-		return node;
+		return node as NavNode<T>;
 	},
 
 	createNodes(nodes: NavNode<AnyContext>[]) {
