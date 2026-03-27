@@ -1,7 +1,4 @@
-import {
-	ReturnedNoSuccess,
-	ReturnedSuccess,
-} from '../lib/command-line/command-types.js';
+import {ReturnFail, ReturnSuccess} from '../lib/command-line/command-types.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 
 export type AppEventMap = {
@@ -76,5 +73,5 @@ export type AppEvent<A extends EventAction = EventAction> = {
 export type EventResult<A extends EventAction> = AppEventMap[A]['result'];
 
 export type MaterializeResult<A extends EventAction> =
-	| ReturnedSuccess<EventResult<A>>
-	| ReturnedNoSuccess;
+	| ReturnSuccess<EventResult<A>>
+	| ReturnFail;

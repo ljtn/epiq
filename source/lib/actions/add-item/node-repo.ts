@@ -1,7 +1,7 @@
 import {
 	failed,
-	ReturnedNoSuccess,
-	ReturnedSuccess,
+	ReturnFail,
+	ReturnSuccess,
 	succeeded,
 } from '../../command-line/command-types.js';
 import {Contributor, Tag} from '../../model/app-state.model.js';
@@ -20,7 +20,7 @@ export const appendChildId = <T extends AnyContext>(
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
 	ctx: T,
-): ReturnedSuccess<NavNode<T>> | ReturnedNoSuccess => {
+): ReturnSuccess<NavNode<T>> | ReturnFail => {
 	const {nodes} = getState();
 
 	const start = nodes[targetId];

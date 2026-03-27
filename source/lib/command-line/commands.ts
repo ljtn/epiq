@@ -1,5 +1,4 @@
 import {ulid} from 'ulid';
-import {materialize} from '../../event/event-materialize.js';
 import {findAncestor, nodeRepo} from '../actions/add-item/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
@@ -14,6 +13,7 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
+import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -32,7 +32,7 @@ export const commands: CommandLineActionEntry[] = [
 			const childId = currentNode.children[selectedIndex];
 			if (!childId) return failed('Unable to resolve child to delete');
 
-			return materialize({
+			return materializeAndPersist({
 				action: 'delete.node',
 				payload: {
 					parentId: currentNode.id,
@@ -63,7 +63,7 @@ export const commands: CommandLineActionEntry[] = [
 				const workspace = nodeRepo.getNode<'WORKSPACE'>(rootNodeId);
 				if (!workspace) return failed('Workspace not found');
 
-				return materialize({
+				return materializeAndPersist({
 					action: 'add.board',
 					payload: {
 						id: ulid(),
@@ -77,7 +77,7 @@ export const commands: CommandLineActionEntry[] = [
 				const board = findInBreadCrumb(getState().breadCrumb, 'BOARD');
 				if (!board) return failed('Unable to add swimlane in this context');
 
-				return materialize({
+				return materializeAndPersist({
 					action: 'add.swimlane',
 					payload: {
 						id: ulid(),
@@ -91,7 +91,7 @@ export const commands: CommandLineActionEntry[] = [
 				const swimlane = findInBreadCrumb(getState().breadCrumb, 'SWIMLANE');
 				if (!swimlane) return failed('Unable to add issue in this context');
 
-				const result = materialize({
+				const result = materializeAndPersist({
 					action: 'add.issue',
 					payload: {
 						id: ulid(),
@@ -150,7 +150,7 @@ export const commands: CommandLineActionEntry[] = [
 			const newName = getCmdArg();
 			if (!newName) return failed('Provide a new name');
 
-			return materialize({
+			return materializeAndPersist({
 				action: 'edit.title',
 				payload: {id: node.id, value: newName},
 			});
@@ -175,7 +175,7 @@ export const commands: CommandLineActionEntry[] = [
 
 			let tagId: string | null = ulid();
 			if (!existingTag) {
-				tagId = materialize({
+				tagId = materializeAndPersist({
 					action: 'tag.create',
 					payload: {
 						id: tagId,
@@ -186,7 +186,7 @@ export const commands: CommandLineActionEntry[] = [
 			logger.debug('existingTag', existingTag, tagId);
 			if (!tagId) return failed('Unable to resolve tag id');
 
-			return materialize({
+			return materializeAndPersist({
 				action: 'issue.tag',
 				payload: {
 					targetId: selectedId,
@@ -214,7 +214,7 @@ export const commands: CommandLineActionEntry[] = [
 
 			let contributorId: string | null = ulid();
 			if (!existingContributor) {
-				contributorId = materialize({
+				contributorId = materializeAndPersist({
 					action: 'contributor.create',
 					payload: {
 						id: contributorId,
@@ -224,7 +224,7 @@ export const commands: CommandLineActionEntry[] = [
 			}
 			if (!contributorId) return failed('Unable to resolve contributor id');
 
-			return materialize({
+			return materializeAndPersist({
 				action: 'issue.assign',
 				payload: {
 					targetId: ticket.id,

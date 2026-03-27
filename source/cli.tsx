@@ -2,11 +2,9 @@
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
-import {ulid} from 'ulid';
 import App from './app.js';
-import {materializeAll} from './event/event-materialize.js';
+import {bootStateFromEventLog} from './event/event-boot.js';
 import {initProject} from './InitView.js';
-import {navigationUtils} from './lib/actions/default/navigation-action-utils.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
 
@@ -48,43 +46,7 @@ process.stdout.on('resize', () => {
 	}
 
 	if (!Object.keys(cli.flags).length) {
-		const eventLog = [];
-		if (!eventLog.length) {
-			const workspaceId = ulid();
-			const boardId = ulid();
-			const allMaterialized = materializeAll([
-				{
-					action: 'init.workspace',
-					payload: {id: workspaceId, name: 'Workspace'},
-				},
-				{
-					action: 'add.board',
-					payload: {id: boardId, name: 'Default', parentId: workspaceId},
-				},
-				{
-					action: 'add.swimlane',
-					payload: {id: ulid(), name: 'Todo', parentId: boardId},
-				},
-				{
-					action: 'add.swimlane',
-					payload: {id: ulid(), name: 'Review', parentId: boardId},
-				},
-				{
-					action: 'add.swimlane',
-					payload: {id: ulid(), name: 'Done', parentId: boardId},
-				},
-			]);
-
-			const firstSwimlane = allMaterialized.at(2)?.data;
-			if (!firstSwimlane)
-				return logger.error('Unable to resolve navigation target');
-
-			navigationUtils.navigate({
-				currentNode: firstSwimlane,
-				selectedIndex: -1,
-			});
-		}
-
+		bootStateFromEventLog();
 		mountApp();
 		initListeners();
 	}
