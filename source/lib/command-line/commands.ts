@@ -35,7 +35,6 @@ export const commands: CommandLineActionEntry[] = [
 			return materializeAndPersist({
 				action: 'delete.node',
 				payload: {
-					parentId: currentNode.id,
 					id: childId,
 				},
 			});

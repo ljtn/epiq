@@ -65,8 +65,8 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'delete.node': event => {
-		const {parentId, id} = event.payload;
-		nodeRepo.tombstoneNode(parentId, id);
+		const {id} = event.payload;
+		nodeRepo.tombstoneNode(id);
 		return succeeded('Deleted node', id);
 	},
 

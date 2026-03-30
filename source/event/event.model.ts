@@ -38,7 +38,7 @@ export type AppEventMap = {
 	};
 
 	'delete.node': {
-		payload: {id: string; parentId: string};
+		payload: {id: string};
 		result: string;
 	};
 

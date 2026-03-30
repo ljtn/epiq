@@ -43,13 +43,13 @@ function write(prefix: string, args: any[], short = false) {
 
 export const logger = {
 	info(...args: any[]): void {
-		write('[INFO]', args, false);
+		write('[Info]', args, false);
 	},
 	debug(...args: any[]): void {
-		write('[DEBUG]', args, true); // 👈 short timestamp
+		write('->', args, true); // 👈 short timestamp
 	},
 	error(...args: any[]): void {
-		write('[ERROR]', [...args, new Error().stack], false);
+		write('[Error]', [...args, new Error().stack], false);
 	},
 };
 

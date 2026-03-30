@@ -48,14 +48,17 @@ const asStringArray = (value: unknown): string[] =>
 		: [];
 
 export const nodeRepo = {
-	tombstoneNode(parentId: string, nodeId: string): ReturnSuccess | ReturnFail {
+	tombstoneNode(nodeId: string): ReturnSuccess | ReturnFail {
 		const {nodes, currentNodeId, rootNodeId} = getState();
 
-		const parent = this.getNode(parentId);
 		const node = this.getNode(nodeId);
-
-		if (!parent) return failed('Parent node not found');
 		if (!node) return failed('Node not found');
+
+		let parent: NavNode<AnyContext> | undefined;
+		if (node.parentNodeId) {
+			parent = this.getNode(node.parentNodeId);
+		}
+
 		if (rootNodeId === nodeId) return failed('Cannot delete root node');
 
 		const idsToDelete = new Set<string>();
@@ -76,22 +79,23 @@ export const nodeRepo = {
 
 		for (const id of idsToDelete) {
 			if (!nextNodes[id]) return failed('Unable to locate node to delete');
-			nextNodes[id] = {...nextNodes[id], isDeleted: 'deleted'};
+			nextNodes[id] = {...nextNodes[id], isDeleted: true};
 		}
 
-		const nextParent = {
-			...parent,
-			children: parent.children.filter(id => id !== nodeId),
-		};
-
-		nextNodes[parentId] = nextParent;
+		if (node.parentNodeId && parent) {
+			const nextParent = {
+				...parent,
+				children: parent.children.filter(id => id !== nodeId),
+			};
+			nextNodes[node.parentNodeId] = nextParent;
+		}
 
 		if (!currentNodeId) {
 			return failed('Unable to delete undefined');
 		}
 
 		const nextCurrentNodeId = idsToDelete.has(currentNodeId)
-			? parentId
+			? node.parentNodeId
 			: currentNodeId;
 
 		patchState({
@@ -99,7 +103,7 @@ export const nodeRepo = {
 			currentNodeId: nextCurrentNodeId,
 		});
 
-		return succeeded('Successfully tombstoned', node);
+		return succeeded('Successfully tomb stoned', node);
 	},
 
 	createContributor(contributor: Contributor) {
