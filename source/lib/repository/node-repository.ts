@@ -20,7 +20,6 @@ import {
 	removeNodeInTree,
 	replaceNodeInTree,
 } from '../utils/nav-tree.js';
-import {nodeMapper} from '../utils/node-mapper.js';
 import {sanitizeInlineText} from '../utils/string.utils.js';
 
 function moveItemInArray<T>({
@@ -207,8 +206,6 @@ export const nodeRepository = {
 
 		// Now update its value resource
 		storage.updateNodeValue(diskNode.id, itemValue);
-
-		nodeRepository.appendChildToNode(parent.id, nodeMapper.toField(diskNode));
 
 		return succeeded('Added item', diskNode);
 	},

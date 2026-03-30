@@ -48,7 +48,7 @@ const asStringArray = (value: unknown): string[] =>
 		: [];
 
 export const nodeRepo = {
-	deleteNode(parentId: string, nodeId: string) {
+	tombstoneNode(parentId: string, nodeId: string): ReturnSuccess | ReturnFail {
 		const {nodes, currentNodeId, rootNodeId} = getState();
 
 		const parent = this.getNode(parentId);
@@ -72,10 +72,11 @@ export const nodeRepo = {
 
 		collectDescendants(nodeId);
 
-		const nextNodes = {...nodes};
+		const nextNodes = {...structuredClone(nodes)};
 
 		for (const id of idsToDelete) {
-			delete nextNodes[id];
+			if (!nextNodes[id]) return failed('Unable to locate node to delete');
+			nextNodes[id] = {...nextNodes[id], isDeleted: 'deleted'};
 		}
 
 		const nextParent = {
@@ -98,7 +99,7 @@ export const nodeRepo = {
 			currentNodeId: nextCurrentNodeId,
 		});
 
-		return node;
+		return succeeded('Successfully tombstoned', node);
 	},
 
 	createContributor(contributor: Contributor) {

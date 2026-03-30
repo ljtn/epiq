@@ -21,10 +21,14 @@ function enforceLogHorizon() {
 	const trimmed = lines.slice(-MAX_LINES).join('\n') + '\n';
 	fs.writeFileSync(LOG_PATH, trimmed, 'utf8');
 }
-
-function write(prefix: string, args: any[]) {
+function write(prefix: string, args: any[], short = false) {
 	const message = util.format(...args);
-	const timestamp = new Date().toISOString();
+
+	const now = new Date();
+	const timestamp = short
+		? now.toISOString().slice(11, 19) // HH:mm:ss
+		: now.toISOString(); // full ISO
+
 	const line = `[${timestamp}] ${prefix} ${message}\n`;
 
 	// Ensure parent directory exists
@@ -39,13 +43,13 @@ function write(prefix: string, args: any[]) {
 
 export const logger = {
 	info(...args: any[]): void {
-		write('[INFO]', args);
+		write('[INFO]', args, false);
 	},
 	debug(...args: any[]): void {
-		write('[DEBUG]', args);
+		write('[DEBUG]', args, true); // 👈 short timestamp
 	},
 	error(...args: any[]): void {
-		write('[ERROR]', [...args, new Error().stack]);
+		write('[ERROR]', [...args, new Error().stack], false);
 	},
 };
 

@@ -5,6 +5,7 @@ export const nodes = {
 	workspace: (id: string, name: string): NavNode<'WORKSPACE'> => ({
 		id,
 		title: name,
+		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.WORKSPACE,
 		childRenderAxis: 'vertical',
@@ -19,6 +20,7 @@ export const nodes = {
 	): NavNode<'BOARD'> => ({
 		id,
 		title: name,
+		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.BOARD,
 		childRenderAxis: 'horizontal',
@@ -33,6 +35,7 @@ export const nodes = {
 	): NavNode<'SWIMLANE'> => ({
 		id,
 		title: name,
+		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.SWIMLANE,
 		childRenderAxis: 'vertical',
@@ -49,6 +52,7 @@ export const nodes = {
 	): NavNode<'FIELD'> => ({
 		id,
 		title: name,
+		isDeleted: false,
 		props,
 		context: NavNodeCtx.FIELD,
 		childRenderAxis: 'vertical',
@@ -63,6 +67,7 @@ export const nodes = {
 	): NavNode<'TICKET'> => ({
 		id,
 		title: name,
+		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.TICKET,
 		childRenderAxis: 'vertical',

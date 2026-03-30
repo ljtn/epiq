@@ -62,6 +62,10 @@ const BoardUIComponent: React.FC<Props> = ({
 
 	const isDense = viewMode === 'dense';
 
+	const activeNodes = Object.fromEntries(
+		Object.entries(nodes).filter(([_, value]) => !value.isDeleted),
+	);
+
 	return (
 		<Box flexDirection="row" height={height}>
 			{isSwimlaneContext &&
@@ -82,7 +86,7 @@ const BoardUIComponent: React.FC<Props> = ({
 							isFocused={isFocused}
 							listSelectedIndex={listSelectedIndex}
 							mode={mode}
-							nodes={nodes}
+							nodes={activeNodes}
 						/>
 					);
 				})}
