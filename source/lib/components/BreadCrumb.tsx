@@ -17,17 +17,9 @@ export const Breadcrumb: React.FC = () => {
 	} = getState();
 
 	const selectedTarget = currentNode.children[selectedIndex];
-	if (!selectedTarget) {
-		logger.error('Unable to render breadcrumb');
-		return;
-	}
-	const ticket = findAncestor(selectedTarget, 'TICKET').data;
-	if (!ticket) {
-		logger.error('Unable to render breadcrumb');
-		return;
-	}
+	const ticket = findAncestor(selectedTarget ?? currentNode.id, 'TICKET').data;
 
-	const children = (ticket.children ?? [])
+	const children = (ticket?.children ?? [])
 		.map(id => nodeRepo.getNode(id))
 		.filter((node): node is NonNullable<typeof node> => node !== undefined);
 

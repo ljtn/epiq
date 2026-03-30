@@ -1,37 +1,40 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {AppEvent} from './event.model.js';
+import {PersistedEvent} from './event-persist.js';
 
-export function loadEventsFromDir(
-	dirPath = path.join(process.cwd(), '.epiq', 'events'),
-): AppEvent[] {
-	try {
-		const files = fs.readdirSync(dirPath);
-		const logFiles = files.filter(file => file.endsWith('.jsonl'));
+const EPIQ_DIR = '.epiq';
+const EVENTS_DIR = 'events';
 
-		const events: AppEvent[] = [];
+const getEventsDir = (rootDir = process.cwd()) =>
+	path.join(rootDir, EPIQ_DIR, EVENTS_DIR);
 
-		for (const file of logFiles) {
-			const fullPath = path.join(dirPath, file);
-			const content = fs.readFileSync(fullPath, 'utf8');
+export function loadAllPersistedEvents(
+	rootDir = process.cwd(),
+): PersistedEvent[] {
+	const dir = getEventsDir(rootDir);
+	if (!fs.existsSync(dir)) return [];
 
-			for (const line of content.split('\n')) {
-				const trimmed = line.trim();
-				if (!trimmed) continue;
-				events.push(JSON.parse(trimmed) as AppEvent);
-			}
+	const files = fs
+		.readdirSync(dir)
+		.filter(file => file.endsWith('.jsonl'))
+		.map(file => path.join(dir, file));
+
+	const entries: PersistedEvent[] = [];
+
+	for (const filePath of files) {
+		const content = fs.readFileSync(filePath, 'utf8');
+
+		for (const line of content.split('\n')) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+			entries.push(JSON.parse(trimmed) as PersistedEvent);
 		}
-
-		return events;
-	} catch (error) {
-		if (
-			error &&
-			typeof error === 'object' &&
-			'code' in error &&
-			error.code === 'ENOENT'
-		) {
-			return [];
-		}
-		throw error;
 	}
+
+	return entries.sort((a, b) => a.eventId.localeCompare(b.eventId));
+}
+
+export function loadMergedEvents(rootDir = process.cwd()): AppEvent[] {
+	return loadAllPersistedEvents(rootDir).map(({event}) => event);
 }
