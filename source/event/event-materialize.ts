@@ -64,6 +64,7 @@ const materializeHandlers: MaterializeHandlers = {
 			isFail(assignees)
 		)
 			return failed('Unable to create issue');
+
 		return succeeded('Added issue', result.data);
 	},
 

@@ -9,12 +9,7 @@ import {
 import {Contributor, Tag} from '../../model/app-state.model.js';
 import {AnyContext, isFieldListNode} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
-import {
-	getState,
-	patchState,
-	updateState,
-	useAppState,
-} from '../../state/state.js';
+import {getState, patchState, updateState} from '../../state/state.js';
 import {midRank} from '../../utils/rank.js';
 import {sanitizeInlineText} from '../../utils/string.utils.js';
 import {getOrderedChildren, MovePosition, resolveMoveRank} from './rank.js';
@@ -73,7 +68,7 @@ function collectFieldListValues(
 
 	const values: string[] = [];
 	const seen = new Set<string>();
-	const {renderedChildrenIndex} = useAppState();
+	const {renderedChildrenIndex} = getState();
 	const visit = (current: NavNode<AnyContext>) => {
 		const children = renderedChildrenIndex[current.id];
 		if (current.title === fieldName && isFieldListNode(current)) {
@@ -144,7 +139,7 @@ export const nodeRepo = {
 			rank: rankResult.data,
 		};
 
-		this.updateNode(movedNode);
+		this.updateNodeAndSelectInParent(movedNode);
 
 		return succeeded('Moved node successfully', movedNode);
 	},
@@ -319,14 +314,28 @@ export const nodeRepo = {
 				[node.id]: node,
 			},
 		}));
-		updateState(s => ({
-			...s,
-			currentNodeId: node.parentNodeId,
-			selectedIndex:
-				s.renderedChildrenIndex[node.parentNodeId!]?.findIndex(
-					({id}) => id === node.id,
-				) ?? -1,
-		}));
+
+		return node;
+	},
+
+	updateNodeAndSelectInParent(node: NavNode<AnyContext>) {
+		updateState(s => {
+			const nextNodes = {
+				...s.nodes,
+				[node.id]: node,
+			};
+
+			const siblings = Object.values(nextNodes)
+				.filter(x => !x.isDeleted && x.parentNodeId === node.parentNodeId)
+				.sort((a, b) => a.rank.localeCompare(b.rank));
+
+			return {
+				...s,
+				nodes: nextNodes,
+				currentNodeId: node.parentNodeId,
+				selectedIndex: siblings.findIndex(({id}) => id === node.id),
+			};
+		});
 
 		return node;
 	},
@@ -341,5 +350,11 @@ export const nodeRepo = {
 
 	getNode<T extends AnyContext>(id: string) {
 		return getState().nodes[id] as NavNode<T> | undefined;
+	},
+
+	getSiblings: (parentId: string) => {
+		return Object.values(getState().nodes)
+			.filter(x => !x.isDeleted && x.parentNodeId === parentId)
+			.sort((a, b) => a.rank.localeCompare(b.rank));
 	},
 };

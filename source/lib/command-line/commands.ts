@@ -1,5 +1,7 @@
 import {ulid} from 'ulid';
+import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
 import {findAncestor, nodeRepo} from '../actions/add-item/node-repo.js';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {findInBreadCrumb} from '../model/app-state.model.js';
@@ -10,11 +12,10 @@ import {
 	cmdResult,
 	cmdValidity,
 	failed,
+	isFail,
 	noResult,
 	succeeded,
 } from './command-types.js';
-import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
-import {getOrderedChildren} from '../actions/add-item/rank.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -58,12 +59,48 @@ export const commands: CommandLineActionEntry[] = [
 				return failed(`provide a name for your ${cmdState.modifier}`);
 			}
 
+			const createAndNavigate = (
+				event:
+					| {
+							action: 'add.board';
+							payload: {id: string; name: string; parentId: string};
+					  }
+					| {
+							action: 'add.swimlane';
+							payload: {id: string; name: string; parentId: string};
+					  }
+					| {
+							action: 'add.issue';
+							payload: {id: string; name: string; parentId: string};
+					  },
+			) => {
+				const result = materializeAndPersist(event);
+				if (isFail(result)) return result;
+
+				const createdNode = nodeRepo.getNode(result.data.id);
+				if (!createdNode) return failed('Created node not found');
+
+				if (!createdNode.parentNodeId) return result;
+
+				const parentNode = nodeRepo.getNode(createdNode.parentNodeId);
+				if (!parentNode) return failed('Parent node not found');
+
+				navigationUtils.navigate({
+					currentNode: parentNode,
+					selectedIndex: nodeRepo
+						.getSiblings(createdNode.parentNodeId)
+						.findIndex(({id}) => id === createdNode.id),
+				});
+
+				return result;
+			};
+
 			if (cmdState.modifier === 'board') {
 				const {rootNodeId} = getState();
 				const workspace = nodeRepo.getNode<'WORKSPACE'>(rootNodeId);
 				if (!workspace) return failed('Workspace not found');
 
-				return materializeAndPersist({
+				return createAndNavigate({
 					action: 'add.board',
 					payload: {
 						id: ulid(),
@@ -74,42 +111,36 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			if (cmdState.modifier === 'swimlane') {
-				const board = findInBreadCrumb(getState().breadCrumb, 'BOARD');
-				if (!board) return failed('Unable to add swimlane in this context');
+				const boardResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+				if (isFail(boardResult))
+					return failed('Unable to add swimlane in this context');
 
-				return materializeAndPersist({
+				return createAndNavigate({
 					action: 'add.swimlane',
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
-						parentId: board.id,
+						parentId: boardResult.data.id,
 					},
 				});
 			}
 
 			if (cmdState.modifier === 'issue') {
-				const swimlane = findInBreadCrumb(getState().breadCrumb, 'SWIMLANE');
-				if (!swimlane) return failed('Unable to add issue in this context');
+				const swimlaneResult = findInBreadCrumb(
+					getState().breadCrumb,
+					'SWIMLANE',
+				);
+				if (isFail(swimlaneResult))
+					return failed('Unable to add issue in this context');
 
-				const result = materializeAndPersist({
+				return createAndNavigate({
 					action: 'add.issue',
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
-						parentId: swimlane.id,
+						parentId: swimlaneResult.data.id,
 					},
 				});
-
-				if (result.result !== 'success') {
-					return result;
-				}
-
-				navigationUtils.navigate({
-					currentNode: swimlane,
-					selectedIndex: getOrderedChildren(swimlane.id).length,
-				});
-
-				return result;
 			}
 
 			return noResult();

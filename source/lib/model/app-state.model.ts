@@ -1,3 +1,4 @@
+import {failed, Result, succeeded} from '../command-line/command-types.js';
 import {ActionEntry, ActionIndex, ModeUnion} from './action-map.model.js';
 import {AnyContext} from './context.model.js';
 import {NavNode} from './navigation-node.model.js';
@@ -47,8 +48,14 @@ type BreadCrumbItem = BreadCrumb[number];
 export const findInBreadCrumb = <T extends BreadCrumbItem['context']>(
 	breadCrumb: BreadCrumb,
 	type: T,
-): Extract<BreadCrumbItem, {context: T}> | undefined =>
-	(breadCrumb as readonly BreadCrumbItem[]).find(
+): Result<BreadCrumbItem> => {
+	const node = (breadCrumb as readonly BreadCrumbItem[]).find(
 		(node): node is Extract<BreadCrumbItem, {context: T}> =>
 			node.context === type,
 	);
+	if (node !== undefined) {
+		return succeeded('Found node', node);
+	} else {
+		return failed('Unable to find node in breadcrumb');
+	}
+};
