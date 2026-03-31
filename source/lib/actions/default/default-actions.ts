@@ -1,9 +1,16 @@
-import {CmdKeywords} from '../../command-line/command-types.js';
+import {openEditorOnText} from '../../../editor/editor.js';
+import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
+import {
+	CmdKeywords,
+	failed,
+	isFail,
+	succeeded,
+} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {ticketRepository} from '../../repository/ticket-repository.js';
 import {setCmdInput} from '../../state/cmd.state.js';
-import {patchState} from '../../state/state.js';
+import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
+import {getOrderedChildren} from '../add-item/rank.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
@@ -72,7 +79,44 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Edit,
 		mode: Mode.DEFAULT,
-		action: () => ticketRepository.edit(),
+		action: () => {
+			const {currentNode} = getState();
+			if (!currentNode) return failed('No current node');
+
+			const descriptionField = getOrderedChildren(currentNode.id).find(
+				x => x?.title === 'Description',
+			);
+
+			if (!descriptionField) {
+				return failed('Description field not found');
+			}
+
+			const currentValue = descriptionField.props.value;
+
+			if (typeof currentValue !== 'string') {
+				return failed('Description field is not a text field');
+			}
+
+			const editResult = openEditorOnText(currentValue);
+			logger.debug('editResult', editResult);
+			if (isFail(editResult)) {
+				return failed('Failed to edit description');
+			}
+
+			const updatedMarkdown = editResult.data;
+
+			if (updatedMarkdown === currentValue) {
+				return succeeded('No changes made', undefined);
+			}
+
+			return materializeAndPersist({
+				action: 'description.set',
+				payload: {
+					targetId: descriptionField.id,
+					markdown: updatedMarkdown,
+				},
+			});
+		},
 	},
 	{
 		intent: Intent.SetViewDense,

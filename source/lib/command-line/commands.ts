@@ -1,5 +1,9 @@
 import {ulid} from 'ulid';
-import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
+import {createIssueEvents} from '../../event/common-events.js';
+import {
+	materializeAndPersist,
+	materializeAndPersistAll,
+} from '../../event/event-materialize-and-persist.js';
 import {findAncestor, nodeRepo} from '../actions/add-item/node-repo.js';
 import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
@@ -72,6 +76,15 @@ export const commands: CommandLineActionEntry[] = [
 					| {
 							action: 'add.issue';
 							payload: {id: string; name: string; parentId: string};
+					  }
+					| {
+							action: 'add.field';
+							payload: {
+								id: string;
+								name: string;
+								parentId: string;
+								value: string;
+							};
 					  },
 			) => {
 				const result = materializeAndPersist(event);
@@ -133,13 +146,30 @@ export const commands: CommandLineActionEntry[] = [
 				if (isFail(swimlaneResult))
 					return failed('Unable to add issue in this context');
 
-				return createAndNavigate({
-					action: 'add.issue',
-					payload: {
-						id: ulid(),
+				const issueResults = materializeAndPersistAll(
+					createIssueEvents({
 						name: cmdState.inputString,
 						parentId: swimlaneResult.data.id,
-					},
+					}),
+				);
+				if (issueResults.filter(isFail).length)
+					return failed(
+						'Issue create failed: ' +
+							issueResults
+								.filter(isFail)
+								.map(r => r.message)
+								.join(', '),
+					);
+
+				const [issueResult] = issueResults;
+				if (!issueResult || isFail(issueResult))
+					return failed('Issue creation failed');
+
+				navigationUtils.navigate({
+					currentNode: swimlaneResult.data,
+					selectedIndex: nodeRepo
+						.getSiblings(issueResult.data.parentNodeId!)
+						.findIndex(({id}) => id === issueResult.data.id),
 				});
 			}
 

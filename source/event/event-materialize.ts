@@ -1,4 +1,3 @@
-import {ulid} from 'ulid';
 import {nodeRepo} from '../lib/actions/add-item/node-repo.js';
 import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {nodes} from '../lib/state/node-builder.js';
@@ -48,24 +47,17 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.ticket(id, name, parentId),
 		);
-		const description = nodeRepo.createNodeAtPosition(
-			nodes.field(ulid(), 'Description', id, {value: ''}),
-		);
-		const assignees = nodeRepo.createNodeAtPosition(
-			nodes.field(ulid(), 'Assignees', id, {value: ''}),
-		);
-		const tags = nodeRepo.createNodeAtPosition(
-			nodes.field(ulid(), 'Tags', id, {value: ''}),
-		);
-		if (
-			isFail(result) ||
-			isFail(description) ||
-			isFail(tags) ||
-			isFail(assignees)
-		)
-			return failed('Unable to create issue');
-
+		if (isFail(result)) return failed('Unable to create issue');
 		return succeeded('Added issue', result.data);
+	},
+
+	'add.field': event => {
+		const {id, name, parentId, value} = event.payload;
+		const result = nodeRepo.createNodeAtPosition(
+			nodes.field(id, name, parentId, {value}),
+		);
+		if (isFail(result)) return failed(`Unable to create field: ${name}`);
+		return succeeded('Added field', result.data);
 	},
 
 	'edit.title': event => {
@@ -75,15 +67,6 @@ const materializeHandlers: MaterializeHandlers = {
 
 		nodeRepo.updateNode({...node, title: value});
 		return succeeded('Edited title', value);
-	},
-
-	'edit.description': event => {
-		const {id, resourceId: _resourceId} = event.payload;
-		const node = nodeRepo.getNode(id);
-		if (!node) return failed('Unable to locate node');
-
-		nodeRepo.updateNode({...node, title: 'REPLACE WITH RESOURCE ID'});
-		return succeeded('Edited description', '');
 	},
 
 	'delete.node': event => {
@@ -122,13 +105,30 @@ const materializeHandlers: MaterializeHandlers = {
 		if (isFail(moved)) return failed('Failed to move node');
 		return succeeded('Moved node', moved.data.id);
 	},
+
+	'description.set': event => {
+		const {targetId, markdown} = event.payload;
+		const result = nodeRepo.editValue(targetId, markdown);
+		if (isFail(result)) return result;
+		return succeeded('Set node value', result.data);
+	},
+};
+
+export type MaterializeResults<T extends readonly AppEvent[]> = {
+	[K in keyof T]: T[K] extends AppEvent<infer A> ? MaterializeResult<A> : never;
 };
 
 export function materialize<A extends EventAction>(
 	event: AppEvent<A>,
 ): MaterializeResult<A> {
-	return materializeHandlers[event.action](event);
+	const handler = materializeHandlers[event.action] as (
+		event: AppEvent<A>,
+	) => MaterializeResult<A>;
+
+	return handler(event);
 }
 
-export const materializeAll = <A extends EventAction>(events: AppEvent<A>[]) =>
-	events.map(event => materialize(event));
+export const materializeAll = <const T extends readonly AppEvent[]>(
+	events: T,
+): MaterializeResults<T> =>
+	events.map(event => materialize(event)) as MaterializeResults<T>;

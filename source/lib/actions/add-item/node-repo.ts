@@ -95,6 +95,23 @@ function collectFieldListValues(
 }
 
 export const nodeRepo = {
+	editValue(targetId: string, markdown: string): Result<{markdown: string}> {
+		const {nodes} = getState();
+		const targetNode = nodes[targetId];
+		if (!targetNode) return failed('Edit target node not found');
+
+		const updatedNode = {
+			...targetNode,
+			props: {
+				...targetNode.props,
+				value: markdown,
+			},
+		};
+
+		nodeRepo.updateNode(updatedNode);
+		return succeeded('Issue description updated', {markdown});
+	},
+
 	getExistingTags(): string[] {
 		const {rootNodeId, nodes} = getState();
 		const rootNode = nodes[rootNodeId];
@@ -266,8 +283,6 @@ export const nodeRepo = {
 			},
 		});
 
-		logger.debug(7);
-		logger.debug('here', getState().nodes);
 		return succeeded('Tag added', tag);
 	},
 

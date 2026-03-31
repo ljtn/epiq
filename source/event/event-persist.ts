@@ -113,18 +113,6 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 			event,
 		};
 
-		const latestGlobalEventId = readLatestGlobalEventId(rootDir);
-
-		if (latestGlobalEventId && entry.eventId < latestGlobalEventId) {
-			return failed(
-				[
-					'Failed to persist event: event id is earlier than latest persisted global event id.',
-					`latest=${latestGlobalEventId}`,
-					`new=${entry.eventId}`,
-				].join(' '),
-			);
-		}
-
 		fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, 'utf8');
 
 		return succeeded<PersistSuccess>('Event persisted', {

@@ -1,5 +1,5 @@
 import {cmdResult, failed} from '../lib/command-line/command-types.js';
-import {materialize} from './event-materialize.js';
+import {materialize, MaterializeResults} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 
@@ -19,6 +19,10 @@ export function materializeAndPersist<A extends EventAction>(
 	return materializeResult;
 }
 
-export function materializeAndPersistAll(events: AppEvent[]) {
-	return events.map(materializeAndPersist);
+export function materializeAndPersistAll<const T extends readonly AppEvent[]>(
+	events: T,
+): MaterializeResults<T> {
+	return events.map(event =>
+		materializeAndPersist(event),
+	) as MaterializeResults<T>;
 }

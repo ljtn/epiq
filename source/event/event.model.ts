@@ -32,13 +32,18 @@ export type AppEventMap = {
 		result: NavNode<'TICKET'>;
 	};
 
-	'edit.title': {
-		payload: {id: string; value: string};
-		result: string;
+	'add.field': {
+		payload: {
+			id: string;
+			name: string;
+			parentId: string;
+			value: string;
+		};
+		result: NavNode<'FIELD'>;
 	};
 
-	'edit.description': {
-		payload: {id: string; resourceId: string; version: number};
+	'edit.title': {
+		payload: {id: string; value: string};
 		result: string;
 	};
 
@@ -74,6 +79,13 @@ export type AppEventMap = {
 		};
 		result: string;
 	};
+	'description.set': {
+		payload: {
+			targetId: string;
+			markdown: string;
+		};
+		result: {markdown: string};
+	};
 };
 
 export type EventAction = keyof AppEventMap;
@@ -83,8 +95,6 @@ export type AppEvent<A extends EventAction = EventAction> = {
 	payload: AppEventMap[A]['payload'];
 };
 
-export type EventResult<A extends EventAction> = AppEventMap[A]['result'];
-
 export type MaterializeResult<A extends EventAction> =
-	| ReturnSuccess<EventResult<A>>
+	| ReturnSuccess<AppEventMap[A]['result']>
 	| ReturnFail;
