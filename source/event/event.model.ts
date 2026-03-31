@@ -1,5 +1,10 @@
 import {ReturnFail, ReturnSuccess} from '../lib/command-line/command-types.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
+type MovePosition =
+	| {type: 'start'}
+	| {type: 'end'}
+	| {type: 'before'; siblingId: string}
+	| {type: 'after'; siblingId: string};
 
 export type AppEventMap = {
 	'init.workspace': {
@@ -59,6 +64,14 @@ export type AppEventMap = {
 
 	'issue.tag': {
 		payload: {tagId: string; targetId: string};
+		result: string;
+	};
+	'move.node': {
+		payload: {
+			id: string;
+			parentId: string;
+			position?: MovePosition;
+		};
 		result: string;
 	};
 };

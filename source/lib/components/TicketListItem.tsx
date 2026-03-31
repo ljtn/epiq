@@ -1,10 +1,9 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {nodeRepo} from '../actions/add-item/node-repo.js';
-import {AppState} from '../model/app-state.model.js';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
-import {filterMap} from '../utils/array.utils.js';
 import {
 	sanitizeInlineText,
 	truncateWithEllipsis,
@@ -20,18 +19,15 @@ type TicketFieldMap = Record<
 	}
 >;
 
-export const getTicketFields = (
-	ticket: Ticket,
-	nodes: AppState['nodes'],
-): TicketFieldMap => {
+export const getTicketFields = (ticket: Ticket): TicketFieldMap => {
 	const fields: TicketFieldMap = {};
 
 	if (!ticket) return fields;
-	const ticketChildren = filterMap(ticket.children, id => nodes[id]);
+	const ticketChildren = getOrderedChildren(ticket.id);
 	if (!ticketChildren) return fields;
 	for (const field of ticketChildren) {
 		if (!field.title) continue;
-		const fieldChildren = filterMap(field.children, id => nodes[id]);
+		const fieldChildren = getOrderedChildren(field.id);
 		fields[field.title] = {
 			value: sanitizeInlineText(field.props['value']),
 			values: fieldChildren
@@ -55,9 +51,7 @@ export const TicketListItemUI: React.FC<{
 		contentWidth,
 	);
 
-	const children = (ticket.children ?? [])
-		.map(id => nodeRepo.getNode(id))
-		.filter((node): node is NonNullable<typeof node> => node !== undefined);
+	const children = getOrderedChildren(ticket.id);
 
 	const getListValues = (title: 'Tags' | 'Assignees') =>
 		children

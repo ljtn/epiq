@@ -38,6 +38,7 @@ export type AppState = {
 	breadCrumb: BreadCrumb;
 	rootNodeId: string;
 	nodes: Record<string, NavNode<AnyContext>>;
+	renderedChildrenIndex: Record<string, NavNode<AnyContext>[]>; // parent -> children mapping
 	viewMode: ViewMode;
 };
 

@@ -1,4 +1,5 @@
 import {editSelectedTicketFieldValue} from '../../editor/editor.js';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CmdIntent} from '../command-line/command-meta.js';
 import {Mode} from '../model/action-map.model.js';
@@ -10,7 +11,7 @@ import {storage} from '../storage/storage.js';
 
 export const ticketRepository = {
 	edit() {
-		const {nodes, currentNode} = getState();
+		const {currentNode} = getState();
 
 		// Ticket: use editor + repository sync
 		if (currentNode.context === 'TICKET') {
@@ -28,7 +29,7 @@ export const ticketRepository = {
 		setCmdInput(() => {
 			const s = getState();
 			return `${CmdIntent.Rename} ${
-				nodes[s.currentNode.children[s.selectedIndex] ?? '']?.title ?? ''
+				getOrderedChildren(s.currentNode.id)[s.selectedIndex]?.title ?? ''
 			}`;
 		});
 	},
@@ -43,9 +44,7 @@ export const ticketRepository = {
 		const state = getState();
 		const ticketNode = state.currentNode;
 		if (!isTicketNode(ticketNode)) return false;
-		const fieldNodeId = ticketNode.children[state.selectedIndex];
-		if (!fieldNodeId) return false;
-		const fieldNode = state.nodes[fieldNodeId];
+		const fieldNode = getOrderedChildren(ticketNode.id)[state.selectedIndex];
 		if (!fieldNode) return false;
 		if (!isFieldNode(fieldNode)) {
 			logger.error('Node type not editable');

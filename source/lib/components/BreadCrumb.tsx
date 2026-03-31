@@ -1,28 +1,22 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {findAncestor, nodeRepo} from '../actions/add-item/node-repo.js';
+import {findAncestor} from '../actions/add-item/node-repo.js';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
-import {filterMap} from '../utils/array.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
 
 export const Breadcrumb: React.FC = () => {
-	const {
-		breadCrumb: crumbs,
-		currentNode,
-		selectedIndex,
-		viewMode,
-		nodes,
-	} = getState();
+	const {breadCrumb: crumbs, currentNode, selectedIndex, viewMode} = getState();
 
-	const selectedTarget = currentNode.children[selectedIndex];
-	const ticket = findAncestor(selectedTarget ?? currentNode.id, 'TICKET').data;
+	const selectedTarget = getOrderedChildren(currentNode.id)[selectedIndex];
+	const ticket = findAncestor(
+		selectedTarget?.id ?? currentNode.id,
+		'TICKET',
+	).data;
 
-	const children = (ticket?.children ?? [])
-		.map(id => nodeRepo.getNode(id))
-		.filter((node): node is NonNullable<typeof node> => node !== undefined);
-
+	const children = ticket?.id ? getOrderedChildren(ticket.id) : [];
 	const getListValues = (title: 'Tags' | 'Assignees') =>
 		children
 			.filter(
@@ -38,7 +32,7 @@ export const Breadcrumb: React.FC = () => {
 		<Box>
 			{crumbs.map((b, i) => {
 				const isLast = i === crumbs.length - 1;
-				const children = filterMap(b.children, id => nodes[id]);
+				const children = getOrderedChildren(b.id);
 				const selectedChildTitle = isLast
 					? children?.[selectedIndex]?.title
 					: undefined;

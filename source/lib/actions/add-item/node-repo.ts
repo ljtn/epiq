@@ -1,21 +1,23 @@
 import {
 	failed,
+	isFail,
+	Result,
 	ReturnFail,
 	ReturnSuccess,
 	succeeded,
 } from '../../command-line/command-types.js';
 import {Contributor, Tag} from '../../model/app-state.model.js';
-import {AnyContext} from '../../model/context.model.js';
+import {AnyContext, isFieldListNode} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
-import {getState, patchState, updateState} from '../../state/state.js';
-
-export const appendChildId = <T extends AnyContext>(
-	parent: NavNode<T>,
-	childId: string,
-): NavNode<T> => ({
-	...parent,
-	children: [...parent.children, childId],
-});
+import {
+	getState,
+	patchState,
+	updateState,
+	useAppState,
+} from '../../state/state.js';
+import {midRank} from '../../utils/rank.js';
+import {sanitizeInlineText} from '../../utils/string.utils.js';
+import {getOrderedChildren, MovePosition, resolveMoveRank} from './rank.js';
 
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
@@ -47,17 +49,111 @@ const asStringArray = (value: unknown): string[] =>
 		? value.filter((x): x is string => typeof x === 'string')
 		: [];
 
+const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
+	const {nodes} = getState();
+
+	let current = nodes[nodeId];
+	while (current?.parentNodeId) {
+		if (current.parentNodeId === ancestorId) return true;
+		current = nodes[current.parentNodeId];
+	}
+
+	return false;
+};
+
+function normalizeListValue(value: string): string {
+	return sanitizeInlineText(value).replace(/\s+/g, ' ').trim();
+}
+
+function collectFieldListValues(
+	node: NavNode<AnyContext> | undefined,
+	fieldName: string,
+): string[] {
+	if (!node) return [];
+
+	const values: string[] = [];
+	const seen = new Set<string>();
+	const {renderedChildrenIndex} = useAppState();
+	const visit = (current: NavNode<AnyContext>) => {
+		const children = renderedChildrenIndex[current.id];
+		if (current.title === fieldName && isFieldListNode(current)) {
+			for (const child of children ?? []) {
+				if (!child) continue;
+				const raw = String(child.props?.['value'] ?? child.title ?? '');
+				const value = normalizeListValue(raw);
+				const key = value.toLowerCase();
+
+				if (value && !seen.has(key)) {
+					seen.add(key);
+					values.push(value);
+				}
+			}
+		}
+
+		for (const child of children ?? []) {
+			visit(child);
+		}
+	};
+
+	visit(node);
+	return values.sort((a, b) => a.localeCompare(b));
+}
+
 export const nodeRepo = {
+	getExistingTags(): string[] {
+		const {rootNodeId, nodes} = getState();
+		const rootNode = nodes[rootNodeId];
+		if (!rootNode) return [];
+		return collectFieldListValues(rootNode, 'Tags');
+	},
+
+	getExistingAssignees(): string[] {
+		const {rootNodeId, nodes} = getState();
+		const rootNode = nodes[rootNodeId];
+		if (!rootNode) return [];
+		return collectFieldListValues(rootNode, 'Assignees');
+	},
+	moveNode(
+		nodeId: string,
+		nextParentId: string,
+		position: MovePosition = {type: 'end'},
+	): Result<NavNode<AnyContext>> {
+		const {rootNodeId} = getState();
+		const node = this.getNode(nodeId);
+		const nextParent = this.getNode(nextParentId);
+
+		if (!node) return failed('Node not found');
+		if (!nextParent) return failed('Target parent not found');
+		if (rootNodeId === nodeId) return failed('Cannot move root node');
+		if (nodeId === nextParentId) return failed('Cannot move node into itself');
+
+		if (isDescendantOf(nextParentId, nodeId)) {
+			return failed('Cannot move node into its own descendant');
+		}
+
+		const siblings = getOrderedChildren(nextParentId).filter(
+			x => x.id !== nodeId,
+		);
+
+		const rankResult = resolveMoveRank(siblings, position);
+		if (isFail(rankResult)) return rankResult;
+
+		const movedNode = {
+			...node,
+			parentNodeId: nextParentId,
+			rank: rankResult.data,
+		};
+
+		this.updateNode(movedNode);
+
+		return succeeded('Moved node successfully', movedNode);
+	},
+
 	tombstoneNode(nodeId: string): ReturnSuccess | ReturnFail {
 		const {nodes, currentNodeId, rootNodeId} = getState();
 
 		const node = this.getNode(nodeId);
 		if (!node) return failed('Node not found');
-
-		let parent: NavNode<AnyContext> | undefined;
-		if (node.parentNodeId) {
-			parent = this.getNode(node.parentNodeId);
-		}
 
 		if (rootNodeId === nodeId) return failed('Cannot delete root node');
 
@@ -68,8 +164,9 @@ export const nodeRepo = {
 			if (!current || idsToDelete.has(id)) return;
 
 			idsToDelete.add(id);
-			for (const childId of current.children) {
-				collectDescendants(childId);
+
+			for (const child of getOrderedChildren(current.id)) {
+				collectDescendants(child.id);
 			}
 		};
 
@@ -80,14 +177,6 @@ export const nodeRepo = {
 		for (const id of idsToDelete) {
 			if (!nextNodes[id]) return failed('Unable to locate node to delete');
 			nextNodes[id] = {...nextNodes[id], isDeleted: true};
-		}
-
-		if (node.parentNodeId && parent) {
-			const nextParent = {
-				...parent,
-				children: parent.children.filter(id => id !== nodeId),
-			};
-			nextNodes[node.parentNodeId] = nextParent;
 		}
 
 		if (!currentNodeId) {
@@ -124,9 +213,9 @@ export const nodeRepo = {
 			return failed('Unable assign contributor to issue');
 		}
 
-		const assigneesField = target.children
-			.map(nodeRepo.getNode)
-			.find(x => x?.title === 'Assignees');
+		const assigneesField = getOrderedChildren(target.id).find(
+			x => x?.title === 'Assignees',
+		);
 
 		if (!assigneesField) return failed('Unable to locate assignees field');
 
@@ -158,28 +247,22 @@ export const nodeRepo = {
 	},
 
 	tag(targetId: string, tagId: string) {
-		logger.debug(1, tagId, getState().nodes, getState().tags);
 		const tag = nodeRepo.getTag(tagId);
 		const target = nodeRepo.getNode(targetId);
 		if (!tag) return failed('Unable to add tag, missing tag');
 		if (!target) return failed('Unable to add tag, missing target');
-		logger.debug(2);
 
-		const tagsField = target.children
-			.map(nodeRepo.getNode)
-			.find(x => x?.title === 'Tags');
-		logger.debug(3);
+		const tagsField = getOrderedChildren(target.id).find(
+			({title}) => title === 'Tags',
+		);
 
 		if (!tagsField) return failed('Unable to locate tags field');
-		logger.debug(4);
 
 		const currentValue = asStringArray(tagsField.props.value);
-		logger.debug(5);
 		const nextValue = currentValue.includes(tagId)
 			? currentValue
 			: [...currentValue, tagId];
 
-		logger.debug(6);
 		nodeRepo.updateNode({
 			...tagsField,
 			props: {
@@ -193,6 +276,29 @@ export const nodeRepo = {
 		return succeeded('Tag added', tag);
 	},
 
+	createNodeAtPosition<T extends AnyContext>(
+		node: NavNode<T>,
+		position: MovePosition = {type: 'end'},
+	): Result<NavNode<T>> {
+		if (!node.parentNodeId) {
+			const withRank = {...node, rank: midRank()};
+			this.createNode(withRank);
+			return succeeded('Created node', withRank);
+		}
+
+		const siblings = getOrderedChildren(node.parentNodeId);
+		const rankResult = resolveMoveRank(siblings, position);
+		if (isFail(rankResult)) return rankResult;
+
+		const withRank: NavNode<T> = {
+			...node,
+			rank: rankResult.data,
+		};
+
+		this.createNode(withRank);
+		return succeeded('Created node', withRank);
+	},
+
 	createNode<T extends AnyContext>(node: NavNode<T>) {
 		updateState(s => ({
 			...s,
@@ -202,21 +308,7 @@ export const nodeRepo = {
 			},
 		}));
 
-		if (node.parentNodeId) this.appendChildToNode(node.parentNodeId, node);
-
 		return node as NavNode<T>;
-	},
-
-	createNodes(nodes: NavNode<AnyContext>[]) {
-		updateState(s => ({
-			...s,
-			nodes: {
-				...s.nodes,
-				...Object.fromEntries(nodes.map(node => [node.id, node])),
-			},
-		}));
-
-		return nodes;
 	},
 
 	updateNode(node: NavNode<AnyContext>) {
@@ -226,33 +318,17 @@ export const nodeRepo = {
 				...s.nodes,
 				[node.id]: node,
 			},
-			currentNodeId: s.currentNodeId,
+		}));
+		updateState(s => ({
+			...s,
+			currentNodeId: node.parentNodeId,
+			selectedIndex:
+				s.renderedChildrenIndex[node.parentNodeId!]?.findIndex(
+					({id}) => id === node.id,
+				) ?? -1,
 		}));
 
 		return node;
-	},
-
-	appendChildToNode(parentId: string, child: NavNode<AnyContext>) {
-		const {nodes} = getState();
-		const parent = this.getNode(parentId);
-		if (!parent) {
-			logger.error(
-				'Unable to add child node to undefined parent with id:',
-				parentId,
-			);
-			return;
-		}
-		const nextParent = appendChildId(parent, child.id);
-
-		patchState({
-			nodes: {
-				...nodes,
-				[parentId]: nextParent,
-				[child.id]: child,
-			},
-		});
-
-		return child;
 	},
 
 	getContributor(id: string): Contributor | undefined {

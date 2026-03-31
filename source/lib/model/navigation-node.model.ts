@@ -6,8 +6,8 @@ export type NavNode<U extends AnyContext> = {
 	isDeleted: boolean;
 	props: Partial<{value: string | string[]}>;
 	context: U;
-	children: string[];
 	parentNodeId: string | null;
+	rank: string;
 	childRenderAxis: 'vertical' | 'horizontal';
 	childNavigationAcrossParents?: boolean;
 };

@@ -1,20 +1,17 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
-import {filterMap} from '../utils/array.utils.js';
 
 export default function BoardList() {
 	const state = useAppState();
 	const workspace = state.nodes[state.rootNodeId];
-
 	const breadCrumbHeight = 1;
 	const commandLineHeight = 3;
 	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
 	const width = process.stdout.columns || 120;
-
-	if (!workspace?.children) return;
-	const children = filterMap(workspace.children, id => state.nodes[id]);
+	const children = workspace?.id ? getOrderedChildren(workspace?.id) : [];
 
 	return (
 		<Box
@@ -35,8 +32,10 @@ export default function BoardList() {
 						state.currentNode.context === 'WORKSPACE' &&
 						state.selectedIndex === i;
 
-					const swimlanes = filterMap(board.children, id => state.nodes[id]);
-					const issuesCount = swimlanes.flatMap(l => l.children ?? []).length;
+					const swimlanes = getOrderedChildren(board.id);
+					const issuesCount = swimlanes.flatMap(({id}) =>
+						getOrderedChildren(id),
+					).length;
 
 					return (
 						<Box key={board.id ?? i}>

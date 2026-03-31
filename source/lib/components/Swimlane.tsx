@@ -1,10 +1,9 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {ModeUnion} from '../model/action-map.model.js';
-import {AppState} from '../model/app-state.model.js';
 import {Swimlane} from '../model/context.model.js';
+import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
-import {filterMap} from '../utils/array.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 import {TicketListItemCompactUI} from './TicketListItemCompact.js';
@@ -18,7 +17,6 @@ type Props = {
 	isFocused: boolean;
 	listSelectedIndex: number;
 	mode: ModeUnion;
-	nodes: AppState['nodes'];
 };
 
 const SwimlaneUIComponent: React.FC<Props> = ({
@@ -30,9 +28,10 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 	isFocused,
 	listSelectedIndex,
 	mode,
-	nodes,
 }) => {
-	const title = `${swimlane.title} (${swimlane.children.length})`;
+	const {renderedChildrenIndex} = useAppState();
+	const children = renderedChildrenIndex[swimlane.id] ?? [];
+	const title = `${swimlane.title} (${children.length})`;
 	const cmdInputHeight = 3;
 
 	const itemHeight = isDense ? 1 : 4;
@@ -91,13 +90,13 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 			{swimlaneHeading}
 
 			<Box padding={isDense ? 1 : 0}>
-				{swimlane.children.length > 0 && (
+				{children.length > 0 && (
 					<ScrollBoxUI
 						selectedIndex={listSelectedIndex}
 						height={contentHeight}
 						itemHeight={itemHeight}
 					>
-						{filterMap(swimlane.children, id => nodes[id]).map(renderItem)}
+						{children.map(renderItem)}
 					</ScrollBoxUI>
 				)}
 

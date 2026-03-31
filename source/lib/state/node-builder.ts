@@ -1,16 +1,17 @@
 import {NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {midRank} from '../utils/rank.js';
 
 export const nodes = {
 	workspace: (id: string, name: string): NavNode<'WORKSPACE'> => ({
 		id,
 		title: name,
+		rank: midRank(),
 		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.WORKSPACE,
 		childRenderAxis: 'vertical',
 		parentNodeId: null,
-		children: [],
 	}),
 
 	board: (
@@ -20,12 +21,12 @@ export const nodes = {
 	): NavNode<'BOARD'> => ({
 		id,
 		title: name,
+		rank: midRank(),
 		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.BOARD,
 		childRenderAxis: 'horizontal',
 		parentNodeId,
-		children: [],
 	}),
 
 	swimlane: (
@@ -35,13 +36,13 @@ export const nodes = {
 	): NavNode<'SWIMLANE'> => ({
 		id,
 		title: name,
+		rank: midRank(),
 		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.SWIMLANE,
 		childRenderAxis: 'vertical',
 		childNavigationAcrossParents: true,
 		parentNodeId,
-		children: [],
 	}),
 
 	field: (
@@ -52,12 +53,12 @@ export const nodes = {
 	): NavNode<'FIELD'> => ({
 		id,
 		title: name,
+		rank: midRank(),
 		isDeleted: false,
 		props,
 		context: NavNodeCtx.FIELD,
 		childRenderAxis: 'vertical',
 		parentNodeId,
-		children: [],
 	}),
 
 	ticket: (
@@ -67,11 +68,11 @@ export const nodes = {
 	): NavNode<'TICKET'> => ({
 		id,
 		title: name,
+		rank: midRank(),
 		isDeleted: false,
 		props: {},
 		context: NavNodeCtx.TICKET,
 		childRenderAxis: 'vertical',
 		parentNodeId,
-		children: [],
 	}),
 };

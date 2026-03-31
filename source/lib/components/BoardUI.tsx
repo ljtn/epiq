@@ -1,7 +1,7 @@
 import {Box} from 'ink';
 import React from 'react';
 import {ModeUnion} from '../model/action-map.model.js';
-import {AppState, BreadCrumb, ViewMode} from '../model/app-state.model.js';
+import {BreadCrumb, ViewMode} from '../model/app-state.model.js';
 import {
 	AnyContext,
 	NavNodeCtx,
@@ -9,9 +9,9 @@ import {
 	Ticket,
 } from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {DeepReadonly} from '../model/readonly.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
-import {DeepReadonly} from '../model/readonly.model.js';
 
 type Props = {
 	swimlanes: readonly Swimlane[];
@@ -20,7 +20,6 @@ type Props = {
 	breadCrumb: DeepReadonly<BreadCrumb>;
 	viewMode: ViewMode;
 	mode: ModeUnion;
-	nodes: AppState['nodes'];
 };
 
 const BoardUIComponent: React.FC<Props> = ({
@@ -30,7 +29,6 @@ const BoardUIComponent: React.FC<Props> = ({
 	breadCrumb,
 	mode,
 	viewMode,
-	nodes,
 }) => {
 	const actionContext = currentNode.context;
 
@@ -62,10 +60,6 @@ const BoardUIComponent: React.FC<Props> = ({
 
 	const isDense = viewMode === 'dense';
 
-	const activeNodes = Object.fromEntries(
-		Object.entries(nodes).filter(([_, value]) => !value.isDeleted),
-	);
-
 	return (
 		<Box flexDirection="row" height={height}>
 			{isSwimlaneContext &&
@@ -86,13 +80,12 @@ const BoardUIComponent: React.FC<Props> = ({
 							isFocused={isFocused}
 							listSelectedIndex={listSelectedIndex}
 							mode={mode}
-							nodes={activeNodes}
 						/>
 					);
 				})}
 
 			{isTicketContext && ticketFromCrumb && (
-				<TicketUI height={height} ticket={ticketFromCrumb} nodes={nodes} />
+				<TicketUI height={height} ticket={ticketFromCrumb} />
 			)}
 		</Box>
 	);

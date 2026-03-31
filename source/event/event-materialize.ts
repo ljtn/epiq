@@ -1,6 +1,6 @@
 import {ulid} from 'ulid';
 import {nodeRepo} from '../lib/actions/add-item/node-repo.js';
-import {failed, succeeded} from '../lib/command-line/command-types.js';
+import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
@@ -14,36 +14,57 @@ const materializeHandlers: MaterializeHandlers = {
 		const {id, name} = event.payload;
 		const workspace = nodes.workspace(id, name);
 		initWorkspaceState(workspace);
-		nodeRepo.createNode(workspace);
+		nodeRepo.createNodeAtPosition(workspace);
 		return succeeded('Workspace initialized', workspace);
 	},
 
 	'add.workspace': event => {
 		const {id, name} = event.payload;
 		const workspace = nodes.workspace(id, name);
-		nodeRepo.createNode(workspace);
+		nodeRepo.createNodeAtPosition(workspace);
 		return succeeded('Added workspace', workspace);
 	},
 
 	'add.board': event => {
 		const {id, name, parentId} = event.payload;
-		const board = nodeRepo.createNode(nodes.board(id, name, parentId));
-		return succeeded('Added board', board);
+		const result = nodeRepo.createNodeAtPosition(
+			nodes.board(id, name, parentId),
+		);
+		if (isFail(result)) return failed('Unable to create board');
+		return succeeded('Added board', result.data);
 	},
 
 	'add.swimlane': event => {
 		const {id, name, parentId} = event.payload;
-		const swimlane = nodeRepo.createNode(nodes.swimlane(id, name, parentId));
-		return succeeded('Added swimlane', swimlane);
+		const result = nodeRepo.createNodeAtPosition(
+			nodes.swimlane(id, name, parentId),
+		);
+		if (isFail(result)) return failed('Unable to create swimlane');
+		return succeeded('Added swimlane', result.data);
 	},
 
 	'add.issue': event => {
 		const {id, name, parentId} = event.payload;
-		const issue = nodeRepo.createNode(nodes.ticket(id, name, parentId));
-		nodeRepo.createNode(nodes.field(ulid(), 'Description', id, {value: ''}));
-		nodeRepo.createNode(nodes.field(ulid(), 'Assignees', id, {value: ''}));
-		nodeRepo.createNode(nodes.field(ulid(), 'Tags', id, {value: ''}));
-		return succeeded('Added issue', issue);
+		const result = nodeRepo.createNodeAtPosition(
+			nodes.ticket(id, name, parentId),
+		);
+		const description = nodeRepo.createNodeAtPosition(
+			nodes.field(ulid(), 'Description', id, {value: ''}),
+		);
+		const assignees = nodeRepo.createNodeAtPosition(
+			nodes.field(ulid(), 'Assignees', id, {value: ''}),
+		);
+		const tags = nodeRepo.createNodeAtPosition(
+			nodes.field(ulid(), 'Tags', id, {value: ''}),
+		);
+		if (
+			isFail(result) ||
+			isFail(description) ||
+			isFail(tags) ||
+			isFail(assignees)
+		)
+			return failed('Unable to create issue');
+		return succeeded('Added issue', result.data);
 	},
 
 	'edit.title': event => {
@@ -92,6 +113,13 @@ const materializeHandlers: MaterializeHandlers = {
 		const {contributorId, targetId} = event.payload;
 		nodeRepo.assign(targetId, contributorId);
 		return succeeded('Assigned successfully', undefined);
+	},
+
+	'move.node': event => {
+		const {id, parentId, position} = event.payload;
+		const moved = nodeRepo.moveNode(id, parentId, position);
+		if (isFail(moved)) return failed('Failed to move node');
+		return succeeded('Moved node', moved.data.id);
 	},
 };
 

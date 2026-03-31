@@ -1,7 +1,7 @@
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getState, patchState} from '../../state/state.js';
-import {filterMap} from '../../utils/array.utils.js';
+import {getOrderedChildren} from '../add-item/rank.js';
 
 export interface Navigator {
 	navigate<T extends AnyContext>({
@@ -29,13 +29,12 @@ export const navigationUtils: Navigator = {
 		const state = getState();
 		const currentNode = state.currentNode;
 		const index = Math.max(0, state.selectedIndex);
-		const focusNodeId = currentNode.children[index];
-		const focusNode = focusNodeId ? state.nodes[focusNodeId] : undefined;
+		const focusNode = getOrderedChildren(currentNode.id)[index];
 		if (!focusNode || currentNode.context === 'FIELD') return;
 
 		navigationUtils.navigate({
 			currentNode: focusNode,
-			selectedIndex: focusNode.children.length ? 0 : -1,
+			selectedIndex: getOrderedChildren(focusNode.id).length ? 0 : -1,
 		});
 	},
 
@@ -51,9 +50,9 @@ export const navigationUtils: Navigator = {
 			logger.error('Parent not found');
 			return;
 		}
-		const idx = parent.children.findIndex(id => id === currentNode.id);
-		const selectedIndex =
-			parent.children.length === 0 ? -1 : idx >= 0 ? idx : 0;
+		const parentChildren = getOrderedChildren(parent.id);
+		const idx = parentChildren.findIndex(({id}) => id === currentNode.id);
+		const selectedIndex = parentChildren.length === 0 ? -1 : idx >= 0 ? idx : 0;
 
 		navigationUtils.navigate({currentNode: parent, selectedIndex});
 	},
@@ -74,7 +73,7 @@ export const navigationUtils: Navigator = {
 
 const navigateByOffset = (offset: number) => {
 	const state = getState();
-	const len = state.currentNode.children.length;
+	const len = getOrderedChildren(state.currentNode.id).length;
 	if (len === 0) return;
 
 	const base = Math.max(0, state.selectedIndex);
@@ -94,7 +93,7 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 	const parentNode = nodes[currentNode.parentNodeId];
 	if (!currentNode || !parentNode) return;
 
-	const siblings = filterMap(parentNode.children, id => nodes[id]);
+	const siblings = getOrderedChildren(parentNode.id);
 	const currentNodeIndex = siblings.findIndex(x => x.id === currentNode.id);
 	if (currentNodeIndex < 0) return;
 
@@ -102,9 +101,10 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 		siblings.at(currentNodeIndex + direction) ?? siblings.at(0);
 	if (!nextSibling) return;
 
-	const maxIndex = Math.max(0, nextSibling.children.length - 1);
+	const nextSiblingChildren = getOrderedChildren(nextSibling.id);
+	const maxIndex = Math.max(0, nextSiblingChildren.length - 1);
 	const boundedIndex = Math.min(Math.max(0, selectedIndex), maxIndex);
-	const newSelectedIndex = nextSibling.children.length ? boundedIndex : -1;
+	const newSelectedIndex = nextSiblingChildren.length ? boundedIndex : -1;
 
 	navigationUtils.navigate({
 		currentNode: nextSibling,

@@ -1,6 +1,6 @@
 import readline from 'readline';
 import {ParsedCommandLine} from '../command-line/command-parser.js';
-import {ReturnedResult} from '../command-line/command-types.js';
+import {Result, ReturnedResult} from '../command-line/command-types.js';
 
 export const Mode = {
 	DEFAULT: 'default',
@@ -14,7 +14,7 @@ export type ActionEntry = {
 	intent?: string;
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
-	action?: (...args: [ActionEntry, readline.Key]) => void | Promise<void>;
+	action?: (...args: [ActionEntry, readline.Key]) => Result<string> | void;
 };
 
 export type ActionMap<T extends Record<string, any[]>> = {

@@ -53,3 +53,11 @@ export const noResult = (): ReturnFail => ({
 	message: 'No result',
 	data: null,
 });
+
+export type Result<T> = ReturnSuccess<T> | ReturnFail;
+
+export const isFail = <T>(res: Result<T>): res is ReturnFail =>
+	res.result === 'fail';
+
+export const isSuccess = <T>(res: Result<T>): res is ReturnSuccess<T> =>
+	res.result === 'success';

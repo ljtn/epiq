@@ -1,24 +1,22 @@
 import {Box} from 'ink';
 import React from 'react';
-import {AppState} from '../model/app-state.model.js';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {Ticket} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {useAppState} from '../state/state.js';
-import {filterMap} from '../utils/array.utils.js';
 import {FieldListUI} from './FieldListUI.js';
 import {FieldUI} from './FieldUI.js';
 
 type Props = {
 	ticket: Ticket;
 	height: number;
-	nodes: AppState['nodes'];
 };
 
-export const TicketUI: React.FC<Props> = ({ticket, height, nodes}) => {
+export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const {selectedIndex, currentNode} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
 	const isInTicket = currentNode.id === ticket.id;
-	const children = filterMap(ticket.children, id => nodes[id]);
+	const children = getOrderedChildren(ticket.id);
 	return (
 		<Box
 			width={maxWidth}

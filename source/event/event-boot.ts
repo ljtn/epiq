@@ -1,9 +1,9 @@
 import {ulid} from 'ulid';
 import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
+import {getState} from '../lib/state/state.js';
 import {loadMergedEvents} from './event-load.js';
 import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
-import {getState} from '../lib/state/state.js';
 
 export const bootStateFromEventLog = () => {
 	const eventLog = loadMergedEvents();
@@ -46,6 +46,6 @@ export const bootStateFromEventLog = () => {
 	navigationUtils.navigate({
 		currentNode: firstSwimlane,
 		selectedIndex:
-			(getState().nodes[firstSwimlane?.id]?.children.length || 0) - 1,
+			(getState().renderedChildrenIndex?.[firstSwimlane.id]?.length || 0) - 1,
 	});
 };

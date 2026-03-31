@@ -14,6 +14,7 @@ import {
 	succeeded,
 } from './command-types.js';
 import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -29,13 +30,13 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {currentNode, selectedIndex} = getState();
-			const childId = currentNode.children[selectedIndex];
-			if (!childId) return failed('Unable to resolve child to delete');
+			const child = getOrderedChildren(currentNode.id)[selectedIndex];
+			if (!child) return failed('Unable to resolve child to delete');
 
 			return materializeAndPersist({
 				action: 'delete.node',
 				payload: {
-					id: childId,
+					id: child.id,
 				},
 			});
 		},
@@ -105,7 +106,7 @@ export const commands: CommandLineActionEntry[] = [
 
 				navigationUtils.navigate({
 					currentNode: swimlane,
-					selectedIndex: swimlane.children.length,
+					selectedIndex: getOrderedChildren(swimlane.id).length,
 				});
 
 				return result;
@@ -141,9 +142,7 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {currentNode, selectedIndex} = getState();
-			const nodeId = currentNode.children[selectedIndex];
-			if (!nodeId) return failed('Missing node id');
-			const node = nodeRepo.getNode(nodeId);
+			const node = getOrderedChildren(currentNode.id)[selectedIndex];
 			if (!node) return failed('Missing node');
 
 			const newName = getCmdArg();
@@ -165,9 +164,9 @@ export const commands: CommandLineActionEntry[] = [
 			if (!name) return failed('Provide a tag');
 
 			const {selectedIndex, currentNode} = getState();
-			const selectedId = currentNode.children[selectedIndex];
-			if (!selectedId) return failed('Selection node not found');
-			const ticket = findAncestor(selectedId, 'TICKET').data;
+			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
+			if (!selected) return failed('Selection node not found');
+			const ticket = findAncestor(selected.id, 'TICKET').data;
 			if (!ticket) return failed('Unable to tag issue in this context');
 
 			const existingTag = findTagByName(name);
@@ -188,7 +187,7 @@ export const commands: CommandLineActionEntry[] = [
 			return materializeAndPersist({
 				action: 'issue.tag',
 				payload: {
-					targetId: selectedId,
+					targetId: selected.id,
 					tagId,
 				},
 			});
@@ -204,9 +203,9 @@ export const commands: CommandLineActionEntry[] = [
 			if (!name) return failed('Provide an assignee');
 
 			const {selectedIndex, currentNode} = getState();
-			const selectedId = currentNode.children[selectedIndex];
-			if (!selectedId) return failed('Selection node not found');
-			const ticket = findAncestor(selectedId, 'TICKET').data;
+			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
+			if (!selected) return failed('Selection node not found');
+			const ticket = findAncestor(selected.id, 'TICKET').data;
 			if (!ticket) return failed('Unable to tag issue in this context');
 
 			const existingContributor = findContributorByName(name);

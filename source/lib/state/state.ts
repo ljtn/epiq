@@ -1,14 +1,19 @@
-// state/state.ts
 import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/board-action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../command-line/command-types.js';
 import {Hints} from '../hints/hints.js';
 import {Mode} from '../model/action-map.model.js';
-import type {AppState, BreadCrumb} from '../model/app-state.model.js';
+import type {AppState} from '../model/app-state.model.js';
 import type {AnyContext, Workspace} from '../model/context.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
-import {findNodeInTree} from '../utils/nav-tree.js';
+import {buildBreadCrumb} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
 
 type DerivedKeys =
@@ -36,32 +41,33 @@ const subscribe = (listener: () => void) => {
 // -----------------------------
 // Derivation
 // -----------------------------
-function derive(state: BaseState): AppState {
+function derive(state: BaseState): Result<AppState> {
 	const {currentNodeId, mode, rootNodeId, nodes} = state;
 
 	if (!currentNodeId) {
-		throw new Error('derive(): currentNodeId is missing');
+		return failed('derive(): currentNodeId is missing');
 	}
 	if (!rootNodeId) {
-		throw new Error('derive(): rootNode is missing');
+		return failed('derive(): rootNode is missing');
 	}
 
 	const rootNode = nodes[rootNodeId];
 	if (!rootNode) {
-		throw new Error(`derive(): unable to find root node`);
-	}
-	const found = findNodeInTree({id: currentNodeId}, rootNode, [], nodes);
-	if (!found?.node || !found?.breadCrumb) {
-		logger.error(`derive(): unable to find node ${currentNodeId} in tree`);
-		throw Error();
+		return failed(`derive(): unable to find root node`);
 	}
 
 	const currentNode = nodes[currentNodeId];
 	if (!currentNode) {
 		logger.error('Unable to derive state, currentNode not found');
-		throw Error();
+		return failed('Unable to derive state, currentNode not found');
 	}
-	const breadCrumb: BreadCrumb = found.breadCrumb;
+
+	const breadCrumbResult = buildBreadCrumb(currentNodeId, nodes, rootNodeId);
+	if (isFail(breadCrumbResult)) {
+		logger.error(breadCrumbResult.message);
+		return breadCrumbResult;
+	}
+	const breadCrumb = breadCrumbResult.data;
 
 	const {context} = currentNode;
 	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
@@ -75,14 +81,15 @@ function derive(state: BaseState): AppState {
 	const actionIndex = buildActionIndex(availableActions);
 
 	// Consider not freezing if performance issues
-	return {
+	return succeeded('Derived successfully', {
 		...state,
 		currentNode,
 		breadCrumb,
 		availableHints,
 		availableActions,
 		actionIndex,
-	};
+		renderedChildrenIndex: buildChildIndex(nodes),
+	});
 }
 
 // -----------------------------
@@ -104,10 +111,13 @@ export function initWorkspaceState(workspace: Workspace) {
 		nodes: {[workspace.id]: workspace},
 		rootNodeId: workspace.id,
 		currentNodeId: workspace.id,
+		renderedChildrenIndex: {},
 		selectedIndex: -1,
 	};
 
-	_appState = derive(base);
+	const deriveResult = derive(base);
+	if (isFail(deriveResult)) return logger.error(deriveResult.message);
+	_appState = deriveResult.data;
 	emit();
 }
 
@@ -118,7 +128,9 @@ export function initWorkspaceState(workspace: Workspace) {
 export function updateState(cb: (old: AppState) => BaseState) {
 	const prev = getState();
 	const nextBase = cb(prev);
-	_appState = derive(nextBase);
+	const deriveResult = derive(nextBase);
+	if (isFail(deriveResult)) return logger.error(deriveResult.message);
+	_appState = deriveResult.data;
 	emit();
 }
 
@@ -134,3 +146,28 @@ export const isChildSelected = (
 /** Ink/React hook: components re-render on state changes. */
 export const useAppState = () =>
 	useSyncExternalStore(subscribe, getState, getState);
+
+const buildChildIndex = (nodes: Record<string, NavNode<AnyContext>>) => {
+	const index: Record<string, NavNode<AnyContext>[]> = {};
+
+	for (const node of Object.values(nodes)) {
+		if (!node.parentNodeId || node.isDeleted) continue;
+
+		if (!node.parentNodeId || !index[node.parentNodeId]) {
+			index[node.parentNodeId] = [];
+		}
+
+		index[node.parentNodeId]!.push(node);
+	}
+
+	for (const parentId of Object.keys(index)) {
+		index[parentId]!.sort((a, b) => {
+			const left = nodes[a.id];
+			const right = nodes[b.id];
+			if (!left || !right) return 0;
+			return left.rank.localeCompare(right.rank);
+		});
+	}
+
+	return index;
+};

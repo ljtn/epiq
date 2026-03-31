@@ -1,6 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {nodeRepo} from '../actions/add-item/node-repo.js';
+import {getOrderedChildren} from '../actions/add-item/rank.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
@@ -25,10 +26,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	index,
 	mode,
 }) => {
-	const children = (ticket.children ?? [])
-		.map(id => nodeRepo.getNode(id))
-		.filter((node): node is NonNullable<typeof node> => node !== undefined);
-
+	const children = getOrderedChildren(ticket.id);
 	const getListValues = (title: 'Tags' | 'Assignees') =>
 		children
 			.filter(
