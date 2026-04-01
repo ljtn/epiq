@@ -54,50 +54,6 @@ export const getEventLogPath = (rootDir = process.cwd()) => {
 	return path.join(getEventsDir(rootDir), `${actorId}.jsonl`);
 };
 
-const parseJsonLine = (line: string): PersistedEvent | null => {
-	const trimmed = line.trim();
-	if (!trimmed) return null;
-	return JSON.parse(trimmed) as PersistedEvent;
-};
-
-const readLatestEntry = (filePath: string): PersistedEvent | null => {
-	if (!fs.existsSync(filePath)) return null;
-
-	const content = fs.readFileSync(filePath, 'utf8');
-	if (!content.trim()) return null;
-
-	const lines = content.split('\n');
-	for (let i = lines.length - 1; i >= 0; i--) {
-		const entry = parseJsonLine(lines[i] ?? '');
-		if (entry) return entry;
-	}
-
-	return null;
-};
-
-const readLatestGlobalEventId = (rootDir = process.cwd()): string | null => {
-	const dir = getEventsDir(rootDir);
-	if (!fs.existsSync(dir)) return null;
-
-	const files = fs
-		.readdirSync(dir)
-		.filter(file => file.endsWith('.jsonl'))
-		.map(file => path.join(dir, file));
-
-	let latest: string | null = null;
-
-	for (const filePath of files) {
-		const entry = readLatestEntry(filePath);
-		if (!entry) continue;
-
-		if (latest === null || entry.eventId > latest) {
-			latest = entry.eventId;
-		}
-	}
-
-	return latest;
-};
-
 export function persist(event: AppEvent, rootDir = process.cwd()) {
 	try {
 		const actorId = resolveActorId();
