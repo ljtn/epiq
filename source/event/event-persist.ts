@@ -11,7 +11,6 @@ const EVENTS_DIR = 'events';
 export type PersistedEvent = {
 	eventId: string;
 	actorId: string;
-	persistedAt: string;
 	event: AppEvent;
 };
 
@@ -65,7 +64,6 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 		const entry: PersistedEvent = {
 			eventId: ulid(),
 			actorId,
-			persistedAt: new Date().toISOString(),
 			event,
 		};
 

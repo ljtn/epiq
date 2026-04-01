@@ -72,8 +72,9 @@ export const bootStateFromEventLog = () => {
 
 	navigationUtils.navigate({
 		currentNode: navigationTarget,
-		selectedIndex:
-			(getState().renderedChildrenIndex?.[navigationTarget.id]?.length || 0) -
-			1,
+		selectedIndex: getState().renderedChildrenIndex?.[navigationTarget.id]
+			?.length
+			? 0
+			: -1,
 	});
 };

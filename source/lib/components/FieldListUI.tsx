@@ -10,7 +10,6 @@ type Props = {
 	selected: boolean;
 };
 export const FieldListUI: React.FC<Props> = ({items, title, selected}) => {
-	logger.info('items: %o', items);
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			<Text color={theme.secondary}>{' ' + title}:</Text>
