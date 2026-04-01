@@ -1,18 +1,29 @@
 {
 	"name": "epiq",
-	"version": "0.0.5",
+	"version": "0.1.2",
 	"license": "MIT",
-	"bin": "dist/cli.js",
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",
+	"bin": {
+		"epiq": "dist/cli.js"
+	},
 	"engines": {
 		"node": ">=16"
 	},
 	"scripts": {
-		"build": "tsc",
-		"dev": "tsc --watch",
+		"clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\"",
+		"build": "tsc --noEmit",
+		"build:publish": "pnpm clean && esbuild source/cli.tsx --bundle --platform=node --format=esm --target=node16 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' --external:react-devtools-core",
+		"dev": "tsc --watch --noEmit",
+		"dev:start": "IS_LOCAL=true tsx source/cli.tsx",
+		"start": "node dist/cli.js",
+		"start:debug": "IS_LOCAL=true node dist/cli.js",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run",
-		"start": "node dist/cli.js"
+		"prepack": "pnpm build:publish",
+		"pack:check": "rm -f epiq-*.tgz && npm pack --json",
+		"publish:tarball": "FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"Publishing $FILE\" && npm publish \"$FILE\"",
+		"publish:dry": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && npm publish --dry-run \"$FILE\"",
+		"release": "pnpm test && pnpm pack:check && pnpm publish:tarball"
 	},
 	"files": [
 		"dist"
@@ -32,6 +43,7 @@
 		"@types/react": "^18.0.32",
 		"@vdemedes/prettier-config": "^2.0.1",
 		"chalk": "^5.2.0",
+		"esbuild": "^0.25.0",
 		"eslint-plugin-react": "^7.32.2",
 		"eslint-plugin-react-hooks": "^4.6.0",
 		"ink-testing-library": "^3.0.0",

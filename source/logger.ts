@@ -2,16 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import util from 'util';
 
+const isLocal = process.env['IS_LOCAL'] === 'true';
 const LOG_PATH = path.resolve(process.cwd(), '.epiq', 'log', 'app.log');
 const MAX_LINES = 1000;
 
 function enforceLogHorizon() {
-	if (!fs.existsSync(LOG_PATH)) return;
+	if (!isLocal || !fs.existsSync(LOG_PATH)) return;
 
 	const content = fs.readFileSync(LOG_PATH, 'utf8');
 	const lines = content.split('\n');
 
-	// Remove possible trailing empty line from split
 	if (lines[lines.length - 1] === '') {
 		lines.pop();
 	}
@@ -21,39 +21,34 @@ function enforceLogHorizon() {
 	const trimmed = lines.slice(-MAX_LINES).join('\n') + '\n';
 	fs.writeFileSync(LOG_PATH, trimmed, 'utf8');
 }
-function write(prefix: string, args: any[], short = false) {
+
+function write(prefix: string, args: unknown[], short = false) {
+	if (!isLocal) return;
+
 	const message = util.format(...args);
 
 	const now = new Date();
-	const timestamp = short
-		? now.toISOString().slice(11, 19) // HH:mm:ss
-		: now.toISOString(); // full ISO
+	const timestamp = short ? now.toISOString().slice(11, 19) : now.toISOString();
 
 	const line = `[${timestamp}] ${prefix} ${message}\n`;
 
-	// Ensure parent directory exists
 	fs.mkdirSync(path.dirname(LOG_PATH), {recursive: true});
-
-	// Append new line
 	fs.appendFileSync(LOG_PATH, line, 'utf8');
-
-	// Enforce 1000 line horizon
 	enforceLogHorizon();
 }
 
 export const logger = {
-	info(...args: any[]): void {
+	info(...args: unknown[]): void {
 		write('[Info]', args, false);
 	},
-	debug(...args: any[]): void {
-		write('->', args, true); // 👈 short timestamp
+	debug(...args: unknown[]): void {
+		write('->', args, true);
 	},
-	error(...args: any[]): void {
+	error(...args: unknown[]): void {
 		write('[Error]', [...args, new Error().stack], false);
 	},
 };
 
-// make it global
-(globalThis as any).logger = logger;
+(globalThis as {logger?: typeof logger}).logger = logger;
 
 export {};

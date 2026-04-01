@@ -4,3 +4,4 @@ app.log
 .epiq
 .vscode/tasks.json
 .archive
+epiq-*.tgz
