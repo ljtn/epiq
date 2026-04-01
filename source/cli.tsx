@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';

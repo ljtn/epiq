@@ -1,9 +1,10 @@
 {
 	"extends": "@sindresorhus/tsconfig",
 	"compilerOptions": {
+		"rootDir": "source",
 		"outDir": "dist",
-		"lib": ["esnext"]
+		"lib": ["esnext"],
+		"types": ["node"]
 	},
-
 	"include": ["source", "globals.d.ts"]
 }
