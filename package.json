@@ -15,7 +15,7 @@
 		"build:publish": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",
 		"dev": "tsc --watch --noEmit",
 		"dev:start": "IS_LOCAL=true tsx source/cli.tsx",
-		"start": "IS_LOCAL=true node dist/cli.js",
+		"start": "IS_LOCAL=true tsx source/cli.tsx",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run",
 		"prepack": "pnpm build:publish",
 		"pack:check": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"$FILE\" && tar -tf \"$FILE\"",
