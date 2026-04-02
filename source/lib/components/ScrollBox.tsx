@@ -7,6 +7,7 @@ type Props = {
 	height: number; // height in terminal rows
 	selectedIndex: number;
 	itemHeight?: number;
+	scrollByOne?: boolean;
 };
 
 export const ScrollBoxUI: React.FC<Props> = ({
@@ -14,6 +15,7 @@ export const ScrollBoxUI: React.FC<Props> = ({
 	height,
 	selectedIndex,
 	itemHeight = 1,
+	scrollByOne = false,
 }) => {
 	if (children.length === 0) {
 		return null;
@@ -30,16 +32,21 @@ export const ScrollBoxUI: React.FC<Props> = ({
 	);
 
 	const maxStart = Math.max(0, children.length - visibleItemCount);
-	const start = Math.min(
-		maxStart,
-		Math.floor(clampedSelectedIndex / visibleItemCount) * visibleItemCount,
-	);
-	const end = start + visibleItemCount;
 
+	const start = scrollByOne
+		? Math.min(
+				maxStart,
+				Math.max(0, clampedSelectedIndex - visibleItemCount + 1),
+		  )
+		: Math.min(
+				maxStart,
+				Math.floor(clampedSelectedIndex / visibleItemCount) * visibleItemCount,
+		  );
+
+	const end = start + visibleItemCount;
 	const visibleChildren = children.slice(start, end);
 
 	const showScrollbar = children.length > visibleItemCount;
-
 	const scrollBarHeight = safeHeight;
 
 	const thumbHeight = showScrollbar

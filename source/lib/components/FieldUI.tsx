@@ -10,6 +10,7 @@ import {nodes} from '../state/node-builder.js';
 import {theme} from '../theme/themes.js';
 import {truncateWithEllipsis} from '../utils/string.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
+import chalk from 'chalk';
 
 type Props = {
 	field: Field;
@@ -69,20 +70,23 @@ export const FieldUI: React.FC<Props> = ({
 	const renderedItems = documentRows.map((row, i) => (
 		<Text key={`${field.id}-${i}`}>
 			{(currentNode.id === field.id && selectedIndex === i
-				? `⸬ ${Array.from({length: String(i).length})
-						.map(() => ' ')
-						.join('')}`
-				: `${i + 1}  `) +
+				? chalk.cyan(
+						`⸬ ${Array.from({length: String(i).length})
+							.map(() => ' ')
+							.join('')}`,
+				  )
+				: chalk.dim.gray(`${i + 1}  `)) +
 				renderMarkdown(
 					row.length ? truncateWithEllipsis(row, 40 - 6) : EMPTY_ROW_FALLBACK,
 				)}
 		</Text>
 	));
 
+	const height = 12;
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			<Text color={selected ? theme.primary : theme.secondary}>
-				{' ' + field.title}:
+				{' ' + field.title + ' (press I to edit)'}
 			</Text>
 
 			<Box
@@ -93,8 +97,9 @@ export const FieldUI: React.FC<Props> = ({
 				paddingRight={1}
 			>
 				<ScrollBoxUI
+					scrollByOne={true}
 					children={renderedItems}
-					height={8}
+					height={height}
 					selectedIndex={selectedIndex}
 					itemHeight={1}
 				/>
