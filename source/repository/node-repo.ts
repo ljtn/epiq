@@ -39,11 +39,6 @@ export const findAncestor = <T extends AnyContext>(
 	return failed(`No ancestor found for context: ${ctx}`);
 };
 
-const asStringArray = (value: unknown): string[] =>
-	Array.isArray(value)
-		? value.filter((x): x is string => typeof x === 'string')
-		: [];
-
 const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
 	const {nodes} = getState();
 
@@ -95,6 +90,18 @@ function collectFieldListValues(
 }
 
 export const nodeRepo = {
+	/* Only to be used for TEMP nodes*/
+	deleteNode(nodeId: string) {
+		updateState(s => {
+			const nextNodes = {...s.nodes};
+			delete nextNodes[nodeId];
+			return {
+				...s,
+				nodes: nextNodes,
+			};
+		});
+	},
+
 	editValue(targetId: string, markdown: string): Result<{markdown: string}> {
 		const {nodes} = getState();
 		const targetNode = nodes[targetId];
@@ -231,7 +238,8 @@ export const nodeRepo = {
 
 		if (!assigneesField) return failed('Unable to locate assignees field');
 
-		const currentValue = asStringArray(assigneesField.props.value);
+		const currentValue =
+			assigneesField.props.value?.split('|').map(s => s.trim()) ?? [];
 		const nextValue = currentValue.includes(contributorId)
 			? currentValue
 			: [...currentValue, contributorId];
@@ -240,7 +248,7 @@ export const nodeRepo = {
 			...assigneesField,
 			props: {
 				...assigneesField.props,
-				value: nextValue,
+				value: nextValue.join('|'),
 			},
 		});
 
@@ -270,7 +278,8 @@ export const nodeRepo = {
 
 		if (!tagsField) return failed('Unable to locate tags field');
 
-		const currentValue = asStringArray(tagsField.props.value);
+		const currentValue =
+			tagsField.props.value?.split('|').map(s => s.trim()) ?? [];
 		const nextValue = currentValue.includes(tagId)
 			? currentValue
 			: [...currentValue, tagId];
@@ -279,7 +288,7 @@ export const nodeRepo = {
 			...tagsField,
 			props: {
 				...tagsField.props,
-				value: nextValue,
+				value: nextValue.join('|'),
 			},
 		});
 

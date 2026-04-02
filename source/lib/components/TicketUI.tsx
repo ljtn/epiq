@@ -17,6 +17,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const maxWidth = process.stdout.columns || 120;
 	const isInTicket = currentNode.id === ticket.id;
 	const children = getOrderedChildren(ticket.id);
+
 	return (
 		<Box
 			width={maxWidth}
@@ -27,10 +28,10 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			minHeight={height}
 		>
 			{children.map((child, index) =>
-				Array.isArray(child.props.value) ? (
+				child.title === 'Assignees' || child.title === 'Tags' ? (
 					<FieldListUI
 						key={child.id}
-						items={child.props.value}
+						items={child.props.value?.split('|').map(s => s.trim()) ?? []}
 						title={child.title}
 						selected={isInTicket && selectedIndex === index}
 					/>
@@ -38,7 +39,12 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 					<FieldUI
 						key={child.id}
 						field={child as NavNode<'FIELD'>}
-						selected={isInTicket && selectedIndex === index}
+						selected={
+							(isInTicket && selectedIndex === index) ||
+							currentNode.id === child.id
+						}
+						selectedIndex={selectedIndex}
+						currentNode={currentNode}
 					/>
 				),
 			)}

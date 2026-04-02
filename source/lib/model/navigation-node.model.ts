@@ -4,7 +4,7 @@ export type NavNode<U extends AnyContext> = {
 	id: string;
 	title: string;
 	isDeleted: boolean;
-	props: Partial<{value: string | string[]}>;
+	props: Partial<{value: string}>;
 	context: U;
 	parentNodeId: string | null;
 	rank: string;

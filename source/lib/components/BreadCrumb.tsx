@@ -19,11 +19,8 @@ export const Breadcrumb: React.FC = () => {
 	const children = ticket?.id ? getOrderedChildren(ticket.id) : [];
 	const getListValues = (title: 'Tags' | 'Assignees') =>
 		children
-			.filter(
-				(node): node is typeof node & {props: {value: string[]}} =>
-					node.title === title && Array.isArray(node.props.value),
-			)
-			.flatMap(node => node.props.value);
+			.filter(node => node.title === title)
+			.flatMap(node => node.props.value?.split('|').map(s => s.trim()) ?? []);
 
 	const tags = getListValues('Tags');
 	const assignees = getListValues('Assignees');

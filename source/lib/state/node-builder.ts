@@ -49,7 +49,7 @@ export const nodes = {
 		id: string,
 		name: string,
 		parentNodeId: string,
-		props: NavNode<'FIELD'>['props'],
+		props: NavNode<'FIELD'>['props'] = {},
 	): NavNode<'FIELD'> => ({
 		id,
 		title: name,
