@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {monotonicFactory} from 'ulid';
 import {failed, succeeded} from '../lib/command-line/command-types.js';
 import {AppEvent} from './event.model.js';
-import {ulid} from 'ulid';
+
+const getNextId = monotonicFactory();
 
 const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
@@ -62,7 +64,7 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 		fs.mkdirSync(dir, {recursive: true});
 
 		const entry: PersistedEvent = {
-			eventId: ulid(),
+			eventId: getNextId(),
 			actorId,
 			event,
 		};

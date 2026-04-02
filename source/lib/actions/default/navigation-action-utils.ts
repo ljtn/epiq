@@ -1,7 +1,7 @@
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getState, patchState} from '../../state/state.js';
-import {getOrderedChildren} from '../add-item/rank.js';
+import {getOrderedChildren} from '../../../repository/rank.js';
 
 export interface Navigator {
 	navigate<T extends AnyContext>({

@@ -5,13 +5,13 @@ import {
 	ReturnFail,
 	ReturnSuccess,
 	succeeded,
-} from '../../command-line/command-types.js';
-import {Contributor, Tag} from '../../model/app-state.model.js';
-import {AnyContext, isFieldListNode} from '../../model/context.model.js';
-import {NavNode} from '../../model/navigation-node.model.js';
-import {getState, patchState, updateState} from '../../state/state.js';
-import {midRank} from '../../utils/rank.js';
-import {sanitizeInlineText} from '../../utils/string.utils.js';
+} from '../lib/command-line/command-types.js';
+import {Contributor, Tag} from '../lib/model/app-state.model.js';
+import {AnyContext, isFieldListNode} from '../lib/model/context.model.js';
+import {NavNode} from '../lib/model/navigation-node.model.js';
+import {getState, patchState, updateState} from '../lib/state/state.js';
+import {midRank} from '../lib/utils/rank.js';
+import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {getOrderedChildren, MovePosition, resolveMoveRank} from './rank.js';
 
 export const findAncestor = <T extends AnyContext>(

@@ -1,4 +1,4 @@
-import {nodeRepo} from '../lib/actions/add-item/node-repo.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';

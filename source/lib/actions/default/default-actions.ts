@@ -10,7 +10,7 @@ import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
-import {getOrderedChildren} from '../add-item/rank.js';
+import {getOrderedChildren} from '../../../repository/rank.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
@@ -54,6 +54,9 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		mode: Mode.DEFAULT,
 		description: '[ARROWS/HJKL] Navigate',
+		action: () => {
+			// noop. Navigation is handled globally in the key handler since it needs to work in command line mode as well
+		},
 	},
 
 	{

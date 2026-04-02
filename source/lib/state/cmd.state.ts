@@ -8,7 +8,7 @@ import {
 	CmdKeyword,
 	CmdValidity,
 	cmdValidity,
-	ReturnedResult,
+	Result,
 } from '../command-line/command-types.js';
 
 export const commandDelimiter = ' ';
@@ -78,10 +78,7 @@ const setState = (cb: SetStateCb) => {
 	notify();
 };
 
-export const cmdResultToValidationState = ({
-	message,
-	result,
-}: ReturnedResult) => {
+export const cmdResultToValidationState = <T>({message, result}: Result<T>) => {
 	const next = structuredClone(commandLineState);
 	next.commandMeta = {
 		...next.commandMeta,

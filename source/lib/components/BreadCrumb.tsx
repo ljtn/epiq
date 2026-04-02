@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {findAncestor} from '../actions/add-item/node-repo.js';
-import {getOrderedChildren} from '../actions/add-item/rank.js';
+import {findAncestor} from '../../repository/node-repo.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';

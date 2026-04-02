@@ -9,7 +9,7 @@ import {
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getState} from '../../state/state.js';
-import {getOrderedChildren} from '../add-item/rank.js';
+import {getOrderedChildren} from '../../../repository/rank.js';
 
 const getSelectedChild = ():
 	| ReturnSuccess<NavNode<AnyContext>>

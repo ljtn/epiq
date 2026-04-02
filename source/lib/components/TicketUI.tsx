@@ -1,6 +1,6 @@
 import {Box} from 'ink';
 import React from 'react';
-import {getOrderedChildren} from '../actions/add-item/rank.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 import {Ticket} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {useAppState} from '../state/state.js';

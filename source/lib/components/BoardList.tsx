@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {getOrderedChildren} from '../actions/add-item/rank.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 

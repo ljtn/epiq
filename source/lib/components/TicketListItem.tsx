@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {nodeRepo} from '../actions/add-item/node-repo.js';
-import {getOrderedChildren} from '../actions/add-item/rank.js';
+import {nodeRepo} from '../../repository/node-repo.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 import {

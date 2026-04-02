@@ -1,4 +1,4 @@
-import {nodeRepo} from '../actions/add-item/node-repo.js';
+import {nodeRepo} from '../../repository/node-repo.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
 import {CmdKeyword, CmdKeywords} from './command-types.js';
 

@@ -97,7 +97,10 @@ function derive(state: BaseState): Result<AppState> {
 // -----------------------------
 export const getState = () => {
 	if (!_appState) {
-		logger.error('State not initialized. Call initWorkspaceState() first.');
+		logger.error(
+			'State not initialized. Call initWorkspaceState() first.',
+			new Error().stack,
+		);
 	}
 	return _appState;
 };

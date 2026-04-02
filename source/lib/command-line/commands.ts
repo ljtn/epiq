@@ -4,8 +4,8 @@ import {
 	materializeAndPersist,
 	materializeAndPersistAll,
 } from '../../event/event-materialize-and-persist.js';
-import {findAncestor, nodeRepo} from '../actions/add-item/node-repo.js';
-import {getOrderedChildren} from '../actions/add-item/rank.js';
+import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {findInBreadCrumb} from '../model/app-state.model.js';
@@ -242,7 +242,6 @@ export const commands: CommandLineActionEntry[] = [
 					},
 				}).data;
 			}
-			logger.debug('existingTag', existingTag, tagId);
 			if (!tagId) return failed('Unable to resolve tag id');
 
 			return materializeAndPersist({

@@ -1,5 +1,5 @@
 import {monotonicFactory} from 'ulid';
-import {getOrderedChildren} from '../lib/actions/add-item/rank.js';
+import {getOrderedChildren} from '../repository/rank.js';
 import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
 import {getState} from '../lib/state/state.js';
 import {isFail} from '../lib/command-line/command-types.js';
