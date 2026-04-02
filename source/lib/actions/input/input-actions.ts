@@ -1,3 +1,4 @@
+import {succeeded} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {
 	eraseInput,
@@ -15,18 +16,25 @@ export const inputActions: ActionEntry[] = [
 	{
 		intent: Intent.ViewHelp,
 		mode: Mode.DEFAULT,
-		action: () => patchState({mode: Mode.HELP}),
+		action: () => {
+			patchState({mode: Mode.HELP});
+			return succeeded('Viewing help', null);
+		},
 	},
 	{
 		intent: Intent.Exit,
 		mode: Mode.HELP,
-		action: () => patchState({mode: Mode.DEFAULT}),
+		action: () => {
+			patchState({mode: Mode.DEFAULT});
+			return succeeded('Exiting help', null);
+		},
 	},
 	{
 		intent: Intent.Confirm,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
 			onConfirmCommandLineSequenceInput(...args);
+			return succeeded('Executing command', null);
 		},
 	},
 	{
@@ -34,6 +42,7 @@ export const inputActions: ActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			moveCursorPosition(-1);
+			return succeeded('Moving cursor left', null);
 		},
 	},
 	{
@@ -41,23 +50,31 @@ export const inputActions: ActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			moveCursorPosition(1);
+			return succeeded('Moving cursor right', null);
 		},
 	},
 	{
 		intent: Intent.MoveCursorLeftOfWord,
 		mode: Mode.COMMAND_LINE,
-		action: () => moveCursorPositionOfWord('left'),
+		action: () => {
+			moveCursorPositionOfWord('left');
+			return succeeded('Moving cursor left of word', null);
+		},
 	},
 	{
 		intent: Intent.MoveCursorRightOfWord,
 		mode: Mode.COMMAND_LINE,
-		action: () => moveCursorPositionOfWord('right'),
+		action: () => {
+			moveCursorPositionOfWord('right');
+			return succeeded('Moving cursor right of word', null);
+		},
 	},
 	{
 		intent: Intent.ExitCommandLine,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			patchState({mode: Mode.DEFAULT});
+			return succeeded('Exiting command line', null);
 		},
 	},
 	{
@@ -67,31 +84,47 @@ export const inputActions: ActionEntry[] = [
 			setCmdInput((previousInput, {remainder}) => {
 				return remainder ? previousInput + remainder : previousInput;
 			});
+			return succeeded('Auto-completing command', null);
 		},
 	},
 	{
 		intent: Intent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
-		action: (_1, {sequence}) => setCmdInput(s => s + sequence),
+		action: (_1, {sequence}) => {
+			setCmdInput(s => s + sequence);
+			return succeeded('Capturing input', null);
+		},
 	},
 	{
 		intent: Intent.EraseInput,
 		mode: Mode.COMMAND_LINE,
-		action: () => eraseInput(),
+		action: () => {
+			eraseInput();
+			return succeeded('Erasing input', null);
+		},
 	},
 	{
 		intent: Intent.EraseInputWord,
 		mode: Mode.COMMAND_LINE,
-		action: () => eraseInputWord(),
+		action: () => {
+			eraseInputWord();
+			return succeeded('Erasing input word', null);
+		},
 	},
 	{
 		intent: Intent.GetLastCommandFromHistory,
 		mode: Mode.COMMAND_LINE,
-		action: () => getPrevCmd(),
+		action: () => {
+			getPrevCmd();
+			return succeeded('Getting last command from history', null);
+		},
 	},
 	{
 		intent: Intent.GetNextCommandFromHistory,
 		mode: Mode.COMMAND_LINE,
-		action: () => getNextCmd(),
+		action: () => {
+			getNextCmd();
+			return succeeded('Getting next command from history', null);
+		},
 	},
 ];

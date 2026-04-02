@@ -14,7 +14,7 @@ export type ActionEntry = {
 	intent?: string;
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
-	action: (...args: [ActionEntry, readline.Key]) => Result | void;
+	action: (...args: [ActionEntry, readline.Key]) => Result;
 };
 
 export type ActionMap<T extends Record<string, any[]>> = {

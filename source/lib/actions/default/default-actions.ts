@@ -1,5 +1,6 @@
 import {openEditorOnText} from '../../../editor/editor.js';
 import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
+import {getOrderedChildren} from '../../../repository/rank.js';
 import {
 	CmdKeywords,
 	failed,
@@ -10,7 +11,6 @@ import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
-import {getOrderedChildren} from '../../../repository/rank.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
@@ -22,6 +22,7 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `${CmdKeywords.NEW} `);
+			return succeeded('Adding new item', null);
 		},
 	},
 	{
@@ -31,53 +32,67 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `${CmdKeywords.DELETE} `);
+			return succeeded('Deleting item', null);
 		},
 	},
 	{
 		intent: Intent.InitCommandLine,
 		mode: Mode.DEFAULT,
 		description: '[:] Toggle command line',
-		action: () => patchState({mode: Mode.COMMAND_LINE}),
+		action: () => {
+			patchState({mode: Mode.COMMAND_LINE});
+			return succeeded('Entering command line mode', null);
+		},
 	},
 	{
 		intent: Intent.Confirm,
 		mode: Mode.DEFAULT,
 		description: '[ENTER] Confirm/Enter context',
-		action: navigationUtils.enterChildNode,
+		action: () => {
+			navigationUtils.enterChildNode();
+			return succeeded('Entering context', null);
+		},
 	},
 	{
 		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
 		description: '[ESC/Q] Exit context',
-		action: navigationUtils.enterParentNode,
-	},
-	{
-		mode: Mode.DEFAULT,
-		description: '[ARROWS/HJKL] Navigate',
 		action: () => {
-			// noop. Navigation is handled globally in the key handler since it needs to work in command line mode as well
+			navigationUtils.enterParentNode();
+			return succeeded('Exiting context', null);
 		},
 	},
-
 	{
 		intent: Intent.NavPreviousItem,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToPreviousItem,
+		action: () => {
+			navigationUtils.navigateToPreviousItem();
+			return succeeded('Navigating to previous item', null);
+		},
 	},
 	{
 		intent: Intent.NavNextItem,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToNextItem,
+		action: () => {
+			navigationUtils.navigateToNextItem();
+			return succeeded('Navigating to next item', null);
+		},
 	},
 	{
 		intent: Intent.NavToPreviousContainer,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToPreviousContainer,
+		action: () => {
+			navigationUtils.navigateToPreviousContainer();
+			return succeeded('Navigating to previous container', null);
+		},
 	},
 	{
 		intent: Intent.NavToNextContainer,
 		mode: Mode.DEFAULT,
-		action: navigationUtils.navigateToNextContainer,
+		action: () => {
+			navigationUtils.navigateToNextContainer();
+			return succeeded('Navigating to next container', null);
+		},
 	},
 	{
 		intent: Intent.Edit,
@@ -125,18 +140,20 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.SetViewDense,
 		mode: Mode.DEFAULT,
 		action: () => {
-			return patchState({
+			patchState({
 				viewMode: 'dense',
 			});
+			return succeeded('View set', null);
 		},
 	},
 	{
 		intent: Intent.SetViewWide,
 		mode: Mode.DEFAULT,
 		action: () => {
-			return patchState({
+			patchState({
 				viewMode: 'wide',
 			});
+			return succeeded('View set', null);
 		},
 	},
 ];
