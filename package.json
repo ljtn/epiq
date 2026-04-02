@@ -36,6 +36,7 @@
 	},
 	"devDependencies": {
 		"@sindresorhus/tsconfig": "^3.0.1",
+		"@types/marked-terminal": "^6.1.1",
 		"@types/node": "^25.5.0",
 		"@types/react": "^18.0.32",
 		"@vdemedes/prettier-config": "^2.0.1",
