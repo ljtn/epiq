@@ -75,4 +75,19 @@ export const nodes = {
 		childRenderAxis: 'vertical',
 		parentNodeId,
 	}),
+	text: (
+		id: string,
+		name: string,
+		parentNodeId: string,
+		props: NavNode<'TEXT'>['props'] = {},
+	): NavNode<'TEXT'> => ({
+		id,
+		title: name,
+		rank: midRank(),
+		isDeleted: false,
+		props,
+		context: NavNodeCtx.TEXT,
+		childRenderAxis: 'vertical',
+		parentNodeId,
+	}),
 };

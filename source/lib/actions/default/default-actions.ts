@@ -74,7 +74,6 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.NavNextItem,
 		mode: Mode.DEFAULT,
 		action: () => {
-			logger.info('Navigating to next item');
 			navigationUtils.navigateToNextItem();
 			return succeeded('Navigating to next item', null);
 		},

@@ -43,7 +43,7 @@ export const FieldUI: React.FC<Props> = ({
 
 		documentRows.forEach((row, idx) => {
 			const lineId = `${field.id}-line-${idx}`;
-			const node = nodes.field(`${idx}`, `Line ${idx + 1}`, field.id, {
+			const node = nodes.text(`${idx}`, `Line ${idx + 1}`, field.id, {
 				value: row,
 			});
 
@@ -52,7 +52,6 @@ export const FieldUI: React.FC<Props> = ({
 			if (isSuccess(result)) {
 				createdIds.push(result.data.id);
 			} else {
-				logger.info('EERRORROR -<>');
 				createdIds.push(lineId);
 			}
 		});

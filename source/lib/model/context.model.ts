@@ -7,6 +7,7 @@ export const NavNodeCtx = {
 	TICKET: 'TICKET',
 	FIELD: 'FIELD',
 	FIELD_LIST: 'FIELD_LIST',
+	TEXT: 'TEXT',
 } as const;
 
 export type Workspace = NavNode<'WORKSPACE'>;
@@ -15,6 +16,7 @@ export type Swimlane = NavNode<'SWIMLANE'>;
 export type Ticket = NavNode<'TICKET'>;
 export type Field = NavNode<'FIELD'>;
 export type FieldList = NavNode<'FIELD_LIST'>;
+export type Text = NavNode<'TEXT'>;
 
 export type WorkspaceContext = typeof NavNodeCtx.WORKSPACE;
 export type BoardContext = typeof NavNodeCtx.BOARD;
@@ -22,6 +24,7 @@ export type SwimlaneContext = typeof NavNodeCtx.SWIMLANE;
 export type TicketContext = typeof NavNodeCtx.TICKET;
 export type TicketFieldContext = typeof NavNodeCtx.FIELD;
 export type TicketFieldListContext = typeof NavNodeCtx.FIELD_LIST;
+export type TextContext = typeof NavNodeCtx.TEXT;
 
 export type AnyContext = ContextMap[keyof ContextMap];
 export type ContextMap = typeof NavNodeCtx;

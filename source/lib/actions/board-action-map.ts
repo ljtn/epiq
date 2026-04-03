@@ -13,6 +13,7 @@ type ContextActions = ActionMap<{
 	[NavNodeCtx.TICKET]: ActionEntry[];
 	[NavNodeCtx.FIELD]: ActionEntry[];
 	[NavNodeCtx.FIELD_LIST]: ActionEntry[];
+	[NavNodeCtx.TEXT]: ActionEntry[];
 }>;
 
 export const contextActions: ContextActions = {
@@ -26,4 +27,5 @@ export const contextActions: ContextActions = {
 	[NavNodeCtx.TICKET]: [],
 	[NavNodeCtx.FIELD]: [],
 	[NavNodeCtx.FIELD_LIST]: [],
+	[NavNodeCtx.TEXT]: [],
 };
