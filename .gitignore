@@ -5,3 +5,4 @@ app.log
 .vscode/tasks.json
 .archive
 epiq-*.tgz
+.DS_Store
