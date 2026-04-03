@@ -32,9 +32,12 @@ export function loadAllPersistedEvents(
 		}
 	}
 
-	return entries.sort((a, b) => a.eventId.localeCompare(b.eventId));
+	return entries.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 export function loadMergedEvents(rootDir = process.cwd()): AppEvent[] {
-	return loadAllPersistedEvents(rootDir).map(({event}) => event);
+	return loadAllPersistedEvents(rootDir).map(({do: action, data}) => ({
+		action,
+		payload: data,
+	}));
 }

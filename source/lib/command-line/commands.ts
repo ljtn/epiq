@@ -235,7 +235,7 @@ export const commands: CommandLineActionEntry[] = [
 			let tagId: string | null = ulid();
 			if (!existingTag) {
 				tagId = materializeAndPersist({
-					action: 'tag.create',
+					action: 'create.tag',
 					payload: {
 						id: tagId,
 						name,
@@ -245,7 +245,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (!tagId) return failed('Unable to resolve tag id');
 
 			return materializeAndPersist({
-				action: 'issue.tag',
+				action: 'tag.issue',
 				payload: {
 					targetId: selected.id,
 					tagId,
@@ -273,7 +273,7 @@ export const commands: CommandLineActionEntry[] = [
 			let contributorId: string | null = ulid();
 			if (!existingContributor) {
 				contributorId = materializeAndPersist({
-					action: 'contributor.create',
+					action: 'create.contributor',
 					payload: {
 						id: contributorId,
 						name,
@@ -283,7 +283,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (!contributorId) return failed('Unable to resolve contributor id');
 
 			return materializeAndPersist({
-				action: 'issue.assign',
+				action: 'assign.issue',
 				payload: {
 					targetId: ticket.id,
 					contributorId: contributorId,

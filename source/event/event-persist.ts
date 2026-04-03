@@ -11,9 +11,10 @@ const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
 
 export type PersistedEvent = {
-	eventId: string;
-	actorId: string;
-	event: AppEvent;
+	id: string;
+	usr: string;
+	do: AppEvent['action'];
+	data: AppEvent['payload'];
 };
 
 type PersistSuccess = {
@@ -64,9 +65,10 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 		fs.mkdirSync(dir, {recursive: true});
 
 		const entry: PersistedEvent = {
-			eventId: getNextId(),
-			actorId,
-			event,
+			id: getNextId(),
+			usr: actorId,
+			do: event.action,
+			data: event.payload,
 		};
 
 		fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, 'utf8');

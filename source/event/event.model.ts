@@ -52,22 +52,22 @@ export type AppEventMap = {
 		result: string;
 	};
 
-	'tag.create': {
+	'create.tag': {
 		payload: {id: string; name: string};
 		result: string;
 	};
 
-	'contributor.create': {
+	'create.contributor': {
 		payload: {id: string; name: string};
 		result: string;
 	};
 
-	'issue.assign': {
+	'assign.issue': {
 		payload: {contributorId: string; targetId: string};
 		result: void;
 	};
 
-	'issue.tag': {
+	'tag.issue': {
 		payload: {tagId: string; targetId: string};
 		result: string;
 	};
@@ -79,7 +79,7 @@ export type AppEventMap = {
 		};
 		result: string;
 	};
-	'description.set': {
+	'set.description': {
 		payload: {
 			targetId: string;
 			markdown: string;

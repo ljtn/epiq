@@ -75,25 +75,25 @@ const materializeHandlers: MaterializeHandlers = {
 		return succeeded('Deleted node', id);
 	},
 
-	'tag.create': event => {
+	'create.tag': event => {
 		const {id, name} = event.payload;
 		const tag = nodeRepo.createTag({id, name});
 		return succeeded('Tag added', tag.id);
 	},
 
-	'contributor.create': event => {
+	'create.contributor': event => {
 		const {id, name} = event.payload;
 		const contributor = nodeRepo.createContributor({id, name});
 		return succeeded('Contributor created', contributor.id);
 	},
 
-	'issue.tag': event => {
+	'tag.issue': event => {
 		const {targetId, tagId} = event.payload;
 		nodeRepo.tag(targetId, tagId);
 		return succeeded('Issue tagged', tagId);
 	},
 
-	'issue.assign': event => {
+	'assign.issue': event => {
 		const {contributorId, targetId} = event.payload;
 		nodeRepo.assign(targetId, contributorId);
 		return succeeded('Assigned successfully', undefined);
@@ -106,7 +106,7 @@ const materializeHandlers: MaterializeHandlers = {
 		return succeeded('Moved node', moved.data.id);
 	},
 
-	'description.set': event => {
+	'set.description': event => {
 		const {targetId, markdown} = event.payload;
 		const result = nodeRepo.editValue(targetId, markdown);
 		if (isFail(result)) return result;
