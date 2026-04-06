@@ -18,6 +18,16 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const isInTicket = currentNode.id === ticket.id;
 	const children = getOrderedChildren(ticket.id);
 
+	const fieldCount = children.reduce(
+		(no, {title}) => (title === 'Assignees' || title === 'Tags' ? ++no : no),
+		0,
+	);
+	const labelHeight = 1;
+	const fieldListsHeight = fieldCount * 5;
+	const commandPromptHeight = 3;
+	const descriptionHeight =
+		height - commandPromptHeight - fieldListsHeight - labelHeight;
+
 	return (
 		<Box
 			width={maxWidth}
@@ -37,6 +47,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 					/>
 				) : (
 					<FieldUI
+						height={descriptionHeight}
 						key={child.id}
 						field={child as NavNode<'FIELD'>}
 						selected={

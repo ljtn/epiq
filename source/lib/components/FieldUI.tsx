@@ -13,6 +13,7 @@ import {ScrollBoxUI} from './ScrollBox.js';
 import chalk from 'chalk';
 
 type Props = {
+	height: number;
 	field: Field;
 	selected: boolean;
 	selectedIndex: number;
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export const FieldUI: React.FC<Props> = ({
+	height,
 	field,
 	selected,
 	selectedIndex,
@@ -81,7 +83,6 @@ export const FieldUI: React.FC<Props> = ({
 		</Text>
 	));
 
-	const height = 12;
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			<Text color={selected ? theme.primary : theme.secondary}>

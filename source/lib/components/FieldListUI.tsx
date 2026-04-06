@@ -22,7 +22,7 @@ export const FieldListUI: React.FC<Props> = ({items, title, selected}) => {
 				paddingRight={1}
 			>
 				{items.map(item => (
-					<Box paddingRight={1}>
+					<Box paddingRight={1} minHeight={1}>
 						{title === 'Assignees' ? (
 							<AssigneeUI id={item}></AssigneeUI>
 						) : title === 'Tags' ? (
