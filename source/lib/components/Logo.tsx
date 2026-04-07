@@ -1,5 +1,11 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useState} from 'react';
+
+type Props = {
+	durationMs: number;
+	slogan?: string;
+};
+
 const logoLines = [
 	'███████╗██████╗ ██╗ ██████╗ ',
 	'██╔════╝██╔══██╗██║██╔═══██╗',
@@ -11,6 +17,10 @@ const logoLines = [
 
 const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const loadingMessages = ['Awakening', 'Remembering', 'Materializing'];
+
+function clamp(value: number, min: number, max: number) {
+	return Math.min(max, Math.max(min, value));
+}
 
 function colorizeLine(line: string, row: number) {
 	const splitAt = 14;
@@ -27,40 +37,74 @@ function colorizeLine(line: string, row: number) {
 	);
 }
 
-function makePulse(step: number, width = 28) {
-	const center = step % width;
+function makePulse(progress: number, width = 28) {
+	if (progress >= 1) {
+		return '█'.repeat(width);
+	}
+
+	const sweepCenter = Math.floor(progress * (width - 1));
 
 	return Array.from({length: width}, (_, i) => {
-		const distance = Math.abs(i - center);
+		const distance = Math.abs(i - sweepCenter);
+
 		if (distance === 0) return '█';
 		if (distance === 1) return '▓';
 		if (distance === 2) return '▒';
 		if (distance === 3) return '░';
-		return '·';
+
+		return i < sweepCenter ? '─' : '·';
 	}).join('');
 }
 
-export default function Logo() {
-	const [frame, setFrame] = useState(0);
-	const [messageIndex, setMessageIndex] = useState(0);
+export default function Logo({
+	durationMs = 3000,
+	slogan = 'Never leave the command line',
+}: Props) {
+	const safeDurationMs = Math.max(1, durationMs);
+
+	const [elapsedMs, setElapsedMs] = useState(0);
 
 	useEffect(() => {
-		const spinnerTimer = setInterval(() => {
-			setFrame(prev => prev + 1);
-		}, 80);
+		const startedAt = Date.now();
 
-		const messageTimer = setInterval(() => {
-			setMessageIndex(prev => (prev + 1) % loadingMessages.length);
-		}, 1000);
+		const timer = setInterval(() => {
+			const nextElapsed = Date.now() - startedAt;
 
-		return () => {
-			clearInterval(spinnerTimer);
-			clearInterval(messageTimer);
-		};
-	}, []);
+			if (nextElapsed >= safeDurationMs) {
+				setElapsedMs(safeDurationMs);
+				clearInterval(timer);
+				return;
+			}
 
-	const spinner = frames[frame % frames.length];
-	const pulseBar = useMemo(() => makePulse(frame, 28), [frame]);
+			setElapsedMs(nextElapsed);
+		}, 33);
+
+		return () => clearInterval(timer);
+	}, [safeDurationMs]);
+
+	const progress = clamp(elapsedMs / safeDurationMs, 0, 1);
+	const done = progress >= 1;
+
+	const spinner = useMemo(() => {
+		if (done) return '✔';
+
+		const totalSpinnerSteps = frames.length * 4;
+		const idx = Math.floor(progress * totalSpinnerSteps) % frames.length;
+		return frames[idx];
+	}, [progress, done]);
+
+	const messageIndex = useMemo(() => {
+		if (done) return loadingMessages.length - 1;
+
+		return Math.min(
+			loadingMessages.length - 1,
+			Math.floor(progress * loadingMessages.length),
+		);
+	}, [progress, done]);
+
+	const pulseBar = useMemo(() => makePulse(progress, 28), [progress]);
+
+	// const percentLabel = `${Math.round(progress * 100)}%`;
 
 	return (
 		<Box
@@ -73,7 +117,7 @@ export default function Logo() {
 			<Box
 				flexDirection="column"
 				borderStyle="round"
-				borderColor="cyan"
+				borderColor={done ? 'green' : 'cyan'}
 				paddingX={4}
 				paddingY={1}
 				minWidth={42}
@@ -93,7 +137,7 @@ export default function Logo() {
 				</Box>
 
 				<Box justifyContent="center" marginBottom={1}>
-					<Text color="gray">Never leave the command line</Text>
+					<Text color="gray">{slogan}</Text>
 				</Box>
 
 				<Box justifyContent="center" marginBottom={1}>
@@ -102,13 +146,17 @@ export default function Logo() {
 					<Text color="magenta">{pulseBar.slice(18)}</Text>
 				</Box>
 
+				{/* <Box justifyContent="center" marginBottom={1}>
+					<Text color="gray">{percentLabel}</Text>
+				</Box> */}
+
 				<Box justifyContent="center">
-					<Text color="yellow" bold>
+					<Text color={done ? 'greenBright' : 'yellow'} bold>
 						{spinner}
 					</Text>
 					<Text> </Text>
 					<Text color="white">{loadingMessages[messageIndex]}</Text>
-					<Text color="gray">...</Text>
+					<Text color="gray">{done ? ' complete' : '...'}</Text>
 				</Box>
 			</Box>
 		</Box>
