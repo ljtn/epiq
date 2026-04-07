@@ -26,7 +26,7 @@ const cli = meow(
 );
 
 const FIRST_LOAD_DURATION_MS = 5_000;
-const SUBSEQUENT_LOAD_MAX_MS = 2_000;
+const SUBSEQUENT_LOAD_MAX_MS = 1_000;
 
 let ink: ReturnType<typeof render> | null = null;
 

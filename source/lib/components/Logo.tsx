@@ -16,7 +16,7 @@ const logoLines = [
 ];
 
 const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const loadingMessages = ['Awakening', 'Remembering', 'Materializing'];
+const loadingMessages = ['Remembering', 'Materializing'];
 
 function clamp(value: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, value));

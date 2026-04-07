@@ -227,27 +227,36 @@ export const commands: CommandLineActionEntry[] = [
 			const {selectedIndex, currentNode} = getState();
 			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
 			if (!selected) return failed('Selection node not found');
-			const ticket = findAncestor(selected.id, 'TICKET').data;
-			if (!ticket) return failed('Unable to tag issue in this context');
+
+			const ticketResult = findAncestor(selected.id, 'TICKET');
+			if (isFail(ticketResult))
+				return failed('Unable to tag issue in this context');
+			const ticket = ticketResult.data;
 
 			const existingTag = findTagByName(name);
 
-			let tagId: string | null = ulid();
-			if (!existingTag) {
-				tagId = materializeAndPersist({
+			let tagId: string;
+
+			if (existingTag) {
+				tagId = existingTag.id;
+			} else {
+				const newTagId = ulid();
+				const createResult = materializeAndPersist({
 					action: 'create.tag',
 					payload: {
-						id: tagId,
+						id: newTagId,
 						name,
 					},
-				}).data;
+				});
+
+				if (isFail(createResult)) return createResult;
+				tagId = createResult.data;
 			}
-			if (!tagId) return failed('Unable to resolve tag id');
 
 			return materializeAndPersist({
 				action: 'tag.issue',
 				payload: {
-					targetId: selected.id,
+					targetId: ticket.id,
 					tagId,
 				},
 			});
@@ -265,28 +274,37 @@ export const commands: CommandLineActionEntry[] = [
 			const {selectedIndex, currentNode} = getState();
 			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
 			if (!selected) return failed('Selection node not found');
-			const ticket = findAncestor(selected.id, 'TICKET').data;
-			if (!ticket) return failed('Unable to tag issue in this context');
+
+			const ticketResult = findAncestor(selected.id, 'TICKET');
+			if (isFail(ticketResult))
+				return failed('Unable to assign issue in this context');
+			const ticket = ticketResult.data;
 
 			const existingContributor = findContributorByName(name);
 
-			let contributorId: string | null = ulid();
-			if (!existingContributor) {
-				contributorId = materializeAndPersist({
+			let contributorId: string;
+
+			if (existingContributor) {
+				contributorId = existingContributor.id;
+			} else {
+				const newContributorId = ulid();
+				const createResult = materializeAndPersist({
 					action: 'create.contributor',
 					payload: {
-						id: contributorId,
+						id: newContributorId,
 						name,
 					},
-				}).data;
+				});
+
+				if (isFail(createResult)) return createResult;
+				contributorId = createResult.data;
 			}
-			if (!contributorId) return failed('Unable to resolve contributor id');
 
 			return materializeAndPersist({
 				action: 'assign.issue',
 				payload: {
 					targetId: ticket.id,
-					contributorId: contributorId,
+					contributorId,
 				},
 			});
 		},
