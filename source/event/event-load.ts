@@ -32,7 +32,7 @@ export function loadAllPersistedEvents(
 		}
 	}
 
-	return entries.sort((a, b) => a.id.localeCompare(b.id));
+	return getSortedEvents(entries);
 }
 
 export function loadMergedEvents(rootDir = process.cwd()): AppEvent[] {
@@ -41,3 +41,26 @@ export function loadMergedEvents(rootDir = process.cwd()): AppEvent[] {
 		payload: data,
 	}));
 }
+
+export function getEdgeRef(): string | null {
+	const persisted = loadAllPersistedEvents();
+	const sorted = getSortedEvents(persisted);
+	return sorted.at(-1)?.id[0] ?? null;
+}
+
+export const getSortedEvents = (events: PersistedEvent[]): PersistedEvent[] => {
+	return events.sort((a, b) => {
+		const [idA, refA] = a.id;
+		const [idB, refB] = b.id;
+		if (!refA) {
+			return -1;
+		}
+		if (!refB) {
+			return 1;
+		}
+
+		const isRefA = refA.localeCompare(refB);
+		const isIdA = idA.localeCompare(idB);
+		return isRefA && isIdA;
+	});
+};

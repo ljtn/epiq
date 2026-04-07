@@ -1,17 +1,22 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {monotonicFactory} from 'ulid';
+import {decodeTime, monotonicFactory} from 'ulid';
 import {failed, succeeded} from '../lib/command-line/command-types.js';
 import {AppEvent} from './event.model.js';
+import {getEdgeRef} from './event-load.js';
 
 const getNextId = monotonicFactory();
 
 const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
 
+type Id = string;
+type RefId = string;
+type EventTag = [Id, RefId | null];
+
 export type PersistedEvent = {
-	id: string;
+	id: EventTag;
 	usr: string;
 	do: AppEvent['action'];
 	data: AppEvent['payload'];
@@ -64,8 +69,19 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 
 		fs.mkdirSync(dir, {recursive: true});
 
+		const edgeRef = getEdgeRef();
+		let newId: string;
+		if (edgeRef) {
+			const edgeTime = decodeTime(edgeRef);
+			const offset = Math.abs(Date.now() - edgeTime);
+			const newEdgeTime = edgeTime + offset + 1;
+			newId = getNextId(newEdgeTime);
+		} else {
+			newId = getNextId();
+		}
+
 		const entry: PersistedEvent = {
-			id: getNextId(),
+			id: [newId, edgeRef],
 			usr: actorId,
 			do: event.action,
 			data: event.payload,
