@@ -2,7 +2,7 @@ import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useState} from 'react';
 
 type Props = {
-	durationMs: number;
+	durationMs?: number;
 	slogan?: string;
 };
 
