@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {failed, succeeded} from '../lib/command-line/command-types.js';
-import {AppEvent} from './event.model.js';
+import {AppEvent, AppEventMap} from './event.model.js';
 import {getEdgeRef} from './event-load.js';
 
 const getNextId = monotonicFactory();
@@ -13,14 +13,19 @@ const EVENTS_DIR = 'events';
 
 type Id = string;
 type RefId = string;
-type EventTag = [Id, RefId | null];
+export type EventTag = [Id, RefId | null];
+
+type PersistedPayloadMap = {
+	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
+};
 
 export type PersistedEvent = {
 	id: EventTag;
-	usr: string;
-	do: AppEvent['action'];
-	data: AppEvent['payload'];
-};
+} & {
+	[K in keyof PersistedPayloadMap]: {
+		[P in K]: PersistedPayloadMap[P];
+	};
+}[keyof PersistedPayloadMap];
 
 type PersistSuccess = {
 	path: string;
@@ -61,31 +66,34 @@ export const getEventLogPath = (rootDir = process.cwd()) => {
 	return path.join(getEventsDir(rootDir), `${actorId}.jsonl`);
 };
 
+export const toPersistedEvent = (
+	event: AppEvent,
+	id: EventTag,
+): PersistedEvent =>
+	({
+		[event.action]: event.payload,
+		id,
+	} as unknown as PersistedEvent);
+
 export function persist(event: AppEvent, rootDir = process.cwd()) {
 	try {
-		const actorId = resolveActorId();
 		const dir = getEventsDir(rootDir);
 		const filePath = getEventLogPath(rootDir);
 
 		fs.mkdirSync(dir, {recursive: true});
 
-		const edgeRef = getEdgeRef();
+		const edgeRef = getEdgeRef(rootDir);
+
 		let newId: string;
 		if (edgeRef) {
 			const edgeTime = decodeTime(edgeRef);
-			const offset = Math.abs(Date.now() - edgeTime);
-			const newEdgeTime = edgeTime + offset + 1;
-			newId = getNextId(newEdgeTime);
+			const nextTime = Math.max(Date.now(), edgeTime + 1);
+			newId = getNextId(nextTime);
 		} else {
 			newId = getNextId();
 		}
 
-		const entry: PersistedEvent = {
-			id: [newId, edgeRef],
-			usr: actorId,
-			do: event.action,
-			data: event.payload,
-		};
+		const entry = toPersistedEvent(event, [newId, edgeRef]);
 
 		fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, 'utf8');
 

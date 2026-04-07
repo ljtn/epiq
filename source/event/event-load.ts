@@ -1,13 +1,55 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {AppEvent} from './event.model.js';
+import {
+	failed,
+	isFail,
+	isSuccess,
+	succeeded,
+} from '../lib/command-line/command-types.js';
 import {PersistedEvent} from './event-persist.js';
+import {AppEvent, AppEventMap} from './event.model.js';
 
 const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
 
 const getEventsDir = (rootDir = process.cwd()) =>
 	path.join(rootDir, EPIQ_DIR, EVENTS_DIR);
+
+type PersistedPayloadMap = {
+	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
+};
+
+export const getPersistedAction = (entry: PersistedEvent) => {
+	const keys = Object.keys(entry).filter(key => key !== 'id') as Array<
+		keyof PersistedPayloadMap
+	>;
+
+	if (keys.length !== 1) {
+		return failed(
+			`Invalid persisted event: expected exactly 1 action key, got ${keys.length}`,
+		);
+	}
+
+	return succeeded('Resolved persisted action', keys[0]);
+};
+
+export const fromPersistedEvent = (entry: PersistedEvent) => {
+	const actionResult = getPersistedAction(entry);
+	if (isFail(actionResult)) return failed(actionResult.message);
+
+	const action = actionResult.data;
+	if (!action) {
+		return failed('Action key is undefined');
+	}
+	const payload = (entry as Record<string, unknown>)[
+		action
+	] as PersistedPayloadMap[typeof action];
+
+	return succeeded<AppEvent>('Decoded persisted event', {
+		action,
+		payload,
+	} as AppEvent);
+};
 
 export function loadAllPersistedEvents(
 	rootDir = process.cwd(),
@@ -28,7 +70,12 @@ export function loadAllPersistedEvents(
 		for (const line of content.split('\n')) {
 			const trimmed = line.trim();
 			if (!trimmed) continue;
-			entries.push(JSON.parse(trimmed) as PersistedEvent);
+
+			try {
+				entries.push(JSON.parse(trimmed) as PersistedEvent);
+			} catch {
+				// ignore malformed line
+			}
 		}
 	}
 
@@ -36,31 +83,74 @@ export function loadAllPersistedEvents(
 }
 
 export function loadMergedEvents(rootDir = process.cwd()): AppEvent[] {
-	return loadAllPersistedEvents(rootDir).map(({do: action, data}) => ({
-		action,
-		payload: data,
-	}));
+	return loadAllPersistedEvents(rootDir)
+		.map(fromPersistedEvent)
+		.filter(isSuccess)
+		.map(({data}) => data);
 }
 
-export function getEdgeRef(): string | null {
-	const persisted = loadAllPersistedEvents();
-	const sorted = getSortedEvents(persisted);
-	return sorted.at(-1)?.id[0] ?? null;
+export function getEdgeRef(rootDir = process.cwd()): string | null {
+	const persisted = loadAllPersistedEvents(rootDir);
+	return persisted.at(-1)?.id[0] ?? null;
 }
 
 export const getSortedEvents = (events: PersistedEvent[]): PersistedEvent[] => {
-	return events.sort((a, b) => {
-		const [idA, refA] = a.id;
-		const [idB, refB] = b.id;
-		if (!refA) {
-			return -1;
-		}
-		if (!refB) {
-			return 1;
-		}
+	const byId = new Map(events.map(event => [event.id[0], event] as const));
+	const childrenByRef = new Map<string | null, PersistedEvent[]>();
 
-		const isRefA = refA.localeCompare(refB);
-		const isIdA = idA.localeCompare(idB);
-		return isRefA && isIdA;
-	});
+	for (const event of events) {
+		const ref = event.id[1];
+		const siblings = childrenByRef.get(ref) ?? [];
+		siblings.push(event);
+		childrenByRef.set(ref, siblings);
+	}
+
+	for (const siblings of childrenByRef.values()) {
+		siblings.sort((a, b) => {
+			const [idA] = a.id;
+			const [idB] = b.id;
+			return idA.localeCompare(idB);
+		});
+	}
+
+	const result: PersistedEvent[] = [];
+	const visited = new Set<string>();
+
+	const visit = (ref: string | null) => {
+		const children = childrenByRef.get(ref) ?? [];
+
+		for (const event of children) {
+			const [eventId] = event.id;
+			if (visited.has(eventId)) continue;
+
+			visited.add(eventId);
+			result.push(event);
+			visit(eventId);
+		}
+	};
+
+	visit(null);
+
+	const orphans = [...events]
+		.filter(event => {
+			const [eventId] = event.id;
+			return !visited.has(eventId);
+		})
+		.sort((a, b) => {
+			const [idA, refA] = a.id;
+			const [idB, refB] = b.id;
+
+			const aRefExists = refA === null || byId.has(refA);
+			const bRefExists = refB === null || byId.has(refB);
+
+			if (aRefExists && !bRefExists) return -1;
+			if (!aRefExists && bRefExists) return 1;
+
+			const refCmp = (refA ?? '').localeCompare(refB ?? '');
+			if (refCmp !== 0) return refCmp;
+
+			return idA.localeCompare(idB);
+		});
+
+	return [...result, ...orphans];
 };
