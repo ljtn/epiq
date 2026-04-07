@@ -1,9 +1,85 @@
 import {monotonicFactory} from 'ulid';
-import {getOrderedChildren} from '../repository/rank.js';
 import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
-import {getState} from '../lib/state/state.js';
 import {isFail} from '../lib/command-line/command-types.js';
-import {loadMergedEvents} from './event-load.js';
+import {getState} from '../lib/state/state.js';
+import {getOrderedChildren} from '../repository/rank.js';
 import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
+
+export function getBootNavigationTarget() {
+	const workspace = Object.values(getState().nodes).find(
+		node => node.context === 'WORKSPACE',
+	);
+
+	if (!workspace) {
+		throw new Error('No workspace found in event log');
+	}
+
+	const [firstBoard] = getOrderedChildren(workspace.id);
+	const [firstSwimlane] = firstBoard ? getOrderedChildren(firstBoard.id) : [];
+
+	return firstSwimlane ?? firstBoard ?? workspace;
+}
+
+export function navigateToInitialNode() {
+	const navigationTarget = getBootNavigationTarget();
+	const children =
+		getState().renderedChildrenIndex?.[navigationTarget.id] ?? [];
+
+	navigationUtils.navigate({
+		currentNode: navigationTarget,
+		selectedIndex: children.length > 0 ? 0 : -1,
+	});
+}
+
+const nextId = monotonicFactory();
+
+export function createDefaultEvents(): readonly AppEvent[] {
+	const workspaceId = nextId();
+	const boardId = nextId();
+	const swimlaneId1 = nextId();
+	const swimlaneId2 = nextId();
+	const swimlaneId3 = nextId();
+
+	return [
+		{
+			action: 'init.workspace',
+			payload: {id: workspaceId, name: 'Workspace'},
+		},
+		{
+			action: 'add.board',
+			payload: {id: boardId, name: 'Default', parentId: workspaceId},
+		},
+		{
+			action: 'add.swimlane',
+			payload: {id: swimlaneId1, name: 'Todo', parentId: boardId},
+		},
+		{
+			action: 'add.swimlane',
+			payload: {id: swimlaneId2, name: 'Review', parentId: boardId},
+		},
+		{
+			action: 'add.swimlane',
+			payload: {id: swimlaneId3, name: 'Done', parentId: boardId},
+		},
+	] as const satisfies readonly AppEvent[];
+}
+
+export function bootStateFromEventLog(eventLog: AppEvent[]) {
+	const results =
+		eventLog.length === 0
+			? materializeAndPersistAll(createDefaultEvents())
+			: materializeAll(eventLog);
+
+	const failures = results.filter(isFail);
+	if (failures.length > 0) {
+		throw new Error(
+			`Failed to materialize events on boot: ${failures
+				.map(x => x.message ?? 'Unknown error')
+				.join(', ')}`,
+		);
+	}
+
+	navigateToInitialNode();
+}
