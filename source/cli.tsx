@@ -26,7 +26,7 @@ const cli = meow(
 );
 
 const FIRST_LOAD_DURATION_MS = 5_000;
-const SUBSEQUENT_LOAD_MAX_MS = 1_000;
+const SUBSEQUENT_LOAD_MAX_MS = 2_000;
 
 let ink: ReturnType<typeof render> | null = null;
 
@@ -45,11 +45,11 @@ function renderApp() {
 
 function renderLoader() {
 	if (!ink) {
-		ink = render(<Logo />);
+		ink = render(<Logo durationMs={2_000} />);
 		return;
 	}
 
-	ink.rerender(<Logo />);
+	ink.rerender(<Logo durationMs={2_000} />);
 }
 
 async function bootApp() {
@@ -59,7 +59,9 @@ async function bootApp() {
 		? FIRST_LOAD_DURATION_MS
 		: SUBSEQUENT_LOAD_MAX_MS;
 
-	renderLoader();
+	if (loaderDurationMs > 0) {
+		renderLoader();
+	}
 
 	const startedAt = Date.now();
 	bootStateFromEventLog(eventLog);

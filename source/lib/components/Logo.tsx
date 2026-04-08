@@ -12,11 +12,11 @@ const logoLines = [
 	'█████╗  ██████╔╝██║██║   ██║',
 	'██╔══╝  ██╔═══╝ ██║██║▄▄ ██║',
 	'███████╗██║     ██║╚██████╔╝',
-	'╚══════╝╚═╝     ╚═╝ ╚══▀▀═╝ ',
+	'╚══════╝╚═╝     ╚═╝ ╚═══▀▀╝ ',
 ];
 
 const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const loadingMessages = ['Remembering', 'Materializing'];
+const loadingMessages = ['Sourcing', 'Materializing'];
 
 function clamp(value: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, value));
