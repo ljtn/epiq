@@ -9,6 +9,7 @@ import {
 import {Contributor, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext, isFieldListNode} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
+import {nodes} from '../lib/state/node-builder.js';
 import {getState, patchState, updateState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
@@ -39,7 +40,7 @@ export const findAncestor = <T extends AnyContext>(
 	return failed(`No ancestor found for context: ${ctx}`);
 };
 
-const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
+export const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
 	const {nodes} = getState();
 
 	let current = nodes[nodeId];
@@ -63,13 +64,25 @@ function collectFieldListValues(
 
 	const values: string[] = [];
 	const seen = new Set<string>();
-	const {renderedChildrenIndex} = getState();
+	const state = getState();
+	const {renderedChildrenIndex, tags, contributors} = state;
 	const visit = (current: NavNode<AnyContext>) => {
 		const children = renderedChildrenIndex[current.id];
 		if (current.title === fieldName && isFieldListNode(current)) {
 			for (const child of children ?? []) {
 				if (!child) continue;
-				const raw = String(child.props?.['value'] ?? child.title ?? '');
+				const referencedId =
+					typeof child.props?.value === 'string' ? child.props.value : '';
+
+				const refName =
+					fieldName === 'Tags'
+						? tags[referencedId]?.name
+						: fieldName === 'Assignees'
+						? contributors[referencedId]?.name
+						: undefined;
+
+				const raw = refName ?? child.title ?? String(child.props?.value ?? '');
+
 				const value = normalizeListValue(raw);
 				const key = value.toLowerCase();
 
@@ -132,6 +145,11 @@ export const nodeRepo = {
 		if (!rootNode) return [];
 		return collectFieldListValues(rootNode, 'Assignees');
 	},
+
+	getFieldByTitle(parentId: string, title: string) {
+		return getOrderedChildren(parentId).find(child => child.title === title);
+	},
+
 	moveNode(
 		nodeId: string,
 		nextParentId: string,
@@ -225,34 +243,32 @@ export const nodeRepo = {
 		return contributor;
 	},
 
-	assign(targetId: string, contributorId: string) {
+	assign(targetId: string, contributorId: string, assignmentNodeId: string) {
 		const contributor = nodeRepo.getContributor(contributorId);
 		const target = nodeRepo.getNode(targetId);
 		if (!target || !contributor) {
 			return failed('Unable assign contributor to issue');
 		}
 
-		const assigneesField = getOrderedChildren(target.id).find(
-			x => x?.title === 'Assignees',
-		);
-
+		const assigneesField = this.getFieldByTitle(target.id, 'Assignees');
 		if (!assigneesField) return failed('Unable to locate assignees field');
 
-		const currentValue =
-			assigneesField.props.value?.split('|').map(s => s.trim()) ?? [];
-		const nextValue = currentValue.includes(contributorId)
-			? currentValue
-			: [...currentValue, contributorId];
+		const alreadyAssigned = getOrderedChildren(assigneesField.id).some(
+			child => child.props?.value === contributorId,
+		);
 
-		nodeRepo.updateNode({
-			...assigneesField,
-			props: {
-				...assigneesField.props,
-				value: nextValue.join('|'),
-			},
-		});
+		if (alreadyAssigned) {
+			return failed('Contributor already assigned');
+		}
 
-		return contributor;
+		const result = this.createNodeAtPosition(
+			nodes.field(assignmentNodeId, contributor.name, assigneesField.id, {
+				value: contributorId,
+			}),
+		);
+
+		if (isFail(result)) return result;
+		return succeeded('Assigned contributor', result.data);
 	},
 
 	createTag(tag: Tag) {
@@ -266,33 +282,31 @@ export const nodeRepo = {
 		return tag;
 	},
 
-	tag(targetId: string, tagId: string) {
+	tag(targetId: string, tagId: string, tagNodeId: string) {
 		const tag = nodeRepo.getTag(tagId);
 		const target = nodeRepo.getNode(targetId);
 		if (!tag) return failed('Unable to add tag, missing tag');
 		if (!target) return failed('Unable to add tag, missing target');
 
-		const tagsField = getOrderedChildren(target.id).find(
-			({title}) => title === 'Tags',
-		);
-
+		const tagsField = this.getFieldByTitle(target.id, 'Tags');
 		if (!tagsField) return failed('Unable to locate tags field');
 
-		const currentValue =
-			tagsField.props.value?.split('|').map(s => s.trim()) ?? [];
-		const nextValue = currentValue.includes(tagId)
-			? currentValue
-			: [...currentValue, tagId];
+		const alreadyTagged = getOrderedChildren(tagsField.id).some(
+			child => child.props?.value === tagId,
+		);
 
-		nodeRepo.updateNode({
-			...tagsField,
-			props: {
-				...tagsField.props,
-				value: nextValue.join('|'),
-			},
-		});
+		if (alreadyTagged) {
+			return failed('Tag already assigned');
+		}
 
-		return succeeded('Tag added', tag);
+		const result = this.createNodeAtPosition(
+			nodes.field(tagNodeId, tag.name, tagsField.id, {
+				value: tagId,
+			}),
+		);
+
+		if (isFail(result)) return result;
+		return succeeded('Tag added', result.data);
 	},
 
 	createNodeAtPosition<T extends AnyContext>(

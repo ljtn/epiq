@@ -20,6 +20,7 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
+import {NavNode} from '../model/navigation-node.model.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -146,24 +147,29 @@ export const commands: CommandLineActionEntry[] = [
 				if (isFail(swimlaneResult))
 					return failed('Unable to add issue in this context');
 
-				const issueResults = materializeAndPersistAll(
-					createIssueEvents({
-						name: cmdState.inputString,
-						parentId: swimlaneResult.data.id,
-					}),
-				);
-				if (issueResults.filter(isFail).length)
+				const issueEvents = createIssueEvents({
+					name: cmdState.inputString,
+					parentId: swimlaneResult.data.id,
+				});
+
+				const issueResults = materializeAndPersistAll(issueEvents);
+
+				if (
+					issueResults.some(x =>
+						isFail<NavNode<'TICKET'> | NavNode<'FIELD'>>(x),
+					)
+				) {
 					return failed(
 						'Issue create failed: ' +
 							issueResults
-								.filter(isFail)
+								.filter(x => isFail<NavNode<'TICKET'> | NavNode<'FIELD'>>(x))
 								.map(r => r.message)
 								.join(', '),
 					);
+				}
 
-				const [issueResult] = issueResults;
-				if (!issueResult || isFail(issueResult))
-					return failed('Issue creation failed');
+				const issueResult = issueResults[0];
+				if (isFail(issueResult)) return failed('Issue creation failed');
 
 				navigationUtils.navigate({
 					currentNode: swimlaneResult.data,
@@ -185,6 +191,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (commandMeta.validity === cmdValidity.Invalid) {
 				return failed('Invalid command ' + cmdResult);
 			}
+
 			updateState(s => ({
 				...s,
 				viewMode:
@@ -194,6 +201,7 @@ export const commands: CommandLineActionEntry[] = [
 						? 'dense'
 						: s.viewMode,
 			}));
+
 			return succeeded('View set', null);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -231,8 +239,8 @@ export const commands: CommandLineActionEntry[] = [
 			const ticketResult = findAncestor(selected.id, 'TICKET');
 			if (isFail(ticketResult))
 				return failed('Unable to tag issue in this context');
-			const ticket = ticketResult.data;
 
+			const ticket = ticketResult.data;
 			const existingTag = findTagByName(name);
 
 			let tagId: string;
@@ -253,9 +261,21 @@ export const commands: CommandLineActionEntry[] = [
 				tagId = createResult.data;
 			}
 
+			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
+			if (!tagsField) return failed('Unable to locate tags field');
+
+			const alreadyTagged = getOrderedChildren(tagsField.id).some(
+				child => child.props?.value === tagId,
+			);
+
+			if (alreadyTagged) {
+				return succeeded('Issue already tagged', undefined);
+			}
+
 			return materializeAndPersist({
 				action: 'tag.issue',
 				payload: {
+					id: ulid(),
 					targetId: ticket.id,
 					tagId,
 				},
@@ -278,8 +298,8 @@ export const commands: CommandLineActionEntry[] = [
 			const ticketResult = findAncestor(selected.id, 'TICKET');
 			if (isFail(ticketResult))
 				return failed('Unable to assign issue in this context');
-			const ticket = ticketResult.data;
 
+			const ticket = ticketResult.data;
 			const existingContributor = findContributorByName(name);
 
 			let contributorId: string;
@@ -300,9 +320,21 @@ export const commands: CommandLineActionEntry[] = [
 				contributorId = createResult.data;
 			}
 
+			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');
+			if (!assigneesField) return failed('Unable to locate assignees field');
+
+			const alreadyAssigned = getOrderedChildren(assigneesField.id).some(
+				child => child.props?.value === contributorId,
+			);
+
+			if (alreadyAssigned) {
+				return succeeded('Issue already assigned', undefined);
+			}
+
 			return materializeAndPersist({
 				action: 'assign.issue',
 				payload: {
+					id: ulid(),
 					targetId: ticket.id,
 					contributorId,
 				},

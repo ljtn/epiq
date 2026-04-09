@@ -88,15 +88,17 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'tag.issue': event => {
-		const {targetId, tagId} = event.payload;
-		nodeRepo.tag(targetId, tagId);
-		return succeeded('Issue tagged', tagId);
+		const {id, targetId, tagId} = event.payload;
+		const tagged = nodeRepo.tag(targetId, tagId, id);
+		if (isFail(tagged)) return tagged;
+		return succeeded('Issue tagged', tagged.data);
 	},
 
 	'assign.issue': event => {
-		const {contributorId, targetId} = event.payload;
-		nodeRepo.assign(targetId, contributorId);
-		return succeeded('Assigned successfully', undefined);
+		const {id, contributorId, targetId} = event.payload;
+		const assigned = nodeRepo.assign(targetId, contributorId, id);
+		if (isFail(assigned)) return assigned;
+		return succeeded('Assigned successfully', assigned.data);
 	},
 
 	'move.node': event => {

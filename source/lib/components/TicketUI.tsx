@@ -22,6 +22,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		(no, {title}) => (title === 'Assignees' || title === 'Tags' ? ++no : no),
 		0,
 	);
+
 	const labelHeight = 1;
 	const fieldListsHeight = fieldCount * 2;
 	const commandPromptHeight = 3;
@@ -37,15 +38,30 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			paddingRight={1}
 			minHeight={height}
 		>
-			{children.map((child, index) =>
-				child.title === 'Assignees' || child.title === 'Tags' ? (
-					<FieldListUI
-						key={child.id}
-						items={child.props.value?.split('|').map(s => s.trim()) ?? []}
-						title={child.title}
-						selected={isInTicket && selectedIndex === index}
-					/>
-				) : (
+			{children.map((child, index) => {
+				if (child.title === 'Assignees') {
+					return (
+						<FieldListUI
+							key={child.id}
+							parent={child}
+							selected={isInTicket && selectedIndex === index}
+							selectedIndex={selectedIndex}
+						/>
+					);
+				}
+
+				if (child.title === 'Tags') {
+					return (
+						<FieldListUI
+							key={child.id}
+							parent={child}
+							selected={isInTicket && selectedIndex === index}
+							selectedIndex={selectedIndex}
+						/>
+					);
+				}
+
+				return (
 					<FieldUI
 						height={descriptionHeight}
 						key={child.id}
@@ -57,8 +73,8 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 						selectedIndex={selectedIndex}
 						currentNode={currentNode}
 					/>
-				),
-			)}
+				);
+			})}
 		</Box>
 	);
 };

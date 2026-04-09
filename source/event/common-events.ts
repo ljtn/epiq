@@ -1,5 +1,5 @@
 import {monotonicFactory} from 'ulid';
-import {AppEvent} from './event.model.js';
+
 const nextId = monotonicFactory();
 
 export const createIssueEvents = ({
@@ -38,7 +38,6 @@ export const createIssueEvents = ({
 				id: assigneesId,
 				name: 'Assignees',
 				parentId: issueId,
-				value: '',
 			},
 		},
 		{
@@ -47,8 +46,7 @@ export const createIssueEvents = ({
 				id: tagsId,
 				name: 'Tags',
 				parentId: issueId,
-				value: '',
 			},
 		},
-	] satisfies readonly AppEvent[];
+	] as const;
 };

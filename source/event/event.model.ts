@@ -1,5 +1,6 @@
 import {ReturnFail, ReturnSuccess} from '../lib/command-line/command-types.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
+
 type MovePosition =
 	| {type: 'start'}
 	| {type: 'end'}
@@ -37,7 +38,7 @@ export type AppEventMap = {
 			id: string;
 			name: string;
 			parentId: string;
-			value: string;
+			value?: string;
 		};
 		result: NavNode<'FIELD'>;
 	};
@@ -63,14 +64,23 @@ export type AppEventMap = {
 	};
 
 	'assign.issue': {
-		payload: {contributorId: string; targetId: string};
-		result: void;
+		payload: {
+			id: string;
+			contributorId: string;
+			targetId: string;
+		};
+		result: NavNode<'FIELD'>;
 	};
 
 	'tag.issue': {
-		payload: {tagId: string; targetId: string};
-		result: string;
+		payload: {
+			id: string;
+			tagId: string;
+			targetId: string;
+		};
+		result: NavNode<'FIELD'>;
 	};
+
 	'move.node': {
 		payload: {
 			id: string;
@@ -79,6 +89,7 @@ export type AppEventMap = {
 		};
 		result: string;
 	};
+
 	'edit.description': {
 		payload: {
 			targetId: string;

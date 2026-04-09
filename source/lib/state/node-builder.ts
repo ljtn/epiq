@@ -57,7 +57,8 @@ export const nodes = {
 		isDeleted: false,
 		props,
 		context: NavNodeCtx.FIELD,
-		childRenderAxis: 'vertical',
+		childRenderAxis: 'horizontal',
+		childNavigationAcrossParents: true, // ??
 		parentNodeId,
 	}),
 
