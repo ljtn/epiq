@@ -3,6 +3,7 @@ import React from 'react';
 import {getOrderedChildren} from '../../repository/rank.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {CursorUI} from './Cursor.js';
 
 export default function BoardList() {
 	const state = useAppState();
@@ -40,7 +41,7 @@ export default function BoardList() {
 					return (
 						<Box key={board.id ?? i}>
 							<Text color={isSelected ? theme.accent : theme.secondary}>
-								{isSelected ? '⸬  ' : '   '}
+								<CursorUI isSelected={isSelected}></CursorUI>
 							</Text>
 							<Text color={isSelected ? theme.accent : theme.secondary}>
 								{board.title} ({issuesCount} issues)

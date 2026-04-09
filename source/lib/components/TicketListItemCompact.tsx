@@ -7,6 +7,9 @@ import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 import {stringToHslHexColor} from '../utils/color.js';
 import {getTagColor} from './Tag.js';
+import {Contributor, Tag} from '../model/app-state.model.js';
+import {CursorUI} from './Cursor.js';
+import chalk from 'chalk';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
 	str.length >= width ? str.slice(0, width - 3) + '...' : str;
@@ -27,27 +30,40 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	mode,
 }) => {
 	const children = getOrderedChildren(ticket.id);
-	const getListValues = (title: 'Tags' | 'Assignees') =>
-		children
-			.filter(node => node.title === title)
-			.flatMap(node => node.props.value?.split('|').map(s => s.trim()) ?? [])
-			.filter(x => x);
 
-	const tags = getListValues('Tags').map(nodeRepo.getTag);
-	const assignees = getListValues('Assignees').map(nodeRepo.getContributor);
+	const getReferencedIds = (title: 'Tags' | 'Assignees') => {
+		const fieldNode = children.find(node => node.title === title);
+		if (!fieldNode) return [];
+
+		return getOrderedChildren(fieldNode.id)
+			.map(node =>
+				typeof node.props?.value === 'string' ? node.props.value : '',
+			)
+			.filter((x): x is string => Boolean(x));
+	};
+
+	const tags = getReferencedIds('Tags')
+		.map(tagId => nodeRepo.getTag(tagId))
+		.filter((s): s is Tag => Boolean(s));
+
+	const assignees = getReferencedIds('Assignees')
+		.map(contributorId => nodeRepo.getContributor(contributorId))
+		.filter((s): s is Contributor => Boolean(s));
 
 	const paddingRight = 1;
-	const tagsWidth = tags.reduce(acc => acc + 2 + paddingRight, 0);
+	const tagsWidth = tags.length * (1 + paddingRight);
+	const assigneesWidth = assignees.length * (2 + paddingRight);
 
-	const tagsRendered = tags.map((tag, i) => (
-		<Box key={`${tag}-${i}`} paddingRight={paddingRight}>
-			<Text color={getTagColor(tag?.name ?? '')}>■</Text>
+	const tagsRendered = tags.map(tag => (
+		<Box key={tag.id} paddingRight={paddingRight}>
+			<Text color={getTagColor(tag.name)}>■</Text>
 		</Box>
 	));
-	const assigneesRendered = assignees.map((assignee, i) => (
-		<Box key={`${assignee}-${i}`} paddingRight={paddingRight}>
-			<Text color={stringToHslHexColor(assignee?.name ?? '')}>
-				{'@' + assignee?.name.at(0)}
+
+	const assigneesRendered = assignees.map(assignee => (
+		<Box key={assignee.id} paddingRight={paddingRight}>
+			<Text color={stringToHslHexColor(assignee.name)}>
+				{'@' + assignee.name.at(0)}
 			</Text>
 		</Box>
 	));
@@ -61,13 +77,15 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	return (
 		<Box borderBottom justifyContent="space-between">
 			<Box>
-				{isSelected ? (
-					<Text color={color}>{'⸬  '}</Text>
-				) : (
-					<Text color={theme.secondary}>{index + 1 + '. '}</Text>
-				)}
+				<CursorUI
+					isSelected={isSelected}
+					placeholder={chalk.dim.gray(index + 1 + ' ')}
+				></CursorUI>
 				<Text color={color}>
-					{truncateWithEllipsis(ticket.title, width - tagsWidth - 15)}
+					{truncateWithEllipsis(
+						ticket.title,
+						width - tagsWidth - assigneesWidth - 15,
+					)}
 				</Text>
 			</Box>
 

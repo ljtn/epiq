@@ -8,6 +8,7 @@ import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
+import {CursorUI} from './Cursor.js';
 
 type Props = {
 	parent: NavNode<AnyContext>;
@@ -37,9 +38,8 @@ export const FieldListUI: React.FC<Props> = ({
 	return (
 		<Box alignItems="center" paddingTop={1}>
 			<Box minWidth={16}>
-				<Text color={selected ? theme.accent : theme.secondary}>
-					{' ' + title}:
-				</Text>
+				<CursorUI isSelected={selected}></CursorUI>
+				<Text color={selected ? theme.accent : theme.secondary}>{title}:</Text>
 			</Box>
 
 			<Box flexDirection="row" marginLeft={1} paddingRight={1} paddingLeft={1}>
@@ -50,14 +50,12 @@ export const FieldListUI: React.FC<Props> = ({
 
 					return (
 						<Box key={`${title}-${item}`} paddingRight={2} minHeight={1}>
-							<Text color={isSelected ? theme.accent : undefined}>
-								{isSelected ? '⸬ ' : ' '}
-							</Text>
+							<CursorUI isSelected={isSelected}></CursorUI>
 
 							{title === 'Assignees' ? (
-								<AssigneeUI id={item} />
+								<AssigneeUI isSelected={isSelected} id={item} />
 							) : title === 'Tags' ? (
-								<TagUI id={item} />
+								<TagUI isSelected={isSelected} id={item} />
 							) : null}
 						</Box>
 					);

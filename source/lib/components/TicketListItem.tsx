@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {getOrderedChildren} from '../../repository/rank.js';
+import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 import {
@@ -23,15 +24,24 @@ export const getTicketFields = (ticket: Ticket): TicketFieldMap => {
 	const fields: TicketFieldMap = {};
 
 	if (!ticket) return fields;
+
 	const ticketChildren = getOrderedChildren(ticket.id);
-	if (!ticketChildren) return fields;
 	for (const field of ticketChildren) {
 		if (!field.title) continue;
+
 		const fieldChildren = getOrderedChildren(field.id);
+
 		fields[field.title] = {
-			value: sanitizeInlineText(field.props['value']),
+			value:
+				typeof field.props?.value === 'string'
+					? sanitizeInlineText(field.props.value)
+					: '',
 			values: fieldChildren
-				.map(child => sanitizeInlineText(child.props['value']))
+				.map(child =>
+					typeof child.props?.value === 'string'
+						? sanitizeInlineText(child.props.value)
+						: '',
+				)
 				.filter(Boolean),
 		};
 	}
@@ -53,16 +63,24 @@ export const TicketListItemUI: React.FC<{
 
 	const children = getOrderedChildren(ticket.id);
 
-	const getListValues = (title: 'Tags' | 'Assignees') =>
-		children
-			.filter(
-				(node): node is typeof node & {props: {value: string[]}} =>
-					node.title === title && Array.isArray(node.props.value),
-			)
-			.flatMap(node => node.props.value);
+	const getReferencedIds = (title: 'Tags' | 'Assignees') => {
+		const fieldNode = children.find(node => node.title === title);
+		if (!fieldNode) return [];
 
-	const tags = getListValues('Tags').map(nodeRepo.getTag);
-	const assignees = getListValues('Assignees').map(nodeRepo.getContributor);
+		return getOrderedChildren(fieldNode.id)
+			.map(child =>
+				typeof child.props?.value === 'string' ? child.props.value : '',
+			)
+			.filter((value): value is string => Boolean(value));
+	};
+
+	const tags = getReferencedIds('Tags')
+		.map(tagId => nodeRepo.getTag(tagId))
+		.filter((s): s is Tag => Boolean(s));
+
+	const assignees = getReferencedIds('Assignees')
+		.map(contributorId => nodeRepo.getContributor(contributorId))
+		.filter((s): s is Contributor => Boolean(s));
 
 	return (
 		<Box
@@ -76,16 +94,15 @@ export const TicketListItemUI: React.FC<{
 			<Box borderBottom>
 				<Box paddingLeft={1} flexDirection="column">
 					<Text color={theme.primary}>{title}</Text>
-					{/* <Text color={theme.secondary}>{description}</Text> */}
 				</Box>
 			</Box>
 
 			<Box flexDirection="row" paddingLeft={1}>
 				{tags.map(tag => (
-					<TagUI key={tag?.id} id={tag?.id ?? ''}></TagUI>
+					<TagUI key={tag.id} id={tag.id} />
 				))}
 				{assignees.map(assignee => (
-					<AssigneeUI key={assignee?.id} id={assignee?.id ?? ''}></AssigneeUI>
+					<AssigneeUI key={assignee.id} id={assignee.id} />
 				))}
 			</Box>
 		</Box>

@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import {marked} from 'marked';
 import TerminalRenderer from 'marked-terminal';
@@ -10,7 +11,7 @@ import {nodes} from '../state/node-builder.js';
 import {theme} from '../theme/themes.js';
 import {truncateWithEllipsis} from '../utils/string.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
-import chalk from 'chalk';
+import {CursorUI} from './Cursor.js';
 
 type Props = {
 	height: number;
@@ -18,6 +19,7 @@ type Props = {
 	selected: boolean;
 	selectedIndex: number;
 	currentNode: NavNode<AnyContext>;
+	maxWidth: number;
 };
 
 export const FieldUI: React.FC<Props> = ({
@@ -26,6 +28,7 @@ export const FieldUI: React.FC<Props> = ({
 	selected,
 	selectedIndex,
 	currentNode,
+	maxWidth,
 }) => {
 	marked.setOptions({
 		renderer: new TerminalRenderer() as any,
@@ -73,29 +76,35 @@ export const FieldUI: React.FC<Props> = ({
 		<Text key={`${field.id}-${i}`}>
 			{(currentNode.id === field.id && selectedIndex === i
 				? chalk.cyan(
-						`⸬ ${Array.from({length: String(i).length})
+						`▸ ${Array.from({length: String(i).length})
 							.map(() => ' ')
 							.join('')}`,
 				  )
 				: chalk.dim.gray(`${i + 1}  `)) +
 				renderMarkdownInline(
-					row.length ? truncateWithEllipsis(row, 40 - 6) : EMPTY_ROW_FALLBACK,
+					row.length
+						? truncateWithEllipsis(row, maxWidth - 10)
+						: EMPTY_ROW_FALLBACK,
 				)}
 		</Text>
 	));
 
 	return (
 		<Box flexDirection="column" paddingTop={1}>
-			<Text color={selected ? theme.primary : theme.secondary}>
-				{' ' + field.title + ' (press I to edit)'}
-			</Text>
+			<Box>
+				<CursorUI isSelected={selected}></CursorUI>
+				<Text color={selected ? theme.accent : theme.secondary}>
+					{field.title + ' (press I to edit)'}
+				</Text>
+			</Box>
 
 			<Box
 				flexDirection="row"
 				borderStyle="round"
-				borderColor={selected ? theme.accent : theme.secondary}
+				borderColor={theme.secondary}
 				paddingLeft={1}
 				paddingRight={1}
+				marginLeft={1}
 			>
 				<ScrollBoxUI
 					scrollByOne={true}

@@ -54,7 +54,13 @@ const materializeHandlers: MaterializeHandlers = {
 	'add.field': event => {
 		const {id, name, parentId, value} = event.payload;
 		const result = nodeRepo.createNodeAtPosition(
-			nodes.field(id, name, parentId, {value}),
+			nodes.field(
+				id,
+				name,
+				parentId,
+				{value},
+				name.includes('Description') ? 'vertical' : 'horizontal',
+			),
 		);
 		if (isFail(result)) return failed(`Unable to create field: ${name}`);
 		return succeeded('Added field', result.data);

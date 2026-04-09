@@ -21,11 +21,15 @@ export const getTagColor = (
 	return stringToHslHexColor(normalized);
 };
 
-export const TagUI: React.FC<Props> = ({id}) => {
+export const TagUI: React.FC<Props> = ({id, isSelected}) => {
 	const tag = nodeRepo.getTag(id);
 	if (!tag) return;
 	return (
-		<Text backgroundColor={getTagColor(tag.name)} color={theme.primary}>
+		<Text
+			underline={isSelected}
+			backgroundColor={getTagColor(tag.name)}
+			color={theme.primary}
+		>
 			{' ' + tag.name + ' '}
 		</Text>
 	);

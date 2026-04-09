@@ -20,12 +20,12 @@ export const getColor = (
 	return stringToHslHexColor(normalized);
 };
 
-export const AssigneeUI: React.FC<Props> = ({id}) => {
+export const AssigneeUI: React.FC<Props> = ({id, isSelected}) => {
 	const contributor = nodeRepo.getContributor(id);
 	if (!contributor) return;
 	return (
-		<Text color={getColor(contributor.name)}>
-			{' @' + contributor.name + ' '}
+		<Text underline={isSelected} color={getColor(contributor.name)}>
+			{'@' + contributor.name}
 		</Text>
 	);
 };

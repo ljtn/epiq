@@ -7,6 +7,7 @@ import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 import {TicketListItemCompactUI} from './TicketListItemCompact.js';
+import {CursorUI} from './Cursor.js';
 
 type Props = {
 	swimlane: Swimlane;
@@ -46,9 +47,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 			borderTop={false}
 			borderRight={false}
 		>
-			<Text bold color={isSelected ? theme.accent : theme.primary}>
-				{isSelected ? '⸬ ' : '  '}
-			</Text>
+			<CursorUI isSelected={isSelected}></CursorUI>
 			<Text bold color={isSelected ? theme.accent : theme.primary}>
 				{title}
 			</Text>
@@ -100,9 +99,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 					</ScrollBoxUI>
 				)}
 
-				{isFocused && listSelectedIndex === -1 && (
-					<Text color={theme.accent}>⸬</Text>
-				)}
+				<CursorUI isSelected={isFocused && listSelectedIndex === -1}></CursorUI>
 			</Box>
 		</Box>
 	);

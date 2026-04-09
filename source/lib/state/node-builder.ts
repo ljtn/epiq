@@ -1,4 +1,4 @@
-import {NavNodeCtx} from '../model/context.model.js';
+import {AnyContext, NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {midRank} from '../utils/rank.js';
 
@@ -50,6 +50,7 @@ export const nodes = {
 		name: string,
 		parentNodeId: string,
 		props: NavNode<'FIELD'>['props'] = {},
+		childRenderAxis: NavNode<AnyContext>['childRenderAxis'] = 'horizontal',
 	): NavNode<'FIELD'> => ({
 		id,
 		title: name,
@@ -57,8 +58,8 @@ export const nodes = {
 		isDeleted: false,
 		props,
 		context: NavNodeCtx.FIELD,
-		childRenderAxis: 'horizontal',
-		childNavigationAcrossParents: true, // ??
+		childRenderAxis,
+		// childNavigationAcrossParents: true, // ??
 		parentNodeId,
 	}),
 

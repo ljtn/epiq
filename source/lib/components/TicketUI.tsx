@@ -34,7 +34,6 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			width={maxWidth}
 			flexDirection="column"
 			paddingTop={1}
-			paddingLeft={1}
 			paddingRight={1}
 			minHeight={height}
 		>
@@ -66,10 +65,8 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 						height={descriptionHeight}
 						key={child.id}
 						field={child as NavNode<'FIELD'>}
-						selected={
-							(isInTicket && selectedIndex === index) ||
-							currentNode.id === child.id
-						}
+						selected={isInTicket && selectedIndex === index}
+						maxWidth={maxWidth}
 						selectedIndex={selectedIndex}
 						currentNode={currentNode}
 					/>
