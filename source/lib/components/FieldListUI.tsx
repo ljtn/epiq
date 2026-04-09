@@ -3,6 +3,7 @@ import React from 'react';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
+import {getState} from '../state/state.js';
 
 type Props = {
 	title: string;
@@ -11,18 +12,21 @@ type Props = {
 };
 export const FieldListUI: React.FC<Props> = ({items, title, selected}) => {
 	return (
-		<Box flexDirection="column" paddingTop={1}>
-			<Text color={theme.secondary}>{' ' + title}:</Text>
+		<Box alignItems="center" paddingTop={1}>
+			<Box minWidth={16}>
+				<Text color={selected ? theme.accent : theme.secondary}>
+					{' ' + title}:
+				</Text>
+			</Box>
 
-			<Box
-				flexDirection="row"
-				borderStyle="round"
-				borderColor={selected ? theme.accent : theme.secondary}
-				paddingLeft={1}
-				paddingRight={1}
-			>
+			<Box flexDirection="row" marginLeft={1} paddingRight={1} paddingLeft={1}>
 				{items.map(item => (
-					<Box paddingRight={1} minHeight={1}>
+					<Box paddingRight={2} minHeight={1}>
+						{item === getState().currentNode.id ? (
+							<Text color={theme.accent}>⸬</Text>
+						) : (
+							<Text>⸬ </Text>
+						)}
 						{title === 'Assignees' ? (
 							<AssigneeUI id={item}></AssigneeUI>
 						) : title === 'Tags' ? (

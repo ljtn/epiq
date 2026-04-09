@@ -8,6 +8,7 @@ import {
 	succeeded,
 } from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
+import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
@@ -98,10 +99,11 @@ export const DefaultActions: ActionEntry[] = [
 		intent: Intent.Edit,
 		mode: Mode.DEFAULT,
 		action: () => {
-			const {currentNode} = getState();
-			if (!currentNode) return failed('No current node');
+			const issueResult = findInBreadCrumb(getState().breadCrumb, 'TICKET');
+			if (isFail(issueResult)) return failed('No issue node');
+			const issueNode = issueResult.data;
 
-			const descriptionField = getOrderedChildren(currentNode.id).find(
+			const descriptionField = getOrderedChildren(issueNode.id).find(
 				x => x?.title === 'Description',
 			);
 
@@ -116,7 +118,6 @@ export const DefaultActions: ActionEntry[] = [
 			}
 
 			const editResult = openEditorOnText(currentValue);
-			logger.debug('editResult', editResult);
 			if (isFail(editResult)) {
 				return failed('Failed to edit description');
 			}
@@ -128,7 +129,7 @@ export const DefaultActions: ActionEntry[] = [
 			}
 
 			return materializeAndPersist({
-				action: 'set.description',
+				action: 'edit.description',
 				payload: {
 					targetId: descriptionField.id,
 					markdown: updatedMarkdown,

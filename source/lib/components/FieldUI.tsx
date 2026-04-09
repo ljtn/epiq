@@ -31,7 +31,8 @@ export const FieldUI: React.FC<Props> = ({
 		renderer: new TerminalRenderer() as any,
 	});
 
-	const renderMarkdown = (md: string) => marked.parse(md, {async: false});
+	const renderMarkdownInline = (md: string) =>
+		String(marked.parseInline(md)).replace(/\r?\n/g, '');
 
 	const attachedNodeIds = useRef<string[]>([]);
 
@@ -77,7 +78,7 @@ export const FieldUI: React.FC<Props> = ({
 							.join('')}`,
 				  )
 				: chalk.dim.gray(`${i + 1}  `)) +
-				renderMarkdown(
+				renderMarkdownInline(
 					row.length ? truncateWithEllipsis(row, 40 - 6) : EMPTY_ROW_FALLBACK,
 				)}
 		</Text>

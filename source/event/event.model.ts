@@ -79,7 +79,7 @@ export type AppEventMap = {
 		};
 		result: string;
 	};
-	'set.description': {
+	'edit.description': {
 		payload: {
 			targetId: string;
 			markdown: string;

@@ -106,7 +106,7 @@ const materializeHandlers: MaterializeHandlers = {
 		return succeeded('Moved node', moved.data.id);
 	},
 
-	'set.description': event => {
+	'edit.description': event => {
 		const {targetId, markdown} = event.payload;
 		const result = nodeRepo.editValue(targetId, markdown);
 		if (isFail(result)) return result;

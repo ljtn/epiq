@@ -23,7 +23,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		0,
 	);
 	const labelHeight = 1;
-	const fieldListsHeight = fieldCount * 5;
+	const fieldListsHeight = fieldCount * 2;
 	const commandPromptHeight = 3;
 	const descriptionHeight =
 		height - commandPromptHeight - fieldListsHeight - labelHeight;
