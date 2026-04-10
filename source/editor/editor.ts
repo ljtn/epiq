@@ -6,7 +6,7 @@ import {failed, Result, succeeded} from '../lib/command-line/command-types.js';
 import {fileManager} from '../lib/storage/file-manager.js';
 
 function pickEditor(): string {
-	return process.env['VISUAL'] || process.env['EDITOR'] || 'vi';
+	return process.env['VISUAL'] || process.env['EDITOR'] || 'vim';
 }
 export function openEditorOnText(initial: string): Result<string> {
 	const editor = pickEditor();

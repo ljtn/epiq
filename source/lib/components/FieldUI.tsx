@@ -94,7 +94,7 @@ export const FieldUI: React.FC<Props> = ({
 			<Box>
 				<CursorUI isSelected={selected}></CursorUI>
 				<Text color={selected ? theme.accent : theme.secondary}>
-					{field.title + ' (press I to edit)'}
+					{field.title + ' (to edit, press e)'}
 				</Text>
 			</Box>
 

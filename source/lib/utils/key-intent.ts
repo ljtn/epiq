@@ -165,7 +165,7 @@ export function getKeyIntent(
 
 	// Default actions
 	switch (key.name) {
-		case 'i':
+		case 'e':
 			return Intent.Edit;
 		case 'n':
 			return Intent.AddItem;
