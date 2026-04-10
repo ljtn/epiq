@@ -1,6 +1,6 @@
 import {CurrentCmdMeta} from '../state/cmd.state.js';
 import {ParsedCommandLine} from './command-parser.js';
-import {CmdKeyword, CmdKeywords, cmdValidity} from './command-types.js';
+import {CmdKeyword, CmdKeywords} from './command-types.js';
 import {cmdValidation} from './command-validation.js';
 
 export const CmdIntent = {
@@ -30,25 +30,16 @@ export const getCmdMeta = ({
 	modifier,
 	inputString,
 }: ParsedCommandLine): CurrentCmdMeta => {
-	if (command) {
-		const {message, validity} = cmdValidation[command].validate(
-			command,
-			modifier,
-			inputString,
-		);
-		return {
-			command,
-			modifier,
-			infoMessage: message ?? '',
-			inputString,
-			validity,
-		};
-	}
+	const {message, validity} = cmdValidation[command ?? ''].validate(
+		command ?? '',
+		modifier,
+		inputString,
+	);
 	return {
-		validity: cmdValidity.None,
-		infoMessage: '',
 		command,
-		inputString: '',
-		modifier: '',
+		modifier,
+		infoMessage: message ?? '',
+		inputString,
+		validity,
 	};
 };

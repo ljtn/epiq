@@ -102,7 +102,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Invalid);
-			expect(result.message).toBe(`to proceed, enter "${expected}"`);
+			expect(result.message).toMatch(/^if you are certain, enter/);
 		});
 
 		it('rejects when modifier is wrong', () => {
@@ -172,7 +172,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Invalid);
-			expect(result.message).toMatch(/^provide tag name like /);
+			expect(result.message).toMatch(/^provide tag name like/);
 		});
 	});
 

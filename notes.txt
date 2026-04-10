@@ -1,0 +1,6 @@
+e for edit
+filter
+distribute as binary
+skapa reddit
+skapa hackernews
+add .epiqrc

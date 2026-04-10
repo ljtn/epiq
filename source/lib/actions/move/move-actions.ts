@@ -12,7 +12,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		// Reconsider. We should probably not move before confirm
 		intent: Intent.Exit,
 		mode: Mode.MOVE,
-		description: '[esc] cancel',
+		description: '[<Esc>] Exit context / Cancel',
 		action: () => {
 			patchState({
 				mode: Mode.DEFAULT,
@@ -21,19 +21,19 @@ export const toggleMoveMode: ActionEntry[] = [
 		},
 	},
 	{
-		intent: Intent.Cut,
+		intent: Intent.InitMove,
 		mode: Mode.DEFAULT,
-		description: '[d] cut',
+		description: '[m] Init/confirm move',
 		action: () => {
 			if (getState().selectedIndex === -1) return failed('No item selected'); // Block move if no children
 			patchState({
 				mode: Mode.MOVE,
 			});
-			return succeeded('Cutting item', null);
+			return succeeded('Init movie succeeded', null);
 		},
 	},
 	{
-		intent: Intent.Paste,
+		intent: Intent.ConfirmMove,
 		mode: Mode.MOVE,
 		action: () => {
 			patchState({

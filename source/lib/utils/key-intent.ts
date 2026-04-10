@@ -20,8 +20,8 @@ export enum Intent {
 	Exit = 'exit',
 	ViewHelp = 'viewHelp',
 	HideHelp = 'hideHelp',
-	Cut = 'cut',
-	Paste = 'paste',
+	InitMove = 'initMove',
+	ConfirmMove = 'confirmMove',
 	Delete = 'Delete',
 
 	// Command line
@@ -128,7 +128,7 @@ export function getKeyIntent(
 		switch (key.name) {
 			case 'm':
 			case 'return':
-				return Intent.Paste;
+				return Intent.ConfirmMove;
 		}
 	}
 
@@ -170,7 +170,7 @@ export function getKeyIntent(
 		case 'n':
 			return Intent.AddItem;
 		case 'm':
-			return Intent.Cut;
+			return Intent.InitMove;
 		case 'd': // It cannot be 'backspace' as we then end up in an infinite loop if we erase from cmd line
 			return Intent.Delete;
 		case 'e':

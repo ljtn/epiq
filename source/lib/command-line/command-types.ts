@@ -6,6 +6,7 @@ export const CmdKeywords = {
 	VIEW: 'view',
 	TAG: 'tag',
 	ASSIGN: 'assign',
+	NONE: '',
 } as const;
 
 export const cmdValidity = {

@@ -5,6 +5,7 @@ import {CmdKeyword, CmdKeywords} from './command-types.js';
 export const getCmdModifiers = (): Record<CmdKeyword, string[]> => ({
 	[CmdKeywords.DELETE]: ['confirm'],
 	[CmdKeywords.VIEW]: ['dense', 'wide'],
+	[CmdKeywords.NONE]: [...new Set([...Object.values(CmdKeywords)])],
 	[CmdKeywords.TAG]: [
 		...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
 	],

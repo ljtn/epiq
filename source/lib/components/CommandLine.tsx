@@ -203,20 +203,22 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 	}, [value, cursorPosition, autoCompletion, command, modifier]);
 
 	return (
-		<Box
-			flexDirection="column"
-			paddingX={1}
-			borderColor={theme.secondary}
-			borderStyle="round"
-			width={width}
-		>
-			<Box>
-				<Text>{fullLine}</Text>
-				{infoMessage && (
-					<Text color={commandIsPending ? 'red' : theme.secondary}>
-						{` ${infoMessage} `}
-					</Text>
-				)}
+		<Box flexDirection="column" justifyContent="flex-start">
+			<Box
+				flexDirection="column"
+				paddingX={1}
+				borderColor={theme.secondary}
+				borderStyle="round"
+				width={width}
+			>
+				<Box>
+					<Text>{fullLine}</Text>
+					{infoMessage && (
+						<Text color={commandIsPending ? 'red' : theme.secondary}>
+							{` ${infoMessage} `}
+						</Text>
+					)}
+				</Box>
 			</Box>
 		</Box>
 	);

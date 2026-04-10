@@ -42,13 +42,14 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[:] Toggle command line',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => ''); // Trigger hints
 			return succeeded('Entering command line mode', null);
 		},
 	},
 	{
 		intent: Intent.Confirm,
 		mode: Mode.DEFAULT,
-		description: '[ENTER] Confirm/Enter context',
+		description: '[<Enter>] Confirm/Enter context',
 		action: () => {
 			navigationUtils.enterChildNode();
 			return succeeded('Entering context', null);
@@ -57,7 +58,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
-		description: '[ESC/Q] Exit context',
+		description: '[q] Exit context',
 		action: () => {
 			navigationUtils.enterParentNode();
 			return succeeded('Exiting context', null);
@@ -66,6 +67,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.NavPreviousItem,
 		mode: Mode.DEFAULT,
+		description: '[arrows/hjkl] Navigate',
 		action: () => {
 			navigationUtils.navigateToPreviousItem();
 			return succeeded('Navigating to previous item', null);
@@ -140,6 +142,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.SetViewDense,
 		mode: Mode.DEFAULT,
+		description: '[v] Toggle view mode (wide/dense)',
 		action: () => {
 			patchState({
 				viewMode: 'dense',

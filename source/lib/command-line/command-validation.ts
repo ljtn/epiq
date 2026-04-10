@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
@@ -45,17 +46,31 @@ const pickRandom = <T>(arr: readonly T[], count: number): T[] => {
 	return result;
 };
 
-const buildOptionsHint = (
-	prefix: string,
-	wordList: readonly string[],
-	postfix: string = '',
+const buildOptionsHint = ({
+	prefix = '',
+	wordList,
+	postfix = '',
 	noOfHints = 2,
-) =>
-	wordList.length
-		? `${prefix}${pickRandom(wordList, noOfHints)
-				.map(word => `"${word}"`)
-				.join(' or ')}${postfix}`
+	inputString,
+}: {
+	prefix?: string;
+	wordList: readonly string[];
+	postfix?: string;
+	noOfHints: number;
+	inputString: string;
+}) => {
+	const filteredList = wordList
+		.filter(Boolean)
+		.filter(x => x.startsWith(inputString.trim()));
+	return filteredList.length
+		? `${prefix}${pickRandom(
+				filteredList.length > 1 ? filteredList : [],
+				noOfHints,
+		  )
+				.map(word => `${chalk.dim.bgBlack.white(' ' + word + ' ')}`)
+				.join(' ')}${postfix}`
 		: '';
+};
 
 const alwaysSucceed: Validator = () => valid();
 
@@ -65,7 +80,11 @@ const requireExact =
 		modifier === expected
 			? valid()
 			: invalid(
-					isBlank(modifier) ? `to proceed, enter "${expected}"` : undefined,
+					isBlank(modifier)
+						? `if you are certain, enter ${chalk.dim.bgBlack.white(
+								' ' + expected + ' ',
+						  )}`
+						: undefined,
 			  );
 
 const requireOneIn =
@@ -84,10 +103,26 @@ const requireModifierOrInputStr =
 const getList = (command: CmdKeyword): string[] => getCmdModifiers()[command];
 
 const validators: Record<CmdKeyword, Validator> = {
+	[CmdKeywords.NONE]: args => {
+		const list = getList(CmdKeywords.NONE);
+		return !args.command
+			? invalid(
+					buildOptionsHint({
+						wordList: list,
+						noOfHints: 100,
+						inputString: args.inputString,
+					}),
+			  )
+			: valid();
+	},
 	[CmdKeywords.NEW]: args =>
 		requireOneIn({
 			list: getList(CmdKeywords.NEW),
-			hint: buildOptionsHint('', getList(CmdKeywords.NEW), '', 3),
+			hint: buildOptionsHint({
+				wordList: getList(CmdKeywords.NEW),
+				noOfHints: 3,
+				inputString: args.inputString,
+			}),
 		})(args),
 	[CmdKeywords.HELP]: alwaysSucceed,
 	[CmdKeywords.RENAME]: alwaysSucceed,
@@ -96,23 +131,30 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.VIEW]: args =>
 		requireOneIn({
 			list: getList(CmdKeywords.VIEW),
-			hint: buildOptionsHint('', getList(CmdKeywords.VIEW)),
+			hint: buildOptionsHint({
+				wordList: getList(CmdKeywords.VIEW),
+				noOfHints: 3,
+				inputString: args.inputString,
+			}),
 		})(args),
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
-			hint: buildOptionsHint(
-				'provide tag name like ',
-				getList(CmdKeywords.TAG),
-				', etc.',
-			),
+			hint: buildOptionsHint({
+				prefix: 'provide tag name like: ',
+				wordList: getList(CmdKeywords.TAG),
+				postfix: ', etc.',
+				noOfHints: 3,
+				inputString: args.inputString,
+			}),
 		})(args),
 	[CmdKeywords.ASSIGN]: args =>
 		requireModifierOrInputStr({
-			hint: buildOptionsHint(
-				'provide user name like ',
-				getList(CmdKeywords.ASSIGN),
-				', etc.',
-			),
+			hint: buildOptionsHint({
+				wordList: getList(CmdKeywords.ASSIGN),
+				postfix: ', etc.',
+				noOfHints: 3,
+				inputString: args.inputString,
+			}),
 		})(args),
 };
 
@@ -130,8 +172,9 @@ export const cmdValidation: CmdValidation = Object.fromEntries(
 	Object.entries(validators).map(([command, validate]) => [
 		command,
 		{
-			validate: (cmd, modifier, inputString) =>
-				validate({modifier, command: cmd, inputString}),
+			validate: (cmd, modifier, inputString) => {
+				return validate({modifier, command: cmd, inputString});
+			},
 		},
 	]),
 ) as CmdValidation;
