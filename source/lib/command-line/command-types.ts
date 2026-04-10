@@ -1,11 +1,11 @@
 export const CmdKeywords = {
 	HELP: 'help',
-	RENAME: 'rename',
 	NEW: 'new',
-	DELETE: 'delete',
-	VIEW: 'view',
 	TAG: 'tag',
 	ASSIGN: 'assign',
+	DELETE: 'delete',
+	RENAME: 'rename',
+	VIEW: 'view',
 	NONE: '',
 } as const;
 
