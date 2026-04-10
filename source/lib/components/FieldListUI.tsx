@@ -21,6 +21,7 @@ export const FieldListUI: React.FC<Props> = ({
 	parent,
 	selected,
 }) => {
+	const {currentNode} = useAppState();
 	const {title} = parent;
 	const items = getOrderedChildren(parent.id)
 		.map(item => {
@@ -37,14 +38,13 @@ export const FieldListUI: React.FC<Props> = ({
 
 	return (
 		<Box alignItems="center" paddingTop={1}>
-			<Box minWidth={16}>
+			<Box minWidth={12}>
 				<CursorUI isSelected={selected}></CursorUI>
 				<Text color={selected ? theme.accent : theme.secondary}>{title}:</Text>
 			</Box>
 
-			<Box flexDirection="row" marginLeft={1} paddingRight={1} paddingLeft={1}>
+			<Box flexDirection="row" marginLeft={1} paddingRight={1}>
 				{items.map((item, index) => {
-					const {currentNode} = useAppState();
 					const isSelected =
 						currentNode.id === parent.id && index === selectedIndex;
 

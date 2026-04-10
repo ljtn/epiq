@@ -118,15 +118,15 @@ export const DefaultActions: ActionEntry[] = [
 			}
 
 			const editResult = openEditorOnText(currentValue);
-			if (isFail(editResult)) {
-				return failed('Failed to edit description');
-			}
+			if (isFail(editResult)) return failed('Failed to edit description');
 
 			const updatedMarkdown = editResult.data;
 
 			if (updatedMarkdown === currentValue) {
 				return succeeded('No changes made', undefined);
 			}
+
+			// Here we need to trigger a reload of the description component, so row indexes are restored
 
 			return materializeAndPersist({
 				action: 'edit.description',

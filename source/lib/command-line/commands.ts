@@ -234,7 +234,7 @@ export const commands: CommandLineActionEntry[] = [
 
 			const {selectedIndex, currentNode} = getState();
 			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
-			if (!selected) return failed('Selection node not found');
+			if (!selected) return failed('Invalid tag target');
 
 			const ticketResult = findAncestor(selected.id, 'TICKET');
 			if (isFail(ticketResult))
@@ -268,9 +268,7 @@ export const commands: CommandLineActionEntry[] = [
 				child => child.props?.value === tagId,
 			);
 
-			if (alreadyTagged) {
-				return succeeded('Issue already tagged', undefined);
-			}
+			if (alreadyTagged) return failed('Already tagged with that tag');
 
 			return materializeAndPersist({
 				action: 'tag.issue',
@@ -293,7 +291,7 @@ export const commands: CommandLineActionEntry[] = [
 
 			const {selectedIndex, currentNode} = getState();
 			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
-			if (!selected) return failed('Selection node not found');
+			if (!selected) return failed('Invalid assign target');
 
 			const ticketResult = findAncestor(selected.id, 'TICKET');
 			if (isFail(ticketResult))
@@ -327,9 +325,7 @@ export const commands: CommandLineActionEntry[] = [
 				child => child.props?.value === contributorId,
 			);
 
-			if (alreadyAssigned) {
-				return succeeded('Issue already assigned', undefined);
-			}
+			if (alreadyAssigned) return failed('Assignee already assigned');
 
 			return materializeAndPersist({
 				action: 'assign.issue',

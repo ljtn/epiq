@@ -23,18 +23,18 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		0,
 	);
 
-	const labelHeight = 1;
+	const spacing = 2;
 	const fieldListsHeight = fieldCount * 2;
 	const commandPromptHeight = 3;
 	const descriptionHeight =
-		height - commandPromptHeight - fieldListsHeight - labelHeight;
+		height - commandPromptHeight - fieldListsHeight - spacing;
 
 	return (
 		<Box
 			width={maxWidth}
 			flexDirection="column"
-			paddingTop={1}
 			paddingRight={1}
+			paddingBottom={1}
 			minHeight={height}
 		>
 			{children.map((child, index) => {

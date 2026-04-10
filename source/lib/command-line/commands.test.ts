@@ -12,7 +12,9 @@ vi.mock('../../event/event-materialize-and-persist.js', () => ({
 
 vi.mock('../../repository/node-repo.js', () => ({
 	findAncestor: vi.fn(),
-	nodeRepo: {},
+	nodeRepo: {
+		getFieldByTitle: vi.fn(),
+	},
 }));
 
 vi.mock('../../repository/rank.js', () => ({
@@ -32,7 +34,7 @@ vi.mock('../state/state.js', () => ({
 
 import {ulid} from 'ulid';
 import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
-import {findAncestor} from '../../repository/node-repo.js';
+import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
 import {getOrderedChildren} from '../../repository/rank.js';
 import {getCmdState} from '../state/cmd.state.js';
 import {getState} from '../state/state.js';
@@ -46,6 +48,7 @@ const mockedFindAncestor = vi.mocked(findAncestor);
 const mockedGetOrderedChildren = vi.mocked(getOrderedChildren);
 const mockedGetCmdState = vi.mocked(getCmdState);
 const mockedGetState = vi.mocked(getState);
+const mockedNodeRepo = vi.mocked(nodeRepo);
 
 const tagCommand = commands.find(x => x.intent === CmdIntent.TagTicket)!;
 const assignCommand = commands.find(
@@ -70,14 +73,23 @@ describe('TagTicket command', () => {
 			contributors: {},
 		} as any);
 
-		mockedGetOrderedChildren.mockReturnValue([{id: 'selected-node'}] as any);
-
 		mockedFindAncestor.mockReturnValue(
 			succeeded('Found ticket', {id: 'ticket-1'}) as any,
 		);
+
+		mockedNodeRepo.getFieldByTitle.mockReturnValue({
+			id: 'tags-field-1',
+			title: 'Tags',
+		} as any);
+
+		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
+			if (parentId === 'tags-field-1') return [] as any;
+			return [] as any;
+		});
 	});
 
-	it('reuses an existing tag id instead of generating a new one', () => {
+	it('reuses an existing tag id and creates a tag-assignment node', () => {
 		mockedGetState.mockReturnValue({
 			selectedIndex: 0,
 			currentNode: {id: 'current-node'},
@@ -87,42 +99,49 @@ describe('TagTicket command', () => {
 			contributors: {},
 		} as any);
 
+		mockedUlid.mockReturnValue('tag-assignment-node-id');
+
 		mockedMaterializeAndPersist.mockReturnValue(
 			succeeded('Tagged issue', {
-				targetId: 'ticket-1',
-				tagId: 'tag-123',
+				id: 'tag-assignment-node-id',
+				parentNodeId: 'tags-field-1',
+				props: {value: 'tag-123'},
 			}) as any,
 		);
 
 		tagCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).not.toHaveBeenCalled();
+		expect(mockedUlid).toHaveBeenCalledTimes(1);
 
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			action: 'tag.issue',
 			payload: {
+				id: 'tag-assignment-node-id',
 				targetId: 'ticket-1',
 				tagId: 'tag-123',
 			},
 		});
 	});
 
-	it('creates a new tag when none exists, then tags the ticket', () => {
-		mockedUlid.mockReturnValue('new-tag-id');
+	it('creates a new tag when none exists, then creates a tag-assignment node', () => {
+		mockedUlid
+			.mockReturnValueOnce('new-tag-id')
+			.mockReturnValueOnce('new-tag-assignment-node-id');
 
 		mockedMaterializeAndPersist
 			.mockReturnValueOnce(succeeded('Created tag', 'new-tag-id') as any)
 			.mockReturnValueOnce(
 				succeeded('Tagged issue', {
-					targetId: 'ticket-1',
-					tagId: 'new-tag-id',
+					id: 'new-tag-assignment-node-id',
+					parentNodeId: 'tags-field-1',
+					props: {value: 'new-tag-id'},
 				}) as any,
 			);
 
 		tagCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).toHaveBeenCalledTimes(1);
+		expect(mockedUlid).toHaveBeenCalledTimes(2);
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
 			action: 'create.tag',
 			payload: {
@@ -133,6 +152,7 @@ describe('TagTicket command', () => {
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
 			action: 'tag.issue',
 			payload: {
+				id: 'new-tag-assignment-node-id',
 				targetId: 'ticket-1',
 				tagId: 'new-tag-id',
 			},
@@ -140,9 +160,12 @@ describe('TagTicket command', () => {
 	});
 
 	it('tags the ticket id, not the selected child id', () => {
-		mockedGetOrderedChildren.mockReturnValue([
-			{id: 'description-field-id'},
-		] as any);
+		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+			if (parentId === 'current-node')
+				return [{id: 'description-field-id'}] as any;
+			if (parentId === 'tags-field-1') return [] as any;
+			return [] as any;
+		});
 
 		mockedGetState.mockReturnValue({
 			selectedIndex: 0,
@@ -157,10 +180,13 @@ describe('TagTicket command', () => {
 			succeeded('Found ticket', {id: 'ticket-99'}) as any,
 		);
 
+		mockedUlid.mockReturnValue('tag-assignment-node-id');
+
 		mockedMaterializeAndPersist.mockReturnValue(
 			succeeded('Tagged issue', {
-				targetId: 'ticket-99',
-				tagId: 'tag-123',
+				id: 'tag-assignment-node-id',
+				parentNodeId: 'tags-field-1',
+				props: {value: 'tag-123'},
 			}) as any,
 		);
 
@@ -169,18 +195,46 @@ describe('TagTicket command', () => {
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			action: 'tag.issue',
 			payload: {
+				id: 'tag-assignment-node-id',
 				targetId: 'ticket-99',
 				tagId: 'tag-123',
 			},
 		});
 	});
 
-	it('fails when no selected node exists', () => {
-		mockedGetOrderedChildren.mockReturnValue([]);
+	it('returns success and does not create a duplicate tag-assignment node', () => {
+		mockedGetState.mockReturnValue({
+			selectedIndex: 0,
+			currentNode: {id: 'current-node'},
+			tags: {
+				'tag-123': {id: 'tag-123', name: 'bug'},
+			},
+			contributors: {},
+		} as any);
+
+		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
+			if (parentId === 'tags-field-1')
+				return [{id: 'existing-tag-node', props: {value: 'tag-123'}}] as any;
+			return [] as any;
+		});
 
 		const result = tagCommand.action({} as any, {} as any);
 
-		expect(result).toEqual(failed('Selection node not found'));
+		expect(result).toEqual(failed('Already tagged with that tag'));
+		expect(mockedMaterializeAndPersist).not.toHaveBeenCalled();
+		expect(mockedUlid).not.toHaveBeenCalled();
+	});
+
+	it('fails when no selected node exists', () => {
+		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+			if (parentId === 'current-node') return [] as any;
+			return [] as any;
+		});
+
+		const result = tagCommand.action({} as any, {} as any);
+
+		expect(result).toEqual(failed('Invalid tag target'));
 		expect(mockedMaterializeAndPersist).not.toHaveBeenCalled();
 	});
 });
@@ -203,14 +257,23 @@ describe('AssignUserToTicket command', () => {
 			contributors: {},
 		} as any);
 
-		mockedGetOrderedChildren.mockReturnValue([{id: 'selected-node'}] as any);
-
 		mockedFindAncestor.mockReturnValue(
 			succeeded('Found ticket', {id: 'ticket-1'}) as any,
 		);
+
+		mockedNodeRepo.getFieldByTitle.mockReturnValue({
+			id: 'assignees-field-1',
+			title: 'Assignees',
+		} as any);
+
+		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
+			if (parentId === 'assignees-field-1') return [] as any;
+			return [] as any;
+		});
 	});
 
-	it('reuses an existing contributor id instead of generating a new one', () => {
+	it('reuses an existing contributor id and creates an assignment node', () => {
 		mockedGetState.mockReturnValue({
 			selectedIndex: 0,
 			currentNode: {id: 'current-node'},
@@ -220,29 +283,35 @@ describe('AssignUserToTicket command', () => {
 			},
 		} as any);
 
+		mockedUlid.mockReturnValue('assignment-node-id');
+
 		mockedMaterializeAndPersist.mockReturnValue(
 			succeeded('Assigned issue', {
-				targetId: 'ticket-1',
-				contributorId: 'user-123',
+				id: 'assignment-node-id',
+				parentNodeId: 'assignees-field-1',
+				props: {value: 'user-123'},
 			}) as any,
 		);
 
 		assignCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).not.toHaveBeenCalled();
+		expect(mockedUlid).toHaveBeenCalledTimes(1);
 
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			action: 'assign.issue',
 			payload: {
+				id: 'assignment-node-id',
 				targetId: 'ticket-1',
 				contributorId: 'user-123',
 			},
 		});
 	});
 
-	it('creates a new contributor when none exists, then assigns the ticket', () => {
-		mockedUlid.mockReturnValue('new-contributor-id');
+	it('creates a new contributor when none exists, then creates an assignment node', () => {
+		mockedUlid
+			.mockReturnValueOnce('new-contributor-id')
+			.mockReturnValueOnce('new-assignment-node-id');
 
 		mockedMaterializeAndPersist
 			.mockReturnValueOnce(
@@ -250,14 +319,15 @@ describe('AssignUserToTicket command', () => {
 			)
 			.mockReturnValueOnce(
 				succeeded('Assigned issue', {
-					targetId: 'ticket-1',
-					contributorId: 'new-contributor-id',
+					id: 'new-assignment-node-id',
+					parentNodeId: 'assignees-field-1',
+					props: {value: 'new-contributor-id'},
 				}) as any,
 			);
 
 		assignCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).toHaveBeenCalledTimes(1);
+		expect(mockedUlid).toHaveBeenCalledTimes(2);
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
 			action: 'create.contributor',
 			payload: {
@@ -268,18 +338,48 @@ describe('AssignUserToTicket command', () => {
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
 			action: 'assign.issue',
 			payload: {
+				id: 'new-assignment-node-id',
 				targetId: 'ticket-1',
 				contributorId: 'new-contributor-id',
 			},
 		});
 	});
 
-	it('fails when no selected node exists', () => {
-		mockedGetOrderedChildren.mockReturnValue([]);
+	it('returns success and does not create a duplicate assignment node', () => {
+		mockedGetState.mockReturnValue({
+			selectedIndex: 0,
+			currentNode: {id: 'current-node'},
+			tags: {},
+			contributors: {
+				'user-123': {id: 'user-123', name: 'alice'},
+			},
+		} as any);
+
+		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
+			if (parentId === 'assignees-field-1')
+				return [
+					{id: 'existing-assignment-node', props: {value: 'user-123'}},
+				] as any;
+			return [] as any;
+		});
 
 		const result = assignCommand.action({} as any, {} as any);
 
-		expect(result).toEqual(failed('Selection node not found'));
+		expect(result).toEqual(failed('Assignee already assigned'));
+		expect(mockedMaterializeAndPersist).not.toHaveBeenCalled();
+		expect(mockedUlid).not.toHaveBeenCalled();
+	});
+
+	it('fails when no selected node exists', () => {
+		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+			if (parentId === 'current-node') return [] as any;
+			return [] as any;
+		});
+
+		const result = assignCommand.action({} as any, {} as any);
+
+		expect(result).toEqual(failed('Invalid assign target'));
 		expect(mockedMaterializeAndPersist).not.toHaveBeenCalled();
 	});
 });
