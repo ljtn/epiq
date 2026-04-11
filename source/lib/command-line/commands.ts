@@ -187,6 +187,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.SetView,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
+			logger.debug('1');
+
 			const {commandMeta} = getCmdState();
 			if (commandMeta.validity === cmdValidity.Invalid) {
 				return failed('Invalid command ' + cmdResult);

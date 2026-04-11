@@ -1,14 +1,15 @@
 import {describe, expect, it, vi} from 'vitest';
 import {parseCommandLine} from '../command-parser.js';
+import {CmdKeywords} from '../command-types.js';
 vi.mock('../command-modifiers.js', () => ({
 	getCmdModifiers: () => ({
-		delete: ['confirm'],
-		view: ['dense', 'wide'],
-		tag: ['critical', 'frontend', 'backend'],
-		assign: ['john', 'jane'],
-		help: [],
-		rename: [],
-		new: ['issue', 'swimlane', 'board'],
+		[CmdKeywords.DELETE]: ['confirm'],
+		[CmdKeywords.VIEW]: ['dense', 'wide'],
+		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
+		[CmdKeywords.ASSIGN]: ['john', 'jane'],
+		[CmdKeywords.HELP]: [],
+		[CmdKeywords.RENAME]: [],
+		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
 	}),
 }));
 

@@ -5,13 +5,13 @@ import {getCmdModifiers} from '../command-modifiers.js';
 
 vi.mock('../command-modifiers.js', () => ({
 	getCmdModifiers: () => ({
-		delete: ['confirm'],
-		view: ['dense', 'wide'],
-		tag: ['critical', 'frontend', 'backend'],
-		assign: ['john', 'jane'],
-		help: [],
-		rename: [],
-		new: ['issue', 'swimlane', 'board'],
+		[CmdKeywords.DELETE]: ['confirm'],
+		[CmdKeywords.VIEW]: ['dense', 'wide'],
+		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
+		[CmdKeywords.ASSIGN]: ['john', 'jane'],
+		[CmdKeywords.HELP]: [],
+		[CmdKeywords.RENAME]: [],
+		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
 	}),
 }));
 
@@ -93,8 +93,6 @@ describe('cmdValidation', () => {
 		});
 
 		it('rejects when modifier is empty', () => {
-			const expected = cmdModifiers[CmdKeywords.DELETE][0]!;
-
 			const result = cmdValidation[CmdKeywords.DELETE].validate(
 				CmdKeywords.DELETE,
 				'',

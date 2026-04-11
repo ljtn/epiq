@@ -1,16 +1,17 @@
 import {describe, expect, it, vi} from 'vitest';
 import {getAutoCompletion} from '../command-auto-complete.js';
 import {parseCommandLine} from '../command-parser.js';
+import {CmdKeywords} from '../command-types.js';
 
 vi.mock('../command-modifiers.js', () => ({
 	getCmdModifiers: () => ({
-		delete: ['confirm'],
-		view: ['dense', 'wide'],
-		tag: ['critical', 'frontend', 'backend'],
-		assign: ['john', 'jane'],
-		help: [],
-		rename: [],
-		new: ['issue', 'swimlane', 'board'],
+		[CmdKeywords.DELETE]: ['confirm'],
+		[CmdKeywords.VIEW]: ['dense', 'wide'],
+		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
+		[CmdKeywords.ASSIGN]: ['john', 'jane'],
+		[CmdKeywords.HELP]: [],
+		[CmdKeywords.RENAME]: [],
+		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
 	}),
 }));
 
@@ -25,18 +26,18 @@ describe('getAutoCompletion (remainder)', () => {
 		expect(getAutoCompletion(parsed).remainder).toBe('ritical ');
 	});
 
-	it('returns remainder for command completion ("vi" → "view")', () => {
-		const parsed = parseCommandLine('vi');
+	it('returns remainder for command completion ("set:vi" → "set:view")', () => {
+		const parsed = parseCommandLine('set:vi');
 		expect(getAutoCompletion(parsed).remainder).toBe('ew ');
 	});
 
-	it('returns remainder for modifier completion ("view d" → "dense")', () => {
-		const parsed = parseCommandLine('view d');
+	it('returns remainder for modifier completion ("set:view d" → "dense")', () => {
+		const parsed = parseCommandLine('set:view d');
 		expect(getAutoCompletion(parsed).remainder).toBe('ense ');
 	});
 
-	it('returns remainder for modifier completion ("view w" → "wide")', () => {
-		const parsed = parseCommandLine('view w');
+	it('returns remainder for modifier completion ("set:view w" → "wide")', () => {
+		const parsed = parseCommandLine('set:view w');
 		expect(getAutoCompletion(parsed).remainder).toBe('ide ');
 	});
 
