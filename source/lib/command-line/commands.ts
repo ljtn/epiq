@@ -22,7 +22,7 @@ import {
 } from './command-types.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {AppEvent} from '../../event/event.model.js';
-import {setPreferredEditorConfig} from '../config/epiq-config.js';
+import {setConfig} from '../config/epiq-config.js';
 import {patchSettingsState} from '../state/settings.state.js';
 
 const findTagByName = (name: string) =>
@@ -60,6 +60,26 @@ export const commands: CommandLineActionEntry[] = [
 		},
 	},
 	{
+		intent: CmdIntent.SetUserName,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const userName = getCmdArg()?.trim();
+
+			if (!userName) return failed('No username provided');
+
+			const persistResult = setConfig({userName});
+			if (isFail(persistResult)) return persistResult;
+
+			patchSettingsState({
+				userName,
+			});
+
+			patchState({mode: Mode.DEFAULT});
+
+			return succeeded(`Username set to "${userName}"`, null);
+		},
+	},
+	{
 		intent: CmdIntent.SetEditor,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
@@ -69,7 +89,7 @@ export const commands: CommandLineActionEntry[] = [
 				return failed('No editor provided');
 			}
 
-			const persistResult = setPreferredEditorConfig(editor);
+			const persistResult = setConfig({preferredEditor: editor});
 			if (isFail(persistResult)) return persistResult;
 
 			patchSettingsState({

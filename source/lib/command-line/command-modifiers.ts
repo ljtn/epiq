@@ -4,6 +4,7 @@ import {CmdKeyword, CmdKeywords} from './command-types.js';
 
 export const getCmdModifiers = (): Record<CmdKeyword, string[]> => ({
 	[CmdKeywords.DELETE]: ['confirm'],
+	[CmdKeywords.SET_USERNAME]: [],
 	[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
 	[CmdKeywords.SET_EDITOR]: [
 		// CLI

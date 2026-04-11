@@ -27,8 +27,18 @@ export const loadSettingsFromConfig = (): void => {
 		throw new Error('Unable to load settings');
 	}
 
+	const {preferredEditor, userName} = result.data;
+
+	const defaultUser =
+		process.env['GIT_AUTHOR_NAME'] ||
+		process.env['GIT_COMMITTER_NAME'] ||
+		process.env['USER'] ||
+		process.env['USERNAME'] ||
+		'UNKNOWN';
+
 	// 3. Hydrate state
 	patchSettingsState({
-		preferredEditor: result.data.preferredEditor ?? null,
+		preferredEditor: preferredEditor,
+		userName: userName ?? defaultUser,
 	});
 };

@@ -9,6 +9,7 @@ export const CmdKeywords = {
 
 	SET_EDITOR: 'set:editor',
 	SET_VIEW: 'set:view',
+	SET_USERNAME: 'set:username',
 
 	NONE: '',
 } as const;

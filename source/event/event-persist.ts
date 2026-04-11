@@ -5,6 +5,7 @@ import {decodeTime, monotonicFactory} from 'ulid';
 import {failed, succeeded} from '../lib/command-line/command-types.js';
 import {AppEvent, AppEventMap} from './event.model.js';
 import {getEdgeRef} from './event-load.js';
+import {getSettingsState} from '../lib/state/settings.state.js';
 
 const getNextId = monotonicFactory();
 
@@ -43,11 +44,7 @@ const resolveActorId = () => {
 	const explicit = process.env['EPIQ_ACTOR_ID'];
 	if (explicit?.trim()) return sanitizeFilePart(explicit);
 
-	const envUser =
-		process.env['GIT_AUTHOR_NAME'] ||
-		process.env['GIT_COMMITTER_NAME'] ||
-		process.env['USER'] ||
-		process.env['USERNAME'];
+	const envUser = getSettingsState().userName;
 
 	if (envUser?.trim()) return sanitizeFilePart(envUser);
 

@@ -13,6 +13,7 @@ export const CmdIntent = {
 	// Settings
 	SetView: 'set-view',
 	SetEditor: 'set-editor',
+	SetUserName: 'set-user-name',
 
 	// Add
 	NewItem: 'add-new-item',

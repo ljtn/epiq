@@ -2,9 +2,5 @@ filter
 distribute as binary
 skapa reddit
 skapa hackernews
-add .epiqrc
-
-Nice to haves:
 reload text nodes on edit complete
-pick favorite editor in setup
-pick username (stored in editor config)
+

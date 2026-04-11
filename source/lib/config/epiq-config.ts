@@ -10,6 +10,7 @@ import {fileManager} from '../storage/file-manager.js';
 
 export type EpiqConfig = {
 	preferredEditor?: string;
+	userName?: string;
 };
 
 const CONFIG_FILE_NAME = '.epiqrc';
@@ -48,13 +49,15 @@ export const writeEpiqConfig = (config: EpiqConfig): Result<null> => {
 	}
 };
 
-export const setPreferredEditorConfig = (editor: string): Result<string> => {
+export const setConfig = (
+	partialConfig: Partial<EpiqConfig>,
+): Result<string> => {
 	const existingResult = readEpiqConfig();
 	if (isFail(existingResult)) return failed('Failed to set preferred editor');
 
 	const nextConfig: EpiqConfig = {
 		...existingResult.data,
-		preferredEditor: editor,
+		...partialConfig,
 	};
 
 	return writeEpiqConfig(nextConfig);

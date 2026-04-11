@@ -63,10 +63,7 @@ const buildOptionsHint = ({
 		.filter(Boolean)
 		.filter(x => x.includes(inputString.trim()));
 	return filteredList.length
-		? `${prefix}${pickRandom(
-				filteredList.length > 1 ? filteredList : [],
-				noOfHints,
-		  )
+		? `${prefix}${pickRandom(filteredList ?? [], noOfHints)
 				.map(word => `${chalk.dim.bgBlack.white(' ' + word + ' ')}`)
 				.join(' ')}${postfix}`
 		: '';
@@ -103,18 +100,6 @@ const requireModifierOrInputStr =
 const getList = (command: CmdKeyword): string[] => getCmdModifiers()[command];
 
 const validators: Record<CmdKeyword, Validator> = {
-	[CmdKeywords.SET_EDITOR]: args => {
-		const list = getList(CmdKeywords.SET_EDITOR);
-		return !args.modifier
-			? invalid(
-					buildOptionsHint({
-						wordList: list,
-						noOfHints: 100,
-						inputString: args.inputString,
-					}),
-			  )
-			: valid();
-	},
 	[CmdKeywords.NONE]: args => {
 		const list = getList(CmdKeywords.NONE);
 		return !args.command
@@ -140,15 +125,6 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.RENAME]: alwaysSucceed,
 	[CmdKeywords.DELETE]: args =>
 		requireExact(getList(CmdKeywords.DELETE)[0] ?? 'confirm')(args),
-	[CmdKeywords.SET_VIEW]: args =>
-		requireOneIn({
-			list: getList(CmdKeywords.SET_VIEW),
-			hint: buildOptionsHint({
-				wordList: getList(CmdKeywords.SET_VIEW),
-				noOfHints: 3,
-				inputString: args.inputString,
-			}),
-		})(args),
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
 			hint: buildOptionsHint({
@@ -164,6 +140,35 @@ const validators: Record<CmdKeyword, Validator> = {
 			hint: buildOptionsHint({
 				wordList: getList(CmdKeywords.ASSIGN),
 				postfix: ', etc.',
+				noOfHints: 3,
+				inputString: args.inputString,
+			}),
+		})(args),
+
+	// Settings
+	[CmdKeywords.SET_EDITOR]: args => {
+		const wordList = getList(CmdKeywords.SET_EDITOR);
+
+		return !args.modifier
+			? invalid(
+					buildOptionsHint({
+						wordList,
+						noOfHints: 100,
+						inputString: args.inputString,
+					}),
+			  )
+			: valid();
+	},
+	[CmdKeywords.SET_USERNAME]: args => {
+		return !args.inputString
+			? invalid('Provide a global name (unique for consistent event logs)')
+			: valid();
+	},
+	[CmdKeywords.SET_VIEW]: args =>
+		requireOneIn({
+			list: getList(CmdKeywords.SET_VIEW),
+			hint: buildOptionsHint({
+				wordList: getList(CmdKeywords.SET_VIEW),
 				noOfHints: 3,
 				inputString: args.inputString,
 			}),
