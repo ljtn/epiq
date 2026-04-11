@@ -6,7 +6,7 @@ import {getCmdModifiers} from '../command-modifiers.js';
 vi.mock('../command-modifiers.js', () => ({
 	getCmdModifiers: () => ({
 		[CmdKeywords.DELETE]: ['confirm'],
-		[CmdKeywords.VIEW]: ['dense', 'wide'],
+		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
 		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
 		[CmdKeywords.ASSIGN]: ['john', 'jane'],
 		[CmdKeywords.HELP]: [],
@@ -116,10 +116,10 @@ describe('cmdValidation', () => {
 
 	describe('VIEW', () => {
 		it('accepts when modifier matches one of the allowed values', () => {
-			const modifier = cmdModifiers[CmdKeywords.VIEW][0]!;
+			const modifier = cmdModifiers[CmdKeywords.SET_VIEW][0]!;
 
-			const result = cmdValidation[CmdKeywords.VIEW].validate(
-				CmdKeywords.VIEW,
+			const result = cmdValidation[CmdKeywords.SET_VIEW].validate(
+				CmdKeywords.SET_VIEW,
 				modifier,
 				'',
 			);
@@ -129,8 +129,8 @@ describe('cmdValidation', () => {
 		});
 
 		it('rejects when modifier is empty', () => {
-			const result = cmdValidation[CmdKeywords.VIEW].validate(
-				CmdKeywords.VIEW,
+			const result = cmdValidation[CmdKeywords.SET_VIEW].validate(
+				CmdKeywords.SET_VIEW,
 				'',
 				'',
 			);
@@ -140,8 +140,8 @@ describe('cmdValidation', () => {
 		});
 
 		it('rejects when modifier is not one of the allowed values', () => {
-			const result = cmdValidation[CmdKeywords.VIEW].validate(
-				CmdKeywords.VIEW,
+			const result = cmdValidation[CmdKeywords.SET_VIEW].validate(
+				CmdKeywords.SET_VIEW,
 				'not-a-valid-option',
 				'',
 			);

@@ -1,4 +1,6 @@
-import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
+import {materialize} from '../../../event/event-materialize.js';
+import {AppEvent} from '../../../event/event.model.js';
+import {getOrderedChildren} from '../../../repository/rank.js';
 import {
 	failed,
 	isFail,
@@ -9,9 +11,6 @@ import {
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getState} from '../../state/state.js';
-import {getOrderedChildren} from '../../../repository/rank.js';
-import {AppEvent} from '../../../event/event.model.js';
-import {materialize} from '../../../event/event-materialize.js';
 
 let pendingMoveState: AppEvent | null = null;
 export const getMovePendingState = (): AppEvent | null =>

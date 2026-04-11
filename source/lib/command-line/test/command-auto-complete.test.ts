@@ -6,7 +6,7 @@ import {CmdKeywords} from '../command-types.js';
 vi.mock('../command-modifiers.js', () => ({
 	getCmdModifiers: () => ({
 		[CmdKeywords.DELETE]: ['confirm'],
-		[CmdKeywords.VIEW]: ['dense', 'wide'],
+		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
 		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
 		[CmdKeywords.ASSIGN]: ['john', 'jane'],
 		[CmdKeywords.HELP]: [],

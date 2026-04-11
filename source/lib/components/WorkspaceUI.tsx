@@ -8,6 +8,8 @@ import {useAppState} from '../state/state.js';
 import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';
 import {Breadcrumb} from './BreadCrumb.js';
+import {getSettingsState} from '../state/settings.state.js';
+import chalk from 'chalk';
 
 type Props = {
 	currentNode: NavNode<AnyContext>;
@@ -28,7 +30,13 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 
 	return (
 		<Box flexDirection="column">
-			<Breadcrumb />
+			<Box justifyContent="space-between" flexDirection="row">
+				<Breadcrumb />
+				<Text>
+					Editor:{' '}
+					{chalk.bgBlack(' ' + getSettingsState().preferredEditor + ' ')}
+				</Text>
+			</Box>
 			<Box flexDirection="row">
 				{currentNode.context === 'WORKSPACE' ? (
 					<BoardList />

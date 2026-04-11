@@ -61,7 +61,7 @@ const buildOptionsHint = ({
 }) => {
 	const filteredList = wordList
 		.filter(Boolean)
-		.filter(x => x.startsWith(inputString.trim()));
+		.filter(x => x.includes(inputString.trim()));
 	return filteredList.length
 		? `${prefix}${pickRandom(
 				filteredList.length > 1 ? filteredList : [],
@@ -103,6 +103,18 @@ const requireModifierOrInputStr =
 const getList = (command: CmdKeyword): string[] => getCmdModifiers()[command];
 
 const validators: Record<CmdKeyword, Validator> = {
+	[CmdKeywords.SET_EDITOR]: args => {
+		const list = getList(CmdKeywords.SET_EDITOR);
+		return !args.modifier
+			? invalid(
+					buildOptionsHint({
+						wordList: list,
+						noOfHints: 100,
+						inputString: args.inputString,
+					}),
+			  )
+			: valid();
+	},
 	[CmdKeywords.NONE]: args => {
 		const list = getList(CmdKeywords.NONE);
 		return !args.command
@@ -128,11 +140,11 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.RENAME]: alwaysSucceed,
 	[CmdKeywords.DELETE]: args =>
 		requireExact(getList(CmdKeywords.DELETE)[0] ?? 'confirm')(args),
-	[CmdKeywords.VIEW]: args =>
+	[CmdKeywords.SET_VIEW]: args =>
 		requireOneIn({
-			list: getList(CmdKeywords.VIEW),
+			list: getList(CmdKeywords.SET_VIEW),
 			hint: buildOptionsHint({
-				wordList: getList(CmdKeywords.VIEW),
+				wordList: getList(CmdKeywords.SET_VIEW),
 				noOfHints: 3,
 				inputString: args.inputString,
 			}),

@@ -9,7 +9,10 @@ export const CmdIntent = {
 	ViewHelp: 'view-help',
 	Rename: 'rename',
 	Delete: 'delete',
+
+	// Settings
 	SetView: 'set-view',
+	SetEditor: 'set-editor',
 
 	// Add
 	NewItem: 'add-new-item',

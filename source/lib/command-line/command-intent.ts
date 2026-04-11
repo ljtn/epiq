@@ -12,11 +12,13 @@ export const getCommandIntent = (
 			return CmdIntent.Delete;
 		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
+		case CmdKeywords.SET_EDITOR:
+			return CmdIntent.SetEditor;
 		case CmdKeywords.TAG:
 			return CmdIntent.TagTicket;
 		case CmdKeywords.ASSIGN:
 			return CmdIntent.AssignUserToTicket;
-		case CmdKeywords.VIEW:
+		case CmdKeywords.SET_VIEW:
 			return CmdIntent.SetView;
 		case CmdKeywords.RENAME:
 			return CmdIntent.Rename;

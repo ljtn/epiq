@@ -8,6 +8,7 @@ import Logo from './lib/components/Logo.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
 import {bootStateFromEventLog} from './event/event-boot.js';
+import {loadSettingsFromConfig} from './lib/config/load-settings.js';
 
 const cli = meow(
 	`
@@ -53,6 +54,8 @@ function renderLoader() {
 }
 
 async function bootApp() {
+	loadSettingsFromConfig();
+
 	const eventLog = loadMergedEvents();
 	const isFirstLoad = eventLog.length === 0;
 	const loaderDurationMs = isFirstLoad

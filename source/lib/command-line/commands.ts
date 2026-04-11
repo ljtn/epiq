@@ -22,6 +22,8 @@ import {
 } from './command-types.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {AppEvent} from '../../event/event.model.js';
+import {setPreferredEditorConfig} from '../config/epiq-config.js';
+import {patchSettingsState} from '../state/settings.state.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -55,6 +57,28 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.HELP});
 			return succeeded('Viewing help', null);
+		},
+	},
+	{
+		intent: CmdIntent.SetEditor,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const editor = getCmdArg()?.trim();
+
+			if (!editor) {
+				return failed('No editor provided');
+			}
+
+			const persistResult = setPreferredEditorConfig(editor);
+			if (isFail(persistResult)) return persistResult;
+
+			patchSettingsState({
+				preferredEditor: editor,
+			});
+
+			patchState({mode: Mode.DEFAULT});
+
+			return succeeded(`Editor configuration set to "${editor}"`, null);
 		},
 	},
 	{
