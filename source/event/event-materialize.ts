@@ -25,7 +25,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.board': event => {
-		const {id, name, parentId} = event.payload;
+		const {id, name, parent: parentId} = event.payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.board(id, name, parentId),
 		);
@@ -34,7 +34,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.swimlane': event => {
-		const {id, name, parentId} = event.payload;
+		const {id, name, parent: parentId} = event.payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.swimlane(id, name, parentId),
 		);
@@ -43,7 +43,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.issue': event => {
-		const {id, name, parentId} = event.payload;
+		const {id, name, parent: parentId} = event.payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.ticket(id, name, parentId),
 		);
@@ -52,7 +52,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.field': event => {
-		const {id, name, parentId, value} = event.payload;
+		const {id, name, parent: parentId, val: value} = event.payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.field(
 				id,
@@ -67,7 +67,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'edit.title': event => {
-		const {id, value} = event.payload;
+		const {id, val: value} = event.payload;
 		const node = nodeRepo.getNode(id);
 		if (!node) return failed('Unable to locate node');
 
@@ -94,29 +94,29 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'tag.issue': event => {
-		const {id, targetId, tagId} = event.payload;
+		const {id, target: targetId, tagId} = event.payload;
 		const tagged = nodeRepo.tag(targetId, tagId, id);
 		if (isFail(tagged)) return tagged;
 		return succeeded('Issue tagged', tagged.data);
 	},
 
 	'assign.issue': event => {
-		const {id, contributorId, targetId} = event.payload;
+		const {id, contributor: contributorId, target: targetId} = event.payload;
 		const assigned = nodeRepo.assign(targetId, contributorId, id);
 		if (isFail(assigned)) return assigned;
 		return succeeded('Assigned successfully', assigned.data);
 	},
 
 	'move.node': event => {
-		const {id, parentId, position} = event.payload;
+		const {id, parent: parentId, pos: position} = event.payload;
 		const moved = nodeRepo.moveNode(id, parentId, position);
 		if (isFail(moved)) return failed('Failed to move node');
 		return succeeded('Moved node', moved.data.id);
 	},
 
 	'edit.description': event => {
-		const {targetId, markdown} = event.payload;
-		const result = nodeRepo.editValue(targetId, markdown);
+		const {target: targetId, md} = event.payload;
+		const result = nodeRepo.editValue(targetId, md);
 		if (isFail(result)) return result;
 		return succeeded('Set node value', result.data);
 	},

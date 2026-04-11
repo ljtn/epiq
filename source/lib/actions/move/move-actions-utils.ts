@@ -43,8 +43,8 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,
-			parentId: siblingNode.id,
-			position: {type: 'end'},
+			parent: siblingNode.id,
+			pos: {at: 'end'},
 		},
 	});
 }
@@ -63,10 +63,10 @@ export function moveChildWithinParent(direction: -1 | 1) {
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,
-			parentId: currentNode.id,
-			position: {
-				type: direction === 1 ? 'after' : 'before',
-				siblingId: referenceNode.id,
+			parent: currentNode.id,
+			pos: {
+				at: direction === 1 ? 'after' : 'before',
+				sibling: referenceNode.id,
 			},
 		},
 	});

@@ -1,11 +1,11 @@
 import {ReturnFail, ReturnSuccess} from '../lib/command-line/command-types.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 
-type MovePosition =
-	| {type: 'start'}
-	| {type: 'end'}
-	| {type: 'before'; siblingId: string}
-	| {type: 'after'; siblingId: string};
+export type MovePosition =
+	| {at: 'start'}
+	| {at: 'end'}
+	| {at: 'before'; sibling: string}
+	| {at: 'after'; sibling: string};
 
 export type AppEventMap = {
 	'init.workspace': {
@@ -19,32 +19,32 @@ export type AppEventMap = {
 	};
 
 	'add.board': {
-		payload: {id: string; name: string; parentId: string};
+		payload: {id: string; name: string; parent: string};
 		result: NavNode<'BOARD'>;
 	};
 
 	'add.swimlane': {
-		payload: {id: string; name: string; parentId: string};
+		payload: {id: string; name: string; parent: string};
 		result: NavNode<'SWIMLANE'>;
 	};
 
 	'add.issue': {
-		payload: {id: string; name: string; parentId: string};
+		payload: {id: string; name: string; parent: string};
 		result: NavNode<'TICKET'>;
 	};
 
 	'add.field': {
 		payload: {
 			id: string;
+			parent: string;
 			name: string;
-			parentId: string;
-			value?: string;
+			val?: string;
 		};
 		result: NavNode<'FIELD'>;
 	};
 
 	'edit.title': {
-		payload: {id: string; value: string};
+		payload: {id: string; val: string};
 		result: string;
 	};
 
@@ -66,8 +66,8 @@ export type AppEventMap = {
 	'assign.issue': {
 		payload: {
 			id: string;
-			contributorId: string;
-			targetId: string;
+			contributor: string;
+			target: string;
 		};
 		result: NavNode<'FIELD'>;
 	};
@@ -76,7 +76,7 @@ export type AppEventMap = {
 		payload: {
 			id: string;
 			tagId: string;
-			targetId: string;
+			target: string;
 		};
 		result: NavNode<'FIELD'>;
 	};
@@ -84,18 +84,18 @@ export type AppEventMap = {
 	'move.node': {
 		payload: {
 			id: string;
-			parentId: string;
-			position?: MovePosition;
+			parent: string;
+			pos?: MovePosition;
 		};
 		result: string;
 	};
 
 	'edit.description': {
 		payload: {
-			targetId: string;
-			markdown: string;
+			target: string;
+			md: string;
 		};
-		result: {markdown: string};
+		result: {md: string};
 	};
 };
 

@@ -1,13 +1,14 @@
 import {monotonicFactory} from 'ulid';
+import {AppEvent} from './event.model.js';
 
 const nextId = monotonicFactory();
 
 export const createIssueEvents = ({
 	name,
-	parentId,
+	parent,
 }: {
 	name: string;
-	parentId: string;
+	parent: string;
 }) => {
 	const issueId = nextId();
 	const descriptionId = nextId();
@@ -19,34 +20,34 @@ export const createIssueEvents = ({
 			action: 'add.issue',
 			payload: {
 				id: issueId,
+				parent,
 				name,
-				parentId,
 			},
 		},
 		{
 			action: 'add.field',
 			payload: {
 				id: descriptionId,
+				parent: issueId,
 				name: 'Description',
-				parentId: issueId,
-				value: '',
+				val: '',
 			},
 		},
 		{
 			action: 'add.field',
 			payload: {
 				id: assigneesId,
+				parent: issueId,
 				name: 'Assignees',
-				parentId: issueId,
 			},
 		},
 		{
 			action: 'add.field',
 			payload: {
 				id: tagsId,
+				parent: issueId,
 				name: 'Tags',
-				parentId: issueId,
 			},
 		},
-	] as const;
+	] satisfies AppEvent[];
 };

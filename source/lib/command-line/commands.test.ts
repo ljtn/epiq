@@ -118,7 +118,7 @@ describe('TagTicket command', () => {
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
-				targetId: 'ticket-1',
+				target: 'ticket-1',
 				tagId: 'tag-123',
 			},
 		});
@@ -153,7 +153,7 @@ describe('TagTicket command', () => {
 			action: 'tag.issue',
 			payload: {
 				id: 'new-tag-assignment-node-id',
-				targetId: 'ticket-1',
+				target: 'ticket-1',
 				tagId: 'new-tag-id',
 			},
 		});
@@ -196,7 +196,7 @@ describe('TagTicket command', () => {
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
-				targetId: 'ticket-99',
+				target: 'ticket-99',
 				tagId: 'tag-123',
 			},
 		});
@@ -302,8 +302,8 @@ describe('AssignUserToTicket command', () => {
 			action: 'assign.issue',
 			payload: {
 				id: 'assignment-node-id',
-				targetId: 'ticket-1',
-				contributorId: 'user-123',
+				target: 'ticket-1',
+				contributor: 'user-123',
 			},
 		});
 	});
@@ -339,8 +339,8 @@ describe('AssignUserToTicket command', () => {
 			action: 'assign.issue',
 			payload: {
 				id: 'new-assignment-node-id',
-				targetId: 'ticket-1',
-				contributorId: 'new-contributor-id',
+				target: 'ticket-1',
+				contributor: 'new-contributor-id',
 			},
 		});
 	});

@@ -9,15 +9,10 @@ export const getOrderedChildren = (parentId: string) => {
 
 export const getSiblingIndex = (
 	siblings: NavNode<AnyContext>[],
-	siblingId: string,
-) => siblings.findIndex(node => node.id === siblingId);
+	sibling: string,
+) => siblings.findIndex(node => node.id === sibling);
 
-export type MovePosition =
-	| {type: 'start'}
-	| {type: 'end'}
-	| {type: 'before'; siblingId: string}
-	| {type: 'after'; siblingId: string};
-
+import {MovePosition} from '../event/event.model.js';
 import {
 	failed,
 	ReturnFail,
@@ -31,13 +26,13 @@ import {midRank, rankBetween} from '../lib/utils/rank.js';
 
 export const resolveMoveRank = (
 	siblings: NavNode<AnyContext>[],
-	position: MovePosition = {type: 'end'},
+	position: MovePosition = {at: 'end'},
 ): ReturnSuccess<string> | ReturnFail => {
 	if (siblings.length === 0) {
 		return succeeded('Resolved rank', midRank());
 	}
 
-	switch (position.type) {
+	switch (position.at) {
 		case 'start': {
 			const first = siblings[0];
 			if (!first) return failed('Unable to resolve first sibling');
@@ -51,7 +46,7 @@ export const resolveMoveRank = (
 		}
 
 		case 'before': {
-			const idx = getSiblingIndex(siblings, position.siblingId);
+			const idx = getSiblingIndex(siblings, position.sibling);
 			if (idx < 0) return failed('Sibling not found');
 
 			const prev = idx > 0 ? siblings[idx - 1] : undefined;
@@ -62,7 +57,7 @@ export const resolveMoveRank = (
 		}
 
 		case 'after': {
-			const idx = getSiblingIndex(siblings, position.siblingId);
+			const idx = getSiblingIndex(siblings, position.sibling);
 			if (idx < 0) return failed('Sibling not found');
 
 			const prev = siblings[idx];

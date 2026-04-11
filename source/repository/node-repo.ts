@@ -1,3 +1,4 @@
+import {MovePosition} from '../event/event.model.js';
 import {
 	failed,
 	isFail,
@@ -13,7 +14,7 @@ import {nodes} from '../lib/state/node-builder.js';
 import {getState, patchState, updateState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
-import {getOrderedChildren, MovePosition, resolveMoveRank} from './rank.js';
+import {getOrderedChildren, resolveMoveRank} from './rank.js';
 
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
@@ -115,7 +116,7 @@ export const nodeRepo = {
 		});
 	},
 
-	editValue(targetId: string, markdown: string): Result<{markdown: string}> {
+	editValue(targetId: string, md: string): Result<{md: string}> {
 		const {nodes} = getState();
 		const targetNode = nodes[targetId];
 		if (!targetNode) return failed('Edit target node not found');
@@ -124,12 +125,12 @@ export const nodeRepo = {
 			...targetNode,
 			props: {
 				...targetNode.props,
-				value: markdown,
+				value: md,
 			},
 		};
 
 		nodeRepo.updateNode(updatedNode);
-		return succeeded('Issue description updated', {markdown});
+		return succeeded('Issue description updated', {md});
 	},
 
 	getExistingTags(): string[] {
@@ -153,7 +154,7 @@ export const nodeRepo = {
 	moveNode(
 		nodeId: string,
 		nextParentId: string,
-		position: MovePosition = {type: 'end'},
+		position: MovePosition = {at: 'end'},
 	): Result<NavNode<AnyContext>> {
 		const {rootNodeId} = getState();
 		const node = this.getNode(nodeId);
@@ -311,7 +312,7 @@ export const nodeRepo = {
 
 	createNodeAtPosition<T extends AnyContext>(
 		node: NavNode<T>,
-		position: MovePosition = {type: 'end'},
+		position: MovePosition = {at: 'end'},
 	): Result<NavNode<T>> {
 		if (!node.parentNodeId) {
 			const withRank = {...node, rank: midRank()};

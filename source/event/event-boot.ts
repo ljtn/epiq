@@ -49,19 +49,19 @@ export function createDefaultEvents(): readonly AppEvent[] {
 		},
 		{
 			action: 'add.board',
-			payload: {id: boardId, name: 'Default', parentId: workspaceId},
+			payload: {id: boardId, name: 'Default', parent: workspaceId},
 		},
 		{
 			action: 'add.swimlane',
-			payload: {id: swimlaneId1, name: 'Todo', parentId: boardId},
+			payload: {id: swimlaneId1, name: 'Todo', parent: boardId},
 		},
 		{
 			action: 'add.swimlane',
-			payload: {id: swimlaneId2, name: 'Review', parentId: boardId},
+			payload: {id: swimlaneId2, name: 'Review', parent: boardId},
 		},
 		{
 			action: 'add.swimlane',
-			payload: {id: swimlaneId3, name: 'Done', parentId: boardId},
+			payload: {id: swimlaneId3, name: 'Done', parent: boardId},
 		},
 	] as const satisfies readonly AppEvent[];
 }

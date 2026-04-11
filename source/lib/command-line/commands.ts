@@ -21,6 +21,7 @@ import {
 	succeeded,
 } from './command-types.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {AppEvent} from '../../event/event.model.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -65,28 +66,13 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			const createAndNavigate = (
-				event:
-					| {
-							action: 'add.board';
-							payload: {id: string; name: string; parentId: string};
-					  }
-					| {
-							action: 'add.swimlane';
-							payload: {id: string; name: string; parentId: string};
-					  }
-					| {
-							action: 'add.issue';
-							payload: {id: string; name: string; parentId: string};
-					  }
-					| {
-							action: 'add.field';
-							payload: {
-								id: string;
-								name: string;
-								parentId: string;
-								value: string;
-							};
-					  },
+				event: AppEvent<
+					| 'add.workspace'
+					| 'add.board'
+					| 'add.swimlane'
+					| 'add.issue'
+					| 'add.field'
+				>,
 			) => {
 				const result = materializeAndPersist(event);
 				if (isFail(result)) return result;
@@ -119,7 +105,7 @@ export const commands: CommandLineActionEntry[] = [
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
-						parentId: workspace.id,
+						parent: workspace.id,
 					},
 				});
 			}
@@ -134,7 +120,7 @@ export const commands: CommandLineActionEntry[] = [
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
-						parentId: boardResult.data.id,
+						parent: boardResult.data.id,
 					},
 				});
 			}
@@ -149,7 +135,7 @@ export const commands: CommandLineActionEntry[] = [
 
 				const issueEvents = createIssueEvents({
 					name: cmdState.inputString,
-					parentId: swimlaneResult.data.id,
+					parent: swimlaneResult.data.id,
 				});
 
 				const issueResults = materializeAndPersistAll(issueEvents);
@@ -169,7 +155,8 @@ export const commands: CommandLineActionEntry[] = [
 				}
 
 				const issueResult = issueResults[0];
-				if (isFail(issueResult)) return failed('Issue creation failed');
+				if (!issueResult || isFail(issueResult))
+					return failed('Issue creation failed');
 
 				navigationUtils.navigate({
 					currentNode: swimlaneResult.data,
@@ -221,7 +208,7 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				action: 'edit.title',
-				payload: {id: node.id, value: newName},
+				payload: {id: node.id, val: newName},
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -276,7 +263,7 @@ export const commands: CommandLineActionEntry[] = [
 				action: 'tag.issue',
 				payload: {
 					id: ulid(),
-					targetId: ticket.id,
+					target: ticket.id,
 					tagId,
 				},
 			});
@@ -333,8 +320,8 @@ export const commands: CommandLineActionEntry[] = [
 				action: 'assign.issue',
 				payload: {
 					id: ulid(),
-					targetId: ticket.id,
-					contributorId,
+					target: ticket.id,
+					contributor: contributorId,
 				},
 			});
 		},
