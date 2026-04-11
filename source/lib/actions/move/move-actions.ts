@@ -1,10 +1,13 @@
+import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
 import {failed, succeeded} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {
+	getMovePendingState,
 	moveChildWithinParent,
 	moveNodeToSiblingContainer,
+	setMovePendingState,
 } from './move-actions-utils.js';
 
 export const toggleMoveMode: ActionEntry[] = [
@@ -39,6 +42,11 @@ export const toggleMoveMode: ActionEntry[] = [
 			patchState({
 				mode: Mode.DEFAULT,
 			});
+			const pendingMoveState = getMovePendingState();
+			if (pendingMoveState !== null) {
+				materializeAndPersist(pendingMoveState);
+			}
+			setMovePendingState(null);
 			return succeeded('Pasting item', null);
 		},
 	},

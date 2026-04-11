@@ -10,6 +10,14 @@ import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getState} from '../../state/state.js';
 import {getOrderedChildren} from '../../../repository/rank.js';
+import {AppEvent} from '../../../event/event.model.js';
+import {materialize} from '../../../event/event-materialize.js';
+
+let pendingMoveState: AppEvent | null = null;
+export const getMovePendingState = (): AppEvent | null =>
+	structuredClone(pendingMoveState);
+export const setMovePendingState = (state: AppEvent | null) =>
+	(pendingMoveState = state);
 
 const getSelectedChild = ():
 	| ReturnSuccess<NavNode<AnyContext>>
@@ -39,7 +47,7 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 	const siblingNode = siblings[currentIndex + direction];
 	if (!siblingNode) return failed('Missing sibling node');
 
-	return materializeAndPersist({
+	setMovePendingState({
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,
@@ -47,6 +55,8 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 			pos: {at: 'end'},
 		},
 	});
+	if (!pendingMoveState) return failed('Could not materialize move state');
+	return materialize(pendingMoveState);
 }
 
 export function moveChildWithinParent(direction: -1 | 1) {
@@ -59,7 +69,7 @@ export function moveChildWithinParent(direction: -1 | 1) {
 	const referenceNode = siblings[selectedIndex + direction];
 	if (!referenceNode) return failed('Missing sibling node');
 
-	return materializeAndPersist({
+	setMovePendingState({
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,
@@ -70,4 +80,6 @@ export function moveChildWithinParent(direction: -1 | 1) {
 			},
 		},
 	});
+	if (!pendingMoveState) return failed('Could not materialize move state');
+	return materialize(pendingMoveState);
 }
