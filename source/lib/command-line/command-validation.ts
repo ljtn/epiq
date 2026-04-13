@@ -1,4 +1,6 @@
 import chalk from 'chalk';
+import {Filter} from '../model/app-state.model.js';
+import {getState} from '../state/state.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
@@ -11,6 +13,7 @@ import {
 type ValidationResult = {
 	validity: CmdValidity;
 	message?: string;
+	completionWordList: string[];
 };
 type Validator = ({
 	modifier,
@@ -23,10 +26,20 @@ type Validator = ({
 }) => ValidationResult;
 
 // Helpers
-const valid = (): ValidationResult => ({validity: cmdValidity.Valid});
-const invalid = (message?: string): ValidationResult => ({
+const valid = (): ValidationResult => ({
+	validity: cmdValidity.Valid,
+	completionWordList: [],
+});
+const invalid = ({
+	message,
+	completionWordList,
+}: {
+	message: string;
+	completionWordList: string[];
+}): ValidationResult => ({
 	validity: cmdValidity.Invalid,
 	message,
+	completionWordList,
 });
 const isBlank = (value: string) => value.length === 0;
 const pickRandom = <T>(arr: readonly T[], count: number): T[] => {
@@ -46,7 +59,7 @@ const pickRandom = <T>(arr: readonly T[], count: number): T[] => {
 	return result;
 };
 
-const buildOptionsHint = ({
+const buildHint = ({
 	prefix = '',
 	wordList,
 	postfix = '',
@@ -76,58 +89,99 @@ const requireExact =
 	({modifier}) =>
 		modifier === expected
 			? valid()
-			: invalid(
-					isBlank(modifier)
+			: invalid({
+					message: isBlank(modifier)
 						? `if you are certain, enter ${chalk.dim.bgBlack.white(
 								' ' + expected + ' ',
 						  )}`
-						: undefined,
-			  );
+						: '',
+					completionWordList: [],
+			  });
 
 const requireOneIn =
 	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
 	({modifier}) =>
 		list.includes(modifier)
 			? valid()
-			: invalid(isBlank(modifier) ? hint : undefined);
+			: invalid({
+					message: isBlank(modifier) ? hint : '',
+					completionWordList: [],
+			  });
 
 const requireModifierOrInputStr =
 	({hint}: {hint: string}): Validator =>
 	({modifier, inputString}) => {
-		return isBlank(modifier) && isBlank(inputString) ? invalid(hint) : valid();
+		return isBlank(modifier) && isBlank(inputString)
+			? invalid({message: hint, completionWordList: []})
+			: valid();
 	};
 
 const getList = (command: CmdKeyword): string[] => getCmdModifiers()[command];
 
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.FILTER]: args => {
-		const list = getList(CmdKeywords.FILTER);
-		return !args.modifier
-			? invalid(
-					buildOptionsHint({
-						wordList: list,
+		const modifier = args.modifier;
+		if (!modifier) {
+			invalid({
+				message: buildHint({
+					wordList: getList(CmdKeywords.FILTER),
+					noOfHints: 100,
+					inputString: args.inputString,
+				}),
+				completionWordList: [],
+			});
+		}
+
+		const regex = /(!=|=)/;
+		const [filterTarget, _filterOperator, filterValue] = modifier.split(regex);
+
+		const isValidModifier = (val: string): val is Filter['target'] =>
+			getCmdModifiers()
+				[CmdKeywords.FILTER].map(x => x.replace(/(!=|=).*/, ''))
+				.includes(val);
+
+		if (!isValidModifier(filterValue ?? '')) {
+			const tags = Object.values(getState().tags).map(x => x.name);
+			const contributors = Object.values(getState().contributors).map(
+				x => x.name,
+			);
+			const wordList =
+				filterTarget === 'tag'
+					? tags
+					: filterTarget === 'assignee'
+					? contributors
+					: [];
+
+			if (!wordList.includes(filterValue ?? ''))
+				return invalid({
+					message: buildHint({
+						wordList,
 						noOfHints: 100,
 						inputString: args.inputString,
 					}),
-			  )
-			: valid();
+					completionWordList: wordList,
+				});
+		}
+
+		return valid();
 	},
 	[CmdKeywords.NONE]: args => {
 		const list = getList(CmdKeywords.NONE);
 		return !args.command
-			? invalid(
-					buildOptionsHint({
+			? invalid({
+					message: buildHint({
 						wordList: list,
 						noOfHints: 100,
 						inputString: args.inputString,
 					}),
-			  )
+					completionWordList: [],
+			  })
 			: valid();
 	},
 	[CmdKeywords.NEW]: args =>
 		requireOneIn({
 			list: getList(CmdKeywords.NEW),
-			hint: buildOptionsHint({
+			hint: buildHint({
 				wordList: getList(CmdKeywords.NEW),
 				noOfHints: 3,
 				inputString: args.inputString,
@@ -139,7 +193,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		requireExact(getList(CmdKeywords.DELETE)[0] ?? 'confirm')(args),
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
-			hint: buildOptionsHint({
+			hint: buildHint({
 				prefix: 'provide tag name like: ',
 				wordList: getList(CmdKeywords.TAG),
 				postfix: ', etc.',
@@ -149,7 +203,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		})(args),
 	[CmdKeywords.ASSIGN]: args =>
 		requireModifierOrInputStr({
-			hint: buildOptionsHint({
+			hint: buildHint({
 				wordList: getList(CmdKeywords.ASSIGN),
 				postfix: ', etc.',
 				noOfHints: 3,
@@ -162,24 +216,28 @@ const validators: Record<CmdKeyword, Validator> = {
 		const wordList = getList(CmdKeywords.SET_EDITOR);
 
 		return !args.modifier
-			? invalid(
-					buildOptionsHint({
+			? invalid({
+					message: buildHint({
 						wordList,
 						noOfHints: 100,
 						inputString: args.inputString,
 					}),
-			  )
+					completionWordList: [],
+			  })
 			: valid();
 	},
 	[CmdKeywords.SET_USERNAME]: args => {
 		return !args.inputString
-			? invalid('Provide a global name (unique for consistent event logs)')
+			? invalid({
+					message: 'Provide a global name (unique for consistent event logs)',
+					completionWordList: [],
+			  })
 			: valid();
 	},
 	[CmdKeywords.SET_VIEW]: args =>
 		requireOneIn({
 			list: getList(CmdKeywords.SET_VIEW),
-			hint: buildOptionsHint({
+			hint: buildHint({
 				wordList: getList(CmdKeywords.SET_VIEW),
 				noOfHints: 3,
 				inputString: args.inputString,

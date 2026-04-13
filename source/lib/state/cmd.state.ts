@@ -1,7 +1,4 @@
-import {
-	AutoCompletion,
-	getAutoCompletion,
-} from '../command-line/command-auto-complete.js';
+import {AutoCompletion} from '../command-line/command-auto-complete.js';
 import {getCmdMeta} from '../command-line/command-meta.js';
 import {parseCommandLine} from '../command-line/command-parser.js';
 import {
@@ -18,12 +15,12 @@ export type CurrentCmdMeta = {
 	inputString: string;
 	infoMessage: string;
 	validity: CmdValidity;
+	autoCompletion: AutoCompletion;
 };
 export type CommandLineState = {
 	value: string;
 	commandHistory: string[];
 	commandHistoryIndex: number;
-	autoCompletion: AutoCompletion;
 	cursorPosition: number;
 	commandIsPending: boolean;
 	commandMeta: CurrentCmdMeta;
@@ -33,7 +30,6 @@ export let commandLineState: CommandLineState = {
 	commandHistory: [],
 	value: '',
 	commandHistoryIndex: -1,
-	autoCompletion: {hint: '', hints: [], remainder: '', overlap: 0},
 	cursorPosition: 0,
 	commandIsPending: false,
 	commandMeta: {
@@ -42,6 +38,7 @@ export let commandLineState: CommandLineState = {
 		infoMessage: '',
 		inputString: '',
 		validity: cmdValidity.None,
+		autoCompletion: {hint: '', hints: [], remainder: '', overlap: 0},
 	},
 };
 
@@ -64,14 +61,12 @@ type SetStateCb = (old: CommandLineState) => CommandLineState;
 const setState = (cb: SetStateCb) => {
 	const prev = commandLineState;
 	const draft = cb(prev);
-	const isCursorAtEndOfLine = draft.cursorPosition === draft.value.length;
 	const parsed = parseCommandLine(draft.value);
+	const isCursorAtEndOfLine = draft.cursorPosition === draft.value.length;
+
 	const next: CommandLineState = {
 		...draft,
-		commandMeta: getCmdMeta(parsed),
-		autoCompletion: isCursorAtEndOfLine
-			? getAutoCompletion(parsed)
-			: {hint: '', hints: [], remainder: '', overlap: 0},
+		commandMeta: getCmdMeta(parsed, isCursorAtEndOfLine),
 	};
 
 	commandLineState = next;
@@ -174,7 +169,7 @@ export const setCmdInput = (cb: SetCmdStateCallback) => {
 		);
 		const before = state.value.slice(0, cursor);
 		const after = state.value.slice(cursor);
-		const newBefore = cb(before, state.autoCompletion);
+		const newBefore = cb(before, state.commandMeta.autoCompletion);
 		const nextValue = newBefore + after;
 		const nextCursor = Math.max(
 			0,

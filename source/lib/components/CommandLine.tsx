@@ -93,7 +93,8 @@ const getCommandLineViewState = (): CommandLineViewState => ({
 	value: commandLineState.value,
 	cursorPosition: commandLineState.cursorPosition,
 	commandIsPending: commandLineState.commandIsPending,
-	autoCompletion: commandLineState.autoCompletion ?? EMPTY_AUTO_COMPLETION,
+	autoCompletion:
+		commandLineState.commandMeta.autoCompletion ?? EMPTY_AUTO_COMPLETION,
 	infoMessage: commandLineState.commandMeta.infoMessage,
 	validationStatus: commandLineState.commandMeta.validity,
 	command: commandLineState.commandMeta.command,
