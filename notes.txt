@@ -1,6 +1,7 @@
-filter
+clear filter
 distribute as binary
-skapa reddit
-skapa hackernews
 reload text nodes on edit complete
+impl: backlog
+impl: done
 
+skapa hackernews

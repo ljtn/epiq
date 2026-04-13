@@ -28,6 +28,7 @@ export type Contributor = {id: string; name: string};
 
 export type Filter = {
 	target: 'tag' | 'assignee' | 'description' | 'title';
+	operator: '=' | '!=';
 	value: string;
 };
 

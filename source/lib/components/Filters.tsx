@@ -10,9 +10,9 @@ const FilterUIComponent: React.FC<Props> = ({filters}) => {
 		<Box columnGap={1}>
 			<Text color={'red'}>APPLIED FILTERS:</Text>
 
-			{filters.map(({value, target}) => (
+			{filters.map(({value, target, operator}) => (
 				<Text backgroundColor={'black'} color={'white'}>
-					{' ' + target + ' = ' + value + ' '}
+					{` ${target}${operator}"${value}" `}
 				</Text>
 			))}
 		</Box>

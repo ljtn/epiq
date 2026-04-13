@@ -21,6 +21,7 @@ import {
 } from '../state/state.js';
 import {CmdIntent} from './command-meta.js';
 import {
+	CmdKeywords,
 	cmdResult,
 	cmdValidity,
 	failed,
@@ -28,6 +29,7 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
+import {getCmdModifiers} from './command-modifiers.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -60,11 +62,28 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {modifier, inputString} = getCmdState().commandMeta;
+			const regex = /(!=|=)/; // Matches "=" and "!="
+			const [filterTarget, filterOperator] = modifier.split(regex);
 			const isValidModifier = (val: string): val is Filter['target'] =>
-				['tag', 'assignee', 'description', 'title'].includes(val);
-			if (!isValidModifier(modifier)) return failed('Invalid filter modifier');
+				getCmdModifiers()
+					[CmdKeywords.FILTER].map(x => x.split(regex)[0])
+					.map(x => {
+						logger.debug(x);
+						return x;
+					})
+					.includes(val);
+			const isValidOperator = (val: string): val is Filter['operator'] =>
+				['=', '!='].includes(val);
+			if (
+				!filterTarget ||
+				!isValidModifier(filterTarget) ||
+				!filterOperator ||
+				!isValidOperator(filterOperator)
+			)
+				return failed('Invalid filter modifier');
 			const filter: Filter = {
-				target: modifier,
+				target: filterTarget,
+				operator: filterOperator,
 				value: inputString,
 			};
 			updateState(s => ({

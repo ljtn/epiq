@@ -3,7 +3,7 @@ import {TAGS_DEFAULT} from '../static/default-tags.js';
 import {CmdKeyword, CmdKeywords} from './command-types.js';
 
 export const getCmdModifiers = (): Record<CmdKeyword, string[]> => ({
-	[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title'],
+	[CmdKeywords.FILTER]: ['tag=', 'assignee=', 'description=', 'title='],
 	[CmdKeywords.DELETE]: ['confirm'],
 	[CmdKeywords.SET_USERNAME]: [],
 	[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
