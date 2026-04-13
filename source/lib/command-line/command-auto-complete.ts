@@ -12,13 +12,22 @@ export const getAutoCompletion = (
 	{inputToMatch, lastWord}: ParsedCommandLine,
 	wordList: string[],
 ): AutoCompletion => {
-	const commandHint = autoCompletionFromWordList({
+	if (lastWord.endsWith(' ')) {
+		return {
+			hint: '',
+			hints: [],
+			overlap: 0,
+			remainder: '',
+		};
+	}
+
+	const hints = autoCompletionFromWordList({
 		wordList,
-		inputToMatch: inputToMatch,
+		inputToMatch,
 		overlapThreshold: 1,
 	});
 
-	return returnAutoCompletion(lastWord, commandHint);
+	return returnAutoCompletion(lastWord, hints);
 };
 
 const returnAutoCompletion = (
@@ -26,16 +35,17 @@ const returnAutoCompletion = (
 	hints: string[],
 ): AutoCompletion => {
 	const selectedHint = hints[0] ?? '';
+	const overlap = findOverlap(
+		lastWord.toLowerCase(),
+		selectedHint.toLowerCase(),
+	);
 	const hint = selectedHint ? selectedHint + ' ' : '';
-	const input = `${lastWord} `;
-	const overlap = findOverlap(input.toLowerCase(), hint.toLowerCase());
 	const remainder = hint.slice(overlap);
 
-	const autoCompletion: AutoCompletion = {
+	return {
 		hint,
 		hints,
 		overlap,
 		remainder,
 	};
-	return autoCompletion;
 };

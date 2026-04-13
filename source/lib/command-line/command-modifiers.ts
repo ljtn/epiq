@@ -4,7 +4,7 @@ import {CmdKeyword, CmdKeywords} from './command-types.js';
 
 export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const modifiers = {
-		[CmdKeywords.FILTER]: ['tag=', 'assignee=', 'description=', 'title='],
+		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
 		[CmdKeywords.DELETE]: ['confirm'],
 		[CmdKeywords.SET_USERNAME]: [],
 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],

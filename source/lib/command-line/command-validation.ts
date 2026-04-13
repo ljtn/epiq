@@ -77,14 +77,12 @@ const buildHint = ({
 		.filter(x => x.startsWith(inputString.trim()));
 
 	const highlight = (word: string) =>
-		`${chalk.dim.bgBlack.white(' ' + word + ' ')}`;
+		`${chalk.bgYellow.black(' ' + word + ' ')}`;
 
 	const hintOptions = pickRandom(filteredList ?? [], noOfHints).map(highlight);
-
-	return filteredList.length
-		? `${prefix}${
-				hintOptions.length > 1 ? hintOptions.join(' ') : ''
-		  }${postfix}`
+	const optionsStr = hintOptions.length > 1 ? hintOptions.join(' ') : '';
+	return optionsStr
+		? `${chalk.dim(prefix)}${optionsStr}${chalk.dim(postfix)}`
 		: '';
 };
 
@@ -124,8 +122,11 @@ const requireModifierOrInputStr =
 
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.FILTER]: args => {
+		const isValidModifier = (val: string): val is Filter['target'] =>
+			getCmdModifiers(CmdKeywords.FILTER).includes(val);
+
 		const modifier = args.modifier;
-		if (!modifier) {
+		if (!modifier || !isValidModifier(args.modifier ?? '')) {
 			return invalid({
 				message: buildHint({
 					wordList: getCmdModifiers(CmdKeywords.FILTER),
@@ -136,37 +137,32 @@ const validators: Record<CmdKeyword, Validator> = {
 			});
 		}
 
-		const regex = /(!=|=)/;
-		const [filterTarget, _filterOperator, filterValue] = modifier.split(regex);
+		if (args.modifier === 'clear') return valid();
 
-		const isValidModifier = (val: string): val is Filter['target'] =>
-			getCmdModifiers(CmdKeywords.FILTER)
-				.map(x => x.replace(/(!=|=).*/, ''))
-				.includes(val);
+		const tags = Object.values(getState().tags).map(x => x.name);
+		const contributors = Object.values(getState().contributors).map(
+			x => x.name,
+		);
 
-		if (!isValidModifier(filterValue ?? '')) {
-			const tags = Object.values(getState().tags).map(x => x.name);
-			const contributors = Object.values(getState().contributors).map(
-				x => x.name,
-			);
-			const wordList =
-				filterTarget === 'tag'
-					? tags
-					: filterTarget === 'assignee'
-					? contributors
-					: [];
-
-			if (!wordList.includes(filterValue ?? ''))
-				return invalid({
-					message: buildHint({
-						wordList,
-						noOfHints: 100,
-						inputString: args.inputString,
-					}),
-					completionWordList: wordList,
-				});
+		const wordList =
+			args.modifier === 'tag'
+				? tags
+				: args.modifier === 'assignee'
+				? contributors
+				: [];
+		if (!wordList.includes(args.inputString ?? '')) {
+			return invalid({
+				message: buildHint({
+					prefix: `existing ${args.modifier}s...`,
+					wordList,
+					noOfHints: 10,
+					inputString: args.inputString,
+				}),
+				completionWordList: wordList,
+			});
 		}
 
+		logger.debug('hej', 3);
 		return valid();
 	},
 	[CmdKeywords.NONE]: args => {
@@ -174,6 +170,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		return !args.command
 			? invalid({
 					message: buildHint({
+						prefix: 'available commands... ',
 						wordList: list,
 						noOfHints: 100,
 						inputString: args.inputString,
@@ -198,9 +195,8 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
 			hint: buildHint({
-				prefix: 'provide tag name like: ',
+				prefix: 'tag name like... ',
 				wordList: getCmdModifiers(CmdKeywords.TAG),
-				postfix: ', etc.',
 				noOfHints: 3,
 				inputString: args.inputString,
 			}),

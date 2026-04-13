@@ -61,34 +61,27 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Filter,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
+			logger.debug(1);
 			const {modifier, inputString} = getCmdState().commandMeta;
 			const regex = /(!=|=)/; // Matches "=" and "!="
-			const [filterTarget, filterOperator] = modifier.split(regex);
+			const [filterTarget, _filterOperator] = modifier.split(regex);
 			const isValidModifier = (val: string): val is Filter['target'] =>
 				getCmdModifiers(CmdKeywords.FILTER)
 					.map(x => x.split(regex)[0])
-					.map(x => {
-						logger.debug(x);
-						return x;
-					})
 					.includes(val);
-			const isValidOperator = (val: string): val is Filter['operator'] =>
-				['=', '!='].includes(val);
-			if (
-				!filterTarget ||
-				!isValidModifier(filterTarget) ||
-				!filterOperator ||
-				!isValidOperator(filterOperator)
-			)
+
+			logger.debug(filterTarget);
+			if (!filterTarget || !isValidModifier(filterTarget))
 				return failed('Invalid filter modifier');
 			const filter: Filter = {
 				target: filterTarget,
-				operator: filterOperator,
+				operator: '=',
 				value: inputString,
 			};
+			logger.debug(' hehe');
 			updateState(s => ({
 				...s,
-				filters: [...s.filters, filter],
+				filters: modifier === 'clear' ? [] : [...s.filters, filter],
 				mode: Mode.DEFAULT,
 			}));
 			return succeeded('Viewing help', null);
