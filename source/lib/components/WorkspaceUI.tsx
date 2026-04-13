@@ -10,6 +10,7 @@ import {useAppState} from '../state/state.js';
 import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';
 import {Breadcrumb} from './BreadCrumb.js';
+import {FilterUI} from './Filters.js';
 
 type Props = {
 	currentNode: NavNode<AnyContext>;
@@ -27,11 +28,15 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 }) => {
 	const {renderedChildrenIndex} = useAppState();
 	const board = breadCrumb.find(({context}) => context === 'BOARD');
-
+	const filters = useAppState().filters;
 	return (
 		<Box flexDirection="column">
 			<Box justifyContent="space-between" flexDirection="row">
-				<Breadcrumb />
+				{filters.length ? (
+					<FilterUI filters={filters}></FilterUI>
+				) : (
+					<Breadcrumb />
+				)}
 				<Box columnGap={1} paddingRight={2}>
 					<Text>
 						{chalk.dim('@') +

@@ -4,13 +4,21 @@ import {
 	materializeAndPersist,
 	materializeAndPersistAll,
 } from '../../event/event-materialize-and-persist.js';
+import {AppEvent} from '../../event/event.model.js';
 import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
-import {getOrderedChildren} from '../../repository/rank.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+import {setConfig} from '../config/epiq-config.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
-import {findInBreadCrumb} from '../model/app-state.model.js';
+import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
 import {getCmdArg, getCmdState} from '../state/cmd.state.js';
-import {getState, patchState, updateState} from '../state/state.js';
+import {patchSettingsState} from '../state/settings.state.js';
+import {
+	getRenderedChildren,
+	getState,
+	patchState,
+	updateState,
+} from '../state/state.js';
 import {CmdIntent} from './command-meta.js';
 import {
 	cmdResult,
@@ -20,10 +28,6 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
-import {NavNode} from '../model/navigation-node.model.js';
-import {AppEvent} from '../../event/event.model.js';
-import {setConfig} from '../config/epiq-config.js';
-import {patchSettingsState} from '../state/settings.state.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -39,7 +43,7 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {currentNode, selectedIndex} = getState();
-			const child = getOrderedChildren(currentNode.id)[selectedIndex];
+			const child = getRenderedChildren(currentNode.id)[selectedIndex];
 			if (!child) return failed('Unable to resolve child to delete');
 
 			return materializeAndPersist({
@@ -50,6 +54,26 @@ export const commands: CommandLineActionEntry[] = [
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.Filter,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const {modifier, inputString} = getCmdState().commandMeta;
+			const isValidModifier = (val: string): val is Filter['target'] =>
+				['tag', 'assignee', 'description', 'title'].includes(val);
+			if (!isValidModifier(modifier)) return failed('Invalid filter modifier');
+			const filter: Filter = {
+				target: modifier,
+				value: inputString,
+			};
+			updateState(s => ({
+				...s,
+				filters: [...s.filters, filter],
+				mode: Mode.DEFAULT,
+			}));
+			return succeeded('Viewing help', null);
+		},
 	},
 	{
 		intent: CmdIntent.ViewHelp,
@@ -244,7 +268,7 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {currentNode, selectedIndex} = getState();
-			const node = getOrderedChildren(currentNode.id)[selectedIndex];
+			const node = getRenderedChildren(currentNode.id)[selectedIndex];
 			if (!node) return failed('Missing node');
 
 			const newName = getCmdArg();
@@ -266,7 +290,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (!name) return failed('Provide a tag');
 
 			const {selectedIndex, currentNode} = getState();
-			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
+			const selected = getRenderedChildren(currentNode.id)[selectedIndex];
 			if (!selected) return failed('Invalid tag target');
 
 			const ticketResult = findAncestor(selected.id, 'TICKET');
@@ -297,7 +321,7 @@ export const commands: CommandLineActionEntry[] = [
 			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
 			if (!tagsField) return failed('Unable to locate tags field');
 
-			const alreadyTagged = getOrderedChildren(tagsField.id).some(
+			const alreadyTagged = getRenderedChildren(tagsField.id).some(
 				child => child.props?.value === tagId,
 			);
 
@@ -323,7 +347,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (!name) return failed('Provide an assignee');
 
 			const {selectedIndex, currentNode} = getState();
-			const selected = getOrderedChildren(currentNode.id)[selectedIndex];
+			const selected = getRenderedChildren(currentNode.id)[selectedIndex];
 			if (!selected) return failed('Invalid assign target');
 
 			const ticketResult = findAncestor(selected.id, 'TICKET');
@@ -354,7 +378,7 @@ export const commands: CommandLineActionEntry[] = [
 			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');
 			if (!assigneesField) return failed('Unable to locate assignees field');
 
-			const alreadyAssigned = getOrderedChildren(assigneesField.id).some(
+			const alreadyAssigned = getRenderedChildren(assigneesField.id).some(
 				child => child.props?.value === contributorId,
 			);
 

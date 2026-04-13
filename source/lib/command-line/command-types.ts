@@ -2,7 +2,7 @@ export const CmdKeywords = {
 	HELP: 'help',
 	NEW: 'new',
 	TAG: 'tag',
-	// FILTER: 'filter',
+	FILTER: 'filter',
 	ASSIGN: 'assign',
 	DELETE: 'delete',
 	RENAME: 'rename',

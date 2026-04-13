@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {getOrderedChildren} from '../../repository/rank.js';
-import {useAppState} from '../state/state.js';
+import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {CursorUI} from './Cursor.js';
 
@@ -12,7 +12,7 @@ export default function BoardList() {
 	const commandLineHeight = 3;
 	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
 	const width = process.stdout.columns || 120;
-	const children = workspace?.id ? getOrderedChildren(workspace?.id) : [];
+	const children = workspace?.id ? getRenderedChildren(workspace?.id) : [];
 
 	return (
 		<Box
@@ -33,7 +33,7 @@ export default function BoardList() {
 						state.currentNode.context === 'WORKSPACE' &&
 						state.selectedIndex === i;
 
-					const swimlanes = getOrderedChildren(board.id);
+					const swimlanes = getRenderedChildren(board.id);
 					const issuesCount = swimlanes.flatMap(({id}) =>
 						getOrderedChildren(id),
 					).length;

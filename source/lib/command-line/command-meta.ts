@@ -10,6 +10,8 @@ export const CmdIntent = {
 	Rename: 'rename',
 	Delete: 'delete',
 
+	Filter: 'filter',
+
 	// Settings
 	SetView: 'set-view',
 	SetEditor: 'set-editor',

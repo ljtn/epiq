@@ -1,8 +1,7 @@
 import {monotonicFactory} from 'ulid';
 import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
 import {isFail} from '../lib/command-line/command-types.js';
-import {getState} from '../lib/state/state.js';
-import {getOrderedChildren} from '../repository/rank.js';
+import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
@@ -16,8 +15,8 @@ export function getBootNavigationTarget() {
 		throw new Error('No workspace found in event log');
 	}
 
-	const [firstBoard] = getOrderedChildren(workspace.id);
-	const [firstSwimlane] = firstBoard ? getOrderedChildren(firstBoard.id) : [];
+	const [firstBoard] = getRenderedChildren(workspace.id);
+	const [firstSwimlane] = firstBoard ? getRenderedChildren(firstBoard.id) : [];
 
 	return firstSwimlane ?? firstBoard ?? workspace;
 }

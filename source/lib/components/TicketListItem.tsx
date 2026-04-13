@@ -1,9 +1,9 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
-import {getOrderedChildren} from '../../repository/rank.js';
 import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
+import {getRenderedChildren} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {
 	sanitizeInlineText,
@@ -25,11 +25,11 @@ export const getTicketFields = (ticket: Ticket): TicketFieldMap => {
 
 	if (!ticket) return fields;
 
-	const ticketChildren = getOrderedChildren(ticket.id);
+	const ticketChildren = getRenderedChildren(ticket.id);
 	for (const field of ticketChildren) {
 		if (!field.title) continue;
 
-		const fieldChildren = getOrderedChildren(field.id);
+		const fieldChildren = getRenderedChildren(field.id);
 
 		fields[field.title] = {
 			value:
@@ -61,13 +61,13 @@ export const TicketListItemUI: React.FC<{
 		contentWidth,
 	);
 
-	const children = getOrderedChildren(ticket.id);
+	const children = getRenderedChildren(ticket.id);
 
 	const getReferencedIds = (title: 'Tags' | 'Assignees') => {
 		const fieldNode = children.find(node => node.title === title);
 		if (!fieldNode) return [];
 
-		return getOrderedChildren(fieldNode.id)
+		return getRenderedChildren(fieldNode.id)
 			.map(child =>
 				typeof child.props?.value === 'string' ? child.props.value : '',
 			)

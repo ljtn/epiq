@@ -4,10 +4,10 @@ import {ModeUnion} from '../model/action-map.model.js';
 import {Swimlane} from '../model/context.model.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {CursorUI} from './Cursor.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 import {TicketListItemCompactUI} from './TicketListItemCompact.js';
-import {CursorUI} from './Cursor.js';
 
 type Props = {
 	swimlane: Swimlane;

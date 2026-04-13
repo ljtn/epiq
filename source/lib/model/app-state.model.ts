@@ -26,7 +26,13 @@ export type ViewMode = 'wide' | 'dense';
 export type Tag = {id: string; name: string};
 export type Contributor = {id: string; name: string};
 
+export type Filter = {
+	target: 'tag' | 'assignee' | 'description' | 'title';
+	value: string;
+};
+
 export type AppState = {
+	filters: Filter[];
 	contributors: Record<string, Contributor>;
 	tags: Record<string, Tag>;
 	selectedIndex: number;

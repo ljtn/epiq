@@ -1,15 +1,15 @@
+import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
-import {getOrderedChildren} from '../../repository/rank.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
+import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
+import {getRenderedChildren} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {stringToHslHexColor} from '../utils/color.js';
-import {getTagColor} from './Tag.js';
-import {Contributor, Tag} from '../model/app-state.model.js';
 import {CursorUI} from './Cursor.js';
-import chalk from 'chalk';
+import {getTagColor} from './Tag.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
 	str.length >= width ? str.slice(0, width - 3) + '...' : str;
@@ -29,13 +29,13 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	index,
 	mode,
 }) => {
-	const children = getOrderedChildren(ticket.id);
+	const children = getRenderedChildren(ticket.id);
 
 	const getReferencedIds = (title: 'Tags' | 'Assignees') => {
 		const fieldNode = children.find(node => node.title === title);
 		if (!fieldNode) return [];
 
-		return getOrderedChildren(fieldNode.id)
+		return getRenderedChildren(fieldNode.id)
 			.map(node =>
 				typeof node.props?.value === 'string' ? node.props.value : '',
 			)

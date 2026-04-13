@@ -1,9 +1,8 @@
 import {Box} from 'ink';
 import React from 'react';
-import {getOrderedChildren} from '../../repository/rank.js';
 import {Ticket} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {useAppState} from '../state/state.js';
+import {getRenderedChildren, useAppState} from '../state/state.js';
 import {FieldListUI} from './FieldListUI.js';
 import {FieldUI} from './FieldUI.js';
 
@@ -16,7 +15,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const {selectedIndex, currentNode} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
 	const isInTicket = currentNode.id === ticket.id;
-	const children = getOrderedChildren(ticket.id);
+	const children = getRenderedChildren(ticket.id);
 
 	const fieldCount = children.reduce(
 		(no, {title}) => (title === 'Assignees' || title === 'Tags' ? ++no : no),

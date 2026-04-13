@@ -10,9 +10,14 @@ import {
 } from '../command-line/command-types.js';
 import {Hints} from '../hints/hints.js';
 import {Mode} from '../model/action-map.model.js';
-import type {AppState} from '../model/app-state.model.js';
-import type {AnyContext, Workspace} from '../model/context.model.js';
+import type {AppState, Filter} from '../model/app-state.model.js';
+import {
+	isTicketNode,
+	type AnyContext,
+	type Workspace,
+} from '../model/context.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
+import {ticketMatchesFilter} from '../utils/filter.js';
 import {buildBreadCrumb} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
 
@@ -42,7 +47,7 @@ const subscribe = (listener: () => void) => {
 // Derivation
 // -----------------------------
 function derive(state: BaseState): Result<AppState> {
-	const {currentNodeId, mode, rootNodeId, nodes} = state;
+	const {currentNodeId, mode, rootNodeId, nodes, filters} = state;
 
 	if (!currentNodeId) {
 		return failed('derive(): currentNodeId is missing');
@@ -88,7 +93,7 @@ function derive(state: BaseState): Result<AppState> {
 		availableHints,
 		availableActions,
 		actionIndex,
-		renderedChildrenIndex: buildChildIndex(nodes),
+		renderedChildrenIndex: buildChildIndex(nodes, filters),
 	});
 }
 
@@ -107,6 +112,7 @@ export const getState = () => {
 
 export function initWorkspaceState(workspace: Workspace) {
 	const base: BaseState = {
+		filters: [],
 		tags: {},
 		contributors: {},
 		viewMode: 'dense',
@@ -150,10 +156,20 @@ export const isChildSelected = (
 export const useAppState = () =>
 	useSyncExternalStore(subscribe, getState, getState);
 
-const buildChildIndex = (nodes: Record<string, NavNode<AnyContext>>) => {
+const buildChildIndex = (
+	nodes: Record<string, NavNode<AnyContext>>,
+	filters: Filter[],
+) => {
 	const index: Record<string, NavNode<AnyContext>[]> = {};
 
 	for (const node of Object.values(nodes)) {
+		if (
+			isTicketNode(node) &&
+			filters.length > 0 &&
+			!filters.every(filter => ticketMatchesFilter(node, filter))
+		)
+			continue;
+
 		if (!node.parentNodeId || node.isDeleted) continue;
 
 		if (!node.parentNodeId || !index[node.parentNodeId]) {
@@ -173,4 +189,8 @@ const buildChildIndex = (nodes: Record<string, NavNode<AnyContext>>) => {
 	}
 
 	return index;
+};
+
+export const getRenderedChildren = (id: string): NavNode<AnyContext>[] => {
+	return getState().renderedChildrenIndex[id] ?? [];
 };

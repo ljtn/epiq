@@ -61,7 +61,7 @@ const buildOptionsHint = ({
 }) => {
 	const filteredList = wordList
 		.filter(Boolean)
-		.filter(x => x.includes(inputString.trim()));
+		.filter(x => x.startsWith(inputString.trim()));
 	return filteredList.length
 		? `${prefix}${pickRandom(filteredList ?? [], noOfHints)
 				.map(word => `${chalk.dim.bgBlack.white(' ' + word + ' ')}`)
@@ -100,6 +100,18 @@ const requireModifierOrInputStr =
 const getList = (command: CmdKeyword): string[] => getCmdModifiers()[command];
 
 const validators: Record<CmdKeyword, Validator> = {
+	[CmdKeywords.FILTER]: args => {
+		const list = getList(CmdKeywords.FILTER);
+		return !args.modifier
+			? invalid(
+					buildOptionsHint({
+						wordList: list,
+						noOfHints: 100,
+						inputString: args.inputString,
+					}),
+			  )
+			: valid();
+	},
 	[CmdKeywords.NONE]: args => {
 		const list = getList(CmdKeywords.NONE);
 		return !args.command

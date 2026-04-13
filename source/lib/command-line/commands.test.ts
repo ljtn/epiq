@@ -30,22 +30,22 @@ vi.mock('../state/state.js', () => ({
 	getState: vi.fn(),
 	patchState: vi.fn(),
 	updateState: vi.fn(),
+	getRenderedChildren: vi.fn(() => []),
 }));
 
 import {ulid} from 'ulid';
 import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
 import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
-import {getOrderedChildren} from '../../repository/rank.js';
 import {getCmdState} from '../state/cmd.state.js';
-import {getState} from '../state/state.js';
-import {commands} from './commands.js';
+import {getRenderedChildren, getState} from '../state/state.js';
 import {CmdIntent} from './command-meta.js';
 import {failed, succeeded} from './command-types.js';
+import {commands} from './commands.js';
 
 const mockedUlid = vi.mocked(ulid);
 const mockedMaterializeAndPersist = vi.mocked(materializeAndPersist);
 const mockedFindAncestor = vi.mocked(findAncestor);
-const mockedGetOrderedChildren = vi.mocked(getOrderedChildren);
+const mockedGetRenderedChildren = vi.mocked(getRenderedChildren);
 const mockedGetCmdState = vi.mocked(getCmdState);
 const mockedGetState = vi.mocked(getState);
 const mockedNodeRepo = vi.mocked(nodeRepo);
@@ -82,7 +82,7 @@ describe('TagTicket command', () => {
 			title: 'Tags',
 		} as any);
 
-		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
 			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
 			if (parentId === 'tags-field-1') return [] as any;
 			return [] as any;
@@ -160,7 +160,7 @@ describe('TagTicket command', () => {
 	});
 
 	it('tags the ticket id, not the selected child id', () => {
-		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
 			if (parentId === 'current-node')
 				return [{id: 'description-field-id'}] as any;
 			if (parentId === 'tags-field-1') return [] as any;
@@ -212,7 +212,7 @@ describe('TagTicket command', () => {
 			contributors: {},
 		} as any);
 
-		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
 			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
 			if (parentId === 'tags-field-1')
 				return [{id: 'existing-tag-node', props: {value: 'tag-123'}}] as any;
@@ -227,7 +227,7 @@ describe('TagTicket command', () => {
 	});
 
 	it('fails when no selected node exists', () => {
-		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
 			if (parentId === 'current-node') return [] as any;
 			return [] as any;
 		});
@@ -266,7 +266,7 @@ describe('AssignUserToTicket command', () => {
 			title: 'Assignees',
 		} as any);
 
-		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
 			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
 			if (parentId === 'assignees-field-1') return [] as any;
 			return [] as any;
@@ -355,7 +355,7 @@ describe('AssignUserToTicket command', () => {
 			},
 		} as any);
 
-		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
 			if (parentId === 'current-node') return [{id: 'selected-node'}] as any;
 			if (parentId === 'assignees-field-1')
 				return [
@@ -372,7 +372,7 @@ describe('AssignUserToTicket command', () => {
 	});
 
 	it('fails when no selected node exists', () => {
-		mockedGetOrderedChildren.mockImplementation((parentId: string) => {
+		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
 			if (parentId === 'current-node') return [] as any;
 			return [] as any;
 		});

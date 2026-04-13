@@ -1,7 +1,6 @@
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
-import {getState, patchState} from '../../state/state.js';
-import {getOrderedChildren} from '../../../repository/rank.js';
+import {getRenderedChildren, getState, patchState} from '../../state/state.js';
 
 export interface Navigator {
 	navigate<T extends AnyContext>({
@@ -29,12 +28,12 @@ export const navigationUtils: Navigator = {
 		const state = getState();
 		const currentNode = state.currentNode;
 		const index = Math.max(0, state.selectedIndex);
-		const focusNode = getOrderedChildren(currentNode.id)[index];
+		const focusNode = getRenderedChildren(currentNode.id)[index];
 		if (!focusNode || currentNode.context === 'FIELD') return;
 
 		navigationUtils.navigate({
 			currentNode: focusNode,
-			selectedIndex: getOrderedChildren(focusNode.id).length ? 0 : -1,
+			selectedIndex: getRenderedChildren(focusNode.id).length ? 0 : -1,
 		});
 	},
 
@@ -50,7 +49,7 @@ export const navigationUtils: Navigator = {
 			logger.error('Parent not found');
 			return;
 		}
-		const parentChildren = getOrderedChildren(parent.id);
+		const parentChildren = getRenderedChildren(parent.id);
 		const idx = parentChildren.findIndex(({id}) => id === currentNode.id);
 		const selectedIndex = parentChildren.length === 0 ? -1 : idx >= 0 ? idx : 0;
 
@@ -73,7 +72,7 @@ export const navigationUtils: Navigator = {
 
 const navigateByOffset = (offset: number) => {
 	const state = getState();
-	const len = getOrderedChildren(state.currentNode.id).length;
+	const len = getRenderedChildren(state.currentNode.id).length;
 	if (len === 0) return;
 
 	const base = Math.max(0, state.selectedIndex);
@@ -93,7 +92,7 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 	const parentNode = nodes[currentNode.parentNodeId];
 	if (!currentNode || !parentNode) return;
 
-	const siblings = getOrderedChildren(parentNode.id);
+	const siblings = getRenderedChildren(parentNode.id);
 	const currentNodeIndex = siblings.findIndex(x => x.id === currentNode.id);
 	if (currentNodeIndex < 0) return;
 
@@ -101,7 +100,7 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 		siblings.at(currentNodeIndex + direction) ?? siblings.at(0);
 	if (!nextSibling) return;
 
-	const nextSiblingChildren = getOrderedChildren(nextSibling.id);
+	const nextSiblingChildren = getRenderedChildren(nextSibling.id);
 	const maxIndex = Math.max(0, nextSiblingChildren.length - 1);
 	const boundedIndex = Math.min(Math.max(0, selectedIndex), maxIndex);
 	const newSelectedIndex = nextSiblingChildren.length ? boundedIndex : -1;

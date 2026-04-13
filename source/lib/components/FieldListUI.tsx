@@ -1,14 +1,13 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
-import {getOrderedChildren} from '../../repository/rank.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {useAppState} from '../state/state.js';
+import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
-import {TagUI} from './Tag.js';
 import {CursorUI} from './Cursor.js';
+import {TagUI} from './Tag.js';
 
 type Props = {
 	parent: NavNode<AnyContext>;
@@ -23,7 +22,7 @@ export const FieldListUI: React.FC<Props> = ({
 }) => {
 	const {currentNode} = useAppState();
 	const {title} = parent;
-	const items = getOrderedChildren(parent.id)
+	const items = getRenderedChildren(parent.id)
 		.map(item => {
 			const refId =
 				typeof item.props?.value === 'string' ? item.props.value : '';

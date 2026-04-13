@@ -1,6 +1,5 @@
 import {openEditorOnText} from '../../../editor/editor.js';
 import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
-import {getOrderedChildren} from '../../../repository/rank.js';
 import {
 	CmdKeywords,
 	failed,
@@ -10,7 +9,7 @@ import {
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
-import {getState, patchState} from '../../state/state.js';
+import {getRenderedChildren, getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
@@ -105,7 +104,7 @@ export const DefaultActions: ActionEntry[] = [
 			if (isFail(issueResult)) return failed('No issue node');
 			const issueNode = issueResult.data;
 
-			const descriptionField = getOrderedChildren(issueNode.id).find(
+			const descriptionField = getRenderedChildren(issueNode.id).find(
 				x => x?.title === 'Description',
 			);
 

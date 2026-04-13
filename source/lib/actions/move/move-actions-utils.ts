@@ -10,7 +10,7 @@ import {
 } from '../../command-line/command-types.js';
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
-import {getState} from '../../state/state.js';
+import {getRenderedChildren, getState} from '../../state/state.js';
 
 let pendingMoveState: AppEvent | null = null;
 export const getMovePendingState = (): AppEvent | null =>
@@ -22,7 +22,7 @@ const getSelectedChild = ():
 	| ReturnSuccess<NavNode<AnyContext>>
 	| ReturnFail => {
 	const {currentNode, selectedIndex} = getState();
-	const children = getOrderedChildren(currentNode.id);
+	const children = getRenderedChildren(currentNode.id);
 	const targetNode = children[selectedIndex];
 
 	if (!targetNode) return failed('Target node not found');

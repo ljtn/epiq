@@ -20,6 +20,8 @@ export const getCommandIntent = (
 			return CmdIntent.Rename;
 		case CmdKeywords.NEW:
 			return CmdIntent.NewItem;
+		case CmdKeywords.FILTER:
+			return CmdIntent.Filter;
 		// Settings
 		case CmdKeywords.SET_USERNAME:
 			return CmdIntent.SetUserName;
