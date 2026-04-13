@@ -38,23 +38,25 @@ export const getCmdMeta = (
 	parsed: ParsedCommandLine,
 	isCursorAtEndOfLine: boolean,
 ): CurrentCmdMeta => {
+	const command = parsed.command ?? '';
+	const {modifier, target, inputString} = parsed;
 	const {message, validity, completionWordList} = cmdValidation[
-		parsed.command ?? ''
-	].validate(parsed.command ?? '', parsed.modifier, parsed.inputString);
+		command
+	].validate(command, modifier, inputString);
 
 	const wordList =
-		parsed.target === 'command'
+		target === 'command'
 			? Object.values(CmdKeywords)
-			: parsed.command && parsed.target === 'modifier'
-			? getCmdModifiers()[parsed.command]
+			: command && parsed.target === 'modifier'
+			? getCmdModifiers(command)
 			: DEFAULT_WORDS;
 
 	return {
+		validity,
 		command: parsed.command,
 		modifier: parsed.modifier,
 		inputString: parsed.inputString,
 		infoMessage: message ?? '',
-		validity,
 		autoCompletion: isCursorAtEndOfLine
 			? getAutoCompletion(parsed, [...completionWordList, ...wordList])
 			: {hint: '', hints: [], remainder: '', overlap: 0},

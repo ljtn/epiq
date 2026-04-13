@@ -76,17 +76,26 @@ const getModifierRange = ({
 	const afterCommand = value.slice(commandRange.end);
 	const spacing = afterCommand.match(/^\s*/)?.[0].length ?? 0;
 	const modifierStart = commandRange.end + spacing;
+	const modifierEnd = modifierStart + modifier.length;
 
-	if (
-		value.slice(modifierStart, modifierStart + modifier.length) !== modifier
-	) {
+	if (value.slice(modifierStart, modifierEnd) !== modifier) {
 		return null;
 	}
 
-	return {
-		start: modifierStart,
-		end: modifierStart + modifier.length,
-	};
+	let start = modifierStart;
+	let end = modifierEnd;
+
+	// include leading space
+	if (start > 0 && value[start - 1] === ' ') {
+		start -= 1;
+	}
+
+	// include trailing space
+	if (end < value.length && value[end] === ' ') {
+		end += 1;
+	}
+
+	return {start, end};
 };
 
 const getCommandLineViewState = (): CommandLineViewState => ({
@@ -158,8 +167,19 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 				index >= modifierRange.start &&
 				index < modifierRange.end;
 
+			// inject left padding
+			if (modifierRange && index === modifierRange.start) {
+				return ' ' + COLOR_MODIFIER(char);
+			}
+
+			// inject right padding
+			if (modifierRange && index === modifierRange.end - 1) {
+				return COLOR_MODIFIER(char) + ' ';
+			}
+
 			if (isCommandChar) return COLOR_COMMAND(char);
 			if (isModifierChar) return COLOR_MODIFIER(char);
+
 			return char;
 		};
 
@@ -172,8 +192,17 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 				index >= modifierRange.start &&
 				index < modifierRange.end;
 
+			if (modifierRange && index === modifierRange.start) {
+				return ' ' + INVERSE_GREEN(char);
+			}
+
+			if (modifierRange && index === modifierRange.end - 1) {
+				return INVERSE_GREEN(char) + ' ';
+			}
+
 			if (isCommandChar) return INVERSE_CYAN(char);
 			if (isModifierChar) return INVERSE_GREEN(char);
+
 			return INVERSE(char);
 		};
 

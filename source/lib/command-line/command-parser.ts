@@ -33,7 +33,7 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 	const hasCommand = firstWord !== '';
 	const isLastWordCompleted = raw.endsWith(' ');
 
-	const modifiers = command ? getCmdModifiers()[command] ?? [] : [];
+	const modifiers = command ? getCmdModifiers(command) ?? [] : [];
 	const modifier = command && modifiers.includes(secondWord) ? secondWord : '';
 
 	let target: CommandTarget = 'word';

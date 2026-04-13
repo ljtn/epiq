@@ -65,8 +65,8 @@ export const commands: CommandLineActionEntry[] = [
 			const regex = /(!=|=)/; // Matches "=" and "!="
 			const [filterTarget, filterOperator] = modifier.split(regex);
 			const isValidModifier = (val: string): val is Filter['target'] =>
-				getCmdModifiers()
-					[CmdKeywords.FILTER].map(x => x.split(regex)[0])
+				getCmdModifiers(CmdKeywords.FILTER)
+					.map(x => x.split(regex)[0])
 					.map(x => {
 						logger.debug(x);
 						return x;

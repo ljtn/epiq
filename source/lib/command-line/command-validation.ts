@@ -75,10 +75,16 @@ const buildHint = ({
 	const filteredList = wordList
 		.filter(Boolean)
 		.filter(x => x.startsWith(inputString.trim()));
+
+	const highlight = (word: string) =>
+		`${chalk.dim.bgBlack.white(' ' + word + ' ')}`;
+
+	const hintOptions = pickRandom(filteredList ?? [], noOfHints).map(highlight);
+
 	return filteredList.length
-		? `${prefix}${pickRandom(filteredList ?? [], noOfHints)
-				.map(word => `${chalk.dim.bgBlack.white(' ' + word + ' ')}`)
-				.join(' ')}${postfix}`
+		? `${prefix}${
+				hintOptions.length > 1 ? hintOptions.join(' ') : ''
+		  }${postfix}`
 		: '';
 };
 
@@ -116,19 +122,17 @@ const requireModifierOrInputStr =
 			: valid();
 	};
 
-const getList = (command: CmdKeyword): string[] => getCmdModifiers()[command];
-
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.FILTER]: args => {
 		const modifier = args.modifier;
 		if (!modifier) {
-			invalid({
+			return invalid({
 				message: buildHint({
-					wordList: getList(CmdKeywords.FILTER),
+					wordList: getCmdModifiers(CmdKeywords.FILTER),
 					noOfHints: 100,
 					inputString: args.inputString,
 				}),
-				completionWordList: [],
+				completionWordList: getCmdModifiers(CmdKeywords.FILTER),
 			});
 		}
 
@@ -136,8 +140,8 @@ const validators: Record<CmdKeyword, Validator> = {
 		const [filterTarget, _filterOperator, filterValue] = modifier.split(regex);
 
 		const isValidModifier = (val: string): val is Filter['target'] =>
-			getCmdModifiers()
-				[CmdKeywords.FILTER].map(x => x.replace(/(!=|=).*/, ''))
+			getCmdModifiers(CmdKeywords.FILTER)
+				.map(x => x.replace(/(!=|=).*/, ''))
 				.includes(val);
 
 		if (!isValidModifier(filterValue ?? '')) {
@@ -166,7 +170,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		return valid();
 	},
 	[CmdKeywords.NONE]: args => {
-		const list = getList(CmdKeywords.NONE);
+		const list = getCmdModifiers(CmdKeywords.NONE);
 		return !args.command
 			? invalid({
 					message: buildHint({
@@ -180,9 +184,9 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 	[CmdKeywords.NEW]: args =>
 		requireOneIn({
-			list: getList(CmdKeywords.NEW),
+			list: getCmdModifiers(CmdKeywords.NEW),
 			hint: buildHint({
-				wordList: getList(CmdKeywords.NEW),
+				wordList: getCmdModifiers(CmdKeywords.NEW),
 				noOfHints: 3,
 				inputString: args.inputString,
 			}),
@@ -190,12 +194,12 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.HELP]: alwaysSucceed,
 	[CmdKeywords.RENAME]: alwaysSucceed,
 	[CmdKeywords.DELETE]: args =>
-		requireExact(getList(CmdKeywords.DELETE)[0] ?? 'confirm')(args),
+		requireExact(getCmdModifiers(CmdKeywords.DELETE)[0] ?? 'confirm')(args),
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
 			hint: buildHint({
 				prefix: 'provide tag name like: ',
-				wordList: getList(CmdKeywords.TAG),
+				wordList: getCmdModifiers(CmdKeywords.TAG),
 				postfix: ', etc.',
 				noOfHints: 3,
 				inputString: args.inputString,
@@ -204,7 +208,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.ASSIGN]: args =>
 		requireModifierOrInputStr({
 			hint: buildHint({
-				wordList: getList(CmdKeywords.ASSIGN),
+				wordList: getCmdModifiers(CmdKeywords.ASSIGN),
 				postfix: ', etc.',
 				noOfHints: 3,
 				inputString: args.inputString,
@@ -213,7 +217,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 	// Settings
 	[CmdKeywords.SET_EDITOR]: args => {
-		const wordList = getList(CmdKeywords.SET_EDITOR);
+		const wordList = getCmdModifiers(CmdKeywords.SET_EDITOR);
 
 		return !args.modifier
 			? invalid({
@@ -236,9 +240,9 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 	[CmdKeywords.SET_VIEW]: args =>
 		requireOneIn({
-			list: getList(CmdKeywords.SET_VIEW),
+			list: getCmdModifiers(CmdKeywords.SET_VIEW),
 			hint: buildHint({
-				wordList: getList(CmdKeywords.SET_VIEW),
+				wordList: getCmdModifiers(CmdKeywords.SET_VIEW),
 				noOfHints: 3,
 				inputString: args.inputString,
 			}),

@@ -4,22 +4,24 @@ import {CmdKeywords, cmdValidity} from '../command-types.js';
 import {getCmdModifiers} from '../command-modifiers.js';
 
 vi.mock('../command-modifiers.js', () => ({
-	getCmdModifiers: () => ({
-		[CmdKeywords.DELETE]: ['confirm'],
-		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
-		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
-		[CmdKeywords.ASSIGN]: ['john', 'jane'],
-		[CmdKeywords.HELP]: [],
-		[CmdKeywords.RENAME]: [],
-		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
-	}),
+	getCmdModifiers: (keyword: string) => {
+		const m: Record<string, string[]> = {
+			[CmdKeywords.DELETE]: ['confirm'],
+			[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
+			[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
+			[CmdKeywords.ASSIGN]: ['john', 'jane'],
+			[CmdKeywords.HELP]: [],
+			[CmdKeywords.RENAME]: [],
+			[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
+		};
+		return m[keyword];
+	},
 }));
 
 describe('cmdValidation', () => {
-	const cmdModifiers = getCmdModifiers();
 	describe('NEW', () => {
 		it('accepts when modifier matches one of the allowed values', () => {
-			const modifier = cmdModifiers[CmdKeywords.NEW][0]!;
+			const modifier = getCmdModifiers(CmdKeywords.NEW)[0]!;
 			const result = cmdValidation[CmdKeywords.NEW].validate(
 				CmdKeywords.NEW,
 				modifier,
@@ -80,7 +82,7 @@ describe('cmdValidation', () => {
 
 	describe('DELETE', () => {
 		it('accepts when modifier matches the exact expected value', () => {
-			const modifier = cmdModifiers[CmdKeywords.DELETE][0]!;
+			const modifier = getCmdModifiers(CmdKeywords.DELETE)[0]!;
 
 			const result = cmdValidation[CmdKeywords.DELETE].validate(
 				CmdKeywords.DELETE,
@@ -116,7 +118,7 @@ describe('cmdValidation', () => {
 
 	describe('VIEW', () => {
 		it('accepts when modifier matches one of the allowed values', () => {
-			const modifier = cmdModifiers[CmdKeywords.SET_VIEW][0]!;
+			const modifier = getCmdModifiers(CmdKeywords.SET_VIEW)[0]!;
 
 			const result = cmdValidation[CmdKeywords.SET_VIEW].validate(
 				CmdKeywords.SET_VIEW,
@@ -176,7 +178,7 @@ describe('cmdValidation', () => {
 
 	describe('ASSIGN', () => {
 		it('accepts when modifier matches one of the allowed values', () => {
-			const modifier = cmdModifiers[CmdKeywords.ASSIGN][0]!;
+			const modifier = getCmdModifiers(CmdKeywords.ASSIGN)[0]!;
 			const result = cmdValidation[CmdKeywords.ASSIGN].validate(
 				CmdKeywords.ASSIGN,
 				modifier,
