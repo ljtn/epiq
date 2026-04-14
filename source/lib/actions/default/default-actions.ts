@@ -18,7 +18,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.AddItem,
 		mode: Mode.DEFAULT,
-		description: '[a] Add item',
+		description: '[n] new...',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `${CmdKeywords.NEW} `);
@@ -38,7 +38,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.InitCommandLine,
 		mode: Mode.DEFAULT,
-		description: '[:] Toggle command line',
+		description: '[:] focus command line',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => ''); // Trigger hints
@@ -48,7 +48,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Confirm,
 		mode: Mode.DEFAULT,
-		description: '[<Enter>] Confirm/Enter context',
+		description: '[<Enter>] confirm/enter',
 		action: () => {
 			navigationUtils.enterChildNode();
 			return succeeded('Entering context', null);
@@ -57,7 +57,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Exit,
 		mode: Mode.DEFAULT,
-		description: '[q] Exit context',
+		description: '[q] exit context',
 		action: () => {
 			navigationUtils.enterParentNode();
 			return succeeded('Exiting context', null);
@@ -66,7 +66,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.NavPreviousItem,
 		mode: Mode.DEFAULT,
-		description: '[arrows/hjkl] Navigate',
+		description: '[arrows/hjkl] navigate',
 		action: () => {
 			navigationUtils.navigateToPreviousItem();
 			return succeeded('Navigating to previous item', null);
@@ -141,7 +141,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.SetViewDense,
 		mode: Mode.DEFAULT,
-		description: '[v] Toggle view mode (wide/dense)',
+		description: '[v] view change (wide/dense)',
 		action: () => {
 			patchState({
 				viewMode: 'dense',

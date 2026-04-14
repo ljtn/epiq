@@ -15,7 +15,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		// Reconsider. We should probably not move before confirm
 		intent: Intent.Exit,
 		mode: Mode.MOVE,
-		description: '[<Esc>] Exit context / Cancel',
+		description: '[<Esc>] exit context / cancel',
 		action: () => {
 			patchState({
 				mode: Mode.DEFAULT,
@@ -26,7 +26,7 @@ export const toggleMoveMode: ActionEntry[] = [
 	{
 		intent: Intent.InitMove,
 		mode: Mode.DEFAULT,
-		description: '[m] Init/confirm move',
+		description: '[m] move init/confirm',
 		action: () => {
 			if (getState().selectedIndex === -1) return failed('No item selected'); // Block move if no children
 			patchState({
