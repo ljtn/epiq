@@ -78,8 +78,6 @@ const alwaysSucceed: Validator = () => valid();
 
 const requireExact = ({modifier}: {modifier: string}) => {
 	const expected = 'confirm';
-	logger.debug('expectee', expected);
-	logger.debug('modifier', modifier);
 	return modifier === expected
 		? valid()
 		: invalid({

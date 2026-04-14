@@ -1,11 +1,11 @@
-import {nodeRepo} from '../repository/node-repo.js';
 import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
+import {isTicketNode} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
+import {resolveReopenParentFromLog} from './log-utils.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
-import {resolvePreviousParentFromLog} from './log-utils.js';
-import {isTicketNode} from '../lib/model/context.model.js';
 
 type MaterializeHandlers = {
 	[A in EventAction]: (event: AppEvent<A>) => MaterializeResult<A>;
@@ -132,13 +132,15 @@ const materializeHandlers: MaterializeHandlers = {
 		if (!closeSwimlane) return failed('Unable to locate target swimlane');
 		const isClosed = closeSwimlane.id === node?.parentNodeId;
 		if (isClosed) return failed('Cannot close closed issue');
+
 		const result = nodeRepo.moveNode({
 			id,
 			parentId: closeSwimlane.id,
 			navigate: false,
 		});
+
 		if (isFail(result)) return result;
-		return succeeded('Issue closed', result.data);
+		return succeeded('Issue closed', {id: result.data.id});
 	},
 	'reopen.issue': event => {
 		const {id} = event.payload;
@@ -153,8 +155,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const isClosed = node.parentNodeId === closeSwimlane.id;
 		if (!isClosed) return failed('Issue is not closed');
 
-		const previousParentId = resolvePreviousParentFromLog(node);
-
+		const previousParentId = resolveReopenParentFromLog(node);
 		if (!previousParentId) {
 			return failed('Unable to resolve previous parent from issue history');
 		}
@@ -176,7 +177,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		if (isFail(result)) return result;
 
-		return succeeded('Issue reopened', result.data);
+		return succeeded('Issue reopened', {id: result.data.id});
 	},
 };
 

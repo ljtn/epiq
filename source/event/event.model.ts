@@ -95,7 +95,7 @@ export type AppEventMap = {
 		result: {md: string};
 	};
 	'close.issue': {
-		payload: PayloadBase;
+		payload: PayloadBase & {parent: string}; // Parent reference needed when reopening
 		result: {id: string};
 	};
 	'reopen.issue': {

@@ -30,6 +30,7 @@ import {
 	succeeded,
 } from './command-types.js';
 import {getCmdModifiers} from './command-modifiers.js';
+import {isTicketNode} from '../model/context.model.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -99,12 +100,13 @@ export const commands: CommandLineActionEntry[] = [
 			const {currentNode, selectedIndex} = getState();
 			const target = getRenderedChildren(currentNode.id)[selectedIndex];
 			if (!target) return failed('Unable to close issue, no target found');
-			if (target.context !== 'TICKET') {
+			if (!target.parentNodeId) return failed('No target parent found');
+			if (!isTicketNode(target)) {
 				return failed('Cannot close in this context');
 			}
 			const result = materializeAndPersist({
 				action: 'close.issue',
-				payload: {id: target.id},
+				payload: {id: target.id, parent: target.parentNodeId},
 			});
 			if (isFail(result)) return result;
 			return succeeded('Viewing help', null);
