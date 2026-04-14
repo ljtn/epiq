@@ -1,14 +1,27 @@
 import {Box} from 'ink';
 import React from 'react';
-import {WorkspaceUI} from './lib/components/WorkspaceUI.js';
+import {WorkspaceUI} from './lib/components/WorkspaceUI.js'; // Todo: the order of imports can apparently break the build
+import {isSuccess} from './lib/command-line/command-types.js';
 import {ContextBar} from './lib/components/ContextBar.js';
 import {HelpUI} from './lib/components/Help.js';
 import {Mode} from './lib/model/action-map.model.js';
-import {useAppState} from './lib/state/state.js';
+import {findInBreadCrumb} from './lib/model/app-state.model.js';
+import {getRenderedChildren, getState, useAppState} from './lib/state/state.js';
 
 export default function App() {
 	const state = useAppState();
-	const width = process.stdout.columns || 120;
+	let width = process.stdout.columns || 120;
+	const board = findInBreadCrumb(getState().breadCrumb ?? [], 'BOARD');
+	if (isSuccess(board)) {
+		const boardId = board.data.id;
+		const numberOfSwimlanes = getRenderedChildren(boardId).length;
+		const swimlaneMaxWidth = Math.floor(width / 3);
+		const swimlaneDynamicWidth = Math.floor(
+			width / Math.max(numberOfSwimlanes, 1),
+		);
+		const colWidth = Math.min(swimlaneDynamicWidth, swimlaneMaxWidth);
+		width = colWidth * numberOfSwimlanes;
+	}
 
 	return (
 		<Box flexDirection="column">

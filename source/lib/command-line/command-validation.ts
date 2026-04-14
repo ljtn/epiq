@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import {Filter} from '../model/app-state.model.js';
 import {getState} from '../state/state.js';
+import {getGradientWord, getWordGradientPosition} from '../utils/color.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
@@ -42,22 +43,6 @@ const invalid = ({
 	completionWordList,
 });
 const isBlank = (value: string) => value.length === 0;
-const pickRandom = <T>(arr: readonly T[], count: number): T[] => {
-	if (arr.length <= count) return [...arr];
-
-	const result: T[] = [];
-	const used = new Set<number>();
-
-	while (result.length < count) {
-		const i = Math.floor(Math.random() * arr.length);
-		if (!used.has(i)) {
-			used.add(i);
-			result.push(arr[i]!);
-		}
-	}
-
-	return result;
-};
 
 const buildHint = ({
 	prefix = '',
@@ -76,10 +61,13 @@ const buildHint = ({
 		.filter(Boolean)
 		.filter(x => x.startsWith(inputString.trim()));
 
-	const highlight = (word: string) =>
-		`${chalk.bgYellow.black(' ' + word + ' ')}`;
+	const sortedByGradient = [...filteredList].sort(
+		(a, b) => getWordGradientPosition(a) - getWordGradientPosition(b),
+	);
+	// const sortedByGradient = [...filteredList];
 
-	const hintOptions = pickRandom(filteredList ?? [], noOfHints).map(highlight);
+	const hintOptions = sortedByGradient.slice(0, noOfHints).map(getGradientWord);
+
 	const optionsStr = hintOptions.length > 1 ? hintOptions.join(' ') : '';
 	return optionsStr
 		? `${chalk.dim(prefix)}${optionsStr}${chalk.dim(postfix)}`
@@ -122,6 +110,7 @@ const requireModifierOrInputStr =
 
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.FILTER]: args => {
+		if (args.modifier === 'clear') return valid();
 		const isValidModifier = (val: string): val is Filter['target'] =>
 			getCmdModifiers(CmdKeywords.FILTER).includes(val);
 
@@ -137,8 +126,6 @@ const validators: Record<CmdKeyword, Validator> = {
 			});
 		}
 
-		if (args.modifier === 'clear') return valid();
-
 		const tags = Object.values(getState().tags).map(x => x.name);
 		const contributors = Object.values(getState().contributors).map(
 			x => x.name,
@@ -150,7 +137,20 @@ const validators: Record<CmdKeyword, Validator> = {
 				: args.modifier === 'assignee'
 				? contributors
 				: [];
-		if (!wordList.includes(args.inputString ?? '')) {
+
+		if (!args.inputString) {
+			return invalid({
+				message: buildHint({
+					prefix: `one of... `,
+					wordList,
+					noOfHints: 10,
+					inputString: args.inputString,
+				}),
+				completionWordList: wordList,
+			});
+		}
+
+		if (wordList.length && !wordList.includes(args.inputString.trim() ?? '')) {
 			return invalid({
 				message: buildHint({
 					prefix: `existing ${args.modifier}s...`,
@@ -162,7 +162,6 @@ const validators: Record<CmdKeyword, Validator> = {
 			});
 		}
 
-		logger.debug('hej', 3);
 		return valid();
 	},
 	[CmdKeywords.NONE]: args => {
@@ -170,7 +169,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		return !args.command
 			? invalid({
 					message: buildHint({
-						prefix: 'available commands... ',
+						prefix: 'commands... ',
 						wordList: list,
 						noOfHints: 100,
 						inputString: args.inputString,

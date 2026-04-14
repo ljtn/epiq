@@ -32,11 +32,13 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 	return (
 		<Box flexDirection="column">
 			<Box justifyContent="space-between" flexDirection="row">
-				{filters.length ? (
-					<FilterUI filters={filters}></FilterUI>
-				) : (
-					<Breadcrumb />
-				)}
+				<Box paddingLeft={1}>
+					{filters.length ? (
+						<FilterUI filters={filters}></FilterUI>
+					) : (
+						<Breadcrumb />
+					)}
+				</Box>
 				<Box columnGap={1} paddingRight={2}>
 					<Text>
 						{chalk.dim('@') +

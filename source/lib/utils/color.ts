@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 const stringHash = (value: string): number => {
 	let hash = 0;
 
@@ -58,4 +60,89 @@ export const stringToHslHexColor = (value: string): string => {
 	const lightness = 45;
 
 	return hslToHex(hue, saturation, lightness);
+};
+
+// =========================
+// =========================
+// =========================
+// =========================
+// =========================
+
+const gradientStops: [number, number, number][] = [
+	[168, 85, 247], // purple
+	[34, 211, 238], // cyan
+	[59, 130, 246], // blue
+];
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+const interpolateColor = (
+	a: [number, number, number],
+	b: [number, number, number],
+	t: number,
+): [number, number, number] => [
+	Math.round(lerp(a[0], b[0], t)),
+	Math.round(lerp(a[1], b[1], t)),
+	Math.round(lerp(a[2], b[2], t)),
+];
+
+export const getGradientColor = (t: number): [number, number, number] => {
+	const clamped = Math.max(0, Math.min(1, t));
+	const segments = gradientStops.length - 1;
+	const scaled = clamped * segments;
+	const index = Math.min(Math.floor(scaled), segments - 1);
+	const localT = scaled - index;
+
+	if (gradientStops) {
+		return interpolateColor(
+			gradientStops[index]!,
+			gradientStops[index + 1]!,
+			localT,
+		);
+	}
+	return [0, 0, 0];
+};
+
+// Stable string hash
+const hashString = (input: string): number => {
+	let hash = 0;
+	for (let i = 0; i < input.length; i++) {
+		hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+	}
+	return hash;
+};
+
+// Stable gradient position for a word: 0..1
+export const getWordGradientPosition = (word: string): number => {
+	const hash = hashString(word.toLowerCase().trim());
+	return hash / 0xffffffff;
+};
+
+export const getGradientWordStyle = (word: string) => {
+	const t = getWordGradientPosition(word);
+	const [r, g, b] = getGradientColor(t);
+
+	return {
+		normal: (text: string) => chalk.bgRgb(r, g, b).black(text),
+		cursor: (text: string) => chalk.bgRgb(r, g, b).white.bold(text),
+	};
+};
+
+export const getGradientStyles = (word: string) => {
+	const t = getWordGradientPosition(word);
+	const [r, g, b] = getGradientColor(t);
+
+	return {
+		// command style (foreground only)
+		fg: (text: string) => chalk.rgb(r, g, b)(text),
+		fgCursor: (text: string) => chalk.rgb(r, g, b).inverse(text),
+
+		// modifier style (background)
+		bg: (text: string) => chalk.bgRgb(r, g, b).black(text),
+		bgCursor: (text: string) => chalk.bgRgb(r, g, b).white.bold(text),
+	};
+};
+
+export const getGradientWord = (word: string) => {
+	return getGradientWordStyle(word).normal(` ${word} `);
 };

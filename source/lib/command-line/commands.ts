@@ -74,7 +74,7 @@ export const commands: CommandLineActionEntry[] = [
 			const filter: Filter = {
 				target: filterTarget,
 				operator: '=',
-				value: inputString,
+				value: inputString.trim(),
 			};
 			updateState(s => ({
 				...s,

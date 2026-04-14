@@ -7,7 +7,8 @@ import {
 	commandLineState,
 	subscribeCommandLineState,
 } from '../state/cmd.state.js';
-import {chalkColors, theme} from '../theme/themes.js';
+import {theme} from '../theme/themes.js';
+import {getGradientStyles} from '../utils/color.js';
 
 type CommandLineViewState = {
 	value: string;
@@ -21,12 +22,8 @@ type CommandLineViewState = {
 	inputString: string;
 };
 
-const COLOR_COMMAND = chalk.hex(chalkColors.blue);
-const COLOR_MODIFIER = chalk.black.bgGray;
 const GRAY = chalk.gray;
 const INVERSE = chalk.inverse;
-const INVERSE_CYAN = chalk.inverse.hex(chalkColors.blue);
-const INVERSE_GREEN = chalk.inverse.green;
 const INVERSE_GRAY = chalk.inverse.gray;
 
 const EMPTY_AUTO_COMPLETION: AutoCompletion = {
@@ -148,6 +145,8 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 		const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
 		const commandRange = getCommandRange({value, command});
 		const modifierRange = getModifierRange({value, command, modifier});
+		const commandStyle = command ? getGradientStyles(command) : null;
+		const modifierStyle = modifier ? getGradientStyles(modifier) : null;
 
 		const styleCharAt = (char: string, index: number): string => {
 			const isCommandChar =
@@ -158,8 +157,8 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 				index >= modifierRange.start &&
 				index < modifierRange.end;
 
-			if (isCommandChar) return COLOR_COMMAND(char);
-			if (isModifierChar) return COLOR_MODIFIER(char);
+			if (isCommandChar && commandStyle) return commandStyle.fg(char);
+			if (isModifierChar && modifierStyle) return modifierStyle.bg(char);
 			return char;
 		};
 
@@ -172,8 +171,8 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 				index >= modifierRange.start &&
 				index < modifierRange.end;
 
-			if (isCommandChar) return INVERSE_CYAN(char);
-			if (isModifierChar) return INVERSE_GREEN(char);
+			if (isCommandChar && commandStyle) return commandStyle.fgCursor(char);
+			if (isModifierChar && modifierStyle) return modifierStyle.bgCursor(char);
 			return INVERSE(char);
 		};
 
@@ -202,7 +201,6 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 
 		return GRAY(':') + renderedBefore + renderedCursor + renderedAfter;
 	}, [value, cursorPosition, autoCompletion, command, modifier]);
-
 	return (
 		<Box flexDirection="column" justifyContent="flex-start">
 			<Box
