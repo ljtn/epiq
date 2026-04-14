@@ -61,7 +61,6 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Filter,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			logger.debug(1);
 			const {modifier, inputString} = getCmdState().commandMeta;
 			const regex = /(!=|=)/; // Matches "=" and "!="
 			const [filterTarget, _filterOperator] = modifier.split(regex);
@@ -70,7 +69,6 @@ export const commands: CommandLineActionEntry[] = [
 					.map(x => x.split(regex)[0])
 					.includes(val);
 
-			logger.debug(filterTarget);
 			if (!filterTarget || !isValidModifier(filterTarget))
 				return failed('Invalid filter modifier');
 			const filter: Filter = {
@@ -78,7 +76,6 @@ export const commands: CommandLineActionEntry[] = [
 				operator: '=',
 				value: inputString,
 			};
-			logger.debug(' hehe');
 			updateState(s => ({
 				...s,
 				filters: modifier === 'clear' ? [] : [...s.filters, filter],
@@ -254,8 +251,6 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.SetView,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			logger.debug('1');
-
 			const {commandMeta} = getCmdState();
 			if (commandMeta.validity === cmdValidity.Invalid) {
 				return failed('Invalid command ' + cmdResult);

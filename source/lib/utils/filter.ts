@@ -64,7 +64,6 @@ export const ticketMatchesFilter = (
 
 		case 'tag':
 			const tagNames = getTagNames(ticket.id).map(normalize);
-			logger.debug(query, tagNames);
 			return tagNames.some(tag => tag.includes(query));
 
 		case 'assignee':
