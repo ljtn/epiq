@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import {marked} from 'marked';
 import TerminalRenderer from 'marked-terminal';
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect} from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {isSuccess} from '../command-line/command-types.js';
 import {AnyContext, Field} from '../model/context.model.js';
@@ -37,38 +37,26 @@ export const FieldUI: React.FC<Props> = ({
 	const renderMarkdownInline = (md: string) =>
 		String(marked.parseInline(md)).replace(/\r?\n/g, '');
 
-	const attachedNodeIds = useRef<string[]>([]);
-
 	const document = field.props.value;
 	const documentRows =
 		typeof document === 'string' ? document.split(/\r?\n|\u2028|\u2029/) : [];
 
 	useEffect(() => {
 		const createdIds: string[] = [];
-		const createdNodes: any[] = [];
 
 		documentRows.forEach((row, idx) => {
-			const lineId = `${field.id}-line-${idx}`;
 			const node = nodes.text(`${idx}`, `Line ${idx + 1}`, field.id, {
 				value: row,
 			});
 
 			const result = nodeRepo.createNodeAtPosition(node);
-			createdNodes.push(result.data);
 			if (isSuccess(result)) {
 				createdIds.push(result.data.id);
-			} else {
-				createdIds.push(lineId);
 			}
 		});
 
-		attachedNodeIds.current = createdIds;
-
-		return () => {
-			attachedNodeIds.current.forEach(nodeRepo.deleteNode);
-			attachedNodeIds.current = [];
-		};
-	}, [field.id]);
+		return () => createdIds.forEach(nodeRepo.deleteNode);
+	}, [field.id, document]);
 
 	const EMPTY_ROW_FALLBACK = '\u2029';
 
@@ -92,7 +80,7 @@ export const FieldUI: React.FC<Props> = ({
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			<Box>
-				<CursorUI isSelected={selected}></CursorUI>
+				<CursorUI isSelected={selected} />
 				<Text color={selected ? theme.accent : theme.secondary}>
 					{field.title + ' (to edit, press e)'}
 				</Text>
