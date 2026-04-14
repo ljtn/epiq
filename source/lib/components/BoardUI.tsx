@@ -20,6 +20,8 @@ type Props = {
 	breadCrumb: DeepReadonly<BreadCrumb>;
 	viewMode: ViewMode;
 	mode: ModeUnion;
+	height: number;
+	width: number;
 };
 
 const BoardUIComponent: React.FC<Props> = ({
@@ -29,6 +31,8 @@ const BoardUIComponent: React.FC<Props> = ({
 	breadCrumb,
 	mode,
 	viewMode,
+	height,
+	width,
 }) => {
 	const actionContext = currentNode.context;
 
@@ -47,16 +51,11 @@ const BoardUIComponent: React.FC<Props> = ({
 					| Ticket
 					| undefined);
 
-	const width = process.stdout.columns || 120;
 	const swimlaneMaxWidth = Math.floor(width / 3);
 	const swimlaneDynamicWidth = Math.floor(
 		width / Math.max(swimlanes.length, 1),
 	);
 	const colWidth = Math.min(swimlaneDynamicWidth, swimlaneMaxWidth);
-
-	const breadCrumbHeight = 1;
-	const commandLineHeight = 3;
-	const height = process.stdout.rows - breadCrumbHeight - commandLineHeight;
 
 	const isDense = viewMode === 'dense';
 

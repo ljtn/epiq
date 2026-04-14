@@ -18,6 +18,8 @@ type Props = {
 	breadCrumb: BreadCrumb;
 	viewMode: ViewMode;
 	mode: ModeUnion;
+	height: number;
+	width: number;
 };
 const WorkspaceUIComponent: React.FC<Props> = ({
 	currentNode,
@@ -25,10 +27,16 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 	breadCrumb,
 	mode,
 	viewMode,
+	height,
+	width,
 }) => {
 	const {renderedChildrenIndex} = useAppState();
 	const board = breadCrumb.find(({context}) => context === 'BOARD');
 	const filters = useAppState().filters;
+
+	const breadCrumbHeight = 1;
+	const commandLineHeight = 3;
+	const boardHeight = height - breadCrumbHeight - commandLineHeight;
 	return (
 		<Box flexDirection="column">
 			<Box justifyContent="space-between" flexDirection="row">
@@ -55,6 +63,8 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 					<BoardList />
 				) : board ? (
 					<BoardUI
+						height={boardHeight}
+						width={width}
 						swimlanes={(renderedChildrenIndex[board.id] ?? []).filter(
 							node => node !== undefined && isSwimlaneNode(node),
 						)}

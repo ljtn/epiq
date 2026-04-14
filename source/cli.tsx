@@ -26,6 +26,8 @@ const cli = meow(
 	},
 );
 
+let width = process.stdout.columns || 120;
+let height = process.stdout.rows || 20;
 const FIRST_LOAD_DURATION_MS = 5_000;
 const SUBSEQUENT_LOAD_MAX_MS = 0;
 
@@ -37,11 +39,11 @@ function sleep(ms: number) {
 
 function renderApp() {
 	if (!ink) {
-		ink = render(<App />);
+		ink = render(<App width={width} height={height} />);
 		return;
 	}
 
-	ink.rerender(<App />);
+	ink.rerender(<App width={width} height={height} />);
 }
 
 function renderLoader() {
@@ -80,9 +82,9 @@ async function bootApp() {
 }
 
 process.stdout.on('resize', () => {
-	if (ink) {
-		ink.rerender(<App />);
-	}
+	width = process.stdout.columns || 120;
+	height = process.stdout.rows || 20;
+	if (ink) ink.rerender(<App width={width} height={height} />);
 });
 
 (async () => {

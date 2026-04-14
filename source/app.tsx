@@ -8,9 +8,13 @@ import {Mode} from './lib/model/action-map.model.js';
 import {findInBreadCrumb} from './lib/model/app-state.model.js';
 import {getRenderedChildren, getState, useAppState} from './lib/state/state.js';
 
-export default function App() {
+type AppProps = {
+	height: number;
+	width: number;
+};
+
+export default function App({width, height}: AppProps) {
 	const state = useAppState();
-	let width = process.stdout.columns || 120;
 	const board = findInBreadCrumb(getState().breadCrumb ?? [], 'BOARD');
 	if (isSuccess(board)) {
 		const boardId = board.data.id;
@@ -27,6 +31,8 @@ export default function App() {
 		<Box flexDirection="column">
 			{state.mode !== Mode.HELP && (
 				<WorkspaceUI
+					width={width}
+					height={height}
 					currentNode={state.currentNode}
 					selectedIndex={state.selectedIndex}
 					breadCrumb={state.breadCrumb}
