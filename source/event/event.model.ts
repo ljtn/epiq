@@ -7,35 +7,36 @@ export type MovePosition =
 	| {at: 'before'; sibling: string}
 	| {at: 'after'; sibling: string};
 
+export type PayloadBase = {id: string};
+
 export type AppEventMap = {
 	'init.workspace': {
-		payload: {id: string; name: string};
+		payload: PayloadBase & {name: string};
 		result: NavNode<'WORKSPACE'>;
 	};
 
 	'add.workspace': {
-		payload: {id: string; name: string};
+		payload: PayloadBase & {name: string};
 		result: NavNode<'WORKSPACE'>;
 	};
 
 	'add.board': {
-		payload: {id: string; name: string; parent: string};
+		payload: PayloadBase & {name: string; parent: string};
 		result: NavNode<'BOARD'>;
 	};
 
 	'add.swimlane': {
-		payload: {id: string; name: string; parent: string};
+		payload: PayloadBase & {name: string; parent: string};
 		result: NavNode<'SWIMLANE'>;
 	};
 
 	'add.issue': {
-		payload: {id: string; name: string; parent: string};
+		payload: PayloadBase & {name: string; parent: string};
 		result: NavNode<'TICKET'>;
 	};
 
 	'add.field': {
-		payload: {
-			id: string;
+		payload: PayloadBase & {
 			parent: string;
 			name: string;
 			val?: string;
@@ -44,28 +45,27 @@ export type AppEventMap = {
 	};
 
 	'edit.title': {
-		payload: {id: string; val: string};
+		payload: PayloadBase & {val: string};
 		result: string;
 	};
 
 	'delete.node': {
-		payload: {id: string};
+		payload: PayloadBase;
 		result: string;
 	};
 
 	'create.tag': {
-		payload: {id: string; name: string};
+		payload: PayloadBase & {name: string};
 		result: string;
 	};
 
 	'create.contributor': {
-		payload: {id: string; name: string};
+		payload: PayloadBase & {name: string};
 		result: string;
 	};
 
 	'assign.issue': {
-		payload: {
-			id: string;
+		payload: PayloadBase & {
 			contributor: string;
 			target: string;
 		};
@@ -73,8 +73,7 @@ export type AppEventMap = {
 	};
 
 	'tag.issue': {
-		payload: {
-			id: string;
+		payload: PayloadBase & {
 			tagId: string;
 			target: string;
 		};
@@ -82,8 +81,7 @@ export type AppEventMap = {
 	};
 
 	'move.node': {
-		payload: {
-			id: string;
+		payload: PayloadBase & {
 			parent: string;
 			pos?: MovePosition;
 		};
@@ -91,26 +89,30 @@ export type AppEventMap = {
 	};
 
 	'edit.description': {
-		payload: {
-			target: string;
+		payload: PayloadBase & {
 			md: string;
 		};
 		result: {md: string};
 	};
 	'close.issue': {
-		payload: {
-			id: string;
-		};
+		payload: PayloadBase;
+		result: {id: string};
+	};
+	'reopen.issue': {
+		payload: PayloadBase;
 		result: {id: string};
 	};
 };
 
 export type EventAction = keyof AppEventMap;
 
-export type AppEvent<A extends EventAction = EventAction> = {
-	action: A;
-	payload: AppEventMap[A]['payload'];
-};
+export type AppEvent<A extends EventAction = EventAction> =
+	A extends EventAction
+		? {
+				action: A;
+				payload: AppEventMap[A]['payload'];
+		  }
+		: never;
 
 export type MaterializeResult<A extends EventAction> =
 	| ReturnSuccess<AppEventMap[A]['result']>

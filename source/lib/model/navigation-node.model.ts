@@ -1,3 +1,4 @@
+import {AppEvent} from '../../event/event.model.js';
 import {AnyContext} from './context.model.js';
 
 export type NavNode<U extends AnyContext> = {
@@ -11,4 +12,5 @@ export type NavNode<U extends AnyContext> = {
 	childRenderAxis: 'vertical' | 'horizontal';
 	childNavigationAcrossParents?: boolean;
 	readonly: boolean;
+	log: AppEvent[];
 };

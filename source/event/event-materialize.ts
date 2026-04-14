@@ -4,6 +4,8 @@ import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
+import {resolvePreviousParentFromLog} from './log-utils.js';
+import {isTicketNode} from '../lib/model/context.model.js';
 
 type MaterializeHandlers = {
 	[A in EventAction]: (event: AppEvent<A>) => MaterializeResult<A>;
@@ -116,12 +118,13 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'edit.description': event => {
-		const {target: targetId, md} = event.payload;
-		const result = nodeRepo.editValue(targetId, md);
+		const {id, md} = event.payload;
+		const result = nodeRepo.editValue(id, md);
 		if (isFail(result)) return result;
 		return succeeded('Set node value', result.data);
 	},
 
+	// Works
 	'close.issue': event => {
 		const {id} = event.payload;
 		const node = nodeRepo.getNode(id);
@@ -137,10 +140,87 @@ const materializeHandlers: MaterializeHandlers = {
 		if (isFail(result)) return result;
 		return succeeded('Issue closed', result.data);
 	},
+	'reopen.issue': event => {
+		const {id} = event.payload;
+		const node = nodeRepo.getNode(id);
+
+		if (!node) return failed('Unable to locate issue');
+		if (!isTicketNode(node)) return failed('Can only reopen issues');
+
+		const closeSwimlane = nodeRepo.getNode(CLOSED_SWIMLANE_ID);
+		if (!closeSwimlane) return failed('Unable to locate closed swimlane');
+
+		const isClosed = node.parentNodeId === closeSwimlane.id;
+		if (!isClosed) return failed('Issue is not closed');
+
+		const previousParentId = resolvePreviousParentFromLog(node);
+
+		if (!previousParentId) {
+			return failed('Unable to resolve previous parent from issue history');
+		}
+
+		if (previousParentId === closeSwimlane.id) {
+			return failed('Previous parent resolves to closed swimlane');
+		}
+
+		const previousParent = nodeRepo.getNode(previousParentId);
+		if (!previousParent) {
+			return failed('Previous parent no longer exists');
+		}
+
+		const result = nodeRepo.moveNode({
+			id,
+			parentId: previousParentId,
+			navigate: false,
+		});
+
+		if (isFail(result)) return result;
+
+		return succeeded('Issue reopened', result.data);
+	},
 };
 
 export type MaterializeResults<T extends readonly AppEvent[]> = {
 	[K in keyof T]: T[K] extends AppEvent<infer A> ? MaterializeResult<A> : never;
+};
+
+const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
+	const node = nodeRepo.getNode(nodeId);
+	if (!node) return;
+
+	nodeRepo.updateNode({
+		...node,
+		log: [...(node.log ?? []), event],
+	});
+};
+
+const getAffectedNodeIds = (event: AppEvent): string[] => {
+	switch (event.action) {
+		case 'init.workspace':
+		case 'add.workspace':
+		case 'add.board':
+		case 'add.swimlane':
+		case 'add.issue':
+		case 'add.field':
+		case 'edit.title':
+		case 'delete.node':
+		case 'move.node':
+		case 'close.issue':
+		case 'reopen.issue':
+		case 'edit.description':
+		case 'create.tag':
+		case 'create.contributor':
+			return [event.payload.id];
+
+		case 'tag.issue':
+			return [event.payload.id, event.payload.target];
+
+		case 'assign.issue':
+			return [event.payload.id, event.payload.target];
+
+		default:
+			return [];
+	}
 };
 
 export function materialize<A extends EventAction>(
@@ -150,7 +230,16 @@ export function materialize<A extends EventAction>(
 		event: AppEvent<A>,
 	) => MaterializeResult<A>;
 
-	return handler(event);
+	const result = handler(event);
+
+	if (!isFail(result)) {
+		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
+		for (const nodeId of affectedNodeIds) {
+			appendEventToNodeLog(nodeId, event);
+		}
+	}
+
+	return result;
 }
 
 export const materializeAll = <const T extends readonly AppEvent[]>(

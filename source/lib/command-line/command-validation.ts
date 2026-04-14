@@ -196,6 +196,9 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.CLOSE_ISSUE]: args => {
 		return requireExact(args);
 	},
+	[CmdKeywords.RE_OPEN_ISSUE]: args => {
+		return requireExact(args);
+	},
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
 			hint: buildHint({

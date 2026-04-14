@@ -132,7 +132,7 @@ export const DefaultActions: ActionEntry[] = [
 			return materializeAndPersist({
 				action: 'edit.description',
 				payload: {
-					target: descriptionField.id,
+					id: descriptionField.id,
 					md: updatedMarkdown,
 				},
 			});

@@ -6,6 +6,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const modifiers = {
 		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
 		[CmdKeywords.DELETE]: ['confirm'],
+		[CmdKeywords.RE_OPEN_ISSUE]: ['confirm'],
 		[CmdKeywords.CLOSE_ISSUE]: ['confirm'],
 		[CmdKeywords.SET_USERNAME]: [],
 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],

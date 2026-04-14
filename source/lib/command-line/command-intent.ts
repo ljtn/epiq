@@ -12,6 +12,8 @@ export const getCommandIntent = (
 			return CmdIntent.Delete;
 		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
+		case CmdKeywords.RE_OPEN_ISSUE:
+			return CmdIntent.ReopenIssue;
 		case CmdKeywords.CLOSE_ISSUE:
 			return CmdIntent.CloseIssue;
 		case CmdKeywords.TAG:

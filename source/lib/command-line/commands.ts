@@ -111,6 +111,38 @@ export const commands: CommandLineActionEntry[] = [
 		},
 	},
 	{
+		intent: CmdIntent.ReopenIssue,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const {currentNode, selectedIndex} = getState();
+			const target = getRenderedChildren(currentNode.id)[selectedIndex];
+
+			if (!target) return failed('Unable to reopen issue, no target found');
+
+			const ticketResult =
+				target.context === 'TICKET'
+					? succeeded('Resolved ticket', target)
+					: findAncestor(target.id, 'TICKET');
+
+			if (isFail(ticketResult)) {
+				return failed('Cannot reopen in this context');
+			}
+
+			const ticket = ticketResult.data;
+
+			const result = materializeAndPersist({
+				action: 'reopen.issue',
+				payload: {id: ticket.id},
+			});
+
+			if (isFail(result)) return result;
+
+			return succeeded('Issue reopened', null);
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+
+	{
 		intent: CmdIntent.SetUserName,
 		mode: Mode.COMMAND_LINE,
 		action: () => {

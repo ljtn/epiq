@@ -26,6 +26,7 @@ export const CmdIntent = {
 	TagTicket: 'ticket-tag',
 	AssignUserToTicket: 'ticket-assign-user',
 	CloseIssue: 'close-issue',
+	ReopenIssue: 're-open-issue',
 } as const;
 
 export const isModifierKeyword = (word: string): word is CmdKeyword =>

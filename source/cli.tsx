@@ -1,3 +1,4 @@
+import './logger.js';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
@@ -6,7 +7,6 @@ import {loadMergedEvents} from './event/event-load.js';
 import {initProject} from './InitView.js';
 import Logo from './lib/components/Logo.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
-import './logger.js';
 import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadSettingsFromConfig} from './lib/config/load-settings.js';
 
