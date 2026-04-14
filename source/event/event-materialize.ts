@@ -3,6 +3,7 @@ import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
+import {CLOSED_SWIMLANE_ID} from './static-ids.js';
 
 type MaterializeHandlers = {
 	[A in EventAction]: (event: AppEvent<A>) => MaterializeResult<A>;
@@ -109,7 +110,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'move.node': event => {
 		const {id, parent: parentId, pos: position} = event.payload;
-		const moved = nodeRepo.moveNode(id, parentId, position);
+		const moved = nodeRepo.moveNode({id, parentId, position});
 		if (isFail(moved)) return failed('Failed to move node');
 		return succeeded('Moved node', moved.data.id);
 	},
@@ -119,6 +120,22 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.editValue(targetId, md);
 		if (isFail(result)) return result;
 		return succeeded('Set node value', result.data);
+	},
+
+	'close.issue': event => {
+		const {id} = event.payload;
+		const node = nodeRepo.getNode(id);
+		const closeSwimlane = nodeRepo.getNode(CLOSED_SWIMLANE_ID);
+		if (!closeSwimlane) return failed('Unable to locate target swimlane');
+		const isClosed = closeSwimlane.id === node?.parentNodeId;
+		if (isClosed) return failed('Cannot close closed issue');
+		const result = nodeRepo.moveNode({
+			id,
+			parentId: closeSwimlane.id,
+			navigate: false,
+		});
+		if (isFail(result)) return result;
+		return succeeded('Issue closed', result.data);
 	},
 };
 

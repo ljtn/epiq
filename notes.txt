@@ -1,5 +1,4 @@
 distribute as binary
-reload text nodes on edit complete
 impl: backlog
 impl: done
 

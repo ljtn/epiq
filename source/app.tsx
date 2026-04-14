@@ -19,12 +19,13 @@ export default function App({width, height}: AppProps) {
 	if (isSuccess(board)) {
 		const boardId = board.data.id;
 		const numberOfSwimlanes = getRenderedChildren(boardId).length;
-		const swimlaneMaxWidth = Math.floor(width / 3);
+		const swimlanePart = 3;
+		const swimlaneMaxWidth = Math.floor(width / swimlanePart);
 		const swimlaneDynamicWidth = Math.floor(
 			width / Math.max(numberOfSwimlanes, 1),
 		);
 		const colWidth = Math.min(swimlaneDynamicWidth, swimlaneMaxWidth);
-		width = colWidth * numberOfSwimlanes;
+		width = colWidth * Math.max(numberOfSwimlanes, swimlanePart); // Swimlanes are
 	}
 
 	return (

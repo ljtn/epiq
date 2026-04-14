@@ -93,6 +93,24 @@ export const commands: CommandLineActionEntry[] = [
 		},
 	},
 	{
+		intent: CmdIntent.CloseIssue,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const {currentNode, selectedIndex} = getState();
+			const target = getRenderedChildren(currentNode.id)[selectedIndex];
+			if (!target) return failed('Unable to close issue, no target found');
+			if (target.context !== 'TICKET') {
+				return failed('Cannot close in this context');
+			}
+			const result = materializeAndPersist({
+				action: 'close.issue',
+				payload: {id: target.id},
+			});
+			if (isFail(result)) return result;
+			return succeeded('Viewing help', null);
+		},
+	},
+	{
 		intent: CmdIntent.SetUserName,
 		mode: Mode.COMMAND_LINE,
 		action: () => {

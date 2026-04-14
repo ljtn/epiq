@@ -12,12 +12,14 @@ export const nodes = {
 		context: NavNodeCtx.WORKSPACE,
 		childRenderAxis: 'vertical',
 		parentNodeId: null,
+		readonly: true,
 	}),
 
 	board: (
 		id: string,
 		name: string,
 		parentNodeId: string,
+		readonly = false,
 	): NavNode<'BOARD'> => ({
 		id,
 		title: name,
@@ -27,6 +29,7 @@ export const nodes = {
 		context: NavNodeCtx.BOARD,
 		childRenderAxis: 'horizontal',
 		parentNodeId,
+		readonly,
 	}),
 
 	swimlane: (
@@ -43,6 +46,7 @@ export const nodes = {
 		childRenderAxis: 'vertical',
 		childNavigationAcrossParents: true,
 		parentNodeId,
+		readonly: false,
 	}),
 
 	field: (
@@ -61,6 +65,7 @@ export const nodes = {
 		childRenderAxis,
 		// childNavigationAcrossParents: true, // ??
 		parentNodeId,
+		readonly: false,
 	}),
 
 	ticket: (
@@ -76,6 +81,7 @@ export const nodes = {
 		context: NavNodeCtx.TICKET,
 		childRenderAxis: 'vertical',
 		parentNodeId,
+		readonly: false,
 	}),
 	text: (
 		id: string,
@@ -91,5 +97,6 @@ export const nodes = {
 		context: NavNodeCtx.TEXT,
 		childRenderAxis: 'vertical',
 		parentNodeId,
+		readonly: false,
 	}),
 };

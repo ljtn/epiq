@@ -5,6 +5,7 @@ import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
+import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
 
 export function getBootNavigationTarget() {
 	const workspace = Object.values(getState().nodes).find(
@@ -61,6 +62,18 @@ export function createDefaultEvents(): readonly AppEvent[] {
 		{
 			action: 'add.swimlane',
 			payload: {id: swimlaneId3, name: 'Done', parent: boardId},
+		},
+		{
+			action: 'add.board',
+			payload: {id: CLOSED_BOARD_ID, name: 'Closed', parent: workspaceId},
+		},
+		{
+			action: 'add.swimlane',
+			payload: {
+				id: CLOSED_SWIMLANE_ID,
+				name: 'Closed',
+				parent: CLOSED_BOARD_ID,
+			},
 		},
 	] as const satisfies readonly AppEvent[];
 }

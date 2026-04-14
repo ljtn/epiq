@@ -97,6 +97,12 @@ export type AppEventMap = {
 		};
 		result: {md: string};
 	};
+	'close.issue': {
+		payload: {
+			id: string;
+		};
+		result: {id: string};
+	};
 };
 
 export type EventAction = keyof AppEventMap;

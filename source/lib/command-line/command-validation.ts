@@ -76,19 +76,19 @@ const buildHint = ({
 
 const alwaysSucceed: Validator = () => valid();
 
-const requireExact =
-	(expected: string): Validator =>
-	({modifier}) =>
-		modifier === expected
-			? valid()
-			: invalid({
-					message: isBlank(modifier)
-						? `if you are certain, enter ${chalk.dim.bgBlack.white(
-								' ' + expected + ' ',
-						  )}`
-						: '',
-					completionWordList: [],
-			  });
+const requireExact = ({modifier}: {modifier: string}) => {
+	const expected = 'confirm';
+	logger.debug('expectee', expected);
+	logger.debug('modifier', modifier);
+	return modifier === expected
+		? valid()
+		: invalid({
+				message: isBlank(modifier)
+					? `if you are certain, enter ${getGradientWord(expected)}`
+					: '',
+				completionWordList: [expected],
+		  });
+};
 
 const requireOneIn =
 	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
@@ -188,9 +188,14 @@ const validators: Record<CmdKeyword, Validator> = {
 			}),
 		})(args),
 	[CmdKeywords.HELP]: alwaysSucceed,
+
 	[CmdKeywords.RENAME]: alwaysSucceed,
-	[CmdKeywords.DELETE]: args =>
-		requireExact(getCmdModifiers(CmdKeywords.DELETE)[0] ?? 'confirm')(args),
+
+	[CmdKeywords.DELETE]: args => requireExact(args),
+
+	[CmdKeywords.CLOSE_ISSUE]: args => {
+		return requireExact(args);
+	},
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
 			hint: buildHint({

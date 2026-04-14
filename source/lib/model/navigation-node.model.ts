@@ -10,4 +10,5 @@ export type NavNode<U extends AnyContext> = {
 	rank: string;
 	childRenderAxis: 'vertical' | 'horizontal';
 	childNavigationAcrossParents?: boolean;
+	readonly: boolean;
 };

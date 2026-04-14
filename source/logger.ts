@@ -3,7 +3,7 @@ import path from 'path';
 import util from 'util';
 
 const isLocal = process.env['IS_LOCAL'] === 'true';
-const LOG_PATH = path.resolve(process.cwd(), '.epiq', 'log', 'app.log');
+const LOG_PATH = path.resolve(process.cwd(), '.epiq', 'log', 'epiq.log');
 const MAX_LINES = 1000;
 
 function enforceLogHorizon() {

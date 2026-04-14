@@ -1,6 +1,6 @@
 dist
 node_modules
-app.log
+epiq.log
 .epiq
 .vscode/tasks.json
 .archive

@@ -6,6 +6,7 @@ export const CmdKeywords = {
 	ASSIGN: 'assign',
 	DELETE: 'delete',
 	RENAME: 'rename',
+	CLOSE_ISSUE: 'close',
 
 	SET_EDITOR: 'set:editor',
 	SET_VIEW: 'set:view',

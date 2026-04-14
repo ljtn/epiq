@@ -151,27 +151,31 @@ export const nodeRepo = {
 		return getOrderedChildren(parentId).find(child => child.title === title);
 	},
 
-	moveNode(
-		nodeId: string,
-		nextParentId: string,
-		position: MovePosition = {at: 'end'},
-	): Result<NavNode<AnyContext>> {
+	moveNode({
+		id,
+		parentId: nextParentId,
+		position = {at: 'end'},
+		navigate = true,
+	}: {
+		id: string;
+		parentId: string;
+		position?: MovePosition;
+		navigate?: boolean;
+	}): Result<NavNode<AnyContext>> {
 		const {rootNodeId} = getState();
-		const node = this.getNode(nodeId);
+		const node = this.getNode(id);
 		const nextParent = this.getNode(nextParentId);
 
 		if (!node) return failed('Node not found');
 		if (!nextParent) return failed('Target parent not found');
-		if (rootNodeId === nodeId) return failed('Cannot move root node');
-		if (nodeId === nextParentId) return failed('Cannot move node into itself');
+		if (rootNodeId === id) return failed('Cannot move root node');
+		if (id === nextParentId) return failed('Cannot move node into itself');
 
-		if (isDescendantOf(nextParentId, nodeId)) {
+		if (isDescendantOf(nextParentId, id)) {
 			return failed('Cannot move node into its own descendant');
 		}
 
-		const siblings = getOrderedChildren(nextParentId).filter(
-			x => x.id !== nodeId,
-		);
+		const siblings = getOrderedChildren(nextParentId).filter(x => x.id !== id);
 
 		const rankResult = resolveMoveRank(siblings, position);
 		if (isFail(rankResult)) return rankResult;
@@ -182,7 +186,11 @@ export const nodeRepo = {
 			rank: rankResult.data,
 		};
 
-		this.updateNodeAndSelectInParent(movedNode);
+		if (navigate) {
+			this.updateNodeAndSelectInParent(movedNode);
+		} else {
+			this.updateNode(movedNode);
+		}
 
 		return succeeded('Moved node successfully', movedNode);
 	},

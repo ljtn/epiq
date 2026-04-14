@@ -6,6 +6,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const modifiers = {
 		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
 		[CmdKeywords.DELETE]: ['confirm'],
+		[CmdKeywords.CLOSE_ISSUE]: ['confirm'],
 		[CmdKeywords.SET_USERNAME]: [],
 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
 		[CmdKeywords.SET_EDITOR]: [
@@ -40,6 +41,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
 		[CmdKeywords.HELP]: [],
 		[CmdKeywords.RENAME]: [],
+
 		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
 	};
 	return modifiers[keyword];

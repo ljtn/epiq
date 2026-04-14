@@ -1,0 +1,5 @@
+export const staticIds = [
+	'00KM6CZ900T7180RM46K0JAYNF',
+	'00JR3R8E00A1Z4X9FGP9DV0SM5',
+] as const;
+export const [CLOSED_SWIMLANE_ID, CLOSED_BOARD_ID] = staticIds;
