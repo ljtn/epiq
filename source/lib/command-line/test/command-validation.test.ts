@@ -172,7 +172,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Invalid);
-			expect(result.message).toMatch(/^provide tag name like/);
+			expect(result.message).toMatch(/^tag name like.../);
 		});
 	});
 
