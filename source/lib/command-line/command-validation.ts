@@ -64,7 +64,6 @@ const buildHint = ({
 	const sortedByGradient = [...filteredList].sort(
 		(a, b) => getWordGradientPosition(a) - getWordGradientPosition(b),
 	);
-	// const sortedByGradient = [...filteredList];
 
 	const hintOptions = sortedByGradient.slice(0, noOfHints).map(getGradientWord);
 

@@ -15,9 +15,6 @@ const logoLines = [
 	'╚══════╝╚═╝     ╚═╝ ╚═══▀▀╝ ',
 ];
 
-const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const loadingMessages = ['Sourcing', 'Materializing'];
-
 function clamp(value: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, value));
 }
@@ -57,7 +54,7 @@ function makePulse(progress: number, width = 28) {
 }
 
 export default function Logo({
-	durationMs = 3000,
+	durationMs = 3_000,
 	slogan = 'Never leave the command line',
 }: Props) {
 	const safeDurationMs = Math.max(1, durationMs);
@@ -83,28 +80,8 @@ export default function Logo({
 	}, [safeDurationMs]);
 
 	const progress = clamp(elapsedMs / safeDurationMs, 0, 1);
-	const done = progress >= 1;
-
-	const spinner = useMemo(() => {
-		if (done) return '✔';
-
-		const totalSpinnerSteps = frames.length * 4;
-		const idx = Math.floor(progress * totalSpinnerSteps) % frames.length;
-		return frames[idx];
-	}, [progress, done]);
-
-	const messageIndex = useMemo(() => {
-		if (done) return loadingMessages.length - 1;
-
-		return Math.min(
-			loadingMessages.length - 1,
-			Math.floor(progress * loadingMessages.length),
-		);
-	}, [progress, done]);
-
 	const pulseBar = useMemo(() => makePulse(progress, 28), [progress]);
-
-	// const percentLabel = `${Math.round(progress * 100)}%`;
+	const percentLabel = `${Math.round(progress * 100)}%`;
 
 	return (
 		<Box
@@ -114,26 +91,13 @@ export default function Logo({
 			paddingX={4}
 			paddingY={1}
 		>
-			<Box
-				flexDirection="column"
-				borderStyle="round"
-				borderColor={done ? 'green' : 'cyan'}
-				paddingX={4}
-				paddingY={1}
-				minWidth={42}
-			>
+			<Box flexDirection="column" minWidth={42}>
 				<Box flexDirection="column" marginBottom={1}>
 					{logoLines.map((line, idx) => (
 						<Box key={idx} justifyContent="center">
 							{colorizeLine(line, idx)}
 						</Box>
 					))}
-				</Box>
-
-				<Box flexDirection="column" alignItems="center" marginBottom={1}>
-					<Text color="greenBright" bold>
-						EPIQ CLI
-					</Text>
 				</Box>
 
 				<Box justifyContent="center" marginBottom={1}>
@@ -146,17 +110,8 @@ export default function Logo({
 					<Text color="magenta">{pulseBar.slice(18)}</Text>
 				</Box>
 
-				{/* <Box justifyContent="center" marginBottom={1}>
+				<Box justifyContent="center" marginBottom={1}>
 					<Text color="gray">{percentLabel}</Text>
-				</Box> */}
-
-				<Box justifyContent="center">
-					<Text color={done ? 'greenBright' : 'yellow'} bold>
-						{spinner}
-					</Text>
-					<Text> </Text>
-					<Text color="white">{loadingMessages[messageIndex]}</Text>
-					<Text color="gray">{done ? ' complete' : '...'}</Text>
 				</Box>
 			</Box>
 		</Box>

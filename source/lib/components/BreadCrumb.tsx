@@ -49,8 +49,8 @@ export const Breadcrumb: React.FC = () => {
 
 				return (
 					<Box key={`${b.id}-${i}`}>
-						<Text color={theme.secondary}>{i ? ' / ' : ''}</Text>
-						<Text color={theme.secondary}>{b.title ?? ''}</Text>
+						<Text color={theme.secondary2}>{i ? ' / ' : ''}</Text>
+						<Text color={theme.secondary2}>{b.title ?? ''}</Text>
 
 						{selectedChildTitle ? (
 							<Text color={theme.primary}>{` ▸ ${selectedChildTitle}`}</Text>

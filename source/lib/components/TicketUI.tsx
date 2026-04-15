@@ -111,13 +111,13 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			child.title === 'Assignees' ||
 			child.title === 'Tags' ||
 			child.id === logNodeId
-				? count + 1
+				? ++count
 				: count,
 		0,
 	);
 
 	const spacing = 2;
-	const fieldListsHeight = fieldCount * 2;
+	const fieldListsHeight = fieldCount * 1;
 	const commandPromptHeight = 3;
 	const editorHeight =
 		height - commandPromptHeight - fieldListsHeight - spacing;
@@ -143,7 +143,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 					<CursorUI isSelected={selected}></CursorUI>
 					<Text
 						backgroundColor={theme.secondary}
-						color={selected ? theme.accent : theme.secondary}
+						color={selected ? theme.accent : theme.primary}
 					>
 						{' ' + 'History ››' + ' '}
 					</Text>

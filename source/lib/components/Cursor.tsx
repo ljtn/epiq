@@ -1,5 +1,6 @@
 import {Text} from 'ink';
 import React, {useEffect, useState} from 'react';
+import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 
 type Props = {
@@ -7,10 +8,17 @@ type Props = {
 	placeholder?: string;
 };
 
+const cursors = {
+	help: ['▸ ', '▸ ', '▸ '],
+	default: ['▸ ', '▸ ', '▸ '],
+	move: ['↑ ', '→ ', '↓ ', '← '],
+	'command-line': ['❯ ', '❯ ', '❯ '],
+} as const;
+
 export const CursorUI: React.FC<Props> = ({isSelected, placeholder = '  '}) => {
-	const frames = ['▸ ', '▸ ', '▸ '];
-	// const frames = ['⸬ ', '⸭ ', '⸬ '];
-	// const frames = ['⸬ ', '⸬ ', '⸬ '];
+	const {mode} = useAppState();
+	const frames = cursors[mode] ?? cursors.default;
+
 	const [frameIndex, setFrameIndex] = useState(frames.length - 1);
 
 	useEffect(() => {
@@ -21,7 +29,7 @@ export const CursorUI: React.FC<Props> = ({isSelected, placeholder = '  '}) => {
 		}, 800);
 
 		return () => clearInterval(interval);
-	}, [isSelected]);
+	}, [isSelected, frames]);
 
 	if (!isSelected) {
 		return <Text>{placeholder}</Text>;

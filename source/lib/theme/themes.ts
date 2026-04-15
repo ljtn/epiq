@@ -1,36 +1,34 @@
-export const colors = {
-	black: 'black',
-	red: 'red',
-	green: 'green',
-	yellow: 'yellow',
-	blue: 'blue',
-	cyan: 'cyan',
-	magenta: 'magenta',
-	white: 'white',
-	gray: 'gray',
-	grey: 'grey',
-	blackBright: 'blackBright',
-	redBright: 'redBright',
-	greenBright: 'greenBright',
-	yellowBright: 'yellowBright',
-	blueBright: 'blueBright',
-	cyanBright: 'cyanBright',
-	magentaBright: 'magentaBright',
-	whiteBright: 'whiteBright',
-} as const;
-
 export const chalkColors = {
-	cyan: '#7DCFFF',
-	cyanSoft: '#89DDFF',
-	gray: '#C0CAF5',
-	grayLight: '#9AA5CE',
-	grayDark: '#565F89',
-	blue: '#486aff',
+	// Base
+	bg: '#1a1b26',
+	fg: '#c0caf5',
+
+	// Grays
+	grayDark: '#2f344d',
+	gray: '#565f89',
+	grayLight: '#858999',
+
+	// Accents
+	cyan: '#7dcfff',
+	cyanSoft: '#89ddff',
+
+	blue: '#7aa2f7',
+
+	magenta: '#be85d3',
+	magentaSoft: '#c0a6ff',
+
+	// Semantic
+	green: '#9ece6a',
+	yellow: '#e0af68',
+	red: '#f7768e',
+
+	white: '#ffffff',
 } as const;
 
 export const theme = {
-	accent: colors.cyan,
-	accent2: colors.magenta,
-	primary: colors.white,
-	secondary: colors.gray,
+	accent: chalkColors.cyan,
+	accent2: chalkColors.magenta,
+	primary: chalkColors.white,
+	secondary: chalkColors.grayDark,
+	secondary2: chalkColors.grayLight,
 };

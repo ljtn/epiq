@@ -12,7 +12,7 @@ import {CursorUI} from './Cursor.js';
 import {getTagColor} from './Tag.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
-	str.length >= width ? str.slice(0, width - 3) + '...' : str;
+	str.length >= width ? str.slice(0, width) + '...' : str;
 
 type Props = {
 	index: number;

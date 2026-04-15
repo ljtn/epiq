@@ -28,7 +28,7 @@ meow(
 let width = process.stdout.columns || 120;
 let height = process.stdout.rows || 20;
 const FIRST_LOAD_DURATION_MS = 5_000;
-const SUBSEQUENT_LOAD_MAX_MS = 0;
+const SUBSEQUENT_LOAD_MAX_MS = 600;
 
 let ink: ReturnType<typeof render> | null = null;
 
@@ -45,13 +45,13 @@ function renderApp() {
 	ink.rerender(<App width={width} height={height} />);
 }
 
-function renderLoader() {
+function renderLoader(loadTime: number) {
 	if (!ink) {
-		ink = render(<Logo durationMs={2_000} />);
+		ink = render(<Logo durationMs={loadTime} />);
 		return;
 	}
 
-	ink.rerender(<Logo durationMs={2_000} />);
+	ink.rerender(<Logo durationMs={loadTime} />);
 }
 
 async function bootApp() {
@@ -64,7 +64,7 @@ async function bootApp() {
 		: SUBSEQUENT_LOAD_MAX_MS;
 
 	if (loaderDurationMs > 0) {
-		renderLoader();
+		renderLoader(loaderDurationMs);
 	}
 
 	const startedAt = Date.now();

@@ -66,7 +66,7 @@ export default function SettingsUI({
 			rowGap={1}
 		>
 			<Text color={theme.accent} bold>
-				Welcome! 🚀
+				Welcome! 🔹
 			</Text>
 
 			{!isComplete && (
