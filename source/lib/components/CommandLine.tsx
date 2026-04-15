@@ -213,7 +213,10 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 				<Box>
 					<Text>{fullLine}</Text>
 					{infoMessage && (
-						<Text color={commandIsPending ? 'red' : theme.secondary}>
+						<Text
+							wrap="truncate"
+							color={commandIsPending ? 'red' : theme.secondary}
+						>
 							{` ${infoMessage} `}
 						</Text>
 					)}

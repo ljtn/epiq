@@ -3,19 +3,20 @@ export const chalkColors = {
 	bg: '#1a1b26',
 	fg: '#c0caf5',
 
-	// Grays
+	// Grays (cool, blue-leaning, evenly spaced)
 	grayDark: '#2f344d',
-	gray: '#565f89',
-	grayLight: '#858999',
+	gray: '#4c567a',
+	grayLight: '#7f8bb3',
 
-	// Accents
+	// Accents (slightly shifted toward blue)
 	cyan: '#7dcfff',
 	cyanSoft: '#89ddff',
 
 	blue: '#7aa2f7',
 
-	magenta: '#be85d3',
-	magentaSoft: '#c0a6ff',
+	// Less purple, more blue-violet
+	magenta: '#9d7cd8',
+	magentaSoft: '#a890e8',
 
 	// Semantic
 	green: '#9ece6a',

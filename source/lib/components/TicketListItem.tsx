@@ -54,7 +54,7 @@ export const TicketListItemUI: React.FC<{
 	ticket: Ticket;
 	isSelected: boolean;
 }> = ({width, ticket, isSelected}) => {
-	const contentWidth = width - 12;
+	const contentWidth = width - 14;
 
 	const title = truncateWithEllipsis(
 		sanitizeInlineText(ticket.title),
@@ -85,7 +85,7 @@ export const TicketListItemUI: React.FC<{
 	return (
 		<Box
 			borderStyle="round"
-			width={width - 6}
+			width={width - 7}
 			height={4}
 			flexDirection="column"
 			borderColor={isSelected ? theme.accent : theme.secondary}

@@ -1,9 +1,9 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
+import {AppState} from '../model/app-state.model.js';
 import {theme} from '../theme/themes.js';
 import {CommandLine} from './CommandLine.js';
-import {AppState} from '../model/app-state.model.js';
 
 interface Props {
 	width: number;
@@ -12,6 +12,19 @@ interface Props {
 }
 
 export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
+	const clampedHints: string[] = [];
+	let usedWidth = 0;
+
+	for (const hint of availableHints) {
+		const separator = clampedHints.length > 0 ? ' | ' : '';
+		const nextWidth = separator.length + hint.length;
+
+		if (usedWidth + nextWidth > width + 2) break;
+
+		clampedHints.push(hint);
+		usedWidth += nextWidth;
+	}
+
 	return (
 		<Box>
 			{mode === Mode.COMMAND_LINE ? (
@@ -25,10 +38,9 @@ export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
 					width={width}
 				>
 					<Box flexDirection="row">
-						{/* <Text color={theme.secondary}>{hasHints ? '💡 Hints:' : ' '}</Text> */}
-						{availableHints.map((hint, index) => (
+						{clampedHints.map((hint, index) => (
 							<Text key={hint} color={theme.secondary}>
-								{(index ? ' | ' : '') + hint}
+								{(index > 0 ? ' | ' : '') + hint}
 							</Text>
 						))}
 						<Text> </Text>

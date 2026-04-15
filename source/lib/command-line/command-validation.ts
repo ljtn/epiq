@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import {Filter} from '../model/app-state.model.js';
 import {getState} from '../state/state.js';
 import {getGradientWord, getWordGradientPosition} from '../utils/color.js';
@@ -68,9 +67,7 @@ const buildHint = ({
 	const hintOptions = sortedByGradient.slice(0, noOfHints).map(getGradientWord);
 
 	const optionsStr = hintOptions.length > 1 ? hintOptions.join(' ') : '';
-	return optionsStr
-		? `${chalk.dim(prefix)}${optionsStr}${chalk.dim(postfix)}`
-		: '';
+	return optionsStr ? `${prefix}${optionsStr}${postfix}` : '';
 };
 
 const alwaysSucceed: Validator = () => valid();

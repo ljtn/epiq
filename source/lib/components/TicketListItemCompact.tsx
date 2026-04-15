@@ -81,10 +81,10 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 					isSelected={isSelected}
 					placeholder={chalk.dim.gray(index + 1 + ' ')}
 				></CursorUI>
-				<Text color={color}>
+				<Text wrap="truncate" color={color}>
 					{truncateWithEllipsis(
 						ticket.title,
-						width - tagsWidth - assigneesWidth - 15,
+						width - tagsWidth - assigneesWidth - 14,
 					)}
 				</Text>
 			</Box>
