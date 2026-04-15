@@ -6,6 +6,7 @@ import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
+import chalk from 'chalk';
 
 export function getBootNavigationTarget() {
 	const workspace = Object.values(getState().nodes).find(
@@ -77,15 +78,11 @@ export function createDefaultEvents(): readonly AppEvent[] {
 		},
 		{
 			action: 'lock.node',
-			payload: {
-				id: CLOSED_BOARD_ID,
-			},
+			payload: {id: CLOSED_BOARD_ID},
 		},
 		{
 			action: 'lock.node',
-			payload: {
-				id: CLOSED_SWIMLANE_ID,
-			},
+			payload: {id: CLOSED_SWIMLANE_ID},
 		},
 	] as const satisfies readonly AppEvent[];
 }
@@ -99,9 +96,14 @@ export function bootStateFromEventLog(eventLog: AppEvent[]) {
 	const failures = results.filter(isFail);
 	if (failures.length > 0) {
 		throw new Error(
-			`Failed to materialize events on boot: ${failures
-				.map((x, index) => 'index: ' + index + ', data:' + JSON.stringify(x))
-				.join(', ')}`,
+			[
+				chalk.bold.red('Materializing failed'),
+				'',
+				...failures.map(
+					(x, i) => `${chalk.dim.gray(`${i + 1}.`)} ${chalk.dim(x.message)}`,
+				),
+				'\n',
+			].join('\n'),
 		);
 	}
 

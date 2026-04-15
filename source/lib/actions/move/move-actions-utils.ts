@@ -12,10 +12,12 @@ import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 
-let pendingMoveState: AppEvent | null = null;
-export const getMovePendingState = (): AppEvent | null =>
+let pendingMoveState: AppEvent<'move.node'> | null = null;
+
+export const getMovePendingState = (): AppEvent<'move.node'> | null =>
 	structuredClone(pendingMoveState);
-export const setMovePendingState = (state: AppEvent | null) =>
+
+export const setMovePendingState = (state: AppEvent<'move.node'> | null) =>
 	(pendingMoveState = state);
 
 const getSelectedChild = ():
@@ -54,8 +56,13 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 			pos: {at: 'end'},
 		},
 	});
+
 	if (!pendingMoveState) return failed('Could not materialize move state');
-	return materialize(pendingMoveState);
+
+	const materializedResult = materialize(pendingMoveState);
+	if (isFail(materializedResult)) return materializedResult;
+
+	return succeeded('Node moved successfully', materializedResult.data);
 }
 
 export function moveChildWithinParent(direction: -1 | 1) {
@@ -79,6 +86,11 @@ export function moveChildWithinParent(direction: -1 | 1) {
 			},
 		},
 	});
+
 	if (!pendingMoveState) return failed('Could not materialize move state');
-	return materialize(pendingMoveState);
+
+	const materializedResult = materialize(pendingMoveState);
+	if (isFail(materializedResult)) return materializedResult;
+
+	return succeeded('Node moved successfully', materializedResult.data);
 }

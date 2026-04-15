@@ -32,3 +32,6 @@ export const sanitizeInlineText = (value: unknown): string => {
 		.replace(/\s+/g, ' ')
 		.trim();
 };
+
+export const capitalize = (str: string) =>
+	str.charAt(0).toUpperCase() + str.slice(1);

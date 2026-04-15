@@ -10,7 +10,7 @@ import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {setConfig} from '../config/epiq-config.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
+import {isTicketNode} from '../model/context.model.js';
 import {getCmdArg, getCmdState} from '../state/cmd.state.js';
 import {patchSettingsState} from '../state/settings.state.js';
 import {
@@ -20,6 +20,7 @@ import {
 	updateState,
 } from '../state/state.js';
 import {CmdIntent} from './command-meta.js';
+import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeywords,
 	cmdResult,
@@ -29,8 +30,6 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
-import {getCmdModifiers} from './command-modifiers.js';
-import {isTicketNode} from '../model/context.model.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -206,7 +205,7 @@ export const commands: CommandLineActionEntry[] = [
 				const result = materializeAndPersist(event);
 				if (isFail(result)) return result;
 
-				const createdNode = nodeRepo.getNode(result.data.id);
+				const createdNode = nodeRepo.getNode(result.data.result.id);
 				if (!createdNode) return failed('Created node not found');
 
 				if (!createdNode.parentNodeId) return result;
@@ -269,16 +268,13 @@ export const commands: CommandLineActionEntry[] = [
 
 				const issueResults = materializeAndPersistAll(issueEvents);
 
-				if (
-					issueResults.some(x =>
-						isFail<NavNode<'TICKET'> | NavNode<'FIELD'>>(x),
-					)
-				) {
+				if (issueResults.some(x => isFail(x))) {
 					return failed(
 						'Issue create failed: ' +
 							issueResults
-								.filter(x => isFail<NavNode<'TICKET'> | NavNode<'FIELD'>>(x))
+								.filter(isFail)
 								.map(r => r.message)
+								.filter(Boolean)
 								.join(', '),
 					);
 				}
@@ -290,8 +286,8 @@ export const commands: CommandLineActionEntry[] = [
 				navigationUtils.navigate({
 					currentNode: swimlaneResult.data,
 					selectedIndex: nodeRepo
-						.getSiblings(issueResult.data.parentNodeId!)
-						.findIndex(({id}) => id === issueResult.data.id),
+						.getSiblings(issueResult.data.result.parentNodeId!)
+						.findIndex(({id}) => id === issueResult.data.result.id),
 				});
 			}
 
@@ -337,7 +333,6 @@ export const commands: CommandLineActionEntry[] = [
 				action: 'edit.title',
 				payload: {id: node.id, val: newName},
 			});
-			logger.debug(result);
 			return result;
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -376,7 +371,7 @@ export const commands: CommandLineActionEntry[] = [
 				});
 
 				if (isFail(createResult)) return createResult;
-				tagId = createResult.data.id;
+				tagId = createResult.data.result.id;
 			}
 
 			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
@@ -433,7 +428,7 @@ export const commands: CommandLineActionEntry[] = [
 				});
 
 				if (isFail(createResult)) return createResult;
-				contributorId = createResult.data.id;
+				contributorId = createResult.data.result.id;
 			}
 
 			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');

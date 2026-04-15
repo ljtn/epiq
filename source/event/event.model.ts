@@ -48,7 +48,7 @@ export type AppEventMap = {
 
 	'edit.title': {
 		payload: PayloadBase & {val: string};
-		result: string;
+		result: NavNode<AnyContext>;
 	};
 
 	'delete.node': {
@@ -87,7 +87,7 @@ export type AppEventMap = {
 			parent: string;
 			pos?: MovePosition;
 		};
-		result: string;
+		result: NavNode<AnyContext>;
 	};
 
 	'edit.description': {
@@ -109,7 +109,6 @@ export type AppEventMap = {
 		result: {id: string};
 	};
 };
-
 export type EventAction = keyof AppEventMap;
 
 export type AppEvent<A extends EventAction = EventAction> =
@@ -121,6 +120,6 @@ export type AppEvent<A extends EventAction = EventAction> =
 		: never;
 
 export type MaterializeResult<A extends EventAction> = Result<{
-	event: EventAction;
+	action: A;
 	result: AppEventMap[A]['result'];
 }>;

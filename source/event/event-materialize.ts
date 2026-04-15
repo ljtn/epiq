@@ -1,9 +1,4 @@
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {isTicketNode} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
@@ -16,53 +11,113 @@ type MaterializeHandlers = {
 	[A in EventAction]: (event: AppEvent<A>) => MaterializeResult<A>;
 };
 
+export type MaterializeResults<T extends readonly AppEvent[]> = {
+	[K in keyof T]: T[K] extends AppEvent<infer A> ? MaterializeResult<A> : never;
+};
+
+const materializeFail = <A extends EventAction>(
+	msg: string,
+	action: A,
+): MaterializeResult<A> =>
+	failed(`${action.split('.').join(' ') + ' failed, ' + msg.toLowerCase()}`);
+
 const materializeHandlers: MaterializeHandlers = {
-	'init.workspace': event => {
-		const {id, name} = event.payload;
+	'init.workspace': ({action, payload}) => {
+		const {id, name} = payload;
 		const workspace = nodes.workspace(id, name);
 		initWorkspaceState(workspace);
+
 		const result = nodeRepo.createNodeAtPosition(workspace);
-		if (!isFail(result)) return result;
-		return succeeded('Workspace initialized', workspace);
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Failed to initialize workspace',
+				action,
+			);
+		}
+
+		return succeeded('Workspace initialized', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'add.workspace': event => {
-		const {id, name} = event.payload;
+	'add.workspace': ({action, payload}) => {
+		const {id, name} = payload;
 		const workspace = nodes.workspace(id, name);
+
 		const result = nodeRepo.createNodeAtPosition(workspace);
-		if (!isFail(result)) return result;
-		return succeeded('Added workspace', workspace);
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Failed to add workspace',
+				action,
+			);
+		}
+
+		return succeeded('Added workspace', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'add.board': event => {
-		const {id, name, parent: parentId} = event.payload;
+	'add.board': ({action, payload}) => {
+		const {id, name, parent: parentId} = payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.board(id, name, parentId),
 		);
-		if (isFail(result)) return failed('Unable to create board');
-		return succeeded('Added board', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to create board',
+				action,
+			);
+		}
+
+		return succeeded('Added board', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'add.swimlane': event => {
-		const {id, name, parent: parentId} = event.payload;
+	'add.swimlane': ({action, payload}) => {
+		const {id, name, parent: parentId} = payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.swimlane(id, name, parentId),
 		);
-		if (isFail(result)) return failed('Unable to create swimlane');
-		return succeeded('Added swimlane', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to create swimlane',
+				action,
+			);
+		}
+
+		return succeeded('Added swimlane', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'add.issue': event => {
-		const {id, name, parent: parentId} = event.payload;
+	'add.issue': ({action, payload}) => {
+		const {id, name, parent: parentId} = payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.ticket(id, name, parentId),
 		);
-		if (isFail(result)) return failed('Unable to create issue');
-		return succeeded('Added issue', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to create issue',
+				action,
+			);
+		}
+
+		return succeeded('Added issue', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'add.field': event => {
-		const {id, name, parent: parentId, val: value} = event.payload;
+	'add.field': ({action, payload}) => {
+		const {id, name, parent: parentId, val: value} = payload;
 		const result = nodeRepo.createNodeAtPosition(
 			nodes.field(
 				id,
@@ -72,76 +127,159 @@ const materializeHandlers: MaterializeHandlers = {
 				name.includes('Description') ? 'vertical' : 'horizontal',
 			),
 		);
-		if (isFail(result)) return failed(`Unable to create field: ${name}`);
-		return succeeded('Added field', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? `Unable to create field: ${name}`,
+				action,
+			);
+		}
+
+		return succeeded('Added field', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'edit.title': event => {
-		const {id, val: value} = event.payload;
+	'edit.title': ({action, payload}) => {
+		const {id, val: value} = payload;
 		const node = nodeRepo.getNode(id);
-		if (!node) return failed('Unable to locate node');
+		if (!node) return materializeFail('Unable to locate node', action);
 
 		const result = nodeRepo.renameNode(id, value);
-		if (isFail(result)) return result;
-		return succeeded('Edited title', value);
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to edit title', action);
+		}
+
+		return succeeded('Edited title', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'delete.node': event => {
-		const {id} = event.payload;
+	'delete.node': ({action, payload}) => {
+		const {id} = payload;
 		const result = nodeRepo.tombstoneNode(id);
-		if (!isFail(result)) return result;
-		return succeeded('Deleted node', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to delete node', action);
+		}
+
+		return succeeded('Deleted node', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'create.tag': event => {
-		const {id, name} = event.payload;
+	'create.tag': ({action, payload}) => {
+		const {id, name} = payload;
 		const result = nodeRepo.createTag({id, name});
-		if (!isFail(result)) return result;
-		return succeeded('Tag added', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to create tag', action);
+		}
+
+		return succeeded('Tag added', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'create.contributor': event => {
-		const {id, name} = event.payload;
+	'create.contributor': ({action, payload}) => {
+		const {id, name} = payload;
 		const result = nodeRepo.createContributor({id, name});
-		if (!isFail(result)) return result;
-		return succeeded('Contributor created', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to create contributor',
+				action,
+			);
+		}
+
+		return succeeded('Contributor created', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'tag.issue': event => {
-		const {id, target: targetId, tagId} = event.payload;
+	'tag.issue': ({action, payload}) => {
+		const {id, target: targetId, tagId} = payload;
 		const tagged = nodeRepo.tag(targetId, tagId, id);
-		if (isFail(tagged)) return tagged;
-		return succeeded('Issue tagged', tagged.data);
+
+		if (isFail(tagged)) {
+			return materializeFail(tagged.message ?? 'Unable to tag issue', action);
+		}
+
+		return succeeded('Issue tagged', {
+			action,
+			result: tagged.data,
+		});
 	},
 
-	'assign.issue': event => {
-		const {id, contributor: contributorId, target: targetId} = event.payload;
-		const assigned = nodeRepo.assign(targetId, contributorId, id);
-		if (isFail(assigned)) return assigned;
-		return succeeded('Assigned successfully', assigned.data);
+	'assign.issue': ({action, payload}) => {
+		const {id, contributor: contributorId, target: targetId} = payload;
+		const result = nodeRepo.assign(targetId, contributorId, id);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to assign issue',
+				action,
+			);
+		}
+
+		return succeeded('Assigned successfully', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'move.node': event => {
-		const {id, parent: parentId, pos: position} = event.payload;
-		const moved = nodeRepo.moveNode({id, parentId, position});
-		if (isFail(moved)) return failed('Failed to move node');
-		return succeeded('Moved node', moved.data.id);
+	'move.node': ({action, payload}) => {
+		const {id, parent: parentId, pos: position} = payload;
+		const result = nodeRepo.moveNode({id, parentId, position});
+
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Failed to move node', action);
+		}
+
+		return succeeded('Moved node', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'edit.description': event => {
-		const {id, md} = event.payload;
+	'edit.description': ({action, payload}) => {
+		const {id, md} = payload;
 		const result = nodeRepo.editValue(id, md);
-		if (isFail(result)) return result;
-		return succeeded('Set node value', result.data);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to edit description',
+				action,
+			);
+		}
+
+		return succeeded('Set node value', {
+			action,
+			result: result.data,
+		});
 	},
 
-	'close.issue': event => {
-		const {id} = event.payload;
+	'close.issue': ({action, payload}) => {
+		const {id} = payload;
 		const node = nodeRepo.getNode(id);
+		if (!node) return materializeFail('Unable to locate issue', action);
+		if (!isTicketNode(node))
+			return materializeFail('Can only close issues', action);
+
 		const closeSwimlane = nodeRepo.getNode(CLOSED_SWIMLANE_ID);
-		if (!closeSwimlane) return failed('Unable to locate target swimlane');
-		const isClosed = closeSwimlane.id === node?.parentNodeId;
-		if (isClosed) return failed('Cannot close closed issue');
+		if (!closeSwimlane) {
+			return materializeFail('Unable to locate target swimlane', action);
+		}
+
+		const isClosed = closeSwimlane.id === node.parentNodeId;
+		if (isClosed) {
+			return materializeFail('Cannot close closed issue', action);
+		}
 
 		const result = nodeRepo.moveNode({
 			id,
@@ -149,34 +287,50 @@ const materializeHandlers: MaterializeHandlers = {
 			navigate: false,
 		});
 
-		if (isFail(result)) return result;
-		return succeeded('Issue closed', {id: result.data.id});
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to close issue', action);
+		}
+
+		return succeeded('Issue closed', {
+			action,
+			result: result.data,
+		});
 	},
-	'reopen.issue': event => {
-		const {id} = event.payload;
+
+	'reopen.issue': ({action, payload}) => {
+		const {id} = payload;
 		const node = nodeRepo.getNode(id);
 
-		if (!node) return failed('Unable to locate issue');
-		if (!isTicketNode(node)) return failed('Can only reopen issues');
+		if (!node) return materializeFail('Unable to locate issue', action);
+		if (!isTicketNode(node))
+			return materializeFail('Can only reopen issues', action);
 
 		const closeSwimlane = nodeRepo.getNode(CLOSED_SWIMLANE_ID);
-		if (!closeSwimlane) return failed('Unable to locate closed swimlane');
+		if (!closeSwimlane) {
+			return materializeFail('Unable to locate closed swimlane', action);
+		}
 
 		const isClosed = node.parentNodeId === closeSwimlane.id;
-		if (!isClosed) return failed('Issue is not closed');
+		if (!isClosed) return materializeFail('Issue is not closed', action);
 
 		const previousParentId = resolveReopenParentFromLog(node);
 		if (!previousParentId) {
-			return failed('Unable to resolve previous parent from issue history');
+			return materializeFail(
+				'Unable to resolve previous parent from issue history',
+				action,
+			);
 		}
 
 		if (previousParentId === closeSwimlane.id) {
-			return failed('Previous parent resolves to closed swimlane');
+			return materializeFail(
+				'Previous parent resolves to closed swimlane',
+				action,
+			);
 		}
 
 		const previousParent = nodeRepo.getNode(previousParentId);
 		if (!previousParent) {
-			return failed('Previous parent no longer exists');
+			return materializeFail('Previous parent no longer exists', action);
 		}
 
 		const result = nodeRepo.moveNode({
@@ -185,20 +339,32 @@ const materializeHandlers: MaterializeHandlers = {
 			navigate: false,
 		});
 
-		if (isFail(result)) return result;
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to reopen issue',
+				action,
+			);
+		}
 
-		return succeeded('Issue reopened', {id: result.data.id});
+		return succeeded('Issue reopened', {
+			action,
+			result: result.data,
+		});
 	},
-	'lock.node': event => {
-		const {id} = event.payload;
+
+	'lock.node': ({action, payload}) => {
+		const {id} = payload;
 		const result = nodeRepo.lockNode(id);
-		if (isFail(result)) return result;
-		return succeeded('Node locked', result.data);
-	},
-};
 
-export type MaterializeResults<T extends readonly AppEvent[]> = {
-	[K in keyof T]: T[K] extends AppEvent<infer A> ? MaterializeResult<A> : never;
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to lock node', action);
+		}
+
+		return succeeded('Node locked', {
+			action,
+			result: result.data,
+		});
+	},
 };
 
 const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
@@ -226,16 +392,14 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'close.issue':
 		case 'reopen.issue':
 		case 'edit.description':
-		case 'create.tag':
-		case 'create.contributor':
 			return [event.payload.id];
 
 		case 'tag.issue':
-			return [event.payload.id, event.payload.target];
-
 		case 'assign.issue':
 			return [event.payload.id, event.payload.target];
 
+		case 'create.tag':
+		case 'create.contributor':
 		default:
 			return [];
 	}
@@ -243,7 +407,7 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 
 export function materialize<A extends EventAction>(
 	event: AppEvent<A>,
-): {action: EventAction; result: Result<EventAction>} {
+): MaterializeResult<A> {
 	const handler = materializeHandlers[event.action] as (
 		event: AppEvent<A>,
 	) => MaterializeResult<A>;
@@ -257,7 +421,7 @@ export function materialize<A extends EventAction>(
 		}
 	}
 
-	return succeeded('Event materialized', {action: event.action, result});
+	return result;
 }
 
 export const materializeAll = <const T extends readonly AppEvent[]>(

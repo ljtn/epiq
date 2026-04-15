@@ -1,28 +1,31 @@
-import {cmdResult, failed} from '../lib/command-line/command-types.js';
-import {materialize, MaterializeResults} from './event-materialize.js';
+import {cmdResult, isFail} from '../lib/command-line/command-types.js';
+import {materialize} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 
 export function materializeAndPersist<A extends EventAction>(
 	event: AppEvent<A>,
 ): MaterializeResult<A> {
-	const materializeResult = materialize(event);
-	if (materializeResult.result !== cmdResult.Success) {
-		return materializeResult;
+	const materialized = materialize(event);
+
+	if (materialized.result !== cmdResult.Success) {
+		return materialized;
 	}
 
 	const persistResult = persist(event);
-	if (persistResult.result !== cmdResult.Success) {
-		return failed(persistResult.message ?? 'Failed to persist event');
-	}
+	if (isFail(persistResult)) return persistResult;
 
-	return materializeResult;
+	return materialized;
 }
 
 export function materializeAndPersistAll<const T extends readonly AppEvent[]>(
 	events: T,
-): MaterializeResults<T> {
-	return events.map(event =>
-		materializeAndPersist(event),
-	) as MaterializeResults<T>;
+): {
+	[K in keyof T]: T[K] extends AppEvent<infer A> ? MaterializeResult<A> : never;
+} {
+	return events.map(event => materializeAndPersist(event)) as {
+		[K in keyof T]: T[K] extends AppEvent<infer A>
+			? MaterializeResult<A>
+			: never;
+	};
 }

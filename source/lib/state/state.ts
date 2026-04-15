@@ -125,9 +125,10 @@ export function initWorkspaceState(workspace: Workspace) {
 	};
 
 	const deriveResult = derive(base);
-	if (isFail(deriveResult)) return logger.error(deriveResult.message);
+	if (isFail(deriveResult)) return deriveResult;
 	_appState = deriveResult.data;
 	emit();
+	return succeeded('State initialized', null);
 }
 
 /**
@@ -138,7 +139,8 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	const prev = getState();
 	const nextBase = cb(prev);
 	const deriveResult = derive(nextBase);
-	if (isFail(deriveResult)) return failed(deriveResult.message);
+	if (isFail(deriveResult))
+		return failed(deriveResult.message ?? 'Unable to update state');
 	_appState = deriveResult.data;
 	emit();
 	return succeeded('State updated', null);

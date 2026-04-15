@@ -416,7 +416,7 @@ export const nodeRepo = {
 				[id]: updatedNode,
 			},
 		}));
-		if (!isFail(result)) return failed(result.data);
+		if (isFail(result)) return failed(result.message);
 
 		return succeeded('Locked node', updatedNode);
 	},
