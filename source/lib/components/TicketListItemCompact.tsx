@@ -86,6 +86,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 						ticket.title,
 						width - tagsWidth - assigneesWidth - 14,
 					)}
+					v
 				</Text>
 			</Box>
 
