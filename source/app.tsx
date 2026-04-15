@@ -25,13 +25,13 @@ export default function App({width, height}: AppProps) {
 	const isConfigured = hasUserName && hasPreferredEditor;
 	const filters = useAppState().filters;
 
-	// const isSetupMode = !settings.userName || !settings.preferredEditor;
+	const isSetupMode = !settings.userName || !settings.preferredEditor;
 
 	if (!isConfigured) {
 		return (
 			<Box flexDirection="column">
 				<Box flexDirection="column">
-					<HeaderBar hideBreadCrumb={true} filters={filters}></HeaderBar>
+					<HeaderBar hideBreadCrumb={isSetupMode} filters={filters}></HeaderBar>
 					<SettingsUI
 						height={height}
 						width={width}
