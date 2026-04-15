@@ -5,6 +5,7 @@ import {
 	materializeAndPersistAll,
 } from '../../event/event-materialize-and-persist.js';
 import {AppEvent} from '../../event/event.model.js';
+import {resolveActorId} from '../../event/event-persist.js';
 import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {setConfig} from '../config/epiq-config.js';
@@ -39,6 +40,8 @@ const findContributorByName = (name: string) =>
 		contributor => contributor.name === name,
 	);
 
+const getUserId = () => resolveActorId();
+
 export const commands: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.Delete,
@@ -49,6 +52,8 @@ export const commands: CommandLineActionEntry[] = [
 			if (!child) return failed('Unable to resolve child to delete');
 
 			return materializeAndPersist({
+				id: ulid(),
+				userId: getUserId(),
 				action: 'delete.node',
 				payload: {
 					id: child.id,
@@ -62,7 +67,7 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: () => {
 			const {modifier, inputString} = getCmdState().commandMeta;
-			const regex = /(!=|=)/; // Matches "=" and "!="
+			const regex = /(!=|=)/;
 			const [filterTarget, _filterOperator] = modifier.split(regex);
 			const isValidModifier = (val: string): val is Filter['target'] =>
 				getCmdModifiers(CmdKeywords.FILTER)
@@ -71,16 +76,19 @@ export const commands: CommandLineActionEntry[] = [
 
 			if (!filterTarget || !isValidModifier(filterTarget))
 				return failed('Invalid filter modifier');
+
 			const filter: Filter = {
 				target: filterTarget,
 				operator: '=',
 				value: inputString.trim(),
 			};
+
 			updateState(s => ({
 				...s,
 				filters: modifier === 'clear' ? [] : [...s.filters, filter],
 				mode: Mode.DEFAULT,
 			}));
+
 			return succeeded('Viewing help', null);
 		},
 	},
@@ -103,10 +111,14 @@ export const commands: CommandLineActionEntry[] = [
 			if (!isTicketNode(target)) {
 				return failed('Cannot close in this context');
 			}
+
 			const result = materializeAndPersist({
+				id: ulid(),
+				userId: getUserId(),
 				action: 'close.issue',
 				payload: {id: target.id, parent: target.parentNodeId},
 			});
+
 			if (isFail(result)) return result;
 			return succeeded('Viewing help', null);
 		},
@@ -132,6 +144,8 @@ export const commands: CommandLineActionEntry[] = [
 			const ticket = ticketResult.data;
 
 			const result = materializeAndPersist({
+				id: ulid(),
+				userId: getUserId(),
 				action: 'reopen.issue',
 				payload: {id: ticket.id},
 			});
@@ -142,7 +156,6 @@ export const commands: CommandLineActionEntry[] = [
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
-
 	{
 		intent: CmdIntent.SetUserName,
 		mode: Mode.COMMAND_LINE,
@@ -229,6 +242,8 @@ export const commands: CommandLineActionEntry[] = [
 				if (!workspace) return failed('Workspace not found');
 
 				return createAndNavigate({
+					id: ulid(),
+					userId: getUserId(),
 					action: 'add.board',
 					payload: {
 						id: ulid(),
@@ -244,6 +259,8 @@ export const commands: CommandLineActionEntry[] = [
 					return failed('Unable to add swimlane in this context');
 
 				return createAndNavigate({
+					id: ulid(),
+					userId: getUserId(),
 					action: 'add.swimlane',
 					payload: {
 						id: ulid(),
@@ -264,6 +281,7 @@ export const commands: CommandLineActionEntry[] = [
 				const issueEvents = createIssueEvents({
 					name: cmdState.inputString,
 					parent: swimlaneResult.data.id,
+					userId: getUserId(),
 				});
 
 				const issueResults = materializeAndPersistAll(issueEvents);
@@ -285,12 +303,15 @@ export const commands: CommandLineActionEntry[] = [
 
 				const ticketId = issueEvents[0]?.payload.id;
 				if (!ticketId) return failed('Unable to determine ticket id');
+
 				navigationUtils.navigate({
 					currentNode: swimlaneResult.data,
 					selectedIndex: nodeRepo
 						.getSiblings(swimlaneResult.data.id)
 						.findIndex(({id}) => id === ticketId),
 				});
+
+				return succeeded('Issue created', null);
 			}
 
 			return noResult();
@@ -331,11 +352,12 @@ export const commands: CommandLineActionEntry[] = [
 			const newName = getCmdArg();
 			if (!newName) return failed('Provide a new name');
 
-			const result = materializeAndPersist({
+			return materializeAndPersist({
+				id: ulid(),
+				userId: getUserId(),
 				action: 'edit.title',
 				payload: {id: node.id, val: newName},
 			});
-			return result;
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -365,6 +387,8 @@ export const commands: CommandLineActionEntry[] = [
 			} else {
 				const newTagId = ulid();
 				const createResult = materializeAndPersist({
+					id: ulid(),
+					userId: getUserId(),
 					action: 'create.tag',
 					payload: {
 						id: newTagId,
@@ -386,6 +410,8 @@ export const commands: CommandLineActionEntry[] = [
 			if (alreadyTagged) return failed('Already tagged with that tag');
 
 			return materializeAndPersist({
+				id: ulid(),
+				userId: getUserId(),
 				action: 'tag.issue',
 				payload: {
 					id: ulid(),
@@ -422,6 +448,8 @@ export const commands: CommandLineActionEntry[] = [
 			} else {
 				const newContributorId = ulid();
 				const createResult = materializeAndPersist({
+					id: ulid(),
+					userId: getUserId(),
 					action: 'create.contributor',
 					payload: {
 						id: newContributorId,
@@ -443,6 +471,8 @@ export const commands: CommandLineActionEntry[] = [
 			if (alreadyAssigned) return failed('Assignee already assigned');
 
 			return materializeAndPersist({
+				id: ulid(),
+				userId: getUserId(),
 				action: 'assign.issue',
 				payload: {
 					id: ulid(),

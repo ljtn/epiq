@@ -1,5 +1,7 @@
+import {ulid} from 'ulid';
 import {openEditorOnText} from '../../../editor/editor.js';
 import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
+import {resolveActorId} from '../../../event/event-persist.js';
 import {
 	CmdKeywords,
 	failed,
@@ -130,7 +132,9 @@ export const DefaultActions: ActionEntry[] = [
 			// Here we need to trigger a reload of the description component, so row indexes are restored
 
 			return materializeAndPersist({
+				id: ulid(),
 				action: 'edit.description',
+				userId: resolveActorId(),
 				payload: {
 					id: descriptionField.id,
 					md: updatedMarkdown,

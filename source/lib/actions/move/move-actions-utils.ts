@@ -1,5 +1,6 @@
 import {materialize} from '../../../event/event-materialize.js';
 import {AppEvent} from '../../../event/event.model.js';
+import {resolveActorId} from '../../../event/event-persist.js';
 import {getOrderedChildren} from '../../../repository/rank.js';
 import {
 	failed,
@@ -11,6 +12,7 @@ import {
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
+import {ulid} from 'ulid';
 
 let pendingMoveState: AppEvent<'move.node'> | null = null;
 
@@ -49,6 +51,8 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 	if (!siblingNode) return failed('Missing sibling node');
 
 	setMovePendingState({
+		id: ulid(),
+		userId: resolveActorId(),
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,
@@ -76,6 +80,8 @@ export function moveChildWithinParent(direction: -1 | 1) {
 	if (!referenceNode) return failed('Missing sibling node');
 
 	setMovePendingState({
+		id: ulid(),
+		userId: resolveActorId(),
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,

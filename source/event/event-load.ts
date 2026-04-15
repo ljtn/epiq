@@ -6,8 +6,9 @@ import {
 	isSuccess,
 	succeeded,
 } from '../lib/command-line/command-types.js';
-import {PersistedEvent} from './event-persist.js';
+import {PersistedEvent, resolveActorId} from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
+import {ulid} from 'ulid';
 
 const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
@@ -46,8 +47,10 @@ export const fromPersistedEvent = (entry: PersistedEvent) => {
 	] as PersistedPayloadMap[typeof action];
 
 	return succeeded<AppEvent>('Decoded persisted event', {
+		id: entry.id[0] ?? ulid(),
 		action,
 		payload,
+		userId: resolveActorId(),
 	} as AppEvent);
 };
 

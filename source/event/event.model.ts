@@ -96,30 +96,70 @@ export type AppEventMap = {
 		};
 		result: {md: string};
 	};
+
 	'close.issue': {
-		payload: PayloadBase & {parent: string}; // Parent reference needed when reopening
+		payload: PayloadBase & {parent: string};
 		result: {id: string};
 	};
+
 	'reopen.issue': {
 		payload: PayloadBase;
 		result: {id: string};
 	};
+
 	'lock.node': {
 		payload: PayloadBase;
 		result: {id: string};
 	};
 };
+
 export type EventAction = keyof AppEventMap;
 
-export type AppEvent<A extends EventAction = EventAction> =
-	A extends EventAction
-		? {
-				action: A;
-				payload: AppEventMap[A]['payload'];
-		  }
-		: never;
+type StoredAppEventUnion = {
+	[A in EventAction]: {
+		action: A;
+		payload: AppEventMap[A]['payload'];
+	};
+}[EventAction];
+
+type AppEventUnion = {
+	[A in EventAction]: {
+		action: A;
+		payload: AppEventMap[A]['payload'];
+		userId: string;
+	};
+}[EventAction];
+
+export type StoredAppEvent<A extends EventAction = EventAction> = Extract<
+	StoredAppEventUnion,
+	{action: A}
+>;
+
+export type AppEvent<A extends EventAction = EventAction> = Extract<
+	AppEventUnion,
+	{action: A}
+> & {
+	id: string;
+};
 
 export type MaterializeResult<A extends EventAction> = Result<{
 	action: A;
 	result: AppEventMap[A]['result'];
 }>;
+
+export const withActor = <A extends EventAction>(
+	event: StoredAppEvent<A>,
+	userId: string,
+): AppEvent<A> =>
+	({
+		...event,
+		userId,
+	} as AppEvent<A>);
+
+export const stripActor = <A extends EventAction>(
+	event: AppEvent<A>,
+): StoredAppEvent<A> =>
+	({
+		action: event.action,
+		payload: event.payload,
+	} as StoredAppEvent<A>);

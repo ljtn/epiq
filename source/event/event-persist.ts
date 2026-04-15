@@ -3,9 +3,14 @@ import os from 'node:os';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {failed, succeeded} from '../lib/command-line/command-types.js';
-import {AppEvent, AppEventMap} from './event.model.js';
-import {getEdgeRef} from './event-load.js';
 import {getSettingsState} from '../lib/state/settings.state.js';
+import {
+	AppEvent,
+	AppEventMap,
+	stripActor,
+	StoredAppEvent,
+} from './event.model.js';
+import {getEdgeRef} from './event-load.js';
 
 const getNextId = monotonicFactory();
 
@@ -40,13 +45,12 @@ const sanitizeFilePart = (value: string) =>
 		.replace(/[^a-z0-9._-]+/g, '-')
 		.replace(/^-+|-+$/g, '') || 'unknown';
 
-const resolveActorId = () => {
+export const resolveActorId = () => {
 	const explicit = process.env['EPIQ_ACTOR_ID'];
 	if (explicit?.trim()) return sanitizeFilePart(explicit);
 
-	const envUser = getSettingsState().userName;
-
-	if (envUser?.trim()) return sanitizeFilePart(envUser);
+	const configuredUser = getSettingsState().userName;
+	if (configuredUser?.trim()) return sanitizeFilePart(configuredUser);
 
 	try {
 		return sanitizeFilePart(os.userInfo().username);
@@ -64,7 +68,7 @@ export const getEventLogPath = (rootDir = process.cwd()) => {
 };
 
 export const toPersistedEvent = (
-	event: AppEvent,
+	event: StoredAppEvent,
 	id: EventTag,
 ): PersistedEvent =>
 	({
@@ -90,7 +94,7 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 			newId = getNextId();
 		}
 
-		const entry = toPersistedEvent(event, [newId, edgeRef]);
+		const entry = toPersistedEvent(stripActor(event), [newId, edgeRef]);
 
 		fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, 'utf8');
 

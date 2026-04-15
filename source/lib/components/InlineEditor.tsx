@@ -5,21 +5,18 @@ import TerminalRenderer from 'marked-terminal';
 import React, {useEffect} from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {isSuccess} from '../command-line/command-types.js';
-import {AnyContext} from '../model/context.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
 import {nodes} from '../state/node-builder.js';
+import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {truncateWithEllipsis} from '../utils/string.utils.js';
-import {ScrollBoxUI} from './ScrollBox.js';
 import {CursorUI} from './Cursor.js';
+import {ScrollBoxUI} from './ScrollBox.js';
 
 type Props = {
 	id: string;
 	text: string;
 	height: number;
 	selected: boolean;
-	selectedIndex: number;
-	currentNode: NavNode<AnyContext>;
 	maxWidth: number;
 };
 
@@ -28,10 +25,9 @@ export const InlineEditor: React.FC<Props> = ({
 	text,
 	height,
 	selected,
-	selectedIndex,
-	currentNode,
 	maxWidth,
 }) => {
+	const {selectedIndex, currentNode} = useAppState();
 	marked.setOptions({
 		renderer: new TerminalRenderer() as any,
 	});
@@ -98,7 +94,7 @@ export const InlineEditor: React.FC<Props> = ({
 				<ScrollBoxUI
 					scrollByOne={true}
 					children={renderedItems}
-					height={height}
+					height={height - 2}
 					selectedIndex={selectedIndex}
 					itemHeight={1}
 				/>
