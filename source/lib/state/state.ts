@@ -139,8 +139,9 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	const prev = getState();
 	const nextBase = cb(prev);
 	const deriveResult = derive(nextBase);
-	if (isFail(deriveResult))
+	if (isFail(deriveResult)) {
 		return failed(deriveResult.message ?? 'Unable to update state');
+	}
 	_appState = deriveResult.data;
 	emit();
 	return succeeded('State updated', null);

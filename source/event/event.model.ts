@@ -47,7 +47,7 @@ export type AppEventMap = {
 	};
 
 	'edit.title': {
-		payload: PayloadBase & {val: string};
+		payload: PayloadBase & {name: string};
 		result: NavNode<AnyContext>;
 	};
 

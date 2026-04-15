@@ -1,18 +1,16 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo} from 'react';
+import {formatLogLine} from '../../event/format-log-utils.js';
 import {nodeRepo} from '../../repository/node-repo.js';
-import {Ticket} from '../model/context.model.js';
-import {AnyContext} from '../model/context.model.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+import {AnyContext, Ticket} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {nodes} from '../state/node-builder.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
-import {formatLogLine} from '../../event/format-log-utils.js';
-import {navigationUtils} from '../actions/default/navigation-action-utils.js';
-import chalk from 'chalk';
-import {CursorUI} from './Cursor.js';
 
 type Props = {
 	ticket: Ticket;

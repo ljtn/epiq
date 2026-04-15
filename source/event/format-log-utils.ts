@@ -1,36 +1,39 @@
 import chalk from 'chalk';
 import {decodeTime} from 'ulid';
+import stringWidth from 'string-width';
 import {timeAgo} from './date-utils.js';
-import {AppEvent} from './event.model.js';
+import {AppEvent, EventAction} from './event.model.js';
 import {capitalize} from '../lib/utils/string.utils.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../lib/state/state.js';
 import {getTagColor} from '../lib/components/Tag.js';
 
+const padVisibleEnd = (value: string, width: number): string =>
+	value + ' '.repeat(Math.max(0, width - stringWidth(value)));
+
+const padVisibleStart = (value: string, width: number): string =>
+	' '.repeat(Math.max(0, width - stringWidth(value))) + value;
+
 const formatLogAction = (action: string): string => {
 	const pretty = (() => {
-		const [verb, obj] = action.split('.');
-		if (!verb || !obj) return capitalize(action);
-
-		const pastTbl = {
-			init: 'Initialized',
-			add: 'Created',
-			edit: 'Edited',
-			delete: 'Deleted',
-			create: 'Created',
-			assign: 'Assigned',
-			tag: 'Tagged',
-			move: 'Moved',
-			close: 'Closed',
-			reopen: 'Reopened',
-			lock: 'Locked',
-		} as const;
+		const pastTbl: Partial<Record<EventAction, string>> = {
+			'add.issue': 'Created with title',
+			'assign.issue': 'Assigned to',
+			'close.issue': 'Closed',
+			'delete.node': 'Deleted',
+			'edit.title': 'Changed title to',
+			'edit.description': 'Changed description',
+			'reopen.issue': 'Reopened',
+			'tag.issue': 'Tagged with',
+			'lock.node': 'Locked node',
+			'move.node': 'Moved issue to',
+		};
 
 		const toPast = (value: string): string =>
 			pastTbl[value as keyof typeof pastTbl] ??
 			(value.endsWith('e') ? `${value}d` : `${value}ed`);
 
-		return toPast(verb);
+		return toPast(action);
 	})();
 
 	return pretty;
@@ -40,20 +43,20 @@ const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
 		case 'move.node': {
 			const parent = nodeRepo.getNode(event.payload.parent);
-			return parent ? `to ${chalk.bgBlack(` ${parent.title} `)}` : 'to unknown';
+			return parent ? `${chalk.bgBlack(` ${parent.title} `)}` : 'to unknown';
 		}
 
 		case 'tag.issue': {
 			const tag = getState().tags[event.payload.tagId];
 			return tag
-				? `${chalk.bgHex(getTagColor(tag.name))(` ${tag.name} `)}`
+				? chalk.bgHex(getTagColor(tag.name))(` ${tag.name} `)
 				: 'unknown tag';
 		}
 
 		case 'assign.issue': {
 			const contributor = getState().contributors[event.payload.contributor];
 			return contributor
-				? `${chalk.bgBlack(` ${contributor.name} `)}`
+				? chalk.bgBlack(` ${contributor.name} `)
 				: 'unknown user';
 		}
 
@@ -74,14 +77,13 @@ const formatEventDetails = (event: AppEvent): string => {
 
 const formatLogTime = (id: string): string => {
 	const ago = timeAgo(decodeTime(id));
-	return chalk.gray(ago.padStart(8));
+	return chalk.gray(padVisibleStart(ago, 8));
 };
 
 const USER_COL_WIDTH = 12;
 
 const formatUser = (userId: string): string => {
-	const raw = `by ${userId}`.padStart(USER_COL_WIDTH);
-	return chalk.dim(raw);
+	return chalk.dim(padVisibleEnd(`${userId}`, USER_COL_WIDTH));
 };
 
 export const formatLogLine = (event: AppEvent): string => {
@@ -91,7 +93,6 @@ export const formatLogLine = (event: AppEvent): string => {
 	const details = formatEventDetails(event);
 	const bullet = chalk.dim('›');
 
-	return `${time} ${bullet} ${(action + ' ' + details).padEnd(
-		20,
-	)} ${user}`.trim();
+	const main = [action, details].filter(Boolean).join(' ');
+	return `${user} ${time} ${bullet} ${main}`;
 };

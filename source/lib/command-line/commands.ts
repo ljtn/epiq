@@ -356,7 +356,7 @@ export const commands: CommandLineActionEntry[] = [
 				id: ulid(),
 				userId: getUserId(),
 				action: 'edit.title',
-				payload: {id: node.id, val: newName},
+				payload: {id: node.id, name: newName},
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),

@@ -142,7 +142,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'edit.title': ({action, payload}) => {
-		const {id, val: value} = payload;
+		const {id, name: value} = payload;
 		const node = nodeRepo.getNode(id);
 		if (!node) return materializeFail('Unable to locate node', action);
 

@@ -287,7 +287,7 @@ export const nodeRepo = {
 				[contributor.id]: contributor,
 			},
 		}));
-		if (!isFail(result)) return failed('Unable to create contributor');
+		if (isFail(result)) return failed('Unable to create contributor');
 		return succeeded('Created contributor', contributor);
 	},
 
