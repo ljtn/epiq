@@ -1,6 +1,6 @@
 {
 	"name": "epiq",
-	"version": "0.1.8",
+	"version": "0.2.0",
 	"license": "MIT",
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",
@@ -12,7 +12,11 @@
 	},
 	"scripts": {
 		"build": "tsc --noEmit",
-		"build:publish": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",
+		"build:npm": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",
+		"build:sea:bundle": "rm -rf ./dist && esbuild source/cli.tsx --bundle --platform=node --format=cjs --target=node18 --minify --outfile=dist/sea.cjs",
+		"build:sea": "node --build-sea sea-config.json",
+		"build:publish": "pnpm build:npm",
+		"build:binary": "pnpm build:sea:bundle && pnpm build:sea",
 		"dev": "tsc --watch --noEmit",
 		"dev:start": "IS_LOCAL=true tsx source/cli.tsx",
 		"start": "IS_LOCAL=true tsx source/cli.tsx",

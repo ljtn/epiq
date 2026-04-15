@@ -23,7 +23,7 @@ const StepRow: React.FC<StepRowProps> = ({isDone, command, value}) => {
 			<Text color={theme.accent} dimColor={isDone}>
 				{isDone ? ' ✔ ' : '   '}
 			</Text>
-			<Text dimColor={isDone}>Enter command </Text>
+			<Text dimColor={isDone}>Type </Text>
 			<Text backgroundColor={theme.secondary} dimColor={isDone}>
 				{' ' + command + ' '}
 			</Text>

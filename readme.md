@@ -1,30 +1,38 @@
-# epiq
+# Epiq
 
-> **The ultimate productivity tool** — a CLI-based issue tracking client powered by Git as its backend, living directly inside the repository you work in.
-> No external services. No context switching. Just tickets - versioned and colocated with your code.
+**CLI-native issue tracker** — powered by Git.
 
----
+```
+    '███████╗██████╗ ██╗ ██████╗ '
+	'██╔════╝██╔══██╗██║██╔═══██╗'
+	'█████╗  ██████╔╝██║██║   ██║'
+	'██╔══╝  ██╔═══╝ ██║██║▄▄ ██║'
+	'███████╗██║     ██║╚██████╔╝'
+	'╚══════╝╚═╝     ╚═╝ ╚═══▀▀╝ '
+     🫡 Never leave your editor!
+```
 
 ## Why epiq?
 
-- **Simplicity** — Skip the additional tooling complexity
-- **Repo-native** — Lives inside your project directory
-- **Offline-ready** — Works wherever Git works
-- **Team-friendly** — Collaborate through normal Git workflows
-- **Shareable** — ASCII board exported to `.md`, viewable in the CLI, on GitHub/GitLab, or as your project README.
-- **CLI-first** — Fast, scriptable, and developer/agent-friendly
+Never leave your favorite editor!
+
+- **Zero setup** — no dashboards, no setup overhead
+- **Repo-native** — your issues live where your code lives
+- **Offline-first** — works anywhere Git works
+- **Portable** — your entire project state travels with the repo
+- **CLI-first** — fast, scriptable, and automation-friendly
 
 ---
 
-## 📦 Installation
+## Installation
 
-Install globally using npm:
+Install globally via npm:
 
 ```bash
 npm install --global epiq
 ```
 
-Verify installation:
+Verify:
 
 ```bash
 epiq --version
@@ -32,23 +40,12 @@ epiq --version
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
-### Initialize a project
+Starting the application will launch a wizard that sets you up in 20 seconds.
+It will result in settings persisted at `~/.epicrc`
 
-Create a new epiq workspace inside your current directory:
-
-```bash
-epiq --init "Project Name"
-```
-
-This sets up epiq in your repository and prepares it for issue tracking.
-
----
-
-### Open the workspace
-
-Run epiq inside any initialized repository:
+In any folder, run:
 
 ```bash
 epiq
@@ -58,17 +55,28 @@ This opens the interactive CLI workspace.
 
 ---
 
-## 🛠 Philosophy
+## Philosophy
 
-epiq keeps issue tracking:
+What epiq brings:
 
-- Close to your code
-- Versioned with your commits
-- Simple and transparent
-- Independent from external platforms
-
-If you use Git, you already have everything you need.
+- **Speed** — event sourcing to the file system keeps operations fast
+- **Editor-level productivity** — stay in the environment you already use
+- **Repo-native issues** — tickets live alongside your code
+- **Built-in versioning** — Git is the backend
+- **Seamless collaboration** — leverage Git’s distributed workflow
+- **Fully distributed** — no central configuration or registration required
 
 ---
 
-Built for developers who live in the terminal.
+## Features
+
+- Issue tracking — lightweight, structured tickets
+- Event log — full history of every change
+- Filtering — query issues by tags, assignees, and more
+- Navigation-first UI — fast keyboard-driven workflow
+- Markdown descriptions — shareable, human-readable boards
+- Extensible command system — built with automation in mind
+
+---
+
+## What it looks like
