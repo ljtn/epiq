@@ -283,11 +283,13 @@ export const commands: CommandLineActionEntry[] = [
 				if (!issueResult || isFail(issueResult))
 					return failed('Issue creation failed');
 
+				const ticketId = issueEvents[0]?.payload.id;
+				if (!ticketId) return failed('Unable to determine ticket id');
 				navigationUtils.navigate({
 					currentNode: swimlaneResult.data,
 					selectedIndex: nodeRepo
-						.getSiblings(issueResult.data.result.parentNodeId!)
-						.findIndex(({id}) => id === issueResult.data.result.id),
+						.getSiblings(swimlaneResult.data.id)
+						.findIndex(({id}) => id === ticketId),
 				});
 			}
 
