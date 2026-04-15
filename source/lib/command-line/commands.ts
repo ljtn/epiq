@@ -333,10 +333,12 @@ export const commands: CommandLineActionEntry[] = [
 			const newName = getCmdArg();
 			if (!newName) return failed('Provide a new name');
 
-			return materializeAndPersist({
+			const result = materializeAndPersist({
 				action: 'edit.title',
 				payload: {id: node.id, val: newName},
 			});
+			logger.debug(result);
+			return result;
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -374,7 +376,7 @@ export const commands: CommandLineActionEntry[] = [
 				});
 
 				if (isFail(createResult)) return createResult;
-				tagId = createResult.data;
+				tagId = createResult.data.id;
 			}
 
 			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
@@ -431,7 +433,7 @@ export const commands: CommandLineActionEntry[] = [
 				});
 
 				if (isFail(createResult)) return createResult;
-				contributorId = createResult.data;
+				contributorId = createResult.data.id;
 			}
 
 			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');

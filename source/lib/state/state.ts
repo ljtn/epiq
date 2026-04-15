@@ -134,13 +134,14 @@ export function initWorkspaceState(workspace: Workspace) {
  * Derived fields are always recomputed.
  * Callers can *read* full AppState via getState(), but can’t *write* derived keys.
  */
-export function updateState(cb: (old: AppState) => BaseState) {
+export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	const prev = getState();
 	const nextBase = cb(prev);
 	const deriveResult = derive(nextBase);
-	if (isFail(deriveResult)) return logger.error(deriveResult.message);
+	if (isFail(deriveResult)) return failed(deriveResult.message);
 	_appState = deriveResult.data;
 	emit();
+	return succeeded('State updated', null);
 }
 
 export const patchState = (patch: Partial<BaseState>) =>

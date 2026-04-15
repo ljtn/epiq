@@ -1,4 +1,9 @@
-import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../lib/command-line/command-types.js';
 import {isTicketNode} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
@@ -16,14 +21,16 @@ const materializeHandlers: MaterializeHandlers = {
 		const {id, name} = event.payload;
 		const workspace = nodes.workspace(id, name);
 		initWorkspaceState(workspace);
-		nodeRepo.createNodeAtPosition(workspace);
+		const result = nodeRepo.createNodeAtPosition(workspace);
+		if (!isFail(result)) return result;
 		return succeeded('Workspace initialized', workspace);
 	},
 
 	'add.workspace': event => {
 		const {id, name} = event.payload;
 		const workspace = nodes.workspace(id, name);
-		nodeRepo.createNodeAtPosition(workspace);
+		const result = nodeRepo.createNodeAtPosition(workspace);
+		if (!isFail(result)) return result;
 		return succeeded('Added workspace', workspace);
 	},
 
@@ -74,26 +81,30 @@ const materializeHandlers: MaterializeHandlers = {
 		const node = nodeRepo.getNode(id);
 		if (!node) return failed('Unable to locate node');
 
-		nodeRepo.updateNode({...node, title: value});
+		const result = nodeRepo.renameNode(id, value);
+		if (isFail(result)) return result;
 		return succeeded('Edited title', value);
 	},
 
 	'delete.node': event => {
 		const {id} = event.payload;
-		nodeRepo.tombstoneNode(id);
-		return succeeded('Deleted node', id);
+		const result = nodeRepo.tombstoneNode(id);
+		if (!isFail(result)) return result;
+		return succeeded('Deleted node', result.data);
 	},
 
 	'create.tag': event => {
 		const {id, name} = event.payload;
-		const tag = nodeRepo.createTag({id, name});
-		return succeeded('Tag added', tag.id);
+		const result = nodeRepo.createTag({id, name});
+		if (!isFail(result)) return result;
+		return succeeded('Tag added', result.data);
 	},
 
 	'create.contributor': event => {
 		const {id, name} = event.payload;
-		const contributor = nodeRepo.createContributor({id, name});
-		return succeeded('Contributor created', contributor.id);
+		const result = nodeRepo.createContributor({id, name});
+		if (!isFail(result)) return result;
+		return succeeded('Contributor created', result.data);
 	},
 
 	'tag.issue': event => {
@@ -124,7 +135,6 @@ const materializeHandlers: MaterializeHandlers = {
 		return succeeded('Set node value', result.data);
 	},
 
-	// Works
 	'close.issue': event => {
 		const {id} = event.payload;
 		const node = nodeRepo.getNode(id);
@@ -179,6 +189,12 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue reopened', {id: result.data.id});
 	},
+	'lock.node': event => {
+		const {id} = event.payload;
+		const result = nodeRepo.lockNode(id);
+		if (isFail(result)) return result;
+		return succeeded('Node locked', result.data);
+	},
 };
 
 export type MaterializeResults<T extends readonly AppEvent[]> = {
@@ -204,6 +220,7 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'add.issue':
 		case 'add.field':
 		case 'edit.title':
+		case 'lock.node':
 		case 'delete.node':
 		case 'move.node':
 		case 'close.issue':
@@ -226,7 +243,7 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 
 export function materialize<A extends EventAction>(
 	event: AppEvent<A>,
-): MaterializeResult<A> {
+): {action: EventAction; result: Result<EventAction>} {
 	const handler = materializeHandlers[event.action] as (
 		event: AppEvent<A>,
 	) => MaterializeResult<A>;
@@ -240,7 +257,7 @@ export function materialize<A extends EventAction>(
 		}
 	}
 
-	return result;
+	return succeeded('Event materialized', {action: event.action, result});
 }
 
 export const materializeAll = <const T extends readonly AppEvent[]>(

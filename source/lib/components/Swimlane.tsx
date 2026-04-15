@@ -49,7 +49,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 		>
 			<CursorUI isSelected={isSelected}></CursorUI>
 			<Text bold color={isSelected ? theme.accent : theme.primary}>
-				{title}
+				{title} {swimlane.readonly ? '🔒' : ''}
 			</Text>
 		</Box>
 	);

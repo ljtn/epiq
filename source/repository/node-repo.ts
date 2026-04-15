@@ -103,6 +103,22 @@ function collectFieldListValues(
 	return values.sort((a, b) => a.localeCompare(b));
 }
 
+const failIfReadonly = (
+	node: NavNode<AnyContext> | undefined,
+	action: 'move' | 'rename' | 'edit',
+): ReturnFail | null => {
+	if (!node) return failed('Node not found');
+	if (!node.readonly) return null;
+
+	const msgByAction = {
+		move: 'Cannot move readonly node',
+		rename: 'Cannot rename readonly node',
+		edit: 'Cannot edit readonly node',
+	} as const;
+
+	return failed(msgByAction[action]);
+};
+
 export const nodeRepo = {
 	/* Only to be used for TEMP nodes*/
 	deleteNode(nodeId: string) {
@@ -121,6 +137,9 @@ export const nodeRepo = {
 		const targetNode = nodes[targetId];
 		if (!targetNode) return failed('Edit target node not found');
 
+		const readonlyFail = failIfReadonly(targetNode, 'edit');
+		if (readonlyFail) return readonlyFail;
+
 		const updatedNode = {
 			...targetNode,
 			props: {
@@ -131,6 +150,22 @@ export const nodeRepo = {
 
 		nodeRepo.updateNode(updatedNode);
 		return succeeded('Issue description updated', {md});
+	},
+
+	renameNode(targetId: string, title: string): Result<NavNode<AnyContext>> {
+		const targetNode = this.getNode(targetId);
+		if (!targetNode) return failed('Rename target node not found');
+
+		const readonlyFail = failIfReadonly(targetNode, 'rename');
+		if (readonlyFail) return readonlyFail;
+
+		const updatedNode = {
+			...targetNode,
+			title,
+		};
+
+		this.updateNode(updatedNode);
+		return succeeded('Renamed node', updatedNode);
 	},
 
 	getExistingTags(): string[] {
@@ -171,6 +206,9 @@ export const nodeRepo = {
 		if (rootNodeId === id) return failed('Cannot move root node');
 		if (id === nextParentId) return failed('Cannot move node into itself');
 
+		const readonlyFail = failIfReadonly(node, 'move');
+		if (readonlyFail) return readonlyFail;
+
 		if (isDescendantOf(nextParentId, id)) {
 			return failed('Cannot move node into its own descendant');
 		}
@@ -195,7 +233,7 @@ export const nodeRepo = {
 		return succeeded('Moved node successfully', movedNode);
 	},
 
-	tombstoneNode(nodeId: string): ReturnSuccess | ReturnFail {
+	tombstoneNode(nodeId: string): Result<NavNode<AnyContext>> {
 		const {nodes, currentNodeId, rootNodeId} = getState();
 
 		const node = this.getNode(nodeId);
@@ -241,15 +279,16 @@ export const nodeRepo = {
 		return succeeded('Successfully tomb stoned', node);
 	},
 
-	createContributor(contributor: Contributor) {
-		updateState(s => ({
+	createContributor(contributor: Contributor): Result<Contributor> {
+		const result = updateState(s => ({
 			...s,
 			contributors: {
 				...s.contributors,
 				[contributor.id]: contributor,
 			},
 		}));
-		return contributor;
+		if (!isFail(result)) return failed('Unable to create contributor');
+		return succeeded('Created contributor', contributor);
 	},
 
 	assign(targetId: string, contributorId: string, assignmentNodeId: string) {
@@ -280,18 +319,23 @@ export const nodeRepo = {
 		return succeeded('Assigned contributor', result.data);
 	},
 
-	createTag(tag: Tag) {
-		updateState(s => ({
+	createTag(tag: Tag): Result<Tag> {
+		const result = updateState(s => ({
 			...s,
 			tags: {
 				...s.tags,
 				[tag.id]: tag,
 			},
 		}));
-		return tag;
+		if (isFail(result)) return failed('Could not create tag');
+		return succeeded('Tag created', tag);
 	},
 
-	tag(targetId: string, tagId: string, tagNodeId: string) {
+	tag(
+		targetId: string,
+		tagId: string,
+		tagNodeId: string,
+	): Result<NavNode<'FIELD'>> {
 		const tag = nodeRepo.getTag(tagId);
 		const target = nodeRepo.getNode(targetId);
 		if (!tag) return failed('Unable to add tag, missing tag');
@@ -341,20 +385,44 @@ export const nodeRepo = {
 		return succeeded('Created node', withRank);
 	},
 
-	createNode<T extends AnyContext>(node: NavNode<T>) {
-		updateState(s => ({
+	createNode<T extends AnyContext>(
+		node: NavNode<T>,
+	): Result<NavNode<AnyContext>> {
+		const result = updateState(s => ({
 			...s,
 			nodes: {
 				...s.nodes,
 				[node.id]: node,
 			},
 		}));
+		if (!isFail(result)) return failed('Unable to create node');
 
-		return node as NavNode<T>;
+		return succeeded('Node created', node);
+	},
+
+	lockNode(id: string): Result<NavNode<AnyContext>> {
+		const node = this.getNode(id);
+		if (!node) return failed('Failed to locate node');
+
+		const updatedNode: NavNode<AnyContext> = {
+			...node,
+			readonly: true,
+		};
+
+		const result = updateState(s => ({
+			...s,
+			nodes: {
+				...s.nodes,
+				[id]: updatedNode,
+			},
+		}));
+		if (!isFail(result)) return failed(result.data);
+
+		return succeeded('Locked node', updatedNode);
 	},
 
 	updateNode(node: NavNode<AnyContext>) {
-		updateState(s => ({
+		const result = updateState(s => ({
 			...s,
 			nodes: {
 				...s.nodes,
@@ -362,10 +430,13 @@ export const nodeRepo = {
 			},
 		}));
 
-		return node;
+		if (!isFail(result)) return result;
+		return succeeded('Updated node', node);
 	},
 
-	updateNodeAndSelectInParent(node: NavNode<AnyContext>) {
+	updateNodeAndSelectInParent(
+		node: NavNode<AnyContext>,
+	): Result<NavNode<AnyContext>> {
 		updateState(s => {
 			const nextNodes = {
 				...s.nodes,
@@ -384,7 +455,7 @@ export const nodeRepo = {
 			};
 		});
 
-		return node;
+		return succeeded('Updated and selected', node);
 	},
 
 	getContributor(id: string): Contributor | undefined {

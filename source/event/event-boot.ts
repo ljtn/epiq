@@ -75,6 +75,18 @@ export function createDefaultEvents(): readonly AppEvent[] {
 				parent: CLOSED_BOARD_ID,
 			},
 		},
+		{
+			action: 'lock.node',
+			payload: {
+				id: CLOSED_BOARD_ID,
+			},
+		},
+		{
+			action: 'lock.node',
+			payload: {
+				id: CLOSED_SWIMLANE_ID,
+			},
+		},
 	] as const satisfies readonly AppEvent[];
 }
 
@@ -88,7 +100,7 @@ export function bootStateFromEventLog(eventLog: AppEvent[]) {
 	if (failures.length > 0) {
 		throw new Error(
 			`Failed to materialize events on boot: ${failures
-				.map(x => x.message ?? 'Unknown error')
+				.map((x, index) => 'index: ' + index + ', data:' + JSON.stringify(x))
 				.join(', ')}`,
 		);
 	}

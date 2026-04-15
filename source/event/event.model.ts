@@ -1,4 +1,6 @@
-import {ReturnFail, ReturnSuccess} from '../lib/command-line/command-types.js';
+import {Result} from '../lib/command-line/command-types.js';
+import {Contributor, Tag} from '../lib/model/app-state.model.js';
+import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 
 export type MovePosition =
@@ -51,17 +53,17 @@ export type AppEventMap = {
 
 	'delete.node': {
 		payload: PayloadBase;
-		result: string;
+		result: NavNode<AnyContext>;
 	};
 
 	'create.tag': {
 		payload: PayloadBase & {name: string};
-		result: string;
+		result: Tag;
 	};
 
 	'create.contributor': {
 		payload: PayloadBase & {name: string};
-		result: string;
+		result: Contributor;
 	};
 
 	'assign.issue': {
@@ -102,6 +104,10 @@ export type AppEventMap = {
 		payload: PayloadBase;
 		result: {id: string};
 	};
+	'lock.node': {
+		payload: PayloadBase;
+		result: {id: string};
+	};
 };
 
 export type EventAction = keyof AppEventMap;
@@ -114,6 +120,7 @@ export type AppEvent<A extends EventAction = EventAction> =
 		  }
 		: never;
 
-export type MaterializeResult<A extends EventAction> =
-	| ReturnSuccess<AppEventMap[A]['result']>
-	| ReturnFail;
+export type MaterializeResult<A extends EventAction> = Result<{
+	event: EventAction;
+	result: AppEventMap[A]['result'];
+}>;
