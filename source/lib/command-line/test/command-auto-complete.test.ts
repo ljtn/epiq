@@ -1,68 +1,104 @@
-// import {describe, expect, it, vi} from 'vitest';
-// import {getAutoCompletion} from '../command-auto-complete.js';
-// import {parseCommandLine} from '../command-parser.js';
-// import {CmdKeywords} from '../command-types.js';
+import {describe, expect, it, vi} from 'vitest';
 
-// vi.mock('../command-modifiers.js', () => ({
-// 	getCmdModifiers: () => ({
-// 		[CmdKeywords.DELETE]: ['confirm'],
-// 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
-// 		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
-// 		[CmdKeywords.ASSIGN]: ['john', 'jane'],
-// 		[CmdKeywords.HELP]: [],
-// 		[CmdKeywords.RENAME]: [],
-// 		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
-// 	}),
-// }));
+vi.mock('../command-meta.js', () => ({
+	isCmdKeyword: (value: string) =>
+		['delete', 'view', 'tag', 'assign', 'help', 'rename', 'new'].includes(
+			value,
+		),
+}));
 
-// describe('getAutoCompletion (remainder)', () => {
-// 	it('returns remainder for command completion ("ta" → "tag")', () => {
-// 		const parsed = parseCommandLine('ta');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('g ');
-// 	});
+vi.mock('../command-modifiers.js', () => ({
+	getCmdModifiers: (command: string) => {
+		switch (command) {
+			case 'delete':
+				return ['confirm'];
+			case 'view':
+				return ['dense', 'wide'];
+			case 'tag':
+				return ['critical', 'frontend', 'backend'];
+			case 'assign':
+				return ['john', 'jane'];
+			case 'help':
+				return [];
+			case 'rename':
+				return [];
+			case 'new':
+				return ['issue', 'swimlane', 'board'];
+			default:
+				return [];
+		}
+	},
+}));
 
-// 	it('returns remainder for modifier completion ("tag c" → "critical")', () => {
-// 		const parsed = parseCommandLine('tag c');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('ritical ');
-// 	});
+import {getAutoCompletion} from '../command-auto-complete.js';
+import {parseCommandLine} from '../command-parser.js';
 
-// 	it('returns remainder for command completion ("set:vi" → "set:view")', () => {
-// 		const parsed = parseCommandLine('set:vi');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('ew ');
-// 	});
+describe('getAutoCompletion (remainder)', () => {
+	it('returns remainder for command completion ("ta" -> "tag")', () => {
+		const parsed = parseCommandLine('ta');
+		expect(getAutoCompletion(parsed, ['tag', 'assign', 'new']).remainder).toBe(
+			'g ',
+		);
+	});
 
-// 	it('returns remainder for modifier completion ("set:view d" → "dense")', () => {
-// 		const parsed = parseCommandLine('set:view d');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('ense ');
-// 	});
+	it('returns remainder for modifier completion ("tag c" -> "critical")', () => {
+		const parsed = parseCommandLine('tag c');
+		expect(
+			getAutoCompletion(parsed, ['critical', 'frontend', 'backend']).remainder,
+		).toBe('ritical ');
+	});
 
-// 	it('returns remainder for modifier completion ("set:view w" → "wide")', () => {
-// 		const parsed = parseCommandLine('set:view w');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('ide ');
-// 	});
+	it('returns remainder for command completion ("vi" -> "view")', () => {
+		const parsed = parseCommandLine('vi');
+		expect(getAutoCompletion(parsed, ['view', 'tag', 'assign']).remainder).toBe(
+			'ew ',
+		);
+	});
 
-// 	it('returns empty remainder when no completion is available ("new ")', () => {
-// 		const parsed = parseCommandLine('new ');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('');
-// 	});
+	it('returns remainder for modifier completion ("view d" -> "dense")', () => {
+		const parsed = parseCommandLine('view d');
+		expect(getAutoCompletion(parsed, ['dense', 'wide']).remainder).toBe(
+			'ense ',
+		);
+	});
 
-// 	it('returns empty remainder when no matching completion exists ("tag critical crime")', () => {
-// 		const parsed = parseCommandLine('tag critical crime');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('');
-// 	});
+	it('returns remainder for modifier completion ("view w" -> "wide")', () => {
+		const parsed = parseCommandLine('view w');
+		expect(getAutoCompletion(parsed, ['dense', 'wide']).remainder).toBe('ide ');
+	});
 
-// 	it('returns remainder for word completion ("new iss" → "ue")', () => {
-// 		const parsed = parseCommandLine('new iss');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('ue ');
-// 	});
+	it('returns empty remainder when last word is completed ("new ")', () => {
+		const parsed = parseCommandLine('new ');
+		expect(
+			getAutoCompletion(parsed, ['issue', 'swimlane', 'board']).remainder,
+		).toBe('');
+	});
 
-// 	it('returns remainder for word completion ("new issue fron" → "frontend")', () => {
-// 		const parsed = parseCommandLine('new issue fron');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('tend ');
-// 	});
+	it('returns empty remainder when no matching completion exists ("tag critical crime")', () => {
+		const parsed = parseCommandLine('tag critical crime');
+		expect(
+			getAutoCompletion(parsed, ['critical', 'frontend', 'backend']).remainder,
+		).toBe('');
+	});
 
-// 	it('is case-insensitive for completion ("new issue Fron" → "frontend")', () => {
-// 		const parsed = parseCommandLine('new issue Fron');
-// 		expect(getAutoCompletion(parsed).remainder).toBe('tend ');
-// 	});
-// });
+	it('returns remainder for modifier completion ("new iss" -> "issue")', () => {
+		const parsed = parseCommandLine('new iss');
+		expect(
+			getAutoCompletion(parsed, ['issue', 'swimlane', 'board']).remainder,
+		).toBe('ue ');
+	});
+
+	it('returns remainder for word completion ("new issue fron" -> "frontend")', () => {
+		const parsed = parseCommandLine('new issue fron');
+		expect(
+			getAutoCompletion(parsed, ['frontend', 'backend', 'critical']).remainder,
+		).toBe('tend ');
+	});
+
+	it('is case-insensitive for completion ("new issue Fron" -> "frontend")', () => {
+		const parsed = parseCommandLine('new issue Fron');
+		expect(
+			getAutoCompletion(parsed, ['frontend', 'backend', 'critical']).remainder,
+		).toBe('tend ');
+	});
+});

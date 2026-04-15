@@ -1,17 +1,36 @@
 import {describe, expect, it, vi} from 'vitest';
-import {parseCommandLine} from '../command-parser.js';
-import {CmdKeywords} from '../command-types.js';
-vi.mock('../command-modifiers.js', () => ({
-	getCmdModifiers: () => ({
-		[CmdKeywords.DELETE]: ['confirm'],
-		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
-		[CmdKeywords.TAG]: ['critical', 'frontend', 'backend'],
-		[CmdKeywords.ASSIGN]: ['john', 'jane'],
-		[CmdKeywords.HELP]: [],
-		[CmdKeywords.RENAME]: [],
-		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
-	}),
+
+vi.mock('../command-meta.js', () => ({
+	isCmdKeyword: (value: string) =>
+		['delete', 'view', 'tag', 'assign', 'help', 'rename', 'new'].includes(
+			value,
+		),
 }));
+
+vi.mock('../command-modifiers.js', () => ({
+	getCmdModifiers: (command: string) => {
+		switch (command) {
+			case 'delete':
+				return ['confirm'];
+			case 'view':
+				return ['dense', 'wide'];
+			case 'tag':
+				return ['critical', 'frontend', 'backend'];
+			case 'assign':
+				return ['john', 'jane'];
+			case 'help':
+				return [];
+			case 'rename':
+				return [];
+			case 'new':
+				return ['issue', 'swimlane', 'board'];
+			default:
+				return [];
+		}
+	},
+}));
+
+import {parseCommandLine} from '../command-parser.js';
 
 describe('parseCommandLine target', () => {
 	it('targets command for an empty string', () => {

@@ -10,6 +10,10 @@ vi.mock('../../event/event-materialize-and-persist.js', () => ({
 	materializeAndPersistAll: vi.fn(),
 }));
 
+vi.mock('../../event/event-persist.js', () => ({
+	resolveActorId: vi.fn(() => 'jlarb8'),
+}));
+
 vi.mock('../../repository/node-repo.js', () => ({
 	findAncestor: vi.fn(),
 	nodeRepo: {
@@ -99,22 +103,23 @@ describe('TagTicket command', () => {
 			contributors: {},
 		} as any);
 
-		mockedUlid.mockReturnValue('tag-assignment-node-id');
+		mockedUlid
+			.mockReturnValueOnce('tag-issue-event-id')
+			.mockReturnValueOnce('tag-assignment-node-id');
 
 		mockedMaterializeAndPersist.mockReturnValue(
 			succeeded('Tagged issue', {
-				id: 'tag-assignment-node-id',
-				parentNodeId: 'tags-field-1',
-				props: {value: 'tag-123'},
+				result: {id: 'tag-assignment-node-id'},
 			}) as any,
 		);
 
 		tagCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).toHaveBeenCalledTimes(1);
-
+		expect(mockedUlid).toHaveBeenCalledTimes(2);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
+			id: 'tag-issue-event-id',
+			userId: 'jlarb8',
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
@@ -127,29 +132,39 @@ describe('TagTicket command', () => {
 	it('creates a new tag when none exists, then creates a tag-assignment node', () => {
 		mockedUlid
 			.mockReturnValueOnce('new-tag-id')
+			.mockReturnValueOnce('create-tag-event-id')
+			.mockReturnValueOnce('tag-issue-event-id')
 			.mockReturnValueOnce('new-tag-assignment-node-id');
 
 		mockedMaterializeAndPersist
-			.mockReturnValueOnce(succeeded('Created tag', 'new-tag-id') as any)
+			.mockReturnValueOnce(
+				succeeded('Created tag', {
+					result: {id: 'new-tag-id'},
+				}) as any,
+			)
 			.mockReturnValueOnce(
 				succeeded('Tagged issue', {
-					id: 'new-tag-assignment-node-id',
-					parentNodeId: 'tags-field-1',
-					props: {value: 'new-tag-id'},
+					result: {id: 'new-tag-assignment-node-id'},
 				}) as any,
 			);
 
 		tagCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).toHaveBeenCalledTimes(2);
+		expect(mockedUlid).toHaveBeenCalledTimes(4);
+
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
+			id: 'create-tag-event-id',
+			userId: 'jlarb8',
 			action: 'create.tag',
 			payload: {
 				id: 'new-tag-id',
 				name: 'bug',
 			},
 		});
+
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
+			id: 'tag-issue-event-id',
+			userId: 'jlarb8',
 			action: 'tag.issue',
 			payload: {
 				id: 'new-tag-assignment-node-id',
@@ -180,19 +195,21 @@ describe('TagTicket command', () => {
 			succeeded('Found ticket', {id: 'ticket-99'}) as any,
 		);
 
-		mockedUlid.mockReturnValue('tag-assignment-node-id');
+		mockedUlid
+			.mockReturnValueOnce('tag-issue-event-id')
+			.mockReturnValueOnce('tag-assignment-node-id');
 
 		mockedMaterializeAndPersist.mockReturnValue(
 			succeeded('Tagged issue', {
-				id: 'tag-assignment-node-id',
-				parentNodeId: 'tags-field-1',
-				props: {value: 'tag-123'},
+				result: {id: 'tag-assignment-node-id'},
 			}) as any,
 		);
 
 		tagCommand.action({} as any, {} as any);
 
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
+			id: 'tag-issue-event-id',
+			userId: 'jlarb8',
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
@@ -236,6 +253,7 @@ describe('TagTicket command', () => {
 
 		expect(result).toEqual(failed('Invalid tag target'));
 		expect(mockedMaterializeAndPersist).not.toHaveBeenCalled();
+		expect(mockedUlid).not.toHaveBeenCalled();
 	});
 });
 
@@ -283,22 +301,23 @@ describe('AssignUserToTicket command', () => {
 			},
 		} as any);
 
-		mockedUlid.mockReturnValue('assignment-node-id');
+		mockedUlid
+			.mockReturnValueOnce('assign-issue-event-id')
+			.mockReturnValueOnce('assignment-node-id');
 
 		mockedMaterializeAndPersist.mockReturnValue(
 			succeeded('Assigned issue', {
-				id: 'assignment-node-id',
-				parentNodeId: 'assignees-field-1',
-				props: {value: 'user-123'},
+				result: {id: 'assignment-node-id'},
 			}) as any,
 		);
 
 		assignCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).toHaveBeenCalledTimes(1);
-
+		expect(mockedUlid).toHaveBeenCalledTimes(2);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
+			id: 'assign-issue-event-id',
+			userId: 'jlarb8',
 			action: 'assign.issue',
 			payload: {
 				id: 'assignment-node-id',
@@ -311,31 +330,39 @@ describe('AssignUserToTicket command', () => {
 	it('creates a new contributor when none exists, then creates an assignment node', () => {
 		mockedUlid
 			.mockReturnValueOnce('new-contributor-id')
+			.mockReturnValueOnce('create-contributor-event-id')
+			.mockReturnValueOnce('assign-issue-event-id')
 			.mockReturnValueOnce('new-assignment-node-id');
 
 		mockedMaterializeAndPersist
 			.mockReturnValueOnce(
-				succeeded('Created contributor', 'new-contributor-id') as any,
+				succeeded('Created contributor', {
+					result: {id: 'new-contributor-id'},
+				}) as any,
 			)
 			.mockReturnValueOnce(
 				succeeded('Assigned issue', {
-					id: 'new-assignment-node-id',
-					parentNodeId: 'assignees-field-1',
-					props: {value: 'new-contributor-id'},
+					result: {id: 'new-assignment-node-id'},
 				}) as any,
 			);
 
 		assignCommand.action({} as any, {} as any);
 
-		expect(mockedUlid).toHaveBeenCalledTimes(2);
+		expect(mockedUlid).toHaveBeenCalledTimes(4);
+
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
+			id: 'create-contributor-event-id',
+			userId: 'jlarb8',
 			action: 'create.contributor',
 			payload: {
 				id: 'new-contributor-id',
 				name: 'alice',
 			},
 		});
+
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
+			id: 'assign-issue-event-id',
+			userId: 'jlarb8',
 			action: 'assign.issue',
 			payload: {
 				id: 'new-assignment-node-id',
@@ -381,5 +408,6 @@ describe('AssignUserToTicket command', () => {
 
 		expect(result).toEqual(failed('Invalid assign target'));
 		expect(mockedMaterializeAndPersist).not.toHaveBeenCalled();
+		expect(mockedUlid).not.toHaveBeenCalled();
 	});
 });
