@@ -1,13 +1,13 @@
+import {isFail} from '../command-line/command-types.js';
+import {patchSettingsState} from '../state/settings.state.js';
+import {fileManager} from '../storage/file-manager.js';
 import {
+	getEpiqConfigPath,
 	readEpiqConfig,
 	writeEpiqConfig,
-	getEpiqConfigPath,
 } from './epiq-config.js';
-import {patchSettingsState} from '../state/settings.state.js';
-import {isFail} from '../command-line/command-types.js';
-import {fileManager} from '../storage/file-manager.js';
 
-export const loadSettingsFromConfig = (): void => {
+export const loadSettingsFromConfig = () => {
 	const configPath = getEpiqConfigPath();
 
 	// 1. Ensure file exists
@@ -29,16 +29,9 @@ export const loadSettingsFromConfig = (): void => {
 
 	const {preferredEditor, userName} = result.data;
 
-	const defaultUser =
-		process.env['GIT_AUTHOR_NAME'] ||
-		process.env['GIT_COMMITTER_NAME'] ||
-		process.env['USER'] ||
-		process.env['USERNAME'] ||
-		'UNKNOWN';
-
 	// 3. Hydrate state
 	patchSettingsState({
 		preferredEditor: preferredEditor,
-		userName: userName ?? defaultUser,
+		userName: userName,
 	});
 };

@@ -1,5 +1,2 @@
 distribute as binary
-impl: backlog
-impl: done
-
 skapa hackernews

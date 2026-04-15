@@ -234,7 +234,8 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.SET_USERNAME]: args => {
 		return !args.inputString
 			? invalid({
-					message: 'Provide a global name (unique for consistent event logs)',
+					message:
+						'enter global username (must be unique in project for consistent logs)',
 					completionWordList: [],
 			  })
 			: valid();

@@ -4,13 +4,12 @@ import meow from 'meow';
 import React from 'react';
 import App from './app.js';
 import {loadMergedEvents} from './event/event-load.js';
-import {initProject} from './InitView.js';
 import Logo from './lib/components/Logo.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadSettingsFromConfig} from './lib/config/load-settings.js';
 
-const cli = meow(
+meow(
 	`
   View board in directory:
   $ epiq
@@ -89,11 +88,6 @@ process.stdout.on('resize', () => {
 
 (async () => {
 	console.clear();
-
-	if (cli.flags.init) {
-		initProject();
-		return;
-	}
 
 	await bootApp();
 })();
