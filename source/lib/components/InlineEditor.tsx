@@ -5,7 +5,7 @@ import TerminalRenderer from 'marked-terminal';
 import React, {useEffect} from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {isSuccess} from '../command-line/command-types.js';
-import {AnyContext, Field} from '../model/context.model.js';
+import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {nodes} from '../state/node-builder.js';
 import {theme} from '../theme/themes.js';
@@ -14,17 +14,19 @@ import {ScrollBoxUI} from './ScrollBox.js';
 import {CursorUI} from './Cursor.js';
 
 type Props = {
+	id: string;
+	text: string;
 	height: number;
-	field: Field;
 	selected: boolean;
 	selectedIndex: number;
 	currentNode: NavNode<AnyContext>;
 	maxWidth: number;
 };
 
-export const FieldUI: React.FC<Props> = ({
+export const InlineEditor: React.FC<Props> = ({
+	id,
+	text,
 	height,
-	field,
 	selected,
 	selectedIndex,
 	currentNode,
@@ -37,15 +39,14 @@ export const FieldUI: React.FC<Props> = ({
 	const renderMarkdownInline = (md: string) =>
 		String(marked.parseInline(md)).replace(/\r?\n/g, '');
 
-	const document = field.props.value;
-	const documentRows =
-		typeof document === 'string' ? document.split(/\r?\n|\u2028|\u2029/) : [];
+	const rows =
+		typeof text === 'string' ? text.split(/\r?\n|\u2028|\u2029/) : [];
 
 	useEffect(() => {
 		const createdIds: string[] = [];
 
-		documentRows.forEach((row, idx) => {
-			const node = nodes.text(`${idx}`, `Line ${idx + 1}`, field.id, {
+		rows.forEach((row, idx) => {
+			const node = nodes.text(`${idx}`, `Line ${idx + 1}`, id, {
 				value: row,
 			});
 
@@ -56,13 +57,13 @@ export const FieldUI: React.FC<Props> = ({
 		});
 
 		return () => createdIds.forEach(nodeRepo.deleteNode);
-	}, [field.id, document]);
+	}, [id, text]);
 
 	const EMPTY_ROW_FALLBACK = '\u2029';
 
-	const renderedItems = documentRows.map((row, i) => (
-		<Text key={`${field.id}-${i}`}>
-			{(currentNode.id === field.id && selectedIndex === i
+	const renderedItems = rows.map((row, i) => (
+		<Text key={`${id}-${i}`}>
+			{(currentNode.id === id && selectedIndex === i
 				? chalk.cyan(
 						`▸ ${Array.from({length: String(i).length})
 							.map(() => ' ')
@@ -82,7 +83,7 @@ export const FieldUI: React.FC<Props> = ({
 			<Box>
 				<CursorUI isSelected={selected} />
 				<Text color={selected ? theme.accent : theme.secondary}>
-					{field.title + ' (to edit, press e)'}
+					Inline Editor (press e to edit)
 				</Text>
 			</Box>
 

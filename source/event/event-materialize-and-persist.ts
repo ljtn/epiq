@@ -20,12 +20,6 @@ export function materializeAndPersist<A extends EventAction>(
 
 export function materializeAndPersistAll<const T extends readonly AppEvent[]>(
 	events: T,
-): {
-	[K in keyof T]: T[K] extends AppEvent<infer A> ? MaterializeResult<A> : never;
-} {
-	return events.map(event => materializeAndPersist(event)) as {
-		[K in keyof T]: T[K] extends AppEvent<infer A>
-			? MaterializeResult<A>
-			: never;
-	};
+) {
+	return events.map(event => materializeAndPersist(event));
 }

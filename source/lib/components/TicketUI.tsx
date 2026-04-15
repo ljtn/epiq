@@ -1,10 +1,9 @@
 import {Box} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {FieldListUI} from './FieldListUI.js';
-import {FieldUI} from './FieldUI.js';
+import {InlineEditor} from './InlineEditor.js';
 
 type Props = {
 	ticket: Ticket;
@@ -60,14 +59,15 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 				}
 
 				return (
-					<FieldUI
-						height={descriptionHeight}
+					<InlineEditor
 						key={child.id}
-						field={child as NavNode<'FIELD'>}
+						id={child.id}
+						text={child.props.value ?? ''}
 						selected={isInTicket && selectedIndex === index}
 						maxWidth={maxWidth}
 						selectedIndex={selectedIndex}
 						currentNode={currentNode}
+						height={descriptionHeight}
 					/>
 				);
 			})}
