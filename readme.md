@@ -3,13 +3,13 @@
 **CLI-native issue tracker** — powered by Git.
 
 ```
-    '███████╗██████╗ ██╗ ██████╗ '
-	'██╔════╝██╔══██╗██║██╔═══██╗'
-	'█████╗  ██████╔╝██║██║   ██║'
-	'██╔══╝  ██╔═══╝ ██║██║▄▄ ██║'
-	'███████╗██║     ██║╚██████╔╝'
-	'╚══════╝╚═╝     ╚═╝ ╚═══▀▀╝ '
-     🫡 Never leave your editor!
+'███████╗██████╗ ██╗ ██████╗ '
+'██╔════╝██╔══██╗██║██╔═══██╗'
+'█████╗  ██████╔╝██║██║   ██║'
+'██╔══╝  ██╔═══╝ ██║██║▄▄ ██║'
+'███████╗██║     ██║╚██████╔╝'
+'╚══════╝╚═╝     ╚═╝ ╚═══▀▀╝ '
+ 🫡 Never leave your editor!
 ```
 
 ## Why epiq?
@@ -76,7 +76,3 @@ What epiq brings:
 - Navigation-first UI — fast keyboard-driven workflow
 - Markdown descriptions — shareable, human-readable boards
 - Extensible command system — built with automation in mind
-
----
-
-## What it looks like
