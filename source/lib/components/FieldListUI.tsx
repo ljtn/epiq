@@ -39,7 +39,7 @@ export const FieldListUI: React.FC<Props> = ({
 		<Box alignItems="center" paddingTop={1}>
 			<Box minWidth={12}>
 				<CursorUI isSelected={selected}></CursorUI>
-				<Text color={selected ? theme.accent : theme.secondary}>{title}:</Text>
+				<Text color={selected ? theme.accent : theme.secondary2}>{title}:</Text>
 			</Box>
 
 			<Box flexDirection="row" marginLeft={1} paddingRight={1}>

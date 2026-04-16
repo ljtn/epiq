@@ -3,15 +3,18 @@ import path from 'node:path';
 import {
 	failed,
 	isFail,
-	isSuccess,
+	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
-import {PersistedEvent, resolveActorId} from './event-persist.js';
+import {PersistedEvent} from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
-import {ulid} from 'ulid';
 
 const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
+
+export type ReconstructedEvent = PersistedEvent & {
+	userId: string;
+};
 
 const getEventsDir = (rootDir = process.cwd()) =>
 	path.join(rootDir, EPIQ_DIR, EVENTS_DIR);
@@ -20,7 +23,9 @@ type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
 };
 
-export const getPersistedAction = (entry: PersistedEvent) => {
+export const getPersistedAction = (
+	entry: PersistedEvent,
+): Result<keyof PersistedPayloadMap> => {
 	const keys = Object.keys(entry).filter(key => key !== 'id') as Array<
 		keyof PersistedPayloadMap
 	>;
@@ -31,77 +36,129 @@ export const getPersistedAction = (entry: PersistedEvent) => {
 		);
 	}
 
+	if (!keys[0] || !(keys[0] in entry)) {
+		return failed('Invalid persisted event: action key is missing or invalid');
+	}
 	return succeeded('Resolved persisted action', keys[0]);
 };
 
-export const fromPersistedEvent = (entry: PersistedEvent) => {
-	const actionResult = getPersistedAction(entry);
-	if (isFail(actionResult)) return failed(actionResult.message);
+export const fromPersistedEvent = (
+	entry: ReconstructedEvent,
+): Result<AppEvent> => {
+	const {userId, ...persistedEntry} = entry;
+
+	const actionResult = getPersistedAction(persistedEntry);
+	if (isFail(actionResult)) {
+		return failed(actionResult.message);
+	}
 
 	const action = actionResult.data;
 	if (!action) {
 		return failed('Action key is undefined');
 	}
-	const payload = (entry as Record<string, unknown>)[
+
+	const eventId = entry.id?.[0];
+	if (!eventId) {
+		return failed('Persisted event is missing id');
+	}
+
+	const payload = (persistedEntry as Record<string, unknown>)[
 		action
 	] as PersistedPayloadMap[typeof action];
 
 	return succeeded<AppEvent>('Decoded persisted event', {
-		id: entry.id[0] ?? ulid(),
+		id: eventId,
 		action,
 		payload,
-		userId: resolveActorId(),
+		userId,
 	} as AppEvent);
 };
 
 export function loadAllPersistedEvents(
 	rootDir = process.cwd(),
-): PersistedEvent[] {
+): Result<ReconstructedEvent[]> {
 	const dir = getEventsDir(rootDir);
-	if (!fs.existsSync(dir)) return [];
+	if (!fs.existsSync(dir)) {
+		return failed('No events found');
+	}
 
 	const files = fs
 		.readdirSync(dir)
 		.filter(file => file.endsWith('.jsonl'))
 		.map(file => path.join(dir, file));
 
-	const entries: PersistedEvent[] = [];
+	const entries: ReconstructedEvent[] = [];
 
 	for (const filePath of files) {
 		const content = fs.readFileSync(filePath, 'utf8');
+		const userId =
+			filePath.replace('.jsonl', '').split(path.sep).at(-1) ?? 'unknown';
 
 		for (const line of content.split('\n')) {
 			const trimmed = line.trim();
 			if (!trimmed) continue;
 
 			try {
-				entries.push(JSON.parse(trimmed) as PersistedEvent);
+				const parsed = JSON.parse(trimmed) as PersistedEvent;
+				entries.push({
+					...parsed,
+					userId,
+				});
 			} catch {
-				// ignore malformed line
+				return failed(`Failed to parse event from line: ${trimmed}`);
 			}
 		}
 	}
 
-	return getSortedEvents(entries);
+	return succeeded('All events loaded', getSortedEvents(entries));
 }
 
-export function loadMergedEvents(rootDir = process.cwd()): AppEvent[] {
-	return loadAllPersistedEvents(rootDir)
-		.map(fromPersistedEvent)
-		.filter(isSuccess)
-		.map(({data}) => data);
+export function loadMergedEvents(rootDir = process.cwd()): Result<AppEvent[]> {
+	const allEvents = loadAllPersistedEvents(rootDir);
+	if (isFail(allEvents)) {
+		return failed(allEvents.message);
+	}
+
+	const decoded: AppEvent[] = [];
+
+	for (const entry of allEvents.data) {
+		const eventResult = fromPersistedEvent(entry);
+		if (isFail(eventResult)) {
+			return failed(
+				`Failed to decode event ${entry.id?.[0] ?? '<unknown>'}: ${
+					eventResult.message
+				}`,
+			);
+		}
+
+		decoded.push(eventResult.data);
+	}
+
+	return succeeded('Loaded merged events', decoded);
 }
 
-export function getEdgeRef(rootDir = process.cwd()): string | null {
+export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 	const persisted = loadAllPersistedEvents(rootDir);
-	return persisted.at(-1)?.id[0] ?? null;
+	if (isFail(persisted)) {
+		return failed(persisted.message);
+	}
+
+	return succeeded(
+		'Loaded edge reference',
+		persisted.data.at(-1)?.id?.[0] ?? null,
+	);
 }
 
-export const getSortedEvents = (events: PersistedEvent[]): PersistedEvent[] => {
-	const byId = new Map(events.map(event => [event.id[0], event] as const));
-	const childrenByRef = new Map<string | null, PersistedEvent[]>();
+export const getSortedEvents = (
+	reconstructedEvents: ReconstructedEvent[],
+): ReconstructedEvent[] => {
+	const byId = new Map(
+		reconstructedEvents.map(event => [event.id[0], event] as const),
+	);
 
-	for (const event of events) {
+	const childrenByRef = new Map<string | null, ReconstructedEvent[]>();
+
+	for (const event of reconstructedEvents) {
 		const ref = event.id[1];
 		const siblings = childrenByRef.get(ref) ?? [];
 		siblings.push(event);
@@ -116,7 +173,7 @@ export const getSortedEvents = (events: PersistedEvent[]): PersistedEvent[] => {
 		});
 	}
 
-	const result: PersistedEvent[] = [];
+	const result: ReconstructedEvent[] = [];
 	const visited = new Set<string>();
 
 	const visit = (ref: string | null) => {
@@ -134,7 +191,7 @@ export const getSortedEvents = (events: PersistedEvent[]): PersistedEvent[] => {
 
 	visit(null);
 
-	const orphans = [...events]
+	const orphans = [...reconstructedEvents]
 		.filter(event => {
 			const [eventId] = event.id;
 			return !visited.has(eventId);

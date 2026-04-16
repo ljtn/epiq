@@ -1,4 +1,5 @@
 export const CmdKeywords = {
+	EDIT: 'edit',
 	HELP: 'help',
 	NEW: 'new',
 	TAG: 'tag',

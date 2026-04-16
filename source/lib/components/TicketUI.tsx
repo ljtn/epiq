@@ -96,6 +96,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 				{logNode ? (
 					<InlineEditor
 						id={logNode.id}
+						label="Event log"
 						text={logNode.props.value ?? ''}
 						selected={false}
 						maxWidth={maxWidth}
@@ -153,6 +154,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 		return (
 			<InlineEditor
+				label="Description (press e to edit)"
 				key={child.id}
 				id={child.id}
 				text={child.props.value ?? ''}

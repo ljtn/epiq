@@ -1,7 +1,12 @@
 import chalk from 'chalk';
 import {monotonicFactory, ulid} from 'ulid';
 import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
-import {isFail} from '../lib/command-line/command-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../lib/command-line/command-types.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
@@ -107,7 +112,7 @@ export function createDefaultEvents(): readonly AppEvent[] {
 	] as const satisfies readonly AppEvent[];
 }
 
-export function bootStateFromEventLog(eventLog: AppEvent[]) {
+export function bootStateFromEventLog(eventLog: AppEvent[]): Result {
 	const results =
 		eventLog.length === 0
 			? materializeAndPersistAll(createDefaultEvents())
@@ -115,7 +120,7 @@ export function bootStateFromEventLog(eventLog: AppEvent[]) {
 
 	const failures = results.filter(isFail);
 	if (failures.length > 0) {
-		throw new Error(
+		return failed(
 			[
 				chalk.bold.red('Materializing failed'),
 				'',
@@ -128,4 +133,5 @@ export function bootStateFromEventLog(eventLog: AppEvent[]) {
 	}
 
 	navigateToInitialNode();
+	return succeeded('State booted successfully', null);
 }

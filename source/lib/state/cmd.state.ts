@@ -6,6 +6,7 @@ import {
 	CmdValidity,
 	cmdValidity,
 	Result,
+	succeeded,
 } from '../command-line/command-types.js';
 
 export const commandDelimiter = ' ';
@@ -83,6 +84,7 @@ export const cmdResultToValidationState = <T>({message, result}: Result<T>) => {
 	next.commandIsPending = true;
 	commandLineState = next;
 	notify();
+	return succeeded(message, null);
 };
 
 export const moveCursorPosition = (position: number) => {

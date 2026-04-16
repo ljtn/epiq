@@ -31,6 +31,7 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
+import {openEditorOnText} from '../../editor/editor.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -59,6 +60,67 @@ export const commands: CommandLineActionEntry[] = [
 					id: child.id,
 				},
 			});
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.Edit,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const issueResult = findInBreadCrumb(getState().breadCrumb, 'TICKET');
+			if (isFail(issueResult)) return failed('Edit target must be an issue');
+
+			const issueNode = issueResult.data;
+			if (issueNode.readonly) return failed('Cannot edit readonly field');
+			const {currentNode, selectedIndex} = getState();
+			const selectedChild = getRenderedChildren(issueNode.id)[selectedIndex];
+			if (!selectedChild) return failed('No selected field');
+
+			const target = getRenderedChildren(currentNode.id)[selectedIndex];
+
+			if (!target) return failed('No selected field');
+			if (target.readonly) return failed('Cannot edit readonly field');
+
+			const currentValue = target.props.value;
+
+			if (typeof currentValue !== 'string') {
+				return failed('Selected field is not editable text');
+			}
+
+			const editResult = openEditorOnText(currentValue);
+			if (isFail(editResult)) return failed('Failed to edit field');
+
+			const updatedValue = editResult.data;
+
+			if (updatedValue === currentValue) {
+				return succeeded('No changes made', null);
+			}
+
+			if (target.title === 'Description') {
+				return materializeAndPersist({
+					id: ulid(),
+					userId: getUserId(),
+					action: 'edit.description',
+					payload: {
+						id: target.id,
+						md: updatedValue,
+					},
+				});
+			}
+
+			if (target.title === 'Title') {
+				return materializeAndPersist({
+					id: ulid(),
+					userId: getUserId(),
+					action: 'edit.title',
+					payload: {
+						id: target.id,
+						name: updatedValue,
+					},
+				});
+			}
+
+			return failed(`Editing not supported for "${target.title}"`);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -348,6 +410,7 @@ export const commands: CommandLineActionEntry[] = [
 			const {currentNode, selectedIndex} = getState();
 			const node = getRenderedChildren(currentNode.id)[selectedIndex];
 			if (!node) return failed('Missing node');
+			if (node.readonly) return failed('Cannot rename readonly node');
 
 			const newName = getCmdArg();
 			if (!newName) return failed('Provide a new name');

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
-import {failed, succeeded} from '../lib/command-line/command-types.js';
+import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {getSettingsState} from '../lib/state/settings.state.js';
 import {
 	AppEvent,
@@ -84,17 +84,18 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 		fs.mkdirSync(dir, {recursive: true});
 
 		const edgeRef = getEdgeRef(rootDir);
+		if (isFail(edgeRef)) return failed(edgeRef.message);
 
 		let newId: string;
-		if (edgeRef) {
-			const edgeTime = decodeTime(edgeRef);
+		if (edgeRef.data) {
+			const edgeTime = decodeTime(edgeRef.data);
 			const nextTime = Math.max(Date.now(), edgeTime + 1);
 			newId = getNextId(nextTime);
 		} else {
 			newId = getNextId();
 		}
 
-		const entry = toPersistedEvent(stripActor(event), [newId, edgeRef]);
+		const entry = toPersistedEvent(stripActor(event), [newId, edgeRef.data]);
 
 		fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, 'utf8');
 

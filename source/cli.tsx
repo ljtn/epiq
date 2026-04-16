@@ -3,11 +3,12 @@ import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import App from './app.js';
+import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadMergedEvents} from './event/event-load.js';
+import {isFail} from './lib/command-line/command-types.js';
+import {loadSettingsFromConfig} from './lib/config/load-settings.js';
 import Logo from './lib/components/Logo.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
-import {bootStateFromEventLog} from './event/event-boot.js';
-import {loadSettingsFromConfig} from './lib/config/load-settings.js';
 
 meow(
 	`
@@ -25,39 +26,61 @@ meow(
 	},
 );
 
-let width = process.stdout.columns || 120;
-let height = process.stdout.rows || 20;
 const FIRST_LOAD_DURATION_MS = 5_000;
 const SUBSEQUENT_LOAD_MAX_MS = 600;
 
+let width = process.stdout.columns || 120;
+let height = process.stdout.rows || 20;
 let ink: ReturnType<typeof render> | null = null;
 
-function sleep(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-function renderApp() {
+const renderNode = (node: React.ReactNode) => {
 	if (!ink) {
-		ink = render(<App width={width} height={height} />);
+		ink = render(node);
 		return;
 	}
 
-	ink.rerender(<App width={width} height={height} />);
-}
+	ink.rerender(node);
+};
 
-function renderLoader(loadTime: number) {
-	if (!ink) {
-		ink = render(<Logo durationMs={loadTime} />);
-		return;
+const renderApp = () => {
+	renderNode(<App width={width} height={height} />);
+};
+
+const renderLoader = (durationMs: number) => {
+	renderNode(<Logo durationMs={durationMs} />);
+};
+
+const loadEventLogOrExit = () => {
+	const result = loadMergedEvents();
+
+	if (isFail(result)) {
+		const noEventsFound = result.message.includes('No events found');
+
+		if (noEventsFound) {
+			logger.info('No events found, starting with empty state');
+			return [];
+		}
+
+		throw new Error(result.message);
 	}
 
-	ink.rerender(<Logo durationMs={loadTime} />);
-}
+	return result.data;
+};
+
+const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
+	const result = bootStateFromEventLog(eventLog);
+
+	if (isFail(result)) {
+		throw new Error(`Failed to boot state: ${result.message}`);
+	}
+};
 
 async function bootApp() {
 	loadSettingsFromConfig();
 
-	const eventLog = loadMergedEvents();
+	const eventLog = loadEventLogOrExit();
 	const isFirstLoad = eventLog.length === 0;
 	const loaderDurationMs = isFirstLoad
 		? FIRST_LOAD_DURATION_MS
@@ -68,7 +91,7 @@ async function bootApp() {
 	}
 
 	const startedAt = Date.now();
-	bootStateFromEventLog(eventLog);
+	bootStateOrExit(eventLog);
 	const bootElapsedMs = Date.now() - startedAt;
 
 	const remainingLoaderTime = Math.max(0, loaderDurationMs - bootElapsedMs);
@@ -83,11 +106,13 @@ async function bootApp() {
 process.stdout.on('resize', () => {
 	width = process.stdout.columns || 120;
 	height = process.stdout.rows || 20;
-	if (ink) ink.rerender(<App width={width} height={height} />);
+
+	if (ink) {
+		renderApp();
+	}
 });
 
 (async () => {
 	console.clear();
-
 	await bootApp();
 })();

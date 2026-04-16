@@ -2,7 +2,9 @@ import {getCommandIntent} from '../../command-line/command-intent.js';
 import {
 	cmdResult,
 	cmdValidity,
+	failed,
 	isFail,
+	Result,
 } from '../../command-line/command-types.js';
 import {commands} from '../../command-line/commands.js';
 import {ActionEntry} from '../../model/action-map.model.js';
@@ -15,18 +17,18 @@ import {
 
 export const onConfirmCommandLineSequenceInput = (
 	..._args: Parameters<NonNullable<ActionEntry['action']>>
-) => {
+): Result => {
 	const {
 		commandMeta: {command, validity, modifier, inputString},
 	} = getCmdState();
-	if (!command) return;
+	if (!command) return failed('No command to confirm');
 	const intent = getCommandIntent(command);
 
 	commandPending();
 
 	if (validity === cmdValidity.Invalid) {
 		// Handled by info hints
-		return;
+		return failed('Invalid command');
 	}
 
 	const actionMeta = commands.find(c => c.intent === intent);
@@ -48,5 +50,5 @@ export const onConfirmCommandLineSequenceInput = (
 
 	commandConfirmed();
 	actionMeta?.onSuccess?.();
-	return;
+	return cmdResultToValidationState(commandResult);
 };

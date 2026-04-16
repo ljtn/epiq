@@ -1,18 +1,9 @@
-import {ulid} from 'ulid';
-import {openEditorOnText} from '../../../editor/editor.js';
-import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../../event/event-persist.js';
-import {
-	CmdKeywords,
-	failed,
-	isFail,
-	succeeded,
-} from '../../command-line/command-types.js';
+import {CmdKeywords, succeeded} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
-import {getRenderedChildren, getState, patchState} from '../../state/state.js';
+import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
+import {onConfirmCommandLineSequenceInput} from '../input/on-cmd-input-confirm.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
@@ -101,45 +92,10 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Edit,
 		mode: Mode.DEFAULT,
-		action: () => {
-			const issueResult = findInBreadCrumb(getState().breadCrumb, 'TICKET');
-			if (isFail(issueResult)) return failed('No issue node');
-			const issueNode = issueResult.data;
-
-			const descriptionField = getRenderedChildren(issueNode.id).find(
-				x => x?.title === 'Description',
-			);
-
-			if (!descriptionField) {
-				return failed('Description field not found');
-			}
-
-			const currentValue = descriptionField.props.value;
-
-			if (typeof currentValue !== 'string') {
-				return failed('Description field is not a text field');
-			}
-
-			const editResult = openEditorOnText(currentValue);
-			if (isFail(editResult)) return failed('Failed to edit description');
-
-			const updatedMarkdown = editResult.data;
-
-			if (updatedMarkdown === currentValue) {
-				return succeeded('No changes made', undefined);
-			}
-
-			// Here we need to trigger a reload of the description component, so row indexes are restored
-
-			return materializeAndPersist({
-				id: ulid(),
-				action: 'edit.description',
-				userId: resolveActorId(),
-				payload: {
-					id: descriptionField.id,
-					md: updatedMarkdown,
-				},
-			});
+		action: (...args) => {
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `edit`);
+			return onConfirmCommandLineSequenceInput(...args);
 		},
 	},
 	{

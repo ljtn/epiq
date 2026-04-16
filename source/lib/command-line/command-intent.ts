@@ -10,6 +10,8 @@ export const getCommandIntent = (
 	switch (command) {
 		case CmdKeywords.DELETE:
 			return CmdIntent.Delete;
+		case CmdKeywords.EDIT:
+			return CmdIntent.Edit;
 		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
 		case CmdKeywords.RE_OPEN_ISSUE:

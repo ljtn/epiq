@@ -11,6 +11,7 @@ export const CmdIntent = {
 	None: 'none',
 	ViewHelp: 'view-help',
 	Rename: 'rename',
+	Edit: 'edit',
 	Delete: 'delete',
 
 	Filter: 'filter',

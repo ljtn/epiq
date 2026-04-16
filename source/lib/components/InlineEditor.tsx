@@ -14,6 +14,7 @@ import {ScrollBoxUI} from './ScrollBox.js';
 
 type Props = {
 	id: string;
+	label: string;
 	text: string;
 	height: number;
 	selected: boolean;
@@ -22,6 +23,7 @@ type Props = {
 
 export const InlineEditor: React.FC<Props> = ({
 	id,
+	label,
 	text,
 	height,
 	selected,
@@ -78,9 +80,7 @@ export const InlineEditor: React.FC<Props> = ({
 		<Box flexDirection="column" paddingTop={1}>
 			<Box>
 				<CursorUI isSelected={selected} />
-				<Text color={selected ? theme.accent : theme.secondary}>
-					Inline Editor (press e to edit)
-				</Text>
+				<Text color={selected ? theme.accent : theme.secondary}>{label}</Text>
 			</Box>
 
 			<Box

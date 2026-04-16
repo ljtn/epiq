@@ -26,7 +26,8 @@ type Validator = ({
 }) => ValidationResult;
 
 // Helpers
-const valid = (): ValidationResult => ({
+const valid = (message: string = ''): ValidationResult => ({
+	message,
 	validity: cmdValidity.Valid,
 	completionWordList: [],
 });
@@ -69,8 +70,6 @@ const buildHint = ({
 	const optionsStr = hintOptions.length > 1 ? hintOptions.join(' ') : '';
 	return optionsStr ? `${prefix}${optionsStr}${postfix}` : '';
 };
-
-const alwaysSucceed: Validator = () => valid();
 
 const requireExact = ({modifier}: {modifier: string}) => {
 	const expected = 'confirm';
@@ -181,9 +180,12 @@ const validators: Record<CmdKeyword, Validator> = {
 				inputString: args.inputString,
 			}),
 		})(args),
-	[CmdKeywords.HELP]: alwaysSucceed,
 
-	[CmdKeywords.RENAME]: alwaysSucceed,
+	[CmdKeywords.EDIT]: () => valid('<ENTER> to confirm'),
+
+	[CmdKeywords.HELP]: () => valid('<ENTER> to confirm'),
+
+	[CmdKeywords.RENAME]: () => valid('<ENTER> to confirm'),
 
 	[CmdKeywords.DELETE]: args => requireExact(args),
 
