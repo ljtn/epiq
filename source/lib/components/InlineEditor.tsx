@@ -46,7 +46,7 @@ export const InlineEditor: React.FC<Props> = ({
 		rows.forEach((row, idx) => {
 			const node = nodes.text({
 				id: `${idx}`,
-				name: `Li	ne ${idx + 1}`,
+				name: `Line ${idx + 1}`,
 				parentNodeId: id,
 				props: {value: row},
 				readonly: true,

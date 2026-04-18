@@ -8,7 +8,17 @@ import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
 import {isSuccess} from '../command-line/command-types.js';
 
-export const Breadcrumb: React.FC = () => {
+type Props = {
+	width: number;
+};
+
+const truncate = (str: string, max: number) => {
+	if (str.length <= max) return str;
+	if (max <= 1) return '…';
+	return str.slice(0, max - 1) + '…';
+};
+
+export const Breadcrumb: React.FC<Props> = ({width}) => {
 	const {breadCrumb: crumbs, currentNode, selectedIndex, viewMode} = getState();
 
 	const selectedTarget = getOrderedChildren(currentNode.id)[selectedIndex];
@@ -38,42 +48,42 @@ export const Breadcrumb: React.FC = () => {
 		? !isDescendantOf(currentNode.id, ticket?.parentNodeId) &&
 		  viewMode === 'dense'
 		: false;
+
+	const breadcrumbString = crumbs
+		.map((b, i) => {
+			const isLast = i === crumbs.length - 1;
+			const children = getOrderedChildren(b.id);
+			const selectedChildTitle = isLast
+				? children?.[selectedIndex]?.title
+				: undefined;
+
+			return `${i ? ' / ' : ''}${b.title ?? ''}${
+				selectedChildTitle ? ` ▸ ${selectedChildTitle}` : ''
+			}`;
+		})
+		.join('');
+
+	const truncated = truncate(breadcrumbString, width);
+
 	return (
 		<Box>
-			{crumbs.map((b, i) => {
-				const isLast = i === crumbs.length - 1;
-				const children = getOrderedChildren(b.id);
-				const selectedChildTitle = isLast
-					? children?.[selectedIndex]?.title
-					: undefined;
+			<Text color={theme.secondary2}>{truncated}</Text>
 
-				return (
-					<Box key={`${b.id}-${i}`}>
-						<Text color={theme.secondary2}>{i ? ' / ' : ''}</Text>
-						<Text color={theme.secondary2}>{b.title ?? ''}</Text>
+			{showDetails
+				? tags.map(tagId => (
+						<Box key={tagId} paddingLeft={2}>
+							<TagUI id={tagId} />
+						</Box>
+				  ))
+				: null}
 
-						{selectedChildTitle ? (
-							<Text color={theme.primary}>{` ▸ ${selectedChildTitle}`}</Text>
-						) : null}
-
-						{showDetails && isLast
-							? tags.map(tagId => (
-									<Box key={tagId} paddingLeft={2}>
-										<TagUI id={tagId} />
-									</Box>
-							  ))
-							: null}
-
-						{showDetails && isLast
-							? assignees.map(assigneeId => (
-									<Box key={assigneeId} paddingLeft={2}>
-										<AssigneeUI id={assigneeId} />
-									</Box>
-							  ))
-							: null}
-					</Box>
-				);
-			})}
+			{showDetails
+				? assignees.map(assigneeId => (
+						<Box key={assigneeId} paddingLeft={2}>
+							<AssigneeUI id={assigneeId} />
+						</Box>
+				  ))
+				: null}
 		</Box>
 	);
 };

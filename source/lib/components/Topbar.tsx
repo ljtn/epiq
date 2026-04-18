@@ -14,18 +14,35 @@ type Props = {
 
 export function HeaderBar({filters, hideBreadCrumb = false}: Props) {
 	const {userName, preferredEditor} = getSettingsState();
+	const topRightWidth = 40;
+	const breadCrumbWidth = process.stdout.columns - topRightWidth - 8;
 
 	return (
-		<Box justifyContent="space-between" flexDirection="row">
+		<Box
+			justifyContent="space-between"
+			flexDirection="row"
+			max-width={process.stdout.columns - 40}
+			overflow="hidden"
+		>
 			{hideBreadCrumb ? (
 				<Text> </Text>
 			) : (
 				<Box paddingLeft={1}>
-					{filters.length > 0 ? <FilterUI filters={filters} /> : <Breadcrumb />}
+					{filters.length > 0 ? (
+						<FilterUI filters={filters} />
+					) : (
+						<Breadcrumb width={breadCrumbWidth} />
+					)}
 				</Box>
 			)}
 
-			<Box columnGap={1} paddingRight={2}>
+			<Box
+				columnGap={1}
+				paddingRight={2}
+				max-width={topRightWidth}
+				overflow="hidden"
+				justifyContent="flex-end"
+			>
 				<HeaderPill icon="@" value={userName} />
 				<HeaderPill icon="❯" value={preferredEditor} />
 			</Box>
