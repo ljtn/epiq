@@ -11,6 +11,7 @@ export const Mode = {
 export type ModeUnion = (typeof Mode)[keyof typeof Mode];
 
 export type ActionEntry = {
+	systemOnly?: boolean;
 	intent?: string;
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;

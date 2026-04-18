@@ -1,14 +1,22 @@
 import {ulid} from 'ulid';
+import {openEditorOnText} from '../../editor/editor.js';
 import {createIssueEvents} from '../../event/common-events.js';
 import {
 	materializeAndPersist,
 	materializeAndPersistAll,
 } from '../../event/event-materialize-and-persist.js';
-import {AppEvent} from '../../event/event.model.js';
 import {resolveActorId} from '../../event/event-persist.js';
+import {AppEvent} from '../../event/event.model.js';
 import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+import {
+	getMovePendingState,
+	moveChildWithinParent,
+	moveNodeToSiblingContainer,
+	setMovePendingState,
+} from '../actions/move/move-actions-utils.js';
 import {setConfig} from '../config/epiq-config.js';
+import {SYSTEM_USER} from '../config/load-settings.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {isTicketNode} from '../model/context.model.js';
@@ -31,8 +39,6 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
-import {openEditorOnText} from '../../editor/editor.js';
-import {SYSTEM_USER} from '../config/load-settings.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -43,6 +49,103 @@ const findContributorByName = (name: string) =>
 	);
 
 export const commands: CommandLineActionEntry[] = [
+	{
+		systemOnly: true,
+		intent: CmdIntent.Move,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const userIdRes = resolveActorId();
+			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
+			const userId = userIdRes.data;
+
+			const {modifier} = getCmdState().commandMeta;
+
+			const {currentNode, selectedIndex} = getState();
+			const targetNode = getRenderedChildren(currentNode.id)[selectedIndex];
+
+			if (!targetNode) {
+				patchState({mode: Mode.DEFAULT});
+				return failed('No move target');
+			}
+
+			if (modifier === 'start') {
+				if (targetNode.readonly) return failed('Target node is read-only');
+				if (selectedIndex === -1) return failed('No item selected');
+				if (!targetNode.parentNodeId) return failed('Target has no parent');
+
+				const siblings = getRenderedChildren(targetNode.parentNodeId);
+				const currentIndex = siblings.findIndex(({id}) => id === targetNode.id);
+
+				if (currentIndex === -1)
+					return failed('Target not found among siblings');
+
+				const previousSibling = siblings[currentIndex - 1];
+				const nextSibling = siblings[currentIndex + 1];
+
+				const pos =
+					nextSibling != null
+						? ({at: 'before', sibling: nextSibling.id} as const)
+						: previousSibling != null
+						? ({at: 'after', sibling: previousSibling.id} as const)
+						: ({at: 'start'} as const);
+
+				setMovePendingState({
+					id: ulid(),
+					userId,
+					action: 'move.node',
+					payload: {
+						id: targetNode.id,
+						parent: targetNode.parentNodeId,
+						pos,
+					},
+				});
+
+				patchState({mode: Mode.MOVE});
+				return succeeded('Move initialized', null);
+			}
+
+			if (modifier === 'next') {
+				patchState({mode: Mode.MOVE});
+				return moveChildWithinParent(1);
+			}
+
+			if (modifier === 'previous') {
+				patchState({mode: Mode.MOVE});
+				return moveChildWithinParent(-1);
+			}
+
+			if (modifier === 'to-next') {
+				patchState({mode: Mode.MOVE});
+				return moveNodeToSiblingContainer(1);
+			}
+
+			if (modifier === 'to-previous') {
+				patchState({mode: Mode.MOVE});
+				return moveNodeToSiblingContainer(-1);
+			}
+
+			if (modifier === 'confirm') {
+				patchState({mode: Mode.DEFAULT});
+
+				const pendingMoveState = getMovePendingState();
+				if (!pendingMoveState) return failed('No pending move to confirm');
+
+				const result = materializeAndPersist(pendingMoveState);
+				if (isFail(result)) return result;
+
+				setMovePendingState(null);
+				return succeeded('Moved item', null);
+			}
+
+			if (modifier === 'cancel') {
+				setMovePendingState(null);
+				patchState({mode: Mode.DEFAULT});
+				return succeeded('Cancelling move', null);
+			}
+
+			return failed('Invalid move modifier');
+		},
+	},
 	{
 		intent: CmdIntent.Delete,
 		mode: Mode.COMMAND_LINE,

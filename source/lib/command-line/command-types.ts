@@ -1,14 +1,16 @@
 export const CmdKeywords = {
-	EDIT: 'edit',
 	HELP: 'help',
 	NEW: 'new',
 	TAG: 'tag',
 	FILTER: 'filter',
+	MOVE: 'move',
 	ASSIGN: 'assign',
 	DELETE: 'delete',
 	RENAME: 'rename',
+
 	CLOSE_ISSUE: 'close',
 	RE_OPEN_ISSUE: 'reopen',
+	SET_DESCRIPTION: 'edit',
 
 	SET_EDITOR: 'set:editor',
 	SET_VIEW: 'set:view',

@@ -10,7 +10,7 @@ export const getCommandIntent = (
 	switch (command) {
 		case CmdKeywords.DELETE:
 			return CmdIntent.Delete;
-		case CmdKeywords.EDIT:
+		case CmdKeywords.SET_DESCRIPTION:
 			return CmdIntent.Edit;
 		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
@@ -28,6 +28,8 @@ export const getCommandIntent = (
 			return CmdIntent.NewItem;
 		case CmdKeywords.FILTER:
 			return CmdIntent.Filter;
+		case CmdKeywords.MOVE:
+			return CmdIntent.Move;
 		// Settings
 		case CmdKeywords.SET_USERNAME:
 			return CmdIntent.SetUserName;

@@ -1,26 +1,20 @@
-import {materializeAndPersist} from '../../../event/event-materialize-and-persist.js';
-import {failed, succeeded} from '../../command-line/command-types.js';
+import {failed} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {getState, patchState} from '../../state/state.js';
+import {setCmdInput} from '../../state/cmd.state.js';
+import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
-import {
-	getMovePendingState,
-	moveChildWithinParent,
-	moveNodeToSiblingContainer,
-	setMovePendingState,
-} from './move-actions-utils.js';
+import {onConfirmCommandLineSequenceInput} from '../input/on-cmd-input-confirm.js';
+import {getMovePendingState} from './move-actions-utils.js';
 
 export const toggleMoveMode: ActionEntry[] = [
 	{
-		// Reconsider. We should probably not move before confirm
 		intent: Intent.Exit,
 		mode: Mode.MOVE,
 		description: '[<Esc>] exit context / cancel',
 		action: () => {
-			patchState({
-				mode: Mode.DEFAULT,
-			});
-			return succeeded('Cancelling move', null);
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `move cancel`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 	{
@@ -28,50 +22,64 @@ export const toggleMoveMode: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[m] move init/confirm',
 		action: () => {
-			if (getState().selectedIndex === -1) return failed('No item selected'); // Block move if no children
-			patchState({
-				mode: Mode.MOVE,
-			});
-			return succeeded('Init movie succeeded', null);
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `move start`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 	{
 		intent: Intent.ConfirmMove,
 		mode: Mode.MOVE,
 		action: () => {
-			patchState({
-				mode: Mode.DEFAULT,
-			});
-			const pendingMoveState = getMovePendingState();
-			if (pendingMoveState !== null) {
-				materializeAndPersist(pendingMoveState);
-			}
-			setMovePendingState(null);
-			return succeeded('Pasting item', null);
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `move confirm`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 ];
+
 export const moveWithinParent: ActionEntry[] = [
 	{
 		intent: Intent.MovePreviousItem,
 		mode: Mode.MOVE,
-		action: () => moveChildWithinParent(-1),
+		action: () => {
+			if (!getMovePendingState()) return failed('No pending move');
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `move previous`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+		},
 	},
 	{
 		intent: Intent.MoveNextItem,
 		mode: Mode.MOVE,
-		action: () => moveChildWithinParent(1),
+		action: () => {
+			if (!getMovePendingState()) return failed('No pending move');
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `move next`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+		},
 	},
 ];
+
 export const moveAcrossParents: ActionEntry[] = [
 	{
 		intent: Intent.MoveToNextContainer,
 		mode: Mode.MOVE,
-		action: () => moveNodeToSiblingContainer(1),
+		action: () => {
+			if (!getMovePendingState()) return failed('No pending move');
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `move to-next`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+		},
 	},
 	{
 		intent: Intent.MoveToPreviousContainer,
 		mode: Mode.MOVE,
-		action: () => moveNodeToSiblingContainer(-1),
+		action: () => {
+			if (!getMovePendingState()) return failed('No pending move');
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `move to-previous`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+		},
 	},
 ];

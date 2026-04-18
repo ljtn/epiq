@@ -193,10 +193,13 @@ export const commandPending = () => {
 		commandIsPending: true,
 	}));
 };
-export const commandConfirmed = () => {
+export const commandConfirmed = ({addToHistory = true}) => {
+	const horizon = 40;
 	setState(state => ({
 		...state,
-		commandHistory: [state.value, ...state.commandHistory].slice(0, 20),
+		commandHistory: addToHistory
+			? [state.value, ...state.commandHistory].slice(0, horizon)
+			: state.commandHistory,
 		commandHistoryIndex: -1,
 		commandIsPending: false,
 	}));

@@ -33,7 +33,7 @@ export const inputActions: ActionEntry[] = [
 		intent: Intent.Confirm,
 		mode: Mode.COMMAND_LINE,
 		action: (...args) => {
-			onConfirmCommandLineSequenceInput(...args);
+			onConfirmCommandLineSequenceInput();
 			return succeeded('Executing command', null);
 		},
 	},

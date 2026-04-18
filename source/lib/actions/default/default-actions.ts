@@ -92,10 +92,10 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Edit,
 		mode: Mode.DEFAULT,
-		action: (...args) => {
+		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `edit`);
-			return onConfirmCommandLineSequenceInput(...args);
+			return onConfirmCommandLineSequenceInput();
 		},
 	},
 	{

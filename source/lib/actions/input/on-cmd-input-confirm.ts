@@ -7,7 +7,6 @@ import {
 	Result,
 } from '../../command-line/command-types.js';
 import {commands} from '../../command-line/commands.js';
-import {ActionEntry} from '../../model/action-map.model.js';
 import {
 	cmdResultToValidationState,
 	commandConfirmed,
@@ -15,23 +14,26 @@ import {
 	getCmdState,
 } from '../../state/cmd.state.js';
 
-export const onConfirmCommandLineSequenceInput = (
-	..._args: Parameters<NonNullable<ActionEntry['action']>>
-): Result => {
+export const onConfirmCommandLineSequenceInput = ({
+	isForceExecutedBySystem = false,
+}: {isForceExecutedBySystem?: boolean} = {}): Result => {
 	const {
 		commandMeta: {command, validity, modifier, inputString},
 	} = getCmdState();
 	if (!command) return failed('No command to confirm');
-	const intent = getCommandIntent(command);
 
-	commandPending();
-
-	if (validity === cmdValidity.Invalid) {
+	if (!isForceExecutedBySystem && validity === cmdValidity.Invalid) {
 		// Handled by info hints
 		return failed('Invalid command');
 	}
 
-	const actionMeta = commands.find(c => c.intent === intent);
+	const intent = getCommandIntent(command);
+
+	commandPending();
+
+	const actionMeta = commands
+		.filter(c => isForceExecutedBySystem || c.systemOnly !== true)
+		.find(c => c.intent === intent);
 	if (!actionMeta) {
 		return cmdResultToValidationState({
 			result: cmdResult.Fail,
@@ -48,7 +50,7 @@ export const onConfirmCommandLineSequenceInput = (
 
 	if (isFail(commandResult)) return cmdResultToValidationState(commandResult);
 
-	commandConfirmed();
+	commandConfirmed({addToHistory: !isForceExecutedBySystem});
 	actionMeta?.onSuccess?.();
 	return cmdResultToValidationState(commandResult);
 };

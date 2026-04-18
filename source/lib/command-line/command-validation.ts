@@ -200,12 +200,11 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 
 	[CmdKeywords.NONE]: args => {
-		const list = getCmdModifiers(CmdKeywords.NONE);
 		return !args.command
 			? invalid({
 					message: buildHint({
 						prefix: 'commands... ',
-						wordList: list,
+						wordList: getCmdModifiers(CmdKeywords.NONE),
 						noOfHints: 100,
 						inputString: args.inputString,
 					}),
@@ -224,12 +223,22 @@ const validators: Record<CmdKeyword, Validator> = {
 			}),
 		})(args),
 
-	[CmdKeywords.EDIT]: () => valid('<ENTER> to confirm'),
+	[CmdKeywords.SET_DESCRIPTION]: () => valid('<ENTER> to confirm'),
 	[CmdKeywords.HELP]: () => valid('<ENTER> to confirm'),
 	[CmdKeywords.RENAME]: () => valid('<ENTER> to confirm'),
 	[CmdKeywords.DELETE]: args => requireExact(args),
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),
+
+	[CmdKeywords.MOVE]: args =>
+		requireModifierOrInputStr({
+			hint: buildHint({
+				prefix: 'hey hacker! These commands are blocked for you... ',
+				wordList: getCmdModifiers(CmdKeywords.MOVE),
+				noOfHints: 10,
+				inputString: args.inputString,
+			}),
+		})(args),
 
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({

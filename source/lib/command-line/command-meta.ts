@@ -15,6 +15,7 @@ export const CmdIntent = {
 	Delete: 'delete',
 
 	Filter: 'filter',
+	Move: 'move',
 
 	// Settings
 	SetView: 'set-view',

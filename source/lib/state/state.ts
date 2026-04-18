@@ -1,5 +1,5 @@
 import {useSyncExternalStore} from 'react';
-import {contextActions} from '../actions/board-action-map.js';
+import {contextActions} from '../actions/action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
 import {
