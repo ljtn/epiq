@@ -11,6 +11,7 @@ import {fileManager} from '../storage/file-manager.js';
 export type EpiqConfig = {
 	preferredEditor?: string;
 	userName?: string;
+	userId?: string;
 };
 
 const CONFIG_FILE_NAME = '.epiqrc';

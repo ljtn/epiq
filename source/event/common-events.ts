@@ -1,5 +1,5 @@
 import {monotonicFactory, ulid} from 'ulid';
-import {AppEvent} from './event.model.js';
+import {AppEvent, UserId} from './event.model.js';
 
 const nextId = monotonicFactory();
 
@@ -10,7 +10,7 @@ export const createIssueEvents = ({
 }: {
 	name: string;
 	parent: string;
-	userId: string;
+	userId: UserId;
 }): readonly AppEvent[] => {
 	const issueId = nextId();
 	const descriptionId = nextId();

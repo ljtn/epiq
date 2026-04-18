@@ -1,5 +1,5 @@
+import {ulid} from 'ulid';
 import {materialize} from '../../../event/event-materialize.js';
-import {AppEvent} from '../../../event/event.model.js';
 import {resolveActorId} from '../../../event/event-persist.js';
 import {getOrderedChildren} from '../../../repository/rank.js';
 import {
@@ -12,7 +12,7 @@ import {
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {ulid} from 'ulid';
+import {AppEvent} from '../../../event/event.model.js';
 
 let pendingMoveState: AppEvent<'move.node'> | null = null;
 
@@ -50,9 +50,13 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 	const siblingNode = siblings[currentIndex + direction];
 	if (!siblingNode) return failed('Missing sibling node');
 
+	const userIdRes = resolveActorId();
+	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
+	const userId = userIdRes.data;
+
 	setMovePendingState({
 		id: ulid(),
-		userId: resolveActorId(),
+		userId: userId,
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,
@@ -79,9 +83,13 @@ export function moveChildWithinParent(direction: -1 | 1) {
 	const referenceNode = siblings[selectedIndex + direction];
 	if (!referenceNode) return failed('Missing sibling node');
 
+	const userIdRes = resolveActorId();
+	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
+	const userId = userIdRes.data;
+
 	setMovePendingState({
 		id: ulid(),
-		userId: resolveActorId(),
+		userId: userId,
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,

@@ -1,7 +1,7 @@
 import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {isTicketNode} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {initWorkspaceState} from '../lib/state/state.js';
+import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {resolveReopenParentFromLog} from './log-utils.js';
@@ -391,8 +391,12 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'move.node':
 		case 'close.issue':
 		case 'reopen.issue':
-		case 'edit.description':
 			return [event.payload.id];
+		case 'edit.description':
+			const ids = [event.payload.id];
+			const parentId = getState().nodes[event.payload.id]?.parentNodeId;
+			if (parentId) ids.push(parentId);
+			return ids;
 
 		case 'tag.issue':
 		case 'assign.issue':
@@ -420,6 +424,8 @@ export function materialize<A extends EventAction>(
 			appendEventToNodeLog(nodeId, event);
 		}
 	}
+
+	nodeRepo.createContributor({name: event.userId, id: 'TEMP_USER_ID'});
 
 	return result;
 }

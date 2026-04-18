@@ -1,16 +1,21 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
-import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../lib/command-line/command-types.js';
 import {getSettingsState} from '../lib/state/settings.state.js';
+import {getEdgeRef} from './event-load.js';
 import {
 	AppEvent,
 	AppEventMap,
-	stripActor,
 	StoredAppEvent,
+	stripActor,
+	UserId,
 } from './event.model.js';
-import {getEdgeRef} from './event-load.js';
 
 const getNextId = monotonicFactory();
 
@@ -45,26 +50,32 @@ const sanitizeFilePart = (value: string) =>
 		.replace(/[^a-z0-9._-]+/g, '-')
 		.replace(/^-+|-+$/g, '') || 'unknown';
 
-export const resolveActorId = () => {
-	const explicit = process.env['EPIQ_ACTOR_ID'];
-	if (explicit?.trim()) return sanitizeFilePart(explicit);
+export const resolveActorId = (): Result<UserId> => {
+	const {userName, userId} = getSettingsState();
+	if (!userName) return failed('User name not configured');
+	if (!userId) return failed('User ID not configured');
 
-	const configuredUser = getSettingsState().userName;
-	if (configuredUser?.trim()) return sanitizeFilePart(configuredUser);
-
-	try {
-		return sanitizeFilePart(os.userInfo().username);
-	} catch {
-		return 'unknown';
+	const fileName: UserId = `${sanitizeFilePart(userId)}.${sanitizeFilePart(
+		userName,
+	)}`;
+	if (userName?.trim()) {
+		return succeeded('Successfully resolved actor ID', fileName);
 	}
+	return failed('Unable to resolve actor ID from settings or OS user info');
 };
 
 const getEventsDir = (rootDir = process.cwd()) =>
 	path.join(rootDir, EPIQ_DIR, EVENTS_DIR);
 
-export const getEventLogPath = (rootDir = process.cwd()) => {
-	const actorId = resolveActorId();
-	return path.join(getEventsDir(rootDir), `${actorId}.jsonl`);
+export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
+	const actorIdResult = resolveActorId();
+	if (isFail(actorIdResult) || !actorIdResult.data)
+		return failed('Unable to resolve event log path');
+
+	return succeeded(
+		'Successfully resolved event log path',
+		path.join(getEventsDir(rootDir), `${actorIdResult.data}.jsonl`),
+	);
 };
 
 export const toPersistedEvent = (
@@ -80,6 +91,7 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 	try {
 		const dir = getEventsDir(rootDir);
 		const filePath = getEventLogPath(rootDir);
+		if (isFail(filePath)) return filePath;
 
 		fs.mkdirSync(dir, {recursive: true});
 
@@ -97,10 +109,10 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 
 		const entry = toPersistedEvent(stripActor(event), [newId, edgeRef.data]);
 
-		fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, 'utf8');
+		fs.appendFileSync(filePath.data, `${JSON.stringify(entry)}\n`, 'utf8');
 
 		return succeeded<PersistSuccess>('Event persisted', {
-			path: filePath,
+			path: filePath.data,
 			entry,
 		});
 	} catch (error) {

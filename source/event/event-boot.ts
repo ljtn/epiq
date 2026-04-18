@@ -13,7 +13,13 @@ import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
 
-const SYSTEM_ACTOR_ID = 'system';
+const SYSTEM_ACTOR_ID = `system.actor` as const;
+
+const nextId = monotonicFactory();
+
+// Keep the exact events that were used for first materialization,
+// so they can be persisted later without regenerating new ids.
+let pendingDefaultEvents: readonly AppEvent[] | null = null;
 
 export function getBootNavigationTarget() {
 	const workspace = Object.values(getState().nodes).find(
@@ -40,8 +46,6 @@ export function navigateToInitialNode() {
 		selectedIndex: children.length > 0 ? 0 : -1,
 	});
 }
-
-const nextId = monotonicFactory();
 
 export function createDefaultEvents(): readonly AppEvent[] {
 	const workspaceId = nextId();
@@ -112,11 +116,45 @@ export function createDefaultEvents(): readonly AppEvent[] {
 	] as const satisfies readonly AppEvent[];
 }
 
+export function hasPendingDefaultEvents(): boolean {
+	return pendingDefaultEvents !== null;
+}
+
+export function persistPendingDefaultEvents(): Result {
+	if (!pendingDefaultEvents || pendingDefaultEvents.length === 0) {
+		return succeeded('No pending default events to persist', null);
+	}
+
+	const result = materializeAndPersistAll(pendingDefaultEvents);
+
+	const failures = result.filter(isFail);
+	if (failures.length > 0) {
+		return failed(
+			[
+				chalk.bold.red('Materializing failed'),
+				'',
+				...failures.map(
+					(x, i) => `${chalk.dim.gray(`${i + 1}.`)} ${chalk.dim(x.message)}`,
+				),
+				'\n',
+			].join('\n'),
+		);
+	}
+
+	pendingDefaultEvents = null;
+	return succeeded('Persisted pending default events', null);
+}
+
 export function bootStateFromEventLog(eventLog: AppEvent[]): Result {
-	const results =
-		eventLog.length === 0
-			? materializeAndPersistAll(createDefaultEvents())
-			: materializeAll(eventLog);
+	let results;
+
+	if (eventLog.length === 0) {
+		pendingDefaultEvents = createDefaultEvents();
+		results = materializeAll([...pendingDefaultEvents]);
+	} else {
+		pendingDefaultEvents = null;
+		results = materializeAll(eventLog);
+	}
 
 	const failures = results.filter(isFail);
 	if (failures.length > 0) {

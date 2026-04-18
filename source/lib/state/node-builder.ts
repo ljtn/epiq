@@ -88,12 +88,20 @@ export const nodes = {
 		readonly: false,
 		log: [],
 	}),
-	text: (
-		id: string,
-		name: string,
-		parentNodeId: string,
-		props: NavNode<'TEXT'>['props'] = {},
-	): NavNode<'TEXT'> => ({
+
+	text: ({
+		id,
+		name,
+		parentNodeId,
+		props = {},
+		readonly = true,
+	}: {
+		id: string;
+		name: string;
+		parentNodeId: string;
+		props?: NavNode<'TEXT'>['props'];
+		readonly?: boolean;
+	}): NavNode<'TEXT'> => ({
 		id,
 		title: name,
 		rank: midRank(),
@@ -102,7 +110,7 @@ export const nodes = {
 		context: NavNodeCtx.TEXT,
 		childRenderAxis: 'vertical',
 		parentNodeId,
-		readonly: false,
+		readonly,
 		log: [],
 	}),
 };

@@ -5,7 +5,7 @@ import {getTagColor} from '../lib/components/Tag.js';
 import {getState} from '../lib/state/state.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {timeAgo} from './date-utils.js';
-import {AppEvent, EventAction} from './event.model.js';
+import {AppEvent, EventAction, UserId} from './event.model.js';
 
 const padVisibleEnd = (value: string, width: number): string =>
 	value + ' '.repeat(Math.max(0, width - stringWidth(value)));
@@ -81,8 +81,8 @@ const formatLogTime = (id: string): string => {
 
 const USER_COL_WIDTH = 12;
 
-const formatUser = (userId: string): string => {
-	return chalk.dim(padVisibleEnd(`${userId}`, USER_COL_WIDTH));
+const formatUser = (userId: UserId): string => {
+	return chalk.dim(padVisibleEnd(`${userId.split('.')[1]}`, USER_COL_WIDTH));
 };
 
 export const formatLogLine = (event: AppEvent): string => {

@@ -1,15 +1,19 @@
-import {Box} from 'ink';
+import {Box, Text} from 'ink';
 import React from 'react';
-import {WorkspaceUI} from './lib/components/WorkspaceUI.js';
-import {isSuccess} from './lib/command-line/command-types.js';
+import {
+	hasPendingDefaultEvents,
+	persistPendingDefaultEvents,
+} from './event/event-boot.js';
+import {isFail, isSuccess} from './lib/command-line/command-types.js';
 import {ContextBar} from './lib/components/ContextBar.js';
 import {HelpUI} from './lib/components/Help.js';
+import {HeaderBar} from './lib/components/Topbar.js';
+import {WorkspaceUI} from './lib/components/WorkspaceUI.js';
 import {Mode} from './lib/model/action-map.model.js';
 import {findInBreadCrumb} from './lib/model/app-state.model.js';
+import {getSettingsState} from './lib/state/settings.state.js';
 import {getRenderedChildren, getState, useAppState} from './lib/state/state.js';
 import SettingsUI from './SettingsUI.js';
-import {getSettingsState} from './lib/state/settings.state.js';
-import {HeaderBar} from './lib/components/Topbar.js';
 
 type AppProps = {
 	height: number;
@@ -20,18 +24,21 @@ export default function App({width, height}: AppProps) {
 	const state = useAppState();
 	const settings = getSettingsState();
 
-	const hasUserName = Boolean(settings.userName?.trim());
+	const hasUserName = Boolean(
+		settings.userName?.trim() && settings.userName !== 'system',
+	);
 	const hasPreferredEditor = Boolean(settings.preferredEditor?.trim());
 	const isConfigured = hasUserName && hasPreferredEditor;
 	const filters = useAppState().filters;
 
-	const isSetupMode = !settings.userName || !settings.preferredEditor;
+	const isSetupMode =
+		settings.userName === 'system' || !settings.preferredEditor;
 
 	if (!isConfigured) {
 		return (
 			<Box flexDirection="column">
 				<Box flexDirection="column">
-					<HeaderBar hideBreadCrumb={isSetupMode} filters={filters}></HeaderBar>
+					<HeaderBar hideBreadCrumb={isSetupMode} filters={filters} />
 					<SettingsUI
 						height={height}
 						width={width}
@@ -51,6 +58,14 @@ export default function App({width, height}: AppProps) {
 		);
 	}
 
+	// Persist default events if they haven't been persisted yet, to ensure the same ids are used for materialization and persistence.
+	if (hasPendingDefaultEvents()) {
+		const persistResult = persistPendingDefaultEvents();
+		if (isFail(persistResult)) {
+			return <Text>{persistResult.message}</Text>;
+		}
+	}
+
 	const board = findInBreadCrumb(getState().breadCrumb ?? [], 'BOARD');
 	if (isSuccess(board)) {
 		const boardId = board.data.id;
@@ -68,7 +83,7 @@ export default function App({width, height}: AppProps) {
 		<Box flexDirection="column">
 			{state.mode !== Mode.HELP && (
 				<Box flexDirection="column">
-					<HeaderBar filters={filters}></HeaderBar>
+					<HeaderBar filters={filters} />
 					<WorkspaceUI
 						width={width}
 						height={height}

@@ -1,4 +1,4 @@
-import {isFail} from '../command-line/command-types.js';
+import {failed, isFail} from '../command-line/command-types.js';
 import {patchSettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 import {
@@ -6,6 +6,12 @@ import {
 	readEpiqConfig,
 	writeEpiqConfig,
 } from './epiq-config.js';
+
+export const SYSTEM_USER = {
+	userId: '00001',
+	userName: 'system',
+	preferredEditor: '',
+};
 
 export const loadSettingsFromConfig = () => {
 	const configPath = getEpiqConfigPath();
@@ -15,7 +21,7 @@ export const loadSettingsFromConfig = () => {
 
 	if (!exists) {
 		// create empty config
-		const createResult = writeEpiqConfig({});
+		const createResult = writeEpiqConfig(SYSTEM_USER);
 		if (isFail(createResult)) {
 			throw new Error('Unable to create ~/.epiqrc');
 		}
@@ -27,11 +33,15 @@ export const loadSettingsFromConfig = () => {
 		throw new Error('Unable to load settings');
 	}
 
-	const {preferredEditor, userName} = result.data;
+	const {preferredEditor, userName, userId} = result.data;
 
+	if (!userName || !userId) {
+		return failed('User name or ID not configured in ~/.epiqrc');
+	}
 	// 3. Hydrate state
-	patchSettingsState({
+	return patchSettingsState({
 		preferredEditor: preferredEditor,
 		userName: userName,
+		userId: userId,
 	});
 };

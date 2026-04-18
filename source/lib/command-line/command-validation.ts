@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import {Filter} from '../model/app-state.model.js';
 import {getState} from '../state/state.js';
 import {getGradientWord, getWordGradientPosition} from '../utils/color.js';
@@ -31,6 +32,7 @@ const valid = (message: string = ''): ValidationResult => ({
 	validity: cmdValidity.Valid,
 	completionWordList: [],
 });
+
 const invalid = ({
 	message,
 	completionWordList,
@@ -42,6 +44,7 @@ const invalid = ({
 	message,
 	completionWordList,
 });
+
 const isBlank = (value: string) => value.length === 0;
 
 const buildHint = ({
@@ -95,15 +98,53 @@ const requireOneIn =
 
 const requireModifierOrInputStr =
 	({hint}: {hint: string}): Validator =>
-	({modifier, inputString}) => {
-		return isBlank(modifier) && isBlank(inputString)
+	({modifier, inputString}) =>
+		isBlank(modifier) && isBlank(inputString)
 			? invalid({message: hint, completionWordList: []})
 			: valid();
+
+const suggestFromListButDoNotRestrict =
+	({
+		list,
+		prefixWhenBlank = '',
+		prefixWhenTyping = '',
+		noOfHints = 10,
+	}: {
+		list: readonly string[];
+		prefixWhenBlank?: string;
+		prefixWhenTyping?: string;
+		noOfHints?: number;
+	}): Validator =>
+	({modifier, inputString}) => {
+		const value = modifier || inputString;
+		const trimmed = value.trim();
+
+		if (!trimmed) {
+			return invalid({
+				message: buildHint({
+					prefix: prefixWhenBlank,
+					wordList: list,
+					noOfHints,
+					inputString: '',
+				}),
+				completionWordList: [...list],
+			});
+		}
+
+		return valid(
+			buildHint({
+				prefix: prefixWhenTyping,
+				wordList: list,
+				noOfHints,
+				inputString: trimmed,
+			}),
+		);
 	};
 
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.FILTER]: args => {
 		if (args.modifier === 'clear') return valid();
+
 		const isValidModifier = (val: string): val is Filter['target'] =>
 			getCmdModifiers(CmdKeywords.FILTER).includes(val);
 
@@ -146,7 +187,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (wordList.length && !wordList.includes(args.inputString.trim() ?? '')) {
 			return invalid({
 				message: buildHint({
-					prefix: `existing ${args.modifier}s...`,
+					prefix: `existing ${args.modifier}s... `,
 					wordList,
 					noOfHints: 10,
 					inputString: args.inputString,
@@ -157,6 +198,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return valid();
 	},
+
 	[CmdKeywords.NONE]: args => {
 		const list = getCmdModifiers(CmdKeywords.NONE);
 		return !args.command
@@ -171,6 +213,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			  })
 			: valid();
 	},
+
 	[CmdKeywords.NEW]: args =>
 		requireOneIn({
 			list: getCmdModifiers(CmdKeywords.NEW),
@@ -182,19 +225,12 @@ const validators: Record<CmdKeyword, Validator> = {
 		})(args),
 
 	[CmdKeywords.EDIT]: () => valid('<ENTER> to confirm'),
-
 	[CmdKeywords.HELP]: () => valid('<ENTER> to confirm'),
-
 	[CmdKeywords.RENAME]: () => valid('<ENTER> to confirm'),
-
 	[CmdKeywords.DELETE]: args => requireExact(args),
+	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
+	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),
 
-	[CmdKeywords.CLOSE_ISSUE]: args => {
-		return requireExact(args);
-	},
-	[CmdKeywords.RE_OPEN_ISSUE]: args => {
-		return requireExact(args);
-	},
 	[CmdKeywords.TAG]: args =>
 		requireModifierOrInputStr({
 			hint: buildHint({
@@ -204,15 +240,19 @@ const validators: Record<CmdKeyword, Validator> = {
 				inputString: args.inputString,
 			}),
 		})(args),
-	[CmdKeywords.ASSIGN]: args =>
-		requireModifierOrInputStr({
-			hint: buildHint({
-				wordList: getCmdModifiers(CmdKeywords.ASSIGN),
-				postfix: ', etc.',
-				noOfHints: 3,
-				inputString: args.inputString,
-			}),
-		})(args),
+
+	[CmdKeywords.ASSIGN]: args => {
+		const contributors = Object.values(getState().contributors).map(
+			x => x.name,
+		);
+
+		return suggestFromListButDoNotRestrict({
+			list: contributors,
+			prefixWhenBlank: 'contributors... ',
+			prefixWhenTyping: 'existing contributors... ',
+			noOfHints: 10,
+		})(args);
+	},
 
 	// Settings
 	[CmdKeywords.SET_EDITOR]: args => {
@@ -229,15 +269,16 @@ const validators: Record<CmdKeyword, Validator> = {
 			  })
 			: valid();
 	},
+
 	[CmdKeywords.SET_USERNAME]: args => {
 		return !args.inputString
 			? invalid({
-					message:
-						'enter global username (must be unique in project for consistent logs)',
+					message: `Enter a username. Saved in ${chalk.bgBlack('~/.epiqrc')}`,
 					completionWordList: [],
 			  })
 			: valid();
 	},
+
 	[CmdKeywords.SET_VIEW]: args =>
 		requireOneIn({
 			list: getCmdModifiers(CmdKeywords.SET_VIEW),

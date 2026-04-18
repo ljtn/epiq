@@ -3,6 +3,7 @@ import {Contributor, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 
+export type UserId = `${string}.${string}`;
 export type MovePosition =
 	| {at: 'start'}
 	| {at: 'end'}
@@ -126,7 +127,6 @@ type AppEventUnion = {
 	[A in EventAction]: {
 		action: A;
 		payload: AppEventMap[A]['payload'];
-		userId: string;
 	};
 }[EventAction];
 
@@ -135,11 +135,14 @@ export type StoredAppEvent<A extends EventAction = EventAction> = Extract<
 	{action: A}
 >;
 
-export type AppEvent<A extends EventAction = EventAction> = Extract<
+type LogicalEvent<A extends EventAction = EventAction> = Extract<
 	AppEventUnion,
 	{action: A}
-> & {
+>;
+
+export type AppEvent<A extends EventAction = EventAction> = LogicalEvent<A> & {
 	id: string;
+	userId: UserId;
 };
 
 export type MaterializeResult<A extends EventAction> = Result<{
