@@ -18,7 +18,6 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	}
 
 	const globalCommands = [
-		CmdKeywords.FILTER,
 		CmdKeywords.SET_VIEW,
 		CmdKeywords.SET_EDITOR,
 		CmdKeywords.HELP,
@@ -37,8 +36,8 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	];
 	const commandMap: CommandMap = {
 		WORKSPACE: [...globalCommands],
-		BOARD: [...globalCommands, ...generalEditCommands],
-		SWIMLANE: [...globalCommands, ...generalEditCommands],
+		BOARD: [CmdKeywords.FILTER, ...globalCommands, ...generalEditCommands],
+		SWIMLANE: [CmdKeywords.FILTER, ...globalCommands, ...generalEditCommands],
 		TICKET: [
 			...globalCommands,
 			...generalEditCommands,
@@ -46,7 +45,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		],
 		FIELD: [...globalCommands, ...updateTicketCommands],
 		FIELD_LIST: [...globalCommands, ...updateTicketCommands],
-		TEXT: [...globalCommands, CmdKeywords.SET_DESCRIPTION],
+		TEXT: [...globalCommands],
 	};
 
 	const modifiers = {

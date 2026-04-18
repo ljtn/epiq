@@ -69,9 +69,9 @@ export const stringToHslHexColor = (value: string): string => {
 // =========================
 
 const gradientStops: [number, number, number][] = [
-	[168, 85, 247], // purple
-	[34, 211, 238], // cyan
-	[59, 130, 246], // blue
+	[168, 139, 250], // soft neon lavender
+	[59, 130, 246], // vivid blue core
+	[34, 211, 238], // bright cyan edge
 ];
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;

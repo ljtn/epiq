@@ -1,27 +1,30 @@
 export const chalkColors = {
-	// Base
+	// Base (keep — already perfect for midnight themes)
 	bg: '#1a1b26',
-	fg: '#c0caf5',
+	fg: '#c8d3ff', // slightly lifted toward your gradient
 
-	// Grays (cool, blue-leaning, evenly spaced)
-	grayDark: '#2f344d',
-	gray: '#4c567a',
-	grayLight: '#7f8bb3',
+	// Grays (cooler + slightly more blue)
+	grayDark: '#2a2f45',
+	gray: '#46507a',
+	grayLight: '#9ea2b6',
 
-	// Accents (slightly shifted toward blue)
-	cyan: '#7dcfff',
-	cyanSoft: '#89ddff',
+	// Accents — now derived from your gradient
 
-	blue: '#7aa2f7',
+	// Cyan edge (softer + slightly less green)
+	cyan: '#6ee7f0',
+	cyanSoft: '#9ff1f7',
 
-	// Less purple, more blue-violet
-	magenta: '#9d7cd8',
-	magentaSoft: '#a890e8',
+	// Blue core (closer to your [59,130,246])
+	blue: '#5b8cff',
 
-	// Semantic
-	green: '#9ece6a',
-	yellow: '#e0af68',
-	red: '#f7768e',
+	// Lavender instead of purple (matches [168,139,250])
+	magenta: '#a78bfa',
+	magentaSoft: '#c4b5fd',
+
+	// Semantic (nudged to fit the cooler palette)
+	green: '#8fdc8c',
+	yellow: '#f1c27d',
+	red: '#ff7a90',
 
 	white: '#ffffff',
 } as const;

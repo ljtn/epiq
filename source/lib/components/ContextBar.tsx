@@ -39,7 +39,7 @@ export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
 				>
 					<Box flexDirection="row">
 						{clampedHints.map((hint, index) => (
-							<Text key={hint} color={theme.secondary}>
+							<Text key={hint} color={theme.secondary2}>
 								{(index > 0 ? ' | ' : '') + hint}
 							</Text>
 						))}
