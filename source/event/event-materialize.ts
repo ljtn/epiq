@@ -425,7 +425,11 @@ export function materialize<A extends EventAction>(
 		}
 	}
 
-	nodeRepo.createContributor({name: event.userId, id: 'TEMP_USER_ID'});
+	const [id, name] = event.userId.split('.');
+	if (!id?.length || !name?.length) {
+		return materializeFail('Invalid user ID format', event.action);
+	}
+	nodeRepo.createContributor({name, id});
 
 	return result;
 }

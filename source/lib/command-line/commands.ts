@@ -637,7 +637,7 @@ export const commands: CommandLineActionEntry[] = [
 			const userId = userIdRes.data;
 
 			const {modifier, inputString} = getCmdState().commandMeta;
-			const name = modifier || inputString;
+			const name = (modifier || inputString).trim();
 			if (!name) return failed('Provide an assignee');
 
 			const {selectedIndex, currentNode} = getState();

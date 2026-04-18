@@ -27,10 +27,13 @@ type Validator = ({
 }) => ValidationResult;
 
 // Helpers
-const valid = (message: string = ''): ValidationResult => ({
+const valid = (
+	message: string = '',
+	completionWordList: string[] = [],
+): ValidationResult => ({
 	message,
 	validity: cmdValidity.Valid,
-	completionWordList: [],
+	completionWordList,
 });
 
 const invalid = ({
@@ -53,12 +56,14 @@ const buildHint = ({
 	postfix = '',
 	noOfHints = 2,
 	inputString,
+	minLengthForHints = 1,
 }: {
 	prefix?: string;
 	wordList: readonly string[];
 	postfix?: string;
 	noOfHints: number;
 	inputString: string;
+	minLengthForHints?: number;
 }) => {
 	const filteredList = wordList
 		.filter(Boolean)
@@ -70,7 +75,8 @@ const buildHint = ({
 
 	const hintOptions = sortedByGradient.slice(0, noOfHints).map(getGradientWord);
 
-	const optionsStr = hintOptions.length > 1 ? hintOptions.join(' ') : '';
+	const optionsStr =
+		hintOptions.length > minLengthForHints ? hintOptions.join(' ') : '';
 	return optionsStr ? `${prefix}${optionsStr}${postfix}` : '';
 };
 
@@ -106,26 +112,27 @@ const requireModifierOrInputStr =
 const suggestFromListButDoNotRestrict =
 	({
 		list,
-		prefixWhenBlank = '',
-		prefixWhenTyping = '',
+		prefix = '',
 		noOfHints = 10,
+		minLengthForHints = 1,
 	}: {
 		list: readonly string[];
-		prefixWhenBlank?: string;
-		prefixWhenTyping?: string;
+		prefix?: string;
 		noOfHints?: number;
+		minLengthForHints?: number;
 	}): Validator =>
 	({modifier, inputString}) => {
 		const value = modifier || inputString;
 		const trimmed = value.trim();
 
-		if (!trimmed) {
+		if (!inputString.length) {
 			return invalid({
 				message: buildHint({
-					prefix: prefixWhenBlank,
+					prefix: prefix,
 					wordList: list,
 					noOfHints,
 					inputString: '',
+					minLengthForHints,
 				}),
 				completionWordList: [...list],
 			});
@@ -133,11 +140,11 @@ const suggestFromListButDoNotRestrict =
 
 		return valid(
 			buildHint({
-				prefix: prefixWhenTyping,
 				wordList: list,
 				noOfHints,
 				inputString: trimmed,
 			}),
+			[...list],
 		);
 	};
 
@@ -256,10 +263,10 @@ const validators: Record<CmdKeyword, Validator> = {
 		);
 
 		return suggestFromListButDoNotRestrict({
-			list: contributors,
-			prefixWhenBlank: 'contributors... ',
-			prefixWhenTyping: 'existing contributors... ',
+			list: [...contributors],
+			prefix: 'enter assignee name... ',
 			noOfHints: 10,
+			minLengthForHints: 0,
 		})(args);
 	},
 
