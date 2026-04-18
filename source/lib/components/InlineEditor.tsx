@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import {marked} from 'marked';
 import TerminalRenderer from 'marked-terminal';
@@ -63,28 +62,32 @@ export const InlineEditor: React.FC<Props> = ({
 
 	const EMPTY_ROW_FALLBACK = '\u2029';
 
-	const renderedItems = rows.map((row, i) => (
-		<Text key={`${id}-${i}`}>
-			{(currentNode.id === id && selectedIndex === i
-				? chalk.cyan(
-						`▸ ${Array.from({length: String(i).length})
-							.map(() => ' ')
-							.join('')}`,
-				  )
-				: chalk.dim.gray(`${i + 1}  `)) +
-				renderMarkdownInline(
-					row.length
-						? truncateWithEllipsis(row, maxWidth - 10)
-						: EMPTY_ROW_FALLBACK,
-				)}
-		</Text>
-	));
+	const renderedItems = rows.map((row, i) => {
+		const isSel = currentNode.id === id && selectedIndex === i;
+		return (
+			<Box key={`${id}-${i}`}>
+				<Text
+					color={isSel ? theme.primary : theme.secondary2}
+					dimColor={!isSel}
+				>
+					{`${i + 1}  `.padStart(5, '\u00A0')}
+				</Text>
+				<Text backgroundColor={isSel ? 'gray' : ''}>
+					{renderMarkdownInline(
+						row.length
+							? truncateWithEllipsis(row, maxWidth - 10)
+							: EMPTY_ROW_FALLBACK,
+					)}
+				</Text>
+			</Box>
+		);
+	});
 
 	return (
 		<Box flexDirection="column" paddingTop={1}>
 			<Box>
 				<CursorUI isSelected={selected} />
-				<Text color={selected ? theme.accent : theme.secondary}>{label}</Text>
+				<Text color={selected ? theme.accent : theme.secondary2}>{label}</Text>
 			</Box>
 
 			<Box

@@ -411,14 +411,16 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 
 export function materialize<A extends EventAction>(
 	event: AppEvent<A>,
+	bypassLogging = false,
 ): MaterializeResult<A> {
 	const handler = materializeHandlers[event.action] as (
 		event: AppEvent<A>,
 	) => MaterializeResult<A>;
 
 	const result = handler(event);
+	if (isFail(result)) return result;
 
-	if (!isFail(result)) {
+	if (!bypassLogging) {
 		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
 		for (const nodeId of affectedNodeIds) {
 			appendEventToNodeLog(nodeId, event);

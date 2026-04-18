@@ -67,7 +67,7 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 
 	if (!pendingMoveState) return failed('Could not materialize move state');
 
-	const materializedResult = materialize(pendingMoveState);
+	const materializedResult = materialize(pendingMoveState, true);
 	if (isFail(materializedResult)) return materializedResult;
 
 	return succeeded('Node moved successfully', materializedResult.data);
@@ -103,7 +103,7 @@ export function moveChildWithinParent(direction: -1 | 1) {
 
 	if (!pendingMoveState) return failed('Could not materialize move state');
 
-	const materializedResult = materialize(pendingMoveState);
+	const materializedResult = materialize(pendingMoveState, true);
 	if (isFail(materializedResult)) return materializedResult;
 
 	return succeeded('Node moved successfully', materializedResult.data);

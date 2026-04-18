@@ -25,7 +25,7 @@ const formatLogAction = (action: string): string => {
 			'reopen.issue': 'Reopened',
 			'tag.issue': 'Tagged with',
 			'lock.node': 'Locked node',
-			'move.node': 'Moved issue to',
+			'move.node': 'Moved issue',
 		};
 
 		const toPast = (value: string): string =>
@@ -42,7 +42,24 @@ const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
 		case 'move.node': {
 			const parent = nodeRepo.getNode(event.payload.parent);
-			return parent ? `${chalk.bgBlack(` ${parent.title} `)}` : 'to unknown';
+			const parentLabel = parent
+				? chalk.dim.bgBlack(` ${parent.title} `)
+				: 'unknown';
+
+			const pos = event.payload.pos;
+
+			if (!pos) return `to ${parentLabel}`;
+
+			switch (pos.at) {
+				case 'start':
+					return `to ${parentLabel} ${chalk.dim('(to top of list)')}`;
+				case 'end':
+					return `to ${parentLabel} ${chalk.dim('(to bottom of list)')}`;
+				case 'before':
+					return `to ${parentLabel} ${chalk.dim('(up in list)')}`;
+				case 'after':
+					return `to ${parentLabel} ${chalk.dim('(down in list)')}`;
+			}
 		}
 
 		case 'tag.issue': {
@@ -82,7 +99,8 @@ const formatLogTime = (id: string): string => {
 const USER_COL_WIDTH = 12;
 
 const formatUser = (userId: UserId): string => {
-	return chalk.dim(padVisibleEnd(`${userId.split('.')[1]}`, USER_COL_WIDTH));
+	const userName = userId.split('.')[1] ?? 'unknown';
+	return padVisibleEnd(`${userName}`, USER_COL_WIDTH);
 };
 
 export const formatLogLine = (event: AppEvent): string => {
