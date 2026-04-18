@@ -52,6 +52,7 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[q] exit context',
 		action: () => {
+			logger.debug('Executing exit action');
 			navigationUtils.enterParentNode();
 			return succeeded('Exiting context', null);
 		},
