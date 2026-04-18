@@ -1,6 +1,7 @@
 import {ulid} from 'ulid';
 import {openEditorOnText} from '../../editor/editor.js';
 import {createIssueEvents} from '../../event/common-events.js';
+import {persistPendingDefaultEvents} from '../../event/event-boot.js';
 import {
 	materializeAndPersist,
 	materializeAndPersistAll,
@@ -16,7 +17,6 @@ import {
 	setMovePendingState,
 } from '../actions/move/move-actions-utils.js';
 import {setConfig} from '../config/epiq-config.js';
-import {SYSTEM_USER} from '../config/load-settings.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {isTicketNode} from '../model/context.model.js';
@@ -340,13 +340,12 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.SetUserName,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const {userId, preferredEditor} = getSettingsState();
+			const {userId, preferredEditor, userName} = getSettingsState();
 			const newUserName = getCmdArg()?.trim();
-
 			if (!newUserName) return failed('No username provided');
 
-			const resolvedUserName = newUserName;
-			const resolvedUserId = userId === SYSTEM_USER.userId ? ulid() : userId;
+			const resolvedUserName = newUserName ?? userName;
+			const resolvedUserId = userId ?? ulid();
 
 			if (!resolvedUserName || !resolvedUserId) {
 				return failed('Unable to resolve user name or id');
@@ -367,6 +366,16 @@ export const commands: CommandLineActionEntry[] = [
 			patchState({mode: Mode.DEFAULT});
 
 			return succeeded(`Username set to "${newUserName}"`, null);
+		},
+	},
+	{
+		intent: CmdIntent.Init,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const result = persistPendingDefaultEvents();
+			if (isFail(result)) return result;
+
+			return succeeded(`Project initialized`, null);
 		},
 	},
 	{

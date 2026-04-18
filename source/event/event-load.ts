@@ -8,6 +8,7 @@ import {
 } from '../lib/command-line/command-types.js';
 import {PersistedEvent} from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
+import {resolveEpiqRoot} from './event-persist.js'; // or better: move to shared path util
 
 const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
@@ -17,7 +18,7 @@ export type ReconstructedEvent = PersistedEvent & {
 };
 
 const getEventsDir = (rootDir = process.cwd()) =>
-	path.join(rootDir, EPIQ_DIR, EVENTS_DIR);
+	path.join(resolveEpiqRoot(rootDir), EPIQ_DIR, EVENTS_DIR);
 
 type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
@@ -91,8 +92,7 @@ export function loadAllPersistedEvents(
 
 	for (const filePath of files) {
 		const content = fs.readFileSync(filePath, 'utf8');
-		const userId =
-			filePath.replace('.jsonl', '').split(path.sep).at(-1) ?? 'unknown';
+		const userId = path.basename(filePath, '.jsonl') || 'unknown';
 
 		for (const line of content.split('\n')) {
 			const trimmed = line.trim();

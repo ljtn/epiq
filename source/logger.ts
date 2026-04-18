@@ -1,15 +1,21 @@
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
+import {resolveEpiqRoot} from './event/event-persist.js';
 
 const isLocal = process.env['IS_LOCAL'] === 'true';
-const LOG_PATH = path.resolve(process.cwd(), '.epiq', 'log', 'epiq.log');
 const MAX_LINES = 1000;
 
-function enforceLogHorizon() {
-	if (!isLocal || !fs.existsSync(LOG_PATH)) return;
+const getLogPath = (rootDir = process.cwd()) =>
+	path.join(resolveEpiqRoot(rootDir), '.epiq', 'log', 'epiq.log');
 
-	const content = fs.readFileSync(LOG_PATH, 'utf8');
+function enforceLogHorizon(rootDir = process.cwd()) {
+	if (!isLocal) return;
+
+	const logPath = getLogPath(rootDir);
+	if (!fs.existsSync(logPath)) return;
+
+	const content = fs.readFileSync(logPath, 'utf8');
 	const lines = content.split('\n');
 
 	if (lines[lines.length - 1] === '') {
@@ -19,12 +25,18 @@ function enforceLogHorizon() {
 	if (lines.length <= MAX_LINES) return;
 
 	const trimmed = lines.slice(-MAX_LINES).join('\n') + '\n';
-	fs.writeFileSync(LOG_PATH, trimmed, 'utf8');
+	fs.writeFileSync(logPath, trimmed, 'utf8');
 }
 
-function write(prefix: string, args: unknown[], short = false) {
+function write(
+	prefix: string,
+	args: unknown[],
+	short = false,
+	rootDir = process.cwd(),
+) {
 	if (!isLocal) return;
 
+	const logPath = getLogPath(rootDir);
 	const message = util.format(...args);
 
 	const now = new Date();
@@ -32,9 +44,9 @@ function write(prefix: string, args: unknown[], short = false) {
 
 	const line = `[${timestamp}] ${prefix} ${message}\n`;
 
-	fs.mkdirSync(path.dirname(LOG_PATH), {recursive: true});
-	fs.appendFileSync(LOG_PATH, line, 'utf8');
-	enforceLogHorizon();
+	fs.mkdirSync(path.dirname(logPath), {recursive: true});
+	fs.appendFileSync(logPath, line, 'utf8');
+	enforceLogHorizon(rootDir);
 }
 
 export const logger = {

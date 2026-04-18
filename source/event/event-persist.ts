@@ -58,19 +58,41 @@ export const resolveActorId = (): Result<UserId> => {
 	const fileName: UserId = `${sanitizeFilePart(userId)}.${sanitizeFilePart(
 		userName,
 	)}`;
-	if (userName?.trim()) {
+	if (userName.trim()) {
 		return succeeded('Successfully resolved actor ID', fileName);
 	}
 	return failed('Unable to resolve actor ID from settings or OS user info');
 };
 
+const hasEpiqDir = (dir: string) =>
+	fs.existsSync(path.join(dir, EPIQ_DIR)) &&
+	fs.statSync(path.join(dir, EPIQ_DIR)).isDirectory();
+
+export const resolveEpiqRoot = (startDir = process.cwd()): string => {
+	let currentDir = path.resolve(startDir);
+
+	while (true) {
+		if (hasEpiqDir(currentDir)) return currentDir;
+
+		const parentDir = path.dirname(currentDir);
+		if (parentDir === currentDir) {
+			// Reached filesystem root, no existing .epiq found.
+			// Fall back to the original start directory so init/setup can create one there.
+			return path.resolve(startDir);
+		}
+
+		currentDir = parentDir;
+	}
+};
+
 const getEventsDir = (rootDir = process.cwd()) =>
-	path.join(rootDir, EPIQ_DIR, EVENTS_DIR);
+	path.join(resolveEpiqRoot(rootDir), EPIQ_DIR, EVENTS_DIR);
 
 export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
 	const actorIdResult = resolveActorId();
-	if (isFail(actorIdResult) || !actorIdResult.data)
+	if (isFail(actorIdResult) || !actorIdResult.data) {
 		return failed('Unable to resolve event log path');
+	}
 
 	return succeeded(
 		'Successfully resolved event log path',
@@ -89,13 +111,14 @@ export const toPersistedEvent = (
 
 export function persist(event: AppEvent, rootDir = process.cwd()) {
 	try {
-		const dir = getEventsDir(rootDir);
-		const filePath = getEventLogPath(rootDir);
+		const resolvedRoot = resolveEpiqRoot(rootDir);
+		const dir = getEventsDir(resolvedRoot);
+		const filePath = getEventLogPath(resolvedRoot);
 		if (isFail(filePath)) return filePath;
 
 		fs.mkdirSync(dir, {recursive: true});
 
-		const edgeRef = getEdgeRef(rootDir);
+		const edgeRef = getEdgeRef(resolvedRoot);
 		if (isFail(edgeRef)) return failed(edgeRef.message);
 
 		let newId: string;

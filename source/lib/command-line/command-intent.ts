@@ -8,6 +8,8 @@ export const getCommandIntent = (
 	const {context} = getState()?.currentNode;
 	if (!context) return CmdIntent.None;
 	switch (command) {
+		case CmdKeywords.INIT:
+			return CmdIntent.Init;
 		case CmdKeywords.DELETE:
 			return CmdIntent.Delete;
 		case CmdKeywords.SET_DESCRIPTION:

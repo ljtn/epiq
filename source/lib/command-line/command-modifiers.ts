@@ -11,17 +11,15 @@ export type CommandMap = {
 
 export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const {currentNode, selectedIndex} = getState();
-	const targetNode = getRenderedChildren(currentNode.id)[selectedIndex];
-
-	if (!targetNode) {
-		return [];
-	}
+	const targetNode =
+		getRenderedChildren(currentNode.id)[selectedIndex] ?? currentNode;
 
 	const globalCommands = [
 		CmdKeywords.SET_VIEW,
 		CmdKeywords.SET_EDITOR,
 		CmdKeywords.HELP,
 	];
+
 	const generalEditCommands = [
 		CmdKeywords.NEW,
 		CmdKeywords.RENAME,
@@ -49,6 +47,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	};
 
 	const modifiers = {
+		[CmdKeywords.INIT]: [],
 		[CmdKeywords.SET_USERNAME]: [],
 		[CmdKeywords.SET_DESCRIPTION]: ['confirm'],
 		[CmdKeywords.DELETE]: ['confirm'],
@@ -69,7 +68,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.CLOSE_ISSUE]: ['confirm'],
 		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
-		[CmdKeywords.SET_EDITOR]: [...editorConfig],
+		[CmdKeywords.SET_EDITOR]: [...editorConfig, 'vim'],
 		[CmdKeywords.TAG]: [
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
 		],
@@ -78,7 +77,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.RENAME]: [],
 
 		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
-		[CmdKeywords.NONE]: [...commandMap[targetNode?.context]],
+		[CmdKeywords.NONE]: [...commandMap[targetNode?.context || 'WORKSPACE']],
 	};
 
 	return modifiers[keyword];

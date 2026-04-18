@@ -8,8 +8,8 @@ import {
 } from './epiq-config.js';
 
 export const SYSTEM_USER = {
-	userId: '00001',
-	userName: 'system',
+	userId: '',
+	userName: '',
 	preferredEditor: '',
 };
 

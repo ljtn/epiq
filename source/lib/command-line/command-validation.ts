@@ -149,6 +149,7 @@ const suggestFromListButDoNotRestrict =
 	};
 
 const validators: Record<CmdKeyword, Validator> = {
+	[CmdKeywords.INIT]: () => valid('<ENTER> to confirm'),
 	[CmdKeywords.FILTER]: args => {
 		if (args.modifier === 'clear') return valid();
 
@@ -272,6 +273,9 @@ const validators: Record<CmdKeyword, Validator> = {
 
 	// Settings
 	[CmdKeywords.SET_EDITOR]: args => {
+		logger.debug(
+			`Validating command: ${args.command} ${args.modifier} ${args.inputString}`,
+		);
 		const wordList = getCmdModifiers(CmdKeywords.SET_EDITOR);
 
 		return !args.modifier
@@ -283,7 +287,7 @@ const validators: Record<CmdKeyword, Validator> = {
 					}),
 					completionWordList: [],
 			  })
-			: valid();
+			: valid('<ENTER> to confirm');
 	},
 
 	[CmdKeywords.SET_USERNAME]: args => {

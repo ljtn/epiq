@@ -38,7 +38,6 @@ const StepRow: React.FC<StepRowProps> = ({isDone, command, value}) => {
 		</Box>
 	);
 };
-
 export default function SettingsUI({
 	width,
 	height,
@@ -69,8 +68,14 @@ export default function SettingsUI({
 				Welcome! 🔹
 			</Text>
 
+			<Text>Lets get you started - its a breeze.</Text>
+			<Text color={theme.secondary2}>
+				And remember, you can always get help with{' '}
+				<Text color={theme.accent}>:help</Text>.
+			</Text>
+
 			{!isComplete && (
-				<Text dimColor>
+				<Text color={theme.secondary2}>
 					{activeCommand === ':set:username'
 						? 'First, choose your username.'
 						: 'Nice. One more step.'}
@@ -95,10 +100,6 @@ export default function SettingsUI({
 						<StepRow isDone command=":set:editor" value={preferredEditor} />
 					</Box>
 				)}
-			</Box>
-
-			<Box marginTop={1} flexDirection="column">
-				{isComplete && <Text color="green">You are ready to go.</Text>}
 			</Box>
 		</Box>
 	);
