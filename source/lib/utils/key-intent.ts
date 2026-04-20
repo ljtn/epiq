@@ -173,7 +173,6 @@ export function getKeyIntent(
 			return Intent.InitMove;
 		case 'd': // It cannot be 'backspace' as we then end up in an infinite loop if we erase from cmd line
 			return Intent.Delete;
-		case 'e':
 		case 'return':
 			return Intent.Confirm;
 		case 'space':
