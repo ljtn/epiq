@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {cmdValidation} from '../command-validation.js';
 import {CmdKeywords, cmdValidity} from '../command-types.js';
 import {getCmdModifiers} from '../command-modifiers.js';
@@ -14,8 +14,18 @@ vi.mock('../command-modifiers.js', () => ({
 			[CmdKeywords.RENAME]: [],
 			[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
 		};
-		return m[keyword];
+		return m[keyword] ?? [];
 	},
+}));
+
+vi.mock('../../state/state.js', () => ({
+	getState: () => ({
+		contributors: {
+			'user-1': {id: 'user-1', name: 'john'},
+			'user-2': {id: 'user-2', name: 'jane'},
+		},
+		tags: {},
+	}),
 }));
 
 describe('cmdValidation', () => {
@@ -29,7 +39,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBeUndefined();
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 
 		it('rejects when modifier is empty', () => {
@@ -63,7 +73,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBeUndefined();
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 	});
 
@@ -76,7 +86,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBeUndefined();
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 	});
 
@@ -91,7 +101,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBeUndefined();
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 
 		it('rejects when modifier is empty', () => {
@@ -127,7 +137,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBeUndefined();
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 
 		it('rejects when modifier is empty', () => {
@@ -161,7 +171,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBeUndefined();
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 
 		it('rejects when inputString is empty', () => {
@@ -178,7 +188,7 @@ describe('cmdValidation', () => {
 
 	describe('ASSIGN', () => {
 		it('accepts when modifier matches one of the allowed values', () => {
-			const modifier = getCmdModifiers(CmdKeywords.ASSIGN)[0]!;
+			const modifier = 'john';
 			const result = cmdValidation[CmdKeywords.ASSIGN].validate(
 				CmdKeywords.ASSIGN,
 				modifier,
@@ -186,7 +196,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBeUndefined();
+			expect(result.message).toBe('');
 		});
 
 		it('rejects when modifier is empty', () => {
@@ -208,6 +218,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
+			expect(result.message).toBe('');
 		});
 	});
 });

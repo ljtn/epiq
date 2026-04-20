@@ -10,6 +10,8 @@ import {
 	cmdValidity,
 } from './command-types.js';
 
+export const CONFIRM_MSG = '<ENTER> to confirm';
+
 // Types
 type ValidationResult = {
 	validity: CmdValidity;
@@ -83,7 +85,7 @@ const buildHint = ({
 const requireExact = ({modifier}: {modifier: string}) => {
 	const expected = 'confirm';
 	return modifier === expected
-		? valid()
+		? valid(CONFIRM_MSG)
 		: invalid({
 				message: isBlank(modifier)
 					? `if you are certain, enter ${getGradientWord(expected)}`
@@ -96,7 +98,7 @@ const requireOneIn =
 	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
 	({modifier}) =>
 		list.includes(modifier)
-			? valid('<ENTER> to confirm')
+			? valid(CONFIRM_MSG)
 			: invalid({
 					message: isBlank(modifier) ? hint : '',
 					completionWordList: [],
@@ -107,7 +109,7 @@ const requireModifierOrInputStr =
 	({modifier, inputString}) =>
 		isBlank(modifier) && isBlank(inputString)
 			? invalid({message: hint, completionWordList: []})
-			: valid();
+			: valid(CONFIRM_MSG);
 
 const suggestFromListButDoNotRestrict =
 	({
@@ -149,7 +151,7 @@ const suggestFromListButDoNotRestrict =
 	};
 
 const validators: Record<CmdKeyword, Validator> = {
-	[CmdKeywords.INIT]: () => valid('<ENTER> to confirm'),
+	[CmdKeywords.INIT]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.FILTER]: args => {
 		if (args.modifier === 'clear') return valid();
 
@@ -233,9 +235,9 @@ const validators: Record<CmdKeyword, Validator> = {
 			}),
 		})(args),
 
-	[CmdKeywords.SET_DESCRIPTION]: () => valid('<ENTER> to confirm'),
-	[CmdKeywords.HELP]: () => valid('<ENTER> to confirm'),
-	[CmdKeywords.RENAME]: () => valid('<ENTER> to confirm'),
+	[CmdKeywords.SET_DESCRIPTION]: () => valid(CONFIRM_MSG),
+	[CmdKeywords.HELP]: () => valid(CONFIRM_MSG),
+	[CmdKeywords.RENAME]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.DELETE]: args => requireExact(args),
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),
@@ -289,7 +291,7 @@ const validators: Record<CmdKeyword, Validator> = {
 					}),
 					completionWordList: [],
 			  })
-			: valid('<ENTER> to confirm');
+			: valid(CONFIRM_MSG);
 	},
 
 	[CmdKeywords.SET_USERNAME]: args => {

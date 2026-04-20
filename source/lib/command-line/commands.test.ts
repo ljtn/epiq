@@ -11,7 +11,11 @@ vi.mock('../../event/event-materialize-and-persist.js', () => ({
 }));
 
 vi.mock('../../event/event-persist.js', () => ({
-	resolveActorId: vi.fn(() => 'jlarb8'),
+	resolveActorId: vi.fn(() => ({
+		kind: 'success',
+		message: 'Resolved actor id',
+		data: 'jlarb8',
+	})),
 }));
 
 vi.mock('../../repository/node-repo.js', () => ({
