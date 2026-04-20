@@ -1,7 +1,7 @@
 dist
 node_modules
 epiq.log
-.epiq_dev
+
 .vscode/tasks.json
 .archive
 epiq-*.tgz
