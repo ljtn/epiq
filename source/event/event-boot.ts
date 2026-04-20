@@ -12,7 +12,6 @@ import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
-import {get} from 'node:http';
 
 const SYSTEM_ACTOR_ID = `system.actor` as const;
 

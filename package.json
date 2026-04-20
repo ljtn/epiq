@@ -17,7 +17,7 @@
 		"build:sea": "node --build-sea sea-config.json",
 		"build:publish": "pnpm build:npm",
 		"build:binary": "pnpm build:sea:bundle && pnpm build:sea",
-		"dev": "tsc --watch --noEmit",
+		"dev": "IS_LOCAL=true tsc --watch --noEmit",
 		"dev:start": "IS_LOCAL=true tsx source/cli.tsx",
 		"start": "IS_LOCAL=true tsx source/cli.tsx",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run",

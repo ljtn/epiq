@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
+import {getEpiqDirName} from '../init.js';
 import {
 	failed,
 	isFail,
@@ -24,7 +25,7 @@ const SCHEMA_VERSION = 1;
 // ======================
 
 const getNextId = monotonicFactory();
-const EPIQ_DIR = '.epiq';
+
 const EVENTS_DIR = 'events';
 
 type Id = string;
@@ -70,9 +71,12 @@ export const resolveActorId = (): Result<UserId> => {
 	return failed('Unable to resolve actor ID from settings or OS user info');
 };
 
-const hasEpiqDir = (dir: string) =>
-	fs.existsSync(path.join(dir, EPIQ_DIR)) &&
-	fs.statSync(path.join(dir, EPIQ_DIR)).isDirectory();
+const hasEpiqDir = (dir: string) => {
+	return (
+		fs.existsSync(path.join(dir, getEpiqDirName())) &&
+		fs.statSync(path.join(dir, getEpiqDirName())).isDirectory()
+	);
+};
 
 export const resolveEpiqRoot = (startDir = process.cwd()): string => {
 	let currentDir = path.resolve(startDir);
@@ -91,8 +95,9 @@ export const resolveEpiqRoot = (startDir = process.cwd()): string => {
 	}
 };
 
-const getEventsDir = (rootDir = process.cwd()) =>
-	path.join(resolveEpiqRoot(rootDir), EPIQ_DIR, EVENTS_DIR);
+const getEventsDir = (rootDir = process.cwd()) => {
+	return path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), EVENTS_DIR);
+};
 
 export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
 	const actorIdResult = resolveActorId();

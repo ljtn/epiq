@@ -9,8 +9,9 @@ import {
 import {PersistedEvent} from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
 import {resolveEpiqRoot} from './event-persist.js'; // or better: move to shared path util
+import {getEpiqDirName} from '../init.js';
 
-const EPIQ_DIR = '.epiq';
+const EPIQ_DIR = getEpiqDirName();
 const EVENTS_DIR = 'events';
 
 export type ReconstructedEvent = PersistedEvent & {
