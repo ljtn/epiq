@@ -12,6 +12,7 @@ import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
+import {get} from 'node:http';
 
 const SYSTEM_ACTOR_ID = `system.actor` as const;
 
@@ -33,18 +34,38 @@ export function getBootNavigationTarget() {
 	const [firstBoard] = getRenderedChildren(workspace.id);
 	const [firstSwimlane] = firstBoard ? getRenderedChildren(firstBoard.id) : [];
 
-	return firstSwimlane ?? firstBoard ?? workspace;
+	logger.debug('Boot navigation target:', {
+		workspace: workspace?.id,
+		firstBoard: firstBoard?.id,
+		firstSwimlane: firstSwimlane?.id,
+	});
+	if (firstSwimlane) {
+		const children = getState().renderedChildrenIndex?.[firstSwimlane.id] ?? [];
+		return {
+			currentNode: firstSwimlane,
+			selectedIndex: children.length > 0 ? 0 : -1,
+		};
+	} else if (firstBoard) {
+		return {
+			currentNode: firstBoard,
+			selectedIndex: 0,
+		};
+	} else if (workspace) {
+		return {
+			currentNode: workspace,
+			selectedIndex: 0,
+		};
+	} else {
+		return {
+			currentNode: getState().nodes[getState().rootNodeId],
+			selectedIndex: 0,
+		};
+	}
 }
 
 export function navigateToInitialNode() {
 	const navigationTarget = getBootNavigationTarget();
-	const children =
-		getState().renderedChildrenIndex?.[navigationTarget.id] ?? [];
-
-	navigationUtils.navigate({
-		currentNode: navigationTarget,
-		selectedIndex: children.length > 0 ? 0 : -1,
-	});
+	navigationUtils.navigate(navigationTarget);
 }
 
 export function createDefaultEvents(): readonly AppEvent[] {

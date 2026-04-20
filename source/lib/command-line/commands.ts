@@ -374,7 +374,11 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const result = persistPendingDefaultEvents();
 			if (isFail(result)) return result;
-
+			const {rootNodeId, nodes} = getState();
+			navigationUtils.navigate({
+				currentNode: nodes[rootNodeId],
+				selectedIndex: 0,
+			});
 			return succeeded(`Project initialized`, null);
 		},
 	},

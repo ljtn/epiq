@@ -1,4 +1,5 @@
 import {MovePosition} from '../event/event.model.js';
+import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
 import {
 	failed,
 	isFail,
@@ -267,13 +268,17 @@ export const nodeRepo = {
 			return failed('Unable to delete undefined');
 		}
 
-		const nextCurrentNodeId = idsToDelete.has(currentNodeId)
-			? node.parentNodeId
-			: currentNodeId;
+		const nextCurrentNodeId = !idsToDelete.has(currentNodeId)
+			? currentNodeId
+			: node.parentNodeId ?? rootNodeId;
 
 		patchState({
 			nodes: nextNodes,
-			currentNodeId: nextCurrentNodeId,
+		});
+
+		navigationUtils.navigate({
+			currentNode: nextNodes[nextCurrentNodeId],
+			selectedIndex: 0,
 		});
 
 		return succeeded('Successfully tomb stoned', node);
@@ -447,11 +452,16 @@ export const nodeRepo = {
 				.filter(x => !x.isDeleted && x.parentNodeId === node.parentNodeId)
 				.sort((a, b) => a.rank.localeCompare(b.rank));
 
+			const newCurrentNode = node.parentNodeId
+				? nextNodes[node.parentNodeId]
+				: nextNodes[s.rootNodeId];
+			navigationUtils.navigate({
+				currentNode: newCurrentNode,
+				selectedIndex: siblings.findIndex(({id}) => id === node.id),
+			});
 			return {
 				...s,
 				nodes: nextNodes,
-				currentNodeId: node.parentNodeId,
-				selectedIndex: siblings.findIndex(({id}) => id === node.id),
 			};
 		});
 

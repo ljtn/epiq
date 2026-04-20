@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
 import {hasPendingDefaultEvents} from './event/event-boot.js';
@@ -6,9 +7,9 @@ import {ContextBar} from './lib/components/ContextBar.js';
 import {HelpUI} from './lib/components/Help.js';
 import {HeaderBar} from './lib/components/Topbar.js';
 import {WorkspaceUI} from './lib/components/WorkspaceUI.js';
+import {getUserSetupStatus} from './lib/config/setup-utils.js';
 import {Mode} from './lib/model/action-map.model.js';
 import {findInBreadCrumb} from './lib/model/app-state.model.js';
-import {getSettingsState} from './lib/state/settings.state.js';
 import {getRenderedChildren, getState, useAppState} from './lib/state/state.js';
 import {theme} from './lib/theme/themes.js';
 import SettingsUI from './SettingsUI.js';
@@ -36,28 +37,32 @@ const InitProjectUI: React.FC<InitProjectUIProps> = ({width, height}) => {
 			rowGap={1}
 		>
 			<Text color={theme.accent} bold>
-				Initialize project 📦
+				Initialize project
 			</Text>
 
-			<Text dimColor>This folder does not contain an epiq project yet.</Text>
+			<Text>{`This folder is not an ${chalk.hex(theme.accent)(
+				'epiq',
+			)} project yet.`}</Text>
 
-			<Text dimColor>
-				To start tracking issues here, initialize a new{' '}
-				<Text color={theme.secondary}>.epiq/</Text> directory in this
-				repository.
+			<Text color={theme.primary}>
+				To start tracking issues here, we need to initialize a new{' '}
+				<Text color={theme.primary} backgroundColor={theme.secondary}>
+					{' ' + '.epiq/' + ' '}
+				</Text>{' '}
+				directory in this repository.
 			</Text>
 
 			<Box marginTop={1} flexDirection="column">
 				<Box>
 					<Text color={theme.accent}>{'   '}</Text>
-					<Text dimColor>Type </Text>
+					<Text color={theme.primary}>Type </Text>
 					<Text backgroundColor={theme.secondary}>{' :init '}</Text>
 				</Box>
 			</Box>
 
 			<Box marginTop={1}>
-				<Text dimColor>
-					This will create the local epiq project files for this repo.
+				<Text color={theme.secondary2}>
+					(This will create the local epiq project files)
 				</Text>
 			</Box>
 		</Box>
@@ -66,15 +71,21 @@ const InitProjectUI: React.FC<InitProjectUIProps> = ({width, height}) => {
 
 export default function App({width, height}: AppProps) {
 	const state = useAppState();
-	const settings = getSettingsState();
 	const filters = state.filters;
 
-	const hasUserName = Boolean(settings.userName?.trim());
-	const hasPreferredEditor = Boolean(settings.preferredEditor?.trim());
-	const isConfigured = hasUserName && hasPreferredEditor;
+	if (state.mode === Mode.HELP) {
+		return (
+			<Box flexDirection="column">
+				<HelpUI width={width} />
+			</Box>
+		);
+	}
 
-	const isSetupMode = !isConfigured;
-	const isUninitializedRepo = isConfigured && hasPendingDefaultEvents();
+	const {isSetup, hasPreferredEditor, hasUserName, userName, preferredEditor} =
+		getUserSetupStatus();
+
+	const isSetupMode = !isSetup;
+	const isUninitializedRepo = isSetup && hasPendingDefaultEvents();
 
 	if (isSetupMode) {
 		return (
@@ -86,8 +97,8 @@ export default function App({width, height}: AppProps) {
 						width={width}
 						hasUserName={hasUserName}
 						hasPreferredEditor={hasPreferredEditor}
-						userName={settings.userName ?? ''}
-						preferredEditor={settings.preferredEditor ?? ''}
+						userName={userName ?? ''}
+						preferredEditor={preferredEditor ?? ''}
 					/>
 				</Box>
 
@@ -132,30 +143,24 @@ export default function App({width, height}: AppProps) {
 
 	return (
 		<Box flexDirection="column">
-			{state.mode !== Mode.HELP && (
-				<Box flexDirection="column">
-					<HeaderBar filters={filters} />
-					<WorkspaceUI
-						width={width}
-						height={height}
-						currentNode={state.currentNode}
-						selectedIndex={state.selectedIndex}
-						breadCrumb={state.breadCrumb}
-						viewMode={state.viewMode}
-						mode={state.mode}
-					/>
-				</Box>
-			)}
-
-			{state.mode === Mode.HELP && <HelpUI width={width} />}
-
-			{state.mode !== Mode.HELP && (
-				<ContextBar
+			<Box flexDirection="column">
+				<HeaderBar filters={filters} />
+				<WorkspaceUI
 					width={width}
+					height={height}
+					currentNode={state.currentNode}
+					selectedIndex={state.selectedIndex}
+					breadCrumb={state.breadCrumb}
+					viewMode={state.viewMode}
 					mode={state.mode}
-					availableHints={state.availableHints}
 				/>
-			)}
+			</Box>
+
+			<ContextBar
+				width={width}
+				mode={state.mode}
+				availableHints={state.availableHints}
+			/>
 		</Box>
 	);
 }

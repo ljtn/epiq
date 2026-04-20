@@ -31,9 +31,9 @@ export const getPersistedAction = (
 		keyof PersistedPayloadMap
 	>;
 
-	if (keys.length !== 1) {
+	if (keys.length !== 2) {
 		return failed(
-			`Invalid persisted event: expected exactly 1 action key, got ${keys.length}`,
+			`Invalid persisted event: expected exactly 2 keys, got ${keys.length}`,
 		);
 	}
 

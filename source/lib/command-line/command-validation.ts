@@ -96,7 +96,7 @@ const requireOneIn =
 	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
 	({modifier}) =>
 		list.includes(modifier)
-			? valid()
+			? valid('<ENTER> to confirm')
 			: invalid({
 					message: isBlank(modifier) ? hint : '',
 					completionWordList: [],
@@ -215,6 +215,7 @@ const validators: Record<CmdKeyword, Validator> = {
 						wordList: getCmdModifiers(CmdKeywords.NONE),
 						noOfHints: 100,
 						inputString: args.inputString,
+						minLengthForHints: 0,
 					}),
 					completionWordList: [],
 			  })
@@ -228,6 +229,7 @@ const validators: Record<CmdKeyword, Validator> = {
 				wordList: getCmdModifiers(CmdKeywords.NEW),
 				noOfHints: 3,
 				inputString: args.inputString,
+				minLengthForHints: 0,
 			}),
 		})(args),
 

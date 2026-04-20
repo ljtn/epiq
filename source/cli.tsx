@@ -1,4 +1,3 @@
-import './logger.js';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
@@ -6,9 +5,10 @@ import App from './app.js';
 import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadMergedEvents} from './event/event-load.js';
 import {isFail} from './lib/command-line/command-types.js';
-import {loadSettingsFromConfig} from './lib/config/load-settings.js';
 import Logo from './lib/components/Logo.js';
+import {loadSettingsFromConfig} from './lib/config/load-settings.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
+import './logger.js';
 
 meow(
 	`
@@ -26,7 +26,7 @@ meow(
 	},
 );
 
-const FIRST_LOAD_DURATION_MS = 5_000;
+const FIRST_LOAD_DURATION_MS = 2_000;
 const SUBSEQUENT_LOAD_MAX_MS = 600;
 
 let width = process.stdout.columns || 120;

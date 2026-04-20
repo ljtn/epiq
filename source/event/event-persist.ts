@@ -17,8 +17,13 @@ import {
 	UserId,
 } from './event.model.js';
 
-const getNextId = monotonicFactory();
+// ======================
+// Increment this if we make any non-backwards-compatible changes to the event schema, so we can handle old vs new formats in event loading.
+// ======================
+const SCHEMA_VERSION = 1;
+// ======================
 
+const getNextId = monotonicFactory();
 const EPIQ_DIR = '.epiq';
 const EVENTS_DIR = 'events';
 
@@ -31,6 +36,7 @@ type PersistedPayloadMap = {
 };
 
 export type PersistedEvent = {
+	v: 1;
 	id: EventTag;
 } & {
 	[K in keyof PersistedPayloadMap]: {
@@ -106,6 +112,7 @@ export const toPersistedEvent = (
 ): PersistedEvent =>
 	({
 		[event.action]: event.payload,
+		v: SCHEMA_VERSION,
 		id,
 	} as unknown as PersistedEvent);
 

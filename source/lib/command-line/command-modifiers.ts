@@ -1,7 +1,11 @@
 import {editorConfig} from '../../editor/editor-config.js';
 import {nodeRepo} from '../../repository/node-repo.js';
+import {
+	getUserSetupStatus,
+	isRepositoryInitialized,
+} from '../config/setup-utils.js';
 import {NavNodeCtx} from '../model/context.model.js';
-import {getRenderedChildren, getState} from '../state/state.js';
+import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
 import {CmdKeyword, CmdKeywords} from './command-types.js';
 
@@ -10,14 +14,16 @@ export type CommandMap = {
 };
 
 export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
-	const {currentNode, selectedIndex} = getState();
-	const targetNode =
-		getRenderedChildren(currentNode.id)[selectedIndex] ?? currentNode;
+	const {currentNode} = getState();
+	const isSetupComplete = getUserSetupStatus().isSetup;
+
+	const context = currentNode.context;
 
 	const globalCommands = [
+		CmdKeywords.HELP,
 		CmdKeywords.SET_VIEW,
 		CmdKeywords.SET_EDITOR,
-		CmdKeywords.HELP,
+		CmdKeywords.SET_USERNAME,
 	];
 
 	const generalEditCommands = [
@@ -25,6 +31,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		CmdKeywords.RENAME,
 		CmdKeywords.DELETE,
 	];
+
 	const updateTicketCommands = [
 		CmdKeywords.TAG,
 		CmdKeywords.ASSIGN,
@@ -32,6 +39,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		CmdKeywords.RE_OPEN_ISSUE,
 		CmdKeywords.SET_DESCRIPTION,
 	];
+
 	const commandMap: CommandMap = {
 		WORKSPACE: [...globalCommands],
 		BOARD: [CmdKeywords.FILTER, ...globalCommands, ...generalEditCommands],
@@ -46,7 +54,9 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		TEXT: [...globalCommands],
 	};
 
-	const modifiers = {
+	const baseCommands = [...commandMap[context || 'WORKSPACE']];
+
+	let modifiers: Partial<Record<CmdKeyword, string[]>> = {
 		[CmdKeywords.INIT]: [],
 		[CmdKeywords.SET_USERNAME]: [],
 		[CmdKeywords.SET_DESCRIPTION]: ['confirm'],
@@ -75,10 +85,35 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
 		[CmdKeywords.HELP]: [],
 		[CmdKeywords.RENAME]: [],
-
-		[CmdKeywords.NEW]: ['issue', 'swimlane', 'board'],
-		[CmdKeywords.NONE]: [...commandMap[targetNode?.context || 'WORKSPACE']],
+		[CmdKeywords.NEW]:
+			context === 'TICKET' || context === 'FIELD' || context === 'FIELD_LIST'
+				? ['issue', 'swimlane', 'board']
+				: context === 'SWIMLANE'
+				? ['issue', 'swimlane', 'board']
+				: context === 'BOARD'
+				? ['swimlane', 'board']
+				: ['board'],
+		[CmdKeywords.NONE]: baseCommands,
 	};
 
-	return modifiers[keyword];
+	if (!isSetupComplete) {
+		modifiers = {
+			[CmdKeywords.NONE]: [
+				CmdKeywords.HELP,
+				CmdKeywords.SET_EDITOR,
+				CmdKeywords.SET_USERNAME,
+			],
+			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
+			[CmdKeywords.SET_EDITOR]: modifiers[CmdKeywords.SET_EDITOR],
+			[CmdKeywords.SET_USERNAME]: modifiers[CmdKeywords.SET_USERNAME],
+		};
+	} else if (!isRepositoryInitialized()) {
+		modifiers = {
+			[CmdKeywords.NONE]: [CmdKeywords.HELP, CmdKeywords.INIT],
+			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
+			[CmdKeywords.INIT]: modifiers[CmdKeywords.INIT],
+		};
+	}
+
+	return modifiers[keyword] ?? [];
 };
