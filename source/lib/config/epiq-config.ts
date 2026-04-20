@@ -50,11 +50,9 @@ export const writeEpiqConfig = (config: EpiqConfig): Result<null> => {
 	}
 };
 
-export const setConfig = (
-	partialConfig: Partial<EpiqConfig>,
-): Result<string> => {
+export const setConfig = (partialConfig: Partial<EpiqConfig>) => {
 	const existingResult = readEpiqConfig();
-	if (isFail(existingResult)) return failed('Failed to set preferred editor');
+	if (isFail(existingResult)) return failed('Failed to read existing config');
 
 	const nextConfig: EpiqConfig = {
 		...existingResult.data,
