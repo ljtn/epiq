@@ -104,6 +104,26 @@ const requireOneIn =
 					completionWordList: [],
 			  });
 
+const requireOneWithValueIn =
+	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
+	({modifier, inputString}) => {
+		if (!list.includes(modifier)) {
+			return invalid({
+				message: isBlank(modifier) ? hint : '',
+				completionWordList: [],
+			});
+		}
+
+		if (!inputString.trim().length) {
+			return invalid({
+				message: '...',
+				completionWordList: [],
+			});
+		}
+
+		return valid(CONFIRM_MSG);
+	};
+
 const requireModifierOrInputStr =
 	({hint}: {hint: string}): Validator =>
 	({modifier, inputString}) =>
@@ -225,7 +245,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 
 	[CmdKeywords.NEW]: args =>
-		requireOneIn({
+		requireOneWithValueIn({
 			list: getCmdModifiers(CmdKeywords.NEW),
 			hint: buildHint({
 				wordList: getCmdModifiers(CmdKeywords.NEW),

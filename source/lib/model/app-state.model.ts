@@ -32,6 +32,11 @@ export type Filter = {
 	value: string;
 };
 
+export type SyncStatus = {
+	status: 'synced' | 'outOfSync' | 'syncing';
+	msg: string;
+};
+
 export type AppState = {
 	filters: Filter[];
 	contributors: Record<string, Contributor>;
@@ -48,6 +53,7 @@ export type AppState = {
 	nodes: Record<string, NavNode<AnyContext>>;
 	renderedChildrenIndex: Record<string, NavNode<AnyContext>[]>; // parent -> children mapping
 	viewMode: ViewMode;
+	syncStatus: SyncStatus;
 };
 
 type BreadCrumbItem = BreadCrumb[number];

@@ -14,16 +14,16 @@ import {
 	getCmdState,
 } from '../../state/cmd.state.js';
 
-export const onConfirmCommandLineSequenceInput = ({
+export const onConfirmCommandLineSequenceInput = async ({
 	isForceExecutedBySystem = false,
-}: {isForceExecutedBySystem?: boolean} = {}): Result => {
+}: {isForceExecutedBySystem?: boolean} = {}): Promise<Result> => {
 	const {
 		commandMeta: {command, validity, modifier, inputString},
 	} = getCmdState();
+
 	if (!command) return failed('No command to confirm');
 
 	if (!isForceExecutedBySystem && validity === cmdValidity.Invalid) {
-		// Handled by info hints
 		return failed('Invalid command');
 	}
 
@@ -34,6 +34,7 @@ export const onConfirmCommandLineSequenceInput = ({
 	const actionMeta = commands
 		.filter(c => isForceExecutedBySystem || c.systemOnly !== true)
 		.find(c => c.intent === intent);
+
 	if (!actionMeta) {
 		return cmdResultToValidationState({
 			result: cmdResult.Fail,
@@ -42,15 +43,18 @@ export const onConfirmCommandLineSequenceInput = ({
 		});
 	}
 
-	const commandResult = actionMeta.action(actionMeta, {
+	const commandResult = await actionMeta.action(actionMeta, {
 		command,
 		inputString,
 		modifier,
 	});
 
-	if (isFail(commandResult)) return cmdResultToValidationState(commandResult);
+	if (isFail(commandResult)) {
+		return cmdResultToValidationState(commandResult);
+	}
 
 	commandConfirmed({addToHistory: !isForceExecutedBySystem});
-	actionMeta?.onSuccess?.();
+	actionMeta.onSuccess?.();
+
 	return cmdResultToValidationState(commandResult);
 };

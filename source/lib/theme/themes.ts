@@ -1,4 +1,4 @@
-export const chalkColors = {
+export const colors = {
 	// Base (keep — already perfect for midnight themes)
 	bg: '#1a1b26',
 	fg: '#c8d3ff', // slightly lifted toward your gradient
@@ -30,9 +30,12 @@ export const chalkColors = {
 } as const;
 
 export const theme = {
-	accent: chalkColors.cyan,
-	accent2: chalkColors.magenta,
-	primary: chalkColors.white,
-	secondary: chalkColors.grayDark,
-	secondary2: chalkColors.grayLight,
+	accent: colors.cyan,
+	accent2: colors.magenta,
+	primary: colors.white,
+	secondary: colors.grayDark,
+	secondary2: colors.grayLight,
+	gray: colors.gray,
+	green: colors.green,
+	yellow: colors.yellow,
 };

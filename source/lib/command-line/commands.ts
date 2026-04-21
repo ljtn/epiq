@@ -20,7 +20,7 @@ import {setConfig} from '../config/user-config.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {isTicketNode} from '../model/context.model.js';
-import {getCmdArg, getCmdState} from '../state/cmd.state.js';
+import {getCmdArg, getCmdState, setCmdInput} from '../state/cmd.state.js';
 import {getSettingsState, patchSettingsState} from '../state/settings.state.js';
 import {
 	getRenderedChildren,
@@ -710,8 +710,29 @@ export const commands: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.Sync,
 		mode: Mode.COMMAND_LINE,
-		action: () => {
-			return syncEpiqWithRemote();
+		action: async () => {
+			setCmdInput(() => '...');
+			patchState({
+				syncStatus: {
+					msg: '',
+					status: 'syncing',
+				},
+				// mode: Mode.DEFAULT,
+			});
+			const syncResult = await syncEpiqWithRemote();
+			if (isFail(syncResult)) {
+				return failed(`Unable to sync state. ${syncResult.message}`);
+			}
+
+			patchState({
+				syncStatus: {
+					msg: '',
+					status: 'synced',
+				},
+				mode: Mode.DEFAULT,
+			});
+
+			return succeeded('Synced', true);
 		},
 	},
 ];

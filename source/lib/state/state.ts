@@ -31,7 +31,7 @@ export type BaseState = Omit<AppState, DerivedKeys>;
 
 // -----------------------------
 // Internal store
-// -----------------------------∏
+// -----------------------------
 let _appState: AppState;
 
 const listeners = new Set<() => void>();
@@ -77,7 +77,6 @@ function derive(state: BaseState): Result<AppState> {
 	const {context} = currentNode;
 	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
 
-	// Consider not freezing if performance issues
 	const availableActions = [
 		...DefaultActions,
 		...(contextActions[context] ?? []),
@@ -85,7 +84,6 @@ function derive(state: BaseState): Result<AppState> {
 	];
 	const actionIndex = buildActionIndex(availableActions);
 
-	// Consider not freezing if performance issues
 	return succeeded('Derived successfully', {
 		...state,
 		currentNode,
@@ -122,6 +120,10 @@ export function initWorkspaceState(workspace: Workspace) {
 		currentNodeId: workspace.id,
 		renderedChildrenIndex: {},
 		selectedIndex: -1,
+		syncStatus: {
+			status: 'synced',
+			msg: '',
+		},
 	};
 
 	const deriveResult = derive(base);

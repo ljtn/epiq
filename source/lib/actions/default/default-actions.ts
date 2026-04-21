@@ -1,4 +1,10 @@
-import {CmdKeywords, succeeded} from '../../command-line/command-types.js';
+import {syncEpiqWithRemote} from '../../../git/git.js';
+import {
+	CmdKeywords,
+	failed,
+	isFail,
+	succeeded,
+} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';
@@ -96,7 +102,8 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `edit`);
-			return onConfirmCommandLineSequenceInput();
+			void onConfirmCommandLineSequenceInput();
+			return succeeded('Fired command', true);
 		},
 	},
 	{
@@ -127,7 +134,8 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `sync`);
-			return succeeded('Trigger sync', null);
+			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+			return succeeded('Synced', true);
 		},
 	},
 ];

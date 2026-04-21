@@ -1,4 +1,4 @@
-import {spawnSync} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -38,33 +38,61 @@ const execGit = ({
 }: {
 	args: string[];
 	cwd: string;
-}): Result<GitExecResult> => {
-	const result = spawnSync('git', args, {
-		cwd,
-		encoding: 'utf8',
+}): Promise<Result<GitExecResult>> =>
+	new Promise(resolve => {
+		const child = spawn('git', args, {
+			cwd,
+			stdio: ['ignore', 'pipe', 'pipe'],
+		});
+
+		let stdout = '';
+		let stderr = '';
+
+		child.stdout.setEncoding('utf8');
+		child.stderr.setEncoding('utf8');
+
+		child.stdout.on('data', chunk => {
+			stdout += chunk;
+		});
+
+		child.stderr.on('data', chunk => {
+			stderr += chunk;
+		});
+
+		child.on('error', err => {
+			resolve(
+				failed(
+					[`git ${args.join(' ')}`, err.message].filter(Boolean).join('\n'),
+				),
+			);
+		});
+
+		child.on('close', code => {
+			const exitCode = code ?? 1;
+
+			if (exitCode !== 0) {
+				resolve(
+					failed(
+						[
+							`git ${args.join(' ')}`,
+							stderr.trim() || stdout.trim() || 'Git command failed',
+						]
+							.filter(Boolean)
+							.join('\n'),
+					),
+				);
+				return;
+			}
+
+			resolve(
+				succeeded('Git command succeeded', {
+					stdout,
+					stderr,
+					exitCode,
+				}),
+			);
+		});
 	});
-
-	const stdout = result.stdout ?? '';
-	const stderr = result.stderr ?? '';
-	const exitCode = result.status ?? 1;
-
-	if (exitCode !== 0) {
-		return failed(
-			[
-				`git ${args.join(' ')}`,
-				stderr.trim() || stdout.trim() || 'Git command failed',
-			]
-				.filter(Boolean)
-				.join('\n'),
-		);
-	}
-
-	return succeeded('Git command succeeded', {
-		stdout,
-		stderr,
-		exitCode,
-	});
-};
 
 const execGitAllowFail = ({
 	args,
@@ -72,22 +100,43 @@ const execGitAllowFail = ({
 }: {
 	args: string[];
 	cwd: string;
-}): GitExecResult => {
-	const result = spawnSync('git', args, {
-		cwd,
-		encoding: 'utf8',
+}): Promise<GitExecResult> =>
+	new Promise(resolve => {
+		const child = spawn('git', args, {
+			cwd,
+			stdio: ['ignore', 'pipe', 'pipe'],
+		});
+
+		let stdout = '';
+		let stderr = '';
+
+		child.stdout.setEncoding('utf8');
+		child.stderr.setEncoding('utf8');
+
+		child.stdout.on('data', chunk => {
+			stdout += chunk;
+		});
+
+		child.stderr.on('data', chunk => {
+			stderr += chunk;
+		});
+
+		child.on('error', err => {
+			resolve({
+				stdout,
+				stderr: err.message,
+				exitCode: 1,
+			});
+		});
+
+		child.on('close', code => {
+			resolve({
+				stdout,
+				stderr,
+				exitCode: code ?? 1,
+			});
+		});
 	});
-
-	const stdout = result.stdout ?? '';
-	const stderr = result.stderr ?? '';
-	const exitCode = result.status ?? 1;
-
-	return {
-		stdout,
-		stderr,
-		exitCode,
-	};
-};
 
 const ensureDir = (dirPath: string): Result<void> => {
 	fs.mkdirSync(dirPath, {recursive: true});
@@ -117,8 +166,8 @@ const copyDirectory = ({
 	return succeeded('Copied directory', undefined);
 };
 
-const getRepoRoot = (cwd = process.cwd()): Result<string> => {
-	const result = execGit({args: ['rev-parse', '--show-toplevel'], cwd});
+const getRepoRoot = async (cwd = process.cwd()): Promise<Result<string>> => {
+	const result = await execGit({args: ['rev-parse', '--show-toplevel'], cwd});
 
 	if (isFail(result)) return failed('Not inside a Git repository');
 
@@ -126,8 +175,8 @@ const getRepoRoot = (cwd = process.cwd()): Result<string> => {
 	return succeeded('Resolved repo root', repoRoot);
 };
 
-const getGitDir = (repoRoot: string): Result<string> => {
-	const result = execGit({
+const getGitDir = async (repoRoot: string): Promise<Result<string>> => {
+	const result = await execGit({
 		args: ['rev-parse', '--git-dir'],
 		cwd: repoRoot,
 	});
@@ -142,8 +191,10 @@ const getGitDir = (repoRoot: string): Result<string> => {
 	return succeeded('Resolved git dir', resolved);
 };
 
-const hasInProgressGitOperation = (repoRoot: string): Result<boolean> => {
-	const gitDirResult = getGitDir(repoRoot);
+const hasInProgressGitOperation = async (
+	repoRoot: string,
+): Promise<Result<boolean>> => {
+	const gitDirResult = await getGitDir(repoRoot);
 	if (isFail(gitDirResult)) return failed(gitDirResult.message);
 
 	const gitDir = gitDirResult.data;
@@ -166,8 +217,8 @@ const hasInProgressGitOperation = (repoRoot: string): Result<boolean> => {
 	);
 };
 
-const hasStagedChanges = (repoRoot: string): Result<boolean> => {
-	const result = execGitAllowFail({
+const hasStagedChanges = async (repoRoot: string): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
 		args: ['diff', '--cached', '--quiet'],
 		cwd: repoRoot,
 	});
@@ -200,14 +251,14 @@ const ensureEpiqStorage = (): Result<void> => {
 	return succeeded('Ensured epiq storage', undefined);
 };
 
-const hasRemote = ({
+const hasRemote = async ({
 	repoRoot,
 	remote,
 }: {
 	repoRoot: string;
 	remote: string;
-}): Result<boolean> => {
-	const result = execGitAllowFail({
+}): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
 		args: ['remote', 'get-url', remote],
 		cwd: repoRoot,
 	});
@@ -215,7 +266,7 @@ const hasRemote = ({
 	return succeeded('Checked remote', exists);
 };
 
-const hasRemoteBranch = ({
+const hasRemoteBranch = async ({
 	repoRoot,
 	remote,
 	branch,
@@ -223,8 +274,8 @@ const hasRemoteBranch = ({
 	repoRoot: string;
 	remote: string;
 	branch: string;
-}): Result<boolean> => {
-	const result = execGitAllowFail({
+}): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
 		args: ['ls-remote', '--heads', remote, branch],
 		cwd: repoRoot,
 	});
@@ -240,14 +291,14 @@ const hasRemoteBranch = ({
 	return succeeded('Checked remote branch', exists);
 };
 
-const hasLocalBranch = ({
+const hasLocalBranch = async ({
 	repoRoot,
 	branch,
 }: {
 	repoRoot: string;
 	branch: string;
-}): Result<boolean> => {
-	const result = execGitAllowFail({
+}): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
 		args: ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`],
 		cwd: repoRoot,
 	});
@@ -258,23 +309,23 @@ const hasLocalBranch = ({
 	return failed(result.stderr.trim() || `Unable to inspect branch ${branch}`);
 };
 
-const ensureLocalBoardBranch = ({
+const ensureLocalBoardBranch = async ({
 	repoRoot,
 }: {
 	repoRoot: string;
-}): Result<boolean> => {
-	const localResult = hasLocalBranch({repoRoot, branch: BOARD_BRANCH});
+}): Promise<Result<boolean>> => {
+	const localResult = await hasLocalBranch({repoRoot, branch: BOARD_BRANCH});
 	if (isFail(localResult)) return failed(localResult.message);
 
 	if (localResult.data) {
 		return succeeded('Local board branch already exists', false);
 	}
 
-	const remoteResult = hasRemote({repoRoot, remote: DEFAULT_REMOTE});
+	const remoteResult = await hasRemote({repoRoot, remote: DEFAULT_REMOTE});
 	if (isFail(remoteResult)) return failed(remoteResult.message);
 
 	if (remoteResult.data) {
-		const remoteBranchResult = hasRemoteBranch({
+		const remoteBranchResult = await hasRemoteBranch({
 			repoRoot,
 			remote: DEFAULT_REMOTE,
 			branch: BOARD_BRANCH,
@@ -282,7 +333,7 @@ const ensureLocalBoardBranch = ({
 		if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
 
 		if (remoteBranchResult.data) {
-			const createFromRemote = execGit({
+			const createFromRemote = await execGit({
 				args: [
 					'branch',
 					'--track',
@@ -302,13 +353,13 @@ const ensureLocalBoardBranch = ({
 		}
 	}
 
-	const currentHeadResult = execGit({
+	const currentHeadResult = await execGit({
 		args: ['rev-parse', 'HEAD'],
 		cwd: repoRoot,
 	});
 	if (isFail(currentHeadResult)) return failed(currentHeadResult.message);
 
-	const createLocal = execGit({
+	const createLocal = await execGit({
 		args: ['branch', BOARD_BRANCH, currentHeadResult.data.stdout.trim()],
 		cwd: repoRoot,
 	});
@@ -322,14 +373,14 @@ const ensureLocalBoardBranch = ({
 	return succeeded('Created local board branch', true);
 };
 
-const hasWorktree = ({
+const hasWorktree = async ({
 	repoRoot,
 	worktreeRoot,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
-}): Result<boolean> => {
-	const result = execGit({
+}): Promise<Result<boolean>> => {
+	const result = await execGit({
 		args: ['worktree', 'list', '--porcelain'],
 		cwd: repoRoot,
 	});
@@ -346,13 +397,13 @@ const hasWorktree = ({
 	return succeeded('Checked worktree registration', exists);
 };
 
-const createBoardWorktree = ({
+const createBoardWorktree = async ({
 	repoRoot,
 	worktreeRoot,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
-}): Result<boolean> => {
+}): Promise<Result<boolean>> => {
 	const ensureRoot = ensureDir(path.dirname(worktreeRoot));
 	if (isFail(ensureRoot)) return failed(ensureRoot.message);
 
@@ -363,7 +414,7 @@ const createBoardWorktree = ({
 		removePath(worktreeRoot);
 	}
 
-	const result = execGit({
+	const result = await execGit({
 		args: ['worktree', 'add', worktreeRoot, BOARD_BRANCH],
 		cwd: repoRoot,
 	});
@@ -375,14 +426,14 @@ const createBoardWorktree = ({
 	return succeeded('Created board worktree', true);
 };
 
-const ensureBoardWorktree = ({
+const ensureBoardWorktree = async ({
 	repoRoot,
 	worktreeRoot,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
-}): Result<boolean> => {
-	const registeredResult = hasWorktree({repoRoot, worktreeRoot});
+}): Promise<Result<boolean>> => {
+	const registeredResult = await hasWorktree({repoRoot, worktreeRoot});
 	if (isFail(registeredResult)) return failed(registeredResult.message);
 
 	if (registeredResult.data) {
@@ -392,8 +443,10 @@ const ensureBoardWorktree = ({
 	return createBoardWorktree({repoRoot, worktreeRoot});
 };
 
-const ensureBoardBranchCheckedOut = (worktreeRoot: string): Result<boolean> => {
-	const currentBranchResult = execGit({
+const ensureBoardBranchCheckedOut = async (
+	worktreeRoot: string,
+): Promise<Result<boolean>> => {
+	const currentBranchResult = await execGit({
 		args: ['rev-parse', '--abbrev-ref', 'HEAD'],
 		cwd: worktreeRoot,
 	});
@@ -405,7 +458,7 @@ const ensureBoardBranchCheckedOut = (worktreeRoot: string): Result<boolean> => {
 		return succeeded('Board branch already checked out', false);
 	}
 
-	const checkoutResult = execGit({
+	const checkoutResult = await execGit({
 		args: ['checkout', BOARD_BRANCH],
 		cwd: worktreeRoot,
 	});
@@ -419,8 +472,8 @@ const ensureBoardBranchCheckedOut = (worktreeRoot: string): Result<boolean> => {
 	return succeeded('Checked out board branch', true);
 };
 
-const hasUpstream = (repoRoot: string): Result<boolean> => {
-	const result = execGitAllowFail({
+const hasUpstream = async (repoRoot: string): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
 		args: ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
 		cwd: repoRoot,
 	});
@@ -430,15 +483,17 @@ const hasUpstream = (repoRoot: string): Result<boolean> => {
 	return succeeded('Checked upstream', exists);
 };
 
-const ensureBoardUpstream = (worktreeRoot: string): Result<boolean> => {
-	const upstreamResult = hasUpstream(worktreeRoot);
+const ensureBoardUpstream = async (
+	worktreeRoot: string,
+): Promise<Result<boolean>> => {
+	const upstreamResult = await hasUpstream(worktreeRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
 	if (upstreamResult.data) {
 		return succeeded('Board upstream already configured', false);
 	}
 
-	const remoteResult = hasRemote({
+	const remoteResult = await hasRemote({
 		repoRoot: worktreeRoot,
 		remote: DEFAULT_REMOTE,
 	});
@@ -448,7 +503,7 @@ const ensureBoardUpstream = (worktreeRoot: string): Result<boolean> => {
 		return succeeded('No remote available for upstream', false);
 	}
 
-	const remoteBranchResult = hasRemoteBranch({
+	const remoteBranchResult = await hasRemoteBranch({
 		repoRoot: worktreeRoot,
 		remote: DEFAULT_REMOTE,
 		branch: BOARD_BRANCH,
@@ -456,7 +511,7 @@ const ensureBoardUpstream = (worktreeRoot: string): Result<boolean> => {
 	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
 
 	if (remoteBranchResult.data) {
-		const setUpstreamResult = execGit({
+		const setUpstreamResult = await execGit({
 			args: [
 				'branch',
 				'--set-upstream-to',
@@ -475,7 +530,7 @@ const ensureBoardUpstream = (worktreeRoot: string): Result<boolean> => {
 		return succeeded('Configured board upstream', true);
 	}
 
-	const pushResult = execGit({
+	const pushResult = await execGit({
 		args: ['push', '-u', DEFAULT_REMOTE, BOARD_BRANCH],
 		cwd: worktreeRoot,
 	});
@@ -487,8 +542,10 @@ const ensureBoardUpstream = (worktreeRoot: string): Result<boolean> => {
 	return succeeded('Published board branch and configured upstream', true);
 };
 
-const fetchBoardRemote = (worktreeRoot: string): Result<boolean> => {
-	const remoteResult = hasRemote({
+const fetchBoardRemote = async (
+	worktreeRoot: string,
+): Promise<Result<boolean>> => {
+	const remoteResult = await hasRemote({
 		repoRoot: worktreeRoot,
 		remote: DEFAULT_REMOTE,
 	});
@@ -498,7 +555,7 @@ const fetchBoardRemote = (worktreeRoot: string): Result<boolean> => {
 		return succeeded('No remote configured, skipped fetch', false);
 	}
 
-	const result = execGit({
+	const result = await execGit({
 		args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
 		cwd: worktreeRoot,
 	});
@@ -510,15 +567,17 @@ const fetchBoardRemote = (worktreeRoot: string): Result<boolean> => {
 	return succeeded('Fetched board remote', true);
 };
 
-const pullBoardRebase = (worktreeRoot: string): Result<boolean> => {
-	const upstreamResult = hasUpstream(worktreeRoot);
+const pullBoardRebase = async (
+	worktreeRoot: string,
+): Promise<Result<boolean>> => {
+	const upstreamResult = await hasUpstream(worktreeRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
 	if (!upstreamResult.data) {
 		return succeeded('No upstream configured, skipped pull', false);
 	}
 
-	const result = execGit({
+	const result = await execGit({
 		args: ['pull', '--rebase'],
 		cwd: worktreeRoot,
 	});
@@ -555,8 +614,8 @@ const hydrateRepoFromWorktree = ({
 	return copyDirectory({from, to});
 };
 
-const stageBoardEpiq = (worktreeRoot: string): Result<void> => {
-	const result = execGit({
+const stageBoardEpiq = async (worktreeRoot: string): Promise<Result<void>> => {
+	const result = await execGit({
 		args: ['add', EPIQ_DIR],
 		cwd: worktreeRoot,
 	});
@@ -568,8 +627,10 @@ const stageBoardEpiq = (worktreeRoot: string): Result<void> => {
 	return succeeded('Staged board .epiq', undefined);
 };
 
-const hasStagedBoardEpiqChanges = (worktreeRoot: string): Result<boolean> => {
-	const result = execGitAllowFail({
+const hasStagedBoardEpiqChanges = async (
+	worktreeRoot: string,
+): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
 		args: ['diff', '--cached', '--quiet', '--', EPIQ_DIR],
 		cwd: worktreeRoot,
 	});
@@ -594,8 +655,10 @@ const sanitizeRefSegment = (value: string): string =>
 		.replace(/-+/g, '-')
 		.replace(/^[-/.]+|[-/.]+$/g, '') || 'unknown';
 
-const getCurrentBranchName = (repoRoot: string): Result<string> => {
-	const result = execGit({
+const getCurrentBranchName = async (
+	repoRoot: string,
+): Promise<Result<string>> => {
+	const result = await execGit({
 		args: ['rev-parse', '--abbrev-ref', 'HEAD'],
 		cwd: repoRoot,
 	});
@@ -605,8 +668,8 @@ const getCurrentBranchName = (repoRoot: string): Result<string> => {
 	return succeeded('Resolved current branch', result.data.stdout.trim());
 };
 
-const getShortHeadSha = (repoRoot: string): Result<string> => {
-	const result = execGit({
+const getShortHeadSha = async (repoRoot: string): Promise<Result<string>> => {
+	const result = await execGit({
 		args: ['rev-parse', '--short', 'HEAD'],
 		cwd: repoRoot,
 	});
@@ -616,11 +679,13 @@ const getShortHeadSha = (repoRoot: string): Result<string> => {
 	return succeeded('Resolved short HEAD sha', result.data.stdout.trim());
 };
 
-const buildSyncCommitMessage = (repoRoot: string): Result<string> => {
-	const branchResult = getCurrentBranchName(repoRoot);
+const buildSyncCommitMessage = async (
+	repoRoot: string,
+): Promise<Result<string>> => {
+	const branchResult = await getCurrentBranchName(repoRoot);
 	if (isFail(branchResult)) return failed(branchResult.message);
 
-	const shaResult = getShortHeadSha(repoRoot);
+	const shaResult = await getShortHeadSha(repoRoot);
 	if (isFail(shaResult)) return failed(shaResult.message);
 
 	const branch = sanitizeRefSegment(branchResult.data);
@@ -630,24 +695,24 @@ const buildSyncCommitMessage = (repoRoot: string): Result<string> => {
 	return succeeded('Built sync commit message', message);
 };
 
-const createBoardSyncCommit = ({
+const createBoardSyncCommit = async ({
 	repoRoot,
 	worktreeRoot,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
-}): Result<string | null> => {
-	const hasChangesResult = hasStagedBoardEpiqChanges(worktreeRoot);
+}): Promise<Result<string | null>> => {
+	const hasChangesResult = await hasStagedBoardEpiqChanges(worktreeRoot);
 	if (isFail(hasChangesResult)) return failed(hasChangesResult.message);
 
 	if (!hasChangesResult.data) {
 		return succeeded('No board .epiq commit needed', null);
 	}
 
-	const messageResult = buildSyncCommitMessage(repoRoot);
+	const messageResult = await buildSyncCommitMessage(repoRoot);
 	if (isFail(messageResult)) return failed(messageResult.message);
 
-	const commitResult = execGit({
+	const commitResult = await execGit({
 		args: ['commit', '-m', messageResult.data],
 		cwd: worktreeRoot,
 	});
@@ -658,7 +723,7 @@ const createBoardSyncCommit = ({
 		);
 	}
 
-	const shaResult = execGit({
+	const shaResult = await execGit({
 		args: ['rev-parse', 'HEAD'],
 		cwd: worktreeRoot,
 	});
@@ -668,15 +733,15 @@ const createBoardSyncCommit = ({
 	return succeeded('Created board sync commit', shaResult.data.stdout.trim());
 };
 
-const pushBoard = (worktreeRoot: string): Result<boolean> => {
-	const upstreamResult = hasUpstream(worktreeRoot);
+const pushBoard = async (worktreeRoot: string): Promise<Result<boolean>> => {
+	const upstreamResult = await hasUpstream(worktreeRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
 	if (!upstreamResult.data) {
 		return succeeded('No upstream configured, skipped push', false);
 	}
 
-	const result = execGit({
+	const result = await execGit({
 		args: ['push'],
 		cwd: worktreeRoot,
 	});
@@ -688,47 +753,47 @@ const pushBoard = (worktreeRoot: string): Result<boolean> => {
 	return succeeded('Pushed board', true);
 };
 
-const bootstrapBoardStorage = ({
+const bootstrapBoardStorage = async ({
 	repoRoot,
 	worktreeRoot,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
-}): Result<boolean> => {
+}): Promise<Result<boolean>> => {
 	let changed: boolean = false;
 
 	const storageResult = ensureEpiqStorage();
 	if (isFail(storageResult)) return failed(storageResult.message);
 
-	const branchResult = ensureLocalBoardBranch({repoRoot});
+	const branchResult = await ensureLocalBoardBranch({repoRoot});
 	if (isFail(branchResult)) return failed(branchResult.message);
 	changed = changed || branchResult.data;
 
-	const worktreeResult = ensureBoardWorktree({repoRoot, worktreeRoot});
+	const worktreeResult = await ensureBoardWorktree({repoRoot, worktreeRoot});
 	if (isFail(worktreeResult)) return failed(worktreeResult.message);
 	changed = changed || worktreeResult.data;
 
-	const checkoutResult = ensureBoardBranchCheckedOut(worktreeRoot);
+	const checkoutResult = await ensureBoardBranchCheckedOut(worktreeRoot);
 	if (isFail(checkoutResult)) return failed(checkoutResult.message);
 	changed = changed || checkoutResult.data;
 
-	const upstreamResult = ensureBoardUpstream(worktreeRoot);
+	const upstreamResult = await ensureBoardUpstream(worktreeRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 	changed = changed || upstreamResult.data;
 
 	return succeeded('Bootstrapped board storage', changed);
 };
 
-export const syncEpiqWithRemote = (
+export const syncEpiqWithRemote = async (
 	cwd = process.cwd(),
-): Result<SyncSummary> => {
-	const repoRootResult = getRepoRoot(cwd);
+): Promise<Result<SyncSummary>> => {
+	const repoRootResult = await getRepoRoot(cwd);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
 	const repoRoot = repoRootResult.data;
 	const worktreeRoot = getBoardWorktreeRoot(repoRoot);
 
-	const repoOpResult = hasInProgressGitOperation(repoRoot);
+	const repoOpResult = await hasInProgressGitOperation(repoRoot);
 	if (isFail(repoOpResult)) return failed(repoOpResult.message);
 	if (repoOpResult.data) {
 		return failed(
@@ -736,7 +801,7 @@ export const syncEpiqWithRemote = (
 		);
 	}
 
-	const stagedChangesResult = hasStagedChanges(repoRoot);
+	const stagedChangesResult = await hasStagedChanges(repoRoot);
 	if (isFail(stagedChangesResult)) return failed(stagedChangesResult.message);
 	if (stagedChangesResult.data) {
 		return failed(
@@ -744,10 +809,10 @@ export const syncEpiqWithRemote = (
 		);
 	}
 
-	const bootstrapResult = bootstrapBoardStorage({repoRoot, worktreeRoot});
+	const bootstrapResult = await bootstrapBoardStorage({repoRoot, worktreeRoot});
 	if (isFail(bootstrapResult)) return failed(bootstrapResult.message);
 
-	const boardOpResult = hasInProgressGitOperation(worktreeRoot);
+	const boardOpResult = await hasInProgressGitOperation(worktreeRoot);
 	if (isFail(boardOpResult)) return failed(boardOpResult.message);
 	if (boardOpResult.data) {
 		return failed(
@@ -762,20 +827,20 @@ export const syncEpiqWithRemote = (
 	let hydrated = false;
 	const bootstrapped = bootstrapResult.data;
 
-	const fetchResult = fetchBoardRemote(worktreeRoot);
+	const fetchResult = await fetchBoardRemote(worktreeRoot);
 	if (isFail(fetchResult)) return failed(fetchResult.message);
 
-	const pullResult = pullBoardRebase(worktreeRoot);
+	const pullResult = await pullBoardRebase(worktreeRoot);
 	if (isFail(pullResult)) return failed(pullResult.message);
 	pulled = pullResult.data;
 
 	const copyToWorktreeResult = copyRepoEpiqToWorktree({repoRoot, worktreeRoot});
 	if (isFail(copyToWorktreeResult)) return failed(copyToWorktreeResult.message);
 
-	const stageResult = stageBoardEpiq(worktreeRoot);
+	const stageResult = await stageBoardEpiq(worktreeRoot);
 	if (isFail(stageResult)) return failed(stageResult.message);
 
-	const commitResult = createBoardSyncCommit({repoRoot, worktreeRoot});
+	const commitResult = await createBoardSyncCommit({repoRoot, worktreeRoot});
 	if (isFail(commitResult)) return failed(commitResult.message);
 
 	if (commitResult.data) {
@@ -783,7 +848,7 @@ export const syncEpiqWithRemote = (
 		commitSha = commitResult.data;
 	}
 
-	const pushResult = pushBoard(worktreeRoot);
+	const pushResult = await pushBoard(worktreeRoot);
 	if (isFail(pushResult)) {
 		return failed(
 			[

@@ -1,21 +1,46 @@
 import chalk from 'chalk';
 
-const stringHash = (value: string): number => {
+type Rgb = [number, number, number];
+
+export const colorConfig = {
+	stringColor: {
+		saturation: 65,
+		lightness: 45,
+	},
+
+	gradient: {
+		stops: [
+			[168, 139, 250], // soft neon lavender
+			[59, 130, 246], // vivid blue core
+			[34, 211, 238], // bright cyan edge
+		] as Rgb[],
+	},
+};
+
+// =========================
+// shared primitives
+// =========================
+
+const clamp = (value: number, min: number, max: number) =>
+	Math.max(min, Math.min(max, value));
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+const hashString = (value: string): number => {
 	let hash = 0;
 
 	for (let i = 0; i < value.length; i++) {
-		hash = value.charCodeAt(i) + ((hash << 5) - hash);
-		hash |= 0;
+		hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
 	}
 
-	return Math.abs(hash);
+	return hash;
 };
 
-const hslToHex = (h: number, s: number, l: number): string => {
-	s /= 100;
-	l /= 100;
+const hslToRgb = (h: number, s: number, l: number): Rgb => {
+	const sat = s / 100;
+	const light = l / 100;
 
-	const c = (1 - Math.abs(2 * l - 1)) * s;
+	const c = (1 - Math.abs(2 * light - 1)) * sat;
 	const hh = h / 60;
 	const x = c * (1 - Math.abs((hh % 2) - 1));
 
@@ -43,84 +68,74 @@ const hslToHex = (h: number, s: number, l: number): string => {
 		b = x;
 	}
 
-	const m = l - c / 2;
-	const toHex = (value: number): string =>
-		Math.round((value + m) * 255)
-			.toString(16)
-			.padStart(2, '0');
+	const m = light - c / 2;
 
-	return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+	return [
+		Math.round((r + m) * 255),
+		Math.round((g + m) * 255),
+		Math.round((b + m) * 255),
+	];
 };
 
-export const stringToHslHexColor = (value: string): string => {
-	const hash = stringHash(value);
+const rgbToHex = ([r, g, b]: Rgb): string =>
+	`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b
+		.toString(16)
+		.padStart(2, '0')}`;
 
-	const hue = hash % 360;
-	const saturation = 65;
-	const lightness = 45;
-
-	return hslToHex(hue, saturation, lightness);
-};
-
-// =========================
-// =========================
-// =========================
-// =========================
-// =========================
-
-const gradientStops: [number, number, number][] = [
-	[168, 139, 250], // soft neon lavender
-	[59, 130, 246], // vivid blue core
-	[34, 211, 238], // bright cyan edge
-];
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-const interpolateColor = (
-	a: [number, number, number],
-	b: [number, number, number],
-	t: number,
-): [number, number, number] => [
+const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => [
 	Math.round(lerp(a[0], b[0], t)),
 	Math.round(lerp(a[1], b[1], t)),
 	Math.round(lerp(a[2], b[2], t)),
 ];
 
-export const getGradientColor = (t: number): [number, number, number] => {
-	const clamped = Math.max(0, Math.min(1, t));
-	const segments = gradientStops.length - 1;
+// =========================
+// string-based single color
+// =========================
+
+export const stringToHslHexColor = (value: string): string => {
+	const hash = hashString(value);
+	const hue = hash % 360;
+
+	const rgb = hslToRgb(
+		hue,
+		colorConfig.stringColor.saturation,
+		colorConfig.stringColor.lightness,
+	);
+
+	return rgbToHex(rgb);
+};
+
+// =========================
+// gradient helpers
+// =========================
+
+export const getGradientColor = (t: number): Rgb => {
+	const stops = colorConfig.gradient.stops;
+	const clamped = clamp(t, 0, 1);
+
+	if (stops.length === 0) return [0, 0, 0];
+	if (stops.length === 1) return stops[0]!;
+
+	const segments = stops.length - 1;
 	const scaled = clamped * segments;
 	const index = Math.min(Math.floor(scaled), segments - 1);
 	const localT = scaled - index;
 
-	if (gradientStops) {
-		return interpolateColor(
-			gradientStops[index]!,
-			gradientStops[index + 1]!,
-			localT,
-		);
-	}
-	return [0, 0, 0];
+	return interpolateColor(stops[index]!, stops[index + 1]!, localT);
 };
 
-// Stable string hash
-const hashString = (input: string): number => {
-	let hash = 0;
-	for (let i = 0; i < input.length; i++) {
-		hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
-	}
-	return hash;
-};
-
-// Stable gradient position for a word: 0..1
 export const getWordGradientPosition = (word: string): number => {
 	const hash = hashString(word.toLowerCase().trim());
 	return hash / 0xffffffff;
 };
 
-export const getGradientWordStyle = (word: string) => {
+const getWordGradientRgb = (word: string): Rgb => {
 	const t = getWordGradientPosition(word);
-	const [r, g, b] = getGradientColor(t);
+	return getGradientColor(t);
+};
+
+export const getGradientWordStyle = (word: string) => {
+	const [r, g, b] = getWordGradientRgb(word);
 
 	return {
 		normal: (text: string) => chalk.bgRgb(r, g, b).black(text),
@@ -129,15 +144,11 @@ export const getGradientWordStyle = (word: string) => {
 };
 
 export const getGradientStyles = (word: string) => {
-	const t = getWordGradientPosition(word);
-	const [r, g, b] = getGradientColor(t);
+	const [r, g, b] = getWordGradientRgb(word);
 
 	return {
-		// command style (foreground only)
 		fg: (text: string) => chalk.rgb(r, g, b)(text),
 		fgCursor: (text: string) => chalk.rgb(r, g, b).inverse(text),
-
-		// modifier style (background)
 		bg: (text: string) => chalk.bgRgb(r, g, b).black(text),
 		bgCursor: (text: string) => chalk.bgRgb(r, g, b).white.bold(text),
 	};
