@@ -42,7 +42,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	];
 
 	const commandMap: CommandMap = {
-		WORKSPACE: [...globalCommands],
+		WORKSPACE: [...globalCommands, ...generalEditCommands],
 		BOARD: [CmdKeywords.FILTER, ...globalCommands, ...generalEditCommands],
 		SWIMLANE: [CmdKeywords.FILTER, ...globalCommands, ...generalEditCommands],
 		TICKET: [
@@ -93,7 +93,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 				: context === 'SWIMLANE'
 				? ['issue', 'swimlane', 'board']
 				: context === 'BOARD'
-				? ['swimlane', 'board']
+				? ['issue', 'swimlane', 'board']
 				: ['board'],
 		[CmdKeywords.NONE]: baseCommands,
 	};

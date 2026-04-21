@@ -39,7 +39,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBe('<ENTER> to confirm');
+			expect(result.message).toBe('');
 		});
 
 		it('rejects when modifier is empty', () => {

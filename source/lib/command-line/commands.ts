@@ -417,6 +417,8 @@ export const commands: CommandLineActionEntry[] = [
 				return failed(`provide a name for your ${cmdState.modifier}`);
 			}
 
+			const {breadCrumb, currentNode, selectedIndex} = getState();
+
 			const createAndNavigate = (
 				event: AppEvent<
 					| 'add.workspace'
@@ -465,7 +467,7 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			if (cmdState.modifier === 'swimlane') {
-				const boardResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+				const boardResult = findInBreadCrumb(breadCrumb, 'BOARD');
 				if (isFail(boardResult))
 					return failed('Unable to add swimlane in this context');
 
@@ -482,17 +484,26 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			if (cmdState.modifier === 'issue') {
-				const swimlaneResult = findInBreadCrumb(
-					getState().breadCrumb,
-					'SWIMLANE',
-				);
-				if (isFail(swimlaneResult))
+				const selectedNode = getRenderedChildren(currentNode.id)[selectedIndex];
+				const swimlane =
+					currentNode.context === 'SWIMLANE'
+						? currentNode
+						: currentNode.context === 'BOARD' &&
+						  selectedNode?.context === 'SWIMLANE'
+						? selectedNode
+						: (() => {
+								const swimlaneResult = findInBreadCrumb(breadCrumb, 'SWIMLANE');
+								return isFail(swimlaneResult) ? null : swimlaneResult.data;
+						  })();
+
+				if (!swimlane) {
 					return failed('Unable to add issue in this context');
+				}
 
 				const issueEvents = createIssueEvents({
 					userId,
 					name: cmdState.inputString,
-					parent: swimlaneResult.data.id,
+					parent: swimlane.id,
 				});
 
 				const issueResults = materializeAndPersistAll(issueEvents);
@@ -516,15 +527,14 @@ export const commands: CommandLineActionEntry[] = [
 				if (!ticketId) return failed('Unable to determine ticket id');
 
 				navigationUtils.navigate({
-					currentNode: swimlaneResult.data,
+					currentNode: swimlane,
 					selectedIndex: nodeRepo
-						.getSiblings(swimlaneResult.data.id)
+						.getSiblings(swimlane.id)
 						.findIndex(({id}) => id === ticketId),
 				});
 
 				return succeeded('Issue created', null);
 			}
-
 			return noResult();
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),

@@ -105,7 +105,15 @@ const requireOneIn =
 			  });
 
 const requireOneWithValueIn =
-	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
+	({
+		list,
+		hint,
+		onValue,
+	}: {
+		list: readonly string[];
+		hint: string;
+		onValue: string;
+	}): Validator =>
 	({modifier, inputString}) => {
 		if (!list.includes(modifier)) {
 			return invalid({
@@ -114,14 +122,14 @@ const requireOneWithValueIn =
 			});
 		}
 
-		if (!inputString.trim().length) {
+		if (inputString.trim().length < 1) {
 			return invalid({
-				message: '...',
+				message: onValue,
 				completionWordList: [],
 			});
 		}
 
-		return valid(CONFIRM_MSG);
+		return valid();
 	};
 
 const requireModifierOrInputStr =
@@ -253,6 +261,7 @@ const validators: Record<CmdKeyword, Validator> = {
 				inputString: args.inputString,
 				minLengthForHints: 0,
 			}),
+			onValue: 'provide a name...',
 		})(args),
 
 	[CmdKeywords.SET_DESCRIPTION]: () => valid(CONFIRM_MSG),
