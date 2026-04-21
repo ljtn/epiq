@@ -921,34 +921,34 @@ describe('nodeRepo.createNodeAtPosition', () => {
 	});
 });
 
-describe('nodeRepo.createNode / updateNode current behavior', () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-	});
-
-	it('createNode currently returns failure when updateState succeeds (catches inverted condition bug)', () => {
+describe('nodeRepo.createNode / updateNode', () => {
+	it('createNode returns success when updateState succeeds', () => {
 		mocks.updateState.mockReturnValue(succeeded('Updated', null));
 
-		const result = nodeRepo.createNode(
-			makeNode({id: 'x', context: 'BOARD'}) as never,
-		);
+		const node = makeNode({id: 'x', context: 'BOARD'});
+		const result = nodeRepo.createNode(node as never);
 
-		expect(isFail(result)).toBe(true);
-		if (isFail(result)) {
-			expect(result.message).toBe('Unable to create node');
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.message).toBe('Node created');
+			expect(result.data).toEqual(node);
 		}
 	});
 
-	it('updateNode currently returns raw success result from updateState instead of succeeded(node) (catches inverted condition bug)', () => {
-		const rawUpdateResult = succeeded('Updated via updateState', {
-			some: 'payload',
-		});
-		mocks.updateState.mockReturnValue(rawUpdateResult);
-
-		const result = nodeRepo.updateNode(
-			makeNode({id: 'x', context: 'BOARD'}) as never,
+	it('updateNode returns succeeded(node) when updateState succeeds', () => {
+		mocks.updateState.mockReturnValue(
+			succeeded('Updated via updateState', {
+				some: 'payload',
+			}),
 		);
 
-		expect(result).toBe(rawUpdateResult);
+		const node = makeNode({id: 'x', context: 'BOARD'});
+		const result = nodeRepo.updateNode(node as never);
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.message).toBe('Updated node');
+			expect(result.data).toEqual(node);
+		}
 	});
 });

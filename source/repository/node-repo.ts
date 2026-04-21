@@ -405,7 +405,7 @@ export const nodeRepo = {
 				[node.id]: node,
 			},
 		}));
-		if (!isFail(result)) return failed('Unable to create node');
+		if (isFail(result)) return failed('Unable to create node');
 
 		return succeeded('Node created', node);
 	},
@@ -440,7 +440,7 @@ export const nodeRepo = {
 			},
 		}));
 
-		if (!isFail(result)) return result;
+		if (isFail(result)) return result;
 		return succeeded('Updated node', node);
 	},
 
