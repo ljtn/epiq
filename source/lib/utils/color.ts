@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import {TAGS_DEFAULT} from '../static/default-tags.js';
 
 type Rgb = [number, number, number];
 
@@ -156,4 +157,11 @@ export const getGradientStyles = (word: string) => {
 
 export const getGradientWord = (word: string) => {
 	return getGradientWordStyle(word).normal(` ${word} `);
+};
+
+export const getStringColor = (id: string, config = TAGS_DEFAULT): string => {
+	const normalizeName = (value: string): string => value.toLowerCase().trim();
+	const normalized = normalizeName(id);
+	if (normalized && config[normalized]) return config[normalized];
+	return stringToHslHexColor(normalized);
 };

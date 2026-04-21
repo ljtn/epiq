@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {decodeTime} from 'ulid';
-import {getTagColor} from '../lib/components/Tag.js';
 import {getState} from '../lib/state/state.js';
+import {getStringColor} from '../lib/utils/color.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {timeAgo} from './date-utils.js';
 import {AppEvent, EventAction, UserId} from './event.model.js';
@@ -65,7 +65,7 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'tag.issue': {
 			const tag = getState().tags[event.payload.tagId];
 			return tag
-				? chalk.bgHex(getTagColor(tag.name))(` ${tag.name} `)
+				? chalk.bgHex(getStringColor(tag.name))(` ${tag.name} `)
 				: 'unknown tag';
 		}
 

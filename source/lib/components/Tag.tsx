@@ -1,24 +1,12 @@
 import {Text} from 'ink';
 import React from 'react';
-import {TagColor, TAGS_DEFAULT, TagsDefault} from '../static/default-tags.js';
-import {theme} from '../theme/themes.js';
-import {stringToHslHexColor} from '../utils/color.js';
 import {nodeRepo} from '../../repository/node-repo.js';
+import {theme} from '../theme/themes.js';
+import {getStringColor} from '../utils/color.js';
 
 type Props = {
 	id: string;
 	isSelected?: boolean;
-};
-
-const normalizeTagName = (value: string): string => value.toLowerCase().trim();
-
-export const getTagColor = (
-	name: string,
-	config: TagsDefault = TAGS_DEFAULT,
-): TagColor => {
-	const normalized = normalizeTagName(name);
-	if (config[normalized]) return config[normalized];
-	return stringToHslHexColor(normalized);
 };
 
 export const TagUI: React.FC<Props> = ({id, isSelected}) => {
@@ -27,7 +15,7 @@ export const TagUI: React.FC<Props> = ({id, isSelected}) => {
 	return (
 		<Text
 			underline={isSelected}
-			backgroundColor={getTagColor(tag.name)}
+			backgroundColor={getStringColor(tag.name)}
 			color={theme.primary}
 		>
 			{' ' + tag.name + ' '}

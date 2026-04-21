@@ -1,7 +1,12 @@
 import chalk from 'chalk';
+import {nodeRepo} from '../../repository/node-repo.js';
 import {Filter} from '../model/app-state.model.js';
 import {getState} from '../state/state.js';
-import {getGradientWord, getWordGradientPosition} from '../utils/color.js';
+import {
+	getGradientWord,
+	getStringColor,
+	getWordGradientPosition,
+} from '../utils/color.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
@@ -139,45 +144,6 @@ const requireModifierOrInputStr =
 			? invalid({message: hint, completionWordList: []})
 			: valid(CONFIRM_MSG);
 
-const suggestFromListButDoNotRestrict =
-	({
-		list,
-		prefix = '',
-		noOfHints = 10,
-		minLengthForHints = 1,
-	}: {
-		list: readonly string[];
-		prefix?: string;
-		noOfHints?: number;
-		minLengthForHints?: number;
-	}): Validator =>
-	({modifier, inputString}) => {
-		const value = modifier || inputString;
-		const trimmed = value.trim();
-
-		if (!inputString.length) {
-			return invalid({
-				message: buildHint({
-					prefix: prefix,
-					wordList: list,
-					noOfHints,
-					inputString: '',
-					minLengthForHints,
-				}),
-				completionWordList: [...list],
-			});
-		}
-
-		return valid(
-			buildHint({
-				wordList: list,
-				noOfHints,
-				inputString: trimmed,
-			}),
-			[...list],
-		);
-	};
-
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.INIT]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.FILTER]: args => {
@@ -281,26 +247,28 @@ const validators: Record<CmdKeyword, Validator> = {
 			}),
 		})(args),
 
-	[CmdKeywords.TAG]: args =>
-		requireModifierOrInputStr({
-			hint: buildHint({
-				prefix: 'tag name like... ',
-				wordList: getCmdModifiers(CmdKeywords.TAG),
-				noOfHints: 3,
-				inputString: args.inputString,
-			}),
-		})(args),
+	[CmdKeywords.TAG]: args => {
+		const tags = nodeRepo
+			.getExistingTags()
+			.map(tag => ` ${chalk.bgHex(getStringColor(tag))(' ' + tag + ' ')} `)
+			.slice(0, 10);
+
+		return requireModifierOrInputStr({
+			hint: 'tag name like... ' + tags.join(''),
+		})(args);
+	},
 
 	[CmdKeywords.ASSIGN]: args => {
-		const contributors = Object.values(getState().contributors).map(
-			x => x.name,
-		);
+		const contributors = nodeRepo
+			.getExistingAssignees()
+			.map(
+				assignee =>
+					` ${chalk.bgHex(getStringColor(assignee))(' ' + assignee + ' ')} `,
+			)
+			.slice(0, 10);
 
-		return suggestFromListButDoNotRestrict({
-			list: [...contributors],
-			prefix: 'enter assignee name... ',
-			noOfHints: 10,
-			minLengthForHints: 0,
+		return requireModifierOrInputStr({
+			hint: 'assign to... ' + contributors.join(''),
 		})(args);
 	},
 

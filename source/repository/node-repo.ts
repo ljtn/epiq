@@ -9,7 +9,7 @@ import {
 	succeeded,
 } from '../lib/command-line/command-types.js';
 import {Contributor, Tag} from '../lib/model/app-state.model.js';
-import {AnyContext, isFieldListNode} from '../lib/model/context.model.js';
+import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {
@@ -19,7 +19,6 @@ import {
 	updateState,
 } from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
-import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {getOrderedChildren, resolveMoveRank} from './rank.js';
 
 export const findAncestor = <T extends AnyContext>(
@@ -58,56 +57,6 @@ export const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
 
 	return false;
 };
-
-function normalizeListValue(value: string): string {
-	return sanitizeInlineText(value).replace(/\s+/g, ' ').trim();
-}
-
-function collectFieldListValues(
-	node: NavNode<AnyContext> | undefined,
-	fieldName: string,
-): string[] {
-	if (!node) return [];
-
-	const values: string[] = [];
-	const seen = new Set<string>();
-	const state = getState();
-	const {renderedChildrenIndex, tags, contributors} = state;
-	const visit = (current: NavNode<AnyContext>) => {
-		const children = renderedChildrenIndex[current.id];
-		if (current.title === fieldName && isFieldListNode(current)) {
-			for (const child of children ?? []) {
-				if (!child) continue;
-				const referencedId =
-					typeof child.props?.value === 'string' ? child.props.value : '';
-
-				const refName =
-					fieldName === 'Tags'
-						? tags[referencedId]?.name
-						: fieldName === 'Assignees'
-						? contributors[referencedId]?.name
-						: undefined;
-
-				const raw = refName ?? child.title ?? String(child.props?.value ?? '');
-
-				const value = normalizeListValue(raw);
-				const key = value.toLowerCase();
-
-				if (value && !seen.has(key)) {
-					seen.add(key);
-					values.push(value);
-				}
-			}
-		}
-
-		for (const child of children ?? []) {
-			visit(child);
-		}
-	};
-
-	visit(node);
-	return values.sort((a, b) => a.localeCompare(b));
-}
 
 const failIfReadonly = (
 	node: NavNode<AnyContext> | undefined,
@@ -175,17 +124,27 @@ export const nodeRepo = {
 	},
 
 	getExistingTags(): string[] {
-		const {rootNodeId, nodes} = getState();
-		const rootNode = nodes[rootNodeId];
-		if (!rootNode) return [];
-		return collectFieldListValues(rootNode, 'Tags');
+		const {tags} = getState();
+
+		return [
+			...new Set(
+				Object.values(tags)
+					.map(node => node.name)
+					.filter(Boolean),
+			),
+		];
 	},
 
 	getExistingAssignees(): string[] {
-		const {rootNodeId, nodes} = getState();
-		const rootNode = nodes[rootNodeId];
-		if (!rootNode) return [];
-		return collectFieldListValues(rootNode, 'Assignees');
+		const {contributors} = getState();
+
+		return [
+			...new Set(
+				Object.values(contributors)
+					.map(node => node.name)
+					.filter(Boolean),
+			),
+		];
 	},
 
 	getFieldByTitle(parentId: string, title: string) {
