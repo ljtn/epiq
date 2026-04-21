@@ -1,6 +1,6 @@
 {
 	"name": "epiq",
-	"version": "0.2.6",
+	"version": "0.2.7",
 	"license": "UNLICENSED",
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",
@@ -32,8 +32,6 @@
 	],
 	"dependencies": {
 		"ink": "^6.8.0",
-		"marked": "^17.0.3",
-		"marked-terminal": "^7.3.0",
 		"meow": "^14.1.0",
 		"react": "^19.2.4",
 		"string-width": "^8.2.0",

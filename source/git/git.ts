@@ -163,6 +163,17 @@ const ensureInitialCommit = async (
 	return succeeded('Created initial commit', true);
 };
 
+const ensureEpiqDir = (root: string): Result<boolean> => {
+	const epiqPath = path.join(root, EPIQ_DIR);
+
+	if (fs.existsSync(epiqPath)) {
+		return succeeded('Epiq dir already exists', false);
+	}
+
+	fs.mkdirSync(epiqPath, {recursive: true});
+	return succeeded('Created epiq dir', true);
+};
+
 const ensureDir = (dirPath: string): Result<void> => {
 	fs.mkdirSync(dirPath, {recursive: true});
 	return succeeded('Ensured directory', undefined);
@@ -861,6 +872,14 @@ export const syncEpiqWithRemote = async (
 	const pullResult = await pullBoardRebase(worktreeRoot);
 	if (isFail(pullResult)) return failed(pullResult.message);
 	pulled = pullResult.data;
+
+	const ensureLocalEpiqResult = ensureEpiqDir(repoRoot);
+	if (isFail(ensureLocalEpiqResult))
+		return failed(ensureLocalEpiqResult.message);
+
+	const ensureBoardEpiqResult = ensureEpiqDir(worktreeRoot);
+	if (isFail(ensureBoardEpiqResult))
+		return failed(ensureBoardEpiqResult.message);
 
 	const copyToWorktreeResult = copyRepoEpiqToWorktree({repoRoot, worktreeRoot});
 	if (isFail(copyToWorktreeResult)) return failed(copyToWorktreeResult.message);
