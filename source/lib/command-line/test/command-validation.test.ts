@@ -196,7 +196,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBe('');
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 
 		it('rejects when modifier is empty', () => {
@@ -218,7 +218,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBe('');
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 	});
 });
