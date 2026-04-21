@@ -39,11 +39,12 @@ export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
 export type CmdResult = (typeof cmdResult)[keyof typeof cmdResult];
 export type CmdValidity = (typeof cmdValidity)[keyof typeof cmdValidity];
 
-export type ReturnSuccess<T = unknown> = {
-	result: CmdResult;
+export type ReturnSuccess<T = undefined> = {
+	result: typeof cmdResult.Success;
 	message: string;
-	data: T;
+	data?: T;
 };
+
 export type ReturnFail = {
 	result: CmdResult;
 	message: string;
@@ -56,7 +57,10 @@ export const failed = (message: string): ReturnFail => ({
 	data: null,
 });
 
-export const succeeded = <T>(message: string, data: T): ReturnSuccess<T> => ({
+export const succeeded = <T = undefined>(
+	message: string,
+	data?: T,
+): ReturnSuccess<T> => ({
 	result: cmdResult.Success,
 	message,
 	data,
