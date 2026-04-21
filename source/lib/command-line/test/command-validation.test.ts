@@ -35,7 +35,7 @@ describe('cmdValidation', () => {
 			const result = cmdValidation[CmdKeywords.NEW].validate(
 				CmdKeywords.NEW,
 				modifier,
-				'',
+				' a',
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
