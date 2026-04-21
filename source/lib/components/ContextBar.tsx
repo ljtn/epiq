@@ -1,9 +1,10 @@
-import {Box, Text} from 'ink';
+import {Box} from 'ink';
 import React from 'react';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {AppState} from '../model/app-state.model.js';
-import {theme} from '../theme/themes.js';
+import {useAppState} from '../state/state.js';
 import {CommandLine} from './CommandLine.js';
+import {ContextBarInfo} from './ContextBarInfo.js';
 
 interface Props {
 	width: number;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
+	const state = useAppState();
 	const clampedHints: string[] = [];
 	let usedWidth = 0;
 
@@ -27,25 +29,14 @@ export const ContextBar: React.FC<Props> = ({width, mode, availableHints}) => {
 
 	return (
 		<Box>
-			{mode === Mode.COMMAND_LINE ? (
+			{mode === Mode.COMMAND_LINE && state.syncStatus.status !== 'syncing' ? (
 				<CommandLine width={width} />
 			) : (
-				<Box
-					flexDirection="column"
-					paddingX={1}
-					borderColor={theme.secondary}
-					borderStyle="round"
+				<ContextBarInfo
 					width={width}
-				>
-					<Box flexDirection="row">
-						{clampedHints.map((hint, index) => (
-							<Text key={hint} color={theme.secondary2}>
-								{(index > 0 ? ' | ' : '') + hint}
-							</Text>
-						))}
-						<Text> </Text>
-					</Box>
-				</Box>
+					mode={mode}
+					availableHints={availableHints}
+				></ContextBarInfo>
 			)}
 		</Box>
 	);

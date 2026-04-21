@@ -1,4 +1,4 @@
-import {failed, succeeded} from '../../command-line/command-types.js';
+import {failed} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';
@@ -14,8 +14,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `move cancel`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Fired command', true);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 	{
@@ -25,8 +24,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `move start`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Fired command', true);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 	{
@@ -35,8 +33,7 @@ export const toggleMoveMode: ActionEntry[] = [
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `move confirm`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Fired command', true);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 ];
@@ -49,8 +46,7 @@ export const moveWithinParent: ActionEntry[] = [
 			if (!getMovePendingState()) return failed('No pending move');
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `move previous`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Fired command', true);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 	{
@@ -60,8 +56,7 @@ export const moveWithinParent: ActionEntry[] = [
 			if (!getMovePendingState()) return failed('No pending move');
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `move next`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Fired command', true);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 ];
@@ -74,8 +69,7 @@ export const moveAcrossParents: ActionEntry[] = [
 			if (!getMovePendingState()) return failed('No pending move');
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `move to-next`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Fired command', true);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 	{
@@ -85,8 +79,7 @@ export const moveAcrossParents: ActionEntry[] = [
 			if (!getMovePendingState()) return failed('No pending move');
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `move to-previous`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Fired command', true);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
 ];

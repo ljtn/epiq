@@ -711,22 +711,28 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Sync,
 		mode: Mode.COMMAND_LINE,
 		action: async () => {
-			setCmdInput(() => '...');
+			setCmdInput(() => '');
 			patchState({
 				syncStatus: {
-					msg: '',
+					msg: 'Syncing',
 					status: 'syncing',
 				},
 				// mode: Mode.DEFAULT,
 			});
 			const syncResult = await syncEpiqWithRemote();
 			if (isFail(syncResult)) {
+				patchState({
+					syncStatus: {
+						msg: syncResult.message,
+						status: 'outOfSync',
+					},
+				});
 				return failed(`Unable to sync state. ${syncResult.message}`);
 			}
 
 			patchState({
 				syncStatus: {
-					msg: '',
+					msg: 'Synced',
 					status: 'synced',
 				},
 				mode: Mode.DEFAULT,
