@@ -474,8 +474,36 @@ const ensureBoardWorktree = async ({
 	const registeredResult = await hasWorktree({repoRoot, worktreeRoot});
 	if (isFail(registeredResult)) return failed(registeredResult.message);
 
-	if (registeredResult.data && fs.existsSync(worktreeRoot)) {
+	const existsOnDisk = fs.existsSync(worktreeRoot);
+
+	if (registeredResult.data && existsOnDisk) {
 		return succeeded('Board worktree already exists', false);
+	}
+
+	if (registeredResult.data && !existsOnDisk) {
+		const pruneResult = await execGit({
+			args: ['worktree', 'prune'],
+			cwd: repoRoot,
+		});
+		if (isFail(pruneResult)) {
+			return failed(`Failed to prune stale worktrees\n${pruneResult.message}`);
+		}
+
+		const registeredAfterPrune = await hasWorktree({repoRoot, worktreeRoot});
+		if (isFail(registeredAfterPrune))
+			return failed(registeredAfterPrune.message);
+
+		if (registeredAfterPrune.data) {
+			const removeResult = await execGit({
+				args: ['worktree', 'remove', '--force', worktreeRoot],
+				cwd: repoRoot,
+			});
+			if (isFail(removeResult)) {
+				return failed(
+					`Failed to remove stale worktree registration\n${removeResult.message}`,
+				);
+			}
+		}
 	}
 
 	return createBoardWorktree({repoRoot, worktreeRoot});
