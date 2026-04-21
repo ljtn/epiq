@@ -58,7 +58,7 @@ type HeaderPillProps = {
 function HeaderPill({icon, value}: HeaderPillProps) {
 	return (
 		<Text>
-			{chalk.dim(icon) + chalk.hex(theme.accent2)(` ${value ?? '-'} `)}
+			{chalk.dim(icon) + chalk.hex(theme.accent)(` ${value ?? '-'} `)}
 		</Text>
 	);
 }

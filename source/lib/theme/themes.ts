@@ -6,13 +6,13 @@ export const colors = {
 	// Grays (cooler + slightly more blue)
 	grayDark: '#2a2f45',
 	gray: '#46507a',
-	grayLight: '#9ea2b6',
+	grayLight: '#969bb5',
 
 	// Accents — now derived from your gradient
 
 	// Cyan edge (softer + slightly less green)
-	cyan: '#6ee7f0',
-	cyanSoft: '#9ff1f7',
+	cyan: '#88d5ee',
+	cyanSoft: '#8fe6fb',
 
 	// Blue core (closer to your [59,130,246])
 	blue: '#5b8cff',
@@ -38,4 +38,5 @@ export const theme = {
 	gray: colors.gray,
 	green: colors.green,
 	yellow: colors.yellow,
+	red: colors.red,
 };

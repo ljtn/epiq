@@ -72,7 +72,7 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'assign.issue': {
 			const contributor = getState().contributors[event.payload.contributor];
 			return contributor
-				? chalk.bgBlack(` ${contributor.name} `)
+				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)
 				: 'unknown user';
 		}
 

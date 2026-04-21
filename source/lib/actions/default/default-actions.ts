@@ -124,7 +124,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Sync,
 		mode: Mode.DEFAULT,
-		description: '[s] sync epiq with remote, (state lives in dedicated branch)',
+		description: '[s] sync epiq with remote state branch',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `sync`);

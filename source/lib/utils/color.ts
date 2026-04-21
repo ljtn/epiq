@@ -5,15 +5,15 @@ type Rgb = [number, number, number];
 
 export const colorConfig = {
 	stringColor: {
-		saturation: 65,
-		lightness: 45,
+		saturation: 50,
+		lightness: 60,
 	},
 
 	gradient: {
 		stops: [
-			[168, 139, 250], // soft neon lavender
-			[59, 130, 246], // vivid blue core
-			[34, 211, 238], // bright cyan edge
+			[174, 150, 240], // soft lavender
+			[92, 138, 232], // clearer blue
+			[102, 204, 226], // lively cyan
 		] as Rgb[],
 	},
 };
