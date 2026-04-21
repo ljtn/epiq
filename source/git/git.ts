@@ -40,6 +40,10 @@ const execGit = ({
 	cwd: string;
 }): Promise<Result<GitExecResult>> =>
 	new Promise(resolve => {
+		if (!fs.existsSync(cwd)) {
+			return resolve(failed(`Git cwd does not exist: ${cwd}`));
+		}
+
 		const child = spawn('git', args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -61,9 +65,7 @@ const execGit = ({
 
 		child.on('error', err => {
 			resolve(
-				failed(
-					[`git ${args.join(' ')}`, err.message].filter(Boolean).join('\n'),
-				),
+				failed([`git ${args.join(' ')}`, `cwd=${cwd}`, err.message].join('\n')),
 			);
 		});
 
@@ -472,7 +474,7 @@ const ensureBoardWorktree = async ({
 	const registeredResult = await hasWorktree({repoRoot, worktreeRoot});
 	if (isFail(registeredResult)) return failed(registeredResult.message);
 
-	if (registeredResult.data) {
+	if (registeredResult.data && fs.existsSync(worktreeRoot)) {
 		return succeeded('Board worktree already exists', false);
 	}
 
