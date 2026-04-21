@@ -138,6 +138,31 @@ const execGitAllowFail = ({
 		});
 	});
 
+const ensureInitialCommit = async (
+	repoRoot: string,
+): Promise<Result<boolean>> => {
+	const hasHead = await execGitAllowFail({
+		args: ['rev-parse', '--verify', 'HEAD'],
+		cwd: repoRoot,
+	});
+
+	if (hasHead.exitCode === 0) {
+		return succeeded('Repo already initialized', false);
+	}
+
+	// create empty commit (no files needed)
+	const commitResult = await execGit({
+		args: ['commit', '--allow-empty', '-m', '[epiq:init]'],
+		cwd: repoRoot,
+	});
+
+	if (isFail(commitResult)) {
+		return failed(`Failed to create initial commit\n${commitResult.message}`);
+	}
+
+	return succeeded('Created initial commit', true);
+};
+
 const ensureDir = (dirPath: string): Result<void> => {
 	fs.mkdirSync(dirPath, {recursive: true});
 	return succeeded('Ensured directory', undefined);
@@ -808,6 +833,9 @@ export const syncEpiqWithRemote = async (
 			'Cannot run :sync while staged changes exist. Please commit or unstage them first.',
 		);
 	}
+
+	const initResult = await ensureInitialCommit(repoRoot);
+	if (isFail(initResult)) return failed(initResult.message);
 
 	const bootstrapResult = await bootstrapBoardStorage({repoRoot, worktreeRoot});
 	if (isFail(bootstrapResult)) return failed(bootstrapResult.message);
