@@ -120,4 +120,14 @@ export const DefaultActions: ActionEntry[] = [
 			return succeeded('View set', null);
 		},
 	},
+	{
+		intent: Intent.Sync,
+		mode: Mode.DEFAULT,
+		description: '[s] sync epiq with remote, (state lives in dedicated branch)',
+		action: () => {
+			patchState({mode: Mode.COMMAND_LINE});
+			setCmdInput(() => `sync`);
+			return succeeded('Trigger sync', null);
+		},
+	},
 ];

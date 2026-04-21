@@ -30,6 +30,9 @@ export const CmdIntent = {
 	AssignUserToTicket: 'ticket-assign-user',
 	CloseIssue: 'close-issue',
 	ReopenIssue: 're-open-issue',
+
+	// Git
+	Sync: 'sync',
 } as const;
 
 export const isModifierKeyword = (word: string): word is CmdKeyword =>

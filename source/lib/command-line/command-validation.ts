@@ -312,6 +312,7 @@ const validators: Record<CmdKeyword, Validator> = {
 				inputString: args.inputString,
 			}),
 		})(args),
+	[CmdKeywords.SYNC]: () => valid(CONFIRM_MSG),
 };
 
 type CmdValidator = {

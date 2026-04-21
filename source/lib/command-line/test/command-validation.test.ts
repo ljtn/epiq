@@ -1,7 +1,7 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {cmdValidation} from '../command-validation.js';
-import {CmdKeywords, cmdValidity} from '../command-types.js';
+import {describe, expect, it, vi} from 'vitest';
 import {getCmdModifiers} from '../command-modifiers.js';
+import {CmdKeywords, cmdValidity} from '../command-types.js';
+import {cmdValidation} from '../command-validation.js';
 
 vi.mock('../command-modifiers.js', () => ({
 	getCmdModifiers: (keyword: string) => {

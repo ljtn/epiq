@@ -20,6 +20,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const context = currentNode.context;
 
 	const globalCommands = [
+		CmdKeywords.SYNC,
 		CmdKeywords.HELP,
 		CmdKeywords.SET_VIEW,
 		CmdKeywords.SET_EDITOR,
@@ -57,6 +58,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const baseCommands = [...commandMap[context || 'WORKSPACE']];
 
 	let modifiers: Partial<Record<CmdKeyword, string[]>> = {
+		[CmdKeywords.SYNC]: [],
 		[CmdKeywords.INIT]: [],
 		[CmdKeywords.SET_USERNAME]: [],
 		[CmdKeywords.SET_DESCRIPTION]: ['confirm'],
@@ -103,6 +105,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 				CmdKeywords.SET_EDITOR,
 				CmdKeywords.SET_USERNAME,
 			],
+			[CmdKeywords.SYNC]: modifiers[CmdKeywords.SYNC],
 			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
 			[CmdKeywords.SET_EDITOR]: modifiers[CmdKeywords.SET_EDITOR],
 			[CmdKeywords.SET_USERNAME]: modifiers[CmdKeywords.SET_USERNAME],

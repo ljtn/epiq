@@ -17,6 +17,9 @@ export const CmdKeywords = {
 	SET_VIEW: 'set:view',
 	SET_USERNAME: 'set:username',
 
+	// Git
+	SYNC: 'sync',
+
 	NONE: '',
 } as const;
 

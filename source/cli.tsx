@@ -6,7 +6,7 @@ import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadMergedEvents} from './event/event-load.js';
 import {isFail} from './lib/command-line/command-types.js';
 import Logo from './lib/components/Logo.js';
-import {loadSettingsFromConfig} from './lib/config/load-settings.js';
+import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
 

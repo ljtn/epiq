@@ -16,7 +16,7 @@ import {
 	moveNodeToSiblingContainer,
 	setMovePendingState,
 } from '../actions/move/move-actions-utils.js';
-import {setConfig} from '../config/epiq-config.js';
+import {setConfig} from '../config/user-config.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {isTicketNode} from '../model/context.model.js';
@@ -39,6 +39,7 @@ import {
 	noResult,
 	succeeded,
 } from './command-types.js';
+import {syncEpiqWithRemote} from '../../git/git.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -705,5 +706,12 @@ export const commands: CommandLineActionEntry[] = [
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.Sync,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			return syncEpiqWithRemote();
+		},
 	},
 ];

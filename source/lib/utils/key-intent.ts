@@ -5,6 +5,10 @@ import {getState} from '../state/state.js';
 import {getCmdState} from '../state/cmd.state.js';
 
 export enum Intent {
+	// Git
+	Sync = 'sync',
+
+	// Default
 	NavPreviousItem = 'navPreviousItem',
 	NavNextItem = 'navNextItem',
 	NavToPreviousContainer = 'navToPreviousContainer',
@@ -184,6 +188,8 @@ export function getKeyIntent(
 		case 'q':
 		case 'escape':
 			return Intent.Exit;
+		case 's':
+			return Intent.Sync;
 		default:
 			return null;
 	}

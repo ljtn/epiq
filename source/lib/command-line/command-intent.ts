@@ -39,6 +39,10 @@ export const getCommandIntent = (
 			return CmdIntent.SetEditor;
 		case CmdKeywords.SET_VIEW:
 			return CmdIntent.SetView;
+
+		// Git
+		case CmdKeywords.SYNC:
+			return CmdIntent.Sync;
 		default:
 			return CmdIntent.None;
 	}
