@@ -112,7 +112,7 @@ export const ContextBarInfo: React.FC<Props> = ({width, availableHints}) => {
 			? getGradientColor(SYNC_GRADIENT, (Math.sin(tick * 0.12) + 1) / 2)
 			: theme.secondary;
 
-	const border = chalk.hex(borderColor);
+	const border = chalk.hex(borderColor ?? 'fff');
 	const contentColor = chalk.hex(theme.secondary2);
 
 	const topBorder = border(`╭${'─'.repeat(innerWidth)}╮`);

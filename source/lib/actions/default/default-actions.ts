@@ -1,10 +1,4 @@
-import {syncEpiqWithRemote} from '../../../git/git.js';
-import {
-	CmdKeywords,
-	failed,
-	isFail,
-	succeeded,
-} from '../../command-line/command-types.js';
+import {CmdKeywords, succeeded} from '../../command-line/command-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';

@@ -493,7 +493,7 @@ describe('nodeRepo.updateNodeAndSelectInParent', () => {
 				nodes: {root, board, a, moved: {...moved, rank: 'z'}, c},
 			});
 			fn(prev);
-			return succeeded('Updated');
+			return succeeded('Updated', null);
 		});
 
 		mocks.getState.mockReturnValue(
@@ -535,7 +535,7 @@ describe('nodeRepo.updateNodeAndSelectInParent', () => {
 			rank: 'a',
 		});
 
-		mocks.updateState.mockReturnValue(succeeded('Updated'));
+		mocks.updateState.mockReturnValue(succeeded('Updated', null));
 		mocks.getState.mockReturnValue(
 			makeState({
 				rootNodeId: 'root',
@@ -560,7 +560,7 @@ describe('nodeRepo.updateNodeAndSelectInParent', () => {
 			parentNodeId: 'missing-parent',
 		});
 
-		mocks.updateState.mockReturnValue(succeeded('Updated'));
+		mocks.updateState.mockReturnValue(succeeded('Updated', null));
 		mocks.getState.mockReturnValue(
 			makeState({
 				rootNodeId: 'root',
@@ -927,7 +927,7 @@ describe('nodeRepo.createNode / updateNode current behavior', () => {
 	});
 
 	it('createNode currently returns failure when updateState succeeds (catches inverted condition bug)', () => {
-		mocks.updateState.mockReturnValue(succeeded('Updated'));
+		mocks.updateState.mockReturnValue(succeeded('Updated', null));
 
 		const result = nodeRepo.createNode(
 			makeNode({id: 'x', context: 'BOARD'}) as never,

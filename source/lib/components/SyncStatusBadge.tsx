@@ -15,12 +15,6 @@ const SYNC_GRADIENT = [
 	'#9d7cd8', // magenta
 ];
 
-const padOrTrim = (value: string, width: number) => {
-	if (value.length === width) return value;
-	if (value.length > width) return value.slice(0, width);
-	return value.padEnd(width, ' ');
-};
-
 const hexToRgb = (hex: string) => {
 	const clean = hex.replace('#', '');
 	return {
