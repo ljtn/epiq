@@ -12,7 +12,12 @@ import {Contributor, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext, isFieldListNode} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {getState, patchState, updateState} from '../lib/state/state.js';
+import {
+	getRenderedChildren,
+	getState,
+	patchState,
+	updateState,
+} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {getOrderedChildren, resolveMoveRank} from './rank.js';
@@ -442,27 +447,31 @@ export const nodeRepo = {
 	updateNodeAndSelectInParent(
 		node: NavNode<AnyContext>,
 	): Result<NavNode<AnyContext>> {
-		updateState(s => {
-			const nextNodes = {
+		const updateResult = updateState(s => ({
+			...s,
+			nodes: {
 				...s.nodes,
 				[node.id]: node,
-			};
+			},
+		}));
 
-			const siblings = Object.values(nextNodes)
-				.filter(x => !x.isDeleted && x.parentNodeId === node.parentNodeId)
-				.sort((a, b) => a.rank.localeCompare(b.rank));
+		if (isFail(updateResult)) return failed(updateResult.message);
 
-			const newCurrentNode = node.parentNodeId
-				? nextNodes[node.parentNodeId]
-				: nextNodes[s.rootNodeId];
-			navigationUtils.navigate({
-				currentNode: newCurrentNode,
-				selectedIndex: siblings.findIndex(({id}) => id === node.id),
-			});
-			return {
-				...s,
-				nodes: nextNodes,
-			};
+		const state = getState();
+		const newCurrentNode = node.parentNodeId
+			? state.nodes[node.parentNodeId]
+			: state.nodes[state.rootNodeId];
+
+		if (!newCurrentNode) {
+			return failed('Unable to resolve parent after update');
+		}
+
+		const renderedSiblings = getRenderedChildren(newCurrentNode.id);
+		const selectedIndex = renderedSiblings.findIndex(({id}) => id === node.id);
+
+		navigationUtils.navigate({
+			currentNode: newCurrentNode,
+			selectedIndex: selectedIndex === -1 ? 0 : selectedIndex,
 		});
 
 		return succeeded('Updated and selected', node);
