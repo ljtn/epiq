@@ -384,6 +384,12 @@ const ensureLocalBoardBranch = async ({
 	if (isFail(remoteResult)) return failed(remoteResult.message);
 
 	if (remoteResult.data) {
+		const fetchResult = await execGit({
+			args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
+			cwd: repoRoot,
+		});
+		if (isFail(fetchResult)) return failed(fetchResult.message);
+
 		const remoteBranchResult = await hasRemoteBranch({
 			repoRoot,
 			remote: DEFAULT_REMOTE,
