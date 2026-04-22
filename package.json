@@ -1,6 +1,6 @@
 {
 	"name": "epiq",
-	"version": "0.2.11",
+	"version": "0.2.13",
 	"license": "UNLICENSED",
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",

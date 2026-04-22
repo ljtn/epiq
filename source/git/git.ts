@@ -36,8 +36,13 @@ type SyncArgs = {
 
 const EPIQ_DIR = getEpiqDirName();
 const EVENTS_SUBDIR = 'events';
-const BOARD_BRANCH = 'epiq-state';
+const BOARD_BRANCH = 'epiq-state-2';
 const DEFAULT_REMOTE = 'origin';
+
+const getRelativeEventsPath = (): string => path.join(EPIQ_DIR, EVENTS_SUBDIR);
+
+const getRelativeEventFilePath = (fileName: string): string =>
+	path.join(getRelativeEventsPath(), fileName);
 
 const execGit = ({
 	args,
@@ -753,10 +758,7 @@ const stageBoardOwnEventFile = async ({
 	ownEventFileName: string;
 }): Promise<Result<void>> => {
 	const result = await execGit({
-		args: [
-			'add',
-			getEventFilePath({root: EPIQ_DIR, fileName: ownEventFileName}),
-		],
+		args: ['add', getRelativeEventFilePath(ownEventFileName)],
 		cwd: worktreeRoot,
 	});
 
@@ -780,7 +782,7 @@ const hasStagedBoardOwnEventFileChange = async ({
 			'--cached',
 			'--quiet',
 			'--',
-			getEventFilePath({root: EPIQ_DIR, fileName: ownEventFileName}),
+			getRelativeEventFilePath(ownEventFileName),
 		],
 		cwd: worktreeRoot,
 	});
@@ -1011,6 +1013,26 @@ export const syncEpiqWithRemote = async ({
 		ownEventFileName: ownFileResult.data,
 	});
 	if (isFail(copyOwnResult)) return failed(copyOwnResult.message);
+
+	if (copyOwnResult.data) {
+		const stageResult = await stageBoardOwnEventFile({
+			worktreeRoot,
+			ownEventFileName: ownFileResult.data,
+		});
+		if (isFail(stageResult)) return failed(stageResult.message);
+
+		const commitResult = await createBoardSyncCommit({
+			repoRoot,
+			worktreeRoot,
+			ownEventFileName: ownFileResult.data,
+		});
+		if (isFail(commitResult)) return failed(commitResult.message);
+
+		if (commitResult.data) {
+			createdCommit = true;
+			commitSha = commitResult.data;
+		}
+	}
 
 	const stageResult = await stageBoardOwnEventFile({
 		worktreeRoot,
