@@ -180,9 +180,11 @@ const copyOwnEventFileToWorktree = ({
 const hydrateEventsFromWorktree = ({
 	repoRoot,
 	worktreeRoot,
+	overwriteExisting = true,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
+	overwriteExisting?: boolean;
 }): Result<boolean> => {
 	const boardFilesResult = listEventFiles(worktreeRoot);
 	if (isFail(boardFilesResult)) return failed(boardFilesResult.message);
@@ -194,6 +196,10 @@ const hydrateEventsFromWorktree = ({
 	for (const fileName of boardFilesResult.data) {
 		const from = path.join(boardEventsDir, fileName);
 		const to = path.join(localEventsDir, fileName);
+
+		if (!overwriteExisting && fs.existsSync(to)) {
+			continue;
+		}
 
 		const fromContent = fs.existsSync(from)
 			? fs.readFileSync(from, 'utf8')
@@ -713,7 +719,11 @@ export const syncEpiqWithRemote = async ({
 	}
 	pushed = pushResult.data;
 
-	const hydrateResult = hydrateEventsFromWorktree({repoRoot, worktreeRoot});
+	const hydrateResult = hydrateEventsFromWorktree({
+		repoRoot,
+		worktreeRoot,
+		overwriteExisting: true,
+	});
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
 	hydrated = hydrateResult.data;
 
@@ -774,7 +784,11 @@ export const syncEpiqFromRemote = async (
 	});
 	if (isFail(pullResult)) return failed(pullResult.message);
 
-	const hydrateResult = hydrateEventsFromWorktree({repoRoot, worktreeRoot});
+	const hydrateResult = hydrateEventsFromWorktree({
+		repoRoot,
+		worktreeRoot,
+		overwriteExisting: false,
+	});
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
 
 	return succeeded('Synced from remote', {
