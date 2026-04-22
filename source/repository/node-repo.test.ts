@@ -355,60 +355,7 @@ describe('nodeRepo.moveNode', () => {
 		}
 	});
 
-	it('updates node and selects it in parent when navigate=true', () => {
-		const updateNodeAndSelectInParentSpy = vi
-			.spyOn(nodeRepo, 'updateNodeAndSelectInParent')
-			.mockReturnValue(succeeded('Updated and selected', {} as never));
-		const updateNodeSpy = vi.spyOn(nodeRepo, 'updateNode');
-
-		const root = makeNode({id: 'root', context: 'ROOT'});
-		const board = makeNode({
-			id: 'board',
-			context: 'BOARD',
-			parentNodeId: 'root',
-		});
-		const ticket = makeNode({
-			id: 'ticket',
-			context: 'TICKET',
-			parentNodeId: 'board',
-			rank: 'a',
-		});
-		const otherParent = makeNode({
-			id: 'other',
-			context: 'BOARD',
-			parentNodeId: 'root',
-		});
-
-		mocks.getState.mockReturnValue(
-			makeState({
-				nodes: {root, board, ticket, other: otherParent},
-			}),
-		);
-		mocks.getOrderedChildren.mockReturnValue([]);
-
-		const result = nodeRepo.moveNode({
-			id: 'ticket',
-			parentId: 'other',
-			navigate: true,
-		});
-
-		expect(isFail(result)).toBe(false);
-		expect(updateNodeAndSelectInParentSpy).toHaveBeenCalledTimes(1);
-		expect(updateNodeSpy).not.toHaveBeenCalled();
-		expect(updateNodeAndSelectInParentSpy).toHaveBeenCalledWith(
-			expect.objectContaining({
-				id: 'ticket',
-				parentNodeId: 'other',
-				rank: 'n',
-			}),
-		);
-	});
-
 	it('updates node without navigating when navigate=false', () => {
-		const updateNodeAndSelectInParentSpy = vi.spyOn(
-			nodeRepo,
-			'updateNodeAndSelectInParent',
-		);
 		const updateNodeSpy = vi
 			.spyOn(nodeRepo, 'updateNode')
 			.mockReturnValue(succeeded('Updated node', {} as never));
@@ -441,12 +388,10 @@ describe('nodeRepo.moveNode', () => {
 		const result = nodeRepo.moveNode({
 			id: 'ticket',
 			parentId: 'other',
-			navigate: false,
 		});
 
 		expect(isFail(result)).toBe(false);
 		expect(updateNodeSpy).toHaveBeenCalledTimes(1);
-		expect(updateNodeAndSelectInParentSpy).not.toHaveBeenCalled();
 		expect(updateNodeSpy).toHaveBeenCalledWith(
 			expect.objectContaining({
 				id: 'ticket',
@@ -457,7 +402,7 @@ describe('nodeRepo.moveNode', () => {
 	});
 });
 
-describe('nodeRepo.updateNodeAndSelectInParent', () => {
+describe('nodeRepo.updateNode', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
@@ -505,78 +450,10 @@ describe('nodeRepo.updateNodeAndSelectInParent', () => {
 
 		mocks.getRenderedChildren.mockReturnValue([a, moved, c]);
 
-		const result = nodeRepo.updateNodeAndSelectInParent(moved as never);
+		const result = nodeRepo.updateNode(moved as never);
 
 		expect(isFail(result)).toBe(false);
 		expect(mocks.updateState).toHaveBeenCalledTimes(1);
-		expect(mocks.navigate).toHaveBeenCalledWith({
-			currentNode: board,
-			selectedIndex: 1,
-		});
-	});
-
-	it('falls back to selectedIndex 0 when moved node is not rendered', () => {
-		const root = makeNode({id: 'root', context: 'ROOT'});
-		const board = makeNode({
-			id: 'board',
-			context: 'BOARD',
-			parentNodeId: 'root',
-		});
-		const moved = makeNode({
-			id: 'moved',
-			context: 'TICKET',
-			parentNodeId: 'board',
-			rank: 'b',
-		});
-		const other = makeNode({
-			id: 'other',
-			context: 'TICKET',
-			parentNodeId: 'board',
-			rank: 'a',
-		});
-
-		mocks.updateState.mockReturnValue(succeeded('Updated', null));
-		mocks.getState.mockReturnValue(
-			makeState({
-				rootNodeId: 'root',
-				nodes: {root, board, moved, other},
-			}),
-		);
-		mocks.getRenderedChildren.mockReturnValue([other]);
-
-		const result = nodeRepo.updateNodeAndSelectInParent(moved as never);
-
-		expect(isFail(result)).toBe(false);
-		expect(mocks.navigate).toHaveBeenCalledWith({
-			currentNode: board,
-			selectedIndex: 0,
-		});
-	});
-
-	it('fails when parent cannot be resolved after update', () => {
-		const moved = makeNode({
-			id: 'moved',
-			context: 'TICKET',
-			parentNodeId: 'missing-parent',
-		});
-
-		mocks.updateState.mockReturnValue(succeeded('Updated', null));
-		mocks.getState.mockReturnValue(
-			makeState({
-				rootNodeId: 'root',
-				nodes: {
-					moved,
-				},
-			}),
-		);
-
-		const result = nodeRepo.updateNodeAndSelectInParent(moved as never);
-
-		expect(isFail(result)).toBe(true);
-		if (isFail(result)) {
-			expect(result.message).toBe('Unable to resolve parent after update');
-		}
-		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 });
 
@@ -585,7 +462,7 @@ describe('nodeRepo.tombstoneNode', () => {
 		vi.clearAllMocks();
 	});
 
-	it('marks node and descendants as deleted and navigates to parent when current node is deleted', () => {
+	it('marks node and descendants as deleted when current node is deleted', () => {
 		const root = makeNode({id: 'root', context: 'ROOT'});
 		const board = makeNode({
 			id: 'board',
@@ -624,10 +501,6 @@ describe('nodeRepo.tombstoneNode', () => {
 				ticket: expect.objectContaining({isDeleted: true}),
 				child: expect.objectContaining({isDeleted: true}),
 			}),
-		});
-		expect(mocks.navigate).toHaveBeenCalledWith({
-			currentNode: board,
-			selectedIndex: 0,
 		});
 	});
 

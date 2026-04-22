@@ -1,5 +1,4 @@
 import {MovePosition} from '../event/event.model.js';
-import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
 import {
 	failed,
 	isFail,
@@ -12,12 +11,7 @@ import {Contributor, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {
-	getRenderedChildren,
-	getState,
-	patchState,
-	updateState,
-} from '../lib/state/state.js';
+import {getState, patchState, updateState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 import {getOrderedChildren, resolveMoveRank} from './rank.js';
 
@@ -155,12 +149,10 @@ export const nodeRepo = {
 		id,
 		parentId: nextParentId,
 		position = {at: 'end'},
-		navigate = true,
 	}: {
 		id: string;
 		parentId: string;
 		position?: MovePosition;
-		navigate?: boolean;
 	}): Result<NavNode<AnyContext>> {
 		const {rootNodeId} = getState();
 		const node = this.getNode(id);
@@ -189,11 +181,7 @@ export const nodeRepo = {
 			rank: rankResult.data,
 		};
 
-		if (navigate) {
-			this.updateNodeAndSelectInParent(movedNode);
-		} else {
-			this.updateNode(movedNode);
-		}
+		this.updateNode(movedNode);
 
 		return succeeded('Moved node successfully', movedNode);
 	},
@@ -232,17 +220,8 @@ export const nodeRepo = {
 			return failed('Unable to delete undefined');
 		}
 
-		const nextCurrentNodeId = !idsToDelete.has(currentNodeId)
-			? currentNodeId
-			: node.parentNodeId ?? rootNodeId;
-
 		patchState({
 			nodes: nextNodes,
-		});
-
-		navigationUtils.navigate({
-			currentNode: nextNodes[nextCurrentNodeId],
-			selectedIndex: 0,
 		});
 
 		return succeeded('Successfully tomb stoned', node);
@@ -401,39 +380,6 @@ export const nodeRepo = {
 
 		if (isFail(result)) return result;
 		return succeeded('Updated node', node);
-	},
-
-	updateNodeAndSelectInParent(
-		node: NavNode<AnyContext>,
-	): Result<NavNode<AnyContext>> {
-		const updateResult = updateState(s => ({
-			...s,
-			nodes: {
-				...s.nodes,
-				[node.id]: node,
-			},
-		}));
-
-		if (isFail(updateResult)) return failed(updateResult.message);
-
-		const state = getState();
-		const newCurrentNode = node.parentNodeId
-			? state.nodes[node.parentNodeId]
-			: state.nodes[state.rootNodeId];
-
-		if (!newCurrentNode) {
-			return failed('Unable to resolve parent after update');
-		}
-
-		const renderedSiblings = getRenderedChildren(newCurrentNode.id);
-		const selectedIndex = renderedSiblings.findIndex(({id}) => id === node.id);
-
-		navigationUtils.navigate({
-			currentNode: newCurrentNode,
-			selectedIndex: selectedIndex === -1 ? 0 : selectedIndex,
-		});
-
-		return succeeded('Updated and selected', node);
 	},
 
 	getContributor(id: string): Contributor | undefined {

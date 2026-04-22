@@ -1,3 +1,5 @@
+import {getState} from '../state/state.js';
+
 export const colors = {
 	// Base (keep — already perfect for midnight themes)
 	bg: '#1a1b26',

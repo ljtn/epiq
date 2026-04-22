@@ -9,24 +9,28 @@ type Props = {
 };
 
 const cursors = {
-	help: ['▸ ', '▸ ', '▸ '],
-	default: ['▸ ', '▸ ', '▸ '],
-	move: ['↑ ', '→ ', '↓ ', '← '],
-	'command-line': ['❯ ', '❯ ', '❯ '],
+	help: ['❯ '],
+	default: ['❯ '],
+	move: ['◆ ', '◆ '],
+	'command-line': ['❯ '],
 } as const;
 
 export const CursorUI: React.FC<Props> = ({isSelected, placeholder = '  '}) => {
 	const {mode} = useAppState();
 	const frames = cursors[mode] ?? cursors.default;
 
-	const [frameIndex, setFrameIndex] = useState(frames.length - 1);
+	const [frameIndex, setFrameIndex] = useState(0);
+
+	useEffect(() => {
+		setFrameIndex(0);
+	}, [frames]);
 
 	useEffect(() => {
 		if (!isSelected) return;
 
 		const interval = setInterval(() => {
 			setFrameIndex(v => (v + 1) % frames.length);
-		}, 800);
+		}, 500);
 
 		return () => clearInterval(interval);
 	}, [isSelected, frames]);
@@ -35,9 +39,11 @@ export const CursorUI: React.FC<Props> = ({isSelected, placeholder = '  '}) => {
 		return <Text>{placeholder}</Text>;
 	}
 
+	const frame = frames[frameIndex] ?? frames[0] ?? placeholder;
+
 	return (
 		<Text color={theme.accent} dimColor={frameIndex === 1}>
-			{frames[frameIndex]}
+			{frame}
 		</Text>
 	);
 };

@@ -1,7 +1,12 @@
+import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
 import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {isTicketNode} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {getState, initWorkspaceState} from '../lib/state/state.js';
+import {
+	getRenderedChildren,
+	getState,
+	initWorkspaceState,
+} from '../lib/state/state.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {resolveReopenParentFromLog} from './log-utils.js';
@@ -284,7 +289,6 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.moveNode({
 			id,
 			parentId: closeSwimlane.id,
-			navigate: false,
 		});
 
 		if (isFail(result)) {
@@ -336,7 +340,6 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.moveNode({
 			id,
 			parentId: previousParentId,
-			navigate: false,
 		});
 
 		if (isFail(result)) {

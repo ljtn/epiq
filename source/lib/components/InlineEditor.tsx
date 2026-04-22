@@ -64,7 +64,7 @@ export const InlineEditor: React.FC<Props> = ({
 					color={isSel ? theme.primary : theme.secondary2}
 					dimColor={!isSel}
 				>
-					{`${i + 1}  `.padStart(5, '\u00A0')}
+					{`${i + 1}   `.padStart(5, '\u00A0')}
 				</Text>
 				<Text backgroundColor={isSel ? 'gray' : ''}>
 					{renderMarkdownInline(
