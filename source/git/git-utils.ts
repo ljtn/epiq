@@ -200,20 +200,6 @@ export const hasInProgressGitOperation = async (
 	);
 };
 
-export const hasStagedChanges = async (
-	repoRoot: string,
-): Promise<Result<boolean>> => {
-	const result = await execGitAllowFail({
-		args: ['diff', '--cached', '--quiet'],
-		cwd: repoRoot,
-	});
-
-	if (result.exitCode === 0) return succeeded('No staged changes', false);
-	if (result.exitCode === 1) return succeeded('Has staged changes', true);
-
-	return failed(result.stderr.trim() || 'Unable to inspect staged changes');
-};
-
 export const hasRemote = async ({
 	repoRoot,
 	remote,
@@ -349,33 +335,6 @@ export const getShortHeadSha = async (
 	}
 
 	return succeeded('Resolved short HEAD sha', result.data.stdout.trim());
-};
-
-export const ensureInitialCommit = async (
-	repoRoot: string,
-): Promise<Result<boolean>> => {
-	const hasHead = await execGitAllowFail({
-		args: ['rev-parse', '--verify', 'HEAD'],
-		cwd: repoRoot,
-	});
-
-	if (hasHead.exitCode === 0) {
-		return succeeded('Repo already initialized', false);
-	}
-
-	const commitResult = await execGit({
-		args: ['commit', '--allow-empty', '-m', '[epiq:init]'],
-		cwd: repoRoot,
-	});
-
-	if (isFail(commitResult)) {
-		return failed(`Failed to create initial commit\n${commitResult.message}`);
-	}
-	if (!commitResult.data) {
-		return failed('Git command returned no commit result data');
-	}
-
-	return succeeded('Created initial commit', true);
 };
 
 export const pullBranchRebaseIfPresent = async ({

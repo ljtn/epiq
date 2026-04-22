@@ -109,11 +109,21 @@ export const getPersistFileName = () => {
 
 export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
 	const fileNameResult = getPersistFileName();
-	if (isFail(fileNameResult)) return failed('Unable to resolve file name');
+	if (isFail(fileNameResult)) {
+		return failed('Unable to resolve file name');
+	}
+
+	const fileName = fileNameResult.data;
+
+	const isValid = /^(?!.*\.jsonl.*\.jsonl).*\.jsonl$/.test(fileName);
+
+	if (!isValid) {
+		return failed(`Invalid event log file name: ${fileName}`);
+	}
 
 	return succeeded(
 		'Successfully resolved event log path',
-		path.join(getEventsDir(rootDir), `${fileNameResult.data}.jsonl`),
+		path.join(getEventsDir(rootDir), fileName),
 	);
 };
 
