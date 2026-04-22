@@ -11,6 +11,7 @@ import {
 } from '../lib/command-line/command-types.js';
 import {logger} from '../logger.js';
 import {
+	commitAndGetSha,
 	execGit,
 	execGitAllowFail,
 	getCurrentBranchName,
@@ -22,8 +23,11 @@ import {
 	hasRemoteBranch,
 	hasUpstream,
 	hasWorktree,
+	isNonFastForward,
 	pullBranchRebaseIfPresent,
 } from './git-utils.js';
+import {memoizeResult} from '../lib/utils/memoize.js';
+import {fileContentEquals} from '../lib/utils/files.js';
 
 type SyncSummary = {
 	repoRoot: string;
@@ -85,30 +89,6 @@ const ensureEpiqStorage = (): Result<void> => {
 	return succeeded('Ensured epiq storage', undefined);
 };
 
-const ensureEpiqDir = (root: string): Result<boolean> => {
-	const epiqPath = getEpiqRoot(root);
-	if (fs.existsSync(epiqPath)) {
-		logger.debug('[sync] epiq dir exists', epiqPath);
-		return succeeded('Epiq dir already exists', false);
-	}
-
-	logger.debug('[sync] create epiq dir', epiqPath);
-	fs.mkdirSync(epiqPath, {recursive: true});
-	return succeeded('Created epiq dir', true);
-};
-
-const ensureEventsDir = (root: string): Result<boolean> => {
-	const eventsPath = getEventsDir(root);
-	if (fs.existsSync(eventsPath)) {
-		logger.debug('[sync] events dir exists', eventsPath);
-		return succeeded('Events dir already exists', false);
-	}
-
-	logger.debug('[sync] create events dir', eventsPath);
-	fs.mkdirSync(eventsPath, {recursive: true});
-	return succeeded('Created events dir', true);
-};
-
 const removePath = (targetPath: string): void => {
 	if (!fs.existsSync(targetPath)) return;
 	logger.debug('[sync] remove path', targetPath);
@@ -147,31 +127,32 @@ const hasHeadCommit = async (repoRoot: string): Promise<Result<boolean>> => {
 	return failed(result.stderr.trim() || 'Unable to inspect HEAD');
 };
 
-const remoteHasAnyHistory = async (
-	repoRoot: string,
-): Promise<Result<boolean>> => {
-	logger.debug('[sync] inspect remote history', {
-		repoRoot,
-		remote: DEFAULT_REMOTE,
-	});
+const remoteHasAnyHistory = memoizeResult(
+	async (repoRoot: string): Promise<Result<boolean>> => {
+		logger.debug('[sync] inspect remote history', {
+			repoRoot,
+			remote: DEFAULT_REMOTE,
+		});
 
-	const remoteResult = await hasRemote({repoRoot, remote: DEFAULT_REMOTE});
-	if (isFail(remoteResult)) return failed(remoteResult.message);
-	if (!remoteResult.data) return succeeded('No remote configured', false);
+		const remoteResult = await hasRemote({repoRoot, remote: DEFAULT_REMOTE});
+		if (isFail(remoteResult)) return failed(remoteResult.message);
+		if (!remoteResult.data) return succeeded('No remote configured', false);
 
-	const result = await execGitAllowFail({
-		args: ['ls-remote', '--heads', DEFAULT_REMOTE],
-		cwd: repoRoot,
-	});
+		const result = await execGitAllowFail({
+			args: ['ls-remote', '--heads', DEFAULT_REMOTE],
+			cwd: repoRoot,
+		});
 
-	if (result.exitCode !== 0) {
-		return failed(result.stderr.trim() || 'Unable to inspect remote heads');
-	}
+		if (result.exitCode !== 0) {
+			return failed(result.stderr.trim() || 'Unable to inspect remote heads');
+		}
 
-	const hasHistory = result.stdout.trim().length > 0;
-	logger.debug('[sync] remote history', hasHistory);
-	return succeeded('Checked remote history', hasHistory);
-};
+		const hasHistory = result.stdout.trim().length > 0;
+		logger.debug('[sync] remote history', hasHistory);
+		return succeeded('Checked remote history', hasHistory);
+	},
+	(repoRoot: string) => path.resolve(repoRoot),
+);
 
 const ensureInitialCommit = async (
 	repoRoot: string,
@@ -230,12 +211,7 @@ const copyOwnEventFileToRemote = ({
 		return succeeded('Local own event file missing, nothing to copy', false);
 	}
 
-	const localContent = fs.readFileSync(localFile, 'utf8');
-	const remoteContent = fs.existsSync(remoteFile)
-		? fs.readFileSync(remoteFile, 'utf8')
-		: '';
-
-	if (localContent === remoteContent) {
+	if (fileContentEquals(localFile, remoteFile)) {
 		logger.debug(
 			'[sync] own event file already matches remote',
 			ownEventFileName,
@@ -277,12 +253,7 @@ const hydrateEventsFromRemote = ({
 		const from = path.join(remoteEventsDir, fileName);
 		const to = path.join(localEventsDir, fileName);
 
-		const fromContent = fs.existsSync(from)
-			? fs.readFileSync(from, 'utf8')
-			: '';
-		const toContent = fs.existsSync(to) ? fs.readFileSync(to, 'utf8') : '';
-
-		if (fromContent === toContent) continue;
+		if (fileContentEquals(from, to)) continue;
 
 		logger.debug('[sync] hydrate remote file', fileName);
 		fs.mkdirSync(path.dirname(to), {recursive: true});
@@ -588,91 +559,25 @@ const stageRemoteOwnEventFile = async ({
 	return succeeded('Staged remote own event file', undefined);
 };
 
-const hasStagedRemoteOwnEventFileChange = async ({
-	worktreeRoot,
-	ownEventFileName,
-}: {
-	worktreeRoot: string;
-	ownEventFileName: string;
-}): Promise<Result<boolean>> => {
-	logger.debug('[sync] inspect staged remote change', ownEventFileName);
-
-	const result = await execGitAllowFail({
-		args: [
-			'diff',
-			'--cached',
-			'--quiet',
-			'--',
-			getRelativeEventFilePath(ownEventFileName),
-		],
-		cwd: worktreeRoot,
-	});
-
-	if (result.exitCode === 0) {
-		return succeeded('No staged remote own event file change', false);
-	}
-	if (result.exitCode === 1) {
-		return succeeded('Has staged remote own event file change', true);
-	}
-
-	return failed(
-		result.stderr.trim() ||
-			'Unable to inspect staged remote own event file change',
-	);
-};
-
 const createRemoteSyncCommit = async ({
 	repoRoot,
 	worktreeRoot,
-	ownEventFileName,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
-	ownEventFileName: string;
-}): Promise<Result<string | null>> => {
-	const hasChangesResult = await hasStagedRemoteOwnEventFileChange({
-		worktreeRoot,
-		ownEventFileName,
-	});
-	if (isFail(hasChangesResult)) return failed(hasChangesResult.message);
-	if (!hasChangesResult.data) {
-		logger.debug('[sync] no staged remote file change to commit');
-		return succeeded('No remote own event file commit needed', null);
-	}
-
+}): Promise<Result<string>> => {
 	const messageResult = await buildSyncCommitMessage(repoRoot);
 	if (isFail(messageResult)) return failed(messageResult.message);
 
 	logger.debug('[sync] create remote sync commit');
-	const commitResult = await execGit({
-		args: ['commit', '-m', messageResult.data],
+	return commitAndGetSha({
 		cwd: worktreeRoot,
+		message: messageResult.data,
 	});
-	if (isFail(commitResult)) {
-		return failed(
-			`Failed to commit remote own event file\n${commitResult.message}`,
-		);
-	}
-
-	const shaResult = await execGit({
-		args: ['rev-parse', 'HEAD'],
-		cwd: worktreeRoot,
-	});
-	if (isFail(shaResult)) return failed(shaResult.message);
-
-	const commitSha = shaResult.data.stdout.trim();
-	logger.debug('[sync] created remote sync commit', commitSha);
-	return succeeded('Created remote sync commit', commitSha);
 };
 
 const pushRemote = async (worktreeRoot: string): Promise<Result<boolean>> => {
 	logger.debug('[sync] push remote worktree');
-	const upstreamResult = await hasUpstream(worktreeRoot);
-	if (isFail(upstreamResult)) return failed(upstreamResult.message);
-	if (!upstreamResult.data) {
-		logger.debug('[sync] skip push, no upstream');
-		return succeeded('No upstream configured, skipped push', false);
-	}
 
 	const result = await execGit({
 		args: ['push'],
@@ -728,16 +633,56 @@ const ensureRemoteLayout = (
 	repoRoot: string,
 	worktreeRoot: string,
 ): Result<void> => {
-	logger.debug('[sync] ensure local and remote layout');
-	for (const result of [
-		ensureEpiqDir(repoRoot),
-		ensureEpiqDir(worktreeRoot),
-		ensureEventsDir(repoRoot),
-		ensureEventsDir(worktreeRoot),
-	]) {
+	for (const dir of [getEventsDir(repoRoot), getEventsDir(worktreeRoot)]) {
+		const result = ensureDir(dir);
 		if (isFail(result)) return failed(result.message);
 	}
 	return succeeded('Ensured remote layout', undefined);
+};
+
+type SyncOwnFileCommitResult = {
+	createdCommit: boolean;
+	commitSha?: string;
+};
+
+const syncOwnFileToRemoteCommit = async ({
+	repoRoot,
+	worktreeRoot,
+	ownEventFileName,
+}: {
+	repoRoot: string;
+	worktreeRoot: string;
+	ownEventFileName: string;
+}): Promise<Result<SyncOwnFileCommitResult>> => {
+	const copyResult = copyOwnEventFileToRemote({
+		repoRoot,
+		worktreeRoot,
+		ownEventFileName,
+	});
+	if (isFail(copyResult)) return failed(copyResult.message);
+
+	if (!copyResult.data) {
+		return succeeded('Own event file already up to date in remote worktree', {
+			createdCommit: false,
+		});
+	}
+
+	const stageResult = await stageRemoteOwnEventFile({
+		worktreeRoot,
+		ownEventFileName,
+	});
+	if (isFail(stageResult)) return failed(stageResult.message);
+
+	const commitResult = await createRemoteSyncCommit({
+		repoRoot,
+		worktreeRoot,
+	});
+	if (isFail(commitResult)) return failed(commitResult.message);
+
+	return succeeded('Copied, staged, and committed own event file', {
+		createdCommit: true,
+		commitSha: commitResult.data,
+	});
 };
 
 export const syncEpiqWithRemote = async ({
@@ -753,10 +698,6 @@ export const syncEpiqWithRemote = async ({
 	const worktreeRoot = getRemoteWorktreeRoot(repoRoot);
 	logger.debug('[sync] resolved roots', {repoRoot, worktreeRoot});
 
-	const validateOwnFileResult = succeeded(
-		'Validated own event file name',
-		ownEventFileName,
-	);
 	if (ownEventFileName.includes('/') || ownEventFileName.includes('\\')) {
 		return failed('Own event file must be a file name, not a path');
 	}
@@ -813,54 +754,64 @@ export const syncEpiqWithRemote = async ({
 	const hydrateResult = hydrateEventsFromRemote({
 		repoRoot,
 		worktreeRoot,
-		skipFileNames: [validateOwnFileResult.data],
+		skipFileNames: [ownEventFileName],
 	});
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
 	hydrated = hydrateResult.data;
 	logger.debug('[sync] hydrated from remote', hydrated);
 
-	const copyOwnResult = copyOwnEventFileToRemote({
+	const syncOwnResult = await syncOwnFileToRemoteCommit({
 		repoRoot,
 		worktreeRoot,
-		ownEventFileName: validateOwnFileResult.data,
+		ownEventFileName,
 	});
-	if (isFail(copyOwnResult)) return failed(copyOwnResult.message);
-	logger.debug('[sync] copied own file to remote', copyOwnResult.data);
+	if (isFail(syncOwnResult)) return failed(syncOwnResult.message);
 
-	if (copyOwnResult.data) {
-		const stageResult = await stageRemoteOwnEventFile({
-			worktreeRoot,
-			ownEventFileName: validateOwnFileResult.data,
-		});
-		if (isFail(stageResult)) return failed(stageResult.message);
-
-		const commitResult = await createRemoteSyncCommit({
-			repoRoot,
-			worktreeRoot,
-			ownEventFileName: validateOwnFileResult.data,
-		});
-		if (isFail(commitResult)) return failed(commitResult.message);
-
-		createdCommit = Boolean(commitResult.data);
-		commitSha = commitResult.data ?? undefined;
-		logger.debug('[sync] remote commit created', {createdCommit, commitSha});
-	}
+	createdCommit = syncOwnResult.data.createdCommit;
+	commitSha = syncOwnResult.data.commitSha;
+	logger.debug('[sync] sync own file result', syncOwnResult.data);
 
 	const pushResult = await pushRemote(worktreeRoot);
-	if (isFail(pushResult)) {
-		return failed(
-			[
-				pushResult.message,
-				createdCommit && commitSha
-					? `Local remote sync commit exists: ${commitSha}`
-					: '',
-			]
-				.filter(Boolean)
-				.join('\n'),
-		);
+	let finalPushResult = pushResult;
+
+	if (isFail(pushResult) && isNonFastForward(pushResult.message)) {
+		const pullRetryResult = await pullBranchRebaseIfPresent({
+			cwd: worktreeRoot,
+			remote: DEFAULT_REMOTE,
+			branch: REMOTE_BRANCH,
+		});
+		if (isFail(pullRetryResult)) return failed(pullRetryResult.message);
+
+		const retrySyncOwnResult = await syncOwnFileToRemoteCommit({
+			repoRoot,
+			worktreeRoot,
+			ownEventFileName,
+		});
+		if (isFail(retrySyncOwnResult)) return failed(retrySyncOwnResult.message);
+
+		if (retrySyncOwnResult.data.createdCommit) {
+			createdCommit = true;
+			commitSha = retrySyncOwnResult.data.commitSha;
+		}
+		logger.debug('[sync] retry sync own file result', retrySyncOwnResult.data);
+
+		finalPushResult = await pushRemote(worktreeRoot);
+		if (isFail(finalPushResult)) return failed(finalPushResult.message);
 	}
-	pushed = pushResult.data;
+
+	if (isFail(finalPushResult)) return failed(finalPushResult.message);
+	pushed = finalPushResult.data;
 	logger.debug('[sync] pushed remote', pushed);
+
+	if (createdCommit) {
+		const finalShaResult = await execGit({
+			args: ['rev-parse', 'HEAD'],
+			cwd: worktreeRoot,
+		});
+		if (isFail(finalShaResult)) return failed(finalShaResult.message);
+
+		commitSha = finalShaResult.data.stdout.trim();
+	}
 
 	return succeeded('Synced event logs with remote', {
 		repoRoot,

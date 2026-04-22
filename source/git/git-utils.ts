@@ -7,6 +7,7 @@ import {
 	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
+import {memoizeResult} from '../lib/utils/memoize.js';
 
 export type GitExecResult = {
 	stdout: string;
@@ -130,43 +131,78 @@ export const execGitAllowFail = ({
 		});
 	});
 
-export const getRepoRoot = async (
-	cwd = process.cwd(),
-): Promise<Result<string>> => {
-	const result = await execGit({
-		args: ['rev-parse', '--show-toplevel'],
+export const getRepoRoot = memoizeResult(
+	async (cwd = process.cwd()): Promise<Result<string>> => {
+		const result = await execGit({
+			args: ['rev-parse', '--show-toplevel'],
+			cwd,
+		});
+
+		if (isFail(result)) {
+			return failed('Not inside a Git repository');
+		}
+		if (!result.data) {
+			return failed('Git command returned no repo root');
+		}
+
+		return succeeded('Resolved repo root', result.data.stdout.trim());
+	},
+	cwd => path.resolve(cwd),
+);
+
+export const getGitDir = memoizeResult(
+	async (repoRoot: string): Promise<Result<string>> => {
+		const result = await execGit({
+			args: ['rev-parse', '--git-dir'],
+			cwd: repoRoot,
+		});
+
+		if (isFail(result)) {
+			return failed(result.message);
+		}
+		if (!result.data) {
+			return failed('Git command returned no git dir');
+		}
+
+		const gitDir = result.data.stdout.trim();
+		const resolved = path.isAbsolute(gitDir)
+			? gitDir
+			: path.join(repoRoot, gitDir);
+
+		return succeeded('Resolved git dir', resolved);
+	},
+	(repoRoot: string) => path.resolve(repoRoot),
+);
+
+export const commitAndGetSha = async ({
+	cwd,
+	message,
+}: {
+	cwd: string;
+	message: string;
+}): Promise<Result<string>> => {
+	const commitResult = await execGit({
+		args: ['commit', '-m', message],
 		cwd,
 	});
-
-	if (isFail(result)) {
-		return failed('Not inside a Git repository');
-	}
-	if (!result.data) {
-		return failed('Git command returned no repo root');
+	if (isFail(commitResult)) {
+		return failed(`Failed to create commit\n${commitResult.message}`);
 	}
 
-	return succeeded('Resolved repo root', result.data.stdout.trim());
-};
-
-export const getGitDir = async (repoRoot: string): Promise<Result<string>> => {
-	const result = await execGit({
-		args: ['rev-parse', '--git-dir'],
-		cwd: repoRoot,
+	const shaResult = await execGit({
+		args: ['rev-parse', 'HEAD'],
+		cwd,
 	});
-
-	if (isFail(result)) {
-		return failed(result.message);
-	}
-	if (!result.data) {
-		return failed('Git command returned no git dir');
+	if (isFail(shaResult)) {
+		return failed(
+			`Commit created, but failed to read HEAD SHA\n${shaResult.message}`,
+		);
 	}
 
-	const gitDir = result.data.stdout.trim();
-	const resolved = path.isAbsolute(gitDir)
-		? gitDir
-		: path.join(repoRoot, gitDir);
-
-	return succeeded('Resolved git dir', resolved);
+	return succeeded(
+		'Created commit and resolved SHA',
+		shaResult.data.stdout.trim(),
+	);
 };
 
 export const hasInProgressGitOperation = async (
@@ -200,20 +236,23 @@ export const hasInProgressGitOperation = async (
 	);
 };
 
-export const hasRemote = async ({
-	repoRoot,
-	remote,
-}: {
-	repoRoot: string;
-	remote: string;
-}): Promise<Result<boolean>> => {
-	const result = await execGitAllowFail({
-		args: ['remote', 'get-url', remote],
-		cwd: repoRoot,
-	});
+export const hasRemote = memoizeResult(
+	async ({
+		repoRoot,
+		remote,
+	}: {
+		repoRoot: string;
+		remote: string;
+	}): Promise<Result<boolean>> => {
+		const result = await execGitAllowFail({
+			args: ['remote', 'get-url', remote],
+			cwd: repoRoot,
+		});
 
-	return succeeded('Checked remote', result.exitCode === 0);
-};
+		return succeeded('Checked remote', result.exitCode === 0);
+	},
+	({repoRoot, remote}) => `${path.resolve(repoRoot)}::${remote}`,
+);
 
 export const hasRemoteBranch = async ({
 	repoRoot,
@@ -239,67 +278,75 @@ export const hasRemoteBranch = async ({
 	return succeeded('Checked remote branch', result.stdout.trim().length > 0);
 };
 
-export const hasLocalBranch = async ({
-	repoRoot,
-	branch,
-}: {
-	repoRoot: string;
-	branch: string;
-}): Promise<Result<boolean>> => {
-	const result = await execGitAllowFail({
-		args: ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`],
-		cwd: repoRoot,
-	});
+export const hasLocalBranch = memoizeResult(
+	async ({
+		repoRoot,
+		branch,
+	}: {
+		repoRoot: string;
+		branch: string;
+	}): Promise<Result<boolean>> => {
+		const result = await execGitAllowFail({
+			args: ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`],
+			cwd: repoRoot,
+		});
 
-	if (result.exitCode === 0) return succeeded('Local branch exists', true);
-	if (result.exitCode === 1) return succeeded('Local branch missing', false);
+		if (result.exitCode === 0) return succeeded('Local branch exists', true);
+		if (result.exitCode === 1) return succeeded('Local branch missing', false);
 
-	return failed(result.stderr.trim() || `Unable to inspect branch ${branch}`);
-};
+		return failed(result.stderr.trim() || `Unable to inspect branch ${branch}`);
+	},
+	({repoRoot, branch}) => `${path.resolve(repoRoot)}::${branch}`,
+);
 
-export const hasWorktree = async ({
-	repoRoot,
-	worktreeRoot,
-}: {
-	repoRoot: string;
-	worktreeRoot: string;
-}): Promise<Result<boolean>> => {
-	const result = await execGit({
-		args: ['worktree', 'list', '--porcelain'],
-		cwd: repoRoot,
-	});
+export const hasWorktree = memoizeResult(
+	async ({
+		repoRoot,
+		worktreeRoot,
+	}: {
+		repoRoot: string;
+		worktreeRoot: string;
+	}): Promise<Result<boolean>> => {
+		const result = await execGit({
+			args: ['worktree', 'list', '--porcelain'],
+			cwd: repoRoot,
+		});
 
-	if (isFail(result)) {
-		return failed(result.message);
-	}
-	if (!result.data) {
-		return failed('Git command returned no worktree data');
-	}
+		if (isFail(result)) {
+			return failed(result.message);
+		}
+		if (!result.data) {
+			return failed('Git command returned no worktree data');
+		}
 
-	const normalized = path.resolve(worktreeRoot);
-	const exists = result.data.stdout
-		.split('\n')
-		.filter(line => line.startsWith('worktree '))
-		.map(line => line.slice('worktree '.length))
-		.map(p => path.resolve(p))
-		.includes(normalized);
+		const normalized = path.resolve(worktreeRoot);
+		const exists = result.data.stdout
+			.split('\n')
+			.filter(line => line.startsWith('worktree '))
+			.map(line => line.slice('worktree '.length))
+			.map(p => path.resolve(p))
+			.includes(normalized);
 
-	return succeeded('Checked worktree registration', exists);
-};
+		return succeeded('Checked worktree registration', exists);
+	},
+	({repoRoot, worktreeRoot}) =>
+		`${path.resolve(repoRoot)}::${path.resolve(worktreeRoot)}`,
+);
 
-export const hasUpstream = async (
-	repoRoot: string,
-): Promise<Result<boolean>> => {
-	const result = await execGitAllowFail({
-		args: ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
-		cwd: repoRoot,
-	});
+export const hasUpstream = memoizeResult(
+	async (repoRoot: string): Promise<Result<boolean>> => {
+		const result = await execGitAllowFail({
+			args: ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
+			cwd: repoRoot,
+		});
 
-	return succeeded(
-		'Checked upstream',
-		result.exitCode === 0 && result.stdout.trim().length > 0,
-	);
-};
+		return succeeded(
+			'Checked upstream',
+			result.exitCode === 0 && result.stdout.trim().length > 0,
+		);
+	},
+	(repoRoot: string) => path.resolve(repoRoot),
+);
 
 export const getCurrentBranchName = async (
 	repoRoot: string,
@@ -336,6 +383,11 @@ export const getShortHeadSha = async (
 
 	return succeeded('Resolved short HEAD sha', result.data.stdout.trim());
 };
+
+export const isNonFastForward = (message: string): boolean =>
+	message.includes('fetch first') ||
+	message.includes('non-fast-forward') ||
+	message.includes('failed to push some refs');
 
 export const pullBranchRebaseIfPresent = async ({
 	cwd,
