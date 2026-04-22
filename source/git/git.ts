@@ -31,8 +31,7 @@ type SyncSummary = {
 
 type SyncArgs = {
 	cwd?: string;
-	userId: string;
-	userName: string;
+	ownEventFileName: string;
 };
 
 const EPIQ_DIR = getEpiqDirName();
@@ -267,6 +266,14 @@ const getEpiqRoot = (root: string): string => path.join(root, EPIQ_DIR);
 const getEventsDir = (root: string): string =>
 	path.join(getEpiqRoot(root), EVENTS_SUBDIR);
 
+const getEventFilePath = ({
+	root,
+	fileName,
+}: {
+	root: string;
+	fileName: string;
+}): string => path.join(getEventsDir(root), fileName);
+
 const ensureEpiqDir = (root: string): Result<boolean> => {
 	const epiqPath = getEpiqRoot(root);
 
@@ -335,8 +342,7 @@ const hasRemoteBranch = async ({
 		);
 	}
 
-	const exists = result.stdout.trim().length > 0;
-	return succeeded('Checked remote branch', exists);
+	return succeeded('Checked remote branch', result.stdout.trim().length > 0);
 };
 
 const hasLocalBranch = async ({
@@ -548,9 +554,10 @@ const hasUpstream = async (repoRoot: string): Promise<Result<boolean>> => {
 		cwd: repoRoot,
 	});
 
-	const exists = result.exitCode === 0 && result.stdout.trim().length > 0;
-
-	return succeeded('Checked upstream', exists);
+	return succeeded(
+		'Checked upstream',
+		result.exitCode === 0 && result.stdout.trim().length > 0,
+	);
 };
 
 const ensureBoardUpstream = async (
@@ -612,31 +619,6 @@ const ensureBoardUpstream = async (
 	return succeeded('Published board branch and configured upstream', true);
 };
 
-const fetchBoardRemote = async (
-	worktreeRoot: string,
-): Promise<Result<boolean>> => {
-	const remoteResult = await hasRemote({
-		repoRoot: worktreeRoot,
-		remote: DEFAULT_REMOTE,
-	});
-	if (isFail(remoteResult)) return failed(remoteResult.message);
-
-	if (!remoteResult.data) {
-		return succeeded('No remote configured, skipped fetch', false);
-	}
-
-	const result = await execGit({
-		args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
-		cwd: worktreeRoot,
-	});
-
-	if (isFail(result)) {
-		return failed(`Failed to fetch ${BOARD_BRANCH}\n${result.message}`);
-	}
-
-	return succeeded('Fetched board remote', true);
-};
-
 const pullBoardRebase = async (
 	worktreeRoot: string,
 ): Promise<Result<boolean>> => {
@@ -676,49 +658,23 @@ const listEventFiles = (root: string): Result<string[]> => {
 	return succeeded('Listed event files', files);
 };
 
-const sanitizeFileSegment = (value: string): string =>
-	value
-		.trim()
-		.replace(/\s+/g, '-')
-		.replace(/[^A-Za-z0-9._-]/g, '-')
-		.replace(/-+/g, '-')
-		.replace(/^[-.]+|[-.]+$/g, '') || 'unknown';
+const validateOwnEventFileName = (fileName: string): Result<string> => {
+	if (!fileName.endsWith('.jsonl')) {
+		return failed('Own event file must end with .jsonl');
+	}
 
-const getOwnEventFileName = ({
-	userId,
-	userName,
-}: {
-	userId: string;
-	userName: string;
-}): string =>
-	`${sanitizeFileSegment(userId)}.${sanitizeFileSegment(userName)}.jsonl`;
+	if (fileName.includes('/') || fileName.includes('\\')) {
+		return failed('Own event file must be a file name, not a path');
+	}
 
-const readLines = (filePath: string): string[] => {
-	if (!fs.existsSync(filePath)) return [];
+	if (fileName === '.' || fileName === '..' || fileName.trim() === '') {
+		return failed('Own event file name is invalid');
+	}
 
-	const raw = fs.readFileSync(filePath, 'utf8');
-	if (raw.trim() === '') return [];
-
-	return raw
-		.split('\n')
-		.map(line => line.trimEnd())
-		.filter(Boolean);
+	return succeeded('Validated own event file name', fileName);
 };
 
-const writeLines = ({
-	filePath,
-	lines,
-}: {
-	filePath: string;
-	lines: string[];
-}): Result<void> => {
-	fs.mkdirSync(path.dirname(filePath), {recursive: true});
-	const content = lines.length > 0 ? `${lines.join('\n')}\n` : '';
-	fs.writeFileSync(filePath, content, 'utf8');
-	return succeeded('Wrote lines', undefined);
-};
-
-const mergeOwnEventFileIntoWorktree = ({
+const copyOwnEventFileToWorktree = ({
 	repoRoot,
 	worktreeRoot,
 	ownEventFileName,
@@ -727,25 +683,32 @@ const mergeOwnEventFileIntoWorktree = ({
 	worktreeRoot: string;
 	ownEventFileName: string;
 }): Result<boolean> => {
-	const localFile = path.join(getEventsDir(repoRoot), ownEventFileName);
-	const boardFile = path.join(getEventsDir(worktreeRoot), ownEventFileName);
+	const localFile = getEventFilePath({
+		root: repoRoot,
+		fileName: ownEventFileName,
+	});
+	const boardFile = getEventFilePath({
+		root: worktreeRoot,
+		fileName: ownEventFileName,
+	});
 
-	const localLines = readLines(localFile);
-	const boardLines = readLines(boardFile);
-
-	const merged = Array.from(new Set([...boardLines, ...localLines]));
-
-	const boardBefore = boardLines.join('\n');
-	const boardAfter = merged.join('\n');
-
-	if (boardBefore === boardAfter) {
-		return succeeded('Own event file already merged', false);
+	if (!fs.existsSync(localFile)) {
+		return succeeded('Local own event file missing, nothing to copy', false);
 	}
 
-	const writeResult = writeLines({filePath: boardFile, lines: merged});
-	if (isFail(writeResult)) return failed(writeResult.message);
+	const localContent = fs.readFileSync(localFile, 'utf8');
+	const boardContent = fs.existsSync(boardFile)
+		? fs.readFileSync(boardFile, 'utf8')
+		: '';
 
-	return succeeded('Merged own event file into board worktree', true);
+	if (localContent === boardContent) {
+		return succeeded('Own event file already matches board worktree', false);
+	}
+
+	fs.mkdirSync(path.dirname(boardFile), {recursive: true});
+	fs.copyFileSync(localFile, boardFile);
+
+	return succeeded('Copied own event file into board worktree', true);
 };
 
 const hydrateEventsFromWorktree = ({
@@ -782,48 +745,56 @@ const hydrateEventsFromWorktree = ({
 	return succeeded('Hydrated event files from board worktree', changed);
 };
 
-const stageBoardEvents = async (
-	worktreeRoot: string,
-): Promise<Result<void>> => {
+const stageBoardOwnEventFile = async ({
+	worktreeRoot,
+	ownEventFileName,
+}: {
+	worktreeRoot: string;
+	ownEventFileName: string;
+}): Promise<Result<void>> => {
 	const result = await execGit({
-		args: ['add', path.join(EPIQ_DIR, EVENTS_SUBDIR)],
+		args: [
+			'add',
+			getEventFilePath({root: EPIQ_DIR, fileName: ownEventFileName}),
+		],
 		cwd: worktreeRoot,
 	});
 
 	if (isFail(result)) {
-		return failed(
-			`Failed to stage board ${path.join(EPIQ_DIR, EVENTS_SUBDIR)}\n${
-				result.message
-			}`,
-		);
+		return failed(`Failed to stage board own event file\n${result.message}`);
 	}
 
-	return succeeded('Staged board events', undefined);
+	return succeeded('Staged board own event file', undefined);
 };
 
-const hasStagedBoardEventChanges = async (
-	worktreeRoot: string,
-): Promise<Result<boolean>> => {
+const hasStagedBoardOwnEventFileChange = async ({
+	worktreeRoot,
+	ownEventFileName,
+}: {
+	worktreeRoot: string;
+	ownEventFileName: string;
+}): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
 		args: [
 			'diff',
 			'--cached',
 			'--quiet',
 			'--',
-			path.join(EPIQ_DIR, EVENTS_SUBDIR),
+			getEventFilePath({root: EPIQ_DIR, fileName: ownEventFileName}),
 		],
 		cwd: worktreeRoot,
 	});
 
 	if (result.exitCode === 0) {
-		return succeeded('No staged board event changes', false);
+		return succeeded('No staged board own event file change', false);
 	}
 	if (result.exitCode === 1) {
-		return succeeded('Has staged board event changes', true);
+		return succeeded('Has staged board own event file change', true);
 	}
 
 	return failed(
-		result.stderr.trim() || 'Unable to inspect staged board event changes',
+		result.stderr.trim() ||
+			'Unable to inspect staged board own event file change',
 	);
 };
 
@@ -877,15 +848,20 @@ const buildSyncCommitMessage = async (
 const createBoardSyncCommit = async ({
 	repoRoot,
 	worktreeRoot,
+	ownEventFileName,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
+	ownEventFileName: string;
 }): Promise<Result<string | null>> => {
-	const hasChangesResult = await hasStagedBoardEventChanges(worktreeRoot);
+	const hasChangesResult = await hasStagedBoardOwnEventFileChange({
+		worktreeRoot,
+		ownEventFileName,
+	});
 	if (isFail(hasChangesResult)) return failed(hasChangesResult.message);
 
 	if (!hasChangesResult.data) {
-		return succeeded('No board event commit needed', null);
+		return succeeded('No board own event file commit needed', null);
 	}
 
 	const messageResult = await buildSyncCommitMessage(repoRoot);
@@ -897,7 +873,9 @@ const createBoardSyncCommit = async ({
 	});
 
 	if (isFail(commitResult)) {
-		return failed(`Failed to commit board events\n${commitResult.message}`);
+		return failed(
+			`Failed to commit board own event file\n${commitResult.message}`,
+		);
 	}
 
 	const shaResult = await execGit({
@@ -963,9 +941,11 @@ const bootstrapBoardStorage = async ({
 
 export const syncEpiqWithRemote = async ({
 	cwd = process.cwd(),
-	userId,
-	userName,
+	ownEventFileName,
 }: SyncArgs): Promise<Result<SyncSummary>> => {
+	const ownFileResult = validateOwnEventFileName(ownEventFileName);
+	if (isFail(ownFileResult)) return failed(ownFileResult.message);
+
 	const repoRootResult = await getRepoRoot(cwd);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
@@ -1025,32 +1005,34 @@ export const syncEpiqWithRemote = async ({
 	let hydrated = false;
 	const bootstrapped = bootstrapResult.data;
 
-	const fetchResult = await fetchBoardRemote(worktreeRoot);
-	if (isFail(fetchResult)) return failed(fetchResult.message);
-
-	const pullResult = await pullBoardRebase(worktreeRoot);
-	if (isFail(pullResult)) return failed(pullResult.message);
-	pulled = pullResult.data;
-
-	const ownEventFileName = getOwnEventFileName({userId, userName});
-
-	const mergeOwnResult = mergeOwnEventFileIntoWorktree({
+	const copyOwnResult = copyOwnEventFileToWorktree({
 		repoRoot,
 		worktreeRoot,
-		ownEventFileName,
+		ownEventFileName: ownFileResult.data,
 	});
-	if (isFail(mergeOwnResult)) return failed(mergeOwnResult.message);
+	if (isFail(copyOwnResult)) return failed(copyOwnResult.message);
 
-	const stageResult = await stageBoardEvents(worktreeRoot);
+	const stageResult = await stageBoardOwnEventFile({
+		worktreeRoot,
+		ownEventFileName: ownFileResult.data,
+	});
 	if (isFail(stageResult)) return failed(stageResult.message);
 
-	const commitResult = await createBoardSyncCommit({repoRoot, worktreeRoot});
+	const commitResult = await createBoardSyncCommit({
+		repoRoot,
+		worktreeRoot,
+		ownEventFileName: ownFileResult.data,
+	});
 	if (isFail(commitResult)) return failed(commitResult.message);
 
 	if (commitResult.data) {
 		createdCommit = true;
 		commitSha = commitResult.data;
 	}
+
+	const pullResult = await pullBoardRebase(worktreeRoot);
+	if (isFail(pullResult)) return failed(pullResult.message);
+	pulled = pullResult.data;
 
 	const pushResult = await pushBoard(worktreeRoot);
 	if (isFail(pushResult)) {
@@ -1071,7 +1053,7 @@ export const syncEpiqWithRemote = async ({
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
 	hydrated = hydrateResult.data;
 
-	return succeeded('Synced board event logs', {
+	return succeeded('Synced board event logs via git', {
 		repoRoot,
 		worktreeRoot,
 		createdCommit,

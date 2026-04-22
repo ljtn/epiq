@@ -99,15 +99,21 @@ const getEventsDir = (rootDir = process.cwd()) => {
 	return path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), EVENTS_DIR);
 };
 
-export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
+export const getPersistFileName = () => {
 	const actorIdResult = resolveActorId();
 	if (isFail(actorIdResult) || !actorIdResult.data) {
 		return failed('Unable to resolve event log path');
 	}
+	return succeeded('Succeeded', `${actorIdResult.data}.jsonl`);
+};
+
+export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
+	const fileNameResult = getPersistFileName();
+	if (isFail(fileNameResult)) return failed('Unable to resolve file name');
 
 	return succeeded(
 		'Successfully resolved event log path',
-		path.join(getEventsDir(rootDir), `${actorIdResult.data}.jsonl`),
+		path.join(getEventsDir(rootDir), `${fileNameResult.data}.jsonl`),
 	);
 };
 

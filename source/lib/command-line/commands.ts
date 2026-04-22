@@ -6,7 +6,7 @@ import {
 	materializeAndPersist,
 	materializeAndPersistAll,
 } from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
+import {getPersistFileName, resolveActorId} from '../../event/event-persist.js';
 import {AppEvent} from '../../event/event.model.js';
 import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
@@ -732,7 +732,12 @@ export const commands: CommandLineActionEntry[] = [
 			const {userId, userName} = getSettingsState();
 			if (!userId) return failed('Unable to resolve userId');
 			if (!userName) return failed('Unable to resolve userName');
-			const syncResult = await syncEpiqWithRemote({userId, userName});
+			const persistFileName = getPersistFileName();
+			if (isFail(persistFileName))
+				return failed('Unable to resolve log file name');
+			const syncResult = await syncEpiqWithRemote({
+				ownEventFileName: persistFileName.data,
+			});
 			if (isFail(syncResult)) {
 				patchState({
 					syncStatus: {
