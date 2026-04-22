@@ -43,7 +43,7 @@ type SyncArgs = {
 
 const EPIQ_DIR = getEpiqDirName();
 const EVENTS_SUBDIR = 'events';
-const BOARD_BRANCH = 'epiq-state-3';
+const BOARD_BRANCH = 'epiq-state-5';
 const DEFAULT_REMOTE = 'origin';
 
 const getRelativeEventFilePath = (fileName: string): string =>
@@ -664,6 +664,15 @@ export const syncEpiqWithRemote = async ({
 	let pushed = false;
 	let hydrated = false;
 
+	// Pull first so the worktree reflects latest remote state before comparing/copying.
+	const pullResult = await pullBranchRebaseIfPresent({
+		cwd: worktreeRoot,
+		remote: DEFAULT_REMOTE,
+		branch: BOARD_BRANCH,
+	});
+	if (isFail(pullResult)) return failed(pullResult.message);
+	pulled = pullResult.data;
+
 	const copyOwnResult = copyOwnEventFileToWorktree({
 		repoRoot,
 		worktreeRoot,
@@ -688,14 +697,6 @@ export const syncEpiqWithRemote = async ({
 		createdCommit = Boolean(commitResult.data);
 		commitSha = commitResult.data ?? undefined;
 	}
-
-	const pullResult = await pullBranchRebaseIfPresent({
-		cwd: worktreeRoot,
-		remote: DEFAULT_REMOTE,
-		branch: BOARD_BRANCH,
-	});
-	if (isFail(pullResult)) return failed(pullResult.message);
-	pulled = pullResult.data;
 
 	const pushResult = await pushBoard(worktreeRoot);
 	if (isFail(pushResult)) {
