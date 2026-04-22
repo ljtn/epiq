@@ -383,12 +383,6 @@ const ensureLocalBoardBranch = async ({
 	if (isFail(remoteResult)) return failed(remoteResult.message);
 
 	if (remoteResult.data) {
-		const fetchResult = await execGit({
-			args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
-			cwd: repoRoot,
-		});
-		if (isFail(fetchResult)) return failed(fetchResult.message);
-
 		const remoteBranchResult = await hasRemoteBranch({
 			repoRoot,
 			remote: DEFAULT_REMOTE,
@@ -397,6 +391,16 @@ const ensureLocalBoardBranch = async ({
 		if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
 
 		if (remoteBranchResult.data) {
+			const fetchResult = await execGit({
+				args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
+				cwd: repoRoot,
+			});
+			if (isFail(fetchResult)) {
+				return failed(
+					`Failed to fetch ${BOARD_BRANCH} from remote\n${fetchResult.message}`,
+				);
+			}
+
 			const createFromRemote = await execGit({
 				args: [
 					'branch',
@@ -637,6 +641,25 @@ const pullBoardRebase = async (
 
 	if (!upstreamResult.data) {
 		return succeeded('No upstream configured, skipped pull', false);
+	}
+
+	const remoteBranchResult = await hasRemoteBranch({
+		repoRoot: worktreeRoot,
+		remote: DEFAULT_REMOTE,
+		branch: BOARD_BRANCH,
+	});
+	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
+
+	if (!remoteBranchResult.data) {
+		return succeeded('Remote board branch missing, skipped pull', false);
+	}
+
+	const fetchResult = await execGit({
+		args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
+		cwd: worktreeRoot,
+	});
+	if (isFail(fetchResult)) {
+		return failed(`Failed to fetch ${BOARD_BRANCH}\n${fetchResult.message}`);
 	}
 
 	const result = await execGit({
@@ -1039,24 +1062,6 @@ export const syncEpiqWithRemote = async ({
 		}
 	}
 
-	const stageResult = await stageBoardOwnEventFile({
-		worktreeRoot,
-		ownEventFileName: ownFileResult.data,
-	});
-	if (isFail(stageResult)) return failed(stageResult.message);
-
-	const commitResult = await createBoardSyncCommit({
-		repoRoot,
-		worktreeRoot,
-		ownEventFileName: ownFileResult.data,
-	});
-	if (isFail(commitResult)) return failed(commitResult.message);
-
-	if (commitResult.data) {
-		createdCommit = true;
-		commitSha = commitResult.data;
-	}
-
 	const pullResult = await pullBoardRebase(worktreeRoot);
 	if (isFail(pullResult)) return failed(pullResult.message);
 	pulled = pullResult.data;
@@ -1141,11 +1146,20 @@ export const syncEpiqFromRemote = async (
 		return failed(ensureBoardEventsResult.message);
 
 	// Fetch + pull
-	const fetchResult = await execGit({
-		args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
-		cwd: worktreeRoot,
+	const remoteBranchResult = await hasRemoteBranch({
+		repoRoot: worktreeRoot,
+		remote: DEFAULT_REMOTE,
+		branch: BOARD_BRANCH,
 	});
-	if (isFail(fetchResult)) return failed(fetchResult.message);
+	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
+
+	if (remoteBranchResult.data) {
+		const fetchResult = await execGit({
+			args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
+			cwd: worktreeRoot,
+		});
+		if (isFail(fetchResult)) return failed(fetchResult.message);
+	}
 
 	const pullResult = await pullBoardRebase(worktreeRoot);
 	if (isFail(pullResult)) return failed(pullResult.message);
