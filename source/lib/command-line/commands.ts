@@ -40,6 +40,8 @@ import {
 	succeeded,
 } from './command-types.js';
 import {syncEpiqWithRemote} from '../../git/git.js';
+import {materializeAll} from '../../event/event-materialize.js';
+import {loadMergedEvents} from '../../event/event-load.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -755,6 +757,12 @@ export const commands: CommandLineActionEntry[] = [
 				},
 				mode: Mode.DEFAULT,
 			});
+
+			// Now load all synced events.
+			// Note: We should probably look into if we can find a way to not replay from beginning
+			const allLoadedEventsResult = loadMergedEvents();
+			if (isFail(allLoadedEventsResult)) return failed('Unable to load events');
+			materializeAll(allLoadedEventsResult.data);
 
 			return succeeded('Synced', true);
 		},
