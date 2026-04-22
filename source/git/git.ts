@@ -10,6 +10,7 @@ import {
 	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
+import {logger} from '../logger.js';
 
 type GitExecResult = {
 	stdout: string;
@@ -28,7 +29,14 @@ type SyncSummary = {
 	bootstrapped: boolean;
 };
 
+type SyncArgs = {
+	cwd?: string;
+	userId: string;
+	userName: string;
+};
+
 const EPIQ_DIR = getEpiqDirName();
+const EVENTS_SUBDIR = 'events';
 const BOARD_BRANCH = 'epiq-state';
 const DEFAULT_REMOTE = 'origin';
 
@@ -104,6 +112,14 @@ const execGitAllowFail = ({
 	cwd: string;
 }): Promise<GitExecResult> =>
 	new Promise(resolve => {
+		if (!fs.existsSync(cwd)) {
+			return resolve({
+				stdout: '',
+				stderr: `Git cwd does not exist: ${cwd}`,
+				exitCode: 1,
+			});
+		}
+
 		const child = spawn('git', args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -152,7 +168,6 @@ const ensureInitialCommit = async (
 		return succeeded('Repo already initialized', false);
 	}
 
-	// create empty commit (no files needed)
 	const commitResult = await execGit({
 		args: ['commit', '--allow-empty', '-m', '[epiq:init]'],
 		cwd: repoRoot,
@@ -165,17 +180,6 @@ const ensureInitialCommit = async (
 	return succeeded('Created initial commit', true);
 };
 
-const ensureEpiqDir = (root: string): Result<boolean> => {
-	const epiqPath = path.join(root, EPIQ_DIR);
-
-	if (fs.existsSync(epiqPath)) {
-		return succeeded('Epiq dir already exists', false);
-	}
-
-	fs.mkdirSync(epiqPath, {recursive: true});
-	return succeeded('Created epiq dir', true);
-};
-
 const ensureDir = (dirPath: string): Result<void> => {
 	fs.mkdirSync(dirPath, {recursive: true});
 	return succeeded('Ensured directory', undefined);
@@ -186,31 +190,12 @@ const removePath = (targetPath: string): void => {
 	fs.rmSync(targetPath, {recursive: true, force: true});
 };
 
-const copyDirectory = ({
-	from,
-	to,
-}: {
-	from: string;
-	to: string;
-}): Result<void> => {
-	if (!fs.existsSync(from)) {
-		return failed(`Source directory not found: ${from}`);
-	}
-
-	removePath(to);
-	fs.mkdirSync(path.dirname(to), {recursive: true});
-	fs.cpSync(from, to, {recursive: true});
-
-	return succeeded('Copied directory', undefined);
-};
-
 const getRepoRoot = async (cwd = process.cwd()): Promise<Result<string>> => {
 	const result = await execGit({args: ['rev-parse', '--show-toplevel'], cwd});
 
 	if (isFail(result)) return failed('Not inside a Git repository');
 
-	const repoRoot = result.data.stdout.trim();
-	return succeeded('Resolved repo root', repoRoot);
+	return succeeded('Resolved repo root', result.data.stdout.trim());
 };
 
 const getGitDir = async (repoRoot: string): Promise<Result<string>> => {
@@ -275,8 +260,33 @@ const getWorktreesRoot = (): string => path.join(getEpiqHome(), 'worktrees');
 
 const getBoardWorktreeRoot = (repoRoot: string): string => {
 	const repoId = getRepoId(repoRoot);
-	const worktreeRoot = path.join(getWorktreesRoot(), repoId);
-	return worktreeRoot;
+	return path.join(getWorktreesRoot(), repoId);
+};
+
+const getEpiqRoot = (root: string): string => path.join(root, EPIQ_DIR);
+const getEventsDir = (root: string): string =>
+	path.join(getEpiqRoot(root), EVENTS_SUBDIR);
+
+const ensureEpiqDir = (root: string): Result<boolean> => {
+	const epiqPath = getEpiqRoot(root);
+
+	if (fs.existsSync(epiqPath)) {
+		return succeeded('Epiq dir already exists', false);
+	}
+
+	fs.mkdirSync(epiqPath, {recursive: true});
+	return succeeded('Created epiq dir', true);
+};
+
+const ensureEventsDir = (root: string): Result<boolean> => {
+	const eventsPath = getEventsDir(root);
+
+	if (fs.existsSync(eventsPath)) {
+		return succeeded('Events dir already exists', false);
+	}
+
+	fs.mkdirSync(eventsPath, {recursive: true});
+	return succeeded('Created events dir', true);
 };
 
 const ensureEpiqStorage = (): Result<void> => {
@@ -300,8 +310,8 @@ const hasRemote = async ({
 		args: ['remote', 'get-url', remote],
 		cwd: repoRoot,
 	});
-	const exists = result.exitCode === 0;
-	return succeeded('Checked remote', exists);
+
+	return succeeded('Checked remote', result.exitCode === 0);
 };
 
 const hasRemoteBranch = async ({
@@ -391,14 +401,8 @@ const ensureLocalBoardBranch = async ({
 		}
 	}
 
-	const currentHeadResult = await execGit({
-		args: ['rev-parse', 'HEAD'],
-		cwd: repoRoot,
-	});
-	if (isFail(currentHeadResult)) return failed(currentHeadResult.message);
-
 	const createLocal = await execGit({
-		args: ['branch', BOARD_BRANCH, currentHeadResult.data.stdout.trim()],
+		args: ['branch', BOARD_BRANCH, 'HEAD'],
 		cwd: repoRoot,
 	});
 
@@ -655,61 +659,171 @@ const pullBoardRebase = async (
 	return succeeded('Pulled board with rebase', true);
 };
 
-const copyRepoEpiqToWorktree = ({
+const listEventFiles = (root: string): Result<string[]> => {
+	const eventsDir = getEventsDir(root);
+
+	if (!fs.existsSync(eventsDir)) {
+		return succeeded('Events dir missing', []);
+	}
+
+	const files = fs
+		.readdirSync(eventsDir, {withFileTypes: true})
+		.filter(entry => entry.isFile())
+		.map(entry => entry.name)
+		.filter(name => name.endsWith('.jsonl'))
+		.sort();
+
+	return succeeded('Listed event files', files);
+};
+
+const sanitizeFileSegment = (value: string): string =>
+	value
+		.trim()
+		.replace(/\s+/g, '-')
+		.replace(/[^A-Za-z0-9._-]/g, '-')
+		.replace(/-+/g, '-')
+		.replace(/^[-.]+|[-.]+$/g, '') || 'unknown';
+
+const getOwnEventFileName = ({
+	userId,
+	userName,
+}: {
+	userId: string;
+	userName: string;
+}): string =>
+	`${sanitizeFileSegment(userId)}.${sanitizeFileSegment(userName)}.jsonl`;
+
+const readLines = (filePath: string): string[] => {
+	if (!fs.existsSync(filePath)) return [];
+
+	const raw = fs.readFileSync(filePath, 'utf8');
+	if (raw.trim() === '') return [];
+
+	return raw
+		.split('\n')
+		.map(line => line.trimEnd())
+		.filter(Boolean);
+};
+
+const writeLines = ({
+	filePath,
+	lines,
+}: {
+	filePath: string;
+	lines: string[];
+}): Result<void> => {
+	fs.mkdirSync(path.dirname(filePath), {recursive: true});
+	const content = lines.length > 0 ? `${lines.join('\n')}\n` : '';
+	fs.writeFileSync(filePath, content, 'utf8');
+	return succeeded('Wrote lines', undefined);
+};
+
+const mergeOwnEventFileIntoWorktree = ({
+	repoRoot,
+	worktreeRoot,
+	ownEventFileName,
+}: {
+	repoRoot: string;
+	worktreeRoot: string;
+	ownEventFileName: string;
+}): Result<boolean> => {
+	const localFile = path.join(getEventsDir(repoRoot), ownEventFileName);
+	const boardFile = path.join(getEventsDir(worktreeRoot), ownEventFileName);
+
+	const localLines = readLines(localFile);
+	const boardLines = readLines(boardFile);
+
+	const merged = Array.from(new Set([...boardLines, ...localLines]));
+
+	const boardBefore = boardLines.join('\n');
+	const boardAfter = merged.join('\n');
+
+	if (boardBefore === boardAfter) {
+		return succeeded('Own event file already merged', false);
+	}
+
+	const writeResult = writeLines({filePath: boardFile, lines: merged});
+	if (isFail(writeResult)) return failed(writeResult.message);
+
+	return succeeded('Merged own event file into board worktree', true);
+};
+
+const hydrateEventsFromWorktree = ({
 	repoRoot,
 	worktreeRoot,
 }: {
 	repoRoot: string;
 	worktreeRoot: string;
-}): Result<void> => {
-	const from = path.join(repoRoot, EPIQ_DIR);
-	const to = path.join(worktreeRoot, EPIQ_DIR);
-	return copyDirectory({from, to});
+}): Result<boolean> => {
+	const boardFilesResult = listEventFiles(worktreeRoot);
+	if (isFail(boardFilesResult)) return failed(boardFilesResult.message);
+
+	const boardEventsDir = getEventsDir(worktreeRoot);
+	const localEventsDir = getEventsDir(repoRoot);
+
+	let changed = false;
+
+	for (const fileName of boardFilesResult.data) {
+		const from = path.join(boardEventsDir, fileName);
+		const to = path.join(localEventsDir, fileName);
+
+		const fromContent = fs.existsSync(from)
+			? fs.readFileSync(from, 'utf8')
+			: '';
+		const toContent = fs.existsSync(to) ? fs.readFileSync(to, 'utf8') : '';
+
+		if (fromContent === toContent) continue;
+
+		fs.mkdirSync(path.dirname(to), {recursive: true});
+		fs.copyFileSync(from, to);
+		changed = true;
+	}
+
+	return succeeded('Hydrated event files from board worktree', changed);
 };
 
-const hydrateRepoFromWorktree = ({
-	repoRoot,
-	worktreeRoot,
-}: {
-	repoRoot: string;
-	worktreeRoot: string;
-}): Result<void> => {
-	const from = path.join(worktreeRoot, EPIQ_DIR);
-	const to = path.join(repoRoot, EPIQ_DIR);
-
-	return copyDirectory({from, to});
-};
-
-const stageBoardEpiq = async (worktreeRoot: string): Promise<Result<void>> => {
+const stageBoardEvents = async (
+	worktreeRoot: string,
+): Promise<Result<void>> => {
 	const result = await execGit({
-		args: ['add', EPIQ_DIR],
+		args: ['add', path.join(EPIQ_DIR, EVENTS_SUBDIR)],
 		cwd: worktreeRoot,
 	});
 
 	if (isFail(result)) {
-		return failed(`Failed to stage board ${EPIQ_DIR}\n${result.message}`);
+		return failed(
+			`Failed to stage board ${path.join(EPIQ_DIR, EVENTS_SUBDIR)}\n${
+				result.message
+			}`,
+		);
 	}
 
-	return succeeded('Staged board .epiq', undefined);
+	return succeeded('Staged board events', undefined);
 };
 
-const hasStagedBoardEpiqChanges = async (
+const hasStagedBoardEventChanges = async (
 	worktreeRoot: string,
 ): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
-		args: ['diff', '--cached', '--quiet', '--', EPIQ_DIR],
+		args: [
+			'diff',
+			'--cached',
+			'--quiet',
+			'--',
+			path.join(EPIQ_DIR, EVENTS_SUBDIR),
+		],
 		cwd: worktreeRoot,
 	});
 
 	if (result.exitCode === 0) {
-		return succeeded('No staged board .epiq changes', false);
+		return succeeded('No staged board event changes', false);
 	}
 	if (result.exitCode === 1) {
-		return succeeded('Has staged board .epiq changes', true);
+		return succeeded('Has staged board event changes', true);
 	}
 
 	return failed(
-		result.stderr.trim() || 'Unable to inspect staged board .epiq changes',
+		result.stderr.trim() || 'Unable to inspect staged board event changes',
 	);
 };
 
@@ -756,9 +870,8 @@ const buildSyncCommitMessage = async (
 
 	const branch = sanitizeRefSegment(branchResult.data);
 	const sha = sanitizeRefSegment(shaResult.data);
-	const message = `[epiq:${branch}:${sha}]`;
 
-	return succeeded('Built sync commit message', message);
+	return succeeded('Built sync commit message', `[epiq:sync:${branch}:${sha}]`);
 };
 
 const createBoardSyncCommit = async ({
@@ -768,11 +881,11 @@ const createBoardSyncCommit = async ({
 	repoRoot: string;
 	worktreeRoot: string;
 }): Promise<Result<string | null>> => {
-	const hasChangesResult = await hasStagedBoardEpiqChanges(worktreeRoot);
+	const hasChangesResult = await hasStagedBoardEventChanges(worktreeRoot);
 	if (isFail(hasChangesResult)) return failed(hasChangesResult.message);
 
 	if (!hasChangesResult.data) {
-		return succeeded('No board .epiq commit needed', null);
+		return succeeded('No board event commit needed', null);
 	}
 
 	const messageResult = await buildSyncCommitMessage(repoRoot);
@@ -784,9 +897,7 @@ const createBoardSyncCommit = async ({
 	});
 
 	if (isFail(commitResult)) {
-		return failed(
-			`Failed to commit board .epiq changes\n${commitResult.message}`,
-		);
+		return failed(`Failed to commit board events\n${commitResult.message}`);
 	}
 
 	const shaResult = await execGit({
@@ -826,7 +937,7 @@ const bootstrapBoardStorage = async ({
 	repoRoot: string;
 	worktreeRoot: string;
 }): Promise<Result<boolean>> => {
-	let changed: boolean = false;
+	let changed = false;
 
 	const storageResult = ensureEpiqStorage();
 	if (isFail(storageResult)) return failed(storageResult.message);
@@ -850,9 +961,11 @@ const bootstrapBoardStorage = async ({
 	return succeeded('Bootstrapped board storage', changed);
 };
 
-export const syncEpiqWithRemote = async (
+export const syncEpiqWithRemote = async ({
 	cwd = process.cwd(),
-): Promise<Result<SyncSummary>> => {
+	userId,
+	userName,
+}: SyncArgs): Promise<Result<SyncSummary>> => {
 	const repoRootResult = await getRepoRoot(cwd);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
@@ -889,6 +1002,22 @@ export const syncEpiqWithRemote = async (
 		);
 	}
 
+	const ensureLocalEpiqResult = ensureEpiqDir(repoRoot);
+	if (isFail(ensureLocalEpiqResult))
+		return failed(ensureLocalEpiqResult.message);
+
+	const ensureBoardEpiqResult = ensureEpiqDir(worktreeRoot);
+	if (isFail(ensureBoardEpiqResult))
+		return failed(ensureBoardEpiqResult.message);
+
+	const ensureLocalEventsResult = ensureEventsDir(repoRoot);
+	if (isFail(ensureLocalEventsResult))
+		return failed(ensureLocalEventsResult.message);
+
+	const ensureBoardEventsResult = ensureEventsDir(worktreeRoot);
+	if (isFail(ensureBoardEventsResult))
+		return failed(ensureBoardEventsResult.message);
+
 	let createdCommit = false;
 	let commitSha: string | undefined;
 	let pulled = false;
@@ -903,18 +1032,16 @@ export const syncEpiqWithRemote = async (
 	if (isFail(pullResult)) return failed(pullResult.message);
 	pulled = pullResult.data;
 
-	const ensureLocalEpiqResult = ensureEpiqDir(repoRoot);
-	if (isFail(ensureLocalEpiqResult))
-		return failed(ensureLocalEpiqResult.message);
+	const ownEventFileName = getOwnEventFileName({userId, userName});
 
-	const ensureBoardEpiqResult = ensureEpiqDir(worktreeRoot);
-	if (isFail(ensureBoardEpiqResult))
-		return failed(ensureBoardEpiqResult.message);
+	const mergeOwnResult = mergeOwnEventFileIntoWorktree({
+		repoRoot,
+		worktreeRoot,
+		ownEventFileName,
+	});
+	if (isFail(mergeOwnResult)) return failed(mergeOwnResult.message);
 
-	const copyToWorktreeResult = copyRepoEpiqToWorktree({repoRoot, worktreeRoot});
-	if (isFail(copyToWorktreeResult)) return failed(copyToWorktreeResult.message);
-
-	const stageResult = await stageBoardEpiq(worktreeRoot);
+	const stageResult = await stageBoardEvents(worktreeRoot);
 	if (isFail(stageResult)) return failed(stageResult.message);
 
 	const commitResult = await createBoardSyncCommit({repoRoot, worktreeRoot});
@@ -940,21 +1067,18 @@ export const syncEpiqWithRemote = async (
 	}
 	pushed = pushResult.data;
 
-	const hydrateResult = hydrateRepoFromWorktree({repoRoot, worktreeRoot});
+	const hydrateResult = hydrateEventsFromWorktree({repoRoot, worktreeRoot});
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
-	hydrated = true;
+	hydrated = hydrateResult.data;
 
-	return succeeded(
-		'Synced .epiq with board worktree and hydrated local state',
-		{
-			repoRoot,
-			worktreeRoot,
-			createdCommit,
-			commitSha,
-			pulled,
-			pushed,
-			hydrated,
-			bootstrapped,
-		},
-	);
+	return succeeded('Synced board event logs', {
+		repoRoot,
+		worktreeRoot,
+		createdCommit,
+		commitSha,
+		pulled,
+		pushed,
+		hydrated,
+		bootstrapped,
+	});
 };

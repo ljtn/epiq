@@ -729,7 +729,10 @@ export const commands: CommandLineActionEntry[] = [
 				},
 				// mode: Mode.DEFAULT,
 			});
-			const syncResult = await syncEpiqWithRemote();
+			const {userId, userName} = getSettingsState();
+			if (!userId) return failed('Unable to resolve userId');
+			if (!userName) return failed('Unable to resolve userName');
+			const syncResult = await syncEpiqWithRemote({userId, userName});
 			if (isFail(syncResult)) {
 				patchState({
 					syncStatus: {
