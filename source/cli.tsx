@@ -4,6 +4,7 @@ import React from 'react';
 import App from './app.js';
 import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadMergedEvents} from './event/event-load.js';
+import {syncEpiqFromRemote} from './git/git.js';
 import {isFail} from './lib/command-line/command-types.js';
 import Logo from './lib/components/Logo.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
@@ -79,6 +80,8 @@ const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
 
 async function bootApp() {
 	loadSettingsFromConfig();
+
+	await syncEpiqFromRemote();
 
 	const eventLog = loadEventLogOrExit();
 	const isFirstLoad = eventLog.length === 0;

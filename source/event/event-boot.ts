@@ -168,7 +168,7 @@ export function persistPendingDefaultEvents(): Result {
 export function bootStateFromEventLog(eventLog: AppEvent[]): Result {
 	let results;
 
-	if (eventLog.length === 0) {
+	if (!eventLog.some(e => e.action === 'init.workspace')) {
 		pendingDefaultEvents = createDefaultEvents();
 		results = materializeAll([...pendingDefaultEvents]);
 	} else {

@@ -10,7 +10,6 @@ import {
 	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
-import {logger} from '../logger.js';
 
 type GitExecResult = {
 	stdout: string;
@@ -36,7 +35,7 @@ type SyncArgs = {
 
 const EPIQ_DIR = getEpiqDirName();
 const EVENTS_SUBDIR = 'events';
-const BOARD_BRANCH = 'epiq-state-2';
+const BOARD_BRANCH = 'epiq-state-3';
 const DEFAULT_REMOTE = 'origin';
 
 const getRelativeEventsPath = (): string => path.join(EPIQ_DIR, EVENTS_SUBDIR);
@@ -1090,5 +1089,76 @@ export const syncEpiqWithRemote = async ({
 		pushed,
 		hydrated,
 		bootstrapped,
+	});
+};
+
+export const syncEpiqFromRemote = async (
+	cwd = process.cwd(),
+): Promise<Result<{repoRoot: string; worktreeRoot: string}>> => {
+	const repoRootResult = await getRepoRoot(cwd);
+	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+
+	const repoRoot = repoRootResult.data;
+	const worktreeRoot = getBoardWorktreeRoot(repoRoot);
+
+	const repoOpResult = await hasInProgressGitOperation(repoRoot);
+	if (isFail(repoOpResult)) return failed(repoOpResult.message);
+	if (repoOpResult.data) {
+		return failed(
+			'Cannot sync while a git operation is in progress in the current repo',
+		);
+	}
+
+	const initResult = await ensureInitialCommit(repoRoot);
+	if (isFail(initResult)) return failed(initResult.message);
+
+	const bootstrapResult = await bootstrapBoardStorage({repoRoot, worktreeRoot});
+	if (isFail(bootstrapResult)) return failed(bootstrapResult.message);
+
+	const boardOpResult = await hasInProgressGitOperation(worktreeRoot);
+	if (isFail(boardOpResult)) return failed(boardOpResult.message);
+	if (boardOpResult.data) {
+		return failed(
+			'Cannot sync while a git operation is in progress in the board worktree',
+		);
+	}
+
+	// Ensure dirs exist
+	const ensureLocalEpiqResult = ensureEpiqDir(repoRoot);
+	if (isFail(ensureLocalEpiqResult))
+		return failed(ensureLocalEpiqResult.message);
+
+	const ensureLocalEventsResult = ensureEventsDir(repoRoot);
+	if (isFail(ensureLocalEventsResult))
+		return failed(ensureLocalEventsResult.message);
+
+	const ensureBoardEpiqResult = ensureEpiqDir(worktreeRoot);
+	if (isFail(ensureBoardEpiqResult))
+		return failed(ensureBoardEpiqResult.message);
+
+	const ensureBoardEventsResult = ensureEventsDir(worktreeRoot);
+	if (isFail(ensureBoardEventsResult))
+		return failed(ensureBoardEventsResult.message);
+
+	// Fetch + pull
+	const fetchResult = await execGit({
+		args: ['fetch', DEFAULT_REMOTE, BOARD_BRANCH],
+		cwd: worktreeRoot,
+	});
+	if (isFail(fetchResult)) return failed(fetchResult.message);
+
+	const pullResult = await pullBoardRebase(worktreeRoot);
+	if (isFail(pullResult)) return failed(pullResult.message);
+
+	// Hydrate remote → local
+	const hydrateResult = hydrateEventsFromWorktree({
+		repoRoot,
+		worktreeRoot,
+	});
+	if (isFail(hydrateResult)) return failed(hydrateResult.message);
+
+	return succeeded('Synced from remote', {
+		repoRoot,
+		worktreeRoot,
 	});
 };
