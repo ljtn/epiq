@@ -1,11 +1,11 @@
+> ⓘ First stable release scheduled for end of April
+
 # Epiq
 
 **CLI-native issue tracker** — powered by Git.
 Manage all your projects directly via the command line, edit in your favorite editor.
 
 Epiq stores your issue tracker as event logs inside your Git repository.
-
-> First stable release scheduled for end of April.
 
 ```
 '███████╗██████╗ ██╗ ██████╗ '
@@ -128,5 +128,24 @@ Clear filters with `:filter clear`
 ### Reopen
 
 - You can reopen a task by visiting the `Closed` board, selecting an issue and typing command `:reopen`.
+
+---
+
+## How epiq is synchronized
+
+Epiq uses Git to synchronize state between clients. Running `:sync` pulls and pushes changes between your local state and the remote.
+
+- Your issue data is stored in a dedicated branch managed automatically by epiq
+- A local `.epiq/` folder is created in your project as a cache
+
+The `.epiq/` folder:
+
+- Is non-authoritative and used for caching and local tracking
+- Can be committed if you want your board state versioned alongside your code
+- Is optional — epiq works whether you commit it or not
+
+You generally don’t need to interact with these directly.
+
+> ⓘ The system is designed to avoid merge conflicts.
 
 ---

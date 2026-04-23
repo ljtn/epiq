@@ -4,6 +4,7 @@ Verify:
 
 - Add command for enable debug mode
 - Add user setting for auto sync (If auto sync is enabled, then you do pulls on an interval of like 30s and push after every successful command)
+- Consider less fragile way of finding if there are worktrees
 
 
 
