@@ -2,6 +2,10 @@ Verify:
 - you cannot edit/move any temporary nodes
 - version history is consistent with many users
 
+- Add command for enable debug mode
+- Add user setting for auto sync (If auto sync is enabled, then you do pulls on an interval of like 30s and push after every successful command)
+
+
 
 distribute as binary
 skapa hackernews

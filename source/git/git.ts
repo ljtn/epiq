@@ -23,6 +23,7 @@ import {
 	hasRemoteBranch,
 	hasUpstream,
 	hasWorktree,
+	isDetachedHead,
 	isNonFastForward,
 	pullBranchRebaseIfPresent,
 } from './git-utils.js';
@@ -697,6 +698,14 @@ export const syncEpiqWithRemote = async ({
 	const repoRoot = repoRootResult.data;
 	const worktreeRoot = getRemoteWorktreeRoot(repoRoot);
 	logger.debug('[sync] resolved roots', {repoRoot, worktreeRoot});
+
+	const detachedResult = await isDetachedHead(repoRoot);
+	if (isFail(detachedResult)) return failed(detachedResult.message);
+	if (detachedResult.data) {
+		return failed(
+			'Cannot run :sync while the repository is in detached HEAD state',
+		);
+	}
 
 	if (ownEventFileName.includes('/') || ownEventFileName.includes('\\')) {
 		return failed('Own event file must be a file name, not a path');
