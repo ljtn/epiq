@@ -8,6 +8,7 @@ import {
 	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
+import {parsePersistedEventsFile} from '../event/event-load.js';
 
 const getCompositeEventKey = (event: Pick<PersistedEvent, 'id'>): string => {
 	const [id, refId] = event.id;
@@ -17,30 +18,6 @@ const getCompositeEventKey = (event: Pick<PersistedEvent, 'id'>): string => {
 const getEventTime = (event: Pick<PersistedEvent, 'id'>): number => {
 	const [id] = event.id;
 	return decodeTime(id);
-};
-
-const parsePersistedEventsFile = (
-	filePath: string,
-): Result<PersistedEvent[]> => {
-	if (!fs.existsSync(filePath)) {
-		return succeeded('Event file missing', []);
-	}
-
-	const content = fs.readFileSync(filePath, 'utf8');
-	const events: PersistedEvent[] = [];
-
-	for (const line of content.split('\n')) {
-		const trimmed = line.trim();
-		if (!trimmed) continue;
-
-		try {
-			events.push(JSON.parse(trimmed) as PersistedEvent);
-		} catch {
-			return failed(`Failed to parse event from ${filePath}: ${trimmed}`);
-		}
-	}
-
-	return succeeded('Parsed persisted events file', events);
 };
 
 const serializePersistedEvents = (events: PersistedEvent[]): string =>

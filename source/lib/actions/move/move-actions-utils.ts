@@ -52,11 +52,12 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 
 	const userIdRes = resolveActorId();
 	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-	const userId = userIdRes.data;
+	const {userId, userName} = userIdRes.data;
 
 	setMovePendingState({
 		id: ulid(),
-		userId: userId,
+		userId,
+		userName,
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,
@@ -85,11 +86,12 @@ export function moveChildWithinParent(direction: -1 | 1) {
 
 	const userIdRes = resolveActorId();
 	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-	const userId = userIdRes.data;
+	const {userId, userName} = userIdRes.data;
 
 	setMovePendingState({
 		id: ulid(),
-		userId: userId,
+		userId,
+		userName,
 		action: 'move.node',
 		payload: {
 			id: selectedChildResult.data.id,

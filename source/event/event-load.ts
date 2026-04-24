@@ -1,21 +1,31 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {z} from 'zod';
+import {getEpiqDirName} from '../init.js';
 import {
 	failed,
 	isFail,
 	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
-import {PersistedEvent} from './event-persist.js';
+import {
+	parsePersistedEvent,
+	PersistedEvent,
+	resolveEpiqRoot,
+} from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
-import {resolveEpiqRoot} from './event-persist.js'; // or better: move to shared path util
-import {getEpiqDirName} from '../init.js';
 
 const EPIQ_DIR = getEpiqDirName();
 const EVENTS_DIR = 'events';
 
+const EventFileNameSchema = z.object({
+	userId: z.string().min(1).default('unknown'),
+	userName: z.string().min(1).default('unknown'),
+});
+
 export type ReconstructedEvent = PersistedEvent & {
 	userId: string;
+	userName: string;
 };
 
 const getEventsDir = (rootDir = process.cwd()) =>
@@ -25,16 +35,37 @@ type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
 };
 
+const parseEventFileActor = (
+	filePath: string,
+): Result<{userId: string; userName: string}> => {
+	const [userId, userName] = path.basename(filePath, '.jsonl').split('.');
+
+	const result = EventFileNameSchema.safeParse({
+		userId,
+		userName,
+	});
+
+	if (!result.success) {
+		return failed(
+			`Invalid event file name ${path.basename(filePath)}: ${result.error.issues
+				.map(issue => issue.path.join('.') || issue.message)
+				.join(', ')}`,
+		);
+	}
+
+	return succeeded('Parsed event file actor', result.data);
+};
+
 export const getPersistedAction = (
 	entry: PersistedEvent,
 ): Result<keyof PersistedPayloadMap> => {
-	const keys = Object.keys(entry).filter(key => key !== 'id') as Array<
-		keyof PersistedPayloadMap
-	>;
+	const keys = Object.keys(entry).filter(
+		key => key !== 'id' && key !== 'v',
+	) as Array<keyof PersistedPayloadMap>;
 
-	if (keys.length !== 2) {
+	if (keys.length !== 1) {
 		return failed(
-			`Invalid persisted event: expected exactly 2 keys, got ${keys.length}`,
+			`Invalid persisted event: expected exactly 1 action key, got ${keys.length}`,
 		);
 	}
 
@@ -44,10 +75,37 @@ export const getPersistedAction = (
 	return succeeded('Resolved persisted action', keys[0]);
 };
 
+const hasPersistedActionPayload = <K extends keyof AppEventMap>(
+	entry: PersistedEvent,
+	action: K,
+): entry is PersistedEvent & Record<K, AppEventMap[K]['payload']> =>
+	action in entry;
+
+const toAppEvent = <K extends keyof AppEventMap>({
+	id,
+	action,
+	payload,
+	userId,
+	userName,
+}: {
+	id: string;
+	action: K;
+	payload: AppEventMap[K]['payload'];
+	userId: string;
+	userName: string;
+}): AppEvent =>
+	({
+		id,
+		action,
+		payload,
+		userId,
+		userName,
+	} as AppEvent);
+
 export const fromPersistedEvent = (
 	entry: ReconstructedEvent,
 ): Result<AppEvent> => {
-	const {userId, ...persistedEntry} = entry;
+	const {userId, userName, ...persistedEntry} = entry;
 
 	const actionResult = getPersistedAction(persistedEntry);
 	if (isFail(actionResult)) {
@@ -55,55 +113,65 @@ export const fromPersistedEvent = (
 	}
 
 	const action = actionResult.data;
-	if (!action) {
-		return failed('Action key is undefined');
-	}
-
 	const eventId = entry.id?.[0];
 	if (!eventId) {
 		return failed('Persisted event is missing id');
 	}
 
-	const payload = (persistedEntry as Record<string, unknown>)[
-		action
-	] as PersistedPayloadMap[typeof action];
+	if (!hasPersistedActionPayload(persistedEntry, action)) {
+		return failed(`Persisted event is missing payload for action: ${action}`);
+	}
 
-	return succeeded<AppEvent>('Decoded persisted event', {
-		id: eventId,
-		action,
-		payload,
-		userId,
-	} as AppEvent);
+	return succeeded<AppEvent>(
+		'Decoded persisted event',
+		toAppEvent({
+			id: eventId,
+			action,
+			payload: persistedEntry[action],
+			userId,
+			userName,
+		}),
+	);
 };
 
-export function parsePersistedEventsFile(
+export const parsePersistedEventsFile = (
 	filePath: string,
-): Result<ReconstructedEvent[]> {
-	const content = fs.readFileSync(filePath, 'utf8');
-	const userId = path.basename(filePath, '.jsonl') || 'unknown';
+): Result<ReconstructedEvent[]> => {
+	if (!fs.existsSync(filePath)) {
+		return succeeded('Event file missing', []);
+	}
+	const actorResult = parseEventFileActor(filePath);
+	if (isFail(actorResult)) return failed(actorResult.message);
 
+	const content = fs.readFileSync(filePath, 'utf8');
 	const entries: ReconstructedEvent[] = [];
 
 	for (const line of content.split('\n')) {
 		const trimmed = line.trim();
 		if (!trimmed) continue;
 
+		let raw: unknown;
 		try {
-			const parsed = JSON.parse(trimmed) as PersistedEvent;
-
-			entries.push({
-				...parsed,
-				userId,
-			});
+			raw = JSON.parse(trimmed);
 		} catch {
-			return failed(`Failed to parse event from ${filePath}: ${trimmed}`);
+			return failed(`Failed to parse event JSON from ${filePath}: ${trimmed}`);
 		}
+		const parsedResult = parsePersistedEvent(raw);
+		if (isFail(parsedResult)) {
+			return failed(`${parsedResult.message} in ${filePath}: ${trimmed}`);
+		}
+
+		entries.push({
+			...parsedResult.data,
+			userId: actorResult.data.userId,
+			userName: actorResult.data.userName,
+		});
 	}
 
-	return succeeded('Events loaded', entries);
-}
+	return succeeded('Parsed persisted events file', entries);
+};
 
-export function loadAllPersistedEvents(
+function loadAllPersistedEvents(
 	rootDir = process.cwd(),
 ): Result<ReconstructedEvent[]> {
 	const dir = getEventsDir(rootDir);

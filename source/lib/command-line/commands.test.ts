@@ -14,7 +14,7 @@ vi.mock('../../event/event-persist.js', () => ({
 	resolveActorId: vi.fn(() => ({
 		kind: 'success',
 		message: 'Resolved actor id',
-		data: 'jlarb8',
+		data: {userId: '0001', userName: 'jola'},
 	})),
 }));
 
@@ -123,7 +123,8 @@ describe('TagTicket command', () => {
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			id: 'tag-issue-event-id',
-			userId: 'jlarb8',
+			userId: 'jola',
+			userName: '0001',
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
@@ -158,7 +159,8 @@ describe('TagTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
 			id: 'create-tag-event-id',
-			userId: 'jlarb8',
+			userId: 'jola',
+			userName: '0001',
 			action: 'create.tag',
 			payload: {
 				id: 'new-tag-id',
@@ -168,7 +170,8 @@ describe('TagTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
 			id: 'tag-issue-event-id',
-			userId: 'jlarb8',
+			userId: 'jola',
+			userName: '0001',
 			action: 'tag.issue',
 			payload: {
 				id: 'new-tag-assignment-node-id',
@@ -213,7 +216,8 @@ describe('TagTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			id: 'tag-issue-event-id',
-			userId: 'jlarb8',
+			userId: 'jola',
+			userName: '0001',
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
@@ -321,7 +325,8 @@ describe('AssignUserToTicket command', () => {
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			id: 'assign-issue-event-id',
-			userId: 'jlarb8',
+			userId: 'jola',
+			userName: '0001',
 			action: 'assign.issue',
 			payload: {
 				id: 'assignment-node-id',
@@ -356,7 +361,8 @@ describe('AssignUserToTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
 			id: 'create-contributor-event-id',
-			userId: 'jlarb8',
+			userId: 'jola',
+			userName: '0001',
 			action: 'create.contributor',
 			payload: {
 				id: 'new-contributor-id',
@@ -366,7 +372,8 @@ describe('AssignUserToTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
 			id: 'assign-issue-event-id',
-			userId: 'jlarb8',
+			userId: 'jola',
+			userName: '0001',
 			action: 'assign.issue',
 			payload: {
 				id: 'new-assignment-node-id',

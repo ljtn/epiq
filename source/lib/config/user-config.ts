@@ -1,5 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
+import {z} from 'zod';
 import {
 	failed,
 	isFail,
@@ -15,11 +16,15 @@ export const SYSTEM_USER = {
 	preferredEditor: '',
 };
 
-export type EpiqConfig = {
-	preferredEditor?: string;
-	userName?: string;
-	userId?: string;
-};
+const EpiqConfigSchema = z
+	.object({
+		preferredEditor: z.string().optional(),
+		userName: z.string().optional(),
+		userId: z.string().optional(),
+	})
+	.strict();
+
+export type EpiqConfig = z.infer<typeof EpiqConfigSchema>;
 
 const EPIQ_DIR_NAME = '.epiq';
 const CONFIG_FILE_NAME = 'config.json';
@@ -40,12 +45,25 @@ const ensureEpiqHomeExists = (): Result<null> => {
 };
 
 const safeParseConfig = (raw: string): Result<EpiqConfig> => {
+	let parsed: unknown;
+
 	try {
-		const parsed = JSON.parse(raw) as EpiqConfig;
-		return succeeded('Parsed config', parsed ?? {});
+		parsed = JSON.parse(raw);
 	} catch {
 		return failed('Invalid ~/.epiq/config.json JSON');
 	}
+
+	const result = EpiqConfigSchema.safeParse(parsed ?? {});
+
+	if (!result.success) {
+		return failed(
+			`Invalid ~/.epiq/config.json shape: ${result.error.issues
+				.map(issue => issue.path.join('.') || issue.message)
+				.join(', ')}`,
+		);
+	}
+
+	return succeeded('Parsed config', result.data);
 };
 
 export const readEpiqConfig = (): Result<EpiqConfig> => {
@@ -66,10 +84,23 @@ export const writeEpiqConfig = (config: EpiqConfig): Result<null> => {
 	const ensureResult = ensureEpiqHomeExists();
 	if (isFail(ensureResult)) return failed(ensureResult.message);
 
+	const result = EpiqConfigSchema.safeParse(config);
+
+	if (!result.success) {
+		return failed(
+			`Invalid config: ${result.error.issues
+				.map(issue => issue.path.join('.') || issue.message)
+				.join(', ')}`,
+		);
+	}
+
 	const configPath = getEpiqConfigPath();
 
 	try {
-		fileManager.writeToFile(configPath, JSON.stringify(config, null, 2) + '\n');
+		fileManager.writeToFile(
+			configPath,
+			JSON.stringify(result.data, null, 2) + '\n',
+		);
 		return succeeded('Config written', null);
 	} catch {
 		return failed('Unable to write ~/.epiq/config.json');
@@ -107,7 +138,7 @@ export const loadSettingsFromConfig = () => {
 
 	const result = readEpiqConfig();
 	if (isFail(result)) {
-		throw new Error('Unable to load settings');
+		throw new Error(result.message || 'Unable to load settings');
 	}
 
 	const {preferredEditor, userName, userId} = result.data;

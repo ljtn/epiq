@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
+import {z} from 'zod';
 import {getEpiqDirName} from '../init.js';
 import {
 	failed,
@@ -16,6 +17,7 @@ import {
 	StoredAppEvent,
 	stripActor,
 	UserId,
+	UserName,
 } from './event.model.js';
 
 // ======================
@@ -50,6 +52,30 @@ type PersistSuccess = {
 	entry: PersistedEvent;
 };
 
+const CompositeIdSchema = z.tuple([
+	z.string().min(1),
+	z.string().min(1).nullable(),
+]);
+
+export const PersistedEventSchema = z.looseObject({
+	v: z.literal(SCHEMA_VERSION),
+	id: CompositeIdSchema,
+});
+
+export const parsePersistedEvent = (value: unknown): Result<PersistedEvent> => {
+	const result = PersistedEventSchema.safeParse(value);
+
+	if (!result.success) {
+		return failed(
+			`Invalid persisted event: ${result.error.issues
+				.map(issue => issue.path.join('.') || issue.message)
+				.join(', ')}`,
+		);
+	}
+
+	return succeeded('Parsed persisted event', result.data as PersistedEvent);
+};
+
 const sanitizeFilePart = (value: string) =>
 	value
 		.trim()
@@ -57,17 +83,21 @@ const sanitizeFilePart = (value: string) =>
 		.replace(/[^a-z0-9._-]+/g, '-')
 		.replace(/^-+|-+$/g, '') || 'unknown';
 
-export const resolveActorId = (): Result<UserId> => {
+export const resolveActorId = (): Result<{
+	userId: UserId;
+	userName: UserName;
+}> => {
 	const {userName, userId} = getSettingsState();
 	if (!userName) return failed('User name not configured');
 	if (!userId) return failed('User ID not configured');
 
-	const fileName: UserId = `${sanitizeFilePart(userId)}.${sanitizeFilePart(
-		userName,
-	)}`;
 	if (userName.trim()) {
-		return succeeded('Successfully resolved actor ID', fileName);
+		return succeeded('Successfully resolved actor ID', {
+			userId: sanitizeFilePart(userId),
+			userName: sanitizeFilePart(userName),
+		});
 	}
+
 	return failed('Unable to resolve actor ID from settings or OS user info');
 };
 
@@ -104,7 +134,11 @@ export const getPersistFileName = () => {
 	if (isFail(actorIdResult) || !actorIdResult.data) {
 		return failed('Unable to resolve event log path');
 	}
-	return succeeded('Succeeded', `${actorIdResult.data}.jsonl`);
+
+	return succeeded(
+		'Succeeded',
+		`${actorIdResult.data.userId}.${actorIdResult.data.userName}.jsonl`,
+	);
 };
 
 export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
@@ -114,7 +148,6 @@ export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
 	}
 
 	const fileName = fileNameResult.data;
-
 	const isValid = /^(?!.*\.jsonl.*\.jsonl).*\.jsonl$/.test(fileName);
 
 	if (!isValid) {
@@ -130,12 +163,15 @@ export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
 export const toPersistedEvent = (
 	event: StoredAppEvent,
 	id: CompositeId,
-): PersistedEvent =>
-	({
+): Result<PersistedEvent> => {
+	const candidate = {
 		[event.action]: event.payload,
 		v: SCHEMA_VERSION,
 		id,
-	} as unknown as PersistedEvent);
+	};
+
+	return parsePersistedEvent(candidate);
+};
 
 export function persist(event: AppEvent, rootDir = process.cwd()) {
 	try {
@@ -150,6 +186,7 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 		if (isFail(edgeRef)) return failed(edgeRef.message);
 
 		let newId: string;
+
 		if (edgeRef.data) {
 			const edgeTime = decodeTime(edgeRef.data);
 			const nextTime = Math.max(Date.now(), edgeTime + 1);
@@ -158,13 +195,22 @@ export function persist(event: AppEvent, rootDir = process.cwd()) {
 			newId = getNextId();
 		}
 
-		const entry = toPersistedEvent(stripActor(event), [newId, edgeRef.data]);
+		const entryResult = toPersistedEvent(stripActor(event), [
+			newId,
+			edgeRef.data,
+		]);
 
-		fs.appendFileSync(filePath.data, `${JSON.stringify(entry)}\n`, 'utf8');
+		if (isFail(entryResult)) return failed(entryResult.message);
+
+		fs.appendFileSync(
+			filePath.data,
+			`${JSON.stringify(entryResult.data)}\n`,
+			'utf8',
+		);
 
 		return succeeded<PersistSuccess>('Event persisted', {
 			path: filePath.data,
-			entry,
+			entry: entryResult.data,
 		});
 	} catch (error) {
 		const message =

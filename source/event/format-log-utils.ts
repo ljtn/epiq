@@ -5,7 +5,7 @@ import {getState} from '../lib/state/state.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {timeAgo} from './date-utils.js';
-import {AppEvent, EventAction, UserId} from './event.model.js';
+import {AppEvent, EventAction, UserName} from './event.model.js';
 
 const padVisibleEnd = (value: string, width: number): string =>
 	value + ' '.repeat(Math.max(0, width - stringWidth(value)));
@@ -98,14 +98,13 @@ const formatLogTime = (id: string): string => {
 
 const USER_COL_WIDTH = 12;
 
-const formatUser = (userId: UserId): string => {
-	const userName = userId.split('.')[1] ?? 'unknown';
+const formatUser = (userName: UserName): string => {
 	return padVisibleEnd(`${userName}`, USER_COL_WIDTH);
 };
 
 export const formatLogLine = (event: AppEvent): string => {
 	const time = formatLogTime(event.id);
-	const user = formatUser(event.userId);
+	const user = formatUser(event.userName);
 	const action = formatLogAction(event.action);
 	const details = formatEventDetails(event);
 	const bullet = chalk.dim('›');

@@ -425,7 +425,8 @@ export function materialize<A extends EventAction>(
 		}
 	}
 
-	const [id, name] = event.userId.split('.');
+	const id = event.userId;
+	const name = event.userName;
 	if (!id?.length || !name?.length) {
 		return materializeFail('Invalid user ID format', event.action);
 	}

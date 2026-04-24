@@ -35,7 +35,8 @@
 		"meow": "^14.1.0",
 		"react": "^19.2.4",
 		"string-width": "^8.2.0",
-		"ulid": "^3.0.2"
+		"ulid": "^3.0.2",
+		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"@sindresorhus/tsconfig": "^3.0.1",

@@ -13,7 +13,8 @@ import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
 
-const SYSTEM_ACTOR_ID = `system.actor` as const;
+const SYSTEM_ACTOR_ID = `system` as const;
+const SYSTEM_ACTOR_NAME = `ACTOR` as const;
 
 const nextId = monotonicFactory();
 
@@ -78,42 +79,49 @@ export function createDefaultEvents(): readonly AppEvent[] {
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'init.workspace',
 			payload: {id: workspaceId, name: 'Workspace'},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.board',
 			payload: {id: boardId, name: 'Default', parent: workspaceId},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
 			payload: {id: swimlaneId1, name: 'Todo', parent: boardId},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
 			payload: {id: swimlaneId2, name: 'Review', parent: boardId},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
 			payload: {id: swimlaneId3, name: 'Done', parent: boardId},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.board',
 			payload: {id: CLOSED_BOARD_ID, name: 'Closed', parent: workspaceId},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
 			payload: {
 				id: CLOSED_SWIMLANE_ID,
@@ -124,12 +132,14 @@ export function createDefaultEvents(): readonly AppEvent[] {
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'lock.node',
 			payload: {id: CLOSED_BOARD_ID},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
+			userName: SYSTEM_ACTOR_NAME,
 			action: 'lock.node',
 			payload: {id: CLOSED_SWIMLANE_ID},
 		},
