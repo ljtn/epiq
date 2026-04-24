@@ -30,7 +30,7 @@ const EVENTS_DIR = 'events';
 
 type Id = string;
 type RefId = string;
-export type EventTag = [Id, RefId | null];
+export type CompositeId = [Id, RefId | null];
 
 type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
@@ -38,7 +38,7 @@ type PersistedPayloadMap = {
 
 export type PersistedEvent = {
 	v: 1;
-	id: EventTag;
+	id: CompositeId;
 } & {
 	[K in keyof PersistedPayloadMap]: {
 		[P in K]: PersistedPayloadMap[P];
@@ -129,7 +129,7 @@ export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
 
 export const toPersistedEvent = (
 	event: StoredAppEvent,
-	id: EventTag,
+	id: CompositeId,
 ): PersistedEvent =>
 	({
 		[event.action]: event.payload,

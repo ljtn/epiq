@@ -76,10 +76,38 @@ export const fromPersistedEvent = (
 	} as AppEvent);
 };
 
+export function parsePersistedEventsFile(
+	filePath: string,
+): Result<ReconstructedEvent[]> {
+	const content = fs.readFileSync(filePath, 'utf8');
+	const userId = path.basename(filePath, '.jsonl') || 'unknown';
+
+	const entries: ReconstructedEvent[] = [];
+
+	for (const line of content.split('\n')) {
+		const trimmed = line.trim();
+		if (!trimmed) continue;
+
+		try {
+			const parsed = JSON.parse(trimmed) as PersistedEvent;
+
+			entries.push({
+				...parsed,
+				userId,
+			});
+		} catch {
+			return failed(`Failed to parse event from ${filePath}: ${trimmed}`);
+		}
+	}
+
+	return succeeded('Events loaded', entries);
+}
+
 export function loadAllPersistedEvents(
 	rootDir = process.cwd(),
 ): Result<ReconstructedEvent[]> {
 	const dir = getEventsDir(rootDir);
+
 	if (!fs.existsSync(dir)) {
 		return failed('No events found');
 	}
@@ -92,23 +120,13 @@ export function loadAllPersistedEvents(
 	const entries: ReconstructedEvent[] = [];
 
 	for (const filePath of files) {
-		const content = fs.readFileSync(filePath, 'utf8');
-		const userId = path.basename(filePath, '.jsonl') || 'unknown';
+		const result = parsePersistedEventsFile(filePath);
 
-		for (const line of content.split('\n')) {
-			const trimmed = line.trim();
-			if (!trimmed) continue;
-
-			try {
-				const parsed = JSON.parse(trimmed) as PersistedEvent;
-				entries.push({
-					...parsed,
-					userId,
-				});
-			} catch {
-				return failed(`Failed to parse event from line: ${trimmed}`);
-			}
+		if (isFail(result)) {
+			return failed(result.message);
 		}
+
+		entries.push(...result.data);
 	}
 
 	return succeeded('All events loaded', getSortedEvents(entries));

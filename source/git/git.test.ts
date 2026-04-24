@@ -4,7 +4,7 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {isFail} from '../lib/command-line/command-types.js';
 import {execGit} from './git-utils.js';
-import {syncEpiqFromRemote, syncEpiqWithRemote} from './git.js';
+import {syncEpiqFromRemote, syncEpiqWithRemote} from './sync.js';
 
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
