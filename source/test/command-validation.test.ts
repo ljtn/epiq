@@ -1,9 +1,9 @@
 import {describe, expect, it, vi} from 'vitest';
-import {getCmdModifiers} from '../command-modifiers.js';
-import {CmdKeywords, cmdValidity} from '../command-types.js';
-import {cmdValidation} from '../command-validation.js';
+import {CmdKeywords, cmdValidity} from '../lib/command-line/command-types.js';
+import {getCmdModifiers} from '../lib/command-line/command-modifiers.js';
+import {cmdValidation} from '../lib/command-line/command-validation.js';
 
-vi.mock('../command-modifiers.js', () => ({
+vi.mock('../lib/command-line/command-modifiers.js', () => ({
 	getCmdModifiers: (keyword: string) => {
 		const m: Record<string, string[]> = {
 			[CmdKeywords.DELETE]: ['confirm'],
@@ -18,7 +18,7 @@ vi.mock('../command-modifiers.js', () => ({
 	},
 }));
 
-vi.mock('../../state/state.js', () => ({
+vi.mock('../lib/state/state.js', () => ({
 	getState: () => ({
 		contributors: {
 			'user-1': {id: 'user-1', name: 'john'},

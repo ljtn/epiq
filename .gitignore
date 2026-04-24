@@ -7,3 +7,4 @@ epiq.log
 .archive
 epiq-*.tgz
 .DS_Store
+coverage

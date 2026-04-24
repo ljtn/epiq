@@ -25,7 +25,7 @@ import {
 } from './git-utils.js';
 import {mergeEventFile} from './merge.js';
 
-export const REMOTE_BRANCH = 'epiq-state-5';
+export const REMOTE_BRANCH = 'epiq/events';
 export const DEFAULT_REMOTE = 'origin';
 
 const EPIQ_DIR = getEpiqDirName();

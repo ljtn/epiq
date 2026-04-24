@@ -20,8 +20,18 @@ const getEventTime = (event: Pick<PersistedEvent, 'id'>): number => {
 	return decodeTime(id);
 };
 
+const toPersistedEventOnly = (event: PersistedEvent): PersistedEvent => {
+	const {userId, userName, ...persistedEvent} = event as PersistedEvent & {
+		userId?: string;
+		userName?: string;
+	};
+
+	return persistedEvent;
+};
+
 const serializePersistedEvents = (events: PersistedEvent[]): string =>
-	events.map(event => JSON.stringify(event)).join('\n') + '\n';
+	events.map(event => JSON.stringify(toPersistedEventOnly(event))).join('\n') +
+	'\n';
 
 const mergePersistedEvents = (
 	localEvents: PersistedEvent[],

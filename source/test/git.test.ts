@@ -3,8 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {isFail} from '../lib/command-line/command-types.js';
-import {execGit} from './git-utils.js';
-import {syncEpiqFromRemote, syncEpiqWithRemote} from './sync.js';
+import {execGit} from '../git/git-utils.js';
+import {syncEpiqFromRemote, syncEpiqWithRemote} from '../git/sync.js';
+import {REMOTE_BRANCH} from '../git/git.js';
 
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
@@ -14,6 +15,13 @@ const makeTempDir = (): string => {
 	tempDirs.push(dir);
 	return dir;
 };
+
+const eventLine = (id: string, ref: string | null = null): string =>
+	JSON.stringify({
+		v: 1,
+		id: [id, ref],
+		'lock.node': {},
+	}) + '\n';
 
 const initBareRepo = async (remoteRoot: string): Promise<void> => {
 	const initResult = await execGit({
@@ -179,7 +187,7 @@ describe('sync', () => {
 
 		const ownFileName = 'u1.alice.jsonl';
 		const ownFilePath = getEventsFile({repoRoot, fileName: ownFileName});
-		writeFile(ownFilePath, '{"id":"e1"}\n');
+		writeFile(ownFilePath, eventLine('01H00000000000000000000001'));
 
 		const syncResult = await syncEpiqWithRemote({
 			cwd: repoRoot,
@@ -197,7 +205,7 @@ describe('sync', () => {
 		await cloneRepo({remoteRoot, cloneRoot: verifyClone});
 
 		const checkoutStateBranch = await execGit({
-			args: ['checkout', 'epiq-state-5'],
+			args: ['checkout', REMOTE_BRANCH],
 			cwd: verifyClone,
 		});
 		if (isFail(checkoutStateBranch))
@@ -208,7 +216,9 @@ describe('sync', () => {
 			fileName: ownFileName,
 		});
 		expect(fs.existsSync(remoteEventFile)).toBe(true);
-		expect(readFile(remoteEventFile)).toBe('{"id":"e1"}\n');
+		expect(readFile(remoteEventFile)).toBe(
+			eventLine('01H00000000000000000000001'),
+		);
 	});
 
 	it('readonly sync hydrates another users event file from remote state branch', async () => {
@@ -238,7 +248,7 @@ describe('sync', () => {
 			repoRoot: repoA,
 			fileName: 'u1.alice.jsonl',
 		});
-		writeFile(aliceFile, '{"id":"e1"}\n');
+		writeFile(aliceFile, eventLine('01H00000000000000000000001'));
 
 		const syncWriteResult = await syncEpiqWithRemote({
 			cwd: repoA,
@@ -254,7 +264,9 @@ describe('sync', () => {
 			fileName: 'u1.alice.jsonl',
 		});
 		expect(fs.existsSync(hydratedFile)).toBe(true);
-		expect(readFile(hydratedFile)).toBe('{"id":"e1"}\n');
+		expect(readFile(hydratedFile)).toBe(
+			eventLine('01H00000000000000000000001'),
+		);
 	});
 
 	it('write sync hydrates other users files without overwriting own local file', async () => {
@@ -280,7 +292,7 @@ describe('sync', () => {
 		const aliceFileName = 'u1.alice.jsonl';
 		writeFile(
 			getEventsFile({repoRoot: repoA, fileName: aliceFileName}),
-			'{"id":"alice-1"}\n',
+			eventLine('01H00000000000000000000002'),
 		);
 
 		const firstSync = await syncEpiqWithRemote({
@@ -297,7 +309,7 @@ describe('sync', () => {
 			repoRoot: repoB,
 			fileName: bobFileName,
 		});
-		writeFile(bobLocalPath, '{"id":"bob-local"}\n');
+		writeFile(bobLocalPath, eventLine('01H00000000000000000000003'));
 
 		const secondSync = await syncEpiqWithRemote({
 			cwd: repoB,
@@ -305,14 +317,18 @@ describe('sync', () => {
 		});
 		if (isFail(secondSync)) throw new Error(secondSync.message);
 
-		expect(readFile(bobLocalPath)).toBe('{"id":"bob-local"}\n');
+		expect(readFile(bobLocalPath)).toBe(
+			eventLine('01H00000000000000000000003'),
+		);
 
 		const aliceHydratedPath = getEventsFile({
 			repoRoot: repoB,
 			fileName: aliceFileName,
 		});
 		expect(fs.existsSync(aliceHydratedPath)).toBe(true);
-		expect(readFile(aliceHydratedPath)).toBe('{"id":"alice-1"}\n');
+		expect(readFile(aliceHydratedPath)).toBe(
+			eventLine('01H00000000000000000000002'),
+		);
 	});
 
 	it('write sync is a no-op for own file when remote worktree already matches', async () => {
@@ -338,7 +354,7 @@ describe('sync', () => {
 		const ownEventFileName = 'u1.alice.jsonl';
 		writeFile(
 			getEventsFile({repoRoot, fileName: ownEventFileName}),
-			'{"id":"e1"}\n',
+			eventLine('01H00000000000000000000001'),
 		);
 
 		const firstSync = await syncEpiqWithRemote({

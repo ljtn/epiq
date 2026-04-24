@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import util from 'util';
 import {resolveEpiqRoot} from './event/event-persist.js';
-import {getEpiqDirName, isLocal} from './init.js';
+import {getEpiqDirName, isTesting} from './init.js';
 
 const MAX_LINES = 1000;
 
@@ -10,7 +10,7 @@ const getLogPath = (rootDir = process.cwd()) =>
 	path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), 'log', 'epiq.log');
 
 function enforceLogHorizon(rootDir = process.cwd()) {
-	if (!isLocal) return;
+	if (!isTesting) return;
 
 	const logPath = getLogPath(rootDir);
 	if (!fs.existsSync(logPath)) return;
@@ -34,7 +34,7 @@ function write(
 	short = false,
 	rootDir = process.cwd(),
 ) {
-	if (!isLocal) return;
+	if (!isTesting) return;
 
 	const logPath = getLogPath(rootDir);
 	const message = util.format(...args);

@@ -11,13 +11,14 @@ import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
 
-meow(
-	`
-  View board in directory:
-  $ epiq
+import chalk from 'chalk';
 
-  Init project in directory:
-  $ epiq --init "Project Name"
+meow(
+	`${chalk.bold('Epiq CLI')}
+
+${chalk.dim('Boot in directory:')}
+  ${chalk.cyan('$ epiq')}
+
 `,
 	{
 		importMeta: import.meta,

@@ -12,7 +12,7 @@ import {
 	hasUpstream,
 	isDetachedHead,
 	pullBranchRebaseIfPresent,
-} from './git-utils.js';
+} from '../git/git-utils.js';
 import {isFail} from '../lib/command-line/command-types.js';
 
 const tempDirs: string[] = [];
