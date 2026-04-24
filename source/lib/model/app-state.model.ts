@@ -38,16 +38,17 @@ export type SyncStatus = {
 };
 
 export type AppState = {
+	selectedIndex: number;
+	selectedNode: NavNode<AnyContext> | null;
+	currentNodeId: string | null;
+	currentNode: NavNode<AnyContext>;
 	filters: Filter[];
 	contributors: Record<string, Contributor>;
 	tags: Record<string, Tag>;
-	selectedIndex: number;
-	currentNodeId: string | null;
 	mode: ModeUnion;
 	availableActions: ActionEntry[];
 	actionIndex: ActionIndex;
 	availableHints: string[];
-	currentNode: NavNode<AnyContext>;
 	breadCrumb: BreadCrumb;
 	rootNodeId: string;
 	nodes: Record<string, NavNode<AnyContext>>;

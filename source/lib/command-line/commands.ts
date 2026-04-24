@@ -37,6 +37,7 @@ import {
 	failed,
 	isFail,
 	noResult,
+	Result,
 	succeeded,
 } from './command-types.js';
 import {syncEpiqWithRemote} from '../../git/git.js';
@@ -807,18 +808,3 @@ export const commands: CommandLineActionEntry[] = [
 		},
 	},
 ];
-function updateSelectedNodeState(targetId: string) {
-	const movedNodeId = pendingMoveState.payload.id;
-	const movedNode = getState().nodes[movedNodeId];
-
-	if (movedNode?.parentNodeId) {
-		const parent = getState().nodes[movedNode.parentNodeId];
-		const selectedIndex = getRenderedChildren(movedNode.parentNodeId).findIndex(
-			x => x.id === movedNodeId,
-		);
-
-		if (parent && selectedIndex !== -1) {
-			navigationUtils.navigate({currentNode: parent, selectedIndex});
-		}
-	}
-}

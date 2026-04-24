@@ -26,7 +26,8 @@ type DerivedKeys =
 	| 'actionIndex'
 	| 'availableHints'
 	| 'breadCrumb'
-	| 'currentNode';
+	| 'currentNode'
+	| 'selectedNode';
 export type BaseState = Omit<AppState, DerivedKeys>;
 
 // -----------------------------
@@ -84,6 +85,10 @@ function derive(state: BaseState): Result<AppState> {
 	];
 	const actionIndex = buildActionIndex(availableActions);
 
+	const renderedChildrenIndex = buildChildIndex(nodes, filters);
+	const selectedNode =
+		renderedChildrenIndex[currentNodeId]?.[state.selectedIndex] ?? null;
+
 	return succeeded('Derived successfully', {
 		...state,
 		currentNode,
@@ -91,7 +96,8 @@ function derive(state: BaseState): Result<AppState> {
 		availableHints,
 		availableActions,
 		actionIndex,
-		renderedChildrenIndex: buildChildIndex(nodes, filters),
+		selectedNode,
+		renderedChildrenIndex,
 	});
 }
 

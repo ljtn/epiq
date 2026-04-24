@@ -97,15 +97,15 @@ const getEventsFile = ({
 }): string => path.join(repoRoot, '.epiq', 'events', fileName);
 
 beforeEach(() => {
-	originalHome = process.env.HOME;
-	process.env.HOME = makeTempDir();
+	originalHome = process.env['HOME'];
+	process.env['HOME'] = makeTempDir();
 });
 
 afterEach(() => {
 	if (originalHome === undefined) {
-		delete process.env.HOME;
+		delete process.env['HOME'];
 	} else {
-		process.env.HOME = originalHome;
+		process.env['HOME'] = originalHome;
 	}
 
 	for (const dir of tempDirs.splice(0)) {
