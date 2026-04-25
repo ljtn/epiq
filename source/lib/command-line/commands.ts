@@ -814,22 +814,6 @@ export const commands: CommandLineActionEntry[] = [
 				hasPendingDefaultEvents(),
 			);
 
-			const fileNameResult = getPersistFileName();
-			logger.debug('[sync-command] persist file name', fileNameResult);
-
-			const localFile = !isFail(fileNameResult)
-				? getEventFilePath({root: process.cwd(), fileName: fileNameResult.data})
-				: null;
-
-			logger.debug('[sync-command] local event file before sync', {
-				localFile,
-				exists: localFile ? fs.existsSync(localFile) : false,
-				size:
-					localFile && fs.existsSync(localFile)
-						? fs.statSync(localFile).size
-						: 0,
-			});
-
 			const syncResult = await syncEpiqWithRemote({
 				ownEventFileName: persistFileName.data,
 			});

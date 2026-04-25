@@ -4,6 +4,22 @@
 	"license": "UNLICENSED",
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",
+	"keywords": [
+		"issue-tracker",
+		"task-manager",
+		"productivity",
+		"project-management",
+		"kanban",
+		"terminal",
+		"git",
+		"tui",
+		"commandline",
+		"offline-first",
+		"git-based",
+		"local-first",
+		"developer-tools",
+		"vim-inspired"
+	],
 	"bin": {
 		"epiq": "dist/cli.js"
 	},

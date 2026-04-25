@@ -1,4 +1,4 @@
-> ⓘ First stable release scheduled for end of April
+> ⓘ First stable release scheduled for end of April 2026
 
 # Epiq
 
