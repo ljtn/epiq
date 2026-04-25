@@ -105,7 +105,6 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 				CmdKeywords.SET_EDITOR,
 				CmdKeywords.SET_USERNAME,
 			],
-			[CmdKeywords.SYNC]: modifiers[CmdKeywords.SYNC],
 			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
 			[CmdKeywords.SET_EDITOR]: modifiers[CmdKeywords.SET_EDITOR],
 			[CmdKeywords.SET_USERNAME]: modifiers[CmdKeywords.SET_USERNAME],

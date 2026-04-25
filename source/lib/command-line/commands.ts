@@ -1,7 +1,11 @@
+import fs from 'fs';
 import {ulid} from 'ulid';
 import {openEditorOnText} from '../../editor/editor.js';
 import {createIssueEvents} from '../../event/common-events.js';
-import {persistPendingDefaultEvents} from '../../event/event-boot.js';
+import {
+	hasPendingDefaultEvents,
+	persistPendingDefaultEvents,
+} from '../../event/event-boot.js';
 import {
 	materializeAndPersist,
 	materializeAndPersistAll,
@@ -43,6 +47,7 @@ import {
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {materializeAll} from '../../event/event-materialize.js';
 import {loadMergedEvents} from '../../event/event-load.js';
+import {getEventFilePath} from '../../git/git.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -778,22 +783,57 @@ export const commands: CommandLineActionEntry[] = [
 		mode: Mode.COMMAND_LINE,
 		action: async () => {
 			setCmdInput(() => '');
+
 			patchState({
 				syncStatus: {
 					msg: 'Syncing',
 					status: 'syncing',
 				},
-				// mode: Mode.DEFAULT,
 			});
+
 			const {userId, userName} = getSettingsState();
 			if (!userId) return failed('Unable to resolve userId');
 			if (!userName) return failed('Unable to resolve userName');
+
+			const persistDefaultsResult = hasPendingDefaultEvents()
+				? persistPendingDefaultEvents()
+				: succeeded('No pending default events', null);
+
+			if (isFail(persistDefaultsResult)) {
+				return failed(
+					`Unable to persist default events. ${persistDefaultsResult.message}`,
+				);
+			}
+
 			const persistFileName = getPersistFileName();
-			if (isFail(persistFileName))
+			if (isFail(persistFileName)) {
 				return failed('Unable to resolve log file name');
+			}
+			logger.debug(
+				'[sync-command] pending defaults',
+				hasPendingDefaultEvents(),
+			);
+
+			const fileNameResult = getPersistFileName();
+			logger.debug('[sync-command] persist file name', fileNameResult);
+
+			const localFile = !isFail(fileNameResult)
+				? getEventFilePath({root: process.cwd(), fileName: fileNameResult.data})
+				: null;
+
+			logger.debug('[sync-command] local event file before sync', {
+				localFile,
+				exists: localFile ? fs.existsSync(localFile) : false,
+				size:
+					localFile && fs.existsSync(localFile)
+						? fs.statSync(localFile).size
+						: 0,
+			});
+
 			const syncResult = await syncEpiqWithRemote({
 				ownEventFileName: persistFileName.data,
 			});
+
 			if (isFail(syncResult)) {
 				patchState({
 					syncStatus: {
@@ -801,6 +841,7 @@ export const commands: CommandLineActionEntry[] = [
 						status: 'outOfSync',
 					},
 				});
+
 				return failed(`Unable to sync state. ${syncResult.message}`);
 			}
 
@@ -812,10 +853,9 @@ export const commands: CommandLineActionEntry[] = [
 				mode: Mode.DEFAULT,
 			});
 
-			// Now load all synced events.
-			// Note: We should probably look into if we can find a way to not replay from beginning
 			const allLoadedEventsResult = loadMergedEvents();
 			if (isFail(allLoadedEventsResult)) return failed('Unable to load events');
+
 			materializeAll(allLoadedEventsResult.data);
 
 			return succeeded('Synced', true);

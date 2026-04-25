@@ -196,7 +196,7 @@ describe('git-utils', () => {
 		}
 	});
 
-	it('pullBranchRebaseIfPresent returns false when no upstream is configured', async () => {
+	it('pullBranchRebaseIfPresent fails when remote is missing', async () => {
 		const repoRoot = makeTempDir();
 		await initRepo(repoRoot);
 		await commitFile({
@@ -206,21 +206,15 @@ describe('git-utils', () => {
 			message: 'initial',
 		});
 
-		const upstreamResult = await hasUpstream(repoRoot);
-		expect(isFail(upstreamResult)).toBe(false);
-		if (!isFail(upstreamResult)) {
-			expect(upstreamResult.data).toBe(false);
-		}
-
 		const pullResult = await pullBranchRebaseIfPresent({
 			cwd: repoRoot,
 			remote: 'origin',
 			branch: 'main',
 		});
 
-		expect(isFail(pullResult)).toBe(false);
-		if (!isFail(pullResult)) {
-			expect(pullResult.data).toBe(false);
+		expect(isFail(pullResult)).toBe(true);
+		if (isFail(pullResult)) {
+			expect(pullResult.message).toContain('origin');
 		}
 	});
 

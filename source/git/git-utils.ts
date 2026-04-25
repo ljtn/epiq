@@ -8,6 +8,7 @@ import {
 	succeeded,
 } from '../lib/command-line/command-types.js';
 import {memoizeResult} from '../lib/utils/memoize.js';
+import {logger} from '../logger.js';
 
 export type GitExecResult = {
 	stdout: string;
@@ -15,25 +16,68 @@ export type GitExecResult = {
 	exitCode: number;
 };
 
-export const execGit = ({
+const GIT_TIMEOUT_MS = 15_000;
+
+const gitEnv = {
+	...process.env,
+	GIT_TERMINAL_PROMPT: '0',
+	GIT_ASKPASS: 'echo',
+};
+
+const runGit = ({
 	args,
 	cwd,
+	allowFail,
 }: {
 	args: string[];
 	cwd: string;
-}): Promise<Result<GitExecResult>> =>
+	allowFail: boolean;
+}): Promise<Result<GitExecResult> | GitExecResult> =>
 	new Promise(resolve => {
 		if (!fs.existsSync(cwd)) {
-			return resolve(failed(`Git cwd does not exist: ${cwd}`));
+			const message = `Git cwd does not exist: ${cwd}`;
+
+			if (allowFail) {
+				resolve({stdout: '', stderr: message, exitCode: 1});
+				return;
+			}
+
+			resolve(failed(message));
+			return;
 		}
 
 		const child = spawn('git', args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
+			env: gitEnv,
 		});
 
+		let settled = false;
 		let stdout = '';
 		let stderr = '';
+
+		const finish = (value: Result<GitExecResult> | GitExecResult) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			resolve(value);
+		};
+
+		const timeout = setTimeout(() => {
+			child.kill('SIGTERM');
+
+			const message = [
+				`git ${args.join(' ')}`,
+				`cwd=${cwd}`,
+				`Git command timed out after ${GIT_TIMEOUT_MS}ms`,
+			].join('\n');
+
+			if (allowFail) {
+				finish({stdout, stderr: message, exitCode: 124});
+			} else {
+				finish(failed(message));
+			}
+		}, GIT_TIMEOUT_MS);
 
 		child.stdout.setEncoding('utf8');
 		child.stderr.setEncoding('utf8');
@@ -47,7 +91,12 @@ export const execGit = ({
 		});
 
 		child.on('error', err => {
-			resolve(
+			if (allowFail) {
+				finish({stdout, stderr: err.message, exitCode: 1});
+				return;
+			}
+
+			finish(
 				failed([`git ${args.join(' ')}`, `cwd=${cwd}`, err.message].join('\n')),
 			);
 		});
@@ -55,8 +104,13 @@ export const execGit = ({
 		child.on('close', code => {
 			const exitCode = code ?? 1;
 
+			if (allowFail) {
+				finish({stdout, stderr, exitCode});
+				return;
+			}
+
 			if (exitCode !== 0) {
-				resolve(
+				finish(
 					failed(
 						[
 							`git ${args.join(' ')}`,
@@ -69,7 +123,7 @@ export const execGit = ({
 				return;
 			}
 
-			resolve(
+			finish(
 				succeeded('Git command succeeded', {
 					stdout,
 					stderr,
@@ -79,6 +133,15 @@ export const execGit = ({
 		});
 	});
 
+export const execGit = ({
+	args,
+	cwd,
+}: {
+	args: string[];
+	cwd: string;
+}): Promise<Result<GitExecResult>> =>
+	runGit({args, cwd, allowFail: false}) as Promise<Result<GitExecResult>>;
+
 export const execGitAllowFail = ({
 	args,
 	cwd,
@@ -86,50 +149,7 @@ export const execGitAllowFail = ({
 	args: string[];
 	cwd: string;
 }): Promise<GitExecResult> =>
-	new Promise(resolve => {
-		if (!fs.existsSync(cwd)) {
-			return resolve({
-				stdout: '',
-				stderr: `Git cwd does not exist: ${cwd}`,
-				exitCode: 1,
-			});
-		}
-
-		const child = spawn('git', args, {
-			cwd,
-			stdio: ['ignore', 'pipe', 'pipe'],
-		});
-
-		let stdout = '';
-		let stderr = '';
-
-		child.stdout.setEncoding('utf8');
-		child.stderr.setEncoding('utf8');
-
-		child.stdout.on('data', chunk => {
-			stdout += chunk;
-		});
-
-		child.stderr.on('data', chunk => {
-			stderr += chunk;
-		});
-
-		child.on('error', err => {
-			resolve({
-				stdout,
-				stderr: err.message,
-				exitCode: 1,
-			});
-		});
-
-		child.on('close', code => {
-			resolve({
-				stdout,
-				stderr,
-				exitCode: code ?? 1,
-			});
-		});
-	});
+	runGit({args, cwd, allowFail: true}) as Promise<GitExecResult>;
 
 export const getRepoRoot = memoizeResult(
 	async (cwd = process.cwd()): Promise<Result<string>> => {
@@ -138,12 +158,7 @@ export const getRepoRoot = memoizeResult(
 			cwd,
 		});
 
-		if (isFail(result)) {
-			return failed('Not inside a Git repository');
-		}
-		if (!result.data) {
-			return failed('Git command returned no repo root');
-		}
+		if (isFail(result)) return failed('Not inside a Git repository');
 
 		return succeeded('Resolved repo root', result.data.stdout.trim());
 	},
@@ -157,12 +172,7 @@ export const getGitDir = memoizeResult(
 			cwd: repoRoot,
 		});
 
-		if (isFail(result)) {
-			return failed(result.message);
-		}
-		if (!result.data) {
-			return failed('Git command returned no git dir');
-		}
+		if (isFail(result)) return failed(result.message);
 
 		const gitDir = result.data.stdout.trim();
 		const resolved = path.isAbsolute(gitDir)
@@ -185,6 +195,7 @@ export const commitAndGetSha = async ({
 		args: ['commit', '-m', message],
 		cwd,
 	});
+
 	if (isFail(commitResult)) {
 		return failed(`Failed to create commit\n${commitResult.message}`);
 	}
@@ -193,6 +204,7 @@ export const commitAndGetSha = async ({
 		args: ['rev-parse', 'HEAD'],
 		cwd,
 	});
+
 	if (isFail(shaResult)) {
 		return failed(
 			`Commit created, but failed to read HEAD SHA\n${shaResult.message}`,
@@ -209,12 +221,7 @@ export const hasInProgressGitOperation = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
 	const gitDirResult = await getGitDir(repoRoot);
-	if (isFail(gitDirResult)) {
-		return failed(gitDirResult.message);
-	}
-	if (!gitDirResult.data) {
-		return failed('Git dir result missing data');
-	}
+	if (isFail(gitDirResult)) return failed(gitDirResult.message);
 
 	const gitDir = gitDirResult.data;
 	const markers = [
@@ -222,8 +229,8 @@ export const hasInProgressGitOperation = async (
 		'CHERRY_PICK_HEAD',
 		'REVERT_HEAD',
 		'REBASE_HEAD',
-		path.join('rebase-merge'),
-		path.join('rebase-apply'),
+		'rebase-merge',
+		'rebase-apply',
 	];
 
 	const activeMarkers = markers.filter(marker =>
@@ -313,12 +320,7 @@ export const hasWorktree = async ({
 		cwd: repoRoot,
 	});
 
-	if (isFail(result)) {
-		return failed(result.message);
-	}
-	if (!result.data) {
-		return failed('Git command returned no worktree data');
-	}
+	if (isFail(result)) return failed(result.message);
 
 	const normalized = normalizeExistingPath(worktreeRoot);
 	const exists = result.data.stdout
@@ -353,12 +355,7 @@ export const getCurrentBranchName = async (
 		cwd: repoRoot,
 	});
 
-	if (isFail(result)) {
-		return failed(result.message);
-	}
-	if (!result.data) {
-		return failed('Git command returned no branch name');
-	}
+	if (isFail(result)) return failed(result.message);
 
 	return succeeded('Resolved current branch', result.data.stdout.trim());
 };
@@ -371,12 +368,7 @@ export const getShortHeadSha = async (
 		cwd: repoRoot,
 	});
 
-	if (isFail(result)) {
-		return failed(result.message);
-	}
-	if (!result.data) {
-		return failed('Git command returned no short sha');
-	}
+	if (isFail(result)) return failed(result.message);
 
 	return succeeded('Resolved short HEAD sha', result.data.stdout.trim());
 };
@@ -395,49 +387,56 @@ export const pullBranchRebaseIfPresent = async ({
 	remote: string;
 	branch: string;
 }): Promise<Result<boolean>> => {
-	const upstreamResult = await hasUpstream(cwd);
-	if (isFail(upstreamResult)) {
-		return failed(upstreamResult.message);
-	}
-	if (!upstreamResult.data) {
-		return succeeded('No upstream configured, skipped pull', false);
-	}
-
 	const remoteBranchResult = await hasRemoteBranch({
 		repoRoot: cwd,
 		remote,
 		branch,
 	});
-	if (isFail(remoteBranchResult)) {
-		return failed(remoteBranchResult.message);
-	}
+
+	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
 	if (!remoteBranchResult.data) {
 		return succeeded('Remote branch missing, skipped pull', false);
 	}
 
+	logger.debug('[git] fetch start', {cwd, remote, branch});
 	const fetchResult = await execGit({
 		args: ['fetch', remote, branch],
 		cwd,
 	});
+	logger.debug('[git] fetch done', fetchResult);
+
 	if (isFail(fetchResult)) {
 		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
 	}
-	if (!fetchResult.data) {
-		return failed('Git command returned no fetch result data');
-	}
 
+	logger.debug('[git] pull start', {cwd, remote, branch});
 	const pullResult = await execGit({
-		args: ['pull', '--rebase'],
+		args: ['pull', '--rebase', remote, branch],
 		cwd,
 	});
+	logger.debug('[git] pull done', pullResult);
+
 	if (isFail(pullResult)) {
 		return failed(`Failed during pull --rebase\n${pullResult.message}`);
 	}
-	if (!pullResult.data) {
-		return failed('Git command returned no pull result data');
-	}
 
 	return succeeded('Pulled with rebase', true);
+};
+
+export const hasRemoteWorktreeChanges = async (
+	worktreeRoot: string,
+): Promise<Result<boolean>> => {
+	const result = await execGit({
+		args: ['status', '--porcelain'],
+		cwd: worktreeRoot,
+	});
+
+	if (isFail(result)) return failed(result.message);
+
+	return succeeded(
+		'Checked remote worktree changes',
+		result.data.stdout.trim().length > 0,
+	);
 };
 
 export const isDetachedHead = async (

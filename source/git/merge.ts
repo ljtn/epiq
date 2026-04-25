@@ -1,6 +1,7 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import {decodeTime} from 'ulid';
+import {parsePersistedEventsFile} from '../event/event-load.js';
 import {PersistedEvent} from '../event/event-persist.js';
 import {
 	failed,
@@ -8,7 +9,6 @@ import {
 	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
-import {parsePersistedEventsFile} from '../event/event-load.js';
 
 const getCompositeEventKey = (event: Pick<PersistedEvent, 'id'>): string => {
 	const [id, refId] = event.id;
@@ -30,16 +30,19 @@ const toPersistedEventOnly = (event: PersistedEvent): PersistedEvent => {
 };
 
 const serializePersistedEvents = (events: PersistedEvent[]): string =>
-	events.map(event => JSON.stringify(toPersistedEventOnly(event))).join('\n') +
-	'\n';
+	events.length === 0
+		? ''
+		: events
+				.map(event => JSON.stringify(toPersistedEventOnly(event)))
+				.join('\n') + '\n';
 
-const mergePersistedEvents = (
-	localEvents: PersistedEvent[],
-	remoteEvents: PersistedEvent[],
+export const mergePersistedEvents = (
+	targetEvents: PersistedEvent[],
+	sourceEvents: PersistedEvent[],
 ): PersistedEvent[] => {
 	const byId = new Map<string, PersistedEvent>();
 
-	for (const event of [...remoteEvents, ...localEvents]) {
+	for (const event of [...sourceEvents, ...targetEvents]) {
 		byId.set(getCompositeEventKey(event), event);
 	}
 
@@ -66,12 +69,12 @@ export const mergeEventFile = ({
 
 	const merged = mergePersistedEvents(targetResult.data, sourceResult.data);
 	const nextContent = serializePersistedEvents(merged);
+	const currentContent = fs.existsSync(targetFile)
+		? fs.readFileSync(targetFile, 'utf8')
+		: '';
 
-	if (fs.existsSync(targetFile)) {
-		const currentContent = fs.readFileSync(targetFile, 'utf8');
-		if (currentContent === nextContent) {
-			return succeeded('Event file already merged', false);
-		}
+	if (currentContent === nextContent) {
+		return succeeded('Event file already merged', false);
 	}
 
 	fs.mkdirSync(path.dirname(targetFile), {recursive: true});
