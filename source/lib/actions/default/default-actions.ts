@@ -7,7 +7,6 @@ import {onConfirmCommandLineSequenceInput} from '../input/on-cmd-input-confirm.j
 import {navigationUtils} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
-	// Revisit. Perhaps implement an operator input state for this in vim style. For now restrict delete to command line
 	{
 		intent: Intent.AddItem,
 		mode: Mode.DEFAULT,
@@ -52,7 +51,6 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[q] exit context',
 		action: () => {
-			logger.debug('Executing exit action');
 			navigationUtils.enterParentNode();
 			return succeeded('Exiting context', null);
 		},

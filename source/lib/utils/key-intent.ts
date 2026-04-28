@@ -4,53 +4,55 @@ import {getCommandLineIntent} from './get-command-line-intent.js';
 import {getState} from '../state/state.js';
 import {getCmdState} from '../state/cmd.state.js';
 
-export enum Intent {
+export const Intent = {
 	// Git
-	Sync = 'sync',
+	Sync: 'sync',
 
 	// Default
-	NavPreviousItem = 'navPreviousItem',
-	NavNextItem = 'navNextItem',
-	NavToPreviousContainer = 'navToPreviousContainer',
-	NavToNextContainer = 'navToNextContainer',
+	NavPreviousItem: 'navPreviousItem',
+	NavNextItem: 'navNextItem',
+	NavToPreviousContainer: 'navToPreviousContainer',
+	NavToNextContainer: 'navToNextContainer',
 
-	MovePreviousItem = 'movePreviousItem',
-	MoveNextItem = 'moveNextItem',
-	MoveToPreviousContainer = 'moveToPreviousContainer',
-	MoveToNextContainer = 'moveToNextContainer',
+	MovePreviousItem: 'movePreviousItem',
+	MoveNextItem: 'moveNextItem',
+	MoveToPreviousContainer: 'moveToPreviousContainer',
+	MoveToNextContainer: 'moveToNextContainer',
 
-	Confirm = 'confirm',
+	Confirm: 'confirm',
 
-	Exit = 'exit',
-	ViewHelp = 'viewHelp',
-	HideHelp = 'hideHelp',
-	InitMove = 'initMove',
-	ConfirmMove = 'confirmMove',
-	Delete = 'Delete',
+	Exit: 'exit',
+	ViewHelp: 'viewHelp',
+	HideHelp: 'hideHelp',
+	InitMove: 'initMove',
+	ConfirmMove: 'confirmMove',
+	Delete: 'Delete',
 
 	// Command line
-	InitCommandLine = 'initCommandLine',
-	ExitCommandLine = 'exitCommandLine',
-	CaptureInput = 'captureInput',
-	EraseInput = 'eraseInput',
-	AddItem = 'addItem',
-	GetLastCommandFromHistory = 'getLastCommandFromHistory',
-	GetNextCommandFromHistory = 'getNextCommandFromHistory',
-	AutoCompleteCommand = 'autoCompleteCommand',
-	MoveCursorLeft = 'MoveCursorLeft',
-	MoveCursorRight = 'MoveCursorRight',
-	MoveCursorLeftOfWord = 'MoveCursorLeftOfWord',
-	MoveCursorRightOfWord = 'MoveCursorRightOfWord',
-	EraseInputWord = 'EraseInputWord',
-	None = 'None',
+	InitCommandLine: 'initCommandLine',
+	ExitCommandLine: 'exitCommandLine',
+	CaptureInput: 'captureInput',
+	EraseInput: 'eraseInput',
+	AddItem: 'addItem',
+	GetLastCommandFromHistory: 'getLastCommandFromHistory',
+	GetNextCommandFromHistory: 'getNextCommandFromHistory',
+	AutoCompleteCommand: 'autoCompleteCommand',
+	MoveCursorLeft: 'MoveCursorLeft',
+	MoveCursorRight: 'MoveCursorRight',
+	MoveCursorLeftOfWord: 'MoveCursorLeftOfWord',
+	MoveCursorRightOfWord: 'MoveCursorRightOfWord',
+	EraseInputWord: 'EraseInputWord',
+	None: 'None',
 
 	// Editor
-	Edit = 'edit',
+	Edit: 'edit',
 
 	// View
-	SetViewDense = 'SetViewDense',
-	SetViewWide = 'SetViewWide',
-}
+	SetViewDense: 'SetViewDense',
+	SetViewWide: 'SetViewWide',
+} as const;
+
+export type IntentInferred = (typeof Intent)[keyof typeof Intent];
 
 function getDir(key: readline.Key): 'up' | 'down' | 'left' | 'right' | null {
 	switch (key.name) {
@@ -80,12 +82,12 @@ function mapDirectionalIntent(
 	axis: 'vertical' | 'horizontal',
 	dir: 'up' | 'down' | 'left' | 'right',
 	intents: {
-		prevItem: Intent;
-		nextItem: Intent;
-		prevContainer: Intent;
-		nextContainer: Intent;
+		prevItem: IntentInferred;
+		nextItem: IntentInferred;
+		prevContainer: IntentInferred;
+		nextContainer: IntentInferred;
 	},
-): Intent | null {
+): IntentInferred | null {
 	const enableAcrossContainers =
 		getState().currentNode.childNavigationAcrossParents;
 	switch (dir) {
@@ -122,7 +124,7 @@ function mapDirectionalIntent(
 export function getKeyIntent(
 	key: readline.Key,
 	mode: ModeUnion,
-): Intent | null {
+): IntentInferred | null {
 	// Handle forks
 	const commandLineState = getCmdState();
 	if (key.sequence === ':' && commandLineState.value === '')

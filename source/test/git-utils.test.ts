@@ -9,7 +9,6 @@ import {
 	getCurrentBranchName,
 	getGitDir,
 	hasInProgressGitOperation,
-	hasUpstream,
 	isDetachedHead,
 	pullBranchRebaseIfPresent,
 } from '../git/git-utils.js';

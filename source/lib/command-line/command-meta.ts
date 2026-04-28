@@ -17,6 +17,7 @@ export const CmdIntent = {
 
 	Filter: 'filter',
 	Move: 'move',
+	Peek: 'peek',
 
 	// Settings
 	SetView: 'set-view',
@@ -34,6 +35,8 @@ export const CmdIntent = {
 	// Git
 	Sync: 'sync',
 } as const;
+
+export type CommandIntent = (typeof CmdIntent)[keyof typeof CmdIntent];
 
 export const isModifierKeyword = (word: string): word is CmdKeyword =>
 	Object.values(CmdKeywords).includes(word as CmdKeyword);

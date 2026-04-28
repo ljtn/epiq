@@ -1,7 +1,7 @@
 import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
 import {isTicketNode} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {getState, initWorkspaceState} from '../lib/state/state.js';
+import {getState, initWorkspaceState, updateState} from '../lib/state/state.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {resolveReopenParentFromLog} from './log-utils.js';
@@ -411,18 +411,13 @@ export function materialize<A extends EventAction>(
 	event: AppEvent<A>,
 	bypassLogging = false,
 ): MaterializeResult<A> {
-	const handler = materializeHandlers[event.action] as (
-		event: AppEvent<A>,
-	) => MaterializeResult<A>;
-
-	const result = handler(event);
+	const result = materializeHandlers[event.action](event);
 	if (isFail(result)) return result;
 
 	if (!bypassLogging) {
 		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
-		for (const nodeId of affectedNodeIds) {
-			appendEventToNodeLog(nodeId, event);
-		}
+		affectedNodeIds.forEach(nodeId => appendEventToNodeLog(nodeId, event));
+		updateState(s => ({...s, eventLog: [...s.eventLog, event]}));
 	}
 
 	const id = event.userId;

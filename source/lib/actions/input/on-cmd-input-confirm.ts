@@ -1,4 +1,5 @@
 import {getCommandIntent} from '../../command-line/command-intent.js';
+import {CommandIntent} from '../../command-line/command-meta.js';
 import {
 	cmdResult,
 	cmdValidity,
@@ -13,6 +14,13 @@ import {
 	commandPending,
 	getCmdState,
 } from '../../state/cmd.state.js';
+import {getState} from '../../state/state.js';
+
+const READ_ONLY_COMMAND_INTENTS = new Set<CommandIntent>([
+	'peek',
+	'filter',
+	'view-help',
+]);
 
 export const onConfirmCommandLineSequenceInput = async ({
 	isForceExecutedBySystem = false,
@@ -30,6 +38,14 @@ export const onConfirmCommandLineSequenceInput = async ({
 	const intent = getCommandIntent(command);
 
 	commandPending();
+
+	if (getState().readOnly && !READ_ONLY_COMMAND_INTENTS.has(intent)) {
+		return cmdResultToValidationState({
+			result: cmdResult.Fail,
+			message: 'Command not available in readonly state',
+			data: null,
+		});
+	}
 
 	const actionMeta = commands
 		.filter(c => isForceExecutedBySystem || c.systemOnly !== true)

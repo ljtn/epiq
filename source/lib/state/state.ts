@@ -34,6 +34,7 @@ export type BaseState = Omit<AppState, DerivedKeys>;
 // Internal store
 // -----------------------------
 let _appState: AppState;
+let _initialWorkspace: Workspace | undefined;
 
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -115,7 +116,10 @@ export const getState = () => {
 };
 
 export function initWorkspaceState(workspace: Workspace) {
+	_initialWorkspace = workspace;
+
 	const base: BaseState = {
+		readOnly: false,
 		filters: [],
 		tags: {},
 		contributors: {},
@@ -130,12 +134,17 @@ export function initWorkspaceState(workspace: Workspace) {
 			status: 'synced',
 			msg: '',
 		},
+		eventLog: [],
+		unappliedEvents: [],
+		timeMode: 'live',
 	};
 
 	const deriveResult = derive(base);
 	if (isFail(deriveResult)) return deriveResult;
+
 	_appState = deriveResult.data;
 	emit();
+
 	return succeeded('State initialized', null);
 }
 
@@ -204,5 +213,13 @@ const buildChildIndex = (
 };
 
 export const getRenderedChildren = (id: string): NavNode<AnyContext>[] => {
-	return getState().renderedChildrenIndex[id] ?? [];
+	return getState()?.renderedChildrenIndex[id] ?? [];
+};
+
+export const resetState = (): Result<string> => {
+	if (!_initialWorkspace) {
+		return failed('Cannot reset state: no initial workspace found');
+	}
+
+	return initWorkspaceState(_initialWorkspace);
 };

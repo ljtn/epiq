@@ -1,6 +1,7 @@
 import chalk from 'chalk';
+import {safeDateFromUlid} from '../../event/date-utils.js';
 import {nodeRepo} from '../../repository/node-repo.js';
-import {Filter} from '../model/app-state.model.js';
+import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {getState} from '../state/state.js';
 import {
 	getGradientWord,
@@ -13,7 +14,9 @@ import {
 	CmdKeywords,
 	CmdValidity,
 	cmdValidity,
+	isFail,
 } from './command-types.js';
+import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
 
 export const CONFIRM_MSG = '<ENTER> to confirm';
 
@@ -61,14 +64,14 @@ const buildHint = ({
 	prefix = '',
 	wordList,
 	postfix = '',
-	noOfHints = 2,
+	noOfHints = 100,
 	inputString,
 	minLengthForHints = 1,
 }: {
 	prefix?: string;
 	wordList: readonly string[];
 	postfix?: string;
-	noOfHints: number;
+	noOfHints?: number;
 	inputString: string;
 	minLengthForHints?: number;
 }) => {
@@ -145,6 +148,59 @@ const requireModifierOrInputStr =
 			: valid(CONFIRM_MSG);
 
 const validators: Record<CmdKeyword, Validator> = {
+	[CmdKeywords.PEEK]: args => {
+		const modifier = args.modifier;
+		if (modifier === 'now') return valid(CONFIRM_MSG);
+
+		const hint = {
+			message: `historical state from: '1h', '2d', '23h', '1mo', '2y', 'previous', 'next' or full date as YYYY-MM-DD`,
+			completionWordList: [],
+		};
+
+		if (modifier === 'prev') return valid(CONFIRM_MSG);
+		if (modifier === 'next') return valid(CONFIRM_MSG);
+
+		const date = parsePeekDateInput(modifier);
+
+		if (!modifier) return invalid(hint);
+		if (!date) return invalid(hint);
+
+		const boardResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+
+		if (isFail(boardResult)) {
+			return invalid({
+				message: 'Command is not applicable in this context',
+				completionWordList: [],
+			});
+		}
+		const boardCreationDate = safeDateFromUlid(boardResult.data.id);
+
+		if (isFail(boardCreationDate)) {
+			return invalid({
+				message: 'Unable to peek: board id is not a valid ULID',
+				completionWordList: [],
+			});
+		}
+
+		if (
+			!isDateWithinPeekHorizon({
+				date,
+				horizonDate: boardCreationDate.data,
+			})
+		) {
+			return invalid({
+				message: chalk.red(
+					`nothing to peek before ${boardCreationDate.data
+						.toISOString()
+						.slice(0, 16)
+						.replace('T', ' ')}`,
+				),
+				completionWordList: [],
+			});
+		}
+
+		return valid(CONFIRM_MSG);
+	},
 	[CmdKeywords.INIT]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.FILTER]: args => {
 		if (args.modifier === 'clear') return valid();
@@ -157,7 +213,6 @@ const validators: Record<CmdKeyword, Validator> = {
 			return invalid({
 				message: buildHint({
 					wordList: getCmdModifiers(CmdKeywords.FILTER),
-					noOfHints: 100,
 					inputString: args.inputString,
 				}),
 				completionWordList: getCmdModifiers(CmdKeywords.FILTER),
@@ -209,7 +264,6 @@ const validators: Record<CmdKeyword, Validator> = {
 					message: buildHint({
 						prefix: 'commands... ',
 						wordList: getCmdModifiers(CmdKeywords.NONE),
-						noOfHints: 100,
 						inputString: args.inputString,
 						minLengthForHints: 0,
 					}),
@@ -283,7 +337,6 @@ const validators: Record<CmdKeyword, Validator> = {
 			? invalid({
 					message: buildHint({
 						wordList,
-						noOfHints: 100,
 						inputString: args.inputString,
 					}),
 					completionWordList: [],

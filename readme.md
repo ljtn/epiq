@@ -2,8 +2,9 @@
 
 # Epiq
 
-**CLI-native issue tracker** — powered by Git.
-Manage all your projects directly via the command line, edit in your favorite editor.
+Issue tracking is a part of the development lifecycle, but it often becomes a painful context switching exercise with poor ergonomics. `Epiq` provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to. Epiq is a **CLI-native issue tracker** — powered by Git in which you can manage all your projects directly via the command line in a visual kanban board and edit content in your favorite, personalized editor.
+
+With great attention to user ergonomics, epiq intends to make project management painless and friction free again, and has developer satisfaction as its primary target.
 
 ```
 '███████╗██████╗ ██╗ ██████╗ '
@@ -24,10 +25,10 @@ Epiq renders your issue board directly in the terminal using ASCII and stores it
 ## Features
 
 - Issue tracking — track work in tickets with name, description, tags, assignees, history log, etc.
+- Ergonomics — fast keyboard-driven ux, command line with history, syntax highlighting etc.
+- Time travel - inspect your app 1 week or 1 year ago
 - Filtering — query issues by description, tags, assignees, etc.
-- Ergonomics — fast keyboard-driven navigation
 - Autocompletion — minimize typing, stay in flow
-- Command system — built with ergonomics and automation in mind
 - Multi-user — real-time synchronization of board
 - Traceable event log — state is a full history of every change ever made
 
@@ -38,7 +39,7 @@ Most issue trackers live outside your workflow. Epiq brings issue tracking into 
 These design choices result in a system that is:
 
 - **Zero setup** — no account registration required
-- **Repo-native** — your issues live where your code lives
+- **Repo-native** — your issues can live where your code lives
 - **Offline-friendly** — works anywhere, with eventual consistency as a promise
 - **Speed** — local first, and eventual consistency makes epiq edits instant
 - **Portable** — run on your local machine, on a remote Linux server or your grandma’s connected toaster
@@ -129,22 +130,22 @@ Clear all filters with `:filter clear`
 
 - You can reopen a task by visiting the `Closed` board, selecting an issue and typing command `:reopen`. This will restore the issue to its last previous location.
 
+### Reuse command
+
+- Pro tip: just like in any terminal - if you need to do repeating tasks over and over again, you can just put yourself in the command mode, and then press arrow up, in order to access the last executed command. This helps a lot when you create tasks with similar names, or add the same tag to many tickets and so on.
+
 ---
 
 ## How epiq is synchronized
 
-Epiq uses Git in the background to synchronize state between clients. You do not need to do any manual git commands to make it work. Running `:sync` pulls and pushes changes between your local state and the remote.
+Epiq uses Git in the background to synchronize state between clients. No manual git commands are required to make it work. Running `:sync` pulls and pushes changes between your local state and the remote state.
 
 - Your issue data is stored in a dedicated branch managed automatically by epiq
-- A local `.epiq/` folder is created in your project as a cache
+- A local `.epiq/` folder is created in your project as a local cache
 
-The `.epiq/` folder:
+The `.epiq/` folder is non-authoritative and used for caching and local tracking. It can optionally be committed if you want your board state versioned alongside your code.
 
-- Is non-authoritative and used for caching and local tracking
-- Can be committed if you want your board state versioned alongside your code
-- Is optional — epiq works whether you commit it or not
-
-> The system is designed to avoid merge conflicts.
+> The system is designed to assure robustness and uses a number of techniques and design patterns to avoid merge conflicts.
 
 ---
 

@@ -3,8 +3,11 @@ export const CmdKeywords = {
 	HELP: 'help',
 	NEW: 'new',
 	TAG: 'tag',
-	FILTER: 'filter',
 	MOVE: 'move',
+
+	PEEK: 'peek',
+	FILTER: 'filter',
+
 	ASSIGN: 'assign',
 	DELETE: 'delete',
 	RENAME: 'rename',

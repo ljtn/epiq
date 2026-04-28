@@ -14,6 +14,7 @@ import {
 	resolveEpiqRoot,
 } from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
+import {decodeTime} from 'ulid';
 
 const EPIQ_DIR = getEpiqDirName();
 const EVENTS_DIR = 'events';
@@ -300,4 +301,32 @@ export const getSortedEvents = (
 		});
 
 	return [...result, ...orphans];
+};
+
+export const splitEventsAtTime = (
+	events: AppEvent[],
+	targetTime: number,
+): {
+	appliedEvents: AppEvent[];
+	unappliedEvents: AppEvent[];
+} => {
+	const cutoffIndex = events.findIndex(event => {
+		try {
+			return decodeTime(event.id) > targetTime;
+		} catch {
+			return true;
+		}
+	});
+
+	if (cutoffIndex === -1) {
+		return {
+			appliedEvents: events,
+			unappliedEvents: [],
+		};
+	}
+
+	return {
+		appliedEvents: events.slice(0, cutoffIndex),
+		unappliedEvents: events.slice(cutoffIndex),
+	};
 };

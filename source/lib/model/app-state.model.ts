@@ -1,3 +1,4 @@
+import {AppEvent} from '../../event/event.model.js';
 import {failed, Result, succeeded} from '../command-line/command-types.js';
 import {ActionEntry, ActionIndex, ModeUnion} from './action-map.model.js';
 import {AnyContext} from './context.model.js';
@@ -38,6 +39,7 @@ export type SyncStatus = {
 };
 
 export type AppState = {
+	readOnly: boolean;
 	selectedIndex: number;
 	selectedNode: NavNode<AnyContext> | null;
 	currentNodeId: string | null;
@@ -55,6 +57,11 @@ export type AppState = {
 	renderedChildrenIndex: Record<string, NavNode<AnyContext>[]>; // parent -> children mapping
 	viewMode: ViewMode;
 	syncStatus: SyncStatus;
+
+	// Time tracking
+	timeMode: 'live' | 'peek' | 'replay';
+	eventLog: AppEvent[];
+	unappliedEvents: AppEvent[];
 };
 
 type BreadCrumbItem = BreadCrumb[number];

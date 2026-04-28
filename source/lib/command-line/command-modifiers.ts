@@ -8,13 +8,14 @@ import {NavNodeCtx} from '../model/context.model.js';
 import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
 import {CmdKeyword, CmdKeywords} from './command-types.js';
+import {generatePeekOffsetHints} from './validate-date.js';
 
 export type CommandMap = {
 	[K in keyof typeof NavNodeCtx]: (typeof CmdKeywords)[keyof typeof CmdKeywords][];
 };
 
 export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
-	const {currentNode} = getState();
+	const {currentNode, readOnly, eventLog} = getState();
 	const isSetupComplete = getUserSetupStatus().isSetup;
 
 	const context = currentNode.context;
@@ -41,10 +42,20 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		CmdKeywords.SET_DESCRIPTION,
 	];
 
+	const presentationLayerCommands = [CmdKeywords.FILTER, CmdKeywords.PEEK];
+
 	const commandMap: CommandMap = {
 		WORKSPACE: [...globalCommands, ...generalEditCommands],
-		BOARD: [CmdKeywords.FILTER, ...globalCommands, ...generalEditCommands],
-		SWIMLANE: [CmdKeywords.FILTER, ...globalCommands, ...generalEditCommands],
+		BOARD: [
+			...presentationLayerCommands,
+			...globalCommands,
+			...generalEditCommands,
+		],
+		SWIMLANE: [
+			...presentationLayerCommands,
+			...globalCommands,
+			...generalEditCommands,
+		],
 		TICKET: [
 			...globalCommands,
 			...generalEditCommands,
@@ -58,6 +69,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const baseCommands = [...commandMap[context || 'WORKSPACE']];
 
 	let modifiers: Partial<Record<CmdKeyword, string[]>> = {
+		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
 		[CmdKeywords.SYNC]: [],
 		[CmdKeywords.INIT]: [],
 		[CmdKeywords.SET_USERNAME]: [],
@@ -114,6 +126,12 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 			[CmdKeywords.NONE]: [CmdKeywords.HELP, CmdKeywords.INIT],
 			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
 			[CmdKeywords.INIT]: modifiers[CmdKeywords.INIT],
+		};
+	} else if (readOnly) {
+		modifiers = {
+			[CmdKeywords.NONE]: [CmdKeywords.HELP, CmdKeywords.PEEK],
+			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
+			[CmdKeywords.PEEK]: modifiers[CmdKeywords.PEEK],
 		};
 	}
 

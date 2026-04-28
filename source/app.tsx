@@ -5,7 +5,7 @@ import {hasPendingDefaultEvents} from './event/event-boot.js';
 import {isSuccess} from './lib/command-line/command-types.js';
 import {ContextBar} from './lib/components/ContextBar.js';
 import {HelpUI} from './lib/components/Help.js';
-import {HeaderBar} from './lib/components/Topbar.js';
+import {Topbar} from './lib/components/Topbar.js';
 import {WorkspaceUI} from './lib/components/WorkspaceUI.js';
 import {getUserSetupStatus} from './lib/config/setup-utils.js';
 import {Mode} from './lib/model/action-map.model.js';
@@ -91,7 +91,7 @@ export default function App({width, height}: AppProps) {
 		return (
 			<Box flexDirection="column">
 				<Box flexDirection="column">
-					<HeaderBar hideBreadCrumb filters={filters} />
+					<Topbar hideBreadCrumb filters={filters} />
 					<SettingsUI
 						height={height}
 						width={width}
@@ -115,7 +115,7 @@ export default function App({width, height}: AppProps) {
 		return (
 			<Box flexDirection="column">
 				<Box flexDirection="column">
-					<HeaderBar hideBreadCrumb filters={filters} />
+					<Topbar hideBreadCrumb filters={filters} />
 					<InitProjectUI height={height} width={width} />
 				</Box>
 
@@ -144,7 +144,7 @@ export default function App({width, height}: AppProps) {
 	return (
 		<Box flexDirection="column">
 			<Box flexDirection="column">
-				<HeaderBar filters={filters} />
+				<Topbar filters={filters} />
 				<WorkspaceUI
 					width={width}
 					height={height}
