@@ -29,7 +29,9 @@ export const CmdIntent = {
 	NewItem: 'add-new-item',
 
 	TagTicket: 'ticket-tag',
+	UntagTicket: 'ticket-untag',
 	AssignUserToTicket: 'ticket-assign-user',
+	UnassignUserFromTicket: 'ticket-unassign-user',
 	CloseIssue: 'close-issue',
 	ReopenIssue: 're-open-issue',
 

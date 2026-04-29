@@ -1,7 +1,8 @@
 import {nodeRepo} from '../../repository/node-repo.js';
+import {failed, Result, succeeded} from '../command-line/command-types.js';
 import {Contributor, Tag} from '../model/app-state.model.js';
-import {Ticket} from '../model/context.model.js';
-import {getRenderedChildren} from '../state/state.js';
+import {isTicketNode, Ticket} from '../model/context.model.js';
+import {getRenderedChildren, getState} from '../state/state.js';
 import {sanitizeInlineText} from '../utils/string.utils.js';
 
 type TicketFieldMap = Record<
@@ -60,6 +61,36 @@ export const getTicketTags = (ticket: Ticket): Tag[] =>
 	getTicketReferencedIds(ticket, 'Tags')
 		.map(tagId => nodeRepo.getTag(tagId))
 		.filter((tag): tag is Tag => Boolean(tag));
+
+export const ticketTagsFromBreadCrumb = (): Result<Tag[]> => {
+	const {breadCrumb, selectedNode} = getState();
+	const ticket = [...breadCrumb, selectedNode].find(
+		x => x?.context === 'TICKET',
+	);
+	if (!ticket || !isTicketNode(ticket)) {
+		return failed('Invalid untag target');
+	}
+
+	return succeeded(
+		'Retrieved tags from ticket in breadcrumb',
+		getTicketTags(ticket) ?? [],
+	);
+};
+
+export const ticketAssigneesFromBreadCrumb = (): Result<Contributor[]> => {
+	const {breadCrumb, selectedNode} = getState();
+	const ticket = [...breadCrumb, selectedNode].find(
+		x => x?.context === 'TICKET',
+	);
+	if (!ticket || !isTicketNode(ticket)) {
+		return failed('Invalid untag target');
+	}
+
+	return succeeded(
+		'Retrieved tags from ticket in breadcrumb',
+		getTicketAssignees(ticket) ?? [],
+	);
+};
 
 export const getTicketAssignees = (ticket: Ticket): Contributor[] =>
 	getTicketReferencedIds(ticket, 'Assignees')

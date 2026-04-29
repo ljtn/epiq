@@ -651,6 +651,51 @@ export const commands: CommandLineActionEntry[] = [
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
+		intent: CmdIntent.UntagTicket,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+			const {modifier, inputString} = getCmdState().commandMeta;
+			const name = (modifier || inputString).trim();
+			if (!name) return failed('Provide a tag');
+
+			const existingTag = findTagByName(name);
+			if (!existingTag) return failed(`Tag "${name}" does not exist`);
+
+			const {selectedNode} = getState();
+			if (!selectedNode) return failed('Invalid untag target');
+
+			const ticketResult = findAncestor(selectedNode.id, 'TICKET');
+			if (isFail(ticketResult))
+				return failed('Unable to untag issue in this context');
+
+			const ticket = ticketResult.data;
+
+			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
+			if (!tagsField) return failed('Unable to locate tags field');
+
+			const tagNode = getRenderedChildren(tagsField.id).find(
+				child => child.props?.value === existingTag.id,
+			);
+
+			if (!tagNode) return failed('Issue is not tagged with that tag');
+
+			return materializeAndPersist({
+				id: ulid(),
+				action: 'untag.issue',
+				payload: {
+					id: tagNode.id,
+					target: ticket.id,
+					tagId: existingTag.id,
+				},
+				...userRes.data,
+			});
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
 		intent: CmdIntent.TagTicket,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
@@ -774,6 +819,52 @@ export const commands: CommandLineActionEntry[] = [
 					id: ulid(),
 					target: ticket.id,
 					contributor: contributorId,
+				},
+				...userRes.data,
+			});
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.UnassignUserFromTicket,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+			const {modifier, inputString} = getCmdState().commandMeta;
+			const name = (modifier || inputString).trim();
+			if (!name) return failed('Provide an assignee to remove');
+
+			const existingContributor = findContributorByName(name);
+			if (!existingContributor)
+				return failed(`Assignee "${name}" does not exist`);
+
+			const {selectedNode} = getState();
+			if (!selectedNode) return failed('Invalid unassign target');
+
+			const ticketResult = findAncestor(selectedNode.id, 'TICKET');
+			if (isFail(ticketResult))
+				return failed('Unable to unassign in this context');
+
+			const ticket = ticketResult.data;
+
+			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');
+			if (!assigneesField) return failed('Unable to locate assignees field');
+
+			const assigneeNode = getRenderedChildren(assigneesField.id).find(
+				child => child.props?.value === existingContributor.id,
+			);
+
+			if (!assigneeNode) return failed(`Issue is not assigned to "${name}"`);
+
+			return materializeAndPersist({
+				id: ulid(),
+				action: 'unassign.issue',
+				payload: {
+					id: assigneeNode.id,
+					target: ticket.id,
+					contributor: existingContributor.id,
 				},
 				...userRes.data,
 			});

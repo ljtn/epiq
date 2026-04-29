@@ -18,12 +18,14 @@ const formatLogAction = (action: string): string => {
 		const pastTbl: Partial<Record<EventAction, string>> = {
 			'add.issue': 'Created with title',
 			'assign.issue': 'Assigned to',
+			'unassign.issue': 'Unassigned from',
 			'close.issue': 'Closed',
 			'delete.node': 'Deleted',
 			'edit.title': 'Changed title to',
 			'edit.description': 'Changed description',
 			'reopen.issue': 'Reopened',
 			'tag.issue': 'Tagged with',
+			'untag.issue': 'Removed tag',
 			'lock.node': 'Locked node',
 			'move.node': 'Moved issue',
 		};
@@ -69,7 +71,21 @@ const formatEventDetails = (event: AppEvent): string => {
 				: 'unknown tag';
 		}
 
+		case 'untag.issue': {
+			const tag = getState().tags[event.payload.tagId];
+			return tag
+				? chalk.bgHex(getStringColor(tag.name))(` ${tag.name} `)
+				: 'unknown tag';
+		}
+
 		case 'assign.issue': {
+			const contributor = getState().contributors[event.payload.contributor];
+			return contributor
+				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)
+				: 'unknown user';
+		}
+
+		case 'unassign.issue': {
 			const contributor = getState().contributors[event.payload.contributor];
 			return contributor
 				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)

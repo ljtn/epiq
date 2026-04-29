@@ -310,6 +310,61 @@ export const nodeRepo = {
 		return succeeded('Tag added', result.data);
 	},
 
+	untag(targetId: string, tagId: string): Result<NavNode<'FIELD'>> {
+		const tag = nodeRepo.getTag(tagId);
+		const target = nodeRepo.getNode(targetId);
+		if (!tag) return failed('Unable to remove tag, missing tag');
+		if (!target) return failed('Unable to remove tag, missing target');
+
+		const tagsField = this.getFieldByTitle(target.id, 'Tags');
+		if (!tagsField) return failed('Unable to locate tags field');
+
+		const tagNode = getOrderedChildren(tagsField.id).find(
+			child => child.props?.value === tagId,
+		);
+
+		if (!tagNode) {
+			return succeeded('Issue is not tagged with that tag', null);
+		}
+
+		const nextNode: NavNode<'FIELD'> = {
+			...(tagNode as NavNode<'FIELD'>),
+			isDeleted: true,
+		};
+
+		this.updateNode(nextNode);
+
+		return succeeded('Tag removed', nextNode);
+	},
+
+	unassign(targetId: string, contributorId: string): Result<NavNode<'FIELD'>> {
+		const contributor = nodeRepo.getContributor(contributorId);
+		const target = nodeRepo.getNode(targetId);
+
+		if (!contributor) return failed('Unable to unassign, missing contributor');
+		if (!target) return failed('Unable to unassign, missing target');
+
+		const assigneesField = this.getFieldByTitle(target.id, 'Assignees');
+		if (!assigneesField) return failed('Unable to locate assignees field');
+
+		const assigneeNode = getOrderedChildren(assigneesField.id).find(
+			child => child.props?.value === contributorId,
+		);
+
+		if (!assigneeNode) {
+			return succeeded('Issue is not assigned to that contributor', null);
+		}
+
+		const nextNode: NavNode<'FIELD'> = {
+			...(assigneeNode as NavNode<'FIELD'>),
+			isDeleted: true,
+		};
+
+		this.updateNode(nextNode);
+
+		return succeeded('Assignee removed', nextNode);
+	},
+
 	createNodeAtPosition<T extends AnyContext>(
 		node: NavNode<T>,
 		position: MovePosition = {at: 'end'},

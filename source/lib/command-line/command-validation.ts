@@ -2,12 +2,17 @@ import chalk from 'chalk';
 import {safeDateFromUlid} from '../../event/date-utils.js';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
+import {AnyContext} from '../model/context.model.js';
 import {getState} from '../state/state.js';
 import {
 	getGradientWord,
 	getStringColor,
 	getWordGradientPosition,
 } from '../utils/color.js';
+import {
+	ticketAssigneesFromBreadCrumb,
+	ticketTagsFromBreadCrumb,
+} from '../utils/ticket.utils.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
@@ -17,7 +22,6 @@ import {
 	isFail,
 } from './command-types.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
-import {AnyContext} from '../model/context.model.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 
@@ -26,13 +30,11 @@ const guardEditableNodes = (): ValidationResult => {
 	if (!target?.context)
 		return invalid({
 			message: 'Missing target context',
-			completionWordList: [],
 		});
 
 	if (!EDITABLE_NODES.includes(target?.context)) {
 		return invalid({
 			message: 'Command not available in this context',
-			completionWordList: [],
 		});
 	}
 	return valid();
@@ -68,10 +70,10 @@ const valid = (
 
 const invalid = ({
 	message,
-	completionWordList,
+	completionWordList = [],
 }: {
 	message: string;
-	completionWordList: string[];
+	completionWordList?: string[];
 }): ValidationResult => ({
 	validity: cmdValidity.Invalid,
 	message,
@@ -129,7 +131,6 @@ const requireOneIn =
 			? valid(CONFIRM_MSG)
 			: invalid({
 					message: isBlank(modifier) ? hint : '',
-					completionWordList: [],
 			  });
 
 const requireOneWithValueIn =
@@ -146,14 +147,12 @@ const requireOneWithValueIn =
 		if (!list.includes(modifier)) {
 			return invalid({
 				message: isBlank(modifier) ? hint : '',
-				completionWordList: [],
 			});
 		}
 
 		if (inputString.trim().length < 1) {
 			return invalid({
 				message: onValue,
-				completionWordList: [],
 			});
 		}
 
@@ -174,7 +173,6 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		const hint = {
 			message: `historical state from: '1h', '2d', '23h', '1mo', '2y', 'previous', 'next' or full date as YYYY-MM-DD`,
-			completionWordList: [],
 		};
 
 		if (modifier === 'prev') return valid(CONFIRM_MSG);
@@ -190,7 +188,6 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (isFail(boardResult)) {
 			return invalid({
 				message: 'Command is not applicable in this context',
-				completionWordList: [],
 			});
 		}
 		const boardCreationDate = safeDateFromUlid(boardResult.data.id);
@@ -198,7 +195,6 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (isFail(boardCreationDate)) {
 			return invalid({
 				message: 'Unable to peek: board id is not a valid ULID',
-				completionWordList: [],
 			});
 		}
 
@@ -215,7 +211,6 @@ const validators: Record<CmdKeyword, Validator> = {
 						.slice(0, 16)
 						.replace('T', ' ')}`,
 				),
-				completionWordList: [],
 			});
 		}
 
@@ -312,7 +307,6 @@ const validators: Record<CmdKeyword, Validator> = {
 						inputString: args.inputString,
 						minLengthForHints: 0,
 					}),
-					completionWordList: [],
 			  })
 			: valid();
 	},
@@ -371,6 +365,24 @@ const validators: Record<CmdKeyword, Validator> = {
 			hint: 'tag name like... ' + tags.join(''),
 		})(args);
 	},
+	[CmdKeywords.UNTAG]: args => {
+		const tagsRes = ticketTagsFromBreadCrumb();
+		if (isFail(tagsRes)) {
+			return invalid({message: 'Invalid untag target', completionWordList: []});
+		}
+
+		const tags = tagsRes.data
+			.map(({name}) => name)
+			.map(tag => ` ${chalk.bgHex(getStringColor(tag))(' ' + tag + ' ')} `)
+			.slice(0, 10);
+
+		if (!tags.length)
+			return invalid({message: 'Issue has not tags', completionWordList: []});
+
+		return requireModifierOrInputStr({
+			hint: ' ... ' + tags.join(''),
+		})(args);
+	},
 
 	[CmdKeywords.ASSIGN]: args => {
 		const contributors = nodeRepo
@@ -383,6 +395,35 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return requireModifierOrInputStr({
 			hint: 'assign to... ' + contributors.join(''),
+		})(args);
+	},
+
+	[CmdKeywords.UNASSIGN]: args => {
+		const assigneesRes = ticketAssigneesFromBreadCrumb(); // ← you'll need this helper
+		if (isFail(assigneesRes)) {
+			return invalid({
+				message: 'Invalid unassign target',
+				completionWordList: [],
+			});
+		}
+
+		const coloredAssignees = assigneesRes.data
+			.map(({name}) => name)
+			.map(
+				assignee =>
+					` ${chalk.bgHex(getStringColor(assignee))(' ' + assignee + ' ')} `,
+			)
+			.slice(0, 10);
+
+		if (!coloredAssignees.length) {
+			return invalid({
+				message: 'Issue has no assignees',
+				completionWordList: [],
+			});
+		}
+
+		return requireModifierOrInputStr({
+			hint: 'remove assignee... ' + coloredAssignees.join(''),
 		})(args);
 	},
 
@@ -399,7 +440,6 @@ const validators: Record<CmdKeyword, Validator> = {
 						wordList,
 						inputString: args.inputString,
 					}),
-					completionWordList: [],
 			  })
 			: valid(CONFIRM_MSG);
 	},
@@ -408,7 +448,6 @@ const validators: Record<CmdKeyword, Validator> = {
 		return !args.inputString
 			? invalid({
 					message: `Enter a username. Saved in ${chalk.bgBlack('~/.epiq/')}`,
-					completionWordList: [],
 			  })
 			: valid();
 	},

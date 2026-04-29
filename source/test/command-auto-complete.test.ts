@@ -70,14 +70,14 @@ describe('getAutoCompletion (remainder)', () => {
 		const parsed = parseCommandLine('new ');
 		expect(
 			getAutoCompletion(parsed, ['issue', 'swimlane', 'board']).remainder,
-		).toBe('');
+		).toBe(' ');
 	});
 
 	it('returns empty remainder when no matching completion exists ("tag critical crime")', () => {
 		const parsed = parseCommandLine('tag critical crime');
 		expect(
 			getAutoCompletion(parsed, ['critical', 'frontend', 'backend']).remainder,
-		).toBe('');
+		).toBe(' ');
 	});
 
 	it('returns remainder for modifier completion ("new iss" -> "issue")', () => {

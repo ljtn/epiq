@@ -20,8 +20,12 @@ export const getCommandIntent = (command: string): CommandIntent => {
 			return CmdIntent.CloseIssue;
 		case CmdKeywords.TAG:
 			return CmdIntent.TagTicket;
+		case CmdKeywords.UNTAG:
+			return CmdIntent.UntagTicket;
 		case CmdKeywords.ASSIGN:
 			return CmdIntent.AssignUserToTicket;
+		case CmdKeywords.UNASSIGN:
+			return CmdIntent.UnassignUserFromTicket;
 		case CmdKeywords.RENAME:
 			return CmdIntent.Rename;
 		case CmdKeywords.NEW:
