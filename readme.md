@@ -22,6 +22,9 @@ Epiq is a vim-inspired issue tracker fully integrated in the terminal that bring
 
 Epiq renders your issue board directly in the terminal using ASCII and stores its state as an event log, versioned and synchronized through Git.
 
+![Epiq cli kanban view](./resources/overview.png)
+![Epiq cli log view](./resources/log.png)
+
 ## Features
 
 - Issue tracking — track work in tickets with name, description, tags, assignees, history log, etc.
