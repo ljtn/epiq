@@ -1,18 +1,17 @@
 import {monotonicFactory, ulid} from 'ulid';
-import {AppEvent, UserId, UserName} from './event.model.js';
+import {AppEvent} from './event.model.js';
+import {User} from '../lib/state/settings.state.js';
 
 const nextId = monotonicFactory();
 
 export const createIssueEvents = ({
 	name,
 	parent,
-	userId,
-	userName,
+	user: {userId, userName},
 }: {
 	name: string;
 	parent: string;
-	userId: UserId;
-	userName: UserName;
+	user: User;
 }): readonly AppEvent[] => {
 	const issueId = nextId();
 	const descriptionId = nextId();

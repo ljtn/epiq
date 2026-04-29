@@ -1,3 +1,8 @@
+export type User = {
+	userId: string;
+	userName: string;
+};
+
 export type SettingsState = {
 	preferredEditor: string | null;
 	userName: string | null;

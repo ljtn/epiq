@@ -1,7 +1,35 @@
-import {describe, expect, it, vi} from 'vitest';
+import {beforeAll, describe, expect, it, vi} from 'vitest';
 import {CmdKeywords, cmdValidity} from '../lib/command-line/command-types.js';
 import {getCmdModifiers} from '../lib/command-line/command-modifiers.js';
-import {cmdValidation} from '../lib/command-line/command-validation.js';
+
+vi.mock('../lib/state/state.js', () => ({
+	getState: () => ({
+		currentNode: {
+			id: 'swimlane-1',
+			title: 'Swimlane 1',
+			context: 'SWIMLANE',
+			parentNodeId: 'board-1',
+		},
+		selectedNode: {
+			id: 'ticket-1',
+			title: 'Ticket 1',
+			context: 'TICKET',
+			parentNodeId: 'swimlane-1',
+		},
+		contributors: {
+			'user-1': {id: 'user-1', name: 'john'},
+			'user-2': {id: 'user-2', name: 'jane'},
+		},
+		tags: {},
+		breadCrumb: [],
+	}),
+}));
+
+let cmdValidation: typeof import('../lib/command-line/command-validation.js').cmdValidation;
+
+beforeAll(async () => {
+	({cmdValidation} = await import('../lib/command-line/command-validation.js'));
+});
 
 vi.mock('../lib/command-line/command-modifiers.js', () => ({
 	getCmdModifiers: (keyword: string) => {
@@ -16,16 +44,6 @@ vi.mock('../lib/command-line/command-modifiers.js', () => ({
 		};
 		return m[keyword] ?? [];
 	},
-}));
-
-vi.mock('../lib/state/state.js', () => ({
-	getState: () => ({
-		contributors: {
-			'user-1': {id: 'user-1', name: 'john'},
-			'user-2': {id: 'user-2', name: 'jane'},
-		},
-		tags: {},
-	}),
 }));
 
 describe('cmdValidation', () => {

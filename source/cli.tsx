@@ -12,6 +12,7 @@ import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
 
 import chalk from 'chalk';
+import {patchSettingsState} from './lib/state/settings.state.js';
 
 meow(
 	`${chalk.bold('Epiq CLI')}
@@ -80,7 +81,10 @@ const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
 };
 
 async function bootApp() {
-	loadSettingsFromConfig();
+	const settings = loadSettingsFromConfig();
+	if (!isFail(settings)) {
+		patchSettingsState(settings.data);
+	}
 
 	await syncEpiqFromRemote();
 

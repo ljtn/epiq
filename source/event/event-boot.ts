@@ -12,6 +12,7 @@ import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
+import {persist, resolveActorId} from './event-persist.js';
 
 const SYSTEM_ACTOR_ID = `system` as const;
 const SYSTEM_ACTOR_NAME = `ACTOR` as const;
@@ -152,16 +153,18 @@ export function hasPendingDefaultEvents(): boolean {
 
 export function persistPendingDefaultEvents(): Result {
 	if (!pendingDefaultEvents || pendingDefaultEvents.length === 0) {
+		pendingDefaultEvents = null;
 		return succeeded('No pending default events to persist', null);
 	}
 
-	const result = materializeAndPersistAll(pendingDefaultEvents);
+	const failures = pendingDefaultEvents
+		.map(event => persist({event}))
+		.filter(isFail);
 
-	const failures = result.filter(isFail);
 	if (failures.length > 0) {
 		return failed(
 			[
-				chalk.bold.red('Materializing failed'),
+				chalk.bold.red('Persisting default events failed'),
 				'',
 				...failures.map(
 					(x, i) => `${chalk.dim.gray(`${i + 1}.`)} ${chalk.dim(x.message)}`,

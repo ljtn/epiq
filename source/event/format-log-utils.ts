@@ -5,7 +5,7 @@ import {getState} from '../lib/state/state.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {timeAgo} from './date-utils.js';
-import {AppEvent, EventAction, UserName} from './event.model.js';
+import {AppEvent, EventAction} from './event.model.js';
 
 const padVisibleEnd = (value: string, width: number): string =>
 	value + ' '.repeat(Math.max(0, width - stringWidth(value)));
@@ -98,7 +98,7 @@ const formatLogTime = (id: string): string => {
 
 const USER_COL_WIDTH = 12;
 
-const formatUser = (userName: UserName): string => {
+const formatUser = (userName: string): string => {
 	return padVisibleEnd(`${userName}`, USER_COL_WIDTH);
 };
 

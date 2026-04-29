@@ -4,21 +4,24 @@ import {
 	getUserSetupStatus,
 	isRepositoryInitialized,
 } from '../config/setup-utils.js';
-import {NavNodeCtx} from '../model/context.model.js';
+import {AnyContext, NavNodeCtx} from '../model/context.model.js';
 import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
 import {CmdKeyword, CmdKeywords} from './command-types.js';
 import {generatePeekOffsetHints} from './validate-date.js';
+
+const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 
 export type CommandMap = {
 	[K in keyof typeof NavNodeCtx]: (typeof CmdKeywords)[keyof typeof CmdKeywords][];
 };
 
 export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
-	const {currentNode, readOnly, eventLog} = getState();
+	const {currentNode, readOnly, selectedNode} = getState();
 	const isSetupComplete = getUserSetupStatus().isSetup;
 
-	const context = currentNode.context;
+	const currentContext = currentNode.context;
+	const selectedContext = selectedNode?.context;
 
 	const globalCommands = [
 		CmdKeywords.SYNC,
@@ -66,7 +69,17 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		TEXT: [...globalCommands],
 	};
 
-	const baseCommands = [...commandMap[context || 'WORKSPACE']];
+	const isSelectedContextEditable =
+		selectedContext && EDITABLE_NODES.includes(selectedContext);
+
+	const baseCommands = [...commandMap[currentContext || 'WORKSPACE']].filter(
+		cmd =>
+			(
+				[CmdKeywords.RENAME, CmdKeywords.DELETE, CmdKeywords.MOVE] as string[]
+			).includes(cmd)
+				? isSelectedContextEditable
+				: true,
+	);
 
 	let modifiers: Partial<Record<CmdKeyword, string[]>> = {
 		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
@@ -100,11 +113,13 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.HELP]: [],
 		[CmdKeywords.RENAME]: [],
 		[CmdKeywords.NEW]:
-			context === 'TICKET' || context === 'FIELD' || context === 'FIELD_LIST'
+			currentContext === 'TICKET' ||
+			currentContext === 'FIELD' ||
+			currentContext === 'FIELD_LIST'
 				? ['issue', 'swimlane', 'board']
-				: context === 'SWIMLANE'
+				: currentContext === 'SWIMLANE'
 				? ['issue', 'swimlane', 'board']
-				: context === 'BOARD'
+				: currentContext === 'BOARD'
 				? ['issue', 'swimlane', 'board']
 				: ['board'],
 		[CmdKeywords.NONE]: baseCommands,

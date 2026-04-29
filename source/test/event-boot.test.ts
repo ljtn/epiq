@@ -12,6 +12,15 @@ import {
 import {AppEvent} from '../event/event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 
+vi.mock('../event/event-persist.js', () => ({
+	persist: vi.fn(() => ({
+		result: 'success',
+		message: 'mocked persist',
+		data: null,
+	})),
+	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
+}));
+
 vi.mock('../event/event-materialize-and-persist.js', async () => {
 	const actual = await vi.importActual<
 		typeof import('../event/event-materialize.js')
@@ -170,6 +179,10 @@ describe('event boot', () => {
 		expect(hasPendingDefaultEvents()).toBe(true);
 
 		const persistResult = persistPendingDefaultEvents();
+
+		if (isFail(persistResult)) {
+			console.log(persistResult.message);
+		}
 
 		expect(isFail(persistResult)).toBe(false);
 		expect(hasPendingDefaultEvents()).toBe(false);

@@ -17,6 +17,26 @@ import {
 	isFail,
 } from './command-types.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
+import {AnyContext} from '../model/context.model.js';
+
+const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
+
+const guardEditableNodes = (): ValidationResult => {
+	const target = getState().selectedNode;
+	if (!target?.context)
+		return invalid({
+			message: 'Missing target context',
+			completionWordList: [],
+		});
+
+	if (!EDITABLE_NODES.includes(target?.context)) {
+		return invalid({
+			message: 'Command not available in this context',
+			completionWordList: [],
+		});
+	}
+	return valid();
+};
 
 export const CONFIRM_MSG = '<ENTER> to confirm';
 
@@ -286,20 +306,35 @@ const validators: Record<CmdKeyword, Validator> = {
 
 	[CmdKeywords.SET_DESCRIPTION]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.HELP]: () => valid(CONFIRM_MSG),
-	[CmdKeywords.RENAME]: () => valid(CONFIRM_MSG),
-	[CmdKeywords.DELETE]: args => requireExact(args),
+	[CmdKeywords.RENAME]: () => {
+		const editableNodeTypeValidation = guardEditableNodes();
+		if (editableNodeTypeValidation.validity === 'invalid')
+			return editableNodeTypeValidation;
+		return valid(CONFIRM_MSG);
+	},
+	[CmdKeywords.DELETE]: args => {
+		const editableNodeTypeValidation = guardEditableNodes();
+		if (editableNodeTypeValidation.validity === 'invalid')
+			return editableNodeTypeValidation;
+		return requireExact(args);
+	},
 	[CmdKeywords.CLOSE_ISSUE]: args => requireExact(args),
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),
 
-	[CmdKeywords.MOVE]: args =>
-		requireModifierOrInputStr({
+	[CmdKeywords.MOVE]: args => {
+		const editableNodeTypeValidation = guardEditableNodes();
+		if (editableNodeTypeValidation.validity === 'invalid')
+			return editableNodeTypeValidation;
+
+		return requireModifierOrInputStr({
 			hint: buildHint({
 				prefix: 'hey hacker! These commands are blocked for you... ',
 				wordList: getCmdModifiers(CmdKeywords.MOVE),
 				noOfHints: 10,
 				inputString: args.inputString,
 			}),
-		})(args),
+		})(args);
+	},
 
 	[CmdKeywords.TAG]: args => {
 		const tags = nodeRepo

@@ -3,8 +3,6 @@ import {Contributor, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 
-export type UserId = string;
-export type UserName = string;
 export type MovePosition =
 	| {at: 'start'}
 	| {at: 'end'}
@@ -143,8 +141,8 @@ type LogicalEvent<A extends EventAction = EventAction> = Extract<
 
 export type AppEvent<A extends EventAction = EventAction> = LogicalEvent<A> & {
 	id: string;
-	userId: UserId;
-	userName: UserName;
+	userId: string;
+	userName: string;
 };
 
 export type MaterializeResult<A extends EventAction> = Result<{

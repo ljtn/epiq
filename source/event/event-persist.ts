@@ -9,15 +9,13 @@ import {
 	Result,
 	succeeded,
 } from '../lib/command-line/command-types.js';
-import {getSettingsState} from '../lib/state/settings.state.js';
+import {getSettingsState, User} from '../lib/state/settings.state.js';
 import {getEdgeRef} from './event-load.js';
 import {
 	AppEvent,
 	AppEventMap,
 	StoredAppEvent,
 	stripActor,
-	UserId,
-	UserName,
 } from './event.model.js';
 
 // ======================
@@ -83,10 +81,7 @@ const sanitizeFilePart = (value: string) =>
 		.replace(/[^a-z0-9._-]+/g, '-')
 		.replace(/^-+|-+$/g, '') || 'unknown';
 
-export const resolveActorId = (): Result<{
-	userId: UserId;
-	userName: UserName;
-}> => {
+export const resolveActorId = (): Result<User> => {
 	const {userName, userId} = getSettingsState();
 	if (!userName) return failed('User name not configured');
 	if (!userId) return failed('User ID not configured');
@@ -100,7 +95,6 @@ export const resolveActorId = (): Result<{
 
 	return failed('Unable to resolve actor ID from settings or OS user info');
 };
-
 const hasEpiqDir = (dir: string) => {
 	return (
 		fs.existsSync(path.join(dir, getEpiqDirName())) &&
@@ -129,25 +123,14 @@ const getEventsDir = (rootDir = process.cwd()) => {
 	return path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), EVENTS_DIR);
 };
 
-export const getPersistFileName = () => {
-	const actorIdResult = resolveActorId();
-	if (isFail(actorIdResult) || !actorIdResult.data) {
-		return failed('Unable to resolve event log path');
-	}
+export const getPersistFileName = ({userId, userName}: User) =>
+	`${sanitizeFilePart(userId)}.${sanitizeFilePart(userName)}.jsonl`;
 
-	return succeeded(
-		'Succeeded',
-		`${actorIdResult.data.userId}.${actorIdResult.data.userName}.jsonl`,
-	);
-};
-
-export const getEventLogPath = (rootDir = process.cwd()): Result<string> => {
-	const fileNameResult = getPersistFileName();
-	if (isFail(fileNameResult)) {
-		return failed('Unable to resolve file name');
-	}
-
-	const fileName = fileNameResult.data;
+export const getEventLogPath = (
+	rootDir = process.cwd(),
+	{userId, userName}: User,
+): Result<string> => {
+	const fileName = getPersistFileName({userId, userName});
 	const isValid = /^(?!.*\.jsonl.*\.jsonl).*\.jsonl$/.test(fileName);
 
 	if (!isValid) {
@@ -173,11 +156,20 @@ export const toPersistedEvent = (
 	return parsePersistedEvent(candidate);
 };
 
-export function persist(event: AppEvent, rootDir = process.cwd()) {
+export function persist({
+	event,
+	rootDir = process.cwd(),
+}: {
+	event: AppEvent;
+	rootDir?: string;
+}) {
 	try {
 		const resolvedRoot = resolveEpiqRoot(rootDir);
 		const dir = getEventsDir(resolvedRoot);
-		const filePath = getEventLogPath(resolvedRoot);
+		const filePath = getEventLogPath(resolvedRoot, {
+			userId: event.userId,
+			userName: event.userName,
+		});
 		if (isFail(filePath)) return filePath;
 
 		fs.mkdirSync(dir, {recursive: true});

@@ -66,7 +66,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const {modifier} = getCmdState().commandMeta;
 
@@ -133,14 +132,13 @@ export const commands: CommandLineActionEntry[] = [
 
 				setMovePendingState({
 					id: ulid(),
-					userId,
-					userName,
 					action: 'move.node',
 					payload: {
 						id: targetNode.id,
 						parent: targetNode.parentNodeId,
 						pos,
 					},
+					...userRes.data,
 				});
 
 				patchState({mode: Mode.MOVE});
@@ -202,7 +200,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const {currentNode, selectedIndex} = getState();
 			const child = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -210,12 +207,11 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
-				userName,
 				action: 'delete.node',
 				payload: {
 					id: child.id,
 				},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -226,7 +222,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const issueResult = findInBreadCrumb(getState().breadCrumb, 'TICKET');
 			if (isFail(issueResult)) return failed('Edit target must be an issue');
@@ -260,26 +255,24 @@ export const commands: CommandLineActionEntry[] = [
 			if (target.title === 'Description') {
 				return materializeAndPersist({
 					id: ulid(),
-					userId,
-					userName,
 					action: 'edit.description',
 					payload: {
 						id: target.id,
 						md: updatedValue,
 					},
+					...userRes.data,
 				});
 			}
 
 			if (target.title === 'Title') {
 				return materializeAndPersist({
 					id: ulid(),
-					userId,
-					userName,
 					action: 'edit.title',
 					payload: {
 						id: target.id,
 						name: updatedValue,
 					},
+					...userRes.data,
 				});
 			}
 
@@ -331,7 +324,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const {currentNode, selectedIndex} = getState();
 			const target = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -343,10 +335,9 @@ export const commands: CommandLineActionEntry[] = [
 
 			const result = materializeAndPersist({
 				id: ulid(),
-				userId,
-				userName,
 				action: 'close.issue',
 				payload: {id: target.id, parent: target.parentNodeId},
+				...userRes.data,
 			});
 
 			if (isFail(result)) return result;
@@ -359,7 +350,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const {currentNode, selectedIndex} = getState();
 			const target = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -379,10 +369,9 @@ export const commands: CommandLineActionEntry[] = [
 
 			const result = materializeAndPersist({
 				id: ulid(),
-				userId,
-				userName,
 				action: 'reopen.issue',
 				payload: {id: ticket.id},
+				...userRes.data,
 			});
 
 			if (isFail(result)) return result;
@@ -465,7 +454,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: (_cmdAction, cmdState) => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			if (!cmdState.inputString) {
 				return failed(`provide a name for your ${cmdState.modifier}`);
@@ -510,14 +498,13 @@ export const commands: CommandLineActionEntry[] = [
 
 				return createAndNavigate({
 					id: ulid(),
-					userId,
-					userName,
 					action: 'add.board',
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
 						parent: workspace.id,
 					},
+					...userRes.data,
 				});
 			}
 
@@ -528,14 +515,13 @@ export const commands: CommandLineActionEntry[] = [
 
 				return createAndNavigate({
 					id: ulid(),
-					userId,
-					userName,
 					action: 'add.swimlane',
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
 						parent: boardResult.data.id,
 					},
+					...userRes.data,
 				});
 			}
 
@@ -557,10 +543,9 @@ export const commands: CommandLineActionEntry[] = [
 				}
 
 				const issueEvents = createIssueEvents({
-					userId,
-					userName,
 					name: cmdState.inputString,
 					parent: swimlane.id,
+					user: userRes.data,
 				});
 
 				const issueResults = materializeAndPersistAll(issueEvents);
@@ -625,7 +610,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const {currentNode, selectedIndex} = getState();
 			const node = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -637,10 +621,9 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
-				userName,
 				action: 'edit.title',
 				payload: {id: node.id, name: newName},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -651,7 +634,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const {modifier, inputString} = getCmdState().commandMeta;
 			const name = (modifier || inputString).trim();
@@ -676,13 +658,13 @@ export const commands: CommandLineActionEntry[] = [
 				const newTagId = ulid();
 				const createResult = materializeAndPersist({
 					id: ulid(),
-					userId,
-					userName,
 					action: 'create.tag',
 					payload: {
 						id: newTagId,
 						name,
 					},
+					userId: userRes.data.userId,
+					userName: userRes.data.userName,
 				});
 
 				if (isFail(createResult)) return createResult;
@@ -700,14 +682,13 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
-				userName,
 				action: 'tag.issue',
 				payload: {
 					id: ulid(),
 					target: ticket.id,
 					tagId,
 				},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -718,7 +699,6 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
-			const {userId, userName} = userRes.data;
 
 			const {modifier, inputString} = getCmdState().commandMeta;
 			const name = (modifier || inputString).trim();
@@ -743,13 +723,13 @@ export const commands: CommandLineActionEntry[] = [
 				const newContributorId = ulid();
 				const createResult = materializeAndPersist({
 					id: ulid(),
-					userId,
-					userName,
 					action: 'create.contributor',
 					payload: {
 						id: newContributorId,
 						name,
 					},
+					userId: userRes.data.userId,
+					userName: userRes.data.userName,
 				});
 
 				if (isFail(createResult)) return createResult;
@@ -767,14 +747,13 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
-				userName,
 				action: 'assign.issue',
 				payload: {
 					id: ulid(),
 					target: ticket.id,
 					contributor: contributorId,
 				},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -806,17 +785,19 @@ export const commands: CommandLineActionEntry[] = [
 				);
 			}
 
-			const persistFileName = getPersistFileName();
-			if (isFail(persistFileName)) {
-				return failed('Unable to resolve log file name');
+			const userRes = resolveActorId();
+			if (isFail(userRes) || !userRes.data) {
+				return failed('Unable to resolve event log path');
 			}
+
+			const ownEventFileName = getPersistFileName(userRes.data);
 			logger.debug(
 				'[sync-command] pending defaults',
 				hasPendingDefaultEvents(),
 			);
 
 			const syncResult = await syncEpiqWithRemote({
-				ownEventFileName: persistFileName.data,
+				ownEventFileName,
 			});
 
 			if (isFail(syncResult)) {

@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {isFail} from '../lib/command-line/command-types.js';
 import {
 	parsePersistedEvent,
 	persist,
@@ -10,14 +9,7 @@ import {
 	toPersistedEvent,
 } from '../event/event-persist.js';
 import {AppEvent, StoredAppEvent} from '../event/event.model.js';
-
-vi.mock('../lib/state/settings.state.js', () => ({
-	getSettingsState: vi.fn(() => ({
-		userId: 'U 1',
-		userName: 'Alice Smith',
-		preferredEditor: 'vim',
-	})),
-}));
+import {isFail} from '../lib/command-line/command-types.js';
 
 const makeTempDir = (): string =>
 	fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-'));
@@ -122,16 +114,11 @@ describe('event persist', () => {
 	});
 
 	it('persists event to sanitized actor event file', () => {
-		const result = persist(event(), rootDir);
+		const result = persist({event: event(), rootDir});
 
 		expect(isFail(result)).toBe(false);
 
-		const filePath = path.join(
-			rootDir,
-			'.epiq',
-			'events',
-			'u-1.alice-smith.jsonl',
-		);
+		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
 
 		expect(fs.existsSync(filePath)).toBe(true);
 
@@ -150,11 +137,11 @@ describe('event persist', () => {
 	});
 
 	it('uses previous edge ref as composite id ref on subsequent persists', () => {
-		const first = persist(event({id: 'event-1'}), rootDir);
+		const first = persist({event: event({id: 'event-1'}), rootDir});
 		expect(isFail(first)).toBe(false);
 
-		const second = persist(
-			event({
+		const second = persist({
+			event: event({
 				id: 'event-2',
 				payload: {
 					id: 'workspace-2',
@@ -162,16 +149,11 @@ describe('event persist', () => {
 				},
 			}),
 			rootDir,
-		);
+		});
 
 		expect(isFail(second)).toBe(false);
 
-		const filePath = path.join(
-			rootDir,
-			'.epiq',
-			'events',
-			'u-1.alice-smith.jsonl',
-		);
+		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
 
 		const [firstLine, secondLine] = fs
 			.readFileSync(filePath, 'utf8')

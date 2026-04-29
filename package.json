@@ -21,14 +21,15 @@
 		"vim-inspired"
 	],
 	"bin": {
-		"epiq": "dist/cli.js"
+		"epiq": "dist/cli.js",
+		"epiq-mcp": "dist/mcp.js"
 	},
 	"engines": {
 		"node": ">=18"
 	},
 	"scripts": {
 		"build": "tsc --noEmit",
-		"build:npm": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",
+		"build:npm": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' && esbuild source/mcp/server.ts --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/mcp.js --banner:js='#!/usr/bin/env node'",
 		"build:sea:bundle": "rm -rf ./dist && esbuild source/cli.tsx --bundle --platform=node --format=cjs --target=node18 --minify --outfile=dist/sea.cjs",
 		"build:sea": "node --build-sea sea-config.json",
 		"build:publish": "pnpm build:npm",
@@ -41,12 +42,15 @@
 		"pack:check": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"$FILE\" && tar -tf \"$FILE\"",
 		"publish:dry": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && npm publish --dry-run \"$FILE\"",
 		"publish:tarball": "FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"Publishing $FILE\" && npm publish \"$FILE\"",
-		"release": "pnpm test && pnpm pack:check && pnpm publish:tarball"
+		"release": "pnpm test && pnpm pack:check && pnpm publish:tarball",
+		"start:mcp": "IS_LOCAL=true tsx source/mcp/server.ts",
+		"inspect:mcp": "pnpm dlx @modelcontextprotocol/inspector"
 	},
 	"files": [
 		"dist"
 	],
 	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.29.0",
 		"ink": "^6.8.0",
 		"meow": "^14.1.0",
 		"react": "^19.2.4",

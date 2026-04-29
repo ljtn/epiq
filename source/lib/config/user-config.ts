@@ -7,7 +7,7 @@ import {
 	Result,
 	succeeded,
 } from '../command-line/command-types.js';
-import {patchSettingsState} from '../state/settings.state.js';
+import {SettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 
 export const SYSTEM_USER = {
@@ -119,12 +119,12 @@ export const setConfig = (partialConfig: Partial<EpiqConfig>) => {
 	return writeEpiqConfig(nextConfig);
 };
 
-export const loadSettingsFromConfig = () => {
+export const loadSettingsFromConfig = (): Result<SettingsState> => {
 	const configPath = getEpiqConfigPath();
 
 	const ensureResult = ensureEpiqHomeExists();
 	if (isFail(ensureResult)) {
-		throw new Error('Unable to create ~/.epiq');
+		return failed('Unable to create ~/.epiq');
 	}
 
 	const exists = fileManager.readFile(configPath) !== null;
@@ -147,8 +147,8 @@ export const loadSettingsFromConfig = () => {
 		return failed('User name or ID not configured in ~/.epiq/config.json');
 	}
 
-	return patchSettingsState({
-		preferredEditor,
+	return succeeded('successfully loaded settings', {
+		preferredEditor: preferredEditor ?? '',
 		userName,
 		userId,
 	});
