@@ -26,7 +26,7 @@ Epiq renders your issue board directly in the terminal using ASCII and stores it
 
 - Issue tracking — track work in tickets with name, description, tags, assignees, history log, etc.
 - Ergonomics — fast keyboard-driven ux, command line with history, syntax highlighting etc.
-- Time travel - inspect your app 1 week or 1 year ago
+- Time travel — inspect your app 1h, 1 week or 1 year ago
 - Filtering — query issues by description, tags, assignees, etc.
 - Autocompletion — minimize typing, stay in flow
 - Multi-user — real-time synchronization of board
@@ -45,6 +45,26 @@ These design choices result in a system that is:
 - **Portable** — run on your local machine, on a remote Linux server or your grandma’s connected toaster
 - **Command driven** — scriptable and automation-friendly, ready for the agentic era
 - **Versioned** — every change is tracked and recoverable through Git
+
+---
+
+## MCP & Agent Compatibility
+
+Epiq provides a MCP (Model Context Protocol) server for agents to interact with, making it easy to plug into modern agent frameworks.
+
+To register Epiq with MCP-compatible clients (e.g. Claude Desktop), add it as a server using the `epiq-mcp` binary. Example configuration:
+
+```json
+{
+	"mcpServers": {
+		"epiq": {
+			"command": "epiq-mcp"
+		}
+	}
+}
+```
+
+Once registered, agents can interact with your local Epiq instance through the MCP.
 
 ---
 
