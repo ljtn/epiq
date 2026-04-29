@@ -310,6 +310,33 @@ export const nodeRepo = {
 		return succeeded('Tag added', result.data);
 	},
 
+	untag(targetId: string, tagId: string): Result<NavNode<'FIELD'>> {
+		const tag = nodeRepo.getTag(tagId);
+		const target = nodeRepo.getNode(targetId);
+		if (!tag) return failed('Unable to remove tag, missing tag');
+		if (!target) return failed('Unable to remove tag, missing target');
+
+		const tagsField = this.getFieldByTitle(target.id, 'Tags');
+		if (!tagsField) return failed('Unable to locate tags field');
+
+		const tagNode = getOrderedChildren(tagsField.id).find(
+			child => child.props?.value === tagId,
+		);
+
+		if (!tagNode) {
+			return succeeded('Issue is not tagged with that tag', null);
+		}
+
+		const nextNode: NavNode<'FIELD'> = {
+			...(tagNode as NavNode<'FIELD'>),
+			isDeleted: true,
+		};
+
+		this.updateNode(nextNode);
+
+		return succeeded('Tag removed', nextNode);
+	},
+
 	createNodeAtPosition<T extends AnyContext>(
 		node: NavNode<T>,
 		position: MovePosition = {at: 'end'},

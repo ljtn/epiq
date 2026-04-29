@@ -81,6 +81,13 @@ export type AppEventMap = {
 		};
 		result: NavNode<'FIELD'>;
 	};
+	'untag.issue': {
+		payload: PayloadBase & {
+			tagId: string;
+			target: string;
+		};
+		result: NavNode<'FIELD'>;
+	};
 
 	'move.node': {
 		payload: PayloadBase & {

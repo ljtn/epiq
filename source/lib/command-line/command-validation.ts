@@ -2,12 +2,14 @@ import chalk from 'chalk';
 import {safeDateFromUlid} from '../../event/date-utils.js';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
+import {AnyContext} from '../model/context.model.js';
 import {getState} from '../state/state.js';
 import {
 	getGradientWord,
 	getStringColor,
 	getWordGradientPosition,
 } from '../utils/color.js';
+import {ticketTagsFromBreadCrumb} from '../utils/ticket.utils.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
@@ -17,7 +19,6 @@ import {
 	isFail,
 } from './command-types.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
-import {AnyContext} from '../model/context.model.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 
@@ -68,10 +69,10 @@ const valid = (
 
 const invalid = ({
 	message,
-	completionWordList,
+	completionWordList = [],
 }: {
 	message: string;
-	completionWordList: string[];
+	completionWordList?: string[];
 }): ValidationResult => ({
 	validity: cmdValidity.Invalid,
 	message,
@@ -369,6 +370,24 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return requireModifierOrInputStr({
 			hint: 'tag name like... ' + tags.join(''),
+		})(args);
+	},
+	[CmdKeywords.UNTAG]: args => {
+		const tagsRes = ticketTagsFromBreadCrumb();
+		if (isFail(tagsRes)) {
+			return invalid({message: 'Invalid untag target', completionWordList: []});
+		}
+
+		const tags = tagsRes.data
+			.map(({name}) => name)
+			.map(tag => ` ${chalk.bgHex(getStringColor(tag))(' ' + tag + ' ')} `)
+			.slice(0, 10);
+
+		if (!tags.length)
+			return invalid({message: 'Issue has not tags', completionWordList: []});
+
+		return requireModifierOrInputStr({
+			hint: ' ... ' + tags.join(''),
 		})(args);
 	},
 

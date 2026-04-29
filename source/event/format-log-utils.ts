@@ -24,6 +24,7 @@ const formatLogAction = (action: string): string => {
 			'edit.description': 'Changed description',
 			'reopen.issue': 'Reopened',
 			'tag.issue': 'Tagged with',
+			'untag.issue': 'Removed tag',
 			'lock.node': 'Locked node',
 			'move.node': 'Moved issue',
 		};
@@ -63,6 +64,13 @@ const formatEventDetails = (event: AppEvent): string => {
 		}
 
 		case 'tag.issue': {
+			const tag = getState().tags[event.payload.tagId];
+			return tag
+				? chalk.bgHex(getStringColor(tag.name))(` ${tag.name} `)
+				: 'unknown tag';
+		}
+
+		case 'untag.issue': {
 			const tag = getState().tags[event.payload.tagId];
 			return tag
 				? chalk.bgHex(getStringColor(tag.name))(` ${tag.name} `)

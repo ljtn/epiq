@@ -7,6 +7,7 @@ import {
 import {AnyContext, NavNodeCtx} from '../model/context.model.js';
 import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
+import {ticketTagsFromBreadCrumb} from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './command-types.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
@@ -108,6 +109,9 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.SET_EDITOR]: [...editorConfig, 'vim'],
 		[CmdKeywords.TAG]: [
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
+		],
+		[CmdKeywords.UNTAG]: [
+			...new Set(ticketTagsFromBreadCrumb()?.data?.map(({name}) => name)),
 		],
 		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
 		[CmdKeywords.HELP]: [],

@@ -3,6 +3,7 @@ export const CmdKeywords = {
 	HELP: 'help',
 	NEW: 'new',
 	TAG: 'tag',
+	UNTAG: 'untag',
 	MOVE: 'move',
 
 	PEEK: 'peek',

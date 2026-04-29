@@ -1,7 +1,7 @@
 {
 	"name": "epiq",
-	"version": "0.3.2",
-	"license": "UNLICENSED",
+	"version": "0.3.3",
+	"license": "MIT",
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",
 	"keywords": [

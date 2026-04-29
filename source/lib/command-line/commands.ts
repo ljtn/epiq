@@ -651,6 +651,51 @@ export const commands: CommandLineActionEntry[] = [
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
+		intent: CmdIntent.UntagTicket,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+			const {modifier, inputString} = getCmdState().commandMeta;
+			const name = (modifier || inputString).trim();
+			if (!name) return failed('Provide a tag');
+
+			const existingTag = findTagByName(name);
+			if (!existingTag) return failed(`Tag "${name}" does not exist`);
+
+			const {selectedNode} = getState();
+			if (!selectedNode) return failed('Invalid untag target');
+
+			const ticketResult = findAncestor(selectedNode.id, 'TICKET');
+			if (isFail(ticketResult))
+				return failed('Unable to untag issue in this context');
+
+			const ticket = ticketResult.data;
+
+			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
+			if (!tagsField) return failed('Unable to locate tags field');
+
+			const tagNode = getRenderedChildren(tagsField.id).find(
+				child => child.props?.value === existingTag.id,
+			);
+
+			if (!tagNode) return failed('Issue is not tagged with that tag');
+
+			return materializeAndPersist({
+				id: ulid(),
+				action: 'untag.issue',
+				payload: {
+					id: tagNode.id,
+					target: ticket.id,
+					tagId: existingTag.id,
+				},
+				...userRes.data,
+			});
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
 		intent: CmdIntent.TagTicket,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
