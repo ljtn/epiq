@@ -1,12 +1,7 @@
 {
 	"name": "epiq",
-<<<<<<< Updated upstream
-	"version": "0.2.4",
 	"license": "MIT",
-=======
 	"version": "0.3.2",
-	"license": "UNLICENSED",
->>>>>>> Stashed changes
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",
 	"bin": {
@@ -30,13 +25,9 @@
 		"pack:check": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"$FILE\" && tar -tf \"$FILE\"",
 		"publish:dry": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && npm publish --dry-run \"$FILE\"",
 		"publish:tarball": "FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"Publishing $FILE\" && npm publish \"$FILE\"",
-<<<<<<< Updated upstream
-		"release": "pnpm test && pnpm pack:check && pnpm publish:tarball"
-=======
 		"release": "pnpm pack:check && pnpm publish:tarball",
 		"start:mcp": "IS_LOCAL=true tsx source/mcp/server.ts",
 		"inspect:mcp": "pnpm dlx @modelcontextprotocol/inspector"
->>>>>>> Stashed changes
 	},
 	"files": [
 		"dist"
