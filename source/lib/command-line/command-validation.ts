@@ -27,13 +27,11 @@ const guardEditableNodes = (): ValidationResult => {
 	if (!target?.context)
 		return invalid({
 			message: 'Missing target context',
-			completionWordList: [],
 		});
 
 	if (!EDITABLE_NODES.includes(target?.context)) {
 		return invalid({
 			message: 'Command not available in this context',
-			completionWordList: [],
 		});
 	}
 	return valid();
@@ -130,7 +128,6 @@ const requireOneIn =
 			? valid(CONFIRM_MSG)
 			: invalid({
 					message: isBlank(modifier) ? hint : '',
-					completionWordList: [],
 			  });
 
 const requireOneWithValueIn =
@@ -147,14 +144,12 @@ const requireOneWithValueIn =
 		if (!list.includes(modifier)) {
 			return invalid({
 				message: isBlank(modifier) ? hint : '',
-				completionWordList: [],
 			});
 		}
 
 		if (inputString.trim().length < 1) {
 			return invalid({
 				message: onValue,
-				completionWordList: [],
 			});
 		}
 
@@ -175,7 +170,6 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		const hint = {
 			message: `historical state from: '1h', '2d', '23h', '1mo', '2y', 'previous', 'next' or full date as YYYY-MM-DD`,
-			completionWordList: [],
 		};
 
 		if (modifier === 'prev') return valid(CONFIRM_MSG);
@@ -191,7 +185,6 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (isFail(boardResult)) {
 			return invalid({
 				message: 'Command is not applicable in this context',
-				completionWordList: [],
 			});
 		}
 		const boardCreationDate = safeDateFromUlid(boardResult.data.id);
@@ -199,7 +192,6 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (isFail(boardCreationDate)) {
 			return invalid({
 				message: 'Unable to peek: board id is not a valid ULID',
-				completionWordList: [],
 			});
 		}
 
@@ -216,7 +208,6 @@ const validators: Record<CmdKeyword, Validator> = {
 						.slice(0, 16)
 						.replace('T', ' ')}`,
 				),
-				completionWordList: [],
 			});
 		}
 
@@ -313,7 +304,6 @@ const validators: Record<CmdKeyword, Validator> = {
 						inputString: args.inputString,
 						minLengthForHints: 0,
 					}),
-					completionWordList: [],
 			  })
 			: valid();
 	},
@@ -418,7 +408,6 @@ const validators: Record<CmdKeyword, Validator> = {
 						wordList,
 						inputString: args.inputString,
 					}),
-					completionWordList: [],
 			  })
 			: valid(CONFIRM_MSG);
 	},
@@ -427,7 +416,6 @@ const validators: Record<CmdKeyword, Validator> = {
 		return !args.inputString
 			? invalid({
 					message: `Enter a username. Saved in ${chalk.bgBlack('~/.epiq/')}`,
-					completionWordList: [],
 			  })
 			: valid();
 	},
