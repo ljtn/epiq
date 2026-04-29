@@ -2,7 +2,7 @@ import {ulid} from 'ulid';
 import {bootStateFromEventLog} from '../event/event-boot.js';
 import {loadMergedEvents} from '../event/event-load.js';
 import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
-import {resolveEpiqRoot} from '../event/event-persist.js';
+import {getPersistFileName, resolveEpiqRoot} from '../event/event-persist.js';
 import {AppEvent, MovePosition} from '../event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 import {
@@ -18,7 +18,10 @@ import {getFieldValue} from '../lib/utils/ticket.utils.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {createIssueEvents} from '../event/common-events.js';
+import {syncEpiqWithRemote} from '../git/sync.js';
+import {getEventFilePath} from '../git/git.js';
 
+type SyncInput = ToolInput;
 type MoveIssueInput = ToolInput & {
 	issueId: string;
 	parentId: string;
@@ -309,4 +312,22 @@ export const moveIssue = (input: MoveIssueInput) => {
 		parentId: input.parentId,
 		position: input.position ?? {at: 'end'},
 	});
+};
+
+export const sync = async (input: SyncInput = {}) => {
+	const root = resolveEpiqRoot(input.repoRoot ?? process.cwd());
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const result = await syncEpiqWithRemote({
+		cwd: root,
+		ownEventFileName: getPersistFileName({
+			userId: actorResult.data.userId,
+			userName: actorResult.data.userName,
+		}),
+	});
+	if (isFail(result)) return result;
+
+	return succeeded('Synced Epiq state', result.data);
 };

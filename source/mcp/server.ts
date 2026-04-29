@@ -1,6 +1,7 @@
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
+import {isFail, Result} from '../lib/command-line/command-types.js';
 import {
 	closeIssue,
 	createIssue,
@@ -9,8 +10,8 @@ import {
 	listIssues,
 	listSwimlanes,
 	moveIssue,
+	sync,
 } from './tools.js';
-import {isFail, Result} from '../lib/command-line/command-types.js';
 
 export const resultJson = <T>(result: Result<T>) => ({
 	isError: isFail(result),
@@ -125,6 +126,17 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await moveIssue(input)),
+	);
+
+	server.registerTool(
+		'epiq_sync',
+		{
+			description: 'Sync Epiq state with the configured Git remote',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await sync(input)),
 	);
 
 	return server;
