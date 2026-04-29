@@ -170,7 +170,46 @@ Epiq uses Git in the background to synchronize state between clients. No manual 
 
 The `.epiq/` folder is non-authoritative and used for caching and local tracking. It can optionally be committed if you want your board state versioned alongside your code.
 
-> The system is designed to assure robustness and uses a number of techniques and design patterns to avoid merge conflicts.
+## Conflict Avoidance & Data Integrity
+
+Epiq is designed to provide robustness in a distributed, Git-backed environment where multiple users may update state concurrently. Instead of mutating shared files, Epiq uses an event-sourced model to minimize merge conflicts and make concurrent changes predictable.
+
+### Event-sourced state
+
+All changes are stored as **append-only events** in user-scoped files, rather than modifying a shared state file. This avoids in-place edits to the same lines and significantly reduces the likelihood of Git conflicts.
+
+State is reconstructed in-memory by replaying a merge of all user logs.
+
+### Deterministic materialization
+
+The current state is derived by replaying events in a deterministic order.
+
+Events use a composite of time-sortable IDs (ULIDs) and a reference to the last known event ("edge"). On creation, events are appended relative to the last known event. If multiple events share the same reference point, their relative order is resolved using their time-based IDs.
+
+This approach:
+
+- Provides stable and reproducible ordering across machines
+- Limits the impact of potential clock drift to small local ordering differences
+- Ensures that concurrent updates converge to the same state
+
+### Conflict handling model
+
+Epiq resolves concurrent changes at the event level:
+
+- Events are designed to be **idempotent** where possible
+- Later events take precedence when conflicts occur
+
+Because events are append-only and scoped to 1 file per user, Git merges become trivial combinations of changes in independent files.
+
+### Local-first with eventual consistency
+
+Epiq follows a **local-first** model:
+
+- All operations apply instantly on the local machine
+- Synchronization happens explicitly (`:sync`) or automatically
+- When histories diverge, merging event logs and replaying them leads to a consistent state
+
+> Frequent synchronization reduces divergence and keeps the system predictable
 
 ---
 
