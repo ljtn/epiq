@@ -2,6 +2,8 @@
 
 # Epiq
 
+_Distributed CLI based issue tracker TUI_ backed by git.
+
 Issue tracking is a part of the development lifecycle, but it often becomes a painful context switching exercise with poor ergonomics. `Epiq` provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to. Epiq is a **CLI-native issue tracker** — powered by Git in which you can manage all your projects directly via the command line in a visual kanban board and edit content in your favorite, personalized editor.
 
 With great attention to user ergonomics, epiq intends to make project management painless and friction free again, and has developer satisfaction as its primary target.
