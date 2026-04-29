@@ -10,10 +10,11 @@ import {
 import {SettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 
-export const SYSTEM_USER = {
+export const SYSTEM_USER: EpiqConfig = {
 	userId: '',
 	userName: '',
 	preferredEditor: '',
+	autoSync: false,
 };
 
 const EpiqConfigSchema = z
@@ -21,6 +22,7 @@ const EpiqConfigSchema = z
 		preferredEditor: z.string().optional(),
 		userName: z.string().optional(),
 		userId: z.string().optional(),
+		autoSync: z.boolean().optional(),
 	})
 	.strict();
 
@@ -74,7 +76,12 @@ export const readEpiqConfig = (): Result<EpiqConfig> => {
 	const raw = fileManager.readFile(configPath);
 
 	if (raw == null || raw.trim() === '') {
-		return succeeded('No config found, using empty config', {});
+		return succeeded('No config found, using empty config', {
+			autoSync: false,
+			preferredEditor: '',
+			userId: '',
+			userName: '',
+		});
 	}
 
 	return safeParseConfig(raw);
@@ -141,7 +148,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		throw new Error(result.message || 'Unable to load settings');
 	}
 
-	const {preferredEditor, userName, userId} = result.data;
+	const {preferredEditor, userName, userId, autoSync} = result.data;
 
 	if (!userName || !userId) {
 		return failed('User name or ID not configured in ~/.epiq/config.json');
@@ -151,5 +158,6 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		preferredEditor: preferredEditor ?? '',
 		userName,
 		userId,
+		autoSync: autoSync ?? false,
 	});
 };

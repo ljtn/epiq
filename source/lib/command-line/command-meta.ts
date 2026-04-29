@@ -23,6 +23,7 @@ export const CmdIntent = {
 	SetView: 'set-view',
 	SetEditor: 'set-editor',
 	SetUserName: 'set-user-name',
+	SetAutoSync: 'set-auto-sync',
 
 	// Add
 	NewItem: 'add-new-item',

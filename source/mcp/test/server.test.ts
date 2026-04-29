@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {failed, succeeded} from '../../lib/command-line/command-types.js';
 import {resultJson} from '../server.js';
 

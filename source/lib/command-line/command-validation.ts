@@ -279,11 +279,36 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 
 	[CmdKeywords.NONE]: args => {
+		let wordList = getCmdModifiers(CmdKeywords.NONE);
+		// Special logic for colon separated commands.
+		// We don't want to show all the variants for those.
+		// Initially we just autocomplete with the base, and then autocomplete with the variants
+		const matchColonSeparatedCommand = /^[A-Za-z_]+:/g;
+		const inputWordSplitOnColon = args.inputString.match(
+			matchColonSeparatedCommand,
+		);
+		if (inputWordSplitOnColon && inputWordSplitOnColon.length) {
+			wordList = [
+				...wordList.filter(x => x.trim().match(matchColonSeparatedCommand)),
+			];
+		} else {
+			wordList = [
+				...new Set(
+					wordList.flatMap(
+						word =>
+							word
+								.match(matchColonSeparatedCommand)
+								?.join('')
+								.replace(':', '') ?? word,
+					),
+				),
+			];
+		}
 		return !args.command
 			? invalid({
 					message: buildHint({
-						prefix: 'commands... ',
-						wordList: getCmdModifiers(CmdKeywords.NONE),
+						prefix: '... ',
+						wordList: wordList,
 						inputString: args.inputString,
 						minLengthForHints: 0,
 					}),

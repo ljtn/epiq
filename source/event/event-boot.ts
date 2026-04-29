@@ -8,11 +8,10 @@ import {
 	succeeded,
 } from '../lib/command-line/command-types.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
-import {materializeAndPersistAll} from './event-materialize-and-persist.js';
 import {materializeAll} from './event-materialize.js';
+import {persist} from './event-persist.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
-import {persist, resolveActorId} from './event-persist.js';
 
 const SYSTEM_ACTOR_ID = `system` as const;
 const SYSTEM_ACTOR_NAME = `ACTOR` as const;
@@ -103,7 +102,7 @@ export function createDefaultEvents(): readonly AppEvent[] {
 			userId: SYSTEM_ACTOR_ID,
 			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
-			payload: {id: swimlaneId2, name: 'Review', parent: boardId},
+			payload: {id: swimlaneId2, name: 'In progress', parent: boardId},
 		},
 		{
 			id: ulid(),

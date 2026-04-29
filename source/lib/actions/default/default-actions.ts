@@ -119,15 +119,15 @@ export const DefaultActions: ActionEntry[] = [
 			return succeeded('View set', null);
 		},
 	},
-	{
-		intent: Intent.Sync,
-		mode: Mode.DEFAULT,
-		description: '[s] sync epiq with remote state branch',
-		action: () => {
-			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => `sync`);
-			void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
-			return succeeded('Synced', true);
-		},
-	},
+	// {
+	// 	intent: Intent.Sync,
+	// 	mode: Mode.DEFAULT,
+	// 	description: '[s] sync epiq with remote state branch',
+	// 	action: () => {
+	// 		patchState({mode: Mode.COMMAND_LINE});
+	// 		setCmdInput(() => `sync`);
+	// 		void onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+	// 		return succeeded('Synced', true);
+	// 	},
+	// },
 ];

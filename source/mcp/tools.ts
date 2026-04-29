@@ -1,10 +1,12 @@
 import {ulid} from 'ulid';
+import {createIssueEvents} from '../event/common-events.js';
 import {bootStateFromEventLog} from '../event/event-boot.js';
 import {loadMergedEvents} from '../event/event-load.js';
 import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
 import {getPersistFileName, resolveEpiqRoot} from '../event/event-persist.js';
 import {AppEvent, MovePosition} from '../event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
+import {syncEpiqWithRemote} from '../git/sync.js';
 import {
 	failed,
 	isFail,
@@ -14,12 +16,9 @@ import {
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {isTicketNode, Ticket} from '../lib/model/context.model.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
-import {getFieldValue} from '../lib/utils/ticket.utils.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
+import {getFieldValue} from '../lib/utils/ticket.utils.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {createIssueEvents} from '../event/common-events.js';
-import {syncEpiqWithRemote} from '../git/sync.js';
-import {getEventFilePath} from '../git/git.js';
 
 type SyncInput = ToolInput;
 type MoveIssueInput = ToolInput & {

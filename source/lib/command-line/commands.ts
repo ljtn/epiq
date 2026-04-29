@@ -449,6 +449,28 @@ export const commands: CommandLineActionEntry[] = [
 		},
 	},
 	{
+		intent: CmdIntent.SetAutoSync,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const selectionVal = getCmdState().commandMeta.modifier;
+			if (selectionVal !== 'true' && selectionVal !== 'false') {
+				return failed('Invalid response');
+			}
+			const selection: boolean = selectionVal.toLowerCase() === 'true';
+
+			const persistResult = setConfig({autoSync: selection});
+			if (isFail(persistResult)) return persistResult;
+
+			patchSettingsState({
+				autoSync: selection,
+			});
+
+			patchState({mode: Mode.DEFAULT});
+
+			return succeeded(`Auto synchronization set to "${selection}"`, null);
+		},
+	},
+	{
 		intent: CmdIntent.NewItem,
 		mode: Mode.COMMAND_LINE,
 		action: (_cmdAction, cmdState) => {
