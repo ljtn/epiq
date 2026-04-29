@@ -31,6 +31,7 @@ export const CmdIntent = {
 	TagTicket: 'ticket-tag',
 	UntagTicket: 'ticket-untag',
 	AssignUserToTicket: 'ticket-assign-user',
+	UnassignUserFromTicket: 'ticket-unassign-user',
 	CloseIssue: 'close-issue',
 	ReopenIssue: 're-open-issue',
 

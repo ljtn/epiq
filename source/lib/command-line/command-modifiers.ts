@@ -7,7 +7,10 @@ import {
 import {AnyContext, NavNodeCtx} from '../model/context.model.js';
 import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
-import {ticketTagsFromBreadCrumb} from '../utils/ticket.utils.js';
+import {
+	ticketAssigneesFromBreadCrumb,
+	ticketTagsFromBreadCrumb,
+} from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './command-types.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
@@ -40,7 +43,9 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 
 	const updateTicketCommands = [
 		CmdKeywords.TAG,
+		CmdKeywords.UNTAG,
 		CmdKeywords.ASSIGN,
+		CmdKeywords.UNASSIGN, // ← new
 		CmdKeywords.CLOSE_ISSUE,
 		CmdKeywords.RE_OPEN_ISSUE,
 		CmdKeywords.SET_DESCRIPTION,
@@ -91,10 +96,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.DELETE]: ['confirm'],
 		[CmdKeywords.RE_OPEN_ISSUE]: ['confirm'],
 		[CmdKeywords.MOVE]: [
-			// ===================================================================
-			// ====== THESE ARE BLOCKED FOR USERS, BUT USED BY THE SYSTEM ========
-			// ===================================================================
-			//
+			// ====== BLOCKED FOR USERS, BUT USED BY THE SYSTEM ========
 			'start',
 			'confirm',
 			'next',
@@ -111,7 +113,10 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
 		],
 		[CmdKeywords.UNTAG]: [
-			...new Set(ticketTagsFromBreadCrumb()?.data?.map(({name}) => name)),
+			...(ticketTagsFromBreadCrumb()?.data?.map(({name}) => name) ?? []),
+		],
+		[CmdKeywords.UNASSIGN]: [
+			...(ticketAssigneesFromBreadCrumb()?.data?.map(({name}) => name) ?? []),
 		],
 		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
 		[CmdKeywords.HELP]: [],

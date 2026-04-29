@@ -73,6 +73,13 @@ export type AppEventMap = {
 		};
 		result: NavNode<'FIELD'>;
 	};
+	'unassign.issue': {
+		payload: PayloadBase & {
+			contributor: string;
+			target: string;
+		};
+		result: NavNode<'FIELD'>;
+	};
 
 	'tag.issue': {
 		payload: PayloadBase & {

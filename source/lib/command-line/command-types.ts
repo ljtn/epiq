@@ -10,6 +10,7 @@ export const CmdKeywords = {
 	FILTER: 'filter',
 
 	ASSIGN: 'assign',
+	UNASSIGN: 'unassign',
 	DELETE: 'delete',
 	RENAME: 'rename',
 

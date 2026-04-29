@@ -337,6 +337,34 @@ export const nodeRepo = {
 		return succeeded('Tag removed', nextNode);
 	},
 
+	unassign(targetId: string, contributorId: string): Result<NavNode<'FIELD'>> {
+		const contributor = nodeRepo.getContributor(contributorId);
+		const target = nodeRepo.getNode(targetId);
+
+		if (!contributor) return failed('Unable to unassign, missing contributor');
+		if (!target) return failed('Unable to unassign, missing target');
+
+		const assigneesField = this.getFieldByTitle(target.id, 'Assignees');
+		if (!assigneesField) return failed('Unable to locate assignees field');
+
+		const assigneeNode = getOrderedChildren(assigneesField.id).find(
+			child => child.props?.value === contributorId,
+		);
+
+		if (!assigneeNode) {
+			return succeeded('Issue is not assigned to that contributor', null);
+		}
+
+		const nextNode: NavNode<'FIELD'> = {
+			...(assigneeNode as NavNode<'FIELD'>),
+			isDeleted: true,
+		};
+
+		this.updateNode(nextNode);
+
+		return succeeded('Assignee removed', nextNode);
+	},
+
 	createNodeAtPosition<T extends AnyContext>(
 		node: NavNode<T>,
 		position: MovePosition = {at: 'end'},

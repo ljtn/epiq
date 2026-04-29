@@ -9,7 +9,10 @@ import {
 	getStringColor,
 	getWordGradientPosition,
 } from '../utils/color.js';
-import {ticketTagsFromBreadCrumb} from '../utils/ticket.utils.js';
+import {
+	ticketAssigneesFromBreadCrumb,
+	ticketTagsFromBreadCrumb,
+} from '../utils/ticket.utils.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
 	CmdKeyword,
@@ -392,6 +395,35 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return requireModifierOrInputStr({
 			hint: 'assign to... ' + contributors.join(''),
+		})(args);
+	},
+
+	[CmdKeywords.UNASSIGN]: args => {
+		const assigneesRes = ticketAssigneesFromBreadCrumb(); // ← you'll need this helper
+		if (isFail(assigneesRes)) {
+			return invalid({
+				message: 'Invalid unassign target',
+				completionWordList: [],
+			});
+		}
+
+		const coloredAssignees = assigneesRes.data
+			.map(({name}) => name)
+			.map(
+				assignee =>
+					` ${chalk.bgHex(getStringColor(assignee))(' ' + assignee + ' ')} `,
+			)
+			.slice(0, 10);
+
+		if (!coloredAssignees.length) {
+			return invalid({
+				message: 'Issue has no assignees',
+				completionWordList: [],
+			});
+		}
+
+		return requireModifierOrInputStr({
+			hint: 'remove assignee... ' + coloredAssignees.join(''),
 		})(args);
 	},
 

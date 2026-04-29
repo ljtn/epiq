@@ -24,6 +24,8 @@ export const getCommandIntent = (command: string): CommandIntent => {
 			return CmdIntent.UntagTicket;
 		case CmdKeywords.ASSIGN:
 			return CmdIntent.AssignUserToTicket;
+		case CmdKeywords.UNASSIGN:
+			return CmdIntent.UnassignUserFromTicket;
 		case CmdKeywords.RENAME:
 			return CmdIntent.Rename;
 		case CmdKeywords.NEW:

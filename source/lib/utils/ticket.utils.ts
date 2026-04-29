@@ -77,6 +77,21 @@ export const ticketTagsFromBreadCrumb = (): Result<Tag[]> => {
 	);
 };
 
+export const ticketAssigneesFromBreadCrumb = (): Result<Contributor[]> => {
+	const {breadCrumb, selectedNode} = getState();
+	const ticket = [...breadCrumb, selectedNode].find(
+		x => x?.context === 'TICKET',
+	);
+	if (!ticket || !isTicketNode(ticket)) {
+		return failed('Invalid untag target');
+	}
+
+	return succeeded(
+		'Retrieved tags from ticket in breadcrumb',
+		getTicketAssignees(ticket) ?? [],
+	);
+};
+
 export const getTicketAssignees = (ticket: Ticket): Contributor[] =>
 	getTicketReferencedIds(ticket, 'Assignees')
 		.map(contributorId => nodeRepo.getContributor(contributorId))

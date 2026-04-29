@@ -18,6 +18,7 @@ const formatLogAction = (action: string): string => {
 		const pastTbl: Partial<Record<EventAction, string>> = {
 			'add.issue': 'Created with title',
 			'assign.issue': 'Assigned to',
+			'unassign.issue': 'Unassigned from',
 			'close.issue': 'Closed',
 			'delete.node': 'Deleted',
 			'edit.title': 'Changed title to',
@@ -78,6 +79,13 @@ const formatEventDetails = (event: AppEvent): string => {
 		}
 
 		case 'assign.issue': {
+			const contributor = getState().contributors[event.payload.contributor];
+			return contributor
+				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)
+				: 'unknown user';
+		}
+
+		case 'unassign.issue': {
 			const contributor = getState().contributors[event.payload.contributor];
 			return contributor
 				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)

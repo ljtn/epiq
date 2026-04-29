@@ -247,6 +247,23 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 	},
 
+	'unassign.issue': ({action, payload}) => {
+		const {target: targetId, contributor} = payload;
+		const result = nodeRepo.unassign(targetId, contributor);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to unassign issue',
+				action,
+			);
+		}
+
+		return succeeded('Issue unassigned', {
+			action,
+			result: result.data,
+		});
+	},
+
 	'move.node': ({action, payload}) => {
 		const {id, parent: parentId, pos: position} = payload;
 		const result = nodeRepo.moveNode({id, parentId, position});
@@ -413,6 +430,7 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'tag.issue':
 		case 'untag.issue':
 		case 'assign.issue':
+		case 'unassign.issue':
 			return [event.payload.id, event.payload.target];
 
 		case 'create.tag':
