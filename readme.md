@@ -42,9 +42,6 @@ epiq --version
 
 ## Getting Started
 
-Starting the application will launch a wizard that sets you up in 20 seconds.
-It will result in settings persisted at `~/.epicrc`
-
 In any folder, run:
 
 ```bash
@@ -52,6 +49,9 @@ epiq
 ```
 
 This opens the interactive CLI workspace.
+
+Starting the application will launch a wizard that sets you up in 20 seconds.
+It will result in settings persisted at `~/.epicrc`
 
 ---
 
