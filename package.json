@@ -1,18 +1,35 @@
 {
 	"name": "epiq",
-	"version": "0.2.4",
-	"license": "MIT",
+	"version": "0.3.1",
+	"license": "UNLICENSED",
 	"type": "module",
 	"description": "EPIQ - CLI based issue tracker",
+	"keywords": [
+		"issue-tracker",
+		"task-manager",
+		"productivity",
+		"project-management",
+		"kanban",
+		"terminal",
+		"git",
+		"tui",
+		"commandline",
+		"offline-first",
+		"git-based",
+		"local-first",
+		"developer-tools",
+		"vim-inspired"
+	],
 	"bin": {
-		"epiq": "dist/cli.js"
+		"epiq": "dist/cli.js",
+		"epiq-mcp": "dist/mcp.js"
 	},
 	"engines": {
 		"node": ">=18"
 	},
 	"scripts": {
 		"build": "tsc --noEmit",
-		"build:npm": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",
+		"build:npm": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' && esbuild source/mcp/server.ts --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/mcp.js --banner:js='#!/usr/bin/env node'",
 		"build:sea:bundle": "rm -rf ./dist && esbuild source/cli.tsx --bundle --platform=node --format=cjs --target=node18 --minify --outfile=dist/sea.cjs",
 		"build:sea": "node --build-sea sea-config.json",
 		"build:publish": "pnpm build:npm",
@@ -20,24 +37,26 @@
 		"dev": "IS_LOCAL=true tsc --watch --noEmit",
 		"dev:start": "IS_LOCAL=true tsx source/cli.tsx",
 		"start": "IS_LOCAL=true tsx source/cli.tsx",
-		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run",
+		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage",
 		"prepack": "pnpm build:publish",
 		"pack:check": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"$FILE\" && tar -tf \"$FILE\"",
 		"publish:dry": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && npm publish --dry-run \"$FILE\"",
 		"publish:tarball": "FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"Publishing $FILE\" && npm publish \"$FILE\"",
-		"release": "pnpm test && pnpm pack:check && pnpm publish:tarball"
+		"release": "pnpm test && pnpm pack:check && pnpm publish:tarball",
+		"start:mcp": "IS_LOCAL=true tsx source/mcp/server.ts",
+		"inspect:mcp": "pnpm dlx @modelcontextprotocol/inspector"
 	},
 	"files": [
 		"dist"
 	],
 	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.29.0",
 		"ink": "^6.8.0",
-		"marked": "^17.0.3",
-		"marked-terminal": "^7.3.0",
 		"meow": "^14.1.0",
 		"react": "^19.2.4",
 		"string-width": "^8.2.0",
-		"ulid": "^3.0.2"
+		"ulid": "^3.0.2",
+		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"@sindresorhus/tsconfig": "^3.0.1",
@@ -45,6 +64,7 @@
 		"@types/node": "^25.5.0",
 		"@types/react": "^18.0.32",
 		"@vdemedes/prettier-config": "^2.0.1",
+		"@vitest/coverage-v8": "4.1.2",
 		"chalk": "^5.2.0",
 		"esbuild": "^0.25.0",
 		"eslint-plugin-react": "^7.32.2",

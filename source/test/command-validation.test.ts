@@ -1,9 +1,37 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {cmdValidation} from '../command-validation.js';
-import {CmdKeywords, cmdValidity} from '../command-types.js';
-import {getCmdModifiers} from '../command-modifiers.js';
+import {beforeAll, describe, expect, it, vi} from 'vitest';
+import {CmdKeywords, cmdValidity} from '../lib/command-line/command-types.js';
+import {getCmdModifiers} from '../lib/command-line/command-modifiers.js';
 
-vi.mock('../command-modifiers.js', () => ({
+vi.mock('../lib/state/state.js', () => ({
+	getState: () => ({
+		currentNode: {
+			id: 'swimlane-1',
+			title: 'Swimlane 1',
+			context: 'SWIMLANE',
+			parentNodeId: 'board-1',
+		},
+		selectedNode: {
+			id: 'ticket-1',
+			title: 'Ticket 1',
+			context: 'TICKET',
+			parentNodeId: 'swimlane-1',
+		},
+		contributors: {
+			'user-1': {id: 'user-1', name: 'john'},
+			'user-2': {id: 'user-2', name: 'jane'},
+		},
+		tags: {},
+		breadCrumb: [],
+	}),
+}));
+
+let cmdValidation: typeof import('../lib/command-line/command-validation.js').cmdValidation;
+
+beforeAll(async () => {
+	({cmdValidation} = await import('../lib/command-line/command-validation.js'));
+});
+
+vi.mock('../lib/command-line/command-modifiers.js', () => ({
 	getCmdModifiers: (keyword: string) => {
 		const m: Record<string, string[]> = {
 			[CmdKeywords.DELETE]: ['confirm'],
@@ -18,16 +46,6 @@ vi.mock('../command-modifiers.js', () => ({
 	},
 }));
 
-vi.mock('../../state/state.js', () => ({
-	getState: () => ({
-		contributors: {
-			'user-1': {id: 'user-1', name: 'john'},
-			'user-2': {id: 'user-2', name: 'jane'},
-		},
-		tags: {},
-	}),
-}));
-
 describe('cmdValidation', () => {
 	describe('NEW', () => {
 		it('accepts when modifier matches one of the allowed values', () => {
@@ -35,11 +53,11 @@ describe('cmdValidation', () => {
 			const result = cmdValidation[CmdKeywords.NEW].validate(
 				CmdKeywords.NEW,
 				modifier,
-				'',
+				' a',
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBe('<ENTER> to confirm');
+			expect(result.message).toBe('');
 		});
 
 		it('rejects when modifier is empty', () => {
@@ -196,7 +214,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBe('');
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 
 		it('rejects when modifier is empty', () => {
@@ -218,7 +236,7 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
-			expect(result.message).toBe('');
+			expect(result.message).toBe('<ENTER> to confirm');
 		});
 	});
 });

@@ -3,8 +3,11 @@ export const CmdKeywords = {
 	HELP: 'help',
 	NEW: 'new',
 	TAG: 'tag',
-	FILTER: 'filter',
 	MOVE: 'move',
+
+	PEEK: 'peek',
+	FILTER: 'filter',
+
 	ASSIGN: 'assign',
 	DELETE: 'delete',
 	RENAME: 'rename',
@@ -13,9 +16,12 @@ export const CmdKeywords = {
 	RE_OPEN_ISSUE: 'reopen',
 	SET_DESCRIPTION: 'edit',
 
-	SET_EDITOR: 'set:editor',
-	SET_VIEW: 'set:view',
-	SET_USERNAME: 'set:username',
+	SET_EDITOR: 'config:editor',
+	SET_VIEW: 'config:view',
+	SET_USERNAME: 'config:username',
+
+	// Git
+	SYNC: 'sync',
 
 	NONE: '',
 } as const;

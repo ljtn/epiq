@@ -12,7 +12,9 @@ export function materializeAndPersist<A extends EventAction>(
 		return materialized;
 	}
 
-	const persistResult = persist(event);
+	const persistResult = persist({
+		event,
+	});
 	if (isFail(persistResult)) return persistResult;
 
 	return materialized;

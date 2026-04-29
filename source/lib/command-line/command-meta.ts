@@ -17,11 +17,13 @@ export const CmdIntent = {
 
 	Filter: 'filter',
 	Move: 'move',
+	Peek: 'peek',
 
 	// Settings
 	SetView: 'set-view',
 	SetEditor: 'set-editor',
 	SetUserName: 'set-user-name',
+	SetAutoSync: 'set-auto-sync',
 
 	// Add
 	NewItem: 'add-new-item',
@@ -30,7 +32,12 @@ export const CmdIntent = {
 	AssignUserToTicket: 'ticket-assign-user',
 	CloseIssue: 'close-issue',
 	ReopenIssue: 're-open-issue',
+
+	// Git
+	Sync: 'sync',
 } as const;
+
+export type CommandIntent = (typeof CmdIntent)[keyof typeof CmdIntent];
 
 export const isModifierKeyword = (word: string): word is CmdKeyword =>
 	Object.values(CmdKeywords).includes(word as CmdKeyword);

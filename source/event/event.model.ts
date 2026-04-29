@@ -3,7 +3,6 @@ import {Contributor, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 
-export type UserId = `${string}.${string}`;
 export type MovePosition =
 	| {at: 'start'}
 	| {at: 'end'}
@@ -142,22 +141,14 @@ type LogicalEvent<A extends EventAction = EventAction> = Extract<
 
 export type AppEvent<A extends EventAction = EventAction> = LogicalEvent<A> & {
 	id: string;
-	userId: UserId;
+	userId: string;
+	userName: string;
 };
 
 export type MaterializeResult<A extends EventAction> = Result<{
 	action: A;
 	result: AppEventMap[A]['result'];
 }>;
-
-export const withActor = <A extends EventAction>(
-	event: StoredAppEvent<A>,
-	userId: string,
-): AppEvent<A> =>
-	({
-		...event,
-		userId,
-	} as AppEvent<A>);
 
 export const stripActor = <A extends EventAction>(
 	event: AppEvent<A>,

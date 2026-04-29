@@ -15,7 +15,7 @@ export type ActionEntry = {
 	intent?: string;
 	mode: ModeUnion;
 	description?: `[${string}] ${string}`;
-	action: (...args: [ActionEntry, readline.Key]) => Result;
+	action: (...args: [ActionEntry, readline.Key]) => Result | Promise<Result>;
 };
 
 export type ActionMap<T extends Record<string, any[]>> = {
@@ -27,7 +27,9 @@ type CommandLineInput = Pick<
 	'command' | 'modifier' | 'inputString'
 >;
 export type CommandLineActionEntry = Omit<ActionEntry, 'action'> & {
-	action: (...args: [CommandLineActionEntry, CommandLineInput]) => Result;
+	action: (
+		...args: [CommandLineActionEntry, CommandLineInput]
+	) => Result | Promise<Result>;
 	onSuccess?: () => void;
 };
 

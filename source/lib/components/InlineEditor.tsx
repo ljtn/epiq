@@ -1,6 +1,4 @@
 import {Box, Text} from 'ink';
-import {marked} from 'marked';
-import TerminalRenderer from 'marked-terminal';
 import React, {useEffect} from 'react';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {isSuccess} from '../command-line/command-types.js';
@@ -29,12 +27,8 @@ export const InlineEditor: React.FC<Props> = ({
 	maxWidth,
 }) => {
 	const {selectedIndex, currentNode} = useAppState();
-	marked.setOptions({
-		renderer: new TerminalRenderer() as any,
-	});
 
-	const renderMarkdownInline = (md: string) =>
-		String(marked.parseInline(md)).replace(/\r?\n/g, '');
+	const renderMarkdownInline = (md: string) => String(md).replace(/\r?\n/g, '');
 
 	const rows =
 		typeof text === 'string' ? text.split(/\r?\n|\u2028|\u2029/) : [];
@@ -70,7 +64,7 @@ export const InlineEditor: React.FC<Props> = ({
 					color={isSel ? theme.primary : theme.secondary2}
 					dimColor={!isSel}
 				>
-					{`${i + 1}  `.padStart(5, '\u00A0')}
+					{`${i + 1}   `.padStart(5, '\u00A0')}
 				</Text>
 				<Text backgroundColor={isSel ? 'gray' : ''}>
 					{renderMarkdownInline(

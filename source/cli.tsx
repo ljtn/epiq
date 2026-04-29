@@ -4,19 +4,22 @@ import React from 'react';
 import App from './app.js';
 import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadMergedEvents} from './event/event-load.js';
+import {syncEpiqFromRemote} from './git/sync.js';
 import {isFail} from './lib/command-line/command-types.js';
 import Logo from './lib/components/Logo.js';
-import {loadSettingsFromConfig} from './lib/config/load-settings.js';
+import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
 
-meow(
-	`
-  View board in directory:
-  $ epiq
+import chalk from 'chalk';
+import {patchSettingsState} from './lib/state/settings.state.js';
 
-  Init project in directory:
-  $ epiq --init "Project Name"
+meow(
+	`${chalk.bold('Epiq CLI')}
+
+${chalk.dim('Boot in directory:')}
+  ${chalk.cyan('$ epiq')}
+
 `,
 	{
 		importMeta: import.meta,
@@ -78,7 +81,12 @@ const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
 };
 
 async function bootApp() {
-	loadSettingsFromConfig();
+	const settings = loadSettingsFromConfig();
+	if (!isFail(settings)) {
+		patchSettingsState(settings.data);
+	}
+
+	await syncEpiqFromRemote();
 
 	const eventLog = loadEventLogOrExit();
 	const isFirstLoad = eventLog.length === 0;

@@ -1,20 +1,52 @@
 import readline from 'readline';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {getState} from '../state/state.js';
-import {getKeyIntent} from '../utils/key-intent.js';
+import {getKeyIntent, IntentInferred, Intent} from '../utils/key-intent.js';
 
 let currentKeypressListener: ((s: string, k: readline.Key) => void) | undefined;
 let currentDataListener: ((chunk: Buffer) => void) | undefined;
 let escTimer: NodeJS.Timeout | undefined;
+
+const READ_ONLY_ACTION_INTENTS = new Set<IntentInferred>([
+	Intent.MoveCursorLeft,
+	Intent.EraseInputWord,
+	Intent.MoveCursorLeftOfWord,
+	Intent.MoveCursorRight,
+	Intent.MoveCursorRightOfWord,
+	Intent.NavToPreviousContainer,
+	Intent.NavToNextContainer,
+	Intent.NavPreviousItem,
+	Intent.NavNextItem,
+	Intent.SetViewDense,
+	Intent.SetViewWide,
+	Intent.Confirm,
+	Intent.Exit,
+	Intent.InitCommandLine,
+	Intent.ExitCommandLine,
+	Intent.CaptureInput,
+	Intent.EraseInput,
+	Intent.EraseInputWord,
+	Intent.HideHelp,
+	Intent.ViewHelp,
+	Intent.SetViewDense,
+	Intent.SetViewWide,
+	Intent.GetLastCommandFromHistory,
+	Intent.GetNextCommandFromHistory,
+	Intent.AutoCompleteCommand,
+]);
 
 const triggerAction = async (key: readline.Key) => {
 	if (key.ctrl && key.name === 'c') {
 		return navigationUtils.exit();
 	}
 
-	const {actionIndex, mode} = getState();
+	const {actionIndex, mode, readOnly} = getState();
 	const intent = getKeyIntent(key, mode);
 	if (!intent) return;
+
+	if (readOnly && !READ_ONLY_ACTION_INTENTS.has(intent)) {
+		return;
+	}
 
 	const actionMeta = actionIndex[mode]?.[intent];
 	if (!actionMeta?.action) return;

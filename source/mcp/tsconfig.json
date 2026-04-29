@@ -1,0 +1,17 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"outDir": "../../dist/mcp",
+		"rootDir": "..",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"target": "ES2022",
+		"types": ["node"]
+	},
+	"include": [
+		"./**/*.ts",
+		"../lib/**/*.ts",
+		"../events/**/*.ts",
+		"../repository/**/*.ts"
+	]
+}

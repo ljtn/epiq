@@ -1,3 +1,4 @@
+import {tr} from 'zod/v4/locales';
 import {findOverlap} from '../utils/string.utils.js';
 import {autoCompletionFromWordList} from './command-auto-complete.utils.js';
 import {ParsedCommandLine} from './command-parser.js';
@@ -39,11 +40,18 @@ const returnAutoCompletion = (
 		lastWord.toLowerCase(),
 		selectedHint.toLowerCase(),
 	);
-	const hint = selectedHint ? selectedHint + ' ' : '';
-	const remainder = hint.slice(overlap);
+
+	const [base, variant] = selectedHint.split(':');
+	const isAtBase = overlap < (base ?? '').length;
+	const isCommaSeparatedWord = Boolean(variant);
+	const pad = isCommaSeparatedWord && isAtBase ? ':' : ' ';
+
+	const hint = isCommaSeparatedWord && isAtBase ? base : selectedHint;
+	const completion = hint + pad;
+	const remainder = completion.slice(overlap);
 
 	return {
-		hint,
+		hint: completion,
 		hints,
 		overlap,
 		remainder,

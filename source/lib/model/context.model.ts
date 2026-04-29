@@ -29,6 +29,11 @@ export type TextContext = typeof NavNodeCtx.TEXT;
 export type AnyContext = ContextMap[keyof ContextMap];
 export type ContextMap = typeof NavNodeCtx;
 
+export function isWorkspaceNode(
+	node: NavNode<AnyContext>,
+): node is NavNode<TicketContext> {
+	return node.context === 'WORKSPACE';
+}
 export function isTicketNode(
 	node: NavNode<AnyContext>,
 ): node is NavNode<TicketContext> {

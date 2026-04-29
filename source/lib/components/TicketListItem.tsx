@@ -1,7 +1,5 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {nodeRepo} from '../../repository/node-repo.js';
-import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {getRenderedChildren} from '../state/state.js';
 import {theme} from '../theme/themes.js';
@@ -9,6 +7,7 @@ import {
 	sanitizeInlineText,
 	truncateWithEllipsis,
 } from '../utils/string.utils.js';
+import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
 
@@ -60,27 +59,8 @@ export const TicketListItemUI: React.FC<{
 		sanitizeInlineText(ticket.title),
 		contentWidth,
 	);
-
-	const children = getRenderedChildren(ticket.id);
-
-	const getReferencedIds = (title: 'Tags' | 'Assignees') => {
-		const fieldNode = children.find(node => node.title === title);
-		if (!fieldNode) return [];
-
-		return getRenderedChildren(fieldNode.id)
-			.map(child =>
-				typeof child.props?.value === 'string' ? child.props.value : '',
-			)
-			.filter((value): value is string => Boolean(value));
-	};
-
-	const tags = getReferencedIds('Tags')
-		.map(tagId => nodeRepo.getTag(tagId))
-		.filter((s): s is Tag => Boolean(s));
-
-	const assignees = getReferencedIds('Assignees')
-		.map(contributorId => nodeRepo.getContributor(contributorId))
-		.filter((s): s is Contributor => Boolean(s));
+	const tags = getTicketTags(ticket);
+	const assignees = getTicketAssignees(ticket);
 
 	return (
 		<Box

@@ -8,7 +8,7 @@ import {
 	subscribeCommandLineState,
 } from '../state/cmd.state.js';
 import {theme} from '../theme/themes.js';
-import {getGradientStyles} from '../utils/color.js';
+import {getGradientStyles, getStringColor} from '../utils/color.js';
 
 type CommandLineViewState = {
 	value: string;
@@ -54,6 +54,26 @@ const getCommandRange = ({
 		start: commandStart,
 		end: commandStart + command.length,
 	};
+};
+
+const getModifierStyle = ({
+	command,
+	modifier,
+}: {
+	command: CmdKeyword | null;
+	modifier: string;
+}) => {
+	if (!modifier) return null;
+
+	if (command === 'tag' || command === 'assign') {
+		const color = getStringColor(modifier);
+		return {
+			bg: (text: string) => chalk.bgHex(color).black(text),
+			bgCursor: (text: string) => chalk.bgHex(color).inverse.black(text),
+		};
+	}
+
+	return getGradientStyles(modifier);
 };
 
 const getModifierRange = ({
@@ -146,7 +166,7 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 		const commandRange = getCommandRange({value, command});
 		const modifierRange = getModifierRange({value, command, modifier});
 		const commandStyle = command ? getGradientStyles(command) : null;
-		const modifierStyle = modifier ? getGradientStyles(modifier) : null;
+		const modifierStyle = getModifierStyle({command, modifier});
 
 		const styleCharAt = (char: string, index: number): string => {
 			const isCommandChar =
@@ -215,7 +235,7 @@ export const CommandLine: React.FC<{width: number}> = ({width}) => {
 					{infoMessage && (
 						<Text
 							wrap="truncate"
-							color={commandIsPending ? 'red' : theme.secondary2}
+							color={commandIsPending ? theme.red : theme.secondary2}
 						>
 							{` ${infoMessage} `}
 						</Text>

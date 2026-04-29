@@ -26,13 +26,15 @@ type DerivedKeys =
 	| 'actionIndex'
 	| 'availableHints'
 	| 'breadCrumb'
-	| 'currentNode';
+	| 'currentNode'
+	| 'selectedNode';
 export type BaseState = Omit<AppState, DerivedKeys>;
 
 // -----------------------------
 // Internal store
-// -----------------------------∏
+// -----------------------------
 let _appState: AppState;
+let _initialWorkspace: Workspace | undefined;
 
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -77,7 +79,6 @@ function derive(state: BaseState): Result<AppState> {
 	const {context} = currentNode;
 	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
 
-	// Consider not freezing if performance issues
 	const availableActions = [
 		...DefaultActions,
 		...(contextActions[context] ?? []),
@@ -85,7 +86,10 @@ function derive(state: BaseState): Result<AppState> {
 	];
 	const actionIndex = buildActionIndex(availableActions);
 
-	// Consider not freezing if performance issues
+	const renderedChildrenIndex = buildChildIndex(nodes, filters);
+	const selectedNode =
+		renderedChildrenIndex[currentNodeId]?.[state.selectedIndex] ?? null;
+
 	return succeeded('Derived successfully', {
 		...state,
 		currentNode,
@@ -93,7 +97,8 @@ function derive(state: BaseState): Result<AppState> {
 		availableHints,
 		availableActions,
 		actionIndex,
-		renderedChildrenIndex: buildChildIndex(nodes, filters),
+		selectedNode,
+		renderedChildrenIndex,
 	});
 }
 
@@ -111,7 +116,10 @@ export const getState = () => {
 };
 
 export function initWorkspaceState(workspace: Workspace) {
+	_initialWorkspace = workspace;
+
 	const base: BaseState = {
+		readOnly: false,
 		filters: [],
 		tags: {},
 		contributors: {},
@@ -122,12 +130,21 @@ export function initWorkspaceState(workspace: Workspace) {
 		currentNodeId: workspace.id,
 		renderedChildrenIndex: {},
 		selectedIndex: -1,
+		syncStatus: {
+			status: 'synced',
+			msg: '',
+		},
+		eventLog: [],
+		unappliedEvents: [],
+		timeMode: 'live',
 	};
 
 	const deriveResult = derive(base);
 	if (isFail(deriveResult)) return deriveResult;
+
 	_appState = deriveResult.data;
 	emit();
+
 	return succeeded('State initialized', null);
 }
 
@@ -196,5 +213,13 @@ const buildChildIndex = (
 };
 
 export const getRenderedChildren = (id: string): NavNode<AnyContext>[] => {
-	return getState().renderedChildrenIndex[id] ?? [];
+	return getState()?.renderedChildrenIndex[id] ?? [];
+};
+
+export const resetState = (): Result<string> => {
+	if (!_initialWorkspace) {
+		return failed('Cannot reset state: no initial workspace found');
+	}
+
+	return initWorkspaceState(_initialWorkspace);
 };
