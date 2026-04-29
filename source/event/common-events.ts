@@ -1,16 +1,17 @@
 import {monotonicFactory, ulid} from 'ulid';
-import {AppEvent, UserId} from './event.model.js';
+import {AppEvent} from './event.model.js';
+import {User} from '../lib/state/settings.state.js';
 
 const nextId = monotonicFactory();
 
 export const createIssueEvents = ({
 	name,
 	parent,
-	userId,
+	user: {userId, userName},
 }: {
 	name: string;
 	parent: string;
-	userId: UserId;
+	user: User;
 }): readonly AppEvent[] => {
 	const issueId = nextId();
 	const descriptionId = nextId();
@@ -21,6 +22,7 @@ export const createIssueEvents = ({
 		{
 			id: ulid(),
 			userId,
+			userName,
 			action: 'add.issue',
 			payload: {
 				id: issueId,
@@ -31,6 +33,7 @@ export const createIssueEvents = ({
 		{
 			id: ulid(),
 			userId,
+			userName,
 			action: 'add.field',
 			payload: {
 				id: descriptionId,
@@ -42,6 +45,7 @@ export const createIssueEvents = ({
 		{
 			id: ulid(),
 			userId,
+			userName,
 			action: 'add.field',
 			payload: {
 				id: assigneesId,
@@ -52,6 +56,7 @@ export const createIssueEvents = ({
 		{
 			id: ulid(),
 			userId,
+			userName,
 			action: 'add.field',
 			payload: {
 				id: tagsId,

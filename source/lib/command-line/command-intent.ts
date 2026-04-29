@@ -1,10 +1,8 @@
 import {getState} from '../state/state.js';
-import {CmdIntent} from './command-meta.js';
+import {CmdIntent, CommandIntent} from './command-meta.js';
 import {CmdKeywords} from './command-types.js';
 
-export const getCommandIntent = (
-	command: string,
-): (typeof CmdIntent)[keyof typeof CmdIntent] => {
+export const getCommandIntent = (command: string): CommandIntent => {
 	const {context} = getState()?.currentNode;
 	if (!context) return CmdIntent.None;
 	switch (command) {
@@ -32,6 +30,8 @@ export const getCommandIntent = (
 			return CmdIntent.Filter;
 		case CmdKeywords.MOVE:
 			return CmdIntent.Move;
+		case CmdKeywords.PEEK:
+			return CmdIntent.Peek;
 		// Settings
 		case CmdKeywords.SET_USERNAME:
 			return CmdIntent.SetUserName;
@@ -39,6 +39,10 @@ export const getCommandIntent = (
 			return CmdIntent.SetEditor;
 		case CmdKeywords.SET_VIEW:
 			return CmdIntent.SetView;
+
+		// Git
+		case CmdKeywords.SYNC:
+			return CmdIntent.Sync;
 		default:
 			return CmdIntent.None;
 	}

@@ -1,3 +1,7 @@
+import {decodeTime} from 'ulid';
+import {failed, Result, succeeded} from '../lib/command-line/command-types.js';
+import {AppEvent} from './event.model.js';
+
 export const timeAgo = (timestampMs: number): string => {
 	const diff = Date.now() - timestampMs;
 
@@ -17,4 +21,34 @@ export const timeAgo = (timestampMs: number): string => {
 	}
 
 	return 'just now';
+};
+
+export const formatDateTime = (date: Date): string => {
+	const pad = (n: number) => String(n).padStart(2, '0');
+
+	return (
+		`${date.getFullYear()}-` +
+		`${pad(date.getMonth() + 1)}-` +
+		`${pad(date.getDate())} ` +
+		`${pad(date.getHours())}:` +
+		`${pad(date.getMinutes())}`
+	);
+};
+
+export const safeDateFromUlid = (id: string): Result<Date> => {
+	try {
+		return succeeded('Decoded date', new Date(decodeTime(id)));
+	} catch (err) {
+		return failed('Decoding failed + ' + (err as Error).message);
+	}
+};
+
+export const getEventTime = (event: AppEvent | undefined): number | null => {
+	if (!event?.id) return null;
+
+	try {
+		return decodeTime(event.id);
+	} catch {
+		return null;
+	}
 };

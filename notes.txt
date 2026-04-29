@@ -1,7 +1,0 @@
-Verify:
-- you cannot edit/move any temporary nodes
-- version history is consistent with many users
-
-
-distribute as binary
-skapa hackernews

@@ -7,9 +7,8 @@ import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {getRenderedChildren} from '../state/state.js';
 import {theme} from '../theme/themes.js';
-import {stringToHslHexColor} from '../utils/color.js';
+import {getStringColor, stringToHslHexColor} from '../utils/color.js';
 import {CursorUI} from './Cursor.js';
-import {getTagColor} from './Tag.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
 	str.length >= width ? str.slice(0, width) + '...' : str;
@@ -56,7 +55,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 
 	const tagsRendered = tags.map(tag => (
 		<Box key={tag.id} paddingRight={paddingRight}>
-			<Text color={getTagColor(tag.name)}>■</Text>
+			<Text color={getStringColor(tag.name)}>■</Text>
 		</Box>
 	));
 

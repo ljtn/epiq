@@ -1,2 +1,2 @@
 export const isLocal = process.env['IS_LOCAL'] === 'true';
-export const getEpiqDirName = () => (isLocal ? '.epiq_dev' : '.epiq');
+export const getEpiqDirName = () => (isLocal ? '.epiq' : '.epiq');

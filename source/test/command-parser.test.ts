@@ -1,13 +1,14 @@
 import {describe, expect, it, vi} from 'vitest';
+import {parseCommandLine} from '../lib/command-line/command-parser.js';
 
-vi.mock('../command-meta.js', () => ({
+vi.mock('../lib/command-line/command-meta.js', () => ({
 	isCmdKeyword: (value: string) =>
 		['delete', 'view', 'tag', 'assign', 'help', 'rename', 'new'].includes(
 			value,
 		),
 }));
 
-vi.mock('../command-modifiers.js', () => ({
+vi.mock('../lib/command-line/command-modifiers.js', () => ({
 	getCmdModifiers: (command: string) => {
 		switch (command) {
 			case 'delete':
@@ -29,8 +30,6 @@ vi.mock('../command-modifiers.js', () => ({
 		}
 	},
 }));
-
-import {parseCommandLine} from '../command-parser.js';
 
 describe('parseCommandLine target', () => {
 	it('targets command for an empty string', () => {

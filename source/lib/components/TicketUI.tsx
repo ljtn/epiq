@@ -19,6 +19,9 @@ type Props = {
 
 const getLogNodeId = (ticketId: string) => `${ticketId}::log`;
 
+const isFieldListNode = (title?: string) =>
+	title === 'Assignees' || title === 'Tags';
+
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const {selectedIndex, currentNode} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
@@ -47,7 +50,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		return () => {
 			nodeRepo.deleteNode(logNodeId);
 		};
-	}, [logNodeId, ticket.id]);
+	}, [logNodeId, ticket.id, logText]);
 
 	useEffect(() => {
 		const existing = nodeRepo.getNode(logNodeId);
@@ -109,10 +112,8 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	const fieldCount = children.reduce(
 		(count, child) =>
-			child.title === 'Assignees' ||
-			child.title === 'Tags' ||
-			child.id === logNodeId
-				? ++count
+			isFieldListNode(child.title) || child.id === logNodeId
+				? count + 1
 				: count,
 		0,
 	);
@@ -127,7 +128,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		child: ReturnType<typeof getRenderedChildren>[number],
 		selected: boolean,
 	) => {
-		if (child.title === 'Assignees' || child.title === 'Tags') {
+		if (isFieldListNode(child.title)) {
 			return (
 				<FieldListUI
 					key={child.id}
@@ -141,28 +142,32 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		if (child.id === logNodeId) {
 			return (
 				<Box key={child.id} paddingTop={1}>
-					<CursorUI isSelected={selected}></CursorUI>
+					<CursorUI isSelected={selected} />
 					<Text
 						backgroundColor={theme.secondary}
 						color={selected ? theme.accent : theme.primary}
 					>
-						{' ' + 'History ››' + ' '}
+						{' History ›› '}
 					</Text>
 				</Box>
 			);
 		}
 
-		return (
-			<InlineEditor
-				label="Description (press e to edit)"
-				key={child.id}
-				id={child.id}
-				text={child.props.value ?? ''}
-				selected={selected}
-				maxWidth={maxWidth}
-				height={editorHeight}
-			/>
-		);
+		if (child.title === 'Description') {
+			return (
+				<InlineEditor
+					label="Description (press e to edit)"
+					key={child.id}
+					id={child.id}
+					text={child.props.value ?? ''}
+					selected={selected}
+					maxWidth={maxWidth}
+					height={editorHeight}
+				/>
+			);
+		}
+
+		return null;
 	};
 
 	return (

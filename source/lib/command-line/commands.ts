@@ -1,13 +1,20 @@
 import {ulid} from 'ulid';
 import {openEditorOnText} from '../../editor/editor.js';
 import {createIssueEvents} from '../../event/common-events.js';
-import {persistPendingDefaultEvents} from '../../event/event-boot.js';
+import {getEventTime} from '../../event/date-utils.js';
+import {
+	hasPendingDefaultEvents,
+	persistPendingDefaultEvents,
+} from '../../event/event-boot.js';
+import {loadMergedEvents, splitEventsAtTime} from '../../event/event-load.js';
 import {
 	materializeAndPersist,
 	materializeAndPersistAll,
 } from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
+import {materializeAll} from '../../event/event-materialize.js';
+import {getPersistFileName, resolveActorId} from '../../event/event-persist.js';
 import {AppEvent} from '../../event/event.model.js';
+import {syncEpiqWithRemote} from '../../git/sync.js';
 import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {
@@ -16,16 +23,17 @@ import {
 	moveNodeToSiblingContainer,
 	setMovePendingState,
 } from '../actions/move/move-actions-utils.js';
-import {setConfig} from '../config/epiq-config.js';
+import {setConfig} from '../config/user-config.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {isTicketNode} from '../model/context.model.js';
-import {getCmdArg, getCmdState} from '../state/cmd.state.js';
+import {getCmdArg, getCmdState, setCmdInput} from '../state/cmd.state.js';
 import {getSettingsState, patchSettingsState} from '../state/settings.state.js';
 import {
 	getRenderedChildren,
 	getState,
 	patchState,
+	resetState,
 	updateState,
 } from '../state/state.js';
 import {CmdIntent} from './command-meta.js';
@@ -37,8 +45,10 @@ import {
 	failed,
 	isFail,
 	noResult,
+	Result,
 	succeeded,
 } from './command-types.js';
+import {parsePeekDateInput} from './validate-date.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -54,11 +64,42 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Move,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {modifier} = getCmdState().commandMeta;
+
+			const syncNavigationToPendingMove = (): Result<null> => {
+				const pendingMoveState = getMovePendingState();
+				if (!pendingMoveState) return failed('No pending move state');
+
+				const movedNodeId = pendingMoveState.payload.id;
+				const movedNode = getState().nodes[movedNodeId];
+				if (!movedNode) return failed('Moved node not found');
+
+				const parentId = pendingMoveState.payload.parent;
+				const parent = getState().nodes[parentId];
+				if (!parent) return failed('Move parent not found');
+
+				const selectedIndex = getRenderedChildren(parentId).findIndex(
+					x => x.id === movedNodeId,
+				);
+				if (selectedIndex === -1) {
+					return failed('Moved node not found among rendered children');
+				}
+
+				navigationUtils.navigate({currentNode: parent, selectedIndex});
+				return succeeded('Synchronized navigation to moved node', null);
+			};
+
+			const applyMovePreview = (moveResult: Result<unknown>): Result<null> => {
+				if (isFail(moveResult)) return failed(moveResult.message);
+
+				const navResult = syncNavigationToPendingMove();
+				if (isFail(navResult)) return failed(navResult.message);
+
+				return succeeded('Updated move preview', null);
+			};
 
 			const {currentNode, selectedIndex} = getState();
 			const targetNode = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -91,37 +132,41 @@ export const commands: CommandLineActionEntry[] = [
 
 				setMovePendingState({
 					id: ulid(),
-					userId,
 					action: 'move.node',
 					payload: {
 						id: targetNode.id,
 						parent: targetNode.parentNodeId,
 						pos,
 					},
+					...userRes.data,
 				});
 
 				patchState({mode: Mode.MOVE});
+
+				const navResult = syncNavigationToPendingMove();
+				if (isFail(navResult)) return failed(navResult.message);
+
 				return succeeded('Move initialized', null);
 			}
 
 			if (modifier === 'next') {
 				patchState({mode: Mode.MOVE});
-				return moveChildWithinParent(1);
+				return applyMovePreview(moveChildWithinParent(1));
 			}
 
 			if (modifier === 'previous') {
 				patchState({mode: Mode.MOVE});
-				return moveChildWithinParent(-1);
+				return applyMovePreview(moveChildWithinParent(-1));
 			}
 
 			if (modifier === 'to-next') {
 				patchState({mode: Mode.MOVE});
-				return moveNodeToSiblingContainer(1);
+				return applyMovePreview(moveNodeToSiblingContainer(1));
 			}
 
 			if (modifier === 'to-previous') {
 				patchState({mode: Mode.MOVE});
-				return moveNodeToSiblingContainer(-1);
+				return applyMovePreview(moveNodeToSiblingContainer(-1));
 			}
 
 			if (modifier === 'confirm') {
@@ -132,6 +177,9 @@ export const commands: CommandLineActionEntry[] = [
 
 				const result = materializeAndPersist(pendingMoveState);
 				if (isFail(result)) return result;
+
+				const navResult = syncNavigationToPendingMove();
+				if (isFail(navResult)) return failed(navResult.message);
 
 				setMovePendingState(null);
 				return succeeded('Moved item', null);
@@ -150,9 +198,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Delete,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {currentNode, selectedIndex} = getState();
 			const child = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -160,11 +207,11 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
 				action: 'delete.node',
 				payload: {
 					id: child.id,
 				},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -173,9 +220,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Edit,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const issueResult = findInBreadCrumb(getState().breadCrumb, 'TICKET');
 			if (isFail(issueResult)) return failed('Edit target must be an issue');
@@ -209,24 +255,24 @@ export const commands: CommandLineActionEntry[] = [
 			if (target.title === 'Description') {
 				return materializeAndPersist({
 					id: ulid(),
-					userId,
 					action: 'edit.description',
 					payload: {
 						id: target.id,
 						md: updatedValue,
 					},
+					...userRes.data,
 				});
 			}
 
 			if (target.title === 'Title') {
 				return materializeAndPersist({
 					id: ulid(),
-					userId,
 					action: 'edit.title',
 					payload: {
 						id: target.id,
 						name: updatedValue,
 					},
+					...userRes.data,
 				});
 			}
 
@@ -276,9 +322,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.CloseIssue,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {currentNode, selectedIndex} = getState();
 			const target = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -290,9 +335,9 @@ export const commands: CommandLineActionEntry[] = [
 
 			const result = materializeAndPersist({
 				id: ulid(),
-				userId,
 				action: 'close.issue',
 				payload: {id: target.id, parent: target.parentNodeId},
+				...userRes.data,
 			});
 
 			if (isFail(result)) return result;
@@ -303,9 +348,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.ReopenIssue,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {currentNode, selectedIndex} = getState();
 			const target = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -325,9 +369,9 @@ export const commands: CommandLineActionEntry[] = [
 
 			const result = materializeAndPersist({
 				id: ulid(),
-				userId,
 				action: 'reopen.issue',
 				payload: {id: ticket.id},
+				...userRes.data,
 			});
 
 			if (isFail(result)) return result;
@@ -405,16 +449,39 @@ export const commands: CommandLineActionEntry[] = [
 		},
 	},
 	{
+		intent: CmdIntent.SetAutoSync,
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const selectionVal = getCmdState().commandMeta.modifier;
+			if (selectionVal !== 'true' && selectionVal !== 'false') {
+				return failed('Invalid response');
+			}
+			const selection: boolean = selectionVal.toLowerCase() === 'true';
+
+			const persistResult = setConfig({autoSync: selection});
+			if (isFail(persistResult)) return persistResult;
+
+			patchSettingsState({
+				autoSync: selection,
+			});
+
+			patchState({mode: Mode.DEFAULT});
+
+			return succeeded(`Auto synchronization set to "${selection}"`, null);
+		},
+	},
+	{
 		intent: CmdIntent.NewItem,
 		mode: Mode.COMMAND_LINE,
 		action: (_cmdAction, cmdState) => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			if (!cmdState.inputString) {
 				return failed(`provide a name for your ${cmdState.modifier}`);
 			}
+
+			const {breadCrumb, currentNode, selectedIndex} = getState();
 
 			const createAndNavigate = (
 				event: AppEvent<
@@ -453,45 +520,54 @@ export const commands: CommandLineActionEntry[] = [
 
 				return createAndNavigate({
 					id: ulid(),
-					userId,
 					action: 'add.board',
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
 						parent: workspace.id,
 					},
+					...userRes.data,
 				});
 			}
 
 			if (cmdState.modifier === 'swimlane') {
-				const boardResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+				const boardResult = findInBreadCrumb(breadCrumb, 'BOARD');
 				if (isFail(boardResult))
 					return failed('Unable to add swimlane in this context');
 
 				return createAndNavigate({
 					id: ulid(),
-					userId,
 					action: 'add.swimlane',
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
 						parent: boardResult.data.id,
 					},
+					...userRes.data,
 				});
 			}
 
 			if (cmdState.modifier === 'issue') {
-				const swimlaneResult = findInBreadCrumb(
-					getState().breadCrumb,
-					'SWIMLANE',
-				);
-				if (isFail(swimlaneResult))
+				const selectedNode = getRenderedChildren(currentNode.id)[selectedIndex];
+				const swimlane =
+					currentNode.context === 'SWIMLANE'
+						? currentNode
+						: currentNode.context === 'BOARD' &&
+						  selectedNode?.context === 'SWIMLANE'
+						? selectedNode
+						: (() => {
+								const swimlaneResult = findInBreadCrumb(breadCrumb, 'SWIMLANE');
+								return isFail(swimlaneResult) ? null : swimlaneResult.data;
+						  })();
+
+				if (!swimlane) {
 					return failed('Unable to add issue in this context');
+				}
 
 				const issueEvents = createIssueEvents({
-					userId,
 					name: cmdState.inputString,
-					parent: swimlaneResult.data.id,
+					parent: swimlane.id,
+					user: userRes.data,
 				});
 
 				const issueResults = materializeAndPersistAll(issueEvents);
@@ -515,15 +591,14 @@ export const commands: CommandLineActionEntry[] = [
 				if (!ticketId) return failed('Unable to determine ticket id');
 
 				navigationUtils.navigate({
-					currentNode: swimlaneResult.data,
+					currentNode: swimlane,
 					selectedIndex: nodeRepo
-						.getSiblings(swimlaneResult.data.id)
+						.getSiblings(swimlane.id)
 						.findIndex(({id}) => id === ticketId),
 				});
 
 				return succeeded('Issue created', null);
 			}
-
 			return noResult();
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -555,9 +630,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Rename,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {currentNode, selectedIndex} = getState();
 			const node = getRenderedChildren(currentNode.id)[selectedIndex];
@@ -569,9 +643,9 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
 				action: 'edit.title',
 				payload: {id: node.id, name: newName},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -580,12 +654,11 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.TagTicket,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {modifier, inputString} = getCmdState().commandMeta;
-			const name = modifier || inputString;
+			const name = (modifier || inputString).trim();
 			if (!name) return failed('Provide a tag');
 
 			const {selectedIndex, currentNode} = getState();
@@ -607,12 +680,13 @@ export const commands: CommandLineActionEntry[] = [
 				const newTagId = ulid();
 				const createResult = materializeAndPersist({
 					id: ulid(),
-					userId,
 					action: 'create.tag',
 					payload: {
 						id: newTagId,
 						name,
 					},
+					userId: userRes.data.userId,
+					userName: userRes.data.userName,
 				});
 
 				if (isFail(createResult)) return createResult;
@@ -630,13 +704,13 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
 				action: 'tag.issue',
 				payload: {
 					id: ulid(),
 					target: ticket.id,
 					tagId,
 				},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -645,9 +719,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.AssignUserToTicket,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
-			const userIdRes = resolveActorId();
-			if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-			const userId = userIdRes.data;
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {modifier, inputString} = getCmdState().commandMeta;
 			const name = (modifier || inputString).trim();
@@ -672,12 +745,13 @@ export const commands: CommandLineActionEntry[] = [
 				const newContributorId = ulid();
 				const createResult = materializeAndPersist({
 					id: ulid(),
-					userId,
 					action: 'create.contributor',
 					payload: {
 						id: newContributorId,
 						name,
 					},
+					userId: userRes.data.userId,
+					userName: userRes.data.userName,
 				});
 
 				if (isFail(createResult)) return createResult;
@@ -695,15 +769,170 @@ export const commands: CommandLineActionEntry[] = [
 
 			return materializeAndPersist({
 				id: ulid(),
-				userId,
 				action: 'assign.issue',
 				payload: {
 					id: ulid(),
 					target: ticket.id,
 					contributor: contributorId,
 				},
+				...userRes.data,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.Sync,
+		mode: Mode.COMMAND_LINE,
+		action: async () => {
+			setCmdInput(() => '');
+
+			patchState({
+				syncStatus: {
+					msg: 'Syncing',
+					status: 'syncing',
+				},
+			});
+
+			const {userId, userName} = getSettingsState();
+			if (!userId) return failed('Unable to resolve userId');
+			if (!userName) return failed('Unable to resolve userName');
+
+			const persistDefaultsResult = hasPendingDefaultEvents()
+				? persistPendingDefaultEvents()
+				: succeeded('No pending default events', null);
+
+			if (isFail(persistDefaultsResult)) {
+				return failed(
+					`Unable to persist default events. ${persistDefaultsResult.message}`,
+				);
+			}
+
+			const userRes = resolveActorId();
+			if (isFail(userRes) || !userRes.data) {
+				return failed('Unable to resolve event log path');
+			}
+
+			const ownEventFileName = getPersistFileName(userRes.data);
+			logger.debug(
+				'[sync-command] pending defaults',
+				hasPendingDefaultEvents(),
+			);
+
+			const syncResult = await syncEpiqWithRemote({
+				ownEventFileName,
+			});
+
+			if (isFail(syncResult)) {
+				patchState({
+					syncStatus: {
+						msg: syncResult.message,
+						status: 'outOfSync',
+					},
+				});
+
+				return failed(`Unable to sync state. ${syncResult.message}`);
+			}
+
+			patchState({
+				syncStatus: {
+					msg: 'Synced',
+					status: 'synced',
+				},
+				mode: Mode.DEFAULT,
+			});
+
+			const allLoadedEventsResult = loadMergedEvents();
+			if (isFail(allLoadedEventsResult)) return failed('Unable to load events');
+
+			materializeAll(allLoadedEventsResult.data);
+
+			return succeeded('Synced', true);
+		},
+	},
+	{
+		intent: CmdIntent.Peek,
+		mode: Mode.COMMAND_LINE,
+		action: async () => {
+			const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+			if (isFail(boardNodeResult)) return boardNodeResult;
+
+			const eventsResult = loadMergedEvents();
+			if (isFail(eventsResult)) return failed(eventsResult.message);
+			const allEvents = eventsResult.data;
+
+			const {modifier} = getCmdState().commandMeta;
+			let targetTime: number;
+
+			if (modifier === 'now') {
+				const resetResult = resetState();
+				if (isFail(resetResult)) return resetResult;
+
+				const materializeResult = materializeAll(allEvents);
+				if (materializeResult.some(isFail)) {
+					return failed(materializeResult.map(x => x.message).join(', '));
+				}
+
+				patchState({
+					mode: Mode.DEFAULT,
+					readOnly: false,
+					timeMode: 'live',
+					unappliedEvents: [],
+				});
+
+				return succeeded('Peeking now', true);
+			}
+
+			if (modifier === 'prev') {
+				const previousEvent = getState().eventLog.at(-2);
+				const previousTime = getEventTime(previousEvent);
+				if (previousTime === null) return failed('No previous event to peek');
+				targetTime = previousTime;
+			} else if (modifier === 'next') {
+				const nextEvent = getState().unappliedEvents.at(0);
+				const nextTime = getEventTime(nextEvent);
+				if (nextTime === null) return failed('No next event to peek');
+				targetTime = nextTime;
+			} else {
+				const targetDate = parsePeekDateInput(modifier);
+				if (!targetDate) {
+					return failed('Invalid peek date');
+				}
+
+				targetTime = targetDate.getTime();
+			}
+
+			const boardId = boardNodeResult.data.id;
+			const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+				allEvents,
+				targetTime,
+			);
+
+			const resetResult = resetState();
+			if (isFail(resetResult)) return resetResult;
+
+			const materializeResult = materializeAll(appliedEvents);
+			if (materializeResult.some(isFail)) {
+				return failed(materializeResult.map(x => x.message).join(', '));
+			}
+
+			const boardNode = getState().nodes[boardId];
+			if (!boardNode) {
+				return failed('Board did not exist at peek date');
+			}
+
+			navigationUtils.navigate({
+				currentNode: boardNode,
+				selectedIndex: 0,
+			});
+
+			patchState({
+				mode: Mode.DEFAULT,
+				readOnly: true,
+				timeMode: 'peek',
+				unappliedEvents: unappliedEvents,
+			});
+
+			return succeeded(`Peeking `, true);
+		},
 	},
 ];

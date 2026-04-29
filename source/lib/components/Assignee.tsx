@@ -11,7 +11,7 @@ type Props = {
 
 const normalizeName = (value: string): string => value.toLowerCase().trim();
 
-export const getColor = (
+export const getStringColor = (
 	id: string,
 	config: TagsDefault = TAGS_DEFAULT,
 ): TagColor => {
@@ -24,7 +24,7 @@ export const AssigneeUI: React.FC<Props> = ({id, isSelected}) => {
 	const contributor = nodeRepo.getContributor(id);
 	if (!contributor) return;
 	return (
-		<Text underline={isSelected} color={getColor(contributor.name)}>
+		<Text underline={isSelected} color={getStringColor(contributor.name)}>
 			{'@' + contributor.name}
 		</Text>
 	);

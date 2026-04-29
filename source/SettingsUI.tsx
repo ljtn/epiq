@@ -48,9 +48,9 @@ export default function SettingsUI({
 }: Props) {
 	const isComplete = hasUserName && hasPreferredEditor;
 	const activeCommand = !hasUserName
-		? ':set:username'
+		? ':config:username'
 		: !hasPreferredEditor
-		? ':set:editor'
+		? ':config:editor'
 		: null;
 
 	return (
@@ -76,7 +76,7 @@ export default function SettingsUI({
 
 			{!isComplete && (
 				<Text color={theme.secondary2}>
-					{activeCommand === ':set:username'
+					{activeCommand === ':config:username'
 						? 'First, choose your username.'
 						: 'Nice. One more step.'}
 				</Text>
@@ -85,19 +85,19 @@ export default function SettingsUI({
 			<Box flexDirection="column">
 				{hasUserName && (
 					<Box marginBottom={1}>
-						<StepRow isDone command=":set:username" value={userName} />
+						<StepRow isDone command=":config:username" value={userName} />
 					</Box>
 				)}
 
-				{!hasUserName && <StepRow isDone={false} command=":set:username" />}
+				{!hasUserName && <StepRow isDone={false} command=":config:username" />}
 
 				{hasUserName && !hasPreferredEditor && (
-					<StepRow isDone={false} command=":set:editor" />
+					<StepRow isDone={false} command=":config:editor" />
 				)}
 
 				{isComplete && (
 					<Box>
-						<StepRow isDone command=":set:editor" value={preferredEditor} />
+						<StepRow isDone command=":config:editor" value={preferredEditor} />
 					</Box>
 				)}
 			</Box>

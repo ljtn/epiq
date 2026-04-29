@@ -5,36 +5,36 @@ vi.mock('ulid', () => ({
 	ulid: vi.fn(),
 }));
 
-vi.mock('../../event/event-materialize-and-persist.js', () => ({
+vi.mock('../event/event-materialize-and-persist.js', () => ({
 	materializeAndPersist: vi.fn(),
 	materializeAndPersistAll: vi.fn(),
 }));
 
-vi.mock('../../event/event-persist.js', () => ({
+vi.mock('../event/event-persist.js', () => ({
 	resolveActorId: vi.fn(() => ({
 		kind: 'success',
 		message: 'Resolved actor id',
-		data: 'jlarb8',
+		data: {userId: '0001', userName: 'jola'},
 	})),
 }));
 
-vi.mock('../../repository/node-repo.js', () => ({
+vi.mock('../repository/node-repo.js', () => ({
 	findAncestor: vi.fn(),
 	nodeRepo: {
 		getFieldByTitle: vi.fn(),
 	},
 }));
 
-vi.mock('../../repository/rank.js', () => ({
+vi.mock('../repository/rank.js', () => ({
 	getOrderedChildren: vi.fn(),
 }));
 
-vi.mock('../state/cmd.state.js', () => ({
+vi.mock('../lib/state/cmd.state.js', () => ({
 	getCmdArg: vi.fn(),
 	getCmdState: vi.fn(),
 }));
 
-vi.mock('../state/state.js', () => ({
+vi.mock('../lib/state/state.js', () => ({
 	getState: vi.fn(),
 	patchState: vi.fn(),
 	updateState: vi.fn(),
@@ -42,13 +42,13 @@ vi.mock('../state/state.js', () => ({
 }));
 
 import {ulid} from 'ulid';
-import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
-import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
-import {getCmdState} from '../state/cmd.state.js';
-import {getRenderedChildren, getState} from '../state/state.js';
-import {CmdIntent} from './command-meta.js';
-import {failed, succeeded} from './command-types.js';
-import {commands} from './commands.js';
+import {materializeAndPersist} from '../event/event-materialize-and-persist.js';
+import {findAncestor, nodeRepo} from '../repository/node-repo.js';
+import {getCmdState} from '../lib/state/cmd.state.js';
+import {getRenderedChildren, getState} from '../lib/state/state.js';
+import {CmdIntent} from '../lib/command-line/command-meta.js';
+import {failed, succeeded} from '../lib/command-line/command-types.js';
+import {commands} from '../lib/command-line/commands.js';
 
 const mockedUlid = vi.mocked(ulid);
 const mockedMaterializeAndPersist = vi.mocked(materializeAndPersist);
@@ -123,7 +123,8 @@ describe('TagTicket command', () => {
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			id: 'tag-issue-event-id',
-			userId: 'jlarb8',
+			userName: 'jola',
+			userId: '0001',
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
@@ -158,7 +159,8 @@ describe('TagTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
 			id: 'create-tag-event-id',
-			userId: 'jlarb8',
+			userName: 'jola',
+			userId: '0001',
 			action: 'create.tag',
 			payload: {
 				id: 'new-tag-id',
@@ -168,7 +170,8 @@ describe('TagTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
 			id: 'tag-issue-event-id',
-			userId: 'jlarb8',
+			userName: 'jola',
+			userId: '0001',
 			action: 'tag.issue',
 			payload: {
 				id: 'new-tag-assignment-node-id',
@@ -213,7 +216,8 @@ describe('TagTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			id: 'tag-issue-event-id',
-			userId: 'jlarb8',
+			userName: 'jola',
+			userId: '0001',
 			action: 'tag.issue',
 			payload: {
 				id: 'tag-assignment-node-id',
@@ -321,7 +325,8 @@ describe('AssignUserToTicket command', () => {
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersist).toHaveBeenCalledWith({
 			id: 'assign-issue-event-id',
-			userId: 'jlarb8',
+			userName: 'jola',
+			userId: '0001',
 			action: 'assign.issue',
 			payload: {
 				id: 'assignment-node-id',
@@ -356,7 +361,8 @@ describe('AssignUserToTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(1, {
 			id: 'create-contributor-event-id',
-			userId: 'jlarb8',
+			userName: 'jola',
+			userId: '0001',
 			action: 'create.contributor',
 			payload: {
 				id: 'new-contributor-id',
@@ -366,7 +372,8 @@ describe('AssignUserToTicket command', () => {
 
 		expect(mockedMaterializeAndPersist).toHaveBeenNthCalledWith(2, {
 			id: 'assign-issue-event-id',
-			userId: 'jlarb8',
+			userName: 'jola',
+			userId: '0001',
 			action: 'assign.issue',
 			payload: {
 				id: 'new-assignment-node-id',
