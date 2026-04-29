@@ -159,9 +159,6 @@ Clear all filters with `:filter clear`
 
 - Pro tip: just like in any terminal - if you need to do repeating tasks over and over again, you can just put yourself in the command mode, and then press arrow up, in order to access the last executed command. This helps a lot when you create tasks with similar names, or add the same tag to many tickets and so on.
 
-Starting the application will launch a wizard that sets you up in 20 seconds.
-It will result in settings persisted at `~/.epicrc`
-
 ---
 
 ## How epiq is synchronized
