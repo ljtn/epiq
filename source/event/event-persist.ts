@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
@@ -11,7 +12,6 @@ import {
 } from '../lib/command-line/command-types.js';
 import {getSettingsState, User} from '../lib/state/settings.state.js';
 import {getEdgeRef} from './event-load.js';
-import os from 'node:os';
 import {
 	AppEvent,
 	AppEventMap,
@@ -19,20 +19,7 @@ import {
 	stripActor,
 } from './event.model.js';
 
-const GLOBAL_EPIQ = path.join(os.homedir(), '.epiq');
-
-const isGlobalEpiq = (dir: string): boolean => {
-	return path.resolve(dir) === GLOBAL_EPIQ;
-};
-
-const hasLocalEpiqDir = (dir: string): boolean => {
-	const candidate = path.join(dir, getEpiqDirName());
-	return (
-		fs.existsSync(candidate) &&
-		fs.statSync(candidate).isDirectory() &&
-		!isGlobalEpiq(dir)
-	);
-};
+const GLOBAL_EPIQ_ROOT = path.resolve(os.homedir(), '.epiq');
 
 // ======================
 // Increment this if we make any non-backwards-compatible changes to the event schema, so we can handle old vs new formats in event loading.
@@ -112,17 +99,28 @@ export const resolveActorId = (): Result<User> => {
 	return failed('Unable to resolve actor ID from settings or OS user info');
 };
 
-export const resolveEpiqRoot = (startDir = process.cwd()): string => {
+const isGlobalEpiqRoot = (candidate: string): boolean =>
+	path.resolve(candidate) === GLOBAL_EPIQ_ROOT;
+
+const hasLocalEpiqDir = (dir: string): boolean => {
+	const candidate = path.join(dir, getEpiqDirName());
+
+	return (
+		!isGlobalEpiqRoot(candidate) &&
+		fs.existsSync(candidate) &&
+		fs.statSync(candidate).isDirectory()
+	);
+};
+
+export const resolveEpiqRoot = (startDir: string): string => {
 	let currentDir = path.resolve(startDir);
 
 	while (true) {
-		if (hasLocalEpiqDir(currentDir)) {
-			return currentDir; // real project
-		}
+		if (hasLocalEpiqDir(currentDir)) return currentDir;
 
 		const parentDir = path.dirname(currentDir);
+
 		if (parentDir === currentDir) {
-			// No local .epiq found → fall back to startDir (for init)
 			return path.resolve(startDir);
 		}
 
@@ -130,15 +128,14 @@ export const resolveEpiqRoot = (startDir = process.cwd()): string => {
 	}
 };
 
-const getEventsDir = (rootDir = process.cwd()) => {
-	return path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), EVENTS_DIR);
-};
+const getEventsDir = (rootDir: string): string =>
+	path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), EVENTS_DIR);
 
-export const getPersistFileName = ({userId, userName}: User) =>
+export const getPersistFileName = ({userId, userName}: User): string =>
 	`${sanitizeFilePart(userId)}.${sanitizeFilePart(userName)}.jsonl`;
 
 export const getEventLogPath = (
-	rootDir = process.cwd(),
+	rootDir: string,
 	{userId, userName}: User,
 ): Result<string> => {
 	const fileName = getPersistFileName({userId, userName});
@@ -173,14 +170,16 @@ export function persist({
 }: {
 	event: AppEvent;
 	rootDir?: string;
-}) {
+}): Result<PersistSuccess> {
 	try {
 		const resolvedRoot = resolveEpiqRoot(rootDir);
 		const dir = getEventsDir(resolvedRoot);
+
 		const filePath = getEventLogPath(resolvedRoot, {
 			userId: event.userId,
 			userName: event.userName,
 		});
+
 		if (isFail(filePath)) return filePath;
 
 		fs.mkdirSync(dir, {recursive: true});
@@ -188,15 +187,9 @@ export function persist({
 		const edgeRef = getEdgeRef(resolvedRoot);
 		if (isFail(edgeRef)) return failed(edgeRef.message);
 
-		let newId: string;
-
-		if (edgeRef.data) {
-			const edgeTime = decodeTime(edgeRef.data);
-			const nextTime = Math.max(Date.now(), edgeTime + 1);
-			newId = getNextId(nextTime);
-		} else {
-			newId = getNextId();
-		}
+		const newId = edgeRef.data
+			? getNextId(Math.max(Date.now(), decodeTime(edgeRef.data) + 1))
+			: getNextId();
 
 		const entryResult = toPersistedEvent(stripActor(event), [
 			newId,
