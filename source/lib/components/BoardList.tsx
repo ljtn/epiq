@@ -40,10 +40,10 @@ export default function BoardList() {
 
 					return (
 						<Box key={board.id ?? i}>
-							<Text color={isSelected ? theme.accent : theme.secondary}>
+							<Text color={isSelected ? theme.accent : theme.secondary2}>
 								<CursorUI isSelected={isSelected}></CursorUI>
 							</Text>
-							<Text color={isSelected ? theme.accent : theme.secondary}>
+							<Text color={isSelected ? theme.accent : theme.secondary2}>
 								{board.title} ({issuesCount} issues)
 								{board.readonly ? ' 🔒' : ''}
 							</Text>

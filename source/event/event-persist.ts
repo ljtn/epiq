@@ -11,12 +11,28 @@ import {
 } from '../lib/command-line/command-types.js';
 import {getSettingsState, User} from '../lib/state/settings.state.js';
 import {getEdgeRef} from './event-load.js';
+import os from 'node:os';
 import {
 	AppEvent,
 	AppEventMap,
 	StoredAppEvent,
 	stripActor,
 } from './event.model.js';
+
+const GLOBAL_EPIQ = path.join(os.homedir(), '.epiq');
+
+const isGlobalEpiq = (dir: string): boolean => {
+	return path.resolve(dir) === GLOBAL_EPIQ;
+};
+
+const hasLocalEpiqDir = (dir: string): boolean => {
+	const candidate = path.join(dir, getEpiqDirName());
+	return (
+		fs.existsSync(candidate) &&
+		fs.statSync(candidate).isDirectory() &&
+		!isGlobalEpiq(dir)
+	);
+};
 
 // ======================
 // Increment this if we make any non-backwards-compatible changes to the event schema, so we can handle old vs new formats in event loading.
@@ -95,23 +111,18 @@ export const resolveActorId = (): Result<User> => {
 
 	return failed('Unable to resolve actor ID from settings or OS user info');
 };
-const hasEpiqDir = (dir: string) => {
-	return (
-		fs.existsSync(path.join(dir, getEpiqDirName())) &&
-		fs.statSync(path.join(dir, getEpiqDirName())).isDirectory()
-	);
-};
 
 export const resolveEpiqRoot = (startDir = process.cwd()): string => {
 	let currentDir = path.resolve(startDir);
 
 	while (true) {
-		if (hasEpiqDir(currentDir)) return currentDir;
+		if (hasLocalEpiqDir(currentDir)) {
+			return currentDir; // real project
+		}
 
 		const parentDir = path.dirname(currentDir);
 		if (parentDir === currentDir) {
-			// Reached filesystem root, no existing .epiq found.
-			// Fall back to the original start directory so init/setup can create one there.
+			// No local .epiq found → fall back to startDir (for init)
 			return path.resolve(startDir);
 		}
 

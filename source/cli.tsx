@@ -6,7 +6,6 @@ import {bootStateFromEventLog} from './event/event-boot.js';
 import {loadMergedEvents} from './event/event-load.js';
 import {syncEpiqFromRemote} from './git/sync.js';
 import {isFail} from './lib/command-line/command-types.js';
-import Logo from './lib/components/Logo.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import './logger.js';
@@ -29,14 +28,9 @@ ${chalk.dim('Boot in directory:')}
 	},
 );
 
-const FIRST_LOAD_DURATION_MS = 2_000;
-const SUBSEQUENT_LOAD_MAX_MS = 600;
-
 let width = process.stdout.columns || 120;
 let height = process.stdout.rows || 20;
 let ink: ReturnType<typeof render> | null = null;
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const renderNode = (node: React.ReactNode) => {
 	if (!ink) {
@@ -49,10 +43,6 @@ const renderNode = (node: React.ReactNode) => {
 
 const renderApp = () => {
 	renderNode(<App width={width} height={height} />);
-};
-
-const renderLoader = (durationMs: number) => {
-	renderNode(<Logo durationMs={durationMs} />);
 };
 
 const loadEventLogOrExit = () => {
@@ -89,23 +79,8 @@ async function bootApp() {
 	await syncEpiqFromRemote();
 
 	const eventLog = loadEventLogOrExit();
-	const isFirstLoad = eventLog.length === 0;
-	const loaderDurationMs = isFirstLoad
-		? FIRST_LOAD_DURATION_MS
-		: SUBSEQUENT_LOAD_MAX_MS;
 
-	if (loaderDurationMs > 0) {
-		renderLoader(loaderDurationMs);
-	}
-
-	const startedAt = Date.now();
 	bootStateOrExit(eventLog);
-	const bootElapsedMs = Date.now() - startedAt;
-
-	const remainingLoaderTime = Math.max(0, loaderDurationMs - bootElapsedMs);
-	if (remainingLoaderTime > 0) {
-		await sleep(remainingLoaderTime);
-	}
 
 	renderApp();
 	initListeners();
