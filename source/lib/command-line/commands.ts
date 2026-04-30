@@ -423,6 +423,7 @@ export const commands: CommandLineActionEntry[] = [
 				currentNode: nodes[rootNodeId],
 				selectedIndex: 0,
 			});
+			patchState({mode: Mode.DEFAULT});
 			return succeeded(`Project initialized`, null);
 		},
 	},

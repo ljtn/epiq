@@ -1,6 +1,5 @@
 export const editorConfig = [
 	// CLI
-	'vi',
 	'vim',
 	'nvim',
 	'nano',

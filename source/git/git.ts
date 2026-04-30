@@ -150,39 +150,40 @@ const remoteHasAnyHistory = memoizeResult(
 	(repoRoot: string) => path.resolve(repoRoot),
 );
 
+export const hasAnyCommit = async (
+	repoRoot: string,
+): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
+		args: ['rev-parse', '--verify', 'HEAD'],
+		cwd: repoRoot,
+	});
+
+	if (result.exitCode === 0) {
+		return succeeded('Repository has commits', true);
+	}
+
+	return succeeded('Repository has no commits', false);
+};
+
 export const ensureInitialCommit = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
-	logger.debug('[sync] ensure initial commit');
+	const headResult = await execGitAllowFail({
+		args: ['rev-parse', '--verify', 'HEAD'],
+		cwd: repoRoot,
+	});
 
-	const headResult = await hasHeadCommit(repoRoot);
-	if (isFail(headResult)) return failed(headResult.message);
-
-	if (headResult.data) {
-		logger.debug('[sync] local HEAD exists');
-		return succeeded('Repo already initialized', false);
+	if (headResult.exitCode === 0) {
+		return succeeded('Initial commit already exists', false);
 	}
-
-	const remoteHistoryResult = await remoteHasAnyHistory(repoRoot);
-	if (isFail(remoteHistoryResult)) return failed(remoteHistoryResult.message);
-
-	if (remoteHistoryResult.data) {
-		logger.debug('[sync] skip local init commit due to remote history');
-		return succeeded(
-			'Skipped local init commit because remote history exists',
-			false,
-		);
-	}
-
-	logger.debug('[sync] create empty init commit');
 
 	const commitResult = await execGit({
-		args: ['commit', '--allow-empty', '-m', '[epiq:init]'],
+		args: ['commit', '--allow-empty', '-m', 'Initial commit'],
 		cwd: repoRoot,
 	});
 
 	if (isFail(commitResult)) {
-		return failed(`Failed to create initial commit\n${commitResult.message}`);
+		return failed(commitResult.message);
 	}
 
 	return succeeded('Created initial commit', true);

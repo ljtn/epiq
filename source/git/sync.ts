@@ -253,6 +253,13 @@ export const syncEpiqWithRemote = async ({
 		worktreeRoot,
 	});
 
+	const initResult = await ensureInitialCommit(repoRoot);
+	if (isFail(initResult)) {
+		return failed(`Failed to ensure initial commit: ${initResult.message}`);
+	}
+
+	logger.debug('[sync] ensure initial commit changed', initResult.data);
+
 	const detachedResult = await isDetachedHead(repoRoot);
 	if (isFail(detachedResult)) return failed(detachedResult.message);
 
@@ -278,11 +285,6 @@ export const syncEpiqWithRemote = async ({
 			'Cannot run :sync while a merge, rebase, cherry-pick, or revert is in progress in the current repo',
 		);
 	}
-
-	const initResult = await ensureInitialCommit(repoRoot);
-	if (isFail(initResult)) return failed(initResult.message);
-
-	logger.debug('[sync] ensure initial commit changed', initResult.data);
 
 	const bootstrapResult = await bootstrapRemoteStorageBase({
 		repoRoot,
