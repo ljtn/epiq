@@ -1,4 +1,4 @@
-import {succeeded} from '../../command-line/command-types.js';
+import {succeeded} from '../../model/result-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {
 	eraseInput,

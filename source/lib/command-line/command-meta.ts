@@ -2,7 +2,8 @@ import {CurrentCmdMeta} from '../state/cmd.state.js';
 import {getAutoCompletion} from './command-auto-complete.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {ParsedCommandLine} from './command-parser.js';
-import {CmdKeyword, CmdKeywords} from './command-types.js';
+import {CmdKeyword} from './cmd-keywords.js';
+import {CmdKeywords} from './cmd-keywords.js';
 import {cmdValidation} from './command-validation.js';
 import {DEFAULT_WORDS} from './default-word-list.js';
 

@@ -1,10 +1,5 @@
 import fs from 'node:fs';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {
 	execGit,
 	getRepoRoot,

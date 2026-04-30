@@ -2,11 +2,10 @@ import {MovePosition} from '../event/event.model.js';
 import {
 	failed,
 	isFail,
+	succeeded,
 	Result,
 	ReturnFail,
-	ReturnSuccess,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+} from '../lib/model/result-types.js';
 import {Contributor, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
@@ -18,7 +17,7 @@ import {getOrderedChildren, resolveMoveRank} from './rank.js';
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
 	ctx: T,
-): ReturnSuccess<NavNode<T>> | ReturnFail => {
+): Result<NavNode<T>> => {
 	const {nodes} = getState();
 
 	const start = nodes[targetId];

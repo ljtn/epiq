@@ -1,7 +1,7 @@
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
-import {isFail, Result} from '../lib/command-line/command-types.js';
+import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	closeIssue,
 	createIssue,

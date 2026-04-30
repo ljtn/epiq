@@ -1,12 +1,7 @@
 import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {memoizeResult} from '../lib/utils/memoize.js';
 import {logger} from '../logger.js';
 
@@ -90,14 +85,16 @@ const runGit = ({
 			stderr += chunk;
 		});
 
-		child.on('error', err => {
+		child.on('error', error => {
 			if (allowFail) {
-				finish({stdout, stderr: err.message, exitCode: 1});
+				finish({stdout, stderr: error.message, exitCode: 1});
 				return;
 			}
 
 			finish(
-				failed([`git ${args.join(' ')}`, `cwd=${cwd}`, err.message].join('\n')),
+				failed(
+					[`git ${args.join(' ')}`, `cwd=${cwd}`, error.message].join('\n'),
+				),
 			);
 		});
 

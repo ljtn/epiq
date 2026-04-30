@@ -36,18 +36,17 @@ import {
 	resetState,
 	updateState,
 } from '../state/state.js';
+import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-meta.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
-	CmdKeywords,
-	cmdResult,
-	cmdValidity,
+	resultStatuses,
 	failed,
 	isFail,
-	noResult,
-	Result,
 	succeeded,
-} from './command-types.js';
+	Result,
+} from '../model/result-types.js';
+import {cmdValidity} from './cmd-validity.js';
 import {parsePeekDateInput} from './validate-date.js';
 
 const findTagByName = (name: string) =>
@@ -600,7 +599,7 @@ export const commands: CommandLineActionEntry[] = [
 
 				return succeeded('Issue created', null);
 			}
-			return noResult();
+			return succeeded('Success', null);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -610,7 +609,7 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const {commandMeta} = getCmdState();
 			if (commandMeta.validity === cmdValidity.Invalid) {
-				return failed('Invalid command ' + cmdResult);
+				return failed('Invalid command ' + resultStatuses);
 			}
 
 			updateState(s => ({

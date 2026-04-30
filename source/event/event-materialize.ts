@@ -1,4 +1,4 @@
-import {failed, isFail, succeeded} from '../lib/command-line/command-types.js';
+import {failed, isFail, succeeded} from '../lib/model/result-types.js';
 import {isTicketNode} from '../lib/model/context.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState, updateState} from '../lib/state/state.js';

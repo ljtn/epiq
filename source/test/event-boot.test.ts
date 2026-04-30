@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {isFail} from '../lib/command-line/command-types.js';
+import {isFail} from '../lib/model/result-types.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {

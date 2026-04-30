@@ -2,7 +2,8 @@ import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useState} from 'react';
 import {AutoCompletion} from '../command-line/command-auto-complete.js';
-import {CmdKeyword, CmdValidity} from '../command-line/command-types.js';
+import {CmdValidity} from '../command-line/cmd-validity.js';
+import {CmdKeyword} from '../command-line/cmd-keywords.js';
 import {
 	commandLineState,
 	subscribeCommandLineState,

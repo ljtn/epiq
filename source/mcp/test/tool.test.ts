@@ -1,5 +1,5 @@
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
-import {isFail} from '../../lib/command-line/command-types.js';
+import {isFail} from '../../lib/model/result-types.js';
 
 vi.mock('../event/event-persist.js', () => ({
 	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),

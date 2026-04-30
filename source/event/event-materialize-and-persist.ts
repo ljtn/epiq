@@ -1,4 +1,4 @@
-import {cmdResult, isFail} from '../lib/command-line/command-types.js';
+import {resultStatuses, isFail} from '../lib/model/result-types.js';
 import {materialize} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
@@ -8,7 +8,7 @@ export function materializeAndPersist<A extends EventAction>(
 ): MaterializeResult<A> {
 	const materialized = materialize(event);
 
-	if (materialized.result !== cmdResult.Success) {
+	if (materialized.status !== resultStatuses.Success) {
 		return materialized;
 	}
 

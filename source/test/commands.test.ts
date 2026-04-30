@@ -47,7 +47,7 @@ import {findAncestor, nodeRepo} from '../repository/node-repo.js';
 import {getCmdState} from '../lib/state/cmd.state.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {CmdIntent} from '../lib/command-line/command-meta.js';
-import {failed, succeeded} from '../lib/command-line/command-types.js';
+import {failed, succeeded} from '../lib/model/result-types.js';
 import {commands} from '../lib/command-line/commands.js';
 
 const mockedUlid = vi.mocked(ulid);

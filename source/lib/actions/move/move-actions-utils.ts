@@ -8,7 +8,7 @@ import {
 	ReturnFail,
 	ReturnSuccess,
 	succeeded,
-} from '../../command-line/command-types.js';
+} from '../../model/result-types.js';
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getRenderedChildren, getState} from '../../state/state.js';

@@ -1,6 +1,6 @@
 import {getState} from '../state/state.js';
 import {CmdIntent, CommandIntent} from './command-meta.js';
-import {CmdKeywords} from './command-types.js';
+import {CmdKeywords} from './cmd-keywords.js';
 
 export const getCommandIntent = (command: string): CommandIntent => {
 	const {context} = getState()?.currentNode;

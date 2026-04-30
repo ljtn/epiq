@@ -1,20 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {decodeTime} from 'ulid';
 import {z} from 'zod';
 import {getEpiqDirName} from '../init.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {
 	parsePersistedEvent,
 	PersistedEvent,
 	resolveEpiqRoot,
 } from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
-import {decodeTime} from 'ulid';
 
 const EPIQ_DIR = getEpiqDirName();
 const EVENTS_DIR = 'events';

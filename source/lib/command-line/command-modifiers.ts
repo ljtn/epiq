@@ -11,7 +11,8 @@ import {
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
-import {CmdKeyword, CmdKeywords} from './command-types.js';
+import {CmdKeyword} from './cmd-keywords.js';
+import {CmdKeywords} from './cmd-keywords.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];

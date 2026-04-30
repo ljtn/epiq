@@ -3,12 +3,7 @@ import path from 'node:path';
 import {decodeTime} from 'ulid';
 import {parsePersistedEventsFile} from '../event/event-load.js';
 import {PersistedEvent} from '../event/event-persist.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 
 const getCompositeEventKey = (event: Pick<PersistedEvent, 'id'>): string => {
 	const [id, refId] = event.id;

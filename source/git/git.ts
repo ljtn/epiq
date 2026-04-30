@@ -3,12 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {getEpiqDirName} from '../init.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {memoizeResult} from '../lib/utils/memoize.js';
 import {logger} from '../logger.js';
 import {

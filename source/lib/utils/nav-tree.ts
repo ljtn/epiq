@@ -1,4 +1,4 @@
-import {failed, Result, succeeded} from '../command-line/command-types.js';
+import {failed, Result, succeeded} from '../model/result-types.js';
 import {BreadCrumb} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';

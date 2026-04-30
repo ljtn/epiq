@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
 import {formatDateTime, safeDateFromUlid} from '../../event/date-utils.js';
-import {isSuccess} from '../command-line/command-types.js';
+import {isSuccess} from '../model/result-types.js';
 import {Filter} from '../model/app-state.model.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {useAppState} from '../state/state.js';

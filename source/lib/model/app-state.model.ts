@@ -1,5 +1,5 @@
 import {AppEvent} from '../../event/event.model.js';
-import {failed, Result, succeeded} from '../command-line/command-types.js';
+import {failed, Result, succeeded} from './result-types.js';
 import {ActionEntry, ActionIndex, ModeUnion} from './action-map.model.js';
 import {AnyContext} from './context.model.js';
 import {NavNode} from './navigation-node.model.js';

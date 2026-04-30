@@ -7,12 +7,7 @@ import {getPersistFileName, resolveEpiqRoot} from '../event/event-persist.js';
 import {AppEvent, MovePosition} from '../event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {isTicketNode, Ticket} from '../lib/model/context.model.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';

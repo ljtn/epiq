@@ -14,13 +14,10 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {getCmdModifiers} from './command-modifiers.js';
-import {
-	CmdKeyword,
-	CmdKeywords,
-	CmdValidity,
-	cmdValidity,
-	isFail,
-} from './command-types.js';
+import {isFail} from '../model/result-types.js';
+import {CmdValidity, cmdValidity} from './cmd-validity.js';
+import {CmdKeyword} from './cmd-keywords.js';
+import {CmdKeywords} from './cmd-keywords.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];

@@ -71,7 +71,7 @@ vi.mock('../lib/state/node-builder.js', () => ({
 	},
 }));
 
-import {isFail, succeeded} from '../lib/command-line/command-types.js';
+import {isFail, succeeded} from '../lib/model/result-types.js';
 import {findAncestor, isDescendantOf, nodeRepo} from './node-repo.js';
 
 type TestNode = {

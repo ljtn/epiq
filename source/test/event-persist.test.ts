@@ -9,7 +9,7 @@ import {
 	toPersistedEvent,
 } from '../event/event-persist.js';
 import {AppEvent, StoredAppEvent} from '../event/event.model.js';
-import {isFail} from '../lib/command-line/command-types.js';
+import {isFail} from '../lib/model/result-types.js';
 
 const makeTempDir = (): string =>
 	fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-'));

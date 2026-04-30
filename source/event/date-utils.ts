@@ -1,5 +1,5 @@
 import {decodeTime} from 'ulid';
-import {failed, Result, succeeded} from '../lib/command-line/command-types.js';
+import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {AppEvent} from './event.model.js';
 
 export const timeAgo = (timestampMs: number): string => {
@@ -38,8 +38,8 @@ export const formatDateTime = (date: Date): string => {
 export const safeDateFromUlid = (id: string): Result<Date> => {
 	try {
 		return succeeded('Decoded date', new Date(decodeTime(id)));
-	} catch (err) {
-		return failed('Decoding failed + ' + (err as Error).message);
+	} catch (error) {
+		return failed('Decoding failed + ' + (error as Error).message);
 	}
 };
 

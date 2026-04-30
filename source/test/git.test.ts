@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
-import {isFail} from '../lib/command-line/command-types.js';
+import {isFail} from '../lib/model/result-types.js';
 import {execGit} from '../git/git-utils.js';
 import {syncEpiqFromRemote, syncEpiqWithRemote} from '../git/sync.js';
 import {REMOTE_BRANCH} from '../git/git.js';

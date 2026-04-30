@@ -6,7 +6,7 @@ import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
-import {isSuccess} from '../command-line/command-types.js';
+import {isSuccess} from '../model/result-types.js';
 
 type Props = {
 	width: number;

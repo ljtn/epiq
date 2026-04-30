@@ -2,12 +2,7 @@ import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {Hints} from '../hints/hints.js';
 import {Mode} from '../model/action-map.model.js';
 import type {AppState, Filter} from '../model/app-state.model.js';

@@ -18,7 +18,7 @@ import {
 	ReturnFail,
 	ReturnSuccess,
 	succeeded,
-} from '../lib/command-line/command-types.js';
+} from '../lib/model/result-types.js';
 import {AnyContext} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 import {getState} from '../lib/state/state.js';

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {failed, succeeded} from '../../lib/command-line/command-types.js';
+import {failed, Result, succeeded} from '../../lib/model/result-types.js';
 import {resultJson} from '../server.js';
 
 describe('mcp server helpers', () => {
@@ -12,9 +12,9 @@ describe('mcp server helpers', () => {
 		expect(result.content).toHaveLength(1);
 		expect(result.content[0]?.type).toBe('text');
 
-		const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+		const parsed = JSON.parse(result.content[0]?.text ?? '{}') as Result;
 
-		expect(parsed.result).toBe('success');
+		expect(parsed.status).toBe('success');
 		expect(parsed.message).toBe('Listed issues');
 		expect(parsed.data).toEqual([{id: 'issue-1', title: 'Fix bug'}]);
 	});
@@ -25,9 +25,9 @@ describe('mcp server helpers', () => {
 		expect(result.isError).toBe(true);
 		expect(result.content).toHaveLength(1);
 
-		const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+		const parsed = JSON.parse(result.content[0]?.text ?? '{}') as Result;
 
-		expect(parsed.result).toBe('fail');
+		expect(parsed.status).toBe('fail');
 		expect(parsed.message).toBe('Unable to locate issue');
 	});
 });

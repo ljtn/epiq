@@ -2,7 +2,7 @@ import {spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {ulid} from 'ulid';
-import {failed, Result, succeeded} from '../lib/command-line/command-types.js';
+import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {getSettingsState} from '../lib/state/settings.state.js';
 import {fileManager} from '../lib/storage/file-manager.js';
 

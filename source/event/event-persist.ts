@@ -4,12 +4,7 @@ import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
 import {getEpiqDirName} from '../init.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {getSettingsState, User} from '../lib/state/settings.state.js';
 import {getEdgeRef} from './event-load.js';
 import {
