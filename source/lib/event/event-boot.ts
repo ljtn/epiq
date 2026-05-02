@@ -193,7 +193,8 @@ export function bootStateFromEventLog(eventLog: AppEvent[]): Result {
 					(x, i) => `${chalk.dim.gray(`${i + 1}.`)} ${chalk.dim(x.message)}`,
 				),
 				'\n',
-			].join('\n'),
+			].join('\n\n See complete log: \n\n') +
+				eventLog.map(x => JSON.stringify(x)).join('\n'),
 		);
 	}
 
