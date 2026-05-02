@@ -114,7 +114,7 @@ export const setConfig = (partialConfig: Partial<EpiqConfig>) => {
 	if (isFail(existingResult)) return failed('Failed to read existing config');
 
 	const nextConfig: EpiqConfig = {
-		...existingResult.data,
+		...existingResult.value,
 		...partialConfig,
 	};
 
@@ -143,7 +143,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		throw new Error(result.message || 'Unable to load settings');
 	}
 
-	const {preferredEditor, userName, userId, autoSync} = result.data;
+	const {preferredEditor, userName, userId, autoSync} = result.value;
 
 	if (!userName || !userId) {
 		return failed('User name or ID not configured in ~/.epiq/config.json');

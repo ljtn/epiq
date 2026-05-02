@@ -108,7 +108,7 @@ export const fromPersistedEvent = (
 		return failed(actionResult.message);
 	}
 
-	const action = actionResult.data;
+	const action = actionResult.value;
 	const eventId = entry.id?.[0];
 	if (!eventId) {
 		return failed('Persisted event is missing id');
@@ -158,9 +158,9 @@ export const parsePersistedEventsFile = (
 		}
 
 		entries.push({
-			...parsedResult.data,
-			userId: actorResult.data.userId,
-			userName: actorResult.data.userName,
+			...parsedResult.value,
+			userId: actorResult.value.userId,
+			userName: actorResult.value.userName,
 		});
 	}
 
@@ -190,7 +190,7 @@ function loadAllPersistedEvents(
 			return failed(result.message);
 		}
 
-		entries.push(...result.data);
+		entries.push(...result.value);
 	}
 
 	return succeeded('All events loaded', getSortedEvents(entries));
@@ -204,7 +204,7 @@ export function loadMergedEvents(rootDir = process.cwd()): Result<AppEvent[]> {
 
 	const decoded: AppEvent[] = [];
 
-	for (const entry of allEvents.data) {
+	for (const entry of allEvents.value) {
 		const eventResult = fromPersistedEvent(entry);
 		if (isFail(eventResult)) {
 			return failed(
@@ -214,7 +214,7 @@ export function loadMergedEvents(rootDir = process.cwd()): Result<AppEvent[]> {
 			);
 		}
 
-		decoded.push(eventResult.data);
+		decoded.push(eventResult.value);
 	}
 
 	return succeeded('Loaded merged events', decoded);
@@ -228,7 +228,7 @@ export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 
 	return succeeded(
 		'Loaded edge reference',
-		persisted.data.at(-1)?.id?.[0] ?? null,
+		persisted.value.at(-1)?.id?.[0] ?? null,
 	);
 }
 

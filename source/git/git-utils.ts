@@ -156,7 +156,7 @@ export const getGitDir = memoizeResult(
 
 		if (isFail(result)) return failed(result.message);
 
-		const gitDir = result.data.stdout.trim();
+		const gitDir = result.value.stdout.trim();
 		const resolved = path.isAbsolute(gitDir)
 			? gitDir
 			: path.join(repoRoot, gitDir);
@@ -195,7 +195,7 @@ export const commitAndGetSha = async ({
 
 	return succeeded(
 		'Created commit and resolved SHA',
-		shaResult.data.stdout.trim(),
+		shaResult.value.stdout.trim(),
 	);
 };
 
@@ -205,7 +205,7 @@ export const hasInProgressGitOperation = async (
 	const gitDirResult = await getGitDir(repoRoot);
 	if (isFail(gitDirResult)) return failed(gitDirResult.message);
 
-	const gitDir = gitDirResult.data;
+	const gitDir = gitDirResult.value;
 	const markers = [
 		'MERGE_HEAD',
 		'CHERRY_PICK_HEAD',
@@ -305,7 +305,7 @@ export const hasWorktree = async ({
 	if (isFail(result)) return failed(result.message);
 
 	const normalized = normalizeExistingPath(worktreeRoot);
-	const exists = result.data.stdout
+	const exists = result.value.stdout
 		.split('\n')
 		.filter(line => line.startsWith('worktree '))
 		.map(line => line.slice('worktree '.length))
@@ -339,7 +339,7 @@ export const getCurrentBranchName = async (
 
 	if (isFail(result)) return failed(result.message);
 
-	return succeeded('Resolved current branch', result.data.stdout.trim());
+	return succeeded('Resolved current branch', result.value.stdout.trim());
 };
 
 export const getShortHeadSha = async (
@@ -352,7 +352,7 @@ export const getShortHeadSha = async (
 
 	if (isFail(result)) return failed(result.message);
 
-	return succeeded('Resolved short HEAD sha', result.data.stdout.trim());
+	return succeeded('Resolved short HEAD sha', result.value.stdout.trim());
 };
 
 export const isNonFastForward = (message: string): boolean =>
@@ -376,7 +376,7 @@ export const pullBranchRebaseIfPresent = async ({
 	});
 
 	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
-	if (!remoteBranchResult.data) {
+	if (!remoteBranchResult.value) {
 		return succeeded('Remote branch missing, skipped pull', false);
 	}
 
@@ -412,7 +412,7 @@ export const hasRemoteWorktreeChanges = async (
 
 	return succeeded(
 		'Checked remote worktree changes',
-		result.data.stdout.trim().length > 0,
+		result.value.stdout.trim().length > 0,
 	);
 };
 
@@ -422,5 +422,8 @@ export const isDetachedHead = async (
 	const branchResult = await getCurrentBranchName(repoRoot);
 	if (isFail(branchResult)) return failed(branchResult.message);
 
-	return succeeded('Checked detached HEAD state', branchResult.data === 'HEAD');
+	return succeeded(
+		'Checked detached HEAD state',
+		branchResult.value === 'HEAD',
+	);
 };

@@ -143,7 +143,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual([
+			expect(result.value).toEqual([
 				{
 					id: 'board-1',
 					title: 'Default',
@@ -162,7 +162,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data.map(swimlane => swimlane.id)).toEqual([
+			expect(result.value.map(swimlane => swimlane.id)).toEqual([
 				'swimlane-1',
 				'swimlane-2',
 				'readonly-swimlane',
@@ -178,7 +178,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual([
+			expect(result.value).toEqual([
 				expect.objectContaining({
 					id: 'issue-1',
 					title: 'Fix bug',
@@ -200,7 +200,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual({
+			expect(result.value).toEqual({
 				id: 'issue-created-1',
 				title: 'New issue',
 				parentId: 'swimlane-1',
@@ -229,7 +229,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual({
+			expect(result.value).toEqual({
 				id: 'issue-1',
 				closed: true,
 			});
@@ -246,7 +246,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual({
+			expect(result.value).toEqual({
 				id: 'issue-1',
 				parentId: 'swimlane-2',
 				position: {at: 'start'},
@@ -283,9 +283,9 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data.root).toBe('/repo');
-			expect(result.data.rootNodeId).toBe('workspace-1');
-			expect(result.data.nodes).toBe(nodes);
+			expect(result.value.root).toBe('/repo');
+			expect(result.value.rootNodeId).toBe('workspace-1');
+			expect(result.value.nodes).toBe(nodes);
 		}
 	});
 });

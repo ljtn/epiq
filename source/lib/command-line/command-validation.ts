@@ -187,7 +187,7 @@ const validators: Record<CmdKeyword, Validator> = {
 				message: 'Command is not applicable in this context',
 			});
 		}
-		const boardCreationDate = safeDateFromUlid(boardResult.data.id);
+		const boardCreationDate = safeDateFromUlid(boardResult.value.id);
 
 		if (isFail(boardCreationDate)) {
 			return invalid({
@@ -198,12 +198,12 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (
 			!isDateWithinPeekHorizon({
 				date,
-				horizonDate: boardCreationDate.data,
+				horizonDate: boardCreationDate.value,
 			})
 		) {
 			return invalid({
 				message: chalk.red(
-					`nothing to peek before ${boardCreationDate.data
+					`nothing to peek before ${boardCreationDate.value
 						.toISOString()
 						.slice(0, 16)
 						.replace('T', ' ')}`,
@@ -368,7 +368,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			return invalid({message: 'Invalid untag target', completionWordList: []});
 		}
 
-		const tags = tagsRes.data
+		const tags = tagsRes.value
 			.map(({name}) => name)
 			.map(tag => ` ${chalk.bgHex(getStringColor(tag))(' ' + tag + ' ')} `)
 			.slice(0, 10);
@@ -404,7 +404,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			});
 		}
 
-		const coloredAssignees = assigneesRes.data
+		const coloredAssignees = assigneesRes.value
 			.map(({name}) => name)
 			.map(
 				assignee =>

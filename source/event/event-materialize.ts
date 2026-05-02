@@ -37,7 +37,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Workspace initialized', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -55,7 +55,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Added workspace', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -74,7 +74,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Added board', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -93,7 +93,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Added swimlane', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -112,7 +112,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Added issue', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -137,7 +137,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Added field', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -153,7 +153,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Edited title', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -167,7 +167,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Deleted node', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -181,7 +181,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Tag added', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -198,7 +198,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Contributor created', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -212,7 +212,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue tagged', {
 			action,
-			result: tagged.data,
+			result: tagged.value,
 		});
 	},
 
@@ -226,7 +226,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue untagged', {
 			action,
-			result: tagged.data,
+			result: tagged.value,
 		});
 	},
 
@@ -243,7 +243,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Assigned successfully', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -260,7 +260,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue unassigned', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -274,7 +274,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Moved node', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -291,7 +291,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Set node value', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -323,7 +323,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue closed', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -377,7 +377,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue reopened', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 
@@ -391,7 +391,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Node locked', {
 			action,
-			result: result.data,
+			result: result.value,
 		});
 	},
 };

@@ -68,7 +68,7 @@ function derive(state: BaseState): Result<AppState> {
 		logger.error(breadCrumbResult.message);
 		return breadCrumbResult;
 	}
-	const breadCrumb = breadCrumbResult.data;
+	const breadCrumb = breadCrumbResult.value;
 
 	const {context} = currentNode;
 	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
@@ -136,7 +136,7 @@ export function initWorkspaceState(workspace: Workspace) {
 	const deriveResult = derive(base);
 	if (isFail(deriveResult)) return deriveResult;
 
-	_appState = deriveResult.data;
+	_appState = deriveResult.value;
 	emit();
 
 	return succeeded('State initialized', null);
@@ -153,7 +153,7 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	if (isFail(deriveResult)) {
 		return failed(deriveResult.message ?? 'Unable to update state');
 	}
-	_appState = deriveResult.data;
+	_appState = deriveResult.value;
 	emit();
 	return succeeded('State updated', null);
 }

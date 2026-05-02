@@ -43,7 +43,7 @@ export const onConfirmCommandLineSequenceInput = async ({
 		return cmdResultToValidationState({
 			status: resultStatuses.Fail,
 			message: 'Command not available in readonly state',
-			data: null,
+			value: null,
 		});
 	}
 
@@ -55,7 +55,7 @@ export const onConfirmCommandLineSequenceInput = async ({
 		return cmdResultToValidationState({
 			status: resultStatuses.Fail,
 			message: 'Command not found',
-			data: null,
+			value: null,
 		});
 	}
 

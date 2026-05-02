@@ -125,7 +125,7 @@ describe('findAncestor', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data?.id).toBe('board');
+			expect(result.value?.id).toBe('board');
 		}
 	});
 
@@ -152,7 +152,7 @@ describe('findAncestor', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data?.id).toBe('board');
+			expect(result.value?.id).toBe('board');
 		}
 	});
 
@@ -701,7 +701,7 @@ describe('nodeRepo.createNode / updateNode', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.message).toBe('Node created');
-			expect(result.data).toEqual(node);
+			expect(result.value).toEqual(node);
 		}
 	});
 
@@ -718,7 +718,7 @@ describe('nodeRepo.createNode / updateNode', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.message).toBe('Updated node');
-			expect(result.data).toEqual(node);
+			expect(result.value).toEqual(node);
 		}
 	});
 });

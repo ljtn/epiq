@@ -62,7 +62,7 @@ export const mergeEventFile = ({
 	const targetResult = parsePersistedEventsFile(targetFile);
 	if (isFail(targetResult)) return failed(targetResult.message);
 
-	const merged = mergePersistedEvents(targetResult.data, sourceResult.data);
+	const merged = mergePersistedEvents(targetResult.value, sourceResult.value);
 	const nextContent = serializePersistedEvents(merged);
 	const currentContent = fs.existsSync(targetFile)
 		? fs.readFileSync(targetFile, 'utf8')

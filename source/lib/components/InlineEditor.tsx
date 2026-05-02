@@ -47,7 +47,7 @@ export const InlineEditor: React.FC<Props> = ({
 
 			const result = nodeRepo.createNodeAtPosition(node);
 			if (isSuccess(result)) {
-				createdIds.push(result.data.id);
+				createdIds.push(result.value.id);
 			}
 		});
 

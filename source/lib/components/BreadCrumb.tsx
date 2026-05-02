@@ -26,7 +26,7 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 		selectedTarget?.id ?? currentNode.id,
 		'TICKET',
 	);
-	const ticket = isSuccess(ticketResult) ? ticketResult.data : undefined;
+	const ticket = isSuccess(ticketResult) ? ticketResult.value : undefined;
 
 	const ticketChildren = ticket?.id ? getOrderedChildren(ticket.id) : [];
 

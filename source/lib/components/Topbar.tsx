@@ -24,7 +24,7 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 	const currentEventId = eventLog.at(-1)?.id;
 	const currentEventTimeStampResult = safeDateFromUlid(currentEventId ?? '');
 	const currentEventTimeStamp = isSuccess(currentEventTimeStampResult)
-		? formatDateTime(currentEventTimeStampResult.data)
+		? formatDateTime(currentEventTimeStampResult.value)
 		: 'INVALID DATE';
 
 	return (

@@ -58,7 +58,7 @@ const boot = (repoRoot?: string): Result<BootResult> => {
 	const eventsResult = loadMergedEvents(root);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
-	const bootResult = bootStateFromEventLog(eventsResult.data);
+	const bootResult = bootStateFromEventLog(eventsResult.value);
 	if (isFail(bootResult)) return failed(bootResult.message);
 
 	return succeeded('Booted Epiq state', {root});
@@ -68,12 +68,13 @@ const getActor = (): Result<Actor> => {
 	const actorResult = loadSettingsFromConfig();
 	if (isFail(actorResult)) return failed(actorResult.message);
 
-	if (!actorResult.data.userId) return failed('Unable to retrieve user id');
-	if (!actorResult.data.userName) return failed('Unable to retrieve user name');
+	if (!actorResult.value.userId) return failed('Unable to retrieve user id');
+	if (!actorResult.value.userName)
+		return failed('Unable to retrieve user name');
 
 	return succeeded('Resolved actor', {
-		userId: actorResult.data.userId,
-		userName: actorResult.data.userName,
+		userId: actorResult.value.userId,
+		userName: actorResult.value.userName,
 	});
 };
 
@@ -187,7 +188,7 @@ export const createIssue = (input: CreateIssueInput) => {
 	const issueEvents = createIssueEvents({
 		name: input.title,
 		parent: input.parentId,
-		user: actorResult.data,
+		user: actorResult.value,
 	});
 
 	const results = materializeAndPersistAll(issueEvents);
@@ -228,8 +229,8 @@ export const closeIssue = (input: CloseIssueInput) => {
 
 	const event = {
 		id: ulid(),
-		userId: actorResult.data.userId,
-		userName: actorResult.data.userName,
+		userId: actorResult.value.userId,
+		userName: actorResult.value.userName,
 		action: 'close.issue',
 		payload: {
 			id: input.issueId,
@@ -252,7 +253,7 @@ export const getEpiqState = (input: ToolInput = {}) => {
 	if (isFail(bootResult)) return bootResult;
 
 	return succeeded('Retrieved Epiq state', {
-		root: bootResult.data.root,
+		root: bootResult.value.root,
 		nodes: getState().nodes,
 		rootNodeId: getState().rootNodeId,
 		currentNode: getState().currentNode,
@@ -287,8 +288,8 @@ export const moveIssue = (input: MoveIssueInput) => {
 
 	const event = {
 		id: ulid(),
-		userId: actorResult.data.userId,
-		userName: actorResult.data.userName,
+		userId: actorResult.value.userId,
+		userName: actorResult.value.userName,
 		action: 'move.node',
 		payload: {
 			id: input.issueId,
@@ -317,11 +318,11 @@ export const sync = async (input: SyncInput = {}) => {
 	const result = await syncEpiqWithRemote({
 		cwd: root,
 		ownEventFileName: getPersistFileName({
-			userId: actorResult.data.userId,
-			userName: actorResult.data.userName,
+			userId: actorResult.value.userId,
+			userName: actorResult.value.userName,
 		}),
 	});
 	if (isFail(result)) return result;
 
-	return succeeded('Synced Epiq state', result.data);
+	return succeeded('Synced Epiq state', result.value);
 };

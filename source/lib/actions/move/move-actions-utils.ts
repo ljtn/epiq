@@ -52,7 +52,7 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 
 	const userIdRes = resolveActorId();
 	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-	const {userId, userName} = userIdRes.data;
+	const {userId, userName} = userIdRes.value;
 
 	setMovePendingState({
 		id: ulid(),
@@ -60,7 +60,7 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 		userName,
 		action: 'move.node',
 		payload: {
-			id: selectedChildResult.data.id,
+			id: selectedChildResult.value.id,
 			parent: siblingNode.id,
 			pos: {at: 'end'},
 		},
@@ -71,7 +71,7 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 	const materializedResult = materialize(pendingMoveState, true);
 	if (isFail(materializedResult)) return materializedResult;
 
-	return succeeded('Node moved successfully', materializedResult.data);
+	return succeeded('Node moved successfully', materializedResult.value);
 }
 
 export function moveChildWithinParent(direction: -1 | 1) {
@@ -86,7 +86,7 @@ export function moveChildWithinParent(direction: -1 | 1) {
 
 	const userIdRes = resolveActorId();
 	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-	const {userId, userName} = userIdRes.data;
+	const {userId, userName} = userIdRes.value;
 
 	setMovePendingState({
 		id: ulid(),
@@ -94,7 +94,7 @@ export function moveChildWithinParent(direction: -1 | 1) {
 		userName,
 		action: 'move.node',
 		payload: {
-			id: selectedChildResult.data.id,
+			id: selectedChildResult.value.id,
 			parent: currentNode.id,
 			pos: {
 				at: direction === 1 ? 'after' : 'before',
@@ -108,5 +108,5 @@ export function moveChildWithinParent(direction: -1 | 1) {
 	const materializedResult = materialize(pendingMoveState, true);
 	if (isFail(materializedResult)) return materializedResult;
 
-	return succeeded('Node moved successfully', materializedResult.data);
+	return succeeded('Node moved successfully', materializedResult.value);
 }

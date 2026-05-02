@@ -124,7 +124,7 @@ describe('git-utils', () => {
 
 		expect(isFail(commitResult)).toBe(false);
 		if (!isFail(commitResult)) {
-			expect(commitResult.data).toMatch(/^[0-9a-f]{40}$/);
+			expect(commitResult.value).toMatch(/^[0-9a-f]{40}$/);
 		}
 	});
 
@@ -141,7 +141,7 @@ describe('git-utils', () => {
 		const beforeResult = await isDetachedHead(repoRoot);
 		expect(isFail(beforeResult)).toBe(false);
 		if (!isFail(beforeResult)) {
-			expect(beforeResult.data).toBe(false);
+			expect(beforeResult.value).toBe(false);
 		}
 
 		const shaResult = await execGit({
@@ -151,7 +151,7 @@ describe('git-utils', () => {
 		if (isFail(shaResult)) throw new Error(shaResult.message);
 
 		const checkoutResult = await execGit({
-			args: ['checkout', shaResult.data.stdout.trim()],
+			args: ['checkout', shaResult.value.stdout.trim()],
 			cwd: repoRoot,
 		});
 		if (isFail(checkoutResult)) throw new Error(checkoutResult.message);
@@ -159,13 +159,13 @@ describe('git-utils', () => {
 		const afterResult = await isDetachedHead(repoRoot);
 		expect(isFail(afterResult)).toBe(false);
 		if (!isFail(afterResult)) {
-			expect(afterResult.data).toBe(true);
+			expect(afterResult.value).toBe(true);
 		}
 
 		const branchNameResult = await getCurrentBranchName(repoRoot);
 		expect(isFail(branchNameResult)).toBe(false);
 		if (!isFail(branchNameResult)) {
-			expect(branchNameResult.data).toBe('HEAD');
+			expect(branchNameResult.value).toBe('HEAD');
 		}
 	});
 
@@ -183,7 +183,7 @@ describe('git-utils', () => {
 		if (isFail(gitDirResult)) throw new Error(gitDirResult.message);
 
 		fs.writeFileSync(
-			path.join(gitDirResult.data, 'MERGE_HEAD'),
+			path.join(gitDirResult.value, 'MERGE_HEAD'),
 			'dummy',
 			'utf8',
 		);
@@ -191,7 +191,7 @@ describe('git-utils', () => {
 		const result = await hasInProgressGitOperation(repoRoot);
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toBe(true);
+			expect(result.value).toBe(true);
 		}
 	});
 
@@ -275,7 +275,7 @@ describe('git-utils', () => {
 
 		const branchResult = await getCurrentBranchName(repoA);
 		if (isFail(branchResult)) throw new Error(branchResult.message);
-		const branch = branchResult.data;
+		const branch = branchResult.value;
 
 		const pullB = await execGit({
 			args: ['pull', '--rebase'],
@@ -304,7 +304,7 @@ describe('git-utils', () => {
 
 		expect(isFail(pullResult)).toBe(false);
 		if (!isFail(pullResult)) {
-			expect(pullResult.data).toBe(true);
+			expect(pullResult.value).toBe(true);
 		}
 
 		const content = fs.readFileSync(path.join(repoB, 'a.txt'), 'utf8');

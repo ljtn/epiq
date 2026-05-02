@@ -16,7 +16,7 @@ describe('mcp server helpers', () => {
 
 		expect(parsed.status).toBe('success');
 		expect(parsed.message).toBe('Listed issues');
-		expect(parsed.data).toEqual([{id: 'issue-1', title: 'Fix bug'}]);
+		expect(parsed.value).toEqual([{id: 'issue-1', title: 'Fix bug'}]);
 	});
 
 	it('marks failed Result as MCP error response', () => {

@@ -101,7 +101,7 @@ export const ensureRemoteBranchIsStorageOnly = async (
 			'ensure remote branch is storage only failed\n' + remoteFiles.message,
 		);
 
-	const topLevelFiles = remoteFiles.data.stdout
+	const topLevelFiles = remoteFiles.value.stdout
 		.trim()
 		.split('\n')
 		.filter(Boolean);
@@ -138,7 +138,7 @@ export const getRepoRootDir = memoizeResult(
 
 		if (isFail(result)) return failed('Not inside a Git repository');
 
-		return succeeded('Resolved repo root', result.data.stdout.trim());
+		return succeeded('Resolved repo root', result.value.stdout.trim());
 	},
 	cwd => path.resolve(cwd),
 );

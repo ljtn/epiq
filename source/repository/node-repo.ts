@@ -177,7 +177,7 @@ export const nodeRepo = {
 		const movedNode = {
 			...node,
 			parentNodeId: nextParentId,
-			rank: rankResult.data,
+			rank: rankResult.value,
 		};
 
 		this.updateNode(movedNode);
@@ -263,7 +263,7 @@ export const nodeRepo = {
 		);
 
 		if (isFail(result)) return result;
-		return succeeded('Assigned contributor', result.data);
+		return succeeded('Assigned contributor', result.value);
 	},
 
 	createTag(tag: Tag): Result<Tag> {
@@ -306,7 +306,7 @@ export const nodeRepo = {
 		);
 
 		if (isFail(result)) return result;
-		return succeeded('Tag added', result.data);
+		return succeeded('Tag added', result.value);
 	},
 
 	untag(targetId: string, tagId: string): Result<NavNode<'FIELD'>> {
@@ -380,7 +380,7 @@ export const nodeRepo = {
 
 		const withRank: NavNode<T> = {
 			...node,
-			rank: rankResult.data,
+			rank: rankResult.value,
 		};
 
 		this.createNode(withRank);

@@ -149,7 +149,7 @@ describe('sync', () => {
 		if (isFail(shaResult)) throw new Error(shaResult.message);
 
 		const detachResult = await execGit({
-			args: ['checkout', shaResult.data.stdout.trim()],
+			args: ['checkout', shaResult.value.stdout.trim()],
 			cwd: repoRoot,
 		});
 		if (isFail(detachResult)) throw new Error(detachResult.message);
@@ -196,9 +196,9 @@ describe('sync', () => {
 
 		expect(isFail(syncResult)).toBe(false);
 		if (!isFail(syncResult)) {
-			expect(syncResult.data.createdCommit).toBe(true);
-			expect(syncResult.data.commitSha).toMatch(/^[0-9a-f]{40}$/);
-			expect(syncResult.data.pushed).toBe(true);
+			expect(syncResult.value.createdCommit).toBe(true);
+			expect(syncResult.value.commitSha).toMatch(/^[0-9a-f]{40}$/);
+			expect(syncResult.value.pushed).toBe(true);
 		}
 
 		const verifyClone = makeTempDir();
@@ -370,7 +370,7 @@ describe('sync', () => {
 
 		expect(isFail(secondSync)).toBe(false);
 		if (!isFail(secondSync)) {
-			expect(secondSync.data.createdCommit).toBe(false);
+			expect(secondSync.value.createdCommit).toBe(false);
 		}
 	});
 });

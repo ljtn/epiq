@@ -92,9 +92,9 @@ describe('event persist', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data.v).toBe(1);
-			expect(result.data.id).toEqual(['01H00000000000000000000001', null]);
-			expect(result.data).toHaveProperty('init.workspace');
+			expect(result.value.v).toBe(1);
+			expect(result.value.id).toEqual(['01H00000000000000000000001', null]);
+			expect(result.value).toHaveProperty('init.workspace');
 		}
 	});
 

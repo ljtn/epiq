@@ -49,7 +49,7 @@ const remoteHasAnyHistory = memoizeResult(
 			remote: DEFAULT_REMOTE,
 		});
 		if (isFail(remoteResult)) return failed(remoteResult.message);
-		if (!remoteResult.data) return succeeded('No remote configured', false);
+		if (!remoteResult.value) return succeeded('No remote configured', false);
 
 		const result = await execGitAllowFail({
 			args: ['ls-remote', '--heads', DEFAULT_REMOTE],
@@ -94,7 +94,7 @@ export const isHeadAttached = async (
 		);
 	}
 
-	const branch = result.data?.stdout.trim();
+	const branch = result.value?.stdout.trim();
 	if (!branch) {
 		return failed('Cannot resolve current branch');
 	}
@@ -139,7 +139,7 @@ export const hydrateEventsFromRemote = ({
 
 	let changed = false;
 
-	for (const fileName of remoteFilesResult.data) {
+	for (const fileName of remoteFilesResult.value) {
 		const from = path.join(remoteEventsDir, fileName);
 		const to = path.join(localEventsDir, fileName);
 
@@ -150,7 +150,7 @@ export const hydrateEventsFromRemote = ({
 
 		if (isFail(mergeResult)) return failed(mergeResult.message);
 
-		changed = changed || mergeResult.data;
+		changed = changed || mergeResult.value;
 	}
 
 	return succeeded('Hydrated event files from remote worktree', changed);
@@ -174,8 +174,8 @@ const buildSyncCommitMessage = async (
 	if (isFail(shaResult)) return failed(shaResult.message);
 
 	const message = `[epiq:sync:${sanitizeRefSegment(
-		branchResult.data,
-	)}:${sanitizeRefSegment(shaResult.data)}]`;
+		branchResult.value,
+	)}:${sanitizeRefSegment(shaResult.value)}]`;
 
 	return succeeded('Built sync commit message', message);
 };
@@ -194,7 +194,7 @@ const createEmptyStorageBranch = async (
 		);
 	}
 
-	const commitSha = commitResult.data.stdout.trim();
+	const commitSha = commitResult.value.stdout.trim();
 
 	const updateRefResult = await execGit({
 		args: ['update-ref', `refs/heads/${REMOTE_BRANCH}`, commitSha],
@@ -222,7 +222,7 @@ const ensureRemoteStateBranch = async ({
 	if (isFail(localResult))
 		return failed('Ensure local branch failed. ' + localResult.message);
 
-	if (localResult.data) {
+	if (localResult.value) {
 		return succeeded('Local remote branch already exists', false);
 	}
 
@@ -230,11 +230,11 @@ const ensureRemoteStateBranch = async ({
 		repoRoot,
 		remote: DEFAULT_REMOTE,
 	});
-	if (isFail(hasRemoteResult) || !hasRemoteResult.data) {
+	if (isFail(hasRemoteResult) || !hasRemoteResult.value) {
 		return failed('Ensure local branch failed. ' + hasRemoteResult.message);
 	}
 
-	if (hasRemoteResult.data) {
+	if (hasRemoteResult.value) {
 		const remoteBranchResult = await hasRemoteBranch({
 			repoRoot,
 			remote: DEFAULT_REMOTE,
@@ -246,7 +246,7 @@ const ensureRemoteStateBranch = async ({
 			);
 		}
 
-		if (remoteBranchResult.data) {
+		if (remoteBranchResult.value) {
 			// fetch remote branch before local track
 
 			const fetchResult = await execGit({
@@ -297,7 +297,7 @@ const getWorktreeRootForBranch = async ({
 
 	if (isFail(result)) return failed(result.message);
 
-	const lines = result.data.stdout.split('\n');
+	const lines = result.value.stdout.split('\n');
 	let currentWorktree: string | null = null;
 
 	for (const line of lines) {
@@ -360,7 +360,7 @@ const ensureRemoteWorktree = async ({
 		return failed(existingBranchWorktreeResult.message);
 	}
 
-	const existingBranchWorktree = existingBranchWorktreeResult.data;
+	const existingBranchWorktree = existingBranchWorktreeResult.value;
 	const expected = path.resolve(worktreeRoot);
 	const existing = existingBranchWorktree
 		? path.resolve(existingBranchWorktree)
@@ -402,11 +402,11 @@ const ensureRemoteWorktree = async ({
 
 	const existsOnDisk = fs.existsSync(worktreeRoot);
 
-	if (registeredResult.data && existsOnDisk) {
+	if (registeredResult.value && existsOnDisk) {
 		return succeeded('Remote worktree already exists', false);
 	}
 
-	if (registeredResult.data && !existsOnDisk) {
+	if (registeredResult.value && !existsOnDisk) {
 		const pruneResult = await execGit({
 			args: ['worktree', 'prune'],
 			cwd: repoRoot,
@@ -426,7 +426,7 @@ const ensureRemoteBranchCheckedOut = async (
 	const currentBranchResult = await getCurrentBranchName(worktreeRoot);
 	if (isFail(currentBranchResult)) return failed(currentBranchResult.message);
 
-	if (currentBranchResult.data === REMOTE_BRANCH) {
+	if (currentBranchResult.value === REMOTE_BRANCH) {
 		return succeeded('Remote branch already checked out', false);
 	}
 
@@ -450,7 +450,7 @@ const ensureLocalTracksRemote = async (
 	const upstreamResult = await hasUpstream(worktreeRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
-	if (upstreamResult.data) {
+	if (upstreamResult.value) {
 		return succeeded('Remote upstream already configured', false);
 	}
 
@@ -460,7 +460,7 @@ const ensureLocalTracksRemote = async (
 	});
 	if (isFail(remoteResult)) return failed(remoteResult.message);
 
-	if (!remoteResult.data) {
+	if (!remoteResult.value) {
 		return succeeded('No remote available for upstream', false);
 	}
 
@@ -471,7 +471,7 @@ const ensureLocalTracksRemote = async (
 	});
 	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
 
-	if (!remoteBranchResult.data) {
+	if (!remoteBranchResult.value) {
 		return succeeded(
 			'Remote branch missing; upstream will be configured on first push',
 			false,
@@ -539,7 +539,7 @@ export const createRemoteSyncCommit = async ({
 
 	return commitAndGetSha({
 		cwd: worktreeRoot,
-		message: messageResult.data,
+		message: messageResult.value,
 	});
 };
 
@@ -550,7 +550,7 @@ export const pushRemote = async (
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
 	const result = await execGit({
-		args: upstreamResult.data
+		args: upstreamResult.value
 			? ['push']
 			: ['push', '-u', DEFAULT_REMOTE, REMOTE_BRANCH],
 		cwd: worktreeRoot,
@@ -587,7 +587,7 @@ export const bootstrapRemoteStorageBase = async ({
 
 	for (const step of steps) {
 		if (isFail(step)) return failed(step.message);
-		changed = changed || Boolean(step.data);
+		changed = changed || Boolean(step.value);
 	}
 
 	return succeeded(

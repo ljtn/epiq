@@ -130,7 +130,7 @@ export default function App({width, height}: AppProps) {
 
 	const board = findInBreadCrumb(getState().breadCrumb ?? [], 'BOARD');
 	if (isSuccess(board)) {
-		const boardId = board.data.id;
+		const boardId = board.value.id;
 		const numberOfSwimlanes = getRenderedChildren(boardId).length;
 		const swimlanePart = 3;
 		const swimlaneMaxWidth = Math.floor(width / swimlanePart);

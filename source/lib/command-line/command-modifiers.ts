@@ -114,10 +114,10 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
 		],
 		[CmdKeywords.UNTAG]: [
-			...(ticketTagsFromBreadCrumb()?.data?.map(({name}) => name) ?? []),
+			...(ticketTagsFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
 		[CmdKeywords.UNASSIGN]: [
-			...(ticketAssigneesFromBreadCrumb()?.data?.map(({name}) => name) ?? []),
+			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
 		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
 		[CmdKeywords.HELP]: [],

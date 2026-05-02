@@ -8,12 +8,12 @@ export type ResultStatus = (typeof resultStatuses)[keyof typeof resultStatuses];
 export type ReturnSuccess<T = unknown> = {
 	status: ResultStatus;
 	message: string;
-	data: T;
+	value: T;
 };
 export type ReturnFail = {
 	status: ResultStatus;
 	message: string;
-	data: null;
+	value: null;
 };
 
 export const failed = (message: string): ReturnFail => {
@@ -21,16 +21,16 @@ export const failed = (message: string): ReturnFail => {
 	return {
 		status: resultStatuses.Fail,
 		message,
-		data: null,
+		value: null,
 	};
 };
 
-export const succeeded = <T>(message: string, data: T): ReturnSuccess<T> => {
+export const succeeded = <T>(message: string, value: T): ReturnSuccess<T> => {
 	logger.info(message);
 	return {
 		status: resultStatuses.Success,
 		message,
-		data,
+		value,
 	};
 };
 

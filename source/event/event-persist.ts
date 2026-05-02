@@ -182,26 +182,26 @@ export function persist({
 		const edgeRef = getEdgeRef(resolvedRoot);
 		if (isFail(edgeRef)) return failed(edgeRef.message);
 
-		const newId = edgeRef.data
-			? getNextId(Math.max(Date.now(), decodeTime(edgeRef.data) + 1))
+		const newId = edgeRef.value
+			? getNextId(Math.max(Date.now(), decodeTime(edgeRef.value) + 1))
 			: getNextId();
 
 		const entryResult = toPersistedEvent(stripActor(event), [
 			newId,
-			edgeRef.data,
+			edgeRef.value,
 		]);
 
 		if (isFail(entryResult)) return failed(entryResult.message);
 
 		fs.appendFileSync(
-			filePath.data,
-			`${JSON.stringify(entryResult.data)}\n`,
+			filePath.value,
+			`${JSON.stringify(entryResult.value)}\n`,
 			'utf8',
 		);
 
 		return succeeded<PersistSuccess>('Event persisted', {
-			path: filePath.data,
-			entry: entryResult.data,
+			path: filePath.value,
+			entry: entryResult.value,
 		});
 	} catch (error) {
 		const message =

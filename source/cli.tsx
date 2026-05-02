@@ -59,7 +59,7 @@ const loadEventLogOrExit = () => {
 		throw new Error(result.message);
 	}
 
-	return result.data;
+	return result.value;
 };
 
 const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
@@ -73,7 +73,7 @@ const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
 async function bootApp() {
 	const settings = loadSettingsFromConfig();
 	if (!isFail(settings)) {
-		patchSettingsState(settings.data);
+		patchSettingsState(settings.value);
 	}
 
 	await syncEpiqFromRemote();
