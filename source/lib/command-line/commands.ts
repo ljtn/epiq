@@ -49,6 +49,10 @@ import {
 import {cmdValidity} from './cmd-validity.js';
 import {parsePeekDateInput} from './validate-date.js';
 import {resolveClosestEpiqRoot} from '../storage/paths.js';
+import {
+	captureNavigationAnchor,
+	restoreNavigationAnchor,
+} from '../actions/default/restore-navigation.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -876,6 +880,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Sync,
 		mode: Mode.COMMAND_LINE,
 		action: async () => {
+			const navigationAnchor = captureNavigationAnchor();
+
 			setCmdInput(() => '');
 
 			patchState({
@@ -940,6 +946,10 @@ export const commands: CommandLineActionEntry[] = [
 			if (isFail(allLoadedEventsResult)) return failed('Unable to load events');
 
 			materializeAll(allLoadedEventsResult.value);
+
+			// Restore navigation
+			const restoreResult = restoreNavigationAnchor(navigationAnchor);
+			if (isFail(restoreResult)) return restoreResult;
 
 			return succeeded('Synced', true);
 		},
