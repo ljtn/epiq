@@ -39,11 +39,7 @@ export const ensureLocalEventsIgnored = async (
 	// More tolerant check that survives comments, extra spaces, trailing slashes
 	const alreadyIgnored = lines.some(line => {
 		const trimmed = line.trim();
-		return (
-			trimmed === ignorePattern ||
-			trimmed === ignorePattern + '/' ||
-			trimmed.startsWith(ignorePattern + '/')
-		);
+		return trimmed === ignorePattern || trimmed === ignorePattern + '/';
 	});
 
 	if (alreadyIgnored) {
