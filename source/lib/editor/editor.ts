@@ -2,9 +2,9 @@ import {spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {ulid} from 'ulid';
-import {failed, Result, succeeded} from '../lib/model/result-types.js';
-import {getSettingsState} from '../lib/state/settings.state.js';
-import {fileManager} from '../lib/storage/file-manager.js';
+import {failed, Result, succeeded} from '../model/result-types.js';
+import {getSettingsState} from '../state/settings.state.js';
+import {fileManager} from '../storage/file-manager.js';
 
 function getEditorCandidates(): string[] {
 	const {preferredEditor} = getSettingsState();

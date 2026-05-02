@@ -1,4 +1,4 @@
-import {editorConfig} from '../../editor/editor-config.js';
+import {editorConfig} from '../editor/editor-config.js';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {
 	getUserSetupStatus,

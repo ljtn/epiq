@@ -1,5 +1,5 @@
 import {ulid} from 'ulid';
-import {openEditorOnText} from '../../editor/editor.js';
+import {openEditorOnText} from '../editor/editor.js';
 import {createIssueEvents} from '../event/common-events.js';
 import {getEventTime} from '../event/date-utils.js';
 import {
