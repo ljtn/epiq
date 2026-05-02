@@ -224,69 +224,64 @@ export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 export const getSortedEvents = (
 	reconstructedEvents: ReconstructedEvent[],
 ): ReconstructedEvent[] => {
-	if (reconstructedEvents.length === 0) return [];
-
 	const afterMap = new Map<string | null, ReconstructedEvent[]>();
 
-	// Group by insertion anchor (id[1] = "place me right after this event")
 	for (const event of reconstructedEvents) {
 		const afterRef = event.id[1] ?? null;
-		if (!afterMap.has(afterRef)) afterMap.set(afterRef, []);
-		afterMap.get(afterRef)!.push(event);
+		const anchoredEvents = afterMap.get(afterRef) ?? [];
+
+		anchoredEvents.push(event);
+		afterMap.set(afterRef, anchoredEvents);
 	}
 
-	// Sort siblings at each anchor by ULID (clock-drift safe)
-	for (const siblings of afterMap.values()) {
-		siblings.sort((a, b) => a.id[0].localeCompare(b.id[0]));
+	for (const anchoredEvents of afterMap.values()) {
+		anchoredEvents.sort((a, b) => a.id[0].localeCompare(b.id[0]));
 	}
 
 	const result: ReconstructedEvent[] = [];
 	const placed = new Set<string>();
 
-	// Roots
-	const roots = afterMap.get(null) ?? [];
-	place(roots);
+	place(afterMap.get(null) ?? []);
 
 	let changed = true;
 	while (changed) {
 		changed = false;
 
 		for (let i = 0; i < result.length; i++) {
-			const anchorId = result[i].id[0];
-			const pendingAnchoredEvents = (afterMap.get(anchorId) ?? []).filter(
-				e => !placed.has(e.id[0]),
+			const anchor = result[i];
+			if (!anchor) continue;
+
+			const pendingAnchoredEvents = (afterMap.get(anchor.id[0]) ?? []).filter(
+				event => !placed.has(event.id[0]),
 			);
 
 			if (pendingAnchoredEvents.length === 0) continue;
 
-			// Insert right after the anchor
 			result.splice(i + 1, 0, ...pendingAnchoredEvents);
 
-			for (const ev of pendingAnchoredEvents) {
-				placed.add(ev.id[0]);
+			for (const event of pendingAnchoredEvents) {
+				placed.add(event.id[0]);
 			}
 
 			changed = true;
-			// Skip inserted events in this pass. Their own anchored events
-			// will be processed in the next while iteration.
 			i += pendingAnchoredEvents.length;
 		}
 	}
 
-	// Orphans fallback (should be empty in a healthy log)
-	const orphans = reconstructedEvents
-		.filter(e => !placed.has(e.id[0]))
+	const danglingEvents = reconstructedEvents
+		.filter(event => !placed.has(event.id[0]))
 		.sort((a, b) => a.id[0].localeCompare(b.id[0]));
 
-	result.push(...orphans);
+	result.push(...danglingEvents);
 
 	return result;
 
 	function place(events: ReconstructedEvent[]) {
-		for (const e of events) {
-			if (placed.has(e.id[0])) continue;
-			result.push(e);
-			placed.add(e.id[0]);
+		for (const event of events) {
+			if (placed.has(event.id[0])) continue;
+
+			result.push(event);
+			placed.add(event.id[0]);
 		}
 	}
 };
