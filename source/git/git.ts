@@ -19,16 +19,14 @@ import {mergeEventFile} from './merge.js';
 import {
 	EMPTY_TREE_SHA,
 	ensureDir,
-	ensureEpiqStorage,
-	ensureRemoteBranchIsStorageOnly,
+	ensureWorktreesDir,
+	ensureStateBranchIsStorageOnly,
 	getEventsDir,
 	getRelativeEventFilePath,
 	listEventFiles,
 	removePath,
-} from './git-file-system.js';
-
-export const REMOTE_BRANCH = 'epiq/events';
-export const DEFAULT_REMOTE = 'origin';
+} from './git-storage.js';
+import {ORIGIN, STATE_BRANCH} from './git-constants.js';
 
 const hasHeadCommit = async (repoRoot: string): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
@@ -44,15 +42,12 @@ const hasHeadCommit = async (repoRoot: string): Promise<Result<boolean>> => {
 
 const remoteHasAnyHistory = memoizeResult(
 	async (repoRoot: string): Promise<Result<boolean>> => {
-		const remoteResult = await hasRemote({
-			repoRoot,
-			remote: DEFAULT_REMOTE,
-		});
+		const remoteResult = await hasRemote({repoRoot});
 		if (isFail(remoteResult)) return failed(remoteResult.message);
 		if (!remoteResult.value) return succeeded('No remote configured', false);
 
 		const result = await execGitAllowFail({
-			args: ['ls-remote', '--heads', DEFAULT_REMOTE],
+			args: ['ls-remote', '--heads', ORIGIN],
 			cwd: repoRoot,
 		});
 
@@ -124,17 +119,17 @@ export const ensureInitialCommit = async (
 	return succeeded('Created initial commit', true);
 };
 
-export const hydrateEventsFromRemote = ({
+export const hydrateEventsFromStateBranch = ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 }): Result<boolean> => {
-	const remoteFilesResult = listEventFiles(worktreeRoot);
+	const remoteFilesResult = listEventFiles(stateBranchRoot);
 	if (isFail(remoteFilesResult)) return failed(remoteFilesResult.message);
 
-	const remoteEventsDir = getEventsDir(worktreeRoot);
+	const remoteEventsDir = getEventsDir(stateBranchRoot);
 	const localEventsDir = getEventsDir(repoRoot);
 
 	let changed = false;
@@ -153,7 +148,7 @@ export const hydrateEventsFromRemote = ({
 		changed = changed || mergeResult.value;
 	}
 
-	return succeeded('Hydrated event files from remote worktree', changed);
+	return succeeded('Hydrated event files from state branch', changed);
 };
 
 const sanitizeRefSegment = (value: string): string =>
@@ -197,48 +192,53 @@ const createEmptyStorageBranch = async (
 	const commitSha = commitResult.value.stdout.trim();
 
 	const updateRefResult = await execGit({
-		args: ['update-ref', `refs/heads/${REMOTE_BRANCH}`, commitSha],
+		args: ['update-ref', `refs/heads/${STATE_BRANCH}`, commitSha],
 		cwd: repoRoot,
 	});
 
 	if (isFail(updateRefResult)) {
 		return failed(
-			`Failed to create ${REMOTE_BRANCH}\n${updateRefResult.message}`,
+			`Failed to create ${STATE_BRANCH}\n${updateRefResult.message}`,
 		);
 	}
 
 	return succeeded('Created empty storage branch', true);
 };
 
-const ensureRemoteStateBranch = async ({
+const ensureLocalStateBranch = async ({
 	repoRoot,
 }: {
 	repoRoot: string;
 }): Promise<Result<boolean>> => {
 	const localResult = await hasLocalBranch({
 		repoRoot,
-		branch: REMOTE_BRANCH,
+		branch: STATE_BRANCH,
 	});
 	if (isFail(localResult))
-		return failed('Ensure local branch failed. ' + localResult.message);
+		return failed('Ensure local state branch failed\n' + localResult.message);
 
 	if (localResult.value) {
-		return succeeded('Local remote branch already exists', false);
+		return succeeded('Local state branch already exists', false);
 	}
 
 	const hasRemoteResult = await hasRemote({
 		repoRoot,
-		remote: DEFAULT_REMOTE,
 	});
-	if (isFail(hasRemoteResult) || !hasRemoteResult.value) {
-		return failed('Ensure local branch failed. ' + hasRemoteResult.message);
+
+	if (isFail(hasRemoteResult)) {
+		return failed(
+			'Ensure local state branch failed. ' + hasRemoteResult.message,
+		);
+	}
+
+	if (!hasRemoteResult.value) {
+		return createEmptyStorageBranch(repoRoot);
 	}
 
 	if (hasRemoteResult.value) {
 		const remoteBranchResult = await hasRemoteBranch({
 			repoRoot,
-			remote: DEFAULT_REMOTE,
-			branch: REMOTE_BRANCH,
+			branch: STATE_BRANCH,
 		});
 		if (isFail(remoteBranchResult)) {
 			return failed(
@@ -250,29 +250,24 @@ const ensureRemoteStateBranch = async ({
 			// fetch remote branch before local track
 
 			const fetchResult = await execGit({
-				args: ['fetch', DEFAULT_REMOTE, REMOTE_BRANCH],
+				args: ['fetch', ORIGIN, STATE_BRANCH],
 				cwd: repoRoot,
 			});
 			if (isFail(fetchResult)) {
 				return failed(
-					`Failed to fetch ${REMOTE_BRANCH} from remote\n${fetchResult.message}`,
+					`Failed to fetch ${STATE_BRANCH} from remote\n${fetchResult.message}`,
 				);
 			}
 
 			// create local tracking branch
 
 			const createFromRemote = await execGit({
-				args: [
-					'branch',
-					'--track',
-					REMOTE_BRANCH,
-					`${DEFAULT_REMOTE}/${REMOTE_BRANCH}`,
-				],
+				args: ['branch', '--track', STATE_BRANCH, `${ORIGIN}/${STATE_BRANCH}`],
 				cwd: repoRoot,
 			});
 			if (isFail(createFromRemote)) {
 				return failed(
-					`Failed to create local ${REMOTE_BRANCH} from remote\n${createFromRemote.message}`,
+					`Failed to create local ${STATE_BRANCH} from remote\n${createFromRemote.message}`,
 				);
 			}
 
@@ -314,61 +309,61 @@ const getWorktreeRootForBranch = async ({
 	return succeeded('No worktree found for branch', null);
 };
 
-const createRemoteWorktree = async ({
+const createStateWorktree = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 }): Promise<Result<boolean>> => {
-	const ensureRoot = ensureDir(path.dirname(worktreeRoot));
+	const ensureRoot = ensureDir(path.dirname(stateBranchRoot));
 	if (isFail(ensureRoot))
-		return failed('Failed to create remote worktree\n' + ensureRoot.message);
+		return failed('Failed to create state worktree\n' + ensureRoot.message);
 
 	if (
-		fs.existsSync(worktreeRoot) &&
-		!fs.existsSync(path.join(worktreeRoot, '.git'))
+		fs.existsSync(stateBranchRoot) &&
+		!fs.existsSync(path.join(stateBranchRoot, '.git'))
 	) {
-		logger.debug('remove broken remote worktree path', worktreeRoot);
-		removePath(worktreeRoot);
+		logger.debug('remove broken state branch path', stateBranchRoot);
+		removePath(stateBranchRoot);
 	}
 
 	const result = await execGit({
-		args: ['worktree', 'add', worktreeRoot, REMOTE_BRANCH],
+		args: ['worktree', 'add', stateBranchRoot, STATE_BRANCH],
 		cwd: repoRoot,
 	});
 
 	if (isFail(result)) {
-		return failed(`Failed to create remote worktree\n${result.message}`);
+		return failed(`Failed to create state branch\n${result.message}`);
 	}
 
-	return succeeded('Created remote worktree', true);
+	return succeeded('Created state worktree', true);
 };
 
-const ensureRemoteWorktree = async ({
+const ensureStateBranchRoot = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 }): Promise<Result<boolean>> => {
 	const existingBranchWorktreeResult = await getWorktreeRootForBranch({
 		repoRoot,
-		branch: REMOTE_BRANCH,
+		branch: STATE_BRANCH,
 	});
 	if (isFail(existingBranchWorktreeResult)) {
 		return failed(existingBranchWorktreeResult.message);
 	}
 
 	const existingBranchWorktree = existingBranchWorktreeResult.value;
-	const expected = path.resolve(worktreeRoot);
+	const expected = path.resolve(stateBranchRoot);
 	const existing = existingBranchWorktree
 		? path.resolve(existingBranchWorktree)
 		: null;
 
 	if (existing && existing === expected && fs.existsSync(existing)) {
 		return succeeded(
-			'Remote branch already checked out in expected worktree',
+			'State branch already checked out in expected worktree',
 			false,
 		);
 	}
@@ -381,7 +376,7 @@ const ensureRemoteWorktree = async ({
 
 		if (isFail(removeResult)) {
 			return failed(
-				`Failed to remove existing remote worktree\n${removeResult.message}`,
+				`Failed to remove existing state branch\n${removeResult.message}`,
 			);
 		}
 	}
@@ -397,13 +392,16 @@ const ensureRemoteWorktree = async ({
 		}
 	}
 
-	const registeredResult = await hasWorktree({repoRoot, worktreeRoot});
+	const registeredResult = await hasWorktree({
+		repoRoot,
+		worktreeRoot: stateBranchRoot,
+	});
 	if (isFail(registeredResult)) return failed(registeredResult.message);
 
-	const existsOnDisk = fs.existsSync(worktreeRoot);
+	const existsOnDisk = fs.existsSync(stateBranchRoot);
 
 	if (registeredResult.value && existsOnDisk) {
-		return succeeded('Remote worktree already exists', false);
+		return succeeded('Remote state branch already exists', false);
 	}
 
 	if (registeredResult.value && !existsOnDisk) {
@@ -417,37 +415,37 @@ const ensureRemoteWorktree = async ({
 		}
 	}
 
-	return createRemoteWorktree({repoRoot, worktreeRoot});
+	return createStateWorktree({repoRoot, stateBranchRoot});
 };
 
-const ensureRemoteBranchCheckedOut = async (
-	worktreeRoot: string,
+const ensureStateBranchCheckedOut = async (
+	stateBranchRoot: string,
 ): Promise<Result<boolean>> => {
-	const currentBranchResult = await getCurrentBranchName(worktreeRoot);
+	const currentBranchResult = await getCurrentBranchName(stateBranchRoot);
 	if (isFail(currentBranchResult)) return failed(currentBranchResult.message);
 
-	if (currentBranchResult.value === REMOTE_BRANCH) {
-		return succeeded('Remote branch already checked out', false);
+	if (currentBranchResult.value === STATE_BRANCH) {
+		return succeeded('State branch already checked out', false);
 	}
 
 	const checkoutResult = await execGit({
-		args: ['checkout', REMOTE_BRANCH],
-		cwd: worktreeRoot,
+		args: ['checkout', STATE_BRANCH],
+		cwd: stateBranchRoot,
 	});
 
 	if (isFail(checkoutResult)) {
 		return failed(
-			`Failed to checkout ${REMOTE_BRANCH}\n${checkoutResult.message}`,
+			`Failed to checkout ${STATE_BRANCH}\n${checkoutResult.message}`,
 		);
 	}
 
-	return succeeded('Checked out remote branch', true);
+	return succeeded('Checked out state branch', true);
 };
 
-const ensureLocalTracksRemote = async (
-	worktreeRoot: string,
+const ensureStateBranchTracksRemote = async (
+	stateBranchRoot: string,
 ): Promise<Result<boolean>> => {
-	const upstreamResult = await hasUpstream(worktreeRoot);
+	const upstreamResult = await hasUpstream(stateBranchRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
 	if (upstreamResult.value) {
@@ -455,8 +453,7 @@ const ensureLocalTracksRemote = async (
 	}
 
 	const remoteResult = await hasRemote({
-		repoRoot: worktreeRoot,
-		remote: DEFAULT_REMOTE,
+		repoRoot: stateBranchRoot,
 	});
 	if (isFail(remoteResult)) return failed(remoteResult.message);
 
@@ -465,9 +462,8 @@ const ensureLocalTracksRemote = async (
 	}
 
 	const remoteBranchResult = await hasRemoteBranch({
-		repoRoot: worktreeRoot,
-		remote: DEFAULT_REMOTE,
-		branch: REMOTE_BRANCH,
+		repoRoot: stateBranchRoot,
+		branch: STATE_BRANCH,
 	});
 	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
 
@@ -479,21 +475,21 @@ const ensureLocalTracksRemote = async (
 	}
 
 	const fetchResult = await execGit({
-		args: ['fetch', DEFAULT_REMOTE, REMOTE_BRANCH],
-		cwd: worktreeRoot,
+		args: ['fetch', ORIGIN, STATE_BRANCH],
+		cwd: stateBranchRoot,
 	});
 	if (isFail(fetchResult)) {
-		return failed(`Failed to fetch ${REMOTE_BRANCH}\n${fetchResult.message}`);
+		return failed(`Failed to fetch ${STATE_BRANCH}\n${fetchResult.message}`);
 	}
 
 	const setUpstreamResult = await execGit({
 		args: [
 			'branch',
 			'--set-upstream-to',
-			`${DEFAULT_REMOTE}/${REMOTE_BRANCH}`,
-			REMOTE_BRANCH,
+			`${ORIGIN}/${STATE_BRANCH}`,
+			STATE_BRANCH,
 		],
-		cwd: worktreeRoot,
+		cwd: stateBranchRoot,
 	});
 
 	if (isFail(setUpstreamResult)) {
@@ -505,83 +501,88 @@ const ensureLocalTracksRemote = async (
 	return succeeded('Configured remote upstream', true);
 };
 
-export const stageRemoteOwnEventFile = async ({
-	worktreeRoot,
+export const stageStateBranchOwnEventFile = async ({
+	stateBranchRoot,
 	ownEventFileName,
 }: {
-	worktreeRoot: string;
+	stateBranchRoot: string;
 	ownEventFileName: string;
 }): Promise<Result<void>> => {
 	const result = await execGit({
 		args: ['add', getRelativeEventFilePath(ownEventFileName)],
-		cwd: worktreeRoot,
+		cwd: stateBranchRoot,
 	});
 
 	if (isFail(result)) {
-		return failed(`Failed to stage remote own event file\n${result.message}`);
+		return failed(
+			`Failed to stage state branch own event file\n${result.message}`,
+		);
 	}
 
-	return succeeded('Staged remote own event file', undefined);
+	return succeeded('Staged state branch own event file', undefined);
 };
 
-export const createRemoteSyncCommit = async ({
+export const createStateBranchSyncCommit = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 }): Promise<Result<string>> => {
 	const messageResult = await buildSyncCommitMessage(repoRoot);
 	if (isFail(messageResult))
 		return failed(
-			'Create remote sync commit failed \n' + messageResult.message,
+			'Create state branch sync commit failed \n' + messageResult.message,
 		);
 
 	return commitAndGetSha({
-		cwd: worktreeRoot,
+		cwd: stateBranchRoot,
 		message: messageResult.value,
 	});
 };
 
-export const pushRemote = async (
-	worktreeRoot: string,
+export const pushStateBranch = async (
+	stateBranchRoot: string,
 ): Promise<Result<boolean>> => {
-	const upstreamResult = await hasUpstream(worktreeRoot);
+	const upstreamResult = await hasUpstream(stateBranchRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
 	const result = await execGit({
 		args: upstreamResult.value
 			? ['push']
-			: ['push', '-u', DEFAULT_REMOTE, REMOTE_BRANCH],
-		cwd: worktreeRoot,
+			: ['push', '-u', ORIGIN, STATE_BRANCH],
+		cwd: stateBranchRoot,
 	});
 
 	if (isFail(result)) {
-		return failed(`Failed during remote push\n${result.message}`);
+		return failed(`Failed during state branch push\n${result.message}`);
 	}
 
-	return succeeded('Pushed remote', true);
+	return succeeded('Pushed state branch', true);
 };
 
-export const bootstrapRemoteStorageBase = async ({
+export const bootstrapStateStorageBase = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 	ensureUpstream,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 	ensureUpstream: boolean;
 }): Promise<Result<boolean>> => {
 	let changed = false;
 
 	const steps: Result[] = [
-		ensureEpiqStorage(),
-		await ensureRemoteStateBranch({repoRoot}),
-		await ensureRemoteWorktree({repoRoot, worktreeRoot}),
-		await ensureRemoteBranchCheckedOut(worktreeRoot),
-		await ensureRemoteBranchIsStorageOnly(worktreeRoot),
+		ensureWorktreesDir(),
+		await ensureLocalStateBranch({repoRoot}),
+		await ensureStateBranchRoot({
+			repoRoot,
+			stateBranchRoot,
+		}),
+		await ensureStateBranchCheckedOut(stateBranchRoot),
+		await ensureStateBranchIsStorageOnly(stateBranchRoot),
 		ensureUpstream
-			? await ensureLocalTracksRemote(worktreeRoot)
+			? await ensureStateBranchTracksRemote(stateBranchRoot)
 			: succeeded('Skipped remote upstream bootstrap', false),
 	];
 

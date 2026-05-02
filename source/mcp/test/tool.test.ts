@@ -1,5 +1,5 @@
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
-import {isFail} from '../../lib/model/result-types.js';
+import {isFail, Result} from '../../lib/model/result-types.js';
 
 vi.mock('../event/event-persist.js', () => ({
 	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
@@ -22,14 +22,17 @@ vi.mock('../../event/event-boot.js', () => ({
 }));
 
 vi.mock('../../lib/config/user-config.js', () => ({
-	loadSettingsFromConfig: vi.fn(() => ({
-		result: 'success',
-		message: 'loaded settings',
-		data: {
-			userId: 'user-1',
-			userName: 'Alice',
-		},
-	})),
+	loadSettingsFromConfig: vi.fn(
+		() =>
+			({
+				status: 'success',
+				message: 'loaded settings',
+				value: {
+					userId: 'user-1',
+					userName: 'Alice',
+				},
+			} satisfies Result),
+	),
 }));
 
 const nodes: Record<string, any> = {

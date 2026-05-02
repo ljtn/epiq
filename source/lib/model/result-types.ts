@@ -1,3 +1,4 @@
+import {logger} from '../../logger.js';
 export const resultStatuses = {
 	None: 'none',
 	Success: 'success',

@@ -7,11 +7,11 @@ import {
 	execGit,
 	execGitAllowFail,
 	getCurrentBranchName,
-	getGitDir,
 	hasInProgressGitOperation,
 	isDetachedHead,
 	pullBranchRebaseIfPresent,
 } from '../git/git-utils.js';
+import {getGitDir} from '../git/git-storage.js';
 import {isFail} from '../lib/model/result-types.js';
 
 const tempDirs: string[] = [];
@@ -207,7 +207,6 @@ describe('git-utils', () => {
 
 		const pullResult = await pullBranchRebaseIfPresent({
 			cwd: repoRoot,
-			remote: 'origin',
 			branch: 'main',
 		});
 
@@ -298,7 +297,6 @@ describe('git-utils', () => {
 
 		const pullResult = await pullBranchRebaseIfPresent({
 			cwd: repoB,
-			remote: 'origin',
 			branch,
 		});
 

@@ -11,11 +11,14 @@ vi.mock('../event/event-materialize-and-persist.js', () => ({
 }));
 
 vi.mock('../event/event-persist.js', () => ({
-	resolveActorId: vi.fn(() => ({
-		kind: 'success',
-		message: 'Resolved actor id',
-		data: {userId: '0001', userName: 'jola'},
-	})),
+	resolveActorId: vi.fn(
+		() =>
+			({
+				status: 'success',
+				message: 'Resolved actor id',
+				value: {userId: '0001', userName: 'jola'},
+			} satisfies Result),
+	),
 }));
 
 vi.mock('../repository/node-repo.js', () => ({
@@ -47,7 +50,7 @@ import {findAncestor, nodeRepo} from '../repository/node-repo.js';
 import {getCmdState} from '../lib/state/cmd.state.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {CmdIntent} from '../lib/command-line/command-meta.js';
-import {failed, succeeded} from '../lib/model/result-types.js';
+import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {commands} from '../lib/command-line/commands.js';
 
 const mockedUlid = vi.mocked(ulid);

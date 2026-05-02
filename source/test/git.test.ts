@@ -5,7 +5,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {isFail} from '../lib/model/result-types.js';
 import {execGit} from '../git/git-utils.js';
 import {syncEpiqFromRemote, syncEpiqWithRemote} from '../git/sync.js';
-import {REMOTE_BRANCH} from '../git/git.js';
+import {STATE_BRANCH} from '../git/git-constants.js';
 
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
@@ -205,7 +205,7 @@ describe('sync', () => {
 		await cloneRepo({remoteRoot, cloneRoot: verifyClone});
 
 		const checkoutStateBranch = await execGit({
-			args: ['checkout', REMOTE_BRANCH],
+			args: ['checkout', STATE_BRANCH],
 			cwd: verifyClone,
 		});
 		if (isFail(checkoutStateBranch))
