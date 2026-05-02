@@ -109,7 +109,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.CLOSE_ISSUE]: ['confirm'],
 		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
-		[CmdKeywords.SET_EDITOR]: [...editorConfig, 'vim'],
+		[CmdKeywords.SET_EDITOR]: [...editorConfig],
 		[CmdKeywords.TAG]: [
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
 		],

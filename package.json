@@ -21,7 +21,7 @@
 		"vim-inspired"
 	],
 	"bin": {
-		"epiq": "dist/cli.js",
+		"epiq": "dist/index.js",
 		"epiq-mcp": "dist/mcp.js"
 	},
 	"engines": {
@@ -29,14 +29,14 @@
 	},
 	"scripts": {
 		"build": "tsc --noEmit",
-		"build:npm": "rm -rf ./dist && esbuild source/cli.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' && esbuild source/mcp/server.ts --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/mcp.js --banner:js='#!/usr/bin/env node'",
-		"build:sea:bundle": "rm -rf ./dist && esbuild source/cli.tsx --bundle --platform=node --format=cjs --target=node18 --minify --outfile=dist/sea.cjs",
+		"build:npm": "rm -rf ./dist && esbuild source/Index.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/index.js --banner:js='#!/usr/bin/env node' && esbuild source/mcp/server.ts --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/mcp.js --banner:js='#!/usr/bin/env node'",
+		"build:sea:bundle": "rm -rf ./dist && esbuild source/Index.tsx --bundle --platform=node --format=cjs --target=node18 --minify --outfile=dist/sea.cjs",
 		"build:sea": "node --build-sea sea-config.json",
 		"build:publish": "pnpm build:npm",
 		"build:binary": "pnpm build:sea:bundle && pnpm build:sea",
 		"dev": "IS_LOCAL=true tsc --watch --noEmit",
-		"dev:start": "IS_LOCAL=true tsx source/cli.tsx",
-		"start": "IS_LOCAL=true tsx source/cli.tsx",
+		"dev:start": "IS_LOCAL=true tsx source/Index.tsx",
+		"start": "IS_LOCAL=true tsx source/Index.tsx",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage",
 		"prepack": "pnpm build:publish",
 		"pack:check": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"$FILE\" && tar -tf \"$FILE\"",

@@ -13,8 +13,6 @@ function getEditorCandidates(): string[] {
 		preferredEditor,
 		process.env['VISUAL'],
 		process.env['EDITOR'],
-		'vim',
-		'nano',
 	].filter((value): value is string => Boolean(value?.trim()));
 
 	return [...new Set(candidates)];
