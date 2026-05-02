@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import {safeDateFromUlid} from '../../event/date-utils.js';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {safeDateFromUlid} from '../event/date-utils.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {getState} from '../state/state.js';
@@ -14,13 +14,10 @@ import {
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {getCmdModifiers} from './command-modifiers.js';
-import {
-	CmdKeyword,
-	CmdKeywords,
-	CmdValidity,
-	cmdValidity,
-	isFail,
-} from './command-types.js';
+import {isFail} from '../model/result-types.js';
+import {CmdValidity, cmdValidity} from './cmd-validity.js';
+import {CmdKeyword} from './cmd-keywords.js';
+import {CmdKeywords} from './cmd-keywords.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
@@ -190,7 +187,7 @@ const validators: Record<CmdKeyword, Validator> = {
 				message: 'Command is not applicable in this context',
 			});
 		}
-		const boardCreationDate = safeDateFromUlid(boardResult.data.id);
+		const boardCreationDate = safeDateFromUlid(boardResult.value.id);
 
 		if (isFail(boardCreationDate)) {
 			return invalid({
@@ -201,12 +198,12 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (
 			!isDateWithinPeekHorizon({
 				date,
-				horizonDate: boardCreationDate.data,
+				horizonDate: boardCreationDate.value,
 			})
 		) {
 			return invalid({
 				message: chalk.red(
-					`nothing to peek before ${boardCreationDate.data
+					`nothing to peek before ${boardCreationDate.value
 						.toISOString()
 						.slice(0, 16)
 						.replace('T', ' ')}`,
@@ -371,7 +368,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			return invalid({message: 'Invalid untag target', completionWordList: []});
 		}
 
-		const tags = tagsRes.data
+		const tags = tagsRes.value
 			.map(({name}) => name)
 			.map(tag => ` ${chalk.bgHex(getStringColor(tag))(' ' + tag + ' ')} `)
 			.slice(0, 10);
@@ -407,7 +404,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			});
 		}
 
-		const coloredAssignees = assigneesRes.data
+		const coloredAssignees = assigneesRes.value
 			.map(({name}) => name)
 			.map(
 				assignee =>
@@ -447,7 +444,9 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.SET_USERNAME]: args => {
 		return !args.inputString
 			? invalid({
-					message: `Enter a username. Saved in ${chalk.bgBlack('~/.epiq/')}`,
+					message: `Enter a username. Saved in ${chalk.bgBlack(
+						'~/.epiq-global/',
+					)}`,
 			  })
 			: valid();
 	},

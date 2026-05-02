@@ -1,23 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {z} from 'zod';
-import {getEpiqDirName} from '../init.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
-import {
-	parsePersistedEvent,
-	PersistedEvent,
-	resolveEpiqRoot,
-} from './event-persist.js';
-import {AppEvent, AppEventMap} from './event.model.js';
 import {decodeTime} from 'ulid';
-
-const EPIQ_DIR = getEpiqDirName();
-const EVENTS_DIR = 'events';
+import {z} from 'zod';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
+import {parsePersistedEvent, PersistedEvent} from './event-persist.js';
+import {AppEvent, AppEventMap} from './event.model.js';
+import {getEventsDirPath} from '../storage/paths.js';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default('unknown'),
@@ -28,9 +16,6 @@ export type ReconstructedEvent = PersistedEvent & {
 	userId: string;
 	userName: string;
 };
-
-const getEventsDir = (rootDir = process.cwd()) =>
-	path.join(resolveEpiqRoot(rootDir), EPIQ_DIR, EVENTS_DIR);
 
 type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
@@ -113,7 +98,7 @@ export const fromPersistedEvent = (
 		return failed(actionResult.message);
 	}
 
-	const action = actionResult.data;
+	const action = actionResult.value;
 	const eventId = entry.id?.[0];
 	if (!eventId) {
 		return failed('Persisted event is missing id');
@@ -163,9 +148,9 @@ export const parsePersistedEventsFile = (
 		}
 
 		entries.push({
-			...parsedResult.data,
-			userId: actorResult.data.userId,
-			userName: actorResult.data.userName,
+			...parsedResult.value,
+			userId: actorResult.value.userId,
+			userName: actorResult.value.userName,
 		});
 	}
 
@@ -173,9 +158,9 @@ export const parsePersistedEventsFile = (
 };
 
 function loadAllPersistedEvents(
-	rootDir = process.cwd(),
+	epiqRoot: string,
 ): Result<ReconstructedEvent[]> {
-	const dir = getEventsDir(rootDir);
+	const dir = getEventsDirPath(epiqRoot);
 
 	if (!fs.existsSync(dir)) {
 		return failed('No events found');
@@ -195,21 +180,21 @@ function loadAllPersistedEvents(
 			return failed(result.message);
 		}
 
-		entries.push(...result.data);
+		entries.push(...result.value);
 	}
 
 	return succeeded('All events loaded', getSortedEvents(entries));
 }
 
-export function loadMergedEvents(rootDir = process.cwd()): Result<AppEvent[]> {
-	const allEvents = loadAllPersistedEvents(rootDir);
+export function loadMergedEvents(epiqRoot: string): Result<AppEvent[]> {
+	const allEvents = loadAllPersistedEvents(epiqRoot);
 	if (isFail(allEvents)) {
 		return failed(allEvents.message);
 	}
 
 	const decoded: AppEvent[] = [];
 
-	for (const entry of allEvents.data) {
+	for (const entry of allEvents.value) {
 		const eventResult = fromPersistedEvent(entry);
 		if (isFail(eventResult)) {
 			return failed(
@@ -219,7 +204,7 @@ export function loadMergedEvents(rootDir = process.cwd()): Result<AppEvent[]> {
 			);
 		}
 
-		decoded.push(eventResult.data);
+		decoded.push(eventResult.value);
 	}
 
 	return succeeded('Loaded merged events', decoded);
@@ -233,74 +218,77 @@ export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 
 	return succeeded(
 		'Loaded edge reference',
-		persisted.data.at(-1)?.id?.[0] ?? null,
+		persisted.value.at(-1)?.id?.[0] ?? null,
 	);
 }
-
 export const getSortedEvents = (
 	reconstructedEvents: ReconstructedEvent[],
 ): ReconstructedEvent[] => {
-	const byId = new Map(
-		reconstructedEvents.map(event => [event.id[0], event] as const),
-	);
+	if (reconstructedEvents.length === 0) return [];
 
-	const childrenByRef = new Map<string | null, ReconstructedEvent[]>();
+	const afterMap = new Map<string | null, ReconstructedEvent[]>();
 
+	// Group by insertion anchor (id[1] = "place me right after this event")
 	for (const event of reconstructedEvents) {
-		const ref = event.id[1];
-		const siblings = childrenByRef.get(ref) ?? [];
-		siblings.push(event);
-		childrenByRef.set(ref, siblings);
+		const afterRef = event.id[1] ?? null;
+		if (!afterMap.has(afterRef)) afterMap.set(afterRef, []);
+		afterMap.get(afterRef)!.push(event);
 	}
 
-	for (const siblings of childrenByRef.values()) {
-		siblings.sort((a, b) => {
-			const [idA] = a.id;
-			const [idB] = b.id;
-			return idA.localeCompare(idB);
-		});
+	// Sort siblings at each anchor by ULID (clock-drift safe)
+	for (const siblings of afterMap.values()) {
+		siblings.sort((a, b) => a.id[0].localeCompare(b.id[0]));
 	}
 
 	const result: ReconstructedEvent[] = [];
-	const visited = new Set<string>();
+	const placed = new Set<string>();
 
-	const visit = (ref: string | null) => {
-		const children = childrenByRef.get(ref) ?? [];
+	// Roots
+	const roots = afterMap.get(null) ?? [];
+	place(roots);
 
-		for (const event of children) {
-			const [eventId] = event.id;
-			if (visited.has(eventId)) continue;
+	let changed = true;
+	while (changed) {
+		changed = false;
 
-			visited.add(eventId);
-			result.push(event);
-			visit(eventId);
+		for (let i = 0; i < result.length; i++) {
+			const anchorId = result[i].id[0];
+			const pendingAnchoredEvents = (afterMap.get(anchorId) ?? []).filter(
+				e => !placed.has(e.id[0]),
+			);
+
+			if (pendingAnchoredEvents.length === 0) continue;
+
+			// Insert right after the anchor
+			result.splice(i + 1, 0, ...pendingAnchoredEvents);
+
+			for (const ev of pendingAnchoredEvents) {
+				placed.add(ev.id[0]);
+			}
+
+			changed = true;
+			// Skip inserted events in this pass. Their own anchored events
+			// will be processed in the next while iteration.
+			i += pendingAnchoredEvents.length;
 		}
-	};
+	}
 
-	visit(null);
+	// Orphans fallback (should be empty in a healthy log)
+	const orphans = reconstructedEvents
+		.filter(e => !placed.has(e.id[0]))
+		.sort((a, b) => a.id[0].localeCompare(b.id[0]));
 
-	const orphans = [...reconstructedEvents]
-		.filter(event => {
-			const [eventId] = event.id;
-			return !visited.has(eventId);
-		})
-		.sort((a, b) => {
-			const [idA, refA] = a.id;
-			const [idB, refB] = b.id;
+	result.push(...orphans);
 
-			const aRefExists = refA === null || byId.has(refA);
-			const bRefExists = refB === null || byId.has(refB);
+	return result;
 
-			if (aRefExists && !bRefExists) return -1;
-			if (!aRefExists && bRefExists) return 1;
-
-			const refCmp = (refA ?? '').localeCompare(refB ?? '');
-			if (refCmp !== 0) return refCmp;
-
-			return idA.localeCompare(idB);
-		});
-
-	return [...result, ...orphans];
+	function place(events: ReconstructedEvent[]) {
+		for (const e of events) {
+			if (placed.has(e.id[0])) continue;
+			result.push(e);
+			placed.add(e.id[0]);
+		}
+	}
 };
 
 export const splitEventsAtTime = (

@@ -1,7 +1,7 @@
-import {Result} from '../lib/command-line/command-types.js';
-import {Contributor, Tag} from '../lib/model/app-state.model.js';
-import {AnyContext} from '../lib/model/context.model.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
+import {Result} from '../model/result-types.js';
+import {Contributor, Tag} from '../model/app-state.model.js';
+import {AnyContext} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
 
 export type MovePosition =
 	| {at: 'start'}

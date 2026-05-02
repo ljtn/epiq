@@ -1,13 +1,9 @@
 import {AutoCompletion} from '../command-line/command-auto-complete.js';
 import {getCmdMeta} from '../command-line/command-meta.js';
 import {parseCommandLine} from '../command-line/command-parser.js';
-import {
-	CmdKeyword,
-	CmdValidity,
-	cmdValidity,
-	Result,
-	succeeded,
-} from '../command-line/command-types.js';
+import {Result, succeeded} from '../model/result-types.js';
+import {CmdValidity, cmdValidity} from '../command-line/cmd-validity.js';
+import {CmdKeyword} from '../command-line/cmd-keywords.js';
 
 export const commandDelimiter = ' ';
 export type CurrentCmdMeta = {
@@ -74,7 +70,10 @@ const setState = (cb: SetStateCb) => {
 	notify();
 };
 
-export const cmdResultToValidationState = <T>({message, result}: Result<T>) => {
+export const cmdResultToValidationState = <T>({
+	message,
+	status: result,
+}: Result<T>) => {
 	const next = structuredClone(commandLineState);
 	next.commandMeta = {
 		...next.commandMeta,

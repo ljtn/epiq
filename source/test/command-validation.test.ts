@@ -1,5 +1,6 @@
 import {beforeAll, describe, expect, it, vi} from 'vitest';
-import {CmdKeywords, cmdValidity} from '../lib/command-line/command-types.js';
+import {cmdValidity} from '../lib/command-line/cmd-validity.js';
+import {CmdKeywords} from '../lib/command-line/cmd-keywords.js';
 import {getCmdModifiers} from '../lib/command-line/command-modifiers.js';
 
 vi.mock('../lib/state/state.js', () => ({

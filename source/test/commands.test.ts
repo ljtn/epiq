@@ -5,27 +5,30 @@ vi.mock('ulid', () => ({
 	ulid: vi.fn(),
 }));
 
-vi.mock('../event/event-materialize-and-persist.js', () => ({
+vi.mock('../lib/event/event-materialize-and-persist.js', () => ({
 	materializeAndPersist: vi.fn(),
 	materializeAndPersistAll: vi.fn(),
 }));
 
-vi.mock('../event/event-persist.js', () => ({
-	resolveActorId: vi.fn(() => ({
-		kind: 'success',
-		message: 'Resolved actor id',
-		data: {userId: '0001', userName: 'jola'},
-	})),
+vi.mock('../lib/event/event-persist.js', () => ({
+	resolveActorId: vi.fn(
+		() =>
+			({
+				status: 'success',
+				message: 'Resolved actor id',
+				value: {userId: '0001', userName: 'jola'},
+			} satisfies Result),
+	),
 }));
 
-vi.mock('../repository/node-repo.js', () => ({
+vi.mock('../lib/repository/node-repo.js', () => ({
 	findAncestor: vi.fn(),
 	nodeRepo: {
 		getFieldByTitle: vi.fn(),
 	},
 }));
 
-vi.mock('../repository/rank.js', () => ({
+vi.mock('../lib/repository/rank.js', () => ({
 	getOrderedChildren: vi.fn(),
 }));
 
@@ -42,12 +45,12 @@ vi.mock('../lib/state/state.js', () => ({
 }));
 
 import {ulid} from 'ulid';
-import {materializeAndPersist} from '../event/event-materialize-and-persist.js';
-import {findAncestor, nodeRepo} from '../repository/node-repo.js';
+import {materializeAndPersist} from '../lib/event/event-materialize-and-persist.js';
+import {findAncestor, nodeRepo} from '../lib/repository/node-repo.js';
 import {getCmdState} from '../lib/state/cmd.state.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {CmdIntent} from '../lib/command-line/command-meta.js';
-import {failed, succeeded} from '../lib/command-line/command-types.js';
+import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {commands} from '../lib/command-line/commands.js';
 
 const mockedUlid = vi.mocked(ulid);

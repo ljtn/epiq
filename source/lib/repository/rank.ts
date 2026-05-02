@@ -18,11 +18,11 @@ import {
 	ReturnFail,
 	ReturnSuccess,
 	succeeded,
-} from '../lib/command-line/command-types.js';
-import {AnyContext} from '../lib/model/context.model.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
-import {getState} from '../lib/state/state.js';
-import {midRank, rankBetween} from '../lib/utils/rank.js';
+} from '../model/result-types.js';
+import {AnyContext} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
+import {getState} from '../state/state.js';
+import {midRank, rankBetween} from '../utils/rank.js';
 
 export const resolveMoveRank = (
 	siblings: NavNode<AnyContext>[],

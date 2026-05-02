@@ -1,6 +1,6 @@
 import readline from 'readline';
 import {ParsedCommandLine} from '../command-line/command-parser.js';
-import {Result} from '../command-line/command-types.js';
+import {Result} from './result-types.js';
 
 export const Mode = {
 	DEFAULT: 'default',

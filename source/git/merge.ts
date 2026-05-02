@@ -1,14 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime} from 'ulid';
-import {parsePersistedEventsFile} from '../event/event-load.js';
-import {PersistedEvent} from '../event/event-persist.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {parsePersistedEventsFile} from '../lib/event/event-load.js';
+import {PersistedEvent} from '../lib/event/event-persist.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {getEventsDir, listEventFiles} from './git-storage.js';
 
 const getCompositeEventKey = (event: Pick<PersistedEvent, 'id'>): string => {
 	const [id, refId] = event.id;
@@ -36,7 +32,7 @@ const serializePersistedEvents = (events: PersistedEvent[]): string =>
 				.map(event => JSON.stringify(toPersistedEventOnly(event)))
 				.join('\n') + '\n';
 
-export const mergePersistedEvents = (
+const mergePersistedEvents = (
 	targetEvents: PersistedEvent[],
 	sourceEvents: PersistedEvent[],
 ): PersistedEvent[] => {
@@ -67,7 +63,7 @@ export const mergeEventFile = ({
 	const targetResult = parsePersistedEventsFile(targetFile);
 	if (isFail(targetResult)) return failed(targetResult.message);
 
-	const merged = mergePersistedEvents(targetResult.data, sourceResult.data);
+	const merged = mergePersistedEvents(targetResult.value, sourceResult.value);
 	const nextContent = serializePersistedEvents(merged);
 	const currentContent = fs.existsSync(targetFile)
 		? fs.readFileSync(targetFile, 'utf8')
@@ -81,4 +77,37 @@ export const mergeEventFile = ({
 	fs.writeFileSync(targetFile, nextContent, 'utf8');
 
 	return succeeded('Merged event file', true);
+};
+export const hydrateEventsFromStateBranch = ({
+	repoRoot,
+	stateBranchRoot,
+}: {
+	repoRoot: string;
+	stateBranchRoot: string;
+}): Result<boolean> => {
+	const stateBranchFilesResult = listEventFiles(stateBranchRoot);
+	if (isFail(stateBranchFilesResult)) {
+		return failed(stateBranchFilesResult.message);
+	}
+
+	const stateBranchEventsDir = getEventsDir(stateBranchRoot);
+	const localEventsDir = getEventsDir(repoRoot);
+
+	let changed = false;
+
+	for (const fileName of stateBranchFilesResult.value) {
+		const from = path.join(stateBranchEventsDir, fileName);
+		const to = path.join(localEventsDir, fileName);
+
+		const mergeResult = mergeEventFile({
+			sourceFile: from,
+			targetFile: to,
+		});
+
+		if (isFail(mergeResult)) return failed(mergeResult.message);
+
+		changed = changed || mergeResult.value;
+	}
+
+	return succeeded('Hydrated event files from state branch', changed);
 };

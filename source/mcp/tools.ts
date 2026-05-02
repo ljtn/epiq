@@ -1,24 +1,20 @@
 import {ulid} from 'ulid';
-import {createIssueEvents} from '../event/common-events.js';
-import {bootStateFromEventLog} from '../event/event-boot.js';
-import {loadMergedEvents} from '../event/event-load.js';
-import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
-import {getPersistFileName, resolveEpiqRoot} from '../event/event-persist.js';
-import {AppEvent, MovePosition} from '../event/event.model.js';
-import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
+import {createIssueEvents} from '../lib/event/common-events.js';
+import {bootStateFromEventLog} from '../lib/event/event-boot.js';
+import {loadMergedEvents} from '../lib/event/event-load.js';
+import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
+import {getPersistFileName} from '../lib/event/event-persist.js';
+import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
+import {AppEvent, MovePosition} from '../lib/event/event.model.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {isTicketNode, Ticket} from '../lib/model/context.model.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {getFieldValue} from '../lib/utils/ticket.utils.js';
-import {nodeRepo} from '../repository/node-repo.js';
+import {nodeRepo} from '../lib/repository/node-repo.js';
 
 type SyncInput = ToolInput;
 type MoveIssueInput = ToolInput & {
@@ -58,27 +54,29 @@ type Actor = {
 };
 
 const boot = (repoRoot?: string): Result<BootResult> => {
-	const root = resolveEpiqRoot(repoRoot ?? process.cwd());
+	const epiqRootResult = resolveClosestEpiqRoot(repoRoot ?? process.cwd());
+	if (isFail(epiqRootResult)) return epiqRootResult;
 
-	const eventsResult = loadMergedEvents(root);
+	const eventsResult = loadMergedEvents(epiqRootResult.value);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
-	const bootResult = bootStateFromEventLog(eventsResult.data);
+	const bootResult = bootStateFromEventLog(eventsResult.value);
 	if (isFail(bootResult)) return failed(bootResult.message);
 
-	return succeeded('Booted Epiq state', {root});
+	return succeeded('Booted Epiq state', {root: epiqRootResult.value});
 };
 
 const getActor = (): Result<Actor> => {
 	const actorResult = loadSettingsFromConfig();
 	if (isFail(actorResult)) return failed(actorResult.message);
 
-	if (!actorResult.data.userId) return failed('Unable to retrieve user id');
-	if (!actorResult.data.userName) return failed('Unable to retrieve user name');
+	if (!actorResult.value.userId) return failed('Unable to retrieve user id');
+	if (!actorResult.value.userName)
+		return failed('Unable to retrieve user name');
 
 	return succeeded('Resolved actor', {
-		userId: actorResult.data.userId,
-		userName: actorResult.data.userName,
+		userId: actorResult.value.userId,
+		userName: actorResult.value.userName,
 	});
 };
 
@@ -192,7 +190,7 @@ export const createIssue = (input: CreateIssueInput) => {
 	const issueEvents = createIssueEvents({
 		name: input.title,
 		parent: input.parentId,
-		user: actorResult.data,
+		user: actorResult.value,
 	});
 
 	const results = materializeAndPersistAll(issueEvents);
@@ -233,8 +231,8 @@ export const closeIssue = (input: CloseIssueInput) => {
 
 	const event = {
 		id: ulid(),
-		userId: actorResult.data.userId,
-		userName: actorResult.data.userName,
+		userId: actorResult.value.userId,
+		userName: actorResult.value.userName,
 		action: 'close.issue',
 		payload: {
 			id: input.issueId,
@@ -257,7 +255,7 @@ export const getEpiqState = (input: ToolInput = {}) => {
 	if (isFail(bootResult)) return bootResult;
 
 	return succeeded('Retrieved Epiq state', {
-		root: bootResult.data.root,
+		root: bootResult.value.root,
 		nodes: getState().nodes,
 		rootNodeId: getState().rootNodeId,
 		currentNode: getState().currentNode,
@@ -292,8 +290,8 @@ export const moveIssue = (input: MoveIssueInput) => {
 
 	const event = {
 		id: ulid(),
-		userId: actorResult.data.userId,
-		userName: actorResult.data.userName,
+		userId: actorResult.value.userId,
+		userName: actorResult.value.userName,
 		action: 'move.node',
 		payload: {
 			id: input.issueId,
@@ -314,19 +312,22 @@ export const moveIssue = (input: MoveIssueInput) => {
 };
 
 export const sync = async (input: SyncInput = {}) => {
-	const root = resolveEpiqRoot(input.repoRoot ?? process.cwd());
+	const epiqRootResult = resolveClosestEpiqRoot(
+		input.repoRoot ?? process.cwd(),
+	);
+	if (isFail(epiqRootResult)) return failed('Sync failed \n' + epiqRootResult);
 
 	const actorResult = getActor();
 	if (isFail(actorResult)) return actorResult;
 
 	const result = await syncEpiqWithRemote({
-		cwd: root,
+		cwd: epiqRootResult.value,
 		ownEventFileName: getPersistFileName({
-			userId: actorResult.data.userId,
-			userName: actorResult.data.userName,
+			userId: actorResult.value.userId,
+			userName: actorResult.value.userName,
 		}),
 	});
 	if (isFail(result)) return result;
 
-	return succeeded('Synced Epiq state', result.data);
+	return succeeded('Synced Epiq state', result.value);
 };

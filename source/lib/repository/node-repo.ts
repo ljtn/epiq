@@ -2,23 +2,22 @@ import {MovePosition} from '../event/event.model.js';
 import {
 	failed,
 	isFail,
+	succeeded,
 	Result,
 	ReturnFail,
-	ReturnSuccess,
-	succeeded,
-} from '../lib/command-line/command-types.js';
-import {Contributor, Tag} from '../lib/model/app-state.model.js';
-import {AnyContext} from '../lib/model/context.model.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
-import {nodes} from '../lib/state/node-builder.js';
-import {getState, patchState, updateState} from '../lib/state/state.js';
-import {midRank} from '../lib/utils/rank.js';
+} from '../model/result-types.js';
+import {Contributor, Tag} from '../model/app-state.model.js';
+import {AnyContext} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
+import {nodes} from '../state/node-builder.js';
+import {getState, patchState, updateState} from '../state/state.js';
+import {midRank} from '../utils/rank.js';
 import {getOrderedChildren, resolveMoveRank} from './rank.js';
 
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
 	ctx: T,
-): ReturnSuccess<NavNode<T>> | ReturnFail => {
+): Result<NavNode<T>> => {
 	const {nodes} = getState();
 
 	const start = nodes[targetId];
@@ -178,7 +177,7 @@ export const nodeRepo = {
 		const movedNode = {
 			...node,
 			parentNodeId: nextParentId,
-			rank: rankResult.data,
+			rank: rankResult.value,
 		};
 
 		this.updateNode(movedNode);
@@ -264,7 +263,7 @@ export const nodeRepo = {
 		);
 
 		if (isFail(result)) return result;
-		return succeeded('Assigned contributor', result.data);
+		return succeeded('Assigned contributor', result.value);
 	},
 
 	createTag(tag: Tag): Result<Tag> {
@@ -307,7 +306,7 @@ export const nodeRepo = {
 		);
 
 		if (isFail(result)) return result;
-		return succeeded('Tag added', result.data);
+		return succeeded('Tag added', result.value);
 	},
 
 	untag(targetId: string, tagId: string): Result<NavNode<'FIELD'>> {
@@ -381,7 +380,7 @@ export const nodeRepo = {
 
 		const withRank: NavNode<T> = {
 			...node,
-			rank: rankResult.data,
+			rank: rankResult.value,
 		};
 
 		this.createNode(withRank);

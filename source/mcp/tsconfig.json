@@ -12,6 +12,6 @@
 		"./**/*.ts",
 		"../lib/**/*.ts",
 		"../events/**/*.ts",
-		"../repository/**/*.ts"
+		"../lib/repository/**/*.ts"
 	]
 }

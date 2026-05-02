@@ -1,12 +1,12 @@
 import {getCommandIntent} from '../../command-line/command-intent.js';
 import {CommandIntent} from '../../command-line/command-meta.js';
 import {
-	cmdResult,
-	cmdValidity,
+	resultStatuses,
 	failed,
 	isFail,
 	Result,
-} from '../../command-line/command-types.js';
+} from '../../model/result-types.js';
+import {cmdValidity} from '../../command-line/cmd-validity.js';
 import {commands} from '../../command-line/commands.js';
 import {
 	cmdResultToValidationState,
@@ -41,9 +41,9 @@ export const onConfirmCommandLineSequenceInput = async ({
 
 	if (getState().readOnly && !READ_ONLY_COMMAND_INTENTS.has(intent)) {
 		return cmdResultToValidationState({
-			result: cmdResult.Fail,
+			status: resultStatuses.Fail,
 			message: 'Command not available in readonly state',
-			data: null,
+			value: null,
 		});
 	}
 
@@ -53,9 +53,9 @@ export const onConfirmCommandLineSequenceInput = async ({
 
 	if (!actionMeta) {
 		return cmdResultToValidationState({
-			result: cmdResult.Fail,
+			status: resultStatuses.Fail,
 			message: 'Command not found',
-			data: null,
+			value: null,
 		});
 	}
 

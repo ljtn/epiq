@@ -5,11 +5,11 @@ import {beforeEach, describe, expect, it} from 'vitest';
 import {
 	parsePersistedEvent,
 	persist,
-	resolveEpiqRoot,
 	toPersistedEvent,
-} from '../event/event-persist.js';
-import {AppEvent, StoredAppEvent} from '../event/event.model.js';
-import {isFail} from '../lib/command-line/command-types.js';
+} from '../lib/event/event-persist.js';
+import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
+import {AppEvent, StoredAppEvent} from '../lib/event/event.model.js';
+import {isFail} from '../lib/model/result-types.js';
 
 const makeTempDir = (): string =>
 	fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-'));
@@ -92,9 +92,9 @@ describe('event persist', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data.v).toBe(1);
-			expect(result.data.id).toEqual(['01H00000000000000000000001', null]);
-			expect(result.data).toHaveProperty('init.workspace');
+			expect(result.value.v).toBe(1);
+			expect(result.value.id).toEqual(['01H00000000000000000000001', null]);
+			expect(result.value).toHaveProperty('init.workspace');
 		}
 	});
 
@@ -102,15 +102,23 @@ describe('event persist', () => {
 		const nested = path.join(rootDir, 'a', 'b', 'c');
 		fs.mkdirSync(nested, {recursive: true});
 
-		expect(resolveEpiqRoot(nested)).toBe(rootDir);
+		const result = resolveClosestEpiqRoot(nested);
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toBe(rootDir);
+		}
 	});
 
-	it('falls back to start directory when no .epiq directory exists', () => {
+	it('fails when no .epiq directory exists', () => {
 		const dir = makeTempDir();
 
-		expect(resolveEpiqRoot(dir)).toBe(dir);
+		const result = resolveClosestEpiqRoot(dir);
 
-		fs.rmSync(dir, {recursive: true, force: true});
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('No .epiq directory found in any parent');
+		}
 	});
 
 	it('persists event to sanitized actor event file', () => {

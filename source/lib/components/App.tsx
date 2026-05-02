@@ -1,17 +1,17 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
-import {hasPendingDefaultEvents} from './event/event-boot.js';
-import {isSuccess} from './lib/command-line/command-types.js';
-import {ContextBar} from './lib/components/ContextBar.js';
-import {HelpUI} from './lib/components/Help.js';
-import {Topbar} from './lib/components/Topbar.js';
-import {WorkspaceUI} from './lib/components/WorkspaceUI.js';
-import {getUserSetupStatus} from './lib/config/setup-utils.js';
-import {Mode} from './lib/model/action-map.model.js';
-import {findInBreadCrumb} from './lib/model/app-state.model.js';
-import {getRenderedChildren, getState, useAppState} from './lib/state/state.js';
-import {theme} from './lib/theme/themes.js';
+import {hasPendingDefaultEvents} from '../event/event-boot.js';
+import {isSuccess} from '../model/result-types.js';
+import {ContextBar} from './ContextBar.js';
+import {HelpUI} from './Help.js';
+import {Topbar} from './Topbar.js';
+import {WorkspaceUI} from './WorkspaceUI.js';
+import {getUserSetupStatus} from '../config/setup-utils.js';
+import {Mode} from '../model/action-map.model.js';
+import {findInBreadCrumb} from '../model/app-state.model.js';
+import {getRenderedChildren, getState, useAppState} from '../state/state.js';
+import {theme} from '../theme/themes.js';
 import SettingsUI from './SettingsUI.js';
 
 type AppProps = {
@@ -130,7 +130,7 @@ export default function App({width, height}: AppProps) {
 
 	const board = findInBreadCrumb(getState().breadCrumb ?? [], 'BOARD');
 	if (isSuccess(board)) {
-		const boardId = board.data.id;
+		const boardId = board.value.id;
 		const numberOfSwimlanes = getRenderedChildren(boardId).length;
 		const swimlanePart = 3;
 		const swimlaneMaxWidth = Math.floor(width / swimlanePart);

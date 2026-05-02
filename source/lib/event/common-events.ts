@@ -1,6 +1,6 @@
 import {monotonicFactory, ulid} from 'ulid';
 import {AppEvent} from './event.model.js';
-import {User} from '../lib/state/settings.state.js';
+import {User} from '../state/settings.state.js';
 
 const nextId = monotonicFactory();
 

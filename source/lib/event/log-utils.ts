@@ -1,4 +1,4 @@
-import {NavNode} from '../lib/model/navigation-node.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
 
 export const resolveReopenParentFromLog = (
 	node: NavNode<'TICKET'>,

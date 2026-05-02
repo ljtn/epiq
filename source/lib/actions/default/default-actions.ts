@@ -1,4 +1,5 @@
-import {CmdKeywords, succeeded} from '../../command-line/command-types.js';
+import {succeeded} from '../../model/result-types.js';
+import {CmdKeywords} from '../../command-line/cmd-keywords.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';

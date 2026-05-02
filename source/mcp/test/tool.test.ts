@@ -1,35 +1,64 @@
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
-import {isFail} from '../../lib/command-line/command-types.js';
+import {isFail, Result} from '../../lib/model/result-types.js';
 
-vi.mock('../event/event-persist.js', () => ({
-	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
-}));
+vi.mock('../../lib/storage/paths.js', async importOriginal => {
+	const actual = await importOriginal<
+		typeof import('../../lib/storage/paths.js')
+	>();
 
-vi.mock('../../event/event-load.js', () => ({
+	return {
+		...actual,
+		resolveClosestEpiqRoot: vi.fn((dir: string) => ({
+			status: 'success',
+			message: 'Resolved closest .epiq root',
+			value: dir,
+		})),
+		ensureEventsDir: vi.fn(() => ({
+			status: 'success',
+			message: 'Ensured events directory',
+			value: undefined,
+		})),
+	};
+});
+
+vi.mock('../../lib/event/event-load.js', () => ({
 	loadMergedEvents: vi.fn(() => ({
-		result: 'success',
+		status: 'success',
 		message: 'loaded',
-		data: [],
+		value: [],
 	})),
 }));
 
-vi.mock('../../event/event-boot.js', () => ({
+vi.mock('../../lib/event/event-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => ({
-		result: 'success',
+		status: 'success',
 		message: 'booted',
-		data: null,
+		value: null,
 	})),
 }));
 
 vi.mock('../../lib/config/user-config.js', () => ({
-	loadSettingsFromConfig: vi.fn(() => ({
-		result: 'success',
-		message: 'loaded settings',
-		data: {
-			userId: 'user-1',
-			userName: 'Alice',
+	loadSettingsFromConfig: vi.fn(
+		() =>
+			({
+				status: 'success',
+				message: 'loaded settings',
+				value: {
+					userId: 'user-1',
+					userName: 'Alice',
+				},
+			} satisfies Result),
+	),
+}));
+
+vi.mock('../../lib/event/event-materialize-and-persist.js', () => ({
+	materializeAndPersistAll: vi.fn(() => [
+		{
+			status: 'success',
+			message: 'persisted',
+			value: null,
 		},
-	})),
+	]),
 }));
 
 const nodes: Record<string, any> = {
@@ -91,7 +120,7 @@ vi.mock('../../lib/state/state.js', () => ({
 	},
 }));
 
-vi.mock('../../repository/node-repo.js', () => ({
+vi.mock('../../lib/repository/node-repo.js', () => ({
 	nodeRepo: {
 		getNode: vi.fn((id: string) => nodes[id]),
 		getTag: vi.fn(() => undefined),
@@ -99,7 +128,7 @@ vi.mock('../../repository/node-repo.js', () => ({
 	},
 }));
 
-vi.mock('../../event/event-materialize-and-persist.js', () => ({
+vi.mock('../../lib/event/event-materialize-and-persist.js', () => ({
 	materializeAndPersistAll: vi.fn(() => [
 		{
 			result: 'success',
@@ -109,7 +138,7 @@ vi.mock('../../event/event-materialize-and-persist.js', () => ({
 	]),
 }));
 
-vi.mock('../../event/common-events.js', () => ({
+vi.mock('../../lib/event/common-events.js', () => ({
 	createIssueEvents: vi.fn(({name, parent, user}) => [
 		{
 			id: 'event-create-1',
@@ -126,11 +155,13 @@ vi.mock('../../event/common-events.js', () => ({
 }));
 
 let tools: typeof import('../tools.js');
-let persistModule: typeof import('../../event/event-materialize-and-persist.js');
+let persistModule: typeof import('../../lib/event/event-materialize-and-persist.js');
 
 beforeAll(async () => {
 	tools = await import('../tools.js');
-	persistModule = await import('../../event/event-materialize-and-persist.js');
+	persistModule = await import(
+		'../../lib/event/event-materialize-and-persist.js'
+	);
 });
 
 describe('mcp tools', () => {
@@ -143,7 +174,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual([
+			expect(result.value).toEqual([
 				{
 					id: 'board-1',
 					title: 'Default',
@@ -162,7 +193,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data.map(swimlane => swimlane.id)).toEqual([
+			expect(result.value.map(swimlane => swimlane.id)).toEqual([
 				'swimlane-1',
 				'swimlane-2',
 				'readonly-swimlane',
@@ -178,7 +209,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual([
+			expect(result.value).toEqual([
 				expect.objectContaining({
 					id: 'issue-1',
 					title: 'Fix bug',
@@ -200,7 +231,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual({
+			expect(result.value).toEqual({
 				id: 'issue-created-1',
 				title: 'New issue',
 				parentId: 'swimlane-1',
@@ -229,7 +260,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual({
+			expect(result.value).toEqual({
 				id: 'issue-1',
 				closed: true,
 			});
@@ -246,7 +277,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data).toEqual({
+			expect(result.value).toEqual({
 				id: 'issue-1',
 				parentId: 'swimlane-2',
 				position: {at: 'start'},
@@ -283,9 +314,9 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.data.root).toBe('/repo');
-			expect(result.data.rootNodeId).toBe('workspace-1');
-			expect(result.data.nodes).toBe(nodes);
+			expect(result.value.root).toBe('/repo');
+			expect(result.value.rootNodeId).toBe('workspace-1');
+			expect(result.value.nodes).toBe(nodes);
 		}
 	});
 });

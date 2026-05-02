@@ -1,4 +1,4 @@
-import {isFail, Result} from '../command-line/command-types.js';
+import {isFail, Result} from '../model/result-types.js';
 
 type MemoizedResultFn<F extends (...args: any[]) => Promise<Result<any>>> = {
 	(...args: Parameters<F>): ReturnType<F>;

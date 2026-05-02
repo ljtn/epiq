@@ -1,16 +1,14 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
-import {getEpiqDirName} from '../init.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
+import {getSettingsState, User} from '../state/settings.state.js';
 import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
-import {getSettingsState, User} from '../lib/state/settings.state.js';
+	ensureEventsDir,
+	getEventsDirPath,
+	resolveClosestEpiqRoot,
+} from '../storage/paths.js';
 import {getEdgeRef} from './event-load.js';
 import {
 	AppEvent,
@@ -19,8 +17,6 @@ import {
 	stripActor,
 } from './event.model.js';
 
-const GLOBAL_EPIQ_ROOT = path.resolve(os.homedir(), '.epiq');
-
 // ======================
 // Increment this if we make any non-backwards-compatible changes to the event schema, so we can handle old vs new formats in event loading.
 // ======================
@@ -28,8 +24,6 @@ const SCHEMA_VERSION = 1;
 // ======================
 
 const getNextId = monotonicFactory();
-
-const EVENTS_DIR = 'events';
 
 type Id = string;
 type RefId = string;
@@ -99,56 +93,19 @@ export const resolveActorId = (): Result<User> => {
 	return failed('Unable to resolve actor ID from settings or OS user info');
 };
 
-const isGlobalEpiqRoot = (candidate: string): boolean =>
-	path.resolve(candidate) === GLOBAL_EPIQ_ROOT;
-
-const hasLocalEpiqDir = (dir: string): boolean => {
-	const candidate = path.join(dir, getEpiqDirName());
-
-	return (
-		!isGlobalEpiqRoot(candidate) &&
-		fs.existsSync(candidate) &&
-		fs.statSync(candidate).isDirectory()
-	);
-};
-
-export const resolveEpiqRoot = (startDir: string): string => {
-	let currentDir = path.resolve(startDir);
-
-	while (true) {
-		if (hasLocalEpiqDir(currentDir)) return currentDir;
-
-		const parentDir = path.dirname(currentDir);
-
-		if (parentDir === currentDir) {
-			return path.resolve(startDir);
-		}
-
-		currentDir = parentDir;
-	}
-};
-
-const getEventsDir = (rootDir: string): string =>
-	path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), EVENTS_DIR);
-
 export const getPersistFileName = ({userId, userName}: User): string =>
 	`${sanitizeFilePart(userId)}.${sanitizeFilePart(userName)}.jsonl`;
 
 export const getEventLogPath = (
-	rootDir: string,
+	epiqRoot: string,
 	{userId, userName}: User,
 ): Result<string> => {
 	const fileName = getPersistFileName({userId, userName});
 	const isValid = /^(?!.*\.jsonl.*\.jsonl).*\.jsonl$/.test(fileName);
+	if (!isValid) return failed(`Invalid event log file name: ${fileName}`);
 
-	if (!isValid) {
-		return failed(`Invalid event log file name: ${fileName}`);
-	}
-
-	return succeeded(
-		'Successfully resolved event log path',
-		path.join(getEventsDir(rootDir), fileName),
-	);
+	const logPath = path.join(getEventsDirPath(epiqRoot), fileName);
+	return succeeded('Successfully resolved event log path', logPath);
 };
 
 export const toPersistedEvent = (
@@ -172,41 +129,41 @@ export function persist({
 	rootDir?: string;
 }): Result<PersistSuccess> {
 	try {
-		const resolvedRoot = resolveEpiqRoot(rootDir);
-		const dir = getEventsDir(resolvedRoot);
+		const resolvedRootResult = resolveClosestEpiqRoot(rootDir);
+		if (isFail(resolvedRootResult)) return resolvedRootResult;
 
-		const filePath = getEventLogPath(resolvedRoot, {
+		const ensureEventsDirResult = ensureEventsDir(resolvedRootResult.value);
+		if (isFail(ensureEventsDirResult)) return ensureEventsDirResult;
+
+		const filePath = getEventLogPath(resolvedRootResult.value, {
 			userId: event.userId,
 			userName: event.userName,
 		});
-
 		if (isFail(filePath)) return filePath;
 
-		fs.mkdirSync(dir, {recursive: true});
-
-		const edgeRef = getEdgeRef(resolvedRoot);
+		const edgeRef = getEdgeRef(resolvedRootResult.value);
 		if (isFail(edgeRef)) return failed(edgeRef.message);
 
-		const newId = edgeRef.data
-			? getNextId(Math.max(Date.now(), decodeTime(edgeRef.data) + 1))
+		const newId = edgeRef.value
+			? getNextId(Math.max(Date.now(), decodeTime(edgeRef.value) + 1))
 			: getNextId();
 
 		const entryResult = toPersistedEvent(stripActor(event), [
 			newId,
-			edgeRef.data,
+			edgeRef.value,
 		]);
 
 		if (isFail(entryResult)) return failed(entryResult.message);
 
 		fs.appendFileSync(
-			filePath.data,
-			`${JSON.stringify(entryResult.data)}\n`,
+			filePath.value,
+			`${JSON.stringify(entryResult.value)}\n`,
 			'utf8',
 		);
 
 		return succeeded<PersistSuccess>('Event persisted', {
-			path: filePath.data,
-			entry: entryResult.data,
+			path: filePath.value,
+			entry: entryResult.value,
 		});
 	} catch (error) {
 		const message =

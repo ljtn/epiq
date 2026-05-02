@@ -1,17 +1,17 @@
+import chalk from 'chalk';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
-import App from './app.js';
-import {bootStateFromEventLog} from './event/event-boot.js';
-import {loadMergedEvents} from './event/event-load.js';
+import App from './lib/components/App.js';
 import {syncEpiqFromRemote} from './git/sync.js';
-import {isFail} from './lib/command-line/command-types.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
+import {bootStateFromEventLog} from './lib/event/event-boot.js';
+import {loadMergedEvents} from './lib/event/event-load.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
-import './logger.js';
-
-import chalk from 'chalk';
+import {isFail} from './lib/model/result-types.js';
 import {patchSettingsState} from './lib/state/settings.state.js';
+import {resolveClosestEpiqRoot} from './lib/storage/paths.js';
+import './logger.js';
 
 meow(
 	`${chalk.bold('Epiq CLI')}
@@ -46,7 +46,9 @@ const renderApp = () => {
 };
 
 const loadEventLogOrExit = () => {
-	const result = loadMergedEvents();
+	const epiqRootDirResult = resolveClosestEpiqRoot(process.cwd());
+	if (isFail(epiqRootDirResult)) throw Error(epiqRootDirResult.message);
+	const result = loadMergedEvents(epiqRootDirResult.value);
 
 	if (isFail(result)) {
 		const noEventsFound = result.message.includes('No events found');
@@ -59,7 +61,7 @@ const loadEventLogOrExit = () => {
 		throw new Error(result.message);
 	}
 
-	return result.data;
+	return result.value;
 };
 
 const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
@@ -73,7 +75,7 @@ const bootStateOrExit = (eventLog: ReturnType<typeof loadEventLogOrExit>) => {
 async function bootApp() {
 	const settings = loadSettingsFromConfig();
 	if (!isFail(settings)) {
-		patchSettingsState(settings.data);
+		patchSettingsState(settings.value);
 	}
 
 	await syncEpiqFromRemote();

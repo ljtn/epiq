@@ -1,14 +1,10 @@
 import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
-import {memoizeResult} from '../lib/utils/memoize.js';
-import {logger} from '../logger.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {getGitDir} from './git-storage.js';
+import {ORIGIN} from './git-constants.js';
+import {git} from './git-commands.js';
 
 export type GitExecResult = {
 	stdout: string;
@@ -90,14 +86,16 @@ const runGit = ({
 			stderr += chunk;
 		});
 
-		child.on('error', err => {
+		child.on('error', error => {
 			if (allowFail) {
-				finish({stdout, stderr: err.message, exitCode: 1});
+				finish({stdout, stderr: error.message, exitCode: 1});
 				return;
 			}
 
 			finish(
-				failed([`git ${args.join(' ')}`, `cwd=${cwd}`, err.message].join('\n')),
+				failed(
+					[`git ${args.join(' ')}`, `cwd=${cwd}`, error.message].join('\n'),
+				),
 			);
 		});
 
@@ -151,39 +149,6 @@ export const execGitAllowFail = ({
 }): Promise<GitExecResult> =>
 	runGit({args, cwd, allowFail: true}) as Promise<GitExecResult>;
 
-export const getRepoRoot = memoizeResult(
-	async (cwd = process.cwd()): Promise<Result<string>> => {
-		const result = await execGit({
-			args: ['rev-parse', '--show-toplevel'],
-			cwd,
-		});
-
-		if (isFail(result)) return failed('Not inside a Git repository');
-
-		return succeeded('Resolved repo root', result.data.stdout.trim());
-	},
-	cwd => path.resolve(cwd),
-);
-
-export const getGitDir = memoizeResult(
-	async (repoRoot: string): Promise<Result<string>> => {
-		const result = await execGit({
-			args: ['rev-parse', '--git-dir'],
-			cwd: repoRoot,
-		});
-
-		if (isFail(result)) return failed(result.message);
-
-		const gitDir = result.data.stdout.trim();
-		const resolved = path.isAbsolute(gitDir)
-			? gitDir
-			: path.join(repoRoot, gitDir);
-
-		return succeeded('Resolved git dir', resolved);
-	},
-	(repoRoot: string) => path.resolve(repoRoot),
-);
-
 export const commitAndGetSha = async ({
 	cwd,
 	message,
@@ -191,10 +156,7 @@ export const commitAndGetSha = async ({
 	cwd: string;
 	message: string;
 }): Promise<Result<string>> => {
-	const commitResult = await execGit({
-		args: ['commit', '-m', message],
-		cwd,
-	});
+	const commitResult = await git.commit({cwd, message});
 
 	if (isFail(commitResult)) {
 		return failed(`Failed to create commit\n${commitResult.message}`);
@@ -213,7 +175,7 @@ export const commitAndGetSha = async ({
 
 	return succeeded(
 		'Created commit and resolved SHA',
-		shaResult.data.stdout.trim(),
+		shaResult.value.stdout.trim(),
 	);
 };
 
@@ -223,7 +185,7 @@ export const hasInProgressGitOperation = async (
 	const gitDirResult = await getGitDir(repoRoot);
 	if (isFail(gitDirResult)) return failed(gitDirResult.message);
 
-	const gitDir = gitDirResult.data;
+	const gitDir = gitDirResult.value;
 	const markers = [
 		'MERGE_HEAD',
 		'CHERRY_PICK_HEAD',
@@ -245,37 +207,34 @@ export const hasInProgressGitOperation = async (
 
 export const hasRemote = async ({
 	repoRoot,
-	remote,
 }: {
 	repoRoot: string;
-	remote: string;
 }): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
-		args: ['remote', 'get-url', remote],
+		args: ['remote', 'get-url', ORIGIN],
 		cwd: repoRoot,
 	});
 
-	return succeeded('Checked remote', result.exitCode === 0);
+	const hasRemoteResult = result.exitCode === 0;
+	return succeeded(`Checked remote ${hasRemoteResult}`, hasRemoteResult);
 };
 
 export const hasRemoteBranch = async ({
 	repoRoot,
-	remote,
 	branch,
 }: {
 	repoRoot: string;
-	remote: string;
 	branch: string;
 }): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
-		args: ['ls-remote', '--heads', remote, branch],
+		args: ['ls-remote', '--heads', ORIGIN, branch],
 		cwd: repoRoot,
 	});
 
 	if (result.exitCode !== 0) {
 		return failed(
 			result.stderr.trim() ||
-				`Unable to inspect remote branch ${remote}/${branch}`,
+				`Unable to inspect remote branch ${ORIGIN}/${branch}`,
 		);
 	}
 
@@ -323,7 +282,7 @@ export const hasWorktree = async ({
 	if (isFail(result)) return failed(result.message);
 
 	const normalized = normalizeExistingPath(worktreeRoot);
-	const exists = result.data.stdout
+	const exists = result.value.stdout
 		.split('\n')
 		.filter(line => line.startsWith('worktree '))
 		.map(line => line.slice('worktree '.length))
@@ -347,17 +306,17 @@ export const hasUpstream = async (
 	);
 };
 
-export const getCurrentBranchName = async (
-	repoRoot: string,
+export const getCurrentBranch = async (
+	cwd: string,
 ): Promise<Result<string>> => {
 	const result = await execGit({
 		args: ['rev-parse', '--abbrev-ref', 'HEAD'],
-		cwd: repoRoot,
+		cwd: cwd,
 	});
 
 	if (isFail(result)) return failed(result.message);
 
-	return succeeded('Resolved current branch', result.data.stdout.trim());
+	return succeeded('Resolved current branch', result.value.stdout.trim());
 };
 
 export const getShortHeadSha = async (
@@ -370,7 +329,7 @@ export const getShortHeadSha = async (
 
 	if (isFail(result)) return failed(result.message);
 
-	return succeeded('Resolved short HEAD sha', result.data.stdout.trim());
+	return succeeded('Resolved short HEAD sha', result.value.stdout.trim());
 };
 
 export const isNonFastForward = (message: string): boolean =>
@@ -380,41 +339,27 @@ export const isNonFastForward = (message: string): boolean =>
 
 export const pullBranchRebaseIfPresent = async ({
 	cwd,
-	remote,
 	branch,
 }: {
 	cwd: string;
-	remote: string;
 	branch: string;
 }): Promise<Result<boolean>> => {
 	const remoteBranchResult = await hasRemoteBranch({
 		repoRoot: cwd,
-		remote,
 		branch,
 	});
 
 	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
-	if (!remoteBranchResult.data) {
+	if (!remoteBranchResult.value) {
 		return succeeded('Remote branch missing, skipped pull', false);
 	}
 
-	logger.debug('[git] fetch start', {cwd, remote, branch});
-	const fetchResult = await execGit({
-		args: ['fetch', remote, branch],
-		cwd,
-	});
-	logger.debug('[git] fetch done', fetchResult);
+	const fetchResult = await git.fetch({cwd, remote: ORIGIN, branch});
 
-	if (isFail(fetchResult)) {
+	if (isFail(fetchResult))
 		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
-	}
 
-	logger.debug('[git] pull start', {cwd, remote, branch});
-	const pullResult = await execGit({
-		args: ['pull', '--rebase', remote, branch],
-		cwd,
-	});
-	logger.debug('[git] pull done', pullResult);
+	const pullResult = await git.pullRebase({cwd, remote: ORIGIN, branch});
 
 	if (isFail(pullResult)) {
 		return failed(`Failed during pull --rebase\n${pullResult.message}`);
@@ -423,27 +368,30 @@ export const pullBranchRebaseIfPresent = async ({
 	return succeeded('Pulled with rebase', true);
 };
 
-export const hasRemoteWorktreeChanges = async (
-	worktreeRoot: string,
+export const hasStateBranchChanges = async (
+	stateBranchRoot: string,
 ): Promise<Result<boolean>> => {
 	const result = await execGit({
 		args: ['status', '--porcelain'],
-		cwd: worktreeRoot,
+		cwd: stateBranchRoot,
 	});
 
 	if (isFail(result)) return failed(result.message);
 
 	return succeeded(
-		'Checked remote worktree changes',
-		result.data.stdout.trim().length > 0,
+		'Checked state branch changes',
+		result.value.stdout.trim().length > 0,
 	);
 };
 
 export const isDetachedHead = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
-	const branchResult = await getCurrentBranchName(repoRoot);
+	const branchResult = await getCurrentBranch(repoRoot);
 	if (isFail(branchResult)) return failed(branchResult.message);
 
-	return succeeded('Checked detached HEAD state', branchResult.data === 'HEAD');
+	return succeeded(
+		'Checked detached HEAD state',
+		branchResult.value === 'HEAD',
+	);
 };

@@ -1,21 +1,28 @@
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
-import {resolveEpiqRoot} from './event/event-persist.js';
-import {getEpiqDirName, isLocal} from './init.js';
+import {resolveClosestEpiqRoot} from './lib/storage/paths.js';
+import {EPIQ_DIR_NAME, isLocal} from './lib/storage/paths.js';
+import {isFail} from './lib/model/result-types.js';
 
 const MAX_LINES = 1000;
 
-const getLogPath = (rootDir = process.cwd()) =>
-	path.join(resolveEpiqRoot(rootDir), getEpiqDirName(), 'log', 'epiq.log');
+const getLogPath = () => {
+	const cwd = process.cwd();
+	const epiqRootDirResult = resolveClosestEpiqRoot(cwd);
+	if (isFail(epiqRootDirResult)) return undefined;
+	return path.join(epiqRootDirResult.value, EPIQ_DIR_NAME, 'log', 'epiq.log');
+};
 
-function enforceLogHorizon(rootDir = process.cwd()) {
+function enforceLogHorizon() {
 	if (!isLocal) return;
 
-	const logPath = getLogPath(rootDir);
-	if (!fs.existsSync(logPath)) return;
+	const logPathResult = getLogPath();
 
-	const content = fs.readFileSync(logPath, 'utf8');
+	if (logPathResult === undefined) return;
+	if (!fs.existsSync(logPathResult)) return;
+
+	const content = fs.readFileSync(logPathResult, 'utf8');
 	const lines = content.split('\n');
 
 	if (lines[lines.length - 1] === '') {
@@ -25,18 +32,15 @@ function enforceLogHorizon(rootDir = process.cwd()) {
 	if (lines.length <= MAX_LINES) return;
 
 	const trimmed = lines.slice(-MAX_LINES).join('\n') + '\n';
-	fs.writeFileSync(logPath, trimmed, 'utf8');
+	fs.writeFileSync(logPathResult, trimmed, 'utf8');
 }
 
-function write(
-	prefix: string,
-	args: unknown[],
-	short = false,
-	rootDir = process.cwd(),
-) {
+function write(prefix: string, args: unknown[], short = false) {
 	if (!isLocal) return;
 
-	const logPath = getLogPath(rootDir);
+	const logPath = getLogPath();
+	if (!logPath) return;
+
 	const message = util.format(...args);
 
 	const now = new Date();
@@ -46,7 +50,7 @@ function write(
 
 	fs.mkdirSync(path.dirname(logPath), {recursive: true});
 	fs.appendFileSync(logPath, line, 'utf8');
-	enforceLogHorizon(rootDir);
+	enforceLogHorizon();
 }
 
 export const logger = {

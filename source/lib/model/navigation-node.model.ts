@@ -1,4 +1,4 @@
-import {AppEvent} from '../../event/event.model.js';
+import {AppEvent} from '../../lib/event/event.model.js';
 import {AnyContext} from './context.model.js';
 
 export type NavNode<U extends AnyContext> = {

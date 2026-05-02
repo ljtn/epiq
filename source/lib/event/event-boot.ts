@@ -1,13 +1,8 @@
 import chalk from 'chalk';
 import {monotonicFactory, ulid} from 'ulid';
-import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
-import {getRenderedChildren, getState} from '../lib/state/state.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
+import {getRenderedChildren, getState} from '../state/state.js';
 import {materializeAll} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {AppEvent} from './event.model.js';
@@ -198,7 +193,8 @@ export function bootStateFromEventLog(eventLog: AppEvent[]): Result {
 					(x, i) => `${chalk.dim.gray(`${i + 1}.`)} ${chalk.dim(x.message)}`,
 				),
 				'\n',
-			].join('\n'),
+			].join('\n\n See complete log: \n\n') +
+				eventLog.map(x => JSON.stringify(x)).join('\n'),
 		);
 	}
 

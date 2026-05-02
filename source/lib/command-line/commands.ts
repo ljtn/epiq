@@ -1,21 +1,21 @@
 import {ulid} from 'ulid';
-import {openEditorOnText} from '../../editor/editor.js';
-import {createIssueEvents} from '../../event/common-events.js';
-import {getEventTime} from '../../event/date-utils.js';
+import {openEditorOnText} from '../editor/editor.js';
+import {createIssueEvents} from '../event/common-events.js';
+import {getEventTime} from '../event/date-utils.js';
 import {
 	hasPendingDefaultEvents,
 	persistPendingDefaultEvents,
-} from '../../event/event-boot.js';
-import {loadMergedEvents, splitEventsAtTime} from '../../event/event-load.js';
+} from '../event/event-boot.js';
+import {loadMergedEvents, splitEventsAtTime} from '../event/event-load.js';
 import {
 	materializeAndPersist,
 	materializeAndPersistAll,
-} from '../../event/event-materialize-and-persist.js';
-import {materializeAll} from '../../event/event-materialize.js';
-import {getPersistFileName, resolveActorId} from '../../event/event-persist.js';
-import {AppEvent} from '../../event/event.model.js';
+} from '../event/event-materialize-and-persist.js';
+import {materializeAll} from '../event/event-materialize.js';
+import {getPersistFileName, resolveActorId} from '../event/event-persist.js';
+import {AppEvent} from '../event/event.model.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
-import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
+import {findAncestor, nodeRepo} from '../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {
 	getMovePendingState,
@@ -36,19 +36,23 @@ import {
 	resetState,
 	updateState,
 } from '../state/state.js';
+import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-meta.js';
 import {getCmdModifiers} from './command-modifiers.js';
 import {
-	CmdKeywords,
-	cmdResult,
-	cmdValidity,
+	resultStatuses,
 	failed,
 	isFail,
-	noResult,
-	Result,
 	succeeded,
-} from './command-types.js';
+	Result,
+} from '../model/result-types.js';
+import {cmdValidity} from './cmd-validity.js';
 import {parsePeekDateInput} from './validate-date.js';
+import {resolveClosestEpiqRoot} from '../storage/paths.js';
+import {
+	captureNavigationAnchor,
+	restoreNavigationAnchor,
+} from '../actions/default/restore-navigation.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -138,7 +142,7 @@ export const commands: CommandLineActionEntry[] = [
 						parent: targetNode.parentNodeId,
 						pos,
 					},
-					...userRes.data,
+					...userRes.value,
 				});
 
 				patchState({mode: Mode.MOVE});
@@ -211,7 +215,7 @@ export const commands: CommandLineActionEntry[] = [
 				payload: {
 					id: child.id,
 				},
-				...userRes.data,
+				...userRes.value,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -226,7 +230,7 @@ export const commands: CommandLineActionEntry[] = [
 			const issueResult = findInBreadCrumb(getState().breadCrumb, 'TICKET');
 			if (isFail(issueResult)) return failed('Edit target must be an issue');
 
-			const issueNode = issueResult.data;
+			const issueNode = issueResult.value;
 			if (issueNode.readonly) return failed('Cannot edit readonly field');
 			const {currentNode, selectedIndex} = getState();
 			const selectedChild = getRenderedChildren(issueNode.id)[selectedIndex];
@@ -246,7 +250,7 @@ export const commands: CommandLineActionEntry[] = [
 			const editResult = openEditorOnText(currentValue);
 			if (isFail(editResult)) return failed('Failed to edit field');
 
-			const updatedValue = editResult.data;
+			const updatedValue = editResult.value;
 
 			if (updatedValue === currentValue) {
 				return succeeded('No changes made', null);
@@ -260,7 +264,7 @@ export const commands: CommandLineActionEntry[] = [
 						id: target.id,
 						md: updatedValue,
 					},
-					...userRes.data,
+					...userRes.value,
 				});
 			}
 
@@ -272,7 +276,7 @@ export const commands: CommandLineActionEntry[] = [
 						id: target.id,
 						name: updatedValue,
 					},
-					...userRes.data,
+					...userRes.value,
 				});
 			}
 
@@ -337,7 +341,7 @@ export const commands: CommandLineActionEntry[] = [
 				id: ulid(),
 				action: 'close.issue',
 				payload: {id: target.id, parent: target.parentNodeId},
-				...userRes.data,
+				...userRes.value,
 			});
 
 			if (isFail(result)) return result;
@@ -365,13 +369,13 @@ export const commands: CommandLineActionEntry[] = [
 				return failed('Cannot reopen in this context');
 			}
 
-			const ticket = ticketResult.data;
+			const ticket = ticketResult.value;
 
 			const result = materializeAndPersist({
 				id: ulid(),
 				action: 'reopen.issue',
 				payload: {id: ticket.id},
-				...userRes.data,
+				...userRes.value,
 			});
 
 			if (isFail(result)) return result;
@@ -496,7 +500,7 @@ export const commands: CommandLineActionEntry[] = [
 				const result = materializeAndPersist(event);
 				if (isFail(result)) return result;
 
-				const createdNode = nodeRepo.getNode(result.data.result.id);
+				const createdNode = nodeRepo.getNode(result.value.result.id);
 				if (!createdNode) return failed('Created node not found');
 
 				if (!createdNode.parentNodeId) return result;
@@ -527,7 +531,7 @@ export const commands: CommandLineActionEntry[] = [
 						name: cmdState.inputString,
 						parent: workspace.id,
 					},
-					...userRes.data,
+					...userRes.value,
 				});
 			}
 
@@ -542,9 +546,9 @@ export const commands: CommandLineActionEntry[] = [
 					payload: {
 						id: ulid(),
 						name: cmdState.inputString,
-						parent: boardResult.data.id,
+						parent: boardResult.value.id,
 					},
-					...userRes.data,
+					...userRes.value,
 				});
 			}
 
@@ -558,7 +562,7 @@ export const commands: CommandLineActionEntry[] = [
 						? selectedNode
 						: (() => {
 								const swimlaneResult = findInBreadCrumb(breadCrumb, 'SWIMLANE');
-								return isFail(swimlaneResult) ? null : swimlaneResult.data;
+								return isFail(swimlaneResult) ? null : swimlaneResult.value;
 						  })();
 
 				if (!swimlane) {
@@ -568,7 +572,7 @@ export const commands: CommandLineActionEntry[] = [
 				const issueEvents = createIssueEvents({
 					name: cmdState.inputString,
 					parent: swimlane.id,
-					user: userRes.data,
+					user: userRes.value,
 				});
 
 				const issueResults = materializeAndPersistAll(issueEvents);
@@ -600,7 +604,7 @@ export const commands: CommandLineActionEntry[] = [
 
 				return succeeded('Issue created', null);
 			}
-			return noResult();
+			return succeeded('Success', null);
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
@@ -610,7 +614,7 @@ export const commands: CommandLineActionEntry[] = [
 		action: () => {
 			const {commandMeta} = getCmdState();
 			if (commandMeta.validity === cmdValidity.Invalid) {
-				return failed('Invalid command ' + cmdResult);
+				return failed('Invalid command ' + resultStatuses);
 			}
 
 			updateState(s => ({
@@ -646,7 +650,7 @@ export const commands: CommandLineActionEntry[] = [
 				id: ulid(),
 				action: 'edit.title',
 				payload: {id: node.id, name: newName},
-				...userRes.data,
+				...userRes.value,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -672,7 +676,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (isFail(ticketResult))
 				return failed('Unable to untag issue in this context');
 
-			const ticket = ticketResult.data;
+			const ticket = ticketResult.value;
 
 			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
 			if (!tagsField) return failed('Unable to locate tags field');
@@ -691,7 +695,7 @@ export const commands: CommandLineActionEntry[] = [
 					target: ticket.id,
 					tagId: existingTag.id,
 				},
-				...userRes.data,
+				...userRes.value,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -715,7 +719,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (isFail(ticketResult))
 				return failed('Unable to tag issue in this context');
 
-			const ticket = ticketResult.data;
+			const ticket = ticketResult.value;
 			const existingTag = findTagByName(name);
 
 			let tagId: string;
@@ -731,12 +735,12 @@ export const commands: CommandLineActionEntry[] = [
 						id: newTagId,
 						name,
 					},
-					userId: userRes.data.userId,
-					userName: userRes.data.userName,
+					userId: userRes.value.userId,
+					userName: userRes.value.userName,
 				});
 
 				if (isFail(createResult)) return createResult;
-				tagId = createResult.data.result.id;
+				tagId = createResult.value.result.id;
 			}
 
 			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
@@ -756,7 +760,7 @@ export const commands: CommandLineActionEntry[] = [
 					target: ticket.id,
 					tagId,
 				},
-				...userRes.data,
+				...userRes.value,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -780,7 +784,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (isFail(ticketResult))
 				return failed('Unable to assign issue in this context');
 
-			const ticket = ticketResult.data;
+			const ticket = ticketResult.value;
 			const existingContributor = findContributorByName(name);
 
 			let contributorId: string;
@@ -796,12 +800,12 @@ export const commands: CommandLineActionEntry[] = [
 						id: newContributorId,
 						name,
 					},
-					userId: userRes.data.userId,
-					userName: userRes.data.userName,
+					userId: userRes.value.userId,
+					userName: userRes.value.userName,
 				});
 
 				if (isFail(createResult)) return createResult;
-				contributorId = createResult.data.result.id;
+				contributorId = createResult.value.result.id;
 			}
 
 			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');
@@ -821,7 +825,7 @@ export const commands: CommandLineActionEntry[] = [
 					target: ticket.id,
 					contributor: contributorId,
 				},
-				...userRes.data,
+				...userRes.value,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -848,7 +852,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (isFail(ticketResult))
 				return failed('Unable to unassign in this context');
 
-			const ticket = ticketResult.data;
+			const ticket = ticketResult.value;
 
 			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');
 			if (!assigneesField) return failed('Unable to locate assignees field');
@@ -867,7 +871,7 @@ export const commands: CommandLineActionEntry[] = [
 					target: ticket.id,
 					contributor: existingContributor.id,
 				},
-				...userRes.data,
+				...userRes.value,
 			});
 		},
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
@@ -876,6 +880,8 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Sync,
 		mode: Mode.COMMAND_LINE,
 		action: async () => {
+			const navigationAnchor = captureNavigationAnchor();
+
 			setCmdInput(() => '');
 
 			patchState({
@@ -900,11 +906,11 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			const userRes = resolveActorId();
-			if (isFail(userRes) || !userRes.data) {
+			if (isFail(userRes) || !userRes.value) {
 				return failed('Unable to resolve event log path');
 			}
 
-			const ownEventFileName = getPersistFileName(userRes.data);
+			const ownEventFileName = getPersistFileName(userRes.value);
 			logger.debug(
 				'[sync-command] pending defaults',
 				hasPendingDefaultEvents(),
@@ -933,10 +939,17 @@ export const commands: CommandLineActionEntry[] = [
 				mode: Mode.DEFAULT,
 			});
 
-			const allLoadedEventsResult = loadMergedEvents();
+			const epiqRootDirResult = resolveClosestEpiqRoot(process.cwd());
+			if (isFail(epiqRootDirResult)) throw new Error(epiqRootDirResult.message);
+
+			const allLoadedEventsResult = loadMergedEvents(epiqRootDirResult.value);
 			if (isFail(allLoadedEventsResult)) return failed('Unable to load events');
 
-			materializeAll(allLoadedEventsResult.data);
+			materializeAll(allLoadedEventsResult.value);
+
+			// Restore navigation
+			const restoreResult = restoreNavigationAnchor(navigationAnchor);
+			if (isFail(restoreResult)) return restoreResult;
 
 			return succeeded('Synced', true);
 		},
@@ -948,9 +961,13 @@ export const commands: CommandLineActionEntry[] = [
 			const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
 			if (isFail(boardNodeResult)) return boardNodeResult;
 
-			const eventsResult = loadMergedEvents();
+			const epiqRootDirResult = resolveClosestEpiqRoot(process.cwd());
+			if (isFail(epiqRootDirResult)) throw new Error(epiqRootDirResult.message);
+
+			const eventsResult = loadMergedEvents(epiqRootDirResult.value);
+
 			if (isFail(eventsResult)) return failed(eventsResult.message);
-			const allEvents = eventsResult.data;
+			const allEvents = eventsResult.value;
 
 			const {modifier} = getCmdState().commandMeta;
 			let targetTime: number;
@@ -993,7 +1010,7 @@ export const commands: CommandLineActionEntry[] = [
 				targetTime = targetDate.getTime();
 			}
 
-			const boardId = boardNodeResult.data.id;
+			const boardId = boardNodeResult.value.id;
 			const {appliedEvents, unappliedEvents} = splitEventsAtTime(
 				allEvents,
 				targetTime,

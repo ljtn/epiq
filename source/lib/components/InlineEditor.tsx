@@ -1,7 +1,7 @@
 import {Box, Text} from 'ink';
 import React, {useEffect} from 'react';
-import {nodeRepo} from '../../repository/node-repo.js';
-import {isSuccess} from '../command-line/command-types.js';
+import {nodeRepo} from '../repository/node-repo.js';
+import {isSuccess} from '../model/result-types.js';
 import {nodes} from '../state/node-builder.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
@@ -47,7 +47,7 @@ export const InlineEditor: React.FC<Props> = ({
 
 			const result = nodeRepo.createNodeAtPosition(node);
 			if (isSuccess(result)) {
-				createdIds.push(result.data.id);
+				createdIds.push(result.value.id);
 			}
 		});
 

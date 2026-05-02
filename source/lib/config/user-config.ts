@@ -1,12 +1,8 @@
 import os from 'node:os';
 import path from 'node:path';
 import {z} from 'zod';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../command-line/command-types.js';
+import {GLOBAL_CONFIG_DIR_NAME} from '../storage/paths.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {SettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 
@@ -28,11 +24,10 @@ const EpiqConfigSchema = z
 
 export type EpiqConfig = z.infer<typeof EpiqConfigSchema>;
 
-const EPIQ_DIR_NAME = '.epiq';
 const CONFIG_FILE_NAME = 'config.json';
 
 export const getEpiqHomePath = (): string =>
-	path.join(os.homedir(), EPIQ_DIR_NAME);
+	path.join(os.homedir(), GLOBAL_CONFIG_DIR_NAME);
 
 export const getEpiqConfigPath = (): string =>
 	path.join(getEpiqHomePath(), CONFIG_FILE_NAME);
@@ -40,9 +35,9 @@ export const getEpiqConfigPath = (): string =>
 const ensureEpiqHomeExists = (): Result<null> => {
 	try {
 		fileManager.mkDir(getEpiqHomePath());
-		return succeeded('Ensured ~/.epiq exists', null);
+		return succeeded(`Ensured ~/${GLOBAL_CONFIG_DIR_NAME} exists`, null);
 	} catch {
-		return failed('Unable to create ~/.epiq');
+		return failed(`Unable to create ~/${GLOBAL_CONFIG_DIR_NAME}`);
 	}
 };
 
@@ -52,14 +47,14 @@ const safeParseConfig = (raw: string): Result<EpiqConfig> => {
 	try {
 		parsed = JSON.parse(raw);
 	} catch {
-		return failed('Invalid ~/.epiq/config.json JSON');
+		return failed(`Invalid ~/${GLOBAL_CONFIG_DIR_NAME}/config.json JSON`);
 	}
 
 	const result = EpiqConfigSchema.safeParse(parsed ?? {});
 
 	if (!result.success) {
 		return failed(
-			`Invalid ~/.epiq/config.json shape: ${result.error.issues
+			`Invalid ~/${GLOBAL_CONFIG_DIR_NAME}/config.json shape: ${result.error.issues
 				.map(issue => issue.path.join('.') || issue.message)
 				.join(', ')}`,
 		);
@@ -110,7 +105,7 @@ export const writeEpiqConfig = (config: EpiqConfig): Result<null> => {
 		);
 		return succeeded('Config written', null);
 	} catch {
-		return failed('Unable to write ~/.epiq/config.json');
+		return failed(`Unable to write ~/${GLOBAL_CONFIG_DIR_NAME}/config.json`);
 	}
 };
 
@@ -119,7 +114,7 @@ export const setConfig = (partialConfig: Partial<EpiqConfig>) => {
 	if (isFail(existingResult)) return failed('Failed to read existing config');
 
 	const nextConfig: EpiqConfig = {
-		...existingResult.data,
+		...existingResult.value,
 		...partialConfig,
 	};
 
@@ -131,7 +126,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 
 	const ensureResult = ensureEpiqHomeExists();
 	if (isFail(ensureResult)) {
-		return failed('Unable to create ~/.epiq');
+		return failed(`Unable to create ~/${GLOBAL_CONFIG_DIR_NAME}`);
 	}
 
 	const exists = fileManager.readFile(configPath) !== null;
@@ -139,7 +134,9 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 	if (!exists) {
 		const createResult = writeEpiqConfig(SYSTEM_USER);
 		if (isFail(createResult)) {
-			throw new Error('Unable to create ~/.epiq/config.json');
+			throw new Error(
+				`Unable to create ~/${GLOBAL_CONFIG_DIR_NAME}/config.json`,
+			);
 		}
 	}
 
@@ -148,10 +145,12 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		throw new Error(result.message || 'Unable to load settings');
 	}
 
-	const {preferredEditor, userName, userId, autoSync} = result.data;
+	const {preferredEditor, userName, userId, autoSync} = result.value;
 
 	if (!userName || !userId) {
-		return failed('User name or ID not configured in ~/.epiq/config.json');
+		return failed(
+			`User name or ID not configured in ~/${GLOBAL_CONFIG_DIR_NAME}/config.json`,
+		);
 	}
 
 	return succeeded('successfully loaded settings', {

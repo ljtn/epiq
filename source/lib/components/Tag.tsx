@@ -1,6 +1,6 @@
 import {Text} from 'ink';
 import React from 'react';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {theme} from '../theme/themes.js';
 import {getStringColor} from '../utils/color.js';
 

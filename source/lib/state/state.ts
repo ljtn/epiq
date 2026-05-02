@@ -2,12 +2,7 @@ import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../command-line/command-types.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {Hints} from '../hints/hints.js';
 import {Mode} from '../model/action-map.model.js';
 import type {AppState, Filter} from '../model/app-state.model.js';
@@ -65,7 +60,6 @@ function derive(state: BaseState): Result<AppState> {
 
 	const currentNode = nodes[currentNodeId];
 	if (!currentNode) {
-		logger.error('Unable to derive state, currentNode not found');
 		return failed('Unable to derive state, currentNode not found');
 	}
 
@@ -74,7 +68,7 @@ function derive(state: BaseState): Result<AppState> {
 		logger.error(breadCrumbResult.message);
 		return breadCrumbResult;
 	}
-	const breadCrumb = breadCrumbResult.data;
+	const breadCrumb = breadCrumbResult.value;
 
 	const {context} = currentNode;
 	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
@@ -142,7 +136,7 @@ export function initWorkspaceState(workspace: Workspace) {
 	const deriveResult = derive(base);
 	if (isFail(deriveResult)) return deriveResult;
 
-	_appState = deriveResult.data;
+	_appState = deriveResult.value;
 	emit();
 
 	return succeeded('State initialized', null);
@@ -159,7 +153,7 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	if (isFail(deriveResult)) {
 		return failed(deriveResult.message ?? 'Unable to update state');
 	}
-	_appState = deriveResult.data;
+	_appState = deriveResult.value;
 	emit();
 	return succeeded('State updated', null);
 }

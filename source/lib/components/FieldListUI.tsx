@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';

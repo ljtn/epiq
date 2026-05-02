@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
-import {isFail} from '../lib/command-line/command-types.js';
+import {isFail} from '../lib/model/result-types.js';
 import {execGit} from '../git/git-utils.js';
 import {syncEpiqFromRemote, syncEpiqWithRemote} from '../git/sync.js';
-import {REMOTE_BRANCH} from '../git/git.js';
+import {STATE_BRANCH} from '../git/git-constants.js';
 
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
@@ -149,7 +149,7 @@ describe('sync', () => {
 		if (isFail(shaResult)) throw new Error(shaResult.message);
 
 		const detachResult = await execGit({
-			args: ['checkout', shaResult.data.stdout.trim()],
+			args: ['checkout', shaResult.value.stdout.trim()],
 			cwd: repoRoot,
 		});
 		if (isFail(detachResult)) throw new Error(detachResult.message);
@@ -196,16 +196,16 @@ describe('sync', () => {
 
 		expect(isFail(syncResult)).toBe(false);
 		if (!isFail(syncResult)) {
-			expect(syncResult.data.createdCommit).toBe(true);
-			expect(syncResult.data.commitSha).toMatch(/^[0-9a-f]{40}$/);
-			expect(syncResult.data.pushed).toBe(true);
+			expect(syncResult.value.createdCommit).toBe(true);
+			expect(syncResult.value.commitSha).toMatch(/^[0-9a-f]{40}$/);
+			expect(syncResult.value.pushed).toBe(true);
 		}
 
 		const verifyClone = makeTempDir();
 		await cloneRepo({remoteRoot, cloneRoot: verifyClone});
 
 		const checkoutStateBranch = await execGit({
-			args: ['checkout', REMOTE_BRANCH],
+			args: ['checkout', STATE_BRANCH],
 			cwd: verifyClone,
 		});
 		if (isFail(checkoutStateBranch))
@@ -370,7 +370,7 @@ describe('sync', () => {
 
 		expect(isFail(secondSync)).toBe(false);
 		if (!isFail(secondSync)) {
-			expect(secondSync.data.createdCommit).toBe(false);
+			expect(secondSync.value.createdCommit).toBe(false);
 		}
 	});
 });

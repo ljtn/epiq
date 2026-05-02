@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {theme} from './lib/theme/themes.js';
+import {theme} from '../theme/themes.js';
 
 type Props = {
 	width: number;

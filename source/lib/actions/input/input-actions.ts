@@ -1,4 +1,4 @@
-import {succeeded} from '../../command-line/command-types.js';
+import {succeeded} from '../../model/result-types.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {
 	eraseInput,
@@ -12,6 +12,7 @@ import {
 import {patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {onConfirmCommandLineSequenceInput} from './on-cmd-input-confirm.js';
+import {appendCommandInput} from '../../editor/inline-editor.js';
 export const inputActions: ActionEntry[] = [
 	{
 		intent: Intent.ViewHelp,
@@ -91,7 +92,7 @@ export const inputActions: ActionEntry[] = [
 		intent: Intent.CaptureInput,
 		mode: Mode.COMMAND_LINE,
 		action: (_1, {sequence}) => {
-			setCmdInput(s => s + sequence);
+			appendCommandInput(sequence ?? '');
 			return succeeded('Capturing input', null);
 		},
 	},

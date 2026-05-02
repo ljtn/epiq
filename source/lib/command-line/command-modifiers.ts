@@ -1,5 +1,5 @@
-import {editorConfig} from '../../editor/editor-config.js';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {editorConfig} from '../editor/editor-config.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {
 	getUserSetupStatus,
 	isRepositoryInitialized,
@@ -11,7 +11,8 @@ import {
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
-import {CmdKeyword, CmdKeywords} from './command-types.js';
+import {CmdKeyword} from './cmd-keywords.js';
+import {CmdKeywords} from './cmd-keywords.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
@@ -108,15 +109,15 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 		[CmdKeywords.CLOSE_ISSUE]: ['confirm'],
 		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
-		[CmdKeywords.SET_EDITOR]: [...editorConfig, 'vim'],
+		[CmdKeywords.SET_EDITOR]: [...editorConfig],
 		[CmdKeywords.TAG]: [
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
 		],
 		[CmdKeywords.UNTAG]: [
-			...(ticketTagsFromBreadCrumb()?.data?.map(({name}) => name) ?? []),
+			...(ticketTagsFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
 		[CmdKeywords.UNASSIGN]: [
-			...(ticketAssigneesFromBreadCrumb()?.data?.map(({name}) => name) ?? []),
+			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
 		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
 		[CmdKeywords.HELP]: [],

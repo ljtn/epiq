@@ -1,12 +1,12 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {findAncestor, isDescendantOf} from '../../repository/node-repo.js';
-import {getOrderedChildren} from '../../repository/rank.js';
+import {findAncestor, isDescendantOf} from '../repository/node-repo.js';
+import {getOrderedChildren} from '../repository/rank.js';
 import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
-import {isSuccess} from '../command-line/command-types.js';
+import {isSuccess} from '../model/result-types.js';
 
 type Props = {
 	width: number;
@@ -26,7 +26,7 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 		selectedTarget?.id ?? currentNode.id,
 		'TICKET',
 	);
-	const ticket = isSuccess(ticketResult) ? ticketResult.data : undefined;
+	const ticket = isSuccess(ticketResult) ? ticketResult.value : undefined;
 
 	const ticketChildren = ticket?.id ? getOrderedChildren(ticket.id) : [];
 

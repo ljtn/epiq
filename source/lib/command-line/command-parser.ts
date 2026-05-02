@@ -1,6 +1,6 @@
 import {isCmdKeyword} from './command-meta.js';
 import {getCmdModifiers} from './command-modifiers.js';
-import {CmdKeyword} from './command-types.js';
+import {CmdKeyword} from './cmd-keywords.js';
 
 export type CommandTarget = 'command' | 'modifier' | 'word';
 

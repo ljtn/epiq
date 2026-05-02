@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {isFail} from '../lib/command-line/command-types.js';
+import {isFail} from '../lib/model/result-types.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {
@@ -8,11 +8,11 @@ import {
 	getBootNavigationTarget,
 	hasPendingDefaultEvents,
 	persistPendingDefaultEvents,
-} from '../event/event-boot.js';
-import {AppEvent} from '../event/event.model.js';
-import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
+} from '../lib/event/event-boot.js';
+import {AppEvent} from '../lib/event/event.model.js';
+import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 
-vi.mock('../event/event-persist.js', () => ({
+vi.mock('../lib/event/event-persist.js', () => ({
 	persist: vi.fn(() => ({
 		result: 'success',
 		message: 'mocked persist',
@@ -21,10 +21,10 @@ vi.mock('../event/event-persist.js', () => ({
 	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
 }));
 
-vi.mock('../event/event-materialize-and-persist.js', async () => {
+vi.mock('../lib/event/event-materialize-and-persist.js', async () => {
 	const actual = await vi.importActual<
-		typeof import('../event/event-materialize.js')
-	>('../event/event-materialize.js');
+		typeof import('../lib/event/event-materialize.js')
+	>('../lib/event/event-materialize.js');
 
 	return {
 		materializeAndPersistAll: vi.fn((events: readonly AppEvent[]) =>

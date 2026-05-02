@@ -1,9 +1,12 @@
 dist
 node_modules
-epiq.log
 
 .vscode/tasks.json
 .archive
 epiq-*.tgz
 .DS_Store
 coverage
+
+# [epiq]: hydrated state is never to be committed
+.epiq
+

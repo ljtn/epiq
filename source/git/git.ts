@@ -1,21 +1,22 @@
-import {createHash} from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import {getEpiqDirName} from '../init.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../lib/command-line/command-types.js';
-import {memoizeResult} from '../lib/utils/memoize.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {logger} from '../logger.js';
+import {git} from './git-commands.js';
+import {ORIGIN, STATE_BRANCH} from './git-constants.js';
+import {
+	EMPTY_TREE_SHA,
+	ensureDir,
+	ensureStateBranchIsStorageOnly,
+	ensureWorktreesDir,
+	getRelativeEventFilePath,
+	removePath,
+} from './git-storage.js';
 import {
 	commitAndGetSha,
 	execGit,
 	execGitAllowFail,
-	getCurrentBranchName,
+	getCurrentBranch,
 	getShortHeadSha,
 	hasLocalBranch,
 	hasRemote,
@@ -23,146 +24,35 @@ import {
 	hasUpstream,
 	hasWorktree,
 } from './git-utils.js';
-import {mergeEventFile} from './merge.js';
 
-export const REMOTE_BRANCH = 'epiq/events';
-export const DEFAULT_REMOTE = 'origin';
-
-const EPIQ_DIR = getEpiqDirName();
-const EVENTS_SUBDIR = 'events';
-const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
-
-const getRelativeEventFilePath = (fileName: string): string =>
-	path.join(EPIQ_DIR, EVENTS_SUBDIR, fileName);
-
-const getRepoId = (repoRoot: string): string =>
-	createHash('sha1').update(path.resolve(repoRoot)).digest('hex').slice(0, 12);
-
-const getEpiqHome = (): string => path.join(os.homedir(), '.epiq');
-const getWorktreesRoot = (): string => path.join(getEpiqHome(), 'worktrees');
-
-export const getRemoteWorktreeRoot = (repoRoot: string): string =>
-	path.join(getWorktreesRoot(), getRepoId(repoRoot));
-
-const getEpiqRoot = (root: string): string => path.join(root, EPIQ_DIR);
-
-const getEventsDir = (root: string): string =>
-	path.join(getEpiqRoot(root), EVENTS_SUBDIR);
-
-export const getEventFilePath = ({
-	root,
-	fileName,
-}: {
-	root: string;
-	fileName: string;
-}): string => path.join(getEventsDir(root), fileName);
-
-const ensureDir = (dirPath: string): Result<void> => {
-	logger.debug('[sync] ensure dir', dirPath);
-	fs.mkdirSync(dirPath, {recursive: true});
-	return succeeded('Ensured directory', undefined);
-};
-
-const ensureEpiqStorage = (): Result<void> => {
-	logger.debug('[sync] ensure epiq storage');
-
-	const homeResult = ensureDir(getEpiqHome());
-	if (isFail(homeResult)) return failed(homeResult.message);
-
-	const worktreesResult = ensureDir(getWorktreesRoot());
-	if (isFail(worktreesResult)) return failed(worktreesResult.message);
-
-	return succeeded('Ensured epiq storage', undefined);
-};
-
-const removePath = (targetPath: string): void => {
-	if (!fs.existsSync(targetPath)) return;
-
-	logger.debug('[sync] remove path', targetPath);
-	fs.rmSync(targetPath, {recursive: true, force: true});
-};
-
-const listEventFiles = (root: string): Result<string[]> => {
-	const eventsDir = getEventsDir(root);
-
-	if (!fs.existsSync(eventsDir)) {
-		logger.debug('[sync] events dir missing', eventsDir);
-		return succeeded('Events dir missing', []);
-	}
-
-	const files = fs
-		.readdirSync(eventsDir, {withFileTypes: true})
-		.filter(entry => entry.isFile())
-		.map(entry => entry.name)
-		.filter(name => name.endsWith('.jsonl'))
-		.sort();
-
-	logger.debug('[sync] listed event files', {
-		eventsDir,
-		count: files.length,
-	});
-
-	return succeeded('Listed event files', files);
-};
-
-const hasHeadCommit = async (repoRoot: string): Promise<Result<boolean>> => {
-	logger.debug('[sync] inspect local HEAD', repoRoot);
-
-	const result = await execGitAllowFail({
-		args: ['rev-parse', '--verify', 'HEAD'],
-		cwd: repoRoot,
-	});
-
-	if (result.exitCode === 0) return succeeded('Repo has HEAD', true);
-	if (result.exitCode === 1) return succeeded('Repo has no HEAD', false);
-
-	return failed(result.stderr.trim() || 'Unable to inspect HEAD');
-};
-
-const remoteHasAnyHistory = memoizeResult(
-	async (repoRoot: string): Promise<Result<boolean>> => {
-		logger.debug('[sync] inspect remote history', {
-			repoRoot,
-			remote: DEFAULT_REMOTE,
-		});
-
-		const remoteResult = await hasRemote({
-			repoRoot,
-			remote: DEFAULT_REMOTE,
-		});
-		if (isFail(remoteResult)) return failed(remoteResult.message);
-		if (!remoteResult.data) return succeeded('No remote configured', false);
-
-		const result = await execGitAllowFail({
-			args: ['ls-remote', '--heads', DEFAULT_REMOTE],
-			cwd: repoRoot,
-		});
-
-		if (result.exitCode !== 0) {
-			return failed(result.stderr.trim() || 'Unable to inspect remote heads');
-		}
-
-		const hasHistory = result.stdout.trim().length > 0;
-		logger.debug('[sync] remote history', hasHistory);
-
-		return succeeded('Checked remote history', hasHistory);
-	},
-	(repoRoot: string) => path.resolve(repoRoot),
-);
-
-export const hasAnyCommit = async (
+export const ensureLocalEventsIgnored = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
-	const result = await execGitAllowFail({
-		args: ['rev-parse', '--verify', 'HEAD'],
-		cwd: repoRoot,
+	const gitignorePath = path.join(repoRoot, '.gitignore');
+	let content = fs.existsSync(gitignorePath)
+		? fs.readFileSync(gitignorePath, 'utf8')
+		: '';
+
+	const ignorePattern = '.epiq';
+	const lines = content.split('\n');
+
+	// More tolerant check that survives comments, extra spaces, trailing slashes
+	const alreadyIgnored = lines.some(line => {
+		const trimmed = line.trim();
+		return trimmed === ignorePattern || trimmed === ignorePattern + '/';
 	});
 
-	if (result.exitCode === 0) {
-		return succeeded('Repository has commits', true);
+	if (alreadyIgnored) {
+		return succeeded(`${ignorePattern} already ignored`, false);
 	}
 
-	return succeeded('Repository has no commits', false);
+	const markerComment = `# [epiq]: hydrated state is never to be committed`;
+	content = content.trimEnd() + `\n\n${markerComment}\n${ignorePattern}\n`;
+
+	fs.writeFileSync(gitignorePath, content + '\n', 'utf8');
+
+	logger.info(`Added ${ignorePattern} to .gitignore (epiq local cache)`);
+	return succeeded(`${ignorePattern} ignored`, true);
 };
 
 export const ensureInitialCommit = async (
@@ -176,53 +66,17 @@ export const ensureInitialCommit = async (
 	if (headResult.exitCode === 0) {
 		return succeeded('Initial commit already exists', false);
 	}
+	logger.info('Creating initial commit');
 
-	const commitResult = await execGit({
-		args: ['commit', '--allow-empty', '-m', 'Initial commit'],
+	const commitResult = await git.commit({
 		cwd: repoRoot,
+		message: 'Initial commit',
+		allowEmpty: true,
 	});
 
-	if (isFail(commitResult)) {
-		return failed(commitResult.message);
-	}
+	if (isFail(commitResult)) return failed(commitResult.message);
 
 	return succeeded('Created initial commit', true);
-};
-
-export const hydrateEventsFromRemote = ({
-	repoRoot,
-	worktreeRoot,
-}: {
-	repoRoot: string;
-	worktreeRoot: string;
-}): Result<boolean> => {
-	const remoteFilesResult = listEventFiles(worktreeRoot);
-	if (isFail(remoteFilesResult)) return failed(remoteFilesResult.message);
-
-	const remoteEventsDir = getEventsDir(worktreeRoot);
-	const localEventsDir = getEventsDir(repoRoot);
-
-	let changed = false;
-
-	for (const fileName of remoteFilesResult.data) {
-		const from = path.join(remoteEventsDir, fileName);
-		const to = path.join(localEventsDir, fileName);
-
-		logger.debug('[sync] hydrate event file', {from, to});
-
-		const mergeResult = mergeEventFile({
-			sourceFile: from,
-			targetFile: to,
-		});
-
-		if (isFail(mergeResult)) return failed(mergeResult.message);
-
-		changed = changed || mergeResult.data;
-	}
-
-	logger.debug('[sync] hydrate changed', changed);
-
-	return succeeded('Hydrated event files from remote worktree', changed);
 };
 
 const sanitizeRefSegment = (value: string): string =>
@@ -236,120 +90,113 @@ const sanitizeRefSegment = (value: string): string =>
 const buildSyncCommitMessage = async (
 	repoRoot: string,
 ): Promise<Result<string>> => {
-	const branchResult = await getCurrentBranchName(repoRoot);
+	const branchResult = await getCurrentBranch(repoRoot);
 	if (isFail(branchResult)) return failed(branchResult.message);
 
 	const shaResult = await getShortHeadSha(repoRoot);
 	if (isFail(shaResult)) return failed(shaResult.message);
 
 	const message = `[epiq:sync:${sanitizeRefSegment(
-		branchResult.data,
-	)}:${sanitizeRefSegment(shaResult.data)}]`;
-
-	logger.debug('[sync] commit message', message);
+		branchResult.value,
+	)}:${sanitizeRefSegment(shaResult.value)}]`;
 
 	return succeeded('Built sync commit message', message);
 };
 
-const createEmptyStorageBranch = async (
+const createStateBranch = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
-	logger.debug('[sync] create empty storage branch', REMOTE_BRANCH);
+	logger.info(`Creating ${STATE_BRANCH}`);
 
 	const commitResult = await execGit({
-		args: ['commit-tree', EMPTY_TREE_SHA, '-m', '[epiq:init-storage-branch]'],
+		args: ['commit-tree', EMPTY_TREE_SHA, '-m', '[epiq:init-state-branch]'],
 		cwd: repoRoot,
 	});
 
 	if (isFail(commitResult)) {
 		return failed(
-			`Failed to create storage branch commit\n${commitResult.message}`,
+			`Failed to create state branch commit\n${commitResult.message}`,
 		);
 	}
 
-	const commitSha = commitResult.data.stdout.trim();
+	const commitSha = commitResult.value.stdout.trim();
 
 	const updateRefResult = await execGit({
-		args: ['update-ref', `refs/heads/${REMOTE_BRANCH}`, commitSha],
+		args: ['update-ref', `refs/heads/${STATE_BRANCH}`, commitSha],
 		cwd: repoRoot,
 	});
 
 	if (isFail(updateRefResult)) {
 		return failed(
-			`Failed to create ${REMOTE_BRANCH}\n${updateRefResult.message}`,
+			`Failed to create ${STATE_BRANCH}\n${updateRefResult.message}`,
 		);
 	}
 
-	return succeeded('Created empty storage branch', true);
+	return succeeded('Created state branch', true);
 };
 
-const ensureLocalRemoteBranch = async ({
+const ensureLocalStateBranch = async ({
 	repoRoot,
 }: {
 	repoRoot: string;
 }): Promise<Result<boolean>> => {
-	logger.debug('[sync] ensure local remote branch', REMOTE_BRANCH);
-
 	const localResult = await hasLocalBranch({
 		repoRoot,
-		branch: REMOTE_BRANCH,
+		branch: STATE_BRANCH,
 	});
-	if (isFail(localResult)) return failed(localResult.message);
-
-	if (localResult.data) {
-		logger.debug('[sync] local remote branch exists');
-		return succeeded('Local remote branch already exists', false);
+	if (isFail(localResult)) {
+		return failed('Ensure local state branch failed\n' + localResult.message);
 	}
 
-	const remoteResult = await hasRemote({
+	if (localResult.value) {
+		return succeeded('Local state branch already exists', false);
+	}
+
+	const remoteResult = await hasRemote({repoRoot});
+	if (isFail(remoteResult)) {
+		return failed('Ensure local state branch failed\n' + remoteResult.message);
+	}
+
+	if (!remoteResult.value) {
+		return createStateBranch(repoRoot);
+	}
+
+	const remoteBranchResult = await hasRemoteBranch({
 		repoRoot,
-		remote: DEFAULT_REMOTE,
+		branch: STATE_BRANCH,
 	});
-	if (isFail(remoteResult)) return failed(remoteResult.message);
-
-	if (remoteResult.data) {
-		const remoteBranchResult = await hasRemoteBranch({
-			repoRoot,
-			remote: DEFAULT_REMOTE,
-			branch: REMOTE_BRANCH,
-		});
-		if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
-
-		if (remoteBranchResult.data) {
-			logger.debug('[sync] fetch remote branch before local track');
-
-			const fetchResult = await execGit({
-				args: ['fetch', DEFAULT_REMOTE, REMOTE_BRANCH],
-				cwd: repoRoot,
-			});
-			if (isFail(fetchResult)) {
-				return failed(
-					`Failed to fetch ${REMOTE_BRANCH} from remote\n${fetchResult.message}`,
-				);
-			}
-
-			logger.debug('[sync] create local tracking branch', REMOTE_BRANCH);
-
-			const createFromRemote = await execGit({
-				args: [
-					'branch',
-					'--track',
-					REMOTE_BRANCH,
-					`${DEFAULT_REMOTE}/${REMOTE_BRANCH}`,
-				],
-				cwd: repoRoot,
-			});
-			if (isFail(createFromRemote)) {
-				return failed(
-					`Failed to create local ${REMOTE_BRANCH} from remote\n${createFromRemote.message}`,
-				);
-			}
-
-			return succeeded('Created local remote branch from remote', true);
-		}
+	if (isFail(remoteBranchResult)) {
+		return failed(
+			'Ensure local state branch failed\n' + remoteBranchResult.message,
+		);
 	}
 
-	return createEmptyStorageBranch(repoRoot);
+	if (!remoteBranchResult.value) {
+		return createStateBranch(repoRoot);
+	}
+
+	const fetchResult = await git.fetch({
+		cwd: repoRoot,
+		remote: ORIGIN,
+		branch: STATE_BRANCH,
+	});
+	if (isFail(fetchResult)) {
+		return failed(
+			`Failed to fetch ${STATE_BRANCH} from remote\n${fetchResult.message}`,
+		);
+	}
+
+	const createFromRemoteResult = await execGit({
+		args: ['branch', '--track', STATE_BRANCH, `${ORIGIN}/${STATE_BRANCH}`],
+		cwd: repoRoot,
+	});
+	if (isFail(createFromRemoteResult)) {
+		return failed(
+			`Failed to create local ${STATE_BRANCH} from remote\n${createFromRemoteResult.message}`,
+		);
+	}
+
+	return succeeded('Created local state branch from remote', true);
 };
 
 const getWorktreeRootForBranch = async ({
@@ -366,7 +213,7 @@ const getWorktreeRootForBranch = async ({
 
 	if (isFail(result)) return failed(result.message);
 
-	const lines = result.data.stdout.split('\n');
+	const lines = result.value.stdout.split('\n');
 	let currentWorktree: string | null = null;
 
 	for (const line of lines) {
@@ -383,383 +230,300 @@ const getWorktreeRootForBranch = async ({
 	return succeeded('No worktree found for branch', null);
 };
 
-const createRemoteWorktree = async ({
+const createStateBranchWorktree = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 }): Promise<Result<boolean>> => {
-	logger.debug('[sync] create remote worktree', worktreeRoot);
-
-	const ensureRoot = ensureDir(path.dirname(worktreeRoot));
-	if (isFail(ensureRoot)) return failed(ensureRoot.message);
-
-	if (
-		fs.existsSync(worktreeRoot) &&
-		!fs.existsSync(path.join(worktreeRoot, '.git'))
-	) {
-		logger.debug('[sync] remove broken remote worktree path', worktreeRoot);
-		removePath(worktreeRoot);
+	const ensureRoot = ensureDir(path.dirname(stateBranchRoot));
+	if (isFail(ensureRoot)) {
+		return failed(
+			'Failed to create state branch worktree\n' + ensureRoot.message,
+		);
 	}
 
-	const result = await execGit({
-		args: ['worktree', 'add', worktreeRoot, REMOTE_BRANCH],
+	if (
+		fs.existsSync(stateBranchRoot) &&
+		!fs.existsSync(path.join(stateBranchRoot, '.git'))
+	) {
+		logger.info('Removing broken state branch worktree path');
+		removePath(stateBranchRoot);
+	}
+
+	logger.info('Creating state branch worktree');
+
+	const result = await git.worktreeAdd({
 		cwd: repoRoot,
+		worktreeRoot: stateBranchRoot,
+		branch: STATE_BRANCH,
 	});
 
 	if (isFail(result)) {
-		return failed(`Failed to create remote worktree\n${result.message}`);
+		return failed(`Failed to create state branch worktree\n${result.message}`);
 	}
 
-	return succeeded('Created remote worktree', true);
+	return succeeded('Created state branch worktree', true);
 };
 
-const ensureRemoteWorktree = async ({
+const ensureStateBranchWorktree = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 }): Promise<Result<boolean>> => {
-	logger.debug('[sync] ensure remote worktree', worktreeRoot);
-
-	const existingBranchWorktreeResult = await getWorktreeRootForBranch({
+	const existingResult = await getWorktreeRootForBranch({
 		repoRoot,
-		branch: REMOTE_BRANCH,
+		branch: STATE_BRANCH,
 	});
-	if (isFail(existingBranchWorktreeResult)) {
-		return failed(existingBranchWorktreeResult.message);
-	}
+	if (isFail(existingResult)) return failed(existingResult.message);
 
-	const existingBranchWorktree = existingBranchWorktreeResult.data;
-	const expected = path.resolve(worktreeRoot);
-	const existing = existingBranchWorktree
-		? path.resolve(existingBranchWorktree)
+	const expected = path.resolve(stateBranchRoot);
+	const existing = existingResult.value
+		? path.resolve(existingResult.value)
 		: null;
 
 	if (existing && existing === expected && fs.existsSync(existing)) {
-		logger.debug('[sync] reuse existing remote branch worktree', {
-			expected,
-			actual: existing,
-		});
-
 		return succeeded(
-			'Remote branch already checked out in expected worktree',
+			'State branch already checked out in expected worktree',
 			false,
 		);
 	}
 
 	if (existing && existing !== expected) {
-		logger.debug('[sync] remove old remote branch worktree', {
-			expected,
-			actual: existing,
-		});
+		logger.info('Moving state branch worktree to expected location');
 
-		const removeResult = await execGit({
-			args: ['worktree', 'remove', '--force', existing],
+		const removeResult = await git.worktreeRemove({
 			cwd: repoRoot,
+			worktreeRoot: existing,
 		});
 
 		if (isFail(removeResult)) {
 			return failed(
-				`Failed to remove existing remote worktree\n${removeResult.message}`,
+				`Failed to remove existing state branch worktree\n${removeResult.message}`,
 			);
 		}
 	}
 
 	if (existing && !fs.existsSync(existing)) {
-		logger.debug('[sync] prune stale branch worktree registration', {
-			existingBranchWorktree: existing,
-		});
+		logger.info('Pruning stale state branch worktree');
 
-		const pruneResult = await execGit({
-			args: ['worktree', 'prune'],
-			cwd: repoRoot,
-		});
+		const pruneResult = await git.worktreePrune({cwd: repoRoot});
 
 		if (isFail(pruneResult)) {
 			return failed(`Failed to prune stale worktrees\n${pruneResult.message}`);
 		}
 	}
 
-	const registeredResult = await hasWorktree({repoRoot, worktreeRoot});
+	const registeredResult = await hasWorktree({
+		repoRoot,
+		worktreeRoot: stateBranchRoot,
+	});
 	if (isFail(registeredResult)) return failed(registeredResult.message);
 
-	const existsOnDisk = fs.existsSync(worktreeRoot);
+	const existsOnDisk = fs.existsSync(stateBranchRoot);
 
-	if (registeredResult.data && existsOnDisk) {
-		logger.debug('[sync] remote worktree exists');
-		return succeeded('Remote worktree already exists', false);
+	if (registeredResult.value && existsOnDisk) {
+		return succeeded('State branch worktree already exists', false);
 	}
 
-	if (registeredResult.data && !existsOnDisk) {
-		logger.debug('[sync] prune stale remote worktree registration');
+	if (registeredResult.value && !existsOnDisk) {
+		logger.info('Pruning missing registered state branch worktree');
 
-		const pruneResult = await execGit({
-			args: ['worktree', 'prune'],
-			cwd: repoRoot,
-		});
+		const pruneResult = await git.worktreePrune({cwd: repoRoot});
 
 		if (isFail(pruneResult)) {
 			return failed(`Failed to prune stale worktrees\n${pruneResult.message}`);
 		}
 	}
 
-	return createRemoteWorktree({repoRoot, worktreeRoot});
+	return createStateBranchWorktree({repoRoot, stateBranchRoot});
 };
 
-const ensureRemoteBranchCheckedOut = async (
-	worktreeRoot: string,
+/**
+ * Ensure we are ate state branch head
+ */
+const ensureStateBranchCheckedOut = async (
+	stateBranchRoot: string,
 ): Promise<Result<boolean>> => {
-	const currentBranchResult = await getCurrentBranchName(worktreeRoot);
+	const currentBranchResult = await getCurrentBranch(stateBranchRoot);
 	if (isFail(currentBranchResult)) return failed(currentBranchResult.message);
 
-	if (currentBranchResult.data === REMOTE_BRANCH) {
-		logger.debug('[sync] remote branch already checked out');
-		return succeeded('Remote branch already checked out', false);
+	if (currentBranchResult.value === STATE_BRANCH) {
+		return succeeded('State branch already checked out', false);
 	}
 
-	logger.debug('[sync] checkout remote branch', REMOTE_BRANCH);
-
-	const checkoutResult = await execGit({
-		args: ['checkout', REMOTE_BRANCH],
-		cwd: worktreeRoot,
+	const checkoutResult = await git.checkout({
+		cwd: stateBranchRoot,
+		branch: STATE_BRANCH,
 	});
 
 	if (isFail(checkoutResult)) {
 		return failed(
-			`Failed to checkout ${REMOTE_BRANCH}\n${checkoutResult.message}`,
+			`Failed to checkout ${STATE_BRANCH}\n${checkoutResult.message}`,
 		);
 	}
 
-	return succeeded('Checked out remote branch', true);
+	return succeeded('Checked out state branch', true);
 };
 
-const ensureRemoteBranchIsStorageOnly = async (
-	worktreeRoot: string,
+const ensureStateBranchTracksRemote = async (
+	stateBranchRoot: string,
 ): Promise<Result<boolean>> => {
-	const result = await execGit({
-		args: ['ls-tree', '--name-only', 'HEAD'],
-		cwd: worktreeRoot,
-	});
-
-	if (isFail(result)) return failed(result.message);
-
-	const topLevelFiles = result.data.stdout.trim().split('\n').filter(Boolean);
-	const invalidFiles = topLevelFiles.filter(file => file !== EPIQ_DIR);
-
-	if (invalidFiles.length === 0) {
-		return succeeded('Remote branch is storage-only', false);
-	}
-
-	logger.debug('[sync] remove app files from storage branch', invalidFiles);
-
-	const removeResult = await execGit({
-		args: ['rm', '-r', '--ignore-unmatch', '--', ...invalidFiles],
-		cwd: worktreeRoot,
-	});
-
-	if (isFail(removeResult)) {
-		return failed(`Failed to clean storage branch\n${removeResult.message}`);
-	}
-
-	const commitResult = await commitAndGetSha({
-		cwd: worktreeRoot,
-		message: '[epiq:repair-storage-branch]',
-	});
-
-	if (isFail(commitResult)) return failed(commitResult.message);
-
-	return succeeded('Cleaned storage branch', true);
-};
-
-const ensureRemoteUpstream = async (
-	worktreeRoot: string,
-): Promise<Result<boolean>> => {
-	logger.debug('[sync] ensure remote upstream', REMOTE_BRANCH);
-
-	const upstreamResult = await hasUpstream(worktreeRoot);
+	const upstreamResult = await hasUpstream(stateBranchRoot);
 	if (isFail(upstreamResult)) return failed(upstreamResult.message);
 
-	if (upstreamResult.data) {
-		logger.debug('[sync] remote upstream already configured');
-		return succeeded('Remote upstream already configured', false);
+	if (upstreamResult.value) {
+		return succeeded('State branch upstream already configured', false);
 	}
 
 	const remoteResult = await hasRemote({
-		repoRoot: worktreeRoot,
-		remote: DEFAULT_REMOTE,
+		repoRoot: stateBranchRoot,
 	});
 	if (isFail(remoteResult)) return failed(remoteResult.message);
 
-	if (!remoteResult.data) {
-		logger.debug('[sync] no remote configured for upstream');
-		return succeeded('No remote available for upstream', false);
+	if (!remoteResult.value) {
+		return succeeded('No remote available for state branch upstream', false);
 	}
 
 	const remoteBranchResult = await hasRemoteBranch({
-		repoRoot: worktreeRoot,
-		remote: DEFAULT_REMOTE,
-		branch: REMOTE_BRANCH,
+		repoRoot: stateBranchRoot,
+		branch: STATE_BRANCH,
 	});
 	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
 
-	if (!remoteBranchResult.data) {
-		logger.debug(
-			'[sync] remote branch missing; upstream will be configured on first push',
+	if (!remoteBranchResult.value) {
+		return succeeded(
+			'Remote state branch missing; upstream will be configured on first push',
+			false,
 		);
-		return succeeded('Deferred upstream until first push', false);
 	}
 
-	logger.debug('[sync] fetch remote branch before upstream set');
+	logger.info(`Configuring ${STATE_BRANCH} upstream`);
 
-	const fetchResult = await execGit({
-		args: ['fetch', DEFAULT_REMOTE, REMOTE_BRANCH],
-		cwd: worktreeRoot,
+	const fetchResult = await git.fetch({
+		cwd: stateBranchRoot,
+		remote: ORIGIN,
+		branch: STATE_BRANCH,
 	});
 	if (isFail(fetchResult)) {
-		return failed(`Failed to fetch ${REMOTE_BRANCH}\n${fetchResult.message}`);
+		return failed(`Failed to fetch ${STATE_BRANCH}\n${fetchResult.message}`);
 	}
 
-	logger.debug('[sync] set upstream to remote branch');
-
-	const setUpstreamResult = await execGit({
-		args: [
-			'branch',
-			'--set-upstream-to',
-			`${DEFAULT_REMOTE}/${REMOTE_BRANCH}`,
-			REMOTE_BRANCH,
-		],
-		cwd: worktreeRoot,
+	const setUpstreamResult = await git.setUpstream({
+		cwd: stateBranchRoot,
+		branch: STATE_BRANCH,
+		upstream: `${ORIGIN}/${STATE_BRANCH}`,
 	});
 
 	if (isFail(setUpstreamResult)) {
 		return failed(
-			`Failed to set remote upstream\n${setUpstreamResult.message}`,
+			`Failed to set state branch upstream\n${setUpstreamResult.message}`,
 		);
 	}
 
-	return succeeded('Configured remote upstream', true);
+	return succeeded('Configured state branch upstream', true);
 };
 
-export const stageRemoteOwnEventFile = async ({
-	worktreeRoot,
+export const stageStateBranchOwnEventFile = async ({
+	stateBranchRoot,
 	ownEventFileName,
 }: {
-	worktreeRoot: string;
+	stateBranchRoot: string;
 	ownEventFileName: string;
 }): Promise<Result<void>> => {
-	logger.debug(
-		'[sync] stage own event file in remote worktree',
-		ownEventFileName,
-	);
-
-	const result = await execGit({
-		args: ['add', getRelativeEventFilePath(ownEventFileName)],
-		cwd: worktreeRoot,
+	const stageResult = await git.stage({
+		cwd: stateBranchRoot,
+		pathspec: getRelativeEventFilePath(ownEventFileName),
 	});
 
-	if (isFail(result)) {
-		return failed(`Failed to stage remote own event file\n${result.message}`);
+	if (isFail(stageResult)) {
+		return failed(
+			`Failed to stage state branch own event file\n${stageResult.message}`,
+		);
 	}
 
-	return succeeded('Staged remote own event file', undefined);
+	return succeeded('Staged state branch own event file', undefined);
 };
 
-export const createRemoteSyncCommit = async ({
+export const createStateBranchSyncCommit = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 }): Promise<Result<string>> => {
 	const messageResult = await buildSyncCommitMessage(repoRoot);
-	if (isFail(messageResult)) return failed(messageResult.message);
-
-	logger.debug('[sync] create remote sync commit');
-
-	return commitAndGetSha({
-		cwd: worktreeRoot,
-		message: messageResult.data,
-	});
-};
-
-export const pushRemote = async (
-	worktreeRoot: string,
-): Promise<Result<boolean>> => {
-	logger.debug('[sync] push remote worktree');
-
-	const upstreamResult = await hasUpstream(worktreeRoot);
-	if (isFail(upstreamResult)) return failed(upstreamResult.message);
-
-	const result = await execGit({
-		args: upstreamResult.data
-			? ['push']
-			: ['push', '-u', DEFAULT_REMOTE, REMOTE_BRANCH],
-		cwd: worktreeRoot,
-	});
-
-	logger.debug('[sync] push result', result);
-
-	if (isFail(result)) {
-		return failed(`Failed during remote push\n${result.message}`);
+	if (isFail(messageResult)) {
+		return failed(
+			'Create state branch sync commit failed\n' + messageResult.message,
+		);
 	}
 
-	return succeeded('Pushed remote', true);
+	return commitAndGetSha({
+		cwd: stateBranchRoot,
+		message: messageResult.value,
+	});
 };
 
-export const bootstrapRemoteStorageBase = async ({
+export const pushStateBranch = async (
+	stateBranchRoot: string,
+): Promise<Result<boolean>> => {
+	const upstreamResult = await hasUpstream(stateBranchRoot);
+	if (isFail(upstreamResult)) return failed(upstreamResult.message);
+
+	const result = upstreamResult.value
+		? await git.push({cwd: stateBranchRoot})
+		: await git.push({
+				cwd: stateBranchRoot,
+				remote: ORIGIN,
+				branch: STATE_BRANCH,
+				setUpstream: true,
+		  });
+
+	if (isFail(result)) {
+		return failed(`Failed during state branch push\n${result.message}`);
+	}
+
+	return succeeded('Pushed state branch', true);
+};
+
+export const bootstrapStateBranchStorage = async ({
 	repoRoot,
-	worktreeRoot,
+	stateBranchRoot,
 	ensureUpstream,
 }: {
 	repoRoot: string;
-	worktreeRoot: string;
+	stateBranchRoot: string;
 	ensureUpstream: boolean;
 }): Promise<Result<boolean>> => {
-	logger.debug('[sync] bootstrap remote storage', {
-		repoRoot,
-		worktreeRoot,
-		ensureUpstream,
-	});
-
 	let changed = false;
 
-	const steps: Result[] = [
-		ensureEpiqStorage(),
-		await ensureLocalRemoteBranch({repoRoot}),
-		await ensureRemoteWorktree({repoRoot, worktreeRoot}),
-		await ensureRemoteBranchCheckedOut(worktreeRoot),
-		await ensureRemoteBranchIsStorageOnly(worktreeRoot),
+	const steps = [
+		ensureWorktreesDir(),
+		await ensureLocalStateBranch({repoRoot}),
+		await ensureStateBranchWorktree({
+			repoRoot,
+			stateBranchRoot,
+		}),
+		await ensureStateBranchCheckedOut(stateBranchRoot), // Mostly redundant, but protects against manual mess ups on the worktree
+		await ensureStateBranchIsStorageOnly(stateBranchRoot),
 		ensureUpstream
-			? await ensureRemoteUpstream(worktreeRoot)
-			: succeeded('Skipped remote upstream bootstrap', false),
-	];
+			? await ensureStateBranchTracksRemote(stateBranchRoot)
+			: succeeded('Skipped state branch upstream bootstrap', false),
+	] as const;
 
 	for (const step of steps) {
 		if (isFail(step)) return failed(step.message);
-		changed = changed || Boolean(step.data);
+		changed = changed || Boolean(step.value);
 	}
-
-	logger.debug('[sync] bootstrap changed', changed);
 
 	return succeeded(
 		ensureUpstream
-			? 'Bootstrapped remote storage'
-			: 'Bootstrapped remote storage (readonly)',
+			? 'Bootstrapped state storage'
+			: 'Bootstrapped state storage (readonly)',
 		changed,
 	);
-};
-
-export const ensureRemoteLayout = (
-	repoRoot: string,
-	worktreeRoot: string,
-): Result<void> => {
-	for (const dir of [getEventsDir(repoRoot), getEventsDir(worktreeRoot)]) {
-		const result = ensureDir(dir);
-		if (isFail(result)) return failed(result.message);
-	}
-
-	return succeeded('Ensured remote layout', undefined);
 };

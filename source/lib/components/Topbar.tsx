@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
-import {formatDateTime, safeDateFromUlid} from '../../event/date-utils.js';
-import {isSuccess} from '../command-line/command-types.js';
+import {formatDateTime, safeDateFromUlid} from '../event/date-utils.js';
+import {isSuccess} from '../model/result-types.js';
 import {Filter} from '../model/app-state.model.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {useAppState} from '../state/state.js';
@@ -24,7 +24,7 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 	const currentEventId = eventLog.at(-1)?.id;
 	const currentEventTimeStampResult = safeDateFromUlid(currentEventId ?? '');
 	const currentEventTimeStamp = isSuccess(currentEventTimeStampResult)
-		? formatDateTime(currentEventTimeStampResult.data)
+		? formatDateTime(currentEventTimeStampResult.value)
 		: 'INVALID DATE';
 
 	return (
