@@ -3,7 +3,8 @@ import {createIssueEvents} from '../event/common-events.js';
 import {bootStateFromEventLog} from '../event/event-boot.js';
 import {loadMergedEvents} from '../event/event-load.js';
 import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
-import {getPersistFileName, resolveEpiqRoot} from '../event/event-persist.js';
+import {getPersistFileName} from '../event/event-persist.js';
+import {resolveClosestEpiqRoot} from '../paths.js';
 import {AppEvent, MovePosition} from '../event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
@@ -53,15 +54,16 @@ type Actor = {
 };
 
 const boot = (repoRoot?: string): Result<BootResult> => {
-	const root = resolveEpiqRoot(repoRoot ?? process.cwd());
+	const epiqRootResult = resolveClosestEpiqRoot(repoRoot ?? process.cwd());
+	if (isFail(epiqRootResult)) return epiqRootResult;
 
-	const eventsResult = loadMergedEvents(root);
+	const eventsResult = loadMergedEvents(epiqRootResult.value);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
 	const bootResult = bootStateFromEventLog(eventsResult.value);
 	if (isFail(bootResult)) return failed(bootResult.message);
 
-	return succeeded('Booted Epiq state', {root});
+	return succeeded('Booted Epiq state', {root: epiqRootResult.value});
 };
 
 const getActor = (): Result<Actor> => {
@@ -310,13 +312,16 @@ export const moveIssue = (input: MoveIssueInput) => {
 };
 
 export const sync = async (input: SyncInput = {}) => {
-	const root = resolveEpiqRoot(input.repoRoot ?? process.cwd());
+	const epiqRootResult = resolveClosestEpiqRoot(
+		input.repoRoot ?? process.cwd(),
+	);
+	if (isFail(epiqRootResult)) return failed('Sync failed \n' + epiqRootResult);
 
 	const actorResult = getActor();
 	if (isFail(actorResult)) return actorResult;
 
 	const result = await syncEpiqWithRemote({
-		cwd: root,
+		cwd: epiqRootResult.value,
 		ownEventFileName: getPersistFileName({
 			userId: actorResult.value.userId,
 			userName: actorResult.value.userName,

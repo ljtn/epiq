@@ -444,7 +444,9 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.SET_USERNAME]: args => {
 		return !args.inputString
 			? invalid({
-					message: `Enter a username. Saved in ${chalk.bgBlack('~/.epiq/')}`,
+					message: `Enter a username. Saved in ${chalk.bgBlack(
+						'~/.epiq-global/',
+					)}`,
 			  })
 			: valid();
 	},

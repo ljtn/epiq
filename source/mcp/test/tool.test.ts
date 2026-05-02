@@ -1,23 +1,37 @@
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 import {isFail, Result} from '../../lib/model/result-types.js';
 
-vi.mock('../event/event-persist.js', () => ({
-	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
-}));
+vi.mock('../../paths.js', async importOriginal => {
+	const actual = await importOriginal<typeof import('../../paths.js')>();
+
+	return {
+		...actual,
+		resolveClosestEpiqRoot: vi.fn((dir: string) => ({
+			status: 'success',
+			message: 'Resolved closest .epiq root',
+			value: dir,
+		})),
+		ensureEventsDir: vi.fn(() => ({
+			status: 'success',
+			message: 'Ensured events directory',
+			value: undefined,
+		})),
+	};
+});
 
 vi.mock('../../event/event-load.js', () => ({
 	loadMergedEvents: vi.fn(() => ({
-		result: 'success',
+		status: 'success',
 		message: 'loaded',
-		data: [],
+		value: [],
 	})),
 }));
 
 vi.mock('../../event/event-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => ({
-		result: 'success',
+		status: 'success',
 		message: 'booted',
-		data: null,
+		value: null,
 	})),
 }));
 
@@ -33,6 +47,16 @@ vi.mock('../../lib/config/user-config.js', () => ({
 				},
 			} satisfies Result),
 	),
+}));
+
+vi.mock('../../event/event-materialize-and-persist.js', () => ({
+	materializeAndPersistAll: vi.fn(() => [
+		{
+			status: 'success',
+			message: 'persisted',
+			value: null,
+		},
+	]),
 }));
 
 const nodes: Record<string, any> = {

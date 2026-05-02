@@ -12,6 +12,7 @@ import './logger.js';
 
 import chalk from 'chalk';
 import {patchSettingsState} from './lib/state/settings.state.js';
+import {resolveClosestEpiqRoot} from './paths.js';
 
 meow(
 	`${chalk.bold('Epiq CLI')}
@@ -46,7 +47,9 @@ const renderApp = () => {
 };
 
 const loadEventLogOrExit = () => {
-	const result = loadMergedEvents();
+	const epiqRootDirResult = resolveClosestEpiqRoot(process.cwd());
+	if (isFail(epiqRootDirResult)) throw Error(epiqRootDirResult.message);
+	const result = loadMergedEvents(epiqRootDirResult.value);
 
 	if (isFail(result)) {
 		const noEventsFound = result.message.includes('No events found');

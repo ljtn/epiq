@@ -113,7 +113,7 @@ If it is your first run, this opens the interactive setup wizard that sets you u
 
 From here, you can start running commands or use keyboard shortcuts to navigate.
 
-This creates local settings in `~/.epiq/**` and initializes synchronization for your repository. A local `.epiq` folder will also be created in your repository.
+This creates settings in `~/.epiq-global/**` and initializes synchronization for your repository. A local `.epiq` folder will also be created in your repository.
 
 > Epiq will execute git commands on your behalf in order to sync your work with a dedicated state branch remotely.
 

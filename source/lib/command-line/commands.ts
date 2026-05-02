@@ -48,6 +48,7 @@ import {
 } from '../model/result-types.js';
 import {cmdValidity} from './cmd-validity.js';
 import {parsePeekDateInput} from './validate-date.js';
+import {resolveClosestEpiqRoot} from '../../paths.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -932,7 +933,10 @@ export const commands: CommandLineActionEntry[] = [
 				mode: Mode.DEFAULT,
 			});
 
-			const allLoadedEventsResult = loadMergedEvents();
+			const epiqRootDirResult = resolveClosestEpiqRoot(process.cwd());
+			if (isFail(epiqRootDirResult)) throw new Error(epiqRootDirResult.message);
+
+			const allLoadedEventsResult = loadMergedEvents(epiqRootDirResult.value);
 			if (isFail(allLoadedEventsResult)) return failed('Unable to load events');
 
 			materializeAll(allLoadedEventsResult.value);
@@ -947,7 +951,11 @@ export const commands: CommandLineActionEntry[] = [
 			const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
 			if (isFail(boardNodeResult)) return boardNodeResult;
 
-			const eventsResult = loadMergedEvents();
+			const epiqRootDirResult = resolveClosestEpiqRoot(process.cwd());
+			if (isFail(epiqRootDirResult)) throw new Error(epiqRootDirResult.message);
+
+			const eventsResult = loadMergedEvents(epiqRootDirResult.value);
+
 			if (isFail(eventsResult)) return failed(eventsResult.message);
 			const allEvents = eventsResult.value;
 

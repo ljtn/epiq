@@ -39,6 +39,7 @@ export const ensureInitialCommit = async (
 	if (headResult.exitCode === 0) {
 		return succeeded('Initial commit already exists', false);
 	}
+	logger.info('Creating initial commit');
 
 	const commitResult = await git.commit({
 		cwd: repoRoot,
@@ -112,6 +113,8 @@ const buildSyncCommitMessage = async (
 const createStateBranch = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
+	logger.info(`Creating ${STATE_BRANCH}`);
+
 	const commitResult = await execGit({
 		args: ['commit-tree', EMPTY_TREE_SHA, '-m', '[epiq:init-state-branch]'],
 		cwd: repoRoot,
@@ -252,9 +255,11 @@ const createStateBranchWorktree = async ({
 		fs.existsSync(stateBranchRoot) &&
 		!fs.existsSync(path.join(stateBranchRoot, '.git'))
 	) {
-		logger.debug('remove broken state branch worktree path', stateBranchRoot);
+		logger.info('Removing broken state branch worktree path');
 		removePath(stateBranchRoot);
 	}
+
+	logger.info('Creating state branch worktree');
 
 	const result = await git.worktreeAdd({
 		cwd: repoRoot,
@@ -295,6 +300,8 @@ const ensureStateBranchWorktree = async ({
 	}
 
 	if (existing && existing !== expected) {
+		logger.info('Moving state branch worktree to expected location');
+
 		const removeResult = await git.worktreeRemove({
 			cwd: repoRoot,
 			worktreeRoot: existing,
@@ -308,6 +315,8 @@ const ensureStateBranchWorktree = async ({
 	}
 
 	if (existing && !fs.existsSync(existing)) {
+		logger.info('Pruning stale state branch worktree');
+
 		const pruneResult = await git.worktreePrune({cwd: repoRoot});
 
 		if (isFail(pruneResult)) {
@@ -328,6 +337,8 @@ const ensureStateBranchWorktree = async ({
 	}
 
 	if (registeredResult.value && !existsOnDisk) {
+		logger.info('Pruning missing registered state branch worktree');
+
 		const pruneResult = await git.worktreePrune({cwd: repoRoot});
 
 		if (isFail(pruneResult)) {
@@ -396,6 +407,8 @@ const ensureStateBranchTracksRemote = async (
 			false,
 		);
 	}
+
+	logger.info(`Configuring ${STATE_BRANCH} upstream`);
 
 	const fetchResult = await git.fetch({
 		cwd: stateBranchRoot,
@@ -511,7 +524,7 @@ export const bootstrapStateBranchStorage = async ({
 
 	for (const step of steps) {
 		if (isFail(step)) return failed(step.message);
-		changed = changed;
+		changed = changed || Boolean(step.value);
 	}
 
 	return succeeded(

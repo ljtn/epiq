@@ -2,17 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime} from 'ulid';
 import {z} from 'zod';
-import {getEpiqDirName} from '../init.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {
-	parsePersistedEvent,
-	PersistedEvent,
-	resolveEpiqRoot,
-} from './event-persist.js';
+import {parsePersistedEvent, PersistedEvent} from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
-
-const EPIQ_DIR = getEpiqDirName();
-const EVENTS_DIR = 'events';
+import {getEventsDirPath} from '../paths.js';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default('unknown'),
@@ -23,9 +16,6 @@ export type ReconstructedEvent = PersistedEvent & {
 	userId: string;
 	userName: string;
 };
-
-const getEventsDir = (rootDir = process.cwd()) =>
-	path.join(resolveEpiqRoot(rootDir), EPIQ_DIR, EVENTS_DIR);
 
 type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
@@ -168,9 +158,9 @@ export const parsePersistedEventsFile = (
 };
 
 function loadAllPersistedEvents(
-	rootDir = process.cwd(),
+	epiqRoot: string,
 ): Result<ReconstructedEvent[]> {
-	const dir = getEventsDir(rootDir);
+	const dir = getEventsDirPath(epiqRoot);
 
 	if (!fs.existsSync(dir)) {
 		return failed('No events found');
@@ -196,8 +186,8 @@ function loadAllPersistedEvents(
 	return succeeded('All events loaded', getSortedEvents(entries));
 }
 
-export function loadMergedEvents(rootDir = process.cwd()): Result<AppEvent[]> {
-	const allEvents = loadAllPersistedEvents(rootDir);
+export function loadMergedEvents(epiqRoot: string): Result<AppEvent[]> {
+	const allEvents = loadAllPersistedEvents(epiqRoot);
 	if (isFail(allEvents)) {
 		return failed(allEvents.message);
 	}

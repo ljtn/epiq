@@ -1,4 +1,3 @@
-import {logger} from '../../logger.js';
 export const resultStatuses = {
 	None: 'none',
 	Success: 'success',
@@ -18,7 +17,6 @@ export type ReturnFail = {
 };
 
 export const failed = (message: string): ReturnFail => {
-	logger.error(message);
 	return {
 		status: resultStatuses.Fail,
 		message,
@@ -27,7 +25,6 @@ export const failed = (message: string): ReturnFail => {
 };
 
 export const succeeded = <T>(message: string, value: T): ReturnSuccess<T> => {
-	logger.info(message);
 	return {
 		status: resultStatuses.Success,
 		message,

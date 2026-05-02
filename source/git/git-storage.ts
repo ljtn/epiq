@@ -2,35 +2,34 @@ import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {getEpiqDirName} from '../init.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {memoizeResult} from '../lib/utils/memoize.js';
 import {logger} from '../logger.js';
 import {commitAndGetSha, execGit} from './git-utils.js';
-
-export const EPIQ_DIR = getEpiqDirName();
-const EVENTS_SUBDIR = 'events';
+import {EPIQ_DIR_NAME, GLOBAL_CONFIG_DIR_NAME} from '../paths.js';
+import {EVENTS_DIR_NAME} from '../paths.js';
 
 export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 export const getRelativeEventFilePath = (fileName: string): string =>
-	path.join(EPIQ_DIR, EVENTS_SUBDIR, fileName);
+	path.join(EPIQ_DIR_NAME, EVENTS_DIR_NAME, fileName);
 
 const getRepoId = (repoRoot: string): string =>
 	createHash('sha1').update(path.resolve(repoRoot)).digest('hex').slice(0, 12);
 
-export const getEpiqHome = (): string => path.join(os.homedir(), '.epiq');
+export const getEpiqGlobal = (): string =>
+	path.join(os.homedir(), GLOBAL_CONFIG_DIR_NAME);
 
 export const getWorktreesRoot = (): string =>
-	path.join(getEpiqHome(), 'worktrees');
+	path.join(getEpiqGlobal(), 'worktrees');
 
 export const getStateBranchRoot = (repoRoot: string): string =>
 	path.join(getWorktreesRoot(), getRepoId(repoRoot));
 
-const getEpiqRoot = (root: string): string => path.join(root, EPIQ_DIR);
+const getEpiqRoot = (root: string): string => path.join(root, EPIQ_DIR_NAME);
 
 export const getEventsDir = (root: string): string =>
-	path.join(getEpiqRoot(root), EVENTS_SUBDIR);
+	path.join(getEpiqRoot(root), EVENTS_DIR_NAME);
 
 export const getEventFilePath = ({
 	root,
@@ -50,7 +49,7 @@ export const ensureDir = (dirPath: string): Result<void> => {
 };
 
 export const ensureWorktreesDir = (): Result<boolean> => {
-	const homeResult = ensureDir(getEpiqHome());
+	const homeResult = ensureDir(getEpiqGlobal());
 	if (isFail(homeResult)) {
 		return failed('Ensure epiq home failed.\n' + homeResult.message);
 	}
@@ -115,7 +114,7 @@ export const ensureStateBranchIsStorageOnly = async (
 		.trim()
 		.split('\n')
 		.filter(Boolean);
-	const disallowedFiles = topLevelFiles.filter(file => file !== EPIQ_DIR);
+	const disallowedFiles = topLevelFiles.filter(file => file !== EPIQ_DIR_NAME);
 
 	if (disallowedFiles.length === 0) {
 		return succeeded('State branch is storage-only', false);

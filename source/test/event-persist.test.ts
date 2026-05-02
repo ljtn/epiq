@@ -5,9 +5,9 @@ import {beforeEach, describe, expect, it} from 'vitest';
 import {
 	parsePersistedEvent,
 	persist,
-	resolveEpiqRoot,
 	toPersistedEvent,
 } from '../event/event-persist.js';
+import {resolveClosestEpiqRoot} from '../paths.js';
 import {AppEvent, StoredAppEvent} from '../event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
 
@@ -102,15 +102,23 @@ describe('event persist', () => {
 		const nested = path.join(rootDir, 'a', 'b', 'c');
 		fs.mkdirSync(nested, {recursive: true});
 
-		expect(resolveEpiqRoot(nested)).toBe(rootDir);
+		const result = resolveClosestEpiqRoot(nested);
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toBe(rootDir);
+		}
 	});
 
-	it('falls back to start directory when no .epiq directory exists', () => {
+	it('fails when no .epiq directory exists', () => {
 		const dir = makeTempDir();
 
-		expect(resolveEpiqRoot(dir)).toBe(dir);
+		const result = resolveClosestEpiqRoot(dir);
 
-		fs.rmSync(dir, {recursive: true, force: true});
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('No .epiq directory found in any parent');
+		}
 	});
 
 	it('persists event to sanitized actor event file', () => {
