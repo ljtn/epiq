@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import {safeDateFromUlid} from '../event/date-utils.js';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {getState} from '../state/state.js';

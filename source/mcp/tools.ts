@@ -14,7 +14,7 @@ import {isTicketNode, Ticket} from '../lib/model/context.model.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {getFieldValue} from '../lib/utils/ticket.utils.js';
-import {nodeRepo} from '../repository/node-repo.js';
+import {nodeRepo} from '../lib/repository/node-repo.js';
 
 type SyncInput = ToolInput;
 type MoveIssueInput = ToolInput & {

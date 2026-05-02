@@ -15,7 +15,7 @@ import {materializeAll} from '../event/event-materialize.js';
 import {getPersistFileName, resolveActorId} from '../event/event-persist.js';
 import {AppEvent} from '../event/event.model.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
-import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
+import {findAncestor, nodeRepo} from '../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {
 	getMovePendingState,

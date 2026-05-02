@@ -2,7 +2,7 @@ import {Text} from 'ink';
 import React from 'react';
 import {TagColor, TAGS_DEFAULT, TagsDefault} from '../static/default-tags.js';
 import {stringToHslHexColor} from '../utils/color.js';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {nodeRepo} from '../repository/node-repo.js';
 
 type Props = {
 	id: string;

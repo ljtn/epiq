@@ -21,14 +21,14 @@ vi.mock('../lib/event/event-persist.js', () => ({
 	),
 }));
 
-vi.mock('../repository/node-repo.js', () => ({
+vi.mock('../lib/repository/node-repo.js', () => ({
 	findAncestor: vi.fn(),
 	nodeRepo: {
 		getFieldByTitle: vi.fn(),
 	},
 }));
 
-vi.mock('../repository/rank.js', () => ({
+vi.mock('../lib/repository/rank.js', () => ({
 	getOrderedChildren: vi.fn(),
 }));
 
@@ -46,7 +46,7 @@ vi.mock('../lib/state/state.js', () => ({
 
 import {ulid} from 'ulid';
 import {materializeAndPersist} from '../lib/event/event-materialize-and-persist.js';
-import {findAncestor, nodeRepo} from '../repository/node-repo.js';
+import {findAncestor, nodeRepo} from '../lib/repository/node-repo.js';
 import {getCmdState} from '../lib/state/cmd.state.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {CmdIntent} from '../lib/command-line/command-meta.js';

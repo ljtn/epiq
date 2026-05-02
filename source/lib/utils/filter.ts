@@ -1,5 +1,5 @@
-import {nodeRepo} from '../../repository/node-repo.js';
-import {getOrderedChildren} from '../../repository/rank.js';
+import {nodeRepo} from '../repository/node-repo.js';
+import {getOrderedChildren} from '../repository/rank.js';
 import {Filter} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';

@@ -1,17 +1,17 @@
-import {MovePosition} from '../lib/event/event.model.js';
+import {MovePosition} from '../event/event.model.js';
 import {
 	failed,
 	isFail,
 	succeeded,
 	Result,
 	ReturnFail,
-} from '../lib/model/result-types.js';
-import {Contributor, Tag} from '../lib/model/app-state.model.js';
-import {AnyContext} from '../lib/model/context.model.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
-import {nodes} from '../lib/state/node-builder.js';
-import {getState, patchState, updateState} from '../lib/state/state.js';
-import {midRank} from '../lib/utils/rank.js';
+} from '../model/result-types.js';
+import {Contributor, Tag} from '../model/app-state.model.js';
+import {AnyContext} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
+import {nodes} from '../state/node-builder.js';
+import {getState, patchState, updateState} from '../state/state.js';
+import {midRank} from '../utils/rank.js';
 import {getOrderedChildren, resolveMoveRank} from './rank.js';
 
 export const findAncestor = <T extends AnyContext>(

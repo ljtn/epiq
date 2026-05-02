@@ -120,7 +120,7 @@ vi.mock('../../lib/state/state.js', () => ({
 	},
 }));
 
-vi.mock('../../repository/node-repo.js', () => ({
+vi.mock('../../lib/repository/node-repo.js', () => ({
 	nodeRepo: {
 		getNode: vi.fn((id: string) => nodes[id]),
 		getTag: vi.fn(() => undefined),

@@ -1,4 +1,4 @@
-import {nodeRepo} from '../../repository/node-repo.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {failed, Result, succeeded} from '../model/result-types.js';
 import {Contributor, Tag} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
