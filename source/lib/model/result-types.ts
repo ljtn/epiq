@@ -16,17 +16,23 @@ export type ReturnFail = {
 	data: null;
 };
 
-export const failed = (message: string): ReturnFail => ({
-	status: resultStatuses.Fail,
-	message,
-	data: null,
-});
+export const failed = (message: string): ReturnFail => {
+	logger.error(message);
+	return {
+		status: resultStatuses.Fail,
+		message,
+		data: null,
+	};
+};
 
-export const succeeded = <T>(message: string, data: T): ReturnSuccess<T> => ({
-	status: resultStatuses.Success,
-	message,
-	data,
-});
+export const succeeded = <T>(message: string, data: T): ReturnSuccess<T> => {
+	logger.info(message);
+	return {
+		status: resultStatuses.Success,
+		message,
+		data,
+	};
+};
 
 export type Result<T = unknown> = ReturnSuccess<T> | ReturnFail;
 

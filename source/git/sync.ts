@@ -2,43 +2,36 @@ import fs from 'node:fs';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {
 	execGit,
-	getRepoRoot,
 	hasInProgressGitOperation,
 	hasRemoteWorktreeChanges,
 	isDetachedHead,
 	isNonFastForward,
 	pullBranchRebaseIfPresent,
 } from './git-utils.js';
+import {getRepoRootDir} from './git-file-system.js';
 import {
 	bootstrapRemoteStorageBase,
 	createRemoteSyncCommit,
 	DEFAULT_REMOTE,
 	ensureInitialCommit,
-	ensureRemoteLayout,
-	getEventFilePath,
-	getRemoteWorktreeRoot,
 	hydrateEventsFromRemote,
 	pushRemote,
 	REMOTE_BRANCH,
 	stageRemoteOwnEventFile,
 } from './git.js';
+import {ensureRemoteLayout} from './git-file-system.js';
+import {getEventFilePath} from './git-file-system.js';
+import {getRemoteWorktreeRoot} from './git-file-system.js';
 import {mergeEventFile} from './merge.js';
 
 export const syncEpiqFromRemote = async (
 	cwd = process.cwd(),
 ): Promise<Result<{repoRoot: string; worktreeRoot: string}>> => {
-	logger.debug('[sync] start readonly sync', {cwd});
-
-	const repoRootResult = await getRepoRoot(cwd);
+	const repoRootResult = await getRepoRootDir(cwd);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
 	const repoRoot = repoRootResult.data;
 	const worktreeRoot = getRemoteWorktreeRoot(repoRoot);
-
-	logger.debug('[sync] resolved readonly roots', {
-		repoRoot,
-		worktreeRoot,
-	});
 
 	const repoOpResult = await hasInProgressGitOperation(repoRoot);
 	if (isFail(repoOpResult)) return failed(repoOpResult.message);
@@ -53,11 +46,6 @@ export const syncEpiqFromRemote = async (
 	if (isFail(ensureInitialCommitResult)) {
 		return failed(ensureInitialCommitResult.message);
 	}
-
-	logger.debug(
-		'[sync] readonly ensure initial commit changed',
-		ensureInitialCommitResult.data,
-	);
 
 	const bootstrapResult = await bootstrapRemoteStorageBase({
 		repoRoot,
@@ -78,8 +66,6 @@ export const syncEpiqFromRemote = async (
 	const layoutResult = ensureRemoteLayout(repoRoot, worktreeRoot);
 	if (isFail(layoutResult)) return failed(layoutResult.message);
 
-	logger.debug('[sync] readonly pull remote branch');
-
 	const pullResult = await pullBranchRebaseIfPresent({
 		cwd: worktreeRoot,
 		remote: DEFAULT_REMOTE,
@@ -87,15 +73,11 @@ export const syncEpiqFromRemote = async (
 	});
 	if (isFail(pullResult)) return failed(pullResult.message);
 
-	logger.debug('[sync] readonly pulled remote', pullResult.data);
-
 	const hydrateResult = hydrateEventsFromRemote({
 		repoRoot,
 		worktreeRoot,
 	});
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
-
-	logger.debug('[sync] readonly hydrated from remote', hydrateResult.data);
 
 	return succeeded('Synced from remote', {
 		repoRoot,
@@ -144,15 +126,8 @@ export const mergeOwnEventFileToRemote = ({
 	});
 
 	if (!fs.existsSync(localFile)) {
-		logger.debug('[sync] local own event file missing', localFile);
 		return succeeded('Local own event file missing, nothing to merge', false);
 	}
-
-	logger.debug('[sync] merge own event file to remote', {
-		ownEventFileName,
-		localFile,
-		remoteFile,
-	});
 
 	return mergeEventFile({
 		sourceFile: localFile,
@@ -203,62 +178,25 @@ const syncOwnFileToRemoteCommit = async ({
 	});
 };
 
-const logOwnEventFileSizes = ({
-	repoRoot,
-	worktreeRoot,
-	ownEventFileName,
-}: {
-	repoRoot: string;
-	worktreeRoot: string;
-	ownEventFileName: string;
-}): void => {
-	const localFile = getEventFilePath({
-		root: repoRoot,
-		fileName: ownEventFileName,
-	});
-
-	const remoteFile = getEventFilePath({
-		root: worktreeRoot,
-		fileName: ownEventFileName,
-	});
-
-	logger.debug('[sync] own event file sizes', {
-		local: fs.existsSync(localFile) ? fs.statSync(localFile).size : 0,
-		remote: fs.existsSync(remoteFile) ? fs.statSync(remoteFile).size : 0,
-	});
-};
-
 export const syncEpiqWithRemote = async ({
 	cwd = process.cwd(),
 	ownEventFileName,
 }: SyncArgs): Promise<Result<SyncSummary>> => {
-	logger.debug('[sync] start write sync', {
-		cwd,
-		ownEventFileName,
-	});
+	const repoRootDirResult = await getRepoRootDir(cwd);
+	if (isFail(repoRootDirResult)) return failed(repoRootDirResult.message);
+	const repoRoot = repoRootDirResult.data;
 
-	const repoRootResult = await getRepoRoot(cwd);
-	if (isFail(repoRootResult)) return failed(repoRootResult.message);
-
-	const repoRoot = repoRootResult.data;
 	const worktreeRoot = getRemoteWorktreeRoot(repoRoot);
-
-	logger.debug('[sync] resolved roots', {
-		repoRoot,
-		worktreeRoot,
-	});
 
 	const initResult = await ensureInitialCommit(repoRoot);
 	if (isFail(initResult)) {
 		return failed(`Failed to ensure initial commit: ${initResult.message}`);
 	}
 
-	logger.debug('[sync] ensure initial commit changed', initResult.data);
+	const isDetachedHeadResult = await isDetachedHead(repoRoot);
+	if (isFail(isDetachedHeadResult)) return failed(isDetachedHeadResult.message);
 
-	const detachedResult = await isDetachedHead(repoRoot);
-	if (isFail(detachedResult)) return failed(detachedResult.message);
-
-	if (detachedResult.data) {
+	if (isDetachedHeadResult.data) {
 		return failed(
 			'Cannot run :sync while the repository is in detached HEAD state',
 		);
@@ -306,8 +244,6 @@ export const syncEpiqWithRemote = async ({
 	let pushed = false;
 	let hydrated = false;
 
-	logger.debug('[sync] pull remote branch before local copy');
-
 	const pullResult = await pullBranchRebaseIfPresent({
 		cwd: worktreeRoot,
 		remote: DEFAULT_REMOTE,
@@ -316,7 +252,6 @@ export const syncEpiqWithRemote = async ({
 	if (isFail(pullResult)) return failed(pullResult.message);
 
 	pulled = pullResult.data;
-	logger.debug('[sync] pulled remote', pulled);
 
 	const hydrateResult = hydrateEventsFromRemote({
 		repoRoot,
@@ -325,7 +260,6 @@ export const syncEpiqWithRemote = async ({
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
 
 	hydrated = hydrateResult.data;
-	logger.debug('[sync] hydrated from remote', hydrated);
 
 	const syncOwnResult = await syncOwnFileToRemoteCommit({
 		repoRoot,
@@ -336,14 +270,6 @@ export const syncEpiqWithRemote = async ({
 
 	createdCommit = syncOwnResult.data.createdCommit;
 	commitSha = syncOwnResult.data.commitSha;
-
-	logOwnEventFileSizes({
-		repoRoot,
-		worktreeRoot,
-		ownEventFileName,
-	});
-
-	logger.debug('[sync] sync own file result', syncOwnResult.data);
 
 	if (createdCommit || bootstrapResult.data) {
 		const pushResult = await pushRemote(worktreeRoot);
@@ -370,17 +296,6 @@ export const syncEpiqWithRemote = async ({
 				createdCommit = true;
 				commitSha = retrySyncOwnResult.data.commitSha;
 			}
-
-			logOwnEventFileSizes({
-				repoRoot,
-				worktreeRoot,
-				ownEventFileName,
-			});
-
-			logger.debug(
-				'[sync] retry sync own file result',
-				retrySyncOwnResult.data,
-			);
 
 			finalPushResult = await pushRemote(worktreeRoot);
 		}

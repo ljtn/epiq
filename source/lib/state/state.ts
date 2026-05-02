@@ -60,7 +60,6 @@ function derive(state: BaseState): Result<AppState> {
 
 	const currentNode = nodes[currentNodeId];
 	if (!currentNode) {
-		logger.error('Unable to derive state, currentNode not found');
 		return failed('Unable to derive state, currentNode not found');
 	}
 

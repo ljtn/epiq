@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {memoizeResult} from '../lib/utils/memoize.js';
-import {logger} from '../logger.js';
 
 export type GitExecResult = {
 	stdout: string;
@@ -147,20 +146,6 @@ export const execGitAllowFail = ({
 	cwd: string;
 }): Promise<GitExecResult> =>
 	runGit({args, cwd, allowFail: true}) as Promise<GitExecResult>;
-
-export const getRepoRoot = memoizeResult(
-	async (cwd = process.cwd()): Promise<Result<string>> => {
-		const result = await execGit({
-			args: ['rev-parse', '--show-toplevel'],
-			cwd,
-		});
-
-		if (isFail(result)) return failed('Not inside a Git repository');
-
-		return succeeded('Resolved repo root', result.data.stdout.trim());
-	},
-	cwd => path.resolve(cwd),
-);
 
 export const getGitDir = memoizeResult(
 	async (repoRoot: string): Promise<Result<string>> => {
@@ -395,23 +380,18 @@ export const pullBranchRebaseIfPresent = async ({
 		return succeeded('Remote branch missing, skipped pull', false);
 	}
 
-	logger.debug('[git] fetch start', {cwd, remote, branch});
 	const fetchResult = await execGit({
 		args: ['fetch', remote, branch],
 		cwd,
 	});
-	logger.debug('[git] fetch done', fetchResult);
 
-	if (isFail(fetchResult)) {
+	if (isFail(fetchResult))
 		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
-	}
 
-	logger.debug('[git] pull start', {cwd, remote, branch});
 	const pullResult = await execGit({
 		args: ['pull', '--rebase', remote, branch],
 		cwd,
 	});
-	logger.debug('[git] pull done', pullResult);
 
 	if (isFail(pullResult)) {
 		return failed(`Failed during pull --rebase\n${pullResult.message}`);
