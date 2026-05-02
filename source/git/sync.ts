@@ -18,10 +18,11 @@ import {
 	bootstrapStateBranchStorage,
 	createStateBranchSyncCommit,
 	ensureInitialCommit,
-	hydrateEventsFromStateBranch,
+	ensureLocalEventsIgnored,
 	pushStateBranch,
 	stageStateBranchOwnEventFile,
 } from './git.js';
+import {hydrateEventsFromStateBranch} from './merge.js';
 import {mergeEventFile} from './merge.js';
 import {STATE_BRANCH} from './git-constants.js';
 
@@ -122,6 +123,11 @@ const ensureSyncReady = async ({
 
 	const repoRoot = repoRootResult.value;
 	const stateBranchRoot = getStateBranchRoot(repoRoot);
+
+	const gitIgnoreResult = await ensureLocalEventsIgnored(repoRoot);
+	if (isFail(gitIgnoreResult)) {
+		return failed('Sync aborted. Unable to gitignore hydrated events');
+	}
 
 	const repoOpResult = await hasInProgressGitOperation(repoRoot);
 	if (isFail(repoOpResult)) return failed(repoOpResult.message);

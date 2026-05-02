@@ -9,9 +9,7 @@ import {
 	ensureDir,
 	ensureStateBranchIsStorageOnly,
 	ensureWorktreesDir,
-	getEventsDir,
 	getRelativeEventFilePath,
-	listEventFiles,
 	removePath,
 } from './git-storage.js';
 import {
@@ -26,7 +24,40 @@ import {
 	hasUpstream,
 	hasWorktree,
 } from './git-utils.js';
-import {mergeEventFile} from './merge.js';
+
+export const ensureLocalEventsIgnored = async (
+	repoRoot: string,
+): Promise<Result<boolean>> => {
+	const gitignorePath = path.join(repoRoot, '.gitignore');
+	let content = fs.existsSync(gitignorePath)
+		? fs.readFileSync(gitignorePath, 'utf8')
+		: '';
+
+	const ignorePattern = '.epiq';
+	const lines = content.split('\n');
+
+	// More tolerant check that survives comments, extra spaces, trailing slashes
+	const alreadyIgnored = lines.some(line => {
+		const trimmed = line.trim();
+		return (
+			trimmed === ignorePattern ||
+			trimmed === ignorePattern + '/' ||
+			trimmed.startsWith(ignorePattern + '/')
+		);
+	});
+
+	if (alreadyIgnored) {
+		return succeeded(`${ignorePattern} already ignored`, false);
+	}
+
+	const markerComment = `# [epiq]: hydrated state is never to be committed`;
+	content = content.trimEnd() + `\n\n${markerComment}\n${ignorePattern}\n`;
+
+	fs.writeFileSync(gitignorePath, content + '\n', 'utf8');
+
+	logger.info(`Added ${ignorePattern} to .gitignore (epiq local cache)`);
+	return succeeded(`${ignorePattern} ignored`, true);
+};
 
 export const ensureInitialCommit = async (
 	repoRoot: string,
@@ -50,40 +81,6 @@ export const ensureInitialCommit = async (
 	if (isFail(commitResult)) return failed(commitResult.message);
 
 	return succeeded('Created initial commit', true);
-};
-
-export const hydrateEventsFromStateBranch = ({
-	repoRoot,
-	stateBranchRoot,
-}: {
-	repoRoot: string;
-	stateBranchRoot: string;
-}): Result<boolean> => {
-	const stateBranchFilesResult = listEventFiles(stateBranchRoot);
-	if (isFail(stateBranchFilesResult)) {
-		return failed(stateBranchFilesResult.message);
-	}
-
-	const stateBranchEventsDir = getEventsDir(stateBranchRoot);
-	const localEventsDir = getEventsDir(repoRoot);
-
-	let changed = false;
-
-	for (const fileName of stateBranchFilesResult.value) {
-		const from = path.join(stateBranchEventsDir, fileName);
-		const to = path.join(localEventsDir, fileName);
-
-		const mergeResult = mergeEventFile({
-			sourceFile: from,
-			targetFile: to,
-		});
-
-		if (isFail(mergeResult)) return failed(mergeResult.message);
-
-		changed = changed || mergeResult.value;
-	}
-
-	return succeeded('Hydrated event files from state branch', changed);
 };
 
 const sanitizeRefSegment = (value: string): string =>

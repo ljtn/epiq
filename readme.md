@@ -168,7 +168,7 @@ Epiq uses Git in the background to synchronize state between clients. No manual 
 - Your issue data is stored in a dedicated branch managed automatically by epiq
 - A local `.epiq/` folder is created in your project as a local cache
 
-The `.epiq/` folder is non-authoritative and used for caching and local tracking. It can optionally be committed if you want your board state versioned alongside your code.
+The `.epiq/` folder is non-authoritative and used for caching and local tracking. Epiq automatically ensures it is gitignored on every sync.
 
 ## Conflict Avoidance & Data Integrity
 
