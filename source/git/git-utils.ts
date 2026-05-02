@@ -4,6 +4,7 @@ import path from 'node:path';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {getGitDir} from './git-storage.js';
 import {ORIGIN} from './git-constants.js';
+import {git} from './git-commands.js';
 
 export type GitExecResult = {
 	stdout: string;
@@ -155,10 +156,7 @@ export const commitAndGetSha = async ({
 	cwd: string;
 	message: string;
 }): Promise<Result<string>> => {
-	const commitResult = await execGit({
-		args: ['commit', '-m', message],
-		cwd,
-	});
+	const commitResult = await git.commit({cwd, message});
 
 	if (isFail(commitResult)) {
 		return failed(`Failed to create commit\n${commitResult.message}`);
@@ -308,12 +306,12 @@ export const hasUpstream = async (
 	);
 };
 
-export const getCurrentBranchName = async (
-	repoRoot: string,
+export const getCurrentBranch = async (
+	cwd: string,
 ): Promise<Result<string>> => {
 	const result = await execGit({
 		args: ['rev-parse', '--abbrev-ref', 'HEAD'],
-		cwd: repoRoot,
+		cwd: cwd,
 	});
 
 	if (isFail(result)) return failed(result.message);
@@ -356,18 +354,12 @@ export const pullBranchRebaseIfPresent = async ({
 		return succeeded('Remote branch missing, skipped pull', false);
 	}
 
-	const fetchResult = await execGit({
-		args: ['fetch', ORIGIN, branch],
-		cwd,
-	});
+	const fetchResult = await git.fetch({cwd, remote: ORIGIN, branch});
 
 	if (isFail(fetchResult))
 		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
 
-	const pullResult = await execGit({
-		args: ['pull', '--rebase', ORIGIN, branch],
-		cwd,
-	});
+	const pullResult = await git.pullRebase({cwd, remote: ORIGIN, branch});
 
 	if (isFail(pullResult)) {
 		return failed(`Failed during pull --rebase\n${pullResult.message}`);
@@ -395,7 +387,7 @@ export const hasStateBranchChanges = async (
 export const isDetachedHead = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
-	const branchResult = await getCurrentBranchName(repoRoot);
+	const branchResult = await getCurrentBranch(repoRoot);
 	if (isFail(branchResult)) return failed(branchResult.message);
 
 	return succeeded(

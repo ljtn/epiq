@@ -6,7 +6,7 @@ import {
 	commitAndGetSha,
 	execGit,
 	execGitAllowFail,
-	getCurrentBranchName,
+	getCurrentBranch,
 	hasInProgressGitOperation,
 	isDetachedHead,
 	pullBranchRebaseIfPresent,
@@ -162,7 +162,7 @@ describe('git-utils', () => {
 			expect(afterResult.value).toBe(true);
 		}
 
-		const branchNameResult = await getCurrentBranchName(repoRoot);
+		const branchNameResult = await getCurrentBranch(repoRoot);
 		expect(isFail(branchNameResult)).toBe(false);
 		if (!isFail(branchNameResult)) {
 			expect(branchNameResult.value).toBe('HEAD');
@@ -272,7 +272,7 @@ describe('git-utils', () => {
 			throw new Error('Unable to push initial branch');
 		}
 
-		const branchResult = await getCurrentBranchName(repoA);
+		const branchResult = await getCurrentBranch(repoA);
 		if (isFail(branchResult)) throw new Error(branchResult.message);
 		const branch = branchResult.value;
 

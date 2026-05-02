@@ -49,7 +49,7 @@ export const ensureDir = (dirPath: string): Result<void> => {
 	}
 };
 
-export const ensureWorktreesDir = (): Result<void> => {
+export const ensureWorktreesDir = (): Result<boolean> => {
 	const homeResult = ensureDir(getEpiqHome());
 	if (isFail(homeResult)) {
 		return failed('Ensure epiq home failed.\n' + homeResult.message);
@@ -60,7 +60,7 @@ export const ensureWorktreesDir = (): Result<void> => {
 		return failed('Ensure worktrees dir failed.\n' + worktreesResult.message);
 	}
 
-	return succeeded('Ensured epiq storage', undefined);
+	return succeeded('Ensured epiq storage', true);
 };
 
 export const removePath = (targetPath: string): void => {

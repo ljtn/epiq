@@ -15,7 +15,7 @@ import {
 	pullBranchRebaseIfPresent,
 } from './git-utils.js';
 import {
-	bootstrapStateStorageBase,
+	bootstrapStateBranchStorage,
 	createStateBranchSyncCommit,
 	ensureInitialCommit,
 	hydrateEventsFromStateBranch,
@@ -44,7 +44,7 @@ export const syncEpiqFromRemote = async (
 
 	const hydrateResult = hydrateEventsFromStateBranch({
 		repoRoot,
-		stateBranchRoot: stateBranchRoot,
+		stateBranchRoot,
 	});
 	if (isFail(hydrateResult)) return failed(hydrateResult.message);
 
@@ -119,8 +119,8 @@ const ensureSyncReady = async ({
 > => {
 	const repoRootResult = await getRepoRootDir(cwd);
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
-	const repoRoot = repoRootResult.value;
 
+	const repoRoot = repoRootResult.value;
 	const stateBranchRoot = getStateBranchRoot(repoRoot);
 
 	const repoOpResult = await hasInProgressGitOperation(repoRoot);
@@ -134,7 +134,7 @@ const ensureSyncReady = async ({
 	const initResult = await ensureInitialCommit(repoRoot);
 	if (isFail(initResult)) return failed(initResult.message);
 
-	const bootstrapResult = await bootstrapStateStorageBase({
+	const bootstrapResult = await bootstrapStateBranchStorage({
 		repoRoot,
 		stateBranchRoot,
 		ensureUpstream,
