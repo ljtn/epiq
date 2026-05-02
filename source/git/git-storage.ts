@@ -6,8 +6,8 @@ import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {memoizeResult} from '../lib/utils/memoize.js';
 import {logger} from '../logger.js';
 import {commitAndGetSha, execGit} from './git-utils.js';
-import {EPIQ_DIR_NAME, GLOBAL_CONFIG_DIR_NAME} from '../paths.js';
-import {EVENTS_DIR_NAME} from '../paths.js';
+import {EPIQ_DIR_NAME, GLOBAL_CONFIG_DIR_NAME} from '../lib/storage/paths.js';
+import {EVENTS_DIR_NAME} from '../lib/storage/paths.js';
 
 export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 

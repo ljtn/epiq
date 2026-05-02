@@ -48,7 +48,7 @@ import {
 } from '../model/result-types.js';
 import {cmdValidity} from './cmd-validity.js';
 import {parsePeekDateInput} from './validate-date.js';
-import {resolveClosestEpiqRoot} from '../../paths.js';
+import {resolveClosestEpiqRoot} from '../storage/paths.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);

@@ -8,7 +8,7 @@ import {
 	ensureEventsDir,
 	getEventsDirPath,
 	resolveClosestEpiqRoot,
-} from '../paths.js';
+} from '../lib/storage/paths.js';
 import {getEdgeRef} from './event-load.js';
 import {
 	AppEvent,

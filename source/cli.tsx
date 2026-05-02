@@ -12,7 +12,7 @@ import './logger.js';
 
 import chalk from 'chalk';
 import {patchSettingsState} from './lib/state/settings.state.js';
-import {resolveClosestEpiqRoot} from './paths.js';
+import {resolveClosestEpiqRoot} from './lib/storage/paths.js';
 
 meow(
 	`${chalk.bold('Epiq CLI')}

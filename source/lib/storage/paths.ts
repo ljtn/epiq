@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {failed, Result, succeeded} from './lib/model/result-types.js';
+import {failed, Result, succeeded} from '../model/result-types.js';
 
 export const isLocal = process.env['IS_LOCAL'] === 'true';
 

@@ -4,7 +4,7 @@ import {bootStateFromEventLog} from '../event/event-boot.js';
 import {loadMergedEvents} from '../event/event-load.js';
 import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../event/event-persist.js';
-import {resolveClosestEpiqRoot} from '../paths.js';
+import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
 import {AppEvent, MovePosition} from '../event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 import {syncEpiqWithRemote} from '../git/sync.js';

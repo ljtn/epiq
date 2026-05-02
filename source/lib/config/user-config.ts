@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import {z} from 'zod';
-import {GLOBAL_CONFIG_DIR_NAME} from '../../paths.js';
+import {GLOBAL_CONFIG_DIR_NAME} from '../storage/paths.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {SettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';

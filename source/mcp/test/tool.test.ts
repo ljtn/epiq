@@ -1,8 +1,10 @@
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 import {isFail, Result} from '../../lib/model/result-types.js';
 
-vi.mock('../../paths.js', async importOriginal => {
-	const actual = await importOriginal<typeof import('../../paths.js')>();
+vi.mock('../../lib/storage/paths.js', async importOriginal => {
+	const actual = await importOriginal<
+		typeof import('../../lib/storage/paths.js')
+	>();
 
 	return {
 		...actual,

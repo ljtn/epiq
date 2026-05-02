@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
-import {resolveClosestEpiqRoot} from './paths.js';
-import {EPIQ_DIR_NAME, isLocal} from './paths.js';
+import {resolveClosestEpiqRoot} from './lib/storage/paths.js';
+import {EPIQ_DIR_NAME, isLocal} from './lib/storage/paths.js';
 import {isFail} from './lib/model/result-types.js';
 
 const MAX_LINES = 1000;
