@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {decodeTime} from 'ulid';
-import {getState} from '../lib/state/state.js';
-import {getStringColor} from '../lib/utils/color.js';
-import {nodeRepo} from '../repository/node-repo.js';
+import {getState} from '../state/state.js';
+import {getStringColor} from '../utils/color.js';
+import {nodeRepo} from '../../repository/node-repo.js';
 import {timeAgo} from './date-utils.js';
 import {AppEvent, EventAction} from './event.model.js';
 

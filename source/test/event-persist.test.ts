@@ -6,9 +6,9 @@ import {
 	parsePersistedEvent,
 	persist,
 	toPersistedEvent,
-} from '../event/event-persist.js';
+} from '../lib/event/event-persist.js';
 import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
-import {AppEvent, StoredAppEvent} from '../event/event.model.js';
+import {AppEvent, StoredAppEvent} from '../lib/event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
 
 const makeTempDir = (): string =>

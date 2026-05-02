@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
-import {hasPendingDefaultEvents} from './event/event-boot.js';
+import {hasPendingDefaultEvents} from './lib/event/event-boot.js';
 import {isSuccess} from './lib/model/result-types.js';
 import {ContextBar} from './lib/components/ContextBar.js';
 import {HelpUI} from './lib/components/Help.js';

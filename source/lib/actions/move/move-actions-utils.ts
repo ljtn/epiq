@@ -1,6 +1,6 @@
 import {ulid} from 'ulid';
-import {materialize} from '../../../event/event-materialize.js';
-import {resolveActorId} from '../../../event/event-persist.js';
+import {materialize} from '../../event/event-materialize.js';
+import {resolveActorId} from '../../event/event-persist.js';
 import {getOrderedChildren} from '../../../repository/rank.js';
 import {
 	failed,
@@ -12,7 +12,7 @@ import {
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {AppEvent} from '../../../event/event.model.js';
+import {AppEvent} from '../../event/event.model.js';
 
 let pendingMoveState: AppEvent<'move.node'> | null = null;
 

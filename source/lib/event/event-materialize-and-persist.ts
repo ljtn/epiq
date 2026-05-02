@@ -1,4 +1,4 @@
-import {resultStatuses, isFail} from '../lib/model/result-types.js';
+import {resultStatuses, isFail} from '../model/result-types.js';
 import {materialize} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';

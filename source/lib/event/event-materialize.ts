@@ -1,8 +1,8 @@
-import {failed, isFail, succeeded} from '../lib/model/result-types.js';
-import {isTicketNode} from '../lib/model/context.model.js';
-import {nodes} from '../lib/state/node-builder.js';
-import {getState, initWorkspaceState, updateState} from '../lib/state/state.js';
-import {nodeRepo} from '../repository/node-repo.js';
+import {failed, isFail, succeeded} from '../model/result-types.js';
+import {isTicketNode} from '../model/context.model.js';
+import {nodes} from '../state/node-builder.js';
+import {getState, initWorkspaceState, updateState} from '../state/state.js';
+import {nodeRepo} from '../../repository/node-repo.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {resolveReopenParentFromLog} from './log-utils.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';

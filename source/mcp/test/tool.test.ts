@@ -21,7 +21,7 @@ vi.mock('../../lib/storage/paths.js', async importOriginal => {
 	};
 });
 
-vi.mock('../../event/event-load.js', () => ({
+vi.mock('../../lib/event/event-load.js', () => ({
 	loadMergedEvents: vi.fn(() => ({
 		status: 'success',
 		message: 'loaded',
@@ -29,7 +29,7 @@ vi.mock('../../event/event-load.js', () => ({
 	})),
 }));
 
-vi.mock('../../event/event-boot.js', () => ({
+vi.mock('../../lib/event/event-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => ({
 		status: 'success',
 		message: 'booted',
@@ -51,7 +51,7 @@ vi.mock('../../lib/config/user-config.js', () => ({
 	),
 }));
 
-vi.mock('../../event/event-materialize-and-persist.js', () => ({
+vi.mock('../../lib/event/event-materialize-and-persist.js', () => ({
 	materializeAndPersistAll: vi.fn(() => [
 		{
 			status: 'success',
@@ -128,7 +128,7 @@ vi.mock('../../repository/node-repo.js', () => ({
 	},
 }));
 
-vi.mock('../../event/event-materialize-and-persist.js', () => ({
+vi.mock('../../lib/event/event-materialize-and-persist.js', () => ({
 	materializeAndPersistAll: vi.fn(() => [
 		{
 			result: 'success',
@@ -138,7 +138,7 @@ vi.mock('../../event/event-materialize-and-persist.js', () => ({
 	]),
 }));
 
-vi.mock('../../event/common-events.js', () => ({
+vi.mock('../../lib/event/common-events.js', () => ({
 	createIssueEvents: vi.fn(({name, parent, user}) => [
 		{
 			id: 'event-create-1',
@@ -155,11 +155,13 @@ vi.mock('../../event/common-events.js', () => ({
 }));
 
 let tools: typeof import('../tools.js');
-let persistModule: typeof import('../../event/event-materialize-and-persist.js');
+let persistModule: typeof import('../../lib/event/event-materialize-and-persist.js');
 
 beforeAll(async () => {
 	tools = await import('../tools.js');
-	persistModule = await import('../../event/event-materialize-and-persist.js');
+	persistModule = await import(
+		'../../lib/event/event-materialize-and-persist.js'
+	);
 });
 
 describe('mcp tools', () => {

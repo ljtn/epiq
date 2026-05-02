@@ -1,4 +1,4 @@
-import {hasPendingDefaultEvents} from '../../event/event-boot.js';
+import {hasPendingDefaultEvents} from '../event/event-boot.js';
 import {getSettingsState} from '../state/settings.state.js';
 
 export const getUserSetupStatus = (): {

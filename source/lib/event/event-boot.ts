@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import {monotonicFactory, ulid} from 'ulid';
-import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
-import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {getRenderedChildren, getState} from '../lib/state/state.js';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
+import {getRenderedChildren, getState} from '../state/state.js';
 import {materializeAll} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {AppEvent} from './event.model.js';

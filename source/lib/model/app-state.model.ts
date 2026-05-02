@@ -1,4 +1,4 @@
-import {AppEvent} from '../../event/event.model.js';
+import {AppEvent} from '../../lib/event/event.model.js';
 import {failed, Result, succeeded} from './result-types.js';
 import {ActionEntry, ActionIndex, ModeUnion} from './action-map.model.js';
 import {AnyContext} from './context.model.js';

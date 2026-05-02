@@ -1,19 +1,19 @@
 import {ulid} from 'ulid';
 import {openEditorOnText} from '../../editor/editor.js';
-import {createIssueEvents} from '../../event/common-events.js';
-import {getEventTime} from '../../event/date-utils.js';
+import {createIssueEvents} from '../event/common-events.js';
+import {getEventTime} from '../event/date-utils.js';
 import {
 	hasPendingDefaultEvents,
 	persistPendingDefaultEvents,
-} from '../../event/event-boot.js';
-import {loadMergedEvents, splitEventsAtTime} from '../../event/event-load.js';
+} from '../event/event-boot.js';
+import {loadMergedEvents, splitEventsAtTime} from '../event/event-load.js';
 import {
 	materializeAndPersist,
 	materializeAndPersistAll,
-} from '../../event/event-materialize-and-persist.js';
-import {materializeAll} from '../../event/event-materialize.js';
-import {getPersistFileName, resolveActorId} from '../../event/event-persist.js';
-import {AppEvent} from '../../event/event.model.js';
+} from '../event/event-materialize-and-persist.js';
+import {materializeAll} from '../event/event-materialize.js';
+import {getPersistFileName, resolveActorId} from '../event/event-persist.js';
+import {AppEvent} from '../event/event.model.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {findAncestor, nodeRepo} from '../../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';

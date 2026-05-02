@@ -12,7 +12,7 @@ export const getSiblingIndex = (
 	sibling: string,
 ) => siblings.findIndex(node => node.id === sibling);
 
-import {MovePosition} from '../event/event.model.js';
+import {MovePosition} from '../lib/event/event.model.js';
 import {
 	failed,
 	ReturnFail,

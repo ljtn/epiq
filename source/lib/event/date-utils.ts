@@ -1,5 +1,5 @@
 import {decodeTime} from 'ulid';
-import {failed, Result, succeeded} from '../lib/model/result-types.js';
+import {failed, Result, succeeded} from '../model/result-types.js';
 import {AppEvent} from './event.model.js';
 
 export const timeAgo = (timestampMs: number): string => {

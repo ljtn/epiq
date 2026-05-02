@@ -1,4 +1,4 @@
-import {MovePosition} from '../event/event.model.js';
+import {MovePosition} from '../lib/event/event.model.js';
 import {
 	failed,
 	isFail,

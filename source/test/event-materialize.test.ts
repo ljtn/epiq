@@ -3,9 +3,9 @@ import {isFail, Result} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {AppEvent} from '../event/event.model.js';
-import {materialize, materializeAll} from '../event/event-materialize.js';
-import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
+import {AppEvent} from '../lib/event/event.model.js';
+import {materialize, materializeAll} from '../lib/event/event-materialize.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 
 const actor = {
 	userId: 'u1',

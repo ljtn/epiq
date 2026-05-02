@@ -5,12 +5,12 @@ vi.mock('ulid', () => ({
 	ulid: vi.fn(),
 }));
 
-vi.mock('../event/event-materialize-and-persist.js', () => ({
+vi.mock('../lib/event/event-materialize-and-persist.js', () => ({
 	materializeAndPersist: vi.fn(),
 	materializeAndPersistAll: vi.fn(),
 }));
 
-vi.mock('../event/event-persist.js', () => ({
+vi.mock('../lib/event/event-persist.js', () => ({
 	resolveActorId: vi.fn(
 		() =>
 			({
@@ -45,7 +45,7 @@ vi.mock('../lib/state/state.js', () => ({
 }));
 
 import {ulid} from 'ulid';
-import {materializeAndPersist} from '../event/event-materialize-and-persist.js';
+import {materializeAndPersist} from '../lib/event/event-materialize-and-persist.js';
 import {findAncestor, nodeRepo} from '../repository/node-repo.js';
 import {getCmdState} from '../lib/state/cmd.state.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';

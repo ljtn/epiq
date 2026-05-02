@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime} from 'ulid';
 import {z} from 'zod';
-import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {parsePersistedEvent, PersistedEvent} from './event-persist.js';
 import {AppEvent, AppEventMap} from './event.model.js';
-import {getEventsDirPath} from '../lib/storage/paths.js';
+import {getEventsDirPath} from '../storage/paths.js';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default('unknown'),

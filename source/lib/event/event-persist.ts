@@ -2,13 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
-import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {getSettingsState, User} from '../lib/state/settings.state.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
+import {getSettingsState, User} from '../state/settings.state.js';
 import {
 	ensureEventsDir,
 	getEventsDirPath,
 	resolveClosestEpiqRoot,
-} from '../lib/storage/paths.js';
+} from '../storage/paths.js';
 import {getEdgeRef} from './event-load.js';
 import {
 	AppEvent,

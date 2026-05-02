@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo} from 'react';
-import {formatLogLine} from '../../event/format-log-utils.js';
+import {formatLogLine} from '../event/format-log-utils.js';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {AnyContext, Ticket} from '../model/context.model.js';
