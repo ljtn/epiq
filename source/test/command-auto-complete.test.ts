@@ -70,7 +70,7 @@ describe('getAutoCompletion (remainder)', () => {
 		const parsed = parseCommandLine('new ');
 		expect(
 			getAutoCompletion(parsed, ['issue', 'swimlane', 'board']).remainder,
-		).toBe(' ');
+		).toBe('');
 	});
 
 	it('returns empty remainder when no matching completion exists ("tag critical crime")', () => {

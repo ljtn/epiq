@@ -9,6 +9,7 @@ import {DEFAULT_WORDS} from './default-word-list.js';
 
 export const CmdIntent = {
 	// Fundamentals (tight coupling to scope)
+	Exit: 'exit',
 	Init: 'init',
 	None: 'none',
 	ViewHelp: 'view-help',
@@ -38,6 +39,8 @@ export const CmdIntent = {
 
 	// Git
 	Sync: 'sync',
+
+	Export: 'export',
 } as const;
 
 export type CommandIntent = (typeof CmdIntent)[keyof typeof CmdIntent];

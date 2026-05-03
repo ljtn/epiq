@@ -1,4 +1,5 @@
 export const CmdKeywords = {
+	EXIT: 'exit',
 	INIT: 'init',
 	HELP: 'help',
 	NEW: 'new',
@@ -24,6 +25,8 @@ export const CmdKeywords = {
 
 	// Git
 	SYNC: 'sync',
+
+	EXPORT: 'export',
 
 	NONE: '',
 } as const;

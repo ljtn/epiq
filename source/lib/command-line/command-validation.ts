@@ -164,6 +164,9 @@ const requireModifierOrInputStr =
 			: valid(CONFIRM_MSG);
 
 const validators: Record<CmdKeyword, Validator> = {
+	[CmdKeywords.EXPORT]: () => {
+		return valid(CONFIRM_MSG + ', and create export markdown file');
+	},
 	[CmdKeywords.PEEK]: args => {
 		const modifier = args.modifier;
 		if (modifier === 'now') return valid(CONFIRM_MSG);
@@ -213,6 +216,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return valid(CONFIRM_MSG);
 	},
+	[CmdKeywords.EXIT]: () => valid(CONFIRM_MSG + ' and exit the application'),
 	[CmdKeywords.INIT]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.FILTER]: args => {
 		if (args.modifier === 'clear') return valid();

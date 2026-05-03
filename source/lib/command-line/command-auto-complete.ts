@@ -8,17 +8,19 @@ export type AutoCompletion = {
 	overlap: number;
 	remainder: string;
 };
+const EMPTY_AUTO_COMPLETION: AutoCompletion = {
+	hint: '',
+	hints: [],
+	overlap: 0,
+	remainder: '',
+};
+
 export const getAutoCompletion = (
-	{inputToMatch, lastWord}: ParsedCommandLine,
+	{inputToMatch, lastWord, isLastWordCompleted}: ParsedCommandLine,
 	wordList: string[],
 ): AutoCompletion => {
-	if (lastWord.endsWith(' ')) {
-		return {
-			hint: '',
-			hints: [],
-			overlap: 0,
-			remainder: '',
-		};
+	if (isLastWordCompleted || inputToMatch === '') {
+		return EMPTY_AUTO_COMPLETION;
 	}
 
 	const hints = autoCompletionFromWordList({
@@ -29,7 +31,6 @@ export const getAutoCompletion = (
 
 	return returnAutoCompletion(lastWord, hints);
 };
-
 const returnAutoCompletion = (
 	lastWord: string,
 	hints: string[],
