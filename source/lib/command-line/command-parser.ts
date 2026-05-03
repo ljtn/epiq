@@ -24,25 +24,34 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 	const trimmedStart = raw.trimStart();
 	const words = splitWords(trimmedStart);
 
-	const firstWord = (words[0] ?? '').trimStart().trimEnd();
-	const secondWord = (words[1] ?? '').trimStart().trimEnd();
+	const firstWord = words[0] ?? '';
+	const secondWord = words[1] ?? '';
+
+	const isLastWordCompleted = /\s$/.test(raw);
 	const lastWord = getLastWord(raw);
 
 	const command = isCmdKeyword(firstWord) ? firstWord : null;
 	const isCommandKeyword = command !== null;
 	const hasCommand = firstWord !== '';
-	const isLastWordCompleted = raw.endsWith(' ');
 
 	const modifiers = command ? getCmdModifiers(command) ?? [] : [];
 	const modifier = command && modifiers.includes(secondWord) ? secondWord : '';
 
 	let target: CommandTarget = 'word';
 
-	if (words.length <= 1) {
+	if (words.length === 0) {
 		target = 'command';
-	} else if (words.length === 2) {
+	} else if (words.length === 1 && !isLastWordCompleted) {
+		target = 'command';
+	} else if (
+		(words.length === 1 && isLastWordCompleted) ||
+		(words.length === 2 && !isLastWordCompleted)
+	) {
 		target = 'modifier';
 	}
+
+	const inputToMatch = isLastWordCompleted ? '' : lastWord;
+
 	const inputString = extractInputString(trimmedStart, command, modifier);
 
 	return {
@@ -57,7 +66,7 @@ export const parseCommandLine = (raw: string): ParsedCommandLine => {
 		isLastWordCompleted,
 		modifier,
 		target,
-		inputToMatch: lastWord,
+		inputToMatch,
 		inputString,
 	};
 };
@@ -85,7 +94,7 @@ const extractInputString = (
 };
 
 const splitWords = (value: string): string[] =>
-	value ? value.split(/\s+/) : [];
+	value.trim() ? value.trim().split(/\s+/) : [];
 
 const getLastWord = (value: string): string =>
 	value.trimEnd().split(/\s+/).at(-1) ?? '';
