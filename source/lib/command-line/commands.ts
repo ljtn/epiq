@@ -1060,4 +1060,12 @@ export const commands: CommandLineActionEntry[] = [
 			return succeeded('Export successful', true);
 		},
 	},
+	{
+		intent: CmdIntent.Exit,
+		mode: Mode.COMMAND_LINE,
+		action: async () => {
+			navigationUtils.exit();
+			return succeeded('Exit successful', true);
+		},
+	},
 ];

@@ -9,6 +9,7 @@ import {DEFAULT_WORDS} from './default-word-list.js';
 
 export const CmdIntent = {
 	// Fundamentals (tight coupling to scope)
+	Exit: 'exit',
 	Init: 'init',
 	None: 'none',
 	ViewHelp: 'view-help',

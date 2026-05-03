@@ -111,6 +111,7 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 	const modifiers: Partial<Record<CmdKeyword, string[]>> = {
 		[CmdKeywords.NONE]: getAvailableBaseCommands(),
 
+		[CmdKeywords.EXIT]: ['confirm'],
 		[CmdKeywords.EXPORT]: [],
 		[CmdKeywords.SYNC]: [],
 		[CmdKeywords.INIT]: [],

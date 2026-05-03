@@ -6,6 +6,8 @@ export const getCommandIntent = (command: string): CommandIntent => {
 	const {context} = getState()?.currentNode;
 	if (!context) return CmdIntent.None;
 	switch (command) {
+		case CmdKeywords.EXIT:
+			return CmdIntent.Exit;
 		case CmdKeywords.EXPORT:
 			return CmdIntent.Export;
 		case CmdKeywords.INIT:
