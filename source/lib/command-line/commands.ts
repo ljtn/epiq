@@ -55,7 +55,8 @@ import {
 	restoreNavigationAnchor,
 } from '../actions/default/restore-navigation.js';
 import {exportBoardLayout} from '../../export/export.js';
-import {getOrderedChildren, resolveMoveRank} from '../repository/rank.js';
+import {resolveMoveRank} from '../repository/rank.js';
+import {getOrderedChildren} from '../repository/node-repo.js';
 import {resolveReopenParentFromLog} from '../event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 

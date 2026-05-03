@@ -1,7 +1,8 @@
 import {ulid} from 'ulid';
 import {materialize} from '../../event/event-materialize.js';
 import {resolveActorId} from '../../event/event-persist.js';
-import {getOrderedChildren, resolveMoveRank} from '../../repository/rank.js';
+import {resolveMoveRank} from '../../repository/rank.js';
+import {getOrderedChildren} from '../../repository/node-repo.js';
 import {
 	failed,
 	isFail,

@@ -12,7 +12,7 @@ import {NavNode} from '../model/navigation-node.model.js';
 import {nodes} from '../state/node-builder.js';
 import {getState, patchState, updateState} from '../state/state.js';
 import {midRank} from '../utils/rank.js';
-import {getOrderedChildren, resolveMoveRank} from './rank.js';
+import {resolveMoveRank} from './rank.js';
 
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
@@ -469,3 +469,16 @@ export const nodeRepo = {
 			.sort((a, b) => a.rank.localeCompare(b.rank));
 	},
 };
+export const getOrderedChildren = (parentId: string) => {
+	return Object.values(getState().nodes)
+		.filter(
+			(node): node is NavNode<AnyContext> =>
+				!!node && !node.isDeleted && node.parentNodeId === parentId,
+		)
+		.sort((a, b) => a.rank.localeCompare(b.rank));
+};
+
+export const getSiblingIndex = (
+	siblings: NavNode<AnyContext>[],
+	sibling: string,
+) => siblings.findIndex(node => node.id === sibling);
