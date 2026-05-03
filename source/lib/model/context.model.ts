@@ -31,7 +31,7 @@ export type ContextMap = typeof NavNodeCtx;
 
 export function isWorkspaceNode(
 	node: NavNode<AnyContext>,
-): node is NavNode<TicketContext> {
+): node is NavNode<WorkspaceContext> {
 	return node.context === 'WORKSPACE';
 }
 export function isTicketNode(
@@ -54,4 +54,9 @@ export const isSwimlaneNode = (
 	node: NavNode<AnyContext>,
 ): node is NavNode<'SWIMLANE'> => {
 	return node.context === 'SWIMLANE';
+};
+export const isBoardNode = (
+	node: NavNode<AnyContext>,
+): node is NavNode<'BOARD'> => {
+	return node.context === 'BOARD';
 };

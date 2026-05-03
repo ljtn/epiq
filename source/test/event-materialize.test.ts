@@ -29,32 +29,36 @@ const event = <A extends AppEvent['action']>(
 const expectOk = (result: any) => {
 	expect(isFail(result)).toBe(false);
 };
-
 const setupWorkspace = () => {
 	const results = materializeAll([
 		event('init.workspace', {
 			id: 'workspace-1',
 			name: 'Workspace',
+			rank: midRank(),
 		}),
 		event('add.board', {
 			id: 'board-1',
 			name: 'Board',
 			parent: 'workspace-1',
+			rank: midRank(),
 		}),
 		event('add.swimlane', {
 			id: 'swimlane-1',
 			name: 'Todo',
 			parent: 'board-1',
+			rank: midRank(),
 		}),
 		event('add.swimlane', {
 			id: CLOSED_SWIMLANE_ID,
 			name: 'Closed',
 			parent: 'board-1',
+			rank: 'z',
 		}),
 		event('add.issue', {
 			id: 'issue-1',
 			name: 'Issue',
 			parent: 'swimlane-1',
+			rank: midRank(),
 		}),
 	] as const);
 
@@ -115,6 +119,7 @@ describe('event materialize', () => {
 					id: 'swimlane-2',
 					name: 'Doing',
 					parent: 'board-1',
+					rank: 't',
 				}),
 			),
 		);
@@ -216,11 +221,13 @@ describe('event materialize', () => {
 			event('init.workspace', {
 				id: 'workspace-1',
 				name: 'Workspace',
+				rank: midRank(),
 			}),
 			event('add.board', {
 				id: 'board-1',
 				name: 'Board',
 				parent: 'workspace-1',
+				rank: midRank(),
 			}),
 		] as const;
 

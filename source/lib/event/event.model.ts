@@ -9,7 +9,7 @@ export type MovePosition =
 	| {at: 'before'; sibling: string}
 	| {at: 'after'; sibling: string};
 
-export type MoveTarget = {
+export type Position = {
 	parent: string;
 	rank: string;
 };
@@ -18,36 +18,36 @@ export type PayloadBase = {id: string};
 
 export type AppEventMap = {
 	'init.workspace': {
-		payload: PayloadBase & {name: string};
+		payload: PayloadBase & {name: string; rank: string};
 		result: NavNode<'WORKSPACE'>;
 	};
 
 	'add.workspace': {
-		payload: PayloadBase & {name: string};
+		payload: PayloadBase & {name: string; rank: string};
 		result: NavNode<'WORKSPACE'>;
 	};
 
 	'add.board': {
-		payload: PayloadBase & {name: string; parent: string};
+		payload: PayloadBase & {name: string} & Position;
 		result: NavNode<'BOARD'>;
 	};
 
 	'add.swimlane': {
-		payload: PayloadBase & {name: string; parent: string};
+		payload: PayloadBase & {name: string} & Position;
 		result: NavNode<'SWIMLANE'>;
 	};
 
 	'add.issue': {
-		payload: PayloadBase & {name: string; parent: string};
+		payload: PayloadBase & {name: string} & Position;
 		result: NavNode<'TICKET'>;
 	};
 
 	'add.field': {
-		payload: PayloadBase & {
-			parent: string;
-			name: string;
-			val?: string;
-		};
+		payload: PayloadBase &
+			Position & {
+				name: string;
+				val?: string;
+			};
 		result: NavNode<'FIELD'>;
 	};
 
@@ -78,6 +78,7 @@ export type AppEventMap = {
 		};
 		result: NavNode<'FIELD'>;
 	};
+
 	'unassign.issue': {
 		payload: PayloadBase & {
 			contributor: string;
@@ -93,6 +94,7 @@ export type AppEventMap = {
 		};
 		result: NavNode<'FIELD'>;
 	};
+
 	'untag.issue': {
 		payload: PayloadBase & {
 			tagId: string;
@@ -102,7 +104,7 @@ export type AppEventMap = {
 	};
 
 	'move.node': {
-		payload: PayloadBase & MoveTarget;
+		payload: PayloadBase & Position;
 		result: NavNode<AnyContext>;
 	};
 
@@ -114,12 +116,12 @@ export type AppEventMap = {
 	};
 
 	'close.issue': {
-		payload: PayloadBase & MoveTarget;
+		payload: PayloadBase & Position;
 		result: {id: string};
 	};
 
 	'reopen.issue': {
-		payload: PayloadBase & MoveTarget;
+		payload: PayloadBase & Position;
 		result: {id: string};
 	};
 

@@ -55,8 +55,8 @@ import {
 	restoreNavigationAnchor,
 } from '../actions/default/restore-navigation.js';
 import {exportBoardLayout} from '../../export/export.js';
-import {resolveMoveRank} from '../repository/rank.js';
-import {getOrderedChildren} from '../repository/node-repo.js';
+import {resolveCreateRank, resolveMoveRank} from '../repository/rank.js';
+import {getOrderedChildren} from '../repository/rank.js';
 import {resolveReopenParentFromLog} from '../event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 
@@ -587,6 +587,9 @@ export const commands: CommandLineActionEntry[] = [
 				const workspace = nodeRepo.getNode<'WORKSPACE'>(rootNodeId);
 				if (!workspace) return failed('Workspace not found');
 
+				const rankResult = resolveCreateRank(workspace.id);
+				if (isFail(rankResult)) return rankResult;
+
 				return createAndNavigate({
 					id: ulid(),
 					action: 'add.board',
@@ -594,6 +597,7 @@ export const commands: CommandLineActionEntry[] = [
 						id: ulid(),
 						name: cmdState.inputString,
 						parent: workspace.id,
+						rank: rankResult.value,
 					},
 					...userRes.value,
 				});
@@ -604,6 +608,9 @@ export const commands: CommandLineActionEntry[] = [
 				if (isFail(boardResult))
 					return failed('Unable to add swimlane in this context');
 
+				const rankResult = resolveCreateRank(boardResult.value.id);
+				if (isFail(rankResult)) return rankResult;
+
 				return createAndNavigate({
 					id: ulid(),
 					action: 'add.swimlane',
@@ -611,6 +618,7 @@ export const commands: CommandLineActionEntry[] = [
 						id: ulid(),
 						name: cmdState.inputString,
 						parent: boardResult.value.id,
+						rank: rankResult.value,
 					},
 					...userRes.value,
 				});
@@ -633,9 +641,13 @@ export const commands: CommandLineActionEntry[] = [
 					return failed('Unable to add issue in this context');
 				}
 
+				const rankResult = resolveCreateRank(swimlane.id);
+				if (isFail(rankResult)) return rankResult;
+
 				const issueEvents = createIssueEvents({
 					name: cmdState.inputString,
 					parent: swimlane.id,
+					rank: rankResult.value,
 					user: userRes.value,
 				});
 

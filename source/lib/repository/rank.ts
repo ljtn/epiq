@@ -1,6 +1,7 @@
 import {MovePosition} from '../event/event.model.js';
 import {
 	failed,
+	Result,
 	ReturnFail,
 	ReturnSuccess,
 	succeeded,
@@ -8,7 +9,10 @@ import {
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {midRank, rankBetween} from '../utils/rank.js';
-import {getSiblingIndex} from './node-repo.js';
+import {getState} from '../state/state.js';
+
+export const resolveCreateRank = (parentId: string): Result<string> =>
+	resolveMoveRank(getOrderedChildren(parentId), {at: 'end'});
 
 export const resolveMoveRank = (
 	siblings: NavNode<AnyContext>[],
@@ -54,3 +58,16 @@ export const resolveMoveRank = (
 		}
 	}
 };
+export const getOrderedChildren = (parentId: string) => {
+	return Object.values(getState().nodes)
+		.filter(
+			(node): node is NavNode<AnyContext> =>
+				!!node && !node.isDeleted && node.parentNodeId === parentId,
+		)
+		.sort((a, b) => a.rank.localeCompare(b.rank));
+};
+
+export const getSiblingIndex = (
+	siblings: NavNode<AnyContext>[],
+	sibling: string,
+) => siblings.findIndex(node => node.id === sibling);

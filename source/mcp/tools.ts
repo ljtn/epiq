@@ -16,6 +16,7 @@ import {getRenderedChildren, getState} from '../lib/state/state.js';
 import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {getFieldValue} from '../lib/utils/ticket.utils.js';
+import {midRank} from '../lib/utils/rank.js';
 
 type SyncInput = ToolInput;
 type MoveIssueInput = ToolInput & {
@@ -192,6 +193,7 @@ export const createIssue = (input: CreateIssueInput) => {
 		name: input.title,
 		parent: input.parentId,
 		user: actorResult.value,
+		rank: midRank(),
 	});
 
 	const results = materializeAndPersistAll(issueEvents);

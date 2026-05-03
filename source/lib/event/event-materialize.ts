@@ -1,4 +1,10 @@
-import {isTicketNode} from '../model/context.model.js';
+import {
+	isBoardNode,
+	isFieldNode,
+	isSwimlaneNode,
+	isTicketNode,
+	isWorkspaceNode,
+} from '../model/context.model.js';
 import {failed, isFail, ReturnFail, succeeded} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
@@ -26,16 +32,21 @@ const materializeFail = <A extends AppEvent>(
 
 const materializeHandlers: MaterializeHandlers = {
 	'init.workspace': event => {
-		const {id, name} = event.payload;
-		const workspace = nodes.workspace(id, name);
+		const {id, name, rank} = event.payload;
+		const workspace = {...nodes.workspace(id, name), rank};
+
 		initWorkspaceState(workspace);
 
-		const result = nodeRepo.createNodeAtPosition(workspace);
+		const result = nodeRepo.createNode(workspace);
 		if (isFail(result)) {
 			return materializeFail(
 				result.message ?? 'Failed to initialize workspace',
 				event,
 			);
+		}
+
+		if (!isWorkspaceNode(result.value)) {
+			return failed('Unexpected create node return value');
 		}
 
 		return succeeded('Workspace initialized', {
@@ -45,15 +56,19 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.workspace': event => {
-		const {id, name} = event.payload;
-		const workspace = nodes.workspace(id, name);
+		const {id, name, rank} = event.payload;
+		const workspace = {...nodes.workspace(id, name), rank};
 
-		const result = nodeRepo.createNodeAtPosition(workspace);
+		const result = nodeRepo.createNode(workspace);
 		if (isFail(result)) {
 			return materializeFail(
 				result.message ?? 'Failed to add workspace',
 				event,
 			);
+		}
+
+		if (!isWorkspaceNode(result.value)) {
+			return failed('Unexpected create node return value');
 		}
 
 		return succeeded('Added workspace', {
@@ -63,13 +78,19 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.board': event => {
-		const {id, name, parent: parentId} = event.payload;
-		const result = nodeRepo.createNodeAtPosition(
-			nodes.board(id, name, parentId),
-		);
+		const {id, name, parent: parentId, rank} = event.payload;
+
+		const result = nodeRepo.createNode({
+			...nodes.board(id, name, parentId),
+			rank,
+		});
 
 		if (isFail(result)) {
 			return materializeFail(result.message ?? 'Unable to create board', event);
+		}
+
+		if (!isBoardNode(result.value)) {
+			return failed('Unexpected create node return value');
 		}
 
 		return succeeded('Added board', {
@@ -79,16 +100,22 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.swimlane': event => {
-		const {id, name, parent: parentId} = event.payload;
-		const result = nodeRepo.createNodeAtPosition(
-			nodes.swimlane(id, name, parentId),
-		);
+		const {id, name, parent: parentId, rank} = event.payload;
+
+		const result = nodeRepo.createNode({
+			...nodes.swimlane(id, name, parentId),
+			rank,
+		});
 
 		if (isFail(result)) {
 			return materializeFail(
 				result.message ?? 'Unable to create swimlane',
 				event,
 			);
+		}
+
+		if (!isSwimlaneNode(result.value)) {
+			return failed('Unexpected create node return value');
 		}
 
 		return succeeded('Added swimlane', {
@@ -98,13 +125,18 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.issue': event => {
-		const {id, name, parent: parentId} = event.payload;
-		const result = nodeRepo.createNodeAtPosition(
-			nodes.ticket(id, name, parentId),
-		);
+		const {id, name, parent: parentId, rank} = event.payload;
+
+		const result = nodeRepo.createNode({
+			...nodes.ticket(id, name, parentId),
+			rank,
+		});
 
 		if (isFail(result)) {
 			return materializeFail(result.message ?? 'Unable to create issue', event);
+		}
+		if (!isTicketNode(result.value)) {
+			return failed('Unexpected create node return value');
 		}
 
 		return succeeded('Added issue', {
@@ -114,22 +146,28 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'add.field': event => {
-		const {id, name, parent: parentId, val: value} = event.payload;
-		const result = nodeRepo.createNodeAtPosition(
-			nodes.field(
+		const {id, name, parent: parentId, val: value, rank} = event.payload;
+
+		const result = nodeRepo.createNode({
+			...nodes.field(
 				id,
 				name,
 				parentId,
 				{value},
 				name.includes('Description') ? 'vertical' : 'horizontal',
 			),
-		);
+			rank,
+		});
 
 		if (isFail(result)) {
 			return materializeFail(
 				result.message ?? `Unable to create field: ${name}`,
 				event,
 			);
+		}
+
+		if (!isFieldNode(result.value)) {
+			return failed('Unexpected create node return value');
 		}
 
 		return succeeded('Added field', {

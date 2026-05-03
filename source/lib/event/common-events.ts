@@ -1,22 +1,29 @@
 import {monotonicFactory, ulid} from 'ulid';
 import {AppEvent} from './event.model.js';
 import {User} from '../state/settings.state.js';
+import {midRank, rankBetween} from '../utils/rank.js';
 
 const nextId = monotonicFactory();
 
 export const createIssueEvents = ({
 	name,
 	parent,
+	rank,
 	user: {userId, userName},
 }: {
 	name: string;
 	parent: string;
+	rank: string;
 	user: User;
 }): readonly AppEvent[] => {
 	const issueId = nextId();
 	const descriptionId = nextId();
 	const assigneesId = nextId();
 	const tagsId = nextId();
+
+	const descriptionRank = midRank();
+	const assigneesRank = rankBetween(descriptionRank, undefined);
+	const tagsRank = rankBetween(assigneesRank, undefined);
 
 	return [
 		{
@@ -28,6 +35,7 @@ export const createIssueEvents = ({
 				id: issueId,
 				parent,
 				name,
+				rank,
 			},
 		},
 		{
@@ -40,6 +48,7 @@ export const createIssueEvents = ({
 				parent: issueId,
 				name: 'Description',
 				val: '',
+				rank: descriptionRank,
 			},
 		},
 		{
@@ -51,6 +60,7 @@ export const createIssueEvents = ({
 				id: assigneesId,
 				parent: issueId,
 				name: 'Assignees',
+				rank: assigneesRank,
 			},
 		},
 		{
@@ -62,6 +72,7 @@ export const createIssueEvents = ({
 				id: tagsId,
 				parent: issueId,
 				name: 'Tags',
+				rank: tagsRank,
 			},
 		},
 	] satisfies readonly AppEvent[];

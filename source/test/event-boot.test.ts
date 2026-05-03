@@ -11,6 +11,7 @@ import {
 } from '../lib/event/event-boot.js';
 import {AppEvent} from '../lib/event/event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {midRank} from '../lib/utils/rank.js';
 
 vi.mock('../lib/event/event-persist.js', () => ({
 	persist: vi.fn(() => ({
@@ -103,16 +104,19 @@ describe('event boot', () => {
 			event('init.workspace', {
 				id: 'workspace-1',
 				name: 'Workspace',
+				rank: midRank(),
 			}),
 			event('add.board', {
 				id: 'board-1',
 				name: 'Board',
 				parent: 'workspace-1',
+				rank: midRank(),
 			}),
 			event('add.swimlane', {
 				id: 'swimlane-1',
 				name: 'Todo',
 				parent: 'board-1',
+				rank: midRank(),
 			}),
 		] as const;
 
@@ -130,16 +134,19 @@ describe('event boot', () => {
 			event('init.workspace', {
 				id: 'workspace-1',
 				name: 'Workspace',
+				rank: midRank(),
 			}),
 			event('add.board', {
 				id: 'board-1',
 				name: 'Board',
 				parent: 'workspace-1',
+				rank: midRank(),
 			}),
 			event('add.swimlane', {
 				id: 'swimlane-1',
 				name: 'Todo',
 				parent: 'board-1',
+				rank: midRank(),
 			}),
 		]);
 
@@ -156,11 +163,13 @@ describe('event boot', () => {
 			event('init.workspace', {
 				id: 'workspace-1',
 				name: 'Workspace',
+				rank: midRank(),
 			}),
 			event('add.board', {
 				id: 'board-1',
 				name: 'Board',
 				parent: 'workspace-1',
+				rank: midRank(),
 			}),
 		]);
 
@@ -200,6 +209,7 @@ describe('event boot', () => {
 			event('init.workspace', {
 				id: 'workspace-1',
 				name: 'Workspace',
+				rank: midRank(),
 			}),
 			event('edit.title', {
 				id: 'missing-node',

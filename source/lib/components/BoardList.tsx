@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {getOrderedChildren} from '../repository/node-repo.js';
+import {getOrderedChildren} from '../repository/rank.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {CursorUI} from './Cursor.js';
