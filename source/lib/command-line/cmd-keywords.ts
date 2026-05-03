@@ -25,6 +25,8 @@ export const CmdKeywords = {
 	// Git
 	SYNC: 'sync',
 
+	EXPORT: 'export',
+
 	NONE: '',
 } as const;
 export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];

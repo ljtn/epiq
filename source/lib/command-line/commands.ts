@@ -53,6 +53,7 @@ import {
 	captureNavigationAnchor,
 	restoreNavigationAnchor,
 } from '../actions/default/restore-navigation.js';
+import {exportBoardLayout} from '../../export/export.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -1042,6 +1043,21 @@ export const commands: CommandLineActionEntry[] = [
 			});
 
 			return succeeded(`Peeking `, true);
+		},
+	},
+
+	{
+		intent: CmdIntent.Export,
+		mode: Mode.COMMAND_LINE,
+		action: async () => {
+			const exportResult = await exportBoardLayout();
+			if (isFail(exportResult)) return exportResult;
+
+			patchState({
+				mode: Mode.DEFAULT,
+			});
+
+			return succeeded('Export successful', true);
 		},
 	},
 ];

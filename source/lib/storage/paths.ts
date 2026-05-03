@@ -8,18 +8,27 @@ export const EPIQ_DIR_NAME = '.epiq';
 export const GLOBAL_CONFIG_DIR_NAME = '.epiq-global';
 export const EVENTS_DIR_NAME = 'events';
 
+export const EXPORTS_FOLDER_NAME = 'epiq';
+
+export const getExportsDirPath = (root: string): string =>
+	path.join(root, EXPORTS_FOLDER_NAME);
+
+// Don't touch
 export const getEpiqDirPath = (root: string): string =>
 	path.join(root, EPIQ_DIR_NAME);
 
+// Don't touch
 export const getEventsDirPath = (root: string): string =>
 	path.join(getEpiqDirPath(root), EVENTS_DIR_NAME);
 
+// Don't touch
 const hasLocalEpiqDir = (dir: string): boolean => {
 	const candidate = path.join(dir, EPIQ_DIR_NAME);
 
 	return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory();
 };
 
+// Don't touch
 export const resolveClosestEpiqRoot = (startDir: string): Result<string> => {
 	let dir = path.resolve(startDir);
 
@@ -37,6 +46,7 @@ export const resolveClosestEpiqRoot = (startDir: string): Result<string> => {
 	}
 };
 
+// Don't touch
 export const ensureEventsDir = (epiqRoot: string): Result<string> => {
 	const eventsPath = getEventsDirPath(epiqRoot);
 

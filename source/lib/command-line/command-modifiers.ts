@@ -21,83 +21,110 @@ export type CommandMap = {
 	[K in keyof typeof NavNodeCtx]: (typeof CmdKeywords)[keyof typeof CmdKeywords][];
 };
 
-export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
-	const {currentNode, readOnly, selectedNode} = getState();
+const GLOBAL_COMMANDS = [
+	CmdKeywords.SYNC,
+	CmdKeywords.HELP,
+	CmdKeywords.EXPORT,
+	CmdKeywords.SET_VIEW,
+	CmdKeywords.SET_EDITOR,
+	CmdKeywords.SET_USERNAME,
+];
+
+const EDIT_COMMANDS = [
+	CmdKeywords.NEW,
+	CmdKeywords.RENAME,
+	CmdKeywords.DELETE,
+	CmdKeywords.MOVE,
+];
+
+const TICKET_COMMANDS = [
+	CmdKeywords.TAG,
+	CmdKeywords.UNTAG,
+	CmdKeywords.ASSIGN,
+	CmdKeywords.UNASSIGN,
+	CmdKeywords.CLOSE_ISSUE,
+	CmdKeywords.RE_OPEN_ISSUE,
+	CmdKeywords.SET_DESCRIPTION,
+];
+
+const PRESENTATION_COMMANDS = [CmdKeywords.FILTER, CmdKeywords.PEEK];
+
+const COMMANDS_BY_CONTEXT: CommandMap = {
+	WORKSPACE: [...GLOBAL_COMMANDS, ...EDIT_COMMANDS],
+	BOARD: [...PRESENTATION_COMMANDS, ...GLOBAL_COMMANDS, ...EDIT_COMMANDS],
+	SWIMLANE: [...PRESENTATION_COMMANDS, ...GLOBAL_COMMANDS, ...EDIT_COMMANDS],
+	TICKET: [...GLOBAL_COMMANDS, ...EDIT_COMMANDS, ...TICKET_COMMANDS],
+	FIELD: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
+	FIELD_LIST: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
+	TEXT: [...GLOBAL_COMMANDS],
+};
+
+const getNewModifiers = (context: AnyContext): string[] => {
+	if (context === 'WORKSPACE') return ['board'];
+
+	return ['issue', 'swimlane', 'board'];
+};
+
+const getAvailableBaseCommands = (): CmdKeyword[] => {
+	const {currentNode, selectedNode, readOnly} = getState();
+
 	const isSetupComplete = getUserSetupStatus().isSetup;
+	if (!isSetupComplete) {
+		return [CmdKeywords.HELP, CmdKeywords.SET_EDITOR, CmdKeywords.SET_USERNAME];
+	}
 
-	const currentContext = currentNode.context;
+	if (!isRepositoryInitialized()) {
+		return [CmdKeywords.HELP, CmdKeywords.INIT];
+	}
+
+	if (readOnly) {
+		return [
+			CmdKeywords.HELP,
+			CmdKeywords.PEEK,
+			CmdKeywords.EXPORT,
+			CmdKeywords.SET_VIEW,
+		];
+	}
+
+	const currentContext = currentNode.context ?? 'WORKSPACE';
 	const selectedContext = selectedNode?.context;
-
-	const globalCommands = [
-		CmdKeywords.SYNC,
-		CmdKeywords.HELP,
-		CmdKeywords.SET_VIEW,
-		CmdKeywords.SET_EDITOR,
-		CmdKeywords.SET_USERNAME,
-	];
-
-	const generalEditCommands = [
-		CmdKeywords.NEW,
-		CmdKeywords.RENAME,
-		CmdKeywords.DELETE,
-	];
-
-	const updateTicketCommands = [
-		CmdKeywords.TAG,
-		CmdKeywords.UNTAG,
-		CmdKeywords.ASSIGN,
-		CmdKeywords.UNASSIGN, // ← new
-		CmdKeywords.CLOSE_ISSUE,
-		CmdKeywords.RE_OPEN_ISSUE,
-		CmdKeywords.SET_DESCRIPTION,
-	];
-
-	const presentationLayerCommands = [CmdKeywords.FILTER, CmdKeywords.PEEK];
-
-	const commandMap: CommandMap = {
-		WORKSPACE: [...globalCommands, ...generalEditCommands],
-		BOARD: [
-			...presentationLayerCommands,
-			...globalCommands,
-			...generalEditCommands,
-		],
-		SWIMLANE: [
-			...presentationLayerCommands,
-			...globalCommands,
-			...generalEditCommands,
-		],
-		TICKET: [
-			...globalCommands,
-			...generalEditCommands,
-			...updateTicketCommands,
-		],
-		FIELD: [...globalCommands, ...updateTicketCommands],
-		FIELD_LIST: [...globalCommands, ...updateTicketCommands],
-		TEXT: [...globalCommands],
-	};
-
-	const isSelectedContextEditable =
+	const selectedIsEditable =
 		selectedContext && EDITABLE_NODES.includes(selectedContext);
 
-	const baseCommands = [...commandMap[currentContext || 'WORKSPACE']].filter(
-		cmd =>
-			(
-				[CmdKeywords.RENAME, CmdKeywords.DELETE, CmdKeywords.MOVE] as string[]
-			).includes(cmd)
-				? isSelectedContextEditable
-				: true,
-	);
+	return COMMANDS_BY_CONTEXT[currentContext].filter(command => {
+		if (
+			command === CmdKeywords.RENAME ||
+			command === CmdKeywords.DELETE ||
+			command === CmdKeywords.MOVE
+		) {
+			return selectedIsEditable;
+		}
 
-	let modifiers: Partial<Record<CmdKeyword, string[]>> = {
-		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
+		return true;
+	});
+};
+
+export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
+	const {currentNode} = getState();
+	const currentContext = currentNode.context ?? 'WORKSPACE';
+
+	const modifiers: Partial<Record<CmdKeyword, string[]>> = {
+		[CmdKeywords.NONE]: getAvailableBaseCommands(),
+
+		[CmdKeywords.EXPORT]: [],
 		[CmdKeywords.SYNC]: [],
 		[CmdKeywords.INIT]: [],
+		[CmdKeywords.HELP]: [],
+
+		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
+
 		[CmdKeywords.SET_USERNAME]: [],
 		[CmdKeywords.SET_DESCRIPTION]: ['confirm'],
 		[CmdKeywords.DELETE]: ['confirm'],
 		[CmdKeywords.RE_OPEN_ISSUE]: ['confirm'],
+		[CmdKeywords.CLOSE_ISSUE]: ['confirm'],
+
 		[CmdKeywords.MOVE]: [
-			// ====== BLOCKED FOR USERS, BUT USED BY THE SYSTEM ========
 			'start',
 			'confirm',
 			'next',
@@ -106,59 +133,28 @@ export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
 			'to-previous',
 			'cancel',
 		],
-		[CmdKeywords.CLOSE_ISSUE]: ['confirm'],
+
 		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
 		[CmdKeywords.SET_VIEW]: ['dense', 'wide'],
 		[CmdKeywords.SET_EDITOR]: [...editorConfig],
+
 		[CmdKeywords.TAG]: [
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),
 		],
+
 		[CmdKeywords.UNTAG]: [
 			...(ticketTagsFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
+
 		[CmdKeywords.UNASSIGN]: [
 			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
-		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
-		[CmdKeywords.HELP]: [],
-		[CmdKeywords.RENAME]: [],
-		[CmdKeywords.NEW]:
-			currentContext === 'TICKET' ||
-			currentContext === 'FIELD' ||
-			currentContext === 'FIELD_LIST'
-				? ['issue', 'swimlane', 'board']
-				: currentContext === 'SWIMLANE'
-				? ['issue', 'swimlane', 'board']
-				: currentContext === 'BOARD'
-				? ['issue', 'swimlane', 'board']
-				: ['board'],
-		[CmdKeywords.NONE]: baseCommands,
-	};
 
-	if (!isSetupComplete) {
-		modifiers = {
-			[CmdKeywords.NONE]: [
-				CmdKeywords.HELP,
-				CmdKeywords.SET_EDITOR,
-				CmdKeywords.SET_USERNAME,
-			],
-			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
-			[CmdKeywords.SET_EDITOR]: modifiers[CmdKeywords.SET_EDITOR],
-			[CmdKeywords.SET_USERNAME]: modifiers[CmdKeywords.SET_USERNAME],
-		};
-	} else if (!isRepositoryInitialized()) {
-		modifiers = {
-			[CmdKeywords.NONE]: [CmdKeywords.HELP, CmdKeywords.INIT],
-			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
-			[CmdKeywords.INIT]: modifiers[CmdKeywords.INIT],
-		};
-	} else if (readOnly) {
-		modifiers = {
-			[CmdKeywords.NONE]: [CmdKeywords.HELP, CmdKeywords.PEEK],
-			[CmdKeywords.HELP]: modifiers[CmdKeywords.HELP],
-			[CmdKeywords.PEEK]: modifiers[CmdKeywords.PEEK],
-		};
-	}
+		[CmdKeywords.ASSIGN]: nodeRepo.getExistingAssignees(),
+
+		[CmdKeywords.RENAME]: [],
+		[CmdKeywords.NEW]: getNewModifiers(currentContext),
+	};
 
 	return modifiers[keyword] ?? [];
 };

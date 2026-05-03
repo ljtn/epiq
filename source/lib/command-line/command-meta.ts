@@ -38,6 +38,8 @@ export const CmdIntent = {
 
 	// Git
 	Sync: 'sync',
+
+	Export: 'export',
 } as const;
 
 export type CommandIntent = (typeof CmdIntent)[keyof typeof CmdIntent];
