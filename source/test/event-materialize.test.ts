@@ -1,11 +1,12 @@
 import {beforeEach, describe, expect, it} from 'vitest';
+import {materialize, materializeAll} from '../lib/event/event-materialize.js';
+import {AppEvent} from '../lib/event/event.model.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {isFail, Result} from '../lib/model/result-types.js';
+import {nodeRepo} from '../lib/repository/node-repo.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
-import {nodeRepo} from '../lib/repository/node-repo.js';
-import {AppEvent} from '../lib/event/event.model.js';
-import {materialize, materializeAll} from '../lib/event/event-materialize.js';
-import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {midRank} from '../lib/utils/rank.js';
 
 const actor = {
 	userId: 'u1',
@@ -28,32 +29,36 @@ const event = <A extends AppEvent['action']>(
 const expectOk = (result: any) => {
 	expect(isFail(result)).toBe(false);
 };
-
 const setupWorkspace = () => {
 	const results = materializeAll([
 		event('init.workspace', {
 			id: 'workspace-1',
 			name: 'Workspace',
+			rank: midRank(),
 		}),
 		event('add.board', {
 			id: 'board-1',
 			name: 'Board',
 			parent: 'workspace-1',
+			rank: midRank(),
 		}),
 		event('add.swimlane', {
 			id: 'swimlane-1',
 			name: 'Todo',
 			parent: 'board-1',
+			rank: midRank(),
 		}),
 		event('add.swimlane', {
 			id: CLOSED_SWIMLANE_ID,
 			name: 'Closed',
 			parent: 'board-1',
+			rank: 'z',
 		}),
 		event('add.issue', {
 			id: 'issue-1',
 			name: 'Issue',
 			parent: 'swimlane-1',
+			rank: midRank(),
 		}),
 	] as const);
 
@@ -114,6 +119,7 @@ describe('event materialize', () => {
 					id: 'swimlane-2',
 					name: 'Doing',
 					parent: 'board-1',
+					rank: 't',
 				}),
 			),
 		);
@@ -122,6 +128,7 @@ describe('event materialize', () => {
 			event('move.node', {
 				id: 'issue-1',
 				parent: 'swimlane-2',
+				rank: midRank(),
 			}),
 		);
 
@@ -135,7 +142,8 @@ describe('event materialize', () => {
 		const result = materialize(
 			event('close.issue', {
 				id: 'issue-1',
-				parent: 'parent-1',
+				parent: CLOSED_SWIMLANE_ID,
+				rank: midRank(),
 			}),
 		);
 
@@ -143,21 +151,20 @@ describe('event materialize', () => {
 		expect(nodeRepo.getNode('issue-1')?.parentNodeId).toBe(CLOSED_SWIMLANE_ID);
 	});
 
-	it('fails closing an already closed issue', () => {
+	it('closing an already closed issue is idempotent', () => {
 		setupWorkspace();
 
-		expectOk(
-			materialize(event('close.issue', {id: 'issue-1', parent: 'parent-1'})),
-		);
+		const closeEvent = event('close.issue', {
+			id: 'issue-1',
+			parent: CLOSED_SWIMLANE_ID,
+			rank: midRank(),
+		});
 
-		const result = materialize(
-			event('close.issue', {id: 'issue-1', parent: 'parent-1'}),
-		);
+		expectOk(materialize(closeEvent));
+		expectOk(materialize(closeEvent));
 
-		expect(isFail(result)).toBe(true);
-		if (isFail(result)) {
-			expect(result.message).toContain('cannot close closed issue');
-		}
+		expect(nodeRepo.getNode('issue-1')?.parentNodeId).toBe(CLOSED_SWIMLANE_ID);
+		expect(nodeRepo.getNode('issue-1')?.rank).toBe(closeEvent.payload.rank);
 	});
 
 	it('logs events on affected nodes by default', () => {
@@ -214,11 +221,13 @@ describe('event materialize', () => {
 			event('init.workspace', {
 				id: 'workspace-1',
 				name: 'Workspace',
+				rank: midRank(),
 			}),
 			event('add.board', {
 				id: 'board-1',
 				name: 'Board',
 				parent: 'workspace-1',
+				rank: midRank(),
 			}),
 		] as const;
 

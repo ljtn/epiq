@@ -287,11 +287,11 @@ describe('mcp tools', () => {
 		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith([
 			expect.objectContaining({
 				action: 'move.node',
-				payload: {
+				payload: expect.objectContaining({
 					id: 'issue-1',
 					parent: 'swimlane-2',
-					pos: {at: 'start'},
-				},
+					rank: expect.any(String),
+				}),
 			}),
 		]);
 	});

@@ -7,6 +7,7 @@ import {materializeAll} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
+import {rankBetween} from '../utils/rank.js';
 
 const SYSTEM_ACTOR_ID = `system` as const;
 const SYSTEM_ACTOR_NAME = `ACTOR` as const;
@@ -70,48 +71,74 @@ export function createDefaultEvents(): readonly AppEvent[] {
 	const swimlaneId2 = nextId();
 	const swimlaneId3 = nextId();
 
+	const workspaceRank = rankBetween(undefined, undefined);
+
+	const defaultBoardRank = rankBetween(undefined, undefined);
+	const closedBoardRank = rankBetween(defaultBoardRank, undefined);
+
+	const todoRank = rankBetween(undefined, undefined);
+	const inProgressRank = rankBetween(todoRank, undefined);
+	const doneRank = rankBetween(inProgressRank, undefined);
+
+	const closedSwimlaneRank = rankBetween(undefined, undefined);
+
 	return [
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
 			userName: SYSTEM_ACTOR_NAME,
 			action: 'init.workspace',
-			payload: {id: workspaceId, name: 'Workspace'},
+			payload: {id: workspaceId, name: 'Workspace', rank: workspaceRank},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
 			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.board',
-			payload: {id: boardId, name: 'Default', parent: workspaceId},
+			payload: {
+				id: boardId,
+				name: 'Default',
+				parent: workspaceId,
+				rank: defaultBoardRank,
+			},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
 			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
-			payload: {id: swimlaneId1, name: 'Todo', parent: boardId},
+			payload: {id: swimlaneId1, name: 'Todo', parent: boardId, rank: todoRank},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
 			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
-			payload: {id: swimlaneId2, name: 'In progress', parent: boardId},
+			payload: {
+				id: swimlaneId2,
+				name: 'In progress',
+				parent: boardId,
+				rank: inProgressRank,
+			},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
 			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.swimlane',
-			payload: {id: swimlaneId3, name: 'Done', parent: boardId},
+			payload: {id: swimlaneId3, name: 'Done', parent: boardId, rank: doneRank},
 		},
 		{
 			id: ulid(),
 			userId: SYSTEM_ACTOR_ID,
 			userName: SYSTEM_ACTOR_NAME,
 			action: 'add.board',
-			payload: {id: CLOSED_BOARD_ID, name: 'Closed', parent: workspaceId},
+			payload: {
+				id: CLOSED_BOARD_ID,
+				name: 'Closed',
+				parent: workspaceId,
+				rank: closedBoardRank,
+			},
 		},
 		{
 			id: ulid(),
@@ -122,6 +149,7 @@ export function createDefaultEvents(): readonly AppEvent[] {
 				id: CLOSED_SWIMLANE_ID,
 				name: 'Closed',
 				parent: CLOSED_BOARD_ID,
+				rank: closedSwimlaneRank,
 			},
 		},
 		{

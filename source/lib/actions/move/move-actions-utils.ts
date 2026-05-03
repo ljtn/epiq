@@ -1,7 +1,7 @@
 import {ulid} from 'ulid';
 import {materialize} from '../../event/event-materialize.js';
 import {resolveActorId} from '../../event/event-persist.js';
-import {getOrderedChildren} from '../../repository/rank.js';
+import {resolveMoveRank} from '../../repository/rank.js';
 import {
 	failed,
 	isFail,
@@ -12,7 +12,8 @@ import {
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {AppEvent} from '../../event/event.model.js';
+import {AppEvent, MovePosition} from '../../event/event.model.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 
 let pendingMoveState: AppEvent<'move.node'> | null = null;
 
@@ -33,6 +34,57 @@ const getSelectedChild = ():
 	return succeeded('Resolved selected child', targetNode);
 };
 
+export const resolveRankForMove = ({
+	id,
+	parentId,
+	position = {at: 'end'},
+}: {
+	id: string;
+	parentId: string;
+	position?: MovePosition;
+}) => {
+	const siblings = getOrderedChildren(parentId).filter(node => node.id !== id);
+	return resolveMoveRank(siblings, position);
+};
+
+const createPendingMoveState = ({
+	id,
+	parentId,
+	position,
+}: {
+	id: string;
+	parentId: string;
+	position?: MovePosition;
+}): ReturnSuccess<AppEvent<'move.node'>> | ReturnFail => {
+	const userIdRes = resolveActorId();
+	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
+
+	const rankResult = resolveRankForMove({id, parentId, position});
+	if (isFail(rankResult)) return rankResult;
+
+	return succeeded('Created pending move state', {
+		id: ulid(),
+		...userIdRes.value,
+		action: 'move.node',
+		payload: {
+			id,
+			parent: parentId,
+			rank: rankResult.value,
+		},
+	});
+};
+
+const previewPendingMove = (
+	event: AppEvent<'move.node'>,
+): ReturnSuccess<unknown> | ReturnFail => {
+	setMovePendingState(event);
+
+	const materializedResult = materialize(event, true);
+	if (isFail(materializedResult)) return materializedResult;
+
+	return succeeded('Node moved successfully', materializedResult.value);
+};
+
 export function moveNodeToSiblingContainer(direction: -1 | 1) {
 	const selectedChildResult = getSelectedChild();
 	if (isFail(selectedChildResult)) return selectedChildResult;
@@ -50,28 +102,15 @@ export function moveNodeToSiblingContainer(direction: -1 | 1) {
 	const siblingNode = siblings[currentIndex + direction];
 	if (!siblingNode) return failed('Missing sibling node');
 
-	const userIdRes = resolveActorId();
-	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-	const {userId, userName} = userIdRes.value;
-
-	setMovePendingState({
-		id: ulid(),
-		userId,
-		userName,
-		action: 'move.node',
-		payload: {
-			id: selectedChildResult.value.id,
-			parent: siblingNode.id,
-			pos: {at: 'end'},
-		},
+	const pendingResult = createPendingMoveState({
+		id: selectedChildResult.value.id,
+		parentId: siblingNode.id,
+		position: {at: 'end'},
 	});
 
-	if (!pendingMoveState) return failed('Could not materialize move state');
+	if (isFail(pendingResult)) return pendingResult;
 
-	const materializedResult = materialize(pendingMoveState, true);
-	if (isFail(materializedResult)) return materializedResult;
-
-	return succeeded('Node moved successfully', materializedResult.value);
+	return previewPendingMove(pendingResult.value);
 }
 
 export function moveChildWithinParent(direction: -1 | 1) {
@@ -84,29 +123,16 @@ export function moveChildWithinParent(direction: -1 | 1) {
 	const referenceNode = siblings[selectedIndex + direction];
 	if (!referenceNode) return failed('Missing sibling node');
 
-	const userIdRes = resolveActorId();
-	if (isFail(userIdRes)) return failed('Unable to resolve user ID');
-	const {userId, userName} = userIdRes.value;
-
-	setMovePendingState({
-		id: ulid(),
-		userId,
-		userName,
-		action: 'move.node',
-		payload: {
-			id: selectedChildResult.value.id,
-			parent: currentNode.id,
-			pos: {
-				at: direction === 1 ? 'after' : 'before',
-				sibling: referenceNode.id,
-			},
+	const pendingResult = createPendingMoveState({
+		id: selectedChildResult.value.id,
+		parentId: currentNode.id,
+		position: {
+			at: direction === 1 ? 'after' : 'before',
+			sibling: referenceNode.id,
 		},
 	});
 
-	if (!pendingMoveState) return failed('Could not materialize move state');
+	if (isFail(pendingResult)) return pendingResult;
 
-	const materializedResult = materialize(pendingMoveState, true);
-	if (isFail(materializedResult)) return materializedResult;
-
-	return succeeded('Node moved successfully', materializedResult.value);
+	return previewPendingMove(pendingResult.value);
 }

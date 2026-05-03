@@ -1,20 +1,22 @@
 import {ulid} from 'ulid';
+import {syncEpiqWithRemote} from '../git/sync.js';
+import {resolveRankForMove} from '../lib/actions/move/move-actions-utils.js';
+import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
 import {loadMergedEvents} from '../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
-import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
 import {AppEvent, MovePosition} from '../lib/event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
-import {syncEpiqWithRemote} from '../git/sync.js';
-import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {isTicketNode, Ticket} from '../lib/model/context.model.js';
+import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {nodeRepo} from '../lib/repository/node-repo.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
+import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {getFieldValue} from '../lib/utils/ticket.utils.js';
-import {nodeRepo} from '../lib/repository/node-repo.js';
+import {midRank} from '../lib/utils/rank.js';
 
 type SyncInput = ToolInput;
 type MoveIssueInput = ToolInput & {
@@ -191,6 +193,7 @@ export const createIssue = (input: CreateIssueInput) => {
 		name: input.title,
 		parent: input.parentId,
 		user: actorResult.value,
+		rank: midRank(),
 	});
 
 	const results = materializeAndPersistAll(issueEvents);
@@ -229,6 +232,14 @@ export const closeIssue = (input: CloseIssueInput) => {
 		return failed('Issue is already closed');
 	}
 
+	const rankResult = resolveRankForMove({
+		id: input.issueId,
+		parentId: CLOSED_SWIMLANE_ID,
+		position: {at: 'end'},
+	});
+
+	if (isFail(rankResult)) return rankResult;
+
 	const event = {
 		id: ulid(),
 		userId: actorResult.value.userId,
@@ -236,7 +247,8 @@ export const closeIssue = (input: CloseIssueInput) => {
 		action: 'close.issue',
 		payload: {
 			id: input.issueId,
-			parent: issue.parentNodeId,
+			parent: CLOSED_SWIMLANE_ID,
+			rank: rankResult.value,
 		},
 	} satisfies AppEvent<'close.issue'>;
 
@@ -288,6 +300,16 @@ export const moveIssue = (input: MoveIssueInput) => {
 		return failed('Cannot move issue to readonly swimlane');
 	}
 
+	const position = input.position ?? {at: 'end'};
+
+	const rankResult = resolveRankForMove({
+		id: input.issueId,
+		parentId: input.parentId,
+		position,
+	});
+
+	if (isFail(rankResult)) return rankResult;
+
 	const event = {
 		id: ulid(),
 		userId: actorResult.value.userId,
@@ -296,7 +318,7 @@ export const moveIssue = (input: MoveIssueInput) => {
 		payload: {
 			id: input.issueId,
 			parent: input.parentId,
-			...(input.position == undefined ? {} : {pos: input.position}),
+			rank: rankResult.value,
 		},
 	} satisfies AppEvent<'move.node'>;
 
