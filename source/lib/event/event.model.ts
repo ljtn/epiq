@@ -9,6 +9,11 @@ export type MovePosition =
 	| {at: 'before'; sibling: string}
 	| {at: 'after'; sibling: string};
 
+export type MoveTarget = {
+	parent: string;
+	rank: string;
+};
+
 export type PayloadBase = {id: string};
 
 export type AppEventMap = {
@@ -97,10 +102,7 @@ export type AppEventMap = {
 	};
 
 	'move.node': {
-		payload: PayloadBase & {
-			parent: string;
-			pos?: MovePosition;
-		};
+		payload: PayloadBase & MoveTarget;
 		result: NavNode<AnyContext>;
 	};
 
@@ -112,12 +114,12 @@ export type AppEventMap = {
 	};
 
 	'close.issue': {
-		payload: PayloadBase & {parent: string};
+		payload: PayloadBase & MoveTarget;
 		result: {id: string};
 	};
 
 	'reopen.issue': {
-		payload: PayloadBase;
+		payload: PayloadBase & MoveTarget;
 		result: {id: string};
 	};
 

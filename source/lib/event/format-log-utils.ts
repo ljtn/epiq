@@ -48,20 +48,7 @@ const formatEventDetails = (event: AppEvent): string => {
 				? chalk.dim.bgBlack(` ${parent.title} `)
 				: 'unknown';
 
-			const pos = event.payload.pos;
-
-			if (!pos) return `to ${parentLabel}`;
-
-			switch (pos.at) {
-				case 'start':
-					return `to ${parentLabel} ${chalk.dim('(to top of list)')}`;
-				case 'end':
-					return `to ${parentLabel} ${chalk.dim('(to bottom of list)')}`;
-				case 'before':
-					return `to ${parentLabel} ${chalk.dim('(up in list)')}`;
-				case 'after':
-					return `to ${parentLabel} ${chalk.dim('(down in list)')}`;
-			}
+			return `to ${parentLabel} with rank ${event.payload.rank}`;
 		}
 
 		case 'tag.issue': {

@@ -4,7 +4,6 @@ import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 import {getState, initWorkspaceState, updateState} from '../state/state.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
-import {resolveReopenParentFromLog} from './log-utils.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
 
 type MaterializeHandlers = {
@@ -261,8 +260,13 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'move.node': event => {
-		const {id, parent: parentId, pos: position} = event.payload;
-		const result = nodeRepo.moveNode({id, parentId, position});
+		const {id, parent: parentId, rank} = event.payload;
+
+		const result = nodeRepo.moveNodeToRank({
+			id,
+			parentId,
+			rank,
+		});
 
 		if (isFail(result)) {
 			return materializeFail(result.message ?? 'Failed to move node', event);
@@ -292,7 +296,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'close.issue': event => {
-		const {id} = event.payload;
+		const {id, parent: parentId, rank} = event.payload;
 		const node = nodeRepo.getNode(id);
 		if (!node) return materializeFail('Unable to locate issue', event);
 		if (!isTicketNode(node))
@@ -303,14 +307,14 @@ const materializeHandlers: MaterializeHandlers = {
 			return materializeFail('Unable to locate target swimlane', event);
 		}
 
-		const isClosed = closeSwimlane.id === node.parentNodeId;
-		if (isClosed) {
-			return materializeFail('Cannot close closed issue', event);
+		if (parentId !== closeSwimlane.id) {
+			return materializeFail('Close target must be closed swimlane', event);
 		}
 
-		const result = nodeRepo.moveNode({
+		const result = nodeRepo.moveNodeToRank({
 			id,
-			parentId: closeSwimlane.id,
+			parentId,
+			rank,
 		});
 
 		if (isFail(result)) {
@@ -319,12 +323,12 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue closed', {
 			action: event.action,
-			result: result.value,
+			result: {id},
 		});
 	},
 
 	'reopen.issue': event => {
-		const {id} = event.payload;
+		const {id, parent: parentId, rank} = event.payload;
 		const node = nodeRepo.getNode(id);
 
 		if (!node) return materializeFail('Unable to locate issue', event);
@@ -336,32 +340,19 @@ const materializeHandlers: MaterializeHandlers = {
 			return materializeFail('Unable to locate closed swimlane', event);
 		}
 
-		const isClosed = node.parentNodeId === closeSwimlane.id;
-		if (!isClosed) return materializeFail('Issue is not closed', event);
-
-		const previousParentId = resolveReopenParentFromLog(node);
-		if (!previousParentId) {
-			return materializeFail(
-				'Unable to resolve previous parent from issue history',
-				event,
-			);
+		if (parentId === closeSwimlane.id) {
+			return materializeFail('Cannot reopen issue into closed swimlane', event);
 		}
 
-		if (previousParentId === closeSwimlane.id) {
-			return materializeFail(
-				'Previous parent resolves to closed swimlane',
-				event,
-			);
-		}
-
-		const previousParent = nodeRepo.getNode(previousParentId);
+		const previousParent = nodeRepo.getNode(parentId);
 		if (!previousParent) {
-			return materializeFail('Previous parent no longer exists', event);
+			return materializeFail('Reopen parent no longer exists', event);
 		}
 
-		const result = nodeRepo.moveNode({
+		const result = nodeRepo.moveNodeToRank({
 			id,
-			parentId: previousParentId,
+			parentId,
+			rank,
 		});
 
 		if (isFail(result)) {
@@ -370,7 +361,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue reopened', {
 			action: event.action,
-			result: result.value,
+			result: {id},
 		});
 	},
 

@@ -13,7 +13,7 @@ import {
 } from '../event/event-materialize-and-persist.js';
 import {materializeAll} from '../event/event-materialize.js';
 import {getPersistFileName, resolveActorId} from '../event/event-persist.js';
-import {AppEvent} from '../event/event.model.js';
+import {AppEvent, MovePosition} from '../event/event.model.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {findAncestor, nodeRepo} from '../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
@@ -21,6 +21,7 @@ import {
 	getMovePendingState,
 	moveChildWithinParent,
 	moveNodeToSiblingContainer,
+	resolveRankForMove,
 	setMovePendingState,
 } from '../actions/move/move-actions-utils.js';
 import {setConfig} from '../config/user-config.js';
@@ -54,6 +55,9 @@ import {
 	restoreNavigationAnchor,
 } from '../actions/default/restore-navigation.js';
 import {exportBoardLayout} from '../../export/export.js';
+import {getOrderedChildren, resolveMoveRank} from '../repository/rank.js';
+import {resolveReopenParentFromLog} from '../event/log-utils.js';
+import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -119,21 +123,30 @@ export const commands: CommandLineActionEntry[] = [
 				if (selectedIndex === -1) return failed('No item selected');
 				if (!targetNode.parentNodeId) return failed('Target has no parent');
 
-				const siblings = getRenderedChildren(targetNode.parentNodeId);
+				const siblings = getOrderedChildren(targetNode.parentNodeId);
 				const currentIndex = siblings.findIndex(({id}) => id === targetNode.id);
 
-				if (currentIndex === -1)
+				if (currentIndex === -1) {
 					return failed('Target not found among siblings');
+				}
 
 				const previousSibling = siblings[currentIndex - 1];
 				const nextSibling = siblings[currentIndex + 1];
 
-				const pos =
+				const position: MovePosition =
 					nextSibling != null
-						? ({at: 'before', sibling: nextSibling.id} as const)
+						? {at: 'before', sibling: nextSibling.id}
 						: previousSibling != null
-						? ({at: 'after', sibling: previousSibling.id} as const)
-						: ({at: 'start'} as const);
+						? {at: 'after', sibling: previousSibling.id}
+						: {at: 'start'};
+
+				const rankResult = resolveRankForMove({
+					id: targetNode.id,
+					parentId: targetNode.parentNodeId,
+					position,
+				});
+
+				if (isFail(rankResult)) return rankResult;
 
 				setMovePendingState({
 					id: ulid(),
@@ -141,7 +154,7 @@ export const commands: CommandLineActionEntry[] = [
 					payload: {
 						id: targetNode.id,
 						parent: targetNode.parentNodeId,
-						pos,
+						rank: rankResult.value,
 					},
 					...userRes.value,
 				});
@@ -332,22 +345,40 @@ export const commands: CommandLineActionEntry[] = [
 
 			const {currentNode, selectedIndex} = getState();
 			const target = getRenderedChildren(currentNode.id)[selectedIndex];
+
 			if (!target) return failed('Unable to close issue, no target found');
-			if (!target.parentNodeId) return failed('No target parent found');
-			if (!isTicketNode(target)) {
-				return failed('Cannot close in this context');
+			if (!isTicketNode(target)) return failed('Cannot close in this context');
+
+			const closeSwimlane = getState().nodes[CLOSED_SWIMLANE_ID];
+			if (!closeSwimlane) return failed('Unable to locate closed swimlane');
+
+			if (target.parentNodeId === closeSwimlane.id) {
+				return failed('Issue is already closed');
 			}
+
+			const rankResult = resolveMoveRank(
+				getOrderedChildren(closeSwimlane.id).filter(x => x.id !== target.id),
+				{at: 'end'},
+			);
+
+			if (isFail(rankResult)) return rankResult;
 
 			const result = materializeAndPersist({
 				id: ulid(),
 				action: 'close.issue',
-				payload: {id: target.id, parent: target.parentNodeId},
+				payload: {
+					id: target.id,
+					parent: closeSwimlane.id,
+					rank: rankResult.value,
+				},
 				...userRes.value,
 			});
 
 			if (isFail(result)) return result;
-			return succeeded('Viewing help', null);
+
+			return succeeded('Issue closed', null);
 		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
 		intent: CmdIntent.ReopenIssue,
@@ -372,10 +403,41 @@ export const commands: CommandLineActionEntry[] = [
 
 			const ticket = ticketResult.value;
 
+			const closeSwimlane = getState().nodes[CLOSED_SWIMLANE_ID];
+			if (!closeSwimlane) return failed('Unable to locate closed swimlane');
+
+			if (ticket.parentNodeId !== closeSwimlane.id) {
+				return failed('Issue is not closed');
+			}
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
+
+			const previousParentId = resolveReopenParentFromLog(ticket);
+			if (!previousParentId) {
+				return failed('Unable to resolve previous parent from issue history');
+			}
+
+			if (previousParentId === closeSwimlane.id) {
+				return failed('Previous parent resolves to closed swimlane');
+			}
+
+			const previousParent = getState().nodes[previousParentId];
+			if (!previousParent) return failed('Previous parent no longer exists');
+
+			const rankResult = resolveMoveRank(
+				getOrderedChildren(previousParent.id).filter(x => x.id !== ticket.id),
+				{at: 'end'},
+			);
+
+			if (isFail(rankResult)) return rankResult;
+
 			const result = materializeAndPersist({
 				id: ulid(),
 				action: 'reopen.issue',
-				payload: {id: ticket.id},
+				payload: {
+					id: ticket.id,
+					parent: previousParent.id,
+					rank: rankResult.value,
+				},
 				...userRes.value,
 			});
 

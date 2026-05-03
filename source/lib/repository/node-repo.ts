@@ -144,14 +144,14 @@ export const nodeRepo = {
 		return getOrderedChildren(parentId).find(child => child.title === title);
 	},
 
-	moveNode({
+	moveNodeToRank({
 		id,
 		parentId: nextParentId,
-		position = {at: 'end'},
+		rank,
 	}: {
 		id: string;
 		parentId: string;
-		position?: MovePosition;
+		rank: string;
 	}): Result<NavNode<AnyContext>> {
 		const {rootNodeId} = getState();
 		const node = this.getNode(id);
@@ -169,20 +169,35 @@ export const nodeRepo = {
 			return failed('Cannot move node into its own descendant');
 		}
 
-		const siblings = getOrderedChildren(nextParentId).filter(x => x.id !== id);
-
-		const rankResult = resolveMoveRank(siblings, position);
-		if (isFail(rankResult)) return rankResult;
-
 		const movedNode = {
 			...node,
 			parentNodeId: nextParentId,
-			rank: rankResult.value,
+			rank,
 		};
 
 		this.updateNode(movedNode);
 
 		return succeeded('Moved node successfully', movedNode);
+	},
+
+	moveNodeToPosition({
+		id,
+		parentId,
+		position = {at: 'end'},
+	}: {
+		id: string;
+		parentId: string;
+		position?: MovePosition;
+	}): Result<NavNode<AnyContext>> {
+		const siblings = getOrderedChildren(parentId).filter(x => x.id !== id);
+		const rankResult = resolveMoveRank(siblings, position);
+		if (isFail(rankResult)) return rankResult;
+
+		return this.moveNodeToRank({
+			id,
+			parentId,
+			rank: rankResult.value,
+		});
 	},
 
 	tombstoneNode(nodeId: string): Result<NavNode<AnyContext>> {
