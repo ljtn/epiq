@@ -8,6 +8,7 @@ import {CursorUI} from './Cursor.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 import {TicketListItemCompactUI} from './TicketListItemCompact.js';
+import chalk from 'chalk';
 
 type Props = {
 	swimlane: Swimlane;
@@ -32,7 +33,9 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 }) => {
 	const {renderedChildrenIndex} = useAppState();
 	const children = renderedChildrenIndex[swimlane.id] ?? [];
-	const title = `${swimlane.title} (${children.length})`;
+	const title = `${swimlane.title} ${chalk
+		.hex(theme.secondary2)
+		.dim('(' + children.length + ')')}`;
 	const cmdInputHeight = 3;
 
 	const itemHeight = isDense ? 1 : 4;

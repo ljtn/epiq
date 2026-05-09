@@ -96,7 +96,6 @@ export const InlineEditor: React.FC<Props> = ({
 				borderStyle="round"
 				borderColor={theme.secondary}
 				paddingLeft={1}
-				paddingRight={1}
 				marginLeft={1}
 			>
 				<ScrollBoxUI
