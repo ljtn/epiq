@@ -1,9 +1,10 @@
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {decodeTime} from 'ulid';
+import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
 import {getStringColor} from '../utils/color.js';
-import {nodeRepo} from '../repository/node-repo.js';
+import {LogEvolutionForEvent} from '../virtual-nodes/virtual-nodes.js';
 import {timeAgo} from './date-utils.js';
 import {AppEvent, EventAction} from './event.model.js';
 
@@ -34,18 +35,47 @@ const formatLogAction = (action: string): string => {
 		(action.endsWith('e') ? `${action}d` : `${action}ed`)
 	);
 };
+const getRankDirection = (
+	currentRank: string,
+	previousRank: string | undefined,
+): 'up' | 'down' | null => {
+	if (!previousRank) return null;
+
+	if (currentRank < previousRank) return 'up';
+	if (currentRank > previousRank) return 'down';
+
+	return null;
+};
+
+const formatMoveLogMain = (
+	event: AppEvent<'move.node'>,
+	logEvolution: LogEvolutionForEvent<'move.node'>,
+): string => {
+	const parent = nodeRepo.getNode(event.payload.parent);
+	const parentLabel = parent
+		? chalk.dim.bgBlack(` ${parent.title} `)
+		: 'unknown';
+
+	const previousMove = logEvolution.at(-1);
+
+	if (
+		previousMove &&
+		'parent' in previousMove &&
+		'rank' in previousMove &&
+		previousMove.parent === event.payload.parent
+	) {
+		const direction = getRankDirection(event.payload.rank, previousMove.rank);
+
+		if (direction) {
+			return `Moved ${direction} in ${parentLabel}`;
+		}
+	}
+
+	return `Moved issue to ${parentLabel}`;
+};
 
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
-		case 'move.node': {
-			const parent = nodeRepo.getNode(event.payload.parent);
-			const parentLabel = parent
-				? chalk.dim.bgBlack(` ${parent.title} `)
-				: 'unknown';
-
-			return `to ${parentLabel} with rank ${event.payload.rank}`;
-		}
-
 		case 'add.issue.tag': {
 			const tag = getState().tags[event.payload.tag];
 			return tag
@@ -100,13 +130,23 @@ const formatUser = (userName: string): string => {
 	return padVisibleEnd(`${userName}`, USER_COL_WIDTH);
 };
 
-export const formatLogLine = (event: AppEvent): string => {
+export const formatLogLine = <T extends AppEvent['action']>(
+	event: AppEvent<T>,
+	logEvolution: LogEvolutionForEvent<T>,
+): string => {
 	const time = formatLogTime(event.id);
 	const user = formatUser(event.userName);
-	const action = formatLogAction(event.action);
-	const details = formatEventDetails(event);
 	const bullet = chalk.dim('›');
 
-	const main = [action, details].filter(Boolean).join(' ');
+	const main =
+		event.action === 'move.node'
+			? formatMoveLogMain(
+					event as AppEvent<'move.node'>,
+					logEvolution as LogEvolutionForEvent<'move.node'>,
+			  )
+			: [formatLogAction(event.action), formatEventDetails(event)]
+					.filter(Boolean)
+					.join(' ');
+
 	return `${user} ${time} ${bullet} ${main}`;
 };

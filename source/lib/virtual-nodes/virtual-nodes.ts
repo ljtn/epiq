@@ -1,8 +1,10 @@
+import {AppEvent} from '../event/event.model.js';
 import {formatLogLine} from '../event/format-log-utils.js';
 import {
 	isFieldListNode,
 	isFieldNode,
 	isTicketNode,
+	Ticket,
 	TicketContext,
 } from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -168,10 +170,33 @@ export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
 		name: FieldNames.HISTORY,
 		parentNodeId: node.id,
 		rank: logRank.value,
-		value: [...node.log].reverse().map(formatLogLine).join('\n'),
+		value: getLog(node),
 		readonly: true,
 		childRenderAxis: 'vertical',
 	});
+};
+
+export type LogActionEvolution = Map<AppEvent['action'], AppEvent['payload'][]>;
+export type LogEvolutionForEvent<A extends AppEvent['action']> = Extract<
+	AppEvent,
+	{action: A}
+>['payload'][];
+
+const getLog = (node: Ticket) => {
+	const orderedLog = [...node.log].reverse();
+	const logActionEvolution: LogActionEvolution = new Map();
+
+	for (const event of orderedLog) {
+		const evolution = logActionEvolution.get(event.action) ?? [];
+		evolution.push(event.payload);
+		logActionEvolution.set(event.action, evolution);
+	}
+
+	return orderedLog
+		.map(event =>
+			formatLogLine(event, logActionEvolution.get(event.action) ?? []),
+		)
+		.join('\n');
 };
 
 export const materializeVirtualNodes = () => {

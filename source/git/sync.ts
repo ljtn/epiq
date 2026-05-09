@@ -1,3 +1,4 @@
+import {fail} from 'node:assert';
 import {
 	captureNavigationAnchor,
 	restoreNavigationAnchor,
@@ -8,8 +9,9 @@ import {
 	getPersistFileName,
 	resolveActorId,
 } from '../lib/event/event-persist.js';
+import {Mode} from '../lib/model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {patchState} from '../lib/state/state.js';
+import {getState, patchState} from '../lib/state/state.js';
 import {failSync, setSynced, setSyncing} from '../lib/state/sync-state.js';
 import {trace} from '../lib/utils/logger.utils.js';
 import {getStateBranch} from './git-constants.js';
@@ -555,6 +557,9 @@ export const syncEpiqWithRemote = async ({
 };
 
 export const syncAndReloadState = async () => {
+	const earlyModeFail = failReloadIfNotDefaultMode();
+	if (earlyModeFail) return earlyModeFail;
+
 	logger.info('[sync] syncAndReloadState:start');
 
 	const userRes = trace('resolveActorId', resolveActorId());
@@ -596,6 +601,9 @@ export const syncAndReloadState = async () => {
 		count: allLoadedEventsResult.value.length,
 	});
 
+	const lateModeFail = failReloadIfNotDefaultMode();
+	if (lateModeFail) return lateModeFail;
+
 	// Capture as late as possible, right before booting/patching state.
 	const navigationAnchor = captureNavigationAnchor();
 
@@ -626,4 +634,19 @@ export const syncAndReloadState = async () => {
 	logger.info('[sync] syncAndReloadState:done');
 
 	return succeeded('Synced', true);
+};
+
+const failReloadIfNotDefaultMode = (): Result<null> | null => {
+	if (getState().mode === Mode.DEFAULT) return null;
+
+	patchState({
+		syncStatus: {
+			msg: 'Reload skipped while editing',
+			status: 'outOfSync',
+		},
+	});
+
+	return failed(
+		'Will not re-materialize if not in default mode, to not lose edit data',
+	);
 };
