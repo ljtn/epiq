@@ -76,7 +76,7 @@ export const readEpiqConfig = (): Result<EpiqConfig> => {
 			preferredEditor: '',
 			userId: '',
 			userName: '',
-			autoSyncIntervalMs: 15_000,
+			autoSyncIntervalMs: 10_000,
 		});
 	}
 
@@ -165,7 +165,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		userName,
 		userId,
 		autoSync: autoSync ?? false,
-		autoSyncIntervalMs: autoSyncIntervalMs ?? 15_000,
+		autoSyncIntervalMs: autoSyncIntervalMs ?? 10_000,
 		viewMode: 'dense',
 	});
 };

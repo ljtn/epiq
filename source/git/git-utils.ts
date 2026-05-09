@@ -11,7 +11,7 @@ export type GitExecResult = {
 	exitCode: number;
 };
 
-const GIT_TIMEOUT_MS = 15_000;
+const GIT_TIMEOUT_MS = 10_000;
 
 const gitEnv = {
 	...process.env,
@@ -487,6 +487,25 @@ export const pullBranchRebaseIfPresent = async ({
 	}
 
 	return succeeded('Pulled with rebase', true);
+};
+
+export const hasStagedChanges = async (
+	repoRoot: string,
+): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
+		args: ['diff', '--cached', '--quiet'],
+		cwd: repoRoot,
+	});
+
+	if (result.exitCode === 0) {
+		return succeeded('No staged changes', false);
+	}
+
+	if (result.exitCode === 1) {
+		return succeeded('Has staged changes', true);
+	}
+
+	return failed(result.stderr.trim() || 'Unable to inspect staged changes');
 };
 
 export const hasStateBranchChanges = async (

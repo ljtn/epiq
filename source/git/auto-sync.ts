@@ -34,7 +34,7 @@ const isSyncing = () => {
 };
 
 const getAutoSyncDelay = () => {
-	const intervalMs = getSettingsState().autoSyncIntervalMs ?? 15_000;
+	const intervalMs = getSettingsState().autoSyncIntervalMs ?? 10_000;
 	const elapsed = Date.now() - lastAutoSyncStartedAt;
 
 	return Math.max(0, intervalMs - elapsed);
