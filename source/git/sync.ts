@@ -1,4 +1,3 @@
-import {fail} from 'node:assert';
 import {
 	captureNavigationAnchor,
 	restoreNavigationAnchor,
@@ -642,7 +641,7 @@ const failReloadIfNotDefaultMode = (): Result<null> | null => {
 	patchState({
 		syncStatus: {
 			msg: 'Reload skipped while editing',
-			status: 'outOfSync',
+			status: 'pending',
 		},
 	});
 

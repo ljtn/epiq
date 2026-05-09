@@ -34,7 +34,7 @@ export type Filter = {
 };
 
 export type SyncStatus = {
-	status: 'synced' | 'outOfSync' | 'syncing';
+	status: 'synced' | 'outOfSync' | 'pending' | 'syncing';
 	msg: string;
 };
 

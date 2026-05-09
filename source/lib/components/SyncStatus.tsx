@@ -1,13 +1,11 @@
 import chalk from 'chalk';
 import {Text} from 'ink';
 import React, {useEffect, useState} from 'react';
+import {SyncStatus} from '../model/app-state.model.js';
 import {theme} from '../theme/themes.js';
 
 type SyncStatusPillProps = {
-	syncStatus: {
-		status: 'synced' | 'outOfSync' | 'syncing';
-		msg: string;
-	};
+	syncStatus: SyncStatus;
 };
 
 const SYNC_GRADIENT = ['#4c567a', '#9d7cd8', '#7aa2f7', '#7dcfff', '#9d7cd8'];
@@ -75,11 +73,13 @@ export function SyncStatusPill({syncStatus}: SyncStatusPillProps) {
 		synced: 'synced  ',
 		outOfSync: 'unsynced',
 		syncing: 'syncing ',
+		pending: 'pending ',
 	} satisfies Record<typeof syncStatus.status, string>;
 
 	const colorByStatus = {
 		synced: theme.secondary2,
 		outOfSync: theme.yellow,
+		pending: theme.secondary2,
 		syncing:
 			getGradientColor(SYNC_GRADIENT, (Math.sin(tick * 0.12) + 1) / 2) ?? '',
 	} satisfies Record<typeof syncStatus.status, string>;
