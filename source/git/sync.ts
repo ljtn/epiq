@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import {
 	captureNavigationAnchor,
 	restoreNavigationAnchor,
@@ -16,13 +18,15 @@ import {trace} from '../lib/utils/logger.utils.js';
 import {getStateBranch} from './git-constants.js';
 import {
 	ensureStateBranchLayout,
+	getRelativeEventFilePath,
 	getRepoRootDir,
 	getStateBranchRoot,
 } from './git-storage.js';
 import {
 	execGit,
+	execGitAllowFail,
 	hasInProgressGitOperation,
-	hasStateBranchChanges,
+	hasStagedChanges,
 	isDetachedHead,
 	isNonFastForward,
 	pullBranchRebaseIfPresent,
@@ -35,6 +39,104 @@ import {
 	pushStateBranch,
 	stageStateBranchOwnEventFile,
 } from './git.js';
+import {
+	mergePersistedEvents,
+	parsePersistedEvents,
+	serializePersistedEvents,
+} from './merge.js';
+
+type SyncSummary = {
+	repoRoot: string;
+	stateBranchRoot: string;
+	createdCommit: boolean;
+	commitSha?: string;
+	pulled: boolean;
+	pushed: boolean;
+	bootstrapped: boolean;
+};
+
+type SyncArgs = {
+	cwd?: string;
+	ownEventFileName: string;
+};
+
+type SyncOwnFileCommitResult = {
+	createdCommit: boolean;
+	commitSha?: string;
+};
+
+const readFileIfExists = (filePath: string): string | null =>
+	fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : null;
+
+const writeFileIfChanged = (filePath: string, content: string): boolean => {
+	const current = readFileIfExists(filePath);
+	if (current === content) return false;
+
+	fs.mkdirSync(path.dirname(filePath), {recursive: true});
+	fs.writeFileSync(filePath, content, 'utf8');
+	return true;
+};
+
+const getOwnEventPath = ({
+	stateBranchRoot,
+	ownEventFileName,
+}: {
+	stateBranchRoot: string;
+	ownEventFileName: string;
+}): string =>
+	path.join(stateBranchRoot, getRelativeEventFilePath(ownEventFileName));
+
+const restoreOwnEventFileToHead = async ({
+	stateBranchRoot,
+	ownEventFileName,
+}: {
+	stateBranchRoot: string;
+	ownEventFileName: string;
+}): Promise<Result<null>> => {
+	const relativePath = getRelativeEventFilePath(ownEventFileName);
+	const absolutePath = path.join(stateBranchRoot, relativePath);
+
+	const checkoutResult = await execGitAllowFail({
+		cwd: stateBranchRoot,
+		args: ['checkout', '--', relativePath],
+	});
+
+	if (checkoutResult.exitCode !== 0 && fs.existsSync(absolutePath)) {
+		fs.rmSync(absolutePath, {force: true});
+	}
+
+	return succeeded('Restored own event file to HEAD', null);
+};
+
+const mergeOwnSnapshot = ({
+	ownEventPath,
+	ownSnapshot,
+}: {
+	ownEventPath: string;
+	ownSnapshot: string | null;
+}): Result<boolean> => {
+	if (ownSnapshot === null) return succeeded('No own snapshot to merge', false);
+
+	const remoteContent = readFileIfExists(ownEventPath) ?? '';
+
+	const remoteEventsResult = parsePersistedEvents(remoteContent);
+	if (isFail(remoteEventsResult)) return failed(remoteEventsResult.message);
+
+	const localEventsResult = parsePersistedEvents(ownSnapshot);
+	if (isFail(localEventsResult)) return failed(localEventsResult.message);
+
+	const merged = mergePersistedEvents(
+		remoteEventsResult.value,
+		localEventsResult.value,
+	);
+
+	const changed = writeFileIfChanged(
+		ownEventPath,
+		serializePersistedEvents(merged),
+	);
+
+	return succeeded('Merged own snapshot', changed);
+};
 
 export const resetHardToRemoteState = async (
 	cwd = process.cwd(),
@@ -83,26 +185,6 @@ export const resetHardToRemoteState = async (
 	});
 };
 
-type SyncSummary = {
-	repoRoot: string;
-	stateBranchRoot: string;
-	createdCommit: boolean;
-	commitSha?: string;
-	pulled: boolean;
-	pushed: boolean;
-	bootstrapped: boolean;
-};
-
-type SyncArgs = {
-	cwd?: string;
-	ownEventFileName: string;
-};
-
-type SyncOwnFileCommitResult = {
-	createdCommit: boolean;
-	commitSha?: string;
-};
-
 const ensureSyncReady = async ({
 	cwd,
 	ensureUpstream,
@@ -136,29 +218,6 @@ const ensureSyncReady = async ({
 	const stateBranchRoot = stateBranchRootResult.value;
 
 	logger.info('[sync] state branch root', stateBranchRoot);
-
-	if (ensureUpstream) {
-		logger.info('[sync] checking repo git operation', {repoRoot});
-
-		const repoOpResult = trace(
-			'hasInProgressGitOperation(repoRoot)',
-			await hasInProgressGitOperation(repoRoot),
-		);
-		if (isFail(repoOpResult)) return failed(repoOpResult.message);
-
-		logger.info('[sync] repo git operation check result', {
-			inProgress: repoOpResult.value,
-		});
-
-		if (repoOpResult.value) {
-			logger.info('[sync] repo git operation in progress');
-			return failed(
-				'Cannot sync while a git operation is in progress in the current repo',
-			);
-		}
-	}
-
-	logger.info('[sync] ensuring initial commit', {repoRoot});
 
 	const initResult = trace(
 		'ensureInitialCommit',
@@ -252,24 +311,6 @@ const commitOwnEventFileToStateBranch = async ({
 		stateBranchRoot,
 	});
 
-	const changedResult = trace(
-		'hasStateBranchChanges(before stage)',
-		await hasStateBranchChanges(stateBranchRoot),
-	);
-	if (isFail(changedResult)) return failed(changedResult.message);
-
-	logger.info('[sync] state branch change check result', {
-		changed: changedResult.value,
-	});
-
-	if (!changedResult.value) {
-		logger.info('[sync] state branch already up to date');
-
-		return succeeded('State branch already up to date', {
-			createdCommit: false,
-		});
-	}
-
 	logger.info('[sync] staging own event file', {
 		stateBranchRoot,
 		ownEventFileName,
@@ -284,11 +325,9 @@ const commitOwnEventFileToStateBranch = async ({
 	);
 	if (isFail(stageResult)) return failed(stageResult.message);
 
-	logger.info('[sync] staged own event file');
-
 	const changedAfterStageResult = trace(
-		'hasStateBranchChanges(after stage)',
-		await hasStateBranchChanges(stateBranchRoot),
+		'hasStagedChanges(after stage)',
+		await hasStagedChanges(stateBranchRoot),
 	);
 	if (isFail(changedAfterStageResult)) {
 		return failed(changedAfterStageResult.message);
@@ -400,22 +439,21 @@ export const syncEpiqWithRemote = async ({
 		stateBranchRoot,
 	});
 
-	logger.info('[sync] pull result', pulled);
+	const ownEventPath = getOwnEventPath({
+		stateBranchRoot,
+		ownEventFileName,
+	});
 
-	const syncOwnResult = trace(
-		'commitOwnEventFileToStateBranch',
-		await commitOwnEventFileToStateBranch({
-			repoRoot,
+	const ownSnapshot = readFileIfExists(ownEventPath);
+
+	const restoreResult = trace(
+		'restoreOwnEventFileToHead',
+		await restoreOwnEventFileToHead({
 			stateBranchRoot,
 			ownEventFileName,
 		}),
 	);
-	if (isFail(syncOwnResult)) return failSync(syncOwnResult.message);
-
-	logger.info('[sync] pulling state branch with rebase if present', {
-		stateBranchRoot,
-		stateBranch,
-	});
+	if (isFail(restoreResult)) return failSync(restoreResult.message);
 
 	const pullResult = trace(
 		'pullBranchRebaseIfPresent',
@@ -427,6 +465,25 @@ export const syncEpiqWithRemote = async ({
 	if (isFail(pullResult)) return failSync(pullResult.message);
 
 	pulled = pullResult.value;
+
+	const mergeResult = trace(
+		'mergeOwnSnapshot',
+		mergeOwnSnapshot({
+			ownEventPath,
+			ownSnapshot,
+		}),
+	);
+	if (isFail(mergeResult)) return failSync(mergeResult.message);
+
+	const syncOwnResult = trace(
+		'commitOwnEventFileToStateBranch',
+		await commitOwnEventFileToStateBranch({
+			repoRoot,
+			stateBranchRoot,
+			ownEventFileName,
+		}),
+	);
+	if (isFail(syncOwnResult)) return failSync(syncOwnResult.message);
 
 	createdCommit = syncOwnResult.value.createdCommit;
 	commitSha = syncOwnResult.value.commitSha;
@@ -465,6 +522,17 @@ export const syncEpiqWithRemote = async ({
 			}
 
 			logger.info('[sync] pull retry result', pullRetryResult.value);
+
+			const retryMergeResult = trace(
+				'mergeOwnSnapshot(retry)',
+				mergeOwnSnapshot({
+					ownEventPath,
+					ownSnapshot,
+				}),
+			);
+			if (isFail(retryMergeResult)) {
+				return failSync(retryMergeResult.message);
+			}
 
 			const retrySyncOwnResult = trace(
 				'commitOwnEventFileToStateBranch(retry)',
@@ -531,7 +599,7 @@ export const syncEpiqWithRemote = async ({
 	setSynced(
 		pushed
 			? 'Synced and pushed'
-			: pulled || createdCommit
+			: pulled || createdCommit || mergeResult.value
 			? 'Synced local state'
 			: 'Already synced',
 	);
@@ -603,7 +671,6 @@ export const syncAndReloadState = async () => {
 	const lateModeFail = failReloadIfNotDefaultMode();
 	if (lateModeFail) return lateModeFail;
 
-	// Capture as late as possible, right before booting/patching state.
 	const navigationAnchor = captureNavigationAnchor();
 
 	const bootResult = trace(
