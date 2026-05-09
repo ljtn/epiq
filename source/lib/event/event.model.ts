@@ -3,6 +3,10 @@ import {Contributor, Tag} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
+/**
+ * All string references in event payloads are IDs unless otherwise noted.
+ */
+
 export type MovePosition =
 	| {at: 'start'}
 	| {at: 'end'}
@@ -42,6 +46,9 @@ export type AppEventMap = {
 		result: NavNode<'TICKET'>;
 	};
 
+	/**
+	 * Custom field definition/value node.
+	 */
 	'add.field': {
 		payload: PayloadBase &
 			Position & {
@@ -71,38 +78,40 @@ export type AppEventMap = {
 		result: Contributor;
 	};
 
-	'assign.issue': {
+	'add.issue.assignee': {
 		payload: PayloadBase & {
-			contributor: string;
-			target: string;
-			rank: string;
+			assignee: string;
 		};
-		result: NavNode<'FIELD'>;
+		result: {
+			assignee: string;
+		};
 	};
 
-	'unassign.issue': {
+	'remove.issue.assignee': {
 		payload: PayloadBase & {
-			contributor: string;
-			target: string;
+			assignee: string;
 		};
-		result: NavNode<'FIELD'>;
+		result: {
+			assignee: string;
+		};
 	};
 
-	'tag.issue': {
+	'add.issue.tag': {
 		payload: PayloadBase & {
-			tagId: string;
-			target: string;
-			rank: string;
+			tag: string;
 		};
-		result: NavNode<'FIELD'>;
+		result: {
+			tag: string;
+		};
 	};
 
-	'untag.issue': {
+	'remove.issue.tag': {
 		payload: PayloadBase & {
-			tagId: string;
-			target: string;
+			tag: string;
 		};
-		result: NavNode<'FIELD'>;
+		result: {
+			tag: string;
+		};
 	};
 
 	'move.node': {

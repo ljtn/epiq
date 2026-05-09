@@ -7,6 +7,7 @@ import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {isTicketNode} from '../../model/context.model.js';
 
 export const editCommand = async () => {
 	const userRes = resolveActorId();
@@ -25,7 +26,8 @@ export const editCommand = async () => {
 	if (isFail(issueResult)) return failed('Edit target must be an issue');
 
 	const issueNode = issueResult.value;
-	if (issueNode.readonly) return failed('Cannot edit readonly field');
+	if (!isTicketNode(issueNode)) return failed('Edit target must be an issue');
+	if (issueNode.readonly) return failed('Cannot edit readonly issue');
 
 	const target = getRenderedChildren(issueNode.id).find(
 		x => x.title === FieldNames.DESCRIPTION,
@@ -33,7 +35,7 @@ export const editCommand = async () => {
 	if (!target) return failed('No target found');
 	if (target.readonly) return failed('Cannot edit readonly field');
 
-	const currentValue = target.props.value;
+	const currentValue = issueNode.props.description ?? '';
 
 	if (typeof currentValue !== 'string') {
 		return failed('Selected field is not editable text');
@@ -48,35 +50,16 @@ export const editCommand = async () => {
 		return succeeded('No changes made', null);
 	}
 
-	if (target.title === FieldNames.DESCRIPTION) {
-		return materializeAndPersist(
-			{
-				id: ulid(),
-				action: 'edit.description',
-				payload: {
-					id: target.id,
-					md: updatedValue,
-				},
-				...userRes.value,
+	return materializeAndPersist(
+		{
+			id: ulid(),
+			action: 'edit.description',
+			payload: {
+				id: issueNode.id,
+				md: updatedValue,
 			},
-			persistRoot,
-		);
-	}
-
-	if (target.title === 'Title') {
-		return materializeAndPersist(
-			{
-				id: ulid(),
-				action: 'edit.title',
-				payload: {
-					id: target.id,
-					name: updatedValue,
-				},
-				...userRes.value,
-			},
-			persistRoot,
-		);
-	}
-
-	return failed(`Editing not supported for "${target.title}"`);
+			...userRes.value,
+		},
+		persistRoot,
+	);
 };

@@ -1,7 +1,7 @@
 import {ulid} from 'ulid';
 import {
-	syncAndReloadState,
 	resetHardToRemoteState,
+	syncAndReloadState,
 	syncEpiqWithRemote,
 } from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
@@ -19,10 +19,9 @@ import {
 	resolveAndPersistRankForCreate,
 	resolveAndPersistRankForMove,
 } from '../lib/repository/rank.js';
-import {getRenderedChildren, getSafeState} from '../lib/state/state.js';
+import {getSafeState} from '../lib/state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
-import {getFieldValue} from '../lib/utils/ticket.utils.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -113,33 +112,17 @@ const getStateResult = () => {
 	return stateResult;
 };
 
-const getReferencedIds = (
-	ticket: Ticket,
-	fieldTitle: 'Tags' | 'Assignees',
-): string[] => {
-	const children = getRenderedChildren(ticket.id);
-	const fieldNode = children.find(node => node.title === fieldTitle);
-
-	if (!fieldNode) return [];
-
-	return getRenderedChildren(fieldNode.id)
-		.map(child =>
-			typeof child.props?.value === 'string' ? child.props.value : '',
-		)
-		.filter((value): value is string => Boolean(value));
-};
-
 const getIssueTags = (ticket: Ticket) =>
-	getReferencedIds(ticket, 'Tags')
-		.map(tagId => nodeRepo.getTag(tagId))
+	(ticket.props.tags ?? [])
+		.map(tag => nodeRepo.getTag(tag))
 		.filter(tag => tag != undefined)
 		.map(tag => ({id: tag.id, name: tag.name}));
 
 const getIssueAssignees = (ticket: Ticket) =>
-	getReferencedIds(ticket, 'Assignees')
-		.map(id => nodeRepo.getContributor(id))
-		.filter(Boolean)
-		.map(c => ({id: c!.id, name: c!.name}));
+	(ticket.props.assignees ?? [])
+		.map(assignee => nodeRepo.getContributor(assignee))
+		.filter(contributor => contributor != undefined)
+		.map(contributor => ({id: contributor.id, name: contributor.name}));
 
 export const listBoards = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot);
@@ -194,7 +177,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 		.map(n => ({
 			id: n.id,
 			title: sanitizeInlineText(n.title),
-			description: getFieldValue(n, 'Description'),
+			description: n.props.description ?? '',
 			parentId: n.parentNodeId,
 			isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 			readonly: Boolean(n.readonly),

@@ -237,42 +237,37 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 	},
 
-	'tag.issue': event => {
-		const {id, target: targetId, tagId, rank} = event.payload;
-		const tagged = nodeRepo.tag(targetId, tagId, id, rank);
+	'add.issue.tag': event => {
+		const {id, tag} = event.payload;
+		const result = nodeRepo.tag(id, tag);
 
-		if (isFail(tagged)) {
-			return materializeFail(tagged.message ?? 'Unable to tag issue', event);
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to tag issue', event);
 		}
 
 		return succeeded('Issue tagged', {
 			action: event.action,
-			result: tagged.value,
+			result: {tag},
 		});
 	},
 
-	'untag.issue': event => {
-		const {target: targetId, tagId} = event.payload;
-		const tagged = nodeRepo.untag(targetId, tagId);
+	'remove.issue.tag': event => {
+		const {id, tag} = event.payload;
+		const result = nodeRepo.untag(id, tag);
 
-		if (isFail(tagged)) {
-			return materializeFail(tagged.message ?? 'Unable to untag ', event);
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to untag issue', event);
 		}
 
 		return succeeded('Issue untagged', {
 			action: event.action,
-			result: tagged.value,
+			result: {tag},
 		});
 	},
 
-	'assign.issue': event => {
-		const {
-			id,
-			contributor: contributorId,
-			target: targetId,
-			rank,
-		} = event.payload;
-		const result = nodeRepo.assign(targetId, contributorId, id, rank);
+	'add.issue.assignee': event => {
+		const {id, assignee} = event.payload;
+		const result = nodeRepo.assign(id, assignee);
 
 		if (isFail(result)) {
 			return materializeFail(result.message ?? 'Unable to assign issue', event);
@@ -280,13 +275,13 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Assigned successfully', {
 			action: event.action,
-			result: result.value,
+			result: {assignee},
 		});
 	},
 
-	'unassign.issue': event => {
-		const {target: targetId, contributor} = event.payload;
-		const result = nodeRepo.unassign(targetId, contributor);
+	'remove.issue.assignee': event => {
+		const {id, assignee} = event.payload;
+		const result = nodeRepo.unassign(id, assignee);
 
 		if (isFail(result)) {
 			return materializeFail(
@@ -297,7 +292,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		return succeeded('Issue unassigned', {
 			action: event.action,
-			result: result.value,
+			result: {assignee},
 		});
 	},
 
@@ -476,18 +471,18 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'move.node':
 		case 'close.issue':
 		case 'reopen.issue':
+		case 'add.issue.tag':
+		case 'remove.issue.tag':
+		case 'add.issue.assignee':
+		case 'remove.issue.assignee':
 			return [event.payload.id];
-		case 'edit.description':
+
+		case 'edit.description': {
 			const ids = [event.payload.id];
 			const parentId = getState().nodes[event.payload.id]?.parentNodeId;
 			if (parentId) ids.push(parentId);
 			return ids;
-
-		case 'tag.issue':
-		case 'untag.issue':
-		case 'assign.issue':
-		case 'unassign.issue':
-			return [event.payload.id, event.payload.target];
+		}
 
 		case 'create.tag':
 		case 'create.contributor':

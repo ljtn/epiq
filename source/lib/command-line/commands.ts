@@ -10,11 +10,8 @@ import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
 import {Filter} from '../model/app-state.model.js';
 import {isTicketNode} from '../model/context.model.js';
 import {failed, isFail, succeeded} from '../model/result-types.js';
-import {findAncestor, nodeRepo} from '../repository/node-repo.js';
-import {
-	resolveAndPersistRankForCreate,
-	resolveAndPersistRankForMove,
-} from '../repository/rank.js';
+import {findAncestor} from '../repository/node-repo.js';
+import {resolveAndPersistRankForMove} from '../repository/rank.js';
 import {getCmdArg, getCmdState} from '../state/cmd.state.js';
 import {getSettingsState, patchSettingsState} from '../state/settings.state.js';
 import {
@@ -308,23 +305,20 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			const ticket = ticketResult.value;
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
 
-			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
-			if (!tagsField) return failed('Unable to locate tags field');
+			const tags = ticket.props.tags ?? [];
 
-			const tagNode = getRenderedChildren(tagsField.id).find(
-				child => child.props?.value === existingTag.id,
-			);
-
-			if (!tagNode) return failed('Issue is not tagged with that tag');
+			if (!tags.includes(existingTag.id)) {
+				return failed('Issue is not tagged with that tag');
+			}
 
 			return persistEvent({
 				id: ulid(),
-				action: 'untag.issue',
+				action: 'remove.issue.tag',
 				payload: {
-					id: tagNode.id,
-					target: ticket.id,
-					tagId: existingTag.id,
+					id: ticket.id,
+					tag: existingTag.id,
 				},
 				...userRes.value,
 			});
@@ -353,6 +347,8 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			const ticket = ticketResult.value;
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
+
 			const existingTag = findTagByName(name);
 
 			let tagId: string;
@@ -368,42 +364,25 @@ export const commands: CommandLineActionEntry[] = [
 						id: newTagId,
 						name,
 					},
-					userId: userRes.value.userId,
-					userName: userRes.value.userName,
+					...userRes.value,
 				});
 
 				if (isFail(createResult)) return createResult;
 				tagId = createResult.value.result.id;
 			}
 
-			const tagsField = nodeRepo.getFieldByTitle(ticket.id, 'Tags');
-			if (!tagsField) return failed('Unable to locate tags field');
+			const tags = ticket.props.tags ?? [];
 
-			const alreadyTagged = getRenderedChildren(tagsField.id).some(
-				child => child.props?.value === tagId,
-			);
-
-			if (alreadyTagged) return failed('Already tagged with that tag');
-
-			const persistRootResult = await getPersistRoot();
-			if (isFail(persistRootResult)) return persistRootResult;
-			const persistRoot = persistRootResult.value;
-
-			const rankResult = resolveAndPersistRankForCreate(
-				tagsField.id,
-				userRes.value,
-				persistRoot,
-			);
-			if (isFail(rankResult)) return rankResult;
+			if (tags.includes(tagId)) {
+				return failed('Already tagged with that tag');
+			}
 
 			return persistEvent({
 				id: ulid(),
-				action: 'tag.issue',
+				action: 'add.issue.tag',
 				payload: {
-					id: ulid(),
-					target: ticket.id,
-					tagId,
-					rank: rankResult.value,
+					id: ticket.id,
+					tag: tagId,
 				},
 				...userRes.value,
 			});
@@ -432,6 +411,8 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			const ticket = ticketResult.value;
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
+
 			const existingContributor = findContributorByName(name);
 
 			let contributorId: string;
@@ -447,42 +428,25 @@ export const commands: CommandLineActionEntry[] = [
 						id: newContributorId,
 						name,
 					},
-					userId: userRes.value.userId,
-					userName: userRes.value.userName,
+					...userRes.value,
 				});
 
 				if (isFail(createResult)) return createResult;
 				contributorId = createResult.value.result.id;
 			}
 
-			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');
-			if (!assigneesField) return failed('Unable to locate assignees field');
+			const assignees = ticket.props.assignees ?? [];
 
-			const alreadyAssigned = getRenderedChildren(assigneesField.id).some(
-				child => child.props?.value === contributorId,
-			);
-
-			if (alreadyAssigned) return failed('Assignee already assigned');
-
-			const persistRootResult = await getPersistRoot();
-			if (isFail(persistRootResult)) return persistRootResult;
-			const persistRoot = persistRootResult.value;
-
-			const rankResult = resolveAndPersistRankForCreate(
-				assigneesField.id,
-				userRes.value,
-				persistRoot,
-			);
-			if (isFail(rankResult)) return rankResult;
+			if (assignees.includes(contributorId)) {
+				return failed('Assignee already assigned');
+			}
 
 			return persistEvent({
 				id: ulid(),
-				action: 'assign.issue',
+				action: 'add.issue.assignee',
 				payload: {
-					id: ulid(),
-					target: ticket.id,
-					contributor: contributorId,
-					rank: rankResult.value,
+					id: ticket.id,
+					assignee: contributorId,
 				},
 				...userRes.value,
 			});
@@ -515,23 +479,20 @@ export const commands: CommandLineActionEntry[] = [
 			}
 
 			const ticket = ticketResult.value;
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
 
-			const assigneesField = nodeRepo.getFieldByTitle(ticket.id, 'Assignees');
-			if (!assigneesField) return failed('Unable to locate assignees field');
+			const assignees = ticket.props.assignees ?? [];
 
-			const assigneeNode = getRenderedChildren(assigneesField.id).find(
-				child => child.props?.value === existingContributor.id,
-			);
-
-			if (!assigneeNode) return failed(`Issue is not assigned to "${name}"`);
+			if (!assignees.includes(existingContributor.id)) {
+				return failed(`Issue is not assigned to "${name}"`);
+			}
 
 			return persistEvent({
 				id: ulid(),
-				action: 'unassign.issue',
+				action: 'remove.issue.assignee',
 				payload: {
-					id: assigneeNode.id,
-					target: ticket.id,
-					contributor: existingContributor.id,
+					id: ticket.id,
+					assignee: existingContributor.id,
 				},
 				...userRes.value,
 			});

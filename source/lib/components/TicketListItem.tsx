@@ -1,7 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
-import {getRenderedChildren} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {
 	sanitizeInlineText,
@@ -10,43 +9,6 @@ import {
 import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
-
-type TicketFieldMap = Record<
-	string,
-	{
-		value: string;
-		values: string[];
-	}
->;
-
-export const getTicketFields = (ticket: Ticket): TicketFieldMap => {
-	const fields: TicketFieldMap = {};
-
-	if (!ticket) return fields;
-
-	const ticketChildren = getRenderedChildren(ticket.id);
-	for (const field of ticketChildren) {
-		if (!field.title) continue;
-
-		const fieldChildren = getRenderedChildren(field.id);
-
-		fields[field.title] = {
-			value:
-				typeof field.props?.value === 'string'
-					? sanitizeInlineText(field.props.value)
-					: '',
-			values: fieldChildren
-				.map(child =>
-					typeof child.props?.value === 'string'
-						? sanitizeInlineText(child.props.value)
-						: '',
-				)
-				.filter(Boolean),
-		};
-	}
-
-	return fields;
-};
 
 export const TicketListItemUI: React.FC<{
 	width: number;

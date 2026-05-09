@@ -70,7 +70,7 @@ export const nodes = {
 		name: string;
 		parentNodeId: string;
 		rank: string;
-		props: NavNode<'FIELD'>['props'];
+		props?: NavNode<'FIELD'>['props'];
 		childRenderAxis?: NavNode<AnyContext>['childRenderAxis'];
 		isVirtual?: boolean;
 	}): NavNode<'FIELD'> => ({
@@ -80,6 +80,34 @@ export const nodes = {
 		isDeleted: false,
 		props,
 		context: NavNodeCtx.FIELD,
+		childRenderAxis,
+		parentNodeId,
+		readonly: false,
+		log: [],
+		isVirtual,
+	}),
+
+	fieldList: ({
+		id,
+		name,
+		parentNodeId,
+		rank,
+		childRenderAxis = 'horizontal',
+		isVirtual = false,
+	}: {
+		id: string;
+		name: string;
+		parentNodeId: string;
+		rank: string;
+		childRenderAxis?: NavNode<AnyContext>['childRenderAxis'];
+		isVirtual?: boolean;
+	}): NavNode<'FIELD_LIST'> => ({
+		id,
+		title: name,
+		rank,
+		isDeleted: false,
+		props: {},
+		context: NavNodeCtx.FIELD_LIST,
 		childRenderAxis,
 		parentNodeId,
 		readonly: false,

@@ -1,11 +1,10 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
-import {nodeRepo} from '../repository/node-repo.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
-import {getRenderedChildren} from '../state/state.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {theme} from '../theme/themes.js';
 import {getStringColor, stringToHslHexColor} from '../utils/color.js';
 import {CursorUI} from './Cursor.js';
@@ -28,25 +27,12 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	index,
 	mode,
 }) => {
-	const children = getRenderedChildren(ticket.id);
-
-	const getReferencedIds = (title: 'Tags' | 'Assignees') => {
-		const fieldNode = children.find(node => node.title === title);
-		if (!fieldNode) return [];
-
-		return getRenderedChildren(fieldNode.id)
-			.map(node =>
-				typeof node.props?.value === 'string' ? node.props.value : '',
-			)
-			.filter((x): x is string => Boolean(x));
-	};
-
-	const tags = getReferencedIds('Tags')
-		.map(tagId => nodeRepo.getTag(tagId))
+	const tags = (ticket.props.tags ?? [])
+		.map(tag => nodeRepo.getTag(tag))
 		.filter((s): s is Tag => Boolean(s));
 
-	const assignees = getReferencedIds('Assignees')
-		.map(contributorId => nodeRepo.getContributor(contributorId))
+	const assignees = (ticket.props.assignees ?? [])
+		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter((s): s is Contributor => Boolean(s));
 
 	const paddingRight = 1;
@@ -79,7 +65,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 				<CursorUI
 					isSelected={isSelected}
 					placeholder={chalk.dim.gray(index + 1 + ' ')}
-				></CursorUI>
+				/>
 				<Text wrap="truncate" color={color}>
 					{truncateWithEllipsis(
 						ticket.title,

@@ -14,30 +14,25 @@ const padVisibleStart = (value: string, width: number): string =>
 	' '.repeat(Math.max(0, width - stringWidth(value))) + value;
 
 const formatLogAction = (action: string): string => {
-	const pretty = (() => {
-		const pastTbl: Partial<Record<EventAction, string>> = {
-			'add.issue': 'Created with title',
-			'assign.issue': 'Assigned to',
-			'unassign.issue': 'Unassigned from',
-			'close.issue': 'Closed',
-			'delete.node': 'Deleted',
-			'edit.title': 'Changed title to',
-			'edit.description': 'Changed description',
-			'reopen.issue': 'Reopened',
-			'tag.issue': 'Tagged with',
-			'untag.issue': 'Removed tag',
-			'lock.node': 'Locked node',
-			'move.node': 'Moved issue',
-		};
+	const pastTbl: Partial<Record<EventAction, string>> = {
+		'add.issue': 'Created with title',
+		'add.issue.assignee': 'Assigned to',
+		'remove.issue.assignee': 'Unassigned from',
+		'close.issue': 'Closed',
+		'delete.node': 'Deleted',
+		'edit.title': 'Changed title to',
+		'edit.description': 'Changed description',
+		'reopen.issue': 'Reopened',
+		'add.issue.tag': 'Tagged with',
+		'remove.issue.tag': 'Removed tag',
+		'lock.node': 'Locked node',
+		'move.node': 'Moved issue',
+	};
 
-		const toPast = (value: string): string =>
-			pastTbl[value as keyof typeof pastTbl] ??
-			(value.endsWith('e') ? `${value}d` : `${value}ed`);
-
-		return toPast(action);
-	})();
-
-	return pretty;
+	return (
+		pastTbl[action as EventAction] ??
+		(action.endsWith('e') ? `${action}d` : `${action}ed`)
+	);
 };
 
 const formatEventDetails = (event: AppEvent): string => {
@@ -51,29 +46,29 @@ const formatEventDetails = (event: AppEvent): string => {
 			return `to ${parentLabel} with rank ${event.payload.rank}`;
 		}
 
-		case 'tag.issue': {
-			const tag = getState().tags[event.payload.tagId];
+		case 'add.issue.tag': {
+			const tag = getState().tags[event.payload.tag];
 			return tag
 				? chalk.bgHex(getStringColor(tag.name))(` ${tag.name} `)
 				: 'unknown tag';
 		}
 
-		case 'untag.issue': {
-			const tag = getState().tags[event.payload.tagId];
+		case 'remove.issue.tag': {
+			const tag = getState().tags[event.payload.tag];
 			return tag
 				? chalk.bgHex(getStringColor(tag.name))(` ${tag.name} `)
 				: 'unknown tag';
 		}
 
-		case 'assign.issue': {
-			const contributor = getState().contributors[event.payload.contributor];
+		case 'add.issue.assignee': {
+			const contributor = getState().contributors[event.payload.assignee];
 			return contributor
 				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)
 				: 'unknown user';
 		}
 
-		case 'unassign.issue': {
-			const contributor = getState().contributors[event.payload.contributor];
+		case 'remove.issue.assignee': {
+			const contributor = getState().contributors[event.payload.assignee];
 			return contributor
 				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)
 				: 'unknown user';

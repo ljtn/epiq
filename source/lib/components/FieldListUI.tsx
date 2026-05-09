@@ -1,16 +1,17 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {nodeRepo} from '../repository/node-repo.js';
-import {AnyContext} from '../model/context.model.js';
+import {isTicketNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {getRenderedChildren, useAppState} from '../state/state.js';
+import {nodeRepo} from '../repository/node-repo.js';
+import {FieldNames} from '../repository/fielNames.js';
+import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {CursorUI} from './Cursor.js';
 import {TagUI} from './Tag.js';
 
 type Props = {
-	parent: NavNode<AnyContext>;
+	parent: NavNode<'FIELD_LIST'>;
 	selectedIndex: number;
 	selected: boolean;
 };
@@ -22,23 +23,24 @@ export const FieldListUI: React.FC<Props> = ({
 }) => {
 	const {currentNode} = useAppState();
 	const {title} = parent;
-	const items = getRenderedChildren(parent.id)
-		.map(item => {
-			const refId =
-				typeof item.props?.value === 'string' ? item.props.value : '';
 
-			if (title === 'Assignees') return nodeRepo.getContributor(refId)?.id;
+	const ticket = parent.parentNodeId
+		? nodeRepo.getNode(parent.parentNodeId)
+		: undefined;
 
-			if (title === 'Tags') return nodeRepo.getTag(refId)?.id;
-
-			return undefined;
-		})
-		.filter((s): s is string => Boolean(s));
+	const items =
+		ticket && isTicketNode(ticket)
+			? title === FieldNames.ASSIGNEES
+				? ticket.props.assignees ?? []
+				: title === FieldNames.TAGS
+				? ticket.props.tags ?? []
+				: []
+			: [];
 
 	return (
 		<Box alignItems="center" paddingTop={1}>
 			<Box minWidth={12}>
-				<CursorUI isSelected={selected}></CursorUI>
+				<CursorUI isSelected={selected} />
 				<Text color={selected ? theme.accent : theme.secondary2}>{title}:</Text>
 			</Box>
 
@@ -49,11 +51,11 @@ export const FieldListUI: React.FC<Props> = ({
 
 					return (
 						<Box key={`${title}-${item}`} paddingRight={2} minHeight={1}>
-							<CursorUI isSelected={isSelected}></CursorUI>
+							<CursorUI isSelected={isSelected} />
 
-							{title === 'Assignees' ? (
+							{title === FieldNames.ASSIGNEES ? (
 								<AssigneeUI isSelected={isSelected} id={item} />
-							) : title === 'Tags' ? (
+							) : title === FieldNames.TAGS ? (
 								<TagUI isSelected={isSelected} id={item} />
 							) : null}
 						</Box>

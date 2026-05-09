@@ -1,5 +1,6 @@
 import {CmdKeywords} from '../../command-line/cmd-keywords.js';
 import {ActionEntry, Mode, ModeUnion} from '../../model/action-map.model.js';
+import {isTextNode} from '../../model/context.model.js';
 import {failed, succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
 import {getOrderedChildren} from '../../repository/rank.js';
@@ -133,8 +134,15 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[<Enter>] select command',
 		action: () => {
 			const {selectedNode} = getState();
-			if (selectedNode?.props?.['disabled'])
+
+			if (!selectedNode || !isTextNode(selectedNode)) {
+				return failed('Command only applicable on text nodes');
+			}
+
+			if (selectedNode.props.disabled) {
 				return failed('Command is not available in this context');
+			}
+
 			const command = selectedNode?.title;
 
 			if (!command) return succeeded('No command selected', null);

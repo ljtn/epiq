@@ -1,14 +1,13 @@
+import {Contributor, Tag} from '../model/app-state.model.js';
+import {AnyContext, isTicketNode} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
 import {
 	failed,
 	isFail,
-	succeeded,
 	Result,
 	ReturnFail,
+	succeeded,
 } from '../model/result-types.js';
-import {Contributor, Tag} from '../model/app-state.model.js';
-import {AnyContext} from '../model/context.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
-import {nodes} from '../state/node-builder.js';
 import {getState, patchState, updateState} from '../state/state.js';
 import {getOrderedChildren} from './rank.js';
 
@@ -89,7 +88,7 @@ export const nodeRepo = {
 			...targetNode,
 			props: {
 				...targetNode.props,
-				value: md,
+				description: md,
 			},
 		};
 
@@ -227,42 +226,130 @@ export const nodeRepo = {
 		return succeeded('Created contributor', contributor);
 	},
 
-	assign(
-		targetId: string,
-		contributorId: string,
-		assignmentNodeId: string,
-		rank: string,
-	): Result<NavNode<'FIELD'>> {
+	assign(targetId: string, contributorId: string): Result<{assignee: string}> {
 		const contributor = this.getContributor(contributorId);
 		const target = this.getNode(targetId);
 
-		if (!target || !contributor) {
-			return failed('Unable assign contributor to issue');
-		}
+		if (!contributor)
+			return failed('Unable to assign contributor, missing contributor');
+		if (!target) return failed('Unable to assign contributor, missing target');
 
-		const assigneesField = this.getFieldByTitle(target.id, 'Assignees');
-		if (!assigneesField) return failed('Unable to locate assignees field');
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
 
-		const alreadyAssigned = getOrderedChildren(assigneesField.id).some(
-			child => child.props?.value === contributorId,
-		);
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+		const assignees = target.props.assignees ?? [];
 
-		if (alreadyAssigned) {
+		if (assignees.includes(contributorId)) {
 			return failed('Contributor already assigned');
 		}
 
-		const assignmentNode = nodes.field({
-			id: assignmentNodeId,
-			name: contributor.name,
-			parentNodeId: assigneesField.id,
-			rank,
-			props: {value: contributorId},
-		});
+		const updatedNode = {
+			...target,
+			props: {
+				...target.props,
+				assignees: [...assignees, contributorId],
+			},
+		};
 
-		const result = this.createNode(assignmentNode);
-		if (isFail(result)) return result;
+		this.updateNode(updatedNode);
 
-		return succeeded('Assigned contributor', assignmentNode);
+		return succeeded('Assigned contributor', {assignee: contributorId});
+	},
+
+	unassign(
+		targetId: string,
+		contributorId: string,
+	): Result<{assignee: string}> {
+		const contributor = this.getContributor(contributorId);
+		const target = this.getNode(targetId);
+
+		if (!contributor) return failed('Unable to unassign, missing contributor');
+		if (!target) return failed('Unable to unassign, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+		const assignees = target.props.assignees ?? [];
+
+		if (!assignees.includes(contributorId)) {
+			return succeeded('Issue is not assigned to that contributor', {
+				assignee: contributorId,
+			});
+		}
+
+		const updatedNode = {
+			...target,
+			props: {
+				...target.props,
+				assignees: assignees.filter(id => id !== contributorId),
+			},
+		};
+
+		this.updateNode(updatedNode);
+
+		return succeeded('Assignee removed', {assignee: contributorId});
+	},
+
+	tag(targetId: string, tagId: string): Result<{tag: string}> {
+		const tag = this.getTag(tagId);
+		const target = this.getNode(targetId);
+
+		if (!tag) return failed('Unable to add tag, missing tag');
+		if (!target) return failed('Unable to add tag, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+		const tags = target.props.tags ?? [];
+
+		if (tags.includes(tagId)) {
+			return failed('Tag already assigned');
+		}
+
+		const updatedNode = {
+			...target,
+			props: {
+				...target.props,
+				tags: [...tags, tagId],
+			},
+		};
+
+		this.updateNode(updatedNode);
+
+		return succeeded('Tag added', {tag: tagId});
+	},
+
+	untag(targetId: string, tagId: string): Result<{tag: string}> {
+		const tag = this.getTag(tagId);
+		const target = this.getNode(targetId);
+
+		if (!tag) return failed('Unable to remove tag, missing tag');
+		if (!target) return failed('Unable to remove tag, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+		const tags = target.props.tags ?? [];
+
+		if (!tags.includes(tagId)) {
+			return succeeded('Issue is not tagged with that tag', {tag: tagId});
+		}
+
+		const updatedNode = {
+			...target,
+			props: {
+				...target.props,
+				tags: tags.filter(id => id !== tagId),
+			},
+		};
+
+		this.updateNode(updatedNode);
+
+		return succeeded('Tag removed', {tag: tagId});
 	},
 
 	createTag(tag: Tag): Result<Tag> {
@@ -276,101 +363,6 @@ export const nodeRepo = {
 
 		if (isFail(result)) return failed('Could not create tag');
 		return succeeded('Tag created', tag);
-	},
-
-	tag(
-		targetId: string,
-		tagId: string,
-		tagNodeId: string,
-		rank: string,
-	): Result<NavNode<'FIELD'>> {
-		const tag = this.getTag(tagId);
-		const target = this.getNode(targetId);
-
-		if (!tag) return failed('Unable to add tag, missing tag');
-		if (!target) return failed('Unable to add tag, missing target');
-
-		const tagsField = this.getFieldByTitle(target.id, 'Tags');
-		if (!tagsField) return failed('Unable to locate tags field');
-
-		const alreadyTagged = getOrderedChildren(tagsField.id).some(
-			child => child.props?.value === tagId,
-		);
-
-		if (alreadyTagged) {
-			return failed('Tag already assigned');
-		}
-
-		const tagNode = nodes.field({
-			id: tagNodeId,
-			name: tag.name,
-			parentNodeId: tagsField.id,
-			rank,
-			props: {
-				value: tagId,
-			},
-		});
-
-		const result = this.createNode(tagNode);
-		if (isFail(result)) return result;
-
-		return succeeded('Tag added', tagNode);
-	},
-
-	untag(targetId: string, tagId: string): Result<NavNode<'FIELD'>> {
-		const tag = this.getTag(tagId);
-		const target = this.getNode(targetId);
-
-		if (!tag) return failed('Unable to remove tag, missing tag');
-		if (!target) return failed('Unable to remove tag, missing target');
-
-		const tagsField = this.getFieldByTitle(target.id, 'Tags');
-		if (!tagsField) return failed('Unable to locate tags field');
-
-		const tagNode = getOrderedChildren(tagsField.id).find(
-			child => child.props?.value === tagId,
-		);
-
-		if (!tagNode) {
-			return succeeded('Issue is not tagged with that tag', null);
-		}
-
-		const nextNode: NavNode<'FIELD'> = {
-			...(tagNode as NavNode<'FIELD'>),
-			isDeleted: true,
-		};
-
-		this.updateNode(nextNode);
-
-		return succeeded('Tag removed', nextNode);
-	},
-
-	unassign(targetId: string, contributorId: string): Result<NavNode<'FIELD'>> {
-		const contributor = this.getContributor(contributorId);
-		const target = this.getNode(targetId);
-
-		if (!contributor) return failed('Unable to unassign, missing contributor');
-		if (!target) return failed('Unable to unassign, missing target');
-
-		const assigneesField = this.getFieldByTitle(target.id, 'Assignees');
-		if (!assigneesField) return failed('Unable to locate assignees field');
-
-		const assigneeNode = getOrderedChildren(assigneesField.id).find(
-			child => child.props?.value === contributorId,
-		);
-
-		if (!assigneeNode) {
-			return succeeded('Issue is not assigned to that contributor', null);
-		}
-
-		const nextNode: NavNode<'FIELD'> = {
-			...(assigneeNode as NavNode<'FIELD'>),
-			isDeleted: true,
-		};
-
-		this.updateNode(nextNode);
-
-		return succeeded('Assignee removed', nextNode);
 	},
 
 	createNode<T extends AnyContext>(

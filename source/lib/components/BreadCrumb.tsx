@@ -30,24 +30,11 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 	);
 	const ticket = isSuccess(ticketResult) ? ticketResult.value : undefined;
 
-	const ticketChildren = ticket?.id ? getOrderedChildren(ticket.id) : [];
-
-	const getReferencedIds = (title: 'Tags' | 'Assignees') => {
-		const fieldNode = ticketChildren.find(node => node.title === title);
-		if (!fieldNode) return [];
-
-		return getOrderedChildren(fieldNode.id)
-			.map(node =>
-				typeof node.props?.value === 'string' ? node.props.value : '',
-			)
-			.filter((value): value is string => Boolean(value));
-	};
-
-	const tags = getReferencedIds('Tags');
-	const assignees = getReferencedIds('Assignees');
+	const tags = ticket?.props.tags ?? [];
+	const assignees = ticket?.props.assignees ?? [];
 
 	const showDetails = ticket?.parentNodeId
-		? !isDescendantOf(currentNode.id, ticket?.parentNodeId) &&
+		? !isDescendantOf(currentNode.id, ticket.parentNodeId) &&
 		  viewMode === 'dense'
 		: false;
 
@@ -72,17 +59,17 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 			<Text color={theme.secondary2}>{truncated}</Text>
 
 			{showDetails
-				? tags.map(tagId => (
-						<Box key={tagId} paddingLeft={2}>
-							<TagUI id={tagId} />
+				? tags.map(tag => (
+						<Box key={tag} paddingLeft={2}>
+							<TagUI id={tag} />
 						</Box>
 				  ))
 				: null}
 
 			{showDetails
-				? assignees.map(assigneeId => (
-						<Box key={assigneeId} paddingLeft={2}>
-							<AssigneeUI id={assigneeId} />
+				? assignees.map(assignee => (
+						<Box key={assignee} paddingLeft={2}>
+							<AssigneeUI id={assignee} />
 						</Box>
 				  ))
 				: null}

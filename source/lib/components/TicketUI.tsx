@@ -1,34 +1,45 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo} from 'react';
-import {formatLogLine} from '../event/format-log-utils.js';
-import {nodeRepo} from '../repository/node-repo.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
-import {AnyContext, Ticket} from '../model/context.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
-import {nodes} from '../state/node-builder.js';
+import {formatLogLine} from '../event/format-log-utils.js';
+import {isFail} from '../model/result-types.js';
+import {isFieldListNode, isFieldNode, Ticket} from '../model/context.model.js';
+import {nodeRepo} from '../repository/node-repo.js';
+import {FieldNames} from '../repository/fielNames.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {bigIntToHex, MAX_RANK} from '../utils/rank.js';
+import {
+	createOrUpdateVirtualField,
+	createOrUpdateVirtualFieldList,
+} from '../virtual-nodes/virtual-nodes.js';
 import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
-import {bigIntToHex, MAX_RANK} from '../utils/rank.js';
-import {isFail} from '../model/result-types.js';
-import {FieldNames} from '../repository/fielNames.js';
 
 type Props = {
 	ticket: Ticket;
 	height: number;
 };
 
+const getDescriptionNodeId = (ticketId: string) => `${ticketId}::description`;
+const getAssigneesNodeId = (ticketId: string) => `${ticketId}::assignees`;
+const getTagsNodeId = (ticketId: string) => `${ticketId}::tags`;
 const getLogNodeId = (ticketId: string) => `${ticketId}::log`;
-
-const isFieldListNode = (title?: string) =>
-	title === 'Assignees' || title === 'Tags';
 
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const {selectedIndex, currentNode} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
 
+	const descriptionNodeId = useMemo(
+		() => getDescriptionNodeId(ticket.id),
+		[ticket.id],
+	);
+	const assigneesNodeId = useMemo(
+		() => getAssigneesNodeId(ticket.id),
+		[ticket.id],
+	);
+	const tagsNodeId = useMemo(() => getTagsNodeId(ticket.id), [ticket.id]);
 	const logNodeId = useMemo(() => getLogNodeId(ticket.id), [ticket.id]);
 
 	const logText = useMemo(
@@ -37,50 +48,72 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	);
 
 	useEffect(() => {
-		const existing = nodeRepo.getNode(logNodeId);
-		if (existing) return;
+		const descriptionRank = bigIntToHex(MAX_RANK / 4n);
+		const assigneesRank = bigIntToHex(MAX_RANK / 2n);
+		const tagsRank = bigIntToHex((MAX_RANK * 3n) / 4n);
+		const logRank = bigIntToHex(MAX_RANK);
 
-		const rankResult = bigIntToHex(MAX_RANK);
-		if (isFail(rankResult)) return;
+		if (
+			isFail(descriptionRank) ||
+			isFail(assigneesRank) ||
+			isFail(tagsRank) ||
+			isFail(logRank)
+		) {
+			return;
+		}
 
-		const historyLogNode: NavNode<AnyContext> = {
-			...nodes.field({
-				id: logNodeId,
-				name: FieldNames.HISTORY,
-				parentNodeId: ticket.id,
-				rank: rankResult.value,
-				props: {
-					value: logText,
-				},
-				isVirtual: true,
-			}),
+		createOrUpdateVirtualField({
+			id: descriptionNodeId,
+			name: FieldNames.DESCRIPTION,
+			parentNodeId: ticket.id,
+			rank: descriptionRank.value,
+			value: ticket.props.description ?? '',
+			childRenderAxis: 'vertical',
+		});
+
+		createOrUpdateVirtualFieldList({
+			id: assigneesNodeId,
+			name: FieldNames.ASSIGNEES,
+			parentNodeId: ticket.id,
+			rank: assigneesRank.value,
+			readonly: true,
+		});
+
+		createOrUpdateVirtualFieldList({
+			id: tagsNodeId,
+			name: FieldNames.TAGS,
+			parentNodeId: ticket.id,
+			rank: tagsRank.value,
+			readonly: true,
+		});
+
+		createOrUpdateVirtualField({
+			id: logNodeId,
+			name: FieldNames.HISTORY,
+			parentNodeId: ticket.id,
+			rank: logRank.value,
+			value: logText,
 			readonly: true,
 			childRenderAxis: 'vertical',
-		};
-
-		nodeRepo.createNode(historyLogNode);
+		});
 
 		return () => {
+			nodeRepo.deleteNode(descriptionNodeId);
+			nodeRepo.deleteNode(assigneesNodeId);
+			nodeRepo.deleteNode(tagsNodeId);
 			nodeRepo.deleteNode(logNodeId);
 		};
-	}, [logNodeId, ticket.id, logText]);
-
-	useEffect(() => {
-		const existing = nodeRepo.getNode(logNodeId);
-		if (!existing) return;
-
-		if (existing.props.value !== logText) {
-			nodeRepo.updateNode({
-				...existing,
-				props: {
-					...existing.props,
-					value: logText,
-				},
-				childRenderAxis: 'vertical',
-				readonly: true,
-			});
-		}
-	}, [logNodeId, logText]);
+	}, [
+		ticket.id,
+		ticket.props.description,
+		ticket.props.assignees,
+		ticket.props.tags,
+		logText,
+		descriptionNodeId,
+		assigneesNodeId,
+		tagsNodeId,
+		logNodeId,
+	]);
 
 	const isAtTicketRoot = currentNode.id === ticket.id;
 	const isInsideLog =
@@ -97,6 +130,8 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	if (isInsideLog) {
 		const logNode = nodeRepo.getNode(logNodeId);
+		const logValue =
+			logNode && isFieldNode(logNode) ? logNode.props.value ?? '' : '';
 
 		const commandPromptHeight = 3;
 		const editorHeight = height - commandPromptHeight;
@@ -113,7 +148,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 					<InlineEditor
 						id={logNode.id}
 						label="Event log"
-						text={logNode.props.value ?? ''}
+						text={logValue}
 						selected={false}
 						maxWidth={maxWidth}
 						height={editorHeight}
@@ -125,9 +160,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	const fieldCount = children.reduce(
 		(count, child) =>
-			isFieldListNode(child.title) || child.id === logNodeId
-				? count + 1
-				: count,
+			isFieldListNode(child) || child.id === logNodeId ? count + 1 : count,
 		0,
 	);
 
@@ -141,7 +174,21 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		child: ReturnType<typeof getRenderedChildren>[number],
 		selected: boolean,
 	) => {
-		if (isFieldListNode(child.title)) {
+		if (child.id === descriptionNodeId) {
+			return (
+				<InlineEditor
+					label="Description (press e to edit)"
+					key={child.id}
+					id={ticket.id}
+					text={ticket.props.description ?? ''}
+					selected={selected}
+					maxWidth={maxWidth}
+					height={editorHeight}
+				/>
+			);
+		}
+
+		if (isFieldListNode(child)) {
 			return (
 				<FieldListUI
 					key={child.id}
@@ -163,20 +210,6 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 						{' History ›› '}
 					</Text>
 				</Box>
-			);
-		}
-
-		if (child.title === FieldNames.DESCRIPTION) {
-			return (
-				<InlineEditor
-					label="Description (press e to edit)"
-					key={child.id}
-					id={child.id}
-					text={child.props.value ?? ''}
-					selected={selected}
-					maxWidth={maxWidth}
-					height={editorHeight}
-				/>
 			);
 		}
 
