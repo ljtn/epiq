@@ -32,7 +32,7 @@ export const resolveCreateRank = (
 export const resolveMoveRank = (
 	siblings: NavNode<AnyContext>[],
 	position: MovePosition = {at: 'end'},
-): ReturnSuccess<ResolveRankResult> | ReturnFail => {
+): Result<ResolveRankResult> => {
 	const finish = (rankResult: Result<string>) => {
 		if (isFail(rankResult)) {
 			return succeeded('Rank space exhausted', {

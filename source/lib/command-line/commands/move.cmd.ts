@@ -4,6 +4,7 @@ import {
 	getMovePendingState,
 	moveChildWithinParent,
 	moveNodeToSiblingContainer,
+	resolveRankForMove,
 	setMovePendingState,
 } from '../../actions/move/move-actions-utils.js';
 import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
@@ -11,58 +12,54 @@ import {resolveActorId} from '../../event/event-persist.js';
 import {MovePosition} from '../../event/event.model.js';
 import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
-import {
-	getOrderedChildren,
-	resolveAndPersistRankForMove,
-} from '../../repository/rank.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 import {getCmdState} from '../../state/cmd.state.js';
-import {getRenderedChildren, getState, patchState} from '../../state/state.js';
+import {getState, patchState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
 
-export const moveCommand = async () => {
+const syncNavigationToPendingMove = (): Result<null> => {
+	const pendingMoveState = getMovePendingState();
+	if (!pendingMoveState) return failed('No pending move state');
+
+	const movedNodeId = pendingMoveState.payload.id;
+	const parentId = pendingMoveState.payload.parent;
+
+	const parent = getState().nodes[parentId];
+	if (!parent) return failed('Move parent not found');
+
+	const selectedIndex = getOrderedChildren(parentId).findIndex(
+		node => node.id === movedNodeId,
+	);
+
+	if (selectedIndex === -1) {
+		return failed('Moved node not found among rendered children');
+	}
+
+	navigationUtils.navigate({currentNode: parent, selectedIndex});
+	return succeeded('Synchronized navigation to moved node', null);
+};
+
+const applyMovePreview = (
+	moveResult: Result<unknown>,
+	message = 'Moved preview',
+): Result<null> => {
+	if (isFail(moveResult)) return moveResult;
+
+	const navResult = syncNavigationToPendingMove();
+	if (isFail(navResult)) return navResult;
+
+	patchState({mode: Mode.MOVE});
+	return succeeded(message, null);
+};
+
+export const moveCommand = async (): Promise<Result> => {
 	const userRes = resolveActorId();
 	if (isFail(userRes)) return failed('Unable to resolve user ID');
 
-	const persistRootResult = await getPersistRoot();
-	if (isFail(persistRootResult)) return persistRootResult;
-
-	const persistRoot = persistRootResult.value;
 	const {modifier} = getCmdState().commandMeta;
 
-	const syncNavigationToPendingMove = (): Result<null> => {
-		const pendingMoveState = getMovePendingState();
-		if (!pendingMoveState) return failed('No pending move state');
-
-		const movedNodeId = pendingMoveState.payload.id;
-		const movedNode = getState().nodes[movedNodeId];
-		if (!movedNode) return failed('Moved node not found');
-
-		const parentId = pendingMoveState.payload.parent;
-		const parent = getState().nodes[parentId];
-		if (!parent) return failed('Move parent not found');
-
-		const selectedIndex = getRenderedChildren(parentId).findIndex(
-			x => x.id === movedNodeId,
-		);
-		if (selectedIndex === -1) {
-			return failed('Moved node not found among rendered children');
-		}
-
-		navigationUtils.navigate({currentNode: parent, selectedIndex});
-		return succeeded('Synchronized navigation to moved node', null);
-	};
-
-	const applyMovePreview = (moveResult: Result<unknown>): Result<null> => {
-		if (isFail(moveResult)) return failed(moveResult.message);
-
-		const navResult = syncNavigationToPendingMove();
-		if (isFail(navResult)) return failed(navResult.message);
-
-		return succeeded('Updated move preview', null);
-	};
-
 	const {currentNode, selectedIndex} = getState();
-	const targetNode = getRenderedChildren(currentNode.id)[selectedIndex];
+	const targetNode = getOrderedChildren(currentNode.id)[selectedIndex];
 
 	if (!targetNode) {
 		patchState({mode: Mode.DEFAULT});
@@ -91,13 +88,11 @@ export const moveCommand = async () => {
 				? {at: 'after', sibling: previousSibling.id}
 				: {at: 'start'};
 
-		const rankResult = resolveAndPersistRankForMove(
-			targetNode.parentNodeId,
-			targetNode.id,
+		const rankResult = resolveRankForMove({
+			parentId: targetNode.parentNodeId,
+			id: targetNode.id,
 			position,
-			userRes.value,
-			persistRoot,
-		);
+		});
 
 		if (isFail(rankResult)) return rankResult;
 
@@ -107,52 +102,51 @@ export const moveCommand = async () => {
 			payload: {
 				id: targetNode.id,
 				parent: targetNode.parentNodeId,
-				rank: rankResult.value,
+				rank: rankResult.value.rank,
 			},
 			...userRes.value,
 		});
 
 		patchState({mode: Mode.MOVE});
-
-		const navResult = syncNavigationToPendingMove();
-		if (isFail(navResult)) return failed(navResult.message);
-
 		return succeeded('Move initialized', null);
 	}
 
 	if (modifier === 'next') {
-		patchState({mode: Mode.MOVE});
-		return applyMovePreview(await moveChildWithinParent(1));
+		return applyMovePreview(moveChildWithinParent(1));
 	}
 
 	if (modifier === 'previous') {
-		patchState({mode: Mode.MOVE});
-		return applyMovePreview(await moveChildWithinParent(-1));
+		return applyMovePreview(moveChildWithinParent(-1));
 	}
 
 	if (modifier === 'to-next') {
-		patchState({mode: Mode.MOVE});
-		return applyMovePreview(await moveNodeToSiblingContainer(1));
+		return applyMovePreview(moveNodeToSiblingContainer(1));
 	}
 
 	if (modifier === 'to-previous') {
-		patchState({mode: Mode.MOVE});
-		return applyMovePreview(await moveNodeToSiblingContainer(-1));
+		return applyMovePreview(moveNodeToSiblingContainer(-1));
 	}
 
 	if (modifier === 'confirm') {
-		patchState({mode: Mode.DEFAULT});
-
 		const pendingMoveState = getMovePendingState();
 		if (!pendingMoveState) return failed('No pending move to confirm');
 
-		const result = materializeAndPersist(pendingMoveState, persistRoot);
+		const persistRootResult = await getPersistRoot();
+		if (isFail(persistRootResult)) return persistRootResult;
+
+		const result = materializeAndPersist(
+			pendingMoveState,
+			persistRootResult.value,
+		);
+
 		if (isFail(result)) return result;
 
 		const navResult = syncNavigationToPendingMove();
-		if (isFail(navResult)) return failed(navResult.message);
+		if (isFail(navResult)) return navResult;
 
 		setMovePendingState(null);
+		patchState({mode: Mode.DEFAULT});
+
 		return succeeded('Moved item', null);
 	}
 
