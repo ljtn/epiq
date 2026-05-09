@@ -1,11 +1,12 @@
 import chalk from 'chalk';
-import {Text} from 'ink';
+import {Box, Text} from 'ink';
 import React, {useEffect, useState} from 'react';
 import {SyncStatus} from '../model/app-state.model.js';
 import {theme} from '../theme/themes.js';
 
 type SyncStatusPillProps = {
 	syncStatus: SyncStatus;
+	autoSync: boolean;
 };
 
 const SYNC_GRADIENT = ['#4c567a', '#9d7cd8', '#7aa2f7', '#7dcfff', '#9d7cd8'];
@@ -53,7 +54,7 @@ const getGradientColor = (colors: string[], progress: number) => {
 	return mixHex(from, to, localT);
 };
 
-export function SyncStatusPill({syncStatus}: SyncStatusPillProps) {
+export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
 	const [tick, setTick] = useState(0);
 
 	useEffect(() => {
@@ -70,10 +71,10 @@ export function SyncStatusPill({syncStatus}: SyncStatusPillProps) {
 	}, [syncStatus.status]);
 
 	const labelByStatus = {
-		synced: 'synced  ',
-		failed: 'unsynced',
-		syncing: 'syncing ',
-		pending: 'pending ',
+		synced: 'ok',
+		failed: 'retry',
+		syncing: '...',
+		pending: 'wait',
 	} satisfies Record<typeof syncStatus.status, string>;
 
 	const colorByStatus = {
@@ -87,9 +88,16 @@ export function SyncStatusPill({syncStatus}: SyncStatusPillProps) {
 	const color = colorByStatus[syncStatus.status];
 
 	return (
-		<Text>
-			{chalk.hex(color)('●') +
-				chalk.dim(` ${labelByStatus[syncStatus.status].padEnd(2)} `)}
-		</Text>
+		<Box>
+			<Text>
+				{chalk.hex(theme.secondary2).dim(autoSync ? 'AutoSync: ' : 'Sync: ')}
+			</Text>
+			<Text>
+				{chalk.hex(color)('●') +
+					chalk
+						.hex(theme.secondary2)
+						.dim(` ${labelByStatus[syncStatus.status].padEnd(4)} `)}
+			</Text>
+		</Box>
 	);
 }

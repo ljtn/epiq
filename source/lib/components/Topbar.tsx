@@ -19,7 +19,7 @@ type Props = {
 
 export function Topbar({filters, hideBreadCrumb = false}: Props) {
 	const {timeMode, eventLog, unappliedEvents, syncStatus} = useAppState();
-	const {userName, preferredEditor} = getSettingsState();
+	const {userName, preferredEditor, autoSync} = getSettingsState();
 	const topRightWidth = 56;
 	const breadCrumbWidth = process.stdout.columns - topRightWidth - 8;
 
@@ -56,12 +56,15 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 					overflow="hidden"
 					justifyContent="flex-end"
 				>
-					<SyncStatusPill syncStatus={syncStatus} />
+					<SyncStatusPill
+						autoSync={Boolean(autoSync)}
+						syncStatus={syncStatus}
+					/>
+					<HeaderPill icon="@" value={userName} />
+					<HeaderPill icon="❯" value={preferredEditor} />
 					<Text dimColor={true} color={theme.secondary2}>
 						{EPIQ_VERSION + ' '}
 					</Text>
-					<HeaderPill icon="@" value={userName} />
-					<HeaderPill icon="❯" value={preferredEditor} />
 				</Box>
 			) : (
 				''
