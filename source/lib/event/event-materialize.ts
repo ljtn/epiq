@@ -10,10 +10,7 @@ import {FieldNames} from '../repository/fielNames.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 import {getState, initWorkspaceState, updateState} from '../state/state.js';
-import {
-	materializeTicketVirtualNodes,
-	materializeVirtualNodes,
-} from '../virtual-nodes/virtual-nodes.js';
+import {materializeTicketVirtualNodes} from '../virtual-nodes/virtual-nodes.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
 
@@ -38,7 +35,7 @@ const materializeFail = <A extends AppEvent>(
 const refreshTicketVirtualNodes = (nodeId: string): void => {
 	const node = nodeRepo.getNode(nodeId);
 
-	if (!node || !isTicketNode(node)) return;
+	if (!node || !isTicketNode(node) || node.isDeleted) return;
 
 	materializeTicketVirtualNodes(node);
 };
@@ -62,8 +59,21 @@ const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
 	});
 };
 
+const getNodeIdWithParent = (nodeId: string): string[] => {
+	const ids = [nodeId];
+	const parentId = getState().nodes[nodeId]?.parentNodeId;
+
+	if (parentId) ids.push(parentId);
+
+	return ids;
+};
+
 const getAffectedNodeIds = (event: AppEvent): string[] => {
 	switch (event.action) {
+		case 'delete.node':
+		case 'edit.description':
+			return getNodeIdWithParent(event.payload.id);
+
 		case 'init.workspace':
 		case 'add.workspace':
 		case 'add.board':
@@ -72,7 +82,6 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'add.field':
 		case 'edit.title':
 		case 'lock.node':
-		case 'delete.node':
 		case 'move.node':
 		case 'close.issue':
 		case 'reopen.issue':
@@ -81,13 +90,6 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'add.issue.assignee':
 		case 'remove.issue.assignee':
 			return [event.payload.id];
-
-		case 'edit.description': {
-			const ids = [event.payload.id];
-			const parentId = getState().nodes[event.payload.id]?.parentNodeId;
-			if (parentId) ids.push(parentId);
-			return ids;
-		}
 
 		case 'rebalance.children':
 			return Object.keys(event.payload.ranks);
@@ -306,8 +308,6 @@ const materializeHandlers: MaterializeHandlers = {
 		if (isFail(result)) {
 			return materializeFail(result.message ?? 'Unable to delete node', event);
 		}
-
-		materializeVirtualNodes();
 
 		return succeeded('Deleted node', {
 			action: event.action,
