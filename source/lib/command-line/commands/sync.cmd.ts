@@ -5,6 +5,11 @@ import {setCmdInput} from '../../state/cmd.state.js';
 import {getSafeState, patchState} from '../../state/state.js';
 
 export const syncCommand = async () => {
+	setCmdInput(() => '');
+	patchState({
+		mode: Mode.DEFAULT,
+	});
+
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) {
 		return failed(stateResult.message);
@@ -13,8 +18,6 @@ export const syncCommand = async () => {
 	if (stateResult.value.syncStatus.status === 'syncing') {
 		return failed('Sync already in progress');
 	}
-
-	setCmdInput(() => '');
 
 	patchState({
 		syncStatus: {

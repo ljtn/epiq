@@ -1,13 +1,13 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {Mode} from '../lib/model/action-map.model.js';
-import {getState, initWorkspaceState, patchState} from '../lib/state/state.js';
-import {AnyContext, Workspace} from '../lib/model/context.model.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
+import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
 import {
 	captureNavigationAnchor,
 	restoreNavigationAnchor,
 } from '../lib/actions/default/restore-navigation.js';
-import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
+import {Mode} from '../lib/model/action-map.model.js';
+import {AnyContext, Workspace} from '../lib/model/context.model.js';
+import {NavNode} from '../lib/model/navigation-node.model.js';
+import {getState, initWorkspaceState, patchState} from '../lib/state/state.js';
 
 vi.mock('../lib/actions/default/navigation-action-utils.js', () => ({
 	navigationUtils: {

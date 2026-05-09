@@ -557,8 +557,6 @@ export const syncEpiqWithRemote = async ({
 export const syncAndReloadState = async () => {
 	logger.info('[sync] syncAndReloadState:start');
 
-	const navigationAnchor = captureNavigationAnchor();
-
 	const userRes = trace('resolveActorId', resolveActorId());
 	if (isFail(userRes) || !userRes.value) {
 		logger.info('[sync] unable to resolve actor id');
@@ -597,6 +595,9 @@ export const syncAndReloadState = async () => {
 	logger.info('[sync] loaded merged events after sync', {
 		count: allLoadedEventsResult.value.length,
 	});
+
+	// Capture as late as possible, right before booting/patching state.
+	const navigationAnchor = captureNavigationAnchor();
 
 	const bootResult = trace(
 		'bootStateFromEventLog',

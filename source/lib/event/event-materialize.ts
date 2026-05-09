@@ -10,6 +10,10 @@ import {FieldNames} from '../repository/fielNames.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 import {getState, initWorkspaceState, updateState} from '../state/state.js';
+import {
+	materializeTicketVirtualNodes,
+	materializeVirtualNodes,
+} from '../virtual-nodes/virtual-nodes.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
 
@@ -30,6 +34,110 @@ const materializeFail = <A extends AppEvent>(
 			event.action.split('.').join(' ') + ' failed, ' + msg.toLowerCase()
 		}. Evt id: ${event.id}`,
 	);
+
+const refreshTicketVirtualNodes = (nodeId: string): void => {
+	const node = nodeRepo.getNode(nodeId);
+
+	if (!node || !isTicketNode(node)) return;
+
+	materializeTicketVirtualNodes(node);
+};
+
+const refreshAffectedVirtualNodes = (nodeIds: string[]): void => {
+	for (const nodeId of nodeIds) {
+		refreshTicketVirtualNodes(nodeId);
+
+		const parentId = getState().nodes[nodeId]?.parentNodeId;
+		if (parentId) refreshTicketVirtualNodes(parentId);
+	}
+};
+
+const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
+	const node = nodeRepo.getNode(nodeId);
+	if (!node) return;
+
+	nodeRepo.updateNode({
+		...node,
+		log: [...(node.log ?? []), event],
+	});
+};
+
+const getAffectedNodeIds = (event: AppEvent): string[] => {
+	switch (event.action) {
+		case 'init.workspace':
+		case 'add.workspace':
+		case 'add.board':
+		case 'add.swimlane':
+		case 'add.issue':
+		case 'add.field':
+		case 'edit.title':
+		case 'lock.node':
+		case 'delete.node':
+		case 'move.node':
+		case 'close.issue':
+		case 'reopen.issue':
+		case 'add.issue.tag':
+		case 'remove.issue.tag':
+		case 'add.issue.assignee':
+		case 'remove.issue.assignee':
+			return [event.payload.id];
+
+		case 'edit.description': {
+			const ids = [event.payload.id];
+			const parentId = getState().nodes[event.payload.id]?.parentNodeId;
+			if (parentId) ids.push(parentId);
+			return ids;
+		}
+
+		case 'rebalance.children':
+			return Object.keys(event.payload.ranks);
+
+		case 'create.tag':
+		case 'create.contributor':
+		default:
+			return [];
+	}
+};
+
+const appendEventToAppLog = (event: AppEvent): void => {
+	updateState(s => ({
+		...s,
+		eventLog: [...s.eventLog, event],
+	}));
+};
+
+const materializeEventUser = (event: AppEvent): ReturnFail | null => {
+	const id = event.userId;
+	const name = event.userName;
+
+	if (!id?.length || !name?.length) {
+		return materializeFail('Invalid user ID format', event);
+	}
+
+	const result = nodeRepo.createContributor({id, name});
+	if (isFail(result)) return materializeFail(result.message, event);
+
+	return null;
+};
+
+const completeMaterialization = (
+	event: AppEvent,
+	bypassLogging: boolean,
+): ReturnFail | null => {
+	const userFail = materializeEventUser(event);
+	if (userFail) return userFail;
+
+	const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
+
+	if (!bypassLogging) {
+		affectedNodeIds.forEach(nodeId => appendEventToNodeLog(nodeId, event));
+		appendEventToAppLog(event);
+	}
+
+	refreshAffectedVirtualNodes(affectedNodeIds);
+
+	return null;
+};
 
 const materializeHandlers: MaterializeHandlers = {
 	'init.workspace': event => {
@@ -58,11 +166,11 @@ const materializeHandlers: MaterializeHandlers = {
 			result: result.value,
 		});
 	},
+
 	'add.workspace': event => {
 		const {id, name, rank} = event.payload;
-		const workspace = nodes.workspace(id, name, rank);
+		const result = nodeRepo.createNode(nodes.workspace(id, name, rank));
 
-		const result = nodeRepo.createNode(workspace);
 		if (isFail(result)) {
 			return materializeFail(
 				result.message ?? 'Failed to add workspace',
@@ -82,7 +190,6 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.board': event => {
 		const {id, name, parent: parentId, rank} = event.payload;
-
 		const result = nodeRepo.createNode(nodes.board(id, name, parentId, rank));
 
 		if (isFail(result)) {
@@ -101,7 +208,6 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.swimlane': event => {
 		const {id, name, parent: parentId, rank} = event.payload;
-
 		const result = nodeRepo.createNode(
 			nodes.swimlane(id, name, parentId, rank),
 		);
@@ -125,7 +231,6 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.issue': event => {
 		const {id, name, parent: parentId, rank} = event.payload;
-
 		const result = nodeRepo.createNode(nodes.ticket(id, name, parentId, rank));
 
 		if (isFail(result)) {
@@ -176,12 +281,14 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'edit.title': event => {
-		const {id, name: value} = event.payload;
+		const {id, name} = event.payload;
 		const node = nodeRepo.getNode(id);
-		if (!node)
-			return materializeFail(`Unable to locate node with id ${id}`, event);
 
-		const result = nodeRepo.renameNode(id, value);
+		if (!node) {
+			return materializeFail(`Unable to locate node with id ${id}`, event);
+		}
+
+		const result = nodeRepo.renameNode(id, name);
 		if (isFail(result)) {
 			return materializeFail(result.message ?? 'Unable to edit title', event);
 		}
@@ -199,6 +306,8 @@ const materializeHandlers: MaterializeHandlers = {
 		if (isFail(result)) {
 			return materializeFail(result.message ?? 'Unable to delete node', event);
 		}
+
+		materializeVirtualNodes();
 
 		return succeeded('Deleted node', {
 			action: event.action,
@@ -335,6 +444,7 @@ const materializeHandlers: MaterializeHandlers = {
 	'close.issue': event => {
 		const {id, parent: parentId, rank} = event.payload;
 		const node = nodeRepo.getNode(id);
+
 		if (!node) return materializeFail('Unable to locate issue', event);
 		if (!isTicketNode(node))
 			return materializeFail('Can only close issues', event);
@@ -421,6 +531,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		for (const [id, rank] of Object.entries(ranks)) {
 			const node = nodeRepo.getNode(id);
+
 			if (!node) return materializeFail(`Unable to locate node ${id}`, event);
 
 			if (node.parentNodeId !== parent) {
@@ -447,50 +558,6 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 };
 
-const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
-	const node = nodeRepo.getNode(nodeId);
-	if (!node) return;
-
-	nodeRepo.updateNode({
-		...node,
-		log: [...(node.log ?? []), event],
-	});
-};
-
-const getAffectedNodeIds = (event: AppEvent): string[] => {
-	switch (event.action) {
-		case 'init.workspace':
-		case 'add.workspace':
-		case 'add.board':
-		case 'add.swimlane':
-		case 'add.issue':
-		case 'add.field':
-		case 'edit.title':
-		case 'lock.node':
-		case 'delete.node':
-		case 'move.node':
-		case 'close.issue':
-		case 'reopen.issue':
-		case 'add.issue.tag':
-		case 'remove.issue.tag':
-		case 'add.issue.assignee':
-		case 'remove.issue.assignee':
-			return [event.payload.id];
-
-		case 'edit.description': {
-			const ids = [event.payload.id];
-			const parentId = getState().nodes[event.payload.id]?.parentNodeId;
-			if (parentId) ids.push(parentId);
-			return ids;
-		}
-
-		case 'create.tag':
-		case 'create.contributor':
-		default:
-			return [];
-	}
-};
-
 export function materialize<A extends EventAction>(
 	event: AppEvent<A>,
 	bypassLogging = false,
@@ -498,18 +565,8 @@ export function materialize<A extends EventAction>(
 	const result = materializeHandlers[event.action](event);
 	if (isFail(result)) return result;
 
-	if (!bypassLogging) {
-		const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
-		affectedNodeIds.forEach(nodeId => appendEventToNodeLog(nodeId, event));
-		updateState(s => ({...s, eventLog: [...s.eventLog, event]}));
-	}
-
-	const id = event.userId;
-	const name = event.userName;
-	if (!id?.length || !name?.length) {
-		return materializeFail('Invalid user ID format', event);
-	}
-	nodeRepo.createContributor({name, id});
+	const completionFail = completeMaterialization(event, bypassLogging);
+	if (completionFail) return completionFail;
 
 	return result;
 }

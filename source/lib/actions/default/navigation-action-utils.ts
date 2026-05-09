@@ -1,25 +1,9 @@
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
+import {getOrderedChildren} from '../../repository/rank.js';
 import {getRenderedChildren, getState, patchState} from '../../state/state.js';
 
-export interface Navigator {
-	navigate<T extends AnyContext>({
-		currentNode,
-		selectedIndex,
-	}: {
-		currentNode?: NavNode<T>;
-		selectedIndex: number;
-	}): void;
-	exit(): void;
-	enterChildNode(): void;
-	enterParentNode(): void;
-	navigateToNextItem: () => void;
-	navigateToPreviousItem: () => void;
-	navigateToNextContainer: () => void;
-	navigateToPreviousContainer: () => void;
-}
-
-export const navigationUtils: Navigator = {
+export const navigationUtils = {
 	exit() {
 		process.exit(0);
 	},
@@ -28,7 +12,7 @@ export const navigationUtils: Navigator = {
 		const state = getState();
 		const currentNode = state.currentNode;
 		const index = Math.max(0, state.selectedIndex);
-		const focusNode = getRenderedChildren(currentNode.id)[index];
+		const focusNode = getOrderedChildren(currentNode.id)[index];
 		if (!focusNode || currentNode.context === 'FIELD') return;
 
 		navigationUtils.navigate({
@@ -62,7 +46,13 @@ export const navigationUtils: Navigator = {
 	navigateToNextContainer: () => navigateToSiblingContainer(1),
 	navigateToPreviousContainer: () => navigateToSiblingContainer(-1),
 
-	navigate: ({currentNode = getState().currentNode, selectedIndex}) => {
+	navigate: <T extends AnyContext>({
+		currentNode,
+		selectedIndex,
+	}: {
+		currentNode: NavNode<T>;
+		selectedIndex: number;
+	}): void => {
 		patchState({
 			currentNodeId: currentNode.id,
 			selectedIndex,
@@ -71,14 +61,14 @@ export const navigationUtils: Navigator = {
 };
 
 const navigateByOffset = (offset: number) => {
-	const state = getState();
-	const len = getRenderedChildren(state.currentNode.id).length;
+	const {selectedIndex, currentNode} = getState();
+	const len = getRenderedChildren(currentNode.id).length;
 	if (len === 0) return;
 
-	const base = Math.max(0, state.selectedIndex);
+	const base = Math.max(0, selectedIndex);
 	const newIndex = (base + offset + len) % len;
 
-	navigationUtils.navigate({selectedIndex: newIndex});
+	navigationUtils.navigate({selectedIndex: newIndex, currentNode});
 };
 
 const navigateToSiblingContainer = (direction: -1 | 1) => {

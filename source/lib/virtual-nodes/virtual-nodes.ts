@@ -1,6 +1,17 @@
-import {isFieldListNode, isFieldNode} from '../model/context.model.js';
+import {formatLogLine} from '../event/format-log-utils.js';
+import {
+	isFieldListNode,
+	isFieldNode,
+	isTicketNode,
+	TicketContext,
+} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
+import {isFail} from '../model/result-types.js';
+import {FieldNames} from '../repository/fielNames.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
+import {getState} from '../state/state.js';
+import {bigIntToHex, MAX_RANK} from '../utils/rank.js';
 
 type VirtualNodeInput = {
 	id: string;
@@ -43,27 +54,27 @@ export const createOrUpdateVirtualField = ({
 
 	if (!isFieldNode(existing)) return;
 
-	if (
+	const isDirty =
 		existing.title !== name ||
 		existing.parentNodeId !== parentNodeId ||
 		existing.rank !== rank ||
 		existing.props.value !== value ||
 		existing.readonly !== readonly ||
-		existing.childRenderAxis !== childRenderAxis
-	) {
-		nodeRepo.updateNode({
-			...existing,
-			title: name,
-			parentNodeId,
-			rank,
-			props: {
-				...existing.props,
-				value,
-			},
-			readonly,
-			childRenderAxis,
-		});
-	}
+		existing.childRenderAxis !== childRenderAxis;
+	if (!isDirty) return;
+
+	nodeRepo.updateNode({
+		...existing,
+		title: name,
+		parentNodeId,
+		rank,
+		props: {
+			...existing.props,
+			value,
+		},
+		readonly,
+		childRenderAxis,
+	});
 };
 
 export const createOrUpdateVirtualFieldList = ({
@@ -94,20 +105,79 @@ export const createOrUpdateVirtualFieldList = ({
 
 	if (!isFieldListNode(existing)) return;
 
-	if (
+	const isDirty =
 		existing.title !== name ||
 		existing.parentNodeId !== parentNodeId ||
 		existing.rank !== rank ||
 		existing.readonly !== readonly ||
-		existing.childRenderAxis !== childRenderAxis
+		existing.childRenderAxis !== childRenderAxis;
+	if (!isDirty) return;
+
+	nodeRepo.updateNode({
+		...existing,
+		title: name,
+		parentNodeId,
+		rank,
+		readonly,
+		childRenderAxis,
+	});
+};
+
+export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
+	const descriptionRank = bigIntToHex(MAX_RANK / 4n);
+	const assigneesRank = bigIntToHex(MAX_RANK / 2n);
+	const tagsRank = bigIntToHex((MAX_RANK * 3n) / 4n);
+	const logRank = bigIntToHex(MAX_RANK);
+
+	if (
+		isFail(descriptionRank) ||
+		isFail(assigneesRank) ||
+		isFail(tagsRank) ||
+		isFail(logRank)
 	) {
-		nodeRepo.updateNode({
-			...existing,
-			title: name,
-			parentNodeId,
-			rank,
-			readonly,
-			childRenderAxis,
-		});
+		return;
+	}
+
+	createOrUpdateVirtualField({
+		id: `${node.id}::description`,
+		name: FieldNames.DESCRIPTION,
+		parentNodeId: node.id,
+		rank: descriptionRank.value,
+		value: node.props.description ?? '',
+		childRenderAxis: 'vertical',
+	});
+
+	createOrUpdateVirtualFieldList({
+		id: `${node.id}::assignees`,
+		name: FieldNames.ASSIGNEES,
+		parentNodeId: node.id,
+		rank: assigneesRank.value,
+		readonly: true,
+	});
+
+	createOrUpdateVirtualFieldList({
+		id: `${node.id}::tags`,
+		name: FieldNames.TAGS,
+		parentNodeId: node.id,
+		rank: tagsRank.value,
+		readonly: true,
+	});
+
+	createOrUpdateVirtualField({
+		id: `${node.id}::log`,
+		name: FieldNames.HISTORY,
+		parentNodeId: node.id,
+		rank: logRank.value,
+		value: [...node.log].reverse().map(formatLogLine).join('\n'),
+		readonly: true,
+		childRenderAxis: 'vertical',
+	});
+};
+
+export const materializeVirtualNodes = () => {
+	const {nodes} = getState();
+
+	for (const node of Object.values(nodes)) {
+		if (isTicketNode(node)) materializeTicketVirtualNodes(node);
 	}
 };
