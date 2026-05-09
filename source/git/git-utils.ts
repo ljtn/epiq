@@ -177,10 +177,55 @@ export const commitAndGetSha = async ({
 		shaResult.value.stdout.trim(),
 	);
 };
+const getGitDir = async (repoRoot: string): Promise<Result<string>> => {
+	const result = await execGit({
+		cwd: repoRoot,
+		args: ['rev-parse', '--git-dir'],
+	});
+
+	if (isFail(result)) return failed(result.message);
+
+	const gitDir = result.value.stdout.trim();
+
+	return succeeded(
+		'Resolved git dir',
+		path.isAbsolute(gitDir) ? gitDir : path.resolve(repoRoot, gitDir),
+	);
+};
 
 export const getInProgressGitOperation = async (
 	repoRoot: string,
 ): Promise<Result<string | null>> => {
+	const gitDirResult = await getGitDir(repoRoot);
+	if (isFail(gitDirResult)) return failed(gitDirResult.message);
+
+	const gitDir = gitDirResult.value;
+
+	const markerFiles: Record<string, string> = {
+		MERGE_HEAD: 'merge in progress',
+		REBASE_HEAD: 'rebase in progress',
+		CHERRY_PICK_HEAD: 'cherry-pick in progress',
+		REVERT_HEAD: 'revert in progress',
+		BISECT_LOG: 'bisect in progress',
+	};
+
+	for (const [file, operation] of Object.entries(markerFiles)) {
+		if (fs.existsSync(path.join(gitDir, file))) {
+			return succeeded('Checked for in-progress Git operation', operation);
+		}
+	}
+
+	const rebaseDirs: Record<string, string> = {
+		'rebase-merge': 'rebase in progress',
+		'rebase-apply': 'rebase in progress',
+	};
+
+	for (const [dir, operation] of Object.entries(rebaseDirs)) {
+		if (fs.existsSync(path.join(gitDir, dir))) {
+			return succeeded('Checked for in-progress Git operation', operation);
+		}
+	}
+
 	const statusResult = await execGit({
 		cwd: repoRoot,
 		args: ['status', '--porcelain=v1', '--branch'],
@@ -188,25 +233,20 @@ export const getInProgressGitOperation = async (
 
 	if (isFail(statusResult)) return failed(statusResult.message);
 
-	const status = statusResult.value.stdout;
+	const status = statusResult.value.stdout.toLowerCase();
 
-	const statusOperationMarkers = [
+	const statusMarker = [
 		'rebase in progress',
 		'merge in progress',
 		'cherry-pick in progress',
 		'revert in progress',
 		'bisect in progress',
-	];
+	].find(marker => status.includes(marker));
 
-	const statusMarker = statusOperationMarkers.find(marker =>
-		status.toLowerCase().includes(marker),
+	return succeeded(
+		'Checked for in-progress Git operation',
+		statusMarker ?? null,
 	);
-
-	if (statusMarker) {
-		return succeeded('Checked for in-progress Git operation', statusMarker);
-	}
-
-	return succeeded('Checked for in-progress Git operation', null);
 };
 
 export const hasInProgressGitOperation = async (

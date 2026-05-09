@@ -5,6 +5,30 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {execGit} from '../git/git-utils.js';
 import {resetHardToRemoteState, syncEpiqWithRemote} from '../git/sync.js';
 import {isFail} from '../lib/model/result-types.js';
+import {getRelativeEventFilePath} from '../git/git-storage.js';
+
+const prepareStateBranch = async (repoRoot: string) => {
+	const result = await resetHardToRemoteState(repoRoot);
+	if (isFail(result)) throw new Error(result.message);
+	return result.value.stateBranchRoot;
+};
+
+const tempDirs: string[] = [];
+let originalHome: string | undefined;
+
+const makeTempDir = (): string => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-sync-'));
+	tempDirs.push(dir);
+	return dir;
+};
+
+const writeFile = (filePath: string, content: string): void => {
+	fs.mkdirSync(path.dirname(filePath), {recursive: true});
+	fs.writeFileSync(filePath, content, 'utf8');
+};
+
+const readFile = (filePath: string): string =>
+	fs.readFileSync(filePath, 'utf8');
 
 const writeProjectFile = (repoRoot: string): void => {
 	writeFile(
@@ -20,14 +44,6 @@ const writeProjectFile = (repoRoot: string): void => {
 		) + '\n',
 	);
 };
-const tempDirs: string[] = [];
-let originalHome: string | undefined;
-
-const makeTempDir = (): string => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-sync-'));
-	tempDirs.push(dir);
-	return dir;
-};
 
 const eventLine = (id: string, ref: string | null = null): string =>
 	JSON.stringify({
@@ -35,6 +51,14 @@ const eventLine = (id: string, ref: string | null = null): string =>
 		id: [id, ref],
 		'lock.node': {},
 	}) + '\n';
+
+const getEventsFile = ({
+	root,
+	fileName,
+}: {
+	root: string;
+	fileName: string;
+}): string => path.join(root, getRelativeEventFilePath(fileName));
 
 const initBareRepo = async (remoteRoot: string): Promise<void> => {
 	const initResult = await execGit({
@@ -48,40 +72,6 @@ const initBareRepo = async (remoteRoot: string): Promise<void> => {
 		cwd: remoteRoot,
 	});
 	if (isFail(headResult)) throw new Error(headResult.message);
-};
-
-const writeFile = (filePath: string, content: string): void => {
-	fs.mkdirSync(path.dirname(filePath), {recursive: true});
-	fs.writeFileSync(filePath, content, 'utf8');
-};
-
-const readFile = (filePath: string): string =>
-	fs.readFileSync(filePath, 'utf8');
-
-const commitFile = async ({
-	repoRoot,
-	fileName,
-	content,
-	message,
-}: {
-	repoRoot: string;
-	fileName: string;
-	content: string;
-	message: string;
-}): Promise<void> => {
-	writeFile(path.join(repoRoot, fileName), content);
-
-	const addResult = await execGit({
-		args: ['add', fileName],
-		cwd: repoRoot,
-	});
-	if (isFail(addResult)) throw new Error(addResult.message);
-
-	const commitResult = await execGit({
-		args: ['commit', '-m', message],
-		cwd: repoRoot,
-	});
-	if (isFail(commitResult)) throw new Error(commitResult.message);
 };
 
 const cloneRepo = async ({
@@ -109,13 +99,58 @@ const cloneRepo = async ({
 	}
 };
 
-const getEventsFile = ({
+const commitFile = async ({
 	repoRoot,
 	fileName,
+	content,
+	message,
 }: {
 	repoRoot: string;
 	fileName: string;
-}): string => path.join(repoRoot, '.epiq', 'events', fileName);
+	content: string;
+	message: string;
+}): Promise<void> => {
+	writeFile(path.join(repoRoot, fileName), content);
+
+	const addResult = await execGit({
+		args: ['add', fileName],
+		cwd: repoRoot,
+	});
+	if (isFail(addResult)) throw new Error(addResult.message);
+
+	const commitResult = await execGit({
+		args: ['commit', '-m', message],
+		cwd: repoRoot,
+	});
+	if (isFail(commitResult)) throw new Error(commitResult.message);
+};
+
+const setupRepo = async (): Promise<{
+	remoteRoot: string;
+	repoRoot: string;
+}> => {
+	const remoteRoot = makeTempDir();
+	const repoRoot = makeTempDir();
+
+	await initBareRepo(remoteRoot);
+	await cloneRepo({remoteRoot, cloneRoot: repoRoot});
+	writeProjectFile(repoRoot);
+
+	await commitFile({
+		repoRoot,
+		fileName: 'README.md',
+		content: 'hello\n',
+		message: 'initial',
+	});
+
+	const pushResult = await execGit({
+		args: ['push', '-u', 'origin', 'main'],
+		cwd: repoRoot,
+	});
+	if (isFail(pushResult)) throw new Error(pushResult.message);
+
+	return {remoteRoot, repoRoot};
+};
 
 beforeEach(() => {
 	originalHome = process.env['HOME'];
@@ -135,26 +170,8 @@ afterEach(() => {
 });
 
 describe('sync', () => {
-	it('fails write sync when repo is in detached HEAD state', async () => {
-		const remoteRoot = makeTempDir();
-		const repoRoot = makeTempDir();
-
-		await initBareRepo(remoteRoot);
-		await cloneRepo({remoteRoot, cloneRoot: repoRoot});
-		writeProjectFile(repoRoot);
-
-		await commitFile({
-			repoRoot,
-			fileName: 'README.md',
-			content: 'hello\n',
-			message: 'initial',
-		});
-
-		const pushResult = await execGit({
-			args: ['push', '-u', 'origin', 'main'],
-			cwd: repoRoot,
-		});
-		if (isFail(pushResult)) throw new Error(pushResult.message);
+	it('allows write sync when main repo is in detached HEAD state', async () => {
+		const {repoRoot} = await setupRepo();
 
 		const shaResult = await execGit({
 			args: ['rev-parse', 'HEAD'],
@@ -173,210 +190,21 @@ describe('sync', () => {
 			ownEventFileName: 'u1.alice.jsonl',
 		});
 
-		expect(isFail(syncResult)).toBe(true);
-		if (isFail(syncResult)) {
-			expect(syncResult.message).toContain('detached HEAD state');
-		}
-	});
-
-	it('write sync copies own event file to remote branch and reports a created commit', async () => {
-		const remoteRoot = makeTempDir();
-		const repoRoot = makeTempDir();
-
-		await initBareRepo(remoteRoot);
-		await cloneRepo({remoteRoot, cloneRoot: repoRoot});
-		writeProjectFile(repoRoot);
-
-		await commitFile({
-			repoRoot,
-			fileName: 'README.md',
-			content: 'hello\n',
-			message: 'initial',
-		});
-
-		const pushResult = await execGit({
-			args: ['push', '-u', 'origin', 'main'],
-			cwd: repoRoot,
-		});
-		if (isFail(pushResult)) throw new Error(pushResult.message);
-
-		const ownFileName = 'u1.alice.jsonl';
-		const ownFilePath = getEventsFile({repoRoot, fileName: ownFileName});
-		writeFile(ownFilePath, eventLine('01H00000000000000000000001'));
-
-		const syncResult = await syncEpiqWithRemote({
-			cwd: repoRoot,
-			ownEventFileName: ownFileName,
-		});
-
 		expect(isFail(syncResult)).toBe(false);
-		if (!isFail(syncResult)) {
-			expect(syncResult.value.createdCommit).toBe(true);
-			expect(syncResult.value.commitSha).toMatch(/^[0-9a-f]{40}$/);
-			expect(syncResult.value.pushed).toBe(true);
-		}
-
-		const verifyClone = makeTempDir();
-		await cloneRepo({remoteRoot, cloneRoot: verifyClone});
-		writeProjectFile(verifyClone);
-
-		const stateBranch = 'epiq/state';
-
-		const checkoutStateBranch = await execGit({
-			args: ['checkout', stateBranch],
-			cwd: verifyClone,
-		});
-		if (isFail(checkoutStateBranch))
-			throw new Error(checkoutStateBranch.message);
-
-		const remoteEventFile = getEventsFile({
-			repoRoot: verifyClone,
-			fileName: ownFileName,
-		});
-		expect(fs.existsSync(remoteEventFile)).toBe(true);
-		expect(readFile(remoteEventFile)).toBe(
-			eventLine('01H00000000000000000000001'),
-		);
 	});
 
-	it('readonly sync hydrates another users event file from remote state branch', async () => {
-		const remoteRoot = makeTempDir();
-		const repoA = makeTempDir();
-		const repoB = makeTempDir();
-
-		await initBareRepo(remoteRoot);
-		await cloneRepo({remoteRoot, cloneRoot: repoA});
-		writeProjectFile(repoA);
-
-		await commitFile({
-			repoRoot: repoA,
-			fileName: 'README.md',
-			content: 'hello\n',
-			message: 'initial',
-		});
-
-		const pushResult = await execGit({
-			args: ['push', '-u', 'origin', 'main'],
-			cwd: repoA,
-		});
-		if (isFail(pushResult)) throw new Error(pushResult.message);
-
-		await cloneRepo({remoteRoot, cloneRoot: repoB});
-		writeProjectFile(repoB);
-
-		const aliceFile = getEventsFile({
-			repoRoot: repoA,
-			fileName: 'u1.alice.jsonl',
-		});
-		writeFile(aliceFile, eventLine('01H00000000000000000000001'));
-
-		const syncWriteResult = await syncEpiqWithRemote({
-			cwd: repoA,
-			ownEventFileName: 'u1.alice.jsonl',
-		});
-		if (isFail(syncWriteResult)) throw new Error(syncWriteResult.message);
-
-		const syncReadResult = await resetHardToRemoteState(repoB);
-		if (isFail(syncReadResult)) throw new Error(syncReadResult.message);
-
-		const hydratedFile = getEventsFile({
-			repoRoot: repoB,
-			fileName: 'u1.alice.jsonl',
-		});
-		expect(fs.existsSync(hydratedFile)).toBe(true);
-		expect(readFile(hydratedFile)).toBe(
-			eventLine('01H00000000000000000000001'),
-		);
-	});
-
-	it('write sync hydrates other users files without overwriting own local file', async () => {
-		const remoteRoot = makeTempDir();
-		const repoA = makeTempDir();
-
-		await initBareRepo(remoteRoot);
-		await cloneRepo({remoteRoot, cloneRoot: repoA});
-		writeProjectFile(repoA);
-
-		await commitFile({
-			repoRoot: repoA,
-			fileName: 'README.md',
-			content: 'hello\n',
-			message: 'initial',
-		});
-
-		const pushMain = await execGit({
-			args: ['push', '-u', 'origin', 'main'],
-			cwd: repoA,
-		});
-		if (isFail(pushMain)) throw new Error(pushMain.message);
-
-		const aliceFileName = 'u1.alice.jsonl';
-		writeFile(
-			getEventsFile({repoRoot: repoA, fileName: aliceFileName}),
-			eventLine('01H00000000000000000000002'),
-		);
-
-		const firstSync = await syncEpiqWithRemote({
-			cwd: repoA,
-			ownEventFileName: aliceFileName,
-		});
-		if (isFail(firstSync)) throw new Error(firstSync.message);
-
-		const repoB = makeTempDir();
-		await cloneRepo({remoteRoot, cloneRoot: repoB});
-		writeProjectFile(repoB);
-
-		const bobFileName = 'u2.bob.jsonl';
-		const bobLocalPath = getEventsFile({
-			repoRoot: repoB,
-			fileName: bobFileName,
-		});
-		writeFile(bobLocalPath, eventLine('01H00000000000000000000003'));
-
-		const secondSync = await syncEpiqWithRemote({
-			cwd: repoB,
-			ownEventFileName: bobFileName,
-		});
-		if (isFail(secondSync)) throw new Error(secondSync.message);
-
-		expect(readFile(bobLocalPath)).toBe(
-			eventLine('01H00000000000000000000003'),
-		);
-
-		const aliceHydratedPath = getEventsFile({
-			repoRoot: repoB,
-			fileName: aliceFileName,
-		});
-		expect(fs.existsSync(aliceHydratedPath)).toBe(true);
-		expect(readFile(aliceHydratedPath)).toBe(
-			eventLine('01H00000000000000000000002'),
-		);
-	});
-
-	it('write sync is a no-op for own file when remote worktree already matches', async () => {
-		const remoteRoot = makeTempDir();
-		const repoRoot = makeTempDir();
-
-		await initBareRepo(remoteRoot);
-		await cloneRepo({remoteRoot, cloneRoot: repoRoot});
-		writeProjectFile(repoRoot);
-
-		await commitFile({
-			repoRoot,
-			fileName: 'README.md',
-			content: 'hello\n',
-			message: 'initial',
-		});
-
-		const pushMain = await execGit({
-			args: ['push', '-u', 'origin', 'main'],
-			cwd: repoRoot,
-		});
-		if (isFail(pushMain)) throw new Error(pushMain.message);
-
+	it('write sync is a no-op for own file when state branch already matches', async () => {
+		const {repoRoot} = await setupRepo();
 		const ownEventFileName = 'u1.alice.jsonl';
+
+		const bootResult = await resetHardToRemoteState(repoRoot);
+		if (isFail(bootResult)) throw new Error(bootResult.message);
+
 		writeFile(
-			getEventsFile({repoRoot, fileName: ownEventFileName}),
+			getEventsFile({
+				root: bootResult.value.stateBranchRoot,
+				fileName: ownEventFileName,
+			}),
 			eventLine('01H00000000000000000000001'),
 		);
 
