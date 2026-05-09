@@ -4,6 +4,7 @@ import {isFieldListNode, isFieldNode, Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
@@ -13,8 +14,10 @@ type Props = {
 	height: number;
 };
 
-const getDescriptionNodeId = (ticketId: string) => `${ticketId}::description`;
-const getLogNodeId = (ticketId: string) => `${ticketId}::log`;
+const getDescriptionNodeId = (ticketId: string) =>
+	virtualNodeId(ticketId, 'description');
+
+const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const {selectedIndex, currentNode} = useAppState();

@@ -25,7 +25,7 @@ const event = <A extends AppEvent['action']>(
 	payload: Extract<AppEvent, {action: A}>['payload'],
 ): Extract<AppEvent, {action: A}> =>
 	({
-		id: `event-${++eventSeq}`,
+		id: `01H00000000000000000${String(++eventSeq).padStart(6, '0')}`,
 		action,
 		payload,
 		...actor,

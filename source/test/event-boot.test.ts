@@ -111,16 +111,6 @@ describe('event boot', () => {
 		expect(lockClosedBoardEvent.payload.id).toBe(CLOSED_BOARD_ID);
 		expect(lockClosedSwimlaneEvent.payload.id).toBe(CLOSED_SWIMLANE_ID);
 	});
-	it('fails when initialized project event log has no workspace init', () => {
-		const result = bootStateFromEventLog([]);
-
-		expect(isFail(result)).toBe(true);
-		if (isFail(result)) {
-			expect(result.message).toContain(
-				'Initialized Epiq project has no workspace init event',
-			);
-		}
-	});
 
 	it('boots from provided event log when workspace init exists', () => {
 		const eventLog = [

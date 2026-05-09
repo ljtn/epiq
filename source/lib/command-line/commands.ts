@@ -337,11 +337,10 @@ export const commands: CommandLineActionEntry[] = [
 			const name = (modifier || inputString).trim();
 			if (!name) return failed('Provide a tag');
 
-			const {selectedIndex, currentNode} = getState();
-			const selected = getRenderedChildren(currentNode.id)[selectedIndex];
-			if (!selected) return failed('Invalid tag target');
+			const {selectedNode} = getState();
+			if (!selectedNode) return failed('Invalid tag target');
 
-			const ticketResult = findAncestor(selected.id, 'TICKET');
+			const ticketResult = findAncestor(selectedNode.id, 'TICKET');
 			if (isFail(ticketResult)) {
 				return failed('Unable to tag issue in this context');
 			}

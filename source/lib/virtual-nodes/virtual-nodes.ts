@@ -14,6 +14,17 @@ import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 import {getState} from '../state/state.js';
 import {bigIntToHex, MAX_RANK} from '../utils/rank.js';
+import {virtualNodeId} from './virtual-ids.js';
+
+const getDescriptionNodeId = (ticketId: string) =>
+	virtualNodeId(ticketId, 'description');
+
+const getAssigneesNodeId = (ticketId: string) =>
+	virtualNodeId(ticketId, 'assignees');
+
+const getTagsNodeId = (ticketId: string) => virtualNodeId(ticketId, 'tags');
+
+const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
 type VirtualNodeInput = {
 	id: string;
@@ -141,7 +152,7 @@ export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
 	}
 
 	createOrUpdateVirtualField({
-		id: `${node.id}::description`,
+		id: getDescriptionNodeId(node.id),
 		name: FieldNames.DESCRIPTION,
 		parentNodeId: node.id,
 		rank: descriptionRank.value,
@@ -150,7 +161,7 @@ export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
 	});
 
 	createOrUpdateVirtualFieldList({
-		id: `${node.id}::assignees`,
+		id: getAssigneesNodeId(node.id),
 		name: FieldNames.ASSIGNEES,
 		parentNodeId: node.id,
 		rank: assigneesRank.value,
@@ -158,7 +169,7 @@ export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
 	});
 
 	createOrUpdateVirtualFieldList({
-		id: `${node.id}::tags`,
+		id: getTagsNodeId(node.id),
 		name: FieldNames.TAGS,
 		parentNodeId: node.id,
 		rank: tagsRank.value,
@@ -166,7 +177,7 @@ export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
 	});
 
 	createOrUpdateVirtualField({
-		id: `${node.id}::log`,
+		id: getLogNodeId(node.id),
 		name: FieldNames.HISTORY,
 		parentNodeId: node.id,
 		rank: logRank.value,
