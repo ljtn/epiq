@@ -7,7 +7,7 @@ import {
 } from '../../lib/model/result-types.js';
 
 vi.mock('../../git/sync.js', () => ({
-	syncEpiqFromRemote: vi.fn(() =>
+	resetHardToRemoteState: vi.fn(() =>
 		succeeded('Synced from remote', {
 			repoRoot: '/repo',
 			stateBranchRoot: '/state',
@@ -143,16 +143,11 @@ const nodes: Record<string, any> = {
 		readonly: false,
 		isDeleted: false,
 		rank: 'a0',
-	},
-	'field-description': {
-		id: 'field-description',
-		title: 'Description',
-		context: 'FIELD',
-		parentNodeId: 'issue-1',
-		readonly: false,
-		isDeleted: false,
-		rank: 'a0',
-		props: {value: 'A bug description'},
+		props: {
+			description: 'A bug description',
+			tags: [],
+			assignees: [],
+		},
 	},
 };
 
@@ -172,13 +167,10 @@ vi.mock('../../lib/state/state.js', () => ({
 			},
 		},
 	}),
-	getRenderedChildren: (id: string) => {
-		if (id === 'issue-1') return [nodes['field-description']];
-
-		return Object.values(nodes).filter(
+	getRenderedChildren: (id: string) =>
+		Object.values(nodes).filter(
 			node => !node.isDeleted && node.parentNodeId === id,
-		);
-	},
+		),
 }));
 
 vi.mock('../../lib/repository/node-repo.js', () => ({
