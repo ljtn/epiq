@@ -17,7 +17,7 @@ With great attention to user ergonomics and developer experience, epiq makes pro
 ██╔══╝  ██╔═══╝ █ █║██║▄▄ ██║
 ███████╗██║     █ █║╚██████╔╝
 ╚══════╝╚═╝     ╚══╝ ╚═══▀▀╝
-🫡 Never leave the terminal
+🫡 Never leave your terminal!
 ```
 
 ## What is epiq?
@@ -54,18 +54,6 @@ These design choices result in a system that is:
 - **Versioned** — changes are tracked and recoverable through Git
 
 ---
-
-### Example workflow:
-
-An issue lifecycle as epiq commands:
-
-```
- 1.  epiq new issue "Fix login bug"
- 2.  epiq assign @john
- 3.  epiq tag urgent
- 4.  # move with keys to reflect progress
- 5.  epiq close
-```
 
 ## Installation
 
@@ -226,4 +214,4 @@ Epiq follows a **local-first** model:
 
 ---
 
-🫡 Never leave the terminal!
+🫡 Never leave your terminal!
