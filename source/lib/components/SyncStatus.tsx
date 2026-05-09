@@ -71,14 +71,14 @@ export function SyncStatusPill({syncStatus}: SyncStatusPillProps) {
 
 	const labelByStatus = {
 		synced: 'synced  ',
-		outOfSync: 'unsynced',
+		failed: 'unsynced',
 		syncing: 'syncing ',
 		pending: 'pending ',
 	} satisfies Record<typeof syncStatus.status, string>;
 
 	const colorByStatus = {
 		synced: theme.secondary2,
-		outOfSync: theme.yellow,
+		failed: theme.yellow,
 		pending: theme.secondary2,
 		syncing:
 			getGradientColor(SYNC_GRADIENT, (Math.sin(tick * 0.12) + 1) / 2) ?? '',

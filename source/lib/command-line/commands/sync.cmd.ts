@@ -32,7 +32,7 @@ export const syncCommand = async () => {
 		patchState({
 			syncStatus: {
 				msg: result.message,
-				status: 'outOfSync',
+				status: 'failed',
 			},
 		});
 

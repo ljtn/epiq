@@ -5,7 +5,7 @@ const patchSyncStatus = ({
 	status,
 	msg,
 }: {
-	status: 'synced' | 'outOfSync' | 'syncing';
+	status: 'synced' | 'failed' | 'syncing';
 	msg: string;
 }) => {
 	if (!isStateInitialized()) return;
@@ -32,14 +32,14 @@ export const setSynced = (msg = 'Synced') => {
 	});
 };
 
-export const setOutOfSync = (msg: string) => {
+export const setSyncFailed = (msg: string) => {
 	patchSyncStatus({
-		status: 'outOfSync',
+		status: 'failed',
 		msg,
 	});
 };
 
 export const failSync = <T>(message: string): Result<T> => {
-	setOutOfSync(message);
+	setSyncFailed(message);
 	return failed(message);
 };

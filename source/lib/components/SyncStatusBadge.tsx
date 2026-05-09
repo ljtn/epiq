@@ -116,7 +116,7 @@ export const SyncStatusBadge: React.FC = () => {
 			? syncingBackground
 			: status === 'synced'
 			? theme.secondary
-			: status === 'outOfSync'
+			: status === 'failed'
 			? theme.accent2
 			: theme.secondary2;
 
