@@ -7,7 +7,7 @@ let currentKeypressListener: ((s: string, k: readline.Key) => void) | undefined;
 let currentDataListener: ((chunk: Buffer) => void) | undefined;
 let escTimer: NodeJS.Timeout | undefined;
 
-const READ_ONLY_ACTION_INTENTS = new Set<IntentInferred>([
+const AVAILABLE_IN_READ_ONLY = new Set<IntentInferred>([
 	Intent.MoveCursorLeft,
 	Intent.EraseInputWord,
 	Intent.MoveCursorLeftOfWord,
@@ -45,7 +45,7 @@ const triggerAction = async (key: readline.Key) => {
 	const intent = getKeyIntent(key, mode);
 	if (!intent) return;
 
-	if (readOnly && !READ_ONLY_ACTION_INTENTS.has(intent)) {
+	if (readOnly && !AVAILABLE_IN_READ_ONLY.has(intent)) {
 		return;
 	}
 
