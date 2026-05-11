@@ -92,7 +92,7 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[<Enter>] confirm/enter',
 		action: () => {
-			const {selectedNode, currentNode} = getState();
+			const {selectedNode, contextNode} = getState();
 			const children = getOrderedChildren(selectedNode?.id ?? '');
 
 			if (!children?.length) {
@@ -115,7 +115,7 @@ export const DefaultActions: ActionEntry[] = [
 				}
 
 				if (
-					currentNode.title === FieldNames.DESCRIPTION &&
+					contextNode.title === FieldNames.DESCRIPTION &&
 					selectedNode?.context === 'TEXT'
 				) {
 					setCmdInput(() => `${CmdKeywords.EDIT} description `);

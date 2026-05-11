@@ -167,7 +167,7 @@ describe('event boot', () => {
 		const targetResult = getBootNavigationTarget();
 		if (isFail(targetResult)) throw targetResult;
 
-		expect(targetResult.value.currentNode?.id).toBe('swimlane-1');
+		expect(targetResult.value.contextNode?.id).toBe('swimlane-1');
 		expect(targetResult.value.selectedIndex).toBe(-1);
 	});
 
@@ -191,7 +191,7 @@ describe('event boot', () => {
 		const targetResult = getBootNavigationTarget();
 		if (isFail(targetResult)) throw targetResult;
 
-		expect(targetResult.value.currentNode?.id).toBe('board-1');
+		expect(targetResult.value.contextNode?.id).toBe('board-1');
 		expect(targetResult.value.selectedIndex).toBe(0);
 	});
 

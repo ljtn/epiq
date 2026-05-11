@@ -3,17 +3,17 @@ import {BreadCrumb} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 export function buildBreadCrumb(
-	currentNodeId: string,
+	contextNodeId: string,
 	nodes: Record<string, NavNode<AnyContext>>,
 	rootNodeId: string,
 ): Result<BreadCrumb> {
-	const currentNode = nodes[currentNodeId];
-	if (!currentNode) {
+	const contextNode = nodes[contextNodeId];
+	if (!contextNode) {
 		return failed('buildBreadCrumb(): current node not found');
 	}
 
 	const path: NavNode<AnyContext>[] = [];
-	let current: NavNode<AnyContext> | undefined = currentNode;
+	let current: NavNode<AnyContext> | undefined = contextNode;
 
 	while (current) {
 		path.push(current);

@@ -15,7 +15,7 @@ import {TicketUI} from './TicketUI.js';
 
 type Props = {
 	swimlanes: readonly Swimlane[];
-	currentNode: NavNode<AnyContext>;
+	contextNode: NavNode<AnyContext>;
 	selectedIndex: number;
 	breadCrumb: DeepReadonly<BreadCrumb>;
 	viewMode: ViewMode;
@@ -26,7 +26,7 @@ type Props = {
 
 const BoardUIComponent: React.FC<Props> = ({
 	swimlanes,
-	currentNode,
+	contextNode,
 	selectedIndex,
 	breadCrumb,
 	mode,
@@ -34,7 +34,7 @@ const BoardUIComponent: React.FC<Props> = ({
 	height,
 	width,
 }) => {
-	const actionContext = currentNode.context;
+	const actionContext = contextNode.context;
 
 	const isTicketContext =
 		actionContext === NavNodeCtx.TICKET ||
@@ -46,7 +46,7 @@ const BoardUIComponent: React.FC<Props> = ({
 
 	const ticketFromCrumb =
 		actionContext === NavNodeCtx.TICKET
-			? (currentNode as Ticket)
+			? (contextNode as Ticket)
 			: (breadCrumb.find(n => n.context === NavNodeCtx.TICKET) as
 					| Ticket
 					| undefined);
@@ -63,10 +63,10 @@ const BoardUIComponent: React.FC<Props> = ({
 		<Box flexDirection="row" height={height}>
 			{isSwimlaneContext &&
 				swimlanes.map((lane, index) => {
-					const isFocused = currentNode.id === lane.id;
+					const isFocused = contextNode.id === lane.id;
 					const listSelectedIndex = isFocused ? selectedIndex : -1;
 					const isSelected =
-						currentNode.context === NavNodeCtx.BOARD && selectedIndex === index;
+						contextNode.context === NavNodeCtx.BOARD && selectedIndex === index;
 
 					return (
 						<SwimlaneUI

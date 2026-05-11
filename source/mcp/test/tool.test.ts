@@ -158,7 +158,7 @@ vi.mock('../../lib/state/state.js', () => ({
 		value: {
 			nodes,
 			rootNodeId: 'workspace-1',
-			currentNode: nodes['swimlane-1'],
+			contextNode: nodes['swimlane-1'],
 			selectedIndex: 0,
 			eventLog: [],
 			syncStatus: {

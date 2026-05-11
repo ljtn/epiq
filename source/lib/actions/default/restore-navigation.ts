@@ -5,7 +5,7 @@ import {getRenderedChildren, getState} from '../../state/state.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 type NavigationAnchor = {
-	currentNodeId: string;
+	contextNodeId: string;
 	selectedNodeId: string | null;
 	parentNodeId: string | null;
 	selectedIndex: number;
@@ -17,12 +17,12 @@ const clampIndex = (index: number, length: number): number => {
 };
 
 export const captureNavigationAnchor = (): NavigationAnchor => {
-	const {currentNode, selectedIndex, selectedNode} = getState();
+	const {contextNode, selectedIndex, selectedNode} = getState();
 
 	return {
-		currentNodeId: currentNode.id,
+		contextNodeId: contextNode.id,
 		selectedNodeId: selectedNode?.id ?? null,
-		parentNodeId: currentNode.id,
+		parentNodeId: contextNode.id,
 		selectedIndex,
 	};
 };
@@ -50,7 +50,7 @@ const tryNavigateIntoNode = (
 	const children = getRenderedChildren(node.id);
 
 	navigationUtils.navigate({
-		currentNode: node,
+		contextNode: node,
 		selectedIndex: clampIndex(selectedIndex, children.length),
 	});
 
@@ -79,7 +79,7 @@ const tryNavigateToNode = (nodeId: string): boolean => {
 
 	if (selectedIndex >= 0) {
 		navigationUtils.navigate({
-			currentNode: parent,
+			contextNode: parent,
 			selectedIndex,
 		});
 
@@ -119,8 +119,8 @@ export const restoreNavigationAnchor = (
 	const {nodes, rootNodeId} = getState();
 
 	if (
-		isEnteredTextContainer(anchor.currentNodeId) &&
-		tryNavigateIntoNode(anchor.currentNodeId, anchor.selectedIndex)
+		isEnteredTextContainer(anchor.contextNodeId) &&
+		tryNavigateIntoNode(anchor.contextNodeId, anchor.selectedIndex)
 	) {
 		return succeeded('Restored navigation inside text container', null);
 	}
@@ -133,7 +133,7 @@ export const restoreNavigationAnchor = (
 		return succeeded('Restored navigation to selected node or ancestor', null);
 	}
 
-	if (tryNavigateIntoNode(anchor.currentNodeId, anchor.selectedIndex)) {
+	if (tryNavigateIntoNode(anchor.contextNodeId, anchor.selectedIndex)) {
 		return succeeded('Restored navigation to previous container', null);
 	}
 
@@ -144,7 +144,7 @@ export const restoreNavigationAnchor = (
 		return succeeded('Restored navigation to previous parent', null);
 	}
 
-	if (tryNavigateToNodeOrAncestor(anchor.currentNodeId)) {
+	if (tryNavigateToNodeOrAncestor(anchor.contextNodeId)) {
 		return succeeded(
 			'Restored navigation to previous container or ancestor',
 			null,
@@ -160,7 +160,7 @@ export const restoreNavigationAnchor = (
 	const rootChildren = getRenderedChildren(root.id);
 
 	navigationUtils.navigate({
-		currentNode: root,
+		contextNode: root,
 		selectedIndex: clampIndex(anchor.selectedIndex, rootChildren.length),
 	});
 

@@ -11,9 +11,9 @@ import {getState, initWorkspaceState, patchState} from '../lib/state/state.js';
 
 vi.mock('../lib/actions/default/navigation-action-utils.js', () => ({
 	navigationUtils: {
-		navigate: vi.fn(({currentNode, selectedIndex}) => {
+		navigate: vi.fn(({contextNode, selectedIndex}) => {
 			patchState({
-				currentNodeId: currentNode.id,
+				contextNodeId: contextNode.id,
 				selectedIndex,
 				mode: Mode.DEFAULT,
 			});
@@ -90,7 +90,7 @@ const seedState = () => {
 			b,
 			c,
 		},
-		currentNodeId: 'board',
+		contextNodeId: 'board',
 		selectedIndex: 1,
 	});
 };
@@ -103,7 +103,7 @@ describe('navigation restore', () => {
 
 	it('captures current node id, selected node id, parent id and index', () => {
 		expect(captureNavigationAnchor()).toEqual({
-			currentNodeId: 'board',
+			contextNodeId: 'board',
 			selectedNodeId: 'b',
 			parentNodeId: 'board',
 			selectedIndex: 1,
@@ -115,7 +115,7 @@ describe('navigation restore', () => {
 
 		expect(result.status).toBe('success');
 		expect(navigationUtils.navigate).toHaveBeenCalledWith({
-			currentNode: expect.objectContaining({id: 'board'}),
+			contextNode: expect.objectContaining({id: 'board'}),
 			selectedIndex: 1,
 		});
 	});
@@ -146,7 +146,7 @@ describe('navigation restore', () => {
 
 		expect(result.status).toBe('success');
 		expect(navigationUtils.navigate).toHaveBeenCalledWith({
-			currentNode: expect.objectContaining({id: 'other'}),
+			contextNode: expect.objectContaining({id: 'other'}),
 			selectedIndex: 0,
 		});
 	});
@@ -168,14 +168,14 @@ describe('navigation restore', () => {
 
 		expect(result.status).toBe('success');
 		expect(navigationUtils.navigate).toHaveBeenCalledWith({
-			currentNode: expect.objectContaining({id: 'board'}),
+			contextNode: expect.objectContaining({id: 'board'}),
 			selectedIndex: 1,
 		});
 	});
 
 	it('clamps old index when same container has fewer children', () => {
 		const anchor = {
-			currentNodeId: 'board',
+			contextNodeId: 'board',
 			selectedNodeId: 'c',
 			parentNodeId: 'board',
 			selectedIndex: 2,
@@ -193,14 +193,14 @@ describe('navigation restore', () => {
 
 		expect(result.status).toBe('success');
 		expect(navigationUtils.navigate).toHaveBeenCalledWith({
-			currentNode: expect.objectContaining({id: 'board'}),
+			contextNode: expect.objectContaining({id: 'board'}),
 			selectedIndex: 0,
 		});
 	});
 
 	it('falls back to old parent when current container is deleted', () => {
 		const anchor = {
-			currentNodeId: 'deleted-current',
+			contextNodeId: 'deleted-current',
 			selectedNodeId: 'missing',
 			parentNodeId: 'board',
 			selectedIndex: 2,
@@ -210,14 +210,14 @@ describe('navigation restore', () => {
 
 		expect(result.status).toBe('success');
 		expect(navigationUtils.navigate).toHaveBeenCalledWith({
-			currentNode: expect.objectContaining({id: 'board'}),
+			contextNode: expect.objectContaining({id: 'board'}),
 			selectedIndex: 2,
 		});
 	});
 
 	it('falls back to root when previous location no longer exists', () => {
 		const anchor = {
-			currentNodeId: 'missing-current',
+			contextNodeId: 'missing-current',
 			selectedNodeId: 'missing-selected',
 			parentNodeId: 'missing-parent',
 			selectedIndex: 5,
@@ -227,7 +227,7 @@ describe('navigation restore', () => {
 
 		expect(result.status).toBe('success');
 		expect(navigationUtils.navigate).toHaveBeenCalledWith({
-			currentNode: expect.objectContaining({id: 'root'}),
+			contextNode: expect.objectContaining({id: 'root'}),
 			selectedIndex: 0,
 		});
 	});

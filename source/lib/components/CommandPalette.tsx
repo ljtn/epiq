@@ -111,7 +111,7 @@ const attachPaletteNodes = (items: PaletteCommand[]) => {
 		return {
 			...state,
 			mode: Mode.PALETTE,
-			currentNodeId: PALETTE_ROOT_ID,
+			contextNodeId: PALETTE_ROOT_ID,
 			selectedIndex: items.length > 0 ? 0 : -1,
 			nodes: {
 				...existingNonPaletteNodes,
@@ -136,10 +136,10 @@ const detachPaletteNodes = () => {
 		return {
 			...state,
 			nodes: nextNodes,
-			currentNodeId:
-				state.currentNodeId === PALETTE_ROOT_ID
+			contextNodeId:
+				state.contextNodeId === PALETTE_ROOT_ID
 					? state.rootNodeId
-					: state.currentNodeId,
+					: state.contextNodeId,
 			selectedIndex: 0,
 		};
 	});

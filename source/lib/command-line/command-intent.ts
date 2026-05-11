@@ -3,7 +3,7 @@ import {CommandIntent} from './command-meta.js';
 import {CmdKeywords} from './cmd-keywords.js';
 
 export const getCommandIntent = (command: string): CommandIntent => {
-	const {context} = getState().currentNode;
+	const {context} = getState().contextNode;
 
 	if (!context) return CmdIntent.None;
 

@@ -78,7 +78,7 @@ const stripAnsi = (value: string): string =>
 export const exportBoardLayout = async (): Promise<Result<string>> => {
 	const {viewMode} = getSettingsState();
 	const {
-		currentNode,
+		contextNode,
 		selectedIndex,
 		breadCrumb,
 
@@ -102,7 +102,7 @@ export const exportBoardLayout = async (): Promise<Result<string>> => {
 			swimlanes={(renderedChildrenIndex[board.id] ?? []).filter(
 				node => node !== undefined && isSwimlaneNode(node),
 			)}
-			currentNode={currentNode}
+			contextNode={contextNode}
 			selectedIndex={selectedIndex}
 			breadCrumb={breadCrumb}
 			viewMode={viewMode ?? 'dense'}

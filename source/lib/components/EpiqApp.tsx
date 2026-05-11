@@ -111,7 +111,7 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 				<WorkspaceUI
 					width={width}
 					height={height}
-					currentNode={state.currentNode}
+					contextNode={state.contextNode}
 					selectedIndex={state.selectedIndex}
 					breadCrumb={state.breadCrumb}
 					viewMode={getSettingsState().viewMode ?? 'dense'}

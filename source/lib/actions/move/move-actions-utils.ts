@@ -27,8 +27,8 @@ export const setMovePendingState = (state: AppEvent<'move.node'> | null) => {
 const getSelectedChild = ():
 	| ReturnSuccess<NavNode<AnyContext>>
 	| ReturnFail => {
-	const {currentNode, selectedIndex} = getState();
-	const children = getOrderedChildren(currentNode.id);
+	const {contextNode, selectedIndex} = getState();
+	const children = getOrderedChildren(contextNode.id);
 	const targetNode = children[selectedIndex];
 
 	if (!targetNode) return failed('Target node not found');
@@ -97,14 +97,14 @@ export function moveNodeToSiblingContainer(direction: -1 | 1): Result<{
 	const selectedChildResult = getSelectedChild();
 	if (isFail(selectedChildResult)) return selectedChildResult;
 
-	const {currentNode, nodes} = getState();
-	if (!currentNode.parentNodeId) return failed('Missing parent node id');
+	const {contextNode, nodes} = getState();
+	if (!contextNode.parentNodeId) return failed('Missing parent node id');
 
-	const parentNode = nodes[currentNode.parentNodeId];
+	const parentNode = nodes[contextNode.parentNodeId];
 	if (!parentNode) return failed('Missing parent node');
 
 	const siblings = getOrderedChildren(parentNode.id);
-	const currentIndex = siblings.findIndex(({id}) => id === currentNode.id);
+	const currentIndex = siblings.findIndex(({id}) => id === contextNode.id);
 	if (currentIndex < 0) return failed('Current node not found among siblings');
 
 	const siblingNode = siblings[currentIndex + direction];
@@ -128,15 +128,15 @@ export function moveChildWithinParent(direction: -1 | 1): Result<{
 	const selectedChildResult = getSelectedChild();
 	if (isFail(selectedChildResult)) return selectedChildResult;
 
-	const {currentNode, selectedIndex} = getState();
-	const siblings = getOrderedChildren(currentNode.id);
+	const {contextNode, selectedIndex} = getState();
+	const siblings = getOrderedChildren(contextNode.id);
 
 	const referenceNode = siblings[selectedIndex + direction];
 	if (!referenceNode) return failed('Missing sibling node');
 
 	const pendingResult = createPendingMoveState({
 		id: selectedChildResult.value.id,
-		parentId: currentNode.id,
+		parentId: contextNode.id,
 		position: {
 			at: direction === 1 ? 'after' : 'before',
 			sibling: referenceNode.id,

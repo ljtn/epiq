@@ -31,7 +31,7 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 		return failed(`provide a name for your ${cmdState.modifier}`);
 	}
 
-	const {breadCrumb, currentNode, selectedIndex} = getState();
+	const {breadCrumb, contextNode, selectedIndex} = getState();
 
 	const createAndNavigate = (
 		event: AppEvent<
@@ -50,7 +50,7 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 		if (!parentNode) return failed('Parent node not found');
 
 		navigationUtils.navigate({
-			currentNode: parentNode,
+			contextNode: parentNode,
 			selectedIndex: nodeRepo
 				.getSiblings(createdNode.parentNodeId)
 				.findIndex(({id}) => id === createdNode.id),
@@ -111,11 +111,11 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 	}
 
 	if (cmdState.modifier === 'issue') {
-		const selectedNode = getRenderedChildren(currentNode.id)[selectedIndex];
+		const selectedNode = getRenderedChildren(contextNode.id)[selectedIndex];
 		const swimlane =
-			currentNode.context === 'SWIMLANE'
-				? currentNode
-				: currentNode.context === 'BOARD' &&
+			contextNode.context === 'SWIMLANE'
+				? contextNode
+				: contextNode.context === 'BOARD' &&
 				  selectedNode?.context === 'SWIMLANE'
 				? selectedNode
 				: (() => {
@@ -169,7 +169,7 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 		if (!ticketId) return failed('Unable to determine ticket id');
 
 		navigationUtils.navigate({
-			currentNode: swimlane,
+			contextNode: swimlane,
 			selectedIndex: nodeRepo
 				.getSiblings(swimlane.id)
 				.findIndex(({id}) => id === ticketId),

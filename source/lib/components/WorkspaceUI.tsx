@@ -9,7 +9,7 @@ import BoardList from './BoardList.js';
 import {BoardUI} from './BoardUI.js';
 
 type Props = {
-	currentNode: NavNode<AnyContext>;
+	contextNode: NavNode<AnyContext>;
 	selectedIndex: number;
 	breadCrumb: BreadCrumb;
 	viewMode: ViewMode;
@@ -18,7 +18,7 @@ type Props = {
 	width: number;
 };
 const WorkspaceUIComponent: React.FC<Props> = ({
-	currentNode,
+	contextNode,
 	selectedIndex,
 	breadCrumb,
 	mode,
@@ -33,7 +33,7 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 	const boardHeight = height - breadCrumbHeight - commandLineHeight;
 	return (
 		<Box flexDirection="row">
-			{currentNode.context === 'WORKSPACE' ? (
+			{contextNode.context === 'WORKSPACE' ? (
 				<BoardList />
 			) : board ? (
 				<BoardUI
@@ -42,7 +42,7 @@ const WorkspaceUIComponent: React.FC<Props> = ({
 					swimlanes={(renderedChildrenIndex[board.id] ?? []).filter(
 						node => node !== undefined && isSwimlaneNode(node),
 					)}
-					currentNode={currentNode}
+					contextNode={contextNode}
 					selectedIndex={selectedIndex}
 					breadCrumb={breadCrumb}
 					viewMode={viewMode}

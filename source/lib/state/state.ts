@@ -23,7 +23,7 @@ type DerivedKeys =
 	| 'actionIndex'
 	| 'availableHints'
 	| 'breadCrumb'
-	| 'currentNode'
+	| 'contextNode'
 	| 'selectedNode';
 export type BaseState = Omit<AppState, DerivedKeys>;
 
@@ -46,10 +46,10 @@ const subscribe = (listener: () => void) => {
 // Derivation
 // -----------------------------
 function derive(state: BaseState): Result<AppState> {
-	const {currentNodeId, mode, rootNodeId, nodes, filters} = state;
+	const {contextNodeId, mode, rootNodeId, nodes, filters} = state;
 
-	if (!currentNodeId) {
-		return failed('derive(): currentNodeId is missing');
+	if (!contextNodeId) {
+		return failed('derive(): contextNodeId is missing');
 	}
 	if (!rootNodeId) {
 		return failed('derive(): rootNode is missing');
@@ -60,19 +60,19 @@ function derive(state: BaseState): Result<AppState> {
 		return failed(`derive(): unable to find root node`);
 	}
 
-	const currentNode = nodes[currentNodeId];
-	if (!currentNode) {
-		return failed('Unable to derive state, currentNode not found');
+	const contextNode = nodes[contextNodeId];
+	if (!contextNode) {
+		return failed('Unable to derive state, contextNode not found');
 	}
 
-	const breadCrumbResult = buildBreadCrumb(currentNodeId, nodes, rootNodeId);
+	const breadCrumbResult = buildBreadCrumb(contextNodeId, nodes, rootNodeId);
 	if (isFail(breadCrumbResult)) {
 		logger.error(breadCrumbResult.message);
 		return breadCrumbResult;
 	}
 	const breadCrumb = breadCrumbResult.value;
 
-	const {context} = currentNode;
+	const {context} = contextNode;
 	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
 
 	const availableActions = [
@@ -84,11 +84,11 @@ function derive(state: BaseState): Result<AppState> {
 
 	const renderedChildrenIndex = buildChildIndex(nodes, filters);
 	const selectedNode =
-		renderedChildrenIndex[currentNodeId]?.[state.selectedIndex] ?? null;
+		renderedChildrenIndex[contextNodeId]?.[state.selectedIndex] ?? null;
 
 	return succeeded('Derived successfully', {
 		...state,
-		currentNode,
+		contextNode,
 		breadCrumb,
 		availableHints,
 		availableActions,
@@ -136,7 +136,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		mode: Mode.DEFAULT,
 		nodes: {[workspace.id]: workspace},
 		rootNodeId: workspace.id,
-		currentNodeId: workspace.id,
+		contextNodeId: workspace.id,
 		renderedChildrenIndex: {},
 		selectedIndex: -1,
 		syncStatus: {
@@ -182,7 +182,7 @@ export const isChildSelected = (
 	parent: NavNode<AnyContext>,
 	i: number,
 	state: AppState,
-): boolean => parent.id === state.currentNode.id && state.selectedIndex === i;
+): boolean => parent.id === state.contextNode.id && state.selectedIndex === i;
 
 /** Ink/React hook: components re-render on state changes. */
 export const useAppState = () =>

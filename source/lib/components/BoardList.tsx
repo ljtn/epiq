@@ -30,7 +30,7 @@ export default function BoardList() {
 			<Box padding={1} flexDirection="column">
 				{children.map((board, i) => {
 					const isSelected =
-						state.currentNode.context === 'WORKSPACE' &&
+						state.contextNode.context === 'WORKSPACE' &&
 						state.selectedIndex === i;
 
 					const swimlanes = getRenderedChildren(board.id);

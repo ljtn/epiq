@@ -145,8 +145,8 @@ const getAvailableBaseCommands = (): CmdKeyword[] => {
 };
 
 export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
-	const {currentNode} = getState();
-	const currentContext = currentNode.context ?? 'WORKSPACE';
+	const {contextNode} = getState();
+	const currentContext = contextNode.context ?? 'WORKSPACE';
 
 	const modifiers: Partial<Record<CmdKeyword, string[]>> = {
 		[CmdKeywords.NONE]: getAvailableBaseCommands(),

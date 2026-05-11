@@ -9,7 +9,7 @@ import {
 
 vi.mock('../lib/state/state.js', () => ({
 	getState: () => ({
-		currentNode: {
+		contextNode: {
 			id: 'swimlane-1',
 			title: 'Swimlane 1',
 			context: 'SWIMLANE',

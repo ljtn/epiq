@@ -61,8 +61,8 @@ export const commands: CommandLineActionEntry[] = [
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
-			const {currentNode, selectedIndex} = getState();
-			const child = getRenderedChildren(currentNode.id)[selectedIndex];
+			const {contextNode, selectedIndex} = getState();
+			const child = getRenderedChildren(contextNode.id)[selectedIndex];
 			if (!child) return failed('Unable to resolve child to delete');
 
 			return persistEvent({
@@ -125,8 +125,8 @@ export const commands: CommandLineActionEntry[] = [
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
-			const {currentNode, selectedIndex} = getState();
-			const target = getRenderedChildren(currentNode.id)[selectedIndex];
+			const {contextNode, selectedIndex} = getState();
+			const target = getRenderedChildren(contextNode.id)[selectedIndex];
 
 			if (!target) return failed('Unable to close issue, no target found');
 			if (!isTicketNode(target)) return failed('Cannot close in this context');
@@ -176,8 +176,8 @@ export const commands: CommandLineActionEntry[] = [
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
-			const {currentNode, selectedIndex} = getState();
-			const target = getRenderedChildren(currentNode.id)[selectedIndex];
+			const {contextNode, selectedIndex} = getState();
+			const target = getRenderedChildren(contextNode.id)[selectedIndex];
 
 			if (!target) return failed('Unable to reopen issue, no target found');
 
@@ -264,8 +264,8 @@ export const commands: CommandLineActionEntry[] = [
 			const userRes = resolveActorId();
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
-			const {currentNode, selectedIndex} = getState();
-			const node = getRenderedChildren(currentNode.id)[selectedIndex];
+			const {contextNode, selectedIndex} = getState();
+			const node = getRenderedChildren(contextNode.id)[selectedIndex];
 			if (!node) return failed('Missing node');
 			if (node.readonly) return failed('Cannot rename readonly node');
 
@@ -400,8 +400,8 @@ export const commands: CommandLineActionEntry[] = [
 			const name = (modifier || inputString).trim();
 			if (!name) return failed('Provide an assignee');
 
-			const {selectedIndex, currentNode} = getState();
-			const selected = getRenderedChildren(currentNode.id)[selectedIndex];
+			const {selectedIndex, contextNode} = getState();
+			const selected = getRenderedChildren(contextNode.id)[selectedIndex];
 			if (!selected) return failed('Invalid assign target');
 
 			const ticketResult = findAncestor(selected.id, 'TICKET');
@@ -547,8 +547,8 @@ export const commands: CommandLineActionEntry[] = [
 				const userRes = resolveActorId();
 				if (isFail(userRes)) return failed('Unable to resolve user ID');
 
-				const {currentNode, selectedIndex} = getState();
-				const node = getRenderedChildren(currentNode.id)[selectedIndex];
+				const {contextNode, selectedIndex} = getState();
+				const node = getRenderedChildren(contextNode.id)[selectedIndex];
 				if (!node) return failed('Missing node');
 				if (node.readonly) return failed('Cannot rename readonly node');
 

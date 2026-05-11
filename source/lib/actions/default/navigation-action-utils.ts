@@ -10,34 +10,34 @@ export const navigationUtils = {
 
 	enterChildNode() {
 		const state = getState();
-		const currentNode = state.currentNode;
+		const contextNode = state.contextNode;
 		const index = Math.max(0, state.selectedIndex);
-		const focusNode = getOrderedChildren(currentNode.id)[index];
-		if (!focusNode || currentNode.context === 'FIELD') return;
+		const focusNode = getOrderedChildren(contextNode.id)[index];
+		if (!focusNode || contextNode.context === 'FIELD') return;
 
 		navigationUtils.navigate({
-			currentNode: focusNode,
+			contextNode: focusNode,
 			selectedIndex: getRenderedChildren(focusNode.id).length ? 0 : -1,
 		});
 	},
 
 	enterParentNode() {
-		const {currentNode, nodes} = getState();
+		const {contextNode, nodes} = getState();
 
-		if (!currentNode.parentNodeId) {
+		if (!contextNode.parentNodeId) {
 			logger.info('Missing parent node id');
 			return;
 		}
-		const parent = nodes[currentNode.parentNodeId];
+		const parent = nodes[contextNode.parentNodeId];
 		if (!parent) {
 			logger.error('Parent not found');
 			return;
 		}
 		const parentChildren = getRenderedChildren(parent.id);
-		const idx = parentChildren.findIndex(({id}) => id === currentNode.id);
+		const idx = parentChildren.findIndex(({id}) => id === contextNode.id);
 		const selectedIndex = parentChildren.length === 0 ? -1 : idx >= 0 ? idx : 0;
 
-		navigationUtils.navigate({currentNode: parent, selectedIndex});
+		navigationUtils.navigate({contextNode: parent, selectedIndex});
 	},
 
 	navigateToNextItem: () => navigateByOffset(1),
@@ -47,47 +47,47 @@ export const navigationUtils = {
 	navigateToPreviousContainer: () => navigateToSiblingContainer(-1),
 
 	navigate: <T extends AnyContext>({
-		currentNode,
+		contextNode,
 		selectedIndex,
 	}: {
-		currentNode: NavNode<T>;
+		contextNode: NavNode<T>;
 		selectedIndex: number;
 	}): void => {
 		patchState({
-			currentNodeId: currentNode.id,
+			contextNodeId: contextNode.id,
 			selectedIndex,
 		});
 	},
 };
 
 const navigateByOffset = (offset: number) => {
-	const {selectedIndex, currentNode} = getState();
-	const len = getRenderedChildren(currentNode.id).length;
+	const {selectedIndex, contextNode} = getState();
+	const len = getRenderedChildren(contextNode.id).length;
 	if (len === 0) return;
 
 	const base = Math.max(0, selectedIndex);
 	const newIndex = (base + offset + len) % len;
 
-	navigationUtils.navigate({selectedIndex: newIndex, currentNode});
+	navigationUtils.navigate({selectedIndex: newIndex, contextNode: contextNode});
 };
 
 const navigateToSiblingContainer = (direction: -1 | 1) => {
-	const {currentNode, nodes, selectedIndex} = getState();
-	if (!currentNode.childNavigationAcrossParents) return;
+	const {contextNode, nodes, selectedIndex} = getState();
+	if (!contextNode.childNavigationAcrossParents) return;
 
-	if (!currentNode.parentNodeId) {
+	if (!contextNode.parentNodeId) {
 		logger.error('Missing parent node id');
 		return;
 	}
-	const parentNode = nodes[currentNode.parentNodeId];
-	if (!currentNode || !parentNode) return;
+	const parentNode = nodes[contextNode.parentNodeId];
+	if (!contextNode || !parentNode) return;
 
 	const siblings = getRenderedChildren(parentNode.id);
-	const currentNodeIndex = siblings.findIndex(x => x.id === currentNode.id);
-	if (currentNodeIndex < 0) return;
+	const contextNodeIndex = siblings.findIndex(x => x.id === contextNode.id);
+	if (contextNodeIndex < 0) return;
 
 	const nextSibling =
-		siblings.at(currentNodeIndex + direction) ?? siblings.at(0);
+		siblings.at(contextNodeIndex + direction) ?? siblings.at(0);
 	if (!nextSibling) return;
 
 	const nextSiblingChildren = getRenderedChildren(nextSibling.id);
@@ -96,7 +96,7 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 	const newSelectedIndex = nextSiblingChildren.length ? boundedIndex : -1;
 
 	navigationUtils.navigate({
-		currentNode: nextSibling,
+		contextNode: nextSibling,
 		selectedIndex: newSelectedIndex,
 	});
 };

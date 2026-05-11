@@ -45,8 +45,8 @@ export type AppState = {
 	readOnly: boolean;
 	selectedIndex: number;
 	selectedNode: NavNode<AnyContext> | null;
-	currentNodeId: string | null;
-	currentNode: NavNode<AnyContext>;
+	contextNodeId: string | null;
+	contextNode: NavNode<AnyContext>;
 	filters: Filter[];
 	contributors: Record<string, Contributor>;
 	tags: Record<string, Tag>;

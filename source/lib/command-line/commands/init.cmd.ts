@@ -253,7 +253,7 @@ export const initCommand = async () => {
 	}
 
 	navigationUtils.navigate({
-		currentNode: rootNode,
+		contextNode: rootNode,
 		selectedIndex: 0,
 	});
 

@@ -343,7 +343,7 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 		stateBranchRoot: bootResult.value.stateBranchRoot,
 		nodes: stateResult.value.nodes,
 		rootNodeId: stateResult.value.rootNodeId,
-		currentNode: stateResult.value.currentNode,
+		contextNode: stateResult.value.contextNode,
 		selectedIndex: stateResult.value.selectedIndex,
 		eventLog: stateResult.value.eventLog,
 	});

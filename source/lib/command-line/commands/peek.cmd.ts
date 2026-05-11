@@ -83,7 +83,7 @@ export const peekCommand = async () => {
 	}
 
 	navigationUtils.navigate({
-		currentNode: boardNode,
+		contextNode: boardNode,
 		selectedIndex: 0,
 	});
 

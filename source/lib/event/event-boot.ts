@@ -19,7 +19,7 @@ import {AnyContext} from '../model/context.model.js';
 const nextId = monotonicFactory();
 
 export function getBootNavigationTarget(): Result<{
-	currentNode: NavNode<AnyContext>;
+	contextNode: NavNode<AnyContext>;
 	selectedIndex: number;
 }> {
 	const stateResult = getSafeState();
@@ -41,22 +41,22 @@ export function getBootNavigationTarget(): Result<{
 	if (firstSwimlane) {
 		const children = state.renderedChildrenIndex?.[firstSwimlane.id] ?? [];
 		return succeeded('Resolved boot nav target', {
-			currentNode: firstSwimlane,
+			contextNode: firstSwimlane,
 			selectedIndex: children.length > 0 ? 0 : -1,
 		});
 	} else if (firstBoard) {
 		return succeeded('Resolved boot nav target', {
-			currentNode: firstBoard,
+			contextNode: firstBoard,
 			selectedIndex: 0,
 		});
 	} else if (workspace) {
 		return succeeded('Resolved boot nav target', {
-			currentNode: workspace,
+			contextNode: workspace,
 			selectedIndex: 0,
 		});
 	} else {
 		return succeeded('Resolved boot nav target', {
-			currentNode: state.nodes[state.rootNodeId] as NavNode<AnyContext>,
+			contextNode: state.nodes[state.rootNodeId] as NavNode<AnyContext>,
 			selectedIndex: 0,
 		});
 	}

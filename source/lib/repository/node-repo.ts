@@ -177,7 +177,7 @@ export const nodeRepo = {
 	},
 
 	tombstoneNode(nodeId: string): Result<NavNode<AnyContext>> {
-		const {nodes, currentNodeId, rootNodeId} = getState();
+		const {nodes, contextNodeId, rootNodeId} = getState();
 
 		const node = this.getNode(nodeId);
 		if (!node) return failed('Node not found');
@@ -206,7 +206,7 @@ export const nodeRepo = {
 			nextNodes[id] = {...nextNodes[id], isDeleted: true};
 		}
 
-		if (!currentNodeId) return failed('Unable to delete undefined');
+		if (!contextNodeId) return failed('Unable to delete undefined');
 
 		patchState({nodes: nextNodes});
 

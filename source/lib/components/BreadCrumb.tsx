@@ -21,11 +21,11 @@ const truncate = (str: string, max: number) => {
 
 export const Breadcrumb: React.FC<Props> = ({width}) => {
 	const {viewMode} = getSettingsState();
-	const {breadCrumb: crumbs, currentNode, selectedIndex} = getState();
+	const {breadCrumb: crumbs, contextNode, selectedIndex} = getState();
 
-	const selectedTarget = getOrderedChildren(currentNode.id)[selectedIndex];
+	const selectedTarget = getOrderedChildren(contextNode.id)[selectedIndex];
 	const ticketResult = findAncestor(
-		selectedTarget?.id ?? currentNode.id,
+		selectedTarget?.id ?? contextNode.id,
 		'TICKET',
 	);
 	const ticket = isSuccess(ticketResult) ? ticketResult.value : undefined;
@@ -34,7 +34,7 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 	const assignees = ticket?.props.assignees ?? [];
 
 	const showDetails = ticket?.parentNodeId
-		? !isDescendantOf(currentNode.id, ticket.parentNodeId) &&
+		? !isDescendantOf(contextNode.id, ticket.parentNodeId) &&
 		  viewMode === 'dense'
 		: false;
 

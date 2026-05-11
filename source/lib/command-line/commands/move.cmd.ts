@@ -35,7 +35,7 @@ const syncNavigationToPendingMove = (): Result<null> => {
 		return failed('Moved node not found among rendered children');
 	}
 
-	navigationUtils.navigate({currentNode: parent, selectedIndex});
+	navigationUtils.navigate({contextNode: parent, selectedIndex});
 	return succeeded('Synchronized navigation to moved node', null);
 };
 
@@ -58,8 +58,8 @@ export const moveCommand = async (): Promise<Result> => {
 
 	const {modifier} = getCmdState().commandMeta;
 
-	const {currentNode, selectedIndex} = getState();
-	const targetNode = getOrderedChildren(currentNode.id)[selectedIndex];
+	const {contextNode, selectedIndex} = getState();
+	const targetNode = getOrderedChildren(contextNode.id)[selectedIndex];
 
 	if (!targetNode) {
 		patchState({mode: Mode.DEFAULT});

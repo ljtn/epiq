@@ -27,7 +27,7 @@ export const InlineEditor: React.FC<Props> = ({
 	selected,
 	maxWidth,
 }) => {
-	const {selectedIndex, currentNode} = useAppState();
+	const {selectedIndex, contextNode} = useAppState();
 
 	const renderMarkdownInline = (md: string) => String(md).replace(/\r?\n/g, '');
 
@@ -64,7 +64,7 @@ export const InlineEditor: React.FC<Props> = ({
 	const EMPTY_ROW_FALLBACK = '\u2029';
 
 	const renderedItems = rows.map((row, i) => {
-		const isSel = currentNode.id === id && selectedIndex === i;
+		const isSel = contextNode.id === id && selectedIndex === i;
 		return (
 			<Box key={`${id}-${i}`}>
 				<Text

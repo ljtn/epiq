@@ -20,7 +20,7 @@ const getDescriptionNodeId = (ticketId: string) =>
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
-	const {selectedIndex, currentNode} = useAppState();
+	const {selectedIndex, contextNode} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
 
 	const descriptionNodeId = useMemo(
@@ -30,9 +30,9 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	const logNodeId = useMemo(() => getLogNodeId(ticket.id), [ticket.id]);
 
-	const isAtTicketRoot = currentNode.id === ticket.id;
+	const isAtTicketRoot = contextNode.id === ticket.id;
 	const isInsideLog =
-		currentNode.id === logNodeId || currentNode.parentNodeId === logNodeId;
+		contextNode.id === logNodeId || contextNode.parentNodeId === logNodeId;
 
 	const children = getRenderedChildren(ticket.id);
 

@@ -265,7 +265,7 @@ describe('AssignUserToTicket command', () => {
 
 		mockedGetState.mockReturnValue({
 			selectedIndex: 0,
-			currentNode: {id: 'current-node'},
+			contextNode: {id: 'current-node'},
 			tags: {},
 			contributors: {},
 		} as any);
@@ -289,7 +289,7 @@ describe('AssignUserToTicket command', () => {
 	it('reuses an existing contributor id and adds assignee to issue props', async () => {
 		mockedGetState.mockReturnValue({
 			selectedIndex: 0,
-			currentNode: {id: 'current-node'},
+			contextNode: {id: 'current-node'},
 			tags: {},
 			contributors: {
 				'user-123': {id: 'user-123', name: 'alice'},
@@ -362,7 +362,7 @@ describe('AssignUserToTicket command', () => {
 	it('fails and does not create duplicate assignment', async () => {
 		mockedGetState.mockReturnValue({
 			selectedIndex: 0,
-			currentNode: {id: 'current-node'},
+			contextNode: {id: 'current-node'},
 			tags: {},
 			contributors: {
 				'user-123': {id: 'user-123', name: 'alice'},

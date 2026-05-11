@@ -1,9 +1,13 @@
 import {useSyncExternalStore} from 'react';
 import {failed, Result, succeeded} from '../model/result-types.js';
+import {AppState} from '../model/app-state.model.js';
 
-// export type UxState = {
-// 	pendingNavTarget: {selectedIndex: number, currentNode}
-// };
+export type UxState = {
+	pendingNavTarget?: {
+		selectedIndex: AppState['selectedIndex'];
+		contextNode: AppState['contextNode'];
+	};
+};
 
 let _uxState: UxState | undefined;
 

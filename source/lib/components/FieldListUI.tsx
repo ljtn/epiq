@@ -21,7 +21,7 @@ export const FieldListUI: React.FC<Props> = ({
 	parent,
 	selected,
 }) => {
-	const {currentNode} = useAppState();
+	const {contextNode} = useAppState();
 	const {title} = parent;
 
 	const ticket = parent.parentNodeId
@@ -47,7 +47,7 @@ export const FieldListUI: React.FC<Props> = ({
 			<Box flexDirection="row" marginLeft={1} paddingRight={1}>
 				{items.map((item, index) => {
 					const isSelected =
-						currentNode.id === parent.id && index === selectedIndex;
+						contextNode.id === parent.id && index === selectedIndex;
 
 					return (
 						<Box key={`${title}-${item}`} paddingRight={2} minHeight={1}>
