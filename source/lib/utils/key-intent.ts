@@ -9,9 +9,6 @@ import {getCmdState} from '../state/cmd.state.js';
 import {getSettingsState} from '../state/settings.state.js';
 
 export const Intent = {
-	// Git
-	Sync: 'sync',
-
 	// Default
 	NavPreviousItem: 'navPreviousItem',
 	NavNextItem: 'navNextItem',
@@ -187,8 +184,6 @@ export function getKeyIntent(
 		case 'q':
 		case 'escape':
 			return Intent.Exit;
-		case 's':
-			return Intent.Sync;
 		default:
 			return null;
 	}

@@ -180,7 +180,7 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => CmdKeywords.EDIT);
+			setCmdInput(() => CmdKeywords.EDIT + ' ');
 			void onConfirmCommandLineSequenceInput();
 			return succeeded('Fired command', true);
 		},

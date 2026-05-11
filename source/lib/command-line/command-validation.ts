@@ -6,7 +6,11 @@ import {
 import {booleanToYesNo, YesNo} from '../config/setup-utils.js';
 import {editorConfig} from '../editor/editor-config.js';
 import {safeDateFromUlid} from '../event/date-utils.js';
-import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
+import {
+	BreadCrumb,
+	Filter,
+	findInBreadCrumb,
+} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
@@ -33,7 +37,7 @@ import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 
-const guardEditableNodes = (): ValidationResult => {
+const guardBoardSwimlaneTicketNodes = (): ValidationResult => {
 	const target = getState().selectedNode;
 	if (!target?.context) {
 		return invalid({
@@ -335,10 +339,15 @@ const validateEditCommand: Validator = ({modifier}) => {
 		});
 	}
 
-	const editableNodeTypeValidation = guardEditableNodes();
-	if (editableNodeTypeValidation.validity === 'invalid') {
-		return editableNodeTypeValidation;
-	}
+	const {breadCrumb, selectedNode} = getState();
+	const isTicketInPath = findInBreadCrumb(
+		[...breadCrumb, selectedNode] as BreadCrumb,
+		'TICKET',
+	);
+	if (!isTicketInPath)
+		return invalid({
+			message: 'Command not available in this context',
+		});
 
 	switch (modifier) {
 		case EditModifiers.TITLE:
@@ -503,7 +512,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.CONFIG]: validateConfigCommand,
 
 	[CmdKeywords.DELETE]: args => {
-		const editableNodeTypeValidation = guardEditableNodes();
+		const editableNodeTypeValidation = guardBoardSwimlaneTicketNodes();
 		if (editableNodeTypeValidation.validity === 'invalid') {
 			return editableNodeTypeValidation;
 		}
@@ -515,7 +524,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.RE_OPEN_ISSUE]: args => requireExact(args),
 
 	[CmdKeywords.MOVE]: args => {
-		const editableNodeTypeValidation = guardEditableNodes();
+		const editableNodeTypeValidation = guardBoardSwimlaneTicketNodes();
 		if (editableNodeTypeValidation.validity === 'invalid') {
 			return editableNodeTypeValidation;
 		}
