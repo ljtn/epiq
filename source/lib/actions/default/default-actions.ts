@@ -7,6 +7,7 @@ import {getOrderedChildren} from '../../repository/rank.js';
 import {setCmdInput} from '../../state/cmd.state.js';
 import {patchSettingsState} from '../../state/settings.state.js';
 import {getState, patchState} from '../../state/state.js';
+import {getUiState, patchUiState} from '../../state/ux-state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {onConfirmCommandLineSequenceInput} from '../input/on-cmd-input-confirm.js';
 import {navigationUtils} from './navigation-action-utils.js';
@@ -73,6 +74,8 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[?] command palette',
 		action: () => {
+			const {contextNode, selectedIndex} = getState();
+			patchUiState({pendingNavTarget: {contextNode, selectedIndex}});
 			patchState({mode: Mode.PALETTE});
 			return succeeded('Opening command palette', null);
 		},
@@ -150,6 +153,10 @@ export const DefaultActions: ActionEntry[] = [
 			patchState({mode: Mode.COMMAND_LINE});
 			setCmdInput(() => `${command} `);
 
+			const {pendingNavTarget} = getUiState();
+			if (pendingNavTarget) {
+				navigationUtils.navigate(pendingNavTarget);
+			}
 			return succeeded('Selected command', command);
 		},
 	},

@@ -2,75 +2,75 @@ import {useSyncExternalStore} from 'react';
 import {failed, Result, succeeded} from '../model/result-types.js';
 import {AppState} from '../model/app-state.model.js';
 
-export type UxState = {
+export type UiState = {
 	pendingNavTarget?: {
 		selectedIndex: AppState['selectedIndex'];
 		contextNode: AppState['contextNode'];
 	};
 };
 
-let _uxState: UxState | undefined;
+let _uiState: UiState | undefined;
 
-const uxListeners = new Set<() => void>();
+const uiListeners = new Set<() => void>();
 
-const emitUx = () => {
-	for (const l of uxListeners) l();
+const emitUi = () => {
+	for (const l of uiListeners) l();
 };
 
-const subscribeUx = (listener: () => void) => {
-	uxListeners.add(listener);
-	return () => uxListeners.delete(listener);
+const subscribeUi = (listener: () => void) => {
+	uiListeners.add(listener);
+	return () => uiListeners.delete(listener);
 };
 
-export const getUxState = () => {
-	if (!_uxState) {
-		throw new Error('UX state not initialized. Call initUxState() first.');
+export const getUiState = () => {
+	if (!_uiState) {
+		throw new Error('Ui state not initialized. Call initUiState() first.');
 	}
 
-	return _uxState;
+	return _uiState;
 };
 
-export const getSafeUxState = (): Result<UxState> => {
-	if (!_uxState) {
-		return failed('UX state not initialized. Call initUxState() first.');
+export const getSafeUiState = (): Result<UiState> => {
+	if (!_uiState) {
+		return failed('Ui state not initialized. Call initUiState() first.');
 	}
 
-	return succeeded('Retrieved UX state', _uxState);
+	return succeeded('Retrieved Ui state', _uiState);
 };
 
-export const initUxState = (initialState: UxState = {}): Result<string> => {
-	_uxState = initialState;
-	emitUx();
+export const initUiState = (initialState: UiState = {}): Result<string> => {
+	_uiState = initialState;
+	emitUi();
 
 	return succeeded('UX state initialized', null);
 };
 
-export const updateUxState = (
-	cb: (old: UxState) => UxState,
+export const updateUiState = (
+	cb: (old: UiState) => UiState,
 ): Result<string> => {
-	const prev = getUxState();
-	_uxState = cb(prev);
+	const prev = getUiState();
+	_uiState = cb(prev);
 
-	emitUx();
+	emitUi();
 
 	return succeeded('UX state updated', null);
 };
 
-export const patchUxState = (patch: Partial<UxState>): Result<string> =>
-	updateUxState(old => ({
+export const patchUiState = (patch: Partial<UiState>): Result<string> =>
+	updateUiState(old => ({
 		...old,
 		...patch,
 	}));
 
-export const resetUxState = (): Result<string> => {
-	_uxState = {};
-	emitUx();
+export const resetUiState = (): Result<string> => {
+	_uiState = {};
+	emitUi();
 
 	return succeeded('UX state reset', null);
 };
 
-export const isUxStateInitialized = () => _uxState !== undefined;
+export const isUiStateInitialized = () => _uiState !== undefined;
 
 /** Ink/React hook */
-export const useUxState = () =>
-	useSyncExternalStore(subscribeUx, getUxState, getUxState);
+export const useUiState = () =>
+	useSyncExternalStore(subscribeUi, getUiState, getUiState);

@@ -21,6 +21,9 @@ import {patchState} from './lib/state/state.js';
 import {resolveClosestEpiqProjectRoot} from './lib/storage/paths.js';
 import {failAt, formatUnknownError} from './lib/utils/logger.utils.js';
 import './logger.js';
+import {initUiState} from './lib/state/ux-state.js';
+
+initUiState();
 
 meow(
 	`${chalk.bold('Epiq CLI')}

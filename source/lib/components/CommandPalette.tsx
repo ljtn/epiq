@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React, {useEffect, useMemo} from 'react';
 import {CmdKeywords} from '../command-line/cmd-keywords.js';
 import {getCommandIntent} from '../command-line/command-intent.js';
+import {getCmdModifiers} from '../command-line/command-modifiers.js';
 import {commands} from '../command-line/commands.js';
 import {Mode} from '../model/action-map.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -10,7 +11,6 @@ import {nodes} from '../state/node-builder.js';
 import {getState, updateState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
-import {getCmdModifiers} from '../command-line/command-modifiers.js';
 
 type Props = {
 	width: number;
@@ -27,6 +27,10 @@ type PaletteCommand = {
 };
 
 const toPaletteNodeId = (command: string) => `${PALETTE_NODE_PREFIX}${command}`;
+
+const isPaletteNode = (id: string) =>
+	id === PALETTE_ROOT_ID || id.startsWith(PALETTE_NODE_PREFIX);
+
 const getPaletteCommands = (normalizedMatch: string): PaletteCommand[] => {
 	const availableCommands = new Set(getCmdModifiers(CmdKeywords.NONE));
 
@@ -95,10 +99,8 @@ const attachPaletteNodes = (items: PaletteCommand[]) => {
 	updateState(state => {
 		const paletteRoot = createPaletteRootNode(state.rootNodeId);
 
-		const existingNonPaletteNodes = Object.fromEntries(
-			Object.entries(state.nodes).filter(
-				([id]) => id !== PALETTE_ROOT_ID && !id.startsWith(PALETTE_NODE_PREFIX),
-			),
+		const nonPaletteNodes = Object.fromEntries(
+			Object.entries(state.nodes).filter(([id]) => !isPaletteNode(id)),
 		);
 
 		const paletteNodes = Object.fromEntries(
@@ -114,7 +116,7 @@ const attachPaletteNodes = (items: PaletteCommand[]) => {
 			contextNodeId: PALETTE_ROOT_ID,
 			selectedIndex: items.length > 0 ? 0 : -1,
 			nodes: {
-				...existingNonPaletteNodes,
+				...nonPaletteNodes,
 				[PALETTE_ROOT_ID]: paletteRoot,
 				...paletteNodes,
 			},
@@ -125,12 +127,7 @@ const attachPaletteNodes = (items: PaletteCommand[]) => {
 const detachPaletteNodes = () => {
 	updateState(state => {
 		const nextNodes = Object.fromEntries(
-			Object.entries(state.nodes).filter(
-				([id, node]) =>
-					id !== PALETTE_ROOT_ID &&
-					!id.startsWith(PALETTE_NODE_PREFIX) &&
-					!node.isVirtual,
-			),
+			Object.entries(state.nodes).filter(([id]) => !isPaletteNode(id)),
 		);
 
 		return {
@@ -188,7 +185,7 @@ export function CommandPalette({width, height}: Props) {
 							borderLeft={false}
 							borderBottom={false}
 							borderColor={theme.secondary}
-							borderStyle={'single'}
+							borderStyle="single"
 						>
 							<Text
 								color={commandColor}
