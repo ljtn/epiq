@@ -1,24 +1,27 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo} from 'react';
+import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CmdKeywords} from '../command-line/cmd-keywords.js';
 import {getCommandIntent} from '../command-line/command-intent.js';
 import {getCmdModifiers} from '../command-line/command-modifiers.js';
 import {commands} from '../command-line/commands.js';
-import {Mode} from '../model/action-map.model.js';
+import {isTextNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {isFail, isSuccess} from '../model/result-types.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {useCmdState} from '../state/cmd.state.js';
 import {nodes} from '../state/node-builder.js';
-import {getState, updateState} from '../state/state.js';
+import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
+import {ulid} from 'ulid';
 
 type Props = {
 	width: number;
 	height: number;
 };
 
-const PALETTE_ROOT_ID = '__epiq_palette_root__';
-const PALETTE_NODE_PREFIX = '__epiq_palette_command__';
+const PALETTE_ROOT_ID = ulid();
 
 type PaletteCommand = {
 	command: string;
@@ -26,10 +29,7 @@ type PaletteCommand = {
 	isAvailable: boolean;
 };
 
-const toPaletteNodeId = (command: string) => `${PALETTE_NODE_PREFIX}${command}`;
-
-const isPaletteNode = (id: string) =>
-	id === PALETTE_ROOT_ID || id.startsWith(PALETTE_NODE_PREFIX);
+const toPaletteNodeId = (command: string) => `${command}`;
 
 const getPaletteCommands = (normalizedMatch: string): PaletteCommand[] => {
 	const availableCommands = new Set(getCmdModifiers(CmdKeywords.NONE));
@@ -95,51 +95,36 @@ const createPaletteNode = (
 		isVirtual: true,
 	});
 
-const attachPaletteNodes = (items: PaletteCommand[]) => {
-	updateState(state => {
-		const paletteRoot = createPaletteRootNode(state.rootNodeId);
+let paletteNodes: NavNode<'TEXT'>[] = [];
 
-		const nonPaletteNodes = Object.fromEntries(
-			Object.entries(state.nodes).filter(([id]) => !isPaletteNode(id)),
-		);
+const attachPaletteNodes = (paletteCmd: PaletteCommand[]) => {
+	detachPaletteNodes();
+	const rootNodeResult = nodeRepo.createNode(
+		createPaletteRootNode(getState().rootNodeId),
+	);
+	if (isFail(rootNodeResult) || !isTextNode(rootNodeResult.value)) return;
 
-		const paletteNodes = Object.fromEntries(
-			items.map((item, index) => {
-				const node = createPaletteNode(item, index, PALETTE_ROOT_ID);
-				return [node.id, node];
-			}),
-		);
+	paletteNodes = [
+		rootNodeResult.value,
+		...paletteCmd
+			.map((item, i) => createPaletteNode(item, i, PALETTE_ROOT_ID))
+			.map(nodeRepo.createNode)
+			.filter(isSuccess)
+			.map(({value}) => value)
+			.filter(isTextNode),
+	];
 
-		return {
-			...state,
-			mode: Mode.PALETTE,
-			contextNodeId: PALETTE_ROOT_ID,
-			selectedIndex: items.length > 0 ? 0 : -1,
-			nodes: {
-				...nonPaletteNodes,
-				[PALETTE_ROOT_ID]: paletteRoot,
-				...paletteNodes,
-			},
-		};
+	navigationUtils.navigate({
+		contextNode: rootNodeResult.value,
+		selectedIndex: 0,
 	});
 };
 
 const detachPaletteNodes = () => {
-	updateState(state => {
-		const nextNodes = Object.fromEntries(
-			Object.entries(state.nodes).filter(([id]) => !isPaletteNode(id)),
-		);
+	const ids = paletteNodes.map(node => node.id);
+	paletteNodes = [];
 
-		return {
-			...state,
-			nodes: nextNodes,
-			contextNodeId:
-				state.contextNodeId === PALETTE_ROOT_ID
-					? state.rootNodeId
-					: state.contextNodeId,
-			selectedIndex: 0,
-		};
-	});
+	for (const id of ids) nodeRepo.deleteNode(id);
 };
 
 export function CommandPalette({width, height}: Props) {

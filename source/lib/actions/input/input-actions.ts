@@ -123,14 +123,6 @@ export const inputActions: ActionEntry[] = [
 		},
 	},
 	{
-		intent: Intent.ExitCommandLine,
-		mode: Mode.PALETTE,
-		action: () => {
-			patchState({mode: Mode.DEFAULT});
-			return succeeded('Exiting palette', null);
-		},
-	},
-	{
 		intent: Intent.GetLastCommandFromHistory,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
