@@ -3,14 +3,7 @@ import {materializeAndPersist} from '../event/event-materialize-and-persist.js';
 import {MovePosition} from '../event/event.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {
-	failed,
-	isFail,
-	Result,
-	ReturnFail,
-	ReturnSuccess,
-	succeeded,
-} from '../model/result-types.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getState} from '../state/state.js';
 import {rankBetween} from '../utils/rank.js';
 

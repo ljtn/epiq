@@ -12,7 +12,7 @@ const cursors = {
 	help: ['❯ '],
 	default: ['❯ '],
 	move: ['◆ ', '◆ '],
-	'command-line': ['❯ '],
+	'cmd-line': ['❯ '],
 	palette: ['❯ '],
 } as const;
 

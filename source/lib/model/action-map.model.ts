@@ -6,7 +6,7 @@ export const Mode = {
 	DEFAULT: 'default',
 	MOVE: 'move',
 	HELP: 'help',
-	COMMAND_LINE: 'command-line',
+	COMMAND_LINE: 'cmd-line',
 	PALETTE: 'palette',
 } as const;
 export type ModeUnion = (typeof Mode)[keyof typeof Mode];

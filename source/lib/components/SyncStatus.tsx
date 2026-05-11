@@ -71,7 +71,7 @@ export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
 	}, [syncStatus.status]);
 
 	const labelByStatus = {
-		synced: 'ok',
+		synced: '    ',
 		failed: 'retry',
 		syncing: '...',
 		pending: 'wait',

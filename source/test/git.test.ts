@@ -7,12 +7,6 @@ import {resetHardToRemoteState, syncEpiqWithRemote} from '../git/sync.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getRelativeEventFilePath} from '../git/git-storage.js';
 
-const prepareStateBranch = async (repoRoot: string) => {
-	const result = await resetHardToRemoteState(repoRoot);
-	if (isFail(result)) throw new Error(result.message);
-	return result.value.stateBranchRoot;
-};
-
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
 
@@ -26,9 +20,6 @@ const writeFile = (filePath: string, content: string): void => {
 	fs.mkdirSync(path.dirname(filePath), {recursive: true});
 	fs.writeFileSync(filePath, content, 'utf8');
 };
-
-const readFile = (filePath: string): string =>
-	fs.readFileSync(filePath, 'utf8');
 
 const writeProjectFile = (repoRoot: string): void => {
 	writeFile(

@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function Topbar({filters, hideBreadCrumb = false}: Props) {
-	const {timeMode, eventLog, unappliedEvents, syncStatus} = useAppState();
+	const {timeMode, eventLog, unappliedEvents, syncStatus, mode} = useAppState();
 	const {userName, preferredEditor, autoSync} = getSettingsState();
 	const topRightWidth = 56;
 	const breadCrumbWidth = process.stdout.columns - topRightWidth - 8;
@@ -60,6 +60,10 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 						autoSync={Boolean(autoSync)}
 						syncStatus={syncStatus}
 					/>
+					<Text>
+						{chalk.hex(theme.secondary2).dim('Mode: ') +
+							chalk.hex(theme.secondary2).dim(mode.padEnd(8, ' '))}{' '}
+					</Text>
 					<HeaderPill icon="@" value={userName} />
 					<HeaderPill icon="❯" value={preferredEditor} />
 					<Text dimColor={true} color={theme.secondary2}>
