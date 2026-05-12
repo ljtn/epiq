@@ -8,10 +8,9 @@ import {Intent} from '../../utils/key-intent.js';
 import {navigationUtils} from '../default/navigation-action-utils.js';
 
 const confirmPaletteCommand = (command: string) => {
-	const {pendingNavTarget} = getUiState();
-
 	patchState({mode: Mode.COMMAND_LINE});
 
+	const {pendingNavTarget} = getUiState();
 	if (pendingNavTarget) {
 		navigationUtils.navigate(pendingNavTarget);
 	}
@@ -24,14 +23,12 @@ const closePalette = () => {
 	setCmdInput(() => '');
 
 	const {pendingNavTarget} = getUiState();
-
-	patchState({mode: Mode.DEFAULT});
-
 	if (pendingNavTarget) {
 		navigationUtils.navigate(pendingNavTarget);
 	}
 
 	patchUiState({pendingNavTarget: undefined});
+	patchState({mode: Mode.DEFAULT});
 };
 
 export const PaletteActions: ActionEntry[] = [
