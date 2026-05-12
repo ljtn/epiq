@@ -58,6 +58,7 @@ export type CommandMap = {
 };
 
 const GLOBAL_COMMANDS = [
+	CmdKeywords.EXIT,
 	CmdKeywords.SYNC,
 	CmdKeywords.HELP,
 	CmdKeywords.EXPORT,

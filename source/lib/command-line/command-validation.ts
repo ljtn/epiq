@@ -16,15 +16,16 @@ import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {getState} from '../state/state.js';
-import {
-	getGradientWord,
-	getStringColor,
-	getWordGradientPosition,
-} from '../utils/color.js';
+import {getDimStringColor, getGradientWord} from '../utils/color.js';
 import {
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
+import {
+	buildOptionsHint,
+	hintAlert,
+	hintDefault,
+} from './build-command-hint.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {CmdValidity, cmdValidity} from './cmd-validity.js';
 import {
@@ -41,13 +42,13 @@ const guardBoardSwimlaneTicketNodes = (): ValidationResult => {
 	const target = getState().selectedNode;
 	if (!target?.context) {
 		return invalid({
-			message: 'Missing target context',
+			message: hintDefault('Missing target context'),
 		});
 	}
 
 	if (!EDITABLE_NODES.includes(target.context)) {
 		return invalid({
-			message: 'Command not available in this context',
+			message: hintDefault('Command not available in this context'),
 		});
 	}
 
@@ -76,7 +77,7 @@ const valid = (
 	message: string = '',
 	completionWordList: string[] = [],
 ): ValidationResult => ({
-	message,
+	message: hintDefault(message),
 	validity: cmdValidity.Valid,
 	completionWordList,
 });
@@ -94,41 +95,9 @@ const invalid = ({
 });
 
 const isBlank = (value: string) => value.length === 0;
-const buildHint = ({
-	prefix = '',
-	wordList,
-	postfix = '',
-	noOfHints = 100,
-	inputString,
-	minLengthForHints = 1,
-}: {
-	prefix?: string;
-	wordList: readonly string[];
-	postfix?: string;
-	noOfHints?: number;
-	inputString: string;
-	minLengthForHints?: number;
-}) => {
-	const trimmedInput = inputString.trim();
 
-	if (trimmedInput.length < minLengthForHints) {
-		return '';
-	}
-
-	const filteredList = wordList
-		.filter(Boolean)
-		.filter(x => x.startsWith(trimmedInput));
-
-	const sortedByGradient = [...filteredList].sort(
-		(a, b) => getWordGradientPosition(a) - getWordGradientPosition(b),
-	);
-
-	const hintOptions = sortedByGradient.slice(0, noOfHints);
-
-	const coloredOptions = hintOptions.map(getGradientWord).join(' ');
-
-	return coloredOptions ? `${prefix}${coloredOptions}${postfix}` : '';
-};
+const chip = (value: string): string =>
+	` ${chalk.dim.bgHex(getDimStringColor(value))(` ${value} `)} `;
 
 const requireExact = ({modifier}: {modifier: string}) => {
 	const expected = 'confirm';
@@ -137,21 +106,12 @@ const requireExact = ({modifier}: {modifier: string}) => {
 		? valid(CONFIRM_MSG)
 		: invalid({
 				message: isBlank(modifier)
-					? `if you are certain, enter ${getGradientWord(expected)}`
+					? hintDefault('if you are certain, enter ') +
+					  getGradientWord(expected)
 					: '',
 				completionWordList: [expected],
 		  });
 };
-
-// const requireOneIn =
-// 	({list, hint}: {list: readonly string[]; hint: string}): Validator =>
-// 	({modifier}) =>
-// 		list.includes(modifier)
-// 			? valid(CONFIRM_MSG)
-// 			: invalid({
-// 					message: isBlank(modifier) ? hint : '',
-// 					completionWordList: [...list],
-// 			  });
 
 const requireOneWithValueIn =
 	({
@@ -173,7 +133,7 @@ const requireOneWithValueIn =
 
 		if (inputString.trim().length < 1) {
 			return invalid({
-				message: onValue,
+				message: hintDefault(onValue),
 			});
 		}
 
@@ -192,7 +152,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 	if (!configModifiers.includes(modifier)) {
 		return invalid({
-			message: buildHint({
+			message: buildOptionsHint({
 				prefix: '... ',
 				wordList: configModifiers,
 				inputString: modifier,
@@ -208,7 +168,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 			if (!inputString.trim()) {
 				return invalid({
-					message: buildHint({
+					message: buildOptionsHint({
 						prefix: 'editors: ',
 						wordList,
 						inputString,
@@ -220,7 +180,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 			if (!wordList.includes(inputString.trim())) {
 				return invalid({
-					message: buildHint({
+					message: buildOptionsHint({
 						prefix: 'editors: ',
 						wordList,
 						inputString,
@@ -238,7 +198,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 			if (!wordList.includes(inputString.trim())) {
 				return invalid({
-					message: buildHint({
+					message: buildOptionsHint({
 						prefix: 'view... ',
 						wordList,
 						inputString,
@@ -254,9 +214,9 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 		case ConfigModifiers.USERNAME: {
 			if (!inputString.trim()) {
 				return invalid({
-					message: `Enter a user name. Saved in ${chalk.bgBlack(
-						'~/.epiq-global/config.json',
-					)}`,
+					message:
+						hintAlert('Enter a user name. Saved in ') +
+						chalk.bgBlack('~/.epiq-global/config.json'),
 				});
 			}
 
@@ -270,7 +230,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			if (!wordList.includes(inputString.trim() as YesNo)) {
 				const currentVal = booleanToYesNo(currentAutoSyncStatus);
 				return invalid({
-					message: buildHint({
+					message: buildOptionsHint({
 						prefix: `should auto-sync (recommended)${
 							currentVal !== null ? ', currently: ' + currentVal : ''
 						} `,
@@ -295,7 +255,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				duration === null ||
 				duration < MIN_AUTOSYNC_DURATION_MS
 			) {
-				const hint = buildHint({
+				const hint = buildOptionsHint({
 					prefix: ' examples: ',
 					wordList: AUTOSYNC_DEBOUNCE_HINTS,
 					minLengthForHints: 0,
@@ -304,9 +264,10 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 				return invalid({
 					message:
-						`provide duration above ${MIN_AUTOSYNC_DURATION_MS}ms. ` +
-						`current duration: ${currentDuration}ms.` +
-						hint,
+						hintAlert(
+							`provide duration above ${MIN_AUTOSYNC_DURATION_MS}ms. ` +
+								`current duration: ${currentDuration}ms.`,
+						) + hint,
 					completionWordList: AUTOSYNC_DEBOUNCE_HINTS,
 				});
 			}
@@ -316,7 +277,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 		default:
 			return invalid({
-				message: 'Unknown config option',
+				message: hintAlert('Unknown config option'),
 				completionWordList: configModifiers,
 			});
 	}
@@ -326,7 +287,7 @@ const validateEditCommand: Validator = ({modifier}) => {
 	const editModifiers = getCmdModifiers(CmdKeywords.EDIT);
 
 	if (!editModifiers.includes(modifier)) {
-		const message = buildHint({
+		const message = buildOptionsHint({
 			prefix: 'edit... ',
 			wordList: editModifiers,
 			inputString: modifier,
@@ -334,7 +295,7 @@ const validateEditCommand: Validator = ({modifier}) => {
 		});
 
 		return invalid({
-			message: message || 'Unknown edit option',
+			message: message || hintAlert('Unknown edit option'),
 			completionWordList: editModifiers,
 		});
 	}
@@ -346,7 +307,7 @@ const validateEditCommand: Validator = ({modifier}) => {
 	);
 	if (!isTicketInPath)
 		return invalid({
-			message: 'Command not available in this context',
+			message: hintAlert('Command not available in this context'),
 		});
 
 	switch (modifier) {
@@ -354,11 +315,15 @@ const validateEditCommand: Validator = ({modifier}) => {
 			return valid(CONFIRM_MSG);
 
 		case EditModifiers.DESCRIPTION:
-			return valid('<ENTER> to edit in ' + getSettingsState().preferredEditor);
+			const {preferredEditor} = getSettingsState();
+			if (!preferredEditor) return invalid({message: 'No editor selected'});
+			return valid(
+				hintDefault('<ENTER> to edit in ') + getGradientWord(preferredEditor),
+			);
 
 		default:
 			return invalid({
-				message: `Unknown edit option`,
+				message: hintAlert('Unknown edit option'),
 				completionWordList: editModifiers,
 			});
 	}
@@ -366,7 +331,9 @@ const validateEditCommand: Validator = ({modifier}) => {
 
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.EXPORT]: () => {
-		return valid(CONFIRM_MSG + ', and create export markdown file');
+		return valid(
+			CONFIRM_MSG + hintDefault(', and create export markdown file'),
+		);
 	},
 
 	[CmdKeywords.PEEK]: args => {
@@ -374,7 +341,9 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (modifier === 'now') return valid(CONFIRM_MSG);
 
 		const hint = {
-			message: `historical state from: '1h', '2d', '23h', '1mo', '2y', 'previous', 'next' or full date as YYYY-MM-DD`,
+			message: hintDefault(
+				`historical state from: '1h', '2d', '23h', '1mo', '2y', 'previous', 'next' or full date as YYYY-MM-DD`,
+			),
 		};
 
 		if (modifier === 'prev') return valid(CONFIRM_MSG);
@@ -389,7 +358,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		if (isFail(boardResult)) {
 			return invalid({
-				message: 'Command is not applicable in this context',
+				message: hintAlert('Command is not applicable in this context'),
 			});
 		}
 
@@ -397,7 +366,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		if (isFail(boardCreationDate)) {
 			return invalid({
-				message: 'Unable to peek: board id is not a valid ULID',
+				message: hintAlert('Unable to peek: board id is not a valid ULID'),
 			});
 		}
 
@@ -408,7 +377,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			})
 		) {
 			return invalid({
-				message: chalk.red(
+				message: hintAlert(
 					`nothing to peek before ${boardCreationDate.value
 						.toISOString()
 						.slice(0, 16)
@@ -420,7 +389,8 @@ const validators: Record<CmdKeyword, Validator> = {
 		return valid(CONFIRM_MSG);
 	},
 
-	[CmdKeywords.EXIT]: () => valid(CONFIRM_MSG + ' and exit the application'),
+	[CmdKeywords.EXIT]: () =>
+		valid(CONFIRM_MSG + hintDefault(' and exit the application')),
 	[CmdKeywords.INIT]: () => valid(CONFIRM_MSG),
 	[CmdKeywords.PALETTE]: () => valid(CONFIRM_MSG),
 
@@ -432,7 +402,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		if (!args.modifier || !isValidModifier(args.modifier)) {
 			return invalid({
-				message: buildHint({
+				message: buildOptionsHint({
 					wordList: getCmdModifiers(CmdKeywords.FILTER),
 					inputString: args.inputString,
 				}),
@@ -454,8 +424,8 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		if (!args.inputString) {
 			return invalid({
-				message: buildHint({
-					prefix: `one of... `,
+				message: buildOptionsHint({
+					prefix: 'one of... ',
 					wordList,
 					noOfHints: 10,
 					inputString: args.inputString,
@@ -466,7 +436,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		if (wordList.length && !wordList.includes(args.inputString.trim())) {
 			return invalid({
-				message: buildHint({
+				message: buildOptionsHint({
 					prefix: `existing ${args.modifier}s... `,
 					wordList,
 					noOfHints: 10,
@@ -483,7 +453,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		const wordList = getCmdModifiers(CmdKeywords.NONE);
 
 		return invalid({
-			message: buildHint({
+			message: buildOptionsHint({
 				prefix: '... ',
 				wordList,
 				inputString: args.inputString,
@@ -496,7 +466,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.NEW]: args =>
 		requireOneWithValueIn({
 			list: getCmdModifiers(CmdKeywords.NEW),
-			hint: buildHint({
+			hint: buildOptionsHint({
 				wordList: getCmdModifiers(CmdKeywords.NEW),
 				noOfHints: 3,
 				inputString: args.inputString,
@@ -530,7 +500,7 @@ const validators: Record<CmdKeyword, Validator> = {
 		}
 
 		return requireModifierOrInputStr({
-			hint: buildHint({
+			hint: buildOptionsHint({
 				prefix: 'hey hacker! These commands are blocked for you... ',
 				wordList: getCmdModifiers(CmdKeywords.MOVE),
 				noOfHints: 10,
@@ -540,51 +510,47 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 
 	[CmdKeywords.TAG]: args => {
-		const tags = nodeRepo
-			.getExistingTags()
-			.map(tag => ` ${chalk.bgHex(getStringColor(tag))(' ' + tag + ' ')} `)
-			.slice(0, 10);
-
+		const tags = nodeRepo.getExistingTags().slice(0, 10).map(chip);
 		const existingTags = tags.join('');
 
 		return requireModifierOrInputStr({
 			hint: existingTags.length
-				? 'existing tags ... ' + existingTags
-				: 'create tag ...',
+				? hintDefault('create tag or reuse:') + existingTags + hintDefault('')
+				: hintDefault('create tag ...'),
 		})(args);
 	},
 
 	[CmdKeywords.UNTAG]: args => {
 		const tagsRes = ticketTagsFromBreadCrumb();
 		if (isFail(tagsRes)) {
-			return invalid({message: 'Invalid untag target', completionWordList: []});
+			return invalid({
+				message: hintAlert('Invalid untag target'),
+				completionWordList: [],
+			});
 		}
 
 		const tags = tagsRes.value
 			.map(({name}) => name)
-			.map(tag => ` ${chalk.bgHex(getStringColor(tag))(' ' + tag + ' ')} `)
+			.map(chip)
 			.slice(0, 10);
 
 		if (!tags.length) {
-			return invalid({message: 'Issue has no tags', completionWordList: []});
+			return invalid({
+				message: hintAlert('Issue has no tags'),
+				completionWordList: [],
+			});
 		}
 
 		return requireModifierOrInputStr({
-			hint: ' ... ' + tags.join(''),
+			hint: hintDefault(' ... ') + tags.join(''),
 		})(args);
 	},
 
 	[CmdKeywords.ASSIGN]: args => {
-		const contributors = nodeRepo
-			.getExistingAssignees()
-			.map(
-				assignee =>
-					` ${chalk.bgHex(getStringColor(assignee))(' ' + assignee + ' ')} `,
-			)
-			.slice(0, 10);
+		const contributors = nodeRepo.getExistingAssignees().map(chip).slice(0, 10);
 
 		return requireModifierOrInputStr({
-			hint: 'assign to... ' + contributors.join(''),
+			hint: hintDefault('assignees... ') + contributors.join(''),
 		})(args);
 	},
 
@@ -592,28 +558,25 @@ const validators: Record<CmdKeyword, Validator> = {
 		const assigneesRes = ticketAssigneesFromBreadCrumb();
 		if (isFail(assigneesRes)) {
 			return invalid({
-				message: 'Invalid unassign target',
+				message: hintAlert('Invalid unassign target'),
 				completionWordList: [],
 			});
 		}
 
 		const coloredAssignees = assigneesRes.value
 			.map(({name}) => name)
-			.map(
-				assignee =>
-					` ${chalk.bgHex(getStringColor(assignee))(' ' + assignee + ' ')} `,
-			)
+			.map(chip)
 			.slice(0, 10);
 
 		if (!coloredAssignees.length) {
 			return invalid({
-				message: 'Issue has no assignees',
+				message: hintAlert('Issue has no assignees'),
 				completionWordList: [],
 			});
 		}
 
 		return requireModifierOrInputStr({
-			hint: 'remove assignee... ' + coloredAssignees.join(''),
+			hint: hintDefault('remove assignee... ') + coloredAssignees.join(''),
 		})(args);
 	},
 

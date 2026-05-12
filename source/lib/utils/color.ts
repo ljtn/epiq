@@ -3,6 +3,9 @@ import {TAGS_DEFAULT} from '../static/default-tags.js';
 
 type Rgb = [number, number, number];
 
+const BLACK: Rgb = [0, 0, 0];
+const DEFAULT_DIM_AMOUNT = 0.2;
+
 export const colorConfig = {
 	stringColor: {
 		saturation: 50,
@@ -36,6 +39,8 @@ const hashString = (value: string): number => {
 
 	return hash;
 };
+
+const normalizeName = (value: string): string => value.toLowerCase().trim();
 
 const hslToRgb = (h: number, s: number, l: number): Rgb => {
 	const sat = s / 100;
@@ -83,11 +88,33 @@ const rgbToHex = ([r, g, b]: Rgb): string =>
 		.toString(16)
 		.padStart(2, '0')}`;
 
-const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => [
-	Math.round(lerp(a[0], b[0], t)),
-	Math.round(lerp(a[1], b[1], t)),
-	Math.round(lerp(a[2], b[2], t)),
-];
+const hexToRgb = (hex: string): Rgb => {
+	const normalized = hex.replace('#', '');
+
+	return [
+		parseInt(normalized.slice(0, 2), 16),
+		parseInt(normalized.slice(2, 4), 16),
+		parseInt(normalized.slice(4, 6), 16),
+	];
+};
+
+const mixRgb = (a: Rgb, b: Rgb, amount: number): Rgb => {
+	const t = clamp(amount, 0, 1);
+
+	return [
+		Math.round(lerp(a[0], b[0], t)),
+		Math.round(lerp(a[1], b[1], t)),
+		Math.round(lerp(a[2], b[2], t)),
+	];
+};
+
+const dimRgb = (rgb: Rgb, amount = DEFAULT_DIM_AMOUNT): Rgb =>
+	mixRgb(rgb, BLACK, amount);
+
+const dimHexColor = (hex: string, amount = DEFAULT_DIM_AMOUNT): string =>
+	rgbToHex(dimRgb(hexToRgb(hex), amount));
+
+const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => mixRgb(a, b, t);
 
 // =========================
 // string-based single color
@@ -105,6 +132,20 @@ export const stringToHslHexColor = (value: string): string => {
 
 	return rgbToHex(rgb);
 };
+
+export const getStringColor = (id: string, config = TAGS_DEFAULT): string => {
+	const normalized = normalizeName(id);
+
+	if (normalized && config[normalized]) return config[normalized];
+
+	return stringToHslHexColor(normalized);
+};
+
+export const getDimStringColor = (
+	id: string,
+	config = TAGS_DEFAULT,
+	amount = DEFAULT_DIM_AMOUNT,
+): string => dimHexColor(getStringColor(id, config), amount);
 
 // =========================
 // gradient helpers
@@ -157,11 +198,4 @@ export const getGradientStyles = (word: string) => {
 
 export const getGradientWord = (word: string) => {
 	return getGradientWordStyle(word).normal(` ${word} `);
-};
-
-export const getStringColor = (id: string, config = TAGS_DEFAULT): string => {
-	const normalizeName = (value: string): string => value.toLowerCase().trim();
-	const normalized = normalizeName(id);
-	if (normalized && config[normalized]) return config[normalized];
-	return stringToHslHexColor(normalized);
 };
