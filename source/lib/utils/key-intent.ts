@@ -48,6 +48,8 @@ export const Intent = {
 
 	// Editor
 	Edit: 'edit',
+	EditTitle: 'editTitle',
+	EditDescription: 'editDescription',
 
 	// View
 	SetViewDense: 'SetViewDense',
@@ -165,8 +167,10 @@ export function getKeyIntent(
 
 	// Default actions
 	switch (key.name) {
+		case 'r':
+			return Intent.EditTitle;
 		case 'e':
-			return Intent.Edit;
+			return Intent.EditDescription;
 		case 'n':
 			return Intent.AddItem;
 		case 'm':

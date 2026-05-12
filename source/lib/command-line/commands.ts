@@ -36,6 +36,7 @@ import {peekCommand} from './commands/peek.cmd.js';
 import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.js';
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {syncCommand} from './commands/sync.cmd.js';
+import {patchUiState} from '../state/ux-state.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -113,6 +114,15 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Open the help screen',
 		mode: Mode.COMMAND_LINE,
 		action: () => {
+			const {contextNode, selectedIndex, selectedNode, breadCrumb} = getState();
+			patchUiState({
+				pendingNavTarget: {
+					contextNode,
+					breadCrumb,
+					selectedIndex,
+					selectedNode,
+				},
+			});
 			patchState({mode: Mode.HELP});
 			return succeeded('Viewing help', null);
 		},

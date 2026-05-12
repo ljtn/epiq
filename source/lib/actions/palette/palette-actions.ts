@@ -35,7 +35,8 @@ export const PaletteActions: ActionEntry[] = [
 	{
 		intent: Intent.InitCommandPalette,
 		mode: Mode.DEFAULT,
-		description: '[?] command palette',
+		description:
+			'[?] view command palette (explore descriptions for every command)',
 		action: () => {
 			setCmdInput(() => '');
 			const {contextNode, selectedIndex, selectedNode, breadCrumb} = getState();
@@ -56,7 +57,6 @@ export const PaletteActions: ActionEntry[] = [
 	{
 		intent: Intent.Confirm,
 		mode: Mode.PALETTE,
-		description: '[<Enter>] select command',
 		action: () => {
 			const {selectedNode} = getState();
 
@@ -89,7 +89,6 @@ export const PaletteActions: ActionEntry[] = [
 	{
 		intent: Intent.Exit,
 		mode: Mode.PALETTE,
-		description: '[q] close palette',
 		action: () => {
 			closePalette();
 			return succeeded('Closed command palette', null);

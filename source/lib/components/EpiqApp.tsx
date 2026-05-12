@@ -27,7 +27,7 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 	if (state.mode === Mode.HELP) {
 		return (
 			<Box flexDirection="column">
-				<HelpUI width={width} />
+				<HelpUI width={width} height={height} />
 			</Box>
 		);
 	}

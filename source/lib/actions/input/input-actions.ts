@@ -103,14 +103,6 @@ export const inputActions: ActionEntry[] = [
 			return succeeded('Viewing help', null);
 		},
 	},
-	{
-		intent: Intent.Exit,
-		mode: Mode.HELP,
-		action: () => {
-			patchState({mode: Mode.DEFAULT});
-			return succeeded('Exiting help', null);
-		},
-	},
 
 	...COMMAND_INPUT_MODES.flatMap(createCommandInputActions),
 
