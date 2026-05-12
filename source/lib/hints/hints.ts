@@ -3,11 +3,13 @@ import {Mode} from '../model/action-map.model.js';
 import {NavNodeCtx} from '../model/context.model.js';
 import {theme} from '../theme/themes.js';
 
-const initCommandPalette = `: for command line`;
+const initCommandPalette = chalk.dim.hex(theme.secondary2)(
+	`: for command line`,
+);
 
 const exit = `q to exit`;
 
-const confirmMove = `${chalk.hex(theme.accent)('m')} to confirm`;
+const confirmMove = `${chalk.hex(theme.accent)('m')} ${'to confirm'}`;
 
 export const Hints = {
 	[NavNodeCtx.WORKSPACE]: [initCommandPalette],

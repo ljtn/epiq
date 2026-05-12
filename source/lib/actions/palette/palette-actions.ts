@@ -40,8 +40,16 @@ export const PaletteActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[?] command palette',
 		action: () => {
-			const {contextNode, selectedIndex} = getState();
-			patchUiState({pendingNavTarget: {contextNode, selectedIndex}});
+			setCmdInput(() => '');
+			const {contextNode, selectedIndex, selectedNode, breadCrumb} = getState();
+			patchUiState({
+				pendingNavTarget: {
+					contextNode,
+					selectedIndex,
+					selectedNode,
+					breadCrumb,
+				},
+			});
 
 			patchState({mode: Mode.PALETTE});
 			return succeeded('Opening command palette', null);

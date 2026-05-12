@@ -52,20 +52,20 @@ export const DefaultActions: ActionEntry[] = [
 
 			if (!children?.length) {
 				if (selectedNode?.title === FieldNames.DESCRIPTION) {
-					setCmdInput(() => `${CmdKeywords.EDIT} description `);
 					patchState({mode: Mode.COMMAND_LINE});
+					setCmdInput(() => `${CmdKeywords.EDIT} description `);
 					return succeeded('Propose command', true);
 				}
 
 				if (selectedNode?.title === FieldNames.ASSIGNEES) {
-					setCmdInput(() => `${CmdKeywords.ASSIGN} `);
 					patchState({mode: Mode.COMMAND_LINE});
+					setCmdInput(() => `${CmdKeywords.ASSIGN} `);
 					return succeeded('Propose command', true);
 				}
 
 				if (selectedNode?.title === FieldNames.TAGS) {
-					setCmdInput(() => `${CmdKeywords.TAG} `);
 					patchState({mode: Mode.COMMAND_LINE});
+					setCmdInput(() => `${CmdKeywords.TAG} `);
 					return succeeded('Propose command', true);
 				}
 
@@ -73,8 +73,8 @@ export const DefaultActions: ActionEntry[] = [
 					contextNode.title === FieldNames.DESCRIPTION &&
 					selectedNode?.context === 'TEXT'
 				) {
-					setCmdInput(() => `${CmdKeywords.EDIT} description `);
 					patchState({mode: Mode.COMMAND_LINE});
+					setCmdInput(() => `${CmdKeywords.EDIT} description `);
 					return succeeded('Propose command', true);
 				}
 			}

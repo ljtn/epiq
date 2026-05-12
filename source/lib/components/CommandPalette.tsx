@@ -15,6 +15,52 @@ import {getState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {ulid} from 'ulid';
+import {capitalize} from '../utils/string.utils.js';
+import {getUiState} from '../state/ux-state.js';
+
+const HighlightMatch = ({
+	text,
+	match,
+	color,
+	highlightColor = theme.secondary,
+	dimColor = false,
+}: {
+	text: string;
+	match: string;
+	color?: string;
+	highlightColor?: string;
+	dimColor?: boolean;
+}) => {
+	if (!match) {
+		return (
+			<Text color={color} dimColor={dimColor}>
+				{text}
+			</Text>
+		);
+	}
+
+	const lowerText = text.toLowerCase();
+	const lowerMatch = match.toLowerCase();
+	const index = lowerText.indexOf(lowerMatch);
+
+	if (index === -1) {
+		return (
+			<Text color={color} dimColor={dimColor}>
+				{text}
+			</Text>
+		);
+	}
+
+	return (
+		<Text color={color} dimColor={dimColor}>
+			{text.slice(0, index)}
+			<Text backgroundColor={highlightColor} bold>
+				{text.slice(index, index + match.length)}
+			</Text>
+			{text.slice(index + match.length)}
+		</Text>
+	);
+};
 
 type Props = {
 	width: number;
@@ -32,7 +78,17 @@ type PaletteCommand = {
 const toPaletteNodeId = (command: string) => `${command}`;
 
 const getPaletteCommands = (normalizedMatch: string): PaletteCommand[] => {
-	const availableCommands = new Set(getCmdModifiers(CmdKeywords.NONE));
+	const {pendingNavTarget} = getUiState();
+	if (!pendingNavTarget) return [];
+	const {breadCrumb, contextNode, selectedNode} = pendingNavTarget;
+	const availableCommands = new Set(
+		getCmdModifiers(CmdKeywords.NONE, {
+			breadCrumb,
+			contextNode,
+			readOnly: getState().readOnly,
+			selectedNode,
+		}),
+	);
 
 	return [...new Set(Object.values(CmdKeywords))]
 		.filter(command => command !== 'move')
@@ -169,24 +225,31 @@ export function CommandPalette({width, height}: Props) {
 							paddingX={1}
 							borderLeft={false}
 							borderBottom={false}
+							borderRight={false}
 							borderColor={theme.secondary}
 							borderStyle="single"
 						>
-							<Text
-								color={commandColor}
-								dimColor={!item.isAvailable}
-								backgroundColor={
-									isSelected && item.isAvailable ? theme.secondary : undefined
-								}
-							>
+							<Text color={commandColor} dimColor={!item.isAvailable}>
 								{isSelected ? '❯ ' : '  '}
-								{':' + item.command}
+								<HighlightMatch
+									text={capitalize(item.command)}
+									match={matchValue}
+									color={commandColor}
+									dimColor={!item.isAvailable}
+								/>
 							</Text>
 
 							<Box paddingLeft={2}>
-								<Text dimColor={!item.isAvailable} color={theme.secondary2}>
-									{descriptionPrefix + item.description}
-								</Text>
+								<HighlightMatch
+									text={descriptionPrefix + item.description}
+									match={matchValue.length >= 2 ? matchValue : ''}
+									color={
+										isSelected && item.isAvailable
+											? theme.primary
+											: theme.secondary2
+									}
+									dimColor={!item.isAvailable}
+								/>
 							</Box>
 						</Box>
 					);

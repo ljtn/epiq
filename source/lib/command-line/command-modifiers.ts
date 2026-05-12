@@ -3,6 +3,7 @@ import {
 	getUserSetupStatus,
 	isRepositoryInitialized,
 } from '../config/setup-utils.js';
+import {AppState} from '../model/app-state.model.js';
 import {AnyContext, NavNodeCtx} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
@@ -98,9 +99,14 @@ const getNewModifiers = (context: AnyContext): string[] => {
 	return ['issue', 'swimlane', 'board'];
 };
 
-const getAvailableBaseCommands = (): CmdKeyword[] => {
-	const {selectedNode, readOnly, breadCrumb} = getState();
-
+const getAvailableBaseCommands = ({
+	selectedNode,
+	readOnly,
+	breadCrumb,
+}: Pick<
+	AppState,
+	'selectedNode' | 'readOnly' | 'breadCrumb'
+>): CmdKeyword[] => {
 	const {isSetupDone} = getUserSetupStatus();
 	if (!isSetupDone) {
 		return [CmdKeywords.HELP, CmdKeywords.CONFIG];
@@ -144,12 +150,26 @@ const getAvailableBaseCommands = (): CmdKeyword[] => {
 	});
 };
 
-export const getCmdModifiers = (keyword: CmdKeyword): string[] => {
-	const {contextNode} = getState();
+export const getCmdModifiers = (
+	keyword: CmdKeyword,
+	{
+		contextNode,
+		selectedNode,
+		readOnly,
+		breadCrumb,
+	}: Pick<
+		AppState,
+		'selectedNode' | 'readOnly' | 'breadCrumb' | 'contextNode'
+	> = getState(),
+): string[] => {
 	const currentContext = contextNode.context ?? 'WORKSPACE';
 
 	const modifiers: Partial<Record<CmdKeyword, string[]>> = {
-		[CmdKeywords.NONE]: getAvailableBaseCommands(),
+		[CmdKeywords.NONE]: getAvailableBaseCommands({
+			breadCrumb,
+			readOnly,
+			selectedNode,
+		}),
 
 		[CmdKeywords.EXIT]: ['confirm'],
 		[CmdKeywords.EXPORT]: [],

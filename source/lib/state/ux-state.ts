@@ -6,6 +6,8 @@ export type UiState = {
 	pendingNavTarget?: {
 		selectedIndex: AppState['selectedIndex'];
 		contextNode: AppState['contextNode'];
+		selectedNode: AppState['selectedNode'];
+		breadCrumb: AppState['breadCrumb'];
 	};
 };
 
