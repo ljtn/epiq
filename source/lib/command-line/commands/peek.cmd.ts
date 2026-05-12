@@ -1,3 +1,4 @@
+import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {getEventTime} from '../../event/date-utils.js';
 import {loadMergedEvents, splitEventsAtTime} from '../../event/event-load.js';
@@ -7,14 +8,18 @@ import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState, patchState, resetState} from '../../state/state.js';
-import {resolveClosestEpiqRoot} from '../../storage/paths.js';
 import {parsePeekDateInput} from '../validate-date.js';
 
 export const peekCommand = async () => {
 	const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
 	if (isFail(boardNodeResult)) return boardNodeResult;
 
-	const epiqRootDirResult = resolveClosestEpiqRoot(process.cwd());
+	const repoRootResult = await getRepoRootDir(process.cwd());
+	if (isFail(repoRootResult)) return failed('Unable to locate repo root');
+	const epiqRootDirResult = getStateBranchRoot({
+		repoRoot: repoRootResult.value,
+	});
+
 	if (isFail(epiqRootDirResult)) throw new Error(epiqRootDirResult.message);
 
 	const eventsResult = loadMergedEvents(epiqRootDirResult.value);
@@ -23,15 +28,15 @@ export const peekCommand = async () => {
 	const allEvents = eventsResult.value;
 
 	const {modifier} = getCmdState().commandMeta;
-	let targetTime: number;
 
 	if (modifier === 'now') {
 		const resetResult = resetState();
 		if (isFail(resetResult)) return resetResult;
 
 		const materializeResult = materializeAll(allEvents);
-		if (materializeResult.some(isFail)) {
-			return failed(materializeResult.map(x => x.message).join(', '));
+		const materializeFailures = materializeResult.filter(isFail);
+		if (materializeFailures.length > 0) {
+			return failed(materializeFailures.map(x => x.message).join(', '));
 		}
 
 		patchState({
@@ -43,6 +48,7 @@ export const peekCommand = async () => {
 
 		return succeeded('Peeking now', true);
 	}
+	let targetTime: number;
 
 	if (modifier === 'prev') {
 		const previousEvent = getState().eventLog.at(-2);
@@ -63,6 +69,7 @@ export const peekCommand = async () => {
 		targetTime = targetDate.getTime();
 	}
 
+	const previousState = getState();
 	const boardId = boardNodeResult.value.id;
 	const {appliedEvents, unappliedEvents} = splitEventsAtTime(
 		allEvents,
@@ -73,12 +80,21 @@ export const peekCommand = async () => {
 	if (isFail(resetResult)) return resetResult;
 
 	const materializeResult = materializeAll(appliedEvents);
-	if (materializeResult.some(isFail)) {
-		return failed(materializeResult.map(x => x.message).join(', '));
+	const materializeFailures = materializeResult.filter(isFail);
+
+	if (materializeFailures.length > 0) {
+		resetState();
+		patchState(previousState);
+
+		return failed(materializeFailures.map(x => x.message).join(', '));
 	}
 
 	const boardNode = getState().nodes[boardId];
+
 	if (!boardNode) {
+		resetState();
+		patchState(previousState);
+
 		return failed('Board did not exist at peek date');
 	}
 
@@ -94,5 +110,5 @@ export const peekCommand = async () => {
 		unappliedEvents,
 	});
 
-	return succeeded('Peeking ', true);
+	return succeeded('Peeking', true);
 };

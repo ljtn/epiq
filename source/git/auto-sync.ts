@@ -2,6 +2,7 @@ import {failed, isFail} from '../lib/model/result-types.js';
 import {getSettingsState} from '../lib/state/settings.state.js';
 import {
 	getSafeState,
+	getState,
 	isStateInitialized,
 	patchState,
 } from '../lib/state/state.js';
@@ -59,6 +60,10 @@ const scheduleQueuedAutoSync = () => {
 };
 
 export const autoSync = async () => {
+	if (getState().readOnly || getState().timeMode === 'peek') {
+		return failed('Cannot auto-sync while peeking');
+	}
+
 	if (!isStateInitialized()) {
 		return failed('Cannot auto-sync before state is initialized');
 	}

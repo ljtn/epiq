@@ -403,6 +403,7 @@ const validators: Record<CmdKeyword, Validator> = {
 				message: buildOptionsHint({
 					wordList: getCmdModifiers(CmdKeywords.FILTER),
 					inputString: args.inputString,
+					minLengthForHints: 0,
 				}),
 				completionWordList: getCmdModifiers(CmdKeywords.FILTER),
 			});

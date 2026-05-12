@@ -287,7 +287,6 @@ export const getSortedEvents = (
 
 	return result;
 };
-
 export const splitEventsAtTime = (
 	events: AppEvent[],
 	targetTime: number,
@@ -295,23 +294,32 @@ export const splitEventsAtTime = (
 	appliedEvents: AppEvent[];
 	unappliedEvents: AppEvent[];
 } => {
-	const cutoffIndex = events.findIndex(event => {
-		try {
-			return decodeTime(event.id) > targetTime;
-		} catch {
-			return true;
-		}
-	});
+	const unappliedIds = new Set<string>();
+	const appliedEvents: AppEvent[] = [];
+	const unappliedEvents: AppEvent[] = [];
 
-	if (cutoffIndex === -1) {
-		return {
-			appliedEvents: events,
-			unappliedEvents: [],
-		};
+	for (const event of events) {
+		const eventId = event.id[0];
+		const refId = event.id[1];
+
+		let shouldBeApplied = false;
+
+		try {
+			shouldBeApplied = decodeTime(event.id) < targetTime;
+		} catch {
+			shouldBeApplied = false;
+		}
+
+		if (!shouldBeApplied || (refId && unappliedIds.has(refId))) {
+			unappliedIds.add(eventId ?? '');
+			unappliedEvents.push(event);
+		} else {
+			appliedEvents.push(event);
+		}
 	}
 
 	return {
-		appliedEvents: events.slice(0, cutoffIndex),
-		unappliedEvents: events.slice(cutoffIndex),
+		appliedEvents,
+		unappliedEvents,
 	};
 };
