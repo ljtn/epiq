@@ -317,9 +317,7 @@ const validateEditCommand: Validator = ({modifier}) => {
 		case EditModifiers.DESCRIPTION:
 			const {preferredEditor} = getSettingsState();
 			if (!preferredEditor) return invalid({message: 'No editor selected'});
-			return valid(
-				hintDefault('<ENTER> to edit in ') + getGradientWord(preferredEditor),
-			);
+			return valid(hintDefault('<ENTER> to edit in ') + preferredEditor);
 
 		default:
 			return invalid({

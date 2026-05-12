@@ -270,7 +270,7 @@ export const commands: CommandLineActionEntry[] = [
 			if (node.readonly) return failed('Cannot rename readonly node');
 
 			const newName = getCmdArg();
-			if (!newName) return failed('Provide a new name');
+			if (!newName) return failed('Provide a title');
 
 			return persistEvent({
 				id: ulid(),
@@ -553,7 +553,7 @@ export const commands: CommandLineActionEntry[] = [
 				if (node.readonly) return failed('Cannot rename readonly node');
 
 				const newName = cmdState.inputString.trim();
-				if (!newName) return failed('Provide a new name');
+				if (!newName) return failed('Provide a title');
 
 				return persistEvent({
 					id: ulid(),
