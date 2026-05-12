@@ -340,7 +340,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		const hint = {
 			message: hintDefault(
-				`historical state from: '1h', '2d', '23h', '1mo', '2y', 'previous', 'next' or full date as YYYY-MM-DD`,
+				`historical state from: '1h', '2d', '23h', '1mo', '2y', 'prev', 'next' or full date as YYYY-MM-DD`,
 			),
 		};
 

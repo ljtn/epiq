@@ -1,5 +1,10 @@
+import {ulid} from 'ulid';
 import {describe, expect, it} from 'vitest';
-import {getSortedEvents, ReconstructedEvent} from '../lib/event/event-load.js';
+import {
+	getSortedEvents,
+	ReconstructedEvent,
+	splitEventsAtTime,
+} from '../lib/event/event-load.js';
 
 describe('getSortedEvents', () => {
 	const event = (
@@ -84,5 +89,137 @@ describe('getSortedEvents', () => {
 		const sorted = getSortedEvents([danglingC, root, danglingB]);
 
 		expect(sorted.map(e => e.id[0])).toEqual(['01A', '01B', '01C']);
+	});
+});
+
+describe('splitEventsAtTime', () => {
+	const event = (
+		id: string,
+		afterRef: string | null,
+		action = 'test.event',
+	): ReconstructedEvent =>
+		({
+			id: afterRef ? [id, afterRef] : [id],
+			[action]: {},
+			userId: 'user',
+			userName: 'User',
+			v: 1,
+		} as unknown as ReconstructedEvent);
+
+	it('applies events before the target time', () => {
+		const first = ulid(Date.now() - 10_000);
+		const second = ulid(Date.now() - 5_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(first, null), event(second, null)],
+			Date.now(),
+		);
+
+		expect(appliedEvents.map(e => e.id[0])).toEqual([first, second]);
+		expect(unappliedEvents).toEqual([]);
+	});
+
+	it('unapplies events at the target time', () => {
+		const targetTime = Date.now();
+		const atTarget = ulid(targetTime);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(atTarget, null)],
+			targetTime,
+		);
+
+		expect(appliedEvents).toEqual([]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([atTarget]);
+	});
+
+	it('unapplies events after the target time', () => {
+		const past = ulid(Date.now() - 10_000);
+		const future = ulid(Date.now() + 10_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(past, null), event(future, null)],
+			Date.now(),
+		);
+
+		expect(appliedEvents.map(e => e.id[0])).toEqual([past]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([future]);
+	});
+
+	it('keeps children applied when parent is applied', () => {
+		const parentId = ulid(Date.now() - 10_000);
+		const childId = ulid(Date.now() - 5_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(parentId, null), event(childId, parentId)],
+			Date.now(),
+		);
+
+		expect(appliedEvents.map(e => e.id[0])).toEqual([parentId, childId]);
+		expect(unappliedEvents).toEqual([]);
+	});
+
+	it('unapplies children of unapplied events', () => {
+		const parentId = ulid(Date.now() + 10_000);
+		const childId = ulid(Date.now() - 10_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(parentId, null), event(childId, parentId)],
+			Date.now(),
+		);
+
+		expect(appliedEvents).toEqual([]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([parentId, childId]);
+	});
+
+	it('propagates unapplied state through descendants', () => {
+		const rootId = ulid(Date.now() + 10_000);
+		const childId = ulid(Date.now() - 10_000);
+		const grandChildId = ulid(Date.now() - 5_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[
+				event(rootId, null),
+				event(childId, rootId),
+				event(grandChildId, childId),
+			],
+			Date.now(),
+		);
+
+		expect(appliedEvents).toEqual([]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([
+			rootId,
+			childId,
+			grandChildId,
+		]);
+	});
+
+	it('allows a later sibling to remain applied when only another sibling is unapplied', () => {
+		const rootId = ulid(Date.now() - 20_000);
+		const unappliedChildId = ulid(Date.now() + 10_000);
+		const appliedChildId = ulid(Date.now() - 10_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[
+				event(rootId, null),
+				event(appliedChildId, rootId),
+				event(unappliedChildId, rootId),
+			],
+			Date.now(),
+		);
+
+		expect(appliedEvents.map(e => e.id[0])).toEqual([rootId, appliedChildId]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([unappliedChildId]);
+	});
+
+	it('treats invalid event ids as unapplied', () => {
+		const invalidId = 'not-a-valid-ulid';
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(invalidId, null)],
+			Date.now(),
+		);
+
+		expect(appliedEvents).toEqual([]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([invalidId]);
 	});
 });
