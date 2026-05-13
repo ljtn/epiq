@@ -1,5 +1,3 @@
-> ⓘ First stable release scheduled for May 2026
-
 # Epiq
 
 _Distributed terminal-native issue tracker backed by Git._
