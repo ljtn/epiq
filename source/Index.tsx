@@ -77,18 +77,12 @@ async function bootApp(): Promise<Result<void>> {
 		let eventLog: AppEvent[] = [];
 		if (isSuccess(repoRootResult)) {
 			// 3.a Sync with remote state
-			const repoRoot = repoRootResult.value;
-			const syncResult = await resetHardToRemoteState(repoRoot);
-			if (isFail(syncResult)) logger.debug(3, syncResult.message); // Soft fail if offline
-
 			const stateBranchRootResult = getStateBranchRoot({
 				repoRoot: repoRootResult.value,
-			});
-
+			});	
 			if (isFail(stateBranchRootResult)) {
 				return failAt(3, stateBranchRootResult.message);
 			}
-
 			// 3.b Load events
 			const eventsResult = loadMergedEvents(stateBranchRootResult.value);
 			if (isFail(eventsResult)) return failAt(3, eventsResult.message);
