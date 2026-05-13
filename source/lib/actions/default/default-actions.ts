@@ -113,7 +113,6 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[q] exit context',
 		action: () => {
-			patchState({mode: Mode.DEFAULT});
 			navigationUtils.enterParentNode();
 			return succeeded('Exiting context', null);
 		},
