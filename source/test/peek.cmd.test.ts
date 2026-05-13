@@ -126,6 +126,7 @@ describe('peekCommand', () => {
 
 		if (isFail(result)) return result;
 		expect(isSuccess(result)).toBe(true);
+		return;
 	});
 
 	it('loads historical events for explicit date peek', async () => {
