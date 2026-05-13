@@ -139,10 +139,10 @@ export function getKeyIntent(
 ): IntentInferred | null {
 	// Handle forks
 	const commandLineState = getCmdState();
-	if (key.sequence === '?' && commandLineState.value === '')
+	if (key.sequence === '?' && mode !== Mode.PALETTE)
 		return Intent.InitCommandPalette;
 
-	if (key.sequence === ':' && commandLineState.value === '')
+	if (key.sequence === ':' && mode !== Mode.COMMAND_LINE)
 		return Intent.InitCommandLine;
 
 	if (mode === Mode.MOVE) {
