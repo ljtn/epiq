@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
+import {getStateBranchRoot} from './git/git-storage.js';
 import {resetHardToRemoteState} from './git/sync.js';
 import EpiqApp from './lib/components/EpiqApp.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
@@ -18,10 +19,10 @@ import {
 } from './lib/model/result-types.js';
 import {patchSettingsState} from './lib/state/settings.state.js';
 import {patchState} from './lib/state/state.js';
+import {initUiState} from './lib/state/ux-state.js';
 import {resolveClosestEpiqProjectRoot} from './lib/storage/paths.js';
 import {failAt, formatUnknownError} from './lib/utils/logger.utils.js';
 import './logger.js';
-import {initUiState} from './lib/state/ux-state.js';
 
 initUiState();
 
@@ -78,10 +79,18 @@ async function bootApp(): Promise<Result<void>> {
 			// 3.a Sync with remote state
 			const repoRoot = repoRootResult.value;
 			const syncResult = await resetHardToRemoteState(repoRoot);
-			if (isFail(syncResult)) return failAt(3, syncResult.message);
+			if (isFail(syncResult)) logger.debug(3, syncResult.message); // Soft fail if offline
+
+			const stateBranchRootResult = getStateBranchRoot({
+				repoRoot: repoRootResult.value,
+			});
+
+			if (isFail(stateBranchRootResult)) {
+				return failAt(3, stateBranchRootResult.message);
+			}
 
 			// 3.b Load events
-			const eventsResult = loadMergedEvents(syncResult.value.stateBranchRoot);
+			const eventsResult = loadMergedEvents(stateBranchRootResult.value);
 			if (isFail(eventsResult)) return failAt(3, eventsResult.message);
 			eventLog = eventsResult.value;
 		}

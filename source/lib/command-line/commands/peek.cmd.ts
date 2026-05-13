@@ -20,16 +20,16 @@ export const peekCommand = async () => {
 	const repoRootResult = await getRepoRootDir(process.cwd());
 	if (isFail(repoRootResult)) return failed('Unable to locate repo root');
 
-	const epiqRootDirResult = getStateBranchRoot({
+	const stateBranchRoot = getStateBranchRoot({
 		repoRoot: repoRootResult.value,
 	});
 
-	if (isFail(epiqRootDirResult)) throw new Error(epiqRootDirResult.message);
+	if (isFail(stateBranchRoot)) throw new Error(stateBranchRoot.message);
 
 	const {modifier} = getCmdState().commandMeta;
 
 	if (modifier === 'now') {
-		const eventsResult = loadMergedEvents(epiqRootDirResult.value);
+		const eventsResult = loadMergedEvents(stateBranchRoot.value);
 		if (isFail(eventsResult)) return failed(eventsResult.message);
 
 		const resetResult = resetState();
@@ -82,7 +82,7 @@ export const peekCommand = async () => {
 	const boardId = boardNodeResult.value.id;
 
 	const eventsBeforeResult = loadMergedEventsBefore(
-		epiqRootDirResult.value,
+		stateBranchRoot.value,
 		targetTime,
 	);
 
