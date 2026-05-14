@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
 import {ModeUnion} from '../model/action-map.model.js';
@@ -10,12 +9,6 @@ interface Props {
 	mode: ModeUnion;
 	availableHints: AppState['availableHints'];
 }
-
-const padOrTrim = (value: string, width: number) => {
-	if (value.length === width) return value;
-	if (value.length > width) return value.slice(0, width);
-	return value.padEnd(width, ' ');
-};
 
 const getClampedHints = (availableHints: string[], width: number) => {
 	const clampedHints: string[] = [];
@@ -35,23 +28,18 @@ const getClampedHints = (availableHints: string[], width: number) => {
 };
 
 export const ContextBarInfo: React.FC<Props> = ({width, availableHints}) => {
-	const innerWidth = Math.max(0, width - 2);
 	const hintLine = getClampedHints(availableHints, width).join(' | ');
-
-	const border = chalk.hex(theme.secondary);
-	const contentColor = chalk.hex(theme.secondary2);
-
-	const topBorder = border(`╭${'─'.repeat(innerWidth)}╮`);
-	const bottomBorder = border(`╰${'─'.repeat(innerWidth)}╯`);
-	const middleLine = `${border('│')}${contentColor(
-		padOrTrim(` ${hintLine} `, innerWidth),
-	)}${border('│')}`;
-
+	const EMPTY_PLACEHOLDER = '\u00A0';
 	return (
-		<Box flexDirection="column" width={width}>
-			<Text>{topBorder}</Text>
-			<Text>{middleLine}</Text>
-			<Text>{bottomBorder}</Text>
+		<Box
+			width={width}
+			borderStyle="round"
+			borderColor={theme.secondary}
+			paddingX={1}
+		>
+			<Text color={theme.secondary2}>
+				{hintLine.length ? hintLine : EMPTY_PLACEHOLDER}
+			</Text>
 		</Box>
 	);
 };

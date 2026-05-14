@@ -1,15 +1,14 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
-import {formatDateTime, safeDateFromUlid} from '../event/date-utils.js';
-import {isSuccess} from '../model/result-types.js';
+import {EPIQ_VERSION} from '../../version.js';
 import {Filter} from '../model/app-state.model.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {Breadcrumb} from './BreadCrumb.js';
 import {FilterUI} from './Filters.js';
-import {EPIQ_VERSION} from '../../version.js';
+import {PeekStatus} from './PeekStatus.js';
 import {SyncStatusPill} from './SyncStatus.js';
 
 type Props = {
@@ -18,16 +17,10 @@ type Props = {
 };
 
 export function Topbar({filters, hideBreadCrumb = false}: Props) {
-	const {timeMode, eventLog, unappliedEvents, syncStatus, mode} = useAppState();
+	const {timeMode, syncStatus, mode} = useAppState();
 	const {userName, preferredEditor, autoSync} = getSettingsState();
-	const topRightWidth = 56;
+	const topRightWidth = 64;
 	const breadCrumbWidth = process.stdout.columns - topRightWidth - 8;
-
-	const currentEventId = eventLog.at(-1)?.id;
-	const currentEventTimeStampResult = safeDateFromUlid(currentEventId ?? '');
-	const currentEventTimeStamp = isSuccess(currentEventTimeStampResult)
-		? formatDateTime(currentEventTimeStampResult.value)
-		: 'INVALID DATE';
 
 	return (
 		<Box
@@ -74,21 +67,7 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 				''
 			)}
 
-			{timeMode === 'peek' ? (
-				<Box paddingLeft={1}>
-					<Text backgroundColor={theme.yellow}> Readonly </Text>
-					<Text color={theme.yellow}>
-						{' ' + unappliedEvents.length + ' edits ago at '}
-					</Text>
-					<Text backgroundColor={theme.yellow}>
-						{' ' + currentEventTimeStamp + ' '}
-					</Text>
-					<Text color={theme.yellow}>. Resume with </Text>
-					<Text backgroundColor={theme.yellow}> :peek now </Text>
-				</Box>
-			) : (
-				''
-			)}
+			{timeMode === 'peek' ? <PeekStatus></PeekStatus> : ''}
 		</Box>
 	);
 }
