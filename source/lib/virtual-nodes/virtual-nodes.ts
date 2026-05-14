@@ -8,7 +8,7 @@ import {
 	TicketContext,
 } from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {isFail} from '../model/result-types.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {FieldNames} from '../repository/fielNames.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
@@ -45,11 +45,11 @@ export const createOrUpdateVirtualField = ({
 	childRenderAxis = 'horizontal',
 }: VirtualNodeInput & {
 	value?: string;
-}) => {
+}): Result<void> => {
 	const existing = nodeRepo.getNode(id);
 
 	if (!existing) {
-		nodeRepo.createNode({
+		const result = nodeRepo.createNode({
 			...nodes.field({
 				id,
 				name,
@@ -62,10 +62,14 @@ export const createOrUpdateVirtualField = ({
 			childRenderAxis,
 		});
 
-		return;
+		if (isFail(result)) return result;
+
+		return succeeded('Virtual field created', undefined);
 	}
 
-	if (!isFieldNode(existing)) return;
+	if (!isFieldNode(existing)) {
+		return failed(`Existing virtual node ${id} is not a field`);
+	}
 
 	const isDirty =
 		existing.title !== name ||
@@ -74,9 +78,10 @@ export const createOrUpdateVirtualField = ({
 		existing.props.value !== value ||
 		existing.readonly !== readonly ||
 		existing.childRenderAxis !== childRenderAxis;
-	if (!isDirty) return;
 
-	nodeRepo.updateNode({
+	if (!isDirty) return succeeded('Virtual field unchanged', undefined);
+
+	const result = nodeRepo.updateNode({
 		...existing,
 		title: name,
 		parentNodeId,
@@ -88,8 +93,11 @@ export const createOrUpdateVirtualField = ({
 		readonly,
 		childRenderAxis,
 	});
-};
 
+	if (isFail(result)) return result;
+
+	return succeeded('Virtual field updated', undefined);
+};
 export const createOrUpdateVirtualFieldList = ({
 	id,
 	name,
@@ -97,11 +105,11 @@ export const createOrUpdateVirtualFieldList = ({
 	rank,
 	readonly = false,
 	childRenderAxis = 'horizontal',
-}: VirtualNodeInput) => {
+}: VirtualNodeInput): Result<void> => {
 	const existing = nodeRepo.getNode(id);
 
 	if (!existing) {
-		nodeRepo.createNode({
+		const result = nodeRepo.createNode({
 			...nodes.fieldList({
 				id,
 				name,
@@ -113,10 +121,14 @@ export const createOrUpdateVirtualFieldList = ({
 			childRenderAxis,
 		});
 
-		return;
+		if (isFail(result)) return result;
+
+		return succeeded('Virtual field list created', undefined);
 	}
 
-	if (!isFieldListNode(existing)) return;
+	if (!isFieldListNode(existing)) {
+		return failed(`Existing virtual node ${id} is not a field list`);
+	}
 
 	const isDirty =
 		existing.title !== name ||
@@ -124,9 +136,10 @@ export const createOrUpdateVirtualFieldList = ({
 		existing.rank !== rank ||
 		existing.readonly !== readonly ||
 		existing.childRenderAxis !== childRenderAxis;
-	if (!isDirty) return;
 
-	nodeRepo.updateNode({
+	if (!isDirty) return succeeded('Virtual field list unchanged', undefined);
+
+	const result = nodeRepo.updateNode({
 		...existing,
 		title: name,
 		parentNodeId,
@@ -134,24 +147,25 @@ export const createOrUpdateVirtualFieldList = ({
 		readonly,
 		childRenderAxis,
 	});
-};
 
-export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
+	if (isFail(result)) return result;
+
+	return succeeded('Virtual field list updated', undefined);
+};
+export const materializeTicketVirtualNodes = (
+	node: NavNode<TicketContext>,
+): Result<void> => {
 	const descriptionRank = bigIntToHex(MAX_RANK / 4n);
 	const assigneesRank = bigIntToHex(MAX_RANK / 2n);
 	const tagsRank = bigIntToHex((MAX_RANK * 3n) / 4n);
-	const logRank = bigIntToHex(MAX_RANK);
+	const logRank = bigIntToHex((MAX_RANK * 7n) / 8n);
 
-	if (
-		isFail(descriptionRank) ||
-		isFail(assigneesRank) ||
-		isFail(tagsRank) ||
-		isFail(logRank)
-	) {
-		return;
-	}
+	if (isFail(descriptionRank)) return descriptionRank;
+	if (isFail(assigneesRank)) return assigneesRank;
+	if (isFail(tagsRank)) return tagsRank;
+	if (isFail(logRank)) return logRank;
 
-	createOrUpdateVirtualField({
+	const descriptionResult = createOrUpdateVirtualField({
 		id: getDescriptionNodeId(node.id),
 		name: FieldNames.DESCRIPTION,
 		parentNodeId: node.id,
@@ -159,24 +173,27 @@ export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
 		value: node.props.description ?? '',
 		childRenderAxis: 'vertical',
 	});
+	if (isFail(descriptionResult)) return descriptionResult;
 
-	createOrUpdateVirtualFieldList({
+	const assigneesResult = createOrUpdateVirtualFieldList({
 		id: getAssigneesNodeId(node.id),
 		name: FieldNames.ASSIGNEES,
 		parentNodeId: node.id,
 		rank: assigneesRank.value,
 		readonly: true,
 	});
+	if (isFail(assigneesResult)) return assigneesResult;
 
-	createOrUpdateVirtualFieldList({
+	const tagsResult = createOrUpdateVirtualFieldList({
 		id: getTagsNodeId(node.id),
 		name: FieldNames.TAGS,
 		parentNodeId: node.id,
 		rank: tagsRank.value,
 		readonly: true,
 	});
+	if (isFail(tagsResult)) return tagsResult;
 
-	createOrUpdateVirtualField({
+	const logResult = createOrUpdateVirtualField({
 		id: getLogNodeId(node.id),
 		name: FieldNames.HISTORY,
 		parentNodeId: node.id,
@@ -185,6 +202,9 @@ export const materializeTicketVirtualNodes = (node: NavNode<TicketContext>) => {
 		readonly: true,
 		childRenderAxis: 'vertical',
 	});
+	if (isFail(logResult)) return logResult;
+
+	return succeeded('Ticket virtual nodes materialized', undefined);
 };
 
 export type LogActionEvolution = Map<AppEvent['action'], AppEvent['payload'][]>;
@@ -210,10 +230,15 @@ const getLog = (node: Ticket) => {
 		.join('\n');
 };
 
-export const materializeVirtualNodes = () => {
+export const materializeVirtualNodes = (): Result<void> => {
 	const {nodes} = getState();
 
 	for (const node of Object.values(nodes)) {
-		if (isTicketNode(node)) materializeTicketVirtualNodes(node);
+		if (!isTicketNode(node)) continue;
+
+		const result = materializeTicketVirtualNodes(node);
+		if (isFail(result)) return result;
 	}
+
+	return succeeded('Virtual nodes materialized', undefined);
 };

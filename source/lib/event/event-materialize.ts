@@ -32,21 +32,30 @@ const materializeFail = <A extends AppEvent>(
 		}. Evt id: ${event.id}`,
 	);
 
-const refreshTicketVirtualNodes = (nodeId: string): void => {
+const refreshTicketVirtualNodes = (nodeId: string): ReturnFail | null => {
 	const node = nodeRepo.getNode(nodeId);
 
-	if (!node || !isTicketNode(node) || node.isDeleted) return;
+	if (!node || !isTicketNode(node) || node.isDeleted) return null;
 
-	materializeTicketVirtualNodes(node);
+	const result = materializeTicketVirtualNodes(node);
+	if (isFail(result)) return result;
+
+	return null;
 };
 
-const refreshAffectedVirtualNodes = (nodeIds: string[]): void => {
+const refreshAffectedVirtualNodes = (nodeIds: string[]): ReturnFail | null => {
 	for (const nodeId of nodeIds) {
-		refreshTicketVirtualNodes(nodeId);
+		const result = refreshTicketVirtualNodes(nodeId);
+		if (result) return result;
 
 		const parentId = getState().nodes[nodeId]?.parentNodeId;
-		if (parentId) refreshTicketVirtualNodes(parentId);
+		if (!parentId) continue;
+
+		const parentResult = refreshTicketVirtualNodes(parentId);
+		if (parentResult) return parentResult;
 	}
+
+	return null;
 };
 
 const appendEventToNodeLog = (nodeId: string, event: AppEvent): void => {
@@ -136,7 +145,8 @@ const completeMaterialization = (
 		appendEventToAppLog(event);
 	}
 
-	refreshAffectedVirtualNodes(affectedNodeIds);
+	const virtualNodeFail = refreshAffectedVirtualNodes(affectedNodeIds);
+	if (virtualNodeFail) return virtualNodeFail;
 
 	return null;
 };

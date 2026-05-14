@@ -26,5 +26,7 @@ export const virtualNodeId = (
 	kind: 'description' | 'assignees' | 'tags' | 'history',
 ): string => {
 	const time = decodeTime(parentId);
-	return encodeTime(time, 10) + hashToUlidRandomPart(`${parentId}:${kind}`);
+	const random = hashToUlidRandomPart(`${parentId}:virtual:${kind}`);
+
+	return encodeTime(time, 10) + random;
 };
