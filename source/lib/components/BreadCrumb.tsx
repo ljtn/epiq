@@ -1,12 +1,12 @@
 import {Box, Text} from 'ink';
 import React from 'react';
+import {isSuccess} from '../model/result-types.js';
 import {findAncestor, isDescendantOf} from '../repository/node-repo.js';
 import {getOrderedChildren} from '../repository/rank.js';
-import {getState} from '../state/state.js';
+import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
-import {isSuccess} from '../model/result-types.js';
 import {getSettingsState} from '../state/settings.state.js';
 
 type Props = {
@@ -21,9 +21,17 @@ const truncate = (str: string, max: number) => {
 
 export const Breadcrumb: React.FC<Props> = ({width}) => {
 	const {viewMode} = getSettingsState();
-	const {breadCrumb: crumbs, contextNode, selectedIndex} = getState();
+	const state = useAppState();
 
-	const selectedTarget = getOrderedChildren(contextNode.id)[selectedIndex];
+	const {
+		breadCrumb: crumbs,
+		contextNode,
+		selectedIndex,
+		renderedChildrenIndex,
+	} = state;
+
+	const selectedTarget = renderedChildrenIndex[contextNode.id]?.[selectedIndex];
+
 	const ticketResult = findAncestor(
 		selectedTarget?.id ?? contextNode.id,
 		'TICKET',
@@ -32,6 +40,8 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 
 	const tags = ticket?.props.tags ?? [];
 	const assignees = ticket?.props.assignees ?? [];
+	logger.debug('tags', tags);
+	logger.debug('assignees', assignees);
 
 	const showDetails = ticket?.parentNodeId
 		? !isDescendantOf(contextNode.id, ticket.parentNodeId) &&
