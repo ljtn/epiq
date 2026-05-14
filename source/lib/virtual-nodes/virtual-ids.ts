@@ -1,21 +1,21 @@
-import {decodeTime, encodeTime} from 'ulid';
+import {createHash} from 'node:crypto';
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
-const hashToUlidRandomPart = (input: string): string => {
-	let hash = 2166136261;
+const hashToUlid = (input: string): string => {
+	const bytes = createHash('sha256').update(input).digest();
 
-	for (const char of input) {
-		hash ^= char.charCodeAt(0);
-		hash = Math.imul(hash, 16777619);
-	}
-
-	let value = BigInt(hash >>> 0);
-	let out = '';
+	let value = 0n;
 
 	for (let i = 0; i < 16; i++) {
-		value = (value * 1103515245n + 12345n) & 0xffffffffn;
-		out += CROCKFORD[Number(value % 32n)];
+		value = (value << 8n) | BigInt(bytes[i]!);
+	}
+
+	let out = '';
+
+	for (let i = 0; i < 26; i++) {
+		const shift = BigInt((25 - i) * 5);
+		out += CROCKFORD[Number((value >> shift) & 31n)];
 	}
 
 	return out;
@@ -24,9 +24,4 @@ const hashToUlidRandomPart = (input: string): string => {
 export const virtualNodeId = (
 	parentId: string,
 	kind: 'description' | 'assignees' | 'tags' | 'history',
-): string => {
-	const time = decodeTime(parentId);
-	const random = hashToUlidRandomPart(`${parentId}:virtual:${kind}`);
-
-	return encodeTime(time, 10) + random;
-};
+): string => hashToUlid(`${parentId}:virtual:${kind}`);
