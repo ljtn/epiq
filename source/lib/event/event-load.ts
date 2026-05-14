@@ -180,9 +180,9 @@ export const parsePersistedEventsFile = (
 };
 
 function loadAllPersistedEvents(
-	epiqRoot: string,
+	eventsRoot: string,
 ): Result<ReconstructedEvent[]> {
-	const dir = getEventsDirPath(epiqRoot);
+	const dir = getEventsDirPath(eventsRoot);
 
 	if (!fs.existsSync(dir)) {
 		return succeeded('No events found', []);
