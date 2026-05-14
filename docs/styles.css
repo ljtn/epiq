@@ -713,8 +713,11 @@ h2 {
 		content: 'edit';
 	}
 	45%,
-	100% {
+	90% {
 		content: 'edit description';
+	}
+	91% {
+		content: '';
 	}
 }
 
