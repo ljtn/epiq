@@ -3,7 +3,7 @@ import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
 import {getOrderedChildren} from '../../repository/rank.js';
-import {setCmdInput} from '../../state/cmd.state.js';
+import {replaceCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {HelpActions} from '../help/help-actions.js';
@@ -19,7 +19,7 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[n] new...',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => `${CmdKeywords.NEW} `);
+			replaceCmdInput(`${CmdKeywords.NEW} `);
 			return succeeded('Adding new item', null);
 		},
 	},
@@ -29,7 +29,7 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[d] delete',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => `${CmdKeywords.DELETE} `);
+			replaceCmdInput(`${CmdKeywords.DELETE} `);
 			return succeeded('Deleting item', null);
 		},
 	},
@@ -40,7 +40,7 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[:] focus command line',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => '');
+			replaceCmdInput('');
 			return succeeded('Entering command line mode', null);
 		},
 	},
@@ -55,19 +55,19 @@ export const DefaultActions: ActionEntry[] = [
 			if (!children?.length) {
 				if (selectedNode?.title === FieldNames.DESCRIPTION) {
 					patchState({mode: Mode.COMMAND_LINE});
-					setCmdInput(() => `${CmdKeywords.EDIT} description `);
+					replaceCmdInput(`${CmdKeywords.EDIT} description `);
 					return succeeded('Propose command', true);
 				}
 
 				if (selectedNode?.title === FieldNames.ASSIGNEES) {
 					patchState({mode: Mode.COMMAND_LINE});
-					setCmdInput(() => `${CmdKeywords.ASSIGN} `);
+					replaceCmdInput(`${CmdKeywords.ASSIGN} `);
 					return succeeded('Propose command', true);
 				}
 
 				if (selectedNode?.title === FieldNames.TAGS) {
 					patchState({mode: Mode.COMMAND_LINE});
-					setCmdInput(() => `${CmdKeywords.TAG} `);
+					replaceCmdInput(`${CmdKeywords.TAG} `);
 					return succeeded('Propose command', true);
 				}
 
@@ -76,7 +76,7 @@ export const DefaultActions: ActionEntry[] = [
 					selectedNode?.context === 'TEXT'
 				) {
 					patchState({mode: Mode.COMMAND_LINE});
-					setCmdInput(() => `${CmdKeywords.EDIT} description `);
+					replaceCmdInput(`${CmdKeywords.EDIT} description `);
 					return succeeded('Propose command', true);
 				}
 			}
@@ -92,8 +92,8 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[r] rename title',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(
-				() => `${CmdKeywords.EDIT} title ${getState().selectedNode?.title}`,
+			replaceCmdInput(
+				`${CmdKeywords.EDIT} title ${getState().selectedNode?.title}`,
 			);
 			return succeeded('Exiting context', null);
 		},
@@ -104,7 +104,7 @@ export const DefaultActions: ActionEntry[] = [
 		description: '[e] edit description',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
-			setCmdInput(() => `${CmdKeywords.EDIT} description `);
+			replaceCmdInput(`${CmdKeywords.EDIT} description `);
 			return succeeded('Exiting context', null);
 		},
 	},

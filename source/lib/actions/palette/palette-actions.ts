@@ -1,7 +1,7 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {isTextNode} from '../../model/context.model.js';
 import {failed, succeeded} from '../../model/result-types.js';
-import {setCmdInput} from '../../state/cmd.state.js';
+import {replaceCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {getUiState, patchUiState} from '../../state/ux-state.js';
 import {Intent} from '../../utils/key-intent.js';
@@ -16,11 +16,11 @@ const confirmPaletteCommand = (command: string) => {
 	}
 
 	patchUiState({pendingNavTarget: undefined});
-	setCmdInput(() => `${command} `);
+	replaceCmdInput(`${command} `);
 };
 
 const closePalette = () => {
-	setCmdInput(() => '');
+	replaceCmdInput('');
 
 	const {pendingNavTarget} = getUiState();
 	if (pendingNavTarget) {
@@ -38,7 +38,7 @@ export const PaletteActions: ActionEntry[] = [
 		description:
 			'[?] view command palette (explore descriptions for every command)',
 		action: () => {
-			setCmdInput(() => '');
+			replaceCmdInput('');
 			const {contextNode, selectedIndex, selectedNode, breadCrumb} = getState();
 			patchUiState({
 				pendingNavTarget: {

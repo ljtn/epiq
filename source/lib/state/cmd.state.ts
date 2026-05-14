@@ -197,8 +197,19 @@ export const commandPending = () => {
 		commandIsPending: true,
 	}));
 };
+
+export const replaceCmdInput = (value: string) => {
+	setState(state => ({
+		...state,
+		value,
+		cursorPosition: value.length,
+		commandIsPending: false,
+	}));
+};
+
 export const commandConfirmed = ({addToHistory = true}) => {
 	const horizon = 40;
+
 	setState(state => ({
 		...state,
 		commandHistory: addToHistory
@@ -206,8 +217,9 @@ export const commandConfirmed = ({addToHistory = true}) => {
 			: state.commandHistory,
 		commandHistoryIndex: -1,
 		commandIsPending: false,
+		value: '',
+		cursorPosition: 0,
 	}));
-	clearCmd();
 };
 
 export const getPrevCmd = () => {
@@ -238,8 +250,6 @@ export const getNextCmd = () => {
 		};
 	});
 };
-
-export const clearCmd = () => setCmdInput(() => '');
 
 export const getCmdState = () => commandLineState;
 

@@ -1,13 +1,13 @@
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {succeeded} from '../../model/result-types.js';
-import {setCmdInput} from '../../state/cmd.state.js';
+import {replaceCmdInput} from '../../state/cmd.state.js';
 import {patchState} from '../../state/state.js';
 import {getUiState, patchUiState} from '../../state/ux-state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {navigationUtils} from '../default/navigation-action-utils.js';
 
 const closeHelp = () => {
-	setCmdInput(() => '');
+	replaceCmdInput('');
 	const {pendingNavTarget} = getUiState();
 	patchState({mode: Mode.DEFAULT});
 

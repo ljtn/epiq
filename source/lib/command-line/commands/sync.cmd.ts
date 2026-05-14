@@ -1,11 +1,11 @@
 import {syncAndReloadState} from '../../../git/sync.js';
 import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail} from '../../model/result-types.js';
-import {setCmdInput} from '../../state/cmd.state.js';
+import {replaceCmdInput} from '../../state/cmd.state.js';
 import {getSafeState, patchState} from '../../state/state.js';
 
 export const syncCommand = async () => {
-	setCmdInput(() => '');
+	replaceCmdInput('');
 	patchState({
 		mode: Mode.DEFAULT,
 	});

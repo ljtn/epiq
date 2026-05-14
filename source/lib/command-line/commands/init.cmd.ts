@@ -30,6 +30,7 @@ import {
 	ensureProjectFile,
 	getProjectFileContents,
 } from '../../project-setup/project-setup.js';
+import {replaceCmdInput} from '../../state/cmd.state.js';
 import {getSettingsState} from '../../state/settings.state.js';
 import {getSafeState, patchState} from '../../state/state.js';
 import {hasLocalProjectFile} from '../../storage/paths.js';
@@ -49,6 +50,9 @@ const failAt = (step: number, message: string) =>
 	failed(`[${step}] ${message}`);
 
 export const initCommand = async () => {
+	// Clear cmd input
+	replaceCmdInput('');
+
 	const projectFileContents = getProjectFileContents();
 
 	// 1. fail if not in git repo
