@@ -4,7 +4,7 @@ export const colors = {
 	fg: '#c8d3ff', // slightly lifted toward your gradient
 
 	// Grays (cooler + slightly more blue)
-	grayDark: '#2a2f45',
+	grayDark: '#3a3e54',
 	gray: '#46507a',
 	grayLight: '#969bb5',
 

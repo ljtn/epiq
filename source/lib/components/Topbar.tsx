@@ -80,7 +80,7 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 					<Text color={theme.yellow}>
 						{' ' + unappliedEvents.length + ' edits ago at '}
 					</Text>
-					<Text backgroundColor={theme.yellow} color={theme.accent}>
+					<Text backgroundColor={theme.yellow}>
 						{' ' + currentEventTimeStamp + ' '}
 					</Text>
 					<Text color={theme.yellow}>. Resume with </Text>
