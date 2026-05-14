@@ -626,6 +626,74 @@
 					flex-direction: column;
 				}
 			}
+
+			/* more */
+
+			.ticket {
+				transition: opacity 0.4s ease, transform 0.4s ease;
+			}
+
+			.ticket:not(.feature) {
+				animation: filterOut 7s infinite;
+			}
+
+			.prompt-text::after {
+				content: '';
+				animation: typeFilter 7s infinite;
+			}
+
+			@keyframes typeFilter {
+				0%,
+				12% {
+					content: '';
+				}
+				16% {
+					content: 'f';
+				}
+				20% {
+					content: 'fi';
+				}
+				27% {
+					content: 'filter';
+				}
+				30% {
+					content: 'filter t';
+				}
+				32% {
+					content: 'filter ta';
+				}
+				36% {
+					content: 'filter tag';
+				}
+				42% {
+					content: 'filter tag f';
+				}
+				44% {
+					content: 'filter tag fe';
+				}
+				48%,
+				100% {
+					content: 'filter tag feature';
+				}
+			}
+
+			@keyframes filterOut {
+				0%,
+				48% {
+					opacity: 1;
+					transform: translateY(0);
+				}
+				56%,
+				88% {
+					opacity: 0.05;
+					transform: translateY(6px);
+				}
+				96%,
+				100% {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
 		</style>
 	</head>
 	<body>
@@ -681,7 +749,7 @@
 							<div class="board">
 								<div class="col">
 									<h3>Backlog</h3>
-									<div class="ticket">Add export command</div>
+									<div class="ticket feature">Add export command</div>
 									<div class="ticket">MCP query polish</div>
 								</div>
 								<div class="col">
@@ -690,12 +758,13 @@
 								</div>
 								<div class="col">
 									<h3>Done</h3>
-									<div class="ticket">Keyboard move state</div>
+									<div class="ticket feature">Keyboard move state</div>
 									<div class="ticket">Setup wizard</div>
 								</div>
 							</div>
 							<div class="prompt">
-								<b>:</b>filter tag feature <span class="cursor"></span>
+								<b>:</b><span class="prompt-text"></span>
+								<span class="cursor"></span>
 							</div>
 						</div>
 					</aside>
