@@ -578,6 +578,23 @@ h2 {
 	color: var(--cyan);
 }
 
+.vim-status::after {
+	content: '-- INSERT --';
+	animation: vimStatus 16s infinite;
+}
+
+@keyframes vimStatus {
+	0%,
+	78% {
+		content: '-- INSERT --';
+	}
+
+	82%,
+	100% {
+		content: ':wq';
+	}
+}
+
 @media (max-width: 900px) {
 	.hero-grid,
 	.split {
@@ -713,10 +730,10 @@ h2 {
 		content: 'edit';
 	}
 	45%,
-	90% {
+	80% {
 		content: 'edit description';
 	}
-	91% {
+	81% {
 		content: '';
 	}
 }
@@ -848,11 +865,8 @@ h2 {
 		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.';
 	}
 
-	78% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.\A\A:';
-	}
-	80%,
+	78%,
 	100% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.\A\A:wq';
+		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.';
 	}
 }
