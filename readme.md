@@ -8,16 +8,6 @@ Issue tracking is a core part of software development, but it often becomes a pa
 
 With great attention to user ergonomics and developer experience, epiq makes project management painless and friction free.
 
-```
-███████╗██████╗ █ █╗ ██████╗
-██╔════╝██╔══██╗█ █║██╔═══██╗
-█████╗  ██████╔╝█ █║██║   ██║
-██╔══╝  ██╔═══╝ █ █║██║▄▄ ██║
-███████╗██║     █ █║╚██████╔╝
-╚══════╝╚═╝     ╚══╝ ╚═══▀▀╝
-🫡 Never leave your terminal!
-```
-
 ## What is epiq?
 
 Epiq is a vim-inspired issue tracker that brings project management into the terminal. It renders directly in ASCII and persists state as an immutable distributed event log, versioned and synchronized through Git.
@@ -171,7 +161,7 @@ Epiq uses Git in the background - no manual Git commands are required. Running `
 
 ## Conflict Avoidance & Data Integrity
 
-Epiq is designed to provide robustness in a distributed, Git-backed environment where multiple users may update state concurrently. Instead of mutating shared files, Epiq uses an event-sourced model to minimize merge conflicts and make concurrent changes predictable.
+Epiq is designed to provide robustness in a distributed, Git-backed environment where multiple users may update state concurrently. Instead of mutating shared files, Epiq uses an event-sourced model to prevent merge conflicts and make concurrent changes predictable.
 
 ### Event-sourced state
 
