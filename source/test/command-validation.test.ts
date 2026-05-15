@@ -255,7 +255,7 @@ describe('cmdValidation', () => {
 			const result = cmdValidation[CmdKeywords.CONFIG].validate(
 				CmdKeywords.CONFIG,
 				ConfigModifiers.AUTOSYNC,
-				'yes',
+				'on',
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
@@ -265,7 +265,7 @@ describe('cmdValidation', () => {
 			const result = cmdValidation[CmdKeywords.CONFIG].validate(
 				CmdKeywords.CONFIG,
 				ConfigModifiers.AUTOSYNC,
-				'no',
+				'off',
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);

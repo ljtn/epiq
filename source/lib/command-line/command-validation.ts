@@ -224,7 +224,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 		}
 
 		case ConfigModifiers.AUTOSYNC: {
-			const wordList = ['yes', 'no'] satisfies YesNo[];
+			const wordList = ['on', 'off'] satisfies YesNo[];
 			const currentAutoSyncStatus = getSettingsState().autoSync;
 
 			if (!wordList.includes(inputString.trim() as YesNo)) {

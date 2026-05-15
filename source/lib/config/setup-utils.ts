@@ -36,22 +36,22 @@ export const isRepositoryInitialized = () => {
 	return isSuccess(projectFileResult);
 };
 
-export type YesNo = 'yes' | 'no';
+export type YesNo = 'on' | 'off';
 
 export const booleanToYesNo = (
 	value: boolean | null | undefined,
 ): YesNo | null => {
-	if (value === true) return 'yes';
-	if (value === false) return 'no';
+	if (value === true) return 'on';
+	if (value === false) return 'off';
 
 	return null;
 };
 
 export const yesNoToBoolean = (
-	value: string | null | undefined,
+	value: YesNo | null | undefined,
 ): boolean | null => {
-	if (value === 'yes') return true;
-	if (value === 'no') return false;
+	if (value === 'on') return true;
+	if (value === 'off') return false;
 
 	return null;
 };

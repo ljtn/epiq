@@ -3,7 +3,6 @@ import {render} from 'ink';
 import meow from 'meow';
 import React from 'react';
 import {getStateBranchRoot} from './git/git-storage.js';
-import {resetHardToRemoteState} from './git/sync.js';
 import EpiqApp from './lib/components/EpiqApp.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {bootStateFromEventLog} from './lib/event/event-boot.js';
@@ -79,7 +78,7 @@ async function bootApp(): Promise<Result<void>> {
 			// 3.a Sync with remote state
 			const stateBranchRootResult = getStateBranchRoot({
 				repoRoot: repoRootResult.value,
-			});	
+			});
 			if (isFail(stateBranchRootResult)) {
 				return failAt(3, stateBranchRootResult.message);
 			}

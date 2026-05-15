@@ -4,7 +4,7 @@ import {z} from 'zod';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEpiqDirPath, getProjectFilePath} from '../storage/paths.js';
 
-export const DEFAULT_STATE_BRANCH = '_epiq/_evt';
+export const DEFAULT_STATE_BRANCH = '__epiq_state__';
 const EpiqProjectSchema = z.object({
 	projectId: z.string().min(1),
 	stateBranch: z.string().min(1),

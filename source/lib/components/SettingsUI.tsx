@@ -38,7 +38,7 @@ const StepRow: React.FC<StepRowProps> = ({isDone, command, value}) => {
 
 const formatValue = (value: unknown) => {
 	if (typeof value === 'string') return value;
-	if (typeof value === 'boolean') return value ? 'yes' : 'no';
+	if (typeof value === 'boolean') return value ? 'on' : 'off';
 	return undefined;
 };
 
