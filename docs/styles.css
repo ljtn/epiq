@@ -151,7 +151,7 @@ pre {
 	content: '▌';
 	color: var(--cyan);
 	margin-left: 2px;
-	animation: blink 1.05s steps(2, jump-none) infinite;
+	animation: blink 2.2s steps(2, jump-none) infinite;
 }
 
 .btn.primary:hover {
