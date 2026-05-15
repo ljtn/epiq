@@ -10,6 +10,7 @@
 	--green: #a7ff83;
 	--cyan: #22a1dc;
 	--violet: #c6a7ff;
+	--deepBlue: #2370dc;
 	--amber: #ffd479;
 	--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
 	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -43,7 +44,7 @@ body {
 			rgba(183, 131, 255, 0.08),
 			transparent 42rem
 		),
-		linear-gradient(180deg, #090a0f 0%, #010102 52%, #0f0e17 100%);
+		linear-gradient(180deg, #090a0f 0%, #010102 52%, #000000 100%);
 	font-family: var(--sans);
 	overflow-x: hidden;
 }
@@ -215,7 +216,13 @@ h1 {
 	max-width: 860px;
 }
 .grad {
-	background: linear-gradient(135deg, #fff, #cfd6ff 45%, #186ea3);
+	background: linear-gradient(
+			135deg,
+			rgb(255, 255, 255),
+			rgb(207, 214, 255) 45%,
+			rgb(24, 110, 163)
+		)
+		text;
 	-webkit-background-clip: text;
 	background-clip: text;
 	color: transparent;
@@ -349,7 +356,7 @@ h1 {
 	height: 1.15em;
 	background: var(--cyan);
 	transform: translateY(3px);
-	animation: blink 1.05s steps(2, jump-none) infinite, cursorHide 16s infinite;
+	animation: blink 1.05s steps(2, jump-none) infinite, cursorHide 12s infinite;
 }
 @keyframes blink {
 	50% {
@@ -413,7 +420,7 @@ h2 {
 	letter-spacing: -0.06em;
 }
 .kicker {
-	color: var(--cyan);
+	color: var(--deepBlue);
 	font: 12px var(--mono);
 	text-transform: uppercase;
 	letter-spacing: 0.12em;
@@ -531,7 +538,11 @@ h2 {
 	padding: 14px;
 	border: 1px solid rgba(255, 255, 255, 0.1);
 	border-radius: 18px;
-	background: rgba(255, 255, 255, 0.035);
+	background: linear-gradient(
+		100deg,
+		rgba(0, 128, 255, 0.045),
+		rgba(72, 0, 255, 0.065)
+	);
 }
 .num {
 	width: 42px;
@@ -540,9 +551,9 @@ h2 {
 	display: grid;
 	place-items: center;
 	background: rgba(118, 168, 255, 0.1);
-	color: var(--cyan);
+	color: var(--deepBlue);
 	font: 700 14px var(--mono);
-	border: 1px solid rgba(118, 228, 255, 0.22);
+	border: 1px solid rgba(118, 145, 255, 0.22);
 }
 .step b {
 	display: block;
@@ -618,7 +629,7 @@ h2 {
 
 .vim-status::after {
 	content: '-- INSERT --';
-	animation: vimStatus 16s infinite;
+	animation: vimStatus 12s infinite;
 }
 
 @keyframes vimStatus {
@@ -691,7 +702,7 @@ h2 {
 }
 
 .board {
-	animation: boardCycle 16s infinite;
+	animation: boardCycle 12s infinite;
 }
 
 .ticket {
@@ -699,16 +710,16 @@ h2 {
 }
 
 .ticket:not(.feature) {
-	animation: filterOut 16s infinite;
+	animation: filterOut 12s infinite;
 }
 
 .ticket.feature {
-	animation: featurePop 16s infinite;
+	animation: featurePop 12s infinite;
 }
 
 .prompt-text::after {
 	content: '';
-	animation: commandCycle 16s infinite;
+	animation: commandCycle 12s infinite;
 }
 
 .vim {
@@ -721,7 +732,7 @@ h2 {
 	opacity: 0;
 	transform: translateY(8px) scale(0.985);
 	pointer-events: none;
-	animation: vimCycle 16s infinite;
+	animation: vimCycle 12s infinite;
 }
 
 .vim-title {
@@ -736,7 +747,7 @@ h2 {
 
 .vim-body::after {
 	content: '';
-	animation: vimTyping 16s infinite;
+	animation: vimTyping 12s infinite;
 }
 
 .vim-status {
