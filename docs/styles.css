@@ -43,7 +43,7 @@ body {
 			rgba(183, 131, 255, 0.08),
 			transparent 42rem
 		),
-		linear-gradient(180deg, #090a0f 0%, #0b0d14 52%, #090a0f 100%);
+		linear-gradient(180deg, #090a0f 0%, #010102 52%, #0f0e17 100%);
 	font-family: var(--sans);
 	overflow-x: hidden;
 }
@@ -117,25 +117,65 @@ pre {
 	min-height: 44px;
 	padding: 0 18px;
 	border: 1px solid var(--line);
-	border-radius: 999px;
+	border-radius: 1px;
 	background: rgba(255, 255, 255, 0.06);
 	color: var(--text);
-	font-weight: 700;
 	font-size: 14px;
 	transition: transform 0.18s ease, border-color 0.18s ease,
 		background 0.18s ease;
 }
 .btn:hover {
-	transform: translateY(-1px);
 	border-color: rgba(255, 255, 255, 0.26);
 	background: rgba(255, 255, 255, 0.09);
 }
+
 .btn.primary {
-	color: #061007;
-	border-color: transparent;
-	background: var(--cyan);
-	box-shadow: 0 12px 42px rgba(118, 228, 255, 0.16),
-		0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+	width: 32ch;
+	justify-content: flex-start;
+	position: relative;
+	overflow: hidden;
+
+	color: var(--cyan);
+	border: 1px dashed rgba(34, 161, 220, 0.72);
+	background: rgba(0, 0, 0, 0.34);
+
+	font-family: var(--mono);
+	letter-spacing: -0.02em;
+
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+		0 0 24px rgba(34, 161, 220, 0.18), 0 14px 44px rgba(0, 0, 0, 0.32);
+}
+
+.btn.primary::after {
+	content: '▌';
+	color: var(--cyan);
+	margin-left: 2px;
+	animation: blink 1.05s steps(2, jump-none) infinite;
+}
+
+.btn.primary:hover {
+	color: #f2f4ff;
+	border-color: rgba(34, 161, 220, 1);
+	background: rgba(9, 10, 15, 0.92);
+	box-shadow: 0 0 0 1px rgba(34, 161, 220, 0.28) inset,
+		0 0 34px rgba(34, 161, 220, 0.24), 0 18px 54px rgba(0, 0, 0, 0.42);
+}
+
+.btn.primary:hover .terminal-btn-text {
+	display: inline-block;
+	width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	animation: terminalBtnType 1.15s steps(25, end) forwards;
+}
+
+@keyframes terminalBtnType {
+	from {
+		width: 0;
+	}
+	to {
+		width: 25ch;
+	}
 }
 
 .hero {
@@ -175,7 +215,7 @@ h1 {
 	max-width: 860px;
 }
 .grad {
-	background: linear-gradient(135deg, #fff, #cfd6ff 45%, var(--cyan));
+	background: linear-gradient(135deg, #fff, #cfd6ff 45%, #186ea3);
 	-webkit-background-clip: text;
 	background-clip: text;
 	color: transparent;
@@ -344,7 +384,7 @@ h1 {
 	border: 1px solid var(--line);
 	border-radius: 18px;
 	padding: 16px;
-	background: rgba(255, 255, 255, 0.04);
+	background: rgba(14, 14, 14, 0.5);
 	color: var(--muted);
 	font: 13px/1.35 var(--mono);
 }
@@ -398,8 +438,8 @@ h2 {
 	border-radius: 24px;
 	background: linear-gradient(
 		180deg,
-		rgba(255, 255, 255, 0.07),
-		rgba(255, 255, 255, 0.035)
+		rgba(0, 128, 255, 0.075),
+		rgba(72, 0, 255, 0.065)
 	);
 }
 .icon {
@@ -409,10 +449,10 @@ h2 {
 	display: grid;
 	place-items: center;
 	margin-bottom: 18px;
-	background: rgba(131, 224, 255, 0.1);
-	color: var(--cyan);
+	background: rgb(138 131 255 / 10%);
+	color: #226fdc;
 	font: 18px var(--mono);
-	border: 1px solid rgba(131, 203, 255, 0.22);
+	border: 1px solid rgb(131 155 255 / 22%);
 }
 .card h3 {
 	margin: 0 0 10px;
@@ -499,7 +539,7 @@ h2 {
 	border-radius: 14px;
 	display: grid;
 	place-items: center;
-	background: rgba(118, 228, 255, 0.1);
+	background: rgba(118, 168, 255, 0.1);
 	color: var(--cyan);
 	font: 700 14px var(--mono);
 	border: 1px solid rgba(118, 228, 255, 0.22);
@@ -521,17 +561,15 @@ h2 {
 	place-items: center;
 	text-align: center;
 	padding: 28px;
-	background: linear-gradient(
-		135deg,
-		rgba(131, 195, 255, 0.08),
-		rgba(118, 134, 255, 0.04),
-		rgba(176, 167, 255, 0.07)
-	);
+	background: rgba(13, 39, 81, 0.18);
 }
 .media-placeholder strong {
 	display: block;
 	font-size: 22px;
 	margin-bottom: 8px;
+}
+.media-placeholder .media {
+	box-shadow: 0px 0px 38px #58738a42;
 }
 .media-placeholder span {
 	color: var(--muted);
@@ -585,11 +623,19 @@ h2 {
 
 @keyframes vimStatus {
 	0%,
-	78% {
+	76% {
 		content: '-- INSERT --';
 	}
 
-	82%,
+	77% {
+		content: ':';
+	}
+
+	78% {
+		content: ':w';
+	}
+
+	79%,
 	100% {
 		content: ':wq';
 	}
@@ -702,38 +748,62 @@ h2 {
 	border-top: 1px solid rgba(255, 255, 255, 0.1);
 	padding-top: 8px;
 }
-
 @keyframes commandCycle {
 	0%,
 	7% {
 		content: '';
 	}
-	9% {
+
+	8% {
 		content: 'f';
 	}
-	11% {
+	9% {
+		content: 'fi';
+	}
+	10% {
 		content: 'filter';
 	}
-	14%,
+	11.5% {
+		content: 'filter t';
+	}
+	12.5% {
+		content: 'filter tag';
+	}
+	13.5% {
+		content: 'filter tag f';
+	}
+	14.5%,
 	30% {
 		content: 'filter tag feature';
 	}
 
 	33%,
-	38% {
+	37% {
 		content: '';
 	}
-	40% {
+
+	38% {
 		content: 'e';
 	}
-	42% {
+	39% {
+		content: 'ed';
+	}
+	40% {
 		content: 'edit';
 	}
-	45%,
+	42% {
+		content: 'edit d';
+	}
+	43% {
+		content: 'edit de';
+	}
+	44%,
 	80% {
 		content: 'edit description';
 	}
-	81% {
+
+	81%,
+	100% {
 		content: '';
 	}
 }
@@ -809,59 +879,88 @@ h2 {
 		transform: translateY(8px) scale(0.985);
 	}
 }
-
 @keyframes vimTyping {
 	0%,
 	54% {
 		content: '';
 	}
 
-	55% {
+	54.5% {
 		content: 'I';
 	}
-	56% {
-		content: 'Impl';
+	55% {
+		content: 'Imp';
 	}
-	57% {
+	55.5% {
+		content: 'Imple';
+	}
+	56% {
 		content: 'Implement';
 	}
-	58% {
+	56.5% {
+		content: 'Implement fil';
+	}
+	57% {
 		content: 'Implement filtered';
 	}
-	59% {
+	57.5% {
+		content: 'Implement filtered boa';
+	}
+	58% {
 		content: 'Implement filtered board';
 	}
-	60% {
+	58.5% {
+		content: 'Implement filtered board sta';
+	}
+	59% {
 		content: 'Implement filtered board state.';
 	}
 
-	62% {
+	60% {
 		content: 'Implement filtered board state.\A\AK';
 	}
-	63% {
+	60.5% {
+		content: 'Implement filtered board state.\A\AKeep';
+	}
+	61% {
+		content: 'Implement filtered board state.\A\AKeep inter';
+	}
+	61.5% {
 		content: 'Implement filtered board state.\A\AKeep interaction';
 	}
-	64% {
+	62% {
+		content: 'Implement filtered board state.\A\AKeep interaction insta';
+	}
+	62.5% {
 		content: 'Implement filtered board state.\A\AKeep interaction instant,';
 	}
 
-	66% {
+	64% {
 		content: 'Implement filtered board state.\A\AKeep interaction instant,\Asto';
 	}
-	67% {
+	64.5% {
+		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the';
+	}
+	65% {
 		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change';
 	}
-	68% {
+	65.5% {
+		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as';
+	}
+	66% {
 		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,';
 	}
 
-	70% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and';
+	68% {
+		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A a';
 	}
-	72% {
+	68.5% {
+		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync';
+	}
+	69% {
 		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through';
 	}
-	74% {
+	70% {
 		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.';
 	}
 
