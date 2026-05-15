@@ -6,7 +6,7 @@
 	--text: #f2f4ff;
 	--muted: #a7aec8;
 	--dim: #666f91;
-	--line: rgba(255, 255, 255, 0.12);
+	--line: rgba(78, 84, 133, 0.315);
 	--green: #a7ff83;
 	--cyan: #22a1dc;
 	--violet: #c6a7ff;
@@ -31,7 +31,7 @@ body {
 	color: var(--text);
 	background: radial-gradient(
 			circle at 18% 12%,
-			rgba(118, 180, 255, 0.16),
+			rgba(118, 180, 255, 0.1),
 			transparent 34rem
 		),
 		radial-gradient(
@@ -500,7 +500,7 @@ h2 {
 	padding: 18px;
 	border-radius: 18px;
 	background: rgba(0, 0, 0, 0.32);
-	border: 1px solid rgba(255, 255, 255, 0.1);
+	border: 1px solid var(--line);
 	overflow: auto;
 	color: #dbe5ff;
 }
@@ -536,7 +536,7 @@ h2 {
 	gap: 14px;
 	align-items: start;
 	padding: 14px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
+	border: 1px solid var(--line);
 	border-radius: 18px;
 	background: linear-gradient(
 		100deg,
