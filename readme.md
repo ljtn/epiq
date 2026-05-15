@@ -7,7 +7,6 @@ Issue tracking is a core part of software development, but it often becomes a pa
 > You can manage all your projects directly via the command line in a visual kanban board and edit content in your favorite editor.
 
 With great attention to user ergonomics and developer experience, epiq makes project management painless and friction free.
-![Epiq cli kanban view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/banner.gif)
 
 ![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/banner.gif)
 
@@ -15,7 +14,6 @@ With great attention to user ergonomics and developer experience, epiq makes pro
 
 Epiq is a vim-inspired issue tracker that brings project management into the terminal. It renders directly in ASCII and persists state as an immutable distributed event log, versioned and synchronized through Git.
 
-![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/banner.gif)
 ![Epiq cli kanban view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/overview.png)
 ![Epiq cli log view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/log.png)
 
