@@ -37,7 +37,8 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 	if (state.mode === Mode.PALETTE) {
 		return (
 			<Box flexDirection="column">
-				<CommandPalette width={width} height={height} />
+				<Topbar filters={filters} />
+				<CommandPalette width={width} height={height - 2} />
 
 				<ContextBar
 					width={width}

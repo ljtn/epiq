@@ -200,11 +200,6 @@ export function CommandPalette({width, height}: Props) {
 
 	return (
 		<Box flexDirection="column" width={width} height={height - 2}>
-			<Box paddingX={1}>
-				<Text color={theme.accent}>Command Palette</Text>
-				<Text dimColor> — select a command and press enter</Text>
-			</Box>
-
 			<ScrollBoxUI
 				height={height - 4}
 				itemHeight={3}

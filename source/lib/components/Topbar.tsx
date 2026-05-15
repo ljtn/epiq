@@ -10,6 +10,7 @@ import {Breadcrumb} from './BreadCrumb.js';
 import {FilterUI} from './Filters.js';
 import {PeekStatus} from './PeekStatus.js';
 import {SyncStatusPill} from './SyncStatus.js';
+import {Mode} from '../model/action-map.model.js';
 
 type Props = {
 	filters: Filter[];
@@ -31,6 +32,14 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 		>
 			{hideBreadCrumb ? (
 				<Text> </Text>
+			) : mode === Mode.PALETTE ? (
+				<Box>
+					<Text color={theme.accent}>Command Palette</Text>
+					<Text dimColor color={theme.secondary2}>
+						{' '}
+						- search, select and press enter
+					</Text>
+				</Box>
 			) : (
 				<Box paddingLeft={1}>
 					{filters.length > 0 ? (
