@@ -59,6 +59,11 @@ type Actor = {
 	userName: string;
 };
 
+type EditIssueDescriptionInput = ToolInput & {
+	issueId: string;
+	description: string;
+};
+
 const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	const result = resolveClosestEpiqProjectRoot(repoRoot ?? process.cwd());
 	if (isFail(result)) return failed(result.message);
@@ -343,5 +348,59 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 		contextNode: stateResult.value.contextNode,
 		selectedIndex: stateResult.value.selectedIndex,
 		eventLog: stateResult.value.eventLog,
+	});
+};
+
+export const editIssueDescription = async (
+	input: EditIssueDescriptionInput,
+) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Edit target must be an issue');
+	if (issue.readonly) return failed('Cannot edit readonly issue');
+
+	const currentDescription = issue.props.description ?? '';
+
+	if (currentDescription === input.description) {
+		return succeeded('No changes made', {
+			id: input.issueId,
+			description: currentDescription,
+		});
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'edit.description',
+		payload: {
+			id: input.issueId,
+			md: input.description,
+		},
+	} satisfies AppEvent<'edit.description'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Edited issue description', {
+		id: input.issueId,
+		description: input.description,
 	});
 };

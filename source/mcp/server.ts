@@ -5,6 +5,7 @@ import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	closeIssue,
 	createIssue,
+	editIssueDescription,
 	getEpiqState,
 	listBoards,
 	listIssues,
@@ -87,6 +88,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await createIssue(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_description_edit',
+		{
+			description: 'Edit the markdown description of an Epiq issue',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				description: z.string(),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await editIssueDescription(input)),
 	);
 
 	server.registerTool(
