@@ -1,7 +1,7 @@
 import {isFieldNode} from '../../model/context.model.js';
 import {failed, Result, succeeded} from '../../model/result-types.js';
 import {getOrderedChildren} from '../../repository/rank.js';
-import {getRenderedChildren, getState} from '../../state/state.js';
+import {getState} from '../../state/state.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 type NavigationAnchor = {
@@ -47,7 +47,7 @@ const tryNavigateIntoNode = (
 
 	if (!node || node.isDeleted) return false;
 
-	const children = getRenderedChildren(node.id);
+	const children = getOrderedChildren(node.id);
 
 	navigationUtils.navigate({
 		contextNode: node,
@@ -157,7 +157,7 @@ export const restoreNavigationAnchor = (
 		return failed('Unable to restore navigation');
 	}
 
-	const rootChildren = getRenderedChildren(root.id);
+	const rootChildren = getOrderedChildren(root.id);
 
 	navigationUtils.navigate({
 		contextNode: root,

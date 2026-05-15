@@ -1,4 +1,4 @@
-import {syncAndReloadState} from '../../../git/sync.js';
+import {syncAndReloadState} from '../../../git/sync-and-reload-state.js';
 import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {replaceCmdInput} from '../../state/cmd.state.js';

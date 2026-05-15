@@ -1,9 +1,6 @@
 import {ulid} from 'ulid';
-import {
-	resetHardToRemoteState,
-	syncAndReloadState,
-	syncEpiqWithRemote,
-} from '../git/sync.js';
+import {syncAndReloadState} from '../git/sync-and-reload-state.js';
+import {resetHardToRemoteState, syncEpiqWithRemote} from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';

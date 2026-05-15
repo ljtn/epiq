@@ -7,20 +7,24 @@ import {SettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 
 export const SYSTEM_USER: EpiqConfig = {
+	logLevel: 'info',
 	userId: '',
 	userName: '',
 	preferredEditor: '',
 	autoSync: false,
 };
 
-const EpiqConfigSchema = z.object({
-	preferredEditor: z.string().optional(),
-	userName: z.string().optional(),
-	userId: z.string().optional(),
-	autoSync: z.boolean().nullable().optional(),
-	autoSyncDebounceMs: z.number().optional(),
-	viewMode: z.enum(['dense', 'wide']).optional(),
-});
+const EpiqConfigSchema = z
+	.object({
+		logLevel: z.enum(['info', 'error', 'debug']),
+		preferredEditor: z.string().optional(),
+		userName: z.string().optional(),
+		userId: z.string().optional(),
+		autoSync: z.boolean().nullable().optional(),
+		autoSyncDebounceMs: z.number().optional(),
+		viewMode: z.enum(['dense', 'wide']).optional(),
+	})
+	.partial();
 
 export type EpiqConfig = z.infer<typeof EpiqConfigSchema>;
 
@@ -72,6 +76,7 @@ export const readEpiqConfig = (): Result<EpiqConfig> => {
 
 	if (raw == null || raw.trim() === '') {
 		return succeeded('No config found, using empty config', {
+			logLevel: 'info',
 			autoSync: null,
 			preferredEditor: '',
 			userId: '',
@@ -152,6 +157,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		userId,
 		autoSync,
 		autoSyncDebounceMs: autoSyncIntervalMs,
+		logLevel,
 	} = result.value;
 
 	if (!userName || !userId) {
@@ -160,7 +166,10 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		);
 	}
 
+	process.env['EPIQ_LOG_LEVEL'] = logLevel;
+
 	return succeeded('successfully loaded settings', {
+		logLevel: logLevel ?? 'debug',
 		preferredEditor: preferredEditor ?? '',
 		userName,
 		userId,

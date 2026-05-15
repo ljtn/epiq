@@ -6,7 +6,7 @@ import {
 	isStateInitialized,
 	patchState,
 } from '../lib/state/state.js';
-import {syncAndReloadState} from './sync.js';
+import {syncAndReloadState} from '../git/sync-and-reload-state.js';
 
 export const MIN_AUTOSYNC_DURATION_MS = 3_000;
 

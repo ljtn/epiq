@@ -6,7 +6,10 @@ export type User = {
 	userName: string;
 };
 
+export type LogLevel = 'info' | 'error' | 'debug';
+
 export type SettingsState = {
+	logLevel: LogLevel;
 	autoSyncIntervalMs: number | null;
 	autoSync: boolean | null;
 	preferredEditor: string | null;
@@ -16,6 +19,7 @@ export type SettingsState = {
 };
 
 let settingsState: SettingsState = {
+	logLevel: 'info',
 	autoSyncIntervalMs: null,
 	autoSync: null,
 	preferredEditor: null,

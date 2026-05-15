@@ -20,6 +20,7 @@ import {
 	patchState,
 	updateState,
 } from '../state/state.js';
+import {patchUiState} from '../state/ux-state.js';
 import {getPersistRoot} from '../storage/paths.js';
 import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-intent.js';
@@ -35,8 +36,8 @@ import {newCommand} from './commands/new.cmd.js';
 import {peekCommand} from './commands/peek.cmd.js';
 import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.js';
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
+import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
 import {syncCommand} from './commands/sync.cmd.js';
-import {patchUiState} from '../state/ux-state.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -636,6 +637,9 @@ export const commands: CommandLineActionEntry[] = [
 
 				case ConfigModifiers.AUTOSYNC:
 					return setAutoSyncCommand();
+
+				case ConfigModifiers.LOG_LEVEL:
+					return setLogLevelCommand();
 
 				case ConfigModifiers.SYNC_DEBOUNCE_MS:
 					return setAutoSyncDurationCommand();

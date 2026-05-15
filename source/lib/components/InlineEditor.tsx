@@ -1,5 +1,5 @@
 import {Box, Text} from 'ink';
-import React, {useEffect} from 'react';
+import React, {useEffect, useMemo} from 'react';
 import {nodeRepo} from '../repository/node-repo.js';
 import {isSuccess} from '../model/result-types.js';
 import {nodes} from '../state/node-builder.js';
@@ -19,6 +19,51 @@ type Props = {
 	maxWidth: number;
 };
 
+const EMPTY_ROW_FALLBACK = '\u2029';
+
+const toInlineLineNodeId = (parentId: string, index: number) =>
+	`${parentId}::inline-line::${index}`;
+
+const inlineEditorNodesByParent = new Map<string, string[]>();
+
+const detachInlineEditorNodes = (parentId: string) => {
+	const ids = inlineEditorNodesByParent.get(parentId) ?? [];
+	inlineEditorNodesByParent.delete(parentId);
+
+	for (const id of ids) {
+		nodeRepo.deleteNode(id);
+	}
+};
+
+const attachInlineEditorNodes = (parentId: string, rows: string[]) => {
+	detachInlineEditorNodes(parentId);
+
+	const createdIds: string[] = [];
+
+	rows.forEach((row, idx) => {
+		const rankResult = bigIntToHex(BigInt(idx + 1));
+		if (!isSuccess(rankResult)) return;
+
+		const result = nodeRepo.createNode(
+			nodes.text({
+				id: toInlineLineNodeId(parentId, idx),
+				name: `Line ${idx + 1}`,
+				parentNodeId: parentId,
+				rank: rankResult.value,
+				props: {value: row},
+				readonly: true,
+				isVirtual: true,
+			}),
+		);
+
+		if (isSuccess(result)) {
+			createdIds.push(result.value.id);
+		}
+	});
+
+	inlineEditorNodesByParent.set(parentId, createdIds);
+};
+
 export const InlineEditor: React.FC<Props> = ({
 	id,
 	label,
@@ -29,51 +74,36 @@ export const InlineEditor: React.FC<Props> = ({
 }) => {
 	const {selectedIndex, contextNode} = useAppState();
 
-	const renderMarkdownInline = (md: string) => String(md).replace(/\r?\n/g, '');
+	const rows = useMemo(
+		() => (typeof text === 'string' ? text.split(/\r?\n|\u2028|\u2029/) : []),
+		[text],
+	);
 
-	const rows =
-		typeof text === 'string' ? text.split(/\r?\n|\u2028|\u2029/) : [];
+	const rowKey = useMemo(() => rows.join('\u0000'), [rows]);
 
 	useEffect(() => {
-		const createdIds: string[] = [];
+		attachInlineEditorNodes(id, rows);
 
-		rows.forEach((row, idx) => {
-			const rankResult = bigIntToHex(BigInt(idx + 1));
+		return () => {
+			detachInlineEditorNodes(id);
+		};
+	}, [id, rowKey]);
 
-			if (!isSuccess(rankResult)) return;
-
-			const node = nodes.text({
-				id: `${id}-${idx}`,
-				name: `Line ${idx + 1}`,
-				parentNodeId: id,
-				rank: rankResult.value,
-				props: {value: row},
-				readonly: true,
-				isVirtual: true,
-			});
-
-			const result = nodeRepo.createNode(node);
-			if (isSuccess(result)) {
-				createdIds.push(result.value.id);
-			}
-		});
-
-		return () => createdIds.forEach(nodeRepo.deleteNode);
-	}, [id, text]);
-
-	const EMPTY_ROW_FALLBACK = '\u2029';
+	const renderMarkdownInline = (md: string) => String(md).replace(/\r?\n/g, '');
 
 	const renderedItems = rows.map((row, i) => {
 		const isSel = contextNode.id === id && selectedIndex === i;
+
 		return (
-			<Box key={`${id}-${i}`}>
+			<Box key={toInlineLineNodeId(id, i)}>
 				<Text
 					color={isSel ? theme.primary : theme.secondary2}
 					dimColor={!isSel}
 				>
 					{`${i + 1}   `.padStart(5, '\u00A0')}
 				</Text>
-				<Text backgroundColor={isSel ? 'gray' : ''}>
+
+				<Text backgroundColor={isSel ? 'gray' : undefined}>
 					{renderMarkdownInline(
 						row.length
 							? truncateWithEllipsis(row, maxWidth - 10)
@@ -100,11 +130,12 @@ export const InlineEditor: React.FC<Props> = ({
 			>
 				<ScrollBoxUI
 					scrollByOne={true}
-					children={renderedItems}
-					height={height - 2}
+					height={height - 3}
 					selectedIndex={selectedIndex}
 					itemHeight={1}
-				/>
+				>
+					{renderedItems}
+				</ScrollBoxUI>
 			</Box>
 		</Box>
 	);

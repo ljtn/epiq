@@ -23,6 +23,7 @@ export const ConfigModifiers = {
 	USERNAME: 'username',
 	AUTOSYNC: 'autoSync',
 	SYNC_DEBOUNCE_MS: 'syncDebounceMs',
+	LOG_LEVEL: 'logLevel',
 } as const;
 
 export type ConfigModifier =
@@ -41,6 +42,7 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.USERNAME,
 	ConfigModifiers.AUTOSYNC,
 	ConfigModifiers.SYNC_DEBOUNCE_MS,
+	ConfigModifiers.LOG_LEVEL,
 ];
 
 export const EDIT_MODIFIERS = [EditModifiers.TITLE, EditModifiers.DESCRIPTION];

@@ -3,6 +3,7 @@ import path from 'path';
 import util from 'util';
 import {isFail} from './lib/model/result-types.js';
 import {EPIQ_DIR_NAME, resolveClosestEpiqRoot} from './lib/storage/paths.js';
+import {LogLevel} from './lib/state/settings.state.js';
 
 const MAX_LINES = 1000;
 const TRIM_EVERY_N_WRITES = 50;
@@ -40,11 +41,9 @@ function enforceLogHorizon() {
 
 function write(prefix: string, args: unknown[], short = false) {
 	const logPath = getLogPath();
-
 	if (!logPath) return;
 
 	const message = util.format(...args);
-
 	const now = new Date();
 
 	const timestamp = short ? now.toISOString().slice(11, 19) : now.toISOString();
@@ -52,7 +51,6 @@ function write(prefix: string, args: unknown[], short = false) {
 	const line = `[${timestamp}] ${prefix} ${message}\n`;
 
 	fs.mkdirSync(path.dirname(logPath), {recursive: true});
-
 	fs.appendFileSync(logPath, line, 'utf8');
 
 	writesSinceTrim++;
@@ -63,22 +61,35 @@ function write(prefix: string, args: unknown[], short = false) {
 	}
 }
 
+const getLogLevel = (): LogLevel =>
+	(process.env['EPIQ_LOG_LEVEL'] as LogLevel) ?? 'debug';
+
 export const logger = {
 	info(...args: unknown[]): void {
-		write('[Info]', args, false);
+		const level = getLogLevel();
+		if (level === 'info' || level === 'debug') {
+			write('[Info]', args, false);
+		}
 	},
 
 	debug(...args: unknown[]): void {
-		write('[debug]', args, true);
+		const level = getLogLevel();
+		if (level === 'debug') {
+			write('[Debug]', args, true);
+		}
 	},
 
 	error(...args: unknown[]): void {
-		const stack =
-			args.find(arg => arg instanceof Error) instanceof Error
-				? undefined
-				: new Error().stack;
+		const level = getLogLevel();
 
-		write('[Error]', [...args, stack].filter(Boolean), false);
+		// error should log for all levels except maybe "none"
+		if (level === 'error' || level === 'info' || level === 'debug') {
+			const hasError = args.some(arg => arg instanceof Error);
+
+			const stack = hasError ? undefined : new Error().stack;
+
+			write('[Error]', [...args, stack].filter(Boolean), false);
+		}
 	},
 };
 

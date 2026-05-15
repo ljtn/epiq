@@ -14,7 +14,7 @@ import {
 import {AnyContext} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {getSettingsState} from '../state/settings.state.js';
+import {getSettingsState, LogLevel} from '../state/settings.state.js';
 import {getState} from '../state/state.js';
 import {getDimStringColor, getGradientWord} from '../utils/color.js';
 import {
@@ -217,6 +217,26 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 					message:
 						hintAlert('Enter a user name. Saved in ') +
 						chalk.bgBlack('~/.epiq-global/config.json'),
+				});
+			}
+
+			return valid(CONFIRM_MSG);
+		}
+
+		case ConfigModifiers.LOG_LEVEL: {
+			const logLevels = ['debug', 'error', 'info'] as const;
+			const logLevel = inputString.trim() as LogLevel;
+
+			if (!logLevels.includes(logLevel)) {
+				return invalid({
+					message: buildOptionsHint({
+						prefix: 'one of: ',
+						wordList: [...logLevels],
+						inputString: logLevel,
+						postfix: ' persisted in ~/.epiq-global/config.json',
+						minLengthForHints: 0,
+					}),
+					completionWordList: [...logLevels] as string[],
 				});
 			}
 
