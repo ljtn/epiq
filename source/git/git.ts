@@ -69,9 +69,9 @@ const buildSyncCommitMessage = async (
 
 	return succeeded(
 		'Built sync commit message',
-		`[epiq:sync:${sanitizeRefSegment(branchResult.value)}:${sanitizeRefSegment(
-			shaResult.value,
-		)}]`,
+		`[sync|branch:${sanitizeRefSegment(
+			branchResult.value,
+		)}:sha:${sanitizeRefSegment(shaResult.value)}]`,
 	);
 };
 
