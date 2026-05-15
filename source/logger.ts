@@ -10,11 +10,19 @@ const TRIM_EVERY_N_WRITES = 50;
 
 let writesSinceTrim = 0;
 
+const isMcp = () => process.env['EPIQ_MCP'] === 'true';
+
 const getLogPath = () => {
 	const cwd = process.cwd();
 	const epiqRootDirResult = resolveClosestEpiqRoot(cwd);
 
-	if (isFail(epiqRootDirResult)) return undefined;
+	if (isFail(epiqRootDirResult)) {
+		if (isMcp()) {
+			return path.join(process.cwd(), '.epiq-mcp.log');
+		}
+
+		return undefined;
+	}
 
 	return path.join(epiqRootDirResult.value, EPIQ_DIR_NAME, 'log', 'epiq.log');
 };
@@ -61,12 +69,18 @@ function write(prefix: string, args: unknown[], short = false) {
 	}
 }
 
-const getLogLevel = (): LogLevel =>
-	(process.env['EPIQ_LOG_LEVEL'] as LogLevel) ?? 'debug';
+const getLogLevel = (): LogLevel => {
+	if (isMcp()) {
+		return (process.env['EPIQ_MCP_LOG_LEVEL'] as LogLevel) ?? 'error';
+	}
+
+	return (process.env['EPIQ_LOG_LEVEL'] as LogLevel) ?? 'debug';
+};
 
 export const logger = {
 	info(...args: unknown[]): void {
 		const level = getLogLevel();
+
 		if (level === 'info' || level === 'debug') {
 			write('[Info]', args, false);
 		}
@@ -74,6 +88,7 @@ export const logger = {
 
 	debug(...args: unknown[]): void {
 		const level = getLogLevel();
+
 		if (level === 'debug') {
 			write('[Debug]', args, true);
 		}
@@ -82,10 +97,8 @@ export const logger = {
 	error(...args: unknown[]): void {
 		const level = getLogLevel();
 
-		// error should log for all levels except maybe "none"
 		if (level === 'error' || level === 'info' || level === 'debug') {
 			const hasError = args.some(arg => arg instanceof Error);
-
 			const stack = hasError ? undefined : new Error().stack;
 
 			write('[Error]', [...args, stack].filter(Boolean), false);

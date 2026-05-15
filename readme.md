@@ -139,15 +139,21 @@ Clear all filters with `:filter clear`
 
 Epiq provides a MCP (Model Context Protocol) server for agents to interact with, making it easy to plug into modern agent frameworks.
 
-To register Epiq with MCP-compatible clients (e.g. Claude Desktop), add it as a server using the `epiq-mcp` binary. Example configuration:
+To register Epiq with MCP-compatible clients (e.g. Claude Desktop), add it as a server using the `epiq-mcp` binary. Example configuration in your `~/.claude.json`:
 
 ```json
-{
-	"mcpServers": {
-		"epiq": {
-			"command": "epiq-mcp"
-		}
+"mcpServers": {
+	...
+	"epiq": {
+		"command": "npx",
+		"args": [
+			"-y",
+			"-p",
+			"epiq",
+			"epiq-mcp"
+		]
 	}
+	...
 }
 ```
 
