@@ -59,17 +59,25 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 		? theme.secondary
 		: theme.primary;
 
+	const INDEX_WIDTH = 4;
+
 	return (
 		<Box borderBottom justifyContent="space-between">
 			<Box>
-				<CursorUI
-					isSelected={isSelected}
-					placeholder={chalk.dim.gray(index + 1 + ' ')}
-				/>
+				<Box width={INDEX_WIDTH}>
+					{isSelected ? (
+						<CursorUI isSelected={isSelected} />
+					) : (
+						<Text color="gray" dimColor>
+							{index + 1}
+						</Text>
+					)}
+				</Box>
+
 				<Text wrap="truncate" color={color}>
 					{truncateWithEllipsis(
 						ticket.title,
-						width - tagsWidth - assigneesWidth - 14,
+						width - tagsWidth - assigneesWidth - 18,
 					)}
 				</Text>
 			</Box>
