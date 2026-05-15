@@ -117,27 +117,10 @@ const appendEventToAppLog = (event: AppEvent): void => {
 	}));
 };
 
-const materializeEventUser = (event: AppEvent): ReturnFail | null => {
-	const id = event.userId;
-	const name = event.userName;
-
-	if (!id?.length || !name?.length) {
-		return materializeFail('Invalid user ID format', event);
-	}
-
-	const result = nodeRepo.createContributor({id, name});
-	if (isFail(result)) return materializeFail(result.message, event);
-
-	return null;
-};
-
 const completeMaterialization = (
 	event: AppEvent,
 	bypassLogging: boolean,
 ): ReturnFail | null => {
-	const userFail = materializeEventUser(event);
-	if (userFail) return userFail;
-
 	const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
 
 	if (!bypassLogging) {
