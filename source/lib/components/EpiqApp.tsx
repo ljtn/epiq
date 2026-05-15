@@ -4,7 +4,6 @@ import {getUserSetupStatus} from '../config/setup-utils.js';
 import {Mode} from '../model/action-map.model.js';
 import {findInBreadCrumb} from '../model/app-state.model.js';
 import {isSuccess} from '../model/result-types.js';
-import {getSettingsState} from '../state/settings.state.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {CommandPalette} from './CommandPalette.js';
 import {ContextBar} from './ContextBar.js';
@@ -13,6 +12,8 @@ import {InitProjectUI} from './InitProjectUI.js';
 import SettingsUI from './SettingsUI.js';
 import {Topbar} from './Topbar.js';
 import {WorkspaceUI} from './WorkspaceUI.js';
+import {AutoSyncController} from './AutoSyncController.js';
+import {useSettingsState} from '../state/settings.state.js';
 
 type EpiqAppProps = {
 	height: number;
@@ -21,6 +22,7 @@ type EpiqAppProps = {
 
 export default function EpiqApp({width, height}: EpiqAppProps) {
 	const state = useAppState();
+	const {autoSync, viewMode} = useSettingsState();
 
 	const filters = state.filters;
 
@@ -105,6 +107,7 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 
 	return (
 		<Box flexDirection="column">
+			<AutoSyncController autoSync={autoSync}></AutoSyncController>
 			<Box flexDirection="column">
 				<Topbar filters={filters} />
 
@@ -114,7 +117,7 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 					contextNode={state.contextNode}
 					selectedIndex={state.selectedIndex}
 					breadCrumb={state.breadCrumb}
-					viewMode={getSettingsState().viewMode ?? 'dense'}
+					viewMode={viewMode ?? 'dense'}
 					mode={state.mode}
 				/>
 			</Box>
