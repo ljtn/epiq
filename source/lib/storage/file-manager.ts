@@ -1,4 +1,3 @@
-import {Error} from '@modelcontextprotocol/sdk/spec.types';
 import {
 	accessSync,
 	copyFileSync,
