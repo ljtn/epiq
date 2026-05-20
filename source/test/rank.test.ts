@@ -1,9 +1,11 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {isFail, succeeded} from '../lib/model/result-types.js';
 import {rankBetween} from '../lib/utils/rank.js';
+import {NavNode} from '../lib/model/navigation-node.model.js';
+import {AnyContext} from '../lib/model/context.model.js';
 
 const state = vi.hoisted(() => ({
-	nodes: {} as any,
+	nodes: {} as Record<string, NavNode<AnyContext>>,
 }));
 
 const materializeAndPersist = vi.hoisted(() => vi.fn());

@@ -53,10 +53,14 @@ import {ulid} from 'ulid';
 import {CmdIntent} from '../lib/command-line/command-intent.js';
 import {commands} from '../lib/command-line/commands.js';
 import {persistEvent} from '../lib/event/event-materialize-and-persist.js';
+import {EventAction, MaterializeResult} from '../lib/event/event.model.js';
+import {AppState, Tag} from '../lib/model/app-state.model.js';
+import {AnyContext, Ticket} from '../lib/model/context.model.js';
 import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {findAncestor} from '../lib/repository/node-repo.js';
-import {getCmdState} from '../lib/state/cmd.state.js';
+import {CommandLineState, getCmdState} from '../lib/state/cmd.state.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
+import {NavNode} from '../lib/model/navigation-node.model.js';
 
 const mockedUlid = vi.mocked(ulid);
 const mockedPersistEvent = vi.mocked(persistEvent);
@@ -70,7 +74,7 @@ const assignCommand = commands.find(
 	x => x.intent === CmdIntent.AssignUserToTicket,
 )!;
 
-const ticket = {
+const ticket: Partial<Ticket> = {
 	id: 'ticket-1',
 	context: 'TICKET',
 	props: {
@@ -88,33 +92,33 @@ describe('TagTicket command', () => {
 				modifier: 'bug',
 				inputString: '',
 			},
-		} as any);
+		} as CommandLineState);
 
 		mockedGetState.mockReturnValue({
 			selectedNode: {id: 'selected-node'},
 			tags: {},
 			contributors: {},
-		} as any);
+		} as AppState);
 
 		mockedFindAncestor.mockReturnValue(
-			succeeded('Found ticket', ticket) as any,
+			succeeded('Found ticket', ticket) as Result<Ticket>,
 		);
 
-		mockedPersistEvent.mockReturnValue(
+		mockedPersistEvent.mockResolvedValue(
 			succeeded('Persisted event', {
 				result: {id: 'result-id'},
-			}) as any,
+			}) as MaterializeResult<EventAction>,
 		);
 	});
 
 	it('reuses an existing tag id and adds tag to issue props', async () => {
 		mockedGetState.mockReturnValue({
-			selectedNode: {id: 'selected-node'},
+			selectedNode: {id: 'selected-node'} as NavNode<AnyContext>,
 			tags: {
-				'tag-123': {id: 'tag-123', name: 'bug'},
+				'tag-123': {id: 'tag-123', name: 'bug'} as Tag,
 			},
 			contributors: {},
-		} as any);
+		} as Partial<AppState> as AppState);
 
 		mockedUlid.mockReturnValueOnce('add-tag-event-id');
 

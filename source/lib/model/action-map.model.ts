@@ -19,7 +19,7 @@ export type ActionEntry = {
 	action: (...args: [ActionEntry, readline.Key]) => Result | Promise<Result>;
 };
 
-export type ActionMap<T extends Record<string, any[]>> = {
+export type ActionMap<T extends Record<string, unknown[]>> = {
 	[K in keyof T]: ActionEntry[];
 };
 

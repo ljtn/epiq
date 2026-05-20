@@ -5,6 +5,8 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
+import {NavNode} from '../../lib/model/navigation-node.model.js';
+import {AnyContext} from '../../lib/model/context.model.js';
 
 vi.mock('../../git/sync-and-reload-state.js', () => ({
 	syncAndReloadState: vi.fn(() => succeeded('Synced', true)),
@@ -101,7 +103,7 @@ vi.mock('../../lib/repository/rank.js', () => ({
 	}),
 }));
 
-const nodes: Record<string, any> = {
+const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 	'board-1': {
 		id: 'board-1',
 		title: 'Default',

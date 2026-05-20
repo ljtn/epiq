@@ -1,14 +1,15 @@
+import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
 import {ModeUnion} from '../model/action-map.model.js';
-import {Swimlane} from '../model/context.model.js';
+import {AnyContext, isTicketNode, Swimlane} from '../model/context.model.js';
+import {NavNode} from '../model/navigation-node.model.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {CursorUI} from './Cursor.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 import {TicketListItemCompactUI} from './TicketListItemCompact.js';
-import chalk from 'chalk';
 
 type Props = {
 	swimlane: Swimlane;
@@ -57,8 +58,9 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 		</Box>
 	);
 
-	const renderItem = (ticket: any, index: number) => {
+	const renderItem = (ticket: NavNode<AnyContext>, index: number) => {
 		const isItemSelected = isFocused && listSelectedIndex === index;
+		if (!isTicketNode(ticket)) return null;
 
 		return isDense ? (
 			<TicketListItemCompactUI

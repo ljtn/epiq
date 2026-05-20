@@ -45,7 +45,7 @@ const event = <A extends AppEvent['action']>(
 		...actor,
 	} as Extract<AppEvent, {action: A}>);
 
-const expectOk = (result: any) => {
+const expectOk = (result: Result) => {
 	expect(isFail(result)).toBe(false);
 };
 
