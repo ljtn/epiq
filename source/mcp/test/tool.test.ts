@@ -6,6 +6,10 @@ import {
 	succeeded,
 } from '../../lib/model/result-types.js';
 
+vi.mock('../../git/sync-and-reload-state.js', () => ({
+	syncAndReloadState: vi.fn(() => succeeded('Synced', true)),
+}));
+
 vi.mock('../../git/sync.js', () => ({
 	resetHardToRemoteState: vi.fn(() =>
 		succeeded('Synced from remote', {
@@ -23,7 +27,6 @@ vi.mock('../../git/sync.js', () => ({
 			bootstrapped: false,
 		}),
 	),
-	syncAndReloadState: vi.fn(() => succeeded('Synced', true)),
 }));
 
 vi.mock('../../lib/storage/paths.js', async importOriginal => {
@@ -151,27 +154,34 @@ const nodes: Record<string, any> = {
 	},
 };
 
-vi.mock('../../lib/state/state.js', () => ({
-	getSafeState: () => ({
-		status: 'success',
-		message: 'Resolved safe state',
-		value: {
-			nodes,
-			rootNodeId: 'workspace-1',
-			contextNode: nodes['swimlane-1'],
-			selectedIndex: 0,
-			eventLog: [],
-			syncStatus: {
-				status: 'synced',
-				msg: 'Synced',
+vi.mock('../../lib/state/state.js', async importOriginal => {
+	const actual = await importOriginal<
+		typeof import('../../lib/state/state.js')
+	>();
+
+	return {
+		...actual,
+		getSafeState: () => ({
+			status: 'success',
+			message: 'Resolved safe state',
+			value: {
+				nodes,
+				rootNodeId: 'workspace-1',
+				contextNode: nodes['swimlane-1'],
+				selectedIndex: 0,
+				eventLog: [],
+				syncStatus: {
+					status: 'synced',
+					msg: 'Synced',
+				},
 			},
-		},
-	}),
-	getRenderedChildren: (id: string) =>
-		Object.values(nodes).filter(
-			node => !node.isDeleted && node.parentNodeId === id,
-		),
-}));
+		}),
+		getRenderedChildren: (id: string) =>
+			Object.values(nodes).filter(
+				node => !node.isDeleted && node.parentNodeId === id,
+			),
+	};
+});
 
 vi.mock('../../lib/repository/node-repo.js', () => ({
 	nodeRepo: {

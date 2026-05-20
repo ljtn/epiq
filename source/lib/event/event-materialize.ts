@@ -5,7 +5,13 @@ import {
 	isTicketNode,
 	isWorkspaceNode,
 } from '../model/context.model.js';
-import {failed, isFail, ReturnFail, succeeded} from '../model/result-types.js';
+import {
+	failed,
+	isFail,
+	Result,
+	ReturnFail,
+	succeeded,
+} from '../model/result-types.js';
 import {FieldNames} from '../repository/fielNames.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
@@ -117,10 +123,23 @@ const appendEventToAppLog = (event: AppEvent): void => {
 	}));
 };
 
+const validateEventUser = (event: AppEvent): Result => {
+	const id = event.userId;
+	const name = event.userName;
+
+	if (!id?.length || !name?.length) {
+		return materializeFail('Invalid user ID format', event);
+	}
+
+	return succeeded('Valid user', null);
+};
+
 const completeMaterialization = (
 	event: AppEvent,
 	bypassLogging: boolean,
 ): ReturnFail | null => {
+	const userFail = validateEventUser(event);
+	if (isFail(userFail)) return userFail;
 	const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
 
 	if (!bypassLogging) {

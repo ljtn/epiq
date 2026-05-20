@@ -232,7 +232,7 @@ describe('event materialize', () => {
 				name: 'Bad actor',
 			}),
 			userId: '',
-		});
+		} satisfies AppEvent);
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
