@@ -192,7 +192,6 @@ const getGitDir = async (repoRoot: string): Promise<Result<string>> => {
 		path.isAbsolute(gitDir) ? gitDir : path.resolve(repoRoot, gitDir),
 	);
 };
-
 export const getInProgressGitOperation = async (
 	repoRoot: string,
 ): Promise<Result<string | null>> => {
@@ -204,9 +203,6 @@ export const getInProgressGitOperation = async (
 	const markerFiles: Record<string, string> = {
 		MERGE_HEAD: 'merge in progress',
 		REBASE_HEAD: 'rebase in progress',
-		CHERRY_PICK_HEAD: 'cherry-pick in progress',
-		REVERT_HEAD: 'revert in progress',
-		BISECT_LOG: 'bisect in progress',
 	};
 
 	for (const [file, operation] of Object.entries(markerFiles)) {
@@ -226,27 +222,7 @@ export const getInProgressGitOperation = async (
 		}
 	}
 
-	const statusResult = await execGit({
-		cwd: repoRoot,
-		args: ['status', '--porcelain=v1', '--branch'],
-	});
-
-	if (isFail(statusResult)) return failed(statusResult.message);
-
-	const status = statusResult.value.stdout.toLowerCase();
-
-	const statusMarker = [
-		'rebase in progress',
-		'merge in progress',
-		'cherry-pick in progress',
-		'revert in progress',
-		'bisect in progress',
-	].find(marker => status.includes(marker));
-
-	return succeeded(
-		'Checked for in-progress Git operation',
-		statusMarker ?? null,
-	);
+	return succeeded('Checked for in-progress Git operation', null);
 };
 
 export const hasInProgressGitOperation = async (

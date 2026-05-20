@@ -70,7 +70,7 @@ export const initCommand = async () => {
 	if (pendingGitOperationResult.value) {
 		return failAt(
 			2,
-			'Cannot initialize Epiq while a git operation is in progress',
+			`Cannot initialize Epiq while a git operation is in progress: ${pendingGitOperationResult.value}`,
 		);
 	}
 
