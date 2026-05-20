@@ -47,7 +47,8 @@
 		"start:mcp": "IS_LOCAL=true tsx source/mcp/server.ts",
 		"inspect:mcp": "npx @modelcontextprotocol/inspector",
 		"lint": "eslint .",
-		"lint:err": "eslint . --quiet"
+		"lint:err": "eslint . --quiet",
+		"prepare": "husky"
 	},
 	"files": [
 		"dist"
@@ -76,6 +77,7 @@
 		"eslint": "^9.39.1",
 		"eslint-plugin-react": "^7.37.5",
 		"eslint-plugin-react-hooks": "^7.0.1",
+		"husky": "^9.1.7",
 		"prettier": "^2.8.7",
 		"ts-node": "^10.9.1",
 		"tsx": "^4.20.3",
