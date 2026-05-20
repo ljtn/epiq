@@ -5,7 +5,7 @@ import {NavNode} from '../lib/model/navigation-node.model.js';
 import {AnyContext} from '../lib/model/context.model.js';
 
 const state = vi.hoisted(() => ({
-	nodes: {} as Record<string, NavNode<AnyContext>>,
+	nodes: {} as Record<string, Partial<NavNode<AnyContext>>>,
 }));
 
 const materializeAndPersist = vi.hoisted(() => vi.fn());
@@ -64,8 +64,8 @@ describe('resolveAndPersistRankForMove', () => {
 		};
 
 		materializeAndPersist.mockImplementation(() => {
-			state.nodes.child1.rank = '400000000000000000000000';
-			state.nodes.child2.rank = '800000000000000000000000';
+			state.nodes['child1']!.rank = '400000000000000000000000';
+			state.nodes['child2']!.rank = '800000000000000000000000';
 
 			return succeeded('Persisted rebalance event', undefined);
 		});
@@ -88,11 +88,11 @@ describe('resolveAndPersistRankForMove', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(
-				result.value.localeCompare(state.nodes.child1.rank),
+				result.value.localeCompare(state.nodes['child1']!.rank ?? ''),
 			).toBeGreaterThan(0);
-			expect(result.value.localeCompare(state.nodes.child2.rank)).toBeLessThan(
-				0,
-			);
+			expect(
+				result.value.localeCompare(state.nodes['child2']!.rank ?? ''),
+			).toBeLessThan(0);
 		}
 
 		expect(materializeAndPersist).toHaveBeenCalledTimes(1);
