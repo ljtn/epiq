@@ -82,7 +82,6 @@ If it is your first run, this opens the interactive setup wizard that sets you u
 That’s it!
 
 > Setup wizard creates:
->
 > User config persisted in `~/.epiq-global/config.json`.
 
 > Initialization creates:
