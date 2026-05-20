@@ -1,3 +1,4 @@
+import {Error} from '@modelcontextprotocol/sdk/spec.types';
 import {
 	accessSync,
 	copyFileSync,
@@ -12,6 +13,12 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+
+const hasCode = (error: unknown): error is {code: string} =>
+	typeof error === 'object' &&
+	error !== null &&
+	'code' in error &&
+	typeof error.code === 'string';
 
 export const fileManager = {
 	writeToFile: (filePath: string, content: unknown) => {
@@ -130,17 +137,20 @@ export const fileManager = {
 	rmFile(filePath: string) {
 		try {
 			unlinkSync(filePath);
-		} catch (e: any) {
-			if (e?.code !== 'ENOENT')
+		} catch (error: unknown) {
+			if (!hasCode(error) || error.code !== 'ENOENT') {
 				logger.error(`Unable to remove file ${filePath}`);
+			}
 		}
 	},
 
 	rmDir(dirPath: string) {
 		try {
 			rmSync(dirPath, {recursive: true, force: true});
-		} catch (e: any) {
-			if (e?.code !== 'ENOENT') logger.error(`Unable to remove dir ${dirPath}`);
+		} catch (error: unknown) {
+			if (!hasCode(error) || error.code !== 'ENOENT') {
+				logger.error(`Unable to remove dir ${dirPath}`);
+			}
 		}
 	},
 
@@ -156,9 +166,10 @@ export const fileManager = {
 
 		try {
 			renameSync(fromPath, toPath);
-		} catch (e: any) {
+		} catch (e: unknown) {
 			// Cross-device rename not permitted -> copy + delete fallback
-			if (e?.code === 'EXDEV') {
+
+			if (hasCode(e) && e.code === 'EXDEV') {
 				copyFileSync(fromPath, toPath);
 				this.rmFile(fromPath);
 				return;

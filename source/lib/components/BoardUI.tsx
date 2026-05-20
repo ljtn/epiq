@@ -9,7 +9,6 @@ import {
 	Ticket,
 } from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {DeepReadonly} from '../model/readonly.model.js';
 import {SwimlaneUI} from './Swimlane.js';
 import {TicketUI} from './TicketUI.js';
 
@@ -17,7 +16,7 @@ type Props = {
 	swimlanes: readonly Swimlane[];
 	contextNode: NavNode<AnyContext>;
 	selectedIndex: number;
-	breadCrumb: DeepReadonly<BreadCrumb>;
+	breadCrumb: BreadCrumb;
 	viewMode: ViewMode;
 	mode: ModeUnion;
 	height: number;

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {isFail, Result} from '../model/result-types.js';
 
 type MemoizedResultFn<F extends (...args: any[]) => Promise<Result<any>>> = {

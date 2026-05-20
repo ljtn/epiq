@@ -2,8 +2,8 @@ export {};
 
 declare global {
 	const logger: {
-		info(...args: any[]): void;
-		debug(...args: any[]): void;
-		error(...args: any[]): void;
+		info(...args: unknown[]): void;
+		debug(...args: unknown[]): void;
+		error(...args: unknown[]): void;
 	};
 }
