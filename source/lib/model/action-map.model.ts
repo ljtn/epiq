@@ -23,7 +23,7 @@ export type ActionMap<T extends Record<string, unknown[]>> = {
 	[K in keyof T]: ActionEntry[];
 };
 
-type CommandLineInput = Pick<
+export type CommandLineInput = Pick<
 	ParsedCommandLine,
 	'command' | 'modifier' | 'inputString'
 >;
