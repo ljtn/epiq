@@ -37,6 +37,7 @@ describe('TUI e2e', () => {
 			const tui = setupTui();
 
 			try {
+				// Only run once
 				await configureFreshInstall(tui);
 
 				let output = await tui.waitFor('Initialize project');
@@ -67,8 +68,6 @@ describe('TUI e2e', () => {
 					cwd: tui.cwd,
 					stdio: 'ignore',
 				});
-
-				await configureFreshInstall(tui);
 
 				let output = await tui.waitFor('Initialize project');
 
