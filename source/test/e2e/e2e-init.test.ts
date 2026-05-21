@@ -9,9 +9,7 @@ describe('TUI e2e', () => {
 		try {
 			let output = await tui.waitFor('Initialize project');
 
-			expect(output).toContain(
-				'This folder is not an epiq project yet.',
-			);
+			expect(output).toContain('This folder is not an epiq project yet.');
 
 			tui.input(':');
 			tui.input('init');
@@ -41,7 +39,6 @@ describe('TUI e2e', () => {
 			tui.input('\r');
 
 			output = await tui.waitFor('Default', 5000);
-
 
 			expect(output).toContain('Select a board:');
 			expect(output).toContain('Default (0 issues)');
