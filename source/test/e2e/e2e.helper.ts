@@ -11,6 +11,21 @@ type TuiSession = {
 	waitFor: (text: string, timeoutMs?: number) => Promise<string>;
 	destroy: () => void;
 };
+const createTuiEnv = () => {
+	const env = {...process.env};
+
+	delete env['CI'];
+	delete env['GITHUB_ACTIONS'];
+	delete env['TF_BUILD'];
+	delete env['BUILDKITE'];
+	delete env['GITLAB_CI'];
+
+	return {
+		...env,
+		TERM: 'xterm-256color',
+		FORCE_COLOR: '1',
+	};
+};
 
 const sleep = async (ms: number) =>
 	await new Promise(resolve => setTimeout(resolve, ms));
@@ -27,11 +42,7 @@ export const setupTui = (args: string[] = []): TuiSession => {
 		cols: 120,
 		rows: 20,
 		cwd,
-		env: {
-			...process.env,
-			TERM: 'xterm-256color',
-			FORCE_COLOR: '1',
-		},
+		env: createTuiEnv(),
 	});
 
 	child.onData(data => {
