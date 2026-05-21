@@ -38,7 +38,7 @@
 		"dev": "IS_LOCAL=true tsc --watch --noEmit",
 		"dev:start": "IS_LOCAL=true tsx source/Index.tsx",
 		"start": "IS_LOCAL=true tsx source/Index.tsx",
-		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage",
+		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\"",
 		"test:e2e": "npm run build:npm && vitest run source/test/e2e",
 		"prepack": "npm run build:publish",
 		"pack:check": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"$FILE\" && tar -tf \"$FILE\"",
