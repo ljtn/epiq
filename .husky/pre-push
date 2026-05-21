@@ -16,4 +16,7 @@ npm run build
 echo "${BLUE}Running tests...${NC}"
 npm test
 
+echo "${BLUE}Running e2e tests...${NC}"
+npm run test:e2e
+
 echo "${GREEN}Pre-push checks passed.${NC}"
