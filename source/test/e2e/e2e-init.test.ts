@@ -1,7 +1,34 @@
 import {execSync} from 'node:child_process';
 import {describe, expect, it} from 'vitest';
 import {setupTui} from './e2e.helper.js';
+
 const testTimeout = 10_000;
+
+const configureFreshInstall = async (tui: ReturnType<typeof setupTui>) => {
+	if (!process.env['CI'] && !process.env['GITHUB_ACTIONS']) {
+		return;
+	}
+
+	let output = await tui.waitFor('Type  :config username');
+
+	expect(output).toContain('choose your username');
+
+	tui.input(':config username test\r');
+
+	output = await tui.waitFor('Type  :config editor');
+
+	expect(output).toContain('choose your preferred editor');
+
+	tui.input(':config editor vim\r');
+
+	output = await tui.waitFor('Type  :config autoSync');
+
+	expect(output).toContain('choose whether to enable auto-sync');
+
+	tui.input(':config autoSync on\r');
+
+	await tui.waitFor('Initialize project');
+};
 
 describe('TUI e2e', () => {
 	it(
@@ -10,6 +37,8 @@ describe('TUI e2e', () => {
 			const tui = setupTui();
 
 			try {
+				await configureFreshInstall(tui);
+
 				let output = await tui.waitFor('Initialize project');
 
 				expect(output).toContain('This folder is not an epiq project yet.');
@@ -39,15 +68,20 @@ describe('TUI e2e', () => {
 					stdio: 'ignore',
 				});
 
+				await configureFreshInstall(tui);
+
 				let output = await tui.waitFor('Initialize project');
+
+				expect(output).toContain('This folder is not an epiq project yet.');
 
 				tui.input(':');
 				tui.input('init');
 				tui.input('\r');
 
-				output = await tui.waitFor('Default', 5000);
+				output = await tui.waitFor('Default (0 issues)', 5000);
 
 				expect(output).toContain('Select a board:');
+
 				expect(output).toContain('Default (0 issues)');
 			} finally {
 				tui.destroy();
