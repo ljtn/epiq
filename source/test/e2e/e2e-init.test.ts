@@ -53,8 +53,8 @@ describe('TUI e2e', () => {
 				const issueTitle = 'Test create issue';
 				await commonSteps.init(tui);
 
-				// Proceed
 				tui.input('\r');
+				console.log(await tui.waitFor('Todo (0)'));
 				await tui.waitFor('Todo (0)', 8_000);
 
 				// Create an issue

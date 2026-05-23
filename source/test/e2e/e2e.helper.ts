@@ -9,6 +9,7 @@ type TuiSession = {
 	input: (value: string | string[]) => void;
 	output: () => string;
 	waitFor: (text: string, timeoutMs?: number) => Promise<string>;
+	clear: () => void;
 	destroy: () => void;
 };
 const createTuiEnv = () => {
@@ -51,6 +52,10 @@ export const setupTui = (args: string[] = []): TuiSession => {
 
 	const getOutput = () => stripAnsi(output);
 
+	const clearOutput = () => {
+		output = '';
+	};
+
 	const destroy = () => {
 		if (destroyed) return;
 		destroyed = true;
@@ -69,6 +74,7 @@ export const setupTui = (args: string[] = []): TuiSession => {
 		cwd,
 
 		input: value => {
+			clearOutput();
 			const values = Array.isArray(value) ? value : [value];
 
 			for (const item of values) {
@@ -77,6 +83,7 @@ export const setupTui = (args: string[] = []): TuiSession => {
 		},
 
 		output: getOutput,
+		clear: clearOutput,
 
 		waitFor: async (text, timeoutMs = 2000) => {
 			const startedAt = Date.now();
