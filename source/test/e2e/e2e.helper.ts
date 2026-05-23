@@ -17,9 +17,6 @@ const createTuiEnv = () => {
 
 	delete env['CI'];
 	delete env['GITHUB_ACTIONS'];
-	delete env['TF_BUILD'];
-	delete env['BUILDKITE'];
-	delete env['GITLAB_CI'];
 
 	return {
 		...env,
