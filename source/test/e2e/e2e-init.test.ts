@@ -1,34 +1,8 @@
-import {execSync} from 'node:child_process';
 import {describe, expect, it} from 'vitest';
+import {commonSteps} from './e2e-common-steps.js';
 import {setupTui} from './e2e.helper.js';
 
 const testTimeout = 10_000;
-
-const configureFreshInstall = async (tui: ReturnType<typeof setupTui>) => {
-	if (!process.env['CI'] && !process.env['GITHUB_ACTIONS']) {
-		return;
-	}
-
-	let output = await tui.waitFor('Type  :config username');
-
-	expect(output).toContain('choose your username');
-
-	tui.input(':config username test\r');
-
-	output = await tui.waitFor('Type  :config editor');
-
-	expect(output).toContain('pick your editor');
-
-	tui.input(':config editor vim\r');
-
-	output = await tui.waitFor('Type  :config autoSync');
-
-	expect(output).toContain('Configure auto sync');
-
-	tui.input(':config autoSync on\r');
-
-	await tui.waitFor('Initialize project');
-};
 
 describe('TUI e2e', () => {
 	it(
@@ -38,7 +12,7 @@ describe('TUI e2e', () => {
 
 			try {
 				// Only run once
-				await configureFreshInstall(tui);
+				await commonSteps.configureInitialSettings(tui);
 
 				let output = await tui.waitFor('Initialize project');
 
@@ -68,31 +42,3 @@ describe('TUI e2e', () => {
 		testTimeout,
 	);
 });
-
-const commonSteps = {
-	init: async (tui: {
-		cwd: string;
-		input: (value: string | string[]) => void;
-		output: () => string;
-		waitFor: (text: string, timeoutMs?: number) => Promise<string>;
-		destroy: () => void;
-	}) => {
-		let output;
-		try {
-			execSync('git init', {
-				cwd: tui.cwd,
-				stdio: 'ignore',
-			});
-
-			output = await tui.waitFor('Initialize project');
-
-			expect(output).toContain('This folder is not an epiq project yet.');
-			tui.input(':init\r');
-
-			output = await tui.waitFor('Default (0 issues)', 5000);
-		} finally {
-			tui.destroy();
-		}
-		return output;
-	},
-};
