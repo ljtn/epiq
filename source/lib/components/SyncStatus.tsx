@@ -72,9 +72,9 @@ export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
 
 	const labelByStatus = {
 		synced: '    ',
-		failed: 'retry',
+		failed: '---',
 		syncing: '...',
-		pending: 'wait',
+		pending: 'idle',
 	} satisfies Record<typeof syncStatus.status, string>;
 
 	const colorByStatus = {
