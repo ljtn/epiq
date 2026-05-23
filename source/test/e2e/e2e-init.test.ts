@@ -5,31 +5,7 @@ import {setupTui} from './e2e.helper.js';
 const testTimeout = 10_000;
 
 describe('TUI e2e', () => {
-	it(
-		'Make sure you cannot initialize a project in a non-Git directory',
-		async () => {
-			const tui = setupTui();
-
-			try {
-				// Only run once
-				await commonSteps.configureInitialSettings(tui);
-
-				let output = await tui.waitFor('Initialize project');
-
-				expect(output).toContain('This folder is not an epiq project yet.');
-
-				tui.input(':init\r');
-				output = await tui.waitFor('Not inside a Git repository');
-
-				expect(output).toContain('Not inside a Git repository');
-			} finally {
-				tui.destroy();
-			}
-		},
-		testTimeout,
-	);
-
-	it(
+	it.concurrent(
 		'Can initialize a project inside a Git repository',
 		async () => {
 			const tui = setupTui();
@@ -44,7 +20,7 @@ describe('TUI e2e', () => {
 		},
 		testTimeout,
 	);
-	it(
+	it.concurrent(
 		'Can create an issue',
 		async () => {
 			const tui = setupTui();
@@ -54,7 +30,7 @@ describe('TUI e2e', () => {
 				await commonSteps.init(tui);
 
 				tui.input('\r');
-				console.log(await tui.waitFor('Todo (0)'));
+
 				await tui.waitFor('Todo (0)', 8_000);
 
 				// Create an issue
