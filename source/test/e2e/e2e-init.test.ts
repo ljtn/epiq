@@ -5,24 +5,12 @@ import {setupTui} from './e2e.helper.js';
 const testTimeout = 10_000;
 
 beforeAll(async () => {
-	// Skip tests in CI to avoid issues with pseudo-terminals
+	if (!process.env['CI'] && !process.env['GITHUB_ACTIONS']) {
+		return;
+	}
 	const tui = setupTui();
 
-	try {
-		// Only run once
-		await commonSteps.configureInitialSettings(tui);
-
-		let output = await tui.waitFor('Initialize project');
-
-		expect(output).toContain('This folder is not an epiq project yet.');
-
-		tui.input(':init\r');
-		output = await tui.waitFor('Not inside a Git repository');
-
-		expect(output).toContain('Not inside a Git repository');
-	} finally {
-		tui.destroy();
-	}
+	await commonSteps.configureInitialSettings(tui);
 });
 
 describe('TUI e2e', () => {

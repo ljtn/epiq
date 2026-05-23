@@ -4,10 +4,6 @@ import {execSync} from 'child_process';
 
 export const commonSteps = {
 	configureInitialSettings: async (tui: ReturnType<typeof setupTui>) => {
-		if (!process.env['CI'] && !process.env['GITHUB_ACTIONS']) {
-			return;
-		}
-
 		let output = await tui.waitFor('Type  :config username');
 		expect(output).toContain('choose your username');
 
