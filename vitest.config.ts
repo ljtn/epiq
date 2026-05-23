@@ -8,8 +8,5 @@ export default defineConfig({
 			reportsDirectory: './coverage',
 		},
 		testTimeout: 20_000,
-		sequence: {
-			concurrent: true,
-		},
 	},
 });
