@@ -22,6 +22,9 @@ import {initUiState} from './lib/state/ux-state.js';
 import {resolveClosestEpiqProjectRoot} from './lib/storage/paths.js';
 import {failAt, formatUnknownError} from './lib/utils/logger.utils.js';
 import './logger.js';
+import {execGit} from './git/git-utils.js';
+import {getProjectFileContents} from './lib/project-setup/project-setup.js';
+import {ensureStateBranchWorktree} from './git/git.js';
 
 initUiState();
 
@@ -75,14 +78,39 @@ async function bootApp(): Promise<Result<void>> {
 
 		let eventLog: AppEvent[] = [];
 		if (isSuccess(repoRootResult)) {
-			// 3.a Sync with remote state
+			// 3.a Localize state branch root
 			const stateBranchRootResult = getStateBranchRoot({
 				repoRoot: repoRootResult.value,
 			});
 			if (isFail(stateBranchRootResult)) {
 				return failAt(3, stateBranchRootResult.message);
 			}
-			// 3.b Load events
+
+			// 3.b Ensure state branch worktree exists
+			// In case the user has deleted the worktree folder
+			// we want to recreate it so that we can load the remote events
+			const projectFileContents = getProjectFileContents();
+			const ensureWorktreeResult = await ensureStateBranchWorktree({
+				repoRoot: repoRootResult.value,
+				stateBranchRoot: stateBranchRootResult.value,
+				stateBranchName: projectFileContents.stateBranch,
+			});
+
+			if (isFail(ensureWorktreeResult)) {
+				return failAt(3, ensureWorktreeResult.message);
+			}
+
+			// 3.c Attempt pull latest state branch,
+			// but don't fail if it doesn't work since we can still load local events
+			const pullResult = await execGit({
+				cwd: stateBranchRootResult.value,
+				args: ['pull', '--ff-only'],
+			});
+			if (isFail(pullResult)) {
+				logger.info(3, pullResult.message);
+			}
+
+			// 3.d Load events
 			const eventsResult = loadMergedEvents(stateBranchRootResult.value);
 			if (isFail(eventsResult)) return failAt(3, eventsResult.message);
 			eventLog = eventsResult.value;
