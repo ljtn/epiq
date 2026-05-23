@@ -8,7 +8,7 @@ type TuiSession = {
 	cwd: string;
 	input: (value: string | string[]) => void;
 	output: () => string;
-	waitFor: (text: string, timeoutMs?: number) => Promise<string>;
+	waitFor: (text: string | RegExp, timeoutMs?: number) => Promise<string>;
 	clear: () => void;
 	destroy: () => void;
 };
@@ -88,8 +88,14 @@ export const setupTui = (args: string[] = []): TuiSession => {
 			while (Date.now() - startedAt < timeoutMs) {
 				const currentOutput = getOutput();
 
-				if (currentOutput.includes(text)) {
-					return currentOutput;
+				if (typeof text === 'string') {
+					if (currentOutput.includes(text)) {
+						return currentOutput;
+					}
+				} else {
+					if (text.test(currentOutput)) {
+						return currentOutput;
+					}
 				}
 
 				await sleep(25);

@@ -49,4 +49,40 @@ describe('TUI e2e', () => {
 		},
 		testTimeout,
 	);
+	it(
+		'Can tag an issue',
+		async () => {
+			const tui = setupTui();
+
+			try {
+				const issueTitle = 'Test create issue';
+				await commonSteps.init(tui);
+
+				tui.input('\r');
+
+				await tui.waitFor('Todo (0)', 8_000);
+
+				// Create an issue
+				tui.input(`:new issue ${issueTitle}\r`);
+				await tui.waitFor('Todo (1)', 8_000);
+
+				// Tag the issue
+				tui.input(`:tag test_tag\r`);
+				const output = await tui.waitFor('■', 8_000);
+				expect(output).toContain(' test_tag');
+
+				// Enter the issue
+				tui.input(`\r`);
+				const detailOutput = await tui.waitFor('History ››', 8_000);
+
+				expect(detailOutput).toContain('Description');
+				expect(detailOutput).toContain('Assignees:');
+				expect(detailOutput).toContain('test_tag');
+				expect(detailOutput).toContain('History ››');
+			} finally {
+				tui.destroy();
+			}
+		},
+		testTimeout,
+	);
 });
