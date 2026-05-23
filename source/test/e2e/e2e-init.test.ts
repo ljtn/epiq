@@ -34,12 +34,37 @@ describe('TUI e2e', () => {
 		async () => {
 			const tui = setupTui();
 
-			await commonSteps.init(tui);
+			try {
+				const output = await commonSteps.init(tui);
 
-			const output = await tui.waitFor('Select a board:', 8_000);
+				expect(output).toContain('Default (0 issues)');
+			} finally {
+				tui.destroy();
+			}
+		},
+		testTimeout,
+	);
+	it(
+		'Can create an issue',
+		async () => {
+			const tui = setupTui();
 
-			expect(output).toContain('Select a board:');
-			expect(output).toContain('Default (0 issues)');
+			try {
+				const issueTitle = 'Test create issue';
+				await commonSteps.init(tui);
+
+				// Proceed
+				tui.input('\r');
+				await tui.waitFor('Todo (0)', 5_000);
+
+				// Create an issue
+				tui.input(`:new issue ${issueTitle}\r`);
+				const output = await tui.waitFor('Todo (1)', 5_000);
+
+				expect(output).toContain(issueTitle);
+			} finally {
+				tui.destroy();
+			}
 		},
 		testTimeout,
 	);

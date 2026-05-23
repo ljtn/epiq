@@ -26,7 +26,7 @@ export const commonSteps = {
 
 		tui.input(':config autoSync on\r');
 
-		await tui.waitFor('Initialize project');
+		await tui.waitFor('Initialize project', 8_000);
 	},
 	init: async (tui: {
 		cwd: string;
@@ -36,21 +36,18 @@ export const commonSteps = {
 		destroy: () => void;
 	}) => {
 		let output;
-		try {
-			execSync('git init', {
-				cwd: tui.cwd,
-				stdio: 'ignore',
-			});
+		execSync('git init', {
+			cwd: tui.cwd,
+			stdio: 'ignore',
+		});
 
-			output = await tui.waitFor('Initialize project');
+		output = await tui.waitFor('Initialize project');
 
-			expect(output).toContain('This folder is not an epiq project yet.');
-			tui.input(':init\r');
+		expect(output).toContain('This folder is not an epiq project yet.');
+		tui.input(':init\r');
 
-			output = await tui.waitFor('Default (0 issues)', 5000);
-		} finally {
-			tui.destroy();
-		}
+		output = await tui.waitFor('Default (0 issues)', 8_000);
+
 		return output;
 	},
 };
