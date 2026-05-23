@@ -202,7 +202,6 @@ export const getInProgressGitOperation = async (
 
 	const markerFiles: Record<string, string> = {
 		MERGE_HEAD: 'merge in progress',
-		REBASE_HEAD: 'rebase in progress',
 	};
 
 	for (const [file, operation] of Object.entries(markerFiles)) {
