@@ -9,12 +9,11 @@ beforeAll(async () => {
 		return;
 	}
 	const tui = setupTui();
-
 	await commonSteps.configureInitialSettings(tui);
 });
 
 describe('TUI e2e', () => {
-	it.concurrent(
+	it(
 		'Can initialize a project inside a Git repository',
 		async () => {
 			const tui = setupTui();
@@ -29,7 +28,7 @@ describe('TUI e2e', () => {
 		},
 		testTimeout,
 	);
-	it.concurrent(
+	it(
 		'Can create an issue',
 		async () => {
 			const tui = setupTui();
