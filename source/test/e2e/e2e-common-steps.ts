@@ -9,25 +9,20 @@ export const commonSteps = {
 		}
 
 		let output = await tui.waitFor('Type  :config username');
-
 		expect(output).toContain('choose your username');
 
 		tui.input(':config username test\r');
-
 		output = await tui.waitFor('Type  :config editor');
-
 		expect(output).toContain('pick your editor');
 
 		tui.input(':config editor vim\r');
-
 		output = await tui.waitFor('Type  :config autoSync');
-
 		expect(output).toContain('Configure auto sync');
 
 		tui.input(':config autoSync on\r');
-
 		await tui.waitFor('Initialize project', 8_000);
 	},
+
 	init: async (tui: {
 		cwd: string;
 		input: (value: string | string[]) => void;
