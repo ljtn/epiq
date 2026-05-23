@@ -34,7 +34,9 @@ describe('TUI e2e', () => {
 		async () => {
 			const tui = setupTui();
 
-			const output = await commonSteps.init(tui);
+			await commonSteps.init(tui);
+
+			const output = await tui.waitFor('Select a board:', 8_000);
 
 			expect(output).toContain('Select a board:');
 			expect(output).toContain('Default (0 issues)');
