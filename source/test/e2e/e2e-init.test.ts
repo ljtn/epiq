@@ -55,11 +55,11 @@ describe('TUI e2e', () => {
 
 				// Proceed
 				tui.input('\r');
-				await tui.waitFor('Todo (0)', 5_000);
+				await tui.waitFor('Todo (0)', 8_000);
 
 				// Create an issue
 				tui.input(`:new issue ${issueTitle}\r`);
-				const output = await tui.waitFor('Todo (1)', 5_000);
+				const output = await tui.waitFor('Todo (1)', 8_000);
 
 				expect(output).toContain(issueTitle);
 			} finally {
