@@ -44,10 +44,7 @@ describe('TUI e2e', () => {
 
 				expect(output).toContain('This folder is not an epiq project yet.');
 
-				tui.input(':');
-				tui.input('init');
-				tui.input('\r');
-
+				tui.input(':init\r');
 				output = await tui.waitFor('Not inside a Git repository');
 
 				expect(output).toContain('Not inside a Git repository');
@@ -63,29 +60,39 @@ describe('TUI e2e', () => {
 		async () => {
 			const tui = setupTui();
 
-			try {
-				execSync('git init', {
-					cwd: tui.cwd,
-					stdio: 'ignore',
-				});
+			const output = await commonSteps.init(tui);
 
-				let output = await tui.waitFor('Initialize project');
-
-				expect(output).toContain('This folder is not an epiq project yet.');
-
-				tui.input(':');
-				tui.input('init');
-				tui.input('\r');
-
-				output = await tui.waitFor('Default (0 issues)', 5000);
-
-				expect(output).toContain('Select a board:');
-
-				expect(output).toContain('Default (0 issues)');
-			} finally {
-				tui.destroy();
-			}
+			expect(output).toContain('Select a board:');
+			expect(output).toContain('Default (0 issues)');
 		},
 		testTimeout,
 	);
 });
+
+const commonSteps = {
+	init: async (tui: {
+		cwd: string;
+		input: (value: string | string[]) => void;
+		output: () => string;
+		waitFor: (text: string, timeoutMs?: number) => Promise<string>;
+		destroy: () => void;
+	}) => {
+		let output;
+		try {
+			execSync('git init', {
+				cwd: tui.cwd,
+				stdio: 'ignore',
+			});
+
+			output = await tui.waitFor('Initialize project');
+
+			expect(output).toContain('This folder is not an epiq project yet.');
+			tui.input(':init\r');
+
+			output = await tui.waitFor('Default (0 issues)', 5000);
+		} finally {
+			tui.destroy();
+		}
+		return output;
+	},
+};
