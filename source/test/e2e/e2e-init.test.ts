@@ -5,9 +5,6 @@ import {setupTui} from './e2e.helper.js';
 const testTimeout = 10_000;
 
 beforeAll(async () => {
-	if (!process.env['CI'] && !process.env['GITHUB_ACTIONS']) {
-		return;
-	}
 	const tui = setupTui();
 	await commonSteps.configureInitialSettings(tui);
 });
