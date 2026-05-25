@@ -2,23 +2,29 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import pty from 'node-pty';
-import stripAnsi from 'strip-ansi';
+import {Terminal} from '@xterm/headless';
 
 const width = 120;
 const height = 20;
+
 export const ENTER = '\r';
 export const ARROW_DOWN = '\x1B\x5B\x42';
 export const ARROW_UP = '\x1B\x5B\x41';
 export const ARROW_RIGHT = '\x1B\x5B\x43';
 export const ARROW_LEFT = '\x1B\x5B\x44';
+
 type TuiSession = {
 	cwd: string;
 	input: (...values: string[]) => void;
 	output: () => string;
-	waitFor: (text: string | RegExp, timeoutMs?: number) => Promise<string>;
+	waitFor: (
+		text: string | RegExp | ((output: string) => boolean),
+		timeoutMs?: number,
+	) => Promise<string>;
 	clear: () => void;
 	destroy: () => void;
 };
+
 const createTuiEnv = () => {
 	const env = {...process.env};
 
@@ -39,41 +45,58 @@ export const setupTui = (args: string[] = []): TuiSession => {
 	const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-e2e-'));
 	const cliPath = path.resolve(process.cwd(), 'dist/index.js');
 
-	let output = '';
 	let destroyed = false;
+	let renderedOutput = '';
+	let pendingWrites: Promise<void> = Promise.resolve();
+
+	const terminal = new Terminal({
+		cols: width,
+		rows: height,
+		allowProposedApi: true,
+	});
 
 	const child = pty.spawn(process.execPath, [cliPath, ...args], {
-		name: 'xterm-color',
+		name: 'xterm-256color',
 		cols: width,
 		rows: height,
 		cwd,
 		env: createTuiEnv(),
 	});
 
-	child.onData(data => {
-		// Output full single frames with given dimensions only, otherwise the test output becomes unreliable
-		data = stripAnsi(data).replace(/\r\n/g, '\n').replace(/\r/g, '');
+	const renderOutput = () => {
+		const lines: string[] = [];
 
-		const prevRows = output.split('\n');
-		const additionalRows = data.split('\n');
-
-		const lastPrev = prevRows.at(-1) ?? '';
-		const firstAdditional = additionalRows.at(0) ?? '';
-
-		if (lastPrev.length < width && prevRows.length > 0) {
-			prevRows[prevRows.length - 1] = lastPrev + firstAdditional;
-			additionalRows.shift();
+		for (let i = 0; i < height; i++) {
+			lines.push(
+				terminal.buffer.active.getLine(i)?.translateToString(true) ?? '',
+			);
 		}
 
-		const allRows = [...prevRows, ...additionalRows];
+		renderedOutput = lines.join('\n');
+	};
 
-		output = allRows.slice(-height).join('\n');
+	const flushOutput = async () => {
+		await pendingWrites;
+		renderOutput();
+	};
+
+	child.onData(data => {
+		pendingWrites = pendingWrites.then(
+			() =>
+				new Promise<void>(resolve => {
+					terminal.write(data, () => {
+						renderOutput();
+						resolve();
+					});
+				}),
+		);
 	});
 
-	const getOutput = () => stripAnsi(output);
+	const getOutput = () => renderedOutput;
 
 	const clearOutput = () => {
-		output = '';
+		terminal.reset();
+		renderOutput();
 	};
 
 	const destroy = () => {
@@ -95,7 +118,6 @@ export const setupTui = (args: string[] = []): TuiSession => {
 
 		input: (...values) => {
 			for (const item of values) {
-				clearOutput();
 				child.write(item);
 			}
 		},
@@ -103,25 +125,28 @@ export const setupTui = (args: string[] = []): TuiSession => {
 		output: getOutput,
 		clear: clearOutput,
 
-		waitFor: async (text, timeoutMs = 2_000) => {
+		waitFor: async (text, timeoutMs = 3_000) => {
 			const startedAt = Date.now();
 
 			while (Date.now() - startedAt < timeoutMs) {
+				await flushOutput();
+
 				const currentOutput = getOutput();
 
-				if (typeof text === 'string') {
-					if (currentOutput.includes(text)) {
-						return currentOutput;
-					}
-				} else {
-					if (text.test(currentOutput)) {
-						return currentOutput;
-					}
+				if (
+					typeof text === 'string'
+						? currentOutput.includes(text)
+						: text instanceof RegExp
+						? text.test(currentOutput)
+						: text(currentOutput)
+				) {
+					return currentOutput;
 				}
 
-				await sleep(10);
+				await sleep(1);
 			}
 
+			await flushOutput();
 			return getOutput();
 		},
 
