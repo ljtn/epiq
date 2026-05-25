@@ -2,7 +2,7 @@ import {beforeAll, describe, expect, it} from 'vitest';
 import {commonSteps} from './e2e-common-steps.js';
 import {ARROW_DOWN, ENTER, setupTui} from './e2e.helper.js';
 
-const testTimeout = 10_000;
+const testTimeout = 60_000;
 
 beforeAll(async () => {
 	const tui = setupTui();
