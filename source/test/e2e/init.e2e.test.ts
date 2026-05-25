@@ -36,11 +36,11 @@ describe('TUI e2e', () => {
 
 				tui.input('\r');
 
-				await tui.waitFor('Todo (0)', 8_000);
+				await tui.waitFor('Todo (0)');
 
 				// Create an issue
 				tui.input(`:new issue ${issueTitle}\r`);
-				const output = await tui.waitFor('Todo (1)', 8_000);
+				const output = await tui.waitFor('Todo (1)');
 
 				expect(output).toContain(issueTitle);
 			} finally {
@@ -61,32 +61,32 @@ describe('TUI e2e', () => {
 
 				tui.input('\r');
 
-				await tui.waitFor('Todo (0)', 8_000);
+				await tui.waitFor('Todo (0)');
 
 				// Create an issue
 				tui.input(`:new issue ${issueTitle}`, ENTER);
-				await tui.waitFor('Todo (1)', 8_000);
+				await tui.waitFor('Todo (1)');
 
 				// Tag the issue with a tag
 				tui.input(`:tag prio`, ENTER);
-				await tui.waitFor(EMPTY_COMMAND_LINE, 8_000);
+				await tui.waitFor(EMPTY_COMMAND_LINE);
 
 				// Tag with another tag
 				tui.input(`:tag important`, ENTER);
-				const tagOutput = await tui.waitFor(EMPTY_COMMAND_LINE, 8_000);
+				const tagOutput = await tui.waitFor(EMPTY_COMMAND_LINE);
 				expect(tagOutput).toContain('prio');
 				expect(tagOutput).toContain('important');
 
 				// Untag the issue
 				tui.input(`:untag prio`, ENTER);
 
-				const untagOutput = await tui.waitFor(EMPTY_COMMAND_LINE, 8_000);
+				const untagOutput = await tui.waitFor(EMPTY_COMMAND_LINE);
 				expect(untagOutput).not.toContain('prio');
 				expect(untagOutput).toContain('important');
 
 				tui.input(ENTER);
 
-				const detailOutput = await tui.waitFor('History ››', 8_000);
+				const detailOutput = await tui.waitFor('History ››');
 
 				expect(detailOutput).toContain('Description');
 				expect(detailOutput).toContain('Assignees:');
@@ -98,7 +98,7 @@ describe('TUI e2e', () => {
 				tui.input(ARROW_DOWN);
 				tui.input(ENTER);
 
-				const logOutput = await tui.waitFor('Event log', 8_000);
+				const logOutput = await tui.waitFor('Event log');
 				const normalizedLogOutput = logOutput.replace(/\s{2,}/g, ' '); // Remove repeated whitespace for easier assertions
 				expect(normalizedLogOutput).toContain('just now');
 				expect(normalizedLogOutput).toContain(

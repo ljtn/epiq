@@ -103,7 +103,7 @@ export const setupTui = (args: string[] = []): TuiSession => {
 		output: getOutput,
 		clear: clearOutput,
 
-		waitFor: async (text, timeoutMs = 2000) => {
+		waitFor: async (text, timeoutMs = 2_000) => {
 			const startedAt = Date.now();
 
 			while (Date.now() - startedAt < timeoutMs) {
