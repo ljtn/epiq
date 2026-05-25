@@ -119,7 +119,7 @@ export const setupTui = (args: string[] = []): TuiSession => {
 					}
 				}
 
-				await sleep(5);
+				await sleep(10);
 			}
 
 			return getOutput();
