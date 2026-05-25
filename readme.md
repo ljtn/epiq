@@ -2,6 +2,8 @@
 
 _Distributed terminal-native issue tracker backed by Git._
 
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-Epiq-pink?logo=github)](https://github.com/sponsors/ljtn)
+
 Issue tracking is a core part of software development, but it often becomes a painful context-switching exercise with poor ergonomics. Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
 
 > You can manage all your projects directly via the command line in a visual kanban board and edit content in your favorite editor.
@@ -144,7 +146,7 @@ To register Epiq with MCP-compatible clients (e.g. Claude Desktop), add it as a 
 
 ```json
 "mcpServers": {
-	...
+
 	"epiq": {
 		"command": "npx",
 		"args": [
@@ -154,7 +156,7 @@ To register Epiq with MCP-compatible clients (e.g. Claude Desktop), add it as a 
 			"epiq-mcp"
 		]
 	}
-	...
+
 }
 ```
 
