@@ -21,7 +21,7 @@ export const commonSteps = {
 
 	init: async (tui: {
 		cwd: string;
-		input: (value: string | string[]) => void;
+		input: (...values: string[]) => void;
 		output: () => string;
 		waitFor: (text: string, timeoutMs?: number) => Promise<string>;
 		destroy: () => void;

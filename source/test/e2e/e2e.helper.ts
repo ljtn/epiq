@@ -4,9 +4,16 @@ import path from 'node:path';
 import pty from 'node-pty';
 import stripAnsi from 'strip-ansi';
 
+const width = 120;
+const height = 20;
+export const ENTER = '\r';
+export const ARROW_DOWN = '\x1B\x5B\x42';
+export const ARROW_UP = '\x1B\x5B\x41';
+export const ARROW_RIGHT = '\x1B\x5B\x43';
+export const ARROW_LEFT = '\x1B\x5B\x44';
 type TuiSession = {
 	cwd: string;
-	input: (value: string | string[]) => void;
+	input: (...values: string[]) => void;
 	output: () => string;
 	waitFor: (text: string | RegExp, timeoutMs?: number) => Promise<string>;
 	clear: () => void;
@@ -37,14 +44,30 @@ export const setupTui = (args: string[] = []): TuiSession => {
 
 	const child = pty.spawn(process.execPath, [cliPath, ...args], {
 		name: 'xterm-color',
-		cols: 120,
-		rows: 20,
+		cols: width,
+		rows: height,
 		cwd,
 		env: createTuiEnv(),
 	});
 
 	child.onData(data => {
-		output += data;
+		// Output full single frames with given dimensions only, otherwise the test output becomes unreliable
+		data = stripAnsi(data).replace(/\r\n/g, '\n').replace(/\r/g, '');
+
+		const prevRows = output.split('\n');
+		const additionalRows = data.split('\n');
+
+		const lastPrev = prevRows.at(-1) ?? '';
+		const firstAdditional = additionalRows.at(0) ?? '';
+
+		if (lastPrev.length < width && prevRows.length > 0) {
+			prevRows[prevRows.length - 1] = lastPrev + firstAdditional;
+			additionalRows.shift();
+		}
+
+		const allRows = [...prevRows, ...additionalRows];
+
+		output = allRows.slice(-height).join('\n');
 	});
 
 	const getOutput = () => stripAnsi(output);
@@ -70,11 +93,9 @@ export const setupTui = (args: string[] = []): TuiSession => {
 	return {
 		cwd,
 
-		input: value => {
-			clearOutput();
-			const values = Array.isArray(value) ? value : [value];
-
+		input: (...values) => {
 			for (const item of values) {
+				clearOutput();
 				child.write(item);
 			}
 		},
@@ -98,7 +119,7 @@ export const setupTui = (args: string[] = []): TuiSession => {
 					}
 				}
 
-				await sleep(25);
+				await sleep(5);
 			}
 
 			return getOutput();
