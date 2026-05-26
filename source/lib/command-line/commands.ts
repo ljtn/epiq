@@ -12,12 +12,7 @@ import {isTicketNode} from '../model/context.model.js';
 import {failed, isFail, succeeded} from '../model/result-types.js';
 import {findAncestor} from '../repository/node-repo.js';
 import {resolveAndPersistRankForMove} from '../repository/rank.js';
-import {
-	getCmdArg,
-	getCmdState,
-	replaceCmdInput,
-	setCmdInput,
-} from '../state/cmd.state.js';
+import {getCmdArg, getCmdState, replaceCmdInput} from '../state/cmd.state.js';
 import {getSettingsState, patchSettingsState} from '../state/settings.state.js';
 import {
 	getRenderedChildren,

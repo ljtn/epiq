@@ -14,9 +14,8 @@ import {
 import {AnyContext} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {replaceCmdInput, setCmdInput} from '../state/cmd.state.js';
 import {getSettingsState, LogLevel} from '../state/settings.state.js';
-import {getState, patchState} from '../state/state.js';
+import {getState} from '../state/state.js';
 import {getDimStringColor, getGradientWord} from '../utils/color.js';
 import {
 	ticketAssigneesFromBreadCrumb,
@@ -36,7 +35,6 @@ import {
 	getCmdModifiers,
 } from './command-modifiers.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
-import {Mode} from '../model/action-map.model.js';
 
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 
