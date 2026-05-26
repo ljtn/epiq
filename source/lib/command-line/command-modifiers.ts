@@ -60,6 +60,7 @@ export type CommandMap = {
 };
 
 const GLOBAL_COMMANDS = [
+	CmdKeywords.COFFEE,
 	CmdKeywords.EXIT,
 	CmdKeywords.SYNC,
 	CmdKeywords.HELP,
@@ -217,6 +218,7 @@ export const getCmdModifiers = (
 		[CmdKeywords.NEW]: getNewModifiers(currentContext),
 
 		[CmdKeywords.CONFIG]: [...CONFIG_MODIFIERS],
+		[CmdKeywords.COFFEE]: ['1', '3', '5', '20', 'custom'],
 	};
 
 	return modifiers[keyword] ?? [];

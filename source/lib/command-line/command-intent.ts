@@ -14,6 +14,9 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.EXPORT:
 			return CmdIntent.Export;
 
+		case CmdKeywords.COFFEE:
+			return CmdIntent.Coffee;
+
 		case CmdKeywords.INIT:
 			return CmdIntent.Init;
 
@@ -98,4 +101,5 @@ export const CmdIntent = {
 	Sync: 'sync',
 
 	Export: 'export',
+	Coffee: 'coffee',
 } as const;

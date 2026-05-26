@@ -12,7 +12,12 @@ import {isTicketNode} from '../model/context.model.js';
 import {failed, isFail, succeeded} from '../model/result-types.js';
 import {findAncestor} from '../repository/node-repo.js';
 import {resolveAndPersistRankForMove} from '../repository/rank.js';
-import {getCmdArg, getCmdState} from '../state/cmd.state.js';
+import {
+	getCmdArg,
+	getCmdState,
+	replaceCmdInput,
+	setCmdInput,
+} from '../state/cmd.state.js';
 import {getSettingsState, patchSettingsState} from '../state/settings.state.js';
 import {
 	getRenderedChildren,
@@ -22,6 +27,7 @@ import {
 } from '../state/state.js';
 import {patchUiState} from '../state/ux-state.js';
 import {getPersistRoot} from '../storage/paths.js';
+import {openUrl} from '../utils/open-in-browser.js';
 import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-intent.js';
 import {
@@ -647,6 +653,25 @@ export const commands: CommandLineActionEntry[] = [
 				default:
 					return failed('Unknown config command');
 			}
+		},
+	},
+	{
+		intent: CmdIntent.Coffee,
+		description: 'Sponsor the development of Epiq!',
+		mode: Mode.COMMAND_LINE,
+		action: () => {
+			const modifier = getCmdState().commandMeta.modifier;
+			if (modifier === 'custom') {
+				openUrl(
+					'https://github.com/sponsors/ljtn?frequency=one-time&sponsor=ljtn',
+				);
+			} else {
+				openUrl(
+					`https://github.com/sponsors/ljtn/sponsorships?sponsor=ljtn&preview=true&frequency=one-time&amount=${modifier}`,
+				);
+			}
+			replaceCmdInput('');
+			return succeeded('Thanks you!', null);
 		},
 	},
 ];
