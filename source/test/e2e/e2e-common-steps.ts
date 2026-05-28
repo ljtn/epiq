@@ -4,18 +4,15 @@ import {execSync} from 'child_process';
 
 export const commonSteps = {
 	configureInitialSettings: async (tui: ReturnType<typeof setupTui>) => {
-		let output = await tui.waitFor('Type  :config username');
-		expect(output).toContain('choose your username');
-
+		await tui.waitFor('choose your username');
 		tui.input(':config username test\r');
-		output = await tui.waitFor('Type  :config editor');
-		expect(output).toContain('pick your editor');
 
+		await tui.waitFor('pick your editor');
 		tui.input(':config editor vim\r');
-		output = await tui.waitFor('Type  :config autoSync');
-		expect(output).toContain('Configure auto sync');
 
+		await tui.waitFor('Configure auto sync');
 		tui.input(':config autoSync on\r');
+
 		await tui.waitFor('Initialize project', 8_000);
 	},
 

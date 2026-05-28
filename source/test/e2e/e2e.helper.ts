@@ -1,8 +1,8 @@
+import {Terminal} from '@xterm/headless';
+import pty from 'node-pty';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import pty from 'node-pty';
-import {Terminal} from '@xterm/headless';
 
 const width = 120;
 const height = 20;
@@ -12,6 +12,23 @@ export const ARROW_DOWN = '\x1B\x5B\x42';
 export const ARROW_UP = '\x1B\x5B\x41';
 export const ARROW_RIGHT = '\x1B\x5B\x43';
 export const ARROW_LEFT = '\x1B\x5B\x44';
+
+const MOVE_CURSOR_HOME = '\x1B[H';
+const CLEAR_SCREEN = '\x1B[2J';
+const HIDE_CURSOR = '\x1B[?25l';
+const SHOW_CURSOR = '\x1B[?25h';
+
+let lastLoggedOutput = '';
+
+const logFrame = (output: string) => {
+	if (output === lastLoggedOutput) return;
+
+	lastLoggedOutput = output;
+
+	process.stdout.write(
+		HIDE_CURSOR + MOVE_CURSOR_HOME + CLEAR_SCREEN + output + SHOW_CURSOR,
+	);
+};
 
 type TuiSession = {
 	cwd: string;
@@ -72,7 +89,11 @@ export const setupTui = (args: string[] = []): TuiSession => {
 			);
 		}
 
-		renderedOutput = lines.join('\n');
+		renderedOutput = lines
+			.map(line => line.padEnd(width, ' ').slice(0, width))
+			.join('\n');
+
+		logFrame(renderedOutput);
 	};
 
 	const flushOutput = async () => {

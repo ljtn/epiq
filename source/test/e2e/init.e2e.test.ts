@@ -56,6 +56,50 @@ describe('TUI e2e', () => {
 		},
 		testTimeout,
 	);
+	it(
+		'Can rename an issue, and tab to auto-complete the title',
+		async () => {
+			const tui = setupTui();
+
+			try {
+				const issueTitle = 'Test create issue';
+				const TAB = '\x09';
+
+				await commonSteps.init(tui);
+
+				tui.input(ENTER);
+				await tui.waitFor('Todo (0)');
+
+				tui.input(`:new issue ${issueTitle}`, ENTER);
+				await tui.waitFor('Todo (1)');
+
+				tui.input(`:edit tit`);
+				tui.input(TAB);
+
+				// Should have been auto-completed with old title
+				await tui.waitFor('edit title Test create issue');
+
+				// Delete last word by pressing meta+Backspace (option+backspace on Mac)
+				tui.input('\x1b\x7f');
+				tui.input('EDITED');
+				const output = await tui.waitFor('edit title Test create EDITED');
+				expect(output).toContain('edit title Test create EDITED');
+
+				tui.input(ENTER);
+
+				const finalOutput = await tui.waitFor(
+					output =>
+						output.includes('Test create EDITED') && !output.includes(':edit'),
+				);
+
+				expect(finalOutput).not.toContain(':edit title Test create EDITED');
+				expect(finalOutput).toContain('Test create EDITED');
+			} finally {
+				tui.destroy();
+			}
+		},
+		testTimeout,
+	);
 
 	it(
 		'Can tag an issue, untag an issue and view issue details',
