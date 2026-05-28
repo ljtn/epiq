@@ -10,7 +10,7 @@ import {
 	moveCursorPositionOfWord,
 	setCmdInput,
 } from '../../state/cmd.state.js';
-import {patchState} from '../../state/state.js';
+import {getState, patchState} from '../../state/state.js';
 import {Intent} from '../../utils/key-intent.js';
 import {onConfirmCommandLineSequenceInput} from './on-cmd-input-confirm.js';
 
@@ -53,9 +53,18 @@ const createCommandInputActions = (mode: ModeUnion): ActionEntry[] => [
 		intent: Intent.AutoCompleteCommand,
 		mode,
 		action: () => {
-			setCmdInput((previousInput, {remainder}) =>
-				remainder ? previousInput + remainder : previousInput,
-			);
+			setCmdInput((previousInput, {remainder}) => {
+				const newCompleteInput = remainder
+					? previousInput + remainder
+					: previousInput;
+
+				let prefill = '';
+				if (newCompleteInput === 'edit title ') {
+					prefill = getState().selectedNode?.title ?? '';
+				}
+
+				return newCompleteInput + prefill;
+			});
 
 			return succeeded('Auto-completing command', null);
 		},
