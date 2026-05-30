@@ -12,7 +12,7 @@ import {
 	listSwimlanes,
 	moveIssue,
 	sync,
-} from './tools.js';
+} from './epiq-api.js';
 
 export const resultJson = <T>(result: Result<T>) => ({
 	isError: isFail(result),

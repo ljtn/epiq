@@ -25,26 +25,48 @@ import './logger.js';
 import {execGit} from './git/git-utils.js';
 import {getProjectFileContents} from './lib/project-setup/project-setup.js';
 import {ensureStateBranchWorktree} from './git/git.js';
+import {startGui} from './gui/init.js';
 
 initUiState();
 
-meow(
-	`${chalk.bold('Epiq CLI')}
+const helpText = `${chalk.bold('Epiq CLI')}
 
 ${chalk.dim('Boot in directory:')}
   ${chalk.cyan('$ epiq')}
 
-`,
-	{
-		importMeta: import.meta,
-		flags: {
-			init: {
-				type: 'boolean',
-				default: false,
-			},
+`;
+const cli = meow(helpText, {
+	importMeta: import.meta,
+	flags: {
+		init: {
+			type: 'boolean',
+			default: false,
+		},
+		gui: {
+			type: 'boolean',
+			default: false,
 		},
 	},
-);
+});
+
+if (cli.flags.gui) {
+	const guiResult = await startGui({repoRoot: process.cwd()});
+
+	if (isFail(guiResult)) {
+		console.error(chalk.red(`Failed to start Epiq GUI:\n${guiResult.message}`));
+		process.exitCode = 1;
+	}
+} else {
+	console.clear();
+
+	const bootResult = await bootApp();
+
+	if (isFail(bootResult)) {
+		logger.info(bootResult.message);
+		console.error(chalk.red(`Failed to boot Epiq:\n${bootResult.message}`));
+		process.exitCode = 1;
+	}
+}
 
 let width = process.stdout.columns || 120;
 let height = process.stdout.rows || 20;

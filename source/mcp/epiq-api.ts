@@ -308,7 +308,9 @@ export const moveIssue = async (input: MoveIssueInput) => {
 	if (failure) return failed(failure.message);
 
 	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
+	if (isFail(syncResult)) {
+		console.log('[sync] moveIssue:sync failed', syncResult.message);
+	}
 
 	return succeeded('Moved issue', {
 		id: input.issueId,
@@ -348,6 +350,48 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 		contextNode: stateResult.value.contextNode,
 		selectedIndex: stateResult.value.selectedIndex,
 		eventLog: stateResult.value.eventLog,
+	});
+};
+
+export const getGuiState = async (input: ToolInput = {}) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const nodes = Object.values(stateResult.value.nodes);
+
+	const board = nodes.find(n => n.context === 'BOARD');
+
+	if (!board) return failed('No board found');
+
+	const swimlanes = nodes
+		.filter(n => n.context === 'SWIMLANE')
+		.filter(n => n.parentNodeId === board.id)
+		.map(swimlane => ({
+			id: swimlane.id,
+			title: swimlane.title,
+			readonly: Boolean(swimlane.readonly),
+			issues: nodes
+				.filter(isTicketNode)
+				.filter(issue => issue.parentNodeId === swimlane.id)
+				.map(issue => ({
+					id: issue.id,
+					title: sanitizeInlineText(issue.title),
+					description: issue.props.description ?? '',
+					readonly: Boolean(issue.readonly),
+					tags: getIssueTags(issue),
+					assignees: getIssueAssignees(issue),
+				})),
+		}));
+
+	return succeeded('Retrieved Epiq GUI state', {
+		board: {
+			id: board.id,
+			title: board.title,
+		},
+		swimlanes,
 	});
 };
 

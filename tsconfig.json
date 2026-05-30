@@ -6,5 +6,6 @@
 		"lib": ["esnext"],
 		"types": ["node"]
 	},
-	"include": ["source", "globals.d.ts"]
+	"include": ["source", "globals.d.ts"],
+	"exclude": ["source/gui"]
 }

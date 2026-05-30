@@ -27,7 +27,9 @@
 	},
 	"scripts": {
 		"build": "tsc --noEmit",
-		"build:npm": "node source/scripts/write-version.mjs && rm -rf ./dist && esbuild source/Index.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/index.js --banner:js='#!/usr/bin/env node' && esbuild source/mcp/index.ts --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/mcp.js --banner:js='#!/usr/bin/env node'",
+		"build:gui:types": "tsc --noEmit -p source/gui/client/tsconfig.json",
+		"build:gui": "npm run build:gui:types && mkdir -p dist/gui && cp source/gui/index.html dist/gui/index.html && esbuild source/gui/client/main.tsx --bundle --format=esm --target=es2020 --outfile=dist/gui/main.js",
+		"build:npm": "node source/scripts/write-version.mjs && rm -rf ./dist && npm run build:gui && esbuild source/Index.tsx --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/index.js --banner:js='#!/usr/bin/env node' && esbuild source/mcp/index.ts --bundle --packages=external --platform=node --format=esm --target=node18 --minify --outfile=dist/mcp.js --banner:js='#!/usr/bin/env node'",
 		"build:sea:bundle": "node source/scripts/write-version.mjs && rm -rf ./dist && esbuild source/Index.tsx --bundle --platform=node --format=cjs --target=node18 --minify --outfile=dist/sea.cjs",
 		"build:sea": "node --build-sea source/config/sea-config.json",
 		"build:publish": "npm run build:npm",
@@ -36,6 +38,7 @@
 		"dev": "IS_LOCAL=true tsc --watch --noEmit",
 		"dev:start": "IS_LOCAL=true tsx source/Index.tsx",
 		"start": "IS_LOCAL=true tsx source/Index.tsx",
+		"start:gui": "IS_LOCAL=true tsx source/Index.tsx --gui",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\"",
 		"test:e2e:ci": "npm run build:npm && vitest run source/test/e2e",
 		"test:e2e": "docker run --rm -v \"$PWD\":/app -v /app/node_modules -w /app epiq-e2e npm run test:e2e:ci",
@@ -60,8 +63,10 @@
 		"ink": "^6.8.0",
 		"meow": "^14.1.0",
 		"react": "^19.2.4",
+		"react-dom": "^19.2.6",
 		"string-width": "^8.2.0",
 		"ulid": "^3.0.2",
+		"ws": "^8.21.0",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
@@ -70,6 +75,8 @@
 		"@types/marked-terminal": "^6.1.1",
 		"@types/node": "^22.19.19",
 		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
+		"@types/ws": "^8.18.1",
 		"@typescript-eslint/eslint-plugin": "^8.46.0",
 		"@typescript-eslint/parser": "^8.46.0",
 		"@vdemedes/prettier-config": "^2.0.1",

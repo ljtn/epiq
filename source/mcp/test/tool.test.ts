@@ -212,11 +212,11 @@ vi.mock('../../lib/event/common-events.js', () => ({
 	),
 }));
 
-let tools: typeof import('../tools.js');
+let tools: typeof import('../epiq-api.js');
 let persistModule: typeof import('../../lib/event/event-materialize-and-persist.js');
 
 beforeAll(async () => {
-	tools = await import('../tools.js');
+	tools = await import('../epiq-api.js');
 	persistModule = await import(
 		'../../lib/event/event-materialize-and-persist.js'
 	);

@@ -14,9 +14,29 @@ import {getState, patchState} from '../lib/state/state.js';
 import {trace} from '../lib/utils/logger.utils.js';
 import {syncEpiqWithRemote} from './sync.js';
 
+let syncAndReloadPromise: Promise<Result<boolean>> | null = null;
+
 export const syncAndReloadState = async (): Promise<Result<boolean>> => {
+	if (syncAndReloadPromise) {
+		return failed('Already syncing');
+	}
+
+	syncAndReloadPromise = syncAndReloadStateUnsafe();
+
+	try {
+		return await syncAndReloadPromise;
+	} finally {
+		syncAndReloadPromise = null;
+	}
+};
+
+const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 	const modeFail = failReloadIfNotDefaultMode();
 	if (modeFail) return modeFail;
+
+	if (getState().syncStatus?.status === 'syncing') {
+		return failed('Already syncing');
+	}
 
 	logger.debug('[sync] syncAndReloadState:start');
 
@@ -43,8 +63,17 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 		'syncEpiqWithRemote',
 		await syncEpiqWithRemote({ownEventFileName}),
 	);
+
 	if (isFail(syncResult)) {
 		logger.error('[sync] syncAndReloadState:sync failed', syncResult.message);
+
+		patchState({
+			syncStatus: {
+				msg: 'Sync failed',
+				status: 'failed',
+			},
+		});
+
 		return failed(`Unable to sync state. ${syncResult.message}`);
 	}
 
@@ -58,7 +87,15 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 		'loadMergedEvents',
 		loadMergedEvents(stateBranchRoot),
 	);
+
 	if (isFail(allLoadedEventsResult)) {
+		patchState({
+			syncStatus: {
+				msg: 'Reload failed',
+				status: 'failed',
+			},
+		});
+
 		return failed(`Unable to load events. ${allLoadedEventsResult.message}`);
 	}
 
@@ -80,7 +117,15 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 			'bootStateFromEventLog',
 			bootStateFromEventLog(allLoadedEventsResult.value),
 		);
+
 		if (isFail(bootResult)) {
+			patchState({
+				syncStatus: {
+					msg: 'Reload failed',
+					status: 'failed',
+				},
+			});
+
 			return failed(`Unable to boot synced state. ${bootResult.message}`);
 		}
 	}
@@ -92,7 +137,16 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 		restoreNavigationAnchor(navigationAnchor),
 	);
 
-	if (isFail(restoreResult)) return restoreResult;
+	if (isFail(restoreResult)) {
+		patchState({
+			syncStatus: {
+				msg: 'Reload failed',
+				status: 'failed',
+			},
+		});
+
+		return restoreResult;
+	}
 
 	patchState({
 		hasProjectDefinition: true,
@@ -106,6 +160,7 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 
 	return succeeded('Synced', true);
 };
+
 const failReloadIfNotDefaultMode = (): Result<null> | null => {
 	if (getState().mode === Mode.DEFAULT) return null;
 
