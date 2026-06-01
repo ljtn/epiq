@@ -307,10 +307,7 @@ export const moveIssue = async (input: MoveIssueInput) => {
 	const failure = results.find(isFail);
 	if (failure) return failed(failure.message);
 
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) {
-		console.log('[sync] moveIssue:sync failed', syncResult.message);
-	}
+	void syncAndReloadState();
 
 	return succeeded('Moved issue', {
 		id: input.issueId,
@@ -376,6 +373,7 @@ export const getGuiState = async (input: ToolInput = {}) => {
 			issues: nodes
 				.filter(isTicketNode)
 				.filter(issue => issue.parentNodeId === swimlane.id)
+				.sort((a, b) => a.rank.localeCompare(b.rank))
 				.map(issue => ({
 					id: issue.id,
 					title: sanitizeInlineText(issue.title),

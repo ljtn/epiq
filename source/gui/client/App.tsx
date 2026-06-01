@@ -29,6 +29,11 @@ type Result<T> = {
 	content?: Array<{type: string; text: string}>;
 };
 
+type DropTarget = {
+	swimlaneId: string;
+	index: number;
+};
+
 const theme = {
 	bg: '#090a0f',
 	panel: '#11141b',
@@ -86,15 +91,45 @@ const findIssue = (state: GuiState | null, issueId: string | null) => {
 	return null;
 };
 
-const findIssueParent = (state: GuiState | null, issueId: string) => {
-	if (!state) return null;
+const getAdjustedTargetIndex = ({
+	state,
+	issueId,
+	parentId,
+	targetIndex,
+}: {
+	state: GuiState | null;
+	issueId: string;
+	parentId: string;
+	targetIndex: number;
+}) => {
+	if (!state) return targetIndex;
 
-	for (const swimlane of state.swimlanes) {
-		if (swimlane.issues.some(issue => issue.id === issueId)) return swimlane.id;
-	}
+	const targetSwimlane = state.swimlanes.find(
+		swimlane => swimlane.id === parentId,
+	);
+	if (!targetSwimlane) return targetIndex;
 
-	return null;
+	const currentIndex = targetSwimlane.issues.findIndex(
+		issue => issue.id === issueId,
+	);
+
+	if (currentIndex === -1) return targetIndex;
+	if (currentIndex < targetIndex) return targetIndex - 1;
+
+	return targetIndex;
 };
+
+const DropIndicator = () => (
+	<div
+		style={{
+			height: 2,
+			background: theme.accent,
+			borderRadius: 999,
+			margin: '4px 8px 8px',
+			boxShadow: `0 0 12px ${theme.accent}`,
+		}}
+	/>
+);
 
 const TicketCard = ({
 	ticket,
@@ -102,12 +137,16 @@ const TicketCard = ({
 	isSelected,
 	onSelect,
 	onDragStart,
+	onDragOverIssue,
+	onDropIssueAt,
 }: {
 	ticket: GuiIssue;
 	index: number;
 	isSelected: boolean;
 	onSelect: () => void;
 	onDragStart: () => void;
+	onDragOverIssue: (targetIndex: number) => void;
+	onDropIssueAt: (issueId: string, targetIndex: number) => void;
 }) => (
 	<div
 		draggable={!ticket.readonly}
@@ -117,17 +156,40 @@ const TicketCard = ({
 			event.dataTransfer.setData('text/plain', ticket.id);
 			onDragStart();
 		}}
+		onDragOver={event => {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'move';
+
+			const rect = event.currentTarget.getBoundingClientRect();
+			const isAfterMiddle = event.clientY > rect.top + rect.height / 2;
+
+			onDragOverIssue(index + (isAfterMiddle ? 1 : 0));
+		}}
+		onDrop={event => {
+			event.preventDefault();
+			event.stopPropagation();
+
+			const issueId = event.dataTransfer.getData('text/plain');
+			if (!issueId || issueId === ticket.id) return;
+
+			const rect = event.currentTarget.getBoundingClientRect();
+			const isAfterMiddle = event.clientY > rect.top + rect.height / 2;
+
+			onDropIssueAt(issueId, index + (isAfterMiddle ? 1 : 0));
+		}}
 		style={{
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'space-between',
 			gap: 12,
-			padding: '10px 0',
-			borderBottom: `1px solid ${theme.line}`,
 			color: isSelected ? theme.accent : theme.primary,
-			fontSize: 14,
+			fontSize: 12,
 			cursor: ticket.readonly ? 'default' : 'grab',
-			background: isSelected ? 'rgba(118,228,255,0.08)' : 'transparent',
+			background: isSelected ? 'rgba(118,228,255,0.08)' : '#ffffff08',
+			padding: '0 12px',
+			height: '48px',
+			borderRadius: '12px',
+			marginBottom: 4,
 		}}
 	>
 		<div style={{display: 'flex', gap: 10, minWidth: 0}}>
@@ -156,13 +218,14 @@ const TicketCard = ({
 			{ticket.tags.map(tag => (
 				<span
 					key={tag.id}
-					title={tag.name}
 					style={{
 						color: colorFromString(tag.name),
-						fontSize: 14,
+						border: `1px solid ${theme.line}`,
+						borderRadius: 999,
+						padding: '4px 8px',
 					}}
 				>
-					■
+					■ {tag.name}
 				</span>
 			))}
 
@@ -172,7 +235,7 @@ const TicketCard = ({
 					title={assignee.name}
 					style={{
 						color: colorFromString(assignee.name),
-						fontSize: 13,
+						fontSize: 12,
 						fontWeight: 700,
 					}}
 				>
@@ -188,18 +251,26 @@ const SwimlaneColumn = ({
 	selected,
 	selectedIssueId,
 	dragOver,
+	dropIndex,
 	onSelectIssue,
 	onDropIssue,
 	onDragOver,
+	onDragOverIssue,
 	onDragLeave,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
 	selectedIssueId: string | null;
 	dragOver: boolean;
+	dropIndex: number | null;
 	onSelectIssue: (issueId: string) => void;
-	onDropIssue: (issueId: string, swimlaneId: string) => void;
+	onDropIssue: (
+		issueId: string,
+		swimlaneId: string,
+		targetIndex: number | 'end',
+	) => void;
 	onDragOver: (swimlaneId: string) => void;
+	onDragOverIssue: (swimlaneId: string, targetIndex: number) => void;
 	onDragLeave: () => void;
 }) => (
 	<section
@@ -207,8 +278,16 @@ const SwimlaneColumn = ({
 			event.preventDefault();
 			event.dataTransfer.dropEffect = 'move';
 			onDragOver(swimlane.id);
+
+			if (swimlane.issues.length === 0) {
+				onDragOverIssue(swimlane.id, 0);
+			}
 		}}
-		onDragLeave={onDragLeave}
+		onDragLeave={event => {
+			if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+				onDragLeave();
+			}
+		}}
 		onDrop={event => {
 			event.preventDefault();
 			onDragLeave();
@@ -216,13 +295,13 @@ const SwimlaneColumn = ({
 			const issueId = event.dataTransfer.getData('text/plain');
 			if (!issueId) return;
 
-			onDropIssue(issueId, swimlane.id);
+			onDropIssue(issueId, swimlane.id, dropIndex ?? 'end');
 		}}
 		style={{
 			width: 360,
 			minWidth: 360,
 			height: 'calc(100vh - 128px)',
-			background: dragOver ? '#14202a' : theme.panel,
+			background: dragOver ? '#14202a' : 'rgb(17 20 27 / 0%)',
 			border: `1px solid ${selected || dragOver ? theme.accent : theme.line}`,
 			borderRadius: 14,
 			padding: '0 14px',
@@ -234,6 +313,7 @@ const SwimlaneColumn = ({
 			style={{
 				height: 48,
 				display: 'flex',
+				fontSize: 12,
 				alignItems: 'center',
 				gap: 8,
 				borderBottom: `1px solid ${theme.line}`,
@@ -254,26 +334,43 @@ const SwimlaneColumn = ({
 
 		<div style={{overflow: 'auto', paddingTop: 4, flex: 1}}>
 			{swimlane.issues.length === 0 ? (
-				<div
-					style={{
-						padding: 24,
-						textAlign: 'center',
-						color: theme.secondary,
-					}}
-				>
-					Drop issue here
-				</div>
+				<>
+					{dropIndex === 0 && <DropIndicator />}
+
+					<div
+						style={{
+							padding: 24,
+							textAlign: 'center',
+							color: theme.secondary,
+						}}
+					>
+						Drop issue here
+					</div>
+				</>
 			) : (
-				swimlane.issues.map((ticket, index) => (
-					<TicketCard
-						key={ticket.id}
-						ticket={ticket}
-						index={index}
-						isSelected={ticket.id === selectedIssueId}
-						onSelect={() => onSelectIssue(ticket.id)}
-						onDragStart={() => onSelectIssue(ticket.id)}
-					/>
-				))
+				<>
+					{swimlane.issues.map((ticket, index) => (
+						<React.Fragment key={ticket.id}>
+							{dropIndex === index && <DropIndicator />}
+
+							<TicketCard
+								ticket={ticket}
+								index={index}
+								isSelected={ticket.id === selectedIssueId}
+								onSelect={() => onSelectIssue(ticket.id)}
+								onDragStart={() => onSelectIssue(ticket.id)}
+								onDragOverIssue={targetIndex =>
+									onDragOverIssue(swimlane.id, targetIndex)
+								}
+								onDropIssueAt={(issueId, targetIndex) =>
+									onDropIssue(issueId, swimlane.id, targetIndex)
+								}
+							/>
+						</React.Fragment>
+					))}
+
+					{dropIndex === swimlane.issues.length && <DropIndicator />}
+				</>
 			)}
 		</div>
 	</section>
@@ -293,6 +390,7 @@ const IssueDetails = ({
 			borderLeft: `1px solid ${theme.line}`,
 			background: theme.panel,
 			padding: 18,
+			fontSize: 12,
 			overflow: 'auto',
 		}}
 	>
@@ -323,11 +421,7 @@ const IssueDetails = ({
 					</button>
 				</div>
 
-				<h2 style={{fontSize: 18, marginTop: 0}}>{issue.title}</h2>
-
-				<div style={{color: theme.secondary, fontSize: 13, marginBottom: 18}}>
-					{issue.id}
-				</div>
+				<h2 style={{fontSize: 14, marginTop: 0}}>{issue.title}</h2>
 
 				{issue.description ? (
 					<p style={{lineHeight: 1.6, whiteSpace: 'pre-wrap'}}>
@@ -402,6 +496,8 @@ export const App = () => {
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
 	);
+	const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+
 	const socketRef = useRef<WebSocket | null>(null);
 
 	useEffect(() => {
@@ -442,37 +538,64 @@ export const App = () => {
 
 	const selectedIssue = findIssue(state, selectedIssueId);
 
-	const moveIssue = (issueId: string, parentId: string) => {
-		const movePayload1 = JSON.stringify({
-			type: 'issues:move',
-			payload: {
-				issueId,
-				parentId,
-				position: {
-					at: 'end',
-				},
-			},
-		});
-		console.log('Sending...', socketRef.current?.readyState);
-		if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
-			return;
-		}
+	const clearDragState = () => {
+		setDragOverSwimlaneId(null);
+		setDropTarget(null);
+	};
 
-		console.log('issue parent...', findIssueParent(state, issueId), parentId);
-		if (findIssueParent(state, issueId) === parentId) return;
+	const moveIssue = (
+		issueId: string,
+		parentId: string,
+		targetIndex: number | 'end',
+	) => {
+		setState(current => {
+			if (!current) return current;
 
-		const movePayload = JSON.stringify({
-			type: 'issues:move',
-			payload: {
-				issueId,
-				parentId,
-				position: {
-					at: 'end',
-				},
-			},
+			let movedIssue: GuiIssue | null = null;
+
+			const swimlanesWithoutIssue = current.swimlanes.map(swimlane => {
+				const issues = swimlane.issues.filter(issue => {
+					if (issue.id !== issueId) return true;
+					movedIssue = issue;
+					return false;
+				});
+
+				return {...swimlane, issues};
+			});
+
+			if (!movedIssue) return current;
+
+			return {
+				...current,
+				swimlanes: swimlanesWithoutIssue.map(swimlane => {
+					if (swimlane.id !== parentId) return swimlane;
+
+					const nextIssues = [...swimlane.issues];
+					const index =
+						targetIndex === 'end'
+							? nextIssues.length
+							: Math.max(0, Math.min(targetIndex, nextIssues.length));
+
+					nextIssues.splice(index, 0, movedIssue!);
+
+					return {...swimlane, issues: nextIssues};
+				}),
+			};
 		});
-		console.log('Sending move payload', movePayload);
-		socketRef.current.send(movePayload);
+
+		// Then send the actual persisted move.
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issues:move',
+				payload: {
+					issueId,
+					parentId,
+					position: {
+						at: targetIndex,
+					},
+				},
+			}),
+		);
 	};
 
 	return (
@@ -499,29 +622,39 @@ export const App = () => {
 			>
 				<strong style={{color: theme.accent}}>Epiq</strong>
 
-				<span style={{color: connected ? theme.green : theme.red}}>
+				<span
+					style={{color: connected ? theme.green : theme.red, fontSize: 12}}
+				>
 					● {connected ? 'connected' : 'disconnected'}
 				</span>
 			</header>
 
 			<div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
 				<main style={{padding: 24, overflow: 'auto', flex: 1}}>
-					<h1 style={{marginTop: 0, fontSize: 20}}>
+					<h1 style={{marginTop: 0, fontSize: 16}}>
 						{state?.board.title ?? 'Loading...'}
 					</h1>
 
 					<div style={{display: 'flex', gap: 16}}>
-						{state?.swimlanes.map((swimlane, index) => (
+						{state?.swimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
 								swimlane={swimlane}
-								selected={index === 0}
+								selected={false}
 								selectedIssueId={selectedIssueId}
 								dragOver={dragOverSwimlaneId === swimlane.id}
+								dropIndex={
+									dropTarget?.swimlaneId === swimlane.id
+										? dropTarget.index
+										: null
+								}
 								onSelectIssue={setSelectedIssueId}
 								onDropIssue={moveIssue}
 								onDragOver={setDragOverSwimlaneId}
-								onDragLeave={() => setDragOverSwimlaneId(null)}
+								onDragOverIssue={(swimlaneId, index) =>
+									setDropTarget({swimlaneId, index})
+								}
+								onDragLeave={clearDragState}
 							/>
 						))}
 					</div>
