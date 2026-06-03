@@ -8,6 +8,28 @@ import {
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 
+vi.mock('../../git/git-storage.js', () => ({
+	getStateBranchRoot: vi.fn(() =>
+		succeeded('Resolved state branch root', '/state'),
+	),
+}));
+
+vi.mock('../../git/git.js', () => ({
+	ensureStateBranchWorktree: vi.fn(() =>
+		succeeded('Ensured state branch worktree', undefined),
+	),
+}));
+
+vi.mock('../../git/git-utils.js', () => ({
+	execGit: vi.fn(() => succeeded('Pulled', '')),
+}));
+
+vi.mock('../../lib/project-setup/project-setup.js', () => ({
+	getProjectFileContents: vi.fn(() => ({
+		stateBranch: 'epiq-state',
+	})),
+}));
+
 vi.mock('../../git/sync-and-reload-state.js', () => ({
 	syncAndReloadState: vi.fn(() => succeeded('Synced', true)),
 }));
@@ -38,28 +60,18 @@ vi.mock('../../lib/storage/paths.js', async importOriginal => {
 
 	return {
 		...actual,
-		resolveClosestEpiqProjectRoot: vi.fn((dir: string) => ({
-			status: 'success',
-			message: 'Resolved closest epiq project root',
-			value: dir,
-		})),
+		resolveClosestEpiqProjectRoot: vi.fn((dir: string) =>
+			succeeded('Resolved closest epiq project root', dir),
+		),
 	};
 });
 
 vi.mock('../../lib/event/event-load.js', () => ({
-	loadMergedEvents: vi.fn(() => ({
-		status: 'success',
-		message: 'loaded',
-		value: [],
-	})),
+	loadMergedEvents: vi.fn(() => succeeded('loaded', [])),
 }));
 
 vi.mock('../../lib/event/event-boot.js', () => ({
-	bootStateFromEventLog: vi.fn(() => ({
-		status: 'success',
-		message: 'booted',
-		value: null,
-	})),
+	bootStateFromEventLog: vi.fn(() => succeeded('booted', null)),
 }));
 
 vi.mock('../../lib/config/user-config.js', () => ({
@@ -77,13 +89,7 @@ vi.mock('../../lib/config/user-config.js', () => ({
 }));
 
 vi.mock('../../lib/event/event-materialize-and-persist.js', () => ({
-	materializeAndPersistAll: vi.fn(() => [
-		{
-			status: 'success',
-			message: 'persisted',
-			value: null,
-		},
-	]),
+	materializeAndPersistAll: vi.fn(() => [succeeded('persisted', null)]),
 }));
 
 vi.mock('../../lib/repository/rank.js', () => ({
@@ -163,10 +169,8 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 
 	return {
 		...actual,
-		getSafeState: () => ({
-			status: 'success',
-			message: 'Resolved safe state',
-			value: {
+		getSafeState: () =>
+			succeeded('Resolved safe state', {
 				nodes,
 				rootNodeId: 'workspace-1',
 				contextNode: nodes['swimlane-1'],
@@ -176,8 +180,7 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 					status: 'synced',
 					msg: 'Synced',
 				},
-			},
-		}),
+			}),
 		getRenderedChildren: (id: string) =>
 			Object.values(nodes).filter(
 				node => !node.isDeleted && node.parentNodeId === id,
