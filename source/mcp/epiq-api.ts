@@ -1,6 +1,9 @@
 import {ulid} from 'ulid';
+import {getStateBranchRoot} from '../git/git-storage.js';
+import {execGit} from '../git/git-utils.js';
+import {ensureStateBranchWorktree} from '../git/git.js';
 import {syncAndReloadState} from '../git/sync-and-reload-state.js';
-import {resetHardToRemoteState, syncEpiqWithRemote} from '../git/sync.js';
+import {syncEpiqWithRemote} from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
@@ -11,6 +14,7 @@ import {AppEvent, MovePosition} from '../lib/event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {isTicketNode, Ticket} from '../lib/model/context.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {getProjectFileContents} from '../lib/project-setup/project-setup.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {
 	resolveAndPersistRankForCreate,
@@ -19,6 +23,7 @@ import {
 import {getSafeState} from '../lib/state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
+import {logger} from '../logger.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -75,12 +80,36 @@ const boot = async (repoRoot?: string): Promise<Result<BootResult>> => {
 	const repoRootResult = resolveRepoRoot(repoRoot);
 	if (isFail(repoRootResult)) return repoRootResult;
 
-	const syncResult = await resetHardToRemoteState(repoRootResult.value);
-	if (isFail(syncResult)) return failed(syncResult.message);
+	const stateBranchRootResult = getStateBranchRoot({
+		repoRoot: repoRootResult.value,
+	});
 
-	const {stateBranchRoot} = syncResult.value;
+	if (isFail(stateBranchRootResult)) {
+		return failed(stateBranchRootResult.message);
+	}
 
-	const eventsResult = loadMergedEvents(stateBranchRoot);
+	const projectFileContents = getProjectFileContents();
+
+	const ensureWorktreeResult = await ensureStateBranchWorktree({
+		repoRoot: repoRootResult.value,
+		stateBranchRoot: stateBranchRootResult.value,
+		stateBranchName: projectFileContents.stateBranch,
+	});
+
+	if (isFail(ensureWorktreeResult)) {
+		return failed(ensureWorktreeResult.message);
+	}
+
+	const pullResult = await execGit({
+		cwd: stateBranchRootResult.value,
+		args: ['pull', '--ff-only'],
+	});
+
+	if (isFail(pullResult)) {
+		logger.info(3, pullResult.message);
+	}
+
+	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
 	const bootResult = bootStateFromEventLog(eventsResult.value);
@@ -88,7 +117,7 @@ const boot = async (repoRoot?: string): Promise<Result<BootResult>> => {
 
 	return succeeded('Booted Epiq state', {
 		repoRoot: repoRootResult.value,
-		stateBranchRoot,
+		stateBranchRoot: stateBranchRootResult.value,
 	});
 };
 
@@ -273,20 +302,46 @@ export const closeIssue = async (input: CloseIssueInput) => {
 	return succeeded('Closed issue', {id: input.issueId});
 };
 
-export const moveIssue = async (input: MoveIssueInput) => {
-	const bootResult = await boot(input.repoRoot);
-	if (isFail(bootResult)) return bootResult;
+export const moveIssue = async (
+	input: MoveIssueInput,
+): Promise<Result<{id: string; parentId: string}>> => {
+	console.log('[moveIssue] start', input);
+
+	const repoRootResult = resolveRepoRoot(input.repoRoot);
+
+	if (isFail(repoRootResult)) return repoRootResult;
 
 	const actorResult = getActor();
 	if (isFail(actorResult)) return actorResult;
+
+	const syncResult = await syncEpiqWithRemote({
+		cwd: repoRootResult.value,
+		ownEventFileName: getPersistFileName(actorResult.value),
+	});
+
+	console.log('[moveIssue] syncEpiqWithRemote:after', syncResult);
+
+	if (isFail(syncResult)) return syncResult;
+
+	const {stateBranchRoot} = syncResult.value;
+
+	const eventsResult = loadMergedEvents(stateBranchRoot);
+
+	if (isFail(eventsResult)) return eventsResult;
+
+	const bootStateResult = bootStateFromEventLog(eventsResult.value);
+
+	if (isFail(bootStateResult)) return bootStateResult;
 
 	const rankResult = resolveAndPersistRankForMove(
 		input.parentId,
 		input.issueId,
 		input.position ?? {at: 'end'},
 		actorResult.value,
-		bootResult.value.stateBranchRoot,
+		stateBranchRoot,
 	);
+	if (isFail(rankResult)) return rankResult;
+
 	if (isFail(rankResult)) return rankResult;
 
 	const event = {
@@ -300,19 +355,28 @@ export const moveIssue = async (input: MoveIssueInput) => {
 		},
 	} satisfies AppEvent<'move.node'>;
 
-	const results = materializeAndPersistAll(
-		[event],
-		bootResult.value.stateBranchRoot,
-	);
+	const results = materializeAndPersistAll([event], stateBranchRoot);
 	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
 
-	void syncAndReloadState();
+	if (failure) {
+		return failed(failure.message);
+	}
 
-	return succeeded('Moved issue', {
+	const pushResult = await syncEpiqWithRemote({
+		cwd: repoRootResult.value,
+		ownEventFileName: getPersistFileName(actorResult.value),
+	});
+
+	if (isFail(pushResult)) return pushResult;
+
+	const result = succeeded('Moved issue', {
 		id: input.issueId,
 		parentId: input.parentId,
 	});
+
+	console.log('[moveIssue] success', result);
+
+	return result;
 };
 
 export const sync = async (input: SyncInput = {}) => {

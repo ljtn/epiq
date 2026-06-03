@@ -151,6 +151,13 @@ export const startGuiServer = async (input: {
 				if (message.type === 'issues:move') {
 					console.log('[gui:move:start]', message.payload);
 
+					if (!message.payload.position) {
+						return sendSocket(socket, {
+							type: 'error',
+							message: 'Missing move position',
+						});
+					}
+
 					const result = await moveIssue({
 						...message.payload,
 						repoRoot: input.repoRoot,
