@@ -12,6 +12,7 @@ import {
 } from '../mcp/epiq-api.js';
 import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {MovePosition} from '../lib/event/event.model.js';
+import {registerGuiSocket} from './client/lib/gui-broadcast.js';
 
 const distRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -108,6 +109,8 @@ export const startGuiServer = async (input: {
 	});
 
 	wss.on('connection', socket => {
+		registerGuiSocket(socket);
+
 		socket.on('message', async raw => {
 			try {
 				const message = JSON.parse(raw.toString()) as GuiMessage;

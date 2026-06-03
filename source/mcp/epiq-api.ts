@@ -305,32 +305,22 @@ export const closeIssue = async (input: CloseIssueInput) => {
 export const moveIssue = async (
 	input: MoveIssueInput,
 ): Promise<Result<{id: string; parentId: string}>> => {
-	console.log('[moveIssue] start', input);
-
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
-
 	if (isFail(repoRootResult)) return repoRootResult;
 
 	const actorResult = getActor();
 	if (isFail(actorResult)) return actorResult;
 
-	const syncResult = await syncEpiqWithRemote({
-		cwd: repoRootResult.value,
-		ownEventFileName: getPersistFileName(actorResult.value),
+	const stateBranchRootResult = getStateBranchRoot({
+		repoRoot: repoRootResult.value,
 	});
 
-	console.log('[moveIssue] syncEpiqWithRemote:after', syncResult);
+	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
 
-	if (isFail(syncResult)) return syncResult;
-
-	const {stateBranchRoot} = syncResult.value;
-
-	const eventsResult = loadMergedEvents(stateBranchRoot);
-
+	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
 	if (isFail(eventsResult)) return eventsResult;
 
 	const bootStateResult = bootStateFromEventLog(eventsResult.value);
-
 	if (isFail(bootStateResult)) return bootStateResult;
 
 	const rankResult = resolveAndPersistRankForMove(
@@ -338,9 +328,8 @@ export const moveIssue = async (
 		input.issueId,
 		input.position ?? {at: 'end'},
 		actorResult.value,
-		stateBranchRoot,
+		stateBranchRootResult.value,
 	);
-	if (isFail(rankResult)) return rankResult;
 
 	if (isFail(rankResult)) return rankResult;
 
@@ -355,7 +344,10 @@ export const moveIssue = async (
 		},
 	} satisfies AppEvent<'move.node'>;
 
-	const results = materializeAndPersistAll([event], stateBranchRoot);
+	const results = materializeAndPersistAll(
+		[event],
+		stateBranchRootResult.value,
+	);
 	const failure = results.find(isFail);
 
 	if (failure) {
@@ -367,16 +359,16 @@ export const moveIssue = async (
 		ownEventFileName: getPersistFileName(actorResult.value),
 	});
 
-	if (isFail(pushResult)) return pushResult;
+	if (isFail(pushResult)) {
+		return failed(
+			`Moved issue locally, but sync failed: ${pushResult.message}`,
+		);
+	}
 
-	const result = succeeded('Moved issue', {
+	return succeeded('Moved issue', {
 		id: input.issueId,
 		parentId: input.parentId,
 	});
-
-	console.log('[moveIssue] success', result);
-
-	return result;
 };
 
 export const sync = async (input: SyncInput = {}) => {

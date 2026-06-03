@@ -1,20 +1,20 @@
+import {broadcastGuiMessage} from '../../gui/client/lib/gui-broadcast.js';
 import {failed, Result} from '../model/result-types.js';
 import {isStateInitialized, patchState} from './state.js';
 
-const patchSyncStatus = ({
-	status,
-	msg,
-}: {
+type SyncStatus = {
 	status: 'synced' | 'failed' | 'syncing';
 	msg: string;
-}) => {
+};
+
+const patchSyncStatus = (syncStatus: SyncStatus) => {
 	if (!isStateInitialized()) return;
 
-	patchState({
-		syncStatus: {
-			status,
-			msg,
-		},
+	patchState({syncStatus});
+
+	broadcastGuiMessage({
+		type: 'sync-status',
+		payload: syncStatus,
 	});
 };
 

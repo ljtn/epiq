@@ -39,8 +39,8 @@ export const SwimlaneColumn = ({
 
 				onDragOver(swimlane.id);
 
-				if (swimlane.issues.length === 0) {
-					onDragOverIssue(swimlane.id, 0);
+				if (dropIndex === null) {
+					onDragOverIssue(swimlane.id, swimlane.issues.length);
 				}
 			}}
 			onDragLeave={event => {
@@ -55,7 +55,9 @@ export const SwimlaneColumn = ({
 				const issueId = event.dataTransfer.getData('text/plain');
 				if (!issueId) return;
 
-				onDropIssue(issueId, swimlane.id, dropIndex ?? 'end');
+				const targetIndex = dropIndex ?? swimlane.issues.length;
+
+				onDropIssue(issueId, swimlane.id, targetIndex);
 				onDragLeave();
 			}}
 			style={{

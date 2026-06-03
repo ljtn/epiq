@@ -5,6 +5,11 @@ import {moveIssue} from './lib/gui-move-issue';
 import {DropTarget, GuiState, Result} from './lib/gui-state.model';
 import {GUI_THEME} from './lib/gui-theme';
 
+type SyncStatus = {
+	status: 'synced' | 'failed' | 'syncing';
+	msg: string;
+};
+
 const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
 	if (!payload) return undefined;
 
@@ -64,6 +69,10 @@ export const DropIndicator = () => (
 
 export const App = () => {
 	const [connected, setConnected] = useState(false);
+	const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+		status: 'synced',
+		msg: 'Idle',
+	});
 	const [state, setState] = useState<GuiState | null>(null);
 	const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
@@ -98,6 +107,10 @@ export const App = () => {
 				const nextState = getResultValue<GuiState>(message.payload);
 				if (nextState) setState(nextState);
 			}
+
+			if (message.type === 'sync-status') {
+				setSyncStatus(message.payload);
+			}
 		});
 
 		return () => {
@@ -110,6 +123,13 @@ export const App = () => {
 	}, []);
 
 	const selectedIssue = findIssue(state, selectedIssueId);
+
+	const syncColor =
+		syncStatus.status === 'failed'
+			? GUI_THEME.red
+			: syncStatus.status === 'syncing'
+			? GUI_THEME.accent
+			: GUI_THEME.green;
 
 	const clearDragState = () => {
 		setDragOverSwimlaneId(null);
@@ -140,14 +160,24 @@ export const App = () => {
 			>
 				<strong style={{color: GUI_THEME.accent}}>Epiq</strong>
 
-				<span
+				<div
 					style={{
-						color: connected ? GUI_THEME.green : GUI_THEME.red,
+						display: 'flex',
+						alignItems: 'center',
+						gap: 16,
 						fontSize: 12,
 					}}
 				>
-					● {connected ? 'connected' : 'disconnected'}
-				</span>
+					<span style={{color: syncColor}}>● {syncStatus.msg}</span>
+
+					<span
+						style={{
+							color: connected ? GUI_THEME.green : GUI_THEME.red,
+						}}
+					>
+						● {connected ? 'connected' : 'disconnected'}
+					</span>
+				</div>
 			</header>
 
 			<div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>

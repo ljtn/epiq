@@ -5,6 +5,7 @@ type MovePosition =
 	| {at: 'end'}
 	| {at: 'before'; sibling: string}
 	| {at: 'after'; sibling: string};
+
 const toMovePosition = (
 	targetIssues: GuiIssue[],
 	targetIndex: number | 'end',
@@ -31,6 +32,44 @@ const toMovePosition = (
 	};
 };
 
+const findMove = (
+	state: GuiState,
+	issueId: string,
+	parentId: string,
+	targetIndex: number | 'end',
+) => {
+	let movedIssue: GuiIssue | null = null;
+
+	const sourceSwimlane = state.swimlanes.find(swimlane =>
+		swimlane.issues.some(issue => issue.id === issueId),
+	);
+
+	const targetSwimlane = state.swimlanes.find(
+		swimlane => swimlane.id === parentId,
+	);
+
+	if (!sourceSwimlane || !targetSwimlane) return null;
+
+	movedIssue =
+		sourceSwimlane.issues.find(issue => issue.id === issueId) ?? null;
+
+	if (!movedIssue) return null;
+
+	const targetIssues =
+		sourceSwimlane.id === targetSwimlane.id
+			? targetSwimlane.issues.filter(issue => issue.id !== issueId)
+			: targetSwimlane.issues;
+
+	const position = toMovePosition(targetIssues, targetIndex);
+
+	return {
+		movedIssue,
+		position,
+		sourceParentId: sourceSwimlane.id,
+		targetParentId: targetSwimlane.id,
+	};
+};
+
 export const moveIssue =
 	(
 		setState: React.Dispatch<React.SetStateAction<GuiState | null>>,
@@ -42,38 +81,37 @@ export const moveIssue =
 		setState(current => {
 			if (!current) return current;
 
-			let movedIssue: GuiIssue | null = null;
+			const move = findMove(current, issueId, parentId, targetIndex);
+			if (!move) return current;
 
-			const swimlanesWithoutIssue = current.swimlanes.map(swimlane => {
-				const issues = swimlane.issues.filter(issue => {
-					if (issue.id !== issueId) return true;
-					movedIssue = issue;
-					return false;
-				});
+			position = move.position;
 
-				return {...swimlane, issues};
-			});
+			const nextSwimlanes = current.swimlanes.map(swimlane => {
+				const issuesWithoutMoved = swimlane.issues.filter(
+					issue => issue.id !== issueId,
+				);
 
-			if (!movedIssue) return current;
+				if (swimlane.id !== parentId) {
+					return {
+						...swimlane,
+						issues: issuesWithoutMoved,
+					};
+				}
 
-			const nextSwimlanes = swimlanesWithoutIssue.map(swimlane => {
-				if (swimlane.id !== parentId) return swimlane;
-
-				const nextIssues = [...swimlane.issues];
-
-				position = toMovePosition(nextIssues, targetIndex);
+				const nextIssues = [...issuesWithoutMoved];
 
 				const index =
 					targetIndex === 'end'
 						? nextIssues.length
 						: Math.max(0, Math.min(targetIndex, nextIssues.length));
 
-				nextIssues.splice(index, 0, movedIssue!);
+				nextIssues.splice(index, 0, move.movedIssue);
 
-				return {...swimlane, issues: nextIssues};
+				return {
+					...swimlane,
+					issues: nextIssues,
+				};
 			});
-
-			if (!position) return current;
 
 			return {
 				...current,
