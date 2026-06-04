@@ -234,6 +234,10 @@ export const App = () => {
 					onClose={() => setSelectedIssueId(null)}
 					onEditTitle={editIssueTitle}
 					onEditDescription={editIssueDescription}
+					onAddAssignee={() => {}}
+					onAddTag={() => {}}
+					onRemoveAssignee={() => {}}
+					onRemoveTag={() => {}}
 				/>
 			</div>
 		</div>

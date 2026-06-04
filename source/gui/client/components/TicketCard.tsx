@@ -101,7 +101,7 @@ export const TicketCard = ({
 							padding: '4px 8px',
 						}}
 					>
-						■ {tag.name}
+						{tag.name}
 					</span>
 				))}
 

@@ -113,6 +113,7 @@ export const SwimlaneColumn = ({
 								padding: 24,
 								textAlign: 'center',
 								color: GUI_THEME.secondary,
+								fontSize: 12,
 							}}
 						>
 							Drop issue here
