@@ -69,6 +69,11 @@ type EditIssueDescriptionInput = ToolInput & {
 	description: string;
 };
 
+type EditIssueTitleInput = ToolInput & {
+	issueId: string;
+	title: string;
+};
+
 const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	const result = resolveClosestEpiqProjectRoot(repoRoot ?? process.cwd());
 	if (isFail(result)) return failed(result.message);
@@ -500,5 +505,61 @@ export const editIssueDescription = async (
 	return succeeded('Edited issue description', {
 		id: input.issueId,
 		description: input.description,
+	});
+};
+
+export const editIssueTitle = async (input: EditIssueTitleInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Edit target must be an issue');
+	if (issue.readonly) return failed('Cannot edit readonly issue');
+
+	const title = sanitizeInlineText(input.title);
+
+	if (!title.trim()) {
+		return failed('Issue title cannot be empty');
+	}
+
+	if (issue.title === title) {
+		return succeeded('No changes made', {
+			id: input.issueId,
+			title,
+		});
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'edit.title',
+		payload: {
+			id: input.issueId,
+			name: title,
+		},
+	} satisfies AppEvent<'edit.title'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Edited issue title', {
+		id: input.issueId,
+		title,
 	});
 };

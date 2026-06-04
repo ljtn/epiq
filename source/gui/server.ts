@@ -5,6 +5,8 @@ import {fileURLToPath} from 'node:url';
 import {WebSocket, WebSocketServer} from 'ws';
 import {
 	createIssue,
+	editIssueDescription,
+	editIssueTitle,
 	getGuiState,
 	listIssues,
 	moveIssue,
@@ -26,6 +28,11 @@ type GuiMessage =
 	| {type: 'issues:list'}
 	| {type: 'issues:create'; payload: {title: string; parentId: string}}
 	| {type: 'sync'}
+	| {type: 'issue:edit:title'; payload: {issueId: string; title: string}}
+	| {
+			type: 'issue:edit:description';
+			payload: {issueId: string; description: string};
+	  }
 	| {
 			type: 'issues:move';
 			payload: {
@@ -56,12 +63,16 @@ const getContentType = (filePath: string) => {
 
 const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 	const safePath =
-		urlPathname === '/' ? 'index.html' : urlPathname.replace(/^\/+/, '');
+		urlPathname === '/'
+			? 'index.html'
+			: decodeURIComponent(urlPathname).replace(/^\/+/, '');
 
-	const filePath = path.resolve(path.join(guiRoot, safePath));
 	const resolvedGuiRoot = path.resolve(guiRoot);
+	const filePath = path.resolve(resolvedGuiRoot, safePath);
 
-	if (!filePath.startsWith(resolvedGuiRoot)) {
+	const relativePath = path.relative(resolvedGuiRoot, filePath);
+
+	if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
 		return sendJson(res, 403, {
 			isError: true,
 			message: 'Forbidden',
@@ -75,7 +86,7 @@ const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 			'content-type': getContentType(filePath),
 		});
 
-		res.end(file);
+		return res.end(file);
 	} catch {
 		return sendJson(res, 404, {
 			isError: true,
@@ -114,19 +125,63 @@ export const startGuiServer = async (input: {
 		socket.on('message', async raw => {
 			try {
 				const message = JSON.parse(raw.toString()) as GuiMessage;
+				const {type} = message;
 
-				if (message.type === 'state:get') {
+				if (type === 'state:get') {
 					return sendGuiState(socket, input.repoRoot);
 				}
 
-				if (message.type === 'issues:list') {
+				if (type === 'sync') {
+					const result = await sync({repoRoot: input.repoRoot});
+
+					sendSocket(socket, {
+						type: 'sync:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issue:edit:description') {
+					const {issueId, description} = message.payload;
+
+					const result = await editIssueDescription({
+						repoRoot: input.repoRoot,
+						issueId,
+						description,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:edit:description:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+				if (type === 'issue:edit:title') {
+					const {issueId, title} = message.payload;
+
+					const result = await editIssueTitle({
+						repoRoot: input.repoRoot,
+						issueId,
+						title,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:edit:title:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issues:list') {
 					return sendSocket(socket, {
 						type: 'issues',
 						payload: await listIssues({repoRoot: input.repoRoot}),
 					});
 				}
-
-				if (message.type === 'issues:create') {
+				if (type === 'issues:create') {
 					const result = await createIssue({
 						...message.payload,
 						repoRoot: input.repoRoot,
@@ -140,18 +195,7 @@ export const startGuiServer = async (input: {
 					return sendGuiState(socket, input.repoRoot);
 				}
 
-				if (message.type === 'sync') {
-					const result = await sync({repoRoot: input.repoRoot});
-
-					sendSocket(socket, {
-						type: 'sync:result',
-						payload: result,
-					});
-
-					return sendGuiState(socket, input.repoRoot);
-				}
-
-				if (message.type === 'issues:move') {
+				if (type === 'issues:move') {
 					console.log('[gui:move:start]', message.payload);
 
 					if (!message.payload.position) {

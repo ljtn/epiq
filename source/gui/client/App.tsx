@@ -136,6 +136,24 @@ export const App = () => {
 		setDropTarget(null);
 	};
 
+	const editIssueTitle = (issueId: string, title: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:edit:title',
+				payload: {issueId, title},
+			}),
+		);
+	};
+
+	const editIssueDescription = (issueId: string, description: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:edit:description',
+				payload: {issueId, description},
+			}),
+		);
+	};
+
 	return (
 		<div
 			style={{
@@ -214,6 +232,8 @@ export const App = () => {
 				<IssueDetails
 					issue={selectedIssue}
 					onClose={() => setSelectedIssueId(null)}
+					onEditTitle={editIssueTitle}
+					onEditDescription={editIssueDescription}
 				/>
 			</div>
 		</div>
