@@ -74,6 +74,26 @@ type EditIssueTitleInput = ToolInput & {
 	title: string;
 };
 
+type AddIssueTagInput = ToolInput & {
+	issueId: string;
+	tagName: string;
+};
+
+type RemoveIssueTagInput = ToolInput & {
+	issueId: string;
+	tagId: string;
+};
+
+type AddIssueAssigneeInput = ToolInput & {
+	issueId: string;
+	assigneeName: string;
+};
+
+type RemoveIssueAssigneeInput = ToolInput & {
+	issueId: string;
+	assigneeId: string;
+};
+
 const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	const result = resolveClosestEpiqProjectRoot(repoRoot ?? process.cwd());
 	if (isFail(result)) return failed(result.message);
@@ -561,5 +581,233 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 	return succeeded('Edited issue title', {
 		id: input.issueId,
 		title,
+	});
+};
+
+export const addIssueTag = async (input: AddIssueTagInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Tag target must be an issue');
+	if (issue.readonly) return failed('Cannot tag readonly issue');
+
+	const tagName = sanitizeInlineText(input.tagName).trim();
+	if (!tagName) return failed('Tag name cannot be empty');
+
+	const existingTag = Object.values(stateResult.value.tags).find(
+		tag => tag.name === tagName,
+	);
+
+	const tagId = existingTag?.id ?? ulid();
+
+	const events = [
+		...(existingTag
+			? []
+			: [
+					{
+						id: ulid(),
+						...actorResult.value,
+						action: 'create.tag',
+						payload: {
+							id: tagId,
+							name: tagName,
+						},
+					} satisfies AppEvent<'create.tag'>,
+			  ]),
+		{
+			id: ulid(),
+			...actorResult.value,
+			action: 'add.issue.tag',
+			payload: {
+				id: input.issueId,
+				tag: tagId,
+			},
+		} satisfies AppEvent<'add.issue.tag'>,
+	];
+
+	const results = materializeAndPersistAll(
+		events,
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Added issue tag', {
+		id: input.issueId,
+		tag: {id: tagId, name: tagName},
+	});
+};
+
+export const removeIssueTag = async (input: RemoveIssueTagInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Untag target must be an issue');
+	if (issue.readonly) return failed('Cannot untag readonly issue');
+
+	if (!stateResult.value.tags[input.tagId]) {
+		return failed('Tag not found');
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'remove.issue.tag',
+		payload: {
+			id: input.issueId,
+			tag: input.tagId,
+		},
+	} satisfies AppEvent<'remove.issue.tag'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Removed issue tag', {
+		id: input.issueId,
+		tagId: input.tagId,
+	});
+};
+
+export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Assign target must be an issue');
+	if (issue.readonly) return failed('Cannot assign readonly issue');
+
+	const assigneeName = sanitizeInlineText(input.assigneeName).trim();
+	if (!assigneeName) return failed('Assignee name cannot be empty');
+
+	const existingAssignee = Object.values(stateResult.value.contributors).find(
+		contributor => contributor.name === assigneeName,
+	);
+
+	const assigneeId = existingAssignee?.id ?? ulid();
+
+	const events = [
+		...(existingAssignee
+			? []
+			: [
+					{
+						id: ulid(),
+						...actorResult.value,
+						action: 'create.contributor',
+						payload: {
+							id: assigneeId,
+							name: assigneeName,
+						},
+					} satisfies AppEvent<'create.contributor'>,
+			  ]),
+		{
+			id: ulid(),
+			...actorResult.value,
+			action: 'add.issue.assignee',
+			payload: {
+				id: input.issueId,
+				assignee: assigneeId,
+			},
+		} satisfies AppEvent<'add.issue.assignee'>,
+	];
+
+	const results = materializeAndPersistAll(
+		events,
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Added issue assignee', {
+		id: input.issueId,
+		assignee: {id: assigneeId, name: assigneeName},
+	});
+};
+
+export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Unassign target must be an issue');
+	if (issue.readonly) return failed('Cannot unassign readonly issue');
+
+	if (!stateResult.value.contributors[input.assigneeId]) {
+		return failed('Assignee not found');
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'remove.issue.assignee',
+		payload: {
+			id: input.issueId,
+			assignee: input.assigneeId,
+		},
+	} satisfies AppEvent<'remove.issue.assignee'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Removed issue assignee', {
+		id: input.issueId,
+		assigneeId: input.assigneeId,
 	});
 };

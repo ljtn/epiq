@@ -154,6 +154,42 @@ export const App = () => {
 		);
 	};
 
+	const addIssueTag = (issueId: string, tagName: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:tag:add',
+				payload: {issueId, tagName},
+			}),
+		);
+	};
+
+	const removeIssueTag = (issueId: string, tagId: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:tag:remove',
+				payload: {issueId, tagId},
+			}),
+		);
+	};
+
+	const addIssueAssignee = (issueId: string, assigneeName: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:assignee:add',
+				payload: {issueId, assigneeName},
+			}),
+		);
+	};
+
+	const removeIssueAssignee = (issueId: string, assigneeId: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:assignee:remove',
+				payload: {issueId, assigneeId},
+			}),
+		);
+	};
+
 	return (
 		<div
 			style={{
@@ -183,17 +219,16 @@ export const App = () => {
 						display: 'flex',
 						alignItems: 'center',
 						gap: 16,
-						fontSize: 12,
+						fontSize: 10,
 					}}
 				>
-					<span style={{color: syncColor}}>● {syncStatus.msg}</span>
-
+					<span style={{color: syncColor}}>● {syncStatus.msg}</span>|
 					<span
 						style={{
 							color: connected ? GUI_THEME.green : GUI_THEME.red,
 						}}
 					>
-						● {connected ? 'connected' : 'disconnected'}
+						{connected ? 'connected' : 'disconnected'}
 					</span>
 				</div>
 			</header>
@@ -234,10 +269,10 @@ export const App = () => {
 					onClose={() => setSelectedIssueId(null)}
 					onEditTitle={editIssueTitle}
 					onEditDescription={editIssueDescription}
-					onAddAssignee={() => {}}
-					onAddTag={() => {}}
-					onRemoveAssignee={() => {}}
-					onRemoveTag={() => {}}
+					onAddAssignee={addIssueAssignee}
+					onAddTag={addIssueTag}
+					onRemoveAssignee={removeIssueAssignee}
+					onRemoveTag={removeIssueTag}
 				/>
 			</div>
 		</div>

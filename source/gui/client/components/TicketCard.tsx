@@ -90,7 +90,9 @@ export const TicketCard = ({
 				</div>
 			</div>
 
-			<div style={{display: 'flex', gap: 8, flexShrink: 0}}>
+			<div
+				style={{display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center'}}
+			>
 				{ticket.tags.map(tag => (
 					<span
 						key={tag.id}

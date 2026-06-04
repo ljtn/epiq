@@ -4,16 +4,20 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {WebSocket, WebSocketServer} from 'ws';
 import {
+	addIssueAssignee,
+	addIssueTag,
 	createIssue,
 	editIssueDescription,
 	editIssueTitle,
 	getGuiState,
 	listIssues,
 	moveIssue,
+	removeIssueAssignee,
+	removeIssueTag,
 	sync,
 } from '../mcp/epiq-api.js';
-import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {MovePosition} from '../lib/event/event.model.js';
+import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {registerGuiSocket} from './client/lib/gui-broadcast.js';
 
 const distRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +36,16 @@ type GuiMessage =
 	| {
 			type: 'issue:edit:description';
 			payload: {issueId: string; description: string};
+	  }
+	| {type: 'issue:tag:add'; payload: {issueId: string; tagName: string}}
+	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}
+	| {
+			type: 'issue:assignee:add';
+			payload: {issueId: string; assigneeName: string};
+	  }
+	| {
+			type: 'issue:assignee:remove';
+			payload: {issueId: string; assigneeId: string};
 	  }
 	| {
 			type: 'issues:move';
@@ -69,7 +83,6 @@ const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 
 	const resolvedGuiRoot = path.resolve(guiRoot);
 	const filePath = path.resolve(resolvedGuiRoot, safePath);
-
 	const relativePath = path.relative(resolvedGuiRoot, filePath);
 
 	if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
@@ -143,12 +156,9 @@ export const startGuiServer = async (input: {
 				}
 
 				if (type === 'issue:edit:description') {
-					const {issueId, description} = message.payload;
-
 					const result = await editIssueDescription({
 						repoRoot: input.repoRoot,
-						issueId,
-						description,
+						...message.payload,
 					});
 
 					sendSocket(socket, {
@@ -158,17 +168,71 @@ export const startGuiServer = async (input: {
 
 					return sendGuiState(socket, input.repoRoot);
 				}
-				if (type === 'issue:edit:title') {
-					const {issueId, title} = message.payload;
 
+				if (type === 'issue:edit:title') {
 					const result = await editIssueTitle({
 						repoRoot: input.repoRoot,
-						issueId,
-						title,
+						...message.payload,
 					});
 
 					sendSocket(socket, {
 						type: 'issue:edit:title:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issue:tag:add') {
+					const result = await addIssueTag({
+						repoRoot: input.repoRoot,
+						...message.payload,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:tag:add:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issue:tag:remove') {
+					const result = await removeIssueTag({
+						repoRoot: input.repoRoot,
+						...message.payload,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:tag:remove:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issue:assignee:add') {
+					const result = await addIssueAssignee({
+						repoRoot: input.repoRoot,
+						...message.payload,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:assignee:add:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issue:assignee:remove') {
+					const result = await removeIssueAssignee({
+						repoRoot: input.repoRoot,
+						...message.payload,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:assignee:remove:result',
 						payload: result,
 					});
 
@@ -181,6 +245,7 @@ export const startGuiServer = async (input: {
 						payload: await listIssues({repoRoot: input.repoRoot}),
 					});
 				}
+
 				if (type === 'issues:create') {
 					const result = await createIssue({
 						...message.payload,
@@ -196,8 +261,6 @@ export const startGuiServer = async (input: {
 				}
 
 				if (type === 'issues:move') {
-					console.log('[gui:move:start]', message.payload);
-
 					if (!message.payload.position) {
 						return sendSocket(socket, {
 							type: 'error',
@@ -210,16 +273,12 @@ export const startGuiServer = async (input: {
 						repoRoot: input.repoRoot,
 					});
 
-					console.log('[gui:move:result]', result);
-
 					sendSocket(socket, {
 						type: 'issues:move:result',
 						payload: result,
 					});
 
-					await sendGuiState(socket, input.repoRoot);
-
-					return;
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				return sendSocket(socket, {
