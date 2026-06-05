@@ -63,12 +63,12 @@ export const SwimlaneColumn = ({
 			style={{
 				width: 360,
 				minWidth: 360,
-				height: 'calc(100vh - 128px)',
+				height: 'calc(100vh - 160px)',
 				background: dragOver ? '#14202a' : 'rgb(17 20 27 / 0%)',
 				border: `1px solid ${
 					selected || dragOver ? GUI_THEME.accent : GUI_THEME.line
 				}`,
-				borderRadius: 14,
+				borderRadius: 12,
 				padding: '0 14px',
 				display: 'flex',
 				flexDirection: 'column',
@@ -96,9 +96,7 @@ export const SwimlaneColumn = ({
 					{swimlane.title}
 				</strong>
 
-				<span style={{color: GUI_THEME.secondary}}>
-					({swimlane.issues.length})
-				</span>
+				<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
 				{swimlane.readonly && <span>🔒</span>}
 			</header>
@@ -112,7 +110,7 @@ export const SwimlaneColumn = ({
 							style={{
 								padding: 24,
 								textAlign: 'center',
-								color: GUI_THEME.secondary,
+								color: GUI_THEME.dim,
 								fontSize: 12,
 							}}
 						>

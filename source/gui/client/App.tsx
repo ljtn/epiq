@@ -208,11 +208,11 @@ export const App = () => {
 					display: 'flex',
 					alignItems: 'center',
 					justifyContent: 'space-between',
-					padding: '0 18px',
+					padding: '0 30px',
 					borderBottom: `1px solid ${GUI_THEME.line}`,
 				}}
 			>
-				<strong style={{color: GUI_THEME.accent}}>Epiq</strong>
+				<span style={{color: GUI_THEME.accent, fontSize: '12px'}}>:epiq</span>
 
 				<div
 					style={{
@@ -234,8 +234,15 @@ export const App = () => {
 			</header>
 
 			<div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
-				<main style={{padding: 24, overflow: 'auto', flex: 1}}>
-					<h1 style={{marginTop: 0, fontSize: 16}}>
+				<main style={{padding: '0 30px 30px 30px', overflow: 'auto', flex: 1}}>
+					<h1
+						style={{
+							margin: 0,
+							fontSize: '12px',
+							padding: '30px 10px',
+							color: GUI_THEME.dim,
+						}}
+					>
 						{state?.board.title ?? 'Loading...'}
 					</h1>
 
