@@ -39,24 +39,30 @@ const findMove = (
 	targetIndex: number | 'end',
 ) => {
 	let movedIssue: GuiIssue | null = null;
+	let sourceSwimlaneId: string | null = null;
 
-	const sourceSwimlane = state.swimlanes.find(swimlane =>
-		swimlane.issues.some(issue => issue.id === issueId),
-	);
+	const targetSwimlane = state.boards
+		.flatMap(board => board.swimlanes)
+		.find(swimlane => swimlane.id === parentId);
 
-	const targetSwimlane = state.swimlanes.find(
-		swimlane => swimlane.id === parentId,
-	);
+	for (const board of state.boards) {
+		for (const swimlane of board.swimlanes) {
+			const issue = swimlane.issues.find(issue => issue.id === issueId);
 
-	if (!sourceSwimlane || !targetSwimlane) return null;
+			if (issue) {
+				movedIssue = issue;
+				sourceSwimlaneId = swimlane.id;
+				break;
+			}
+		}
 
-	movedIssue =
-		sourceSwimlane.issues.find(issue => issue.id === issueId) ?? null;
+		if (movedIssue) break;
+	}
 
-	if (!movedIssue) return null;
+	if (!movedIssue || !sourceSwimlaneId || !targetSwimlane) return null;
 
 	const targetIssues =
-		sourceSwimlane.id === targetSwimlane.id
+		sourceSwimlaneId === targetSwimlane.id
 			? targetSwimlane.issues.filter(issue => issue.id !== issueId)
 			: targetSwimlane.issues;
 
@@ -65,7 +71,7 @@ const findMove = (
 	return {
 		movedIssue,
 		position,
-		sourceParentId: sourceSwimlane.id,
+		sourceParentId: sourceSwimlaneId,
 		targetParentId: targetSwimlane.id,
 	};
 };
@@ -86,36 +92,37 @@ export const moveIssue =
 
 			position = move.position;
 
-			const nextSwimlanes = current.swimlanes.map(swimlane => {
-				const issuesWithoutMoved = swimlane.issues.filter(
-					issue => issue.id !== issueId,
-				);
-
-				if (swimlane.id !== parentId) {
-					return {
-						...swimlane,
-						issues: issuesWithoutMoved,
-					};
-				}
-
-				const nextIssues = [...issuesWithoutMoved];
-
-				const index =
-					targetIndex === 'end'
-						? nextIssues.length
-						: Math.max(0, Math.min(targetIndex, nextIssues.length));
-
-				nextIssues.splice(index, 0, move.movedIssue);
-
-				return {
-					...swimlane,
-					issues: nextIssues,
-				};
-			});
-
 			return {
 				...current,
-				swimlanes: nextSwimlanes,
+				boards: current.boards.map(board => ({
+					...board,
+					swimlanes: board.swimlanes.map(swimlane => {
+						const issuesWithoutMoved = swimlane.issues.filter(
+							issue => issue.id !== issueId,
+						);
+
+						if (swimlane.id !== parentId) {
+							return {
+								...swimlane,
+								issues: issuesWithoutMoved,
+							};
+						}
+
+						const nextIssues = [...issuesWithoutMoved];
+
+						const index =
+							targetIndex === 'end'
+								? nextIssues.length
+								: Math.max(0, Math.min(targetIndex, nextIssues.length));
+
+						nextIssues.splice(index, 0, move.movedIssue);
+
+						return {
+							...swimlane,
+							issues: nextIssues,
+						};
+					}),
+				})),
 			};
 		});
 

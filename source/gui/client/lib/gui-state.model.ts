@@ -13,12 +13,13 @@ export type GuiSwimlane = {
 	readonly: boolean;
 	issues: GuiIssue[];
 };
-export type GuiState = {
-	board: {
-		id: string;
-		title: string;
-	};
+type GuiBoard = {
+	id: string;
+	title: string;
 	swimlanes: GuiSwimlane[];
+};
+export type GuiState = {
+	boards: GuiBoard[];
 };
 export type Result<T> = {
 	value?: T;

@@ -6,7 +6,7 @@ import {startGuiServer} from './server.js';
 export const startGui = async (input: {
 	repoRoot: string;
 }): Promise<Result<{url: string}>> => {
-	const serverResult = await startGuiServer(input);
+	const serverResult = await startGuiServer({...input, boardId: ''});
 
 	if (isFail(serverResult)) return serverResult;
 

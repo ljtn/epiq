@@ -108,20 +108,43 @@ const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 	}
 };
 
-const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
+const getBoardIdFromPath = (pathname: string): string | undefined => {
+	const parts = pathname.split('/');
+
+	if (parts.length !== 3) return undefined;
+	if (parts[1] !== 'board') return undefined;
+
+	return parts[2];
+};
+
+const sendGuiState = async (
+	socket: WebSocket,
+	repoRoot: string,
+	boardId: string,
+) =>
 	sendSocket(socket, {
 		type: 'state',
-		payload: await getGuiState({repoRoot}),
+		payload: await getGuiState({repoRoot}, boardId),
 	});
 
 export const startGuiServer = async (input: {
 	repoRoot: string;
+	boardId: string;
 }): Promise<Result<{url: string; server: http.Server}>> => {
 	const server = http.createServer(async (req, res) => {
 		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+		const boardId = getBoardIdFromPath(url.pathname) ?? input.boardId;
 
 		if (url.pathname === '/api/state') {
-			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
+			return sendJson(
+				res,
+				200,
+				await getGuiState({repoRoot: input.repoRoot}, boardId),
+			);
+		}
+
+		if (url.pathname.startsWith('/board/')) {
+			return serveStatic('/', res);
 		}
 
 		return serveStatic(url.pathname, res);
@@ -132,8 +155,10 @@ export const startGuiServer = async (input: {
 		path: '/ws',
 	});
 
-	wss.on('connection', socket => {
+	wss.on('connection', (socket, req) => {
 		registerGuiSocket(socket);
+		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+		const boardId = url.searchParams.get('boardId') ?? input.boardId;
 
 		socket.on('message', async raw => {
 			try {
@@ -141,7 +166,7 @@ export const startGuiServer = async (input: {
 				const {type} = message;
 
 				if (type === 'state:get') {
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'sync') {
@@ -152,7 +177,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issue:edit:description') {
@@ -166,7 +191,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issue:edit:title') {
@@ -180,7 +205,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issue:tag:add') {
@@ -194,7 +219,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issue:tag:remove') {
@@ -208,7 +233,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issue:assignee:add') {
@@ -222,7 +247,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issue:assignee:remove') {
@@ -236,7 +261,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issues:list') {
@@ -257,7 +282,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				if (type === 'issues:move') {
@@ -278,7 +303,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot);
+					return sendGuiState(socket, input.repoRoot, boardId);
 				}
 
 				return sendSocket(socket, {
@@ -304,7 +329,9 @@ export const startGuiServer = async (input: {
 	}
 
 	return succeeded('Started GUI server', {
-		url: `http://127.0.0.1:${address.port}`,
+		url: `http://127.0.0.1:${address.port}${
+			input.boardId ? `/board/${input.boardId}` : ''
+		}`,
 		server,
 	});
 };

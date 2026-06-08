@@ -1,0 +1,24 @@
+export type ApiIssue = {
+	id: string;
+	title: string;
+	description: string;
+	readonly: boolean;
+	tags: Array<{id: string; name: string}>;
+	assignees: Array<{id: string; name: string}>;
+	parentNodeId: string;
+};
+export type ApiSwimlane = {
+	id: string;
+	title: string;
+	readonly: boolean;
+	issues: ApiIssue[];
+	parentNodeId: string;
+};
+export type ApiBoard = {
+	id: string;
+	title: string;
+	swimlanes: ApiSwimlane[];
+};
+export type ApiState = {
+	boards: ApiBoard[];
+};

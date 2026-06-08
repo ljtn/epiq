@@ -12,7 +12,13 @@ import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persi
 import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent, MovePosition} from '../lib/event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
-import {isTicketNode, Ticket} from '../lib/model/context.model.js';
+import {
+	isBoardNode,
+	isSwimlaneNode,
+	isTicketNode,
+	Swimlane,
+	Ticket,
+} from '../lib/model/context.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {getProjectFileContents} from '../lib/project-setup/project-setup.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
@@ -24,6 +30,7 @@ import {getSafeState} from '../lib/state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {logger} from '../logger.js';
+import {ApiState, ApiSwimlane} from './api-state.model.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -431,7 +438,7 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 	});
 };
 
-export const getGuiState = async (input: ToolInput = {}) => {
+export const getGuiState = async (input: ToolInput = {}, boardId?: string) => {
 	const bootResult = await boot(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
@@ -439,39 +446,53 @@ export const getGuiState = async (input: ToolInput = {}) => {
 	if (isFail(stateResult)) return stateResult;
 
 	const nodes = Object.values(stateResult.value.nodes);
+	const boards = nodes.filter(n => isBoardNode(n) && !n.isDeleted);
 
-	const board = nodes.find(n => n.context === 'BOARD');
+	const swimlanesByBoardId = new Map<string, Swimlane[]>();
+	const ticketsBySwimlaneId = new Map<string, Ticket[]>();
 
-	if (!board) return failed('No board found');
+	for (const node of nodes) {
+		if (node.isDeleted) continue;
 
-	const swimlanes = nodes
-		.filter(n => n.context === 'SWIMLANE')
-		.filter(n => n.parentNodeId === board.id)
-		.map(swimlane => ({
-			id: swimlane.id,
-			title: swimlane.title,
-			readonly: Boolean(swimlane.readonly),
-			issues: nodes
-				.filter(isTicketNode)
-				.filter(issue => issue.parentNodeId === swimlane.id)
-				.sort((a, b) => a.rank.localeCompare(b.rank))
-				.map(issue => ({
-					id: issue.id,
-					title: sanitizeInlineText(issue.title),
-					description: issue.props.description ?? '',
-					readonly: Boolean(issue.readonly),
-					tags: getIssueTags(issue),
-					assignees: getIssueAssignees(issue),
-				})),
-		}));
+		if (isSwimlaneNode(node) && node.parentNodeId) {
+			const list = swimlanesByBoardId.get(node.parentNodeId) ?? [];
+			list.push(node);
+			swimlanesByBoardId.set(node.parentNodeId, list);
+		}
+
+		if (isTicketNode(node) && node.parentNodeId) {
+			const list = ticketsBySwimlaneId.get(node.parentNodeId) ?? [];
+			list.push(node);
+			ticketsBySwimlaneId.set(node.parentNodeId, list);
+		}
+	}
 
 	return succeeded('Retrieved Epiq GUI state', {
-		board: {
-			id: board.id,
-			title: board.title,
-		},
-		swimlanes,
-	});
+		boards: boards.map(b => ({
+			id: b.id,
+			title: b.title,
+			swimlanes: (swimlanesByBoardId.get(b.id) ?? []).map(
+				swimlane =>
+					({
+						id: swimlane.id,
+						title: swimlane.title,
+						readonly: Boolean(swimlane.readonly),
+						issues: (ticketsBySwimlaneId.get(swimlane.id) ?? [])
+							.sort((a, b) => a.rank.localeCompare(b.rank))
+							.map(issue => ({
+								id: issue.id,
+								title: sanitizeInlineText(issue.title),
+								description: issue.props.description ?? '',
+								readonly: Boolean(issue.readonly),
+								tags: getIssueTags(issue),
+								assignees: getIssueAssignees(issue),
+								parentNodeId: issue.parentNodeId!,
+							})),
+						parentNodeId: swimlane.parentNodeId!,
+					} satisfies ApiSwimlane),
+			),
+		})),
+	} satisfies ApiState);
 };
 
 export const editIssueDescription = async (

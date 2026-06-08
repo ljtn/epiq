@@ -1,9 +1,11 @@
 import {useEffect, useRef, useState} from 'react';
+import {useNavigate, useParams} from 'react-router-dom';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {moveIssue} from './lib/gui-move-issue';
-import {DropTarget, GuiState, Result} from './lib/gui-state.model';
+import {DropTarget, GuiIssue, GuiState, Result} from './lib/gui-state.model';
 import {GUI_THEME} from './lib/gui-theme';
+import {Button} from './components/Button';
 
 type SyncStatus = {
 	status: 'synced' | 'failed' | 'syncing';
@@ -44,12 +46,12 @@ export const colorFromString = (value: string) => {
 	return `hsl(${Math.abs(hash) % 360}, 70%, 65%)`;
 };
 
-const findIssue = (state: GuiState | null, issueId: string | null) => {
-	if (!state || !issueId) return null;
-
-	for (const swimlane of state.swimlanes) {
-		const issue = swimlane.issues.find(issue => issue.id === issueId);
-		if (issue) return issue;
+const findIssue = (state: GuiState, issueId: string): GuiIssue | null => {
+	for (const board of state.boards) {
+		for (const swimlane of board.swimlanes) {
+			const issue = swimlane.issues.find(issue => issue.id === issueId);
+			if (issue) return issue;
+		}
 	}
 
 	return null;
@@ -68,6 +70,9 @@ export const DropIndicator = () => (
 );
 
 export const App = () => {
+	const {boardId} = useParams<{boardId: string}>();
+	const navigate = useNavigate();
+
 	const [connected, setConnected] = useState(false);
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>({
 		status: 'synced',
@@ -79,11 +84,21 @@ export const App = () => {
 		null,
 	);
 	const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+	const [boardMenuOpen, setBoardMenuOpen] = useState(false);
 
+	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
 
+	const selectedBoard =
+		state?.boards.find(board => board.id === boardId) ??
+		state?.boards[0] ??
+		null;
+
 	useEffect(() => {
-		const socket = new WebSocket(`ws://${location.host}/ws`);
+		const socket = new WebSocket(
+			`ws://${window.location.host}/ws${boardId ? `?boardId=${boardId}` : ''}`,
+		);
+
 		socketRef.current = socket;
 
 		socket.addEventListener('open', () => {
@@ -120,9 +135,30 @@ export const App = () => {
 
 			socket.close();
 		};
+	}, [boardId]);
+
+	useEffect(() => {
+		if (!boardId && state?.boards[0]) {
+			navigate(`/board/${state.boards[0].id}`, {replace: true});
+		}
+	}, [boardId, state, navigate]);
+
+	useEffect(() => {
+		const close = (event: MouseEvent) => {
+			if (
+				boardMenuRef.current &&
+				!boardMenuRef.current.contains(event.target as Node)
+			) {
+				setBoardMenuOpen(false);
+			}
+		};
+
+		document.addEventListener('mousedown', close);
+		return () => document.removeEventListener('mousedown', close);
 	}, []);
 
-	const selectedIssue = findIssue(state, selectedIssueId);
+	const selectedIssue =
+		state && selectedIssueId ? findIssue(state, selectedIssueId) : null;
 
 	const syncColor =
 		syncStatus.status === 'failed'
@@ -190,6 +226,14 @@ export const App = () => {
 		);
 	};
 
+	const selectBoard = (nextBoardId: string) => {
+		setBoardMenuOpen(false);
+		setSelectedIssueId(null);
+		clearDragState();
+
+		navigate(`/board/${nextBoardId}`);
+	};
+
 	return (
 		<div
 			style={{
@@ -235,19 +279,94 @@ export const App = () => {
 
 			<div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
 				<main style={{padding: '0 30px 30px 30px', overflow: 'auto', flex: 1}}>
-					<h1
+					<div
+						ref={boardMenuRef}
 						style={{
-							margin: 0,
-							fontSize: '12px',
+							position: 'relative',
 							padding: '30px 10px',
-							color: GUI_THEME.dim,
+							width: 'fit-content',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 12,
 						}}
 					>
-						{state?.board.title ?? 'Loading...'}
-					</h1>
+						<span style={{color: GUI_THEME.secondary, fontSize: '12px'}}>
+							Board:
+						</span>
+						<Button
+							variant="ghost"
+							onClick={() => setBoardMenuOpen(open => !open)}
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								width: 100,
+							}}
+						>
+							<span>{selectedBoard?.title ?? 'Loading...'}</span>
+
+							<span
+								style={{
+									marginLeft: 'auto',
+									color: GUI_THEME.dim,
+									fontSize: '12px',
+									display: 'inline-block',
+									transform: boardMenuOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+									transition: 'transform 120ms ease',
+								}}
+							>
+								❯
+							</span>
+						</Button>
+						{boardMenuOpen && state?.boards.length ? (
+							<div
+								style={{
+									position: 'absolute',
+									top: 52,
+									left: 0,
+									minWidth: 220,
+									background: GUI_THEME.bg,
+									border: `1px solid ${GUI_THEME.line}`,
+									borderRadius: 8,
+									boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
+									padding: 6,
+									zIndex: 10,
+								}}
+							>
+								{state.boards.map(board => {
+									const selected = board.id === selectedBoard?.id;
+
+									return (
+										<button
+											key={board.id}
+											type="button"
+											onClick={() => selectBoard(board.id)}
+											style={{
+												width: '100%',
+												display: 'flex',
+												justifyContent: 'space-between',
+												alignItems: 'center',
+												border: 'none',
+												background: selected ? GUI_THEME.line : 'transparent',
+												color: selected ? GUI_THEME.accent : GUI_THEME.primary,
+												fontFamily: 'inherit',
+												fontSize: 11,
+												textAlign: 'left',
+												padding: '8px 10px',
+												borderRadius: 6,
+												cursor: 'pointer',
+											}}
+										>
+											<span>{board.title}</span>
+											{selected ? <span>✓</span> : null}
+										</button>
+									);
+								})}
+							</div>
+						) : null}
+					</div>
 
 					<div style={{display: 'flex', gap: 16}}>
-						{state?.swimlanes.map(swimlane => (
+						{selectedBoard?.swimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
 								swimlane={swimlane}
