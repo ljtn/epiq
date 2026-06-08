@@ -438,7 +438,7 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 	});
 };
 
-export const getGuiState = async (input: ToolInput = {}, boardId?: string) => {
+export const getGuiState = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 

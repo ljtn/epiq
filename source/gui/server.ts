@@ -108,23 +108,10 @@ const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 	}
 };
 
-const getBoardIdFromPath = (pathname: string): string | undefined => {
-	const parts = pathname.split('/');
-
-	if (parts.length !== 3) return undefined;
-	if (parts[1] !== 'board') return undefined;
-
-	return parts[2];
-};
-
-const sendGuiState = async (
-	socket: WebSocket,
-	repoRoot: string,
-	boardId: string,
-) =>
+const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 	sendSocket(socket, {
 		type: 'state',
-		payload: await getGuiState({repoRoot}, boardId),
+		payload: await getGuiState({repoRoot}),
 	});
 
 export const startGuiServer = async (input: {
@@ -133,14 +120,9 @@ export const startGuiServer = async (input: {
 }): Promise<Result<{url: string; server: http.Server}>> => {
 	const server = http.createServer(async (req, res) => {
 		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
-		const boardId = getBoardIdFromPath(url.pathname) ?? input.boardId;
 
 		if (url.pathname === '/api/state') {
-			return sendJson(
-				res,
-				200,
-				await getGuiState({repoRoot: input.repoRoot}, boardId),
-			);
+			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
 		}
 
 		if (url.pathname.startsWith('/board/')) {
@@ -155,10 +137,8 @@ export const startGuiServer = async (input: {
 		path: '/ws',
 	});
 
-	wss.on('connection', (socket, req) => {
+	wss.on('connection', socket => {
 		registerGuiSocket(socket);
-		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
-		const boardId = url.searchParams.get('boardId') ?? input.boardId;
 
 		socket.on('message', async raw => {
 			try {
@@ -166,7 +146,7 @@ export const startGuiServer = async (input: {
 				const {type} = message;
 
 				if (type === 'state:get') {
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'sync') {
@@ -177,7 +157,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issue:edit:description') {
@@ -191,7 +171,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issue:edit:title') {
@@ -205,7 +185,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issue:tag:add') {
@@ -219,7 +199,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issue:tag:remove') {
@@ -233,7 +213,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issue:assignee:add') {
@@ -247,7 +227,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issue:assignee:remove') {
@@ -261,7 +241,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issues:list') {
@@ -282,7 +262,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				if (type === 'issues:move') {
@@ -303,7 +283,7 @@ export const startGuiServer = async (input: {
 						payload: result,
 					});
 
-					return sendGuiState(socket, input.repoRoot, boardId);
+					return sendGuiState(socket, input.repoRoot);
 				}
 
 				return sendSocket(socket, {
