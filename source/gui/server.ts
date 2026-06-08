@@ -1,8 +1,10 @@
-import http from 'node:http';
 import {readFile} from 'node:fs/promises';
+import http from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {WebSocket, WebSocketServer} from 'ws';
+import {MovePosition} from '../lib/event/event.model.js';
+import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {
 	addIssueAssignee,
 	addIssueTag,
@@ -16,8 +18,6 @@ import {
 	removeIssueTag,
 	sync,
 } from '../mcp/epiq-api.js';
-import {MovePosition} from '../lib/event/event.model.js';
-import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {registerGuiSocket} from './client/lib/gui-broadcast.js';
 
 const distRoot = path.dirname(fileURLToPath(import.meta.url));
