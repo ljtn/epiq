@@ -6,6 +6,7 @@ export type ApiIssue = {
 	tags: Array<{id: string; name: string}>;
 	assignees: Array<{id: string; name: string}>;
 	parentNodeId: string;
+	isClosed: boolean;
 };
 export type ApiSwimlane = {
 	id: string;

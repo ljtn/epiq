@@ -1,4 +1,5 @@
 export type GuiIssue = {
+	isClosed: boolean;
 	id: string;
 	title: string;
 	description: string;

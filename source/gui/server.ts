@@ -8,6 +8,7 @@ import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {
 	addIssueAssignee,
 	addIssueTag,
+	closeIssue,
 	createIssue,
 	editIssueDescription,
 	editIssueTitle,
@@ -16,6 +17,7 @@ import {
 	moveIssue,
 	removeIssueAssignee,
 	removeIssueTag,
+	reopenIssue,
 	sync,
 } from '../mcp/epiq-api.js';
 import {registerGuiSocket} from './client/lib/gui-broadcast.js';
@@ -54,7 +56,9 @@ type GuiMessage =
 				parentId: string;
 				position?: MovePosition;
 			};
-	  };
+	  }
+	| {type: 'issue:close'; payload: {issueId: string}}
+	| {type: 'issue:reopen'; payload: {issueId: string}};
 
 const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
 	res.writeHead(status, {'content-type': 'application/json'});
@@ -280,6 +284,52 @@ export const startGuiServer = async (input: {
 
 					sendSocket(socket, {
 						type: 'issues:move:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issue:close') {
+					if (!message.payload.issueId) {
+						return sendSocket(socket, {
+							type: 'error',
+							message: 'Missing issueId',
+						});
+					}
+
+					const result = await closeIssue({
+						repoRoot: input.repoRoot,
+						issueId: message.payload.issueId,
+					});
+
+					console.log('close result', result);
+
+					sendSocket(socket, {
+						type: 'issue:close:result',
+						payload: result,
+					});
+
+					return sendGuiState(socket, input.repoRoot);
+				}
+
+				if (type === 'issue:reopen') {
+					if (!message.payload.issueId) {
+						return sendSocket(socket, {
+							type: 'error',
+							message: 'Missing issueId',
+						});
+					}
+
+					const result = await reopenIssue({
+						repoRoot: input.repoRoot,
+						issueId: message.payload.issueId,
+					});
+
+					console.log('reopen result', result);
+
+					sendSocket(socket, {
+						type: 'issue:reopen:result',
 						payload: result,
 					});
 

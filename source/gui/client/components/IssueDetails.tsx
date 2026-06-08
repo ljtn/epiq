@@ -13,6 +13,8 @@ export const IssueDetails = ({
 	onRemoveTag,
 	onAddAssignee,
 	onRemoveAssignee,
+	onCloseIssue,
+	onReopenIssue,
 }: {
 	issue: GuiIssue | null;
 	onClose: () => void;
@@ -22,6 +24,8 @@ export const IssueDetails = ({
 	onRemoveTag: (issueId: string, tagId: string) => void;
 	onAddAssignee: (issueId: string, assigneeName: string) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
+	onCloseIssue: (issueId: string) => void;
+	onReopenIssue: (issueId: string) => void;
 }) => {
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -303,6 +307,20 @@ export const IssueDetails = ({
 								<Button onClick={addAssignee}>add</Button>
 							</AddRow>
 						)}
+					</Section>
+
+					<Section
+						first={true}
+						title="Actions"
+						action={
+							issue.isClosed ? (
+								<Button onClick={() => onReopenIssue(issue.id)}>reopen</Button>
+							) : (
+								<Button onClick={() => onCloseIssue(issue.id)}>close</Button>
+							)
+						}
+					>
+						''
 					</Section>
 				</>
 			) : (

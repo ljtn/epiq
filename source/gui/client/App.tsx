@@ -226,6 +226,24 @@ export const App = () => {
 		);
 	};
 
+	const closeIssue = (issueId: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:close',
+				payload: {issueId},
+			}),
+		);
+	};
+
+	const reopenIssue = (issueId: string) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'issue:reopen',
+				payload: {issueId},
+			}),
+		);
+	};
+
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		setSelectedIssueId(null);
@@ -399,6 +417,8 @@ export const App = () => {
 					onAddTag={addIssueTag}
 					onRemoveAssignee={removeIssueAssignee}
 					onRemoveTag={removeIssueTag}
+					onReopenIssue={reopenIssue}
+					onCloseIssue={closeIssue}
 				/>
 			</div>
 		</div>

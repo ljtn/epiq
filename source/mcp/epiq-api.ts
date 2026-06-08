@@ -31,6 +31,7 @@ import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {logger} from '../logger.js';
 import {ApiState, ApiSwimlane} from './api-state.model.js';
+import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -334,6 +335,82 @@ export const closeIssue = async (input: CloseIssueInput) => {
 	return succeeded('Closed issue', {id: input.issueId});
 };
 
+export const reopenIssue = async (input: CloseIssueInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Target node is not issue');
+
+	if (issue.parentNodeId !== CLOSED_SWIMLANE_ID) {
+		return failed('Issue is not closed');
+	}
+
+	const previousParentId = resolveReopenParentFromLog(issue);
+
+	if (!previousParentId) {
+		return failed('Unable to resolve previous parent from issue history');
+	}
+
+	if (previousParentId === CLOSED_SWIMLANE_ID) {
+		return failed('Previous parent resolves to closed swimlane');
+	}
+
+	const previousParent = stateResult.value.nodes[previousParentId];
+
+	if (!previousParent) {
+		return failed('Previous parent no longer exists');
+	}
+
+	const rankResult = resolveAndPersistRankForMove(
+		previousParent.id,
+		issue.id,
+		{at: 'end'},
+		actorResult.value,
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(rankResult)) return rankResult;
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'reopen.issue',
+		payload: {
+			id: issue.id,
+			parent: previousParent.id,
+			rank: rankResult.value,
+		},
+	} satisfies AppEvent<'reopen.issue'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+
+	if (failure) {
+		return failed(failure.message);
+	}
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Reopened issue', {
+		id: issue.id,
+		parentId: previousParent.id,
+	});
+};
+
 export const moveIssue = async (
 	input: MoveIssueInput,
 ): Promise<Result<{id: string; parentId: string}>> => {
@@ -438,7 +515,9 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 	});
 };
 
-export const getGuiState = async (input: ToolInput = {}) => {
+export const getGuiState = async (
+	input: ToolInput = {},
+): Promise<Result<ApiState>> => {
 	const bootResult = await boot(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
@@ -487,6 +566,7 @@ export const getGuiState = async (input: ToolInput = {}) => {
 								tags: getIssueTags(issue),
 								assignees: getIssueAssignees(issue),
 								parentNodeId: issue.parentNodeId!,
+								isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 							})),
 						parentNodeId: swimlane.parentNodeId!,
 					} satisfies ApiSwimlane),
