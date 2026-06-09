@@ -239,7 +239,7 @@ describe('mcp tools', () => {
 				{
 					id: 'board-1',
 					title: 'Default',
-					parentId: 'workspace-1',
+					parentNodeId: 'workspace-1',
 					readonly: false,
 				},
 			]);
@@ -275,7 +275,7 @@ describe('mcp tools', () => {
 					id: 'issue-1',
 					title: 'Fix bug',
 					description: 'A bug description',
-					parentId: 'swimlane-1',
+					parentNodeId: 'swimlane-1',
 					isClosed: false,
 					readonly: false,
 				}),
@@ -295,7 +295,7 @@ describe('mcp tools', () => {
 			expect(result.value).toEqual({
 				id: 'issue-created-1',
 				title: 'New issue',
-				parentId: 'swimlane-1',
+				parentNodeId: 'swimlane-1',
 			});
 		}
 
@@ -366,7 +366,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: 'issue-1',
-				parentId: 'swimlane-2',
+				parentNodeId: 'swimlane-2',
 			});
 		}
 
