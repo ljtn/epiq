@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
-import {GuiIssue} from '../lib/gui-state.model';
+import {GuiAssignee, GuiIssue, GuiTag} from '../lib/gui-state.model';
 import {Button} from './Button';
 
 export const IssueDetails = ({
@@ -14,6 +14,8 @@ export const IssueDetails = ({
 	onRemoveAssignee,
 	onCloseIssue,
 	onReopenIssue,
+	knownTags: tags,
+	knownAssignees: assignees,
 }: {
 	issue: GuiIssue | null;
 	onClose: () => void;
@@ -25,6 +27,8 @@ export const IssueDetails = ({
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
 	onReopenIssue: (issueId: string) => void;
+	knownTags: GuiTag[];
+	knownAssignees: GuiAssignee[];
 }) => {
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -100,6 +104,15 @@ export const IssueDetails = ({
 		setAssigneeName('');
 		setAddingAssignee(false);
 	};
+
+	const availableTags = tags.filter(
+		tag => !issue?.tags.some(issueTag => issueTag.id === tag.id),
+	);
+
+	const availableAssignees = assignees.filter(
+		assignee =>
+			!issue?.assignees.some(issueAssignee => issueAssignee.id === assignee.id),
+	);
 
 	return (
 		<Aside>
@@ -209,12 +222,16 @@ export const IssueDetails = ({
 					<Section
 						title="Tags"
 						action={
-							!issue.readonly &&
-							!addingTag && (
+							(!issue.readonly && !addingTag && (
 								<Button variant="ghost" onClick={() => setAddingTag(true)}>
 									+
 								</Button>
-							)
+							)) ||
+							(addingTag && (
+								<Button variant="ghost" onClick={() => setAddingTag(false)}>
+									-
+								</Button>
+							))
 						}
 					>
 						<ChipRow>
@@ -235,13 +252,29 @@ export const IssueDetails = ({
 								))
 							)}
 						</ChipRow>
+						{addingTag && (
+							<ChipRow>
+								{availableTags.map(tag => (
+									<Button
+										key={tag.id}
+										variant="chip"
+										disabled={issue.readonly}
+										onClick={() => onAddTag(issue.id, tag.name)}
+										title="Add existing tag"
+										style={{color: tag.color, opacity: 0.55}}
+									>
+										+ {tag.name}
+									</Button>
+								))}
+							</ChipRow>
+						)}
 
 						{addingTag && (
 							<AddRow>
 								<Input
 									value={tagName}
 									autoFocus
-									placeholder="Tag name"
+									placeholder="tag name"
 									onChange={event => setTagName(event.target.value)}
 									onKeyDown={event => {
 										if (event.key === 'Enter') addTag();
@@ -260,12 +293,19 @@ export const IssueDetails = ({
 					<Section
 						title="Assignees"
 						action={
-							!issue.readonly &&
-							!addingAssignee && (
+							(!issue.readonly && !addingAssignee && (
 								<Button variant="ghost" onClick={() => setAddingAssignee(true)}>
 									+
 								</Button>
-							)
+							)) ||
+							(addingAssignee && (
+								<Button
+									variant="ghost"
+									onClick={() => setAddingAssignee(false)}
+								>
+									-
+								</Button>
+							))
 						}
 					>
 						<ChipRow>
@@ -288,11 +328,28 @@ export const IssueDetails = ({
 						</ChipRow>
 
 						{addingAssignee && (
+							<ChipRow>
+								{availableAssignees.map(assignee => (
+									<Button
+										key={assignee.id}
+										variant="chip"
+										disabled={issue.readonly}
+										onClick={() => onAddAssignee(issue.id, assignee.name)}
+										title="Add existing assignee"
+										style={{color: assignee.color, opacity: 0.55}}
+									>
+										+ @{assignee.name}
+									</Button>
+								))}
+							</ChipRow>
+						)}
+
+						{addingAssignee && (
 							<AddRow>
 								<Input
 									value={assigneeName}
 									autoFocus
-									placeholder="Assignee name"
+									placeholder="assignee name"
 									onChange={event => setAssigneeName(event.target.value)}
 									onKeyDown={event => {
 										if (event.key === 'Enter') addAssignee();
@@ -312,9 +369,13 @@ export const IssueDetails = ({
 						title="Actions"
 						action={
 							issue.isClosed ? (
-								<Button onClick={() => onReopenIssue(issue.id)}>reopen</Button>
+								<Button onClick={() => onReopenIssue(issue.id)}>
+									reopen issue
+								</Button>
 							) : (
-								<Button onClick={() => onCloseIssue(issue.id)}>close</Button>
+								<Button onClick={() => onCloseIssue(issue.id)}>
+									close issue
+								</Button>
 							)
 						}
 					>

@@ -1,10 +1,12 @@
+export type ApiTag = {id: string; name: string; color: string};
+export type ApiAssignee = {id: string; name: string; color: string};
 export type ApiIssue = {
 	id: string;
 	title: string;
 	description: string;
 	readonly: boolean;
-	tags: Array<{id: string; name: string; color: string}>;
-	assignees: Array<{id: string; name: string; color: string}>;
+	tags: ApiTag[];
+	assignees: ApiAssignee[];
 	parentNodeId: string;
 	isClosed: boolean;
 };
@@ -21,5 +23,7 @@ export type ApiBoard = {
 	swimlanes: ApiSwimlane[];
 };
 export type ApiState = {
+	tags: ApiTag[];
+	contributors: ApiAssignee[];
 	boards: ApiBoard[];
 };

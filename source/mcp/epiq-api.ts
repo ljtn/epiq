@@ -587,6 +587,14 @@ export const getGuiState = async (
 					} satisfies ApiSwimlane),
 			),
 		})),
+		tags: Object.values(stateResult.value.tags).map(x => ({
+			...x,
+			color: getStringColor(x.name),
+		})),
+		contributors: Object.values(stateResult.value.contributors).map(x => ({
+			...x,
+			color: getStringColor(x.name),
+		})),
 	} satisfies ApiState);
 };
 

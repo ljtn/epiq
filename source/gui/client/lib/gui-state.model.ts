@@ -1,11 +1,14 @@
+export type GuiTag = {id: string; name: string; color: string};
+export type GuiAssignee = {id: string; name: string; color: string};
+
 export type GuiIssue = {
 	isClosed: boolean;
 	id: string;
 	title: string;
 	description: string;
 	readonly: boolean;
-	tags: Array<{id: string; name: string; color: string}>;
-	assignees: Array<{id: string; name: string; color: string}>;
+	tags: GuiTag[];
+	assignees: GuiAssignee[];
 };
 
 export type GuiSwimlane = {
@@ -21,6 +24,8 @@ type GuiBoard = {
 };
 export type GuiState = {
 	boards: GuiBoard[];
+	tags: GuiTag[];
+	contributors: GuiAssignee[];
 };
 export type Result<T> = {
 	value?: T;

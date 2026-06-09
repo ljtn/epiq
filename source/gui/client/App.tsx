@@ -12,6 +12,7 @@ import {
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
+import {Dropdown} from './components/Dropdown';
 
 export const DropIndicator = () => (
 	<div
@@ -279,92 +280,26 @@ export const App = () => {
 
 			<div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
 				<main style={{padding: '0 30px 30px 30px', overflow: 'auto', flex: 1}}>
-					<div
-						ref={boardMenuRef}
-						style={{
-							position: 'relative',
-							padding: '30px 10px',
-							width: 'fit-content',
-							display: 'flex',
-							alignItems: 'center',
-							gap: 12,
-						}}
-					>
-						<span style={{color: GUI_THEME.secondary, fontSize: '12px'}}>
-							Board:
-						</span>
-
-						<Button
-							variant="ghost"
-							onClick={() => setBoardMenuOpen(open => !open)}
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								width: 100,
-							}}
-						>
-							<span>{selectedBoard?.title ?? 'Loading...'}</span>
-
-							<span
-								style={{
-									marginLeft: 'auto',
-									color: GUI_THEME.dim,
-									fontSize: '12px',
-									display: 'inline-block',
-									transform: boardMenuOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-									transition: 'transform 120ms ease',
-								}}
-							>
-								❯
-							</span>
-						</Button>
-
-						{boardMenuOpen && state?.boards.length ? (
-							<div
-								style={{
-									position: 'absolute',
-									top: 52,
-									left: 0,
-									minWidth: 220,
-									background: GUI_THEME.bg,
-									border: `1px solid ${GUI_THEME.line}`,
-									borderRadius: 8,
-									boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
-									padding: 6,
-									zIndex: 10,
-								}}
-							>
-								{state.boards.map(board => {
-									const selected = board.id === selectedBoard?.id;
-
-									return (
-										<button
-											key={board.id}
-											type="button"
-											onClick={() => selectBoard(board.id)}
-											style={{
-												width: '100%',
-												display: 'flex',
-												justifyContent: 'space-between',
-												alignItems: 'center',
-												border: 'none',
-												background: selected ? GUI_THEME.line : 'transparent',
-												color: selected ? GUI_THEME.accent : GUI_THEME.primary,
-												fontFamily: 'inherit',
-												fontSize: 11,
-												textAlign: 'left',
-												padding: '8px 10px',
-												borderRadius: 6,
-												cursor: 'pointer',
-											}}
-										>
-											<span>{board.title}</span>
-											{selected ? <span>✓</span> : null}
-										</button>
-									);
-								})}
-							</div>
-						) : null}
+					<div style={{padding: '30px 10px'}}>
+						<Dropdown
+							label="Board:"
+							value={
+								selectedBoard
+									? {
+											id: selectedBoard.id,
+											label: selectedBoard.title,
+									  }
+									: null
+							}
+							items={
+								state?.boards.map(board => ({
+									id: board.id,
+									label: board.title,
+								})) ?? []
+							}
+							placeholder="Loading..."
+							onSelect={selectBoard}
+						/>
 					</div>
 
 					<div style={{display: 'flex', gap: 16}}>
@@ -403,6 +338,8 @@ export const App = () => {
 					onRemoveAssignee={removeIssueAssignee}
 					onReopenIssue={reopenIssue}
 					onCloseIssue={closeIssue}
+					knownTags={state?.tags ?? []}
+					knownAssignees={state?.contributors ?? []}
 				/>
 			</div>
 		</div>
