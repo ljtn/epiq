@@ -1,8 +1,8 @@
 import React from 'react';
-import {DropIndicator} from '../App';
 import {GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {TicketCard} from './TicketCard';
+import {DropIndicator} from '../App';
 
 export const SwimlaneColumn = ({
 	swimlane,

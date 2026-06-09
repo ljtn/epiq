@@ -4,48 +4,14 @@ import {Button} from './components/Button';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {moveIssue} from './lib/gui-move-issue';
-import {DropTarget, GuiIssue, GuiState, Result} from './lib/gui-state.model';
+import {DropTarget, GuiState} from './lib/gui-state.model';
 import {GUI_THEME} from './lib/gui-theme';
-
-type SyncStatus = {
-	status: 'synced' | 'failed' | 'syncing';
-	msg: string;
-};
-
-const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
-	if (!payload) return undefined;
-
-	if (
-		typeof payload === 'object' &&
-		payload !== null &&
-		'value' in payload &&
-		payload.value
-	) {
-		return payload.value;
-	}
-
-	if (
-		typeof payload === 'object' &&
-		payload !== null &&
-		'content' in payload &&
-		payload.content?.[0]?.text
-	) {
-		return JSON.parse(payload.content[0].text).value as T;
-	}
-
-	return payload as T;
-};
-
-const findIssue = (state: GuiState, issueId: string): GuiIssue | null => {
-	for (const board of state.boards) {
-		for (const swimlane of board.swimlanes) {
-			const issue = swimlane.issues.find(issue => issue.id === issueId);
-			if (issue) return issue;
-		}
-	}
-
-	return null;
-};
+import {
+	getResultValue,
+	findIssue,
+	updateIssueInGuiState,
+} from './lib/gui-state-helper';
+import {SyncStatus} from './lib/gui-sync-statusmodel';
 
 export const DropIndicator = () => (
 	<div
@@ -162,127 +128,102 @@ export const App = () => {
 		setDropTarget(null);
 	};
 
+	const send = (type: string, payload: unknown) => {
+		socketRef.current?.send(JSON.stringify({type, payload}));
+	};
+
 	const editIssueTitle = (issueId: string, title: string) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:edit:title',
-				payload: {issueId, title},
-			}),
-		);
+		send('issue:edit:title', {issueId, title});
 	};
 
 	const editIssueDescription = (issueId: string, description: string) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:edit:description',
-				payload: {issueId, description},
-			}),
-		);
+		send('issue:edit:description', {issueId, description});
 	};
 
 	const addIssueTag = (issueId: string, tagName: string) => {
 		setState(prev => {
 			if (!prev) return prev;
 
-			return {
-				...prev,
-				boards: prev.boards.map(board => ({
-					...board,
-					swimlanes: board.swimlanes.map(swimlane => ({
-						...swimlane,
-						issues: swimlane.issues.map(issue => {
-							if (issue.id !== issueId) return issue;
+			return updateIssueInGuiState(prev, issueId, issue => {
+				if (issue.tags.some(tag => tag.name === tagName)) return issue;
 
-							if (issue.tags.some(tag => tag.name === tagName)) {
-								return issue;
-							}
-
-							return {
-								...issue,
-								tags: [
-									...issue.tags,
-									{name: tagName, id: `placeholder-id`, color: GUI_THEME.dim},
-								],
-							};
-						}),
-					})),
-				})),
-			};
+				return {
+					...issue,
+					tags: [
+						...issue.tags,
+						{
+							id: `placeholder-tag-${tagName}`,
+							name: tagName,
+							color: GUI_THEME.dim,
+						},
+					],
+				};
+			});
 		});
 
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:tag:add',
-				payload: {issueId, tagName},
-			}),
-		);
+		send('issue:tag:add', {issueId, tagName});
 	};
 
 	const removeIssueTag = (issueId: string, tagId: string) => {
 		setState(prev => {
 			if (!prev) return prev;
 
-			return {
-				...prev,
-				boards: prev.boards.map(board => ({
-					...board,
-					swimlanes: board.swimlanes.map(swimlane => ({
-						...swimlane,
-						issues: swimlane.issues.map(issue => {
-							if (issue.id !== issueId) return issue;
-
-							return {
-								...issue,
-								tags: issue.tags.filter(tag => tag.id !== tagId),
-							};
-						}),
-					})),
-				})),
-			};
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				tags: issue.tags.filter(tag => tag.id !== tagId),
+			}));
 		});
 
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:tag:remove',
-				payload: {issueId, tagId},
-			}),
-		);
+		send('issue:tag:remove', {issueId, tagId});
 	};
 
 	const addIssueAssignee = (issueId: string, assigneeName: string) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:assignee:add',
-				payload: {issueId, assigneeName},
-			}),
-		);
+		setState(prev => {
+			if (!prev) return prev;
+
+			return updateIssueInGuiState(prev, issueId, issue => {
+				if (issue.assignees.some(assignee => assignee.name === assigneeName)) {
+					return issue;
+				}
+
+				return {
+					...issue,
+					assignees: [
+						...issue.assignees,
+						{
+							id: `placeholder-assignee-${assigneeName}`,
+							name: assigneeName,
+							color: GUI_THEME.dim,
+						},
+					],
+				};
+			});
+		});
+
+		send('issue:assignee:add', {issueId, assigneeName});
 	};
 
 	const removeIssueAssignee = (issueId: string, assigneeId: string) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:assignee:remove',
-				payload: {issueId, assigneeId},
-			}),
-		);
+		setState(prev => {
+			if (!prev) return prev;
+
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				assignees: issue.assignees.filter(
+					assignee => assignee.id !== assigneeId,
+				),
+			}));
+		});
+
+		send('issue:assignee:remove', {issueId, assigneeId});
 	};
 
 	const closeIssue = (issueId: string) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:close',
-				payload: {issueId},
-			}),
-		);
+		send('issue:close', {issueId});
 	};
 
 	const reopenIssue = (issueId: string) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issue:reopen',
-				payload: {issueId},
-			}),
-		);
+		send('issue:reopen', {issueId});
 	};
 
 	const selectBoard = (nextBoardId: string) => {
@@ -352,6 +293,7 @@ export const App = () => {
 						<span style={{color: GUI_THEME.secondary, fontSize: '12px'}}>
 							Board:
 						</span>
+
 						<Button
 							variant="ghost"
 							onClick={() => setBoardMenuOpen(open => !open)}
@@ -376,6 +318,7 @@ export const App = () => {
 								❯
 							</span>
 						</Button>
+
 						{boardMenuOpen && state?.boards.length ? (
 							<div
 								style={{
