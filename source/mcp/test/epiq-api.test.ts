@@ -239,7 +239,7 @@ describe('mcp tools', () => {
 				{
 					id: 'board-1',
 					title: 'Default',
-					parentNodeId: 'workspace-1',
+					parentId: 'workspace-1',
 					readonly: false,
 				},
 			]);
