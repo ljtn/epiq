@@ -295,7 +295,7 @@ describe('mcp tools', () => {
 			expect(result.value).toEqual({
 				id: 'issue-created-1',
 				title: 'New issue',
-				parentNodeId: 'swimlane-1',
+				parentId: 'swimlane-1',
 			});
 		}
 
