@@ -310,7 +310,6 @@ export const IssueDetails = ({
 					</Section>
 
 					<Section
-						first={true}
 						title="Actions"
 						action={
 							issue.isClosed ? (
@@ -320,7 +319,7 @@ export const IssueDetails = ({
 							)
 						}
 					>
-						''
+						{''}
 					</Section>
 				</>
 			) : (
