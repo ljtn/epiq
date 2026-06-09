@@ -1,5 +1,4 @@
 import React, {useEffect, useState} from 'react';
-import {colorFromString} from '../App';
 import {GUI_THEME} from '../lib/gui-theme';
 import {GuiIssue} from '../lib/gui-state.model';
 import {Button} from './Button';
@@ -229,7 +228,7 @@ export const IssueDetails = ({
 										disabled={issue.readonly}
 										onClick={() => onRemoveTag(issue.id, tag.id)}
 										title="Remove tag"
-										style={{color: colorFromString(tag.name)}}
+										style={{color: tag.color}}
 									>
 										{tag.name} {!issue.readonly && '×'}
 									</Button>
@@ -280,7 +279,7 @@ export const IssueDetails = ({
 										disabled={issue.readonly}
 										onClick={() => onRemoveAssignee(issue.id, assignee.id)}
 										title="Remove assignee"
-										style={{color: colorFromString(assignee.name)}}
+										style={{color: assignee.color}}
 									>
 										@{assignee.name} {!issue.readonly && '×'}
 									</Button>

@@ -30,8 +30,9 @@ import {getSafeState} from '../lib/state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {logger} from '../logger.js';
-import {ApiState, ApiSwimlane} from './api-state.model.js';
+import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
 import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
+import {getStringColor} from '../lib/utils/color.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -180,13 +181,24 @@ const getIssueTags = (ticket: Ticket) =>
 	(ticket.props.tags ?? [])
 		.map(tag => nodeRepo.getTag(tag))
 		.filter(tag => tag != undefined)
-		.map(tag => ({id: tag.id, name: tag.name}));
+		.map(tag => ({
+			id: tag.id,
+			name: tag.name,
+			color: getStringColor(tag.name),
+		}));
 
 const getIssueAssignees = (ticket: Ticket) =>
 	(ticket.props.assignees ?? [])
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter(contributor => contributor != undefined)
-		.map(contributor => ({id: contributor.id, name: contributor.name}));
+		.map(
+			contributor =>
+				({
+					id: contributor.id,
+					name: contributor.name,
+					color: getStringColor(contributor.name),
+				} satisfies ApiIssue['assignees'][number]),
+		);
 
 export const listBoards = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot);
@@ -235,19 +247,22 @@ export const listIssues = async (input: ListIssuesInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issues = Object.values(stateResult.value.nodes)
+	const issues: ApiIssue[] = Object.values(stateResult.value.nodes)
 		.filter(isTicketNode)
 		.filter(n => input.includeClosed || n.parentNodeId !== CLOSED_SWIMLANE_ID)
-		.map(n => ({
-			id: n.id,
-			title: sanitizeInlineText(n.title),
-			description: n.props.description ?? '',
-			parentId: n.parentNodeId,
-			isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
-			readonly: Boolean(n.readonly),
-			tags: getIssueTags(n),
-			assignees: getIssueAssignees(n),
-		}));
+		.map(
+			n =>
+				({
+					id: n.id,
+					title: sanitizeInlineText(n.title),
+					description: n.props.description ?? '',
+					parentNodeId: n.parentNodeId!,
+					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
+					readonly: Boolean(n.readonly),
+					tags: getIssueTags(n),
+					assignees: getIssueAssignees(n),
+				} satisfies ApiIssue),
+		);
 
 	return succeeded('Listed issues', issues);
 };

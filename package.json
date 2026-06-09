@@ -38,7 +38,7 @@
 		"dev": "IS_LOCAL=true tsc --watch --noEmit",
 		"dev:start": "IS_LOCAL=true tsx source/Index.tsx",
 		"start": "IS_LOCAL=true tsx source/Index.tsx",
-		"start:gui": "IS_LOCAL=true tsx source/Index.tsx --gui",
+		"start:gui": "IS_LOCAL=true tsx source/Index.tsx gui",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\"",
 		"test:e2e:ci": "npm run build:npm && vitest run source/test/e2e",
 		"test:e2e": "docker run --rm -v \"$PWD\":/app -v /app/node_modules -w /app epiq-e2e npm run test:e2e:ci",

@@ -1,11 +1,11 @@
 import {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
+import {Button} from './components/Button';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {moveIssue} from './lib/gui-move-issue';
 import {DropTarget, GuiIssue, GuiState, Result} from './lib/gui-state.model';
 import {GUI_THEME} from './lib/gui-theme';
-import {Button} from './components/Button';
 
 type SyncStatus = {
 	status: 'synced' | 'failed' | 'syncing';
@@ -34,16 +34,6 @@ const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
 	}
 
 	return payload as T;
-};
-
-export const colorFromString = (value: string) => {
-	let hash = 0;
-
-	for (let i = 0; i < value.length; i++) {
-		hash = value.charCodeAt(i) + ((hash << 5) - hash);
-	}
-
-	return `hsl(${Math.abs(hash) % 360}, 70%, 65%)`;
 };
 
 const findIssue = (state: GuiState, issueId: string): GuiIssue | null => {
@@ -191,6 +181,35 @@ export const App = () => {
 	};
 
 	const addIssueTag = (issueId: string, tagName: string) => {
+		setState(prev => {
+			if (!prev) return prev;
+
+			return {
+				...prev,
+				boards: prev.boards.map(board => ({
+					...board,
+					swimlanes: board.swimlanes.map(swimlane => ({
+						...swimlane,
+						issues: swimlane.issues.map(issue => {
+							if (issue.id !== issueId) return issue;
+
+							if (issue.tags.some(tag => tag.name === tagName)) {
+								return issue;
+							}
+
+							return {
+								...issue,
+								tags: [
+									...issue.tags,
+									{name: tagName, id: `placeholder-id`, color: GUI_THEME.dim},
+								],
+							};
+						}),
+					})),
+				})),
+			};
+		});
+
 		socketRef.current?.send(
 			JSON.stringify({
 				type: 'issue:tag:add',
@@ -200,6 +219,28 @@ export const App = () => {
 	};
 
 	const removeIssueTag = (issueId: string, tagId: string) => {
+		setState(prev => {
+			if (!prev) return prev;
+
+			return {
+				...prev,
+				boards: prev.boards.map(board => ({
+					...board,
+					swimlanes: board.swimlanes.map(swimlane => ({
+						...swimlane,
+						issues: swimlane.issues.map(issue => {
+							if (issue.id !== issueId) return issue;
+
+							return {
+								...issue,
+								tags: issue.tags.filter(tag => tag.id !== tagId),
+							};
+						}),
+					})),
+				})),
+			};
+		});
+
 		socketRef.current?.send(
 			JSON.stringify({
 				type: 'issue:tag:remove',
@@ -413,10 +454,10 @@ export const App = () => {
 					onClose={() => setSelectedIssueId(null)}
 					onEditTitle={editIssueTitle}
 					onEditDescription={editIssueDescription}
-					onAddAssignee={addIssueAssignee}
 					onAddTag={addIssueTag}
-					onRemoveAssignee={removeIssueAssignee}
 					onRemoveTag={removeIssueTag}
+					onAddAssignee={addIssueAssignee}
+					onRemoveAssignee={removeIssueAssignee}
 					onReopenIssue={reopenIssue}
 					onCloseIssue={closeIssue}
 				/>

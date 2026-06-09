@@ -17,6 +17,8 @@ const helpText = `${chalk.bold('Epiq CLI')}
 ${chalk.dim('Boot in directory:')}
   ${chalk.cyan('$ epiq')}
 
+${chalk.dim('Launch GUI:')}
+  ${chalk.cyan('$ epiq gui')}
 `;
 
 const cli = meow(helpText, {
@@ -26,12 +28,14 @@ const cli = meow(helpText, {
 			type: 'boolean',
 			default: false,
 		},
-		gui: {
-			type: 'boolean',
-			default: false,
-		},
 	},
 });
+
+const command = cli.input[0];
+if (command && command !== 'gui') {
+	console.error(chalk.red(`Unknown command: ${command}`));
+	process.exit(1);
+}
 
 let width = process.stdout.columns || 120;
 let height = process.stdout.rows || 20;
@@ -67,7 +71,7 @@ process.stdout.on('resize', () => {
 	}
 });
 
-if (cli.flags.gui) {
+if (command === 'gui') {
 	const guiResult = await startGui({repoRoot: process.cwd()});
 
 	if (isFail(guiResult)) {

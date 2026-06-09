@@ -4,8 +4,8 @@ export type GuiIssue = {
 	title: string;
 	description: string;
 	readonly: boolean;
-	tags: Array<{id: string; name: string}>;
-	assignees: Array<{id: string; name: string}>;
+	tags: Array<{id: string; name: string; color: string}>;
+	assignees: Array<{id: string; name: string; color: string}>;
 };
 
 export type GuiSwimlane = {

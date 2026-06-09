@@ -1,7 +1,5 @@
-import React from 'react';
-import {colorFromString} from '../App';
 import {GuiIssue} from '../lib/gui-state.model';
-import {GUI_THEME} from '../lib/gui-theme';
+import {getContrastTextColor, GUI_THEME} from '../lib/gui-theme';
 
 export const TicketCard = ({
 	ticket,
@@ -55,71 +53,122 @@ export const TicketCard = ({
 			}}
 			style={{
 				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'space-between',
-				gap: 12,
+				alignItems: 'flex-start',
+				gap: 10,
 				color: isSelected ? GUI_THEME.accent : GUI_THEME.primary,
 				fontSize: 12,
 				cursor: ticket.readonly ? 'default' : 'grab',
 				background: isSelected ? 'rgba(118,228,255,0.08)' : '#ffffff08',
-				padding: '0 12px',
-				height: '48px',
+				padding: '12px',
+				minHeight: '48px',
 				borderRadius: '12px',
 				marginBottom: 4,
+				border: `1px solid ${isSelected ? GUI_THEME.accent : 'transparent'}`,
 			}}
 		>
-			<div style={{display: 'flex', gap: 10, minWidth: 0}}>
-				<div
-					style={{
-						width: 28,
-						color: isSelected ? GUI_THEME.accent : GUI_THEME.secondary,
-						fontVariantNumeric: 'tabular-nums',
-					}}
-				>
-					{isSelected ? '❯' : index + 1}
-				</div>
-
-				<div
-					style={{
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
-					}}
-				>
-					{ticket.title}
-				</div>
+			<div
+				style={{
+					width: 20,
+					flexShrink: 0,
+					color: isSelected ? GUI_THEME.accent : GUI_THEME.secondary,
+					fontVariantNumeric: 'tabular-nums',
+					paddingTop: 2,
+				}}
+			>
+				{isSelected ? '❯' : index + 1}
 			</div>
 
 			<div
-				style={{display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center'}}
+				style={{
+					flex: 1,
+					minWidth: 0,
+					display: 'flex',
+					justifyContent: 'space-between',
+					gap: 12,
+				}}
 			>
-				{ticket.tags.map(tag => (
-					<span
-						key={tag.id}
+				<div
+					style={{
+						minWidth: 0,
+						display: 'flex',
+						flexDirection: 'column',
+						gap: 10,
+						flex: 1,
+					}}
+				>
+					<div
 						style={{
-							color: colorFromString(tag.name),
-							border: `1px solid ${GUI_THEME.line}`,
-							borderRadius: 999,
-							padding: '4px 8px',
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+							fontWeight: 500,
+							fontSize: 13,
 						}}
 					>
-						{tag.name}
-					</span>
-				))}
+						{ticket.title}
+					</div>
 
-				{ticket.assignees.map(assignee => (
-					<span
-						key={assignee.id}
-						title={assignee.name}
+					<div
 						style={{
-							color: colorFromString(assignee.name),
-							fontSize: 12,
-							fontWeight: 700,
+							display: 'flex',
+							flexWrap: 'wrap',
+							gap: 6,
+							alignItems: 'center',
 						}}
 					>
-						@{assignee.name.at(0)}
-					</span>
-				))}
+						{ticket.tags.map(tag => (
+							<span
+								key={tag.id}
+								style={{
+									color: tag.color,
+									border: `1px solid ${GUI_THEME.line}`,
+									borderRadius: 999,
+									padding: '2px 8px',
+									fontSize: 11,
+									background: '#ffffff08',
+								}}
+							>
+								{tag.name}
+							</span>
+						))}
+					</div>
+				</div>
+
+				{ticket.assignees.length > 0 && (
+					<div
+						style={{
+							display: 'flex',
+							alignItems: 'flex-start',
+							flexShrink: 0,
+							paddingTop: 2,
+						}}
+					>
+						{ticket.assignees.map((assignee, idx) => (
+							<span
+								key={assignee.id}
+								title={assignee.name}
+								style={{
+									width: 24,
+									height: 24,
+									borderRadius: '50%',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									background: assignee.color,
+									color: getContrastTextColor(assignee.color),
+									fontSize: 11,
+									fontWeight: 700,
+									marginLeft: idx === 0 ? 0 : -6,
+									border: `2px solid ${
+										isSelected ? 'rgba(118,228,255,0.08)' : '#1a1a1a'
+									}`,
+								}}
+							>
+								{assignee.name.at(0)?.toUpperCase()}
+							</span>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);
