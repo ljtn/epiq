@@ -366,7 +366,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: 'issue-1',
-				parentNodeId: 'swimlane-2',
+				parentId: 'swimlane-2',
 			});
 		}
 
