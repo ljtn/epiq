@@ -1,4 +1,7 @@
+import {readEpiqConfig} from '../../../lib/config/user-config.js';
+import {isFail} from '../../../lib/model/result-types.js';
 import {getSettingsState} from '../../../lib/state/settings.state.js';
+import {logger} from '../../../logger.js';
 import {getGuiState, sync} from '../../../mcp/epiq-api.js';
 import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
 
@@ -8,6 +11,14 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 	let disposed = false;
 	let syncing = false;
 	let pending = false;
+
+	const isAutoSyncConfigured = () => {
+		const configRes = readEpiqConfig();
+		if (isFail(configRes)) return logger.error(configRes.message);
+		const {autoSync, userName, preferredEditor} = configRes.value;
+
+		return Boolean(autoSync && userName && preferredEditor);
+	};
 
 	const runSync = async () => {
 		if (disposed) return;
@@ -39,38 +50,29 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 	const scheduleSync = (delayMs = 750) => {
 		if (disposed) return;
 
-		if (debounceTimer) {
-			clearTimeout(debounceTimer);
-		}
+		if (debounceTimer) clearTimeout(debounceTimer);
 
 		debounceTimer = setTimeout(() => {
 			void runSync();
 		}, delayMs);
 	};
 
-	const scheduleInterval = () => {
+	const scheduleIntervalSync = () => {
 		if (disposed) return;
 
-		const {autoSyncIntervalMs, userName, preferredEditor} = getSettingsState();
+		const configRes = readEpiqConfig();
+		if (isFail(configRes)) return logger.error(configRes.message);
+		const {autoSyncDebounceMs} = configRes.value;
+
+		if (!isAutoSyncConfigured()) return;
 
 		intervalTimer = setTimeout(() => {
-			const settingsReady = Boolean(
-				getSettingsState().preferredEditor &&
-					getSettingsState().userName &&
-					getSettingsState().autoSyncIntervalMs,
-			);
-
-			if (settingsReady) {
-				void runSync();
-			}
-
-			scheduleInterval();
-		}, autoSyncIntervalMs || 5_000);
-
-		if (!preferredEditor || !userName || !autoSyncIntervalMs) return;
+			void runSync();
+			scheduleIntervalSync();
+		}, autoSyncDebounceMs ?? 15_000);
 	};
 
-	scheduleInterval();
+	scheduleIntervalSync();
 
 	return {
 		scheduleSync,

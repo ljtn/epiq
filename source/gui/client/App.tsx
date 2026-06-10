@@ -33,7 +33,7 @@ export const App = () => {
 	const [connected, setConnected] = useState(false);
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>({
 		status: 'synced',
-		msg: 'Idle',
+		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
 	const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
@@ -266,7 +266,12 @@ export const App = () => {
 						fontSize: 10,
 					}}
 				>
-					<span style={{color: syncColor}}>● {syncStatus.msg}</span>|
+					<span style={{color: syncColor}}>● </span>
+					<span style={{color: GUI_THEME.dim, minWidth: '60px'}}>
+						{syncStatus.msg}
+					</span>
+					<span style={{color: GUI_THEME.dim}}>|</span>
+
 					<span
 						style={{
 							color: connected ? GUI_THEME.green : GUI_THEME.red,

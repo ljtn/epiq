@@ -557,31 +557,35 @@ export const getGuiState = async (
 	}
 
 	return succeeded('Retrieved Epiq GUI state', {
-		boards: boards.map(b => ({
-			id: b.id,
-			title: b.title,
-			swimlanes: (swimlanesByBoardId.get(b.id) ?? []).map(
-				swimlane =>
-					({
-						id: swimlane.id,
-						title: swimlane.title,
-						readonly: Boolean(swimlane.readonly),
-						issues: (ticketsBySwimlaneId.get(swimlane.id) ?? [])
-							.sort((a, b) => a.rank.localeCompare(b.rank))
-							.map(issue => ({
-								id: issue.id,
-								title: sanitizeInlineText(issue.title),
-								description: issue.props.description ?? '',
-								readonly: Boolean(issue.readonly),
-								tags: getIssueTags(issue),
-								assignees: getIssueAssignees(issue),
-								parentNodeId: issue.parentNodeId!,
-								isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
-							})),
-						parentNodeId: swimlane.parentNodeId!,
-					} satisfies ApiSwimlane),
-			),
-		})),
+		boards: boards
+			.sort((a, b) => a.rank.localeCompare(b.rank))
+			.map(b => ({
+				id: b.id,
+				title: b.title,
+				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
+					.sort((a, b) => a.rank.localeCompare(b.rank))
+					.map(
+						swimlane =>
+							({
+								id: swimlane.id,
+								title: swimlane.title,
+								readonly: Boolean(swimlane.readonly),
+								issues: (ticketsBySwimlaneId.get(swimlane.id) ?? [])
+									.sort((a, b) => a.rank.localeCompare(b.rank))
+									.map(issue => ({
+										id: issue.id,
+										title: sanitizeInlineText(issue.title),
+										description: issue.props.description ?? '',
+										readonly: Boolean(issue.readonly),
+										tags: getIssueTags(issue),
+										assignees: getIssueAssignees(issue),
+										parentNodeId: issue.parentNodeId!,
+										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
+									})),
+								parentNodeId: swimlane.parentNodeId!,
+							} satisfies ApiSwimlane),
+					),
+			})),
 		tags: Object.values(stateResult.value.tags).map(x => ({
 			...x,
 			color: getStringColor(x.name),
