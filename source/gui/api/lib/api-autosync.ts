@@ -1,6 +1,5 @@
 import {readEpiqConfig} from '../../../lib/config/user-config.js';
 import {isFail} from '../../../lib/model/result-types.js';
-import {getSettingsState} from '../../../lib/state/settings.state.js';
 import {logger} from '../../../logger.js';
 import {getGuiState, sync} from '../../../mcp/epiq-api.js';
 import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
