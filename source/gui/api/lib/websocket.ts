@@ -14,9 +14,9 @@ import {
 	removeIssueTag,
 	reopenIssue,
 	sync,
-} from '../../../mcp/epiq-api';
-import {registerGuiSocket} from '../../client/lib/gui-broadcast';
-import {GuiMessage} from './websocket.model';
+} from '../../../mcp/epiq-api.js';
+import {registerGuiSocket} from '../../client/lib/gui-broadcast.js';
+import {GuiMessage} from './websocket.model.js';
 
 const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 	sendSocket(socket, {
