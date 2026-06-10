@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import {isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {openBrowser} from './open-browser.js';
-import {startGuiServer} from './server.js';
+import {startGuiServer} from './api/api-server.js';
 
 export const startGui = async (input: {
 	repoRoot: string;

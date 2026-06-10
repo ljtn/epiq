@@ -73,7 +73,6 @@ export const App = () => {
 
 		socket.addEventListener('message', event => {
 			const message = JSON.parse(event.data);
-			console.log('WS', message);
 
 			if (message.type === 'state') {
 				const nextState = getResultValue<GuiState>(message.payload);

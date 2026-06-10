@@ -33,6 +33,7 @@ import {logger} from '../logger.js';
 import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
 import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
+import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -478,17 +479,6 @@ export const moveIssue = async (
 		return failed(failure.message);
 	}
 
-	const pushResult = await syncEpiqWithRemote({
-		cwd: repoRootResult.value,
-		ownEventFileName: getPersistFileName(actorResult.value),
-	});
-
-	if (isFail(pushResult)) {
-		return failed(
-			`Moved issue locally, but sync failed: ${pushResult.message}`,
-		);
-	}
-
 	return succeeded('Moved issue', {
 		id: input.issueId,
 		parentId: input.parentId,
@@ -496,6 +486,7 @@ export const moveIssue = async (
 };
 
 export const sync = async (input: SyncInput = {}) => {
+	setSyncing();
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
 	if (isFail(repoRootResult)) return failed('Sync failed');
 
@@ -507,8 +498,12 @@ export const sync = async (input: SyncInput = {}) => {
 		ownEventFileName: getPersistFileName(actor.value),
 	});
 
-	if (isFail(result)) return result;
+	if (isFail(result)) {
+		setSyncFailed(result.message);
+		return result;
+	}
 
+	setSynced();
 	return succeeded('Synced', result.value);
 };
 
