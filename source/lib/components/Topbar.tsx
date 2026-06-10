@@ -11,6 +11,7 @@ import {FilterUI} from './Filters.js';
 import {PeekStatus} from './PeekStatus.js';
 import {SyncStatusPill} from './SyncStatus.js';
 import {Mode} from '../model/action-map.model.js';
+import {VersionPill} from './VersionPill.js';
 
 type Props = {
 	filters: Filter[];
@@ -68,9 +69,7 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 					</Text>
 					<HeaderPill icon="@" value={userName} />
 					<HeaderPill icon="❯" value={preferredEditor} />
-					<Text dimColor={true} color={theme.secondary2}>
-						{EPIQ_VERSION + ' '}
-					</Text>
+					<VersionPill />
 				</Box>
 			) : (
 				''
