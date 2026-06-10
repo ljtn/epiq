@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React from 'react';
-import {EPIQ_VERSION} from '../../version.js';
+import {Mode} from '../model/action-map.model.js';
 import {Filter} from '../model/app-state.model.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {useAppState} from '../state/state.js';
@@ -10,7 +10,6 @@ import {Breadcrumb} from './BreadCrumb.js';
 import {FilterUI} from './Filters.js';
 import {PeekStatus} from './PeekStatus.js';
 import {SyncStatusPill} from './SyncStatus.js';
-import {Mode} from '../model/action-map.model.js';
 import {VersionPill} from './VersionPill.js';
 
 type Props = {
