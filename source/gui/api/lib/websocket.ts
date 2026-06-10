@@ -1,6 +1,5 @@
-import {WebSocket, WebSocketServer} from 'ws';
 import http from 'node:http';
-import {GuiMessage} from './websocket.model';
+import {WebSocket, WebSocketServer} from 'ws';
 import {
 	addIssueAssignee,
 	addIssueTag,
@@ -17,6 +16,7 @@ import {
 	sync,
 } from '../../../mcp/epiq-api';
 import {registerGuiSocket} from '../../client/lib/gui-broadcast';
+import {GuiMessage} from './websocket.model';
 
 const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 	sendSocket(socket, {
