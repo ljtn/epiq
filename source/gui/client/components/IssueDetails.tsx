@@ -118,6 +118,23 @@ export const IssueDetails = ({
 		<Aside>
 			{issue ? (
 				<>
+					<Header>
+						<span
+							style={{
+								color: GUI_THEME.secondary,
+								fontSize: 10,
+								textTransform: 'uppercase',
+								letterSpacing: '0.08em',
+							}}
+						>
+							Issue Details
+						</span>
+
+						<Button variant="ghost" onClick={onClose}>
+							×
+						</Button>
+					</Header>
+
 					<Section
 						first={true}
 						title="Title"

@@ -1,18 +1,17 @@
 import {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {Button} from './components/Button';
+import {Dropdown} from './components/Dropdown';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {moveIssue} from './lib/gui-move-issue';
-import {DropTarget, GuiState} from './lib/gui-state.model';
-import {GUI_THEME} from './lib/gui-theme';
 import {
-	getResultValue,
 	findIssue,
+	getResultValue,
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
+import {DropTarget, GuiState} from './lib/gui-state.model';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
-import {Dropdown} from './components/Dropdown';
+import {GUI_THEME} from './lib/gui-theme';
 
 export const DropIndicator = () => (
 	<div
@@ -331,20 +330,22 @@ export const App = () => {
 					</div>
 				</main>
 
-				<IssueDetails
-					issue={selectedIssue}
-					onClose={() => setSelectedIssueId(null)}
-					onEditTitle={editIssueTitle}
-					onEditDescription={editIssueDescription}
-					onAddTag={addIssueTag}
-					onRemoveTag={removeIssueTag}
-					onAddAssignee={addIssueAssignee}
-					onRemoveAssignee={removeIssueAssignee}
-					onReopenIssue={reopenIssue}
-					onCloseIssue={closeIssue}
-					knownTags={state?.tags ?? []}
-					knownAssignees={state?.contributors ?? []}
-				/>
+				{selectedIssue && (
+					<IssueDetails
+						issue={selectedIssue}
+						onClose={() => setSelectedIssueId(null)}
+						onEditTitle={editIssueTitle}
+						onEditDescription={editIssueDescription}
+						onAddTag={addIssueTag}
+						onRemoveTag={removeIssueTag}
+						onAddAssignee={addIssueAssignee}
+						onRemoveAssignee={removeIssueAssignee}
+						onReopenIssue={reopenIssue}
+						onCloseIssue={closeIssue}
+						knownTags={state?.tags ?? []}
+						knownAssignees={state?.contributors ?? []}
+					/>
+				)}
 			</div>
 		</div>
 	);
