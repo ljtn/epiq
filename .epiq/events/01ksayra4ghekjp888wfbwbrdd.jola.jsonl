@@ -143,3 +143,4 @@
 {"v":1,"id":["01KTSV40C3XPFBW01TPW1KEPQG","01KTSV3WWQQHC25ZRXGF79PGF0"],"move.node":{"id":"01KSHY2W2K6FV3XR2NDEVKVYX8","parent":"01KS22YK95S3336MFSE44MY70S","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01KTSX90DXNKCTK6NFV8F0EFGW","01KTSV40C3XPFBW01TPW1KEPQG"],"add.issue":{"id":"01KTSX90DTDW4038SGM021EQFC","parent":"01KS22YK95S3336MFSE44MY70R","name":"Improve GUI, add event log, time travel","rank":"bfffffffffffffffffffffff"}}
 {"v":1,"id":["01KTWE9DB28A84779N29TCJ3V3","01KTSX90DXNKCTK6NFV8F0EFGW"],"add.issue":{"id":"01KTWE9DB10CEGM1XSHE9V8YCW","parent":"01KS22YK95S3336MFSE44MY70S","name":"Some issue","rank":"bfffffffffffffffffffffff"}}
+{"v":1,"id":["01KTWERAVKGXVWYYQ76E1BN7NG","01KTWE9DB28A84779N29TCJ3V3"],"add.issue":{"id":"01KTWERAVJTE9FE7J2ACFW29Y0","parent":"01KS22YK95S3336MFSE44MY70S","name":"[New issue]","rank":"dfffffffffffffffffffffff"}}
