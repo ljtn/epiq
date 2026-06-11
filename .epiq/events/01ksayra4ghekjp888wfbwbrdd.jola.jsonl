@@ -152,3 +152,4 @@
 {"v":1,"id":["01KTWFQB312VFNDA28VS3J8QRX","01KTWFEZB557MDHHWET7C9R01Q"],"add.issue":{"id":"01KTWFQB2ZPRW8DWWXAG0F7PF3","parent":"01KS22YK95S3336MFSE44MY70S","name":"New issue","rank":"efffffffffffffffffffffff"}}
 {"v":1,"id":["01KTWFSN3K1V5G7C605BSXT5X8","01KTWFQB312VFNDA28VS3J8QRX"],"add.issue":{"id":"01KTWFSN3JBYRZG562SJXMNGNX","parent":"01KS22YK95S3336MFSE44MY70S","name":"New issue","rank":"f7ffffffffffffffffffffff"}}
 {"v":1,"id":["01KTWG3QV02QVSEFVVDXFABAB6","01KTWFSN3K1V5G7C605BSXT5X8"],"add.issue":{"id":"01KTWG3QTWDW2YPAX3QCRV3QST","parent":"01KS22YK95S3336MFSE44MY70S","name":"New issue","rank":"fbffffffffffffffffffffff"}}
+{"v":1,"id":["01KTWG5YS0DB55ARSTJ8HC5BV5","01KTWG3QV02QVSEFVVDXFABAB6"],"edit.title":{"id":"01KTWE9DB10CEGM1XSHE9V8YCW","name":"Add keyboard shortcuts overlay"}}
