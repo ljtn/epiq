@@ -27,19 +27,20 @@ export const Button = ({
 			style={{
 				appearance: 'none',
 				WebkitAppearance: 'none',
-				background: hovered ? GUI_THEME.bg : 'transparent',
+				background: hovered ? 'rgba(255,255,255,0.04)' : 'transparent',
 				color: GUI_THEME.secondary,
 				border:
 					variant === 'ghost' && !hovered
 						? '1px solid transparent'
-						: `1px solid ${GUI_THEME.line}`,
+						: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
 				borderRadius: variant === 'chip' ? 999 : 8,
 				cursor: props.disabled ? 'default' : 'pointer',
 				padding: variant === 'ghost' ? '3px 6px' : '5px 9px',
 				fontFamily: 'inherit',
 				fontSize: 12,
 				lineHeight: 1,
-				boxShadow: 'none',
+				transition:
+					'color 120ms ease, background 120ms ease, border-color 120ms ease',
 				outline: 'none',
 				opacity: props.disabled ? 0.7 : 1,
 				...style,
