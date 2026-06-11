@@ -1,5 +1,6 @@
 import {GuiIssue} from '../lib/gui-state.model';
-import {getContrastTextColor, GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME} from '../lib/gui-theme';
+import {User} from './User';
 
 export const TicketCard = ({
 	ticket,
@@ -58,7 +59,9 @@ export const TicketCard = ({
 				color: isSelected ? GUI_THEME.accent : GUI_THEME.primary,
 				fontSize: 12,
 				cursor: ticket.readonly ? 'default' : 'grab',
-				background: isSelected ? 'rgba(118,228,255,0.08)' : '#ffffff08',
+				background: isSelected
+					? 'rgba(118,228,255,0.08)'
+					: 'rgba(185, 192, 255, 0.06)',
 				padding: '12px',
 				minHeight: '48px',
 				borderRadius: '12px',
@@ -144,28 +147,7 @@ export const TicketCard = ({
 						}}
 					>
 						{ticket.assignees.map((assignee, idx) => (
-							<span
-								key={assignee.id}
-								title={assignee.name}
-								style={{
-									width: 24,
-									height: 24,
-									borderRadius: '50%',
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'center',
-									background: assignee.color,
-									color: getContrastTextColor(assignee.color),
-									fontSize: 11,
-									fontWeight: 700,
-									marginLeft: idx === 0 ? 0 : -6,
-									border: `2px solid ${
-										isSelected ? 'rgba(118,228,255,0.08)' : '#1a1a1a'
-									}`,
-								}}
-							>
-								{assignee.name.at(0)?.toUpperCase()}
-							</span>
+							<User user={assignee} index={idx} isFocus={isSelected}></User>
 						))}
 					</div>
 				)}

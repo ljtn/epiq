@@ -1,0 +1,33 @@
+import {GuiAssignee, GuiState} from '../lib/gui-state.model';
+import {getContrastTextColor} from '../lib/gui-theme';
+
+export const User = ({
+	user,
+	index,
+	isFocus,
+}: {
+	user: GuiState['user'];
+	index?: number;
+	isFocus?: boolean;
+}) => (
+	<span
+		key={user.id}
+		title={user.name}
+		style={{
+			width: 24,
+			height: 24,
+			borderRadius: '50%',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			background: user.color,
+			color: getContrastTextColor(user.color),
+			fontSize: 11,
+			fontWeight: 700,
+			marginLeft: index === 0 ? 0 : -6,
+			border: `2px solid ${isFocus ? 'rgba(118,228,255,0.08)' : '#1a1a1a'}`,
+		}}
+	>
+		{user.name.at(0)?.toUpperCase()}
+	</span>
+);

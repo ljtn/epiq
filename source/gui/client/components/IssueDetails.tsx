@@ -200,7 +200,7 @@ export const IssueDetails = ({
 								<Textarea
 									value={description}
 									autoFocus
-									placeholder="-"
+									placeholder=""
 									onChange={event => setDescription(event.target.value)}
 									onKeyDown={event => {
 										if (event.key === 'Escape') cancelDescription();

@@ -34,6 +34,7 @@ import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
 import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
+import {getSettingsState} from '../lib/state/settings.state.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -556,6 +557,8 @@ export const getGuiState = async (
 		}
 	}
 
+	const settingsRes = loadSettingsFromConfig();
+	if (isFail(settingsRes)) return settingsRes;
 	return succeeded('Retrieved Epiq GUI state', {
 		boards: boards
 			.sort((a, b) => a.rank.localeCompare(b.rank))
@@ -594,6 +597,11 @@ export const getGuiState = async (
 			...x,
 			color: getStringColor(x.name),
 		})),
+		user: {
+			name: settingsRes.value.userName ?? '',
+			id: settingsRes.value.userId ?? '',
+			color: getStringColor(settingsRes.value.userName ?? ''),
+		},
 	} satisfies ApiState);
 };
 

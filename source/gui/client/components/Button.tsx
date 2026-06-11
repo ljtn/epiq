@@ -28,7 +28,7 @@ export const Button = ({
 				appearance: 'none',
 				WebkitAppearance: 'none',
 				background: hovered ? GUI_THEME.bg : 'transparent',
-				color: GUI_THEME.dim,
+				color: GUI_THEME.secondary,
 				border:
 					variant === 'ghost' && !hovered
 						? '1px solid transparent'

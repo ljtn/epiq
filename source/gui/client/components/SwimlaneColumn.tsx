@@ -64,7 +64,7 @@ export const SwimlaneColumn = ({
 				width: 360,
 				minWidth: 360,
 				height: 'calc(100vh - 160px)',
-				background: dragOver ? '#14202a' : 'rgb(17 20 27 / 0%)',
+				background: dragOver ? '#14202a' : GUI_THEME.bg,
 				border: `1px solid ${
 					selected || dragOver ? GUI_THEME.accent : GUI_THEME.line
 				}`,
@@ -81,7 +81,7 @@ export const SwimlaneColumn = ({
 					fontSize: 12,
 					alignItems: 'center',
 					gap: 8,
-					borderBottom: `1px solid ${GUI_THEME.line}`,
+					// borderBottom: `1px solid ${GUI_THEME.line}`,
 				}}
 			>
 				<span

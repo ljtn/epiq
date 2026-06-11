@@ -25,5 +25,6 @@ export type ApiBoard = {
 export type ApiState = {
 	tags: ApiTag[];
 	contributors: ApiAssignee[];
+	user: ApiAssignee;
 	boards: ApiBoard[];
 };

@@ -26,6 +26,7 @@ export type GuiState = {
 	boards: GuiBoard[];
 	tags: GuiTag[];
 	contributors: GuiAssignee[];
+	user: GuiAssignee;
 };
 export type Result<T> = {
 	value?: T;

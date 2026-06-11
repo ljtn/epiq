@@ -12,6 +12,7 @@ import {
 import {DropTarget, GuiState} from './lib/gui-state.model';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
+import {User} from './components/User';
 
 export const DropIndicator = () => (
 	<div
@@ -257,33 +258,42 @@ export const App = () => {
 			>
 				<span style={{color: GUI_THEME.accent, fontSize: '12px'}}>:epiq</span>
 
-				<div
-					style={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: 16,
-						fontSize: 10,
-					}}
-				>
-					<span style={{color: syncColor}}>● </span>
-					<span style={{color: GUI_THEME.dim, minWidth: '60px'}}>
-						{syncStatus.msg}
-					</span>
-					<span style={{color: GUI_THEME.dim}}>|</span>
-
-					<span
+				<div style={{display: 'flex', gap: 30}}>
+					<div
 						style={{
-							color: connected ? GUI_THEME.green : GUI_THEME.red,
+							display: 'flex',
+							alignItems: 'center',
+							gap: 16,
+							fontSize: 10,
 						}}
 					>
-						{connected ? 'connected' : 'disconnected'}
-					</span>
+						<span style={{color: syncColor}}>● </span>
+						<span style={{color: GUI_THEME.dim, minWidth: '60px'}}>
+							{syncStatus.msg.toLowerCase()}
+						</span>
+						<span style={{color: GUI_THEME.dim}}>|</span>
+
+						<span
+							style={{
+								color: connected ? GUI_THEME.green : GUI_THEME.red,
+							}}
+						>
+							{connected ? 'connected' : 'disconnected'}
+						</span>
+					</div>
+					<div>{state?.user && <User user={state.user}></User>}</div>
 				</div>
 			</header>
 
-			<div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
+			<div
+				style={{
+					display: 'flex',
+					flex: 1,
+					overflow: 'hidden',
+				}}
+			>
 				<main style={{padding: '0 30px 30px 30px', overflow: 'auto', flex: 1}}>
-					<div style={{padding: '30px 10px'}}>
+					<div style={{padding: '20px 10px'}}>
 						<Dropdown
 							label="Board:"
 							value={
