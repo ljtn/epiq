@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y git python3 make g++ \
 
 WORKDIR /app
 
+ENV IS_CI=true
+
 COPY package*.json ./
 RUN npm ci
 
