@@ -11,6 +11,7 @@ import {loadMergedEvents} from '../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent, MovePosition} from '../lib/event/event.model.js';
+import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {
 	isBoardNode,
@@ -27,14 +28,12 @@ import {
 	resolveAndPersistRankForMove,
 } from '../lib/repository/rank.js';
 import {getSafeState} from '../lib/state/state.js';
+import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
+import {getStringColor} from '../lib/utils/color.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {logger} from '../logger.js';
 import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
-import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
-import {getStringColor} from '../lib/utils/color.js';
-import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
-import {getSettingsState} from '../lib/state/settings.state.js';
 
 type ToolInput = {
 	repoRoot?: string;
