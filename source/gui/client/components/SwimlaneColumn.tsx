@@ -1,8 +1,9 @@
 import React from 'react';
+import {DropIndicator} from '../App';
 import {GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
-import {DropIndicator} from '../App';
 
 export const SwimlaneColumn = ({
 	swimlane,
@@ -32,7 +33,21 @@ export const SwimlaneColumn = ({
 	onDragLeave: () => void;
 }) => {
 	return (
-		<section
+		<Panel
+			as="section"
+			active={dragOver}
+			borderColor={selected || dragOver ? GUI_THEME.accent : GUI_THEME.line}
+			glowOpacity={0.15}
+			style={{
+				zIndex: 0,
+				width: 360,
+				minWidth: 360,
+				height: 'calc(100vh - 160px)',
+				background: dragOver ? '#14202a' : GUI_THEME.bg,
+				padding: '0 14px',
+				display: 'flex',
+				flexDirection: 'column',
+			}}
 			onDragOver={event => {
 				event.preventDefault();
 				event.dataTransfer.dropEffect = 'move';
@@ -60,19 +75,6 @@ export const SwimlaneColumn = ({
 				onDropIssue(issueId, swimlane.id, targetIndex);
 				onDragLeave();
 			}}
-			style={{
-				width: 360,
-				minWidth: 360,
-				height: 'calc(100vh - 160px)',
-				background: dragOver ? '#14202a' : GUI_THEME.bg,
-				border: `1px solid ${
-					selected || dragOver ? GUI_THEME.accent : GUI_THEME.line
-				}`,
-				borderRadius: 12,
-				padding: '0 14px',
-				display: 'flex',
-				flexDirection: 'column',
-			}}
 		>
 			<header
 				style={{
@@ -81,7 +83,6 @@ export const SwimlaneColumn = ({
 					fontSize: 12,
 					alignItems: 'center',
 					gap: 8,
-					// borderBottom: `1px solid ${GUI_THEME.line}`,
 				}}
 			>
 				<span
@@ -144,6 +145,6 @@ export const SwimlaneColumn = ({
 					</>
 				)}
 			</div>
-		</section>
+		</Panel>
 	);
 };

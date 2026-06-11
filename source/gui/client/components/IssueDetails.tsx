@@ -171,7 +171,7 @@ export const IssueDetails = ({
 								style={{
 									marginTop: 8,
 									color: GUI_THEME.primary,
-									fontSize: 13,
+									fontSize: 12,
 									lineHeight: 1.45,
 									wordBreak: 'break-word',
 								}}

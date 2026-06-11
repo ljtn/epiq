@@ -63,7 +63,7 @@ export const TicketCard = ({
 					? 'rgba(118,228,255,0.08)'
 					: 'rgba(185, 192, 255, 0.06)',
 				padding: '12px',
-				minHeight: '48px',
+				minHeight: '40px',
 				borderRadius: '12px',
 				marginBottom: 4,
 				border: `1px solid ${isSelected ? GUI_THEME.accent : 'transparent'}`,
@@ -105,7 +105,7 @@ export const TicketCard = ({
 							textOverflow: 'ellipsis',
 							whiteSpace: 'nowrap',
 							fontWeight: 500,
-							fontSize: 13,
+							fontSize: 12,
 						}}
 					>
 						{ticket.title}

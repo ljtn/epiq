@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {Dropdown} from './components/Dropdown';
+import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {moveIssue} from './lib/gui-move-issue';
@@ -12,7 +13,6 @@ import {
 import {DropTarget, GuiState} from './lib/gui-state.model';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
-import {User} from './components/User';
 
 export const DropIndicator = () => (
 	<div
@@ -246,45 +246,11 @@ export const App = () => {
 				flexDirection: 'column',
 			}}
 		>
-			<header
-				style={{
-					height: 56,
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					padding: '0 30px',
-					borderBottom: `1px solid ${GUI_THEME.line}`,
-				}}
-			>
-				<span style={{color: GUI_THEME.accent, fontSize: '12px'}}>:epiq</span>
-
-				<div style={{display: 'flex', gap: 30}}>
-					<div
-						style={{
-							display: 'flex',
-							alignItems: 'center',
-							gap: 16,
-							fontSize: 10,
-						}}
-					>
-						<span style={{color: syncColor}}>● </span>
-						<span style={{color: GUI_THEME.dim, minWidth: '60px'}}>
-							{syncStatus.msg.toLowerCase()}
-						</span>
-						<span style={{color: GUI_THEME.dim}}>|</span>
-
-						<span
-							style={{
-								color: connected ? GUI_THEME.green : GUI_THEME.red,
-							}}
-						>
-							{connected ? 'connected' : 'disconnected'}
-						</span>
-					</div>
-					<div>{state?.user && <User user={state.user}></User>}</div>
-				</div>
-			</header>
-
+			<Header
+				state={state}
+				connected={connected}
+				syncStatus={syncStatus}
+			></Header>
 			<div
 				style={{
 					display: 'flex',
@@ -315,7 +281,7 @@ export const App = () => {
 						/>
 					</div>
 
-					<div style={{display: 'flex', gap: 16}}>
+					<div style={{display: 'flex', gap: 8}}>
 						{selectedBoard?.swimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
