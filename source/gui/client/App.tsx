@@ -79,6 +79,19 @@ export const App = () => {
 				if (nextState) setState(nextState);
 			}
 
+			if (message.type === 'issue:created') {
+				console.log('message', message);
+				const created = getResultValue<{id: string}>(message.payload);
+
+				if (created) {
+					setSelectedIssueId(created.id);
+				}
+			}
+
+			if (message.type === 'failed') {
+				console.log('Failed', message);
+			}
+
 			if (message.type === 'sync-status') {
 				setSyncStatus(message.payload);
 			}
@@ -116,13 +129,6 @@ export const App = () => {
 	const selectedIssue =
 		state && selectedIssueId ? findIssue(state, selectedIssueId) : null;
 
-	const syncColor =
-		syncStatus.status === 'failed'
-			? GUI_THEME.red
-			: syncStatus.status === 'syncing'
-			? GUI_THEME.accent
-			: GUI_THEME.green;
-
 	const clearDragState = () => {
 		setDragOverSwimlaneId(null);
 		setDropTarget(null);
@@ -132,13 +138,11 @@ export const App = () => {
 		socketRef.current?.send(JSON.stringify({type, payload}));
 	};
 
-	const editIssueTitle = (issueId: string, title: string) => {
+	const editIssueTitle = (issueId: string, title: string) =>
 		send('issue:edit:title', {issueId, title});
-	};
 
-	const editIssueDescription = (issueId: string, description: string) => {
+	const editIssueDescription = (issueId: string, description: string) =>
 		send('issue:edit:description', {issueId, description});
-	};
 
 	const addIssueTag = (issueId: string, tagName: string) => {
 		setState(prev => {
@@ -218,34 +222,22 @@ export const App = () => {
 		send('issue:assignee:remove', {issueId, assigneeId});
 	};
 
-	const closeIssue = (issueId: string) => {
-		send('issue:close', {issueId});
-	};
+	const closeIssue = (issueId: string) => send('issue:close', {issueId});
 
-	const reopenIssue = (issueId: string) => {
-		send('issue:reopen', {issueId});
-	};
+	const reopenIssue = (issueId: string) => send('issue:reopen', {issueId});
 
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		setSelectedIssueId(null);
 		clearDragState();
 
-		navigate(`/board/${nextBoardId}`);
+		void navigate(`/board/${nextBoardId}`);
 	};
 
 	const createIssue = (swimlaneId: string) => {
-		const title = window.prompt('Issue title');
-		if (!title?.trim()) return;
-
 		send('issues:create', {
-			title: title.trim(),
+			title: 'New issue',
 			parentId: swimlaneId,
-		});
-
-		setSyncStatus({
-			status: 'syncing',
-			msg: 'creating issue',
 		});
 	};
 

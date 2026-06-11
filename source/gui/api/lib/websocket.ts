@@ -15,8 +15,12 @@ import {
 	reopenIssue,
 	sync,
 } from '../../../mcp/epiq-api.js';
-import {registerGuiSocket} from '../../client/lib/gui-broadcast.js';
+import {
+	broadcastGuiMessage,
+	registerGuiSocket,
+} from '../../client/lib/gui-broadcast.js';
 import {GuiMessage} from './websocket.model.js';
+import {isFail} from '../../../lib/model/result-types.js';
 
 const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 	sendSocket(socket, {
@@ -159,18 +163,25 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'issues:create') {
-					const result = await createIssue({
+					const createIssueResult = await createIssue({
 						...message.payload,
 						repoRoot: repoRoot,
 					});
 
-					sendSocket(socket, {
-						type: 'issues:create:result',
-						payload: result,
-					});
+					await sendGuiState(socket, repoRoot);
 
+					if (isFail(createIssueResult)) {
+						return broadcastGuiMessage({
+							type: 'failed',
+							payload: createIssueResult.message,
+						});
+					}
+					broadcastGuiMessage({
+						type: 'issue:created',
+						payload: createIssueResult.value,
+					});
 					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return;
 				}
 
 				if (type === 'issues:move') {

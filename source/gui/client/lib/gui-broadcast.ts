@@ -15,7 +15,7 @@ export const registerGuiSocket = (socket: WebSocket) => {
 };
 
 export const broadcastGuiMessage = (body: {
-	type: 'state' | 'sync-status';
+	type: 'state' | 'sync-status' | 'issue:created' | 'failed';
 	payload: unknown;
 }) => {
 	const json = JSON.stringify(body);

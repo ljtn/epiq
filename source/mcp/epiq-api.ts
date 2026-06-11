@@ -298,9 +298,6 @@ export const createIssue = async (input: CreateIssueInput) => {
 	const failure = results.find(isFail);
 	if (failure) return failed(failure.message);
 
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
-
 	const issueId = issueEvents.find(e => e.action === 'add.issue')?.payload.id;
 	if (!issueId) return failed('Unable to determine created issue id');
 
