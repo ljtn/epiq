@@ -234,6 +234,21 @@ export const App = () => {
 		navigate(`/board/${nextBoardId}`);
 	};
 
+	const createIssue = (swimlaneId: string) => {
+		const title = window.prompt('Issue title');
+		if (!title?.trim()) return;
+
+		send('issues:create', {
+			title: title.trim(),
+			parentId: swimlaneId,
+		});
+
+		setSyncStatus({
+			status: 'syncing',
+			msg: 'creating issue',
+		});
+	};
+
 	return (
 		<div
 			style={{
@@ -295,6 +310,7 @@ export const App = () => {
 										: null
 								}
 								onSelectIssue={setSelectedIssueId}
+								onCreateIssue={createIssue}
 								onDropIssue={moveIssue(setState, socketRef)}
 								onDragOver={setDragOverSwimlaneId}
 								onDragOverIssue={(swimlaneId, index) =>

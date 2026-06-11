@@ -4,6 +4,7 @@ import {GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
+import {Button} from './Button';
 
 export const SwimlaneColumn = ({
 	swimlane,
@@ -12,6 +13,7 @@ export const SwimlaneColumn = ({
 	dragOver,
 	dropIndex,
 	onSelectIssue,
+	onCreateIssue,
 	onDropIssue,
 	onDragOver,
 	onDragOverIssue,
@@ -23,6 +25,7 @@ export const SwimlaneColumn = ({
 	dragOver: boolean;
 	dropIndex: number | null;
 	onSelectIssue: (issueId: string) => void;
+	onCreateIssue: (swimlaneId: string) => void;
 	onDropIssue: (
 		issueId: string,
 		swimlaneId: string,
@@ -81,25 +84,43 @@ export const SwimlaneColumn = ({
 					height: 48,
 					display: 'flex',
 					fontSize: 12,
+					justifyContent: 'space-between',
 					alignItems: 'center',
-					gap: 8,
 				}}
 			>
-				<span
-					style={{color: selected ? GUI_THEME.accent : GUI_THEME.secondary}}
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: 8,
+					}}
 				>
-					{selected ? '❯' : ' '}
-				</span>
+					<span
+						style={{color: selected ? GUI_THEME.accent : GUI_THEME.secondary}}
+					>
+						{selected ? '❯' : ' '}
+					</span>
 
-				<strong
-					style={{color: selected ? GUI_THEME.accent : GUI_THEME.primary}}
-				>
-					{swimlane.title}
-				</strong>
+					<strong
+						style={{color: selected ? GUI_THEME.accent : GUI_THEME.primary}}
+					>
+						{swimlane.title}
+					</strong>
 
-				<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
+					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
-				{swimlane.readonly && <span>🔒</span>}
+					{swimlane.readonly && <span>🔒</span>}
+				</div>
+				<div>
+					<Button
+						variant="ghost"
+						onClick={() => onCreateIssue(swimlane.id)}
+						disabled={swimlane.readonly}
+						title="Add issue"
+					>
+						+
+					</Button>
+				</div>
 			</header>
 
 			<div style={{overflow: 'auto', paddingTop: 4, flex: 1}}>

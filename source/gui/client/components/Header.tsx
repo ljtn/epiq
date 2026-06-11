@@ -2,6 +2,7 @@ import {GuiState} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Panel} from './Panel';
 import {User} from './User';
+import {EPIQ_VERSION} from '../../../version.js';
 
 type HeaderProps = {
 	state: GuiState | null;
@@ -69,7 +70,7 @@ export const Header = ({state, connected, syncStatus}: HeaderProps) => {
 							whiteSpace: 'nowrap',
 						}}
 					>
-						<span style={{color: syncColor}}>●</span>
+						<span style={{color: syncColor, fontSize: 4}}>●</span>
 
 						<span
 							style={{
@@ -84,10 +85,19 @@ export const Header = ({state, connected, syncStatus}: HeaderProps) => {
 
 						<span
 							style={{
-								color: connected ? GUI_THEME.dim : GUI_THEME.red,
+								color: GUI_THEME.dim,
 							}}
 						>
 							{connected ? 'connected' : 'disconnected'}
+						</span>
+
+						<span style={{color: GUI_THEME.dim}}>|</span>
+						<span
+							style={{
+								color: GUI_THEME.dim,
+							}}
+						>
+							{'v' + EPIQ_VERSION}
 						</span>
 					</div>
 
