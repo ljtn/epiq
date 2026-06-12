@@ -18,7 +18,7 @@ export const Panel = <T extends ElementType = 'div'>({
 	active = false,
 	borderColor = GUI_THEME.line,
 	glowColor = GUI_THEME.secondary,
-	glowOpacity = 0.2,
+	glowOpacity = 0.25,
 	borderRadius = 12,
 	style,
 	...props

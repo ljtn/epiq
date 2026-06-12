@@ -70,15 +70,32 @@ export const Header = ({state, connected, syncStatus}: HeaderProps) => {
 							whiteSpace: 'nowrap',
 						}}
 					>
-						<span style={{color: syncColor, fontSize: 4}}>●</span>
-
 						<span
 							style={{
-								color: GUI_THEME.dim,
-								minWidth: 72,
+								display: 'flex',
+								alignItems: 'center',
+								gap: 12,
+								justifyContent: 'flex-end',
 							}}
 						>
-							{syncStatus.msg.toLowerCase()}
+							<span
+								style={{
+									color: GUI_THEME.dim,
+									minWidth: 72,
+									textAlign: 'right',
+								}}
+							>
+								{connected ? syncStatus.msg.toLowerCase() : '-'}
+							</span>
+
+							<span
+								style={{
+									color: connected ? syncColor : GUI_THEME.dim,
+									fontSize: 4,
+								}}
+							>
+								●
+							</span>
 						</span>
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
