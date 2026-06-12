@@ -90,7 +90,7 @@ export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
 	return (
 		<Box>
 			<Text>
-				{chalk.hex(theme.secondary2).dim(autoSync ? 'AutoSync: ' : 'Sync: ')}
+				{chalk.hex(theme.secondary2).dim(autoSync ? 'Sync (auto): ' : 'Sync: ')}
 			</Text>
 			<Text>
 				{chalk.hex(color)('●') +

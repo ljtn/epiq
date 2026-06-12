@@ -7,14 +7,24 @@ import {
 	nodeRepo,
 } from '../repository/node-repo.js';
 import {getOrderedChildren} from '../repository/rank.js';
+import {getSettingsState} from '../state/settings.state.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
-import {getSettingsState} from '../state/settings.state.js';
 
 type Props = {
 	width: number;
+};
+
+const getTagCharacterLength = (tagId: string): number => {
+	const name = nodeRepo.getTag(tagId)?.name ?? '';
+	return name.length + 3; // paddingLeft={1} + TagUI pill decoration estimate
+};
+
+const getAssigneeCharacterLength = (assigneeId: string): number => {
+	const name = nodeRepo.getContributor(assigneeId)?.name ?? '';
+	return name.length + 3; // paddingLeft={1} + AssigneeUI pill decoration estimate
 };
 
 export const Breadcrumb: React.FC<Props> = ({width}) => {
@@ -58,43 +68,37 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 		})
 		.join('');
 
-	// Reserve width for metadata pills
-	const estimatedTagWidth =
-		tags.reduce(
-			(sum, tag) => sum + (nodeRepo.getTag(tag)?.name.length ?? 0) + 4,
-			0,
-		) +
-		assignees.reduce(
-			(sum, assignee) =>
-				sum + (nodeRepo.getContributor(assignee)?.name.length ?? 0) + 4,
-			0,
-		);
+	const pillCharacterLength = showDetails
+		? tags.reduce((sum, tag) => sum + getTagCharacterLength(tag), 0) +
+		  assignees.reduce(
+				(sum, assignee) => sum + getAssigneeCharacterLength(assignee),
+				0,
+		  )
+		: 0;
 
-	const breadcrumbWidth = width - estimatedTagWidth;
+	const maxBreadcrumbWidth = Math.max(0, width - pillCharacterLength);
+	const breadcrumbText = breadcrumbString.substring(0, maxBreadcrumbWidth);
+
+	const pills = showDetails
+		? [
+				...tags.map(tag => (
+					<Box key={`tag-${tag}`} paddingLeft={1}>
+						<TagUI id={tag} />
+					</Box>
+				)),
+				...assignees.map(assignee => (
+					<Box key={`assignee-${assignee}`} paddingLeft={1}>
+						<AssigneeUI id={assignee} />
+					</Box>
+				)),
+		  ]
+		: [];
 
 	return (
 		<Box overflow="hidden" justifyContent="flex-start" alignItems="flex-start">
-			<Box overflow="hidden" width={breadcrumbWidth}>
-				<Text wrap={'truncate-end'} color={theme.secondary2}>
-					{breadcrumbString}
-				</Text>
-			</Box>
+			<Text color={theme.secondary2}>{breadcrumbText}</Text>
 
-			{showDetails
-				? tags.map(tag => (
-						<Box key={tag} paddingLeft={1}>
-							<TagUI id={tag} />
-						</Box>
-				  ))
-				: null}
-
-			{showDetails
-				? assignees.map(assignee => (
-						<Box key={assignee} paddingLeft={1}>
-							<AssigneeUI id={assignee} />
-						</Box>
-				  ))
-				: null}
+			{pills}
 		</Box>
 	);
 };

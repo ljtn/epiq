@@ -16,7 +16,7 @@ import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getSettingsState, LogLevel} from '../state/settings.state.js';
 import {getState} from '../state/state.js';
-import {getDimStringColor, getGradientWord} from '../utils/color.js';
+import {getGradientWord, getStringColor} from '../utils/color.js';
 import {
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
@@ -97,7 +97,7 @@ const invalid = ({
 const isBlank = (value: string) => value.length === 0;
 
 const chip = (value: string): string =>
-	` ${chalk.dim.bgHex(getDimStringColor(value))(` ${value} `)} `;
+	` ${chalk.hex('#000').bgHex(getStringColor(value))(` ${value} `)} `;
 
 const requireExact = ({modifier}: {modifier: string}) => {
 	const expected = 'confirm';
