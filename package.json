@@ -40,7 +40,7 @@
 		"start": "IS_LOCAL=true tsx source/Index.tsx",
 		"start:gui": "IS_LOCAL=true tsx source/Index.tsx gui",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\"",
-		"test:e2e:ci": "IS_LOCAL=true npm run build:npm && vitest run source/test/e2e",
+		"test:e2e:ci": "IS_CI=true npm run build:npm && vitest run source/test/e2e",
 		"test:e2e": "docker run --rm -v \"$PWD\":/app -v /app/node_modules -w /app epiq-e2e npm run test:e2e:ci",
 		"build:e2e:image": "docker build -f source/test/e2e/Dockerfile -t epiq-e2e .",
 		"prepack": "npm run build:publish",
