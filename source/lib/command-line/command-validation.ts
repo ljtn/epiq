@@ -36,6 +36,7 @@ import {
 } from './command-modifiers.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
 
+export const MAX_COMMENT_LENGTH = 140 as const;
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 
 const guardBoardSwimlaneTicketNodes = (): ValidationResult => {
@@ -497,6 +498,23 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.HELP]: () => valid(CONFIRM_MSG),
 
 	[CmdKeywords.EDIT]: validateEditCommand,
+
+	[CmdKeywords.COMMENT]: args => {
+		const result = requireModifierOrInputStr({
+			hint: hintDefault(`write a comment (max ${MAX_COMMENT_LENGTH} char)...`),
+			onOk: hintDefault(`(${args.inputString.length}/${MAX_COMMENT_LENGTH})`),
+		})(args);
+
+		if (result.validity === cmdValidity.Invalid) {
+			return result;
+		}
+
+		if (args.inputString.length > MAX_COMMENT_LENGTH) {
+			return valid(hintAlert(`max input exceeded`));
+		}
+
+		return result;
+	},
 
 	[CmdKeywords.CONFIG]: validateConfigCommand,
 

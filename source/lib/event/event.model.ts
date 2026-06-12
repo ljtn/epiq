@@ -126,6 +126,32 @@ export type AppEventMap = {
 		result: {md: string};
 	};
 
+	'add.issue.comment': {
+		payload: PayloadBase & {
+			issue: string;
+			author: string;
+			md: string;
+		};
+		result: {
+			id: string;
+			issue: string;
+			author: string;
+			md: string;
+		};
+	};
+
+	'delete.issue.comment': {
+		payload: PayloadBase & {
+			issue: string;
+			comment: string;
+		};
+		result: {
+			id: string;
+			issue: string;
+			comment: string;
+		};
+	};
+
 	'close.issue': {
 		payload: PayloadBase & Position;
 		result: {id: string};

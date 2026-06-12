@@ -26,6 +26,9 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.EDIT:
 			return CmdIntent.Edit;
 
+		case CmdKeywords.COMMENT:
+			return CmdIntent.Comment;
+
 		case CmdKeywords.HELP:
 			return CmdIntent.ViewHelp;
 
@@ -96,6 +99,7 @@ export const CmdIntent = {
 	UnassignUserFromTicket: 'ticket-unassign-user',
 	CloseIssue: 'close-issue',
 	ReopenIssue: 're-open-issue',
+	Comment: 'comment-issue',
 
 	// Git
 	Sync: 'sync',

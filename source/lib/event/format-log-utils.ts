@@ -28,6 +28,8 @@ const formatLogAction = (action: string): string => {
 		'remove.issue.tag': 'Removed tag',
 		'lock.node': 'Locked node',
 		'move.node': 'Moved issue',
+		'add.issue.comment': 'Commented',
+		'delete.issue.comment': 'Deleted comment',
 	};
 
 	return (
@@ -102,6 +104,17 @@ const formatEventDetails = (event: AppEvent): string => {
 			return contributor
 				? chalk.hex(getStringColor(contributor.name))(` ${contributor.name} `)
 				: 'unknown user';
+		}
+
+		case 'add.issue.comment': {
+			const md = event.payload.md.replace(/\s+/g, ' ').trim();
+			const preview = md.length > 80 ? `${md.slice(0, 79)}…` : md;
+
+			return `${chalk.dim(`"${preview}"`)}`;
+		}
+
+		case 'delete.issue.comment': {
+			return chalk.dim(`#${event.payload.comment}`);
 		}
 
 		case 'add.board':

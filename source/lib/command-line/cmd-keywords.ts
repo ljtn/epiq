@@ -19,6 +19,8 @@ export const CmdKeywords = {
 	CLOSE_ISSUE: 'close',
 	RE_OPEN_ISSUE: 'reopen',
 
+	COMMENT: 'comment',
+
 	CONFIG: 'config',
 	EDIT: 'edit',
 

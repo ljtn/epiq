@@ -16,6 +16,9 @@ import {getState} from '../state/state.js';
 import {bigIntToHex, MAX_RANK} from '../utils/rank.js';
 import {virtualNodeId} from './virtual-ids.js';
 
+const getCommentsNodeId = (ticketId: string) =>
+	virtualNodeId(ticketId, 'comments');
+
 const getDescriptionNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'description');
 
@@ -158,11 +161,13 @@ export const materializeTicketVirtualNodes = (
 	const descriptionRank = bigIntToHex(MAX_RANK / 4n);
 	const assigneesRank = bigIntToHex(MAX_RANK / 2n);
 	const tagsRank = bigIntToHex((MAX_RANK * 3n) / 4n);
-	const logRank = bigIntToHex((MAX_RANK * 7n) / 8n);
+	const logRank = bigIntToHex((MAX_RANK * 13n) / 16n);
+	const commentsRank = bigIntToHex((MAX_RANK * 7n) / 8n);
 
 	if (isFail(descriptionRank)) return descriptionRank;
 	if (isFail(assigneesRank)) return assigneesRank;
 	if (isFail(tagsRank)) return tagsRank;
+	if (isFail(commentsRank)) return commentsRank;
 	if (isFail(logRank)) return logRank;
 
 	const descriptionResult = createOrUpdateVirtualField({
@@ -192,6 +197,17 @@ export const materializeTicketVirtualNodes = (
 		readonly: true,
 	});
 	if (isFail(tagsResult)) return tagsResult;
+
+	const commentsResult = createOrUpdateVirtualField({
+		id: getCommentsNodeId(node.id),
+		name: FieldNames.COMMENTS,
+		parentNodeId: node.id,
+		rank: commentsRank.value,
+		value: '',
+		readonly: true,
+		childRenderAxis: 'vertical',
+	});
+	if (isFail(commentsResult)) return commentsResult;
 
 	const logResult = createOrUpdateVirtualField({
 		id: getLogNodeId(node.id),

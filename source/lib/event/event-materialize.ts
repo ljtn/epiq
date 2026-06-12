@@ -85,6 +85,10 @@ const getNodeIdWithParent = (nodeId: string): string[] => {
 
 const getAffectedNodeIds = (event: AppEvent): string[] => {
 	switch (event.action) {
+		case 'add.issue.comment':
+		case 'delete.issue.comment':
+			return [event.payload.issue];
+
 		case 'delete.node':
 		case 'edit.description':
 			return getNodeIdWithParent(event.payload.id);
@@ -566,6 +570,45 @@ const materializeHandlers: MaterializeHandlers = {
 		return succeeded('Rebalanced children', {
 			action: event.action,
 			result: {parent},
+		});
+	},
+
+	'add.issue.comment': event => {
+		const {id, issue, author, md} = event.payload;
+		const ticket = nodeRepo.getNode(issue);
+
+		if (!ticket) return materializeFail('Unable to locate issue', event);
+		if (!isTicketNode(ticket)) {
+			return materializeFail('Can only comment on issues', event);
+		}
+
+		return succeeded('Comment added', {
+			action: event.action,
+			result: {
+				id,
+				issue,
+				author,
+				md,
+			},
+		});
+	},
+
+	'delete.issue.comment': event => {
+		const {id, issue, comment} = event.payload;
+		const ticket = nodeRepo.getNode(issue);
+
+		if (!ticket) return materializeFail('Unable to locate issue', event);
+		if (!isTicketNode(ticket)) {
+			return materializeFail('Can only delete issue comments', event);
+		}
+
+		return succeeded('Comment deleted', {
+			action: event.action,
+			result: {
+				id,
+				issue,
+				comment,
+			},
 		});
 	},
 };

@@ -8,6 +8,22 @@ import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
+import {CommentListUI} from './CommentListUI.js';
+
+const getVisibleCommentCount = (ticket: Ticket) => {
+	const deleted = new Set(
+		(ticket.log ?? [])
+			.filter(event => event.action === 'delete.issue.comment')
+			.map(event => event.payload.comment),
+	);
+
+	return (ticket.log ?? []).filter(
+		event =>
+			event.action === 'add.issue.comment' &&
+			event.payload.issue === ticket.id &&
+			!deleted.has(event.payload.id),
+	).length;
+};
 
 type Props = {
 	ticket: Ticket;
@@ -17,9 +33,13 @@ type Props = {
 const getDescriptionNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'description');
 
+const getCommentsNodeId = (ticketId: string) =>
+	virtualNodeId(ticketId, 'comments');
+
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
+	const commentCount = useMemo(() => getVisibleCommentCount(ticket), [ticket]);
 	const {selectedIndex, contextNode} = useAppState();
 	const maxWidth = process.stdout.columns || 120;
 
@@ -28,13 +48,40 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		[ticket.id],
 	);
 
+	const commentsNodeId = useMemo(
+		() => getCommentsNodeId(ticket.id),
+		[ticket.id],
+	);
+
 	const logNodeId = useMemo(() => getLogNodeId(ticket.id), [ticket.id]);
 
 	const isAtTicketRoot = contextNode.id === ticket.id;
+
+	const isInsideComments =
+		contextNode.id === commentsNodeId ||
+		contextNode.parentNodeId === commentsNodeId;
+
 	const isInsideLog =
 		contextNode.id === logNodeId || contextNode.parentNodeId === logNodeId;
 
 	const children = getRenderedChildren(ticket.id);
+
+	if (isInsideComments) {
+		const commandPromptHeight = 3;
+		const editorHeight = height - commandPromptHeight;
+
+		return (
+			<Box
+				width={maxWidth}
+				flexDirection="column"
+				paddingRight={1}
+				paddingBottom={1}
+				minHeight={height}
+			>
+				<CommentListUI ticket={ticket} width={maxWidth} height={editorHeight} />
+			</Box>
+		);
+	}
 
 	if (isInsideLog) {
 		const logNode = nodeRepo.getNode(logNodeId);
@@ -68,7 +115,11 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	const fieldCount = children.reduce(
 		(count, child) =>
-			isFieldListNode(child) || child.id === logNodeId ? count + 1 : count,
+			isFieldListNode(child) ||
+			child.id === commentsNodeId ||
+			child.id === logNodeId
+				? count + 1
+				: count,
 		0,
 	);
 
@@ -104,6 +155,20 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 					selected={selected}
 					selectedIndex={selectedIndex}
 				/>
+			);
+		}
+
+		if (child.id === commentsNodeId) {
+			return (
+				<Box key={child.id} paddingTop={1}>
+					<CursorUI isSelected={selected} />
+					<Text
+						backgroundColor={theme.secondary}
+						color={selected ? theme.accent : theme.primary}
+					>
+						{` Comments (${commentCount}) ›› `}
+					</Text>
+				</Box>
 			);
 		}
 

@@ -7,7 +7,11 @@ import {resolveActorId} from '../event/event-persist.js';
 import {resolveReopenParentFromLog} from '../event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 import {CommandLineActionEntry, Mode} from '../model/action-map.model.js';
-import {Filter} from '../model/app-state.model.js';
+import {
+	BreadCrumb,
+	Filter,
+	findInBreadCrumb,
+} from '../model/app-state.model.js';
 import {isTicketNode} from '../model/context.model.js';
 import {failed, isFail, succeeded} from '../model/result-types.js';
 import {findAncestor} from '../repository/node-repo.js';
@@ -39,6 +43,8 @@ import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
 import {syncCommand} from './commands/sync.cmd.js';
+import {FieldNames} from '../repository/fielNames.js';
+import {MAX_COMMENT_LENGTH} from './command-validation.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -504,6 +510,81 @@ export const commands: CommandLineActionEntry[] = [
 				payload: {
 					id: ticket.id,
 					assignee: existingContributor.id,
+				},
+				...userRes.value,
+			});
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.Comment,
+		description: 'Add a comment to the selected issue',
+		mode: Mode.COMMAND_LINE,
+		action: async (_, cmdState) => {
+			const md = cmdState.inputString.trim();
+			if (!md) return failed('Provide a comment');
+
+			if (md.length > MAX_COMMENT_LENGTH)
+				return failed(`Cannot exceed ${MAX_COMMENT_LENGTH} characters`);
+
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+			const {breadCrumb, selectedNode} = getState();
+			const issueResult = findInBreadCrumb(
+				[...breadCrumb, selectedNode] as BreadCrumb,
+				'TICKET',
+			);
+			if (isFail(issueResult)) return failed('Edit target must be an issue');
+
+			const target = issueResult.value;
+			if (!target) return failed('Invalid comment target');
+
+			const ticketResult =
+				target.context === 'TICKET'
+					? succeeded('Resolved ticket', target)
+					: findAncestor(target.id, 'TICKET');
+
+			if (isFail(ticketResult)) {
+				return failed('Unable to comment on issue in this context');
+			}
+
+			const ticket = ticketResult.value;
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
+
+			const {userName} = getSettingsState();
+			if (!userName) return failed('Unable to resolve comment author');
+
+			const existingContributor = findContributorByName(userName);
+
+			let authorId: string;
+
+			if (existingContributor) {
+				authorId = existingContributor.id;
+			} else {
+				const newContributorId = ulid();
+				const createResult = await persistEvent({
+					id: ulid(),
+					action: 'create.contributor',
+					payload: {
+						id: newContributorId,
+						name: userName,
+					},
+					...userRes.value,
+				});
+
+				if (isFail(createResult)) return createResult;
+				authorId = createResult.value.result.id;
+			}
+
+			return persistEvent({
+				id: ulid(),
+				action: 'add.issue.comment',
+				payload: {
+					id: ulid(),
+					issue: ticket.id,
+					author: authorId,
+					md,
 				},
 				...userRes.value,
 			});

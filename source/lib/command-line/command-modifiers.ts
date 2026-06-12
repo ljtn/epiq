@@ -83,6 +83,7 @@ const TICKET_COMMANDS = [
 	CmdKeywords.CLOSE_ISSUE,
 	CmdKeywords.RE_OPEN_ISSUE,
 	CmdKeywords.EDIT,
+	CmdKeywords.COMMENT,
 ];
 
 const PRESENTATION_COMMANDS = [CmdKeywords.FILTER, CmdKeywords.PEEK];
@@ -184,6 +185,8 @@ export const getCmdModifiers = (
 		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
 
 		[CmdKeywords.EDIT]: [...EDIT_MODIFIERS],
+
+		[CmdKeywords.COMMENT]: [CmdKeywords.DELETE],
 
 		[CmdKeywords.DELETE]: ['confirm'],
 		[CmdKeywords.RE_OPEN_ISSUE]: ['confirm'],
