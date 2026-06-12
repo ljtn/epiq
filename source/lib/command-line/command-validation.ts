@@ -617,7 +617,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 		return requireModifierOrInputStr({
 			hint: buildOptionsHint({
-				prefix: 'Fuel continued development with ... $ ',
+				prefix: 'fuel continued development with ... $ ',
 				wordList: ['1', ' 3 ', '5', '20', 'custom'],
 				inputString: '',
 				minLengthForHints: 0,
