@@ -174,3 +174,4 @@
 {"v":1,"id":["01KTXV238S3JRHRBYNC16V4SZ1","01KTXV1JD6MXGS0HHB08NQ2NPV"],"add.swimlane":{"id":"01KTXV238P0G5WKE1YSQA9P9VV","name":"Long term","parent":"01KTXV1EVJJZDYH5KPFP4M9HZ1","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01KTXV2G1KAHMKJCM430MBSX5A","01KTXV238S3JRHRBYNC16V4SZ1"],"add.issue":{"id":"01KTXV2G1EWA29VNDEFGB1V92X","parent":"01KTXV238P0G5WKE1YSQA9P9VV","name":"Targets 2026","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01KTZX9Z2CQWTBVHC1S0H25EW6","01KTXV2G1KAHMKJCM430MBSX5A"],"add.issue":{"id":"01KTZX9Z2A9RZS61C6WTP99YAR","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","name":"New issue","rank":"dfffffffffffffffffffffff"}}
+{"v":1,"id":["01KTZY319XF59B9X599QM06700","01KTZX9Z2CQWTBVHC1S0H25EW6"],"add.issue":{"id":"01KTZY319V0KJY01S53MQWTTQ1","parent":"01KS22YK95S3336MFSE44MY70S","name":"Important stuff","rank":"bfffffffffffffffffffffff"}}
