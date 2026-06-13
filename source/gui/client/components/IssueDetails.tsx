@@ -2,6 +2,17 @@ import React, {useEffect, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {GuiAssignee, GuiIssue, GuiTag} from '../lib/gui-state.model';
 import {Button} from './Button';
+import {
+	ActionRow,
+	AddRow,
+	ChipRow,
+	Empty,
+	Input,
+	Textarea,
+} from './FormPrimitives';
+import {Section} from './Section';
+import {FormHeader} from './FormHeader';
+import {Aside} from './Aside';
 
 export const IssueDetails = ({
 	issue,
@@ -118,7 +129,7 @@ export const IssueDetails = ({
 		<Aside>
 			{issue ? (
 				<>
-					<Header>
+					<FormHeader>
 						<span
 							style={{
 								color: GUI_THEME.secondary,
@@ -133,7 +144,7 @@ export const IssueDetails = ({
 						<Button variant="ghost" onClick={onClose}>
 							×
 						</Button>
-					</Header>
+					</FormHeader>
 
 					<Section
 						first={true}
@@ -160,7 +171,7 @@ export const IssueDetails = ({
 								/>
 
 								<ActionRow>
-									<Button onClick={saveTitle}>Save</Button>
+									<Button onClick={saveTitle}>save</Button>
 									<Button variant="ghost" onClick={cancelTitle}>
 										cancel
 									</Button>
@@ -269,6 +280,7 @@ export const IssueDetails = ({
 								))
 							)}
 						</ChipRow>
+
 						{addingTag && (
 							<ChipRow>
 								{availableTags.map(tag => (
@@ -405,165 +417,3 @@ export const IssueDetails = ({
 		</Aside>
 	);
 };
-
-const Aside = ({children}: {children: React.ReactNode}) => (
-	<aside
-		style={{
-			width: 380,
-			minWidth: 380,
-			borderLeft: `1px solid ${GUI_THEME.line}`,
-			background: GUI_THEME.panel,
-			padding: 18,
-			fontSize: 12,
-			overflow: 'auto',
-		}}
-	>
-		{children}
-	</aside>
-);
-
-const Header = ({children}: {children: React.ReactNode}) => (
-	<div
-		style={{
-			display: 'flex',
-			justifyContent: 'space-between',
-			alignItems: 'center',
-			gap: 12,
-			marginBottom: 18,
-		}}
-	>
-		{children}
-	</div>
-);
-
-const Section = ({
-	title,
-	action,
-	children,
-	first = false,
-}: {
-	first?: boolean;
-	title: string;
-	action?: React.ReactNode;
-	children: React.ReactNode;
-}) => (
-	<section
-		style={{
-			padding: first ? '0px 0 14px 0' : '14px 0',
-			borderTop: first ? 'none' : `1px solid ${GUI_THEME.line}`,
-		}}
-	>
-		<div
-			style={{
-				display: 'flex',
-				justifyContent: 'space-between',
-				alignItems: 'center',
-				gap: 12,
-			}}
-		>
-			<span
-				style={{
-					color: GUI_THEME.secondary,
-					fontSize: 10,
-					textTransform: 'uppercase',
-					letterSpacing: '0.08em',
-				}}
-			>
-				{title}
-			</span>
-
-			{action}
-		</div>
-
-		{children}
-	</section>
-);
-
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-	<input
-		{...props}
-		style={{
-			width: '100%',
-			boxSizing: 'border-box',
-			background: GUI_THEME.bg,
-			color: GUI_THEME.primary,
-			border: `1px solid ${GUI_THEME.line}`,
-			borderRadius: 8,
-			padding: '8px 10px',
-			outline: 'none',
-			font: 'inherit',
-			...props.style,
-		}}
-	/>
-);
-
-const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-	<textarea
-		{...props}
-		style={{
-			width: '100%',
-			minHeight: 140,
-			boxSizing: 'border-box',
-			background: GUI_THEME.bg,
-			color: GUI_THEME.primary,
-			border: `1px solid ${GUI_THEME.line}`,
-			borderRadius: 8,
-			padding: '8px 10px',
-			outline: 'none',
-			lineHeight: 1.6,
-			resize: 'vertical',
-			font: 'inherit',
-			...props.style,
-		}}
-	/>
-);
-
-const ActionRow = ({children}: {children: React.ReactNode}) => (
-	<div
-		style={{
-			display: 'flex',
-			justifyContent: 'flex-end',
-			gap: 8,
-			marginTop: 8,
-		}}
-	>
-		{children}
-	</div>
-);
-
-const AddRow = ({children}: {children: React.ReactNode}) => (
-	<div
-		style={{
-			display: 'flex',
-			gap: 8,
-			marginTop: 10,
-		}}
-	>
-		{children}
-	</div>
-);
-
-const ChipRow = ({children}: {children: React.ReactNode}) => (
-	<div
-		style={{
-			display: 'flex',
-			gap: 8,
-			flexWrap: 'wrap',
-			marginTop: 10,
-		}}
-	>
-		{children}
-	</div>
-);
-
-const Empty = ({children}: {children: React.ReactNode}) => (
-	<span
-		style={{
-			display: 'inline-block',
-			marginTop: 8,
-			color: GUI_THEME.dim,
-		}}
-	>
-		{children}
-	</span>
-);
