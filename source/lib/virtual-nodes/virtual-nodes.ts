@@ -206,7 +206,7 @@ export const materializeTicketVirtualNodes = (
 		parentNodeId: node.id,
 		rank: commentsRank.value,
 		value: '',
-		readonly: true,
+		readonly: false,
 		childRenderAxis: 'vertical',
 	});
 	if (isFail(commentsResult)) return commentsResult;

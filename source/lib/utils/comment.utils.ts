@@ -1,5 +1,8 @@
+import {decodeTime} from 'ulid';
 import {AppEvent} from '../event/event.model.js';
+import {CommentState} from '../model/app-state.model.js';
 import {Comment, Ticket} from '../model/context.model.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 
 export const getVisibleCommentCount = (ticket: Ticket) => {
@@ -16,29 +19,6 @@ export const getVisibleCommentCount = (ticket: Ticket) => {
 			!deleted.has(event.payload.id),
 	).length;
 };
-export const getCommentItems = (ticket: Ticket): CommentItem[] => {
-	const log = ticket.log ?? [];
-
-	const deletedCommentIds = new Set(
-		log.filter(isDeleteCommentEvent).map(event => event.payload.id),
-	);
-
-	return log
-		.filter(isAddCommentEvent)
-		.filter(event => event.payload.issue === ticket.id)
-		.filter(event => !deletedCommentIds.has(event.payload.id))
-		.reverse()
-		.map(
-			event =>
-				({
-					id: event.payload.id,
-					issue: event.payload.issue,
-					md: event.payload.md,
-					authorId: event.userId,
-					authorName: event.userName,
-				} satisfies CommentItem),
-		);
-};
 
 export const createCommentNode = (
 	comment: CommentItem,
@@ -46,14 +26,14 @@ export const createCommentNode = (
 	parentNodeId: string,
 ): Comment =>
 	nodes.comment({
-		id: toCommentNodeId(comment.id),
+		id: comment.id,
 		parentNodeId,
 		rank: String(index).padStart(6, '0'),
 		name: comment.id,
 		props: {
 			value: comment.md,
 		},
-		readonly: true,
+		readonly: false,
 		isVirtual: true,
 	});
 
@@ -74,5 +54,3 @@ export type CommentItem = {
 	authorId: string;
 	authorName: string;
 };
-
-export const toCommentNodeId = (commentId: string) => `comment:${commentId}`;

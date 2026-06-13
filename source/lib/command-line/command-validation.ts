@@ -11,11 +11,11 @@ import {
 	Filter,
 	findInBreadCrumb,
 } from '../model/app-state.model.js';
-import {AnyContext} from '../model/context.model.js';
+import {AnyContext, NavNodeCtx} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getSettingsState, LogLevel} from '../state/settings.state.js';
-import {getState} from '../state/state.js';
+import {getRenderedChildren, getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
 import {
 	ticketAssigneesFromBreadCrumb,
@@ -36,6 +36,7 @@ import {
 } from './command-modifiers.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
+import {setCmdInput} from '../state/cmd.state.js';
 
 export const MAX_COMMENT_LENGTH = 140 as const;
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
@@ -313,7 +314,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 	}
 };
 
-const validateEditCommand: Validator = ({modifier}) => {
+const validateEditCommand: Validator = ({modifier, inputString}) => {
 	const editModifiers = getCmdModifiers(CmdKeywords.EDIT);
 
 	if (!editModifiers.includes(modifier)) {
@@ -335,19 +336,31 @@ const validateEditCommand: Validator = ({modifier}) => {
 		[...breadCrumb, selectedNode] as BreadCrumb,
 		'TICKET',
 	);
-	if (!isTicketInPath)
+
+	if (isFail(isTicketInPath)) {
 		return invalid({
 			message: hintAlert('Command not available in this context'),
 		});
+	}
 
 	switch (modifier) {
+		case EditModifiers.COMMENT:
+			if (!inputString) {
+				setCmdInput(() => 'hahah');
+			}
+			return valid(CONFIRM_MSG);
+
 		case EditModifiers.TITLE:
 			return valid(CONFIRM_MSG);
 
-		case EditModifiers.DESCRIPTION:
+		case EditModifiers.DESCRIPTION: {
 			const {preferredEditor} = getSettingsState();
-			if (!preferredEditor) return invalid({message: 'No editor selected'});
+			if (!preferredEditor) {
+				return invalid({message: 'No editor selected'});
+			}
+
 			return valid(hintDefault('<ENTER> to edit in ') + preferredEditor);
+		}
 
 		default:
 			return invalid({

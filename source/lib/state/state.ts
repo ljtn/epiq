@@ -148,6 +148,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		timeMode: 'live',
 		hasProjectDefinition,
 		hasInitializingEvents: false,
+		comments: {},
 	};
 
 	const deriveResult = derive(base);

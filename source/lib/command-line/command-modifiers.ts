@@ -15,7 +15,7 @@ import {
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {generatePeekOffsetHints} from './validate-date.js';
 
-const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
+const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE', 'COMMENT'];
 
 export const ConfigModifiers = {
 	EDITOR: 'editor',
@@ -32,6 +32,7 @@ export type ConfigModifier =
 export const EditModifiers = {
 	TITLE: 'title',
 	DESCRIPTION: 'description',
+	COMMENT: 'comment',
 } as const;
 
 export type EditModifier = (typeof EditModifiers)[keyof typeof EditModifiers];
@@ -45,7 +46,11 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.LOG_LEVEL,
 ];
 
-export const EDIT_MODIFIERS = [EditModifiers.TITLE, EditModifiers.DESCRIPTION];
+export const EDIT_MODIFIERS = [
+	EditModifiers.TITLE,
+	EditModifiers.DESCRIPTION,
+	EditModifiers.COMMENT,
+];
 
 export const AUTOSYNC_DEBOUNCE_HINTS = [
 	String(MIN_AUTOSYNC_DURATION_MS),

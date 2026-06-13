@@ -16,11 +16,7 @@ import {theme} from '../theme/themes.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {AssigneeUI} from './Assignee.js';
 import {ScrollBoxUI} from './ScrollBox.js';
-import {
-	CommentItem,
-	createCommentNode,
-	getCommentItems,
-} from '../utils/comment.utils.js';
+import {CommentItem, createCommentNode} from '../utils/comment.utils.js';
 
 type Props = {
 	ticket: Ticket;
@@ -30,6 +26,19 @@ type Props = {
 
 const getCommentsRootNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'comments');
+
+const getCommentItems = (ticket: Ticket): CommentItem[] =>
+	nodeRepo
+		.getCommentsByIssue(ticket.id)
+		.sort((a, b) => decodeTime(a.id) - decodeTime(b.id))
+		.map(comment => ({
+			id: comment.id,
+			issue: comment.issue,
+			authorId: comment.authorId,
+			authorName:
+				nodeRepo.getContributor(comment.authorId)?.name ?? comment.authorId,
+			md: comment.md,
+		}));
 
 const detachCommentNodes = (commentNodes: Comment[]) => {
 	for (const node of commentNodes) {

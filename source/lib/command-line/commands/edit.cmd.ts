@@ -1,15 +1,114 @@
 import {ulid} from 'ulid';
 import {openEditorOnText} from '../../editor/editor.js';
-import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
+import {
+	materializeAndPersist,
+	persistEvent,
+} from '../../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../../event/event-persist.js';
+import {CommandLineInput} from '../../model/action-map.model.js';
 import {BreadCrumb, findInBreadCrumb} from '../../model/app-state.model.js';
+import {isCommentNode, isTicketNode} from '../../model/context.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
+import {nodeRepo} from '../../repository/node-repo.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
-import {isTicketNode} from '../../model/context.model.js';
+import {EditModifiers} from '../command-modifiers.js';
 
-export const editCommand = async () => {
+export const editCommand = async (cmdState: CommandLineInput) => {
+	const {contextNode, selectedIndex} = getState();
+	const selected = getRenderedChildren(contextNode.id)[selectedIndex];
+
+	if (selected && isCommentNode(selected)) {
+		return editSelectedComment(cmdState);
+	}
+
+	if (cmdState.modifier === EditModifiers.DESCRIPTION) {
+		return editInEditor();
+	}
+
+	if (cmdState.modifier === EditModifiers.TITLE) {
+		const userRes = resolveActorId();
+		if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+		const node = selected;
+		if (!node) return failed('Missing node');
+		if (node.readonly) return failed('Cannot rename readonly node');
+
+		const newName = cmdState.inputString.trim();
+		if (!newName) return failed('Provide a title');
+
+		return persistEvent({
+			id: ulid(),
+			action: 'edit.title',
+			payload: {id: node.id, name: newName},
+			...userRes.value,
+		});
+	}
+
+	return failed('Unknown edit command');
+};
+
+const editSelectedComment = async (cmdState: CommandLineInput) => {
+	const userRes = resolveActorId();
+	if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+	const {contextNode, selectedIndex} = getState();
+	const selected = getRenderedChildren(contextNode.id)[selectedIndex];
+
+	if (!selected || !isCommentNode(selected)) {
+		return failed('Select a comment first');
+	}
+
+	if (selected.readonly) return failed('Cannot edit readonly comment');
+
+	const issueId = contextNode.parentNodeId;
+	if (!issueId) return failed('Unable to resolve comment issue');
+
+	const issueNode = getState().nodes[issueId];
+
+	if (!issueNode || !isTicketNode(issueNode)) {
+		return failed('Unable to resolve comment issue');
+	}
+
+	if (issueNode.readonly) return failed('Cannot edit readonly issue');
+
+	const commentId = selected.id.split(':').at(0) ?? '';
+	const comment = nodeRepo.getComment(commentId);
+
+	if (!comment || comment.deleted) {
+		return failed('Unable to resolve comment');
+	}
+
+	if (comment.issue !== issueNode.id) {
+		return failed('Comment does not belong to selected issue');
+	}
+
+	if (comment.authorId !== userRes.value.userId) {
+		return failed(
+			'You can only edit your own comments' +
+				comment.authorId +
+				'<->' +
+				userRes.value.userId,
+		);
+	}
+
+	const md = cmdState.inputString.trim();
+	if (!md) return failed('Provide a comment');
+
+	return persistEvent({
+		id: ulid(),
+		action: 'edit.issue.comment',
+		payload: {
+			id: comment.id,
+			issue: issueNode.id,
+			md,
+		},
+		...userRes.value,
+	});
+};
+
+export const editInEditor = async () => {
 	const userRes = resolveActorId();
 	if (isFail(userRes)) return failed('Unable to resolve user ID');
 

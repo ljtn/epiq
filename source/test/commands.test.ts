@@ -51,7 +51,6 @@ vi.mock('../lib/state/state.js', () => ({
 
 import {ulid} from 'ulid';
 import {CmdIntent} from '../lib/command-line/command-intent.js';
-import {commands} from '../lib/command-line/commands.js';
 import {persistEvent} from '../lib/event/event-materialize-and-persist.js';
 import {EventAction, MaterializeResult} from '../lib/event/event.model.js';
 import {AppState, Tag} from '../lib/model/app-state.model.js';
@@ -65,6 +64,7 @@ import {
 	CommandLineActionEntry,
 	CommandLineInput,
 } from '../lib/model/action-map.model.js';
+import {commands} from '../lib/command-line/commands.js';
 
 const mockedUlid = vi.mocked(ulid);
 const mockedPersistEvent = vi.mocked(persistEvent);

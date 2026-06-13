@@ -4,7 +4,6 @@ import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {CmdKeywords} from '../command-line/cmd-keywords.js';
 import {getCommandIntent} from '../command-line/command-intent.js';
 import {getCmdModifiers} from '../command-line/command-modifiers.js';
-import {commands} from '../command-line/commands.js';
 import {isTextNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {isFail, isSuccess} from '../model/result-types.js';
@@ -17,6 +16,7 @@ import {ScrollBoxUI} from './ScrollBox.js';
 import {ulid} from 'ulid';
 import {capitalize} from '../utils/string.utils.js';
 import {getUiState} from '../state/ux-state.js';
+import {commands} from '../command-line/commands.js';
 
 const HighlightMatch = ({
 	text,

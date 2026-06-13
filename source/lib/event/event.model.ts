@@ -140,6 +140,18 @@ export type AppEventMap = {
 		};
 	};
 
+	'edit.issue.comment': {
+		payload: PayloadBase & {
+			issue: string;
+			md: string;
+		};
+		result: {
+			id: string;
+			issue: string;
+			md: string;
+		};
+	};
+
 	'delete.issue.comment': {
 		payload: PayloadBase & {
 			issue: string;

@@ -86,6 +86,7 @@ const getNodeIdWithParent = (nodeId: string): string[] => {
 const getAffectedNodeIds = (event: AppEvent): string[] => {
 	switch (event.action) {
 		case 'add.issue.comment':
+		case 'edit.issue.comment':
 		case 'delete.issue.comment':
 			return [event.payload.issue];
 
@@ -144,6 +145,7 @@ const completeMaterialization = (
 ): ReturnFail | null => {
 	const userFail = validateEventUser(event);
 	if (isFail(userFail)) return userFail;
+
 	const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
 
 	if (!bypassLogging) {
@@ -575,41 +577,68 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.issue.comment': event => {
 		const {id, issue, author, md} = event.payload;
-		const ticket = nodeRepo.getNode(issue);
 
-		if (!ticket) return materializeFail('Unable to locate issue', event);
-		if (!isTicketNode(ticket)) {
-			return materializeFail('Can only comment on issues', event);
+		const result = nodeRepo.createComment({
+			id,
+			issue,
+			authorId: author,
+			authorName: nodeRepo.getContributor(author)?.name ?? event.userName,
+			md,
+			deleted: false,
+		});
+
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to add comment', event);
 		}
 
 		return succeeded('Comment added', {
 			action: event.action,
-			result: {
-				id,
-				issue,
-				author,
-				md,
-			},
+			result: {id, issue, author, md},
+		});
+	},
+
+	'edit.issue.comment': event => {
+		const {id, issue, md} = event.payload;
+
+		const existing = nodeRepo.getComment(id);
+		if (!existing) return materializeFail('Unable to locate comment', event);
+		if (existing.issue !== issue) {
+			return materializeFail('Comment does not belong to issue', event);
+		}
+
+		const result = nodeRepo.editComment(id, md);
+
+		if (isFail(result)) {
+			return materializeFail(result.message ?? 'Unable to edit comment', event);
+		}
+
+		return succeeded('Comment edited', {
+			action: event.action,
+			result: {id, issue, md},
 		});
 	},
 
 	'delete.issue.comment': event => {
 		const {id, issue} = event.payload;
-		const ticket = nodeRepo.getNode(issue);
 
-		if (!ticket) return materializeFail('Unable to locate issue', event);
-		if (!isTicketNode(ticket)) {
-			return materializeFail('Can only delete issue comments', event);
+		const existing = nodeRepo.getComment(id);
+		if (!existing) return materializeFail('Unable to locate comment', event);
+		if (existing.issue !== issue) {
+			return materializeFail('Comment does not belong to issue', event);
 		}
 
-		nodeRepo.tombstoneNode(id);
+		const result = nodeRepo.deleteComment(id);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to delete comment',
+				event,
+			);
+		}
 
 		return succeeded('Comment deleted', {
 			action: event.action,
-			result: {
-				id,
-				issue,
-			},
+			result: {id, issue},
 		});
 	},
 };

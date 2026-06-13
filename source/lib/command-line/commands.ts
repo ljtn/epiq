@@ -29,11 +29,8 @@ import {getPersistRoot} from '../storage/paths.js';
 import {openUrl} from '../utils/open-in-browser.js';
 import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-intent.js';
-import {
-	ConfigModifiers,
-	EditModifiers,
-	getCmdModifiers,
-} from './command-modifiers.js';
+import {ConfigModifiers, getCmdModifiers} from './command-modifiers.js';
+import {MAX_COMMENT_LENGTH} from './command-validation.js';
 import {editCommand} from './commands/edit.cmd.js';
 import {initCommand} from './commands/init.cmd.js';
 import {moveCommand} from './commands/move.cmd.js';
@@ -43,8 +40,6 @@ import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
 import {syncCommand} from './commands/sync.cmd.js';
-import {FieldNames} from '../repository/fielNames.js';
-import {MAX_COMMENT_LENGTH} from './command-validation.js';
 
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
@@ -595,27 +590,18 @@ export const commands: CommandLineActionEntry[] = [
 			const {userName} = getSettingsState();
 			if (!userName) return failed('Unable to resolve comment author');
 
-			const existingContributor = findContributorByName(userName);
+			const newContributorId = ulid();
+			const createResult = await persistEvent({
+				id: ulid(),
+				action: 'create.contributor',
+				payload: {
+					id: newContributorId,
+					name: userName,
+				},
+				...userRes.value,
+			});
 
-			let authorId: string;
-
-			if (existingContributor) {
-				authorId = existingContributor.id;
-			} else {
-				const newContributorId = ulid();
-				const createResult = await persistEvent({
-					id: ulid(),
-					action: 'create.contributor',
-					payload: {
-						id: newContributorId,
-						name: userName,
-					},
-					...userRes.value,
-				});
-
-				if (isFail(createResult)) return createResult;
-				authorId = createResult.value.result.id;
-			}
+			if (isFail(createResult)) return createResult;
 
 			return persistEvent({
 				id: ulid(),
@@ -623,7 +609,7 @@ export const commands: CommandLineActionEntry[] = [
 				payload: {
 					id: ulid(),
 					issue: ticket.id,
-					author: authorId,
+					author: userRes.value.userId,
 					md,
 				},
 				...userRes.value,
@@ -671,33 +657,7 @@ export const commands: CommandLineActionEntry[] = [
 		intent: CmdIntent.Edit,
 		description: 'Edit title or description',
 		mode: Mode.COMMAND_LINE,
-		action: async (_, cmdState) => {
-			if (cmdState.modifier === EditModifiers.DESCRIPTION) {
-				return editCommand();
-			}
-
-			if (cmdState.modifier === EditModifiers.TITLE) {
-				const userRes = resolveActorId();
-				if (isFail(userRes)) return failed('Unable to resolve user ID');
-
-				const {contextNode, selectedIndex} = getState();
-				const node = getRenderedChildren(contextNode.id)[selectedIndex];
-				if (!node) return failed('Missing node');
-				if (node.readonly) return failed('Cannot rename readonly node');
-
-				const newName = cmdState.inputString.trim();
-				if (!newName) return failed('Provide a title');
-
-				return persistEvent({
-					id: ulid(),
-					action: 'edit.title',
-					payload: {id: node.id, name: newName},
-					...userRes.value,
-				});
-			}
-
-			return failed('Unknown edit command');
-		},
+		action: (_, cmdState) => editCommand(cmdState),
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{

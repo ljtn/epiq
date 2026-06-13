@@ -64,6 +64,7 @@ export type AppState = {
 	timeMode: 'live' | 'peek' | 'replay';
 	eventLog: AppEvent[];
 	unappliedEvents: AppEvent[];
+	comments: Record<string, CommentState>;
 };
 
 type BreadCrumbItem = BreadCrumb[number];
@@ -81,4 +82,12 @@ export const findInBreadCrumb = <T extends BreadCrumbItem['context']>(
 	} else {
 		return failed('Unable to find node in breadcrumb');
 	}
+};
+export type CommentState = {
+	id: string;
+	issue: string;
+	authorId: string;
+	authorName: string;
+	md: string;
+	deleted?: boolean;
 };
