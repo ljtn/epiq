@@ -594,7 +594,7 @@ const materializeHandlers: MaterializeHandlers = {
 	},
 
 	'delete.issue.comment': event => {
-		const {id, issue, comment} = event.payload;
+		const {id, issue} = event.payload;
 		const ticket = nodeRepo.getNode(issue);
 
 		if (!ticket) return materializeFail('Unable to locate issue', event);
@@ -602,12 +602,13 @@ const materializeHandlers: MaterializeHandlers = {
 			return materializeFail('Can only delete issue comments', event);
 		}
 
+		nodeRepo.tombstoneNode(id);
+
 		return succeeded('Comment deleted', {
 			action: event.action,
 			result: {
 				id,
 				issue,
-				comment,
 			},
 		});
 	},

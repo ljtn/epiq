@@ -54,7 +54,7 @@ const getCommentItems = (ticket: Ticket): CommentItem[] => {
 	const log = ticket.log ?? [];
 
 	const deletedCommentIds = new Set(
-		log.filter(isDeleteCommentEvent).map(event => event.payload.comment),
+		log.filter(isDeleteCommentEvent).map(event => event.payload.id),
 	);
 
 	return log
@@ -147,10 +147,12 @@ export function CommentListUI({ticket, width, height}: Props) {
 	if (comments.length === 0) {
 		return (
 			<Box flexDirection="column" width={width} height={height} padding={1}>
-				<Text color={theme.accent}>No comments yet.</Text>
-				<Text color={theme.secondary2} dimColor>
-					Use :comment to add the first one.
-				</Text>
+				<Text color={theme.primary}>No comments yet.</Text>
+				<Box paddingTop={1}>
+					<Text color={theme.primary}>Use</Text>
+					<Text color={theme.accent}> :comment </Text>
+					<Text color={theme.primary}>to add the first one.</Text>
+				</Box>
 			</Box>
 		);
 	}

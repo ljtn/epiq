@@ -106,17 +106,6 @@ const formatEventDetails = (event: AppEvent): string => {
 				: 'unknown user';
 		}
 
-		case 'add.issue.comment': {
-			const md = event.payload.md.replace(/\s+/g, ' ').trim();
-			const preview = md.length > 80 ? `${md.slice(0, 79)}…` : md;
-
-			return `${chalk.dim(`"${preview}"`)}`;
-		}
-
-		case 'delete.issue.comment': {
-			return chalk.dim(`#${event.payload.comment}`);
-		}
-
 		case 'add.board':
 		case 'add.swimlane':
 		case 'add.issue':

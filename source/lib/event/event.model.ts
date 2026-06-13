@@ -143,12 +143,10 @@ export type AppEventMap = {
 	'delete.issue.comment': {
 		payload: PayloadBase & {
 			issue: string;
-			comment: string;
 		};
 		result: {
 			id: string;
 			issue: string;
-			comment: string;
 		};
 	};
 

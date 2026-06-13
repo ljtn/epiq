@@ -76,16 +76,39 @@ export const commands: CommandLineActionEntry[] = [
 
 			const commentPrefix = 'comment:';
 
+			// Handle comment deletes
 			if (child.id.startsWith(commentPrefix)) {
 				const commentId = child.id.slice(commentPrefix.length);
+				const issueId = contextNode.parentNodeId;
+
+				if (!issueId) return failed('Unable to resolve comment issue');
+
+				const ticket = getState().nodes[issueId];
+
+				if (!ticket || !isTicketNode(ticket)) {
+					return failed('Unable to resolve comment issue');
+				}
+
+				const commentEvent = ticket.log?.find(
+					event =>
+						event.action === 'add.issue.comment' &&
+						event.payload.id === commentId,
+				);
+
+				if (!commentEvent) {
+					return failed('Unable to resolve comment');
+				}
+
+				if (commentEvent.userId !== userRes.value.userId) {
+					return failed('You can only delete your own comments');
+				}
 
 				return persistEvent({
 					id: ulid(),
 					action: 'delete.issue.comment',
 					payload: {
-						id: ulid(),
-						issue: contextNode.parentNodeId ?? '',
-						comment: commentId,
+						id: commentId,
+						issue: issueId,
 					},
 					...userRes.value,
 				});
