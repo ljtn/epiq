@@ -74,6 +74,23 @@ export const commands: CommandLineActionEntry[] = [
 			const child = getRenderedChildren(contextNode.id)[selectedIndex];
 			if (!child) return failed('Unable to resolve child to delete');
 
+			const commentPrefix = 'comment:';
+
+			if (child.id.startsWith(commentPrefix)) {
+				const commentId = child.id.slice(commentPrefix.length);
+
+				return persistEvent({
+					id: ulid(),
+					action: 'delete.issue.comment',
+					payload: {
+						id: ulid(),
+						issue: contextNode.parentNodeId ?? '',
+						comment: commentId,
+					},
+					...userRes.value,
+				});
+			}
+
 			return persistEvent({
 				id: ulid(),
 				action: 'delete.node',

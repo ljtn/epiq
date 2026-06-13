@@ -8,6 +8,7 @@ export const NavNodeCtx = {
 	FIELD: 'FIELD',
 	FIELD_LIST: 'FIELD_LIST',
 	TEXT: 'TEXT',
+	COMMENT: 'COMMENT',
 } as const;
 
 export type ContextMap = typeof NavNodeCtx;
@@ -20,6 +21,7 @@ export type TicketContext = typeof NavNodeCtx.TICKET;
 export type TicketFieldContext = typeof NavNodeCtx.FIELD;
 export type TicketFieldListContext = typeof NavNodeCtx.FIELD_LIST;
 export type TextContext = typeof NavNodeCtx.TEXT;
+export type CommentContext = typeof NavNodeCtx.COMMENT;
 
 export type Workspace = NavNode<WorkspaceContext>;
 export type Board = NavNode<BoardContext>;
@@ -28,6 +30,7 @@ export type Ticket = NavNode<TicketContext>;
 export type Field = NavNode<TicketFieldContext>;
 export type FieldList = NavNode<TicketFieldListContext>;
 export type Text = NavNode<TextContext>;
+export type Comment = NavNode<CommentContext>;
 
 export function isWorkspaceNode(node: NavNode<AnyContext>): node is Workspace {
 	return node.context === NavNodeCtx.WORKSPACE;
@@ -54,4 +57,8 @@ export const isSwimlaneNode = (node: NavNode<AnyContext>): node is Swimlane => {
 
 export const isBoardNode = (node: NavNode<AnyContext>): node is Board => {
 	return node.context === NavNodeCtx.BOARD;
+};
+
+export const isCommentNode = (node: NavNode<AnyContext>): node is Comment => {
+	return node.context === NavNodeCtx.COMMENT;
 };

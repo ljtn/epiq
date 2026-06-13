@@ -4,12 +4,16 @@ import {decodeTime} from 'ulid';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {timeAgo} from '../event/date-utils.js';
 import {AppEvent} from '../event/event.model.js';
-import {isFieldNode, isTextNode, Ticket} from '../model/context.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
+import {
+	Comment,
+	isCommentNode,
+	isFieldNode,
+	Ticket,
+} from '../model/context.model.js';
 import {isSuccess} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
-import {getState} from '../state/state.js';
+import {getState, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {AssigneeUI} from './Assignee.js';
@@ -73,8 +77,8 @@ const createCommentNode = (
 	comment: CommentItem,
 	index: number,
 	parentNodeId: string,
-): NavNode<'TEXT'> =>
-	nodes.text({
+): Comment =>
+	nodes.comment({
 		id: toCommentNodeId(comment.id),
 		parentNodeId,
 		rank: String(index).padStart(6, '0'),
@@ -86,7 +90,7 @@ const createCommentNode = (
 		isVirtual: true,
 	});
 
-let commentNodes: NavNode<'TEXT'>[] = [];
+let commentNodes: Comment[] = [];
 
 const detachCommentNodes = () => {
 	const ids = commentNodes.map(node => node.id);
@@ -106,7 +110,7 @@ const attachCommentNodes = (ticket: Ticket, comments: CommentItem[]) => {
 		.map(nodeRepo.createNode)
 		.filter(isSuccess)
 		.map(({value}) => value)
-		.filter(isTextNode);
+		.filter(isCommentNode);
 
 	if (comments.length > 0 && getState().selectedIndex < 0) {
 		navigationUtils.navigate({
@@ -135,8 +139,9 @@ export function CommentListUI({ticket, width, height}: Props) {
 		};
 	}, [ticket, comments]);
 
-	const selectedIndex = getState().selectedIndex;
-	const scrollHeight = Math.max(1, height - 2);
+	const {selectedIndex} = useAppState();
+	const padding = 3;
+	const scrollHeight = Math.max(1, height - padding);
 	const bodyWidth = Math.max(20, width - 8);
 
 	if (comments.length === 0) {
@@ -152,9 +157,19 @@ export function CommentListUI({ticket, width, height}: Props) {
 
 	return (
 		<Box flexDirection="column" width={width} height={height}>
-			<Text color={theme.secondary2}>
-				Comments ({comments.length}) · :comment to add
-			</Text>
+			<Box
+				paddingLeft={4}
+				borderLeft={false}
+				borderRight={false}
+				borderBottom={false}
+				borderTop={true}
+				borderColor={theme.secondary}
+				borderStyle="single"
+			>
+				<Text color={theme.secondary2}>Comments ({comments.length}) </Text>
+				<Text color={theme.accent}>:comment</Text>
+				<Text color={theme.secondary2}> to add</Text>
+			</Box>
 
 			<ScrollBoxUI
 				height={scrollHeight}
@@ -175,17 +190,20 @@ export function CommentListUI({ticket, width, height}: Props) {
 							borderColor={theme.secondary}
 							borderStyle="single"
 						>
-							<Box flexDirection="row">
+							<Box flexDirection="row" paddingBottom={1}>
 								<Text color={theme.accent}>{isSelected ? '❯ ' : '  '}</Text>
-								<AssigneeUI id={comment.author} />
-								<Text color={theme.secondary2}>
-									{' ' + timeAgo(decodeTime(comment.id))}
-								</Text>
+								<Box paddingLeft={1}>
+									<Text color={theme.secondary2}>{`#${index + 1} `}</Text>
+									<AssigneeUI id={comment.author} />
+									<Text color={theme.secondary2}>
+										{' ' + timeAgo(decodeTime(comment.id))}
+									</Text>
+								</Box>
 							</Box>
 
-							<Box paddingLeft={2} paddingBottom={1}>
+							<Box paddingLeft={3} paddingBottom={1}>
 								<Text color={theme.primary}>
-									{' ' + renderCommentBody(comment.md, bodyWidth)}
+									{renderCommentBody(comment.md, bodyWidth)}
 								</Text>
 							</Box>
 						</Box>

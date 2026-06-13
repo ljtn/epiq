@@ -96,6 +96,7 @@ const COMMANDS_BY_CONTEXT: CommandMap = {
 	FIELD: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
 	FIELD_LIST: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
 	TEXT: [...GLOBAL_COMMANDS],
+	COMMENT: [CmdKeywords.EDIT, CmdKeywords.DELETE],
 };
 
 const getNewModifiers = (context: AnyContext): string[] => {
@@ -186,7 +187,7 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.EDIT]: [...EDIT_MODIFIERS],
 
-		[CmdKeywords.COMMENT]: [CmdKeywords.DELETE],
+		[CmdKeywords.COMMENT]: [],
 
 		[CmdKeywords.DELETE]: ['confirm'],
 		[CmdKeywords.RE_OPEN_ISSUE]: ['confirm'],

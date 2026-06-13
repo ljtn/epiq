@@ -35,25 +35,34 @@ import {
 	getCmdModifiers,
 } from './command-modifiers.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
+import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 
 export const MAX_COMMENT_LENGTH = 140 as const;
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
-
 const guardBoardSwimlaneTicketNodes = (): ValidationResult => {
 	const target = getState().selectedNode;
+
 	if (!target?.context) {
 		return invalid({
 			message: hintDefault('Missing target context'),
 		});
 	}
 
-	if (!EDITABLE_NODES.includes(target.context)) {
-		return invalid({
-			message: hintDefault('Command not available in this context'),
-		});
+	if (EDITABLE_NODES.includes(target.context)) {
+		return valid();
 	}
 
-	return valid();
+	if (target.parentNodeId) {
+		const parent = getState().nodes[target.parentNodeId];
+
+		if (parent?.id === virtualNodeId(parent?.parentNodeId ?? '', 'comments')) {
+			return valid();
+		}
+	}
+
+	return invalid({
+		message: hintDefault('Command not available in this context'),
+	});
 };
 
 export const CONFIRM_MSG = '<ENTER> to confirm';

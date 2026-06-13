@@ -26,6 +26,7 @@ export type NavNodePropsMap = {
 	FIELD: FieldProps;
 	FIELD_LIST: EmptyProps;
 	TEXT: TextProps;
+	COMMENT: FieldProps;
 };
 
 export type NavNodeProps<U extends AnyContext> = NavNodePropsMap[U];

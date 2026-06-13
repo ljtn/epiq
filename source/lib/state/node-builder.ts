@@ -1,4 +1,4 @@
-import {AnyContext, NavNodeCtx} from '../model/context.model.js';
+import {AnyContext, Comment, NavNodeCtx, Text} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
 export const nodes = {
@@ -138,6 +138,35 @@ export const nodes = {
 		name,
 		parentNodeId,
 		rank,
+		readonly = true,
+		isVirtual = true,
+	}: {
+		id: string;
+		name: string;
+		parentNodeId: string;
+		rank: string;
+		props?: Text['props'];
+		isVirtual?: boolean;
+		readonly?: boolean;
+	}): NavNode<'TEXT'> => ({
+		id,
+		title: name,
+		rank,
+		isDeleted: false,
+		props: {},
+		context: NavNodeCtx.TEXT,
+		childRenderAxis: 'vertical',
+		parentNodeId,
+		readonly,
+		log: [],
+		isVirtual,
+	}),
+
+	comment: ({
+		id,
+		name,
+		parentNodeId,
+		rank,
 		props = {},
 		readonly = true,
 		isVirtual = true,
@@ -146,16 +175,16 @@ export const nodes = {
 		name: string;
 		parentNodeId: string;
 		rank: string;
-		props?: NavNode<'TEXT'>['props'];
+		props?: Comment['props'];
 		isVirtual?: boolean;
 		readonly?: boolean;
-	}): NavNode<'TEXT'> => ({
+	}): NavNode<'COMMENT'> => ({
 		id,
 		title: name,
 		rank,
 		isDeleted: false,
 		props,
-		context: NavNodeCtx.TEXT,
+		context: NavNodeCtx.COMMENT,
 		childRenderAxis: 'vertical',
 		parentNodeId,
 		readonly,

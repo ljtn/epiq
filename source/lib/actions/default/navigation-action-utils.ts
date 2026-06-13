@@ -1,6 +1,5 @@
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
-import {getOrderedChildren} from '../../repository/rank.js';
 import {getRenderedChildren, getState, patchState} from '../../state/state.js';
 
 export const navigationUtils = {
@@ -12,8 +11,18 @@ export const navigationUtils = {
 		const state = getState();
 		const contextNode = state.contextNode;
 		const index = Math.max(0, state.selectedIndex);
-		const focusNode = getOrderedChildren(contextNode.id)[index];
-		if (!focusNode || contextNode.context === 'FIELD') return;
+		const children = getRenderedChildren(contextNode.id);
+		const focusNode = children[index];
+
+		if (!focusNode) return;
+
+		if (contextNode.context === 'FIELD' && children.length === 0) {
+			return;
+		}
+
+		if (focusNode.context === 'COMMENT' || focusNode.context === 'TEXT') {
+			return;
+		}
 
 		navigationUtils.navigate({
 			contextNode: focusNode,
@@ -28,11 +37,13 @@ export const navigationUtils = {
 			logger.info('Missing parent node id');
 			return;
 		}
+
 		const parent = nodes[contextNode.parentNodeId];
 		if (!parent) {
 			logger.error('Parent not found');
 			return;
 		}
+
 		const parentChildren = getRenderedChildren(parent.id);
 		const idx = parentChildren.findIndex(({id}) => id === contextNode.id);
 		const selectedIndex = parentChildren.length === 0 ? -1 : idx >= 0 ? idx : 0;
@@ -68,7 +79,7 @@ const navigateByOffset = (offset: number) => {
 	const base = Math.max(0, selectedIndex);
 	const newIndex = (base + offset + len) % len;
 
-	navigationUtils.navigate({selectedIndex: newIndex, contextNode: contextNode});
+	navigationUtils.navigate({selectedIndex: newIndex, contextNode});
 };
 
 const navigateToSiblingContainer = (direction: -1 | 1) => {
@@ -79,8 +90,9 @@ const navigateToSiblingContainer = (direction: -1 | 1) => {
 		logger.error('Missing parent node id');
 		return;
 	}
+
 	const parentNode = nodes[contextNode.parentNodeId];
-	if (!contextNode || !parentNode) return;
+	if (!parentNode) return;
 
 	const siblings = getRenderedChildren(parentNode.id);
 	const contextNodeIndex = siblings.findIndex(x => x.id === contextNode.id);
