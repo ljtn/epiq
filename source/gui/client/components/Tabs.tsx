@@ -49,7 +49,12 @@ export const Tabs = <T extends string>({
 				>
 					{tab.label}
 					{typeof tab.count === 'number' && (
-						<span style={{color: GUI_THEME.dim}}> ({tab.count})</span>
+						<span
+							style={{color: tab.count ? GUI_THEME.secondary : GUI_THEME.dim}}
+						>
+							{' '}
+							({tab.count})
+						</span>
 					)}
 				</button>
 			);

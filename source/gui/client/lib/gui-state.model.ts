@@ -6,7 +6,7 @@ export type GuiComment = {
 	issueId: string;
 	body: string;
 	author: GuiUser;
-	createdAt?: string;
+	createdAt: number;
 	isDeleted?: boolean;
 };
 

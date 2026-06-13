@@ -3,6 +3,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
+import {timeAgo} from '../lib/gui-format.helper';
 
 type Props = {
 	issueId: string;
@@ -33,26 +34,6 @@ export const IssueComments = ({
 
 	return (
 		<div>
-			{!readonly && (
-				<div style={{marginBottom: 18}}>
-					<Textarea
-						value={body}
-						placeholder="write a comment"
-						onChange={event => setBody(event.target.value)}
-						onKeyDown={event => {
-							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-								addComment();
-							}
-						}}
-						style={{minHeight: 90}}
-					/>
-
-					<ActionRow>
-						<Button onClick={addComment}>comment</Button>
-					</ActionRow>
-				</div>
-			)}
-
 			{comments.length === 0 ? (
 				<Empty>No comments</Empty>
 			) : (
@@ -62,9 +43,9 @@ export const IssueComments = ({
 							key={comment.id}
 							style={{
 								border: `1px solid ${GUI_THEME.line}`,
-								borderRadius: 12,
+								borderRadius: 8,
 								padding: 12,
-								background: 'transparent',
+								background: GUI_THEME.tertiary,
 							}}
 						>
 							<div
@@ -78,9 +59,9 @@ export const IssueComments = ({
 								<div style={{color: GUI_THEME.secondary, fontSize: 10}}>
 									{comment.author.name ?? 'unknown'}
 									{comment.createdAt && (
-										<span style={{color: GUI_THEME.dim}}>
+										<span style={{color: GUI_THEME.dim2}}>
 											{' '}
-											· {comment.createdAt}
+											· {timeAgo(comment.createdAt)}
 										</span>
 									)}
 								</div>
@@ -106,6 +87,27 @@ export const IssueComments = ({
 							</div>
 						</div>
 					))}
+				</div>
+			)}
+
+			{!readonly && (
+				<div style={{marginTop: 18}}>
+					<Textarea
+						maxLength={140}
+						value={body}
+						placeholder="write a comment"
+						onChange={event => setBody(event.target.value)}
+						onKeyDown={event => {
+							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+								addComment();
+							}
+						}}
+						style={{minHeight: 45}}
+					/>
+
+					<ActionRow>
+						<Button onClick={addComment}>comment</Button>
+					</ActionRow>
 				</div>
 			)}
 		</div>

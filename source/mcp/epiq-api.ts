@@ -1,4 +1,4 @@
-import {ulid} from 'ulid';
+import {decodeTime, ulid} from 'ulid';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
 import {ensureStateBranchWorktree} from '../git/git.js';
@@ -584,6 +584,7 @@ export const getGuiState = async (
 						name: contributor?.name ?? 'Unknown',
 						color: getStringColor(contributor?.name ?? comment.authorId),
 					},
+					createdAt: decodeTime(comment.id),
 				};
 			});
 	}

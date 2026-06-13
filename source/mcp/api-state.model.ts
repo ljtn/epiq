@@ -11,7 +11,7 @@ export type ApiComment = {
 	issueId: string;
 	body: string;
 	author: ApiAssignee;
-	createdAt?: string;
+	createdAt: number;
 };
 
 export type ApiIssue = {

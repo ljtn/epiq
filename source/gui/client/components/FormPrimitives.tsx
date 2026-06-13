@@ -23,6 +23,7 @@ export const Textarea = (
 	props: React.TextareaHTMLAttributes<HTMLTextAreaElement>,
 ) => (
 	<textarea
+		maxLength={props.maxLength ?? 100}
 		{...props}
 		style={{
 			width: '100%',

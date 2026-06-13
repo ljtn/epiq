@@ -42,7 +42,7 @@ export const Button = ({
 					: variant === 'ghost' && !hovered
 					? '1px solid transparent'
 					: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
-				borderRadius: variant === 'chip' ? 999 : 4,
+				borderRadius: variant === 'chip' ? 999 : 6,
 				cursor: props.disabled ? 'default' : 'pointer',
 				padding:
 					variant === 'ghost' ? '3px 6px' : isPrimary ? '6px 12px' : '5px 9px',

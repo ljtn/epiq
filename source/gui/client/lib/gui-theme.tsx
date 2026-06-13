@@ -8,6 +8,7 @@ export const GUI_THEME = {
 	secondary: '#7f8aa3',
 	tertiary: 'rgb(31 33 43)',
 	dim: '#3d4151',
+	dim2: 'rgb(71 77 92)',
 	accent: '#76d4ff',
 	green: '#8ce99a',
 	red: '#ff8787',
