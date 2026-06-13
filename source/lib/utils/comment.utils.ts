@@ -1,8 +1,5 @@
-import {decodeTime} from 'ulid';
 import {AppEvent} from '../event/event.model.js';
-import {CommentState} from '../model/app-state.model.js';
 import {Comment, Ticket} from '../model/context.model.js';
-import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 
 export const getVisibleCommentCount = (ticket: Ticket) => {

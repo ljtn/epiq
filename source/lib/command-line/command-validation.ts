@@ -11,16 +11,18 @@ import {
 	Filter,
 	findInBreadCrumb,
 } from '../model/app-state.model.js';
-import {AnyContext, NavNodeCtx} from '../model/context.model.js';
+import {AnyContext} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
+import {setCmdInput} from '../state/cmd.state.js';
 import {getSettingsState, LogLevel} from '../state/settings.state.js';
-import {getRenderedChildren, getState} from '../state/state.js';
+import {getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
 import {
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
+import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {
 	buildOptionsHint,
 	hintAlert,
@@ -35,8 +37,6 @@ import {
 	getCmdModifiers,
 } from './command-modifiers.js';
 import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
-import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
-import {setCmdInput} from '../state/cmd.state.js';
 
 export const MAX_COMMENT_LENGTH = 140 as const;
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
