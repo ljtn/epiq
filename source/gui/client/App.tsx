@@ -13,6 +13,7 @@ import {
 import {DropTarget, GuiState} from './lib/gui-state.model';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
+import {Button} from './components/Button';
 
 export const DropIndicator = () => (
 	<div
@@ -42,6 +43,10 @@ export const App = () => {
 	);
 	const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
 	const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+	const [createIssueModal, setCreateIssueModal] = useState<{
+		swimlaneId: string;
+		title: string;
+	} | null>(null);
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
@@ -80,7 +85,6 @@ export const App = () => {
 			}
 
 			if (message.type === 'issue:created') {
-				console.log('message', message);
 				const created = getResultValue<{id: string}>(message.payload);
 
 				if (created) {
@@ -234,11 +238,24 @@ export const App = () => {
 		void navigate(`/board/${nextBoardId}`);
 	};
 
-	const createIssue = (swimlaneId: string) => {
-		send('issues:create', {
-			title: 'New issue',
-			parentId: swimlaneId,
+	const openCreateIssueModal = (swimlaneId: string) => {
+		setCreateIssueModal({
+			swimlaneId,
+			title: '',
 		});
+	};
+
+	const createIssue = () => {
+		if (!createIssueModal) return;
+
+		const title = createIssueModal.title.trim() || 'New issue';
+
+		send('issues:create', {
+			title,
+			parentId: createIssueModal.swimlaneId,
+		});
+
+		setCreateIssueModal(null);
 	};
 
 	return (
@@ -253,11 +270,8 @@ export const App = () => {
 				flexDirection: 'column',
 			}}
 		>
-			<Header
-				state={state}
-				connected={connected}
-				syncStatus={syncStatus}
-			></Header>
+			<Header state={state} connected={connected} syncStatus={syncStatus} />
+
 			<div
 				style={{
 					display: 'flex',
@@ -302,7 +316,7 @@ export const App = () => {
 										: null
 								}
 								onSelectIssue={setSelectedIssueId}
-								onCreateIssue={createIssue}
+								onCreateIssue={openCreateIssueModal}
 								onDropIssue={moveIssue(setState, socketRef)}
 								onDragOver={setDragOverSwimlaneId}
 								onDragOverIssue={(swimlaneId, index) =>
@@ -331,6 +345,103 @@ export const App = () => {
 					/>
 				)}
 			</div>
+
+			{createIssueModal && (
+				<div
+					style={{
+						position: 'fixed',
+						inset: 0,
+						background: 'rgba(0, 0, 0, 0.55)',
+						backdropFilter: 'blur(1px)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						zIndex: 1000,
+					}}
+					onMouseDown={() => setCreateIssueModal(null)}
+				>
+					<form
+						onSubmit={event => {
+							event.preventDefault();
+							createIssue();
+						}}
+						onMouseDown={event => event.stopPropagation()}
+						style={{
+							width: 360,
+							background: GUI_THEME.panel,
+							border: `1px solid ${GUI_THEME.line}`,
+							borderRadius: 18,
+							padding: 20,
+						}}
+					>
+						<div
+							style={{
+								color: GUI_THEME.accent,
+								fontSize: 10,
+								marginBottom: 8,
+								letterSpacing: 1,
+								textTransform: 'uppercase',
+							}}
+						>
+							New issue
+						</div>
+
+						<h2
+							style={{
+								margin: '0 0 20px',
+								fontSize: 10,
+								color: GUI_THEME.primary,
+							}}
+						>
+							title
+						</h2>
+
+						<input
+							autoFocus
+							value={createIssueModal.title}
+							placeholder="issue name"
+							onChange={event =>
+								setCreateIssueModal(prev =>
+									prev ? {...prev, title: event.target.value} : prev,
+								)
+							}
+							onKeyDown={event => {
+								if (event.key === 'Escape') {
+									setCreateIssueModal(null);
+								}
+							}}
+							style={{
+								width: '100%',
+								boxSizing: 'border-box',
+								background: GUI_THEME.bg,
+								color: GUI_THEME.primary,
+								border: `1px solid ${GUI_THEME.line}`,
+								borderRadius: 12,
+								padding: '10px',
+								font: 'inherit',
+								fontSize: 12,
+								outline: 'none',
+								boxShadow: `inset 0 0 0 1px ${GUI_THEME.accent}22`,
+							}}
+						/>
+
+						<div
+							style={{
+								display: 'flex',
+								justifyContent: 'flex-end',
+								gap: 10,
+								marginTop: 20,
+							}}
+						>
+							<Button variant="ghost" onClick={() => setCreateIssueModal(null)}>
+								cancel
+							</Button>
+
+							<Button variant="default">create</Button>
+						</div>
+					</form>
+				</div>
+			)}
 		</div>
 	);
 };
