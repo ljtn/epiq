@@ -9,21 +9,7 @@ import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
 import {CommentListUI} from './CommentListUI.js';
-
-const getVisibleCommentCount = (ticket: Ticket) => {
-	const deleted = new Set(
-		(ticket.log ?? [])
-			.filter(event => event.action === 'delete.issue.comment')
-			.map(event => event.payload.comment),
-	);
-
-	return (ticket.log ?? []).filter(
-		event =>
-			event.action === 'add.issue.comment' &&
-			event.payload.issue === ticket.id &&
-			!deleted.has(event.payload.id),
-	).length;
-};
+import {getVisibleCommentCount} from '../utils/comment.utils.js';
 
 type Props = {
 	ticket: Ticket;
