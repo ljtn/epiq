@@ -2,24 +2,19 @@ import {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
-
-export type GuiIssueComment = {
-	id: string;
-	body: string;
-	author?: string;
-	createdAt?: string;
-	readonly?: boolean;
-};
+import {GuiComment, GuiUser} from '../lib/gui-state.model';
 
 type Props = {
 	issueId: string;
 	readonly?: boolean;
-	comments?: GuiIssueComment[];
+	comments?: GuiComment[];
+	whoAmI: GuiUser;
 	onAddComment?: (issueId: string, body: string) => void;
 	onDeleteComment?: (issueId: string, commentId: string) => void;
 };
 
 export const IssueComments = ({
+	whoAmI,
 	issueId,
 	readonly = false,
 	comments = [],
@@ -69,7 +64,7 @@ export const IssueComments = ({
 								border: `1px solid ${GUI_THEME.line}`,
 								borderRadius: 12,
 								padding: 12,
-								background: GUI_THEME.bg,
+								background: 'transparent',
 							}}
 						>
 							<div
@@ -81,7 +76,7 @@ export const IssueComments = ({
 								}}
 							>
 								<div style={{color: GUI_THEME.secondary, fontSize: 10}}>
-									{comment.author ?? 'unknown'}
+									{comment.author.name ?? 'unknown'}
 									{comment.createdAt && (
 										<span style={{color: GUI_THEME.dim}}>
 											{' '}
@@ -90,7 +85,7 @@ export const IssueComments = ({
 									)}
 								</div>
 
-								{!readonly && !comment.readonly && onDeleteComment && (
+								{comment.author.id === whoAmI.id && onDeleteComment && (
 									<Button
 										variant="ghost"
 										onClick={() => onDeleteComment(issueId, comment.id)}

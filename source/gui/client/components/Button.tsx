@@ -9,9 +9,11 @@ export const Button = ({
 	onMouseLeave,
 	...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-	variant?: 'default' | 'ghost' | 'chip';
+	variant?: 'default' | 'ghost' | 'chip' | 'primary';
 }) => {
 	const [hovered, setHovered] = useState(false);
+
+	const isPrimary = variant === 'primary';
 
 	return (
 		<button
@@ -27,17 +29,26 @@ export const Button = ({
 			style={{
 				appearance: 'none',
 				WebkitAppearance: 'none',
-				background: hovered ? 'rgba(255,255,255,0.04)' : 'transparent',
+				background: isPrimary
+					? hovered
+						? 'rgb(41, 44, 57)'
+						: GUI_THEME.tertiary
+					: hovered
+					? 'rgba(255,255,255,0.04)'
+					: 'transparent',
 				color: GUI_THEME.secondary,
-				border:
-					variant === 'ghost' && !hovered
-						? '1px solid transparent'
-						: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
-				borderRadius: variant === 'chip' ? 999 : 8,
+				border: isPrimary
+					? `none`
+					: variant === 'ghost' && !hovered
+					? '1px solid transparent'
+					: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
+				borderRadius: variant === 'chip' ? 999 : 4,
 				cursor: props.disabled ? 'default' : 'pointer',
-				padding: variant === 'ghost' ? '3px 6px' : '5px 9px',
+				padding:
+					variant === 'ghost' ? '3px 6px' : isPrimary ? '6px 12px' : '5px 9px',
 				fontFamily: 'inherit',
 				fontSize: 12,
+				fontWeight: isPrimary ? 600 : 400,
 				lineHeight: 1,
 				transition:
 					'color 120ms ease, background 120ms ease, border-color 120ms ease',

@@ -10,7 +10,8 @@ import {
 	getResultValue,
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
-import {DropTarget, GuiState} from './lib/gui-state.model';
+import {GuiState} from './lib/gui-state.model';
+import {DropTarget} from './lib/gui-result.model';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 import {Button} from './components/Button';
@@ -329,9 +330,11 @@ export const App = () => {
 					</div>
 				</main>
 
-				{selectedIssue && (
+				{selectedIssue && state?.user && (
 					<IssueDetails
+						whoAmI={state?.user}
 						issue={selectedIssue}
+						comments={state?.commentsByIssueId[selectedIssue.id] ?? []}
 						onClose={() => setSelectedIssueId(null)}
 						onEditTitle={editIssueTitle}
 						onEditDescription={editIssueDescription}

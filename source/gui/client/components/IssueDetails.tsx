@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
-import {GuiAssignee, GuiIssue, GuiTag} from '../lib/gui-state.model';
+import {GuiUser, GuiIssue, GuiTag, GuiComment} from '../lib/gui-state.model';
 import {Aside} from './Aside';
 import {Button} from './Button';
 import {FormHeader} from './FormHeader';
@@ -12,13 +12,15 @@ import {
 	Input,
 	Textarea,
 } from './FormPrimitives';
-import {IssueComments, GuiIssueComment} from './IssueComments';
+import {IssueComments} from './IssueComments';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 
 type IssueDetailsTab = 'overview' | 'comments';
 
 export const IssueDetails = ({
+	whoAmI,
+	comments,
 	issue,
 	onClose,
 	onEditTitle,
@@ -34,7 +36,9 @@ export const IssueDetails = ({
 	knownTags: tags,
 	knownAssignees: assignees,
 }: {
-	issue: (GuiIssue & {comments?: GuiIssueComment[]}) | null;
+	whoAmI: GuiUser;
+	issue: GuiIssue | null;
+	comments: GuiComment[];
 	onClose: () => void;
 	onEditTitle: (issueId: string, title: string) => void;
 	onEditDescription: (issueId: string, description: string) => void;
@@ -47,7 +51,7 @@ export const IssueDetails = ({
 	onAddComment?: (issueId: string, body: string) => void;
 	onDeleteComment?: (issueId: string, commentId: string) => void;
 	knownTags: GuiTag[];
-	knownAssignees: GuiAssignee[];
+	knownAssignees: GuiUser[];
 }) => {
 	const [activeTab, setActiveTab] = useState<IssueDetailsTab>('overview');
 	const [title, setTitle] = useState('');
@@ -72,8 +76,6 @@ export const IssueDetails = ({
 	}, [issue?.id, issue?.title, issue?.description]);
 
 	const disabled = !issue || issue.readonly;
-
-	const comments = issue?.comments ?? [];
 
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'overview'},
@@ -442,6 +444,7 @@ export const IssueDetails = ({
 
 					{activeTab === 'comments' && (
 						<IssueComments
+							whoAmI={whoAmI}
 							issueId={issue.id}
 							readonly={issue.readonly}
 							comments={comments}

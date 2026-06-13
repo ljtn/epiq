@@ -104,6 +104,15 @@ type RemoveIssueAssigneeInput = ToolInput & {
 	assigneeId: string;
 };
 
+type AddIssueCommentInput = ToolInput & {
+	issueId: string;
+	body: string;
+};
+
+type DeleteIssueCommentInput = ToolInput & {
+	commentId: string;
+};
+
 const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	const result = resolveClosestEpiqProjectRoot(repoRoot ?? process.cwd());
 	if (isFail(result)) return failed(result.message);
@@ -555,6 +564,30 @@ export const getGuiState = async (
 
 	const settingsRes = loadSettingsFromConfig();
 	if (isFail(settingsRes)) return settingsRes;
+
+	const commentsByIssueId: ApiState['commentsByIssueId'] = {};
+
+	for (const issue of nodes.filter(isTicketNode)) {
+		if (issue.isDeleted) continue;
+
+		commentsByIssueId[issue.id] = nodeRepo
+			.getCommentsByIssue(issue.id)
+			.map(comment => {
+				const contributor = nodeRepo.getContributor(comment.authorId);
+
+				return {
+					id: comment.id,
+					issueId: comment.issue,
+					body: comment.md,
+					author: {
+						id: contributor?.id ?? comment.authorId,
+						name: contributor?.name ?? 'Unknown',
+						color: getStringColor(contributor?.name ?? comment.authorId),
+					},
+				};
+			});
+	}
+
 	return succeeded('Retrieved Epiq GUI state', {
 		boards: boards
 			.sort((a, b) => a.rank.localeCompare(b.rank))
@@ -598,6 +631,7 @@ export const getGuiState = async (
 			id: settingsRes.value.userId ?? '',
 			color: getStringColor(settingsRes.value.userName ?? ''),
 		},
+		commentsByIssueId,
 	} satisfies ApiState);
 };
 
@@ -936,5 +970,129 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 	return succeeded('Removed issue assignee', {
 		id: input.issueId,
 		assigneeId: input.assigneeId,
+	});
+};
+
+export const addIssueComment = async (input: AddIssueCommentInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
+	if (issue.readonly) return failed('Cannot comment on readonly issue');
+
+	const body = input.body.trim();
+
+	if (!body) {
+		return failed('Comment cannot be empty');
+	}
+
+	const commentId = ulid();
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'add.issue.comment',
+		payload: {
+			id: commentId,
+			issue: input.issueId,
+			md: body,
+			author: actorResult.value.userId,
+		},
+	} satisfies AppEvent<'add.issue.comment'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Added issue comment', {
+		id: commentId,
+		issueId: input.issueId,
+		body,
+	});
+};
+
+export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const commentEvent = stateResult.value.eventLog.find(
+		(event): event is AppEvent<'add.issue.comment'> =>
+			event.action === 'add.issue.comment' &&
+			event.payload.id === input.commentId,
+	);
+
+	if (!commentEvent) {
+		return failed('Unable to resolve comment');
+	}
+
+	if (commentEvent.userId !== actorResult.value.userId) {
+		return failed('You can only delete your own comments');
+	}
+
+	const issue = stateResult.value.nodes[commentEvent.payload.issue];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
+	if (issue.readonly) return failed('Cannot delete comment on readonly issue');
+
+	const alreadyDeleted = stateResult.value.eventLog.some(
+		event =>
+			event.action === 'delete.issue.comment' &&
+			event.payload.id === input.commentId,
+	);
+
+	if (alreadyDeleted) {
+		return succeeded('Comment already deleted', {
+			id: input.commentId,
+			issueId: commentEvent.payload.issue,
+		});
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'delete.issue.comment',
+		payload: {
+			id: input.commentId,
+			issue: commentEvent.payload.issue,
+		},
+	} satisfies AppEvent<'delete.issue.comment'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	const failure = results.find(isFail);
+	if (failure) return failed(failure.message);
+
+	const syncResult = await syncAndReloadState();
+	if (isFail(syncResult)) return syncResult;
+
+	return succeeded('Deleted issue comment', {
+		id: input.commentId,
+		issueId: commentEvent.payload.issue,
 	});
 };

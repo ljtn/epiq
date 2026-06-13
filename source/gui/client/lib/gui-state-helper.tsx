@@ -1,4 +1,5 @@
-import {Result, GuiState, GuiIssue} from './gui-state.model';
+import {GuiState, GuiIssue} from './gui-state.model';
+import {Result} from './gui-result.model';
 import {GUI_THEME} from './gui-theme';
 
 export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {

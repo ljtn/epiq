@@ -3,7 +3,11 @@ import http from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {failed, Result, succeeded} from '../../lib/model/result-types.js';
-import {getGuiState} from '../../mcp/epiq-api.js';
+import {
+	addIssueComment,
+	deleteIssueComment,
+	getGuiState,
+} from '../../mcp/epiq-api.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
 import {setupWebsocket} from './lib/websocket.js';
 
@@ -18,6 +22,25 @@ const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
 	res.writeHead(status, {'content-type': 'application/json'});
 	res.end(JSON.stringify(body));
 };
+
+const readJsonBody = async <T>(req: http.IncomingMessage): Promise<T> =>
+	new Promise((resolve, reject) => {
+		let body = '';
+
+		req.on('data', chunk => {
+			body += chunk;
+		});
+
+		req.on('end', () => {
+			try {
+				resolve(body ? JSON.parse(body) : ({} as T));
+			} catch {
+				reject(new Error('Invalid JSON body'));
+			}
+		});
+
+		req.on('error', reject);
+	});
 
 const getContentType = (filePath: string) => {
 	if (filePath.endsWith('.html')) return 'text/html; charset=utf-8';
@@ -64,7 +87,7 @@ const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 
 const listen = async (
 	server: http.Server,
-	preferredPort = 3710, // 3710 = epiq
+	preferredPort = 3710,
 ): Promise<number> =>
 	new Promise((resolve, reject) => {
 		const tryListen = (port: number) => {
@@ -112,6 +135,68 @@ export const startGuiServer = async (input: {
 			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
 		}
 
+		if (req.method === 'POST' && url.pathname === '/api/comments') {
+			try {
+				const body = await readJsonBody<{
+					issueId?: string;
+					body?: string;
+				}>(req);
+
+				if (!body.issueId || !body.body?.trim()) {
+					return sendJson(res, 400, {
+						isError: true,
+						message: 'Missing issueId or body',
+					});
+				}
+
+				const result = await addIssueComment({
+					repoRoot: input.repoRoot,
+					issueId: body.issueId,
+					body: body.body,
+				});
+
+				if ('isError' in result && result.isError) {
+					return sendJson(res, 400, result);
+				}
+
+				return sendJson(
+					res,
+					200,
+					await getGuiState({repoRoot: input.repoRoot}),
+				);
+			} catch (error) {
+				return sendJson(res, 400, {
+					isError: true,
+					message:
+						error instanceof Error ? error.message : 'Unable to add comment',
+				});
+			}
+		}
+
+		if (req.method === 'DELETE' && url.pathname.startsWith('/api/comments/')) {
+			const commentId = decodeURIComponent(
+				url.pathname.replace('/api/comments/', ''),
+			);
+
+			if (!commentId) {
+				return sendJson(res, 400, {
+					isError: true,
+					message: 'Missing comment id',
+				});
+			}
+
+			const result = await deleteIssueComment({
+				repoRoot: input.repoRoot,
+				commentId,
+			});
+
+			if ('isError' in result && result.isError) {
+				return sendJson(res, 400, result);
+			}
+
+			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
+		}
+
 		if (url.pathname.startsWith('/board/')) {
 			return serveStatic('/', res);
 		}
@@ -132,6 +217,7 @@ export const startGuiServer = async (input: {
 	const guiAutoSync = startGuiAutoSync({
 		repoRoot: input.repoRoot,
 	});
+
 	setupWebsocket(server, input.repoRoot, {
 		onStateChanged: () => guiAutoSync.scheduleSync(),
 	});

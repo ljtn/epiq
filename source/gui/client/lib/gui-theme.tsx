@@ -6,6 +6,7 @@ export const GUI_THEME = {
 	line: 'rgba(70, 87, 126, 0.15)',
 	primary: '#c2c5d0',
 	secondary: '#7f8aa3',
+	tertiary: 'rgb(31 33 43)',
 	dim: '#3d4151',
 	accent: '#76d4ff',
 	green: '#8ce99a',

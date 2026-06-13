@@ -38,7 +38,7 @@ export const CreateIssueModal = ({
 				width: 360,
 				background: GUI_THEME.panel,
 				border: `1px solid ${GUI_THEME.line}`,
-				borderRadius: 18,
+				borderRadius: 12,
 				padding: 20,
 			}}
 		>
@@ -80,7 +80,7 @@ export const CreateIssueModal = ({
 					background: GUI_THEME.bg,
 					color: GUI_THEME.primary,
 					border: `1px solid ${GUI_THEME.line}`,
-					borderRadius: 12,
+					borderRadius: 8,
 					padding: '10px',
 					font: 'inherit',
 					fontSize: 12,
@@ -101,7 +101,7 @@ export const CreateIssueModal = ({
 					cancel
 				</Button>
 
-				<Button variant="default">create</Button>
+				<Button variant="primary">create</Button>
 			</div>
 		</form>
 	</div>

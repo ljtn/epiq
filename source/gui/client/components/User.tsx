@@ -1,4 +1,4 @@
-import {GuiAssignee, GuiState} from '../lib/gui-state.model';
+import {GuiUser, GuiState} from '../lib/gui-state.model';
 import {getContrastTextColor} from '../lib/gui-theme';
 
 export const User = ({
