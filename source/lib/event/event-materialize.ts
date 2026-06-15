@@ -1,4 +1,3 @@
-import {loadSettingsFromConfig} from '../config/user-config.js';
 import {
 	isBoardNode,
 	isFieldNode,
