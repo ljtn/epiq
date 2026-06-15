@@ -2,9 +2,11 @@ import http from 'node:http';
 import {WebSocket, WebSocketServer} from 'ws';
 import {
 	addIssueAssignee,
+	addIssueComment,
 	addIssueTag,
 	closeIssue,
 	createIssue,
+	deleteIssueComment,
 	editIssueDescription,
 	editIssueTitle,
 	getGuiState,
@@ -15,12 +17,12 @@ import {
 	reopenIssue,
 	sync,
 } from '../../../mcp/epiq-api.js';
+import {isFail} from '../../../lib/model/result-types.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
 } from '../../client/lib/gui-broadcast.js';
 import {GuiMessage} from './websocket.model.js';
-import {isFail} from '../../../lib/model/result-types.js';
 
 const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 	sendSocket(socket, {
@@ -55,7 +57,7 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'sync') {
-					const result = await sync({repoRoot: repoRoot});
+					const result = await sync({repoRoot});
 
 					sendSocket(socket, {
 						type: 'sync:result',
@@ -65,9 +67,39 @@ export const setupWebsocket = (
 					return sendGuiState(socket, repoRoot);
 				}
 
+				if (type === 'issue:comment:add') {
+					const result = await addIssueComment({
+						repoRoot,
+						...message.payload,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:comment:add:result',
+						payload: result,
+					});
+
+					onStateChanged();
+					return sendGuiState(socket, repoRoot);
+				}
+
+				if (type === 'issue:comment:delete') {
+					const result = await deleteIssueComment({
+						repoRoot,
+						...message.payload,
+					});
+
+					sendSocket(socket, {
+						type: 'issue:comment:delete:result',
+						payload: result,
+					});
+
+					onStateChanged();
+					return sendGuiState(socket, repoRoot);
+				}
+
 				if (type === 'issue:edit:description') {
 					const result = await editIssueDescription({
-						repoRoot: repoRoot,
+						repoRoot,
 						...message.payload,
 					});
 
@@ -82,7 +114,7 @@ export const setupWebsocket = (
 
 				if (type === 'issue:edit:title') {
 					const result = await editIssueTitle({
-						repoRoot: repoRoot,
+						repoRoot,
 						...message.payload,
 					});
 
@@ -97,7 +129,7 @@ export const setupWebsocket = (
 
 				if (type === 'issue:tag:add') {
 					const result = await addIssueTag({
-						repoRoot: repoRoot,
+						repoRoot,
 						...message.payload,
 					});
 
@@ -112,7 +144,7 @@ export const setupWebsocket = (
 
 				if (type === 'issue:tag:remove') {
 					const result = await removeIssueTag({
-						repoRoot: repoRoot,
+						repoRoot,
 						...message.payload,
 					});
 
@@ -127,7 +159,7 @@ export const setupWebsocket = (
 
 				if (type === 'issue:assignee:add') {
 					const result = await addIssueAssignee({
-						repoRoot: repoRoot,
+						repoRoot,
 						...message.payload,
 					});
 
@@ -142,7 +174,7 @@ export const setupWebsocket = (
 
 				if (type === 'issue:assignee:remove') {
 					const result = await removeIssueAssignee({
-						repoRoot: repoRoot,
+						repoRoot,
 						...message.payload,
 					});
 
@@ -158,14 +190,14 @@ export const setupWebsocket = (
 				if (type === 'issues:list') {
 					return sendSocket(socket, {
 						type: 'issues',
-						payload: await listIssues({repoRoot: repoRoot}),
+						payload: await listIssues({repoRoot}),
 					});
 				}
 
 				if (type === 'issues:create') {
 					const createIssueResult = await createIssue({
 						...message.payload,
-						repoRoot: repoRoot,
+						repoRoot,
 					});
 
 					await sendGuiState(socket, repoRoot);
@@ -176,10 +208,12 @@ export const setupWebsocket = (
 							payload: createIssueResult.message,
 						});
 					}
+
 					broadcastGuiMessage({
 						type: 'issue:created',
 						payload: createIssueResult.value,
 					});
+
 					onStateChanged();
 					return;
 				}
@@ -194,7 +228,7 @@ export const setupWebsocket = (
 
 					const result = await moveIssue({
 						...message.payload,
-						repoRoot: repoRoot,
+						repoRoot,
 					});
 
 					sendSocket(socket, {
@@ -215,11 +249,9 @@ export const setupWebsocket = (
 					}
 
 					const result = await closeIssue({
-						repoRoot: repoRoot,
+						repoRoot,
 						issueId: message.payload.issueId,
 					});
-
-					console.log('close result', result);
 
 					sendSocket(socket, {
 						type: 'issue:close:result',
@@ -239,11 +271,9 @@ export const setupWebsocket = (
 					}
 
 					const result = await reopenIssue({
-						repoRoot: repoRoot,
+						repoRoot,
 						issueId: message.payload.issueId,
 					});
-
-					console.log('reopen result', result);
 
 					sendSocket(socket, {
 						type: 'issue:reopen:result',

@@ -69,7 +69,11 @@ export const IssueComments = ({
 								{comment.author.id === whoAmI.id && onDeleteComment && (
 									<Button
 										variant="ghost"
-										onClick={() => onDeleteComment(issueId, comment.id)}
+										onClick={event => {
+											event.preventDefault();
+											event.stopPropagation();
+											onDeleteComment(issueId, comment.id);
+										}}
 									>
 										×
 									</Button>

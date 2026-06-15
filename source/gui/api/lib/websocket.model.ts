@@ -29,4 +29,9 @@ export type GuiMessage =
 			};
 	  }
 	| {type: 'issue:close'; payload: {issueId: string}}
-	| {type: 'issue:reopen'; payload: {issueId: string}};
+	| {type: 'issue:reopen'; payload: {issueId: string}}
+	| {type: 'issue:comment:add'; payload: {issueId: string; body: string}}
+	| {
+			type: 'issue:comment:delete';
+			payload: {issueId: string; commentId: string};
+	  };

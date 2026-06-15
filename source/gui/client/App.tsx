@@ -300,6 +300,12 @@ export const App = () => {
 		setCreateIssueModal(null);
 	};
 
+	const addIssueComment = (issueId: string, body: string) =>
+		send('issue:comment:add', {issueId, body});
+
+	const deleteIssueComment = (issueId: string, commentId: string) =>
+		send('issue:comment:delete', {issueId, id: commentId});
+
 	return (
 		<div
 			style={{
@@ -386,6 +392,8 @@ export const App = () => {
 						onRemoveTag={removeIssueTag}
 						onAddAssignee={addIssueAssignee}
 						onRemoveAssignee={removeIssueAssignee}
+						onAddComment={addIssueComment}
+						onDeleteComment={deleteIssueComment}
 						onReopenIssue={reopenIssue}
 						onCloseIssue={closeIssue}
 						knownTags={state.tags ?? []}
