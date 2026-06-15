@@ -93,7 +93,7 @@ export const IssueComments = ({
 			{!readonly && (
 				<div style={{marginTop: 18}}>
 					<Textarea
-						maxLength={140}
+						maxLength={120}
 						value={body}
 						placeholder="write a comment"
 						onChange={event => setBody(event.target.value)}
