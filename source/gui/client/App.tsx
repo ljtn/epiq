@@ -1,21 +1,23 @@
 import {useEffect, useRef, useState} from 'react';
-import {useNavigate, useParams} from 'react-router-dom';
+import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
+import {Button} from './components/Button';
+import {CreateIssueModal} from './components/CreateIssueModal';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {moveIssue} from './lib/gui-move-issue';
+import {DropTarget} from './lib/gui-result.model';
 import {
 	findIssue,
 	getResultValue,
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
 import {GuiState} from './lib/gui-state.model';
-import {DropTarget} from './lib/gui-result.model';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
-import {Button} from './components/Button';
-import {CreateIssueModal} from './components/CreateIssueModal';
+
+type IssueDetailsTab = 'overview' | 'comments';
 
 export const DropIndicator = () => (
 	<div
@@ -30,8 +32,12 @@ export const DropIndicator = () => (
 );
 
 export const App = () => {
-	const {boardId} = useParams<{boardId: string}>();
-	const navigate = useNavigate();
+	const {boardId, issueId} = useParams<{
+		boardId: string;
+		issueId?: string;
+	}>();
+
+	const [searchParams, setSearchParams] = useSearchParams();
 
 	const [connected, setConnected] = useState(false);
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>({
@@ -39,7 +45,6 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
-	const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
 	);
@@ -53,10 +58,26 @@ export const App = () => {
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
 
+	const selectedIssueId = issueId ?? null;
+	const selectedTab =
+		searchParams.get('tab') === 'comments' ? 'comments' : 'overview';
+	const navigate = useNavigate();
+
+	const closeIssueDetails = () => {
+		if (!boardId) return;
+
+		void navigate(`/board/${boardId}`);
+	};
+
 	const selectedBoard =
 		state?.boards.find(board => board.id === boardId) ??
 		state?.boards[0] ??
 		null;
+
+	const selectedIssue =
+		state && selectedIssueId ? findIssue(state, selectedIssueId) : null;
+
+	const commentsByIssueId = state?.commentsByIssueId ?? {};
 
 	useEffect(() => {
 		const socket = new WebSocket(
@@ -89,8 +110,8 @@ export const App = () => {
 			if (message.type === 'issue:created') {
 				const created = getResultValue<{id: string}>(message.payload);
 
-				if (created) {
-					setSelectedIssueId(created.id);
+				if (created && boardId) {
+					void navigate(`/board/${boardId}/${created.id}/overview`);
 				}
 			}
 
@@ -110,7 +131,7 @@ export const App = () => {
 
 			socket.close();
 		};
-	}, [boardId]);
+	}, [boardId, navigate]);
 
 	useEffect(() => {
 		if (!boardId && state?.boards[0]) {
@@ -132,9 +153,6 @@ export const App = () => {
 		return () => document.removeEventListener('mousedown', close);
 	}, []);
 
-	const selectedIssue =
-		state && selectedIssueId ? findIssue(state, selectedIssueId) : null;
-
 	const clearDragState = () => {
 		setDragOverSwimlaneId(null);
 		setDropTarget(null);
@@ -142,6 +160,29 @@ export const App = () => {
 
 	const send = (type: string, payload: unknown) => {
 		socketRef.current?.send(JSON.stringify({type, payload}));
+	};
+
+	const selectIssue = (nextIssueId: string) => {
+		if (!boardId) return;
+
+		void navigate(`/board/${boardId}/${nextIssueId}?tab=overview`);
+	};
+
+	const selectIssueComments = (nextIssueId: string) => {
+		if (!boardId) return;
+
+		void navigate(`/board/${boardId}/${nextIssueId}?tab=comments`);
+	};
+
+	const changeIssueDetailsTab = (nextTab: IssueDetailsTab) => {
+		setSearchParams(
+			prev => {
+				const next = new URLSearchParams(prev);
+				next.set('tab', nextTab);
+				return next;
+			},
+			{replace: true},
+		);
 	};
 
 	const editIssueTitle = (issueId: string, title: string) =>
@@ -234,7 +275,6 @@ export const App = () => {
 
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
-		setSelectedIssueId(null);
 		clearDragState();
 
 		void navigate(`/board/${nextBoardId}`);
@@ -305,39 +345,41 @@ export const App = () => {
 					</div>
 
 					<div style={{display: 'flex', gap: 8}}>
-						{state?.commentsByIssueId &&
-							selectedBoard?.swimlanes.map(swimlane => (
-								<SwimlaneColumn
-									key={swimlane.id}
-									swimlane={swimlane}
-									selected={false}
-									selectedIssueId={selectedIssueId}
-									commentsByIssueId={state.commentsByIssueId}
-									dragOver={dragOverSwimlaneId === swimlane.id}
-									dropIndex={
-										dropTarget?.swimlaneId === swimlane.id
-											? dropTarget.index
-											: null
-									}
-									onSelectIssue={setSelectedIssueId}
-									onCreateIssue={openCreateIssueModal}
-									onDropIssue={moveIssue(setState, socketRef)}
-									onDragOver={setDragOverSwimlaneId}
-									onDragOverIssue={(swimlaneId, index) =>
-										setDropTarget({swimlaneId, index})
-									}
-									onDragLeave={clearDragState}
-								/>
-							))}
+						{selectedBoard?.swimlanes.map(swimlane => (
+							<SwimlaneColumn
+								key={swimlane.id}
+								swimlane={swimlane}
+								selected={false}
+								selectedIssueId={selectedIssueId}
+								commentsByIssueId={commentsByIssueId}
+								dragOver={dragOverSwimlaneId === swimlane.id}
+								dropIndex={
+									dropTarget?.swimlaneId === swimlane.id
+										? dropTarget.index
+										: null
+								}
+								onSelectIssue={selectIssue}
+								onSelectIssueComments={selectIssueComments}
+								onCreateIssue={openCreateIssueModal}
+								onDropIssue={moveIssue(setState, socketRef)}
+								onDragOver={setDragOverSwimlaneId}
+								onDragOverIssue={(swimlaneId, index) =>
+									setDropTarget({swimlaneId, index})
+								}
+								onDragLeave={clearDragState}
+							/>
+						))}
 					</div>
 				</main>
 
 				{selectedIssue && state?.user && (
 					<IssueDetails
-						whoAmI={state?.user}
+						whoAmI={state.user}
 						issue={selectedIssue}
-						comments={state?.commentsByIssueId[selectedIssue.id] ?? []}
-						onClose={() => setSelectedIssueId(null)}
+						activeTab={selectedTab}
+						comments={commentsByIssueId[selectedIssue.id] ?? []}
+						onChangeTab={changeIssueDetailsTab}
+						onClose={closeIssueDetails}
 						onEditTitle={editIssueTitle}
 						onEditDescription={editIssueDescription}
 						onAddTag={addIssueTag}
@@ -346,8 +388,8 @@ export const App = () => {
 						onRemoveAssignee={removeIssueAssignee}
 						onReopenIssue={reopenIssue}
 						onCloseIssue={closeIssue}
-						knownTags={state?.tags ?? []}
-						knownAssignees={state?.contributors ?? []}
+						knownTags={state.tags ?? []}
+						knownAssignees={state.contributors ?? []}
 					/>
 				)}
 			</div>

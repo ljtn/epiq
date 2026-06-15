@@ -10,6 +10,7 @@ export const SwimlaneColumn = ({
 	swimlane,
 	selected,
 	selectedIssueId,
+	onSelectIssueComments,
 	commentsByIssueId,
 	dragOver,
 	dropIndex,
@@ -26,6 +27,7 @@ export const SwimlaneColumn = ({
 	commentsByIssueId: Record<string, GuiComment[]>;
 	dragOver: boolean;
 	dropIndex: number | null;
+	onSelectIssueComments: (nextIssueId: string) => void;
 	onSelectIssue: (issueId: string) => void;
 	onCreateIssue: (swimlaneId: string) => void;
 	onDropIssue: (
@@ -153,7 +155,8 @@ export const SwimlaneColumn = ({
 									isSelected={ticket.id === selectedIssueId}
 									onSelect={() => onSelectIssue(ticket.id)}
 									onDragStart={issueId => onSelectIssue(issueId)}
-									comments={commentsByIssueId[ticket.id] ?? []}
+									onOpenComments={onSelectIssueComments}
+									commentCount={commentsByIssueId[ticket.id].length ?? 0}
 									onDragOverIssue={targetIndex =>
 										onDragOverIssue(swimlane.id, targetIndex)
 									}

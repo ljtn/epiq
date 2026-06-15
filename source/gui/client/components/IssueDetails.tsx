@@ -21,6 +21,8 @@ type IssueDetailsTab = 'overview' | 'comments';
 export const IssueDetails = ({
 	whoAmI,
 	comments,
+	activeTab,
+	onChangeTab,
 	issue,
 	onClose,
 	onEditTitle,
@@ -40,6 +42,8 @@ export const IssueDetails = ({
 	issue: GuiIssue | null;
 	comments: GuiComment[];
 	onClose: () => void;
+	activeTab: IssueDetailsTab;
+	onChangeTab: (tab: IssueDetailsTab) => void;
 	onEditTitle: (issueId: string, title: string) => void;
 	onEditDescription: (issueId: string, description: string) => void;
 	onAddTag: (issueId: string, tagName: string) => void;
@@ -53,7 +57,6 @@ export const IssueDetails = ({
 	knownTags: GuiTag[];
 	knownAssignees: GuiUser[];
 }) => {
-	const [activeTab, setActiveTab] = useState<IssueDetailsTab>('overview');
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
 	const [tagName, setTagName] = useState('');
@@ -72,7 +75,6 @@ export const IssueDetails = ({
 		setEditingDescription(false);
 		setAddingTag(false);
 		setAddingAssignee(false);
-		setActiveTab('overview');
 	}, [issue?.id, issue?.title, issue?.description]);
 
 	const disabled = !issue || issue.readonly;
@@ -165,7 +167,7 @@ export const IssueDetails = ({
 						</Button>
 					</FormHeader>
 
-					<Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+					<Tabs tabs={tabs} activeTab={activeTab} onChange={onChangeTab} />
 
 					{activeTab === 'overview' && (
 						<>

@@ -25,7 +25,7 @@ export const User = ({
 			fontSize: 11,
 			fontWeight: 700,
 			marginLeft: index === 0 ? 0 : -6,
-			border: `2px solid ${isFocus ? 'rgba(118,228,255,0.08)' : '#1a1a1a'}`,
+			border: `2px solid #1a1a1a`,
 		}}
 	>
 		{user.name.at(0)?.toUpperCase()}

@@ -7,9 +7,10 @@ export const TicketCard = ({
 	ticket,
 	index,
 	isSelected,
+	commentCount,
+	onOpenComments,
 	onSelect,
 	onDragStart,
-	comments,
 	onDragOverIssue,
 	onDropIssueAt,
 }: {
@@ -17,8 +18,9 @@ export const TicketCard = ({
 	index: number;
 	isSelected: boolean;
 	onSelect: () => void;
+	commentCount: number;
+	onOpenComments: (issueId: string) => void;
 	onDragStart: (issueId: string) => void;
-	comments: GuiComment[];
 	onDragOverIssue: (targetIndex: number) => void;
 	onDropIssueAt: (issueId: string, targetIndex: number) => void;
 }) => {
@@ -149,11 +151,14 @@ export const TicketCard = ({
 						paddingTop: 2,
 					}}
 				>
-					{comments.length > 0 && (
-						<div
-							title={`${comments.length} comment${
-								comments.length === 1 ? '' : 's'
-							}`}
+					{commentCount > 0 && (
+						<button
+							type="button"
+							title={`${commentCount} comment${commentCount === 1 ? '' : 's'}`}
+							onClick={event => {
+								event.stopPropagation();
+								onOpenComments(ticket.id);
+							}}
 							style={{
 								display: 'inline-flex',
 								alignItems: 'center',
@@ -170,21 +175,35 @@ export const TicketCard = ({
 								fontSize: 11,
 								fontWeight: 600,
 								lineHeight: 1,
+								cursor: 'pointer',
+								marginTop: '-4px',
+								transition:
+									'background 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease',
+							}}
+							onMouseEnter={event => {
+								event.currentTarget.style.background = 'rgba(118,228,255,0.12)';
+								event.currentTarget.style.borderColor =
+									'rgba(118,228,255,0.35)';
+								event.currentTarget.style.color = GUI_THEME.accent;
+								event.currentTarget.style.transform = 'translateY(-1px)';
+							}}
+							onMouseLeave={event => {
+								event.currentTarget.style.background = isSelected
+									? 'rgba(118,228,255,0.10)'
+									: 'rgba(255,255,255,0.035)';
+								event.currentTarget.style.borderColor = isSelected
+									? 'rgba(118,228,255,0.28)'
+									: GUI_THEME.line;
+								event.currentTarget.style.color = isSelected
+									? GUI_THEME.accent
+									: GUI_THEME.secondary;
+								event.currentTarget.style.transform = 'translateY(0)';
 							}}
 						>
 							<IconComment />
-							<span>{comments.length}</span>
-						</div>
+							<span>{commentCount}</span>
+						</button>
 					)}
-
-					{ticket.assignees.map((assignee, idx) => (
-						<User
-							key={assignee.id}
-							user={assignee}
-							index={idx}
-							isFocus={isSelected}
-						/>
-					))}
 				</div>
 
 				{ticket.assignees.length > 0 && (
