@@ -60,6 +60,17 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 
 	const INDEX_WIDTH = 4;
 
+	const comments = nodeRepo.getCommentsByIssue(ticket.id);
+	const commentsWidth = comments.length
+		? String(comments.length).length + 2 + paddingRight
+		: 0;
+
+	const commentsRendered = comments.length ? (
+		<Box paddingRight={paddingRight}>
+			<Text color={theme.accent}>[{comments.length}]</Text>
+		</Box>
+	) : null;
+
 	return (
 		<Box borderBottom justifyContent="space-between">
 			<Box>
@@ -76,7 +87,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 				<Text wrap="truncate" color={color}>
 					{truncateWithEllipsis(
 						ticket.title,
-						width - tagsWidth - assigneesWidth - 18,
+						width - tagsWidth - assigneesWidth - commentsWidth - 18,
 					)}
 				</Text>
 			</Box>
@@ -84,6 +95,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 			<Box>
 				{tagsRendered}
 				{assigneesRendered}
+				{commentsRendered}
 			</Box>
 		</Box>
 	);

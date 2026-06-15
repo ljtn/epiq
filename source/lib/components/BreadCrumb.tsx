@@ -68,12 +68,18 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 		})
 		.join('');
 
+	const comments = ticket ? nodeRepo.getCommentsByIssue(ticket.id) : [];
+	const commentCharacterLength = comments.length
+		? String(comments.length).length + 11 // " [3 comments]"
+		: 0;
+
 	const pillCharacterLength = showDetails
 		? tags.reduce((sum, tag) => sum + getTagCharacterLength(tag), 0) +
 		  assignees.reduce(
 				(sum, assignee) => sum + getAssigneeCharacterLength(assignee),
 				0,
-		  )
+		  ) +
+		  commentCharacterLength
 		: 0;
 
 	const maxBreadcrumbWidth = Math.max(0, width - pillCharacterLength);
@@ -91,6 +97,13 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 						<AssigneeUI id={assignee} />
 					</Box>
 				)),
+				comments.length ? (
+					<Box key="comments" paddingLeft={1}>
+						<Text color={theme.accent}>
+							[{comments.length} comment{comments.length === 1 ? '' : 's'}]
+						</Text>
+					</Box>
+				) : null,
 		  ]
 		: [];
 

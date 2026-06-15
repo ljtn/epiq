@@ -16,7 +16,7 @@ export const TagUI: React.FC<Props> = ({id, isSelected}) => {
 		<Text
 			underline={isSelected}
 			backgroundColor={getStringColor(tag.name)}
-			color={theme.primary}
+			color={theme.secondary}
 		>
 			{' ' + tag.name + ' '}
 		</Text>
