@@ -10,8 +10,6 @@ const state = vi.hoisted(() => ({
 	nodes: {} as Record<string, Partial<NavNode<AnyContext>>>,
 }));
 
-const materializeAndPersist = vi.hoisted(() => vi.fn());
-
 vi.mock('../lib/state/state.js', () => ({
 	getState: () => state,
 }));
