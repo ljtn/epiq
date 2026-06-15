@@ -305,28 +305,30 @@ export const App = () => {
 					</div>
 
 					<div style={{display: 'flex', gap: 8}}>
-						{selectedBoard?.swimlanes.map(swimlane => (
-							<SwimlaneColumn
-								key={swimlane.id}
-								swimlane={swimlane}
-								selected={false}
-								selectedIssueId={selectedIssueId}
-								dragOver={dragOverSwimlaneId === swimlane.id}
-								dropIndex={
-									dropTarget?.swimlaneId === swimlane.id
-										? dropTarget.index
-										: null
-								}
-								onSelectIssue={setSelectedIssueId}
-								onCreateIssue={openCreateIssueModal}
-								onDropIssue={moveIssue(setState, socketRef)}
-								onDragOver={setDragOverSwimlaneId}
-								onDragOverIssue={(swimlaneId, index) =>
-									setDropTarget({swimlaneId, index})
-								}
-								onDragLeave={clearDragState}
-							/>
-						))}
+						{state?.commentsByIssueId &&
+							selectedBoard?.swimlanes.map(swimlane => (
+								<SwimlaneColumn
+									key={swimlane.id}
+									swimlane={swimlane}
+									selected={false}
+									selectedIssueId={selectedIssueId}
+									commentsByIssueId={state.commentsByIssueId}
+									dragOver={dragOverSwimlaneId === swimlane.id}
+									dropIndex={
+										dropTarget?.swimlaneId === swimlane.id
+											? dropTarget.index
+											: null
+									}
+									onSelectIssue={setSelectedIssueId}
+									onCreateIssue={openCreateIssueModal}
+									onDropIssue={moveIssue(setState, socketRef)}
+									onDragOver={setDragOverSwimlaneId}
+									onDragOverIssue={(swimlaneId, index) =>
+										setDropTarget({swimlaneId, index})
+									}
+									onDragLeave={clearDragState}
+								/>
+							))}
 					</div>
 				</main>
 

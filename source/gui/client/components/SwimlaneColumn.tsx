@@ -1,6 +1,6 @@
 import React from 'react';
 import {DropIndicator} from '../App';
-import {GuiSwimlane} from '../lib/gui-state.model';
+import {GuiComment, GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
@@ -10,6 +10,7 @@ export const SwimlaneColumn = ({
 	swimlane,
 	selected,
 	selectedIssueId,
+	commentsByIssueId,
 	dragOver,
 	dropIndex,
 	onSelectIssue,
@@ -22,6 +23,7 @@ export const SwimlaneColumn = ({
 	swimlane: GuiSwimlane;
 	selected: boolean;
 	selectedIssueId: string | null;
+	commentsByIssueId: Record<string, GuiComment[]>;
 	dragOver: boolean;
 	dropIndex: number | null;
 	onSelectIssue: (issueId: string) => void;
@@ -151,6 +153,7 @@ export const SwimlaneColumn = ({
 									isSelected={ticket.id === selectedIssueId}
 									onSelect={() => onSelectIssue(ticket.id)}
 									onDragStart={issueId => onSelectIssue(issueId)}
+									comments={commentsByIssueId[ticket.id] ?? []}
 									onDragOverIssue={targetIndex =>
 										onDragOverIssue(swimlane.id, targetIndex)
 									}

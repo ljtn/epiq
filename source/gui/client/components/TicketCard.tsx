@@ -1,5 +1,6 @@
-import {GuiIssue} from '../lib/gui-state.model';
+import {GuiComment, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {IconComment} from './IconComment';
 import {User} from './User';
 
 export const TicketCard = ({
@@ -8,6 +9,7 @@ export const TicketCard = ({
 	isSelected,
 	onSelect,
 	onDragStart,
+	comments,
 	onDragOverIssue,
 	onDropIssueAt,
 }: {
@@ -16,6 +18,7 @@ export const TicketCard = ({
 	isSelected: boolean;
 	onSelect: () => void;
 	onDragStart: (issueId: string) => void;
+	comments: GuiComment[];
 	onDragOverIssue: (targetIndex: number) => void;
 	onDropIssueAt: (issueId: string, targetIndex: number) => void;
 }) => {
@@ -135,6 +138,53 @@ export const TicketCard = ({
 							</span>
 						))}
 					</div>
+				</div>
+
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'flex-start',
+						gap: 8,
+						flexShrink: 0,
+						paddingTop: 2,
+					}}
+				>
+					{comments.length > 0 && (
+						<div
+							title={`${comments.length} comment${
+								comments.length === 1 ? '' : 's'
+							}`}
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 5,
+								color: isSelected ? GUI_THEME.accent : GUI_THEME.secondary,
+								background: isSelected
+									? 'rgba(118,228,255,0.10)'
+									: 'rgba(255,255,255,0.035)',
+								border: `1px solid ${
+									isSelected ? 'rgba(118,228,255,0.28)' : GUI_THEME.line
+								}`,
+								borderRadius: 999,
+								padding: '3px 7px',
+								fontSize: 11,
+								fontWeight: 600,
+								lineHeight: 1,
+							}}
+						>
+							<IconComment />
+							<span>{comments.length}</span>
+						</div>
+					)}
+
+					{ticket.assignees.map((assignee, idx) => (
+						<User
+							key={assignee.id}
+							user={assignee}
+							index={idx}
+							isFocus={isSelected}
+						/>
+					))}
 				</div>
 
 				{ticket.assignees.length > 0 && (
