@@ -184,6 +184,16 @@ export type AppEventMap = {
 		};
 		result: {parent: string};
 	};
+
+	'link.contributor.user': {
+		payload: {
+			contributor: string;
+		};
+		result: {
+			contributor: string;
+			userId: string;
+		};
+	};
 };
 
 export type EventAction = keyof AppEventMap;

@@ -1,3 +1,4 @@
+import {loadSettingsFromConfig} from '../config/user-config.js';
 import {
 	isBoardNode,
 	isFieldNode,
@@ -116,6 +117,7 @@ const getAffectedNodeIds = (event: AppEvent): string[] => {
 
 		case 'create.tag':
 		case 'create.contributor':
+		case 'link.contributor.user':
 		default:
 			return [];
 	}
@@ -639,6 +641,29 @@ const materializeHandlers: MaterializeHandlers = {
 		return succeeded('Comment deleted', {
 			action: event.action,
 			result: {id, issue},
+		});
+	},
+	'link.contributor.user': event => {
+		const {contributor} = event.payload;
+
+		const result = nodeRepo.linkUserId({
+			contributorId: contributor,
+			userId: event.userId,
+		});
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to link contributor',
+				event,
+			);
+		}
+
+		return succeeded('Contributor linked to user', {
+			action: event.action,
+			result: {
+				contributor,
+				userId: event.userId,
+			},
 		});
 	},
 };

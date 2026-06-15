@@ -1,10 +1,7 @@
 import {ulid} from 'ulid';
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {createIssueEvents} from '../../event/common-events.js';
-import {
-	materializeAndPersist,
-	materializeAndPersistAll,
-} from '../../event/event-materialize-and-persist.js';
+import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../../event/event-persist.js';
 import {AppEvent} from '../../event/event.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
@@ -38,13 +35,13 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 			'add.workspace' | 'add.board' | 'add.swimlane' | 'add.issue' | 'add.field'
 		>,
 	) => {
-		const result = materializeAndPersist(event, persistRoot);
-		if (isFail(result)) return result;
+		const results = materializeAndPersistAll([event], persistRoot);
+		if (isFail(results)) return results;
 
-		const createdNode = nodeRepo.getNode(result.value.result.id);
+		const createdNode = nodeRepo.getNode(results.value[0].result.id);
 		if (!createdNode) return failed('Created node not found');
 
-		if (!createdNode.parentNodeId) return result;
+		if (!createdNode.parentNodeId) return results;
 
 		const parentNode = nodeRepo.getNode(createdNode.parentNodeId);
 		if (!parentNode) return failed('Parent node not found');
@@ -56,7 +53,7 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 				.findIndex(({id}) => id === createdNode.id),
 		});
 
-		return result;
+		return results;
 	};
 
 	if (cmdState.modifier === 'board') {
@@ -143,21 +140,17 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 		if (isFail(issueEventsResult)) return issueEventsResult;
 
 		const issueEvents = issueEventsResult.value;
-		const issueResults = materializeAndPersistAll(issueEvents, persistRoot);
+		const issueResults = materializeAndPersistAll(
+			[...issueEvents],
+			persistRoot,
+		);
 
-		if (issueResults.some(x => isFail(x))) {
-			return failed(
-				'Issue create failed: ' +
-					issueResults
-						.filter(isFail)
-						.map(r => r.message)
-						.filter(Boolean)
-						.join(', '),
-			);
+		if (isFail(issueResults)) {
+			return issueResults;
 		}
 
-		const issueResult = issueResults[0];
-		if (!issueResult || isFail(issueResult)) {
+		const issueResult = issueResults.value[0];
+		if (!issueResult) {
 			return failed('Issue creation failed');
 		}
 

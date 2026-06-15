@@ -1,9 +1,6 @@
 import {ulid} from 'ulid';
 import {openEditorOnText} from '../../editor/editor.js';
-import {
-	materializeAndPersist,
-	persistEvent,
-} from '../../event/event-materialize-and-persist.js';
+import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../../event/event-persist.js';
 import {CommandLineInput} from '../../model/action-map.model.js';
 import {BreadCrumb, findInBreadCrumb} from '../../model/app-state.model.js';
@@ -38,12 +35,20 @@ export const editCommand = async (cmdState: CommandLineInput) => {
 		const newName = cmdState.inputString.trim();
 		if (!newName) return failed('Provide a title');
 
-		return persistEvent({
-			id: ulid(),
-			action: 'edit.title',
-			payload: {id: node.id, name: newName},
-			...userRes.value,
-		});
+		const persistRootResult = await getPersistRoot();
+		if (isFail(persistRootResult)) return persistRootResult;
+
+		return materializeAndPersistAll(
+			[
+				{
+					id: ulid(),
+					action: 'edit.title',
+					payload: {id: node.id, name: newName},
+					...userRes.value,
+				},
+			],
+			persistRootResult.value,
+		);
 	}
 
 	return failed('Unknown edit command');
@@ -96,16 +101,26 @@ const editSelectedComment = async (cmdState: CommandLineInput) => {
 	const md = cmdState.inputString.trim();
 	if (!md) return failed('Provide a comment');
 
-	return persistEvent({
-		id: ulid(),
-		action: 'edit.issue.comment',
-		payload: {
-			id: comment.id,
-			issue: issueNode.id,
-			md,
-		},
-		...userRes.value,
-	});
+	const persistRootResult = await getPersistRoot();
+	if (isFail(persistRootResult)) return persistRootResult;
+
+	const persistRoot = persistRootResult.value;
+
+	return materializeAndPersistAll(
+		[
+			{
+				id: ulid(),
+				action: 'edit.issue.comment',
+				payload: {
+					id: comment.id,
+					issue: issueNode.id,
+					md,
+				},
+				...userRes.value,
+			},
+		],
+		persistRoot,
+	);
 };
 
 export const editInEditor = async () => {
@@ -114,7 +129,6 @@ export const editInEditor = async () => {
 
 	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
-
 	const persistRoot = persistRootResult.value;
 
 	const {breadCrumb, selectedNode} = getState();
@@ -149,16 +163,18 @@ export const editInEditor = async () => {
 		return succeeded('No changes made', null);
 	}
 
-	return materializeAndPersist(
-		{
-			id: ulid(),
-			action: 'edit.description',
-			payload: {
-				id: issueNode.id,
-				md: updatedValue,
+	return materializeAndPersistAll(
+		[
+			{
+				id: ulid(),
+				action: 'edit.description',
+				payload: {
+					id: issueNode.id,
+					md: updatedValue,
+				},
+				...userRes.value,
 			},
-			...userRes.value,
-		},
+		],
 		persistRoot,
 	);
 };

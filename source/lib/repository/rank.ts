@@ -1,5 +1,5 @@
 import {createRebalanceChildrenEvent} from '../event/create-rebalance-children-event.js';
-import {materializeAndPersist} from '../event/event-materialize-and-persist.js';
+import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
 import {MovePosition} from '../event/event.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -125,8 +125,8 @@ export const resolveAndPersistRankForMove = (
 	const rebalanceEvent = createRebalanceChildrenEvent(parentId, user);
 	if (isFail(rebalanceEvent)) return rebalanceEvent;
 
-	const rebalanceResult = materializeAndPersist(
-		rebalanceEvent.value,
+	const rebalanceResult = materializeAndPersistAll(
+		[rebalanceEvent.value],
 		stateBranchRoot,
 	);
 	if (isFail(rebalanceResult)) return rebalanceResult;
@@ -156,8 +156,8 @@ export const resolveAndPersistRankForCreate = (
 	const rebalanceEvent = createRebalanceChildrenEvent(parentId, user);
 	if (isFail(rebalanceEvent)) return rebalanceEvent;
 
-	const rebalanceResult = materializeAndPersist(
-		rebalanceEvent.value,
+	const rebalanceResult = materializeAndPersistAll(
+		[rebalanceEvent.value],
 		stateBranchRoot,
 	);
 	if (isFail(rebalanceResult)) return rebalanceResult;

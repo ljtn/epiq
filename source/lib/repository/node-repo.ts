@@ -65,6 +65,38 @@ const failIfReadonly = (
 };
 
 export const nodeRepo = {
+	linkUserId({
+		contributorId,
+		userId,
+	}: {
+		contributorId: string;
+		userId: string;
+	}): Result<Contributor> {
+		const contributor = this.getContributor(contributorId);
+		if (!contributor) return failed('Contributor not found');
+
+		if (contributor.userId && contributor.userId !== userId) {
+			return failed('Contributor is already linked to another user');
+		}
+
+		const updatedContributor: Contributor = {
+			...contributor,
+			userId,
+		};
+
+		const result = updateState(s => ({
+			...s,
+			contributors: {
+				...s.contributors,
+				[contributorId]: updatedContributor,
+			},
+		}));
+
+		if (isFail(result)) return failed('Unable to link contributor to user');
+
+		return succeeded('Linked contributor to user', updatedContributor);
+	},
+
 	deleteNode(nodeId: string) {
 		updateState(s => {
 			const nextNodes = {...s.nodes};

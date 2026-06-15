@@ -7,7 +7,7 @@ import {
 	resolveRankForMove,
 	setMovePendingState,
 } from '../../actions/move/move-actions-utils.js';
-import {materializeAndPersist} from '../../event/event-materialize-and-persist.js';
+import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../../event/event-persist.js';
 import {MovePosition} from '../../event/event.model.js';
 import {Mode} from '../../model/action-map.model.js';
@@ -134,12 +134,12 @@ export const moveCommand = async (): Promise<Result> => {
 		const persistRootResult = await getPersistRoot();
 		if (isFail(persistRootResult)) return persistRootResult;
 
-		const result = materializeAndPersist(
-			pendingMoveState,
+		const materializeResult = materializeAndPersistAll(
+			[pendingMoveState],
 			persistRootResult.value,
 		);
 
-		if (isFail(result)) return result;
+		if (isFail(materializeResult)) return materializeResult;
 
 		const navResult = syncNavigationToPendingMove();
 		if (isFail(navResult)) return navResult;

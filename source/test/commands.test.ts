@@ -6,19 +6,24 @@ vi.mock('ulid', () => ({
 }));
 
 vi.mock('../lib/event/event-materialize-and-persist.js', () => ({
-	persistEvent: vi.fn(),
-	materializeAndPersist: vi.fn(),
 	materializeAndPersistAll: vi.fn(),
 }));
 
 vi.mock('../lib/event/event-persist.js', () => ({
-	resolveActorId: vi.fn(
-		() =>
-			({
-				status: 'success',
-				message: 'Resolved actor id',
-				value: {userId: '0001', userName: 'jola'},
-			} satisfies Result),
+	resolveActorId: vi.fn(() => ({
+		status: 'success',
+		message: 'Resolved actor id',
+		value: {userId: '0001', userName: 'jola'},
+	})),
+}));
+
+vi.mock('../lib/storage/paths.js', () => ({
+	getPersistRoot: vi.fn(() =>
+		Promise.resolve({
+			status: 'success',
+			message: 'Resolved persist root',
+			value: '/repo/.epiq',
+		}),
 	),
 }));
 
@@ -40,6 +45,7 @@ vi.mock('../lib/repository/rank.js', async importOriginal => {
 vi.mock('../lib/state/cmd.state.js', () => ({
 	getCmdArg: vi.fn(),
 	getCmdState: vi.fn(),
+	replaceCmdInput: vi.fn(),
 }));
 
 vi.mock('../lib/state/state.js', () => ({
@@ -49,25 +55,38 @@ vi.mock('../lib/state/state.js', () => ({
 	getRenderedChildren: vi.fn(() => []),
 }));
 
+vi.mock('../lib/state/settings.state.js', () => ({
+	getSettingsState: vi.fn(() => ({
+		autoSync: false,
+		userId: '0001',
+		userName: 'jola',
+	})),
+	patchSettingsState: vi.fn(),
+}));
+
+vi.mock('../git/auto-sync.js', () => ({
+	MIN_AUTOSYNC_DURATION_MS: 1000,
+	queueAutoSync: vi.fn(),
+}));
+
 import {ulid} from 'ulid';
 import {CmdIntent} from '../lib/command-line/command-intent.js';
-import {persistEvent} from '../lib/event/event-materialize-and-persist.js';
-import {EventAction, MaterializeResult} from '../lib/event/event.model.js';
-import {AppState, Tag} from '../lib/model/app-state.model.js';
-import {AnyContext, Ticket} from '../lib/model/context.model.js';
-import {failed, Result, succeeded} from '../lib/model/result-types.js';
-import {findAncestor} from '../lib/repository/node-repo.js';
-import {CommandLineState, getCmdState} from '../lib/state/cmd.state.js';
-import {getRenderedChildren, getState} from '../lib/state/state.js';
-import {NavNode} from '../lib/model/navigation-node.model.js';
+import {commands} from '../lib/command-line/commands.js';
+import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {
 	CommandLineActionEntry,
 	CommandLineInput,
 } from '../lib/model/action-map.model.js';
-import {commands} from '../lib/command-line/commands.js';
+import {AppState, Tag} from '../lib/model/app-state.model.js';
+import {AnyContext, Ticket} from '../lib/model/context.model.js';
+import {NavNode} from '../lib/model/navigation-node.model.js';
+import {failed, Result, succeeded} from '../lib/model/result-types.js';
+import {findAncestor} from '../lib/repository/node-repo.js';
+import {CommandLineState, getCmdState} from '../lib/state/cmd.state.js';
+import {getRenderedChildren, getState} from '../lib/state/state.js';
 
 const mockedUlid = vi.mocked(ulid);
-const mockedPersistEvent = vi.mocked(persistEvent);
+const mockedMaterializeAndPersistAll = vi.mocked(materializeAndPersistAll);
 const mockedFindAncestor = vi.mocked(findAncestor);
 const mockedGetRenderedChildren = vi.mocked(getRenderedChildren);
 const mockedGetCmdState = vi.mocked(getCmdState);
@@ -108,10 +127,13 @@ describe('TagTicket command', () => {
 			succeeded('Found ticket', ticket) as Result<Ticket>,
 		);
 
-		mockedPersistEvent.mockResolvedValue(
-			succeeded('Persisted event', {
-				result: {id: 'result-id'},
-			}) as MaterializeResult<EventAction>,
+		mockedMaterializeAndPersistAll.mockReturnValue(
+			succeeded('Persisted events', [
+				{
+					action: 'add.issue.tag',
+					result: {tag: 'tag-123'},
+				},
+			]) as ReturnType<typeof materializeAndPersistAll>,
 		);
 	});
 
@@ -132,17 +154,22 @@ describe('TagTicket command', () => {
 		);
 
 		expect(mockedUlid).toHaveBeenCalledTimes(1);
-		expect(mockedPersistEvent).toHaveBeenCalledTimes(1);
-		expect(mockedPersistEvent).toHaveBeenCalledWith({
-			id: 'add-tag-event-id',
-			userName: 'jola',
-			userId: '0001',
-			action: 'add.issue.tag',
-			payload: {
-				id: 'ticket-1',
-				tag: 'tag-123',
-			},
-		});
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledTimes(1);
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				{
+					id: 'add-tag-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'add.issue.tag',
+					payload: {
+						id: 'ticket-1',
+						tag: 'tag-123',
+					},
+				},
+			],
+			'/repo/.epiq',
+		);
 	});
 
 	it('creates a new tag when none exists, then adds it to issue props', async () => {
@@ -151,18 +178,6 @@ describe('TagTicket command', () => {
 			.mockReturnValueOnce('create-tag-event-id')
 			.mockReturnValueOnce('add-tag-event-id');
 
-		mockedPersistEvent
-			.mockResolvedValueOnce(
-				succeeded('Created tag', {
-					result: {id: 'new-tag-id'},
-				}) as MaterializeResult<'create.tag'>,
-			)
-			.mockResolvedValueOnce(
-				succeeded('Tagged issue', {
-					result: {tag: 'new-tag-id'},
-				}) as MaterializeResult<'add.issue.tag'>,
-			);
-
 		await tagCommand.action(
 			{} as CommandLineActionEntry,
 			{} as CommandLineInput,
@@ -170,27 +185,32 @@ describe('TagTicket command', () => {
 
 		expect(mockedUlid).toHaveBeenCalledTimes(3);
 
-		expect(mockedPersistEvent).toHaveBeenNthCalledWith(1, {
-			id: 'create-tag-event-id',
-			userName: 'jola',
-			userId: '0001',
-			action: 'create.tag',
-			payload: {
-				id: 'new-tag-id',
-				name: 'bug',
-			},
-		});
-
-		expect(mockedPersistEvent).toHaveBeenNthCalledWith(2, {
-			id: 'add-tag-event-id',
-			userName: 'jola',
-			userId: '0001',
-			action: 'add.issue.tag',
-			payload: {
-				id: 'ticket-1',
-				tag: 'new-tag-id',
-			},
-		});
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledTimes(1);
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				{
+					id: 'create-tag-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'create.tag',
+					payload: {
+						id: 'new-tag-id',
+						name: 'bug',
+					},
+				},
+				{
+					id: 'add-tag-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'add.issue.tag',
+					payload: {
+						id: 'ticket-1',
+						tag: 'new-tag-id',
+					},
+				},
+			],
+			'/repo/.epiq',
+		);
 	});
 
 	it('tags the ticket id, not the selected child id', async () => {
@@ -216,16 +236,21 @@ describe('TagTicket command', () => {
 			{} as CommandLineInput,
 		);
 
-		expect(mockedPersistEvent).toHaveBeenCalledWith({
-			id: 'add-tag-event-id',
-			userName: 'jola',
-			userId: '0001',
-			action: 'add.issue.tag',
-			payload: {
-				id: 'ticket-99',
-				tag: 'tag-123',
-			},
-		});
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				{
+					id: 'add-tag-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'add.issue.tag',
+					payload: {
+						id: 'ticket-99',
+						tag: 'tag-123',
+					},
+				},
+			],
+			'/repo/.epiq',
+		);
 	});
 
 	it('fails and does not create duplicate tag', async () => {
@@ -253,7 +278,7 @@ describe('TagTicket command', () => {
 		);
 
 		expect(result).toEqual(failed('Already tagged with that tag'));
-		expect(mockedPersistEvent).not.toHaveBeenCalled();
+		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
 		expect(mockedUlid).not.toHaveBeenCalled();
 	});
 
@@ -270,7 +295,7 @@ describe('TagTicket command', () => {
 		);
 
 		expect(result).toEqual(failed('Invalid tag target'));
-		expect(mockedPersistEvent).not.toHaveBeenCalled();
+		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
 		expect(mockedUlid).not.toHaveBeenCalled();
 	});
 });
@@ -303,10 +328,13 @@ describe('AssignUserToTicket command', () => {
 			return [] as NavNode<AnyContext>[];
 		});
 
-		mockedPersistEvent.mockResolvedValue(
-			succeeded('Persisted event', {
-				result: {id: 'result-id'},
-			}) as MaterializeResult<EventAction>,
+		mockedMaterializeAndPersistAll.mockReturnValue(
+			succeeded('Persisted events', [
+				{
+					action: 'add.issue.assignee',
+					result: {assignee: 'user-123'},
+				},
+			]) as ReturnType<typeof materializeAndPersistAll>,
 		);
 	});
 
@@ -328,17 +356,22 @@ describe('AssignUserToTicket command', () => {
 		);
 
 		expect(mockedUlid).toHaveBeenCalledTimes(1);
-		expect(mockedPersistEvent).toHaveBeenCalledTimes(1);
-		expect(mockedPersistEvent).toHaveBeenCalledWith({
-			id: 'add-assignee-event-id',
-			userName: 'jola',
-			userId: '0001',
-			action: 'add.issue.assignee',
-			payload: {
-				id: 'ticket-1',
-				assignee: 'user-123',
-			},
-		});
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledTimes(1);
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				{
+					id: 'add-assignee-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'add.issue.assignee',
+					payload: {
+						id: 'ticket-1',
+						assignee: 'user-123',
+					},
+				},
+			],
+			'/repo/.epiq',
+		);
 	});
 
 	it('creates a new contributor when none exists, then adds assignee to issue props', async () => {
@@ -347,18 +380,6 @@ describe('AssignUserToTicket command', () => {
 			.mockReturnValueOnce('create-contributor-event-id')
 			.mockReturnValueOnce('add-assignee-event-id');
 
-		mockedPersistEvent
-			.mockResolvedValueOnce(
-				succeeded('Created contributor', {
-					result: {id: 'new-contributor-id'},
-				}) as MaterializeResult<EventAction>,
-			)
-			.mockResolvedValueOnce(
-				succeeded('Assigned issue', {
-					result: {assignee: 'new-contributor-id'},
-				}) as MaterializeResult<EventAction>,
-			);
-
 		await assignCommand.action(
 			{} as CommandLineActionEntry,
 			{} as CommandLineInput,
@@ -366,27 +387,32 @@ describe('AssignUserToTicket command', () => {
 
 		expect(mockedUlid).toHaveBeenCalledTimes(3);
 
-		expect(mockedPersistEvent).toHaveBeenNthCalledWith(1, {
-			id: 'create-contributor-event-id',
-			userName: 'jola',
-			userId: '0001',
-			action: 'create.contributor',
-			payload: {
-				id: 'new-contributor-id',
-				name: 'alice',
-			},
-		});
-
-		expect(mockedPersistEvent).toHaveBeenNthCalledWith(2, {
-			id: 'add-assignee-event-id',
-			userName: 'jola',
-			userId: '0001',
-			action: 'add.issue.assignee',
-			payload: {
-				id: 'ticket-1',
-				assignee: 'new-contributor-id',
-			},
-		});
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledTimes(1);
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				{
+					id: 'create-contributor-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'create.contributor',
+					payload: {
+						id: 'new-contributor-id',
+						name: 'alice',
+					},
+				},
+				{
+					id: 'add-assignee-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'add.issue.assignee',
+					payload: {
+						id: 'ticket-1',
+						assignee: 'new-contributor-id',
+					},
+				},
+			],
+			'/repo/.epiq',
+		);
 	});
 
 	it('fails and does not create duplicate assignment', async () => {
@@ -415,15 +441,12 @@ describe('AssignUserToTicket command', () => {
 		);
 
 		expect(result).toEqual(failed('Assignee already assigned'));
-		expect(mockedPersistEvent).not.toHaveBeenCalled();
+		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
 		expect(mockedUlid).not.toHaveBeenCalled();
 	});
 
 	it('fails when no selected node exists', async () => {
-		mockedGetRenderedChildren.mockImplementation((parentId: string) => {
-			if (parentId === 'current-node') return [] as NavNode<AnyContext>[];
-			return [] as NavNode<AnyContext>[];
-		});
+		mockedGetRenderedChildren.mockImplementation(() => []);
 
 		const result = await assignCommand.action(
 			{} as CommandLineActionEntry,
@@ -431,7 +454,7 @@ describe('AssignUserToTicket command', () => {
 		);
 
 		expect(result).toEqual(failed('Invalid assign target'));
-		expect(mockedPersistEvent).not.toHaveBeenCalled();
+		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
 		expect(mockedUlid).not.toHaveBeenCalled();
 	});
 });

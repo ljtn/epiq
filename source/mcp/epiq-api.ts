@@ -301,11 +301,10 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 	const issueEvents = issueEventsResult.value;
 	const results = materializeAndPersistAll(
-		issueEvents,
+		[...issueEvents],
 		bootResult.value.stateBranchRoot,
 	);
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const issueId = issueEvents.find(e => e.action === 'add.issue')?.payload.id;
 	if (!issueId) return failed('Unable to determine created issue id');
@@ -348,8 +347,7 @@ export const closeIssue = async (input: CloseIssueInput) => {
 		[event],
 		bootResult.value.stateBranchRoot,
 	);
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -418,11 +416,7 @@ export const reopenIssue = async (input: CloseIssueInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-
-	if (failure) {
-		return failed(failure.message);
-	}
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -479,11 +473,7 @@ export const moveIssue = async (
 		[event],
 		stateBranchRootResult.value,
 	);
-	const failure = results.find(isFail);
-
-	if (failure) {
-		return failed(failure.message);
-	}
+	if (isFail(results)) return failed(results.message);
 
 	return succeeded('Moved issue', {
 		id: input.issueId,
@@ -678,8 +668,7 @@ export const editIssueDescription = async (
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -734,8 +723,7 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -801,8 +789,7 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -848,8 +835,7 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -915,8 +901,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -962,8 +947,7 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -1015,8 +999,7 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
@@ -1086,8 +1069,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 		bootResult.value.stateBranchRoot,
 	);
 
-	const failure = results.find(isFail);
-	if (failure) return failed(failure.message);
+	if (isFail(results)) return failed(results.message);
 
 	const syncResult = await syncAndReloadState();
 	if (isFail(syncResult)) return syncResult;
