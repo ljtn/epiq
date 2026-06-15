@@ -74,19 +74,29 @@ const sanitizeFilePart = (value: string) =>
 		.replace(/[^a-z0-9._-]+/g, '-')
 		.replace(/^-+|-+$/g, '') || 'unknown';
 
+const isValidUserId = (value: string) => /^[0-9A-HJKMNP-TV-Z]{26}$/.test(value);
+
+const isValidUserName = (value: string) =>
+	value.trim().length > 0 && value.length <= 80;
+
 export const resolveActorId = (): Result<User> => {
 	const {userName, userId} = getSettingsState();
+
 	if (!userName) return failed('User name not configured');
 	if (!userId) return failed('User ID not configured');
 
-	if (userName.trim()) {
-		return succeeded('Successfully resolved actor ID', {
-			userId: sanitizeFilePart(userId),
-			userName: sanitizeFilePart(userName),
-		});
+	if (!isValidUserId(userId)) {
+		return failed('Invalid user ID in config');
 	}
 
-	return failed('Unable to resolve actor ID from settings or OS user info');
+	if (!isValidUserName(userName)) {
+		return failed('Invalid user name in config');
+	}
+
+	return succeeded('Successfully resolved actor ID', {
+		userId,
+		userName,
+	});
 };
 
 export const getPersistFileName = ({userId, userName}: User): string =>
