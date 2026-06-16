@@ -12,6 +12,18 @@ With great attention to user ergonomics and developer experience, epiq makes pro
 
 ![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/banner.gif)
 
+### Browser GUI
+
+Epiq also includes a browser-based interface powered by the same Git-backed event engine.
+
+Launch with:
+
+```bash
+epiq gui
+```
+
+![Epiq gui view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/gui.png)
+
 ## What is epiq?
 
 Epiq is a vim-inspired issue tracker that brings project management into the terminal. It renders directly in ASCII and persists state as an immutable distributed event log, versioned and synchronized through Git.
@@ -82,10 +94,10 @@ Git init
 epiq
 ```
 
-If you prefer a graphical interface:
+If you prefer the browser user interface:
 
 ```bash
-epiq --gui
+epiq gui
 ```
 
 If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds.
