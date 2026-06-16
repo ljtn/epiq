@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Epiq — Git-backed issue tracking for terminal and browser</title>
+		<title>Epiq — distributed issue tracker</title>
 
 		<meta
 			name="description"
@@ -28,12 +28,12 @@
 	<body>
 		<nav class="nav">
 			<div class="wrap nav-inner">
-				<a class="brand" href="#top" aria-label="Epiq home">
-					<span>Epiq</span>
+				<a class="brand" href="#top" aria-label="epiq home">
+					<span
+						><span class="accent" style="margin-right: 2px">:</span>epiq</span
+					>
 				</a>
 				<div class="links">
-					<a href="#gui">GUI</a>
-					<a href="#terminal">Terminal</a>
 					<a href="#why">Why</a>
 					<a href="#install">Install</a>
 					<a class="btn" href="https://github.com/ljtn/epiq">GitHub</a>
@@ -46,27 +46,25 @@
 				<div class="hero-grid">
 					<div>
 						<h1>
-							<span class="grad">Issue tracking</span><br />for terminal
-							dwellers.
+							<span>Track issues</span>
+							<span>as code.</span>
 							<br />
 						</h1>
-						<div class="subheader">And everyone else.</div>
 						<br />
 						<p class="lead">
-							<strong>Epiq</strong> is a distributed, terminal-native issue
-							tracker backed by Git that also includes a powerful browser GUI.
-							Repo-native, local-first, keyboard-driven, event-sourced, and
-							MCP-ready.
+							<strong>epiq</strong> is a distributed, terminal-native issue
+							tracker backed by Git. Local-first, keyboard-driven,
+							event-sourced, and MCP-ready. Manage projects from the
+							commandline, browser, or editor.
 						</p>
 						<div class="actions">
 							<a class="btn primary" href="#install">
 								<span class="terminal-btn-text">npm install --global epiq</span>
 							</a>
-							<a class="btn" href="#gui">Watch the GUI</a>
 						</div>
 					</div>
 
-					<aside class="terminal" aria-label="Epiq terminal mockup">
+					<aside class="terminal" aria-label="epiq terminal mockup">
 						<div class="bar">
 							<div class="traffic"><i></i><i></i><i></i></div>
 							<span>./my-proj</span>
@@ -103,13 +101,8 @@
 				</div>
 			</header>
 
-			<div class="strip wrap" aria-label="Principles">
-				<div class="logos">
-					<div class="pill"><b>Repo-native</b>issues live with the work</div>
-					<div class="pill"><b>Local-first</b>instant edits, sync at will</div>
-					<div class="pill"><b>Event-sourced</b>immutable, traceable</div>
-					<div class="pill"><b>MCP-ready</b>built for agent workflows</div>
-				</div>
+			<div class="hero-placeholder">
+				<img src="hero.png" style="width: 100%" />
 			</div>
 
 			<section class="wrap">
@@ -119,7 +112,7 @@
 						<h2>Harness the power of your developer environment</h2>
 					</div>
 					<p>
-						Developers are most productive in their editors. Epiq allows devs to
+						Developers are most productive in their editors. epiq allows devs to
 						stay close to the tools they already use.
 					</p>
 				</div>
@@ -141,10 +134,10 @@
 				<div class="section-head">
 					<div>
 						<div class="kicker">Browser GUI</div>
-						<h2>One Git-backed workflow for the entire team.</h2>
+						<h2>Bring the team together.</h2>
 					</div>
 					<p>
-						Epiq started in the terminal, but also features a powerful browser
+						epiq started in the terminal, but also features a powerful browser
 						interface, catering to the needs of all stakeholders.
 					</p>
 				</div>
@@ -166,11 +159,11 @@
 			<section id="why" class="wrap">
 				<div class="section-head">
 					<div>
-						<div class="kicker">Why Epiq</div>
+						<div class="kicker">Why epiq</div>
 						<h2>Bringing devX to project management.</h2>
 					</div>
 					<p>
-						Epiq optimizes for flow: keyboard navigation, command history,
+						epiq optimizes for flow: keyboard navigation, command history,
 						filters, autocompletion, and plain Git synchronization.
 					</p>
 				</div>
@@ -188,7 +181,7 @@
 						<div class="icon">git</div>
 						<h3>Distributed by default</h3>
 						<p>
-							Epiq uses Git under the hood, with isolated worktrees and state
+							epiq uses Git under the hood, with isolated worktrees and state
 							branches, so teams can collaborate without introducing another
 							central service.
 						</p>
@@ -212,7 +205,7 @@
 						<h3>Local first. Sync at will. Or automatically.</h3>
 						<p>
 							Code, plan, review, retrospect issues without context-switching.
-							Epiq keeps local interaction instant while allowing you to sync
+							epiq keeps local interaction instant while allowing you to sync
 							explicitly or automatically.
 						</p>
 						<pre
@@ -268,7 +261,7 @@
 								<div>
 									<b>Agent-ready workflows</b
 									><span
-										>The MCP server lets AI tools interact with Epiq in a
+										>The MCP server lets AI tools interact with epiq in a
 										predictable way.</span
 									>
 								</div>
@@ -288,7 +281,7 @@
 					<div class="kicker">Install</div>
 					<h3>Start in two commands.</h3>
 					<p>
-						Install globally, enter any Git repository, and run Epiq. First
+						Install globally, enter any Git repository, and run epiq. First
 						launch opens an interactive setup wizard. From there, use the
 						terminal board or launch the browser GUI.
 					</p>

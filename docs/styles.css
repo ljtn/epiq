@@ -96,7 +96,7 @@ pre {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	font-weight: 760;
+	font-weight: 600;
 	letter-spacing: -0.03em;
 }
 .links {
@@ -137,37 +137,11 @@ pre {
 	overflow: hidden;
 
 	color: var(--cyan);
-	border: 1px dashed rgba(34, 161, 220, 0.72);
 	background: rgba(0, 0, 0, 0.34);
+	border: none;
 
 	font-family: var(--mono);
 	letter-spacing: -0.02em;
-
-	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-		0 0 24px rgba(34, 161, 220, 0.18), 0 14px 44px rgba(0, 0, 0, 0.32);
-}
-
-.btn.primary::after {
-	content: '▌';
-	color: var(--cyan);
-	margin-left: 2px;
-	animation: blink 2.2s steps(2, jump-none) infinite;
-}
-
-.btn.primary:hover {
-	color: #f2f4ff;
-	border-color: rgba(34, 161, 220, 1);
-	background: rgba(9, 10, 15, 0.92);
-	box-shadow: 0 0 0 1px rgba(34, 161, 220, 0.28) inset,
-		0 0 34px rgba(34, 161, 220, 0.24), 0 18px 54px rgba(0, 0, 0, 0.42);
-}
-
-.btn.primary:hover .terminal-btn-text {
-	display: inline-block;
-	width: 0;
-	overflow: hidden;
-	white-space: nowrap;
-	animation: terminalBtnType 1.15s steps(25, end) forwards;
 }
 
 @keyframes terminalBtnType {
@@ -261,13 +235,9 @@ h1 {
 
 .terminal {
 	position: relative;
-	border: 1px solid var(--line);
+	/* border: 1px solid var(--line); */
 	border-radius: 24px;
-	background: linear-gradient(
-		180deg,
-		rgba(255, 255, 255, 0.075),
-		rgba(255, 255, 255, 0.035)
-	);
+	background: rgba(12, 12, 19, 0.776);
 	box-shadow: var(--shadow);
 	overflow: hidden;
 }
@@ -307,7 +277,7 @@ h1 {
 	height: 10px;
 	border-radius: 50%;
 	background: var(--dim);
-	opacity: 0.75;
+	opacity: 0.5;
 }
 .screen {
 	padding: 10px;
@@ -335,7 +305,7 @@ h1 {
 }
 .ticket {
 	border: 1px solid rgba(255, 255, 255, 0.1);
-	background: rgba(255, 255, 255, 0.055);
+	background: rgba(255, 255, 255, 0.045);
 	border-radius: 10px;
 	padding: 10px;
 	margin: 8px 0;
@@ -365,7 +335,7 @@ h1 {
 	height: 1.15em;
 	background: var(--cyan);
 	transform: translateY(3px);
-	animation: blink 1.05s steps(2, jump-none) infinite, cursorHide 12s infinite;
+	animation: blink 1.05s steps(2, jump-none) infinite, cursorHide 18s infinite;
 }
 @keyframes blink {
 	50% {
@@ -435,6 +405,9 @@ h2 {
 	letter-spacing: 0.12em;
 	margin-bottom: 12px;
 }
+.accent {
+	color: var(--cyan);
+}
 .section-head p {
 	max-width: 520px;
 	margin: 0;
@@ -452,11 +425,7 @@ h2 {
 	padding: 22px;
 	border: 1px solid var(--line);
 	border-radius: 24px;
-	background: linear-gradient(
-		180deg,
-		rgba(0, 128, 255, 0.075),
-		rgba(72, 0, 255, 0.065)
-	);
+	background: linear-gradient(180deg, rgb(0 128 255 / 3%), rgb(72 0 255 / 4%));
 }
 .icon {
 	width: 56px;
@@ -576,13 +545,26 @@ h2 {
 .media-placeholder {
 	min-height: 360px;
 	border-radius: 28px;
-	border: 1px dashed rgba(255, 255, 255, 0.22);
 	display: grid;
 	place-items: center;
 	text-align: center;
 	padding: 28px;
-	background: rgba(13, 39, 81, 0.18);
+	background: rgba(0, 0, 0, 0.18);
 }
+.hero-placeholder {
+	min-height: 360px;
+	background: rgba(8, 11, 16, 0);
+	padding: 28px;
+	display: grid;
+	place-items: center;
+	text-align: center;
+}
+.hero-placeholder > img {
+	max-width: 1920px;
+	box-shadow: 0 0 48px #678a9b55;
+	border-radius: 18px;
+}
+
 .media-placeholder strong {
 	display: block;
 	font-size: 22px;
@@ -639,7 +621,7 @@ h2 {
 
 .vim-status::after {
 	content: '-- INSERT --';
-	animation: vimStatus 12s infinite;
+	animation: vimStatus 18s infinite;
 }
 
 @keyframes vimStatus {
@@ -712,7 +694,7 @@ h2 {
 }
 
 .board {
-	animation: boardCycle 12s infinite;
+	animation: boardCycle 18s infinite;
 }
 
 .ticket {
@@ -720,16 +702,16 @@ h2 {
 }
 
 .ticket:not(.feature) {
-	animation: filterOut 12s infinite;
+	animation: filterOut 18s infinite;
 }
 
 .ticket.feature {
-	animation: featurePop 12s infinite;
+	animation: featurePop 18s infinite;
 }
 
 .prompt-text::after {
 	content: '';
-	animation: commandCycle 12s infinite;
+	animation: commandCycle 18s infinite;
 }
 
 .vim {
@@ -742,7 +724,7 @@ h2 {
 	opacity: 0;
 	transform: translateY(8px) scale(0.985);
 	pointer-events: none;
-	animation: vimCycle 12s infinite;
+	animation: vimCycle 18s infinite;
 }
 
 .vim-title {
@@ -757,7 +739,7 @@ h2 {
 
 .vim-body::after {
 	content: '';
-	animation: vimTyping 12s infinite;
+	animation: vimTyping 18s infinite;
 }
 
 .vim-status {
