@@ -40,6 +40,7 @@ import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
 import {syncCommand} from './commands/sync.cmd.js';
+import {AppEvent} from '../event/event.model.js';
 
 const isAddIssueCommentEvent = (
 	event: AppEvent,
