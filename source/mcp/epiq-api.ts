@@ -2,7 +2,6 @@ import {decodeTime, ulid} from 'ulid';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
 import {ensureStateBranchWorktree} from '../git/git.js';
-import {syncAndReloadState} from '../git/sync-and-reload-state.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
