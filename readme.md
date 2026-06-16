@@ -20,9 +20,9 @@ Epiq also includes a browser-based interface powered by the same Git-backed even
 
 ## What is epiq?
 
-Epiq is a vim-inspired issue tracker that brings project management into the terminal. It renders directly in ASCII and persists state as an immutable distributed event log, versioned and synchronized through Git.
+Epiq is a self hosted, vim-inspired issue tracker that brings developer experience to project management. It renders either as ASCII, or as a web GUI, and persists state as an immutable distributed event log, versioned and synchronized through Git.
 
-An optional browser GUI is available, powered by the same Git-backed state engine.
+An easy to use browser GUI is available, powered by the same Git-backed state engine.
 
 ![Epiq cli kanban view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/overview.png)
 ![Epiq cli log view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/log.png)
@@ -42,7 +42,7 @@ An optional browser GUI is available, powered by the same Git-backed state engin
 
 ## Why Epiq?
 
-Most issue trackers live outside your workflow. Epiq brings issue tracking where you already work.
+Most issue trackers live outside your workflow. Epiq brings issue tracking where you already work - you editor.
 
 These design choices result in a system that is:
 
