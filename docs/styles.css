@@ -162,26 +162,6 @@ pre {
 	gap: 34px;
 	align-items: center;
 }
-.eyebrow {
-	display: inline-flex;
-	align-items: center;
-	gap: 10px;
-	margin-bottom: 18px;
-	padding: 7px 10px;
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	color: var(--muted);
-	background: rgba(255, 255, 255, 0.04);
-	font: 12px/1 var(--mono);
-	letter-spacing: 0.02em;
-}
-.dot {
-	width: 7px;
-	height: 7px;
-	border-radius: 50%;
-	background: var(--cyan);
-	box-shadow: 0 0 18px var(--cyan);
-}
 h1 {
 	margin: 0 0 20px;
 	font-size: clamp(52px, 8.5vw, 112px);
@@ -198,18 +178,6 @@ h1 {
 	margin-bottom: 10px;
 }
 
-.grad {
-	background: linear-gradient(
-			135deg,
-			rgb(255, 255, 255),
-			rgb(207, 214, 255) 45%,
-			rgb(24, 110, 163)
-		)
-		text;
-	-webkit-background-clip: text;
-	background-clip: text;
-	color: transparent;
-}
 .lead {
 	max-width: 710px;
 	margin: 0 0 28px;
@@ -560,8 +528,8 @@ h2 {
 	text-align: center;
 }
 .hero-placeholder > img {
-	max-width: 1920px;
-	box-shadow: 0 0 48px #678a9b55;
+	max-width: 1640px;
+	box-shadow: 0 0 48px #4c839e55;
 	border-radius: 18px;
 }
 
