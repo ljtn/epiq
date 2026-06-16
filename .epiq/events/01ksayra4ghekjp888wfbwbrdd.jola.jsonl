@@ -242,3 +242,4 @@
 {"v":1,"id":["01KV74K45NYC4PH54FNDD75Q51","01KV74JX62G9NT2JWSBDPN3Y3Q"],"add.issue.tag":{"id":"01KTWG3QTWDW2YPAX3QCRV3QST","tag":"01KTMJBZKRM8X4ZDY7BM854MB7"}}
 {"v":1,"id":["01KV74MQNGKY8JWC1ND33359NR","01KV74K45NYC4PH54FNDD75Q51"],"edit.description":{"id":"01KTWG3QTWDW2YPAX3QCRV3QST","md":"- Resolve linting, formatting, import cleanup, and test failures across the codebase\n- Update README with GUI screenshots, sponsor links, and documentation improvements\n\nRelease: v0.7.0\n"}}
 {"v":1,"id":["01KV74N8606RYQVXWTPEJ8G667","01KV74MQNGKY8JWC1ND33359NR"],"add.issue.comment":{"id":"01KV74N85XZ156GVV0MF7RCY11","issue":"01KTWG3QTWDW2YPAX3QCRV3QST","author":"01KSAYRA4GHEKJP888WFBWBRDD","md":"Please consider authorization"}}
+{"v":1,"id":["01KV7RQ0HQFDGXXXGD0XGZYFQ5","01KV74N8606RYQVXWTPEJ8G667"],"add.issue.comment":{"id":"01KV7RQ0HPGSC5KH8AVZZJR2FP","issue":"01KTWG3QTWDW2YPAX3QCRV3QST","author":"01KSAYRA4GHEKJP888WFBWBRDD","md":"This looks so silly"}}
