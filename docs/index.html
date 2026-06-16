@@ -3,19 +3,22 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Epiq — terminal-native issue tracking</title>
+		<title>Epiq — Git-backed issue tracking for terminal and browser</title>
 
 		<meta
 			name="description"
-			content="Epiq is a distributed, terminal-native issue tracker backed by Git. Repo-native, local-first, keyboard-driven, event-sourced, and MCP-ready."
+			content="Epiq is a distributed issue tracker backed by Git, with a browser GUI, terminal UI, local-first workflow, immutable event log, and MCP-ready automation."
 		/>
 
 		<meta name="theme-color" content="#090a0f" />
 
-		<meta property="og:title" content="Epiq — terminal-native issue tracking" />
+		<meta
+			property="og:title"
+			content="Epiq — Git-backed issue tracking for terminal and browser"
+		/>
 		<meta
 			property="og:description"
-			content="Distributed, repo-native, local-first, keyboard-driven, event-sourced issue tracking backed by Git."
+			content="A distributed, local-first issue tracker backed by Git. Use the browser GUI or the terminal-native kanban board."
 		/>
 		<meta property="og:type" content="website" />
 		<meta property="og:image" content="https://ljtn.github.io/epiq/og.jpeg" />
@@ -29,8 +32,9 @@
 					<span>Epiq</span>
 				</a>
 				<div class="links">
+					<a href="#gui">GUI</a>
+					<a href="#terminal">Terminal</a>
 					<a href="#why">Why</a>
-					<a href="#flow">Flow</a>
 					<a href="#install">Install</a>
 					<a class="btn" href="https://github.com/ljtn/epiq">GitHub</a>
 				</div>
@@ -41,24 +45,24 @@
 			<header class="hero wrap">
 				<div class="hero-grid">
 					<div>
-						<!-- <div class="eyebrow">
-							<span class="dot"></span> distributed // terminal-native //
-							git-backed
-						</div> -->
 						<h1>
 							<span class="grad">Issue tracking</span><br />for terminal
 							dwellers.
+							<br />
 						</h1>
+						<div class="subheader">And everyone else.</div>
+						<br />
 						<p class="lead">
-							<strong>Epiq</strong> is a vim-inspired issue tracker that renders
-							as ASCII, stores work as an immutable event log, and synchronizes
-							through Git. No SaaS ceremony. No browser. Just your repo, your
-							editor, and a board that moves at command-line speed.
+							<strong>Epiq</strong> is a distributed, terminal-native issue
+							tracker backed by Git that also includes a powerful browser GUI.
+							Repo-native, local-first, keyboard-driven, event-sourced, and
+							MCP-ready.
 						</p>
 						<div class="actions">
 							<a class="btn primary" href="#install">
 								<span class="terminal-btn-text">npm install --global epiq</span>
 							</a>
+							<a class="btn" href="#gui">Watch the GUI</a>
 						</div>
 					</div>
 
@@ -70,22 +74,23 @@
 						<div class="screen">
 							<div class="board">
 								<div class="col">
-									<h3>Backlog</h3>
-									<div class="ticket feature">Add export command</div>
-									<div class="ticket">MCP query polish</div>
+									<h3>Todo</h3>
+									<div class="ticket feature">Configure auth flow</div>
+									<div class="ticket">Improve GUI triage</div>
 								</div>
 								<div class="col">
 									<h3>In progress</h3>
-									<div class="ticket">Event replay edge cases</div>
+									<div class="ticket">GUI comments panel</div>
+									<div class="ticket feature">Time travel view</div>
 								</div>
 								<div class="col">
 									<h3>Done</h3>
-									<div class="ticket feature">Keyboard move state</div>
-									<div class="ticket">Setup wizard</div>
+									<div class="ticket feature">Browser GUI</div>
+									<div class="ticket">Git sync status</div>
 								</div>
 							</div>
 							<div class="vim" aria-hidden="true">
-								<div class="vim-title">description.md</div>
+								<div class="vim-title">issue.md</div>
 								<div class="vim-body"></div>
 								<div class="vim-status"></div>
 							</div>
@@ -107,6 +112,57 @@
 				</div>
 			</div>
 
+			<section class="wrap">
+				<div class="section-head">
+					<div>
+						<div class="kicker">Local first</div>
+						<h2>Harness the power of your developer environment</h2>
+					</div>
+					<p>
+						Developers are most productive in their editors. Epiq allows devs to
+						stay close to the tools they already use.
+					</p>
+				</div>
+				<div class="media-placeholder">
+					<video
+						autoplay
+						muted
+						loop
+						playsinline
+						preload="auto"
+						style="width: 100%; display: block"
+					>
+						<source src="epiq-cli-c.mp4" type="video/mp4" />
+					</video>
+				</div>
+			</section>
+
+			<section id="gui" class="wrap">
+				<div class="section-head">
+					<div>
+						<div class="kicker">Browser GUI</div>
+						<h2>One Git-backed workflow for the entire team.</h2>
+					</div>
+					<p>
+						Epiq started in the terminal, but also features a powerful browser
+						interface, catering to the needs of all stakeholders.
+					</p>
+				</div>
+
+				<div class="media-placeholder">
+					<video
+						autoplay
+						muted
+						loop
+						playsinline
+						preload="auto"
+						style="width: 100%; display: block"
+					>
+						<source src="epiq-gui-c.mp4" type="video/mp4" />
+					</video>
+				</div>
+			</section>
+
 			<section id="why" class="wrap">
 				<div class="section-head">
 					<div>
@@ -125,7 +181,7 @@
 						<h3>Keyboard centric</h3>
 						<p>
 							Navigate boards, issues, swimlanes, and contexts with vim-like
-							movement. Or cheat with arrow keys.
+							movement. Or cheat with arrow keys. Or launch the browser app.
 						</p>
 					</article>
 					<article class="card">
@@ -149,26 +205,31 @@
 				</div>
 			</section>
 
-			<section id="flow" class="wrap">
+			<section id="terminal" class="wrap">
 				<div class="split">
 					<div class="panel">
 						<div class="kicker">The model</div>
 						<h3>Local first. Sync at will. Or automatically.</h3>
 						<p>
-							Create, move, filter, close, reopen, and sync issues without
-							tab-switching. Epiq keeps local interaction instant while allowing
-							you to sync explicitly or automatically.
+							Code, plan, review, retrospect issues without context-switching.
+							Epiq keeps local interaction instant while allowing you to sync
+							explicitly or automatically.
 						</p>
-						<pre class="code"><code><span class="c"># inside any Git repo</span>
+						<pre
+							class="code"
+						><code><span class="c"># launch inside any Git repo</span>
 <span class="g">epiq</span>
 
-<span class="c"># create work</span>
+<span class="c"># launch as browser GUI</span>
+<span class="b">epiq gui</span>
+
+<span class="c"># create work from the terminal</span>
 <span class="b">:new issue</span> Add keyboard shortcuts
 
 <span class="c"># narrow the board</span>
 <span class="b">:filter tag</span> prio
 
-<span class="c"># synchronize distributed state</span>
+<span class="c"># synchronize state</span>
 <span class="b">:sync</span></code></pre>
 					</div>
 
@@ -185,10 +246,10 @@
 							<div class="step">
 								<div class="num">$2</div>
 								<div>
-									<b>Visual ASCII kanban boards</b
+									<b>Terminal-native kanban</b
 									><span
-										>Kanban in the terminal, navigated, filtered, and edited
-										quickly.</span
+										>Manage issues directly from the command line with fast,
+										keyboard-first controls.</span
 									>
 								</div>
 							</div>
@@ -197,7 +258,7 @@
 								<div>
 									<b>Conflict-aware collaboration</b
 									><span
-										>User-scoped append-only event logs prevents merge pain and
+										>User-scoped append-only event logs prevent merge pain and
 										converge in memory.</span
 									>
 								</div>
@@ -205,7 +266,7 @@
 							<div class="step">
 								<div class="num">$4</div>
 								<div>
-									<b>Agent interactions</b
+									<b>Agent-ready workflows</b
 									><span
 										>The MCP server lets AI tools interact with Epiq in a
 										predictable way.</span
@@ -217,16 +278,7 @@
 				</div>
 			</section>
 
-			<section class="wrap">
-				<div class="media-placeholder">
-					<video width="100%" autoplay muted loop playsinline>
-						<source src="epiq.mp4" type="video/mp4" />
-					</video>
-				</div>
-			</section>
-
 			<section id="install" class="wrap">
-				<!-- <div class="split"> -->
 				<div class="quote">
 					<p>Issue tracking should be smooth.</p>
 					<span>- probably someone</span>
@@ -237,7 +289,8 @@
 					<h3>Start in two commands.</h3>
 					<p>
 						Install globally, enter any Git repository, and run Epiq. First
-						launch opens an interactive setup wizard.
+						launch opens an interactive setup wizard. From there, use the
+						terminal board or launch the browser GUI.
 					</p>
 					<pre
 						class="code"
@@ -249,11 +302,10 @@
 						<span class="terminal-btn-text">:visit github repository</span>
 					</a>
 				</div>
-				<!-- </div> -->
 			</section>
 		</main>
 
-		<footer class="footer">
+		<footer>
 			<div class="wrap footer-inner">
 				<div><code>:wq</code> and move on.</div>
 			</div>

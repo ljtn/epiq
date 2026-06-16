@@ -215,6 +215,15 @@ h1 {
 	letter-spacing: -0.085em;
 	max-width: 860px;
 }
+.subheader {
+	margin: 0 0 7px;
+	font-size: clamp(17px, 2.8vw, 37px);
+	line-height: 0.86;
+	letter-spacing: -0.028em;
+	max-width: 287px;
+	margin-bottom: 10px;
+}
+
 .grad {
 	background: linear-gradient(
 			135deg,
@@ -622,6 +631,7 @@ h2 {
 	justify-content: space-between;
 	gap: 24px;
 	align-items: center;
+	padding: 40px 0;
 }
 .footer code {
 	color: var(--cyan);
