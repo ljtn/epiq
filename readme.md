@@ -88,15 +88,15 @@ Git init
 epiq
 ```
 
-If you prefer the browser user interface:
+If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds.
+
+That’s it!
+
+Once your project is set up, you can also launch the browser user interface with:
 
 ```bash
 epiq gui
 ```
-
-If it is your first run, this opens the interactive setup wizard that sets you up in about 30 seconds.
-
-That’s it!
 
 > Setup wizard creates:
 > User config persisted in `~/.epiq-global/config.json`.
@@ -108,7 +108,7 @@ That’s it!
 > - Updates your `.gitignore` to ignore local-only `.epiq/log/`
 >   Epiq manages a dedicated Git state branch and worktree automatically as the source of truth for synchronization.
 
-## Usage Guide
+## Usage Guide (TUI)
 
 ### Help
 
@@ -128,6 +128,10 @@ That’s it!
 ### Create nodes: issue | swimlane | board
 
 - Create nodes with `:new issue|swimlane|board <Name of new node>`.
+
+### Comment
+
+- Comment on issues with `:comment <your-input>`. Comments can be edited or deleted with the regular ':edit ...' or ':delete' commands.
 
 ### Move nodes
 
@@ -226,4 +230,4 @@ Epiq follows a **local-first** model:
 
 ---
 
-🫡 Project management for people who live in the terminal.
+🫡 Project management for people who live in the terminal. And everyone else!
