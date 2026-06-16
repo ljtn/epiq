@@ -570,7 +570,7 @@ export const getGuiState = async (
 					issueId: comment.issue,
 					body: comment.md,
 					author: {
-						id: contributor?.id ?? comment.authorId,
+						id: comment.authorId,
 						name: contributor?.name ?? 'Unknown',
 						color: getStringColor(contributor?.name ?? comment.authorId),
 					},

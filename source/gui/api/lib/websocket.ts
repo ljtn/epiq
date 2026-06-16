@@ -93,6 +93,13 @@ export const setupWebsocket = (
 						payload: result,
 					});
 
+					if (isFail(result)) {
+						return sendSocket(socket, {
+							type: 'failed',
+							payload: result.message,
+						});
+					}
+
 					onStateChanged();
 					return sendGuiState(socket, repoRoot);
 				}

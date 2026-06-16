@@ -35,8 +35,7 @@ const getCommentItems = (ticket: Ticket): CommentItem[] =>
 			id: comment.id,
 			issue: comment.issue,
 			authorId: comment.authorId,
-			authorName:
-				nodeRepo.getContributor(comment.authorId)?.name ?? comment.authorId,
+			authorName: comment.authorName,
 			md: comment.md,
 		}));
 
@@ -150,7 +149,7 @@ export function CommentListUI({ticket, width, height}: Props) {
 								<Text color={theme.accent}>{isSelected ? '❯ ' : '  '}</Text>
 								<Box paddingLeft={1}>
 									<Text color={theme.secondary2}>{`#${index + 1} `}</Text>
-									<AssigneeUI id={comment.authorName} />
+									<AssigneeUI id={comment.authorId} />
 									<Text color={theme.secondary2}>
 										{' ' + timeAgo(decodeTime(comment.id))}
 									</Text>

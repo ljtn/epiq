@@ -304,7 +304,7 @@ export const App = () => {
 		send('issue:comment:add', {issueId, body});
 
 	const deleteIssueComment = (issueId: string, commentId: string) =>
-		send('issue:comment:delete', {issueId, id: commentId});
+		send('issue:comment:delete', {commentId});
 
 	return (
 		<div
