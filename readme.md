@@ -6,23 +6,17 @@ _Distributed terminal-native issue tracker backed by Git._
 
 Issue tracking is a core part of software development, but it often becomes a painful context-switching exercise with poor ergonomics. Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
 
-> You can manage all your projects directly via the command line in a visual kanban board and edit content in your favorite editor.
+> Manage your projects in a visual terminal kanban board or through the browser GUI, while keeping all state local, Git-backed, and versioned.
 
 With great attention to user ergonomics and developer experience, epiq makes project management painless and friction free.
 
-![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/banner.gif)
+![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-cli.gif)
 
-### Browser GUI
+## Terminal UI + Browser GUI
 
 Epiq also includes a browser-based interface powered by the same Git-backed event engine.
 
-Launch with:
-
-```bash
-epiq gui
-```
-
-![Epiq gui view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/gui.png)
+![Epiq gui view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-gui.gif)
 
 ## What is epiq?
 
@@ -43,10 +37,10 @@ An optional browser GUI is available, powered by the same Git-backed state engin
 - Autocompletion — minimize typing, stay in flow, reuse previous commands
 - Multi-user — collaborative synchronization via Git
 - Traceable event log — state is a full history of every change ever made
-- MCP integration - Model Context Protocol support for agent interaction
-- Browser GUI — optional graphical interface powered by the same Git-backed state
+- Browser GUI — graphical interface powered by the same Git-backed state
+- MCP integration — Model Context Protocol support for agent interaction
 
-## Why epiq?
+## Why Epiq?
 
 Most issue trackers live outside your workflow. Epiq brings issue tracking where you already work.
 
@@ -55,7 +49,7 @@ These design choices result in a system that is:
 - **Simple setup** — no accounts, SaaS, or external services required
 - **Repo-native** — your issues can live where your code lives
 - **Offline-friendly** — works anywhere, with eventual consistency
-- **Speed** — local first, and eventual consistency makes epiq edits instant
+- **Speed** — local first, and eventual consistency makes Epiq edits instant
 - **Portable** — run on your local machine, on a remote Linux server or your grandma’s connected toaster
 - **Command driven** — scriptable and automation-friendly, ready for the agentic era
 - **Versioned** — changes are tracked and recoverable through Git
@@ -185,7 +179,7 @@ Once registered, agents can interact with your local Epiq instance through the M
 
 ---
 
-## How epiq is synchronized
+## How Epiq is synchronized
 
 Epiq uses Git in the background - no manual Git commands are required. Running `:sync` synchronizes changes between your local state (persisted at `~/.epiq-global/worktrees/<id>/`) and the remote state. By utilizing Git worktrees, synchronization stays isolated from your regular development workflow. Project tracking metadata is stored in `.epiq/project.json`.
 
