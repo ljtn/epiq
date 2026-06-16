@@ -349,9 +349,6 @@ export const closeIssue = async (input: CloseIssueInput) => {
 	);
 	if (isFail(results)) return failed(results.message);
 
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
-
 	return succeeded('Closed issue', {id: input.issueId});
 };
 
@@ -417,9 +414,6 @@ export const reopenIssue = async (input: CloseIssueInput) => {
 	);
 
 	if (isFail(results)) return failed(results.message);
-
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
 
 	return succeeded('Reopened issue', {
 		id: issue.id,
@@ -670,9 +664,6 @@ export const editIssueDescription = async (
 
 	if (isFail(results)) return failed(results.message);
 
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
-
 	return succeeded('Edited issue description', {
 		id: input.issueId,
 		description: input.description,
@@ -724,9 +715,6 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 	);
 
 	if (isFail(results)) return failed(results.message);
-
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
 
 	return succeeded('Edited issue title', {
 		id: input.issueId,
@@ -791,9 +779,6 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 
 	if (isFail(results)) return failed(results.message);
 
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
-
 	return succeeded('Added issue tag', {
 		id: input.issueId,
 		tag: {id: tagId, name: tagName},
@@ -836,9 +821,6 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 	);
 
 	if (isFail(results)) return failed(results.message);
-
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
 
 	return succeeded('Removed issue tag', {
 		id: input.issueId,
@@ -903,9 +885,6 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	if (isFail(results)) return failed(results.message);
 
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
-
 	return succeeded('Added issue assignee', {
 		id: input.issueId,
 		assignee: {id: assigneeId, name: assigneeName},
@@ -948,9 +927,6 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 	);
 
 	if (isFail(results)) return failed(results.message);
-
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
 
 	return succeeded('Removed issue assignee', {
 		id: input.issueId,
@@ -1001,9 +977,6 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 
 	if (isFail(results)) return failed(results.message);
 
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
-
 	return succeeded('Added issue comment', {
 		id: commentId,
 		issueId: input.issueId,
@@ -1031,7 +1004,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 		return failed('Unable to resolve comment');
 	}
 
-	if (commentEvent.userId !== actorResult.value.userId) {
+	if (commentEvent.payload.author !== actorResult.value.userId) {
 		return failed('You can only delete your own comments');
 	}
 
@@ -1070,9 +1043,6 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 	);
 
 	if (isFail(results)) return failed(results.message);
-
-	const syncResult = await syncAndReloadState();
-	if (isFail(syncResult)) return syncResult;
 
 	return succeeded('Deleted issue comment', {
 		id: input.commentId,

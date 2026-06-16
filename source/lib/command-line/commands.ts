@@ -41,6 +41,18 @@ import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
 import {syncCommand} from './commands/sync.cmd.js';
 
+const isAddIssueCommentEvent = (
+	event: AppEvent,
+): event is AppEvent & {
+	action: 'add.issue.comment';
+	payload: {
+		id: string;
+		issue: string;
+		author: string;
+		md: string;
+	};
+} => event.action === 'add.issue.comment';
+
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
 
@@ -79,11 +91,12 @@ export const commands: CommandLineActionEntry[] = [
 			const persistRootResult = await getPersistRootValue();
 			if (isFail(persistRootResult)) return persistRootResult;
 
-			const commentPrefix = 'comment:';
+			if (child.context === 'COMMENT') {
+				const commentId = child.id;
 
-			if (child.id.startsWith(commentPrefix)) {
-				const commentId = child.id.slice(commentPrefix.length);
-				const issueId = contextNode.parentNodeId;
+				const issueId = isTicketNode(contextNode)
+					? contextNode.id
+					: contextNode.parentNodeId;
 
 				if (!issueId) return failed('Unable to resolve comment issue');
 
@@ -93,15 +106,13 @@ export const commands: CommandLineActionEntry[] = [
 					return failed('Unable to resolve comment issue');
 				}
 
-				const commentEvent = ticket.log?.find(
-					event =>
-						event.action === 'add.issue.comment' &&
-						event.payload.id === commentId,
-				);
+				const commentEvent = ticket.log
+					?.filter(isAddIssueCommentEvent)
+					.find(event => event.payload.id === commentId);
 
 				if (!commentEvent) return failed('Unable to resolve comment');
 
-				if (commentEvent.userId !== userRes.value.userId) {
+				if (commentEvent.payload.author !== userRes.value.userId) {
 					return failed('You can only delete your own comments');
 				}
 
