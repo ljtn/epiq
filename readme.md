@@ -6,23 +6,21 @@ _Distributed terminal-native issue tracker backed by Git._
 
 Issue tracking is a core part of software development, but it often becomes a painful context-switching exercise with poor ergonomics. Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
 
-> Manage your projects in a visual terminal kanban board or through the browser GUI, while keeping all state local, Git-backed, and versioned.
+> Manage your projects in a visual terminal kanban board (or through the browser GUI), while keeping all state local, Git-backed, and versioned.
 
-With great attention to user ergonomics and developer experience, epiq makes project management painless and friction free.
+With great attention to user ergonomics and developer experience, epiq strives to make project management painless and friction free.
 
 ![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-cli.gif)
 
-## Terminal UI + Browser GUI
+## Terminal + Browser
 
-Epiq also includes a browser-based interface powered by the same Git-backed event engine.
+Epiq originated from the command line, but also features a browser interface powered by the same Git-backed event engine.
 
 ![Epiq gui view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-gui.gif)
 
 ## What is epiq?
 
 Epiq is a self hosted, vim-inspired issue tracker that brings developer experience to project management. It renders either as ASCII, or as a web GUI, and persists state as an immutable distributed event log, versioned and synchronized through Git.
-
-An easy to use browser GUI is available, powered by the same Git-backed state engine.
 
 ![Epiq cli kanban view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/overview.png)
 ![Epiq cli log view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/log.png)
@@ -230,4 +228,4 @@ Epiq follows a **local-first** model:
 
 ---
 
-🫡 Project management for people who live in the terminal. And everyone else!
+🫡 Never leave your editor!
