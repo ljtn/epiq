@@ -338,49 +338,14 @@ export const App = () => {
 		if (!createIssueModal) return;
 
 		const title = createIssueModal.title.trim() || 'New issue';
-		const placeholderIssueId = `placeholder-issue-${crypto.randomUUID()}`;
-
-		setState(prev => {
-			if (!prev) return prev;
-
-			return {
-				...prev,
-				boards: prev.boards.map(board => ({
-					...board,
-					swimlanes: board.swimlanes.map(swimlane => {
-						if (swimlane.id !== createIssueModal.swimlaneId) {
-							return swimlane;
-						}
-
-						const placeholderIssue = {
-							id: placeholderIssueId,
-							title,
-							description: '',
-							tags: [],
-							assignees: [],
-							readonly: false,
-							isClosed: false,
-						} as (typeof swimlane.issues)[number];
-
-						return {
-							...swimlane,
-							issues: [...swimlane.issues, placeholderIssue],
-						};
-					}),
-				})),
-			};
-		});
-
-		send('issues:create', {
-			title,
-			parentId: createIssueModal.swimlaneId,
-		});
+		const parentId = createIssueModal.swimlaneId;
 
 		setCreateIssueModal(null);
 
-		if (boardId) {
-			void navigate(`/board/${boardId}/${placeholderIssueId}?tab=overview`);
-		}
+		send('issues:create', {
+			title,
+			parentId,
+		});
 	};
 
 	const addIssueComment = (issueId: string, body: string) => {
