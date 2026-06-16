@@ -206,3 +206,4 @@
 {"v":1,"id":["01KV701Z906FSADMG6JFDWCQVH","01KV6ZY8QS0F1XEG0KA7P0KT3C"],"add.issue":{"id":"01KV701Z8YRQRHK5TX179041B1","parent":"01KS22YK95S3336MFSE44MY70S","name":"hupp","rank":"feffffffffffffffffffffff"}}
 {"v":1,"id":["01KV70PCMEKR12SF077BC5TYJE","01KV701Z906FSADMG6JFDWCQVH"],"edit.title":{"id":"01KV6ZY8QRH73RM8F39AR6B4EQ","name":"Build api endpoint for analytics platform"}}
 {"v":1,"id":["01KV710MG9WAMKERTRNQZWEFFV","01KV70PCMEKR12SF077BC5TYJE"],"edit.title":{"id":"01KV6ZPKA2A5NJ8ENYKKG74Y6Y","name":"Design issue dependency graph"}}
+{"v":1,"id":["01KV7111HPJ1DJ96DD5S0F3RGC","01KV710MG9WAMKERTRNQZWEFFV"],"edit.title":{"id":"01KV6ZWHQFH5D2JFZG3ZEZEN6J","name":"Create onboarding checklist"}}
