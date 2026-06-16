@@ -79,6 +79,10 @@ export const App = () => {
 
 	const commentsByIssueId = state?.commentsByIssueId ?? {};
 
+	const requestState = () => {
+		socketRef.current?.send(JSON.stringify({type: 'state:get'}));
+	};
+
 	useEffect(() => {
 		const socket = new WebSocket(
 			`ws://${window.location.host}/ws${boardId ? `?boardId=${boardId}` : ''}`,
@@ -111,12 +115,13 @@ export const App = () => {
 				const created = getResultValue<{id: string}>(message.payload);
 
 				if (created && boardId) {
-					void navigate(`/board/${boardId}/${created.id}/overview`);
+					void navigate(`/board/${boardId}/${created.id}?tab=overview`);
 				}
 			}
 
 			if (message.type === 'failed') {
 				console.log('Failed', message);
+				requestState();
 			}
 
 			if (message.type === 'sync-status') {
@@ -185,11 +190,31 @@ export const App = () => {
 		);
 	};
 
-	const editIssueTitle = (issueId: string, title: string) =>
-		send('issue:edit:title', {issueId, title});
+	const editIssueTitle = (issueId: string, title: string) => {
+		setState(prev => {
+			if (!prev) return prev;
 
-	const editIssueDescription = (issueId: string, description: string) =>
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				title,
+			}));
+		});
+
+		send('issue:edit:title', {issueId, title});
+	};
+
+	const editIssueDescription = (issueId: string, description: string) => {
+		setState(prev => {
+			if (!prev) return prev;
+
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				description,
+			}));
+		});
+
 		send('issue:edit:description', {issueId, description});
+	};
 
 	const addIssueTag = (issueId: string, tagName: string) => {
 		setState(prev => {
@@ -269,9 +294,31 @@ export const App = () => {
 		send('issue:assignee:remove', {issueId, assigneeId});
 	};
 
-	const closeIssue = (issueId: string) => send('issue:close', {issueId});
+	const closeIssue = (issueId: string) => {
+		setState(prev => {
+			if (!prev) return prev;
 
-	const reopenIssue = (issueId: string) => send('issue:reopen', {issueId});
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				isClosed: true,
+			}));
+		});
+
+		send('issue:close', {issueId});
+	};
+
+	const reopenIssue = (issueId: string) => {
+		setState(prev => {
+			if (!prev) return prev;
+
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				isClosed: false,
+			}));
+		});
+
+		send('issue:reopen', {issueId});
+	};
 
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
@@ -291,6 +338,38 @@ export const App = () => {
 		if (!createIssueModal) return;
 
 		const title = createIssueModal.title.trim() || 'New issue';
+		const placeholderIssueId = `placeholder-issue-${crypto.randomUUID()}`;
+
+		setState(prev => {
+			if (!prev) return prev;
+
+			return {
+				...prev,
+				boards: prev.boards.map(board => ({
+					...board,
+					swimlanes: board.swimlanes.map(swimlane => {
+						if (swimlane.id !== createIssueModal.swimlaneId) {
+							return swimlane;
+						}
+
+						const placeholderIssue = {
+							id: placeholderIssueId,
+							title,
+							description: '',
+							tags: [],
+							assignees: [],
+							readonly: false,
+							isClosed: false,
+						} as (typeof swimlane.issues)[number];
+
+						return {
+							...swimlane,
+							issues: [...swimlane.issues, placeholderIssue],
+						};
+					}),
+				})),
+			};
+		});
 
 		send('issues:create', {
 			title,
@@ -298,13 +377,57 @@ export const App = () => {
 		});
 
 		setCreateIssueModal(null);
+
+		if (boardId) {
+			void navigate(`/board/${boardId}/${placeholderIssueId}?tab=overview`);
+		}
 	};
 
-	const addIssueComment = (issueId: string, body: string) =>
-		send('issue:comment:add', {issueId, body});
+	const addIssueComment = (issueId: string, body: string) => {
+		setState(prev => {
+			if (!prev) return prev;
 
-	const deleteIssueComment = (issueId: string, commentId: string) =>
+			const previousComments = prev.commentsByIssueId[issueId] ?? [];
+			const placeholderComment = {
+				id: `placeholder-comment-${crypto.randomUUID()}`,
+				issueId,
+				body,
+				isDeleted: false,
+				author: prev.user,
+				createdAt: new Date().getTime(),
+			} as (typeof previousComments)[number];
+
+			return {
+				...prev,
+				commentsByIssueId: {
+					...prev.commentsByIssueId,
+					[issueId]: [...previousComments, placeholderComment],
+				},
+			};
+		});
+
+		send('issue:comment:add', {issueId, body});
+	};
+
+	const deleteIssueComment = (_issueId: string, commentId: string) => {
+		setState(prev => {
+			if (!prev) return prev;
+
+			return {
+				...prev,
+				commentsByIssueId: Object.fromEntries(
+					Object.entries(prev.commentsByIssueId).map(
+						([nextIssueId, comments]) => [
+							nextIssueId,
+							comments.filter(comment => comment.id !== commentId),
+						],
+					),
+				),
+			};
+		});
+
 		send('issue:comment:delete', {commentId});
+	};
 
 	return (
 		<div

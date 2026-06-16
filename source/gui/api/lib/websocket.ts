@@ -17,12 +17,16 @@ import {
 	reopenIssue,
 	sync,
 } from '../../../mcp/epiq-api.js';
-import {isFail} from '../../../lib/model/result-types.js';
+import {isFail, Result} from '../../../lib/model/result-types.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
 } from '../../client/lib/gui-broadcast.js';
 import {GuiMessage} from './websocket.model.js';
+
+const sendSocket = (socket: WebSocket, body: unknown) => {
+	socket.send(JSON.stringify(body));
+};
 
 const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 	sendSocket(socket, {
@@ -30,8 +34,31 @@ const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 		payload: await getGuiState({repoRoot}),
 	});
 
-const sendSocket = (socket: WebSocket, body: unknown) => {
-	socket.send(JSON.stringify(body));
+const sendMutationResult = async (
+	socket: WebSocket,
+	repoRoot: string,
+	onStateChanged: () => void,
+	resultType: string,
+	result: Result,
+) => {
+	sendSocket(socket, {
+		type: resultType,
+		payload: result,
+	});
+
+	if (isFail(result)) {
+		return sendSocket(socket, {
+			type: 'failed',
+			payload: result.message,
+		});
+	}
+
+	onStateChanged();
+
+	// Broadcast refresh to everyone, but do not block the requester UX.
+	void sendGuiState(socket, repoRoot);
+
+	return;
 };
 
 export const setupWebsocket = (
@@ -64,6 +91,7 @@ export const setupWebsocket = (
 						payload: result,
 					});
 
+					onStateChanged();
 					return sendGuiState(socket, repoRoot);
 				}
 
@@ -73,13 +101,13 @@ export const setupWebsocket = (
 						...message.payload,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:comment:add:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:comment:add:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:comment:delete') {
@@ -110,13 +138,13 @@ export const setupWebsocket = (
 						...message.payload,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:edit:description:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:edit:description:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:edit:title') {
@@ -125,13 +153,13 @@ export const setupWebsocket = (
 						...message.payload,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:edit:title:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:edit:title:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:tag:add') {
@@ -140,13 +168,13 @@ export const setupWebsocket = (
 						...message.payload,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:tag:add:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:tag:add:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:tag:remove') {
@@ -155,13 +183,13 @@ export const setupWebsocket = (
 						...message.payload,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:tag:remove:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:tag:remove:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:assignee:add') {
@@ -170,13 +198,13 @@ export const setupWebsocket = (
 						...message.payload,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:assignee:add:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:assignee:add:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:assignee:remove') {
@@ -185,13 +213,13 @@ export const setupWebsocket = (
 						...message.payload,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:assignee:remove:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:assignee:remove:result',
+						result,
+					);
 				}
 
 				if (type === 'issues:list') {
@@ -202,27 +230,30 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'issues:create') {
-					const createIssueResult = await createIssue({
+					const result = await createIssue({
 						...message.payload,
 						repoRoot,
 					});
 
-					await sendGuiState(socket, repoRoot);
+					sendSocket(socket, {
+						type: 'issues:create:result',
+						payload: result,
+					});
 
-					if (isFail(createIssueResult)) {
+					if (isFail(result)) {
 						return broadcastGuiMessage({
 							type: 'failed',
-							payload: createIssueResult.message,
+							payload: result.message,
 						});
 					}
 
 					broadcastGuiMessage({
 						type: 'issue:created',
-						payload: createIssueResult.value,
+						payload: result.value,
 					});
 
 					onStateChanged();
-					return;
+					return sendGuiState(socket, repoRoot);
 				}
 
 				if (type === 'issues:move') {
@@ -238,13 +269,13 @@ export const setupWebsocket = (
 						repoRoot,
 					});
 
-					sendSocket(socket, {
-						type: 'issues:move:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issues:move:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:close') {
@@ -260,13 +291,13 @@ export const setupWebsocket = (
 						issueId: message.payload.issueId,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:close:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:close:result',
+						result,
+					);
 				}
 
 				if (type === 'issue:reopen') {
@@ -282,13 +313,13 @@ export const setupWebsocket = (
 						issueId: message.payload.issueId,
 					});
 
-					sendSocket(socket, {
-						type: 'issue:reopen:result',
-						payload: result,
-					});
-
-					onStateChanged();
-					return sendGuiState(socket, repoRoot);
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:reopen:result',
+						result,
+					);
 				}
 
 				return sendSocket(socket, {
