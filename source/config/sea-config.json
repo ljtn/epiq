@@ -1,6 +1,5 @@
 {
 	"main": "dist/sea.cjs",
-	"mainFormat": "commonjs",
-	"output": "dist/epiq",
+	"output": "dist/sea.blob",
 	"disableExperimentalSEAWarning": true
 }
