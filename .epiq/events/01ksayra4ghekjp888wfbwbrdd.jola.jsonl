@@ -283,3 +283,4 @@
 {"v":1,"id":["01KVDGNEKADRE78YWD0YQSYVYG","01KVDGNAMT14VG6517QT3ZJKHZ"],"delete.node":{"id":"01KSTRYNP92FQ9KRPZJ6CF641F"}}
 {"v":1,"id":["01KVDGPR7TTSFRVRFCNPH97687","01KVDGNEKADRE78YWD0YQSYVYG"],"add.issue":{"id":"01KVDGPR7Q854BSMSACWKMC756","parent":"01KS22YK95S3336MFSE44MY70R","name":"Improve contrast on auto completion","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01KVDGQZH82W4HYY6YDN05EQ1N","01KVDGPR7TTSFRVRFCNPH97687"],"add.issue":{"id":"01KVDGQZH1P3BDVVXHDR5RTA0M","parent":"01KS22YK95S3336MFSE44MY70R","name":"Address issue with filter clearing on board refresh","rank":"bfffffffffffffffffffffff"}}
+{"v":1,"id":["01KVDGS3T3HDVY5WXX33X6E7NJ","01KVDGQZH82W4HYY6YDN05EQ1N"],"add.issue":{"id":"01KVDGS3T0KDDSDW5E1EH18WXR","parent":"01KS22YK95S3336MFSE44MY70R","name":"Prettify gui status messages ","rank":"dfffffffffffffffffffffff"}}
