@@ -74,6 +74,10 @@ vi.mock('../../lib/event/event-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => succeeded('booted', null)),
 }));
 
+vi.mock('../../lib/event/log-utils.js', () => ({
+	resolveReopenParentFromLog: vi.fn(() => 'swimlane-1'),
+}));
+
 vi.mock('../../lib/config/user-config.js', () => ({
 	loadSettingsFromConfig: vi.fn(
 		() =>
@@ -156,9 +160,19 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		rank: 'a0',
 		props: {
 			description: 'A bug description',
-			tags: [],
-			assignees: [],
+			tags: ['tag-1'],
+			assignees: ['contributor-1'],
 		},
+	},
+	'issue-closed-1': {
+		id: 'issue-closed-1',
+		title: 'Old bug',
+		context: 'TICKET',
+		parentNodeId: '00KM6CZ900T7180RM46K0JAYNF',
+		readonly: false,
+		isDeleted: false,
+		rank: 'z0',
+		props: {description: '', tags: [], assignees: []},
 	},
 };
 
@@ -175,7 +189,26 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 				rootNodeId: 'workspace-1',
 				contextNode: nodes['swimlane-1'],
 				selectedIndex: 0,
-				eventLog: [],
+				tags: {
+					'tag-1': {id: 'tag-1', name: 'bug'},
+				},
+				contributors: {
+					'contributor-1': {id: 'contributor-1', name: 'Alice'},
+				},
+				eventLog: [
+					{
+						id: 'comment-event-1',
+						userId: 'user-1',
+						userName: 'Alice',
+						action: 'add.issue.comment',
+						payload: {
+							id: 'comment-1',
+							issue: 'issue-1',
+							md: 'A comment',
+							author: 'user-1',
+						},
+					},
+				],
 				syncStatus: {
 					status: 'synced',
 					msg: 'Synced',
@@ -191,8 +224,12 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 vi.mock('../../lib/repository/node-repo.js', () => ({
 	nodeRepo: {
 		getNode: vi.fn((id: string) => nodes[id]),
-		getTag: vi.fn(() => undefined),
-		getContributor: vi.fn(() => undefined),
+		getTag: vi.fn((id: string) =>
+			id === 'tag-1' ? {id: 'tag-1', name: 'bug'} : undefined,
+		),
+		getContributor: vi.fn((id: string) =>
+			id === 'contributor-1' ? {id: 'contributor-1', name: 'Alice'} : undefined,
+		),
 	},
 }));
 
@@ -407,6 +444,313 @@ describe('mcp tools', () => {
 			expect(result.value.stateBranchRoot).toBe('/state');
 			expect(result.value.rootNodeId).toBe('workspace-1');
 			expect(result.value.nodes).toBe(nodes);
+		}
+	});
+
+	it('edits an issue title', async () => {
+		const result = await tools.editIssueTitle({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			title: 'Fix critical bug',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({id: 'issue-1', title: 'Fix critical bug'});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'Fix critical bug'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('skips persist when title is unchanged', async () => {
+		const result = await tools.editIssueTitle({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			title: 'Fix bug',
+		});
+
+		expect(isFail(result)).toBe(false);
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('adds a new tag to an issue, creating the tag', async () => {
+		const result = await tools.addIssueTag({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			tagName: 'enhancement',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.tag.name).toBe('enhancement');
+		}
+
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+		expect(calls).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({action: 'create.tag'}),
+				expect.objectContaining({action: 'add.issue.tag'}),
+			]),
+		);
+	});
+
+	it('adds an existing tag to an issue without creating a duplicate', async () => {
+		const result = await tools.addIssueTag({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			tagName: 'bug',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.tag).toEqual({id: 'tag-1', name: 'bug'});
+		}
+
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+		expect(calls).toEqual([
+			expect.objectContaining({
+				action: 'add.issue.tag',
+				payload: {id: 'issue-1', tag: 'tag-1'},
+			}),
+		]);
+	});
+
+	it('removes a tag from an issue', async () => {
+		const result = await tools.removeIssueTag({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			tagId: 'tag-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'remove.issue.tag',
+					payload: {id: 'issue-1', tag: 'tag-1'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails removing a tag that does not exist', async () => {
+		const result = await tools.removeIssueTag({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			tagId: 'missing-tag',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Tag not found');
+		}
+	});
+
+	it('adds a new assignee to an issue, creating the contributor', async () => {
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeName: 'Bob',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.assignee.name).toBe('Bob');
+		}
+
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+		expect(calls).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({action: 'create.contributor'}),
+				expect.objectContaining({action: 'add.issue.assignee'}),
+			]),
+		);
+	});
+
+	it('adds an existing contributor as assignee without creating a duplicate', async () => {
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeName: 'Alice',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.assignee).toEqual({
+				id: 'contributor-1',
+				name: 'Alice',
+			});
+		}
+
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+		expect(calls).toEqual([
+			expect.objectContaining({
+				action: 'add.issue.assignee',
+				payload: {id: 'issue-1', assignee: 'contributor-1'},
+			}),
+		]);
+	});
+
+	it('removes an assignee from an issue', async () => {
+		const result = await tools.removeIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeId: 'contributor-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'remove.issue.assignee',
+					payload: {id: 'issue-1', assignee: 'contributor-1'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails removing an assignee that does not exist', async () => {
+		const result = await tools.removeIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeId: 'missing-contributor',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Assignee not found');
+		}
+	});
+
+	it('adds a comment to an issue', async () => {
+		const result = await tools.addIssueComment({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			body: 'Looks good to me',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.body).toBe('Looks good to me');
+			expect(result.value.issueId).toBe('issue-1');
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'add.issue.comment',
+					payload: expect.objectContaining({
+						issue: 'issue-1',
+						md: 'Looks good to me',
+					}),
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails adding an empty comment', async () => {
+		const result = await tools.addIssueComment({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			body: '   ',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Comment cannot be empty');
+		}
+	});
+
+	it('deletes a comment', async () => {
+		const result = await tools.deleteIssueComment({
+			repoRoot: '/repo',
+			commentId: 'comment-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({id: 'comment-1', issueId: 'issue-1'});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'delete.issue.comment',
+					payload: {id: 'comment-1', issue: 'issue-1'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails deleting a comment that does not exist', async () => {
+		const result = await tools.deleteIssueComment({
+			repoRoot: '/repo',
+			commentId: 'no-such-comment',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Unable to resolve comment');
+		}
+	});
+
+	it('reopens a closed issue to its previous swimlane', async () => {
+		const result = await tools.reopenIssue({
+			repoRoot: '/repo',
+			issueId: 'issue-closed-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({
+				id: 'issue-closed-1',
+				parentId: 'swimlane-1',
+			});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'reopen.issue',
+					payload: expect.objectContaining({
+						id: 'issue-closed-1',
+						parent: 'swimlane-1',
+					}),
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails reopening an issue that is not closed', async () => {
+		const result = await tools.reopenIssue({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Issue is not closed');
 		}
 	});
 });
