@@ -3,14 +3,22 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {
+	addIssueAssignee,
+	addIssueComment,
+	addIssueTag,
 	closeIssue,
 	createIssue,
+	deleteIssueComment,
 	editIssueDescription,
+	editIssueTitle,
 	getEpiqState,
 	listBoards,
 	listIssues,
 	listSwimlanes,
 	moveIssue,
+	removeIssueAssignee,
+	removeIssueTag,
+	reopenIssue,
 	sync,
 } from './epiq-api.js';
 
@@ -101,6 +109,108 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await editIssueDescription(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_title_edit',
+		{
+			description: 'Edit the title of an Epiq issue',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				title: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await editIssueTitle(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_tag_add',
+		{
+			description: 'Add a tag to an Epiq issue, creating the tag if it does not exist',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				tagName: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await addIssueTag(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_tag_remove',
+		{
+			description: 'Remove a tag from an Epiq issue',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				tagId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await removeIssueTag(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_assignee_add',
+		{
+			description: 'Assign a contributor to an Epiq issue, creating the contributor if they do not exist',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				assigneeName: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await addIssueAssignee(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_assignee_remove',
+		{
+			description: 'Remove an assignee from an Epiq issue',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				assigneeId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await removeIssueAssignee(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_comment_add',
+		{
+			description: 'Add a comment to an Epiq issue',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				body: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await addIssueComment(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_comment_delete',
+		{
+			description: 'Delete a comment from an Epiq issue',
+			inputSchema: z.object({
+				commentId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await deleteIssueComment(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_reopen',
+		{
+			description: 'Reopen a closed Epiq issue, restoring it to its previous swimlane',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await reopenIssue(input)),
 	);
 
 	server.registerTool(
