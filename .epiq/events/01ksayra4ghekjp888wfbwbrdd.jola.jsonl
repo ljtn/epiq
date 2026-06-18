@@ -293,3 +293,4 @@
 {"v":1,"id":["01KVDGYBF1RZ89MHGKQ652DK96","01KVDGWRK4YBZ6F39H88Z3BPZE"],"edit.description":{"id":"01KVDGWFFQETAR1SB1XP8RA1Z6","md":"Make sure we cover all impmortant flows with e2e test.\n\n- Make sure to reboot the app mid-test to ensure that the eventlog is replayable at all times"}}
 {"v":1,"id":["01KVDGYJXTJ4JN67HF9VW4ZMM8","01KVDGYBF1RZ89MHGKQ652DK96"],"move.node":{"id":"01KVDGWFFQETAR1SB1XP8RA1Z6","parent":"01KS22YK95S3336MFSE44MY70S","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01KVDH094WV1MJNAWWJG956W6E","01KVDGYJXTJ4JN67HF9VW4ZMM8"],"add.issue":{"id":"01KVDH094SNVVQKZ6GAZJ86V6X","parent":"01KS22YK95S3336MFSE44MY70R","name":"Enable renaming columns","rank":"fdffffffffffffffffffffff"}}
+{"v":1,"id":["01KVDH0RK88G1C6V649GD8SMSW","01KVDH094WV1MJNAWWJG956W6E"],"add.swimlane":{"id":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"Ongoing","parent":"01KS22YK95S3336MFSE44MY70Q","rank":"efffffffffffffffffffffff"}}
