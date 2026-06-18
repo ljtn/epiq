@@ -42,7 +42,7 @@ type TuiSession = {
 	destroy: () => void;
 };
 
-const createTuiEnv = () => {
+const createTuiEnv = (extra: Record<string, string> = {}) => {
 	const env = {...process.env};
 
 	delete env['CI'];
@@ -52,6 +52,7 @@ const createTuiEnv = () => {
 		...env,
 		TERM: 'xterm-256color',
 		FORCE_COLOR: '1',
+		...extra,
 	};
 };
 
@@ -64,6 +65,8 @@ type SetupTuiOptions = {
 	 * `destroy()` so a follow-up session can replay the persisted event log.
 	 */
 	cwd?: string;
+	/** Extra environment variables for the spawned process (e.g. EDITOR). */
+	env?: Record<string, string>;
 };
 
 export const setupTui = (
@@ -90,7 +93,7 @@ export const setupTui = (
 		cols: width,
 		rows: height,
 		cwd,
-		env: createTuiEnv(),
+		env: createTuiEnv(options.env),
 	});
 
 	const renderOutput = () => {
