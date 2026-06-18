@@ -288,3 +288,6 @@
 {"v":1,"id":["01KVDGTFM0HFEA4C8TEZTGEMGY","01KVDGSK6YMN85T8Z7CDQBAV4R"],"add.issue":{"id":"01KVDGTFKWV88T2NF94W3X83M2","parent":"01KS22YK95S3336MFSE44MY70R","name":"Support managing tags colors ","rank":"f7ffffffffffffffffffffff"}}
 {"v":1,"id":["01KVDGVP9D0F94P04GNAAKX29K","01KVDGTFM0HFEA4C8TEZTGEMGY"],"add.issue":{"id":"01KVDGVP977DZ5FSENYV7HR1FD","parent":"01KS22YK95S3336MFSE44MY70R","name":"Revisit export user experience","rank":"fbffffffffffffffffffffff"}}
 {"v":1,"id":["01KVDGWFFWG2VMAZ1FT9Q3SWA2","01KVDGVP9D0F94P04GNAAKX29K"],"add.issue":{"id":"01KVDGWFFQETAR1SB1XP8RA1Z6","parent":"01KS22YK95S3336MFSE44MY70R","name":"Cover all critical flows with e2e test","rank":"fdffffffffffffffffffffff"}}
+{"v":1,"id":["01KVDGWMA993MPXJHB1NTVSZKD","01KVDGWFFWG2VMAZ1FT9Q3SWA2"],"add.issue.tag":{"id":"01KVDGWFFQETAR1SB1XP8RA1Z6","tag":"01KSR2CGK1BZQZZY5TH3VEQTTA"}}
+{"v":1,"id":["01KVDGWRK4YBZ6F39H88Z3BPZE","01KVDGWMA993MPXJHB1NTVSZKD"],"move.node":{"id":"01KVDGWFFQETAR1SB1XP8RA1Z6","parent":"01KS22YK95S3336MFSE44MY70R","rank":"3fffffffffffffffffffffff"}}
+{"v":1,"id":["01KVDGYBF1RZ89MHGKQ652DK96","01KVDGWRK4YBZ6F39H88Z3BPZE"],"edit.description":{"id":"01KVDGWFFQETAR1SB1XP8RA1Z6","md":"Make sure we cover all impmortant flows with e2e test.\n\n- Make sure to reboot the app mid-test to ensure that the eventlog is replayable at all times"}}
