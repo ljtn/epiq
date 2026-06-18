@@ -127,7 +127,8 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_issue_tag_add',
 		{
-			description: 'Add a tag to an Epiq issue, creating the tag if it does not exist',
+			description:
+				'Add a tag to an Epiq issue, creating the tag if it does not exist',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				tagName: z.string().min(1),
@@ -153,7 +154,8 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_issue_assignee_add',
 		{
-			description: 'Assign a contributor to an Epiq issue, creating the contributor if they do not exist',
+			description:
+				'Assign a contributor to an Epiq issue, creating the contributor if they do not exist',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				assigneeName: z.string().min(1),
@@ -204,7 +206,8 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_issue_reopen',
 		{
-			description: 'Reopen a closed Epiq issue, restoring it to its previous swimlane',
+			description:
+				'Reopen a closed Epiq issue, restoring it to its previous swimlane',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				repoRoot: z.string().optional(),
