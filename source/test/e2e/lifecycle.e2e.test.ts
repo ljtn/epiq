@@ -103,7 +103,11 @@ describe('TUI issue lifecycle e2e', () => {
 				await tui.waitFor('History ››', 4_000);
 
 				tui.input(ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ENTER);
-				const log = await tui.waitFor('Event log', 4_000);
+				await tui.waitFor('Event log', 4_000);
+				const log = await tui.waitFor(
+					'Created with title "Lifecycle issue"',
+					4_000,
+				);
 				const normalized = log.replace(/\s{2,}/g, ' ');
 
 				// One line per lifecycle event.

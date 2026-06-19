@@ -4,7 +4,9 @@ import {execSync} from 'child_process';
 
 export const commonSteps = {
 	configureInitialSettings: async (tui: ReturnType<typeof setupTui>) => {
-		await tui.waitFor('choose your username');
+		// Cold app start: parallel e2e files contend for CPU, so allow extra time
+		// for the first frame rather than the default 3s.
+		await tui.waitFor('choose your username', 8_000);
 		tui.input(':config username test\r');
 
 		await tui.waitFor('pick your editor');
@@ -29,7 +31,8 @@ export const commonSteps = {
 			stdio: 'ignore',
 		});
 
-		output = await tui.waitFor('Initialize project');
+		// Cold app start: allow extra time for the first frame (see above).
+		output = await tui.waitFor('Initialize project', 8_000);
 
 		expect(output).toContain('This folder is not an epiq project yet.');
 		tui.input(':init\r');

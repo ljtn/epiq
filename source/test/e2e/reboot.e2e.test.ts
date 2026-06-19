@@ -40,7 +40,11 @@ describe('TUI reboot / event-log replay e2e', () => {
 					await first.waitFor('Todo (1)');
 
 					first.input(':new issue Persisted issue two', ENTER);
-					const created = await first.waitFor('Todo (2)');
+					const created = await first.waitFor(
+						output =>
+							output.includes('Persisted issue one') &&
+							output.includes('Persisted issue two'),
+					);
 
 					expect(created).toContain('Persisted issue one');
 					expect(created).toContain('Persisted issue two');
@@ -56,14 +60,24 @@ describe('TUI reboot / event-log replay e2e', () => {
 					// An existing project boots with navigation restored straight to
 					// the swimlane view, rather than the "Initialize project" prompt.
 					// Both issues were reconstructed purely from the replayed log.
-					const replayed = await second.waitFor('Todo (2)', 8_000);
+					const replayed = await second.waitFor(
+						output =>
+							output.includes('Persisted issue one') &&
+							output.includes('Persisted issue two'),
+						8_000,
+					);
 
 					expect(replayed).toContain('Persisted issue one');
 					expect(replayed).toContain('Persisted issue two');
 
 					// The replayed log is still live: we can append a new event onto it.
 					second.input(':new issue Issue after reboot', ENTER);
-					const appended = await second.waitFor('Todo (3)');
+					const appended = await second.waitFor(
+						output =>
+							output.includes('Issue after reboot') &&
+							output.includes('Persisted issue one') &&
+							output.includes('Persisted issue two'),
+					);
 
 					expect(appended).toContain('Issue after reboot');
 					expect(appended).toContain('Persisted issue one');

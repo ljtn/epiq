@@ -154,7 +154,10 @@ describe('TUI e2e', () => {
 
 				tui.input(ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ENTER);
 
-				const logOutput = await tui.waitFor('Event log');
+				await tui.waitFor('Event log');
+				const logOutput = await tui.waitFor(
+					'Created with title "Test create issue"',
+				);
 				const normalizedLogOutput = logOutput.replace(/\s{2,}/g, ' ');
 
 				expect(normalizedLogOutput).toContain('just now');
