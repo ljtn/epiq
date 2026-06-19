@@ -5,7 +5,12 @@ import {
 } from '../config/setup-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 import {AppState} from '../model/app-state.model.js';
-import {AnyContext, isTicketNode, NavNodeCtx, Ticket} from '../model/context.model.js';
+import {
+	AnyContext,
+	isTicketNode,
+	NavNodeCtx,
+	Ticket,
+} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
