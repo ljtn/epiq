@@ -24,9 +24,9 @@ type CommandLineViewState = {
 	inputString: string;
 };
 
-const GRAY = chalk.gray;
+const GRAY = chalk.hex(theme.secondary);
 const INVERSE = chalk.inverse;
-const INVERSE_GRAY = chalk.inverse.gray;
+const INVERSE_GRAY = chalk.inverse.hex(theme.secondary2);
 
 const EMPTY_AUTO_COMPLETION: AutoCompletion = {
 	hint: '',
