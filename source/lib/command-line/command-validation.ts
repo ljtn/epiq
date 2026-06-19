@@ -430,7 +430,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.PALETTE]: () => valid(CONFIRM_MSG),
 
 	[CmdKeywords.FILTER]: args => {
-		if (args.modifier === 'clear') return valid();
+		if (args.modifier === 'clear') return valid(CONFIRM_MSG);
 
 		const isValidModifier = (val: string): val is Filter['target'] =>
 			getCmdModifiers(CmdKeywords.FILTER).includes(val);
@@ -465,6 +465,7 @@ const validators: Record<CmdKeyword, Validator> = {
 					wordList,
 					noOfHints: 10,
 					inputString: args.inputString,
+					minLengthForHints: 0,
 				}),
 				completionWordList: wordList,
 			});
@@ -477,6 +478,7 @@ const validators: Record<CmdKeyword, Validator> = {
 					wordList,
 					noOfHints: 10,
 					inputString: args.inputString,
+					minLengthForHints: 0,
 				}),
 				completionWordList: wordList,
 			});
