@@ -208,6 +208,7 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 	}
 
 	const navigationAnchor = captureNavigationAnchor();
+	const previousFilters = getState().filters;
 
 	logger.debug('[sync] captured navigation anchor', {
 		navigationAnchor,
@@ -257,6 +258,11 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 	}
 
 	logger.debug('[sync] booted state from synced events');
+
+	// Boot replays init.workspace, which re-initializes state with empty
+	// filters. Filters are view state, not event-log data, so re-apply the
+	// pre-sync filters before restoring navigation against the filtered view.
+	patchState({filters: previousFilters});
 
 	logger.debug('[sync] restoreNavigationAnchor:start');
 
