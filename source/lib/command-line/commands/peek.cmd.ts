@@ -26,7 +26,7 @@ export const peekCommand = async () => {
 
 	if (isFail(stateBranchRoot)) throw new Error(stateBranchRoot.message);
 
-	const {modifier} = getCmdState().commandMeta;
+	const {modifier, inputString} = getCmdState().commandMeta;
 
 	if (modifier === 'now') {
 		const eventsResult = loadMergedEvents(stateBranchRoot.value);
@@ -69,7 +69,9 @@ export const peekCommand = async () => {
 
 		targetTime = nextTime + 1;
 	} else {
-		const targetDate = parsePeekDateInput(modifier);
+		// Offsets (e.g. `2y`) arrive as `modifier`; absolute dates (YYYY-MM-DD)
+		// are not in the modifier allow-list, so they arrive as `inputString`.
+		const targetDate = parsePeekDateInput(modifier || inputString);
 
 		if (!targetDate) {
 			return failed('Invalid peek date');

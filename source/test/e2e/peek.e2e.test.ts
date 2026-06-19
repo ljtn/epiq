@@ -129,6 +129,41 @@ describe('TUI peek / time-travel e2e', () => {
 				);
 				expect(reentered).toContain('Third issue');
 
+				// --- Absolute date peek (YYYY-MM-DD). A date past all activity yields
+				//     a read-only snapshot with every event applied so far. Use a date
+				//     a year out so it sits comfortably after the board's creation. ---
+				const future = new Date();
+				future.setFullYear(future.getFullYear() + 1);
+				const pad = (n: number) => String(n).padStart(2, '0');
+				const futureDate = `${future.getFullYear()}-${pad(
+					future.getMonth() + 1,
+				)}-${pad(future.getDate())}`;
+
+				await run(tui, `:peek ${futureDate}`, `peek ${futureDate}`);
+				const dateSnapshot = await tui.waitFor(
+					output =>
+						output.includes('Readonly') &&
+						output.includes('Todo (3)') &&
+						output.includes('First issue') &&
+						output.includes('Second issue') &&
+						output.includes('Third issue'),
+					4_000,
+				);
+				expect(dateSnapshot).toContain('Readonly');
+				expect(dateSnapshot).toContain('Third issue');
+
+				// Resume live and re-enter the board so a BOARD is in the breadcrumb
+				// for the offset check below.
+				await run(tui, ':peek now', 'peek now');
+				await tui.waitFor(
+					output =>
+						!output.includes('Readonly') &&
+						output.includes('Default (3 issues)'),
+					4_000,
+				);
+				tui.input(ENTER);
+				await tui.waitFor('Todo (3)', 4_000);
+
 				// --- Relative offset (e.g. `2y`). In a freshly created project every
 				//     offset resolves to before the board existed, so the command is
 				//     rejected with a guard message rather than executing. ---

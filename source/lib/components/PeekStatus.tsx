@@ -16,7 +16,9 @@ export function PeekStatus() {
 
 	return (
 		<Box paddingLeft={1}>
-			<Text backgroundColor={theme.accent}>{' Readonly '}</Text>
+			<Text backgroundColor={theme.accent} color={theme.secondary}>
+				{' Readonly '}
+			</Text>
 			<Text color={theme.accent}>
 				{' ' +
 					unappliedEvents.length +
@@ -25,7 +27,10 @@ export function PeekStatus() {
 					'.'}
 			</Text>
 			<Text color={theme.accent}> Resume with </Text>
-			<Text backgroundColor={theme.accent}> :peek now </Text>
+			<Text backgroundColor={theme.accent} color={theme.secondary}>
+				{' '}
+				:peek now{' '}
+			</Text>
 		</Box>
 	);
 }

@@ -374,4 +374,33 @@ describe('cmdValidation', () => {
 			expect(result.message).toBe('<ENTER> to confirm');
 		});
 	});
+
+	describe('PEEK', () => {
+		it('rejects an empty target with the input-format hint', () => {
+			const result = cmdValidation[CmdKeywords.PEEK].validate(
+				CmdKeywords.PEEK,
+				'',
+				'',
+			);
+
+			expect(result.validity).toBe(cmdValidity.Invalid);
+			expect(result.message).toContain('historical state from');
+		});
+
+		it('recognizes a full date supplied via inputString', () => {
+			// Absolute dates (YYYY-MM-DD) are not in the modifier allow-list, so the
+			// parser surfaces them as `inputString`. They must still be accepted as a
+			// valid peek target rather than rejected as unrecognized input. (With no
+			// board in the breadcrumb the validator then stops at the context check,
+			// which proves the date itself was parsed and accepted.)
+			const result = cmdValidation[CmdKeywords.PEEK].validate(
+				CmdKeywords.PEEK,
+				'',
+				'2027-06-19',
+			);
+
+			expect(result.message).not.toContain('historical state from');
+			expect(result.message).toContain('not applicable in this context');
+		});
+	});
 });

@@ -163,6 +163,40 @@ describe('peekCommand', () => {
 		expect(isSuccess(result)).toBe(true);
 	});
 
+	it('uses inputString as the date for an absolute date peek', async () => {
+		// Absolute dates (YYYY-MM-DD) are not in the peek modifier allow-list, so
+		// the parser surfaces them as `inputString` with an empty `modifier`.
+		vi.mocked(getCmdState).mockReturnValue({
+			commandMeta: {
+				modifier: '',
+				inputString: '2027-06-19',
+			},
+		} as never);
+
+		vi.mocked(parsePeekDateInput).mockReturnValue(new Date(2000));
+
+		vi.mocked(loadMergedEventsBefore).mockReturnValue(
+			succeeded('events', {
+				appliedEvents: [{id: '1'}],
+				unappliedEvents: [],
+			} as never),
+		);
+
+		const result = await peekCommand();
+
+		expect(parsePeekDateInput).toHaveBeenCalledWith('2027-06-19');
+		expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 2000);
+
+		expect(patchState).toHaveBeenCalledWith({
+			mode: 'default',
+			readOnly: true,
+			timeMode: 'peek',
+			unappliedEvents: [],
+		});
+
+		expect(isSuccess(result)).toBe(true);
+	});
+
 	it('uses the current last applied event for :peek prev', async () => {
 		const previousTime = Date.now() - 1000;
 		const previousId = ulid(previousTime);

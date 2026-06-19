@@ -390,9 +390,12 @@ const validators: Record<CmdKeyword, Validator> = {
 		if (modifier === 'prev') return valid(CONFIRM_MSG);
 		if (modifier === 'next') return valid(CONFIRM_MSG);
 
-		const date = parsePeekDateInput(modifier);
+		// Offsets (e.g. `2y`) arrive as `modifier`; absolute dates (YYYY-MM-DD) are
+		// not in the modifier allow-list, so they arrive as `inputString`.
+		const target = modifier || args.inputString;
+		const date = parsePeekDateInput(target);
 
-		if (!modifier) return invalid(hint);
+		if (!target) return invalid(hint);
 		if (!date) return invalid(hint);
 
 		const boardResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
