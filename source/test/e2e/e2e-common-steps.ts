@@ -35,7 +35,15 @@ export const commonSteps = {
 		output = await tui.waitFor('Initialize project', 8_000);
 
 		expect(output).toContain('This folder is not an epiq project yet.');
-		tui.input(':init\r');
+
+		// Type the command and wait for it to render as a confirmable command
+		// before sending ENTER. Sending ":init\r" as one chunk lets the ENTER be
+		// handled before ":init" is committed to the command store, so the confirm
+		// is dropped ("No command to confirm"). This is timing-dependent and shows
+		// up under CI load while passing locally.
+		tui.input(':init');
+		await tui.waitFor('<ENTER> to confirm', 8_000);
+		tui.input('\r');
 
 		output = await tui.waitFor('Default (0 issues)', 8_000);
 
