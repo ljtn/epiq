@@ -3,12 +3,15 @@ import {
 	getUserSetupStatus,
 	isRepositoryInitialized,
 } from '../config/setup-utils.js';
+import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
 import {AppState} from '../model/app-state.model.js';
-import {AnyContext, NavNodeCtx} from '../model/context.model.js';
+import {AnyContext, isTicketNode, NavNodeCtx, Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
 import {
+	getTicketAssignees,
+	getTicketTags,
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
@@ -123,6 +126,20 @@ const getNewModifiers = (context: AnyContext): string[] => {
 	return ['issue', 'swimlane', 'board'];
 };
 
+// The "un"-commands and close/reopen only make sense against a concrete ticket,
+// so resolve the ticket currently in scope (selected, or anywhere up the
+// breadcrumb) the same way the tag/assign helpers do.
+const ticketInScope = ({
+	breadCrumb,
+	selectedNode,
+}: Pick<AppState, 'breadCrumb' | 'selectedNode'>): Ticket | undefined =>
+	[...breadCrumb, selectedNode].find(
+		(node): node is Ticket => node != null && isTicketNode(node),
+	);
+
+const isTicketClosed = (ticket: Ticket): boolean =>
+	ticket.parentNodeId === CLOSED_SWIMLANE_ID;
+
 const getAvailableBaseCommands = ({
 	selectedNode,
 	readOnly,
@@ -161,6 +178,8 @@ const getAvailableBaseCommands = ({
 		),
 	];
 
+	const ticket = ticketInScope({breadCrumb, selectedNode});
+
 	return commandsInBreadcrumbContext.filter(command => {
 		if (command === CmdKeywords.MOVE) {
 			return false;
@@ -168,6 +187,23 @@ const getAvailableBaseCommands = ({
 
 		if (command === CmdKeywords.EDIT || command === CmdKeywords.DELETE) {
 			return selectedIsEditable;
+		}
+
+		// Hide the inverse commands when there is nothing to undo.
+		if (command === CmdKeywords.UNTAG) {
+			return Boolean(ticket && getTicketTags(ticket).length > 0);
+		}
+
+		if (command === CmdKeywords.UNASSIGN) {
+			return Boolean(ticket && getTicketAssignees(ticket).length > 0);
+		}
+
+		if (command === CmdKeywords.RE_OPEN_ISSUE) {
+			return Boolean(ticket && isTicketClosed(ticket));
+		}
+
+		if (command === CmdKeywords.CLOSE_ISSUE) {
+			return Boolean(ticket && !isTicketClosed(ticket));
 		}
 
 		return true;
