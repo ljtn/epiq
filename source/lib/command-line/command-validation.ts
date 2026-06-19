@@ -6,15 +6,10 @@ import {
 import {booleanToYesNo, YesNo} from '../config/setup-utils.js';
 import {editorConfig} from '../editor/editor-config.js';
 import {safeDateFromUlid} from '../event/date-utils.js';
-import {
-	BreadCrumb,
-	Filter,
-	findInBreadCrumb,
-} from '../model/app-state.model.js';
+import {Filter, findInBreadCrumb} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {setCmdInput} from '../state/cmd.state.js';
 import {getSettingsState, LogLevel} from '../state/settings.state.js';
 import {getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
@@ -317,6 +312,12 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 const validateEditCommand: Validator = ({modifier, inputString}) => {
 	const editModifiers = getCmdModifiers(CmdKeywords.EDIT);
 
+	if (!editModifiers.length) {
+		return invalid({
+			message: hintAlert('Command not available in this context'),
+		});
+	}
+
 	if (!editModifiers.includes(modifier)) {
 		const message = buildOptionsHint({
 			prefix: 'edit... ',
@@ -331,22 +332,12 @@ const validateEditCommand: Validator = ({modifier, inputString}) => {
 		});
 	}
 
-	const {breadCrumb, selectedNode} = getState();
-	const isTicketInPath = findInBreadCrumb(
-		[...breadCrumb, selectedNode] as BreadCrumb,
-		'TICKET',
-	);
-
-	if (isFail(isTicketInPath)) {
-		return invalid({
-			message: hintAlert('Command not available in this context'),
-		});
-	}
-
 	switch (modifier) {
 		case EditModifiers.COMMENT:
-			if (!inputString) {
-				setCmdInput(() => 'hahah');
+			if (!inputString.trim()) {
+				return invalid({
+					message: hintDefault('write a comment...'),
+				});
 			}
 			return valid(CONFIRM_MSG);
 

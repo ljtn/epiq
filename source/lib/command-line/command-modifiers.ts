@@ -46,11 +46,24 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.LOG_LEVEL,
 ];
 
-export const EDIT_MODIFIERS = [
-	EditModifiers.TITLE,
-	EditModifiers.DESCRIPTION,
-	EditModifiers.COMMENT,
-];
+// Which edit modifiers are valid depends on what is selected: swimlanes and
+// boards only have a title, tickets have a title and a description, and
+// comments only have their body.
+export const getEditModifiers = (
+	selectedContext: AnyContext | undefined = getState().selectedNode?.context,
+): EditModifier[] => {
+	switch (selectedContext) {
+		case 'TICKET':
+			return [EditModifiers.TITLE, EditModifiers.DESCRIPTION];
+		case 'BOARD':
+		case 'SWIMLANE':
+			return [EditModifiers.TITLE];
+		case 'COMMENT':
+			return [EditModifiers.COMMENT];
+		default:
+			return [];
+	}
+};
 
 export const AUTOSYNC_DEBOUNCE_HINTS = [
 	String(MIN_AUTOSYNC_DURATION_MS),
@@ -190,7 +203,7 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
 
-		[CmdKeywords.EDIT]: [...EDIT_MODIFIERS],
+		[CmdKeywords.EDIT]: getEditModifiers(selectedNode?.context),
 
 		[CmdKeywords.COMMENT]: [],
 

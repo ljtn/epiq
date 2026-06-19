@@ -5,6 +5,7 @@ import {
 	ConfigModifiers,
 	EditModifiers,
 	getCmdModifiers,
+	getEditModifiers,
 } from '../lib/command-line/command-modifiers.js';
 
 vi.mock('../lib/state/state.js', () => ({
@@ -177,6 +178,39 @@ describe('cmdValidation', () => {
 
 			expect(result.validity).toBe(cmdValidity.Invalid);
 			expect(result.message).toBe('Unknown edit option');
+		});
+	});
+
+	describe('getEditModifiers', () => {
+		it('offers only title for swimlanes', () => {
+			expect(getEditModifiers('SWIMLANE')).toEqual([EditModifiers.TITLE]);
+		});
+
+		it('offers only title for boards', () => {
+			expect(getEditModifiers('BOARD')).toEqual([EditModifiers.TITLE]);
+		});
+
+		it('offers title and description for tickets', () => {
+			expect(getEditModifiers('TICKET')).toEqual([
+				EditModifiers.TITLE,
+				EditModifiers.DESCRIPTION,
+			]);
+		});
+
+		it('offers only comment for comments', () => {
+			expect(getEditModifiers('COMMENT')).toEqual([EditModifiers.COMMENT]);
+		});
+
+		it('offers nothing for non-editable contexts', () => {
+			expect(getEditModifiers('FIELD')).toEqual([]);
+		});
+
+		it('falls back to the selected node context when omitted', () => {
+			// getState() mock selects a TICKET
+			expect(getEditModifiers()).toEqual([
+				EditModifiers.TITLE,
+				EditModifiers.DESCRIPTION,
+			]);
 		});
 	});
 
