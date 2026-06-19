@@ -95,7 +95,8 @@ run(`node --experimental-sea-config source/config/sea-config.json`);
 
 // 5. Assemble the binary
 console.log('\n[5/6] Assembling binary...');
-const outBin = resolve(root, 'dist/epiq');
+const exeSuffix = platform === 'win32' ? '.exe' : '';
+const outBin = resolve(root, `dist/epiq${exeSuffix}`);
 copyFileSync(process.execPath, outBin);
 chmodSync(outBin, 0o755);
 
@@ -103,11 +104,16 @@ if (platform === 'darwin') {
 	run(`codesign --remove-signature ${outBin}`);
 }
 
-run(
-	`npx --yes postject ${outBin} NODE_SEA_BLOB dist/sea.blob \
-    --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
-    ${platform === 'darwin' ? '--macho-segment-name NODE_SEA' : ''}`,
-);
+// Keep this on a single line: backslash line continuations are bash-only and
+// break under cmd.exe on Windows.
+const postjectArgs = [
+	`npx --yes postject "${outBin}" NODE_SEA_BLOB dist/sea.blob`,
+	'--sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
+	platform === 'darwin' ? '--macho-segment-name NODE_SEA' : '',
+]
+	.filter(Boolean)
+	.join(' ');
+run(postjectArgs);
 
 if (platform === 'darwin') {
 	run(`codesign --sign - ${outBin}`);
@@ -115,6 +121,6 @@ if (platform === 'darwin') {
 
 // 6. Verify
 console.log('\n[6/6] Verifying...');
-run(`${outBin} --version`);
+run(`"${outBin}" --version`);
 
-console.log(`\nDone! Binary at dist/epiq`);
+console.log(`\nDone! Binary at ${outBin}`);

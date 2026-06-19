@@ -43,8 +43,13 @@ jobs:
         include:
           - os: macos-latest
             artifact: epiq-macos-arm64
+            bin: epiq
           - os: ubuntu-latest
             artifact: epiq-linux-x64
+            bin: epiq
+          - os: windows-latest
+            artifact: epiq-windows-x64.exe
+            bin: epiq.exe
 
     runs-on: ${{ matrix.os }}
 
@@ -61,7 +66,7 @@ jobs:
       - run: npm run build:binary
 
       - name: Rename artifact
-        run: mv dist/epiq dist/${{ matrix.artifact }}
+        run: mv dist/${{ matrix.bin }} dist/${{ matrix.artifact }}
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
