@@ -5,7 +5,7 @@ import {ParsedCommandLine} from './command-parser.js';
 import {CmdKeyword} from './cmd-keywords.js';
 import {CmdKeywords} from './cmd-keywords.js';
 import {cmdValidation} from './command-validation.js';
-import {DEFAULT_WORDS} from './default-word-list.js';
+import {getVocabulary} from './corpus-vocabulary.js';
 import {CmdIntent} from './command-intent.js';
 import {getState} from '../state/state.js';
 import {Mode} from '../model/action-map.model.js';
@@ -33,7 +33,7 @@ export const getCmdMeta = (
 	const staticWordList =
 		target === 'command' || target === 'modifier'
 			? getCmdModifiers(command)
-			: DEFAULT_WORDS;
+			: getVocabulary();
 
 	const {mode} = getState();
 	const hintMessage = mode === Mode.COMMAND_LINE ? message ?? '' : '';
