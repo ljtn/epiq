@@ -86,7 +86,8 @@ class Rng {
 	string(maxLength = 12): string {
 		const length = this.int(0, maxLength);
 		let out = '';
-		for (let i = 0; i < length; i++) out += String.fromCharCode(this.int(32, 126));
+		for (let i = 0; i < length; i++)
+			out += String.fromCharCode(this.int(32, 126));
 		return out;
 	}
 }
