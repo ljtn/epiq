@@ -56,13 +56,25 @@ These design choices result in a system that is:
 
 ## Installation
 
-Install globally via npm:
+### Quick install
+
+A single self-contained binary — no Node.js required:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh
+```
+
+Supports macOS (Intel & Apple Silicon) and Linux (x64 & arm64).
+
+### Via npm
+
+If you already have Node.js (18+):
 
 ```bash
 npm install --global epiq
 ```
 
-Verify:
+### Verify
 
 ```bash
 epiq --version

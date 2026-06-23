@@ -44,8 +44,14 @@ jobs:
           - os: macos-latest
             artifact: epiq-macos-arm64
             bin: epiq
+          - os: macos-13
+            artifact: epiq-macos-x64
+            bin: epiq
           - os: ubuntu-latest
             artifact: epiq-linux-x64
+            bin: epiq
+          - os: ubuntu-24.04-arm
+            artifact: epiq-linux-arm64
             bin: epiq
           - os: windows-latest
             artifact: epiq-windows-x64.exe
