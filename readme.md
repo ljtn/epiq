@@ -66,6 +66,8 @@ curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh
 
 Supports macOS (Intel & Apple Silicon) and Linux (x64 & arm64).
 
+Installs to `~/.local/bin` by default. Override with `EPIQ_INSTALL_DIR` (or `XDG_BIN_HOME`); pin a version with `EPIQ_VERSION=v0.7.5`.
+
 ### Via npm
 
 If you already have Node.js (18+):

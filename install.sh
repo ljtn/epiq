@@ -1,16 +1,16 @@
 #!/bin/sh
-# epiq installer — downloads the prebuilt single-binary (no Node required).
+# epiq installer — downloads the prebuilt single-binary.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh
 #
 # Env overrides:
-#   EPIQ_INSTALL_DIR   install location (default: $HOME/.epiq/bin)
+#   EPIQ_INSTALL_DIR   install location (default: $XDG_BIN_HOME or $HOME/.local/bin)
 #   EPIQ_VERSION       tag to install, e.g. v0.7.5 (default: latest release)
 set -eu
 
 REPO="ljtn/epiq"
 BIN_NAME="epiq"
-INSTALL_DIR="${EPIQ_INSTALL_DIR:-$HOME/.epiq/bin}"
+INSTALL_DIR="${EPIQ_INSTALL_DIR:-${XDG_BIN_HOME:-$HOME/.local/bin}}"
 
 err() { printf 'error: %s\n' "$1" >&2; exit 1; }
 
