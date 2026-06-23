@@ -7,6 +7,7 @@ import EpiqApp from './lib/components/EpiqApp.js';
 import {failed, isFail, Result, succeeded} from './lib/model/result-types.js';
 import {initUiState} from './lib/state/ux-state.js';
 import {formatUnknownError} from './lib/utils/logger.utils.js';
+import {EPIQ_VERSION} from './version.js';
 import './logger.js';
 import {bootTui} from './boot-tui.js';
 
@@ -23,6 +24,7 @@ ${chalk.dim('Launch GUI:')}
 
 const cli = meow(helpText, {
 	importMeta: import.meta,
+	version: EPIQ_VERSION,
 	flags: {
 		init: {
 			type: 'boolean',
