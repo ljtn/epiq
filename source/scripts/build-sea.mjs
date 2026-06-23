@@ -19,7 +19,9 @@ import {dirname, resolve} from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
-const esbuild = resolve(root, 'node_modules/.bin/esbuild');
+// On Windows npm installs `esbuild.cmd` in .bin (no extensionless shim).
+const esbuildBin = platform === 'win32' ? 'esbuild.cmd' : 'esbuild';
+const esbuild = resolve(root, 'node_modules/.bin', esbuildBin);
 
 function run(cmd, opts = {}) {
 	console.log(`> ${cmd}`);
@@ -28,7 +30,13 @@ function run(cmd, opts = {}) {
 
 function runBin(bin, args, opts = {}) {
 	console.log(`> ${bin} ${args.join(' ')}`);
-	execFileSync(bin, args, {cwd: root, stdio: 'inherit', ...opts});
+	// .cmd shims (Windows) can't be run via execFileSync without a shell.
+	execFileSync(bin, args, {
+		cwd: root,
+		stdio: 'inherit',
+		shell: platform === 'win32',
+		...opts,
+	});
 }
 
 mkdirSync(resolve(root, 'dist'), {recursive: true});
