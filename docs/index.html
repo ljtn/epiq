@@ -59,9 +59,19 @@
 							from the commandline, browser, or editor.
 						</p>
 						<div class="actions">
-							<a class="btn primary" href="#install">
-								<span class="terminal-btn-text">npm install --global epiq</span>
-							</a>
+							<button
+								class="copy-cmd"
+								type="button"
+								data-copy="curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh"
+								aria-label="Copy curl install command"
+							>
+								<span class="copy-cmd-text"
+									><span class="accent">$</span>curl -fsSL
+									https://raw.githubusercontent.com/ljtn/epiq/main/install.sh |
+									sh</span
+								>
+								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+							</button>
 						</div>
 					</div>
 
@@ -325,14 +335,41 @@
 					<div class="kicker">Install</div>
 					<h3>Start in two commands.</h3>
 					<p>
-						Install globally, enter any Git repository, and run epiq. First
-						launch opens an interactive setup wizard. From there, use the
-						terminal board or launch the browser GUI.
+						Install the single binary then enter any Git repository and run
+						epiq. First launch opens an interactive setup wizard. Then either
+						stay in your terminal or launch the browser GUI.
 					</p>
+					<div class="actions">
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh"
+							aria-label="Copy curl install command"
+						>
+							<span class="copy-cmd-text"
+								><span class="accent">$</span>curl -fsSL
+								https://raw.githubusercontent.com/ljtn/epiq/main/install.sh |
+								sh</span
+							>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
+						<span class="or">or</span>
+						<button
+							class="copy-cmd"
+							type="button"
+							data-copy="npm install --global epiq"
+							aria-label="Copy npm install command"
+						>
+							<span class="copy-cmd-text"
+								><span class="accent">$</span>npm install --global epiq</span
+							>
+							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+						</button>
+					</div>
+					<div style="height: 12px"></div>
 					<pre
 						class="code"
-					><code><span class="g">npm install</span> --global epiq
-<span class="g">cd</span> your-existing-repo-with-remote-tracking
+					><code><span class="g">cd</span> your-existing-repo-with-remote-tracking
 <span class="g">epiq</span></code></pre>
 					<div style="height: 14px"></div>
 					<a class="btn primary" href="https://github.com/ljtn/epiq">
@@ -347,5 +384,44 @@
 				<div><code>:wq</code> and move on.</div>
 			</div>
 		</footer>
+
+		<script>
+			document.querySelectorAll('.copy-cmd').forEach(function (el) {
+				el.addEventListener('click', function () {
+					var cmd = el.getAttribute('data-copy') || '';
+					var ico = el.querySelector('.copy-cmd-ico');
+					var label = ico ? ico.textContent : '';
+
+					function done() {
+						el.classList.add('copied');
+						if (ico) ico.textContent = 'Copied';
+						setTimeout(function () {
+							el.classList.remove('copied');
+							if (ico) ico.textContent = label;
+						}, 1600);
+					}
+
+					if (navigator.clipboard && navigator.clipboard.writeText) {
+						navigator.clipboard.writeText(cmd).then(done, fallback);
+					} else {
+						fallback();
+					}
+
+					function fallback() {
+						var ta = document.createElement('textarea');
+						ta.value = cmd;
+						ta.style.position = 'fixed';
+						ta.style.opacity = '0';
+						document.body.appendChild(ta);
+						ta.select();
+						try {
+							document.execCommand('copy');
+							done();
+						} catch (e) {}
+						document.body.removeChild(ta);
+					}
+				});
+			});
+		</script>
 	</body>
 </html>

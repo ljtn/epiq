@@ -170,7 +170,8 @@ h1 {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 12px;
-	align-items: center;
+	flex-direction: column;
+	align-items: flex-start;
 }
 .terminal {
 	position: relative;
@@ -393,7 +394,7 @@ h2 {
 .code {
 	margin: 0;
 	padding: 18px;
-	border-radius: 18px;
+
 	background: rgba(0, 0, 0, 0.32);
 	border: 1px solid var(--line);
 	overflow: auto;
@@ -919,4 +920,66 @@ h2 {
 	.compare-grid {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* Copy-to-clipboard command */
+.copy-cmd {
+	display: inline-flex;
+	align-items: stretch;
+	max-width: 100%;
+	padding: 0 0 0 16px;
+	min-height: 48px;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	background: rgba(0, 0, 0, 0.34);
+	color: var(--text);
+	font: 14px var(--mono);
+	letter-spacing: -0.02em;
+	cursor: pointer;
+	text-align: left;
+	transition: border-color 0.18s ease, background 0.18s ease;
+}
+.copy-cmd:hover {
+	border-color: rgba(255, 255, 255, 0.26);
+	background: rgba(0, 0, 0, 0.5);
+}
+.copy-cmd:nth-of-type(2n) .copy-cmd-text {
+	color: #727283;
+}
+.copy-cmd-text {
+	display: flex;
+	align-items: center;
+	overflow-x: auto;
+	white-space: nowrap;
+	padding: 12px 14px 12px 0;
+	scrollbar-width: none;
+}
+.copy-cmd-text::-webkit-scrollbar {
+	display: none;
+}
+.copy-cmd-text .accent {
+	margin-right: 8px;
+}
+.copy-cmd-ico {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	padding: 0 16px;
+	color: var(--cyan);
+	border-left: 1px solid var(--line);
+	background: rgba(255, 255, 255, 0.04);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	white-space: nowrap;
+	min-width: 90px;
+	justify-content: center;
+}
+.copy-cmd.copied .copy-cmd-ico {
+	color: #6ee787;
+}
+.or {
+	color: var(--dim);
+	font: 13px var(--mono);
+	padding: 0 2px;
 }
