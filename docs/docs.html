@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -32,7 +32,7 @@
 					>
 				</a>
 				<div class="links">
-					<a href="./index.html#install">Install</a>
+					<a href="./index.html">Overview</a>
 					<a class="active" href="./docs.html" aria-current="page">Docs</a>
 					<a class="btn" href="https://github.com/ljtn/epiq">GitHub</a>
 				</div>
@@ -721,11 +721,11 @@
 		<script>
 			(function () {
 				var links = Array.prototype.slice.call(
-					document.querySelectorAll('.docs-side a'),
+					document.querySelectorAll(".docs-side a"),
 				);
 				var sections = links
 					.map(function (a) {
-						return document.getElementById(a.getAttribute('href').slice(1));
+						return document.getElementById(a.getAttribute("href").slice(1));
 					})
 					.filter(Boolean);
 
@@ -740,7 +740,7 @@
 					if (id === activeId) return;
 					activeId = id;
 					links.forEach(function (a) {
-						a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+						a.classList.toggle("active", a.getAttribute("href") === "#" + id);
 					});
 				}
 
@@ -775,8 +775,8 @@
 					});
 				}
 
-				window.addEventListener('scroll', onScroll, {passive: true});
-				window.addEventListener('resize', onScroll);
+				window.addEventListener("scroll", onScroll, { passive: true });
+				window.addEventListener("resize", onScroll);
 				update();
 			})();
 		</script>

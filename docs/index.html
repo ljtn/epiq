@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -35,7 +35,9 @@
 					>
 				</a>
 				<div class="links">
-					<a href="#install">Install</a>
+					<a class="active" class href="#index.html" aria-current="page"
+						>Overview</a
+					>
 					<a href="./docs.html">Docs</a>
 					<a class="btn" href="https://github.com/ljtn/epiq">GitHub</a>
 				</div>
@@ -383,17 +385,17 @@
 		</footer>
 
 		<script>
-			document.querySelectorAll('.copy-cmd').forEach(function (el) {
-				el.addEventListener('click', function () {
-					var cmd = el.getAttribute('data-copy') || '';
-					var ico = el.querySelector('.copy-cmd-ico');
-					var label = ico ? ico.textContent : '';
+			document.querySelectorAll(".copy-cmd").forEach(function (el) {
+				el.addEventListener("click", function () {
+					var cmd = el.getAttribute("data-copy") || "";
+					var ico = el.querySelector(".copy-cmd-ico");
+					var label = ico ? ico.textContent : "";
 
 					function done() {
-						el.classList.add('copied');
-						if (ico) ico.textContent = 'Copied';
+						el.classList.add("copied");
+						if (ico) ico.textContent = "Copied";
 						setTimeout(function () {
-							el.classList.remove('copied');
+							el.classList.remove("copied");
 							if (ico) ico.textContent = label;
 						}, 1600);
 					}
@@ -405,14 +407,14 @@
 					}
 
 					function fallback() {
-						var ta = document.createElement('textarea');
+						var ta = document.createElement("textarea");
 						ta.value = cmd;
-						ta.style.position = 'fixed';
-						ta.style.opacity = '0';
+						ta.style.position = "fixed";
+						ta.style.opacity = "0";
 						document.body.appendChild(ta);
 						ta.select();
 						try {
-							document.execCommand('copy');
+							document.execCommand("copy");
 							done();
 						} catch (e) {}
 						document.body.removeChild(ta);
