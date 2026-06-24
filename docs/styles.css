@@ -541,7 +541,7 @@ h2 {
 @media (max-width: 900px) {
 	.hero-grid,
 	.split {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 	.cards,
 	.section-head {
@@ -562,18 +562,25 @@ h2 {
 		padding-top: 52px;
 	}
 	.board {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 	.col {
 		min-height: auto;
 	}
 	.cards,
 	.logos {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 	.footer-inner {
 		align-items: start;
 		flex-direction: column;
+	}
+	.actions {
+		align-self: stretch;
+	}
+	.copy-cmd {
+		display: flex;
+		width: 100%;
 	}
 }
 
@@ -947,15 +954,13 @@ h2 {
 	color: #727283;
 }
 .copy-cmd-text {
-	display: flex;
-	align-items: center;
-	overflow-x: auto;
+	display: block;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 	padding: 12px 14px 12px 0;
-	scrollbar-width: none;
-}
-.copy-cmd-text::-webkit-scrollbar {
-	display: none;
+	line-height: 24px;
 }
 .copy-cmd-text .accent {
 	margin-right: 8px;
