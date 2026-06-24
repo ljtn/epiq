@@ -105,7 +105,20 @@ run(`node --experimental-sea-config source/config/sea-config.json`);
 console.log('\n[5/6] Assembling binary...');
 const exeSuffix = platform === 'win32' ? '.exe' : '';
 const outBin = resolve(root, `dist/epiq${exeSuffix}`);
-copyFileSync(process.execPath, outBin);
+// Base Node binary the SEA blob is injected into. Defaults to the running
+// Node, but EPIQ_SEA_NODE lets us cross-build for another architecture by
+// pointing at a Node binary for that arch. The SEA blob itself is
+// architecture-independent here because sea-config.json enables neither
+// useSnapshot nor useCodeCache, so it can be injected into any same-version
+// Node binary.
+const baseNode = process.env.EPIQ_SEA_NODE
+	? resolve(process.env.EPIQ_SEA_NODE)
+	: process.execPath;
+const isCrossBuild = baseNode !== process.execPath;
+console.log(
+	`Base Node: ${baseNode}${isCrossBuild ? ' (cross-build)' : ''}`,
+);
+copyFileSync(baseNode, outBin);
 chmodSync(outBin, 0o755);
 
 if (platform === 'darwin') {
@@ -129,6 +142,13 @@ if (platform === 'darwin') {
 
 // 6. Verify
 console.log('\n[6/6] Verifying...');
-run(`"${outBin}" --version`);
+if (isCrossBuild) {
+	// The binary targets a different architecture than this host, so it may
+	// not run here. The release workflow verifies it separately (an arch
+	// check plus a best-effort Rosetta smoke test).
+	console.log('Cross-build: skipping native --version check.');
+} else {
+	run(`"${outBin}" --version`);
+}
 
 console.log(`\nDone! Binary at ${outBin}`);

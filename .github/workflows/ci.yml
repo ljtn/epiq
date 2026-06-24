@@ -45,9 +45,6 @@ jobs:
           - os: macos-latest
             artifact: epiq-macos-arm64
             bin: epiq
-          - os: macos-13
-            artifact: epiq-macos-x64
-            bin: epiq
           - os: ubuntu-latest
             artifact: epiq-linux-x64
             bin: epiq
@@ -79,4 +76,59 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/${{ matrix.artifact }}
+          fail_on_unmatched_files: true
+
+  # macOS Intel (x64) is cross-built on the Apple-silicon runner rather than
+  # on a macos-13 Intel runner, whose hosted pool is scarce and was the cause
+  # of release jobs timing out for 24h while awaiting a runner. The SEA blob is
+  # architecture-independent, so we inject it into an x64 Node binary.
+  release-macos-x64:
+    name: Release epiq-macos-x64
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    permissions:
+      contents: write
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download matching x64 Node
+        run: |
+          NODE_VERSION="$(node -p 'process.version')"
+          curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-x64.tar.gz" -o /tmp/node-x64.tar.gz
+          mkdir -p /tmp/node-x64
+          tar -xzf /tmp/node-x64.tar.gz -C /tmp/node-x64 --strip-components=1
+
+      - name: Build x64 binary
+        run: npm run build:binary
+        env:
+          EPIQ_SEA_NODE: /tmp/node-x64/bin/node
+
+      - name: Verify architecture
+        run: |
+          file dist/epiq
+          file dist/epiq | grep -q x86_64 || { echo "::error::built binary is not x86_64"; exit 1; }
+          # Best-effort runtime smoke test via Rosetta (present on GitHub's
+          # macOS Apple-silicon runners). The arch check above is the hard gate.
+          if arch -x86_64 dist/epiq --version; then
+            echo "Rosetta smoke test passed."
+          else
+            echo "::warning::Rosetta smoke test unavailable; relying on the arch check."
+          fi
+
+      - name: Rename artifact
+        run: mv dist/epiq dist/epiq-macos-x64
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/epiq-macos-x64
           fail_on_unmatched_files: true
