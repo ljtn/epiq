@@ -4,6 +4,8 @@ _Distributed terminal-native issue tracker backed by Git._
 
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-Epiq-pink?logo=github)](https://github.com/sponsors/ljtn)
 
+📖 **[Read the docs →](https://ljtn.github.io/epiq/)**
+
 Issue tracking is a core part of software development, but it often becomes a painful context-switching exercise with poor ergonomics. Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
 
 > Manage your projects in a visual terminal kanban board (or through the browser GUI), while keeping all state local, Git-backed, and versioned.
@@ -27,7 +29,7 @@ Epiq is a self hosted, vim-inspired issue tracker that brings developer experien
 
 ## Why Epiq?
 
-Most issue trackers live outside your workflow. Epiq brings issue tracking where you already work - you editor.
+Most issue trackers live outside your workflow. Epiq brings issue tracking where you already work - your editor.
 
 These design choices result in a system that is:
 
@@ -64,7 +66,7 @@ Binary:
 curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh
 ```
 
-Installs to `~/.local/bin` by default. Override with `EPIQ_INSTALL_DIR` (or `XDG_BIN_HOME`); pin a version with `EPIQ_VERSION=v0.7.5`.
+Installs to `~/.local/bin` by default. Override with `EPIQ_INSTALL_DIR` (or `XDG_BIN_HOME`); pin a version with `EPIQ_VERSION=v1.0.0`.
 
 ### Via npm
 
@@ -86,7 +88,7 @@ epiq --version
 
 ```bash
 # If needed:
-Git init
+git init
 # For collaboration, use a repo with a remote (e.g. clone from GitHub)
 ```
 

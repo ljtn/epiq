@@ -1,9 +1,9 @@
 {
 	"name": "epiq",
-	"version": "0.7.10",
+	"version": "1.0.0",
 	"license": "MIT",
 	"type": "module",
-	"description": "EPIQ - CLI based issue tracker",
+	"description": "EPIQ - ergonomic, distributed CLI-first issue tracker TUI ready for the agentic era",
 	"keywords": [
 		"issue-tracker",
 		"task-manager",
