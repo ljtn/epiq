@@ -989,6 +989,23 @@ h2 {
 	padding: 0 2px;
 }
 
+/* GitHub button with live star count */
+.github-stars .stars {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding-left: 10px;
+	border-left: 1px solid var(--line);
+}
+.github-stars .star-ico {
+	display: block;
+	color: #e3b341;
+}
+.github-stars .star-count {
+	font: 13px var(--mono);
+	letter-spacing: -0.02em;
+}
+
 /* Active nav link */
 .links a.active {
 	color: var(--text);
