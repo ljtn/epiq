@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>epiq — docs</title>
+
+		<meta
+			name="description"
+			content="Epiq documentation: install, getting started, navigation, the full command reference, filtering, time travel, Git sync, and MCP agent integration."
+		/>
+
+		<meta name="theme-color" content="#090a0f" />
+
+		<meta property="og:title" content="Epiq — Documentation" />
+		<meta
+			property="og:description"
+			content="Install, getting started, command reference, keyboard shortcuts, sync, and MCP integration for the Git-backed issue tracker."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:image" content="https://ljtn.github.io/epiq/og.jpeg" />
+
+		<link rel="icon" href="./favicon.ico" sizes="any" />
+		<link rel="stylesheet" href="./styles.css" />
+	</head>
+	<body>
+		<nav class="nav">
+			<div class="wrap nav-inner">
+				<a class="brand" href="./index.html" aria-label="epiq home">
+					<span
+						><span class="accent" style="margin-right: 2px">:</span>epiq</span
+					>
+				</a>
+				<div class="links">
+					<a href="./index.html#install">Install</a>
+					<a class="active" href="./docs.html" aria-current="page">Docs</a>
+					<a class="btn" href="https://github.com/ljtn/epiq">GitHub</a>
+				</div>
+			</div>
+		</nav>
+
+		<main id="top">
+			<header class="docs-head wrap">
+				<div class="kicker">Documentation</div>
+				<h1>How it works</h1>
+				<p class="lead">
+					This page covers installation, the core model, every command, keyboard
+					shortcuts, synchronization, and agent integration.
+				</p>
+			</header>
+
+			<div class="wrap docs-layout">
+				<aside class="docs-side" aria-label="Documentation sections">
+					<span class="grp">Start</span>
+					<a href="#install">Installation</a>
+					<a href="#getting-started">Getting started</a>
+					<a href="#concepts">Core concepts</a>
+
+					<span class="grp">Using epiq</span>
+					<a href="#navigation">Navigation &amp; shortcuts</a>
+					<a href="#commands">Command reference</a>
+					<a href="#filtering">Filtering</a>
+					<a href="#workflow">Closing &amp; reopening</a>
+					<a href="#time-travel">Time travel</a>
+					<a href="#config">Configuration</a>
+
+					<span class="grp">Collaboration</span>
+					<a href="#sync">Sync &amp; Git</a>
+					<a href="#mcp">MCP &amp; agents</a>
+					<a href="#export">Export</a>
+				</aside>
+
+				<div class="docs-content">
+					<!-- Installation -->
+					<section id="install" class="docs-section">
+						<h2>Installation</h2>
+						<p>
+							Epiq ships as a single binary (with an npm package alternative).
+							The binary installs to <code>~/.local/bin</code> by default.
+						</p>
+
+						<h3>Quick install (binary)</h3>
+						<pre
+							class="code"
+						><code><span class="g">curl</span> -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh</code></pre>
+						<p>
+							Override the location with <code>EPIQ_INSTALL_DIR</code> (or
+							<code>XDG_BIN_HOME</code>), and pin a version with
+							<code>EPIQ_VERSION=v0.7.5</code>.
+						</p>
+
+						<h3>Via npm</h3>
+						<pre
+							class="code"
+						><code><span class="g">npm</span> install --global epiq</code></pre>
+
+						<h3>Verify</h3>
+						<pre
+							class="code"
+						><code><span class="g">epiq</span> --version</code></pre>
+					</section>
+
+					<!-- Getting started -->
+					<section id="getting-started" class="docs-section">
+						<h2>Getting started in two steps</h2>
+						<p>
+							Epiq lives inside a Git repository — your issues can live where
+							your code lives.
+						</p>
+						<ol>
+							<li>
+								Make sure you are inside a Git repository. For collaboration,
+								use a repo with a remote (e.g. cloned from GitHub).
+								<pre class="code"><code><span class="c"># if needed</span>
+<span class="g">git</span> init</code></pre>
+							</li>
+							<li>
+								Run epiq:
+								<pre class="code"><code><span class="g">epiq</span></code></pre>
+							</li>
+						</ol>
+						<p>
+							On first run this opens an interactive setup wizard that gets you
+							going in about 30 seconds. Once your project is set up, you can
+							also launch the browser GUI:
+						</p>
+						<pre class="code"><code><span class="b">epiq gui</span></code></pre>
+
+						<div class="docs-note">
+							<strong>What gets created.</strong> The setup wizard writes user
+							config to <code>~/.epiq-global/config.json</code>. Initialization
+							adds a project definition at <code>./.epiq/project.json</code>,
+							authoritative Git state at
+							<code>~/.epiq-global/worktrees/&lt;id&gt;</code>, and updates your
+							<code>.gitignore</code> to ignore local-only
+							<code>.epiq/log/</code>.
+						</div>
+					</section>
+
+					<!-- Core concepts -->
+					<section id="concepts" class="docs-section">
+						<h2>Core concepts</h2>
+
+						<h3>The hierarchy</h3>
+						<p>
+							State is a tree of nodes. From the top down:
+							<strong>workspace</strong> → <strong>board</strong> →
+							<strong>swimlane</strong> → <strong>issue</strong>. Issues hold a
+							description, tags, assignees, comments, and a full history log.
+							Commands are <strong>context-aware</strong> — for instance
+							<code>:close</code> only exists for issues.
+						</p>
+
+						<h3>Event-sourced state</h3>
+						<p>
+							Every change is stored as an <strong>append-only event</strong> in
+							a user-scoped log, rather than mutating a shared file. The current
+							state is materialized in memory by replaying a merge of all user
+							logs in a deterministic order (time-sortable ULIDs plus a
+							reference to the last known event). This makes concurrent edits
+							converge to the same state and keeps Git merges trivial.
+						</p>
+
+						<h3>Local-first</h3>
+						<p>
+							All operations apply instantly on your machine. Synchronization
+							happens explicitly with <code>:sync</code> or automatically. When
+							histories diverge, merging the event logs and replaying them leads
+							to a consistent state.
+						</p>
+					</section>
+
+					<!-- Navigation -->
+					<section id="navigation" class="docs-section">
+						<h2>Navigation &amp; keyboard shortcuts</h2>
+						<p>
+							Epiq is keyboard-first and vim-inspired. Navigate with arrow keys
+							or <kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd>, enter a
+							node with <kbd>Enter</kbd>, and step back out with <kbd>q</kbd> or
+							<kbd>Esc</kbd>. The two things to always remember: type
+							<kbd>:help</kbd> for help, and press <kbd>?</kbd> anytime to open
+							the command palette with every available command.
+						</p>
+
+						<table class="cmd-table">
+							<thead>
+								<tr>
+									<th>Key</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										<kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> /
+										<kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd>
+									</td>
+									<td>Navigate between items and containers</td>
+								</tr>
+								<tr>
+									<td><kbd>Enter</kbd></td>
+									<td>Confirm / enter the selected node's context</td>
+								</tr>
+								<tr>
+									<td><kbd>q</kbd> / <kbd>Esc</kbd></td>
+									<td>Exit the current context (navigate out)</td>
+								</tr>
+								<tr>
+									<td><kbd>:</kbd></td>
+									<td>Focus the command line</td>
+								</tr>
+								<tr>
+									<td><kbd>?</kbd></td>
+									<td>Open the command palette</td>
+								</tr>
+								<tr>
+									<td><kbd>n</kbd></td>
+									<td>New item (prefills <code>:new</code>)</td>
+								</tr>
+								<tr>
+									<td><kbd>d</kbd></td>
+									<td>Delete the selected node</td>
+								</tr>
+								<tr>
+									<td><kbd>r</kbd></td>
+									<td>Rename the selected node's title</td>
+								</tr>
+								<tr>
+									<td><kbd>e</kbd></td>
+									<td>Edit the description</td>
+								</tr>
+								<tr>
+									<td><kbd>m</kbd></td>
+									<td>
+										Toggle move mode (navigate, then <kbd>m</kbd> to confirm)
+									</td>
+								</tr>
+								<tr>
+									<td><kbd>↑</kbd> in command line</td>
+									<td>Recall the previous command from history</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<div class="docs-note">
+							<strong>Pro tip.</strong> Like any terminal, press <kbd>↑</kbd> in
+							command mode to reuse your last command — a huge time-saver for
+							repetitive tasks such as creating similar issues or tagging many
+							tickets.
+						</div>
+					</section>
+
+					<!-- Commands -->
+					<section id="commands" class="docs-section">
+						<h2>Command reference</h2>
+						<p>
+							Type <kbd>:</kbd> to enter command-line mode, then a command.
+							Commands accept a <span class="opt">modifier</span> (in violet)
+							and a free-text <span class="arg">argument</span>. Autocompletion
+							suggests valid modifiers as you type, and the set of available
+							commands depends on what is selected.
+						</p>
+
+						<h3>Create &amp; edit</h3>
+						<table class="cmd-table">
+							<thead>
+								<tr>
+									<th>Command</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>new
+											<span class="opt">issue|swimlane|board</span>
+											<span class="arg">&lt;name&gt;</span></code
+										>
+									</td>
+									<td>Create a new board, swimlane, or issue</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>edit
+											<span class="opt">title</span>
+											<span class="arg">&lt;text&gt;</span></code
+										>
+									</td>
+									<td>Rename the selected node inline</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>edit
+											<span class="opt">description</span></code
+										>
+									</td>
+									<td>
+										Open the description of the selected issue in your preferred
+										external editor (no inline text — also bound to
+										<kbd>e</kbd>)
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>edit
+											<span class="opt">comment</span>
+											<span class="arg">&lt;text&gt;</span></code
+										>
+									</td>
+									<td>
+										Edit the currently selected comment inline (only your own
+										comments)
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>comment
+											<span class="arg">&lt;text&gt;</span></code
+										>
+									</td>
+									<td>Add a comment to the selected issue</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>delete</code>
+									</td>
+									<td>Delete the currently selected node</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>move</code>
+									</td>
+									<td>
+										Move a node — usually triggered with <kbd>m</kbd>, then
+										navigate and confirm
+									</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<h3>Issue workflow</h3>
+						<table class="cmd-table">
+							<thead>
+								<tr>
+									<th>Command</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>tag
+											<span class="arg">&lt;name&gt;</span></code
+										>
+									</td>
+									<td>Add or create a tag on the selected issue</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>untag
+											<span class="arg">&lt;name&gt;</span></code
+										>
+									</td>
+									<td>Remove a tag from the selected issue</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>assign
+											<span class="arg">&lt;name&gt;</span></code
+										>
+									</td>
+									<td>Assign a user to the selected issue</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>unassign
+											<span class="arg">&lt;name&gt;</span></code
+										>
+									</td>
+									<td>Remove an assignee from the selected issue</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>close</code>
+									</td>
+									<td>
+										Move the selected issue to the
+										<strong>Closed</strong> swimlane
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>reopen</code>
+									</td>
+									<td>Move a closed issue back to its previous swimlane</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<h3>View &amp; history</h3>
+						<table class="cmd-table">
+							<thead>
+								<tr>
+									<th>Command</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>filter
+											<span class="opt"
+												>tag|assignee|description|title|clear</span
+											>
+											<span class="arg">&lt;value&gt;</span></code
+										>
+									</td>
+									<td>
+										Filter the board; combine filters by running several in
+										succession
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>peek
+											<span class="opt"
+												>&lt;offset&gt;|&lt;date&gt;|now|prev|next</span
+											></code
+										>
+									</td>
+									<td>
+										View the board's state at another point in time. Offset is
+										<code>&lt;n&gt;h</code>, <code>d</code>, <code>w</code>,
+										<code>mo</code>, or <code>y</code> (e.g. <code>3d</code>);
+										or an absolute <code>YYYY-MM-DD</code> date
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>export</code>
+									</td>
+									<td>Export the current board layout to markdown</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<h3>System &amp; sync</h3>
+						<table class="cmd-table">
+							<thead>
+								<tr>
+									<th>Command</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>sync</code>
+									</td>
+									<td>Pull, commit, and push Epiq state via Git</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>config
+											<span class="opt"
+												>editor|username|view|autoSync|syncDebounceMs|logLevel</span
+											>
+											<span class="arg">&lt;value&gt;</span></code
+										>
+									</td>
+									<td>
+										Update editor, username, view, auto-sync, sync debounce, or
+										log level
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>init</code>
+									</td>
+									<td>Initialize Epiq in the current Git repository</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>help</code>
+									</td>
+									<td>Open the help screen</td>
+								</tr>
+								<tr>
+									<td>
+										<code><span class="accent">:</span>exit</code>
+									</td>
+									<td>Exit the application</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>coffee
+											<span class="opt">1|3|5|20|custom</span></code
+										>
+									</td>
+									<td>Sponsor the development of Epiq ☕</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<!-- Filtering -->
+					<section id="filtering" class="docs-section">
+						<h2>Filtering</h2>
+						<p>
+							Apply a filter with <code>:filter</code> followed by a target and
+							a value. To show every issue carrying an <code>urgent</code> tag:
+						</p>
+						<pre
+							class="code"
+						><code><span class="b">:filter tag</span> urgent</code></pre>
+						<p>
+							Run several <code>:filter</code> commands in succession to build a
+							combination. Targets are <code>tag</code>, <code>assignee</code>,
+							<code>description</code>, and <code>title</code>. Clear everything
+							with:
+						</p>
+						<pre
+							class="code"
+						><code><span class="b">:filter clear</span></code></pre>
+					</section>
+
+					<!-- Workflow -->
+					<section id="workflow" class="docs-section">
+						<h2>Closing &amp; reopening</h2>
+						<p>
+							Close an issue with <code>:close</code>. This moves it to a
+							special board named <strong>Closed</strong>, which you can reach
+							by navigating up (press <kbd>q</kbd>) a few times.
+						</p>
+						<p>
+							To bring it back, open the <strong>Closed</strong> board, select
+							the issue, and run <code>:reopen</code>. The issue is restored to
+							its previous location, resolved from its history log.
+						</p>
+					</section>
+
+					<!-- Time travel -->
+					<section id="time-travel" class="docs-section">
+						<h2>Time travel</h2>
+						<p>
+							Because state is a full event log, you can inspect the board as it
+							was at any point in the past. Use <code>:peek</code> with a time
+							offset, or step through history:
+						</p>
+						<pre
+							class="code"
+						><code><span class="c"># jump to an offset: h, d, w, mo, y (e.g. 3 days ago)</span>
+<span class="b">:peek</span> 3d
+
+<span class="c"># or jump to an absolute date</span>
+<span class="b">:peek</span> 2026-01-15
+
+<span class="c"># step backward / forward through history</span>
+<span class="b">:peek</span> prev
+<span class="b">:peek</span> next
+
+<span class="c"># return to the present</span>
+<span class="b">:peek</span> now</code></pre>
+						<p>
+							While peeking, the board is read-only; only viewing, exporting,
+							and configuration are available.
+						</p>
+					</section>
+
+					<!-- Config -->
+					<section id="config" class="docs-section">
+						<h2>Configuration</h2>
+						<p>
+							Adjust settings with
+							<code>:config &lt;setting&gt; &lt;value&gt;</code>.
+						</p>
+						<table class="cmd-table">
+							<thead>
+								<tr>
+									<th>Setting</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td><code>editor</code></td>
+									<td>Preferred external editor for descriptions</td>
+								</tr>
+								<tr>
+									<td><code>username</code></td>
+									<td>Your display name on events and assignments</td>
+								</tr>
+								<tr>
+									<td><code>view</code> <span class="opt">wide|dense</span></td>
+									<td>Board layout density</td>
+								</tr>
+								<tr>
+									<td><code>autoSync</code> <span class="opt">on|off</span></td>
+									<td>Enable or disable automatic synchronization</td>
+								</tr>
+								<tr>
+									<td>
+										<code>syncDebounceMs</code>
+										<span class="arg">&lt;ms&gt;</span>
+									</td>
+									<td>
+										Debounce window for auto-sync in milliseconds (e.g. 5000,
+										15000, 30000)
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code>logLevel</code>
+										<span class="opt">debug|info|error</span>
+									</td>
+									<td>Logging verbosity</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<!-- Sync -->
+					<section id="sync" class="docs-section">
+						<h2>Sync &amp; Git</h2>
+						<p>
+							Epiq uses Git in the background — no manual Git commands required.
+							Running <code>:sync</code> synchronizes changes between your local
+							state (at <code>~/.epiq-global/worktrees/&lt;id&gt;/</code>) and
+							the remote. By using Git worktrees, synchronization stays isolated
+							from your regular development workflow.
+						</p>
+						<p>
+							Changes are append-only events in user-scoped files, so Git merges
+							become trivial combinations of independent files. Later events
+							take precedence when conflicts occur, and idempotent events keep
+							concurrent updates predictable.
+						</p>
+						<div class="docs-note">
+							<strong>Tip.</strong> Frequent synchronization reduces divergence
+							and keeps the system predictable. Enable
+							<code>:config autoSync on</code> to sync automatically.
+						</div>
+					</section>
+
+					<!-- MCP -->
+					<section id="mcp" class="docs-section">
+						<h2>MCP &amp; agents</h2>
+						<p>
+							Epiq ships an MCP (Model Context Protocol) server via the
+							<code>epiq-mcp</code> binary, so AI agents can interact with your
+							local instance.
+						</p>
+
+						<h3>Claude Code</h3>
+						<p>
+							The reliable way to register the server is with
+							<code>claude mcp add</code> — it writes the correct config for
+							you:
+						</p>
+						<pre
+							class="code"
+						><code><span class="c"># available everywhere (recommended)</span>
+<span class="g">claude</span> mcp add --scope user epiq -- npx -y -p epiq epiq-mcp
+
+<span class="c"># or only in the current project</span>
+<span class="g">claude</span> mcp add epiq -- npx -y -p epiq epiq-mcp</code></pre>
+						<p>
+							Verify with <code>claude mcp list</code> (it should report
+							<code>epiq … ✔ Connected</code>). MCP servers load at startup, so
+							<strong>restart Claude Code</strong> after adding the server.
+						</p>
+
+						<h3>Other MCP clients</h3>
+						<p>
+							For hand-configured clients, add the following to the client's MCP
+							config file:
+						</p>
+						<pre class="code"><code>{
+  <span class="p">"mcpServers"</span>: {
+    <span class="p">"epiq"</span>: {
+      <span class="p">"command"</span>: <span class="g">"npx"</span>,
+      <span class="p">"args"</span>: [<span class="g">"-y"</span>, <span class="g">"-p"</span>, <span class="g">"epiq"</span>, <span class="g">"epiq-mcp"</span>]
+    }
+  }
+}</code></pre>
+					</section>
+
+					<!-- Export -->
+					<section id="export" class="docs-section">
+						<h2>Export</h2>
+						<p>
+							Run <code>:export</code> to write the current board layout to a
+							markdown file — handy for sharing a snapshot, generating reports,
+							or feeding context to other tools.
+						</p>
+						<pre class="code"><code><span class="b">:export</span></code></pre>
+					</section>
+				</div>
+			</div>
+		</main>
+
+		<footer class="footer">
+			<div class="wrap footer-inner">
+				<div><code>:wq</code> and move on.</div>
+			</div>
+		</footer>
+
+		<script>
+			(function () {
+				var links = Array.prototype.slice.call(
+					document.querySelectorAll('.docs-side a'),
+				);
+				var sections = links
+					.map(function (a) {
+						return document.getElementById(a.getAttribute('href').slice(1));
+					})
+					.filter(Boolean);
+
+				if (!sections.length) return;
+
+				// Activate the section whose top has scrolled past this line below the
+				// sticky nav (matches the sections' scroll-margin-top).
+				var OFFSET = 100;
+				var activeId = null;
+
+				function setActive(id) {
+					if (id === activeId) return;
+					activeId = id;
+					links.forEach(function (a) {
+						a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+					});
+				}
+
+				function update() {
+					var current = sections[0];
+
+					for (var i = 0; i < sections.length; i++) {
+						if (sections[i].getBoundingClientRect().top <= OFFSET) {
+							current = sections[i];
+						}
+					}
+
+					// Snap to the last section once scrolled to the bottom, since short
+					// trailing sections may never cross the offset line.
+					if (
+						window.innerHeight + window.scrollY >=
+						document.documentElement.scrollHeight - 2
+					) {
+						current = sections[sections.length - 1];
+					}
+
+					setActive(current.id);
+				}
+
+				var ticking = false;
+				function onScroll() {
+					if (ticking) return;
+					ticking = true;
+					requestAnimationFrame(function () {
+						update();
+						ticking = false;
+					});
+				}
+
+				window.addEventListener('scroll', onScroll, {passive: true});
+				window.addEventListener('resize', onScroll);
+				update();
+			})();
+		</script>
+	</body>
+</html>
