@@ -11,6 +11,10 @@ type SyncStatusPillProps = {
 
 const SYNC_GRADIENT = ['#4c567a', '#9d7cd8', '#7aa2f7', '#7dcfff', '#9d7cd8'];
 
+const SYNC_FRAME_MS = 150;
+const SYNC_STEPS = 12;
+const SYNC_PHASE_RATE = 0.36;
+
 const hexToRgb = (hex: string) => {
 	const clean = hex.replace('#', '');
 
@@ -55,17 +59,25 @@ const getGradientColor = (colors: string[], progress: number) => {
 };
 
 export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
-	const [tick, setTick] = useState(0);
+	// Quantized gradient step (0..SYNC_STEPS-1). Re-rendering only happens when
+	// this value actually changes, so a slow terminal isn't repainted on every
+	// animation frame.
+	const [colorStep, setColorStep] = useState(0);
 
 	useEffect(() => {
 		if (syncStatus.status !== 'syncing') {
-			setTick(0);
+			setColorStep(0);
 			return;
 		}
 
+		let phase = 0;
 		const id = setInterval(() => {
-			setTick(prev => prev + 1);
-		}, 50);
+			phase += 1;
+			const progress = (Math.sin(phase * SYNC_PHASE_RATE) + 1) / 2;
+			const next = Math.round(progress * (SYNC_STEPS - 1));
+			// Returning the same value makes React bail out of the re-render.
+			setColorStep(prev => (prev === next ? prev : next));
+		}, SYNC_FRAME_MS);
 
 		return () => clearInterval(id);
 	}, [syncStatus.status]);
@@ -82,7 +94,7 @@ export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
 		failed: theme.yellow,
 		pending: theme.secondary2,
 		syncing:
-			getGradientColor(SYNC_GRADIENT, (Math.sin(tick * 0.12) + 1) / 2) ?? '',
+			getGradientColor(SYNC_GRADIENT, colorStep / (SYNC_STEPS - 1)) ?? '',
 	} satisfies Record<typeof syncStatus.status, string>;
 
 	const color = colorByStatus[syncStatus.status];
