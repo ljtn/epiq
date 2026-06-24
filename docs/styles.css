@@ -7,10 +7,12 @@
 	--violet: #c6a7ff;
 	--deepBlue: #2370dc;
 	--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
-	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-		'Liberation Mono', 'Courier New', monospace;
-	--sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-		'Segoe UI', sans-serif;
+	--mono:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+		"Courier New", monospace;
+	--sans:
+		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
 }
 
 * {
@@ -23,7 +25,8 @@ body {
 	margin: 0;
 	min-height: 100vh;
 	color: var(--text);
-	background: radial-gradient(
+	background:
+		radial-gradient(
 			circle at 18% 12%,
 			rgba(118, 180, 255, 0.1),
 			transparent 34rem
@@ -44,15 +47,13 @@ body {
 }
 
 body::before {
-	content: '';
+	content: "";
 	position: fixed;
 	inset: 0;
 	pointer-events: none;
 	opacity: 0.26;
-	background-image: linear-gradient(
-			rgba(255, 255, 255, 0.04) 1px,
-			transparent 1px
-		),
+	background-image:
+		linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
 		linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
 	background-size: 48px 48px;
 	mask-image: linear-gradient(to bottom, black, transparent 88%);
@@ -116,7 +117,9 @@ pre {
 	background: rgba(255, 255, 255, 0.06);
 	color: var(--text);
 	font-size: 14px;
-	transition: transform 0.18s ease, border-color 0.18s ease,
+	transition:
+		transform 0.18s ease,
+		border-color 0.18s ease,
 		background 0.18s ease;
 }
 .btn:hover {
@@ -182,7 +185,7 @@ h1 {
 	overflow: hidden;
 }
 .terminal::before {
-	content: '';
+	content: "";
 	position: absolute;
 	inset: -1px;
 	background: linear-gradient(
@@ -194,7 +197,9 @@ h1 {
 	);
 	opacity: 0.6;
 	pointer-events: none;
-	mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
 	mask-composite: exclude;
 	padding: 1px;
 }
@@ -271,7 +276,9 @@ h1 {
 	height: 1.15em;
 	background: var(--cyan);
 	transform: translateY(3px);
-	animation: blink 1.05s steps(2, jump-none) infinite, cursorHide 18s infinite;
+	animation:
+		blink 1.05s steps(2, jump-none) infinite,
+		cursorHide 18s infinite;
 }
 @keyframes blink {
 	50% {
@@ -514,27 +521,27 @@ h2 {
 }
 
 .vim-status::after {
-	content: '-- INSERT --';
+	content: "-- INSERT --";
 	animation: vimStatus 18s infinite;
 }
 
 @keyframes vimStatus {
 	0%,
 	76% {
-		content: '-- INSERT --';
+		content: "-- INSERT --";
 	}
 
 	77% {
-		content: ':';
+		content: ":";
 	}
 
 	78% {
-		content: ':w';
+		content: ":w";
 	}
 
 	79%,
 	100% {
-		content: ':wq';
+		content: ":wq";
 	}
 }
 
@@ -596,7 +603,10 @@ h2 {
 }
 
 .ticket {
-	transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.4s ease;
+	transition:
+		opacity 0.4s ease,
+		transform 0.4s ease,
+		border-color 0.4s ease;
 }
 
 .ticket:not(.feature) {
@@ -608,7 +618,7 @@ h2 {
 }
 
 .prompt-text::after {
-	content: '';
+	content: "";
 	animation: commandCycle 18s infinite;
 }
 
@@ -636,7 +646,7 @@ h2 {
 }
 
 .vim-body::after {
-	content: '';
+	content: "";
 	animation: vimTyping 18s infinite;
 }
 
@@ -652,60 +662,60 @@ h2 {
 @keyframes commandCycle {
 	0%,
 	7% {
-		content: '';
+		content: "";
 	}
 
 	8% {
-		content: 'f';
+		content: "f";
 	}
 	9% {
-		content: 'fi';
+		content: "fi";
 	}
 	10% {
-		content: 'filter';
+		content: "filter";
 	}
 	11.5% {
-		content: 'filter t';
+		content: "filter t";
 	}
 	12.5% {
-		content: 'filter tag';
+		content: "filter tag";
 	}
 	13.5% {
-		content: 'filter tag f';
+		content: "filter tag f";
 	}
 	14.5%,
 	30% {
-		content: 'filter tag feature';
+		content: "filter tag feature";
 	}
 
 	33%,
 	37% {
-		content: '';
+		content: "";
 	}
 
 	38% {
-		content: 'e';
+		content: "e";
 	}
 	39% {
-		content: 'ed';
+		content: "ed";
 	}
 	40% {
-		content: 'edit';
+		content: "edit";
 	}
 	42% {
-		content: 'edit d';
+		content: "edit d";
 	}
 	43% {
-		content: 'edit de';
+		content: "edit de";
 	}
 	44%,
 	80% {
-		content: 'edit description';
+		content: "edit description";
 	}
 
 	81%,
 	100% {
-		content: '';
+		content: "";
 	}
 }
 
@@ -783,91 +793,91 @@ h2 {
 @keyframes vimTyping {
 	0%,
 	54% {
-		content: '';
+		content: "";
 	}
 
 	54.5% {
-		content: 'I';
+		content: "I";
 	}
 	55% {
-		content: 'Imp';
+		content: "Imp";
 	}
 	55.5% {
-		content: 'Imple';
+		content: "Imple";
 	}
 	56% {
-		content: 'Implement';
+		content: "Implement";
 	}
 	56.5% {
-		content: 'Implement fil';
+		content: "Implement fil";
 	}
 	57% {
-		content: 'Implement filtered';
+		content: "Implement filtered";
 	}
 	57.5% {
-		content: 'Implement filtered boa';
+		content: "Implement filtered boa";
 	}
 	58% {
-		content: 'Implement filtered board';
+		content: "Implement filtered board";
 	}
 	58.5% {
-		content: 'Implement filtered board sta';
+		content: "Implement filtered board sta";
 	}
 	59% {
-		content: 'Implement filtered board state.';
+		content: "Implement filtered board state.";
 	}
 
 	60% {
-		content: 'Implement filtered board state.\A\AK';
+		content: "Implement filtered board state.\A\AK";
 	}
 	60.5% {
-		content: 'Implement filtered board state.\A\AKeep';
+		content: "Implement filtered board state.\A\AKeep";
 	}
 	61% {
-		content: 'Implement filtered board state.\A\AKeep inter';
+		content: "Implement filtered board state.\A\AKeep inter";
 	}
 	61.5% {
-		content: 'Implement filtered board state.\A\AKeep interaction';
+		content: "Implement filtered board state.\A\AKeep interaction";
 	}
 	62% {
-		content: 'Implement filtered board state.\A\AKeep interaction insta';
+		content: "Implement filtered board state.\A\AKeep interaction insta";
 	}
 	62.5% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,';
+		content: "Implement filtered board state.\A\AKeep interaction instant,";
 	}
 
 	64% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Asto';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Asto";
 	}
 	64.5% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the";
 	}
 	65% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change";
 	}
 	65.5% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as";
 	}
 	66% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,";
 	}
 
 	68% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A a';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A a";
 	}
 	68.5% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync";
 	}
 	69% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through";
 	}
 	70% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.";
 	}
 
 	78%,
 	100% {
-		content: 'Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.';
+		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.";
 	}
 }
 
@@ -944,7 +954,9 @@ h2 {
 	letter-spacing: -0.02em;
 	cursor: pointer;
 	text-align: left;
-	transition: border-color 0.18s ease, background 0.18s ease;
+	transition:
+		border-color 0.18s ease,
+		background 0.18s ease;
 }
 .copy-cmd:hover {
 	border-color: rgba(255, 255, 255, 0.26);
@@ -999,7 +1011,7 @@ h2 {
 }
 .github-stars .star-ico {
 	display: block;
-	color: #e3b341;
+	/* color: #e3b341; */
 }
 .github-stars .star-count {
 	font: 13px var(--mono);
@@ -1057,7 +1069,7 @@ h2 {
 	color: var(--text);
 }
 .docs-side a.active::before {
-	content: '';
+	content: "";
 	position: absolute;
 	left: -17px;
 	top: 5px;
