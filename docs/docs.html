@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -108,7 +108,7 @@
 						<p>
 							Override the location with <code>EPIQ_INSTALL_DIR</code> (or
 							<code>XDG_BIN_HOME</code>), and pin a version with
-							<code>EPIQ_VERSION=v0.7.5</code>.
+							<code>EPIQ_VERSION=v1.0.0</code>.
 						</p>
 
 						<h3>Via npm</h3>
@@ -743,7 +743,7 @@
 		<script>
 			(function () {
 				var links = Array.prototype.slice.call(
-					document.querySelectorAll(".docs-side a"),
+					document.querySelectorAll(".docs-side a")
 				);
 				var sections = links
 					.map(function (a) {
@@ -812,8 +812,8 @@
 				function formatCount(n) {
 					if (n < 1000) return String(n);
 					var units = [
-						{v: 1e6, s: "m"},
-						{v: 1e3, s: "k"},
+						{ v: 1e6, s: "m" },
+						{ v: 1e3, s: "k" },
 					];
 					for (var i = 0; i < units.length; i++) {
 						if (n >= units[i].v) {
@@ -871,7 +871,7 @@
 									JSON.stringify({
 										count: data.stargazers_count,
 										ts: Date.now(),
-									}),
+									})
 								);
 							} catch (e) {}
 						}
