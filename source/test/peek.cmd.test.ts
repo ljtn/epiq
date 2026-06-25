@@ -36,6 +36,15 @@ vi.mock('../lib/state/state.js', () => ({
 
 vi.mock('../lib/command-line/validate-date.js', () => ({
 	parsePeekDateInput: vi.fn(),
+	parsePeekArgs: vi.fn((modifier: string, inputString: string) => ({
+		dateInput: modifier || (inputString ?? ''),
+		isReplay: false,
+	})),
+}));
+
+vi.mock('../lib/command-line/commands/peek-replay.js', () => ({
+	cancelActiveReplay: vi.fn(),
+	startReplay: vi.fn(),
 }));
 
 import {getRepoRootDir, getStateBranchRoot} from '../git/git-storage.js';
@@ -122,6 +131,7 @@ describe('peekCommand', () => {
 			readOnly: false,
 			timeMode: 'live',
 			unappliedEvents: [],
+			replay: null,
 		});
 
 		if (isFail(result)) return result;
@@ -156,6 +166,7 @@ describe('peekCommand', () => {
 			readOnly: true,
 			timeMode: 'peek',
 			unappliedEvents: [{id: '2'}],
+			replay: null,
 		});
 
 		expect(navigationUtils.navigate).toHaveBeenCalled();
@@ -192,6 +203,7 @@ describe('peekCommand', () => {
 			readOnly: true,
 			timeMode: 'peek',
 			unappliedEvents: [],
+			replay: null,
 		});
 
 		expect(isSuccess(result)).toBe(true);

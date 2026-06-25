@@ -91,6 +91,32 @@ export const parsePeekDateInput = (input: string): Date | null => {
 	return parseOffset(raw) ?? parseDate(raw);
 };
 
+export const REPLAY_KEYWORD = 'play';
+
+export type PeekArgs = {
+	dateInput: string;
+	isReplay: boolean;
+};
+
+// `:peek <when> play` replays the board forward from `<when>`. For offsets and
+// `prev`/`next` the `<when>` token is captured as the `modifier`, so only `play`
+// lands in `inputString`. For absolute dates the modifier is empty and the whole
+// `<date> play` tail is the `inputString`, so the date has to be separated from
+// the trailing keyword here. Returns the bare date input plus the replay flag.
+export const parsePeekArgs = (
+	modifier: string,
+	inputString: string,
+): PeekArgs => {
+	const tokens = (inputString ?? '').trim().split(/\s+/).filter(Boolean);
+	const isReplay = tokens.includes(REPLAY_KEYWORD);
+	const dateTokens = tokens.filter(token => token !== REPLAY_KEYWORD);
+
+	return {
+		dateInput: modifier || dateTokens.join(' '),
+		isReplay,
+	};
+};
+
 export const isDateWithinPeekHorizon = ({
 	date,
 	horizonDate,

@@ -132,6 +132,48 @@ const formatUser = (userName: string): string => {
 	return padVisibleEnd(`${userName}`, USER_COL_WIDTH);
 };
 
+// Plain-text (no ANSI) version of an event's detail, suitable for ellipsising.
+const formatEventDetailsPlain = (event: AppEvent): string => {
+	switch (event.action) {
+		case 'add.issue.tag':
+		case 'remove.issue.tag': {
+			const tag = getState().tags[event.payload.tag];
+			return tag ? tag.name : '';
+		}
+
+		case 'add.issue.assignee':
+		case 'remove.issue.assignee': {
+			const contributor = getState().contributors[event.payload.assignee];
+			return contributor ? contributor.name : '';
+		}
+
+		case 'add.board':
+		case 'add.swimlane':
+		case 'add.issue':
+		case 'add.field':
+		case 'create.tag':
+		case 'create.contributor':
+		case 'edit.title':
+			return 'name' in event.payload ? `"${event.payload.name}"` : '';
+
+		case 'move.node': {
+			const parent = nodeRepo.getNode(event.payload.parent);
+			return parent ? `to ${parent.title}` : '';
+		}
+
+		default:
+			return '';
+	}
+};
+
+// A short, colorless, single-line summary of an event — e.g. `Created with
+// title "Ship v2"` — reusing the same phrasing as the ticket history. Used by
+// the replay scrubber's topbar caption, which ellipsises it to fit.
+export const describeEvent = (event: AppEvent): string =>
+	[formatLogAction(event.action), formatEventDetailsPlain(event)]
+		.filter(Boolean)
+		.join(' ');
+
 export const formatLogLine = <T extends AppEvent['action']>(
 	event: AppEvent<T>,
 	logEvolution: LogEvolutionForEvent<T>,

@@ -31,7 +31,11 @@ import {
 	EditModifiers,
 	getCmdModifiers,
 } from './command-modifiers.js';
-import {isDateWithinPeekHorizon, parsePeekDateInput} from './validate-date.js';
+import {
+	isDateWithinPeekHorizon,
+	parsePeekArgs,
+	parsePeekDateInput,
+} from './validate-date.js';
 
 export const MAX_COMMENT_LENGTH = 140 as const;
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
@@ -370,20 +374,28 @@ const validators: Record<CmdKeyword, Validator> = {
 
 	[CmdKeywords.PEEK]: args => {
 		const modifier = args.modifier;
+		const {dateInput, isReplay} = parsePeekArgs(modifier, args.inputString);
+
+		// Append `play` after any target to replay the board forward like a movie.
+		const replayConfirm = valid('<ENTER> to replay board history', ['play']);
+		const staticConfirm = valid(CONFIRM_MSG, ['play']);
+		const confirm = isReplay ? replayConfirm : staticConfirm;
+
 		if (modifier === 'now') return valid(CONFIRM_MSG);
 
 		const hint = {
 			message: hintDefault(
-				`historical state from: '1h', '2d', '23h', '1mo', '2y', 'prev', 'next' or full date as YYYY-MM-DD`,
+				`historical state from: '1h', '2d', '23h', '1mo', '2y', 'prev', 'next' or full date as YYYY-MM-DD. Append 'play' to replay forward`,
 			),
 		};
 
-		if (modifier === 'prev') return valid(CONFIRM_MSG);
-		if (modifier === 'next') return valid(CONFIRM_MSG);
+		if (modifier === 'prev') return confirm;
+		if (modifier === 'next') return confirm;
 
 		// Offsets (e.g. `2y`) arrive as `modifier`; absolute dates (YYYY-MM-DD) are
 		// not in the modifier allow-list, so they arrive as `inputString`.
-		const target = modifier || args.inputString;
+		// `dateInput` already has any trailing `play` keyword stripped off.
+		const target = dateInput;
 		const date = parsePeekDateInput(target);
 
 		if (!target) return invalid(hint);
@@ -421,7 +433,7 @@ const validators: Record<CmdKeyword, Validator> = {
 			});
 		}
 
-		return valid(CONFIRM_MSG);
+		return confirm;
 	},
 
 	[CmdKeywords.EXIT]: () =>

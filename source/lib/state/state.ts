@@ -145,6 +145,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		},
 		eventLog: [],
 		unappliedEvents: [],
+		replay: null,
 		timeMode: 'live',
 		hasProjectDefinition,
 		hasInitializingEvents: false,

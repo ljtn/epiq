@@ -83,7 +83,7 @@ const getNodeIdWithParent = (nodeId: string): string[] => {
 	return ids;
 };
 
-const getAffectedNodeIds = (event: AppEvent): string[] => {
+export const getAffectedNodeIds = (event: AppEvent): string[] => {
 	switch (event.action) {
 		case 'add.issue.comment':
 		case 'edit.issue.comment':

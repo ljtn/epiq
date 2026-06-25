@@ -38,6 +38,25 @@ export type SyncStatus = {
 	msg: string;
 };
 
+// Progress of a `:peek <when> play` replay: the board is checked out at
+// `startTime` and events are re-applied forward up to the live edge (`endTime`)
+// like a movie. `currentTime` is the timestamp of the most recently applied
+// event, which drives the topbar's progress/date visualization.
+export type ReplayState = {
+	// Elapsed playback position in [0..1], advancing with wall-clock time so the
+	// scrubber keeps moving even while fast-forwarding through idle stretches.
+	progress: number;
+	appliedCount: number;
+	totalCount: number;
+	currentTime: number;
+	startTime: number;
+	endTime: number;
+	// Human-readable summary of the most recently applied event (for the topbar
+	// caption), and the node ids it touched (for the on-board flash highlight).
+	currentLabel: string;
+	flashNodeIds: string[];
+};
+
 export type AppState = {
 	hasInitializingEvents: boolean;
 	hasProjectDefinition: boolean;
@@ -64,6 +83,7 @@ export type AppState = {
 	timeMode: 'live' | 'peek' | 'replay';
 	eventLog: AppEvent[];
 	unappliedEvents: AppEvent[];
+	replay: ReplayState | null;
 	comments: Record<string, CommentState>;
 };
 

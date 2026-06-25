@@ -9,8 +9,10 @@ import {theme} from '../theme/themes.js';
 import {Breadcrumb} from './BreadCrumb.js';
 import {FilterUI} from './Filters.js';
 import {PeekStatus} from './PeekStatus.js';
+import {ReplayStatus} from './ReplayStatus.js';
 import {SyncStatusPill} from './SyncStatus.js';
 import {VersionPill} from './VersionPill.js';
+import {truncateWithEllipsis} from '../utils/string.utils.js';
 
 type Props = {
 	filters: Filter[];
@@ -18,10 +20,20 @@ type Props = {
 };
 
 export function Topbar({filters, hideBreadCrumb = false}: Props) {
-	const {timeMode, syncStatus, mode} = useAppState();
+	const {timeMode, syncStatus, mode, replay} = useAppState();
 	const {userName, preferredEditor, autoSync} = getSettingsState();
 	const topRightWidth = 64;
 	const breadCrumbWidth = process.stdout.columns - topRightWidth - 8;
+
+	// During a replay the breadcrumb is just visual noise; drop it so the topbar
+	// reads as a calm cinema marquee with only the REPLAY status on the right.
+	const breadCrumbHidden = hideBreadCrumb || timeMode === 'replay';
+
+	// While replaying, the left side narrates the event currently being applied,
+	// mirroring the ticket history phrasing and ellipsised to the available room.
+	const replayCaption = replay
+		? truncateWithEllipsis(replay.currentLabel, Math.max(0, breadCrumbWidth))
+		: '';
 
 	return (
 		<Box
@@ -30,7 +42,11 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 			max-width={process.stdout.columns - 40}
 			overflow="hidden"
 		>
-			{hideBreadCrumb ? (
+			{timeMode === 'replay' ? (
+				<Box paddingLeft={1}>
+					<Text color={theme.secondary2}>{replayCaption}</Text>
+				</Box>
+			) : breadCrumbHidden ? (
 				<Text> </Text>
 			) : mode === Mode.PALETTE ? (
 				<Box>
@@ -75,6 +91,8 @@ export function Topbar({filters, hideBreadCrumb = false}: Props) {
 			)}
 
 			{timeMode === 'peek' ? <PeekStatus></PeekStatus> : ''}
+
+			{timeMode === 'replay' ? <ReplayStatus></ReplayStatus> : ''}
 		</Box>
 	);
 }

@@ -11,7 +11,8 @@ import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState, patchState, resetState} from '../../state/state.js';
-import {parsePeekDateInput} from '../validate-date.js';
+import {parsePeekArgs, parsePeekDateInput} from '../validate-date.js';
+import {cancelActiveReplay, startReplay} from './peek-replay.js';
 
 export const peekCommand = async () => {
 	const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
@@ -27,6 +28,11 @@ export const peekCommand = async () => {
 	if (isFail(stateBranchRoot)) throw new Error(stateBranchRoot.message);
 
 	const {modifier, inputString} = getCmdState().commandMeta;
+	const {dateInput, isReplay} = parsePeekArgs(modifier, inputString);
+
+	// Any new peek command supersedes a replay in progress, so always tear down
+	// the running movie before doing anything else.
+	cancelActiveReplay();
 
 	if (modifier === 'now') {
 		const eventsResult = loadMergedEvents(stateBranchRoot.value);
@@ -47,9 +53,17 @@ export const peekCommand = async () => {
 			readOnly: false,
 			timeMode: 'live',
 			unappliedEvents: [],
+			replay: null,
 		});
 
 		return succeeded('Peeking now', true);
+	}
+
+	// A replay re-applies events forward in real time, which would fight an
+	// in-flight sync reloading state underneath it. Refuse to start until sync
+	// settles. (Regular static peeks are momentary, so they don't need this.)
+	if (isReplay && getState().syncStatus.status === 'syncing') {
+		return failed('Cannot replay while syncing, try again in a moment');
 	}
 
 	let targetTime: number;
@@ -71,7 +85,8 @@ export const peekCommand = async () => {
 	} else {
 		// Offsets (e.g. `2y`) arrive as `modifier`; absolute dates (YYYY-MM-DD)
 		// are not in the modifier allow-list, so they arrive as `inputString`.
-		const targetDate = parsePeekDateInput(modifier || inputString);
+		// `dateInput` already has any trailing `play` keyword stripped off.
+		const targetDate = parsePeekDateInput(dateInput);
 
 		if (!targetDate) {
 			return failed('Invalid peek date');
@@ -121,11 +136,21 @@ export const peekCommand = async () => {
 		selectedIndex: 0,
 	});
 
+	// Replay forward only when there is actually history after the checkout
+	// point. With nothing to play, fall through to a normal static peek so the
+	// user still lands on the historical snapshot.
+	if (isReplay && unappliedEvents.length > 0) {
+		startReplay({events: unappliedEvents, startTime: targetTime});
+
+		return succeeded('Replaying board history', true);
+	}
+
 	patchState({
 		mode: Mode.DEFAULT,
 		readOnly: true,
 		timeMode: 'peek',
 		unappliedEvents,
+		replay: null,
 	});
 
 	return succeeded('Peeking', true);

@@ -60,7 +60,11 @@ const scheduleQueuedAutoSync = () => {
 };
 
 export const autoSync = async () => {
-	if (getState().readOnly || getState().timeMode === 'peek') {
+	if (
+		getState().readOnly ||
+		getState().timeMode === 'peek' ||
+		getState().timeMode === 'replay'
+	) {
 		return failed('Cannot auto-sync while peeking');
 	}
 

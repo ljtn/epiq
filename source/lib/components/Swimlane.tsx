@@ -32,8 +32,10 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 	listSelectedIndex,
 	mode,
 }) => {
-	const {renderedChildrenIndex} = useAppState();
+	const {renderedChildrenIndex, replay} = useAppState();
 	const children = renderedChildrenIndex[swimlane.id] ?? [];
+	const flashIds = replay ? new Set(replay.flashNodeIds) : null;
+	const isSwimlaneFlashing = flashIds?.has(swimlane.id) ?? false;
 	const title = `${swimlane.title} ${chalk
 		.hex(theme.secondary2)
 		.dim('(' + children.length + ')')}`;
@@ -52,7 +54,16 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 			borderRight={false}
 		>
 			<CursorUI isSelected={isSelected}></CursorUI>
-			<Text bold color={isSelected ? theme.accent : theme.primary}>
+			<Text
+				bold
+				color={
+					isSwimlaneFlashing
+						? theme.yellow
+						: isSelected
+						? theme.accent
+						: theme.primary
+				}
+			>
 				{title} {swimlane.readonly ? '🔒' : ''}
 			</Text>
 		</Box>
@@ -62,6 +73,8 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 		const isItemSelected = isFocused && listSelectedIndex === index;
 		if (!isTicketNode(ticket)) return null;
 
+		const isFlashing = flashIds?.has(ticket.id) ?? false;
+
 		return isDense ? (
 			<TicketListItemCompactUI
 				key={ticket.id}
@@ -69,6 +82,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 				width={width}
 				ticket={ticket}
 				isSelected={isItemSelected}
+				isFlashing={isFlashing}
 				mode={mode}
 			/>
 		) : (
@@ -77,6 +91,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 				width={width}
 				ticket={ticket}
 				isSelected={isItemSelected}
+				isFlashing={isFlashing}
 			/>
 		);
 	};

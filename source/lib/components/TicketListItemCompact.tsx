@@ -16,6 +16,7 @@ type Props = {
 	width: number;
 	ticket: Ticket;
 	isSelected: boolean;
+	isFlashing?: boolean;
 	mode: ModeUnion;
 };
 
@@ -23,6 +24,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	width,
 	ticket,
 	isSelected,
+	isFlashing = false,
 	index,
 	mode,
 }) => {
@@ -52,7 +54,9 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 		</Box>
 	));
 
-	const color = isSelected
+	const color = isFlashing
+		? theme.yellow
+		: isSelected
 		? theme.accent
 		: mode === Mode.MOVE
 		? theme.secondary
