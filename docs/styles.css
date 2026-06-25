@@ -7,11 +7,9 @@
 	--violet: #c6a7ff;
 	--deepBlue: #2370dc;
 	--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
-	--mono:
-		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-		"Courier New", monospace;
-	--sans:
-		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		"Liberation Mono", "Courier New", monospace;
+	--sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 		"Segoe UI", sans-serif;
 }
 
@@ -25,8 +23,7 @@ body {
 	margin: 0;
 	min-height: 100vh;
 	color: var(--text);
-	background:
-		radial-gradient(
+	background: radial-gradient(
 			circle at 18% 12%,
 			rgba(118, 180, 255, 0.1),
 			transparent 34rem
@@ -52,8 +49,10 @@ body::before {
 	inset: 0;
 	pointer-events: none;
 	opacity: 0.26;
-	background-image:
-		linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+	background-image: linear-gradient(
+			rgba(255, 255, 255, 0.04) 1px,
+			transparent 1px
+		),
 		linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
 	background-size: 48px 48px;
 	mask-image: linear-gradient(to bottom, black, transparent 88%);
@@ -117,9 +116,7 @@ pre {
 	background: rgba(255, 255, 255, 0.06);
 	color: var(--text);
 	font-size: 14px;
-	transition:
-		transform 0.18s ease,
-		border-color 0.18s ease,
+	transition: transform 0.18s ease, border-color 0.18s ease,
 		background 0.18s ease;
 }
 .btn:hover {
@@ -197,9 +194,7 @@ h1 {
 	);
 	opacity: 0.6;
 	pointer-events: none;
-	mask:
-		linear-gradient(#000 0 0) content-box,
-		linear-gradient(#000 0 0);
+	mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
 	mask-composite: exclude;
 	padding: 1px;
 }
@@ -276,9 +271,7 @@ h1 {
 	height: 1.15em;
 	background: var(--cyan);
 	transform: translateY(3px);
-	animation:
-		blink 1.05s steps(2, jump-none) infinite,
-		cursorHide 18s infinite;
+	animation: blink 1.05s steps(2, jump-none) infinite, cursorHide 18s infinite;
 }
 @keyframes blink {
 	50% {
@@ -603,10 +596,7 @@ h2 {
 }
 
 .ticket {
-	transition:
-		opacity 0.4s ease,
-		transform 0.4s ease,
-		border-color 0.4s ease;
+	transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.4s ease;
 }
 
 .ticket:not(.feature) {
@@ -954,9 +944,7 @@ h2 {
 	letter-spacing: -0.02em;
 	cursor: pointer;
 	text-align: left;
-	transition:
-		border-color 0.18s ease,
-		background 0.18s ease;
+	transition: border-color 0.18s ease, background 0.18s ease;
 }
 .copy-cmd:hover {
 	border-color: rgba(255, 255, 255, 0.26);
@@ -1007,16 +995,16 @@ h2 {
 	align-items: center;
 	gap: 5px;
 	padding-left: 10px;
-	border-left: 1px solid var(--line);1
+	border-left: 1px solid var(--line);
 }
 .github-stars .star-ico {
 	display: block;
-	/* color: #e3b341; */
+	color: #e3b341;
 }
 .github-stars .star-count {
 	font: 13px var(--mono);
 	letter-spacing: -0.02em;
-
+}
 
 /* Active nav link */
 .links a.active {
