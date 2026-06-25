@@ -999,7 +999,6 @@ h2 {
 }
 .github-stars .star-ico {
 	display: block;
-	color: #e3b341;
 }
 .github-stars .star-count {
 	font: 13px var(--mono);
