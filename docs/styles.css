@@ -1007,7 +1007,7 @@ h2 {
 	align-items: center;
 	gap: 5px;
 	padding-left: 10px;
-	border-left: 1px solid var(--line);
+	border-left: 1px solid var(--line);1
 }
 .github-stars .star-ico {
 	display: block;
@@ -1016,7 +1016,7 @@ h2 {
 .github-stars .star-count {
 	font: 13px var(--mono);
 	letter-spacing: -0.02em;
-}
+
 
 /* Active nav link */
 .links a.active {
