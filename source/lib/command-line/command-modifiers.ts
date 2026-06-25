@@ -145,6 +145,24 @@ const ticketInScope = ({
 const isTicketClosed = (ticket: Ticket): boolean =>
 	ticket.parentNodeId === CLOSED_SWIMLANE_ID;
 
+// `edit description` targets whichever ticket is currently in scope, which the
+// edit command resolves from the breadcrumb. So whenever a ticket is in scope —
+// the ticket itself or any of its descendants is selected (a virtual field, the
+// text within it, a comment, ...) — the description modifier must be offered,
+// even though the selected node's own context is not TICKET.
+const getEditModifiersInScope = ({
+	selectedNode,
+	breadCrumb,
+}: Pick<AppState, 'selectedNode' | 'breadCrumb'>): EditModifier[] => {
+	const modifiers = getEditModifiers(selectedNode?.context);
+
+	if (!ticketInScope({breadCrumb, selectedNode})) return modifiers;
+
+	return modifiers.includes(EditModifiers.DESCRIPTION)
+		? modifiers
+		: [...modifiers, EditModifiers.DESCRIPTION];
+};
+
 const getAvailableBaseCommands = ({
 	selectedNode,
 	readOnly,
@@ -190,7 +208,13 @@ const getAvailableBaseCommands = ({
 			return false;
 		}
 
-		if (command === CmdKeywords.EDIT || command === CmdKeywords.DELETE) {
+		// `edit` can target the ticket in scope (e.g. `edit description`) even
+		// when the selected descendant node is not itself directly editable.
+		if (command === CmdKeywords.EDIT) {
+			return selectedIsEditable || Boolean(ticket);
+		}
+
+		if (command === CmdKeywords.DELETE) {
 			return selectedIsEditable;
 		}
 
@@ -244,7 +268,7 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
 
-		[CmdKeywords.EDIT]: getEditModifiers(selectedNode?.context),
+		[CmdKeywords.EDIT]: getEditModifiersInScope({selectedNode, breadCrumb}),
 
 		[CmdKeywords.COMMENT]: [],
 

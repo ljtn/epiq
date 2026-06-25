@@ -16,12 +16,14 @@ export const editCommand = async (cmdState: CommandLineInput) => {
 	const {contextNode, selectedIndex} = getState();
 	const selected = getRenderedChildren(contextNode.id)[selectedIndex];
 
-	if (selected && isCommentNode(selected)) {
-		return editSelectedComment(cmdState);
-	}
-
+	// An explicit `description` modifier always targets the ticket in scope,
+	// even when a comment (a ticket descendant) is the selected node.
 	if (cmdState.modifier === EditModifiers.DESCRIPTION) {
 		return editInEditor();
+	}
+
+	if (selected && isCommentNode(selected)) {
+		return editSelectedComment(cmdState);
 	}
 
 	if (cmdState.modifier === EditModifiers.TITLE) {
