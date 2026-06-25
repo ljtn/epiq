@@ -108,6 +108,7 @@ describe('startReplay', () => {
 			timeMode: 'live',
 			unappliedEvents: [],
 			replay: null,
+			selectedIndex: 0,
 		});
 	});
 

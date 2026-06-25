@@ -131,15 +131,20 @@ export const peekCommand = async () => {
 		return failed('Board did not exist at peek date');
 	}
 
+	const willReplay = isReplay && unappliedEvents.length > 0;
+
 	navigationUtils.navigate({
 		contextNode: boardNode,
-		selectedIndex: 0,
+		// A replay is a hands-off cinema view, so start with nothing selected to
+		// suppress the selection highlight (navigation is disabled while it plays).
+		// A static peek keeps the usual first-item selection.
+		selectedIndex: willReplay ? -1 : 0,
 	});
 
 	// Replay forward only when there is actually history after the checkout
 	// point. With nothing to play, fall through to a normal static peek so the
 	// user still lands on the historical snapshot.
-	if (isReplay && unappliedEvents.length > 0) {
+	if (willReplay) {
 		startReplay({events: unappliedEvents, startTime: targetTime});
 
 		return succeeded('Replaying board history', true);

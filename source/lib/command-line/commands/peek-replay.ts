@@ -48,6 +48,9 @@ const finishReplay = (): void => {
 		timeMode: 'live',
 		unappliedEvents: [],
 		replay: null,
+		// Restore a selection so navigation re-engages immediately once the user is
+		// handed control back (replay starts with nothing selected).
+		selectedIndex: 0,
 	});
 };
 
