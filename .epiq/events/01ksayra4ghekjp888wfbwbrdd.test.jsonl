@@ -27,3 +27,4 @@
 {"v":1,"id":["01KVXVZZVZHFFKHGEHMH7N6SG4","01KVXTW2788TXKSFGYHC99YGVZ"],"add.issue.comment":{"id":"01KVXVZZVY45GXJB2W5QSR4PD0","issue":"01KVDGS3T0KDDSDW5E1EH18WXR","md":"Hm.. I wonder if we can do it in another way also...","author":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01KVXWYE4ZGXR4893HB4QG56XG","01KVXW1H2VZWGWNQXJPRSXNBAK"],"add.issue":{"id":"01KVXWYE4XQSE52VZRCTMRBGQ5","parent":"01KS22YK95S3336MFSE44MY70R","name":"Ship v1.0.0","rank":"fbffffffffffffffffffffff"}}
 {"v":1,"id":["01KVXWYG5HR5DY7WTBQEGBMF1D","01KVXWYE4ZGXR4893HB4QG56XG"],"move.node":{"id":"01KVXWYE4XQSE52VZRCTMRBGQ5","parent":"01KS22YK95S3336MFSE44MY70T","rank":"fdffffffffffffffffffffff"}}
+{"v":1,"id":["01KVZ73YJKE446M05TAZXJ0K8F","01KVXWYG5HR5DY7WTBQEGBMF1D"],"add.issue":{"id":"01KVZ73YJGWMFT8PMS4E0G19VH","parent":"01KS22YK95S3336MFSE44MY70R","name":"Fix edit description bug","rank":"fbffffffffffffffffffffff"}}
