@@ -11,7 +11,7 @@ import {getState, patchState} from '../../state/state.js';
 
 // A replay animates the board forward from a historical checkout to the live
 // edge over roughly this window, regardless of how many events are involved.
-const REPLAY_DURATION_MS = 10_000;
+const REPLAY_DURATION_MS = 20_000;
 
 // Fixed number of frames across the window. Each frame advances a virtual
 // "playback clock" and applies every event due by then, so a burst of activity
