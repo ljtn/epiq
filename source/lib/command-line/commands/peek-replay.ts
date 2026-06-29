@@ -18,17 +18,28 @@ const FRAME_COUNT = 60;
 // reasonably repaint.
 const MIN_INTERVAL_MS = 16;
 
+// When the movie reaches the end we hold a full scrubber for this long before
+// handing back to the live head, so the bar visibly completes instead of
+// vanishing a frame short of 100%.
+const COMPLETION_HOLD_MS = 150;
+
 let replayTimer: ReturnType<typeof setInterval> | null = null;
+let completionTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const isReplayActive = (): boolean => replayTimer !== null;
 
 // Stop any running replay. Safe to call when nothing is replaying. Callers that
 // want to leave replay mode are responsible for patching `timeMode` themselves
-// (e.g. `:peek now`); this only tears down the timer.
+// (e.g. `:peek now`); this only tears down the timers.
 export const cancelActiveReplay = (): void => {
 	if (replayTimer !== null) {
 		clearInterval(replayTimer);
 		replayTimer = null;
+	}
+
+	if (completionTimer !== null) {
+		clearTimeout(completionTimer);
+		completionTimer = null;
 	}
 };
 
@@ -146,14 +157,29 @@ export const startReplay = ({
 		}
 
 		if (cursor >= totalCount || frame >= FRAME_COUNT) {
-			// Flush any stragglers left by rounding, then finish on the live head.
+			// Flush any stragglers left by rounding.
 			for (; cursor < totalCount; cursor++) {
 				const result = materialize(events[cursor]!);
 
 				if (isFail(result)) break;
 			}
 
-			finishReplay();
+			// Snap the scrubber to a full bar and let it paint for a beat before
+			// handing back to the live head. Completion fires on the frame that
+			// applies the last event, which can land a frame (or several, for
+			// clustered history) short of 100% — patching progress to 1 here ensures
+			// the bar actually reads complete.
+			const previous = getState().replay;
+
+			patchState({
+				unappliedEvents: [],
+				replay: previous
+					? {...previous, progress: 1, appliedCount: totalCount}
+					: previous,
+			});
+
+			cancelActiveReplay();
+			completionTimer = setTimeout(finishReplay, COMPLETION_HOLD_MS);
 			return;
 		}
 
