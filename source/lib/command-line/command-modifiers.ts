@@ -81,6 +81,10 @@ export const AUTOSYNC_DEBOUNCE_HINTS = [
 	'60000',
 ];
 
+// Suggested playback windows for `:replay <when> <duration>`. Ordered shortest
+// first so the inline completion lands on the most likely choice.
+export const REPLAY_DURATION_HINTS = ['10s', '20s', '30s', '45s'];
+
 export type CommandMap = {
 	[K in keyof typeof NavNodeCtx]: (typeof CmdKeywords)[keyof typeof CmdKeywords][];
 };
@@ -112,7 +116,11 @@ const TICKET_COMMANDS = [
 	CmdKeywords.COMMENT,
 ];
 
-const PRESENTATION_COMMANDS = [CmdKeywords.FILTER, CmdKeywords.PEEK];
+const PRESENTATION_COMMANDS = [
+	CmdKeywords.FILTER,
+	CmdKeywords.PEEK,
+	CmdKeywords.REPLAY,
+];
 
 const COMMANDS_BY_CONTEXT: CommandMap = {
 	WORKSPACE: [...GLOBAL_COMMANDS, ...EDIT_COMMANDS],
@@ -184,6 +192,7 @@ const getAvailableBaseCommands = ({
 		return [
 			CmdKeywords.HELP,
 			CmdKeywords.PEEK,
+			CmdKeywords.REPLAY,
 			CmdKeywords.EXPORT,
 			CmdKeywords.CONFIG,
 		];
@@ -267,6 +276,10 @@ export const getCmdModifiers = (
 		[CmdKeywords.HELP]: [],
 
 		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
+
+		// Replay only takes a historical start point (date/offset); `now`/`prev`/
+		// `next` are momentary peeks with nothing to play forward.
+		[CmdKeywords.REPLAY]: [...generatePeekOffsetHints()],
 
 		[CmdKeywords.EDIT]: getEditModifiersInScope({selectedNode, breadCrumb}),
 

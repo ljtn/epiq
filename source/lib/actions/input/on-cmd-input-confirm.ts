@@ -20,6 +20,7 @@ import {getState} from '../../state/state.js';
 
 const READ_ONLY_COMMAND_INTENTS = new Set<CommandIntent>([
 	'peek',
+	'replay',
 	'filter',
 	'view-help',
 ]);

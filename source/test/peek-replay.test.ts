@@ -1,7 +1,10 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {ulid} from 'ulid';
 
-import {parsePeekArgs} from '../lib/command-line/validate-date.js';
+import {
+	parseReplayArgs,
+	parseReplayDuration,
+} from '../lib/command-line/validate-date.js';
 
 vi.mock('../lib/state/state.js', () => ({
 	getState: vi.fn(() => ({replay: null})),
@@ -25,40 +28,75 @@ import {
 	startReplay,
 } from '../lib/command-line/commands/peek-replay.js';
 
-describe('parsePeekArgs', () => {
-	it('separates an offset modifier from the play keyword', () => {
-		expect(parsePeekArgs('2y', 'play')).toEqual({
+describe('parseReplayArgs', () => {
+	it('reads an offset modifier with no duration', () => {
+		expect(parseReplayArgs('2y', '')).toEqual({
 			dateInput: '2y',
-			isReplay: true,
+			durationInput: '',
 		});
 	});
 
-	it('strips a trailing play keyword from an absolute date inputString', () => {
-		expect(parsePeekArgs('', '2024-01-01 play')).toEqual({
+	it('peels a trailing duration off an offset modifier', () => {
+		expect(parseReplayArgs('2y', '30s')).toEqual({
+			dateInput: '2y',
+			durationInput: '30s',
+		});
+	});
+
+	it('reads an absolute date from inputString with no duration', () => {
+		expect(parseReplayArgs('', '2024-01-01')).toEqual({
 			dateInput: '2024-01-01',
-			isReplay: true,
+			durationInput: '',
 		});
 	});
 
-	it('keeps an absolute date with time intact when replaying', () => {
-		expect(parsePeekArgs('', '2024-01-01 14:30 play')).toEqual({
+	it('keeps an absolute date with a space-separated time intact', () => {
+		expect(parseReplayArgs('', '2024-01-01 14:30')).toEqual({
 			dateInput: '2024-01-01 14:30',
-			isReplay: true,
+			durationInput: '',
 		});
 	});
 
-	it('reports no replay when play is absent', () => {
-		expect(parsePeekArgs('', '2024-01-01')).toEqual({
+	it('peels a duration off an absolute date with a time', () => {
+		expect(parseReplayArgs('', '2024-01-01 14:30 30s')).toEqual({
+			dateInput: '2024-01-01 14:30',
+			durationInput: '30s',
+		});
+	});
+
+	it('treats a trailing bare number as a duration', () => {
+		expect(parseReplayArgs('', '2024-01-01 45')).toEqual({
 			dateInput: '2024-01-01',
-			isReplay: false,
+			durationInput: '45',
 		});
 	});
 
 	it('tolerates a missing inputString', () => {
-		expect(parsePeekArgs('now', undefined as unknown as string)).toEqual({
-			dateInput: 'now',
-			isReplay: false,
+		expect(parseReplayArgs('2y', undefined as unknown as string)).toEqual({
+			dateInput: '2y',
+			durationInput: '',
 		});
+	});
+});
+
+describe('parseReplayDuration', () => {
+	it('reads seconds with an s suffix', () => {
+		expect(parseReplayDuration('30s')).toBe(30_000);
+	});
+
+	it('reads minutes with an m suffix', () => {
+		expect(parseReplayDuration('2m')).toBe(120_000);
+	});
+
+	it('treats a bare number as seconds', () => {
+		expect(parseReplayDuration('45')).toBe(45_000);
+	});
+
+	it('rejects zero, negatives, and nonsense', () => {
+		expect(parseReplayDuration('0s')).toBeNull();
+		expect(parseReplayDuration('-5s')).toBeNull();
+		expect(parseReplayDuration('soon')).toBeNull();
+		expect(parseReplayDuration('')).toBeNull();
 	});
 });
 
@@ -82,7 +120,7 @@ describe('startReplay', () => {
 			userName: 'n',
 		}));
 
-		startReplay({events: events as never, startTime: 500});
+		startReplay({events: events as never, startTime: 500, durationMs: 10_000});
 
 		// Initial patch sets up read-only replay mode.
 		expect(patchState).toHaveBeenCalledWith(
@@ -126,7 +164,7 @@ describe('startReplay', () => {
 			userName: 'n',
 		}));
 
-		startReplay({events: events as never, startTime: 500});
+		startReplay({events: events as never, startTime: 500, durationMs: 10_000});
 		vi.advanceTimersByTime(10_000);
 
 		expect(isReplayActive()).toBe(false);
@@ -144,7 +182,7 @@ describe('startReplay', () => {
 			userName: 'n',
 		}));
 
-		startReplay({events: events as never, startTime: 500});
+		startReplay({events: events as never, startTime: 500, durationMs: 10_000});
 		vi.advanceTimersByTime(200);
 
 		const callsBefore = vi.mocked(materialize).mock.calls.length;

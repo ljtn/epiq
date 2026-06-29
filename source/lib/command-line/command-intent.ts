@@ -62,6 +62,9 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.PEEK:
 			return CmdIntent.Peek;
 
+		case CmdKeywords.REPLAY:
+			return CmdIntent.Replay;
+
 		case CmdKeywords.CONFIG:
 			return CmdIntent.Config;
 
@@ -86,6 +89,7 @@ export const CmdIntent = {
 	Filter: 'filter',
 	Move: 'move',
 	Peek: 'peek',
+	Replay: 'replay',
 
 	// Settings
 	Config: 'config',

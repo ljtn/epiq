@@ -9,10 +9,6 @@ import {Mode} from '../../model/action-map.model.js';
 import {isFail} from '../../model/result-types.js';
 import {getState, patchState} from '../../state/state.js';
 
-// A replay animates the board forward from a historical checkout to the live
-// edge over roughly this window, regardless of how many events are involved.
-const REPLAY_DURATION_MS = 20_000;
-
 // Fixed number of frames across the window. Each frame advances a virtual
 // "playback clock" and applies every event due by then, so a burst of activity
 // lands in a single frame while quiet stretches simply fast-forward.
@@ -84,9 +80,13 @@ const buildPlaybackFractions = (times: number[]): number[] => {
 export const startReplay = ({
 	events,
 	startTime,
+	durationMs,
 }: {
 	events: AppEvent[];
 	startTime: number;
+	// How long the whole movie should take to animate forward to the live edge,
+	// regardless of how many events are involved.
+	durationMs: number;
 }): void => {
 	cancelActiveReplay();
 
@@ -96,7 +96,7 @@ export const startReplay = ({
 	const fractions = buildPlaybackFractions(times);
 
 	const intervalMs = Math.max(
-		Math.round(REPLAY_DURATION_MS / FRAME_COUNT),
+		Math.round(durationMs / FRAME_COUNT),
 		MIN_INTERVAL_MS,
 	);
 

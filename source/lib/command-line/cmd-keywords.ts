@@ -10,6 +10,7 @@ export const CmdKeywords = {
 	MOVE: 'move',
 
 	PEEK: 'peek',
+	REPLAY: 'replay',
 	FILTER: 'filter',
 
 	ASSIGN: 'assign',

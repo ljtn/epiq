@@ -1,18 +1,15 @@
 import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
-import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {getEventTime} from '../../event/date-utils.js';
-import {
-	loadMergedEvents,
-	loadMergedEventsBefore,
-} from '../../event/event-load.js';
+import {loadMergedEvents} from '../../event/event-load.js';
 import {materializeAll} from '../../event/event-materialize.js';
 import {Mode} from '../../model/action-map.model.js';
 import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState, patchState, resetState} from '../../state/state.js';
-import {parsePeekArgs, parsePeekDateInput} from '../validate-date.js';
-import {cancelActiveReplay, startReplay} from './peek-replay.js';
+import {parsePeekDateInput} from '../validate-date.js';
+import {checkoutBoardAt} from './checkout-board.js';
+import {cancelActiveReplay} from './peek-replay.js';
 
 export const peekCommand = async () => {
 	const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
@@ -28,7 +25,6 @@ export const peekCommand = async () => {
 	if (isFail(stateBranchRoot)) throw new Error(stateBranchRoot.message);
 
 	const {modifier, inputString} = getCmdState().commandMeta;
-	const {dateInput, isReplay} = parsePeekArgs(modifier, inputString);
 
 	// Any new peek command supersedes a replay in progress, so always tear down
 	// the running movie before doing anything else.
@@ -59,13 +55,6 @@ export const peekCommand = async () => {
 		return succeeded('Peeking now', true);
 	}
 
-	// A replay re-applies events forward in real time, which would fight an
-	// in-flight sync reloading state underneath it. Refuse to start until sync
-	// settles. (Regular static peeks are momentary, so they don't need this.)
-	if (isReplay && getState().syncStatus.status === 'syncing') {
-		return failed('Cannot replay while syncing, try again in a moment');
-	}
-
 	let targetTime: number;
 
 	if (modifier === 'prev') {
@@ -85,8 +74,7 @@ export const peekCommand = async () => {
 	} else {
 		// Offsets (e.g. `2y`) arrive as `modifier`; absolute dates (YYYY-MM-DD)
 		// are not in the modifier allow-list, so they arrive as `inputString`.
-		// `dateInput` already has any trailing `play` keyword stripped off.
-		const targetDate = parsePeekDateInput(dateInput);
+		const targetDate = parsePeekDateInput(modifier || inputString.trim());
 
 		if (!targetDate) {
 			return failed('Invalid peek date');
@@ -95,66 +83,20 @@ export const peekCommand = async () => {
 		targetTime = targetDate.getTime();
 	}
 
-	const previousState = getState();
-	const boardId = boardNodeResult.value.id;
-
-	const eventsBeforeResult = loadMergedEventsBefore(
-		stateBranchRoot.value,
+	const checkoutResult = checkoutBoardAt({
+		boardId: boardNodeResult.value.id,
 		targetTime,
-	);
-
-	if (isFail(eventsBeforeResult)) {
-		return failed(eventsBeforeResult.message);
-	}
-
-	const {appliedEvents, unappliedEvents} = eventsBeforeResult.value;
-
-	const resetResult = resetState();
-	if (isFail(resetResult)) return resetResult;
-
-	const materializeResult = materializeAll(appliedEvents);
-	const materializeFailures = materializeResult.filter(isFail);
-
-	if (materializeFailures.length > 0) {
-		resetState();
-		patchState(previousState);
-
-		return failed(materializeFailures.map(x => x.message).join(', '));
-	}
-
-	const boardNode = getState().nodes[boardId];
-
-	if (!boardNode) {
-		resetState();
-		patchState(previousState);
-
-		return failed('Board did not exist at peek date');
-	}
-
-	const willReplay = isReplay && unappliedEvents.length > 0;
-
-	navigationUtils.navigate({
-		contextNode: boardNode,
-		// A replay is a hands-off cinema view, so start with nothing selected to
-		// suppress the selection highlight (navigation is disabled while it plays).
-		// A static peek keeps the usual first-item selection.
-		selectedIndex: willReplay ? -1 : 0,
+		stateBranchRoot: stateBranchRoot.value,
+		selectedIndex: 0,
 	});
 
-	// Replay forward only when there is actually history after the checkout
-	// point. With nothing to play, fall through to a normal static peek so the
-	// user still lands on the historical snapshot.
-	if (willReplay) {
-		startReplay({events: unappliedEvents, startTime: targetTime});
-
-		return succeeded('Replaying board history', true);
-	}
+	if (isFail(checkoutResult)) return checkoutResult;
 
 	patchState({
 		mode: Mode.DEFAULT,
 		readOnly: true,
 		timeMode: 'peek',
-		unappliedEvents,
+		unappliedEvents: checkoutResult.value.unappliedEvents,
 		replay: null,
 	});
 

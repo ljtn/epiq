@@ -30,11 +30,13 @@ import {
 	ConfigModifiers,
 	EditModifiers,
 	getCmdModifiers,
+	REPLAY_DURATION_HINTS,
 } from './command-modifiers.js';
 import {
 	isDateWithinPeekHorizon,
-	parsePeekArgs,
 	parsePeekDateInput,
+	parseReplayArgs,
+	parseReplayDuration,
 } from './validate-date.js';
 
 export const MAX_COMMENT_LENGTH = 140 as const;
@@ -105,6 +107,48 @@ const invalid = ({
 });
 
 const isBlank = (value: string) => value.length === 0;
+
+// Reject a peek/replay target that predates the board's own creation (there is
+// nothing to show before it existed). Returns an `invalid` result to surface, or
+// null when the date is in range. `verb` tailors the wording for each command.
+const validateAgainstBoardHorizon = (
+	date: Date,
+	verb: 'peek' | 'replay',
+): ValidationResult | null => {
+	const boardResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+
+	if (isFail(boardResult)) {
+		return invalid({
+			message: hintAlert('Command is not applicable in this context'),
+		});
+	}
+
+	const boardCreationDate = safeDateFromUlid(boardResult.value.id);
+
+	if (isFail(boardCreationDate)) {
+		return invalid({
+			message: hintAlert(`Unable to ${verb}: board id is not a valid ULID`),
+		});
+	}
+
+	if (
+		!isDateWithinPeekHorizon({
+			date,
+			horizonDate: boardCreationDate.value,
+		})
+	) {
+		return invalid({
+			message: hintAlert(
+				`nothing to ${verb} before ${boardCreationDate.value
+					.toISOString()
+					.slice(0, 16)
+					.replace('T', ' ')}`,
+			),
+		});
+	}
+
+	return null;
+};
 
 const chip = (value: string): string =>
 	` ${chalk.hex('#000').bgHex(getStringColor(value))(` ${value} `)} `;
@@ -374,66 +418,66 @@ const validators: Record<CmdKeyword, Validator> = {
 
 	[CmdKeywords.PEEK]: args => {
 		const modifier = args.modifier;
-		const {dateInput, isReplay} = parsePeekArgs(modifier, args.inputString);
-
-		// Append `play` after any target to replay the board forward like a movie.
-		const replayConfirm = valid('<ENTER> to replay board history', ['play']);
-		const staticConfirm = valid(CONFIRM_MSG, ['play']);
-		const confirm = isReplay ? replayConfirm : staticConfirm;
 
 		if (modifier === 'now') return valid(CONFIRM_MSG);
+		if (modifier === 'prev') return valid(CONFIRM_MSG);
+		if (modifier === 'next') return valid(CONFIRM_MSG);
 
 		const hint = {
 			message: hintDefault(
-				`historical state from: '1h', '2d', '23h', '1mo', '2y', 'prev', 'next' or full date as YYYY-MM-DD. Append 'play' to replay forward`,
+				`historical state from: '1h', '2d', '23h', '1mo', '2y', 'prev', 'next' or full date as YYYY-MM-DD`,
 			),
 		};
 
-		if (modifier === 'prev') return confirm;
-		if (modifier === 'next') return confirm;
-
 		// Offsets (e.g. `2y`) arrive as `modifier`; absolute dates (YYYY-MM-DD) are
 		// not in the modifier allow-list, so they arrive as `inputString`.
-		// `dateInput` already has any trailing `play` keyword stripped off.
-		const target = dateInput;
+		const target = modifier || args.inputString.trim();
 		const date = parsePeekDateInput(target);
 
 		if (!target) return invalid(hint);
 		if (!date) return invalid(hint);
 
-		const boardResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');
+		const horizon = validateAgainstBoardHorizon(date, 'peek');
+		if (horizon) return horizon;
 
-		if (isFail(boardResult)) {
-			return invalid({
-				message: hintAlert('Command is not applicable in this context'),
-			});
-		}
+		return valid(CONFIRM_MSG);
+	},
 
-		const boardCreationDate = safeDateFromUlid(boardResult.value.id);
+	[CmdKeywords.REPLAY]: args => {
+		const {dateInput, durationInput} = parseReplayArgs(
+			args.modifier,
+			args.inputString,
+		);
 
-		if (isFail(boardCreationDate)) {
-			return invalid({
-				message: hintAlert('Unable to peek: board id is not a valid ULID'),
-			});
-		}
+		const hint = {
+			message: hintDefault(
+				`replay forward from: '1h', '2d', '1mo', '2y' or full date as YYYY-MM-DD, with optional duration (e.g. '2y 30s')`,
+			),
+		};
 
-		if (
-			!isDateWithinPeekHorizon({
-				date,
-				horizonDate: boardCreationDate.value,
-			})
-		) {
+		const date = parsePeekDateInput(dateInput);
+
+		if (!dateInput) return invalid(hint);
+		if (!date) return invalid(hint);
+
+		const horizon = validateAgainstBoardHorizon(date, 'replay');
+		if (horizon) return horizon;
+
+		if (durationInput && parseReplayDuration(durationInput) === null) {
 			return invalid({
 				message: hintAlert(
-					`nothing to peek before ${boardCreationDate.value
-						.toISOString()
-						.slice(0, 16)
-						.replace('T', ' ')}`,
+					'duration must be positive (e.g. 30s, 2m, or a number of seconds)',
 				),
 			});
 		}
 
-		return confirm;
+		// Only suggest durations once the user has moved past the date onto the
+		// second argument; offering them while typing the date would compete with
+		// the offset hints.
+		return valid(
+			'<ENTER> to replay board history',
+			durationInput ? REPLAY_DURATION_HINTS : [],
+		);
 	},
 
 	[CmdKeywords.EXIT]: () =>

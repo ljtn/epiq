@@ -91,29 +91,50 @@ export const parsePeekDateInput = (input: string): Date | null => {
 	return parseOffset(raw) ?? parseDate(raw);
 };
 
-export const REPLAY_KEYWORD = 'play';
+// `:replay <when> [duration]` plays the board forward from `<when>` over an
+// optional playback window. The window defaults to this when omitted.
+export const DEFAULT_REPLAY_DURATION_MS = 20_000;
 
-export type PeekArgs = {
-	dateInput: string;
-	isReplay: boolean;
+// A bare integer is read as seconds; an `s`/`m` suffix selects seconds/minutes.
+const REPLAY_DURATION_FORMAT = /^(\d+)(s|m)?$/;
+
+// Parse a playback-duration token (e.g. `30s`, `2m`, `45`) into milliseconds.
+// Returns null for anything that is not a positive duration so callers can fall
+// back to the default and/or surface a hint.
+export const parseReplayDuration = (raw: string): number | null => {
+	const match = raw.trim().toLowerCase().match(REPLAY_DURATION_FORMAT);
+	if (!match) return null;
+
+	const amount = Number(match[1]);
+	if (!Number.isInteger(amount) || amount <= 0) return null;
+
+	return match[2] === 'm' ? amount * 60_000 : amount * 1_000;
 };
 
-// `:peek <when> play` replays the board forward from `<when>`. For offsets and
-// `prev`/`next` the `<when>` token is captured as the `modifier`, so only `play`
-// lands in `inputString`. For absolute dates the modifier is empty and the whole
-// `<date> play` tail is the `inputString`, so the date has to be separated from
-// the trailing keyword here. Returns the bare date input plus the replay flag.
-export const parsePeekArgs = (
+export type ReplayArgs = {
+	dateInput: string;
+	durationInput: string;
+};
+
+// Split `:replay` arguments into the `<when>` target and the optional trailing
+// duration. Offsets (e.g. `2y`) are captured as the `modifier`, so the whole
+// `inputString` is the duration. Absolute dates land in `inputString` and may
+// carry a space-separated time (`2024-01-01 12:30`), so the duration is only
+// peeled off when the last token actually looks like a duration.
+export const parseReplayArgs = (
 	modifier: string,
 	inputString: string,
-): PeekArgs => {
+): ReplayArgs => {
 	const tokens = (inputString ?? '').trim().split(/\s+/).filter(Boolean);
-	const isReplay = tokens.includes(REPLAY_KEYWORD);
-	const dateTokens = tokens.filter(token => token !== REPLAY_KEYWORD);
+
+	const durationInput =
+		tokens.length > 0 && REPLAY_DURATION_FORMAT.test(tokens.at(-1)!)
+			? tokens.pop()!
+			: '';
 
 	return {
-		dateInput: modifier || dateTokens.join(' '),
-		isReplay,
+		dateInput: modifier || tokens.join(' '),
+		durationInput,
 	};
 };
 

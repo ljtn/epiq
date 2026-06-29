@@ -36,10 +36,6 @@ vi.mock('../lib/state/state.js', () => ({
 
 vi.mock('../lib/command-line/validate-date.js', () => ({
 	parsePeekDateInput: vi.fn(),
-	parsePeekArgs: vi.fn((modifier: string, inputString: string) => ({
-		dateInput: modifier || (inputString ?? ''),
-		isReplay: false,
-	})),
 }));
 
 vi.mock('../lib/command-line/commands/peek-replay.js', () => ({
@@ -353,7 +349,7 @@ describe('peekCommand', () => {
 		expect(isSuccess(result)).toBe(false);
 
 		if (isFail(result)) {
-			expect(result.message).toContain('Board did not exist at peek date');
+			expect(result.message).toContain('Board did not exist at that date');
 		}
 	});
 

@@ -36,6 +36,7 @@ import {initCommand} from './commands/init.cmd.js';
 import {moveCommand} from './commands/move.cmd.js';
 import {newCommand} from './commands/new.cmd.js';
 import {peekCommand} from './commands/peek.cmd.js';
+import {replayCommand} from './commands/replay.cmd.js';
 import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.js';
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
@@ -687,6 +688,12 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'View board state at another point in time',
 		mode: Mode.COMMAND_LINE,
 		action: peekCommand,
+	},
+	{
+		intent: CmdIntent.Replay,
+		description: 'Replay board history forward from a point in time',
+		mode: Mode.COMMAND_LINE,
+		action: replayCommand,
 	},
 	{
 		intent: CmdIntent.Export,

@@ -30,10 +30,19 @@ export const getCmdMeta = (
 		completionWordList: contextualWordList,
 	} = cmdValidation[command].validate(command, modifier, inputString);
 
+	// Peek/replay take structured time arguments, so completing their later
+	// positions against board vocabulary surfaces nonsense (e.g. a duration of
+	// `1` matching a ticket word like `102m`). These commands supply their own
+	// hints via the validator's completion list instead.
+	const wantsVocabulary =
+		command !== CmdKeywords.PEEK && command !== CmdKeywords.REPLAY;
+
 	const staticWordList =
 		target === 'command' || target === 'modifier'
 			? getCmdModifiers(command)
-			: getVocabulary();
+			: wantsVocabulary
+			? getVocabulary()
+			: [];
 
 	const {mode} = getState();
 	const hintMessage = mode === Mode.COMMAND_LINE ? message ?? '' : '';
