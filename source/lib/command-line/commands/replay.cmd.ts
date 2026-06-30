@@ -1,9 +1,8 @@
 import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
-import {Mode} from '../../model/action-map.model.js';
 import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
-import {getState, patchState} from '../../state/state.js';
+import {getState, patchState, resetState} from '../../state/state.js';
 import {
 	DEFAULT_REPLAY_DURATION_MS,
 	parsePeekDateInput,
@@ -53,6 +52,10 @@ export const replayCommand = async () => {
 
 	const targetTime = targetDate.getTime();
 
+	// Snapshot the live state so we can put the board back exactly as it was if the
+	// checkout turns out to have nothing to play forward.
+	const previousState = getState();
+
 	const checkoutResult = checkoutBoardAt({
 		boardId: boardNodeResult.value.id,
 		targetTime,
@@ -66,19 +69,14 @@ export const replayCommand = async () => {
 
 	const {unappliedEvents} = checkoutResult.value;
 
-	// With no history after the checkout point there is nothing to play forward,
-	// so fall back to holding the historical snapshot like a static peek.
+	// With no history after the checkout point there is nothing to play forward.
+	// The checkout has already rewound the board, so restore the live default state
+	// rather than dropping into a static peek of a moment with nothing to inspect.
 	if (unappliedEvents.length === 0) {
-		patchState({
-			mode: Mode.DEFAULT,
-			readOnly: true,
-			timeMode: 'peek',
-			unappliedEvents: [],
-			replay: null,
-			selectedIndex: 0,
-		});
+		resetState();
+		patchState(previousState);
 
-		return succeeded('Nothing to replay, peeking', true);
+		return succeeded('Nothing to replay from that point', true);
 	}
 
 	startReplay({events: unappliedEvents, startTime: targetTime, durationMs});
