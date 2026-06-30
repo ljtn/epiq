@@ -70,8 +70,6 @@ export const replayCommand = async () => {
 	const {unappliedEvents} = checkoutResult.value;
 
 	// With no history after the checkout point there is nothing to play forward.
-	// The checkout has already rewound the board, so restore the live default state
-	// rather than dropping into a static peek of a moment with nothing to inspect.
 	if (unappliedEvents.length === 0) {
 		resetState();
 		patchState(previousState);
