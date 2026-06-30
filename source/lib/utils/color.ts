@@ -166,6 +166,11 @@ export const getGradientColor = (t: number): Rgb => {
 	return interpolateColor(stops[index]!, stops[index + 1]!, localT);
 };
 
+// Sample the shared lavender -> blue -> cyan gradient at position `t` (0..1) as a
+// hex string, for places that need a CSS-style color (e.g. Ink's `color` prop).
+export const getGradientHexColor = (t: number): string =>
+	rgbToHex(getGradientColor(t));
+
 export const getWordGradientPosition = (word: string): number => {
 	const hash = hashString(word.toLowerCase().trim());
 	return hash / 0xffffffff;

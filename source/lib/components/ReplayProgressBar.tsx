@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React, {useEffect, useRef, useState} from 'react';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {getGradientHexColor} from '../utils/color.js';
 
 type Props = {
 	width: number;
@@ -25,6 +26,11 @@ const PACE_EMA = 0.3;
 // the number of filled eighths; 0 renders nothing (the track shows through).
 const SUBCELLS = 8;
 const PARTIAL_BLOCKS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+
+// Number of discrete color steps the fill gradient is quantized into across the
+// bar's width. Enough to read as a smooth wash, few enough that the bar renders
+// as a handful of merged color runs rather than one span per cell.
+const GRADIENT_BANDS = 16;
 
 // The percentage is right-padded to three digits plus a '%', so the label is a
 // fixed width and the bar doesn't reflow as the number grows.
@@ -134,13 +140,29 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 
 	const fullCells = Math.min(barWidth, Math.floor(fillUnits / SUBCELLS));
 	const partialChar =
-		fullCells < barWidth ? PARTIAL_BLOCKS[fillUnits % SUBCELLS] : '';
+		fullCells < barWidth ? PARTIAL_BLOCKS[fillUnits % SUBCELLS] ?? '' : '';
 	const usedCells = fullCells + (partialChar ? 1 : 0);
 
-	// The filled run plus the growing partial edge sit at secondary2; the rest of
-	// the track is the same muted glyph dimmed, so the bar reads as a quiet frame
-	// rather than a bright focal point.
-	const filledBar = '█'.repeat(fullCells) + partialChar;
+	// Tint the filled cells along the shared lavender -> blue -> cyan gradient by
+	// their position across the full track, so the fill reveals more of the
+	// gradient as it grows. The color is quantized into a handful of bands and
+	// equal-colored neighbors are merged into runs, so a long bar still renders
+	// as just a few <Text> spans rather than one per cell.
+	const filledRuns: {text: string; color: string}[] = [];
+	for (let i = 0; i < usedCells; i++) {
+		const position = barWidth > 1 ? i / (barWidth - 1) : 0;
+		const band =
+			Math.round(position * (GRADIENT_BANDS - 1)) / (GRADIENT_BANDS - 1);
+		const color = getGradientHexColor(band);
+		const char = i < fullCells ? '█' : partialChar;
+
+		const last = filledRuns[filledRuns.length - 1];
+		if (last && last.color === color) last.text += char;
+		else filledRuns.push({text: char, color});
+	}
+
+	// The remaining track is the muted glyph dimmed, so the bar reads as a quiet
+	// frame rather than a bright focal point.
 	const unfilledBar = '░'.repeat(Math.max(0, barWidth - usedCells));
 
 	const pct = Math.round((fillUnits / totalUnits) * 100);
@@ -156,7 +178,11 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 		>
 			<Text color={theme.secondary2}>▶</Text>
 			<Text>
-				<Text color={theme.secondary}>{filledBar}</Text>
+				{filledRuns.map((run, i) => (
+					<Text key={i} color={run.color}>
+						{run.text}
+					</Text>
+				))}
 				<Text color={theme.secondary} dimColor>
 					{unfilledBar}
 				</Text>
