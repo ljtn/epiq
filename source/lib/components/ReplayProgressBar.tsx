@@ -21,11 +21,15 @@ const TWEEN_FRAME_MS = 40;
 // smoothed so quantization jitter doesn't wobble the speed.
 const PACE_EMA = 0.3;
 
-// Each character cell is subdivided into eighths via partial block glyphs, so
-// the fill grows in 1/8th-cell steps instead of a whole cell at a time. Index is
-// the number of filled eighths; 0 renders nothing (the track shows through).
-const SUBCELLS = 8;
-const PARTIAL_BLOCKS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+// The bar is a slim single-line rule rather than a chunky block. The whole track
+// is the same horizontal-line glyph; the filled run is tinted and the rest is
+// dimmed.
+const LINE_CHAR = '─';
+
+// The leading edge advances a whole cell at a time (crisp, no sub-cell fade —
+// brightness anti-aliasing just read as lag). The smooth pacing comes from the
+// constant-velocity tween above, which keeps the cell flips evenly spaced.
+const SUBCELLS = 1;
 
 // Number of discrete color steps the fill gradient is quantized into across the
 // bar's width. Enough to read as a smooth wash, few enough that the bar renders
@@ -138,32 +142,31 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 
 	if (!replay) return null;
 
-	const fullCells = Math.min(barWidth, Math.floor(fillUnits / SUBCELLS));
-	const partialChar =
-		fullCells < barWidth ? PARTIAL_BLOCKS[fillUnits % SUBCELLS] ?? '' : '';
-	const usedCells = fullCells + (partialChar ? 1 : 0);
-
-	// Tint the filled cells along the shared lavender -> blue -> cyan gradient by
-	// their position across the full track, so the fill reveals more of the
-	// gradient as it grows. The color is quantized into a handful of bands and
-	// equal-colored neighbors are merged into runs, so a long bar still renders
-	// as just a few <Text> spans rather than one per cell.
-	const filledRuns: {text: string; color: string}[] = [];
-	for (let i = 0; i < usedCells; i++) {
-		const position = barWidth > 1 ? i / (barWidth - 1) : 0;
+	// Sample the shared lavender -> blue -> cyan gradient at a cell's position
+	// across the full track, quantized into a handful of bands so neighbors can
+	// be merged into runs (a long bar stays a few <Text> spans, not one per cell).
+	const cellColor = (index: number): string => {
+		const position = barWidth > 1 ? index / (barWidth - 1) : 0;
 		const band =
 			Math.round(position * (GRADIENT_BANDS - 1)) / (GRADIENT_BANDS - 1);
-		const color = getGradientHexColor(band);
-		const char = i < fullCells ? '█' : partialChar;
 
+		return getGradientHexColor(band);
+	};
+
+	const filledCells = Math.min(barWidth, Math.floor(fillUnits / SUBCELLS));
+
+	const filledRuns: {text: string; color: string}[] = [];
+	for (let i = 0; i < filledCells; i++) {
+		const color = cellColor(i);
 		const last = filledRuns[filledRuns.length - 1];
-		if (last && last.color === color) last.text += char;
-		else filledRuns.push({text: char, color});
+
+		if (last && last.color === color) last.text += LINE_CHAR;
+		else filledRuns.push({text: LINE_CHAR, color});
 	}
 
-	// The remaining track is the muted glyph dimmed, so the bar reads as a quiet
-	// frame rather than a bright focal point.
-	const unfilledBar = '░'.repeat(Math.max(0, barWidth - usedCells));
+	// The remaining track is the same line glyph dimmed, so the bar reads as a
+	// quiet rule rather than a bright focal point.
+	const trackBar = LINE_CHAR.repeat(Math.max(0, barWidth - filledCells));
 
 	const pct = Math.round((fillUnits / totalUnits) * 100);
 	const pctLabel = `${String(pct).padStart(3)}%`;
@@ -184,7 +187,7 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 					</Text>
 				))}
 				<Text color={theme.secondary} dimColor>
-					{unfilledBar}
+					{trackBar}
 				</Text>
 			</Text>
 			<Text color={theme.secondary2}>{pctLabel}</Text>
