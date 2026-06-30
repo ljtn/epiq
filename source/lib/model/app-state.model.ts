@@ -38,7 +38,7 @@ export type SyncStatus = {
 	msg: string;
 };
 
-// Progress of a `:peek <when> play` replay: the board is checked out at
+// Progress of a `:replay <when>` replay: the board is checked out at
 // `startTime` and events are re-applied forward up to the live edge (`endTime`)
 // like a movie. `currentTime` is the timestamp of the most recently applied
 // event, which drives the topbar's progress/date visualization.
