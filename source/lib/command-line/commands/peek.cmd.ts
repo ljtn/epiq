@@ -9,7 +9,7 @@ import {getCmdState} from '../../state/cmd.state.js';
 import {getState, patchState, resetState} from '../../state/state.js';
 import {parsePeekDateInput} from '../validate-date.js';
 import {checkoutBoardAt} from './checkout-board.js';
-import {cancelActiveReplay} from './peek-replay.js';
+import {cancelActiveReplay} from './replay-engine.js';
 
 export const peekCommand = async () => {
 	const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');

@@ -38,7 +38,7 @@ vi.mock('../lib/command-line/validate-date.js', () => ({
 	parsePeekDateInput: vi.fn(),
 }));
 
-vi.mock('../lib/command-line/commands/peek-replay.js', () => ({
+vi.mock('../lib/command-line/commands/replay-engine.js', () => ({
 	cancelActiveReplay: vi.fn(),
 	startReplay: vi.fn(),
 }));

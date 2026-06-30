@@ -11,7 +11,7 @@ import {
 	parseReplayDuration,
 } from '../validate-date.js';
 import {checkoutBoardAt} from './checkout-board.js';
-import {cancelActiveReplay, startReplay} from './peek-replay.js';
+import {cancelActiveReplay, startReplay} from './replay-engine.js';
 
 export const replayCommand = async () => {
 	const boardNodeResult = findInBreadCrumb(getState().breadCrumb, 'BOARD');

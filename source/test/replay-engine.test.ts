@@ -26,7 +26,7 @@ import {
 	cancelActiveReplay,
 	isReplayActive,
 	startReplay,
-} from '../lib/command-line/commands/peek-replay.js';
+} from '../lib/command-line/commands/replay-engine.js';
 
 describe('parseReplayArgs', () => {
 	it('reads an offset modifier with no duration', () => {
