@@ -10,6 +10,7 @@ import {CursorUI} from './Cursor.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {TicketListItemUI} from './TicketListItem.js';
 import {TicketListItemCompactUI} from './TicketListItemCompact.js';
+import {useFlashColor} from './useFlashColor.js';
 
 type Props = {
 	swimlane: Swimlane;
@@ -36,6 +37,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 	const children = renderedChildrenIndex[swimlane.id] ?? [];
 	const flashIds = replay ? new Set(replay.flashNodeIds) : null;
 	const isSwimlaneFlashing = flashIds?.has(swimlane.id) ?? false;
+	const flashColor = useFlashColor(isSwimlaneFlashing);
 	const title = `${swimlane.title} ${chalk
 		.hex(theme.secondary2)
 		.dim('(' + children.length + ')')}`;
@@ -58,7 +60,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 				bold
 				color={
 					isSwimlaneFlashing
-						? theme.yellow
+						? flashColor
 						: isSelected
 						? theme.accent
 						: theme.primary

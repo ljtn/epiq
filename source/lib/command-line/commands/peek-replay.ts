@@ -9,10 +9,8 @@ import {Mode} from '../../model/action-map.model.js';
 import {isFail} from '../../model/result-types.js';
 import {getState, patchState} from '../../state/state.js';
 
-// Fixed number of frames across the window. Each frame advances a virtual
-// "playback clock" and applies every event due by then, so a burst of activity
-// lands in a single frame while quiet stretches simply fast-forward.
-const FRAME_COUNT = 60;
+// Target frame rate for the movie.
+const TARGET_FPS = 20;
 
 // Floor on the tick interval so we never schedule faster than the terminal can
 // reasonably repaint.
@@ -106,8 +104,11 @@ export const startReplay = ({
 	const endTime = times[totalCount - 1] ?? Date.now();
 	const fractions = buildPlaybackFractions(times);
 
+	// Derive the frame count from the duration so the tick rate stays at ~TARGET_FPS
+	// no matter how long the movie runs, then clamp the interval to the repaint floor.
+	const frameCount = Math.max(1, Math.round((durationMs * TARGET_FPS) / 1000));
 	const intervalMs = Math.max(
-		Math.round(durationMs / FRAME_COUNT),
+		Math.round(durationMs / frameCount),
 		MIN_INTERVAL_MS,
 	);
 
@@ -133,7 +134,7 @@ export const startReplay = ({
 
 	replayTimer = setInterval(() => {
 		frame++;
-		const progress = frame / FRAME_COUNT;
+		const progress = frame / frameCount;
 
 		const flashNodeIds: string[] = [];
 		let lastApplied: AppEvent | undefined;
@@ -156,7 +157,7 @@ export const startReplay = ({
 			cursor++;
 		}
 
-		if (cursor >= totalCount || frame >= FRAME_COUNT) {
+		if (cursor >= totalCount || frame >= frameCount) {
 			// Flush any stragglers left by rounding.
 			for (; cursor < totalCount; cursor++) {
 				const result = materialize(events[cursor]!);

@@ -7,6 +7,7 @@ import {nodeRepo} from '../repository/node-repo.js';
 import {theme} from '../theme/themes.js';
 import {getStringColor, stringToHslHexColor} from '../utils/color.js';
 import {CursorUI} from './Cursor.js';
+import {useFlashColor} from './useFlashColor.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
 	str.length >= width ? str.slice(0, width) + '...' : str;
@@ -28,6 +29,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	index,
 	mode,
 }) => {
+	const flashColor = useFlashColor(isFlashing);
 	const tags = (ticket.props.tags ?? [])
 		.map(tag => nodeRepo.getTag(tag))
 		.filter((s): s is Tag => Boolean(s));
@@ -55,7 +57,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 	));
 
 	const color = isFlashing
-		? theme.yellow
+		? flashColor
 		: isSelected
 		? theme.accent
 		: mode === Mode.MOVE

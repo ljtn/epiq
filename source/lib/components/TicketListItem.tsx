@@ -9,6 +9,7 @@ import {
 import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
+import {useFlashColor} from './useFlashColor.js';
 
 export const TicketListItemUI: React.FC<{
 	width: number;
@@ -16,6 +17,7 @@ export const TicketListItemUI: React.FC<{
 	isSelected: boolean;
 	isFlashing?: boolean;
 }> = ({width, ticket, isSelected, isFlashing = false}) => {
+	const flashColor = useFlashColor(isFlashing);
 	const contentWidth = width - 14;
 
 	const title = truncateWithEllipsis(
@@ -32,7 +34,7 @@ export const TicketListItemUI: React.FC<{
 			height={4}
 			flexDirection="column"
 			borderColor={
-				isFlashing ? theme.yellow : isSelected ? theme.accent : theme.secondary
+				isFlashing ? flashColor : isSelected ? theme.accent : theme.secondary
 			}
 			justifyContent="space-between"
 		>

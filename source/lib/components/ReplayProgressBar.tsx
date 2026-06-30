@@ -14,34 +14,21 @@ type Props = {
 // frames.
 const TWEEN_FRAME_MS = 40;
 
-// Rather than exponentially easing toward the target (which darts to it and then
-// idles until the next engine update — visibly "jumpy"), we glide at a constant
-// velocity matched to the rate the target is actually advancing. The pace is
-// measured from the engine's own updates (step size over the time between them),
+// We glide at a constant velocity matched to the rate the target is actually advancing.
+// Measured from the engine's own updates (step size over the time between them),
 // smoothed so quantization jitter doesn't wobble the speed.
 const PACE_EMA = 0.3;
 
-// The bar is a slim single-line rule rather than a chunky block. The whole track
-// is the same horizontal-line glyph; the filled run is tinted and the rest is
-// dimmed.
 const LINE_CHAR = '─';
-
-// The leading edge advances a whole cell at a time (crisp, no sub-cell fade —
-// brightness anti-aliasing just read as lag). The smooth pacing comes from the
-// constant-velocity tween above, which keeps the cell flips evenly spaced.
 const SUBCELLS = 1;
 
 // Number of discrete color steps the fill gradient is quantized into across the
-// bar's width. Enough to read as a smooth wash, few enough that the bar renders
-// as a handful of merged color runs rather than one span per cell.
+// bar's width.
 const GRADIENT_BANDS = 16;
 
-// The percentage is right-padded to three digits plus a '%', so the label is a
-// fixed width and the bar doesn't reflow as the number grows.
-const PCT_LABEL_WIDTH = 4;
-
 // Full-width "scrubber" rendered in place of the command line during a replay.
-// Reads like a movie player's timeline: a fill bar and the percentage played.
+// Reads like a movie player's timeline: just the fill bar (no numeric readout —
+// the percentage was visual noise that didn't add meaningful info).
 // Colors are intentionally muted so the bar frames the board without stealing
 // focus from the content that is actually evolving above it.
 export const ReplayProgressBar: React.FC<Props> = ({width}) => {
@@ -53,16 +40,14 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 	// smoothly even while fast-forwarding through quiet stretches.
 	const target = replay ? Math.min(1, Math.max(0, replay.progress)) : 0;
 
-	// Reserve room for the border, horizontal padding, play icon, the percentage,
-	// and the gaps between the row's items; the fill bar flexes to fill whatever
-	// horizontal space is left. Independent of progress so it stays stable.
-	const reserved = PCT_LABEL_WIDTH + 8;
+	// Reserve room for the border, horizontal padding, play icon, and the gaps
+	// between the row's items; the fill bar flexes to fill whatever horizontal
+	// space is left. Independent of progress so it stays stable.
+	const reserved = 6;
 	const barWidth = Math.max(4, width - reserved);
 	const totalUnits = barWidth * SUBCELLS;
 
-	// The quantized fill (0..totalUnits) is what drives rendering. The target
-	// lives in a ref so the interval reads the latest value without being torn
-	// down and recreated on every frame's state patch.
+	// The quantized fill (0..totalUnits) drives the bar.
 	const [fillUnits, setFillUnits] = useState(0);
 	const targetRef = useRef(target);
 	targetRef.current = target;
@@ -168,9 +153,6 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 	// quiet rule rather than a bright focal point.
 	const trackBar = LINE_CHAR.repeat(Math.max(0, barWidth - filledCells));
 
-	const pct = Math.round((fillUnits / totalUnits) * 100);
-	const pctLabel = `${String(pct).padStart(3)}%`;
-
 	return (
 		<Box
 			width={width}
@@ -190,7 +172,6 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 					{trackBar}
 				</Text>
 			</Text>
-			<Text color={theme.secondary2}>{pctLabel}</Text>
 		</Box>
 	);
 };
