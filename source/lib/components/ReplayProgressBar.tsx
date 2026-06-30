@@ -27,10 +27,6 @@ const SUBCELLS = 1;
 const GRADIENT_BANDS = 16;
 
 // Full-width "scrubber" rendered in place of the command line during a replay.
-// Reads like a movie player's timeline: just the fill bar (no numeric readout —
-// the percentage was visual noise that didn't add meaningful info).
-// Colors are intentionally muted so the bar frames the board without stealing
-// focus from the content that is actually evolving above it.
 export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 	const {replay} = useAppState();
 
@@ -40,9 +36,7 @@ export const ReplayProgressBar: React.FC<Props> = ({width}) => {
 	// smoothly even while fast-forwarding through quiet stretches.
 	const target = replay ? Math.min(1, Math.max(0, replay.progress)) : 0;
 
-	// Reserve room for the border, horizontal padding, play icon, and the gaps
-	// between the row's items; the fill bar flexes to fill whatever horizontal
-	// space is left. Independent of progress so it stays stable.
+	// Reserve room for the border, horizontal padding, etc.
 	const reserved = 6;
 	const barWidth = Math.max(4, width - reserved);
 	const totalUnits = barWidth * SUBCELLS;
