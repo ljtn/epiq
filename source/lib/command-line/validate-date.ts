@@ -93,7 +93,7 @@ export const parsePeekDateInput = (input: string): Date | null => {
 
 // `:replay <when> [duration]` plays the board forward from `<when>` over an
 // optional playback window. The window defaults to this when omitted.
-export const DEFAULT_REPLAY_DURATION_MS = 20_000;
+export const DEFAULT_REPLAY_DURATION_MS = 15_000;
 
 // A bare integer is read as seconds; an `s`/`m` suffix selects seconds/minutes.
 const REPLAY_DURATION_FORMAT = /^(\d+)(s|m)?$/;
