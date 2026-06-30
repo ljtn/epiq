@@ -22,7 +22,7 @@ export const peekCommand = async () => {
 		repoRoot: repoRootResult.value,
 	});
 
-	if (isFail(stateBranchRoot)) throw new Error(stateBranchRoot.message);
+	if (isFail(stateBranchRoot)) return stateBranchRoot;
 
 	const {modifier, inputString} = getCmdState().commandMeta;
 
