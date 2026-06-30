@@ -4,7 +4,7 @@ import {formatDateTime} from '../event/date-utils.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 
-// Slim topbar marker shown while a `:peek <when> play` replay is running: a
+// Slim topbar marker shown while a `:replay <when>` replay is running: a
 // blinking-style pill plus the date currently being traversed and an edit
 // counter. The full scrubber lives at the bottom (see ReplayProgressBar) so the
 // topbar stays calm and cinematic.
