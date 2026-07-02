@@ -37,10 +37,7 @@ const AVAILABLE_IN_READ_ONLY = new Set<IntentInferred>([
 	Intent.AutoCompleteCommand,
 ]);
 
-// Navigation that moves the cursor or changes context. Disabled while a replay
-// is playing so the board stays a locked "cinema" view — but only from the board
-// itself; once the command line is open these don't apply, so `:peek now` (and
-// any other command) remains reachable to stop the movie.
+// Disabled while a replay is playing so the board stays a locked "cinema" view
 const REPLAY_BLOCKED_INTENTS = new Set<IntentInferred>([
 	Intent.NavPreviousItem,
 	Intent.NavNextItem,
@@ -48,6 +45,19 @@ const REPLAY_BLOCKED_INTENTS = new Set<IntentInferred>([
 	Intent.NavToNextContainer,
 	Intent.Confirm,
 	Intent.Exit,
+	Intent.InitCommandPalette,
+	Intent.InitMove,
+	Intent.MoveNextItem,
+	Intent.MovePreviousItem,
+	Intent.MoveToNextContainer,
+	Intent.MoveToPreviousContainer,
+	Intent.Delete,
+	Intent.AddItem,
+	Intent.EditTitle,
+	Intent.EditDescription,
+	Intent.ConfirmMove,
+	Intent.Edit,
+	Intent.ViewHelp,
 ]);
 
 const triggerAction = async (key: readline.Key) => {
