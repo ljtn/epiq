@@ -1,5 +1,6 @@
 import {AnyContext, Comment, NavNodeCtx, Text} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
+import {issueRef} from '../utils/issue-ref.js';
 
 export const nodes = {
 	workspace: (
@@ -125,7 +126,7 @@ export const nodes = {
 		title: name,
 		rank,
 		isDeleted: false,
-		props: {},
+		props: {ref: issueRef(id)},
 		context: NavNodeCtx.TICKET,
 		childRenderAxis: 'vertical',
 		parentNodeId,

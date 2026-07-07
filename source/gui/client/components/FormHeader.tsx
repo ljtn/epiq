@@ -5,7 +5,7 @@ export const FormHeader = ({children}: {children: React.ReactNode}) => (
 		style={{
 			display: 'flex',
 			justifyContent: 'space-between',
-			alignItems: 'center',
+			alignItems: 'flex-start',
 			gap: 12,
 			marginBottom: 18,
 		}}

@@ -13,6 +13,7 @@ export type GuiComment = {
 export type GuiIssue = {
 	isClosed: boolean;
 	id: string;
+	ref: string;
 	title: string;
 	description: string;
 	readonly: boolean;

@@ -4,12 +4,12 @@ import {isFieldListNode, isFieldNode, Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
+import {getVisibleCommentCount} from '../utils/comment.utils.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
+import {CommentListUI} from './CommentListUI.js';
 import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
-import {CommentListUI} from './CommentListUI.js';
-import {getVisibleCommentCount} from '../utils/comment.utils.js';
 
 type Props = {
 	ticket: Ticket;

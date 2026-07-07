@@ -12,6 +12,8 @@ import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
+import {formatIssueRef} from '../utils/issue-ref.js';
+import chalk from 'chalk';
 
 type Props = {
 	width: number;
@@ -83,7 +85,13 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 		: 0;
 
 	const maxBreadcrumbWidth = Math.max(0, width - pillCharacterLength);
-	const breadcrumbText = breadcrumbString.substring(0, maxBreadcrumbWidth);
+	const breadcrumbText =
+		breadcrumbString.substring(0, maxBreadcrumbWidth) +
+		(selectedTarget?.id
+			? chalk
+					.hex(theme.secondary2)
+					.dim(` #${formatIssueRef(selectedTarget.id)}`)
+			: '');
 
 	const pills = showDetails
 		? [

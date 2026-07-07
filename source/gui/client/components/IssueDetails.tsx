@@ -159,7 +159,11 @@ export const IssueDetails = ({
 								letterSpacing: '0.08em',
 							}}
 						>
-							Issue Details
+							{issue.ref && (
+								<span style={{fontFamily: 'monospace', color: GUI_THEME.dim}}>
+									{'#' + issue.ref}
+								</span>
+							)}
 						</span>
 
 						<Button variant="ghost" onClick={onClose}>

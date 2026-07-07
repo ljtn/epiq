@@ -68,7 +68,7 @@ export const TicketCard = ({
 					? 'rgba(118,228,255,0.08)'
 					: 'rgba(185, 192, 255, 0.06)',
 				padding: '12px',
-				minHeight: '40px',
+				minHeight: '58px',
 				borderRadius: '12px',
 				marginBottom: 4,
 				border: `1px solid ${isSelected ? GUI_THEME.accent : 'transparent'}`,
@@ -104,6 +104,27 @@ export const TicketCard = ({
 						flex: 1,
 					}}
 				>
+					<div
+						style={{
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+							fontWeight: 500,
+							fontSize: 12,
+						}}
+					>
+						{ticket.ref && (
+							<span
+								style={{
+									fontFamily: 'monospace',
+									marginRight: 6,
+									color: GUI_THEME.dim,
+								}}
+							>
+								#{ticket.ref}
+							</span>
+						)}
+					</div>
 					<div
 						style={{
 							overflow: 'hidden',
@@ -213,6 +234,7 @@ export const TicketCard = ({
 							alignItems: 'flex-start',
 							flexShrink: 0,
 							paddingTop: 2,
+							marginTop: '-4px',
 						}}
 					>
 						{ticket.assignees.map((assignee, idx) => (

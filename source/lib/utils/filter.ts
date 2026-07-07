@@ -1,8 +1,15 @@
 import {Filter} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
+import {issueRefMatches} from './issue-ref.js';
 
-export type FilterField = 'all' | 'title' | 'description' | 'tag' | 'assignee';
+export type FilterField =
+	| 'all'
+	| 'title'
+	| 'description'
+	| 'tag'
+	| 'assignee'
+	| 'ref';
 
 const normalize = (value: string) => value.trim().toLocaleLowerCase();
 
@@ -48,6 +55,10 @@ export const ticketMatchesFilter = (
 		case 'assignee': {
 			const assigneeNames = getAssigneeNames(ticket).map(normalize);
 			return assigneeNames.some(name => name.includes(query));
+		}
+
+		case 'ref': {
+			return issueRefMatches(ticket.id, filter.value);
 		}
 
 		// case 'all': {

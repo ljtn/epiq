@@ -299,7 +299,14 @@ export const getCmdModifiers = (
 			'cancel',
 		],
 
-		[CmdKeywords.FILTER]: ['tag', 'assignee', 'description', 'title', 'clear'],
+		[CmdKeywords.FILTER]: [
+			'tag',
+			'assignee',
+			'description',
+			'title',
+			'ref',
+			'clear',
+		],
 
 		[CmdKeywords.TAG]: [
 			...new Set([...Object.keys(TAGS_DEFAULT), ...nodeRepo.getExistingTags()]),

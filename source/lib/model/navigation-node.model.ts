@@ -4,6 +4,8 @@ import {AnyContext} from './context.model.js';
 export type EmptyProps = Record<string, never>;
 
 export type TicketProps = {
+	// Shorthand reference derived from the ULID tail
+	ref?: string;
 	description?: string;
 	assignees?: string[];
 	tags?: string[];

@@ -28,7 +28,7 @@ export type Tag = {id: string; name: string};
 export type Contributor = {id: string; name: string; userId?: string};
 
 export type Filter = {
-	target: 'tag' | 'assignee' | 'description' | 'title';
+	target: 'tag' | 'assignee' | 'description' | 'title' | 'ref';
 	operator: '=' | '!=';
 	value: string;
 };
