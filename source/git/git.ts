@@ -23,6 +23,7 @@ import {
 	hasRemoteBranch,
 	hasUpstream,
 	hasWorktree,
+	normalizeExistingPath,
 } from './git-utils.js';
 
 export const ensureInitialCommit = async (
@@ -272,9 +273,11 @@ export const ensureStateBranchWorktree = async ({
 	});
 	if (isFail(existingResult)) return failed(existingResult.message);
 
-	const expected = path.resolve(stateBranchRoot);
+	// Compare physical paths: git reports realpaths while the expected root can
+	// be a symlinked spelling of the same directory (e.g. /tmp -> /private/tmp).
+	const expected = normalizeExistingPath(stateBranchRoot);
 	const existing = existingResult.value
-		? path.resolve(existingResult.value)
+		? normalizeExistingPath(existingResult.value)
 		: null;
 
 	if (existing && existing === expected && fs.existsSync(existing)) {

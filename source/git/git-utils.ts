@@ -290,7 +290,7 @@ export const hasLocalBranch = async ({
 	return failed(result.stderr.trim() || `Unable to inspect branch ${branch}`);
 };
 
-const normalizeExistingPath = (p: string): string => {
+export const normalizeExistingPath = (p: string): string => {
 	try {
 		return fs.realpathSync.native(p);
 	} catch {
