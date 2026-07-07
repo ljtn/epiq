@@ -25,30 +25,36 @@ export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
 	return payload as T;
 };
 // URL segments carry the shorthand ref, but full ids (old links) still work.
-const matchesRefOrId = (
-	node: {id: string; ref: string},
+// A full id is unique by construction and wins outright. Refs are random
+// tails, so two nodes can theoretically share one; resolving an ambiguous ref
+// to "whichever came first" would silently open the wrong node, so it
+// resolves to nothing instead.
+const findByRefOrId = <T extends {id: string; ref: string}>(
+	nodes: T[],
 	refOrId: string,
-): boolean =>
-	node.id === refOrId || node.ref === refOrId.replace(/-/g, '').toUpperCase();
+): T | null => {
+	const byId = nodes.find(node => node.id === refOrId);
+	if (byId) return byId;
+
+	const ref = refOrId.replace(/-/g, '').toUpperCase();
+	const byRef = nodes.filter(node => node.ref === ref);
+
+	return byRef.length === 1 ? byRef[0] ?? null : null;
+};
 
 export const findIssue = (
 	state: GuiState,
 	issueRefOrId: string,
-): GuiIssue | null => {
-	for (const board of state.boards) {
-		for (const swimlane of board.swimlanes) {
-			const issue = swimlane.issues.find(issue =>
-				matchesRefOrId(issue, issueRefOrId),
-			);
-			if (issue) return issue;
-		}
-	}
-
-	return null;
-};
+): GuiIssue | null =>
+	findByRefOrId(
+		state.boards.flatMap(board =>
+			board.swimlanes.flatMap(swimlane => swimlane.issues),
+		),
+		issueRefOrId,
+	);
 
 export const findBoard = (state: GuiState, boardRefOrId: string) =>
-	state.boards.find(board => matchesRefOrId(board, boardRefOrId)) ?? null;
+	findByRefOrId(state.boards, boardRefOrId);
 export const updateIssueInGuiState = (
 	state: GuiState,
 	issueId: string,
