@@ -69,7 +69,7 @@ export const TicketCard = ({
 					: 'rgba(185, 192, 255, 0.06)',
 				padding: '12px',
 				minHeight: '58px',
-				borderRadius: '12px',
+				borderRadius: '8px',
 				marginBottom: 4,
 				border: `1px solid ${isSelected ? GUI_THEME.accent : 'transparent'}`,
 			}}
