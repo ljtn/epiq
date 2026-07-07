@@ -1,6 +1,5 @@
 import {GuiState, GuiIssue} from './gui-state.model';
 import {Result} from './gui-result.model';
-import {GUI_THEME} from './gui-theme';
 
 export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
 	if (!payload) return undefined;
@@ -25,19 +24,31 @@ export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
 
 	return payload as T;
 };
+// URL segments carry the shorthand ref, but full ids (old links) still work.
+const matchesRefOrId = (
+	node: {id: string; ref: string},
+	refOrId: string,
+): boolean =>
+	node.id === refOrId || node.ref === refOrId.replace(/-/g, '').toUpperCase();
+
 export const findIssue = (
 	state: GuiState,
-	issueId: string,
+	issueRefOrId: string,
 ): GuiIssue | null => {
 	for (const board of state.boards) {
 		for (const swimlane of board.swimlanes) {
-			const issue = swimlane.issues.find(issue => issue.id === issueId);
+			const issue = swimlane.issues.find(issue =>
+				matchesRefOrId(issue, issueRefOrId),
+			);
 			if (issue) return issue;
 		}
 	}
 
 	return null;
 };
+
+export const findBoard = (state: GuiState, boardRefOrId: string) =>
+	state.boards.find(board => matchesRefOrId(board, boardRefOrId)) ?? null;
 export const updateIssueInGuiState = (
 	state: GuiState,
 	issueId: string,

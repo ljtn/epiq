@@ -1,7 +1,7 @@
 import {Filter} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
-import {issueRefMatches} from './issue-ref.js';
+import {nodeRefMatches} from './node-ref.js';
 
 export type FilterField =
 	| 'all'
@@ -58,7 +58,7 @@ export const ticketMatchesFilter = (
 		}
 
 		case 'ref': {
-			return issueRefMatches(ticket.id, filter.value);
+			return nodeRefMatches(ticket.id, filter.value);
 		}
 
 		// case 'all': {

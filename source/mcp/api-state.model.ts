@@ -36,6 +36,7 @@ export type ApiSwimlane = {
 
 export type ApiBoard = {
 	id: string;
+	ref: string;
 	title: string;
 	swimlanes: ApiSwimlane[];
 };

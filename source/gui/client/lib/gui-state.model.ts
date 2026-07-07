@@ -30,6 +30,7 @@ export type GuiSwimlane = {
 
 type GuiBoard = {
 	id: string;
+	ref: string;
 	title: string;
 	swimlanes: GuiSwimlane[];
 };

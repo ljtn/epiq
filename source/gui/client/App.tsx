@@ -8,7 +8,9 @@ import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {moveIssue} from './lib/gui-move-issue';
 import {DropTarget} from './lib/gui-result.model';
+import {nodeRef} from '../../lib/utils/node-ref.js';
 import {
+	findBoard,
 	findIssue,
 	getResultValue,
 	updateIssueInGuiState,
@@ -58,24 +60,25 @@ export const App = () => {
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
 
-	const selectedIssueId = issueId ?? null;
 	const selectedTab =
 		searchParams.get('tab') === 'comments' ? 'comments' : 'overview';
 	const navigate = useNavigate();
 
-	const closeIssueDetails = () => {
-		if (!boardId) return;
-
-		void navigate(`/board/${boardId}`);
-	};
-
+	// Route params carry shorthand refs (full ids in old links still resolve).
 	const selectedBoard =
-		state?.boards.find(board => board.id === boardId) ??
+		(state && boardId ? findBoard(state, boardId) : null) ??
 		state?.boards[0] ??
 		null;
 
-	const selectedIssue =
-		state && selectedIssueId ? findIssue(state, selectedIssueId) : null;
+	const boardSlug = selectedBoard?.ref ?? boardId;
+
+	const selectedIssue = state && issueId ? findIssue(state, issueId) : null;
+
+	const closeIssueDetails = () => {
+		if (!boardSlug) return;
+
+		void navigate(`/board/${boardSlug}`);
+	};
 
 	const commentsByIssueId = state?.commentsByIssueId ?? {};
 
@@ -115,7 +118,9 @@ export const App = () => {
 				const created = getResultValue<{id: string}>(message.payload);
 
 				if (created && boardId) {
-					void navigate(`/board/${boardId}/${created.id}?tab=overview`);
+					void navigate(
+						`/board/${boardId}/${nodeRef(created.id)}?tab=overview`,
+					);
 				}
 			}
 
@@ -140,7 +145,7 @@ export const App = () => {
 
 	useEffect(() => {
 		if (!boardId && state?.boards[0]) {
-			navigate(`/board/${state.boards[0].id}`, {replace: true});
+			void navigate(`/board/${state.boards[0].ref}`, {replace: true});
 		}
 	}, [boardId, state, navigate]);
 
@@ -168,15 +173,15 @@ export const App = () => {
 	};
 
 	const selectIssue = (nextIssueId: string) => {
-		if (!boardId) return;
+		if (!boardSlug) return;
 
-		void navigate(`/board/${boardId}/${nextIssueId}?tab=overview`);
+		void navigate(`/board/${boardSlug}/${nodeRef(nextIssueId)}?tab=overview`);
 	};
 
 	const selectIssueComments = (nextIssueId: string) => {
-		if (!boardId) return;
+		if (!boardSlug) return;
 
-		void navigate(`/board/${boardId}/${nextIssueId}?tab=comments`);
+		void navigate(`/board/${boardSlug}/${nodeRef(nextIssueId)}?tab=comments`);
 	};
 
 	const changeIssueDetailsTab = (nextTab: IssueDetailsTab) => {
@@ -324,7 +329,7 @@ export const App = () => {
 		setBoardMenuOpen(false);
 		clearDragState();
 
-		void navigate(`/board/${nextBoardId}`);
+		void navigate(`/board/${nodeRef(nextBoardId)}`);
 	};
 
 	const openCreateIssueModal = (swimlaneId: string) => {
@@ -444,7 +449,7 @@ export const App = () => {
 								key={swimlane.id}
 								swimlane={swimlane}
 								selected={false}
-								selectedIssueId={selectedIssueId}
+								selectedIssueId={selectedIssue?.id ?? null}
 								commentsByIssueId={commentsByIssueId}
 								dragOver={dragOverSwimlaneId === swimlane.id}
 								dropIndex={

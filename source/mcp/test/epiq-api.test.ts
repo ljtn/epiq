@@ -275,6 +275,7 @@ describe('mcp tools', () => {
 			expect(result.value).toEqual([
 				{
 					id: 'board-1',
+					ref: 'BOARD-1',
 					title: 'Default',
 					parentId: 'workspace-1',
 					readonly: false,

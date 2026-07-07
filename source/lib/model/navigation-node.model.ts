@@ -11,6 +11,11 @@ export type TicketProps = {
 	tags?: string[];
 };
 
+export type BoardProps = {
+	// Shorthand reference derived from the ULID tail
+	ref?: string;
+};
+
 export type FieldProps = {
 	value?: string;
 };
@@ -22,7 +27,7 @@ export type TextProps = {
 
 export type NavNodePropsMap = {
 	WORKSPACE: EmptyProps;
-	BOARD: EmptyProps;
+	BOARD: BoardProps;
 	SWIMLANE: EmptyProps;
 	TICKET: TicketProps;
 	FIELD: FieldProps;

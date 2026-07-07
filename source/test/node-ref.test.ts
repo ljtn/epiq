@@ -3,11 +3,7 @@ import {Filter} from '../lib/model/app-state.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {ticketMatchesFilter} from '../lib/utils/filter.js';
-import {
-	formatIssueRef,
-	issueRef,
-	issueRefMatches,
-} from '../lib/utils/issue-ref.js';
+import {nodeRef, nodeRefMatches} from '../lib/utils/node-ref.js';
 
 vi.mock('../lib/state/state.js', () => ({
 	getState: () => ({tags: {}, contributors: {}}),
@@ -15,35 +11,36 @@ vi.mock('../lib/state/state.js', () => ({
 
 const ULID = '01KS22YK9AXCMATZXTR5JZCS5M';
 
-describe('issueRef', () => {
+describe('nodeRef', () => {
 	it('derives the reference from the last 7 characters of the ulid', () => {
-		expect(issueRef(ULID)).toBe('5JZCS5M');
+		expect(nodeRef(ULID)).toBe('5JZCS5M');
 	});
 
-	it('formats the display reference with a hyphen', () => {
-		expect(formatIssueRef(ULID)).toBe('5JZ-CS5M');
-	});
-
-	it('matches with and without the display hyphen, case-insensitively', () => {
-		expect(issueRefMatches(ULID, '5JZ-CS5M')).toBe(true);
-		expect(issueRefMatches(ULID, '5jzcs5m')).toBe(true);
-		expect(issueRefMatches(ULID, 'zcs5')).toBe(true);
-		expect(issueRefMatches(ULID, '5JZ-CS5X')).toBe(false);
+	it('matches case-insensitively, tolerating a typed hyphen', () => {
+		expect(nodeRefMatches(ULID, '5JZCS5M')).toBe(true);
+		expect(nodeRefMatches(ULID, '5jz-cs5m')).toBe(true);
+		expect(nodeRefMatches(ULID, 'zcs5')).toBe(true);
+		expect(nodeRefMatches(ULID, '5JZCS5X')).toBe(false);
 	});
 });
 
-describe('ticket ref materialization and filtering', () => {
+describe('ref materialization and filtering', () => {
 	const ticket: NavNode<'TICKET'> = nodes.ticket(ULID, 'Fix bug', 'lane', 'a0');
 
 	it('materializes the ref onto the ticket props', () => {
 		expect(ticket.props.ref).toBe('5JZCS5M');
 	});
 
+	it('materializes the ref onto the board props', () => {
+		const board = nodes.board(ULID, 'Default', 'workspace', 'a0');
+		expect(board.props.ref).toBe('5JZCS5M');
+	});
+
 	it('filters tickets by ref', () => {
-		const filter: Filter = {target: 'ref', operator: '=', value: '5JZ-CS5M'};
+		const filter: Filter = {target: 'ref', operator: '=', value: '5JZCS5M'};
 		expect(ticketMatchesFilter(ticket, filter)).toBe(true);
 
-		const miss: Filter = {target: 'ref', operator: '=', value: 'AAA-AAAA'};
+		const miss: Filter = {target: 'ref', operator: '=', value: 'AAAAAAA'};
 		expect(ticketMatchesFilter(ticket, miss)).toBe(false);
 	});
 });

@@ -30,7 +30,7 @@ import {getSafeState} from '../lib/state/state.js';
 import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {getStringColor} from '../lib/utils/color.js';
-import {formatIssueRef} from '../lib/utils/issue-ref.js';
+import {nodeRef} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {logger} from '../logger.js';
 import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
@@ -221,6 +221,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 		.filter(n => n.context === 'BOARD')
 		.map(n => ({
 			id: n.id,
+			ref: nodeRef(n.id),
 			title: n.title,
 			parentId: n.parentNodeId,
 			readonly: Boolean(n.readonly),
@@ -264,7 +265,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 			n =>
 				({
 					id: n.id,
-					ref: formatIssueRef(n.id),
+					ref: nodeRef(n.id),
 					title: sanitizeInlineText(n.title),
 					description: n.props.description ?? '',
 					parentNodeId: n.parentNodeId!,
@@ -579,6 +580,7 @@ export const getGuiState = async (
 			.sort((a, b) => a.rank.localeCompare(b.rank))
 			.map(b => ({
 				id: b.id,
+				ref: nodeRef(b.id),
 				title: b.title,
 				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
 					.sort((a, b) => a.rank.localeCompare(b.rank))
@@ -592,7 +594,7 @@ export const getGuiState = async (
 									.sort((a, b) => a.rank.localeCompare(b.rank))
 									.map(issue => ({
 										id: issue.id,
-										ref: formatIssueRef(issue.id),
+										ref: nodeRef(issue.id),
 										title: sanitizeInlineText(issue.title),
 										description: issue.props.description ?? '',
 										readonly: Boolean(issue.readonly),
