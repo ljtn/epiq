@@ -119,7 +119,7 @@ export const App = () => {
 
 				if (created && boardId) {
 					void navigate(
-						`/board/${boardId}/${nodeRef(created.id)}?tab=overview`,
+						`/board/${boardId}/issue/${nodeRef(created.id)}?tab=overview`,
 					);
 				}
 			}
@@ -175,13 +175,17 @@ export const App = () => {
 	const selectIssue = (nextIssueId: string) => {
 		if (!boardSlug) return;
 
-		void navigate(`/board/${boardSlug}/${nodeRef(nextIssueId)}?tab=overview`);
+		void navigate(
+			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=overview`,
+		);
 	};
 
 	const selectIssueComments = (nextIssueId: string) => {
 		if (!boardSlug) return;
 
-		void navigate(`/board/${boardSlug}/${nodeRef(nextIssueId)}?tab=comments`);
+		void navigate(
+			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=comments`,
+		);
 	};
 
 	const changeIssueDetailsTab = (nextTab: IssueDetailsTab) => {

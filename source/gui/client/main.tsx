@@ -7,6 +7,8 @@ createRoot(document.getElementById('root')!).render(
 		<Routes>
 			<Route path="/" element={<App />} />
 			<Route path="/board/:boardId" element={<App />} />
+			<Route path="/board/:boardId/issue/:issueId" element={<App />} />
+			{/* Legacy form without the /issue/ segment, so old links keep working. */}
 			<Route path="/board/:boardId/:issueId" element={<App />} />
 			<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>
