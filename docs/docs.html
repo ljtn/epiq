@@ -252,6 +252,13 @@
 									<td>Edit the description</td>
 								</tr>
 								<tr>
+									<td><kbd>y</kbd></td>
+									<td>
+										Yank to clipboard (prefills <code>:yank</code> for the
+										current selection)
+									</td>
+								</tr>
+								<tr>
 									<td><kbd>m</kbd></td>
 									<td>
 										Toggle move mode (navigate, then <kbd>m</kbd> to confirm)
@@ -412,6 +419,22 @@
 								</tr>
 								<tr>
 									<td>
+										<code
+											><span class="accent">:</span>yank
+											<span class="opt"
+												>ref|title|description|tags|assignees</span
+											></code
+										>
+									</td>
+									<td>
+										Copy the selected item's ref, title, description, tags, or
+										assignees to the system clipboard (also bound to
+										<kbd>y</kbd>). Description, tags, and assignees are offered
+										when the issue has them
+									</td>
+								</tr>
+								<tr>
+									<td>
 										<code><span class="accent">:</span>close</code>
 									</td>
 									<td>
@@ -466,6 +489,20 @@
 										<code>&lt;n&gt;h</code>, <code>d</code>, <code>w</code>,
 										<code>mo</code>, or <code>y</code> (e.g. <code>3d</code>);
 										or an absolute <code>YYYY-MM-DD</code> date
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<code
+											><span class="accent">:</span>replay
+											<span class="opt">&lt;offset&gt;|&lt;date&gt;</span>
+											<span class="arg">[duration]</span></code
+										>
+									</td>
+									<td>
+										Replay board history forward from a point in time as an
+										animation, with an optional playback duration (e.g.
+										<code>30s</code>)
 									</td>
 								</tr>
 								<tr>
@@ -597,8 +634,22 @@
 <span class="c"># return to the present</span>
 <span class="b">:peek</span> now</code></pre>
 						<p>
-							While peeking, the board is read-only; only viewing, exporting,
-							and configuration are available.
+							Where <code>:peek</code> shows a frozen snapshot,
+							<code>:replay</code> plays history forward from that point as an
+							animation — watch the board evolve event by event. The optional
+							second argument sets the playback duration:
+						</p>
+						<pre
+							class="code"
+						><code><span class="c"># replay the last month of activity</span>
+<span class="b">:replay</span> 1mo
+
+<span class="c"># same, spread over a 30 second animation</span>
+<span class="b">:replay</span> 1mo 30s</code></pre>
+						<p>
+							While peeking or replaying, the board is read-only; viewing,
+							yanking to the clipboard, exporting, and configuration remain
+							available.
 						</p>
 					</section>
 

@@ -173,125 +173,28 @@ h1 {
 	flex-direction: column;
 	align-items: flex-start;
 }
-.terminal {
+/* Hero screenshot: the top-left corner of the real board, fading out
+   toward the bottom-right so it melts into the page background. */
+.hero-shot {
 	position: relative;
-	/* border: 1px solid var(--line); */
-	border-radius: 24px;
-	background: rgba(12, 12, 19, 0.776);
-	box-shadow: var(--shadow);
+	align-self: stretch;
+	min-height: 300px;
 	overflow: hidden;
 }
-.terminal::before {
-	content: "";
+.hero-shot img {
 	position: absolute;
-	inset: -1px;
-	background: linear-gradient(
-		135deg,
-		rgba(131, 201, 255, 0.35),
-		transparent 24%,
-		rgba(118, 184, 255, 0.22) 58%,
-		transparent 76%
+	top: 0;
+	left: 0;
+	width: 230%;
+	max-width: none;
+	/* the ellipse must finish fading before the container clips the image:
+	   the img is 230% of the column, so ~43% of the img is visible */
+	-webkit-mask-image: radial-gradient(
+		45% 66% at 0% 0%,
+		#000 40%,
+		transparent 93%
 	);
-	opacity: 0.6;
-	pointer-events: none;
-	mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-	mask-composite: exclude;
-	padding: 1px;
-}
-.bar {
-	height: 44px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 0 16px;
-	border-bottom: 1px solid var(--line);
-	color: var(--dim);
-	font: 12px var(--mono);
-}
-.traffic {
-	display: flex;
-	gap: 8px;
-}
-.traffic i {
-	width: 10px;
-	height: 10px;
-	border-radius: 50%;
-	background: var(--dim);
-	opacity: 0.5;
-}
-.screen {
-	padding: 10px;
-	font: 13px/1.45 var(--mono);
-	color: #dfe7ff;
-}
-
-.board {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 10px;
-}
-.col {
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	background: rgba(0, 0, 0, 0.18);
-	border-radius: 14px;
-	padding: 10px;
-	min-height: 220px;
-}
-.col h3 {
-	margin: 0 0 10px;
-	color: var(--cyan);
-	font-size: 12px;
-	font-weight: 700;
-}
-.ticket {
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	background: rgba(255, 255, 255, 0.045);
-	border-radius: 10px;
-	padding: 10px;
-	margin: 8px 0;
-	color: var(--text);
-}
-
-.prompt {
-	margin-top: 16px;
-	color: var(--muted);
-	padding: 5px 10px;
-	border: 1px solid;
-	border-radius: 11px;
-	border-color: #383740;
-	margin-bottom: 10px;
-}
-.prompt b {
-	color: var(--cyan);
-	font-weight: 700;
-}
-.cursor {
-	display: inline-block;
-	width: 8px;
-	height: 1.15em;
-	background: var(--cyan);
-	transform: translateY(3px);
-	animation: blink 1.05s steps(2, jump-none) infinite, cursorHide 18s infinite;
-}
-@keyframes blink {
-	50% {
-		opacity: 0;
-	}
-}
-
-@keyframes cursorHide {
-	0%,
-	47% {
-		opacity: 1;
-	}
-	50%,
-	90% {
-		opacity: 0;
-	}
-	94%,
-	100% {
-		opacity: 1;
-	}
+	mask-image: radial-gradient(45% 66% at 0% 0%, #000 40%, transparent 93%);
 }
 
 .logos {
@@ -513,31 +416,6 @@ h2 {
 	color: var(--cyan);
 }
 
-.vim-status::after {
-	content: "-- INSERT --";
-	animation: vimStatus 18s infinite;
-}
-
-@keyframes vimStatus {
-	0%,
-	76% {
-		content: "-- INSERT --";
-	}
-
-	77% {
-		content: ":";
-	}
-
-	78% {
-		content: ":w";
-	}
-
-	79%,
-	100% {
-		content: ":wq";
-	}
-}
-
 @media (max-width: 900px) {
 	.hero-grid,
 	.split {
@@ -561,11 +439,8 @@ h2 {
 	.hero {
 		padding-top: 52px;
 	}
-	.board {
-		grid-template-columns: minmax(0, 1fr);
-	}
-	.col {
-		min-height: auto;
+	.hero-shot {
+		min-height: 280px;
 	}
 	.cards,
 	.logos {
@@ -581,293 +456,6 @@ h2 {
 	.copy-cmd {
 		display: flex;
 		width: 100%;
-	}
-}
-
-/* terminal demo animation */
-
-.screen {
-	position: relative;
-	min-height: 306px;
-}
-
-.board {
-	animation: boardCycle 18s infinite;
-}
-
-.ticket {
-	transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.4s ease;
-}
-
-.ticket:not(.feature) {
-	animation: filterOut 18s infinite;
-}
-
-.ticket.feature {
-	animation: featurePop 18s infinite;
-}
-
-.prompt-text::after {
-	content: "";
-	animation: commandCycle 18s infinite;
-}
-
-.vim {
-	position: absolute;
-	inset: 10px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	background: rgba(5, 7, 12, 0.94);
-	border-radius: 14px;
-	padding: 14px;
-	opacity: 0;
-	transform: translateY(8px) scale(0.985);
-	pointer-events: none;
-	animation: vimCycle 18s infinite;
-}
-
-.vim-title {
-	color: var(--dim);
-	margin-bottom: 12px;
-}
-
-.vim-body {
-	color: var(--text);
-	white-space: pre-wrap;
-}
-
-.vim-body::after {
-	content: "";
-	animation: vimTyping 18s infinite;
-}
-
-.vim-status {
-	position: absolute;
-	left: 14px;
-	right: 14px;
-	bottom: 12px;
-	color: var(--cyan);
-	border-top: 1px solid rgba(255, 255, 255, 0.1);
-	padding-top: 8px;
-}
-@keyframes commandCycle {
-	0%,
-	7% {
-		content: "";
-	}
-
-	8% {
-		content: "f";
-	}
-	9% {
-		content: "fi";
-	}
-	10% {
-		content: "filter";
-	}
-	11.5% {
-		content: "filter t";
-	}
-	12.5% {
-		content: "filter tag";
-	}
-	13.5% {
-		content: "filter tag f";
-	}
-	14.5%,
-	30% {
-		content: "filter tag feature";
-	}
-
-	33%,
-	37% {
-		content: "";
-	}
-
-	38% {
-		content: "e";
-	}
-	39% {
-		content: "ed";
-	}
-	40% {
-		content: "edit";
-	}
-	42% {
-		content: "edit d";
-	}
-	43% {
-		content: "edit de";
-	}
-	44%,
-	80% {
-		content: "edit description";
-	}
-
-	81%,
-	100% {
-		content: "";
-	}
-}
-
-@keyframes filterOut {
-	0%,
-	17% {
-		opacity: 1;
-		transform: translateY(0);
-	}
-	21%,
-	31% {
-		opacity: 0.06;
-		transform: translateY(6px);
-	}
-	36%,
-	100% {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-@keyframes featurePop {
-	0%,
-	17% {
-		border-color: rgba(255, 255, 255, 0.1);
-		transform: translateY(0);
-	}
-	21%,
-	31% {
-		border-color: rgba(34, 161, 220, 0.42);
-		transform: translateY(-2px);
-	}
-	36%,
-	100% {
-		border-color: rgba(255, 255, 255, 0.1);
-		transform: translateY(0);
-	}
-}
-
-@keyframes boardCycle {
-	0%,
-	45% {
-		opacity: 1;
-		transform: scale(1);
-	}
-	50%,
-	88% {
-		opacity: 0;
-		transform: scale(0.985);
-	}
-	94%,
-	100% {
-		opacity: 1;
-		transform: scale(1);
-	}
-}
-
-@keyframes vimCycle {
-	0%,
-	48% {
-		opacity: 0;
-		transform: translateY(8px) scale(0.985);
-	}
-	54%,
-	88% {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
-	94%,
-	100% {
-		opacity: 0;
-		transform: translateY(8px) scale(0.985);
-	}
-}
-@keyframes vimTyping {
-	0%,
-	54% {
-		content: "";
-	}
-
-	54.5% {
-		content: "I";
-	}
-	55% {
-		content: "Imp";
-	}
-	55.5% {
-		content: "Imple";
-	}
-	56% {
-		content: "Implement";
-	}
-	56.5% {
-		content: "Implement fil";
-	}
-	57% {
-		content: "Implement filtered";
-	}
-	57.5% {
-		content: "Implement filtered boa";
-	}
-	58% {
-		content: "Implement filtered board";
-	}
-	58.5% {
-		content: "Implement filtered board sta";
-	}
-	59% {
-		content: "Implement filtered board state.";
-	}
-
-	60% {
-		content: "Implement filtered board state.\A\AK";
-	}
-	60.5% {
-		content: "Implement filtered board state.\A\AKeep";
-	}
-	61% {
-		content: "Implement filtered board state.\A\AKeep inter";
-	}
-	61.5% {
-		content: "Implement filtered board state.\A\AKeep interaction";
-	}
-	62% {
-		content: "Implement filtered board state.\A\AKeep interaction insta";
-	}
-	62.5% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,";
-	}
-
-	64% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Asto";
-	}
-	64.5% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the";
-	}
-	65% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change";
-	}
-	65.5% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as";
-	}
-	66% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,";
-	}
-
-	68% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A a";
-	}
-	68.5% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync";
-	}
-	69% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through";
-	}
-	70% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.";
-	}
-
-	78%,
-	100% {
-		content: "Implement filtered board state.\A\AKeep interaction instant,\Astore the change as an event,\A and sync through Git.";
 	}
 }
 
