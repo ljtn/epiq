@@ -46,6 +46,7 @@ export const IssueDetails = ({
 	attachments,
 	attachmentUploadStatus,
 	onUploadAttachments,
+	onDeleteAttachment,
 	knownTags: tags,
 	knownAssignees: assignees,
 }: {
@@ -68,6 +69,7 @@ export const IssueDetails = ({
 	attachments: GuiAttachment[];
 	attachmentUploadStatus: AttachmentUploadStatus;
 	onUploadAttachments?: (issueId: string, files: File[]) => void;
+	onDeleteAttachment?: (issueId: string, attachmentId: string) => void;
 	knownTags: GuiTag[];
 	knownAssignees: GuiUser[];
 }) => {
@@ -445,6 +447,7 @@ export const IssueDetails = ({
 								attachments={attachments}
 								uploadStatus={attachmentUploadStatus}
 								onUploadFiles={onUploadAttachments}
+								onDeleteAttachment={onDeleteAttachment}
 							/>
 
 							<Section

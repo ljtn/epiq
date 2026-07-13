@@ -7,7 +7,7 @@
  */
 
 const MAX_LONG_EDGE = 1600;
-const MAX_BYTES = 500 * 1024;
+export const DEFAULT_MAX_KB = 500;
 const QUALITY_STEPS = [0.8, 0.7, 0.6, 0.5, 0.4];
 
 export type CompressedImage = {
@@ -29,17 +29,17 @@ const replaceExtension = (name: string, ext: string): string => {
 
 export const compressImage = async (
 	file: File,
+	maxKb = DEFAULT_MAX_KB,
 ): Promise<CompressedImage | {error: string}> => {
+	const maxBytes = maxKb * 1024;
 	// Re-encoding through canvas flattens animation; small gifs pass through.
 	if (file.type === 'image/gif') {
-		if (file.size <= MAX_BYTES) {
+		if (file.size <= maxBytes) {
 			return {blob: file, name: file.name};
 		}
 
 		return {
-			error: `GIFs are attached as-is and this one exceeds ${Math.round(
-				MAX_BYTES / 1024,
-			)} KB`,
+			error: `GIFs are attached as-is and this one exceeds ${maxKb} KB`,
 		};
 	}
 
@@ -71,13 +71,13 @@ export const compressImage = async (
 	for (const quality of QUALITY_STEPS) {
 		const blob = await toBlob(canvas, 'image/webp', quality);
 
-		if (blob && blob.size <= MAX_BYTES) {
+		if (blob && blob.size <= maxBytes) {
 			return {blob, name: replaceExtension(file.name, 'webp')};
 		}
 	}
 
 	return {
-		error: `Unable to compress image under ${Math.round(MAX_BYTES / 1024)} KB`,
+		error: `Unable to compress image under ${maxKb} KB`,
 	};
 };
 

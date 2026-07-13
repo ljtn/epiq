@@ -153,6 +153,7 @@ export const writeAttachmentBlob = (
 export const resolveAttachmentBlob = (
 	stateBranchRoot: string,
 	fileName: string,
+	maxKb = DEFAULT_ATTACHMENT_MAX_KB,
 ): Result<{filePath: string; ext: AttachmentExt; bytes: number}> => {
 	if (!isValidAttachmentFileName(fileName)) {
 		return failed('Invalid attachment file name');
@@ -171,6 +172,12 @@ export const resolveAttachmentBlob = (
 			`Unable to read attachment blob: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
+		);
+	}
+
+	if (data.length > maxKb * 1024) {
+		return failed(
+			`Attachment exceeds the ${maxKb} KB size cap and will not be served`,
 		);
 	}
 

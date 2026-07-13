@@ -22,6 +22,7 @@ const EpiqConfigSchema = z
 		userId: z.string().optional(),
 		autoSync: z.boolean().nullable().optional(),
 		autoSyncDebounceMs: z.number().optional(),
+		attachmentMaxKb: z.number().optional(),
 		viewMode: z.enum(['dense', 'wide']).optional(),
 	})
 	.partial();
@@ -157,6 +158,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		userId,
 		autoSync,
 		autoSyncDebounceMs: autoSyncIntervalMs,
+		attachmentMaxKb,
 		logLevel,
 		viewMode,
 	} = result.value;
@@ -176,6 +178,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		userId,
 		autoSync: autoSync ?? false,
 		autoSyncIntervalMs: autoSyncIntervalMs ?? 10_000,
+		attachmentMaxKb: attachmentMaxKb ?? null,
 		viewMode: viewMode ?? 'dense',
 	});
 };

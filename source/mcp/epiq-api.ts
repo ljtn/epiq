@@ -33,6 +33,7 @@ import {getStringColor} from '../lib/utils/color.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {
+	DEFAULT_ATTACHMENT_MAX_KB,
 	getAttachmentFileName,
 	resolveAttachmentBlob,
 	writeAttachmentBlob,
@@ -130,6 +131,13 @@ type DeleteIssueAttachmentInput = ToolInput & {
 
 type GetAttachmentBlobInput = ToolInput & {
 	fileName: string;
+};
+
+const getAttachmentMaxKb = (): number => {
+	const settings = loadSettingsFromConfig();
+	if (isFail(settings)) return DEFAULT_ATTACHMENT_MAX_KB;
+
+	return settings.value.attachmentMaxKb ?? DEFAULT_ATTACHMENT_MAX_KB;
 };
 
 const resolveRepoRoot = (repoRoot?: string): Result<string> => {
@@ -594,6 +602,13 @@ export const getGuiState = async (
 			});
 	}
 
+	const attachmentOwners = new Map<string, string>();
+	for (const event of stateResult.value.eventLog) {
+		if (event.action === 'add.issue.attachment') {
+			attachmentOwners.set(event.payload.id, event.userId);
+		}
+	}
+
 	const attachmentsByIssueId: ApiState['attachmentsByIssueId'] = {};
 
 	for (const issue of nodes.filter(isTicketNode)) {
@@ -608,6 +623,8 @@ export const getGuiState = async (
 				fileName: getAttachmentFileName(attachment.hash, attachment.ext),
 				bytes: attachment.bytes,
 				createdAt: decodeTime(attachment.id),
+				canDelete:
+					attachmentOwners.get(attachment.id) === settingsRes.value.userId,
 			}));
 	}
 
@@ -658,6 +675,7 @@ export const getGuiState = async (
 		},
 		commentsByIssueId,
 		attachmentsByIssueId,
+		attachmentMaxKb: getAttachmentMaxKb(),
 	} satisfies ApiState);
 };
 
@@ -1109,7 +1127,11 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 
 	const data = Buffer.from(input.dataBase64 ?? '', 'base64');
 
-	const written = writeAttachmentBlob(bootResult.value.stateBranchRoot, data);
+	const written = writeAttachmentBlob(
+		bootResult.value.stateBranchRoot,
+		data,
+		getAttachmentMaxKb(),
+	);
 	if (isFail(written)) return written;
 
 	const name = sanitizeInlineText(input.name ?? '').trim() || 'image';
@@ -1226,5 +1248,6 @@ export const getAttachmentBlob = async (input: GetAttachmentBlobInput) => {
 	return resolveAttachmentBlob(
 		bootResult.value.stateBranchRoot,
 		input.fileName,
+		getAttachmentMaxKb(),
 	);
 };

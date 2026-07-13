@@ -38,6 +38,7 @@ import {newCommand} from './commands/new.cmd.js';
 import {peekCommand} from './commands/peek.cmd.js';
 import {replayCommand} from './commands/replay.cmd.js';
 import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.js';
+import {setAttachmentMaxKbCommand} from './commands/set-attachment-max-kb.cmd.js';
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
 import {yankCommand} from './commands/yank.cmd.js';
@@ -804,6 +805,9 @@ export const commands: CommandLineActionEntry[] = [
 
 				case ConfigModifiers.SYNC_DEBOUNCE_MS:
 					return setAutoSyncDurationCommand();
+
+				case ConfigModifiers.ATTACHMENT_MAX_KB:
+					return setAttachmentMaxKbCommand();
 
 				default:
 					return failed('Unknown config command');

@@ -18,6 +18,7 @@ export type GuiAttachment = {
 	fileName: string;
 	bytes: number;
 	createdAt: number;
+	canDelete: boolean;
 };
 
 export type GuiIssue = {
@@ -52,4 +53,5 @@ export type GuiState = {
 	user: GuiUser;
 	commentsByIssueId: Record<string, GuiComment[]>;
 	attachmentsByIssueId: Record<string, GuiAttachment[]>;
+	attachmentMaxKb?: number;
 };

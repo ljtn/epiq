@@ -11,6 +11,7 @@ export type LogLevel = 'info' | 'error' | 'debug';
 export type SettingsState = {
 	logLevel: LogLevel;
 	autoSyncIntervalMs: number | null;
+	attachmentMaxKb: number | null;
 	autoSync: boolean | null;
 	preferredEditor: string | null;
 	userName: string | null;
@@ -21,6 +22,7 @@ export type SettingsState = {
 let settingsState: SettingsState = {
 	logLevel: 'info',
 	autoSyncIntervalMs: null,
+	attachmentMaxKb: null,
 	autoSync: null,
 	preferredEditor: null,
 	userName: null,

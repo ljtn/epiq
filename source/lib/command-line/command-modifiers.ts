@@ -31,6 +31,7 @@ export const ConfigModifiers = {
 	USERNAME: 'username',
 	AUTOSYNC: 'autoSync',
 	SYNC_DEBOUNCE_MS: 'syncDebounceMs',
+	ATTACHMENT_MAX_KB: 'attachmentMaxKb',
 	LOG_LEVEL: 'logLevel',
 } as const;
 
@@ -61,6 +62,7 @@ export const CONFIG_MODIFIERS = [
 	ConfigModifiers.USERNAME,
 	ConfigModifiers.AUTOSYNC,
 	ConfigModifiers.SYNC_DEBOUNCE_MS,
+	ConfigModifiers.ATTACHMENT_MAX_KB,
 	ConfigModifiers.LOG_LEVEL,
 ];
 
@@ -90,6 +92,8 @@ export const AUTOSYNC_DEBOUNCE_HINTS = [
 	'30000',
 	'60000',
 ];
+
+export const ATTACHMENT_MAX_KB_HINTS = ['250', '500', '1000'];
 
 // Suggested playback windows for `:replay <when> <duration>`. Ordered shortest
 // first so the inline completion lands on the most likely choice.

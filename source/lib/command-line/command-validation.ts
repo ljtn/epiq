@@ -11,6 +11,11 @@ import {AnyContext} from '../model/context.model.js';
 import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getSettingsState, LogLevel} from '../state/settings.state.js';
+import {
+	MAX_ATTACHMENT_MAX_KB,
+	MIN_ATTACHMENT_MAX_KB,
+} from './commands/set-attachment-max-kb.cmd.js';
+import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
 import {getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
 import {
@@ -26,6 +31,7 @@ import {
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {CmdValidity, cmdValidity} from './cmd-validity.js';
 import {
+	ATTACHMENT_MAX_KB_HINTS,
 	AUTOSYNC_DEBOUNCE_HINTS,
 	ConfigModifiers,
 	EditModifiers,
@@ -314,6 +320,36 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 						minLengthForHints: 0,
 					}),
 					completionWordList: wordList,
+				});
+			}
+
+			return valid(CONFIRM_MSG);
+		}
+
+		case ConfigModifiers.ATTACHMENT_MAX_KB: {
+			const currentMaxKb = getSettingsState().attachmentMaxKb;
+			const parsedMaxKb = Number.parseInt(inputString.trim(), 10);
+
+			if (
+				!inputString.trim() ||
+				Number.isNaN(parsedMaxKb) ||
+				parsedMaxKb < MIN_ATTACHMENT_MAX_KB ||
+				parsedMaxKb > MAX_ATTACHMENT_MAX_KB
+			) {
+				const hint = buildOptionsHint({
+					prefix: ' examples: ',
+					wordList: ATTACHMENT_MAX_KB_HINTS,
+					minLengthForHints: 0,
+					inputString,
+				});
+
+				return invalid({
+					message:
+						hintAlert(
+							`provide a size cap in KB (${MIN_ATTACHMENT_MAX_KB}-${MAX_ATTACHMENT_MAX_KB}). ` +
+								`current: ${currentMaxKb ?? DEFAULT_ATTACHMENT_MAX_KB} KB.`,
+						) + hint,
+					completionWordList: ATTACHMENT_MAX_KB_HINTS,
 				});
 			}
 

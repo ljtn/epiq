@@ -76,6 +76,37 @@ export const App = () => {
 
 	const selectedIssue = state && issueId ? findIssue(state, issueId) : null;
 
+	// Paste-to-attach: the fastest screenshot flow. Text inputs keep their
+	// native paste behavior.
+	useEffect(() => {
+		const onPaste = (event: ClipboardEvent) => {
+			if (!selectedIssue || selectedIssue.readonly) return;
+
+			const target = event.target as HTMLElement | null;
+			if (
+				target &&
+				(target.tagName === 'INPUT' ||
+					target.tagName === 'TEXTAREA' ||
+					target.isContentEditable)
+			) {
+				return;
+			}
+
+			const files = Array.from(event.clipboardData?.items ?? [])
+				.filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+				.map(item => item.getAsFile())
+				.filter((file): file is File => Boolean(file));
+
+			if (files.length === 0) return;
+
+			event.preventDefault();
+			void uploadIssueAttachments(selectedIssue.id, files);
+		};
+
+		window.addEventListener('paste', onPaste);
+		return () => window.removeEventListener('paste', onPaste);
+	});
+
 	const closeIssueDetails = () => {
 		if (!boardSlug) return;
 
@@ -392,7 +423,7 @@ export const App = () => {
 		for (const file of files) {
 			setAttachmentUploadStatus({state: 'uploading', name: file.name});
 
-			const compressed = await compressImage(file);
+			const compressed = await compressImage(file, state?.attachmentMaxKb);
 
 			if ('error' in compressed) {
 				setAttachmentUploadStatus({state: 'error', message: compressed.error});
@@ -434,6 +465,39 @@ export const App = () => {
 		}
 
 		setAttachmentUploadStatus({state: 'idle'});
+	};
+
+	const deleteIssueAttachment = async (
+		_issueId: string,
+		attachmentId: string,
+	) => {
+		try {
+			const response = await fetch(
+				`/api/attachments/${encodeURIComponent(attachmentId)}`,
+				{method: 'DELETE'},
+			);
+
+			const payload = await response.json();
+
+			if (!response.ok) {
+				setAttachmentUploadStatus({
+					state: 'error',
+					message: payload?.message ?? 'Unable to delete attachment',
+				});
+				return;
+			}
+
+			const nextState = getResultValue<GuiState>(payload);
+			if (nextState) setState(nextState);
+		} catch (error) {
+			setAttachmentUploadStatus({
+				state: 'error',
+				message:
+					error instanceof Error
+						? error.message
+						: 'Unable to delete attachment',
+			});
+		}
 	};
 
 	const deleteIssueComment = (_issueId: string, commentId: string) => {
@@ -547,6 +611,7 @@ export const App = () => {
 						attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
 						attachmentUploadStatus={attachmentUploadStatus}
 						onUploadAttachments={uploadIssueAttachments}
+						onDeleteAttachment={deleteIssueAttachment}
 						onReopenIssue={reopenIssue}
 						onCloseIssue={closeIssue}
 						knownTags={state.tags ?? []}

@@ -49,6 +49,7 @@ export type ApiAttachment = {
 	fileName: string;
 	bytes: number;
 	createdAt: number;
+	canDelete: boolean;
 };
 
 export type ApiState = {
@@ -58,4 +59,5 @@ export type ApiState = {
 	boards: ApiBoard[];
 	commentsByIssueId: Record<string, ApiComment[]>;
 	attachmentsByIssueId: Record<string, ApiAttachment[]>;
+	attachmentMaxKb: number;
 };

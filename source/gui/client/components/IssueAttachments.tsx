@@ -15,19 +15,23 @@ export const IssueAttachments = ({
 	attachments,
 	uploadStatus,
 	onUploadFiles,
+	onDeleteAttachment,
 }: {
 	issueId: string;
 	readonly: boolean;
 	attachments: GuiAttachment[];
 	uploadStatus: AttachmentUploadStatus;
 	onUploadFiles?: (issueId: string, files: File[]) => void;
+	onDeleteAttachment?: (issueId: string, attachmentId: string) => void;
 }) => {
 	const [dragging, setDragging] = useState(false);
 	const [lightbox, setLightbox] = useState<GuiAttachment | null>(null);
+	const [broken, setBroken] = useState<Record<string, boolean>>({});
 
 	useEffect(() => {
 		setLightbox(null);
 		setDragging(false);
+		setBroken({});
 	}, [issueId]);
 
 	useEffect(() => {
@@ -95,37 +99,89 @@ export const IssueAttachments = ({
 						}}
 					>
 						{attachments.map(attachment => (
-							<button
+							<div
 								key={attachment.id}
-								type="button"
-								onClick={() => setLightbox(attachment)}
-								title={`${attachment.name} (${Math.max(
-									1,
-									Math.round(attachment.bytes / 1024),
-								)} KB)`}
-								style={{
-									padding: 0,
-									border: `1px solid ${GUI_THEME.line}`,
-									borderRadius: 4,
-									background: GUI_THEME.panel2,
-									cursor: 'zoom-in',
-									overflow: 'hidden',
-									width: 72,
-									height: 72,
-								}}
+								style={{position: 'relative', width: 72, height: 72}}
 							>
-								<img
-									src={`/media/${attachment.fileName}`}
-									alt={attachment.name}
-									loading="lazy"
+								<button
+									type="button"
+									disabled={broken[attachment.id]}
+									onClick={() => setLightbox(attachment)}
+									title={`${attachment.name} (${Math.max(
+										1,
+										Math.round(attachment.bytes / 1024),
+									)} KB)`}
 									style={{
+										padding: 0,
+										border: `1px solid ${GUI_THEME.line}`,
+										borderRadius: 4,
+										background: GUI_THEME.panel2,
+										cursor: broken[attachment.id] ? 'default' : 'zoom-in',
+										overflow: 'hidden',
 										width: '100%',
 										height: '100%',
-										objectFit: 'cover',
-										display: 'block',
 									}}
-								/>
-							</button>
+								>
+									{broken[attachment.id] ? (
+										<span
+											title="Attachment unavailable (missing, corrupt, or over the size cap)"
+											style={{
+												display: 'flex',
+												alignItems: 'center',
+												justifyContent: 'center',
+												width: '100%',
+												height: '100%',
+												color: GUI_THEME.dim2,
+												fontSize: 9,
+												padding: 4,
+												textAlign: 'center',
+											}}
+										>
+											unavailable
+										</span>
+									) : (
+										<img
+											src={`/media/${attachment.fileName}`}
+											alt={attachment.name}
+											loading="lazy"
+											onError={() =>
+												setBroken(prev => ({...prev, [attachment.id]: true}))
+											}
+											style={{
+												width: '100%',
+												height: '100%',
+												objectFit: 'cover',
+												display: 'block',
+											}}
+										/>
+									)}
+								</button>
+
+								{attachment.canDelete && !readonly && onDeleteAttachment && (
+									<button
+										type="button"
+										title="Delete attachment"
+										onClick={() => onDeleteAttachment(issueId, attachment.id)}
+										style={{
+											position: 'absolute',
+											top: 2,
+											right: 2,
+											width: 16,
+											height: 16,
+											lineHeight: '14px',
+											padding: 0,
+											border: `1px solid ${GUI_THEME.line}`,
+											borderRadius: 3,
+											background: 'rgba(4, 5, 8, 0.75)',
+											color: GUI_THEME.secondary,
+											fontSize: 10,
+											cursor: 'pointer',
+										}}
+									>
+										×
+									</button>
+								)}
+							</div>
 						))}
 					</div>
 				)}
