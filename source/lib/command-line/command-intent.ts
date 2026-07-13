@@ -68,8 +68,8 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.CONFIG:
 			return CmdIntent.Config;
 
-		case CmdKeywords.CP:
-			return CmdIntent.Copy;
+		case CmdKeywords.YANK:
+			return CmdIntent.Yank;
 
 		// Git
 		case CmdKeywords.SYNC:
@@ -93,7 +93,7 @@ export const CmdIntent = {
 	Move: 'move',
 	Peek: 'peek',
 	Replay: 'replay',
-	Copy: 'copy',
+	Yank: 'yank',
 
 	// Settings
 	Config: 'config',

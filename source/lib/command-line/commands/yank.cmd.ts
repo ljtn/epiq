@@ -4,7 +4,7 @@ import {getState} from '../../state/state.js';
 import {copyTextToClipboard} from '../../utils/clipboard.js';
 import {nodeRef} from '../../utils/node-ref.js';
 import {getTicketAssignees, getTicketTags} from '../../utils/ticket.utils.js';
-import {CopyModifiers, ticketInScope} from '../command-modifiers.js';
+import {YankModifiers, ticketInScope} from '../command-modifiers.js';
 
 const copyValue = async (
 	value: string,
@@ -18,7 +18,7 @@ const copyValue = async (
 	return succeeded(`Copied ${label} to clipboard`, null);
 };
 
-export const copyCommand = async (
+export const yankCommand = async (
 	cmdState: CommandLineInput,
 ): Promise<Result<null>> => {
 	const {breadCrumb, selectedNode} = getState();
@@ -28,24 +28,24 @@ export const copyCommand = async (
 	if (!target) return failed('Nothing selected to copy from');
 
 	switch (cmdState.modifier) {
-		case CopyModifiers.REF:
+		case YankModifiers.REF:
 			return copyValue(nodeRef(target.id), 'ref');
 
-		case CopyModifiers.TITLE:
+		case YankModifiers.TITLE:
 			return copyValue(target.title, 'title');
 
-		case CopyModifiers.DESCRIPTION: {
+		case YankModifiers.DESCRIPTION: {
 			if (!ticket) return failed('No issue in scope');
 			return copyValue(ticket.props?.description ?? '', 'description');
 		}
 
-		case CopyModifiers.TAGS: {
+		case YankModifiers.TAGS: {
 			if (!ticket) return failed('No issue in scope');
 			const tags = getTicketTags(ticket).map(({name}) => name);
 			return copyValue(tags.join(', '), 'tags');
 		}
 
-		case CopyModifiers.ASSIGNEES: {
+		case YankModifiers.ASSIGNEES: {
 			if (!ticket) return failed('No issue in scope');
 			const assignees = getTicketAssignees(ticket).map(({name}) => name);
 			return copyValue(assignees.join(', '), 'assignees');

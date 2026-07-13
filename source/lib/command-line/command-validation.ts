@@ -409,8 +409,8 @@ const validateEditCommand: Validator = ({modifier, inputString}) => {
 	}
 };
 
-const validateCopyCommand: Validator = ({modifier}) => {
-	const copyModifiers = getCmdModifiers(CmdKeywords.CP);
+const validateYankCommand: Validator = ({modifier}) => {
+	const copyModifiers = getCmdModifiers(CmdKeywords.YANK);
 
 	if (!copyModifiers.length) {
 		return invalid({
@@ -616,7 +616,7 @@ const validators: Record<CmdKeyword, Validator> = {
 
 	[CmdKeywords.CONFIG]: validateConfigCommand,
 
-	[CmdKeywords.CP]: validateCopyCommand,
+	[CmdKeywords.YANK]: validateYankCommand,
 
 	[CmdKeywords.DELETE]: args => {
 		const editableNodeTypeValidation = guardBoardSwimlaneTicketNodes();

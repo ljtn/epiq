@@ -45,7 +45,7 @@ export const EditModifiers = {
 
 export type EditModifier = (typeof EditModifiers)[keyof typeof EditModifiers];
 
-export const CopyModifiers = {
+export const YankModifiers = {
 	REF: 'ref',
 	TITLE: 'title',
 	DESCRIPTION: 'description',
@@ -53,7 +53,7 @@ export const CopyModifiers = {
 	ASSIGNEES: 'assignees',
 } as const;
 
-export type CopyModifier = (typeof CopyModifiers)[keyof typeof CopyModifiers];
+export type YankModifier = (typeof YankModifiers)[keyof typeof YankModifiers];
 
 export const CONFIG_MODIFIERS = [
 	ConfigModifiers.EDITOR,
@@ -106,7 +106,7 @@ const GLOBAL_COMMANDS = [
 	CmdKeywords.HELP,
 	CmdKeywords.EXPORT,
 	CmdKeywords.CONFIG,
-	CmdKeywords.CP,
+	CmdKeywords.YANK,
 ];
 
 const EDIT_COMMANDS = [
@@ -141,7 +141,7 @@ const COMMANDS_BY_CONTEXT: CommandMap = {
 	FIELD: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
 	FIELD_LIST: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
 	TEXT: [...GLOBAL_COMMANDS],
-	COMMENT: [CmdKeywords.EDIT, CmdKeywords.DELETE, CmdKeywords.CP],
+	COMMENT: [CmdKeywords.EDIT, CmdKeywords.DELETE, CmdKeywords.YANK],
 };
 
 const getNewModifiers = (context: AnyContext): string[] => {
@@ -182,25 +182,25 @@ const getEditModifiersInScope = ({
 		: [...modifiers, EditModifiers.DESCRIPTION];
 };
 
-// `cp` copies from the ticket in scope when there is one; otherwise from the
+// `yank` copies from the ticket in scope when there is one; otherwise from the
 // selected node (a board or swimlane also has a ref and a title). Description,
 // tags, and assignees are only offered when the scoped ticket has them.
-const getCopyModifiers = ({
+const getYankModifiers = ({
 	selectedNode,
 	breadCrumb,
-}: Pick<AppState, 'selectedNode' | 'breadCrumb'>): CopyModifier[] => {
+}: Pick<AppState, 'selectedNode' | 'breadCrumb'>): YankModifier[] => {
 	const ticket = ticketInScope({breadCrumb, selectedNode});
 
 	if (!ticket) {
-		return selectedNode ? [CopyModifiers.REF, CopyModifiers.TITLE] : [];
+		return selectedNode ? [YankModifiers.REF, YankModifiers.TITLE] : [];
 	}
 
 	return [
-		CopyModifiers.REF,
-		CopyModifiers.TITLE,
-		...(ticket.props?.description?.trim() ? [CopyModifiers.DESCRIPTION] : []),
-		...(getTicketTags(ticket).length > 0 ? [CopyModifiers.TAGS] : []),
-		...(getTicketAssignees(ticket).length > 0 ? [CopyModifiers.ASSIGNEES] : []),
+		YankModifiers.REF,
+		YankModifiers.TITLE,
+		...(ticket.props?.description?.trim() ? [YankModifiers.DESCRIPTION] : []),
+		...(getTicketTags(ticket).length > 0 ? [YankModifiers.TAGS] : []),
+		...(getTicketAssignees(ticket).length > 0 ? [YankModifiers.ASSIGNEES] : []),
 	];
 };
 
@@ -228,7 +228,7 @@ const getAvailableBaseCommands = ({
 			CmdKeywords.REPLAY,
 			CmdKeywords.EXPORT,
 			CmdKeywords.CONFIG,
-			CmdKeywords.CP,
+			CmdKeywords.YANK,
 		];
 	}
 
@@ -252,7 +252,7 @@ const getAvailableBaseCommands = ({
 		}
 
 		// Nothing to copy from without a scoped ticket or a selection.
-		if (command === CmdKeywords.CP) {
+		if (command === CmdKeywords.YANK) {
 			return Boolean(ticket ?? selectedNode);
 		}
 
@@ -322,7 +322,7 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.EDIT]: getEditModifiersInScope({selectedNode, breadCrumb}),
 
-		[CmdKeywords.CP]: getCopyModifiers({selectedNode, breadCrumb}),
+		[CmdKeywords.YANK]: getYankModifiers({selectedNode, breadCrumb}),
 
 		[CmdKeywords.COMMENT]: [],
 
