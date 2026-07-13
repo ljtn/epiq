@@ -33,6 +33,7 @@ export const TicketListItemUI: React.FC<{
 			width={width - 7}
 			height={4}
 			flexDirection="column"
+			borderDimColor={!isSelected}
 			borderColor={
 				isFlashing ? flashColor : isSelected ? theme.accent : theme.secondary
 			}
