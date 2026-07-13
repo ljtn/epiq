@@ -471,6 +471,7 @@ h2 {
 	text-align: center;
 }
 .hero-placeholder > img {
+	width: 100%;
 	max-width: 1640px;
 	box-shadow: 0 0 48px #4c839e55;
 	border-radius: 8px;
@@ -1316,5 +1317,23 @@ h2 {
 	.side-cmds {
 		width: 100%;
 		grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+	}
+}
+
+/* Mobile hero: drop the animated board, crop the banner instead of
+   shrinking it into a strip. */
+@media (max-width: 620px) {
+	.hero-shot {
+		display: none;
+	}
+	.hero-placeholder {
+		min-height: 0;
+		padding: 20px 0;
+		overflow: hidden;
+	}
+	.hero-placeholder > img {
+		width: auto;
+		max-width: none;
+		height: 320px;
 	}
 }
