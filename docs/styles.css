@@ -521,6 +521,10 @@ h2 {
 	.split {
 		grid-template-columns: minmax(0, 1fr);
 	}
+	/* No room for the animated board once the hero stacks. */
+	.hero-shot {
+		display: none;
+	}
 	.cards,
 	.section-head {
 		display: block;
@@ -533,14 +537,20 @@ h2 {
 	.wrap {
 		width: min(100% - 28px, 1160px);
 	}
-	.links a:not(.btn):not(.ver-pill) {
+	/* Keep :docs and :lore visible; tighten the row and drop the
+	   star count so everything fits. */
+	.links {
+		gap: 12px;
+	}
+	.links .btn {
+		min-height: 38px;
+		padding: 0 12px;
+	}
+	.github-stars .stars {
 		display: none;
 	}
 	.hero {
 		padding-top: 52px;
-	}
-	.hero-shot {
-		min-height: 280px;
 	}
 	.cards,
 	.logos {
@@ -1320,12 +1330,8 @@ h2 {
 	}
 }
 
-/* Mobile hero: drop the animated board, crop the banner instead of
-   shrinking it into a strip. */
+/* Mobile hero: crop the banner instead of shrinking it into a strip. */
 @media (max-width: 620px) {
-	.hero-shot {
-		display: none;
-	}
 	.hero-placeholder {
 		min-height: 0;
 		padding: 20px 0;
