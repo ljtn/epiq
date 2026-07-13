@@ -6,6 +6,7 @@ import {
 	sanitizeInlineText,
 	truncateWithEllipsis,
 } from '../utils/string.utils.js';
+import {nodeRef} from '../utils/node-ref.js';
 import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
@@ -45,13 +46,24 @@ export const TicketListItemUI: React.FC<{
 				</Box>
 			</Box>
 
-			<Box flexDirection="row" paddingLeft={1}>
-				{tags.map(tag => (
-					<TagUI key={tag.id} id={tag.id} />
-				))}
-				{assignees.map(assignee => (
-					<AssigneeUI key={assignee.id} id={assignee.id} />
-				))}
+			<Box
+				flexDirection="row"
+				justifyContent="space-between"
+				paddingLeft={1}
+				paddingRight={1}
+			>
+				<Box flexDirection="row">
+					{tags.map(tag => (
+						<TagUI key={tag.id} id={tag.id} />
+					))}
+					{assignees.map(assignee => (
+						<AssigneeUI key={assignee.id} id={assignee.id} />
+					))}
+				</Box>
+
+				<Text wrap="truncate" color={theme.secondary2} dimColor>
+					#{nodeRef(ticket.id)}
+				</Text>
 			</Box>
 		</Box>
 	);
