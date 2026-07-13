@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -25,6 +25,19 @@
 
 		<link rel="icon" href="./favicon.ico" sizes="any" />
 		<link rel="stylesheet" href="./styles.css" />
+		<style>
+			.ab-issue {
+				background: #9e77fa;
+				color: #000;
+				border-radius: 3px;
+			}
+
+			.ab-compose {
+				display: inline-block;
+				white-space: pre;
+				min-width: 42ch;
+			}
+		</style>
 	</head>
 	<body>
 		<nav class="nav">
@@ -97,8 +110,31 @@
 						</div>
 					</div>
 
-					<aside class="hero-shot" aria-label="epiq board screenshot">
-						<img src="./board.png" alt="The epiq board in wide view" />
+					<aside class="hero-shot" aria-label="epiq terminal board">
+						<pre class="ascii-board" aria-hidden="true">
+ <span class="ab-dim">Workspace / Default / Backlog</span> <span class="ab-txt">▸ Support additional shortcut for comments</span>  <span class="ab-ref">#W3X83M2</span>  <span class="ab-dim">Sync (auto):</span> <span class="ab-sync">●</span>    <span class="ab-dim">Mode: default   @ jola  ❯ vim</span>
+<span class="ab-line">╭──────────────────────────────────────╮</span><span class="ab-line">╭──────────────────────────────────────╮</span><span class="ab-line">╭──────────────────────────────────────╮</span>
+<span class="ab-line">│</span>   <span class="ab-txt">Backlog</span> <span class="ab-dim">(3)</span>                        <span class="ab-line">│</span><span class="ab-line">│</span>   <span class="ab-txt">Ongoing</span> <span class="ab-dim">(2)</span>                        <span class="ab-line">│</span><span class="ab-line">│</span>   <span class="ab-txt">Review</span> <span class="ab-dim">(0)</span>                         <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-line">────────────────────────────────────</span> <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-line">────────────────────────────────────</span> <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-line">────────────────────────────────────</span> <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">╭─────────────────────────────────╮</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">╭─────────────────────────────────╮</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-txt">Enhance the wide view mode</span>      <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-txt">Prettify gui status messages</span>    <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-desc">Render issues full width. A...</span>  <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-desc">Green on success, red on f...</span>   <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">│</span>                        <span class="ab-ref">#ZWRZYXN</span> <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-tag"> important </span> <span class="ab-user">@jola</span>      <span class="ab-ref">#EH18WXR</span> <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">╰─────────────────────────────────╯</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">╰─────────────────────────────────╯</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-sel">╭─────────────────────────────────╮</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">╭─────────────────────────────────╮</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-sel">│</span> <span class="ab-txt">Implement keyboard shortcuts</span>    <span class="ab-sel">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-txt">Update ghpages with latest</span>      <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-sel">│</span>                                 <span class="ab-sel">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-txt">documentation</span>                   <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-sel">│</span>                        <span class="ab-ref">#W3X83M2</span> <span class="ab-sel">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">│</span>                        <span class="ab-ref">#KYZXQVB</span> <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-sel">╰─────────────────────────────────╯</span>  <span class="ab-line">│</span><span class="ab-line">│</span> <span class="ab-card">╰─────────────────────────────────╯</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">╭─────────────────────────────────╮</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-txt">Add support for very long</span>       <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">│</span> <span class="ab-txt">titles rendered in wide...</span>      <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">│</span>                        <span class="ab-ref">#N6ANKQM</span> <span class="ab-card">│</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">│</span> <span class="ab-card">╰─────────────────────────────────╯</span>  <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span><span class="ab-line">│</span>                                      <span class="ab-line">│</span>
+<span class="ab-line">╰──────────────────────────────────────╯</span><span class="ab-line">╰──────────────────────────────────────╯</span><span class="ab-line">╰──────────────────────────────────────╯</span>
+<span class="ab-line">╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span>
+<span class="ab-line">│</span> <span id="compose-anim" class="ab-compose ab-dim"></span>                                                                                                  <span class="ab-line">│</span>
+<span class="ab-line">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></pre>
 					</aside>
 				</div>
 			</header>
@@ -374,6 +410,67 @@
 		</footer>
 
 		<script>
+			(function () {
+				var el = document.getElementById("compose-anim");
+				if (!el) return;
+
+				var full = ":new issue Add command animation";
+				var issue = "issue";
+				var typeMs = 120;
+				var pauseMs = 900;
+				var startDelay = 450;
+
+				function escapeHtml(s) {
+					return String(s)
+						.replace(/&/g, "&amp;")
+						.replace(/</g, "&lt;")
+						.replace(/>/g, "&gt;")
+						.replace(/"/g, "&quot;")
+						.replace(/'/g, "&#39;");
+				}
+
+				function render(n) {
+					var raw = full.slice(0, n);
+					var idx = raw.indexOf(issue);
+					if (idx !== -1 && raw.length >= idx + issue.length) {
+						el.innerHTML =
+							escapeHtml(raw.slice(0, idx)) +
+							'<span class="ab-issue">' +
+							escapeHtml(issue) +
+							"</span>" +
+							escapeHtml(raw.slice(idx + issue.length));
+					} else {
+						el.textContent = raw;
+					}
+				}
+
+				function run() {
+					var i = 1;
+					var timer = null;
+
+					function step() {
+						render(i);
+						if (i < full.length) {
+							i += 1;
+							timer = window.setTimeout(step, typeMs);
+						} else {
+							timer = window.setTimeout(function () {
+								i = 1;
+								step();
+							}, pauseMs);
+						}
+					}
+
+					render(i);
+					step();
+					return timer;
+				}
+
+				window.setTimeout(run, startDelay);
+			})();
+		</script>
+
+		<script>
 			document.querySelectorAll(".copy-cmd").forEach(function (el) {
 				el.addEventListener("click", function () {
 					var cmd = el.getAttribute("data-copy") || "";
@@ -421,8 +518,8 @@
 				function formatCount(n) {
 					if (n < 1000) return String(n);
 					var units = [
-						{v: 1e6, s: "m"},
-						{v: 1e3, s: "k"},
+						{ v: 1e6, s: "m" },
+						{ v: 1e3, s: "k" },
 					];
 					for (var i = 0; i < units.length; i++) {
 						if (n >= units[i].v) {
@@ -480,7 +577,7 @@
 									JSON.stringify({
 										count: data.stargazers_count,
 										ts: Date.now(),
-									}),
+									})
 								);
 							} catch (e) {}
 						}

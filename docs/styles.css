@@ -181,20 +181,68 @@ h1 {
 	min-height: 300px;
 	overflow: hidden;
 }
-.hero-shot img {
+.ascii-board {
 	position: absolute;
-	top: 0;
+	top: 6px;
 	left: 0;
-	width: 230%;
-	max-width: none;
-	/* the ellipse must finish fading before the container clips the image:
-	   the img is 230% of the column, so ~43% of the img is visible */
+	margin: 0;
+	font: 13px/1.32 var(--mono);
+	white-space: pre;
+	color: var(--muted);
+	/* the ellipse must finish fading before the container clips the board */
 	-webkit-mask-image: radial-gradient(
-		45% 66% at 0% 0%,
-		#000 40%,
-		transparent 93%
+		36% 180% at 0% 80%,
+		#000000 42%,
+		#00000000 95%
 	);
-	mask-image: radial-gradient(45% 66% at 0% 0%, #000 40%, transparent 93%);
+	mask-image: radial-gradient(36% 180% at 0% 80%, #000000 42%, #00000000 95%);
+}
+.ab-line {
+	color: rgba(70, 87, 126, 0.38);
+}
+.ab-card {
+	color: rgba(120, 134, 170, 0.35);
+}
+.ab-sel {
+	color: var(--cyan);
+}
+.ab-txt {
+	color: var(--text);
+}
+.ab-dim,
+.ab-desc {
+	color: var(--muted);
+	opacity: 0.75;
+}
+.ab-ref {
+	color: rgba(150, 155, 181, 0.55);
+}
+.ab-tag {
+	background: #ff8787;
+	color: #14060a;
+	border-radius: 3px;
+}
+.ab-user {
+	color: #a78bfa;
+}
+.ab-sync {
+	color: #8fdc8c;
+}
+.ab-issue {
+	background: var(--cyan);
+	color: #000;
+	border-radius: 3px;
+	padding: 0 2px;
+}
+.ab-cursor {
+	color: var(--cyan);
+	opacity: 0.9;
+	animation: abBlink 1.1s steps(2, end) infinite;
+}
+@keyframes abBlink {
+	50% {
+		opacity: 0;
+	}
 }
 
 .logos {
