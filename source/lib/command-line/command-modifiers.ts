@@ -49,6 +49,8 @@ export const CopyModifiers = {
 	REF: 'ref',
 	TITLE: 'title',
 	DESCRIPTION: 'description',
+	TAGS: 'tags',
+	ASSIGNEES: 'assignees',
 } as const;
 
 export type CopyModifier = (typeof CopyModifiers)[keyof typeof CopyModifiers];
@@ -181,21 +183,25 @@ const getEditModifiersInScope = ({
 };
 
 // `cp` copies from the ticket in scope when there is one; otherwise from the
-// selected node (a board or swimlane also has a ref and a title). The
-// description modifier is only offered when the scoped ticket has one.
+// selected node (a board or swimlane also has a ref and a title). Description,
+// tags, and assignees are only offered when the scoped ticket has them.
 const getCopyModifiers = ({
 	selectedNode,
 	breadCrumb,
 }: Pick<AppState, 'selectedNode' | 'breadCrumb'>): CopyModifier[] => {
 	const ticket = ticketInScope({breadCrumb, selectedNode});
 
-	if (ticket) {
-		return ticket.props?.description?.trim()
-			? [CopyModifiers.REF, CopyModifiers.TITLE, CopyModifiers.DESCRIPTION]
-			: [CopyModifiers.REF, CopyModifiers.TITLE];
+	if (!ticket) {
+		return selectedNode ? [CopyModifiers.REF, CopyModifiers.TITLE] : [];
 	}
 
-	return selectedNode ? [CopyModifiers.REF, CopyModifiers.TITLE] : [];
+	return [
+		CopyModifiers.REF,
+		CopyModifiers.TITLE,
+		...(ticket.props?.description?.trim() ? [CopyModifiers.DESCRIPTION] : []),
+		...(getTicketTags(ticket).length > 0 ? [CopyModifiers.TAGS] : []),
+		...(getTicketAssignees(ticket).length > 0 ? [CopyModifiers.ASSIGNEES] : []),
+	];
 };
 
 const getAvailableBaseCommands = ({

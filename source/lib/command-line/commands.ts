@@ -729,7 +729,8 @@ export const commands: CommandLineActionEntry[] = [
 	},
 	{
 		intent: CmdIntent.Copy,
-		description: 'Copy the ref, title, or description to the clipboard',
+		description:
+			'Copy ref, title, description, tags, or assignees to the clipboard',
 		mode: Mode.COMMAND_LINE,
 		action: async (_, cmdState) => copyCommand(cmdState),
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),

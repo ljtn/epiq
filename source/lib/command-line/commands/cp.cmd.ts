@@ -3,6 +3,7 @@ import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getState} from '../../state/state.js';
 import {copyTextToClipboard} from '../../utils/clipboard.js';
 import {nodeRef} from '../../utils/node-ref.js';
+import {getTicketAssignees, getTicketTags} from '../../utils/ticket.utils.js';
 import {CopyModifiers, ticketInScope} from '../command-modifiers.js';
 
 const copyValue = async (
@@ -38,7 +39,19 @@ export const copyCommand = async (
 			return copyValue(ticket.props?.description ?? '', 'description');
 		}
 
+		case CopyModifiers.TAGS: {
+			if (!ticket) return failed('No issue in scope');
+			const tags = getTicketTags(ticket).map(({name}) => name);
+			return copyValue(tags.join(', '), 'tags');
+		}
+
+		case CopyModifiers.ASSIGNEES: {
+			if (!ticket) return failed('No issue in scope');
+			const assignees = getTicketAssignees(ticket).map(({name}) => name);
+			return copyValue(assignees.join(', '), 'assignees');
+		}
+
 		default:
-			return failed('Copy one of: ref, title, description');
+			return failed('Copy one of: ref, title, description, tags, assignees');
 	}
 };
