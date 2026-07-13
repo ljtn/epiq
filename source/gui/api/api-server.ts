@@ -2,10 +2,18 @@ import {readFile} from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {failed, Result, succeeded} from '../../lib/model/result-types.js';
 import {
+	failed,
+	isFail,
+	Result,
+	succeeded,
+} from '../../lib/model/result-types.js';
+import {
+	addIssueAttachment,
 	addIssueComment,
+	deleteIssueAttachment,
 	deleteIssueComment,
+	getAttachmentBlob,
 	getGuiState,
 } from '../../mcp/epiq-api.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
@@ -23,11 +31,23 @@ const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
 	res.end(JSON.stringify(body));
 };
 
-const readJsonBody = async <T>(req: http.IncomingMessage): Promise<T> =>
+const readJsonBody = async <T>(
+	req: http.IncomingMessage,
+	maxBytes = 1024 * 1024,
+): Promise<T> =>
 	new Promise((resolve, reject) => {
 		let body = '';
+		let received = 0;
 
 		req.on('data', chunk => {
+			received += chunk.length;
+
+			if (received > maxBytes) {
+				req.destroy();
+				reject(new Error('Request body too large'));
+				return;
+			}
+
 			body += chunk;
 		});
 
@@ -41,6 +61,19 @@ const readJsonBody = async <T>(req: http.IncomingMessage): Promise<T> =>
 
 		req.on('error', reject);
 	});
+
+/**
+ * Base64 inflates the 500 KB blob cap by ~4/3; leave headroom on top for
+ * the JSON envelope.
+ */
+const ATTACHMENT_BODY_MAX_BYTES = 2 * 1024 * 1024;
+
+const MEDIA_CONTENT_TYPES: Record<string, string> = {
+	png: 'image/png',
+	jpg: 'image/jpeg',
+	gif: 'image/gif',
+	webp: 'image/webp',
+};
 
 const getContentType = (filePath: string) => {
 	if (filePath.endsWith('.html')) return 'text/html; charset=utf-8';
@@ -169,6 +202,114 @@ export const startGuiServer = async (input: {
 					isError: true,
 					message:
 						error instanceof Error ? error.message : 'Unable to add comment',
+				});
+			}
+		}
+
+		if (req.method === 'POST' && url.pathname === '/api/attachments') {
+			try {
+				const body = await readJsonBody<{
+					issueId?: string;
+					name?: string;
+					dataBase64?: string;
+				}>(req, ATTACHMENT_BODY_MAX_BYTES);
+
+				if (!body.issueId || !body.dataBase64) {
+					return sendJson(res, 400, {
+						isError: true,
+						message: 'Missing issueId or dataBase64',
+					});
+				}
+
+				const result = await addIssueAttachment({
+					repoRoot: input.repoRoot,
+					issueId: body.issueId,
+					name: body.name ?? '',
+					dataBase64: body.dataBase64,
+				});
+
+				if (isFail(result)) {
+					return sendJson(res, 400, {
+						isError: true,
+						message: result.message,
+					});
+				}
+
+				return sendJson(
+					res,
+					200,
+					await getGuiState({repoRoot: input.repoRoot}),
+				);
+			} catch (error) {
+				return sendJson(res, 400, {
+					isError: true,
+					message:
+						error instanceof Error ? error.message : 'Unable to add attachment',
+				});
+			}
+		}
+
+		if (
+			req.method === 'DELETE' &&
+			url.pathname.startsWith('/api/attachments/')
+		) {
+			const attachmentId = decodeURIComponent(
+				url.pathname.replace('/api/attachments/', ''),
+			);
+
+			if (!attachmentId) {
+				return sendJson(res, 400, {
+					isError: true,
+					message: 'Missing attachment id',
+				});
+			}
+
+			const result = await deleteIssueAttachment({
+				repoRoot: input.repoRoot,
+				attachmentId,
+			});
+
+			if (isFail(result)) {
+				return sendJson(res, 400, {
+					isError: true,
+					message: result.message,
+				});
+			}
+
+			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
+		}
+
+		if (req.method === 'GET' && url.pathname.startsWith('/media/')) {
+			const fileName = decodeURIComponent(url.pathname.replace('/media/', ''));
+
+			const blobResult = await getAttachmentBlob({
+				repoRoot: input.repoRoot,
+				fileName,
+			});
+
+			if (isFail(blobResult)) {
+				return sendJson(res, 404, {
+					isError: true,
+					message: blobResult.message,
+				});
+			}
+
+			try {
+				const file = await readFile(blobResult.value.filePath);
+
+				res.writeHead(200, {
+					'content-type':
+						MEDIA_CONTENT_TYPES[blobResult.value.ext] ??
+						'application/octet-stream',
+					// content-addressed: the blob for a given name never changes
+					'cache-control': 'public, max-age=31536000, immutable',
+				});
+
+				return res.end(file);
+			} catch {
+				return sendJson(res, 404, {
+					isError: true,
+					message: 'Attachment blob not found',
 				});
 			}
 		}

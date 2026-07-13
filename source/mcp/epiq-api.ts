@@ -32,6 +32,11 @@ import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
+import {
+	getAttachmentFileName,
+	resolveAttachmentBlob,
+	writeAttachmentBlob,
+} from '../lib/media/media-store.js';
 import {logger} from '../logger.js';
 import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
 
@@ -111,6 +116,20 @@ type AddIssueCommentInput = ToolInput & {
 
 type DeleteIssueCommentInput = ToolInput & {
 	commentId: string;
+};
+
+type AddIssueAttachmentInput = ToolInput & {
+	issueId: string;
+	name: string;
+	dataBase64: string;
+};
+
+type DeleteIssueAttachmentInput = ToolInput & {
+	attachmentId: string;
+};
+
+type GetAttachmentBlobInput = ToolInput & {
+	fileName: string;
 };
 
 const resolveRepoRoot = (repoRoot?: string): Result<string> => {
@@ -575,6 +594,23 @@ export const getGuiState = async (
 			});
 	}
 
+	const attachmentsByIssueId: ApiState['attachmentsByIssueId'] = {};
+
+	for (const issue of nodes.filter(isTicketNode)) {
+		if (issue.isDeleted) continue;
+
+		attachmentsByIssueId[issue.id] = nodeRepo
+			.getAttachmentsByIssue(issue.id)
+			.map(attachment => ({
+				id: attachment.id,
+				issueId: attachment.issue,
+				name: attachment.name,
+				fileName: getAttachmentFileName(attachment.hash, attachment.ext),
+				bytes: attachment.bytes,
+				createdAt: decodeTime(attachment.id),
+			}));
+	}
+
 	return succeeded('Retrieved Epiq GUI state', {
 		boards: boards
 			.sort((a, b) => a.rank.localeCompare(b.rank))
@@ -621,6 +657,7 @@ export const getGuiState = async (
 			color: getStringColor(settingsRes.value.userName ?? ''),
 		},
 		commentsByIssueId,
+		attachmentsByIssueId,
 	} satisfies ApiState);
 };
 
@@ -1052,4 +1089,142 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 		id: input.commentId,
 		issueId: commentEvent.payload.issue,
 	});
+};
+
+export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Attachment target must be an issue');
+	if (issue.readonly) return failed('Cannot attach to readonly issue');
+
+	const data = Buffer.from(input.dataBase64 ?? '', 'base64');
+
+	const written = writeAttachmentBlob(bootResult.value.stateBranchRoot, data);
+	if (isFail(written)) return written;
+
+	const name = sanitizeInlineText(input.name ?? '').trim() || 'image';
+	const attachmentId = ulid();
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'add.issue.attachment',
+		payload: {
+			id: attachmentId,
+			issue: input.issueId,
+			hash: written.value.hash,
+			ext: written.value.ext,
+			name,
+			bytes: written.value.bytes,
+		},
+	} satisfies AppEvent<'add.issue.attachment'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Added issue attachment', {
+		id: attachmentId,
+		issueId: input.issueId,
+		fileName: getAttachmentFileName(written.value.hash, written.value.ext),
+		bytes: written.value.bytes,
+	});
+};
+
+export const deleteIssueAttachment = async (
+	input: DeleteIssueAttachmentInput,
+) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const attachmentEvent = stateResult.value.eventLog.find(
+		(event): event is AppEvent<'add.issue.attachment'> =>
+			event.action === 'add.issue.attachment' &&
+			event.payload.id === input.attachmentId,
+	);
+
+	if (!attachmentEvent) {
+		return failed('Unable to resolve attachment');
+	}
+
+	if (attachmentEvent.userId !== actorResult.value.userId) {
+		return failed('You can only delete your own attachments');
+	}
+
+	const issue = stateResult.value.nodes[attachmentEvent.payload.issue];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Attachment target must be an issue');
+	if (issue.readonly) {
+		return failed('Cannot delete attachment on readonly issue');
+	}
+
+	const alreadyDeleted = stateResult.value.eventLog.some(
+		event =>
+			event.action === 'delete.issue.attachment' &&
+			event.payload.id === input.attachmentId,
+	);
+
+	if (alreadyDeleted) {
+		return succeeded('Attachment already deleted', {
+			id: input.attachmentId,
+			issueId: attachmentEvent.payload.issue,
+		});
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'delete.issue.attachment',
+		payload: {
+			id: input.attachmentId,
+			issue: attachmentEvent.payload.issue,
+		},
+	} satisfies AppEvent<'delete.issue.attachment'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Deleted issue attachment', {
+		id: input.attachmentId,
+		issueId: attachmentEvent.payload.issue,
+	});
+};
+
+/**
+ * Resolves a content-addressed blob for serving. Validation (name shape,
+ * hash match, magic bytes) happens inside resolveAttachmentBlob — synced
+ * blobs are untrusted input.
+ */
+export const getAttachmentBlob = async (input: GetAttachmentBlobInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	return resolveAttachmentBlob(
+		bootResult.value.stateBranchRoot,
+		input.fileName,
+	);
 };

@@ -41,10 +41,21 @@ export type ApiBoard = {
 	swimlanes: ApiSwimlane[];
 };
 
+export type ApiAttachment = {
+	id: string;
+	issueId: string;
+	name: string;
+	/** Content-addressed blob name, served at /media/<fileName> */
+	fileName: string;
+	bytes: number;
+	createdAt: number;
+};
+
 export type ApiState = {
 	tags: ApiTag[];
 	contributors: ApiAssignee[];
 	user: ApiAssignee;
 	boards: ApiBoard[];
 	commentsByIssueId: Record<string, ApiComment[]>;
+	attachmentsByIssueId: Record<string, ApiAttachment[]>;
 };
