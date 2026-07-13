@@ -82,10 +82,14 @@ export const TicketListItemUI: React.FC<{
 			>
 				<Box flexDirection="row">
 					{tags.map(tag => (
-						<TagUI key={tag.id} id={tag.id} />
+						<Box paddingRight={1} key={tag.id}>
+							<TagUI key={tag.id} id={tag.id} />
+						</Box>
 					))}
 					{assignees.map(assignee => (
-						<AssigneeUI key={assignee.id} id={assignee.id} />
+						<Box paddingRight={1} key={assignee.id}>
+							<AssigneeUI key={assignee.id} id={assignee.id} />
+						</Box>
 					))}
 				</Box>
 

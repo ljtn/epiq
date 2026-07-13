@@ -6,6 +6,7 @@ import {
 	isDescendantOf,
 	nodeRepo,
 } from '../repository/node-repo.js';
+import {isTicketNode} from '../model/context.model.js';
 import {getOrderedChildren} from '../repository/rank.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {useAppState} from '../state/state.js';
@@ -84,10 +85,16 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 		  commentCharacterLength
 		: 0;
 
+	// Wide-mode ticket cards render their own ref, so repeating it in the
+	// breadcrumb is noise; every other selection still needs it here.
+	const showRef =
+		selectedTarget?.id != null &&
+		!(viewMode === 'wide' && isTicketNode(selectedTarget));
+
 	const maxBreadcrumbWidth = Math.max(0, width - pillCharacterLength);
 	const breadcrumbText =
 		breadcrumbString.substring(0, maxBreadcrumbWidth) +
-		(selectedTarget?.id
+		(showRef
 			? chalk.hex(theme.secondary2).dim(` #${nodeRef(selectedTarget.id)}`)
 			: '');
 
