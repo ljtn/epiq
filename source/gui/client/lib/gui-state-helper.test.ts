@@ -44,6 +44,7 @@ const state: GuiState = {
 	contributors: [],
 	user: {id: 'u', name: 'u', color: ''},
 	commentsByIssueId: {},
+	attachmentsByIssueId: {},
 };
 
 describe('GUI ref resolution', () => {

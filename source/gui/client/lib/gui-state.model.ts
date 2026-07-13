@@ -10,6 +10,16 @@ export type GuiComment = {
 	isDeleted?: boolean;
 };
 
+export type GuiAttachment = {
+	id: string;
+	issueId: string;
+	name: string;
+	/** Content-addressed blob name, served at /media/<fileName> */
+	fileName: string;
+	bytes: number;
+	createdAt: number;
+};
+
 export type GuiIssue = {
 	isClosed: boolean;
 	id: string;
@@ -41,4 +51,5 @@ export type GuiState = {
 	contributors: GuiUser[];
 	user: GuiUser;
 	commentsByIssueId: Record<string, GuiComment[]>;
+	attachmentsByIssueId: Record<string, GuiAttachment[]>;
 };
