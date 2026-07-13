@@ -345,9 +345,7 @@ h2 {
 }
 .card {
 	min-height: 230px;
-	padding: 22px;
-	border: 1px solid var(--line);
-	border-radius: 8px;
+	padding: 20px;
 	background: linear-gradient(180deg, rgb(0 128 255 / 3%), rgb(72 0 255 / 4%));
 }
 .icon {
@@ -380,8 +378,6 @@ h2 {
 	align-items: stretch;
 }
 .panel {
-	border: 1px solid var(--line);
-	border-radius: 8px;
 	background: rgb(14 18 30 / 5%);
 	padding: 24px;
 	overflow: hidden;
@@ -404,6 +400,7 @@ h2 {
 	border: 1px solid var(--line);
 	overflow: auto;
 	color: #dbe5ff;
+	font-size: 13px;
 }
 .code .c {
 	color: var(--dim);
@@ -644,6 +641,7 @@ h2 {
 	color: #727283;
 }
 .copy-cmd-text {
+	font-size: 13px;
 	display: block;
 	min-width: 0;
 	overflow: hidden;
@@ -812,7 +810,7 @@ h2 {
 	text-decoration: underline;
 }
 .docs-section .code {
-	margin-bottom: 16px;
+	margin: 16px 0;
 	border-radius: 2px;
 }
 
