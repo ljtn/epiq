@@ -25,6 +25,7 @@ import {
 	createStateBranchSyncCommit,
 	ensureInitialCommit,
 	pushStateBranch,
+	stageStateBranchMediaFiles,
 	stageStateBranchOwnEventFile,
 } from './git.js';
 import {
@@ -345,6 +346,12 @@ const commitOwnEventFileToStateBranch = async ({
 		}),
 	);
 	if (isFail(stageResult)) return failed(stageResult.message);
+
+	const stageMediaResult = trace(
+		'stageStateBranchMediaFiles',
+		await stageStateBranchMediaFiles({stateBranchRoot}),
+	);
+	if (isFail(stageMediaResult)) return failed(stageMediaResult.message);
 
 	const changedAfterStageResult = trace(
 		'hasStagedChanges(after stage)',

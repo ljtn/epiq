@@ -1,5 +1,5 @@
 import {Result} from '../model/result-types.js';
-import {Contributor, Tag} from '../model/app-state.model.js';
+import {AttachmentExt, Contributor, Tag} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
@@ -162,6 +162,41 @@ export type AppEventMap = {
 		};
 	};
 
+	/**
+	 * References a content-addressed blob at `.epiq/media/<hash>.<ext>` in
+	 * the state branch worktree. The blob is written in the same commit as
+	 * this event; blobs are immutable and never deleted so peek/replay can
+	 * always render historical states.
+	 */
+	'add.issue.attachment': {
+		payload: PayloadBase & {
+			issue: string;
+			hash: string;
+			ext: AttachmentExt;
+			name: string;
+			bytes: number;
+		};
+		result: {
+			id: string;
+			issue: string;
+			hash: string;
+		};
+	};
+
+	/**
+	 * Removes the attachment reference from the issue. The underlying blob
+	 * stays on disk for time travel.
+	 */
+	'delete.issue.attachment': {
+		payload: PayloadBase & {
+			issue: string;
+		};
+		result: {
+			id: string;
+			issue: string;
+		};
+	};
+
 	'close.issue': {
 		payload: PayloadBase & Position;
 		result: {id: string};
@@ -223,6 +258,8 @@ export const EVENT_ACTIONS = [
 	'add.issue.comment',
 	'edit.issue.comment',
 	'delete.issue.comment',
+	'add.issue.attachment',
+	'delete.issue.attachment',
 	'close.issue',
 	'reopen.issue',
 	'lock.node',

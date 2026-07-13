@@ -263,7 +263,7 @@ describe('decodeReconstructedEvents', () => {
 				id: 'node-1',
 				name: 'Renamed',
 			}),
-			entry('01KQN37Z9877YBRV6P2YG7Q62S', 'add.issue.attachment', {
+			entry('01KQN37Z9877YBRV6P2YG7Q62S', 'future.mystery.action', {
 				id: 'evt-2',
 				issue: 'node-1',
 				hash: 'abc',
@@ -311,7 +311,7 @@ describe('loadMergedEvents with foreign events on disk', () => {
 			{
 				v: 1,
 				id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
-				'add.issue.attachment': {
+				'future.mystery.action': {
 					id: 'e2',
 					issue: 't1',
 					hash: 'deadbeef',

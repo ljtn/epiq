@@ -10,6 +10,7 @@ import {
 	ensureStateBranchIsStorageOnly,
 	ensureWorktreesDir,
 	getRelativeEventFilePath,
+	getRelativeMediaDirPath,
 	removePath,
 } from './git-storage.js';
 import {
@@ -470,6 +471,37 @@ export const stageStateBranchOwnEventFile = async ({
 	}
 
 	return succeeded('Staged state branch event file', undefined);
+};
+
+/**
+ * Stages the content-addressed attachment blobs so they land in the same
+ * commit as the events that reference them. Blobs are immutable and unique
+ * per content, so staging the whole directory is always conflict-free.
+ */
+export const stageStateBranchMediaFiles = async ({
+	stateBranchRoot,
+}: {
+	stateBranchRoot: string;
+}): Promise<Result<void>> => {
+	const mediaPath = getRelativeMediaDirPath();
+	const mediaAbsolutePath = path.join(stateBranchRoot, mediaPath);
+
+	if (!fs.existsSync(mediaAbsolutePath)) {
+		return succeeded('No media directory to stage', undefined);
+	}
+
+	const stageResult = await git.stage({
+		cwd: stateBranchRoot,
+		pathspec: [mediaPath],
+	});
+
+	if (isFail(stageResult)) {
+		return failed(
+			`Failed to stage state branch media files\n${stageResult.message}`,
+		);
+	}
+
+	return succeeded('Staged state branch media files', undefined);
 };
 
 export const createStateBranchSyncCommit = async ({

@@ -8,6 +8,7 @@ export const isLocal = process.env['IS_LOCAL'] === 'true';
 export const EPIQ_DIR_NAME = '.epiq';
 export const GLOBAL_CONFIG_DIR_NAME = '.epiq-global';
 export const EVENTS_DIR_NAME = 'events';
+export const MEDIA_DIR_NAME = 'media';
 export const PROJECT_FILE_NAME = 'project.json';
 
 export const getEpiqDirPath = (root: string): string =>
@@ -24,6 +25,14 @@ export const getProjectFilePath = (root: string): string =>
  */
 export const getEventsDirPath = (stateRoot: string): string =>
 	path.join(getEpiqDirPath(stateRoot), EVENTS_DIR_NAME);
+
+/**
+ * Content-addressed attachment blobs live next to the event logs in the
+ * state branch worktree, so an attachment event and its blob always travel
+ * in the same commit.
+ */
+export const getMediaDirPath = (stateRoot: string): string =>
+	path.join(getEpiqDirPath(stateRoot), MEDIA_DIR_NAME);
 
 export const getExportsDirPath = (repoRoot: string): string =>
 	path.join(repoRoot, EPIQ_DIR_NAME);

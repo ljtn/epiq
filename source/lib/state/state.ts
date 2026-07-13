@@ -150,6 +150,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		hasProjectDefinition,
 		hasInitializingEvents: false,
 		comments: {},
+		attachments: {},
 	};
 
 	const deriveResult = derive(base);

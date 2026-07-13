@@ -88,6 +88,8 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'add.issue.comment':
 		case 'edit.issue.comment':
 		case 'delete.issue.comment':
+		case 'add.issue.attachment':
+		case 'delete.issue.attachment':
 			return [event.payload.issue];
 
 		case 'delete.node':
@@ -638,6 +640,56 @@ const materializeHandlers: MaterializeHandlers = {
 		}
 
 		return succeeded('Comment deleted', {
+			action: event.action,
+			result: {id, issue},
+		});
+	},
+
+	'add.issue.attachment': event => {
+		const {id, issue, hash, ext, name, bytes} = event.payload;
+
+		const result = nodeRepo.createAttachment({
+			id,
+			issue,
+			hash,
+			ext,
+			name,
+			bytes,
+			deleted: false,
+		});
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to add attachment',
+				event,
+			);
+		}
+
+		return succeeded('Attachment added', {
+			action: event.action,
+			result: {id, issue, hash},
+		});
+	},
+
+	'delete.issue.attachment': event => {
+		const {id, issue} = event.payload;
+
+		const existing = nodeRepo.getAttachment(id);
+		if (!existing) return materializeFail('Unable to locate attachment', event);
+		if (existing.issue !== issue) {
+			return materializeFail('Attachment does not belong to issue', event);
+		}
+
+		const result = nodeRepo.deleteAttachment(id);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to delete attachment',
+				event,
+			);
+		}
+
+		return succeeded('Attachment deleted', {
 			action: event.action,
 			result: {id, issue},
 		});

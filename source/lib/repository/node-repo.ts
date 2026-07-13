@@ -1,4 +1,9 @@
-import {CommentState, Contributor, Tag} from '../model/app-state.model.js';
+import {
+	AttachmentState,
+	CommentState,
+	Contributor,
+	Tag,
+} from '../model/app-state.model.js';
 import {AnyContext, isTicketNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {
@@ -190,6 +195,65 @@ export const nodeRepo = {
 	getCommentsByIssue(issueId: string): CommentState[] {
 		return Object.values(getState().comments ?? {}).filter(
 			comment => comment.issue === issueId && !comment.deleted,
+		);
+	},
+
+	createAttachment(attachment: AttachmentState): Result<AttachmentState> {
+		const issue = this.getNode(attachment.issue);
+
+		if (!issue) return failed('Unable to create attachment, missing issue');
+		if (!isTicketNode(issue)) return failed('Can only attach to issues');
+
+		const result = updateState(s => ({
+			...s,
+			attachments: {
+				...(s.attachments ?? {}),
+				[attachment.id]: {
+					...attachment,
+					deleted: false,
+				},
+			},
+		}));
+
+		if (isFail(result)) return failed('Unable to create attachment');
+
+		return succeeded('Created attachment', {
+			...attachment,
+			deleted: false,
+		});
+	},
+
+	deleteAttachment(attachmentId: string): Result<AttachmentState> {
+		const existing = this.getAttachment(attachmentId);
+		if (!existing) {
+			return failed('Unable to delete attachment, missing attachment');
+		}
+
+		const updatedAttachment: AttachmentState = {
+			...existing,
+			deleted: true,
+		};
+
+		const result = updateState(s => ({
+			...s,
+			attachments: {
+				...(s.attachments ?? {}),
+				[attachmentId]: updatedAttachment,
+			},
+		}));
+
+		if (isFail(result)) return failed('Unable to delete attachment');
+
+		return succeeded('Deleted attachment', updatedAttachment);
+	},
+
+	getAttachment(attachmentId: string): AttachmentState | undefined {
+		return getState().attachments?.[attachmentId];
+	},
+
+	getAttachmentsByIssue(issueId: string): AttachmentState[] {
+		return Object.values(getState().attachments ?? {}).filter(
+			attachment => attachment.issue === issueId && !attachment.deleted,
 		);
 	},
 

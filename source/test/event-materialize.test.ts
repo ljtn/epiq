@@ -268,7 +268,7 @@ describe('unknown event actions', () => {
 			id: '01H00000000000000000009999',
 			userId: 'u1',
 			userName: 'alice',
-			action: 'add.issue.attachment',
+			action: 'future.mystery.action',
 			payload: {id: 'x', issue: 'y', hash: 'z'},
 		} as unknown as AppEvent;
 
@@ -277,5 +277,86 @@ describe('unknown event actions', () => {
 		expect(isFail(result)).toBe(true);
 		if (!isFail(result)) return;
 		expect(result.message).toContain('Unknown event action');
+	});
+});
+
+describe('issue attachments', () => {
+	const attachmentId = '01H00000000000000000005001';
+	const hash = 'a'.repeat(64);
+
+	const addAttachment = () =>
+		materialize(
+			event('add.issue.attachment', {
+				id: attachmentId,
+				issue: IDS.issue,
+				hash,
+				ext: 'png',
+				name: 'screenshot.png',
+				bytes: 1234,
+			}),
+		);
+
+	it('materializes add.issue.attachment onto the issue', () => {
+		setupWorkspace();
+
+		expectOk(addAttachment());
+
+		const attachments = nodeRepo.getAttachmentsByIssue(IDS.issue);
+		expect(attachments).toHaveLength(1);
+		expect(attachments[0]).toMatchObject({
+			id: attachmentId,
+			issue: IDS.issue,
+			hash,
+			ext: 'png',
+			name: 'screenshot.png',
+			bytes: 1234,
+		});
+	});
+
+	it('fails to attach to a missing issue', () => {
+		setupWorkspace();
+
+		const result = materialize(
+			event('add.issue.attachment', {
+				id: attachmentId,
+				issue: IDS.missing,
+				hash,
+				ext: 'png',
+				name: 'screenshot.png',
+				bytes: 1234,
+			}),
+		);
+
+		expect(isFail(result)).toBe(true);
+	});
+
+	it('delete.issue.attachment removes the reference', () => {
+		setupWorkspace();
+		expectOk(addAttachment());
+
+		const result = materialize(
+			event('delete.issue.attachment', {
+				id: attachmentId,
+				issue: IDS.issue,
+			}),
+		);
+
+		expectOk(result);
+		expect(nodeRepo.getAttachmentsByIssue(IDS.issue)).toHaveLength(0);
+		// the record survives as deleted for replay purposes
+		expect(nodeRepo.getAttachment(attachmentId)?.deleted).toBe(true);
+	});
+
+	it('fails to delete an attachment that does not exist', () => {
+		setupWorkspace();
+
+		const result = materialize(
+			event('delete.issue.attachment', {
+				id: attachmentId,
+				issue: IDS.issue,
+			}),
+		);
+
+		expect(isFail(result)).toBe(true);
 	});
 });
