@@ -116,6 +116,15 @@ pre {
 .links .cmd-link .accent {
 	margin-right: 1px;
 }
+/* Nav accents (the colons) stay quiet until the link is hovered or active. */
+.nav .accent {
+	color: inherit;
+	transition: color 0.15s ease;
+}
+.nav a:hover .accent,
+.nav a.active .accent {
+	color: var(--cyan);
+}
 
 .btn {
 	display: inline-flex;
@@ -837,29 +846,39 @@ kbd {
 	color: var(--cyan);
 }
 
-/* Version pill (nav) */
+/* Version pill (nav) — bare brackets, like status output in the TUI */
 .ver-pill {
 	display: inline-flex;
 	align-items: center;
-	font: 12px var(--mono);
+	font: 13px var(--mono);
 	letter-spacing: -0.02em;
-	color: var(--cyan);
-	border: 1px solid rgba(34, 161, 220, 0.35);
-	background: rgba(34, 161, 220, 0.08);
-	border-radius: 999px;
-	padding: 4px 12px;
-	transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+	color: var(--muted);
+	transition: color 0.15s ease;
 }
 .ver-pill::before {
+	content: "[";
+	color: var(--dim);
+	margin-right: 4px;
+	transition: color 0.15s ease;
+}
+.ver-pill::after {
+	content: "]";
+	color: var(--dim);
+	margin-left: 4px;
+	transition: color 0.15s ease;
+}
+.ver-pill .ver-num::before {
 	content: "v";
-	opacity: 0.65;
-	margin-right: 1px;
 }
 .ver-pill:hover,
 .ver-pill.active {
-	color: #dff2ff;
-	border-color: rgba(34, 161, 220, 0.6);
-	background: rgba(34, 161, 220, 0.16);
+	color: var(--cyan);
+}
+.ver-pill:hover::before,
+.ver-pill:hover::after,
+.ver-pill.active::before,
+.ver-pill.active::after {
+	color: var(--cyan);
 }
 
 /* Blog page */
