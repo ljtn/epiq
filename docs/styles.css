@@ -92,6 +92,12 @@ pre {
 	gap: 12px;
 	font-weight: 600;
 	letter-spacing: -0.03em;
+	color: var(--muted);
+	transition: color 0.15s ease;
+}
+.brand:hover,
+.brand.active {
+	color: var(--text);
 }
 .links {
 	display: flex;
@@ -102,6 +108,13 @@ pre {
 }
 .links a:hover {
 	color: var(--text);
+}
+.links .cmd-link {
+	font: 14px var(--mono);
+	letter-spacing: -0.02em;
+}
+.links .cmd-link .accent {
+	margin-right: 1px;
 }
 
 .btn {
@@ -851,7 +864,7 @@ kbd {
 
 /* Blog page */
 .post-list {
-	max-width: 860px;
+	max-width: 720px;
 	display: grid;
 	gap: 14px;
 }
@@ -912,7 +925,7 @@ kbd {
 	margin-bottom: 6px;
 }
 .post-preview h4 {
-	margin: 18px 0 8px;
+	margin: 38px 0 12px;
 	font-size: 15px;
 	letter-spacing: -0.01em;
 	color: var(--text);
