@@ -1259,3 +1259,62 @@ h2 {
 .lead strong {
 	font-weight: 600;
 }
+
+/* Expandable command index in the docs sidebar */
+.side-cmd-head {
+	display: flex;
+	align-items: center;
+}
+.side-cmd-head a {
+	flex: 1;
+}
+.side-caret {
+	background: none;
+	border: 0;
+	padding: 2px 2px 2px 10px;
+	cursor: pointer;
+	color: var(--dim);
+	font: 11px var(--mono);
+	line-height: 1;
+	transition: color 0.15s ease, transform 0.15s ease;
+}
+.side-caret:hover {
+	color: var(--text);
+}
+.side-caret.open {
+	transform: rotate(90deg);
+}
+.side-cmds {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0 12px;
+	padding: 2px 0 8px 12px;
+}
+.side-cmds a {
+	font-size: 12px;
+	padding: 3px 0;
+}
+.side-cmds a.active {
+	color: var(--cyan);
+}
+.side-cmds a.active::before {
+	display: none;
+}
+.cmd-table tr[id] {
+	scroll-margin-top: 88px;
+}
+.cmd-table tr:target td {
+	background: rgba(34, 161, 220, 0.06);
+}
+.docs-section h3[id] {
+	scroll-margin-top: 88px;
+}
+@media (max-width: 860px) {
+	.side-cmd-head {
+		width: 100%;
+	}
+	.side-cmds {
+		width: 100%;
+		grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+	}
+}

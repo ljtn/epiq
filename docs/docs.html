@@ -95,9 +95,42 @@
 
 					<span class="grp">Using epiq</span>
 					<a href="#navigation">Navigation &amp; shortcuts</a>
-					<a href="#commands">Command reference</a>
-					<a href="#filtering">Filtering</a>
-					<a href="#workflow">Closing &amp; reopening</a>
+					<div class="side-cmd-head">
+						<a href="#commands">Command reference</a>
+						<button
+							class="side-caret"
+							type="button"
+							aria-expanded="false"
+							aria-controls="side-cmds"
+							aria-label="Toggle command list"
+						>
+							▸
+						</button>
+					</div>
+					<div id="side-cmds" class="side-cmds" hidden>
+						<a href="#cmd-new">:new</a>
+						<a href="#cmd-edit">:edit</a>
+						<a href="#cmd-comment">:comment</a>
+						<a href="#cmd-delete">:delete</a>
+						<a href="#cmd-move">:move</a>
+						<a href="#cmd-tag">:tag</a>
+						<a href="#cmd-untag">:untag</a>
+						<a href="#cmd-assign">:assign</a>
+						<a href="#cmd-unassign">:unassign</a>
+						<a href="#cmd-yank">:yank</a>
+						<a href="#cmd-close">:close</a>
+						<a href="#cmd-reopen">:reopen</a>
+						<a href="#cmd-filter">:filter</a>
+						<a href="#cmd-peek">:peek</a>
+						<a href="#cmd-replay">:replay</a>
+						<a href="#cmd-export">:export</a>
+						<a href="#cmd-sync">:sync</a>
+						<a href="#cmd-config">:config</a>
+						<a href="#cmd-init">:init</a>
+						<a href="#cmd-help">:help</a>
+						<a href="#cmd-exit">:exit</a>
+						<a href="#cmd-coffee">:coffee</a>
+					</div>
 					<a href="#time-travel">Time travel</a>
 					<a href="#config">Configuration</a>
 
@@ -314,7 +347,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								<tr>
+								<tr id="cmd-new">
 									<td>
 										<code
 											><span class="accent">:</span>new
@@ -324,7 +357,7 @@
 									</td>
 									<td>Create a new board, swimlane, or issue</td>
 								</tr>
-								<tr>
+								<tr id="cmd-edit">
 									<td>
 										<code
 											><span class="accent">:</span>edit
@@ -360,7 +393,7 @@
 										comments)
 									</td>
 								</tr>
-								<tr>
+								<tr id="cmd-comment">
 									<td>
 										<code
 											><span class="accent">:</span>comment
@@ -369,13 +402,13 @@
 									</td>
 									<td>Add a comment to the selected issue</td>
 								</tr>
-								<tr>
+								<tr id="cmd-delete">
 									<td>
 										<code><span class="accent">:</span>delete</code>
 									</td>
 									<td>Delete the currently selected node</td>
 								</tr>
-								<tr>
+								<tr id="cmd-move">
 									<td>
 										<code><span class="accent">:</span>move</code>
 									</td>
@@ -396,7 +429,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								<tr>
+								<tr id="cmd-tag">
 									<td>
 										<code
 											><span class="accent">:</span>tag
@@ -405,7 +438,7 @@
 									</td>
 									<td>Add or create a tag on the selected issue</td>
 								</tr>
-								<tr>
+								<tr id="cmd-untag">
 									<td>
 										<code
 											><span class="accent">:</span>untag
@@ -414,7 +447,7 @@
 									</td>
 									<td>Remove a tag from the selected issue</td>
 								</tr>
-								<tr>
+								<tr id="cmd-assign">
 									<td>
 										<code
 											><span class="accent">:</span>assign
@@ -423,7 +456,7 @@
 									</td>
 									<td>Assign a user to the selected issue</td>
 								</tr>
-								<tr>
+								<tr id="cmd-unassign">
 									<td>
 										<code
 											><span class="accent">:</span>unassign
@@ -432,7 +465,7 @@
 									</td>
 									<td>Remove an assignee from the selected issue</td>
 								</tr>
-								<tr>
+								<tr id="cmd-yank">
 									<td>
 										<code
 											><span class="accent">:</span>yank
@@ -448,7 +481,7 @@
 										when the issue has them
 									</td>
 								</tr>
-								<tr>
+								<tr id="cmd-close">
 									<td>
 										<code><span class="accent">:</span>close</code>
 									</td>
@@ -457,7 +490,7 @@
 										<strong>Closed</strong> swimlane
 									</td>
 								</tr>
-								<tr>
+								<tr id="cmd-reopen">
 									<td>
 										<code><span class="accent">:</span>reopen</code>
 									</td>
@@ -475,7 +508,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								<tr>
+								<tr id="cmd-filter">
 									<td>
 										<code
 											><span class="accent">:</span>filter
@@ -490,7 +523,7 @@
 										succession
 									</td>
 								</tr>
-								<tr>
+								<tr id="cmd-peek">
 									<td>
 										<code
 											><span class="accent">:</span>peek
@@ -506,7 +539,7 @@
 										or an absolute <code>YYYY-MM-DD</code> date
 									</td>
 								</tr>
-								<tr>
+								<tr id="cmd-replay">
 									<td>
 										<code
 											><span class="accent">:</span>replay
@@ -520,7 +553,7 @@
 										<code>30s</code>)
 									</td>
 								</tr>
-								<tr>
+								<tr id="cmd-export">
 									<td>
 										<code><span class="accent">:</span>export</code>
 									</td>
@@ -538,13 +571,13 @@
 								</tr>
 							</thead>
 							<tbody>
-								<tr>
+								<tr id="cmd-sync">
 									<td>
 										<code><span class="accent">:</span>sync</code>
 									</td>
 									<td>Pull, commit, and push Epiq state via Git</td>
 								</tr>
-								<tr>
+								<tr id="cmd-config">
 									<td>
 										<code
 											><span class="accent">:</span>config
@@ -559,25 +592,25 @@
 										log level
 									</td>
 								</tr>
-								<tr>
+								<tr id="cmd-init">
 									<td>
 										<code><span class="accent">:</span>init</code>
 									</td>
 									<td>Initialize Epiq in the current Git repository</td>
 								</tr>
-								<tr>
+								<tr id="cmd-help">
 									<td>
 										<code><span class="accent">:</span>help</code>
 									</td>
 									<td>Open the help screen</td>
 								</tr>
-								<tr>
+								<tr id="cmd-exit">
 									<td>
 										<code><span class="accent">:</span>exit</code>
 									</td>
 									<td>Exit the application</td>
 								</tr>
-								<tr>
+								<tr id="cmd-coffee">
 									<td>
 										<code
 											><span class="accent">:</span>coffee
@@ -588,42 +621,6 @@
 								</tr>
 							</tbody>
 						</table>
-					</section>
-
-					<!-- Filtering -->
-					<section id="filtering" class="docs-section">
-						<h2>Filtering</h2>
-						<p>
-							Apply a filter with <code>:filter</code> followed by a target and
-							a value. To show every issue carrying an <code>urgent</code> tag:
-						</p>
-						<pre
-							class="code"
-						><code><span class="b">:filter tag</span> urgent</code></pre>
-						<p>
-							Run several <code>:filter</code> commands in succession to build a
-							combination. Targets are <code>tag</code>, <code>assignee</code>,
-							<code>description</code>, and <code>title</code>. Clear everything
-							with:
-						</p>
-						<pre
-							class="code"
-						><code><span class="b">:filter clear</span></code></pre>
-					</section>
-
-					<!-- Workflow -->
-					<section id="workflow" class="docs-section">
-						<h2>Closing &amp; reopening</h2>
-						<p>
-							Close an issue with <code>:close</code>. This moves it to a
-							special board named <strong>Closed</strong>, which you can reach
-							by navigating up (press <kbd>q</kbd>) a few times.
-						</p>
-						<p>
-							To bring it back, open the <strong>Closed</strong> board, select
-							the issue, and run <code>:reopen</code>. The issue is restored to
-							its previous location, resolved from its history log.
-						</p>
 					</section>
 
 					<!-- Time travel -->
@@ -808,25 +805,53 @@
 
 		<script>
 			(function () {
-				var links = Array.prototype.slice.call(
-					document.querySelectorAll(".docs-side a")
-				);
-				var sections = links
-					.map(function (a) {
-						return document.getElementById(a.getAttribute("href").slice(1));
-					})
-					.filter(Boolean);
+				var side = document.querySelector(".docs-side");
+				if (!side) return;
+
+				var caret = side.querySelector(".side-caret");
+				var cmdPanel = document.getElementById("side-cmds");
+				var allLinks = Array.prototype.slice.call(side.querySelectorAll("a"));
+				var sectionLinks = allLinks.filter(function (a) {
+					return !cmdPanel || !cmdPanel.contains(a);
+				});
+				var cmdLinks = cmdPanel
+					? Array.prototype.slice.call(cmdPanel.querySelectorAll("a"))
+					: [];
+
+				function targetsOf(links) {
+					return links
+						.map(function (a) {
+							return document.getElementById(a.getAttribute("href").slice(1));
+						})
+						.filter(Boolean);
+				}
+				var sections = targetsOf(sectionLinks);
+				var cmdRows = targetsOf(cmdLinks);
 
 				if (!sections.length) return;
 
-				// Activate the section whose top has scrolled past this line below the
-				// sticky nav (matches the sections' scroll-margin-top).
+				function setExpanded(on) {
+					if (!cmdPanel || !caret) return;
+					cmdPanel.hidden = !on;
+					caret.setAttribute("aria-expanded", String(on));
+					caret.classList.toggle("open", on);
+				}
+				if (caret) {
+					caret.addEventListener("click", function () {
+						setExpanded(cmdPanel.hidden);
+					});
+				}
+				// Deep links into the command list open it immediately.
+				if (/^#cmd-/.test(location.hash)) {
+					setExpanded(true);
+				}
+
+				// Activate the section whose top has scrolled past this line below
+				// the sticky nav (matches the sections' scroll-margin-top).
 				var OFFSET = 100;
 				var activeId = null;
 
-				function setActive(id) {
-					if (id === activeId) return;
-					activeId = id;
+				function mark(links, id) {
 					links.forEach(function (a) {
 						a.classList.toggle("active", a.getAttribute("href") === "#" + id);
 					});
@@ -834,15 +859,14 @@
 
 				function update() {
 					var current = sections[0];
-
 					for (var i = 0; i < sections.length; i++) {
 						if (sections[i].getBoundingClientRect().top <= OFFSET) {
 							current = sections[i];
 						}
 					}
 
-					// Snap to the last section once scrolled to the bottom, since short
-					// trailing sections may never cross the offset line.
+					// Snap to the last section once scrolled to the bottom, since
+					// short trailing sections may never cross the offset line.
 					if (
 						window.innerHeight + window.scrollY >=
 						document.documentElement.scrollHeight - 2
@@ -850,7 +874,26 @@
 						current = sections[sections.length - 1];
 					}
 
-					setActive(current.id);
+					if (current.id !== activeId) {
+						var entering = current.id === "commands";
+						activeId = current.id;
+						mark(sectionLinks, activeId);
+						// Unfold the command list on scrolling into the reference.
+						if (entering) setExpanded(true);
+					}
+
+					// Highlight the command nearest above the offset line.
+					if (cmdRows.length) {
+						var row = null;
+						if (activeId === "commands") {
+							for (var j = 0; j < cmdRows.length; j++) {
+								if (cmdRows[j].getBoundingClientRect().top <= OFFSET + 40) {
+									row = cmdRows[j];
+								}
+							}
+						}
+						mark(cmdLinks, row ? row.id : "");
+					}
 				}
 
 				var ticking = false;
