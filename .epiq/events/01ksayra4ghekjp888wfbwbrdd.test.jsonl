@@ -53,3 +53,4 @@
 {"v":1,"id":["01KXDB0GMMRW5AGTQWRC8DKYV7","01KXDB09XSNXA3QH8GCNWYFJFG"],"close.issue":{"id":"01KVDGPR7Q854BSMSACWKMC756","parent":"00KM6CZ900T7180RM46K0JAYNF","rank":"fffdffffffffffffffffffff"}}
 {"v":1,"id":["01KXDB0MC2XB43BNN0F8H0993M","01KXDB0GMMRW5AGTQWRC8DKYV7"],"close.issue":{"id":"01KVDGWFFQETAR1SB1XP8RA1Z6","parent":"00KM6CZ900T7180RM46K0JAYNF","rank":"fffeffffffffffffffffffff"}}
 {"v":1,"id":["01KXDBM8S8KESNTRF28K7SCEF6","01KXDB0MC2XB43BNN0F8H0993M"],"add.issue":{"id":"01KXDBM8S2CP1E81NHXZWRZYXN","parent":"01KS22YK95S3336MFSE44MY70R","name":"Enhance the wide view mode ","rank":"fbffffffffffffffffffffff"}}
+{"v":1,"id":["01KXDBP2KM5THE5C4FQVEXHFHK","01KXDBM8S8KESNTRF28K7SCEF6"],"edit.description":{"id":"01KXDBM8S2CP1E81NHXZWRZYXN","md":"\nMake sure to render issues full width.\n\nAlso add issue reference.\n"}}
