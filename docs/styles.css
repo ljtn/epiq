@@ -609,6 +609,27 @@ h2 {
 .compare-check.partial {
 	color: #e5c07b;
 }
+/* Hovering a row lights up the tools that fulfill the spec */
+.compare-row > div {
+	transition: color 0.15s ease, background 0.15s ease,
+		text-shadow 0.15s ease;
+}
+.compare-row:not(.compare-head):hover {
+	background: rgba(255, 255, 255, 0.02);
+}
+.compare-row:not(.compare-head):hover .compare-spec {
+	color: var(--text);
+}
+.compare-row:hover .compare-check.yes {
+	color: #b2f0af;
+	background: rgba(143, 220, 140, 0.07);
+	text-shadow: 0 0 14px rgba(143, 220, 140, 0.55);
+}
+.compare-row:hover .compare-check.partial {
+	color: #ffdf9e;
+	background: rgba(229, 192, 123, 0.07);
+	text-shadow: 0 0 14px rgba(229, 192, 123, 0.5);
+}
 .compare-head > div {
 	font-family: var(--display);
 	font-weight: 500;
