@@ -44,6 +44,9 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 	const cmdInputHeight = 3;
 
 	const itemHeight = isDense ? 1 : 4;
+	const isLaneCursorActive = isFocused && listSelectedIndex === -1;
+	// lane border + padding (4) + scrollbar column (1) + active cursor (2)
+	const itemWidth = width - (isLaneCursorActive ? 7 : 5);
 	const contentHeight = height - cmdInputHeight - (isDense ? 2 : 1);
 
 	const swimlaneHeading = (
@@ -90,7 +93,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 		) : (
 			<TicketListItemUI
 				key={ticket.id}
-				width={width}
+				width={itemWidth}
 				ticket={ticket}
 				isSelected={isItemSelected}
 				isFlashing={isFlashing}
@@ -121,7 +124,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 					</ScrollBoxUI>
 				)}
 
-				<CursorUI isSelected={isFocused && listSelectedIndex === -1}></CursorUI>
+				{isLaneCursorActive && <CursorUI isSelected></CursorUI>}
 			</Box>
 		</Box>
 	);

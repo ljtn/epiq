@@ -18,7 +18,8 @@ export const TicketListItemUI: React.FC<{
 	isFlashing?: boolean;
 }> = ({width, ticket, isSelected, isFlashing = false}) => {
 	const flashColor = useFlashColor(isFlashing);
-	const contentWidth = width - 14;
+	// own border (2) + paddingLeft (1) + slack (1)
+	const contentWidth = width - 4;
 
 	const title = truncateWithEllipsis(
 		sanitizeInlineText(ticket.title),
@@ -30,7 +31,6 @@ export const TicketListItemUI: React.FC<{
 	return (
 		<Box
 			borderStyle="round"
-			width={width - 7}
 			height={4}
 			flexDirection="column"
 			borderDimColor={!isSelected}
