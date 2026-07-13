@@ -17,6 +17,15 @@
 	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
 		U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
 }
+@font-face {
+	font-family: "JetBrains Mono";
+	font-style: normal;
+	font-weight: 100 800;
+	font-display: swap;
+	src: url("./fonts/jetbrains-mono-latin.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+		U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
 
 :root {
 	--text: #f2f4ff;
@@ -30,8 +39,11 @@
 	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		"Liberation Mono", "Courier New", monospace;
 	--sans: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, -apple-system,
-		BlinkMacSypstemFont, "Segoe UI", sans-serif;
-	--display: "Space Grotesk", var(--sans);
+		BlinkMacSystemFont, "Segoe UI", sans-serif;
+	/* Display options: "Space Grotesk", var(--sans)  |  "JetBrains Mono", var(--mono) */
+	--display: "JetBrains Mono", var(--mono);
+	/* body copy: brighter than --muted, which is for meta/labels */
+	--body: #9aa1b5;
 }
 
 * {
@@ -335,13 +347,13 @@ h2 {
 	min-height: 230px;
 	padding: 22px;
 	border: 1px solid var(--line);
-	border-radius: 24px;
+	border-radius: 8px;
 	background: linear-gradient(180deg, rgb(0 128 255 / 3%), rgb(72 0 255 / 4%));
 }
 .icon {
 	width: 56px;
 	height: 56px;
-	border-radius: 12px;
+	border-radius: 8px;
 	display: grid;
 	place-items: center;
 	margin-bottom: 18px;
@@ -369,7 +381,7 @@ h2 {
 }
 .panel {
 	border: 1px solid var(--line);
-	border-radius: 26px;
+	border-radius: 8px;
 	background: rgb(14 18 30 / 5%);
 	padding: 24px;
 	overflow: hidden;
@@ -417,7 +429,7 @@ h2 {
 	align-items: start;
 	padding: 14px;
 	border: 1px solid var(--line);
-	border-radius: 18px;
+	border-radius: 8px;
 	background: linear-gradient(
 		100deg,
 		rgba(0, 128, 255, 0.045),
@@ -427,7 +439,7 @@ h2 {
 .num {
 	width: 42px;
 	height: 42px;
-	border-radius: 14px;
+	border-radius: 8px;
 	display: grid;
 	place-items: center;
 	background: rgba(118, 168, 255, 0.1);
@@ -446,7 +458,7 @@ h2 {
 
 .media-placeholder {
 	min-height: 360px;
-	border-radius: 28px;
+	border-radius: 8px;
 	display: grid;
 	place-items: center;
 	text-align: center;
@@ -464,7 +476,7 @@ h2 {
 .hero-placeholder > img {
 	max-width: 1640px;
 	box-shadow: 0 0 48px #4c839e55;
-	border-radius: 18px;
+	border-radius: 8px;
 }
 
 .quote {
@@ -558,7 +570,7 @@ h2 {
 
 .compare-card {
 	border: 1px solid var(--line);
-	border-radius: 28px;
+	border-radius: 8px;
 	overflow: hidden;
 	background: rgba(255, 255, 255, 0.035);
 }
@@ -911,7 +923,7 @@ kbd {
 	display: block;
 	padding: 26px 28px;
 	border: 1px solid var(--line);
-	border-radius: 24px;
+	border-radius: 8px;
 	background: linear-gradient(180deg, rgb(0 128 255 / 3%), rgb(72 0 255 / 4%));
 	transition: border-color 0.18s ease, background 0.18s ease;
 }
@@ -1220,6 +1232,7 @@ h4,
 .quote p,
 .compare-title {
 	font-family: var(--display);
+	font-weight: 500;
 }
 h1 {
 	letter-spacing: -0.06em;
@@ -1247,4 +1260,26 @@ h2 {
 }
 .lead strong {
 	font-weight: 600;
+}
+
+/* Body-text contrast: paragraphs read in --body; --muted stays for meta. */
+.lead,
+.card p,
+.panel p,
+.step span,
+.section-head p,
+.docs-section p,
+.docs-section ul,
+.docs-section ol,
+.docs-note,
+.compare-item,
+.post p,
+.post-preview p,
+.post-preview ul,
+.post-preview ol,
+.rel-body p,
+.rel-body ul,
+.rel-body ol,
+.rel-body blockquote {
+	color: var(--body);
 }
