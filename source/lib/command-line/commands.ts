@@ -352,7 +352,7 @@ export const commands: CommandLineActionEntry[] = [
 	},
 	{
 		intent: CmdIntent.Rename,
-		description: 'itle] Rename the currently selected node',
+		description: 'Rename the currently selected node',
 		mode: Mode.COMMAND_LINE,
 		action: async () => {
 			const userRes = resolveActorId();
