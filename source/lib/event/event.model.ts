@@ -171,6 +171,7 @@ export type AppEventMap = {
 	'add.issue.attachment': {
 		payload: PayloadBase & {
 			issue: string;
+			author: string;
 			hash: string;
 			ext: AttachmentExt;
 			name: string;

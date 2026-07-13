@@ -605,7 +605,7 @@ export const getGuiState = async (
 	const attachmentOwners = new Map<string, string>();
 	for (const event of stateResult.value.eventLog) {
 		if (event.action === 'add.issue.attachment') {
-			attachmentOwners.set(event.payload.id, event.userId);
+			attachmentOwners.set(event.payload.id, event.payload.author);
 		}
 	}
 
@@ -1144,6 +1144,7 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 		payload: {
 			id: attachmentId,
 			issue: input.issueId,
+			author: actorResult.value.userId,
 			hash: written.value.hash,
 			ext: written.value.ext,
 			name,
@@ -1188,7 +1189,7 @@ export const deleteIssueAttachment = async (
 		return failed('Unable to resolve attachment');
 	}
 
-	if (attachmentEvent.userId !== actorResult.value.userId) {
+	if (attachmentEvent.payload.author !== actorResult.value.userId) {
 		return failed('You can only delete your own attachments');
 	}
 

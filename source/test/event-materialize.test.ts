@@ -289,6 +289,7 @@ describe('issue attachments', () => {
 			event('add.issue.attachment', {
 				id: attachmentId,
 				issue: IDS.issue,
+				author: actor.userId,
 				hash,
 				ext: 'png',
 				name: 'screenshot.png',
@@ -320,6 +321,7 @@ describe('issue attachments', () => {
 			event('add.issue.attachment', {
 				id: attachmentId,
 				issue: IDS.missing,
+				author: actor.userId,
 				hash,
 				ext: 'png',
 				name: 'screenshot.png',
