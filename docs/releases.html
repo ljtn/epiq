@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>epiq — releases</title>
+
+		<meta
+			name="description"
+			content="Epiq release notes: every version of the Git-backed issue tracker, with changelogs pulled straight from GitHub."
+		/>
+
+		<meta name="theme-color" content="#090a0f" />
+
+		<meta property="og:title" content="Epiq — Releases" />
+		<meta
+			property="og:description"
+			content="Release notes and changelogs for Epiq, the Git-backed issue tracker."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:image" content="https://ljtn.github.io/epiq/og.jpeg" />
+
+		<link rel="icon" href="./favicon.ico" sizes="any" />
+		<link rel="stylesheet" href="./styles.css" />
+	</head>
+	<body>
+		<nav class="nav">
+			<div class="wrap nav-inner">
+				<a class="brand" href="./index.html" aria-label="epiq home">
+					<span
+						><span class="accent" style="margin-right: 2px">:</span>epiq</span
+					>
+				</a>
+				<div class="links">
+					<a href="./index.html">Overview</a>
+					<a href="./docs.html">Docs</a>
+					<a class="active" href="./releases.html" aria-current="page"
+						>Releases</a
+					>
+					<a
+						class="btn github-stars"
+						href="https://github.com/ljtn/epiq"
+						aria-label="epiq on GitHub"
+					>
+						<span>GitHub</span>
+						<span class="stars" hidden>
+							<svg
+								class="star-ico"
+								viewBox="0 0 24 24"
+								width="14"
+								height="14"
+								aria-hidden="true"
+								focusable="false"
+							>
+								<path
+									d="M9.15316 5.40838C10.4198 3.13613 11.0531 2 12 2C12.9469 2 13.5802 3.13612 14.8468 5.40837L15.1745 5.99623C15.5345 6.64193 15.7144 6.96479 15.9951 7.17781C16.2757 7.39083 16.6251 7.4699 17.3241 7.62805L17.9605 7.77203C20.4201 8.32856 21.65 8.60682 21.9426 9.54773C22.2352 10.4886 21.3968 11.4691 19.7199 13.4299L19.2861 13.9372C18.8096 14.4944 18.5713 14.773 18.4641 15.1177C18.357 15.4624 18.393 15.8341 18.465 16.5776L18.5306 17.2544C18.7841 19.8706 18.9109 21.1787 18.1449 21.7602C17.3788 22.3417 16.2273 21.8115 13.9243 20.7512L13.3285 20.4768C12.6741 20.1755 12.3469 20.0248 12 20.0248C11.6531 20.0248 11.3259 20.1755 10.6715 20.4768L10.0757 20.7512C7.77268 21.8115 6.62118 22.3417 5.85515 21.7602C5.08912 21.1787 5.21588 19.8706 5.4694 17.2544L5.53498 16.5776C5.60703 15.8341 5.64305 15.4624 5.53586 15.1177C5.42868 14.773 5.19043 14.4944 4.71392 13.9372L4.2801 13.4299C2.60325 11.4691 1.76482 10.4886 2.05742 9.54773C2.35002 8.60682 3.57986 8.32856 6.03954 7.77203L6.67589 7.62805C7.37485 7.4699 7.72433 7.39083 8.00494 7.17781C8.28555 6.96479 8.46553 6.64194 8.82547 5.99623L9.15316 5.40838Z"
+									fill="currentColor"
+								/>
+							</svg>
+							<span class="star-count"></span>
+						</span>
+					</a>
+				</div>
+			</div>
+		</nav>
+
+		<main id="top">
+			<header class="docs-head wrap">
+				<div class="kicker">Releases</div>
+				<h1>Version History</h1>
+				<p class="lead">
+					Every release of epiq, straight from
+					<a
+						class="inline-link"
+						href="https://github.com/ljtn/epiq/releases"
+						rel="noopener"
+						>GitHub</a
+					>. Install the latest with <code>curl -fsSL … | sh</code> or
+					<code>npm install -g epiq</code>.
+				</p>
+			</header>
+
+			<div class="wrap rel-wrap">
+				<div id="releases" class="rel-list" aria-live="polite">
+					<p class="rel-status">Fetching releases from GitHub…</p>
+				</div>
+			</div>
+		</main>
+
+		<footer class="footer">
+			<div class="wrap footer-inner">
+				<div><code>:wq</code> and move on.</div>
+			</div>
+		</footer>
+
+		<script>
+			(function () {
+				var KEY = "epiq_gh_releases";
+				var TTL_MS = 10 * 60 * 1000;
+				var API =
+					"https://api.github.com/repos/ljtn/epiq/releases?per_page=100";
+				var root = document.getElementById("releases");
+
+				function esc(s) {
+					return s
+						.replace(/&/g, "&amp;")
+						.replace(/</g, "&lt;")
+						.replace(/>/g, "&gt;")
+						.replace(/"/g, "&quot;");
+				}
+
+				// Inline markdown on already-escaped text: code, bold, links,
+				// bare URLs. Kept deliberately small — release notes are simple.
+				function inline(s) {
+					s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+					s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+					s = s.replace(
+						/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+						'<a class="inline-link" href="$2" rel="noopener">$1</a>'
+					);
+					s = s.replace(
+						/(^|[^"'>])(https?:\/\/[^\s<]+)/g,
+						'$1<a class="inline-link" href="$2" rel="noopener">$2</a>'
+					);
+					return s;
+				}
+
+				// Minimal block-level markdown: headings, bullet lists, paragraphs.
+				function md(text) {
+					var lines = esc(text.replace(/\r\n/g, "\n")).split("\n");
+					var html = "";
+					var list = false;
+					var para = [];
+
+					function flushPara() {
+						if (para.length) {
+							html += "<p>" + inline(para.join(" ")) + "</p>";
+							para = [];
+						}
+					}
+					function closeList() {
+						if (list) {
+							html += "</ul>";
+							list = false;
+						}
+					}
+
+					lines.forEach(function (line) {
+						var t = line.trim();
+						var m;
+						if (!t) {
+							flushPara();
+							closeList();
+						} else if ((m = t.match(/^#{1,4}\s+(.*)$/))) {
+							flushPara();
+							closeList();
+							html += "<h3>" + inline(m[1]) + "</h3>";
+						} else if ((m = t.match(/^[-*]\s+(.*)$/))) {
+							flushPara();
+							if (!list) {
+								html += "<ul>";
+								list = true;
+							}
+							html += "<li>" + inline(m[1]) + "</li>";
+						} else {
+							closeList();
+							para.push(t);
+						}
+					});
+					flushPara();
+					closeList();
+					return html;
+				}
+
+				function fmtDate(iso) {
+					var d = new Date(iso);
+					if (isNaN(d)) return "";
+					return d.toLocaleDateString("en-US", {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+					});
+				}
+
+				function render(releases) {
+					var visible = releases.filter(function (r) {
+						return !r.draft;
+					});
+					if (!visible.length) {
+						renderError("No releases found.");
+						return;
+					}
+
+					var latestId = null;
+					for (var i = 0; i < visible.length; i++) {
+						if (!visible[i].prerelease) {
+							latestId = visible[i].id;
+							break;
+						}
+					}
+
+					var html = visible
+						.map(function (r) {
+							var name = r.name && r.name !== r.tag_name ? r.name : "";
+							var badges = "";
+							if (r.id === latestId)
+								badges += '<span class="rel-badge">latest</span>';
+							if (r.prerelease)
+								badges += '<span class="rel-badge pre">pre-release</span>';
+
+							return (
+								'<article class="release">' +
+								'<div class="rel-meta">' +
+								'<a class="rel-tag" href="' +
+								esc(r.html_url) +
+								'" rel="noopener">' +
+								esc(r.tag_name) +
+								"</a>" +
+								badges +
+								'<time class="rel-date" datetime="' +
+								esc(r.published_at || "") +
+								'">' +
+								fmtDate(r.published_at) +
+								"</time>" +
+								"</div>" +
+								'<div class="rel-body">' +
+								(name ? "<h3>" + esc(name) + "</h3>" : "") +
+								(r.body
+									? md(r.body)
+									: '<p class="rel-empty">No release notes.</p>') +
+								'<a class="rel-gh" href="' +
+								esc(r.html_url) +
+								'" rel="noopener">View on GitHub →</a>' +
+								"</div>" +
+								"</article>"
+							);
+						})
+						.join("");
+
+					root.innerHTML = html;
+				}
+
+				function renderError(msg) {
+					root.innerHTML =
+						'<p class="rel-status">' +
+						esc(msg) +
+						' Browse them on <a class="inline-link" href="https://github.com/ljtn/epiq/releases" rel="noopener">GitHub</a>.</p>';
+				}
+
+				function readCache() {
+					try {
+						var obj = JSON.parse(localStorage.getItem(KEY));
+						return obj && Array.isArray(obj.releases) ? obj : null;
+					} catch (e) {
+						return null;
+					}
+				}
+
+				// Show any cached copy instantly; refresh in the background
+				// unless it is still fresh.
+				var cache = readCache();
+				if (cache) render(cache.releases);
+				if (cache && Date.now() - cache.ts < TTL_MS) return;
+
+				fetch(API, { headers: { Accept: "application/vnd.github+json" } })
+					.then(function (res) {
+						return res.ok ? res.json() : Promise.reject(res.status);
+					})
+					.then(function (data) {
+						var slim = data.map(function (r) {
+							return {
+								id: r.id,
+								tag_name: r.tag_name,
+								name: r.name,
+								body: r.body,
+								html_url: r.html_url,
+								published_at: r.published_at,
+								prerelease: r.prerelease,
+								draft: r.draft,
+							};
+						});
+						render(slim);
+						try {
+							localStorage.setItem(
+								KEY,
+								JSON.stringify({ releases: slim, ts: Date.now() })
+							);
+						} catch (e) {}
+					})
+					.catch(function () {
+						if (!cache) renderError("Couldn’t load releases right now.");
+					});
+			})();
+		</script>
+
+		<script>
+			(function () {
+				var KEY = "epiq_gh_stars";
+				var buttons = document.querySelectorAll(".github-stars");
+				if (!buttons.length) return;
+
+				function formatCount(n) {
+					if (n < 1000) return String(n);
+					var units = [
+						{ v: 1e6, s: "m" },
+						{ v: 1e3, s: "k" },
+					];
+					for (var i = 0; i < units.length; i++) {
+						if (n >= units[i].v) {
+							var x = n / units[i].v;
+							// Truncate (like GitHub): one decimal under 100, whole above.
+							var str =
+								x < 100
+									? (Math.floor(x * 10) / 10).toString()
+									: Math.floor(x).toString();
+							return str + units[i].s;
+						}
+					}
+				}
+
+				function render(count) {
+					var label = formatCount(Number(count));
+					buttons.forEach(function (btn) {
+						var wrap = btn.querySelector(".stars");
+						var out = btn.querySelector(".star-count");
+						if (out) out.textContent = label;
+						if (wrap) wrap.hidden = false;
+					});
+				}
+
+				var TTL_MS = 10 * 60 * 1000;
+
+				function readCache() {
+					try {
+						var obj = JSON.parse(localStorage.getItem(KEY));
+						return obj && typeof obj.count === "number" ? obj : null;
+					} catch (e) {
+						return null;
+					}
+				}
+
+				// Show any cached value instantly to avoid layout shift.
+				var cache = readCache();
+				if (cache) render(cache.count);
+
+				// Skip the network while the cache is still fresh (< 30 min).
+				if (cache && Date.now() - cache.ts < TTL_MS) return;
+
+				fetch("https://api.github.com/repos/ljtn/epiq", {
+					headers: { Accept: "application/vnd.github+json" },
+				})
+					.then(function (res) {
+						return res.ok ? res.json() : null;
+					})
+					.then(function (data) {
+						if (data && typeof data.stargazers_count === "number") {
+							render(data.stargazers_count);
+							try {
+								localStorage.setItem(
+									KEY,
+									JSON.stringify({
+										count: data.stargazers_count,
+										ts: Date.now(),
+									})
+								);
+							} catch (e) {}
+						}
+					})
+					.catch(function () {});
+			})();
+		</script>
+	</body>
+</html>
