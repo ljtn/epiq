@@ -3,6 +3,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {GuiUser, GuiIssue, GuiTag, GuiComment} from '../lib/gui-state.model';
 import {Aside} from './Aside';
 import {Button} from './Button';
+import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {
 	ActionRow,
@@ -159,11 +160,7 @@ export const IssueDetails = ({
 								letterSpacing: '0.08em',
 							}}
 						>
-							{issue.ref && (
-								<span style={{fontFamily: 'monospace', color: GUI_THEME.dim}}>
-									{'#' + issue.ref}
-								</span>
-							)}
+							{issue.ref && <CopyRef refValue={issue.ref} />}
 						</span>
 
 						<Button variant="ghost" onClick={onClose}>

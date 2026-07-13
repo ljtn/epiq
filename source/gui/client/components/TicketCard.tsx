@@ -1,5 +1,6 @@
 import {GuiComment, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {CopyRef} from './CopyRef';
 import {IconComment} from './IconComment';
 import {User} from './User';
 
@@ -114,14 +115,8 @@ export const TicketCard = ({
 						}}
 					>
 						{ticket.ref && (
-							<span
-								style={{
-									fontFamily: 'monospace',
-									marginRight: 6,
-									color: GUI_THEME.dim,
-								}}
-							>
-								#{ticket.ref}
+							<span style={{marginRight: 6}}>
+								<CopyRef refValue={ticket.ref} />
 							</span>
 						)}
 					</div>
