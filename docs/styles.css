@@ -29,7 +29,7 @@
 
 :root {
 	--text: #f2f4ff;
-	--muted: #515968;
+	--muted: #586b90;
 	--dim: #666f91;
 	--line: rgba(78, 84, 133, 0.315);
 	--cyan: #22a1dc;
@@ -58,17 +58,17 @@ body {
 	color: var(--text);
 	background: radial-gradient(
 			circle at 18% 12%,
-			rgba(118, 180, 255, 0.1),
+			rgba(118, 180, 255, 0.055),
 			transparent 34rem
 		),
 		radial-gradient(
 			circle at 82% 20%,
-			rgba(198, 167, 255, 0.14),
+			rgba(198, 167, 255, 0.07),
 			transparent 30rem
 		),
 		radial-gradient(
 			circle at 55% 72%,
-			rgba(183, 131, 255, 0.08),
+			rgba(183, 131, 255, 0.04),
 			transparent 42rem
 		),
 		linear-gradient(180deg, #090a0f 0%, #010102 52%, #000000 100%);
@@ -1260,26 +1260,4 @@ h2 {
 }
 .lead strong {
 	font-weight: 600;
-}
-
-/* Body-text contrast: paragraphs read in --body; --muted stays for meta. */
-.lead,
-.card p,
-.panel p,
-.step span,
-.section-head p,
-.docs-section p,
-.docs-section ul,
-.docs-section ol,
-.docs-note,
-.compare-item,
-.post p,
-.post-preview p,
-.post-preview ul,
-.post-preview ol,
-.rel-body p,
-.rel-body ul,
-.rel-body ol,
-.rel-body blockquote {
-	color: var(--body);
 }
