@@ -12,6 +12,21 @@ import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
 import {useFlashColor} from './useFlashColor.js';
 
+const splitAtWordBoundary = (
+	value: string,
+	width: number,
+): [string, string | null] => {
+	if (value.length <= width) return [value, null];
+
+	const spaceAt = value.lastIndexOf(' ', width);
+	const cut = spaceAt > 0 ? spaceAt : width;
+
+	return [
+		value.slice(0, cut),
+		truncateWithEllipsis(value.slice(cut).trim(), width),
+	];
+};
+
 export const TicketListItemUI: React.FC<{
 	width: number;
 	ticket: Ticket;
@@ -22,17 +37,26 @@ export const TicketListItemUI: React.FC<{
 	// own border (2) + paddingLeft (1) + slack (1)
 	const contentWidth = width - 4;
 
-	const title = truncateWithEllipsis(
+	const [titleLine, titleOverflow] = splitAtWordBoundary(
 		sanitizeInlineText(ticket.title),
 		contentWidth,
 	);
+
+	// a long title claims the middle row; otherwise it previews the description
+	const descriptionLine = titleOverflow
+		? null
+		: truncateWithEllipsis(
+				sanitizeInlineText(ticket.props.description),
+				contentWidth,
+		  ) || null;
+
 	const tags = getTicketTags(ticket);
 	const assignees = getTicketAssignees(ticket);
 
 	return (
 		<Box
 			borderStyle="round"
-			height={4}
+			height={5}
 			flexDirection="column"
 			borderDimColor={!isSelected}
 			borderColor={
@@ -40,10 +64,14 @@ export const TicketListItemUI: React.FC<{
 			}
 			justifyContent="space-between"
 		>
-			<Box borderBottom>
-				<Box paddingLeft={1} flexDirection="column">
-					<Text color={theme.primary}>{title}</Text>
-				</Box>
+			<Box paddingLeft={1} flexDirection="column">
+				<Text color={theme.primary}>{titleLine}</Text>
+				{titleOverflow && <Text color={theme.primary}>{titleOverflow}</Text>}
+				{descriptionLine && (
+					<Text color={theme.secondary2} dimColor>
+						{descriptionLine}
+					</Text>
+				)}
 			</Box>
 
 			<Box

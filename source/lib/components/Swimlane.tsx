@@ -43,7 +43,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 		.dim('(' + children.length + ')')}`;
 	const cmdInputHeight = 3;
 
-	const itemHeight = isDense ? 1 : 4;
+	const itemHeight = isDense ? 1 : 5;
 	const isLaneCursorActive = isFocused && listSelectedIndex === -1;
 	// lane border + padding (4) + scrollbar column (1) + active cursor (2)
 	const itemWidth = width - (isLaneCursorActive ? 7 : 5);
