@@ -55,3 +55,4 @@
 {"v":1,"id":["01KXDBM8S8KESNTRF28K7SCEF6","01KXDB0MC2XB43BNN0F8H0993M"],"add.issue":{"id":"01KXDBM8S2CP1E81NHXZWRZYXN","parent":"01KS22YK95S3336MFSE44MY70R","name":"Enhance the wide view mode ","rank":"fbffffffffffffffffffffff"}}
 {"v":1,"id":["01KXDBP2KM5THE5C4FQVEXHFHK","01KXDBM8S8KESNTRF28K7SCEF6"],"edit.description":{"id":"01KXDBM8S2CP1E81NHXZWRZYXN","md":"\nMake sure to render issues full width.\n\nAlso add issue reference.\n"}}
 {"v":1,"id":["01KXDBX9PBRK56CBGR93VPF1A6","01KXDBP2KM5THE5C4FQVEXHFHK"],"add.issue":{"id":"01KXDBX9P64CHVFCBNMN6ANKQM","parent":"01KS22YK95S3336MFSE44MY70R","name":"Add support for very long titles so that they can be rendered in wide mode ","rank":"fdffffffffffffffffffffff"}}
+{"v":1,"id":["01KXDBYMHRTGJ56BS6SQPKQ6WS","01KXDBX9PBRK56CBGR93VPF1A6"],"edit.description":{"id":"01KXDBX9P64CHVFCBNMN6ANKQM","md":"Also add a description at the same time, and see what gets rendred, and how."}}
