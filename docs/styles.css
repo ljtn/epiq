@@ -597,7 +597,8 @@ h2 {
 }
 .compare-check {
 	text-align: center;
-	font: 14px var(--mono);
+	font: 18px var(--mono);
+	line-height: 1.2;
 }
 .compare-check.yes {
 	color: #8fdc8c;
