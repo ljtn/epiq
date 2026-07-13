@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useState} from 'react';
 import {CmdKeyword} from '../command-line/cmd-keywords.js';
-import {CmdValidity} from '../command-line/cmd-validity.js';
+import {CmdValidity, cmdValidity} from '../command-line/cmd-validity.js';
 import {AutoCompletion} from '../command-line/command-auto-complete.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {
@@ -164,7 +164,15 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 		autoCompletion,
 		command,
 		modifier,
+		validationStatus,
 	} = state;
+
+	// Pending alone is not an error: every confirmed command passes through a
+	// pending window while its action runs, and painting the lingering hint red
+	// there reads as a false "validation failed" flash. Red is reserved for a
+	// failed result, which arrives as pending + invalid.
+	const isFailureMessage =
+		commandIsPending && validationStatus === cmdValidity.Invalid;
 
 	const fullLine = useMemo(() => {
 		const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
@@ -245,7 +253,7 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 					{infoMessage && (
 						<Text
 							wrap="truncate"
-							color={commandIsPending ? theme.red : theme.secondary2}
+							color={isFailureMessage ? theme.red : theme.secondary2}
 						>
 							{` ${infoMessage} `}
 						</Text>
