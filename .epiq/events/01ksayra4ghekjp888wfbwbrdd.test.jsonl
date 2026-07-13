@@ -56,3 +56,4 @@
 {"v":1,"id":["01KXDBP2KM5THE5C4FQVEXHFHK","01KXDBM8S8KESNTRF28K7SCEF6"],"edit.description":{"id":"01KXDBM8S2CP1E81NHXZWRZYXN","md":"\nMake sure to render issues full width.\n\nAlso add issue reference.\n"}}
 {"v":1,"id":["01KXDBX9PBRK56CBGR93VPF1A6","01KXDBP2KM5THE5C4FQVEXHFHK"],"add.issue":{"id":"01KXDBX9P64CHVFCBNMN6ANKQM","parent":"01KS22YK95S3336MFSE44MY70R","name":"Add support for very long titles so that they can be rendered in wide mode ","rank":"fdffffffffffffffffffffff"}}
 {"v":1,"id":["01KXDBYMHRTGJ56BS6SQPKQ6WS","01KXDBX9PBRK56CBGR93VPF1A6"],"edit.description":{"id":"01KXDBX9P64CHVFCBNMN6ANKQM","md":"Also add a description at the same time, and see what gets rendred, and how."}}
+{"v":1,"id":["01KXDC5DMYR4F2M6ZR3Q57XSCM","01KXDBYMHRTGJ56BS6SQPKQ6WS"],"add.issue.tag":{"id":"01KVDGS3T0KDDSDW5E1EH18WXR","tag":"01KSR2CGK1BZQZZY5TH3VEQTTA"}}
