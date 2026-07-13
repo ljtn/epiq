@@ -198,6 +198,49 @@ export type AppEventMap = {
 
 export type EventAction = keyof AppEventMap;
 
+/**
+ * Runtime registry of every action this version understands. Events with
+ * actions outside this list (written by a newer epiq) are skipped on load
+ * instead of failing replay.
+ */
+export const EVENT_ACTIONS = [
+	'init.workspace',
+	'add.workspace',
+	'add.board',
+	'add.swimlane',
+	'add.issue',
+	'add.field',
+	'edit.title',
+	'delete.node',
+	'create.tag',
+	'create.contributor',
+	'add.issue.assignee',
+	'remove.issue.assignee',
+	'add.issue.tag',
+	'remove.issue.tag',
+	'move.node',
+	'edit.description',
+	'add.issue.comment',
+	'edit.issue.comment',
+	'delete.issue.comment',
+	'close.issue',
+	'reopen.issue',
+	'lock.node',
+	'rebalance.children',
+	'link.contributor.user',
+] as const satisfies readonly EventAction[];
+
+// Compile-time proof that EVENT_ACTIONS covers every EventAction.
+type MissingActions = Exclude<EventAction, (typeof EVENT_ACTIONS)[number]>;
+const _assertAllActionsListed: MissingActions extends never ? true : never =
+	true;
+void _assertAllActionsListed;
+
+const knownEventActions: ReadonlySet<string> = new Set(EVENT_ACTIONS);
+
+export const isKnownEventAction = (action: string): action is EventAction =>
+	knownEventActions.has(action);
+
 type StoredAppEventUnion = {
 	[A in EventAction]: {
 		action: A;

@@ -671,7 +671,16 @@ export function materialize<A extends EventAction>(
 	event: AppEvent<A>,
 	bypassLogging = false,
 ): MaterializeResult<A> {
-	const result = materializeHandlers[event.action](event);
+	// Unknown actions are filtered at load time; this guards any other path
+	// so a foreign event yields a failed Result instead of a crash.
+	const handler = materializeHandlers[event.action];
+	if (!handler) {
+		return failed(
+			`Unknown event action "${event.action}", likely created by a newer epiq version. Evt id: ${event.id}`,
+		);
+	}
+
+	const result = handler(event);
 	if (isFail(result)) return result;
 
 	const completionFail = completeMaterialization(event, bypassLogging);

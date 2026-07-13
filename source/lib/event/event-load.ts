@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime} from 'ulid';
 import {z} from 'zod';
+import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
-import {AppEvent, AppEventMap} from './event.model.js';
+import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
 import {parsePersistedEvent, PersistedEvent} from './event-persist.js';
 
 const EventFileNameSchema = z.object({
@@ -120,10 +121,11 @@ export const fromPersistedEvent = (
 	);
 };
 
-const decodeReconstructedEvents = (
+export const decodeReconstructedEvents = (
 	events: ReconstructedEvent[],
 ): Result<AppEvent[]> => {
 	const decoded: AppEvent[] = [];
+	const skippedActions = new Map<string, number>();
 
 	for (const entry of events) {
 		const eventResult = fromPersistedEvent(entry);
@@ -136,7 +138,25 @@ const decodeReconstructedEvents = (
 			);
 		}
 
+		// Events written by a newer epiq may carry actions this version does
+		// not understand. Skip them instead of failing the whole replay — the
+		// persisted logs are untouched, so upgrading restores them.
+		const action = eventResult.value.action as string;
+		if (!isKnownEventAction(action)) {
+			skippedActions.set(action, (skippedActions.get(action) ?? 0) + 1);
+			continue;
+		}
+
 		decoded.push(eventResult.value);
+	}
+
+	if (skippedActions.size > 0) {
+		const summary = [...skippedActions.entries()]
+			.map(([action, count]) => `${action} (x${count})`)
+			.join(', ');
+		logger.info(
+			`Skipped events with unknown actions, likely created by a newer epiq version: ${summary}. Upgrade to apply them.`,
+		);
 	}
 
 	return succeeded('Decoded reconstructed events', decoded);

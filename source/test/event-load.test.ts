@@ -1,10 +1,16 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {ulid} from 'ulid';
 import {describe, expect, it} from 'vitest';
 import {
+	decodeReconstructedEvents,
 	getSortedEvents,
+	loadMergedEvents,
 	ReconstructedEvent,
 	splitEventsAtTime,
 } from '../lib/event/event-load.js';
+import {isFail} from '../lib/model/result-types.js';
 
 describe('getSortedEvents', () => {
 	const event = (
@@ -221,5 +227,119 @@ describe('splitEventsAtTime', () => {
 
 		expect(appliedEvents).toEqual([]);
 		expect(unappliedEvents.map(e => e.id[0])).toEqual([invalidId]);
+	});
+});
+
+describe('decodeReconstructedEvents', () => {
+	const entry = (
+		id: string,
+		action: string,
+		payload: Record<string, unknown>,
+	): ReconstructedEvent =>
+		({
+			id: [id, null],
+			[action]: payload,
+			userId: 'user',
+			userName: 'User',
+			v: 1,
+		} as unknown as ReconstructedEvent);
+
+	it('decodes known actions', () => {
+		const result = decodeReconstructedEvents([
+			entry('01KQMFD60TR62NRKX8B32KNKWH', 'edit.title', {
+				id: 'node-1',
+				name: 'Renamed',
+			}),
+		]);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.map(e => e.action)).toEqual(['edit.title']);
+	});
+
+	it('skips events with unknown actions instead of failing', () => {
+		const result = decodeReconstructedEvents([
+			entry('01KQMFD60TR62NRKX8B32KNKWH', 'edit.title', {
+				id: 'node-1',
+				name: 'Renamed',
+			}),
+			entry('01KQN37Z9877YBRV6P2YG7Q62S', 'add.issue.attachment', {
+				id: 'evt-2',
+				issue: 'node-1',
+				hash: 'abc',
+			}),
+			entry('01KQN3C8WNF8Q8WXQYPF54S4MC', 'edit.title', {
+				id: 'node-1',
+				name: 'Renamed again',
+			}),
+		]);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.map(e => e.action)).toEqual([
+			'edit.title',
+			'edit.title',
+		]);
+	});
+
+	it('still fails on structurally invalid entries', () => {
+		const malformed = {
+			id: ['01KQMFD60TR62NRKX8B32KNKWH', null],
+			userId: 'user',
+			userName: 'User',
+			v: 1,
+		} as unknown as ReconstructedEvent;
+
+		const result = decodeReconstructedEvents([malformed]);
+
+		expect(isFail(result)).toBe(true);
+	});
+});
+
+describe('loadMergedEvents with foreign events on disk', () => {
+	it('loads a log containing unknown actions without failing', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-load-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		const lines = [
+			{
+				v: 1,
+				id: ['01H0000000000000000000000A', null],
+				'init.workspace': {id: 'ws1', name: 'Workspace', rank: 'a0'},
+			},
+			{
+				v: 1,
+				id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
+				'add.issue.attachment': {
+					id: 'e2',
+					issue: 't1',
+					hash: 'deadbeef',
+					ext: 'png',
+					name: 'shot.png',
+					bytes: 1234,
+				},
+			},
+			{
+				v: 1,
+				id: ['01H0000000000000000000000C', '01H0000000000000000000000B'],
+				'add.board': {id: 'b1', name: 'Board', parent: 'ws1', rank: 'a0'},
+			},
+		];
+		fs.writeFileSync(
+			path.join(eventsDir, '01H0000000000000000000000F.alice.jsonl'),
+			lines.map(l => JSON.stringify(l)).join('\n') + '\n',
+		);
+
+		const result = loadMergedEvents(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.map(e => e.action)).toEqual([
+			'init.workspace',
+			'add.board',
+		]);
+
+		fs.rmSync(root, {recursive: true, force: true});
 	});
 });

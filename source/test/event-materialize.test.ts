@@ -261,3 +261,21 @@ describe('event materialize', () => {
 		expect(results.every(result => !isFail(result as Result))).toBe(true);
 	});
 });
+
+describe('unknown event actions', () => {
+	it('returns a failed result instead of crashing', () => {
+		const foreign = {
+			id: '01H00000000000000000009999',
+			userId: 'u1',
+			userName: 'alice',
+			action: 'add.issue.attachment',
+			payload: {id: 'x', issue: 'y', hash: 'z'},
+		} as unknown as AppEvent;
+
+		const result = materialize(foreign);
+
+		expect(isFail(result)).toBe(true);
+		if (!isFail(result)) return;
+		expect(result.message).toContain('Unknown event action');
+	});
+});
