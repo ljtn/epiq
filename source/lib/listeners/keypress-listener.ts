@@ -22,6 +22,7 @@ const AVAILABLE_IN_READ_ONLY = new Set<IntentInferred>([
 	Intent.SetViewWide,
 	Intent.Confirm,
 	Intent.Exit,
+	Intent.Yank,
 	Intent.InitCommandLine,
 	Intent.InitCommandPalette,
 	Intent.ExitCommandLine,
@@ -58,6 +59,7 @@ const REPLAY_BLOCKED_INTENTS = new Set<IntentInferred>([
 	Intent.ConfirmMove,
 	Intent.Edit,
 	Intent.ViewHelp,
+	Intent.Yank,
 ]);
 
 const triggerAction = async (key: readline.Key) => {

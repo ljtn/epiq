@@ -1,4 +1,8 @@
 import {CmdKeywords} from '../../command-line/cmd-keywords.js';
+import {
+	getCmdModifiers,
+	YankModifiers,
+} from '../../command-line/command-modifiers.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
@@ -86,6 +90,35 @@ export const DefaultActions: ActionEntry[] = [
 		},
 	},
 
+	{
+		intent: Intent.Yank,
+		mode: Mode.DEFAULT,
+		description: '[y] yank to clipboard',
+		action: () => {
+			const {selectedNode} = getState();
+
+			// Yank the field under the cursor when one is selected; otherwise
+			// default to the ref. Fall back to ref when the preferred target has
+			// nothing to yank (e.g. the tags field of an untagged issue).
+			const preferred =
+				selectedNode?.title === FieldNames.DESCRIPTION
+					? YankModifiers.DESCRIPTION
+					: selectedNode?.title === FieldNames.TAGS
+					? YankModifiers.TAGS
+					: selectedNode?.title === FieldNames.ASSIGNEES
+					? YankModifiers.ASSIGNEES
+					: YankModifiers.REF;
+
+			const available = getCmdModifiers(CmdKeywords.YANK);
+			const modifier = available.includes(preferred)
+				? preferred
+				: YankModifiers.REF;
+
+			patchState({mode: Mode.COMMAND_LINE});
+			replaceCmdInput(`${CmdKeywords.YANK} ${modifier}`);
+			return succeeded('Propose command', true);
+		},
+	},
 	{
 		intent: Intent.EditTitle,
 		mode: Mode.DEFAULT,

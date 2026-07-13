@@ -730,7 +730,7 @@ export const commands: CommandLineActionEntry[] = [
 	{
 		intent: CmdIntent.Yank,
 		description:
-			'Copy ref, title, description, tags, or assignees to the clipboard',
+			'Yank (copy) ref, title, description, tags, or assignees to the clipboard',
 		mode: Mode.COMMAND_LINE,
 		action: async (_, cmdState) => yankCommand(cmdState),
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),

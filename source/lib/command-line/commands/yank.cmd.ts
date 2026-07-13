@@ -52,6 +52,6 @@ export const yankCommand = async (
 		}
 
 		default:
-			return failed('Copy one of: ref, title, description, tags, assignees');
+			return failed('Yank one of: ref, title, description, tags, assignees');
 	}
 };

@@ -421,7 +421,7 @@ const validateYankCommand: Validator = ({modifier}) => {
 	if (!copyModifiers.includes(modifier)) {
 		return invalid({
 			message: buildOptionsHint({
-				prefix: 'copy... ',
+				prefix: 'yank... ',
 				wordList: copyModifiers,
 				inputString: modifier,
 				minLengthForHints: 0,

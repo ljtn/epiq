@@ -51,6 +51,9 @@ export const Intent = {
 	EditTitle: 'editTitle',
 	EditDescription: 'editDescription',
 
+	// Clipboard
+	Yank: 'yank',
+
 	// View
 	SetViewDense: 'SetViewDense',
 	SetViewWide: 'SetViewWide',
@@ -177,6 +180,8 @@ export function getKeyIntent(
 			return Intent.InitMove;
 		case 'd': // It cannot be 'backspace' as we then end up in an infinite loop if we erase from cmd line
 			return Intent.Delete;
+		case 'y':
+			return Intent.Yank;
 		case 'return':
 			return Intent.Confirm;
 		case 'space':
