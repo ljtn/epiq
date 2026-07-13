@@ -569,61 +569,68 @@ h2 {
 	}
 }
 
-/* Comparison */
-.compare-grid {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 18px;
-}
-
-.compare-card {
+/* Comparison: spec matrix — one row per capability, one check column
+   per tool */
+.compare {
 	border: 1px solid var(--line);
 	border-radius: 8px;
 	overflow: hidden;
-	background: rgba(255, 255, 255, 0.035);
+	background: rgba(255, 255, 255, 0.02);
 }
-
-.compare-old {
-	background: linear-gradient(
-		180deg,
-		rgba(255, 255, 255, 0.04),
-		rgba(255, 255, 255, 0.02)
-	);
+.compare-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 90px 90px 90px;
+	border-top: 1px solid var(--line);
 }
-
-.compare-epiq {
-	background: linear-gradient(
-		180deg,
-		rgba(34, 161, 220, 0.08),
-		rgba(34, 161, 220, 0.025)
-	);
-	border-color: rgba(34, 161, 220, 0.18);
+.compare-row:first-child {
+	border-top: 0;
 }
-
-.compare-title {
-	padding: 24px;
-	border-bottom: 1px solid var(--line);
-	font-size: 22px;
-	font-weight: 600;
-	letter-spacing: -0.03em;
+.compare-row > div {
+	padding: 13px 18px;
 }
-
-.compare-item {
-	padding: 18px 24px;
-	color: var(--muted);
+.compare-row > div:last-child {
+	border-left: 1px solid var(--line);
+	background: rgba(34, 161, 220, 0.045);
 }
-
-.compare-card:last-child .compare-item {
+.compare-spec {
+	color: var(--body);
+}
+.compare-check {
+	text-align: center;
+	font: 14px var(--mono);
+}
+.compare-check.yes {
+	color: #8fdc8c;
+}
+.compare-check.no {
+	color: rgba(255, 135, 135, 0.5);
+}
+.compare-check.partial {
+	color: #e5c07b;
+}
+.compare-head > div {
+	font-family: var(--display);
+	font-weight: 500;
+	font-size: 15px;
+	letter-spacing: -0.02em;
 	color: var(--text);
+	background: rgba(0, 0, 0, 0.25);
+	padding-top: 16px;
+	padding-bottom: 16px;
 }
-
-.compare-item:last-child {
-	border-bottom: 0;
+.compare-head > div:last-child {
+	background: rgba(34, 161, 220, 0.09);
 }
-
-@media (max-width: 900px) {
-	.compare-grid {
-		grid-template-columns: 1fr;
+@media (max-width: 620px) {
+	.compare-row {
+		grid-template-columns: minmax(0, 1fr) 46px 46px 46px;
+	}
+	.compare-row > div {
+		padding: 11px 10px;
+	}
+	.compare-spec,
+	.compare-head > div {
+		font-size: 13px;
 	}
 }
 
@@ -1238,8 +1245,7 @@ h2,
 h3,
 h4,
 .brand,
-.quote p,
-.compare-title {
+.quote p {
 	font-family: var(--display);
 	font-weight: 500;
 }
@@ -1256,7 +1262,6 @@ h2 {
 .docs-section h2 {
 	letter-spacing: -0.042em;
 }
-.compare-title,
 .card h3,
 .panel h3,
 .post h3,
