@@ -409,6 +409,30 @@ const validateEditCommand: Validator = ({modifier, inputString}) => {
 	}
 };
 
+const validateCopyCommand: Validator = ({modifier}) => {
+	const copyModifiers = getCmdModifiers(CmdKeywords.CP);
+
+	if (!copyModifiers.length) {
+		return invalid({
+			message: hintAlert('Nothing selected to copy from'),
+		});
+	}
+
+	if (!copyModifiers.includes(modifier)) {
+		return invalid({
+			message: buildOptionsHint({
+				prefix: 'copy... ',
+				wordList: copyModifiers,
+				inputString: modifier,
+				minLengthForHints: 0,
+			}),
+			completionWordList: copyModifiers,
+		});
+	}
+
+	return valid(CONFIRM_MSG + hintDefault(' and copy to clipboard'));
+};
+
 const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.EXPORT]: () => {
 		return valid(
@@ -591,6 +615,8 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 
 	[CmdKeywords.CONFIG]: validateConfigCommand,
+
+	[CmdKeywords.CP]: validateCopyCommand,
 
 	[CmdKeywords.DELETE]: args => {
 		const editableNodeTypeValidation = guardBoardSwimlaneTicketNodes();

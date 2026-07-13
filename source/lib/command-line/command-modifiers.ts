@@ -45,6 +45,14 @@ export const EditModifiers = {
 
 export type EditModifier = (typeof EditModifiers)[keyof typeof EditModifiers];
 
+export const CopyModifiers = {
+	REF: 'ref',
+	TITLE: 'title',
+	DESCRIPTION: 'description',
+} as const;
+
+export type CopyModifier = (typeof CopyModifiers)[keyof typeof CopyModifiers];
+
 export const CONFIG_MODIFIERS = [
 	ConfigModifiers.EDITOR,
 	ConfigModifiers.VIEW,
@@ -96,6 +104,7 @@ const GLOBAL_COMMANDS = [
 	CmdKeywords.HELP,
 	CmdKeywords.EXPORT,
 	CmdKeywords.CONFIG,
+	CmdKeywords.CP,
 ];
 
 const EDIT_COMMANDS = [
@@ -130,7 +139,7 @@ const COMMANDS_BY_CONTEXT: CommandMap = {
 	FIELD: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
 	FIELD_LIST: [...GLOBAL_COMMANDS, ...TICKET_COMMANDS],
 	TEXT: [...GLOBAL_COMMANDS],
-	COMMENT: [CmdKeywords.EDIT, CmdKeywords.DELETE],
+	COMMENT: [CmdKeywords.EDIT, CmdKeywords.DELETE, CmdKeywords.CP],
 };
 
 const getNewModifiers = (context: AnyContext): string[] => {
@@ -142,7 +151,7 @@ const getNewModifiers = (context: AnyContext): string[] => {
 // The "un"-commands and close/reopen only make sense against a concrete ticket,
 // so resolve the ticket currently in scope (selected, or anywhere up the
 // breadcrumb) the same way the tag/assign helpers do.
-const ticketInScope = ({
+export const ticketInScope = ({
 	breadCrumb,
 	selectedNode,
 }: Pick<AppState, 'breadCrumb' | 'selectedNode'>): Ticket | undefined =>
@@ -171,6 +180,24 @@ const getEditModifiersInScope = ({
 		: [...modifiers, EditModifiers.DESCRIPTION];
 };
 
+// `cp` copies from the ticket in scope when there is one; otherwise from the
+// selected node (a board or swimlane also has a ref and a title). The
+// description modifier is only offered when the scoped ticket has one.
+const getCopyModifiers = ({
+	selectedNode,
+	breadCrumb,
+}: Pick<AppState, 'selectedNode' | 'breadCrumb'>): CopyModifier[] => {
+	const ticket = ticketInScope({breadCrumb, selectedNode});
+
+	if (ticket) {
+		return ticket.props?.description?.trim()
+			? [CopyModifiers.REF, CopyModifiers.TITLE, CopyModifiers.DESCRIPTION]
+			: [CopyModifiers.REF, CopyModifiers.TITLE];
+	}
+
+	return selectedNode ? [CopyModifiers.REF, CopyModifiers.TITLE] : [];
+};
+
 const getAvailableBaseCommands = ({
 	selectedNode,
 	readOnly,
@@ -195,6 +222,7 @@ const getAvailableBaseCommands = ({
 			CmdKeywords.REPLAY,
 			CmdKeywords.EXPORT,
 			CmdKeywords.CONFIG,
+			CmdKeywords.CP,
 		];
 	}
 
@@ -215,6 +243,11 @@ const getAvailableBaseCommands = ({
 	return commandsInBreadcrumbContext.filter(command => {
 		if (command === CmdKeywords.MOVE) {
 			return false;
+		}
+
+		// Nothing to copy from without a scoped ticket or a selection.
+		if (command === CmdKeywords.CP) {
+			return Boolean(ticket ?? selectedNode);
 		}
 
 		// `edit` can target the ticket in scope (e.g. `edit description`) even
@@ -282,6 +315,8 @@ export const getCmdModifiers = (
 		[CmdKeywords.REPLAY]: [...generatePeekOffsetHints()],
 
 		[CmdKeywords.EDIT]: getEditModifiersInScope({selectedNode, breadCrumb}),
+
+		[CmdKeywords.CP]: getCopyModifiers({selectedNode, breadCrumb}),
 
 		[CmdKeywords.COMMENT]: [],
 

@@ -1,5 +1,12 @@
 {
-	"cSpell.words": ["AUTOSYNC", "epiq", "worktree", "Worktrees"],
+	"cSpell.words": [
+		"AUTOSYNC",
+		"epiq",
+		"pbcopy",
+		"worktree",
+		"Worktrees",
+		"xclip"
+	],
 	"eslint.validate": [
 		"javascript",
 		"javascriptreact",

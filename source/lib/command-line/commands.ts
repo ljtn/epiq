@@ -40,6 +40,7 @@ import {replayCommand} from './commands/replay.cmd.js';
 import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.js';
 import {setAutoSyncCommand} from './commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from './commands/set-log-level.cmd.js';
+import {copyCommand} from './commands/cp.cmd.js';
 import {syncCommand} from './commands/sync.cmd.js';
 import {AppEvent} from '../event/event.model.js';
 
@@ -724,6 +725,13 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Edit title or description',
 		mode: Mode.COMMAND_LINE,
 		action: async (_, cmdState) => editCommand(cmdState),
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.Copy,
+		description: 'Copy the ref, title, or description to the clipboard',
+		mode: Mode.COMMAND_LINE,
+		action: async (_, cmdState) => copyCommand(cmdState),
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
