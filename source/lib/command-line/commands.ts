@@ -778,7 +778,11 @@ export const commands: CommandLineActionEntry[] = [
 						return failed('Invalid view mode');
 					}
 
+					const persistResult = setConfig({viewMode: value});
+					if (isFail(persistResult)) return persistResult;
+
 					patchSettingsState({viewMode: value});
+					patchState({mode: Mode.DEFAULT});
 
 					return succeeded(`View set to "${value}"`, null);
 				}

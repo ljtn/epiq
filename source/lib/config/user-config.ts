@@ -158,6 +158,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		autoSync,
 		autoSyncDebounceMs: autoSyncIntervalMs,
 		logLevel,
+		viewMode,
 	} = result.value;
 
 	if (!userName || !userId) {
@@ -175,6 +176,6 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		userId,
 		autoSync: autoSync ?? false,
 		autoSyncIntervalMs: autoSyncIntervalMs ?? 10_000,
-		viewMode: 'dense',
+		viewMode: viewMode ?? 'dense',
 	});
 };
