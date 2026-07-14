@@ -917,6 +917,7 @@ kbd {
 /* Blog page */
 .post-list {
 	max-width: 720px;
+	margin-inline: auto;
 	display: grid;
 	gap: 14px;
 }
