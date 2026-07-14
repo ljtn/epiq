@@ -345,20 +345,19 @@ h2 {
 }
 .card {
 	min-height: 230px;
-	padding: 20px;
+	padding: 20px 10px;
 	background: linear-gradient(180deg, rgb(0 128 255 / 3%), rgb(72 0 255 / 4%));
 }
 .icon {
 	width: 56px;
 	height: 56px;
-	border-radius: 8px;
+	border-radius: 4px;
 	display: grid;
 	place-items: center;
 	margin-bottom: 18px;
-	background: rgb(138 131 255 / 10%);
+	background: rgba(97, 93, 154, 0.1);
 	color: #226fdc;
 	font: 18px var(--mono);
-	border: 1px solid rgb(131 155 255 / 22%);
 }
 .card h3 {
 	margin: 0 0 10px;
