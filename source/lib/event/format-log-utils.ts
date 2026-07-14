@@ -30,6 +30,8 @@ const formatLogAction = (action: string): string => {
 		'move.node': 'Moved issue',
 		'add.issue.comment': 'Commented',
 		'delete.issue.comment': 'Deleted comment',
+		'add.issue.attachment': 'Attached',
+		'delete.issue.attachment': 'Removed attachment',
 	};
 
 	return (
@@ -76,6 +78,12 @@ const formatMoveLogMain = (
 	return `Moved issue to ${parentLabel}`;
 };
 
+const formatAttachmentKb = (bytes: number): string =>
+	`${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+const getDeletedAttachmentName = (attachmentId: string): string =>
+	nodeRepo.getAttachment(attachmentId)?.name ?? '';
+
 const formatEventDetails = (event: AppEvent): string => {
 	switch (event.action) {
 		case 'add.issue.tag': {
@@ -114,6 +122,17 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'create.contributor':
 		case 'edit.title': {
 			return `"${'name' in event.payload ? event.payload.name : ''}"`;
+		}
+
+		case 'add.issue.attachment': {
+			return `"${event.payload.name}" ${chalk.dim(
+				`(${formatAttachmentKb(event.payload.bytes)})`,
+			)}`;
+		}
+
+		case 'delete.issue.attachment': {
+			const name = getDeletedAttachmentName(event.payload.id);
+			return name ? `"${name}"` : '';
 		}
 
 		default:
@@ -159,6 +178,16 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'move.node': {
 			const parent = nodeRepo.getNode(event.payload.parent);
 			return parent ? `to ${parent.title}` : '';
+		}
+
+		case 'add.issue.attachment':
+			return `"${event.payload.name}" (${formatAttachmentKb(
+				event.payload.bytes,
+			)})`;
+
+		case 'delete.issue.attachment': {
+			const name = getDeletedAttachmentName(event.payload.id);
+			return name ? `"${name}"` : '';
 		}
 
 		default:
