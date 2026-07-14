@@ -2,8 +2,6 @@
 
 _Distributed terminal-native issue tracker backed by Git._
 
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-Epiq-pink?logo=github)](https://github.com/sponsors/ljtn)
-
 **[See docs →](https://ljtn.github.io/epiq/docs.html)**
 
 Issue tracking is a core part of software development, but it often becomes a painful context-switching exercise with poor ergonomics. Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
@@ -251,5 +249,6 @@ Epiq follows a **local-first** model:
 > Frequent synchronization reduces divergence and keeps the system predictable
 
 ---
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-Epiq-pink?logo=github)](https://github.com/sponsors/ljtn)
 
 🫡 Never leave your editor!
