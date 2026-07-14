@@ -281,6 +281,9 @@ export const IssueDetails = ({
 											lineHeight: 1.55,
 											whiteSpace: 'pre-wrap',
 											margin: '8px 0 0',
+											padding: '12px 16px',
+											background: 'rgba(0, 0, 0, 0.22)',
+											borderRadius: 8,
 											color: GUI_THEME.primary,
 										}}
 									>
