@@ -230,6 +230,26 @@ describe('issue attachments', () => {
 				server.close();
 			}
 
+			// --- the TUI shows the attachment indicator without breaking the
+			// layout, in both view modes
+			const indicatorTui = setupTui([], {cwd: repoRoot});
+			try {
+				// dense (default): compact row indicator
+				const denseFrame = await indicatorTui.waitFor('[1a]', 10_000);
+				expect(denseFrame).toContain('[1a]');
+				expect(denseFrame).toContain('╭');
+				expect(denseFrame).toContain('╰');
+
+				// wide: indicator sits next to the ref on the card
+				await run(indicatorTui, ':config view wide', 'config view wide');
+				const wideFrame = await indicatorTui.waitFor('[1a] #', 10_000);
+				expect(wideFrame).toContain('[1a] #');
+				expect(wideFrame).toContain('╭');
+				expect(wideFrame).toContain('╰');
+			} finally {
+				indicatorTui.destroy();
+			}
+
 			// --- delete removes the reference but never the blob (time travel)
 			const deleted = await deleteIssueAttachment({
 				repoRoot,

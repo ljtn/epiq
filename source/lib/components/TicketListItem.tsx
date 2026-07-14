@@ -7,6 +7,7 @@ import {
 	truncateWithEllipsis,
 } from '../utils/string.utils.js';
 import {nodeRef} from '../utils/node-ref.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
@@ -52,6 +53,7 @@ export const TicketListItemUI: React.FC<{
 
 	const tags = getTicketTags(ticket);
 	const assignees = getTicketAssignees(ticket);
+	const attachmentCount = nodeRepo.getAttachmentsByIssue(ticket.id).length;
 
 	return (
 		<Box
@@ -94,7 +96,8 @@ export const TicketListItemUI: React.FC<{
 				</Box>
 
 				<Text wrap="truncate" color={theme.secondary2} dimColor>
-					#{nodeRef(ticket.id)}
+					{attachmentCount > 0 ? `[${attachmentCount}a] ` : ''}#
+					{nodeRef(ticket.id)}
 				</Text>
 			</Box>
 		</Box>
