@@ -59,13 +59,9 @@
 					<a class="cmd-link" href="./blog.html" aria-label="Blog"
 						><span class="accent">:</span>blog</a
 					>
-					<a
-						class="ver-pill"
-						href="./releases.html"
-						aria-label="Latest release — view all releases"
-						hidden
-						><span class="ver-num"></span
-					></a>
+					<a class="cmd-link" href="./releases.html" aria-label="Releases"
+						><span class="accent">:</span>releases</a
+					>
 					<a
 						class="btn github-stars"
 						href="https://github.com/ljtn/epiq"
@@ -583,56 +579,6 @@
 					}
 				});
 			});
-		</script>
-
-		<script>
-			(function () {
-				var KEY = "epiq_gh_version";
-				var TTL_MS = 10 * 60 * 1000;
-				var pills = document.querySelectorAll(".ver-pill");
-				if (!pills.length) return;
-
-				function render(tag) {
-					var label = String(tag).replace(/^v/, "");
-					pills.forEach(function (pill) {
-						var out = pill.querySelector(".ver-num");
-						if (out) out.textContent = label;
-						pill.hidden = false;
-					});
-				}
-
-				function readCache() {
-					try {
-						var obj = JSON.parse(localStorage.getItem(KEY));
-						return obj && typeof obj.tag === "string" ? obj : null;
-					} catch (e) {
-						return null;
-					}
-				}
-
-				var cache = readCache();
-				if (cache) render(cache.tag);
-				if (cache && Date.now() - cache.ts < TTL_MS) return;
-
-				fetch("https://api.github.com/repos/ljtn/epiq/releases/latest", {
-					headers: { Accept: "application/vnd.github+json" },
-				})
-					.then(function (res) {
-						return res.ok ? res.json() : null;
-					})
-					.then(function (data) {
-						if (data && typeof data.tag_name === "string") {
-							render(data.tag_name);
-							try {
-								localStorage.setItem(
-									KEY,
-									JSON.stringify({ tag: data.tag_name, ts: Date.now() })
-								);
-							} catch (e) {}
-						}
-					})
-					.catch(function () {});
-			})();
 		</script>
 
 		<script>

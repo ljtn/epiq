@@ -914,41 +914,6 @@ kbd {
 	color: var(--cyan);
 }
 
-/* Version pill (nav) — bare brackets, like status output in the TUI */
-.ver-pill {
-	display: inline-flex;
-	align-items: center;
-	font: 13px var(--mono);
-	letter-spacing: -0.02em;
-	color: var(--muted);
-	transition: color 0.15s ease;
-}
-.ver-pill::before {
-	content: "[";
-	color: var(--dim);
-	margin-right: 4px;
-	transition: color 0.15s ease;
-}
-.ver-pill::after {
-	content: "]";
-	color: var(--dim);
-	margin-left: 4px;
-	transition: color 0.15s ease;
-}
-.ver-pill .ver-num::before {
-	content: "v";
-}
-.ver-pill:hover,
-.ver-pill.active {
-	color: var(--cyan);
-}
-.ver-pill:hover::before,
-.ver-pill:hover::after,
-.ver-pill.active::before,
-.ver-pill.active::after {
-	color: var(--cyan);
-}
-
 /* Blog page */
 .post-list {
 	max-width: 720px;
