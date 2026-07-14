@@ -21,6 +21,11 @@ export const Header = ({state, connected, syncStatus}: HeaderProps) => {
 			? GUI_THEME.red
 			: GUI_THEME.accent;
 
+	// Failures can carry multi-line git output — never render that in the
+	// topbar. Show a short label and keep the details in the hover tooltip.
+	const syncLabel =
+		syncStatus.status === 'failed' ? '-' : syncStatus.msg.toLowerCase();
+
 	return (
 		<Panel
 			as="header"
@@ -79,13 +84,20 @@ export const Header = ({state, connected, syncStatus}: HeaderProps) => {
 							}}
 						>
 							<span
+								title={
+									syncStatus.status === 'failed' ? syncStatus.msg : undefined
+								}
 								style={{
 									color: GUI_THEME.dim,
 									minWidth: 72,
+									maxWidth: 220,
+									overflow: 'hidden',
+									textOverflow: 'ellipsis',
+									whiteSpace: 'nowrap',
 									textAlign: 'right',
 								}}
 							>
-								{connected ? syncStatus.msg.toLowerCase() : '-'}
+								{connected ? syncLabel : '-'}
 							</span>
 
 							<span
