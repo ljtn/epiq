@@ -94,7 +94,7 @@ export const TicketListItemUI: React.FC<{
 				</Box>
 
 				<Text wrap="truncate" color={theme.secondary2} dimColor>
-					#{nodeRef(ticket.id)}
+					{nodeRef(ticket.id)}
 				</Text>
 			</Box>
 		</Box>

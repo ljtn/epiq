@@ -95,7 +95,7 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 	const breadcrumbText =
 		breadcrumbString.substring(0, maxBreadcrumbWidth) +
 		(showRef
-			? chalk.hex(theme.secondary2).dim(` #${nodeRef(selectedTarget.id)}`)
+			? chalk.hex(theme.secondary2).dim(` ${nodeRef(selectedTarget.id)}`)
 			: '');
 
 	const pills = showDetails
