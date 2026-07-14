@@ -18,7 +18,7 @@ import {
 	sync,
 } from '../../mcp/epiq-api.js';
 import {commonSteps} from './e2e-common-steps.js';
-import {ENTER, setupTui} from './e2e.helper.js';
+import {ARROW_DOWN, ENTER, setupTui} from './e2e.helper.js';
 
 const testTimeout = 60_000;
 const EMPTY_CMD = 'for command line';
@@ -246,6 +246,26 @@ describe('issue attachments', () => {
 				expect(wideFrame).toContain('[1a] #');
 				expect(wideFrame).toContain('╭');
 				expect(wideFrame).toContain('╰');
+
+				// details view: an Attachments section with selectable nodes
+				indicatorTui.input(ENTER);
+				const detailsFrame = await indicatorTui.waitFor(
+					'Attachments (1)',
+					8_000,
+				);
+				expect(detailsFrame).toContain('Attachments (1)');
+
+				// last row in the details tree — walk down and enter it
+				for (let i = 0; i < 5; i++) indicatorTui.input(ARROW_DOWN);
+				indicatorTui.input(ENTER);
+				const listFrame = await indicatorTui.waitFor('enter to open', 8_000);
+				expect(listFrame).toContain('screenshot.png');
+
+				// enter delegates to the system opener; the TUI must stay alive
+				// even where no opener exists (this container)
+				indicatorTui.input(ENTER);
+				const afterOpen = await indicatorTui.waitFor('screenshot.png', 4_000);
+				expect(afterOpen).toContain('screenshot.png');
 			} finally {
 				indicatorTui.destroy();
 			}

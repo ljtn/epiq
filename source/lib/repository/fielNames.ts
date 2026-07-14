@@ -4,4 +4,5 @@ export const FieldNames = {
 	TAGS: 'Tags',
 	HISTORY: 'History',
 	COMMENTS: 'Comments',
+	ATTACHMENTS: 'Attachments',
 } as const;

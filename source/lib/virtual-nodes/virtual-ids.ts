@@ -23,5 +23,11 @@ const hashToUlid = (input: string): string => {
 
 export const virtualNodeId = (
 	parentId: string,
-	kind: 'description' | 'assignees' | 'tags' | 'history' | 'comments',
+	kind:
+		| 'description'
+		| 'assignees'
+		| 'tags'
+		| 'history'
+		| 'comments'
+		| 'attachments',
 ): string => hashToUlid(`${parentId}:virtual:${kind}`);

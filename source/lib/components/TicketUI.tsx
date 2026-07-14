@@ -6,6 +6,7 @@ import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {getVisibleCommentCount} from '../utils/comment.utils.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
+import {AttachmentListUI} from './AttachmentListUI.js';
 import {CommentListUI} from './CommentListUI.js';
 import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
@@ -24,6 +25,9 @@ const getCommentsNodeId = (ticketId: string) =>
 
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
+const getAttachmentsNodeId = (ticketId: string) =>
+	virtualNodeId(ticketId, 'attachments');
+
 export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const commentCount = useMemo(() => getVisibleCommentCount(ticket), [ticket]);
 	const {selectedIndex, contextNode} = useAppState();
@@ -41,6 +45,13 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	const logNodeId = useMemo(() => getLogNodeId(ticket.id), [ticket.id]);
 
+	const attachmentsNodeId = useMemo(
+		() => getAttachmentsNodeId(ticket.id),
+		[ticket.id],
+	);
+
+	const attachmentCount = nodeRepo.getAttachmentsByIssue(ticket.id).length;
+
 	const isAtTicketRoot = contextNode.id === ticket.id;
 
 	const isInsideComments =
@@ -49,6 +60,10 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	const isInsideLog =
 		contextNode.id === logNodeId || contextNode.parentNodeId === logNodeId;
+
+	const isInsideAttachments =
+		contextNode.id === attachmentsNodeId ||
+		contextNode.parentNodeId === attachmentsNodeId;
 
 	const children = getRenderedChildren(ticket.id);
 
@@ -65,6 +80,27 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 				minHeight={height}
 			>
 				<CommentListUI ticket={ticket} width={maxWidth} height={editorHeight} />
+			</Box>
+		);
+	}
+
+	if (isInsideAttachments) {
+		const commandPromptHeight = 3;
+		const editorHeight = height - commandPromptHeight;
+
+		return (
+			<Box
+				width={maxWidth}
+				flexDirection="column"
+				paddingRight={1}
+				paddingBottom={1}
+				minHeight={height}
+			>
+				<AttachmentListUI
+					ticket={ticket}
+					width={maxWidth}
+					height={editorHeight}
+				/>
 			</Box>
 		);
 	}
@@ -103,6 +139,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		(count, child) =>
 			isFieldListNode(child) ||
 			child.id === commentsNodeId ||
+			child.id === attachmentsNodeId ||
 			child.id === logNodeId
 				? count + 1
 				: count,
@@ -153,6 +190,20 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 						color={selected ? theme.accent : theme.primary}
 					>
 						{` Comments (${commentCount}) ›› `}
+					</Text>
+				</Box>
+			);
+		}
+
+		if (child.id === attachmentsNodeId) {
+			return (
+				<Box key={child.id} paddingTop={1}>
+					<CursorUI isSelected={selected} />
+					<Text
+						backgroundColor={theme.secondary}
+						color={selected ? theme.accent : theme.primary}
+					>
+						{` Attachments (${attachmentCount}) ›› `}
 					</Text>
 				</Box>
 			);

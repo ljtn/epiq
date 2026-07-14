@@ -6,9 +6,11 @@ import {
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
+import {nodeRepo} from '../../repository/node-repo.js';
 import {getOrderedChildren} from '../../repository/rank.js';
 import {replaceCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
+import {openAttachment} from '../../utils/attachment.utils.js';
 import {Intent} from '../../utils/key-intent.js';
 import {HelpActions} from '../help/help-actions.js';
 import {PaletteActions} from '../palette/palette-actions.js';
@@ -57,6 +59,14 @@ export const DefaultActions: ActionEntry[] = [
 			const children = getOrderedChildren(selectedNode?.id ?? '');
 
 			if (!children?.length) {
+				// Attachment nodes carry the attachment id: enter opens the image.
+				const attachment = selectedNode
+					? nodeRepo.getAttachment(selectedNode.id)
+					: undefined;
+				if (attachment) {
+					return openAttachment(attachment);
+				}
+
 				if (selectedNode?.title === FieldNames.DESCRIPTION) {
 					patchState({mode: Mode.COMMAND_LINE});
 					replaceCmdInput(`${CmdKeywords.EDIT} description `);

@@ -29,6 +29,9 @@ const getTagsNodeId = (ticketId: string) => virtualNodeId(ticketId, 'tags');
 
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
+const getAttachmentsNodeId = (ticketId: string) =>
+	virtualNodeId(ticketId, 'attachments');
+
 type VirtualNodeInput = {
 	id: string;
 	name: string;
@@ -164,12 +167,14 @@ export const materializeTicketVirtualNodes = (
 	const assigneesRank = bigIntToHex(MAX_RANK / 2n);
 	const tagsRank = bigIntToHex((MAX_RANK * 3n) / 4n);
 	const commentsRank = bigIntToHex((MAX_RANK * 7n) / 8n);
+	const attachmentsRank = bigIntToHex((MAX_RANK * 15n) / 16n);
 	const logRank = bigIntToHex((MAX_RANK * 13n) / 16n);
 
 	if (isFail(descriptionRank)) return descriptionRank;
 	if (isFail(assigneesRank)) return assigneesRank;
 	if (isFail(tagsRank)) return tagsRank;
 	if (isFail(commentsRank)) return commentsRank;
+	if (isFail(attachmentsRank)) return attachmentsRank;
 	if (isFail(logRank)) return logRank;
 
 	const descriptionResult = createOrUpdateVirtualField({
@@ -210,6 +215,17 @@ export const materializeTicketVirtualNodes = (
 		childRenderAxis: 'vertical',
 	});
 	if (isFail(commentsResult)) return commentsResult;
+
+	const attachmentsResult = createOrUpdateVirtualField({
+		id: getAttachmentsNodeId(node.id),
+		name: FieldNames.ATTACHMENTS,
+		parentNodeId: node.id,
+		rank: attachmentsRank.value,
+		value: '',
+		readonly: true,
+		childRenderAxis: 'vertical',
+	});
+	if (isFail(attachmentsResult)) return attachmentsResult;
 
 	const logResult = createOrUpdateVirtualField({
 		id: getLogNodeId(node.id),
