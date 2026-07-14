@@ -536,7 +536,7 @@ h2 {
 	.wrap {
 		width: min(100% - 28px, 1160px);
 	}
-	/* Keep :docs and :lore visible; tighten the row and drop the
+	/* Keep :docs and :blog visible; tighten the row and drop the
 	   star count so everything fits. */
 	.links {
 		gap: 12px;
