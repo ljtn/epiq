@@ -230,24 +230,12 @@ describe('issue attachments', () => {
 				server.close();
 			}
 
-			// --- the TUI shows the attachment indicator without breaking the
-			// layout, in both view modes
+			// --- the TUI shows attachments in the issue details view
 			const indicatorTui = setupTui([], {cwd: repoRoot});
 			try {
-				// dense (default): compact row indicator
-				const denseFrame = await indicatorTui.waitFor('[1a]', 10_000);
-				expect(denseFrame).toContain('[1a]');
-				expect(denseFrame).toContain('╭');
-				expect(denseFrame).toContain('╰');
+				await indicatorTui.waitFor('Attachment target', 10_000);
 
-				// wide: indicator sits next to the ref on the card
-				await run(indicatorTui, ':config view wide', 'config view wide');
-				const wideFrame = await indicatorTui.waitFor('[1a] #', 10_000);
-				expect(wideFrame).toContain('[1a] #');
-				expect(wideFrame).toContain('╭');
-				expect(wideFrame).toContain('╰');
-
-				// details view: an Attachments section with selectable nodes
+				// enter the issue: an Attachments section with selectable nodes
 				indicatorTui.input(ENTER);
 				const detailsFrame = await indicatorTui.waitFor(
 					'Attachments (1)',

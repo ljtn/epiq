@@ -77,19 +77,6 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 		</Box>
 	) : null;
 
-	const attachments = nodeRepo.getAttachmentsByIssue(ticket.id);
-	const attachmentsWidth = attachments.length
-		? String(attachments.length).length + 3 + paddingRight
-		: 0;
-
-	const attachmentsRendered = attachments.length ? (
-		<Box paddingRight={paddingRight}>
-			<Text color={theme.secondary} dimColor>
-				[{attachments.length}a]
-			</Text>
-		</Box>
-	) : null;
-
 	return (
 		<Box borderBottom justifyContent="space-between">
 			<Box>
@@ -106,12 +93,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 				<Text wrap="truncate" color={color}>
 					{truncateWithEllipsis(
 						ticket.title,
-						width -
-							tagsWidth -
-							assigneesWidth -
-							commentsWidth -
-							attachmentsWidth -
-							18,
+						width - tagsWidth - assigneesWidth - commentsWidth - 18,
 					)}
 				</Text>
 			</Box>
@@ -119,7 +101,6 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 			<Box>
 				{tagsRendered}
 				{assigneesRendered}
-				{attachmentsRendered}
 				{commentsRendered}
 			</Box>
 		</Box>
