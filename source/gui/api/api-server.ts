@@ -26,6 +26,17 @@ const guiRoot =
 		? path.resolve(process.cwd(), 'dist/gui')
 		: path.join(distRoot, 'gui');
 
+// Dynamic import since `node:sea` doesn't exist on Node < 20.12.
+let seaModule: typeof import('node:sea') | null | undefined;
+
+const getSeaModule = async () => {
+	if (seaModule === undefined) {
+		seaModule = await import('node:sea').catch(() => null);
+	}
+
+	return seaModule?.isSea() ? seaModule : null;
+};
+
 const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
 	res.writeHead(status, {'content-type': 'application/json'});
 	res.end(JSON.stringify(body));
@@ -102,8 +113,12 @@ const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 		});
 	}
 
+	const sea = await getSeaModule();
+
 	try {
-		const file = await readFile(filePath);
+		const file = sea
+			? Buffer.from(sea.getAsset(`gui/${relativePath}`))
+			: await readFile(filePath);
 
 		res.writeHead(200, {
 			'content-type': getContentType(filePath),

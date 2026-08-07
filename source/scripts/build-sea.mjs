@@ -42,7 +42,7 @@ function runBin(bin, args, opts = {}) {
 mkdirSync(resolve(root, 'dist'), {recursive: true});
 
 // 1. Bundle to ESM (supports top-level await; react-devtools-core is stubbed)
-console.log('\n[1/6] Bundling to ESM...');
+console.log('\n[1/7] Bundling to ESM...');
 runBin(esbuild, [
 	'source/Index.tsx',
 	'--bundle',
@@ -60,7 +60,7 @@ runBin(esbuild, [
 //       ESM/data-URL context). We supply a real one via createRequire.
 //    b) Patch import.meta.url so meow resolves package.json from the
 //       executable location rather than the data: URL.
-console.log('\n[2/6] Patching bundle...');
+console.log('\n[2/7] Patching bundle...');
 let inner = readFileSync(resolve(root, 'dist/sea-inner.js'), 'utf8');
 
 const requireShim = [
@@ -85,7 +85,7 @@ writeFileSync(resolve(root, 'dist/sea-inner.js'), inner);
 // 3. Wrap the ESM bundle in a CJS bootstrap.
 //    The bootstrap sets __EPIQ_SEA_URL__ so the patched import.meta.url
 //    inside the ESM module gets a file:// URL pointing to the executable.
-console.log('\n[3/6] Creating CJS bootstrap...');
+console.log('\n[3/7] Creating CJS bootstrap...');
 const esmCode = readFileSync(resolve(root, 'dist/sea-inner.js'), 'utf8');
 const b64 = Buffer.from(esmCode).toString('base64');
 const cjsWrapper = `'use strict';
@@ -97,12 +97,32 @@ process.env.__EPIQ_SEA_URL__ = pathToFileURL(process.execPath).href;
 `;
 writeFileSync(resolve(root, 'dist/sea.cjs'), cjsWrapper);
 
-// 4. Generate SEA blob
-console.log('\n[4/6] Generating SEA blob...');
-run(`node --experimental-sea-config source/config/sea-config.json`);
+// 4. Build the GUI and embed its output as SEA assets, so it ships as part
+//    of the binary itself (see source/gui/api/api-server.ts).
+console.log('\n[4/7] Building GUI assets...');
+run('npm run build:gui');
 
-// 5. Assemble the binary
-console.log('\n[5/6] Assembling binary...');
+const seaConfig = JSON.parse(
+	readFileSync(resolve(root, 'source/config/sea-config.json'), 'utf8'),
+);
+seaConfig.assets = {
+	'gui/index.html': resolve(root, 'dist/gui/index.html'),
+	'gui/main.js': resolve(root, 'dist/gui/main.js'),
+	'gui/favicon.ico': resolve(root, 'dist/gui/favicon.ico'),
+};
+// Absolute paths for main/output too, so this generated config's location
+// (dist/) doesn't change how they're resolved.
+seaConfig.main = resolve(root, seaConfig.main);
+seaConfig.output = resolve(root, seaConfig.output);
+const generatedConfigPath = resolve(root, 'dist/sea-config.generated.json');
+writeFileSync(generatedConfigPath, JSON.stringify(seaConfig, null, 2));
+
+// 5. Generate SEA blob
+console.log('\n[5/7] Generating SEA blob...');
+run(`node --experimental-sea-config "${generatedConfigPath}"`);
+
+// 6. Assemble the binary
+console.log('\n[6/7] Assembling binary...');
 const exeSuffix = platform === 'win32' ? '.exe' : '';
 const outBin = resolve(root, `dist/epiq${exeSuffix}`);
 // Base Node binary the SEA blob is injected into. Defaults to the running
@@ -140,8 +160,8 @@ if (platform === 'darwin') {
 	run(`codesign --sign - ${outBin}`);
 }
 
-// 6. Verify
-console.log('\n[6/6] Verifying...');
+// 7. Verify
+console.log('\n[7/7] Verifying...');
 if (isCrossBuild) {
 	// The binary targets a different architecture than this host, so it may
 	// not run here. The release workflow verifies it separately (an arch
