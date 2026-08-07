@@ -86,6 +86,7 @@ export const SwimlaneColumn = ({
 			<header
 				style={{
 					height: 48,
+					flexShrink: 0,
 					display: 'flex',
 					fontSize: 12,
 					justifyContent: 'space-between',
@@ -127,7 +128,7 @@ export const SwimlaneColumn = ({
 				</div>
 			</header>
 
-			<div style={{overflow: 'auto', paddingTop: 4, flex: 1}}>
+			<div style={{overflow: 'auto', paddingTop: 4, flex: 1, minHeight: 0}}>
 				{swimlane.issues.length === 0 ? (
 					<>
 						{dropIndex === 0 && <DropIndicator />}

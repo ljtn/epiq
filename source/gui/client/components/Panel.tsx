@@ -83,6 +83,9 @@ export const Panel = <T extends ElementType = 'div'>({
 					position: 'relative',
 					zIndex: 1,
 					height: '100%',
+					display: 'flex',
+					flexDirection: 'column',
+					minHeight: 0,
 				}}
 			>
 				{children}
