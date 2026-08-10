@@ -179,3 +179,4 @@
 {"v":1,"id":["01KZPVZPXPCERPN82RX89RFBKC","01KZPVZMMRZ18YZYCXWZWTQ0QV"],"move.node":{"id":"01KZPVZ3PDCGJ78TBNPV1GS32E","parent":"01KS22YK95S3336MFSE44MY70S","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01KZPW49S8JZFMR1714QJ11M8Q","01KZPVZPXPCERPN82RX89RFBKC"],"move.node":{"id":"01KZPVZ3PDCGJ78TBNPV1GS32E","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffdfffffffffffffffffffff"}}
 {"v":1,"id":["01KZPW9Q4MRVZM8BWDTZYGB9WX","01KZPW49S8JZFMR1714QJ11M8Q"],"add.issue":{"id":"01KZPW9Q4J03CNDFPCCTQSDVBD","parent":"01KS22YK95S3336MFSE44MY70R","name":"Scrubber: pick frame resolution/scope (week/month/year) with an offset to page through history","rank":"ff7fffffffffffffffffffff"}}
+{"v":1,"id":["01KZPW9XVXWT58KCT6ZAXF7CCX","01KZPW9Q4MRVZM8BWDTZYGB9WX"],"add.issue.tag":{"id":"01KZPW9Q4J03CNDFPCCTQSDVBD","tag":"01KZPSQ7GH85FW18DJDRYBRXB9"}}
