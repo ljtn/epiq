@@ -140,3 +140,5 @@
 {"v":1,"id":["01KZPSPMH5NVVM6N5SZC9KSB5P","01KZPSMRXZFDXF1JBW5YRK57JW"],"edit.title":{"id":"01KZPSK7Z1QSH1GY7D77SM5256","name":"Server checkout/timeline API (epiq-time-travel.ts, deriveGuiState split)"}}
 {"v":1,"id":["01KZPSPQ697CJ72QVC83KKWH23","01KZPSPMH5NVVM6N5SZC9KSB5P"],"edit.title":{"id":"01KZPSK92JHVWF1EG5K4S7H2SF","name":"Websocket protocol + mutation guard"}}
 {"v":1,"id":["01KZPSPSR08AHWDFJGRWM2R9SY","01KZPSPQ697CJ72QVC83KKWH23"],"edit.title":{"id":"01KZPSK9SA3RG4BRW97TVVSP4D","name":"Pause autosync while scrubbing"}}
+{"v":1,"id":["01KZPSPX85MGKSDSEVYPP2M0VY","01KZPSPSR08AHWDFJGRWM2R9SY"],"edit.title":{"id":"01KZPSKAG3Y09N3HTGEWJ0AQHT","name":"HTTP endpoint read-only guards (comments/attachments)"}}
+{"v":1,"id":["01KZPSQ0D4JK48JNEX7VGHM791","01KZPSPX85MGKSDSEVYPP2M0VY"],"edit.title":{"id":"01KZPSKB68YH1XSS6RPR1WS8N0","name":"GuiState.timeTravel field + TimeScrubber component"}}
