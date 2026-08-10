@@ -29,10 +29,10 @@
 
 :root {
 	--text: #f2f4ff;
-	--muted: #586b90;
+	--muted: rgb(111, 134, 163);
 	--dim: #666f91;
 	--line: rgba(78, 84, 133, 0.315);
-	--cyan: #22a1dc;
+	--cyan: #75d2fd;
 	--violet: #c6a7ff;
 	--deepBlue: #2370dc;
 	--shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
@@ -194,31 +194,32 @@ pre {
 }
 
 .hero {
-	padding: 86px 0 54px;
+	padding: 46px 0 54px;
 }
 .hero-grid {
 	display: grid;
 	grid-template-columns: 1.02fr 0.98fr;
-	gap: 34px;
+	gap: 120px;
 	align-items: center;
+	min-height: 440px;
 }
 h1 {
 	margin: 0 0 20px;
-	font-size: clamp(52px, 8.5vw, 112px);
+	font-size: clamp(52px, 8.5vw, 90px);
 	line-height: 0.86;
-	letter-spacing: -0.085em;
 	max-width: 860px;
 }
 
 .lead {
 	max-width: 710px;
 	margin: 0 0 28px;
-	color: var(--muted);
-	font-size: clamp(18px, 2.2vw, 22px);
+	font-size: clamp(16px, 2.2vw, 20px);
+	font-weight: 400;
 	line-height: 1.55;
-}
-.lead strong {
 	color: var(--text);
+}
+.lead span {
+	color: var(--cyan);
 }
 .actions {
 	display: flex;
@@ -464,7 +465,7 @@ h2 {
 .hero-placeholder {
 	min-height: 360px;
 	background: rgba(8, 11, 16, 0);
-	padding: 28px;
+	padding: 0 60px;
 	display: grid;
 	place-items: center;
 	text-align: center;
@@ -472,8 +473,16 @@ h2 {
 .hero-placeholder > img {
 	width: 100%;
 	max-width: 1640px;
-	box-shadow: 0 0 48px #4c839e55;
 	border-radius: 8px;
+}
+video,
+img {
+	margin: 40px;
+}
+video,
+img,
+aside {
+	box-shadow: 0 0 48px #4c839e55;
 }
 
 .quote {
@@ -1236,11 +1245,11 @@ h4,
 	font-weight: 500;
 }
 h1 {
-	letter-spacing: -0.075em;
+	letter-spacing: -0.1em;
 	line-height: 0.92;
 }
 h2 {
-	letter-spacing: -0.055em;
+	letter-spacing: -0.1em;
 }
 .quote p {
 	letter-spacing: -0.06em;
