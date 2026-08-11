@@ -52,6 +52,11 @@ export type ApiAttachment = {
 	canDelete: boolean;
 };
 
+export type ApiTimeTravelStatus = {
+	mode: 'live' | 'scrub';
+	asOfTime: number | null;
+};
+
 export type ApiState = {
 	tags: ApiTag[];
 	contributors: ApiAssignee[];
@@ -60,4 +65,5 @@ export type ApiState = {
 	commentsByIssueId: Record<string, ApiComment[]>;
 	attachmentsByIssueId: Record<string, ApiAttachment[]>;
 	attachmentMaxKb: number;
+	timeTravel: ApiTimeTravelStatus;
 };

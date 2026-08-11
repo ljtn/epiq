@@ -34,4 +34,7 @@ export type GuiMessage =
 	| {
 			type: 'issue:comment:delete';
 			payload: {issueId: string; commentId: string};
-	  };
+	  }
+	| {type: 'timeline:get'; payload?: {start?: number; end?: number}}
+	| {type: 'time-travel:scrub'; payload: {targetTime: number}}
+	| {type: 'time-travel:live'};

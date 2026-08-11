@@ -45,6 +45,7 @@ const state: GuiState = {
 	user: {id: 'u', name: 'u', color: ''},
 	commentsByIssueId: {},
 	attachmentsByIssueId: {},
+	timeTravel: {mode: 'live', asOfTime: null},
 };
 
 describe('GUI ref resolution', () => {

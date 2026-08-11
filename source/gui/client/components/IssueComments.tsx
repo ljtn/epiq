@@ -67,7 +67,7 @@ export const IssueComments = ({
 									)}
 								</div>
 
-								{comment.author.id === whoAmI.id && onDeleteComment && (
+								{!readonly && comment.author.id === whoAmI.id && onDeleteComment && (
 									<Button
 										variant="ghost"
 										onClick={event => {

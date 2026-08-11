@@ -7,6 +7,7 @@ import {
 	closeIssue,
 	createIssue,
 	deleteIssueComment,
+	deriveGuiState,
 	editIssueDescription,
 	editIssueTitle,
 	getGuiState,
@@ -17,12 +18,49 @@ import {
 	reopenIssue,
 	sync,
 } from '../../../mcp/epiq-api.js';
+import {
+	checkoutStateAt,
+	getEventTimeline,
+	getTimeTravelStatus,
+	returnToLive,
+} from '../../../mcp/epiq-time-travel.js';
 import {isFail, Result} from '../../../lib/model/result-types.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
 } from '../../client/lib/gui-broadcast.js';
 import {GuiMessage} from './websocket.model.js';
+
+// Message types that mutate board state. Rejected while a time-travel checkout
+// is active, since the shared state singleton means an edit would corrupt the
+// historical view every connected client is currently looking at.
+const MUTATING_MESSAGE_TYPES = new Set<GuiMessage['type']>([
+	'sync',
+	'issues:create',
+	'issues:move',
+	'issue:close',
+	'issue:reopen',
+	'issue:edit:title',
+	'issue:edit:description',
+	'issue:tag:add',
+	'issue:tag:remove',
+	'issue:assignee:add',
+	'issue:assignee:remove',
+	'issue:comment:add',
+	'issue:comment:delete',
+]);
+
+// Pushes the current (possibly historical) state to every connected client,
+// bypassing `getGuiState`'s `boot()` so a live re-materialize doesn't stomp an
+// active time-travel checkout.
+const broadcastDerivedState = () => {
+	const result = deriveGuiState();
+
+	broadcastGuiMessage({
+		type: 'state',
+		payload: result,
+	});
+};
 
 const sendSocket = (socket: WebSocket, body: unknown) => {
 	socket.send(JSON.stringify(body));
@@ -78,6 +116,52 @@ export const setupWebsocket = (
 			try {
 				const message = JSON.parse(raw.toString()) as GuiMessage;
 				const {type} = message;
+
+				if (
+					MUTATING_MESSAGE_TYPES.has(type) &&
+					getTimeTravelStatus().mode !== 'live'
+				) {
+					return sendSocket(socket, {
+						type: 'failed',
+						payload: 'Read-only while viewing history',
+					});
+				}
+
+				if (type === 'timeline:get') {
+					return sendSocket(socket, {
+						type: 'timeline',
+						payload: await getEventTimeline({repoRoot, ...message.payload}),
+					});
+				}
+
+				if (type === 'time-travel:scrub') {
+					const result = await checkoutStateAt({
+						repoRoot,
+						targetTime: message.payload.targetTime,
+					});
+
+					sendSocket(socket, {
+						type: 'time-travel:result',
+						payload: result,
+					});
+
+					if (isFail(result)) return;
+
+					return broadcastDerivedState();
+				}
+
+				if (type === 'time-travel:live') {
+					const result = await returnToLive({repoRoot});
+
+					sendSocket(socket, {
+						type: 'time-travel:result',
+						payload: result,
+					});
+
+					if (isFail(result)) return;
+
+					return broadcastDerivedState();
+				}
 
 				if (type === 'state:get') {
 					return sendGuiState(socket, repoRoot);

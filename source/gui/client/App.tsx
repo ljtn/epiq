@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
 import {ASIDE_WIDTH} from './components/Aside';
 import {Button} from './components/Button';
@@ -7,6 +7,7 @@ import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
+import {TimeScrubber} from './components/TimeScrubber';
 import {moveIssue} from './lib/gui-move-issue';
 import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
@@ -16,7 +17,7 @@ import {
 	getResultValue,
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
-import {GuiState} from './lib/gui-state.model';
+import {GuiEventTimeline, GuiState} from './lib/gui-state.model';
 import {blobToBase64, compressImage} from './lib/compress-image';
 import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
@@ -50,6 +51,7 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
+	const [timeline, setTimeline] = useState<GuiEventTimeline | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
 	);
@@ -133,6 +135,7 @@ export const App = () => {
 		socket.addEventListener('open', () => {
 			setConnected(true);
 			socket.send(JSON.stringify({type: 'state:get'}));
+			socket.send(JSON.stringify({type: 'timeline:get'}));
 		});
 
 		socket.addEventListener('close', () => {
@@ -163,6 +166,19 @@ export const App = () => {
 
 			if (message.type === 'failed') {
 				console.log('Failed', message);
+				requestState();
+			}
+
+			if (message.type === 'timeline') {
+				const nextTimeline = getResultValue<GuiEventTimeline>(message.payload);
+				if (nextTimeline) setTimeline(nextTimeline);
+			}
+
+			if (
+				message.type === 'time-travel:result' &&
+				message.payload?.status === 'fail'
+			) {
+				console.log('Time travel failed', message);
 				requestState();
 			}
 
@@ -366,6 +382,23 @@ export const App = () => {
 		send('issue:reopen', {issueId});
 	};
 
+	const scrubToTime = (targetTime: number) => {
+		send('time-travel:scrub', {targetTime});
+	};
+
+	const returnToLive = () => {
+		send('time-travel:live', {});
+	};
+
+	const requestTimeline = useCallback((start?: number, end?: number) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'timeline:get',
+				payload: start !== undefined ? {start, end} : undefined,
+			}),
+		);
+	}, []);
+
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
@@ -534,6 +567,14 @@ export const App = () => {
 			}}
 		>
 			<Header state={state} connected={connected} syncStatus={syncStatus} />
+
+			<TimeScrubber
+				timeline={timeline}
+				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
+				onScrub={scrubToTime}
+				onReturnToLive={returnToLive}
+				onRequestTimeline={requestTimeline}
+			/>
 
 			<div
 				style={{

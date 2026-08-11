@@ -2,6 +2,7 @@ import {readEpiqConfig} from '../../../lib/config/user-config.js';
 import {isFail} from '../../../lib/model/result-types.js';
 import {logger} from '../../../logger.js';
 import {getGuiState, sync} from '../../../mcp/epiq-api.js';
+import {getTimeTravelStatus, runExclusive} from '../../../mcp/epiq-time-travel.js';
 import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
 
 export const startGuiAutoSync = (input: {repoRoot: string}) => {
@@ -30,11 +31,21 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 		syncing = true;
 
 		try {
-			await sync({repoRoot: input.repoRoot});
+			// Share the same lock checkoutStateAt/returnToLive use (epiq-time-travel.ts),
+			// so a scrub can never land in the gap between "still live?" and the
+			// getGuiState() that would otherwise silently overwrite it — whichever
+			// operation is queued first now runs to completion (including its
+			// broadcast) before the other starts, and the live-mode check below is
+			// taken fresh at the moment we actually get to run, not before queueing.
+			await runExclusive(async () => {
+				if (getTimeTravelStatus().mode !== 'live') return;
 
-			broadcastGuiMessage({
-				type: 'state',
-				payload: await getGuiState({repoRoot: input.repoRoot}),
+				await sync({repoRoot: input.repoRoot});
+
+				broadcastGuiMessage({
+					type: 'state',
+					payload: await getGuiState({repoRoot: input.repoRoot}),
+				});
 			});
 		} finally {
 			syncing = false;

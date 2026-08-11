@@ -498,7 +498,8 @@ export const IssueDetails = ({
 							<Section
 								title="Actions"
 								action={
-									issue.isClosed ? (
+									!issue.readonly &&
+									(issue.isClosed ? (
 										<Button onClick={() => onReopenIssue(issue.id)}>
 											reopen issue
 										</Button>
@@ -506,7 +507,7 @@ export const IssueDetails = ({
 										<Button onClick={() => onCloseIssue(issue.id)}>
 											close issue
 										</Button>
-									)
+									))
 								}
 							>
 								{''}

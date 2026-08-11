@@ -40,6 +40,7 @@ import {
 } from '../lib/media/media-store.js';
 import {logger} from '../logger.js';
 import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
+import {getTimeTravelStatus} from './epiq-time-travel.js';
 
 type ToolInput = {
 	repoRoot?: string;
@@ -198,9 +199,8 @@ const boot = async (
 		return failed(ensureWorktreeResult.message);
 	}
 
-	// MCP tools default to local-only. Fetching remote state
-	// is explicit via the `sync` tool; `getGuiState` opts back in for the
-	// GUI's own autosync loop.
+	// MCP tools default to local-only. Fetching remote state is explicit via
+	// the `sync` tool (and the GUI's own autosync loop, see api-autosync.ts).
 	if (options?.pull ?? false) {
 		const pullResult = await execGit({
 			cwd: stateBranchRootResult.value,
@@ -848,17 +848,17 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 	});
 };
 
-export const getGuiState = async (
-	input: ToolInput = {},
-): Promise<Result<ApiState>> => {
-	// Unlike the other MCP tools above, the GUI's autosync loop relies on
-	// this pull to keep multi-user state fresh in near-real-time — do not
-	// disable it here (see api-autosync.ts).
-	const bootResult = await boot(input.repoRoot, {pull: true});
-	if (isFail(bootResult)) return bootResult;
-
+// Derives ApiState from whatever is currently materialized in the state
+// singleton — live or a historical time-travel checkout — without booting
+// (re-pulling and re-materializing live state). `getGuiState` below is the
+// live-reading entry point most callers want; time-travel handlers call this
+// directly after a checkout so `boot()` doesn't stomp the historical view.
+export const deriveGuiState = (): Result<ApiState> => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
+
+	const timeTravel = getTimeTravelStatus();
+	const forceReadonly = timeTravel.mode !== 'live';
 
 	const nodes = Object.values(stateResult.value.nodes);
 	const boards = nodes.filter(n => isBoardNode(n) && !n.isDeleted);
@@ -949,7 +949,7 @@ export const getGuiState = async (
 							({
 								id: swimlane.id,
 								title: swimlane.title,
-								readonly: Boolean(swimlane.readonly),
+								readonly: Boolean(swimlane.readonly) || forceReadonly,
 								issues: (ticketsBySwimlaneId.get(swimlane.id) ?? [])
 									.sort((a, b) => a.rank.localeCompare(b.rank))
 									.map(issue => ({
@@ -957,7 +957,7 @@ export const getGuiState = async (
 										ref: nodeRef(issue.id),
 										title: sanitizeInlineText(issue.title),
 										description: issue.props.description ?? '',
-										readonly: Boolean(issue.readonly),
+										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue),
 										parentNodeId: issue.parentNodeId!,
@@ -983,7 +983,30 @@ export const getGuiState = async (
 		commentsByIssueId,
 		attachmentsByIssueId,
 		attachmentMaxKb: getAttachmentMaxKb(),
+		timeTravel,
 	} satisfies ApiState);
+};
+
+export const getGuiState = async (
+	input: ToolInput = {},
+): Promise<Result<ApiState>> => {
+	// Skip the live re-materialize while time-travel is active, so that *any*
+	// caller — a websocket reconnect (a second tab opening, a page refresh, a
+	// network blip), the autosync tick, an HTTP GET — is safe by construction
+	// instead of relying on each call site to remember to guard. Time-travel is
+	// a shared server-wide mode (see epiq-time-travel.ts), so this one check
+	// covers every client.
+	if (getTimeTravelStatus().mode !== 'live') {
+		return deriveGuiState();
+	}
+
+	// Multi-user freshness is handled by api-autosync.ts's own explicit
+	// sync() on an interval, not by pulling here — forcing a pull on every
+	// read would hang/break sandboxed or offline setups with no network.
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	return deriveGuiState();
 };
 
 export const editIssueDescription = async (

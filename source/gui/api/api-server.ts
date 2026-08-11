@@ -16,6 +16,7 @@ import {
 	getAttachmentBlob,
 	getGuiState,
 } from '../../mcp/epiq-api.js';
+import {getTimeTravelStatus} from '../../mcp/epiq-time-travel.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
 import {setupWebsocket} from './lib/websocket.js';
 
@@ -41,6 +42,12 @@ const sendJson = (res: http.ServerResponse, status: number, body: unknown) => {
 	res.writeHead(status, {'content-type': 'application/json'});
 	res.end(JSON.stringify(body));
 };
+
+const sendReadOnlyWhileTimeTravelingError = (res: http.ServerResponse) =>
+	sendJson(res, 409, {
+		isError: true,
+		message: 'Read-only while viewing history',
+	});
 
 const readJsonBody = async <T>(
 	req: http.IncomingMessage,
@@ -184,6 +191,10 @@ export const startGuiServer = async (input: {
 		}
 
 		if (req.method === 'POST' && url.pathname === '/api/comments') {
+			if (getTimeTravelStatus().mode !== 'live') {
+				return sendReadOnlyWhileTimeTravelingError(res);
+			}
+
 			try {
 				const body = await readJsonBody<{
 					issueId?: string;
@@ -222,6 +233,10 @@ export const startGuiServer = async (input: {
 		}
 
 		if (req.method === 'POST' && url.pathname === '/api/attachments') {
+			if (getTimeTravelStatus().mode !== 'live') {
+				return sendReadOnlyWhileTimeTravelingError(res);
+			}
+
 			try {
 				const body = await readJsonBody<{
 					issueId?: string;
@@ -268,6 +283,10 @@ export const startGuiServer = async (input: {
 			req.method === 'DELETE' &&
 			url.pathname.startsWith('/api/attachments/')
 		) {
+			if (getTimeTravelStatus().mode !== 'live') {
+				return sendReadOnlyWhileTimeTravelingError(res);
+			}
+
 			const attachmentId = decodeURIComponent(
 				url.pathname.replace('/api/attachments/', ''),
 			);
@@ -330,6 +349,10 @@ export const startGuiServer = async (input: {
 		}
 
 		if (req.method === 'DELETE' && url.pathname.startsWith('/api/comments/')) {
+			if (getTimeTravelStatus().mode !== 'live') {
+				return sendReadOnlyWhileTimeTravelingError(res);
+			}
+
 			const commentId = decodeURIComponent(
 				url.pathname.replace('/api/comments/', ''),
 			);

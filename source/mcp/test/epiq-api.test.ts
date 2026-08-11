@@ -286,7 +286,13 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 		getContributor: vi.fn((id: string) =>
 			id === 'contributor-1' ? {id: 'contributor-1', name: 'Alice'} : undefined,
 		),
+		getCommentsByIssue: vi.fn(() => []),
+		getAttachmentsByIssue: vi.fn(() => []),
 	},
+}));
+
+vi.mock('../epiq-time-travel.js', () => ({
+	getTimeTravelStatus: vi.fn(() => ({mode: 'live', asOfTime: null})),
 }));
 
 vi.mock('../../lib/event/common-events.js', () => ({
@@ -310,6 +316,7 @@ vi.mock('../../lib/event/common-events.js', () => ({
 
 let tools: typeof import('../epiq-api.js');
 let persistModule: typeof import('../../lib/event/event-materialize-and-persist.js');
+let timeTravelModule: typeof import('../epiq-time-travel.js');
 let gitUtilsModule: typeof import('../../git/git-utils.js');
 
 beforeAll(async () => {
@@ -317,6 +324,7 @@ beforeAll(async () => {
 	persistModule = await import(
 		'../../lib/event/event-materialize-and-persist.js'
 	);
+	timeTravelModule = await import('../epiq-time-travel.js');
 	gitUtilsModule = await import('../../git/git-utils.js');
 });
 
@@ -800,6 +808,30 @@ describe('mcp tools', () => {
 			expect(result.value.rootNodeId).toBe('workspace-1');
 			expect(result.value.nodes).toBe(nodes);
 		}
+	});
+
+	it('gets GUI state without re-booting (pulling/re-materializing live) while time-travel is active', async () => {
+		vi.mocked(timeTravelModule.getTimeTravelStatus).mockReturnValueOnce({
+			mode: 'scrub',
+			asOfTime: 123,
+		});
+
+		const result = await tools.getGuiState({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		// The tell-tale sign of a boot(): it pulls from the remote. Skipping that
+		// pull is what proves getGuiState() didn't clobber the checkout.
+		expect(gitUtilsModule.execGit).not.toHaveBeenCalled();
+	});
+
+	it('boots (re-materializes live) normally when not time-traveling, without pulling', async () => {
+		const result = await tools.getGuiState({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		// getGuiState must not force a git pull on every read — that would
+		// hang/break sandboxed or offline setups. Freshness comes from
+		// api-autosync.ts's own periodic sync() instead.
+		expect(gitUtilsModule.execGit).not.toHaveBeenCalled();
 	});
 
 	it('edits an issue title', async () => {

@@ -46,6 +46,11 @@ type GuiBoard = {
 	swimlanes: GuiSwimlane[];
 };
 
+export type GuiTimeTravelStatus = {
+	mode: 'live' | 'scrub';
+	asOfTime: number | null;
+};
+
 export type GuiState = {
 	boards: GuiBoard[];
 	tags: GuiTag[];
@@ -54,4 +59,14 @@ export type GuiState = {
 	commentsByIssueId: Record<string, GuiComment[]>;
 	attachmentsByIssueId: Record<string, GuiAttachment[]>;
 	attachmentMaxKb?: number;
+	timeTravel: GuiTimeTravelStatus;
+};
+
+export type GuiEventTimelineBucket = {t: number; count: number};
+
+export type GuiEventTimeline = {
+	bucketMs: number;
+	buckets: GuiEventTimelineBucket[];
+	earliest: number;
+	latest: number;
 };
