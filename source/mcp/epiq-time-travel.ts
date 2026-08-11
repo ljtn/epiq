@@ -7,7 +7,12 @@ import {
 import {materializeAll} from '../lib/event/event-materialize.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
-import {getState, isStateInitialized, patchState, resetState} from '../lib/state/state.js';
+import {
+	getState,
+	isStateInitialized,
+	patchState,
+	resetState,
+} from '../lib/state/state.js';
 import {ApiTimeTravelStatus} from './api-state.model.js';
 
 type ToolInput = {repoRoot?: string};
@@ -91,7 +96,8 @@ export const getEventTimeline = async (
 	input: ToolInput & {start?: number; end?: number} = {},
 ): Promise<Result<EventTimeline>> => {
 	const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
-	if (isFail(stateBranchRootResult)) return failed(stateBranchRootResult.message);
+	if (isFail(stateBranchRootResult))
+		return failed(stateBranchRootResult.message);
 
 	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
 	if (isFail(eventsResult)) return failed(eventsResult.message);

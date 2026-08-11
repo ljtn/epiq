@@ -2,7 +2,10 @@ import {readEpiqConfig} from '../../../lib/config/user-config.js';
 import {isFail} from '../../../lib/model/result-types.js';
 import {logger} from '../../../logger.js';
 import {getGuiState, sync} from '../../../mcp/epiq-api.js';
-import {getTimeTravelStatus, runExclusive} from '../../../mcp/epiq-time-travel.js';
+import {
+	getTimeTravelStatus,
+	runExclusive,
+} from '../../../mcp/epiq-time-travel.js';
 import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
 
 export const startGuiAutoSync = (input: {repoRoot: string}) => {

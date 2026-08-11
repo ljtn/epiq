@@ -38,7 +38,12 @@ import {
 	patchState,
 	resetState,
 } from '../lib/state/state.js';
-import {failed, isFail, isSuccess, succeeded} from '../lib/model/result-types.js';
+import {
+	failed,
+	isFail,
+	isSuccess,
+	succeeded,
+} from '../lib/model/result-types.js';
 import {
 	checkoutStateAt,
 	getEventTimeline,

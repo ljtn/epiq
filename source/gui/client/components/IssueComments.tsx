@@ -67,18 +67,20 @@ export const IssueComments = ({
 									)}
 								</div>
 
-								{!readonly && comment.author.id === whoAmI.id && onDeleteComment && (
-									<Button
-										variant="ghost"
-										onClick={event => {
-											event.preventDefault();
-											event.stopPropagation();
-											onDeleteComment(issueId, comment.id);
-										}}
-									>
-										×
-									</Button>
-								)}
+								{!readonly &&
+									comment.author.id === whoAmI.id &&
+									onDeleteComment && (
+										<Button
+											variant="ghost"
+											onClick={event => {
+												event.preventDefault();
+												event.stopPropagation();
+												onDeleteComment(issueId, comment.id);
+											}}
+										>
+											×
+										</Button>
+									)}
 							</div>
 
 							<MarkdownContent content={comment.body} softBreaks />
