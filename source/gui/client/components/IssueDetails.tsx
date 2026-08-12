@@ -100,7 +100,10 @@ export const IssueDetails = ({
 		if (!issue) return;
 
 		const handleClickOutside = (event: MouseEvent) => {
-			if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+			if (
+				panelRef.current &&
+				!panelRef.current.contains(event.target as Node)
+			) {
 				onClose();
 			}
 		};
@@ -241,11 +244,10 @@ export const IssueDetails = ({
 								padding: '6px 10px',
 								outline: 'none',
 								font: 'inherit',
-								fontFamily: CONTENT_FONT,
 								fontSize: 18,
 								fontWeight: 600,
 								lineHeight: 1.35,
-								marginBottom: 18,
+								marginBottom: 20,
 							}}
 						/>
 					) : (
@@ -254,7 +256,6 @@ export const IssueDetails = ({
 							style={{
 								marginBottom: 18,
 								color: GUI_THEME.primary,
-								fontFamily: CONTENT_FONT,
 								fontSize: 18,
 								fontWeight: 600,
 								lineHeight: 1.35,

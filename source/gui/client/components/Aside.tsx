@@ -13,7 +13,7 @@ export const Aside = forwardRef<HTMLElement, {children: React.ReactNode}>(
 				minWidth: ASIDE_WIDTH,
 				borderLeft: `1px solid ${GUI_THEME.line}`,
 				background: GUI_THEME.panel,
-				padding: 18,
+				padding: 20,
 				fontSize: 12,
 				overflow: 'auto',
 			}}

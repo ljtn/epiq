@@ -63,12 +63,12 @@ export const TicketCard = ({
 				alignItems: 'flex-start',
 				gap: 10,
 				color: isSelected ? GUI_THEME.accent : GUI_THEME.primary,
-				fontSize: 12,
+				fontSize: 11,
 				cursor: ticket.readonly ? 'default' : 'grab',
 				background: isSelected
 					? 'rgba(118,228,255,0.08)'
 					: 'rgba(185, 192, 255, 0.06)',
-				padding: '12px',
+				padding: '10px 8px',
 				minHeight: '58px',
 				borderRadius: '8px',
 				marginBottom: 4,
@@ -77,8 +77,9 @@ export const TicketCard = ({
 		>
 			<div
 				style={{
-					width: 20,
+					width: 16,
 					flexShrink: 0,
+					textAlign: 'right',
 					color: isSelected ? GUI_THEME.accent : GUI_THEME.secondary,
 					fontVariantNumeric: 'tabular-nums',
 					paddingTop: 2,
@@ -94,6 +95,7 @@ export const TicketCard = ({
 					display: 'flex',
 					justifyContent: 'space-between',
 					gap: 12,
+					paddingLeft: 8,
 				}}
 			>
 				<div
@@ -107,30 +109,29 @@ export const TicketCard = ({
 				>
 					<div
 						style={{
+							display: '-webkit-box',
+							WebkitLineClamp: 2,
+							WebkitBoxOrient: 'vertical',
 							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-							whiteSpace: 'nowrap',
-							fontWeight: 500,
-							fontSize: 12,
-						}}
-					>
-						{ticket.ref && (
-							<span style={{marginRight: 6}}>
-								<CopyRef refValue={ticket.ref} />
-							</span>
-						)}
-					</div>
-					<div
-						style={{
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-							whiteSpace: 'nowrap',
-							fontWeight: 500,
-							fontSize: 12,
+							fontWeight: 400,
+							fontSize: 13,
+							lineHeight: 1.35,
+							wordBreak: 'break-word',
 						}}
 					>
 						{ticket.title}
 					</div>
+
+					{ticket.ref && (
+						<div
+							style={{
+								color: GUI_THEME.dim2,
+								fontSize: 10,
+							}}
+						>
+							<CopyRef refValue={ticket.ref} />
+						</div>
+					)}
 
 					<div
 						style={{

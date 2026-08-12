@@ -88,7 +88,7 @@ export const IssueComments = ({
 			)}
 
 			{!readonly && (
-				<div style={{marginTop: 18}}>
+				<div style={{marginTop: 20}}>
 					<Textarea
 						maxLength={120}
 						value={body}
