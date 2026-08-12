@@ -587,6 +587,9 @@ describe('mcp tools', () => {
 				id: 'issue-created-1',
 				title: 'New issue',
 				parentId: 'swimlane-1',
+				description: '',
+				tags: [],
+				assignees: [],
 			});
 		}
 
@@ -603,6 +606,52 @@ describe('mcp tools', () => {
 			],
 			'/state',
 		);
+	});
+
+	it('creates an issue with description, tags, and assignees atomically', async () => {
+		const result = await tools.createIssue({
+			repoRoot: '/repo',
+			title: 'New issue',
+			parentId: 'swimlane-1',
+			description: 'Some details',
+			tagNames: ['bug', 'urgent'],
+			assigneeNames: ['Alice', 'Bob'],
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({
+				id: 'issue-created-1',
+				title: 'New issue',
+				parentId: 'swimlane-1',
+				description: 'Some details',
+				tags: [
+					{id: 'tag-1', name: 'bug'},
+					{id: expect.any(String), name: 'urgent'},
+				],
+				assignees: [
+					{id: 'contributor-1', name: 'Alice'},
+					{id: expect.any(String), name: 'Bob'},
+				],
+			});
+		}
+
+		// One combined batch: add.issue, edit.description, add.issue.tag (bug
+		// already exists), create.tag + add.issue.tag (urgent), add.issue.assignee
+		// (Alice already exists), create.contributor + add.issue.assignee (Bob).
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledTimes(1);
+		const [events] = vi.mocked(persistModule.materializeAndPersistAll).mock
+			.calls[0]!;
+		expect(events.map(event => event.action)).toEqual([
+			'add.issue',
+			'edit.description',
+			'add.issue.tag',
+			'create.tag',
+			'add.issue.tag',
+			'add.issue.assignee',
+			'create.contributor',
+			'add.issue.assignee',
+		]);
 	});
 
 	it('fails creating an issue when parent is missing', async () => {

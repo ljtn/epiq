@@ -160,11 +160,15 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_issue_create',
 		{
-			description: 'Create an Epiq issue',
+			description:
+				'Create an Epiq issue. Optionally set description, tags, and assignees atomically in the same call instead of separate follow-up edits.',
 			inputSchema: z.object({
 				title: z.string().min(1),
 				parentId: z.string().min(1),
 				repoRoot: z.string().optional(),
+				description: z.string().optional(),
+				tagNames: z.array(z.string()).optional(),
+				assigneeNames: z.array(z.string()).optional(),
 			}),
 		},
 		async input => resultJson(await createIssue(input)),

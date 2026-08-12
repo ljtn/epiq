@@ -85,6 +85,9 @@ type DeleteSwimlaneInput = ToolInput & {
 type CreateIssueInput = ToolInput & {
 	title: string;
 	parentId: string;
+	description?: string;
+	tagNames?: string[];
+	assigneeNames?: string[];
 };
 
 type CloseIssueInput = ToolInput & {
@@ -349,6 +352,9 @@ export const createIssue = async (input: CreateIssueInput) => {
 	const actorResult = getActor();
 	if (isFail(actorResult)) return actorResult;
 
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
 	const rankResult = resolveAndPersistRankForCreate(
 		input.parentId,
 		actorResult.value,
@@ -364,20 +370,92 @@ export const createIssue = async (input: CreateIssueInput) => {
 	});
 	if (isFail(issueEventsResult)) return issueEventsResult;
 
-	const issueEvents = issueEventsResult.value;
+	const events: AppEvent[] = [...issueEventsResult.value];
+	const issueId = events.find(e => e.action === 'add.issue')?.payload.id;
+	if (!issueId) return failed('Unable to determine created issue id');
+
+	if (input.description) {
+		events.push({
+			id: ulid(),
+			...actorResult.value,
+			action: 'edit.description',
+			payload: {id: issueId, md: input.description},
+		} satisfies AppEvent<'edit.description'>);
+	}
+
+	const tags: {id: string; name: string}[] = [];
+	for (const rawName of input.tagNames ?? []) {
+		const tagName = sanitizeInlineText(rawName).trim();
+		if (!tagName || tags.some(tag => tag.name === tagName)) continue;
+
+		const existingTag = Object.values(stateResult.value.tags).find(
+			tag => tag.name === tagName,
+		);
+		const tagId = existingTag?.id ?? ulid();
+
+		if (!existingTag) {
+			events.push({
+				id: ulid(),
+				...actorResult.value,
+				action: 'create.tag',
+				payload: {id: tagId, name: tagName},
+			} satisfies AppEvent<'create.tag'>);
+		}
+
+		events.push({
+			id: ulid(),
+			...actorResult.value,
+			action: 'add.issue.tag',
+			payload: {id: issueId, tag: tagId},
+		} satisfies AppEvent<'add.issue.tag'>);
+
+		tags.push({id: tagId, name: tagName});
+	}
+
+	const assignees: {id: string; name: string}[] = [];
+	for (const rawName of input.assigneeNames ?? []) {
+		const assigneeName = sanitizeInlineText(rawName).trim();
+		if (!assigneeName || assignees.some(a => a.name === assigneeName)) {
+			continue;
+		}
+
+		const existingAssignee = Object.values(stateResult.value.contributors).find(
+			contributor => contributor.name === assigneeName,
+		);
+		const assigneeId = existingAssignee?.id ?? ulid();
+
+		if (!existingAssignee) {
+			events.push({
+				id: ulid(),
+				...actorResult.value,
+				action: 'create.contributor',
+				payload: {id: assigneeId, name: assigneeName},
+			} satisfies AppEvent<'create.contributor'>);
+		}
+
+		events.push({
+			id: ulid(),
+			...actorResult.value,
+			action: 'add.issue.assignee',
+			payload: {id: issueId, assignee: assigneeId},
+		} satisfies AppEvent<'add.issue.assignee'>);
+
+		assignees.push({id: assigneeId, name: assigneeName});
+	}
+
 	const results = materializeAndPersistAll(
-		[...issueEvents],
+		events,
 		bootResult.value.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
-
-	const issueId = issueEvents.find(e => e.action === 'add.issue')?.payload.id;
-	if (!issueId) return failed('Unable to determine created issue id');
 
 	return succeeded('Created issue', {
 		id: issueId,
 		title: input.title,
 		parentId: input.parentId,
+		description: input.description ?? '',
+		tags,
+		assignees,
 	});
 };
 
