@@ -13,10 +13,17 @@ export type GitExecResult = {
 
 const GIT_TIMEOUT_MS = 10_000;
 
-const gitEnv = {
+export const gitEnv = {
 	...process.env,
 	GIT_TERMINAL_PROMPT: '0',
 	GIT_ASKPASS: 'echo',
+	// GIT_TERMINAL_PROMPT/GIT_ASKPASS only silence git's own prompts. Without
+	// BatchMode, ssh itself still opens /dev/tty when no agent/key is usable,
+	// which can get the whole process group SIGTTIN-stopped in a background
+	// process (e.g. an MCP server) instead of failing fast.
+	GIT_SSH_COMMAND:
+		process.env['GIT_SSH_COMMAND'] ??
+		'ssh -o BatchMode=yes -o ConnectTimeout=10',
 };
 
 const runGit = ({

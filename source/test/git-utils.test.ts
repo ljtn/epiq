@@ -7,6 +7,7 @@ import {
 	execGit,
 	execGitAllowFail,
 	getCurrentBranch,
+	gitEnv,
 	hasInProgressGitOperation,
 	isDetachedHead,
 	pullBranchRebaseIfPresent,
@@ -83,6 +84,13 @@ afterEach(() => {
 });
 
 describe('git-utils', () => {
+	it('defaults GIT_SSH_COMMAND to batch mode so ssh never opens /dev/tty for a prompt', () => {
+		// Regression test for #80: without BatchMode=yes, an ssh remote with no
+		// usable agent/key opens /dev/tty to prompt, which can get a background
+		// process group (e.g. the MCP server) SIGTTIN-stopped instead of failing.
+		expect(gitEnv['GIT_SSH_COMMAND']).toContain('BatchMode=yes');
+	});
+
 	it('execGit fails when cwd does not exist', async () => {
 		const result = await execGit({
 			args: ['status'],
