@@ -55,7 +55,7 @@ export const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
 
 const failIfReadonly = (
 	node: NavNode<AnyContext> | undefined,
-	action: 'move' | 'rename' | 'edit',
+	action: 'move' | 'rename' | 'edit' | 'delete',
 ): ReturnFail | null => {
 	if (!node) return failed('Node not found');
 	if (!node.readonly) return null;
@@ -64,6 +64,7 @@ const failIfReadonly = (
 		move: 'Cannot move readonly node',
 		rename: 'Cannot rename readonly node',
 		edit: 'Cannot edit readonly node',
+		delete: 'Cannot delete readonly node',
 	} as const;
 
 	return failed(msgByAction[action]);
@@ -364,6 +365,9 @@ export const nodeRepo = {
 		if (!node) return failed('Node not found');
 
 		if (rootNodeId === nodeId) return failed('Cannot delete root node');
+
+		const readonlyFail = failIfReadonly(node, 'delete');
+		if (readonlyFail) return readonlyFail;
 
 		const idsToDelete = new Set<string>();
 

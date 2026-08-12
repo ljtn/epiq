@@ -8,14 +8,18 @@ import {
 	addIssueTag,
 	closeIssue,
 	createIssue,
+	createSwimlane,
 	deleteIssueComment,
+	deleteSwimlane,
 	editIssueDescription,
 	editIssueTitle,
+	editSwimlaneTitle,
 	getEpiqState,
 	listBoards,
 	listIssues,
 	listSwimlanes,
 	moveIssue,
+	moveSwimlane,
 	removeIssueAssignee,
 	removeIssueTag,
 	reopenIssue,
@@ -85,6 +89,72 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await listSwimlanes(input)),
+	);
+
+	server.registerTool(
+		'epiq_swimlane_create',
+		{
+			description: 'Create an Epiq swimlane on a board',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				boardId: z.string().min(1),
+				title: z.string().min(1),
+			}),
+		},
+		async input => resultJson(await createSwimlane(input)),
+	);
+
+	server.registerTool(
+		'epiq_swimlane_title_edit',
+		{
+			description: 'Edit an Epiq swimlane title',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				swimlaneId: z.string().min(1),
+				title: z.string().min(1),
+			}),
+		},
+		async input => resultJson(await editSwimlaneTitle(input)),
+	);
+
+	server.registerTool(
+		'epiq_swimlane_move',
+		{
+			description: 'Move/reorder an Epiq swimlane, optionally to another board',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				swimlaneId: z.string().min(1),
+				boardId: z.string().min(1),
+				position: z
+					.discriminatedUnion('at', [
+						z.object({at: z.literal('start')}),
+						z.object({at: z.literal('end')}),
+						z.object({
+							at: z.literal('before'),
+							sibling: z.string().min(1),
+						}),
+						z.object({
+							at: z.literal('after'),
+							sibling: z.string().min(1),
+						}),
+					])
+					.optional(),
+			}),
+		},
+		async input => resultJson(await moveSwimlane(input)),
+	);
+
+	server.registerTool(
+		'epiq_swimlane_delete',
+		{
+			description:
+				'Delete (archive) an Epiq swimlane. This also archives every issue contained in it.',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				swimlaneId: z.string().min(1),
+			}),
+		},
+		async input => resultJson(await deleteSwimlane(input)),
 	);
 
 	server.registerTool(

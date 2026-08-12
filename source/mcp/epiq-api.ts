@@ -62,6 +62,26 @@ type ListSwimlanesInput = ToolInput & {
 	boardId?: string;
 };
 
+type CreateSwimlaneInput = ToolInput & {
+	title: string;
+	boardId: string;
+};
+
+type EditSwimlaneTitleInput = ToolInput & {
+	swimlaneId: string;
+	title: string;
+};
+
+type MoveSwimlaneInput = ToolInput & {
+	swimlaneId: string;
+	boardId: string;
+	position?: MovePosition;
+};
+
+type DeleteSwimlaneInput = ToolInput & {
+	swimlaneId: string;
+};
+
 type CreateIssueInput = ToolInput & {
 	title: string;
 	parentId: string;
@@ -518,6 +538,194 @@ export const moveIssue = async (
 		id: input.issueId,
 		parentId: input.parentId,
 	});
+};
+
+export const createSwimlane = async (input: CreateSwimlaneInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const board = stateResult.value.nodes[input.boardId];
+	if (!board) return failed('Board not found');
+	if (!isBoardNode(board)) return failed('Target parent must be a board');
+
+	const title = sanitizeInlineText(input.title);
+	if (!title.trim()) return failed('Swimlane title cannot be empty');
+
+	const rankResult = resolveAndPersistRankForCreate(
+		input.boardId,
+		actorResult.value,
+		bootResult.value.stateBranchRoot,
+	);
+	if (isFail(rankResult)) return rankResult;
+
+	const swimlaneId = ulid();
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'add.swimlane',
+		payload: {
+			id: swimlaneId,
+			name: title,
+			parent: input.boardId,
+			rank: rankResult.value,
+		},
+	} satisfies AppEvent<'add.swimlane'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Created swimlane', {
+		id: swimlaneId,
+		title,
+		boardId: input.boardId,
+	});
+};
+
+export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const swimlane = stateResult.value.nodes[input.swimlaneId];
+
+	if (!swimlane) return failed('Swimlane not found');
+	if (!isSwimlaneNode(swimlane)) return failed('Edit target must be a swimlane');
+	if (swimlane.readonly) return failed('Cannot edit readonly swimlane');
+
+	const title = sanitizeInlineText(input.title);
+	if (!title.trim()) return failed('Swimlane title cannot be empty');
+
+	if (swimlane.title === title) {
+		return succeeded('No changes made', {
+			id: input.swimlaneId,
+			title,
+		});
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'edit.title',
+		payload: {
+			id: input.swimlaneId,
+			name: title,
+		},
+	} satisfies AppEvent<'edit.title'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Edited swimlane title', {
+		id: input.swimlaneId,
+		title,
+	});
+};
+
+export const moveSwimlane = async (
+	input: MoveSwimlaneInput,
+): Promise<Result<{id: string; boardId: string}>> => {
+	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	if (isFail(repoRootResult)) return repoRootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateBranchRootResult = getStateBranchRoot({
+		repoRoot: repoRootResult.value,
+	});
+
+	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
+
+	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
+	if (isFail(eventsResult)) return eventsResult;
+
+	const bootStateResult = bootStateFromEventLog(eventsResult.value);
+	if (isFail(bootStateResult)) return bootStateResult;
+
+	const rankResult = resolveAndPersistRankForMove(
+		input.boardId,
+		input.swimlaneId,
+		input.position ?? {at: 'end'},
+		actorResult.value,
+		stateBranchRootResult.value,
+	);
+
+	if (isFail(rankResult)) return rankResult;
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'move.node',
+		payload: {
+			id: input.swimlaneId,
+			parent: input.boardId,
+			rank: rankResult.value,
+		},
+	} satisfies AppEvent<'move.node'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		stateBranchRootResult.value,
+	);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Moved swimlane', {
+		id: input.swimlaneId,
+		boardId: input.boardId,
+	});
+};
+
+export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
+	const bootResult = await boot(input.repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const swimlane = stateResult.value.nodes[input.swimlaneId];
+
+	if (!swimlane) return failed('Swimlane not found');
+	if (!isSwimlaneNode(swimlane)) {
+		return failed('Delete target must be a swimlane');
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'delete.node',
+		payload: {
+			id: input.swimlaneId,
+		},
+	} satisfies AppEvent<'delete.node'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Deleted swimlane', {id: input.swimlaneId});
 };
 
 export const sync = async (input: SyncInput = {}) => {
