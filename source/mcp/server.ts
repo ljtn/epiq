@@ -53,10 +53,12 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_issue_list',
 		{
-			description: 'List Epiq issues',
+			description:
+				'List Epiq issues. Pass boardId to scope results to a single board and reduce response size.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				includeClosed: z.boolean().optional(),
+				boardId: z.string().optional(),
 			}),
 		},
 		async input => resultJson(await listIssues(input)),

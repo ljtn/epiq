@@ -55,6 +55,7 @@ type MoveIssueInput = ToolInput & {
 
 type ListIssuesInput = ToolInput & {
 	includeClosed?: boolean;
+	boardId?: string;
 };
 
 type ListSwimlanesInput = ToolInput & {
@@ -293,9 +294,16 @@ export const listIssues = async (input: ListIssuesInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issues: ApiIssue[] = Object.values(stateResult.value.nodes)
+	const nodes = stateResult.value.nodes;
+
+	const issues: ApiIssue[] = Object.values(nodes)
 		.filter(isTicketNode)
 		.filter(n => input.includeClosed || n.parentNodeId !== CLOSED_SWIMLANE_ID)
+		.filter(n => {
+			if (!input.boardId) return true;
+			const swimlane = n.parentNodeId ? nodes[n.parentNodeId] : undefined;
+			return swimlane?.parentNodeId === input.boardId;
+		})
 		.map(
 			n =>
 				({

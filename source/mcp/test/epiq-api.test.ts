@@ -174,6 +174,34 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		rank: 'z0',
 		props: {description: '', tags: [], assignees: []},
 	},
+	'board-2': {
+		id: 'board-2',
+		title: 'Other board',
+		context: 'BOARD',
+		parentNodeId: 'workspace-1',
+		readonly: false,
+		isDeleted: false,
+		rank: 'b0',
+	},
+	'swimlane-3': {
+		id: 'swimlane-3',
+		title: 'Todo',
+		context: 'SWIMLANE',
+		parentNodeId: 'board-2',
+		readonly: false,
+		isDeleted: false,
+		rank: 'a0',
+	},
+	'issue-2': {
+		id: 'issue-2',
+		title: 'Other board issue',
+		context: 'TICKET',
+		parentNodeId: 'swimlane-3',
+		readonly: false,
+		isDeleted: false,
+		rank: 'a0',
+		props: {description: '', tags: [], assignees: []},
+	},
 };
 
 vi.mock('../../lib/state/state.js', async importOriginal => {
@@ -282,6 +310,13 @@ describe('mcp tools', () => {
 					parentId: 'workspace-1',
 					readonly: false,
 				},
+				{
+					id: 'board-2',
+					ref: 'BOARD-2',
+					title: 'Other board',
+					parentId: 'workspace-1',
+					readonly: false,
+				},
 			]);
 		}
 	});
@@ -342,16 +377,42 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.value).toEqual([
-				expect.objectContaining({
-					id: 'issue-1',
-					title: 'Fix bug',
-					description: 'A bug description',
-					parentNodeId: 'swimlane-1',
-					isClosed: false,
-					readonly: false,
-				}),
+			expect(result.value.map(issue => issue.id).sort()).toEqual([
+				'issue-1',
+				'issue-2',
 			]);
+			expect(result.value).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						id: 'issue-1',
+						title: 'Fix bug',
+						description: 'A bug description',
+						parentNodeId: 'swimlane-1',
+						isClosed: false,
+						readonly: false,
+					}),
+				]),
+			);
+		}
+	});
+
+	it('scopes issues to a single board via boardId', async () => {
+		const boardOne = await tools.listIssues({
+			repoRoot: '/repo',
+			includeClosed: false,
+			boardId: 'board-1',
+		});
+		const boardTwo = await tools.listIssues({
+			repoRoot: '/repo',
+			includeClosed: false,
+			boardId: 'board-2',
+		});
+
+		expect(isFail(boardOne)).toBe(false);
+		expect(isFail(boardTwo)).toBe(false);
+		if (!isFail(boardOne) && !isFail(boardTwo)) {
+			expect(boardOne.value.map(issue => issue.id)).toEqual(['issue-1']);
+			expect(boardTwo.value.map(issue => issue.id)).toEqual(['issue-2']);
 		}
 	});
 
