@@ -67,7 +67,11 @@ const components: Components = {
 	pre: ({children}) => <pre style={{margin: '0 0 14px'}}>{children}</pre>,
 	hr: () => (
 		<hr
-			style={{border: 'none', borderTop: `1px solid ${GUI_THEME.line}`, margin: '12px 0'}}
+			style={{
+				border: 'none',
+				borderTop: `1px solid ${GUI_THEME.line}`,
+				margin: '12px 0',
+			}}
 		/>
 	),
 };
