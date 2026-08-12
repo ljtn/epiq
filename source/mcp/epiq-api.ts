@@ -174,14 +174,7 @@ const boot = async (
 		return failed(ensureWorktreeResult.message);
 	}
 
-	// MCP tools default to local-only: events are appended to a user-scoped,
-	// append-only log and merged deterministically (ULID + edge-relative
-	// ordering, see readme.md's "Deterministic materialization" section), so
-	// a write never needs a fresh pull to be correct — it's safe and
-	// eventually-consistent regardless of when other peers' changes arrive.
-	// Pulling on every call instead makes the latency and availability of
-	// every MCP call (including simple listings) depend on the remote, and a
-	// stuck pull can hang the whole server (see #80). Fetching remote state
+	// MCP tools default to local-only. Fetching remote state
 	// is explicit via the `sync` tool; `getGuiState` opts back in for the
 	// GUI's own autosync loop.
 	if (options?.pull ?? false) {
