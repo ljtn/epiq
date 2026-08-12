@@ -25,13 +25,54 @@ vi.mock('../lib/state/state.js', () => ({
 	resetState: vi.fn(),
 }));
 
+vi.mock('../git/git-utils.js', () => ({
+	execGit: vi.fn(),
+}));
+
+vi.mock('../lib/project-setup/project-setup.js', () => ({
+	readProjectFile: vi.fn(),
+}));
+
+vi.mock('../lib/editor/editor.js', () => ({
+	getEditorCandidates: vi.fn(),
+	isVSCodeEditor: vi.fn(),
+	openEditorDiffNonBlocking: vi.fn(),
+	openEditorOnFileNonBlocking: vi.fn(),
+}));
+
+vi.mock('../lib/storage/file-manager.js', () => ({
+	fileManager: {
+		mkDir: vi.fn(),
+		writeToFile: vi.fn(),
+	},
+}));
+
+vi.mock('node:fs', () => ({
+	existsSync: vi.fn(),
+}));
+
+vi.mock('node:fs/promises', () => ({
+	chmod: vi.fn(),
+}));
+
+import {existsSync} from 'node:fs';
+import {chmod} from 'node:fs/promises';
 import {getStateBranchRoot} from '../git/git-storage.js';
+import {execGit} from '../git/git-utils.js';
+import {
+	getEditorCandidates,
+	isVSCodeEditor,
+	openEditorDiffNonBlocking,
+	openEditorOnFileNonBlocking,
+} from '../lib/editor/editor.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
 import {materializeAll} from '../lib/event/event-materialize.js';
+import {readProjectFile} from '../lib/project-setup/project-setup.js';
+import {fileManager} from '../lib/storage/file-manager.js';
 import {
 	getState,
 	isStateInitialized,
@@ -46,8 +87,10 @@ import {
 } from '../lib/model/result-types.js';
 import {
 	checkoutStateAt,
+	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
+	openCommitDiffInEditor,
 	returnToLive,
 	runExclusive,
 } from '../mcp/epiq-time-travel.js';
@@ -55,6 +98,16 @@ import {
 describe('epiq-time-travel', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+
+		// `logger` is an ambient global (source/logger.ts assigns it onto
+		// globalThis as an import side effect in the real app) rather than a
+		// module this file can vi.mock — stub it directly so the side-by-side
+		// diff fallback's error logging doesn't throw ReferenceError here.
+		(globalThis as {logger?: unknown}).logger = {
+			info: vi.fn(),
+			debug: vi.fn(),
+			error: vi.fn(),
+		};
 
 		vi.mocked(resolveClosestEpiqProjectRoot).mockReturnValue(
 			succeeded('root', '/repo'),
@@ -66,6 +119,16 @@ describe('epiq-time-travel', () => {
 
 		vi.mocked(resetState).mockReturnValue(succeeded('reset', ''));
 		vi.mocked(materializeAll).mockReturnValue([]);
+
+		vi.mocked(readProjectFile).mockReturnValue(
+			succeeded('project', {stateBranch: '__epiq_state__'} as never),
+		);
+
+		// Default to a non-VS-Code editor so openCommitDiffInEditor tests that
+		// don't care about the side-by-side path go straight to the unified
+		// diff fallback, same as before it existed.
+		vi.mocked(getEditorCandidates).mockReturnValue(['some-editor']);
+		vi.mocked(isVSCodeEditor).mockReturnValue(false);
 	});
 
 	describe('getTimeTravelStatus', () => {
@@ -176,6 +239,380 @@ describe('epiq-time-travel', () => {
 			const result = await getEventTimeline();
 
 			expect(isSuccess(result)).toBe(false);
+		});
+	});
+
+	describe('getCommitTimeline', () => {
+		const SEP = '\x1f';
+
+		it('parses git log output into commit entries', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout: [
+						`aaa111${SEP}1700000000${SEP}Ada${SEP}fix bug`,
+						`bbb222${SEP}1700000100${SEP}Grace${SEP}add feature`,
+					].join('\n'),
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value).toEqual([
+				{
+					sha: 'aaa111',
+					time: 1_700_000_000_000,
+					author: 'Ada',
+					subject: 'fix bug',
+				},
+				{
+					sha: 'bbb222',
+					time: 1_700_000_100_000,
+					author: 'Grace',
+					subject: 'add feature',
+				},
+			]);
+		});
+
+		it('excludes the epiq state branch via --not <stateBranch>', async () => {
+			vi.mocked(readProjectFile).mockReturnValue(
+				succeeded('project', {stateBranch: '__custom_state__'} as never),
+			);
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+			);
+
+			await getCommitTimeline();
+
+			expect(execGit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					args: expect.arrayContaining(['--not', '__custom_state__']),
+				}),
+			);
+		});
+
+		it('clips the log window to the given start/end via --since/--until', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+			);
+
+			await getCommitTimeline({
+				start: 1_700_000_000_000,
+				end: 1_700_000_100_000,
+			});
+
+			expect(execGit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					args: expect.arrayContaining([
+						'--since=@1700000000',
+						'--until=@1700000100',
+					]),
+				}),
+			);
+		});
+
+		it('skips malformed lines missing a sha or timestamp', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout: `\n${SEP}${SEP}nobody${SEP}no sha or time\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value).toEqual([]);
+		});
+
+		it('propagates a git log failure', async () => {
+			vi.mocked(execGit).mockResolvedValue(failed('git not found'));
+
+			const result = await getCommitTimeline();
+
+			expect(isSuccess(result)).toBe(false);
+		});
+	});
+
+	describe('openCommitDiffInEditor', () => {
+		const validSha = 'b42a0bf111e4b6213abf6c1bfe65088b5c9764f8';
+
+		beforeEach(() => {
+			vi.mocked(openEditorOnFileNonBlocking).mockResolvedValue(
+				succeeded('Opened editor', true),
+			);
+		});
+
+		it('rejects a sha shaped like a git flag, without ever shelling out', async () => {
+			const result = await openCommitDiffInEditor({
+				sha: '--upload-pack=/bin/sh',
+			});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(execGit).not.toHaveBeenCalled();
+		});
+
+		it('writes the diff to a sha-named temp file and opens it in the editor', async () => {
+			vi.mocked(existsSync).mockReturnValue(false);
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git show', {
+					stdout: 'diff --git a/x b/x',
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await openCommitDiffInEditor({sha: validSha});
+
+			expect(execGit).toHaveBeenCalledWith(
+				expect.objectContaining({args: ['show', validSha]}),
+			);
+
+			expect(fileManager.writeToFile).toHaveBeenCalledWith(
+				expect.stringContaining(`${validSha}.diff`),
+				'diff --git a/x b/x',
+			);
+			expect(chmod).toHaveBeenCalledWith(
+				expect.stringContaining(`${validSha}.diff`),
+				0o444,
+			);
+			expect(openEditorOnFileNonBlocking).toHaveBeenCalledWith(
+				expect.stringContaining(`${validSha}.diff`),
+			);
+
+			expect(isSuccess(result)).toBe(true);
+		});
+
+		it('reuses an already-written diff file instead of re-writing it', async () => {
+			vi.mocked(existsSync).mockReturnValue(true);
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git show', {stdout: 'irrelevant', stderr: '', exitCode: 0}),
+			);
+
+			await openCommitDiffInEditor({sha: validSha});
+
+			expect(fileManager.writeToFile).not.toHaveBeenCalled();
+			expect(chmod).not.toHaveBeenCalled();
+			expect(openEditorOnFileNonBlocking).toHaveBeenCalled();
+		});
+
+		it('propagates a git show failure without touching the filesystem or editor', async () => {
+			vi.mocked(execGit).mockResolvedValue(failed('bad object'));
+
+			const result = await openCommitDiffInEditor({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(fileManager.writeToFile).not.toHaveBeenCalled();
+			expect(openEditorOnFileNonBlocking).not.toHaveBeenCalled();
+		});
+
+		describe('when the resolved editor is VS Code', () => {
+			beforeEach(() => {
+				vi.mocked(getEditorCandidates).mockReturnValue(['code']);
+				vi.mocked(isVSCodeEditor).mockReturnValue(true);
+				vi.mocked(existsSync).mockReturnValue(false);
+				vi.mocked(openEditorDiffNonBlocking).mockResolvedValue(
+					succeeded('Opened editor', true),
+				);
+			});
+
+			const mockGitForFiles = (
+				files: string[],
+				contentByPath: Record<string, string> = {},
+			) => {
+				vi.mocked(execGit).mockImplementation(async ({args}) => {
+					if (args[0] === 'diff-tree') {
+						return succeeded('changed files', {
+							stdout: files.join('\n'),
+							stderr: '',
+							exitCode: 0,
+						});
+					}
+
+					if (args[0] === 'show') {
+						const spec = args[1] ?? '';
+
+						// Plain `git show <sha>` (the unified-diff fallback) rather than
+						// a `<rev>:<path>` blob lookup — not what this helper is for,
+						// but still needs a non-failing response.
+						if (!spec.includes(':')) {
+							return succeeded('git show', {
+								stdout: 'unified diff fallback content',
+								stderr: '',
+								exitCode: 0,
+							});
+						}
+
+						// Keyed by the exact "<revision>:<path>" spec, so a test can
+						// omit e.g. the `${sha}~1:...` entry to simulate a blob that
+						// doesn't exist on that side (an added or deleted file).
+						const content = contentByPath[spec];
+
+						return content === undefined
+							? failed('bad object (missing blob)')
+							: succeeded('blob', {stdout: content, stderr: '', exitCode: 0});
+					}
+
+					return failed(`unexpected git args: ${args.join(' ')}`);
+				});
+			};
+
+			it('opens one side-by-side diff per changed file, preserving each basename', async () => {
+				mockGitForFiles(['source/gui/client/App.tsx', 'source/logger.ts'], {
+					[`${validSha}:source/gui/client/App.tsx`]: 'after-app',
+					[`${validSha}:source/logger.ts`]: 'after-logger',
+				});
+
+				// A 2nd+ file waits out NEW_WINDOW_SETTLE_MS before opening (see
+				// epiq-time-travel.ts) so it lands in the new window from the
+				// first file rather than racing it — fake timers skip that wait.
+				vi.useFakeTimers();
+				const pending = openCommitDiffInEditor({sha: validSha});
+				await vi.advanceTimersByTimeAsync(1000);
+				const result = await pending;
+				vi.useRealTimers();
+
+				expect(isSuccess(result)).toBe(true);
+				expect(openEditorDiffNonBlocking).toHaveBeenCalledTimes(2);
+				expect(openEditorOnFileNonBlocking).not.toHaveBeenCalled();
+
+				const calledPaths = vi
+					.mocked(openEditorDiffNonBlocking)
+					.mock.calls.map(([, before, after]) => ({before, after}));
+
+				expect(
+					calledPaths.some(
+						({before, after}) =>
+							before.endsWith('/before/App.tsx') &&
+							after.endsWith('/after/App.tsx'),
+					),
+				).toBe(true);
+				expect(
+					calledPaths.some(
+						({before, after}) =>
+							before.endsWith('/before/logger.ts') &&
+							after.endsWith('/after/logger.ts'),
+					),
+				).toBe(true);
+			});
+
+			it('opens the first file in a new window and the rest reused into it', async () => {
+				mockGitForFiles(['source/a.ts', 'source/b.ts', 'source/c.ts'], {
+					[`${validSha}:source/a.ts`]: 'a',
+					[`${validSha}:source/b.ts`]: 'b',
+					[`${validSha}:source/c.ts`]: 'c',
+				});
+
+				vi.useFakeTimers();
+				const pending = openCommitDiffInEditor({sha: validSha});
+				await vi.advanceTimersByTimeAsync(1000);
+				await pending;
+				vi.useRealTimers();
+
+				const windowModes = vi
+					.mocked(openEditorDiffNonBlocking)
+					.mock.calls.map(([, , , windowMode]) => windowMode);
+
+				expect(windowModes.filter(mode => mode === 'new')).toHaveLength(1);
+				expect(windowModes.filter(mode => mode === 'reuse')).toHaveLength(2);
+			});
+
+			it('stays a success even if a later file fails to join the new window', async () => {
+				mockGitForFiles(['source/a.ts', 'source/b.ts'], {
+					[`${validSha}:source/a.ts`]: 'a',
+					[`${validSha}:source/b.ts`]: 'b',
+				});
+				vi.mocked(openEditorDiffNonBlocking).mockImplementation(
+					async (_editor, _before, _after, windowMode) =>
+						windowMode === 'new'
+							? succeeded('Opened editor', true)
+							: failed('"code" exited with code 1'),
+				);
+
+				vi.useFakeTimers();
+				const pending = openCommitDiffInEditor({sha: validSha});
+				await vi.advanceTimersByTimeAsync(1000);
+				const result = await pending;
+				vi.useRealTimers();
+
+				expect(isSuccess(result)).toBe(true);
+			});
+
+			it("doesn't wait for the settle delay when the commit touches only one file", async () => {
+				mockGitForFiles(['source/a.ts'], {
+					[`${validSha}:source/a.ts`]: 'a',
+				});
+
+				const result = await openCommitDiffInEditor({sha: validSha});
+
+				expect(isSuccess(result)).toBe(true);
+				expect(openEditorDiffNonBlocking).toHaveBeenCalledTimes(1);
+				expect(openEditorDiffNonBlocking).toHaveBeenCalledWith(
+					'code',
+					expect.any(String),
+					expect.any(String),
+					'new',
+				);
+			});
+
+			it('treats a missing blob (file added or deleted at this commit) as empty content, not a failure', async () => {
+				mockGitForFiles(['source/new-file.ts'], {
+					// no entry for the `${sha}~1:...` (before) spec -> execGit fails
+					// for it, simulating a file that didn't exist before this commit
+					[`${validSha}:source/new-file.ts`]: 'brand new content',
+				});
+
+				const result = await openCommitDiffInEditor({sha: validSha});
+
+				expect(isSuccess(result)).toBe(true);
+				expect(fileManager.writeToFile).toHaveBeenCalledWith(
+					expect.stringContaining('/before/new-file.ts'),
+					'',
+				);
+				expect(fileManager.writeToFile).toHaveBeenCalledWith(
+					expect.stringContaining('/after/new-file.ts'),
+					'brand new content',
+				);
+			});
+
+			it('falls back to the unified diff when the commit touches too many files', async () => {
+				const manyFiles = Array.from(
+					{length: 13},
+					(_, i) => `source/file-${i}.ts`,
+				);
+				mockGitForFiles(manyFiles);
+				vi.mocked(openEditorOnFileNonBlocking).mockResolvedValue(
+					succeeded('Opened editor', true),
+				);
+
+				await openCommitDiffInEditor({sha: validSha});
+
+				expect(openEditorDiffNonBlocking).not.toHaveBeenCalled();
+				expect(openEditorOnFileNonBlocking).toHaveBeenCalled();
+			});
+
+			it('falls back to the unified diff when every side-by-side open fails', async () => {
+				mockGitForFiles(['source/x.ts'], {
+					[`${validSha}:source/x.ts`]: 'content',
+				});
+				vi.mocked(openEditorDiffNonBlocking).mockResolvedValue(
+					failed('"code" exited with code 1'),
+				);
+				vi.mocked(openEditorOnFileNonBlocking).mockResolvedValue(
+					succeeded('Opened editor', true),
+				);
+
+				const result = await openCommitDiffInEditor({sha: validSha});
+
+				expect(openEditorOnFileNonBlocking).toHaveBeenCalled();
+				expect(isSuccess(result)).toBe(true);
+			});
 		});
 	});
 

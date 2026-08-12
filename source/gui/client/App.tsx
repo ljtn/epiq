@@ -17,7 +17,11 @@ import {
 	getResultValue,
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
-import {GuiEventTimeline, GuiState} from './lib/gui-state.model';
+import {
+	GuiCommitEntry,
+	GuiEventTimeline,
+	GuiState,
+} from './lib/gui-state.model';
 import {blobToBase64, compressImage} from './lib/compress-image';
 import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
@@ -52,6 +56,10 @@ export const App = () => {
 	});
 	const [state, setState] = useState<GuiState | null>(null);
 	const [timeline, setTimeline] = useState<GuiEventTimeline | null>(null);
+	const [commits, setCommits] = useState<GuiCommitEntry[]>([]);
+	const [commitInspectError, setCommitInspectError] = useState<string | null>(
+		null,
+	);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
 	);
@@ -136,6 +144,7 @@ export const App = () => {
 			setConnected(true);
 			socket.send(JSON.stringify({type: 'state:get'}));
 			socket.send(JSON.stringify({type: 'timeline:get'}));
+			socket.send(JSON.stringify({type: 'commits:get'}));
 		});
 
 		socket.addEventListener('close', () => {
@@ -172,6 +181,18 @@ export const App = () => {
 			if (message.type === 'timeline') {
 				const nextTimeline = getResultValue<GuiEventTimeline>(message.payload);
 				if (nextTimeline) setTimeline(nextTimeline);
+			}
+
+			if (message.type === 'commits') {
+				const nextCommits = getResultValue<GuiCommitEntry[]>(message.payload);
+				if (nextCommits) setCommits(nextCommits);
+			}
+
+			if (
+				message.type === 'commit:inspect:result' &&
+				message.payload?.status === 'fail'
+			) {
+				setCommitInspectError(message.payload.message);
 			}
 
 			if (
@@ -399,6 +420,28 @@ export const App = () => {
 		);
 	}, []);
 
+	const requestCommits = useCallback((start?: number, end?: number) => {
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'commits:get',
+				payload: start !== undefined ? {start, end} : undefined,
+			}),
+		);
+	}, []);
+
+	const inspectCommit = useCallback((sha: string) => {
+		socketRef.current?.send(
+			JSON.stringify({type: 'commit:inspect', payload: {sha}}),
+		);
+	}, []);
+
+	useEffect(() => {
+		if (!commitInspectError) return;
+
+		const timeout = setTimeout(() => setCommitInspectError(null), 8000);
+		return () => clearTimeout(timeout);
+	}, [commitInspectError]);
+
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
@@ -566,10 +609,53 @@ export const App = () => {
 				flexDirection: 'column',
 			}}
 		>
+			{commitInspectError && (
+				<div
+					style={{
+						position: 'fixed',
+						bottom: 20,
+						right: 20,
+						zIndex: 1000,
+						maxWidth: 360,
+						display: 'flex',
+						alignItems: 'flex-start',
+						gap: 8,
+						fontSize: 12,
+						color: GUI_THEME.primary,
+						background: GUI_THEME.panel,
+						border: `1px solid ${GUI_THEME.red}`,
+						borderRadius: 8,
+						padding: '10px 12px',
+						boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+					}}
+				>
+					<span style={{flex: 1, minWidth: 0, overflowWrap: 'anywhere'}}>
+						Couldn't open commit diff: {commitInspectError}
+					</span>
+					<button
+						onClick={() => setCommitInspectError(null)}
+						style={{
+							background: 'transparent',
+							border: 'none',
+							color: GUI_THEME.dim,
+							cursor: 'pointer',
+							fontSize: 14,
+							lineHeight: 1,
+							padding: 0,
+						}}
+					>
+						×
+					</button>
+				</div>
+			)}
+
 			<Header state={state} connected={connected} syncStatus={syncStatus} />
 
 			<TimeScrubber
 				timeline={timeline}
+				commits={commits}
+				onRequestCommits={requestCommits}
+				onInspectCommit={inspectCommit}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
 				onReturnToLive={returnToLive}

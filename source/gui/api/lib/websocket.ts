@@ -20,8 +20,10 @@ import {
 } from '../../../mcp/epiq-api.js';
 import {
 	checkoutStateAt,
+	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
+	openCommitDiffInEditor,
 	returnToLive,
 } from '../../../mcp/epiq-time-travel.js';
 import {isFail, Result} from '../../../lib/model/result-types.js';
@@ -131,6 +133,23 @@ export const setupWebsocket = (
 					return sendSocket(socket, {
 						type: 'timeline',
 						payload: await getEventTimeline({repoRoot, ...message.payload}),
+					});
+				}
+
+				if (type === 'commits:get') {
+					return sendSocket(socket, {
+						type: 'commits',
+						payload: await getCommitTimeline({repoRoot, ...message.payload}),
+					});
+				}
+
+				if (type === 'commit:inspect') {
+					return sendSocket(socket, {
+						type: 'commit:inspect:result',
+						payload: await openCommitDiffInEditor({
+							repoRoot,
+							sha: message.payload.sha,
+						}),
 					});
 				}
 

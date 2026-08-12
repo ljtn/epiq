@@ -70,3 +70,10 @@ export type GuiEventTimeline = {
 	earliest: number;
 	latest: number;
 };
+
+export type GuiCommitEntry = {
+	sha: string;
+	time: number;
+	author: string;
+	subject: string;
+};

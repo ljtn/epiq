@@ -1,5 +1,9 @@
 import {useEffect, useRef, useState} from 'react';
-import {GuiEventTimeline, GuiTimeTravelStatus} from '../lib/gui-state.model';
+import {
+	GuiCommitEntry,
+	GuiEventTimeline,
+	GuiTimeTravelStatus,
+} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
@@ -44,11 +48,14 @@ const formatInterval = (start: number, end: number): string => {
 
 type TimeScrubberProps = {
 	timeline: GuiEventTimeline | null;
+	commits: GuiCommitEntry[];
 	timeTravel: GuiTimeTravelStatus;
 	onScrub: (targetTime: number) => void;
 	onReturnToLive: () => void;
 	// Undefined start/end asks for the default "all time" window.
 	onRequestTimeline: (start?: number, end?: number) => void;
+	onRequestCommits: (start?: number, end?: number) => void;
+	onInspectCommit: (sha: string) => void;
 };
 
 // "even" lays every non-empty bucket out as an equal-width contiguous frame
@@ -142,10 +149,13 @@ const formatPeriodLabel = (
 
 export const TimeScrubber = ({
 	timeline,
+	commits,
 	timeTravel,
 	onScrub,
 	onReturnToLive,
 	onRequestTimeline,
+	onRequestCommits,
+	onInspectCommit,
 }: TimeScrubberProps) => {
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
@@ -159,6 +169,12 @@ export const TimeScrubber = ({
 		number | null
 	>(null);
 	const [needleHovered, setNeedleHovered] = useState(false);
+	const [hoveredCommit, setHoveredCommit] = useState<GuiCommitEntry | null>(
+		null,
+	);
+	const [hoveredCommitFraction, setHoveredCommitFraction] = useState<
+		number | null
+	>(null);
 	const [collapsed, setCollapsed] = useState(
 		() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true',
 	);
@@ -173,11 +189,12 @@ export const TimeScrubber = ({
 
 	const periodRange = getPeriodRange(scope, offset);
 
-	// Deliberately keyed on scope/offset only — onRequestTimeline is a stable
-	// useCallback from the parent, and periodRange is derived from scope/offset
-	// each render, so including either would just be redundant.
+	// Deliberately keyed on scope/offset only — onRequestTimeline/onRequestCommits
+	// are stable useCallbacks from the parent, and periodRange is derived from
+	// scope/offset each render, so including either would just be redundant.
 	useEffect(() => {
 		onRequestTimeline(periodRange?.start, periodRange?.end);
+		onRequestCommits(periodRange?.start, periodRange?.end);
 	}, [scope, offset]);
 
 	const changeScope = (nextScope: Scope) => {
@@ -186,8 +203,18 @@ export const TimeScrubber = ({
 	};
 
 	const frames = timeline?.buckets ?? [];
-	const earliest = timeline?.earliest ?? Date.now();
-	const latest = timeline?.latest ?? Date.now();
+	const commitTimes = commits.map(c => c.time);
+	// Widened to cover commits too (they often predate the earliest issue
+	// event, especially in "All time" scope) — both rows share this axis, so
+	// a dot at a given x always means the same time in either row.
+	const earliest = Math.min(
+		timeline?.earliest ?? Date.now(),
+		...(commitTimes.length ? commitTimes : [Date.now()]),
+	);
+	const latest = Math.max(
+		timeline?.latest ?? Date.now(),
+		...(commitTimes.length ? commitTimes : [Date.now()]),
+	);
 	const span = Math.max(1, latest - earliest);
 
 	// Position of a real event time along the track, proportional to elapsed
@@ -294,6 +321,14 @@ export const TimeScrubber = ({
 		hoveredFrameFraction !== null
 			? clamp(
 					hoveredFrameFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
+					0,
+					Math.max(0, trackWidthPx - HOVER_HINT_WIDTH),
+			  )
+			: 0;
+	const commitHintLeftPx =
+		hoveredCommitFraction !== null
+			? clamp(
+					hoveredCommitFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
 					0,
 					Math.max(0, trackWidthPx - HOVER_HINT_WIDTH),
 			  )
@@ -508,208 +543,299 @@ export const TimeScrubber = ({
 				</div>
 
 				{!collapsed && (
-					<div
-						ref={trackRef}
-						onPointerDown={onPointerDown}
-						onPointerMove={onPointerMove}
-						onPointerUp={endDrag}
-						onPointerCancel={endDrag}
-						style={{
-							position: 'relative',
-							width: '100%',
-							height: 24,
-							cursor: 'pointer',
-							display: 'flex',
-							alignItems: 'center',
-						}}
-					>
-						{/* Floating hover-hint — centered above the hovered frame, clamped
+					<>
+						<div
+							ref={trackRef}
+							onPointerDown={onPointerDown}
+							onPointerMove={onPointerMove}
+							onPointerUp={endDrag}
+							onPointerCancel={endDrag}
+							style={{
+								position: 'relative',
+								width: '100%',
+								height: 24,
+								cursor: 'pointer',
+								display: 'flex',
+								alignItems: 'center',
+							}}
+						>
+							{/* Floating hover-hint — centered above the hovered frame, clamped
 					    to the track's own bounds so it never overflows left/right. */}
-						{hoverLabel && (
+							{hoverLabel && (
+								<div
+									style={{
+										position: 'absolute',
+										bottom: '100%',
+										marginBottom: 4,
+										left: hoverHintLeftPx,
+										width: HOVER_HINT_WIDTH,
+										// Border-box so `width` matches what the clamp math above
+										// assumes — otherwise the border/padding add on top of it and
+										// the box overflows the track's edge by exactly that much.
+										boxSizing: 'border-box',
+										textAlign: 'center',
+										fontSize: 11,
+										color: GUI_THEME.dim,
+										background: GUI_THEME.panel,
+										border: `1px solid ${GUI_THEME.line}`,
+										borderRadius: 6,
+										padding: '2px 6px',
+										pointerEvents: 'none',
+										whiteSpace: 'nowrap',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+									}}
+								>
+									{hoverLabel}
+								</div>
+							)}
+
+							{/* Track line — a floor for the "Frames" stacked-bar look, an axis
+					    line running through the middle of the "Timeline" dots. */}
 							<div
 								style={{
 									position: 'absolute',
-									bottom: '100%',
-									marginBottom: 4,
-									left: hoverHintLeftPx,
-									width: HOVER_HINT_WIDTH,
-									// Border-box so `width` matches what the clamp math above
-									// assumes — otherwise the border/padding add on top of it and
-									// the box overflows the track's edge by exactly that much.
-									boxSizing: 'border-box',
-									textAlign: 'center',
-									fontSize: 11,
-									color: GUI_THEME.dim,
-									background: GUI_THEME.panel,
-									border: `1px solid ${GUI_THEME.line}`,
-									borderRadius: 6,
-									padding: '2px 6px',
-									pointerEvents: 'none',
-									whiteSpace: 'nowrap',
-									overflow: 'hidden',
-									textOverflow: 'ellipsis',
+									left: 0,
+									right: 0,
+									...(layoutMode === 'even' ? {bottom: 0} : {}),
+									height: 2,
+									borderRadius: 999,
+									background: GUI_THEME.dim,
+									opacity: 0.35,
 								}}
-							>
-								{hoverLabel}
-							</div>
-						)}
+							/>
 
-						{/* Track line — a floor for the "Frames" stacked-bar look, an axis
-					    line running through the middle of the "Timeline" dots. */}
-						<div
-							style={{
-								position: 'absolute',
-								left: 0,
-								right: 0,
-								...(layoutMode === 'even' ? {bottom: 0} : {}),
-								height: 2,
-								borderRadius: 999,
-								background: GUI_THEME.dim,
-								opacity: 0.35,
-							}}
-						/>
-
-						{/* Frames — one per non-empty bucket, opacity/size scaled by count.
+							{/* Frames — one per non-empty bucket, opacity/size scaled by count.
 					    "even" lays them out as contiguous equal-width blocks; "real"
 					    positions them (as small dots) proportionally to elapsed time. */}
-						{frames.map((bucket, index) => {
-							const intensity = bucket.count / maxCount;
-							const interval = formatInterval(
-								bucket.t,
-								bucket.t + (timeline?.bucketMs ?? 0),
-							);
-							const label = `${bucket.count} change${
-								bucket.count === 1 ? '' : 's'
-							}, ${interval}`;
-							const centerFraction =
-								layoutMode === 'even'
-									? (index + 0.5) / frames.length
-									: realFractionForTime(bucket.t);
+							{frames.map((bucket, index) => {
+								const intensity = bucket.count / maxCount;
+								const interval = formatInterval(
+									bucket.t,
+									bucket.t + (timeline?.bucketMs ?? 0),
+								);
+								const label = `${bucket.count} change${
+									bucket.count === 1 ? '' : 's'
+								}, ${interval}`;
+								const centerFraction =
+									layoutMode === 'even'
+										? (index + 0.5) / frames.length
+										: realFractionForTime(bucket.t);
 
-							const commonProps = {
-								title: label,
-								onMouseEnter: () => {
-									setHoverLabel(interval);
-									setHoveredFrameTime(bucket.t);
-									setHoveredFrameFraction(centerFraction);
-								},
-								onMouseLeave: () => {
-									setHoverLabel(null);
-									setHoveredFrameTime(null);
-									setHoveredFrameFraction(null);
-								},
-							};
+								const commonProps = {
+									title: label,
+									onMouseEnter: () => {
+										setHoverLabel(interval);
+										setHoveredFrameTime(bucket.t);
+										setHoveredFrameFraction(centerFraction);
+									},
+									onMouseLeave: () => {
+										setHoverLabel(null);
+										setHoveredFrameTime(null);
+										setHoveredFrameFraction(null);
+									},
+								};
 
-							if (layoutMode === 'even') {
-								const widthPercent = 100 / frames.length;
+								if (layoutMode === 'even') {
+									const widthPercent = 100 / frames.length;
+
+									return (
+										// Hit-target spans the full track height, not just the bar's
+										// rendered height — a short/low-intensity bar would otherwise
+										// need pixel-precise aim to hover. Background tints on hover so
+										// the whole column reads as the hit target, not just the bar.
+										<div
+											key={bucket.t}
+											{...commonProps}
+											style={{
+												position: 'absolute',
+												left: `${index * widthPercent}%`,
+												top: 0,
+												bottom: 0,
+												width: `calc(${widthPercent}% - 1px)`,
+												background:
+													hoveredFrameTime === bucket.t
+														? 'rgba(255, 255, 255, 0.06)'
+														: 'transparent',
+												pointerEvents: 'auto',
+											}}
+										>
+											<div
+												style={{
+													position: 'absolute',
+													left: 0,
+													right: 0,
+													bottom: 0,
+													// Bottom-anchored so height reads as a stacked-bar chart —
+													// how much happened at that point in time — rather than a
+													// centered blip.
+													height: 3 + intensity * 21,
+													borderRadius: '1px 1px 0 0',
+													background: GUI_THEME.accent,
+													opacity: 0.35 + intensity * 0.65,
+													pointerEvents: 'none',
+												}}
+											/>
+										</div>
+									);
+								}
+
+								const fraction = realFractionForTime(bucket.t);
 
 								return (
-									// Hit-target spans the full track height, not just the bar's
-									// rendered height — a short/low-intensity bar would otherwise
-									// need pixel-precise aim to hover. Background tints on hover so
-									// the whole column reads as the hit target, not just the bar.
 									<div
 										key={bucket.t}
 										{...commonProps}
 										style={{
 											position: 'absolute',
-											left: `${index * widthPercent}%`,
-											top: 0,
-											bottom: 0,
-											width: `calc(${widthPercent}% - 1px)`,
-											background:
-												hoveredFrameTime === bucket.t
-													? 'rgba(255, 255, 255, 0.06)'
-													: 'transparent',
+											left: `${fraction * 100}%`,
+											width: 4,
+											height: 4 + intensity * 10,
+											borderRadius: 2,
+											background: GUI_THEME.accent,
+											opacity: 0.35 + intensity * 0.65,
+											transform: 'translateX(-2px)',
 											pointerEvents: 'auto',
 										}}
-									>
-										<div
-											style={{
-												position: 'absolute',
-												left: 0,
-												right: 0,
-												bottom: 0,
-												// Bottom-anchored so height reads as a stacked-bar chart —
-												// how much happened at that point in time — rather than a
-												// centered blip.
-												height: 3 + intensity * 21,
-												borderRadius: '1px 1px 0 0',
-												background: GUI_THEME.accent,
-												opacity: 0.35 + intensity * 0.65,
-												pointerEvents: 'none',
-											}}
-										/>
-									</div>
+									/>
 								);
-							}
+							})}
 
-							const fraction = realFractionForTime(bucket.t);
-
-							return (
-								<div
-									key={bucket.t}
-									{...commonProps}
-									style={{
-										position: 'absolute',
-										left: `${fraction * 100}%`,
-										width: 4,
-										height: 4 + intensity * 10,
-										borderRadius: 2,
-										background: GUI_THEME.accent,
-										opacity: 0.35 + intensity * 0.65,
-										transform: 'translateX(-2px)',
-										pointerEvents: 'auto',
-									}}
-								/>
-							);
-						})}
-
-						{/* Draggable thumb / playhead — a full-height needle in a color
+							{/* Draggable thumb / playhead — a full-height needle in a color
 					    distinct from the accent-colored frames so it stays visible
 					    against them, with a downward-pointing triangle handle that
 					    highlights on hover for grab affordance. */}
-						<div
-							onMouseEnter={() => setNeedleHovered(true)}
-							onMouseLeave={() => setNeedleHovered(false)}
-							style={{
-								position: 'absolute',
-								left: `${thumbFraction * 100}%`,
-								top: 0,
-								bottom: 0,
-								width: 2,
-								background: GUI_THEME.primary,
-								boxShadow: needleHovered
-									? `0 0 10px 2px ${GUI_THEME.primary}`
-									: `0 0 6px 1px ${GUI_THEME.primary}`,
-								transform: 'translateX(-1px)',
-								pointerEvents: 'auto',
-								cursor: 'pointer',
-							}}
-						/>
-						<div
-							onMouseEnter={() => setNeedleHovered(true)}
-							onMouseLeave={() => setNeedleHovered(false)}
-							style={{
-								position: 'absolute',
-								left: `${thumbFraction * 100}%`,
-								top: needleHovered ? -9 : -7,
-								width: 0,
-								height: 0,
-								borderLeft: `${needleHovered ? 6 : 5}px solid transparent`,
-								borderRight: `${needleHovered ? 6 : 5}px solid transparent`,
-								borderTop: `${needleHovered ? 8 : 7}px solid ${
-									GUI_THEME.primary
-								}`,
-								filter: `drop-shadow(0 0 ${needleHovered ? 5 : 3}px ${
-									GUI_THEME.primary
-								})`,
-								transform: `translateX(${needleHovered ? -6 : -5}px)`,
-								pointerEvents: 'auto',
-								cursor: 'pointer',
-							}}
-						/>
-					</div>
+							<div
+								onMouseEnter={() => setNeedleHovered(true)}
+								onMouseLeave={() => setNeedleHovered(false)}
+								style={{
+									position: 'absolute',
+									left: `${thumbFraction * 100}%`,
+									top: 0,
+									bottom: 0,
+									width: 2,
+									background: GUI_THEME.primary,
+									boxShadow: needleHovered
+										? `0 0 10px 2px ${GUI_THEME.primary}`
+										: `0 0 6px 1px ${GUI_THEME.primary}`,
+									transform: 'translateX(-1px)',
+									pointerEvents: 'auto',
+									cursor: 'pointer',
+								}}
+							/>
+							<div
+								onMouseEnter={() => setNeedleHovered(true)}
+								onMouseLeave={() => setNeedleHovered(false)}
+								style={{
+									position: 'absolute',
+									left: `${thumbFraction * 100}%`,
+									top: needleHovered ? -9 : -7,
+									width: 0,
+									height: 0,
+									borderLeft: `${needleHovered ? 6 : 5}px solid transparent`,
+									borderRight: `${needleHovered ? 6 : 5}px solid transparent`,
+									borderTop: `${needleHovered ? 8 : 7}px solid ${
+										GUI_THEME.primary
+									}`,
+									filter: `drop-shadow(0 0 ${needleHovered ? 5 : 3}px ${
+										GUI_THEME.primary
+									})`,
+									transform: `translateX(${needleHovered ? -6 : -5}px)`,
+									pointerEvents: 'auto',
+									cursor: 'pointer',
+								}}
+							/>
+						</div>
+
+						{/* Code commits — a second, thinner track sharing the same
+					    horizontal (real-time) coordinate space as the track above, so a
+					    dot here at a given x is the same moment as a frame directly
+					    above it, regardless of whether that track is in Frames or
+					    Timeline layout. Always positioned by real elapsed time — mixing
+					    Frames mode's squeezed, gap-free spacing into a second,
+					    independent data series would break that correlation. */}
+						{commits.length > 0 && (
+							<div
+								style={{
+									position: 'relative',
+									width: '100%',
+									height: 10,
+								}}
+							>
+								{hoveredCommit && (
+									<div
+										style={{
+											position: 'absolute',
+											bottom: '100%',
+											marginBottom: 4,
+											left: commitHintLeftPx,
+											width: HOVER_HINT_WIDTH,
+											boxSizing: 'border-box',
+											textAlign: 'center',
+											fontSize: 11,
+											color: GUI_THEME.secondary,
+											background: GUI_THEME.panel,
+											border: `1px solid ${GUI_THEME.line}`,
+											borderRadius: 6,
+											padding: '2px 6px',
+											pointerEvents: 'none',
+											whiteSpace: 'nowrap',
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+										}}
+									>
+										{hoveredCommit.subject} — {hoveredCommit.author}
+									</div>
+								)}
+
+								<div
+									style={{
+										position: 'absolute',
+										left: 0,
+										right: 0,
+										top: 4,
+										height: 1,
+										borderRadius: 999,
+										background: GUI_THEME.green,
+										opacity: 0.2,
+									}}
+								/>
+
+								{commits.map(commit => {
+									const fraction = realFractionForTime(commit.time);
+
+									return (
+										<div
+											key={commit.sha}
+											title={`${commit.subject} — ${commit.author}`}
+											onClick={() => onInspectCommit(commit.sha)}
+											onMouseEnter={() => {
+												setHoveredCommit(commit);
+												setHoveredCommitFraction(fraction);
+											}}
+											onMouseLeave={() => {
+												setHoveredCommit(null);
+												setHoveredCommitFraction(null);
+											}}
+											style={{
+												position: 'absolute',
+												left: `${fraction * 100}%`,
+												top: 2,
+												width: 6,
+												height: 6,
+												borderRadius: '50%',
+												background: GUI_THEME.green,
+												opacity: hoveredCommit?.sha === commit.sha ? 1 : 0.65,
+												transform: 'translateX(-3px)',
+												pointerEvents: 'auto',
+												cursor: 'pointer',
+											}}
+										/>
+									);
+								})}
+							</div>
+						)}
+					</>
 				)}
 			</div>
 		</Panel>

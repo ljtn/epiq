@@ -37,4 +37,6 @@ export type GuiMessage =
 	  }
 	| {type: 'timeline:get'; payload?: {start?: number; end?: number}}
 	| {type: 'time-travel:scrub'; payload: {targetTime: number}}
-	| {type: 'time-travel:live'};
+	| {type: 'time-travel:live'}
+	| {type: 'commits:get'; payload?: {start?: number; end?: number}}
+	| {type: 'commit:inspect'; payload: {sha: string}};
