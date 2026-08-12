@@ -1,12 +1,11 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {readProjectId} from '../lib/project-setup/project-setup.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {getGlobalConfigDir} from '../lib/storage/global-config-dir.js';
 import {
 	EPIQ_DIR_NAME,
 	EVENTS_DIR_NAME,
-	GLOBAL_CONFIG_DIR_NAME,
 	MEDIA_DIR_NAME,
 } from '../lib/storage/paths.js';
 import {memoizeResult} from '../lib/utils/memoize.js';
@@ -21,12 +20,7 @@ export const getRelativeEventFilePath = (fileName: string): string =>
 export const getRelativeMediaDirPath = (): string =>
 	path.join(EPIQ_DIR_NAME, MEDIA_DIR_NAME);
 
-// Not delegated to paths.ts's getGlobalConfigDir to avoid a circular import
-// (paths.ts already imports from this module). Keep the env override logic
-// in sync with paths.ts if it ever changes.
-export const getEpiqGlobal = (): string =>
-	process.env['EPIQ_GLOBAL_DIR'] ??
-	path.join(os.homedir(), GLOBAL_CONFIG_DIR_NAME);
+export const getEpiqGlobal = getGlobalConfigDir;
 
 export const getWorktreesRoot = (): string =>
 	path.join(getEpiqGlobal(), 'worktrees');
