@@ -174,11 +174,17 @@ const boot = async (
 		return failed(ensureWorktreeResult.message);
 	}
 
-	// Reads default to local-only: pulling on every read makes latency and
-	// availability of every MCP call (including simple listings) depend on
-	// the remote, and a stuck pull can hang the whole server (see #80).
-	// Fetching remote state is explicit via the `sync` tool.
-	if (options?.pull ?? true) {
+	// MCP tools default to local-only: events are appended to a user-scoped,
+	// append-only log and merged deterministically (ULID + edge-relative
+	// ordering, see readme.md's "Deterministic materialization" section), so
+	// a write never needs a fresh pull to be correct — it's safe and
+	// eventually-consistent regardless of when other peers' changes arrive.
+	// Pulling on every call instead makes the latency and availability of
+	// every MCP call (including simple listings) depend on the remote, and a
+	// stuck pull can hang the whole server (see #80). Fetching remote state
+	// is explicit via the `sync` tool; `getGuiState` opts back in for the
+	// GUI's own autosync loop.
+	if (options?.pull ?? false) {
 		const pullResult = await execGit({
 			cwd: stateBranchRootResult.value,
 			args: ['pull', '--ff-only'],
@@ -316,7 +322,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 };
 
 export const createIssue = async (input: CreateIssueInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -355,7 +361,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 };
 
 export const closeIssue = async (input: CloseIssueInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -391,7 +397,7 @@ export const closeIssue = async (input: CloseIssueInput) => {
 };
 
 export const reopenIssue = async (input: CloseIssueInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -556,10 +562,10 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 export const getGuiState = async (
 	input: ToolInput = {},
 ): Promise<Result<ApiState>> => {
-	// Unlike the read-only MCP tools above, the GUI's autosync loop relies on
+	// Unlike the other MCP tools above, the GUI's autosync loop relies on
 	// this pull to keep multi-user state fresh in near-real-time — do not
 	// disable it here (see api-autosync.ts).
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: true});
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -694,7 +700,7 @@ export const getGuiState = async (
 export const editIssueDescription = async (
 	input: EditIssueDescriptionInput,
 ) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -742,7 +748,7 @@ export const editIssueDescription = async (
 };
 
 export const editIssueTitle = async (input: EditIssueTitleInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -794,7 +800,7 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 };
 
 export const addIssueTag = async (input: AddIssueTagInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -857,7 +863,7 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 };
 
 export const removeIssueTag = async (input: RemoveIssueTagInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -900,7 +906,7 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 };
 
 export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -963,7 +969,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 };
 
 export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -1006,7 +1012,7 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 };
 
 export const addIssueComment = async (input: AddIssueCommentInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -1056,7 +1062,7 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 };
 
 export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -1122,7 +1128,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 };
 
 export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -1182,7 +1188,7 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 export const deleteIssueAttachment = async (
 	input: DeleteIssueAttachmentInput,
 ) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();

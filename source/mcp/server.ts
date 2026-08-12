@@ -258,7 +258,8 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_sync',
 		{
-			description: 'Sync Epiq state with the configured Git remote',
+			description:
+				'Sync Epiq state with the configured Git remote (pull remote changes and push local ones). Other Epiq MCP tools only read and write local state and never sync automatically — call this on demand when you need to see or publish the latest remote changes.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 			}),

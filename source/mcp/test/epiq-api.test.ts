@@ -299,18 +299,23 @@ describe('mcp tools', () => {
 		expect(pullCalls).toEqual([]);
 	});
 
-	it('pulls from remote before applying a write, e.g. creating an issue', async () => {
+	it('does not pull from remote when writing either, e.g. creating or tagging an issue (#80)', async () => {
 		await tools.createIssue({
 			repoRoot: '/repo',
 			title: 'New issue',
 			parentId: 'swimlane-1',
+		});
+		await tools.addIssueTag({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			tagName: 'urgent',
 		});
 
 		const pullCalls = vi
 			.mocked(gitUtilsModule.execGit)
 			.mock.calls.filter(([call]) => call.args.includes('pull'));
 
-		expect(pullCalls.length).toBeGreaterThan(0);
+		expect(pullCalls).toEqual([]);
 	});
 
 	it('lists swimlanes', async () => {
