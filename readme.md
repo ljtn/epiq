@@ -204,6 +204,29 @@ For clients that are configured by hand, add the following to the client's MCP c
 
 Once registered, agents can interact with your local Epiq instance through the MCP.
 
+### Sandboxed or network-restricted environments
+
+`npx -y -p epiq epiq-mcp` resolves the package against the npm registry **every time it starts**, even if it's already cached locally. In agent sandboxes with restricted network access, this can make the MCP server appear to hang — `npx` retries DNS resolution instead of failing fast, and there's no MCP-level error to explain why.
+
+If you're running Epiq's MCP server in such an environment, install it globally once and point your MCP config at the resolved executable directly, bypassing `npx` (and the registry lookup) entirely on every subsequent start:
+
+```bash
+npm install --global epiq
+which epiq-mcp   # use this absolute path in your MCP config
+```
+
+```json
+{
+	"mcpServers": {
+		"epiq": {
+			"command": "/absolute/path/to/epiq-mcp"
+		}
+	}
+}
+```
+
+`npx` remains the simpler option for normal, network-connected setups.
+
 ---
 
 ## How Epiq is synchronized
