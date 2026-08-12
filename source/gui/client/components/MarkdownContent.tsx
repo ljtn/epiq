@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactMarkdown, {type Components} from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 
@@ -71,7 +72,15 @@ const components: Components = {
 	),
 };
 
-export const MarkdownContent = ({content}: {content: string}) => (
+export const MarkdownContent = ({
+	content,
+	softBreaks = false,
+}: {
+	content: string;
+	// Treats single newlines as line breaks (like a chat message) instead of
+	// requiring a blank line for a new paragraph, per strict CommonMark.
+	softBreaks?: boolean;
+}) => (
 	<div
 		style={{
 			fontFamily: CONTENT_FONT,
@@ -79,9 +88,15 @@ export const MarkdownContent = ({content}: {content: string}) => (
 			lineHeight: 1.6,
 			color: GUI_THEME.primary,
 			wordBreak: 'break-word',
+			// Cancels the last block child's trailing bottom margin via
+			// collapsing, so the container doesn't end in dead whitespace.
+			marginBottom: -14,
 		}}
 	>
-		<ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+		<ReactMarkdown
+			remarkPlugins={softBreaks ? [remarkGfm, remarkBreaks] : [remarkGfm]}
+			components={components}
+		>
 			{content}
 		</ReactMarkdown>
 	</div>

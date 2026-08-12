@@ -4,6 +4,7 @@ import {Button} from './Button';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
+import {MarkdownContent} from './MarkdownContent';
 
 type Props = {
 	issueId: string;
@@ -56,7 +57,7 @@ export const IssueComments = ({
 									marginBottom: 8,
 								}}
 							>
-								<div style={{color: GUI_THEME.secondary, fontSize: 10}}>
+								<div style={{color: GUI_THEME.secondary, fontSize: 11}}>
 									{comment.author.name ?? 'unknown'}
 									{comment.createdAt && (
 										<span style={{color: GUI_THEME.dim2}}>
@@ -80,17 +81,7 @@ export const IssueComments = ({
 								)}
 							</div>
 
-							<div
-								style={{
-									whiteSpace: 'pre-wrap',
-									fontFamily: CONTENT_FONT,
-									fontSize: 13,
-									lineHeight: 1.5,
-									color: GUI_THEME.primary,
-								}}
-							>
-								{comment.body}
-							</div>
+							<MarkdownContent content={comment.body} softBreaks />
 						</div>
 					))}
 				</div>

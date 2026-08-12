@@ -66,6 +66,7 @@
 		"react-dom": "^19.2.6",
 		"react-markdown": "^10.1.0",
 		"react-router-dom": "^7.17.0",
+		"remark-breaks": "^4.0.0",
 		"remark-gfm": "^4.0.1",
 		"string-width": "^8.2.0",
 		"ulid": "^3.0.2",
