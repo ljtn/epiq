@@ -114,7 +114,7 @@ export const TicketCard = ({
 							WebkitBoxOrient: 'vertical',
 							overflow: 'hidden',
 							fontWeight: 400,
-							fontSize: 13,
+							fontSize: 12,
 							lineHeight: 1.35,
 							wordBreak: 'break-word',
 						}}
