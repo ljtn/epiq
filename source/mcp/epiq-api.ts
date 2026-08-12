@@ -147,7 +147,10 @@ const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	return succeeded('Resolved Epiq repo root', result.value);
 };
 
-const boot = async (repoRoot?: string): Promise<Result<BootResult>> => {
+const boot = async (
+	repoRoot?: string,
+	options?: {pull?: boolean},
+): Promise<Result<BootResult>> => {
 	const repoRootResult = resolveRepoRoot(repoRoot);
 	if (isFail(repoRootResult)) return repoRootResult;
 
@@ -171,13 +174,19 @@ const boot = async (repoRoot?: string): Promise<Result<BootResult>> => {
 		return failed(ensureWorktreeResult.message);
 	}
 
-	const pullResult = await execGit({
-		cwd: stateBranchRootResult.value,
-		args: ['pull', '--ff-only'],
-	});
+	// Reads default to local-only: pulling on every read makes latency and
+	// availability of every MCP call (including simple listings) depend on
+	// the remote, and a stuck pull can hang the whole server (see #80).
+	// Fetching remote state is explicit via the `sync` tool.
+	if (options?.pull ?? true) {
+		const pullResult = await execGit({
+			cwd: stateBranchRootResult.value,
+			args: ['pull', '--ff-only'],
+		});
 
-	if (isFail(pullResult)) {
-		logger.info(3, pullResult.message);
+		if (isFail(pullResult)) {
+			logger.info(3, pullResult.message);
+		}
 	}
 
 	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
@@ -238,7 +247,7 @@ const getIssueAssignees = (ticket: Ticket) =>
 		);
 
 export const listBoards = async (input: ToolInput = {}) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -258,7 +267,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 };
 
 export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -279,7 +288,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 };
 
 export const listIssues = async (input: ListIssuesInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -527,7 +536,7 @@ export const sync = async (input: SyncInput = {}) => {
 };
 
 export const getEpiqState = async (input: ToolInput = {}) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -547,6 +556,9 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 export const getGuiState = async (
 	input: ToolInput = {},
 ): Promise<Result<ApiState>> => {
+	// Unlike the read-only MCP tools above, the GUI's autosync loop relies on
+	// this pull to keep multi-user state fresh in near-real-time — do not
+	// disable it here (see api-autosync.ts).
 	const bootResult = await boot(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
@@ -1243,7 +1255,7 @@ export const deleteIssueAttachment = async (
  * blobs are untrusted input.
  */
 export const getAttachmentBlob = async (input: GetAttachmentBlobInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	return resolveAttachmentBlob(

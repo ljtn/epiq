@@ -254,12 +254,14 @@ vi.mock('../../lib/event/common-events.js', () => ({
 
 let tools: typeof import('../epiq-api.js');
 let persistModule: typeof import('../../lib/event/event-materialize-and-persist.js');
+let gitUtilsModule: typeof import('../../git/git-utils.js');
 
 beforeAll(async () => {
 	tools = await import('../epiq-api.js');
 	persistModule = await import(
 		'../../lib/event/event-materialize-and-persist.js'
 	);
+	gitUtilsModule = await import('../../git/git-utils.js');
 });
 
 describe('mcp tools', () => {
@@ -282,6 +284,33 @@ describe('mcp tools', () => {
 				},
 			]);
 		}
+	});
+
+	it('does not pull from remote when listing boards, swimlanes, issues, or state (#80)', async () => {
+		await tools.listBoards({repoRoot: '/repo'});
+		await tools.listSwimlanes({repoRoot: '/repo'});
+		await tools.listIssues({repoRoot: '/repo', includeClosed: false});
+		await tools.getEpiqState({repoRoot: '/repo'});
+
+		const pullCalls = vi
+			.mocked(gitUtilsModule.execGit)
+			.mock.calls.filter(([call]) => call.args.includes('pull'));
+
+		expect(pullCalls).toEqual([]);
+	});
+
+	it('pulls from remote before applying a write, e.g. creating an issue', async () => {
+		await tools.createIssue({
+			repoRoot: '/repo',
+			title: 'New issue',
+			parentId: 'swimlane-1',
+		});
+
+		const pullCalls = vi
+			.mocked(gitUtilsModule.execGit)
+			.mock.calls.filter(([call]) => call.args.includes('pull'));
+
+		expect(pullCalls.length).toBeGreaterThan(0);
 	});
 
 	it('lists swimlanes', async () => {
