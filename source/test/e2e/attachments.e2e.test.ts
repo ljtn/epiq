@@ -246,8 +246,11 @@ describe('issue attachments', () => {
 				// last row in the details tree — walk down and enter it
 				for (let i = 0; i < 5; i++) indicatorTui.input(ARROW_DOWN);
 				indicatorTui.input(ENTER);
-				const listFrame = await indicatorTui.waitFor('enter to open', 8_000);
-				expect(listFrame).toContain('screenshot.png');
+				// Wait for the actual row, not just the static "enter to open"
+				// header — the header can paint a frame before the attachment
+				// list itself finishes rendering.
+				const listFrame = await indicatorTui.waitFor('screenshot.png', 8_000);
+				expect(listFrame).toContain('enter to open');
 
 				// enter delegates to the system opener; the TUI must stay alive
 				// even where no opener exists (this container)
