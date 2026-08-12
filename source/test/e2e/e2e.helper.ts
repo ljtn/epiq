@@ -42,6 +42,24 @@ type TuiSession = {
 	destroy: () => void;
 };
 
+// Isolated per test file (vitest forks/isolates each file into its own
+// process), so all `setupTui()` calls in one file share this global dir, but
+// concurrently-running files never touch each other's real or simulated
+// `~/.epiq-global`. Without this, every e2e process shared the developer's
+// or CI runner's actual `~/.epiq-global`, so parallel files raced on the same
+// global config/worktrees — the likely cause of the flaky ":init" timing and
+// stray "not an epiq project yet" failures under CI load. Deliberately does
+// NOT override HOME itself: git/ssh still need the real `~/.gitconfig` (user
+// identity) to create commits.
+const isolatedGlobalDir = fs.mkdtempSync(
+	path.join(os.tmpdir(), 'epiq-e2e-global-'),
+);
+
+// Set on the worker's own env (not just the spawned TUI child's) so test
+// files that call epiq-api.js functions directly in-process — e.g. to
+// inspect state a TUI session just wrote — see the same isolated global dir.
+process.env['EPIQ_GLOBAL_DIR'] = isolatedGlobalDir;
+
 const createTuiEnv = (extra: Record<string, string> = {}) => {
 	const env = {...process.env};
 

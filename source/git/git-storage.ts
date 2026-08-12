@@ -21,7 +21,11 @@ export const getRelativeEventFilePath = (fileName: string): string =>
 export const getRelativeMediaDirPath = (): string =>
 	path.join(EPIQ_DIR_NAME, MEDIA_DIR_NAME);
 
+// Not delegated to paths.ts's getGlobalConfigDir to avoid a circular import
+// (paths.ts already imports from this module). Keep the env override logic
+// in sync with paths.ts if it ever changes.
 export const getEpiqGlobal = (): string =>
+	process.env['EPIQ_GLOBAL_DIR'] ??
 	path.join(os.homedir(), GLOBAL_CONFIG_DIR_NAME);
 
 export const getWorktreesRoot = (): string =>

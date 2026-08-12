@@ -1,7 +1,6 @@
-import os from 'node:os';
 import path from 'node:path';
 import {z} from 'zod';
-import {GLOBAL_CONFIG_DIR_NAME} from '../storage/paths.js';
+import {GLOBAL_CONFIG_DIR_NAME, getGlobalConfigDir} from '../storage/paths.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {SettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
@@ -31,8 +30,7 @@ export type EpiqConfig = z.infer<typeof EpiqConfigSchema>;
 
 const CONFIG_FILE_NAME = 'config.json';
 
-export const getEpiqHomePath = (): string =>
-	path.join(os.homedir(), GLOBAL_CONFIG_DIR_NAME);
+export const getEpiqHomePath = getGlobalConfigDir;
 
 export const getEpiqConfigPath = (): string =>
 	path.join(getEpiqHomePath(), CONFIG_FILE_NAME);

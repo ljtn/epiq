@@ -25,6 +25,7 @@ vi.mock('../lib/storage/paths.js', () => ({
 			value: '/repo/.epiq',
 		}),
 	),
+	getGlobalConfigDir: vi.fn(() => '/home/test/.epiq-global'),
 }));
 
 vi.mock('../lib/repository/node-repo.js', () => ({
