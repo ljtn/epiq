@@ -541,7 +541,7 @@ export const moveIssue = async (
 };
 
 export const createSwimlane = async (input: CreateSwimlaneInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -592,7 +592,7 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 };
 
 export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -694,7 +694,7 @@ export const moveSwimlane = async (
 };
 
 export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
-	const bootResult = await boot(input.repoRoot);
+	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();

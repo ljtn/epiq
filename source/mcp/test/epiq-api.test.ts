@@ -369,6 +369,164 @@ describe('mcp tools', () => {
 		}
 	});
 
+	it('creates a swimlane on a board', async () => {
+		const result = await tools.createSwimlane({
+			repoRoot: '/repo',
+			boardId: 'board-1',
+			title: 'Backlog',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({
+				id: expect.any(String),
+				title: 'Backlog',
+				boardId: 'board-1',
+			});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'add.swimlane',
+					payload: expect.objectContaining({
+						name: 'Backlog',
+						parent: 'board-1',
+						rank: expect.any(String),
+					}),
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails creating a swimlane when the target parent is not a board', async () => {
+		const result = await tools.createSwimlane({
+			repoRoot: '/repo',
+			boardId: 'swimlane-1',
+			title: 'Backlog',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Target parent must be a board');
+		}
+	});
+
+	it('edits a swimlane title', async () => {
+		const result = await tools.editSwimlaneTitle({
+			repoRoot: '/repo',
+			swimlaneId: 'swimlane-1',
+			title: 'In review',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({id: 'swimlane-1', title: 'In review'});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'edit.title',
+					payload: {id: 'swimlane-1', name: 'In review'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails editing a readonly swimlane title', async () => {
+		const result = await tools.editSwimlaneTitle({
+			repoRoot: '/repo',
+			swimlaneId: 'readonly-swimlane',
+			title: 'Renamed',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Cannot edit readonly swimlane');
+		}
+	});
+
+	it('fails editing a swimlane title when target is not a swimlane', async () => {
+		const result = await tools.editSwimlaneTitle({
+			repoRoot: '/repo',
+			swimlaneId: 'issue-1',
+			title: 'Renamed',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Edit target must be a swimlane');
+		}
+	});
+
+	it('moves a swimlane to another board', async () => {
+		const result = await tools.moveSwimlane({
+			repoRoot: '/repo',
+			swimlaneId: 'swimlane-1',
+			boardId: 'board-2',
+			position: {at: 'start'},
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({
+				id: 'swimlane-1',
+				boardId: 'board-2',
+			});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'move.node',
+					payload: expect.objectContaining({
+						id: 'swimlane-1',
+						parent: 'board-2',
+						rank: expect.any(String),
+					}),
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('deletes a swimlane', async () => {
+		const result = await tools.deleteSwimlane({
+			repoRoot: '/repo',
+			swimlaneId: 'swimlane-2',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({id: 'swimlane-2'});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'delete.node',
+					payload: {id: 'swimlane-2'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('fails deleting a swimlane when target is not a swimlane', async () => {
+		const result = await tools.deleteSwimlane({
+			repoRoot: '/repo',
+			swimlaneId: 'issue-1',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Delete target must be a swimlane');
+		}
+	});
+
 	it('lists issues', async () => {
 		const result = await tools.listIssues({
 			repoRoot: '/repo',
