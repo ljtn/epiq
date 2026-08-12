@@ -1,3 +1,8 @@
+// UI chrome (labels, buttons, tags) stays monospace to match the rest of the
+// app; prose content (description, title, comments) uses this for readability.
+export const CONTENT_FONT =
+	'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
 export const GUI_THEME = {
 	bg: '#06070a',
 	bgHighlight: '#10111a65',

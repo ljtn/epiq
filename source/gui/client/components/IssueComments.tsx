@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
@@ -83,6 +83,8 @@ export const IssueComments = ({
 							<div
 								style={{
 									whiteSpace: 'pre-wrap',
+									fontFamily: CONTENT_FONT,
+									fontSize: 13,
 									lineHeight: 1.5,
 									color: GUI_THEME.primary,
 								}}
@@ -106,7 +108,12 @@ export const IssueComments = ({
 								addComment();
 							}
 						}}
-						style={{minHeight: 45}}
+						style={{
+							minHeight: 45,
+							font: 'inherit',
+							fontFamily: CONTENT_FONT,
+							fontSize: 13,
+						}}
 					/>
 
 					<ActionRow>

@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
+import {ASIDE_WIDTH} from './components/Aside';
 import {Button} from './components/Button';
 import {CreateIssueModal} from './components/CreateIssueModal';
 import {Dropdown} from './components/Dropdown';
@@ -589,6 +590,17 @@ export const App = () => {
 								onDragLeave={clearDragState}
 							/>
 						))}
+
+						{/* Invisible spacer, only present while the panel is closed, so
+							`main`'s scrollWidth grows by exactly what its clientWidth
+							gained by reclaiming the panel's space — keeping the max
+							scrollLeft identical across open/closed and avoiding the
+							clamp-triggered "bounce back" when scrolled far right. It
+							never reduces the board's real width the way reserving box
+							space in the flex row would. */}
+						{!(selectedIssue && state?.user) && (
+							<div style={{width: ASIDE_WIDTH, flexShrink: 0}} />
+						)}
 					</div>
 				</main>
 

@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import React, {useEffect, useRef, useState} from 'react';
+import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 import {
 	GuiUser,
 	GuiIssue,
@@ -21,6 +21,7 @@ import {
 } from './FormPrimitives';
 import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
 import {IssueComments} from './IssueComments';
+import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 
@@ -81,6 +82,20 @@ export const IssueDetails = ({
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [addingTag, setAddingTag] = useState(false);
 	const [addingAssignee, setAddingAssignee] = useState(false);
+	const panelRef = useRef<HTMLElement | null>(null);
+
+	useEffect(() => {
+		if (!issue) return;
+
+		const handleClickOutside = (event: MouseEvent) => {
+			if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+				onClose();
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, [issue, onClose]);
 
 	useEffect(() => {
 		setTitle(issue?.title ?? '');
@@ -96,8 +111,8 @@ export const IssueDetails = ({
 	const disabled = !issue || issue.readonly;
 
 	const tabs: TabItem<IssueDetailsTab>[] = [
-		{id: 'overview', label: 'overview'},
-		{id: 'comments', label: 'comments', count: comments.length},
+		{id: 'overview', label: 'Overview'},
+		{id: 'comments', label: 'Comments', count: comments.length},
 	];
 
 	const saveTitle = () => {
@@ -163,7 +178,7 @@ export const IssueDetails = ({
 	);
 
 	return (
-		<Aside>
+		<Aside ref={panelRef}>
 			{issue ? (
 				<>
 					<FormHeader>
@@ -212,6 +227,7 @@ export const IssueDetails = ({
 												if (event.key === 'Enter') saveTitle();
 												if (event.key === 'Escape') cancelTitle();
 											}}
+											style={{font: 'inherit', fontFamily: CONTENT_FONT}}
 										/>
 
 										<ActionRow>
@@ -226,7 +242,8 @@ export const IssueDetails = ({
 										style={{
 											marginTop: 8,
 											color: GUI_THEME.primary,
-											fontSize: 12,
+											fontFamily: CONTENT_FONT,
+											fontSize: 13,
 											lineHeight: 1.45,
 											wordBreak: 'break-word',
 										}}
@@ -266,6 +283,13 @@ export const IssueDetails = ({
 													saveDescription();
 												}
 											}}
+											style={{
+												font: 'inherit',
+												fontFamily: CONTENT_FONT,
+												fontSize: 13,
+												maxHeight: 320,
+												overflowY: 'auto',
+											}}
 										/>
 
 										<ActionRow>
@@ -276,19 +300,18 @@ export const IssueDetails = ({
 										</ActionRow>
 									</>
 								) : issue.description ? (
-									<p
+									<div
 										style={{
-											lineHeight: 1.55,
-											whiteSpace: 'pre-wrap',
-											margin: '8px 0 0',
+											marginTop: 8,
 											padding: '12px 16px',
+											maxHeight: 320,
+											overflowY: 'auto',
 											background: 'rgba(0, 0, 0, 0.22)',
 											borderRadius: 8,
-											color: GUI_THEME.primary,
 										}}
 									>
-										{issue.description}
-									</p>
+										<MarkdownContent content={issue.description} />
+									</div>
 								) : (
 									<Empty>No description</Empty>
 								)}
