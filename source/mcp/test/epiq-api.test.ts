@@ -202,6 +202,34 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		rank: 'a0',
 		props: {description: '', tags: [], assignees: []},
 	},
+	'deleted-board': {
+		id: 'deleted-board',
+		title: 'Deleted board',
+		context: 'BOARD',
+		parentNodeId: 'workspace-1',
+		readonly: false,
+		isDeleted: true,
+		rank: 'c0',
+	},
+	'deleted-swimlane': {
+		id: 'deleted-swimlane',
+		title: 'Deleted swimlane',
+		context: 'SWIMLANE',
+		parentNodeId: 'board-1',
+		readonly: false,
+		isDeleted: true,
+		rank: 'd0',
+	},
+	'deleted-issue': {
+		id: 'deleted-issue',
+		title: 'Deleted issue',
+		context: 'TICKET',
+		parentNodeId: 'swimlane-1',
+		readonly: false,
+		isDeleted: true,
+		rank: 'e0',
+		props: {description: '', tags: [], assignees: []},
+	},
 };
 
 vi.mock('../../lib/state/state.js', async importOriginal => {
@@ -551,6 +579,30 @@ describe('mcp tools', () => {
 					}),
 				]),
 			);
+		}
+	});
+
+	it('excludes deleted (tombstoned) nodes from boards, swimlanes, and issues', async () => {
+		const boards = await tools.listBoards({repoRoot: '/repo'});
+		const swimlanes = await tools.listSwimlanes({repoRoot: '/repo'});
+		const issues = await tools.listIssues({
+			repoRoot: '/repo',
+			includeClosed: true,
+		});
+
+		expect(isFail(boards)).toBe(false);
+		expect(isFail(swimlanes)).toBe(false);
+		expect(isFail(issues)).toBe(false);
+		if (!isFail(boards)) {
+			expect(boards.value.some(b => b.id === 'deleted-board')).toBe(false);
+		}
+		if (!isFail(swimlanes)) {
+			expect(swimlanes.value.some(s => s.id === 'deleted-swimlane')).toBe(
+				false,
+			);
+		}
+		if (!isFail(issues)) {
+			expect(issues.value.some(i => i.id === 'deleted-issue')).toBe(false);
 		}
 	});
 

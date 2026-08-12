@@ -277,7 +277,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 	if (isFail(stateResult)) return stateResult;
 
 	const boards = Object.values(stateResult.value.nodes)
-		.filter(n => n.context === 'BOARD')
+		.filter(n => n.context === 'BOARD' && !n.isDeleted)
 		.map(n => ({
 			id: n.id,
 			ref: nodeRef(n.id),
@@ -297,7 +297,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 	if (isFail(stateResult)) return stateResult;
 
 	const swimlanes = Object.values(stateResult.value.nodes)
-		.filter(n => n.context === 'SWIMLANE')
+		.filter(n => n.context === 'SWIMLANE' && !n.isDeleted)
 		.filter(n => !input.boardId || n.parentNodeId === input.boardId)
 		.map(n => ({
 			id: n.id,
@@ -321,6 +321,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 
 	const issues: ApiIssue[] = Object.values(nodes)
 		.filter(isTicketNode)
+		.filter(n => !n.isDeleted)
 		.filter(n => input.includeClosed || n.parentNodeId !== CLOSED_SWIMLANE_ID)
 		.filter(n => {
 			if (!input.boardId) return true;
