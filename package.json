@@ -1,6 +1,6 @@
 {
 	"name": "epiq",
-	"version": "1.3.4",
+	"version": "1.3.5",
 	"license": "MIT",
 	"type": "module",
 	"description": "EPIQ - ergonomic, distributed CLI-first issue tracker TUI ready for the agentic era",
