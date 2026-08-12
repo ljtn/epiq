@@ -604,7 +604,8 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 	const swimlane = stateResult.value.nodes[input.swimlaneId];
 
 	if (!swimlane) return failed('Swimlane not found');
-	if (!isSwimlaneNode(swimlane)) return failed('Edit target must be a swimlane');
+	if (!isSwimlaneNode(swimlane))
+		return failed('Edit target must be a swimlane');
 	if (swimlane.readonly) return failed('Cannot edit readonly swimlane');
 
 	const title = sanitizeInlineText(input.title);
