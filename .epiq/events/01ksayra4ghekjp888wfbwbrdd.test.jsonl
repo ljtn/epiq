@@ -269,3 +269,5 @@
 {"v":1,"id":["01KZQWEP0MAG9X4C4R01DHDZ0M","01KZQV4WE3HF9CD1ADSRQA3FE4"],"move.node":{"id":"01KZQV3M4N5W5CG103ZV6RRWJ4","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffdfffffffffffffffff"}}
 {"v":1,"id":["01KZQWF01V73T6R9STEDE7TSFW","01KZQWEP0MAG9X4C4R01DHDZ0M"],"move.node":{"id":"01KZQV3PA188H4XYFRRF0TX6TH","parent":"01KS22YK95S3336MFSE44MY70S","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01KZQY1ZSG3ZHY7FJB5FR7FWV8","01KZQWF01V73T6R9STEDE7TSFW"],"move.node":{"id":"01KZQV3PA188H4XYFRRF0TX6TH","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffefffffffffffffffff"}}
+{"v":1,"id":["01KZVQ1HEG5SMKZ3ZNEE0Q1Q0G","01KZQY1ZSG3ZHY7FJB5FR7FWV8"],"add.issue":{"id":"01KZVQ1HECXT51CFMKEC9F1ZQW","parent":"01KS22YK95S3336MFSE44MY70R","name":"MCP read calls can hang the server via implicit git pull SSH auth (GH #80)","rank":"ff7fffffffffffffffffffff"}}
+{"v":1,"id":["01KZVQ1JA5847VJZ7X5RA5WX1A","01KZVQ1HEG5SMKZ3ZNEE0Q1Q0G"],"add.issue":{"id":"01KZVQ1JA2EZ0AYQJGGKDDZY3H","parent":"01KS22YK95S3336MFSE44MY70R","name":"Document/fix registry-independent MCP launcher for restricted envs (GH #79)","rank":"ffbfffffffffffffffffffff"}}
