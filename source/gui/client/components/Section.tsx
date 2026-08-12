@@ -14,7 +14,7 @@ export const Section = ({
 }) => (
 	<section
 		style={{
-			padding: first ? '0px 0 14px 0' : '14px 0',
+			padding: first ? '0px 0 20px 0' : '20px 0',
 			borderTop: first ? 'none' : `1px solid ${GUI_THEME.line}`,
 		}}
 	>

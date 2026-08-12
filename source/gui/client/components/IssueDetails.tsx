@@ -83,6 +83,18 @@ export const IssueDetails = ({
 	const [addingTag, setAddingTag] = useState(false);
 	const [addingAssignee, setAddingAssignee] = useState(false);
 	const panelRef = useRef<HTMLElement | null>(null);
+	const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+	const resizeTitleTextarea = () => {
+		const el = titleTextareaRef.current;
+		if (!el) return;
+		el.style.height = 'auto';
+		el.style.height = `${el.scrollHeight}px`;
+	};
+
+	useEffect(() => {
+		if (editingTitle) resizeTitleTextarea();
+	}, [editingTitle]);
 
 	useEffect(() => {
 		if (!issue) return;
@@ -198,62 +210,68 @@ export const IssueDetails = ({
 						</Button>
 					</FormHeader>
 
+					{editingTitle ? (
+						<textarea
+							ref={titleTextareaRef}
+							value={title}
+							autoFocus
+							rows={1}
+							onChange={event => {
+								setTitle(event.target.value);
+								resizeTitleTextarea();
+							}}
+							onKeyDown={event => {
+								if (event.key === 'Enter') {
+									event.preventDefault();
+									event.currentTarget.blur();
+								}
+								if (event.key === 'Escape') cancelTitle();
+							}}
+							onBlur={saveTitle}
+							style={{
+								display: 'block',
+								width: '100%',
+								boxSizing: 'border-box',
+								resize: 'none',
+								overflow: 'hidden',
+								background: GUI_THEME.bg,
+								color: GUI_THEME.primary,
+								border: `1px solid ${GUI_THEME.line}`,
+								borderRadius: 8,
+								padding: '6px 10px',
+								outline: 'none',
+								font: 'inherit',
+								fontFamily: CONTENT_FONT,
+								fontSize: 18,
+								fontWeight: 600,
+								lineHeight: 1.35,
+								marginBottom: 18,
+							}}
+						/>
+					) : (
+						<div
+							onClick={() => !issue.readonly && setEditingTitle(true)}
+							style={{
+								marginBottom: 18,
+								color: GUI_THEME.primary,
+								fontFamily: CONTENT_FONT,
+								fontSize: 18,
+								fontWeight: 600,
+								lineHeight: 1.35,
+								wordBreak: 'break-word',
+								cursor: issue.readonly ? 'default' : 'text',
+							}}
+						>
+							{issue.title}
+						</div>
+					)}
+
 					<Tabs tabs={tabs} activeTab={activeTab} onChange={onChangeTab} />
 
 					{activeTab === 'overview' && (
 						<>
 							<Section
 								first={true}
-								title="Title"
-								action={
-									!issue.readonly &&
-									!editingTitle && (
-										<Button
-											variant="ghost"
-											onClick={() => setEditingTitle(true)}
-										>
-											edit
-										</Button>
-									)
-								}
-							>
-								{editingTitle ? (
-									<>
-										<Input
-											value={title}
-											autoFocus
-											onChange={event => setTitle(event.target.value)}
-											onKeyDown={event => {
-												if (event.key === 'Enter') saveTitle();
-												if (event.key === 'Escape') cancelTitle();
-											}}
-											style={{font: 'inherit', fontFamily: CONTENT_FONT}}
-										/>
-
-										<ActionRow>
-											<Button onClick={saveTitle}>save</Button>
-											<Button variant="ghost" onClick={cancelTitle}>
-												cancel
-											</Button>
-										</ActionRow>
-									</>
-								) : (
-									<div
-										style={{
-											marginTop: 8,
-											color: GUI_THEME.primary,
-											fontFamily: CONTENT_FONT,
-											fontSize: 13,
-											lineHeight: 1.45,
-											wordBreak: 'break-word',
-										}}
-									>
-										{issue.title}
-									</div>
-								)}
-							</Section>
-
-							<Section
 								title="Description"
 								action={
 									!issue.readonly &&
@@ -306,7 +324,7 @@ export const IssueDetails = ({
 											padding: '12px 16px',
 											maxHeight: 320,
 											overflowY: 'auto',
-											background: 'rgba(0, 0, 0, 0.22)',
+											background: GUI_THEME.tertiary,
 											borderRadius: 8,
 										}}
 									>

@@ -4,22 +4,22 @@ import remarkGfm from 'remark-gfm';
 import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 
 const components: Components = {
-	p: ({children}) => <p style={{margin: '0 0 10px'}}>{children}</p>,
+	p: ({children}) => <p style={{margin: '0 0 14px'}}>{children}</p>,
 	ul: ({children}) => (
-		<ul style={{margin: '0 0 10px', paddingLeft: 20}}>{children}</ul>
+		<ul style={{margin: '0 0 14px', paddingLeft: 20}}>{children}</ul>
 	),
 	ol: ({children}) => (
-		<ol style={{margin: '0 0 10px', paddingLeft: 20}}>{children}</ol>
+		<ol style={{margin: '0 0 14px', paddingLeft: 20}}>{children}</ol>
 	),
 	li: ({children}) => <li style={{margin: '2px 0'}}>{children}</li>,
 	h1: ({children}) => (
-		<h1 style={{fontSize: 16, margin: '0 0 10px'}}>{children}</h1>
+		<h1 style={{fontSize: 16, margin: '0 0 14px'}}>{children}</h1>
 	),
 	h2: ({children}) => (
-		<h2 style={{fontSize: 14, margin: '0 0 10px'}}>{children}</h2>
+		<h2 style={{fontSize: 14, margin: '0 0 14px'}}>{children}</h2>
 	),
 	h3: ({children}) => (
-		<h3 style={{fontSize: 13, margin: '0 0 10px'}}>{children}</h3>
+		<h3 style={{fontSize: 13, margin: '0 0 14px'}}>{children}</h3>
 	),
 	a: ({children, href}) => (
 		<a
@@ -34,7 +34,7 @@ const components: Components = {
 	blockquote: ({children}) => (
 		<blockquote
 			style={{
-				margin: '0 0 10px',
+				margin: '0 0 14px',
 				paddingLeft: 12,
 				borderLeft: `2px solid ${GUI_THEME.line}`,
 				color: GUI_THEME.secondary,
@@ -51,7 +51,7 @@ const components: Components = {
 					fontFamily:
 						'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
 					fontSize: isBlock ? 12 : '0.9em',
-					background: GUI_THEME.tertiary,
+					background: GUI_THEME.bg,
 					borderRadius: 4,
 					padding: isBlock ? '10px 12px' : '1px 5px',
 					display: isBlock ? 'block' : 'inline',
@@ -63,7 +63,7 @@ const components: Components = {
 			</code>
 		);
 	},
-	pre: ({children}) => <pre style={{margin: '0 0 10px'}}>{children}</pre>,
+	pre: ({children}) => <pre style={{margin: '0 0 14px'}}>{children}</pre>,
 	hr: () => (
 		<hr
 			style={{border: 'none', borderTop: `1px solid ${GUI_THEME.line}`, margin: '12px 0'}}
