@@ -77,6 +77,15 @@ type PeriodRange = {start: number; end: number};
 // visual thumb still tracks every pointer move locally.
 const SCRUB_THROTTLE_MS = 120;
 
+// "Volume" mode is a slim density strip — height doesn't matter, there's no
+// second axis. "Time" mode plots individual points by exact moment (x) *and*
+// time-of-day (y, see hourFractionForTime below), so it needs real vertical
+// room to read as a spread rather than a smear. Both tracks animate between
+// the two on mode switch rather than snapping.
+const TRACK_HEIGHT_VOLUME = 24;
+const TRACK_HEIGHT_TIME = 110;
+const TRACK_HEIGHT_TRANSITION = 'height 260ms ease';
+
 // Width of the floating hover-hint tooltip, used both to render it and to
 // clamp its position so it never overflows past the track's edges. Wraps to
 // multiple lines rather than truncating, so wide enough to keep that from
@@ -86,10 +95,13 @@ const HOVER_HINT_WIDTH = 220;
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(max, Math.max(min, value));
 
+// Outline rather than filled — a solid accent block per active toggle reads
+// as heavy with this many buttons in one row; border + text color is enough
+// to show selection (matches the "Return to live" button's own style).
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
-	background: active ? GUI_THEME.accent : 'transparent',
+	background: 'transparent',
 	border: `1px solid ${active ? GUI_THEME.accent : GUI_THEME.dim}`,
-	color: active ? GUI_THEME.bg : GUI_THEME.dim,
+	color: active ? GUI_THEME.accent : GUI_THEME.dim,
 	borderRadius: 6,
 	fontSize: 10,
 	padding: '2px 8px',
@@ -194,6 +206,10 @@ export const TimeScrubber = ({
 	const [collapsed, setCollapsed] = useState(
 		() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true',
 	);
+	// Which data series to draw — a pure display filter, doesn't affect what's
+	// fetched or the scrub/needle mechanics.
+	const [showIssues, setShowIssues] = useState(true);
+	const [showCommits, setShowCommits] = useState(true);
 
 	const toggleCollapsed = () => {
 		setCollapsed(next => {
@@ -283,6 +299,18 @@ export const TimeScrubber = ({
 	// time (the "real" layout's coordinate system).
 	const realFractionForTime = (time: number) =>
 		clamp((time - earliest) / span, 0, 1);
+
+	// "Time" mode's y-axis: where in the 24-hour cycle a moment falls, 0 (0:00,
+	// top) to just under 1 (23:59, bottom) — so noon sits at the vertical
+	// center. Applied identically to both tracks (same scale, see
+	// TRACK_HEIGHT_TIME), so a board event and a commit at the same hour of
+	// day land at the same height even though they're in separate boxes —
+	// letting you visually compare when in the day each kind of activity
+	// tends to happen.
+	const hourFractionForTime = (time: number) => {
+		const date = new Date(time);
+		return (date.getHours() * 60 + date.getMinutes()) / (24 * 60);
+	};
 
 	// Position of the frame nearest a given time, centered in its equal-width
 	// slot (the "even" layout's coordinate system).
@@ -609,19 +637,60 @@ export const TimeScrubber = ({
 
 							<div style={{display: 'flex', gap: 4}}>
 								<button
-									title="Every change gets an equal-width frame — no empty gaps for quiet stretches"
+									title="How much happened, per equal-width period — no empty gaps for quiet stretches"
 									onClick={() => setLayoutMode('even')}
 									style={toggleButtonStyle(layoutMode === 'even')}
 								>
-									Frames
+									Volume
 								</button>
 								<button
-									title="Frames positioned by actual elapsed time"
+									title="Individual points by exact moment — x is elapsed time, y is time of day"
 									onClick={() => setLayoutMode('real')}
 									style={toggleButtonStyle(layoutMode === 'real')}
 								>
 									Time
 								</button>
+							</div>
+
+							{/* Which data series to draw — a pure display filter, doesn't
+							    change what's fetched. */}
+							<div style={{display: 'flex', gap: 10}}>
+								<label
+									style={{
+										display: 'flex',
+										alignItems: 'center',
+										gap: 4,
+										fontSize: 10,
+										color: GUI_THEME.dim,
+										cursor: 'pointer',
+									}}
+								>
+									<input
+										type="checkbox"
+										checked={showIssues}
+										onChange={event => setShowIssues(event.target.checked)}
+										style={{accentColor: GUI_THEME.accent, cursor: 'pointer'}}
+									/>
+									Epiq
+								</label>
+								<label
+									style={{
+										display: 'flex',
+										alignItems: 'center',
+										gap: 4,
+										fontSize: 10,
+										color: GUI_THEME.dim,
+										cursor: 'pointer',
+									}}
+								>
+									<input
+										type="checkbox"
+										checked={showCommits}
+										onChange={event => setShowCommits(event.target.checked)}
+										style={{accentColor: GUI_THEME.green, cursor: 'pointer'}}
+									/>
+									Code
+								</label>
 							</div>
 
 							<div
@@ -682,7 +751,11 @@ export const TimeScrubber = ({
 							style={{
 								position: 'relative',
 								width: '100%',
-								height: 24,
+								height:
+									layoutMode === 'even'
+										? TRACK_HEIGHT_VOLUME
+										: TRACK_HEIGHT_TIME,
+								transition: TRACK_HEIGHT_TRANSITION,
 								cursor: 'pointer',
 								display: 'flex',
 								alignItems: 'center',
@@ -733,10 +806,12 @@ export const TimeScrubber = ({
 								</div>
 							)}
 
-							{/* Track line — a floor for the "Frames" stacked-bar look, an axis
-					    line running through the middle of the "Timeline" dots. Same
-					    treatment (accent color, low opacity) as the code track's own
-					    baseline below, so the two read as one paired axis. */}
+							{/* Track line — a floor for "Volume" mode's stacked-bar look; in
+					    "Time" mode it falls at the vertical center by virtue of the
+					    track's own flex-centering, which — since y spans 0:00 to
+					    23:59 top-to-bottom — lands it exactly on noon. Same treatment
+					    (accent color, low opacity) as the code track's own baseline
+					    below, so the two read as one paired axis. */}
 							<div
 								style={{
 									position: 'absolute',
@@ -750,108 +825,275 @@ export const TimeScrubber = ({
 								}}
 							/>
 
+							{/* y-axis reference labels for "Time" mode's hour-of-day scale —
+					    unobtrusive, just enough to anchor what the vertical spread
+					    means. Matches the commit track's own labels below. */}
+							{layoutMode === 'real' && (
+								<>
+									<span
+										style={{
+											position: 'absolute',
+											left: 2,
+											top: 2,
+											fontSize: 9,
+											color: GUI_THEME.dim,
+											pointerEvents: 'none',
+										}}
+									>
+										00:00
+									</span>
+									<span
+										style={{
+											position: 'absolute',
+											left: 2,
+											top: '50%',
+											transform: 'translateY(-50%)',
+											fontSize: 9,
+											color: GUI_THEME.dim,
+											pointerEvents: 'none',
+										}}
+									>
+										12:00
+									</span>
+									<span
+										style={{
+											position: 'absolute',
+											left: 2,
+											bottom: 2,
+											fontSize: 9,
+											color: GUI_THEME.dim,
+											pointerEvents: 'none',
+										}}
+									>
+										24:00
+									</span>
+								</>
+							)}
+
 							{/* Frames — one per non-empty bucket, opacity/size scaled by count.
 					    "even" lays them out as contiguous equal-width blocks; "real"
 					    positions them (as small dots) proportionally to elapsed time. */}
-							{frames.map((bucket, index) => {
-								const intensity = bucket.count / maxCount;
-								const interval = formatInterval(
-									bucket.t,
-									bucket.t + (timeline?.bucketMs ?? 0),
-								);
-								const label = `${bucket.count} change${
-									bucket.count === 1 ? '' : 's'
-								}, ${interval}`;
-								const centerFraction =
-									layoutMode === 'even'
-										? (index + 0.5) / frames.length
-										: realFractionForTime(bucket.t);
+							{showIssues &&
+								frames.map((bucket, index) => {
+									const intensity = bucket.count / maxCount;
+									const interval = formatInterval(
+										bucket.t,
+										bucket.t + (timeline?.bucketMs ?? 0),
+									);
+									const label = `${bucket.count} change${
+										bucket.count === 1 ? '' : 's'
+									}, ${interval}`;
+									const centerFraction =
+										layoutMode === 'even'
+											? (index + 0.5) / frames.length
+											: realFractionForTime(bucket.t);
 
-								const commonProps = {
-									title: label,
-									onMouseEnter: () => {
-										setHoverLabel({time: interval, count: bucket.count});
-										setHoveredFrameTime(bucket.t);
-										setHoveredFrameFraction(centerFraction);
-									},
-									onMouseLeave: () => {
-										setHoverLabel(null);
-										setHoveredFrameTime(null);
-										setHoveredFrameFraction(null);
-									},
-								};
+									const commonProps = {
+										title: label,
+										onMouseEnter: () => {
+											setHoverLabel({time: interval, count: bucket.count});
+											setHoveredFrameTime(bucket.t);
+											setHoveredFrameFraction(centerFraction);
+										},
+										onMouseLeave: () => {
+											setHoverLabel(null);
+											setHoveredFrameTime(null);
+											setHoveredFrameFraction(null);
+										},
+									};
 
-								if (layoutMode === 'even') {
-									const widthPercent = 100 / frames.length;
+									if (layoutMode === 'even') {
+										const widthPercent = 100 / frames.length;
+
+										return (
+											// Hit-target spans the full track height, not just the bar's
+											// rendered height — a short/low-intensity bar would otherwise
+											// need pixel-precise aim to hover. Background tints on hover so
+											// the whole column reads as the hit target, not just the bar.
+											<div
+												key={bucket.t}
+												{...commonProps}
+												style={{
+													position: 'absolute',
+													left: `${index * widthPercent}%`,
+													top: 0,
+													bottom: 0,
+													width: `calc(${widthPercent}% - 1px)`,
+													background:
+														hoveredFrameTime === bucket.t
+															? 'rgba(255, 255, 255, 0.06)'
+															: 'transparent',
+													pointerEvents: 'auto',
+												}}
+											>
+												{/* A synthesized placeholder bucket (see the `frames`
+											    comment above) or any other genuinely zero-activity
+											    slot renders no bar at all — invisible, not just tiny —
+											    while the hit-target div above still covers it, so
+											    hovering still surfaces its date and "0 changes". */}
+												{bucket.count > 0 && (
+													<div
+														style={{
+															position: 'absolute',
+															left: 0,
+															right: 0,
+															bottom: 0,
+															// Bottom-anchored so height reads as a stacked-bar chart
+															// — how much happened at that point in time — rather
+															// than a centered blip.
+															height: 3 + intensity * 21,
+															borderRadius: '1px 1px 0 0',
+															background: GUI_THEME.accent,
+															opacity: 0.35 + intensity * 0.65,
+															pointerEvents: 'none',
+														}}
+													/>
+												)}
+											</div>
+										);
+									}
+
+									// A synthesized placeholder bucket (see the `frames` comment
+									// above) has no real activity to plot — unlike "Volume" mode's
+									// contiguous columns, there's no reasonably-sized invisible
+									// hit-target to give it here, so it's simplest to just skip it
+									// rather than render a fake data point.
+									if (bucket.count === 0) return null;
+
+									// "Time" mode plots each bucket as a point in 2D: x is when
+									// in the project's history it happened (elapsed time), y is
+									// what time of day it happened — the same hour-of-day scale
+									// the commit track below uses, so the two are comparable.
+									const fraction = realFractionForTime(bucket.t);
+									const hourFraction = hourFractionForTime(bucket.t);
+									const size = 4 + intensity * 10;
 
 									return (
-										// Hit-target spans the full track height, not just the bar's
-										// rendered height — a short/low-intensity bar would otherwise
-										// need pixel-precise aim to hover. Background tints on hover so
-										// the whole column reads as the hit target, not just the bar.
 										<div
 											key={bucket.t}
 											{...commonProps}
 											style={{
 												position: 'absolute',
-												left: `${index * widthPercent}%`,
-												top: 0,
-												bottom: 0,
-												width: `calc(${widthPercent}% - 1px)`,
-												background:
-													hoveredFrameTime === bucket.t
-														? 'rgba(255, 255, 255, 0.06)'
-														: 'transparent',
+												left: `${fraction * 100}%`,
+												top: hourFraction * TRACK_HEIGHT_TIME,
+												width: size,
+												height: size,
+												borderRadius: '50%',
+												background: GUI_THEME.accent,
+												opacity: 0.35 + intensity * 0.65,
+												transform: `translate(${-size / 2}px, -50%)`,
 												pointerEvents: 'auto',
 											}}
-										>
-											{/* A synthesized placeholder bucket (see the `frames`
-											    comment above) or any other genuinely zero-activity
-											    slot renders no bar at all — invisible, not just tiny —
-											    while the hit-target div above still covers it, so
-											    hovering still surfaces its date and "0 changes". */}
-											{bucket.count > 0 && (
-												<div
-													style={{
-														position: 'absolute',
-														left: 0,
-														right: 0,
-														bottom: 0,
-														// Bottom-anchored so height reads as a stacked-bar chart
-														// — how much happened at that point in time — rather
-														// than a centered blip.
-														height: 3 + intensity * 21,
-														borderRadius: '1px 1px 0 0',
-														background: GUI_THEME.accent,
-														opacity: 0.35 + intensity * 0.65,
-														pointerEvents: 'none',
-													}}
-												/>
-											)}
-										</div>
+										/>
 									);
-								}
+								})}
 
-								const fraction = realFractionForTime(bucket.t);
+							{/* Code commits, overlaid directly on the same axis as the issue
+							    points above (not a separate box) — x is exact elapsed time, y
+							    is time of day, the same hour-of-day scale the issue points use,
+							    so a board event and a commit at the same hour of day land at
+							    literally the same height. Only in "Time" mode: "Volume" mode
+							    keeps its own separate mirrored box below (see the commits.length
+							    check further down), since an aggregated bar chart has no
+							    per-point position to overlay. stopPropagation on
+							    pointerdown/click so clicking a dot to inspect its diff doesn't
+							    also start a scrub-drag on the shared track underneath it. */}
+							{showCommits && layoutMode === 'real' && commits.length > 0 && (
+								<>
+									{commitHoverLabel && (
+										<div
+											style={{
+												position: 'absolute',
+												bottom: '100%',
+												marginBottom: 4,
+												left: commitHintLeftPx,
+												width: HOVER_HINT_WIDTH,
+												boxSizing: 'border-box',
+												display: 'flex',
+												flexDirection: 'column',
+												gap: 2,
+												textAlign: 'left',
+												background: GUI_THEME.panel,
+												border: `1px solid ${GUI_THEME.line}`,
+												borderRadius: 6,
+												padding: '6px 10px',
+												pointerEvents: 'none',
+											}}
+										>
+											<div
+												style={{
+													fontSize: 11,
+													fontWeight: 600,
+													color: GUI_THEME.primary,
+													whiteSpace: 'normal',
+													wordBreak: 'break-word',
+												}}
+											>
+												{commitHoverLabel.time}
+											</div>
+											{commitHoverLabel.rows.map((row, index) => (
+												<div
+													key={index}
+													style={{
+														fontSize: 11,
+														color: GUI_THEME.secondary,
+														whiteSpace: 'normal',
+														wordBreak: 'break-word',
+													}}
+												>
+													{row}
+												</div>
+											))}
+										</div>
+									)}
 
-								return (
-									<div
-										key={bucket.t}
-										{...commonProps}
-										style={{
-											position: 'absolute',
-											left: `${fraction * 100}%`,
-											width: 4,
-											height: 4 + intensity * 10,
-											borderRadius: 2,
-											background: GUI_THEME.accent,
-											opacity: 0.35 + intensity * 0.65,
-											transform: 'translateX(-2px)',
-											pointerEvents: 'auto',
-										}}
-									/>
-								);
-							})}
+									{commits.map(commit => {
+										const fraction = realFractionForTime(commit.time);
+										const hourFraction = hourFractionForTime(commit.time);
+										// Uniform size — an individual commit doesn't have a "count"
+										// of its own to vary by, unlike the aggregated bucket bars in
+										// Volume mode.
+										const size = 6;
+
+										return (
+											<div
+												key={commit.sha}
+												title={`${formatDateTime(new Date(commit.time))} — ${
+													commit.subject
+												} — ${
+													commit.author
+												} (${commit.linesChanged.toLocaleString()} lines)`}
+												onPointerDown={event => event.stopPropagation()}
+												onClick={event => {
+													event.stopPropagation();
+													onInspectCommit(commit.sha);
+												}}
+												onMouseEnter={() => {
+													setHoveredCommit(commit);
+													setHoveredCommitFraction(fraction);
+												}}
+												onMouseLeave={() => {
+													setHoveredCommit(null);
+													setHoveredCommitFraction(null);
+												}}
+												style={{
+													position: 'absolute',
+													left: `${fraction * 100}%`,
+													top: hourFraction * TRACK_HEIGHT_TIME,
+													width: size,
+													height: size,
+													borderRadius: '50%',
+													background: GUI_THEME.green,
+													opacity: hoveredCommit?.sha === commit.sha ? 1 : 0.65,
+													transform: `translate(${-size / 2}px, -50%)`,
+													pointerEvents: 'auto',
+													cursor: 'pointer',
+												}}
+											/>
+										);
+									})}
+								</>
+							)}
 
 							{/* Draggable thumb / playhead — a full-height needle in a color
 					    distinct from the accent-colored frames so it stays visible
@@ -899,26 +1141,25 @@ export const TimeScrubber = ({
 							/>
 						</div>
 
-						{/* Code commits — a second, thinner track sharing the same
-					    horizontal coordinate space as the track above, so a commit at
-					    a given x is the same moment as a frame directly above it. In
-					    "Time" mode each commit is its own draggable dot, positioned
-					    (and clickable, to inspect its diff) by exact real elapsed
-					    time. In "Frames" mode commits snap into the same buckets as
-					    the issue frames above and render as one bar per bucket,
-					    top-anchored and growing downward — the mirror image of the
-					    issue bars' bottom-anchored growth, so the two tracks read as
-					    one shape (an "iceberg") expanding away from the shared axis
-					    between them in both directions. */}
-						{commits.length > 0 && (
+						{/* Code commits — a second, mirrored box, "Volume" mode only. In
+						    "Time" mode commits render overlaid directly on the track above
+						    instead (see the block right after the issue points' frames.map
+						    call) — an aggregated bar chart has no single point to overlay,
+						    so the two modes need genuinely different commit layouts. Commits
+						    snap into the same buckets as the issue frames above and render
+						    as one bar per bucket, top-anchored and growing downward — the
+						    mirror image of the issue bars' bottom-anchored growth, so the
+						    two tracks read as one shape (an "iceberg") expanding away from
+						    the shared axis between them in both directions. */}
+						{showCommits && layoutMode === 'even' && commits.length > 0 && (
 							<div
 								style={{
 									position: 'relative',
 									width: '100%',
 									// Matches the issue track's own height above, so the two
-									// tracks carry equal visual weight — the "iceberg" shape
-									// only reads if both halves are comparably sized.
-									height: 24,
+									// tracks carry equal visual weight — the "iceberg" shape only
+									// reads if both halves are comparably sized.
+									height: TRACK_HEIGHT_VOLUME,
 								}}
 							>
 								{commitHoverLabel && (
@@ -973,7 +1214,7 @@ export const TimeScrubber = ({
 										position: 'absolute',
 										left: 0,
 										right: 0,
-										...(layoutMode === 'even' ? {top: 0} : {top: '50%'}),
+										top: 0,
 										height: 1,
 										borderRadius: 999,
 										background: GUI_THEME.green,
@@ -981,94 +1222,52 @@ export const TimeScrubber = ({
 									}}
 								/>
 
-								{layoutMode === 'even'
-									? frames.map((bucket, index) => {
-											const stats = commitStatsByFrameIndex.get(index);
-											if (!stats) return null;
+								{frames.map((bucket, index) => {
+									const stats = commitStatsByFrameIndex.get(index);
+									if (!stats) return null;
 
-											const intensity = stats.count / maxCommitCount;
-											const widthPercent = 100 / frames.length;
-											const isHovered = hoveredCommitBucket?.index === index;
+									const intensity = stats.count / maxCommitCount;
+									const widthPercent = 100 / frames.length;
+									const isHovered = hoveredCommitBucket?.index === index;
 
-											return (
-												<div
-													key={bucket.t}
-													onMouseEnter={() =>
-														setHoveredCommitBucket({index, ...stats})
-													}
-													onMouseLeave={() => setHoveredCommitBucket(null)}
-													style={{
-														position: 'absolute',
-														left: `${index * widthPercent}%`,
-														top: 0,
-														bottom: 0,
-														width: `calc(${widthPercent}% - 1px)`,
-														background: isHovered
-															? 'rgba(255, 255, 255, 0.06)'
-															: 'transparent',
-														pointerEvents: 'auto',
-													}}
-												>
-													<div
-														style={{
-															position: 'absolute',
-															left: 0,
-															right: 0,
-															top: 0,
-															// Top-anchored so it grows downward, mirroring the
-															// issue frame bar's bottom-anchored growth above,
-															// using the same count-based intensity formula.
-															height: 3 + intensity * 21,
-															borderRadius: '0 0 1px 1px',
-															background: GUI_THEME.green,
-															opacity: 0.35 + intensity * 0.65,
-															pointerEvents: 'none',
-														}}
-													/>
-												</div>
-											);
-									  })
-									: commits.map(commit => {
-											const fraction = realFractionForTime(commit.time);
-											// Uniform size — an individual commit doesn't have a
-											// "count" of its own to vary by, unlike the aggregated
-											// bucket bars in Frames mode above.
-											const size = 6;
-
-											return (
-												<div
-													key={commit.sha}
-													title={`${formatDateTime(new Date(commit.time))} — ${
-														commit.subject
-													} — ${
-														commit.author
-													} (${commit.linesChanged.toLocaleString()} lines)`}
-													onClick={() => onInspectCommit(commit.sha)}
-													onMouseEnter={() => {
-														setHoveredCommit(commit);
-														setHoveredCommitFraction(fraction);
-													}}
-													onMouseLeave={() => {
-														setHoveredCommit(null);
-														setHoveredCommitFraction(null);
-													}}
-													style={{
-														position: 'absolute',
-														left: `${fraction * 100}%`,
-														top: '50%',
-														width: size,
-														height: size,
-														borderRadius: '50%',
-														background: GUI_THEME.green,
-														opacity:
-															hoveredCommit?.sha === commit.sha ? 1 : 0.65,
-														transform: `translate(${-size / 2}px, -50%)`,
-														pointerEvents: 'auto',
-														cursor: 'pointer',
-													}}
-												/>
-											);
-									  })}
+									return (
+										<div
+											key={bucket.t}
+											onMouseEnter={() =>
+												setHoveredCommitBucket({index, ...stats})
+											}
+											onMouseLeave={() => setHoveredCommitBucket(null)}
+											style={{
+												position: 'absolute',
+												left: `${index * widthPercent}%`,
+												top: 0,
+												bottom: 0,
+												width: `calc(${widthPercent}% - 1px)`,
+												background: isHovered
+													? 'rgba(255, 255, 255, 0.06)'
+													: 'transparent',
+												pointerEvents: 'auto',
+											}}
+										>
+											<div
+												style={{
+													position: 'absolute',
+													left: 0,
+													right: 0,
+													top: 0,
+													// Top-anchored so it grows downward, mirroring the
+													// issue frame bar's bottom-anchored growth above,
+													// using the same count-based intensity formula.
+													height: 3 + intensity * 21,
+													borderRadius: '0 0 1px 1px',
+													background: GUI_THEME.green,
+													opacity: 0.35 + intensity * 0.65,
+													pointerEvents: 'none',
+												}}
+											/>
+										</div>
+									);
+								})}
 							</div>
 						)}
 					</>
