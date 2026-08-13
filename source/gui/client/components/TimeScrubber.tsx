@@ -77,14 +77,29 @@ type PeriodRange = {start: number; end: number};
 // visual thumb still tracks every pointer move locally.
 const SCRUB_THROTTLE_MS = 120;
 
-// "Volume" mode is a slim density strip — height doesn't matter, there's no
-// second axis. "Time" mode plots individual points by exact moment (x) *and*
-// time-of-day (y, see hourFractionForTime below), so it needs real vertical
-// room to read as a spread rather than a smear. Both tracks animate between
-// the two on mode switch rather than snapping.
-const TRACK_HEIGHT_VOLUME = 24;
-const TRACK_HEIGHT_TIME = 90;
-const TRACK_HEIGHT_TRANSITION = 'height 260ms ease';
+// Both tracks stay this height in both modes — "Events" mode's y-axis
+// (time-of-day, see hourFractionForTime below) fits into the same compact
+// strip "Volume" mode uses, via smaller data points, rather than growing the
+// track itself. An animated height difference between modes was tried and
+// reverted: even top-anchored, a taller track pushes the board content below
+// it down as it grows, which read as the board "following" the animation.
+const TRACK_HEIGHT = 24;
+
+// "Volume" mode's total footprint is two boxes: the issue track plus, below
+// it, the separate mirrored commit box (TRACK_HEIGHT again) with an 8px gap
+// between them (see the outer column's own `gap`) — 56px combined. "Events"
+// mode has only the one (shared/overlaid) box, so it needs padding to match
+// that total, or swapping modes would shrink/grow the panel and reflow the
+// board below it (the same problem the height-animation approach had, just
+// in reverse). The scatter area itself (where points actually plot) is
+// taller than TRACK_HEIGHT — more room for the hour-of-day spread to read
+// clearly — with the leftover padding split evenly top and bottom so the
+// taller area sits centered in that same 56px total rather than flush at
+// the top.
+const EVENTS_MODE_TOTAL_HEIGHT = 8 + TRACK_HEIGHT * 2;
+const EVENTS_SCATTER_HEIGHT = TRACK_HEIGHT + 16;
+const EVENTS_MODE_VERTICAL_PADDING =
+	(EVENTS_MODE_TOTAL_HEIGHT - EVENTS_SCATTER_HEIGHT) / 2;
 
 // Applied to each data series' wrapper (see the <style> keyframes below) so
 // switching its checkbox on plays a smooth fade rather than a hard pop —
@@ -127,6 +142,16 @@ const navButtonStyle: React.CSSProperties = {
 };
 
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
+const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
+
+const VALID_SCOPES: readonly Scope[] = ['all', 'week', 'month', 'year'];
+
+const readStoredScope = (): Scope => {
+	const stored = localStorage.getItem(SCOPE_STORAGE_KEY);
+	return (VALID_SCOPES as readonly string[]).includes(stored ?? '')
+		? (stored as Scope)
+		: 'all';
+};
 
 // Rolling window `offset` periods back from now — plain duration arithmetic,
 // not calendar-boundary snapping. offset 0 = the most recent N days ending
@@ -182,7 +207,7 @@ export const TimeScrubber = ({
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>('even');
-	const [scope, setScope] = useState<Scope>('all');
+	const [scope, setScope] = useState<Scope>(readStoredScope);
 	const [offset, setOffset] = useState(0);
 	const [dragFraction, setDragFraction] = useState<number | null>(null);
 	// `time` always renders as the tooltip's first row, for both this (board)
@@ -209,6 +234,8 @@ export const TimeScrubber = ({
 		index: number;
 		count: number;
 		linesChanged: number;
+		minTime: number;
+		maxTime: number;
 	} | null>(null);
 	const [collapsed, setCollapsed] = useState(
 		() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true',
@@ -239,6 +266,7 @@ export const TimeScrubber = ({
 	const changeScope = (nextScope: Scope) => {
 		setScope(nextScope);
 		setOffset(0);
+		localStorage.setItem(SCOPE_STORAGE_KEY, nextScope);
 	};
 
 	const commitTimes = commits.map(c => c.time);
@@ -307,13 +335,12 @@ export const TimeScrubber = ({
 	const realFractionForTime = (time: number) =>
 		clamp((time - earliest) / span, 0, 1);
 
-	// "Time" mode's y-axis: where in the 24-hour cycle a moment falls, 0 (0:00,
+	// "Events" mode's y-axis: where in the 24-hour cycle a moment falls, 0 (0:00,
 	// top) to just under 1 (23:59, bottom) — so noon sits at the vertical
-	// center. Applied identically to both tracks (same scale, see
-	// TRACK_HEIGHT_TIME), so a board event and a commit at the same hour of
-	// day land at the same height even though they're in separate boxes —
-	// letting you visually compare when in the day each kind of activity
-	// tends to happen.
+	// center. Applied identically to both series (same TRACK_HEIGHT scale), so
+	// a board event and a commit at the same hour of day land at the same
+	// height — letting you visually compare when in the day each kind of
+	// activity tends to happen.
 	const hourFractionForTime = (time: number) => {
 		const date = new Date(time);
 		return (date.getHours() * 60 + date.getMinutes()) / (24 * 60);
@@ -418,9 +445,18 @@ export const TimeScrubber = ({
 	// halves of the mirrored "iceberg" on equal footing. `linesChanged` is
 	// still tracked per commit and surfaced in the hover tooltip below, just
 	// not used for sizing right now.
+	//
+	// `nearestFrameIndex` snaps by closest distance with no cap — in a
+	// stretch with little board activity, the nearest issue bucket can be
+	// hours (or a full day) away, so every commit in that whole gap piles
+	// onto one bucket. minTime/maxTime track the *actual* span of commits
+	// landing in each bucket, so the tooltip can show their real range
+	// instead of that bucket's own (often unrelated, misleadingly narrow)
+	// width — otherwise it reads as "16 commits in 2 minutes", which is
+	// simply false.
 	const commitStatsByFrameIndex = new Map<
 		number,
-		{count: number; linesChanged: number}
+		{count: number; linesChanged: number; minTime: number; maxTime: number}
 	>();
 	if (frames.length > 0) {
 		for (const commit of commits) {
@@ -428,10 +464,14 @@ export const TimeScrubber = ({
 			const existing = commitStatsByFrameIndex.get(index) ?? {
 				count: 0,
 				linesChanged: 0,
+				minTime: commit.time,
+				maxTime: commit.time,
 			};
 			commitStatsByFrameIndex.set(index, {
 				count: existing.count + 1,
 				linesChanged: existing.linesChanged + commit.linesChanged,
+				minTime: Math.min(existing.minTime, commit.time),
+				maxTime: Math.max(existing.maxTime, commit.time),
 			});
 		}
 	}
@@ -460,10 +500,18 @@ export const TimeScrubber = ({
 		layoutMode === 'even'
 			? hoveredCommitBucket
 				? {
-						time: formatInterval(
-							frames[hoveredCommitBucket.index]!.t,
-							frames[hoveredCommitBucket.index]!.t + (timeline?.bucketMs ?? 0),
-						),
+						// The real span of the commits grouped here, not the bucket's
+						// own width — those can differ hugely (see the comment on
+						// commitStatsByFrameIndex above), and showing the bucket's
+						// width would misrepresent a scattered day of commits as a
+						// suspiciously tight burst.
+						time:
+							hoveredCommitBucket.minTime === hoveredCommitBucket.maxTime
+								? formatDateTime(new Date(hoveredCommitBucket.minTime))
+								: formatInterval(
+										hoveredCommitBucket.minTime,
+										hoveredCommitBucket.maxTime,
+								  ),
 						rows: [
 							`${hoveredCommitBucket.count} commit${
 								hoveredCommitBucket.count === 1 ? '' : 's'
@@ -569,7 +617,7 @@ export const TimeScrubber = ({
 								gap: 4,
 							}}
 						>
-							<IconClock size={12} />
+							{'Time travel'}
 							{collapsed ? (
 								<IconChevronRight size={12} />
 							) : (
@@ -604,7 +652,7 @@ export const TimeScrubber = ({
 						>
 							<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
 								{scope !== 'all' && (
-									<div style={{display: 'flex', alignItems: 'center', gap: 4}}>
+									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 										<button
 											title="Earlier"
 											onClick={() => setOffset(o => o + 1)}
@@ -642,7 +690,7 @@ export const TimeScrubber = ({
 									</div>
 								)}
 
-								<div style={{display: 'flex', gap: 4}}>
+								<div style={{display: 'flex', gap: 2}}>
 									{(['week', 'month', 'year', 'all'] as const).map(s => (
 										<button
 											key={s}
@@ -655,7 +703,7 @@ export const TimeScrubber = ({
 								</div>
 							</div>
 
-							<div style={{display: 'flex', gap: 4}}>
+							<div style={{display: 'flex', gap: 2}}>
 								<button
 									title="How much happened, per equal-width period — no empty gaps for quiet stretches"
 									onClick={() => setLayoutMode('even')}
@@ -664,11 +712,11 @@ export const TimeScrubber = ({
 									Volume
 								</button>
 								<button
-									title="Individual points by exact moment — x is elapsed time, y is time of day"
+									title="Individual events by exact moment — x is elapsed time, y is time of day"
 									onClick={() => setLayoutMode('real')}
 									style={toggleButtonStyle(layoutMode === 'real')}
 								>
-									Time
+									Events
 								</button>
 							</div>
 
@@ -772,10 +820,12 @@ export const TimeScrubber = ({
 								position: 'relative',
 								width: '100%',
 								height:
-									layoutMode === 'even'
-										? TRACK_HEIGHT_VOLUME
-										: TRACK_HEIGHT_TIME,
-								transition: TRACK_HEIGHT_TRANSITION,
+									layoutMode === 'real' ? EVENTS_SCATTER_HEIGHT : TRACK_HEIGHT,
+								paddingTop:
+									layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
+								paddingBottom:
+									layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
+								boxSizing: 'content-box',
 								cursor: 'pointer',
 								display: 'flex',
 								alignItems: 'center',
@@ -803,6 +853,10 @@ export const TimeScrubber = ({
 										textAlign: 'left',
 										background: GUI_THEME.panel,
 										border: `1px solid ${GUI_THEME.line}`,
+										// Overrides just the left edge — a color-coded stripe so
+										// which series' tooltip this is stays obvious even where
+										// board/commit points are cluttered together.
+										borderLeft: `3px solid ${GUI_THEME.accent}`,
 										borderRadius: 6,
 										padding: '6px 10px',
 										pointerEvents: 'none',
@@ -827,7 +881,7 @@ export const TimeScrubber = ({
 							)}
 
 							{/* Track line — a floor for "Volume" mode's stacked-bar look; in
-					    "Time" mode it falls at the vertical center by virtue of the
+					    "Events" mode it falls at the vertical center by virtue of the
 					    track's own flex-centering, which — since y spans 0:00 to
 					    23:59 top-to-bottom — lands it exactly on noon. Same treatment
 					    (accent color, low opacity) as the code track's own baseline
@@ -845,7 +899,7 @@ export const TimeScrubber = ({
 								}}
 							/>
 
-							{/* y-axis reference labels for "Time" mode's hour-of-day scale —
+							{/* y-axis reference labels for "Events" mode's hour-of-day scale —
 					    unobtrusive, just enough to anchor what the vertical spread
 					    means. Matches the commit track's own labels below. */}
 							{layoutMode === 'real' && (
@@ -854,7 +908,11 @@ export const TimeScrubber = ({
 										style={{
 											position: 'absolute',
 											left: 2,
-											top: 2,
+											// Aligned with where the 0:00-mapped points themselves
+											// start (see EVENTS_MODE_VERTICAL_PADDING) — absolute
+											// positioning ignores padding, so this has to be added
+											// back in explicitly rather than a plain `top: 2`.
+											top: EVENTS_MODE_VERTICAL_PADDING,
 											fontSize: 9,
 											color: GUI_THEME.dim,
 											pointerEvents: 'none',
@@ -879,7 +937,7 @@ export const TimeScrubber = ({
 										style={{
 											position: 'absolute',
 											left: 2,
-											bottom: 2,
+											bottom: EVENTS_MODE_VERTICAL_PADDING,
 											fontSize: 9,
 											color: GUI_THEME.dim,
 											pointerEvents: 'none',
@@ -981,13 +1039,13 @@ export const TimeScrubber = ({
 									// rather than render a fake data point.
 									if (bucket.count === 0) return null;
 
-									// "Time" mode plots each bucket as a point in 2D: x is when
+									// "Events" mode plots each bucket as a point in 2D: x is when
 									// in the project's history it happened (elapsed time), y is
 									// what time of day it happened — the same hour-of-day scale
 									// the commit track below uses, so the two are comparable.
 									const fraction = realFractionForTime(bucket.t);
 									const hourFraction = hourFractionForTime(bucket.t);
-									const size = 4 + intensity * 10;
+									const size = 3 + intensity * 6;
 
 									return (
 										<div
@@ -996,12 +1054,21 @@ export const TimeScrubber = ({
 											style={{
 												position: 'absolute',
 												left: `${fraction * 100}%`,
-												top: hourFraction * TRACK_HEIGHT_TIME,
+												top:
+													EVENTS_MODE_VERTICAL_PADDING +
+													hourFraction * EVENTS_SCATTER_HEIGHT,
 												width: size,
 												height: size,
 												borderRadius: '50%',
 												background: GUI_THEME.accent,
-												opacity: 0.35 + intensity * 0.65,
+												// Capped below 1 (unlike the Volume-mode bar's opacity)
+												// so overlapping points — a board event and a commit at
+												// the same moment, or several close together — stay
+												// visible as a blend rather than one fully hiding another.
+												opacity: 0.3 + intensity * 0.5,
+												// Above the commit dots (z-index 1, see below) — the
+												// board is the primary thing being visualized here.
+												zIndex: 2,
 												transform: `translate(${-size / 2}px, -50%)`,
 												pointerEvents: 'auto',
 												animation: FADE_IN_ANIMATION,
@@ -1014,7 +1081,7 @@ export const TimeScrubber = ({
 							    points above (not a separate box) — x is exact elapsed time, y
 							    is time of day, the same hour-of-day scale the issue points use,
 							    so a board event and a commit at the same hour of day land at
-							    literally the same height. Only in "Time" mode: "Volume" mode
+							    literally the same height. Only in "Events" mode: "Volume" mode
 							    keeps its own separate mirrored box below (see the commits.length
 							    check further down), since an aggregated bar chart has no
 							    per-point position to overlay. stopPropagation on
@@ -1037,6 +1104,10 @@ export const TimeScrubber = ({
 												textAlign: 'left',
 												background: GUI_THEME.panel,
 												border: `1px solid ${GUI_THEME.line}`,
+												// Overrides just the left edge — a color-coded stripe
+												// so which series' tooltip this is stays obvious even
+												// where board/commit points are cluttered together.
+												borderLeft: `3px solid ${GUI_THEME.green}`,
 												borderRadius: 6,
 												padding: '6px 10px',
 												pointerEvents: 'none',
@@ -1074,8 +1145,8 @@ export const TimeScrubber = ({
 										const hourFraction = hourFractionForTime(commit.time);
 										// Uniform size — an individual commit doesn't have a "count"
 										// of its own to vary by, unlike the aggregated bucket bars in
-										// Volume mode.
-										const size = 6;
+										// Volume mode. Small, to fit the compact shared track height.
+										const size = 4;
 
 										return (
 											<div
@@ -1101,12 +1172,23 @@ export const TimeScrubber = ({
 												style={{
 													position: 'absolute',
 													left: `${fraction * 100}%`,
-													top: hourFraction * TRACK_HEIGHT_TIME,
+													top:
+														EVENTS_MODE_VERTICAL_PADDING +
+														hourFraction * EVENTS_SCATTER_HEIGHT,
 													width: size,
 													height: size,
 													borderRadius: '50%',
 													background: GUI_THEME.green,
-													opacity: hoveredCommit?.sha === commit.sha ? 1 : 0.65,
+													// Capped below 1 when not hovered so overlapping points
+													// (a commit and a board event at the same moment, or
+													// several commits close together) stay visible as a
+													// blend rather than one fully hiding another. Hover
+													// still goes fully opaque — that's a deliberate focus
+													// state, not something that needs to blend.
+													opacity: hoveredCommit?.sha === commit.sha ? 1 : 0.55,
+													// Below the board's own points (z-index 2 above) — the
+													// board is the primary thing being visualized here.
+													zIndex: 1,
 													transform: `translate(${-size / 2}px, -50%)`,
 													pointerEvents: 'auto',
 													animation: FADE_IN_ANIMATION,
@@ -1121,7 +1203,8 @@ export const TimeScrubber = ({
 							{/* Draggable thumb / playhead — a full-height needle in a color
 					    distinct from the accent-colored frames so it stays visible
 					    against them, with a downward-pointing triangle handle that
-					    highlights on hover for grab affordance. */}
+					    highlights on hover for grab affordance. z-index above both
+					    data layers (2 and 1, see above) so it's never obscured. */}
 							<div
 								onMouseEnter={() => setNeedleHovered(true)}
 								onMouseLeave={() => setNeedleHovered(false)}
@@ -1135,6 +1218,7 @@ export const TimeScrubber = ({
 									boxShadow: needleHovered
 										? `0 0 10px 2px ${GUI_THEME.primary}`
 										: `0 0 6px 1px ${GUI_THEME.primary}`,
+									zIndex: 3,
 									transform: 'translateX(-1px)',
 									pointerEvents: 'auto',
 									cursor: 'pointer',
@@ -1157,6 +1241,7 @@ export const TimeScrubber = ({
 									filter: `drop-shadow(0 0 ${needleHovered ? 5 : 3}px ${
 										GUI_THEME.primary
 									})`,
+									zIndex: 3,
 									transform: `translateX(${needleHovered ? -6 : -5}px)`,
 									pointerEvents: 'auto',
 									cursor: 'pointer',
@@ -1165,7 +1250,7 @@ export const TimeScrubber = ({
 						</div>
 
 						{/* Code commits — a second, mirrored box, "Volume" mode only. In
-						    "Time" mode commits render overlaid directly on the track above
+						    "Events" mode commits render overlaid directly on the track above
 						    instead (see the block right after the issue points' frames.map
 						    call) — an aggregated bar chart has no single point to overlay,
 						    so the two modes need genuinely different commit layouts. Commits
@@ -1182,7 +1267,7 @@ export const TimeScrubber = ({
 									// Matches the issue track's own height above, so the two
 									// tracks carry equal visual weight — the "iceberg" shape only
 									// reads if both halves are comparably sized.
-									height: TRACK_HEIGHT_VOLUME,
+									height: TRACK_HEIGHT,
 								}}
 							>
 								{commitHoverLabel && (
@@ -1200,6 +1285,10 @@ export const TimeScrubber = ({
 											textAlign: 'left',
 											background: GUI_THEME.panel,
 											border: `1px solid ${GUI_THEME.line}`,
+											// Overrides just the left edge — a color-coded stripe so
+											// which series' tooltip this is stays obvious even where
+											// board/commit points are cluttered together.
+											borderLeft: `3px solid ${GUI_THEME.green}`,
 											borderRadius: 6,
 											padding: '6px 10px',
 											pointerEvents: 'none',
