@@ -83,8 +83,15 @@ const SCRUB_THROTTLE_MS = 120;
 // room to read as a spread rather than a smear. Both tracks animate between
 // the two on mode switch rather than snapping.
 const TRACK_HEIGHT_VOLUME = 24;
-const TRACK_HEIGHT_TIME = 110;
+const TRACK_HEIGHT_TIME = 90;
 const TRACK_HEIGHT_TRANSITION = 'height 260ms ease';
+
+// Applied to each data series' wrapper (see the <style> keyframes below) so
+// switching its checkbox on plays a smooth fade rather than a hard pop —
+// only on appear: since these wrappers unmount entirely when off, there's no
+// DOM node left to animate a fade-out against, which is fine, an abrupt
+// disappearance reads fine; it's the sudden appearance that looked jarring.
+const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 280ms ease';
 
 // Width of the floating hover-hint tooltip, used both to render it and to
 // clamp its position so it never overflows past the track's edges. Wraps to
@@ -503,6 +510,19 @@ export const TimeScrubber = ({
 				padding: '10px 30px',
 			}}
 		>
+			{/* A plain inline style tag rather than a CSS module/file, matching
+			    this codebase's inline-style-only convention elsewhere — @keyframes
+			    can't be expressed as a React style object, so this is the one
+			    exception. Used below to fade each data series in when its
+			    checkbox is switched on, so toggling reads as a smooth reveal
+			    rather than a hard pop. */}
+			<style>{`
+				@keyframes epiqScrubberFadeIn {
+					from { opacity: 0; }
+					to { opacity: 1; }
+				}
+			`}</style>
+
 			<div
 				style={{
 					display: 'flex',
@@ -924,6 +944,7 @@ export const TimeScrubber = ({
 															? 'rgba(255, 255, 255, 0.06)'
 															: 'transparent',
 													pointerEvents: 'auto',
+													animation: FADE_IN_ANIMATION,
 												}}
 											>
 												{/* A synthesized placeholder bucket (see the `frames`
@@ -983,6 +1004,7 @@ export const TimeScrubber = ({
 												opacity: 0.35 + intensity * 0.65,
 												transform: `translate(${-size / 2}px, -50%)`,
 												pointerEvents: 'auto',
+												animation: FADE_IN_ANIMATION,
 											}}
 										/>
 									);
@@ -1087,6 +1109,7 @@ export const TimeScrubber = ({
 													opacity: hoveredCommit?.sha === commit.sha ? 1 : 0.65,
 													transform: `translate(${-size / 2}px, -50%)`,
 													pointerEvents: 'auto',
+													animation: FADE_IN_ANIMATION,
 													cursor: 'pointer',
 												}}
 											/>
@@ -1247,6 +1270,7 @@ export const TimeScrubber = ({
 													? 'rgba(255, 255, 255, 0.06)'
 													: 'transparent',
 												pointerEvents: 'auto',
+												animation: FADE_IN_ANIMATION,
 											}}
 										>
 											<div
