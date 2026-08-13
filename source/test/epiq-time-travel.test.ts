@@ -244,14 +244,15 @@ describe('epiq-time-travel', () => {
 
 	describe('getCommitTimeline', () => {
 		const SEP = '\x1f';
+		const REC = '\x1e';
 
-		it('parses git log output into commit entries', async () => {
+		it('parses git log --shortstat output into commit entries with linesChanged', async () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
-					stdout: [
-						`aaa111${SEP}1700000000${SEP}Ada${SEP}fix bug`,
-						`bbb222${SEP}1700000100${SEP}Grace${SEP}add feature`,
-					].join('\n'),
+					stdout:
+						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}fix bug\n` +
+						` 2 files changed, 45 insertions(+), 12 deletions(-)\n` +
+						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}add feature\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -268,12 +269,15 @@ describe('epiq-time-travel', () => {
 					time: 1_700_000_000_000,
 					author: 'Ada',
 					subject: 'fix bug',
+					linesChanged: 57,
 				},
 				{
 					sha: 'bbb222',
 					time: 1_700_000_100_000,
 					author: 'Grace',
 					subject: 'add feature',
+					// No shortstat line for this one (e.g. a merge commit) -> 0.
+					linesChanged: 0,
 				},
 			]);
 		});

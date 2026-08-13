@@ -174,10 +174,18 @@ export type CommitEntry = {
 	time: number;
 	author: string;
 	subject: string;
+	// Insertions + deletions from `--shortstat`. Drives bar height in the
+	// GUI's Frames-mode commit track — a commit that touches a lot of lines
+	// should read as "more" than one that touches few, not just "one commit
+	// same as any other".
+	linesChanged: number;
 };
 
-// Non-printable separator, safe against commit subjects containing "|" etc.
+// Non-printable separators. Field sep is safe against commit subjects
+// containing "|" etc.; record sep lets us reliably split each commit's
+// header line from the `--shortstat` line(s) git prints after it.
 const GIT_LOG_FIELD_SEP = '\x1f';
+const GIT_LOG_RECORD_SEP = '\x1e';
 
 // Pure read of the *code* repo's commit history — a distinct git root from
 // the event log's state-branch worktree (resolveStateBranchRoot above), and
@@ -206,25 +214,36 @@ export const getCommitTimeline = async (
 			...(input.end !== undefined
 				? [`--until=@${Math.floor(input.end / 1000)}`]
 				: []),
-			`--format=%H${GIT_LOG_FIELD_SEP}%at${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%s`,
+			'--shortstat',
+			`--format=${GIT_LOG_RECORD_SEP}%H${GIT_LOG_FIELD_SEP}%at${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%s`,
 		],
 	});
 
 	if (isFail(logResult)) return failed(logResult.message);
 
 	const commits = logResult.value.stdout
-		.split('\n')
-		.filter(line => line.trim().length > 0)
-		.map((line): CommitEntry | null => {
-			const [sha, atSeconds, author, ...subjectParts] =
-				line.split(GIT_LOG_FIELD_SEP);
+		.split(GIT_LOG_RECORD_SEP)
+		.filter(record => record.trim().length > 0)
+		.map((record): CommitEntry | null => {
+			const [headerLine, ...statLines] = record.split('\n');
+			const [sha, atSeconds, author, ...subjectParts] = (
+				headerLine ?? ''
+			).split(GIT_LOG_FIELD_SEP);
 			if (!sha || !atSeconds) return null;
+
+			// `--shortstat` prints one summary line like " 3 files changed, 45
+			// insertions(+), 12 deletions(-)" after the header — merge/empty
+			// commits print none, which is fine, they just count as 0.
+			const statText = statLines.join(' ');
+			const insertions = Number(/(\d+) insertion/.exec(statText)?.[1] ?? 0);
+			const deletions = Number(/(\d+) deletion/.exec(statText)?.[1] ?? 0);
 
 			return {
 				sha,
 				time: Number(atSeconds) * 1000,
 				author: author ?? 'unknown',
 				subject: subjectParts.join(GIT_LOG_FIELD_SEP),
+				linesChanged: insertions + deletions,
 			};
 		})
 		.filter((commit): commit is CommitEntry => commit !== null);

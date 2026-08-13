@@ -76,4 +76,5 @@ export type GuiCommitEntry = {
 	time: number;
 	author: string;
 	subject: string;
+	linesChanged: number;
 };

@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {
 	GuiCommitEntry,
 	GuiEventTimeline,
+	GuiEventTimelineBucket,
 	GuiTimeTravelStatus,
 } from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -77,8 +78,10 @@ type PeriodRange = {start: number; end: number};
 const SCRUB_THROTTLE_MS = 120;
 
 // Width of the floating hover-hint tooltip, used both to render it and to
-// clamp its position so it never overflows past the track's edges.
-const HOVER_HINT_WIDTH = 170;
+// clamp its position so it never overflows past the track's edges. Wraps to
+// multiple lines rather than truncating, so wide enough to keep that from
+// looking cramped, but not so wide it swamps the narrow track it floats over.
+const HOVER_HINT_WIDTH = 220;
 
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(max, Math.max(min, value));
@@ -163,7 +166,13 @@ export const TimeScrubber = ({
 	const [scope, setScope] = useState<Scope>('all');
 	const [offset, setOffset] = useState(0);
 	const [dragFraction, setDragFraction] = useState<number | null>(null);
-	const [hoverLabel, setHoverLabel] = useState<string | null>(null);
+	// `time` always renders as the tooltip's first row, for both this (board)
+	// and the commit tooltip below — a consistent anchor regardless of what
+	// other stats follow.
+	const [hoverLabel, setHoverLabel] = useState<{
+		time: string;
+		count: number;
+	} | null>(null);
 	const [hoveredFrameTime, setHoveredFrameTime] = useState<number | null>(null);
 	const [hoveredFrameFraction, setHoveredFrameFraction] = useState<
 		number | null
@@ -175,6 +184,13 @@ export const TimeScrubber = ({
 	const [hoveredCommitFraction, setHoveredCommitFraction] = useState<
 		number | null
 	>(null);
+	// Only used in "even"/Frames mode, where commits render as one aggregated
+	// bar per bucket instead of individual dots (see hoveredCommit above).
+	const [hoveredCommitBucket, setHoveredCommitBucket] = useState<{
+		index: number;
+		count: number;
+		linesChanged: number;
+	} | null>(null);
 	const [collapsed, setCollapsed] = useState(
 		() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true',
 	);
@@ -202,13 +218,59 @@ export const TimeScrubber = ({
 		setOffset(0);
 	};
 
-	const frames = timeline?.buckets ?? [];
 	const commitTimes = commits.map(c => c.time);
+
+	// `timeline.buckets` only has slots where an issue event actually
+	// happened (sparse by design — see the server's comment on
+	// TIMELINE_BUCKET_COUNT). That's fine for the issue track itself, but
+	// commits routinely predate the board's earliest issue *within whatever
+	// window is selected* (the codebase is usually older than its issue
+	// tracker, and even a narrow "Week" scope can have its first commit
+	// hours before its first issue event) — with no real bucket to land in,
+	// those commits snapped onto the single earliest existing bucket, making
+	// it a false outlier. Synthesize empty (count: 0) placeholder buckets to
+	// cover that gap, at the same grid width, so old commits get real,
+	// evenly-spaced slots instead. Capped by how many commits actually need
+	// placing there — there's no benefit to more buckets than that, and
+	// capping by the real issue-bucket count instead (as opposed to commit
+	// count) still let a short "Week" window's handful of real buckets get
+	// swamped by a wall of empty ones.
+	const frames = (() => {
+		const issueFrames = timeline?.buckets ?? [];
+		const bucketMs = timeline?.bucketMs ?? 0;
+		if (bucketMs <= 0 || issueFrames.length === 0 || commitTimes.length === 0)
+			return issueFrames;
+
+		const firstIssueTime = issueFrames[0]!.t;
+		const prefixCommitTimes = commitTimes.filter(t => t < firstIssueTime);
+		if (prefixCommitTimes.length === 0) return issueFrames;
+
+		const earliestCommitTime = Math.min(...prefixCommitTimes);
+		const prefixSpan = firstIssueTime - earliestCommitTime;
+
+		const maxPrefixBuckets = prefixCommitTimes.length;
+		const prefixBucketMs = Math.max(
+			bucketMs,
+			Math.ceil(prefixSpan / maxPrefixBuckets),
+		);
+		const prefixBucketCount = Math.min(
+			maxPrefixBuckets,
+			Math.ceil(prefixSpan / prefixBucketMs),
+		);
+
+		const prefix: GuiEventTimelineBucket[] = [];
+		for (let i = prefixBucketCount; i >= 1; i--) {
+			prefix.push({t: firstIssueTime - i * prefixBucketMs, count: 0});
+		}
+
+		return [...prefix, ...issueFrames];
+	})();
+
 	// Widened to cover commits too (they often predate the earliest issue
 	// event, especially in "All time" scope) — both rows share this axis, so
 	// a dot at a given x always means the same time in either row.
 	const earliest = Math.min(
-		timeline?.earliest ?? Date.now(),
+		frames[0]?.t ?? timeline?.earliest ?? Date.now(),
 		...(commitTimes.length ? commitTimes : [Date.now()]),
 	);
 	const latest = Math.max(
@@ -314,6 +376,35 @@ export const TimeScrubber = ({
 
 	const maxCount = Math.max(1, ...frames.map(b => b.count));
 
+	// In "even"/Frames mode, commits render as one aggregated bar per bucket
+	// (same buckets/x-slots as the issue frames above) rather than individual
+	// dots. Bar height is driven by commit count, the same metric (and the
+	// same linear formula) the issue frame bars above use — keeping both
+	// halves of the mirrored "iceberg" on equal footing. `linesChanged` is
+	// still tracked per commit and surfaced in the hover tooltip below, just
+	// not used for sizing right now.
+	const commitStatsByFrameIndex = new Map<
+		number,
+		{count: number; linesChanged: number}
+	>();
+	if (frames.length > 0) {
+		for (const commit of commits) {
+			const index = nearestFrameIndex(commit.time);
+			const existing = commitStatsByFrameIndex.get(index) ?? {
+				count: 0,
+				linesChanged: 0,
+			};
+			commitStatsByFrameIndex.set(index, {
+				count: existing.count + 1,
+				linesChanged: existing.linesChanged + commit.linesChanged,
+			});
+		}
+	}
+	const maxCommitCount = Math.max(
+		1,
+		...Array.from(commitStatsByFrameIndex.values(), s => s.count),
+	);
+
 	// Center the hover-hint tooltip on the hovered frame, clamped so it never
 	// overflows past the track's own left/right edges.
 	const trackWidthPx = trackRef.current?.clientWidth ?? 0;
@@ -325,10 +416,48 @@ export const TimeScrubber = ({
 					Math.max(0, trackWidthPx - HOVER_HINT_WIDTH),
 			  )
 			: 0;
+
+	// Unifies the two commit-hover sources (a single dot in "real" mode, an
+	// aggregated bucket bar in "even" mode) into one time/rows shape so the
+	// floating hint below only needs one code path — `time` is always the
+	// first row, matching the board tooltip's own top row.
+	const commitHoverLabel: {time: string; rows: string[]} | null =
+		layoutMode === 'even'
+			? hoveredCommitBucket
+				? {
+						time: formatInterval(
+							frames[hoveredCommitBucket.index]!.t,
+							frames[hoveredCommitBucket.index]!.t + (timeline?.bucketMs ?? 0),
+						),
+						rows: [
+							`${hoveredCommitBucket.count} commit${
+								hoveredCommitBucket.count === 1 ? '' : 's'
+							}`,
+							`${hoveredCommitBucket.linesChanged.toLocaleString()} lines changed`,
+						],
+				  }
+				: null
+			: hoveredCommit
+			? {
+					time: formatDateTime(new Date(hoveredCommit.time)),
+					rows: [
+						hoveredCommit.subject,
+						`${
+							hoveredCommit.author
+						} • ${hoveredCommit.linesChanged.toLocaleString()} lines`,
+					],
+			  }
+			: null;
+	const commitHoverFraction =
+		layoutMode === 'even'
+			? hoveredCommitBucket
+				? (hoveredCommitBucket.index + 0.5) / frames.length
+				: null
+			: hoveredCommitFraction;
 	const commitHintLeftPx =
-		hoveredCommitFraction !== null
+		commitHoverFraction !== null
 			? clamp(
-					hoveredCommitFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
+					commitHoverFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
 					0,
 					Math.max(0, trackWidthPx - HOVER_HINT_WIDTH),
 			  )
@@ -559,8 +688,10 @@ export const TimeScrubber = ({
 								alignItems: 'center',
 							}}
 						>
-							{/* Floating hover-hint — centered above the hovered frame, clamped
-					    to the track's own bounds so it never overflows left/right. */}
+							{/* Floating hover-hint — left-aligned above the hovered frame,
+					    clamped to the track's own bounds so it never overflows
+					    left/right. Time always renders as its own first row, so it's
+					    in the same place whether hovering the board or code track. */}
 							{hoverLabel && (
 								<div
 									style={{
@@ -573,25 +704,39 @@ export const TimeScrubber = ({
 										// assumes — otherwise the border/padding add on top of it and
 										// the box overflows the track's edge by exactly that much.
 										boxSizing: 'border-box',
-										textAlign: 'center',
-										fontSize: 11,
-										color: GUI_THEME.dim,
+										display: 'flex',
+										flexDirection: 'column',
+										gap: 2,
+										textAlign: 'left',
 										background: GUI_THEME.panel,
 										border: `1px solid ${GUI_THEME.line}`,
 										borderRadius: 6,
-										padding: '2px 6px',
+										padding: '6px 10px',
 										pointerEvents: 'none',
-										whiteSpace: 'nowrap',
-										overflow: 'hidden',
-										textOverflow: 'ellipsis',
 									}}
 								>
-									{hoverLabel}
+									<div
+										style={{
+											fontSize: 11,
+											fontWeight: 600,
+											color: GUI_THEME.primary,
+											whiteSpace: 'normal',
+											wordBreak: 'break-word',
+										}}
+									>
+										{hoverLabel.time}
+									</div>
+									<div style={{fontSize: 11, color: GUI_THEME.secondary}}>
+										{hoverLabel.count} board event
+										{hoverLabel.count === 1 ? '' : 's'}
+									</div>
 								</div>
 							)}
 
 							{/* Track line — a floor for the "Frames" stacked-bar look, an axis
-					    line running through the middle of the "Timeline" dots. */}
+					    line running through the middle of the "Timeline" dots. Same
+					    treatment (accent color, low opacity) as the code track's own
+					    baseline below, so the two read as one paired axis. */}
 							<div
 								style={{
 									position: 'absolute',
@@ -600,8 +745,8 @@ export const TimeScrubber = ({
 									...(layoutMode === 'even' ? {bottom: 0} : {}),
 									height: 2,
 									borderRadius: 999,
-									background: GUI_THEME.dim,
-									opacity: 0.35,
+									background: GUI_THEME.accent,
+									opacity: 0.2,
 								}}
 							/>
 
@@ -625,7 +770,7 @@ export const TimeScrubber = ({
 								const commonProps = {
 									title: label,
 									onMouseEnter: () => {
-										setHoverLabel(interval);
+										setHoverLabel({time: interval, count: bucket.count});
 										setHoveredFrameTime(bucket.t);
 										setHoveredFrameFraction(centerFraction);
 									},
@@ -660,22 +805,29 @@ export const TimeScrubber = ({
 												pointerEvents: 'auto',
 											}}
 										>
-											<div
-												style={{
-													position: 'absolute',
-													left: 0,
-													right: 0,
-													bottom: 0,
-													// Bottom-anchored so height reads as a stacked-bar chart —
-													// how much happened at that point in time — rather than a
-													// centered blip.
-													height: 3 + intensity * 21,
-													borderRadius: '1px 1px 0 0',
-													background: GUI_THEME.accent,
-													opacity: 0.35 + intensity * 0.65,
-													pointerEvents: 'none',
-												}}
-											/>
+											{/* A synthesized placeholder bucket (see the `frames`
+											    comment above) or any other genuinely zero-activity
+											    slot renders no bar at all — invisible, not just tiny —
+											    while the hit-target div above still covers it, so
+											    hovering still surfaces its date and "0 changes". */}
+											{bucket.count > 0 && (
+												<div
+													style={{
+														position: 'absolute',
+														left: 0,
+														right: 0,
+														bottom: 0,
+														// Bottom-anchored so height reads as a stacked-bar chart
+														// — how much happened at that point in time — rather
+														// than a centered blip.
+														height: 3 + intensity * 21,
+														borderRadius: '1px 1px 0 0',
+														background: GUI_THEME.accent,
+														opacity: 0.35 + intensity * 0.65,
+														pointerEvents: 'none',
+													}}
+												/>
+											)}
 										</div>
 									);
 								}
@@ -748,21 +900,28 @@ export const TimeScrubber = ({
 						</div>
 
 						{/* Code commits — a second, thinner track sharing the same
-					    horizontal (real-time) coordinate space as the track above, so a
-					    dot here at a given x is the same moment as a frame directly
-					    above it, regardless of whether that track is in Frames or
-					    Timeline layout. Always positioned by real elapsed time — mixing
-					    Frames mode's squeezed, gap-free spacing into a second,
-					    independent data series would break that correlation. */}
+					    horizontal coordinate space as the track above, so a commit at
+					    a given x is the same moment as a frame directly above it. In
+					    "Time" mode each commit is its own draggable dot, positioned
+					    (and clickable, to inspect its diff) by exact real elapsed
+					    time. In "Frames" mode commits snap into the same buckets as
+					    the issue frames above and render as one bar per bucket,
+					    top-anchored and growing downward — the mirror image of the
+					    issue bars' bottom-anchored growth, so the two tracks read as
+					    one shape (an "iceberg") expanding away from the shared axis
+					    between them in both directions. */}
 						{commits.length > 0 && (
 							<div
 								style={{
 									position: 'relative',
 									width: '100%',
-									height: 10,
+									// Matches the issue track's own height above, so the two
+									// tracks carry equal visual weight — the "iceberg" shape
+									// only reads if both halves are comparably sized.
+									height: 24,
 								}}
 							>
-								{hoveredCommit && (
+								{commitHoverLabel && (
 									<div
 										style={{
 											position: 'absolute',
@@ -771,20 +930,41 @@ export const TimeScrubber = ({
 											left: commitHintLeftPx,
 											width: HOVER_HINT_WIDTH,
 											boxSizing: 'border-box',
-											textAlign: 'center',
-											fontSize: 11,
-											color: GUI_THEME.secondary,
+											display: 'flex',
+											flexDirection: 'column',
+											gap: 2,
+											textAlign: 'left',
 											background: GUI_THEME.panel,
 											border: `1px solid ${GUI_THEME.line}`,
 											borderRadius: 6,
-											padding: '2px 6px',
+											padding: '6px 10px',
 											pointerEvents: 'none',
-											whiteSpace: 'nowrap',
-											overflow: 'hidden',
-											textOverflow: 'ellipsis',
 										}}
 									>
-										{hoveredCommit.subject} — {hoveredCommit.author}
+										<div
+											style={{
+												fontSize: 11,
+												fontWeight: 600,
+												color: GUI_THEME.primary,
+												whiteSpace: 'normal',
+												wordBreak: 'break-word',
+											}}
+										>
+											{commitHoverLabel.time}
+										</div>
+										{commitHoverLabel.rows.map((row, index) => (
+											<div
+												key={index}
+												style={{
+													fontSize: 11,
+													color: GUI_THEME.secondary,
+													whiteSpace: 'normal',
+													wordBreak: 'break-word',
+												}}
+											>
+												{row}
+											</div>
+										))}
 									</div>
 								)}
 
@@ -793,7 +973,7 @@ export const TimeScrubber = ({
 										position: 'absolute',
 										left: 0,
 										right: 0,
-										top: 4,
+										...(layoutMode === 'even' ? {top: 0} : {top: '50%'}),
 										height: 1,
 										borderRadius: 999,
 										background: GUI_THEME.green,
@@ -801,38 +981,94 @@ export const TimeScrubber = ({
 									}}
 								/>
 
-								{commits.map(commit => {
-									const fraction = realFractionForTime(commit.time);
+								{layoutMode === 'even'
+									? frames.map((bucket, index) => {
+											const stats = commitStatsByFrameIndex.get(index);
+											if (!stats) return null;
 
-									return (
-										<div
-											key={commit.sha}
-											title={`${commit.subject} — ${commit.author}`}
-											onClick={() => onInspectCommit(commit.sha)}
-											onMouseEnter={() => {
-												setHoveredCommit(commit);
-												setHoveredCommitFraction(fraction);
-											}}
-											onMouseLeave={() => {
-												setHoveredCommit(null);
-												setHoveredCommitFraction(null);
-											}}
-											style={{
-												position: 'absolute',
-												left: `${fraction * 100}%`,
-												top: 2,
-												width: 6,
-												height: 6,
-												borderRadius: '50%',
-												background: GUI_THEME.green,
-												opacity: hoveredCommit?.sha === commit.sha ? 1 : 0.65,
-												transform: 'translateX(-3px)',
-												pointerEvents: 'auto',
-												cursor: 'pointer',
-											}}
-										/>
-									);
-								})}
+											const intensity = stats.count / maxCommitCount;
+											const widthPercent = 100 / frames.length;
+											const isHovered = hoveredCommitBucket?.index === index;
+
+											return (
+												<div
+													key={bucket.t}
+													onMouseEnter={() =>
+														setHoveredCommitBucket({index, ...stats})
+													}
+													onMouseLeave={() => setHoveredCommitBucket(null)}
+													style={{
+														position: 'absolute',
+														left: `${index * widthPercent}%`,
+														top: 0,
+														bottom: 0,
+														width: `calc(${widthPercent}% - 1px)`,
+														background: isHovered
+															? 'rgba(255, 255, 255, 0.06)'
+															: 'transparent',
+														pointerEvents: 'auto',
+													}}
+												>
+													<div
+														style={{
+															position: 'absolute',
+															left: 0,
+															right: 0,
+															top: 0,
+															// Top-anchored so it grows downward, mirroring the
+															// issue frame bar's bottom-anchored growth above,
+															// using the same count-based intensity formula.
+															height: 3 + intensity * 21,
+															borderRadius: '0 0 1px 1px',
+															background: GUI_THEME.green,
+															opacity: 0.35 + intensity * 0.65,
+															pointerEvents: 'none',
+														}}
+													/>
+												</div>
+											);
+									  })
+									: commits.map(commit => {
+											const fraction = realFractionForTime(commit.time);
+											// Uniform size — an individual commit doesn't have a
+											// "count" of its own to vary by, unlike the aggregated
+											// bucket bars in Frames mode above.
+											const size = 6;
+
+											return (
+												<div
+													key={commit.sha}
+													title={`${formatDateTime(new Date(commit.time))} — ${
+														commit.subject
+													} — ${
+														commit.author
+													} (${commit.linesChanged.toLocaleString()} lines)`}
+													onClick={() => onInspectCommit(commit.sha)}
+													onMouseEnter={() => {
+														setHoveredCommit(commit);
+														setHoveredCommitFraction(fraction);
+													}}
+													onMouseLeave={() => {
+														setHoveredCommit(null);
+														setHoveredCommitFraction(null);
+													}}
+													style={{
+														position: 'absolute',
+														left: `${fraction * 100}%`,
+														top: '50%',
+														width: size,
+														height: size,
+														borderRadius: '50%',
+														background: GUI_THEME.green,
+														opacity:
+															hoveredCommit?.sha === commit.sha ? 1 : 0.65,
+														transform: `translate(${-size / 2}px, -50%)`,
+														pointerEvents: 'auto',
+														cursor: 'pointer',
+													}}
+												/>
+											);
+									  })}
 							</div>
 						)}
 					</>
