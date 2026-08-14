@@ -175,7 +175,11 @@ export const App = () => {
 		socket.addEventListener('open', () => {
 			setConnected(true);
 			socket.send(JSON.stringify({type: 'state:get'}));
-			requestBoardHistory();
+			// Deliberately does not request history here. The scrubber owns the
+			// scope (and remembers it across sessions), so it drives that fetch
+			// itself once `connected` flips — requesting from here could only
+			// ever ask for the default all-time window, which would ignore a
+			// stored Week/Month/Year selection on the first load.
 		});
 
 		socket.addEventListener('close', () => {
@@ -707,6 +711,7 @@ export const App = () => {
 				timeline={history.timeline}
 				commits={history.commits}
 				boardId={selectedBoardId}
+				connected={connected}
 				onRequestHistory={requestBoardHistory}
 				onInspectCommit={inspectCommit}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}

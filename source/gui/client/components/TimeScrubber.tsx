@@ -61,6 +61,10 @@ type TimeScrubberProps = {
 	// Scopes the event timeline. Changing it re-fetches, so the chart always
 	// describes the board on screen.
 	boardId: string | null;
+	// Whether the socket is up. Requests are driven from here rather than from
+	// the connection handler so that the stored scope is respected on a first
+	// load; this is the signal that there's something to send them down.
+	connected: boolean;
 	onInspectCommit: (sha: string) => void;
 };
 
@@ -124,6 +128,25 @@ const EVENTS_MODE_VERTICAL_PADDING =
 // visible window (see WINDOW_KEY use below) so it re-runs on a scope change
 // too, not only when the series is switched on.
 const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 320ms ease-out';
+
+// How long one bar takes to reach full height, and how much total delay is
+// spread across the whole chart so the growth sweeps from the oldest bucket
+// to the newest instead of every bar popping at once. The spread is kept
+// shorter than a single bar's growth so the sweep reads as one gesture
+// rather than a queue of separate ones — noticeable, but over quickly.
+const BAR_GROW_MS = 300;
+const BAR_GROW_SWEEP_MS = 260;
+
+// `backwards` matters: without it a bar renders at full height until its
+// delay elapses and only then snaps to zero to start growing, which looks
+// like a glitch rather than a stagger.
+const barGrowAnimation = (index: number, count: number): string => {
+	const delay = count > 1 ? (index / (count - 1)) * BAR_GROW_SWEEP_MS : 0;
+
+	return `epiqScrubberGrow ${BAR_GROW_MS}ms ease-out ${delay.toFixed(
+		0,
+	)}ms backwards`;
+};
 
 // Width of the floating hover-hint tooltip, used both to render it and to
 // clamp its position so it never overflows past the track's edges. Wraps to
@@ -463,6 +486,7 @@ export const TimeScrubber = ({
 	onReturnToLive,
 	onRequestHistory,
 	boardId,
+	connected,
 	onInspectCommit,
 }: TimeScrubberProps) => {
 	const trackRef = useRef<HTMLDivElement | null>(null);
@@ -553,8 +577,10 @@ export const TimeScrubber = ({
 	// should be on screen. periodRange is derived from scope/offset each
 	// render, so including it too would just be redundant.
 	useEffect(() => {
+		if (!connected) return;
+
 		onRequestHistory(periodRange?.start, periodRange?.end, allBoards);
-	}, [scope, offset, boardId, allBoards]);
+	}, [scope, offset, boardId, allBoards, connected]);
 
 	const changeScope = (nextScope: Scope) => {
 		setScope(nextScope);
@@ -995,6 +1021,17 @@ export const TimeScrubber = ({
 			    checkbox is switched on, so toggling reads as a smooth reveal
 			    rather than a hard pop. */}
 			<style>{`
+				/* Bars grow out of the shared axis rather than fading in. Uses
+				   scaleY rather than height: height would re-run layout every
+				   frame for every bar, and at wide spans there are hundreds of
+				   them, whereas a transform is composited and effectively free.
+				   Each bar sets its own transform-origin so it grows away from
+				   the axis — up for board events, down for commits. */
+				@keyframes epiqScrubberGrow {
+					from { transform: scaleY(0); }
+					to { transform: scaleY(1); }
+				}
+
 				@keyframes epiqScrubberFadeIn {
 					/* Starts faint rather than fully transparent: fading up from
 					   zero read as the whole chart blinking, which is loud for what
@@ -1472,6 +1509,8 @@ export const TimeScrubber = ({
 													borderRadius: '1px 1px 0 0',
 													background: GUI_THEME.accent,
 													opacity: 0.35 + intensity * 0.65,
+													transformOrigin: 'bottom',
+													animation: barGrowAnimation(index, timeBucketCount),
 													// Purely decorative now: the track's own handler owns
 													// hover, so bars never need to catch the pointer.
 													pointerEvents: 'none',
@@ -1728,6 +1767,8 @@ export const TimeScrubber = ({
 												borderRadius: '0 0 1px 1px',
 												background: GUI_THEME.green,
 												opacity: 0.35 + intensity * 0.65,
+												transformOrigin: 'top',
+												animation: barGrowAnimation(index, timeBucketCount),
 												pointerEvents: 'none',
 											}}
 										/>
