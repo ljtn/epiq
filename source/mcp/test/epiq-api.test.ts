@@ -948,11 +948,12 @@ describe('mcp tools', () => {
 		}
 	});
 
-	it('adds a new assignee to an issue, creating the contributor', async () => {
+	it('creates an unlinked assignee from a name when explicitly asked', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
 			issueId: 'issue-1',
 			assigneeName: 'Bob',
+			createUnlinked: true,
 		});
 
 		expect(isFail(result)).toBe(false);
@@ -1068,6 +1069,39 @@ describe('mcp tools', () => {
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
+	// External is derived, never stored: somebody who only exists in the
+	// registry has not worked on the board, and the day they do the flag
+	// flips on its own with nothing to migrate.
+	it('marks registry-only contributors as external, authors as not', async () => {
+		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
+			typeof vi.fn
+		>;
+		loadMerged.mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'e1',
+					userId: 'user-1',
+					userName: 'Alice',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x'},
+				},
+			]),
+		);
+
+		const result = await tools.getBoardContributors({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			const byId = Object.fromEntries(
+				result.value.map(c => [c.id, c.isExternal]),
+			);
+			expect(byId['user-1']).toBe(false);
+			expect(byId['contributor-1']).toBe(true);
+		}
+
+		loadMerged.mockReturnValue(succeeded('loaded', []));
+	});
+
 	it('marks self in the contributor list', async () => {
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
 			typeof vi.fn
@@ -1156,6 +1190,23 @@ describe('mcp tools', () => {
 		if (isFail(result)) {
 			expect(result.message).toBe('Provide assigneeId, self or assigneeName');
 		}
+	});
+
+	// Creating a person should be a decision, not what happens when a name is
+	// misspelt — that is how near-duplicate contributors appear.
+	it('refuses an unmatched name unless createUnlinked is set', async () => {
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeName: 'Nobody',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toContain('createUnlinked');
+		}
+
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
 	});
 
 	it('adds an existing contributor as assignee without creating a duplicate', async () => {

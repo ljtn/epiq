@@ -61,7 +61,13 @@ export const IssueDetails = ({
 	onEditDescription: (issueId: string, description: string) => void;
 	onAddTag: (issueId: string, tagName: string) => void;
 	onRemoveTag: (issueId: string, tagId: string) => void;
-	onAddAssignee: (issueId: string, assigneeName: string) => void;
+	// createUnlinked marks the typed-name path, which may name somebody with
+	// no contributor record. Picking an existing chip never sets it.
+	onAddAssignee: (
+		issueId: string,
+		assigneeName: string,
+		createUnlinked?: boolean,
+	) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
 	onReopenIssue: (issueId: string) => void;
@@ -178,7 +184,7 @@ export const IssueDetails = ({
 	const addAssignee = () => {
 		if (disabled || !issue || !assigneeName.trim()) return;
 
-		onAddAssignee(issue.id, assigneeName.trim());
+		onAddAssignee(issue.id, assigneeName.trim(), true);
 		setAssigneeName('');
 		setAddingAssignee(false);
 	};
@@ -481,7 +487,15 @@ export const IssueDetails = ({
 											}}
 										/>
 
-										<Button onClick={addAssignee}>add</Button>
+										{/* Named for what it does: this path can invent a person
+										    who has never touched the board, which is worth being
+										    deliberate about rather than the default way to assign. */}
+										<Button
+											onClick={addAssignee}
+											title="Add someone who has not contributed to this board"
+										>
+											add external
+										</Button>
 									</AddRow>
 								)}
 							</Section>

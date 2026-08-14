@@ -25,6 +25,7 @@ export type GuiMessage =
 				issueId: string;
 				assigneeId?: string;
 				assigneeName?: string;
+				createUnlinked?: boolean;
 			};
 	  }
 	| {

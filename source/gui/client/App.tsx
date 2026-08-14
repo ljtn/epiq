@@ -377,7 +377,11 @@ export const App = () => {
 		send('issue:tag:remove', {issueId, tagId});
 	};
 
-	const addIssueAssignee = (issueId: string, assigneeName: string) => {
+	const addIssueAssignee = (
+		issueId: string,
+		assigneeName: string,
+		createUnlinked?: boolean,
+	) => {
 		setState(prev => {
 			if (!prev) return prev;
 
@@ -400,7 +404,7 @@ export const App = () => {
 			});
 		});
 
-		send('issue:assignee:add', {issueId, assigneeName});
+		send('issue:assignee:add', {issueId, assigneeName, createUnlinked});
 	};
 
 	const removeIssueAssignee = (issueId: string, assigneeId: string) => {

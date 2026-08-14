@@ -145,6 +145,10 @@ type AddIssueAssigneeInput = ToolInput & {
 	// it is the unorthodox route — a name that differs only in case or spacing
 	// from an existing contributor produces a second, near-identical one.
 	assigneeName?: string;
+	// Required to create somebody new from a name. Without it an unmatched
+	// name is refused rather than quietly minting a contributor: creating a
+	// person should be a decision, not the accidental outcome of a typo.
+	createUnlinked?: boolean;
 };
 
 type RemoveIssueAssigneeInput = ToolInput & {
@@ -1338,6 +1342,12 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 		contributor => contributor.name === assigneeName,
 	);
 
+	if (!existingAssignee && !input.createUnlinked) {
+		return failed(
+			`No contributor named "${assigneeName}". Assign by id, or pass createUnlinked to add them as an external assignee.`,
+		);
+	}
+
 	const assigneeId = existingAssignee?.id ?? ulid();
 
 	const events = [
@@ -1391,7 +1401,9 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 // were never assigned.
 export const getBoardContributors = async (
 	input: ToolInput & {boardId?: string} = {},
-): Promise<Result<(ApiAssignee & {isSelf: boolean})[]>> => {
+): Promise<
+	Result<(ApiAssignee & {isSelf: boolean; isExternal: boolean})[]>
+> => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
@@ -1412,23 +1424,35 @@ export const getBoardContributors = async (
 	// the id it belongs to does not, so the most recent spelling is the one
 	// worth showing. Events arrive in chronological order.
 	const byId = new Map<string, string>();
+	// Tracked separately from the merged map so "has this person actually
+	// worked on the board" survives the union below — that is precisely what
+	// distinguishes a real contributor from an external one.
+	const authorIds = new Set<string>();
 
 	for (const event of scopedEvents) {
-		if (event.userId) byId.set(event.userId, event.userName ?? '');
+		if (!event.userId) continue;
+
+		byId.set(event.userId, event.userName ?? '');
+		authorIds.add(event.userId);
 	}
 
 	for (const contributor of Object.values(stateResult.value.contributors)) {
 		if (!byId.has(contributor.id)) byId.set(contributor.id, contributor.name);
 	}
 
-	// Flagged rather than left for the caller to work out: every surface that
-	// offers a picker wants to pin "me" first, and each of them re-deriving it
-	// from config is three chances to disagree about who you are.
+	// Both flags are derived here rather than left to callers: every surface
+	// wants to pin "me" first and mark outsiders, and three of them working it
+	// out independently is three chances to disagree.
+	//
+	// `isExternal` is computed, never stored, so it self-corrects — the day an
+	// external assignee authors their first event on this board they stop
+	// being external, with nothing to migrate.
 	const contributors = [...byId.entries()].map(([id, name]) => ({
 		id,
 		name,
 		color: getStringColor(name),
 		isSelf: id === actorResult.value.userId,
+		isExternal: !authorIds.has(id),
 	}));
 
 	return succeeded('Listed board contributors', contributors);
