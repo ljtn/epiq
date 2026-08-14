@@ -131,28 +131,33 @@ const MIN_TIME_BUCKETS = 60;
 const MAX_TIME_BUCKETS = 900;
 
 // Bucket count scales with how much time is on screen, rather than being
-// fixed: a week's worth of history gets chunky, easily-hit blocks, while
-// "all time" gets a dense, near-pixel-wide density strip. Sub-linear (roughly
-// a square root) is the point — a span 50x longer gets only ~6x the buckets,
-// so each bucket still covers *more* real time as you zoom out, but the bars
-// visibly thin out instead of staying the same width and silently swallowing
-// ever-larger intervals.
+// fixed: a week of history gets fairly fine bars, "all time" gets a dense,
+// near-pixel-wide density strip. Sub-linear is the point — a span 50x longer
+// gets only ~4x the buckets, so each bucket still covers *more* real time as
+// you zoom out, but the bars visibly thin out instead of staying the same
+// width and silently swallowing ever-larger intervals.
 //
 // The exponent and coefficient are just the curve through two chosen anchors:
-// ~110 buckets at a 7-day span (blocky), ~700 at a 365-day one (fine).
+// ~220 buckets at a 7-day span, ~800 at a 365-day one. Deliberately biased
+// toward resolution over chunkiness even at narrow scopes — a week rendered
+// as ~100 fat blocks averages away exactly the working-rhythm detail (which
+// hours had bursts, which were idle) that makes looking at a single week
+// worthwhile in the first place. Hover is resolved arithmetically rather than
+// by hit-testing elements, so finer bars cost nothing in pointer accuracy.
 const bucketCountForSpan = (spanMs: number): number => {
 	const days = Math.max(1, spanMs / DAY_MS);
 
 	return Math.round(
-		clamp(45 * Math.pow(days, 0.47), MIN_TIME_BUCKETS, MAX_TIME_BUCKETS),
+		clamp(116.5 * Math.pow(days, 0.3265), MIN_TIME_BUCKETS, MAX_TIME_BUCKETS),
 	);
 };
 
 // Below this width a bar is too thin to spare a pixel for the separating gap
-// — at ~2px, subtracting one would halve it. Wide/blocky bars keep the gap,
-// since that's what makes them read as discrete buckets rather than one
-// continuous area.
-const MIN_BUCKET_COUNT_FOR_GAP = 250;
+// — at ~2px, subtracting one would halve it. Wider bars keep the gap, since
+// that's what makes them read as discrete buckets rather than one continuous
+// area; past this density the bars merge into a profile anyway, which is the
+// intended look at wide spans.
+const MIN_BUCKET_COUNT_FOR_GAP = 300;
 
 // Outline rather than filled — a solid accent block per active toggle reads
 // as heavy with this many buttons in one row; border + text color is enough
@@ -247,16 +252,14 @@ export const TimeScrubber = ({
 	const [scope, setScope] = useState<Scope>(readStoredScope);
 	const [offset, setOffset] = useState(0);
 	const [dragFraction, setDragFraction] = useState<number | null>(null);
-	// `time` always renders as the tooltip's first row, for both this (board)
-	// and the commit tooltip below — a consistent anchor regardless of what
-	// other stats follow.
+	// "Events" mode only, where individual points carry their own enter/leave
+	// handlers. `time` always renders as the tooltip's first row, for both
+	// this (board) and the commit tooltip below — a consistent anchor
+	// regardless of what other stats follow.
 	const [hoverLabel, setHoverLabel] = useState<{
 		time: string;
 		count: number;
 	} | null>(null);
-	const [hoveredBucketTime, setHoveredBucketTime] = useState<number | null>(
-		null,
-	);
 	const [hoveredBucketFraction, setHoveredBucketFraction] = useState<
 		number | null
 	>(null);
@@ -267,14 +270,19 @@ export const TimeScrubber = ({
 	const [hoveredCommitFraction, setHoveredCommitFraction] = useState<
 		number | null
 	>(null);
-	// Only used in "Volume" mode, where commits render as one aggregated bar
-	// per time bucket instead of individual dots (see hoveredCommit above).
-	const [hoveredCommitBucket, setHoveredCommitBucket] = useState<{
-		index: number;
-		t: number;
-		count: number;
-		linesChanged: number;
-	} | null>(null);
+	// "Volume" mode's hover, tracked as a bare bucket index resolved from the
+	// pointer's x position by a single handler on each track — rather than by
+	// giving every bucket its own hit-target element. At wide spans buckets
+	// are only ~2px across, which made per-element hit targets both fiddly to
+	// aim at and needlessly numerous (hundreds of DOM nodes whose only job was
+	// to notice a mouse). Deriving the index arithmetically is pixel-accurate
+	// at any density and costs nothing.
+	const [hoveredBucketIndex, setHoveredBucketIndex] = useState<number | null>(
+		null,
+	);
+	const [hoveredCommitBucketIndex, setHoveredCommitBucketIndex] = useState<
+		number | null
+	>(null);
 	const [collapsed, setCollapsed] = useState(
 		() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true',
 	);
@@ -424,6 +432,26 @@ export const TimeScrubber = ({
 		dispatchScrub(fraction, false);
 	};
 
+	// Which "Volume" bucket sits under the pointer. Measures against the
+	// element actually being hovered rather than trackRef, so the same handler
+	// serves both the issue track and the mirrored commit box below it.
+	const bucketIndexFromEvent = (
+		event: React.MouseEvent<HTMLDivElement>,
+	): number => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		const fraction = clamp(
+			(event.clientX - rect.left) / Math.max(1, rect.width),
+			0,
+			1,
+		);
+
+		return clamp(
+			Math.floor(fraction * timeBucketCount),
+			0,
+			timeBucketCount - 1,
+		);
+	};
+
 	const endDrag = () => {
 		if (dragFraction === null) return;
 
@@ -478,13 +506,37 @@ export const TimeScrubber = ({
 		...Array.from(commitStatsByTimeBucketIndex.values(), s => s.count),
 	);
 
+	// The board tooltip's contents, from whichever source is active: a
+	// pointer-resolved bucket index in "Volume" mode, or an individual
+	// point's own hover state in "Events" mode.
+	const hoveredBucket =
+		hoveredBucketIndex !== null ? timeBuckets[hoveredBucketIndex] : undefined;
+	const boardHoverLabel: {time: string; count: number} | null =
+		layoutMode === 'even'
+			? hoveredBucket
+				? {
+						time: formatInterval(
+							hoveredBucket.t,
+							hoveredBucket.t + timeBucketMs,
+						),
+						count: hoveredBucket.count,
+				  }
+				: null
+			: hoverLabel;
+	const boardHoverFraction =
+		layoutMode === 'even'
+			? hoveredBucketIndex !== null
+				? (hoveredBucketIndex + 0.5) / timeBucketCount
+				: null
+			: hoveredBucketFraction;
+
 	// Center the hover-hint tooltip on the hovered bucket, clamped so it never
 	// overflows past the track's own left/right edges.
 	const trackWidthPx = trackRef.current?.clientWidth ?? 0;
 	const hoverHintLeftPx =
-		hoveredBucketFraction !== null
+		boardHoverFraction !== null
 			? clamp(
-					hoveredBucketFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
+					boardHoverFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
 					0,
 					Math.max(0, trackWidthPx - HOVER_HINT_WIDTH),
 			  )
@@ -494,22 +546,30 @@ export const TimeScrubber = ({
 	// aggregated bucket bar in "Volume" mode) into one time/rows shape so the
 	// floating hint below only needs one code path — `time` is always the
 	// first row, matching the board tooltip's own top row.
+	const hoveredCommitStats =
+		hoveredCommitBucketIndex !== null
+			? commitStatsByTimeBucketIndex.get(hoveredCommitBucketIndex)
+			: undefined;
+	const hoveredCommitBucketTime =
+		hoveredCommitBucketIndex !== null
+			? timeBuckets[hoveredCommitBucketIndex]?.t
+			: undefined;
 	const commitHoverLabel: {time: string; rows: string[]} | null =
 		layoutMode === 'even'
-			? hoveredCommitBucket
+			? hoveredCommitStats && hoveredCommitBucketTime !== undefined
 				? {
-						// The bucket's own window is now the honest answer: commits are
+						// The bucket's own window is the honest answer: commits are
 						// bucketed by containment, so everything counted here genuinely
 						// happened inside this interval.
 						time: formatInterval(
-							hoveredCommitBucket.t,
-							hoveredCommitBucket.t + timeBucketMs,
+							hoveredCommitBucketTime,
+							hoveredCommitBucketTime + timeBucketMs,
 						),
 						rows: [
-							`${hoveredCommitBucket.count} commit${
-								hoveredCommitBucket.count === 1 ? '' : 's'
+							`${hoveredCommitStats.count} commit${
+								hoveredCommitStats.count === 1 ? '' : 's'
 							}`,
-							`${hoveredCommitBucket.linesChanged.toLocaleString()} lines changed`,
+							`${hoveredCommitStats.linesChanged.toLocaleString()} lines changed`,
 						],
 				  }
 				: null
@@ -526,8 +586,8 @@ export const TimeScrubber = ({
 			: null;
 	const commitHoverFraction =
 		layoutMode === 'even'
-			? hoveredCommitBucket
-				? (hoveredCommitBucket.index + 0.5) / timeBucketCount
+			? hoveredCommitBucketIndex !== null
+				? (hoveredCommitBucketIndex + 0.5) / timeBucketCount
 				: null
 			: hoveredCommitFraction;
 	const commitHintLeftPx =
@@ -549,6 +609,13 @@ export const TimeScrubber = ({
 				borderRight: 'none',
 				borderTop: 'none',
 				padding: '10px 30px',
+				// Panel clips its children by default (to keep its glow inside its
+				// rounded corners). The hover tooltip deliberately floats *above*
+				// the track, which puts it outside this panel's box entirely, so
+				// clipping would lop off its top. Safe to disable here: this panel
+				// is square (borderRadius 0, no top border), so there's no rounding
+				// for the clip to protect.
+				overflow: 'visible',
 			}}
 		>
 			{/* A plain inline style tag rather than a CSS module/file, matching
@@ -809,6 +876,20 @@ export const TimeScrubber = ({
 							onPointerMove={onPointerMove}
 							onPointerUp={endDrag}
 							onPointerCancel={endDrag}
+							// "Volume" mode resolves the hovered bucket from the pointer's
+							// x position here, once, instead of per bucket. "Events" mode
+							// leaves this alone — there the individual points carry their
+							// own handlers, since a scatter has no column to fall into.
+							onMouseMove={
+								layoutMode === 'even'
+									? event => setHoveredBucketIndex(bucketIndexFromEvent(event))
+									: undefined
+							}
+							onMouseLeave={
+								layoutMode === 'even'
+									? () => setHoveredBucketIndex(null)
+									: undefined
+							}
 							style={{
 								position: 'relative',
 								width: '100%',
@@ -828,7 +909,7 @@ export const TimeScrubber = ({
 					    clamped to the track's own bounds so it never overflows
 					    left/right. Time always renders as its own first row, so it's
 					    in the same place whether hovering the board or code track. */}
-							{hoverLabel && (
+							{boardHoverLabel && (
 								<div
 									style={{
 										position: 'absolute',
@@ -864,11 +945,11 @@ export const TimeScrubber = ({
 											wordBreak: 'break-word',
 										}}
 									>
-										{hoverLabel.time}
+										{boardHoverLabel.time}
 									</div>
 									<div style={{fontSize: 11, color: GUI_THEME.secondary}}>
-										{hoverLabel.count} board event
-										{hoverLabel.count === 1 ? '' : 's'}
+										{boardHoverLabel.count} board event
+										{boardHoverLabel.count === 1 ? '' : 's'}
 									</div>
 								</div>
 							)}
@@ -947,83 +1028,75 @@ export const TimeScrubber = ({
 					    fixed-duration histogram (every bucket, including empty ones),
 					    "Events" draws the server's fine-grained sparse buckets as
 					    individual 2D points. */}
-							{showIssues &&
-								layoutMode === 'even' &&
-								timeBuckets.map((bucket, index) => {
-									const intensity = bucket.count / maxIssueBucketCount;
-									const interval = formatInterval(
-										bucket.t,
-										bucket.t + timeBucketMs,
-									);
-									const widthPercent = 100 / timeBucketCount;
-									const barWidth =
-										timeBucketCount < MIN_BUCKET_COUNT_FOR_GAP
-											? `calc(${widthPercent}% - 1px)`
-											: `${widthPercent}%`;
-
-									return (
-										// Hit-target spans the full track height, not just the bar's
-										// rendered height — a short/low-intensity bar would otherwise
-										// need pixel-precise aim to hover. Background tints on hover so
-										// the whole column reads as the hit target, not just the bar.
-										// Every bucket gets one, empty included, which is what makes a
-										// quiet stretch hoverable ("0 changes") instead of a dead zone.
+							{showIssues && layoutMode === 'even' && (
+								<>
+									{/* Hover column, drawn once for whichever bucket the
+									    pointer resolved to (see the track's onMouseMove).
+									    Spans the full track height rather than tracking the
+									    bar's own, so the highlight reads as "this slice of
+									    time" — including for empty buckets, where there's no
+									    bar to highlight at all but "0 changes" is still worth
+									    surfacing. */}
+									{hoveredBucketIndex !== null && (
 										<div
-											key={bucket.t}
-											title={`${bucket.count} change${
-												bucket.count === 1 ? '' : 's'
-											}, ${interval}`}
-											onMouseEnter={() => {
-												setHoverLabel({time: interval, count: bucket.count});
-												setHoveredBucketTime(bucket.t);
-												setHoveredBucketFraction(
-													(index + 0.5) / timeBucketCount,
-												);
-											}}
-											onMouseLeave={() => {
-												setHoverLabel(null);
-												setHoveredBucketTime(null);
-												setHoveredBucketFraction(null);
-											}}
 											style={{
 												position: 'absolute',
-												left: `${index * widthPercent}%`,
+												left: `${
+													(hoveredBucketIndex * 100) / timeBucketCount
+												}%`,
 												top: 0,
 												bottom: 0,
-												width: barWidth,
-												background:
-													hoveredBucketTime === bucket.t
-														? 'rgba(255, 255, 255, 0.06)'
-														: 'transparent',
-												pointerEvents: 'auto',
-												animation: FADE_IN_ANIMATION,
+												width: `${100 / timeBucketCount}%`,
+												// Floored so the highlight stays visible at wide spans,
+												// where a bucket can be thinner than a pixel.
+												minWidth: 2,
+												background: 'rgba(255, 255, 255, 0.06)',
+												pointerEvents: 'none',
 											}}
-										>
-											{/* A genuinely quiet bucket renders no bar at all —
-										    deliberately void rather than a token sliver, since
-										    "nothing happened here" is real information the old
-										    gapless filmstrip used to hide. */}
-											{bucket.count > 0 && (
-												<div
-													style={{
-														position: 'absolute',
-														left: 0,
-														right: 0,
-														bottom: 0,
-														// Bottom-anchored so height reads as a stacked-bar chart
-														// — how much happened at that point in time — rather
-														// than a centered blip.
-														height: 3 + intensity * 21,
-														borderRadius: '1px 1px 0 0',
-														background: GUI_THEME.accent,
-														opacity: 0.35 + intensity * 0.65,
-														pointerEvents: 'none',
-													}}
-												/>
-											)}
-										</div>
-									);
-								})}
+										/>
+									)}
+
+									{timeBuckets.map((bucket, index) => {
+										// A genuinely quiet bucket renders nothing — deliberately
+										// void rather than a token sliver, since "nothing happened
+										// here" is real information the old gapless filmstrip used
+										// to hide. It stays hoverable regardless, because hover is
+										// resolved arithmetically rather than by hit-testing an
+										// element that would have to exist for the purpose.
+										if (bucket.count === 0) return null;
+
+										const intensity = bucket.count / maxIssueBucketCount;
+										const widthPercent = 100 / timeBucketCount;
+										const barWidth =
+											timeBucketCount < MIN_BUCKET_COUNT_FOR_GAP
+												? `calc(${widthPercent}% - 1px)`
+												: `${widthPercent}%`;
+
+										return (
+											<div
+												key={bucket.t}
+												style={{
+													position: 'absolute',
+													left: `${index * widthPercent}%`,
+													// Bottom-anchored so height reads as a stacked-bar
+													// chart — how much happened at that point in time —
+													// rather than a centered blip.
+													bottom: 0,
+													width: barWidth,
+													height: 3 + intensity * 21,
+													borderRadius: '1px 1px 0 0',
+													background: GUI_THEME.accent,
+													opacity: 0.35 + intensity * 0.65,
+													// Purely decorative now: the track's own handler owns
+													// hover, so bars never need to catch the pointer.
+													pointerEvents: 'none',
+													animation: FADE_IN_ANIMATION,
+												}}
+											/>
+										);
+									})}
+								</>
+							)}
 
 							{showIssues &&
 								layoutMode === 'real' &&
@@ -1046,12 +1119,10 @@ export const TimeScrubber = ({
 											}, ${label}`}
 											onMouseEnter={() => {
 												setHoverLabel({time: label, count: bucket.count});
-												setHoveredBucketTime(bucket.t);
 												setHoveredBucketFraction(fraction);
 											}}
 											onMouseLeave={() => {
 												setHoverLabel(null);
-												setHoveredBucketTime(null);
 												setHoveredBucketFraction(null);
 											}}
 											style={{
@@ -1267,6 +1338,12 @@ export const TimeScrubber = ({
 						    rather than merely decorative. */}
 						{showCommits && layoutMode === 'even' && commits.length > 0 && (
 							<div
+								// Same pointer-resolved hover as the issue track above,
+								// measured against this box's own width (which matches it).
+								onMouseMove={event =>
+									setHoveredCommitBucketIndex(bucketIndexFromEvent(event))
+								}
+								onMouseLeave={() => setHoveredCommitBucketIndex(null)}
 								style={{
 									position: 'relative',
 									width: '100%',
@@ -1340,6 +1417,23 @@ export const TimeScrubber = ({
 									}}
 								/>
 
+								{hoveredCommitBucketIndex !== null && (
+									<div
+										style={{
+											position: 'absolute',
+											left: `${
+												(hoveredCommitBucketIndex * 100) / timeBucketCount
+											}%`,
+											top: 0,
+											bottom: 0,
+											width: `${100 / timeBucketCount}%`,
+											minWidth: 2,
+											background: 'rgba(255, 255, 255, 0.06)',
+											pointerEvents: 'none',
+										}}
+									/>
+								)}
+
 								{timeBuckets.map((bucket, index) => {
 									const stats = commitStatsByTimeBucketIndex.get(index);
 									if (!stats) return null;
@@ -1350,45 +1444,26 @@ export const TimeScrubber = ({
 										timeBucketCount < MIN_BUCKET_COUNT_FOR_GAP
 											? `calc(${widthPercent}% - 1px)`
 											: `${widthPercent}%`;
-									const isHovered = hoveredCommitBucket?.index === index;
 
 									return (
 										<div
 											key={bucket.t}
-											onMouseEnter={() =>
-												setHoveredCommitBucket({index, t: bucket.t, ...stats})
-											}
-											onMouseLeave={() => setHoveredCommitBucket(null)}
 											style={{
 												position: 'absolute',
 												left: `${index * widthPercent}%`,
+												// Top-anchored so it grows downward, mirroring the
+												// issue bar's bottom-anchored growth above, using the
+												// same count-based intensity formula.
 												top: 0,
-												bottom: 0,
 												width: barWidth,
-												background: isHovered
-													? 'rgba(255, 255, 255, 0.06)'
-													: 'transparent',
-												pointerEvents: 'auto',
+												height: 3 + intensity * 21,
+												borderRadius: '0 0 1px 1px',
+												background: GUI_THEME.green,
+												opacity: 0.35 + intensity * 0.65,
+												pointerEvents: 'none',
 												animation: FADE_IN_ANIMATION,
 											}}
-										>
-											<div
-												style={{
-													position: 'absolute',
-													left: 0,
-													right: 0,
-													top: 0,
-													// Top-anchored so it grows downward, mirroring the
-													// issue bar's bottom-anchored growth above,
-													// using the same count-based intensity formula.
-													height: 3 + intensity * 21,
-													borderRadius: '0 0 1px 1px',
-													background: GUI_THEME.green,
-													opacity: 0.35 + intensity * 0.65,
-													pointerEvents: 'none',
-												}}
-											/>
-										</div>
+										/>
 									);
 								})}
 							</div>
