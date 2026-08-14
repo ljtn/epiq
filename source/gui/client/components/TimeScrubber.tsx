@@ -9,6 +9,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {IconClock} from './IconClock';
+import {Checkbox} from './Checkbox';
 import {Panel} from './Panel';
 
 // Not reused from source/lib/event/date-utils.ts: that module is reachable
@@ -398,84 +399,6 @@ const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	padding: '2px 8px',
 	cursor: 'pointer',
 });
-
-// A checkbox drawn to match the buttons beside it rather than the platform's
-// own: same 1px border, same active/dim colour pair, same 10px label text.
-// The native input is kept for semantics and keyboard behaviour but made
-// invisible and stretched over the box, so the visible square is ours while
-// the control still behaves like a real checkbox. Each series keeps its own
-// colour when on — blue for board events, green for commits — matching the
-// marks it governs, which is what the native accentColor used to convey.
-const SeriesCheckbox = ({
-	label,
-	checked,
-	activeColor,
-	onChange,
-}: {
-	label: string;
-	checked: boolean;
-	activeColor: string;
-	onChange: (next: boolean) => void;
-}) => {
-	const color = checked ? activeColor : GUI_THEME.dim;
-
-	return (
-		<label
-			style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: 5,
-				fontSize: 10,
-				color,
-				cursor: 'pointer',
-			}}
-		>
-			<span
-				style={{
-					position: 'relative',
-					display: 'inline-flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					width: 12,
-					height: 12,
-					// Smaller radius than the buttons' 6px only because the box is a
-					// fraction of their height — the same 6 would round it into a
-					// circle and stop reading as a checkbox.
-					borderRadius: 4,
-					border: `1px solid ${color}`,
-					background: 'transparent',
-					flexShrink: 0,
-				}}
-			>
-				<input
-					type="checkbox"
-					checked={checked}
-					onChange={event => onChange(event.target.checked)}
-					style={{
-						position: 'absolute',
-						inset: 0,
-						width: '100%',
-						height: '100%',
-						margin: 0,
-						opacity: 0,
-						cursor: 'pointer',
-					}}
-				/>
-				{checked && (
-					<span
-						style={{
-							width: 6,
-							height: 6,
-							borderRadius: 1,
-							background: activeColor,
-						}}
-					/>
-				)}
-			</span>
-			{label}
-		</label>
-	);
-};
 
 const navButtonStyle: React.CSSProperties = {
 	background: 'transparent',
@@ -1294,13 +1217,13 @@ export const TimeScrubber = ({
 							{/* Which data series to draw — a pure display filter, doesn't
 							    change what's fetched. */}
 							<div style={{display: 'flex', gap: 10}}>
-								<SeriesCheckbox
+								<Checkbox
 									label="Board"
 									checked={showIssues}
 									activeColor={GUI_THEME.accent}
 									onChange={changeShowIssues}
 								/>
-								<SeriesCheckbox
+								<Checkbox
 									label="Code"
 									checked={showCommits}
 									activeColor={GUI_THEME.green}
@@ -1309,7 +1232,7 @@ export const TimeScrubber = ({
 								{/* Scopes the board series rather than toggling one, so it
 								    sits with the series controls but reads as a qualifier
 								    on "Board" — hence the adjacency. */}
-								<SeriesCheckbox
+								<Checkbox
 									label="All boards"
 									checked={allBoards}
 									activeColor={GUI_THEME.accent}

@@ -10,6 +10,7 @@ import {
 } from '../lib/gui-state.model';
 import {Aside} from './Aside';
 import {Button} from './Button';
+import {RedactContributorsModal} from './RedactContributorsModal';
 import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {
@@ -93,7 +94,7 @@ export const IssueDetails = ({
 	// Two-step rather than a browser confirm(): the effect is irreversible in
 	// practice (the name is gone from every view), so it shouldn't be one
 	// stray click away, but a modal dialog is heavier than this warrants.
-	const [redactingId, setRedactingId] = useState<string | null>(null);
+	const [managingContributors, setManagingContributors] = useState(false);
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [addingTag, setAddingTag] = useState(false);
@@ -518,50 +519,21 @@ export const IssueDetails = ({
 									</ChipRow>
 								)}
 
-								{/* Redaction is an administrative action, kept out of the
-								    assign flow proper and offered only where it applies:
-								    the server refuses anyone who has authored events. */}
+								{/* Opens a separate view rather than acting from here:
+								    clearing a name is workspace-wide and permanent, and a
+								    control among per-issue chips reads as issue-scoped. */}
 								{addingAssignee &&
 									assignees.some(a => a.isExternal && !a.isRedacted) && (
 										<ChipRow>
-											{/* Every known contributor, not only the unassigned
-											    ones: somebody already on this issue is exactly
-											    who you're most likely to be asked to redact, and
-											    filtering them out would hide the control just
-											    when it's wanted. */}
-											{assignees
-												.filter(
-													assignee =>
-														assignee.isExternal && !assignee.isRedacted,
-												)
-												.map(assignee =>
-													redactingId === assignee.id ? (
-														<Button
-															key={assignee.id}
-															variant="chip"
-															disabled={issue.readonly}
-															onClick={() => {
-																onRedactContributor(assignee.id);
-																setRedactingId(null);
-															}}
-															title="Their name is cleared everywhere. The id and all assignments are kept."
-															style={{color: GUI_THEME.red}}
-														>
-															confirm: clear @{assignee.name}
-														</Button>
-													) : (
-														<Button
-															key={assignee.id}
-															variant="chip"
-															disabled={issue.readonly}
-															onClick={() => setRedactingId(assignee.id)}
-															title="Clear this external contributor's name"
-															style={{color: GUI_THEME.dim, opacity: 0.55}}
-														>
-															clear name @{assignee.name}
-														</Button>
-													),
-												)}
+											<Button
+												variant="chip"
+												disabled={issue.readonly}
+												onClick={() => setManagingContributors(true)}
+												title="Review contributors and clear names across the whole workspace"
+												style={{color: GUI_THEME.dim, opacity: 0.55}}
+											>
+												manage contributors…
+											</Button>
 										</ChipRow>
 									)}
 
@@ -638,6 +610,14 @@ export const IssueDetails = ({
 				</>
 			) : (
 				<Empty>Select an issue</Empty>
+			)}
+
+			{managingContributors && (
+				<RedactContributorsModal
+					contributors={assignees}
+					onRedact={ids => ids.forEach(onRedactContributor)}
+					onClose={() => setManagingContributors(false)}
+				/>
 			)}
 		</Aside>
 	);
