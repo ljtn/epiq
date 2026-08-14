@@ -969,6 +969,61 @@ describe('mcp tools', () => {
 		);
 	});
 
+	it('assigns by id without creating a contributor', async () => {
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeId: 'contributor-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.assignee).toEqual({
+				id: 'contributor-1',
+				name: 'Alice',
+			});
+		}
+
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+		expect(calls).toEqual([
+			expect.objectContaining({
+				action: 'add.issue.assignee',
+				payload: {id: 'issue-1', assignee: 'contributor-1'},
+			}),
+		]);
+	});
+
+	// The point of the id path: an id names a specific person, so an unknown
+	// one is an error rather than a licence to invent a different contributor.
+	it('fails on an unknown assignee id instead of creating one', async () => {
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeId: 'contributor-missing',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Unknown assignee id');
+		}
+
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('fails when neither an assignee id nor a name is given', async () => {
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Provide assigneeId or assigneeName');
+		}
+	});
+
 	it('adds an existing contributor as assignee without creating a duplicate', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',

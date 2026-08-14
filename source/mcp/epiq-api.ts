@@ -127,7 +127,14 @@ type RemoveIssueTagInput = ToolInput & {
 
 type AddIssueAssigneeInput = ToolInput & {
 	issueId: string;
-	assigneeName: string;
+	// Prefer this. Assignees are stored as contributor ids, so an id assigns
+	// exactly who you meant.
+	assigneeId?: string;
+	// The unlinked/ad-hoc path: names a person who has no contributor record
+	// yet. Kept because assigning someone outside the board is legitimate, but
+	// it is the unorthodox route — a name that differs only in case or spacing
+	// from an existing contributor produces a second, near-identical one.
+	assigneeName?: string;
 };
 
 type RemoveIssueAssigneeInput = ToolInput & {
@@ -1233,9 +1240,40 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	if (!isTicketNode(issue)) return failed('Assign target must be an issue');
 	if (issue.readonly) return failed('Cannot assign readonly issue');
 
-	const assigneeName = sanitizeInlineText(input.assigneeName).trim();
-	if (!assigneeName) return failed('Assignee name cannot be empty');
+	// An id must resolve to somebody who already exists — unlike the name path
+	// below, an unknown id is an error rather than an invitation to invent a
+	// contributor. A caller passing an id is saying "this specific person",
+	// and silently creating a different one would answer a question they
+	// didn't ask.
+	if (input.assigneeId) {
+		const known = stateResult.value.contributors[input.assigneeId];
+		if (!known) return failed('Unknown assignee id');
 
+		const assignEvent = {
+			id: ulid(),
+			...actorResult.value,
+			action: 'add.issue.assignee',
+			payload: {id: input.issueId, assignee: input.assigneeId},
+		} satisfies AppEvent<'add.issue.assignee'>;
+
+		const assignResults = materializeAndPersistAll(
+			[assignEvent],
+			bootResult.value.stateBranchRoot,
+		);
+
+		if (isFail(assignResults)) return failed(assignResults.message);
+
+		return succeeded('Added issue assignee', {
+			id: input.issueId,
+			assignee: {id: known.id, name: known.name},
+		});
+	}
+
+	const assigneeName = sanitizeInlineText(input.assigneeName ?? '').trim();
+	if (!assigneeName) return failed('Provide assigneeId or assigneeName');
+
+	// Still matched against existing contributors first: reusing a record is
+	// always better than adding a duplicate of it, even on this path.
 	const existingAssignee = Object.values(stateResult.value.contributors).find(
 		contributor => contributor.name === assigneeName,
 	);

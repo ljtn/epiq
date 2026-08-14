@@ -14,7 +14,13 @@ export type GuiMessage =
 	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}
 	| {
 			type: 'issue:assignee:add';
-			payload: {issueId: string; assigneeName: string};
+			// assigneeId assigns an existing contributor; assigneeName is the
+			// unlinked fallback that creates one. See addIssueAssignee.
+			payload: {
+				issueId: string;
+				assigneeId?: string;
+				assigneeName?: string;
+			};
 	  }
 	| {
 			type: 'issue:assignee:remove';
