@@ -809,6 +809,11 @@ export const TimeScrubber = ({
 		content: {label: string; rows: string[]},
 		stripeColor: string,
 		leftPx: number,
+		// An interval that happened to contain nothing. Still worth showing —
+		// "nothing happened here" is real information — but it shouldn't
+		// present with the same weight as an interval that has data, so the
+		// series stripe and the text both step down a shade.
+		empty = false,
 	) => (
 		<div
 			style={{
@@ -830,8 +835,11 @@ export const TimeScrubber = ({
 				// Overrides just the left edge — a color-coded stripe so which
 				// series' hint this is stays obvious even where board/commit points
 				// are cluttered together.
-				borderLeft: `3px solid ${stripeColor}`,
-				borderRadius: 6,
+				borderLeft: `3px solid ${empty ? GUI_THEME.dim : stripeColor}`,
+				// Small radius rather than the 6px used elsewhere: the 3px colour
+				// stripe is thick enough that a rounder corner clips it into a
+				// visible wedge at the top and bottom of the left edge.
+				borderRadius: 3,
 				padding: '6px 10px',
 				pointerEvents: 'none',
 				// Above the board content it now overhangs.
@@ -851,7 +859,7 @@ export const TimeScrubber = ({
 				style={{
 					fontSize: 11,
 					fontWeight: 600,
-					color: GUI_THEME.primary,
+					color: empty ? GUI_THEME.secondary : GUI_THEME.primary,
 					whiteSpace: 'normal',
 					wordBreak: 'break-word',
 				}}
@@ -863,7 +871,7 @@ export const TimeScrubber = ({
 					key={index}
 					style={{
 						fontSize: 11,
-						color: GUI_THEME.secondary,
+						color: empty ? GUI_THEME.dim : GUI_THEME.secondary,
 						whiteSpace: 'normal',
 						wordBreak: 'break-word',
 					}}
@@ -1133,7 +1141,7 @@ export const TimeScrubber = ({
 							    change what's fetched. */}
 							<div style={{display: 'flex', gap: 10}}>
 								<SeriesCheckbox
-									label="Epiq"
+									label="Board"
 									checked={showIssues}
 									activeColor={GUI_THEME.accent}
 									onChange={changeShowIssues}
@@ -1771,6 +1779,7 @@ export const TimeScrubber = ({
 								},
 								GUI_THEME.accent,
 								hoverHintLeftPx,
+								boardHoverLabel.count === 0,
 							)}
 
 						{commitHoverLabel &&
