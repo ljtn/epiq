@@ -9,6 +9,7 @@ description: Workflow rules for working the epiq issue board — use the epiq MC
 - **Sync is on-demand only.** MCP reads/writes operate on local state and never pull/push automatically. Call `epiq_sync` explicitly when you need the latest remote state or want to publish local changes.
 - **Break work into small, scoped tickets.** One ticket per independent unit of work, not one giant ticket for a whole feature/epic. Small tickets move through the board cleanly and are easier to review.
 - **Keep the status column current as work progresses**
+- **Prefix commits with the ticket ref.** e.g. `61P9FS4: fix stale dots on mode switch`. This is what link-by-reference feature will match on.
 - **Tag tickets properly.** Reuse existing tags where they fit (check current issues/tags first) instead of inventing near-duplicates.
 - **Use comments to communicate deviations.** If the work diverges from what the ticket describes — scope changes, findings, blockers, test results — record it as a comment on the ticket, not just in chat.
 - **Be concise.** Titles, descriptions, and comments should be scannable, not essays.
