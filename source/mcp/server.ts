@@ -4,6 +4,7 @@ import {z} from 'zod';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	addIssueAssignee,
+	getBoardContributors,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -225,6 +226,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await removeIssueTag(input)),
+	);
+
+	server.registerTool(
+		'epiq_contributor_list',
+		{
+			description:
+				'List people who can be assigned: everyone who has authored an event (optionally scoped to one board) unioned with the contributor registry. Use these ids with epiq_issue_assignee_add rather than assigning by name.',
+			inputSchema: z.object({
+				boardId: z.string().min(1).optional(),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await getBoardContributors(input)),
 	);
 
 	server.registerTool(

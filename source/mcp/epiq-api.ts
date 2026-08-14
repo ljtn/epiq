@@ -10,6 +10,7 @@ import {loadMergedEvents} from '../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent, MovePosition} from '../lib/event/event.model.js';
+import {filterEventsForBoard} from './epiq-time-travel.js';
 import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {
@@ -39,7 +40,12 @@ import {
 	writeAttachmentBlob,
 } from '../lib/media/media-store.js';
 import {logger} from '../logger.js';
-import {ApiIssue, ApiState, ApiSwimlane} from './api-state.model.js';
+import {
+	ApiAssignee,
+	ApiIssue,
+	ApiState,
+	ApiSwimlane,
+} from './api-state.model.js';
 import {getTimeTravelStatus} from './epiq-time-travel.js';
 
 type ToolInput = {
@@ -1316,6 +1322,55 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 		id: input.issueId,
 		assignee: {id: assigneeId, name: assigneeName},
 	});
+};
+
+// Who can be assigned. Deliberately not just the contributor registry: a
+// contributor node only comes into existence when somebody is explicitly
+// created or assigned, so on a board where nobody has been assigned yet that
+// registry is empty — including you, despite having authored every event on
+// it. Every event carries userId + userName, so the people who have actually
+// touched a board are derivable, and derivable by id rather than by name.
+//
+// The two sources are unioned rather than one replacing the other: the
+// registry can hold people who were assigned but never authored anything
+// (external/unlinked assignees), and the log holds people who authored but
+// were never assigned.
+export const getBoardContributors = async (
+	input: ToolInput & {boardId?: string} = {},
+): Promise<Result<ApiAssignee[]>> => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const eventsResult = loadMergedEvents(bootResult.value.stateBranchRoot);
+	if (isFail(eventsResult)) return failed(eventsResult.message);
+
+	const scopedEvents = input.boardId
+		? filterEventsForBoard(eventsResult.value, input.boardId)
+		: eventsResult.value;
+
+	// Last write wins on the name: a display name can change over time while
+	// the id it belongs to does not, so the most recent spelling is the one
+	// worth showing. Events arrive in chronological order.
+	const byId = new Map<string, string>();
+
+	for (const event of scopedEvents) {
+		if (event.userId) byId.set(event.userId, event.userName ?? '');
+	}
+
+	for (const contributor of Object.values(stateResult.value.contributors)) {
+		if (!byId.has(contributor.id)) byId.set(contributor.id, contributor.name);
+	}
+
+	const contributors = [...byId.entries()].map(([id, name]) => ({
+		id,
+		name,
+		color: getStringColor(name),
+	}));
+
+	return succeeded('Listed board contributors', contributors);
 };
 
 export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {

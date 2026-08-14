@@ -2,6 +2,7 @@ import http from 'node:http';
 import {WebSocket, WebSocketServer} from 'ws';
 import {
 	addIssueAssignee,
+	getBoardContributors,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -293,6 +294,16 @@ export const setupWebsocket = (
 						'issue:tag:remove:result',
 						result,
 					);
+				}
+
+				if (type === 'contributors:get') {
+					return sendSocket(socket, {
+						type: 'contributors',
+						payload: await getBoardContributors({
+							repoRoot,
+							...message.payload,
+						}),
+					});
 				}
 
 				if (type === 'issue:assignee:add') {

@@ -111,7 +111,7 @@ export type EventTimeline = {
 // Events that resolve to no board at all (tags, contributors, the workspace
 // itself) are workspace-global and deliberately dropped: they'd appear
 // identically on every board's timeline and tell you nothing about this one.
-const filterEventsForBoard = (
+export const filterEventsForBoard = (
 	events: AppEvent[],
 	boardId: string,
 ): AppEvent[] => {

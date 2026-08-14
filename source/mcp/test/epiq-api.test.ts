@@ -70,6 +70,8 @@ vi.mock('../../lib/event/event-load.js', () => ({
 	loadMergedEvents: vi.fn(() => succeeded('loaded', [])),
 }));
 
+const eventLoadModule = await import('../../lib/event/event-load.js');
+
 vi.mock('../../lib/event/event-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => succeeded('booted', null)),
 }));
@@ -967,6 +969,57 @@ describe('mcp tools', () => {
 				expect.objectContaining({action: 'add.issue.assignee'}),
 			]),
 		);
+	});
+
+	it('derives contributors from event-log userIds, not just the registry', async () => {
+		// boot() also calls loadMergedEvents, so a `once` override would be
+		// swallowed before getBoardContributors ever reads it. Set it for the
+		// whole test and restore the shared default afterwards — clearAllMocks
+		// resets call data, not implementations, so a leak here would silently
+		// change every later test.
+		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
+			typeof vi.fn
+		>;
+		loadMerged.mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'e1',
+					userId: 'user-1',
+					userName: 'Alice',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x'},
+				},
+				// Same person, later event, new display name — the id is stable,
+				// the spelling is not, so the latest one should win.
+				{
+					id: 'e2',
+					userId: 'user-1',
+					userName: 'Alice Cooper',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'y'},
+				},
+				{
+					id: 'e3',
+					userId: 'user-2',
+					userName: 'Bob',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'z'},
+				},
+			]),
+		);
+
+		const result = await tools.getBoardContributors({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			const byId = Object.fromEntries(result.value.map(c => [c.id, c.name]));
+			expect(byId['user-1']).toBe('Alice Cooper');
+			expect(byId['user-2']).toBe('Bob');
+			// Registry entry that never authored anything is still assignable.
+			expect(byId['contributor-1']).toBe('Alice');
+		}
+
+		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
 	it('assigns by id without creating a contributor', async () => {
