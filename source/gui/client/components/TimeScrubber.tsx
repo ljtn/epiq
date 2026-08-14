@@ -140,6 +140,35 @@ const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 320ms ease-out';
 // with settled bars behind it and untouched ground ahead. Shortening the
 // growth relative to the sweep sharpens the crest; equalising them dissolves
 // it back into everything-at-once.
+// Deterministic pseudo-random in [0, 1) from a point's own identity (bucket
+// time, commit sha). Math.random() would be reshuffled on every re-render —
+// and this component re-renders on every hover — so the field would visibly
+// jitter mid-animation. Hashing the identity keeps each point's moment fixed
+// while the set as a whole still looks scattered.
+const hashUnitInterval = (key: string): number => {
+	let hash = 2166136261;
+
+	for (let index = 0; index < key.length; index++) {
+		hash ^= key.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+
+	return ((hash >>> 0) % 10000) / 10000;
+};
+
+// Scattered appearance for "Events" mode. Unlike the bars' directional sweep,
+// the scatter has no axis to travel along — x is elapsed time, y is time of
+// day — so imposing a wipe would suggest a reading order the data doesn't
+// have. Points surfacing in no particular order reads as what they are:
+// individual moments, filling in like a sky.
+const DOT_APPEAR_MS = 260;
+const DOT_APPEAR_SCATTER_MS = 620;
+
+const dotAppearAnimation = (key: string): string =>
+	`epiqScrubberTwinkle ${DOT_APPEAR_MS}ms ease-out ${Math.round(
+		hashUnitInterval(key) * DOT_APPEAR_SCATTER_MS,
+	)}ms backwards`;
+
 const BAR_GROW_MS = 200;
 const BAR_GROW_SWEEP_MS = 560;
 
@@ -1033,6 +1062,19 @@ export const TimeScrubber = ({
 				   them, whereas a transform is composited and effectively free.
 				   Each bar sets its own transform-origin so it grows away from
 				   the axis — up for board events, down for commits. */
+				/* Uses the standalone 'scale' property rather than a transform
+				   function: the dots already carry a 'transform: translate(...)'
+				   to centre themselves on their coordinates, and animating
+				   'transform' would replace that and fling them off position.
+				   The individual transform properties compose with it instead.
+				   Scale rather than opacity because a dot's opacity encodes how
+				   much happened in it — animating that would flatten the signal
+				   the view exists to show. */
+				@keyframes epiqScrubberTwinkle {
+					from { scale: 0; }
+					to { scale: 1; }
+				}
+
 				@keyframes epiqScrubberGrow {
 					from { transform: scaleY(0); }
 					to { transform: scaleY(1); }
@@ -1588,6 +1630,7 @@ export const TimeScrubber = ({
 													// board is the primary thing being visualized here.
 													zIndex: 2,
 													transform: `translate(${-size / 2}px, -50%)`,
+													animation: dotAppearAnimation(String(bucket.t)),
 													pointerEvents: 'auto',
 												}}
 											/>
@@ -1669,6 +1712,7 @@ export const TimeScrubber = ({
 													// board is the primary thing being visualized here.
 													zIndex: 1,
 													transform: `translate(${-size / 2}px, -50%)`,
+													animation: dotAppearAnimation(commit.sha),
 													pointerEvents: 'auto',
 													cursor: 'pointer',
 												}}
