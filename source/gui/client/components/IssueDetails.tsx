@@ -511,7 +511,7 @@ export const IssueDetails = ({
 										<Input
 											value={assigneeName}
 											autoFocus
-											placeholder="assignee name"
+											placeholder="name of unknown contributor"
 											onChange={event => setAssigneeName(event.target.value)}
 											onKeyDown={event => {
 												if (event.key === 'Enter') addAssignee();
@@ -522,14 +522,16 @@ export const IssueDetails = ({
 											}}
 										/>
 
-										{/* Named for what it does: this path can invent a person
-										    who has never touched the board, which is worth being
-										    deliberate about rather than the default way to assign. */}
+										{/* The warning lives in the placeholder rather than the
+										    button label: this path can invent a person who has
+										    never touched the board, and the field is where you're
+										    looking while deciding to do it. A long button label
+										    also crowded the row. */}
 										<Button
 											onClick={addAssignee}
 											title="Add someone who has not contributed to this board"
 										>
-											add external
+											add
 										</Button>
 									</AddRow>
 								)}
