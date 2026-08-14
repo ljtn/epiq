@@ -159,6 +159,125 @@ const bucketCountForSpan = (spanMs: number): number => {
 // intended look at wide spans.
 const MIN_BUCKET_COUNT_FOR_GAP = 300;
 
+// A wash rather than a line: the segment a pointer is inside gets tinted, so
+// the calendar structure is revealed on demand instead of being permanently
+// drawn over the track. Keeps the black canvas clean when nothing is hovered,
+// which is most of the time. Fainter than the bucket highlight over it, so
+// the two read as "this day" (broad) versus "this bucket" (precise) rather
+// than competing.
+//
+// Blue-grey rather than neutral white — a plain white wash reads warm against
+// this palette's cool accents and greys, and looked like a smudge rather than
+// part of the design.
+const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 158, 214, 0.07)';
+
+// Below this the label can't fit inside its own block without being clipped
+// or crowding the neighbouring ones, so it's dropped and the tooltip (which
+// carries the same label) is left to answer the question.
+const MIN_SEGMENT_WIDTH_FOR_LABEL = 78;
+
+// Calendar units the timeline can be segmented by, finest first. Which one is
+// used depends on the span (see chooseSegmentUnit) — days for a week's view,
+// months for a year's, and so on.
+const SEGMENT_UNIT_ORDER = ['day', 'week', 'month', 'year'] as const;
+type SegmentUnit = (typeof SEGMENT_UNIT_ORDER)[number];
+
+const APPROX_UNIT_MS: Record<SegmentUnit, number> = {
+	day: 24 * 60 * 60 * 1000,
+	week: 7 * 24 * 60 * 60 * 1000,
+	month: 30.44 * 24 * 60 * 60 * 1000,
+	year: 365.25 * 24 * 60 * 60 * 1000,
+};
+
+// Past roughly this many segments across the track, each one is too narrow to
+// pick out or label usefully, so the next coarser unit takes over.
+//
+// Set high enough that a month's view lands comfortably on days (~30) rather
+// than teetering on the threshold: right at the boundary, two runs with
+// slightly different data spans would pick different units and the highlight
+// would appear to change meaning on its own. The stable result is days for a
+// week or a month, months (or weeks) for longer spans.
+const MAX_SEGMENTS = 35;
+
+const chooseSegmentUnit = (spanMs: number): SegmentUnit =>
+	SEGMENT_UNIT_ORDER.find(
+		unit => spanMs / APPROX_UNIT_MS[unit] <= MAX_SEGMENTS,
+	) ?? 'year';
+
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_LABELS = [
+	'Jan',
+	'Feb',
+	'Mar',
+	'Apr',
+	'May',
+	'Jun',
+	'Jul',
+	'Aug',
+	'Sep',
+	'Oct',
+	'Nov',
+	'Dec',
+];
+
+const advanceByUnit = (date: Date, unit: SegmentUnit): void => {
+	if (unit === 'day') date.setDate(date.getDate() + 1);
+	else if (unit === 'week') date.setDate(date.getDate() + 7);
+	else if (unit === 'month') date.setMonth(date.getMonth() + 1);
+	else date.setFullYear(date.getFullYear() + 1);
+};
+
+// The calendar period containing `time`, snapped to real calendar edges —
+// local midnight, Monday, the 1st, Jan 1 — rather than to multiples of a
+// fixed duration measured from the range start. That distinction is the whole
+// value: a block covering "24h from whenever the first commit happened" marks
+// nothing a person recognizes, whereas "this is Tuesday" is instantly
+// readable. Stepping via the Date setters (rather than adding milliseconds)
+// also keeps midnight *at* midnight across DST changes, where a day is 23 or
+// 25 hours long.
+const segmentAt = (
+	time: number,
+	unit: SegmentUnit,
+): {start: number; end: number; label: string} => {
+	const start = new Date(time);
+	start.setHours(0, 0, 0, 0);
+
+	if (unit === 'week') {
+		// Snap back to Monday (getDay is Sunday-based, so rotate it).
+		start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+	} else if (unit === 'month') {
+		start.setDate(1);
+	} else if (unit === 'year') {
+		start.setMonth(0, 1);
+	}
+
+	const end = new Date(start);
+	advanceByUnit(end, unit);
+
+	// The last moment inside the period, not the first moment after it —
+	// labelling a week as "10 – 17 Aug" would wrongly imply 8 days.
+	const lastDay = new Date(end.getTime() - 1);
+
+	const label =
+		unit === 'day'
+			? `${WEEKDAY_LABELS[start.getDay()]} ${start.getDate()} ${
+					MONTH_LABELS[start.getMonth()]
+			  }`
+			: unit === 'week'
+			? start.getMonth() === lastDay.getMonth()
+				? `${start.getDate()}–${lastDay.getDate()} ${
+						MONTH_LABELS[start.getMonth()]
+				  }`
+				: `${start.getDate()} ${
+						MONTH_LABELS[start.getMonth()]
+				  } – ${lastDay.getDate()} ${MONTH_LABELS[lastDay.getMonth()]}`
+			: unit === 'month'
+			? `${MONTH_LABELS[start.getMonth()]} ${start.getFullYear()}`
+			: `${start.getFullYear()}`;
+
+	return {start: start.getTime(), end: end.getTime(), label};
+};
+
 // Outline rather than filled — a solid accent block per active toggle reads
 // as heavy with this many buttons in one row; border + text color is enough
 // to show selection (matches the "Return to live" button's own style).
@@ -259,6 +378,7 @@ export const TimeScrubber = ({
 	const [hoverLabel, setHoverLabel] = useState<{
 		time: string;
 		count: number;
+		t: number;
 	} | null>(null);
 	const [hoveredBucketFraction, setHoveredBucketFraction] = useState<
 		number | null
@@ -373,6 +493,16 @@ export const TimeScrubber = ({
 	// to elapsed time at all.
 	const fractionForTime = (time: number) =>
 		clamp((time - earliest) / span, 0, 1);
+
+	// The calendar unit the track is segmented by, scaled to the span: days at
+	// a week's or month's view, weeks or months at longer ones. Nothing is
+	// drawn for it until something is hovered — the structure is revealed on
+	// demand rather than permanently overlaid, which keeps the track's black
+	// canvas intact while still letting you locate any point in the calendar.
+	// Only meaningful because x is now genuinely proportional to elapsed time;
+	// under the old filmstrip layout there was no consistent position for
+	// "midnight" to occupy.
+	const segmentUnit = chooseSegmentUnit(span);
 
 	// "Events" mode's y-axis: where in the 24-hour cycle a moment falls, 0 (0:00,
 	// top) to just under 1 (23:59, bottom) — so noon sits at the vertical
@@ -530,9 +660,108 @@ export const TimeScrubber = ({
 				: null
 			: hoveredBucketFraction;
 
+	// One segment for the whole component, resolved from whichever hover is
+	// active — board track or commit track, either layout mode. Deliberately
+	// shared: hovering a commit lights up the same day in the issue track
+	// above, which is what makes the two halves legible as one time grid
+	// rather than two charts that happen to sit near each other.
+	const hoveredSegmentTime =
+		(layoutMode === 'even'
+			? hoveredBucket?.t ??
+			  (hoveredCommitBucketIndex !== null
+					? timeBuckets[hoveredCommitBucketIndex]?.t
+					: undefined)
+			: hoverLabel?.t ?? hoveredCommit?.time) ?? null;
+	const hoveredSegment =
+		hoveredSegmentTime !== null
+			? segmentAt(hoveredSegmentTime, segmentUnit)
+			: null;
+
+	// One renderer for every hover-hint, rather than three near-identical
+	// blocks. All of them hang *below* the charts: floating above meant
+	// covering the scope/mode controls and the hovered block's own label,
+	// which is exactly the context you're reading while pointing at something.
+	const renderHoverHint = (
+		content: {label: string; rows: string[]},
+		stripeColor: string,
+		leftPx: number,
+	) => (
+		<div
+			style={{
+				position: 'absolute',
+				top: '100%',
+				marginTop: 6,
+				left: leftPx,
+				width: HOVER_HINT_WIDTH,
+				// Border-box so `width` matches what the clamp math assumes —
+				// otherwise the border/padding add on top of it and the box
+				// overflows the track's edge by exactly that much.
+				boxSizing: 'border-box',
+				display: 'flex',
+				flexDirection: 'column',
+				gap: 2,
+				textAlign: 'left',
+				background: GUI_THEME.panel,
+				border: `1px solid ${GUI_THEME.line}`,
+				// Overrides just the left edge — a color-coded stripe so which
+				// series' hint this is stays obvious even where board/commit points
+				// are cluttered together.
+				borderLeft: `3px solid ${stripeColor}`,
+				borderRadius: 6,
+				padding: '6px 10px',
+				pointerEvents: 'none',
+				// Above the board content it now overhangs.
+				zIndex: 5,
+			}}
+		>
+			{/* Calendar context above the precise interval — which day (or
+			    week/month) this is, matching the highlighted block behind the
+			    track. The exact timestamps below answer "when precisely"; this
+			    answers "when, in terms a person navigates by". */}
+			{hoveredSegment && (
+				<div style={{fontSize: 10, color: GUI_THEME.dim}}>
+					{hoveredSegment.label}
+				</div>
+			)}
+			<div
+				style={{
+					fontSize: 11,
+					fontWeight: 600,
+					color: GUI_THEME.primary,
+					whiteSpace: 'normal',
+					wordBreak: 'break-word',
+				}}
+			>
+				{content.label}
+			</div>
+			{content.rows.map((row, index) => (
+				<div
+					key={index}
+					style={{
+						fontSize: 11,
+						color: GUI_THEME.secondary,
+						whiteSpace: 'normal',
+						wordBreak: 'break-word',
+					}}
+				>
+					{row}
+				</div>
+			))}
+		</div>
+	);
+
 	// Center the hover-hint tooltip on the hovered bucket, clamped so it never
 	// overflows past the track's own left/right edges.
 	const trackWidthPx = trackRef.current?.clientWidth ?? 0;
+
+	// Measured rather than assumed: a segment clipped by the range's own start
+	// or end (the first and last are usually partial) can be far narrower than
+	// a full period, and would otherwise get a label it has no room for.
+	const hoveredSegmentWidthPx = hoveredSegment
+		? (fractionForTime(hoveredSegment.end) -
+				fractionForTime(hoveredSegment.start)) *
+		  trackWidthPx
+		: 0;
 	const hoverHintLeftPx =
 		boardHoverFraction !== null
 			? clamp(
@@ -869,7 +1098,58 @@ export const TimeScrubber = ({
 				</div>
 
 				{!collapsed && (
-					<>
+					// Wraps both stacked charts so the hovered-period highlight can be
+					// a single tall block spanning them *and* the gap between them,
+					// rather than two separate blocks that merely line up. Reads as one
+					// timeline cut at that period, which is what the mirrored layout is
+					// trying to say in the first place. Drawn as the first child so the
+					// data (positioned siblings, painted in DOM order) sits on top.
+					<div
+						style={{
+							position: 'relative',
+							display: 'flex',
+							flexDirection: 'column',
+							gap: 8,
+						}}
+					>
+						{hoveredSegment && (
+							<div
+								style={{
+									position: 'absolute',
+									left: `${fractionForTime(hoveredSegment.start) * 100}%`,
+									width: `${
+										(fractionForTime(hoveredSegment.end) -
+											fractionForTime(hoveredSegment.start)) *
+										100
+									}%`,
+									top: 0,
+									bottom: 0,
+									background: SEGMENT_HIGHLIGHT_COLOR,
+									pointerEvents: 'none',
+									// Names the block in place, so the highlight says what it
+									// *is* and not merely where it ends. Top-aligned because
+									// that's the emptiest part of the pair: issue bars grow up
+									// from the axis and commit bars grow down from it, leaving
+									// the outer edges clear except at peak intensity.
+									display: 'flex',
+									justifyContent: 'center',
+									paddingTop: 3,
+									// With both top and bottom pinned, content-box would add the
+									// padding on top of the resolved height and push the block
+									// past the wrapper it's meant to span.
+									boxSizing: 'border-box',
+									fontSize: 9,
+									color: GUI_THEME.dim2,
+									whiteSpace: 'nowrap',
+									overflow: 'hidden',
+								}}
+							>
+								{hoveredSegmentWidthPx >= MIN_SEGMENT_WIDTH_FOR_LABEL
+									? hoveredSegment.label
+									: null}
+							</div>
+						)}
+
 						<div
 							ref={trackRef}
 							onPointerDown={onPointerDown}
@@ -905,55 +1185,6 @@ export const TimeScrubber = ({
 								alignItems: 'center',
 							}}
 						>
-							{/* Floating hover-hint — left-aligned above the hovered bucket,
-					    clamped to the track's own bounds so it never overflows
-					    left/right. Time always renders as its own first row, so it's
-					    in the same place whether hovering the board or code track. */}
-							{boardHoverLabel && (
-								<div
-									style={{
-										position: 'absolute',
-										bottom: '100%',
-										marginBottom: 4,
-										left: hoverHintLeftPx,
-										width: HOVER_HINT_WIDTH,
-										// Border-box so `width` matches what the clamp math above
-										// assumes — otherwise the border/padding add on top of it and
-										// the box overflows the track's edge by exactly that much.
-										boxSizing: 'border-box',
-										display: 'flex',
-										flexDirection: 'column',
-										gap: 2,
-										textAlign: 'left',
-										background: GUI_THEME.panel,
-										border: `1px solid ${GUI_THEME.line}`,
-										// Overrides just the left edge — a color-coded stripe so
-										// which series' tooltip this is stays obvious even where
-										// board/commit points are cluttered together.
-										borderLeft: `3px solid ${GUI_THEME.accent}`,
-										borderRadius: 6,
-										padding: '6px 10px',
-										pointerEvents: 'none',
-									}}
-								>
-									<div
-										style={{
-											fontSize: 11,
-											fontWeight: 600,
-											color: GUI_THEME.primary,
-											whiteSpace: 'normal',
-											wordBreak: 'break-word',
-										}}
-									>
-										{boardHoverLabel.time}
-									</div>
-									<div style={{fontSize: 11, color: GUI_THEME.secondary}}>
-										{boardHoverLabel.count} board event
-										{boardHoverLabel.count === 1 ? '' : 's'}
-									</div>
-								</div>
-							)}
-
 							{/* Track line — a floor for "Volume" mode's stacked-bar look; in
 					    "Events" mode it falls at the vertical center by virtue of the
 					    track's own flex-centering, which — since y spans 0:00 to
@@ -1118,7 +1349,11 @@ export const TimeScrubber = ({
 												bucket.count === 1 ? '' : 's'
 											}, ${label}`}
 											onMouseEnter={() => {
-												setHoverLabel({time: label, count: bucket.count});
+												setHoverLabel({
+													time: label,
+													count: bucket.count,
+													t: bucket.t,
+												});
 												setHoveredBucketFraction(fraction);
 											}}
 											onMouseLeave={() => {
@@ -1163,57 +1398,6 @@ export const TimeScrubber = ({
 							    also start a scrub-drag on the shared track underneath it. */}
 							{showCommits && layoutMode === 'real' && commits.length > 0 && (
 								<>
-									{commitHoverLabel && (
-										<div
-											style={{
-												position: 'absolute',
-												bottom: '100%',
-												marginBottom: 4,
-												left: commitHintLeftPx,
-												width: HOVER_HINT_WIDTH,
-												boxSizing: 'border-box',
-												display: 'flex',
-												flexDirection: 'column',
-												gap: 2,
-												textAlign: 'left',
-												background: GUI_THEME.panel,
-												border: `1px solid ${GUI_THEME.line}`,
-												// Overrides just the left edge — a color-coded stripe
-												// so which series' tooltip this is stays obvious even
-												// where board/commit points are cluttered together.
-												borderLeft: `3px solid ${GUI_THEME.green}`,
-												borderRadius: 6,
-												padding: '6px 10px',
-												pointerEvents: 'none',
-											}}
-										>
-											<div
-												style={{
-													fontSize: 11,
-													fontWeight: 600,
-													color: GUI_THEME.primary,
-													whiteSpace: 'normal',
-													wordBreak: 'break-word',
-												}}
-											>
-												{commitHoverLabel.time}
-											</div>
-											{commitHoverLabel.rows.map((row, index) => (
-												<div
-													key={index}
-													style={{
-														fontSize: 11,
-														color: GUI_THEME.secondary,
-														whiteSpace: 'normal',
-														wordBreak: 'break-word',
-													}}
-												>
-													{row}
-												</div>
-											))}
-										</div>
-									)}
-
 									{commits.map(commit => {
 										const fraction = fractionForTime(commit.time);
 										const hourFraction = hourFractionForTime(commit.time);
@@ -1353,57 +1537,6 @@ export const TimeScrubber = ({
 									height: TRACK_HEIGHT,
 								}}
 							>
-								{commitHoverLabel && (
-									<div
-										style={{
-											position: 'absolute',
-											bottom: '100%',
-											marginBottom: 4,
-											left: commitHintLeftPx,
-											width: HOVER_HINT_WIDTH,
-											boxSizing: 'border-box',
-											display: 'flex',
-											flexDirection: 'column',
-											gap: 2,
-											textAlign: 'left',
-											background: GUI_THEME.panel,
-											border: `1px solid ${GUI_THEME.line}`,
-											// Overrides just the left edge — a color-coded stripe so
-											// which series' tooltip this is stays obvious even where
-											// board/commit points are cluttered together.
-											borderLeft: `3px solid ${GUI_THEME.green}`,
-											borderRadius: 6,
-											padding: '6px 10px',
-											pointerEvents: 'none',
-										}}
-									>
-										<div
-											style={{
-												fontSize: 11,
-												fontWeight: 600,
-												color: GUI_THEME.primary,
-												whiteSpace: 'normal',
-												wordBreak: 'break-word',
-											}}
-										>
-											{commitHoverLabel.time}
-										</div>
-										{commitHoverLabel.rows.map((row, index) => (
-											<div
-												key={index}
-												style={{
-													fontSize: 11,
-													color: GUI_THEME.secondary,
-													whiteSpace: 'normal',
-													wordBreak: 'break-word',
-												}}
-											>
-												{row}
-											</div>
-										))}
-									</div>
-								)}
-
 								<div
 									style={{
 										position: 'absolute',
@@ -1468,7 +1601,32 @@ export const TimeScrubber = ({
 								})}
 							</div>
 						)}
-					</>
+
+						{/* Both hints live here, in the wrapper spanning both charts, so
+						    they hang below the whole scrubber rather than between the two
+						    tracks (where the board hint used to land on top of the commit
+						    chart). */}
+						{boardHoverLabel &&
+							renderHoverHint(
+								{
+									label: boardHoverLabel.time,
+									rows: [
+										`${boardHoverLabel.count} board event${
+											boardHoverLabel.count === 1 ? '' : 's'
+										}`,
+									],
+								},
+								GUI_THEME.accent,
+								hoverHintLeftPx,
+							)}
+
+						{commitHoverLabel &&
+							renderHoverHint(
+								{label: commitHoverLabel.time, rows: commitHoverLabel.rows},
+								GUI_THEME.green,
+								commitHintLeftPx,
+							)}
+					</div>
 				)}
 			</div>
 		</Panel>
