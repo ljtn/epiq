@@ -30,6 +30,7 @@ import {
 import {getSafeState} from '../lib/state/state.js';
 import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
+import {REDACTED_CONTRIBUTOR_NAME} from '../lib/model/app-state.model.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
@@ -1399,6 +1400,62 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 // registry can hold people who were assigned but never authored anything
 // (external/unlinked assignees), and the log holds people who authored but
 // were never assigned.
+// Clears a contributor's display name. Redaction, not deletion: the id and
+// every reference to it survive, so assignments keep resolving and the event
+// log stays intact — only the personal name stops rendering.
+//
+// Restricted to people who have never authored an event. Someone who has is
+// named throughout the log by their own events, and clearing only the
+// registry copy would leave the two disagreeing rather than removing
+// anything.
+export const redactContributor = async (
+	input: ToolInput & {contributorId: string},
+): Promise<Result<{id: string; name: string}>> => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const contributor = stateResult.value.contributors[input.contributorId];
+	if (!contributor) return failed('Contributor not found');
+
+	const authored = await findEventLogAuthor(
+		bootResult.value.stateBranchRoot,
+		input.contributorId,
+	);
+
+	if (authored) {
+		return failed(
+			'Cannot redact a contributor who has authored events — their name appears throughout the log',
+		);
+	}
+
+	const events = [
+		{
+			id: ulid(),
+			...actorResult.value,
+			action: 'redact.contributor',
+			payload: {id: input.contributorId},
+		} satisfies AppEvent<'redact.contributor'>,
+	];
+
+	const results = materializeAndPersistAll(
+		events,
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Redacted contributor', {
+		id: input.contributorId,
+		name: REDACTED_CONTRIBUTOR_NAME,
+	});
+};
+
 export const getBoardContributors = async (
 	input: ToolInput & {boardId?: string} = {},
 ): Promise<

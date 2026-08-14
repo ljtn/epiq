@@ -367,6 +367,23 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 	},
 
+	'redact.contributor': event => {
+		const {id} = event.payload;
+		const result = nodeRepo.redactContributor(id);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to redact contributor',
+				event,
+			);
+		}
+
+		return succeeded('Contributor redacted', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
 	'add.issue.tag': event => {
 		const {id, tag} = event.payload;
 		const result = nodeRepo.tag(id, tag);

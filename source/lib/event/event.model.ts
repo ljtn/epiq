@@ -78,6 +78,20 @@ export type AppEventMap = {
 		result: Contributor;
 	};
 
+	/**
+	 * Clears a contributor's display name while keeping the contributor. The
+	 * id and everything referencing it survive — assignments stay intact and
+	 * history stays resolvable — only the personal name stops rendering.
+	 *
+	 * Deliberately an ordinary forward event: nothing in the log is rewritten
+	 * or removed, so the log remains append-only and every earlier event still
+	 * replays exactly as it did.
+	 */
+	'redact.contributor': {
+		payload: PayloadBase;
+		result: Contributor;
+	};
+
 	'add.issue.assignee': {
 		payload: PayloadBase & {
 			assignee: string;
@@ -250,6 +264,7 @@ export const EVENT_ACTIONS = [
 	'delete.node',
 	'create.tag',
 	'create.contributor',
+	'redact.contributor',
 	'add.issue.assignee',
 	'remove.issue.assignee',
 	'add.issue.tag',

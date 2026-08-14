@@ -5,6 +5,7 @@ import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	addIssueAssignee,
 	getBoardContributors,
+	redactContributor,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -239,6 +240,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await getBoardContributors(input)),
+	);
+
+	server.registerTool(
+		'epiq_contributor_redact',
+		{
+			description:
+				"Clear an external contributor's display name while keeping their id and every reference to it — assignments stay intact and history is untouched. Refused for anyone who has authored events, since their name appears throughout the log.",
+			inputSchema: z.object({
+				contributorId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await redactContributor(input)),
 	);
 
 	server.registerTool(

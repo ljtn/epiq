@@ -1102,6 +1102,65 @@ describe('mcp tools', () => {
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
+	it('redacts an external contributor, keeping the id', async () => {
+		const result = await tools.redactContributor({
+			repoRoot: '/repo',
+			contributorId: 'contributor-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			// Id survives; only the name is gone.
+			expect(result.value.id).toBe('contributor-1');
+			expect(result.value.name).toBe('removed contributor');
+		}
+
+		// An ordinary forward event — nothing in the log is rewritten.
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+		expect(calls).toEqual([
+			expect.objectContaining({
+				action: 'redact.contributor',
+				payload: {id: 'contributor-1'},
+			}),
+		]);
+	});
+
+	// Their name is written across every event they authored; clearing the
+	// registry copy alone would leave the two disagreeing rather than
+	// removing anything.
+	it('refuses to redact a contributor who has authored events', async () => {
+		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
+			typeof vi.fn
+		>;
+		loadMerged.mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'e1',
+					userId: 'contributor-1',
+					userName: 'Alice',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x'},
+				},
+			]),
+		);
+
+		const result = await tools.redactContributor({
+			repoRoot: '/repo',
+			contributorId: 'contributor-1',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toContain('authored events');
+		}
+
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+
+		loadMerged.mockReturnValue(succeeded('loaded', []));
+	});
+
 	it('marks self in the contributor list', async () => {
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
 			typeof vi.fn

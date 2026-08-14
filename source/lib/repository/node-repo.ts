@@ -3,6 +3,7 @@ import {
 	CommentState,
 	Contributor,
 	Tag,
+	REDACTED_CONTRIBUTOR_NAME,
 } from '../model/app-state.model.js';
 import {AnyContext, isTicketNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -396,6 +397,32 @@ export const nodeRepo = {
 		patchState({nodes: nextNodes});
 
 		return succeeded('Successfully tomb stoned', node);
+	},
+
+	// Clears the display name but keeps the contributor record. The id stays,
+	// so assignments referencing it keep resolving and nothing in history is
+	// orphaned — only the personal name is gone. Refuses if the contributor
+	// has ever authored an event, since that name is theirs in the log too and
+	// clearing the registry copy alone would leave the two disagreeing.
+	redactContributor(contributorId: string): Result<Contributor> {
+		const contributor = this.getContributor(contributorId);
+		if (!contributor) return failed('Contributor not found');
+
+		const redacted: Contributor = {
+			...contributor,
+			name: REDACTED_CONTRIBUTOR_NAME,
+		};
+
+		const result = updateState(s => ({
+			...s,
+			contributors: {
+				...s.contributors,
+				[contributorId]: redacted,
+			},
+		}));
+
+		if (isFail(result)) return failed('Unable to redact contributor');
+		return succeeded('Redacted contributor', redacted);
 	},
 
 	createContributor(contributor: Contributor): Result<Contributor> {
