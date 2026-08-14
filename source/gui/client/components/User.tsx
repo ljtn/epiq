@@ -1,5 +1,4 @@
 import {GuiUser, GuiState} from '../lib/gui-state.model';
-import {getContrastTextColor} from '../lib/gui-theme';
 
 export const User = ({
 	user,
@@ -20,12 +19,20 @@ export const User = ({
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
-			background: user.color,
-			color: getContrastTextColor(user.color),
+			// Outlined rather than filled: a solid disc is the heaviest mark on
+			// a card that is otherwise all text, and it competed with the title
+			// for attention. A thin ring carries the same identity colour at a
+			// fraction of the visual weight.
+			background: 'transparent',
+			color: user.color,
+			border: `1px solid ${user.color}`,
 			fontSize: 11,
 			fontWeight: 700,
-			marginLeft: index === 0 ? 0 : -6,
-			border: `2px solid #1a1a1a`,
+			// Spaced, not stacked. Overlapping avatars rely on each disc being
+			// opaque to occlude the one behind it; with transparent rings the
+			// overlap reads as tangled circles instead of a stack.
+			marginLeft: index === 0 ? 0 : 4,
+			flexShrink: 0,
 		}}
 	>
 		{user.name.at(0)?.toUpperCase()}
