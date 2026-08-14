@@ -175,8 +175,21 @@ const BAR_GROW_SWEEP_MS = 560;
 // `backwards` matters: without it a bar renders at full height until its
 // delay elapses and only then snaps to zero to start growing, which looks
 // like a glitch rather than a stagger.
-const barGrowAnimation = (index: number, count: number): string => {
-	const delay = count > 1 ? (index / (count - 1)) * BAR_GROW_SWEEP_MS : 0;
+// The sweep is spread across the buckets that actually have data, not across
+// the whole time axis. Those differ whenever a series occupies only part of
+// the range — a board younger than the repo starts two thirds of the way
+// along — and normalising over the full axis meant the sweep spent its first
+// few hundred milliseconds travelling through empty space with nothing to
+// show for it. Relative spacing *within* the populated span is preserved, so
+// a genuine quiet stretch in the middle still reads as a pause in the wave.
+const barGrowAnimation = (
+	index: number,
+	firstIndex: number,
+	lastIndex: number,
+): string => {
+	const span = lastIndex - firstIndex;
+	const delay =
+		span > 0 ? ((index - firstIndex) / span) * BAR_GROW_SWEEP_MS : 0;
 
 	return `epiqScrubberGrow ${BAR_GROW_MS}ms ease-out ${delay.toFixed(
 		0,
@@ -188,6 +201,30 @@ const barGrowAnimation = (index: number, count: number): string => {
 // multiple lines rather than truncating, so wide enough to keep that from
 // looking cramped, but not so wide it swamps the narrow track it floats over.
 const HOVER_HINT_WIDTH = 220;
+
+// Honours the OS "reduce motion" setting. The animations here are exactly
+// what that setting exists for — a full-width sweep across the bars and a
+// 250-point field of dots scaling in — and there's no in-app control to opt
+// out of them. Gated in JS rather than via a media query in the stylesheet
+// because the animations are set as inline styles, which a stylesheet can
+// only override with !important.
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+const usePrefersReducedMotion = (): boolean => {
+	const [reduced, setReduced] = useState(
+		() => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+	);
+
+	useEffect(() => {
+		const query = window.matchMedia(REDUCED_MOTION_QUERY);
+		const onChange = () => setReduced(query.matches);
+
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	}, []);
+
+	return reduced;
+};
 
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(max, Math.max(min, value));
@@ -524,6 +561,7 @@ export const TimeScrubber = ({
 	connected,
 	onInspectCommit,
 }: TimeScrubberProps) => {
+	const reducedMotion = usePrefersReducedMotion();
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>('even');
@@ -837,6 +875,20 @@ export const TimeScrubber = ({
 		1,
 		...Array.from(commitStatsByTimeBucketIndex.values(), s => s.count),
 	);
+
+	// First and last bucket holding anything, per series — the span the growth
+	// sweep is spread across (see barGrowAnimation). Computed separately for
+	// each: the two series routinely start at different points, since the
+	// repository is usually older than the board tracking it.
+	const populatedRange = (indices: number[]): [number, number] =>
+		indices.length > 0 ? [Math.min(...indices), Math.max(...indices)] : [0, 0];
+
+	const [firstIssueBar, lastIssueBar] = populatedRange(
+		timeBuckets.flatMap((bucket, index) => (bucket.count > 0 ? [index] : [])),
+	);
+	const [firstCommitBar, lastCommitBar] = populatedRange([
+		...commitStatsByTimeBucketIndex.keys(),
+	]);
 
 	// The board tooltip's contents, from whichever source is active: a
 	// pointer-resolved bucket index in "Volume" mode, or an individual
@@ -1497,7 +1549,7 @@ export const TimeScrubber = ({
 										position: 'absolute',
 										inset: 0,
 										pointerEvents: 'none',
-										animation: FADE_IN_ANIMATION,
+										animation: reducedMotion ? undefined : FADE_IN_ANIMATION,
 									}}
 								>
 									{/* Hover column, drawn once for whichever bucket the
@@ -1558,7 +1610,13 @@ export const TimeScrubber = ({
 													background: GUI_THEME.accent,
 													opacity: 0.35 + intensity * 0.65,
 													transformOrigin: 'bottom',
-													animation: barGrowAnimation(index, timeBucketCount),
+													animation: reducedMotion
+														? undefined
+														: barGrowAnimation(
+																index,
+																firstIssueBar,
+																lastIssueBar,
+														  ),
 													// Purely decorative now: the track's own handler owns
 													// hover, so bars never need to catch the pointer.
 													pointerEvents: 'none',
@@ -1579,7 +1637,7 @@ export const TimeScrubber = ({
 										position: 'absolute',
 										inset: 0,
 										pointerEvents: 'none',
-										animation: FADE_IN_ANIMATION,
+										animation: reducedMotion ? undefined : FADE_IN_ANIMATION,
 									}}
 								>
 									{(timeline?.buckets ?? []).map(bucket => {
@@ -1630,7 +1688,9 @@ export const TimeScrubber = ({
 													// board is the primary thing being visualized here.
 													zIndex: 2,
 													transform: `translate(${-size / 2}px, -50%)`,
-													animation: dotAppearAnimation(String(bucket.t)),
+													animation: reducedMotion
+														? undefined
+														: dotAppearAnimation(String(bucket.t)),
 													pointerEvents: 'auto',
 												}}
 											/>
@@ -1659,7 +1719,7 @@ export const TimeScrubber = ({
 										position: 'absolute',
 										inset: 0,
 										pointerEvents: 'none',
-										animation: FADE_IN_ANIMATION,
+										animation: reducedMotion ? undefined : FADE_IN_ANIMATION,
 									}}
 								>
 									{commits.map(commit => {
@@ -1712,7 +1772,9 @@ export const TimeScrubber = ({
 													// board is the primary thing being visualized here.
 													zIndex: 1,
 													transform: `translate(${-size / 2}px, -50%)`,
-													animation: dotAppearAnimation(commit.sha),
+													animation: reducedMotion
+														? undefined
+														: dotAppearAnimation(commit.sha),
 													pointerEvents: 'auto',
 													cursor: 'pointer',
 												}}
@@ -1758,7 +1820,7 @@ export const TimeScrubber = ({
 									// tracks carry equal visual weight — the "iceberg" shape only
 									// reads if both halves are comparably sized.
 									height: TRACK_HEIGHT,
-									animation: FADE_IN_ANIMATION,
+									animation: reducedMotion ? undefined : FADE_IN_ANIMATION,
 								}}
 							>
 								<div
@@ -1818,7 +1880,13 @@ export const TimeScrubber = ({
 												background: GUI_THEME.green,
 												opacity: 0.35 + intensity * 0.65,
 												transformOrigin: 'top',
-												animation: barGrowAnimation(index, timeBucketCount),
+												animation: reducedMotion
+													? undefined
+													: barGrowAnimation(
+															index,
+															firstCommitBar,
+															lastCommitBar,
+													  ),
 												pointerEvents: 'none',
 											}}
 										/>
