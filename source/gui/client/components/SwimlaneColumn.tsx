@@ -11,6 +11,13 @@ import {Button} from './Button';
 // padding rather than flush against the cards. Kept as constants so the two
 // stay in step: changing the padding without changing the inset would put the
 // scrollbar off-centre again.
+// Deliberately not GUI_THEME.accent, which the glow used to borrow: at
+// rgb(118, 212, 255) its green channel is high enough that a large soft wash
+// of it reads cyan-green rather than blue. Pulling green down and red up
+// desaturates it toward the blue-grey the rest of the panel chrome sits in,
+// while staying bright enough to register as a glow against the dark column.
+const COLUMN_GLOW_COLOR = 'rgb(140, 176, 232)';
+
 const COLUMN_PADDING = 14;
 const SCROLLBAR_GUTTER_INSET = COLUMN_PADDING / 2;
 
@@ -52,7 +59,18 @@ export const SwimlaneColumn = ({
 			as="section"
 			active={dragOver}
 			borderColor={selected || dragOver ? GUI_THEME.accent : GUI_THEME.line}
-			glowOpacity={0.15}
+			// Accent-coloured and well up from the old 0.15, which was so faint
+			// the effect was easy to miss entirely — then eased back down from a
+			// first pass at 0.6, which overshot into distracting. The wide radius
+			// keeps it a soft wash along the border rather than a hotspot
+			// tracking the cursor. The reach lets a column light
+			// up as the pointer approaches from outside it, rather than only once
+			// it's inside — which is when the cue is actually useful, since it
+			// tells you which column you're heading for while dragging a ticket.
+			glowColor={COLUMN_GLOW_COLOR}
+			glowOpacity={0.41}
+			glowRadius={370}
+			proximityReach={200}
 			style={{
 				zIndex: 0,
 				width: 360,
