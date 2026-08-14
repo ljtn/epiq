@@ -354,3 +354,6 @@
 {"v":1,"id":["01M01AR1TR335GW8NK39NF4V5Q","01M01AR1TN2YPQKX9SXRFFCMN7"],"add.issue.tag":{"id":"01M01AR1TBKXTW8M72SJVMDP3T","tag":"01M0121TK9V7577A25KK6JWV9F"}}
 {"v":1,"id":["01M01ARYNWYE6ZM3JREA7PCBTE","01M01AR1TR335GW8NK39NF4V5Q"],"move.node":{"id":"01M01AR1TBKXTW8M72SJVMDP3T","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"3fffffffffffffffffffffff"}}
 {"v":1,"id":["01M01BBHM5A2RST0FHREZ9R9WK","01M01ARYNWYE6ZM3JREA7PCBTE"],"add.issue.assignee":{"id":"01M01AR1TBKXTW8M72SJVMDP3T","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
+{"v":1,"id":["01M01BBNN9YT3VA040WA96Z8FB","01M01BBHM5A2RST0FHREZ9R9WK"],"add.issue.comment":{"id":"01M01BBNN64G5CHN2TNH5F01D3","issue":"01M01AR1TBKXTW8M72SJVMDP3T","md":"Verified and committed as de67218. All six edits map to confirmed issues; the `timeline:get` boardId was genuinely under-typed (client sends it, server spreads it into getEventTimeline, so the declared shape was bypassed). 316 tests, typecheck and prettier pass.","author":"01KSAYRA4GHEKJP888WFBWBRDD"}}
+{"v":1,"id":["01M01BBSWAS2THP3F1F7XSWS6N","01M01BBNN9YT3VA040WA96Z8FB"],"add.issue.assignee":{"id":"01M01AHTCXTYFPFB77PRKAZMMX","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
+{"v":1,"id":["01M01BBX698X4FHJM72K6C4NPB","01M01BBSWAS2THP3F1F7XSWS6N"],"move.node":{"id":"01M01AHTCXTYFPFB77PRKAZMMX","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"7fffffffffffffffffffffff"}}
