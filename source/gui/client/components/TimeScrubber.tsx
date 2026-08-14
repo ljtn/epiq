@@ -130,12 +130,18 @@ const EVENTS_MODE_VERTICAL_PADDING =
 const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 320ms ease-out';
 
 // How long one bar takes to reach full height, and how much total delay is
-// spread across the whole chart so the growth sweeps from the oldest bucket
-// to the newest instead of every bar popping at once. The spread is kept
-// shorter than a single bar's growth so the sweep reads as one gesture
-// rather than a queue of separate ones — noticeable, but over quickly.
-const BAR_GROW_MS = 300;
-const BAR_GROW_SWEEP_MS = 260;
+// spread across the whole chart so growth sweeps from the oldest bucket to
+// the newest instead of every bar popping at once.
+//
+// The sweep is deliberately much longer than a single bar's growth — that
+// ratio is what makes it read as a travelling wave rather than a general
+// shimmer. At 200/560 a bar is fully up after 200ms, by which point only the
+// leftmost ~35% have even begun, so there's a visible crest moving across
+// with settled bars behind it and untouched ground ahead. Shortening the
+// growth relative to the sweep sharpens the crest; equalising them dissolves
+// it back into everything-at-once.
+const BAR_GROW_MS = 200;
+const BAR_GROW_SWEEP_MS = 560;
 
 // `backwards` matters: without it a bar renders at full height until its
 // delay elapses and only then snaps to zero to start growing, which looks
