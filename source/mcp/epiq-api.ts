@@ -278,18 +278,43 @@ const getIssueTags = (ticket: Ticket) =>
 			color: getStringColor(tag.name),
 		}));
 
-const getIssueAssignees = (ticket: Ticket) =>
+// A contributor node's name is written once at create.contributor and never
+// updated, so it goes stale the moment somebody changes their display name.
+// The event log always carries the current one, which is why the picker and
+// the assignee chip could show two different names for the same person.
+//
+// Built from state rather than re-read from disk, and computed once per
+// listing rather than per ticket.
+const getLatestNamesFromLog = (): Map<string, string> => {
+	const stateResult = getSafeState();
+	const eventLog = isFail(stateResult) ? [] : stateResult.value.eventLog ?? [];
+	const byId = new Map<string, string>();
+
+	for (const event of eventLog) {
+		if (event.userId && event.userName) byId.set(event.userId, event.userName);
+	}
+
+	return byId;
+};
+
+const getIssueAssignees = (
+	ticket: Ticket,
+	latestNames: Map<string, string> = new Map(),
+) =>
 	(ticket.props.assignees ?? [])
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter(contributor => contributor != undefined)
-		.map(
-			contributor =>
-				({
-					id: contributor.id,
-					name: contributor.name,
-					color: getStringColor(contributor.name),
-				} satisfies ApiIssue['assignees'][number]),
-		);
+		.map(contributor => {
+			// Registry wins for anyone with no events — which includes redacted
+			// contributors, so a redaction is never undone by a stale log name.
+			const name = latestNames.get(contributor.id) ?? contributor.name;
+
+			return {
+				id: contributor.id,
+				name,
+				color: getStringColor(name),
+			} satisfies ApiIssue['assignees'][number];
+		});
 
 export const listBoards = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -340,6 +365,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 	if (isFail(stateResult)) return stateResult;
 
 	const nodes = stateResult.value.nodes;
+	const latestNames = getLatestNamesFromLog();
 
 	const issues: ApiIssue[] = Object.values(nodes)
 		.filter(isTicketNode)
@@ -361,7 +387,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),
 					tags: getIssueTags(n),
-					assignees: getIssueAssignees(n),
+					assignees: getIssueAssignees(n, latestNames),
 				} satisfies ApiIssue),
 		);
 
@@ -884,6 +910,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 
 	const nodes = Object.values(stateResult.value.nodes);
 	const boards = nodes.filter(n => isBoardNode(n) && !n.isDeleted);
+	const latestNames = getLatestNamesFromLog();
 
 	const swimlanesByBoardId = new Map<string, Swimlane[]>();
 	const ticketsBySwimlaneId = new Map<string, Ticket[]>();
@@ -981,7 +1008,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										description: issue.props.description ?? '',
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
-										assignees: getIssueAssignees(issue),
+										assignees: getIssueAssignees(issue, latestNames),
 										parentNodeId: issue.parentNodeId!,
 										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 									})),

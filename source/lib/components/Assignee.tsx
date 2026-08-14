@@ -32,13 +32,32 @@ const isExternalContributor = (contributorId: string): boolean => {
 	return !eventLog.some(event => event.userId === contributorId);
 };
 
+// A contributor node's name is a snapshot from create.contributor and is
+// never updated, so it goes stale once somebody changes their display name.
+// The log carries the current one. Falls back to the registry for anyone with
+// no events — which includes redacted contributors, so a redaction is never
+// undone by a stale log name.
+const getDisplayName = (contributorId: string, fallback: string): string => {
+	const {eventLog = []} = getState();
+
+	for (let index = eventLog.length - 1; index >= 0; index--) {
+		const event = eventLog[index];
+		if (event?.userId === contributorId && event.userName)
+			return event.userName;
+	}
+
+	return fallback;
+};
+
 export const AssigneeUI: React.FC<Props> = ({id, isSelected}) => {
 	const contributor = nodeRepo.getContributor(id);
 	if (!contributor) return;
 
+	const name = getDisplayName(id, contributor.name);
+
 	return (
-		<Text underline={isSelected} color={getStringColor(contributor.name)}>
-			{'@' + contributor.name}
+		<Text underline={isSelected} color={getStringColor(name)}>
+			{'@' + name}
 			{isExternalContributor(id) ? '↗' : ''}
 		</Text>
 	);
