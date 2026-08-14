@@ -375,7 +375,11 @@ describe('AssignUserToTicket command', () => {
 		);
 	});
 
-	it('creates a new contributor when none exists, then adds assignee to issue props', async () => {
+	it('creates an external contributor only when explicitly asked with "!"', async () => {
+		mockedGetCmdState.mockReturnValue({
+			commandMeta: {modifier: '!alice', inputString: ''},
+		} as CommandLineState);
+
 		mockedUlid
 			.mockReturnValueOnce('new-contributor-id')
 			.mockReturnValueOnce('create-contributor-event-id')
@@ -414,6 +418,55 @@ describe('AssignUserToTicket command', () => {
 			],
 			'/repo/.epiq',
 		);
+	});
+
+	// Silently creating on an unmatched name is how near-identical
+	// contributors accumulate, and a typed command is the easiest place in the
+	// app to mistype one.
+	it('refuses an unknown name without the "!" gesture', async () => {
+		const result = (await assignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		)) as {status: string; message: string};
+
+		expect(result.status).toBe('fail');
+		expect(result.message).toContain('!alice');
+
+		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('assigns self by id when given "me"', async () => {
+		mockedGetCmdState.mockReturnValue({
+			commandMeta: {modifier: 'me', inputString: ''},
+		} as CommandLineState);
+
+		mockedUlid
+			.mockReturnValueOnce('create-id')
+			.mockReturnValueOnce('assign-id');
+
+		await assignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		);
+
+		const events = mockedMaterializeAndPersistAll.mock.calls[0]?.[0] as {
+			action: string;
+			payload: Record<string, unknown>;
+		}[];
+
+		// Registered under the id that authors events, not a fresh ulid — that
+		// binding is what makes "assigned to me" mean the same person as the
+		// author of the history.
+		expect(events).toEqual([
+			expect.objectContaining({
+				action: 'create.contributor',
+				payload: {id: '0001', name: 'jola'},
+			}),
+			expect.objectContaining({
+				action: 'add.issue.assignee',
+				payload: {id: 'ticket-1', assignee: '0001'},
+			}),
+		]);
 	});
 
 	it('fails and does not create duplicate assignment', async () => {

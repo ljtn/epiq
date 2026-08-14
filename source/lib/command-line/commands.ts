@@ -65,6 +65,42 @@ const findContributorByName = (name: string) =>
 		contributor => contributor.name === name,
 	);
 
+// Mirrors getBoardContributors on the server. The contributor registry only
+// holds people who have been explicitly created or assigned, so it is often
+// empty — including of you, despite having authored every event. Anyone who
+// has authored an event is a real candidate with a real id, so the two
+// sources are unioned. `isExternal` marks the ones who have never authored
+// anything, and is derived rather than stored so it self-corrects.
+const getAssignableContributors = (): {
+	id: string;
+	name: string;
+	isExternal: boolean;
+}[] => {
+	// Tolerates a missing log rather than assuming boot has completed: this
+	// runs from a command, and a half-initialised state should degrade to
+	// "registry only" instead of throwing.
+	const {eventLog = [], contributors} = getState();
+	const byId = new Map<string, string>();
+	const authorIds = new Set<string>();
+
+	for (const event of eventLog) {
+		if (!event.userId) continue;
+
+		byId.set(event.userId, event.userName ?? '');
+		authorIds.add(event.userId);
+	}
+
+	for (const contributor of Object.values(contributors)) {
+		if (!byId.has(contributor.id)) byId.set(contributor.id, contributor.name);
+	}
+
+	return [...byId.entries()].map(([id, name]) => ({
+		id,
+		name,
+		isExternal: !authorIds.has(id),
+	}));
+};
+
 const getPersistRootValue = async () => {
 	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
@@ -510,7 +546,16 @@ export const commands: CommandLineActionEntry[] = [
 			if (isFail(userRes)) return failed('Unable to resolve user ID');
 
 			const {modifier, inputString} = getCmdState().commandMeta;
-			const name = (modifier || inputString).trim();
+			const raw = (modifier || inputString).trim();
+			if (!raw) return failed('Provide an assignee');
+
+			// A leading "!" is the deliberate gesture for inventing somebody
+			// who has never touched this board. Without it an unmatched name is
+			// refused: silently creating on a typo is how near-identical
+			// contributors accumulate, and a typed command is the easiest place
+			// in the app to mistype a name.
+			const wantsExternal = raw.startsWith('!');
+			const name = (wantsExternal ? raw.slice(1) : raw).trim();
 			if (!name) return failed('Provide an assignee');
 
 			const {selectedIndex, contextNode} = getState();
@@ -528,8 +573,43 @@ export const commands: CommandLineActionEntry[] = [
 			const persistRootResult = await getPersistRootValue();
 			if (isFail(persistRootResult)) return persistRootResult;
 
-			const existingContributor = findContributorByName(name);
-			const contributorId = existingContributor?.id ?? ulid();
+			const candidates = getAssignableContributors();
+			const isSelf = !wantsExternal && name.toLowerCase() === 'me';
+
+			let contributorId: string;
+			let contributorName: string;
+
+			if (isSelf) {
+				// Bound to the id that authors your events, so an assignment and
+				// a commit in the log refer to the same person.
+				contributorId = userRes.value.userId;
+				contributorName =
+					candidates.find(c => c.id === contributorId)?.name ??
+					userRes.value.userName;
+			} else {
+				const matches = candidates.filter(c => c.name === name);
+
+				if (matches.length > 1) {
+					// Two people can share a display name; picking one silently
+					// would assign the wrong person half the time.
+					return failed(
+						`"${name}" matches ${matches.length} contributors (${matches
+							.map(c => c.id)
+							.join(', ')}). Assign from the GUI to choose by id.`,
+					);
+				}
+
+				const match = matches[0];
+
+				if (!match && !wantsExternal) {
+					return failed(
+						`No contributor named "${name}". Use "!${name}" to add them as an external assignee.`,
+					);
+				}
+
+				contributorId = match?.id ?? ulid();
+				contributorName = match?.name ?? name;
+			}
 
 			const assignees = ticket.props.assignees ?? [];
 
@@ -537,9 +617,13 @@ export const commands: CommandLineActionEntry[] = [
 				return failed('Assignee already assigned');
 			}
 
+			// Registered under the id they already author with, rather than a
+			// fresh one — that binding is the whole point.
+			const isRegistered = Boolean(getState().contributors[contributorId]);
+
 			return materializeAndPersistAll(
 				[
-					...(existingContributor
+					...(isRegistered
 						? []
 						: [
 								{
@@ -547,7 +631,7 @@ export const commands: CommandLineActionEntry[] = [
 									action: 'create.contributor' as const,
 									payload: {
 										id: contributorId,
-										name,
+										name: contributorName,
 									},
 									...userRes.value,
 								},
@@ -579,7 +663,13 @@ export const commands: CommandLineActionEntry[] = [
 			const name = (modifier || inputString).trim();
 			if (!name) return failed('Provide an assignee to remove');
 
-			const existingContributor = findContributorByName(name);
+			// Mirrors assign: "me" has to work here too, or a self-assignment
+			// made in one command can't be undone by the obvious opposite.
+			const existingContributor =
+				name.toLowerCase() === 'me'
+					? {id: userRes.value.userId, name: userRes.value.userName}
+					: findContributorByName(name);
+
 			if (!existingContributor) {
 				return failed(`Assignee "${name}" does not exist`);
 			}
