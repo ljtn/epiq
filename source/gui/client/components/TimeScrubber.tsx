@@ -176,6 +176,11 @@ const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 158, 214, 0.07)';
 // carries the same label) is left to answer the question.
 const MIN_SEGMENT_WIDTH_FOR_LABEL = 78;
 
+// Muted rather than pure white: at 1px the needle reads as a crisp hairline
+// either way, and full white made it the brightest thing on the panel —
+// louder than the data it's there to point at.
+const NEEDLE_COLOR = 'rgba(255, 255, 255, 0.62)';
+
 // Calendar units the timeline can be segmented by, finest first. Which one is
 // used depends on the span (see chooseSegmentUnit) — days for a week's view,
 // months for a year's, and so on.
@@ -1105,11 +1110,21 @@ export const TimeScrubber = ({
 					// trying to say in the first place. Drawn as the first child so the
 					// data (positioned siblings, painted in DOM order) sits on top.
 					<div
+						// Scrubbing is bound to the wrapper, not the individual charts, so
+						// a drag works anywhere across the pair — including the lower
+						// commit chart and the gap between them. They read as one chart,
+						// so "which half am I over" shouldn't decide whether the click
+						// selects a time.
+						onPointerDown={onPointerDown}
+						onPointerMove={onPointerMove}
+						onPointerUp={endDrag}
+						onPointerCancel={endDrag}
 						style={{
 							position: 'relative',
 							display: 'flex',
 							flexDirection: 'column',
 							gap: 8,
+							cursor: 'pointer',
 						}}
 					>
 						{hoveredSegment && (
@@ -1152,10 +1167,6 @@ export const TimeScrubber = ({
 
 						<div
 							ref={trackRef}
-							onPointerDown={onPointerDown}
-							onPointerMove={onPointerMove}
-							onPointerUp={endDrag}
-							onPointerCancel={endDrag}
 							// "Volume" mode resolves the hovered bucket from the pointer's
 							// x position here, once, instead of per bucket. "Events" mode
 							// leaves this alone — there the individual points carry their
@@ -1180,7 +1191,6 @@ export const TimeScrubber = ({
 								paddingBottom:
 									layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
 								boxSizing: 'content-box',
-								cursor: 'pointer',
 								display: 'flex',
 								alignItems: 'center',
 							}}
@@ -1457,54 +1467,6 @@ export const TimeScrubber = ({
 									})}
 								</>
 							)}
-
-							{/* Draggable thumb / playhead — a full-height needle in a color
-					    distinct from the accent-colored bars so it stays visible
-					    against them, with a downward-pointing triangle handle that
-					    highlights on hover for grab affordance. z-index above both
-					    data layers (2 and 1, see above) so it's never obscured. */}
-							<div
-								onMouseEnter={() => setNeedleHovered(true)}
-								onMouseLeave={() => setNeedleHovered(false)}
-								style={{
-									position: 'absolute',
-									left: `${thumbFraction * 100}%`,
-									top: 0,
-									bottom: 0,
-									width: 2,
-									background: GUI_THEME.primary,
-									boxShadow: needleHovered
-										? `0 0 10px 2px ${GUI_THEME.primary}`
-										: `0 0 6px 1px ${GUI_THEME.primary}`,
-									zIndex: 3,
-									transform: 'translateX(-1px)',
-									pointerEvents: 'auto',
-									cursor: 'pointer',
-								}}
-							/>
-							<div
-								onMouseEnter={() => setNeedleHovered(true)}
-								onMouseLeave={() => setNeedleHovered(false)}
-								style={{
-									position: 'absolute',
-									left: `${thumbFraction * 100}%`,
-									top: needleHovered ? -9 : -7,
-									width: 0,
-									height: 0,
-									borderLeft: `${needleHovered ? 6 : 5}px solid transparent`,
-									borderRight: `${needleHovered ? 6 : 5}px solid transparent`,
-									borderTop: `${needleHovered ? 8 : 7}px solid ${
-										GUI_THEME.primary
-									}`,
-									filter: `drop-shadow(0 0 ${needleHovered ? 5 : 3}px ${
-										GUI_THEME.primary
-									})`,
-									zIndex: 3,
-									transform: `translateX(${needleHovered ? -6 : -5}px)`,
-									pointerEvents: 'auto',
-									cursor: 'pointer',
-								}}
-							/>
 						</div>
 
 						{/* Code commits — a second, mirrored box, "Volume" mode only. In
@@ -1601,6 +1563,59 @@ export const TimeScrubber = ({
 								})}
 							</div>
 						)}
+
+						{/* Draggable thumb / playhead, in a color distinct from the
+					    accent-colored bars so it stays visible against them, with a
+					    downward-pointing triangle handle that highlights on hover for
+					    grab affordance. z-index above both data layers (2 and 1, see
+					    above) so it's never obscured.
+
+					    Lives on the wrapper rather than inside the upper chart, so it
+					    runs unbroken down through both charts and the gap between them
+					    — a playhead that stopped at the first chart's floor would
+					    undercut the whole point of mirroring them about a shared
+					    axis. */}
+						<div
+							onMouseEnter={() => setNeedleHovered(true)}
+							onMouseLeave={() => setNeedleHovered(false)}
+							style={{
+								position: 'absolute',
+								left: `${thumbFraction * 100}%`,
+								top: 0,
+								bottom: 0,
+								// A hairline in plain white, no glow. The needle marks an
+								// exact instant, and a soft-edged glowing bar contradicts
+								// that — it also bloomed over the data it sits on, which
+								// matters more now that the bars can be ~2px wide.
+								width: 1,
+								background: NEEDLE_COLOR,
+								zIndex: 3,
+								transform: 'translateX(-0.5px)',
+								pointerEvents: 'auto',
+								cursor: 'pointer',
+							}}
+						/>
+						<div
+							onMouseEnter={() => setNeedleHovered(true)}
+							onMouseLeave={() => setNeedleHovered(false)}
+							style={{
+								position: 'absolute',
+								left: `${thumbFraction * 100}%`,
+								top: needleHovered ? -9 : -7,
+								width: 0,
+								height: 0,
+								borderLeft: `${needleHovered ? 6 : 5}px solid transparent`,
+								borderRight: `${needleHovered ? 6 : 5}px solid transparent`,
+								// Matches the needle's own white; the handle is the part
+								// you grab, so it keeps its size change on hover as the
+								// affordance instead of a glow.
+								borderTop: `${needleHovered ? 8 : 7}px solid ${NEEDLE_COLOR}`,
+								zIndex: 3,
+								transform: `translateX(${needleHovered ? -6 : -5}px)`,
+								pointerEvents: 'auto',
+								cursor: 'pointer',
+							}}
+						/>
 
 						{/* Both hints live here, in the wrapper spanning both charts, so
 						    they hang below the whole scrubber rather than between the two
