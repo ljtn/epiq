@@ -27,7 +27,7 @@ const formatDateTime = (date: Date): string => {
 	);
 };
 
-// A frame represents a time interval, not a single instant — show it as a
+// A bucket represents a time interval, not a single instant — show it as a
 // range. Collapses the end side to just a time when it falls on the same day
 // as the start, since repeating the date is noise at typical bucket sizes.
 const formatInterval = (start: number, end: number): string => {
@@ -59,10 +59,14 @@ type TimeScrubberProps = {
 	onInspectCommit: (sha: string) => void;
 };
 
-// "even" lays every non-empty bucket out as an equal-width contiguous frame
-// (a filmstrip, no gaps for quiet stretches) — the default, since quiet
-// stretches otherwise read as empty void. "real" positions frames
-// proportionally to actual elapsed time, gaps and all.
+// "even" divides the full time range into equal-width, equal-duration
+// buckets (how many depends on the span — see bucketCountForSpan) and lays
+// them out as a contiguous filmstrip — quiet
+// buckets render with zero height rather than being hidden, so gaps in
+// activity show up honestly as void instead of being absorbed into
+// neighboring buckets. "real" instead positions each individual event (not
+// a bucket) proportionally to its own elapsed time — a scatter, not a
+// histogram.
 type LayoutMode = 'even' | 'real';
 
 // "all" is the full project history. The others scope + zoom the timeline to
@@ -116,6 +120,39 @@ const HOVER_HINT_WIDTH = 220;
 
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(max, Math.max(min, value));
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Bounds on "Volume" mode's bucket count. The floor keeps a very short span
+// from collapsing into a handful of absurdly chunky blocks; the ceiling keeps
+// a very long one from producing sub-pixel bars that can't be seen or hovered
+// at all (and thousands of DOM nodes to draw them with).
+const MIN_TIME_BUCKETS = 60;
+const MAX_TIME_BUCKETS = 900;
+
+// Bucket count scales with how much time is on screen, rather than being
+// fixed: a week's worth of history gets chunky, easily-hit blocks, while
+// "all time" gets a dense, near-pixel-wide density strip. Sub-linear (roughly
+// a square root) is the point — a span 50x longer gets only ~6x the buckets,
+// so each bucket still covers *more* real time as you zoom out, but the bars
+// visibly thin out instead of staying the same width and silently swallowing
+// ever-larger intervals.
+//
+// The exponent and coefficient are just the curve through two chosen anchors:
+// ~110 buckets at a 7-day span (blocky), ~700 at a 365-day one (fine).
+const bucketCountForSpan = (spanMs: number): number => {
+	const days = Math.max(1, spanMs / DAY_MS);
+
+	return Math.round(
+		clamp(45 * Math.pow(days, 0.47), MIN_TIME_BUCKETS, MAX_TIME_BUCKETS),
+	);
+};
+
+// Below this width a bar is too thin to spare a pixel for the separating gap
+// — at ~2px, subtracting one would halve it. Wide/blocky bars keep the gap,
+// since that's what makes them read as discrete buckets rather than one
+// continuous area.
+const MIN_BUCKET_COUNT_FOR_GAP = 250;
 
 // Outline rather than filled — a solid accent block per active toggle reads
 // as heavy with this many buttons in one row; border + text color is enough
@@ -217,8 +254,10 @@ export const TimeScrubber = ({
 		time: string;
 		count: number;
 	} | null>(null);
-	const [hoveredFrameTime, setHoveredFrameTime] = useState<number | null>(null);
-	const [hoveredFrameFraction, setHoveredFrameFraction] = useState<
+	const [hoveredBucketTime, setHoveredBucketTime] = useState<number | null>(
+		null,
+	);
+	const [hoveredBucketFraction, setHoveredBucketFraction] = useState<
 		number | null
 	>(null);
 	const [needleHovered, setNeedleHovered] = useState(false);
@@ -228,14 +267,13 @@ export const TimeScrubber = ({
 	const [hoveredCommitFraction, setHoveredCommitFraction] = useState<
 		number | null
 	>(null);
-	// Only used in "even"/Frames mode, where commits render as one aggregated
-	// bar per bucket instead of individual dots (see hoveredCommit above).
+	// Only used in "Volume" mode, where commits render as one aggregated bar
+	// per time bucket instead of individual dots (see hoveredCommit above).
 	const [hoveredCommitBucket, setHoveredCommitBucket] = useState<{
 		index: number;
+		t: number;
 		count: number;
 		linesChanged: number;
-		minTime: number;
-		maxTime: number;
 	} | null>(null);
 	const [collapsed, setCollapsed] = useState(
 		() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true',
@@ -271,57 +309,12 @@ export const TimeScrubber = ({
 
 	const commitTimes = commits.map(c => c.time);
 
-	// `timeline.buckets` only has slots where an issue event actually
-	// happened (sparse by design — see the server's comment on
-	// TIMELINE_BUCKET_COUNT). That's fine for the issue track itself, but
-	// commits routinely predate the board's earliest issue *within whatever
-	// window is selected* (the codebase is usually older than its issue
-	// tracker, and even a narrow "Week" scope can have its first commit
-	// hours before its first issue event) — with no real bucket to land in,
-	// those commits snapped onto the single earliest existing bucket, making
-	// it a false outlier. Synthesize empty (count: 0) placeholder buckets to
-	// cover that gap, at the same grid width, so old commits get real,
-	// evenly-spaced slots instead. Capped by how many commits actually need
-	// placing there — there's no benefit to more buckets than that, and
-	// capping by the real issue-bucket count instead (as opposed to commit
-	// count) still let a short "Week" window's handful of real buckets get
-	// swamped by a wall of empty ones.
-	const frames = (() => {
-		const issueFrames = timeline?.buckets ?? [];
-		const bucketMs = timeline?.bucketMs ?? 0;
-		if (bucketMs <= 0 || issueFrames.length === 0 || commitTimes.length === 0)
-			return issueFrames;
-
-		const firstIssueTime = issueFrames[0]!.t;
-		const prefixCommitTimes = commitTimes.filter(t => t < firstIssueTime);
-		if (prefixCommitTimes.length === 0) return issueFrames;
-
-		const earliestCommitTime = Math.min(...prefixCommitTimes);
-		const prefixSpan = firstIssueTime - earliestCommitTime;
-
-		const maxPrefixBuckets = prefixCommitTimes.length;
-		const prefixBucketMs = Math.max(
-			bucketMs,
-			Math.ceil(prefixSpan / maxPrefixBuckets),
-		);
-		const prefixBucketCount = Math.min(
-			maxPrefixBuckets,
-			Math.ceil(prefixSpan / prefixBucketMs),
-		);
-
-		const prefix: GuiEventTimelineBucket[] = [];
-		for (let i = prefixBucketCount; i >= 1; i--) {
-			prefix.push({t: firstIssueTime - i * prefixBucketMs, count: 0});
-		}
-
-		return [...prefix, ...issueFrames];
-	})();
-
 	// Widened to cover commits too (they often predate the earliest issue
-	// event, especially in "All time" scope) — both rows share this axis, so
-	// a dot at a given x always means the same time in either row.
+	// event, especially in "All time" scope) — every layer (histogram
+	// buckets, scatter points, the needle) shares this axis, so a given x
+	// always means the same moment no matter which series drew it.
 	const earliest = Math.min(
-		frames[0]?.t ?? timeline?.earliest ?? Date.now(),
+		timeline?.buckets[0]?.t ?? timeline?.earliest ?? Date.now(),
 		...(commitTimes.length ? commitTimes : [Date.now()]),
 	);
 	const latest = Math.max(
@@ -330,9 +323,47 @@ export const TimeScrubber = ({
 	);
 	const span = Math.max(1, latest - earliest);
 
-	// Position of a real event time along the track, proportional to elapsed
-	// time (the "real" layout's coordinate system).
-	const realFractionForTime = (time: number) =>
+	// How many buckets to divide this particular span into — scaled to the
+	// span rather than fixed, so bars thin out as you zoom out (see
+	// bucketCountForSpan). Uniform within a given view either way, which is
+	// what keeps every bar the same width and directly comparable.
+	const timeBucketCount = bucketCountForSpan(span);
+
+	// Duration each histogram bucket covers. Uniform by construction — this
+	// is the whole point of the fixed-bucket model: bucket N always spans
+	// [earliest + N*bucketMs, earliest + (N+1)*bucketMs), whether or not
+	// anything happened in it.
+	const timeBucketMs = span / timeBucketCount;
+
+	const timeBucketIndexForTime = (time: number) =>
+		clamp(Math.floor((time - earliest) / timeBucketMs), 0, timeBucketCount - 1);
+
+	// "Volume" mode's histogram: a dense, fully-populated array of equal-
+	// duration buckets covering the whole range, including empty ones.
+	//
+	// This deliberately re-aggregates the server's own (much finer, sparse)
+	// buckets rather than using them directly as display slots. The server
+	// only emits a bucket where an event actually occurred, so using them
+	// as-is made every rendered bar a different real duration — visually
+	// uniform but temporally meaningless, and quiet stretches vanished
+	// entirely instead of showing as the gaps they are. Re-bucketing here
+	// costs nothing (the sparse input is small) and makes bar position and
+	// width both mean exactly one thing: elapsed time.
+	const timeBuckets: GuiEventTimelineBucket[] = Array.from(
+		{length: timeBucketCount},
+		(_, index) => ({t: earliest + index * timeBucketMs, count: 0}),
+	);
+	for (const sparseBucket of timeline?.buckets ?? []) {
+		const index = timeBucketIndexForTime(sparseBucket.t);
+		timeBuckets[index]!.count += sparseBucket.count;
+	}
+
+	// Position of a moment along the track, proportional to elapsed time.
+	// Shared by *both* layout modes now that "Volume" mode's buckets are
+	// themselves evenly spaced in time — previously each mode needed its own
+	// coordinate system, since the filmstrip's slot order didn't correspond
+	// to elapsed time at all.
+	const fractionForTime = (time: number) =>
 		clamp((time - earliest) / span, 0, 1);
 
 	// "Events" mode's y-axis: where in the 24-hour cycle a moment falls, 0 (0:00,
@@ -346,56 +377,20 @@ export const TimeScrubber = ({
 		return (date.getHours() * 60 + date.getMinutes()) / (24 * 60);
 	};
 
-	// Position of the frame nearest a given time, centered in its equal-width
-	// slot (the "even" layout's coordinate system).
-	const evenFractionForTime = (time: number) => {
-		if (frames.length === 0) return 1;
-
-		const index = nearestFrameIndex(time);
-		return (index + 0.5) / frames.length;
-	};
-
-	const nearestFrameIndex = (time: number): number => {
-		let bestIndex = 0;
-		let bestDiff = Infinity;
-
-		frames.forEach((frame, index) => {
-			const diff = Math.abs(frame.t - time);
-			if (diff < bestDiff) {
-				bestDiff = diff;
-				bestIndex = index;
-			}
-		});
-
-		return bestIndex;
-	};
-
 	const confirmedFraction =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
-			? layoutMode === 'even'
-				? evenFractionForTime(timeTravel.asOfTime)
-				: realFractionForTime(timeTravel.asOfTime)
+			? fractionForTime(timeTravel.asOfTime)
 			: 1;
 
 	const thumbFraction = dragFraction ?? confirmedFraction;
 
-	// Maps a pointer's fraction along the track to a target time, in whichever
-	// coordinate system is active. "even" snaps to the nearest frame's actual
-	// time; "real" interpolates continuously across the elapsed span.
-	const fractionToTime = (fraction: number) => {
-		if (layoutMode === 'even') {
-			if (frames.length === 0) return latest;
-
-			const index = clamp(
-				Math.floor(fraction * frames.length),
-				0,
-				frames.length - 1,
-			);
-			return frames[index]!.t;
-		}
-
-		return Math.round(earliest + clamp(fraction, 0, 1) * span);
-	};
+	// Maps a pointer's fraction along the track to a target time. One formula
+	// for both modes — with buckets now laid out proportionally to elapsed
+	// time, "snap to the bucket under the cursor" and "interpolate across the
+	// span" agree to within a single bucket's width, so the old per-mode
+	// split bought nothing but a second code path to keep in sync.
+	const fractionToTime = (fraction: number) =>
+		Math.round(earliest + clamp(fraction, 0, 1) * span);
 
 	const fractionFromClientX = (clientX: number) => {
 		const track = trackRef.current;
@@ -436,82 +431,80 @@ export const TimeScrubber = ({
 		setDragFraction(null);
 	};
 
-	const maxCount = Math.max(1, ...frames.map(b => b.count));
+	// Two separate maxima because the two modes plot genuinely different
+	// datasets: "Volume" plots the coarse re-aggregated histogram buckets,
+	// "Events" plots the server's own fine-grained sparse buckets (each ~one
+	// real moment). Normalizing both against a single max would flatten one
+	// of them — a coarse bucket's count is a sum of many fine ones.
+	const maxIssueBucketCount = Math.max(1, ...timeBuckets.map(b => b.count));
+	const maxIssueEventCount = Math.max(
+		1,
+		...(timeline?.buckets ?? []).map(b => b.count),
+	);
 
-	// In "even"/Frames mode, commits render as one aggregated bar per bucket
-	// (same buckets/x-slots as the issue frames above) rather than individual
-	// dots. Bar height is driven by commit count, the same metric (and the
-	// same linear formula) the issue frame bars above use — keeping both
-	// halves of the mirrored "iceberg" on equal footing. `linesChanged` is
-	// still tracked per commit and surfaced in the hover tooltip below, just
-	// not used for sizing right now.
+	// "Volume" mode's commit histogram, aggregated into the exact same
+	// fixed-duration buckets as the issue histogram above, so the mirrored
+	// "iceberg" halves line up moment-for-moment. Bar height is driven by
+	// commit count, the same metric (and same linear formula) the issue bars
+	// use, keeping both halves on equal footing. `linesChanged` is still
+	// summed per bucket and surfaced in the hover tooltip, just not used for
+	// sizing.
 	//
-	// `nearestFrameIndex` snaps by closest distance with no cap — in a
-	// stretch with little board activity, the nearest issue bucket can be
-	// hours (or a full day) away, so every commit in that whole gap piles
-	// onto one bucket. minTime/maxTime track the *actual* span of commits
-	// landing in each bucket, so the tooltip can show their real range
-	// instead of that bucket's own (often unrelated, misleadingly narrow)
-	// width — otherwise it reads as "16 commits in 2 minutes", which is
-	// simply false.
-	const commitStatsByFrameIndex = new Map<
+	// Each commit lands in the bucket that literally contains its timestamp
+	// — no nearest-neighbor snapping. That distinction fixed a real bug: the
+	// old sparse layout snapped every commit to the closest *issue-event*
+	// bucket with no distance cap, so a whole quiet day of commits piled onto
+	// one narrow bucket and read as an impossible burst ("16 commits in 2
+	// minutes"). With containment-based bucketing that can't happen — a
+	// bucket's contents are always exactly what occurred inside its own
+	// window.
+	const commitStatsByTimeBucketIndex = new Map<
 		number,
-		{count: number; linesChanged: number; minTime: number; maxTime: number}
+		{count: number; linesChanged: number}
 	>();
-	if (frames.length > 0) {
-		for (const commit of commits) {
-			const index = nearestFrameIndex(commit.time);
-			const existing = commitStatsByFrameIndex.get(index) ?? {
-				count: 0,
-				linesChanged: 0,
-				minTime: commit.time,
-				maxTime: commit.time,
-			};
-			commitStatsByFrameIndex.set(index, {
-				count: existing.count + 1,
-				linesChanged: existing.linesChanged + commit.linesChanged,
-				minTime: Math.min(existing.minTime, commit.time),
-				maxTime: Math.max(existing.maxTime, commit.time),
-			});
-		}
+	for (const commit of commits) {
+		const index = timeBucketIndexForTime(commit.time);
+		const existing = commitStatsByTimeBucketIndex.get(index) ?? {
+			count: 0,
+			linesChanged: 0,
+		};
+		commitStatsByTimeBucketIndex.set(index, {
+			count: existing.count + 1,
+			linesChanged: existing.linesChanged + commit.linesChanged,
+		});
 	}
 	const maxCommitCount = Math.max(
 		1,
-		...Array.from(commitStatsByFrameIndex.values(), s => s.count),
+		...Array.from(commitStatsByTimeBucketIndex.values(), s => s.count),
 	);
 
-	// Center the hover-hint tooltip on the hovered frame, clamped so it never
+	// Center the hover-hint tooltip on the hovered bucket, clamped so it never
 	// overflows past the track's own left/right edges.
 	const trackWidthPx = trackRef.current?.clientWidth ?? 0;
 	const hoverHintLeftPx =
-		hoveredFrameFraction !== null
+		hoveredBucketFraction !== null
 			? clamp(
-					hoveredFrameFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
+					hoveredBucketFraction * trackWidthPx - HOVER_HINT_WIDTH / 2,
 					0,
 					Math.max(0, trackWidthPx - HOVER_HINT_WIDTH),
 			  )
 			: 0;
 
-	// Unifies the two commit-hover sources (a single dot in "real" mode, an
-	// aggregated bucket bar in "even" mode) into one time/rows shape so the
+	// Unifies the two commit-hover sources (a single dot in "Events" mode, an
+	// aggregated bucket bar in "Volume" mode) into one time/rows shape so the
 	// floating hint below only needs one code path — `time` is always the
 	// first row, matching the board tooltip's own top row.
 	const commitHoverLabel: {time: string; rows: string[]} | null =
 		layoutMode === 'even'
 			? hoveredCommitBucket
 				? {
-						// The real span of the commits grouped here, not the bucket's
-						// own width — those can differ hugely (see the comment on
-						// commitStatsByFrameIndex above), and showing the bucket's
-						// width would misrepresent a scattered day of commits as a
-						// suspiciously tight burst.
-						time:
-							hoveredCommitBucket.minTime === hoveredCommitBucket.maxTime
-								? formatDateTime(new Date(hoveredCommitBucket.minTime))
-								: formatInterval(
-										hoveredCommitBucket.minTime,
-										hoveredCommitBucket.maxTime,
-								  ),
+						// The bucket's own window is now the honest answer: commits are
+						// bucketed by containment, so everything counted here genuinely
+						// happened inside this interval.
+						time: formatInterval(
+							hoveredCommitBucket.t,
+							hoveredCommitBucket.t + timeBucketMs,
+						),
 						rows: [
 							`${hoveredCommitBucket.count} commit${
 								hoveredCommitBucket.count === 1 ? '' : 's'
@@ -534,7 +527,7 @@ export const TimeScrubber = ({
 	const commitHoverFraction =
 		layoutMode === 'even'
 			? hoveredCommitBucket
-				? (hoveredCommitBucket.index + 0.5) / frames.length
+				? (hoveredCommitBucket.index + 0.5) / timeBucketCount
 				: null
 			: hoveredCommitFraction;
 	const commitHintLeftPx =
@@ -831,7 +824,7 @@ export const TimeScrubber = ({
 								alignItems: 'center',
 							}}
 						>
-							{/* Floating hover-hint — left-aligned above the hovered frame,
+							{/* Floating hover-hint — left-aligned above the hovered bucket,
 					    clamped to the track's own bounds so it never overflows
 					    left/right. Time always renders as its own first row, so it's
 					    in the same place whether hovering the board or code track. */}
@@ -948,109 +941,119 @@ export const TimeScrubber = ({
 								</>
 							)}
 
-							{/* Frames — one per non-empty bucket, opacity/size scaled by count.
-					    "even" lays them out as contiguous equal-width blocks; "real"
-					    positions them (as small dots) proportionally to elapsed time. */}
+							{/* Board activity. The two modes plot different things from
+					    different sources, so they get genuinely separate branches
+					    rather than one parameterized loop: "Volume" draws the dense
+					    fixed-duration histogram (every bucket, including empty ones),
+					    "Events" draws the server's fine-grained sparse buckets as
+					    individual 2D points. */}
 							{showIssues &&
-								frames.map((bucket, index) => {
-									const intensity = bucket.count / maxCount;
+								layoutMode === 'even' &&
+								timeBuckets.map((bucket, index) => {
+									const intensity = bucket.count / maxIssueBucketCount;
 									const interval = formatInterval(
 										bucket.t,
-										bucket.t + (timeline?.bucketMs ?? 0),
+										bucket.t + timeBucketMs,
 									);
-									const label = `${bucket.count} change${
-										bucket.count === 1 ? '' : 's'
-									}, ${interval}`;
-									const centerFraction =
-										layoutMode === 'even'
-											? (index + 0.5) / frames.length
-											: realFractionForTime(bucket.t);
+									const widthPercent = 100 / timeBucketCount;
+									const barWidth =
+										timeBucketCount < MIN_BUCKET_COUNT_FOR_GAP
+											? `calc(${widthPercent}% - 1px)`
+											: `${widthPercent}%`;
 
-									const commonProps = {
-										title: label,
-										onMouseEnter: () => {
-											setHoverLabel({time: interval, count: bucket.count});
-											setHoveredFrameTime(bucket.t);
-											setHoveredFrameFraction(centerFraction);
-										},
-										onMouseLeave: () => {
-											setHoverLabel(null);
-											setHoveredFrameTime(null);
-											setHoveredFrameFraction(null);
-										},
-									};
+									return (
+										// Hit-target spans the full track height, not just the bar's
+										// rendered height — a short/low-intensity bar would otherwise
+										// need pixel-precise aim to hover. Background tints on hover so
+										// the whole column reads as the hit target, not just the bar.
+										// Every bucket gets one, empty included, which is what makes a
+										// quiet stretch hoverable ("0 changes") instead of a dead zone.
+										<div
+											key={bucket.t}
+											title={`${bucket.count} change${
+												bucket.count === 1 ? '' : 's'
+											}, ${interval}`}
+											onMouseEnter={() => {
+												setHoverLabel({time: interval, count: bucket.count});
+												setHoveredBucketTime(bucket.t);
+												setHoveredBucketFraction(
+													(index + 0.5) / timeBucketCount,
+												);
+											}}
+											onMouseLeave={() => {
+												setHoverLabel(null);
+												setHoveredBucketTime(null);
+												setHoveredBucketFraction(null);
+											}}
+											style={{
+												position: 'absolute',
+												left: `${index * widthPercent}%`,
+												top: 0,
+												bottom: 0,
+												width: barWidth,
+												background:
+													hoveredBucketTime === bucket.t
+														? 'rgba(255, 255, 255, 0.06)'
+														: 'transparent',
+												pointerEvents: 'auto',
+												animation: FADE_IN_ANIMATION,
+											}}
+										>
+											{/* A genuinely quiet bucket renders no bar at all —
+										    deliberately void rather than a token sliver, since
+										    "nothing happened here" is real information the old
+										    gapless filmstrip used to hide. */}
+											{bucket.count > 0 && (
+												<div
+													style={{
+														position: 'absolute',
+														left: 0,
+														right: 0,
+														bottom: 0,
+														// Bottom-anchored so height reads as a stacked-bar chart
+														// — how much happened at that point in time — rather
+														// than a centered blip.
+														height: 3 + intensity * 21,
+														borderRadius: '1px 1px 0 0',
+														background: GUI_THEME.accent,
+														opacity: 0.35 + intensity * 0.65,
+														pointerEvents: 'none',
+													}}
+												/>
+											)}
+										</div>
+									);
+								})}
 
-									if (layoutMode === 'even') {
-										const widthPercent = 100 / frames.length;
-
-										return (
-											// Hit-target spans the full track height, not just the bar's
-											// rendered height — a short/low-intensity bar would otherwise
-											// need pixel-precise aim to hover. Background tints on hover so
-											// the whole column reads as the hit target, not just the bar.
-											<div
-												key={bucket.t}
-												{...commonProps}
-												style={{
-													position: 'absolute',
-													left: `${index * widthPercent}%`,
-													top: 0,
-													bottom: 0,
-													width: `calc(${widthPercent}% - 1px)`,
-													background:
-														hoveredFrameTime === bucket.t
-															? 'rgba(255, 255, 255, 0.06)'
-															: 'transparent',
-													pointerEvents: 'auto',
-													animation: FADE_IN_ANIMATION,
-												}}
-											>
-												{/* A synthesized placeholder bucket (see the `frames`
-											    comment above) or any other genuinely zero-activity
-											    slot renders no bar at all — invisible, not just tiny —
-											    while the hit-target div above still covers it, so
-											    hovering still surfaces its date and "0 changes". */}
-												{bucket.count > 0 && (
-													<div
-														style={{
-															position: 'absolute',
-															left: 0,
-															right: 0,
-															bottom: 0,
-															// Bottom-anchored so height reads as a stacked-bar chart
-															// — how much happened at that point in time — rather
-															// than a centered blip.
-															height: 3 + intensity * 21,
-															borderRadius: '1px 1px 0 0',
-															background: GUI_THEME.accent,
-															opacity: 0.35 + intensity * 0.65,
-															pointerEvents: 'none',
-														}}
-													/>
-												)}
-											</div>
-										);
-									}
-
-									// A synthesized placeholder bucket (see the `frames` comment
-									// above) has no real activity to plot — unlike "Volume" mode's
-									// contiguous columns, there's no reasonably-sized invisible
-									// hit-target to give it here, so it's simplest to just skip it
-									// rather than render a fake data point.
-									if (bucket.count === 0) return null;
-
-									// "Events" mode plots each bucket as a point in 2D: x is when
-									// in the project's history it happened (elapsed time), y is
-									// what time of day it happened — the same hour-of-day scale
-									// the commit track below uses, so the two are comparable.
-									const fraction = realFractionForTime(bucket.t);
+							{showIssues &&
+								layoutMode === 'real' &&
+								(timeline?.buckets ?? []).map(bucket => {
+									// "Events" mode plots each event cluster as a point in 2D: x is
+									// when in the project's history it happened (elapsed time), y is
+									// what time of day it happened — the same hour-of-day scale the
+									// commit dots use, so the two are directly comparable.
+									const intensity = bucket.count / maxIssueEventCount;
+									const fraction = fractionForTime(bucket.t);
 									const hourFraction = hourFractionForTime(bucket.t);
 									const size = 3 + intensity * 6;
+									const label = formatDateTime(new Date(bucket.t));
 
 									return (
 										<div
 											key={bucket.t}
-											{...commonProps}
+											title={`${bucket.count} change${
+												bucket.count === 1 ? '' : 's'
+											}, ${label}`}
+											onMouseEnter={() => {
+												setHoverLabel({time: label, count: bucket.count});
+												setHoveredBucketTime(bucket.t);
+												setHoveredBucketFraction(fraction);
+											}}
+											onMouseLeave={() => {
+												setHoverLabel(null);
+												setHoveredBucketTime(null);
+												setHoveredBucketFraction(null);
+											}}
 											style={{
 												position: 'absolute',
 												left: `${fraction * 100}%`,
@@ -1141,7 +1144,7 @@ export const TimeScrubber = ({
 									)}
 
 									{commits.map(commit => {
-										const fraction = realFractionForTime(commit.time);
+										const fraction = fractionForTime(commit.time);
 										const hourFraction = hourFractionForTime(commit.time);
 										// Uniform size — an individual commit doesn't have a "count"
 										// of its own to vary by, unlike the aggregated bucket bars in
@@ -1201,7 +1204,7 @@ export const TimeScrubber = ({
 							)}
 
 							{/* Draggable thumb / playhead — a full-height needle in a color
-					    distinct from the accent-colored frames so it stays visible
+					    distinct from the accent-colored bars so it stays visible
 					    against them, with a downward-pointing triangle handle that
 					    highlights on hover for grab affordance. z-index above both
 					    data layers (2 and 1, see above) so it's never obscured. */}
@@ -1251,14 +1254,17 @@ export const TimeScrubber = ({
 
 						{/* Code commits — a second, mirrored box, "Volume" mode only. In
 						    "Events" mode commits render overlaid directly on the track above
-						    instead (see the block right after the issue points' frames.map
-						    call) — an aggregated bar chart has no single point to overlay,
-						    so the two modes need genuinely different commit layouts. Commits
-						    snap into the same buckets as the issue frames above and render
-						    as one bar per bucket, top-anchored and growing downward — the
-						    mirror image of the issue bars' bottom-anchored growth, so the
-						    two tracks read as one shape (an "iceberg") expanding away from
-						    the shared axis between them in both directions. */}
+						    instead (see the commit-dot block there) — a histogram has no
+						    single point to overlay, so the two modes need genuinely
+						    different commit layouts. Commits fall into the same
+						    fixed-duration time buckets as the issue histogram above and
+						    render as one bar per bucket, top-anchored and growing downward
+						    — the mirror image of the issue bars' bottom-anchored growth, so
+						    the two tracks read as one shape (an "iceberg") expanding away
+						    from the shared axis between them in both directions. Because
+						    both halves now share one time grid, a given x is the same
+						    interval in both — which is what makes the mirroring meaningful
+						    rather than merely decorative. */}
 						{showCommits && layoutMode === 'even' && commits.length > 0 && (
 							<div
 								style={{
@@ -1334,19 +1340,23 @@ export const TimeScrubber = ({
 									}}
 								/>
 
-								{frames.map((bucket, index) => {
-									const stats = commitStatsByFrameIndex.get(index);
+								{timeBuckets.map((bucket, index) => {
+									const stats = commitStatsByTimeBucketIndex.get(index);
 									if (!stats) return null;
 
 									const intensity = stats.count / maxCommitCount;
-									const widthPercent = 100 / frames.length;
+									const widthPercent = 100 / timeBucketCount;
+									const barWidth =
+										timeBucketCount < MIN_BUCKET_COUNT_FOR_GAP
+											? `calc(${widthPercent}% - 1px)`
+											: `${widthPercent}%`;
 									const isHovered = hoveredCommitBucket?.index === index;
 
 									return (
 										<div
 											key={bucket.t}
 											onMouseEnter={() =>
-												setHoveredCommitBucket({index, ...stats})
+												setHoveredCommitBucket({index, t: bucket.t, ...stats})
 											}
 											onMouseLeave={() => setHoveredCommitBucket(null)}
 											style={{
@@ -1354,7 +1364,7 @@ export const TimeScrubber = ({
 												left: `${index * widthPercent}%`,
 												top: 0,
 												bottom: 0,
-												width: `calc(${widthPercent}% - 1px)`,
+												width: barWidth,
 												background: isHovered
 													? 'rgba(255, 255, 255, 0.06)'
 													: 'transparent',
@@ -1369,7 +1379,7 @@ export const TimeScrubber = ({
 													right: 0,
 													top: 0,
 													// Top-anchored so it grows downward, mirroring the
-													// issue frame bar's bottom-anchored growth above,
+													// issue bar's bottom-anchored growth above,
 													// using the same count-based intensity formula.
 													height: 3 + intensity * 21,
 													borderRadius: '0 0 1px 1px',
