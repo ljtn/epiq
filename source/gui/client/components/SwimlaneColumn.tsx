@@ -6,6 +6,14 @@ import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
 import {Button} from './Button';
 
+// The column's own horizontal padding, and half of it — the amount the
+// scrolling list is pulled out by so its scrollbar ends up centered in that
+// padding rather than flush against the cards. Kept as constants so the two
+// stay in step: changing the padding without changing the inset would put the
+// scrollbar off-centre again.
+const COLUMN_PADDING = 14;
+const SCROLLBAR_GUTTER_INSET = COLUMN_PADDING / 2;
+
 export const SwimlaneColumn = ({
 	swimlane,
 	selected,
@@ -49,9 +57,19 @@ export const SwimlaneColumn = ({
 				zIndex: 0,
 				width: 360,
 				minWidth: 360,
-				height: 'calc(100vh - 160px)',
+				// Fills whatever height the board row has, rather than deriving it
+				// from the viewport. The old `calc(100vh - 160px)` hardcoded a
+				// guess at the chrome above — header, scrubber, board picker — and
+				// the scrubber alone changes height when collapsed or switched
+				// between modes, so the guess was routinely wrong and the columns
+				// overflowed the page, adding a second scrollbar beside their own.
+				height: '100%',
+				// Panel draws a 1px border, which content-box sizing would add on
+				// top of the 100% — leaving the column 2px taller than the row and
+				// overflowing it by exactly that.
+				boxSizing: 'border-box',
 				background: dragOver ? '#14202a' : GUI_THEME.bg,
-				padding: '0 14px',
+				padding: `0 ${COLUMN_PADDING}px`,
 				display: 'flex',
 				flexDirection: 'column',
 			}}
@@ -128,7 +146,23 @@ export const SwimlaneColumn = ({
 				</div>
 			</header>
 
-			<div style={{overflow: 'auto', paddingTop: 4, flex: 1, minHeight: 0}}>
+			{/* The scrollbar sits at this box's right padding edge, so the space
+			    on either side of it comes from two different places: to its left,
+			    this element's own paddingRight; to its right, whatever of the
+			    Panel's 14px padding it hasn't been pulled into. Left flush against
+			    the cards otherwise — it rendered hard up against them with the
+			    full 14px stranded on the far side. Pulling out by half the panel
+			    padding and giving back the same amount centers it in that gutter. */}
+			<div
+				style={{
+					overflow: 'auto',
+					paddingTop: 4,
+					marginRight: -SCROLLBAR_GUTTER_INSET,
+					paddingRight: SCROLLBAR_GUTTER_INSET,
+					flex: 1,
+					minHeight: 0,
+				}}
+			>
 				{swimlane.issues.length === 0 ? (
 					<>
 						{dropIndex === 0 && <DropIndicator />}

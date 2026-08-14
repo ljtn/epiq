@@ -7,6 +7,7 @@ import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
+import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {TimeScrubber} from './components/TimeScrubber';
 import {moveIssue} from './lib/gui-move-issue';
 import {DropTarget} from './lib/gui-result.model';
@@ -609,6 +610,8 @@ export const App = () => {
 				flexDirection: 'column',
 			}}
 		>
+			<GlobalScrollbarStyles />
+
 			{commitInspectError && (
 				<div
 					style={{
@@ -669,7 +672,26 @@ export const App = () => {
 					overflow: 'hidden',
 				}}
 			>
-				<main style={{padding: '0 30px 30px 30px', overflow: 'auto', flex: 1}}>
+				{/* Column layout so the board row below can claim exactly the
+				    leftover height and scroll internally. Vertical overflow is
+				    hidden here on purpose: the swimlanes size themselves to this
+				    box, so nothing should ever spill out of it and put a second
+				    scrollbar on the page next to the columns' own. */}
+				<main
+					style={{
+						// No bottom padding: the board row is the horizontal scroll
+						// container now, so any gap below it would strand its
+						// scrollbar above a strip of dead page. The row runs to the
+						// bottom edge instead, putting the scrollbar where one
+						// expects to find it.
+						padding: '0 30px 0 30px',
+						flex: 1,
+						minHeight: 0,
+						display: 'flex',
+						flexDirection: 'column',
+						overflow: 'hidden',
+					}}
+				>
 					<div style={{padding: '20px 10px'}}>
 						<Dropdown
 							label="Board:"
@@ -692,7 +714,21 @@ export const App = () => {
 						/>
 					</div>
 
-					<div style={{display: 'flex', gap: 8}}>
+					{/* The board's horizontal scroll container. It used to be `main`,
+					    but `main` also had to scroll vertically for the swimlanes,
+					    which is what produced a page-level vertical bar alongside
+					    each column's own. Scrolling sideways is this row's job;
+					    scrolling down is each column's. */}
+					<div
+						style={{
+							display: 'flex',
+							gap: 8,
+							flex: 1,
+							minHeight: 0,
+							overflowX: 'auto',
+							overflowY: 'hidden',
+						}}
+					>
 						{selectedBoard?.swimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
@@ -719,7 +755,7 @@ export const App = () => {
 						))}
 
 						{/* Invisible spacer, only present while the panel is closed, so
-							`main`'s scrollWidth grows by exactly what its clientWidth
+							this row's scrollWidth grows by exactly what its clientWidth
 							gained by reclaiming the panel's space — keeping the max
 							scrollLeft identical across open/closed and avoiding the
 							clamp-triggered "bounce back" when scrolled far right. It
