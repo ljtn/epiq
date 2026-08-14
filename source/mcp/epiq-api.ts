@@ -136,6 +136,10 @@ type AddIssueAssigneeInput = ToolInput & {
 	// Prefer this. Assignees are stored as contributor ids, so an id assigns
 	// exactly who you meant.
 	assigneeId?: string;
+	// Assign whoever is running this. Resolves to the config userId, which is
+	// the same identity that authors every event — so an assignment made this
+	// way is bound to your history rather than to a lookalike record.
+	self?: boolean;
 	// The unlinked/ad-hoc path: names a person who has no contributor record
 	// yet. Kept because assigning someone outside the board is legitimate, but
 	// it is the unorthodox route — a name that differs only in case or spacing
@@ -1230,6 +1234,26 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 	});
 };
 
+// Looks an id up among the people who have authored events. Used when the
+// contributor registry doesn't know them yet — see the fallback in
+// addIssueAssignee for why that's the normal case rather than the odd one.
+const findEventLogAuthor = async (
+	stateBranchRoot: string,
+	userId: string,
+): Promise<{id: string; name: string} | undefined> => {
+	const eventsResult = loadMergedEvents(stateBranchRoot);
+	if (isFail(eventsResult)) return undefined;
+
+	let name: string | undefined;
+
+	// Last write wins: a display name changes over time, the id doesn't.
+	for (const event of eventsResult.value) {
+		if (event.userId === userId) name = event.userName ?? name;
+	}
+
+	return name === undefined ? undefined : {id: userId, name};
+};
+
 export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
@@ -1246,24 +1270,54 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	if (!isTicketNode(issue)) return failed('Assign target must be an issue');
 	if (issue.readonly) return failed('Cannot assign readonly issue');
 
+	// `self` is just sugar for "the id I author events with" — resolving it
+	// here rather than making every caller read the config keeps the binding
+	// between assignment identity and authorship identity in one place.
+	const targetId = input.self ? actorResult.value.userId : input.assigneeId;
+
 	// An id must resolve to somebody who already exists — unlike the name path
 	// below, an unknown id is an error rather than an invitation to invent a
 	// contributor. A caller passing an id is saying "this specific person",
 	// and silently creating a different one would answer a question they
 	// didn't ask.
-	if (input.assigneeId) {
-		const known = stateResult.value.contributors[input.assigneeId];
-		if (!known) return failed('Unknown assignee id');
+	if (targetId) {
+		const registered = stateResult.value.contributors[targetId];
 
-		const assignEvent = {
-			id: ulid(),
-			...actorResult.value,
-			action: 'add.issue.assignee',
-			payload: {id: input.issueId, assignee: input.assigneeId},
-		} satisfies AppEvent<'add.issue.assignee'>;
+		// Not being in the registry doesn't mean the person doesn't exist: a
+		// contributor node is only written when somebody is explicitly created
+		// or assigned, so anyone who has authored events but never been
+		// assigned — including you, the first time — is absent from it. Fall
+		// back to the event log, and register them under the id they already
+		// author with rather than minting a second one.
+		const authored = registered
+			? undefined
+			: await findEventLogAuthor(bootResult.value.stateBranchRoot, targetId);
+
+		if (!registered && !authored) return failed('Unknown assignee id');
+
+		const assignee = registered ?? authored!;
+
+		const events = [
+			...(registered
+				? []
+				: [
+						{
+							id: ulid(),
+							...actorResult.value,
+							action: 'create.contributor',
+							payload: {id: assignee.id, name: assignee.name},
+						} satisfies AppEvent<'create.contributor'>,
+				  ]),
+			{
+				id: ulid(),
+				...actorResult.value,
+				action: 'add.issue.assignee',
+				payload: {id: input.issueId, assignee: assignee.id},
+			} satisfies AppEvent<'add.issue.assignee'>,
+		];
 
 		const assignResults = materializeAndPersistAll(
-			[assignEvent],
+			events,
 			bootResult.value.stateBranchRoot,
 		);
 
@@ -1271,12 +1325,12 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 		return succeeded('Added issue assignee', {
 			id: input.issueId,
-			assignee: {id: known.id, name: known.name},
+			assignee: {id: assignee.id, name: assignee.name},
 		});
 	}
 
 	const assigneeName = sanitizeInlineText(input.assigneeName ?? '').trim();
-	if (!assigneeName) return failed('Provide assigneeId or assigneeName');
+	if (!assigneeName) return failed('Provide assigneeId, self or assigneeName');
 
 	// Still matched against existing contributors first: reusing a record is
 	// always better than adding a duplicate of it, even on this path.
@@ -1337,9 +1391,12 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 // were never assigned.
 export const getBoardContributors = async (
 	input: ToolInput & {boardId?: string} = {},
-): Promise<Result<ApiAssignee[]>> => {
+): Promise<Result<(ApiAssignee & {isSelf: boolean})[]>> => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
 
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
@@ -1364,10 +1421,14 @@ export const getBoardContributors = async (
 		if (!byId.has(contributor.id)) byId.set(contributor.id, contributor.name);
 	}
 
+	// Flagged rather than left for the caller to work out: every surface that
+	// offers a picker wants to pin "me" first, and each of them re-deriving it
+	// from config is three chances to disagree about who you are.
 	const contributors = [...byId.entries()].map(([id, name]) => ({
 		id,
 		name,
 		color: getStringColor(name),
+		isSelf: id === actorResult.value.userId,
 	}));
 
 	return succeeded('Listed board contributors', contributors);

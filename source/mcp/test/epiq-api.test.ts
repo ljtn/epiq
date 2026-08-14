@@ -1022,6 +1022,87 @@ describe('mcp tools', () => {
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
+	it('assigns self using the config userId, registering that exact id', async () => {
+		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
+			typeof vi.fn
+		>;
+		loadMerged.mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'e1',
+					userId: 'user-1',
+					userName: 'Alice',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x'},
+				},
+			]),
+		);
+
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			self: true,
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.assignee.id).toBe('user-1');
+		}
+
+		// The contributor is registered under the id already used to author
+		// events — minting a fresh ulid here is the bug this guards against.
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+		expect(calls).toEqual([
+			expect.objectContaining({
+				action: 'create.contributor',
+				payload: {id: 'user-1', name: 'Alice'},
+			}),
+			expect.objectContaining({
+				action: 'add.issue.assignee',
+				payload: {id: 'issue-1', assignee: 'user-1'},
+			}),
+		]);
+
+		loadMerged.mockReturnValue(succeeded('loaded', []));
+	});
+
+	it('marks self in the contributor list', async () => {
+		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
+			typeof vi.fn
+		>;
+		loadMerged.mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'e1',
+					userId: 'user-1',
+					userName: 'Alice',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x'},
+				},
+				{
+					id: 'e2',
+					userId: 'user-2',
+					userName: 'Bob',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'y'},
+				},
+			]),
+		);
+
+		const result = await tools.getBoardContributors({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			const self = result.value.filter(c => c.isSelf);
+			expect(self).toHaveLength(1);
+			expect(self[0]?.id).toBe('user-1');
+		}
+
+		loadMerged.mockReturnValue(succeeded('loaded', []));
+	});
+
 	it('assigns by id without creating a contributor', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
@@ -1073,7 +1154,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
-			expect(result.message).toBe('Provide assigneeId or assigneeName');
+			expect(result.message).toBe('Provide assigneeId, self or assigneeName');
 		}
 	});
 

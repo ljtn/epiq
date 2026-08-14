@@ -245,10 +245,11 @@ export const createMcpServer = () => {
 		'epiq_issue_assignee_add',
 		{
 			description:
-				'Assign a contributor to an Epiq issue. Prefer assigneeId, which assigns an existing contributor and fails if the id is unknown. assigneeName is the unlinked fallback for someone with no contributor record yet, and creates one — a name differing only in case or spacing from an existing contributor will produce a duplicate.',
+				'Assign a contributor to an Epiq issue. Pass self:true to assign yourself. Prefer assigneeId otherwise, which assigns a known contributor (from the registry or the event log) and fails if the id is unknown. assigneeName is the unlinked fallback for someone with no contributor record yet, and creates one — a name differing only in case or spacing from an existing contributor will produce a duplicate.',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
 				assigneeId: z.string().min(1).optional(),
+				self: z.boolean().optional(),
 				assigneeName: z.string().min(1).optional(),
 				repoRoot: z.string().optional(),
 			}),
