@@ -28,7 +28,7 @@ export type Tag = {id: string; name: string};
 // Shown in place of a redacted contributor's name. A placeholder rather than
 // an empty string so the row still reads as a person — the assignment is real,
 // it's the name that's gone.
-export const REDACTED_CONTRIBUTOR_NAME = 'removed contributor';
+export const REDACTED_CONTRIBUTOR_NAME = 'removed';
 
 export type Contributor = {id: string; name: string; userId?: string};
 

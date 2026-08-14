@@ -5,6 +5,7 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
+import {REDACTED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 
@@ -1112,7 +1113,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			// Id survives; only the name is gone.
 			expect(result.value.id).toBe('contributor-1');
-			expect(result.value.name).toBe('removed contributor');
+			expect(result.value.name).toBe(REDACTED_CONTRIBUTOR_NAME);
 		}
 
 		// An ordinary forward event — nothing in the log is rewritten.

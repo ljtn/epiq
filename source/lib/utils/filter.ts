@@ -1,6 +1,7 @@
 import {Filter} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
+import {getContributorDisplayName} from './contributor.utils.js';
 import {nodeRefMatches} from './node-ref.js';
 
 export type FilterField =
@@ -24,8 +25,15 @@ const getTagNames = (ticket: NavNode<'TICKET'>): string[] => {
 const getAssigneeNames = (ticket: NavNode<'TICKET'>): string[] => {
 	const {contributors} = getState();
 
+	// Matched against the displayed name, not the stored one — filtering by a
+	// name you can no longer see anywhere would just look broken.
 	return (ticket.props.assignees ?? [])
-		.map(assignee => contributors[assignee]?.name)
+		.map(assignee => {
+			const contributor = contributors[assignee];
+			return contributor
+				? getContributorDisplayName(assignee, contributor.name)
+				: undefined;
+		})
 		.filter((name): name is string => Boolean(name));
 };
 

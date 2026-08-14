@@ -4,6 +4,7 @@ import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
+import {getContributorDisplayName} from '../utils/contributor.utils.js';
 import {theme} from '../theme/themes.js';
 import {getStringColor, stringToHslHexColor} from '../utils/color.js';
 import {CursorUI} from './Cursor.js';
@@ -36,6 +37,16 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 
 	const assignees = (ticket.props.assignees ?? [])
 		.map(assignee => nodeRepo.getContributor(assignee))
+		// Initial and colour both derive from the name, so both would be stale
+		// after a rename if the stored one were used.
+		.map(contributor =>
+			contributor
+				? {
+						...contributor,
+						name: getContributorDisplayName(contributor.id, contributor.name),
+				  }
+				: contributor,
+		)
 		.filter((s): s is Contributor => Boolean(s));
 
 	const paddingRight = 1;

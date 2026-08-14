@@ -12,6 +12,7 @@ import {getSettingsState} from '../state/settings.state.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {AssigneeUI} from './Assignee.js';
+import {getContributorDisplayName} from '../utils/contributor.utils.js';
 import {TagUI} from './Tag.js';
 import {nodeRef} from '../utils/node-ref.js';
 import chalk from 'chalk';
@@ -26,7 +27,13 @@ const getTagCharacterLength = (tagId: string): number => {
 };
 
 const getAssigneeCharacterLength = (assigneeId: string): number => {
-	const name = nodeRepo.getContributor(assigneeId)?.name ?? '';
+	// Must be the *rendered* name, not the stored one: AssigneeUI shows the
+	// current name, so measuring the stale one misaligns the layout by the
+	// difference in length.
+	const contributor = nodeRepo.getContributor(assigneeId);
+	const name = contributor
+		? getContributorDisplayName(assigneeId, contributor.name)
+		: '';
 	return name.length + 3; // paddingLeft={1} + AssigneeUI pill decoration estimate
 };
 
