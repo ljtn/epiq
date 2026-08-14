@@ -64,7 +64,8 @@ describe('TUI issue lifecycle e2e', () => {
 				await run(tui, ':tag lifecycle', 'tag lifecycle');
 
 				// 4. Assign it.
-				await run(tui, ':assign alice', 'assign alice');
+				// See the note in filter.e2e.test.ts: unknown names need "!".
+				await run(tui, ':assign !alice', 'assign !alice');
 
 				// 5. Comment on it.
 				await run(tui, ':comment Looks good to me', 'comment Looks good');

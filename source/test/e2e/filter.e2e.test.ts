@@ -28,7 +28,11 @@ const createIssue = async (
 ) => {
 	await run(tui, `:new issue ${title}`, `new issue ${title}`);
 	await run(tui, `:tag ${tag}`, `tag ${tag}`);
-	await run(tui, `:assign ${assignee}`, `assign ${assignee}`);
+	// "!" marks a deliberately unlinked assignee. Assign refuses an unknown
+	// name without it, so that a typo can't quietly mint a near-duplicate
+	// contributor — and these fixtures are exactly that case: people who have
+	// never authored an event.
+	await run(tui, `:assign !${assignee}`, `assign !${assignee}`);
 };
 
 beforeAll(async () => {
