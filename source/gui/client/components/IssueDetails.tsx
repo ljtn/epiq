@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 import {
+	GuiContributor,
 	GuiUser,
 	GuiIssue,
 	GuiTag,
@@ -39,6 +40,7 @@ export const IssueDetails = ({
 	onAddTag,
 	onRemoveTag,
 	onAddAssignee,
+	onAddExternalAssignee,
 	onRemoveAssignee,
 	onCloseIssue,
 	onReopenIssue,
@@ -61,13 +63,13 @@ export const IssueDetails = ({
 	onEditDescription: (issueId: string, description: string) => void;
 	onAddTag: (issueId: string, tagName: string) => void;
 	onRemoveTag: (issueId: string, tagId: string) => void;
-	// createUnlinked marks the typed-name path, which may name somebody with
-	// no contributor record. Picking an existing chip never sets it.
-	onAddAssignee: (
-		issueId: string,
-		assigneeName: string,
-		createUnlinked?: boolean,
-	) => void;
+	// Picking someone known assigns by id. The name form exists only for the
+	// typed "add external" path, which may name somebody with no record at
+	// all — passing a name for a known person would mean resolving it back to
+	// an id server-side, and two people sharing a display name make that
+	// resolution a guess.
+	onAddAssignee: (issueId: string, assigneeId: string) => void;
+	onAddExternalAssignee: (issueId: string, assigneeName: string) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
 	onReopenIssue: (issueId: string) => void;
@@ -78,7 +80,7 @@ export const IssueDetails = ({
 	onUploadAttachments?: (issueId: string, files: File[]) => void;
 	onDeleteAttachment?: (issueId: string, attachmentId: string) => void;
 	knownTags: GuiTag[];
-	knownAssignees: GuiUser[];
+	knownAssignees: GuiContributor[];
 }) => {
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -184,7 +186,7 @@ export const IssueDetails = ({
 	const addAssignee = () => {
 		if (disabled || !issue || !assigneeName.trim()) return;
 
-		onAddAssignee(issue.id, assigneeName.trim(), true);
+		onAddExternalAssignee(issue.id, assigneeName.trim());
 		setAssigneeName('');
 		setAddingAssignee(false);
 	};
@@ -193,10 +195,23 @@ export const IssueDetails = ({
 		tag => !issue?.tags.some(issueTag => issueTag.id === tag.id),
 	);
 
-	const availableAssignees = assignees.filter(
-		assignee =>
-			!issue?.assignees.some(issueAssignee => issueAssignee.id === assignee.id),
-	);
+	// You first, then people who have worked on this board, then outsiders.
+	// Self-assignment is far and away the common case, so it shouldn't require
+	// finding your own name in a list that grows with the team.
+	const assigneeRank = (assignee: GuiContributor): number =>
+		assignee.isSelf ? 0 : assignee.isExternal ? 2 : 1;
+
+	const availableAssignees = assignees
+		.filter(
+			assignee =>
+				!issue?.assignees.some(
+					issueAssignee => issueAssignee.id === assignee.id,
+				),
+		)
+		.sort(
+			(a, b) =>
+				assigneeRank(a) - assigneeRank(b) || a.name.localeCompare(b.name),
+		);
 
 	return (
 		<Aside ref={panelRef}>
@@ -461,11 +476,31 @@ export const IssueDetails = ({
 												key={assignee.id}
 												variant="chip"
 												disabled={issue.readonly}
-												onClick={() => onAddAssignee(issue.id, assignee.name)}
-												title="Add existing assignee"
-												style={{color: assignee.color, opacity: 0.55}}
+												onClick={() => onAddAssignee(issue.id, assignee.id)}
+												title={
+													assignee.isSelf
+														? 'Assign yourself'
+														: assignee.isExternal
+														? 'Has not contributed to this board'
+														: 'Add existing assignee'
+												}
+												style={{
+													color: assignee.isSelf
+														? GUI_THEME.accent
+														: assignee.color,
+													// Self sits at full strength while everyone else is
+													// dimmed back: it's the option reached for most
+													// often, so it should be findable without reading
+													// the row.
+													opacity: assignee.isSelf ? 1 : 0.55,
+													fontWeight: assignee.isSelf ? 600 : undefined,
+													borderColor: assignee.isSelf
+														? GUI_THEME.accent
+														: undefined,
+												}}
 											>
-												+ @{assignee.name}
+												+ @{assignee.isSelf ? 'me' : assignee.name}
+												{assignee.isExternal ? ' ↗' : ''}
 											</Button>
 										))}
 									</ChipRow>

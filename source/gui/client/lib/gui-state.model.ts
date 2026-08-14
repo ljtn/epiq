@@ -1,6 +1,14 @@
 export type GuiTag = {id: string; name: string; color: string};
 export type GuiUser = {id: string; name: string; color: string};
 
+// Who can be assigned, as opposed to GuiState.contributors, which is only the
+// registry. Derived server-side (see getBoardContributors) so every surface
+// agrees on who "me" is and who has actually worked on the board.
+export type GuiContributor = GuiUser & {
+	isSelf: boolean;
+	isExternal: boolean;
+};
+
 export type GuiComment = {
 	id: string;
 	issueId: string;

@@ -20,6 +20,7 @@ import {
 } from './lib/gui-state-helper';
 import {
 	GuiCommitEntry,
+	GuiContributor,
 	GuiEventTimeline,
 	GuiState,
 } from './lib/gui-state.model';
@@ -62,6 +63,11 @@ export const App = () => {
 	// meant whichever reply arrived first re-rendered the chart against the
 	// other's stale data — a visible flash of a different range, different
 	// bucketing and different brightness before the second reply corrected it.
+	// Assignable people for the board on screen. Separate from
+	// state.contributors (the registry), which stays empty until somebody is
+	// explicitly assigned — including you.
+	const [contributors, setContributors] = useState<GuiContributor[]>([]);
+
 	const [history, setHistory] = useState<{
 		timeline: GuiEventTimeline | null;
 		commits: GuiCommitEntry[];
@@ -221,6 +227,11 @@ export const App = () => {
 				}
 			}
 
+			if (message.type === 'contributors') {
+				const next = getResultValue<GuiContributor[]>(message.payload);
+				if (next) setContributors(next);
+			}
+
 			if (message.type === 'commits') {
 				const nextCommits = getResultValue<GuiCommitEntry[]>(message.payload);
 				if (nextCommits) {
@@ -377,11 +388,29 @@ export const App = () => {
 		send('issue:tag:remove', {issueId, tagId});
 	};
 
-	const addIssueAssignee = (
-		issueId: string,
-		assigneeName: string,
-		createUnlinked?: boolean,
-	) => {
+	const addIssueAssignee = (issueId: string, assigneeId: string) => {
+		// Optimistic, same as the external path below — the picker already
+		// knows this person's name and colour, so there's no reason to wait for
+		// the round trip to show the chip.
+		const picked = contributors.find(c => c.id === assigneeId);
+
+		setState(prev => {
+			if (!prev || !picked) return prev;
+
+			return updateIssueInGuiState(prev, issueId, issue =>
+				issue.assignees.some(assignee => assignee.id === assigneeId)
+					? issue
+					: {...issue, assignees: [...issue.assignees, picked]},
+			);
+		});
+
+		send('issue:assignee:add', {issueId, assigneeId});
+	};
+
+	// Separate entry point rather than a flag on the one above: this is the
+	// path that can invent a person, and it should read that way at the call
+	// site instead of hiding behind a boolean.
+	const addExternalIssueAssignee = (issueId: string, assigneeName: string) => {
 		setState(prev => {
 			if (!prev) return prev;
 
@@ -404,7 +433,7 @@ export const App = () => {
 			});
 		});
 
-		send('issue:assignee:add', {issueId, assigneeName, createUnlinked});
+		send('issue:assignee:add', {issueId, assigneeName, createUnlinked: true});
 	};
 
 	const removeIssueAssignee = (issueId: string, assigneeId: string) => {
@@ -486,6 +515,20 @@ export const App = () => {
 		},
 		[selectedBoardId],
 	);
+
+	// Assignable people are board-scoped, so they're refetched whenever the
+	// board changes — not tied to the history window, which is about time
+	// rather than about who is on the board.
+	useEffect(() => {
+		if (!connected) return;
+
+		socketRef.current?.send(
+			JSON.stringify({
+				type: 'contributors:get',
+				payload: {boardId: selectedBoardId},
+			}),
+		);
+	}, [connected, selectedBoardId]);
 
 	const inspectCommit = useCallback((sha: string) => {
 		socketRef.current?.send(
@@ -838,6 +881,7 @@ export const App = () => {
 						onAddTag={addIssueTag}
 						onRemoveTag={removeIssueTag}
 						onAddAssignee={addIssueAssignee}
+						onAddExternalAssignee={addExternalIssueAssignee}
 						onRemoveAssignee={removeIssueAssignee}
 						onAddComment={addIssueComment}
 						onDeleteComment={deleteIssueComment}
@@ -848,7 +892,7 @@ export const App = () => {
 						onReopenIssue={reopenIssue}
 						onCloseIssue={closeIssue}
 						knownTags={state.tags ?? []}
-						knownAssignees={state.contributors ?? []}
+						knownAssignees={contributors}
 					/>
 				)}
 			</div>
