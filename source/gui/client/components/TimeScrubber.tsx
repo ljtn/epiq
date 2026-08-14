@@ -653,19 +653,31 @@ export const TimeScrubber = ({
 	// "midnight" to occupy.
 	const segmentUnit = chooseSegmentUnit(span);
 
-	// Remounts each series wrapper whenever the visible window changes, which
-	// is what re-runs its fade on a scope or offset change. Derived from the
-	// window rather than from the scope buttons so it also covers the nav
-	// arrows and any future way of moving the range.
+	// Counts user-driven view changes. The entrance animation replays when
+	// this changes and at no other time.
 	//
-	// Callers prefix this with the series name and layout mode. Both are
-	// load-bearing: in "Events" mode the issue-dot and commit-dot wrappers are
-	// siblings inside the track, so a bare window key collided between them
-	// and React could not tell the two apart — which left one series' dots on
-	// screen after switching back to "Volume". Including the mode also forces
-	// a clean remount when the layout changes rather than reusing a wrapper
-	// built for the other mode's geometry.
-	const windowKey = `${earliest}-${latest}`;
+	// Two earlier attempts keyed it on the data instead, and both replayed the
+	// wave on every background refresh: `earliest-latest` moved because
+	// `latest` tracks Date.now() for the live window, and a data fingerprint
+	// moved because a scoped window ("last 7 days") slides continuously, so
+	// its start, its bucket boundaries and its contents all drift with the
+	// clock even when nothing happened. No value derived from the fetched
+	// window can distinguish "you changed the view" from "time passed".
+	//
+	// So it is tracked explicitly: only the things a person can actually do.
+	const [animationGeneration, setAnimationGeneration] = useState(0);
+	const hasData = timeline !== null;
+
+	useEffect(() => {
+		setAnimationGeneration(generation => generation + 1);
+	}, [scope, offset, boardId, allBoards, layoutMode, hasData]);
+
+	// Callers prefix this with the series name. That is load-bearing: in
+	// "Events" mode the issue-dot and commit-dot wrappers are siblings inside
+	// the track, so a bare key collided between them and React could not tell
+	// the two apart — which left one series' dots on screen after switching
+	// back to "Volume".
+	const windowKey = `${animationGeneration}`;
 
 	// "Events" mode's y-axis: where in the 24-hour cycle a moment falls, 0 (0:00,
 	// top) to just under 1 (23:59, bottom) — so noon sits at the vertical
@@ -1519,7 +1531,7 @@ export const TimeScrubber = ({
 
 										return (
 											<div
-												key={bucket.t}
+												key={index}
 												style={{
 													position: 'absolute',
 													left: `${index * widthPercent}%`,
@@ -1563,7 +1575,7 @@ export const TimeScrubber = ({
 										animation: reducedMotion ? undefined : FADE_IN_ANIMATION,
 									}}
 								>
-									{(timeline?.buckets ?? []).map(bucket => {
+									{(timeline?.buckets ?? []).map((bucket, index) => {
 										// "Events" mode plots each event cluster as a point in 2D: x is
 										// when in the project's history it happened (elapsed time), y is
 										// what time of day it happened — the same hour-of-day scale the
@@ -1576,7 +1588,7 @@ export const TimeScrubber = ({
 
 										return (
 											<div
-												key={bucket.t}
+												key={index}
 												title={`${bucket.count} change${
 													bucket.count === 1 ? '' : 's'
 												}, ${label}`}
@@ -1789,7 +1801,7 @@ export const TimeScrubber = ({
 
 									return (
 										<div
-											key={bucket.t}
+											key={index}
 											style={{
 												position: 'absolute',
 												left: `${index * widthPercent}%`,
