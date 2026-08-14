@@ -53,9 +53,11 @@ type TimeScrubberProps = {
 	timeTravel: GuiTimeTravelStatus;
 	onScrub: (targetTime: number) => void;
 	onReturnToLive: () => void;
-	// Undefined start/end asks for the default "all time" window.
-	onRequestTimeline: (start?: number, end?: number) => void;
-	onRequestCommits: (start?: number, end?: number) => void;
+	// Undefined start/end asks for the default "all time" window. One call
+	// fetches both series: they're rendered on a shared axis whose extent is
+	// derived from both, so fetching them independently let a half-updated
+	// pair reach the screen.
+	onRequestHistory: (start?: number, end?: number) => void;
 	onInspectCommit: (sha: string) => void;
 };
 
@@ -110,7 +112,15 @@ const EVENTS_MODE_VERTICAL_PADDING =
 // only on appear: since these wrappers unmount entirely when off, there's no
 // DOM node left to animate a fade-out against, which is fine, an abrupt
 // disappearance reads fine; it's the sudden appearance that looked jarring.
-const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 280ms ease';
+//
+// Deliberately on the wrapper and not on the individual bars/dots. Those are
+// keyed by bucket time, so changing scope remounted every one of them
+// independently — the animation restarted per element and read as a harsh
+// full-chart flash. One wrapper means one fade for the whole series, which
+// is what makes it a settle rather than a blink. The wrapper is keyed by the
+// visible window (see WINDOW_KEY use below) so it re-runs on a scope change
+// too, not only when the series is switched on.
+const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 320ms ease-out';
 
 // Width of the floating hover-hint tooltip, used both to render it and to
 // clamp its position so it never overflows past the track's edges. Wraps to
@@ -170,11 +180,6 @@ const MIN_BUCKET_COUNT_FOR_GAP = 300;
 // this palette's cool accents and greys, and looked like a smudge rather than
 // part of the design.
 const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 158, 214, 0.07)';
-
-// Below this the label can't fit inside its own block without being clipped
-// or crowding the neighbouring ones, so it's dropped and the tooltip (which
-// carries the same label) is left to answer the question.
-const MIN_SEGMENT_WIDTH_FOR_LABEL = 78;
 
 // Muted rather than pure white: at 1px the needle reads as a crisp hairline
 // either way, and full white made it the brightest thing on the panel —
@@ -296,6 +301,84 @@ const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	cursor: 'pointer',
 });
 
+// A checkbox drawn to match the buttons beside it rather than the platform's
+// own: same 1px border, same active/dim colour pair, same 10px label text.
+// The native input is kept for semantics and keyboard behaviour but made
+// invisible and stretched over the box, so the visible square is ours while
+// the control still behaves like a real checkbox. Each series keeps its own
+// colour when on — blue for board events, green for commits — matching the
+// marks it governs, which is what the native accentColor used to convey.
+const SeriesCheckbox = ({
+	label,
+	checked,
+	activeColor,
+	onChange,
+}: {
+	label: string;
+	checked: boolean;
+	activeColor: string;
+	onChange: (next: boolean) => void;
+}) => {
+	const color = checked ? activeColor : GUI_THEME.dim;
+
+	return (
+		<label
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				gap: 5,
+				fontSize: 10,
+				color,
+				cursor: 'pointer',
+			}}
+		>
+			<span
+				style={{
+					position: 'relative',
+					display: 'inline-flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					width: 12,
+					height: 12,
+					// Smaller radius than the buttons' 6px only because the box is a
+					// fraction of their height — the same 6 would round it into a
+					// circle and stop reading as a checkbox.
+					borderRadius: 4,
+					border: `1px solid ${color}`,
+					background: 'transparent',
+					flexShrink: 0,
+				}}
+			>
+				<input
+					type="checkbox"
+					checked={checked}
+					onChange={event => onChange(event.target.checked)}
+					style={{
+						position: 'absolute',
+						inset: 0,
+						width: '100%',
+						height: '100%',
+						margin: 0,
+						opacity: 0,
+						cursor: 'pointer',
+					}}
+				/>
+				{checked && (
+					<span
+						style={{
+							width: 6,
+							height: 6,
+							borderRadius: 1,
+							background: activeColor,
+						}}
+					/>
+				)}
+			</span>
+			{label}
+		</label>
+	);
+};
+
 const navButtonStyle: React.CSSProperties = {
 	background: 'transparent',
 	border: `1px solid ${GUI_THEME.dim}`,
@@ -309,6 +392,14 @@ const navButtonStyle: React.CSSProperties = {
 
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
 const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
+const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
+const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
+
+// Both series default to on, so absence of a stored value has to mean "true"
+// — only an explicit "false" turns one off. Comparing against 'false' rather
+// than for 'true' is what gets that right on a first visit.
+const readStoredSeriesVisibility = (key: string): boolean =>
+	localStorage.getItem(key) !== 'false';
 
 const VALID_SCOPES: readonly Scope[] = ['all', 'week', 'month', 'year'];
 
@@ -366,8 +457,7 @@ export const TimeScrubber = ({
 	timeTravel,
 	onScrub,
 	onReturnToLive,
-	onRequestTimeline,
-	onRequestCommits,
+	onRequestHistory,
 	onInspectCommit,
 }: TimeScrubberProps) => {
 	const trackRef = useRef<HTMLDivElement | null>(null);
@@ -412,9 +502,25 @@ export const TimeScrubber = ({
 		() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true',
 	);
 	// Which data series to draw — a pure display filter, doesn't affect what's
-	// fetched or the scrub/needle mechanics.
-	const [showIssues, setShowIssues] = useState(true);
-	const [showCommits, setShowCommits] = useState(true);
+	// fetched or the scrub/needle mechanics. Persisted like the collapsed and
+	// scope settings: which series you care about is a standing preference,
+	// not something worth re-picking on every reload.
+	const [showIssues, setShowIssues] = useState(() =>
+		readStoredSeriesVisibility(SHOW_ISSUES_STORAGE_KEY),
+	);
+	const [showCommits, setShowCommits] = useState(() =>
+		readStoredSeriesVisibility(SHOW_COMMITS_STORAGE_KEY),
+	);
+
+	const changeShowIssues = (next: boolean) => {
+		setShowIssues(next);
+		localStorage.setItem(SHOW_ISSUES_STORAGE_KEY, String(next));
+	};
+
+	const changeShowCommits = (next: boolean) => {
+		setShowCommits(next);
+		localStorage.setItem(SHOW_COMMITS_STORAGE_KEY, String(next));
+	};
 
 	const toggleCollapsed = () => {
 		setCollapsed(next => {
@@ -426,12 +532,11 @@ export const TimeScrubber = ({
 
 	const periodRange = getPeriodRange(scope, offset);
 
-	// Deliberately keyed on scope/offset only — onRequestTimeline/onRequestCommits
-	// are stable useCallbacks from the parent, and periodRange is derived from
+	// Deliberately keyed on scope/offset only — onRequestHistory is a stable
+	// useCallback from the parent, and periodRange is derived from
 	// scope/offset each render, so including either would just be redundant.
 	useEffect(() => {
-		onRequestTimeline(periodRange?.start, periodRange?.end);
-		onRequestCommits(periodRange?.start, periodRange?.end);
+		onRequestHistory(periodRange?.start, periodRange?.end);
 	}, [scope, offset]);
 
 	const changeScope = (nextScope: Scope) => {
@@ -508,6 +613,20 @@ export const TimeScrubber = ({
 	// under the old filmstrip layout there was no consistent position for
 	// "midnight" to occupy.
 	const segmentUnit = chooseSegmentUnit(span);
+
+	// Remounts each series wrapper whenever the visible window changes, which
+	// is what re-runs its fade on a scope or offset change. Derived from the
+	// window rather than from the scope buttons so it also covers the nav
+	// arrows and any future way of moving the range.
+	//
+	// Callers prefix this with the series name and layout mode. Both are
+	// load-bearing: in "Events" mode the issue-dot and commit-dot wrappers are
+	// siblings inside the track, so a bare window key collided between them
+	// and React could not tell the two apart — which left one series' dots on
+	// screen after switching back to "Volume". Including the mode also forces
+	// a clean remount when the layout changes rather than reusing a wrapper
+	// built for the other mode's geometry.
+	const windowKey = `${earliest}-${latest}`;
 
 	// "Events" mode's y-axis: where in the 24-hour cycle a moment falls, 0 (0:00,
 	// top) to just under 1 (23:59, bottom) — so noon sits at the vertical
@@ -759,14 +878,6 @@ export const TimeScrubber = ({
 	// overflows past the track's own left/right edges.
 	const trackWidthPx = trackRef.current?.clientWidth ?? 0;
 
-	// Measured rather than assumed: a segment clipped by the range's own start
-	// or end (the first and last are usually partial) can be far narrower than
-	// a full period, and would otherwise get a label it has no room for.
-	const hoveredSegmentWidthPx = hoveredSegment
-		? (fractionForTime(hoveredSegment.end) -
-				fractionForTime(hoveredSegment.start)) *
-		  trackWidthPx
-		: 0;
 	const hoverHintLeftPx =
 		boardHoverFraction !== null
 			? clamp(
@@ -860,7 +971,11 @@ export const TimeScrubber = ({
 			    rather than a hard pop. */}
 			<style>{`
 				@keyframes epiqScrubberFadeIn {
-					from { opacity: 0; }
+					/* Starts faint rather than fully transparent: fading up from
+					   zero read as the whole chart blinking, which is loud for what
+					   is only a data refresh. From a low alpha the marks are always
+					   present and just settle into place. */
+					from { opacity: 0.2; }
 					to { opacity: 1; }
 				}
 			`}</style>
@@ -1017,42 +1132,18 @@ export const TimeScrubber = ({
 							{/* Which data series to draw — a pure display filter, doesn't
 							    change what's fetched. */}
 							<div style={{display: 'flex', gap: 10}}>
-								<label
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 4,
-										fontSize: 10,
-										color: GUI_THEME.dim,
-										cursor: 'pointer',
-									}}
-								>
-									<input
-										type="checkbox"
-										checked={showIssues}
-										onChange={event => setShowIssues(event.target.checked)}
-										style={{accentColor: GUI_THEME.accent, cursor: 'pointer'}}
-									/>
-									Epiq
-								</label>
-								<label
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 4,
-										fontSize: 10,
-										color: GUI_THEME.dim,
-										cursor: 'pointer',
-									}}
-								>
-									<input
-										type="checkbox"
-										checked={showCommits}
-										onChange={event => setShowCommits(event.target.checked)}
-										style={{accentColor: GUI_THEME.green, cursor: 'pointer'}}
-									/>
-									Code
-								</label>
+								<SeriesCheckbox
+									label="Epiq"
+									checked={showIssues}
+									activeColor={GUI_THEME.accent}
+									onChange={changeShowIssues}
+								/>
+								<SeriesCheckbox
+									label="Code"
+									checked={showCommits}
+									activeColor={GUI_THEME.green}
+									onChange={changeShowCommits}
+								/>
 							</div>
 
 							<div
@@ -1119,6 +1210,24 @@ export const TimeScrubber = ({
 						onPointerMove={onPointerMove}
 						onPointerUp={endDrag}
 						onPointerCancel={endDrag}
+						// "Volume" mode resolves the hovered bucket from the pointer's x
+						// position here, once, instead of per bucket. Bound to the wrapper
+						// rather than to the upper chart so the gap between the two charts
+						// counts as part of the timeline — hovering it previously fell
+						// between both charts' handlers and dropped the highlight, even
+						// though the pair reads as one chart. "Events" mode leaves this
+						// alone: there the individual points carry their own handlers,
+						// since a scatter has no column to fall into.
+						onMouseMove={
+							layoutMode === 'even'
+								? event => setHoveredBucketIndex(bucketIndexFromEvent(event))
+								: undefined
+						}
+						onMouseLeave={
+							layoutMode === 'even'
+								? () => setHoveredBucketIndex(null)
+								: undefined
+						}
 						style={{
 							position: 'relative',
 							display: 'flex',
@@ -1156,31 +1265,21 @@ export const TimeScrubber = ({
 									fontSize: 9,
 									color: GUI_THEME.dim2,
 									whiteSpace: 'nowrap',
-									overflow: 'hidden',
+									// Allowed to spill past the block's own edges rather than
+									// being clipped to them. Only ever one segment is
+									// highlighted, so a label wider than its block has nothing
+									// to overlap — whereas clipping it meant no label at all at
+									// month and year scopes, where a segment is only ~45-55px
+									// but the label needs ~55-60px.
+									overflow: 'visible',
 								}}
 							>
-								{hoveredSegmentWidthPx >= MIN_SEGMENT_WIDTH_FOR_LABEL
-									? hoveredSegment.label
-									: null}
+								{hoveredSegment.label}
 							</div>
 						)}
 
 						<div
 							ref={trackRef}
-							// "Volume" mode resolves the hovered bucket from the pointer's
-							// x position here, once, instead of per bucket. "Events" mode
-							// leaves this alone — there the individual points carry their
-							// own handlers, since a scatter has no column to fall into.
-							onMouseMove={
-								layoutMode === 'even'
-									? event => setHoveredBucketIndex(bucketIndexFromEvent(event))
-									: undefined
-							}
-							onMouseLeave={
-								layoutMode === 'even'
-									? () => setHoveredBucketIndex(null)
-									: undefined
-							}
 							style={{
 								position: 'relative',
 								width: '100%',
@@ -1270,7 +1369,18 @@ export const TimeScrubber = ({
 					    "Events" draws the server's fine-grained sparse buckets as
 					    individual 2D points. */}
 							{showIssues && layoutMode === 'even' && (
-								<>
+								// Wrapper exists to own the fade (see FADE_IN_ANIMATION): it mounts
+								// and unmounts with the checkbox, while the marks inside it come and
+								// go with the data.
+								<div
+									key={`issues-${layoutMode}-${windowKey}`}
+									style={{
+										position: 'absolute',
+										inset: 0,
+										pointerEvents: 'none',
+										animation: FADE_IN_ANIMATION,
+									}}
+								>
 									{/* Hover column, drawn once for whichever bucket the
 									    pointer resolved to (see the track's onMouseMove).
 									    Spans the full track height rather than tracking the
@@ -1331,70 +1441,81 @@ export const TimeScrubber = ({
 													// Purely decorative now: the track's own handler owns
 													// hover, so bars never need to catch the pointer.
 													pointerEvents: 'none',
-													animation: FADE_IN_ANIMATION,
 												}}
 											/>
 										);
 									})}
-								</>
+								</div>
 							)}
 
-							{showIssues &&
-								layoutMode === 'real' &&
-								(timeline?.buckets ?? []).map(bucket => {
-									// "Events" mode plots each event cluster as a point in 2D: x is
-									// when in the project's history it happened (elapsed time), y is
-									// what time of day it happened — the same hour-of-day scale the
-									// commit dots use, so the two are directly comparable.
-									const intensity = bucket.count / maxIssueEventCount;
-									const fraction = fractionForTime(bucket.t);
-									const hourFraction = hourFractionForTime(bucket.t);
-									const size = 3 + intensity * 6;
-									const label = formatDateTime(new Date(bucket.t));
+							{showIssues && layoutMode === 'real' && (
+								// Wrapper exists to own the fade (see FADE_IN_ANIMATION): it
+								// mounts and unmounts with the checkbox, while the marks inside
+								// it come and go with the data.
+								<div
+									key={`issues-${layoutMode}-${windowKey}`}
+									style={{
+										position: 'absolute',
+										inset: 0,
+										pointerEvents: 'none',
+										animation: FADE_IN_ANIMATION,
+									}}
+								>
+									{(timeline?.buckets ?? []).map(bucket => {
+										// "Events" mode plots each event cluster as a point in 2D: x is
+										// when in the project's history it happened (elapsed time), y is
+										// what time of day it happened — the same hour-of-day scale the
+										// commit dots use, so the two are directly comparable.
+										const intensity = bucket.count / maxIssueEventCount;
+										const fraction = fractionForTime(bucket.t);
+										const hourFraction = hourFractionForTime(bucket.t);
+										const size = 3 + intensity * 6;
+										const label = formatDateTime(new Date(bucket.t));
 
-									return (
-										<div
-											key={bucket.t}
-											title={`${bucket.count} change${
-												bucket.count === 1 ? '' : 's'
-											}, ${label}`}
-											onMouseEnter={() => {
-												setHoverLabel({
-													time: label,
-													count: bucket.count,
-													t: bucket.t,
-												});
-												setHoveredBucketFraction(fraction);
-											}}
-											onMouseLeave={() => {
-												setHoverLabel(null);
-												setHoveredBucketFraction(null);
-											}}
-											style={{
-												position: 'absolute',
-												left: `${fraction * 100}%`,
-												top:
-													EVENTS_MODE_VERTICAL_PADDING +
-													hourFraction * EVENTS_SCATTER_HEIGHT,
-												width: size,
-												height: size,
-												borderRadius: '50%',
-												background: GUI_THEME.accent,
-												// Capped below 1 (unlike the Volume-mode bar's opacity)
-												// so overlapping points — a board event and a commit at
-												// the same moment, or several close together — stay
-												// visible as a blend rather than one fully hiding another.
-												opacity: 0.3 + intensity * 0.5,
-												// Above the commit dots (z-index 1, see below) — the
-												// board is the primary thing being visualized here.
-												zIndex: 2,
-												transform: `translate(${-size / 2}px, -50%)`,
-												pointerEvents: 'auto',
-												animation: FADE_IN_ANIMATION,
-											}}
-										/>
-									);
-								})}
+										return (
+											<div
+												key={bucket.t}
+												title={`${bucket.count} change${
+													bucket.count === 1 ? '' : 's'
+												}, ${label}`}
+												onMouseEnter={() => {
+													setHoverLabel({
+														time: label,
+														count: bucket.count,
+														t: bucket.t,
+													});
+													setHoveredBucketFraction(fraction);
+												}}
+												onMouseLeave={() => {
+													setHoverLabel(null);
+													setHoveredBucketFraction(null);
+												}}
+												style={{
+													position: 'absolute',
+													left: `${fraction * 100}%`,
+													top:
+														EVENTS_MODE_VERTICAL_PADDING +
+														hourFraction * EVENTS_SCATTER_HEIGHT,
+													width: size,
+													height: size,
+													borderRadius: '50%',
+													background: GUI_THEME.accent,
+													// Capped below 1 (unlike the Volume-mode bar's opacity)
+													// so overlapping points — a board event and a commit at
+													// the same moment, or several close together — stay
+													// visible as a blend rather than one fully hiding another.
+													opacity: 0.3 + intensity * 0.5,
+													// Above the commit dots (z-index 1, see below) — the
+													// board is the primary thing being visualized here.
+													zIndex: 2,
+													transform: `translate(${-size / 2}px, -50%)`,
+													pointerEvents: 'auto',
+												}}
+											/>
+										);
+									})}
+								</div>
+							)}
 
 							{/* Code commits, overlaid directly on the same axis as the issue
 							    points above (not a separate box) — x is exact elapsed time, y
@@ -1407,7 +1528,18 @@ export const TimeScrubber = ({
 							    pointerdown/click so clicking a dot to inspect its diff doesn't
 							    also start a scrub-drag on the shared track underneath it. */}
 							{showCommits && layoutMode === 'real' && commits.length > 0 && (
-								<>
+								// Wrapper exists to own the fade (see FADE_IN_ANIMATION): it mounts
+								// and unmounts with the checkbox, while the marks inside it come and
+								// go with the data.
+								<div
+									key={`commits-${layoutMode}-${windowKey}`}
+									style={{
+										position: 'absolute',
+										inset: 0,
+										pointerEvents: 'none',
+										animation: FADE_IN_ANIMATION,
+									}}
+								>
 									{commits.map(commit => {
 										const fraction = fractionForTime(commit.time);
 										const hourFraction = hourFractionForTime(commit.time);
@@ -1459,13 +1591,12 @@ export const TimeScrubber = ({
 													zIndex: 1,
 													transform: `translate(${-size / 2}px, -50%)`,
 													pointerEvents: 'auto',
-													animation: FADE_IN_ANIMATION,
 													cursor: 'pointer',
 												}}
 											/>
 										);
 									})}
-								</>
+								</div>
 							)}
 						</div>
 
@@ -1484,11 +1615,18 @@ export const TimeScrubber = ({
 						    rather than merely decorative. */}
 						{showCommits && layoutMode === 'even' && commits.length > 0 && (
 							<div
+								key={`commits-${layoutMode}-${windowKey}`}
 								// Same pointer-resolved hover as the issue track above,
 								// measured against this box's own width (which matches it).
-								onMouseMove={event =>
-									setHoveredCommitBucketIndex(bucketIndexFromEvent(event))
-								}
+								// Clears the board hover on entry and stops the move from
+								// reaching the wrapper, so pointing at the commit chart shows
+								// the commit hint alone rather than both hints stacked at the
+								// same spot.
+								onMouseEnter={() => setHoveredBucketIndex(null)}
+								onMouseMove={event => {
+									event.stopPropagation();
+									setHoveredCommitBucketIndex(bucketIndexFromEvent(event));
+								}}
 								onMouseLeave={() => setHoveredCommitBucketIndex(null)}
 								style={{
 									position: 'relative',
@@ -1497,6 +1635,7 @@ export const TimeScrubber = ({
 									// tracks carry equal visual weight — the "iceberg" shape only
 									// reads if both halves are comparably sized.
 									height: TRACK_HEIGHT,
+									animation: FADE_IN_ANIMATION,
 								}}
 							>
 								<div
@@ -1556,7 +1695,6 @@ export const TimeScrubber = ({
 												background: GUI_THEME.green,
 												opacity: 0.35 + intensity * 0.65,
 												pointerEvents: 'none',
-												animation: FADE_IN_ANIMATION,
 											}}
 										/>
 									);

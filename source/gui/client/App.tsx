@@ -56,8 +56,35 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
-	const [timeline, setTimeline] = useState<GuiEventTimeline | null>(null);
-	const [commits, setCommits] = useState<GuiCommitEntry[]>([]);
+	// Held as one value, not two, because the scrubber derives its whole
+	// coordinate system (earliest, latest, span, bucket count, per-series
+	// normalisation) from both together. Landing them in separate state slots
+	// meant whichever reply arrived first re-rendered the chart against the
+	// other's stale data — a visible flash of a different range, different
+	// bucketing and different brightness before the second reply corrected it.
+	const [history, setHistory] = useState<{
+		timeline: GuiEventTimeline | null;
+		commits: GuiCommitEntry[];
+	}>({timeline: null, commits: []});
+	// Replies are collected here until both halves for the latest request have
+	// arrived, then committed in one setState.
+	const pendingHistoryRef = useRef<{
+		timeline?: GuiEventTimeline;
+		commits?: GuiCommitEntry[];
+	}>({});
+
+	// Publishes the buffered pair once both halves are in, so the chart never
+	// renders a half-updated window. Kept deliberately dumb: because a request
+	// always sends both gets and the server always answers each exactly once,
+	// "both slots filled" is a sufficient completeness check without needing
+	// request ids echoed back through the protocol.
+	const commitHistoryIfComplete = () => {
+		const {timeline, commits} = pendingHistoryRef.current;
+		if (!timeline || !commits) return;
+
+		pendingHistoryRef.current = {};
+		setHistory({timeline, commits});
+	};
 	const [commitInspectError, setCommitInspectError] = useState<string | null>(
 		null,
 	);
@@ -144,8 +171,7 @@ export const App = () => {
 		socket.addEventListener('open', () => {
 			setConnected(true);
 			socket.send(JSON.stringify({type: 'state:get'}));
-			socket.send(JSON.stringify({type: 'timeline:get'}));
-			socket.send(JSON.stringify({type: 'commits:get'}));
+			requestBoardHistory();
 		});
 
 		socket.addEventListener('close', () => {
@@ -181,12 +207,18 @@ export const App = () => {
 
 			if (message.type === 'timeline') {
 				const nextTimeline = getResultValue<GuiEventTimeline>(message.payload);
-				if (nextTimeline) setTimeline(nextTimeline);
+				if (nextTimeline) {
+					pendingHistoryRef.current.timeline = nextTimeline;
+					commitHistoryIfComplete();
+				}
 			}
 
 			if (message.type === 'commits') {
 				const nextCommits = getResultValue<GuiCommitEntry[]>(message.payload);
-				if (nextCommits) setCommits(nextCommits);
+				if (nextCommits) {
+					pendingHistoryRef.current.commits = nextCommits;
+					commitHistoryIfComplete();
+				}
 			}
 
 			if (
@@ -412,22 +444,16 @@ export const App = () => {
 		send('time-travel:live', {});
 	};
 
-	const requestTimeline = useCallback((start?: number, end?: number) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'timeline:get',
-				payload: start !== undefined ? {start, end} : undefined,
-			}),
-		);
-	}, []);
+	// Always requested as a pair, which is what lets the replies be buffered
+	// and applied together: each request produces exactly one reply of each
+	// type (the server only sends these in response to a get — it never pushes
+	// them), so a full buffer always corresponds to one requested window.
+	const requestBoardHistory = useCallback((start?: number, end?: number) => {
+		const payload = start !== undefined ? {start, end} : undefined;
 
-	const requestCommits = useCallback((start?: number, end?: number) => {
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'commits:get',
-				payload: start !== undefined ? {start, end} : undefined,
-			}),
-		);
+		pendingHistoryRef.current = {};
+		socketRef.current?.send(JSON.stringify({type: 'timeline:get', payload}));
+		socketRef.current?.send(JSON.stringify({type: 'commits:get', payload}));
 	}, []);
 
 	const inspectCommit = useCallback((sha: string) => {
@@ -655,14 +681,13 @@ export const App = () => {
 			<Header state={state} connected={connected} syncStatus={syncStatus} />
 
 			<TimeScrubber
-				timeline={timeline}
-				commits={commits}
-				onRequestCommits={requestCommits}
+				timeline={history.timeline}
+				commits={history.commits}
+				onRequestHistory={requestBoardHistory}
 				onInspectCommit={inspectCommit}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
 				onReturnToLive={returnToLive}
-				onRequestTimeline={requestTimeline}
 			/>
 
 			<div
