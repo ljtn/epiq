@@ -11,6 +11,7 @@ import {
 	openEditorOnFileNonBlocking,
 } from '../lib/editor/editor.js';
 import {getEventTime} from '../lib/event/date-utils.js';
+import {AppEvent} from '../lib/event/event.model.js';
 import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
@@ -96,6 +97,65 @@ export type EventTimeline = {
 	latest: number;
 };
 
+// Attributes each event to the board it happened on, so the scrubber can show
+// the timeline for the board you're actually looking at rather than for the
+// whole workspace.
+//
+// Events reference a node by id and don't carry a board, so the hierarchy has
+// to be reconstructed: `add.*` and `move.node` payloads carry a parent, which
+// is enough to build an id -> parent map and walk upward to a board. The map
+// is updated as the scan proceeds rather than built up front, so each event is
+// attributed using the hierarchy *as it stood at that moment* — an issue moved
+// to another board later doesn't retroactively rewrite its own history.
+//
+// Events that resolve to no board at all (tags, contributors, the workspace
+// itself) are workspace-global and deliberately dropped: they'd appear
+// identically on every board's timeline and tell you nothing about this one.
+const filterEventsForBoard = (
+	events: AppEvent[],
+	boardId: string,
+): AppEvent[] => {
+	const parentById = new Map<string, string>();
+	const boardIds = new Set<string>();
+
+	const resolveBoard = (id: string): string | null => {
+		const seen = new Set<string>();
+		let current: string | undefined = id;
+
+		while (current && !seen.has(current)) {
+			if (boardIds.has(current)) return current;
+			seen.add(current);
+			current = parentById.get(current);
+		}
+
+		return null;
+	};
+
+	const matching: AppEvent[] = [];
+
+	for (const event of events) {
+		const payload = event.payload as {id?: string; parent?: string};
+		const id = payload?.id;
+		if (!id) continue;
+
+		// Structure first, so an event that establishes a node's position is
+		// itself attributed to where it just put it.
+		if (event.action === 'add.board') {
+			boardIds.add(id);
+		}
+
+		if (payload.parent) {
+			parentById.set(id, payload.parent);
+		}
+
+		if (id === boardId || resolveBoard(id) === boardId) {
+			matching.push(event);
+		}
+	}
+
+	return matching;
+};
+
 // Pure read of persisted event timestamps, bucketed for the scrubber's density
 // display. Never touches the materialized state singleton, so it's safe to call
 // at any time, including mid-scrub.
@@ -106,7 +166,7 @@ export type EventTimeline = {
 // shorter span, which is what gives a scoped view its extra precision — no
 // separate resolution knob needed.
 export const getEventTimeline = async (
-	input: ToolInput & {start?: number; end?: number} = {},
+	input: ToolInput & {start?: number; end?: number; boardId?: string} = {},
 ): Promise<Result<EventTimeline>> => {
 	const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
 	if (isFail(stateBranchRootResult))
@@ -115,7 +175,11 @@ export const getEventTimeline = async (
 	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
-	const allTimes = eventsResult.value
+	const scopedEvents = input.boardId
+		? filterEventsForBoard(eventsResult.value, input.boardId)
+		: eventsResult.value;
+
+	const allTimes = scopedEvents
 		.map(getEventTime)
 		.filter((t): t is number => t !== null);
 

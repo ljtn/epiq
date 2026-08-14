@@ -111,6 +111,10 @@ export const App = () => {
 		state?.boards[0] ??
 		null;
 
+	// The board's internal id, as opposed to `boardId` from the route, which is
+	// its human-facing ref. The event timeline is scoped by this.
+	const selectedBoardId = selectedBoard?.id ?? null;
+
 	const boardSlug = selectedBoard?.ref ?? boardId;
 
 	const selectedIssue = state && issueId ? findIssue(state, issueId) : null;
@@ -448,13 +452,32 @@ export const App = () => {
 	// and applied together: each request produces exactly one reply of each
 	// type (the server only sends these in response to a get — it never pushes
 	// them), so a full buffer always corresponds to one requested window.
-	const requestBoardHistory = useCallback((start?: number, end?: number) => {
-		const payload = start !== undefined ? {start, end} : undefined;
+	const requestBoardHistory = useCallback(
+		(start?: number, end?: number, allBoards?: boolean) => {
+			const window = start !== undefined ? {start, end} : undefined;
 
-		pendingHistoryRef.current = {};
-		socketRef.current?.send(JSON.stringify({type: 'timeline:get', payload}));
-		socketRef.current?.send(JSON.stringify({type: 'commits:get', payload}));
-	}, []);
+			pendingHistoryRef.current = {};
+			// The board scopes the event timeline but not the commit log: commits
+			// belong to the repository as a whole, so filtering them per board
+			// would be inventing a relationship that doesn't exist.
+			socketRef.current?.send(
+				JSON.stringify({
+					type: 'timeline:get',
+					// Omitting boardId is already how the API says "every board",
+					// so "all boards" needs no separate concept — it just drops the
+					// filter rather than enumerating what to include.
+					payload: {
+						...window,
+						boardId: allBoards ? undefined : selectedBoardId,
+					},
+				}),
+			);
+			socketRef.current?.send(
+				JSON.stringify({type: 'commits:get', payload: window}),
+			);
+		},
+		[selectedBoardId],
+	);
 
 	const inspectCommit = useCallback((sha: string) => {
 		socketRef.current?.send(
@@ -683,6 +706,7 @@ export const App = () => {
 			<TimeScrubber
 				timeline={history.timeline}
 				commits={history.commits}
+				boardId={selectedBoardId}
 				onRequestHistory={requestBoardHistory}
 				onInspectCommit={inspectCommit}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}

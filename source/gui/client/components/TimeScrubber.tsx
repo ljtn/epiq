@@ -57,7 +57,10 @@ type TimeScrubberProps = {
 	// fetches both series: they're rendered on a shared axis whose extent is
 	// derived from both, so fetching them independently let a half-updated
 	// pair reach the screen.
-	onRequestHistory: (start?: number, end?: number) => void;
+	onRequestHistory: (start?: number, end?: number, allBoards?: boolean) => void;
+	// Scopes the event timeline. Changing it re-fetches, so the chart always
+	// describes the board on screen.
+	boardId: string | null;
 	onInspectCommit: (sha: string) => void;
 };
 
@@ -394,6 +397,7 @@ const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
 const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
+const ALL_BOARDS_STORAGE_KEY = 'epiq.timeScrubber.allBoards';
 
 // Both series default to on, so absence of a stored value has to mean "true"
 // — only an explicit "false" turns one off. Comparing against 'false' rather
@@ -458,6 +462,7 @@ export const TimeScrubber = ({
 	onScrub,
 	onReturnToLive,
 	onRequestHistory,
+	boardId,
 	onInspectCommit,
 }: TimeScrubberProps) => {
 	const trackRef = useRef<HTMLDivElement | null>(null);
@@ -522,6 +527,18 @@ export const TimeScrubber = ({
 		localStorage.setItem(SHOW_COMMITS_STORAGE_KEY, String(next));
 	};
 
+	// Widens the event series from the board on screen to every board in the
+	// workspace. Unlike the series toggles this changes what's *fetched*, not
+	// just what's drawn, so flipping it re-requests.
+	const [allBoards, setAllBoards] = useState(
+		() => localStorage.getItem(ALL_BOARDS_STORAGE_KEY) === 'true',
+	);
+
+	const changeAllBoards = (next: boolean) => {
+		setAllBoards(next);
+		localStorage.setItem(ALL_BOARDS_STORAGE_KEY, String(next));
+	};
+
 	const toggleCollapsed = () => {
 		setCollapsed(next => {
 			const nextCollapsed = !next;
@@ -532,12 +549,12 @@ export const TimeScrubber = ({
 
 	const periodRange = getPeriodRange(scope, offset);
 
-	// Deliberately keyed on scope/offset only — onRequestHistory is a stable
-	// useCallback from the parent, and periodRange is derived from
-	// scope/offset each render, so including either would just be redundant.
+	// Keyed on scope/offset/board: those are the three things that change what
+	// should be on screen. periodRange is derived from scope/offset each
+	// render, so including it too would just be redundant.
 	useEffect(() => {
-		onRequestHistory(periodRange?.start, periodRange?.end);
-	}, [scope, offset]);
+		onRequestHistory(periodRange?.start, periodRange?.end, allBoards);
+	}, [scope, offset, boardId, allBoards]);
 
 	const changeScope = (nextScope: Scope) => {
 		setScope(nextScope);
@@ -1151,6 +1168,15 @@ export const TimeScrubber = ({
 									checked={showCommits}
 									activeColor={GUI_THEME.green}
 									onChange={changeShowCommits}
+								/>
+								{/* Scopes the board series rather than toggling one, so it
+								    sits with the series controls but reads as a qualifier
+								    on "Board" — hence the adjacency. */}
+								<SeriesCheckbox
+									label="All boards"
+									checked={allBoards}
+									activeColor={GUI_THEME.accent}
+									onChange={changeAllBoards}
 								/>
 							</div>
 
