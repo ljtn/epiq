@@ -13,6 +13,10 @@ export type GuiMessage =
 	| {type: 'issue:tag:add'; payload: {issueId: string; tagName: string}}
 	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}
 	| {
+			type: 'contributor:redact';
+			payload: {contributorId: string};
+	  }
+	| {
 			type: 'contributors:get';
 			// Optional board scope: omit for everyone in the workspace.
 			payload?: {boardId?: string};

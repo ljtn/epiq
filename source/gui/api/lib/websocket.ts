@@ -3,6 +3,7 @@ import {WebSocket, WebSocketServer} from 'ws';
 import {
 	addIssueAssignee,
 	getBoardContributors,
+	redactContributor,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -47,6 +48,7 @@ const MUTATING_MESSAGE_TYPES = new Set<GuiMessage['type']>([
 	'issue:edit:description',
 	'issue:tag:add',
 	'issue:tag:remove',
+	'contributor:redact',
 	'issue:assignee:add',
 	'issue:assignee:remove',
 	'issue:comment:add',
@@ -292,6 +294,21 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'issue:tag:remove:result',
+						result,
+					);
+				}
+
+				if (type === 'contributor:redact') {
+					const result = await redactContributor({
+						repoRoot,
+						...message.payload,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'contributor:redact:result',
 						result,
 					);
 				}

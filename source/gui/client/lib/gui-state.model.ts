@@ -7,6 +7,8 @@ export type GuiUser = {id: string; name: string; color: string};
 export type GuiContributor = GuiUser & {
 	isSelf: boolean;
 	isExternal: boolean;
+	// Their name has already been cleared, so there is nothing left to redact.
+	isRedacted: boolean;
 };
 
 export type GuiComment = {

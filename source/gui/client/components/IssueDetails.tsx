@@ -41,6 +41,7 @@ export const IssueDetails = ({
 	onRemoveTag,
 	onAddAssignee,
 	onAddExternalAssignee,
+	onRedactContributor,
 	onRemoveAssignee,
 	onCloseIssue,
 	onReopenIssue,
@@ -70,6 +71,9 @@ export const IssueDetails = ({
 	// resolution a guess.
 	onAddAssignee: (issueId: string, assigneeId: string) => void;
 	onAddExternalAssignee: (issueId: string, assigneeName: string) => void;
+	// Only meaningful for external contributors; the server refuses anyone who
+	// has authored events.
+	onRedactContributor: (contributorId: string) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
 	onReopenIssue: (issueId: string) => void;
@@ -86,6 +90,10 @@ export const IssueDetails = ({
 	const [description, setDescription] = useState('');
 	const [tagName, setTagName] = useState('');
 	const [assigneeName, setAssigneeName] = useState('');
+	// Two-step rather than a browser confirm(): the effect is irreversible in
+	// practice (the name is gone from every view), so it shouldn't be one
+	// stray click away, but a modal dialog is heavier than this warrants.
+	const [redactingId, setRedactingId] = useState<string | null>(null);
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [addingTag, setAddingTag] = useState(false);
@@ -208,6 +216,10 @@ export const IssueDetails = ({
 					issueAssignee => issueAssignee.id === assignee.id,
 				),
 		)
+		// A redacted contributor has no name left to identify them by, so
+		// offering them as a suggestion would mean picking blind — and their
+		// name was cleared precisely so it would stop appearing.
+		.filter(assignee => !assignee.isRedacted)
 		.sort(
 			(a, b) =>
 				assigneeRank(a) - assigneeRank(b) || a.name.localeCompare(b.name),
@@ -505,6 +517,53 @@ export const IssueDetails = ({
 										))}
 									</ChipRow>
 								)}
+
+								{/* Redaction is an administrative action, kept out of the
+								    assign flow proper and offered only where it applies:
+								    the server refuses anyone who has authored events. */}
+								{addingAssignee &&
+									assignees.some(a => a.isExternal && !a.isRedacted) && (
+										<ChipRow>
+											{/* Every known contributor, not only the unassigned
+											    ones: somebody already on this issue is exactly
+											    who you're most likely to be asked to redact, and
+											    filtering them out would hide the control just
+											    when it's wanted. */}
+											{assignees
+												.filter(
+													assignee =>
+														assignee.isExternal && !assignee.isRedacted,
+												)
+												.map(assignee =>
+													redactingId === assignee.id ? (
+														<Button
+															key={assignee.id}
+															variant="chip"
+															disabled={issue.readonly}
+															onClick={() => {
+																onRedactContributor(assignee.id);
+																setRedactingId(null);
+															}}
+															title="Their name is cleared everywhere. The id and all assignments are kept."
+															style={{color: GUI_THEME.red}}
+														>
+															confirm: clear @{assignee.name}
+														</Button>
+													) : (
+														<Button
+															key={assignee.id}
+															variant="chip"
+															disabled={issue.readonly}
+															onClick={() => setRedactingId(assignee.id)}
+															title="Clear this external contributor's name"
+															style={{color: GUI_THEME.dim, opacity: 0.55}}
+														>
+															clear name @{assignee.name}
+														</Button>
+													),
+												)}
+										</ChipRow>
+									)}
 
 								{addingAssignee && (
 									<AddRow>

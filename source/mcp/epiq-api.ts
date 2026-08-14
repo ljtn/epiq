@@ -1486,7 +1486,13 @@ export const redactContributor = async (
 export const getBoardContributors = async (
 	input: ToolInput & {boardId?: string} = {},
 ): Promise<
-	Result<(ApiAssignee & {isSelf: boolean; isExternal: boolean})[]>
+	Result<
+		(ApiAssignee & {
+			isSelf: boolean;
+			isExternal: boolean;
+			isRedacted: boolean;
+		})[]
+	>
 > => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
@@ -1537,6 +1543,10 @@ export const getBoardContributors = async (
 		color: getStringColor(name),
 		isSelf: id === actorResult.value.userId,
 		isExternal: !authorIds.has(id),
+		// Flagged server-side so the client doesn't have to know the
+		// placeholder string — that constant lives in Node-only code the GUI
+		// client can't import.
+		isRedacted: name === REDACTED_CONTRIBUTOR_NAME,
 	}));
 
 	return succeeded('Listed board contributors', contributors);

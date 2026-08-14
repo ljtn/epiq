@@ -121,6 +121,12 @@ export const App = () => {
 	// its human-facing ref. The event timeline is scoped by this.
 	const selectedBoardId = selectedBoard?.id ?? null;
 
+	// The websocket handler is installed once and closes over the first
+	// render's values, so the board it should re-request for is read from a
+	// ref rather than from that stale closure.
+	const selectedBoardIdRef = useRef<string | null>(selectedBoardId);
+	selectedBoardIdRef.current = selectedBoardId;
+
 	const boardSlug = selectedBoard?.ref ?? boardId;
 
 	const selectedIssue = state && issueId ? findIssue(state, issueId) : null;
@@ -225,6 +231,22 @@ export const App = () => {
 					pendingHistoryRef.current.timeline = nextTimeline;
 					commitHistoryIfComplete();
 				}
+			}
+
+			// Contributors change as a side effect of assigning (an external
+			// assignee creates one) and of redacting. Neither is covered by the
+			// state broadcast, which carries board data rather than the
+			// assignable-people list, so the list is re-requested explicitly.
+			if (
+				message.type === 'contributor:redact:result' ||
+				message.type === 'issue:assignee:add:result'
+			) {
+				socketRef.current?.send(
+					JSON.stringify({
+						type: 'contributors:get',
+						payload: {boardId: selectedBoardIdRef.current},
+					}),
+				);
 			}
 
 			if (message.type === 'contributors') {
@@ -405,6 +427,12 @@ export const App = () => {
 		});
 
 		send('issue:assignee:add', {issueId, assigneeId});
+	};
+
+	// Clears an external contributor's display name. The id and every
+	// assignment referencing it survive — see redactContributor.
+	const redactContributor = (contributorId: string) => {
+		send('contributor:redact', {contributorId});
 	};
 
 	// Separate entry point rather than a flag on the one above: this is the
@@ -882,6 +910,7 @@ export const App = () => {
 						onRemoveTag={removeIssueTag}
 						onAddAssignee={addIssueAssignee}
 						onAddExternalAssignee={addExternalIssueAssignee}
+						onRedactContributor={redactContributor}
 						onRemoveAssignee={removeIssueAssignee}
 						onAddComment={addIssueComment}
 						onDeleteComment={deleteIssueComment}
