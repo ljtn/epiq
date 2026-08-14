@@ -305,8 +305,9 @@ const getIssueAssignees = (
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter(contributor => contributor != undefined)
 		.map(contributor => {
-			// Registry wins for anyone with no events — which includes redacted
-			// contributors, so a redaction is never undone by a stale log name.
+			// Registry wins for anyone with no events, which is what normally
+			// keeps a redacted contributor redacted — but not reliably, see
+			// getContributorDisplayName.
 			const name = latestNames.get(contributor.id) ?? contributor.name;
 
 			return {
@@ -1039,12 +1040,16 @@ export const deriveGuiState = (): Result<ApiState> => {
 export const getGuiState = async (
 	input: ToolInput = {},
 ): Promise<Result<ApiState>> => {
-	// Skip the live re-materialize while time-travel is active, so that *any*
-	// caller — a websocket reconnect (a second tab opening, a page refresh, a
-	// network blip), the autosync tick, an HTTP GET — is safe by construction
-	// instead of relying on each call site to remember to guard. Time-travel is
-	// a shared server-wide mode (see epiq-time-travel.ts), so this one check
-	// covers every client.
+	// Skip the live re-materialize while time-travel is active, so every caller
+	// of *this* function — a websocket reconnect (a second tab opening, a page
+	// refresh, a network blip), the autosync tick, an HTTP GET — is safe.
+	// Time-travel is a shared server-wide mode (see epiq-time-travel.ts), so
+	// this one check covers every client.
+	//
+	// KNOWN BUG (see board: "Time travel: any boot() silently cancels an
+	// active checkout"): the guard is here rather than in boot(), so the other
+	// boot() callers — getBoardContributors, listIssues — still stomp a
+	// checkout back to live.
 	if (getTimeTravelStatus().mode !== 'live') {
 		return deriveGuiState();
 	}

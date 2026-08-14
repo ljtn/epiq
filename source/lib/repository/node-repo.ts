@@ -401,9 +401,11 @@ export const nodeRepo = {
 
 	// Clears the display name but keeps the contributor record. The id stays,
 	// so assignments referencing it keep resolving and nothing in history is
-	// orphaned — only the personal name is gone. Refuses if the contributor
-	// has ever authored an event, since that name is theirs in the log too and
-	// clearing the registry copy alone would leave the two disagreeing.
+	// orphaned — only the personal name is gone.
+	//
+	// Applies the redaction unconditionally. The rule that it is only offered
+	// for contributors who have never authored an event lives in the caller
+	// (epiq-api.ts's redactContributor), since only it can read the log.
 	redactContributor(contributorId: string): Result<Contributor> {
 		const contributor = this.getContributor(contributorId);
 		if (!contributor) return failed('Contributor not found');

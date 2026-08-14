@@ -57,17 +57,16 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
-	// Held as one value, not two, because the scrubber derives its whole
-	// coordinate system (earliest, latest, span, bucket count, per-series
-	// normalisation) from both together. Landing them in separate state slots
-	// meant whichever reply arrived first re-rendered the chart against the
-	// other's stale data — a visible flash of a different range, different
-	// bucketing and different brightness before the second reply corrected it.
 	// Assignable people for the board on screen. Separate from
 	// state.contributors (the registry), which stays empty until somebody is
 	// explicitly assigned — including you.
 	const [contributors, setContributors] = useState<GuiContributor[]>([]);
 
+	// Held as one value, not two, because the scrubber derives its whole
+	// coordinate system (earliest, latest, span, bucket count, per-series
+	// normalisation) from both together. In separate state slots, whichever
+	// reply arrived first re-rendered the chart against the other's stale
+	// data — a visible flash of a different range and bucketing.
 	const [history, setHistory] = useState<{
 		timeline: GuiEventTimeline | null;
 		commits: GuiCommitEntry[];
@@ -80,10 +79,12 @@ export const App = () => {
 	}>({});
 
 	// Publishes the buffered pair once both halves are in, so the chart never
-	// renders a half-updated window. Kept deliberately dumb: because a request
-	// always sends both gets and the server always answers each exactly once,
-	// "both slots filled" is a sufficient completeness check without needing
-	// request ids echoed back through the protocol.
+	// renders a half-updated window.
+	//
+	// KNOWN BUG (see board: "Scrubber history buffer can commit a mismatched
+	// timeline/commits pair"): "both slots filled" does not prove both halves
+	// came from the same request, because requestBoardHistory clears the
+	// buffer. A reply from request A can pair with one from request B.
 	const commitHistoryIfComplete = () => {
 		const {timeline, commits} = pendingHistoryRef.current;
 		if (!timeline || !commits) return;

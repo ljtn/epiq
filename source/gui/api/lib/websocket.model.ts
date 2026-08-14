@@ -51,7 +51,12 @@ export type GuiMessage =
 			type: 'issue:comment:delete';
 			payload: {issueId: string; commentId: string};
 	  }
-	| {type: 'timeline:get'; payload?: {start?: number; end?: number}}
+	| {
+			type: 'timeline:get';
+			// Omit boardId for every board — that is how the scrubber's
+			// "all boards" toggle asks for an unscoped timeline.
+			payload?: {start?: number; end?: number; boardId?: string};
+	  }
 	| {type: 'time-travel:scrub'; payload: {targetTime: number}}
 	| {type: 'time-travel:live'}
 	| {type: 'commits:get'; payload?: {start?: number; end?: number}}

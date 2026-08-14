@@ -22,17 +22,14 @@ type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
 };
 
-// The log file name lowercases both parts (see sanitizeFilePart) because file
-// names have to survive filesystems that differ in case sensitivity. For the
-// id that lowercasing is losslessly reversible: ULIDs are Crockford base32 and
-// canonically uppercase, so uppercasing restores exactly the id the actor was
-// created with.
+// Log file names lowercase both parts (see sanitizeFilePart) to survive
+// case-insensitive filesystems. Undone here so the file name — a storage-safe
+// encoding — isn't mistaken for the authoritative actor id: events would load
+// with a lowercased userId while contributor records kept their uppercase
+// `ulid()` id, and the same person appeared twice.
 //
-// Without this the file name — a storage-safe encoding — was treated as the
-// authoritative actor, so every event loaded with a lowercased userId while
-// contributor records kept their uppercase `ulid()` ids, and the same person
-// appeared twice. Anything not ULID-shaped is left untouched rather than
-// guessed at.
+// Lossless because ULIDs are Crockford base32 and canonically uppercase.
+// Anything not ULID-shaped is left alone rather than guessed at.
 const ULID_SHAPE = /^[0-9a-hjkmnp-tv-z]{26}$/i;
 
 const canonicalUserId = (userId: string): string =>

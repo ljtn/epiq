@@ -9,8 +9,14 @@ import {getState} from '../state/state.js';
  * (`<userId>.<userName>.jsonl`), so the log always carries the current name
  * while the record keeps the original.
  *
- * Falls back to the record for anyone with no events — which includes
- * redacted contributors, so a redaction is never undone by a stale log name.
+ * Falls back to the record for anyone with no events, which is what usually
+ * keeps a redacted contributor redacted — redaction is only offered to people
+ * who have never authored anything.
+ *
+ * KNOWN BUG (see board: "Redaction is undone by the event-log name
+ * override"): that only holds as long as it stays true. If a redacted userId
+ * later authors an event, or their log file arrives via a sync, the log name
+ * wins here and the cleared name comes back.
  */
 export const getContributorDisplayName = (
 	contributorId: string,
