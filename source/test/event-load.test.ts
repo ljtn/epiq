@@ -342,4 +342,56 @@ describe('loadMergedEvents with foreign events on disk', () => {
 
 		fs.rmSync(root, {recursive: true, force: true});
 	});
+
+	// The log file name lowercases the actor id so it survives any filesystem,
+	// but the id itself is a ULID and must come back canonical — otherwise
+	// every event disagrees with the uppercase id held in config and in
+	// contributor records, and the same person shows up twice.
+	it('restores canonical ULID casing for the actor id parsed from the file name', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-case-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		fs.writeFileSync(
+			path.join(eventsDir, '01ksayra4ghekjp888wfbwbrdd.alice.jsonl'),
+			JSON.stringify({
+				v: 1,
+				id: ['01H0000000000000000000000A', null],
+				'init.workspace': {id: 'ws1', name: 'Workspace', rank: 'a0'},
+			}) + '\n',
+		);
+
+		const result = loadMergedEvents(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value[0]?.userId).toBe('01KSAYRA4GHEKJP888WFBWBRDD');
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+
+	// Only ULID-shaped ids are canonicalised — anything else is passed through
+	// rather than guessed at.
+	it('leaves a non-ULID actor id untouched', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-case2-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		fs.writeFileSync(
+			path.join(eventsDir, 'legacy-user.alice.jsonl'),
+			JSON.stringify({
+				v: 1,
+				id: ['01H0000000000000000000000A', null],
+				'init.workspace': {id: 'ws1', name: 'Workspace', rank: 'a0'},
+			}) + '\n',
+		);
+
+		const result = loadMergedEvents(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value[0]?.userId).toBe('legacy-user');
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
 });
