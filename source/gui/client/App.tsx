@@ -510,14 +510,21 @@ export const App = () => {
 		[selectedBoardId],
 	);
 
-	useEffect(() => {
-		if (!connected) return;
-
+	// Answering this replays the whole event log server-side, and the assignee
+	// picker is its only reader — so it is fetched when that picker opens rather
+	// than eagerly for every board.
+	const requestContributors = useCallback(() => {
 		sendSocketJson(socketRef.current, {
 			type: 'contributors:get',
-			payload: {boardId: selectedBoardId},
+			payload: {boardId: selectedBoardIdRef.current},
 		});
-	}, [connected, selectedBoardId]);
+	}, []);
+
+	// The list is board-scoped, so a board change must not leave the previous
+	// board's people on screen until the next open re-fetches.
+	useEffect(() => {
+		setContributors([]);
+	}, [selectedBoardId]);
 
 	const inspectCommit = useCallback((sha: string) => {
 		sendSocketJson(socketRef.current, {type: 'commit:inspect', payload: {sha}});
@@ -853,6 +860,7 @@ export const App = () => {
 						onCloseIssue={closeIssue}
 						knownTags={state.tags ?? []}
 						knownAssignees={contributors}
+						onOpenAssigneePicker={requestContributors}
 					/>
 				)}
 			</div>

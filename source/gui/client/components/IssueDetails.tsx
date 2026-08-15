@@ -54,6 +54,7 @@ export const IssueDetails = ({
 	onDeleteAttachment,
 	knownTags: tags,
 	knownAssignees: assignees,
+	onOpenAssigneePicker,
 }: {
 	whoAmI: GuiUser;
 	issue: GuiIssue | null;
@@ -79,6 +80,8 @@ export const IssueDetails = ({
 	onDeleteAttachment?: (issueId: string, attachmentId: string) => void;
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
+	// Fired when the picker opens, so the caller can fetch the list only then.
+	onOpenAssigneePicker: () => void;
 }) => {
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -434,7 +437,10 @@ export const IssueDetails = ({
 									(!issue.readonly && !addingAssignee && (
 										<Button
 											variant="ghost"
-											onClick={() => setAddingAssignee(true)}
+											onClick={() => {
+												setAddingAssignee(true);
+												onOpenAssigneePicker();
+											}}
 										>
 											+
 										</Button>
