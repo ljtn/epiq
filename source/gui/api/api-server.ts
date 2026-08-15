@@ -16,7 +16,7 @@ import {
 	getAttachmentBlob,
 	getGuiState,
 } from '../../mcp/epiq-api.js';
-import {getTimeTravelStatus} from '../../mcp/epiq-time-travel.js';
+import {getTimeTravelStatus, runExclusive} from '../../mcp/epiq-time-travel.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
 import {setupWebsocket} from './lib/websocket.js';
 
@@ -47,6 +47,27 @@ const sendReadOnlyWhileTimeTravelingError = (res: http.ServerResponse) =>
 	sendJson(res, 409, {
 		isError: true,
 		message: 'Read-only while viewing history',
+	});
+
+/**
+ * Runs a mutating route inside the same lock `checkoutStateAt`/`returnToLive`
+ * take, with the live check *inside* the critical section.
+ *
+ * Checking synchronously and then awaiting is check-then-act: the mutation's
+ * own awaits leave a window for a scrub to land, after which the write
+ * materializes and persists against historical state.
+ *
+ * Request bodies are read *before* calling this on purpose. An upload is
+ * client-paced, and holding a server-wide lock for its duration would stall
+ * scrubbing for every connected client.
+ */
+const runMutation = <T>(res: http.ServerResponse, mutate: () => Promise<T>) =>
+	runExclusive(async () => {
+		if (getTimeTravelStatus().mode !== 'live') {
+			return sendReadOnlyWhileTimeTravelingError(res);
+		}
+
+		return mutate();
 	});
 
 const readJsonBody = async <T>(
@@ -191,10 +212,6 @@ export const startGuiServer = async (input: {
 		}
 
 		if (req.method === 'POST' && url.pathname === '/api/comments') {
-			if (getTimeTravelStatus().mode !== 'live') {
-				return sendReadOnlyWhileTimeTravelingError(res);
-			}
-
 			try {
 				const body = await readJsonBody<{
 					issueId?: string;
@@ -208,21 +225,26 @@ export const startGuiServer = async (input: {
 					});
 				}
 
-				const result = await addIssueComment({
-					repoRoot: input.repoRoot,
-					issueId: body.issueId,
-					body: body.body,
+				const issueId = body.issueId;
+				const commentBody = body.body;
+
+				return await runMutation(res, async () => {
+					const result = await addIssueComment({
+						repoRoot: input.repoRoot,
+						issueId,
+						body: commentBody,
+					});
+
+					if ('isError' in result && result.isError) {
+						return sendJson(res, 400, result);
+					}
+
+					return sendJson(
+						res,
+						200,
+						await getGuiState({repoRoot: input.repoRoot}),
+					);
 				});
-
-				if ('isError' in result && result.isError) {
-					return sendJson(res, 400, result);
-				}
-
-				return sendJson(
-					res,
-					200,
-					await getGuiState({repoRoot: input.repoRoot}),
-				);
 			} catch (error) {
 				return sendJson(res, 400, {
 					isError: true,
@@ -233,10 +255,6 @@ export const startGuiServer = async (input: {
 		}
 
 		if (req.method === 'POST' && url.pathname === '/api/attachments') {
-			if (getTimeTravelStatus().mode !== 'live') {
-				return sendReadOnlyWhileTimeTravelingError(res);
-			}
-
 			try {
 				const body = await readJsonBody<{
 					issueId?: string;
@@ -251,11 +269,59 @@ export const startGuiServer = async (input: {
 					});
 				}
 
-				const result = await addIssueAttachment({
+				const issueId = body.issueId;
+				const dataBase64 = body.dataBase64;
+				const name = body.name ?? '';
+
+				return await runMutation(res, async () => {
+					const result = await addIssueAttachment({
+						repoRoot: input.repoRoot,
+						issueId,
+						name,
+						dataBase64,
+					});
+
+					if (isFail(result)) {
+						return sendJson(res, 400, {
+							isError: true,
+							message: result.message,
+						});
+					}
+
+					return sendJson(
+						res,
+						200,
+						await getGuiState({repoRoot: input.repoRoot}),
+					);
+				});
+			} catch (error) {
+				return sendJson(res, 400, {
+					isError: true,
+					message:
+						error instanceof Error ? error.message : 'Unable to add attachment',
+				});
+			}
+		}
+
+		if (
+			req.method === 'DELETE' &&
+			url.pathname.startsWith('/api/attachments/')
+		) {
+			const attachmentId = decodeURIComponent(
+				url.pathname.replace('/api/attachments/', ''),
+			);
+
+			if (!attachmentId) {
+				return sendJson(res, 400, {
+					isError: true,
+					message: 'Missing attachment id',
+				});
+			}
+
+			return runMutation(res, async () => {
+				const result = await deleteIssueAttachment({
 					repoRoot: input.repoRoot,
-					issueId: body.issueId,
-					name: body.name ?? '',
-					dataBase64: body.dataBase64,
+					attachmentId,
 				});
 
 				if (isFail(result)) {
@@ -270,47 +336,7 @@ export const startGuiServer = async (input: {
 					200,
 					await getGuiState({repoRoot: input.repoRoot}),
 				);
-			} catch (error) {
-				return sendJson(res, 400, {
-					isError: true,
-					message:
-						error instanceof Error ? error.message : 'Unable to add attachment',
-				});
-			}
-		}
-
-		if (
-			req.method === 'DELETE' &&
-			url.pathname.startsWith('/api/attachments/')
-		) {
-			if (getTimeTravelStatus().mode !== 'live') {
-				return sendReadOnlyWhileTimeTravelingError(res);
-			}
-
-			const attachmentId = decodeURIComponent(
-				url.pathname.replace('/api/attachments/', ''),
-			);
-
-			if (!attachmentId) {
-				return sendJson(res, 400, {
-					isError: true,
-					message: 'Missing attachment id',
-				});
-			}
-
-			const result = await deleteIssueAttachment({
-				repoRoot: input.repoRoot,
-				attachmentId,
 			});
-
-			if (isFail(result)) {
-				return sendJson(res, 400, {
-					isError: true,
-					message: result.message,
-				});
-			}
-
-			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
 		}
 
 		if (req.method === 'GET' && url.pathname.startsWith('/media/')) {
@@ -349,10 +375,6 @@ export const startGuiServer = async (input: {
 		}
 
 		if (req.method === 'DELETE' && url.pathname.startsWith('/api/comments/')) {
-			if (getTimeTravelStatus().mode !== 'live') {
-				return sendReadOnlyWhileTimeTravelingError(res);
-			}
-
 			const commentId = decodeURIComponent(
 				url.pathname.replace('/api/comments/', ''),
 			);
@@ -364,16 +386,22 @@ export const startGuiServer = async (input: {
 				});
 			}
 
-			const result = await deleteIssueComment({
-				repoRoot: input.repoRoot,
-				commentId,
+			return runMutation(res, async () => {
+				const result = await deleteIssueComment({
+					repoRoot: input.repoRoot,
+					commentId,
+				});
+
+				if ('isError' in result && result.isError) {
+					return sendJson(res, 400, result);
+				}
+
+				return sendJson(
+					res,
+					200,
+					await getGuiState({repoRoot: input.repoRoot}),
+				);
 			});
-
-			if ('isError' in result && result.isError) {
-				return sendJson(res, 400, result);
-			}
-
-			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
 		}
 
 		if (url.pathname.startsWith('/board/')) {

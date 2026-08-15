@@ -27,6 +27,7 @@ import {
 	getTimeTravelStatus,
 	openCommitDiffInEditor,
 	returnToLive,
+	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {isFail, Result} from '../../../lib/model/result-types.js';
 import {
@@ -118,19 +119,8 @@ export const setupWebsocket = (
 		registerGuiSocket(socket);
 
 		socket.on('message', async raw => {
-			try {
-				const message = JSON.parse(raw.toString()) as GuiMessage;
+			const dispatchMessage = async (message: GuiMessage) => {
 				const {type} = message;
-
-				if (
-					MUTATING_MESSAGE_TYPES.has(type) &&
-					getTimeTravelStatus().mode !== 'live'
-				) {
-					return sendSocket(socket, {
-						type: 'failed',
-						payload: 'Read-only while viewing history',
-					});
-				}
 
 				// `requestId` is echoed, not consumed: the client asks for the
 				// timeline and the commit log as a pair and has to know which
@@ -464,6 +454,32 @@ export const setupWebsocket = (
 				return sendSocket(socket, {
 					type: 'error',
 					message: 'Unknown message type',
+				});
+			};
+
+			try {
+				const message = JSON.parse(raw.toString()) as GuiMessage;
+
+				if (!MUTATING_MESSAGE_TYPES.has(message.type)) {
+					return await dispatchMessage(message);
+				}
+
+				// Mutations run inside the same lock checkoutStateAt/returnToLive
+				// take, with the live check *inside* the critical section. Checking
+				// at message receipt and then awaiting is check-then-act: a scrub
+				// landing in any of the handler's awaits would otherwise be
+				// materialized and persisted against historical state. addIssueAssignee
+				// is the reachable case, since it awaits findEventLogAuthor after
+				// boot() and before materializeAndPersistAll.
+				return await runExclusive(async () => {
+					if (getTimeTravelStatus().mode !== 'live') {
+						return sendSocket(socket, {
+							type: 'failed',
+							payload: 'Read-only while viewing history',
+						});
+					}
+
+					return dispatchMessage(message);
 				});
 			} catch (error) {
 				return sendSocket(socket, {
