@@ -170,7 +170,8 @@ describe('openEditorOnFileNonBlocking', () => {
 		expect(isSuccess(result)).toBe(true);
 		expect(spawn).toHaveBeenCalledTimes(1);
 		expect(spawn).toHaveBeenCalledWith(
-			expect.stringContaining('code'),
+			'code',
+			['--wait', '/tmp/x.diff'],
 			expect.anything(),
 		);
 	});
@@ -208,15 +209,93 @@ describe('openEditorOnFileNonBlocking', () => {
 
 describe('buildEditorDiffCommand', () => {
 	it('defaults to --new-window', () => {
-		expect(buildEditorDiffCommand('code', '/tmp/before', '/tmp/after')).toBe(
-			'code --new-window --diff "/tmp/before" "/tmp/after"',
+		expect(buildEditorDiffCommand('code', '/tmp/before', '/tmp/after')).toEqual(
+			{
+				command: 'code',
+				args: ['--new-window', '--diff', '/tmp/before', '/tmp/after'],
+			},
 		);
 	});
 
 	it('uses --reuse-window when asked', () => {
 		expect(
 			buildEditorDiffCommand('code', '/tmp/before', '/tmp/after', 'reuse'),
-		).toBe('code --reuse-window --diff "/tmp/before" "/tmp/after"');
+		).toEqual({
+			command: 'code',
+			args: ['--reuse-window', '--diff', '/tmp/before', '/tmp/after'],
+		});
+	});
+
+	it('keeps flags baked into the editor string ahead of ours', () => {
+		expect(
+			buildEditorDiffCommand(
+				'code --profile work',
+				'/tmp/before',
+				'/tmp/after',
+			),
+		).toEqual({
+			command: 'code',
+			args: [
+				'--profile',
+				'work',
+				'--new-window',
+				'--diff',
+				'/tmp/before',
+				'/tmp/after',
+			],
+		});
+	});
+
+	it('keeps a quoted editor path with spaces as a single binary', () => {
+		expect(
+			buildEditorDiffCommand(
+				'"/Applications/My Editor/bin/code"',
+				'/tmp/before',
+				'/tmp/after',
+			).command,
+		).toBe('/Applications/My Editor/bin/code');
+	});
+});
+
+describe('shell metacharacters in paths (RKAZMMX)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		(globalThis as {logger?: unknown}).logger = {
+			info: vi.fn(),
+			debug: vi.fn(),
+			error: vi.fn(),
+		};
+	});
+
+	// A repo is free to contain a file called `a$(id -u).ts`, and the diff
+	// viewer writes that name into a temp path it then opens. While the command
+	// was assembled as a string and run with `shell: true`, opening that commit
+	// ran whatever the substitution contained.
+	it.each([
+		'/tmp/epiq/before/a$(id -u).ts',
+		'/tmp/epiq/before/a`id`.ts',
+		'/tmp/epiq/before/a; rm -rf ~/.ts',
+		'/tmp/epiq/before/a" && id && ".ts',
+	])('passes %s through as one literal argv entry', async hostilePath => {
+		const child = new FakeChild();
+		vi.mocked(spawn).mockReturnValue(child as never);
+
+		const pending = openEditorDiffNonBlocking(
+			'code',
+			hostilePath,
+			'/tmp/after',
+		);
+		child.emit('exit', 0);
+		await pending;
+
+		const [command, args, options] = vi.mocked(spawn).mock
+			.calls[0] as unknown as [string, string[], {shell?: boolean}];
+
+		expect(command).toBe('code');
+		expect(args).toContain(hostilePath);
+		// The decisive part: no shell is involved, so there is nothing to
+		// evaluate the substitution in the first place.
+		expect(options.shell).toBeUndefined();
 	});
 });
 
@@ -240,7 +319,8 @@ describe('openEditorDiffNonBlocking', () => {
 			'/tmp/after',
 		);
 		expect(spawn).toHaveBeenCalledWith(
-			'code --new-window --diff "/tmp/before" "/tmp/after"',
+			'code',
+			['--new-window', '--diff', '/tmp/before', '/tmp/after'],
 			expect.anything(),
 		);
 
@@ -259,7 +339,8 @@ describe('openEditorDiffNonBlocking', () => {
 			'reuse',
 		);
 		expect(spawn).toHaveBeenCalledWith(
-			'code --reuse-window --diff "/tmp/before" "/tmp/after"',
+			'code',
+			['--reuse-window', '--diff', '/tmp/before', '/tmp/after'],
 			expect.anything(),
 		);
 

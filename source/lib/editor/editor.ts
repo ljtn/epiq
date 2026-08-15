@@ -6,11 +6,75 @@ import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 
+// An editor command split into the binary and its arguments, ready to hand
+// to spawn without a shell. Everything here exists to keep file paths in
+// `args`, where they are opaque data, instead of inside a command string a
+// shell would parse.
+export type EditorInvocation = {command: string; args: string[]};
+
+// Splits an editor command the way a shell would for the cases that actually
+// occur — "code", "code --wait", "/Applications/My Editor/bin/code" — honouring
+// quotes so a path with spaces survives as one token.
+//
+// Deliberately not a shell: no variable expansion, no command substitution, no
+// operators, no globbing. That is the point. It handles the whitespace-and-
+// quotes part of what `shell: true` used to do for us and nothing else, so
+// there is no evaluation step left for a file name to reach.
+export function tokenizeEditorCommand(editor: string): string[] {
+	const tokens: string[] = [];
+	let current = '';
+	let started = false;
+	let quote: '"' | "'" | null = null;
+
+	for (const char of editor.trim()) {
+		if (quote) {
+			if (char === quote) quote = null;
+			else current += char;
+			continue;
+		}
+
+		if (char === '"' || char === "'") {
+			quote = char;
+			started = true;
+			continue;
+		}
+
+		if (/\s/.test(char)) {
+			if (started) tokens.push(current);
+			current = '';
+			started = false;
+			continue;
+		}
+
+		current += char;
+		started = true;
+	}
+
+	if (started) tokens.push(current);
+
+	return tokens;
+}
+
+// Resolves the `$EDITOR` / `$VISUAL` placeholders that the settings allow-list
+// accepts (see editor-config.ts). The shell used to expand these as a side
+// effect of `shell: true`; spawning by argv means nothing expands them for us
+// any more, so it happens here explicitly.
+//
+// Only ever applied to the configured setting, never to a value already read
+// out of the environment — an EDITOR that literally contains "$EDITOR" would
+// otherwise resolve against itself forever.
+function resolveEditorPlaceholder(editor: string): string | undefined {
+	const trimmed = editor.trim();
+	if (trimmed === '$EDITOR') return process.env['EDITOR'];
+	if (trimmed === '$VISUAL') return process.env['VISUAL'];
+	return trimmed;
+}
+
 export function getEditorCandidates(): string[] {
 	const {preferredEditor} = getSettingsState();
 
 	const candidates = [
-		preferredEditor,
+		preferredEditor ? resolveEditorPlaceholder(preferredEditor) : undefined,
 		process.env['VISUAL'],
 		process.env['EDITOR'],
 	].filter((value): value is string => Boolean(value?.trim()));
@@ -18,16 +82,29 @@ export function getEditorCandidates(): string[] {
 	return [...new Set(candidates)];
 }
 
+// Matches on the binary alone, so an editor carrying flags ("code --wait") or
+// given as a full path ("/usr/local/bin/code") still reads as VS Code.
 export function isVSCodeEditor(editor: string): boolean {
-	return /(^|\/)code(-insiders)?$/.test(editor.trim());
+	const [binary = ''] = tokenizeEditorCommand(editor);
+	return /(^|\/)code(-insiders)?$/.test(binary);
 }
 
-export function buildEditorCommand(editor: string, filePath: string): string {
-	if (isVSCodeEditor(editor)) {
-		return `${editor} --wait "${filePath}"`;
-	}
+// Builds `[binary, ...editorFlags, ...args]`. Any flags baked into the editor
+// string keep their position ahead of the ones we add, which is where an
+// editor expects its own options.
+function buildInvocation(editor: string, args: string[]): EditorInvocation {
+	const [command = '', ...editorArgs] = tokenizeEditorCommand(editor);
+	return {command, args: [...editorArgs, ...args]};
+}
 
-	return `${editor} "${filePath}"`;
+export function buildEditorCommand(
+	editor: string,
+	filePath: string,
+): EditorInvocation {
+	return buildInvocation(
+		editor,
+		isVSCodeEditor(editor) ? ['--wait', filePath] : [filePath],
+	);
 }
 
 // VS Code's native two-pane diff view — unlike a plain .diff/.patch file
@@ -46,9 +123,9 @@ export function buildEditorDiffCommand(
 	beforePath: string,
 	afterPath: string,
 	windowMode: 'new' | 'reuse' = 'new',
-): string {
+): EditorInvocation {
 	const windowFlag = windowMode === 'new' ? '--new-window' : '--reuse-window';
-	return `${editor} ${windowFlag} --diff "${beforePath}" "${afterPath}"`;
+	return buildInvocation(editor, [windowFlag, '--diff', beforePath, afterPath]);
 }
 
 export function openEditorOnText(initial: string): Result<string> {
@@ -61,11 +138,11 @@ export function openEditorOnText(initial: string): Result<string> {
 	const editors = getEditorCandidates();
 
 	for (const editor of editors) {
-		const cmd = buildEditorCommand(editor, tmpPath);
+		const {command, args} = buildEditorCommand(editor, tmpPath);
+		if (!command) continue;
 
-		const result = spawnSync(cmd, {
+		const result = spawnSync(command, args, {
 			stdio: 'inherit',
-			shell: true,
 		});
 
 		if (!result.error && result.status === 0) {
@@ -96,23 +173,33 @@ const TERMINAL_ONLY_EDITOR_BINARIES = new Set([
 ]);
 
 function isTerminalOnlyEditor(editor: string): boolean {
-	const binary = editor.trim().split(/\s+/)[0] ?? '';
+	const [binary = ''] = tokenizeEditorCommand(editor);
 	const name = binary.split('/').pop() ?? binary;
 	return TERMINAL_ONLY_EDITOR_BINARIES.has(name);
 }
 
 // How long to watch a spawned editor command before assuming it launched
-// successfully. `shell: true` means the shell itself always spawns fine even
-// when the command inside it is broken (missing binary, an unset env-var
-// placeholder like a literal "$EDITOR" expanding to nothing) — that failure
-// only surfaces as a quick non-zero exit from the shell, not a spawn 'error'
-// event. Watching for that window is what turns those into real, reported
-// failures instead of a false "success" the user has no way to notice.
+// successfully. A missing binary now surfaces as a spawn 'error' (ENOENT)
+// rather than a shell exiting 127, but an editor that starts and then rejects
+// its arguments still only shows up as a quick non-zero exit. Watching for that
+// window is what turns those into real, reported failures instead of a false
+// "success" the user has no way to notice.
 const EDITOR_LAUNCH_GRACE_MS = 600;
 
-function trySpawnCommand(cmd: string, label: string): Promise<Result<true>> {
+function trySpawnCommand(
+	{command, args}: EditorInvocation,
+	label: string,
+): Promise<Result<true>> {
 	return new Promise(resolve => {
-		const child = spawn(cmd, {shell: true, stdio: 'ignore', detached: true});
+		if (!command) {
+			resolve(failed(`"${label}" is not a usable editor command`));
+			return;
+		}
+
+		// No `shell: true`: the paths travel as argv entries, so a file named
+		// with shell syntax (`$(...)`, backticks, `;`) is passed through as the
+		// literal name it is instead of being evaluated. See board: RKAZMMX.
+		const child = spawn(command, args, {stdio: 'ignore', detached: true});
 		let settled = false;
 
 		const settle = (result: Result<true>) => {
