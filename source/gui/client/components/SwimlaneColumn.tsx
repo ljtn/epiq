@@ -2,6 +2,7 @@ import React from 'react';
 import {DropIndicator} from '../App';
 import {GuiComment, GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
 import {Button} from './Button';
@@ -133,7 +134,14 @@ export const SwimlaneColumn = ({
 
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
-					{swimlane.readonly && <span>🔒</span>}
+					{swimlane.readonly && (
+						<span
+							title="Read-only"
+							style={{display: 'flex', color: GUI_THEME.dim}}
+						>
+							<IconLock />
+						</span>
+					)}
 				</div>
 				<div>
 					<Button
