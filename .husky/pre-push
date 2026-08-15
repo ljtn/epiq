@@ -19,4 +19,7 @@ npm test
 echo "${BLUE}Running e2e tests...${NC}"
 npm run test:e2e
 
+echo "${BLUE}Running GUI browser tests...${NC}"
+npm run test:gui:ci
+
 echo "${GREEN}Pre-push checks passed.${NC}"

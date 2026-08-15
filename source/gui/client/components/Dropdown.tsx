@@ -13,12 +13,16 @@ export const Dropdown = ({
 	items,
 	placeholder = 'Select...',
 	onSelect,
+	testId,
 }: {
 	label?: string;
 	value?: DropdownItem | null;
 	items: DropdownItem[];
 	placeholder?: string;
 	onSelect: (id: string) => void;
+	// Handles for the browser tests. The trigger's text is the current
+	// selection, so selecting by text cannot address it across a change.
+	testId?: string;
 }) => {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement | null>(null);
@@ -53,6 +57,7 @@ export const Dropdown = ({
 
 			<Button
 				variant="ghost"
+				data-testid={testId}
 				onClick={() => setOpen(value => !value)}
 				style={{
 					display: 'flex',
@@ -98,6 +103,7 @@ export const Dropdown = ({
 							<button
 								key={item.id}
 								type="button"
+								data-testid={testId ? `${testId}-option` : undefined}
 								onClick={() => {
 									setOpen(false);
 									onSelect(item.id);

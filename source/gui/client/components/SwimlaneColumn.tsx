@@ -196,7 +196,7 @@ export const SwimlaneColumn = ({
 									onSelect={() => onSelectIssue(ticket.id)}
 									onDragStart={issueId => onSelectIssue(issueId)}
 									onOpenComments={onSelectIssueComments}
-									commentCount={commentsByIssueId[ticket.id].length ?? 0}
+									commentCount={commentsByIssueId[ticket.id]?.length ?? 0}
 									onDragOverIssue={targetIndex =>
 										onDragOverIssue(swimlane.id, targetIndex)
 									}

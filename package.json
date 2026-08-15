@@ -42,6 +42,8 @@
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\"",
 		"test:e2e:ci": "export IS_CI=true && npm run build:npm && vitest run source/test/e2e --no-file-parallelism",
 		"test:e2e": "docker run --rm -v \"$PWD\":/app -v /app/node_modules -w /app epiq-e2e npm run test:e2e:ci",
+		"test:gui": "playwright test",
+		"test:gui:ci": "npm run build:npm && playwright install --no-shell chromium && playwright test",
 		"build:e2e:image": "docker build -f source/test/e2e/Dockerfile -t epiq-e2e .",
 		"prepack": "npm run build:publish",
 		"pack:check": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"$FILE\" && tar -tf \"$FILE\"",
@@ -75,6 +77,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.1",
+		"@playwright/test": "^1.62.1",
 		"@sindresorhus/tsconfig": "^3.0.1",
 		"@types/marked-terminal": "^6.1.1",
 		"@types/node": "^22.19.19",

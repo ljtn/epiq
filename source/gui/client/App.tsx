@@ -25,6 +25,7 @@ import {
 	GuiEventTimeline,
 	GuiState,
 } from './lib/gui-state.model';
+import {sendSocketJson} from './lib/socket-send';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {blobToBase64, compressImage} from './lib/compress-image';
 import {AttachmentUploadStatus} from './components/IssueAttachments';
@@ -151,7 +152,7 @@ export const App = () => {
 		useState<AttachmentUploadStatus>({state: 'idle'});
 
 	const requestState = () => {
-		socketRef.current?.send(JSON.stringify({type: 'state:get'}));
+		sendSocketJson(socketRef.current, {type: 'state:get'});
 	};
 
 	useEffect(() => {
@@ -163,7 +164,7 @@ export const App = () => {
 
 		socket.addEventListener('open', () => {
 			setConnected(true);
-			socket.send(JSON.stringify({type: 'state:get'}));
+			sendSocketJson(socket, {type: 'state:get'});
 			// History is not requested here: the scrubber owns the scope and drives
 			// that fetch itself, so asking here would ignore its stored selection.
 		});
@@ -212,12 +213,10 @@ export const App = () => {
 				message.type === 'contributor:remove:result' ||
 				message.type === 'issue:assignee:add:result'
 			) {
-				socketRef.current?.send(
-					JSON.stringify({
-						type: 'contributors:get',
-						payload: {boardId: selectedBoardIdRef.current},
-					}),
-				);
+				sendSocketJson(socketRef.current, {
+					type: 'contributors:get',
+					payload: {boardId: selectedBoardIdRef.current},
+				});
 			}
 
 			if (
@@ -296,7 +295,7 @@ export const App = () => {
 	};
 
 	const send = (type: string, payload: unknown) => {
-		socketRef.current?.send(JSON.stringify({type, payload}));
+		sendSocketJson(socketRef.current, {type, payload});
 	};
 
 	const selectIssue = (nextIssueId: string) => {
@@ -495,22 +494,18 @@ export const App = () => {
 			const requestId = historyBuffer.open();
 			// The board scopes the timeline but not the commit log, which is
 			// repository-wide. Omitting boardId is how the API says "every board".
-			socketRef.current?.send(
-				JSON.stringify({
-					type: 'timeline:get',
-					payload: {
-						...window,
-						boardId: allBoards ? undefined : selectedBoardId,
-						requestId,
-					},
-				}),
-			);
-			socketRef.current?.send(
-				JSON.stringify({
-					type: 'commits:get',
-					payload: {...window, requestId},
-				}),
-			);
+			sendSocketJson(socketRef.current, {
+				type: 'timeline:get',
+				payload: {
+					...window,
+					boardId: allBoards ? undefined : selectedBoardId,
+					requestId,
+				},
+			});
+			sendSocketJson(socketRef.current, {
+				type: 'commits:get',
+				payload: {...window, requestId},
+			});
 		},
 		[selectedBoardId],
 	);
@@ -518,18 +513,14 @@ export const App = () => {
 	useEffect(() => {
 		if (!connected) return;
 
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'contributors:get',
-				payload: {boardId: selectedBoardId},
-			}),
-		);
+		sendSocketJson(socketRef.current, {
+			type: 'contributors:get',
+			payload: {boardId: selectedBoardId},
+		});
 	}, [connected, selectedBoardId]);
 
 	const inspectCommit = useCallback((sha: string) => {
-		socketRef.current?.send(
-			JSON.stringify({type: 'commit:inspect', payload: {sha}}),
-		);
+		sendSocketJson(socketRef.current, {type: 'commit:inspect', payload: {sha}});
 	}, []);
 
 	useEffect(() => {
@@ -767,6 +758,7 @@ export const App = () => {
 				>
 					<div style={{padding: '20px 10px'}}>
 						<Dropdown
+							testId="board-switcher"
 							label="Board:"
 							value={
 								selectedBoard

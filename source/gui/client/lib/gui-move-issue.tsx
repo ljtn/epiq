@@ -1,4 +1,5 @@
 import {GuiIssue, GuiState} from './gui-state.model';
+import {sendSocketJson} from './socket-send';
 
 type MovePosition =
 	| {at: 'start'}
@@ -128,14 +129,12 @@ export const moveIssue =
 
 		if (!position) return;
 
-		socketRef.current?.send(
-			JSON.stringify({
-				type: 'issues:move',
-				payload: {
-					issueId,
-					parentId,
-					position,
-				},
-			}),
-		);
+		sendSocketJson(socketRef.current, {
+			type: 'issues:move',
+			payload: {
+				issueId,
+				parentId,
+				position,
+			},
+		});
 	};
