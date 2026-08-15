@@ -235,8 +235,11 @@ export const startGuiServer = async (input: {
 						body: commentBody,
 					});
 
-					if ('isError' in result && result.isError) {
-						return sendJson(res, 400, result);
+					if (isFail(result)) {
+						return sendJson(res, 400, {
+							isError: true,
+							message: result.message,
+						});
 					}
 
 					return sendJson(
@@ -392,8 +395,11 @@ export const startGuiServer = async (input: {
 					commentId,
 				});
 
-				if ('isError' in result && result.isError) {
-					return sendJson(res, 400, result);
+				if (isFail(result)) {
+					return sendJson(res, 400, {
+						isError: true,
+						message: result.message,
+					});
 				}
 
 				return sendJson(

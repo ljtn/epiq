@@ -64,10 +64,8 @@ describe('GUI mutation guard while time-travelling', () => {
 				// Deliberately not a real issue: a refused write is refused before
 				// the issue is ever looked up, so nothing here can mutate.
 				//
-				// Asserted as "409 or not 409" rather than on the success status,
-				// because these routes report a failed Result as 200 (see board:
-				// "HTTP comment routes report failures as 200"). 409 is the guard
-				// and is unaffected by that.
+				// 409-vs-400 separates "the guard stopped it" from "it got through
+				// and failed on its own terms".
 				const comment = {issueId: 'NO-SUCH-ISSUE', body: 'hello'};
 
 				try {
@@ -77,8 +75,8 @@ describe('GUI mutation guard while time-travelling', () => {
 						'/api/comments',
 						comment,
 					);
-					expect(live.status).not.toBe(409);
-					expect(live.body).not.toContain('Read-only');
+					expect(live.status).toBe(400);
+					expect(live.body).toContain('Issue not found');
 
 					const checkout = await checkoutStateAt({
 						repoRoot,
@@ -115,8 +113,8 @@ describe('GUI mutation guard while time-travelling', () => {
 						'/api/comments',
 						comment,
 					);
-					expect(afterLive.status).not.toBe(409);
-					expect(afterLive.body).not.toContain('Read-only');
+					expect(afterLive.status).toBe(400);
+					expect(afterLive.body).toContain('Issue not found');
 				} finally {
 					server.close();
 				}
