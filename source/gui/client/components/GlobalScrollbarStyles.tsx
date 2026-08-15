@@ -4,7 +4,7 @@ import {GUI_THEME} from '../lib/gui-theme';
 // properties, which React style objects can't express, hence a global <style>.
 // Styling ::-webkit-scrollbar also opts out of macOS's auto-hiding overlay
 // bars, so the thumb is kept muted and the track transparent.
-const SCROLLBAR_SIZE = 6;
+const SCROLLBAR_SIZE = 3;
 
 export const GlobalScrollbarStyles = () => (
 	<style>{`
