@@ -78,6 +78,36 @@ const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 		payload: await getGuiState({repoRoot}),
 	});
 
+// The post-mutation refresh, deliberately run *outside* the time-travel lock so
+// the requester isn't made to wait on a boot. That freedom is exactly what makes
+// it unsafe to decide up front where the snapshot comes from: by the time this
+// runs, a `time-travel:scrub` queued behind the mutation may already own the
+// state singleton, and publishing a live-booted snapshot then would tell the
+// client the opposite of the checkout it just entered. So resolve the source
+// against the mode as observed *now*, not as observed when the mutation ran.
+const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
+	const sendDerivedState = () =>
+		sendSocket(socket, {
+			type: 'state',
+			payload: deriveGuiState(),
+		});
+
+	if (getTimeTravelStatus().mode !== 'live') return sendDerivedState();
+
+	const payload = await getGuiState({repoRoot});
+
+	// `getGuiState` boots, and that await is a suspension point we hold no lock
+	// over, so the scrub can land *during* it and leave us holding a live
+	// snapshot that is already stale. Re-check before it goes out on the wire:
+	// deriving instead costs nothing and reflects the checkout that won.
+	if (getTimeTravelStatus().mode !== 'live') return sendDerivedState();
+
+	return sendSocket(socket, {
+		type: 'state',
+		payload,
+	});
+};
+
 const sendMutationResult = async (
 	socket: WebSocket,
 	repoRoot: string,
@@ -99,8 +129,8 @@ const sendMutationResult = async (
 
 	onStateChanged();
 
-	// Broadcast refresh to everyone, but do not block the requester UX.
-	void sendGuiState(socket, repoRoot);
+	// Refresh the requester's view, but do not block its UX on the boot.
+	void sendStateAfterMutation(socket, repoRoot);
 
 	return;
 };
