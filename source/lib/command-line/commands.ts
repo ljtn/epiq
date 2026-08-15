@@ -60,11 +60,6 @@ const isAddIssueCommentEvent = (
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
 
-const findContributorByName = (name: string) =>
-	Object.values(getState().contributors).find(
-		contributor => contributor.name === name,
-	);
-
 // Mirrors getBoardContributors on the server. The contributor registry only
 // holds people who have been explicitly created or assigned, so it is often
 // empty — including of you, despite having authored every event. Anyone who
@@ -91,7 +86,12 @@ const getAssignableContributors = (): {
 	}
 
 	for (const contributor of Object.values(contributors)) {
-		if (!byId.has(contributor.id)) byId.set(contributor.id, contributor.name);
+		// A redacted contributor overwrites the log's name rather than only
+		// filling a gap, matching getBoardContributors on the server: the log
+		// still carries whatever they authored under, and a cleared name that
+		// reappears in the TUI's suggestions is not cleared.
+		if (contributor.redacted || !byId.has(contributor.id))
+			byId.set(contributor.id, contributor.name);
 	}
 
 	return [...byId.entries()].map(([id, name]) => ({
@@ -663,17 +663,6 @@ export const commands: CommandLineActionEntry[] = [
 			const name = (modifier || inputString).trim();
 			if (!name) return failed('Provide an assignee to remove');
 
-			// Mirrors assign: "me" has to work here too, or a self-assignment
-			// made in one command can't be undone by the obvious opposite.
-			const existingContributor =
-				name.toLowerCase() === 'me'
-					? {id: userRes.value.userId, name: userRes.value.userName}
-					: findContributorByName(name);
-
-			if (!existingContributor) {
-				return failed(`Assignee "${name}" does not exist`);
-			}
-
 			const {selectedNode} = getState();
 			if (!selectedNode) return failed('Invalid unassign target');
 
@@ -687,8 +676,39 @@ export const commands: CommandLineActionEntry[] = [
 
 			const assignees = ticket.props.assignees ?? [];
 
-			if (!assignees.includes(existingContributor.id)) {
-				return failed(`Issue is not assigned to "${name}"`);
+			// Mirrors assign: "me" has to work here too, or a self-assignment
+			// made in one command can't be undone by the obvious opposite.
+			const isSelf = name.toLowerCase() === 'me';
+
+			// Resolved against the issue's own assignees rather than the whole
+			// registry. Assign refuses an ambiguous name because it cannot know
+			// which of two people sharing it you meant; here the issue itself
+			// usually settles it, so `:unassign alice` still works when a second,
+			// unassigned Alice exists — and refuses only when both are actually
+			// assigned. Registry order used to decide this silently, which could
+			// remove the wrong person.
+			const matches = isSelf
+				? assignees.filter(id => id === userRes.value.userId)
+				: getAssignableContributors()
+						.filter(c => c.name === name && assignees.includes(c.id))
+						.map(c => c.id);
+
+			if (matches.length > 1) {
+				return failed(
+					`"${name}" matches ${matches.length} assignees (${matches.join(
+						', ',
+					)}). Unassign from the GUI to choose by id.`,
+				);
+			}
+
+			const contributorId = matches[0];
+
+			if (!contributorId) {
+				return failed(
+					isSelf
+						? 'Issue is not assigned to you'
+						: `Issue is not assigned to "${name}"`,
+				);
 			}
 
 			const persistRootResult = await getPersistRootValue();
@@ -701,7 +721,7 @@ export const commands: CommandLineActionEntry[] = [
 						action: 'remove.issue.assignee',
 						payload: {
 							id: ticket.id,
-							assignee: existingContributor.id,
+							assignee: contributorId,
 						},
 						...userRes.value,
 					},

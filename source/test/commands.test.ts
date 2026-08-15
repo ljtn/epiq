@@ -81,7 +81,12 @@ import {
 import {AppState, Tag} from '../lib/model/app-state.model.js';
 import {AnyContext, Ticket} from '../lib/model/context.model.js';
 import {NavNode} from '../lib/model/navigation-node.model.js';
-import {failed, Result, succeeded} from '../lib/model/result-types.js';
+import {
+	failed,
+	Result,
+	ReturnFail,
+	succeeded,
+} from '../lib/model/result-types.js';
 import {findAncestor} from '../lib/repository/node-repo.js';
 import {CommandLineState, getCmdState} from '../lib/state/cmd.state.js';
 import {getRenderedChildren, getState} from '../lib/state/state.js';
@@ -96,6 +101,9 @@ const mockedGetState = vi.mocked(getState);
 const tagCommand = commands.find(x => x.intent === CmdIntent.TagTicket)!;
 const assignCommand = commands.find(
 	x => x.intent === CmdIntent.AssignUserToTicket,
+)!;
+const unassignCommand = commands.find(
+	x => x.intent === CmdIntent.UnassignUserFromTicket,
 )!;
 
 const ticket: Partial<Ticket> = {
@@ -510,5 +518,165 @@ describe('AssignUserToTicket command', () => {
 		expect(result).toEqual(failed('Invalid assign target'));
 		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
 		expect(mockedUlid).not.toHaveBeenCalled();
+	});
+});
+
+describe('UnassignUserFromTicket command', () => {
+	const assignedTicket: Partial<Ticket> = {
+		id: 'ticket-1',
+		context: 'TICKET',
+		props: {tags: [], assignees: ['user-123']},
+	};
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+
+		mockedGetCmdState.mockReturnValue({
+			commandMeta: {modifier: 'alice', inputString: ''},
+		} as CommandLineState);
+
+		mockedGetState.mockReturnValue({
+			selectedNode: {id: 'selected-node'},
+			tags: {},
+			eventLog: [],
+			contributors: {'user-123': {id: 'user-123', name: 'alice'}},
+		} as unknown as AppState);
+
+		mockedFindAncestor.mockReturnValue(
+			succeeded('Found ticket', assignedTicket) as Result<Ticket>,
+		);
+
+		mockedMaterializeAndPersistAll.mockReturnValue(
+			succeeded('Persisted events', [
+				{action: 'remove.issue.assignee', result: {assignee: 'user-123'}},
+			]) as ReturnType<typeof materializeAndPersistAll>,
+		);
+	});
+
+	it('removes the assignee resolved by name', async () => {
+		mockedUlid.mockReturnValueOnce('remove-assignee-event-id');
+
+		await unassignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		);
+
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				{
+					id: 'remove-assignee-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'remove.issue.assignee',
+					payload: {id: 'ticket-1', assignee: 'user-123'},
+				},
+			],
+			'/repo/.epiq',
+		);
+	});
+
+	// Assign refuses an ambiguous name outright. Unassign can do better,
+	// because the issue's own assignees usually settle it — but only when they
+	// do. Registry iteration order used to decide this silently.
+	it("refuses when the name matches two of the issue's assignees", async () => {
+		mockedFindAncestor.mockReturnValue(
+			succeeded('Found ticket', {
+				...assignedTicket,
+				props: {tags: [], assignees: ['user-123', 'user-456']},
+			}) as Result<Ticket>,
+		);
+
+		mockedGetState.mockReturnValue({
+			selectedNode: {id: 'selected-node'},
+			tags: {},
+			eventLog: [],
+			contributors: {
+				'user-123': {id: 'user-123', name: 'alice'},
+				'user-456': {id: 'user-456', name: 'alice'},
+			},
+		} as unknown as AppState);
+
+		const result = (await unassignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		)) as ReturnFail;
+
+		expect(result.status).toBe('fail');
+		expect(result.message).toContain('matches 2 assignees');
+		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('still resolves when the duplicate name is not assigned here', async () => {
+		// The unassigned duplicate is listed first on purpose: resolving over
+		// the whole registry finds it, sees it is not an assignee, and reports
+		// "not assigned to alice" even though an assigned Alice exists.
+		mockedGetState.mockReturnValue({
+			selectedNode: {id: 'selected-node'},
+			tags: {},
+			eventLog: [],
+			contributors: {
+				'user-456': {id: 'user-456', name: 'alice'},
+				'user-123': {id: 'user-123', name: 'alice'},
+			},
+		} as unknown as AppState);
+
+		mockedUlid.mockReturnValueOnce('remove-assignee-event-id');
+
+		await unassignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		);
+
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					payload: {id: 'ticket-1', assignee: 'user-123'},
+				}),
+			],
+			'/repo/.epiq',
+		);
+	});
+
+	it('unassigns self by id when given "me"', async () => {
+		mockedGetCmdState.mockReturnValue({
+			commandMeta: {modifier: 'me', inputString: ''},
+		} as CommandLineState);
+
+		mockedFindAncestor.mockReturnValue(
+			succeeded('Found ticket', {
+				...assignedTicket,
+				props: {tags: [], assignees: ['0001']},
+			}) as Result<Ticket>,
+		);
+
+		mockedUlid.mockReturnValueOnce('remove-assignee-event-id');
+
+		await unassignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		);
+
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[expect.objectContaining({payload: {id: 'ticket-1', assignee: '0001'}})],
+			'/repo/.epiq',
+		);
+	});
+
+	it('fails when the issue is not assigned to that name', async () => {
+		mockedFindAncestor.mockReturnValue(
+			succeeded('Found ticket', {
+				...assignedTicket,
+				props: {tags: [], assignees: []},
+			}) as Result<Ticket>,
+		);
+
+		const result = (await unassignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		)) as ReturnFail;
+
+		expect(result.status).toBe('fail');
+		expect(result.message).toContain('not assigned to "alice"');
+		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
 	});
 });
