@@ -1435,6 +1435,13 @@ describe('mcp tools', () => {
 	});
 
 	it('adds an existing contributor as assignee without creating a duplicate', async () => {
+		// The default log author is a *separate* id that happens to share the
+		// registry's display name, which the union below now (correctly) reads
+		// as two people called Alice. Point the author at the record's own id,
+		// which is what the app actually does — `ensureContributorExists`
+		// registers an author under their own userId.
+		stateEventLog = [{...DEFAULT_STATE_EVENT_LOG[0], userId: 'contributor-1'}];
+
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
 			issueId: 'issue-1',
@@ -1458,6 +1465,74 @@ describe('mcp tools', () => {
 				payload: {id: 'issue-1', assignee: 'contributor-1'},
 			}),
 		]);
+	});
+
+	// The bug this path had: a contributor record is only written when somebody
+	// is explicitly created or assigned, so an author who has never been
+	// assigned is absent from the registry. Matching the registry alone called
+	// them unknown, and `createUnlinked` then minted a *second* id for a person
+	// who already had one.
+	it('matches a name found only in the event log and reuses that id', async () => {
+		stateEventLog = [
+			{
+				id: 'event-1',
+				userId: 'log-only-author',
+				userName: 'Log Only',
+				action: 'edit.title',
+				payload: {id: 'issue-1', name: 'x'},
+			},
+		];
+
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeName: 'Log Only',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value.assignee).toEqual({
+				id: 'log-only-author',
+				name: 'Log Only',
+			});
+		}
+
+		const calls = (
+			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+		).mock.calls[0]?.[0];
+
+		// Registered under the id they already author with — not a fresh ulid —
+		// and still registered, since the registry genuinely lacked them.
+		expect(calls).toEqual([
+			expect.objectContaining({
+				action: 'create.contributor',
+				payload: {id: 'log-only-author', name: 'Log Only'},
+			}),
+			expect.objectContaining({
+				action: 'add.issue.assignee',
+				payload: {id: 'issue-1', assignee: 'log-only-author'},
+			}),
+		]);
+	});
+
+	it('refuses a name that matches two different contributors', async () => {
+		// Registry "Alice" (contributor-1) and log author "Alice" (user-1) are
+		// two ids with one display name. Picking either silently assigns the
+		// wrong person half the time, so it has to be refused — same rule the
+		// TUI's `:assign` applies.
+		const result = await tools.addIssueAssignee({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			assigneeName: 'Alice',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toContain('matches 2 contributors');
+			expect(result.message).toContain('assigneeId');
+		}
+
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
 	});
 
 	it('removes an assignee from an issue', async () => {

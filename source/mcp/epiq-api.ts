@@ -30,7 +30,10 @@ import {
 import {getSafeState} from '../lib/state/state.js';
 import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
-import {REDACTED_CONTRIBUTOR_NAME} from '../lib/model/app-state.model.js';
+import {
+	Contributor,
+	REDACTED_CONTRIBUTOR_NAME,
+} from '../lib/model/app-state.model.js';
 import {preferBestName} from '../lib/utils/contributor.utils.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
@@ -293,6 +296,43 @@ const getLatestNamesFromLog = (): Map<string, string> => {
 
 	for (const event of eventLog) {
 		if (event.userId && event.userName) byId.set(event.userId, event.userName);
+	}
+
+	return byId;
+};
+
+// Folds the contributor registry into a map of log-derived names, resolving
+// each collision with `preferBestName`.
+//
+// Extracted because three surfaces have to agree on the answer: the picker
+// (`getBoardContributors`), name-based assignment (`addIssueAssignee`), and the
+// TUI's own `getAssignableContributors`. While assignment matched the registry
+// alone, the picker could offer a name that assignment then called unknown —
+// and `createUnlinked` minted a second id for somebody who already had one.
+const mergeRegistryNames = (
+	logNames: Map<string, string>,
+	registry: Record<string, Contributor>,
+): Map<string, string> => {
+	const byId = new Map(logNames);
+
+	for (const contributor of Object.values(registry)) {
+		// A redacted contributor overwrites whatever the log supplied instead of
+		// only filling a gap: their events still carry the name they authored
+		// under, and the log seeded this map from those events.
+		if (contributor.redacted) {
+			byId.set(contributor.id, contributor.name);
+			continue;
+		}
+
+		// Otherwise the log wins only when it is a *different* name, not merely
+		// the same one spelled worse — its copy is a sanitized file name
+		// segment. Covers the gap-filling case too: `preferBestName` returns the
+		// registry name when the log has nothing for this id.
+		byId.set(
+			contributor.id,
+			preferBestName(contributor.name, byId.get(contributor.id)) ??
+				contributor.name,
+		);
 	}
 
 	return byId;
@@ -1368,22 +1408,49 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	const assigneeName = sanitizeInlineText(input.assigneeName ?? '').trim();
 	if (!assigneeName) return failed('Provide assigneeId, self or assigneeName');
 
-	// Still matched against existing contributors first: reusing a record is
-	// always better than adding a duplicate of it, even on this path.
-	const existingAssignee = Object.values(stateResult.value.contributors).find(
-		contributor => contributor.name === assigneeName,
+	// Matched against the same union the picker offers — registry *and* event
+	// log — not the registry alone. A contributor record is only written when
+	// somebody is explicitly created or assigned, so an author who has never
+	// been assigned is absent from it; matching the registry alone reported
+	// them unknown, and `createUnlinked` then minted a second id for a person
+	// who already had one.
+	const candidates = mergeRegistryNames(
+		getLatestNamesFromLog(),
+		stateResult.value.contributors,
 	);
 
-	if (!existingAssignee && !input.createUnlinked) {
+	const matches = [...candidates.entries()].filter(
+		([, candidateName]) => candidateName === assigneeName,
+	);
+
+	// Two people can share a display name; picking one silently would assign
+	// the wrong person half the time. Mirrors the TUI's `:assign`, which
+	// refuses the same way.
+	if (matches.length > 1) {
+		return failed(
+			`"${assigneeName}" matches ${matches.length} contributors (${matches
+				.map(([id]) => id)
+				.join(', ')}). Assign by assigneeId to choose.`,
+		);
+	}
+
+	const match = matches[0];
+
+	if (!match && !input.createUnlinked) {
 		return failed(
 			`No contributor named "${assigneeName}". Assign by id, or pass createUnlinked to add them as an external assignee.`,
 		);
 	}
 
-	const assigneeId = existingAssignee?.id ?? ulid();
+	const [assigneeId = ulid(), resolvedName = assigneeName] = match ?? [];
+
+	// Keyed on the *registry*, not on whether a name matched: somebody found
+	// only in the event log still needs a contributor record — written under
+	// the id they already author with rather than a fresh one.
+	const isRegistered = Boolean(stateResult.value.contributors[assigneeId]);
 
 	const events = [
-		...(existingAssignee
+		...(isRegistered
 			? []
 			: [
 					{
@@ -1392,7 +1459,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 						action: 'create.contributor',
 						payload: {
 							id: assigneeId,
-							name: assigneeName,
+							name: resolvedName,
 						},
 					} satisfies AppEvent<'create.contributor'>,
 			  ]),
@@ -1416,7 +1483,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	return succeeded('Added issue assignee', {
 		id: input.issueId,
-		assignee: {id: assigneeId, name: assigneeName},
+		assignee: {id: assigneeId, name: resolvedName},
 	});
 };
 
@@ -1544,27 +1611,7 @@ export const getBoardContributors = async (
 	}
 
 	const registry = stateResult.value.contributors;
-
-	for (const contributor of Object.values(registry)) {
-		// A redacted contributor overwrites whatever the log supplied instead of
-		// only filling a gap: their events still carry the name they authored
-		// under, and the loop above seeded the map from those events.
-		if (contributor.redacted) {
-			byId.set(contributor.id, contributor.name);
-			continue;
-		}
-
-		// Otherwise the same rule every other surface uses: the log's name is a
-		// sanitized file name segment, so it wins only when it is a *different*
-		// name, not merely the same one spelled worse. Covers the gap-filling
-		// case too — `preferBestName` returns the registry name when the log has
-		// nothing for this id.
-		byId.set(
-			contributor.id,
-			preferBestName(contributor.name, byId.get(contributor.id)) ??
-				contributor.name,
-		);
-	}
+	const namesById = mergeRegistryNames(byId, registry);
 
 	// Both flags are derived here rather than left to callers: every surface
 	// wants to pin "me" first and mark outsiders, and three of them working it
@@ -1573,7 +1620,7 @@ export const getBoardContributors = async (
 	// `isExternal` is computed, never stored, so it self-corrects — the day an
 	// external assignee authors their first event on this board they stop
 	// being external, with nothing to migrate.
-	const contributors = [...byId.entries()].map(([id, name]) => ({
+	const contributors = [...namesById.entries()].map(([id, name]) => ({
 		id,
 		name,
 		color: getStringColor(name),
