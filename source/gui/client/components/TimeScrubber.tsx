@@ -11,6 +11,7 @@ import {IconChevronRight} from './IconChevronRight';
 import {IconClock} from './IconClock';
 import {Checkbox} from './Checkbox';
 import {Panel} from './Panel';
+import {maxOf, minOf} from '../../../lib/utils/minmax.js';
 
 // Not reused from source/lib/event/date-utils.ts: that module is reachable
 // (via event.model -> app-state.model -> action-map.model) from Node-only TUI
@@ -590,14 +591,16 @@ export const TimeScrubber = ({
 	// event, especially in "All time" scope) — every layer (histogram
 	// buckets, scatter points, the needle) shares this axis, so a given x
 	// always means the same moment no matter which series drew it.
-	const earliest = Math.min(
+	//
+	// Folded rather than spread: in "All time" this is one argument per commit
+	// in the repository, and engines cap argument count — see minmax.ts.
+	const commitBounds = commitTimes.length ? commitTimes : [Date.now()];
+
+	const earliest = minOf(
+		commitBounds,
 		timeline?.buckets[0]?.t ?? timeline?.earliest ?? Date.now(),
-		...(commitTimes.length ? commitTimes : [Date.now()]),
 	);
-	const latest = Math.max(
-		timeline?.latest ?? Date.now(),
-		...(commitTimes.length ? commitTimes : [Date.now()]),
-	);
+	const latest = maxOf(commitBounds, timeline?.latest ?? Date.now());
 	const span = Math.max(1, latest - earliest);
 
 	// How many buckets to divide this particular span into — scaled to the

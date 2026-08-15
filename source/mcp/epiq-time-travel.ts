@@ -17,6 +17,7 @@ import {
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
 import {materializeAll} from '../lib/event/event-materialize.js';
+import {minOf} from '../lib/utils/minmax.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
@@ -185,8 +186,9 @@ export const getEventTimeline = async (
 
 	const now = Date.now();
 	const windowEnd = input.end ?? now;
-	const windowStart =
-		input.start ?? (allTimes.length > 0 ? Math.min(...allTimes) : windowEnd);
+	// Folded rather than spread: `allTimes` is one entry per event in the whole
+	// log when no window is given, which is the "All time" scope.
+	const windowStart = input.start ?? minOf(allTimes, windowEnd);
 
 	if (windowEnd <= windowStart) {
 		return succeeded('Empty time window', {
