@@ -1162,6 +1162,146 @@ describe('mcp tools', () => {
 		]);
 	});
 
+	// The redaction guard only sees the log this machine has pulled, so on a
+	// synced board somebody whose events have not arrived yet passes it. The
+	// inverse event is what keeps that mistake recoverable.
+	describe('unredactContributor', () => {
+		const asRedacted = () => {
+			contributorRegistry['contributor-1'] = {
+				id: 'contributor-1',
+				name: REDACTED_CONTRIBUTOR_NAME,
+				redacted: true,
+			};
+		};
+
+		const logWithCreate = (name: string) =>
+			(
+				eventLoadModule.loadMergedEvents as ReturnType<typeof vi.fn>
+			).mockReturnValue(
+				succeeded('loaded', [
+					{
+						id: 'create-1',
+						userId: 'someone-else',
+						userName: 'Someone Else',
+						action: 'create.contributor',
+						payload: {id: 'contributor-1', name},
+					},
+				]),
+			);
+
+		it('puts back the name the contributor was created under', async () => {
+			asRedacted();
+			logWithCreate('Temp Tester');
+
+			const result = await tools.unredactContributor({
+				repoRoot: '/repo',
+				contributorId: 'contributor-1',
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (!isFail(result)) {
+				expect(result.value).toEqual({
+					id: 'contributor-1',
+					name: 'Temp Tester',
+				});
+			}
+
+			// Carries the name in the payload, so replaying the log reproduces
+			// the same state without depending on what else is in it.
+			const calls = (
+				persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
+			).mock.calls[0]?.[0];
+			expect(calls).toEqual([
+				expect.objectContaining({
+					action: 'unredact.contributor',
+					payload: {id: 'contributor-1', name: 'Temp Tester'},
+				}),
+			]);
+		});
+
+		it('refuses a contributor who is not redacted', async () => {
+			logWithCreate('Alice');
+
+			const result = await tools.unredactContributor({
+				repoRoot: '/repo',
+				contributorId: 'contributor-1',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) {
+				expect(result.message).toBe('Contributor is not redacted');
+			}
+
+			expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+		});
+
+		// Refusing beats inventing a name.
+		it('refuses when the log has no create.contributor to read', async () => {
+			asRedacted();
+			(
+				eventLoadModule.loadMergedEvents as ReturnType<typeof vi.fn>
+			).mockReturnValue(succeeded('loaded', []));
+
+			const result = await tools.unredactContributor({
+				repoRoot: '/repo',
+				contributorId: 'contributor-1',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) {
+				expect(result.message).toContain('no original name');
+			}
+
+			expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+		});
+
+		it('refuses an unknown contributor', async () => {
+			const result = await tools.unredactContributor({
+				repoRoot: '/repo',
+				contributorId: 'nobody',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) {
+				expect(result.message).toBe('Contributor not found');
+			}
+		});
+	});
+
+	// The state the stale guard can produce: cleared, yet an author. Surfaced
+	// so a client can offer the restore rather than leave a name silently wrong.
+	it('flags a redacted contributor who turns out to have authored events', async () => {
+		contributorRegistry['contributor-1'] = {
+			id: 'contributor-1',
+			name: REDACTED_CONTRIBUTOR_NAME,
+			redacted: true,
+		};
+
+		(
+			eventLoadModule.loadMergedEvents as ReturnType<typeof vi.fn>
+		).mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'late-1',
+					userId: 'contributor-1',
+					userName: 'temp-tester',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x'},
+				},
+			]),
+		);
+
+		const result = await tools.getBoardContributors({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		const entry = result.value.find(c => c.id === 'contributor-1');
+		expect(entry?.isRedacted).toBe(true);
+		expect(entry?.hasAuthoredAnywhere).toBe(true);
+		expect(entry?.isRedactedDespiteAuthoring).toBe(true);
+	});
+
 	// The log keeps every name its author wrote under — redaction cannot remove
 	// those without rewriting history, which this system never does. So the
 	// registry has to win on the way out, or a later sync that brings the

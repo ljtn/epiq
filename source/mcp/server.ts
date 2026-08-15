@@ -6,6 +6,7 @@ import {
 	addIssueAssignee,
 	getBoardContributors,
 	redactContributor,
+	unredactContributor,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -253,6 +254,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await redactContributor(input)),
+	);
+
+	server.registerTool(
+		'epiq_contributor_unredact',
+		{
+			description:
+				"Restore a contributor's display name after epiq_contributor_redact cleared it, putting back the name they were created under. Use when a name was cleared against a stale local view of the log — for example someone whose events had not been pulled yet, and so looked like an outsider.",
+			inputSchema: z.object({
+				contributorId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await unredactContributor(input)),
 	);
 
 	server.registerTool(

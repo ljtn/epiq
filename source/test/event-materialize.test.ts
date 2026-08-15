@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, it} from 'vitest';
 import {materialize, materializeAll} from '../lib/event/event-materialize.js';
 import {AppEvent} from '../lib/event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {isTicketNode} from '../lib/model/context.model.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {nodes} from '../lib/state/node-builder.js';
@@ -357,6 +358,68 @@ describe('issue attachments', () => {
 				id: attachmentId,
 				issue: IDS.issue,
 			}),
+		);
+
+		expect(isFail(result)).toBe(true);
+	});
+});
+
+// Redaction and its inverse are ordinary forward events, so the only thing
+// that makes them trustworthy is that replaying the log reproduces the same
+// answer on every machine. These drive the sequence the way a boot does.
+describe('contributor redaction round-trip', () => {
+	const CONTRIBUTOR = '01H00000000000000000000100';
+
+	it('clears the name on redact and puts it back on unredact', () => {
+		setupWorkspace();
+
+		expectOk(
+			materialize(
+				event('create.contributor', {id: CONTRIBUTOR, name: 'Temp Tester'}),
+			),
+		);
+		expect(nodeRepo.getContributor(CONTRIBUTOR)?.name).toBe('Temp Tester');
+
+		expectOk(materialize(event('redact.contributor', {id: CONTRIBUTOR})));
+		expect(nodeRepo.getContributor(CONTRIBUTOR)?.redacted).toBe(true);
+		expect(nodeRepo.getContributor(CONTRIBUTOR)?.name).not.toBe('Temp Tester');
+
+		expectOk(
+			materialize(
+				event('unredact.contributor', {id: CONTRIBUTOR, name: 'Temp Tester'}),
+			),
+		);
+
+		const restored = nodeRepo.getContributor(CONTRIBUTOR);
+		expect(restored?.name).toBe('Temp Tester');
+		// Cleared, not just falsy-by-absence — the flag is what every read path
+		// checks before letting a log name through.
+		expect(restored?.redacted).toBe(false);
+	});
+
+	// The id is the whole point of redacting rather than deleting: assignments
+	// keep resolving through it.
+	it('keeps the id stable across the whole sequence', () => {
+		setupWorkspace();
+
+		materializeAll([
+			event('create.contributor', {id: CONTRIBUTOR, name: 'Temp Tester'}),
+			event('add.issue.assignee', {id: IDS.issue, assignee: CONTRIBUTOR}),
+			event('redact.contributor', {id: CONTRIBUTOR}),
+		] as const);
+
+		const issue = nodeRepo.getNode(IDS.issue);
+		expect(isTicketNode(issue!) ? issue.props.assignees : undefined).toContain(
+			CONTRIBUTOR,
+		);
+		expect(nodeRepo.getContributor(CONTRIBUTOR)).toBeDefined();
+	});
+
+	it('fails unredact for a contributor that does not exist', () => {
+		setupWorkspace();
+
+		const result = materialize(
+			event('unredact.contributor', {id: IDS.missing, name: 'Nobody'}),
 		);
 
 		expect(isFail(result)).toBe(true);

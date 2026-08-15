@@ -1554,6 +1554,92 @@ export const redactContributor = async (
 	});
 };
 
+// Recovers the name a contributor was created under, by replaying the log's
+// own `create.contributor` payloads. Redaction never rewrote anything, so the
+// original is always still there — this is what makes the undo possible at all.
+//
+// Last write wins, matching every other name lookup here.
+const findCreatedContributorName = async (
+	stateBranchRoot: string,
+	contributorId: string,
+): Promise<string | undefined> => {
+	const eventsResult = loadMergedEvents(stateBranchRoot);
+	if (isFail(eventsResult)) return undefined;
+
+	let name: string | undefined;
+
+	for (const event of eventsResult.value) {
+		if (event.action !== 'create.contributor') continue;
+
+		const payload = event.payload as {id?: string; name?: string};
+		if (payload.id === contributorId && payload.name) name = payload.name;
+	}
+
+	return name;
+};
+
+// Puts back a name cleared by `redactContributor`.
+//
+// The redaction guard reads only the log this machine has pulled, and on a
+// git-synced board that is a stale view: somebody whose events have not
+// arrived yet looks like an outsider and is offered as clearable. Rather than
+// forcing a network round-trip inside a read path — MCP tools are deliberately
+// local-only, freshness is the explicit `sync` tool's job — the mistake is
+// made reversible.
+export const unredactContributor = async (
+	input: ToolInput & {contributorId: string},
+): Promise<Result<{id: string; name: string}>> => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const contributor = stateResult.value.contributors[input.contributorId];
+	if (!contributor) return failed('Contributor not found');
+
+	if (!contributor.redacted) {
+		return failed('Contributor is not redacted');
+	}
+
+	const originalName = await findCreatedContributorName(
+		bootResult.value.stateBranchRoot,
+		input.contributorId,
+	);
+
+	// Without a `create.contributor` to read there is no name to put back, and
+	// inventing one would be worse than refusing.
+	if (!originalName) {
+		return failed(
+			'Cannot restore this contributor — no original name found in the event log',
+		);
+	}
+
+	const events = [
+		{
+			id: ulid(),
+			...actorResult.value,
+			action: 'unredact.contributor',
+			payload: {id: input.contributorId, name: originalName},
+		} satisfies AppEvent<'unredact.contributor'>,
+	];
+
+	const results = materializeAndPersistAll(
+		events,
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Restored contributor', {
+		id: input.contributorId,
+		name: originalName,
+	});
+};
+
 export const getBoardContributors = async (
 	input: ToolInput & {boardId?: string} = {},
 ): Promise<
@@ -1563,6 +1649,7 @@ export const getBoardContributors = async (
 			isExternal: boolean;
 			isRedacted: boolean;
 			hasAuthoredAnywhere: boolean;
+			isRedactedDespiteAuthoring: boolean;
 		})[]
 	>
 > => {
@@ -1634,6 +1721,14 @@ export const getBoardContributors = async (
 		// `isExternal` is board-scoped and means something else: not "their name
 		// is in the history" but "they have not worked on this board".
 		hasAuthoredAnywhere: workspaceAuthorIds.has(id),
+		// A state redaction is supposed to make impossible: cleared, yet an
+		// author. Reachable because the guard can only see the log this machine
+		// has pulled, so somebody whose events arrive on a later sync passes it.
+		// Surfaced rather than auto-corrected — undoing a redaction on their
+		// behalf would be its own surprise — so a client can offer the restore
+		// (`unredactContributor`) instead of leaving a name silently wrong.
+		isRedactedDespiteAuthoring:
+			registry[id]?.redacted === true && workspaceAuthorIds.has(id),
 	}));
 
 	return succeeded('Listed board contributors', contributors);

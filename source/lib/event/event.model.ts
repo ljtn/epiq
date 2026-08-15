@@ -92,6 +92,27 @@ export type AppEventMap = {
 		result: Contributor;
 	};
 
+	/**
+	 * Undoes a `redact.contributor`, putting the name back.
+	 *
+	 * Exists because the redaction guard ("refuse anyone who has authored
+	 * events") can only be evaluated against the log this machine has already
+	 * pulled. On a board synced through git that is a stale read: a teammate
+	 * whose events have not arrived yet looks like an outsider and is offered
+	 * as clearable, and their events show up on the next sync. Without an
+	 * inverse, that mistake is permanent.
+	 *
+	 * Carries the name rather than recovering it during materialization. The
+	 * original is still in the log — redaction never rewrote anything — but
+	 * having the handler go looking for it would make replay depend on which
+	 * earlier events happened to be present. An explicit payload replays the
+	 * same way every time, which is the property the whole log relies on.
+	 */
+	'unredact.contributor': {
+		payload: PayloadBase & {name: string};
+		result: Contributor;
+	};
+
 	'add.issue.assignee': {
 		payload: PayloadBase & {
 			assignee: string;
@@ -265,6 +286,7 @@ export const EVENT_ACTIONS = [
 	'create.tag',
 	'create.contributor',
 	'redact.contributor',
+	'unredact.contributor',
 	'add.issue.assignee',
 	'remove.issue.assignee',
 	'add.issue.tag',

@@ -384,6 +384,23 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 	},
 
+	'unredact.contributor': event => {
+		const {id, name} = event.payload;
+		const result = nodeRepo.unredactContributor(id, name);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to restore contributor',
+				event,
+			);
+		}
+
+		return succeeded('Contributor restored', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
 	'add.issue.tag': event => {
 		const {id, tag} = event.payload;
 		const result = nodeRepo.tag(id, tag);

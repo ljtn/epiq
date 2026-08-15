@@ -430,6 +430,37 @@ export const nodeRepo = {
 		return succeeded('Redacted contributor', redacted);
 	},
 
+	// The inverse of redactContributor: puts the name back and clears the flag,
+	// so the read paths stop substituting the placeholder.
+	//
+	// Takes the name from the caller rather than digging it out of the log —
+	// see the note on `unredact.contributor` for why replay must not depend on
+	// what else is in the log.
+	unredactContributor(
+		contributorId: string,
+		name: string,
+	): Result<Contributor> {
+		const contributor = this.getContributor(contributorId);
+		if (!contributor) return failed('Contributor not found');
+
+		const restored: Contributor = {
+			...contributor,
+			name,
+			redacted: false,
+		};
+
+		const result = updateState(s => ({
+			...s,
+			contributors: {
+				...s.contributors,
+				[contributorId]: restored,
+			},
+		}));
+
+		if (isFail(result)) return failed('Unable to restore contributor');
+		return succeeded('Restored contributor', restored);
+	},
+
 	createContributor(contributor: Contributor): Result<Contributor> {
 		const result = updateState(s => ({
 			...s,
