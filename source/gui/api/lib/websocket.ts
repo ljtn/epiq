@@ -132,17 +132,25 @@ export const setupWebsocket = (
 					});
 				}
 
+				// `requestId` is echoed, not consumed: the client asks for the
+				// timeline and the commit log as a pair and has to know which
+				// request a reply belongs to before pairing them. Split out of the
+				// payload so it isn't forwarded into the API as a query field.
 				if (type === 'timeline:get') {
+					const {requestId, ...query} = message.payload ?? {};
 					return sendSocket(socket, {
 						type: 'timeline',
-						payload: await getEventTimeline({repoRoot, ...message.payload}),
+						requestId,
+						payload: await getEventTimeline({repoRoot, ...query}),
 					});
 				}
 
 				if (type === 'commits:get') {
+					const {requestId, ...query} = message.payload ?? {};
 					return sendSocket(socket, {
 						type: 'commits',
-						payload: await getCommitTimeline({repoRoot, ...message.payload}),
+						requestId,
+						payload: await getCommitTimeline({repoRoot, ...query}),
 					});
 				}
 

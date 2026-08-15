@@ -55,9 +55,23 @@ export type GuiMessage =
 			type: 'timeline:get';
 			// Omit boardId for every board — that is how the scrubber's
 			// "all boards" toggle asks for an unscoped timeline.
-			payload?: {start?: number; end?: number; boardId?: string};
+			//
+			// `requestId` is echoed back on the reply so the client can tell which
+			// request it answers; the timeline and the commit log are requested as
+			// a pair and rendered together.
+			payload?: {
+				start?: number;
+				end?: number;
+				boardId?: string;
+				requestId?: number;
+			};
 	  }
 	| {type: 'time-travel:scrub'; payload: {targetTime: number}}
 	| {type: 'time-travel:live'}
-	| {type: 'commits:get'; payload?: {start?: number; end?: number}}
+	| {
+			type: 'commits:get';
+			// No boardId: commits belong to the repository as a whole. See
+			// `timeline:get` for what requestId is for.
+			payload?: {start?: number; end?: number; requestId?: number};
+	  }
 	| {type: 'commit:inspect'; payload: {sha: string}};

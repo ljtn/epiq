@@ -24,6 +24,7 @@ import {
 	GuiEventTimeline,
 	GuiState,
 } from './lib/gui-state.model';
+import {createHistoryBuffer} from './lib/history-buffer';
 import {blobToBase64, compressImage} from './lib/compress-image';
 import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
@@ -71,27 +72,10 @@ export const App = () => {
 		timeline: GuiEventTimeline | null;
 		commits: GuiCommitEntry[];
 	}>({timeline: null, commits: []});
-	// Replies are collected here until both halves for the latest request have
-	// arrived, then committed in one setState.
-	const pendingHistoryRef = useRef<{
-		timeline?: GuiEventTimeline;
-		commits?: GuiCommitEntry[];
-	}>({});
-
-	// Publishes the buffered pair once both halves are in, so the chart never
-	// renders a half-updated window.
-	//
-	// KNOWN BUG (see board: "Scrubber history buffer can commit a mismatched
-	// timeline/commits pair"): "both slots filled" does not prove both halves
-	// came from the same request, because requestBoardHistory clears the
-	// buffer. A reply from request A can pair with one from request B.
-	const commitHistoryIfComplete = () => {
-		const {timeline, commits} = pendingHistoryRef.current;
-		if (!timeline || !commits) return;
-
-		pendingHistoryRef.current = {};
-		setHistory({timeline, commits});
-	};
+	// Replies are buffered until both halves of the same request have arrived,
+	// then applied in one setState so the chart never renders a half-updated
+	// window. See history-buffer.ts for why pairing needs request ids.
+	const [historyBuffer] = useState(() => createHistoryBuffer(setHistory));
 	const [commitInspectError, setCommitInspectError] = useState<string | null>(
 		null,
 	);
@@ -229,8 +213,7 @@ export const App = () => {
 			if (message.type === 'timeline') {
 				const nextTimeline = getResultValue<GuiEventTimeline>(message.payload);
 				if (nextTimeline) {
-					pendingHistoryRef.current.timeline = nextTimeline;
-					commitHistoryIfComplete();
+					historyBuffer.accept(message.requestId, {timeline: nextTimeline});
 				}
 			}
 
@@ -258,8 +241,7 @@ export const App = () => {
 			if (message.type === 'commits') {
 				const nextCommits = getResultValue<GuiCommitEntry[]>(message.payload);
 				if (nextCommits) {
-					pendingHistoryRef.current.commits = nextCommits;
-					commitHistoryIfComplete();
+					historyBuffer.accept(message.requestId, {commits: nextCommits});
 				}
 			}
 
@@ -515,14 +497,13 @@ export const App = () => {
 	};
 
 	// Always requested as a pair, which is what lets the replies be buffered
-	// and applied together: each request produces exactly one reply of each
-	// type (the server only sends these in response to a get — it never pushes
-	// them), so a full buffer always corresponds to one requested window.
+	// and applied together. Both carry the same id so the two halves can be
+	// matched to each other, and replies to an abandoned request discarded.
 	const requestBoardHistory = useCallback(
 		(start?: number, end?: number, allBoards?: boolean) => {
 			const window = start !== undefined ? {start, end} : undefined;
 
-			pendingHistoryRef.current = {};
+			const requestId = historyBuffer.open();
 			// The board scopes the event timeline but not the commit log: commits
 			// belong to the repository as a whole, so filtering them per board
 			// would be inventing a relationship that doesn't exist.
@@ -535,11 +516,15 @@ export const App = () => {
 					payload: {
 						...window,
 						boardId: allBoards ? undefined : selectedBoardId,
+						requestId,
 					},
 				}),
 			);
 			socketRef.current?.send(
-				JSON.stringify({type: 'commits:get', payload: window}),
+				JSON.stringify({
+					type: 'commits:get',
+					payload: {...window, requestId},
+				}),
 			);
 		},
 		[selectedBoardId],
