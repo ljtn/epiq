@@ -11,7 +11,7 @@ description: Workflow rules for working the epiq issue board — use the epiq MC
 - **Break work into small, scoped tickets.** One ticket per independent unit of work, not one giant ticket for a whole feature/epic. Small tickets move through the board cleanly and are easier to review.
 - **Keep the status column current as work progresses**
 - **Assign the ticket to yourself when you pick it up**, alongside moving it to Ongoing — so the board shows who is on what, not just what is in flight.
-- **Prefix commits with the ticket ref.** e.g. `61P9FS4: fix stale dots on mode switch`. This is what link-by-reference feature will match on.
+- **Prefix commits with the ticket ref.** e.g. `61P9FS4: fix stale dots on mode switch`. This is what link-by-reference feature will match on. Copy the ref exactly as the board reports it — it is always 7 characters, and a prefix missing even its first character (`1P9FS4:`) matches nothing.
 - **Tag tickets properly.** Reuse existing tags where they fit (check current issues/tags first) instead of inventing near-duplicates.
 - **Read the ticket's comments before starting, not just its description.** The description is what was known when the ticket was written; comments carry later context — narrowed scope, a decision already taken, a dead end someone hit, a correction to the original diagnosis. Working from the description alone risks redoing settled work or implementing something that was already ruled out.
 - **Use comments to communicate deviations.** If the work diverges from what the ticket describes — scope changes, findings, blockers, test results — record it as a comment on the ticket, not just in chat.
