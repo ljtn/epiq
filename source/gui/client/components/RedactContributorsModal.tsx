@@ -76,9 +76,16 @@ export const RedactContributorsModal = ({
 					Manage contributors
 				</div>
 
+				{/* Not "everywhere, for everyone, full stop": `redact.contributor` is
+				    an ordinary forward event, and a client too old to know the action
+				    skips it (see decodeReconstructedEvents) and keeps replaying the
+				    original `create.contributor` name. The reach is real, but only
+				    once a teammate is on a build that understands the event — and
+				    nothing here can make them upgrade. */}
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
-					Clears the selected names everywhere, on every board and for everyone.
-					The contributor and all their assignments are kept — only the name is
+					Clears the selected names on every board and for everyone. Teammates
+					on an older epiq keep seeing the old name until they upgrade. The
+					contributor and all their assignments are kept — only the name is
 					removed, and it cannot be restored.
 				</div>
 
