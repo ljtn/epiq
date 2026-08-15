@@ -65,11 +65,8 @@ export const IssueDetails = ({
 	onEditDescription: (issueId: string, description: string) => void;
 	onAddTag: (issueId: string, tagName: string) => void;
 	onRemoveTag: (issueId: string, tagId: string) => void;
-	// Known people are assigned by id, not name: two of them can share a display
-	// name, so resolving a name server-side would be a guess.
 	onAddAssignee: (issueId: string, assigneeId: string) => void;
 	onAddExternalAssignee: (issueId: string, assigneeName: string) => void;
-	// The server refuses anyone who has authored events.
 	onRemoveContributor: (contributorId: string) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
