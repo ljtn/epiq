@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {GuiContributor} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
+import {IconLock} from './IconLock';
 import {IconTrash} from './IconTrash';
 
 type Props = {
@@ -63,8 +64,8 @@ export const ManageContributorsModal = ({
 				</div>
 
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
-					Removes an external contributor from the suggestion lists. Anyone who
-					has contributed stays, since their name is in the log.
+					Removes a contributor from the suggestion lists. Locked ones have
+					contributed, so their name is in the log either way.
 				</div>
 
 				<div
@@ -80,12 +81,7 @@ export const ManageContributorsModal = ({
 						// Keyed on `hasAuthoredAnywhere`, not `isExternal`: the latter is
 						// board-scoped, so someone who authored on another board would
 						// look removable here and then be refused by the server.
-						const blockedReason = contributor.isRemoved
-							? 'already removed'
-							: contributor.hasAuthoredAnywhere
-							? 'has contributed'
-							: null;
-
+						const locked = contributor.hasAuthoredAnywhere;
 						const armed = armedId === contributor.id;
 
 						return (
@@ -100,13 +96,33 @@ export const ManageContributorsModal = ({
 									borderRadius: 6,
 								}}
 							>
-								<span style={{fontSize: 12, color: contributor.color}}>
+								<span
+									style={{
+										fontSize: 12,
+										color: contributor.color,
+										opacity: locked ? 0.5 : 1,
+									}}
+								>
 									@{contributor.name}
 								</span>
 
-								{blockedReason ? (
+								{locked ? (
+									<span
+										title="Has contributed — their name is in the log either way"
+										style={{
+											display: 'flex',
+											color: GUI_THEME.dim,
+											opacity: 0.7,
+											// Matches the ghost button's padding so locked and
+											// removable rows keep the same height.
+											padding: '3px 6px',
+										}}
+									>
+										<IconLock />
+									</span>
+								) : contributor.isRemoved ? (
 									<span style={{color: GUI_THEME.dim, fontSize: 10}}>
-										{blockedReason}
+										removed
 									</span>
 								) : (
 									<Button
