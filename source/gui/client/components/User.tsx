@@ -19,15 +19,11 @@ export const User = ({
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
-			// Outlined rather than filled: a solid disc outweighs everything else
-			// on an otherwise all-text card.
 			background: 'transparent',
 			color: user.color,
 			border: `1px solid ${user.color}`,
 			fontSize: 11,
 			fontWeight: 700,
-			// Spaced, not stacked: overlapping needs opaque discs to occlude, and
-			// these are rings.
 			marginLeft: index === 0 ? 0 : 4,
 			flexShrink: 0,
 		}}

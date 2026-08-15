@@ -409,7 +409,7 @@ export const App = () => {
 		send('contributor:remove', {contributorId});
 	};
 
-	// The path that can invent a person who has no record at all.
+	// Invent a person who has no record at all in the in the event logs.
 	const addExternalIssueAssignee = (issueId: string, assigneeName: string) => {
 		setState(prev => {
 			if (!prev) return prev;

@@ -311,6 +311,7 @@ export const nodeRepo = {
 		const {contributors} = getState();
 
 		return [
+			'me',
 			...new Set(
 				Object.values(contributors)
 					.map(node => node.name)
