@@ -477,6 +477,7 @@ export const ScatterDot = ({
 	zIndex,
 	title,
 	animation,
+	interactive = true,
 	onMouseEnter,
 	onMouseLeave,
 	onClick,
@@ -492,6 +493,9 @@ export const ScatterDot = ({
 	zIndex: number;
 	title: string;
 	animation: string | undefined;
+	// False while the series retracts, so a dot on its way out cannot be
+	// hovered for a hint or clicked into a diff.
+	interactive?: boolean;
 	onMouseEnter: () => void;
 	onMouseLeave: () => void;
 	onClick?: () => void;
@@ -522,7 +526,7 @@ export const ScatterDot = ({
 			zIndex,
 			transform: `translate(${-size / 2}px, -50%)`,
 			animation,
-			pointerEvents: 'auto',
+			pointerEvents: interactive ? 'auto' : 'none',
 			cursor: onClick ? 'pointer' : undefined,
 		}}
 	/>

@@ -6,6 +6,7 @@ import {GuiCommitEntry, GuiEventTimelineBucket} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	dotAppearAnimation,
+	dotExitAnimation,
 	EVENTS_MODE_VERTICAL_PADDING,
 	EVENTS_SCATTER_HEIGHT,
 	FADE_IN_ANIMATION,
@@ -14,6 +15,7 @@ import {
 	ScrubberAxis,
 	SCRUBBER_KEYFRAMES,
 	Segment,
+	SeriesPresence,
 	TRACK_HEIGHT,
 	VolumeBar,
 } from '../lib/scrubber';
@@ -31,6 +33,13 @@ import {
 	VolumeBars,
 } from './ScrubberParts';
 import {Panel} from './Panel';
+
+const dotAnimation = (key: string, animate: boolean, leaving: boolean) =>
+	!animate
+		? undefined
+		: leaving
+		? dotExitAnimation(key)
+		: dotAppearAnimation(key);
 
 export type HintContent = {
 	label: string;
@@ -62,8 +71,12 @@ export type ScrubberChart = {
 	animate: boolean;
 	// Bumped on user-driven view changes only, to replay the entrance animation.
 	windowKey: string;
+	// Volume mode hides instantly; the scatter series get an exit instead, so
+	// they carry a presence rather than a bare flag.
 	showIssues: boolean;
 	showCommits: boolean;
+	issueScatter: SeriesPresence;
+	commitScatter: SeriesPresence;
 	issueBars: VolumeBar[];
 	issueBarRange: [number, number];
 	commitBars: VolumeBar[];
@@ -207,8 +220,14 @@ export const ScrubberLayout = ({
 								</SeriesLayer>
 							)}
 
-							{chart.showIssues && layoutMode === 'real' && (
-								<SeriesLayer key={`issues-${windowKey}`} animate={animate}>
+							{/* Both scatter series stay mounted while retracting, so the
+							    layer's own fade must sit out an exit — it would fight the
+							    dots' reverse twinkle. */}
+							{chart.issueScatter.mounted && layoutMode === 'real' && (
+								<SeriesLayer
+									key={`issues-${windowKey}`}
+									animate={animate && !chart.issueScatter.leaving}
+								>
 									{chart.eventBuckets.map(bucket => {
 										const intensity = bucket.count / chart.maxEventCount;
 
@@ -224,11 +243,12 @@ export const ScrubberLayout = ({
 												title={`${bucket.count} change${
 													bucket.count === 1 ? '' : 's'
 												}, ${formatDateTime(new Date(bucket.t))}`}
-												animation={
-													animate
-														? dotAppearAnimation(String(bucket.t))
-														: undefined
-												}
+												animation={dotAnimation(
+													String(bucket.t),
+													animate,
+													chart.issueScatter.leaving,
+												)}
+												interactive={!chart.issueScatter.leaving}
 												onMouseEnter={() => on.onIssueDotEnter(bucket)}
 												onMouseLeave={on.onIssueDotLeave}
 											/>
@@ -238,10 +258,13 @@ export const ScrubberLayout = ({
 							)}
 
 							{/* Commits overlaid on the issue points' own axis. */}
-							{chart.showCommits &&
+							{chart.commitScatter.mounted &&
 								layoutMode === 'real' &&
 								chart.commits.length > 0 && (
-									<SeriesLayer key={`commits-${windowKey}`} animate={animate}>
+									<SeriesLayer
+										key={`commits-${windowKey}`}
+										animate={animate && !chart.commitScatter.leaving}
+									>
 										{chart.commits.map(commit => (
 											<ScatterDot
 												key={commit.sha}
@@ -258,9 +281,12 @@ export const ScrubberLayout = ({
 												} — ${
 													commit.author
 												} (${commit.linesChanged.toLocaleString()} lines)`}
-												animation={
-													animate ? dotAppearAnimation(commit.sha) : undefined
-												}
+												animation={dotAnimation(
+													commit.sha,
+													animate,
+													chart.commitScatter.leaving,
+												)}
+												interactive={!chart.commitScatter.leaving}
 												onClick={() => on.onInspectCommit(commit.sha)}
 												onMouseEnter={() => on.onCommitDotEnter(commit)}
 												onMouseLeave={on.onCommitDotLeave}

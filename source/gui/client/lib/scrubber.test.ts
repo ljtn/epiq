@@ -6,11 +6,15 @@ import {
 	bucketIssueCounts,
 	buildAxis,
 	chooseSegmentUnit,
+	dotAppearAnimation,
+	dotExitAnimation,
+	DOT_EXIT_TOTAL_MS,
 	formatPeriodLabel,
 	getPeriodRange,
 	hourFractionForTime,
 	isScope,
 	populatedRange,
+	SCRUBBER_KEYFRAMES,
 	segmentAt,
 } from './scrubber';
 
@@ -215,6 +219,80 @@ describe('hourFractionForTime', () => {
 		expect(
 			hourFractionForTime(new Date(2026, 7, 16, 23, 59).getTime()),
 		).toBeLessThan(1);
+	});
+});
+
+describe('dot animations', () => {
+	const delayOf = (animation: string) => {
+		const delay = /ease-(?:in|out) (\d+)ms/.exec(animation)?.[1];
+		if (delay === undefined) throw new Error(`no delay in "${animation}"`);
+
+		return Number(delay);
+	};
+
+	// Spread over enough keys that the sort below is not a coincidence.
+	const keys = Array.from({length: 40}, (_, index) => `dot-${index}`);
+
+	it('is stable for a given key, so a re-render never reshuffles', () => {
+		expect(dotAppearAnimation('abc')).toBe(dotAppearAnimation('abc'));
+		expect(dotExitAnimation('abc')).toBe(dotExitAnimation('abc'));
+	});
+
+	it('scatters the appear delays rather than firing them together', () => {
+		expect(
+			new Set(keys.map(key => delayOf(dotAppearAnimation(key)))).size,
+		).toBeGreaterThan(1);
+	});
+
+	// Each dot's two delays mirror each other about the scatter window, which is
+	// what makes the retraction the exact reverse of the appearance: the later a
+	// dot twinkled in, the sooner it starts leaving.
+	it('retracts in the exact reverse of the order it appeared', () => {
+		const scatterWindowMs = DOT_EXIT_TOTAL_MS - 260;
+
+		for (const key of keys) {
+			expect(
+				delayOf(dotAppearAnimation(key)) + delayOf(dotExitAnimation(key)),
+			).toBe(scatterWindowMs);
+		}
+	});
+
+	it('sends the last dot in out first', () => {
+		const byAppearance = [...keys].sort(
+			(a, b) => delayOf(dotAppearAnimation(a)) - delayOf(dotAppearAnimation(b)),
+		);
+		const first = byAppearance[0]!;
+		const last = byAppearance[byAppearance.length - 1]!;
+
+		expect(delayOf(dotExitAnimation(last))).toBeLessThan(
+			delayOf(dotExitAnimation(first)),
+		);
+	});
+
+	// `direction: reverse` on the twinkle would be the obvious way to write this,
+	// but Chrome fills the delay with the `from` frame under it, dropping every
+	// waiting dot to scale 0 so the series blinks out together.
+	it('retracts with its own forward keyframes, holding both ends', () => {
+		const exit = dotExitAnimation('abc');
+
+		expect(exit).toContain('epiqScrubberRetract');
+		expect(exit).not.toContain('reverse');
+		// Without `both` a dot pops back to full size before it unmounts.
+		expect(exit).toContain('both');
+	});
+
+	it('declares the keyframes it animates', () => {
+		expect(SCRUBBER_KEYFRAMES).toContain('@keyframes epiqScrubberRetract');
+		expect(SCRUBBER_KEYFRAMES).toContain('@keyframes epiqScrubberTwinkle');
+	});
+
+	it('finishes every dot within the advertised total', () => {
+		for (const key of keys) {
+			// The delay plus the 260ms the twinkle itself runs for.
+			expect(delayOf(dotExitAnimation(key)) + 260).toBeLessThanOrEqual(
+				DOT_EXIT_TOTAL_MS,
+			);
+		}
 	});
 });
 

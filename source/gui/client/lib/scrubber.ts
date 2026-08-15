@@ -1,7 +1,7 @@
 // Everything the time scrubber computes or remembers, with no JSX. The chart
 // parts and the component that arranges them draw against this.
 
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {
 	formatDateTime,
 	formatTimeOfDay,
@@ -343,10 +343,29 @@ const hashUnitInterval = (key: string): number => {
 const DOT_APPEAR_MS = 260;
 const DOT_APPEAR_SCATTER_MS = 620;
 
+const dotDelayMs = (key: string) =>
+	Math.round(hashUnitInterval(key) * DOT_APPEAR_SCATTER_MS);
+
 export const dotAppearAnimation = (key: string): string =>
-	`epiqScrubberTwinkle ${DOT_APPEAR_MS}ms ease-out ${Math.round(
-		hashUnitInterval(key) * DOT_APPEAR_SCATTER_MS,
+	`epiqScrubberTwinkle ${DOT_APPEAR_MS}ms ease-out ${dotDelayMs(
+		key,
 	)}ms backwards`;
+
+// The mirrored delay is what unwinds the scatter the way it was drawn: the dot
+// that twinkled in last is the first to retract.
+//
+// Its own keyframes rather than the twinkle with `direction: reverse` — under
+// `reverse` Chrome fills the delay with the `from` frame, so every dot sits at
+// scale 0 while it waits and the whole series blinks out at once. `both` on a
+// forward animation holds full scale through the wait and zero afterwards,
+// which also stops a dot popping back before it is unmounted.
+export const dotExitAnimation = (key: string): string =>
+	`epiqScrubberRetract ${DOT_APPEAR_MS}ms ease-in ${
+		DOT_APPEAR_SCATTER_MS - dotDelayMs(key)
+	}ms both`;
+
+// The last dot to leave finishes here, so nothing may unmount before it.
+export const DOT_EXIT_TOTAL_MS = DOT_APPEAR_SCATTER_MS + DOT_APPEAR_MS;
 
 // The sweep must stay well longer than one bar's growth, or the crest
 // dissolves into everything-at-once.
@@ -385,6 +404,12 @@ export const SCRUBBER_KEYFRAMES = `
 		to { scale: 1; }
 	}
 
+	/* Not the twinkle reversed — see dotExitAnimation for why. */
+	@keyframes epiqScrubberRetract {
+		from { scale: 1; }
+		to { scale: 0; }
+	}
+
 	@keyframes epiqScrubberGrow {
 		from { transform: scaleY(0); }
 		to { transform: scaleY(1); }
@@ -418,6 +443,56 @@ export const usePrefersReducedMotion = (): boolean => {
 	}, []);
 
 	return reduced;
+};
+
+export type SeriesPresence = {mounted: boolean; leaving: boolean};
+
+// Unticking a series has to outlive the render that hid it, or its dots vanish
+// instead of retracting. `durationMs` of 0 skips the wait entirely, which is
+// how reduced motion and the bar charts opt out.
+export const useExitTransition = (
+	visible: boolean,
+	durationMs: number,
+): SeriesPresence => {
+	const [mounted, setMounted] = useState(visible);
+	const [leaving, setLeaving] = useState(false);
+	// Compared against, rather than depended on: the effect must run only when
+	// the flag actually flips, so a series hidden on first paint never plays an
+	// exit it was never visible for.
+	const wasVisible = useRef(visible);
+	// Read through a ref so a duration change cannot re-run the effect. It
+	// would clear the running timeout, hit the guard above, and never reschedule
+	// — stranding the series mounted and invisible.
+	const duration = useRef(durationMs);
+	duration.current = durationMs;
+
+	useEffect(() => {
+		if (visible === wasVisible.current) return;
+		wasVisible.current = visible;
+
+		if (visible) {
+			setLeaving(false);
+			setMounted(true);
+			return;
+		}
+
+		if (duration.current === 0) {
+			setMounted(false);
+			return;
+		}
+
+		setLeaving(true);
+
+		const timeout = setTimeout(() => {
+			setLeaving(false);
+			setMounted(false);
+		}, duration.current);
+
+		// Re-ticking mid-exit cancels it, so the dots never finish leaving.
+		return () => clearTimeout(timeout);
+	}, [visible]);
+
+	return {mounted, leaving};
 };
 
 // Only an explicit stored value overrides the fallback, so a series that

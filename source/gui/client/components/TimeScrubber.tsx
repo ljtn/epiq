@@ -16,6 +16,7 @@ import {
 	buildAxis,
 	chooseSegmentUnit,
 	clamp,
+	DOT_EXIT_TOTAL_MS,
 	formatInterval,
 	getPeriodRange,
 	isScope,
@@ -23,6 +24,7 @@ import {
 	populatedRange,
 	Scope,
 	segmentAt,
+	useExitTransition,
 	usePersistedFlag,
 	usePrefersReducedMotion,
 } from '../lib/scrubber';
@@ -92,6 +94,13 @@ export const TimeScrubber = ({
 		ALL_BOARDS_STORAGE_KEY,
 		false,
 	);
+
+	// Only the scatter retracts on its way out. The bar charts have no per-bar
+	// exit to wait for, so outside "Events" the duration is zero and unticking
+	// stays immediate.
+	const exitMs = layoutMode === 'real' && animate ? DOT_EXIT_TOTAL_MS : 0;
+	const issueScatter = useExitTransition(showIssues, exitMs);
+	const commitScatter = useExitTransition(showCommits, exitMs);
 
 	// The moment a hovered scatter point stands for, kept apart from the bucket
 	// hover because "Events" mode plots the server's own sparse buckets.
@@ -338,6 +347,8 @@ export const TimeScrubber = ({
 				windowKey: `${layoutMode}-${animationGeneration}`,
 				showIssues,
 				showCommits,
+				issueScatter,
+				commitScatter,
 				issueBars,
 				issueBarRange: populatedRange(issueBars),
 				commitBars,
