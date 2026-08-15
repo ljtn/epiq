@@ -5,7 +5,10 @@ vi.mock('../lib/state/state.js', () => ({
 }));
 
 import {getState} from '../lib/state/state.js';
-import {getContributorDisplayName} from '../lib/utils/contributor.utils.js';
+import {
+	getContributorDisplayName,
+	hasAuthoredEvents,
+} from '../lib/utils/contributor.utils.js';
 
 const mockState = (state: {
 	eventLog?: unknown[];
@@ -89,5 +92,74 @@ describe('getContributorDisplayName', () => {
 		mockState({});
 
 		expect(getContributorDisplayName('user-1', 'Alice')).toBe('Alice');
+	});
+
+	// The log index is memoised on the event log's array identity, so the risk
+	// this trades for the speed is a stale answer. Materializing replaces the
+	// array (`eventLog: [...s.eventLog, event]`) rather than pushing into it,
+	// which is what makes identity a safe key.
+	it('picks up a rename once the log has been replaced', () => {
+		mockState({
+			eventLog: [authoredAs('user-1', 'Alice')],
+			contributors: {},
+		});
+		expect(getContributorDisplayName('user-1', 'fallback')).toBe('Alice');
+
+		mockState({
+			eventLog: [authoredAs('user-1', 'Alice'), authoredAs('user-1', 'Alicia')],
+			contributors: {},
+		});
+		expect(getContributorDisplayName('user-1', 'fallback')).toBe('Alicia');
+	});
+
+	it('answers consistently when the same log is read repeatedly', () => {
+		const eventLog = [authoredAs('user-1', 'Alice')];
+		mockState({eventLog, contributors: {}});
+
+		expect(getContributorDisplayName('user-1', 'fallback')).toBe('Alice');
+		expect(getContributorDisplayName('user-1', 'fallback')).toBe('Alice');
+		expect(hasAuthoredEvents('user-1')).toBe(true);
+	});
+});
+
+describe('hasAuthoredEvents', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('is true for anyone who appears as an author', () => {
+		mockState({eventLog: [authoredAs('user-1', 'Alice')], contributors: {}});
+
+		expect(hasAuthoredEvents('user-1')).toBe(true);
+	});
+
+	// The case the marker exists for, and the one that used to scan the whole
+	// log with no early exit.
+	it('is false for an assignee who has never authored anything', () => {
+		mockState({
+			eventLog: [authoredAs('user-1', 'Alice')],
+			contributors: {'user-2': {id: 'user-2', name: 'Outsider'}},
+		});
+
+		expect(hasAuthoredEvents('user-2')).toBe(false);
+	});
+
+	it('counts an author who never carried a name', () => {
+		mockState({
+			eventLog: [
+				{id: 'e', userId: 'user-3', action: 'edit.title', payload: {}},
+			],
+			contributors: {},
+		});
+
+		// No userName to index, but they still authored — so not an outsider.
+		expect(hasAuthoredEvents('user-3')).toBe(true);
+		expect(getContributorDisplayName('user-3', 'Recorded')).toBe('Recorded');
+	});
+
+	it('tolerates state read before boot has populated it', () => {
+		mockState({});
+
+		expect(hasAuthoredEvents('user-1')).toBe(false);
 	});
 });
