@@ -5,7 +5,7 @@ import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
 import {getStringColor} from '../utils/color.js';
 import {LogEvolutionForEvent} from '../virtual-nodes/virtual-nodes.js';
-import {timeAgo} from './date-utils.js';
+import {timeAgo} from '../utils/date.utils.js';
 import {AppEvent, EventAction} from './event.model.js';
 
 const padVisibleEnd = (value: string, width: number): string =>

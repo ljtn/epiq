@@ -8,38 +8,21 @@ import {
 import {GUI_THEME} from '../lib/gui-theme';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
-import {IconClock} from './IconClock';
 import {Checkbox} from './Checkbox';
 import {Panel} from './Panel';
 import {maxOf, minOf} from '../../../lib/utils/minmax.js';
-
-// Duplicated rather than imported from the shared date utils: that module
-// transitively reaches Node-only TUI code, which breaks the browser client's
-// type program.
-const formatDateTime = (date: Date): string => {
-	const pad = (n: number) => String(n).padStart(2, '0');
-
-	return (
-		`${date.getFullYear()}-` +
-		`${pad(date.getMonth() + 1)}-` +
-		`${pad(date.getDate())} ` +
-		`${pad(date.getHours())}:` +
-		`${pad(date.getMinutes())}`
-	);
-};
+import {
+	formatDateTime,
+	formatTimeOfDay,
+	isSameDay,
+} from '../../../lib/utils/date.utils.js';
 
 const formatInterval = (start: number, end: number): string => {
 	const startDate = new Date(start);
 	const endDate = new Date(end);
-	const pad = (n: number) => String(n).padStart(2, '0');
 
-	const sameDay =
-		startDate.getFullYear() === endDate.getFullYear() &&
-		startDate.getMonth() === endDate.getMonth() &&
-		startDate.getDate() === endDate.getDate();
-
-	const endLabel = sameDay
-		? `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`
+	const endLabel = isSameDay(startDate, endDate)
+		? formatTimeOfDay(endDate)
 		: formatDateTime(endDate);
 
 	return `${formatDateTime(startDate)} – ${endLabel}`;

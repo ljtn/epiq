@@ -1,5 +1,6 @@
 import {Box, Text} from 'ink';
-import {formatDateTime, safeDateFromUlid} from '../event/date-utils.js';
+import {safeDateFromUlid} from '../event/date-utils.js';
+import {formatDateTime} from '../utils/date.utils.js';
 import {isSuccess} from '../model/result-types.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';

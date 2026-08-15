@@ -1,6 +1,6 @@
 import {Box, Text} from 'ink';
 import React from 'react';
-import {formatDateTime} from '../event/date-utils.js';
+import {formatDateTime} from '../utils/date.utils.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 

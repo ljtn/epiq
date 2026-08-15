@@ -2,7 +2,7 @@ import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useRef} from 'react';
 import {decodeTime} from 'ulid';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
-import {timeAgo} from '../event/date-utils.js';
+import {timeAgo} from '../utils/date.utils.js';
 import {isFieldNode, Ticket} from '../model/context.model.js';
 import {AttachmentState} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
