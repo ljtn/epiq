@@ -25,19 +25,12 @@ export type BreadCrumb =
 export type ViewMode = 'wide' | 'dense';
 
 export type Tag = {id: string; name: string};
-// Shown in place of a redacted contributor's name. A placeholder rather than
-// an empty string so the row still reads as a person — the assignment is real,
-// it's the name that's gone.
+// A placeholder, not an empty name, so a redacted assignee still reads as one.
 export const REDACTED_CONTRIBUTOR_NAME = 'removed';
 
-// `redacted` marks a contributor whose display name has been cleared. It is
-// carried as a flag rather than inferred from `name` so redaction beats the
-// event-log name override by construction: the log always holds the name the
-// person authored under, and comparing against the placeholder string would
-// both miss nothing and catch anyone genuinely called "removed".
-//
-// Materialized from the `redact.contributor` event on every boot, so there is
-// no stored flag to migrate or keep in sync.
+// `redacted` is a flag rather than a comparison against the placeholder name,
+// so that read paths can let redaction beat the event-log name override without
+// catching anyone genuinely called "removed".
 export type Contributor = {
 	id: string;
 	name: string;

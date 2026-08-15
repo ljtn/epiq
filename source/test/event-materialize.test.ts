@@ -364,9 +364,8 @@ describe('issue attachments', () => {
 	});
 });
 
-// Redaction and its inverse are ordinary forward events, so the only thing
-// that makes them trustworthy is that replaying the log reproduces the same
-// answer on every machine. These drive the sequence the way a boot does.
+// Redaction is a forward event, so what makes it trustworthy is that replay
+// reproduces it identically everywhere.
 describe('contributor redaction round-trip', () => {
 	const CONTRIBUTOR = '01H00000000000000000000100';
 
@@ -392,13 +391,11 @@ describe('contributor redaction round-trip', () => {
 
 		const restored = nodeRepo.getContributor(CONTRIBUTOR);
 		expect(restored?.name).toBe('Temp Tester');
-		// Cleared, not just falsy-by-absence — the flag is what every read path
-		// checks before letting a log name through.
+		// Cleared, not merely absent: read paths check the flag.
 		expect(restored?.redacted).toBe(false);
 	});
 
-	// The id is the whole point of redacting rather than deleting: assignments
-	// keep resolving through it.
+	// The id is why this is redaction and not deletion.
 	it('keeps the id stable across the whole sequence', () => {
 		setupWorkspace();
 

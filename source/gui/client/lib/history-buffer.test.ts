@@ -43,9 +43,6 @@ describe('createHistoryBuffer', () => {
 		expect(published).toHaveLength(1);
 	});
 
-	// The interleaving from the report, which is easy to hit by clicking
-	// through the scope buttons: a reply from the abandoned request A must not
-	// be paired with one from the current request B.
 	it('never pairs halves from different requests', () => {
 		const {buffer, published} = setup();
 
@@ -56,8 +53,6 @@ describe('createHistoryBuffer', () => {
 		buffer.accept(a, {commits: commits('A')});
 		buffer.accept(b, {timeline: timeline('B')});
 
-		// Under the old "both slots filled" rule this published B's timeline
-		// against A's commits.
 		expect(published).toEqual([]);
 
 		buffer.accept(b, {commits: commits('B')});

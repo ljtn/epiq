@@ -10,11 +10,9 @@ type Props = {
 	onClose: () => void;
 };
 
-// Lives in its own modal rather than inline in an issue's assignee picker.
-// Clearing a name is workspace-wide and permanent, and a control sitting
-// among per-issue chips reads as if it were scoped to that issue — the
-// opposite of what it does. A separate view makes the reach obvious before
-// anything is clicked.
+// Its own modal, not inline in the assignee picker: clearing a name is
+// workspace-wide and permanent, and a control among per-issue chips reads as
+// issue-scoped.
 export const RedactContributorsModal = ({
 	contributors,
 	onRedact,
@@ -23,9 +21,8 @@ export const RedactContributorsModal = ({
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const [confirming, setConfirming] = useState(false);
 
-	// Everyone is listed, including those who can't be redacted: seeing that
-	// a teammate is present but unavailable explains the rule better than
-	// silently omitting them, which would just look like a missing name.
+	// Everyone is listed, including those who can't be redacted: omitting them
+	// would just look like a missing name.
 	const sorted = [...contributors].sort((a, b) => a.name.localeCompare(b.name));
 
 	const toggle = (id: string) =>
@@ -76,12 +73,9 @@ export const RedactContributorsModal = ({
 					Manage contributors
 				</div>
 
-				{/* Not "everywhere, for everyone, full stop": `redact.contributor` is
-				    an ordinary forward event, and a client too old to know the action
-				    skips it (see decodeReconstructedEvents) and keeps replaying the
-				    original `create.contributor` name. The reach is real, but only
-				    once a teammate is on a build that understands the event — and
-				    nothing here can make them upgrade. */}
+				{/* The copy hedges because `redact.contributor` is an ordinary forward
+				    event: a client too old to know the action skips it and keeps
+				    replaying the original name. */}
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
 					Clears the selected names on every board and for everyone. Teammates
 					on an older epiq keep seeing the old name until they upgrade. The
@@ -99,14 +93,9 @@ export const RedactContributorsModal = ({
 					}}
 				>
 					{sorted.map(contributor => {
-						// The server refuses anyone who has authored events: their name
-						// is written into every event they wrote, so clearing the
-						// registry copy alone would remove nothing.
-						//
-						// Keyed on `hasAuthoredAnywhere`, not `isExternal`: the latter
-						// is board-scoped, so a teammate who contributed on another
-						// board looked clearable here and was then refused by the
-						// server.
+						// Keyed on `hasAuthoredAnywhere`, not `isExternal`: the latter is
+						// board-scoped, so someone who authored on another board would
+						// look clearable here and then be refused by the server.
 						const blockedReason = contributor.isRedacted
 							? 'already cleared'
 							: contributor.hasAuthoredAnywhere
@@ -162,8 +151,6 @@ export const RedactContributorsModal = ({
 						cancel
 					</Button>
 
-					{/* Two steps, and the second one names who is affected — the whole
-					    point of this view is that you can't do it without noticing. */}
 					{confirming ? (
 						<Button
 							onClick={() => {

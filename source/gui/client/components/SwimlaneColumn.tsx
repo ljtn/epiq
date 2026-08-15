@@ -6,19 +6,13 @@ import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
 import {Button} from './Button';
 
-// The column's own horizontal padding, and half of it — the amount the
-// scrolling list is pulled out by so its scrollbar ends up centered in that
-// padding rather than flush against the cards. Kept as constants so the two
-// stay in step: changing the padding without changing the inset would put the
-// scrollbar off-centre again.
-// Deliberately not GUI_THEME.accent, which the glow used to borrow: at
-// rgb(118, 212, 255) its green channel is high enough that a large soft wash
-// of it reads cyan-green rather than blue. Pulling green down and red up
-// desaturates it toward the blue-grey the rest of the panel chrome sits in,
-// while staying bright enough to register as a glow against the dark column.
+// Not GUI_THEME.accent: at that hue a large soft wash reads cyan-green rather
+// than blue, so this is desaturated toward the panel chrome's blue-grey.
 const COLUMN_GLOW_COLOR = 'rgb(140, 176, 232)';
 
 const COLUMN_PADDING = 14;
+// Half the padding, so the scrollbar sits centred in the gutter. The two have
+// to move together.
 const SCROLLBAR_GUTTER_INSET = COLUMN_PADDING / 2;
 
 export const SwimlaneColumn = ({
@@ -59,14 +53,9 @@ export const SwimlaneColumn = ({
 			as="section"
 			active={dragOver}
 			borderColor={selected || dragOver ? GUI_THEME.accent : GUI_THEME.line}
-			// Accent-coloured and well up from the old 0.15, which was so faint
-			// the effect was easy to miss entirely — then eased back down from a
-			// first pass at 0.6, which overshot into distracting. The wide radius
-			// keeps it a soft wash along the border rather than a hotspot
-			// tracking the cursor. The reach lets a column light
-			// up as the pointer approaches from outside it, rather than only once
-			// it's inside — which is when the cue is actually useful, since it
-			// tells you which column you're heading for while dragging a ticket.
+			// Tuned by eye: 0.15 was imperceptible, 0.6 distracting. The wide radius
+			// keeps it a soft wash rather than a hotspot tracking the cursor, and the
+			// reach lights a column up as a dragged ticket approaches from outside.
 			glowColor={COLUMN_GLOW_COLOR}
 			glowOpacity={0.41}
 			glowRadius={370}
@@ -75,16 +64,10 @@ export const SwimlaneColumn = ({
 				zIndex: 0,
 				width: 360,
 				minWidth: 360,
-				// Fills whatever height the board row has, rather than deriving it
-				// from the viewport. The old `calc(100vh - 160px)` hardcoded a
-				// guess at the chrome above — header, scrubber, board picker — and
-				// the scrubber alone changes height when collapsed or switched
-				// between modes, so the guess was routinely wrong and the columns
-				// overflowed the page, adding a second scrollbar beside their own.
+				// Fills the board row rather than guessing at the chrome above with a
+				// viewport calc; the scrubber's height changes as it is used.
 				height: '100%',
-				// Panel draws a 1px border, which content-box sizing would add on
-				// top of the 100% — leaving the column 2px taller than the row and
-				// overflowing it by exactly that.
+				// Panel's 1px border would otherwise add to the 100% and overflow the row.
 				boxSizing: 'border-box',
 				background: dragOver ? '#14202a' : GUI_THEME.bg,
 				padding: `0 ${COLUMN_PADDING}px`,
@@ -164,13 +147,9 @@ export const SwimlaneColumn = ({
 				</div>
 			</header>
 
-			{/* The scrollbar sits at this box's right padding edge, so the space
-			    on either side of it comes from two different places: to its left,
-			    this element's own paddingRight; to its right, whatever of the
-			    Panel's 14px padding it hasn't been pulled into. Left flush against
-			    the cards otherwise — it rendered hard up against them with the
-			    full 14px stranded on the far side. Pulling out by half the panel
-			    padding and giving back the same amount centers it in that gutter. */}
+			{/* Pulling out by half the panel padding and giving the same back centres
+			    the scrollbar in the gutter instead of leaving it flush against the
+			    cards. */}
 			<div
 				style={{
 					overflow: 'auto',

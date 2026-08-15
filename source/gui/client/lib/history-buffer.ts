@@ -11,19 +11,10 @@ export type HistoryHalf = {
 };
 
 /**
- * Collects the two halves of one history window — the event timeline and the
- * commit log — and publishes them together.
- *
- * They are requested as a pair and rendered as a pair: the scrubber derives its
- * whole coordinate system (earliest, latest, span, bucket count, per-series
- * normalisation) from both at once, so applying one without the other shows a
- * chart drawn against a range it doesn't belong to.
- *
- * Pairing is by request id, not by "both slots are full". Clicking through the
- * scope buttons abandons requests whose replies are still in flight, and a
- * reply from an abandoned request would otherwise be filed next to a half of
- * the current one — rendering one window's events against another's commits,
- * and stranding the reply that was displaced.
+ * Publishes the event timeline and commit log of one history window together,
+ * since the scrubber derives its coordinate system from both at once. Pairing
+ * is by request id, not by "both slots are full", or a reply from an abandoned
+ * request gets filed against the current window's other half.
  */
 export const createHistoryBuffer = (
 	publish: (window: HistoryWindow) => void,
@@ -41,9 +32,7 @@ export const createHistoryBuffer = (
 
 		/** Files one half, ignoring replies to any request but the open one. */
 		accept(requestId: number | undefined, half: HistoryHalf): void {
-			// An id-less reply is never accepted: it cannot be attributed to a
-			// request, and matching it against a closed buffer's `undefined`
-			// would let it through.
+			// An id-less reply would otherwise match a closed buffer's `undefined`.
 			if (requestId === undefined) return;
 			if (requestId !== pending.requestId) return;
 
@@ -52,8 +41,7 @@ export const createHistoryBuffer = (
 			const {timeline, commits} = pending;
 			if (!timeline || !commits) return;
 
-			// Dropping the id closes the buffer, so a duplicate or late reply
-			// can't re-open a window that has already been published.
+			// Dropping the id closes the buffer against duplicate and late replies.
 			pending = {};
 			publish({timeline, commits});
 		},

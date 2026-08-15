@@ -6,20 +6,12 @@ import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {fileManager} from '../storage/file-manager.js';
 
-// An editor command split into the binary and its arguments, ready to hand
-// to spawn without a shell. Everything here exists to keep file paths in
-// `args`, where they are opaque data, instead of inside a command string a
-// shell would parse.
+// Editors are spawned by argv with no shell, so file paths stay opaque data.
 export type EditorInvocation = {command: string; args: string[]};
 
-// Splits an editor command the way a shell would for the cases that actually
-// occur — "code", "code --wait", "/Applications/My Editor/bin/code" — honouring
-// quotes so a path with spaces survives as one token.
-//
-// Deliberately not a shell: no variable expansion, no command substitution, no
-// operators, no globbing. That is the point. It handles the whitespace-and-
-// quotes part of what `shell: true` used to do for us and nothing else, so
-// there is no evaluation step left for a file name to reach.
+// Splits on whitespace, honouring quotes so a path with spaces stays one token.
+// This is not a shell and must not become one: no expansion, substitution,
+// operators or globbing, so a file name has nothing left to be evaluated by.
 export function tokenizeEditorCommand(editor: string): string[] {
 	const tokens: string[] = [];
 	let current = '';
@@ -55,14 +47,9 @@ export function tokenizeEditorCommand(editor: string): string[] {
 	return tokens;
 }
 
-// Resolves the `$EDITOR` / `$VISUAL` placeholders that the settings allow-list
-// accepts (see editor-config.ts). The shell used to expand these as a side
-// effect of `shell: true`; spawning by argv means nothing expands them for us
-// any more, so it happens here explicitly.
-//
-// Only ever applied to the configured setting, never to a value already read
-// out of the environment — an EDITOR that literally contains "$EDITOR" would
-// otherwise resolve against itself forever.
+// Spawning by argv means nothing expands these placeholders for us. Apply only
+// to the configured setting: an env var containing "$EDITOR" would otherwise
+// resolve against itself forever.
 function resolveEditorPlaceholder(editor: string): string | undefined {
 	const trimmed = editor.trim();
 	if (trimmed === '$EDITOR') return process.env['EDITOR'];
@@ -82,15 +69,13 @@ export function getEditorCandidates(): string[] {
 	return [...new Set(candidates)];
 }
 
-// Matches on the binary alone, so an editor carrying flags ("code --wait") or
-// given as a full path ("/usr/local/bin/code") still reads as VS Code.
+// Matches the binary alone, so flags or a full path still read as VS Code.
 export function isVSCodeEditor(editor: string): boolean {
 	const [binary = ''] = tokenizeEditorCommand(editor);
 	return /(^|\/)code(-insiders)?$/.test(binary);
 }
 
-// Builds `[binary, ...editorFlags, ...args]`. Any flags baked into the editor
-// string keep their position ahead of the ones we add, which is where an
+// Flags baked into the editor string stay ahead of the ones we add, where an
 // editor expects its own options.
 function buildInvocation(editor: string, args: string[]): EditorInvocation {
 	const [command = '', ...editorArgs] = tokenizeEditorCommand(editor);
@@ -107,17 +92,9 @@ export function buildEditorCommand(
 	);
 }
 
-// VS Code's native two-pane diff view — unlike a plain .diff/.patch file
-// (generic "diff" language mode, no per-language syntax highlighting), each
-// side here is opened as its own real file, so VS Code applies the actual
-// TSX/whatever grammar to it. No --wait: we just want the tab to open, not
-// to block on the user closing it.
-//
-// `windowMode` controls which VS Code window the diff lands in: 'new' forces
-// a fresh window (so inspecting a commit doesn't dump tabs into whatever the
-// user already has open), 'reuse' forces it into the already-open window —
-// used for every file after the first in a multi-file commit, so they all
-// land together in that one new window instead of each spawning its own.
+// VS Code's two-pane diff view. No --wait: we want the tab open, not to block
+// on the user closing it. Callers pass 'reuse' for every file after the first
+// so a multi-file diff lands in one window rather than spawning several.
 export function buildEditorDiffCommand(
 	editor: string,
 	beforePath: string,
@@ -157,12 +134,8 @@ export function openEditorOnText(initial: string): Result<string> {
 	return failed('Unable to open editor');
 }
 
-// Editors that only work inside a real terminal (no GUI window of their
-// own). The GUI server launches editors detached with stdio:'ignore' — there
-// is no terminal for one of these to attach to, so spawning them "succeeds"
-// (or just sits there) while the user sees nothing happen at all. Checked
-// against just the binary name so a full path (e.g. "/usr/bin/vim") or
-// trailing flags in `preferredEditor` still match.
+// The GUI server spawns detached with stdio:'ignore', so these have no terminal
+// to attach to and appear to succeed while the user sees nothing happen.
 const TERMINAL_ONLY_EDITOR_BINARIES = new Set([
 	'vim',
 	'vi',
@@ -178,12 +151,9 @@ function isTerminalOnlyEditor(editor: string): boolean {
 	return TERMINAL_ONLY_EDITOR_BINARIES.has(name);
 }
 
-// How long to watch a spawned editor command before assuming it launched
-// successfully. A missing binary now surfaces as a spawn 'error' (ENOENT)
-// rather than a shell exiting 127, but an editor that starts and then rejects
-// its arguments still only shows up as a quick non-zero exit. Watching for that
-// window is what turns those into real, reported failures instead of a false
-// "success" the user has no way to notice.
+// Long enough to catch an editor that starts and then rejects its arguments,
+// which surfaces only as a quick non-zero exit, short enough not to stall the
+// caller waiting on a session that will outlive it.
 const EDITOR_LAUNCH_GRACE_MS = 600;
 
 function trySpawnCommand(
@@ -196,9 +166,8 @@ function trySpawnCommand(
 			return;
 		}
 
-		// No `shell: true`: the paths travel as argv entries, so a file named
-		// with shell syntax (`$(...)`, backticks, `;`) is passed through as the
-		// literal name it is instead of being evaluated. See board: RKAZMMX.
+		// Never `shell: true`: paths travel as argv, so a file name containing
+		// shell syntax stays literal instead of being evaluated.
 		const child = spawn(command, args, {stdio: 'ignore', detached: true});
 		let settled = false;
 
@@ -220,9 +189,8 @@ function trySpawnCommand(
 		});
 
 		const graceTimer = setTimeout(() => {
-			// Still running past the grace window — a real, longer-lived
-			// editor session rather than a broken command. `unref()` either
-			// way so it can't keep the server process alive.
+			// Still running, so treat it as a real session. `unref()` so it can't
+			// keep the server process alive.
 			child.unref();
 			settle(succeeded('Opened editor', true));
 		}, EDITOR_LAUNCH_GRACE_MS);
@@ -244,9 +212,7 @@ function trySpawnEditor(
 	return trySpawnCommand(buildEditorCommand(editor, filePath), editor);
 }
 
-// Opens VS Code's native two-pane diff view for a single before/after file
-// pair. Only meaningful for VS Code (isVSCodeEditor) — callers are
-// responsible for that check, since `--diff` isn't a general editor flag.
+// `--diff` is not a general editor flag: callers must check isVSCodeEditor.
 export function openEditorDiffNonBlocking(
 	editor: string,
 	beforePath: string,
@@ -259,13 +225,8 @@ export function openEditorDiffNonBlocking(
 	);
 }
 
-// Fire-and-forget variant for the GUI server: the server is one process
-// serving every connected client, so blocking on `spawnSync`/stdio:'inherit'
-// (as openEditorOnText does) would freeze every other client's browser
-// session for as long as the user's editor stayed open. This awaits only a
-// short, bounded window per candidate (see EDITOR_LAUNCH_GRACE_MS) — the
-// server's event loop, and every other client's request, stays free the
-// whole time; nothing here blocks the way a synchronous spawn would.
+// For the GUI server, where one process serves every client: a synchronous
+// spawn would freeze all of them for as long as the editor stayed open.
 export async function openEditorOnFileNonBlocking(
 	filePath: string,
 ): Promise<Result<true>> {

@@ -1,10 +1,8 @@
 import {describe, expect, it} from 'vitest';
 import {maxOf, minOf} from '../lib/utils/minmax.js';
 
-// Above the measured spread limit on Node 24 (~125k arguments). Not a
-// hypothetical size for the arrays these guard: one entry per commit in the
-// repository, or per event in the whole log, whenever the scrubber is in "All
-// time" scope.
+// Above the engine's argument cap. Realistic: one entry per commit, or per
+// event in the whole log.
 const OVER_SPREAD_LIMIT = 200_000;
 
 describe('minOf / maxOf', () => {
@@ -28,9 +26,7 @@ describe('minOf / maxOf', () => {
 		expect(maxOf([-5, -5, -9], -Infinity)).toBe(-5);
 	});
 
-	// The regression. `Math.min(...values)` does not get slower as the array
-	// grows past the engine's argument cap, it throws — so the scrubber would
-	// fail outright on a large repository rather than degrade.
+	// Spreading past the cap throws rather than degrading.
 	it('handles an array larger than the engine can spread', () => {
 		const values = Array.from({length: OVER_SPREAD_LIMIT}, (_, i) => i);
 

@@ -50,16 +50,10 @@ const sendReadOnlyWhileTimeTravelingError = (res: http.ServerResponse) =>
 	});
 
 /**
- * Runs a mutating route inside the same lock `checkoutStateAt`/`returnToLive`
- * take, with the live check *inside* the critical section.
- *
- * Checking synchronously and then awaiting is check-then-act: the mutation's
- * own awaits leave a window for a scrub to land, after which the write
- * materializes and persists against historical state.
- *
- * Request bodies are read *before* calling this on purpose. An upload is
- * client-paced, and holding a server-wide lock for its duration would stall
- * scrubbing for every connected client.
+ * The live check must stay *inside* the lock; checking then awaiting is
+ * check-then-act. `runExclusive` is not re-entrant, so `mutate` must not take
+ * it again. Read request bodies *before* calling this, or a client-paced
+ * upload holds a server-wide lock and stalls scrubbing for everyone.
  */
 const runMutation = <T>(res: http.ServerResponse, mutate: () => Promise<T>) =>
 	runExclusive(async () => {
@@ -101,10 +95,7 @@ const readJsonBody = async <T>(
 		req.on('error', reject);
 	});
 
-/**
- * Base64 inflates the 500 KB blob cap by ~4/3; leave headroom on top for
- * the JSON envelope.
- */
+/** Base64 inflates the 500 KB blob cap by ~4/3, plus headroom for the envelope. */
 const ATTACHMENT_BODY_MAX_BYTES = 2 * 1024 * 1024;
 
 const MEDIA_CONTENT_TYPES: Record<string, string> = {

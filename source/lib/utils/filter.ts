@@ -25,8 +25,6 @@ const getTagNames = (ticket: NavNode<'TICKET'>): string[] => {
 const getAssigneeNames = (ticket: NavNode<'TICKET'>): string[] => {
 	const {contributors} = getState();
 
-	// Matched against the displayed name, not the stored one — filtering by a
-	// name you can no longer see anywhere would just look broken.
 	return (ticket.props.assignees ?? [])
 		.map(assignee => {
 			const contributor = contributors[assignee];

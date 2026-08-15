@@ -2,18 +2,15 @@ export type GuiTag = {id: string; name: string; color: string};
 export type GuiUser = {id: string; name: string; color: string};
 
 // Who can be assigned, as opposed to GuiState.contributors, which is only the
-// registry. Derived server-side (see getBoardContributors) so every surface
-// agrees on who "me" is and who has actually worked on the board.
+// registry.
 export type GuiContributor = GuiUser & {
 	isSelf: boolean;
-	// Board-scoped: they have not worked on the board being viewed. Drives the
-	// "external" marker in the assignee picker.
+	// Board-scoped: they have not worked on the board being viewed.
 	isExternal: boolean;
 	// Their name has already been cleared, so there is nothing left to redact.
 	isRedacted: boolean;
-	// Workspace-wide: their name appears in the event log somewhere, which is
-	// what makes a name un-clearable. Distinct from `isExternal` — someone can
-	// be external to this board and still be an author on another.
+	// Workspace-wide: their name is somewhere in the event log, which is what
+	// makes it un-clearable. Someone can be external here and an author elsewhere.
 	hasAuthoredAnywhere: boolean;
 };
 

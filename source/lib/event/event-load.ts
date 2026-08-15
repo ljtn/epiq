@@ -22,14 +22,10 @@ type PersistedPayloadMap = {
 	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
 };
 
-// Log file names lowercase both parts (see sanitizeFilePart) to survive
-// case-insensitive filesystems. Undone here so the file name — a storage-safe
-// encoding — isn't mistaken for the authoritative actor id: events would load
-// with a lowercased userId while contributor records kept their uppercase
-// `ulid()` id, and the same person appeared twice.
-//
-// Lossless because ULIDs are Crockford base32 and canonically uppercase.
-// Anything not ULID-shaped is left alone rather than guessed at.
+// File names are lowercased on the way to disk, but contributor records keep
+// the uppercase `ulid()` id, so a lowercased userId splits one person in two.
+// Restoring the canonical casing is lossless for ULIDs; anything else is left
+// alone rather than guessed at.
 const ULID_SHAPE = /^[0-9a-hjkmnp-tv-z]{26}$/i;
 
 const canonicalUserId = (userId: string): string =>
@@ -40,35 +36,20 @@ const parseEventFileActor = (
 ): Result<{userId: string; userName: string}> => {
 	const baseName = path.basename(filePath, '.jsonl');
 
-	// Split on the FIRST '.' only, never on every one.
-	//
-	// '.' is inside the allowed set of `sanitizeFilePart`, so it survives into
-	// the file name: "J. Lampa" is written as `<id>.j.-lampa.jsonl`. Splitting
-	// on every '.' truncated the name at the first one, so that file loaded
-	// back as `j` — and "J. Smith" did too, collapsing two people onto one
-	// name now that the parsed name is the preferred display name and what
-	// name-based assignee matching compares against.
-	//
-	// The first '.' is always the real boundary because the id segment is a
-	// ULID (or a legacy non-ULID id) and never contains a '.', while the name
-	// segment may contain any number of them.
-	//
-	// Fixed on the decode side deliberately: log files written by every past
-	// version are already on disk and synced between users, so changing what
-	// the encoder emits would help none of them and would risk splitting one
-	// actor across two file names. This rule reads every file ever written.
+	// Split on the FIRST '.' only. '.' survives sanitizing, so a user name may
+	// contain any number of them ("J. Lampa" -> `<id>.j.-lampa`), while the id
+	// segment never can.
 	const separatorIndex = baseName.indexOf('.');
 	const userId =
 		separatorIndex === -1 ? baseName : baseName.slice(0, separatorIndex);
-	// Left undefined — not '' — when there is no separator at all, so the
-	// schema's 'unknown' default applies instead of tripping its min(1).
+	// Undefined, not '', so the schema's 'unknown' default applies rather than
+	// tripping its min(1).
 	const userName =
 		separatorIndex === -1 ? undefined : baseName.slice(separatorIndex + 1);
 
 	const result = EventFileNameSchema.safeParse({
-		// Canonical casing is an id concern only: the name segment is a lossy
-		// encoding compared against a re-encoded (lowercased) registry name, so
-		// touching its case would break that match.
+		// Id only: the name segment is compared against a re-encoded (lowercased)
+		// registry name, so changing its case would break that match.
 		userId: canonicalUserId(userId),
 		userName,
 	});

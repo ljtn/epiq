@@ -27,8 +27,7 @@ import {
 	openEditorOnFileNonBlocking,
 } from '../lib/editor/editor.js';
 
-// Fake enough of a ChildProcess for trySpawnEditor's purposes: it only ever
-// touches `.on('error'|'exit', ...)` and `.unref()`.
+// Only `.on('error'|'exit')` and `.unref()` are ever touched.
 class FakeChild extends EventEmitter {
 	unref = vi.fn();
 }
@@ -38,10 +37,7 @@ describe('openEditorOnFileNonBlocking', () => {
 		vi.clearAllMocks();
 		vi.useRealTimers();
 
-		// `logger` is an ambient global (source/logger.ts assigns it onto
-		// globalThis as an import side effect in the real app) rather than a
-		// module this file can vi.mock — stub it directly so trySpawnEditor's
-		// failure-path logging doesn't throw ReferenceError in isolation.
+		// An ambient global in the real app, so it cannot be vi.mock'd.
 		(globalThis as {logger?: unknown}).logger = {
 			info: vi.fn(),
 			debug: vi.fn(),
@@ -83,10 +79,7 @@ describe('openEditorOnFileNonBlocking', () => {
 	});
 
 	it('reports a failure (instead of a false success) when the command exits non-zero', async () => {
-		// Reproduces the reported bug: a `preferredEditor` that resolves to a
-		// broken shell command (e.g. a literal "$EDITOR" placeholder with no
-		// env var set) used to be reported as success just because the shell
-		// itself spawned fine — the user saw nothing happen with no error.
+		// A broken command must not report success just because a spawn worked.
 		process.env['EDITOR'] = '$EDITOR';
 		const child = new FakeChild();
 		vi.mocked(spawn).mockReturnValue(child as never);
@@ -130,11 +123,8 @@ describe('openEditorOnFileNonBlocking', () => {
 	it.each(['vim', 'vi', 'nvim', 'nano', '/usr/bin/vim'])(
 		'fails fast, without spawning, for the terminal editor %s',
 		async editor => {
-			// Reproduces the reported "still nothing happens" follow-up: the
-			// server-side fixes made a broken command fail loudly, but a
-			// *working* terminal editor (vim, vi, ...) spawned detached with
-			// stdio:'ignore' has no terminal to attach to — it either errors
-			// invisibly or just sits there, so the user still sees nothing.
+			// A terminal editor spawned detached has no terminal to attach to,
+			// so it hangs invisibly rather than failing.
 			process.env['EDITOR'] = editor;
 
 			const result = await openEditorOnFileNonBlocking('/tmp/x.diff');
@@ -267,10 +257,8 @@ describe('shell metacharacters in paths (RKAZMMX)', () => {
 		};
 	});
 
-	// A repo is free to contain a file called `a$(id -u).ts`, and the diff
-	// viewer writes that name into a temp path it then opens. While the command
-	// was assembled as a string and run with `shell: true`, opening that commit
-	// ran whatever the substitution contained.
+	// Repo filenames reach the editor command, so a name like `a$(id -u).ts`
+	// must never be evaluated.
 	it.each([
 		'/tmp/epiq/before/a$(id -u).ts',
 		'/tmp/epiq/before/a`id`.ts',
@@ -293,8 +281,7 @@ describe('shell metacharacters in paths (RKAZMMX)', () => {
 
 		expect(command).toBe('code');
 		expect(args).toContain(hostilePath);
-		// The decisive part: no shell is involved, so there is nothing to
-		// evaluate the substitution in the first place.
+		// No shell is involved, so there is nothing to evaluate it.
 		expect(options.shell).toBeUndefined();
 	});
 });

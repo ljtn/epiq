@@ -383,12 +383,8 @@ describe('AssignUserToTicket command', () => {
 		);
 	});
 
-	// The regression. The log's userName is parsed out of the event file name,
-	// which `sanitizeFilePart` lowercased and hyphenated — so seeding the
-	// candidate list from it made a real name unmatchable, and the failure
-	// steered the user to "!Jonatan Lampa", minting a duplicate id for somebody
-	// who already had one. Exactly the duplicate-minting this epic set out to
-	// close.
+	// Log names arrive sanitized, which made a real name unmatchable and pushed
+	// the user toward "!Name" — minting a duplicate id for an existing person.
 	it('matches a real name against a contributor the log only carries sanitized', async () => {
 		mockedGetCmdState.mockReturnValue({
 			commandMeta: {modifier: 'Jonatan Lampa', inputString: ''},
@@ -419,8 +415,7 @@ describe('AssignUserToTicket command', () => {
 			{} as CommandLineInput,
 		);
 
-		// One id only: the assignment. A second would mean a create.contributor
-		// was minted for a person who already exists.
+		// One id only: a second would mean a duplicate contributor was minted.
 		expect(mockedUlid).toHaveBeenCalledTimes(1);
 		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
 			[
@@ -484,9 +479,7 @@ describe('AssignUserToTicket command', () => {
 		);
 	});
 
-	// Silently creating on an unmatched name is how near-identical
-	// contributors accumulate, and a typed command is the easiest place in the
-	// app to mistype one.
+	// Silently creating on a typo is how near-identical contributors accumulate.
 	it('refuses an unknown name without the "!" gesture', async () => {
 		const result = (await assignCommand.action(
 			{} as CommandLineActionEntry,
@@ -518,9 +511,8 @@ describe('AssignUserToTicket command', () => {
 			payload: Record<string, unknown>;
 		}[];
 
-		// Registered under the id that authors events, not a fresh ulid — that
-		// binding is what makes "assigned to me" mean the same person as the
-		// author of the history.
+		// Bound to the id that authors events, so "assigned to me" and the
+		// history's author are the same person.
 		expect(events).toEqual([
 			expect.objectContaining({
 				action: 'create.contributor',
@@ -631,9 +623,8 @@ describe('UnassignUserFromTicket command', () => {
 		);
 	});
 
-	// Assign refuses an ambiguous name outright. Unassign can do better,
-	// because the issue's own assignees usually settle it — but only when they
-	// do. Registry iteration order used to decide this silently.
+	// Unassign resolves against the issue's own assignees, which usually
+	// settles an ambiguous name that assign would refuse.
 	it("refuses when the name matches two of the issue's assignees", async () => {
 		mockedFindAncestor.mockReturnValue(
 			succeeded('Found ticket', {
@@ -663,9 +654,8 @@ describe('UnassignUserFromTicket command', () => {
 	});
 
 	it('still resolves when the duplicate name is not assigned here', async () => {
-		// The unassigned duplicate is listed first on purpose: resolving over
-		// the whole registry finds it, sees it is not an assignee, and reports
-		// "not assigned to alice" even though an assigned Alice exists.
+		// Duplicate listed first on purpose: resolving over the whole registry
+		// would stop at it and wrongly report "not assigned".
 		mockedGetState.mockReturnValue({
 			selectedNode: {id: 'selected-node'},
 			tags: {},

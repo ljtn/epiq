@@ -34,12 +34,8 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 		syncing = true;
 
 		try {
-			// Share the same lock checkoutStateAt/returnToLive use (epiq-time-travel.ts),
-			// so a scrub can never land in the gap between "still live?" and the
-			// getGuiState() that would otherwise silently overwrite it — whichever
-			// operation is queued first now runs to completion (including its
-			// broadcast) before the other starts, and the live-mode check below is
-			// taken fresh at the moment we actually get to run, not before queueing.
+			// The live check must stay inside the lock, or a scrub lands in the gap
+			// before the getGuiState broadcast silently overwrites it.
 			await runExclusive(async () => {
 				if (getTimeTravelStatus().mode !== 'live') return;
 

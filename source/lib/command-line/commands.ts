@@ -61,20 +61,14 @@ const isAddIssueCommentEvent = (
 const findTagByName = (name: string) =>
 	Object.values(getState().tags).find(tag => tag.name === name);
 
-// Mirrors getBoardContributors on the server. The contributor registry only
-// holds people who have been explicitly created or assigned, so it is often
-// empty — including of you, despite having authored every event. Anyone who
-// has authored an event is a real candidate with a real id, so the two
-// sources are unioned. `isExternal` marks the ones who have never authored
-// anything, and is derived rather than stored so it self-corrects.
+// The registry only holds people explicitly created or assigned, so it is often
+// empty even of you; log authors are candidates too.
 const getAssignableContributors = (): {
 	id: string;
 	name: string;
 	isExternal: boolean;
 }[] => {
-	// Tolerates a missing log rather than assuming boot has completed: this
-	// runs from a command, and a half-initialised state should degrade to
-	// "registry only" instead of throwing.
+	// May run before boot has populated the log.
 	const {eventLog = [], contributors} = getState();
 	const byId = new Map<string, string>();
 	const authorIds = new Set<string>();
@@ -87,20 +81,13 @@ const getAssignableContributors = (): {
 	}
 
 	for (const contributor of Object.values(contributors)) {
-		// A redacted contributor overwrites the log's name rather than only
-		// filling a gap, matching getBoardContributors on the server: the log
-		// still carries whatever they authored under, and a cleared name that
-		// reappears in the TUI's suggestions is not cleared.
+		// Redaction must beat the log's name, or a cleared name reappears here.
 		if (contributor.redacted) {
 			byId.set(contributor.id, contributor.name);
 			continue;
 		}
 
-		// Otherwise `preferBestName`, so the name offered here is the one the
-		// user can actually type. The log's copy is a sanitized file name
-		// segment ("jonatan-lampa"), and matching below is by exact name — so
-		// seeding it unconditionally made `:assign Jonatan Lampa` unmatchable
-		// and pushed the user to `!Jonatan Lampa`, minting a duplicate.
+		// Offer the name the user can actually type — the log's copy is sanitized.
 		byId.set(
 			contributor.id,
 			preferBestName(contributor.name, byId.get(contributor.id)) ??
@@ -563,11 +550,8 @@ export const commands: CommandLineActionEntry[] = [
 			const raw = (modifier || inputString).trim();
 			if (!raw) return failed('Provide an assignee');
 
-			// A leading "!" is the deliberate gesture for inventing somebody
-			// who has never touched this board. Without it an unmatched name is
-			// refused: silently creating on a typo is how near-identical
-			// contributors accumulate, and a typed command is the easiest place
-			// in the app to mistype a name.
+			// "!" is the explicit gesture for inventing somebody new; without it an
+			// unmatched name is refused rather than created from a typo.
 			const wantsExternal = raw.startsWith('!');
 			const name = (wantsExternal ? raw.slice(1) : raw).trim();
 			if (!name) return failed('Provide an assignee');
@@ -594,8 +578,7 @@ export const commands: CommandLineActionEntry[] = [
 			let contributorName: string;
 
 			if (isSelf) {
-				// Bound to the id that authors your events, so an assignment and
-				// a commit in the log refer to the same person.
+				// The id your events are authored under, so both refer to one person.
 				contributorId = userRes.value.userId;
 				contributorName =
 					candidates.find(c => c.id === contributorId)?.name ??
@@ -604,8 +587,6 @@ export const commands: CommandLineActionEntry[] = [
 				const matches = candidates.filter(c => c.name === name);
 
 				if (matches.length > 1) {
-					// Two people can share a display name; picking one silently
-					// would assign the wrong person half the time.
 					return failed(
 						`"${name}" matches ${matches.length} contributors (${matches
 							.map(c => c.id)
@@ -631,8 +612,6 @@ export const commands: CommandLineActionEntry[] = [
 				return failed('Assignee already assigned');
 			}
 
-			// Registered under the id they already author with, rather than a
-			// fresh one — that binding is the whole point.
 			const isRegistered = Boolean(getState().contributors[contributorId]);
 
 			return materializeAndPersistAll(
@@ -690,17 +669,10 @@ export const commands: CommandLineActionEntry[] = [
 
 			const assignees = ticket.props.assignees ?? [];
 
-			// Mirrors assign: "me" has to work here too, or a self-assignment
-			// made in one command can't be undone by the obvious opposite.
 			const isSelf = name.toLowerCase() === 'me';
 
-			// Resolved against the issue's own assignees rather than the whole
-			// registry. Assign refuses an ambiguous name because it cannot know
-			// which of two people sharing it you meant; here the issue itself
-			// usually settles it, so `:unassign alice` still works when a second,
-			// unassigned Alice exists — and refuses only when both are actually
-			// assigned. Registry order used to decide this silently, which could
-			// remove the wrong person.
+			// Resolved against this issue's assignees, not the whole registry, so a
+			// shared name is only ambiguous when both people are assigned here.
 			const matches = isSelf
 				? assignees.filter(id => id === userRes.value.userId)
 				: getAssignableContributors()

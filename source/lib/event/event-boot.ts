@@ -203,22 +203,10 @@ export function createDefaultEvents({
 	] as const satisfies readonly AppEvent[]);
 }
 
-// Rebuilding state from the live head is only ever correct when the board is
-// showing the live head. `initWorkspaceState` resets `readOnly: false` and
-// `timeMode: 'live'` as part of its base state, so a re-boot while the board is
-// checked out at a historical point silently throws the checkout away — and
-// re-opens the mutation guards that read `timeMode`.
-//
-// Guarding here rather than at the call sites because there are many and they
-// keep being added: every MCP tool's `boot()`, `moveIssue`/`moveSwimlane`, and
-// the TUI's own sync-and-reload. Only an explicit non-live mode skips, so an
-// uninitialized (or partially stubbed) state still boots normally.
-//
-// Not a failure: the caller wants state loaded, and it already is — just at a
-// historical point. Failing would break reads like `contributors:get` for the
-// whole time somebody is scrubbing. The paths that deliberately move between
-// live and history (epiq-time-travel.ts, peek.cmd.ts) call `materializeAll`
-// directly and are unaffected.
+// Booting resets `timeMode` to 'live' and `readOnly` to false, so re-booting
+// while checked out in the past would silently discard the checkout and reopen
+// the mutation guards. Only an explicit non-live mode skips, so an
+// uninitialized state still boots normally.
 const isCheckedOutInThePast = (): boolean => {
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) return false;

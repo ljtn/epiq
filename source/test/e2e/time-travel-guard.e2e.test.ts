@@ -61,11 +61,8 @@ describe('GUI mutation guard while time-travelling', () => {
 				}
 
 				const base = `http://127.0.0.1:${address.port}`;
-				// Deliberately not a real issue: a refused write is refused before
-				// the issue is ever looked up, so nothing here can mutate.
-				//
-				// 409-vs-400 separates "the guard stopped it" from "it got through
-				// and failed on its own terms".
+				// Not a real issue: the guard refuses before any lookup. 409-vs-400
+				// separates "guard stopped it" from "it got through and failed".
 				const comment = {issueId: 'NO-SUCH-ISSUE', body: 'hello'};
 
 				try {
@@ -93,9 +90,7 @@ describe('GUI mutation guard while time-travelling', () => {
 					expect(scrubbed.status).toBe(409);
 					expect(scrubbed.body).toContain('Read-only while viewing history');
 
-					// Two in a row: the guard runs inside the shared lock, so a
-					// second request must still be answered rather than queue behind
-					// a lock that was never released.
+					// Two in a row: a refusal must still release the shared lock.
 					const alsoScrubbed = await httpRequest(
 						base,
 						'POST',

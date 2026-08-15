@@ -59,30 +59,21 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
-	// Assignable people for the board on screen. Separate from
-	// state.contributors (the registry), which stays empty until somebody is
-	// explicitly assigned — including you.
+	// Assignable people for the board on screen, unlike state.contributors, which
+	// is the registry and stays empty until somebody is explicitly assigned.
 	const [contributors, setContributors] = useState<GuiContributor[]>([]);
 
-	// Held as one value, not two, because the scrubber derives its whole
-	// coordinate system (earliest, latest, span, bucket count, per-series
-	// normalisation) from both together. In separate state slots, whichever
-	// reply arrived first re-rendered the chart against the other's stale
-	// data — a visible flash of a different range and bucketing.
+	// One value, not two: the scrubber derives its coordinate system from both,
+	// so applying either alone draws the chart against a range it doesn't match.
 	const [history, setHistory] = useState<{
 		timeline: GuiEventTimeline | null;
 		commits: GuiCommitEntry[];
 	}>({timeline: null, commits: []});
-	// Replies are buffered until both halves of the same request have arrived,
-	// then applied in one setState so the chart never renders a half-updated
-	// window. See history-buffer.ts for why pairing needs request ids.
 	const [historyBuffer] = useState(() => createHistoryBuffer(setHistory));
 	const [commitInspectError, setCommitInspectError] = useState<string | null>(
 		null,
 	);
-	// Redaction is fired as one message per selected name, so a bulk clear can
-	// half-succeed. Without this the refusals reached only the generic `failed`
-	// branch — a console.log — and the modal closed as if everything worked.
+	// Redaction is one message per selected name, so a bulk clear can half-succeed.
 	const [redactError, setRedactError] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
@@ -108,12 +99,11 @@ export const App = () => {
 		null;
 
 	// The board's internal id, as opposed to `boardId` from the route, which is
-	// its human-facing ref. The event timeline is scoped by this.
+	// its human-facing ref.
 	const selectedBoardId = selectedBoard?.id ?? null;
 
-	// The websocket handler is installed once and closes over the first
-	// render's values, so the board it should re-request for is read from a
-	// ref rather than from that stale closure.
+	// The websocket handler is installed once and closes over the first render,
+	// so it reads the current board from a ref rather than that stale closure.
 	const selectedBoardIdRef = useRef<string | null>(selectedBoardId);
 	selectedBoardIdRef.current = selectedBoardId;
 
@@ -121,8 +111,6 @@ export const App = () => {
 
 	const selectedIssue = state && issueId ? findIssue(state, issueId) : null;
 
-	// Paste-to-attach: the fastest screenshot flow. Text inputs keep their
-	// native paste behavior.
 	useEffect(() => {
 		const onPaste = (event: ClipboardEvent) => {
 			if (!selectedIssue || selectedIssue.readonly) return;
@@ -177,11 +165,8 @@ export const App = () => {
 		socket.addEventListener('open', () => {
 			setConnected(true);
 			socket.send(JSON.stringify({type: 'state:get'}));
-			// Deliberately does not request history here. The scrubber owns the
-			// scope (and remembers it across sessions), so it drives that fetch
-			// itself once `connected` flips — requesting from here could only
-			// ever ask for the default all-time window, which would ignore a
-			// stored Week/Month/Year selection on the first load.
+			// History is not requested here: the scrubber owns the scope and drives
+			// that fetch itself, so asking here would ignore its stored selection.
 		});
 
 		socket.addEventListener('close', () => {
@@ -222,10 +207,8 @@ export const App = () => {
 				}
 			}
 
-			// Contributors change as a side effect of assigning (an external
-			// assignee creates one) and of redacting. Neither is covered by the
-			// state broadcast, which carries board data rather than the
-			// assignable-people list, so the list is re-requested explicitly.
+			// The state broadcast carries board data, not the assignable-people
+			// list, so assigning and redacting need an explicit re-request.
 			if (
 				message.type === 'contributor:redact:result' ||
 				message.type === 'issue:assignee:add:result'
@@ -238,9 +221,6 @@ export const App = () => {
 				);
 			}
 
-			// Reported rather than logged: a bulk clear sends one message per
-			// name, so some can be refused while others go through, and the
-			// refreshed list above is the only other evidence it happened.
 			if (
 				message.type === 'contributor:redact:result' &&
 				message.payload?.status === 'fail'
@@ -409,9 +389,6 @@ export const App = () => {
 	};
 
 	const addIssueAssignee = (issueId: string, assigneeId: string) => {
-		// Optimistic, same as the external path below — the picker already
-		// knows this person's name and colour, so there's no reason to wait for
-		// the round trip to show the chip.
 		const picked = contributors.find(c => c.id === assigneeId);
 
 		setState(prev => {
@@ -427,15 +404,12 @@ export const App = () => {
 		send('issue:assignee:add', {issueId, assigneeId});
 	};
 
-	// Clears an external contributor's display name. The id and every
-	// assignment referencing it survive — see redactContributor.
+	// Clears the display name only; the id and every assignment survive.
 	const redactContributor = (contributorId: string) => {
 		send('contributor:redact', {contributorId});
 	};
 
-	// Separate entry point rather than a flag on the one above: this is the
-	// path that can invent a person, and it should read that way at the call
-	// site instead of hiding behind a boolean.
+	// The path that can invent a person who has no record at all.
 	const addExternalIssueAssignee = (issueId: string, assigneeName: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -511,23 +485,18 @@ export const App = () => {
 		send('time-travel:live', {});
 	};
 
-	// Always requested as a pair, which is what lets the replies be buffered
-	// and applied together. Both carry the same id so the two halves can be
-	// matched to each other, and replies to an abandoned request discarded.
+	// Both requests carry the same id so their replies can be paired, and replies
+	// to an abandoned request discarded.
 	const requestBoardHistory = useCallback(
 		(start?: number, end?: number, allBoards?: boolean) => {
 			const window = start !== undefined ? {start, end} : undefined;
 
 			const requestId = historyBuffer.open();
-			// The board scopes the event timeline but not the commit log: commits
-			// belong to the repository as a whole, so filtering them per board
-			// would be inventing a relationship that doesn't exist.
+			// The board scopes the timeline but not the commit log, which is
+			// repository-wide. Omitting boardId is how the API says "every board".
 			socketRef.current?.send(
 				JSON.stringify({
 					type: 'timeline:get',
-					// Omitting boardId is already how the API says "every board",
-					// so "all boards" needs no separate concept — it just drops the
-					// filter rather than enumerating what to include.
 					payload: {
 						...window,
 						boardId: allBoards ? undefined : selectedBoardId,
@@ -545,9 +514,6 @@ export const App = () => {
 		[selectedBoardId],
 	);
 
-	// Assignable people are board-scoped, so they're refetched whenever the
-	// board changes — not tied to the history window, which is about time
-	// rather than about who is on the board.
 	useEffect(() => {
 		if (!connected) return;
 
@@ -783,18 +749,13 @@ export const App = () => {
 					overflow: 'hidden',
 				}}
 			>
-				{/* Column layout so the board row below can claim exactly the
-				    leftover height and scroll internally. Vertical overflow is
-				    hidden here on purpose: the swimlanes size themselves to this
-				    box, so nothing should ever spill out of it and put a second
-				    scrollbar on the page next to the columns' own. */}
+				{/* Vertical overflow is hidden here: the swimlanes size themselves to
+				    this box, so anything spilling out would put a second scrollbar on
+				    the page next to the columns' own. */}
 				<main
 					style={{
 						// No bottom padding: the board row is the horizontal scroll
-						// container now, so any gap below it would strand its
-						// scrollbar above a strip of dead page. The row runs to the
-						// bottom edge instead, putting the scrollbar where one
-						// expects to find it.
+						// container, and a gap below it would strand its scrollbar.
 						padding: '0 30px 0 30px',
 						flex: 1,
 						minHeight: 0,
@@ -825,11 +786,9 @@ export const App = () => {
 						/>
 					</div>
 
-					{/* The board's horizontal scroll container. It used to be `main`,
-					    but `main` also had to scroll vertically for the swimlanes,
-					    which is what produced a page-level vertical bar alongside
-					    each column's own. Scrolling sideways is this row's job;
-					    scrolling down is each column's. */}
+					{/* Scrolling sideways is this row's job; scrolling down is each
+					    column's. Both on one element gives a page-level vertical bar
+					    alongside each column's own. */}
 					<div
 						style={{
 							display: 'flex',
@@ -865,13 +824,10 @@ export const App = () => {
 							/>
 						))}
 
-						{/* Invisible spacer, only present while the panel is closed, so
-							this row's scrollWidth grows by exactly what its clientWidth
-							gained by reclaiming the panel's space — keeping the max
-							scrollLeft identical across open/closed and avoiding the
-							clamp-triggered "bounce back" when scrolled far right. It
-							never reduces the board's real width the way reserving box
-							space in the flex row would. */}
+						{/* Grows scrollWidth by exactly what closing the panel gave back
+							in clientWidth, keeping max scrollLeft identical across
+							open/closed so the board doesn't bounce back when scrolled
+							far right. */}
 						{!(selectedIssue && state?.user) && (
 							<div style={{width: ASIDE_WIDTH, flexShrink: 0}} />
 						)}

@@ -141,11 +141,8 @@ describe('event boot', () => {
 		expect(getState().nodes['swimlane-1']?.parentNodeId).toBe('board-1');
 	});
 
-	// A re-boot rebuilds from the live head, and initWorkspaceState's base
-	// resets readOnly/timeMode — so without this guard any of the many callers
-	// (every MCP tool's boot(), moveIssue, the TUI's sync-and-reload) silently
-	// cancels a checkout. Reachable just by switching board, or by a reconnect
-	// after a network blip, while scrubbed.
+	// A re-boot rebuilds from the live head and resets readOnly/timeMode, so
+	// without this guard any caller silently cancels an active checkout.
 	describe.each(['peek', 'replay'] as const)(
 		'while checked out in %s mode',
 		timeMode => {
@@ -173,8 +170,7 @@ describe('event boot', () => {
 
 				const result = bootStateFromEventLog([...liveLog]);
 
-				// Succeeds rather than fails: state is loaded, just historical, and
-				// failing would break every read while somebody is scrubbing.
+				// Succeeds, not fails: state is loaded, just historical.
 				expect(isFail(result)).toBe(false);
 				expect(getState().nodes['board-live']).toBeUndefined();
 			});

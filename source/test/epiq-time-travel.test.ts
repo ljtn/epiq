@@ -99,10 +99,7 @@ describe('epiq-time-travel', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 
-		// `logger` is an ambient global (source/logger.ts assigns it onto
-		// globalThis as an import side effect in the real app) rather than a
-		// module this file can vi.mock — stub it directly so the side-by-side
-		// diff fallback's error logging doesn't throw ReferenceError here.
+		// An ambient global in the real app, so it cannot be vi.mock'd.
 		(globalThis as {logger?: unknown}).logger = {
 			info: vi.fn(),
 			debug: vi.fn(),
@@ -124,9 +121,7 @@ describe('epiq-time-travel', () => {
 			succeeded('project', {stateBranch: '__epiq_state__'} as never),
 		);
 
-		// Default to a non-VS-Code editor so openCommitDiffInEditor tests that
-		// don't care about the side-by-side path go straight to the unified
-		// diff fallback, same as before it existed.
+		// Non-VS-Code by default, so tests land on the unified-diff fallback.
 		vi.mocked(getEditorCandidates).mockReturnValue(['some-editor']);
 		vi.mocked(isVSCodeEditor).mockReturnValue(false);
 	});
@@ -276,7 +271,6 @@ describe('epiq-time-travel', () => {
 					time: 1_700_000_100_000,
 					author: 'Grace',
 					subject: 'add feature',
-					// No shortstat line for this one (e.g. a merge commit) -> 0.
 					linesChanged: 0,
 				},
 			]);
@@ -442,9 +436,6 @@ describe('epiq-time-travel', () => {
 					if (args[0] === 'show') {
 						const spec = args[1] ?? '';
 
-						// Plain `git show <sha>` (the unified-diff fallback) rather than
-						// a `<rev>:<path>` blob lookup — not what this helper is for,
-						// but still needs a non-failing response.
 						if (!spec.includes(':')) {
 							return succeeded('git show', {
 								stdout: 'unified diff fallback content',
@@ -453,9 +444,7 @@ describe('epiq-time-travel', () => {
 							});
 						}
 
-						// Keyed by the exact "<revision>:<path>" spec, so a test can
-						// omit e.g. the `${sha}~1:...` entry to simulate a blob that
-						// doesn't exist on that side (an added or deleted file).
+						// Omit a spec to simulate a blob missing on that side.
 						const content = contentByPath[spec];
 
 						return content === undefined
@@ -473,9 +462,7 @@ describe('epiq-time-travel', () => {
 					[`${validSha}:source/logger.ts`]: 'after-logger',
 				});
 
-				// A 2nd+ file waits out NEW_WINDOW_SETTLE_MS before opening (see
-				// epiq-time-travel.ts) so it lands in the new window from the
-				// first file rather than racing it — fake timers skip that wait.
+				// Fake timers skip the settle delay before the 2nd+ file opens.
 				vi.useFakeTimers();
 				const pending = openCommitDiffInEditor({sha: validSha});
 				await vi.advanceTimersByTimeAsync(1000);
@@ -567,8 +554,7 @@ describe('epiq-time-travel', () => {
 
 			it('treats a missing blob (file added or deleted at this commit) as empty content, not a failure', async () => {
 				mockGitForFiles(['source/new-file.ts'], {
-					// no entry for the `${sha}~1:...` (before) spec -> execGit fails
-					// for it, simulating a file that didn't exist before this commit
+					// No "before" spec: the file did not exist at this commit.
 					[`${validSha}:source/new-file.ts`]: 'brand new content',
 				});
 
@@ -665,11 +651,8 @@ describe('epiq-time-travel', () => {
 			);
 		});
 
-		// `checkoutStateAt` empties the singleton (resetState) *before* it
-		// materializes, so a materialize failure used to leave the process with
-		// no board at all while every mutation guard — which only asks
-		// `getTimeTravelStatus().mode !== 'live'` — stayed open over it. The
-		// failure has to degrade to "you are live", not "you are nowhere".
+		// resetState runs before materializing, so a failure must degrade to
+		// "live" rather than leave an empty board that reads as writable.
 		it('re-materializes the live head and marks state live when materialization fails', async () => {
 			vi.mocked(loadMergedEventsBefore).mockReturnValue(
 				succeeded('events', {
@@ -681,8 +664,7 @@ describe('epiq-time-travel', () => {
 				succeeded('events', [{id: 'old'}, {id: 'new'}] as never),
 			);
 
-			// Only the historical slice is poisoned — the head still
-			// materializes, which is exactly the case where recovery can work.
+			// Only the historical slice fails; the head still materializes.
 			vi.mocked(materializeAll).mockImplementation(events =>
 				events.length === 1 ? [failed('boom')] : [],
 			);
@@ -700,8 +682,7 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('clears the tracked as-of time when materialization fails', async () => {
-			// A checkout that worked, so the module-level as-of clock is set to
-			// something that the failing checkout below must not leave standing.
+			// Sets the as-of clock, which the failing checkout must clear.
 			vi.mocked(loadMergedEventsBefore).mockReturnValue(
 				succeeded('events', {
 					appliedEvents: [],
@@ -723,10 +704,7 @@ describe('epiq-time-travel', () => {
 
 			await checkoutStateAt({targetTime: 1234});
 
-			// `getTimeTravelStatus` only reads the module-level clock down the
-			// non-live branch, so force it there: whatever the state singleton
-			// happens to say, the bookkeeping behind it must no longer claim a
-			// checkout at 777 (or 1234) is in effect.
+			// The clock is only observable down the non-live branch.
 			vi.mocked(isStateInitialized).mockReturnValue(true);
 			vi.mocked(getState).mockReturnValue({timeMode: 'peek'} as never);
 
@@ -741,7 +719,6 @@ describe('epiq-time-travel', () => {
 				} as never),
 			);
 			vi.mocked(materializeAll).mockReturnValue([failed('boom')]);
-			// The log itself is unreadable, so there is no head to fall back to.
 			vi.mocked(loadMergedEvents).mockReturnValue(failed('log unreadable'));
 
 			const result = await checkoutStateAt({targetTime: 1234});
@@ -749,8 +726,6 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(false);
 			expect(result.message).toContain('boom');
 			expect(result.message).toContain('log unreadable');
-			// The real cause leads; the recovery failure is context, not the
-			// headline.
 			expect(result.message.indexOf('boom')).toBeLessThan(
 				result.message.indexOf('log unreadable'),
 			);
@@ -795,12 +770,7 @@ describe('epiq-time-travel', () => {
 			expect(getTimeTravelStatus()).toEqual({mode: 'live', asOfTime: null});
 		});
 
-		// Same hazard as the failing checkout: `resetState` runs before
-		// materializing, so once it has landed the singleton is back to
-		// `readOnly: false` / `timeMode: 'live'`. A materialize failure after
-		// that must not leave the as-of clock pointing at the checkout we were
-		// trying to leave — live flags plus a stale timestamp is exactly the
-		// incoherence this guards against.
+		// Live flags plus a stale as-of clock is the incoherence to avoid.
 		it('clears the tracked as-of time when materialization fails', async () => {
 			vi.mocked(loadMergedEventsBefore).mockReturnValue(
 				succeeded('events', {
@@ -823,8 +793,7 @@ describe('epiq-time-travel', () => {
 				expect.objectContaining({timeMode: 'live'}),
 			);
 
-			// Forced down the non-live branch so the module-level clock is
-			// actually observable — see the equivalent checkout test.
+			// The clock is only observable down the non-live branch.
 			vi.mocked(isStateInitialized).mockReturnValue(true);
 			vi.mocked(getState).mockReturnValue({timeMode: 'peek'} as never);
 
@@ -842,7 +811,6 @@ describe('epiq-time-travel', () => {
 				log.push('first:end');
 			});
 
-			// Queued while `first` is still in flight — must not start early.
 			const second = runExclusive(async () => {
 				log.push('second:start');
 				log.push('second:end');
@@ -874,12 +842,8 @@ describe('epiq-time-travel', () => {
 			expect(secondRan).toBe(true);
 		});
 
-		// Reproduces the reported bug: a scrub landing mid-sync must not be
-		// clobbered by that sync's post-await state refresh. checkoutStateAt
-		// and returnToLive share this same lock with the autosync tick
-		// (api-autosync.ts), so a "sync" queued first must fully finish —
-		// including everything after its own await — before a queued checkout
-		// gets to run, and vice versa.
+		// A sync holding the lock must finish everything after its own await
+		// before a queued checkout runs, or the scrub is clobbered.
 		it("a checkout queued during an in-flight exclusive op waits for it, so it can't be clobbered", async () => {
 			vi.mocked(isStateInitialized).mockReturnValue(true);
 			vi.mocked(getState).mockReturnValue({timeMode: 'live'} as never);
@@ -908,7 +872,6 @@ describe('epiq-time-travel', () => {
 				return result;
 			});
 
-			// Give the checkout every chance to (wrongly) run early.
 			await new Promise(resolve => setTimeout(resolve, 10));
 			expect(log).toEqual(['sync:start']);
 			expect(patchState).not.toHaveBeenCalled();

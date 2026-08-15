@@ -138,21 +138,14 @@ type RemoveIssueTagInput = ToolInput & {
 
 type AddIssueAssigneeInput = ToolInput & {
 	issueId: string;
-	// Prefer this. Assignees are stored as contributor ids, so an id assigns
-	// exactly who you meant.
 	assigneeId?: string;
-	// Assign whoever is running this. Resolves to the config userId, which is
-	// the same identity that authors every event — so an assignment made this
-	// way is bound to your history rather than to a lookalike record.
+	// Resolves to the config userId, the same identity that authors events.
 	self?: boolean;
-	// The unlinked/ad-hoc path: names a person who has no contributor record
-	// yet. Kept because assigning someone outside the board is legitimate, but
-	// it is the unorthodox route — a name that differs only in case or spacing
-	// from an existing contributor produces a second, near-identical one.
+	// Names a person with no contributor record yet; a near-miss spelling makes
+	// a second, near-identical contributor.
 	assigneeName?: string;
-	// Required to create somebody new from a name. Without it an unmatched
-	// name is refused rather than quietly minting a contributor: creating a
-	// person should be a decision, not the accidental outcome of a typo.
+	// Required to create somebody new from a name; without it an unmatched name
+	// is refused rather than minting a contributor.
 	createUnlinked?: boolean;
 };
 
@@ -225,8 +218,7 @@ const boot = async (
 		return failed(ensureWorktreeResult.message);
 	}
 
-	// MCP tools default to local-only. Fetching remote state is explicit via
-	// the `sync` tool (and the GUI's own autosync loop, see api-autosync.ts).
+	// MCP tools are local-only by default; fetching remote state is explicit.
 	if (options?.pull ?? false) {
 		const pullResult = await execGit({
 			cwd: stateBranchRootResult.value,
@@ -283,12 +275,7 @@ const getIssueTags = (ticket: Ticket) =>
 		}));
 
 // A contributor node's name is written once at create.contributor and never
-// updated, so it goes stale the moment somebody changes their display name.
-// The event log always carries the current one, which is why the picker and
-// the assignee chip could show two different names for the same person.
-//
-// Built from state rather than re-read from disk, and computed once per
-// listing rather than per ticket.
+// updated; the event log carries the current one.
 const getLatestNamesFromLog = (): Map<string, string> => {
 	const stateResult = getSafeState();
 	const eventLog = isFail(stateResult) ? [] : stateResult.value.eventLog ?? [];
@@ -301,14 +288,8 @@ const getLatestNamesFromLog = (): Map<string, string> => {
 	return byId;
 };
 
-// Folds the contributor registry into a map of log-derived names, resolving
-// each collision with `preferBestName`.
-//
-// Extracted because three surfaces have to agree on the answer: the picker
-// (`getBoardContributors`), name-based assignment (`addIssueAssignee`), and the
-// TUI's own `getAssignableContributors`. While assignment matched the registry
-// alone, the picker could offer a name that assignment then called unknown —
-// and `createUnlinked` minted a second id for somebody who already had one.
+// Shared so that every surface offering or matching a contributor agrees on the
+// answer; disagreement mints duplicate ids for the same person.
 const mergeRegistryNames = (
 	logNames: Map<string, string>,
 	registry: Record<string, Contributor>,
@@ -316,18 +297,15 @@ const mergeRegistryNames = (
 	const byId = new Map(logNames);
 
 	for (const contributor of Object.values(registry)) {
-		// A redacted contributor overwrites whatever the log supplied instead of
-		// only filling a gap: their events still carry the name they authored
-		// under, and the log seeded this map from those events.
+		// Overwrites rather than fills a gap: their events still carry the name
+		// they authored under, so the log must never win here.
 		if (contributor.redacted) {
 			byId.set(contributor.id, contributor.name);
 			continue;
 		}
 
-		// Otherwise the log wins only when it is a *different* name, not merely
-		// the same one spelled worse — its copy is a sanitized file name
-		// segment. Covers the gap-filling case too: `preferBestName` returns the
-		// registry name when the log has nothing for this id.
+		// The log's copy is a sanitized file name segment, so it wins only when
+		// it is a genuinely different name, not the same one spelled worse.
 		byId.set(
 			contributor.id,
 			preferBestName(contributor.name, byId.get(contributor.id)) ??
@@ -346,9 +324,8 @@ const getIssueAssignees = (
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter(contributor => contributor != undefined)
 		.map(contributor => {
-			// Registry wins for anyone with no events, and unconditionally for a
-			// redacted contributor — see getContributorDisplayName for why the
-			// log must never be able to put a cleared name back.
+			// Unconditional for a redacted contributor: the log must never be able
+			// to put a cleared name back.
 			const name = contributor.redacted
 				? contributor.name
 				: preferBestName(contributor.name, latestNames.get(contributor.id)) ??
@@ -941,11 +918,8 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 	});
 };
 
-// Derives ApiState from whatever is currently materialized in the state
-// singleton — live or a historical time-travel checkout — without booting
-// (re-pulling and re-materializing live state). `getGuiState` below is the
-// live-reading entry point most callers want; time-travel handlers call this
-// directly after a checkout so `boot()` doesn't stomp the historical view.
+// Reads whatever is currently materialized, live or a historical checkout. Must
+// never boot: booting discards an active time-travel checkout.
 export const deriveGuiState = (): Result<ApiState> => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
@@ -1084,18 +1058,14 @@ export const deriveGuiState = (): Result<ApiState> => {
 export const getGuiState = async (
 	input: ToolInput = {},
 ): Promise<Result<ApiState>> => {
-	// Fast path only: skips the worktree/repo-root work for the common case of
-	// a client polling state while scrubbing. The actual guarantee that a
-	// checkout survives lives in `bootStateFromEventLog`, which every one of
-	// these entry points funnels through — see the note there for why it
-	// belongs at the choke point instead of at each call site.
+	// Fast path; the guarantee that a checkout survives a boot lives in
+	// `bootStateFromEventLog`, not here.
 	if (getTimeTravelStatus().mode !== 'live') {
 		return deriveGuiState();
 	}
 
-	// Multi-user freshness is handled by api-autosync.ts's own explicit
-	// sync() on an interval, not by pulling here — forcing a pull on every
-	// read would hang/break sandboxed or offline setups with no network.
+	// Never pull on a read: it would hang sandboxed or offline setups. Freshness
+	// is an explicit periodic sync's job.
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
@@ -1310,9 +1280,6 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 	});
 };
 
-// Looks an id up among the people who have authored events. Used when the
-// contributor registry doesn't know them yet — see the fallback in
-// addIssueAssignee for why that's the normal case rather than the odd one.
 const findEventLogAuthor = async (
 	stateBranchRoot: string,
 	userId: string,
@@ -1322,7 +1289,7 @@ const findEventLogAuthor = async (
 
 	let name: string | undefined;
 
-	// Last write wins: a display name changes over time, the id doesn't.
+	// Last write wins: a display name changes over time, the id does not.
 	for (const event of eventsResult.value) {
 		if (event.userId === userId) name = event.userName ?? name;
 	}
@@ -1346,25 +1313,16 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	if (!isTicketNode(issue)) return failed('Assign target must be an issue');
 	if (issue.readonly) return failed('Cannot assign readonly issue');
 
-	// `self` is just sugar for "the id I author events with" — resolving it
-	// here rather than making every caller read the config keeps the binding
-	// between assignment identity and authorship identity in one place.
 	const targetId = input.self ? actorResult.value.userId : input.assigneeId;
 
-	// An id must resolve to somebody who already exists — unlike the name path
-	// below, an unknown id is an error rather than an invitation to invent a
-	// contributor. A caller passing an id is saying "this specific person",
-	// and silently creating a different one would answer a question they
-	// didn't ask.
+	// An id names a specific person, so an unknown one is an error rather than
+	// an invitation to invent a contributor.
 	if (targetId) {
 		const registered = stateResult.value.contributors[targetId];
 
-		// Not being in the registry doesn't mean the person doesn't exist: a
-		// contributor node is only written when somebody is explicitly created
-		// or assigned, so anyone who has authored events but never been
-		// assigned — including you, the first time — is absent from it. Fall
-		// back to the event log, and register them under the id they already
-		// author with rather than minting a second one.
+		// A contributor node is only written when somebody is explicitly created
+		// or assigned, so an author who was never assigned is absent from the
+		// registry. Register them under the id they already author with.
 		const authored = registered
 			? undefined
 			: await findEventLogAuthor(bootResult.value.stateBranchRoot, targetId);
@@ -1408,12 +1366,8 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	const assigneeName = sanitizeInlineText(input.assigneeName ?? '').trim();
 	if (!assigneeName) return failed('Provide assigneeId, self or assigneeName');
 
-	// Matched against the same union the picker offers — registry *and* event
-	// log — not the registry alone. A contributor record is only written when
-	// somebody is explicitly created or assigned, so an author who has never
-	// been assigned is absent from it; matching the registry alone reported
-	// them unknown, and `createUnlinked` then minted a second id for a person
-	// who already had one.
+	// Registry *and* event log, so this matches the same union a picker offers;
+	// the registry alone reports log-only authors as unknown.
 	const candidates = mergeRegistryNames(
 		getLatestNamesFromLog(),
 		stateResult.value.contributors,
@@ -1423,9 +1377,8 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 		([, candidateName]) => candidateName === assigneeName,
 	);
 
-	// Two people can share a display name; picking one silently would assign
-	// the wrong person half the time. Mirrors the TUI's `:assign`, which
-	// refuses the same way.
+	// Two people can share a display name; picking one silently assigns the
+	// wrong person half the time.
 	if (matches.length > 1) {
 		return failed(
 			`"${assigneeName}" matches ${matches.length} contributors (${matches
@@ -1444,9 +1397,8 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	const [assigneeId = ulid(), resolvedName = assigneeName] = match ?? [];
 
-	// Keyed on the *registry*, not on whether a name matched: somebody found
-	// only in the event log still needs a contributor record — written under
-	// the id they already author with rather than a fresh one.
+	// Keyed on the registry, not on whether a name matched: somebody found only
+	// in the event log still needs a contributor record.
 	const isRegistered = Boolean(stateResult.value.contributors[assigneeId]);
 
 	const events = [
@@ -1487,25 +1439,9 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	});
 };
 
-// Who can be assigned. Deliberately not just the contributor registry: a
-// contributor node only comes into existence when somebody is explicitly
-// created or assigned, so on a board where nobody has been assigned yet that
-// registry is empty — including you, despite having authored every event on
-// it. Every event carries userId + userName, so the people who have actually
-// touched a board are derivable, and derivable by id rather than by name.
-//
-// The two sources are unioned rather than one replacing the other: the
-// registry can hold people who were assigned but never authored anything
-// (external/unlinked assignees), and the log holds people who authored but
-// were never assigned.
-// Clears a contributor's display name. Redaction, not deletion: the id and
-// every reference to it survive, so assignments keep resolving and the event
-// log stays intact — only the personal name stops rendering.
-//
-// Restricted to people who have never authored an event. Someone who has is
-// named throughout the log by their own events, and clearing only the
-// registry copy would leave the two disagreeing rather than removing
-// anything.
+// Redaction, not deletion: the id and every reference to it survive, so only
+// the display name stops rendering. Refused for anyone who has authored an
+// event, since the log names them throughout and is never rewritten.
 export const redactContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
@@ -1554,11 +1490,8 @@ export const redactContributor = async (
 	});
 };
 
-// Recovers the name a contributor was created under, by replaying the log's
-// own `create.contributor` payloads. Redaction never rewrote anything, so the
-// original is always still there — this is what makes the undo possible at all.
-//
-// Last write wins, matching every other name lookup here.
+// Redaction never rewrites the log, so the `create.contributor` payload still
+// carries the original name. Last write wins.
 const findCreatedContributorName = async (
 	stateBranchRoot: string,
 	contributorId: string,
@@ -1578,14 +1511,9 @@ const findCreatedContributorName = async (
 	return name;
 };
 
-// Puts back a name cleared by `redactContributor`.
-//
-// The redaction guard reads only the log this machine has pulled, and on a
-// git-synced board that is a stale view: somebody whose events have not
-// arrived yet looks like an outsider and is offered as clearable. Rather than
-// forcing a network round-trip inside a read path — MCP tools are deliberately
-// local-only, freshness is the explicit `sync` tool's job — the mistake is
-// made reversible.
+// The redaction guard only sees the log this machine has pulled, so somebody
+// whose events have not arrived yet can be cleared by mistake. This makes that
+// reversible rather than forcing a network round-trip inside a read path.
 export const unredactContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
@@ -1610,8 +1538,6 @@ export const unredactContributor = async (
 		input.contributorId,
 	);
 
-	// Without a `create.contributor` to read there is no name to put back, and
-	// inventing one would be worse than refusing.
 	if (!originalName) {
 		return failed(
 			'Cannot restore this contributor — no original name found in the event log',
@@ -1669,21 +1595,14 @@ export const getBoardContributors = async (
 		? filterEventsForBoard(eventsResult.value, input.boardId)
 		: eventsResult.value;
 
-	// Last write wins on the name: a display name can change over time while
-	// the id it belongs to does not, so the most recent spelling is the one
-	// worth showing. Events arrive in chronological order.
+	// Last write wins: events arrive in chronological order.
 	const byId = new Map<string, string>();
-	// Tracked separately from the merged map so "has this person actually
-	// worked on the board" survives the union below — that is precisely what
-	// distinguishes a real contributor from an external one.
+	// Board-scoped, and kept apart from the merged map so the union below cannot
+	// erase "has actually worked on this board".
 	const authorIds = new Set<string>();
 
-	// Deliberately unfiltered, unlike `authorIds`. Redaction is refused for
-	// anyone who has authored anywhere (redactContributor's guard scans the
-	// whole merged log via findEventLogAuthor), so answering "can this name be
-	// cleared" with a board-scoped set offered candidates the server then
-	// refused — and the refusal was invisible. Same event source as the guard,
-	// so the two cannot drift.
+	// Unfiltered, unlike `authorIds`: redaction is refused for anyone who has
+	// authored anywhere, so this must read the same events that guard does.
 	const workspaceAuthorIds = new Set<string>();
 
 	for (const event of eventsResult.value) {
@@ -1700,33 +1619,21 @@ export const getBoardContributors = async (
 	const registry = stateResult.value.contributors;
 	const namesById = mergeRegistryNames(byId, registry);
 
-	// Both flags are derived here rather than left to callers: every surface
-	// wants to pin "me" first and mark outsiders, and three of them working it
-	// out independently is three chances to disagree.
-	//
-	// `isExternal` is computed, never stored, so it self-corrects — the day an
-	// external assignee authors their first event on this board they stop
-	// being external, with nothing to migrate.
 	const contributors = [...namesById.entries()].map(([id, name]) => ({
 		id,
 		name,
 		color: getStringColor(name),
 		isSelf: id === actorResult.value.userId,
+		// Board-scoped: means "has not worked on this board", not "is not in the
+		// history". Never stored, so it self-corrects.
 		isExternal: !authorIds.has(id),
-		// Read off the record rather than compared against the placeholder
-		// string, so somebody genuinely called "removed" isn't reported as
-		// already-cleared (and so made un-redactable by the modal).
+		// Read off the record, not compared against the placeholder string, so
+		// somebody genuinely named "removed" is not reported as already-cleared.
 		isRedacted: registry[id]?.redacted === true,
-		// Workspace-wide, so it answers the question redaction actually asks.
-		// `isExternal` is board-scoped and means something else: not "their name
-		// is in the history" but "they have not worked on this board".
+		// Workspace-wide, which is the question redaction actually asks.
 		hasAuthoredAnywhere: workspaceAuthorIds.has(id),
-		// A state redaction is supposed to make impossible: cleared, yet an
-		// author. Reachable because the guard can only see the log this machine
-		// has pulled, so somebody whose events arrive on a later sync passes it.
-		// Surfaced rather than auto-corrected — undoing a redaction on their
-		// behalf would be its own surprise — so a client can offer the restore
-		// (`unredactContributor`) instead of leaving a name silently wrong.
+		// A state the redaction guard is supposed to prevent but a stale local log
+		// allows. Surfaced so a client can offer the restore, not auto-corrected.
 		isRedactedDespiteAuthoring:
 			registry[id]?.redacted === true && workspaceAuthorIds.has(id),
 	}));
@@ -2022,9 +1929,8 @@ export const deleteIssueAttachment = async (
 };
 
 /**
- * Resolves a content-addressed blob for serving. Validation (name shape,
- * hash match, magic bytes) happens inside resolveAttachmentBlob — synced
- * blobs are untrusted input.
+ * Synced blobs are untrusted input; `resolveAttachmentBlob` does the name,
+ * hash, and magic-byte validation.
  */
 export const getAttachmentBlob = async (input: GetAttachmentBlobInput) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});

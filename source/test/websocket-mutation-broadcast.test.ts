@@ -3,8 +3,7 @@ import {AddressInfo} from 'node:net';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {WebSocket} from 'ws';
 
-// Every API entry point the websocket module imports has to exist on the mock,
-// even the ones these tests never exercise, or the import itself fails.
+// Every imported entry point must exist on the mock or the import fails.
 vi.mock('../mcp/epiq-api.js', () => ({
 	addIssueAssignee: vi.fn(),
 	getBoardContributors: vi.fn(),
@@ -41,9 +40,7 @@ import {getTimeTravelStatus, runExclusive} from '../mcp/epiq-time-travel.js';
 import {succeeded} from '../lib/model/result-types.js';
 import {setupWebsocket} from '../gui/api/lib/websocket.js';
 
-// Markers instead of real ApiState: the only thing under test is *which*
-// source the refresh was taken from, so the payloads just have to be
-// distinguishable.
+// Markers, not real ApiState: only which source the refresh came from matters.
 const LIVE_BOOT = {marker: 'live-boot'};
 const DERIVED = {marker: 'derived'};
 
@@ -54,8 +51,7 @@ describe('websocket post-mutation state refresh', () => {
 	let client: WebSocket;
 	let received: ReceivedMessage[] = [];
 
-	// The mode the (mocked) time-travel module reports, flipped mid-test to
-	// simulate a `time-travel:scrub` landing behind the mutation.
+	// Flipped mid-test to simulate a scrub landing behind the mutation.
 	let mode: 'live' | 'scrub' = 'live';
 
 	const waitFor = async (predicate: () => boolean, label: string) => {
@@ -76,8 +72,7 @@ describe('websocket post-mutation state refresh', () => {
 		received = [];
 		mode = 'live';
 
-		// `logger` is an ambient global assigned onto globalThis as an import side
-		// effect in the real app, not a module we can vi.mock here.
+		// An ambient global in the real app, so it cannot be vi.mock'd.
 		(globalThis as {logger?: unknown}).logger = {
 			info: vi.fn(),
 			debug: vi.fn(),
@@ -89,8 +84,7 @@ describe('websocket post-mutation state refresh', () => {
 			asOfTime: mode === 'live' ? null : 1234,
 		}));
 
-		// Stands in for the real lock: enough to run the handler, since what these
-		// tests care about is what happens *after* it has been released.
+		// These tests only care what happens after the lock is released.
 		vi.mocked(runExclusive).mockImplementation(async fn => fn());
 
 		vi.mocked(deriveGuiState).mockImplementation(() =>
@@ -139,8 +133,7 @@ describe('websocket post-mutation state refresh', () => {
 
 		await waitFor(() => bootStarted, 'the deferred refresh to start booting');
 
-		// The scrub was queued behind the mutation and wins the lock the moment
-		// the mutation released it — i.e. while this boot is still in flight.
+		// The scrub wins the lock while this boot is still in flight.
 		mode = 'scrub';
 		releaseBoot();
 
@@ -160,8 +153,7 @@ describe('websocket post-mutation state refresh', () => {
 			succeeded('state', LIVE_BOOT as never),
 		);
 
-		// Flip as the mutation itself resolves, so the mode is already historical
-		// by the time the deferred refresh starts running.
+		// Already historical by the time the deferred refresh runs.
 		vi.mocked(closeIssue).mockImplementation(async () => {
 			mode = 'scrub';
 			return succeeded('closed', {} as never);

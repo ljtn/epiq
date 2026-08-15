@@ -65,15 +65,11 @@ export const IssueDetails = ({
 	onEditDescription: (issueId: string, description: string) => void;
 	onAddTag: (issueId: string, tagName: string) => void;
 	onRemoveTag: (issueId: string, tagId: string) => void;
-	// Picking someone known assigns by id. The name form exists only for the
-	// typed "add external" path, which may name somebody with no record at
-	// all — passing a name for a known person would mean resolving it back to
-	// an id server-side, and two people sharing a display name make that
-	// resolution a guess.
+	// Known people are assigned by id, not name: two of them can share a display
+	// name, so resolving a name server-side would be a guess.
 	onAddAssignee: (issueId: string, assigneeId: string) => void;
 	onAddExternalAssignee: (issueId: string, assigneeName: string) => void;
-	// Only meaningful for external contributors; the server refuses anyone who
-	// has authored events.
+	// The server refuses anyone who has authored events.
 	onRedactContributor: (contributorId: string) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
@@ -91,9 +87,6 @@ export const IssueDetails = ({
 	const [description, setDescription] = useState('');
 	const [tagName, setTagName] = useState('');
 	const [assigneeName, setAssigneeName] = useState('');
-	// Two-step rather than a browser confirm(): the effect is irreversible in
-	// practice (the name is gone from every view), so it shouldn't be one
-	// stray click away, but a modal dialog is heavier than this warrants.
 	const [managingContributors, setManagingContributors] = useState(false);
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [editingDescription, setEditingDescription] = useState(false);
@@ -204,9 +197,7 @@ export const IssueDetails = ({
 		tag => !issue?.tags.some(issueTag => issueTag.id === tag.id),
 	);
 
-	// You first, then people who have worked on this board, then outsiders.
-	// Self-assignment is far and away the common case, so it shouldn't require
-	// finding your own name in a list that grows with the team.
+	// You first, then board contributors, then outsiders.
 	const assigneeRank = (assignee: GuiContributor): number =>
 		assignee.isSelf ? 0 : assignee.isExternal ? 2 : 1;
 
@@ -217,9 +208,7 @@ export const IssueDetails = ({
 					issueAssignee => issueAssignee.id === assignee.id,
 				),
 		)
-		// A redacted contributor has no name left to identify them by, so
-		// offering them as a suggestion would mean picking blind — and their
-		// name was cleared precisely so it would stop appearing.
+		// A redacted contributor has no name left to pick them out by.
 		.filter(assignee => !assignee.isRedacted)
 		.sort(
 			(a, b) =>
@@ -501,10 +490,6 @@ export const IssueDetails = ({
 													color: assignee.isSelf
 														? GUI_THEME.accent
 														: assignee.color,
-													// Self sits at full strength while everyone else is
-													// dimmed back: it's the option reached for most
-													// often, so it should be findable without reading
-													// the row.
 													opacity: assignee.isSelf ? 1 : 0.55,
 													fontWeight: assignee.isSelf ? 600 : undefined,
 													borderColor: assignee.isSelf
@@ -519,9 +504,6 @@ export const IssueDetails = ({
 									</ChipRow>
 								)}
 
-								{/* Opens a separate view rather than acting from here:
-								    clearing a name is workspace-wide and permanent, and a
-								    control among per-issue chips reads as issue-scoped. */}
 								{addingAssignee &&
 									assignees.some(a => a.isExternal && !a.isRedacted) && (
 										<ChipRow>
@@ -553,11 +535,6 @@ export const IssueDetails = ({
 											}}
 										/>
 
-										{/* The warning lives in the placeholder rather than the
-										    button label: this path can invent a person who has
-										    never touched the board, and the field is where you're
-										    looking while deciding to do it. A long button label
-										    also crowded the row. */}
 										<Button
 											onClick={addAssignee}
 											title="Add someone who has not contributed to this board"

@@ -235,8 +235,7 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 	},
 };
 
-// Mutable so a test can redact somebody and see how the read paths react.
-// Reset in the suite's beforeEach.
+// Mutable; reset in beforeEach.
 const contributorRegistry: Record<
 	string,
 	{id: string; name: string; redacted?: boolean}
@@ -248,9 +247,8 @@ const DEFAULT_CONTRIBUTOR_REGISTRY = {
 	'contributor-1': {id: 'contributor-1', name: 'Alice'},
 };
 
-// Likewise mutable: name resolution reads the *state* event log (distinct from
-// the merged on-disk log that loadMergedEvents supplies), so a test that wants
-// a log name to compete with the registry has to add one here.
+// The *state* event log, distinct from the merged on-disk log loadMergedEvents
+// supplies. Name resolution reads this one.
 const DEFAULT_STATE_EVENT_LOG = [
 	{
 		id: 'comment-event-1',
@@ -322,9 +320,7 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 
 vi.mock('../epiq-time-travel.js', () => ({
 	getTimeTravelStatus: vi.fn(() => ({mode: 'live', asOfTime: null})),
-	// Stands in for the real board filter, which walks the node tree. Tests
-	// only need events to be attributable to a board, so fixtures carry the id
-	// on the payload and this keeps the ones that match.
+	// Stand-in for the real tree walk; fixtures carry boardId on the payload.
 	filterEventsForBoard: vi.fn(
 		(events: {payload?: {boardId?: string}}[], boardId: string) =>
 			events.filter(event => event.payload?.boardId === boardId),
@@ -733,9 +729,6 @@ describe('mcp tools', () => {
 			});
 		}
 
-		// One combined batch: add.issue, edit.description, add.issue.tag (bug
-		// already exists), create.tag + add.issue.tag (urgent), add.issue.assignee
-		// (Alice already exists), create.contributor + add.issue.assignee (Bob).
 		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledTimes(1);
 		const [events] = vi.mocked(persistModule.materializeAndPersistAll).mock
 			.calls[0]!;
@@ -856,8 +849,7 @@ describe('mcp tools', () => {
 		const result = await tools.getGuiState({repoRoot: '/repo'});
 
 		expect(isFail(result)).toBe(false);
-		// The tell-tale sign of a boot(): it pulls from the remote. Skipping that
-		// pull is what proves getGuiState() didn't clobber the checkout.
+		// No git call means no boot, which is what proves the checkout survived.
 		expect(gitUtilsModule.execGit).not.toHaveBeenCalled();
 	});
 
@@ -865,9 +857,6 @@ describe('mcp tools', () => {
 		const result = await tools.getGuiState({repoRoot: '/repo'});
 
 		expect(isFail(result)).toBe(false);
-		// getGuiState must not force a git pull on every read — that would
-		// hang/break sandboxed or offline setups. Freshness comes from
-		// api-autosync.ts's own periodic sync() instead.
 		expect(gitUtilsModule.execGit).not.toHaveBeenCalled();
 	});
 
@@ -1008,11 +997,9 @@ describe('mcp tools', () => {
 	});
 
 	it('derives contributors from event-log userIds, not just the registry', async () => {
-		// boot() also calls loadMergedEvents, so a `once` override would be
-		// swallowed before getBoardContributors ever reads it. Set it for the
-		// whole test and restore the shared default afterwards — clearAllMocks
-		// resets call data, not implementations, so a leak here would silently
-		// change every later test.
+		// boot() also calls loadMergedEvents, so a `once` override gets swallowed.
+		// Restore the default at the end: clearAllMocks does not reset
+		// implementations, so a leak here would change every later test.
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
 			typeof vi.fn
 		>;
@@ -1025,8 +1012,7 @@ describe('mcp tools', () => {
 					action: 'edit.title',
 					payload: {id: 'issue-1', name: 'x'},
 				},
-				// Same person, later event, new display name — the id is stable,
-				// the spelling is not, so the latest one should win.
+				// Same person, later event, new display name: the latest wins.
 				{
 					id: 'e2',
 					userId: 'user-1',
@@ -1051,7 +1037,6 @@ describe('mcp tools', () => {
 			const byId = Object.fromEntries(result.value.map(c => [c.id, c.name]));
 			expect(byId['user-1']).toBe('Alice Cooper');
 			expect(byId['user-2']).toBe('Bob');
-			// Registry entry that never authored anything is still assignable.
 			expect(byId['contributor-1']).toBe('Alice');
 		}
 
@@ -1085,8 +1070,7 @@ describe('mcp tools', () => {
 			expect(result.value.assignee.id).toBe('user-1');
 		}
 
-		// The contributor is registered under the id already used to author
-		// events — minting a fresh ulid here is the bug this guards against.
+		// Guards against minting a fresh ulid for somebody who already has an id.
 		const calls = (
 			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
 		).mock.calls[0]?.[0];
@@ -1104,9 +1088,6 @@ describe('mcp tools', () => {
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
-	// External is derived, never stored: somebody who only exists in the
-	// registry has not worked on the board, and the day they do the flag
-	// flips on its own with nothing to migrate.
 	it('marks registry-only contributors as external, authors as not', async () => {
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
 			typeof vi.fn
@@ -1145,12 +1126,11 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			// Id survives; only the name is gone.
 			expect(result.value.id).toBe('contributor-1');
 			expect(result.value.name).toBe(REDACTED_CONTRIBUTOR_NAME);
 		}
 
-		// An ordinary forward event — nothing in the log is rewritten.
+		// A forward event: nothing in the log is rewritten.
 		const calls = (
 			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
 		).mock.calls[0]?.[0];
@@ -1162,9 +1142,6 @@ describe('mcp tools', () => {
 		]);
 	});
 
-	// The redaction guard only sees the log this machine has pulled, so on a
-	// synced board somebody whose events have not arrived yet passes it. The
-	// inverse event is what keeps that mistake recoverable.
 	describe('unredactContributor', () => {
 		const asRedacted = () => {
 			contributorRegistry['contributor-1'] = {
@@ -1206,8 +1183,8 @@ describe('mcp tools', () => {
 				});
 			}
 
-			// Carries the name in the payload, so replaying the log reproduces
-			// the same state without depending on what else is in it.
+			// The name rides in the payload, so replay does not depend on what
+			// else is in the log.
 			const calls = (
 				persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
 			).mock.calls[0]?.[0];
@@ -1235,7 +1212,6 @@ describe('mcp tools', () => {
 			expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
 		});
 
-		// Refusing beats inventing a name.
 		it('refuses when the log has no create.contributor to read', async () => {
 			asRedacted();
 			(
@@ -1268,8 +1244,7 @@ describe('mcp tools', () => {
 		});
 	});
 
-	// The state the stale guard can produce: cleared, yet an author. Surfaced
-	// so a client can offer the restore rather than leave a name silently wrong.
+	// The state a stale local log can produce: cleared, yet an author.
 	it('flags a redacted contributor who turns out to have authored events', async () => {
 		contributorRegistry['contributor-1'] = {
 			id: 'contributor-1',
@@ -1302,10 +1277,8 @@ describe('mcp tools', () => {
 		expect(entry?.isRedactedDespiteAuthoring).toBe(true);
 	});
 
-	// The log keeps every name its author wrote under — redaction cannot remove
-	// those without rewriting history, which this system never does. So the
-	// registry has to win on the way out, or a later sync that brings the
-	// person's log file back quietly un-redacts them.
+	// Guards against a later sync quietly un-redacting somebody: the log still
+	// carries the name they authored under, so the registry has to win.
 	it('keeps a redacted name cleared even when the log carries the real one', async () => {
 		contributorRegistry['contributor-1'] = {
 			id: 'contributor-1',
@@ -1340,15 +1313,11 @@ describe('mcp tools', () => {
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
-	// `isExternal` is board-scoped ("has not worked on this board") while the
-	// redaction guard is workspace-wide ("has not authored anywhere"). Keying
-	// the modal's blocked-reason on isExternal offered a teammate who
-	// contributed on another board as clearable, and the server then refused.
+	// `isExternal` is board-scoped, the redaction guard is workspace-wide; a
+	// client that conflates them offers a teammate the server then refuses.
 	it('separates board-scoped external from workspace-wide authorship', async () => {
-		// Registered here because that is what makes the case reachable: the
-		// candidate list is board authors plus the registry, so somebody who
-		// only ever authored on another board is offered by the modal precisely
-		// when they are also a registered contributor.
+		// Registered, since the candidate list is board authors plus the
+		// registry — that is what makes an off-board author reachable here.
 		contributorRegistry['user-elsewhere'] = {
 			id: 'user-elsewhere',
 			name: 'Elsewhere',
@@ -1389,13 +1358,11 @@ describe('mcp tools', () => {
 		expect(byId['user-here']?.isExternal).toBe(false);
 		expect(byId['user-here']?.hasAuthoredAnywhere).toBe(true);
 
-		// The case that was wrong: external to this board, but an author
-		// elsewhere, so their name is in the history and cannot be cleared.
+		// External to this board, but an author elsewhere, so not clearable.
 		expect(byId['user-elsewhere']?.isExternal).toBe(true);
 		expect(byId['user-elsewhere']?.hasAuthoredAnywhere).toBe(true);
 
-		// A registry-only contributor is external and has authored nothing, so
-		// they remain the one genuinely clearable case.
+		// Registry-only, so the one genuinely clearable case.
 		expect(byId['contributor-1']?.isExternal).toBe(true);
 		expect(byId['contributor-1']?.hasAuthoredAnywhere).toBe(false);
 
@@ -1409,8 +1376,7 @@ describe('mcp tools', () => {
 			redacted: true,
 		};
 
-		// The competing name: this id authored an event under 'Alice', which is
-		// exactly what the log-name override would otherwise promote.
+		// The competing name the log-name override would otherwise promote.
 		stateEventLog = [
 			...DEFAULT_STATE_EVENT_LOG,
 			{
@@ -1433,9 +1399,6 @@ describe('mcp tools', () => {
 		}
 	});
 
-	// Their name is written across every event they authored; clearing the
-	// registry copy alone would leave the two disagreeing rather than
-	// removing anything.
 	it('refuses to redact a contributor who has authored events', async () => {
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
 			typeof vi.fn
@@ -1528,8 +1491,6 @@ describe('mcp tools', () => {
 		]);
 	});
 
-	// The point of the id path: an id names a specific person, so an unknown
-	// one is an error rather than a licence to invent a different contributor.
 	it('fails on an unknown assignee id instead of creating one', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
@@ -1557,8 +1518,7 @@ describe('mcp tools', () => {
 		}
 	});
 
-	// Creating a person should be a decision, not what happens when a name is
-	// misspelt — that is how near-duplicate contributors appear.
+	// Guards against a misspelt name silently creating a near-duplicate person.
 	it('refuses an unmatched name unless createUnlinked is set', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
@@ -1575,11 +1535,8 @@ describe('mcp tools', () => {
 	});
 
 	it('adds an existing contributor as assignee without creating a duplicate', async () => {
-		// The default log author is a *separate* id that happens to share the
-		// registry's display name, which the union below now (correctly) reads
-		// as two people called Alice. Point the author at the record's own id,
-		// which is what the app actually does — `ensureContributorExists`
-		// registers an author under their own userId.
+		// The default log author is a separate id sharing the registry's display
+		// name, which the union correctly reads as two people called Alice.
 		stateEventLog = [{...DEFAULT_STATE_EVENT_LOG[0], userId: 'contributor-1'}];
 
 		const result = await tools.addIssueAssignee({
@@ -1607,11 +1564,7 @@ describe('mcp tools', () => {
 		]);
 	});
 
-	// The bug this path had: a contributor record is only written when somebody
-	// is explicitly created or assigned, so an author who has never been
-	// assigned is absent from the registry. Matching the registry alone called
-	// them unknown, and `createUnlinked` then minted a *second* id for a person
-	// who already had one.
+	// Guards against minting a second id for an author absent from the registry.
 	it('matches a name found only in the event log and reuses that id', async () => {
 		stateEventLog = [
 			{
@@ -1641,8 +1594,6 @@ describe('mcp tools', () => {
 			persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>
 		).mock.calls[0]?.[0];
 
-		// Registered under the id they already author with — not a fresh ulid —
-		// and still registered, since the registry genuinely lacked them.
 		expect(calls).toEqual([
 			expect.objectContaining({
 				action: 'create.contributor',
@@ -1657,9 +1608,7 @@ describe('mcp tools', () => {
 
 	it('refuses a name that matches two different contributors', async () => {
 		// Registry "Alice" (contributor-1) and log author "Alice" (user-1) are
-		// two ids with one display name. Picking either silently assigns the
-		// wrong person half the time, so it has to be refused — same rule the
-		// TUI's `:assign` applies.
+		// two ids with one display name.
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
 			issueId: 'issue-1',

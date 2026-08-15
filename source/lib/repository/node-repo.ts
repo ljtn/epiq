@@ -399,13 +399,9 @@ export const nodeRepo = {
 		return succeeded('Successfully tomb stoned', node);
 	},
 
-	// Clears the display name but keeps the contributor record. The id stays,
-	// so assignments referencing it keep resolving and nothing in history is
-	// orphaned — only the personal name is gone.
-	//
-	// Applies the redaction unconditionally. The rule that it is only offered
-	// for contributors who have never authored an event lives in the caller
-	// (epiq-api.ts's redactContributor), since only it can read the log.
+	// Clears the display name but keeps the record, so assignments referencing
+	// the id keep resolving. Unconditional: the rule that only contributors who
+	// have never authored an event may be redacted lives in the caller.
 	redactContributor(contributorId: string): Result<Contributor> {
 		const contributor = this.getContributor(contributorId);
 		if (!contributor) return failed('Contributor not found');
@@ -413,8 +409,6 @@ export const nodeRepo = {
 		const redacted: Contributor = {
 			...contributor,
 			name: REDACTED_CONTRIBUTOR_NAME,
-			// The flag, not the placeholder name, is what every read path checks
-			// before letting an event-log name override the registry.
 			redacted: true,
 		};
 
@@ -430,12 +424,6 @@ export const nodeRepo = {
 		return succeeded('Redacted contributor', redacted);
 	},
 
-	// The inverse of redactContributor: puts the name back and clears the flag,
-	// so the read paths stop substituting the placeholder.
-	//
-	// Takes the name from the caller rather than digging it out of the log —
-	// see the note on `unredact.contributor` for why replay must not depend on
-	// what else is in the log.
 	unredactContributor(
 		contributorId: string,
 		name: string,

@@ -32,28 +32,15 @@ import {ApiTimeTravelStatus} from './api-state.model.js';
 
 type ToolInput = {repoRoot?: string};
 
-// Bucket slot count used to divide whatever window is requested. The loop
-// below iterates over events, not over bucket slots, and the returned map
-// only ever holds as many entries as there are non-empty buckets (bounded by
-// real event count) — so a high slot count costs nothing in time or payload
-// size, it just gives finer resolution. This is what makes a narrower scope
-// (e.g. "week") noticeably more precise than "all time": the same slot count
-// divided over a much shorter window yields much smaller buckets.
+// Free to set high: iteration is over events, not slots, and only non-empty
+// buckets are returned, so more slots only means finer resolution.
 const TIMELINE_BUCKET_COUNT = 100_000;
 
-// Tracks how far back the shared singleton is currently checked out. Not part
-// of AppState because it's purely a GUI-server bookkeeping concern (the TUI
-// tracks its own equivalent locally within `:peek`/`:replay`).
+// Not in AppState: purely GUI-server bookkeeping.
 let currentAsOfTime: number | null = null;
 
-// Serializes every operation that reads-then-writes the shared state
-// singleton across an `await` (checkout, return-to-live, and — imported into
-// api-autosync.ts — the autosync tick's post-sync refresh). Without this, a
-// scrub landing during an in-flight `sync()`'s git round-trip gets silently
-// overwritten the moment that sync's `boot()` runs, since a "still live?"
-// check taken before an `await` can go stale by the time execution resumes.
-// Chaining onto the previous promise (ignoring its outcome) queues callers
-// strictly in arrival order and guarantees only one runs at a time.
+// Serializes read-then-write of the shared state singleton across an `await`.
+// NOT re-entrant: calling runExclusive from inside it deadlocks forever.
 let opQueue: Promise<unknown> = Promise.resolve();
 
 export const runExclusive = <T>(fn: () => Promise<T>): Promise<T> => {
@@ -98,20 +85,8 @@ export type EventTimeline = {
 	latest: number;
 };
 
-// Attributes each event to the board it happened on, so the scrubber can show
-// the timeline for the board you're actually looking at rather than for the
-// whole workspace.
-//
-// Events reference a node by id and don't carry a board, so the hierarchy has
-// to be reconstructed: `add.*` and `move.node` payloads carry a parent, which
-// is enough to build an id -> parent map and walk upward to a board. The map
-// is updated as the scan proceeds rather than built up front, so each event is
-// attributed using the hierarchy *as it stood at that moment* — an issue moved
-// to another board later doesn't retroactively rewrite its own history.
-//
-// Events that resolve to no board at all (tags, contributors, the workspace
-// itself) are workspace-global and deliberately dropped: they'd appear
-// identically on every board's timeline and tell you nothing about this one.
+// The id -> parent map is built as the scan proceeds, so each event is
+// attributed using the hierarchy as it stood then. No-board events are dropped.
 export const filterEventsForBoard = (
 	events: AppEvent[],
 	boardId: string,
@@ -139,8 +114,7 @@ export const filterEventsForBoard = (
 		const id = payload?.id;
 		if (!id) continue;
 
-		// Structure first, so an event that establishes a node's position is
-		// itself attributed to where it just put it.
+		// Before matching, so a board's own add event is attributed to it.
 		if (event.action === 'add.board') {
 			boardIds.add(id);
 		}
@@ -157,15 +131,8 @@ export const filterEventsForBoard = (
 	return matching;
 };
 
-// Pure read of persisted event timestamps, bucketed for the scrubber's density
-// display. Never touches the materialized state singleton, so it's safe to call
-// at any time, including mid-scrub.
-//
-// `start`/`end` scope the window to bucket over — omit both for the default
-// "all time" view ([earliest event, now]). Narrowing the window (e.g. to a
-// single week) buckets that same fixed TIMELINE_BUCKET_COUNT across a much
-// shorter span, which is what gives a scoped view its extra precision — no
-// separate resolution knob needed.
+// Pure read: never touches the materialized state singleton, so it is safe
+// mid-scrub. Omit `start`/`end` for an [earliest event, now] window.
 export const getEventTimeline = async (
 	input: ToolInput & {start?: number; end?: number; boardId?: string} = {},
 ): Promise<Result<EventTimeline>> => {
@@ -186,8 +153,7 @@ export const getEventTimeline = async (
 
 	const now = Date.now();
 	const windowEnd = input.end ?? now;
-	// Folded rather than spread: `allTimes` is one entry per event in the whole
-	// log when no window is given, which is the "All time" scope.
+	// Folded, not spread: `allTimes` can hold one entry per event in the whole log.
 	const windowStart = input.start ?? minOf(allTimes, windowEnd);
 
 	if (windowEnd <= windowStart) {
@@ -240,24 +206,16 @@ export type CommitEntry = {
 	time: number;
 	author: string;
 	subject: string;
-	// Insertions + deletions from `--shortstat`. Drives bar height in the
-	// GUI's Frames-mode commit track — a commit that touches a lot of lines
-	// should read as "more" than one that touches few, not just "one commit
-	// same as any other".
 	linesChanged: number;
 };
 
-// Non-printable separators. Field sep is safe against commit subjects
-// containing "|" etc.; record sep lets us reliably split each commit's
-// header line from the `--shortstat` line(s) git prints after it.
+// Non-printable, so a commit subject can never contain them.
 const GIT_LOG_FIELD_SEP = '\x1f';
 const GIT_LOG_RECORD_SEP = '\x1e';
 
-// Pure read of the *code* repo's commit history — a distinct git root from
-// the event log's state-branch worktree (resolveStateBranchRoot above), and
-// deliberately excludes the epiq state branch's own commits: worktrees share
-// one ref namespace, so without `--not <stateBranch>` they'd show up mixed in
-// with real development history.
+// Pure read of the *code* repo's history, safe mid-scrub. `--not <stateBranch>`
+// is required: worktrees share one ref namespace, so epiq's own state commits
+// would otherwise appear mixed into real development history.
 export const getCommitTimeline = async (
 	input: ToolInput & {start?: number; end?: number} = {},
 ): Promise<Result<CommitEntry[]>> => {
@@ -297,9 +255,6 @@ export const getCommitTimeline = async (
 			).split(GIT_LOG_FIELD_SEP);
 			if (!sha || !atSeconds) return null;
 
-			// `--shortstat` prints one summary line like " 3 files changed, 45
-			// insertions(+), 12 deletions(-)" after the header — merge/empty
-			// commits print none, which is fine, they just count as 0.
 			const statText = statLines.join(' ');
 			const insertions = Number(/(\d+) insertion/.exec(statText)?.[1] ?? 0);
 			const deletions = Number(/(\d+) deletion/.exec(statText)?.[1] ?? 0);
@@ -317,17 +272,11 @@ export const getCommitTimeline = async (
 	return succeeded('Computed commit timeline', commits);
 };
 
-// Git object shas are hex — enforced here mainly because `sha` flows straight
-// into a `git show <sha>` argv slot. Without this, a string starting with
-// `-` would be parsed by git as a flag rather than a revision (argument
-// injection, not shell injection, but still worth closing off).
+// `sha` reaches a `git show <sha>` argv slot, where a leading `-` would be read
+// as a flag. Argument injection, not shell injection.
 const isPlausibleSha = (sha: string): boolean => /^[0-9a-f]{7,40}$/i.test(sha);
 
-// A plain unified diff (one file, `git show <sha>` verbatim) — VS Code (and
-// most editors) apply basic diff syntax highlighting (the +/- lines, file
-// headers) to a .diff file, but NOT the underlying language's own grammar to
-// the code inside it, so it reads as mostly-monochrome text. Works with any
-// editor though, and is the universal fallback below.
+// Fallback: editors highlight the +/- lines but not the code's own language.
 const openCommitAsUnifiedDiff = async (
 	repoRoot: string,
 	sha: string,
@@ -338,13 +287,9 @@ const openCommitAsUnifiedDiff = async (
 	const tmpDir = path.join(os.tmpdir(), 'epiq', 'commit-diffs');
 	fileManager.mkDir(tmpDir);
 
-	// Named after the sha, not a random id — the diff for a given commit is
-	// deterministic, so re-inspecting the same commit reopens the same file
-	// instead of littering the tmp dir with duplicates.
 	const tmpPath = path.join(tmpDir, `${sha}.diff`);
 
-	// Only write (and lock down) the file the first time — it's already
-	// chmod 0o444 after that, and re-writing would fail with EACCES.
+	// Already chmod 0o444 after the first write, so re-writing would fail EACCES.
 	if (!existsSync(tmpPath)) {
 		fileManager.writeToFile(tmpPath, showResult.value.stdout);
 		await chmod(tmpPath, 0o444);
@@ -353,21 +298,13 @@ const openCommitAsUnifiedDiff = async (
 	return openEditorOnFileNonBlocking(tmpPath);
 };
 
-// Commits touching more files than this fall back to the plain unified diff
-// instead — opening dozens of side-by-side tabs at once is more overwhelming
-// than helpful, and slower to launch (one `code --diff` spawn per file).
+// Beyond this, dozens of tabs (one editor spawn each) is worse than one diff.
 const MAX_DIFF_FILES_FOR_SIDE_BY_SIDE = 12;
 
-// How long to wait, after forcing open a brand new VS Code window for the
-// first changed file, before opening the rest with --reuse-window. Purely a
-// heuristic — there's no CLI signal for "the new window now exists and is
-// focused" — chosen to comfortably exceed how long a new Electron window
-// normally takes to come up on typical hardware.
+// No CLI signal for "the new window is up", so just long enough to outlast it.
 const NEW_WINDOW_SETTLE_MS = 800;
 
-// Reads a file's content as of a given git revision. A missing blob (the
-// file was added or deleted at this commit, so it doesn't exist on one side)
-// isn't a real failure here — it just means that side of the diff is empty.
+// A missing blob only means the file was added or deleted here, not a failure.
 const readFileAtRevision = async (
 	repoRoot: string,
 	revision: string,
@@ -381,11 +318,7 @@ const readFileAtRevision = async (
 	return isFail(result) ? '' : result.value.stdout;
 };
 
-// One VS Code native two-pane diff tab per changed file, each side written
-// out under its own real filename so VS Code's language detection sees the
-// actual extension (e.g. .tsx) and applies proper syntax highlighting —
-// unlike the unified-diff fallback, which VS Code only diff-highlights at
-// the line level (+/-), not the code itself.
+// Each side keeps its real filename so the editor detects the language.
 const openCommitAsSideBySideDiffs = async (
 	repoRoot: string,
 	sha: string,
@@ -414,8 +347,6 @@ const openCommitAsSideBySideDiffs = async (
 
 	const tmpDir = path.join(os.tmpdir(), 'epiq', 'commit-diffs', sha);
 
-	// Preparing the temp files (git reads + writes) has no window semantics,
-	// so every file can happen concurrently regardless of open order below.
 	const preparedFiles = await Promise.all(
 		filePaths.map(async (filePath, index) => {
 			const [beforeContent, afterContent] = await Promise.all([
@@ -423,10 +354,7 @@ const openCommitAsSideBySideDiffs = async (
 				readFileAtRevision(repoRoot, sha, filePath),
 			]);
 
-			// Nested under the file's own index so same-named files from
-			// different directories in the same commit don't collide, while
-			// still keeping each temp file's own basename (and therefore
-			// extension) exactly as it is in the repo.
+			// Indexed so same-named files from different directories don't collide.
 			const basename = path.basename(filePath);
 			const beforePath = path.join(tmpDir, String(index), 'before', basename);
 			const afterPath = path.join(tmpDir, String(index), 'after', basename);
@@ -445,13 +373,8 @@ const openCommitAsSideBySideDiffs = async (
 		}),
 	);
 
-	// Opening, unlike preparing, DOES have window semantics and must be
-	// sequenced: the first tab forces a brand new VS Code window (so
-	// inspecting a commit doesn't dump tabs into whatever the user already
-	// has open), then every other file for this commit is told to reuse
-	// whichever window is now active — which, after the settle delay below,
-	// should be that same new one — so they all land together in it instead
-	// of each popping open its own window.
+	// Must be sequenced: the first tab forces a new window, and the rest reuse
+	// whichever window is active — after the settle delay below, that new one.
 	const [first, ...rest] = preparedFiles;
 	if (!first) return failed('No changed files found for this commit');
 
@@ -463,11 +386,6 @@ const openCommitAsSideBySideDiffs = async (
 	);
 	if (isFail(firstResult) || rest.length === 0) return firstResult;
 
-	// Best-effort: there's no CLI signal for "the new window is now up and
-	// focused," just a delay long enough that it usually is by the time the
-	// rest fire. Worst case a --reuse-window call races this and lands in
-	// the user's original window instead — annoying, but no worse than
-	// today, and everything still opens.
 	await new Promise(resolve => setTimeout(resolve, NEW_WINDOW_SETTLE_MS));
 
 	const restResults = await Promise.all(
@@ -476,9 +394,6 @@ const openCommitAsSideBySideDiffs = async (
 		),
 	);
 
-	// The first (and its new window) already succeeded — a later file
-	// failing to join it doesn't erase that, so this stays a success either
-	// way. Just log which ones didn't make it in.
 	for (const result of restResults) {
 		if (isFail(result)) {
 			logger.error(
@@ -490,9 +405,8 @@ const openCommitAsSideBySideDiffs = async (
 	return firstResult;
 };
 
-// Opens a single commit's diff, read-only, in the user's configured editor.
-// Never touches the materialized state singleton — this is a pure
-// inspect-the-code-history action, independent of time-travel checkout.
+// Never touches the materialized state singleton, so it is independent of any
+// time-travel checkout.
 export const openCommitDiffInEditor = async (
 	input: ToolInput & {sha: string},
 ): Promise<Result<true>> => {
@@ -521,15 +435,8 @@ export const openCommitDiffInEditor = async (
 	return openCommitAsUnifiedDiff(repoRoot, input.sha);
 };
 
-// Re-materializes the live head into the shared state singleton and flips every
-// time-travel flag (including the module-level as-of clock) back to "live".
-//
-// Deliberately takes NO lock: `runExclusive` chains onto a shared promise queue
-// and is not re-entrant, so grabbing it here would deadlock forever — both
-// callers below already run their entire body inside it. Equally deliberately,
-// it doesn't call `returnToLive` (which would do exactly that): the shared work
-// lives here, and `returnToLive` is a thin lock-taking wrapper around it, so
-// there is no recursion between the two.
+// Takes NO lock: its callers already run inside `runExclusive`, which is not
+// re-entrant, so taking it here would deadlock forever.
 const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 	const eventsResult = loadMergedEvents(stateBranchRoot);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
@@ -537,12 +444,8 @@ const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 	const resetResult = resetState();
 	if (isFail(resetResult)) return failed(resetResult.message);
 
-	// Cleared the moment the reset lands, not at the end: from here on the
-	// singleton carries `initWorkspaceState`'s base flags (`readOnly: false`,
-	// `timeMode: 'live'`), so any exit below — including a failing materialize —
-	// must not leave an as-of timestamp claiming we're still checked out
-	// somewhere. Everything before the reset is untouched state, where the
-	// existing clock is still the truthful one.
+	// Cleared here, not at the end: past the reset the singleton's flags already
+	// say live, so no exit below may leave an as-of time claiming a checkout.
 	currentAsOfTime = null;
 
 	const materializeResults = materializeAll(eventsResult.value);
@@ -562,21 +465,9 @@ const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 	return succeeded('Restored live state', true);
 };
 
-// Called on the failure paths below, where `resetState()` has already emptied
-// the singleton down to the bare initial workspace and there is nothing left to
-// show. Without this the process would sit in the worst possible shape: no
-// boards, yet `readOnly: false` / `timeMode: 'live'` (that's part of
-// `initWorkspaceState`'s base state), so every mutation guard — which only asks
-// `getTimeTravelStatus().mode !== 'live'` — would be wide open over a board that
-// isn't there, and `deriveGuiState()` would broadcast that emptiness as live
-// because it deliberately doesn't `boot()`.
-//
-// So we degrade to "you are live" rather than "you are nowhere": re-materialize
-// the head and clear the as-of clock. The clock is cleared unconditionally and
-// first, because the flags `resetState()` left already say "live" — leaving a
-// stale timestamp behind would make our bookkeeping disagree with the state it
-// describes on every exit path out of here, including the one where the
-// recovery itself dies.
+// For failure paths where `resetState()` has already emptied the singleton while
+// its flags claim live — mutation guards would be wide open over a board that is
+// not there. Degrade to a real live state instead of leaving a phantom checkout.
 const recoverToLiveAfterFailure = (
 	stateBranchRoot: string,
 	originalMessage: string,
@@ -585,11 +476,7 @@ const recoverToLiveAfterFailure = (
 
 	const restoreResult = restoreLiveState(stateBranchRoot);
 
-	// Recovery can legitimately fail too — an unreadable log, or an event that
-	// no longer materializes at head. Nothing more we can do about the emptied
-	// board at that point, but the flags are at least coherent, and neither
-	// failure is swallowed: the original goes first because it's the real cause,
-	// the recovery failure trails it as context.
+	// Original failure leads; the recovery failure trails it as context.
 	if (isFail(restoreResult)) {
 		return failed(
 			`${originalMessage} (recovery to live also failed: ${restoreResult.message})`,
@@ -599,11 +486,7 @@ const recoverToLiveAfterFailure = (
 	return failed(originalMessage);
 };
 
-// Rewinds the shared state singleton to how the board looked at `targetTime`,
-// read-only. Adapted from the TUI's `checkoutBoardAt`
-// (source/lib/command-line/commands/checkout-board.ts), minus the Ink-specific
-// breadcrumb navigation step, which the GUI doesn't need since it derives all
-// boards from state on every read rather than navigating to one.
+// Rewinds the shared state singleton to `targetTime`, read-only.
 export const checkoutStateAt = (
 	input: ToolInput & {targetTime: number},
 ): Promise<Result<{asOfTime: number}>> =>
@@ -627,9 +510,8 @@ export const checkoutStateAt = (
 		const materializeResults = materializeAll(appliedEvents);
 		const materializeFailures = materializeResults.filter(isFail);
 
-		// Past this point the singleton has already been emptied by the reset
-		// above, so bailing out plainly would leave the whole board gone while
-		// still reporting live. Recover to the head instead.
+		// The reset above already emptied the singleton, so bailing out plainly
+		// would leave the board gone while still reporting live.
 		if (materializeFailures.length > 0) {
 			return recoverToLiveAfterFailure(
 				stateBranchRootResult.value,
@@ -651,8 +533,6 @@ export const checkoutStateAt = (
 		});
 	});
 
-// Returns the shared state singleton to the live head. Adapted from `:peek
-// now` (source/lib/command-line/commands/peek.cmd.ts).
 export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> =>
 	runExclusive(async () => {
 		const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
@@ -660,11 +540,6 @@ export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> =>
 			return failed(stateBranchRootResult.message);
 		}
 
-		// Re-materializing the head IS the recovery, so there's no second thing
-		// to fall back to here — but the helper still guarantees the coherent
-		// exit that matters: if it gets as far as emptying the singleton and
-		// then fails, it has already cleared the as-of clock, so we report a
-		// live-but-empty board rather than a phantom checkout.
 		const restoreResult = restoreLiveState(stateBranchRootResult.value);
 		if (isFail(restoreResult)) return failed(restoreResult.message);
 

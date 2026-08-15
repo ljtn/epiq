@@ -17,9 +17,8 @@ type PanelProps<T extends ElementType> = PropsWithChildren<{
 	glowColor?: string;
 	glowOpacity?: number;
 	glowRadius?: number;
-	// How far outside the panel the pointer can be and still light its
-	// border, in px. Omit to keep the plain behaviour where the glow only
-	// appears while the pointer is actually over the panel.
+	// How far outside the panel the pointer still lights its border, in px. Omit
+	// for the plain behaviour where the glow only appears on hover.
 	proximityReach?: number;
 	borderRadius?: number;
 	style?: React.CSSProperties;
@@ -42,22 +41,16 @@ export const Panel = <T extends ElementType = 'div'>({
 	const Component = as ?? 'div';
 	const [mouse, setMouse] = useState({x: 0, y: 0});
 	const [hovered, setHovered] = useState(false);
-	// 0 when the pointer is beyond `proximityReach`, 1 once it's on the panel,
-	// interpolated in between. Only used when proximityReach is set.
+	// 0 beyond `proximityReach`, 1 on the panel, interpolated in between.
 	const [proximity, setProximity] = useState(0);
-	// The glow layer, used purely to reach its parent (the panel element)
-	// for measurement — the panel itself renders as a generic `as` component,
-	// which can't take a typed ref without fighting the generics.
+	// Used only to reach its parent for measurement: the panel renders as a
+	// generic `as` component, which can't take a typed ref.
 	const glowRef = useRef<HTMLDivElement | null>(null);
 	const lastMeasuredRef = useRef(0);
 
-	// Tracks the pointer across the whole window rather than only over this
-	// element, so a panel lights up as you approach it instead of only once
-	// you're on it — the border cue is most useful while you're still moving
-	// toward the column. Throttled by timestamp rather than
-	// requestAnimationFrame: rAF is paused entirely while the tab is in the
-	// background, which would leave the glow frozen at whatever it was when
-	// you left (and makes the behaviour untestable in an unfocused tab).
+	// Tracks the pointer window-wide so a panel lights up as you approach it.
+	// Throttled by timestamp, not requestAnimationFrame, which is paused in
+	// background tabs and would leave the glow frozen.
 	useEffect(() => {
 		if (proximityReach === undefined) return;
 

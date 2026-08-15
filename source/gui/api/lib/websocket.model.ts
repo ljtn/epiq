@@ -23,8 +23,7 @@ export type GuiMessage =
 	  }
 	| {
 			type: 'issue:assignee:add';
-			// assigneeId assigns an existing contributor; assigneeName is the
-			// unlinked fallback that creates one. See addIssueAssignee.
+			// assigneeId picks an existing contributor; assigneeName creates one.
 			payload: {
 				issueId: string;
 				assigneeId?: string;
@@ -53,12 +52,8 @@ export type GuiMessage =
 	  }
 	| {
 			type: 'timeline:get';
-			// Omit boardId for every board — that is how the scrubber's
-			// "all boards" toggle asks for an unscoped timeline.
-			//
-			// `requestId` is echoed back on the reply so the client can tell which
-			// request it answers; the timeline and the commit log are requested as
-			// a pair and rendered together.
+			// Omit boardId for every board. `requestId` is echoed on the reply so
+			// the client can pair it with the matching commits reply.
 			payload?: {
 				start?: number;
 				end?: number;
@@ -70,8 +65,7 @@ export type GuiMessage =
 	| {type: 'time-travel:live'}
 	| {
 			type: 'commits:get';
-			// No boardId: commits belong to the repository as a whole. See
-			// `timeline:get` for what requestId is for.
+			// No boardId: commits are repository-wide.
 			payload?: {start?: number; end?: number; requestId?: number};
 	  }
 	| {type: 'commit:inspect'; payload: {sha: string}};

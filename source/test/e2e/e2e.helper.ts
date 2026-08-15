@@ -4,12 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-// These files run one at a time (`--no-file-parallelism` in test:e2e:ci).
-// Each drives a real TUI through a pty and shells out to git, so they are
-// wall-clock and IO bound rather than CPU bound — parallelism buys almost
-// nothing and multiplies contention. Measured with 8 files in parallel,
-// `:init` went from ~1.3s to over its 8s budget and 6 of 11 tests failed;
-// serially the whole suite passes in ~35s.
+// These files run one at a time (`--no-file-parallelism`). Each drives a real
+// TUI through a pty and shells out to git, so parallelism only adds contention.
 const width = 120;
 const height = 20;
 
@@ -48,22 +44,13 @@ type TuiSession = {
 	destroy: () => void;
 };
 
-// Isolated per test file (vitest forks/isolates each file into its own
-// process), so all `setupTui()` calls in one file share this global dir, but
-// concurrently-running files never touch each other's real or simulated
-// `~/.epiq-global`. Without this, every e2e process shared the developer's
-// or CI runner's actual `~/.epiq-global`, so parallel files raced on the same
-// global config/worktrees — the likely cause of the flaky ":init" timing and
-// stray "not an epiq project yet" failures under CI load. Deliberately does
-// NOT override HOME itself: git/ssh still need the real `~/.gitconfig` (user
-// identity) to create commits.
+// Per-file isolation, so concurrent files never share a global config dir.
+// HOME is deliberately left alone: git still needs the real ~/.gitconfig.
 const isolatedGlobalDir = fs.mkdtempSync(
 	path.join(os.tmpdir(), 'epiq-e2e-global-'),
 );
 
-// Set on the worker's own env (not just the spawned TUI child's) so test
-// files that call epiq-api.js functions directly in-process — e.g. to
-// inspect state a TUI session just wrote — see the same isolated global dir.
+// On the worker's own env too, so in-process API calls see the same dir.
 process.env['EPIQ_GLOBAL_DIR'] = isolatedGlobalDir;
 
 const createTuiEnv = (extra: Record<string, string> = {}) => {
@@ -96,13 +83,8 @@ const commandLineContent = (frame: string): string => {
 };
 
 /**
- * True when the command line holds no typed command.
- *
- * Not expressed as "contains the placeholder": the `: for command line`
- * caption is only rendered in some contexts — with a field selected the box is
- * simply empty — so waiting on the caption hangs forever there. That is what
- * `edit-scope` was doing after ESC, and because a timed-out `waitFor` used to
- * return the last frame instead of throwing, the test carried on and passed.
+ * True when the command line holds no typed command. Not "contains the
+ * placeholder": the caption is absent in some contexts, so waiting on it hangs.
  */
 export const commandLineIsIdle = (frame: string): boolean => {
 	const content = commandLineContent(frame);
@@ -118,10 +100,7 @@ const describeWaitTarget = (
 };
 
 type SetupTuiOptions = {
-	/**
-	 * The caller owns the directory: it is left in place on
-	 * `destroy()` so a follow-up session can replay the persisted event log.
-	 */
+	/** Left in place on `destroy()` so a later session can replay the log. */
 	cwd?: string;
 	/** Extra environment variables for the spawned process (e.g. EDITOR). */
 	env?: Record<string, string>;
@@ -189,17 +168,9 @@ export const setupTui = (
 		);
 	});
 
-	// The TUI emits one frame as several PTY chunks, and the screen is
-	// re-rendered after each one. A predicate can therefore match a frame that
-	// is still half-drawn — the box border painted, the body text not yet — and
-	// the caller then asserts on text that is about to arrive. Measured at
-	// roughly 1 run in 30, with the two halves 6ms apart, which is what made
-	// this look like a load-related flake rather than a race.
-	//
-	// Waiting for the stream to fall quiet before answering means only complete
-	// frames are ever returned. Bounded, because the header carries an animated
-	// sync indicator: if data never stops arriving, answer anyway rather than
-	// hang until the timeout.
+	// One frame arrives as several PTY chunks, so a predicate can match a
+	// half-drawn screen. Waiting for the stream to fall quiet returns only
+	// complete frames; bounded because the animated sync indicator never stops.
 	const SETTLE_QUIET_MS = 30;
 	const MAX_SETTLE_WAIT_MS = 300;
 

@@ -36,9 +36,6 @@ import {
 } from '../../client/lib/gui-broadcast.js';
 import {GuiMessage} from './websocket.model.js';
 
-// Message types that mutate board state. Rejected while a time-travel checkout
-// is active, since the shared state singleton means an edit would corrupt the
-// historical view every connected client is currently looking at.
 const MUTATING_MESSAGE_TYPES = new Set<GuiMessage['type']>([
 	'sync',
 	'issues:create',
@@ -56,9 +53,7 @@ const MUTATING_MESSAGE_TYPES = new Set<GuiMessage['type']>([
 	'issue:comment:delete',
 ]);
 
-// Pushes the current (possibly historical) state to every connected client,
-// bypassing `getGuiState`'s `boot()` so a live re-materialize doesn't stomp an
-// active time-travel checkout.
+// Derives rather than boots, so a live re-materialize can't stomp a checkout.
 const broadcastDerivedState = () => {
 	const result = deriveGuiState();
 
@@ -78,13 +73,6 @@ const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 		payload: await getGuiState({repoRoot}),
 	});
 
-// The post-mutation refresh, deliberately run *outside* the time-travel lock so
-// the requester isn't made to wait on a boot. That freedom is exactly what makes
-// it unsafe to decide up front where the snapshot comes from: by the time this
-// runs, a `time-travel:scrub` queued behind the mutation may already own the
-// state singleton, and publishing a live-booted snapshot then would tell the
-// client the opposite of the checkout it just entered. So resolve the source
-// against the mode as observed *now*, not as observed when the mutation ran.
 const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
 	const sendDerivedState = () =>
 		sendSocket(socket, {
@@ -96,10 +84,8 @@ const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
 
 	const payload = await getGuiState({repoRoot});
 
-	// `getGuiState` boots, and that await is a suspension point we hold no lock
-	// over, so the scrub can land *during* it and leave us holding a live
-	// snapshot that is already stale. Re-check before it goes out on the wire:
-	// deriving instead costs nothing and reflects the checkout that won.
+	// This runs outside the time-travel lock, so a scrub can land during the boot
+	// above. Re-check before publishing.
 	if (getTimeTravelStatus().mode !== 'live') return sendDerivedState();
 
 	return sendSocket(socket, {
@@ -129,7 +115,6 @@ const sendMutationResult = async (
 
 	onStateChanged();
 
-	// Refresh the requester's view, but do not block its UX on the boot.
 	void sendStateAfterMutation(socket, repoRoot);
 
 	return;
@@ -152,10 +137,8 @@ export const setupWebsocket = (
 			const dispatchMessage = async (message: GuiMessage) => {
 				const {type} = message;
 
-				// `requestId` is echoed, not consumed: the client asks for the
-				// timeline and the commit log as a pair and has to know which
-				// request a reply belongs to before pairing them. Split out of the
-				// payload so it isn't forwarded into the API as a query field.
+				// Echoed back rather than forwarded into the API: the client pairs
+				// the timeline and commit replies by it.
 				if (type === 'timeline:get') {
 					const {requestId, ...query} = message.payload ?? {};
 					return sendSocket(socket, {
@@ -494,13 +477,9 @@ export const setupWebsocket = (
 					return await dispatchMessage(message);
 				}
 
-				// Mutations run inside the same lock checkoutStateAt/returnToLive
-				// take, with the live check *inside* the critical section. Checking
-				// at message receipt and then awaiting is check-then-act: a scrub
-				// landing in any of the handler's awaits would otherwise be
-				// materialized and persisted against historical state. addIssueAssignee
-				// is the reachable case, since it awaits findEventLogAuthor after
-				// boot() and before materializeAndPersistAll.
+				// The live check must stay *inside* the lock; checking then awaiting is
+				// check-then-act. `runExclusive` is not re-entrant, so nothing reached
+				// from here may take it again.
 				return await runExclusive(async () => {
 					if (getTimeTravelStatus().mode !== 'live') {
 						return sendSocket(socket, {

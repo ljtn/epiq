@@ -79,13 +79,9 @@ export type AppEventMap = {
 	};
 
 	/**
-	 * Clears a contributor's display name while keeping the contributor. The
-	 * id and everything referencing it survive — assignments stay intact and
-	 * history stays resolvable — only the personal name stops rendering.
-	 *
-	 * Deliberately an ordinary forward event: nothing in the log is rewritten
-	 * or removed, so the log remains append-only and every earlier event still
-	 * replays exactly as it did.
+	 * Clears a contributor's display name, keeping the id and its references.
+	 * A forward event: the log is never rewritten, so earlier events still carry
+	 * the name and replay unchanged.
 	 */
 	'redact.contributor': {
 		payload: PayloadBase;
@@ -93,20 +89,10 @@ export type AppEventMap = {
 	};
 
 	/**
-	 * Undoes a `redact.contributor`, putting the name back.
-	 *
-	 * Exists because the redaction guard ("refuse anyone who has authored
-	 * events") can only be evaluated against the log this machine has already
-	 * pulled. On a board synced through git that is a stale read: a teammate
-	 * whose events have not arrived yet looks like an outsider and is offered
-	 * as clearable, and their events show up on the next sync. Without an
-	 * inverse, that mistake is permanent.
-	 *
-	 * Carries the name rather than recovering it during materialization. The
-	 * original is still in the log — redaction never rewrote anything — but
-	 * having the handler go looking for it would make replay depend on which
-	 * earlier events happened to be present. An explicit payload replays the
-	 * same way every time, which is the property the whole log relies on.
+	 * Undoes a `redact.contributor`, which is recoverable because the guard on
+	 * redaction only sees the log this machine has pulled. Carries the name
+	 * explicitly: reading it back off earlier events would make replay depend on
+	 * which of them happen to be present.
 	 */
 	'unredact.contributor': {
 		payload: PayloadBase & {name: string};

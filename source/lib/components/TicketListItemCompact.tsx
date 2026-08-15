@@ -37,8 +37,6 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 
 	const assignees = (ticket.props.assignees ?? [])
 		.map(assignee => nodeRepo.getContributor(assignee))
-		// Initial and colour both derive from the name, so both would be stale
-		// after a rename if the stored one were used.
 		.map(contributor =>
 			contributor
 				? {

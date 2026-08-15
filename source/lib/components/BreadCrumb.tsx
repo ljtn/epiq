@@ -27,9 +27,7 @@ const getTagCharacterLength = (tagId: string): number => {
 };
 
 const getAssigneeCharacterLength = (assigneeId: string): number => {
-	// Must be the *rendered* name, not the stored one: AssigneeUI shows the
-	// current name, so measuring the stale one misaligns the layout by the
-	// difference in length.
+	// Must measure the same name AssigneeUI renders, or the layout drifts.
 	const contributor = nodeRepo.getContributor(assigneeId);
 	const name = contributor
 		? getContributorDisplayName(assigneeId, contributor.name)

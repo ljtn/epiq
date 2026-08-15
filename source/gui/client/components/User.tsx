@@ -19,18 +19,15 @@ export const User = ({
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
-			// Outlined rather than filled: a solid disc is the heaviest mark on
-			// a card that is otherwise all text, and it competed with the title
-			// for attention. A thin ring carries the same identity colour at a
-			// fraction of the visual weight.
+			// Outlined rather than filled: a solid disc outweighs everything else
+			// on an otherwise all-text card.
 			background: 'transparent',
 			color: user.color,
 			border: `1px solid ${user.color}`,
 			fontSize: 11,
 			fontWeight: 700,
-			// Spaced, not stacked. Overlapping avatars rely on each disc being
-			// opaque to occlude the one behind it; with transparent rings the
-			// overlap reads as tangled circles instead of a stack.
+			// Spaced, not stacked: overlapping needs opaque discs to occlude, and
+			// these are rings.
 			marginLeft: index === 0 ? 0 : 4,
 			flexShrink: 0,
 		}}

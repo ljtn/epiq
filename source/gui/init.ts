@@ -13,12 +13,8 @@ import {startGuiServer} from './api/api-server.js';
 export const startGui = async (input: {
 	repoRoot: string;
 }): Promise<Result<{url: string}>> => {
-	// Mirrors bootTui's own settings load (source/boot-tui.tsx) — without this,
-	// the GUI server process's settings singleton never picks up
-	// ~/.epiq-global/config.json (preferredEditor, etc.), and code that reads
-	// getSettingsState() (e.g. the commit-diff "open in editor" feature)
-	// silently falls back to raw $VISUAL/$EDITOR instead of the user's actual
-	// configured preference.
+	// The GUI server process has its own settings singleton; without this it never
+	// picks up the user's config and silently falls back to $VISUAL/$EDITOR.
 	const settings = loadSettingsFromConfig();
 	if (isSuccess(settings)) patchSettingsState(settings.value);
 

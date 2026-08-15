@@ -5,18 +5,14 @@ type Props = {
 	label: React.ReactNode;
 	checked: boolean;
 	onChange: (next: boolean) => void;
-	// Colour when checked. Defaults to the accent; callers pass a series or
-	// intent colour where the checkbox stands for something specific.
+	// Colour when checked. Defaults to the accent.
 	activeColor?: string;
 	disabled?: boolean;
 	title?: string;
 };
 
-// A checkbox drawn to match the buttons rather than the platform's own: same
-// 1px border, same active/dim colour pair, same small label text. The native
-// input is kept for semantics and keyboard behaviour but made invisible and
-// stretched over the box, so the visible square is ours while the control
-// still behaves like a real checkbox.
+// Drawn to match the buttons rather than the platform's own. The native input
+// is kept for semantics and keyboard behaviour, stretched invisibly over it.
 export const Checkbox = ({
 	label,
 	checked,
@@ -48,9 +44,7 @@ export const Checkbox = ({
 					justifyContent: 'center',
 					width: 12,
 					height: 12,
-					// Smaller radius than the buttons' 6px only because the box is a
-					// fraction of their height — the same 6 would round it into a
-					// circle and stop reading as a checkbox.
+					// Smaller than the buttons' 6px: at 12px square, 6 rounds to a circle.
 					borderRadius: 4,
 					border: `1px solid ${color}`,
 					background: 'transparent',
