@@ -521,6 +521,84 @@ export const openCommitDiffInEditor = async (
 	return openCommitAsUnifiedDiff(repoRoot, input.sha);
 };
 
+// Re-materializes the live head into the shared state singleton and flips every
+// time-travel flag (including the module-level as-of clock) back to "live".
+//
+// Deliberately takes NO lock: `runExclusive` chains onto a shared promise queue
+// and is not re-entrant, so grabbing it here would deadlock forever — both
+// callers below already run their entire body inside it. Equally deliberately,
+// it doesn't call `returnToLive` (which would do exactly that): the shared work
+// lives here, and `returnToLive` is a thin lock-taking wrapper around it, so
+// there is no recursion between the two.
+const restoreLiveState = (stateBranchRoot: string): Result<true> => {
+	const eventsResult = loadMergedEvents(stateBranchRoot);
+	if (isFail(eventsResult)) return failed(eventsResult.message);
+
+	const resetResult = resetState();
+	if (isFail(resetResult)) return failed(resetResult.message);
+
+	// Cleared the moment the reset lands, not at the end: from here on the
+	// singleton carries `initWorkspaceState`'s base flags (`readOnly: false`,
+	// `timeMode: 'live'`), so any exit below — including a failing materialize —
+	// must not leave an as-of timestamp claiming we're still checked out
+	// somewhere. Everything before the reset is untouched state, where the
+	// existing clock is still the truthful one.
+	currentAsOfTime = null;
+
+	const materializeResults = materializeAll(eventsResult.value);
+	const materializeFailures = materializeResults.filter(isFail);
+
+	if (materializeFailures.length > 0) {
+		return failed(materializeFailures.map(x => x.message).join(', '));
+	}
+
+	patchState({
+		readOnly: false,
+		timeMode: 'live',
+		unappliedEvents: [],
+		replay: null,
+	});
+
+	return succeeded('Restored live state', true);
+};
+
+// Called on the failure paths below, where `resetState()` has already emptied
+// the singleton down to the bare initial workspace and there is nothing left to
+// show. Without this the process would sit in the worst possible shape: no
+// boards, yet `readOnly: false` / `timeMode: 'live'` (that's part of
+// `initWorkspaceState`'s base state), so every mutation guard — which only asks
+// `getTimeTravelStatus().mode !== 'live'` — would be wide open over a board that
+// isn't there, and `deriveGuiState()` would broadcast that emptiness as live
+// because it deliberately doesn't `boot()`.
+//
+// So we degrade to "you are live" rather than "you are nowhere": re-materialize
+// the head and clear the as-of clock. The clock is cleared unconditionally and
+// first, because the flags `resetState()` left already say "live" — leaving a
+// stale timestamp behind would make our bookkeeping disagree with the state it
+// describes on every exit path out of here, including the one where the
+// recovery itself dies.
+const recoverToLiveAfterFailure = (
+	stateBranchRoot: string,
+	originalMessage: string,
+): Result<never> => {
+	currentAsOfTime = null;
+
+	const restoreResult = restoreLiveState(stateBranchRoot);
+
+	// Recovery can legitimately fail too — an unreadable log, or an event that
+	// no longer materializes at head. Nothing more we can do about the emptied
+	// board at that point, but the flags are at least coherent, and neither
+	// failure is swallowed: the original goes first because it's the real cause,
+	// the recovery failure trails it as context.
+	if (isFail(restoreResult)) {
+		return failed(
+			`${originalMessage} (recovery to live also failed: ${restoreResult.message})`,
+		);
+	}
+
+	return failed(originalMessage);
+};
+
 // Rewinds the shared state singleton to how the board looked at `targetTime`,
 // read-only. Adapted from the TUI's `checkoutBoardAt`
 // (source/lib/command-line/commands/checkout-board.ts), minus the Ink-specific
@@ -549,8 +627,14 @@ export const checkoutStateAt = (
 		const materializeResults = materializeAll(appliedEvents);
 		const materializeFailures = materializeResults.filter(isFail);
 
+		// Past this point the singleton has already been emptied by the reset
+		// above, so bailing out plainly would leave the whole board gone while
+		// still reporting live. Recover to the head instead.
 		if (materializeFailures.length > 0) {
-			return failed(materializeFailures.map(x => x.message).join(', '));
+			return recoverToLiveAfterFailure(
+				stateBranchRootResult.value,
+				materializeFailures.map(x => x.message).join(', '),
+			);
 		}
 
 		patchState({
@@ -576,27 +660,13 @@ export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> =>
 			return failed(stateBranchRootResult.message);
 		}
 
-		const eventsResult = loadMergedEvents(stateBranchRootResult.value);
-		if (isFail(eventsResult)) return failed(eventsResult.message);
-
-		const resetResult = resetState();
-		if (isFail(resetResult)) return resetResult;
-
-		const materializeResults = materializeAll(eventsResult.value);
-		const materializeFailures = materializeResults.filter(isFail);
-
-		if (materializeFailures.length > 0) {
-			return failed(materializeFailures.map(x => x.message).join(', '));
-		}
-
-		patchState({
-			readOnly: false,
-			timeMode: 'live',
-			unappliedEvents: [],
-			replay: null,
-		});
-
-		currentAsOfTime = null;
+		// Re-materializing the head IS the recovery, so there's no second thing
+		// to fall back to here — but the helper still guarantees the coherent
+		// exit that matters: if it gets as far as emptying the singleton and
+		// then fails, it has already cleared the as-of clock, so we report a
+		// live-but-empty board rather than a phantom checkout.
+		const restoreResult = restoreLiveState(stateBranchRootResult.value);
+		if (isFail(restoreResult)) return failed(restoreResult.message);
 
 		return succeeded('Returned to live state', true);
 	});

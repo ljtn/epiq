@@ -647,7 +647,7 @@ describe('epiq-time-travel', () => {
 			expect(result.value.asOfTime).toBe(1234);
 		});
 
-		it('fails without patching state when materialization fails', async () => {
+		it('fails without checking out a historical state when materialization fails', async () => {
 			vi.mocked(loadMergedEventsBefore).mockReturnValue(
 				succeeded('events', {
 					appliedEvents: [{id: '1'}],
@@ -660,7 +660,100 @@ describe('epiq-time-travel', () => {
 			const result = await checkoutStateAt({targetTime: 1234});
 
 			expect(isSuccess(result)).toBe(false);
-			expect(patchState).not.toHaveBeenCalled();
+			expect(patchState).not.toHaveBeenCalledWith(
+				expect.objectContaining({timeMode: 'peek'}),
+			);
+		});
+
+		// `checkoutStateAt` empties the singleton (resetState) *before* it
+		// materializes, so a materialize failure used to leave the process with
+		// no board at all while every mutation guard — which only asks
+		// `getTimeTravelStatus().mode !== 'live'` — stayed open over it. The
+		// failure has to degrade to "you are live", not "you are nowhere".
+		it('re-materializes the live head and marks state live when materialization fails', async () => {
+			vi.mocked(loadMergedEventsBefore).mockReturnValue(
+				succeeded('events', {
+					appliedEvents: [{id: 'old'}],
+					unappliedEvents: [{id: 'new'}],
+				} as never),
+			);
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', [{id: 'old'}, {id: 'new'}] as never),
+			);
+
+			// Only the historical slice is poisoned — the head still
+			// materializes, which is exactly the case where recovery can work.
+			vi.mocked(materializeAll).mockImplementation(events =>
+				events.length === 1 ? [failed('boom')] : [],
+			);
+
+			const result = await checkoutStateAt({targetTime: 1234});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(materializeAll).toHaveBeenCalledWith([{id: 'old'}, {id: 'new'}]);
+			expect(patchState).toHaveBeenCalledWith({
+				readOnly: false,
+				timeMode: 'live',
+				unappliedEvents: [],
+				replay: null,
+			});
+		});
+
+		it('clears the tracked as-of time when materialization fails', async () => {
+			// A checkout that worked, so the module-level as-of clock is set to
+			// something that the failing checkout below must not leave standing.
+			vi.mocked(loadMergedEventsBefore).mockReturnValue(
+				succeeded('events', {
+					appliedEvents: [],
+					unappliedEvents: [],
+				} as never),
+			);
+			await checkoutStateAt({targetTime: 777});
+
+			vi.mocked(loadMergedEvents).mockReturnValue(succeeded('events', []));
+			vi.mocked(materializeAll).mockImplementation(events =>
+				events.length === 1 ? [failed('boom')] : [],
+			);
+			vi.mocked(loadMergedEventsBefore).mockReturnValue(
+				succeeded('events', {
+					appliedEvents: [{id: 'old'}],
+					unappliedEvents: [],
+				} as never),
+			);
+
+			await checkoutStateAt({targetTime: 1234});
+
+			// `getTimeTravelStatus` only reads the module-level clock down the
+			// non-live branch, so force it there: whatever the state singleton
+			// happens to say, the bookkeeping behind it must no longer claim a
+			// checkout at 777 (or 1234) is in effect.
+			vi.mocked(isStateInitialized).mockReturnValue(true);
+			vi.mocked(getState).mockReturnValue({timeMode: 'peek'} as never);
+
+			expect(getTimeTravelStatus().asOfTime).toBeNull();
+		});
+
+		it('reports the original failure first when the recovery to live also fails', async () => {
+			vi.mocked(loadMergedEventsBefore).mockReturnValue(
+				succeeded('events', {
+					appliedEvents: [{id: 'old'}],
+					unappliedEvents: [],
+				} as never),
+			);
+			vi.mocked(materializeAll).mockReturnValue([failed('boom')]);
+			// The log itself is unreadable, so there is no head to fall back to.
+			vi.mocked(loadMergedEvents).mockReturnValue(failed('log unreadable'));
+
+			const result = await checkoutStateAt({targetTime: 1234});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(result.message).toContain('boom');
+			expect(result.message).toContain('log unreadable');
+			// The real cause leads; the recovery failure is context, not the
+			// headline.
+			expect(result.message.indexOf('boom')).toBeLessThan(
+				result.message.indexOf('log unreadable'),
+			);
 		});
 	});
 
@@ -700,6 +793,42 @@ describe('epiq-time-travel', () => {
 			vi.mocked(getState).mockReturnValue({timeMode: 'live'} as never);
 
 			expect(getTimeTravelStatus()).toEqual({mode: 'live', asOfTime: null});
+		});
+
+		// Same hazard as the failing checkout: `resetState` runs before
+		// materializing, so once it has landed the singleton is back to
+		// `readOnly: false` / `timeMode: 'live'`. A materialize failure after
+		// that must not leave the as-of clock pointing at the checkout we were
+		// trying to leave — live flags plus a stale timestamp is exactly the
+		// incoherence this guards against.
+		it('clears the tracked as-of time when materialization fails', async () => {
+			vi.mocked(loadMergedEventsBefore).mockReturnValue(
+				succeeded('events', {
+					appliedEvents: [],
+					unappliedEvents: [],
+				} as never),
+			);
+			await checkoutStateAt({targetTime: 4242});
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', [{id: '1'}] as never),
+			);
+			vi.mocked(materializeAll).mockReturnValue([failed('boom')]);
+
+			const result = await returnToLive();
+
+			expect(isSuccess(result)).toBe(false);
+			expect(result.message).toContain('boom');
+			expect(patchState).not.toHaveBeenCalledWith(
+				expect.objectContaining({timeMode: 'live'}),
+			);
+
+			// Forced down the non-live branch so the module-level clock is
+			// actually observable — see the equivalent checkout test.
+			vi.mocked(isStateInitialized).mockReturnValue(true);
+			vi.mocked(getState).mockReturnValue({timeMode: 'peek'} as never);
+
+			expect(getTimeTravelStatus().asOfTime).toBeNull();
 		});
 	});
 
