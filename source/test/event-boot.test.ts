@@ -8,7 +8,7 @@ import {AppEvent} from '../lib/event/event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
-import {getState, initWorkspaceState} from '../lib/state/state.js';
+import {getState, initWorkspaceState, patchState} from '../lib/state/state.js';
 import {bigIntToHex, midRank} from '../lib/utils/rank.js';
 
 const rank = () => {
@@ -139,6 +139,77 @@ describe('event boot', () => {
 		expect(getState().nodes['workspace-1']).toBeDefined();
 		expect(getState().nodes['board-1']?.parentNodeId).toBe('workspace-1');
 		expect(getState().nodes['swimlane-1']?.parentNodeId).toBe('board-1');
+	});
+
+	// A re-boot rebuilds from the live head, and initWorkspaceState's base
+	// resets readOnly/timeMode — so without this guard any of the many callers
+	// (every MCP tool's boot(), moveIssue, the TUI's sync-and-reload) silently
+	// cancels a checkout. Reachable just by switching board, or by a reconnect
+	// after a network blip, while scrubbed.
+	describe.each(['peek', 'replay'] as const)(
+		'while checked out in %s mode',
+		timeMode => {
+			const historicalLog = [
+				event('init.workspace', {
+					id: 'workspace-1',
+					name: 'Workspace',
+					rank: rank(),
+				}),
+			] as const;
+
+			const liveLog = [
+				...historicalLog,
+				event('add.board', {
+					id: 'board-live',
+					name: 'Added after the checkout',
+					parent: 'workspace-1',
+					rank: rank(),
+				}),
+			] as const;
+
+			it('does not re-materialize the live head over the checkout', () => {
+				bootStateFromEventLog([...historicalLog]);
+				patchState({timeMode, readOnly: true});
+
+				const result = bootStateFromEventLog([...liveLog]);
+
+				// Succeeds rather than fails: state is loaded, just historical, and
+				// failing would break every read while somebody is scrubbing.
+				expect(isFail(result)).toBe(false);
+				expect(getState().nodes['board-live']).toBeUndefined();
+			});
+
+			it('leaves timeMode and readOnly untouched', () => {
+				bootStateFromEventLog([...historicalLog]);
+				patchState({timeMode, readOnly: true});
+
+				bootStateFromEventLog([...liveLog]);
+
+				expect(getState().timeMode).toBe(timeMode);
+				expect(getState().readOnly).toBe(true);
+			});
+		},
+	);
+
+	it('still boots normally when live', () => {
+		patchState({timeMode: 'live', readOnly: false});
+
+		const result = bootStateFromEventLog([
+			event('init.workspace', {
+				id: 'workspace-1',
+				name: 'Workspace',
+				rank: rank(),
+			}),
+			event('add.board', {
+				id: 'board-live',
+				name: 'Board',
+				parent: 'workspace-1',
+				rank: rank(),
+			}),
+		]);
+
+		expect(isFail(result)).toBe(false);
+		expect(getState().nodes['board-live']).toBeDefined();
 	});
 
 	it('returns the first swimlane as boot navigation target when available', () => {

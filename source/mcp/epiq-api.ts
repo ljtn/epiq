@@ -1042,16 +1042,11 @@ export const deriveGuiState = (): Result<ApiState> => {
 export const getGuiState = async (
 	input: ToolInput = {},
 ): Promise<Result<ApiState>> => {
-	// Skip the live re-materialize while time-travel is active, so every caller
-	// of *this* function — a websocket reconnect (a second tab opening, a page
-	// refresh, a network blip), the autosync tick, an HTTP GET — is safe.
-	// Time-travel is a shared server-wide mode (see epiq-time-travel.ts), so
-	// this one check covers every client.
-	//
-	// KNOWN BUG (see board: "Time travel: any boot() silently cancels an
-	// active checkout"): the guard is here rather than in boot(), so the other
-	// boot() callers — getBoardContributors, listIssues — still stomp a
-	// checkout back to live.
+	// Fast path only: skips the worktree/repo-root work for the common case of
+	// a client polling state while scrubbing. The actual guarantee that a
+	// checkout survives lives in `bootStateFromEventLog`, which every one of
+	// these entry points funnels through — see the note there for why it
+	// belongs at the choke point instead of at each call site.
 	if (getTimeTravelStatus().mode !== 'live') {
 		return deriveGuiState();
 	}
