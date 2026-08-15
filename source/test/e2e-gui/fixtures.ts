@@ -12,7 +12,7 @@ export const test = base.extend<{
 	// would pass on a page that had already thrown.
 	pageErrors: string[];
 }>({
-	appUrl: async (_, use) => {
+	appUrl: async ({page: _}, use) => {
 		await use(readHandoff().baseUrl);
 	},
 
