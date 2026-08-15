@@ -413,6 +413,9 @@ export const nodeRepo = {
 		const redacted: Contributor = {
 			...contributor,
 			name: REDACTED_CONTRIBUTOR_NAME,
+			// The flag, not the placeholder name, is what every read path checks
+			// before letting an event-log name override the registry.
+			redacted: true,
 		};
 
 		const result = updateState(s => ({

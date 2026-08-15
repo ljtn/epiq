@@ -30,7 +30,20 @@ export type Tag = {id: string; name: string};
 // it's the name that's gone.
 export const REDACTED_CONTRIBUTOR_NAME = 'removed';
 
-export type Contributor = {id: string; name: string; userId?: string};
+// `redacted` marks a contributor whose display name has been cleared. It is
+// carried as a flag rather than inferred from `name` so redaction beats the
+// event-log name override by construction: the log always holds the name the
+// person authored under, and comparing against the placeholder string would
+// both miss nothing and catch anyone genuinely called "removed".
+//
+// Materialized from the `redact.contributor` event on every boot, so there is
+// no stored flag to migrate or keep in sync.
+export type Contributor = {
+	id: string;
+	name: string;
+	userId?: string;
+	redacted?: boolean;
+};
 
 export type Filter = {
 	target: 'tag' | 'assignee' | 'description' | 'title' | 'ref';

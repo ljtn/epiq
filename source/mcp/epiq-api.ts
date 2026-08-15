@@ -305,10 +305,12 @@ const getIssueAssignees = (
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter(contributor => contributor != undefined)
 		.map(contributor => {
-			// Registry wins for anyone with no events, which is what normally
-			// keeps a redacted contributor redacted — but not reliably, see
-			// getContributorDisplayName.
-			const name = latestNames.get(contributor.id) ?? contributor.name;
+			// Registry wins for anyone with no events, and unconditionally for a
+			// redacted contributor — see getContributorDisplayName for why the
+			// log must never be able to put a cleared name back.
+			const name = contributor.redacted
+				? contributor.name
+				: latestNames.get(contributor.id) ?? contributor.name;
 
 			return {
 				id: contributor.id,
@@ -1531,8 +1533,14 @@ export const getBoardContributors = async (
 		authorIds.add(event.userId);
 	}
 
-	for (const contributor of Object.values(stateResult.value.contributors)) {
-		if (!byId.has(contributor.id)) byId.set(contributor.id, contributor.name);
+	const registry = stateResult.value.contributors;
+
+	for (const contributor of Object.values(registry)) {
+		// A redacted contributor overwrites whatever the log supplied instead of
+		// only filling a gap: their events still carry the name they authored
+		// under, and the loop above seeded the map from those events.
+		if (contributor.redacted || !byId.has(contributor.id))
+			byId.set(contributor.id, contributor.name);
 	}
 
 	// Both flags are derived here rather than left to callers: every surface
@@ -1548,10 +1556,10 @@ export const getBoardContributors = async (
 		color: getStringColor(name),
 		isSelf: id === actorResult.value.userId,
 		isExternal: !authorIds.has(id),
-		// Flagged server-side so the client doesn't have to know the
-		// placeholder string — that constant lives in Node-only code the GUI
-		// client can't import.
-		isRedacted: name === REDACTED_CONTRIBUTOR_NAME,
+		// Read off the record rather than compared against the placeholder
+		// string, so somebody genuinely called "removed" isn't reported as
+		// already-cleared (and so made un-redactable by the modal).
+		isRedacted: registry[id]?.redacted === true,
 	}));
 
 	return succeeded('Listed board contributors', contributors);

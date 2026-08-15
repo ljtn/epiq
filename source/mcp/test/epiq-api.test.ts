@@ -235,6 +235,49 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 	},
 };
 
+// Mutable so a test can redact somebody and see how the read paths react.
+// Reset in the suite's beforeEach.
+const contributorRegistry: Record<
+	string,
+	{id: string; name: string; redacted?: boolean}
+> = {
+	'contributor-1': {id: 'contributor-1', name: 'Alice'},
+};
+
+const DEFAULT_CONTRIBUTOR_REGISTRY = {
+	'contributor-1': {id: 'contributor-1', name: 'Alice'},
+};
+
+// Likewise mutable: name resolution reads the *state* event log (distinct from
+// the merged on-disk log that loadMergedEvents supplies), so a test that wants
+// a log name to compete with the registry has to add one here.
+const DEFAULT_STATE_EVENT_LOG = [
+	{
+		id: 'comment-event-1',
+		userId: 'user-1',
+		userName: 'Alice',
+		action: 'add.issue.comment',
+		payload: {
+			id: 'comment-1',
+			issue: 'issue-1',
+			md: 'A comment',
+			author: 'user-1',
+		},
+	},
+];
+
+let stateEventLog: unknown[] = [...DEFAULT_STATE_EVENT_LOG];
+
+const resetContributorFixtures = () => {
+	for (const key of Object.keys(contributorRegistry))
+		delete contributorRegistry[key];
+	Object.assign(
+		contributorRegistry,
+		structuredClone(DEFAULT_CONTRIBUTOR_REGISTRY),
+	);
+	stateEventLog = [...DEFAULT_STATE_EVENT_LOG];
+};
+
 vi.mock('../../lib/state/state.js', async importOriginal => {
 	const actual = await importOriginal<
 		typeof import('../../lib/state/state.js')
@@ -251,23 +294,8 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 				tags: {
 					'tag-1': {id: 'tag-1', name: 'bug'},
 				},
-				contributors: {
-					'contributor-1': {id: 'contributor-1', name: 'Alice'},
-				},
-				eventLog: [
-					{
-						id: 'comment-event-1',
-						userId: 'user-1',
-						userName: 'Alice',
-						action: 'add.issue.comment',
-						payload: {
-							id: 'comment-1',
-							issue: 'issue-1',
-							md: 'A comment',
-							author: 'user-1',
-						},
-					},
-				],
+				contributors: contributorRegistry,
+				eventLog: stateEventLog,
 				syncStatus: {
 					status: 'synced',
 					msg: 'Synced',
@@ -286,9 +314,7 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 		getTag: vi.fn((id: string) =>
 			id === 'tag-1' ? {id: 'tag-1', name: 'bug'} : undefined,
 		),
-		getContributor: vi.fn((id: string) =>
-			id === 'contributor-1' ? {id: 'contributor-1', name: 'Alice'} : undefined,
-		),
+		getContributor: vi.fn((id: string) => contributorRegistry[id]),
 		getCommentsByIssue: vi.fn(() => []),
 		getAttachmentsByIssue: vi.fn(() => []),
 	},
@@ -334,6 +360,7 @@ beforeAll(async () => {
 describe('mcp tools', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		resetContributorFixtures();
 	});
 
 	it('lists boards', async () => {
@@ -1126,6 +1153,75 @@ describe('mcp tools', () => {
 				payload: {id: 'contributor-1'},
 			}),
 		]);
+	});
+
+	// The log keeps every name its author wrote under — redaction cannot remove
+	// those without rewriting history, which this system never does. So the
+	// registry has to win on the way out, or a later sync that brings the
+	// person's log file back quietly un-redacts them.
+	it('keeps a redacted name cleared even when the log carries the real one', async () => {
+		contributorRegistry['contributor-1'] = {
+			id: 'contributor-1',
+			name: REDACTED_CONTRIBUTOR_NAME,
+			redacted: true,
+		};
+
+		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
+			typeof vi.fn
+		>;
+		loadMerged.mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'e1',
+					userId: 'contributor-1',
+					userName: 'Alice',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x'},
+				},
+			]),
+		);
+
+		const result = await tools.getBoardContributors({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			const redacted = result.value.find(c => c.id === 'contributor-1');
+			expect(redacted?.name).toBe(REDACTED_CONTRIBUTOR_NAME);
+			expect(redacted?.isRedacted).toBe(true);
+		}
+
+		loadMerged.mockReturnValue(succeeded('loaded', []));
+	});
+
+	it('keeps a redacted assignee cleared on issues the log names them in', async () => {
+		contributorRegistry['contributor-1'] = {
+			id: 'contributor-1',
+			name: REDACTED_CONTRIBUTOR_NAME,
+			redacted: true,
+		};
+
+		// The competing name: this id authored an event under 'Alice', which is
+		// exactly what the log-name override would otherwise promote.
+		stateEventLog = [
+			...DEFAULT_STATE_EVENT_LOG,
+			{
+				id: 'e-redacted',
+				userId: 'contributor-1',
+				userName: 'Alice',
+				action: 'edit.title',
+				payload: {id: 'issue-1', name: 'x'},
+			},
+		];
+
+		const result = await tools.listIssues({repoRoot: '/repo'});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			const assignees = result.value.flatMap(issue => issue.assignees);
+			const redacted = assignees.find(a => a.id === 'contributor-1');
+			expect(redacted).toBeDefined();
+			expect(redacted?.name).toBe(REDACTED_CONTRIBUTOR_NAME);
+		}
 	});
 
 	// Their name is written across every event they authored; clearing the
