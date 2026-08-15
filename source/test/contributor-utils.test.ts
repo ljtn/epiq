@@ -8,7 +8,9 @@ import {getState} from '../lib/state/state.js';
 import {
 	getContributorDisplayName,
 	hasAuthoredEvents,
+	preferBestName,
 } from '../lib/utils/contributor.utils.js';
+import {getPersistFileName} from '../lib/event/event-persist.js';
 
 const mockState = (state: {
 	eventLog?: unknown[];
@@ -85,7 +87,38 @@ describe('getContributorDisplayName', () => {
 			contributors: {'user-1': {id: 'user-1', name: 'Removed'}},
 		});
 
-		expect(getContributorDisplayName('user-1', 'Removed')).toBe('removed');
+		// Their real name comes back, not the redaction placeholder path. It is
+		// the record's spelling because "removed" is what "Removed" sanitizes
+		// to — same name, so the readable one wins.
+		expect(getContributorDisplayName('user-1', 'Removed')).toBe('Removed');
+	});
+
+	// The regression that motivated `preferBestName`. Log names are parsed out
+	// of the event file name, which `sanitizeFilePart` lowercased and
+	// hyphenated on the way to disk — so treating the log as authoritative
+	// replaced every real name with its storage encoding.
+	it('keeps the record spelling when the log name is only its sanitized form', () => {
+		mockState({
+			eventLog: [authoredAs('user-1', 'jonatan-lampa')],
+			contributors: {'user-1': {id: 'user-1', name: 'Jonatan Lampa'}},
+		});
+
+		expect(getContributorDisplayName('user-1', 'Jonatan Lampa')).toBe(
+			'Jonatan Lampa',
+		);
+	});
+
+	it('still takes the log name when it is a genuinely different name', () => {
+		mockState({
+			eventLog: [authoredAs('user-1', 'alicia-cooper')],
+			contributors: {'user-1': {id: 'user-1', name: 'Alice Cooper'}},
+		});
+
+		// A rename only ever surfaces in the log, so it has to win — sanitized,
+		// which is all the file name can carry, but current.
+		expect(getContributorDisplayName('user-1', 'Alice Cooper')).toBe(
+			'alicia-cooper',
+		);
 	});
 
 	it('tolerates state read before boot has populated it', () => {
@@ -161,5 +194,51 @@ describe('hasAuthoredEvents', () => {
 		mockState({});
 
 		expect(hasAuthoredEvents('user-1')).toBe(false);
+	});
+});
+
+describe('preferBestName', () => {
+	// Derives the log-side name the way the app actually produces it, rather
+	// than hand-writing what we think sanitizing does. If the encoding ever
+	// changes, this fails instead of quietly testing a fiction — which is
+	// exactly how the original bug survived its own test suite.
+	const asLogName = (userName: string) =>
+		getPersistFileName({
+			userId: '01KSAYRA4GHEKJP888WFBWBRDD',
+			userName,
+		}).split('.')[1]!;
+
+	it('keeps the record spelling for a name the log only carries encoded', () => {
+		expect(preferBestName('Jonatan Lampa', asLogName('Jonatan Lampa'))).toBe(
+			'Jonatan Lampa',
+		);
+	});
+
+	it.each([
+		'Jonatan Lampa',
+		'ALICE',
+		'Bob O Brien',
+		'renée dupont',
+		'  Padded  Name  ',
+	])('round-trips %j back to the record spelling', name => {
+		expect(preferBestName(name, asLogName(name))).toBe(name);
+	});
+
+	it('takes the log name when it is a different name', () => {
+		expect(preferBestName('Alice Cooper', 'alicia-cooper')).toBe(
+			'alicia-cooper',
+		);
+	});
+
+	it('falls back to whichever side is present', () => {
+		expect(preferBestName('Alice', undefined)).toBe('Alice');
+		expect(preferBestName(undefined, 'alice')).toBe('alice');
+		expect(preferBestName(undefined, undefined)).toBeUndefined();
+	});
+
+	// An empty log name is not "a different name", it is no name at all —
+	// events carry no userName when the file name segment was unparseable.
+	it('ignores an empty log name', () => {
+		expect(preferBestName('Alice', '')).toBe('Alice');
 	});
 });

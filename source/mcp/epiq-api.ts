@@ -31,6 +31,7 @@ import {getSafeState} from '../lib/state/state.js';
 import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {REDACTED_CONTRIBUTOR_NAME} from '../lib/model/app-state.model.js';
+import {preferBestName} from '../lib/utils/contributor.utils.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
@@ -310,7 +311,8 @@ const getIssueAssignees = (
 			// log must never be able to put a cleared name back.
 			const name = contributor.redacted
 				? contributor.name
-				: latestNames.get(contributor.id) ?? contributor.name;
+				: preferBestName(contributor.name, latestNames.get(contributor.id)) ??
+				  contributor.name;
 
 			return {
 				id: contributor.id,
@@ -1547,8 +1549,21 @@ export const getBoardContributors = async (
 		// A redacted contributor overwrites whatever the log supplied instead of
 		// only filling a gap: their events still carry the name they authored
 		// under, and the loop above seeded the map from those events.
-		if (contributor.redacted || !byId.has(contributor.id))
+		if (contributor.redacted) {
 			byId.set(contributor.id, contributor.name);
+			continue;
+		}
+
+		// Otherwise the same rule every other surface uses: the log's name is a
+		// sanitized file name segment, so it wins only when it is a *different*
+		// name, not merely the same one spelled worse. Covers the gap-filling
+		// case too — `preferBestName` returns the registry name when the log has
+		// nothing for this id.
+		byId.set(
+			contributor.id,
+			preferBestName(contributor.name, byId.get(contributor.id)) ??
+				contributor.name,
+		);
 	}
 
 	// Both flags are derived here rather than left to callers: every surface

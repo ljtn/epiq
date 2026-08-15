@@ -26,6 +26,7 @@ import {
 } from '../state/state.js';
 import {patchUiState} from '../state/ux-state.js';
 import {getPersistRoot} from '../storage/paths.js';
+import {preferBestName} from '../utils/contributor.utils.js';
 import {openUrl} from '../utils/open-in-browser.js';
 import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-intent.js';
@@ -90,8 +91,21 @@ const getAssignableContributors = (): {
 		// filling a gap, matching getBoardContributors on the server: the log
 		// still carries whatever they authored under, and a cleared name that
 		// reappears in the TUI's suggestions is not cleared.
-		if (contributor.redacted || !byId.has(contributor.id))
+		if (contributor.redacted) {
 			byId.set(contributor.id, contributor.name);
+			continue;
+		}
+
+		// Otherwise `preferBestName`, so the name offered here is the one the
+		// user can actually type. The log's copy is a sanitized file name
+		// segment ("jonatan-lampa"), and matching below is by exact name — so
+		// seeding it unconditionally made `:assign Jonatan Lampa` unmatchable
+		// and pushed the user to `!Jonatan Lampa`, minting a duplicate.
+		byId.set(
+			contributor.id,
+			preferBestName(contributor.name, byId.get(contributor.id)) ??
+				contributor.name,
+		);
 	}
 
 	return [...byId.entries()].map(([id, name]) => ({

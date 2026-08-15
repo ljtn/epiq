@@ -5,6 +5,7 @@ import {z} from 'zod';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getSettingsState, User} from '../state/settings.state.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
+import {sanitizeFilePart} from '../utils/file-part.js';
 import {getEdgeRef} from './event-load.js';
 import {
 	AppEvent,
@@ -66,13 +67,6 @@ export const parsePersistedEvent = (value: unknown): Result<PersistedEvent> => {
 
 	return succeeded('Parsed persisted event', result.data as PersistedEvent);
 };
-
-const sanitizeFilePart = (value: string) =>
-	value
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9._-]+/g, '-')
-		.replace(/^-+|-+$/g, '') || 'unknown';
 
 const isValidUserId = (value: string) => /^[0-9A-HJKMNP-TV-Z]{26}$/.test(value);
 

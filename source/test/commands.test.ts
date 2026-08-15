@@ -383,6 +383,62 @@ describe('AssignUserToTicket command', () => {
 		);
 	});
 
+	// The regression. The log's userName is parsed out of the event file name,
+	// which `sanitizeFilePart` lowercased and hyphenated — so seeding the
+	// candidate list from it made a real name unmatchable, and the failure
+	// steered the user to "!Jonatan Lampa", minting a duplicate id for somebody
+	// who already had one. Exactly the duplicate-minting this epic set out to
+	// close.
+	it('matches a real name against a contributor the log only carries sanitized', async () => {
+		mockedGetCmdState.mockReturnValue({
+			commandMeta: {modifier: 'Jonatan Lampa', inputString: ''},
+		} as CommandLineState);
+
+		mockedGetState.mockReturnValue({
+			selectedIndex: 0,
+			contextNode: {id: 'current-node'} as NavNode<AnyContext>,
+			tags: {},
+			eventLog: [
+				{
+					id: 'e1',
+					userId: 'user-123',
+					userName: 'jonatan-lampa',
+					action: 'edit.title',
+					payload: {id: 'ticket-1', name: 'x'},
+				},
+			],
+			contributors: {
+				'user-123': {id: 'user-123', name: 'Jonatan Lampa'},
+			},
+		} as Partial<AppState> as AppState);
+
+		mockedUlid.mockReturnValueOnce('add-assignee-event-id');
+
+		await assignCommand.action(
+			{} as CommandLineActionEntry,
+			{} as CommandLineInput,
+		);
+
+		// One id only: the assignment. A second would mean a create.contributor
+		// was minted for a person who already exists.
+		expect(mockedUlid).toHaveBeenCalledTimes(1);
+		expect(mockedMaterializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				{
+					id: 'add-assignee-event-id',
+					userName: 'jola',
+					userId: '0001',
+					action: 'add.issue.assignee',
+					payload: {
+						id: 'ticket-1',
+						assignee: 'user-123',
+					},
+				},
+			],
+			'/repo/.epiq',
+		);
+	});
+
 	it('creates an external contributor only when explicitly asked with "!"', async () => {
 		mockedGetCmdState.mockReturnValue({
 			commandMeta: {modifier: '!alice', inputString: ''},
