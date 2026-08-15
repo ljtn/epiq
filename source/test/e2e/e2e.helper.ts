@@ -4,6 +4,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+// These files run one at a time (`--no-file-parallelism` in test:e2e:ci).
+// Each drives a real TUI through a pty and shells out to git, so they are
+// wall-clock and IO bound rather than CPU bound — parallelism buys almost
+// nothing and multiplies contention. Measured with 8 files in parallel,
+// `:init` went from ~1.3s to over its 8s budget and 6 of 11 tests failed;
+// serially the whole suite passes in ~35s.
 const width = 120;
 const height = 20;
 
