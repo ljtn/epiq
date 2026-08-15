@@ -4,8 +4,9 @@ import {execSync} from 'child_process';
 
 export const commonSteps = {
 	configureInitialSettings: async (tui: ReturnType<typeof setupTui>) => {
-		// Cold app start: parallel e2e files contend for CPU, so allow extra time
-		// for the first frame rather than the default 3s.
+		// Headroom for a cold app start on slow CI hardware. Measured at ~200ms
+		// locally, so this is not load-bearing — the flake that used to be blamed
+		// on it was a partial-frame race, fixed in the helper's waitFor.
 		await tui.waitFor('choose your username', 8_000);
 		tui.input(':config username test\r');
 
@@ -31,8 +32,13 @@ export const commonSteps = {
 			stdio: 'ignore',
 		});
 
-		// Cold app start: allow extra time for the first frame (see above).
-		output = await tui.waitFor('Initialize project', 8_000);
+		// Waits on the text this step actually asserts, rather than on the box
+		// title above it: the two are painted in separate PTY chunks, so waiting
+		// on the title could return before the body existed.
+		output = await tui.waitFor(
+			'This folder is not an epiq project yet.',
+			8_000,
+		);
 
 		expect(output).toContain('This folder is not an epiq project yet.');
 

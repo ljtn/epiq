@@ -47,7 +47,11 @@ describe('TUI e2e', () => {
 
 				tui.input(`:new issue ${issueTitle}`, ENTER);
 
-				const output = await tui.waitFor('Todo (1)');
+				// Waits for both the count and the title: they land in the same
+				// frame but not necessarily in the same PTY chunk.
+				const output = await tui.waitFor(
+					frame => frame.includes('Todo (1)') && frame.includes(issueTitle),
+				);
 
 				expect(output).toContain(issueTitle);
 			} finally {

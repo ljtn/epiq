@@ -77,6 +77,40 @@ const createTuiEnv = (extra: Record<string, string> = {}) => {
 const sleep = async (ms: number) =>
 	await new Promise(resolve => setTimeout(resolve, ms));
 
+// Text inside the command-line box, which is the last bordered row of a frame.
+const commandLineContent = (frame: string): string => {
+	const lines = frame.split('\n');
+
+	for (let index = lines.length - 1; index >= 0; index--) {
+		const match = /^│(.*)│$/.exec((lines[index] ?? '').trim());
+		if (match) return (match[1] ?? '').trim();
+	}
+
+	return '';
+};
+
+/**
+ * True when the command line holds no typed command.
+ *
+ * Not expressed as "contains the placeholder": the `: for command line`
+ * caption is only rendered in some contexts — with a field selected the box is
+ * simply empty — so waiting on the caption hangs forever there. That is what
+ * `edit-scope` was doing after ESC, and because a timed-out `waitFor` used to
+ * return the last frame instead of throwing, the test carried on and passed.
+ */
+export const commandLineIsIdle = (frame: string): boolean => {
+	const content = commandLineContent(frame);
+	return content === '' || content === ': for command line';
+};
+
+const describeWaitTarget = (
+	text: string | RegExp | ((output: string) => boolean),
+): string => {
+	if (typeof text === 'string') return JSON.stringify(text);
+	if (text instanceof RegExp) return String(text);
+	return 'a predicate';
+};
+
 type SetupTuiOptions = {
 	/**
 	 * The caller owns the directory: it is left in place on
@@ -99,6 +133,7 @@ export const setupTui = (
 	let destroyed = false;
 	let renderedOutput = '';
 	let pendingWrites: Promise<void> = Promise.resolve();
+	let lastDataAt = Date.now();
 
 	const terminal = new Terminal({
 		cols: width,
@@ -136,6 +171,7 @@ export const setupTui = (
 	};
 
 	child.onData(data => {
+		lastDataAt = Date.now();
 		pendingWrites = pendingWrites.then(
 			() =>
 				new Promise<void>(resolve => {
@@ -146,6 +182,33 @@ export const setupTui = (
 				}),
 		);
 	});
+
+	// The TUI emits one frame as several PTY chunks, and the screen is
+	// re-rendered after each one. A predicate can therefore match a frame that
+	// is still half-drawn — the box border painted, the body text not yet — and
+	// the caller then asserts on text that is about to arrive. Measured at
+	// roughly 1 run in 30, with the two halves 6ms apart, which is what made
+	// this look like a load-related flake rather than a race.
+	//
+	// Waiting for the stream to fall quiet before answering means only complete
+	// frames are ever returned. Bounded, because the header carries an animated
+	// sync indicator: if data never stops arriving, answer anyway rather than
+	// hang until the timeout.
+	const SETTLE_QUIET_MS = 30;
+	const MAX_SETTLE_WAIT_MS = 300;
+
+	const settle = async () => {
+		const settleDeadline = Date.now() + MAX_SETTLE_WAIT_MS;
+
+		while (
+			Date.now() - lastDataAt < SETTLE_QUIET_MS &&
+			Date.now() < settleDeadline
+		) {
+			await sleep(5);
+		}
+
+		await flushOutput();
+	};
 
 	const getOutput = () => renderedOutput;
 
@@ -184,27 +247,39 @@ export const setupTui = (
 
 		waitFor: async (text, timeoutMs = 3_000) => {
 			const startedAt = Date.now();
+			const matches = (output: string) =>
+				typeof text === 'string'
+					? output.includes(text)
+					: text instanceof RegExp
+					? text.test(output)
+					: text(output);
 
 			while (Date.now() - startedAt < timeoutMs) {
 				await flushOutput();
 
-				const currentOutput = getOutput();
+				if (matches(getOutput())) {
+					await settle();
 
-				if (
-					typeof text === 'string'
-						? currentOutput.includes(text)
-						: text instanceof RegExp
-						? text.test(currentOutput)
-						: text(currentOutput)
-				) {
-					return currentOutput;
+					// Re-checked after settling: the frame that matched may have been
+					// a partial one, and the completed frame is the truthful answer
+					// either way.
+					if (matches(getOutput())) return getOutput();
 				}
 
 				await sleep(1);
 			}
 
 			await flushOutput();
-			return getOutput();
+
+			// Throws rather than returning the last frame. Returning it made every
+			// timeout surface as whatever assertion the caller ran next — "expected
+			// '   …' to contain 'This folder is not…'" — which reads like a content
+			// bug in the app instead of a wait that never came true.
+			throw new Error(
+				`Timed out after ${timeoutMs}ms waiting for ${describeWaitTarget(
+					text,
+				)}.\nLast rendered frame:\n${getOutput()}`,
+			);
 		},
 
 		destroy,

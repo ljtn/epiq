@@ -3,10 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import {ENTER, setupTui} from './e2e.helper.js';
+import {commandLineIsIdle, ENTER, setupTui} from './e2e.helper.js';
 
 const testTimeout = 60_000;
-const EMPTY_CMD = 'for command line';
 const ESCAPE = '\x1B';
 
 type Tui = ReturnType<typeof setupTui>;
@@ -41,7 +40,7 @@ const run = async (tui: Tui, cmd: string, echo: string) => {
 	tui.input(cmd);
 	await tui.waitFor(echo, 4_000);
 	tui.input(ENTER);
-	await tui.waitFor(EMPTY_CMD, 5_000);
+	await tui.waitFor(commandLineIsIdle, 5_000);
 };
 
 // Type a partial command and assert the inline autocompletion completes it.
@@ -61,7 +60,7 @@ const expectAutocompletes = async (
 	);
 	expect(output).toContain(completedLine);
 	tui.input(ESCAPE);
-	await tui.waitFor(EMPTY_CMD, 4_000);
+	await tui.waitFor(commandLineIsIdle, 4_000);
 };
 
 beforeAll(async () => {
