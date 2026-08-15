@@ -78,9 +78,6 @@ export const ManageContributorsModal = ({
 					}}
 				>
 					{sorted.map(contributor => {
-						// Keyed on `hasAuthoredAnywhere`, not `isExternal`: the latter is
-						// board-scoped, so someone who authored on another board would
-						// look removable here and then be refused by the server.
 						const locked = contributor.hasAuthoredAnywhere;
 						const armed = armedId === contributor.id;
 

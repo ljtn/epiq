@@ -196,7 +196,7 @@ export const IssueDetails = ({
 
 	// You first, then board contributors, then outsiders.
 	const assigneeRank = (assignee: GuiContributor): number =>
-		assignee.isSelf ? 0 : assignee.isExternal ? 2 : 1;
+		assignee.isSelf ? 0 : assignee.hasAuthoredAnywhere ? 1 : 2;
 
 	const availableAssignees = assignees
 		.filter(
@@ -479,8 +479,8 @@ export const IssueDetails = ({
 												title={
 													assignee.isSelf
 														? 'Assign yourself'
-														: assignee.isExternal
-														? 'Has not contributed to this board'
+														: !assignee.hasAuthoredAnywhere
+														? 'Has not contributed to this project'
 														: 'Add existing assignee'
 												}
 												style={{
@@ -495,14 +495,16 @@ export const IssueDetails = ({
 												}}
 											>
 												+ @{assignee.isSelf ? 'me' : assignee.name}
-												{assignee.isExternal ? ' ↗' : ''}
+												{!assignee.hasAuthoredAnywhere ? ' ↗' : ''}
 											</Button>
 										))}
 									</ChipRow>
 								)}
 
 								{addingAssignee &&
-									assignees.some(a => a.isExternal && !a.isRemoved) && (
+									assignees.some(
+										a => !a.hasAuthoredAnywhere && !a.isRemoved,
+									) && (
 										<ChipRow>
 											<Button
 												variant="ghost"
