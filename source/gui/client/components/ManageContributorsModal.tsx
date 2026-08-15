@@ -64,8 +64,8 @@ export const ManageContributorsModal = ({
 				</div>
 
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
-					Removes a contributor from the suggestion lists. Locked ones have
-					contributed, so their name is in the log either way.
+					Remove contributors from the suggestion lists. Locked ones have
+					contributed, so their name is in the immutable log either way.
 				</div>
 
 				<div
@@ -108,7 +108,7 @@ export const ManageContributorsModal = ({
 
 								{locked ? (
 									<span
-										title="Has contributed — their name is in the log either way"
+										title="Has contributed — their name is in the immutable log either way"
 										style={{
 											display: 'flex',
 											color: GUI_THEME.dim,
