@@ -495,3 +495,5 @@
 {"v":1,"id":["01M03CESP64QPQERXWKX6XXXY4","01M03CERFSEMV5GK59QMCMV0CK"],"move.node":{"id":"01M03BM0TJHAJ7MV8PRF41KTG5","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"ffffffffdfffffffffffffff"}}
 {"v":1,"id":["01M03CFJBGMPRQ1JHMMH16C452","01M03CESP64QPQERXWKX6XXXY4"],"add.issue":{"id":"01M03CFJBAW0XP46JMV9HMS8TV","parent":"01KS22YK95S3336MFSE44MY70R","name":"Add tab for ticket history in gui","rank":"fffff7ffffffffffffffffff"}}
 {"v":1,"id":["01M03CHMDJEJD5P438CDBX1S35","01M03CFJBGMPRQ1JHMMH16C452"],"add.issue":{"id":"01M03CHMDDWK21P1EKCBDD3VJF","parent":"01KS22YK95S3336MFSE44MY70R","name":"Add tab for code-diff in gui (with a copy saying that the linking only works if you prefix the commits with the ticket ref)","rank":"fffffbffffffffffffffffff"}}
+{"v":1,"id":["01M03CRCYFBDPCBQFSGWRB7NEG","01M03CHMDJEJD5P438CDBX1S35"],"create.contributor":{"id":"01M03CRCYC9JQW0633ZZGC1HGQ","name":"test"}}
+{"v":1,"id":["01M03CRCYJCDP18QZXA2NX28RR","01M03CRCYFBDPCBQFSGWRB7NEG"],"add.issue.assignee":{"id":"01M0121TK9QSV21GZBTH8680WY","assignee":"01M03CRCYC9JQW0633ZZGC1HGQ"}}
