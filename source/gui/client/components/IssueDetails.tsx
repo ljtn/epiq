@@ -508,11 +508,10 @@ export const IssueDetails = ({
 									assignees.some(a => a.isExternal && !a.isRedacted) && (
 										<ChipRow>
 											<Button
-												variant="chip"
+												variant="ghost"
 												disabled={issue.readonly}
 												onClick={() => setManagingContributors(true)}
-												title="Review contributors and clear names across the whole workspace"
-												style={{color: GUI_THEME.dim, opacity: 0.55}}
+												title="Review contributors and redact names across the whole workspace"
 											>
 												manage contributors…
 											</Button>

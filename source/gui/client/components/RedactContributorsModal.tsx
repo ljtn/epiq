@@ -73,14 +73,10 @@ export const RedactContributorsModal = ({
 					Manage contributors
 				</div>
 
-				{/* The copy hedges because `redact.contributor` is an ordinary forward
-				    event: a client too old to know the action skips it and keeps
-				    replaying the original name. */}
 				<div style={{fontSize: 12, color: GUI_THEME.secondary}}>
-					Clears the selected names on every board and for everyone. Teammates
-					on an older epiq keep seeing the old name until they upgrade. The
-					contributor and all their assignments are kept — only the name is
-					removed, and it cannot be restored.
+					Redact a contributor's name. Active contributors cannot be
+					programmatically redacted, since their name is also in the immutable
+					log.
 				</div>
 
 				<div
@@ -95,9 +91,9 @@ export const RedactContributorsModal = ({
 					{sorted.map(contributor => {
 						// Keyed on `hasAuthoredAnywhere`, not `isExternal`: the latter is
 						// board-scoped, so someone who authored on another board would
-						// look clearable here and then be refused by the server.
+						// look redactable here and then be refused by the server.
 						const blockedReason = contributor.isRedacted
-							? 'already cleared'
+							? 'already redacted'
 							: contributor.hasAuthoredAnywhere
 							? 'has contributed — name is in the history'
 							: null;
@@ -125,7 +121,7 @@ export const RedactContributorsModal = ({
 									checked={selectedIds.includes(contributor.id)}
 									disabled={Boolean(blockedReason)}
 									activeColor={GUI_THEME.red}
-									title={blockedReason ?? 'Clear this name'}
+									title={blockedReason ?? 'Redact this name'}
 									onChange={() => toggle(contributor.id)}
 								/>
 
@@ -159,7 +155,7 @@ export const RedactContributorsModal = ({
 							}}
 							style={{color: GUI_THEME.red, borderColor: GUI_THEME.red}}
 						>
-							{`confirm: clear ${selectedNames.join(', ')}`}
+							{`confirm: redact ${selectedNames.join(', ')}`}
 						</Button>
 					) : (
 						<Button
@@ -169,7 +165,7 @@ export const RedactContributorsModal = ({
 								selectedIds.length > 0 ? {color: GUI_THEME.red} : undefined
 							}
 						>
-							{`clear ${selectedIds.length || ''}`.trim()}
+							{`redact ${selectedIds.length || ''}`.trim()}
 						</Button>
 					)}
 				</div>
