@@ -1493,6 +1493,7 @@ export const getBoardContributors = async (
 			isSelf: boolean;
 			isExternal: boolean;
 			isRedacted: boolean;
+			hasAuthoredAnywhere: boolean;
 		})[]
 	>
 > => {
@@ -1520,6 +1521,18 @@ export const getBoardContributors = async (
 	// worked on the board" survives the union below — that is precisely what
 	// distinguishes a real contributor from an external one.
 	const authorIds = new Set<string>();
+
+	// Deliberately unfiltered, unlike `authorIds`. Redaction is refused for
+	// anyone who has authored anywhere (redactContributor's guard scans the
+	// whole merged log via findEventLogAuthor), so answering "can this name be
+	// cleared" with a board-scoped set offered candidates the server then
+	// refused — and the refusal was invisible. Same event source as the guard,
+	// so the two cannot drift.
+	const workspaceAuthorIds = new Set<string>();
+
+	for (const event of eventsResult.value) {
+		if (event.userId) workspaceAuthorIds.add(event.userId);
+	}
 
 	for (const event of scopedEvents) {
 		if (!event.userId) continue;
@@ -1555,6 +1568,10 @@ export const getBoardContributors = async (
 		// string, so somebody genuinely called "removed" isn't reported as
 		// already-cleared (and so made un-redactable by the modal).
 		isRedacted: registry[id]?.redacted === true,
+		// Workspace-wide, so it answers the question redaction actually asks.
+		// `isExternal` is board-scoped and means something else: not "their name
+		// is in the history" but "they have not worked on this board".
+		hasAuthoredAnywhere: workspaceAuthorIds.has(id),
 	}));
 
 	return succeeded('Listed board contributors', contributors);

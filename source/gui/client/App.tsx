@@ -8,6 +8,7 @@ import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
+import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
 import {moveIssue} from './lib/gui-move-issue';
 import {DropTarget} from './lib/gui-result.model';
@@ -79,6 +80,10 @@ export const App = () => {
 	const [commitInspectError, setCommitInspectError] = useState<string | null>(
 		null,
 	);
+	// Redaction is fired as one message per selected name, so a bulk clear can
+	// half-succeed. Without this the refusals reached only the generic `failed`
+	// branch — a console.log — and the modal closed as if everything worked.
+	const [redactError, setRedactError] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
 	);
@@ -231,6 +236,16 @@ export const App = () => {
 						payload: {boardId: selectedBoardIdRef.current},
 					}),
 				);
+			}
+
+			// Reported rather than logged: a bulk clear sends one message per
+			// name, so some can be refused while others go through, and the
+			// refreshed list above is the only other evidence it happened.
+			if (
+				message.type === 'contributor:redact:result' &&
+				message.payload?.status === 'fail'
+			) {
+				setRedactError(`Couldn't clear a name: ${message.payload.message}`);
 			}
 
 			if (message.type === 'contributors') {
@@ -557,6 +572,13 @@ export const App = () => {
 		return () => clearTimeout(timeout);
 	}, [commitInspectError]);
 
+	useEffect(() => {
+		if (!redactError) return;
+
+		const timeout = setTimeout(() => setRedactError(null), 8000);
+		return () => clearTimeout(timeout);
+	}, [redactError]);
+
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
@@ -727,43 +749,17 @@ export const App = () => {
 			<GlobalScrollbarStyles />
 
 			{commitInspectError && (
-				<div
-					style={{
-						position: 'fixed',
-						bottom: 20,
-						right: 20,
-						zIndex: 1000,
-						maxWidth: 360,
-						display: 'flex',
-						alignItems: 'flex-start',
-						gap: 8,
-						fontSize: 12,
-						color: GUI_THEME.primary,
-						background: GUI_THEME.panel,
-						border: `1px solid ${GUI_THEME.red}`,
-						borderRadius: 8,
-						padding: '10px 12px',
-						boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
-					}}
-				>
-					<span style={{flex: 1, minWidth: 0, overflowWrap: 'anywhere'}}>
-						Couldn't open commit diff: {commitInspectError}
-					</span>
-					<button
-						onClick={() => setCommitInspectError(null)}
-						style={{
-							background: 'transparent',
-							border: 'none',
-							color: GUI_THEME.dim,
-							cursor: 'pointer',
-							fontSize: 14,
-							lineHeight: 1,
-							padding: 0,
-						}}
-					>
-						×
-					</button>
-				</div>
+				<ErrorToast
+					message={`Couldn't open commit diff: ${commitInspectError}`}
+					onDismiss={() => setCommitInspectError(null)}
+				/>
+			)}
+
+			{redactError && (
+				<ErrorToast
+					message={redactError}
+					onDismiss={() => setRedactError(null)}
+				/>
 			)}
 
 			<Header state={state} connected={connected} syncStatus={syncStatus} />

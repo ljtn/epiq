@@ -95,9 +95,14 @@ export const RedactContributorsModal = ({
 						// The server refuses anyone who has authored events: their name
 						// is written into every event they wrote, so clearing the
 						// registry copy alone would remove nothing.
+						//
+						// Keyed on `hasAuthoredAnywhere`, not `isExternal`: the latter
+						// is board-scoped, so a teammate who contributed on another
+						// board looked clearable here and was then refused by the
+						// server.
 						const blockedReason = contributor.isRedacted
 							? 'already cleared'
-							: !contributor.isExternal
+							: contributor.hasAuthoredAnywhere
 							? 'has contributed — name is in the history'
 							: null;
 

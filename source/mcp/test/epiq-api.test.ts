@@ -322,6 +322,13 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 
 vi.mock('../epiq-time-travel.js', () => ({
 	getTimeTravelStatus: vi.fn(() => ({mode: 'live', asOfTime: null})),
+	// Stands in for the real board filter, which walks the node tree. Tests
+	// only need events to be attributable to a board, so fixtures carry the id
+	// on the payload and this keeps the ones that match.
+	filterEventsForBoard: vi.fn(
+		(events: {payload?: {boardId?: string}}[], boardId: string) =>
+			events.filter(event => event.payload?.boardId === boardId),
+	),
 }));
 
 vi.mock('../../lib/event/common-events.js', () => ({
@@ -1189,6 +1196,68 @@ describe('mcp tools', () => {
 			expect(redacted?.name).toBe(REDACTED_CONTRIBUTOR_NAME);
 			expect(redacted?.isRedacted).toBe(true);
 		}
+
+		loadMerged.mockReturnValue(succeeded('loaded', []));
+	});
+
+	// `isExternal` is board-scoped ("has not worked on this board") while the
+	// redaction guard is workspace-wide ("has not authored anywhere"). Keying
+	// the modal's blocked-reason on isExternal offered a teammate who
+	// contributed on another board as clearable, and the server then refused.
+	it('separates board-scoped external from workspace-wide authorship', async () => {
+		// Registered here because that is what makes the case reachable: the
+		// candidate list is board authors plus the registry, so somebody who
+		// only ever authored on another board is offered by the modal precisely
+		// when they are also a registered contributor.
+		contributorRegistry['user-elsewhere'] = {
+			id: 'user-elsewhere',
+			name: 'Elsewhere',
+		};
+
+		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
+			typeof vi.fn
+		>;
+		loadMerged.mockReturnValue(
+			succeeded('loaded', [
+				{
+					id: 'e1',
+					userId: 'user-here',
+					userName: 'Here',
+					action: 'edit.title',
+					payload: {id: 'issue-1', name: 'x', boardId: 'board-1'},
+				},
+				{
+					id: 'e2',
+					userId: 'user-elsewhere',
+					userName: 'Elsewhere',
+					action: 'edit.title',
+					payload: {id: 'issue-2', name: 'y', boardId: 'board-2'},
+				},
+			]),
+		);
+
+		const result = await tools.getBoardContributors({
+			repoRoot: '/repo',
+			boardId: 'board-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		const byId = Object.fromEntries(result.value.map(c => [c.id, c]));
+
+		expect(byId['user-here']?.isExternal).toBe(false);
+		expect(byId['user-here']?.hasAuthoredAnywhere).toBe(true);
+
+		// The case that was wrong: external to this board, but an author
+		// elsewhere, so their name is in the history and cannot be cleared.
+		expect(byId['user-elsewhere']?.isExternal).toBe(true);
+		expect(byId['user-elsewhere']?.hasAuthoredAnywhere).toBe(true);
+
+		// A registry-only contributor is external and has authored nothing, so
+		// they remain the one genuinely clearable case.
+		expect(byId['contributor-1']?.isExternal).toBe(true);
+		expect(byId['contributor-1']?.hasAuthoredAnywhere).toBe(false);
 
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
