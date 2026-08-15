@@ -7,7 +7,7 @@ import {WebSocket} from 'ws';
 vi.mock('../mcp/epiq-api.js', () => ({
 	addIssueAssignee: vi.fn(),
 	getBoardContributors: vi.fn(),
-	redactContributor: vi.fn(),
+	tombstoneContributor: vi.fn(),
 	addIssueComment: vi.fn(),
 	addIssueTag: vi.fn(),
 	closeIssue: vi.fn(),

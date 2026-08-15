@@ -5,7 +5,7 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
-import {REDACTED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
+import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 
@@ -238,7 +238,7 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 // Mutable; reset in beforeEach.
 const contributorRegistry: Record<
 	string,
-	{id: string; name: string; redacted?: boolean}
+	{id: string; name: string; tombstoned?: boolean}
 > = {
 	'contributor-1': {id: 'contributor-1', name: 'Alice'},
 };
@@ -1118,8 +1118,8 @@ describe('mcp tools', () => {
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
-	it('redacts an external contributor, keeping the id', async () => {
-		const result = await tools.redactContributor({
+	it('removes an external contributor, keeping the id', async () => {
+		const result = await tools.tombstoneContributor({
 			repoRoot: '/repo',
 			contributorId: 'contributor-1',
 		});
@@ -1127,7 +1127,7 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value.id).toBe('contributor-1');
-			expect(result.value.name).toBe(REDACTED_CONTRIBUTOR_NAME);
+			expect(result.value.name).toBe(REMOVED_CONTRIBUTOR_NAME);
 		}
 
 		// A forward event: nothing in the log is rewritten.
@@ -1136,18 +1136,18 @@ describe('mcp tools', () => {
 		).mock.calls[0]?.[0];
 		expect(calls).toEqual([
 			expect.objectContaining({
-				action: 'redact.contributor',
+				action: 'tombstone.contributor',
 				payload: {id: 'contributor-1'},
 			}),
 		]);
 	});
 
-	describe('unredactContributor', () => {
-		const asRedacted = () => {
+	describe('restoreContributor', () => {
+		const asTombstoned = () => {
 			contributorRegistry['contributor-1'] = {
 				id: 'contributor-1',
-				name: REDACTED_CONTRIBUTOR_NAME,
-				redacted: true,
+				name: REMOVED_CONTRIBUTOR_NAME,
+				tombstoned: true,
 			};
 		};
 
@@ -1167,10 +1167,10 @@ describe('mcp tools', () => {
 			);
 
 		it('puts back the name the contributor was created under', async () => {
-			asRedacted();
+			asTombstoned();
 			logWithCreate('Temp Tester');
 
-			const result = await tools.unredactContributor({
+			const result = await tools.restoreContributor({
 				repoRoot: '/repo',
 				contributorId: 'contributor-1',
 			});
@@ -1190,35 +1190,35 @@ describe('mcp tools', () => {
 			).mock.calls[0]?.[0];
 			expect(calls).toEqual([
 				expect.objectContaining({
-					action: 'unredact.contributor',
+					action: 'restore.contributor',
 					payload: {id: 'contributor-1', name: 'Temp Tester'},
 				}),
 			]);
 		});
 
-		it('refuses a contributor who is not redacted', async () => {
+		it('refuses a contributor who is not tombstoned', async () => {
 			logWithCreate('Alice');
 
-			const result = await tools.unredactContributor({
+			const result = await tools.restoreContributor({
 				repoRoot: '/repo',
 				contributorId: 'contributor-1',
 			});
 
 			expect(isFail(result)).toBe(true);
 			if (isFail(result)) {
-				expect(result.message).toBe('Contributor is not redacted');
+				expect(result.message).toBe('Contributor is not tombstoned');
 			}
 
 			expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
 		});
 
 		it('refuses when the log has no create.contributor to read', async () => {
-			asRedacted();
+			asTombstoned();
 			(
 				eventLoadModule.loadMergedEvents as ReturnType<typeof vi.fn>
 			).mockReturnValue(succeeded('loaded', []));
 
-			const result = await tools.unredactContributor({
+			const result = await tools.restoreContributor({
 				repoRoot: '/repo',
 				contributorId: 'contributor-1',
 			});
@@ -1232,7 +1232,7 @@ describe('mcp tools', () => {
 		});
 
 		it('refuses an unknown contributor', async () => {
-			const result = await tools.unredactContributor({
+			const result = await tools.restoreContributor({
 				repoRoot: '/repo',
 				contributorId: 'nobody',
 			});
@@ -1245,45 +1245,13 @@ describe('mcp tools', () => {
 	});
 
 	// The state a stale local log can produce: cleared, yet an author.
-	it('flags a redacted contributor who turns out to have authored events', async () => {
-		contributorRegistry['contributor-1'] = {
-			id: 'contributor-1',
-			name: REDACTED_CONTRIBUTOR_NAME,
-			redacted: true,
-		};
-
-		(
-			eventLoadModule.loadMergedEvents as ReturnType<typeof vi.fn>
-		).mockReturnValue(
-			succeeded('loaded', [
-				{
-					id: 'late-1',
-					userId: 'contributor-1',
-					userName: 'temp-tester',
-					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x'},
-				},
-			]),
-		);
-
-		const result = await tools.getBoardContributors({repoRoot: '/repo'});
-
-		expect(isFail(result)).toBe(false);
-		if (isFail(result)) return;
-
-		const entry = result.value.find(c => c.id === 'contributor-1');
-		expect(entry?.isRedacted).toBe(true);
-		expect(entry?.hasAuthoredAnywhere).toBe(true);
-		expect(entry?.isRedactedDespiteAuthoring).toBe(true);
-	});
-
-	// Guards against a later sync quietly un-redacting somebody: the log still
+	// Guards against a later sync quietly restoring somebody: the log still
 	// carries the name they authored under, so the registry has to win.
-	it('keeps a redacted name cleared even when the log carries the real one', async () => {
+	it('keeps a tombstoned name cleared even when the log carries the real one', async () => {
 		contributorRegistry['contributor-1'] = {
 			id: 'contributor-1',
-			name: REDACTED_CONTRIBUTOR_NAME,
-			redacted: true,
+			name: REMOVED_CONTRIBUTOR_NAME,
+			tombstoned: true,
 		};
 
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
@@ -1305,15 +1273,15 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			const redacted = result.value.find(c => c.id === 'contributor-1');
-			expect(redacted?.name).toBe(REDACTED_CONTRIBUTOR_NAME);
-			expect(redacted?.isRedacted).toBe(true);
+			const tombstoned = result.value.find(c => c.id === 'contributor-1');
+			expect(tombstoned?.name).toBe(REMOVED_CONTRIBUTOR_NAME);
+			expect(tombstoned?.isRemoved).toBe(true);
 		}
 
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
-	// `isExternal` is board-scoped, the redaction guard is workspace-wide; a
+	// `isExternal` is board-scoped, the removal guard is workspace-wide; a
 	// client that conflates them offers a teammate the server then refuses.
 	it('separates board-scoped external from workspace-wide authorship', async () => {
 		// Registered, since the candidate list is board authors plus the
@@ -1369,18 +1337,18 @@ describe('mcp tools', () => {
 		loadMerged.mockReturnValue(succeeded('loaded', []));
 	});
 
-	it('keeps a redacted assignee cleared on issues the log names them in', async () => {
+	it('keeps a tombstoned assignee cleared on issues the log names them in', async () => {
 		contributorRegistry['contributor-1'] = {
 			id: 'contributor-1',
-			name: REDACTED_CONTRIBUTOR_NAME,
-			redacted: true,
+			name: REMOVED_CONTRIBUTOR_NAME,
+			tombstoned: true,
 		};
 
 		// The competing name the log-name override would otherwise promote.
 		stateEventLog = [
 			...DEFAULT_STATE_EVENT_LOG,
 			{
-				id: 'e-redacted',
+				id: 'e-tombstoned',
 				userId: 'contributor-1',
 				userName: 'Alice',
 				action: 'edit.title',
@@ -1393,13 +1361,13 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			const assignees = result.value.flatMap(issue => issue.assignees);
-			const redacted = assignees.find(a => a.id === 'contributor-1');
-			expect(redacted).toBeDefined();
-			expect(redacted?.name).toBe(REDACTED_CONTRIBUTOR_NAME);
+			const tombstoned = assignees.find(a => a.id === 'contributor-1');
+			expect(tombstoned).toBeDefined();
+			expect(tombstoned?.name).toBe(REMOVED_CONTRIBUTOR_NAME);
 		}
 	});
 
-	it('refuses to redact a contributor who has authored events', async () => {
+	it('refuses to remove a contributor who has authored events', async () => {
 		const loadMerged = eventLoadModule.loadMergedEvents as ReturnType<
 			typeof vi.fn
 		>;
@@ -1415,7 +1383,7 @@ describe('mcp tools', () => {
 			]),
 		);
 
-		const result = await tools.redactContributor({
+		const result = await tools.tombstoneContributor({
 			repoRoot: '/repo',
 			contributorId: 'contributor-1',
 		});

@@ -53,7 +53,7 @@ const getContributorLogIndex = (): ContributorLogIndex => {
 };
 
 /**
- * A redacted contributor always uses the record, however many events they
+ * A tombstoned contributor always uses the record, however many events they
  * authored: the log still holds every name they wrote under, so if the
  * override won here a later sync would silently restore the cleared name.
  */
@@ -63,7 +63,7 @@ export const getContributorDisplayName = (
 ): string => {
 	const {contributors = {}} = getState();
 
-	if (contributors[contributorId]?.redacted) return fallback;
+	if (contributors[contributorId]?.tombstoned) return fallback;
 
 	return (
 		preferBestName(

@@ -83,18 +83,18 @@ export type AppEventMap = {
 	 * A forward event: the log is never rewritten, so earlier events still carry
 	 * the name and replay unchanged.
 	 */
-	'redact.contributor': {
+	'tombstone.contributor': {
 		payload: PayloadBase;
 		result: Contributor;
 	};
 
 	/**
-	 * Undoes a `redact.contributor`, which is recoverable because the guard on
-	 * redaction only sees the log this machine has pulled. Carries the name
+	 * Undoes a `tombstone.contributor`, which is recoverable because the guard on
+	 * removal only sees the log this machine has pulled. Carries the name
 	 * explicitly: reading it back off earlier events would make replay depend on
 	 * which of them happen to be present.
 	 */
-	'unredact.contributor': {
+	'restore.contributor': {
 		payload: PayloadBase & {name: string};
 		result: Contributor;
 	};
@@ -271,8 +271,8 @@ export const EVENT_ACTIONS = [
 	'delete.node',
 	'create.tag',
 	'create.contributor',
-	'redact.contributor',
-	'unredact.contributor',
+	'tombstone.contributor',
+	'restore.contributor',
 	'add.issue.assignee',
 	'remove.issue.assignee',
 	'add.issue.tag',

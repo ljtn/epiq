@@ -5,8 +5,8 @@ import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	addIssueAssignee,
 	getBoardContributors,
-	redactContributor,
-	unredactContributor,
+	tombstoneContributor,
+	restoreContributor,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -244,29 +244,29 @@ export const createMcpServer = () => {
 	);
 
 	server.registerTool(
-		'epiq_contributor_redact',
+		'epiq_contributor_remove',
 		{
 			description:
-				"Clear an external contributor's display name while keeping their id and every reference to it — assignments stay intact and history is untouched. Refused for anyone who has authored events, since their name appears throughout the log.",
+				'Remove an external contributor from the assignee suggestion lists. Their id and every reference to it survive, so existing assignments stay intact and the event log is untouched. Refused for anyone who has authored events, since their name is in the log regardless.',
 			inputSchema: z.object({
 				contributorId: z.string().min(1),
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await redactContributor(input)),
+		async input => resultJson(await tombstoneContributor(input)),
 	);
 
 	server.registerTool(
-		'epiq_contributor_unredact',
+		'epiq_contributor_restore',
 		{
 			description:
-				"Restore a contributor's display name after epiq_contributor_redact cleared it, putting back the name they were created under. Use when a name was cleared against a stale local view of the log — for example someone whose events had not been pulled yet, and so looked like an outsider.",
+				'Put a contributor removed with epiq_contributor_remove back into the suggestion lists, under the name they were created with.',
 			inputSchema: z.object({
 				contributorId: z.string().min(1),
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await unredactContributor(input)),
+		async input => resultJson(await restoreContributor(input)),
 	);
 
 	server.registerTool(

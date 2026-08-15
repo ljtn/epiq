@@ -13,7 +13,7 @@ export type GuiMessage =
 	| {type: 'issue:tag:add'; payload: {issueId: string; tagName: string}}
 	| {type: 'issue:tag:remove'; payload: {issueId: string; tagId: string}}
 	| {
-			type: 'contributor:redact';
+			type: 'contributor:remove';
 			payload: {contributorId: string};
 	  }
 	| {

@@ -10,7 +10,7 @@ import {
 } from '../lib/gui-state.model';
 import {Aside} from './Aside';
 import {Button} from './Button';
-import {RedactContributorsModal} from './RedactContributorsModal';
+import {ManageContributorsModal} from './ManageContributorsModal';
 import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {
@@ -42,7 +42,7 @@ export const IssueDetails = ({
 	onRemoveTag,
 	onAddAssignee,
 	onAddExternalAssignee,
-	onRedactContributor,
+	onRemoveContributor,
 	onRemoveAssignee,
 	onCloseIssue,
 	onReopenIssue,
@@ -70,7 +70,7 @@ export const IssueDetails = ({
 	onAddAssignee: (issueId: string, assigneeId: string) => void;
 	onAddExternalAssignee: (issueId: string, assigneeName: string) => void;
 	// The server refuses anyone who has authored events.
-	onRedactContributor: (contributorId: string) => void;
+	onRemoveContributor: (contributorId: string) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
 	onReopenIssue: (issueId: string) => void;
@@ -208,8 +208,8 @@ export const IssueDetails = ({
 					issueAssignee => issueAssignee.id === assignee.id,
 				),
 		)
-		// A redacted contributor has no name left to pick them out by.
-		.filter(assignee => !assignee.isRedacted)
+		// A tombstoned contributor has no name left to pick them out by.
+		.filter(assignee => !assignee.isRemoved)
 		.sort(
 			(a, b) =>
 				assigneeRank(a) - assigneeRank(b) || a.name.localeCompare(b.name),
@@ -505,13 +505,13 @@ export const IssueDetails = ({
 								)}
 
 								{addingAssignee &&
-									assignees.some(a => a.isExternal && !a.isRedacted) && (
+									assignees.some(a => a.isExternal && !a.isRemoved) && (
 										<ChipRow>
 											<Button
 												variant="ghost"
 												disabled={issue.readonly}
 												onClick={() => setManagingContributors(true)}
-												title="Review contributors and redact names across the whole workspace"
+												title="Review and remove external contributors across the whole workspace"
 											>
 												manage contributors…
 											</Button>
@@ -589,9 +589,9 @@ export const IssueDetails = ({
 			)}
 
 			{managingContributors && (
-				<RedactContributorsModal
+				<ManageContributorsModal
 					contributors={assignees}
-					onRedact={ids => ids.forEach(onRedactContributor)}
+					onRemove={onRemoveContributor}
 					onClose={() => setManagingContributors(false)}
 				/>
 			)}

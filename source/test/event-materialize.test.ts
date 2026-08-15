@@ -364,12 +364,12 @@ describe('issue attachments', () => {
 	});
 });
 
-// Redaction is a forward event, so what makes it trustworthy is that replay
+// Removal is a forward event, so what makes it trustworthy is that replay
 // reproduces it identically everywhere.
-describe('contributor redaction round-trip', () => {
+describe('contributor tombstone round-trip', () => {
 	const CONTRIBUTOR = '01H00000000000000000000100';
 
-	it('clears the name on redact and puts it back on unredact', () => {
+	it('clears the name on tombstone and puts it back on restore', () => {
 		setupWorkspace();
 
 		expectOk(
@@ -379,30 +379,30 @@ describe('contributor redaction round-trip', () => {
 		);
 		expect(nodeRepo.getContributor(CONTRIBUTOR)?.name).toBe('Temp Tester');
 
-		expectOk(materialize(event('redact.contributor', {id: CONTRIBUTOR})));
-		expect(nodeRepo.getContributor(CONTRIBUTOR)?.redacted).toBe(true);
+		expectOk(materialize(event('tombstone.contributor', {id: CONTRIBUTOR})));
+		expect(nodeRepo.getContributor(CONTRIBUTOR)?.tombstoned).toBe(true);
 		expect(nodeRepo.getContributor(CONTRIBUTOR)?.name).not.toBe('Temp Tester');
 
 		expectOk(
 			materialize(
-				event('unredact.contributor', {id: CONTRIBUTOR, name: 'Temp Tester'}),
+				event('restore.contributor', {id: CONTRIBUTOR, name: 'Temp Tester'}),
 			),
 		);
 
 		const restored = nodeRepo.getContributor(CONTRIBUTOR);
 		expect(restored?.name).toBe('Temp Tester');
 		// Cleared, not merely absent: read paths check the flag.
-		expect(restored?.redacted).toBe(false);
+		expect(restored?.tombstoned).toBe(false);
 	});
 
-	// The id is why this is redaction and not deletion.
+	// The id is why this is a tombstone and not a deletion.
 	it('keeps the id stable across the whole sequence', () => {
 		setupWorkspace();
 
 		materializeAll([
 			event('create.contributor', {id: CONTRIBUTOR, name: 'Temp Tester'}),
 			event('add.issue.assignee', {id: IDS.issue, assignee: CONTRIBUTOR}),
-			event('redact.contributor', {id: CONTRIBUTOR}),
+			event('tombstone.contributor', {id: CONTRIBUTOR}),
 		] as const);
 
 		const issue = nodeRepo.getNode(IDS.issue);
@@ -412,11 +412,11 @@ describe('contributor redaction round-trip', () => {
 		expect(nodeRepo.getContributor(CONTRIBUTOR)).toBeDefined();
 	});
 
-	it('fails unredact for a contributor that does not exist', () => {
+	it('fails restore for a contributor that does not exist', () => {
 		setupWorkspace();
 
 		const result = materialize(
-			event('unredact.contributor', {id: IDS.missing, name: 'Nobody'}),
+			event('restore.contributor', {id: IDS.missing, name: 'Nobody'}),
 		);
 
 		expect(isFail(result)).toBe(true);

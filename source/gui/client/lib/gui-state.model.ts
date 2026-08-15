@@ -7,8 +7,8 @@ export type GuiContributor = GuiUser & {
 	isSelf: boolean;
 	// Board-scoped: they have not worked on the board being viewed.
 	isExternal: boolean;
-	// Their name has already been cleared, so there is nothing left to redact.
-	isRedacted: boolean;
+	// Already removed, so there is nothing left to do.
+	isRemoved: boolean;
 	// Workspace-wide: their name is somewhere in the event log, which is what
 	// makes it un-clearable. Someone can be external here and an author elsewhere.
 	hasAuthoredAnywhere: boolean;

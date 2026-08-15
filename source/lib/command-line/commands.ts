@@ -81,8 +81,8 @@ const getAssignableContributors = (): {
 	}
 
 	for (const contributor of Object.values(contributors)) {
-		// Redaction must beat the log's name, or a cleared name reappears here.
-		if (contributor.redacted) {
+		// Removal must beat the log's name, or a removed name reappears here.
+		if (contributor.tombstoned) {
 			byId.set(contributor.id, contributor.name);
 			continue;
 		}

@@ -367,26 +367,26 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 	},
 
-	'redact.contributor': event => {
+	'tombstone.contributor': event => {
 		const {id} = event.payload;
-		const result = nodeRepo.redactContributor(id);
+		const result = nodeRepo.tombstoneContributor(id);
 
 		if (isFail(result)) {
 			return materializeFail(
-				result.message ?? 'Unable to redact contributor',
+				result.message ?? 'Unable to remove contributor',
 				event,
 			);
 		}
 
-		return succeeded('Contributor redacted', {
+		return succeeded('Contributor tombstoned', {
 			action: event.action,
 			result: result.value,
 		});
 	},
 
-	'unredact.contributor': event => {
+	'restore.contributor': event => {
 		const {id, name} = event.payload;
-		const result = nodeRepo.unredactContributor(id, name);
+		const result = nodeRepo.restoreContributor(id, name);
 
 		if (isFail(result)) {
 			return materializeFail(

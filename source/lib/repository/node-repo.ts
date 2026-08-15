@@ -3,7 +3,7 @@ import {
 	CommentState,
 	Contributor,
 	Tag,
-	REDACTED_CONTRIBUTOR_NAME,
+	REMOVED_CONTRIBUTOR_NAME,
 } from '../model/app-state.model.js';
 import {AnyContext, isTicketNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -401,40 +401,37 @@ export const nodeRepo = {
 
 	// Clears the display name but keeps the record, so assignments referencing
 	// the id keep resolving. Unconditional: the rule that only contributors who
-	// have never authored an event may be redacted lives in the caller.
-	redactContributor(contributorId: string): Result<Contributor> {
+	// have never authored an event may be tombstoned lives in the caller.
+	tombstoneContributor(contributorId: string): Result<Contributor> {
 		const contributor = this.getContributor(contributorId);
 		if (!contributor) return failed('Contributor not found');
 
-		const redacted: Contributor = {
+		const tombstoned: Contributor = {
 			...contributor,
-			name: REDACTED_CONTRIBUTOR_NAME,
-			redacted: true,
+			name: REMOVED_CONTRIBUTOR_NAME,
+			tombstoned: true,
 		};
 
 		const result = updateState(s => ({
 			...s,
 			contributors: {
 				...s.contributors,
-				[contributorId]: redacted,
+				[contributorId]: tombstoned,
 			},
 		}));
 
-		if (isFail(result)) return failed('Unable to redact contributor');
-		return succeeded('Redacted contributor', redacted);
+		if (isFail(result)) return failed('Unable to remove contributor');
+		return succeeded('Tombstoned contributor', tombstoned);
 	},
 
-	unredactContributor(
-		contributorId: string,
-		name: string,
-	): Result<Contributor> {
+	restoreContributor(contributorId: string, name: string): Result<Contributor> {
 		const contributor = this.getContributor(contributorId);
 		if (!contributor) return failed('Contributor not found');
 
 		const restored: Contributor = {
 			...contributor,
 			name,
-			redacted: false,
+			tombstoned: false,
 		};
 
 		const result = updateState(s => ({

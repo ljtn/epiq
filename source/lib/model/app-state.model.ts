@@ -25,17 +25,17 @@ export type BreadCrumb =
 export type ViewMode = 'wide' | 'dense';
 
 export type Tag = {id: string; name: string};
-// A placeholder, not an empty name, so a redacted assignee still reads as one.
-export const REDACTED_CONTRIBUTOR_NAME = 'removed';
+// A placeholder, not an empty name, so a tombstoned assignee still reads as one.
+export const REMOVED_CONTRIBUTOR_NAME = 'removed';
 
-// `redacted` is a flag rather than a comparison against the placeholder name,
-// so that read paths can let redaction beat the event-log name override without
+// `tombstoned` is a flag rather than a comparison against the placeholder name,
+// so that read paths can let removal beat the event-log name override without
 // catching anyone genuinely called "removed".
 export type Contributor = {
 	id: string;
 	name: string;
 	userId?: string;
-	redacted?: boolean;
+	tombstoned?: boolean;
 };
 
 export type Filter = {

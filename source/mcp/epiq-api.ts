@@ -32,7 +32,7 @@ import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {
 	Contributor,
-	REDACTED_CONTRIBUTOR_NAME,
+	REMOVED_CONTRIBUTOR_NAME,
 } from '../lib/model/app-state.model.js';
 import {preferBestName} from '../lib/utils/contributor.utils.js';
 import {getStringColor} from '../lib/utils/color.js';
@@ -299,7 +299,7 @@ const mergeRegistryNames = (
 	for (const contributor of Object.values(registry)) {
 		// Overwrites rather than fills a gap: their events still carry the name
 		// they authored under, so the log must never win here.
-		if (contributor.redacted) {
+		if (contributor.tombstoned) {
 			byId.set(contributor.id, contributor.name);
 			continue;
 		}
@@ -324,9 +324,9 @@ const getIssueAssignees = (
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter(contributor => contributor != undefined)
 		.map(contributor => {
-			// Unconditional for a redacted contributor: the log must never be able
+			// Unconditional for a tombstoned contributor: the log must never be able
 			// to put a cleared name back.
-			const name = contributor.redacted
+			const name = contributor.tombstoned
 				? contributor.name
 				: preferBestName(contributor.name, latestNames.get(contributor.id)) ??
 				  contributor.name;
@@ -1439,10 +1439,10 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	});
 };
 
-// Redaction, not deletion: the id and every reference to it survive, so only
+// Tombstone, not deletion: the id and every reference to it survive, so only
 // the display name stops rendering. Refused for anyone who has authored an
 // event, since the log names them throughout and is never rewritten.
-export const redactContributor = async (
+export const tombstoneContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -1464,7 +1464,7 @@ export const redactContributor = async (
 
 	if (authored) {
 		return failed(
-			'Cannot redact a contributor who has authored events — their name appears throughout the log',
+			'Cannot remove a contributor who has authored events — their name appears throughout the log',
 		);
 	}
 
@@ -1472,9 +1472,9 @@ export const redactContributor = async (
 		{
 			id: ulid(),
 			...actorResult.value,
-			action: 'redact.contributor',
+			action: 'tombstone.contributor',
 			payload: {id: input.contributorId},
-		} satisfies AppEvent<'redact.contributor'>,
+		} satisfies AppEvent<'tombstone.contributor'>,
 	];
 
 	const results = materializeAndPersistAll(
@@ -1484,13 +1484,13 @@ export const redactContributor = async (
 
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded('Redacted contributor', {
+	return succeeded('Tombstoned contributor', {
 		id: input.contributorId,
-		name: REDACTED_CONTRIBUTOR_NAME,
+		name: REMOVED_CONTRIBUTOR_NAME,
 	});
 };
 
-// Redaction never rewrites the log, so the `create.contributor` payload still
+// Removal never rewrites the log, so the `create.contributor` payload still
 // carries the original name. Last write wins.
 const findCreatedContributorName = async (
 	stateBranchRoot: string,
@@ -1511,10 +1511,10 @@ const findCreatedContributorName = async (
 	return name;
 };
 
-// The redaction guard only sees the log this machine has pulled, so somebody
+// The removal guard only sees the log this machine has pulled, so somebody
 // whose events have not arrived yet can be cleared by mistake. This makes that
 // reversible rather than forcing a network round-trip inside a read path.
-export const unredactContributor = async (
+export const restoreContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -1529,8 +1529,8 @@ export const unredactContributor = async (
 	const contributor = stateResult.value.contributors[input.contributorId];
 	if (!contributor) return failed('Contributor not found');
 
-	if (!contributor.redacted) {
-		return failed('Contributor is not redacted');
+	if (!contributor.tombstoned) {
+		return failed('Contributor is not tombstoned');
 	}
 
 	const originalName = await findCreatedContributorName(
@@ -1548,9 +1548,9 @@ export const unredactContributor = async (
 		{
 			id: ulid(),
 			...actorResult.value,
-			action: 'unredact.contributor',
+			action: 'restore.contributor',
 			payload: {id: input.contributorId, name: originalName},
-		} satisfies AppEvent<'unredact.contributor'>,
+		} satisfies AppEvent<'restore.contributor'>,
 	];
 
 	const results = materializeAndPersistAll(
@@ -1573,9 +1573,8 @@ export const getBoardContributors = async (
 		(ApiAssignee & {
 			isSelf: boolean;
 			isExternal: boolean;
-			isRedacted: boolean;
+			isRemoved: boolean;
 			hasAuthoredAnywhere: boolean;
-			isRedactedDespiteAuthoring: boolean;
 		})[]
 	>
 > => {
@@ -1601,7 +1600,7 @@ export const getBoardContributors = async (
 	// erase "has actually worked on this board".
 	const authorIds = new Set<string>();
 
-	// Unfiltered, unlike `authorIds`: redaction is refused for anyone who has
+	// Unfiltered, unlike `authorIds`: removal is refused for anyone who has
 	// authored anywhere, so this must read the same events that guard does.
 	const workspaceAuthorIds = new Set<string>();
 
@@ -1627,15 +1626,11 @@ export const getBoardContributors = async (
 		// Board-scoped: means "has not worked on this board", not "is not in the
 		// history". Never stored, so it self-corrects.
 		isExternal: !authorIds.has(id),
-		// Read off the record, not compared against the placeholder string, so
-		// somebody genuinely named "removed" is not reported as already-cleared.
-		isRedacted: registry[id]?.redacted === true,
-		// Workspace-wide, which is the question redaction actually asks.
+		// Read off the record, not compared against the placeholder name, so
+		// somebody genuinely called "removed" is not reported as already removed.
+		isRemoved: registry[id]?.tombstoned === true,
+		// Workspace-wide: their name is in the log, which is what blocks removal.
 		hasAuthoredAnywhere: workspaceAuthorIds.has(id),
-		// A state the redaction guard is supposed to prevent but a stale local log
-		// allows. Surfaced so a client can offer the restore, not auto-corrected.
-		isRedactedDespiteAuthoring:
-			registry[id]?.redacted === true && workspaceAuthorIds.has(id),
 	}));
 
 	return succeeded('Listed board contributors', contributors);

@@ -73,8 +73,7 @@ export const App = () => {
 	const [commitInspectError, setCommitInspectError] = useState<string | null>(
 		null,
 	);
-	// Redaction is one message per selected name, so a bulk clear can half-succeed.
-	const [redactError, setRedactError] = useState<string | null>(null);
+	const [removeError, setRemoveError] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
 	);
@@ -208,9 +207,9 @@ export const App = () => {
 			}
 
 			// The state broadcast carries board data, not the assignable-people
-			// list, so assigning and redacting need an explicit re-request.
+			// list, so assigning and removing need an explicit re-request.
 			if (
-				message.type === 'contributor:redact:result' ||
+				message.type === 'contributor:remove:result' ||
 				message.type === 'issue:assignee:add:result'
 			) {
 				socketRef.current?.send(
@@ -222,10 +221,12 @@ export const App = () => {
 			}
 
 			if (
-				message.type === 'contributor:redact:result' &&
+				message.type === 'contributor:remove:result' &&
 				message.payload?.status === 'fail'
 			) {
-				setRedactError(`Couldn't clear a name: ${message.payload.message}`);
+				setRemoveError(
+					`Couldn't remove a contributor: ${message.payload.message}`,
+				);
 			}
 
 			if (message.type === 'contributors') {
@@ -405,8 +406,8 @@ export const App = () => {
 	};
 
 	// Clears the display name only; the id and every assignment survive.
-	const redactContributor = (contributorId: string) => {
-		send('contributor:redact', {contributorId});
+	const removeContributor = (contributorId: string) => {
+		send('contributor:remove', {contributorId});
 	};
 
 	// The path that can invent a person who has no record at all.
@@ -539,11 +540,11 @@ export const App = () => {
 	}, [commitInspectError]);
 
 	useEffect(() => {
-		if (!redactError) return;
+		if (!removeError) return;
 
-		const timeout = setTimeout(() => setRedactError(null), 8000);
+		const timeout = setTimeout(() => setRemoveError(null), 8000);
 		return () => clearTimeout(timeout);
-	}, [redactError]);
+	}, [removeError]);
 
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
@@ -721,10 +722,10 @@ export const App = () => {
 				/>
 			)}
 
-			{redactError && (
+			{removeError && (
 				<ErrorToast
-					message={redactError}
-					onDismiss={() => setRedactError(null)}
+					message={removeError}
+					onDismiss={() => setRemoveError(null)}
 				/>
 			)}
 
@@ -848,7 +849,7 @@ export const App = () => {
 						onRemoveTag={removeIssueTag}
 						onAddAssignee={addIssueAssignee}
 						onAddExternalAssignee={addExternalIssueAssignee}
-						onRedactContributor={redactContributor}
+						onRemoveContributor={removeContributor}
 						onRemoveAssignee={removeIssueAssignee}
 						onAddComment={addIssueComment}
 						onDeleteComment={deleteIssueComment}

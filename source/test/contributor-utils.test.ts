@@ -68,16 +68,18 @@ describe('getContributorDisplayName', () => {
 	});
 
 	// The record must win, or a later sync restores a cleared name.
-	it('keeps a redacted contributor cleared even though the log names them', () => {
+	it('keeps a tombstoned contributor cleared even though the log names them', () => {
 		mockState({
 			eventLog: [authoredAs('user-1', 'Alice')],
-			contributors: {'user-1': {id: 'user-1', name: 'removed', redacted: true}},
+			contributors: {
+				'user-1': {id: 'user-1', name: 'removed', tombstoned: true},
+			},
 		});
 
 		expect(getContributorDisplayName('user-1', 'removed')).toBe('removed');
 	});
 
-	it('does not treat somebody genuinely called "removed" as redacted', () => {
+	it('does not treat somebody genuinely called "removed" as tombstoned', () => {
 		mockState({
 			eventLog: [authoredAs('user-1', 'removed')],
 			contributors: {'user-1': {id: 'user-1', name: 'Removed'}},
