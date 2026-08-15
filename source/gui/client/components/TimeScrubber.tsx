@@ -504,6 +504,12 @@ export const TimeScrubber = ({
 	const [hoveredBucketFraction, setHoveredBucketFraction] = useState<
 		number | null
 	>(null);
+	// Where the pointer is along the track, independent of whether it happens to
+	// be over a plotted point. "Events" mode has no column to fall into, but the
+	// calendar segment under the cursor is still a region with a start and an
+	// end — so the segment highlight is resolved from this rather than from the
+	// per-point handlers, and an empty stretch lights up like any other.
+	const [pointerFraction, setPointerFraction] = useState<number | null>(null);
 	const [needleHovered, setNeedleHovered] = useState(false);
 	const [hoveredCommit, setHoveredCommit] = useState<GuiCommitEntry | null>(
 		null,
@@ -760,6 +766,16 @@ export const TimeScrubber = ({
 		);
 	};
 
+	// Pointer position along whichever element is being hovered, as a fraction
+	// of the shared time axis. Measured against `event.currentTarget` for the
+	// same reason bucketIndexFromEvent does: one handler serves the wrapper,
+	// the issue track and the mirrored commit box.
+	const fractionFromEvent = (event: React.MouseEvent<HTMLDivElement>) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+
+		return clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+	};
+
 	const endDrag = () => {
 		if (dragFraction === null) return;
 
@@ -863,7 +879,14 @@ export const TimeScrubber = ({
 			  (hoveredCommitBucketIndex !== null
 					? timeBuckets[hoveredCommitBucketIndex]?.t
 					: undefined)
-			: hoverLabel?.t ?? hoveredCommit?.time) ?? null;
+			: // A hovered point or commit wins, so the highlight agrees with the
+			  // tooltip's own moment; the pointer is the fallback that makes the
+			  // segment light up over empty stretches too.
+			  hoverLabel?.t ??
+			  hoveredCommit?.time ??
+			  (pointerFraction !== null
+					? fractionToTime(pointerFraction)
+					: undefined)) ?? null;
 	const hoveredSegment =
 		hoveredSegmentTime !== null
 			? segmentAt(hoveredSegmentTime, segmentUnit)
@@ -1319,24 +1342,30 @@ export const TimeScrubber = ({
 						onPointerMove={onPointerMove}
 						onPointerUp={endDrag}
 						onPointerCancel={endDrag}
-						// "Volume" mode resolves the hovered bucket from the pointer's x
-						// position here, once, instead of per bucket. Bound to the wrapper
-						// rather than to the upper chart so the gap between the two charts
-						// counts as part of the timeline — hovering it previously fell
-						// between both charts' handlers and dropped the highlight, even
-						// though the pair reads as one chart. "Events" mode leaves this
-						// alone: there the individual points carry their own handlers,
-						// since a scatter has no column to fall into.
-						onMouseMove={
-							layoutMode === 'even'
-								? event => setHoveredBucketIndex(bucketIndexFromEvent(event))
-								: undefined
-						}
-						onMouseLeave={
-							layoutMode === 'even'
-								? () => setHoveredBucketIndex(null)
-								: undefined
-						}
+						// Both modes resolve what's under the cursor from the pointer's x
+						// position here, once, instead of per bucket or per point. Bound to
+						// the wrapper rather than to the upper chart so the gap between the
+						// two charts counts as part of the timeline — hovering it previously
+						// fell between both charts' handlers and dropped the highlight, even
+						// though the pair reads as one chart.
+						//
+						// "Events" mode used to leave this alone, on the reasoning that a
+						// scatter has no column to fall into. True of the points, but the
+						// calendar segment is still a region on the x axis whether or not a
+						// point happens to sit under the cursor — so it is resolved from the
+						// pointer, while the points keep their own handlers for the tooltip.
+						onMouseMove={event => {
+							if (layoutMode === 'even') {
+								setHoveredBucketIndex(bucketIndexFromEvent(event));
+								return;
+							}
+
+							setPointerFraction(fractionFromEvent(event));
+						}}
+						onMouseLeave={() => {
+							setHoveredBucketIndex(null);
+							setPointerFraction(null);
+						}}
 						style={{
 							position: 'relative',
 							display: 'flex',
