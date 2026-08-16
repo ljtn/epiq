@@ -547,3 +547,4 @@
 {"v":1,"id":["01M03XWS129YJC0YN3Y7R09P2M","01M03XWDAZX1WBKCHKAVGRAJPC"],"move.node":{"id":"01M03WPCHK4YTADBE4VMJ9BS9H","parent":"01M011Z2FF411ZPC4QSKN5MJA5","rank":"0fffffffffffffffffffffff"}}
 {"v":1,"id":["01M03XXZN8WYEWCM097M0R2FPP","01M03XWS129YJC0YN3Y7R09P2M"],"add.issue":{"id":"01M03XXZN2BXS3HXTGEV2M7GME","parent":"01KS22YK95S3336MFSE44MY70R","name":"differentiate between click and drag (dont trigger open up the ticket details when moving))","rank":"ffffff7fffffffffffffffff"}}
 {"v":1,"id":["01M03Y25JJFZMAEK000W8Y9K4G","01M03XXZN8WYEWCM097M0R2FPP"],"close.issue":{"id":"01M03AQ6AS47AMKYER5MD277ZJ","parent":"00KM6CZ900T7180RM46K0JAYNF","rank":"ffffffffbfffffffffffffff"}}
+{"v":1,"id":["01M03Y32CR3D38G5N31D73753J","01M03Y25JJFZMAEK000W8Y9K4G"],"delete.issue.comment":{"id":"01KXDM3ZX0209QNZYPY1QN027C","issue":"01KVDGTFKWV88T2NF94W3X83M2"}}
