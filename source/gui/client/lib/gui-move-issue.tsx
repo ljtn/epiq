@@ -80,7 +80,9 @@ const findMove = (
 export const moveIssue =
 	(
 		setState: React.Dispatch<React.SetStateAction<GuiState | null>>,
-		socketRef: React.RefObject<WebSocket | null>,
+		// The caller's sender, so the move counts as an in-flight mutation like
+		// every other one.
+		send: (type: string, payload: unknown) => void,
 	) =>
 	(issueId: string, parentId: string, targetIndex: number | 'end') => {
 		let position: MovePosition | null = null;
@@ -129,12 +131,5 @@ export const moveIssue =
 
 		if (!position) return;
 
-		sendSocketJson(socketRef.current, {
-			type: 'issues:move',
-			payload: {
-				issueId,
-				parentId,
-				position,
-			},
-		});
+		send('issues:move', {issueId, parentId, position});
 	};

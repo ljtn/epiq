@@ -27,6 +27,7 @@ import {
 } from './lib/gui-state.model';
 import {sendSocketJson} from './lib/socket-send';
 import {createHistoryBuffer} from './lib/history-buffer';
+import {createMutationGate} from './lib/mutation-gate';
 import {blobToBase64, compressImage} from './lib/compress-image';
 import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
@@ -88,6 +89,7 @@ export const App = () => {
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
+	const [mutationGate] = useState(createMutationGate);
 
 	const selectedTab =
 		searchParams.get('tab') === 'comments' ? 'comments' : 'overview';
@@ -165,6 +167,7 @@ export const App = () => {
 
 		socket.addEventListener('open', () => {
 			setConnected(true);
+			mutationGate.reset();
 			sendSocketJson(socket, {type: 'state:get'});
 			// History is not requested here: the scrubber owns the scope and drives
 			// that fetch itself, so asking here would ignore its stored selection.
@@ -172,6 +175,7 @@ export const App = () => {
 
 		socket.addEventListener('close', () => {
 			setConnected(false);
+			mutationGate.reset();
 
 			if (socketRef.current === socket) {
 				socketRef.current = null;
@@ -181,7 +185,9 @@ export const App = () => {
 		socket.addEventListener('message', event => {
 			const message = JSON.parse(event.data);
 
-			if (message.type === 'state') {
+			mutationGate.received(message.type);
+
+			if (message.type === 'state' && !mutationGate.holdsState()) {
 				const nextState = getResultValue<GuiState>(message.payload);
 				if (nextState) setState(nextState);
 			}
@@ -296,6 +302,7 @@ export const App = () => {
 	};
 
 	const send = (type: string, payload: unknown) => {
+		mutationGate.sent(type);
 		sendSocketJson(socketRef.current, {type, payload});
 	};
 
@@ -817,7 +824,7 @@ export const App = () => {
 								onSelectIssue={selectIssue}
 								onSelectIssueComments={selectIssueComments}
 								onCreateIssue={openCreateIssueModal}
-								onDropIssue={moveIssue(setState, socketRef)}
+								onDropIssue={moveIssue(setState, send)}
 								onDragOver={setDragOverSwimlaneId}
 								onDragOverIssue={(swimlaneId, index) =>
 									setDropTarget({swimlaneId, index})

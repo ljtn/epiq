@@ -34,24 +34,8 @@ import {
 	broadcastGuiMessage,
 	registerGuiSocket,
 } from '../../client/lib/gui-broadcast.js';
+import {MUTATING_MESSAGE_TYPES} from '../../client/lib/gui-mutations.js';
 import {GuiMessage} from './websocket.model.js';
-
-const MUTATING_MESSAGE_TYPES = new Set<GuiMessage['type']>([
-	'sync',
-	'issues:create',
-	'issues:move',
-	'issue:close',
-	'issue:reopen',
-	'issue:edit:title',
-	'issue:edit:description',
-	'issue:tag:add',
-	'issue:tag:remove',
-	'contributor:remove',
-	'issue:assignee:add',
-	'issue:assignee:remove',
-	'issue:comment:add',
-	'issue:comment:delete',
-]);
 
 // Derives rather than boots, so a live re-materialize can't stomp a checkout.
 const broadcastDerivedState = () => {
