@@ -423,7 +423,7 @@ export const startGuiServer = async (input: {
 	});
 
 	setupWebsocket(server, input.repoRoot, {
-		onStateChanged: () => guiAutoSync.scheduleSync(),
+		onStateChanged: () => guiAutoSync.queueSync(),
 	});
 
 	server.on('close', guiAutoSync.dispose);

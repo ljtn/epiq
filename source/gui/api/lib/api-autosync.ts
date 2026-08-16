@@ -8,30 +8,45 @@ import {
 } from '../../../mcp/epiq-time-travel.js';
 import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
 
+const DEFAULT_INTERVAL_MS = 15_000;
+
 export const startGuiAutoSync = (input: {repoRoot: string}) => {
-	let intervalTimer: NodeJS.Timeout | undefined;
-	let debounceTimer: NodeJS.Timeout | undefined;
+	let timer: NodeJS.Timeout | undefined;
 	let disposed = false;
 	let syncing = false;
-	let pending = false;
+	let lastStartedAt = 0;
+
+	const config = () => {
+		const result = readEpiqConfig();
+		if (isFail(result)) {
+			logger.error(result.message);
+			return null;
+		}
+
+		return result.value;
+	};
 
 	const isAutoSyncConfigured = () => {
-		const configRes = readEpiqConfig();
-		if (isFail(configRes)) return logger.error(configRes.message);
-		const {autoSync, userName, preferredEditor} = configRes.value;
+		const settings = config();
+		if (!settings) return false;
 
+		const {autoSync, userName, preferredEditor} = settings;
 		return Boolean(autoSync && userName && preferredEditor);
 	};
 
-	const runSync = async () => {
-		if (disposed) return;
+	// One cadence for both the periodic pass and the one a mutation asks for, so
+	// a burst of edits cannot sync faster than the configured interval.
+	const delayUntilNextRun = () => {
+		const intervalMs = config()?.autoSyncDebounceMs ?? DEFAULT_INTERVAL_MS;
 
-		if (syncing) {
-			pending = true;
-			return;
-		}
+		return Math.max(0, intervalMs - (Date.now() - lastStartedAt));
+	};
+
+	const runSync = async (): Promise<void> => {
+		if (disposed || syncing) return;
 
 		syncing = true;
+		lastStartedAt = Date.now();
 
 		try {
 			// The live check must stay inside the lock, or a scrub lands in the gap
@@ -39,7 +54,15 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 			await runExclusive(async () => {
 				if (getTimeTravelStatus().mode !== 'live') return;
 
-				await sync({repoRoot: input.repoRoot});
+				const result = await sync({repoRoot: input.repoRoot});
+				if (isFail(result)) return;
+
+				const {pulled, createdCommit, bootstrapped} = result.value;
+
+				// Publishing replaces every client's board wholesale, discarding
+				// whatever the user was part-way through. An unchanged repository is
+				// not worth that.
+				if (!pulled && !createdCommit && !bootstrapped) return;
 
 				broadcastGuiMessage({
 					type: 'state',
@@ -48,48 +71,31 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 			});
 		} finally {
 			syncing = false;
-
-			if (pending) {
-				pending = false;
-				void runSync();
-			}
+			// Always re-arms, so a request that arrived mid-run is covered by the
+			// next pass rather than needing a queue of its own.
+			queueSync();
 		}
 	};
 
-	const scheduleSync = (delayMs = 750) => {
-		if (disposed) return;
+	function queueSync(): void {
+		if (disposed || !isAutoSyncConfigured()) return;
 
-		if (debounceTimer) clearTimeout(debounceTimer);
+		if (syncing || timer) return;
 
-		debounceTimer = setTimeout(() => {
+		timer = setTimeout(() => {
+			timer = undefined;
 			void runSync();
-		}, delayMs);
-	};
+		}, delayUntilNextRun());
+	}
 
-	const scheduleIntervalSync = () => {
-		if (disposed) return;
-
-		const configRes = readEpiqConfig();
-		if (isFail(configRes)) return logger.error(configRes.message);
-		const {autoSyncDebounceMs} = configRes.value;
-
-		if (!isAutoSyncConfigured()) return;
-
-		intervalTimer = setTimeout(() => {
-			void runSync();
-			scheduleIntervalSync();
-		}, autoSyncDebounceMs ?? 15_000);
-	};
-
-	scheduleIntervalSync();
+	queueSync();
 
 	return {
-		scheduleSync,
+		queueSync,
 		dispose: () => {
 			disposed = true;
 
-			if (intervalTimer) clearTimeout(intervalTimer);
-			if (debounceTimer) clearTimeout(debounceTimer);
+			if (timer) clearTimeout(timer);
 		},
 	};
 };
