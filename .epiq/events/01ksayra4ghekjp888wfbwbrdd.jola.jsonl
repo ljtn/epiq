@@ -545,3 +545,4 @@
 {"v":1,"id":["01M03XWB06T0S8XC295GK9WQAM","01M03XW87GTHXTGW8C0HC4MNHM"],"move.node":{"id":"01M03A34KN99C5Q706BSCKACY5","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"3fffffffffffffffffffffff"}}
 {"v":1,"id":["01M03XWDAZX1WBKCHKAVGRAJPC","01M03XWB06T0S8XC295GK9WQAM"],"add.issue.assignee":{"id":"01M03A34KN99C5Q706BSCKACY5","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M03XWS129YJC0YN3Y7R09P2M","01M03XWDAZX1WBKCHKAVGRAJPC"],"move.node":{"id":"01M03WPCHK4YTADBE4VMJ9BS9H","parent":"01M011Z2FF411ZPC4QSKN5MJA5","rank":"0fffffffffffffffffffffff"}}
+{"v":1,"id":["01M03XXZN8WYEWCM097M0R2FPP","01M03XWS129YJC0YN3Y7R09P2M"],"add.issue":{"id":"01M03XXZN2BXS3HXTGEV2M7GME","parent":"01KS22YK95S3336MFSE44MY70R","name":"differentiate between click and drag (dont trigger open up the ticket details when moving))","rank":"ffffff7fffffffffffffffff"}}
