@@ -1,6 +1,9 @@
 import {GuiCommitEntry, GuiEventTimeline} from './gui-state.model';
 
 export type HistoryWindow = {
+	// Identifies which window is on screen, so a view keyed off it animates once
+	// the data it belongs to has landed rather than when it was asked for.
+	requestId: number;
 	timeline: GuiEventTimeline;
 	commits: GuiCommitEntry[];
 };
@@ -43,7 +46,7 @@ export const createHistoryBuffer = (
 
 			// Dropping the id closes the buffer against duplicate and late replies.
 			pending = {};
-			publish({timeline, commits});
+			publish({requestId, timeline, commits});
 		},
 	};
 };

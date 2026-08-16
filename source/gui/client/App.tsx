@@ -67,9 +67,10 @@ export const App = () => {
 	// One value, not two: the scrubber derives its coordinate system from both,
 	// so applying either alone draws the chart against a range it doesn't match.
 	const [history, setHistory] = useState<{
+		requestId: number;
 		timeline: GuiEventTimeline | null;
 		commits: GuiCommitEntry[];
-	}>({timeline: null, commits: []});
+	}>({requestId: 0, timeline: null, commits: []});
 	const [historyBuffer] = useState(() => createHistoryBuffer(setHistory));
 	const [commitInspectError, setCommitInspectError] = useState<string | null>(
 		null,
@@ -732,6 +733,7 @@ export const App = () => {
 			<TimeScrubber
 				timeline={history.timeline}
 				commits={history.commits}
+				historyId={history.requestId}
 				boardId={selectedBoardId}
 				connected={connected}
 				onRequestHistory={requestBoardHistory}

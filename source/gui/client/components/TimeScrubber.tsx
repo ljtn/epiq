@@ -46,6 +46,7 @@ const readStoredScope = (): Scope => {
 export const TimeScrubber = ({
 	timeline,
 	commits,
+	historyId,
 	timeTravel,
 	onScrub,
 	onReturnToLive,
@@ -56,6 +57,8 @@ export const TimeScrubber = ({
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
+	// Identifies the window `timeline` and `commits` came from.
+	historyId: number;
 	timeTravel: GuiTimeTravelStatus;
 	onScrub: (targetTime: number) => void;
 	onReturnToLive: () => void;
@@ -167,15 +170,12 @@ export const TimeScrubber = ({
 		intensity: stats.count / maxCommitCount,
 	}));
 
-	// Must count user-driven view changes and nothing else. No data-derived key
-	// works here: the axis tracks Date.now() and a scoped window slides
-	// continuously, so the entrance animation would replay on every refresh.
-	const [animationGeneration, setAnimationGeneration] = useState(0);
-	const hasData = timeline !== null;
-
-	useEffect(() => {
-		setAnimationGeneration(generation => generation + 1);
-	}, [scope, offset, boardId, allBoards, layoutMode, hasData]);
+	// Keyed off the window that arrived, not the click that asked for it: a
+	// scope change leaves the previous window on screen until its replacement
+	// lands, and animating then would run the entrance against the old data and
+	// restart it mid-flight. `historyId` only changes for a user-driven view
+	// change, so a refresh cannot replay it either.
+	const windowKey = `${layoutMode}-${historyId}`;
 
 	const confirmedFraction =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
@@ -344,7 +344,7 @@ export const TimeScrubber = ({
 				axis,
 				layoutMode,
 				animate,
-				windowKey: `${layoutMode}-${animationGeneration}`,
+				windowKey,
 				showIssues,
 				showCommits,
 				issueScatter,

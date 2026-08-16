@@ -109,6 +109,20 @@ describe('createHistoryBuffer', () => {
 		expect(buffer.open()).not.toBe(buffer.open());
 	});
 
+	it('labels the published window with the request it answers', () => {
+		const {buffer, published} = setup();
+
+		const a = buffer.open();
+		buffer.accept(a, {timeline: timeline('A')});
+		buffer.accept(a, {commits: commits('A')});
+
+		const b = buffer.open();
+		buffer.accept(b, {timeline: timeline('B')});
+		buffer.accept(b, {commits: commits('B')});
+
+		expect(published.map(window => window.requestId)).toEqual([a, b]);
+	});
+
 	it('publishes through the callback it was given', () => {
 		const publish = vi.fn();
 		const buffer = createHistoryBuffer(publish);
