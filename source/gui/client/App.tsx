@@ -77,6 +77,7 @@ export const App = () => {
 		null,
 	);
 	const [removeError, setRemoveError] = useState<string | null>(null);
+	const [actionError, setActionError] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
 		null,
 	);
@@ -202,8 +203,15 @@ export const App = () => {
 				}
 			}
 
+			// A refused mutation is otherwise invisible: the optimistic update is
+			// simply undone by the state that follows, which reads as the board
+			// ignoring the action.
 			if (message.type === 'failed') {
-				console.log('Failed', message);
+				setActionError(
+					typeof message.payload === 'string'
+						? message.payload
+						: 'The board refused that change',
+				);
 				requestState();
 			}
 
@@ -552,6 +560,13 @@ export const App = () => {
 		return () => clearTimeout(timeout);
 	}, [removeError]);
 
+	useEffect(() => {
+		if (!actionError) return;
+
+		const timeout = setTimeout(() => setActionError(null), 8000);
+		return () => clearTimeout(timeout);
+	}, [actionError]);
+
 	const selectBoard = (nextBoardId: string) => {
 		setBoardMenuOpen(false);
 		clearDragState();
@@ -732,6 +747,13 @@ export const App = () => {
 				<ErrorToast
 					message={removeError}
 					onDismiss={() => setRemoveError(null)}
+				/>
+			)}
+
+			{actionError && (
+				<ErrorToast
+					message={actionError}
+					onDismiss={() => setActionError(null)}
 				/>
 			)}
 
