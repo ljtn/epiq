@@ -6,6 +6,7 @@ import {
 	succeeded,
 } from '../../lib/model/result-types.js';
 import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
+import {MAX_COMMENT_LENGTH} from '../../lib/utils/comment.limits.js';
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 
@@ -1662,6 +1663,49 @@ describe('mcp tools', () => {
 		if (isFail(result)) {
 			expect(result.message).toBe('Comment cannot be empty');
 		}
+	});
+
+	it('fails adding a comment past the shared limit', async () => {
+		const result = await tools.addIssueComment({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			body: 'x'.repeat(MAX_COMMENT_LENGTH + 1),
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toContain(String(MAX_COMMENT_LENGTH));
+		}
+	});
+
+	it('accepts a comment of exactly the shared limit', async () => {
+		const result = await tools.addIssueComment({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			body: 'x'.repeat(MAX_COMMENT_LENGTH),
+		});
+
+		expect(isFail(result)).toBe(false);
+	});
+
+	it('accepts a comment of a thousand characters', async () => {
+		const result = await tools.addIssueComment({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			body: 'x'.repeat(1000),
+		});
+
+		expect(isFail(result)).toBe(false);
+	});
+
+	it('measures the trimmed body, not the raw input', async () => {
+		const result = await tools.addIssueComment({
+			repoRoot: '/repo',
+			issueId: 'issue-1',
+			body: `   ${'x'.repeat(MAX_COMMENT_LENGTH)}   `,
+		});
+
+		expect(isFail(result)).toBe(false);
 	});
 
 	it('deletes a comment', async () => {

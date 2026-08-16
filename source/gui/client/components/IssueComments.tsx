@@ -5,6 +5,7 @@ import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {MarkdownContent} from './MarkdownContent';
+import {MAX_COMMENT_LENGTH} from '../../../lib/utils/comment.limits.js';
 
 type Props = {
 	issueId: string;
@@ -25,9 +26,13 @@ export const IssueComments = ({
 }: Props) => {
 	const [body, setBody] = useState('');
 
+	// Trimmed, because that is what the server stores and measures.
+	const length = body.trim().length;
+	const tooLong = length > MAX_COMMENT_LENGTH;
+
 	const addComment = () => {
 		const nextBody = body.trim();
-		if (!nextBody) return;
+		if (!nextBody || tooLong) return;
 
 		onAddComment?.(issueId, nextBody);
 		setBody('');
@@ -92,7 +97,9 @@ export const IssueComments = ({
 			{!readonly && (
 				<div style={{marginTop: 20}}>
 					<Textarea
-						maxLength={120}
+						// Uncapped: maxLength drops a long paste's tail silently. The
+						// counter and disabled button refuse it visibly instead.
+						maxLength={Number.MAX_SAFE_INTEGER}
 						value={body}
 						placeholder="write a comment"
 						onChange={event => setBody(event.target.value)}
@@ -110,7 +117,24 @@ export const IssueComments = ({
 					/>
 
 					<ActionRow>
-						<Button onClick={addComment}>comment</Button>
+						{/* Hidden until halfway, so a one-liner is not nagged. */}
+						{length > MAX_COMMENT_LENGTH / 2 && (
+							<span
+								style={{
+									alignSelf: 'center',
+									fontSize: 11,
+									color: tooLong ? GUI_THEME.red : GUI_THEME.dim,
+								}}
+							>
+								{tooLong
+									? `${length - MAX_COMMENT_LENGTH} over the limit`
+									: `${MAX_COMMENT_LENGTH - length} left`}
+							</span>
+						)}
+
+						<Button disabled={tooLong} onClick={addComment}>
+							comment
+						</Button>
 					</ActionRow>
 				</div>
 			)}

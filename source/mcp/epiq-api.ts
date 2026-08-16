@@ -36,6 +36,7 @@ import {
 } from '../lib/model/app-state.model.js';
 import {preferBestName} from '../lib/utils/contributor.utils.js';
 import {getStringColor} from '../lib/utils/color.js';
+import {MAX_COMMENT_LENGTH} from '../lib/utils/comment.limits.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {
@@ -1699,6 +1700,13 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 
 	if (!body) {
 		return failed('Comment cannot be empty');
+	}
+
+	// The single gate for MCP and both GUI transports.
+	if (body.length > MAX_COMMENT_LENGTH) {
+		return failed(
+			`Comment cannot exceed ${MAX_COMMENT_LENGTH} characters (got ${body.length})`,
+		);
 	}
 
 	const commentId = ulid();

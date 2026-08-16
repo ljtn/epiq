@@ -18,6 +18,7 @@ import {
 import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
 import {getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
+import {MAX_COMMENT_LENGTH} from '../utils/comment.limits.js';
 import {
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
@@ -45,7 +46,6 @@ import {
 	parseReplayDuration,
 } from './validate-date.js';
 
-export const MAX_COMMENT_LENGTH = 140 as const;
 const EDITABLE_NODES: AnyContext[] = ['BOARD', 'TICKET', 'SWIMLANE'];
 const guardBoardSwimlaneTicketNodes = (): ValidationResult => {
 	const target = getState().selectedNode;

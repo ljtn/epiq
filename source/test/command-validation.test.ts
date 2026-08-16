@@ -1,6 +1,7 @@
 import {beforeAll, describe, expect, it, vi} from 'vitest';
 import {cmdValidity} from '../lib/command-line/cmd-validity.js';
 import {CmdKeywords} from '../lib/command-line/cmd-keywords.js';
+import {MAX_COMMENT_LENGTH} from '../lib/utils/comment.limits.js';
 import {
 	ConfigModifiers,
 	EditModifiers,
@@ -435,6 +436,50 @@ describe('cmdValidation', () => {
 
 			expect(result.message).not.toContain('historical state from');
 			expect(result.message).toContain('not applicable in this context');
+		});
+	});
+
+	describe('COMMENT', () => {
+		it('prompts for a body when nothing has been typed', () => {
+			const result = cmdValidation[CmdKeywords.COMMENT].validate(
+				CmdKeywords.COMMENT,
+				'',
+				'',
+			);
+
+			expect(result.validity).toBe(cmdValidity.Invalid);
+			expect(result.message).toContain(String(MAX_COMMENT_LENGTH));
+		});
+
+		it('accepts a comment of a thousand characters', () => {
+			const result = cmdValidation[CmdKeywords.COMMENT].validate(
+				CmdKeywords.COMMENT,
+				'',
+				'x'.repeat(1000),
+			);
+
+			expect(result.validity).toBe(cmdValidity.Valid);
+			expect(result.message).not.toContain('max input exceeded');
+		});
+
+		it('still warns past the shared limit', () => {
+			const result = cmdValidation[CmdKeywords.COMMENT].validate(
+				CmdKeywords.COMMENT,
+				'',
+				'x'.repeat(MAX_COMMENT_LENGTH + 1),
+			);
+
+			expect(result.message).toContain('max input exceeded');
+		});
+
+		it('counts up to the same limit the other clients enforce', () => {
+			const result = cmdValidation[CmdKeywords.COMMENT].validate(
+				CmdKeywords.COMMENT,
+				'',
+				'hello',
+			);
+
+			expect(result.message).toContain(`5/${MAX_COMMENT_LENGTH}`);
 		});
 	});
 });
