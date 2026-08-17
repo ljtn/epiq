@@ -33,9 +33,12 @@ export const TicketCard = ({
 	return (
 		<div
 			draggable={!ticket.readonly}
-			onClick={event =>
-				onSelect({toggle: event.metaKey || event.ctrlKey || event.shiftKey})
-			}
+			// Stopped here, or the board's own click handler would clear the
+			// selection this click just made.
+			onClick={event => {
+				event.stopPropagation();
+				onSelect({toggle: event.metaKey || event.ctrlKey || event.shiftKey});
+			}}
 			// Carries the id and nothing else. Selecting here would navigate to
 			// the issue route mid-drag, remounting the board under the pointer so
 			// the drop never lands.

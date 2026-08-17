@@ -127,3 +127,50 @@ test('a plain click then a shift-click selects both', async ({
 	expect(text).toContain(titles[1]!);
 	expect(pageErrors).toEqual([]);
 });
+
+test('a click on the board clears the selection', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const boardUrl = page.url();
+
+	const tag = `C${Math.floor(Math.random() * 1e6)}`;
+	const titles = [`${tag}-one`, `${tag}-two`];
+
+	for (const title of titles) {
+		await page.getByRole('button', {name: '+', exact: true}).first().click();
+		await page.getByPlaceholder('issue name').fill(title);
+		await page.getByRole('button', {name: 'create', exact: true}).click();
+		await page.waitForTimeout(1500);
+		await page.goto(boardUrl);
+		await page.waitForTimeout(500);
+	}
+
+	await page.evaluate(click(titles[0]!, false));
+	await page.evaluate(click(titles[1]!, true));
+	await page.waitForTimeout(400);
+
+	expect(await page.evaluate<string | null>(panel)).toContain(
+		'2 tickets selected',
+	);
+
+	// Anywhere on the board that is not a card.
+	await page.evaluate(`
+		(() => {
+			document.querySelector('main').dispatchEvent(
+				new MouseEvent('click', {bubbles: true}),
+			);
+			return true;
+		})()
+	`);
+	await page.waitForTimeout(400);
+
+	const after = await page.evaluate<string | null>(panel);
+	console.log('[after board click]', after);
+
+	expect(after ?? '').not.toContain('tickets selected');
+	expect(pageErrors).toEqual([]);
+});

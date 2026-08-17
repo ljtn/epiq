@@ -319,17 +319,11 @@ export const App = () => {
 	};
 
 	const togglePicked = (nextIssueId: string) => {
-		setPickedIssueIds(current => {
-			// A plain click opens a ticket without picking it, so the first
-			// modifier-click extends from whatever is open rather than starting a
-			// selection that ignores it.
-			const base =
-				current.length === 0 && selectedIssue ? [selectedIssue.id] : current;
-
-			return base.includes(nextIssueId)
-				? base.filter(id => id !== nextIssueId)
-				: [...base, nextIssueId];
-		});
+		setPickedIssueIds(current =>
+			current.includes(nextIssueId)
+				? current.filter(id => id !== nextIssueId)
+				: [...current, nextIssueId],
+		);
 	};
 
 	const clearPicked = () => setPickedIssueIds([]);
@@ -353,7 +347,9 @@ export const App = () => {
 	const selectIssue = (nextIssueId: string, {toggle} = {toggle: false}) => {
 		if (toggle) return togglePicked(nextIssueId);
 
-		clearPicked();
+		// A plain click both opens the ticket and makes it the selection, so a
+		// following modifier-click extends from it instead of starting over.
+		setPickedIssueIds([nextIssueId]);
 
 		if (!boardSlug) return;
 
@@ -824,6 +820,7 @@ export const App = () => {
 				    this box, so anything spilling out would put a second scrollbar on
 				    the page next to the columns' own. */}
 				<main
+					onClick={clearPicked}
 					style={{
 						// No bottom padding: the board row is the horizontal scroll
 						// container, and a gap below it would strand its scrollbar.
