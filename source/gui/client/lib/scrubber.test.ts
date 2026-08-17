@@ -18,7 +18,9 @@ import {
 	listIdentities,
 	chooseSegmentUnit,
 	dotAppearAnimation,
+	dotEntranceScale,
 	dotExitAnimation,
+	dotExitScale,
 	DOT_EXIT_TOTAL_MS,
 	formatPeriodLabel,
 	getPeriodRange,
@@ -694,5 +696,49 @@ describe('board filter', () => {
 
 	it('passes everything through when there is no filter', () => {
 		expect(issuePassesBoardFilter(issue(), [], null)).toBe(true);
+	});
+});
+
+describe('dotEntranceScale', () => {
+	it('holds a dot at zero until its own delay has passed', () => {
+		expect(dotEntranceScale('abc', 0)).toBe(0);
+	});
+
+	it('reaches full size by the end of the stagger and stays there', () => {
+		expect(dotEntranceScale('abc', DOT_EXIT_TOTAL_MS)).toBeCloseTo(1, 5);
+		expect(dotEntranceScale('abc', DOT_EXIT_TOTAL_MS * 4)).toBeCloseTo(1, 5);
+	});
+
+	it('staggers, so two keys are not at the same size mid-entrance', () => {
+		const keys = Array.from({length: 40}, (_, i) => `dot-${i}`);
+		const midway = new Set(keys.map(k => dotEntranceScale(k, 300).toFixed(3)));
+
+		expect(midway.size).toBeGreaterThan(1);
+	});
+
+	it('is the same every time for a given key', () => {
+		expect(dotEntranceScale('abc', 200)).toBe(dotEntranceScale('abc', 200));
+	});
+});
+
+describe('dotExitScale', () => {
+	it('starts at full size and ends at nothing', () => {
+		expect(dotExitScale('abc', 0)).toBe(1);
+		expect(dotExitScale('abc', DOT_EXIT_TOTAL_MS)).toBeCloseTo(0, 5);
+	});
+
+	it('retracts in the reverse of the order it arrived', () => {
+		// The dot that enters last — the largest entrance delay — leaves first.
+		const keys = Array.from({length: 30}, (_, i) => `dot-${i}`);
+		const latest = keys.reduce((a, b) =>
+			dotEntranceScale(a, 300) < dotEntranceScale(b, 300) ? a : b,
+		);
+		const earliest = keys.reduce((a, b) =>
+			dotEntranceScale(a, 300) > dotEntranceScale(b, 300) ? a : b,
+		);
+
+		expect(dotExitScale(latest, 300)).toBeLessThanOrEqual(
+			dotExitScale(earliest, 300),
+		);
 	});
 });

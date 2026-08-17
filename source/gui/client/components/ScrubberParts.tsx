@@ -2,7 +2,7 @@
 // JSX out, no state but the needle's own hover. TimeScrubber owns the data and
 // arranges these; the maths they draw against lives in lib/scrubber.
 
-import {useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	barGrowAnimation,
@@ -10,6 +10,9 @@ import {
 	barWidthCss,
 	BUCKET_HIGHLIGHT_COLOR,
 	clamp,
+	DOT_EXIT_TOTAL_MS,
+	dotEntranceScale,
+	dotExitScale,
 	EVENTS_MODE_VERTICAL_PADDING,
 	EVENTS_SCATTER_HEIGHT,
 	FADE_IN_ANIMATION,
@@ -755,6 +758,10 @@ export const SeriesLayer = ({
 			inset: 0,
 			pointerEvents: 'none',
 			animation: animate ? FADE_IN_ANIMATION : undefined,
+			// Walls this subtree off from the needle and highlight moving above
+			// it: without containment every frame of a drag re-lays-out the
+			// thousands of dots inside, and the drag stutters.
+			contain: 'layout paint',
 		}}
 	>
 		{children}
@@ -1041,3 +1048,279 @@ export const ScrubberHoverHint = ({
 		))}
 	</div>
 );
+
+export type ScatterPoint = {
+	key: string;
+	// The moment the point stands for, for the hint's own labelling.
+	t: number;
+	// x across the window, y as time of day — the punchcard's two axes.
+	fraction: number;
+	hourFraction: number;
+	radius: number;
+	color: string;
+	opacity: number;
+	title: string;
+	commitSha: string | null;
+};
+
+// One series. Each animates on its own, so unticking "Code" retracts the
+// commits while the board events stay put.
+export type ScatterLayer = {
+	id: string;
+	points: ScatterPoint[];
+	// Changing this replays the entrance for this layer.
+	generation: string;
+	// On its way out: draw the retraction, then stop drawing it at all.
+	leaving: boolean;
+};
+
+type Phase = {mode: 'in' | 'out'; startedAt: number};
+
+// How near the pointer has to be, in px, to count as over a dot. Larger than
+// the dots themselves: they are 2px radius and would be almost unhittable.
+const HIT_RADIUS = 7;
+
+const pointAt = (
+	layers: readonly ScatterLayer[],
+	x: number,
+	y: number,
+	width: number,
+): ScatterPoint | null => {
+	let best: ScatterPoint | null = null;
+	let bestDistance = HIT_RADIUS * HIT_RADIUS;
+
+	for (const layer of layers) {
+		if (layer.leaving) continue;
+
+		for (const point of layer.points) {
+			const dx = point.fraction * width - x;
+			const dy =
+				EVENTS_MODE_VERTICAL_PADDING +
+				point.hourFraction * EVENTS_SCATTER_HEIGHT -
+				y;
+			const distance = dx * dx + dy * dy;
+
+			if (distance <= bestDistance) {
+				bestDistance = distance;
+				best = point;
+			}
+		}
+	}
+
+	return best;
+};
+
+// One node instead of one per event. At 2.2k dots the DOM version was 93% of
+// the whole document, and every frame that touched an ancestor paid for it.
+// Drawing them costs the same whether there are ten or ten thousand.
+export const ScatterCanvas = ({
+	layers,
+	animate,
+	onPointEnter,
+	onPointLeave,
+	onInspectCommit,
+}: {
+	layers: readonly ScatterLayer[];
+	animate: boolean;
+	onPointEnter: (point: ScatterPoint) => void;
+	onPointLeave: () => void;
+	onInspectCommit: (sha: string) => void;
+}) => {
+	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const sizeRef = useRef({width: 0, height: 0});
+	// Read through refs by the draw loop, so a data change never restarts it.
+	const layersRef = useRef(layers);
+	layersRef.current = layers;
+	const phasesRef = useRef(new Map<string, Phase>());
+	const frameRef = useRef<number | null>(null);
+	const hoveredRef = useRef<string | null>(null);
+	// The scatter's entrance is drawn, not animated by CSS, so it emits no
+	// animationstart for a test to observe. This says the same thing.
+	const [entrancePlaying, setEntrancePlaying] = useState(false);
+
+	const paint = useCallback((now: number) => {
+		const canvas = canvasRef.current;
+		const context = canvas?.getContext('2d');
+		if (!canvas || !context) return false;
+
+		const {width, height} = sizeRef.current;
+		context.clearRect(0, 0, width, height);
+
+		let running = false;
+
+		for (const layer of layersRef.current) {
+			const phase = phasesRef.current.get(layer.id);
+			const elapsed = phase ? now - phase.startedAt : null;
+			const done = elapsed === null || elapsed >= DOT_EXIT_TOTAL_MS;
+
+			if (phase && !done) running = true;
+			// A finished exit leaves nothing behind.
+			if (phase?.mode === 'out' && done) continue;
+
+			for (const point of layer.points) {
+				const scale =
+					phase === null || phase === undefined || done
+						? 1
+						: phase.mode === 'in'
+						? dotEntranceScale(point.key, elapsed!)
+						: dotExitScale(point.key, elapsed!);
+
+				if (scale <= 0) continue;
+
+				context.globalAlpha = point.opacity;
+				context.fillStyle = point.color;
+				context.beginPath();
+				context.arc(
+					point.fraction * width,
+					EVENTS_MODE_VERTICAL_PADDING +
+						point.hourFraction * EVENTS_SCATTER_HEIGHT,
+					point.radius * scale,
+					0,
+					Math.PI * 2,
+				);
+				context.fill();
+			}
+		}
+
+		context.globalAlpha = 1;
+
+		return running;
+	}, []);
+
+	const run = useCallback(() => {
+		if (frameRef.current !== null) return;
+
+		const step = () => {
+			frameRef.current = null;
+			const running = paint(performance.now());
+
+			if (running) frameRef.current = requestAnimationFrame(step);
+			else setEntrancePlaying(false);
+		};
+
+		frameRef.current = requestAnimationFrame(step);
+	}, [paint]);
+
+	// The backing store is sized in device pixels and the context scaled to
+	// match, or the dots are blurry on a retina display.
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		const parent = canvas?.parentElement;
+		if (!canvas || !parent) return;
+
+		const resize = () => {
+			const ratio = window.devicePixelRatio || 1;
+			const {width, height} = parent.getBoundingClientRect();
+
+			sizeRef.current = {width, height};
+			canvas.width = Math.round(width * ratio);
+			canvas.height = Math.round(height * ratio);
+			canvas.style.width = `${width}px`;
+			canvas.style.height = `${height}px`;
+			canvas.getContext('2d')?.setTransform(ratio, 0, 0, ratio, 0, 0);
+			paint(performance.now());
+		};
+
+		resize();
+
+		const observer = new ResizeObserver(resize);
+		observer.observe(parent);
+
+		return () => observer.disconnect();
+	}, [paint]);
+
+	// Each layer starts its own entrance or exit. Scrubbing changes neither, so
+	// it never animates.
+	const signature = layers
+		.map(layer => `${layer.id}:${layer.generation}:${layer.leaving}`)
+		.join('|');
+
+	useEffect(() => {
+		const seen = new Set<string>();
+
+		for (const layer of layers) {
+			seen.add(layer.id);
+			const key = `${layer.generation}:${layer.leaving}`;
+			const marker = `${layer.id}@${key}`;
+			const current = phasesRef.current.get(layer.id);
+
+			if (
+				(current as (Phase & {marker?: string}) | undefined)?.marker === marker
+			)
+				continue;
+
+			if (!animate) {
+				phasesRef.current.delete(layer.id);
+				continue;
+			}
+
+			phasesRef.current.set(layer.id, {
+				mode: layer.leaving ? 'out' : 'in',
+				startedAt: performance.now(),
+				marker,
+			} as Phase);
+
+			if (!layer.leaving) setEntrancePlaying(true);
+		}
+
+		for (const id of [...phasesRef.current.keys()])
+			if (!seen.has(id)) phasesRef.current.delete(id);
+
+		if (animate) run();
+		else paint(performance.now());
+	}, [signature, animate, run, paint]);
+
+	// Repaint when the data changes without a new entrance — a filter, say.
+	useEffect(() => {
+		if (frameRef.current === null) paint(performance.now());
+	}, [layers, paint]);
+
+	useEffect(
+		() => () => {
+			if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+		},
+		[],
+	);
+
+	const hitTest = (event: React.MouseEvent<HTMLCanvasElement>) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+
+		return pointAt(
+			layersRef.current,
+			event.clientX - rect.left,
+			event.clientY - rect.top,
+			rect.width,
+		);
+	};
+
+	return (
+		<canvas
+			ref={canvasRef}
+			data-entrance={entrancePlaying ? 'playing' : 'done'}
+			style={{position: 'absolute', inset: 0}}
+			// Events still reach the track underneath, so a drag anywhere over
+			// the chart scrubs exactly as it did when these were divs.
+			onMouseMove={event => {
+				const point = hitTest(event);
+				if (point?.key === hoveredRef.current) return;
+
+				hoveredRef.current = point?.key ?? null;
+				if (point) onPointEnter(point);
+				else onPointLeave();
+			}}
+			onMouseLeave={() => {
+				hoveredRef.current = null;
+				onPointLeave();
+			}}
+			// Only over a commit: anywhere else the press has to reach the track
+			// and begin a scrub.
+			onPointerDown={event => {
+				if (hitTest(event)?.commitSha) event.stopPropagation();
+			}}
+			onClick={event => {
+				const sha = hitTest(event)?.commitSha;
+				if (sha) onInspectCommit(sha);
+			}}
+		/>
+	);
+};

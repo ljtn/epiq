@@ -27,6 +27,7 @@ import {
 	listIdentities,
 	formatInterval,
 	getPeriodRange,
+	hourFractionForTime,
 	isScope,
 	LayoutMode,
 	populatedRange,
@@ -37,6 +38,8 @@ import {
 	usePrefersReducedMotion,
 } from '../lib/scrubber';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
+import {ScatterLayer, ScatterPoint} from './ScrubberParts';
+import {GUI_THEME} from '../lib/gui-theme';
 
 const SCRUB_THROTTLE_MS = 120;
 
@@ -257,28 +260,112 @@ export const TimeScrubber = ({
 		setAllBoards(next);
 	};
 
+	// What the chart is a picture of: the requested window and the filter over
+	// it. The needle is deliberately absent — scrubbing re-materializes state
+	// as-of, and the window that comes back is a different size, so following it
+	// would restate the star count and replay the entrance on every tick.
+	// The last board actually selected, never the null a scrub passes through:
+	// scrubbing past a board's own creation empties it for a tick, and treating
+	// that as a view change restates the whole window mid-drag.
+	const steadyBoardId = useRef(boardId);
+	if (boardId !== null) steadyBoardId.current = boardId;
+
+	// What asks the server for a different window. Only these open the gate
+	// below, because only these are followed by a reply.
+	const requestKey = useMemo(
+		() => JSON.stringify([scope, offset, steadyBoardId.current, allBoards]),
+		[scope, offset, steadyBoardId.current, allBoards],
+	);
+
+	// What narrows the window already in hand. Answered on the spot, with no
+	// round trip, so it can replay the entrance the moment it changes.
+	const filterKey = useMemo(
+		() => JSON.stringify([boardView, [...hiddenIdentityIds].sort()]),
+		[boardView, hiddenIdentityIds],
+	);
+
+	// A view change asks for one new window, so exactly the next history to
+	// arrive answers it. Everything after that until the next view change is
+	// scrub traffic, and the chart ignores it.
+	const shownRef = useRef({timeline, commits});
+	const heldKey = useRef<string | null>(null);
+	const heldHistoryId = useRef<number | null>(null);
+	const awaiting = useRef(true);
+
+	if (heldKey.current !== requestKey) {
+		heldKey.current = requestKey;
+		awaiting.current = true;
+	}
+
+	if (awaiting.current && heldHistoryId.current !== historyId) {
+		heldHistoryId.current = historyId;
+		shownRef.current = {timeline, commits};
+		awaiting.current = false;
+	}
+
+	const shown = shownRef.current;
+
 	// Memoized because hovering the track re-renders on every mouse move, and a
 	// window's worth of per-event dots is thousands of objects to rebuild.
-	const axis = useMemo(() => buildAxis(timeline, commits), [timeline, commits]);
+	const axis = useMemo(() => buildAxis(shown.timeline, shown.commits), [shown]);
 
 	// Only a window the server returned events for can be split at all.
 	const categoriesFiltered = (timeline?.events.length ?? 0) > 0;
 
 	const identities = useMemo(
-		() => listIdentities(timeline, boardView),
-		[timeline, boardView],
+		() => listIdentities(shown.timeline, boardView),
+		[shown, boardView],
 	);
 
 	const issueCounts = bucketIssueCounts(
 		axis,
-		timeline,
+		shown.timeline,
 		boardView,
 		hiddenIdentityIds,
 	);
-	const commitStats = bucketCommitStats(axis, commits);
-	const eventDots = useMemo(
-		() => buildEventDots(timeline, boardView, hiddenIdentityIds),
-		[timeline, boardView, hiddenIdentityIds],
+	const commitStats = bucketCommitStats(axis, shown.commits);
+	const liveEventDots = useMemo(
+		() => buildEventDots(shown.timeline, boardView, hiddenIdentityIds),
+		[shown, boardView, hiddenIdentityIds],
+	);
+
+	const dragging = dragFraction !== null;
+
+	// Both series as one list for the canvas, in the order they should stack:
+	// commits first, board events over them, as the old zIndex did.
+	const commitPoints = useMemo(
+		(): ScatterPoint[] =>
+			shown.commits.map(commit => ({
+				key: commit.sha,
+				t: commit.time,
+				fraction: axis.fractionForTime(commit.time),
+				hourFraction: hourFractionForTime(commit.time),
+				radius: 2,
+				color: GUI_THEME.green,
+				opacity: 0.55,
+				// The hint labels the moment itself, so this is the rest of it.
+				title: `${commit.subject} — ${
+					commit.author
+				} (${commit.linesChanged.toLocaleString()} lines)`,
+				commitSha: commit.sha,
+			})),
+		[shown.commits, axis],
+	);
+
+	const issuePoints = useMemo(
+		(): ScatterPoint[] =>
+			liveEventDots.map(dot => ({
+				key: dot.key,
+				t: dot.t,
+				fraction: axis.fractionForTime(dot.t),
+				hourFraction: hourFractionForTime(dot.t),
+				radius: dot.size / 2,
+				color: dot.color,
+				opacity: dot.opacity,
+				title: dotDetail(dot),
+				commitSha: null,
+			})),
+		[liveEventDots, axis],
 	);
 
 	const boardFilter = useMemo(
@@ -323,7 +410,18 @@ export const TimeScrubber = ({
 		armed.current = true;
 	};
 
-	useEffect(armEntrance, [boardId]);
+	// Only a real move to another board, never a flicker through null. Scrubbing
+	// past a board's own creation empties it for a tick, and re-arming on that
+	// replays the entrance mid-drag — thousands of dots animating again, which
+	// is most of what makes a drag stutter.
+	const armedBoardId = useRef(boardId);
+
+	useEffect(() => {
+		if (boardId === null || boardId === armedBoardId.current) return;
+
+		armedBoardId.current = boardId;
+		armEntrance();
+	}, [boardId]);
 
 	useEffect(() => {
 		if (seenHistoryId.current === historyId) return;
@@ -336,7 +434,41 @@ export const TimeScrubber = ({
 
 	// layoutMode is in the key rather than armed: switching Volume/Events draws
 	// the window already in hand, so it animates at once.
-	const windowKey = `${layoutMode}-${entrance}`;
+	// The filter belongs here, the scope does not: a filter is applied on the
+	// spot, while a scope change has to wait for its window to land. Keying on
+	// the click as well as the arrival would run the entrance twice, once
+	// against the old scope's data — which is the bug scrubber.pw.ts guards.
+	// The needle is absent from both by construction.
+	const windowKey = `${layoutMode}-${entrance}-${filterKey}`;
+
+	// Kept mounted through their exit, so unticking a series retracts it rather
+	// than blanking it. Commits are listed first so board events draw over them,
+	// as the old zIndex did.
+	const scatterLayers = useMemo(
+		(): ScatterLayer[] => [
+			...(commitScatter.mounted
+				? [
+						{
+							id: 'commits',
+							points: commitPoints,
+							generation: windowKey,
+							leaving: commitScatter.leaving,
+						},
+				  ]
+				: []),
+			...(issueScatter.mounted
+				? [
+						{
+							id: 'issues',
+							points: issuePoints,
+							generation: windowKey,
+							leaving: issueScatter.leaving,
+						},
+				  ]
+				: []),
+		],
+		[commitPoints, issuePoints, commitScatter, issueScatter, windowKey],
+	);
 
 	const confirmedFraction =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
@@ -390,28 +522,35 @@ export const TimeScrubber = ({
 
 	const centreFraction = (index: number) => (index + 0.5) / axis.bucketCount;
 
-	// Stable identities, so the memoized dot layer survives a hover re-render.
-	const onIssueDotEnter = useCallback(
-		(dot: EventDot) =>
-			setHoveredEvent({
-				label: formatDateTime(new Date(dot.t)),
-				detail: dotDetail(dot),
-				t: dot.t,
-				fraction: axis.fractionForTime(dot.t),
-			}),
-		[axis],
-	);
-	const onIssueDotLeave = useCallback(() => setHoveredEvent(null), []);
+	// One handler for both series now that they share a canvas: which one a
+	// point belongs to is read off the point, not off which layer sent it.
+	const onScatterPointEnter = useCallback(
+		(point: ScatterPoint) => {
+			if (point.commitSha) {
+				const commit = shown.commits.find(c => c.sha === point.commitSha);
+				if (commit) {
+					setHoveredCommit({commit, fraction: point.fraction});
+					setHoveredEvent(null);
+				}
 
-	const onCommitDotEnter = useCallback(
-		(commit: GuiCommitEntry) =>
-			setHoveredCommit({
-				commit,
-				fraction: axis.fractionForTime(commit.time),
-			}),
-		[axis],
+				return;
+			}
+
+			setHoveredCommit(null);
+			setHoveredEvent({
+				label: formatDateTime(new Date(point.t)),
+				detail: point.title,
+				t: point.t,
+				fraction: point.fraction,
+			});
+		},
+		[shown.commits],
 	);
-	const onCommitDotLeave = useCallback(() => setHoveredCommit(null), []);
+
+	const onScatterPointLeave = useCallback(() => {
+		setHoveredEvent(null);
+		setHoveredCommit(null);
+	}, []);
 
 	const hoveredBucketTime = bucketTimeAt(hoveredBucketIndex);
 	const hoveredBucketCount =
@@ -547,9 +686,13 @@ export const TimeScrubber = ({
 				issueBarRange: populatedRange(issueBars),
 				commitBars,
 				commitBarRange: populatedRange(commitBars),
-				eventDots,
+				scatterLayers,
 				issueSeriesColor: boardViewColor(boardView),
-				commits,
+				dragging,
+				// Exits still need their animation, so this only silences a series
+				// that has finished arriving.
+
+				commits: shown.commits,
 				hoveredCommitSha: hoveredCommit?.commit.sha ?? null,
 				hoveredBucketIndex,
 				hoveredCommitBucketIndex,
@@ -595,10 +738,8 @@ export const TimeScrubber = ({
 						setHoveredCommitBucketIndex(bucketIndexFromEvent(event));
 					},
 					onCommitTrackMouseLeave: () => setHoveredCommitBucketIndex(null),
-					onIssueDotEnter,
-					onIssueDotLeave,
-					onCommitDotEnter,
-					onCommitDotLeave,
+					onScatterPointEnter,
+					onScatterPointLeave,
 					onInspectCommit,
 				},
 			}}

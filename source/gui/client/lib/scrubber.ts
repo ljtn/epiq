@@ -295,23 +295,6 @@ export const dotDetail = (dot: EventDot): string => {
 		: base;
 };
 
-// How many dots may twinkle at once. Setting the animations up is cheap —
-// ~13ms for 2.2k of them in isolation — but running that many composited
-// scale animations is not, and the cost climbs faster than their number: on a
-// 2.2k-dot window it was ~480ms of blocking. A dense series twinkles a
-// spread-out sample of this size instead, and the rest arrive on the layer's
-// own fade, so the sky still comes alive.
-//
-// Measured on that window: 400 and 600 both cost ~159ms in one long task,
-// while 900 climbs to ~220ms and a second. 600 is the most stars the single
-// task holds.
-export const DOT_ANIMATION_LIMIT = 600;
-
-// Every nth dot, so the twinkle stays spread across the whole field rather
-// than clustering at one end.
-export const dotAnimationStride = (count: number): number =>
-	count > DOT_ANIMATION_LIMIT ? Math.ceil(count / DOT_ANIMATION_LIMIT) : 1;
-
 // Fixed, because a per-event dot has no count to encode. Matches the commit
 // scatter, which has always been one dot per commit.
 const EVENT_DOT_SIZE = 4;
@@ -600,6 +583,26 @@ const DOT_APPEAR_SCATTER_MS = 620;
 
 const dotDelayMs = (key: string) =>
 	Math.round(hashUnitInterval(key) * DOT_APPEAR_SCATTER_MS);
+
+// The same stagger the CSS animation applies, as a number the canvas can draw
+// with: 0 before this dot's turn, 1 once it has fully arrived.
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeInCubic = (t: number) => t * t * t;
+
+export const dotEntranceScale = (key: string, elapsedMs: number): number =>
+	easeOutCubic(clamp((elapsedMs - dotDelayMs(key)) / DOT_APPEAR_MS, 0, 1));
+
+// The mirror of the entrance, so a series unwinds the way it was drawn: the
+// dot that twinkled in last is the first to retract.
+export const dotExitScale = (key: string, elapsedMs: number): number =>
+	1 -
+	easeInCubic(
+		clamp(
+			(elapsedMs - (DOT_APPEAR_SCATTER_MS - dotDelayMs(key))) / DOT_APPEAR_MS,
+			0,
+			1,
+		),
+	);
 
 export const dotAppearAnimation = (key: string): string =>
 	`epiqScrubberTwinkle ${DOT_APPEAR_MS}ms ease-out ${dotDelayMs(
