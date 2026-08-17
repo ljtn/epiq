@@ -29,21 +29,20 @@ import {
 	returnToLive,
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
-import {isFail, Result} from '../../../lib/model/result-types.js';
+import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
 } from '../../client/lib/gui-broadcast.js';
 import {MUTATING_MESSAGE_TYPES} from '../../client/lib/gui-mutations.js';
 import {GuiMessage} from './websocket.model.js';
+import {issueDetail, slimStateResult} from './slim-state.js';
 
 // Derives rather than boots, so a live re-materialize can't stomp a checkout.
 const broadcastDerivedState = () => {
-	const result = deriveGuiState();
-
 	broadcastGuiMessage({
 		type: 'state',
-		payload: result,
+		payload: slimStateResult(deriveGuiState()),
 	});
 };
 
@@ -54,14 +53,14 @@ const sendSocket = (socket: WebSocket, body: unknown) => {
 const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
 	sendSocket(socket, {
 		type: 'state',
-		payload: await getGuiState({repoRoot}),
+		payload: slimStateResult(await getGuiState({repoRoot})),
 	});
 
 const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
 	const sendDerivedState = () =>
 		sendSocket(socket, {
 			type: 'state',
-			payload: deriveGuiState(),
+			payload: slimStateResult(deriveGuiState()),
 		});
 
 	if (getTimeTravelStatus().mode !== 'live') return sendDerivedState();
@@ -74,7 +73,7 @@ const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
 
 	return sendSocket(socket, {
 		type: 'state',
-		payload,
+		payload: slimStateResult(payload),
 	});
 };
 
@@ -129,6 +128,19 @@ export const setupWebsocket = (
 						type: 'timeline',
 						requestId,
 						payload: await getEventTimeline({repoRoot, ...query}),
+					});
+				}
+
+				// The text the board never draws, for the ticket that is open.
+				if (type === 'issue:get') {
+					const issueId = message.payload?.issueId;
+					const state = deriveGuiState();
+
+					return sendSocket(socket, {
+						type: 'issue',
+						payload: isFail(state)
+							? state
+							: succeeded('Issue detail', issueDetail(state.value, issueId)),
 					});
 				}
 

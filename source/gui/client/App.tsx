@@ -26,6 +26,7 @@ import {
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
 import {
+	GuiComment,
 	GuiCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
@@ -175,6 +176,15 @@ export const App = () => {
 	};
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
+
+	// The board's state carries no descriptions or comment bodies — they are
+	// most of its weight and nothing on the board draws them. Fetched here for
+	// the one ticket whose details are open.
+	const [issueDetail, setIssueDetail] = useState<{
+		issueId: string;
+		description: string;
+		comments: GuiComment[];
+	} | null>(null);
 	// Driven by the scrubber's own selection. Null unless it has been narrowed
 	// to particular tags or people.
 	const [boardFilter, setBoardFilter] = useState<BoardFilter | null>(null);
@@ -207,6 +217,18 @@ export const App = () => {
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});
+
+	useEffect(() => {
+		if (!selectedIssue) {
+			setIssueDetail(null);
+			return;
+		}
+
+		sendSocketJson(socketRef.current, {
+			type: 'issue:get',
+			payload: {issueId: selectedIssue.id},
+		});
+	}, [selectedIssue?.id, state]);
 
 	const requestState = () => {
 		sendSocketJson(socketRef.current, {type: 'state:get'});
@@ -244,6 +266,16 @@ export const App = () => {
 			if (message.type === 'state' && !mutationGate.holdsState()) {
 				const nextState = getResultValue<GuiState>(message.payload);
 				if (nextState) setState(nextState);
+			}
+
+			if (message.type === 'issue') {
+				const detail = getResultValue<{
+					issueId: string;
+					description: string;
+					comments: GuiComment[];
+				}>(message.payload);
+
+				if (detail) setIssueDetail(detail);
 			}
 
 			if (message.type === 'issue:created') {
@@ -1009,9 +1041,17 @@ export const App = () => {
 				{pickedIssues.length <= 1 && selectedIssue && state?.user && (
 					<IssueDetails
 						whoAmI={state.user}
-						issue={selectedIssue}
+						issue={
+							issueDetail?.issueId === selectedIssue.id
+								? {...selectedIssue, description: issueDetail.description}
+								: selectedIssue
+						}
 						activeTab={selectedTab}
-						comments={commentsByIssueId[selectedIssue.id] ?? []}
+						comments={
+							issueDetail?.issueId === selectedIssue.id
+								? issueDetail.comments
+								: []
+						}
 						onChangeTab={changeIssueDetailsTab}
 						onClose={closeIssueDetails}
 						onEditTitle={editIssueTitle}
