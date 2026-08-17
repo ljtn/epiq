@@ -44,6 +44,13 @@ export const resolveMoveRank = (
 		return finish(rankBetween(undefined, undefined));
 	}
 
+	// The sibling is an ordering hint from whatever the caller last saw. It goes
+	// missing whenever that view is behind — the ticket was moved or closed
+	// elsewhere first. Landing at the end of the lane is a worse guess than the
+	// caller asked for, but refusing would drop the move entirely.
+	const appendToLane = () =>
+		finish(rankBetween(siblings[siblings.length - 1]?.rank, undefined));
+
 	switch (position.at) {
 		case 'start': {
 			const first = siblings[0];
@@ -61,24 +68,20 @@ export const resolveMoveRank = (
 
 		case 'before': {
 			const idx = getSiblingIndex(siblings, position.sibling);
-			if (idx < 0) return failed('Sibling not found');
+			const next = idx < 0 ? undefined : siblings[idx];
+			if (!next) return appendToLane();
 
 			const prev = idx > 0 ? siblings[idx - 1] : undefined;
-			const next = siblings[idx];
-
-			if (!next) return failed('Sibling not found');
 
 			return finish(rankBetween(prev?.rank, next.rank));
 		}
 
 		case 'after': {
 			const idx = getSiblingIndex(siblings, position.sibling);
-			if (idx < 0) return failed('Sibling not found');
+			const prev = idx < 0 ? undefined : siblings[idx];
+			if (!prev) return appendToLane();
 
-			const prev = siblings[idx];
 			const next = idx < siblings.length - 1 ? siblings[idx + 1] : undefined;
-
-			if (!prev) return failed('Sibling not found');
 
 			return finish(rankBetween(prev.rank, next?.rank));
 		}

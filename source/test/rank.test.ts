@@ -125,3 +125,94 @@ describe('rankBetween', () => {
 		}
 	});
 });
+
+describe('resolveAndPersistRankForMove with a sibling that has moved on', () => {
+	const stateBranchRoot = '/state';
+	const user = {userId: 'u1', userName: 'Alice'};
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		state.nodes = {
+			a: {
+				id: 'a',
+				parentNodeId: 'parent',
+				rank: '400000000000000000000000',
+				isDeleted: false,
+			},
+			b: {
+				id: 'b',
+				parentNodeId: 'parent',
+				rank: '800000000000000000000000',
+				isDeleted: false,
+			},
+			gone: {
+				id: 'gone',
+				parentNodeId: 'elsewhere',
+				rank: '200000000000000000000000',
+				isDeleted: false,
+			},
+			moving: {
+				id: 'moving',
+				parentNodeId: 'other',
+				rank: '100000000000000000000000',
+				isDeleted: false,
+			},
+		};
+	});
+
+	// The sibling is only an ordering hint. Refusing the move because it moved
+	// away loses the change the user actually asked for.
+	it('lands the move at the end when the sibling left the lane', async () => {
+		const {resolveAndPersistRankForMove} = await import(
+			'../lib/repository/rank.js'
+		);
+
+		const result = resolveAndPersistRankForMove(
+			'parent',
+			'moving',
+			{at: 'before', sibling: 'gone'},
+			user,
+			stateBranchRoot,
+		);
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result))
+			expect(result.value > '800000000000000000000000').toBe(true);
+	});
+
+	it('does the same for an after-position sibling', async () => {
+		const {resolveAndPersistRankForMove} = await import(
+			'../lib/repository/rank.js'
+		);
+
+		const result = resolveAndPersistRankForMove(
+			'parent',
+			'moving',
+			{at: 'after', sibling: 'gone'},
+			user,
+			stateBranchRoot,
+		);
+
+		expect(isFail(result)).toBe(false);
+	});
+
+	it('still honours a sibling that is present', async () => {
+		const {resolveAndPersistRankForMove} = await import(
+			'../lib/repository/rank.js'
+		);
+
+		const result = resolveAndPersistRankForMove(
+			'parent',
+			'moving',
+			{at: 'before', sibling: 'b'},
+			user,
+			stateBranchRoot,
+		);
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value > '400000000000000000000000').toBe(true);
+			expect(result.value < '800000000000000000000000').toBe(true);
+		}
+	});
+});
