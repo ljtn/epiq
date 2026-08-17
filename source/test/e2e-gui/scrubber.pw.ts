@@ -35,12 +35,14 @@ test('a scope change animates each bar exactly once', async ({
 	for (const scope of SCOPES) {
 		await page.evaluate(RESET_STARTS);
 		await page.getByRole('button', {name: scope, exact: true}).click();
-		await page.waitForTimeout(2000);
 
-		const {starts, bars} = await page.evaluate<{
-			starts: number;
-			bars: number;
-		}>(SAMPLE);
+		// Counted while the entrance is still running: a bar drops its animation
+		// once the sweep is over, so it is only identifiable during it.
+		await page.waitForTimeout(400);
+		const {bars} = await page.evaluate<{bars: number}>(SAMPLE);
+
+		await page.waitForTimeout(2000);
+		const {starts} = await page.evaluate<{starts: number}>(SAMPLE);
 
 		expect(
 			bars,

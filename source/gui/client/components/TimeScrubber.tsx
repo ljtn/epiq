@@ -140,9 +140,20 @@ export const TimeScrubber = ({
 	}, [scope, offset, boardId, allBoards, connected]);
 
 	const changeScope = (nextScope: Scope) => {
+		armEntrance();
 		setScope(nextScope);
 		setOffset(0);
 		localStorage.setItem(SCOPE_STORAGE_KEY, nextScope);
+	};
+
+	const changeOffset = (nextOffset: number) => {
+		armEntrance();
+		setOffset(nextOffset);
+	};
+
+	const changeAllBoards = (next: boolean) => {
+		armEntrance();
+		setAllBoards(next);
 	};
 
 	const axis = buildAxis(timeline, commits);
@@ -170,12 +181,36 @@ export const TimeScrubber = ({
 		intensity: stats.count / maxCommitCount,
 	}));
 
-	// Keyed off the window that arrived, not the click that asked for it: a
-	// scope change leaves the previous window on screen until its replacement
-	// lands, and animating then would run the entrance against the old data and
-	// restart it mid-flight. `historyId` only changes for a user-driven view
-	// change, so a refresh cannot replay it either.
-	const windowKey = `${layoutMode}-${historyId}`;
+	// The entrance belongs to a view the user asked for, never to data turning
+	// up on its own. Options that refetch arm it, and it fires when the window
+	// they asked for lands — animating on the click would run it against the
+	// previous window and restart mid-flight. A background refresh finds it
+	// unarmed and updates the bars in place.
+	const [entrance, setEntrance] = useState(0);
+	const armed = useRef(true);
+	const seenHistoryId = useRef(historyId);
+
+	// Armed by the handlers below rather than by an effect on derived values: a
+	// board id that momentarily changes identity while state reloads would
+	// otherwise count as a view change.
+	const armEntrance = () => {
+		armed.current = true;
+	};
+
+	useEffect(armEntrance, [boardId]);
+
+	useEffect(() => {
+		if (seenHistoryId.current === historyId) return;
+		seenHistoryId.current = historyId;
+
+		if (!armed.current) return;
+		armed.current = false;
+		setEntrance(generation => generation + 1);
+	}, [historyId]);
+
+	// layoutMode is in the key rather than armed: switching Volume/Events draws
+	// the window already in hand, so it animates at once.
+	const windowKey = `${layoutMode}-${entrance}`;
 
 	const confirmedFraction =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
@@ -332,11 +367,11 @@ export const TimeScrubber = ({
 						? 'Now'
 						: formatDateTime(new Date(axis.latest)),
 				onChangeScope: changeScope,
-				onChangeOffset: setOffset,
+				onChangeOffset: changeOffset,
 				onChangeLayoutMode: setLayoutMode,
 				onChangeShowIssues: setShowIssues,
 				onChangeShowCommits: setShowCommits,
-				onChangeAllBoards: setAllBoards,
+				onChangeAllBoards: changeAllBoards,
 				onReturnToLive,
 			}}
 			chart={{

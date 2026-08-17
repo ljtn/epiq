@@ -388,6 +388,10 @@ export const barGrowAnimation = (
 	)}ms backwards`;
 };
 
+// The whole sweep, after which a newly mounted bar is no longer part of the
+// entrance.
+export const BAR_ENTRANCE_TOTAL_MS = BAR_GROW_MS + BAR_GROW_SWEEP_MS;
+
 // Belongs on the series wrapper, never on the individual bars or dots: those
 // are keyed by bucket time, so a scope change remounts each one and the fade
 // restarts per element as a full-chart flash.

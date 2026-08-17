@@ -2,10 +2,11 @@
 // JSX out, no state but the needle's own hover. TimeScrubber owns the data and
 // arranges these; the maths they draw against lives in lib/scrubber.
 
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	barGrowAnimation,
+	BAR_ENTRANCE_TOTAL_MS,
 	barWidthCss,
 	BUCKET_HIGHLIGHT_COLOR,
 	clamp,
@@ -422,6 +423,16 @@ export const VolumeBars = ({
 	const barWidth = barWidthCss(bucketCount);
 	const growsUp = direction === 'up';
 
+	// Only the bars present when this layer mounted are part of the entrance.
+	// A bar that appears later belongs to data arriving on its own, and must
+	// take its place without announcing itself.
+	const [fresh, setFresh] = useState(true);
+
+	useEffect(() => {
+		const timeout = setTimeout(() => setFresh(false), BAR_ENTRANCE_TOTAL_MS);
+		return () => clearTimeout(timeout);
+	}, []);
+
 	return (
 		<>
 			{/* Spans the full track height rather than the bar's, so empty buckets
@@ -455,9 +466,10 @@ export const VolumeBars = ({
 						background: color,
 						opacity: 0.35 + intensity * 0.65,
 						transformOrigin: growsUp ? 'bottom' : 'top',
-						animation: animate
-							? barGrowAnimation(index, firstBar, lastBar)
-							: undefined,
+						animation:
+							animate && fresh
+								? barGrowAnimation(index, firstBar, lastBar)
+								: undefined,
 						pointerEvents: 'none',
 					}}
 				/>
