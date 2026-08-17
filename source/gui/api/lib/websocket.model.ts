@@ -51,6 +51,11 @@ export type GuiMessage =
 			payload: {issueId: string; commentId: string};
 	  }
 	| {
+			// The description and comment bodies the board's state leaves out.
+			type: 'issue:get';
+			payload: {issueId: string};
+	  }
+	| {
 			type: 'timeline:get';
 			// Omit boardId for every board. `requestId` is echoed on the reply so
 			// the client can pair it with the matching commits reply.

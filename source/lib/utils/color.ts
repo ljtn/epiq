@@ -120,9 +120,15 @@ const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => mixRgb(a, b, t);
 // string-based single color
 // =========================
 
+// The full circle, deliberately, after trying to quantise it into 24 slots to
+// guarantee a minimum separation (Q8NP90Q). That worked on the pairs it was
+// filed for — `assignees`/`jola` went from 2° apart to 30° — but every other
+// name moved with it, by up to 176°: `time-travel` went magenta to green. A
+// colour a user already knows is worth more than the near-misses it prevents,
+// and it traded them for exact collisions anyway. Separation, if it is worth
+// having, has to come from somewhere other than the hue.
 export const stringToHslHexColor = (value: string): string => {
-	const hash = hashString(value);
-	const hue = hash % 360;
+	const hue = hashString(value) % 360;
 
 	const rgb = hslToRgb(
 		hue,

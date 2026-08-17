@@ -2,13 +2,16 @@
 // and hints are arranged. The pieces it places come from ScrubberParts, the
 // numbers it places them at from TimeScrubber, which owns all the logic.
 
-import {GuiCommitEntry, GuiEventTimelineBucket} from '../lib/gui-state.model';
+import {memo} from 'react';
+import {GuiCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	dotAppearAnimation,
+	dotDetail,
 	dotExitAnimation,
 	EVENTS_MODE_VERTICAL_PADDING,
 	EVENTS_SCATTER_HEIGHT,
+	EventDot,
 	FADE_IN_ANIMATION,
 	hourFractionForTime,
 	LayoutMode,
@@ -22,7 +25,9 @@ import {
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {
 	HourAxisLabels,
-	ScatterDot,
+	ScatterCanvas,
+	ScatterLayer,
+	ScatterPoint,
 	ScrubberControls,
 	ScrubberHeader,
 	ScrubberHoverHint,
@@ -57,10 +62,8 @@ export type ScrubberChartHandlers = {
 	onCommitTrackMouseEnter: () => void;
 	onCommitTrackMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
 	onCommitTrackMouseLeave: () => void;
-	onIssueDotEnter: (bucket: GuiEventTimelineBucket) => void;
-	onIssueDotLeave: () => void;
-	onCommitDotEnter: (commit: GuiCommitEntry) => void;
-	onCommitDotLeave: () => void;
+	onScatterPointEnter: (point: ScatterPoint) => void;
+	onScatterPointLeave: () => void;
 	onInspectCommit: (sha: string) => void;
 };
 
@@ -81,9 +84,15 @@ export type ScrubberChart = {
 	issueBarRange: [number, number];
 	commitBars: VolumeBar[];
 	commitBarRange: [number, number];
-	// The server's sparse buckets, plotted as-is in "Events" mode.
-	eventBuckets: GuiEventTimelineBucket[];
-	maxEventCount: number;
+	// One entry per series, each animating in and out on its own.
+	scatterLayers: ScatterLayer[];
+	// The Board series' colour under the current view, so the bars and the
+	// baseline say the same thing the scatter's dots do.
+	issueSeriesColor: string;
+	// Dots stop being hover targets mid-drag. Sweeping the needle across the
+	// track otherwise crosses hundreds of them, and each enter and leave sets
+	// state — 1.5s of blocking over a three-second drag.
+	dragging: boolean;
 	commits: GuiCommitEntry[];
 	hoveredCommitSha: string | null;
 	hoveredBucketIndex: number | null;
@@ -199,7 +208,7 @@ export const ScrubberLayout = ({
 							}}
 						>
 							<TrackBaseline
-								color={GUI_THEME.accent}
+								color={chart.issueSeriesColor}
 								anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
 							/>
 
@@ -213,87 +222,24 @@ export const ScrubberLayout = ({
 										firstBar={chart.issueBarRange[0]}
 										lastBar={chart.issueBarRange[1]}
 										highlightedIndex={chart.hoveredBucketIndex}
-										color={GUI_THEME.accent}
+										color={chart.issueSeriesColor}
 										direction="up"
 										animate={animate}
 									/>
 								</SeriesLayer>
 							)}
 
-							{/* Both scatter series stay mounted while retracting, so the
-							    layer's own fade must sit out an exit — it would fight the
-							    dots' reverse twinkle. */}
-							{chart.issueScatter.mounted && layoutMode === 'real' && (
-								<SeriesLayer
-									key={`issues-${windowKey}`}
-									animate={animate && !chart.issueScatter.leaving}
-								>
-									{chart.eventBuckets.map(bucket => {
-										const intensity = bucket.count / chart.maxEventCount;
-
-										return (
-											<ScatterDot
-												key={bucket.t}
-												fraction={axis.fractionForTime(bucket.t)}
-												hourFraction={hourFractionForTime(bucket.t)}
-												size={3 + intensity * 6}
-												color={GUI_THEME.accent}
-												opacity={0.3 + intensity * 0.5}
-												zIndex={2}
-												title={`${bucket.count} change${
-													bucket.count === 1 ? '' : 's'
-												}, ${formatDateTime(new Date(bucket.t))}`}
-												animation={dotAnimation(
-													String(bucket.t),
-													animate,
-													chart.issueScatter.leaving,
-												)}
-												interactive={!chart.issueScatter.leaving}
-												onMouseEnter={() => on.onIssueDotEnter(bucket)}
-												onMouseLeave={on.onIssueDotLeave}
-											/>
-										);
-									})}
-								</SeriesLayer>
+							{/* Both series share one canvas: they are drawn against the
+						    same axes, and one node replaces thousands. */}
+							{layoutMode === 'real' && (
+								<ScatterCanvas
+									layers={chart.scatterLayers}
+									animate={animate}
+									onPointEnter={on.onScatterPointEnter}
+									onPointLeave={on.onScatterPointLeave}
+									onInspectCommit={on.onInspectCommit}
+								/>
 							)}
-
-							{/* Commits overlaid on the issue points' own axis. */}
-							{chart.commitScatter.mounted &&
-								layoutMode === 'real' &&
-								chart.commits.length > 0 && (
-									<SeriesLayer
-										key={`commits-${windowKey}`}
-										animate={animate && !chart.commitScatter.leaving}
-									>
-										{chart.commits.map(commit => (
-											<ScatterDot
-												key={commit.sha}
-												fraction={axis.fractionForTime(commit.time)}
-												hourFraction={hourFractionForTime(commit.time)}
-												size={4}
-												color={GUI_THEME.green}
-												opacity={
-													chart.hoveredCommitSha === commit.sha ? 1 : 0.55
-												}
-												zIndex={1}
-												title={`${formatDateTime(new Date(commit.time))} — ${
-													commit.subject
-												} — ${
-													commit.author
-												} (${commit.linesChanged.toLocaleString()} lines)`}
-												animation={dotAnimation(
-													commit.sha,
-													animate,
-													chart.commitScatter.leaving,
-												)}
-												interactive={!chart.commitScatter.leaving}
-												onClick={() => on.onInspectCommit(commit.sha)}
-												onMouseEnter={() => on.onCommitDotEnter(commit)}
-												onMouseLeave={on.onCommitDotLeave}
-											/>
-										))}
-									</SeriesLayer>
-								)}
 						</div>
 
 						{chart.showCommits &&
@@ -336,7 +282,7 @@ export const ScrubberLayout = ({
 							<ScrubberHoverHint
 								{...chart.boardHint}
 								segmentLabel={chart.hoveredSegment?.label}
-								stripeColor={GUI_THEME.accent}
+								stripeColor={chart.issueSeriesColor}
 								trackWidthPx={chart.trackWidthPx}
 							/>
 						)}

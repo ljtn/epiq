@@ -1,15 +1,26 @@
 import {expect, test} from './fixtures.js';
 
+// The bars animate through CSS; the scatter is drawn to a canvas and marks its
+// own entrance with a data attribute instead. Both count as an entrance.
 const WATCH = `
 	window.__grow = 0;
 	document.addEventListener('animationstart', e => {
-		if (
-			e.animationName === 'epiqScrubberGrow' ||
-			e.animationName === 'epiqScrubberTwinkle'
-		) {
-			window.__grow += 1;
-		}
+		if (e.animationName === 'epiqScrubberGrow') window.__grow += 1;
 	}, true);
+	new MutationObserver(records => {
+		for (const record of records) {
+			if (
+				record.attributeName === 'data-entrance' &&
+				record.target.getAttribute('data-entrance') === 'playing'
+			) {
+				window.__grow += 1;
+			}
+		}
+	}).observe(document.body, {
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['data-entrance'],
+	});
 `;
 
 const RESET = 'window.__grow = 0';

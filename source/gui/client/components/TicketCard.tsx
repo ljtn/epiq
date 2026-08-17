@@ -266,7 +266,12 @@ export const TicketCard = ({
 						}}
 					>
 						{ticket.assignees.map((assignee, idx) => (
-							<User user={assignee} index={idx} isFocus={isSelected}></User>
+							<User
+								key={assignee.id}
+								user={assignee}
+								index={idx}
+								isFocus={isSelected}
+							/>
 						))}
 					</div>
 				)}

@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
 	useMatch,
 	useNavigate,
@@ -26,11 +26,14 @@ import {
 	updateIssueInGuiState,
 } from './lib/gui-state-helper';
 import {
+	GuiComment,
 	GuiCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
 	GuiState,
+	GuiSwimlane,
 } from './lib/gui-state.model';
+import {BoardFilter, issuePassesBoardFilter} from './lib/scrubber';
 import {sendSocketJson} from './lib/socket-send';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {createMutationGate} from './lib/mutation-gate';
@@ -40,6 +43,10 @@ import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
 type IssueDetailsTab = 'overview' | 'comments';
+
+// Module scope so an absent state does not hand the memos below a new object
+// on every render.
+const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
 export const DropIndicator = () => (
 	<div
@@ -112,9 +119,12 @@ export const App = () => {
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs (full ids in old links still resolve).
+	// `boards` is optional-chained too: a repo with no epiq project yet sends a
+	// state with no boards at all, and indexing straight into it throws during
+	// render, unmounting the app to a white page.
 	const selectedBoard =
 		(state && boardId ? findBoard(state, boardId) : null) ??
-		state?.boards[0] ??
+		state?.boards?.[0] ??
 		null;
 
 	// The board's internal id, as opposed to `boardId` from the route, which is
@@ -165,10 +175,60 @@ export const App = () => {
 		void navigate(`/board/${boardSlug}`);
 	};
 
-	const commentsByIssueId = state?.commentsByIssueId ?? {};
+	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
+
+	// The board's state carries no descriptions or comment bodies — they are
+	// most of its weight and nothing on the board draws them. Fetched here for
+	// the one ticket whose details are open.
+	const [issueDetail, setIssueDetail] = useState<{
+		issueId: string;
+		description: string;
+		comments: GuiComment[];
+	} | null>(null);
+	// Driven by the scrubber's own selection. Null unless it has been narrowed
+	// to particular tags or people.
+	const [boardFilter, setBoardFilter] = useState<BoardFilter | null>(null);
+
+	// Memoized, and returning the lanes untouched when nothing is filtered:
+	// rebuilding every swimlane object each render would hand SwimlaneColumn a
+	// new identity every time and undo its memoization.
+	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
+		const swimlanes = selectedBoard?.swimlanes ?? [];
+		if (!boardFilter) return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
+
+		let hidden = 0;
+
+		const visible = swimlanes.map(swimlane => {
+			const issues = swimlane.issues.filter(issue =>
+				issuePassesBoardFilter(
+					issue,
+					(commentsByIssueId[issue.id] ?? []).map(comment => comment.author.id),
+					boardFilter,
+				),
+			);
+
+			hidden += swimlane.issues.length - issues.length;
+
+			return {...swimlane, issues};
+		});
+
+		return {visibleSwimlanes: visible, hiddenIssueCount: hidden};
+	}, [selectedBoard, boardFilter, commentsByIssueId]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});
+
+	useEffect(() => {
+		if (!selectedIssue) {
+			setIssueDetail(null);
+			return;
+		}
+
+		sendSocketJson(socketRef.current, {
+			type: 'issue:get',
+			payload: {issueId: selectedIssue.id},
+		});
+	}, [selectedIssue?.id, state]);
 
 	const requestState = () => {
 		sendSocketJson(socketRef.current, {type: 'state:get'});
@@ -206,6 +266,16 @@ export const App = () => {
 			if (message.type === 'state' && !mutationGate.holdsState()) {
 				const nextState = getResultValue<GuiState>(message.payload);
 				if (nextState) setState(nextState);
+			}
+
+			if (message.type === 'issue') {
+				const detail = getResultValue<{
+					issueId: string;
+					description: string;
+					comments: GuiComment[];
+				}>(message.payload);
+
+				if (detail) setIssueDetail(detail);
 			}
 
 			if (message.type === 'issue:created') {
@@ -300,8 +370,10 @@ export const App = () => {
 	}, [boardId, navigate]);
 
 	useEffect(() => {
-		if (!boardId && state?.boards[0]) {
-			void navigate(`/board/${state.boards[0].ref}`, {replace: true});
+		const first = state?.boards?.[0];
+
+		if (!boardId && first) {
+			void navigate(`/board/${first.ref}`, {replace: true});
 		}
 	}, [boardId, state, navigate]);
 
@@ -818,6 +890,7 @@ export const App = () => {
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
 				onReturnToLive={returnToLive}
+				onBoardFilterChange={setBoardFilter}
 			/>
 
 			<div
@@ -843,7 +916,14 @@ export const App = () => {
 						overflow: 'hidden',
 					}}
 				>
-					<div style={{padding: '20px 10px'}}>
+					<div
+						style={{
+							padding: '20px 10px',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 10,
+						}}
+					>
 						<Dropdown
 							testId="board-switcher"
 							label="Board:"
@@ -879,7 +959,7 @@ export const App = () => {
 							overflowY: 'hidden',
 						}}
 					>
-						{selectedBoard?.swimlanes.map(swimlane => (
+						{visibleSwimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
 								swimlane={swimlane}
@@ -961,9 +1041,17 @@ export const App = () => {
 				{pickedIssues.length <= 1 && selectedIssue && state?.user && (
 					<IssueDetails
 						whoAmI={state.user}
-						issue={selectedIssue}
+						issue={
+							issueDetail?.issueId === selectedIssue.id
+								? {...selectedIssue, description: issueDetail.description}
+								: selectedIssue
+						}
 						activeTab={selectedTab}
-						comments={commentsByIssueId[selectedIssue.id] ?? []}
+						comments={
+							issueDetail?.issueId === selectedIssue.id
+								? issueDetail.comments
+								: []
+						}
 						onChangeTab={changeIssueDetailsTab}
 						onClose={closeIssueDetails}
 						onEditTitle={editIssueTitle}

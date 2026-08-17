@@ -14,7 +14,10 @@ const padVisibleEnd = (value: string, width: number): string =>
 const padVisibleStart = (value: string, width: number): string =>
 	' '.repeat(Math.max(0, width - stringWidth(value))) + value;
 
-const formatLogAction = (action: string): string => {
+// Exported for the GUI timeline, which phrases its scatter tooltips the same
+// way but cannot use the detail helpers below: those read the materialized
+// state, and the timeline is specified to stay readable mid-scrub.
+export const formatLogAction = (action: string): string => {
 	const pastTbl: Partial<Record<EventAction, string>> = {
 		'add.issue': 'Created with title',
 		'add.issue.assignee': 'Assigned to',
@@ -32,6 +35,21 @@ const formatLogAction = (action: string): string => {
 		'delete.issue.comment': 'Deleted comment',
 		'add.issue.attachment': 'Attached',
 		'delete.issue.attachment': 'Removed attachment',
+		'edit.issue.comment': 'Edited comment',
+		// Structural events. Rare in a ticket's own history, but the GUI
+		// timeline plots the whole log, where the fallback below would render
+		// them as "add.boarded" / "init.workspaced".
+		'init.workspace': 'Created workspace',
+		'add.workspace': 'Created workspace',
+		'add.board': 'Created board',
+		'add.swimlane': 'Created swimlane',
+		'add.field': 'Added field',
+		'create.tag': 'Created tag',
+		'create.contributor': 'Added contributor',
+		'link.contributor.user': 'Linked contributor',
+		'tombstone.contributor': 'Removed contributor',
+		'restore.contributor': 'Restored contributor',
+		'rebalance.children': 'Rebalanced order',
 	};
 
 	return (

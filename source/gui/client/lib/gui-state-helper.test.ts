@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
-import {findBoard, findIssue} from './gui-state-helper';
+import {findBoard, findIssue, getResultValue} from './gui-state-helper';
 import {GuiIssue, GuiState} from './gui-state.model';
+import {Result} from './gui-result.model';
 
 const issue = (id: string, ref: string, title: string): GuiIssue => ({
 	id,
@@ -68,5 +69,28 @@ describe('GUI ref resolution', () => {
 	it('returns null for an unknown ref', () => {
 		expect(findIssue(state, 'ZZZZZZZ')).toBeNull();
 		expect(findBoard(state, 'ZZZZZZZ')).toBeNull();
+	});
+});
+
+describe('getResultValue', () => {
+	it('unwraps a successful Result', () => {
+		expect(getResultValue({value: {a: 1}})).toEqual({a: 1});
+	});
+
+	it('gives nothing back for a failed Result, rather than its envelope', () => {
+		// A repo with no epiq project answers exactly this. Returning the
+		// envelope let the caller read `.boards` off it and throw mid-render,
+		// unmounting the GUI to a white page.
+		const failed = {
+			status: 'fail',
+			message: 'No .epiq/project.json found in any parent',
+			value: null,
+		} as unknown as Result<{boards: unknown[]}>;
+
+		expect(getResultValue(failed)).toBeUndefined();
+	});
+
+	it('passes a bare value through untouched', () => {
+		expect(getResultValue({boards: []})).toEqual({boards: []});
 	});
 });

@@ -1,19 +1,34 @@
 import {describe, expect, it} from 'vitest';
-import {GuiCommitEntry, GuiEventTimeline} from './gui-state.model';
+import {
+	GuiCommitEntry,
+	GuiEventIdentity,
+	GuiEventTimeline,
+	GuiEventTimelineEntry,
+} from './gui-state.model';
 import {
 	bucketCommitStats,
 	bucketCountForSpan,
 	bucketIssueCounts,
 	buildAxis,
+	buildBoardFilter,
+	buildEventDots,
+	categoryOf,
+	issuePassesBoardFilter,
+	identityAxisFor,
+	listIdentities,
+	soleVisibleIdentity,
 	chooseSegmentUnit,
 	dotAppearAnimation,
+	dotEntranceScale,
 	dotExitAnimation,
+	dotExitScale,
 	DOT_EXIT_TOTAL_MS,
 	formatPeriodLabel,
 	getPeriodRange,
 	hourFractionForTime,
 	isScope,
 	populatedRange,
+	SCOPES,
 	SCRUBBER_KEYFRAMES,
 	segmentAt,
 } from './scrubber';
@@ -28,12 +43,34 @@ const commit = (time: number, linesChanged = 1): GuiCommitEntry => ({
 	linesChanged,
 });
 
+const person = (name: string): GuiEventIdentity => ({
+	id: `id-${name}`,
+	name,
+	color: `#${name.length}${name.length}${name.length}fff`.slice(0, 7),
+});
+
+const entry = (
+	t: number,
+	action: string,
+	extra: Partial<GuiEventTimelineEntry> = {},
+): GuiEventTimelineEntry => ({
+	t,
+	action,
+	label: action,
+	actor: null,
+	tag: null,
+	assignee: null,
+	...extra,
+});
+
 const timeline = (
 	buckets: {t: number; count: number}[],
 	bounds?: {earliest: number; latest: number},
+	events: GuiEventTimelineEntry[] = [],
 ): GuiEventTimeline => ({
 	bucketMs: DAY,
 	buckets,
+	events,
 	earliest: bounds?.earliest ?? buckets[0]?.t ?? 0,
 	latest: bounds?.latest ?? buckets[buckets.length - 1]?.t ?? 0,
 });
@@ -164,6 +201,9 @@ describe('populatedRange', () => {
 
 describe('chooseSegmentUnit', () => {
 	it('picks the finest unit that fits inside the segment budget', () => {
+		// A day's span would otherwise land on one day-wide segment covering the
+		// whole track, leaving the hover highlight with nothing to say.
+		expect(chooseSegmentUnit(DAY)).toBe('hour');
 		expect(chooseSegmentUnit(7 * DAY)).toBe('day');
 		expect(chooseSegmentUnit(120 * DAY)).toBe('week');
 		expect(chooseSegmentUnit(2 * 365 * DAY)).toBe('month');
@@ -335,5 +375,406 @@ describe('formatPeriodLabel', () => {
 				end: new Date(2026, 7, 10).getTime(),
 			}),
 		).toBe('8/3 – 8/10');
+	});
+});
+
+describe('buildEventDots', () => {
+	it('draws one dot per event, not one per bucket', () => {
+		// Three events inside a single bucket: the bucketed payload has already
+		// merged them, the per-event one must not.
+		const dots = buildEventDots(
+			timeline([{t: 100, count: 3}], undefined, [
+				entry(100, 'add.issue', {label: 'Created with title "Ship v2"'}),
+				entry(140, 'add.issue.tag', {label: 'Tagged with bug'}),
+				entry(180, 'add.issue.comment', {label: 'Commented'}),
+			]),
+		);
+
+		expect(dots).toHaveLength(3);
+		expect(dots.map(dot => dot.t)).toEqual([100, 140, 180]);
+		expect(dots.map(dot => dot.label)).toEqual([
+			'Created with title "Ship v2"',
+			'Tagged with bug',
+			'Commented',
+		]);
+	});
+
+	it('keys events sharing a millisecond apart', () => {
+		const dots = buildEventDots(
+			timeline([{t: 5, count: 2}], undefined, [
+				entry(5, 'add.issue', {label: 'add.issue'}),
+				entry(5, 'close.issue', {label: 'close.issue'}),
+			]),
+		);
+
+		expect(new Set(dots.map(dot => dot.key)).size).toBe(2);
+	});
+
+	it('sizes per-event dots uniformly, having no count to encode', () => {
+		const dots = buildEventDots(
+			timeline([{t: 1, count: 9}], undefined, [
+				entry(1, 'add.issue', {label: 'add.issue'}),
+				entry(2, 'add.issue', {label: 'add.issue'}),
+			]),
+		);
+
+		expect(dots.map(dot => dot.size)).toEqual([4, 4]);
+		expect(dots.map(dot => dot.opacity)).toEqual([0.55, 0.55]);
+		expect(dots.every(dot => dot.count === null)).toBe(true);
+	});
+
+	it('falls back to buckets when the server capped the window', () => {
+		const dots = buildEventDots(
+			timeline([
+				{t: 10, count: 1},
+				{t: 20, count: 4},
+			]),
+		);
+
+		expect(dots.map(dot => dot.t)).toEqual([10, 20]);
+		expect(dots.map(dot => dot.count)).toEqual([1, 4]);
+		// Only the fallback encodes a count, so its dots must still differ.
+		expect(dots[0]!.size).toBeLessThan(dots[1]!.size);
+		expect(dots.every(dot => dot.label === null)).toBe(true);
+	});
+
+	it('has no dots without a timeline', () => {
+		expect(buildEventDots(null)).toEqual([]);
+	});
+});
+
+describe('categoryOf', () => {
+	it('sorts each action into its series', () => {
+		expect(categoryOf('add.issue.comment')).toBe('comments');
+		expect(categoryOf('edit.issue.comment')).toBe('comments');
+		expect(categoryOf('add.issue.tag')).toBe('tagging');
+		expect(categoryOf('create.tag')).toBe('tagging');
+		expect(categoryOf('add.issue.assignee')).toBe('assigning');
+		expect(categoryOf('remove.issue.assignee')).toBe('assigning');
+		expect(categoryOf('add.issue')).toBe('tickets');
+		expect(categoryOf('move.node')).toBe('tickets');
+		expect(categoryOf('close.issue')).toBe('tickets');
+	});
+
+	it('does not mistake an attachment for a tag', () => {
+		// "attachment" and "assignee" both read as near-misses for the substring
+		// rules this deliberately avoids.
+		expect(categoryOf('add.issue.attachment')).toBe('tickets');
+		expect(categoryOf('delete.issue.attachment')).toBe('tickets');
+	});
+
+	it('files an unknown action under tickets rather than dropping it', () => {
+		expect(categoryOf('some.future.action')).toBe('tickets');
+	});
+});
+
+describe('category filtering', () => {
+	const mixed = () =>
+		timeline([{t: 0, count: 4}], {earliest: 0, latest: 10}, [
+			entry(1, 'add.issue', {label: 'Created'}),
+			entry(2, 'add.issue.comment', {label: 'Commented'}),
+			entry(3, 'add.issue.tag', {label: 'Tagged with bug'}),
+			entry(4, 'add.issue.assignee', {label: 'Assigned to jola'}),
+		]);
+
+	it('draws only the selected kind', () => {
+		const dots = buildEventDots(mixed(), 'tickets');
+
+		expect(dots).toHaveLength(1);
+		expect(dots[0]!.category).toBe('tickets');
+	});
+
+	it('tags every dot with its category', () => {
+		const dots = buildEventDots(mixed());
+
+		expect(dots.map(dot => dot.category)).toEqual([
+			'tickets',
+			'comments',
+			'tagging',
+			'assigning',
+		]);
+	});
+
+	it('drops the other kinds from the bars too', () => {
+		const axis = buildAxis(mixed(), []);
+		const all = bucketIssueCounts(axis, mixed());
+		const some = bucketIssueCounts(axis, mixed(), 'comments');
+
+		const total = (counts: number[]) => counts.reduce((a, b) => a + b, 0);
+
+		expect(total(all)).toBe(4);
+		expect(total(some)).toBe(1);
+	});
+
+	it('counts every kind where the server capped and sent only buckets', () => {
+		// No events to read an action off, so the filter has nothing to act on.
+		const capped = timeline([{t: 0, count: 7}]);
+		const axis = buildAxis(capped, []);
+
+		const counts = bucketIssueCounts(axis, capped, 'tickets');
+
+		expect(counts.reduce((a, b) => a + b, 0)).toBe(7);
+		expect(buildEventDots(capped).every(dot => dot.category === null)).toBe(
+			true,
+		);
+	});
+});
+
+describe('identity views', () => {
+	const jola = person('jola');
+	const demo = person('demo');
+	const bug = person('bug');
+
+	const window = () =>
+		timeline([{t: 0, count: 5}], {earliest: 0, latest: 10}, [
+			entry(1, 'add.issue.comment', {actor: jola}),
+			entry(2, 'add.issue.comment', {actor: demo}),
+			entry(3, 'add.issue.comment', {actor: jola}),
+			entry(4, 'add.issue.tag', {actor: jola, tag: bug}),
+			entry(5, 'add.issue', {actor: demo}),
+		]);
+
+	it('colours by the side of the event the view is about', () => {
+		expect(identityAxisFor('comments')).toBe('actor');
+		expect(identityAxisFor('tagging')).toBe('tag');
+		expect(identityAxisFor('assigning')).toBe('assignee');
+		// Every event is somebody changing a ticket, so there is nothing to
+		// colour by that the kind does not already say.
+		expect(identityAxisFor('tickets')).toBeNull();
+		expect(identityAxisFor('all')).toBeNull();
+	});
+
+	it('lists each identity once, as the legend for what is on screen', () => {
+		expect(listIdentities(window(), 'comments').map(i => i.name)).toEqual([
+			'jola',
+			'demo',
+		]);
+		// The tagging view lists tags, not the people who applied them.
+		expect(listIdentities(window(), 'tagging').map(i => i.name)).toEqual([
+			'bug',
+		]);
+	});
+
+	it('has no list for a view with no identity axis', () => {
+		expect(listIdentities(window(), 'tickets')).toEqual([]);
+		expect(listIdentities(window(), 'all')).toEqual([]);
+	});
+
+	it('takes each dot colour from its identity, not its kind', () => {
+		const dots = buildEventDots(window(), 'comments');
+
+		expect(dots).toHaveLength(3);
+		expect(dots.map(dot => dot.color)).toEqual([
+			jola.color,
+			demo.color,
+			jola.color,
+		]);
+	});
+
+	it('colours by kind in the All view', () => {
+		const colors = new Set(buildEventDots(window(), 'all').map(d => d.color));
+
+		// Two kinds present, and neither is anybody's personal colour.
+		expect(colors.has(jola.color)).toBe(false);
+		expect(colors.size).toBeGreaterThan(1);
+	});
+
+	it('hides the unticked identities', () => {
+		const dots = buildEventDots(window(), 'comments', new Set([jola.id]));
+
+		expect(dots).toHaveLength(1);
+		expect(dots[0]!.identity?.name).toBe('demo');
+	});
+
+	it('keeps an event whose view gives it no identity to be hidden by', () => {
+		// Nothing in the Tickets list to untick, so an exclusion cannot swallow it.
+		expect(
+			buildEventDots(window(), 'tickets', new Set([demo.id, jola.id])),
+		).toHaveLength(1);
+	});
+
+	describe('soleVisibleIdentity', () => {
+		const listed = () => listIdentities(window(), 'comments');
+
+		it('names the one identity left when the rest are hidden', () => {
+			expect(soleVisibleIdentity(listed(), new Set([jola.id]))?.name).toBe(
+				'demo',
+			);
+		});
+
+		it('is null while more than one is still shown', () => {
+			expect(soleVisibleIdentity(listed(), new Set())).toBeNull();
+		});
+
+		it('is null when everything is hidden', () => {
+			expect(soleVisibleIdentity(listed(), new Set([jola.id, demo.id]))).toBe(
+				null,
+			);
+		});
+
+		it('names the only identity a window holds, filter or not', () => {
+			// One tag in the whole window: the series really is that tag, whether
+			// anyone unticked their way down to it or it arrived alone.
+			expect(
+				soleVisibleIdentity(listIdentities(window(), 'tagging'), new Set())
+					?.name,
+			).toBe('bug');
+		});
+
+		it('has nothing to name in a view with no identity axis', () => {
+			expect(
+				soleVisibleIdentity(listIdentities(window(), 'all'), new Set()),
+			).toBeNull();
+		});
+	});
+});
+
+describe('day scope', () => {
+	it('is offered as the finest scope', () => {
+		expect(SCOPES[0]).toBe('day');
+		expect(isScope('day')).toBe(true);
+	});
+
+	it('spans the 24 hours ending now', () => {
+		const range = getPeriodRange('day', 0);
+
+		expect(range).not.toBeNull();
+		expect(range!.end - range!.start).toBe(DAY);
+	});
+
+	it('steps back a day at a time', () => {
+		const now = getPeriodRange('day', 0)!;
+		const back = getPeriodRange('day', 2)!;
+
+		expect(Math.round((now.end - back.end) / DAY)).toBe(2);
+	});
+
+	it('labels the current window by duration', () => {
+		expect(formatPeriodLabel('day', 0, getPeriodRange('day', 0))).toBe(
+			'Last 24 hours',
+		);
+	});
+});
+
+describe('hour segments', () => {
+	it('snaps to the top of the hour and runs one hour', () => {
+		const {start, end, label} = segmentAt(
+			new Date(2026, 7, 16, 14, 37).getTime(),
+			'hour',
+		);
+
+		expect(new Date(start).getMinutes()).toBe(0);
+		expect(end - start).toBe(60 * 60 * 1000);
+		expect(label).toBe('Sun 14:00');
+	});
+
+	it('pads the hour so labels stay the same width', () => {
+		expect(segmentAt(new Date(2026, 7, 16, 9, 5).getTime(), 'hour').label).toBe(
+			'Sun 09:00',
+		);
+	});
+});
+
+describe('board filter', () => {
+	const bug = person('bug');
+	const docs = person('docs');
+	const jola = person('jola');
+
+	const issue = (
+		tags: {id: string}[] = [],
+		assignees: {id: string}[] = [],
+	) => ({id: 'i1', tags, assignees});
+
+	it('does not filter until the selection is narrowed', () => {
+		// A kind with everything still ticked is a colouring choice, not a
+		// question about which tickets matter.
+		expect(buildBoardFilter('tagging', [bug, docs], new Set())).toBeNull();
+	});
+
+	it('does not filter on a view with no identity axis', () => {
+		expect(buildBoardFilter('tickets', [bug], new Set([bug.id]))).toBeNull();
+		expect(buildBoardFilter('all', [bug], new Set([bug.id]))).toBeNull();
+	});
+
+	it('keeps the tickets carrying a visible tag', () => {
+		const filter = buildBoardFilter('tagging', [bug, docs], new Set([docs.id]));
+
+		expect(issuePassesBoardFilter(issue([bug]), [], filter)).toBe(true);
+		expect(issuePassesBoardFilter(issue([docs]), [], filter)).toBe(false);
+		// Untagged: nothing visible to match, so it is not part of this answer.
+		expect(issuePassesBoardFilter(issue(), [], filter)).toBe(false);
+	});
+
+	it('reads assignees off the ticket for an assigning view', () => {
+		const filter = buildBoardFilter(
+			'assigning',
+			[jola, docs],
+			new Set([docs.id]),
+		);
+
+		expect(issuePassesBoardFilter(issue([], [jola]), [], filter)).toBe(true);
+		expect(issuePassesBoardFilter(issue([], [docs]), [], filter)).toBe(false);
+		// A tag of the same id must not satisfy an assignee filter.
+		expect(issuePassesBoardFilter(issue([jola], []), [], filter)).toBe(false);
+	});
+
+	it('reads comment authors for a comments view', () => {
+		const filter = buildBoardFilter(
+			'comments',
+			[jola, docs],
+			new Set([docs.id]),
+		);
+
+		expect(issuePassesBoardFilter(issue(), [jola.id], filter)).toBe(true);
+		expect(issuePassesBoardFilter(issue(), [docs.id], filter)).toBe(false);
+		expect(issuePassesBoardFilter(issue(), [], filter)).toBe(false);
+	});
+
+	it('passes everything through when there is no filter', () => {
+		expect(issuePassesBoardFilter(issue(), [], null)).toBe(true);
+	});
+});
+
+describe('dotEntranceScale', () => {
+	it('holds a dot at zero until its own delay has passed', () => {
+		expect(dotEntranceScale('abc', 0)).toBe(0);
+	});
+
+	it('reaches full size by the end of the stagger and stays there', () => {
+		expect(dotEntranceScale('abc', DOT_EXIT_TOTAL_MS)).toBeCloseTo(1, 5);
+		expect(dotEntranceScale('abc', DOT_EXIT_TOTAL_MS * 4)).toBeCloseTo(1, 5);
+	});
+
+	it('staggers, so two keys are not at the same size mid-entrance', () => {
+		const keys = Array.from({length: 40}, (_, i) => `dot-${i}`);
+		const midway = new Set(keys.map(k => dotEntranceScale(k, 300).toFixed(3)));
+
+		expect(midway.size).toBeGreaterThan(1);
+	});
+
+	it('is the same every time for a given key', () => {
+		expect(dotEntranceScale('abc', 200)).toBe(dotEntranceScale('abc', 200));
+	});
+});
+
+describe('dotExitScale', () => {
+	it('starts at full size and ends at nothing', () => {
+		expect(dotExitScale('abc', 0)).toBe(1);
+		expect(dotExitScale('abc', DOT_EXIT_TOTAL_MS)).toBeCloseTo(0, 5);
+	});
+
+	it('retracts in the reverse of the order it arrived', () => {
+		// The dot that enters last — the largest entrance delay — leaves first.
+		const keys = Array.from({length: 30}, (_, i) => `dot-${i}`);
+		const latest = keys.reduce((a, b) =>
+			dotEntranceScale(a, 300) < dotEntranceScale(b, 300) ? a : b,
+		);
+		const earliest = keys.reduce((a, b) =>
+			dotEntranceScale(a, 300) > dotEntranceScale(b, 300) ? a : b,
+		);
+
+		expect(dotExitScale(latest, 300)).toBeLessThanOrEqual(
+			dotExitScale(earliest, 300),
+		);
 	});
 });
