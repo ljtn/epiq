@@ -846,7 +846,7 @@ export const App = () => {
 								onSelectIssue={selectIssue}
 								onSelectIssueComments={selectIssueComments}
 								onCreateIssue={openCreateIssueModal}
-								onDropIssue={moveIssue(setState, send)}
+								onDropIssue={moveIssue(state, setState, send)}
 								onDragOver={setDragOverSwimlaneId}
 								onDragOverIssue={(swimlaneId, index) =>
 									setDropTarget({swimlaneId, index})

@@ -1,5 +1,4 @@
 import {GuiIssue, GuiState} from './gui-state.model';
-import {sendSocketJson} from './socket-send';
 
 type MovePosition =
 	| {at: 'start'}
@@ -77,59 +76,62 @@ const findMove = (
 	};
 };
 
+const applyMove = (
+	state: GuiState,
+	issueId: string,
+	parentId: string,
+	targetIndex: number | 'end',
+	movedIssue: GuiIssue,
+): GuiState => ({
+	...state,
+	boards: state.boards.map(board => ({
+		...board,
+		swimlanes: board.swimlanes.map(swimlane => {
+			const issuesWithoutMoved = swimlane.issues.filter(
+				issue => issue.id !== issueId,
+			);
+
+			if (swimlane.id !== parentId) {
+				return {...swimlane, issues: issuesWithoutMoved};
+			}
+
+			const nextIssues = [...issuesWithoutMoved];
+
+			const index =
+				targetIndex === 'end'
+					? nextIssues.length
+					: Math.max(0, Math.min(targetIndex, nextIssues.length));
+
+			nextIssues.splice(index, 0, movedIssue);
+
+			return {...swimlane, issues: nextIssues};
+		}),
+	})),
+});
+
 export const moveIssue =
 	(
+		// Read here rather than inside the updater below. React runs an updater
+		// synchronously only as an eager optimisation, and skips that whenever an
+		// update is already queued — so anything the updater computes is not
+		// available to the code that follows it, and the move would go unsent.
+		state: GuiState | null,
 		setState: React.Dispatch<React.SetStateAction<GuiState | null>>,
 		// The caller's sender, so the move counts as an in-flight mutation like
 		// every other one.
 		send: (type: string, payload: unknown) => void,
 	) =>
 	(issueId: string, parentId: string, targetIndex: number | 'end') => {
-		let position: MovePosition | null = null;
+		if (!state) return;
 
-		setState(current => {
-			if (!current) return current;
+		const move = findMove(state, issueId, parentId, targetIndex);
+		if (!move) return;
 
-			const move = findMove(current, issueId, parentId, targetIndex);
-			if (!move) return current;
+		setState(current =>
+			current
+				? applyMove(current, issueId, parentId, targetIndex, move.movedIssue)
+				: current,
+		);
 
-			position = move.position;
-
-			return {
-				...current,
-				boards: current.boards.map(board => ({
-					...board,
-					swimlanes: board.swimlanes.map(swimlane => {
-						const issuesWithoutMoved = swimlane.issues.filter(
-							issue => issue.id !== issueId,
-						);
-
-						if (swimlane.id !== parentId) {
-							return {
-								...swimlane,
-								issues: issuesWithoutMoved,
-							};
-						}
-
-						const nextIssues = [...issuesWithoutMoved];
-
-						const index =
-							targetIndex === 'end'
-								? nextIssues.length
-								: Math.max(0, Math.min(targetIndex, nextIssues.length));
-
-						nextIssues.splice(index, 0, move.movedIssue);
-
-						return {
-							...swimlane,
-							issues: nextIssues,
-						};
-					}),
-				})),
-			};
-		});
-
-		if (!position) return;
-
-		send('issues:move', {issueId, parentId, position});
+		send('issues:move', {issueId, parentId, position: move.position});
 	};
