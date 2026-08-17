@@ -83,7 +83,7 @@ const VIEW_LABELS: Record<BoardView, string> = {
 // Fixed, not sized to its label: the selection changes as the thing is used,
 // and a trigger that grew with it would shove the scope buttons beside it out
 // from under the pointer. Wide enough for "Assignees: <a long name>".
-const SELECT_TRIGGER_WIDTH = 190;
+const SELECT_TRIGGER_WIDTH = 180;
 
 // A select. Filled rather than outlined, unlike the toggles beside it: it is the
 // only control here reporting a colour, and an outline in that colour drowned
@@ -298,7 +298,7 @@ const BoardSeriesGroup = ({
 	const label = sole
 		? `${VIEW_LABELS[view]}: ${sole.name}`
 		: partial
-		? `${VIEW_LABELS[view]} (filtered)`
+		? `${VIEW_LABELS[view]} (multi)`
 		: VIEW_LABELS[view];
 
 	const color =
@@ -594,7 +594,7 @@ export const ScrubberControls = ({
 			</button>
 		</div>
 
-		<div style={{display: 'flex', gap: 10, alignItems: 'flex-start'}}>
+		<div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
 			<BoardSeriesGroup
 				showIssues={showIssues}
 				view={boardView}
