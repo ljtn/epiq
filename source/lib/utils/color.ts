@@ -120,9 +120,17 @@ const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => mixRgb(a, b, t);
 // string-based single color
 // =========================
 
+// Hues come from evenly spaced slots rather than all 360°, which let two names
+// land a degree apart: `bug` was 348 and `chore` 349, indistinguishable
+// everywhere tags are coloured. Fewer slots means some pairs now share a hue
+// exactly — honest, and always shown beside the name, where a near-miss just
+// looked like a rendering fault. 24 is about as fine as hue alone stays
+// separable at this saturation and lightness.
+const HUE_SLOTS = 24;
+
 export const stringToHslHexColor = (value: string): string => {
-	const hash = hashString(value);
-	const hue = hash % 360;
+	const slot = hashString(value) % HUE_SLOTS;
+	const hue = slot * (360 / HUE_SLOTS);
 
 	const rgb = hslToRgb(
 		hue,
