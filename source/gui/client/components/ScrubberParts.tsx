@@ -595,6 +595,12 @@ export const ScrubberControls = ({
 		</div>
 
 		<div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
+			<Checkbox
+				label="Code"
+				checked={showCommits}
+				activeColor={GUI_THEME.green}
+				onChange={onChangeShowCommits}
+			/>
 			<BoardSeriesGroup
 				showIssues={showIssues}
 				view={boardView}
@@ -610,18 +616,13 @@ export const ScrubberControls = ({
 				onToggleExpanded={onToggleCategoriesExpanded}
 				onSetIdentitiesExpanded={onSetIdentitiesExpanded}
 			/>
-			<Checkbox
-				label="Code"
-				checked={showCommits}
-				activeColor={GUI_THEME.green}
-				onChange={onChangeShowCommits}
-			/>
-			<Checkbox
+
+			{/* <Checkbox
 				label="All boards"
 				checked={allBoards}
 				activeColor={GUI_THEME.accent}
 				onChange={onChangeAllBoards}
-			/>
+			/> */}
 		</div>
 
 		<div

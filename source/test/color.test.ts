@@ -29,48 +29,49 @@ const hueDistance = (a: number, b: number): number => {
 };
 
 describe('stringToHslHexColor', () => {
-	it('keeps distinct colours a visible distance apart', () => {
-		// `assignees` and `jola` used to land on hues 244 and 242.
+	// Pinned, not derived: a tag's colour is something people learn, and the one
+	// attempt at reshaping the palette (Q8NP90Q, reverted) moved `time-travel`
+	// 176° without anything failing. Changing the scheme is allowed; doing it
+	// without noticing is not, so these have to be edited on purpose.
+	it('gives each name the colour it has always had', () => {
+		expect({
+			'time-travel': stringToHslHexColor('time-travel'),
+			assignees: stringToHslHexColor('assignees'),
+			jola: stringToHslHexColor('jola'),
+			mcp: stringToHslHexColor('mcp'),
+			tui: stringToHslHexColor('tui'),
+			gui: stringToHslHexColor('gui'),
+		}).toEqual({
+			'time-travel': '#cc66a7',
+			assignees: '#6d66cc',
+			jola: '#6966cc',
+			mcp: '#bb66cc',
+			tui: '#cc7466',
+			gui: '#6ecc66',
+		});
+	});
+
+	it('spreads names over the whole circle', () => {
+		const hues = ['time-travel', 'gui', 'tui', 'mcp', 'assignees'].map(name =>
+			hueOf(stringToHslHexColor(name)),
+		);
+
+		// No minimum separation is promised — that is exactly what Q8NP90Q is
+		// still open for — but the hash must not be collapsing onto a few values.
+		expect(new Set(hues).size).toBe(hues.length);
+		expect(Math.max(...hues) - Math.min(...hues)).toBeGreaterThan(180);
+	});
+
+	it('leaves close pairs close, which is the open half of Q8NP90Q', () => {
+		// Documented rather than asserted away: `assignees` and `jola` both live
+		// in this repo and are 2° apart. Any real fix has to move this number
+		// without moving the pinned colours above.
 		const distance = hueDistance(
 			hueOf(stringToHslHexColor('assignees')),
 			hueOf(stringToHslHexColor('jola')),
 		);
 
-		expect(distance).toBeGreaterThanOrEqual(10);
-	});
-
-	it('never puts two names closer than one slot without matching exactly', () => {
-		const names = [
-			'bug',
-			'chore',
-			'feature',
-			'time-travel',
-			'assignees',
-			'important',
-			'attachments',
-			'mcp',
-			'tui',
-			'gui',
-			'docs',
-			'urgent',
-			// Each of these used to sit within a few degrees of one above.
-			'jola',
-			'epic',
-			'wip',
-			'api',
-			'cli',
-			'ci',
-		];
-
-		const hues = names.map(name => hueOf(stringToHslHexColor(name)));
-
-		for (const [i, a] of hues.entries()) {
-			for (const b of hues.slice(i + 1)) {
-				const distance = hueDistance(a, b);
-				// Either the same slot or a full slot apart — never a near-miss.
-				expect(distance === 0 || distance >= 10).toBe(true);
-			}
-		}
+		expect(distance).toBeLessThan(5);
 	});
 
 	it('is stable for a given name', () => {

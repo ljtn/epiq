@@ -120,17 +120,15 @@ const interpolateColor = (a: Rgb, b: Rgb, t: number): Rgb => mixRgb(a, b, t);
 // string-based single color
 // =========================
 
-// Hues come from evenly spaced slots rather than all 360°, which let two names
-// land a degree apart: `bug` was 348 and `chore` 349, indistinguishable
-// everywhere tags are coloured. Fewer slots means some pairs now share a hue
-// exactly — honest, and always shown beside the name, where a near-miss just
-// looked like a rendering fault. 24 is about as fine as hue alone stays
-// separable at this saturation and lightness.
-const HUE_SLOTS = 24;
-
+// The full circle, deliberately, after trying to quantise it into 24 slots to
+// guarantee a minimum separation (Q8NP90Q). That worked on the pairs it was
+// filed for — `assignees`/`jola` went from 2° apart to 30° — but every other
+// name moved with it, by up to 176°: `time-travel` went magenta to green. A
+// colour a user already knows is worth more than the near-misses it prevents,
+// and it traded them for exact collisions anyway. Separation, if it is worth
+// having, has to come from somewhere other than the hue.
 export const stringToHslHexColor = (value: string): string => {
-	const slot = hashString(value) % HUE_SLOTS;
-	const hue = slot * (360 / HUE_SLOTS);
+	const hue = hashString(value) % 360;
 
 	const rgb = hslToRgb(
 		hue,
