@@ -174,6 +174,9 @@ export type ScrubberChart = {
 	// One dot per event in "Events" mode, or per bucket where the server capped
 	// the window.
 	eventDots: EventDot[];
+	// The Board series' colour under the current view, so the bars and the
+	// baseline say the same thing the scatter's dots do.
+	issueSeriesColor: string;
 	commits: GuiCommitEntry[];
 	hoveredCommitSha: string | null;
 	hoveredBucketIndex: number | null;
@@ -289,7 +292,7 @@ export const ScrubberLayout = ({
 							}}
 						>
 							<TrackBaseline
-								color={GUI_THEME.accent}
+								color={chart.issueSeriesColor}
 								anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
 							/>
 
@@ -303,7 +306,7 @@ export const ScrubberLayout = ({
 										firstBar={chart.issueBarRange[0]}
 										lastBar={chart.issueBarRange[1]}
 										highlightedIndex={chart.hoveredBucketIndex}
-										color={GUI_THEME.accent}
+										color={chart.issueSeriesColor}
 										direction="up"
 										animate={animate}
 									/>
@@ -391,7 +394,7 @@ export const ScrubberLayout = ({
 							<ScrubberHoverHint
 								{...chart.boardHint}
 								segmentLabel={chart.hoveredSegment?.label}
-								stripeColor={GUI_THEME.accent}
+								stripeColor={chart.issueSeriesColor}
 								trackWidthPx={chart.trackWidthPx}
 							/>
 						)}

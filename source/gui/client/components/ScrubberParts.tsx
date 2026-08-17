@@ -3,7 +3,7 @@
 // arranges these; the maths they draw against lives in lib/scrubber.
 
 import {useEffect, useRef, useState} from 'react';
-import {EVENT_CATEGORY_COLORS, GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME} from '../lib/gui-theme';
 import {
 	barGrowAnimation,
 	BAR_ENTRANCE_TOTAL_MS,
@@ -23,6 +23,7 @@ import {
 	SCOPES,
 	Segment,
 	BOARD_VIEWS,
+	boardViewColor,
 	BoardView,
 	EventCategory,
 	SEGMENT_HIGHLIGHT_COLOR,
@@ -51,13 +52,16 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
 	assigning: 'Assigning',
 };
 
+// Bright enough to read as part of the control. At GUI_THEME.dim it sat so
+// faint beside its label that the collapsed panel looked like it had no
+// disclosure at all.
 const disclosureStyle: React.CSSProperties = {
 	background: 'transparent',
 	border: 'none',
 	padding: 0,
 	display: 'inline-flex',
 	alignItems: 'center',
-	color: GUI_THEME.dim,
+	color: GUI_THEME.secondary,
 	cursor: 'pointer',
 };
 
@@ -82,7 +86,15 @@ const popoverStyle: React.CSSProperties = {
 	top: '100%',
 	left: 0,
 	marginTop: 6,
-	padding: '8px 12px 8px 8px',
+	// Carries the column and its gap itself. Without them the options stack as
+	// plain blocks and their radios sit edge to edge.
+	display: 'flex',
+	flexDirection: 'column',
+	gap: 7,
+	padding: '10px 14px 10px 10px',
+	// Sized for the common case up front, so opening a kind with a list does
+	// not visibly widen the panel under the pointer.
+	minWidth: 200,
 	background: GUI_THEME.panel2,
 	border: `1px solid ${GUI_THEME.line}`,
 	borderRadius: 8,
@@ -231,9 +243,9 @@ const BoardSeriesGroup = ({
 	onToggleExpanded: () => void;
 	onToggleIdentitiesExpanded: () => void;
 }) => {
-	const partial = filtered && (view !== 'all' || hiddenIds.size > 0);
-	const colorFor = (option: BoardView) =>
-		option === 'all' ? GUI_THEME.accent : EVENT_CATEGORY_COLORS[option];
+	// Only the identity filter, now that the kind has a colour of its own to
+	// announce itself with.
+	const partial = filtered && hiddenIds.size > 0;
 	const ref = useDismissOnOutsideClick(expanded, onToggleExpanded);
 
 	return (
@@ -245,9 +257,11 @@ const BoardSeriesGroup = ({
 				<Checkbox
 					label="Board"
 					checked={showIssues}
-					// Dimmed while the view is narrowed, so a collapsed group still
-					// shows that the series is not the whole story.
-					activeColor={partial ? GUI_THEME.dim2 : GUI_THEME.accent}
+					// Carries the selected kind's colour, so a collapsed group still
+					// says which one is drawn — and matches the bars and dots it
+					// controls. Dimmed instead when tags or people are hidden inside
+					// that kind, which has no colour of its own to show.
+					activeColor={partial ? GUI_THEME.dim2 : boardViewColor(view)}
 					onChange={onChangeShowIssues}
 				/>
 				<button
@@ -280,7 +294,7 @@ const BoardSeriesGroup = ({
 									<Radio
 										label={VIEW_LABELS[option]}
 										selected={selected}
-										color={colorFor(option)}
+										color={boardViewColor(option)}
 										disabled={!showIssues || !filtered}
 										onSelect={() => onChangeView(option)}
 									/>

@@ -192,6 +192,11 @@ export const BOARD_VIEWS: BoardView[] = ['all', ...EVENT_CATEGORIES];
 export const isBoardView = (value: unknown): value is BoardView =>
 	BOARD_VIEWS.includes(value as BoardView);
 
+// One place for the series colour, so the bars, the baseline and the filter's
+// own rows cannot drift apart.
+export const boardViewColor = (view: BoardView): string =>
+	view === 'all' ? GUI_THEME.accent : EVENT_CATEGORY_COLORS[view];
+
 // Which side of the event a view colours by. Tickets has none — every event is
 // somebody changing a ticket, so it stays the plain Board accent.
 export const identityAxisFor = (
