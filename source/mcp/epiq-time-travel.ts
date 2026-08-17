@@ -13,6 +13,7 @@ import {
 import {getEventTime} from '../lib/event/date-utils.js';
 import {AppEvent, EventAction} from '../lib/event/event.model.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
+import {getStringColor} from '../lib/utils/color.js';
 import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
@@ -83,11 +84,21 @@ export const getTimeTravelStatus = (): ApiTimeTravelStatus => {
 
 export type EventTimelineBucket = {t: number; count: number};
 
+// Colour resolved here rather than on the client: getStringColor pulls in
+// chalk, which the GUI bundle cannot take.
+export type EventIdentity = {id: string; name: string; color: string};
+
 export type EventTimelineEntry = {
 	t: number;
 	action: EventAction;
 	// Phrased like a TUI log line — "Tagged with bug", "Commented".
 	label: string;
+	// Who performed the event. On a comment that is its author.
+	actor: EventIdentity | null;
+	// The tag or contributor the event is *about*, where it has one — the thing
+	// the scatter colours a tagging or assigning dot by.
+	tag: EventIdentity | null;
+	assignee: EventIdentity | null;
 };
 
 // Tag and contributor names come from the log's own create events rather than
@@ -136,6 +147,40 @@ const describeTimelineEvent = (
 	const action = event.action ? formatLogAction(event.action) : '';
 
 	return [action, detail].filter(Boolean).join(' ');
+};
+
+// A referenced id with no create event in the log still gets an entry, under
+// the id itself: dropping it would silently thin the filter's list.
+const identityFor = (
+	id: string | undefined,
+	names: Map<string, string>,
+): EventIdentity | null => {
+	if (!id) return null;
+
+	const name = names.get(id) ?? id;
+
+	return {id, name, color: getStringColor(name)};
+};
+
+const identitiesFor = (
+	event: AppEvent,
+	names: Map<string, string>,
+): Pick<EventTimelineEntry, 'actor' | 'tag' | 'assignee'> => {
+	const payload = event.payload as
+		| {tag?: string; assignee?: string}
+		| undefined;
+
+	return {
+		actor: event.userId
+			? {
+					id: event.userId,
+					name: event.userName ?? event.userId,
+					color: getStringColor(event.userName ?? event.userId),
+			  }
+			: null,
+		tag: identityFor(payload?.tag, names),
+		assignee: identityFor(payload?.assignee, names),
+	};
 };
 
 export type EventTimeline = {
@@ -221,9 +266,11 @@ export const getEventTimeline = async (
 		? filterEventsForBoard(eventsResult.value, input.boardId)
 		: eventsResult.value;
 
-	// Indexed over the whole scoped log, not the window, so an event whose tag
-	// was created before the window still resolves to a name.
-	const names = buildNameIndex(scopedEvents);
+	// Indexed over the unscoped log, and over all of it rather than the window.
+	// Tags and contributors are global — their create events hang off no board,
+	// so scoping first leaves every name unresolved and the timeline shows raw
+	// ULIDs where it means "bug" or "jola".
+	const names = buildNameIndex(eventsResult.value);
 
 	const timed = scopedEvents.flatMap(event => {
 		const t = getEventTime(event);
@@ -235,6 +282,7 @@ export const getEventTimeline = async (
 						t,
 						action: event.action,
 						label: describeTimelineEvent(event, names),
+						...identitiesFor(event, names),
 					},
 			  ];
 	});

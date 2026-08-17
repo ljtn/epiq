@@ -255,6 +255,50 @@ describe('epiq-time-travel', () => {
 			);
 		});
 
+		it('names a tag under a board scope, where create.tag itself is out of scope', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.board',
+					payload: {id: 'board-1', name: 'Default'},
+				},
+				// Hangs off no board, so filterEventsForBoard drops it.
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'create.tag',
+					payload: {id: 'tag-1', name: 'bug'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'add.issue',
+					payload: {id: 'issue-1', parent: 'board-1', name: 'Ship v2'},
+				},
+				{
+					id: ulid(baseTime + 3_000),
+					action: 'add.issue.tag',
+					payload: {id: 'issue-1', tag: 'tag-1'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline({boardId: 'board-1'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			const tagged = result.value.events.find(
+				entry => entry.action === 'add.issue.tag',
+			);
+
+			// The id would be the giveaway that the name never resolved.
+			expect(tagged?.tag?.name).toBe('bug');
+			expect(tagged?.label).toBe('Tagged with bug');
+		});
+
 		it('labels entries with the TUI log phrasing', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [

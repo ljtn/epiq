@@ -73,9 +73,20 @@ export type GuiState = {
 
 export type GuiEventTimelineBucket = {t: number; count: number};
 
+// Colour comes resolved from the server: deriving it here would pull in
+// lib/utils/color.ts, and with it chalk, which the GUI bundle cannot take.
+export type GuiEventIdentity = {id: string; name: string; color: string};
+
 // `action` mirrors the server's EventAction, `label` its TUI-style phrasing.
 // Both plain strings, so the client never imports the Node-side event model.
-export type GuiEventTimelineEntry = {t: number; action: string; label: string};
+export type GuiEventTimelineEntry = {
+	t: number;
+	action: string;
+	label: string;
+	actor: GuiEventIdentity | null;
+	tag: GuiEventIdentity | null;
+	assignee: GuiEventIdentity | null;
+};
 
 export type GuiEventTimeline = {
 	bucketMs: number;
