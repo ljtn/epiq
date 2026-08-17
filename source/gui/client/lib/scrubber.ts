@@ -37,7 +37,7 @@ export const EVENTS_MODE_VERTICAL_PADDING =
 export const HOVER_HINT_WIDTH = 220;
 
 // Must stay fainter than the bucket highlight drawn over it.
-export const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 158, 214, 0.07)';
+export const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 157, 214, 0.14)';
 export const BUCKET_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.06)';
 export const NEEDLE_COLOR = 'rgba(255, 255, 255, 0.62)';
 
@@ -261,6 +261,18 @@ export const listIdentities = (
 	}
 
 	return [...byId.values()];
+};
+
+// The one identity left when everything else in the view is hidden — reached by
+// unchecking down to one, or in a click via "only". Narrowed that far the series
+// no longer stands for a kind, it stands for that tag or person, so the bars and
+// the label take its colour and its name rather than the kind's.
+export const soleVisibleIdentity = (
+	identities: GuiEventIdentity[],
+	hiddenIds: ReadonlySet<string>,
+): GuiEventIdentity | null => {
+	const visible = identities.filter(identity => !hiddenIds.has(identity.id));
+	return visible.length === 1 ? visible[0]! : null;
 };
 
 export type EventDot = {

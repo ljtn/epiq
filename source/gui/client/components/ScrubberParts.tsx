@@ -27,6 +27,7 @@ import {
 	Segment,
 	BOARD_VIEWS,
 	boardViewColor,
+	soleVisibleIdentity,
 	identityAxisFor,
 	BoardView,
 	EventCategory,
@@ -49,11 +50,13 @@ const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	cursor: 'pointer',
 });
 
+// Nouns, not gerunds: these name what is plotted, and they double as the labels
+// on the identity lists underneath ("Tags" over a list of tags).
 const CATEGORY_LABELS: Record<EventCategory, string> = {
 	tickets: 'Tickets',
 	comments: 'Comments',
-	tagging: 'Tagging',
-	assigning: 'Assigning',
+	tagging: 'Tags',
+	assigning: 'Assignees',
 };
 
 // Bright enough to read as part of the control. At GUI_THEME.dim it sat so
@@ -69,10 +72,45 @@ const disclosureStyle: React.CSSProperties = {
 	cursor: 'pointer',
 };
 
+// "All board events" rather than "All": as the collapsed trigger it is the only
+// thing naming the series, and a bare "All" two controls from "All boards" says
+// nothing about which is which.
 const VIEW_LABELS: Record<BoardView, string> = {
-	all: 'All',
+	all: 'All board events',
 	...CATEGORY_LABELS,
 };
+
+// Fixed, not sized to its label: the selection changes as the thing is used,
+// and a trigger that grew with it would shove the scope buttons beside it out
+// from under the pointer. Wide enough for "Assignees: <a long name>".
+const SELECT_TRIGGER_WIDTH = 190;
+
+// A select. Filled rather than outlined, unlike the toggles beside it: it is the
+// only control here reporting a colour, and an outline in that colour drowned
+// out the text carrying it. The fill also separates a thing you open from the
+// things you switch.
+const selectTriggerStyle = (
+	color: string,
+	disabled: boolean,
+): React.CSSProperties => ({
+	display: 'inline-flex',
+	alignItems: 'center',
+	justifyContent: 'space-between',
+	gap: 6,
+	width: SELECT_TRIGGER_WIDTH,
+	boxSizing: 'border-box',
+	background: 'rgba(208, 223, 255, 0.08)',
+	// None, but padded as though there were, so it sits at the same height as
+	// the bordered toggles on either side.
+	border: 'none',
+	color: disabled ? GUI_THEME.dim : color,
+	borderRadius: 6,
+	fontFamily: 'inherit',
+	fontSize: 10,
+	padding: '3px 7px 3px 9px',
+	cursor: disabled ? 'not-allowed' : 'pointer',
+	opacity: disabled ? 0.4 : 1,
+});
 
 const nestedListStyle: React.CSSProperties = {
 	display: 'flex',
@@ -213,9 +251,12 @@ const Radio = ({
 	</button>
 );
 
-// "Board events" over its kinds, one drawn at a time. That is what
-// lets a colour mean one thing: "All" colours by kind, and any single kind
-// colours by the tag or person behind each event, never both at once.
+// A checkbox for the series and a select for what it draws, one kind at a time.
+// That is what lets a colour mean one thing: "All board events" colours by kind,
+// and any single kind colours by the tag or person behind each event, never both
+// at once. The trigger reads back whatever is selected, down to the one tag or
+// person left when the rest are unticked — the same name and colour the bars and
+// dots are then drawn in.
 const BoardSeriesGroup = ({
 	showIssues,
 	view,
@@ -229,7 +270,7 @@ const BoardSeriesGroup = ({
 	onToggleIdentity,
 	onOnlyIdentity,
 	onToggleExpanded,
-	onToggleIdentitiesExpanded,
+	onSetIdentitiesExpanded,
 }: {
 	showIssues: boolean;
 	view: BoardView;
@@ -245,13 +286,27 @@ const BoardSeriesGroup = ({
 	onToggleIdentity: (id: string, next: boolean) => void;
 	onOnlyIdentity: (id: string) => void;
 	onToggleExpanded: () => void;
-	onToggleIdentitiesExpanded: () => void;
+	onSetIdentitiesExpanded: (next: boolean) => void;
 }) => {
-	// Only the identity filter, now that the kind has a colour of its own to
-	// announce itself with. This is also exactly when the board below narrows,
-	// so the label says so — the board can be scrolled away from this control.
+	// Down to one tag or person, that identity *is* the series, so it gives the
+	// trigger its name and its colour. Several hidden and no single colour would
+	// be honest, so the trigger only says that it is narrowed.
+	const sole = soleVisibleIdentity(identities, hiddenIds);
 	const partial =
 		filtered && hiddenIds.size > 0 && identityAxisFor(view) !== null;
+
+	const label = sole
+		? `${VIEW_LABELS[view]}: ${sole.name}`
+		: partial
+		? `${VIEW_LABELS[view]} (filtered)`
+		: VIEW_LABELS[view];
+
+	const color =
+		sole?.color ?? (partial ? GUI_THEME.dim2 : boardViewColor(view));
+
+	// Where the server capped the window its buckets are pre-summed across every
+	// kind, so nothing in here is selectable. The select still opens — the greyed
+	// options are what says why, and a dead trigger would not.
 	const ref = useDismissOnOutsideClick(expanded, onToggleExpanded);
 
 	return (
@@ -259,31 +314,44 @@ const BoardSeriesGroup = ({
 			ref={ref}
 			style={{position: 'relative', display: 'flex', flexDirection: 'column'}}
 		>
-			<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
+			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+				{/* Unlabelled: the select beside it already names the series, and a
+				    second copy of the name would only compete with it. */}
 				<Checkbox
-					// Not just "Board": it sits two controls from "All boards", which
-					// decides something else entirely.
-					label={partial ? 'Board events (filtered)' : 'Board events'}
+					label={null}
+					title="Show board events"
 					checked={showIssues}
-					// Carries the selected kind's colour, so a collapsed group still
-					// says which one is drawn — and matches the bars and dots it
-					// controls. Dimmed instead when tags or people are hidden inside
-					// that kind, which has no colour of its own to show.
-					activeColor={partial ? GUI_THEME.dim2 : boardViewColor(view)}
+					activeColor={color}
 					onChange={onChangeShowIssues}
 				/>
 				<button
 					type="button"
 					onClick={onToggleExpanded}
-					title={expanded ? 'Hide event kinds' : 'Show event kinds'}
+					disabled={!showIssues}
+					title={
+						filtered
+							? 'Choose what the board series plots'
+							: 'This window holds too many events to split by kind'
+					}
+					aria-haspopup="listbox"
 					aria-expanded={expanded}
-					style={disclosureStyle}
+					style={selectTriggerStyle(color, !showIssues)}
 				>
-					{expanded ? (
+					{/* Clipped rather than wrapped: a tag name long enough to overflow
+					    is still recognisable from its start, and the open list spells it
+					    out in full. No title of its own — the button's explains more. */}
+					<span
+						style={{
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+						}}
+					>
+						{label}
+					</span>
+					<span style={{display: 'inline-flex', flexShrink: 0}}>
 						<IconChevronDown size={12} />
-					) : (
-						<IconChevronRight size={12} />
-					)}
+					</span>
 				</button>
 			</div>
 
@@ -291,7 +359,12 @@ const BoardSeriesGroup = ({
 				<div role="radiogroup" style={popoverStyle}>
 					{BOARD_VIEWS.map(option => {
 						const selected = view === option;
-						const expandable = selected && identities.length > 0;
+						// Drawn from the view alone, not from whether a list has been
+						// loaded for it: only the selected view has its identities to
+						// hand, and hiding the caret until then made every other row
+						// look like it had nothing under it.
+						const hasList = identityAxisFor(option) !== null;
+						const open = selected && identitiesExpanded;
 
 						return (
 							<div
@@ -306,19 +379,22 @@ const BoardSeriesGroup = ({
 										disabled={!showIssues || !filtered}
 										onSelect={() => onChangeView(option)}
 									/>
-									{expandable && (
+									{hasList && (
 										<button
 											type="button"
-											onClick={onToggleIdentitiesExpanded}
-											title={
-												identitiesExpanded
-													? 'Hide the list'
-													: 'Pick which to show'
-											}
-											aria-expanded={identitiesExpanded}
+											disabled={!showIssues || !filtered}
+											// From an unselected row this both selects and opens,
+											// which is the one thing anyone wants from a caret on a
+											// row that is not current.
+											onClick={() => {
+												if (!selected) onChangeView(option);
+												onSetIdentitiesExpanded(!open);
+											}}
+											title={open ? 'Hide the list' : 'Pick which to show'}
+											aria-expanded={open}
 											style={disclosureStyle}
 										>
-											{identitiesExpanded ? (
+											{open ? (
 												<IconChevronDown size={12} />
 											) : (
 												<IconChevronRight size={12} />
@@ -327,7 +403,7 @@ const BoardSeriesGroup = ({
 									)}
 								</div>
 
-								{expandable && identitiesExpanded && (
+								{open && identities.length > 0 && (
 									<div
 										style={{
 											...nestedListStyle,
@@ -413,7 +489,7 @@ export const ScrubberControls = ({
 	onToggleIdentity,
 	onOnlyIdentity,
 	onToggleCategoriesExpanded,
-	onToggleIdentitiesExpanded,
+	onSetIdentitiesExpanded,
 	onReturnToLive,
 }: {
 	scope: Scope;
@@ -444,7 +520,7 @@ export const ScrubberControls = ({
 	onToggleIdentity: (id: string, next: boolean) => void;
 	onOnlyIdentity: (id: string) => void;
 	onToggleCategoriesExpanded: () => void;
-	onToggleIdentitiesExpanded: () => void;
+	onSetIdentitiesExpanded: (next: boolean) => void;
 	onReturnToLive: () => void;
 }) => (
 	<div style={{display: 'flex', alignItems: 'center', gap: 12}}>
@@ -532,7 +608,7 @@ export const ScrubberControls = ({
 				onToggleIdentity={onToggleIdentity}
 				onOnlyIdentity={onOnlyIdentity}
 				onToggleExpanded={onToggleCategoriesExpanded}
-				onToggleIdentitiesExpanded={onToggleIdentitiesExpanded}
+				onSetIdentitiesExpanded={onSetIdentitiesExpanded}
 			/>
 			<Checkbox
 				label="Code"

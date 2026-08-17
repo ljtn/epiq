@@ -16,6 +16,7 @@ import {
 	issuePassesBoardFilter,
 	identityAxisFor,
 	listIdentities,
+	soleVisibleIdentity,
 	chooseSegmentUnit,
 	dotAppearAnimation,
 	dotEntranceScale,
@@ -590,6 +591,41 @@ describe('identity views', () => {
 		expect(
 			buildEventDots(window(), 'tickets', new Set([demo.id, jola.id])),
 		).toHaveLength(1);
+	});
+
+	describe('soleVisibleIdentity', () => {
+		const listed = () => listIdentities(window(), 'comments');
+
+		it('names the one identity left when the rest are hidden', () => {
+			expect(soleVisibleIdentity(listed(), new Set([jola.id]))?.name).toBe(
+				'demo',
+			);
+		});
+
+		it('is null while more than one is still shown', () => {
+			expect(soleVisibleIdentity(listed(), new Set())).toBeNull();
+		});
+
+		it('is null when everything is hidden', () => {
+			expect(soleVisibleIdentity(listed(), new Set([jola.id, demo.id]))).toBe(
+				null,
+			);
+		});
+
+		it('names the only identity a window holds, filter or not', () => {
+			// One tag in the whole window: the series really is that tag, whether
+			// anyone unticked their way down to it or it arrived alone.
+			expect(
+				soleVisibleIdentity(listIdentities(window(), 'tagging'), new Set())
+					?.name,
+			).toBe('bug');
+		});
+
+		it('has nothing to name in a view with no identity axis', () => {
+			expect(
+				soleVisibleIdentity(listIdentities(window(), 'all'), new Set()),
+			).toBeNull();
+		});
 	});
 });
 

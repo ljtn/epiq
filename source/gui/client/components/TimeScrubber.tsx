@@ -25,6 +25,7 @@ import {
 	EventDot,
 	isBoardView,
 	listIdentities,
+	soleVisibleIdentity,
 	formatInterval,
 	getPeriodRange,
 	hourFractionForTime,
@@ -315,6 +316,14 @@ export const TimeScrubber = ({
 	const identities = useMemo(
 		() => listIdentities(shown.timeline, boardView),
 		[shown, boardView],
+	);
+
+	// Filtered down to one tag or person, the bars are that identity and nothing
+	// else, so they take its colour rather than the kind's. The scatter already
+	// colours per identity, so this is what keeps the two layout modes agreeing.
+	const soleIdentity = useMemo(
+		() => soleVisibleIdentity(identities, hiddenIdentityIds),
+		[identities, hiddenIdentityIds],
 	);
 
 	const issueCounts = bucketIssueCounts(
@@ -668,8 +677,7 @@ export const TimeScrubber = ({
 				onOnlyIdentity: isolateIdentity,
 				onToggleCategoriesExpanded: () =>
 					setCategoriesExpanded(!categoriesExpanded),
-				onToggleIdentitiesExpanded: () =>
-					setIdentitiesExpanded(!identitiesExpanded),
+				onSetIdentitiesExpanded: setIdentitiesExpanded,
 				onReturnToLive,
 			}}
 			chart={{
@@ -687,7 +695,7 @@ export const TimeScrubber = ({
 				commitBars,
 				commitBarRange: populatedRange(commitBars),
 				scatterLayers,
-				issueSeriesColor: boardViewColor(boardView),
+				issueSeriesColor: soleIdentity?.color ?? boardViewColor(boardView),
 				dragging,
 				// Exits still need their animation, so this only silences a series
 				// that has finished arriving.
