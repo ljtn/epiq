@@ -123,8 +123,6 @@ test('a plain click then a shift-click selects both', async ({
 	console.log('[flow panel]', text);
 
 	expect(text).toContain('2 tickets selected');
-	expect(text).toContain(titles[0]!);
-	expect(text).toContain(titles[1]!);
 	expect(pageErrors).toEqual([]);
 });
 

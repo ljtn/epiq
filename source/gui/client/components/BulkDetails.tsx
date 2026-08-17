@@ -91,25 +91,6 @@ export const BulkDetails = ({
 				</Button>
 			</div>
 
-			<Section title="Tickets">
-				<div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
-					{issues.map(issue => (
-						<div
-							key={issue.id}
-							style={{
-								fontSize: 11,
-								color: GUI_THEME.secondary,
-								whiteSpace: 'nowrap',
-								overflow: 'hidden',
-								textOverflow: 'ellipsis',
-							}}
-						>
-							{issue.title}
-						</div>
-					))}
-				</div>
-			</Section>
-
 			<Section title="Tags">
 				<ChipRow>
 					{tags.length === 0 ? (
