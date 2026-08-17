@@ -1,13 +1,18 @@
 import {expect, test} from './fixtures.js';
 
-const pick = (title: string) => `
+const click = (title: string, modifier: boolean) => `
 (() => {
 	const card = [...document.querySelectorAll('div[draggable="true"]')]
 		.find(c => c.textContent.includes(${JSON.stringify(title)}));
-	card.dispatchEvent(new MouseEvent('click', {bubbles: true, metaKey: true}));
+	card.dispatchEvent(new MouseEvent('click', {
+		bubbles: true,
+		metaKey: ${String(modifier)},
+	}));
 	return true;
 })()
 `;
+
+const pick = (title: string) => click(title, true);
 
 const panel = `
 (() => {
@@ -27,16 +32,21 @@ test('picking several tickets opens a bulk overview', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	const boardUrl = page.url();
 
-	for (const title of ['Bulk one', 'Bulk two']) {
+	const tag = `B${Math.floor(Math.random() * 1e6)}`;
+	const titles = [`${tag}-one`, `${tag}-two`];
+
+	for (const title of titles) {
 		await page.getByRole('button', {name: '+', exact: true}).first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByRole('button', {name: 'create', exact: true}).click();
+		await page.waitForTimeout(1500);
 		await page.goto(boardUrl);
+		await page.waitForTimeout(500);
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 	}
 
-	await page.evaluate(pick('Bulk one'));
-	await page.evaluate(pick('Bulk two'));
+	await page.evaluate(pick(titles[0]!));
+	await page.evaluate(pick(titles[1]!));
 	await page.waitForTimeout(300);
 
 	const text = await page.evaluate<string | null>(panel);
@@ -70,11 +80,50 @@ test('picking several tickets opens a bulk overview', async ({
 
 	const tagged = await page.evaluate<number>(`
 		[...document.querySelectorAll('div[draggable="true"]')]
-			.filter(c => /Bulk (one|two)/.test(c.textContent) && c.textContent.includes('bulky'))
+			.filter(c => c.textContent.includes('${tag}-') && c.textContent.includes('bulky'))
 			.length
 	`);
 	console.log('[tagged]', tagged);
 
 	expect(tagged, 'both tickets should carry the tag').toBe(2);
+	expect(pageErrors).toEqual([]);
+});
+
+test('a plain click then a shift-click selects both', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const boardUrl = page.url();
+
+	const tag = `F${Math.floor(Math.random() * 1e6)}`;
+	const titles = [`${tag}-one`, `${tag}-two`];
+
+	for (const title of titles) {
+		await page.getByRole('button', {name: '+', exact: true}).first().click();
+		await page.getByPlaceholder('issue name').fill(title);
+		await page.getByRole('button', {name: 'create', exact: true}).click();
+		await page.waitForTimeout(1500);
+		await page.goto(boardUrl);
+		await page.waitForTimeout(500);
+		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
+	}
+
+	// Opens the ticket without picking it.
+	await page.evaluate(click(titles[0]!, false));
+	await page.waitForTimeout(400);
+
+	// Extends from the open one rather than starting over.
+	await page.evaluate(click(titles[1]!, true));
+	await page.waitForTimeout(400);
+
+	const text = await page.evaluate<string | null>(panel);
+	console.log('[flow panel]', text);
+
+	expect(text).toContain('2 tickets selected');
+	expect(text).toContain(titles[0]!);
+	expect(text).toContain(titles[1]!);
 	expect(pageErrors).toEqual([]);
 });

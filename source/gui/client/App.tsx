@@ -319,11 +319,17 @@ export const App = () => {
 	};
 
 	const togglePicked = (nextIssueId: string) => {
-		setPickedIssueIds(current =>
-			current.includes(nextIssueId)
-				? current.filter(id => id !== nextIssueId)
-				: [...current, nextIssueId],
-		);
+		setPickedIssueIds(current => {
+			// A plain click opens a ticket without picking it, so the first
+			// modifier-click extends from whatever is open rather than starting a
+			// selection that ignores it.
+			const base =
+				current.length === 0 && selectedIssue ? [selectedIssue.id] : current;
+
+			return base.includes(nextIssueId)
+				? base.filter(id => id !== nextIssueId)
+				: [...base, nextIssueId];
+		});
 	};
 
 	const clearPicked = () => setPickedIssueIds([]);
