@@ -166,9 +166,26 @@ export function initWorkspaceState(workspace: Workspace) {
  * Derived fields are always recomputed.
  * Callers can *read* full AppState via getState(), but can’t *write* derived keys.
  */
+// Deriving walks every node to rebuild the child index, so doing it per update
+// makes a replay quadratic: 1.4k events over a growing node set took 905ms,
+// and every doubling of the log quadrupled it. Inside a batch the base state is
+// kept up to date and the derived half is rebuilt once at the end.
+let deferring = false;
+let deferredBase: BaseState | null = null;
+
 export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	const prev = getState();
 	const nextBase = cb(prev);
+
+	if (deferring) {
+		deferredBase = nextBase;
+		// Readers inside the batch still see every base field — nodes, tags,
+		// contributors — just not the derived ones, which nothing writing events
+		// consults.
+		_appState = {...prev, ...nextBase};
+		return succeeded('State updated', null);
+	}
+
 	const deriveResult = derive(nextBase);
 	if (isFail(deriveResult)) {
 		return failed(deriveResult.message ?? 'Unable to update state');
@@ -176,6 +193,51 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	_appState = deriveResult.value;
 	emit();
 	return succeeded('State updated', null);
+}
+
+// Runs `fn` with derivation held back, then derives once. Nested calls join the
+// outermost batch, so a caller cannot accidentally derive mid-replay.
+export function withDeferredDerive<T>(fn: () => T): Result<T> {
+	if (deferring) return succeeded('Joined batch', fn());
+
+	deferring = true;
+	deferredBase = null;
+
+	// Applies whatever the batch wrote. Returns null when it wrote nothing —
+	// which is also the path a boot takes before its first event has built the
+	// workspace, so there is no state to derive from yet.
+	const flush = (): Result<null> | null => {
+		const base = deferredBase;
+
+		deferring = false;
+		deferredBase = null;
+
+		if (base === null) return null;
+
+		const deriveResult = derive(base);
+		if (isFail(deriveResult)) {
+			return failed(deriveResult.message ?? 'Unable to update state');
+		}
+
+		_appState = deriveResult.value;
+		emit();
+
+		return succeeded('State updated', null);
+	};
+
+	try {
+		const value = fn();
+		const flushed = flush();
+
+		return flushed && isFail(flushed)
+			? failed(flushed.message)
+			: succeeded('State updated', value);
+	} finally {
+		// Only reached when `fn` threw: the writes it managed are already in the
+		// base state, so deriving here stops a throw leaving the derived half
+		// stale for every reader afterwards.
+		if (deferring) flush();
+	}
 }
 
 export const patchState = (patch: Partial<BaseState>) =>

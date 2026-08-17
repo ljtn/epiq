@@ -15,7 +15,12 @@ import {
 import {FieldNames} from '../repository/fielNames.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
-import {getState, initWorkspaceState, updateState} from '../state/state.js';
+import {
+	getState,
+	initWorkspaceState,
+	updateState,
+	withDeferredDerive,
+} from '../state/state.js';
 import {materializeTicketVirtualNodes} from '../virtual-nodes/virtual-nodes.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
@@ -775,7 +780,19 @@ export function materialize<A extends EventAction>(
 	return result;
 }
 
+// One derive for the whole replay rather than one per event. Deriving rebuilds
+// an index over every node, so per-event it made replay quadratic — 1.4k events
+// took 905ms, and each doubling of the log quadrupled it.
 export const materializeAll = <const T extends readonly AppEvent[]>(
 	events: T,
-): MaterializeResults<T> =>
-	events.map(event => materialize(event)) as MaterializeResults<T>;
+): MaterializeResults<T> => {
+	const result = withDeferredDerive(
+		() => events.map(event => materialize(event)) as MaterializeResults<T>,
+	);
+
+	// A failed derive leaves the events applied to the base state either way;
+	// the caller reads the per-event results to decide what to do about it.
+	return isFail(result)
+		? (events.map(() => failed(result.message)) as MaterializeResults<T>)
+		: result.value;
+};
