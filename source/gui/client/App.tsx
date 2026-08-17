@@ -112,9 +112,12 @@ export const App = () => {
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs (full ids in old links still resolve).
+	// `boards` is optional-chained too: a repo with no epiq project yet sends a
+	// state with no boards at all, and indexing straight into it throws during
+	// render, unmounting the app to a white page.
 	const selectedBoard =
 		(state && boardId ? findBoard(state, boardId) : null) ??
-		state?.boards[0] ??
+		state?.boards?.[0] ??
 		null;
 
 	// The board's internal id, as opposed to `boardId` from the route, which is
@@ -300,8 +303,10 @@ export const App = () => {
 	}, [boardId, navigate]);
 
 	useEffect(() => {
-		if (!boardId && state?.boards[0]) {
-			void navigate(`/board/${state.boards[0].ref}`, {replace: true});
+		const first = state?.boards?.[0];
+
+		if (!boardId && first) {
+			void navigate(`/board/${first.ref}`, {replace: true});
 		}
 	}, [boardId, state, navigate]);
 
