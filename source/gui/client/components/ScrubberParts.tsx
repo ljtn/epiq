@@ -2,7 +2,7 @@
 // JSX out, no state but the needle's own hover. TimeScrubber owns the data and
 // arranges these; the maths they draw against lives in lib/scrubber.
 
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {EVENT_CATEGORY_COLORS, GUI_THEME} from '../lib/gui-theme';
 import {
 	barGrowAnimation,
@@ -69,10 +69,70 @@ const VIEW_LABELS: Record<BoardView, string> = {
 const nestedListStyle: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
-	gap: 3,
+	gap: 7,
 	marginLeft: 5,
 	paddingLeft: 8,
 	borderLeft: `1px solid ${GUI_THEME.line}`,
+};
+
+// Floated rather than in flow: the controls sit directly above the chart, and
+// a tree that grew the row would shove the very thing being filtered downward.
+const popoverStyle: React.CSSProperties = {
+	position: 'absolute',
+	top: '100%',
+	left: 0,
+	marginTop: 6,
+	padding: '8px 12px 8px 8px',
+	background: GUI_THEME.panel2,
+	border: `1px solid ${GUI_THEME.line}`,
+	borderRadius: 8,
+	boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+	// Above the dots and the needle, which sit at 1 and 2.
+	zIndex: 30,
+	whiteSpace: 'nowrap',
+};
+
+const onlyButtonStyle: React.CSSProperties = {
+	background: 'transparent',
+	border: `1px solid ${GUI_THEME.line}`,
+	borderRadius: 4,
+	color: GUI_THEME.dim,
+	fontFamily: 'inherit',
+	fontSize: 9,
+	lineHeight: 1,
+	padding: '2px 4px',
+	cursor: 'pointer',
+};
+
+// Closes on a click anywhere else, which is the half of "dropdown" that a bare
+// toggle leaves out.
+const useDismissOnOutsideClick = (
+	open: boolean,
+	onDismiss: () => void,
+): React.RefObject<HTMLDivElement | null> => {
+	const ref = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		if (!open) return;
+
+		const onPointerDown = (event: MouseEvent) => {
+			if (!ref.current?.contains(event.target as Node)) onDismiss();
+		};
+
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') onDismiss();
+		};
+
+		document.addEventListener('mousedown', onPointerDown);
+		document.addEventListener('keydown', onKeyDown);
+
+		return () => {
+			document.removeEventListener('mousedown', onPointerDown);
+			document.removeEventListener('keydown', onKeyDown);
+		};
+	}, [open, onDismiss]);
+
+	return ref;
 };
 
 // Drawn as a dot rather than a box, so a row picking one of several kinds never
@@ -151,6 +211,7 @@ const BoardSeriesGroup = ({
 	onChangeShowIssues,
 	onChangeView,
 	onToggleIdentity,
+	onOnlyIdentity,
 	onToggleExpanded,
 	onToggleIdentitiesExpanded,
 }: {
@@ -166,15 +227,20 @@ const BoardSeriesGroup = ({
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeView: (view: BoardView) => void;
 	onToggleIdentity: (id: string, next: boolean) => void;
+	onOnlyIdentity: (id: string) => void;
 	onToggleExpanded: () => void;
 	onToggleIdentitiesExpanded: () => void;
 }) => {
 	const partial = filtered && (view !== 'all' || hiddenIds.size > 0);
 	const colorFor = (option: BoardView) =>
 		option === 'all' ? GUI_THEME.accent : EVENT_CATEGORY_COLORS[option];
+	const ref = useDismissOnOutsideClick(expanded, onToggleExpanded);
 
 	return (
-		<div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+		<div
+			ref={ref}
+			style={{position: 'relative', display: 'flex', flexDirection: 'column'}}
+		>
 			<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
 				<Checkbox
 					label="Board"
@@ -200,7 +266,7 @@ const BoardSeriesGroup = ({
 			</div>
 
 			{expanded && (
-				<div role="radiogroup" style={nestedListStyle}>
+				<div role="radiogroup" style={popoverStyle}>
 					{BOARD_VIEWS.map(option => {
 						const selected = view === option;
 						const expandable = selected && identities.length > 0;
@@ -208,7 +274,7 @@ const BoardSeriesGroup = ({
 						return (
 							<div
 								key={option}
-								style={{display: 'flex', flexDirection: 'column', gap: 3}}
+								style={{display: 'flex', flexDirection: 'column', gap: 7}}
 							>
 								<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
 									<Radio
@@ -250,14 +316,32 @@ const BoardSeriesGroup = ({
 										}}
 									>
 										{identities.map(identity => (
-											<Checkbox
+											<div
 												key={identity.id}
-												label={identity.name}
-												checked={!hiddenIds.has(identity.id)}
-												activeColor={identity.color}
-												disabled={!showIssues}
-												onChange={next => onToggleIdentity(identity.id, next)}
-											/>
+												style={{
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'space-between',
+													gap: 10,
+												}}
+											>
+												<Checkbox
+													label={identity.name}
+													checked={!hiddenIds.has(identity.id)}
+													activeColor={identity.color}
+													disabled={!showIssues}
+													onChange={next => onToggleIdentity(identity.id, next)}
+												/>
+												<button
+													type="button"
+													title={`Show only ${identity.name}`}
+													disabled={!showIssues}
+													onClick={() => onOnlyIdentity(identity.id)}
+													style={onlyButtonStyle}
+												>
+													only
+												</button>
+											</div>
 										))}
 									</div>
 								)}
@@ -305,6 +389,7 @@ export const ScrubberControls = ({
 	onChangeAllBoards,
 	onChangeBoardView,
 	onToggleIdentity,
+	onOnlyIdentity,
 	onToggleCategoriesExpanded,
 	onToggleIdentitiesExpanded,
 	onReturnToLive,
@@ -335,6 +420,7 @@ export const ScrubberControls = ({
 	onChangeAllBoards: (next: boolean) => void;
 	onChangeBoardView: (view: BoardView) => void;
 	onToggleIdentity: (id: string, next: boolean) => void;
+	onOnlyIdentity: (id: string) => void;
 	onToggleCategoriesExpanded: () => void;
 	onToggleIdentitiesExpanded: () => void;
 	onReturnToLive: () => void;
@@ -422,6 +508,7 @@ export const ScrubberControls = ({
 				onChangeShowIssues={onChangeShowIssues}
 				onChangeView={onChangeBoardView}
 				onToggleIdentity={onToggleIdentity}
+				onOnlyIdentity={onOnlyIdentity}
 				onToggleExpanded={onToggleCategoriesExpanded}
 				onToggleIdentitiesExpanded={onToggleIdentitiesExpanded}
 			/>

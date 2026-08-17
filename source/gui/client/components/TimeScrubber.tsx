@@ -203,6 +203,30 @@ export const TimeScrubber = ({
 		localStorage.setItem(BOARD_VIEW_STORAGE_KEY, next);
 	};
 
+	// Toggles: isolating again restores the rest, so the button is a way back as
+	// well as a way in. Ticking each of a dozen tags to undo it is not.
+	const isolateIdentity = (id: string) => {
+		const others = identities
+			.filter(identity => identity.id !== id)
+			.map(identity => identity.id);
+
+		setHiddenIdentityIds(previous => {
+			const isolated =
+				!previous.has(id) &&
+				others.length === previous.size &&
+				others.every(other => previous.has(other));
+
+			const hidden = isolated ? new Set<string>() : new Set(others);
+
+			localStorage.setItem(
+				HIDDEN_IDENTITIES_STORAGE_KEY,
+				JSON.stringify([...hidden]),
+			);
+
+			return hidden;
+		});
+	};
+
 	const toggleIdentity = (id: string, next: boolean) => {
 		setHiddenIdentityIds(previous => {
 			const hidden = new Set(previous);
@@ -486,6 +510,7 @@ export const TimeScrubber = ({
 				categoriesFiltered,
 				onChangeBoardView: changeBoardView,
 				onToggleIdentity: toggleIdentity,
+				onOnlyIdentity: isolateIdentity,
 				onToggleCategoriesExpanded: () =>
 					setCategoriesExpanded(!categoriesExpanded),
 				onToggleIdentitiesExpanded: () =>
