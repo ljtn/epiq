@@ -14,9 +14,11 @@ import {
 	bucketIssueCounts,
 	buildAxis,
 	buildEventDots,
+	CategoryFilter,
 	chooseSegmentUnit,
 	clamp,
 	DOT_EXIT_TOTAL_MS,
+	EventCategory,
 	EventDot,
 	formatInterval,
 	getPeriodRange,
@@ -42,6 +44,8 @@ const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
 const ALL_BOARDS_STORAGE_KEY = 'epiq.timeScrubber.allBoards';
+const CATEGORY_STORAGE_PREFIX = 'epiq.timeScrubber.category.';
+const CATEGORIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.categoriesExpanded';
 
 const readStoredScope = (): Scope => {
 	const stored = localStorage.getItem(SCOPE_STORAGE_KEY);
@@ -95,6 +99,28 @@ export const TimeScrubber = ({
 	const [showCommits, setShowCommits] = usePersistedFlag(
 		SHOW_COMMITS_STORAGE_KEY,
 		true,
+	);
+	// One flag per kind rather than a stored record, so a category added later
+	// defaults to on instead of being absent from everyone's saved object.
+	const [showTickets, setShowTickets] = usePersistedFlag(
+		`${CATEGORY_STORAGE_PREFIX}tickets`,
+		true,
+	);
+	const [showComments, setShowComments] = usePersistedFlag(
+		`${CATEGORY_STORAGE_PREFIX}comments`,
+		true,
+	);
+	const [showTagging, setShowTagging] = usePersistedFlag(
+		`${CATEGORY_STORAGE_PREFIX}tagging`,
+		true,
+	);
+	const [showAssigning, setShowAssigning] = usePersistedFlag(
+		`${CATEGORY_STORAGE_PREFIX}assigning`,
+		true,
+	);
+	const [categoriesExpanded, setCategoriesExpanded] = usePersistedFlag(
+		CATEGORIES_EXPANDED_STORAGE_KEY,
+		false,
 	);
 	// Unlike the series toggles this changes what is fetched, not just what is
 	// drawn.
@@ -157,6 +183,19 @@ export const TimeScrubber = ({
 		setOffset(nextOffset);
 	};
 
+	// No armEntrance: the window is unchanged, so this filters what is already
+	// in hand rather than asking for a new view.
+	const changeCategory = (category: EventCategory, next: boolean) => {
+		const setters = {
+			tickets: setShowTickets,
+			comments: setShowComments,
+			tagging: setShowTagging,
+			assigning: setShowAssigning,
+		};
+
+		setters[category](next);
+	};
+
 	const changeAllBoards = (next: boolean) => {
 		armEntrance();
 		setAllBoards(next);
@@ -165,9 +204,26 @@ export const TimeScrubber = ({
 	// Memoized because hovering the track re-renders on every mouse move, and a
 	// window's worth of per-event dots is thousands of objects to rebuild.
 	const axis = useMemo(() => buildAxis(timeline, commits), [timeline, commits]);
-	const issueCounts = bucketIssueCounts(axis, timeline);
+
+	const categories = useMemo(
+		(): CategoryFilter => ({
+			tickets: showTickets,
+			comments: showComments,
+			tagging: showTagging,
+			assigning: showAssigning,
+		}),
+		[showTickets, showComments, showTagging, showAssigning],
+	);
+
+	// Only a window the server returned events for can be split by kind.
+	const categoriesFiltered = (timeline?.events.length ?? 0) > 0;
+
+	const issueCounts = bucketIssueCounts(axis, timeline, categories);
 	const commitStats = bucketCommitStats(axis, commits);
-	const eventDots = useMemo(() => buildEventDots(timeline), [timeline]);
+	const eventDots = useMemo(
+		() => buildEventDots(timeline, categories),
+		[timeline, categories],
+	);
 
 	// Two maxima, because a coarse bucket's count is a sum of many fine ones;
 	// normalizing every series against one max flattens the others. The scatter
@@ -397,6 +453,12 @@ export const TimeScrubber = ({
 				onChangeShowIssues: setShowIssues,
 				onChangeShowCommits: setShowCommits,
 				onChangeAllBoards: changeAllBoards,
+				categories,
+				categoriesExpanded,
+				categoriesFiltered,
+				onChangeCategory: changeCategory,
+				onToggleCategoriesExpanded: () =>
+					setCategoriesExpanded(!categoriesExpanded),
 				onReturnToLive,
 			}}
 			chart={{

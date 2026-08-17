@@ -117,8 +117,23 @@ export const buildAxis = (
 export const bucketIssueCounts = (
 	axis: ScrubberAxis,
 	timeline: GuiEventTimeline | null,
+	categories: CategoryFilter = ALL_CATEGORIES_ON,
 ): number[] => {
 	const counts = new Array<number>(axis.bucketCount).fill(0);
+
+	// Counted off the events where they exist, since only they carry the action
+	// a category filter needs. The buckets cannot be filtered — they arrive
+	// pre-summed across every kind — so past the server's cap the filter has
+	// nothing to act on and every category is counted.
+	if (timeline && timeline.events.length > 0) {
+		for (const entry of timeline.events) {
+			if (!categories[categoryOf(entry.action)]) continue;
+
+			counts[axis.bucketIndexForTime(entry.t)]! += 1;
+		}
+
+		return counts;
+	}
 
 	for (const sparseBucket of timeline?.buckets ?? []) {
 		counts[axis.bucketIndexForTime(sparseBucket.t)]! += sparseBucket.count;
@@ -151,6 +166,46 @@ export const bucketCommitStats = (
 	return byIndex;
 };
 
+export const EVENT_CATEGORIES = [
+	'tickets',
+	'comments',
+	'tagging',
+	'assigning',
+] as const;
+
+export type EventCategory = (typeof EVENT_CATEGORIES)[number];
+
+export type CategoryFilter = Record<EventCategory, boolean>;
+
+// Listed rather than matched on substrings: "attachment" and "assignee" both
+// read as near-misses for the tag and comment rules, and a wrong bucket here is
+// invisible until someone counts.
+const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
+	'add.issue.comment': 'comments',
+	'edit.issue.comment': 'comments',
+	'delete.issue.comment': 'comments',
+	'add.issue.tag': 'tagging',
+	'remove.issue.tag': 'tagging',
+	'create.tag': 'tagging',
+	'add.issue.assignee': 'assigning',
+	'remove.issue.assignee': 'assigning',
+	'create.contributor': 'assigning',
+	'tombstone.contributor': 'assigning',
+	'restore.contributor': 'assigning',
+	'link.contributor.user': 'assigning',
+};
+
+// Everything else is a change to a ticket or to the board holding it.
+export const categoryOf = (action: string): EventCategory =>
+	CATEGORY_BY_ACTION[action] ?? 'tickets';
+
+export const ALL_CATEGORIES_ON: CategoryFilter = {
+	tickets: true,
+	comments: true,
+	tagging: true,
+	assigning: true,
+};
+
 export type EventDot = {
 	key: string;
 	t: number;
@@ -159,6 +214,9 @@ export type EventDot = {
 	count: number | null;
 	// The event's own description on a per-event dot, null on the fallback.
 	label: string | null;
+	// null on the fallback, whose bucket mixes categories with no way to tell
+	// them apart. Drawn in the plain Board accent there.
+	category: EventCategory | null;
 	size: number;
 	opacity: number;
 };
@@ -173,19 +231,28 @@ const EVENT_DOT_OPACITY = 0.55;
 // there do size and opacity carry a count.
 export const buildEventDots = (
 	timeline: GuiEventTimeline | null,
+	categories: CategoryFilter = ALL_CATEGORIES_ON,
 ): EventDot[] => {
 	if (!timeline) return [];
 
 	if (timeline.events.length > 0) {
-		return timeline.events.map((entry, index) => ({
-			// Two events can share a millisecond, so the time alone is not a key.
-			key: `${entry.t}-${index}`,
-			t: entry.t,
-			count: null,
-			label: entry.label,
-			size: EVENT_DOT_SIZE,
-			opacity: EVENT_DOT_OPACITY,
-		}));
+		return timeline.events.flatMap((entry, index) => {
+			const category = categoryOf(entry.action);
+			if (!categories[category]) return [];
+
+			return [
+				{
+					// Two events can share a millisecond, so time alone is not a key.
+					key: `${entry.t}-${index}`,
+					t: entry.t,
+					count: null,
+					label: entry.label,
+					category,
+					size: EVENT_DOT_SIZE,
+					opacity: EVENT_DOT_OPACITY,
+				},
+			];
+		});
 	}
 
 	const maxCount = maxOf(
@@ -201,6 +268,7 @@ export const buildEventDots = (
 			t: bucket.t,
 			count: bucket.count,
 			label: null,
+			category: null,
 			size: 3 + intensity * 6,
 			opacity: 0.3 + intensity * 0.5,
 		};

@@ -3,7 +3,7 @@
 // arranges these; the maths they draw against lives in lib/scrubber.
 
 import {useEffect, useState} from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {EVENT_CATEGORY_COLORS, GUI_THEME} from '../lib/gui-theme';
 import {
 	barGrowAnimation,
 	BAR_ENTRANCE_TOTAL_MS,
@@ -22,6 +22,9 @@ import {
 	scopeButtonLabel,
 	SCOPES,
 	Segment,
+	CategoryFilter,
+	EVENT_CATEGORIES,
+	EventCategory,
 	SEGMENT_HIGHLIGHT_COLOR,
 	TRACK_HEIGHT,
 	VolumeBar,
@@ -39,6 +42,104 @@ const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	padding: '2px 8px',
 	cursor: 'pointer',
 });
+
+const CATEGORY_LABELS: Record<EventCategory, string> = {
+	tickets: 'Tickets',
+	comments: 'Comments',
+	tagging: 'Tagging',
+	assigning: 'Assigning',
+};
+
+const disclosureStyle: React.CSSProperties = {
+	background: 'transparent',
+	border: 'none',
+	padding: 0,
+	display: 'inline-flex',
+	alignItems: 'center',
+	color: GUI_THEME.dim,
+	cursor: 'pointer',
+};
+
+// "Board" with its four kinds folded underneath. The parent stays the master
+// switch — the children only choose what counts as a board event — so unticking
+// it still hides the series outright, animation and all.
+const BoardSeriesGroup = ({
+	showIssues,
+	categories,
+	expanded,
+	filtered,
+	onChangeShowIssues,
+	onChangeCategory,
+	onToggleExpanded,
+}: {
+	showIssues: boolean;
+	categories: CategoryFilter;
+	expanded: boolean;
+	filtered: boolean;
+	onChangeShowIssues: (next: boolean) => void;
+	onChangeCategory: (category: EventCategory, next: boolean) => void;
+	onToggleExpanded: () => void;
+}) => {
+	const partial =
+		filtered && EVENT_CATEGORIES.some(category => !categories[category]);
+
+	return (
+		<div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+			<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
+				<Checkbox
+					label="Board"
+					checked={showIssues}
+					// Dimmed while something underneath is off, so a collapsed group
+					// still shows that the series is not the whole story.
+					activeColor={partial ? GUI_THEME.dim2 : GUI_THEME.accent}
+					onChange={onChangeShowIssues}
+				/>
+				<button
+					type="button"
+					onClick={onToggleExpanded}
+					title={expanded ? 'Hide event kinds' : 'Show event kinds'}
+					aria-expanded={expanded}
+					style={disclosureStyle}
+				>
+					{expanded ? (
+						<IconChevronDown size={12} />
+					) : (
+						<IconChevronRight size={12} />
+					)}
+				</button>
+			</div>
+
+			{expanded && (
+				<div
+					style={{
+						display: 'flex',
+						flexDirection: 'column',
+						gap: 3,
+						marginLeft: 5,
+						paddingLeft: 8,
+						borderLeft: `1px solid ${GUI_THEME.line}`,
+					}}
+				>
+					{EVENT_CATEGORIES.map(category => (
+						<Checkbox
+							key={category}
+							label={CATEGORY_LABELS[category]}
+							checked={categories[category]}
+							activeColor={EVENT_CATEGORY_COLORS[category]}
+							disabled={!showIssues || !filtered}
+							title={
+								filtered
+									? undefined
+									: 'This window holds too many events to split by kind'
+							}
+							onChange={next => onChangeCategory(category, next)}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
+};
 
 const navButtonStyle: React.CSSProperties = {
 	background: 'transparent',
@@ -59,6 +160,9 @@ export const ScrubberControls = ({
 	showIssues,
 	showCommits,
 	allBoards,
+	categories,
+	categoriesExpanded,
+	categoriesFiltered,
 	isScrubbing,
 	nowLabel,
 	onChangeScope,
@@ -67,6 +171,8 @@ export const ScrubberControls = ({
 	onChangeShowIssues,
 	onChangeShowCommits,
 	onChangeAllBoards,
+	onChangeCategory,
+	onToggleCategoriesExpanded,
 	onReturnToLive,
 }: {
 	scope: Scope;
@@ -76,6 +182,11 @@ export const ScrubberControls = ({
 	showIssues: boolean;
 	showCommits: boolean;
 	allBoards: boolean;
+	categories: CategoryFilter;
+	categoriesExpanded: boolean;
+	// False where the server capped the window: the buckets it fell back to are
+	// pre-summed across every kind, so there is nothing to filter.
+	categoriesFiltered: boolean;
 	isScrubbing: boolean;
 	// What the live slot reads when not scrubbing: "Now", or the window's end.
 	nowLabel: string;
@@ -85,6 +196,8 @@ export const ScrubberControls = ({
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeShowCommits: (next: boolean) => void;
 	onChangeAllBoards: (next: boolean) => void;
+	onChangeCategory: (category: EventCategory, next: boolean) => void;
+	onToggleCategoriesExpanded: () => void;
 	onReturnToLive: () => void;
 }) => (
 	<div style={{display: 'flex', alignItems: 'center', gap: 12}}>
@@ -158,12 +271,15 @@ export const ScrubberControls = ({
 			</button>
 		</div>
 
-		<div style={{display: 'flex', gap: 10}}>
-			<Checkbox
-				label="Board"
-				checked={showIssues}
-				activeColor={GUI_THEME.accent}
-				onChange={onChangeShowIssues}
+		<div style={{display: 'flex', gap: 10, alignItems: 'flex-start'}}>
+			<BoardSeriesGroup
+				showIssues={showIssues}
+				categories={categories}
+				expanded={categoriesExpanded}
+				filtered={categoriesFiltered}
+				onChangeShowIssues={onChangeShowIssues}
+				onChangeCategory={onChangeCategory}
+				onToggleExpanded={onToggleCategoriesExpanded}
 			/>
 			<Checkbox
 				label="Code"

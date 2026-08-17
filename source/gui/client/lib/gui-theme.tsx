@@ -19,6 +19,17 @@ export const GUI_THEME = {
 	red: '#ff8787',
 };
 
+// The Board series split by what kind of change each event was. Tickets keeps
+// the accent, being both the bulk of the log and what "Board" meant before the
+// split; the rest are spaced around the wheel at a matching lightness. Green is
+// avoided throughout — that is the commit series.
+export const EVENT_CATEGORY_COLORS = {
+	tickets: GUI_THEME.accent,
+	comments: '#ffd479',
+	tagging: '#c9a5ff',
+	assigning: '#ff9ecd',
+} as const;
+
 export const getContrastTextColor = (backgroundColor: string): string => {
 	const hex = backgroundColor.replace('#', '');
 

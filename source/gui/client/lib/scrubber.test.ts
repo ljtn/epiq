@@ -6,6 +6,7 @@ import {
 	bucketIssueCounts,
 	buildAxis,
 	buildEventDots,
+	categoryOf,
 	chooseSegmentUnit,
 	dotAppearAnimation,
 	dotExitAnimation,
@@ -403,5 +404,97 @@ describe('buildEventDots', () => {
 
 	it('has no dots without a timeline', () => {
 		expect(buildEventDots(null)).toEqual([]);
+	});
+});
+
+describe('categoryOf', () => {
+	it('sorts each action into its series', () => {
+		expect(categoryOf('add.issue.comment')).toBe('comments');
+		expect(categoryOf('edit.issue.comment')).toBe('comments');
+		expect(categoryOf('add.issue.tag')).toBe('tagging');
+		expect(categoryOf('create.tag')).toBe('tagging');
+		expect(categoryOf('add.issue.assignee')).toBe('assigning');
+		expect(categoryOf('remove.issue.assignee')).toBe('assigning');
+		expect(categoryOf('add.issue')).toBe('tickets');
+		expect(categoryOf('move.node')).toBe('tickets');
+		expect(categoryOf('close.issue')).toBe('tickets');
+	});
+
+	it('does not mistake an attachment for a tag', () => {
+		// "attachment" and "assignee" both read as near-misses for the substring
+		// rules this deliberately avoids.
+		expect(categoryOf('add.issue.attachment')).toBe('tickets');
+		expect(categoryOf('delete.issue.attachment')).toBe('tickets');
+	});
+
+	it('files an unknown action under tickets rather than dropping it', () => {
+		expect(categoryOf('some.future.action')).toBe('tickets');
+	});
+});
+
+describe('category filtering', () => {
+	const mixed = () =>
+		timeline([{t: 0, count: 4}], {earliest: 0, latest: 10}, [
+			{t: 1, action: 'add.issue', label: 'Created'},
+			{t: 2, action: 'add.issue.comment', label: 'Commented'},
+			{t: 3, action: 'add.issue.tag', label: 'Tagged with bug'},
+			{t: 4, action: 'add.issue.assignee', label: 'Assigned to jola'},
+		]);
+
+	it('keeps only the ticked kinds', () => {
+		const dots = buildEventDots(mixed(), {
+			tickets: true,
+			comments: false,
+			tagging: false,
+			assigning: false,
+		});
+
+		expect(dots).toHaveLength(1);
+		expect(dots[0]!.category).toBe('tickets');
+	});
+
+	it('tags every dot with its category', () => {
+		const dots = buildEventDots(mixed());
+
+		expect(dots.map(dot => dot.category)).toEqual([
+			'tickets',
+			'comments',
+			'tagging',
+			'assigning',
+		]);
+	});
+
+	it('drops the filtered kinds from the bars too', () => {
+		const axis = buildAxis(mixed(), []);
+		const all = bucketIssueCounts(axis, mixed());
+		const some = bucketIssueCounts(axis, mixed(), {
+			tickets: true,
+			comments: true,
+			tagging: false,
+			assigning: false,
+		});
+
+		const total = (counts: number[]) => counts.reduce((a, b) => a + b, 0);
+
+		expect(total(all)).toBe(4);
+		expect(total(some)).toBe(2);
+	});
+
+	it('counts every kind where the server capped and sent only buckets', () => {
+		// No events to read an action off, so the filter has nothing to act on.
+		const capped = timeline([{t: 0, count: 7}]);
+		const axis = buildAxis(capped, []);
+
+		const counts = bucketIssueCounts(axis, capped, {
+			tickets: true,
+			comments: false,
+			tagging: false,
+			assigning: false,
+		});
+
+		expect(counts.reduce((a, b) => a + b, 0)).toBe(7);
+		expect(buildEventDots(capped).every(dot => dot.category === null)).toBe(
+			true,
+		);
 	});
 });

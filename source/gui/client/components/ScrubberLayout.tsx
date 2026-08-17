@@ -4,7 +4,7 @@
 
 import {memo} from 'react';
 import {GuiCommitEntry} from '../lib/gui-state.model';
-import {GUI_THEME} from '../lib/gui-theme';
+import {EVENT_CATEGORY_COLORS, GUI_THEME} from '../lib/gui-theme';
 import {
 	dotAppearAnimation,
 	dotExitAnimation,
@@ -69,7 +69,11 @@ const IssueScatter = memo(
 					fraction={axis.fractionForTime(dot.t)}
 					hourFraction={hourFractionForTime(dot.t)}
 					size={dot.size}
-					color={GUI_THEME.accent}
+					color={
+						dot.category
+							? EVENT_CATEGORY_COLORS[dot.category]
+							: GUI_THEME.accent
+					}
 					opacity={dot.opacity}
 					zIndex={2}
 					title={`${
