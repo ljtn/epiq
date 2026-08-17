@@ -11,7 +11,6 @@ export const TicketCard = ({
 	commentCount,
 	onOpenComments,
 	onSelect,
-	onDragStart,
 	onDragOverIssue,
 	onDropIssueAt,
 }: {
@@ -21,7 +20,6 @@ export const TicketCard = ({
 	onSelect: () => void;
 	commentCount: number;
 	onOpenComments: (issueId: string) => void;
-	onDragStart: (issueId: string) => void;
 	onDragOverIssue: (targetIndex: number) => void;
 	onDropIssueAt: (issueId: string, targetIndex: number) => void;
 }) => {
@@ -32,10 +30,12 @@ export const TicketCard = ({
 		<div
 			draggable={!ticket.readonly}
 			onClick={onSelect}
+			// Carries the id and nothing else. Selecting here would navigate to
+			// the issue route mid-drag, remounting the board under the pointer so
+			// the drop never lands.
 			onDragStart={event => {
 				event.dataTransfer.effectAllowed = 'move';
 				event.dataTransfer.setData('text/plain', ticket.id);
-				onDragStart(ticket.id);
 			}}
 			onDragOver={event => {
 				event.preventDefault();
