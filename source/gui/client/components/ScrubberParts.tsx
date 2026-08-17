@@ -209,7 +209,7 @@ const Radio = ({
 	</button>
 );
 
-// "Board" over its kinds, of which exactly one is drawn at a time. That is what
+// "Board events" over its kinds, one drawn at a time. That is what
 // lets a colour mean one thing: "All" colours by kind, and any single kind
 // colours by the tag or person behind each event, never both at once.
 const BoardSeriesGroup = ({
@@ -255,7 +255,9 @@ const BoardSeriesGroup = ({
 		>
 			<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
 				<Checkbox
-					label="Board"
+					// Not just "Board": it sits two controls from "All boards", which
+					// decides something else entirely.
+					label="Board events"
 					checked={showIssues}
 					// Carries the selected kind's colour, so a collapsed group still
 					// says which one is drawn — and matches the bars and dots it
