@@ -295,6 +295,12 @@ export const dotDetail = (dot: EventDot): string => {
 		: base;
 };
 
+// Past this the per-dot entrance is dropped and the layer's own fade carries
+// the series in. Measured on a 2.2k-dot window: staggering that many CSS
+// animations cost ~480ms of main-thread blocking against ~155ms to build the
+// nodes at all, and at that density the twinkle reads as a shimmer anyway.
+export const DOT_ANIMATION_LIMIT = 400;
+
 // Fixed, because a per-event dot has no count to encode. Matches the commit
 // scatter, which has always been one dot per commit.
 const EVENT_DOT_SIZE = 4;
@@ -755,4 +761,54 @@ export const usePersistedFlag = (
 			localStorage.setItem(key, String(next));
 		},
 	];
+};
+
+// ---------------------------------------------------------------- board filter
+
+// What the scrubber's selection means for the board below it. Null when the
+// selection narrows nothing, so the board is left alone.
+export type BoardFilter = {
+	axis: 'actor' | 'tag' | 'assignee';
+	visibleIds: ReadonlySet<string>;
+};
+
+// Only a narrowed selection filters the board. A kind with everything still
+// ticked is a colouring choice, not a question about which tickets matter.
+export const buildBoardFilter = (
+	view: BoardView,
+	identities: GuiEventIdentity[],
+	hiddenIds: ReadonlySet<string>,
+): BoardFilter | null => {
+	const axis = identityAxisFor(view);
+	if (axis === null || hiddenIds.size === 0) return null;
+
+	const visibleIds = new Set(
+		identities.map(identity => identity.id).filter(id => !hiddenIds.has(id)),
+	);
+
+	return {axis, visibleIds};
+};
+
+// Read off the board's own state, which is already the state at the needle —
+// so a filtered board answers "who/what, as of here", matching the moment the
+// scrubber is parked on rather than the events inside the window.
+export const issuePassesBoardFilter = (
+	issue: {
+		id: string;
+		tags: {id: string}[];
+		assignees: {id: string}[];
+	},
+	commentAuthorIds: readonly string[],
+	filter: BoardFilter | null,
+): boolean => {
+	if (!filter) return true;
+
+	const ids =
+		filter.axis === 'tag'
+			? issue.tags.map(tag => tag.id)
+			: filter.axis === 'assignee'
+			? issue.assignees.map(assignee => assignee.id)
+			: commentAuthorIds;
+
+	return ids.some(id => filter.visibleIds.has(id));
 };

@@ -6,6 +6,7 @@ import {memo} from 'react';
 import {GuiCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
+	DOT_ANIMATION_LIMIT,
 	dotAppearAnimation,
 	dotDetail,
 	dotExitAnimation,
@@ -62,26 +63,33 @@ const IssueScatter = memo(
 		leaving: boolean;
 		onEnter: (dot: EventDot) => void;
 		onLeave: () => void;
-	}) => (
-		<>
-			{dots.map(dot => (
-				<ScatterDot
-					key={dot.key}
-					fraction={axis.fractionForTime(dot.t)}
-					hourFraction={hourFractionForTime(dot.t)}
-					size={dot.size}
-					color={dot.color}
-					opacity={dot.opacity}
-					zIndex={2}
-					title={`${dotDetail(dot)}, ${formatDateTime(new Date(dot.t))}`}
-					animation={dotAnimation(dot.key, animate, leaving)}
-					interactive={!leaving}
-					onMouseEnter={() => onEnter(dot)}
-					onMouseLeave={onLeave}
-				/>
-			))}
-		</>
-	),
+	}) => {
+		// Gated here rather than by the caller: the layer's own fade still runs,
+		// so a dense series still animates in, just as one thing instead of
+		// thousands.
+		const animateDots = animate && dots.length <= DOT_ANIMATION_LIMIT;
+
+		return (
+			<>
+				{dots.map(dot => (
+					<ScatterDot
+						key={dot.key}
+						fraction={axis.fractionForTime(dot.t)}
+						hourFraction={hourFractionForTime(dot.t)}
+						size={dot.size}
+						color={dot.color}
+						opacity={dot.opacity}
+						zIndex={2}
+						title={`${dotDetail(dot)}, ${formatDateTime(new Date(dot.t))}`}
+						animation={dotAnimation(dot.key, animateDots, leaving)}
+						interactive={!leaving}
+						onMouseEnter={() => onEnter(dot)}
+						onMouseLeave={onLeave}
+					/>
+				))}
+			</>
+		);
+	},
 );
 
 // Memoized for the same reason as IssueScatter. `hoveredSha` is a prop rather
@@ -106,29 +114,35 @@ const CommitScatter = memo(
 		onEnter: (commit: GuiCommitEntry) => void;
 		onLeave: () => void;
 		onInspect: (sha: string) => void;
-	}) => (
-		<>
-			{commits.map(commit => (
-				<ScatterDot
-					key={commit.sha}
-					fraction={axis.fractionForTime(commit.time)}
-					hourFraction={hourFractionForTime(commit.time)}
-					size={4}
-					color={GUI_THEME.green}
-					opacity={hoveredSha === commit.sha ? 1 : 0.55}
-					zIndex={1}
-					title={`${formatDateTime(new Date(commit.time))} — ${
-						commit.subject
-					} — ${commit.author} (${commit.linesChanged.toLocaleString()} lines)`}
-					animation={dotAnimation(commit.sha, animate, leaving)}
-					interactive={!leaving}
-					onClick={() => onInspect(commit.sha)}
-					onMouseEnter={() => onEnter(commit)}
-					onMouseLeave={onLeave}
-				/>
-			))}
-		</>
-	),
+	}) => {
+		const animateDots = animate && commits.length <= DOT_ANIMATION_LIMIT;
+
+		return (
+			<>
+				{commits.map(commit => (
+					<ScatterDot
+						key={commit.sha}
+						fraction={axis.fractionForTime(commit.time)}
+						hourFraction={hourFractionForTime(commit.time)}
+						size={4}
+						color={GUI_THEME.green}
+						opacity={hoveredSha === commit.sha ? 1 : 0.55}
+						zIndex={1}
+						title={`${formatDateTime(new Date(commit.time))} — ${
+							commit.subject
+						} — ${
+							commit.author
+						} (${commit.linesChanged.toLocaleString()} lines)`}
+						animation={dotAnimation(commit.sha, animateDots, leaving)}
+						interactive={!leaving}
+						onClick={() => onInspect(commit.sha)}
+						onMouseEnter={() => onEnter(commit)}
+						onMouseLeave={onLeave}
+					/>
+				))}
+			</>
+		);
+	},
 );
 
 export type HintContent = {
