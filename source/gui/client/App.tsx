@@ -1,5 +1,10 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
+import {
+	useMatch,
+	useNavigate,
+	useParams,
+	useSearchParams,
+} from 'react-router-dom';
 import {ASIDE_WIDTH} from './components/Aside';
 import {Button} from './components/Button';
 import {CreateIssueModal} from './components/CreateIssueModal';
@@ -49,10 +54,16 @@ export const DropIndicator = () => (
 );
 
 export const App = () => {
-	const {boardId, issueId} = useParams<{
-		boardId: string;
-		issueId?: string;
-	}>();
+	const {boardId} = useParams<{boardId: string}>();
+
+	// Read off the path rather than from route params: one route element serves
+	// every board path, so selecting a ticket cannot swap the element and
+	// remount the board.
+	const issueMatch = useMatch('/board/:boardId/issue/:issueId');
+	// Legacy form without the /issue/ segment, so old links keep working.
+	const legacyIssueMatch = useMatch('/board/:boardId/:issueId');
+	const issueId =
+		issueMatch?.params.issueId ?? legacyIssueMatch?.params.issueId;
 
 	const [searchParams, setSearchParams] = useSearchParams();
 
