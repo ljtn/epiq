@@ -295,11 +295,22 @@ export const dotDetail = (dot: EventDot): string => {
 		: base;
 };
 
-// Past this the per-dot entrance is dropped and the layer's own fade carries
-// the series in. Measured on a 2.2k-dot window: staggering that many CSS
-// animations cost ~480ms of main-thread blocking against ~155ms to build the
-// nodes at all, and at that density the twinkle reads as a shimmer anyway.
-export const DOT_ANIMATION_LIMIT = 400;
+// How many dots may twinkle at once. Setting the animations up is cheap —
+// ~13ms for 2.2k of them in isolation — but running that many composited
+// scale animations is not, and the cost climbs faster than their number: on a
+// 2.2k-dot window it was ~480ms of blocking. A dense series twinkles a
+// spread-out sample of this size instead, and the rest arrive on the layer's
+// own fade, so the sky still comes alive.
+//
+// Measured on that window: 400 and 600 both cost ~159ms in one long task,
+// while 900 climbs to ~220ms and a second. 600 is the most stars the single
+// task holds.
+export const DOT_ANIMATION_LIMIT = 600;
+
+// Every nth dot, so the twinkle stays spread across the whole field rather
+// than clustering at one end.
+export const dotAnimationStride = (count: number): number =>
+	count > DOT_ANIMATION_LIMIT ? Math.ceil(count / DOT_ANIMATION_LIMIT) : 1;
 
 // Fixed, because a per-event dot has no count to encode. Matches the commit
 // scatter, which has always been one dot per commit.

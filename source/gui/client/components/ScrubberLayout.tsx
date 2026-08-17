@@ -7,6 +7,7 @@ import {GuiCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	DOT_ANIMATION_LIMIT,
+	dotAnimationStride,
 	dotAppearAnimation,
 	dotDetail,
 	dotExitAnimation,
@@ -64,14 +65,11 @@ const IssueScatter = memo(
 		onEnter: (dot: EventDot) => void;
 		onLeave: () => void;
 	}) => {
-		// Gated here rather than by the caller: the layer's own fade still runs,
-		// so a dense series still animates in, just as one thing instead of
-		// thousands.
-		const animateDots = animate && dots.length <= DOT_ANIMATION_LIMIT;
+		const stride = dotAnimationStride(dots.length);
 
 		return (
 			<>
-				{dots.map(dot => (
+				{dots.map((dot, index) => (
 					<ScatterDot
 						key={dot.key}
 						fraction={axis.fractionForTime(dot.t)}
@@ -81,7 +79,11 @@ const IssueScatter = memo(
 						opacity={dot.opacity}
 						zIndex={2}
 						title={`${dotDetail(dot)}, ${formatDateTime(new Date(dot.t))}`}
-						animation={dotAnimation(dot.key, animateDots, leaving)}
+						animation={dotAnimation(
+							dot.key,
+							animate && index % stride === 0,
+							leaving,
+						)}
 						interactive={!leaving}
 						onMouseEnter={() => onEnter(dot)}
 						onMouseLeave={onLeave}
@@ -115,11 +117,11 @@ const CommitScatter = memo(
 		onLeave: () => void;
 		onInspect: (sha: string) => void;
 	}) => {
-		const animateDots = animate && commits.length <= DOT_ANIMATION_LIMIT;
+		const stride = dotAnimationStride(commits.length);
 
 		return (
 			<>
-				{commits.map(commit => (
+				{commits.map((commit, index) => (
 					<ScatterDot
 						key={commit.sha}
 						fraction={axis.fractionForTime(commit.time)}
@@ -133,7 +135,11 @@ const CommitScatter = memo(
 						} — ${
 							commit.author
 						} (${commit.linesChanged.toLocaleString()} lines)`}
-						animation={dotAnimation(commit.sha, animateDots, leaving)}
+						animation={dotAnimation(
+							commit.sha,
+							animate && index % stride === 0,
+							leaving,
+						)}
 						interactive={!leaving}
 						onClick={() => onInspect(commit.sha)}
 						onMouseEnter={() => onEnter(commit)}
