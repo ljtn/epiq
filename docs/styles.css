@@ -194,7 +194,7 @@ pre {
 }
 
 .hero {
-	padding: 46px 0 54px;
+	padding: 46px 0 32px;
 }
 .hero-grid {
 	display: grid;
@@ -1334,7 +1334,7 @@ h2 {
 @media (max-width: 620px) {
 	.hero-placeholder {
 		min-height: 0;
-		padding: 20px 0;
+		padding: 10px 0;
 		overflow: hidden;
 	}
 	.hero-placeholder > img {
