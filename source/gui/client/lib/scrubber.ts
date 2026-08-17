@@ -396,10 +396,11 @@ export const hourFractionForTime = (time: number): number => {
 // ------------------------------------------------------------------- segments
 
 // Finest first — chooseSegmentUnit relies on the order.
-const SEGMENT_UNIT_ORDER = ['day', 'week', 'month', 'year'] as const;
+const SEGMENT_UNIT_ORDER = ['hour', 'day', 'week', 'month', 'year'] as const;
 export type SegmentUnit = (typeof SEGMENT_UNIT_ORDER)[number];
 
 const APPROX_UNIT_MS: Record<SegmentUnit, number> = {
+	hour: 60 * 60 * 1000,
 	day: 24 * 60 * 60 * 1000,
 	week: 7 * 24 * 60 * 60 * 1000,
 	month: 30.44 * 24 * 60 * 60 * 1000,
@@ -432,7 +433,8 @@ const MONTH_LABELS = [
 ];
 
 const advanceByUnit = (date: Date, unit: SegmentUnit): void => {
-	if (unit === 'day') date.setDate(date.getDate() + 1);
+	if (unit === 'hour') date.setHours(date.getHours() + 1);
+	else if (unit === 'day') date.setDate(date.getDate() + 1);
 	else if (unit === 'week') date.setDate(date.getDate() + 7);
 	else if (unit === 'month') date.setMonth(date.getMonth() + 1);
 	else date.setFullYear(date.getFullYear() + 1);
@@ -444,7 +446,11 @@ export type Segment = {start: number; end: number; label: string};
 // keeps midnight at midnight across DST, where a day is 23 or 25 hours long.
 export const segmentAt = (time: number, unit: SegmentUnit): Segment => {
 	const start = new Date(time);
-	start.setHours(0, 0, 0, 0);
+
+	// The hour keeps its own hour and clears below it; every coarser unit snaps
+	// to midnight first.
+	if (unit === 'hour') start.setMinutes(0, 0, 0);
+	else start.setHours(0, 0, 0, 0);
 
 	if (unit === 'week') {
 		// Snap back to Monday (getDay is Sunday-based, so rotate it).
@@ -463,7 +469,12 @@ export const segmentAt = (time: number, unit: SegmentUnit): Segment => {
 	const lastDay = new Date(end.getTime() - 1);
 
 	const label =
-		unit === 'day'
+		unit === 'hour'
+			? `${WEEKDAY_LABELS[start.getDay()]} ${String(start.getHours()).padStart(
+					2,
+					'0',
+			  )}:00`
+			: unit === 'day'
 			? `${WEEKDAY_LABELS[start.getDay()]} ${start.getDate()} ${
 					MONTH_LABELS[start.getMonth()]
 			  }`
@@ -495,16 +506,26 @@ export const formatInterval = (start: number, end: number): string => {
 
 // --------------------------------------------------------------------- scope
 
-export type Scope = 'all' | 'week' | 'month' | 'year';
+export type Scope = 'all' | 'day' | 'week' | 'month' | 'year';
 
 export type PeriodRange = {start: number; end: number};
 
-export const SCOPES: readonly Scope[] = ['week', 'month', 'year', 'all'];
+export const SCOPES: readonly Scope[] = ['day', 'week', 'month', 'year', 'all'];
 
 const SCOPE_DURATION_MS: Record<Exclude<Scope, 'all'>, number> = {
+	day: 24 * 60 * 60 * 1000,
 	week: 7 * 24 * 60 * 60 * 1000,
 	month: 30 * 24 * 60 * 60 * 1000,
 	year: 365 * 24 * 60 * 60 * 1000,
+};
+
+// Every window is a rolling one ending now, so these read as durations back
+// from now rather than as calendar periods.
+const SCOPE_RECENT_LABELS: Record<Exclude<Scope, 'all'>, string> = {
+	day: 'Last 24 hours',
+	week: 'Last 7 days',
+	month: 'Last 30 days',
+	year: 'Last 365 days',
 };
 
 export const isScope = (value: string | null): value is Scope =>
@@ -529,13 +550,7 @@ export const formatPeriodLabel = (
 ): string => {
 	if (scope === 'all' || !range) return 'All time';
 
-	if (offset === 0) {
-		return scope === 'week'
-			? 'Last 7 days'
-			: scope === 'month'
-			? 'Last 30 days'
-			: 'Last 365 days';
-	}
+	if (offset === 0) return SCOPE_RECENT_LABELS[scope];
 
 	const start = new Date(range.start);
 	const end = new Date(range.end);

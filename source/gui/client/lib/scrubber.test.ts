@@ -23,6 +23,7 @@ import {
 	hourFractionForTime,
 	isScope,
 	populatedRange,
+	SCOPES,
 	SCRUBBER_KEYFRAMES,
 	segmentAt,
 } from './scrubber';
@@ -195,6 +196,9 @@ describe('populatedRange', () => {
 
 describe('chooseSegmentUnit', () => {
 	it('picks the finest unit that fits inside the segment budget', () => {
+		// A day's span would otherwise land on one day-wide segment covering the
+		// whole track, leaving the hover highlight with nothing to say.
+		expect(chooseSegmentUnit(DAY)).toBe('hour');
 		expect(chooseSegmentUnit(7 * DAY)).toBe('day');
 		expect(chooseSegmentUnit(120 * DAY)).toBe('week');
 		expect(chooseSegmentUnit(2 * 365 * DAY)).toBe('month');
@@ -582,5 +586,51 @@ describe('identity views', () => {
 		expect(
 			buildEventDots(window(), 'tickets', new Set([demo.id, jola.id])),
 		).toHaveLength(1);
+	});
+});
+
+describe('day scope', () => {
+	it('is offered as the finest scope', () => {
+		expect(SCOPES[0]).toBe('day');
+		expect(isScope('day')).toBe(true);
+	});
+
+	it('spans the 24 hours ending now', () => {
+		const range = getPeriodRange('day', 0);
+
+		expect(range).not.toBeNull();
+		expect(range!.end - range!.start).toBe(DAY);
+	});
+
+	it('steps back a day at a time', () => {
+		const now = getPeriodRange('day', 0)!;
+		const back = getPeriodRange('day', 2)!;
+
+		expect(Math.round((now.end - back.end) / DAY)).toBe(2);
+	});
+
+	it('labels the current window by duration', () => {
+		expect(formatPeriodLabel('day', 0, getPeriodRange('day', 0))).toBe(
+			'Last 24 hours',
+		);
+	});
+});
+
+describe('hour segments', () => {
+	it('snaps to the top of the hour and runs one hour', () => {
+		const {start, end, label} = segmentAt(
+			new Date(2026, 7, 16, 14, 37).getTime(),
+			'hour',
+		);
+
+		expect(new Date(start).getMinutes()).toBe(0);
+		expect(end - start).toBe(60 * 60 * 1000);
+		expect(label).toBe('Sun 14:00');
+	});
+
+	it('pads the hour so labels stay the same width', () => {
+		expect(segmentAt(new Date(2026, 7, 16, 9, 5).getTime(), 'hour').label).toBe(
+			'Sun 09:00',
+		);
 	});
 });
