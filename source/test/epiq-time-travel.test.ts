@@ -220,6 +220,41 @@ describe('epiq-time-travel', () => {
 			]);
 		});
 
+		it('keeps comments, which hang off `issue` rather than `parent`', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.board',
+					payload: {id: 'board-1', name: 'Default'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'add.issue',
+					payload: {id: 'issue-1', parent: 'board-1', name: 'Ship v2'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'add.issue.comment',
+					// `id` is the comment's own, the link is `issue`.
+					payload: {id: 'comment-1', issue: 'issue-1', md: 'hi'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline({boardId: 'board-1'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.map(entry => entry.action)).toContain(
+				'add.issue.comment',
+			);
+		});
+
 		it('labels entries with the TUI log phrasing', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [

@@ -175,7 +175,11 @@ export const filterEventsForBoard = (
 	const matching: AppEvent[] = [];
 
 	for (const event of events) {
-		const payload = event.payload as {id?: string; parent?: string};
+		const payload = event.payload as {
+			id?: string;
+			parent?: string;
+			issue?: string;
+		};
 		const id = payload?.id;
 		if (!id) continue;
 
@@ -184,8 +188,13 @@ export const filterEventsForBoard = (
 			boardIds.add(id);
 		}
 
-		if (payload.parent) {
-			parentById.set(id, payload.parent);
+		// Comments and attachments hang off `issue`: their `id` is the comment's
+		// or attachment's own, so without this they resolve to no board at all
+		// and drop out of every board-scoped view.
+		const parent = payload.parent ?? payload.issue;
+
+		if (parent) {
+			parentById.set(id, parent);
 		}
 
 		if (id === boardId || resolveBoard(id) === boardId) {
