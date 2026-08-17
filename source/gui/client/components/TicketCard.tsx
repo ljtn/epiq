@@ -1,3 +1,4 @@
+import {useEffect, useRef} from 'react';
 import {GuiComment, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {CopyRef} from './CopyRef';
@@ -27,11 +28,26 @@ export const TicketCard = ({
 	onDragOverIssue: (targetIndex: number) => void;
 	onDropIssueAt: (issueId: string, targetIndex: number) => void;
 }) => {
+	const cardRef = useRef<HTMLDivElement | null>(null);
+
+	// Opening the details panel takes 440px off the board, which can leave the
+	// card that was just clicked behind it.
+	useEffect(() => {
+		if (!isSelected) return;
+
+		cardRef.current?.scrollIntoView({
+			behavior: 'smooth',
+			block: 'nearest',
+			inline: 'nearest',
+		});
+	}, [isSelected]);
+
 	const getVisualTargetIndex = (isAfterMiddle: boolean) =>
 		index + (isAfterMiddle ? 1 : 0);
 
 	return (
 		<div
+			ref={cardRef}
 			draggable={!ticket.readonly}
 			// Stopped here, or the board's own click handler would clear the
 			// selection this click just made.
