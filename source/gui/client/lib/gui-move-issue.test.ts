@@ -27,7 +27,7 @@ describe('moveIssue', () => {
 		const deferred: React.Dispatch<React.SetStateAction<GuiState | null>> =
 			vi.fn();
 
-		moveIssue(state(), deferred, send)('a', 'doing', 1);
+		moveIssue(state(), deferred, send)(['a'], 'doing', 1);
 
 		expect(send).toHaveBeenCalledTimes(1);
 		expect(send).toHaveBeenCalledWith('issues:move', {
@@ -46,7 +46,7 @@ describe('moveIssue', () => {
 					: (update as GuiState);
 		};
 
-		moveIssue(state(), setState as never, vi.fn())('a', 'doing', 'end');
+		moveIssue(state(), setState as never, vi.fn())(['a'], 'doing', 'end');
 
 		const lanes = next!.boards[0]!.swimlanes;
 		expect(lanes[0]!.issues.map(i => i.id)).toEqual([]);
@@ -56,10 +56,30 @@ describe('moveIssue', () => {
 	it('does nothing when the issue or lane is unknown', () => {
 		const send = vi.fn();
 
-		moveIssue(state(), vi.fn(), send)('nope', 'doing', 0);
-		moveIssue(state(), vi.fn(), send)('a', 'nope', 0);
-		moveIssue(null, vi.fn(), send)('a', 'doing', 0);
+		moveIssue(state(), vi.fn(), send)(['nope'], 'doing', 0);
+		moveIssue(state(), vi.fn(), send)(['a'], 'nope', 0);
+		moveIssue(null, vi.fn(), send)(['a'], 'doing', 0);
 
 		expect(send).not.toHaveBeenCalled();
+	});
+});
+
+describe('moveIssue with a selection', () => {
+	it('sends one move per ticket, keeping their order', () => {
+		const send = vi.fn();
+
+		moveIssue(state(), vi.fn(), send)(['a', 'x'], 'doing', 0);
+
+		expect(send).toHaveBeenCalledTimes(2);
+		expect(send.mock.calls.map(call => call[1].issueId)).toEqual(['a', 'x']);
+	});
+
+	it('skips a ticket it cannot place without dropping the rest', () => {
+		const send = vi.fn();
+
+		moveIssue(state(), vi.fn(), send)(['nope', 'a'], 'doing', 'end');
+
+		expect(send).toHaveBeenCalledTimes(1);
+		expect(send.mock.calls[0]![1].issueId).toBe('a');
 	});
 });

@@ -121,17 +121,27 @@ export const moveIssue =
 		// every other one.
 		send: (type: string, payload: unknown) => void,
 	) =>
-	(issueId: string, parentId: string, targetIndex: number | 'end') => {
+	(
+		issueIds: readonly string[],
+		parentId: string,
+		targetIndex: number | 'end',
+	) => {
 		if (!state) return;
 
-		const move = findMove(state, issueId, parentId, targetIndex);
-		if (!move) return;
+		// Applied one at a time against the running state, so the second ticket
+		// lands after the first rather than both resolving against the board as
+		// it looked before the drop.
+		let running = state;
 
-		setState(current =>
-			current
-				? applyMove(current, issueId, parentId, targetIndex, move.movedIssue)
-				: current,
-		);
+		for (const [offset, issueId] of issueIds.entries()) {
+			const index = targetIndex === 'end' ? 'end' : targetIndex + offset;
+			const move = findMove(running, issueId, parentId, index);
+			if (!move) continue;
 
-		send('issues:move', {issueId, parentId, position: move.position});
+			running = applyMove(running, issueId, parentId, index, move.movedIssue);
+			send('issues:move', {issueId, parentId, position: move.position});
+		}
+
+		const next = running;
+		setState(current => (current ? next : current));
 	};

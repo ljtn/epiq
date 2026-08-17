@@ -8,6 +8,7 @@ export const TicketCard = ({
 	ticket,
 	index,
 	isSelected,
+	isPicked,
 	commentCount,
 	onOpenComments,
 	onSelect,
@@ -17,7 +18,10 @@ export const TicketCard = ({
 	ticket: GuiIssue;
 	index: number;
 	isSelected: boolean;
-	onSelect: () => void;
+	// Part of a multi-ticket selection, which reads differently from the one
+	// ticket whose details are open.
+	isPicked: boolean;
+	onSelect: (options: {toggle: boolean}) => void;
 	commentCount: number;
 	onOpenComments: (issueId: string) => void;
 	onDragOverIssue: (targetIndex: number) => void;
@@ -29,7 +33,9 @@ export const TicketCard = ({
 	return (
 		<div
 			draggable={!ticket.readonly}
-			onClick={onSelect}
+			onClick={event =>
+				onSelect({toggle: event.metaKey || event.ctrlKey || event.shiftKey})
+			}
 			// Carries the id and nothing else. Selecting here would navigate to
 			// the issue route mid-drag, remounting the board under the pointer so
 			// the drop never lands.
@@ -62,17 +68,24 @@ export const TicketCard = ({
 				display: 'flex',
 				alignItems: 'flex-start',
 				gap: 10,
-				color: isSelected ? GUI_THEME.accent : GUI_THEME.primary,
+				color: isSelected || isPicked ? GUI_THEME.accent : GUI_THEME.primary,
 				fontSize: 11,
 				cursor: ticket.readonly ? 'default' : 'grab',
-				background: isSelected
-					? 'rgba(118,228,255,0.08)'
-					: 'rgba(185, 192, 255, 0.06)',
+				background:
+					isSelected || isPicked
+						? 'rgba(118,228,255,0.08)'
+						: 'rgba(185, 192, 255, 0.06)',
 				padding: '10px 8px',
 				minHeight: '58px',
 				borderRadius: '8px',
 				marginBottom: 4,
-				border: `1px solid ${isSelected ? GUI_THEME.accent : 'transparent'}`,
+				border: `1px solid ${
+					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
+				}`,
+				// Only the multi-selection is outlined, so it stays legible when the
+				// details panel is closed.
+				outline: isPicked ? `1px solid ${GUI_THEME.accent}` : undefined,
+				outlineOffset: 1,
 			}}
 		>
 			<div

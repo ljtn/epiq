@@ -6,6 +6,7 @@ import {CreateIssueModal} from './components/CreateIssueModal';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
+import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {ErrorToast} from './components/ErrorToast';
@@ -82,6 +83,9 @@ export const App = () => {
 		null,
 	);
 	const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+	// Tickets picked for a bulk action. The route still tracks the single ticket
+	// whose details are open, which is a different thing.
+	const [pickedIssueIds, setPickedIssueIds] = useState<string[]>([]);
 	const [boardMenuOpen, setBoardMenuOpen] = useState(false);
 	const [createIssueModal, setCreateIssueModal] = useState<{
 		swimlaneId: string;
@@ -314,7 +318,37 @@ export const App = () => {
 		sendSocketJson(socketRef.current, {type, payload});
 	};
 
-	const selectIssue = (nextIssueId: string) => {
+	const togglePicked = (nextIssueId: string) => {
+		setPickedIssueIds(current =>
+			current.includes(nextIssueId)
+				? current.filter(id => id !== nextIssueId)
+				: [...current, nextIssueId],
+		);
+	};
+
+	const clearPicked = () => setPickedIssueIds([]);
+
+	const [bulkTagName, setBulkTagName] = useState('');
+	const [bulkAssigneeName, setBulkAssigneeName] = useState('');
+
+	// Every selected ticket, in board order, so the panel lists them the way the
+	// columns do.
+	const pickedIssues = (state?.boards ?? [])
+		.flatMap(board => board.swimlanes)
+		.flatMap(swimlane => swimlane.issues)
+		.filter(issue => pickedIssueIds.includes(issue.id));
+
+	// Each bulk action fans out to the per-issue message, so the server needs no
+	// bulk API and every change stays one auditable event.
+	const forPicked = (act: (issueId: string) => void) => {
+		for (const issue of pickedIssues) act(issue.id);
+	};
+
+	const selectIssue = (nextIssueId: string, {toggle} = {toggle: false}) => {
+		if (toggle) return togglePicked(nextIssueId);
+
+		clearPicked();
+
 		if (!boardSlug) return;
 
 		void navigate(
@@ -540,6 +574,7 @@ export const App = () => {
 	// board's people on screen until the next open re-fetches.
 	useEffect(() => {
 		setContributors([]);
+		setPickedIssueIds([]);
 	}, [selectedBoardId]);
 
 	const inspectCommit = useCallback((sha: string) => {
@@ -846,7 +881,19 @@ export const App = () => {
 								onSelectIssue={selectIssue}
 								onSelectIssueComments={selectIssueComments}
 								onCreateIssue={openCreateIssueModal}
-								onDropIssue={moveIssue(state, setState, send)}
+								onDropIssue={(issueId, swimlaneId, targetIndex) => {
+									const moving = pickedIssueIds.includes(issueId)
+										? pickedIssueIds
+										: [issueId];
+
+									moveIssue(state, setState, send)(
+										moving,
+										swimlaneId,
+										targetIndex,
+									);
+									clearPicked();
+								}}
+								pickedIssueIds={pickedIssueIds}
 								onDragOver={setDragOverSwimlaneId}
 								onDragOverIssue={(swimlaneId, index) =>
 									setDropTarget({swimlaneId, index})
@@ -865,7 +912,39 @@ export const App = () => {
 					</div>
 				</main>
 
-				{selectedIssue && state?.user && (
+				{pickedIssues.length > 1 && (
+					<BulkDetails
+						issues={pickedIssues}
+						knownTags={state?.tags ?? []}
+						knownAssignees={contributors}
+						tagName={bulkTagName}
+						assigneeName={bulkAssigneeName}
+						onChangeTagName={setBulkTagName}
+						onChangeAssigneeName={setBulkAssigneeName}
+						onAddTag={name => {
+							forPicked(id => addIssueTag(id, name));
+							setBulkTagName('');
+						}}
+						onRemoveTag={tagId => forPicked(id => removeIssueTag(id, tagId))}
+						onAddAssignee={assigneeId =>
+							forPicked(id => addIssueAssignee(id, assigneeId))
+						}
+						onRemoveAssignee={assigneeId =>
+							forPicked(id => removeIssueAssignee(id, assigneeId))
+						}
+						onCloseIssues={() => {
+							forPicked(closeIssue);
+							clearPicked();
+						}}
+						onReopenIssues={() => {
+							forPicked(reopenIssue);
+							clearPicked();
+						}}
+						onClear={clearPicked}
+					/>
+				)}
+
+				{pickedIssues.length <= 1 && selectedIssue && state?.user && (
 					<IssueDetails
 						whoAmI={state.user}
 						issue={selectedIssue}
