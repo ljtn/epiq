@@ -8,7 +8,13 @@ import {
 	isSameDay,
 } from '../../../lib/utils/date.utils.js';
 import {maxOf, minOf} from '../../../lib/utils/minmax.js';
-import {GuiCommitEntry, GuiEventTimeline} from './gui-state.model';
+import {
+	GuiCommitEntry,
+	GuiEventIdentity,
+	GuiEventTimeline,
+	GuiEventTimelineEntry,
+} from './gui-state.model';
+import {EVENT_CATEGORY_COLORS, GUI_THEME} from './gui-theme';
 
 export const clamp = (value: number, min: number, max: number) =>
 	Math.min(max, Math.max(min, value));
@@ -117,17 +123,18 @@ export const buildAxis = (
 export const bucketIssueCounts = (
 	axis: ScrubberAxis,
 	timeline: GuiEventTimeline | null,
-	categories: CategoryFilter = ALL_CATEGORIES_ON,
+	view: BoardView = 'all',
+	hiddenIds: ReadonlySet<string> = new Set(),
 ): number[] => {
 	const counts = new Array<number>(axis.bucketCount).fill(0);
 
 	// Counted off the events where they exist, since only they carry the action
-	// a category filter needs. The buckets cannot be filtered — they arrive
+	// and identity a filter needs. The buckets cannot be filtered — they arrive
 	// pre-summed across every kind — so past the server's cap the filter has
-	// nothing to act on and every category is counted.
+	// nothing to act on and everything is counted.
 	if (timeline && timeline.events.length > 0) {
 		for (const entry of timeline.events) {
-			if (!categories[categoryOf(entry.action)]) continue;
+			if (!isShown(entry, view, hiddenIds)) continue;
 
 			counts[axis.bucketIndexForTime(entry.t)]! += 1;
 		}
@@ -175,7 +182,28 @@ export const EVENT_CATEGORIES = [
 
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
-export type CategoryFilter = Record<EventCategory, boolean>;
+// What the Board series is showing. 'all' draws every kind and colours by kind;
+// picking one kind draws only it and colours by the identity behind each event.
+// Exactly one at a time, which is what keeps a colour from meaning two things.
+export type BoardView = 'all' | EventCategory;
+
+export const BOARD_VIEWS: BoardView[] = ['all', ...EVENT_CATEGORIES];
+
+export const isBoardView = (value: unknown): value is BoardView =>
+	BOARD_VIEWS.includes(value as BoardView);
+
+// Which side of the event a view colours by. Tickets has none — every event is
+// somebody changing a ticket, so it stays the plain Board accent.
+export const identityAxisFor = (
+	view: BoardView,
+): 'actor' | 'tag' | 'assignee' | null =>
+	view === 'comments'
+		? 'actor'
+		: view === 'tagging'
+		? 'tag'
+		: view === 'assigning'
+		? 'assignee'
+		: null;
 
 // Listed rather than matched on substrings: "attachment" and "assignee" both
 // read as near-misses for the tag and comment rules, and a wrong bucket here is
@@ -199,11 +227,35 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 export const categoryOf = (action: string): EventCategory =>
 	CATEGORY_BY_ACTION[action] ?? 'tickets';
 
-export const ALL_CATEGORIES_ON: CategoryFilter = {
-	tickets: true,
-	comments: true,
-	tagging: true,
-	assigning: true,
+// The identity a view colours by, or null where the event has none — an
+// assigning view over a `create.contributor`, say.
+export const identityOf = (
+	entry: GuiEventTimelineEntry,
+	view: BoardView,
+): GuiEventIdentity | null => {
+	const axis = identityAxisFor(view);
+	return axis === null ? null : entry[axis];
+};
+
+// Every identity present in the window under this view, in first-seen order.
+// Doubles as the filter's legend, so it lists what is actually there rather
+// than every tag or contributor the repo has ever had.
+export const listIdentities = (
+	timeline: GuiEventTimeline | null,
+	view: BoardView,
+): GuiEventIdentity[] => {
+	if (!timeline || identityAxisFor(view) === null) return [];
+
+	const byId = new Map<string, GuiEventIdentity>();
+
+	for (const entry of timeline.events) {
+		if (categoryOf(entry.action) !== view) continue;
+
+		const identity = identityOf(entry, view);
+		if (identity && !byId.has(identity.id)) byId.set(identity.id, identity);
+	}
+
+	return [...byId.values()];
 };
 
 export type EventDot = {
@@ -217,8 +269,25 @@ export type EventDot = {
 	// null on the fallback, whose bucket mixes categories with no way to tell
 	// them apart. Drawn in the plain Board accent there.
 	category: EventCategory | null;
+	// Resolved here rather than by the renderer, which would otherwise need to
+	// know which of the three colour rules applies.
+	color: string;
+	// What the dot is coloured by under the current view, for its hint.
+	identity: GuiEventIdentity | null;
 	size: number;
 	opacity: number;
+};
+
+// What a dot says when hovered. The identity is appended only where the label
+// does not already carry it: "Tagged with bug" names its tag, "Commented" does
+// not name its author.
+export const dotDetail = (dot: EventDot): string => {
+	const base =
+		dot.label ?? `${dot.count ?? 0} board event${dot.count === 1 ? '' : 's'}`;
+
+	return dot.identity && !base.includes(dot.identity.name)
+		? `${base} — ${dot.identity.name}`
+		: base;
 };
 
 // Fixed, because a per-event dot has no count to encode. Matches the commit
@@ -229,16 +298,34 @@ const EVENT_DOT_OPACITY = 0.55;
 // The scatter plots each dot at its own timestamp, so it wants events, not
 // buckets. Buckets are the fallback for a window the server capped, and only
 // there do size and opacity carry a count.
+// An event is drawn when its kind matches the view and the identity it would be
+// coloured by has not been unticked. An event with no identity under this view
+// always shows: there is nothing in the list for the user to have hidden it by.
+const isShown = (
+	entry: GuiEventTimelineEntry,
+	view: BoardView,
+	hiddenIds: ReadonlySet<string>,
+): boolean => {
+	if (view !== 'all' && categoryOf(entry.action) !== view) return false;
+
+	const identity = identityOf(entry, view);
+
+	return identity === null || !hiddenIds.has(identity.id);
+};
+
 export const buildEventDots = (
 	timeline: GuiEventTimeline | null,
-	categories: CategoryFilter = ALL_CATEGORIES_ON,
+	view: BoardView = 'all',
+	hiddenIds: ReadonlySet<string> = new Set(),
 ): EventDot[] => {
 	if (!timeline) return [];
 
 	if (timeline.events.length > 0) {
 		return timeline.events.flatMap((entry, index) => {
+			if (!isShown(entry, view, hiddenIds)) return [];
+
 			const category = categoryOf(entry.action);
-			if (!categories[category]) return [];
+			const identity = identityOf(entry, view);
 
 			return [
 				{
@@ -248,6 +335,11 @@ export const buildEventDots = (
 					count: null,
 					label: entry.label,
 					category,
+					color:
+						view === 'all'
+							? EVENT_CATEGORY_COLORS[category]
+							: identity?.color ?? GUI_THEME.accent,
+					identity,
 					size: EVENT_DOT_SIZE,
 					opacity: EVENT_DOT_OPACITY,
 				},
@@ -269,6 +361,8 @@ export const buildEventDots = (
 			count: bucket.count,
 			label: null,
 			category: null,
+			color: GUI_THEME.accent,
+			identity: null,
 			size: 3 + intensity * 6,
 			opacity: 0.3 + intensity * 0.5,
 		};

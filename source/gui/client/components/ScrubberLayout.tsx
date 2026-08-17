@@ -4,9 +4,10 @@
 
 import {memo} from 'react';
 import {GuiCommitEntry} from '../lib/gui-state.model';
-import {EVENT_CATEGORY_COLORS, GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME} from '../lib/gui-theme';
 import {
 	dotAppearAnimation,
+	dotDetail,
 	dotExitAnimation,
 	EVENTS_MODE_VERTICAL_PADDING,
 	EVENTS_SCATTER_HEIGHT,
@@ -69,16 +70,10 @@ const IssueScatter = memo(
 					fraction={axis.fractionForTime(dot.t)}
 					hourFraction={hourFractionForTime(dot.t)}
 					size={dot.size}
-					color={
-						dot.category
-							? EVENT_CATEGORY_COLORS[dot.category]
-							: GUI_THEME.accent
-					}
+					color={dot.color}
 					opacity={dot.opacity}
 					zIndex={2}
-					title={`${
-						dot.label ?? `${dot.count} change${dot.count === 1 ? '' : 's'}`
-					}, ${formatDateTime(new Date(dot.t))}`}
+					title={`${dotDetail(dot)}, ${formatDateTime(new Date(dot.t))}`}
 					animation={dotAnimation(dot.key, animate, leaving)}
 					interactive={!leaving}
 					onMouseEnter={() => onEnter(dot)}

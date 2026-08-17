@@ -1,5 +1,10 @@
 import {describe, expect, it} from 'vitest';
-import {GuiCommitEntry, GuiEventTimeline} from './gui-state.model';
+import {
+	GuiCommitEntry,
+	GuiEventIdentity,
+	GuiEventTimeline,
+	GuiEventTimelineEntry,
+} from './gui-state.model';
 import {
 	bucketCommitStats,
 	bucketCountForSpan,
@@ -7,6 +12,8 @@ import {
 	buildAxis,
 	buildEventDots,
 	categoryOf,
+	identityAxisFor,
+	listIdentities,
 	chooseSegmentUnit,
 	dotAppearAnimation,
 	dotExitAnimation,
@@ -30,10 +37,30 @@ const commit = (time: number, linesChanged = 1): GuiCommitEntry => ({
 	linesChanged,
 });
 
+const person = (name: string): GuiEventIdentity => ({
+	id: `id-${name}`,
+	name,
+	color: `#${name.length}${name.length}${name.length}fff`.slice(0, 7),
+});
+
+const entry = (
+	t: number,
+	action: string,
+	extra: Partial<GuiEventTimelineEntry> = {},
+): GuiEventTimelineEntry => ({
+	t,
+	action,
+	label: action,
+	actor: null,
+	tag: null,
+	assignee: null,
+	...extra,
+});
+
 const timeline = (
 	buckets: {t: number; count: number}[],
 	bounds?: {earliest: number; latest: number},
-	events: {t: number; action: string; label: string}[] = [],
+	events: GuiEventTimelineEntry[] = [],
 ): GuiEventTimeline => ({
 	bucketMs: DAY,
 	buckets,
@@ -348,9 +375,9 @@ describe('buildEventDots', () => {
 		// merged them, the per-event one must not.
 		const dots = buildEventDots(
 			timeline([{t: 100, count: 3}], undefined, [
-				{t: 100, action: 'add.issue', label: 'Created with title "Ship v2"'},
-				{t: 140, action: 'add.issue.tag', label: 'Tagged with bug'},
-				{t: 180, action: 'add.issue.comment', label: 'Commented'},
+				entry(100, 'add.issue', {label: 'Created with title "Ship v2"'}),
+				entry(140, 'add.issue.tag', {label: 'Tagged with bug'}),
+				entry(180, 'add.issue.comment', {label: 'Commented'}),
 			]),
 		);
 
@@ -366,8 +393,8 @@ describe('buildEventDots', () => {
 	it('keys events sharing a millisecond apart', () => {
 		const dots = buildEventDots(
 			timeline([{t: 5, count: 2}], undefined, [
-				{t: 5, action: 'add.issue', label: 'add.issue'},
-				{t: 5, action: 'close.issue', label: 'close.issue'},
+				entry(5, 'add.issue', {label: 'add.issue'}),
+				entry(5, 'close.issue', {label: 'close.issue'}),
 			]),
 		);
 
@@ -377,8 +404,8 @@ describe('buildEventDots', () => {
 	it('sizes per-event dots uniformly, having no count to encode', () => {
 		const dots = buildEventDots(
 			timeline([{t: 1, count: 9}], undefined, [
-				{t: 1, action: 'add.issue', label: 'add.issue'},
-				{t: 2, action: 'add.issue', label: 'add.issue'},
+				entry(1, 'add.issue', {label: 'add.issue'}),
+				entry(2, 'add.issue', {label: 'add.issue'}),
 			]),
 		);
 
@@ -435,19 +462,14 @@ describe('categoryOf', () => {
 describe('category filtering', () => {
 	const mixed = () =>
 		timeline([{t: 0, count: 4}], {earliest: 0, latest: 10}, [
-			{t: 1, action: 'add.issue', label: 'Created'},
-			{t: 2, action: 'add.issue.comment', label: 'Commented'},
-			{t: 3, action: 'add.issue.tag', label: 'Tagged with bug'},
-			{t: 4, action: 'add.issue.assignee', label: 'Assigned to jola'},
+			entry(1, 'add.issue', {label: 'Created'}),
+			entry(2, 'add.issue.comment', {label: 'Commented'}),
+			entry(3, 'add.issue.tag', {label: 'Tagged with bug'}),
+			entry(4, 'add.issue.assignee', {label: 'Assigned to jola'}),
 		]);
 
-	it('keeps only the ticked kinds', () => {
-		const dots = buildEventDots(mixed(), {
-			tickets: true,
-			comments: false,
-			tagging: false,
-			assigning: false,
-		});
+	it('draws only the selected kind', () => {
+		const dots = buildEventDots(mixed(), 'tickets');
 
 		expect(dots).toHaveLength(1);
 		expect(dots[0]!.category).toBe('tickets');
@@ -464,20 +486,15 @@ describe('category filtering', () => {
 		]);
 	});
 
-	it('drops the filtered kinds from the bars too', () => {
+	it('drops the other kinds from the bars too', () => {
 		const axis = buildAxis(mixed(), []);
 		const all = bucketIssueCounts(axis, mixed());
-		const some = bucketIssueCounts(axis, mixed(), {
-			tickets: true,
-			comments: true,
-			tagging: false,
-			assigning: false,
-		});
+		const some = bucketIssueCounts(axis, mixed(), 'comments');
 
 		const total = (counts: number[]) => counts.reduce((a, b) => a + b, 0);
 
 		expect(total(all)).toBe(4);
-		expect(total(some)).toBe(2);
+		expect(total(some)).toBe(1);
 	});
 
 	it('counts every kind where the server capped and sent only buckets', () => {
@@ -485,16 +502,85 @@ describe('category filtering', () => {
 		const capped = timeline([{t: 0, count: 7}]);
 		const axis = buildAxis(capped, []);
 
-		const counts = bucketIssueCounts(axis, capped, {
-			tickets: true,
-			comments: false,
-			tagging: false,
-			assigning: false,
-		});
+		const counts = bucketIssueCounts(axis, capped, 'tickets');
 
 		expect(counts.reduce((a, b) => a + b, 0)).toBe(7);
 		expect(buildEventDots(capped).every(dot => dot.category === null)).toBe(
 			true,
 		);
+	});
+});
+
+describe('identity views', () => {
+	const jola = person('jola');
+	const demo = person('demo');
+	const bug = person('bug');
+
+	const window = () =>
+		timeline([{t: 0, count: 5}], {earliest: 0, latest: 10}, [
+			entry(1, 'add.issue.comment', {actor: jola}),
+			entry(2, 'add.issue.comment', {actor: demo}),
+			entry(3, 'add.issue.comment', {actor: jola}),
+			entry(4, 'add.issue.tag', {actor: jola, tag: bug}),
+			entry(5, 'add.issue', {actor: demo}),
+		]);
+
+	it('colours by the side of the event the view is about', () => {
+		expect(identityAxisFor('comments')).toBe('actor');
+		expect(identityAxisFor('tagging')).toBe('tag');
+		expect(identityAxisFor('assigning')).toBe('assignee');
+		// Every event is somebody changing a ticket, so there is nothing to
+		// colour by that the kind does not already say.
+		expect(identityAxisFor('tickets')).toBeNull();
+		expect(identityAxisFor('all')).toBeNull();
+	});
+
+	it('lists each identity once, as the legend for what is on screen', () => {
+		expect(listIdentities(window(), 'comments').map(i => i.name)).toEqual([
+			'jola',
+			'demo',
+		]);
+		// The tagging view lists tags, not the people who applied them.
+		expect(listIdentities(window(), 'tagging').map(i => i.name)).toEqual([
+			'bug',
+		]);
+	});
+
+	it('has no list for a view with no identity axis', () => {
+		expect(listIdentities(window(), 'tickets')).toEqual([]);
+		expect(listIdentities(window(), 'all')).toEqual([]);
+	});
+
+	it('takes each dot colour from its identity, not its kind', () => {
+		const dots = buildEventDots(window(), 'comments');
+
+		expect(dots).toHaveLength(3);
+		expect(dots.map(dot => dot.color)).toEqual([
+			jola.color,
+			demo.color,
+			jola.color,
+		]);
+	});
+
+	it('colours by kind in the All view', () => {
+		const colors = new Set(buildEventDots(window(), 'all').map(d => d.color));
+
+		// Two kinds present, and neither is anybody's personal colour.
+		expect(colors.has(jola.color)).toBe(false);
+		expect(colors.size).toBeGreaterThan(1);
+	});
+
+	it('hides the unticked identities', () => {
+		const dots = buildEventDots(window(), 'comments', new Set([jola.id]));
+
+		expect(dots).toHaveLength(1);
+		expect(dots[0]!.identity?.name).toBe('demo');
+	});
+
+	it('keeps an event whose view gives it no identity to be hidden by', () => {
+		// Nothing in the Tickets list to untick, so an exclusion cannot swallow it.
+		expect(
+			buildEventDots(window(), 'tickets', new Set([demo.id, jola.id])),
+		).toHaveLength(1);
 	});
 });

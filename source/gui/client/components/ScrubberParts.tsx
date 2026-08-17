@@ -22,13 +22,14 @@ import {
 	scopeButtonLabel,
 	SCOPES,
 	Segment,
-	CategoryFilter,
-	EVENT_CATEGORIES,
+	BOARD_VIEWS,
+	BoardView,
 	EventCategory,
 	SEGMENT_HIGHLIGHT_COLOR,
 	TRACK_HEIGHT,
 	VolumeBar,
 } from '../lib/scrubber';
+import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
@@ -60,28 +61,117 @@ const disclosureStyle: React.CSSProperties = {
 	cursor: 'pointer',
 };
 
-// "Board" with its four kinds folded underneath. The parent stays the master
-// switch — the children only choose what counts as a board event — so unticking
-// it still hides the series outright, animation and all.
+const VIEW_LABELS: Record<BoardView, string> = {
+	all: 'All',
+	...CATEGORY_LABELS,
+};
+
+const nestedListStyle: React.CSSProperties = {
+	display: 'flex',
+	flexDirection: 'column',
+	gap: 3,
+	marginLeft: 5,
+	paddingLeft: 8,
+	borderLeft: `1px solid ${GUI_THEME.line}`,
+};
+
+// Drawn as a dot rather than a box, so a row picking one of several kinds never
+// reads as a box that could be ticked alongside its siblings.
+const Radio = ({
+	label,
+	selected,
+	color,
+	disabled,
+	onSelect,
+}: {
+	label: string;
+	selected: boolean;
+	color: string;
+	disabled?: boolean;
+	onSelect: () => void;
+}) => (
+	<button
+		type="button"
+		role="radio"
+		aria-checked={selected}
+		disabled={disabled}
+		onClick={onSelect}
+		style={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 5,
+			background: 'transparent',
+			border: 'none',
+			padding: 0,
+			fontSize: 10,
+			fontFamily: 'inherit',
+			color: selected ? color : GUI_THEME.dim,
+			cursor: disabled ? 'not-allowed' : 'pointer',
+			opacity: disabled ? 0.4 : 1,
+		}}
+	>
+		<span
+			style={{
+				width: 12,
+				height: 12,
+				borderRadius: '50%',
+				border: `1px solid ${selected ? color : GUI_THEME.dim}`,
+				display: 'inline-flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				flexShrink: 0,
+			}}
+		>
+			{selected && (
+				<span
+					style={{
+						width: 6,
+						height: 6,
+						borderRadius: '50%',
+						background: color,
+					}}
+				/>
+			)}
+		</span>
+		{label}
+	</button>
+);
+
+// "Board" over its kinds, of which exactly one is drawn at a time. That is what
+// lets a colour mean one thing: "All" colours by kind, and any single kind
+// colours by the tag or person behind each event, never both at once.
 const BoardSeriesGroup = ({
 	showIssues,
-	categories,
+	view,
+	identities,
+	hiddenIds,
 	expanded,
+	identitiesExpanded,
 	filtered,
 	onChangeShowIssues,
-	onChangeCategory,
+	onChangeView,
+	onToggleIdentity,
 	onToggleExpanded,
+	onToggleIdentitiesExpanded,
 }: {
 	showIssues: boolean;
-	categories: CategoryFilter;
+	view: BoardView;
+	// What the current window actually holds, so the list is a legend for what
+	// is on screen rather than a catalogue of the whole repo.
+	identities: GuiEventIdentity[];
+	hiddenIds: ReadonlySet<string>;
 	expanded: boolean;
+	identitiesExpanded: boolean;
 	filtered: boolean;
 	onChangeShowIssues: (next: boolean) => void;
-	onChangeCategory: (category: EventCategory, next: boolean) => void;
+	onChangeView: (view: BoardView) => void;
+	onToggleIdentity: (id: string, next: boolean) => void;
 	onToggleExpanded: () => void;
+	onToggleIdentitiesExpanded: () => void;
 }) => {
-	const partial =
-		filtered && EVENT_CATEGORIES.some(category => !categories[category]);
+	const partial = filtered && (view !== 'all' || hiddenIds.size > 0);
+	const colorFor = (option: BoardView) =>
+		option === 'all' ? GUI_THEME.accent : EVENT_CATEGORY_COLORS[option];
 
 	return (
 		<div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
@@ -89,8 +179,8 @@ const BoardSeriesGroup = ({
 				<Checkbox
 					label="Board"
 					checked={showIssues}
-					// Dimmed while something underneath is off, so a collapsed group
-					// still shows that the series is not the whole story.
+					// Dimmed while the view is narrowed, so a collapsed group still
+					// shows that the series is not the whole story.
 					activeColor={partial ? GUI_THEME.dim2 : GUI_THEME.accent}
 					onChange={onChangeShowIssues}
 				/>
@@ -110,31 +200,70 @@ const BoardSeriesGroup = ({
 			</div>
 
 			{expanded && (
-				<div
-					style={{
-						display: 'flex',
-						flexDirection: 'column',
-						gap: 3,
-						marginLeft: 5,
-						paddingLeft: 8,
-						borderLeft: `1px solid ${GUI_THEME.line}`,
-					}}
-				>
-					{EVENT_CATEGORIES.map(category => (
-						<Checkbox
-							key={category}
-							label={CATEGORY_LABELS[category]}
-							checked={categories[category]}
-							activeColor={EVENT_CATEGORY_COLORS[category]}
-							disabled={!showIssues || !filtered}
-							title={
-								filtered
-									? undefined
-									: 'This window holds too many events to split by kind'
-							}
-							onChange={next => onChangeCategory(category, next)}
-						/>
-					))}
+				<div role="radiogroup" style={nestedListStyle}>
+					{BOARD_VIEWS.map(option => {
+						const selected = view === option;
+						const expandable = selected && identities.length > 0;
+
+						return (
+							<div
+								key={option}
+								style={{display: 'flex', flexDirection: 'column', gap: 3}}
+							>
+								<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
+									<Radio
+										label={VIEW_LABELS[option]}
+										selected={selected}
+										color={colorFor(option)}
+										disabled={!showIssues || !filtered}
+										onSelect={() => onChangeView(option)}
+									/>
+									{expandable && (
+										<button
+											type="button"
+											onClick={onToggleIdentitiesExpanded}
+											title={
+												identitiesExpanded
+													? 'Hide the list'
+													: 'Pick which to show'
+											}
+											aria-expanded={identitiesExpanded}
+											style={disclosureStyle}
+										>
+											{identitiesExpanded ? (
+												<IconChevronDown size={12} />
+											) : (
+												<IconChevronRight size={12} />
+											)}
+										</button>
+									)}
+								</div>
+
+								{expandable && identitiesExpanded && (
+									<div
+										style={{
+											...nestedListStyle,
+											// A repo with dozens of tags would otherwise push the
+											// board itself off the screen.
+											maxHeight: 132,
+											overflowY: 'auto',
+										}}
+									>
+										{identities.map(identity => (
+											<Checkbox
+												key={identity.id}
+												label={identity.name}
+												checked={!hiddenIds.has(identity.id)}
+												activeColor={identity.color}
+												disabled={!showIssues}
+												onChange={next => onToggleIdentity(identity.id, next)}
+											/>
+										))}
+									</div>
+								)}
+							</div>
+						);
+					})}
 				</div>
 			)}
 		</div>
@@ -160,8 +289,11 @@ export const ScrubberControls = ({
 	showIssues,
 	showCommits,
 	allBoards,
-	categories,
+	boardView,
+	identities,
+	hiddenIdentityIds,
 	categoriesExpanded,
+	identitiesExpanded,
 	categoriesFiltered,
 	isScrubbing,
 	nowLabel,
@@ -171,8 +303,10 @@ export const ScrubberControls = ({
 	onChangeShowIssues,
 	onChangeShowCommits,
 	onChangeAllBoards,
-	onChangeCategory,
+	onChangeBoardView,
+	onToggleIdentity,
 	onToggleCategoriesExpanded,
+	onToggleIdentitiesExpanded,
 	onReturnToLive,
 }: {
 	scope: Scope;
@@ -182,8 +316,11 @@ export const ScrubberControls = ({
 	showIssues: boolean;
 	showCommits: boolean;
 	allBoards: boolean;
-	categories: CategoryFilter;
+	boardView: BoardView;
+	identities: GuiEventIdentity[];
+	hiddenIdentityIds: ReadonlySet<string>;
 	categoriesExpanded: boolean;
+	identitiesExpanded: boolean;
 	// False where the server capped the window: the buckets it fell back to are
 	// pre-summed across every kind, so there is nothing to filter.
 	categoriesFiltered: boolean;
@@ -196,8 +333,10 @@ export const ScrubberControls = ({
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeShowCommits: (next: boolean) => void;
 	onChangeAllBoards: (next: boolean) => void;
-	onChangeCategory: (category: EventCategory, next: boolean) => void;
+	onChangeBoardView: (view: BoardView) => void;
+	onToggleIdentity: (id: string, next: boolean) => void;
 	onToggleCategoriesExpanded: () => void;
+	onToggleIdentitiesExpanded: () => void;
 	onReturnToLive: () => void;
 }) => (
 	<div style={{display: 'flex', alignItems: 'center', gap: 12}}>
@@ -274,12 +413,17 @@ export const ScrubberControls = ({
 		<div style={{display: 'flex', gap: 10, alignItems: 'flex-start'}}>
 			<BoardSeriesGroup
 				showIssues={showIssues}
-				categories={categories}
+				view={boardView}
+				identities={identities}
+				hiddenIds={hiddenIdentityIds}
 				expanded={categoriesExpanded}
+				identitiesExpanded={identitiesExpanded}
 				filtered={categoriesFiltered}
 				onChangeShowIssues={onChangeShowIssues}
-				onChangeCategory={onChangeCategory}
+				onChangeView={onChangeBoardView}
+				onToggleIdentity={onToggleIdentity}
 				onToggleExpanded={onToggleCategoriesExpanded}
+				onToggleIdentitiesExpanded={onToggleIdentitiesExpanded}
 			/>
 			<Checkbox
 				label="Code"
