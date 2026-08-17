@@ -91,10 +91,6 @@ export const BulkDetails = ({
 				</Button>
 			</div>
 
-			<div style={{fontSize: 11, color: GUI_THEME.dim, marginBottom: 12}}>
-				Applies to every selected ticket. Comments stay per ticket.
-			</div>
-
 			<Section title="Tickets">
 				<div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
 					{issues.map(issue => (
