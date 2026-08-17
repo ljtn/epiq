@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
 	useMatch,
 	useNavigate,
@@ -30,7 +30,9 @@ import {
 	GuiContributor,
 	GuiEventTimeline,
 	GuiState,
+	GuiSwimlane,
 } from './lib/gui-state.model';
+import {BoardFilter, issuePassesBoardFilter} from './lib/scrubber';
 import {sendSocketJson} from './lib/socket-send';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {createMutationGate} from './lib/mutation-gate';
@@ -40,6 +42,10 @@ import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
 type IssueDetailsTab = 'overview' | 'comments';
+
+// Module scope so an absent state does not hand the memos below a new object
+// on every render.
+const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
 export const DropIndicator = () => (
 	<div
@@ -168,7 +174,36 @@ export const App = () => {
 		void navigate(`/board/${boardSlug}`);
 	};
 
-	const commentsByIssueId = state?.commentsByIssueId ?? {};
+	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
+	// Driven by the scrubber's own selection. Null unless it has been narrowed
+	// to particular tags or people.
+	const [boardFilter, setBoardFilter] = useState<BoardFilter | null>(null);
+
+	// Memoized, and returning the lanes untouched when nothing is filtered:
+	// rebuilding every swimlane object each render would hand SwimlaneColumn a
+	// new identity every time and undo its memoization.
+	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
+		const swimlanes = selectedBoard?.swimlanes ?? [];
+		if (!boardFilter) return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
+
+		let hidden = 0;
+
+		const visible = swimlanes.map(swimlane => {
+			const issues = swimlane.issues.filter(issue =>
+				issuePassesBoardFilter(
+					issue,
+					(commentsByIssueId[issue.id] ?? []).map(comment => comment.author.id),
+					boardFilter,
+				),
+			);
+
+			hidden += swimlane.issues.length - issues.length;
+
+			return {...swimlane, issues};
+		});
+
+		return {visibleSwimlanes: visible, hiddenIssueCount: hidden};
+	}, [selectedBoard, boardFilter, commentsByIssueId]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});
@@ -823,6 +858,7 @@ export const App = () => {
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
 				onReturnToLive={returnToLive}
+				onBoardFilterChange={setBoardFilter}
 			/>
 
 			<div
@@ -848,7 +884,14 @@ export const App = () => {
 						overflow: 'hidden',
 					}}
 				>
-					<div style={{padding: '20px 10px'}}>
+					<div
+						style={{
+							padding: '20px 10px',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 10,
+						}}
+					>
 						<Dropdown
 							testId="board-switcher"
 							label="Board:"
@@ -884,7 +927,7 @@ export const App = () => {
 							overflowY: 'hidden',
 						}}
 					>
-						{selectedBoard?.swimlanes.map(swimlane => (
+						{visibleSwimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
 								swimlane={swimlane}

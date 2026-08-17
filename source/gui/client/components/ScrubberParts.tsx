@@ -24,6 +24,7 @@ import {
 	Segment,
 	BOARD_VIEWS,
 	boardViewColor,
+	identityAxisFor,
 	BoardView,
 	EventCategory,
 	SEGMENT_HIGHLIGHT_COLOR,
@@ -244,8 +245,10 @@ const BoardSeriesGroup = ({
 	onToggleIdentitiesExpanded: () => void;
 }) => {
 	// Only the identity filter, now that the kind has a colour of its own to
-	// announce itself with.
-	const partial = filtered && hiddenIds.size > 0;
+	// announce itself with. This is also exactly when the board below narrows,
+	// so the label says so — the board can be scrolled away from this control.
+	const partial =
+		filtered && hiddenIds.size > 0 && identityAxisFor(view) !== null;
 	const ref = useDismissOnOutsideClick(expanded, onToggleExpanded);
 
 	return (
@@ -257,7 +260,7 @@ const BoardSeriesGroup = ({
 				<Checkbox
 					// Not just "Board": it sits two controls from "All boards", which
 					// decides something else entirely.
-					label="Board events"
+					label={partial ? 'Board events (filtered)' : 'Board events'}
 					checked={showIssues}
 					// Carries the selected kind's colour, so a collapsed group still
 					// says which one is drawn — and matches the bars and dots it

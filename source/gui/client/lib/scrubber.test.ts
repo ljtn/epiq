@@ -10,8 +10,10 @@ import {
 	bucketCountForSpan,
 	bucketIssueCounts,
 	buildAxis,
+	buildBoardFilter,
 	buildEventDots,
 	categoryOf,
+	issuePassesBoardFilter,
 	identityAxisFor,
 	listIdentities,
 	chooseSegmentUnit,
@@ -632,5 +634,65 @@ describe('hour segments', () => {
 		expect(segmentAt(new Date(2026, 7, 16, 9, 5).getTime(), 'hour').label).toBe(
 			'Sun 09:00',
 		);
+	});
+});
+
+describe('board filter', () => {
+	const bug = person('bug');
+	const docs = person('docs');
+	const jola = person('jola');
+
+	const issue = (
+		tags: {id: string}[] = [],
+		assignees: {id: string}[] = [],
+	) => ({id: 'i1', tags, assignees});
+
+	it('does not filter until the selection is narrowed', () => {
+		// A kind with everything still ticked is a colouring choice, not a
+		// question about which tickets matter.
+		expect(buildBoardFilter('tagging', [bug, docs], new Set())).toBeNull();
+	});
+
+	it('does not filter on a view with no identity axis', () => {
+		expect(buildBoardFilter('tickets', [bug], new Set([bug.id]))).toBeNull();
+		expect(buildBoardFilter('all', [bug], new Set([bug.id]))).toBeNull();
+	});
+
+	it('keeps the tickets carrying a visible tag', () => {
+		const filter = buildBoardFilter('tagging', [bug, docs], new Set([docs.id]));
+
+		expect(issuePassesBoardFilter(issue([bug]), [], filter)).toBe(true);
+		expect(issuePassesBoardFilter(issue([docs]), [], filter)).toBe(false);
+		// Untagged: nothing visible to match, so it is not part of this answer.
+		expect(issuePassesBoardFilter(issue(), [], filter)).toBe(false);
+	});
+
+	it('reads assignees off the ticket for an assigning view', () => {
+		const filter = buildBoardFilter(
+			'assigning',
+			[jola, docs],
+			new Set([docs.id]),
+		);
+
+		expect(issuePassesBoardFilter(issue([], [jola]), [], filter)).toBe(true);
+		expect(issuePassesBoardFilter(issue([], [docs]), [], filter)).toBe(false);
+		// A tag of the same id must not satisfy an assignee filter.
+		expect(issuePassesBoardFilter(issue([jola], []), [], filter)).toBe(false);
+	});
+
+	it('reads comment authors for a comments view', () => {
+		const filter = buildBoardFilter(
+			'comments',
+			[jola, docs],
+			new Set([docs.id]),
+		);
+
+		expect(issuePassesBoardFilter(issue(), [jola.id], filter)).toBe(true);
+		expect(issuePassesBoardFilter(issue(), [docs.id], filter)).toBe(false);
+		expect(issuePassesBoardFilter(issue(), [], filter)).toBe(false);
+	});
+
+	it('passes everything through when there is no filter', () => {
+		expect(issuePassesBoardFilter(issue(), [], null)).toBe(true);
 	});
 });

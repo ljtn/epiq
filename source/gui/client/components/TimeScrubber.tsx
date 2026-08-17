@@ -14,7 +14,9 @@ import {
 	bucketIssueCounts,
 	buildAxis,
 	boardViewColor,
+	BoardFilter,
 	BoardView,
+	buildBoardFilter,
 	buildEventDots,
 	chooseSegmentUnit,
 	clamp,
@@ -87,6 +89,7 @@ export const TimeScrubber = ({
 	boardId,
 	connected,
 	onInspectCommit,
+	onBoardFilterChange,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -102,6 +105,10 @@ export const TimeScrubber = ({
 	boardId: string | null;
 	connected: boolean;
 	onInspectCommit: (sha: string) => void;
+	// Reported upward rather than held here: the board renders outside this
+	// component, and the selection that colours the chart is the same one that
+	// decides which tickets belong on it.
+	onBoardFilterChange: (filter: BoardFilter | null) => void;
 }) => {
 	const animate = !usePrefersReducedMotion();
 	const trackRef = useRef<HTMLDivElement | null>(null);
@@ -273,6 +280,15 @@ export const TimeScrubber = ({
 		() => buildEventDots(timeline, boardView, hiddenIdentityIds),
 		[timeline, boardView, hiddenIdentityIds],
 	);
+
+	const boardFilter = useMemo(
+		() => buildBoardFilter(boardView, identities, hiddenIdentityIds),
+		[boardView, identities, hiddenIdentityIds],
+	);
+
+	useEffect(() => {
+		onBoardFilterChange(boardFilter);
+	}, [boardFilter]);
 
 	// Two maxima, because a coarse bucket's count is a sum of many fine ones;
 	// normalizing every series against one max flattens the others. The scatter
