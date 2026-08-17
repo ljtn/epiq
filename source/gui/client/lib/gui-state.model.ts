@@ -73,9 +73,15 @@ export type GuiState = {
 
 export type GuiEventTimelineBucket = {t: number; count: number};
 
+// `action` mirrors the server's EventAction, `label` its TUI-style phrasing.
+// Both plain strings, so the client never imports the Node-side event model.
+export type GuiEventTimelineEntry = {t: number; action: string; label: string};
+
 export type GuiEventTimeline = {
 	bucketMs: number;
 	buckets: GuiEventTimelineBucket[];
+	// Empty when the server capped the window; the scatter falls back to buckets.
+	events: GuiEventTimelineEntry[];
 	earliest: number;
 	latest: number;
 };

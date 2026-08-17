@@ -2,13 +2,15 @@
 // and hints are arranged. The pieces it places come from ScrubberParts, the
 // numbers it places them at from TimeScrubber, which owns all the logic.
 
-import {GuiCommitEntry, GuiEventTimelineBucket} from '../lib/gui-state.model';
+import {memo} from 'react';
+import {GuiCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	dotAppearAnimation,
 	dotExitAnimation,
 	EVENTS_MODE_VERTICAL_PADDING,
 	EVENTS_SCATTER_HEIGHT,
+	EventDot,
 	FADE_IN_ANIMATION,
 	hourFractionForTime,
 	LayoutMode,
@@ -41,6 +43,95 @@ const dotAnimation = (key: string, animate: boolean, leaving: boolean) =>
 		? dotExitAnimation(key)
 		: dotAppearAnimation(key);
 
+// Memoized, and the reason every prop it takes is referentially stable: hover
+// and scrub both re-render the scrubber on each mouse move, and a window can
+// hold thousands of per-event dots that none of that movement changes.
+const IssueScatter = memo(
+	({
+		dots,
+		axis,
+		animate,
+		leaving,
+		onEnter,
+		onLeave,
+	}: {
+		dots: EventDot[];
+		axis: ScrubberAxis;
+		animate: boolean;
+		leaving: boolean;
+		onEnter: (dot: EventDot) => void;
+		onLeave: () => void;
+	}) => (
+		<>
+			{dots.map(dot => (
+				<ScatterDot
+					key={dot.key}
+					fraction={axis.fractionForTime(dot.t)}
+					hourFraction={hourFractionForTime(dot.t)}
+					size={dot.size}
+					color={GUI_THEME.accent}
+					opacity={dot.opacity}
+					zIndex={2}
+					title={`${
+						dot.label ?? `${dot.count} change${dot.count === 1 ? '' : 's'}`
+					}, ${formatDateTime(new Date(dot.t))}`}
+					animation={dotAnimation(dot.key, animate, leaving)}
+					interactive={!leaving}
+					onMouseEnter={() => onEnter(dot)}
+					onMouseLeave={onLeave}
+				/>
+			))}
+		</>
+	),
+);
+
+// Memoized for the same reason as IssueScatter. `hoveredSha` is a prop rather
+// than read per dot so that hovering one commit re-renders the layer once,
+// instead of every mouse move re-rendering it.
+const CommitScatter = memo(
+	({
+		commits,
+		axis,
+		animate,
+		leaving,
+		hoveredSha,
+		onEnter,
+		onLeave,
+		onInspect,
+	}: {
+		commits: GuiCommitEntry[];
+		axis: ScrubberAxis;
+		animate: boolean;
+		leaving: boolean;
+		hoveredSha: string | null;
+		onEnter: (commit: GuiCommitEntry) => void;
+		onLeave: () => void;
+		onInspect: (sha: string) => void;
+	}) => (
+		<>
+			{commits.map(commit => (
+				<ScatterDot
+					key={commit.sha}
+					fraction={axis.fractionForTime(commit.time)}
+					hourFraction={hourFractionForTime(commit.time)}
+					size={4}
+					color={GUI_THEME.green}
+					opacity={hoveredSha === commit.sha ? 1 : 0.55}
+					zIndex={1}
+					title={`${formatDateTime(new Date(commit.time))} — ${
+						commit.subject
+					} — ${commit.author} (${commit.linesChanged.toLocaleString()} lines)`}
+					animation={dotAnimation(commit.sha, animate, leaving)}
+					interactive={!leaving}
+					onClick={() => onInspect(commit.sha)}
+					onMouseEnter={() => onEnter(commit)}
+					onMouseLeave={onLeave}
+				/>
+			))}
+		</>
+	),
+);
+
 export type HintContent = {
 	label: string;
 	rows: string[];
@@ -57,7 +148,7 @@ export type ScrubberChartHandlers = {
 	onCommitTrackMouseEnter: () => void;
 	onCommitTrackMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
 	onCommitTrackMouseLeave: () => void;
-	onIssueDotEnter: (bucket: GuiEventTimelineBucket) => void;
+	onIssueDotEnter: (dot: EventDot) => void;
 	onIssueDotLeave: () => void;
 	onCommitDotEnter: (commit: GuiCommitEntry) => void;
 	onCommitDotLeave: () => void;
@@ -81,9 +172,9 @@ export type ScrubberChart = {
 	issueBarRange: [number, number];
 	commitBars: VolumeBar[];
 	commitBarRange: [number, number];
-	// The server's sparse buckets, plotted as-is in "Events" mode.
-	eventBuckets: GuiEventTimelineBucket[];
-	maxEventCount: number;
+	// One dot per event in "Events" mode, or per bucket where the server capped
+	// the window.
+	eventDots: EventDot[];
 	commits: GuiCommitEntry[];
 	hoveredCommitSha: string | null;
 	hoveredBucketIndex: number | null;
@@ -228,32 +319,14 @@ export const ScrubberLayout = ({
 									key={`issues-${windowKey}`}
 									animate={animate && !chart.issueScatter.leaving}
 								>
-									{chart.eventBuckets.map(bucket => {
-										const intensity = bucket.count / chart.maxEventCount;
-
-										return (
-											<ScatterDot
-												key={bucket.t}
-												fraction={axis.fractionForTime(bucket.t)}
-												hourFraction={hourFractionForTime(bucket.t)}
-												size={3 + intensity * 6}
-												color={GUI_THEME.accent}
-												opacity={0.3 + intensity * 0.5}
-												zIndex={2}
-												title={`${bucket.count} change${
-													bucket.count === 1 ? '' : 's'
-												}, ${formatDateTime(new Date(bucket.t))}`}
-												animation={dotAnimation(
-													String(bucket.t),
-													animate,
-													chart.issueScatter.leaving,
-												)}
-												interactive={!chart.issueScatter.leaving}
-												onMouseEnter={() => on.onIssueDotEnter(bucket)}
-												onMouseLeave={on.onIssueDotLeave}
-											/>
-										);
-									})}
+									<IssueScatter
+										dots={chart.eventDots}
+										axis={axis}
+										animate={animate}
+										leaving={chart.issueScatter.leaving}
+										onEnter={on.onIssueDotEnter}
+										onLeave={on.onIssueDotLeave}
+									/>
 								</SeriesLayer>
 							)}
 
@@ -265,33 +338,16 @@ export const ScrubberLayout = ({
 										key={`commits-${windowKey}`}
 										animate={animate && !chart.commitScatter.leaving}
 									>
-										{chart.commits.map(commit => (
-											<ScatterDot
-												key={commit.sha}
-												fraction={axis.fractionForTime(commit.time)}
-												hourFraction={hourFractionForTime(commit.time)}
-												size={4}
-												color={GUI_THEME.green}
-												opacity={
-													chart.hoveredCommitSha === commit.sha ? 1 : 0.55
-												}
-												zIndex={1}
-												title={`${formatDateTime(new Date(commit.time))} — ${
-													commit.subject
-												} — ${
-													commit.author
-												} (${commit.linesChanged.toLocaleString()} lines)`}
-												animation={dotAnimation(
-													commit.sha,
-													animate,
-													chart.commitScatter.leaving,
-												)}
-												interactive={!chart.commitScatter.leaving}
-												onClick={() => on.onInspectCommit(commit.sha)}
-												onMouseEnter={() => on.onCommitDotEnter(commit)}
-												onMouseLeave={on.onCommitDotLeave}
-											/>
-										))}
+										<CommitScatter
+											commits={chart.commits}
+											axis={axis}
+											animate={animate}
+											leaving={chart.commitScatter.leaving}
+											hoveredSha={chart.hoveredCommitSha}
+											onEnter={on.onCommitDotEnter}
+											onLeave={on.onCommitDotLeave}
+											onInspect={on.onInspectCommit}
+										/>
 									</SeriesLayer>
 								)}
 						</div>

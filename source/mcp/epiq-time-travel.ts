@@ -11,7 +11,8 @@ import {
 	openEditorOnFileNonBlocking,
 } from '../lib/editor/editor.js';
 import {getEventTime} from '../lib/event/date-utils.js';
-import {AppEvent} from '../lib/event/event.model.js';
+import {AppEvent, EventAction} from '../lib/event/event.model.js';
+import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
@@ -35,6 +36,10 @@ type ToolInput = {repoRoot?: string};
 // Free to set high: iteration is over events, not slots, and only non-empty
 // buckets are returned, so more slots only means finer resolution.
 const TIMELINE_BUCKET_COUNT = 100_000;
+
+// Above this the per-event scatter is dropped and the client falls back to
+// buckets. Well clear of a normal board — this repo's whole log is ~1.2k.
+const TIMELINE_EVENT_CAP = 20_000;
 
 // Not in AppState: purely GUI-server bookkeeping.
 let currentAsOfTime: number | null = null;
@@ -78,9 +83,69 @@ export const getTimeTravelStatus = (): ApiTimeTravelStatus => {
 
 export type EventTimelineBucket = {t: number; count: number};
 
+export type EventTimelineEntry = {
+	t: number;
+	action: EventAction;
+	// Phrased like a TUI log line — "Tagged with bug", "Commented".
+	label: string;
+};
+
+// Tag and contributor names come from the log's own create events rather than
+// from the materialized state, which getEventTimeline must not touch. Same
+// technique as filterEventsForBoard: build the index as the scan proceeds.
+const buildNameIndex = (events: AppEvent[]): Map<string, string> => {
+	const names = new Map<string, string>();
+
+	for (const event of events) {
+		if (
+			event.action !== 'create.tag' &&
+			event.action !== 'create.contributor'
+		) {
+			continue;
+		}
+
+		const payload = event.payload as {id?: string; name?: string} | undefined;
+
+		if (payload?.id && payload.name) names.set(payload.id, payload.name);
+	}
+
+	return names;
+};
+
+// The TUI's phrasing minus the details that need state. A renamed tag reads
+// under its original name, which is what the log itself says happened.
+const describeTimelineEvent = (
+	event: AppEvent,
+	names: Map<string, string>,
+): string => {
+	// Optional like filterEventsForBoard's: a malformed log entry must not take
+	// the whole timeline down with it.
+	const payload = event.payload as
+		| {name?: string; tag?: string; assignee?: string}
+		| undefined;
+
+	const detail =
+		payload?.tag !== undefined
+			? names.get(payload.tag) ?? ''
+			: payload?.assignee !== undefined
+			? names.get(payload.assignee) ?? ''
+			: payload?.name !== undefined
+			? `"${payload.name}"`
+			: '';
+
+	const action = event.action ? formatLogAction(event.action) : '';
+
+	return [action, detail].filter(Boolean).join(' ');
+};
+
 export type EventTimeline = {
 	bucketMs: number;
 	buckets: EventTimelineBucket[];
+	// One entry per event, for the scatter layout: it plots each dot at its own
+	// timestamp, so bucketing there only merges events that happened to land in
+	// the same slot. Empty past TIMELINE_EVENT_CAP, where the scatter falls back
+	// to `buckets` rather than the payload growing without bound.
+	events: EventTimelineEntry[];
 	earliest: number;
 	latest: number;
 };
@@ -147,27 +212,49 @@ export const getEventTimeline = async (
 		? filterEventsForBoard(eventsResult.value, input.boardId)
 		: eventsResult.value;
 
-	const allTimes = scopedEvents
-		.map(getEventTime)
-		.filter((t): t is number => t !== null);
+	// Indexed over the whole scoped log, not the window, so an event whose tag
+	// was created before the window still resolves to a name.
+	const names = buildNameIndex(scopedEvents);
+
+	const timed = scopedEvents.flatMap(event => {
+		const t = getEventTime(event);
+
+		return t === null
+			? []
+			: [
+					{
+						t,
+						action: event.action,
+						label: describeTimelineEvent(event, names),
+					},
+			  ];
+	});
 
 	const now = Date.now();
 	const windowEnd = input.end ?? now;
-	// Folded, not spread: `allTimes` can hold one entry per event in the whole log.
-	const windowStart = input.start ?? minOf(allTimes, windowEnd);
+	// Folded, not spread: `timed` can hold one entry per event in the whole log.
+	const windowStart =
+		input.start ??
+		minOf(
+			timed.map(entry => entry.t),
+			windowEnd,
+		);
 
 	if (windowEnd <= windowStart) {
 		return succeeded('Empty time window', {
 			bucketMs: 0,
 			buckets: [],
+			events: [],
 			earliest: windowStart,
 			latest: windowEnd,
 		});
 	}
 
-	const times = allTimes
-		.filter(t => t >= windowStart && t < windowEnd)
-		.sort((a, b) => a - b);
+	const inWindow = timed
+		.filter(entry => entry.t >= windowStart && entry.t < windowEnd)
+		.sort((a, b) => a.t - b.t);
+
+	const times = inWindow.map(entry => entry.t);
 
 	const bucketMs = Math.max(
 		1,
@@ -196,6 +283,7 @@ export const getEventTimeline = async (
 	return succeeded('Computed event timeline', {
 		bucketMs,
 		buckets,
+		events: inWindow.length > TIMELINE_EVENT_CAP ? [] : inWindow,
 		earliest: windowStart,
 		latest: windowEnd,
 	});

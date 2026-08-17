@@ -1,22 +1,23 @@
 // The scrubber's logic: what the axis is, what is hovered, what a drag means.
 // It computes and hands the result to ScrubberLayout, which owns the markup.
 
-import {useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {maxOf} from '../../../lib/utils/minmax.js';
 import {
 	GuiCommitEntry,
 	GuiEventTimeline,
-	GuiEventTimelineBucket,
 	GuiTimeTravelStatus,
 } from '../lib/gui-state.model';
 import {
 	bucketCommitStats,
 	bucketIssueCounts,
 	buildAxis,
+	buildEventDots,
 	chooseSegmentUnit,
 	clamp,
 	DOT_EXIT_TOTAL_MS,
+	EventDot,
 	formatInterval,
 	getPeriodRange,
 	isScope,
@@ -31,6 +32,10 @@ import {
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 
 const SCRUB_THROTTLE_MS = 120;
+
+// Module scope, so the dot handlers below can stay referentially stable.
+const boardEventRow = (count: number) =>
+	`${count} board event${count === 1 ? '' : 's'}`;
 
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
 const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
@@ -109,7 +114,8 @@ export const TimeScrubber = ({
 	// hover because "Events" mode plots the server's own sparse buckets.
 	const [hoveredEvent, setHoveredEvent] = useState<{
 		label: string;
-		count: number;
+		// The action for a per-event dot, a count for a bucketed one.
+		detail: string;
 		t: number;
 		fraction: number;
 	} | null>(null);
@@ -156,18 +162,17 @@ export const TimeScrubber = ({
 		setAllBoards(next);
 	};
 
-	const axis = buildAxis(timeline, commits);
+	// Memoized because hovering the track re-renders on every mouse move, and a
+	// window's worth of per-event dots is thousands of objects to rebuild.
+	const axis = useMemo(() => buildAxis(timeline, commits), [timeline, commits]);
 	const issueCounts = bucketIssueCounts(axis, timeline);
 	const commitStats = bucketCommitStats(axis, commits);
-	const eventBuckets = timeline?.buckets ?? [];
+	const eventDots = useMemo(() => buildEventDots(timeline), [timeline]);
 
-	// Three maxima, because a coarse bucket's count is a sum of many fine ones;
-	// normalizing every series against one max flattens the others.
+	// Two maxima, because a coarse bucket's count is a sum of many fine ones;
+	// normalizing every series against one max flattens the others. The scatter
+	// needs no maximum of its own: buildEventDots sizes its dots.
 	const maxIssueBucketCount = maxOf(issueCounts, 1);
-	const maxEventCount = maxOf(
-		eventBuckets.map(bucket => bucket.count),
-		1,
-	);
 	const maxCommitCount = maxOf(
 		Array.from(commitStats.values(), stats => stats.count),
 		1,
@@ -264,8 +269,28 @@ export const TimeScrubber = ({
 
 	const centreFraction = (index: number) => (index + 0.5) / axis.bucketCount;
 
-	const boardEventRow = (count: number) =>
-		`${count} board event${count === 1 ? '' : 's'}`;
+	// Stable identities, so the memoized dot layer survives a hover re-render.
+	const onIssueDotEnter = useCallback(
+		(dot: EventDot) =>
+			setHoveredEvent({
+				label: formatDateTime(new Date(dot.t)),
+				detail: dot.label ?? boardEventRow(dot.count ?? 0),
+				t: dot.t,
+				fraction: axis.fractionForTime(dot.t),
+			}),
+		[axis],
+	);
+	const onIssueDotLeave = useCallback(() => setHoveredEvent(null), []);
+
+	const onCommitDotEnter = useCallback(
+		(commit: GuiCommitEntry) =>
+			setHoveredCommit({
+				commit,
+				fraction: axis.fractionForTime(commit.time),
+			}),
+		[axis],
+	);
+	const onCommitDotLeave = useCallback(() => setHoveredCommit(null), []);
 
 	const hoveredBucketTime = bucketTimeAt(hoveredBucketIndex);
 	const hoveredBucketCount =
@@ -286,7 +311,7 @@ export const TimeScrubber = ({
 			: hoveredEvent
 			? {
 					label: hoveredEvent.label,
-					rows: [boardEventRow(hoveredEvent.count)],
+					rows: [hoveredEvent.detail],
 					fraction: hoveredEvent.fraction,
 			  }
 			: null;
@@ -388,8 +413,7 @@ export const TimeScrubber = ({
 				issueBarRange: populatedRange(issueBars),
 				commitBars,
 				commitBarRange: populatedRange(commitBars),
-				eventBuckets,
-				maxEventCount,
+				eventDots,
 				commits,
 				hoveredCommitSha: hoveredCommit?.commit.sha ?? null,
 				hoveredBucketIndex,
@@ -436,20 +460,10 @@ export const TimeScrubber = ({
 						setHoveredCommitBucketIndex(bucketIndexFromEvent(event));
 					},
 					onCommitTrackMouseLeave: () => setHoveredCommitBucketIndex(null),
-					onIssueDotEnter: (bucket: GuiEventTimelineBucket) =>
-						setHoveredEvent({
-							label: formatDateTime(new Date(bucket.t)),
-							count: bucket.count,
-							t: bucket.t,
-							fraction: axis.fractionForTime(bucket.t),
-						}),
-					onIssueDotLeave: () => setHoveredEvent(null),
-					onCommitDotEnter: (commit: GuiCommitEntry) =>
-						setHoveredCommit({
-							commit,
-							fraction: axis.fractionForTime(commit.time),
-						}),
-					onCommitDotLeave: () => setHoveredCommit(null),
+					onIssueDotEnter,
+					onIssueDotLeave,
+					onCommitDotEnter,
+					onCommitDotLeave,
 					onInspectCommit,
 				},
 			}}

@@ -151,6 +151,62 @@ export const bucketCommitStats = (
 	return byIndex;
 };
 
+export type EventDot = {
+	key: string;
+	t: number;
+	// null on a per-event dot, where the dot *is* the event. Set only on the
+	// bucketed fallback, whose dot stands for a slot that may hold several.
+	count: number | null;
+	// The event's own description on a per-event dot, null on the fallback.
+	label: string | null;
+	size: number;
+	opacity: number;
+};
+
+// Fixed, because a per-event dot has no count to encode. Matches the commit
+// scatter, which has always been one dot per commit.
+const EVENT_DOT_SIZE = 4;
+const EVENT_DOT_OPACITY = 0.55;
+
+// The scatter plots each dot at its own timestamp, so it wants events, not
+// buckets. Buckets are the fallback for a window the server capped, and only
+// there do size and opacity carry a count.
+export const buildEventDots = (
+	timeline: GuiEventTimeline | null,
+): EventDot[] => {
+	if (!timeline) return [];
+
+	if (timeline.events.length > 0) {
+		return timeline.events.map((entry, index) => ({
+			// Two events can share a millisecond, so the time alone is not a key.
+			key: `${entry.t}-${index}`,
+			t: entry.t,
+			count: null,
+			label: entry.label,
+			size: EVENT_DOT_SIZE,
+			opacity: EVENT_DOT_OPACITY,
+		}));
+	}
+
+	const maxCount = maxOf(
+		timeline.buckets.map(bucket => bucket.count),
+		1,
+	);
+
+	return timeline.buckets.map(bucket => {
+		const intensity = bucket.count / maxCount;
+
+		return {
+			key: String(bucket.t),
+			t: bucket.t,
+			count: bucket.count,
+			label: null,
+			size: 3 + intensity * 6,
+			opacity: 0.3 + intensity * 0.5,
+		};
+	});
+};
+
 export type VolumeBar = {index: number; intensity: number};
 
 // The drawn span, so the growth sweep runs across bars that exist rather than

@@ -5,6 +5,7 @@ import {
 	bucketCountForSpan,
 	bucketIssueCounts,
 	buildAxis,
+	buildEventDots,
 	chooseSegmentUnit,
 	dotAppearAnimation,
 	dotExitAnimation,
@@ -31,9 +32,11 @@ const commit = (time: number, linesChanged = 1): GuiCommitEntry => ({
 const timeline = (
 	buckets: {t: number; count: number}[],
 	bounds?: {earliest: number; latest: number},
+	events: {t: number; action: string; label: string}[] = [],
 ): GuiEventTimeline => ({
 	bucketMs: DAY,
 	buckets,
+	events,
 	earliest: bounds?.earliest ?? buckets[0]?.t ?? 0,
 	latest: bounds?.latest ?? buckets[buckets.length - 1]?.t ?? 0,
 });
@@ -335,5 +338,70 @@ describe('formatPeriodLabel', () => {
 				end: new Date(2026, 7, 10).getTime(),
 			}),
 		).toBe('8/3 – 8/10');
+	});
+});
+
+describe('buildEventDots', () => {
+	it('draws one dot per event, not one per bucket', () => {
+		// Three events inside a single bucket: the bucketed payload has already
+		// merged them, the per-event one must not.
+		const dots = buildEventDots(
+			timeline([{t: 100, count: 3}], undefined, [
+				{t: 100, action: 'add.issue', label: 'Created with title "Ship v2"'},
+				{t: 140, action: 'add.issue.tag', label: 'Tagged with bug'},
+				{t: 180, action: 'add.issue.comment', label: 'Commented'},
+			]),
+		);
+
+		expect(dots).toHaveLength(3);
+		expect(dots.map(dot => dot.t)).toEqual([100, 140, 180]);
+		expect(dots.map(dot => dot.label)).toEqual([
+			'Created with title "Ship v2"',
+			'Tagged with bug',
+			'Commented',
+		]);
+	});
+
+	it('keys events sharing a millisecond apart', () => {
+		const dots = buildEventDots(
+			timeline([{t: 5, count: 2}], undefined, [
+				{t: 5, action: 'add.issue', label: 'add.issue'},
+				{t: 5, action: 'close.issue', label: 'close.issue'},
+			]),
+		);
+
+		expect(new Set(dots.map(dot => dot.key)).size).toBe(2);
+	});
+
+	it('sizes per-event dots uniformly, having no count to encode', () => {
+		const dots = buildEventDots(
+			timeline([{t: 1, count: 9}], undefined, [
+				{t: 1, action: 'add.issue', label: 'add.issue'},
+				{t: 2, action: 'add.issue', label: 'add.issue'},
+			]),
+		);
+
+		expect(dots.map(dot => dot.size)).toEqual([4, 4]);
+		expect(dots.map(dot => dot.opacity)).toEqual([0.55, 0.55]);
+		expect(dots.every(dot => dot.count === null)).toBe(true);
+	});
+
+	it('falls back to buckets when the server capped the window', () => {
+		const dots = buildEventDots(
+			timeline([
+				{t: 10, count: 1},
+				{t: 20, count: 4},
+			]),
+		);
+
+		expect(dots.map(dot => dot.t)).toEqual([10, 20]);
+		expect(dots.map(dot => dot.count)).toEqual([1, 4]);
+		// Only the fallback encodes a count, so its dots must still differ.
+		expect(dots[0]!.size).toBeLessThan(dots[1]!.size);
+		expect(dots.every(dot => dot.label === null)).toBe(true);
+	});
+
+	it('has no dots without a timeline', () => {
+		expect(buildEventDots(null)).toEqual([]);
 	});
 });

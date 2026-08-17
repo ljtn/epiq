@@ -194,6 +194,132 @@ describe('epiq-time-travel', () => {
 			expect(totalCount).toBe(3);
 		});
 
+		it('emits one entry per event even where a bucket merges them', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{id: ulid(baseTime), action: 'add.issue'},
+				{id: ulid(baseTime), action: 'add.issue.tag'},
+				{id: ulid(baseTime + 60_000), action: 'close.issue'},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			// The first two share a millisecond, so any bucketing collapses them.
+			expect(result.value.events).toHaveLength(3);
+			expect(result.value.events.map(entry => entry.action)).toEqual([
+				'add.issue',
+				'add.issue.tag',
+				'close.issue',
+			]);
+		});
+
+		it('labels entries with the TUI log phrasing', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.issue',
+					payload: {id: 'i1', name: 'Ship v2'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'add.issue.comment',
+					payload: {id: 'c1'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.map(entry => entry.label)).toEqual([
+				'Created with title "Ship v2"',
+				'Commented',
+			]);
+		});
+
+		it('names a tag from the log rather than the materialized state', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'create.tag',
+					payload: {id: 'tag-1', name: 'bug'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'add.issue.tag',
+					payload: {id: 'i1', tag: 'tag-1'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.at(-1)?.label).toBe('Tagged with bug');
+		});
+
+		it('sorts the entries by time regardless of log order', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{id: ulid(baseTime + 60_000), action: 'close.issue'},
+				{id: ulid(baseTime), action: 'add.issue'},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.map(entry => entry.t)).toEqual([
+				baseTime,
+				baseTime + 60_000,
+			]);
+		});
+
+		it('drops the per-event entries past the cap, keeping the buckets', async () => {
+			const baseTime = 1_700_000_000_000;
+			// One past TIMELINE_EVENT_CAP.
+			const events = Array.from({length: 20_001}, (_, index) => ({
+				id: ulid(baseTime + index * 1_000),
+				action: 'add.issue',
+			}));
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events).toEqual([]);
+			expect(result.value.buckets.length).toBeGreaterThan(0);
+		});
+
 		it('scopes to an explicit start/end window, excluding events outside it', async () => {
 			const baseTime = 1_700_000_000_000;
 			const dayMs = 24 * 60 * 60 * 1000;
