@@ -49,7 +49,7 @@
 					aria-label="epiq home"
 				>
 					<span
-						><span class="accent" style="margin-right: 2px">:</span>epiq</span
+						><span class="accent">:</span>epiq</span
 					>
 				</a>
 				<div class="links">
@@ -148,7 +148,6 @@
 						loop
 						playsinline
 						preload="auto"
-						style="width: 100%; display: block"
 					>
 						<source src="time-travel-c.mp4" type="video/mp4" />
 					</video>
@@ -158,11 +157,11 @@
 			<section class="wrap">
 				<div class="section-head">
 					<div>
-						<div class="kicker">Local first</div>
-						<h2>Harness The Power Of Your IDE.</h2>
+						<div class="kicker">Harness The Power Of Your IDE</div>
+						<h2>Born In The Command Line.</h2>
 					</div>
 					<p>
-						Epiq originated as a command line tool, and offers a first class
+						Epiq originated as a command line tool and offers a first-class
 						terminal experience.
 					</p>
 				</div>
@@ -173,7 +172,6 @@
 						loop
 						playsinline
 						preload="auto"
-						style="width: 100%; display: block"
 					>
 						<source src="epiq-cli-c.mp4" type="video/mp4" />
 					</video>
@@ -380,10 +378,9 @@
 					<p>"Issue tracking should be smooth."</p>
 					<span>- probably someone</span>
 				</div>
-				<section id="install" class="wrap"></section>
 				<div class="panel">
 					<div class="kicker">Install</div>
-					<h3>Start in two commands.</h3>
+					<h3>Start in three commands.</h3>
 					<p>
 						Install the single binary then enter any Git repository and run
 						epiq. First launch opens an interactive setup wizard. Then either
@@ -403,7 +400,7 @@
 							>
 							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
 						</button>
-						<span class="or">or</span>
+						<span class="kicker kicker-step">or</span>
 						<button
 							class="copy-cmd"
 							type="button"
@@ -416,12 +413,15 @@
 							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
 						</button>
 					</div>
-					<div style="height: 12px"></div>
-					<pre
-						class="code"
-					><code><span class="g">cd</span> your-existing-repo-with-remote-tracking
-<span class="g">epiq</span></code></pre>
-					<div style="height: 14px"></div>
+					<span class="kicker kicker-step">then:</span>
+					<pre class="code"><code><span class="g">cd</span> your-existing-repo-with-remote-tracking</code></pre>
+
+					<span class="kicker kicker-step">then:</span>
+					<pre class="code"><code><span class="c"># open in terminal</span>
+<span class="g">epiq</span>
+
+<span class="c"># open in browser</span>
+<span class="g">epiq gui</span></code></pre>
 				</div>
 			</section>
 		</main>

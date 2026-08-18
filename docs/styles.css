@@ -132,6 +132,10 @@ pre {
 .brand.active {
 	color: var(--text);
 }
+/* The ":" reads as part of the wordmark, so it needs its own breathing room. */
+.brand .accent {
+	margin-right: 2px;
+}
 .links {
 	display: flex;
 	align-items: center;
@@ -228,6 +232,16 @@ h1 {
 	flex-direction: column;
 	align-items: flex-start;
 }
+/* In the install panel the commands are alternatives, so they share a width
+   instead of each sizing to its own text and landing ragged. Full width also
+   lines them up with the code blocks below, and the text takes the slack so
+   "copy" sits at the right edge rather than mid-button. */
+.panel .actions {
+	align-items: stretch;
+}
+.panel .copy-cmd-text {
+	flex: 1;
+}
 /* Hero screenshot: the top-left corner of the real board, fading out
    toward the bottom-right so it melts into the page background. */
 .hero-shot {
@@ -323,11 +337,18 @@ h2 {
 	letter-spacing: -0.075em;
 }
 .kicker {
+	/* Always a label above something, never inline in a sentence — so its own
+	   margins apply whether it is written as a div or a span. */
+	display: block;
 	color: var(--deepBlue);
 	font: 12px var(--mono);
 	text-transform: uppercase;
 	letter-spacing: 0.12em;
 	margin-bottom: 12px;
+}
+/* A kicker used between two blocks rather than at the head of a section. */
+.kicker-step {
+	margin-top: 24px;
 }
 .accent {
 	color: var(--cyan);
@@ -453,6 +474,11 @@ h2 {
 	line-height: 1.5;
 }
 
+.media-placeholder > video,
+.media-placeholder > img {
+	width: 100%;
+	display: block;
+}
 .media-placeholder {
 	min-height: 360px;
 	border-radius: 8px;
@@ -481,7 +507,7 @@ img {
 }
 video,
 img,
-aside {
+aside:not(.docs-layout > aside) {
 	box-shadow: 0 0 48px #4c839e55;
 }
 
@@ -717,11 +743,6 @@ aside {
 }
 .copy-cmd.copied .copy-cmd-ico {
 	color: #6ee787;
-}
-.or {
-	color: var(--dim);
-	font: 13px var(--mono);
-	padding: 0 2px;
 }
 
 /* GitHub button with live star count */
