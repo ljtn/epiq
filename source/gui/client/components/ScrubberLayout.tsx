@@ -160,8 +160,6 @@ export const ScrubberLayout = ({
 						onToggleCollapsed={onToggleCollapsed}
 						scrubbingAsOf={scrubbingAsOf}
 					/>
-
-					{!collapsed && <ScrubberControls {...controls} />}
 				</div>
 
 				{!collapsed && (
@@ -297,6 +295,8 @@ export const ScrubberLayout = ({
 						)}
 					</div>
 				)}
+
+				{!collapsed && <ScrubberControls {...controls} />}
 			</div>
 		</Panel>
 	);

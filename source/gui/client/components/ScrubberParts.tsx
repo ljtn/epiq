@@ -37,8 +37,10 @@ import {
 } from '../lib/scrubber';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
+import {IconBars} from './IconBars';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {IconScatter} from './IconScatter';
 
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	background: 'transparent',
@@ -48,6 +50,14 @@ const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	fontSize: 10,
 	padding: '2px 8px',
 	cursor: 'pointer',
+});
+
+const iconToggleButtonStyle = (active: boolean): React.CSSProperties => ({
+	...toggleButtonStyle(active),
+	display: 'inline-flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	padding: '3px 7px',
 });
 
 // Nouns, not gerunds: these name what is plotted, and they double as the labels
@@ -523,7 +533,14 @@ export const ScrubberControls = ({
 	onSetIdentitiesExpanded: (next: boolean) => void;
 	onReturnToLive: () => void;
 }) => (
-	<div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+	<div
+		style={{
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'flex-end',
+			gap: 12,
+		}}
+	>
 		<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
 			{scope !== 'all' && (
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
@@ -579,18 +596,22 @@ export const ScrubberControls = ({
 
 		<div style={{display: 'flex', gap: 2}}>
 			<button
-				title="How much happened, per equal-width period — no empty gaps for quiet stretches"
+				title="Volume — how much happened, per equal-width period, with no empty gaps for quiet stretches"
+				aria-label="Volume"
+				aria-pressed={layoutMode === 'even'}
 				onClick={() => onChangeLayoutMode('even')}
-				style={toggleButtonStyle(layoutMode === 'even')}
+				style={iconToggleButtonStyle(layoutMode === 'even')}
 			>
-				Volume
+				<IconBars size={13} />
 			</button>
 			<button
-				title="Individual events by exact moment — x is elapsed time, y is time of day"
+				title="Events — individual events by exact moment, x is elapsed time and y is time of day"
+				aria-label="Events"
+				aria-pressed={layoutMode === 'real'}
 				onClick={() => onChangeLayoutMode('real')}
-				style={toggleButtonStyle(layoutMode === 'real')}
+				style={iconToggleButtonStyle(layoutMode === 'real')}
 			>
-				Events
+				<IconScatter size={13} />
 			</button>
 		</div>
 
