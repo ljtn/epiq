@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+set -e
+
+# This branch is the published website only — no app code, no test suite.
+# Keep the nav's version stamp in sync with the released version on main.
+sh scripts/stamp-version.sh

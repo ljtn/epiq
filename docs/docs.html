@@ -43,7 +43,7 @@
 						><span class="accent">:</span>blog</a
 					>
 					<a class="cmd-link" href="./releases.html" aria-label="Releases"
-						><span class="accent">:</span>releases</a
+						><span class="accent">v</span><span class="nav-version">1.4.3</span></a
 					>
 					<a
 						class="btn github-stars"
@@ -905,6 +905,57 @@
 				window.addEventListener("scroll", onScroll, { passive: true });
 				window.addEventListener("resize", onScroll);
 				update();
+			})();
+		</script>
+
+		<script>
+			(function () {
+				var KEY = "epiq_version";
+				var TTL_MS = 10 * 60 * 1000;
+				// The same file the pre-push stamp reads, served by the raw CDN so it
+				// costs nothing against the GitHub API rate limit.
+				var SRC =
+					"https://raw.githubusercontent.com/ljtn/epiq/main/source/version.ts";
+				var outs = document.querySelectorAll(".nav-version");
+				if (!outs.length) return;
+
+				function render(version) {
+					outs.forEach(function (out) {
+						out.textContent = version;
+					});
+				}
+
+				function readCache() {
+					try {
+						var obj = JSON.parse(localStorage.getItem(KEY));
+						return obj && typeof obj.version === "string" ? obj : null;
+					} catch (e) {
+						return null;
+					}
+				}
+
+				// Show any cached version instantly; the markup carries the stamped
+				// version as a fallback so the nav never renders empty.
+				var cache = readCache();
+				if (cache) render(cache.version);
+				if (cache && Date.now() - cache.ts < TTL_MS) return;
+
+				fetch(SRC)
+					.then(function (res) {
+						return res.ok ? res.text() : null;
+					})
+					.then(function (text) {
+						var found = text && /EPIQ_VERSION\s*=\s*['"]([^'"]+)['"]/.exec(text);
+						if (!found) return;
+						render(found[1]);
+						try {
+							localStorage.setItem(
+								KEY,
+								JSON.stringify({ version: found[1], ts: Date.now() })
+							);
+						} catch (e) {}
+					})
+					.catch(function () {});
 			})();
 		</script>
 
