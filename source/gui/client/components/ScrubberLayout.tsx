@@ -108,13 +108,11 @@ export type ScrubberChart = {
 export const ScrubberLayout = ({
 	collapsed,
 	onToggleCollapsed,
-	scrubbingAsOf,
 	controls,
 	chart,
 }: {
 	collapsed: boolean;
 	onToggleCollapsed: () => void;
-	scrubbingAsOf: string | null;
 	controls: React.ComponentProps<typeof ScrubberControls>;
 	chart: ScrubberChart;
 }) => {
@@ -150,16 +148,17 @@ export const ScrubberLayout = ({
 						display: 'flex',
 						alignItems: 'center',
 						justifyContent: 'space-between',
-						// Fixed whether or not the banner renders, so the track below
-						// never shifts vertically.
+						// Holds the row's height when collapsing takes the controls out
+						// of it.
 						minHeight: 22,
 					}}
 				>
 					<ScrubberHeader
 						collapsed={collapsed}
 						onToggleCollapsed={onToggleCollapsed}
-						scrubbingAsOf={scrubbingAsOf}
 					/>
+
+					{!collapsed && <ScrubberControls {...controls} />}
 				</div>
 
 				{!collapsed && (
@@ -295,8 +294,6 @@ export const ScrubberLayout = ({
 						)}
 					</div>
 				)}
-
-				{!collapsed && <ScrubberControls {...controls} />}
 			</div>
 		</Panel>
 	);

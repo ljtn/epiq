@@ -147,7 +147,11 @@ const popoverStyle: React.CSSProperties = {
 	// Sized for the common case up front, so opening a kind with a list does
 	// not visibly widen the panel under the pointer.
 	minWidth: 200,
-	background: GUI_THEME.panel2,
+	// Slightly sheer over a blur, so the chart it filters stays legible beneath
+	// it rather than being covered outright.
+	background: 'rgba(21, 26, 36, 0.88)',
+	backdropFilter: 'blur(12px)',
+	WebkitBackdropFilter: 'blur(12px)',
 	border: `1px solid ${GUI_THEME.line}`,
 	borderRadius: 8,
 	boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
@@ -488,7 +492,7 @@ export const ScrubberControls = ({
 	identitiesExpanded,
 	categoriesFiltered,
 	isScrubbing,
-	nowLabel,
+	onReturnToLive,
 	onChangeScope,
 	onChangeOffset,
 	onChangeLayoutMode,
@@ -500,7 +504,6 @@ export const ScrubberControls = ({
 	onOnlyIdentity,
 	onToggleCategoriesExpanded,
 	onSetIdentitiesExpanded,
-	onReturnToLive,
 }: {
 	scope: Scope;
 	offset: number;
@@ -518,8 +521,7 @@ export const ScrubberControls = ({
 	// pre-summed across every kind, so there is nothing to filter.
 	categoriesFiltered: boolean;
 	isScrubbing: boolean;
-	// What the live slot reads when not scrubbing: "Now", or the window's end.
-	nowLabel: string;
+	onReturnToLive: () => void;
 	onChangeScope: (scope: Scope) => void;
 	onChangeOffset: (offset: number) => void;
 	onChangeLayoutMode: (mode: LayoutMode) => void;
@@ -531,7 +533,6 @@ export const ScrubberControls = ({
 	onOnlyIdentity: (id: string) => void;
 	onToggleCategoriesExpanded: () => void;
 	onSetIdentitiesExpanded: (next: boolean) => void;
-	onReturnToLive: () => void;
 }) => (
 	<div
 		style={{
@@ -646,61 +647,44 @@ export const ScrubberControls = ({
 			/> */}
 		</div>
 
-		<div
+		{/* Present while live too, as the status of the board rather than a way
+		    back to it, so entering history never resizes the row. */}
+		<button
+			onClick={onReturnToLive}
+			disabled={!isScrubbing}
+			title={
+				isScrubbing ? 'Leave history and follow the board again' : undefined
+			}
 			style={{
-				display: 'flex',
-				justifyContent: 'flex-end',
+				background: 'transparent',
+				border: `1px solid ${
+					isScrubbing ? GUI_THEME.accent : GUI_THEME.transparent
+				}`,
+				color: isScrubbing ? GUI_THEME.accent : GUI_THEME.dim,
+				borderRadius: 6,
+				fontFamily: 'inherit',
+				width: 60,
+				display: 'inline-flex',
 				alignItems: 'center',
-				// Fixed, not min, so swapping between "Now" and "Return to live"
-				// never resizes the controls row.
-				width: 100,
+				justifyContent: isScrubbing ? 'center' : 'flex-end',
+				fontSize: 10,
+				padding: '2px 8px',
+				cursor: isScrubbing ? 'pointer' : 'default',
+				whiteSpace: 'nowrap',
 				flexShrink: 0,
 			}}
 		>
-			{isScrubbing ? (
-				<button
-					onClick={onReturnToLive}
-					style={{
-						background: 'transparent',
-						border: `1px solid ${GUI_THEME.accent}`,
-						color: GUI_THEME.accent,
-						borderRadius: 6,
-						fontSize: 11,
-						padding: '2px 8px',
-						cursor: 'pointer',
-						whiteSpace: 'nowrap',
-					}}
-				>
-					Return to live
-				</button>
-			) : (
-				<span
-					style={{
-						fontSize: 11,
-						color: GUI_THEME.dim,
-						overflow: 'hidden',
-						textAlign: 'right',
-						whiteSpace: 'nowrap',
-					}}
-				>
-					{nowLabel}
-				</span>
-			)}
-		</div>
+			{isScrubbing ? 'Resume' : 'Now'}
+		</button>
 	</div>
 );
 
-// The collapse toggle, plus the read-only banner that stays visible while
-// collapsed: that the board is read-only history must never be hidden.
 export const ScrubberHeader = ({
 	collapsed,
 	onToggleCollapsed,
-	scrubbingAsOf,
 }: {
 	collapsed: boolean;
 	onToggleCollapsed: () => void;
-	// Null while live.
-	scrubbingAsOf: string | null;
 }) => (
 	<div
 		style={{
@@ -714,34 +698,25 @@ export const ScrubberHeader = ({
 		<button
 			onClick={onToggleCollapsed}
 			title={collapsed ? 'Show time travel' : 'Hide time travel'}
+			aria-label={collapsed ? 'Show time travel' : 'Hide time travel'}
+			aria-expanded={!collapsed}
 			style={{
-				background: 'transparent',
-				border: 'none',
-				color: GUI_THEME.dim,
-				fontSize: 11,
-				padding: 0,
+				background: GUI_THEME.panel2,
+				border: `1px solid ${GUI_THEME.line}`,
+				borderRadius: 6,
+				color: GUI_THEME.secondary,
+				padding: '3px 7px',
 				cursor: 'pointer',
-				display: 'flex',
+				display: 'inline-flex',
 				alignItems: 'center',
-				gap: 4,
 			}}
 		>
-			{'Time travel'}
 			{collapsed ? (
-				<IconChevronRight size={12} />
+				<IconChevronRight size={14} />
 			) : (
-				<IconChevronDown size={12} />
+				<IconChevronDown size={14} />
 			)}
 		</button>
-
-		{scrubbingAsOf !== null && (
-			<>
-				<span style={{color: GUI_THEME.accent, fontWeight: 700}}>
-					Read-only
-				</span>
-				<span style={{color: GUI_THEME.primary}}>{scrubbingAsOf}</span>
-			</>
-		)}
 	</div>
 );
 

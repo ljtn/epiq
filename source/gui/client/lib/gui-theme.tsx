@@ -17,6 +17,7 @@ export const GUI_THEME = {
 	accent: '#76d4ff',
 	green: '#8ce99a',
 	red: '#ff8787',
+	transparent: 'rgba(0, 0, 0, 0)',
 };
 
 // The Board series split by what kind of change each event was. Tickets keeps

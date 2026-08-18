@@ -7,13 +7,19 @@ import {EPIQ_VERSION} from '../../../version.js';
 type HeaderProps = {
 	state: GuiState | null;
 	connected: boolean;
+	scrubbing: boolean;
 	syncStatus: {
 		status: 'synced' | 'failed' | 'syncing';
 		msg: string;
 	};
 };
 
-export const Header = ({state, connected, syncStatus}: HeaderProps) => {
+export const Header = ({
+	state,
+	connected,
+	scrubbing,
+	syncStatus,
+}: HeaderProps) => {
 	const syncColor =
 		syncStatus.status === 'synced'
 			? GUI_THEME.green
@@ -75,6 +81,15 @@ export const Header = ({state, connected, syncStatus}: HeaderProps) => {
 							whiteSpace: 'nowrap',
 						}}
 					>
+						{scrubbing && (
+							<>
+								<span style={{color: GUI_THEME.accent, fontWeight: 700}}>
+									Read-only
+								</span>
+								<span style={{color: GUI_THEME.dim}}>|</span>
+							</>
+						)}
+
 						<span
 							style={{
 								display: 'flex',
@@ -89,7 +104,6 @@ export const Header = ({state, connected, syncStatus}: HeaderProps) => {
 								}
 								style={{
 									color: GUI_THEME.dim,
-									minWidth: 72,
 									maxWidth: 220,
 									overflow: 'hidden',
 									textOverflow: 'ellipsis',

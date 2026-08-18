@@ -611,13 +611,6 @@ export const TimeScrubber = ({
 		<ScrubberLayout
 			collapsed={collapsed}
 			onToggleCollapsed={() => setCollapsed(!collapsed)}
-			scrubbingAsOf={
-				timeTravel.mode === 'scrub'
-					? timeTravel.asOfTime
-						? formatDateTime(new Date(timeTravel.asOfTime))
-						: ''
-					: null
-			}
 			controls={{
 				scope,
 				offset,
@@ -626,11 +619,6 @@ export const TimeScrubber = ({
 				showIssues,
 				showCommits,
 				allBoards,
-				isScrubbing: timeTravel.mode === 'scrub',
-				nowLabel:
-					scope === 'all' || offset === 0
-						? 'Now'
-						: formatDateTime(new Date(axis.latest)),
 				onChangeScope: changeScope,
 				onChangeOffset: changeOffset,
 				onChangeLayoutMode: setLayoutMode,
@@ -643,13 +631,14 @@ export const TimeScrubber = ({
 				categoriesExpanded,
 				identitiesExpanded,
 				categoriesFiltered,
+				isScrubbing: timeTravel.mode === 'scrub',
+				onReturnToLive,
 				onChangeBoardView: changeBoardView,
 				onToggleIdentity: toggleIdentity,
 				onOnlyIdentity: isolateIdentity,
 				onToggleCategoriesExpanded: () =>
 					setCategoriesExpanded(!categoriesExpanded),
 				onSetIdentitiesExpanded: setIdentitiesExpanded,
-				onReturnToLive,
 			}}
 			chart={{
 				trackRef,
