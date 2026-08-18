@@ -1,4 +1,4 @@
-# epiq — `ghpages` (website only)
+# Epiq — `ghpages` (website only)
 
 This branch holds **only the published website** served at
 <https://ljtn.github.io/epiq/> from the [`docs/`](./docs) folder. It is *not*
@@ -14,7 +14,7 @@ docs/
 
 ## ⚠️ For anyone (human or AI) editing the docs
 
-The documentation describes how the epiq CLI behaves — its commands, modifiers,
+The documentation describes how the Epiq CLI behaves — its commands, modifiers,
 keyboard shortcuts, and config. **The source of truth for all of that lives on
 the `main` branch, not here.** This branch deliberately contains no application
 code so that stale copies can't be mistaken for current behavior.
