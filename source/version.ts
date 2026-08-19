@@ -1,2 +1,2 @@
 // Auto-generated. Do not edit.
-export const EPIQ_VERSION = '1.4.3';
+export const EPIQ_VERSION = '1.4.4';

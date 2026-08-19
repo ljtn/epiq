@@ -261,13 +261,6 @@ export const TimeScrubber = ({
 		setAllBoards(next);
 	};
 
-	// What the chart is a picture of: the requested window and the filter over
-	// it. The needle is deliberately absent — scrubbing re-materializes state
-	// as-of, and the window that comes back is a different size, so following it
-	// would restate the star count and replay the entrance on every tick.
-	// The last board actually selected, never the null a scrub passes through:
-	// scrubbing past a board's own creation empties it for a tick, and treating
-	// that as a view change restates the whole window mid-drag.
 	const steadyBoardId = useRef(boardId);
 	if (boardId !== null) steadyBoardId.current = boardId;
 
@@ -284,6 +277,14 @@ export const TimeScrubber = ({
 		() => JSON.stringify([boardView, [...hiddenIdentityIds].sort()]),
 		[boardView, hiddenIdentityIds],
 	);
+
+	const entrance = useRef(0);
+	const armed = useRef(true);
+	const seenHistoryId = useRef(historyId);
+
+	const armEntrance = () => {
+		armed.current = true;
+	};
 
 	// A view change asks for one new window, so exactly the next history to
 	// arrive answers it. Everything after that until the next view change is
@@ -302,6 +303,15 @@ export const TimeScrubber = ({
 		heldHistoryId.current = historyId;
 		shownRef.current = {timeline, commits};
 		awaiting.current = false;
+	}
+
+	if (seenHistoryId.current !== historyId) {
+		seenHistoryId.current = historyId;
+
+		if (armed.current) {
+			armed.current = false;
+			entrance.current += 1;
+		}
 	}
 
 	const shown = shownRef.current;
@@ -403,26 +413,6 @@ export const TimeScrubber = ({
 		intensity: stats.count / maxCommitCount,
 	}));
 
-	// The entrance belongs to a view the user asked for, never to data turning
-	// up on its own. Options that refetch arm it, and it fires when the window
-	// they asked for lands — animating on the click would run it against the
-	// previous window and restart mid-flight. A background refresh finds it
-	// unarmed and updates the bars in place.
-	const [entrance, setEntrance] = useState(0);
-	const armed = useRef(true);
-	const seenHistoryId = useRef(historyId);
-
-	// Armed by the handlers below rather than by an effect on derived values: a
-	// board id that momentarily changes identity while state reloads would
-	// otherwise count as a view change.
-	const armEntrance = () => {
-		armed.current = true;
-	};
-
-	// Only a real move to another board, never a flicker through null. Scrubbing
-	// past a board's own creation empties it for a tick, and re-arming on that
-	// replays the entrance mid-drag — thousands of dots animating again, which
-	// is most of what makes a drag stutter.
 	const armedBoardId = useRef(boardId);
 
 	useEffect(() => {
@@ -432,27 +422,8 @@ export const TimeScrubber = ({
 		armEntrance();
 	}, [boardId]);
 
-	useEffect(() => {
-		if (seenHistoryId.current === historyId) return;
-		seenHistoryId.current = historyId;
+	const windowKey = `${layoutMode}-${entrance.current}-${filterKey}`;
 
-		if (!armed.current) return;
-		armed.current = false;
-		setEntrance(generation => generation + 1);
-	}, [historyId]);
-
-	// layoutMode is in the key rather than armed: switching Volume/Events draws
-	// the window already in hand, so it animates at once.
-	// The filter belongs here, the scope does not: a filter is applied on the
-	// spot, while a scope change has to wait for its window to land. Keying on
-	// the click as well as the arrival would run the entrance twice, once
-	// against the old scope's data — which is the bug scrubber.pw.ts guards.
-	// The needle is absent from both by construction.
-	const windowKey = `${layoutMode}-${entrance}-${filterKey}`;
-
-	// Kept mounted through their exit, so unticking a series retracts it rather
-	// than blanking it. Commits are listed first so board events draw over them,
-	// as the old zIndex did.
 	const scatterLayers = useMemo(
 		(): ScatterLayer[] => [
 			...(commitScatter.mounted
@@ -640,13 +611,6 @@ export const TimeScrubber = ({
 		<ScrubberLayout
 			collapsed={collapsed}
 			onToggleCollapsed={() => setCollapsed(!collapsed)}
-			scrubbingAsOf={
-				timeTravel.mode === 'scrub'
-					? timeTravel.asOfTime
-						? formatDateTime(new Date(timeTravel.asOfTime))
-						: ''
-					: null
-			}
 			controls={{
 				scope,
 				offset,
@@ -655,11 +619,6 @@ export const TimeScrubber = ({
 				showIssues,
 				showCommits,
 				allBoards,
-				isScrubbing: timeTravel.mode === 'scrub',
-				nowLabel:
-					scope === 'all' || offset === 0
-						? 'Now'
-						: formatDateTime(new Date(axis.latest)),
 				onChangeScope: changeScope,
 				onChangeOffset: changeOffset,
 				onChangeLayoutMode: setLayoutMode,
@@ -672,13 +631,14 @@ export const TimeScrubber = ({
 				categoriesExpanded,
 				identitiesExpanded,
 				categoriesFiltered,
+				isScrubbing: timeTravel.mode === 'scrub',
+				onReturnToLive,
 				onChangeBoardView: changeBoardView,
 				onToggleIdentity: toggleIdentity,
 				onOnlyIdentity: isolateIdentity,
 				onToggleCategoriesExpanded: () =>
 					setCategoriesExpanded(!categoriesExpanded),
 				onSetIdentitiesExpanded: setIdentitiesExpanded,
-				onReturnToLive,
 			}}
 			chart={{
 				trackRef,

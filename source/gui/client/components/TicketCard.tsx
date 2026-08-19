@@ -219,7 +219,7 @@ export const TicketCard = ({
 								border: `1px solid ${
 									isSelected ? 'rgba(118,228,255,0.28)' : GUI_THEME.line
 								}`,
-								borderRadius: 999,
+								borderRadius: 6,
 								padding: '3px 7px',
 								fontSize: 11,
 								fontWeight: 600,

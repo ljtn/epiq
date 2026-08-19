@@ -877,7 +877,12 @@ export const App = () => {
 				/>
 			)}
 
-			<Header state={state} connected={connected} syncStatus={syncStatus} />
+			<Header
+				state={state}
+				connected={connected}
+				scrubbing={state?.timeTravel?.mode === 'scrub'}
+				syncStatus={syncStatus}
+			/>
 
 			<TimeScrubber
 				timeline={history.timeline}
