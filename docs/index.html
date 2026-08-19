@@ -100,7 +100,8 @@
 						<br />
 						<p class="lead">
 							A modern issue tracker unlocking agentic workflow tracking with
-							board replay. Distributed, local-first, and code-native.
+							board replay. Open source, distributed, local-first, and
+							code-native.
 						</p>
 						<div class="actions">
 							<button
@@ -560,7 +561,8 @@
 						return res.ok ? res.text() : null;
 					})
 					.then(function (text) {
-						var found = text && /EPIQ_VERSION\s*=\s*['"]([^'"]+)['"]/.exec(text);
+						var found =
+							text && /EPIQ_VERSION\s*=\s*['"]([^'"]+)['"]/.exec(text);
 						if (!found) return;
 						render(found[1]);
 						try {
