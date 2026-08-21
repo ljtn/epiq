@@ -5,7 +5,12 @@ const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page).toHaveURL(/\/issue\//);
+
+	// Waits for this ticket's own details, not just any /issue/ url: creation
+	// navigates to the new ticket, and a url left over from the previous one
+	// would satisfy the looser check while that navigation is still in flight —
+	// landing later and resetting the tab.
+	await expect(page.locator('aside')).toContainText(title);
 };
 
 const openFromBoard = async (page: Page, title: string) =>
