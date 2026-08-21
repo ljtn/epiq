@@ -834,10 +834,11 @@ export const App = () => {
 		send('swimlane:edit:title', {swimlaneId, title});
 	};
 
-	// Resolved at render rather than captured when the menu was clicked, so the
-	// ticket count in the confirm reflects the board as it is now.
+	// From the board rather than the filtered lanes, and resolved at render
+	// rather than captured when the menu was clicked: the confirm counts what the
+	// delete destroys, which a board filter must not be able to talk down.
 	const deletingSwimlane =
-		visibleSwimlanes.find(x => x.id === deleteSwimlaneId) ?? null;
+		selectedBoard?.swimlanes.find(x => x.id === deleteSwimlaneId) ?? null;
 
 	// The dragged id comes off the drop event rather than being remembered from
 	// dragstart: a drag can begin in one window and end in this one, and the
