@@ -1226,11 +1226,17 @@ export const App = () => {
 							forPicked(id => removeIssueAssignee(id, assigneeId))
 						}
 						onCloseIssues={() => {
-							forPicked(closeIssue);
+							// Skips the ones already closed: the event log would otherwise
+							// carry a second "Closed" for each of them.
+							for (const issue of pickedIssues) {
+								if (!issue.isClosed) closeIssue(issue.id);
+							}
 							clearPicked();
 						}}
 						onReopenIssues={() => {
-							forPicked(reopenIssue);
+							for (const issue of pickedIssues) {
+								if (issue.isClosed) reopenIssue(issue.id);
+							}
 							clearPicked();
 						}}
 						onClear={clearPicked}

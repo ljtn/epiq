@@ -55,6 +55,8 @@ export const BulkDetails = ({
 	onClear: () => void;
 }) => {
 	const total = issues.length;
+	const openCount = issues.filter(issue => !issue.isClosed).length;
+	const closedCount = total - openCount;
 	const tags = countBy(issues, issue => issue.tags);
 	const assignees = countBy(issues, issue => issue.assignees);
 
@@ -185,10 +187,19 @@ export const BulkDetails = ({
 				</AddRow>
 			</Section>
 
+			{/* Each action is offered only for the tickets it would apply to, and
+			    counts those rather than the whole selection. */}
 			<Section title="Actions">
 				<ChipRow>
-					<Button onClick={onCloseIssues}>close {total} tickets</Button>
-					<Button onClick={onReopenIssues}>reopen {total} tickets</Button>
+					{openCount > 0 && (
+						<Button onClick={onCloseIssues}>close {openCount} tickets</Button>
+					)}
+
+					{closedCount > 0 && (
+						<Button onClick={onReopenIssues}>
+							reopen {closedCount} tickets
+						</Button>
+					)}
 				</ChipRow>
 			</Section>
 		</Aside>
