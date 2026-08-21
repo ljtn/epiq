@@ -954,3 +954,5 @@
 {"v":1,"id":["01M0JT7RP6J0ZZDCQHF9DVDS4V","01M0JT3V6K07TB3QTB87EZ9NP4"],"add.issue":{"id":"01M0JT7RNXAG1GNMF1XSKZYP5Q","parent":"01KS22YK95S3336MFSE44MY70R","name":"look into why we reset state to remote state, and hence nuking local state, instead of merging (thats why we have user-scoped append-only logs)","rank":"fffffffffbffffffffffffff"}}
 {"v":1,"id":["01M0JTGS143YXEZRT2PBTXK0XG","01M0JT7RP6J0ZZDCQHF9DVDS4V"],"move.node":{"id":"01M011Z2FF411ZPC4QSKN5MJA5","parent":"01KS22YK95S3336MFSE44MY70Q","rank":"bfffffffffffffffffffffff"}}
 {"v":1,"id":["01M0JTGVWTMW26SNGB7QQFTBCJ","01M0JTGS143YXEZRT2PBTXK0XG"],"move.node":{"id":"01M011Z2FF411ZPC4QSKN5MJA5","parent":"01KS22YK95S3336MFSE44MY70Q","rank":"efffffffffffffffffffffff"}}
+{"v":1,"id":["01M0JTH94CZJPWAGGA4NHG3X7E","01M0JTGVWTMW26SNGB7QQFTBCJ"],"add.swimlane":{"id":"01M0JTH94549HVNNSMXJ7FJJAR","name":"Blocked","parent":"01KS22YK95S3336MFSE44MY70Q","rank":"f7ffffffffffffffffffffff"}}
+{"v":1,"id":["01M0JTHBK4AC6PYV7GSR3HEC7Q","01M0JTH94CZJPWAGGA4NHG3X7E"],"move.node":{"id":"01M0JTH94549HVNNSMXJ7FJJAR","parent":"01KS22YK95S3336MFSE44MY70Q","rank":"e7ffffffffffffffffffffff"}}
