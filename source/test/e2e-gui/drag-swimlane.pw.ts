@@ -58,8 +58,8 @@ const addLane = async (page: Page, name: string) => {
 	await expect(page.getByText(name)).toBeVisible();
 
 	// The optimistic lane is readonly until its real id arrives, and adopting
-	// that id remounts the column. Dragging before then captures a node React is
-	// about to throw away, and the drop lands on nothing.
+	// that id remounts the column — so wait, or the drag captures a node React is
+	// about to replace.
 	await expect(
 		page
 			.locator('section')

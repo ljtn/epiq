@@ -1,8 +1,7 @@
 import {Button} from './Button';
 import {GUI_THEME} from '../lib/gui-theme';
 
-// Shared by the issue and swimlane modals: same shell, same Enter/Escape
-// handling, only the wording differs.
+// Shared by the issue and swimlane modals; only the wording differs.
 type Props = {
 	eyebrow: string;
 	fieldLabel: string;
@@ -107,9 +106,9 @@ export const CreateNodeModal = ({
 					marginTop: 20,
 				}}
 			>
-				{/* Explicitly not a submit button: as the form's first button it was
-				    the default one, so Enter in the title field clicked it, unmounted
-				    the modal, and the submit event never reached onCreate. */}
+				{/* Not a submit button: as the form's first button it would otherwise
+				    be the default one, and Enter would activate it instead of the
+				    form's onSubmit. */}
 				<Button type="button" variant="ghost" onClick={onClose}>
 					cancel
 				</Button>

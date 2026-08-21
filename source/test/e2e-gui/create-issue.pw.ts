@@ -10,9 +10,8 @@ test.beforeEach(async ({page, appUrl}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 });
 
-// The regression: `cancel` had no explicit type, so as the form's first button
-// it was the default one. Enter clicked it, the modal unmounted, and the submit
-// event that would have created the ticket never fired — the modal just closed.
+// `cancel` must not be a submit button: as the form's first button it would be
+// the default one, and Enter would activate it instead of submitting.
 test('creates the ticket when Enter is pressed in the title field', async ({
 	page,
 	pageErrors,

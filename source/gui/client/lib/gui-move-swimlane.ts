@@ -1,9 +1,7 @@
 import {GuiState, GuiSwimlane} from './gui-state.model';
 
-// Its own MIME type rather than text/plain, which is what a ticket drag
-// carries. The column body is a ticket drop target, so without a way to tell
-// the two apart every swimlane dragged across a column would read as a ticket
-// being dropped into it.
+// Its own MIME type rather than text/plain, which a ticket drag carries. The
+// column body is a ticket drop target, so the two have to be distinguishable.
 export const SWIMLANE_DRAG_TYPE = 'application/x-epiq-swimlane';
 
 // `types` is the only thing readable during dragover — getData is blanked until
@@ -48,9 +46,8 @@ const reorder = (
  */
 export const moveSwimlane =
 	(
-		// Read before the updater, for the same reason moveIssue does: React only
-		// runs an updater eagerly when nothing is queued, so the position cannot be
-		// computed inside one and still reach the send below.
+		// Read before the updater: React only runs an updater eagerly when nothing
+		// is queued, so a position computed inside one cannot reach the send.
 		state: GuiState | null,
 		setState: React.Dispatch<React.SetStateAction<GuiState | null>>,
 		send: (type: string, payload: unknown) => void,

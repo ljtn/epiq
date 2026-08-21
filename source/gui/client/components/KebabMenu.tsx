@@ -9,8 +9,8 @@ export type KebabMenuItem = {
 	onSelect: () => void;
 };
 
-// Deliberately not Dropdown: that one is a select — it carries a current value
-// and marks it with a tick. These are actions, and none of them is "current".
+// Not Dropdown: that is a select, carrying a current value it marks with a
+// tick. These entries are actions, so none of them is "current".
 export const KebabMenu = ({
 	items,
 	testId,

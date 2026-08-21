@@ -87,10 +87,8 @@ test('warns that the tickets go too, and cancelling keeps everything', async ({
 	await expect(page.getByText('Doomed ticket').first()).toBeVisible();
 });
 
-// The reported bug: on a real repo `getGuiState` re-boots the whole event log
-// (~450ms here, more under a concurrent autosync), and nothing moved on screen
-// until it answered. Every other mutation on the board updates optimistically;
-// these three did not.
+// A post-mutation state costs a full event-log boot — hundreds of ms on a real
+// repo — so the board has to move on its own rather than wait for it.
 test('the board updates before the server answers', async ({page}) => {
 	const name = `Optimistic ${Date.now()}`;
 

@@ -137,8 +137,8 @@ export const SwimlaneColumn = ({
 				onDragLeave();
 			}}
 		>
-			{/* Absolute, so the edge line never takes part in the column's own
-			    layout and cannot shift the cards while a drag is in progress. */}
+			{/* Absolute, so the edge line stays out of the column's layout and
+			    cannot shift the cards mid-drag. */}
 			{dropSide && (
 				<div
 					data-testid="swimlane-drop-indicator"
@@ -158,8 +158,8 @@ export const SwimlaneColumn = ({
 
 			<header
 				// Header rather than the whole column: the cards inside are draggable
-				// too, and a draggable ancestor makes which one starts the drag a
-				// matter of where exactly the pointer went down.
+				// too, and a draggable ancestor would make the pointer's exact
+				// position decide which one starts.
 				draggable={!swimlane.readonly}
 				data-testid="swimlane-handle"
 				onDragStart={event => {
