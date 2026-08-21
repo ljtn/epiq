@@ -87,6 +87,58 @@ test('warns that the tickets go too, and cancelling keeps everything', async ({
 	await expect(page.getByText('Doomed ticket').first()).toBeVisible();
 });
 
+// The reported bug: on a real repo `getGuiState` re-boots the whole event log
+// (~450ms here, more under a concurrent autosync), and nothing moved on screen
+// until it answered. Every other mutation on the board updates optimistically;
+// these three did not.
+test('the board updates before the server answers', async ({page}) => {
+	const name = `Optimistic ${Date.now()}`;
+
+	await addLane(page, name);
+
+	// Every reply from here on is dropped, so anything that changes on screen
+	// changed without the server's help.
+	await page.route('**/ws', route => route.abort());
+	await page.evaluate(`
+		window.__socketSend = WebSocket.prototype.send;
+		WebSocket.prototype.send = function () {};
+	`);
+
+	await laneMenu(page, name).click();
+	await page.getByTestId('swimlane-menu-rename').click();
+
+	const renamed = `${name} renamed`;
+	const field = page.getByPlaceholder('swimlane name');
+	await field.fill(renamed);
+	await field.press('Enter');
+
+	await expect(page.getByText(renamed)).toBeVisible({timeout: 2000});
+
+	await laneMenu(page, renamed).click();
+	await page.getByTestId('swimlane-menu-delete').click();
+	await page
+		.getByTestId('confirm-modal')
+		.getByRole('button', {name: 'delete'})
+		.click();
+
+	await expect(page.getByText(renamed)).toHaveCount(0);
+
+	// Undo the patch so the lane is really removed and the next test starts clean.
+	await page.evaluate('WebSocket.prototype.send = window.__socketSend');
+	await page.unroute('**/ws');
+	await page.reload();
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await expect(page.getByText(name)).toBeVisible();
+
+	await laneMenu(page, name).click();
+	await page.getByTestId('swimlane-menu-delete').click();
+	await page
+		.getByTestId('confirm-modal')
+		.getByRole('button', {name: 'delete'})
+		.click();
+	await expect(page.getByText(name)).toHaveCount(0);
+});
+
 test('no kebab on a readonly board', async ({page}) => {
 	await expect(page.getByTestId('swimlane-menu').first()).toBeVisible();
 

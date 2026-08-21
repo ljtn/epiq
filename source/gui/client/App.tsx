@@ -27,6 +27,7 @@ import {
 	findIssue,
 	getResultValue,
 	updateIssueInGuiState,
+	updateSwimlaneInGuiState,
 } from './lib/gui-state-helper';
 import {
 	GuiComment,
@@ -745,10 +746,38 @@ export const App = () => {
 		if (createSwimlaneTitle === null || !selectedBoard) return;
 
 		const title = createSwimlaneTitle.trim() || 'New swimlane';
+		const boardId = selectedBoard.id;
 
 		setCreateSwimlaneTitle(null);
 
-		send('swimlane:create', {title, boardId: selectedBoard.id});
+		// Placeholder id: the real one arrives with the state that follows. Marked
+		// readonly until then, which hides the kebab and disables `+` — both would
+		// otherwise send this id, and the server has never heard of it.
+		setState(prev =>
+			prev
+				? {
+						...prev,
+						boards: prev.boards.map(board =>
+							board.id === boardId
+								? {
+										...board,
+										swimlanes: [
+											...board.swimlanes,
+											{
+												id: `pending-swimlane-${title}`,
+												title,
+												readonly: true,
+												issues: [],
+											},
+										],
+								  }
+								: board,
+						),
+				  }
+				: prev,
+		);
+
+		send('swimlane:create', {title, boardId});
 	};
 
 	const openRenameSwimlane = (swimlaneId: string) => {
@@ -761,6 +790,7 @@ export const App = () => {
 	const submitRenameSwimlane = () => {
 		if (!renameSwimlane) return;
 
+		const {swimlaneId} = renameSwimlane;
 		const title = renameSwimlane.title.trim();
 
 		setRenameSwimlane(null);
@@ -769,7 +799,16 @@ export const App = () => {
 		// what the reader meant by it, so treat it as a cancel.
 		if (!title) return;
 
-		send('swimlane:edit:title', {swimlaneId: renameSwimlane.swimlaneId, title});
+		setState(prev =>
+			prev
+				? updateSwimlaneInGuiState(prev, swimlaneId, swimlane => ({
+						...swimlane,
+						title,
+				  }))
+				: prev,
+		);
+
+		send('swimlane:edit:title', {swimlaneId, title});
 	};
 
 	// Resolved at render rather than captured when the menu was clicked, so the
@@ -779,6 +818,12 @@ export const App = () => {
 
 	const confirmDeleteSwimlane = () => {
 		if (!deleteSwimlaneId) return;
+
+		setState(prev =>
+			prev
+				? updateSwimlaneInGuiState(prev, deleteSwimlaneId, () => null)
+				: prev,
+		);
 
 		send('swimlane:delete', {swimlaneId: deleteSwimlaneId});
 		setDeleteSwimlaneId(null);
