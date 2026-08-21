@@ -56,6 +56,16 @@ const addLane = async (page: Page, name: string) => {
 	await page.getByPlaceholder('swimlane name').fill(name);
 	await page.getByPlaceholder('swimlane name').press('Enter');
 	await expect(page.getByText(name)).toBeVisible();
+
+	// The optimistic lane is readonly until its real id arrives, and adopting
+	// that id remounts the column. Dragging before then captures a node React is
+	// about to throw away, and the drop lands on nothing.
+	await expect(
+		page
+			.locator('section')
+			.filter({hasText: name})
+			.getByTestId('swimlane-handle'),
+	).toHaveAttribute('draggable', 'true');
 };
 
 const deleteLane = async (page: Page, name: string) => {
