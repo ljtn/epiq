@@ -105,6 +105,39 @@ describe('buildAxis', () => {
 		expect(axis.latest).toBe(900);
 	});
 
+	it('spans the scope, not the stretch of it the events happen to fill', () => {
+		// A week-wide window whose events all land in its last hour.
+		const weekStart = 100 * DAY;
+		const weekEnd = weekStart + 7 * DAY;
+		const clustered = weekEnd - 60 * 60 * 1000;
+
+		const axis = buildAxis(
+			timeline([{t: clustered, count: 3}], {
+				earliest: weekStart,
+				latest: weekEnd,
+			}),
+			[],
+			weekEnd,
+		);
+
+		expect(axis.earliest).toBe(weekStart);
+		expect(axis.latest).toBe(weekEnd);
+	});
+
+	it('keeps a past window off the present when there are no commits', () => {
+		const start = 100 * DAY;
+		const end = 107 * DAY;
+
+		const axis = buildAxis(
+			timeline([{t: start, count: 1}], {earliest: start, latest: end}),
+			[],
+			// "Now" is well past the window being looked at.
+			200 * DAY,
+		);
+
+		expect(axis.latest).toBe(end);
+	});
+
 	it('falls back to now when both series are empty', () => {
 		const axis = buildAxis(null, [], 1_000);
 

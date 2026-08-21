@@ -90,13 +90,18 @@ export const buildAxis = (
 ): ScrubberAxis => {
 	// Must stay folded, not spread: in "All time" this is one argument per
 	// commit in the repository, and engines cap argument count.
-	const commitBounds = commits.length ? commits.map(c => c.time) : [now];
+	const commitTimes = commits.map(c => c.time);
 
-	const earliest = minOf(
-		commitBounds,
-		timeline?.buckets[0]?.t ?? timeline?.earliest ?? now,
-	);
-	const latest = maxOf(commitBounds, timeline?.latest ?? now);
+	// The scope's own range, which the server returns as earliest/latest. Taking
+	// it from the data instead would draw a week's worth of events across a
+	// window labelled a month.
+	const windowStart = timeline?.earliest ?? minOf(commitTimes, now);
+	const windowEnd = timeline?.latest ?? maxOf(commitTimes, now);
+
+	// Commits come back clamped to the same window, so this cannot widen a
+	// scoped axis — it only covers "All time", where the two disagree.
+	const earliest = minOf(commitTimes, windowStart);
+	const latest = maxOf(commitTimes, windowEnd);
 	const span = Math.max(1, latest - earliest);
 
 	const bucketCount = bucketCountForSpan(span);
