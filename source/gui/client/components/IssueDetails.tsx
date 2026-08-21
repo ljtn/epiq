@@ -112,22 +112,6 @@ export const IssueDetails = ({
 	}, [editingTitle]);
 
 	useEffect(() => {
-		if (!issue) return;
-
-		const handleClickOutside = (event: MouseEvent) => {
-			if (
-				panelRef.current &&
-				!panelRef.current.contains(event.target as Node)
-			) {
-				onClose();
-			}
-		};
-
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => document.removeEventListener('mousedown', handleClickOutside);
-	}, [issue, onClose]);
-
-	useEffect(() => {
 		setTitle(issue?.title ?? '');
 		setDescription(issue?.description ?? '');
 		setTagName('');
