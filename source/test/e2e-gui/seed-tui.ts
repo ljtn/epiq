@@ -80,15 +80,24 @@ export const startSeedTui = (): SeedTui => {
 export const seedProject = async (): Promise<string> => {
 	const tui = startSeedTui();
 
+	// ENTER is a separate write *and* waits for the prompt to ask for it. Sent
+	// any earlier it lands before the command is committed and is dropped, which
+	// hangs the seed on the next waitFor.
+	const command = async (value: string) => {
+		tui.input(value);
+		await tui.waitFor('<ENTER> to confirm');
+		tui.input('\r');
+	};
+
 	await tui.waitFor('choose your username');
-	tui.input(':config username test\r');
+	await command(':config username test');
 
 	await tui.waitFor('pick your editor');
-	tui.input(':config editor vim\r');
+	await command(':config editor vim');
 
 	await tui.waitFor('Configure auto sync');
 	// Off: an autosync tick mid-test would change state no assertion asked for.
-	tui.input(':config autoSync off\r');
+	await command(':config autoSync off');
 
 	await tui.waitFor('Initialize project');
 
