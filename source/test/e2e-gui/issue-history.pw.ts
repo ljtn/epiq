@@ -13,14 +13,14 @@ test.beforeEach(async ({page, appUrl}) => {
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 });
 
-test('the history tab lists the ticket’s own events', async ({
+test('the log tab lists the ticket’s own events', async ({
 	page,
 	pageErrors,
 }) => {
 	const title = `History ${Date.now()}`;
 	await openFirstTicket(page, title);
 
-	await page.getByRole('button', {name: /History/}).click();
+	await page.getByRole('button', {name: /^Log/}).click();
 
 	const history = page.getByTestId('issue-history');
 	await expect(history).toBeVisible();
@@ -31,20 +31,50 @@ test('the history tab lists the ticket’s own events', async ({
 	await page.getByRole('button', {name: 'Overview'}).click();
 	await page.getByRole('button', {name: 'close issue'}).click();
 
-	await page.getByRole('button', {name: /History/}).click();
+	await page.getByRole('button', {name: /^Log/}).click();
 	await expect(history.locator('> div').first()).toContainText('Closed');
 	await expect(history).toContainText('Created with title');
 
 	expect(pageErrors).toEqual([]);
 });
 
-test('the history tab survives a reload on its own url', async ({page}) => {
+test('the overview names when the ticket was created', async ({page}) => {
+	const title = `Created ${Date.now()}`;
+	await openFirstTicket(page, title);
+
+	const created = page.getByTestId('issue-created-at');
+	await expect(created).toBeVisible();
+	await expect(created).toContainText(/Created (just now|\d+\w+ ago)/);
+	// The exact timestamp stays on hover rather than crowding the line.
+	await expect(created).toHaveAttribute(
+		'title',
+		new RegExp(String(new Date().getFullYear())),
+	);
+});
+
+test('the log tab survives a reload on its own url', async ({page}) => {
 	const title = `Deep link ${Date.now()}`;
 	await openFirstTicket(page, title);
 
-	await page.getByRole('button', {name: /History/}).click();
+	await page.getByRole('button', {name: /^Log/}).click();
 	await expect(page).toHaveURL(/tab=history/);
 
 	await page.reload();
 	await expect(page.getByTestId('issue-history')).toBeVisible();
+});
+
+test('the timeline marks when the open ticket was created', async ({page}) => {
+	await expect(page.getByTestId('scrubber-creation-marker')).toHaveCount(0);
+
+	await openFirstTicket(page, `Marker ${Date.now()}`);
+
+	// Reloaded so the timeline window includes the ticket just made: the marker
+	// is only drawn inside the fetched window, never clamped to an edge.
+	await page.reload();
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await expect(page.getByTestId('scrubber-creation-marker')).toBeVisible();
+
+	// Closing the details takes the reference line with it.
+	await page.getByRole('button', {name: '×'}).click();
+	await expect(page.getByTestId('scrubber-creation-marker')).toHaveCount(0);
 });

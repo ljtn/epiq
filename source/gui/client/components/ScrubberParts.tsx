@@ -992,6 +992,45 @@ export const ScatterDot = ({
 
 // Lives on the chart wrapper rather than inside either chart, so it runs
 // unbroken through both and the gap between them.
+// Where the open ticket was created. Dashed and in the accent so it reads as a
+// reference line rather than a second playhead.
+export const CreationMarker = ({
+	fraction,
+	label,
+}: {
+	fraction: number;
+	label: string;
+}) => (
+	<div
+		data-testid="scrubber-creation-marker"
+		title={label}
+		style={{
+			position: 'absolute',
+			left: `${fraction * 100}%`,
+			top: 0,
+			bottom: 0,
+			width: 0,
+			borderLeft: `1px dashed ${GUI_THEME.accent}`,
+			opacity: 0.75,
+			zIndex: 2,
+			pointerEvents: 'none',
+			transform: 'translateX(-0.5px)',
+		}}
+	>
+		<div
+			style={{
+				position: 'absolute',
+				top: -3,
+				left: -3,
+				width: 6,
+				height: 6,
+				borderRadius: '50%',
+				background: GUI_THEME.accent,
+			}}
+		/>
+	</div>
+);
+
 export const ScrubberNeedle = ({fraction}: {fraction: number}) => {
 	const [hovered, setHovered] = useState(false);
 

@@ -24,6 +24,7 @@ import {
 } from '../lib/scrubber';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {
+	CreationMarker,
 	HourAxisLabels,
 	ScatterCanvas,
 	ScatterLayer,
@@ -99,6 +100,8 @@ export type ScrubberChart = {
 	hoveredCommitBucketIndex: number | null;
 	hoveredSegment: Segment | null;
 	thumbFraction: number;
+	// Null when no ticket is open, or when its creation falls outside the window.
+	createdMarker: {fraction: number; label: string} | null;
 	trackWidthPx: number;
 	boardHint: HintContent | null;
 	commitHint: HintContent | null;
@@ -270,6 +273,13 @@ export const ScrubberLayout = ({
 									/>
 								</div>
 							)}
+
+						{chart.createdMarker && (
+							<CreationMarker
+								fraction={chart.createdMarker.fraction}
+								label={chart.createdMarker.label}
+							/>
+						)}
 
 						<ScrubberNeedle fraction={chart.thumbFraction} />
 

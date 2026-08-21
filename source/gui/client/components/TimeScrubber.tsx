@@ -92,6 +92,7 @@ export const TimeScrubber = ({
 	onRequestHistory,
 	boardId,
 	connected,
+	createdAt,
 	onInspectCommit,
 	onBoardFilterChange,
 }: {
@@ -108,6 +109,8 @@ export const TimeScrubber = ({
 	onRequestHistory: (start?: number, end?: number, allBoards?: boolean) => void;
 	boardId: string | null;
 	connected: boolean;
+	// Creation time of the ticket whose details are open, marked on the track.
+	createdAt: number | null;
 	onInspectCommit: (sha: string) => void;
 	// Reported upward rather than held here: the board renders outside this
 	// component, and the selection that colours the chart is the same one that
@@ -450,6 +453,18 @@ export const TimeScrubber = ({
 		[commitPoints, issuePoints, commitScatter, issueScatter, windowKey],
 	);
 
+	// Hidden rather than clamped when the ticket predates the window: pinning it
+	// to the edge would claim it was created at a time it was not.
+	const createdMarker = useMemo(() => {
+		if (createdAt === null) return null;
+		if (createdAt < axis.earliest || createdAt > axis.latest) return null;
+
+		return {
+			fraction: axis.fractionForTime(createdAt),
+			label: `Ticket created ${formatDateTime(new Date(createdAt))}`,
+		};
+	}, [createdAt, axis]);
+
 	const confirmedFraction =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
 			? axis.fractionForTime(timeTravel.asOfTime)
@@ -669,6 +684,7 @@ export const TimeScrubber = ({
 						? segmentAt(hoveredSegmentTime, segmentUnit)
 						: null,
 				thumbFraction: dragFraction ?? confirmedFraction,
+				createdMarker,
 				trackWidthPx: trackRef.current?.clientWidth ?? 0,
 				boardHint,
 				commitHint,

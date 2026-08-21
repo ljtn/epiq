@@ -28,6 +28,7 @@ import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueHistory} from './IssueHistory';
+import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'history';
 
@@ -142,7 +143,7 @@ export const IssueDetails = ({
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
-		{id: 'history', label: 'History', count: history.length},
+		{id: 'history', label: 'Log', count: history.length},
 	];
 
 	const saveTitle = () => {
@@ -299,6 +300,22 @@ export const IssueDetails = ({
 
 					{activeTab === 'overview' && (
 						<>
+							{/* 0 when the id carries no time. Better to say nothing than to
+							    date the ticket to 1970. */}
+							{issue.createdAt > 0 && (
+								<div
+									data-testid="issue-created-at"
+									title={formatAbsolute(issue.createdAt)}
+									style={{
+										fontSize: 11,
+										color: GUI_THEME.dim,
+										marginBottom: 14,
+									}}
+								>
+									Created {timeAgo(issue.createdAt)}
+								</div>
+							)}
+
 							<Section
 								first={true}
 								title="Description"

@@ -36,6 +36,8 @@ export type GuiIssue = {
 	ref: string;
 	title: string;
 	description: string;
+	/** Epoch ms, decoded from the issue's own ULID. */
+	createdAt: number;
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];

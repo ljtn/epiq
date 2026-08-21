@@ -19,6 +19,8 @@ export type ApiIssue = {
 	ref: string;
 	title: string;
 	description: string;
+	/** Decoded from the issue's own ULID. */
+	createdAt: number;
 	readonly: boolean;
 	tags: ApiTag[];
 	assignees: ApiAssignee[];

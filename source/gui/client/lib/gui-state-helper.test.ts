@@ -8,6 +8,7 @@ const issue = (id: string, ref: string, title: string): GuiIssue => ({
 	ref,
 	title,
 	description: '',
+	createdAt: 0,
 	readonly: false,
 	isClosed: false,
 	tags: [],

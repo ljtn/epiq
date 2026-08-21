@@ -1049,6 +1049,7 @@ export const App = () => {
 				connected={connected}
 				onRequestHistory={requestBoardHistory}
 				onInspectCommit={inspectCommit}
+				createdAt={selectedIssue?.createdAt || null}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
 				onReturnToLive={returnToLive}
