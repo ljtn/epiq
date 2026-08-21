@@ -7,6 +7,7 @@ import {
 	succeeded,
 } from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
+import {getState} from '../state/state.js';
 import {materialize} from './event-materialize.js';
 import {persist} from './event-persist.js';
 import {
@@ -44,6 +45,14 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 ): Result<NonEmptyArray<MaterializedValue<T[number]['action']>>> {
 	if (events.length === 0 || !events[0]) {
 		return failed('No events provided');
+	}
+
+	// `readOnly` marks a historical checkout. Every write reaches the event log
+	// through here, so this is where the whole board is held read-only rather
+	// than in each caller. Replay materializes without persisting, so it never
+	// arrives here.
+	if (getState().readOnly) {
+		return failed('Cannot change the board while time travelling');
 	}
 
 	const contributorResult = ensureContributorExists(events[0], rootDir);
