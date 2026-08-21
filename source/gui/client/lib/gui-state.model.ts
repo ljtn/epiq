@@ -52,6 +52,8 @@ type GuiBoard = {
 	id: string;
 	ref: string;
 	title: string;
+	// The Closed board, and every board while the timeline is scrubbed.
+	readonly: boolean;
 	swimlanes: GuiSwimlane[];
 };
 

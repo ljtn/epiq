@@ -8,6 +8,7 @@ import {
 	addIssueTag,
 	closeIssue,
 	createIssue,
+	createSwimlane,
 	deleteIssueComment,
 	deriveGuiState,
 	editIssueDescription,
@@ -402,6 +403,21 @@ export const setupWebsocket = (
 
 					onStateChanged();
 					return sendGuiState(socket, repoRoot);
+				}
+
+				if (type === 'swimlane:create') {
+					const result = await createSwimlane({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:create:result',
+						result,
+					);
 				}
 
 				if (type === 'issues:move') {

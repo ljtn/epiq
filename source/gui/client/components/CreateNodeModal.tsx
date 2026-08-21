@@ -1,14 +1,22 @@
 import {Button} from './Button';
 import {GUI_THEME} from '../lib/gui-theme';
 
+// Shared by the issue and swimlane modals: same shell, same Enter/Escape
+// handling, only the wording differs.
 type Props = {
+	eyebrow: string;
+	fieldLabel: string;
+	placeholder: string;
 	title: string;
 	onChangeTitle: (title: string) => void;
 	onCreate: () => void;
 	onClose: () => void;
 };
 
-export const CreateIssueModal = ({
+export const CreateNodeModal = ({
+	eyebrow,
+	fieldLabel,
+	placeholder,
 	title,
 	onChangeTitle,
 	onCreate,
@@ -51,7 +59,7 @@ export const CreateIssueModal = ({
 					textTransform: 'uppercase',
 				}}
 			>
-				New issue
+				{eyebrow}
 			</div>
 
 			<h2
@@ -61,13 +69,13 @@ export const CreateIssueModal = ({
 					color: GUI_THEME.primary,
 				}}
 			>
-				title
+				{fieldLabel}
 			</h2>
 
 			<input
 				autoFocus
 				value={title}
-				placeholder="issue name"
+				placeholder={placeholder}
 				onChange={event => onChangeTitle(event.target.value)}
 				onKeyDown={event => {
 					if (event.key === 'Escape') {

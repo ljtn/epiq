@@ -3,6 +3,7 @@
 export const MUTATING_MESSAGE_TYPES = new Set<string>([
 	'sync',
 	'issues:create',
+	'swimlane:create',
 	'issues:move',
 	'issue:close',
 	'issue:reopen',

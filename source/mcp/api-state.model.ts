@@ -38,6 +38,9 @@ export type ApiBoard = {
 	id: string;
 	ref: string;
 	title: string;
+	// True for the Closed board, and for every board while time travel is
+	// scrubbed — the same forcing the swimlanes and issues below already get.
+	readonly: boolean;
 	swimlanes: ApiSwimlane[];
 };
 

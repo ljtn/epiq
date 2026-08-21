@@ -21,6 +21,7 @@ const state: GuiState = {
 			id: '01KS22YK9AXCMATZXTR5JZCS5M',
 			ref: '5JZCS5M',
 			title: 'Default',
+			readonly: false,
 			swimlanes: [
 				{
 					id: 'lane-1',
@@ -38,6 +39,7 @@ const state: GuiState = {
 			id: '00JR3R8E00A1Z4X9FGP9DV0SM5',
 			ref: '9DV0SM5',
 			title: 'Closed',
+			readonly: true,
 			swimlanes: [],
 		},
 	],

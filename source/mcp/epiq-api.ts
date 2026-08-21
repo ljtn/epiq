@@ -703,6 +703,15 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 	const board = stateResult.value.nodes[input.boardId];
 	if (!board) return failed('Board not found');
 	if (!isBoardNode(board)) return failed('Target parent must be a board');
+	if (board.readonly)
+		return failed('Cannot add a swimlane to a readonly board');
+
+	// Boards carry no forced readonly of their own, so unlike the issue and
+	// swimlane mutations this one has to check the scrub itself. Without it a
+	// write lands on the state branch while the checkout is in the past.
+	if (getTimeTravelStatus().mode !== 'live') {
+		return failed('Cannot add a swimlane while time travelling');
+	}
 
 	const title = sanitizeInlineText(input.title);
 	if (!title.trim()) return failed('Swimlane title cannot be empty');
@@ -1011,6 +1020,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				id: b.id,
 				ref: nodeRef(b.id),
 				title: b.title,
+				readonly: Boolean(b.readonly) || forceReadonly,
 				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
 					.sort((a, b) => a.rank.localeCompare(b.rank))
 					.map(

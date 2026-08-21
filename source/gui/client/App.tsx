@@ -7,7 +7,8 @@ import {
 } from 'react-router-dom';
 import {ASIDE_WIDTH} from './components/Aside';
 import {Button} from './components/Button';
-import {CreateIssueModal} from './components/CreateIssueModal';
+import {CreateNodeModal} from './components/CreateNodeModal';
+import {AddSwimlaneColumn} from './components/AddSwimlaneColumn';
 import {InitProjectScreen} from './components/InitProjectScreen';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
@@ -117,6 +118,10 @@ export const App = () => {
 		swimlaneId: string;
 		title: string;
 	} | null>(null);
+	// Only a title: the board it lands on is whichever one is on screen.
+	const [createSwimlaneTitle, setCreateSwimlaneTitle] = useState<string | null>(
+		null,
+	);
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
@@ -730,6 +735,16 @@ export const App = () => {
 		});
 	};
 
+	const createSwimlane = () => {
+		if (createSwimlaneTitle === null || !selectedBoard) return;
+
+		const title = createSwimlaneTitle.trim() || 'New swimlane';
+
+		setCreateSwimlaneTitle(null);
+
+		send('swimlane:create', {title, boardId: selectedBoard.id});
+	};
+
 	const addIssueComment = (issueId: string, body: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -1028,6 +1043,13 @@ export const App = () => {
 							/>
 						))}
 
+						{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
+							where the new column will actually appear. Hidden on a readonly
+							board, which also covers a scrubbed timeline. */}
+						{selectedBoard && !selectedBoard.readonly && (
+							<AddSwimlaneColumn onClick={() => setCreateSwimlaneTitle('')} />
+						)}
+
 						{/* Grows scrollWidth by exactly what closing the panel gave back
 							in clientWidth, keeping max scrollLeft identical across
 							open/closed so the board doesn't bounce back when scrolled
@@ -1110,13 +1132,28 @@ export const App = () => {
 			</div>
 
 			{createIssueModal && (
-				<CreateIssueModal
+				<CreateNodeModal
+					eyebrow="New issue"
+					fieldLabel="title"
+					placeholder="issue name"
 					title={createIssueModal.title}
 					onChangeTitle={title =>
 						setCreateIssueModal(prev => (prev ? {...prev, title} : prev))
 					}
 					onCreate={createIssue}
 					onClose={() => setCreateIssueModal(null)}
+				/>
+			)}
+
+			{createSwimlaneTitle !== null && (
+				<CreateNodeModal
+					eyebrow="New swimlane"
+					fieldLabel="title"
+					placeholder="swimlane name"
+					title={createSwimlaneTitle}
+					onChangeTitle={setCreateSwimlaneTitle}
+					onCreate={createSwimlane}
+					onClose={() => setCreateSwimlaneTitle(null)}
 				/>
 			)}
 		</div>
