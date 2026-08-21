@@ -45,9 +45,12 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 
 	const itemHeight = isDense ? 1 : 5;
 	const isLaneCursorActive = isFocused && listSelectedIndex === -1;
-	// lane border + padding (4) + scrollbar column (1) + active cursor (2)
-	const itemWidth = width - (isLaneCursorActive ? 7 : 5);
-	const contentHeight = height - cmdInputHeight - (isDense ? 2 : 1);
+	// lane border (2) + scrollbar column (1) + left padding (dense) + lane cursor
+	const itemWidth =
+		width - 3 - (isDense ? 1 : 0) - (isLaneCursorActive ? 2 : 0);
+	// index label ('12 ') or the cursor glyph ('❯ '), whichever is wider
+	const denseLabelWidth = Math.max(2, String(children.length).length + 1);
+	const contentHeight = height - cmdInputHeight - 1;
 
 	const swimlaneHeading = (
 		<Box
@@ -57,6 +60,7 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 			borderLeft={false}
 			borderTop={false}
 			borderRight={false}
+			marginRight={isDense ? 1 : 0}
 		>
 			<CursorUI isSelected={isSelected}></CursorUI>
 			<Text
@@ -84,7 +88,8 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 			<TicketListItemCompactUI
 				key={ticket.id}
 				index={index}
-				width={width}
+				labelWidth={denseLabelWidth}
+				width={itemWidth}
 				ticket={ticket}
 				isSelected={isItemSelected}
 				isFlashing={isFlashing}
@@ -107,13 +112,13 @@ const SwimlaneUIComponent: React.FC<Props> = ({
 			width={width}
 			borderStyle="round"
 			borderColor={isSelected ? theme.accent : theme.secondary}
-			paddingRight={1}
-			paddingLeft={1}
+			paddingRight={0}
+			paddingLeft={isDense ? 1 : 0}
 			height={height}
 		>
 			{swimlaneHeading}
 
-			<Box padding={isDense ? 1 : 0}>
+			<Box>
 				{children.length > 0 && (
 					<ScrollBoxUI
 						selectedIndex={listSelectedIndex}
