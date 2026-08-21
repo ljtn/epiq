@@ -11,10 +11,11 @@ import {CursorUI} from './Cursor.js';
 import {useFlashColor} from './useFlashColor.js';
 
 const truncateWithEllipsis = (str: string, width: number): string =>
-	str.length >= width ? str.slice(0, width) + '...' : str;
+	str.length > width ? str.slice(0, Math.max(0, width - 1)) + '…' : str;
 
 type Props = {
 	index: number;
+	labelWidth: number;
 	width: number;
 	ticket: Ticket;
 	isSelected: boolean;
@@ -23,11 +24,12 @@ type Props = {
 };
 
 export const TicketListItemCompactUI: React.FC<Props> = ({
+	index,
+	labelWidth,
 	width,
 	ticket,
 	isSelected,
 	isFlashing = false,
-	index,
 	mode,
 }) => {
 	const flashColor = useFlashColor(isFlashing);
@@ -73,8 +75,6 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 		? theme.secondary
 		: theme.primary;
 
-	const INDEX_WIDTH = 4;
-
 	const comments = nodeRepo.getCommentsByIssue(ticket.id);
 	const commentsWidth = comments.length
 		? String(comments.length).length + 2 + paddingRight
@@ -86,24 +86,28 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 		</Box>
 	) : null;
 
+	const badgesWidth = tagsWidth + assigneesWidth + commentsWidth;
+	// one column of air between the title and the first badge
+	const titleWidth = Math.max(
+		1,
+		width - labelWidth - badgesWidth - (badgesWidth > 0 ? 1 : 0),
+	);
+
 	return (
-		<Box borderBottom justifyContent="space-between">
+		<Box justifyContent="space-between">
 			<Box>
-				<Box width={INDEX_WIDTH}>
+				<Box width={labelWidth}>
 					{isSelected ? (
-						<CursorUI isSelected={isSelected} />
+						<CursorUI isSelected />
 					) : (
 						<Text color="gray" dimColor>
-							{index + 1}
+							{String(index + 1).padStart(labelWidth - 1) + ' '}
 						</Text>
 					)}
 				</Box>
 
 				<Text wrap="truncate" color={color}>
-					{truncateWithEllipsis(
-						ticket.title,
-						width - tagsWidth - assigneesWidth - commentsWidth - 18,
-					)}
+					{truncateWithEllipsis(ticket.title, titleWidth)}
 				</Text>
 			</Box>
 

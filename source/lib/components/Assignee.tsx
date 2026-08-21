@@ -7,10 +7,12 @@ import {
 	getContributorDisplayName,
 	hasAuthoredEvents,
 } from '../utils/contributor.utils.js';
+import {truncateWithEllipsis} from '../utils/string.utils.js';
 
 type Props = {
 	id: string;
 	isSelected?: boolean;
+	maxWidth?: number;
 };
 
 const normalizeName = (value: string): string => value.toLowerCase().trim();
@@ -24,11 +26,15 @@ export const getStringColor = (
 	return stringToHslHexColor(normalized);
 };
 
-export const AssigneeUI: React.FC<Props> = ({id, isSelected}) => {
+export const AssigneeUI: React.FC<Props> = ({id, isSelected, maxWidth}) => {
 	const contributor = nodeRepo.getContributor(id);
 	if (!contributor) return;
 
-	const name = getContributorDisplayName(id, contributor.name);
+	const displayName = getContributorDisplayName(id, contributor.name);
+	const name =
+		maxWidth === undefined
+			? displayName
+			: truncateWithEllipsis(displayName, maxWidth);
 
 	return (
 		<Text underline={isSelected} color={getStringColor(name)}>

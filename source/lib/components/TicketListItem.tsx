@@ -6,7 +6,11 @@ import {
 	sanitizeInlineText,
 	truncateWithEllipsis,
 } from '../utils/string.utils.js';
-import {nodeRef} from '../utils/node-ref.js';
+import {
+	getContributorDisplayName,
+	hasAuthoredEvents,
+} from '../utils/contributor.utils.js';
+import {nodeRef, NODE_REF_LENGTH} from '../utils/node-ref.js';
 import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
 import {TagUI} from './Tag.js';
@@ -15,6 +19,7 @@ import {useFlashColor} from './useFlashColor.js';
 const splitAtWordBoundary = (
 	value: string,
 	width: number,
+	overflowWidth: number,
 ): [string, string | null] => {
 	if (value.length <= width) return [value, null];
 
@@ -23,8 +28,35 @@ const splitAtWordBoundary = (
 
 	return [
 		value.slice(0, cut),
-		truncateWithEllipsis(value.slice(cut).trim(), width),
+		truncateWithEllipsis(value.slice(cut).trim(), overflowWidth),
 	];
+};
+
+type Badge = {id: string; width: number; isTag: boolean};
+
+// ' name ' plus the gap to the next badge; '@name' plus that same gap.
+const TAG_WIDTH = 3;
+const ASSIGNEE_WIDTH = 2;
+
+/** As many badges as the row holds, plus how many had to be dropped. */
+const fitBadges = (
+	badges: Badge[],
+	width: number,
+): {shown: Badge[]; hidden: number} => {
+	const shown: Badge[] = [];
+	let used = 0;
+
+	for (const [index, badge] of badges.entries()) {
+		const remaining = badges.length - index - 1;
+		const markerWidth = remaining > 0 ? String(remaining).length + 1 : 0;
+
+		if (used + badge.width + markerWidth > width) break;
+
+		used += badge.width;
+		shown.push(badge);
+	}
+
+	return {shown, hidden: badges.length - shown.length};
 };
 
 export const TicketListItemUI: React.FC<{
@@ -34,11 +66,14 @@ export const TicketListItemUI: React.FC<{
 	isFlashing?: boolean;
 }> = ({width, ticket, isSelected, isFlashing = false}) => {
 	const flashColor = useFlashColor(isFlashing);
-	// own border (2) + paddingLeft (1) + slack (1)
+	// own border (2) + padding (2)
 	const contentWidth = width - 4;
+	// the ref sits on the title row, so the first line stops short of it
+	const titleWidth = contentWidth - NODE_REF_LENGTH - 1;
 
 	const [titleLine, titleOverflow] = splitAtWordBoundary(
 		sanitizeInlineText(ticket.title),
+		titleWidth,
 		contentWidth,
 	);
 
@@ -51,21 +86,52 @@ export const TicketListItemUI: React.FC<{
 		  ) || null;
 
 	const tags = getTicketTags(ticket);
-	const assignees = getTicketAssignees(ticket);
+	const assignees = getTicketAssignees(ticket).map(contributor => ({
+		...contributor,
+		name: getContributorDisplayName(contributor.id, contributor.name),
+	}));
+
+	// a single badge never pushes the others off the row on its own
+	const maxNameWidth = Math.max(1, contentWidth - TAG_WIDTH);
+
+	const {shown, hidden} = fitBadges(
+		[
+			...tags.map(tag => ({
+				id: tag.id,
+				isTag: true,
+				width: Math.min(tag.name.length, maxNameWidth) + TAG_WIDTH,
+			})),
+			...assignees.map(assignee => ({
+				id: assignee.id,
+				isTag: false,
+				width:
+					Math.min(assignee.name.length, maxNameWidth) +
+					ASSIGNEE_WIDTH +
+					(hasAuthoredEvents(assignee.id) ? 0 : 1),
+			})),
+		],
+		contentWidth,
+	);
 
 	return (
 		<Box
 			borderStyle="round"
 			height={5}
 			flexDirection="column"
+			overflow="hidden"
 			borderDimColor={!isSelected}
 			borderColor={
 				isFlashing ? flashColor : isSelected ? theme.accent : theme.secondary
 			}
 			justifyContent="space-between"
 		>
-			<Box paddingLeft={1} flexDirection="column">
-				<Text color={theme.primary}>{titleLine}</Text>
+			<Box paddingLeft={1} paddingRight={1} flexDirection="column">
+				<Box justifyContent="space-between">
+					<Text color={theme.primary}>{titleLine}</Text>
+					<Text color={theme.secondary2} dimColor>
+						{nodeRef(ticket.id)}
+					</Text>
+				</Box>
 				{titleOverflow && <Text color={theme.primary}>{titleOverflow}</Text>}
 				{descriptionLine && (
 					<Text color={theme.secondary2} dimColor>
@@ -74,28 +140,22 @@ export const TicketListItemUI: React.FC<{
 				)}
 			</Box>
 
-			<Box
-				flexDirection="row"
-				justifyContent="space-between"
-				paddingLeft={1}
-				paddingRight={1}
-			>
-				<Box flexDirection="row">
-					{tags.map(tag => (
-						<Box paddingRight={1} key={tag.id}>
-							<TagUI key={tag.id} id={tag.id} />
-						</Box>
-					))}
-					{assignees.map(assignee => (
-						<Box paddingRight={1} key={assignee.id}>
-							<AssigneeUI key={assignee.id} id={assignee.id} />
-						</Box>
-					))}
-				</Box>
+			<Box flexDirection="row" paddingLeft={1} paddingRight={1}>
+				{shown.map(badge => (
+					<Box paddingRight={1} key={badge.id}>
+						{badge.isTag ? (
+							<TagUI id={badge.id} maxWidth={maxNameWidth} />
+						) : (
+							<AssigneeUI id={badge.id} maxWidth={maxNameWidth} />
+						)}
+					</Box>
+				))}
 
-				<Text wrap="truncate" color={theme.secondary2} dimColor>
-					{nodeRef(ticket.id)}
-				</Text>
+				{hidden > 0 && (
+					<Text color={theme.secondary2} dimColor>
+						+{hidden}
+					</Text>
+				)}
 			</Box>
 		</Box>
 	);
