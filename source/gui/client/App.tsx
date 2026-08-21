@@ -54,6 +54,9 @@ type IssueDetailsTab = 'overview' | 'comments' | 'history';
 // on every render.
 const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
+// The board's page margin, matching the left padding on <main>.
+const BOARD_GUTTER = 30;
+
 export const DropIndicator = () => (
 	<div
 		style={{
@@ -1078,7 +1081,10 @@ export const App = () => {
 					style={{
 						// No bottom padding: the board row is the horizontal scroll
 						// container, and a gap below it would strand its scrollbar.
-						padding: '0 30px 0 30px',
+						// No right padding either: it would sit between the clipped row
+						// and the details panel as a dark strip. The gutter is a trailing
+						// spacer inside the row instead.
+						padding: '0 0 0 30px',
 						flex: 1,
 						minHeight: 0,
 						display: 'flex',
@@ -1192,6 +1198,10 @@ export const App = () => {
 						{!(selectedIssue && state?.user) && (
 							<div style={{width: ASIDE_WIDTH, flexShrink: 0}} />
 						)}
+
+						{/* The page's right margin, scrolling with the columns. Constant,
+							so it cancels out of the invariant above. */}
+						<div style={{width: BOARD_GUTTER, flexShrink: 0}} />
 					</div>
 				</main>
 
