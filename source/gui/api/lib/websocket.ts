@@ -16,6 +16,7 @@ import {
 	editSwimlaneTitle,
 	editIssueTitle,
 	getGuiState,
+	getIssueHistory,
 	listIssues,
 	moveIssue,
 	moveSwimlane,
@@ -149,12 +150,16 @@ export const setupWebsocket = (
 				if (type === 'issue:get') {
 					const issueId = message.payload?.issueId;
 					const state = deriveGuiState();
+					const history = getIssueHistory(issueId);
 
 					return sendSocket(socket, {
 						type: 'issue',
 						payload: isFail(state)
 							? state
-							: succeeded('Issue detail', issueDetail(state.value, issueId)),
+							: succeeded('Issue detail', {
+									...issueDetail(state.value, issueId),
+									history: isFail(history) ? [] : history.value,
+							  }),
 					});
 				}
 

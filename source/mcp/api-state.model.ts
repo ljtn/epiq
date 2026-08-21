@@ -34,6 +34,16 @@ export type ApiSwimlane = {
 	parentNodeId: string;
 };
 
+// One line of a ticket's own event log. `label` is the same phrasing the TUI
+// history uses; the colour is resolved here because getStringColor pulls in
+// chalk, which the GUI bundle cannot take.
+export type ApiIssueHistoryEntry = {
+	t: number;
+	action: string;
+	label: string;
+	actor: {id: string; name: string; color: string};
+};
+
 export type ApiBoard = {
 	id: string;
 	ref: string;

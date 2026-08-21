@@ -57,6 +57,14 @@ type GuiBoard = {
 	swimlanes: GuiSwimlane[];
 };
 
+// One line of a ticket's own event log, phrased and coloured server-side.
+export type GuiIssueHistoryEntry = {
+	t: number;
+	action: string;
+	label: string;
+	actor: GuiUser;
+};
+
 export type GuiTimeTravelStatus = {
 	mode: 'live' | 'scrub';
 	asOfTime: number | null;

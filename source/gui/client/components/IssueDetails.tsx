@@ -7,6 +7,7 @@ import {
 	GuiTag,
 	GuiComment,
 	GuiAttachment,
+	GuiIssueHistoryEntry,
 } from '../lib/gui-state.model';
 import {Aside} from './Aside';
 import {Button} from './Button';
@@ -26,12 +27,14 @@ import {IssueComments} from './IssueComments';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
+import {IssueHistory} from './IssueHistory';
 
-type IssueDetailsTab = 'overview' | 'comments';
+type IssueDetailsTab = 'overview' | 'comments' | 'history';
 
 export const IssueDetails = ({
 	whoAmI,
 	comments,
+	history,
 	activeTab,
 	onChangeTab,
 	issue,
@@ -59,6 +62,7 @@ export const IssueDetails = ({
 	whoAmI: GuiUser;
 	issue: GuiIssue | null;
 	comments: GuiComment[];
+	history: GuiIssueHistoryEntry[];
 	onClose: () => void;
 	activeTab: IssueDetailsTab;
 	onChangeTab: (tab: IssueDetailsTab) => void;
@@ -138,6 +142,7 @@ export const IssueDetails = ({
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
+		{id: 'history', label: 'History', count: history.length},
 	];
 
 	const saveTitle = () => {
@@ -588,6 +593,8 @@ export const IssueDetails = ({
 							onDeleteComment={onDeleteComment}
 						/>
 					)}
+
+					{activeTab === 'history' && <IssueHistory entries={history} />}
 				</>
 			) : (
 				<Empty>Select an issue</Empty>

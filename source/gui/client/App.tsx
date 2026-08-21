@@ -32,6 +32,7 @@ import {
 } from './lib/gui-state-helper';
 import {
 	GuiComment,
+	GuiIssueHistoryEntry,
 	GuiCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
@@ -47,7 +48,7 @@ import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
-type IssueDetailsTab = 'overview' | 'comments';
+type IssueDetailsTab = 'overview' | 'comments' | 'history';
 
 // Module scope so an absent state does not hand the memos below a new object
 // on every render.
@@ -142,8 +143,9 @@ export const App = () => {
 	const socketRef = useRef<WebSocket | null>(null);
 	const [mutationGate] = useState(createMutationGate);
 
-	const selectedTab =
-		searchParams.get('tab') === 'comments' ? 'comments' : 'overview';
+	const tabParam = searchParams.get('tab');
+	const selectedTab: IssueDetailsTab =
+		tabParam === 'comments' || tabParam === 'history' ? tabParam : 'overview';
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs (full ids in old links still resolve).
@@ -212,6 +214,7 @@ export const App = () => {
 		issueId: string;
 		description: string;
 		comments: GuiComment[];
+		history: GuiIssueHistoryEntry[];
 	} | null>(null);
 	// Driven by the scrubber's own selection. Null unless it has been narrowed
 	// to particular tags or people.
@@ -308,6 +311,7 @@ export const App = () => {
 					issueId: string;
 					description: string;
 					comments: GuiComment[];
+					history: GuiIssueHistoryEntry[];
 				}>(message.payload);
 
 				if (detail) setIssueDetail(detail);
@@ -1227,6 +1231,11 @@ export const App = () => {
 						comments={
 							issueDetail?.issueId === selectedIssue.id
 								? issueDetail.comments
+								: []
+						}
+						history={
+							issueDetail?.issueId === selectedIssue.id
+								? issueDetail.history
 								: []
 						}
 						onChangeTab={changeIssueDetailsTab}

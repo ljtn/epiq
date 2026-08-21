@@ -35,6 +35,7 @@ import {
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../lib/model/app-state.model.js';
 import {preferBestName} from '../lib/utils/contributor.utils.js';
+import {describeEvent} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {MAX_COMMENT_LENGTH} from '../lib/utils/comment.limits.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
@@ -50,6 +51,7 @@ import {
 	ApiAssignee,
 	ApiIssue,
 	ApiState,
+	ApiIssueHistoryEntry,
 	ApiSwimlane,
 } from './api-state.model.js';
 import {getTimeTravelStatus} from './epiq-time-travel.js';
@@ -910,6 +912,45 @@ export const sync = async (input: SyncInput = {}) => {
 	return succeeded('Synced', result.value);
 };
 
+// Ids are ULIDs in practice, but decodeTime throws on anything else and these
+// run inside the whole-state projection — one odd id would take the board down.
+// 0 reads as "unknown" to every caller.
+const timeFromId = (id: string): number => {
+	try {
+		return decodeTime(id);
+	} catch {
+		return 0;
+	}
+};
+
+/**
+ * A ticket's own event log, oldest first. Reads whatever is materialized rather
+ * than booting, so it stays correct mid-scrub like the state beside it.
+ */
+export const getIssueHistory = (
+	issueId: string,
+): Result<ApiIssueHistoryEntry[]> => {
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[issueId];
+	if (!issue) return failed('Issue not found');
+
+	return succeeded(
+		'Read issue history',
+		(issue.log ?? []).map(event => ({
+			t: timeFromId(event.id),
+			action: event.action,
+			label: describeEvent(event),
+			actor: {
+				id: event.userId,
+				name: event.userName,
+				color: getStringColor(event.userName),
+			},
+		})),
+	);
+};
+
 export const getEpiqState = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
@@ -982,7 +1023,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 						name: contributor?.name ?? 'Unknown',
 						color: getStringColor(contributor?.name ?? comment.authorId),
 					},
-					createdAt: decodeTime(comment.id),
+					createdAt: timeFromId(comment.id),
 				};
 			});
 	}
@@ -1007,7 +1048,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				name: attachment.name,
 				fileName: getAttachmentFileName(attachment.hash, attachment.ext),
 				bytes: attachment.bytes,
-				createdAt: decodeTime(attachment.id),
+				createdAt: timeFromId(attachment.id),
 				canDelete:
 					attachmentOwners.get(attachment.id) === settingsRes.value.userId,
 			}));
