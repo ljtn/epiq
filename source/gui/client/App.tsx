@@ -59,6 +59,7 @@ const BOARD_GUTTER = 30;
 
 export const DropIndicator = () => (
 	<div
+		data-testid="ticket-drop-indicator"
 		style={{
 			height: 2,
 			background: GUI_THEME.accent,

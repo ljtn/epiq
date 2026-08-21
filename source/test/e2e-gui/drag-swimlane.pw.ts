@@ -147,3 +147,86 @@ test('a swimlane header is not draggable on a readonly board', async ({
 		'false',
 	);
 });
+
+// Dropping over a card rather than bare column background: the card sits on
+// most of a populated column's surface, and its own drop handler runs first.
+const dragLaneOntoCard = (from: string, cardText: string) => `
+new Promise(async resolve => {
+	const wait = ms => new Promise(r => setTimeout(r, ms));
+	const handleFor = name => [
+		...document.querySelectorAll('[data-testid="swimlane-handle"]'),
+	].find(h => h.textContent.includes(name));
+
+	const src = handleFor(${JSON.stringify(from)});
+	const card = [...document.querySelectorAll('div[draggable="true"]')]
+		.find(c => c.textContent.includes(${JSON.stringify(cardText)}));
+
+	const dt = new DataTransfer();
+	const rect = card.getBoundingClientRect();
+	const clientX = rect.right - 10;
+
+	const fire = (el, type, x) => el.dispatchEvent(new DragEvent(type, {
+		bubbles: true, cancelable: true, composed: true, dataTransfer: dt,
+		clientX: x ?? el.getBoundingClientRect().left + 20,
+		clientY: el.getBoundingClientRect().top + 10,
+	}));
+
+	fire(src, 'dragstart');
+	await wait(50);
+	fire(card, 'dragenter', clientX);
+	fire(card, 'dragover', clientX);
+	await wait(50);
+	const ticketIndicators = document.querySelectorAll(
+		'[data-testid="ticket-drop-indicator"]',
+	).length;
+	fire(card, 'drop', clientX);
+	fire(src, 'dragend');
+
+	await wait(2500);
+	resolve({ticketIndicators});
+});
+`;
+
+test('a swimlane dropped over a card still reorders', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const first = `Card drop A ${stamp}`;
+	const second = `Card drop B ${stamp}`;
+	const ticket = `Occupant ${stamp}`;
+
+	await addLane(page, first);
+	await addLane(page, second);
+
+	// The second lane needs a card for the drop to land on.
+	await page
+		.locator('section')
+		.filter({hasText: second})
+		.getByTitle('Add issue')
+		.click();
+	await page.getByPlaceholder('issue name').fill(ticket);
+	await page.getByPlaceholder('issue name').press('Enter');
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await expect(page.getByText(ticket, {exact: true}).first()).toBeVisible();
+
+	expect(await orderOf(page, [first, second])).toEqual([first, second]);
+
+	const {ticketIndicators} = await page.evaluate<{ticketIndicators: number}>(
+		dragLaneOntoCard(first, ticket),
+	);
+
+	// The ticket insertion line belongs to a ticket drag, not a column one.
+	expect(ticketIndicators).toBe(0);
+	expect(await orderOf(page, [first, second])).toEqual([second, first]);
+
+	await deleteLane(page, first);
+	await deleteLane(page, second);
+
+	expect(pageErrors).toEqual([]);
+});
