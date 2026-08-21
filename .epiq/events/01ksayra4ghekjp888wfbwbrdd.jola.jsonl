@@ -1049,3 +1049,4 @@
 {"v":1,"id":["01M0K2PNTGCQRZ8C3WCX5PBC1C","01M0K2PGCZKMZTQJ6KASG6BZDB"],"move.node":{"id":"01M0JR7J0299CV9G01DJWQS46N","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"efffffffffffffffffffffff"}}
 {"v":1,"id":["01M0K2T2R2JTHACFAHVYMCMMRP","01M0K2PNTGCQRZ8C3WCX5PBC1C"],"add.issue.comment":{"id":"01M0K2T2QX9N9RAEVAT7VGKGZW","issue":"01M0JR4QZ8JQZ7KPYRSKWA2CBG","md":"can be closed due to the other ticket that prevents closing on outside click","author":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M0K2T8J1B41MJW9RWKSX4H7R","01M0K2T2R2JTHACFAHVYMCMMRP"],"close.issue":{"id":"01M0JR4QZ8JQZ7KPYRSKWA2CBG","parent":"00KM6CZ900T7180RM46K0JAYNF","rank":"ffffffffffa6f4de9bd37a6e"}}
+{"v":1,"id":["01M0K2V87TYNGTZ95X2GF27HWA","01M0K2T8J1B41MJW9RWKSX4H7R"],"edit.description":{"id":"01M0JT7RNXAG1GNMF1XSKZYP5Q","md":"first of all, is this even the case? confirm first..."}}
