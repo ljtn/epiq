@@ -912,3 +912,4 @@
 {"v":1,"id":["01M0JR7PVJ2GBJ8QPZNR5ZAXZM","01M0JR7J09F57GEMAKF12PM8FT"],"move.node":{"id":"01M0JQVS7AYSKC3TBKA89Y8D3F","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01M0JR7VK5RJ4RA9M11P7D4NN7","01M0JR7PVJ2GBJ8QPZNR5ZAXZM"],"add.issue.assignee":{"id":"01M0JQVS7AYSKC3TBKA89Y8D3F","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M0JR7ZN9MS6BK8KXJ25SGT22","01M0JR7VK5RJ4RA9M11P7D4NN7"],"add.issue.tag":{"id":"01M0JQVS7AYSKC3TBKA89Y8D3F","tag":"01KTMJBZKRM8X4ZDY7BM854MB7"}}
+{"v":1,"id":["01M0JR8N10J1J0B1Z7KHW5D2F6","01M0JR7ZN9MS6BK8KXJ25SGT22"],"edit.description":{"id":"01M0JR7J0299CV9G01DJWQS46N","md":"Currently, in bulk edit view, you can see the button \"reopen issues\" even though no issue is closed. should be conditional rendering\n"}}
