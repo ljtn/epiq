@@ -97,11 +97,16 @@ export const CreateIssueModal = ({
 					marginTop: 20,
 				}}
 			>
-				<Button variant="ghost" onClick={onClose}>
+				{/* Explicitly not a submit button: as the form's first button it was
+				    the default one, so Enter in the title field clicked it, unmounted
+				    the modal, and the submit event never reached onCreate. */}
+				<Button type="button" variant="ghost" onClick={onClose}>
 					cancel
 				</Button>
 
-				<Button variant="primary">create</Button>
+				<Button type="submit" variant="primary">
+					create
+				</Button>
 			</div>
 		</form>
 	</div>
