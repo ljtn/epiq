@@ -1395,12 +1395,8 @@ export const ScatterCanvas = ({
 			ref={canvasRef}
 			data-testid="scatter-canvas"
 			data-entrance={entrancePlaying ? 'playing' : 'done'}
-			// The highlight is drawn into pixels, so this is the only handle a test
-			// has on it.
 			data-highlight={highlightId ?? ''}
 			style={{position: 'absolute', inset: 0}}
-			// Events still reach the track underneath, so a drag anywhere over
-			// the chart scrubs exactly as it did when these were divs.
 			onMouseMove={event => {
 				const point = hitTest(event);
 				if (point?.key === hoveredRef.current) return;

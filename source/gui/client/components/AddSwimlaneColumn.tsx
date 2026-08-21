@@ -1,8 +1,7 @@
 import {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 
-// Matches SwimlaneColumn's width so the row reads as one more column rather
-// than a control bolted onto the end.
+// Matches SwimlaneColumn's width
 const COLUMN_WIDTH = 360;
 
 export const AddSwimlaneColumn = ({onClick}: {onClick: () => void}) => {
@@ -23,8 +22,6 @@ export const AddSwimlaneColumn = ({onClick}: {onClick: () => void}) => {
 				minWidth: COLUMN_WIDTH,
 				height: '100%',
 				boxSizing: 'border-box',
-				// Dashed, and no glow: the swimlanes are the content, and a ghost
-				// that lights up like one would compete with them.
 				border: `1px dashed ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
 				borderRadius: 12,
 				background: hovered ? GUI_THEME.bgHighlight : 'transparent',

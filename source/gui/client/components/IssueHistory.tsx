@@ -8,7 +8,6 @@ export const IssueHistory = ({
 	onHoverEvent,
 }: {
 	entries: GuiIssueHistoryEntry[];
-	// Singles the event out in the scrubber's scatter while the row is hovered.
 	onHoverEvent: (eventId: string | null) => void;
 }) => {
 	if (entries.length === 0) {
@@ -17,8 +16,7 @@ export const IssueHistory = ({
 		);
 	}
 
-	// Newest first: the last thing that happened is what a reader opening the
-	// tab is asking about.
+	// Newest first
 	const ordered = [...entries].reverse();
 
 	return (

@@ -157,9 +157,6 @@ export const SwimlaneColumn = ({
 			)}
 
 			<header
-				// Header rather than the whole column: the cards inside are draggable
-				// too, and a draggable ancestor would make the pointer's exact
-				// position decide which one starts.
 				draggable={!swimlane.readonly}
 				data-testid="swimlane-handle"
 				onDragStart={event => {

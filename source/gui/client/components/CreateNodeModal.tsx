@@ -106,8 +106,7 @@ export const CreateNodeModal = ({
 					marginTop: 20,
 				}}
 			>
-				{/* Not a submit button: as the form's first button it would otherwise
-				    be the default one, and Enter would activate it instead of the
+				{/* Not a submit button: as Enter would activate it instead of the
 				    form's onSubmit. */}
 				<Button type="button" variant="ghost" onClick={onClose}>
 					cancel

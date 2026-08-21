@@ -187,8 +187,6 @@ export const BulkDetails = ({
 				</AddRow>
 			</Section>
 
-			{/* Each action is offered only for the tickets it would apply to, and
-			    counts those rather than the whole selection. */}
 			<Section title="Actions">
 				<ChipRow>
 					{openCount > 0 && (

@@ -3,8 +3,6 @@ import {Panel} from './Panel';
 import {GUI_THEME} from '../lib/gui-theme';
 
 type Props = {
-	// The directory the server searched from, so the screen can name it rather
-	// than leave the reader guessing which folder the GUI was pointed at.
 	repoRoot: string;
 	message: string;
 	onRetry: () => void;
@@ -37,8 +35,6 @@ export const InitProjectScreen = ({repoRoot, message, onRetry}: Props) => (
 			proximityReach={300}
 			style={{width: 520, background: GUI_THEME.panel}}
 		>
-			{/* Panel's own children wrapper carries no gap, so the column lives
-			    here rather than in the panel's style. */}
 			<div
 				style={{
 					padding: 28,

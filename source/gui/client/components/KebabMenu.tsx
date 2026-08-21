@@ -9,8 +9,6 @@ export type KebabMenuItem = {
 	onSelect: () => void;
 };
 
-// Not Dropdown: that is a select, carrying a current value it marks with a
-// tick. These entries are actions, so none of them is "current".
 export const KebabMenu = ({
 	items,
 	testId,
@@ -81,8 +79,6 @@ export const KebabMenu = ({
 					role="menu"
 					style={{
 						position: 'absolute',
-						// Below the trigger, right-aligned: the kebab sits at the column's
-						// right edge, so a left-aligned panel would hang off it.
 						top: 26,
 						right: 0,
 						minWidth: 140,

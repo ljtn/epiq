@@ -56,8 +56,7 @@ export const findIssue = (
 export const findBoard = (state: GuiState, boardRefOrId: string) =>
 	findByRefOrId(state.boards, boardRefOrId);
 // The swimlane counterpart. Rename passes a changed title, delete returns null
-// and the lane is dropped — both applied optimistically, the way every other
-// mutation on the board already is.
+// and the lane is dropped — both applied optimistically
 export const updateSwimlaneInGuiState = (
 	state: GuiState,
 	swimlaneId: string,
