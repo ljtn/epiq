@@ -40,3 +40,40 @@ test('hovering a Log row singles that event out in the scatter', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+test('an event with no dot on the chart leaves the scatter alone', async ({
+	page,
+	appUrl,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const title = `Filtered out ${Date.now()}`;
+	await page.getByTitle('Add issue').first().click();
+	await page.getByPlaceholder('issue name').fill(title);
+	await page.getByPlaceholder('issue name').press('Enter');
+	await expect(page).toHaveURL(/\/issue\//);
+	const ticketUrl = page.url();
+
+	await page.goto(ticketUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await page.getByTitle(/^Events —/).click();
+
+	const canvas = page.getByTestId('scatter-canvas');
+	await expect(canvas).toBeVisible();
+
+	await page.getByRole('button', {name: /^Log/}).click();
+	const row = page.getByTestId('issue-history-row').first();
+	await row.hover();
+	await expect(canvas).not.toHaveAttribute('data-highlight', '');
+
+	// Narrowing the series to Tags drops the ticket-creation dot from the chart
+	// while the Log row still points at that event.
+	await page.getByText('All board events').click();
+	await page.getByRole('radio', {name: 'Tags'}).click();
+	await page.waitForTimeout(800);
+
+	await row.hover();
+	// Nothing to light, so nothing should be dimmed either.
+	await expect(canvas).toHaveAttribute('data-highlight', '');
+});

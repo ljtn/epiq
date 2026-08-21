@@ -1214,8 +1214,16 @@ export const ScatterCanvas = ({
 	// Read through refs by the draw loop, so a data change never restarts it.
 	const layersRef = useRef(layers);
 	layersRef.current = layers;
-	const highlightRef = useRef(highlightId);
-	highlightRef.current = highlightId;
+	// Only dims when the highlighted event is actually on the chart. It may not
+	// be: an event outside the fetched window has no dot, and the bucketed
+	// fallback dots carry no id at all.
+	const activeHighlight =
+		highlightId !== null &&
+		layers.some(layer => layer.points.some(point => point.id === highlightId))
+			? highlightId
+			: null;
+	const highlightRef = useRef(activeHighlight);
+	highlightRef.current = activeHighlight;
 	const phasesRef = useRef(new Map<string, Phase>());
 	const frameRef = useRef<number | null>(null);
 	const hoveredRef = useRef<string | null>(null);
@@ -1370,7 +1378,7 @@ export const ScatterCanvas = ({
 	// Repaint when the data or the highlight changes without a new entrance.
 	useEffect(() => {
 		if (frameRef.current === null) paint(performance.now());
-	}, [layers, highlightId, paint]);
+	}, [layers, activeHighlight, paint]);
 
 	useEffect(
 		() => () => {
@@ -1395,7 +1403,7 @@ export const ScatterCanvas = ({
 			ref={canvasRef}
 			data-testid="scatter-canvas"
 			data-entrance={entrancePlaying ? 'playing' : 'done'}
-			data-highlight={highlightId ?? ''}
+			data-highlight={activeHighlight ?? ''}
 			style={{position: 'absolute', inset: 0}}
 			onMouseMove={event => {
 				const point = hitTest(event);
