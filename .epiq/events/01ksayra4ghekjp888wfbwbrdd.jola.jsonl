@@ -1038,3 +1038,4 @@
 {"v":1,"id":["01M0K29B8VY45KWB5CYRPZWS29","01M0K2952N3WRT0AZBYJ4SV1D7"],"add.issue.assignee":{"id":"01M0JR7J0299CV9G01DJWQS46N","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M0K2CKH4NMW6CM5N810G6HMA","01M0K29B8VY45KWB5CYRPZWS29"],"edit.title":{"id":"01M011Z2FF411ZPC4QSKN5MJA5","name":"Released"}}
 {"v":1,"id":["01M0K2FRCNDNNTP91A898S6GWJ","01M0K2CKH4NMW6CM5N810G6HMA"],"edit.title":{"id":"01M03CHMDDWK21P1EKCBDD3VJF","name":"Add tab for code-diff in gui"}}
+{"v":1,"id":["01M0K2N1G04JXGEPVMS2WRRTMM","01M0K2FRCNDNNTP91A898S6GWJ"],"edit.description":{"id":"01M03CHMDDWK21P1EKCBDD3VJF","md":"Investigate if it wouild be expensive to do.\n\nsuggested path:\nthe right pane can contain a code diff component.\nthe component renders a list of expandable headers (files). when expanded you get to see a code diff\n\n\nconsider: \nis there a lib for web code diffs with syntax highlights?"}}
