@@ -23,6 +23,9 @@ const countBy = <T extends {id: string}>(
 	return [...byId.values()];
 };
 
+const ticketWord = (count: number): string =>
+	count === 1 ? 'ticket' : 'tickets';
+
 export const BulkDetails = ({
 	issues,
 	knownTags,
@@ -190,12 +193,14 @@ export const BulkDetails = ({
 			<Section title="Actions">
 				<ChipRow>
 					{openCount > 0 && (
-						<Button onClick={onCloseIssues}>close {openCount} tickets</Button>
+						<Button onClick={onCloseIssues}>
+							close {openCount} {ticketWord(openCount)}
+						</Button>
 					)}
 
 					{closedCount > 0 && (
 						<Button onClick={onReopenIssues}>
-							reopen {closedCount} tickets
+							reopen {closedCount} {ticketWord(closedCount)}
 						</Button>
 					)}
 				</ChipRow>
