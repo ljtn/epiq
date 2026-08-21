@@ -951,3 +951,4 @@
 {"v":1,"id":["01M0JT3TNRB9G0PCEAQ2DJ2KZF","01M0JT3TNKQ94TPNXXF6QK0Q62"],"add.issue.tag":{"id":"01M0JT3TN1BMZQZFZYG9SEPRQ3","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
 {"v":1,"id":["01M0JT3TNX5C104EE39SXEMJQ6","01M0JT3TNRB9G0PCEAQ2DJ2KZF"],"add.issue.assignee":{"id":"01M0JT3TN1BMZQZFZYG9SEPRQ3","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M0JT3V6K07TB3QTB87EZ9NP4","01M0JT3TNX5C104EE39SXEMJQ6"],"move.node":{"id":"01M0JS80ETJA58SJBK2QWDVK9W","parent":"01KS22YK95S3336MFSE44MY70T","rank":"e07fffffffffffffffffffff"}}
+{"v":1,"id":["01M0JT7RP6J0ZZDCQHF9DVDS4V","01M0JT3V6K07TB3QTB87EZ9NP4"],"add.issue":{"id":"01M0JT7RNXAG1GNMF1XSKZYP5Q","parent":"01KS22YK95S3336MFSE44MY70R","name":"look into why we reset state to remote state, and hence nuking local state, instead of merging (thats why we have user-scoped append-only logs)","rank":"fffffffffbffffffffffffff"}}
