@@ -20,6 +20,7 @@ import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
 import {moveIssue} from './lib/gui-move-issue';
+import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {
@@ -129,6 +130,13 @@ export const App = () => {
 		title: string;
 	} | null>(null);
 	const [deleteSwimlaneId, setDeleteSwimlaneId] = useState<string | null>(null);
+	// Which column edge the dragged swimlane would land on. Held as an edge
+	// rather than an index so each column can draw its own line without needing
+	// to know its position in the row.
+	const [swimlaneDropEdge, setSwimlaneDropEdge] = useState<{
+		swimlaneId: string;
+		side: 'left' | 'right';
+	} | null>(null);
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
@@ -816,6 +824,25 @@ export const App = () => {
 	const deletingSwimlane =
 		visibleSwimlanes.find(x => x.id === deleteSwimlaneId) ?? null;
 
+	// The dragged id comes off the drop event rather than being remembered from
+	// dragstart: a drag can begin in one window and end in this one, and the
+	// dataTransfer is the only thing that crosses.
+	const dropSwimlane = (swimlaneId: string) => {
+		const edge = swimlaneDropEdge;
+		setSwimlaneDropEdge(null);
+
+		if (!edge || !swimlaneId || !selectedBoard) return;
+
+		const overIndex = visibleSwimlanes.findIndex(x => x.id === edge.swimlaneId);
+		if (overIndex === -1) return;
+
+		moveSwimlane(state, setState, send)(
+			swimlaneId,
+			selectedBoard.id,
+			edge.side === 'left' ? overIndex : overIndex + 1,
+		);
+	};
+
 	const confirmDeleteSwimlane = () => {
 		if (!deleteSwimlaneId) return;
 
@@ -1108,6 +1135,16 @@ export const App = () => {
 								onCreateIssue={openCreateIssueModal}
 								onRenameSwimlane={openRenameSwimlane}
 								onDeleteSwimlane={setDeleteSwimlaneId}
+								dropSide={
+									swimlaneDropEdge?.swimlaneId === swimlane.id
+										? swimlaneDropEdge.side
+										: null
+								}
+								onSwimlaneDragOver={(swimlaneId, side) =>
+									setSwimlaneDropEdge({swimlaneId, side})
+								}
+								onSwimlaneDragEnd={() => setSwimlaneDropEdge(null)}
+								onDropSwimlane={dropSwimlane}
 								onDropIssue={(issueId, swimlaneId, targetIndex) => {
 									const moving = pickedIssueIds.includes(issueId)
 										? pickedIssueIds

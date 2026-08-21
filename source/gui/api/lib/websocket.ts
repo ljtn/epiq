@@ -18,6 +18,7 @@ import {
 	getGuiState,
 	listIssues,
 	moveIssue,
+	moveSwimlane,
 	removeIssueAssignee,
 	removeIssueTag,
 	reopenIssue,
@@ -448,6 +449,28 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'swimlane:delete:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:move') {
+					if (!message.payload.position) {
+						return sendSocket(socket, {
+							type: 'error',
+							message: 'Missing move position',
+						});
+					}
+
+					const result = await moveSwimlane({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:move:result',
 						result,
 					);
 				}

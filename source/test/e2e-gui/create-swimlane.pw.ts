@@ -20,6 +20,20 @@ test('creates a swimlane from the ghost column at the end of the board', async (
 	await expect(columns.last()).toContainText(name);
 	await expect(page.getByTestId('add-swimlane')).toBeVisible();
 
+	// Cleaned up: the suite shares one board, and a lane left behind changes what
+	// every later file sees.
+	await page
+		.locator('section')
+		.filter({hasText: name})
+		.getByTestId('swimlane-menu')
+		.click();
+	await page.getByTestId('swimlane-menu-delete').click();
+	await page
+		.getByTestId('confirm-modal')
+		.getByRole('button', {name: 'delete'})
+		.click();
+	await expect(page.getByText(name)).toHaveCount(0);
+
 	expect(pageErrors).toEqual([]);
 });
 

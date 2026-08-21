@@ -6,6 +6,7 @@ export const MUTATING_MESSAGE_TYPES = new Set<string>([
 	'swimlane:create',
 	'swimlane:edit:title',
 	'swimlane:delete',
+	'swimlane:move',
 	'issues:move',
 	'issue:close',
 	'issue:reopen',
