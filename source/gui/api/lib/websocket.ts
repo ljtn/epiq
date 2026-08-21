@@ -35,6 +35,7 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
+import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
@@ -58,7 +59,11 @@ const sendSocket = (socket: WebSocket, body: unknown) => {
 const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
 	const payload = slimStateResult(await getGuiState({repoRoot}));
 
-	if (isFail(payload)) {
+	// Only a missing project puts the client on the init screen. Every other
+	// failure — a git lock a concurrent TUI is holding, a half-written log — is
+	// transient, and the board it is already showing is better than a wrong
+	// diagnosis.
+	if (isFail(payload) && payload.message === NO_PROJECT_MESSAGE) {
 		return sendSocket(socket, {
 			type: 'state:unavailable',
 			payload: {message: payload.message, repoRoot},
