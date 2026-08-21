@@ -8,6 +8,7 @@ import {
 import {ASIDE_WIDTH} from './components/Aside';
 import {Button} from './components/Button';
 import {CreateIssueModal} from './components/CreateIssueModal';
+import {InitProjectScreen} from './components/InitProjectScreen';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
@@ -80,6 +81,13 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
+	// Set only when the server says there is nothing to load here — no epiq
+	// project at or above its root. Distinct from `state === null`, which just
+	// means the first broadcast has not arrived yet.
+	const [noProject, setNoProject] = useState<{
+		message: string;
+		repoRoot: string;
+	} | null>(null);
 	// Assignable people for the board on screen, unlike state.contributors, which
 	// is the registry and stays empty until somebody is explicitly assigned.
 	const [contributors, setContributors] = useState<GuiContributor[]>([]);
@@ -265,7 +273,14 @@ export const App = () => {
 
 			if (message.type === 'state' && !mutationGate.holdsState()) {
 				const nextState = getResultValue<GuiState>(message.payload);
-				if (nextState) setState(nextState);
+				if (nextState) {
+					setState(nextState);
+					setNoProject(null);
+				}
+			}
+
+			if (message.type === 'state:unavailable') {
+				setNoProject(message.payload);
 			}
 
 			if (message.type === 'issue') {
@@ -841,6 +856,18 @@ export const App = () => {
 
 		send('issue:comment:delete', {commentId});
 	};
+
+	// Ahead of the board: without a project there are no boards, no history and
+	// no scrubber to draw, so the shell would only frame an empty screen.
+	if (noProject) {
+		return (
+			<InitProjectScreen
+				repoRoot={noProject.repoRoot}
+				message={noProject.message}
+				onRetry={requestState}
+			/>
+		);
+	}
 
 	return (
 		<div

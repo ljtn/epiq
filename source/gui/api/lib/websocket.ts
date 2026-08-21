@@ -50,11 +50,21 @@ const sendSocket = (socket: WebSocket, body: unknown) => {
 	socket.send(JSON.stringify(body));
 };
 
-const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
-	sendSocket(socket, {
-		type: 'state',
-		payload: slimStateResult(await getGuiState({repoRoot})),
-	});
+const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
+	const payload = slimStateResult(await getGuiState({repoRoot}));
+
+	// A separate type rather than a failed `state`: the client cannot tell a
+	// state that has not arrived yet from one that never will, and it has no
+	// way of its own to name the directory that was searched.
+	if (isFail(payload)) {
+		return sendSocket(socket, {
+			type: 'state:unavailable',
+			payload: {message: payload.message, repoRoot},
+		});
+	}
+
+	return sendSocket(socket, {type: 'state', payload});
+};
 
 const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
 	const sendDerivedState = () =>

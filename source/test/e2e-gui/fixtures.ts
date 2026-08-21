@@ -7,6 +7,9 @@ const readHandoff = (): Handoff =>
 
 export const test = base.extend<{
 	appUrl: string;
+	// A GUI served over a directory with no epiq project.
+	bareAppUrl: string;
+	bareRepoRoot: string;
 	// Anything the page logged that indicates a crash. A blank screen is React
 	// unmounting on an uncaught error, so asserting on visible content alone
 	// would pass on a page that had already thrown.
@@ -14,6 +17,14 @@ export const test = base.extend<{
 }>({
 	appUrl: async ({page: _}, use) => {
 		await use(readHandoff().baseUrl);
+	},
+
+	bareAppUrl: async ({page: _}, use) => {
+		await use(readHandoff().bareUrl);
+	},
+
+	bareRepoRoot: async ({page: _}, use) => {
+		await use(readHandoff().bareRepoRoot);
 	},
 
 	pageErrors: async ({page}, use) => {
