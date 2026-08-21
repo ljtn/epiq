@@ -29,6 +29,7 @@ import {
 	formatInterval,
 	getPeriodRange,
 	hourFractionForTime,
+	isLayoutMode,
 	isScope,
 	LayoutMode,
 	populatedRange,
@@ -50,6 +51,7 @@ const boardEventRow = (count: number) =>
 	`${count} board event${count === 1 ? '' : 's'}`;
 
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
+const LAYOUT_MODE_STORAGE_KEY = 'epiq.timeScrubber.layoutMode';
 const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
@@ -75,6 +77,11 @@ const readStoredHiddenIds = (): Set<string> => {
 	} catch {
 		return new Set();
 	}
+};
+
+const readStoredLayoutMode = (): LayoutMode => {
+	const stored = localStorage.getItem(LAYOUT_MODE_STORAGE_KEY);
+	return isLayoutMode(stored) ? stored : 'even';
 };
 
 const readStoredScope = (): Scope => {
@@ -121,7 +128,8 @@ export const TimeScrubber = ({
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
 
-	const [layoutMode, setLayoutMode] = useState<LayoutMode>('even');
+	const [layoutMode, setLayoutMode] =
+		useState<LayoutMode>(readStoredLayoutMode);
 	const [scope, setScope] = useState<Scope>(readStoredScope);
 	const [offset, setOffset] = useState(0);
 	const [dragFraction, setDragFraction] = useState<number | null>(null);
@@ -197,6 +205,11 @@ export const TimeScrubber = ({
 
 		onRequestHistory(periodRange?.start, periodRange?.end, allBoards);
 	}, [scope, offset, boardId, allBoards, connected]);
+
+	const changeLayoutMode = (next: LayoutMode) => {
+		setLayoutMode(next);
+		localStorage.setItem(LAYOUT_MODE_STORAGE_KEY, next);
+	};
 
 	const changeScope = (nextScope: Scope) => {
 		armEntrance();
@@ -626,7 +639,7 @@ export const TimeScrubber = ({
 				allBoards,
 				onChangeScope: changeScope,
 				onChangeOffset: changeOffset,
-				onChangeLayoutMode: setLayoutMode,
+				onChangeLayoutMode: changeLayoutMode,
 				onChangeShowIssues: setShowIssues,
 				onChangeShowCommits: setShowCommits,
 				onChangeAllBoards: changeAllBoards,

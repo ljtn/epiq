@@ -24,6 +24,9 @@ export const clamp = (value: number, min: number, max: number) =>
 // "even" is the "Volume" histogram, "real" the "Events" scatter.
 export type LayoutMode = 'even' | 'real';
 
+export const isLayoutMode = (value: string | null): value is LayoutMode =>
+	value === 'even' || value === 'real';
+
 export const TRACK_HEIGHT = 24;
 
 // Both modes must occupy the same total height or switching modes reflows the
