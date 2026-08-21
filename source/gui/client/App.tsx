@@ -480,8 +480,10 @@ export const App = () => {
 
 		if (!boardSlug) return;
 
+		// Carries the open tab across the selection: reading every ticket's
+		// comments in turn should not mean reopening the tab each time.
 		void navigate(
-			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=overview`,
+			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=${selectedTab}`,
 		);
 	};
 
