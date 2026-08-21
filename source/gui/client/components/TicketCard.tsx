@@ -101,10 +101,6 @@ export const TicketCard = ({
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
 				}`,
-				// Only the multi-selection is outlined, so it stays legible when the
-				// details panel is closed.
-				outline: isPicked ? `1px solid ${GUI_THEME.accent}` : undefined,
-				outlineOffset: 1,
 			}}
 		>
 			<div
