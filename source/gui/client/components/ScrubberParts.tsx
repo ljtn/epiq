@@ -992,45 +992,6 @@ export const ScatterDot = ({
 
 // Lives on the chart wrapper rather than inside either chart, so it runs
 // unbroken through both and the gap between them.
-// Where the open ticket was created. Dashed and in the accent so it reads as a
-// reference line rather than a second playhead.
-export const CreationMarker = ({
-	fraction,
-	label,
-}: {
-	fraction: number;
-	label: string;
-}) => (
-	<div
-		data-testid="scrubber-creation-marker"
-		title={label}
-		style={{
-			position: 'absolute',
-			left: `${fraction * 100}%`,
-			top: 0,
-			bottom: 0,
-			width: 0,
-			borderLeft: `1px dashed ${GUI_THEME.accent}`,
-			opacity: 0.75,
-			zIndex: 2,
-			pointerEvents: 'none',
-			transform: 'translateX(-0.5px)',
-		}}
-	>
-		<div
-			style={{
-				position: 'absolute',
-				top: -3,
-				left: -3,
-				width: 6,
-				height: 6,
-				borderRadius: '50%',
-				background: GUI_THEME.accent,
-			}}
-		/>
-	</div>
-);
-
 export const ScrubberNeedle = ({fraction}: {fraction: number}) => {
 	const [hovered, setHovered] = useState(false);
 
@@ -1163,6 +1124,8 @@ export const ScrubberHoverHint = ({
 
 export type ScatterPoint = {
 	key: string;
+	// Set only on a per-event dot, which is what a log row can be matched to.
+	id: string | null;
 	// The moment the point stands for, for the hint's own labelling.
 	t: number;
 	// x across the window, y as time of day — the punchcard's two axes.
@@ -1225,15 +1188,23 @@ const pointAt = (
 // One node instead of one per event. At 2.2k dots the DOM version was 93% of
 // the whole document, and every frame that touched an ancestor paid for it.
 // Drawing them costs the same whether there are ten or ten thousand.
+// Everything else fades to this while one event is singled out, so the dot that
+// stays at full strength reads as the answer.
+const DIMMED_ALPHA = 0.08;
+const HIGHLIGHT_RADIUS_SCALE = 2.2;
+
 export const ScatterCanvas = ({
 	layers,
 	animate,
+	highlightId,
 	onPointEnter,
 	onPointLeave,
 	onInspectCommit,
 }: {
 	layers: readonly ScatterLayer[];
 	animate: boolean;
+	// The one event to single out, or null for the plain chart.
+	highlightId: string | null;
 	onPointEnter: (point: ScatterPoint) => void;
 	onPointLeave: () => void;
 	onInspectCommit: (sha: string) => void;
@@ -1243,6 +1214,8 @@ export const ScatterCanvas = ({
 	// Read through refs by the draw loop, so a data change never restarts it.
 	const layersRef = useRef(layers);
 	layersRef.current = layers;
+	const highlightRef = useRef(highlightId);
+	highlightRef.current = highlightId;
 	const phasesRef = useRef(new Map<string, Phase>());
 	const frameRef = useRef<number | null>(null);
 	const hoveredRef = useRef<string | null>(null);
@@ -1279,18 +1252,30 @@ export const ScatterCanvas = ({
 
 				if (scale <= 0) continue;
 
-				context.globalAlpha = point.opacity;
+				const highlight = highlightRef.current;
+				const isHighlighted = highlight !== null && point.id === highlight;
+				const radiusScale =
+					scale * (isHighlighted ? HIGHLIGHT_RADIUS_SCALE : 1);
+				const cx = point.fraction * width;
+				const cy =
+					EVENTS_MODE_VERTICAL_PADDING +
+					point.hourFraction * EVENTS_SCATTER_HEIGHT;
+
+				context.globalAlpha =
+					highlight === null ? point.opacity : isHighlighted ? 1 : DIMMED_ALPHA;
 				context.fillStyle = point.color;
 				context.beginPath();
-				context.arc(
-					point.fraction * width,
-					EVENTS_MODE_VERTICAL_PADDING +
-						point.hourFraction * EVENTS_SCATTER_HEIGHT,
-					point.radius * scale,
-					0,
-					Math.PI * 2,
-				);
+				context.arc(cx, cy, point.radius * radiusScale, 0, Math.PI * 2);
 				context.fill();
+
+				// A halo as well as a bigger dot: at 2-3px a size change alone is easy
+				// to miss on a track holding hundreds of them.
+				if (isHighlighted) {
+					context.globalAlpha = 0.25;
+					context.beginPath();
+					context.arc(cx, cy, point.radius * radiusScale * 2.4, 0, Math.PI * 2);
+					context.fill();
+				}
 			}
 		}
 
@@ -1382,10 +1367,10 @@ export const ScatterCanvas = ({
 		else paint(performance.now());
 	}, [signature, animate, run, paint]);
 
-	// Repaint when the data changes without a new entrance — a filter, say.
+	// Repaint when the data or the highlight changes without a new entrance.
 	useEffect(() => {
 		if (frameRef.current === null) paint(performance.now());
-	}, [layers, paint]);
+	}, [layers, highlightId, paint]);
 
 	useEffect(
 		() => () => {
@@ -1408,7 +1393,11 @@ export const ScatterCanvas = ({
 	return (
 		<canvas
 			ref={canvasRef}
+			data-testid="scatter-canvas"
 			data-entrance={entrancePlaying ? 'playing' : 'done'}
+			// The highlight is drawn into pixels, so this is the only handle a test
+			// has on it.
+			data-highlight={highlightId ?? ''}
 			style={{position: 'absolute', inset: 0}}
 			// Events still reach the track underneath, so a drag anywhere over
 			// the chart scrubs exactly as it did when these were divs.

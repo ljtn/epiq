@@ -54,6 +54,7 @@ const entry = (
 	action: string,
 	extra: Partial<GuiEventTimelineEntry> = {},
 ): GuiEventTimelineEntry => ({
+	id: `event-${t}-${action}`,
 	t,
 	action,
 	label: action,

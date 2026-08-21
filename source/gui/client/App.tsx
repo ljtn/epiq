@@ -134,6 +134,11 @@ export const App = () => {
 	// Which column edge the dragged swimlane would land on. Held as an edge
 	// rather than an index so each column can draw its own line without needing
 	// to know its position in the row.
+	// Lifted here because the Log lives in the details pane and the scatter it
+	// points at is drawn above the board.
+	const [hoveredLogEventId, setHoveredLogEventId] = useState<string | null>(
+		null,
+	);
 	const [swimlaneDropEdge, setSwimlaneDropEdge] = useState<{
 		swimlaneId: string;
 		side: 'left' | 'right';
@@ -1049,7 +1054,7 @@ export const App = () => {
 				connected={connected}
 				onRequestHistory={requestBoardHistory}
 				onInspectCommit={inspectCommit}
-				createdAt={selectedIssue?.createdAt || null}
+				highlightEventId={hoveredLogEventId}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
 				onReturnToLive={returnToLive}
@@ -1239,6 +1244,7 @@ export const App = () => {
 								? issueDetail.history
 								: []
 						}
+						onHoverHistoryEvent={setHoveredLogEventId}
 						onChangeTab={changeIssueDetailsTab}
 						onClose={closeIssueDetails}
 						onEditTitle={editIssueTitle}

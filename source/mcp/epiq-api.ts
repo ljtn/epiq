@@ -940,6 +940,7 @@ export const getIssueHistory = (
 	return succeeded(
 		'Read issue history',
 		(issue.log ?? []).map(event => ({
+			id: event.id,
 			t: timeFromId(event.id),
 			action: event.action,
 			label: describeEvent(event),

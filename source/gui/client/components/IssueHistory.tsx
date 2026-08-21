@@ -3,7 +3,14 @@ import {GUI_THEME, CONTENT_FONT} from '../lib/gui-theme';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {User} from './User';
 
-export const IssueHistory = ({entries}: {entries: GuiIssueHistoryEntry[]}) => {
+export const IssueHistory = ({
+	entries,
+	onHoverEvent,
+}: {
+	entries: GuiIssueHistoryEntry[];
+	// Singles the event out in the scrubber's scatter while the row is hovered.
+	onHoverEvent: (eventId: string | null) => void;
+}) => {
 	if (entries.length === 0) {
 		return (
 			<div style={{color: GUI_THEME.dim, fontSize: 12}}>No history yet</div>
@@ -17,11 +24,14 @@ export const IssueHistory = ({entries}: {entries: GuiIssueHistoryEntry[]}) => {
 	return (
 		<div
 			data-testid="issue-history"
+			onMouseLeave={() => onHoverEvent(null)}
 			style={{display: 'flex', flexDirection: 'column'}}
 		>
 			{ordered.map((entry, index) => (
 				<div
-					key={`${entry.t}-${entry.action}-${index}`}
+					key={entry.id}
+					data-testid="issue-history-row"
+					onMouseEnter={() => onHoverEvent(entry.id)}
 					style={{
 						display: 'flex',
 						alignItems: 'baseline',

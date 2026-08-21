@@ -61,6 +61,7 @@ type GuiBoard = {
 
 // One line of a ticket's own event log, phrased and coloured server-side.
 export type GuiIssueHistoryEntry = {
+	id: string;
 	t: number;
 	action: string;
 	label: string;
@@ -92,6 +93,7 @@ export type GuiEventIdentity = {id: string; name: string; color: string};
 // `action` mirrors the server's EventAction, `label` its TUI-style phrasing.
 // Both plain strings, so the client never imports the Node-side event model.
 export type GuiEventTimelineEntry = {
+	id: string;
 	t: number;
 	action: string;
 	label: string;

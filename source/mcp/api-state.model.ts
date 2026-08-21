@@ -40,6 +40,7 @@ export type ApiSwimlane = {
 // history uses; the colour is resolved here because getStringColor pulls in
 // chalk, which the GUI bundle cannot take.
 export type ApiIssueHistoryEntry = {
+	id: string;
 	t: number;
 	action: string;
 	label: string;

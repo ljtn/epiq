@@ -62,19 +62,3 @@ test('the log tab survives a reload on its own url', async ({page}) => {
 	await page.reload();
 	await expect(page.getByTestId('issue-history')).toBeVisible();
 });
-
-test('the timeline marks when the open ticket was created', async ({page}) => {
-	await expect(page.getByTestId('scrubber-creation-marker')).toHaveCount(0);
-
-	await openFirstTicket(page, `Marker ${Date.now()}`);
-
-	// Reloaded so the timeline window includes the ticket just made: the marker
-	// is only drawn inside the fetched window, never clamped to an edge.
-	await page.reload();
-	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-	await expect(page.getByTestId('scrubber-creation-marker')).toBeVisible();
-
-	// Closing the details takes the reference line with it.
-	await page.getByRole('button', {name: '×'}).click();
-	await expect(page.getByTestId('scrubber-creation-marker')).toHaveCount(0);
-});

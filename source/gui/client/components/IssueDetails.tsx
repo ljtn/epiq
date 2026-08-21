@@ -36,6 +36,7 @@ export const IssueDetails = ({
 	whoAmI,
 	comments,
 	history,
+	onHoverHistoryEvent,
 	activeTab,
 	onChangeTab,
 	issue,
@@ -64,6 +65,7 @@ export const IssueDetails = ({
 	issue: GuiIssue | null;
 	comments: GuiComment[];
 	history: GuiIssueHistoryEntry[];
+	onHoverHistoryEvent: (eventId: string | null) => void;
 	onClose: () => void;
 	activeTab: IssueDetailsTab;
 	onChangeTab: (tab: IssueDetailsTab) => void;
@@ -595,7 +597,12 @@ export const IssueDetails = ({
 						/>
 					)}
 
-					{activeTab === 'history' && <IssueHistory entries={history} />}
+					{activeTab === 'history' && (
+						<IssueHistory
+							entries={history}
+							onHoverEvent={onHoverHistoryEvent}
+						/>
+					)}
 				</>
 			) : (
 				<Empty>Select an issue</Empty>

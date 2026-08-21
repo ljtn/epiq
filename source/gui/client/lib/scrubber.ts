@@ -277,6 +277,9 @@ export const soleVisibleIdentity = (
 
 export type EventDot = {
 	key: string;
+	// The event this dot stands for. null on the bucketed fallback, whose dot
+	// stands for a slot rather than one event.
+	id: string | null;
 	t: number;
 	// null on a per-event dot, where the dot *is* the event. Set only on the
 	// bucketed fallback, whose dot stands for a slot that may hold several.
@@ -348,6 +351,7 @@ export const buildEventDots = (
 				{
 					// Two events can share a millisecond, so time alone is not a key.
 					key: `${entry.t}-${index}`,
+					id: entry.id,
 					t: entry.t,
 					count: null,
 					label: entry.label,
@@ -374,6 +378,7 @@ export const buildEventDots = (
 
 		return {
 			key: String(bucket.t),
+			id: null,
 			t: bucket.t,
 			count: bucket.count,
 			label: null,
