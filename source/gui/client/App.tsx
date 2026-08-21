@@ -9,6 +9,7 @@ import {ASIDE_WIDTH} from './components/Aside';
 import {Button} from './components/Button';
 import {CreateNodeModal} from './components/CreateNodeModal';
 import {AddSwimlaneColumn} from './components/AddSwimlaneColumn';
+import {ConfirmModal} from './components/ConfirmModal';
 import {InitProjectScreen} from './components/InitProjectScreen';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
@@ -122,6 +123,11 @@ export const App = () => {
 	const [createSwimlaneTitle, setCreateSwimlaneTitle] = useState<string | null>(
 		null,
 	);
+	const [renameSwimlane, setRenameSwimlane] = useState<{
+		swimlaneId: string;
+		title: string;
+	} | null>(null);
+	const [deleteSwimlaneId, setDeleteSwimlaneId] = useState<string | null>(null);
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
@@ -745,6 +751,39 @@ export const App = () => {
 		send('swimlane:create', {title, boardId: selectedBoard.id});
 	};
 
+	const openRenameSwimlane = (swimlaneId: string) => {
+		const swimlane = visibleSwimlanes.find(x => x.id === swimlaneId);
+		if (!swimlane) return;
+
+		setRenameSwimlane({swimlaneId, title: swimlane.title});
+	};
+
+	const submitRenameSwimlane = () => {
+		if (!renameSwimlane) return;
+
+		const title = renameSwimlane.title.trim();
+
+		setRenameSwimlane(null);
+
+		// An empty title is refused by the server, and blanking a column is never
+		// what the reader meant by it, so treat it as a cancel.
+		if (!title) return;
+
+		send('swimlane:edit:title', {swimlaneId: renameSwimlane.swimlaneId, title});
+	};
+
+	// Resolved at render rather than captured when the menu was clicked, so the
+	// ticket count in the confirm reflects the board as it is now.
+	const deletingSwimlane =
+		visibleSwimlanes.find(x => x.id === deleteSwimlaneId) ?? null;
+
+	const confirmDeleteSwimlane = () => {
+		if (!deleteSwimlaneId) return;
+
+		send('swimlane:delete', {swimlaneId: deleteSwimlaneId});
+		setDeleteSwimlaneId(null);
+	};
+
 	const addIssueComment = (issueId: string, body: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -1022,6 +1061,8 @@ export const App = () => {
 								onSelectIssue={selectIssue}
 								onSelectIssueComments={selectIssueComments}
 								onCreateIssue={openCreateIssueModal}
+								onRenameSwimlane={openRenameSwimlane}
+								onDeleteSwimlane={setDeleteSwimlaneId}
 								onDropIssue={(issueId, swimlaneId, targetIndex) => {
 									const moving = pickedIssueIds.includes(issueId)
 										? pickedIssueIds
@@ -1142,6 +1183,40 @@ export const App = () => {
 					}
 					onCreate={createIssue}
 					onClose={() => setCreateIssueModal(null)}
+				/>
+			)}
+
+			{renameSwimlane && (
+				<CreateNodeModal
+					eyebrow="Rename swimlane"
+					fieldLabel="title"
+					placeholder="swimlane name"
+					confirmLabel="rename"
+					title={renameSwimlane.title}
+					onChangeTitle={title =>
+						setRenameSwimlane(prev => (prev ? {...prev, title} : prev))
+					}
+					onCreate={submitRenameSwimlane}
+					onClose={() => setRenameSwimlane(null)}
+				/>
+			)}
+
+			{deletingSwimlane && (
+				<ConfirmModal
+					eyebrow="Delete swimlane"
+					heading={`Delete "${deletingSwimlane.title}"?`}
+					body={
+						deletingSwimlane.issues.length > 0
+							? `This also deletes the ${
+									deletingSwimlane.issues.length
+							  } ticket${
+									deletingSwimlane.issues.length === 1 ? '' : 's'
+							  } in it. Their history stays in the event log, but they leave the board.`
+							: 'The swimlane is empty, so nothing else goes with it.'
+					}
+					confirmLabel="delete"
+					onConfirm={confirmDeleteSwimlane}
+					onClose={() => setDeleteSwimlaneId(null)}
 				/>
 			)}
 

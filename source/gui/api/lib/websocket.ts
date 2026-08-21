@@ -9,9 +9,11 @@ import {
 	closeIssue,
 	createIssue,
 	createSwimlane,
+	deleteSwimlane,
 	deleteIssueComment,
 	deriveGuiState,
 	editIssueDescription,
+	editSwimlaneTitle,
 	editIssueTitle,
 	getGuiState,
 	listIssues,
@@ -416,6 +418,36 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'swimlane:create:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:edit:title') {
+					const result = await editSwimlaneTitle({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:edit:title:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:delete') {
+					const result = await deleteSwimlane({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:delete:result',
 						result,
 					);
 				}

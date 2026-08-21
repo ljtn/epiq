@@ -7,6 +7,7 @@ type Props = {
 	eyebrow: string;
 	fieldLabel: string;
 	placeholder: string;
+	confirmLabel?: string;
 	title: string;
 	onChangeTitle: (title: string) => void;
 	onCreate: () => void;
@@ -17,6 +18,7 @@ export const CreateNodeModal = ({
 	eyebrow,
 	fieldLabel,
 	placeholder,
+	confirmLabel = 'create',
 	title,
 	onChangeTitle,
 	onCreate,
@@ -113,7 +115,7 @@ export const CreateNodeModal = ({
 				</Button>
 
 				<Button type="submit" variant="primary">
-					create
+					{confirmLabel}
 				</Button>
 			</div>
 		</form>

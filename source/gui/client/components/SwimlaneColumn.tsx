@@ -6,6 +6,7 @@ import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
 import {Button} from './Button';
+import {KebabMenu} from './KebabMenu';
 
 // Not GUI_THEME.accent: at that hue a large soft wash reads cyan-green rather
 // than blue, so this is desaturated toward the panel chrome's blue-grey.
@@ -27,6 +28,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue,
 	pickedIssueIds,
 	onCreateIssue,
+	onRenameSwimlane,
+	onDeleteSwimlane,
 	onDropIssue,
 	onDragOver,
 	onDragOverIssue,
@@ -42,6 +45,8 @@ export const SwimlaneColumn = ({
 	onSelectIssue: (issueId: string, options: {toggle: boolean}) => void;
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
+	onRenameSwimlane: (swimlaneId: string) => void;
+	onDeleteSwimlane: (swimlaneId: string) => void;
 	onDropIssue: (
 		issueId: string,
 		swimlaneId: string,
@@ -145,7 +150,7 @@ export const SwimlaneColumn = ({
 						</span>
 					)}
 				</div>
-				<div>
+				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 					<Button
 						variant="ghost"
 						onClick={() => onCreateIssue(swimlane.id)}
@@ -154,6 +159,27 @@ export const SwimlaneColumn = ({
 					>
 						+
 					</Button>
+
+					{/* Absent rather than disabled on a readonly swimlane: every entry
+					    behind it is a write, so the menu would open onto nothing. */}
+					{!swimlane.readonly && (
+						<KebabMenu
+							testId="swimlane-menu"
+							items={[
+								{
+									id: 'rename',
+									label: 'rename',
+									onSelect: () => onRenameSwimlane(swimlane.id),
+								},
+								{
+									id: 'delete',
+									label: 'delete',
+									danger: true,
+									onSelect: () => onDeleteSwimlane(swimlane.id),
+								},
+							]}
+						/>
+					)}
 				</div>
 			</header>
 
