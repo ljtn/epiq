@@ -6,7 +6,10 @@ import {syncEpiqWithRemote} from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
-import {loadMergedEvents} from '../lib/event/event-load.js';
+import {
+	loadMergedEvents,
+	loadMergedEventsWithDiagnostics,
+} from '../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent, MovePosition} from '../lib/event/event.model.js';
@@ -233,10 +236,15 @@ const boot = async (
 		}
 	}
 
-	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
+	const eventsResult = loadMergedEventsWithDiagnostics(
+		stateBranchRootResult.value,
+	);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
-	const bootResult = bootStateFromEventLog(eventsResult.value);
+	const bootResult = bootStateFromEventLog(
+		eventsResult.value.events,
+		eventsResult.value.unreadable,
+	);
 	if (isFail(bootResult)) return failed(bootResult.message);
 
 	return succeeded('Booted Epiq state', {
@@ -654,10 +662,15 @@ export const moveIssue = async (
 
 	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
 
-	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
+	const eventsResult = loadMergedEventsWithDiagnostics(
+		stateBranchRootResult.value,
+	);
 	if (isFail(eventsResult)) return eventsResult;
 
-	const bootStateResult = bootStateFromEventLog(eventsResult.value);
+	const bootStateResult = bootStateFromEventLog(
+		eventsResult.value.events,
+		eventsResult.value.unreadable,
+	);
 	if (isFail(bootStateResult)) return bootStateResult;
 
 	const rankResult = resolveAndPersistRankForMove(
@@ -817,10 +830,15 @@ export const moveSwimlane = async (
 
 	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
 
-	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
+	const eventsResult = loadMergedEventsWithDiagnostics(
+		stateBranchRootResult.value,
+	);
 	if (isFail(eventsResult)) return eventsResult;
 
-	const bootStateResult = bootStateFromEventLog(eventsResult.value);
+	const bootStateResult = bootStateFromEventLog(
+		eventsResult.value.events,
+		eventsResult.value.unreadable,
+	);
 	if (isFail(bootStateResult)) return bootStateResult;
 
 	const rankResult = resolveAndPersistRankForMove(

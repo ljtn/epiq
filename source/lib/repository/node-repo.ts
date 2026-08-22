@@ -616,6 +616,33 @@ export const nodeRepo = {
 		return succeeded('Node created', node);
 	},
 
+	// Derived at load and never persisted, so it lifts once the client
+	// understands those events. An already-locked node keeps its own lock.
+	markNodeUnreadable(id: string, reason: string): Result<NavNode<AnyContext>> {
+		const node = this.getNode(id);
+		if (!node) return failed('Failed to locate node');
+
+		if (node.readonly) return succeeded('Node already locked', node);
+
+		const updatedNode: NavNode<AnyContext> = {
+			...node,
+			readonly: true,
+			readonlyReason: reason,
+		};
+
+		const result = updateState(s => ({
+			...s,
+			nodes: {
+				...s.nodes,
+				[id]: updatedNode,
+			},
+		}));
+
+		if (isFail(result)) return failed(result.message);
+
+		return succeeded('Marked node unreadable', updatedNode);
+	},
+
 	lockNode(id: string): Result<NavNode<AnyContext>> {
 		const node = this.getNode(id);
 		if (!node) return failed('Failed to locate node');

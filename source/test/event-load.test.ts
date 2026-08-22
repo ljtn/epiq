@@ -7,9 +7,13 @@ import {
 	decodeReconstructedEvents,
 	getSortedEvents,
 	loadMergedEvents,
+	loadMergedEventsBefore,
+	loadMergedEventsWithDiagnostics,
 	ReconstructedEvent,
 	splitEventsAtTime,
 } from '../lib/event/event-load.js';
+import {persist} from '../lib/event/event-persist.js';
+import {AppEvent} from '../lib/event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
 
 describe('getSortedEvents', () => {
@@ -490,5 +494,336 @@ describe('loadMergedEvents with foreign events on disk', () => {
 		expect(result.message).toContain('Invalid event file name');
 
 		fs.rmSync(root, {recursive: true, force: true});
+	});
+});
+
+describe('loadMergedEvents with a newer schema version on disk', () => {
+	const workspace = (id: string, ref: string | null) => ({
+		v: 1,
+		id: [id, ref],
+		'init.workspace': {id: 'ws1', name: 'Workspace', rank: 'a0'},
+	});
+
+	const write = (root: string, fileName: string, lines: unknown[]) => {
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, fileName),
+			lines.map(line => JSON.stringify(line)).join('\n') + '\n',
+		);
+	};
+
+	it('skips an unreadable line instead of failing the whole file', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-schema-'));
+
+		write(root, '01H0000000000000000000000F.alice.jsonl', [
+			workspace('01H0000000000000000000000A', null),
+			{
+				v: 2,
+				id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
+				'add.board': {id: 'b0', name: 'From the future', parent: 'ws1'},
+			},
+			{
+				v: 1,
+				id: ['01H0000000000000000000000C', '01H0000000000000000000000B'],
+				'add.board': {id: 'b1', name: 'Board', parent: 'ws1', rank: 'a0'},
+			},
+		]);
+
+		const result = loadMergedEvents(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.map(e => e.action)).toEqual([
+			'init.workspace',
+			'add.board',
+		]);
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+
+	// One teammate upgrading must not brick everyone still on the old build.
+	it('keeps another actor loadable when one actor is entirely on a newer version', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-schema2-'));
+
+		write(root, '01H0000000000000000000000F.alice.jsonl', [
+			workspace('01H0000000000000000000000A', null),
+		]);
+		write(root, '01H0000000000000000000000E.bob.jsonl', [
+			{
+				v: 2,
+				id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
+				'add.board': {id: 'b0', name: 'From the future', parent: 'ws1'},
+			},
+		]);
+
+		const result = loadMergedEvents(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.map(e => e.action)).toEqual(['init.workspace']);
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+
+	// Read-side only: the newer events must survive to apply after an upgrade.
+	it('leaves the skipped lines untouched on disk', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-schema3-'));
+		const fileName = '01H0000000000000000000000F.alice.jsonl';
+
+		write(root, fileName, [
+			workspace('01H0000000000000000000000A', null),
+			{
+				v: 2,
+				id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
+				'add.board': {id: 'b0', name: 'From the future', parent: 'ws1'},
+			},
+		]);
+
+		const filePath = path.join(root, '.epiq', 'events', fileName);
+		const before = fs.readFileSync(filePath, 'utf8');
+
+		expect(isFail(loadMergedEvents(root))).toBe(false);
+		expect(fs.readFileSync(filePath, 'utf8')).toBe(before);
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+
+	// Time travel shares the load path, so a scrub must degrade the same way.
+	it('degrades the same way on a historical read', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-schema4-'));
+
+		write(root, '01H0000000000000000000000F.alice.jsonl', [
+			workspace('01H0000000000000000000000A', null),
+			{
+				v: 2,
+				id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
+				'add.board': {id: 'b0', name: 'From the future', parent: 'ws1'},
+			},
+		]);
+
+		const result = loadMergedEventsBefore(root, Date.now());
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.appliedEvents.map(e => e.action)).toEqual([
+			'init.workspace',
+		]);
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+});
+
+// An unreadable event still orders, still anchors, and still holds the events
+// around it in place.
+describe('ancestry through an unreadable event', () => {
+	const A = '01H0000000000000000000000A';
+	const B = '01H0000000000000000000000B';
+	const C = '01H0000000000000000000000C';
+	const D = '01H0000000000000000000000D';
+
+	const chain = (versionOfB: number) => [
+		{v: 1, id: [A, null], 'init.workspace': {id: 'ws1', name: 'W', rank: 'a0'}},
+		{
+			v: versionOfB,
+			id: [B, A],
+			'add.board': {id: 'bB', name: 'B', parent: 'ws1', rank: 'a1'},
+		},
+		{
+			v: 1,
+			id: [C, B],
+			'add.board': {id: 'bC', name: 'C', parent: 'ws1', rank: 'a2'},
+		},
+		{
+			v: 1,
+			id: [D, A],
+			'add.board': {id: 'bD', name: 'D', parent: 'ws1', rank: 'a3'},
+		},
+	];
+
+	const loadIds = (lines: unknown[]): string[] => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-ancestry-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, '01H0000000000000000000000F.alice.jsonl'),
+			lines.map(line => JSON.stringify(line)).join('\n') + '\n',
+		);
+
+		const result = loadMergedEvents(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		if (isFail(result)) throw new Error(result.message);
+		return result.value.map(e => (e.payload as {id: string}).id);
+	};
+
+	// Eventual consistency: an older client's replay must be the newer client's
+	// replay minus the unreadable events, never a different order.
+	it('replays readable events in the same relative order as a client that reads everything', () => {
+		const readsEverything = loadIds(chain(1));
+		const cannotReadB = loadIds(chain(2));
+
+		expect(readsEverything).toEqual(['ws1', 'bB', 'bC', 'bD']);
+		expect(cannotReadB).toEqual(readsEverything.filter(id => id !== 'bB'));
+	});
+});
+
+describe('edge ref across an unreadable event', () => {
+	// Anchoring to the last *readable* event would fork a sibling branch, baked
+	// into id[1] and unfixable by upgrading later.
+	it('anchors a new event to the true latest event, not the latest readable one', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-edge-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		const readable = '01H0000000000000000000000A';
+		const unreadable = '01H0000000000000000000000B';
+
+		fs.writeFileSync(
+			path.join(eventsDir, '01H0000000000000000000000F.alice.jsonl'),
+			[
+				{
+					v: 1,
+					id: [readable, null],
+					'init.workspace': {id: 'ws1', name: 'W', rank: 'a0'},
+				},
+				{
+					v: 2,
+					id: [unreadable, readable],
+					'add.board': {id: 'bF', name: 'future', parent: 'ws1'},
+				},
+			]
+				.map(line => JSON.stringify(line))
+				.join('\n') + '\n',
+		);
+
+		const result = persist({
+			event: {
+				id: 'new-event',
+				userId: '01H0000000000000000000000E',
+				userName: 'bob',
+				action: 'add.board',
+				payload: {id: 'bNew', name: 'New', parent: 'ws1', rank: 'a4'},
+			} as AppEvent,
+			rootDir: root,
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.entry.id[1]).toBe(unreadable);
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+});
+
+describe('locking what this build cannot read', () => {
+	const write = (root: string, lines: unknown[]) => {
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, '01H0000000000000000000000F.alice.jsonl'),
+			lines.map(line => JSON.stringify(line)).join('\n') + '\n',
+		);
+	};
+
+	const base = [
+		{
+			v: 1,
+			id: ['01H0000000000000000000000A', null],
+			'init.workspace': {id: 'ws1', name: 'W', rank: 'a0'},
+		},
+		{
+			v: 1,
+			id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
+			'add.board': {id: 'b1', name: 'Board', parent: 'ws1', rank: 'a0'},
+		},
+	];
+
+	it('reports the target node of an unreadable event so the lock can be scoped', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock-'));
+
+		write(root, [
+			...base,
+			{
+				v: 1,
+				id: ['01H0000000000000000000000C', '01H0000000000000000000000B'],
+				'future.mystery.action': {id: 'b1', hash: 'abc'},
+			},
+		]);
+
+		const result = loadMergedEventsWithDiagnostics(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.unreadable).toEqual([
+			{
+				eventId: '01H0000000000000000000000C',
+				reason: 'unknown-action',
+				detail: 'future.mystery.action',
+				targetNodeId: 'b1',
+			},
+		]);
+	});
+
+	it('reports a null target when the payload carries no node id', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock2-'));
+
+		write(root, [
+			...base,
+			{
+				v: 1,
+				id: ['01H0000000000000000000000C', '01H0000000000000000000000B'],
+				// Shaped like `rebalance.children`: no `id`.
+				'future.bulk.action': {parent: 'ws1', ranks: {b1: 'a1'}},
+			},
+		]);
+
+		const result = loadMergedEventsWithDiagnostics(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.unreadable[0]?.targetNodeId).toBeNull();
+	});
+
+	it('reports an unsupported schema version with its target', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock3-'));
+
+		write(root, [
+			...base,
+			{
+				v: 2,
+				id: ['01H0000000000000000000000C', '01H0000000000000000000000B'],
+				'edit.title': {id: 'b1', name: 'Renamed by the future'},
+			},
+		]);
+
+		const result = loadMergedEventsWithDiagnostics(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.unreadable[0]).toMatchObject({
+			reason: 'unsupported-schema-version',
+			detail: 'v2',
+			targetNodeId: 'b1',
+		});
+	});
+
+	it('reports nothing when every event is readable', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock4-'));
+		write(root, base);
+
+		const result = loadMergedEventsWithDiagnostics(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.unreadable).toEqual([]);
 	});
 });

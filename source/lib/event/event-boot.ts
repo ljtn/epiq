@@ -10,6 +10,8 @@ import {
 	patchState,
 } from '../state/state.js';
 import {rankBetween} from '../utils/rank.js';
+import {nodeRepo} from '../repository/node-repo.js';
+import {UnreadableEvent} from './event-load.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
@@ -215,7 +217,40 @@ const isCheckedOutInThePast = (): boolean => {
 	return timeMode === 'peek' || timeMode === 'replay';
 };
 
-export function bootStateFromEventLog(eventLog: AppEvent[]): Result {
+// Writing to a node whose history we cannot fully read is a write on a stale
+// view. Scoped per node so one unknown event type does not cost the board.
+const applyUnreadableLocks = (unreadable: UnreadableEvent[]): void => {
+	if (unreadable.length === 0) return;
+
+	// Never skipped: the board-wide fallback below is a fallback, not a
+	// replacement.
+	for (const event of unreadable) {
+		if (!event.targetNodeId) continue;
+
+		nodeRepo.markNodeUnreadable(
+			event.targetNodeId,
+			`Part of this item's history was written by a newer epiq (${event.detail}) and cannot be read. Upgrade to edit it.`,
+		);
+	}
+
+	const unlocalized = unreadable.filter(event => !event.targetNodeId);
+	if (unlocalized.length === 0) return;
+
+	// No node reference at all, so nothing bounds what it affected.
+	const detail = [...new Set(unlocalized.map(event => event.detail))].join(
+		', ',
+	);
+
+	patchState({
+		readOnly: true,
+		readOnlyReason: `This build cannot read ${unlocalized.length} event(s) in the log (${detail}), and cannot tell which items they affect. Upgrade epiq to edit this board.`,
+	});
+};
+
+export function bootStateFromEventLog(
+	eventLog: AppEvent[],
+	unreadable: UnreadableEvent[] = [],
+): Result {
 	if (isCheckedOutInThePast()) {
 		return succeeded(
 			'Skipped boot while checked out at a historical point',
@@ -258,6 +293,9 @@ export function bootStateFromEventLog(eventLog: AppEvent[]): Result {
 	patchState({
 		hasProjectDefinition: true,
 	});
+
+	// After materializing: the nodes have to exist before they can be locked.
+	applyUnreadableLocks(unreadable);
 
 	return succeeded('State booted successfully', null);
 }

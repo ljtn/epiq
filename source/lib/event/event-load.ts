@@ -6,16 +6,44 @@ import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
 import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
-import {parsePersistedEvent, PersistedEvent} from './event-persist.js';
+import {
+	isSupportedSchemaVersion,
+	parsePersistedEnvelope,
+	PersistedEnvelope,
+} from './event-persist.js';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default('unknown'),
 	userName: z.string().min(1).default('unknown'),
 });
 
-export type ReconstructedEvent = PersistedEvent & {
+// `v` is the version as written, not necessarily one we support: ordering and
+// ancestry run over these, so an unreadable event keeps its place.
+export type ReconstructedEvent = PersistedEnvelope & {
 	userId: string;
 	userName: string;
+};
+
+// Orderable but not interpretable. `targetNodeId` scopes the resulting lock.
+export type UnreadableEvent = {
+	eventId: string;
+	reason: 'unsupported-schema-version' | 'unknown-action';
+	detail: string;
+	targetNodeId: string | null;
+};
+
+const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
+	for (const [key, value] of Object.entries(entry)) {
+		if (key === 'id' || key === 'v') continue;
+		if (typeof value !== 'object' || value === null) continue;
+
+		const candidate = (value as {id?: unknown}).id;
+		if (typeof candidate === 'string' && candidate.length > 0) {
+			return candidate;
+		}
+	}
+
+	return null;
 };
 
 type PersistedPayloadMap = {
@@ -66,7 +94,7 @@ const parseEventFileActor = (
 };
 
 export const getPersistedAction = (
-	entry: PersistedEvent,
+	entry: object,
 ): Result<keyof PersistedPayloadMap> => {
 	const keys = Object.keys(entry).filter(
 		key => key !== 'id' && key !== 'v',
@@ -85,10 +113,9 @@ export const getPersistedAction = (
 };
 
 const hasPersistedActionPayload = <K extends keyof AppEventMap>(
-	entry: PersistedEvent,
+	entry: object,
 	action: K,
-): entry is PersistedEvent & Record<K, AppEventMap[K]['payload']> =>
-	action in entry;
+): entry is Record<K, AppEventMap[K]['payload']> => action in entry;
 
 const toAppEvent = <K extends keyof AppEventMap>({
 	id,
@@ -145,11 +172,26 @@ export const fromPersistedEvent = (
 
 export const decodeReconstructedEvents = (
 	events: ReconstructedEvent[],
+	unreadable?: UnreadableEvent[],
 ): Result<AppEvent[]> => {
 	const decoded: AppEvent[] = [];
 	const skippedActions = new Map<string, number>();
+	const skippedVersions = new Map<number, number>();
 
 	for (const entry of events) {
+		// Skipped here, after ordering and anchoring, so the event keeps its place
+		// in history. Decoding is what would fail on an unknown payload shape.
+		if (!isSupportedSchemaVersion(entry.v)) {
+			skippedVersions.set(entry.v, (skippedVersions.get(entry.v) ?? 0) + 1);
+			unreadable?.push({
+				eventId: entry.id[0],
+				reason: 'unsupported-schema-version',
+				detail: `v${entry.v}`,
+				targetNodeId: getTargetNodeId(entry),
+			});
+			continue;
+		}
+
 		const eventResult = fromPersistedEvent(entry);
 
 		if (isFail(eventResult)) {
@@ -166,6 +208,12 @@ export const decodeReconstructedEvents = (
 		const action = eventResult.value.action as string;
 		if (!isKnownEventAction(action)) {
 			skippedActions.set(action, (skippedActions.get(action) ?? 0) + 1);
+			unreadable?.push({
+				eventId: entry.id[0],
+				reason: 'unknown-action',
+				detail: action,
+				targetNodeId: getTargetNodeId(entry),
+			});
 			continue;
 		}
 
@@ -178,6 +226,15 @@ export const decodeReconstructedEvents = (
 			.join(', ');
 		logger.info(
 			`Skipped events with unknown actions, likely created by a newer epiq version: ${summary}. Upgrade to apply them.`,
+		);
+	}
+
+	if (skippedVersions.size > 0) {
+		const summary = [...skippedVersions.entries()]
+			.map(([version, count]) => `v${version} (x${count})`)
+			.join(', ');
+		logger.info(
+			`Skipped events with unsupported schema versions, created by a newer epiq version: ${summary}. Upgrade to apply them.`,
 		);
 	}
 
@@ -206,7 +263,10 @@ export const parsePersistedEventsFile = (
 		} catch {
 			return failed(`Failed to parse event JSON from ${filePath}: ${trimmed}`);
 		}
-		const parsedResult = parsePersistedEvent(raw);
+
+		// Envelope only: an unreadable version is retained for its place in the
+		// chain. A malformed envelope is corruption and still fails the load.
+		const parsedResult = parsePersistedEnvelope(raw);
 		if (isFail(parsedResult)) {
 			return failed(`${parsedResult.message} in ${filePath}: ${trimmed}`);
 		}
@@ -250,13 +310,28 @@ function loadAllPersistedEvents(
 	return succeeded('All events loaded', getSortedEvents(entries));
 }
 
-export function loadMergedEvents(stateBranchRoot: string): Result<AppEvent[]> {
+// Boot paths use this to lock where history is unreadable; readers wanting
+// only the events use `loadMergedEvents`.
+export function loadMergedEventsWithDiagnostics(
+	stateBranchRoot: string,
+): Result<{events: AppEvent[]; unreadable: UnreadableEvent[]}> {
 	const allEvents = loadAllPersistedEvents(stateBranchRoot);
 	if (isFail(allEvents)) {
 		return failed(allEvents.message);
 	}
 
-	return decodeReconstructedEvents(allEvents.value);
+	const unreadable: UnreadableEvent[] = [];
+	const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
+	if (isFail(decoded)) return failed(decoded.message);
+
+	return succeeded('Loaded merged events', {events: decoded.value, unreadable});
+}
+
+export function loadMergedEvents(stateBranchRoot: string): Result<AppEvent[]> {
+	const result = loadMergedEventsWithDiagnostics(stateBranchRoot);
+	if (isFail(result)) return failed(result.message);
+
+	return succeeded('Loaded merged events', result.value.events);
 }
 
 export function loadMergedEventsBefore(

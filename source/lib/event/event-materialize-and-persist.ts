@@ -47,12 +47,14 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 		return failed('No events provided');
 	}
 
-	// `readOnly` marks a historical checkout. Every write reaches the event log
-	// through here, so this is where the whole board is held read-only rather
-	// than in each caller. Replay materializes without persisting, so it never
-	// arrives here.
+	// `readOnly` marks a historical checkout, or a log this build cannot fully
+	// read. Every write passes through here, so the board is held read-only
+	// once rather than in each caller.
 	if (getState().readOnly) {
-		return failed('Cannot change the board while time travelling');
+		return failed(
+			getState().readOnlyReason ??
+				'Cannot change the board while time travelling',
+		);
 	}
 
 	const contributorResult = ensureContributorExists(events[0], rootDir);

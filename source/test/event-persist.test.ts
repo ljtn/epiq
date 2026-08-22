@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {beforeEach, describe, expect, it} from 'vitest';
 import {
+	isSupportedSchemaVersion,
 	parsePersistedEvent,
 	persist,
 	toPersistedEvent,
@@ -170,5 +171,21 @@ describe('event persist', () => {
 			.map(line => JSON.parse(line));
 
 		expect(secondLine.id[1]).toBe(firstLine.id[0]);
+	});
+});
+
+describe('schema version support', () => {
+	it('reads the current version', () => {
+		expect(isSupportedSchemaVersion(1)).toBe(true);
+	});
+
+	// Asymmetric on purpose: older is readable once a decoder exists, newer
+	// never is.
+	it('refuses a version from the future', () => {
+		expect(isSupportedSchemaVersion(2)).toBe(false);
+	});
+
+	it('refuses a nonsense version', () => {
+		expect(isSupportedSchemaVersion(0)).toBe(false);
 	});
 });

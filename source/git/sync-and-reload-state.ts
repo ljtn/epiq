@@ -3,7 +3,7 @@ import {
 	restoreNavigationAnchor,
 } from '../lib/actions/default/restore-navigation.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
-import {loadMergedEvents} from '../lib/event/event-load.js';
+import {loadMergedEventsWithDiagnostics} from '../lib/event/event-load.js';
 import {
 	getPersistFileName,
 	resolveActorId,
@@ -164,7 +164,7 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 
 	const allLoadedEventsResult = trace(
 		'loadMergedEvents',
-		loadMergedEvents(stateBranchRoot),
+		loadMergedEventsWithDiagnostics(stateBranchRoot),
 	);
 
 	logger.debug('[sync] loadMergedEvents:result', {
@@ -174,7 +174,7 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 			: allLoadedEventsResult.message,
 		count: isFail(allLoadedEventsResult)
 			? undefined
-			: allLoadedEventsResult.value.length,
+			: allLoadedEventsResult.value.events.length,
 	});
 
 	if (isFail(allLoadedEventsResult)) {
@@ -193,7 +193,7 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 	}
 
 	logger.debug('[sync] loaded merged events after sync', {
-		count: allLoadedEventsResult.value.length,
+		count: allLoadedEventsResult.value.events.length,
 	});
 
 	const lateModeFail = failReloadIfNotDefaultMode();
@@ -223,12 +223,15 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 		!getState().contextNode?.isVirtual
 	) {
 		logger.debug('[sync] bootStateFromEventLog:start', {
-			eventCount: allLoadedEventsResult.value.length,
+			eventCount: allLoadedEventsResult.value.events.length,
 		});
 
 		const bootResult = trace(
 			'bootStateFromEventLog',
-			bootStateFromEventLog(allLoadedEventsResult.value),
+			bootStateFromEventLog(
+				allLoadedEventsResult.value.events,
+				allLoadedEventsResult.value.unreadable,
+			),
 		);
 
 		logger.debug('[sync] bootStateFromEventLog:result', {
