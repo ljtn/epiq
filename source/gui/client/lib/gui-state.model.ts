@@ -36,6 +36,8 @@ export type GuiIssue = {
 	ref: string;
 	title: string;
 	description: string;
+	/** Epoch ms, decoded from the issue's own ULID. */
+	createdAt: number;
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];
@@ -52,7 +54,18 @@ type GuiBoard = {
 	id: string;
 	ref: string;
 	title: string;
+	// The Closed board, and every board while the timeline is scrubbed.
+	readonly: boolean;
 	swimlanes: GuiSwimlane[];
+};
+
+// One line of a ticket's own event log, phrased and coloured server-side.
+export type GuiIssueHistoryEntry = {
+	id: string;
+	t: number;
+	action: string;
+	label: string;
+	actor: GuiUser;
 };
 
 export type GuiTimeTravelStatus = {
@@ -80,6 +93,7 @@ export type GuiEventIdentity = {id: string; name: string; color: string};
 // `action` mirrors the server's EventAction, `label` its TUI-style phrasing.
 // Both plain strings, so the client never imports the Node-side event model.
 export type GuiEventTimelineEntry = {
+	id: string;
 	t: number;
 	action: string;
 	label: string;

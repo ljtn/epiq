@@ -10,6 +10,19 @@ import {MAX_COMMENT_LENGTH} from '../../lib/utils/comment.limits.js';
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 
+// Fixture ids have to be real ULIDs: the projection decodes every one, and
+// decodeTime is strict. Crockford base32 has no I, L, O or U, so the label is
+// transliterated rather than used raw — it stays readable in failure output.
+const fixtureId = (label: string): string =>
+	`01H${label
+		.toUpperCase()
+		.replace(/[IL]/g, '1')
+		.replace(/O/g, '0')
+		.replace(/U/g, 'V')
+		.replace(/[^0-9A-Z]/g, '0')}`
+		.padEnd(26, '0')
+		.slice(0, 26);
+
 vi.mock('../../git/git-storage.js', () => ({
 	getStateBranchRoot: vi.fn(() =>
 		succeeded('Resolved state branch root', '/state'),
@@ -154,8 +167,8 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		isDeleted: false,
 		rank: 'c0',
 	},
-	'issue-1': {
-		id: 'issue-1',
+	[fixtureId('issue-1')]: {
+		id: fixtureId('issue-1'),
 		title: 'Fix bug',
 		context: 'TICKET',
 		parentNodeId: 'swimlane-1',
@@ -168,8 +181,8 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 			assignees: ['contributor-1'],
 		},
 	},
-	'issue-closed-1': {
-		id: 'issue-closed-1',
+	[fixtureId('issue-closed-1')]: {
+		id: fixtureId('issue-closed-1'),
 		title: 'Old bug',
 		context: 'TICKET',
 		parentNodeId: '00KM6CZ900T7180RM46K0JAYNF',
@@ -196,8 +209,8 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		isDeleted: false,
 		rank: 'a0',
 	},
-	'issue-2': {
-		id: 'issue-2',
+	[fixtureId('issue-2')]: {
+		id: fixtureId('issue-2'),
 		title: 'Other board issue',
 		context: 'TICKET',
 		parentNodeId: 'swimlane-3',
@@ -224,8 +237,8 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		isDeleted: true,
 		rank: 'd0',
 	},
-	'deleted-issue': {
-		id: 'deleted-issue',
+	[fixtureId('deleted-issue')]: {
+		id: fixtureId('deleted-issue'),
 		title: 'Deleted issue',
 		context: 'TICKET',
 		parentNodeId: 'swimlane-1',
@@ -258,7 +271,7 @@ const DEFAULT_STATE_EVENT_LOG = [
 		action: 'add.issue.comment',
 		payload: {
 			id: 'comment-1',
-			issue: 'issue-1',
+			issue: fixtureId('issue-1'),
 			md: 'A comment',
 			author: 'user-1',
 		},
@@ -337,7 +350,7 @@ vi.mock('../../lib/event/common-events.js', () => ({
 				userName: user.userName,
 				action: 'add.issue',
 				payload: {
-					id: 'issue-created-1',
+					id: fixtureId('issue-created-1'),
 					name,
 					parent,
 					rank,
@@ -412,7 +425,7 @@ describe('mcp tools', () => {
 		});
 		await tools.addIssueTag({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			tagName: 'urgent',
 		});
 
@@ -522,7 +535,7 @@ describe('mcp tools', () => {
 	it('fails editing a swimlane title when target is not a swimlane', async () => {
 		const result = await tools.editSwimlaneTitle({
 			repoRoot: '/repo',
-			swimlaneId: 'issue-1',
+			swimlaneId: fixtureId('issue-1'),
 			title: 'Renamed',
 		});
 
@@ -588,7 +601,7 @@ describe('mcp tools', () => {
 	it('fails deleting a swimlane when target is not a swimlane', async () => {
 		const result = await tools.deleteSwimlane({
 			repoRoot: '/repo',
-			swimlaneId: 'issue-1',
+			swimlaneId: fixtureId('issue-1'),
 		});
 
 		expect(isFail(result)).toBe(true);
@@ -606,13 +619,13 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value.map(issue => issue.id).sort()).toEqual([
-				'issue-1',
-				'issue-2',
+				fixtureId('issue-1'),
+				fixtureId('issue-2'),
 			]);
 			expect(result.value).toEqual(
 				expect.arrayContaining([
 					expect.objectContaining({
-						id: 'issue-1',
+						id: fixtureId('issue-1'),
 						title: 'Fix bug',
 						description: 'A bug description',
 						parentNodeId: 'swimlane-1',
@@ -644,7 +657,9 @@ describe('mcp tools', () => {
 			);
 		}
 		if (!isFail(issues)) {
-			expect(issues.value.some(i => i.id === 'deleted-issue')).toBe(false);
+			expect(issues.value.some(i => i.id === fixtureId('deleted-issue'))).toBe(
+				false,
+			);
 		}
 	});
 
@@ -663,8 +678,12 @@ describe('mcp tools', () => {
 		expect(isFail(boardOne)).toBe(false);
 		expect(isFail(boardTwo)).toBe(false);
 		if (!isFail(boardOne) && !isFail(boardTwo)) {
-			expect(boardOne.value.map(issue => issue.id)).toEqual(['issue-1']);
-			expect(boardTwo.value.map(issue => issue.id)).toEqual(['issue-2']);
+			expect(boardOne.value.map(issue => issue.id)).toEqual([
+				fixtureId('issue-1'),
+			]);
+			expect(boardTwo.value.map(issue => issue.id)).toEqual([
+				fixtureId('issue-2'),
+			]);
 		}
 	});
 
@@ -678,7 +697,7 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
-				id: 'issue-created-1',
+				id: fixtureId('issue-created-1'),
 				title: 'New issue',
 				parentId: 'swimlane-1',
 				description: '',
@@ -692,7 +711,7 @@ describe('mcp tools', () => {
 				expect.objectContaining({
 					action: 'add.issue',
 					payload: expect.objectContaining({
-						id: 'issue-created-1',
+						id: fixtureId('issue-created-1'),
 						parent: 'swimlane-1',
 						rank: 'm0',
 					}),
@@ -715,7 +734,7 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
-				id: 'issue-created-1',
+				id: fixtureId('issue-created-1'),
 				title: 'New issue',
 				parentId: 'swimlane-1',
 				description: 'Some details',
@@ -761,13 +780,13 @@ describe('mcp tools', () => {
 	it('closes an issue', async () => {
 		const result = await tools.closeIssue({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 		});
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
-				id: 'issue-1',
+				id: fixtureId('issue-1'),
 			});
 		}
 
@@ -776,7 +795,7 @@ describe('mcp tools', () => {
 				expect.objectContaining({
 					action: 'close.issue',
 					payload: expect.objectContaining({
-						id: 'issue-1',
+						id: fixtureId('issue-1'),
 						rank: 'm0',
 					}),
 				}),
@@ -788,7 +807,7 @@ describe('mcp tools', () => {
 	it('moves an issue', async () => {
 		const result = await tools.moveIssue({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			parentId: 'swimlane-2',
 			position: {at: 'start'},
 		});
@@ -796,7 +815,7 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
-				id: 'issue-1',
+				id: fixtureId('issue-1'),
 				parentId: 'swimlane-2',
 			});
 		}
@@ -806,7 +825,7 @@ describe('mcp tools', () => {
 				expect.objectContaining({
 					action: 'move.node',
 					payload: expect.objectContaining({
-						id: 'issue-1',
+						id: fixtureId('issue-1'),
 						parent: 'swimlane-2',
 						rank: expect.any(String),
 					}),
@@ -819,7 +838,7 @@ describe('mcp tools', () => {
 	it('fails moving to readonly swimlane', async () => {
 		const result = await tools.moveIssue({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			parentId: 'readonly-swimlane',
 		});
 
@@ -864,20 +883,23 @@ describe('mcp tools', () => {
 	it('edits an issue title', async () => {
 		const result = await tools.editIssueTitle({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			title: 'Fix critical bug',
 		});
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.value).toEqual({id: 'issue-1', title: 'Fix critical bug'});
+			expect(result.value).toEqual({
+				id: fixtureId('issue-1'),
+				title: 'Fix critical bug',
+			});
 		}
 
 		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
 			[
 				expect.objectContaining({
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'Fix critical bug'},
+					payload: {id: fixtureId('issue-1'), name: 'Fix critical bug'},
 				}),
 			],
 			'/state',
@@ -887,7 +909,7 @@ describe('mcp tools', () => {
 	it('skips persist when title is unchanged', async () => {
 		const result = await tools.editIssueTitle({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			title: 'Fix bug',
 		});
 
@@ -898,7 +920,7 @@ describe('mcp tools', () => {
 	it('adds a new tag to an issue, creating the tag', async () => {
 		const result = await tools.addIssueTag({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			tagName: 'enhancement',
 		});
 
@@ -921,7 +943,7 @@ describe('mcp tools', () => {
 	it('adds an existing tag to an issue without creating a duplicate', async () => {
 		const result = await tools.addIssueTag({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			tagName: 'bug',
 		});
 
@@ -936,7 +958,7 @@ describe('mcp tools', () => {
 		expect(calls).toEqual([
 			expect.objectContaining({
 				action: 'add.issue.tag',
-				payload: {id: 'issue-1', tag: 'tag-1'},
+				payload: {id: fixtureId('issue-1'), tag: 'tag-1'},
 			}),
 		]);
 	});
@@ -944,7 +966,7 @@ describe('mcp tools', () => {
 	it('removes a tag from an issue', async () => {
 		const result = await tools.removeIssueTag({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			tagId: 'tag-1',
 		});
 
@@ -953,7 +975,7 @@ describe('mcp tools', () => {
 			[
 				expect.objectContaining({
 					action: 'remove.issue.tag',
-					payload: {id: 'issue-1', tag: 'tag-1'},
+					payload: {id: fixtureId('issue-1'), tag: 'tag-1'},
 				}),
 			],
 			'/state',
@@ -963,7 +985,7 @@ describe('mcp tools', () => {
 	it('fails removing a tag that does not exist', async () => {
 		const result = await tools.removeIssueTag({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			tagId: 'missing-tag',
 		});
 
@@ -976,7 +998,7 @@ describe('mcp tools', () => {
 	it('creates an unlinked assignee from a name when explicitly asked', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeName: 'Bob',
 			createUnlinked: true,
 		});
@@ -1011,7 +1033,7 @@ describe('mcp tools', () => {
 					userId: 'user-1',
 					userName: 'Alice',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x'},
+					payload: {id: fixtureId('issue-1'), name: 'x'},
 				},
 				// Same person, later event, new display name: the latest wins.
 				{
@@ -1019,14 +1041,14 @@ describe('mcp tools', () => {
 					userId: 'user-1',
 					userName: 'Alice Cooper',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'y'},
+					payload: {id: fixtureId('issue-1'), name: 'y'},
 				},
 				{
 					id: 'e3',
 					userId: 'user-2',
 					userName: 'Bob',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'z'},
+					payload: {id: fixtureId('issue-1'), name: 'z'},
 				},
 			]),
 		);
@@ -1055,14 +1077,14 @@ describe('mcp tools', () => {
 					userId: 'user-1',
 					userName: 'Alice',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x'},
+					payload: {id: fixtureId('issue-1'), name: 'x'},
 				},
 			]),
 		);
 
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			self: true,
 		});
 
@@ -1082,7 +1104,7 @@ describe('mcp tools', () => {
 			}),
 			expect.objectContaining({
 				action: 'add.issue.assignee',
-				payload: {id: 'issue-1', assignee: 'user-1'},
+				payload: {id: fixtureId('issue-1'), assignee: 'user-1'},
 			}),
 		]);
 
@@ -1100,7 +1122,7 @@ describe('mcp tools', () => {
 					userId: 'user-1',
 					userName: 'Alice',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x'},
+					payload: {id: fixtureId('issue-1'), name: 'x'},
 				},
 			]),
 		);
@@ -1265,7 +1287,7 @@ describe('mcp tools', () => {
 					userId: 'contributor-1',
 					userName: 'Alice',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x'},
+					payload: {id: fixtureId('issue-1'), name: 'x'},
 				},
 			]),
 		);
@@ -1302,14 +1324,14 @@ describe('mcp tools', () => {
 					userId: 'user-here',
 					userName: 'Here',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x', boardId: 'board-1'},
+					payload: {id: fixtureId('issue-1'), name: 'x', boardId: 'board-1'},
 				},
 				{
 					id: 'e2',
 					userId: 'user-elsewhere',
 					userName: 'Elsewhere',
 					action: 'edit.title',
-					payload: {id: 'issue-2', name: 'y', boardId: 'board-2'},
+					payload: {id: fixtureId('issue-2'), name: 'y', boardId: 'board-2'},
 				},
 			]),
 		);
@@ -1353,7 +1375,7 @@ describe('mcp tools', () => {
 				userId: 'contributor-1',
 				userName: 'Alice',
 				action: 'edit.title',
-				payload: {id: 'issue-1', name: 'x'},
+				payload: {id: fixtureId('issue-1'), name: 'x'},
 			},
 		];
 
@@ -1379,7 +1401,7 @@ describe('mcp tools', () => {
 					userId: 'contributor-1',
 					userName: 'Alice',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x'},
+					payload: {id: fixtureId('issue-1'), name: 'x'},
 				},
 			]),
 		);
@@ -1410,14 +1432,14 @@ describe('mcp tools', () => {
 					userId: 'user-1',
 					userName: 'Alice',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'x'},
+					payload: {id: fixtureId('issue-1'), name: 'x'},
 				},
 				{
 					id: 'e2',
 					userId: 'user-2',
 					userName: 'Bob',
 					action: 'edit.title',
-					payload: {id: 'issue-1', name: 'y'},
+					payload: {id: fixtureId('issue-1'), name: 'y'},
 				},
 			]),
 		);
@@ -1437,7 +1459,7 @@ describe('mcp tools', () => {
 	it('assigns by id without creating a contributor', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeId: 'contributor-1',
 		});
 
@@ -1455,7 +1477,7 @@ describe('mcp tools', () => {
 		expect(calls).toEqual([
 			expect.objectContaining({
 				action: 'add.issue.assignee',
-				payload: {id: 'issue-1', assignee: 'contributor-1'},
+				payload: {id: fixtureId('issue-1'), assignee: 'contributor-1'},
 			}),
 		]);
 	});
@@ -1463,7 +1485,7 @@ describe('mcp tools', () => {
 	it('fails on an unknown assignee id instead of creating one', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeId: 'contributor-missing',
 		});
 
@@ -1478,7 +1500,7 @@ describe('mcp tools', () => {
 	it('fails when neither an assignee id nor a name is given', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 		});
 
 		expect(isFail(result)).toBe(true);
@@ -1491,7 +1513,7 @@ describe('mcp tools', () => {
 	it('refuses an unmatched name unless createUnlinked is set', async () => {
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeName: 'Nobody',
 		});
 
@@ -1510,7 +1532,7 @@ describe('mcp tools', () => {
 
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeName: 'Alice',
 		});
 
@@ -1528,7 +1550,7 @@ describe('mcp tools', () => {
 		expect(calls).toEqual([
 			expect.objectContaining({
 				action: 'add.issue.assignee',
-				payload: {id: 'issue-1', assignee: 'contributor-1'},
+				payload: {id: fixtureId('issue-1'), assignee: 'contributor-1'},
 			}),
 		]);
 	});
@@ -1541,13 +1563,13 @@ describe('mcp tools', () => {
 				userId: 'log-only-author',
 				userName: 'Log Only',
 				action: 'edit.title',
-				payload: {id: 'issue-1', name: 'x'},
+				payload: {id: fixtureId('issue-1'), name: 'x'},
 			},
 		];
 
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeName: 'Log Only',
 		});
 
@@ -1570,7 +1592,7 @@ describe('mcp tools', () => {
 			}),
 			expect.objectContaining({
 				action: 'add.issue.assignee',
-				payload: {id: 'issue-1', assignee: 'log-only-author'},
+				payload: {id: fixtureId('issue-1'), assignee: 'log-only-author'},
 			}),
 		]);
 	});
@@ -1580,7 +1602,7 @@ describe('mcp tools', () => {
 		// two ids with one display name.
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeName: 'Alice',
 		});
 
@@ -1596,7 +1618,7 @@ describe('mcp tools', () => {
 	it('removes an assignee from an issue', async () => {
 		const result = await tools.removeIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeId: 'contributor-1',
 		});
 
@@ -1605,7 +1627,7 @@ describe('mcp tools', () => {
 			[
 				expect.objectContaining({
 					action: 'remove.issue.assignee',
-					payload: {id: 'issue-1', assignee: 'contributor-1'},
+					payload: {id: fixtureId('issue-1'), assignee: 'contributor-1'},
 				}),
 			],
 			'/state',
@@ -1615,7 +1637,7 @@ describe('mcp tools', () => {
 	it('fails removing an assignee that does not exist', async () => {
 		const result = await tools.removeIssueAssignee({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			assigneeId: 'missing-contributor',
 		});
 
@@ -1628,14 +1650,14 @@ describe('mcp tools', () => {
 	it('adds a comment to an issue', async () => {
 		const result = await tools.addIssueComment({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			body: 'Looks good to me',
 		});
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value.body).toBe('Looks good to me');
-			expect(result.value.issueId).toBe('issue-1');
+			expect(result.value.issueId).toBe(fixtureId('issue-1'));
 		}
 
 		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
@@ -1643,7 +1665,7 @@ describe('mcp tools', () => {
 				expect.objectContaining({
 					action: 'add.issue.comment',
 					payload: expect.objectContaining({
-						issue: 'issue-1',
+						issue: fixtureId('issue-1'),
 						md: 'Looks good to me',
 					}),
 				}),
@@ -1655,7 +1677,7 @@ describe('mcp tools', () => {
 	it('fails adding an empty comment', async () => {
 		const result = await tools.addIssueComment({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			body: '   ',
 		});
 
@@ -1668,7 +1690,7 @@ describe('mcp tools', () => {
 	it('fails adding a comment past the shared limit', async () => {
 		const result = await tools.addIssueComment({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			body: 'x'.repeat(MAX_COMMENT_LENGTH + 1),
 		});
 
@@ -1681,7 +1703,7 @@ describe('mcp tools', () => {
 	it('accepts a comment of exactly the shared limit', async () => {
 		const result = await tools.addIssueComment({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			body: 'x'.repeat(MAX_COMMENT_LENGTH),
 		});
 
@@ -1691,7 +1713,7 @@ describe('mcp tools', () => {
 	it('accepts a comment of a thousand characters', async () => {
 		const result = await tools.addIssueComment({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			body: 'x'.repeat(1000),
 		});
 
@@ -1701,7 +1723,7 @@ describe('mcp tools', () => {
 	it('measures the trimmed body, not the raw input', async () => {
 		const result = await tools.addIssueComment({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 			body: `   ${'x'.repeat(MAX_COMMENT_LENGTH)}   `,
 		});
 
@@ -1716,14 +1738,17 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.value).toEqual({id: 'comment-1', issueId: 'issue-1'});
+			expect(result.value).toEqual({
+				id: 'comment-1',
+				issueId: fixtureId('issue-1'),
+			});
 		}
 
 		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
 			[
 				expect.objectContaining({
 					action: 'delete.issue.comment',
-					payload: {id: 'comment-1', issue: 'issue-1'},
+					payload: {id: 'comment-1', issue: fixtureId('issue-1')},
 				}),
 			],
 			'/state',
@@ -1745,13 +1770,13 @@ describe('mcp tools', () => {
 	it('reopens a closed issue to its previous swimlane', async () => {
 		const result = await tools.reopenIssue({
 			repoRoot: '/repo',
-			issueId: 'issue-closed-1',
+			issueId: fixtureId('issue-closed-1'),
 		});
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
-				id: 'issue-closed-1',
+				id: fixtureId('issue-closed-1'),
 				parentId: 'swimlane-1',
 			});
 		}
@@ -1761,7 +1786,7 @@ describe('mcp tools', () => {
 				expect.objectContaining({
 					action: 'reopen.issue',
 					payload: expect.objectContaining({
-						id: 'issue-closed-1',
+						id: fixtureId('issue-closed-1'),
 						parent: 'swimlane-1',
 					}),
 				}),
@@ -1773,7 +1798,7 @@ describe('mcp tools', () => {
 	it('fails reopening an issue that is not closed', async () => {
 		const result = await tools.reopenIssue({
 			repoRoot: '/repo',
-			issueId: 'issue-1',
+			issueId: fixtureId('issue-1'),
 		});
 
 		expect(isFail(result)).toBe(true);

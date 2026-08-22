@@ -35,6 +35,7 @@ import {
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../lib/model/app-state.model.js';
 import {preferBestName} from '../lib/utils/contributor.utils.js';
+import {describeEvent} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {MAX_COMMENT_LENGTH} from '../lib/utils/comment.limits.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
@@ -50,6 +51,7 @@ import {
 	ApiAssignee,
 	ApiIssue,
 	ApiState,
+	ApiIssueHistoryEntry,
 	ApiSwimlane,
 } from './api-state.model.js';
 import {getTimeTravelStatus} from './epiq-time-travel.js';
@@ -406,6 +408,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					ref: nodeRef(n.id),
 					title: sanitizeInlineText(n.title),
 					description: n.props.description ?? '',
+					createdAt: decodeTime(n.id),
 					parentNodeId: n.parentNodeId!,
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),
@@ -703,6 +706,15 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 	const board = stateResult.value.nodes[input.boardId];
 	if (!board) return failed('Board not found');
 	if (!isBoardNode(board)) return failed('Target parent must be a board');
+	if (board.readonly)
+		return failed('Cannot add a swimlane to a readonly board');
+
+	// Boards carry no forced readonly of their own, so unlike the issue and
+	// swimlane mutations this one has to check the scrub itself. Without it a
+	// write lands on the state branch while the checkout is in the past.
+	if (getTimeTravelStatus().mode !== 'live') {
+		return failed('Cannot add a swimlane while time travelling');
+	}
 
 	const title = sanitizeInlineText(input.title);
 	if (!title.trim()) return failed('Swimlane title cannot be empty');
@@ -901,6 +913,35 @@ export const sync = async (input: SyncInput = {}) => {
 	return succeeded('Synced', result.value);
 };
 
+/**
+ * A ticket's own event log, oldest first. Reads whatever is materialized rather
+ * than booting, so it stays correct mid-scrub like the state beside it.
+ */
+export const getIssueHistory = (
+	issueId: string,
+): Result<ApiIssueHistoryEntry[]> => {
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[issueId];
+	if (!issue) return failed('Issue not found');
+
+	return succeeded(
+		'Read issue history',
+		(issue.log ?? []).map(event => ({
+			id: event.id,
+			t: decodeTime(event.id),
+			action: event.action,
+			label: describeEvent(event),
+			actor: {
+				id: event.userId,
+				name: event.userName,
+				color: getStringColor(event.userName),
+			},
+		})),
+	);
+};
+
 export const getEpiqState = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
@@ -1011,6 +1052,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				id: b.id,
 				ref: nodeRef(b.id),
 				title: b.title,
+				readonly: Boolean(b.readonly) || forceReadonly,
 				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
 					.sort((a, b) => a.rank.localeCompare(b.rank))
 					.map(
@@ -1026,6 +1068,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										ref: nodeRef(issue.id),
 										title: sanitizeInlineText(issue.title),
 										description: issue.props.description ?? '',
+										createdAt: decodeTime(issue.id),
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue, latestNames),

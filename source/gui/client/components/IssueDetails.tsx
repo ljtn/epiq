@@ -7,6 +7,7 @@ import {
 	GuiTag,
 	GuiComment,
 	GuiAttachment,
+	GuiIssueHistoryEntry,
 } from '../lib/gui-state.model';
 import {Aside} from './Aside';
 import {Button} from './Button';
@@ -26,12 +27,16 @@ import {IssueComments} from './IssueComments';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
+import {IssueHistory} from './IssueHistory';
+import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 
-type IssueDetailsTab = 'overview' | 'comments';
+type IssueDetailsTab = 'overview' | 'comments' | 'history';
 
 export const IssueDetails = ({
 	whoAmI,
 	comments,
+	history,
+	onHoverHistoryEvent,
 	activeTab,
 	onChangeTab,
 	issue,
@@ -59,6 +64,8 @@ export const IssueDetails = ({
 	whoAmI: GuiUser;
 	issue: GuiIssue | null;
 	comments: GuiComment[];
+	history: GuiIssueHistoryEntry[];
+	onHoverHistoryEvent: (eventId: string | null) => void;
 	onClose: () => void;
 	activeTab: IssueDetailsTab;
 	onChangeTab: (tab: IssueDetailsTab) => void;
@@ -107,22 +114,6 @@ export const IssueDetails = ({
 	}, [editingTitle]);
 
 	useEffect(() => {
-		if (!issue) return;
-
-		const handleClickOutside = (event: MouseEvent) => {
-			if (
-				panelRef.current &&
-				!panelRef.current.contains(event.target as Node)
-			) {
-				onClose();
-			}
-		};
-
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => document.removeEventListener('mousedown', handleClickOutside);
-	}, [issue, onClose]);
-
-	useEffect(() => {
 		setTitle(issue?.title ?? '');
 		setDescription(issue?.description ?? '');
 		setTagName('');
@@ -138,6 +129,7 @@ export const IssueDetails = ({
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
+		{id: 'history', label: 'Log', count: history.length},
 	];
 
 	const saveTitle = () => {
@@ -294,6 +286,22 @@ export const IssueDetails = ({
 
 					{activeTab === 'overview' && (
 						<>
+							{/* 0 when the id carries no time. Better to say nothing than to
+							    date the ticket to 1970. */}
+							{issue.createdAt > 0 && (
+								<div
+									data-testid="issue-created-at"
+									title={formatAbsolute(issue.createdAt)}
+									style={{
+										fontSize: 11,
+										color: GUI_THEME.dim,
+										marginBottom: 14,
+									}}
+								>
+									Created {timeAgo(issue.createdAt)}
+								</div>
+							)}
+
 							<Section
 								first={true}
 								title="Description"
@@ -586,6 +594,13 @@ export const IssueDetails = ({
 							comments={comments}
 							onAddComment={onAddComment}
 							onDeleteComment={onDeleteComment}
+						/>
+					)}
+
+					{activeTab === 'history' && (
+						<IssueHistory
+							entries={history}
+							onHoverEvent={onHoverHistoryEvent}
 						/>
 					)}
 				</>

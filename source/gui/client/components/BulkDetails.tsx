@@ -23,6 +23,9 @@ const countBy = <T extends {id: string}>(
 	return [...byId.values()];
 };
 
+const ticketWord = (count: number): string =>
+	count === 1 ? 'ticket' : 'tickets';
+
 export const BulkDetails = ({
 	issues,
 	knownTags,
@@ -55,6 +58,8 @@ export const BulkDetails = ({
 	onClear: () => void;
 }) => {
 	const total = issues.length;
+	const openCount = issues.filter(issue => !issue.isClosed).length;
+	const closedCount = total - openCount;
 	const tags = countBy(issues, issue => issue.tags);
 	const assignees = countBy(issues, issue => issue.assignees);
 
@@ -187,8 +192,17 @@ export const BulkDetails = ({
 
 			<Section title="Actions">
 				<ChipRow>
-					<Button onClick={onCloseIssues}>close {total} tickets</Button>
-					<Button onClick={onReopenIssues}>reopen {total} tickets</Button>
+					{openCount > 0 && (
+						<Button onClick={onCloseIssues}>
+							close {openCount} {ticketWord(openCount)}
+						</Button>
+					)}
+
+					{closedCount > 0 && (
+						<Button onClick={onReopenIssues}>
+							reopen {closedCount} {ticketWord(closedCount)}
+						</Button>
+					)}
 				</ChipRow>
 			</Section>
 		</Aside>

@@ -8,13 +8,18 @@ import {
 	addIssueTag,
 	closeIssue,
 	createIssue,
+	createSwimlane,
+	deleteSwimlane,
 	deleteIssueComment,
 	deriveGuiState,
 	editIssueDescription,
+	editSwimlaneTitle,
 	editIssueTitle,
 	getGuiState,
+	getIssueHistory,
 	listIssues,
 	moveIssue,
+	moveSwimlane,
 	removeIssueAssignee,
 	removeIssueTag,
 	reopenIssue,
@@ -30,6 +35,7 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
+import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
@@ -50,11 +56,22 @@ const sendSocket = (socket: WebSocket, body: unknown) => {
 	socket.send(JSON.stringify(body));
 };
 
-const sendGuiState = async (socket: WebSocket, repoRoot: string) =>
-	sendSocket(socket, {
-		type: 'state',
-		payload: slimStateResult(await getGuiState({repoRoot})),
-	});
+const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
+	const payload = slimStateResult(await getGuiState({repoRoot}));
+
+	// Only a missing project puts the client on the init screen. Every other
+	// failure — a git lock a concurrent TUI is holding, a half-written log — is
+	// transient, and the board it is already showing is better than a wrong
+	// diagnosis.
+	if (isFail(payload) && payload.message === NO_PROJECT_MESSAGE) {
+		return sendSocket(socket, {
+			type: 'state:unavailable',
+			payload: {message: payload.message, repoRoot},
+		});
+	}
+
+	return sendSocket(socket, {type: 'state', payload});
+};
 
 const sendStateAfterMutation = async (socket: WebSocket, repoRoot: string) => {
 	const sendDerivedState = () =>
@@ -135,12 +152,16 @@ export const setupWebsocket = (
 				if (type === 'issue:get') {
 					const issueId = message.payload?.issueId;
 					const state = deriveGuiState();
+					const history = getIssueHistory(issueId);
 
 					return sendSocket(socket, {
 						type: 'issue',
 						payload: isFail(state)
 							? state
-							: succeeded('Issue detail', issueDetail(state.value, issueId)),
+							: succeeded('Issue detail', {
+									...issueDetail(state.value, issueId),
+									history: isFail(history) ? [] : history.value,
+							  }),
 					});
 				}
 
@@ -392,6 +413,73 @@ export const setupWebsocket = (
 
 					onStateChanged();
 					return sendGuiState(socket, repoRoot);
+				}
+
+				if (type === 'swimlane:create') {
+					const result = await createSwimlane({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:create:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:edit:title') {
+					const result = await editSwimlaneTitle({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:edit:title:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:delete') {
+					const result = await deleteSwimlane({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:delete:result',
+						result,
+					);
+				}
+
+				if (type === 'swimlane:move') {
+					if (!message.payload.position) {
+						return sendSocket(socket, {
+							type: 'error',
+							message: 'Missing move position',
+						});
+					}
+
+					const result = await moveSwimlane({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'swimlane:move:result',
+						result,
+					);
 				}
 
 				if (type === 'issues:move') {

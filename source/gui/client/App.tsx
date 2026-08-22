@@ -7,7 +7,10 @@ import {
 } from 'react-router-dom';
 import {ASIDE_WIDTH} from './components/Aside';
 import {Button} from './components/Button';
-import {CreateIssueModal} from './components/CreateIssueModal';
+import {CreateNodeModal} from './components/CreateNodeModal';
+import {AddSwimlaneColumn} from './components/AddSwimlaneColumn';
+import {ConfirmModal} from './components/ConfirmModal';
+import {InitProjectScreen} from './components/InitProjectScreen';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
@@ -17,6 +20,8 @@ import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
 import {moveIssue} from './lib/gui-move-issue';
+import {reconnectDelayMs} from './lib/reconnect';
+import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {
@@ -24,9 +29,12 @@ import {
 	findIssue,
 	getResultValue,
 	updateIssueInGuiState,
+	updateSwimlaneInGuiState,
 } from './lib/gui-state-helper';
 import {
 	GuiComment,
+	GuiIssue,
+	GuiIssueHistoryEntry,
 	GuiCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
@@ -42,14 +50,18 @@ import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
-type IssueDetailsTab = 'overview' | 'comments';
+type IssueDetailsTab = 'overview' | 'comments' | 'history';
 
 // Module scope so an absent state does not hand the memos below a new object
 // on every render.
 const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
+// The board's page margin, matching the left padding on <main>.
+const BOARD_GUTTER = 30;
+
 export const DropIndicator = () => (
 	<div
+		data-testid="ticket-drop-indicator"
 		style={{
 			height: 2,
 			background: GUI_THEME.accent,
@@ -80,6 +92,13 @@ export const App = () => {
 		msg: 'idle',
 	});
 	const [state, setState] = useState<GuiState | null>(null);
+	// Set only when the server says there is nothing to load here — no epiq
+	// project at or above its root. Distinct from `state === null`, which just
+	// means the first broadcast has not arrived yet.
+	const [noProject, setNoProject] = useState<{
+		message: string;
+		repoRoot: string;
+	} | null>(null);
 	// Assignable people for the board on screen, unlike state.contributors, which
 	// is the registry and stays empty until somebody is explicitly assigned.
 	const [contributors, setContributors] = useState<GuiContributor[]>([]);
@@ -109,13 +128,47 @@ export const App = () => {
 		swimlaneId: string;
 		title: string;
 	} | null>(null);
+	// Only a title: the board it lands on is whichever one is on screen.
+	const [createSwimlaneTitle, setCreateSwimlaneTitle] = useState<string | null>(
+		null,
+	);
+	const [renameSwimlane, setRenameSwimlane] = useState<{
+		swimlaneId: string;
+		title: string;
+	} | null>(null);
+	const [deleteSwimlaneId, setDeleteSwimlaneId] = useState<string | null>(null);
+	// Which column edge the dragged swimlane would land on. Held as an edge
+	// rather than an index so each column can draw its own line without needing
+	// to know its position in the row.
+	// Lifted here because the Log lives in the details pane and the scatter it
+	// points at is drawn above the board.
+	const [hoveredLogEventId, setHoveredLogEventId] = useState<string | null>(
+		null,
+	);
+	const [swimlaneDropEdge, setSwimlaneDropEdge] = useState<{
+		swimlaneId: string;
+		side: 'left' | 'right';
+	} | null>(null);
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
+	const [reconnectTick, setReconnectTick] = useState(0);
+	// True once the automatic attempts are spent; the topbar then offers the
+	// button rather than retrying behind the reader's back forever.
+	const [reconnectExhausted, setReconnectExhausted] = useState(false);
+	const reconnectAttempts = useRef(0);
+	const reconnectTimer = useRef<number | null>(null);
+
+	const reconnectNow = () => {
+		reconnectAttempts.current = 0;
+		setReconnectExhausted(false);
+		setReconnectTick(tick => tick + 1);
+	};
 	const [mutationGate] = useState(createMutationGate);
 
-	const selectedTab =
-		searchParams.get('tab') === 'comments' ? 'comments' : 'overview';
+	const tabParam = searchParams.get('tab');
+	const selectedTab: IssueDetailsTab =
+		tabParam === 'comments' || tabParam === 'history' ? tabParam : 'overview';
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs (full ids in old links still resolve).
@@ -184,6 +237,7 @@ export const App = () => {
 		issueId: string;
 		description: string;
 		comments: GuiComment[];
+		history: GuiIssueHistoryEntry[];
 	} | null>(null);
 	// Driven by the scrubber's own selection. Null unless it has been narrowed
 	// to particular tags or people.
@@ -240,9 +294,14 @@ export const App = () => {
 		);
 
 		socketRef.current = socket;
+		// Distinguishes a socket the effect is tearing down from one that dropped
+		// on its own; only the latter is worth reconnecting.
+		let replaced = false;
 
 		socket.addEventListener('open', () => {
 			setConnected(true);
+			reconnectAttempts.current = 0;
+			setReconnectExhausted(false);
 			mutationGate.reset();
 			sendSocketJson(socket, {type: 'state:get'});
 			// History is not requested here: the scrubber owns the scope and drives
@@ -250,12 +309,32 @@ export const App = () => {
 		});
 
 		socket.addEventListener('close', () => {
-			setConnected(false);
-			mutationGate.reset();
-
 			if (socketRef.current === socket) {
 				socketRef.current = null;
 			}
+
+			// A socket this effect is replacing is not a lost connection: the next
+			// one is already opening. Reporting it would flash the whole offline
+			// treatment on every navigation, which re-runs this effect.
+			if (replaced) return;
+
+			setConnected(false);
+			mutationGate.reset();
+
+			// Without this the board is dead until a manual reload: nothing arrives
+			// and nothing is sent, while the controls carry on as if they worked.
+			const delay = reconnectDelayMs(reconnectAttempts.current);
+
+			if (delay === null) {
+				setReconnectExhausted(true);
+				return;
+			}
+
+			reconnectAttempts.current += 1;
+			reconnectTimer.current = window.setTimeout(
+				() => setReconnectTick(tick => tick + 1),
+				delay,
+			);
 		});
 
 		socket.addEventListener('message', event => {
@@ -265,7 +344,14 @@ export const App = () => {
 
 			if (message.type === 'state' && !mutationGate.holdsState()) {
 				const nextState = getResultValue<GuiState>(message.payload);
-				if (nextState) setState(nextState);
+				if (nextState) {
+					setState(nextState);
+					setNoProject(null);
+				}
+			}
+
+			if (message.type === 'state:unavailable') {
+				setNoProject(message.payload);
 			}
 
 			if (message.type === 'issue') {
@@ -273,6 +359,7 @@ export const App = () => {
 					issueId: string;
 					description: string;
 					comments: GuiComment[];
+					history: GuiIssueHistoryEntry[];
 				}>(message.payload);
 
 				if (detail) setIssueDetail(detail);
@@ -361,13 +448,22 @@ export const App = () => {
 		});
 
 		return () => {
+			replaced = true;
+
+			if (reconnectTimer.current !== null) {
+				clearTimeout(reconnectTimer.current);
+				reconnectTimer.current = null;
+			}
+
 			if (socketRef.current === socket) {
 				socketRef.current = null;
 			}
 
 			socket.close();
 		};
-	}, [boardId, navigate]);
+		// `reconnectTick` is what re-runs this after a drop; the scrubber re-asks
+		// for its window off `connected`, so history comes back with it.
+	}, [boardId, navigate, reconnectTick]);
 
 	useEffect(() => {
 		const first = state?.boards?.[0];
@@ -436,8 +532,10 @@ export const App = () => {
 
 		if (!boardSlug) return;
 
+		// Carries the open tab across the selection: reading every ticket's
+		// comments in turn should not mean reopening the tab each time.
 		void navigate(
-			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=overview`,
+			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=${selectedTab}`,
 		);
 	};
 
@@ -715,6 +813,133 @@ export const App = () => {
 		});
 	};
 
+	const createSwimlane = () => {
+		if (createSwimlaneTitle === null || !selectedBoard) return;
+
+		const title = createSwimlaneTitle.trim() || 'New swimlane';
+		const boardId = selectedBoard.id;
+
+		setCreateSwimlaneTitle(null);
+
+		// Placeholder id: the real one arrives with the state that follows. Marked
+		// readonly until then, which hides the kebab and disables `+` — both would
+		// otherwise send this id, and the server has never heard of it.
+		setState(prev =>
+			prev
+				? {
+						...prev,
+						boards: prev.boards.map(board =>
+							board.id === boardId
+								? {
+										...board,
+										swimlanes: [
+											...board.swimlanes,
+											{
+												id: `pending-swimlane-${title}`,
+												title,
+												readonly: true,
+												issues: [],
+											},
+										],
+								  }
+								: board,
+						),
+				  }
+				: prev,
+		);
+
+		send('swimlane:create', {title, boardId});
+	};
+
+	const openRenameSwimlane = (swimlaneId: string) => {
+		const swimlane = visibleSwimlanes.find(x => x.id === swimlaneId);
+		if (!swimlane) return;
+
+		setRenameSwimlane({swimlaneId, title: swimlane.title});
+	};
+
+	const submitRenameSwimlane = () => {
+		if (!renameSwimlane) return;
+
+		const {swimlaneId} = renameSwimlane;
+		const title = renameSwimlane.title.trim();
+
+		setRenameSwimlane(null);
+
+		// An empty title is refused by the server, and blanking a column is never
+		// what the reader meant by it, so treat it as a cancel.
+		if (!title) return;
+
+		setState(prev =>
+			prev
+				? updateSwimlaneInGuiState(prev, swimlaneId, swimlane => ({
+						...swimlane,
+						title,
+				  }))
+				: prev,
+		);
+
+		send('swimlane:edit:title', {swimlaneId, title});
+	};
+
+	// From the board rather than the filtered lanes, and resolved at render
+	// rather than captured when the menu was clicked: the confirm counts what the
+	// delete destroys, which a board filter must not be able to talk down.
+	const deletingSwimlane =
+		selectedBoard?.swimlanes.find(x => x.id === deleteSwimlaneId) ?? null;
+
+	// A dead socket cannot carry a mutation, so the board wears the same
+	// readonly it wears mid-scrub — every existing guard keys off this, so the
+	// kebabs, the + buttons, dragging and the editors all stand down together.
+	//
+	// Only once a board has arrived: `connected` starts false, so keying off it
+	// alone would dim and freeze every first paint until the socket opens.
+	const offline = !connected && state !== null;
+
+	const shownSwimlanes = useMemo(
+		() =>
+			offline
+				? visibleSwimlanes.map(swimlane => ({
+						...swimlane,
+						readonly: true,
+						issues: swimlane.issues.map(issue => ({...issue, readonly: true})),
+				  }))
+				: visibleSwimlanes,
+		[offline, visibleSwimlanes],
+	);
+
+	// The dragged id comes off the drop event rather than being remembered from
+	// dragstart: a drag can begin in one window and end in this one, and the
+	// dataTransfer is the only thing that crosses.
+	const dropSwimlane = (swimlaneId: string) => {
+		const edge = swimlaneDropEdge;
+		setSwimlaneDropEdge(null);
+
+		if (!edge || !swimlaneId || !selectedBoard) return;
+
+		const overIndex = visibleSwimlanes.findIndex(x => x.id === edge.swimlaneId);
+		if (overIndex === -1) return;
+
+		moveSwimlane(state, setState, send)(
+			swimlaneId,
+			selectedBoard.id,
+			edge.side === 'left' ? overIndex : overIndex + 1,
+		);
+	};
+
+	const confirmDeleteSwimlane = () => {
+		if (!deleteSwimlaneId) return;
+
+		setState(prev =>
+			prev
+				? updateSwimlaneInGuiState(prev, deleteSwimlaneId, () => null)
+				: prev,
+		);
+
+		send('swimlane:delete', {swimlaneId: deleteSwimlaneId});
+		setDeleteSwimlaneId(null);
+	};
+
 	const addIssueComment = (issueId: string, body: string) => {
 		setState(prev => {
 			if (!prev) return prev;
@@ -842,6 +1067,18 @@ export const App = () => {
 		send('issue:comment:delete', {commentId});
 	};
 
+	// Ahead of the board: without a project there are no boards, no history and
+	// no scrubber to draw, so the shell would only frame an empty screen.
+	if (noProject) {
+		return (
+			<InitProjectScreen
+				repoRoot={noProject.repoRoot}
+				message={noProject.message}
+				onRetry={requestState}
+			/>
+		);
+	}
+
 	return (
 		<div
 			style={{
@@ -879,7 +1116,16 @@ export const App = () => {
 
 			<Header
 				state={state}
-				connected={connected}
+				connection={
+					connected
+						? 'connected'
+						: !offline
+						? 'connecting'
+						: reconnectExhausted
+						? 'lost'
+						: 'reconnecting'
+				}
+				onReconnect={reconnectNow}
 				scrubbing={state?.timeTravel?.mode === 'scrub'}
 				syncStatus={syncStatus}
 			/>
@@ -892,17 +1138,22 @@ export const App = () => {
 				connected={connected}
 				onRequestHistory={requestBoardHistory}
 				onInspectCommit={inspectCommit}
+				highlightEventId={hoveredLogEventId}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
 				onReturnToLive={returnToLive}
 				onBoardFilterChange={setBoardFilter}
 			/>
 
+			{/* Dimmed while offline so the board reads as inert. The topbar stays at
+			    full strength: it carries the reason and the way back. */}
 			<div
 				style={{
 					display: 'flex',
 					flex: 1,
 					overflow: 'hidden',
+					opacity: offline ? 0.55 : 1,
+					transition: 'opacity 160ms ease',
 				}}
 			>
 				{/* Vertical overflow is hidden here: the swimlanes size themselves to
@@ -911,9 +1162,7 @@ export const App = () => {
 				<main
 					onClick={clearPicked}
 					style={{
-						// No bottom padding: the board row is the horizontal scroll
-						// container, and a gap below it would strand its scrollbar.
-						padding: '0 30px 0 30px',
+						padding: '0 0 0 30px',
 						flex: 1,
 						minHeight: 0,
 						display: 'flex',
@@ -964,7 +1213,7 @@ export const App = () => {
 							overflowY: 'hidden',
 						}}
 					>
-						{visibleSwimlanes.map(swimlane => (
+						{shownSwimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
 								swimlane={swimlane}
@@ -980,6 +1229,18 @@ export const App = () => {
 								onSelectIssue={selectIssue}
 								onSelectIssueComments={selectIssueComments}
 								onCreateIssue={openCreateIssueModal}
+								onRenameSwimlane={openRenameSwimlane}
+								onDeleteSwimlane={setDeleteSwimlaneId}
+								dropSide={
+									swimlaneDropEdge?.swimlaneId === swimlane.id
+										? swimlaneDropEdge.side
+										: null
+								}
+								onSwimlaneDragOver={(swimlaneId, side) =>
+									setSwimlaneDropEdge({swimlaneId, side})
+								}
+								onSwimlaneDragEnd={() => setSwimlaneDropEdge(null)}
+								onDropSwimlane={dropSwimlane}
 								onDropIssue={(issueId, swimlaneId, targetIndex) => {
 									const moving = pickedIssueIds.includes(issueId)
 										? pickedIssueIds
@@ -1001,6 +1262,13 @@ export const App = () => {
 							/>
 						))}
 
+						{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
+							where the new column will actually appear. Hidden on a readonly
+							board, which also covers a scrubbed timeline. */}
+						{selectedBoard && !selectedBoard.readonly && !offline && (
+							<AddSwimlaneColumn onClick={() => setCreateSwimlaneTitle('')} />
+						)}
+
 						{/* Grows scrollWidth by exactly what closing the panel gave back
 							in clientWidth, keeping max scrollLeft identical across
 							open/closed so the board doesn't bounce back when scrolled
@@ -1008,6 +1276,10 @@ export const App = () => {
 						{!(selectedIssue && state?.user) && (
 							<div style={{width: ASIDE_WIDTH, flexShrink: 0}} />
 						)}
+
+						{/* The page's right margin, scrolling with the columns. Constant,
+							so it cancels out of the invariant above. */}
+						<div style={{width: BOARD_GUTTER, flexShrink: 0}} />
 					</div>
 				</main>
 
@@ -1032,11 +1304,17 @@ export const App = () => {
 							forPicked(id => removeIssueAssignee(id, assigneeId))
 						}
 						onCloseIssues={() => {
-							forPicked(closeIssue);
+							// Skips the ones already closed: the event log would otherwise
+							// carry a second "Closed" for each of them.
+							for (const issue of pickedIssues) {
+								if (!issue.isClosed) closeIssue(issue.id);
+							}
 							clearPicked();
 						}}
 						onReopenIssues={() => {
-							forPicked(reopenIssue);
+							for (const issue of pickedIssues) {
+								if (issue.isClosed) reopenIssue(issue.id);
+							}
 							clearPicked();
 						}}
 						onClear={clearPicked}
@@ -1046,17 +1324,26 @@ export const App = () => {
 				{pickedIssues.length <= 1 && selectedIssue && state?.user && (
 					<IssueDetails
 						whoAmI={state.user}
-						issue={
-							issueDetail?.issueId === selectedIssue.id
-								? {...selectedIssue, description: issueDetail.description}
-								: selectedIssue
-						}
+						issue={((): GuiIssue => {
+							const base =
+								issueDetail?.issueId === selectedIssue.id
+									? {...selectedIssue, description: issueDetail.description}
+									: selectedIssue;
+
+							return offline ? {...base, readonly: true} : base;
+						})()}
 						activeTab={selectedTab}
 						comments={
 							issueDetail?.issueId === selectedIssue.id
 								? issueDetail.comments
 								: []
 						}
+						history={
+							issueDetail?.issueId === selectedIssue.id
+								? issueDetail.history
+								: []
+						}
+						onHoverHistoryEvent={setHoveredLogEventId}
 						onChangeTab={changeIssueDetailsTab}
 						onClose={closeIssueDetails}
 						onEditTitle={editIssueTitle}
@@ -1083,13 +1370,62 @@ export const App = () => {
 			</div>
 
 			{createIssueModal && (
-				<CreateIssueModal
+				<CreateNodeModal
+					eyebrow="New issue"
+					fieldLabel="title"
+					placeholder="issue name"
 					title={createIssueModal.title}
 					onChangeTitle={title =>
 						setCreateIssueModal(prev => (prev ? {...prev, title} : prev))
 					}
 					onCreate={createIssue}
 					onClose={() => setCreateIssueModal(null)}
+				/>
+			)}
+
+			{renameSwimlane && (
+				<CreateNodeModal
+					eyebrow="Rename swimlane"
+					fieldLabel="title"
+					placeholder="swimlane name"
+					confirmLabel="rename"
+					title={renameSwimlane.title}
+					onChangeTitle={title =>
+						setRenameSwimlane(prev => (prev ? {...prev, title} : prev))
+					}
+					onCreate={submitRenameSwimlane}
+					onClose={() => setRenameSwimlane(null)}
+				/>
+			)}
+
+			{deletingSwimlane && (
+				<ConfirmModal
+					eyebrow="Delete swimlane"
+					heading={`Delete "${deletingSwimlane.title}"?`}
+					body={
+						deletingSwimlane.issues.length > 0
+							? `This also deletes the ${
+									deletingSwimlane.issues.length
+							  } ticket${
+									deletingSwimlane.issues.length === 1 ? '' : 's'
+							  } in it. Their history stays in the event log, but they leave the board.`
+							: 'The swimlane is empty, so nothing else goes with it.'
+					}
+					confirmLabel="delete"
+					onConfirm={confirmDeleteSwimlane}
+					onClose={() => setDeleteSwimlaneId(null)}
+				/>
+			)}
+
+			{createSwimlaneTitle !== null && (
+				<CreateNodeModal
+					eyebrow="New swimlane"
+					fieldLabel="title"
+					placeholder="swimlane name"
+					title={createSwimlaneTitle}
+					onChangeTitle={setCreateSwimlaneTitle}
+					onCreate={createSwimlane}
+					onClose={() => setCreateSwimlaneTitle(null)}
 				/>
 			)}
 		</div>

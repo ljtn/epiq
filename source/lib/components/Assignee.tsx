@@ -37,7 +37,7 @@ export const AssigneeUI: React.FC<Props> = ({id, isSelected, maxWidth}) => {
 			: truncateWithEllipsis(displayName, maxWidth);
 
 	return (
-		<Text underline={isSelected} color={getStringColor(name)}>
+		<Text underline={isSelected} color={getStringColor(displayName)}>
 			{'@' + name}
 			{hasAuthoredEvents(id) ? '' : '↗'}
 		</Text>

@@ -76,6 +76,10 @@ export const resolveClosestEpiqRoot = (startDir: string): Result<string> => {
 	}
 };
 
+// Named so callers can tell "there is no project here" apart from a boot that
+// failed for some other reason, without matching on prose.
+export const NO_PROJECT_MESSAGE = 'No .epiq/project.json found in any parent';
+
 export const resolveClosestEpiqProjectRoot = (
 	startDir: string,
 ): Result<string> => {
@@ -88,7 +92,7 @@ export const resolveClosestEpiqProjectRoot = (
 
 		const parent = path.dirname(dir);
 		if (parent === dir) {
-			return failed('No .epiq/project.json found in any parent');
+			return failed(NO_PROJECT_MESSAGE);
 		}
 
 		dir = parent;

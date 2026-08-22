@@ -1,6 +1,7 @@
 import {useEffect, useRef} from 'react';
 import {GuiComment, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {isSwimlaneDrag} from '../lib/gui-move-swimlane';
 import {CopyRef} from './CopyRef';
 import {IconComment} from './IconComment';
 import {User} from './User';
@@ -63,6 +64,10 @@ export const TicketCard = ({
 				event.dataTransfer.setData('text/plain', ticket.id);
 			}}
 			onDragOver={event => {
+				// A swimlane crossing the card belongs to the column underneath, which
+				// decides its own landing edge.
+				if (isSwimlaneDrag(event.dataTransfer)) return;
+
 				event.preventDefault();
 				event.dataTransfer.dropEffect = 'move';
 
@@ -72,6 +77,10 @@ export const TicketCard = ({
 				onDragOverIssue(getVisualTargetIndex(isAfterMiddle));
 			}}
 			onDrop={event => {
+				// Before stopPropagation, or a column dropped over a card would be
+				// swallowed here and never reach the section's own handler.
+				if (isSwimlaneDrag(event.dataTransfer)) return;
+
 				event.preventDefault();
 				event.stopPropagation();
 
@@ -101,10 +110,6 @@ export const TicketCard = ({
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
 				}`,
-				// Only the multi-selection is outlined, so it stays legible when the
-				// details panel is closed.
-				outline: isPicked ? `1px solid ${GUI_THEME.accent}` : undefined,
-				outlineOffset: 1,
 			}}
 		>
 			<div

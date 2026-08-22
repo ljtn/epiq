@@ -1,12 +1,16 @@
 import {GuiState} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {Button} from './Button';
 import {Panel} from './Panel';
 import {User} from './User';
 import {EPIQ_VERSION} from '../../../version.js';
 
 type HeaderProps = {
 	state: GuiState | null;
-	connected: boolean;
+	// 'connecting' is the first socket of a page load, which is not a fault and
+	// says nothing; the rest are.
+	connection: 'connected' | 'connecting' | 'reconnecting' | 'lost';
+	onReconnect: () => void;
 	scrubbing: boolean;
 	syncStatus: {
 		status: 'synced' | 'failed' | 'syncing';
@@ -16,7 +20,8 @@ type HeaderProps = {
 
 export const Header = ({
 	state,
-	connected,
+	connection,
+	onReconnect,
 	scrubbing,
 	syncStatus,
 }: HeaderProps) => {
@@ -111,12 +116,12 @@ export const Header = ({
 									textAlign: 'right',
 								}}
 							>
-								{connected ? syncLabel : '-'}
+								{connection === 'connected' ? syncLabel : '-'}
 							</span>
 
 							<span
 								style={{
-									color: connected ? syncColor : GUI_THEME.dim,
+									color: connection === 'connected' ? syncColor : GUI_THEME.dim,
 									fontSize: 4,
 								}}
 							>
@@ -126,13 +131,30 @@ export const Header = ({
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
 
-						<span
-							style={{
-								color: GUI_THEME.dim,
-							}}
-						>
-							{connected ? 'connected' : 'disconnected'}
-						</span>
+						{connection === 'connected' ? (
+							<span style={{color: GUI_THEME.dim}}>connected</span>
+						) : connection === 'connecting' ? (
+							<span style={{color: GUI_THEME.dim}}>connecting…</span>
+						) : connection === 'reconnecting' ? (
+							<span
+								data-testid="reconnecting"
+								style={{color: GUI_THEME.accent}}
+							>
+								reconnecting…
+							</span>
+						) : (
+							// The button alone says it: an offer to reconnect only makes
+							// sense if the connection is gone.
+							<Button
+								data-testid="connection-lost"
+								variant="ghost"
+								onClick={onReconnect}
+								title="Not connected — reconnect now"
+								style={{color: GUI_THEME.red, fontSize: 10}}
+							>
+								reconnect
+							</Button>
+						)}
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
 						<span

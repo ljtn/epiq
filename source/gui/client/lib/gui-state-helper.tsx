@@ -1,4 +1,4 @@
-import {GuiState, GuiIssue} from './gui-state.model';
+import {GuiState, GuiIssue, GuiSwimlane} from './gui-state.model';
 import {Result} from './gui-result.model';
 
 export const getResultValue = <T,>(payload: Result<T> | T): T | undefined => {
@@ -55,6 +55,25 @@ export const findIssue = (
 
 export const findBoard = (state: GuiState, boardRefOrId: string) =>
 	findByRefOrId(state.boards, boardRefOrId);
+// The swimlane counterpart. Rename passes a changed title, delete returns null
+// and the lane is dropped — both applied optimistically
+export const updateSwimlaneInGuiState = (
+	state: GuiState,
+	swimlaneId: string,
+	updateSwimlane: (swimlane: GuiSwimlane) => GuiSwimlane | null,
+): GuiState => ({
+	...state,
+	boards: state.boards.map(board => ({
+		...board,
+		swimlanes: board.swimlanes.flatMap(swimlane => {
+			if (swimlane.id !== swimlaneId) return [swimlane];
+
+			const next = updateSwimlane(swimlane);
+			return next ? [next] : [];
+		}),
+	})),
+});
+
 export const updateIssueInGuiState = (
 	state: GuiState,
 	issueId: string,

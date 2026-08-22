@@ -6,6 +6,8 @@ import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
 import {Button} from './Button';
+import {KebabMenu} from './KebabMenu';
+import {SWIMLANE_DRAG_TYPE, isSwimlaneDrag} from '../lib/gui-move-swimlane';
 
 // Not GUI_THEME.accent: at that hue a large soft wash reads cyan-green rather
 // than blue, so this is desaturated toward the panel chrome's blue-grey.
@@ -27,6 +29,12 @@ export const SwimlaneColumn = ({
 	onSelectIssue,
 	pickedIssueIds,
 	onCreateIssue,
+	onRenameSwimlane,
+	onDeleteSwimlane,
+	dropSide,
+	onSwimlaneDragOver,
+	onSwimlaneDragEnd,
+	onDropSwimlane,
 	onDropIssue,
 	onDragOver,
 	onDragOverIssue,
@@ -42,6 +50,13 @@ export const SwimlaneColumn = ({
 	onSelectIssue: (issueId: string, options: {toggle: boolean}) => void;
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
+	onRenameSwimlane: (swimlaneId: string) => void;
+	onDeleteSwimlane: (swimlaneId: string) => void;
+	// Which edge of this column the dragged swimlane would land on, if any.
+	dropSide: 'left' | 'right' | null;
+	onSwimlaneDragOver: (swimlaneId: string, side: 'left' | 'right') => void;
+	onSwimlaneDragEnd: () => void;
+	onDropSwimlane: (swimlaneId: string) => void;
 	onDropIssue: (
 		issueId: string,
 		swimlaneId: string,
@@ -81,6 +96,16 @@ export const SwimlaneColumn = ({
 				event.preventDefault();
 				event.dataTransfer.dropEffect = 'move';
 
+				// A swimlane crossing this column is being reordered, not dropped
+				// into it. Its landing edge is decided by which half it is over.
+				if (isSwimlaneDrag(event.dataTransfer)) {
+					const rect = event.currentTarget.getBoundingClientRect();
+					const side =
+						event.clientX < rect.left + rect.width / 2 ? 'left' : 'right';
+
+					return onSwimlaneDragOver(swimlane.id, side);
+				}
+
 				onDragOver(swimlane.id);
 
 				if (dropIndex === null) {
@@ -92,9 +117,16 @@ export const SwimlaneColumn = ({
 					onDragLeave();
 				}
 			}}
+			// The dragged column keeps its normal look; the edge line marks where it
+			// would land, which is the thing that is actually in question.
+			data-drop-side={dropSide ?? undefined}
 			onDrop={event => {
 				event.preventDefault();
 				event.stopPropagation();
+
+				if (isSwimlaneDrag(event.dataTransfer)) {
+					return onDropSwimlane(event.dataTransfer.getData(SWIMLANE_DRAG_TYPE));
+				}
 
 				const issueId = event.dataTransfer.getData('text/plain');
 				if (!issueId) return;
@@ -105,7 +137,38 @@ export const SwimlaneColumn = ({
 				onDragLeave();
 			}}
 		>
+			{/* Absolute, so the edge line stays out of the column's layout and
+			    cannot shift the cards mid-drag. */}
+			{dropSide && (
+				<div
+					data-testid="swimlane-drop-indicator"
+					style={{
+						position: 'absolute',
+						top: 8,
+						bottom: 8,
+						[dropSide]: -1,
+						width: 2,
+						borderRadius: 999,
+						background: GUI_THEME.accent,
+						boxShadow: `0 0 12px ${GUI_THEME.accent}`,
+						zIndex: 2,
+					}}
+				/>
+			)}
+
 			<header
+				draggable={!swimlane.readonly}
+				data-testid="swimlane-handle"
+				onDragStart={event => {
+					event.stopPropagation();
+					event.dataTransfer.effectAllowed = 'move';
+					event.dataTransfer.setData(SWIMLANE_DRAG_TYPE, swimlane.id);
+					// Firefox ignores a drag that sets no text/plain, but the ticket
+					// handlers read that key — so it carries the id under its own type
+					// and a marker here.
+					event.dataTransfer.setData('text/plain', '');
+				}}
+				onDragEnd={onSwimlaneDragEnd}
 				style={{
 					height: 48,
 					flexShrink: 0,
@@ -113,6 +176,7 @@ export const SwimlaneColumn = ({
 					fontSize: 12,
 					justifyContent: 'space-between',
 					alignItems: 'center',
+					cursor: swimlane.readonly ? 'default' : 'grab',
 				}}
 			>
 				<div
@@ -145,7 +209,7 @@ export const SwimlaneColumn = ({
 						</span>
 					)}
 				</div>
-				<div>
+				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 					<Button
 						variant="ghost"
 						onClick={() => onCreateIssue(swimlane.id)}
@@ -154,6 +218,27 @@ export const SwimlaneColumn = ({
 					>
 						+
 					</Button>
+
+					{/* Absent rather than disabled on a readonly swimlane: every entry
+					    behind it is a write, so the menu would open onto nothing. */}
+					{!swimlane.readonly && (
+						<KebabMenu
+							testId="swimlane-menu"
+							items={[
+								{
+									id: 'rename',
+									label: 'rename',
+									onSelect: () => onRenameSwimlane(swimlane.id),
+								},
+								{
+									id: 'delete',
+									label: 'delete',
+									danger: true,
+									onSelect: () => onDeleteSwimlane(swimlane.id),
+								},
+							]}
+						/>
+					)}
 				</div>
 			</header>
 
@@ -171,20 +256,7 @@ export const SwimlaneColumn = ({
 				}}
 			>
 				{swimlane.issues.length === 0 ? (
-					<>
-						{dropIndex === 0 && <DropIndicator />}
-
-						<div
-							style={{
-								padding: 24,
-								textAlign: 'center',
-								color: GUI_THEME.dim,
-								fontSize: 12,
-							}}
-						>
-							Drop issue here
-						</div>
-					</>
+					<>{/* Show nothing */}</>
 				) : (
 					<>
 						{swimlane.issues.map((ticket, index) => (

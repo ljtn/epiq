@@ -29,6 +29,7 @@ import {
 	formatInterval,
 	getPeriodRange,
 	hourFractionForTime,
+	isLayoutMode,
 	isScope,
 	LayoutMode,
 	populatedRange,
@@ -50,6 +51,7 @@ const boardEventRow = (count: number) =>
 	`${count} board event${count === 1 ? '' : 's'}`;
 
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
+const LAYOUT_MODE_STORAGE_KEY = 'epiq.timeScrubber.layoutMode';
 const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
@@ -77,6 +79,11 @@ const readStoredHiddenIds = (): Set<string> => {
 	}
 };
 
+const readStoredLayoutMode = (): LayoutMode => {
+	const stored = localStorage.getItem(LAYOUT_MODE_STORAGE_KEY);
+	return isLayoutMode(stored) ? stored : 'even';
+};
+
 const readStoredScope = (): Scope => {
 	const stored = localStorage.getItem(SCOPE_STORAGE_KEY);
 	return isScope(stored) ? stored : 'all';
@@ -92,6 +99,7 @@ export const TimeScrubber = ({
 	onRequestHistory,
 	boardId,
 	connected,
+	highlightEventId,
 	onInspectCommit,
 	onBoardFilterChange,
 }: {
@@ -108,6 +116,8 @@ export const TimeScrubber = ({
 	onRequestHistory: (start?: number, end?: number, allBoards?: boolean) => void;
 	boardId: string | null;
 	connected: boolean;
+	// The event a hovered Log row points at. Every other dot dims around it.
+	highlightEventId: string | null;
 	onInspectCommit: (sha: string) => void;
 	// Reported upward rather than held here: the board renders outside this
 	// component, and the selection that colours the chart is the same one that
@@ -118,7 +128,8 @@ export const TimeScrubber = ({
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
 
-	const [layoutMode, setLayoutMode] = useState<LayoutMode>('even');
+	const [layoutMode, setLayoutMode] =
+		useState<LayoutMode>(readStoredLayoutMode);
 	const [scope, setScope] = useState<Scope>(readStoredScope);
 	const [offset, setOffset] = useState(0);
 	const [dragFraction, setDragFraction] = useState<number | null>(null);
@@ -194,6 +205,11 @@ export const TimeScrubber = ({
 
 		onRequestHistory(periodRange?.start, periodRange?.end, allBoards);
 	}, [scope, offset, boardId, allBoards, connected]);
+
+	const changeLayoutMode = (next: LayoutMode) => {
+		setLayoutMode(next);
+		localStorage.setItem(LAYOUT_MODE_STORAGE_KEY, next);
+	};
 
 	const changeScope = (nextScope: Scope) => {
 		armEntrance();
@@ -356,6 +372,7 @@ export const TimeScrubber = ({
 		(): ScatterPoint[] =>
 			shown.commits.map(commit => ({
 				key: commit.sha,
+				id: null,
 				t: commit.time,
 				fraction: axis.fractionForTime(commit.time),
 				hourFraction: hourFractionForTime(commit.time),
@@ -375,6 +392,7 @@ export const TimeScrubber = ({
 		(): ScatterPoint[] =>
 			liveEventDots.map(dot => ({
 				key: dot.key,
+				id: dot.id,
 				t: dot.t,
 				fraction: axis.fractionForTime(dot.t),
 				hourFraction: hourFractionForTime(dot.t),
@@ -464,6 +482,10 @@ export const TimeScrubber = ({
 	};
 
 	const dispatchScrub = (fraction: number, force: boolean) => {
+		// Scrubbing is a request to the server like any other, so it stands down
+		// with the rest of the controls when there is nothing to ask.
+		if (!connected) return;
+
 		const now = Date.now();
 		if (!force && now - lastDispatchRef.current < SCRUB_THROTTLE_MS) return;
 
@@ -612,6 +634,7 @@ export const TimeScrubber = ({
 			collapsed={collapsed}
 			onToggleCollapsed={() => setCollapsed(!collapsed)}
 			controls={{
+				connected,
 				scope,
 				offset,
 				periodRange,
@@ -621,7 +644,7 @@ export const TimeScrubber = ({
 				allBoards,
 				onChangeScope: changeScope,
 				onChangeOffset: changeOffset,
-				onChangeLayoutMode: setLayoutMode,
+				onChangeLayoutMode: changeLayoutMode,
 				onChangeShowIssues: setShowIssues,
 				onChangeShowCommits: setShowCommits,
 				onChangeAllBoards: changeAllBoards,
@@ -668,7 +691,9 @@ export const TimeScrubber = ({
 					hoveredSegmentTime !== null
 						? segmentAt(hoveredSegmentTime, segmentUnit)
 						: null,
+				connected,
 				thumbFraction: dragFraction ?? confirmedFraction,
+				highlightEventId,
 				trackWidthPx: trackRef.current?.clientWidth ?? 0,
 				boardHint,
 				commitHint,

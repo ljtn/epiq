@@ -1,14 +1,23 @@
 import {Button} from './Button';
 import {GUI_THEME} from '../lib/gui-theme';
 
+// Shared by the issue and swimlane modals; only the wording differs.
 type Props = {
+	eyebrow: string;
+	fieldLabel: string;
+	placeholder: string;
+	confirmLabel?: string;
 	title: string;
 	onChangeTitle: (title: string) => void;
 	onCreate: () => void;
 	onClose: () => void;
 };
 
-export const CreateIssueModal = ({
+export const CreateNodeModal = ({
+	eyebrow,
+	fieldLabel,
+	placeholder,
+	confirmLabel = 'create',
 	title,
 	onChangeTitle,
 	onCreate,
@@ -51,7 +60,7 @@ export const CreateIssueModal = ({
 					textTransform: 'uppercase',
 				}}
 			>
-				New issue
+				{eyebrow}
 			</div>
 
 			<h2
@@ -61,13 +70,13 @@ export const CreateIssueModal = ({
 					color: GUI_THEME.primary,
 				}}
 			>
-				title
+				{fieldLabel}
 			</h2>
 
 			<input
 				autoFocus
 				value={title}
-				placeholder="issue name"
+				placeholder={placeholder}
 				onChange={event => onChangeTitle(event.target.value)}
 				onKeyDown={event => {
 					if (event.key === 'Escape') {
@@ -97,11 +106,15 @@ export const CreateIssueModal = ({
 					marginTop: 20,
 				}}
 			>
-				<Button variant="ghost" onClick={onClose}>
+				{/* Not a submit button: as Enter would activate it instead of the
+				    form's onSubmit. */}
+				<Button type="button" variant="ghost" onClick={onClose}>
 					cancel
 				</Button>
 
-				<Button variant="primary">create</Button>
+				<Button type="submit" variant="primary">
+					{confirmLabel}
+				</Button>
 			</div>
 		</form>
 	</div>

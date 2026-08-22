@@ -52,6 +52,25 @@ const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	cursor: 'pointer',
 });
 
+// Borderless, marked the way Tabs marks the open tab. The icon toggles below
+// keep their box: they carry no label, so the border is what holds their shape.
+const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
+	background: 'transparent',
+	border: 'none',
+	borderBottom: `1px solid ${active ? GUI_THEME.accent : 'transparent'}`,
+	color: active ? GUI_THEME.primary : GUI_THEME.dim,
+	borderRadius: 0,
+	fontSize: 10,
+	padding: '2px 6px 3px',
+	cursor: 'pointer',
+});
+
+// What every control wears while the socket is down.
+const mutedStyle: React.CSSProperties = {
+	opacity: 0.4,
+	cursor: 'not-allowed',
+};
+
 const iconToggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	...toggleButtonStyle(active),
 	display: 'inline-flex',
@@ -272,6 +291,7 @@ const Radio = ({
 // person left when the rest are unticked — the same name and colour the bars and
 // dots are then drawn in.
 const BoardSeriesGroup = ({
+	connected,
 	showIssues,
 	view,
 	identities,
@@ -286,6 +306,7 @@ const BoardSeriesGroup = ({
 	onToggleExpanded,
 	onSetIdentitiesExpanded,
 }: {
+	connected: boolean;
 	showIssues: boolean;
 	view: BoardView;
 	// What the current window actually holds, so the list is a legend for what
@@ -336,12 +357,13 @@ const BoardSeriesGroup = ({
 					title="Show board events"
 					checked={showIssues}
 					activeColor={color}
+					disabled={!connected}
 					onChange={onChangeShowIssues}
 				/>
 				<button
 					type="button"
 					onClick={onToggleExpanded}
-					disabled={!showIssues}
+					disabled={!showIssues || !connected}
 					title={
 						filtered
 							? 'Choose what the board series plots'
@@ -349,7 +371,10 @@ const BoardSeriesGroup = ({
 					}
 					aria-haspopup="listbox"
 					aria-expanded={expanded}
-					style={selectTriggerStyle(color, !showIssues)}
+					style={{
+						...selectTriggerStyle(color, !showIssues),
+						...(connected ? {} : mutedStyle),
+					}}
 				>
 					{/* Clipped rather than wrapped: a tag name long enough to overflow
 					    is still recognisable from its start, and the open list spells it
@@ -478,6 +503,7 @@ const navButtonStyle: React.CSSProperties = {
 };
 
 export const ScrubberControls = ({
+	connected,
 	scope,
 	offset,
 	periodRange,
@@ -505,6 +531,9 @@ export const ScrubberControls = ({
 	onToggleCategoriesExpanded,
 	onSetIdentitiesExpanded,
 }: {
+	// Nothing can be fetched with the socket down, so the controls say so rather
+	// than moving the selection over a chart that cannot follow.
+	connected: boolean;
 	scope: Scope;
 	offset: number;
 	periodRange: PeriodRange | null;
@@ -547,8 +576,9 @@ export const ScrubberControls = ({
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 					<button
 						title="Earlier"
+						disabled={!connected}
 						onClick={() => onChangeOffset(offset + 1)}
-						style={navButtonStyle}
+						style={{...navButtonStyle, ...(connected ? {} : mutedStyle)}}
 					>
 						◀
 					</button>
@@ -569,7 +599,7 @@ export const ScrubberControls = ({
 					</span>
 					<button
 						title="Later"
-						disabled={offset === 0}
+						disabled={offset === 0 || !connected}
 						onClick={() => onChangeOffset(Math.max(0, offset - 1))}
 						style={{
 							...navButtonStyle,
@@ -586,8 +616,13 @@ export const ScrubberControls = ({
 				{SCOPES.map(option => (
 					<button
 						key={option}
+						aria-pressed={scope === option}
+						disabled={!connected}
 						onClick={() => onChangeScope(option)}
-						style={toggleButtonStyle(scope === option)}
+						style={{
+							...scopeButtonStyle(scope === option),
+							...(connected ? {} : mutedStyle),
+						}}
 					>
 						{scopeButtonLabel(option)}
 					</button>
@@ -600,8 +635,12 @@ export const ScrubberControls = ({
 				title="Volume — how much happened, per equal-width period, with no empty gaps for quiet stretches"
 				aria-label="Volume"
 				aria-pressed={layoutMode === 'even'}
+				disabled={!connected}
 				onClick={() => onChangeLayoutMode('even')}
-				style={iconToggleButtonStyle(layoutMode === 'even')}
+				style={{
+					...iconToggleButtonStyle(layoutMode === 'even'),
+					...(connected ? {} : mutedStyle),
+				}}
 			>
 				<IconBars size={13} />
 			</button>
@@ -609,8 +648,12 @@ export const ScrubberControls = ({
 				title="Events — individual events by exact moment, x is elapsed time and y is time of day"
 				aria-label="Events"
 				aria-pressed={layoutMode === 'real'}
+				disabled={!connected}
 				onClick={() => onChangeLayoutMode('real')}
-				style={iconToggleButtonStyle(layoutMode === 'real')}
+				style={{
+					...iconToggleButtonStyle(layoutMode === 'real'),
+					...(connected ? {} : mutedStyle),
+				}}
 			>
 				<IconScatter size={13} />
 			</button>
@@ -621,9 +664,11 @@ export const ScrubberControls = ({
 				label="Code"
 				checked={showCommits}
 				activeColor={GUI_THEME.green}
+				disabled={!connected}
 				onChange={onChangeShowCommits}
 			/>
 			<BoardSeriesGroup
+				connected={connected}
 				showIssues={showIssues}
 				view={boardView}
 				identities={identities}
@@ -1124,6 +1169,8 @@ export const ScrubberHoverHint = ({
 
 export type ScatterPoint = {
 	key: string;
+	// Set only on a per-event dot, which is what a log row can be matched to.
+	id: string | null;
 	// The moment the point stands for, for the hint's own labelling.
 	t: number;
 	// x across the window, y as time of day — the punchcard's two axes.
@@ -1186,15 +1233,23 @@ const pointAt = (
 // One node instead of one per event. At 2.2k dots the DOM version was 93% of
 // the whole document, and every frame that touched an ancestor paid for it.
 // Drawing them costs the same whether there are ten or ten thousand.
+// Everything else fades to this while one event is singled out, so the dot that
+// stays at full strength reads as the answer.
+const DIMMED_ALPHA = 0.08;
+const HIGHLIGHT_RADIUS_SCALE = 2.2;
+
 export const ScatterCanvas = ({
 	layers,
 	animate,
+	highlightId,
 	onPointEnter,
 	onPointLeave,
 	onInspectCommit,
 }: {
 	layers: readonly ScatterLayer[];
 	animate: boolean;
+	// The one event to single out, or null for the plain chart.
+	highlightId: string | null;
 	onPointEnter: (point: ScatterPoint) => void;
 	onPointLeave: () => void;
 	onInspectCommit: (sha: string) => void;
@@ -1204,6 +1259,16 @@ export const ScatterCanvas = ({
 	// Read through refs by the draw loop, so a data change never restarts it.
 	const layersRef = useRef(layers);
 	layersRef.current = layers;
+	// Only dims when the highlighted event is actually on the chart. It may not
+	// be: an event outside the fetched window has no dot, and the bucketed
+	// fallback dots carry no id at all.
+	const activeHighlight =
+		highlightId !== null &&
+		layers.some(layer => layer.points.some(point => point.id === highlightId))
+			? highlightId
+			: null;
+	const highlightRef = useRef(activeHighlight);
+	highlightRef.current = activeHighlight;
 	const phasesRef = useRef(new Map<string, Phase>());
 	const frameRef = useRef<number | null>(null);
 	const hoveredRef = useRef<string | null>(null);
@@ -1240,18 +1305,30 @@ export const ScatterCanvas = ({
 
 				if (scale <= 0) continue;
 
-				context.globalAlpha = point.opacity;
+				const highlight = highlightRef.current;
+				const isHighlighted = highlight !== null && point.id === highlight;
+				const radiusScale =
+					scale * (isHighlighted ? HIGHLIGHT_RADIUS_SCALE : 1);
+				const cx = point.fraction * width;
+				const cy =
+					EVENTS_MODE_VERTICAL_PADDING +
+					point.hourFraction * EVENTS_SCATTER_HEIGHT;
+
+				context.globalAlpha =
+					highlight === null ? point.opacity : isHighlighted ? 1 : DIMMED_ALPHA;
 				context.fillStyle = point.color;
 				context.beginPath();
-				context.arc(
-					point.fraction * width,
-					EVENTS_MODE_VERTICAL_PADDING +
-						point.hourFraction * EVENTS_SCATTER_HEIGHT,
-					point.radius * scale,
-					0,
-					Math.PI * 2,
-				);
+				context.arc(cx, cy, point.radius * radiusScale, 0, Math.PI * 2);
 				context.fill();
+
+				// A halo as well as a bigger dot: at 2-3px a size change alone is easy
+				// to miss on a track holding hundreds of them.
+				if (isHighlighted) {
+					context.globalAlpha = 0.25;
+					context.beginPath();
+					context.arc(cx, cy, point.radius * radiusScale * 2.4, 0, Math.PI * 2);
+					context.fill();
+				}
 			}
 		}
 
@@ -1343,10 +1420,10 @@ export const ScatterCanvas = ({
 		else paint(performance.now());
 	}, [signature, animate, run, paint]);
 
-	// Repaint when the data changes without a new entrance — a filter, say.
+	// Repaint when the data or the highlight changes without a new entrance.
 	useEffect(() => {
 		if (frameRef.current === null) paint(performance.now());
-	}, [layers, paint]);
+	}, [layers, activeHighlight, paint]);
 
 	useEffect(
 		() => () => {
@@ -1369,10 +1446,10 @@ export const ScatterCanvas = ({
 	return (
 		<canvas
 			ref={canvasRef}
+			data-testid="scatter-canvas"
 			data-entrance={entrancePlaying ? 'playing' : 'done'}
+			data-highlight={activeHighlight ?? ''}
 			style={{position: 'absolute', inset: 0}}
-			// Events still reach the track underneath, so a drag anywhere over
-			// the chart scrubs exactly as it did when these were divs.
 			onMouseMove={event => {
 				const point = hitTest(event);
 				if (point?.key === hoveredRef.current) return;

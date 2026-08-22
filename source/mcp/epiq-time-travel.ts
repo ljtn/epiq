@@ -89,6 +89,8 @@ export type EventTimelineBucket = {t: number; count: number};
 export type EventIdentity = {id: string; name: string; color: string};
 
 export type EventTimelineEntry = {
+	// The event's own id, so a client can match a dot to a ticket's log line.
+	id: string;
 	t: number;
 	action: EventAction;
 	// Phrased like a TUI log line — "Tagged with bug", "Commented".
@@ -279,6 +281,7 @@ export const getEventTimeline = async (
 			? []
 			: [
 					{
+						id: event.id,
 						t,
 						action: event.action,
 						label: describeTimelineEvent(event, names),

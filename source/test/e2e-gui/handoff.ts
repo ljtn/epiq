@@ -5,4 +5,11 @@ import path from 'node:path';
 // env var because the server runs as a separate process from the test workers.
 export const HANDOFF_PATH = path.join(os.tmpdir(), 'epiq-gui-e2e-handoff.json');
 
-export type Handoff = {baseUrl: string; repoRoot: string};
+export type Handoff = {
+	baseUrl: string;
+	repoRoot: string;
+	// A second server over a directory with no epiq project, so the "nothing to
+	// load here" screen can be opened without tearing down the seeded one.
+	bareUrl: string;
+	bareRepoRoot: string;
+};

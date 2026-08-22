@@ -18,3 +18,11 @@ export const timeAgo = (timestampMs: number): string => {
 
 	return 'just now';
 };
+
+// Full date for the hover title beside a relative one, so an exact timestamp is
+// always one hover away.
+export const formatAbsolute = (timestampMs: number): string =>
+	new Date(timestampMs).toLocaleString(undefined, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	});
