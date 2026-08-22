@@ -20,6 +20,7 @@ import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
 import {moveIssue} from './lib/gui-move-issue';
+import {reconnectDelayMs} from './lib/reconnect';
 import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
@@ -32,6 +33,7 @@ import {
 } from './lib/gui-state-helper';
 import {
 	GuiComment,
+	GuiIssue,
 	GuiIssueHistoryEntry,
 	GuiCommitEntry,
 	GuiContributor,
@@ -150,6 +152,18 @@ export const App = () => {
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
+	const [reconnectTick, setReconnectTick] = useState(0);
+	// True once the automatic attempts are spent; the topbar then offers the
+	// button rather than retrying behind the reader's back forever.
+	const [reconnectExhausted, setReconnectExhausted] = useState(false);
+	const reconnectAttempts = useRef(0);
+	const reconnectTimer = useRef<number | null>(null);
+
+	const reconnectNow = () => {
+		reconnectAttempts.current = 0;
+		setReconnectExhausted(false);
+		setReconnectTick(tick => tick + 1);
+	};
 	const [mutationGate] = useState(createMutationGate);
 
 	const tabParam = searchParams.get('tab');
@@ -280,9 +294,14 @@ export const App = () => {
 		);
 
 		socketRef.current = socket;
+		// Distinguishes a socket the effect is tearing down from one that dropped
+		// on its own; only the latter is worth reconnecting.
+		let replaced = false;
 
 		socket.addEventListener('open', () => {
 			setConnected(true);
+			reconnectAttempts.current = 0;
+			setReconnectExhausted(false);
 			mutationGate.reset();
 			sendSocketJson(socket, {type: 'state:get'});
 			// History is not requested here: the scrubber owns the scope and drives
@@ -296,6 +315,23 @@ export const App = () => {
 			if (socketRef.current === socket) {
 				socketRef.current = null;
 			}
+
+			if (replaced) return;
+
+			// Without this the board is dead until a manual reload: nothing arrives
+			// and nothing is sent, while the controls carry on as if they worked.
+			const delay = reconnectDelayMs(reconnectAttempts.current);
+
+			if (delay === null) {
+				setReconnectExhausted(true);
+				return;
+			}
+
+			reconnectAttempts.current += 1;
+			reconnectTimer.current = window.setTimeout(
+				() => setReconnectTick(tick => tick + 1),
+				delay,
+			);
 		});
 
 		socket.addEventListener('message', event => {
@@ -409,13 +445,22 @@ export const App = () => {
 		});
 
 		return () => {
+			replaced = true;
+
+			if (reconnectTimer.current !== null) {
+				clearTimeout(reconnectTimer.current);
+				reconnectTimer.current = null;
+			}
+
 			if (socketRef.current === socket) {
 				socketRef.current = null;
 			}
 
 			socket.close();
 		};
-	}, [boardId, navigate]);
+		// `reconnectTick` is what re-runs this after a drop; the scrubber re-asks
+		// for its window off `connected`, so history comes back with it.
+	}, [boardId, navigate, reconnectTick]);
 
 	useEffect(() => {
 		const first = state?.boards?.[0];
@@ -840,6 +885,23 @@ export const App = () => {
 	const deletingSwimlane =
 		selectedBoard?.swimlanes.find(x => x.id === deleteSwimlaneId) ?? null;
 
+	// A dead socket cannot carry a mutation, so the board wears the same
+	// readonly it wears mid-scrub — every existing guard keys off this, so the
+	// kebabs, the + buttons, dragging and the editors all stand down together.
+	const offline = !connected;
+
+	const shownSwimlanes = useMemo(
+		() =>
+			offline
+				? visibleSwimlanes.map(swimlane => ({
+						...swimlane,
+						readonly: true,
+						issues: swimlane.issues.map(issue => ({...issue, readonly: true})),
+				  }))
+				: visibleSwimlanes,
+		[offline, visibleSwimlanes],
+	);
+
 	// The dragged id comes off the drop event rather than being remembered from
 	// dragstart: a drag can begin in one window and end in this one, and the
 	// dataTransfer is the only thing that crosses.
@@ -1049,6 +1111,8 @@ export const App = () => {
 			<Header
 				state={state}
 				connected={connected}
+				reconnecting={!connected && !reconnectExhausted}
+				onReconnect={reconnectNow}
 				scrubbing={state?.timeTravel?.mode === 'scrub'}
 				syncStatus={syncStatus}
 			/>
@@ -1068,11 +1132,15 @@ export const App = () => {
 				onBoardFilterChange={setBoardFilter}
 			/>
 
+			{/* Dimmed while offline so the board reads as inert. The topbar stays at
+			    full strength: it carries the reason and the way back. */}
 			<div
 				style={{
 					display: 'flex',
 					flex: 1,
 					overflow: 'hidden',
+					opacity: offline ? 0.55 : 1,
+					transition: 'opacity 160ms ease',
 				}}
 			>
 				{/* Vertical overflow is hidden here: the swimlanes size themselves to
@@ -1137,7 +1205,7 @@ export const App = () => {
 							overflowY: 'hidden',
 						}}
 					>
-						{visibleSwimlanes.map(swimlane => (
+						{shownSwimlanes.map(swimlane => (
 							<SwimlaneColumn
 								key={swimlane.id}
 								swimlane={swimlane}
@@ -1189,7 +1257,7 @@ export const App = () => {
 						{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
 							where the new column will actually appear. Hidden on a readonly
 							board, which also covers a scrubbed timeline. */}
-						{selectedBoard && !selectedBoard.readonly && (
+						{selectedBoard && !selectedBoard.readonly && !offline && (
 							<AddSwimlaneColumn onClick={() => setCreateSwimlaneTitle('')} />
 						)}
 
@@ -1248,11 +1316,14 @@ export const App = () => {
 				{pickedIssues.length <= 1 && selectedIssue && state?.user && (
 					<IssueDetails
 						whoAmI={state.user}
-						issue={
-							issueDetail?.issueId === selectedIssue.id
-								? {...selectedIssue, description: issueDetail.description}
-								: selectedIssue
-						}
+						issue={((): GuiIssue => {
+							const base =
+								issueDetail?.issueId === selectedIssue.id
+									? {...selectedIssue, description: issueDetail.description}
+									: selectedIssue;
+
+							return offline ? {...base, readonly: true} : base;
+						})()}
 						activeTab={selectedTab}
 						comments={
 							issueDetail?.issueId === selectedIssue.id

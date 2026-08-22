@@ -65,6 +65,12 @@ const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
 	cursor: 'pointer',
 });
 
+// What every control wears while the socket is down.
+const mutedStyle: React.CSSProperties = {
+	opacity: 0.4,
+	cursor: 'not-allowed',
+};
+
 const iconToggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	...toggleButtonStyle(active),
 	display: 'inline-flex',
@@ -285,6 +291,7 @@ const Radio = ({
 // person left when the rest are unticked — the same name and colour the bars and
 // dots are then drawn in.
 const BoardSeriesGroup = ({
+	connected,
 	showIssues,
 	view,
 	identities,
@@ -299,6 +306,7 @@ const BoardSeriesGroup = ({
 	onToggleExpanded,
 	onSetIdentitiesExpanded,
 }: {
+	connected: boolean;
 	showIssues: boolean;
 	view: BoardView;
 	// What the current window actually holds, so the list is a legend for what
@@ -349,12 +357,13 @@ const BoardSeriesGroup = ({
 					title="Show board events"
 					checked={showIssues}
 					activeColor={color}
+					disabled={!connected}
 					onChange={onChangeShowIssues}
 				/>
 				<button
 					type="button"
 					onClick={onToggleExpanded}
-					disabled={!showIssues}
+					disabled={!showIssues || !connected}
 					title={
 						filtered
 							? 'Choose what the board series plots'
@@ -362,7 +371,10 @@ const BoardSeriesGroup = ({
 					}
 					aria-haspopup="listbox"
 					aria-expanded={expanded}
-					style={selectTriggerStyle(color, !showIssues)}
+					style={{
+						...selectTriggerStyle(color, !showIssues),
+						...(connected ? {} : mutedStyle),
+					}}
 				>
 					{/* Clipped rather than wrapped: a tag name long enough to overflow
 					    is still recognisable from its start, and the open list spells it
@@ -491,6 +503,7 @@ const navButtonStyle: React.CSSProperties = {
 };
 
 export const ScrubberControls = ({
+	connected,
 	scope,
 	offset,
 	periodRange,
@@ -518,6 +531,9 @@ export const ScrubberControls = ({
 	onToggleCategoriesExpanded,
 	onSetIdentitiesExpanded,
 }: {
+	// Nothing can be fetched with the socket down, so the controls say so rather
+	// than moving the selection over a chart that cannot follow.
+	connected: boolean;
 	scope: Scope;
 	offset: number;
 	periodRange: PeriodRange | null;
@@ -560,8 +576,9 @@ export const ScrubberControls = ({
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 					<button
 						title="Earlier"
+						disabled={!connected}
 						onClick={() => onChangeOffset(offset + 1)}
-						style={navButtonStyle}
+						style={{...navButtonStyle, ...(connected ? {} : mutedStyle)}}
 					>
 						◀
 					</button>
@@ -582,7 +599,7 @@ export const ScrubberControls = ({
 					</span>
 					<button
 						title="Later"
-						disabled={offset === 0}
+						disabled={offset === 0 || !connected}
 						onClick={() => onChangeOffset(Math.max(0, offset - 1))}
 						style={{
 							...navButtonStyle,
@@ -600,8 +617,12 @@ export const ScrubberControls = ({
 					<button
 						key={option}
 						aria-pressed={scope === option}
+						disabled={!connected}
 						onClick={() => onChangeScope(option)}
-						style={scopeButtonStyle(scope === option)}
+						style={{
+							...scopeButtonStyle(scope === option),
+							...(connected ? {} : mutedStyle),
+						}}
 					>
 						{scopeButtonLabel(option)}
 					</button>
@@ -614,8 +635,12 @@ export const ScrubberControls = ({
 				title="Volume — how much happened, per equal-width period, with no empty gaps for quiet stretches"
 				aria-label="Volume"
 				aria-pressed={layoutMode === 'even'}
+				disabled={!connected}
 				onClick={() => onChangeLayoutMode('even')}
-				style={iconToggleButtonStyle(layoutMode === 'even')}
+				style={{
+					...iconToggleButtonStyle(layoutMode === 'even'),
+					...(connected ? {} : mutedStyle),
+				}}
 			>
 				<IconBars size={13} />
 			</button>
@@ -623,8 +648,12 @@ export const ScrubberControls = ({
 				title="Events — individual events by exact moment, x is elapsed time and y is time of day"
 				aria-label="Events"
 				aria-pressed={layoutMode === 'real'}
+				disabled={!connected}
 				onClick={() => onChangeLayoutMode('real')}
-				style={iconToggleButtonStyle(layoutMode === 'real')}
+				style={{
+					...iconToggleButtonStyle(layoutMode === 'real'),
+					...(connected ? {} : mutedStyle),
+				}}
 			>
 				<IconScatter size={13} />
 			</button>
@@ -635,9 +664,11 @@ export const ScrubberControls = ({
 				label="Code"
 				checked={showCommits}
 				activeColor={GUI_THEME.green}
+				disabled={!connected}
 				onChange={onChangeShowCommits}
 			/>
 			<BoardSeriesGroup
+				connected={connected}
 				showIssues={showIssues}
 				view={boardView}
 				identities={identities}

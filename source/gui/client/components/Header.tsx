@@ -1,5 +1,6 @@
 import {GuiState} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {Button} from './Button';
 import {Panel} from './Panel';
 import {User} from './User';
 import {EPIQ_VERSION} from '../../../version.js';
@@ -7,6 +8,9 @@ import {EPIQ_VERSION} from '../../../version.js';
 type HeaderProps = {
 	state: GuiState | null;
 	connected: boolean;
+	// Still trying on its own; once that is spent the button takes over.
+	reconnecting: boolean;
+	onReconnect: () => void;
 	scrubbing: boolean;
 	syncStatus: {
 		status: 'synced' | 'failed' | 'syncing';
@@ -17,6 +21,8 @@ type HeaderProps = {
 export const Header = ({
 	state,
 	connected,
+	reconnecting,
+	onReconnect,
 	scrubbing,
 	syncStatus,
 }: HeaderProps) => {
@@ -126,13 +132,28 @@ export const Header = ({
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
 
-						<span
-							style={{
-								color: GUI_THEME.dim,
-							}}
-						>
-							{connected ? 'connected' : 'disconnected'}
-						</span>
+						{connected ? (
+							<span style={{color: GUI_THEME.dim}}>connected</span>
+						) : reconnecting ? (
+							<span
+								data-testid="reconnecting"
+								style={{color: GUI_THEME.accent}}
+							>
+								reconnecting…
+							</span>
+						) : (
+							// The button alone says it: an offer to reconnect only makes
+							// sense if the connection is gone.
+							<Button
+								data-testid="connection-lost"
+								variant="ghost"
+								onClick={onReconnect}
+								title="Not connected — reconnect now"
+								style={{color: GUI_THEME.red, fontSize: 10}}
+							>
+								reconnect
+							</Button>
+						)}
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
 						<span

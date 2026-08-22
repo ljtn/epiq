@@ -482,6 +482,10 @@ export const TimeScrubber = ({
 	};
 
 	const dispatchScrub = (fraction: number, force: boolean) => {
+		// Scrubbing is a request to the server like any other, so it stands down
+		// with the rest of the controls when there is nothing to ask.
+		if (!connected) return;
+
 		const now = Date.now();
 		if (!force && now - lastDispatchRef.current < SCRUB_THROTTLE_MS) return;
 
@@ -630,6 +634,7 @@ export const TimeScrubber = ({
 			collapsed={collapsed}
 			onToggleCollapsed={() => setCollapsed(!collapsed)}
 			controls={{
+				connected,
 				scope,
 				offset,
 				periodRange,
@@ -686,6 +691,7 @@ export const TimeScrubber = ({
 					hoveredSegmentTime !== null
 						? segmentAt(hoveredSegmentTime, segmentUnit)
 						: null,
+				connected,
 				thumbFraction: dragFraction ?? confirmedFraction,
 				highlightEventId,
 				trackWidthPx: trackRef.current?.clientWidth ?? 0,

@@ -39,6 +39,8 @@ import {
 } from './ScrubberParts';
 import {Panel} from './Panel';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const dotAnimation = (key: string, animate: boolean, leaving: boolean) =>
 	!animate
 		? undefined
@@ -98,6 +100,8 @@ export type ScrubberChart = {
 	hoveredBucketIndex: number | null;
 	hoveredCommitBucketIndex: number | null;
 	hoveredSegment: Segment | null;
+	// Nothing can be asked for with the socket down.
+	connected: boolean;
 	thumbFraction: number;
 	// The one event singled out by a hovered Log row, or null.
 	highlightEventId: string | null;
@@ -180,7 +184,7 @@ export const ScrubberLayout = ({
 							display: 'flex',
 							flexDirection: 'column',
 							gap: 8,
-							cursor: 'pointer',
+							cursor: chart.connected ? 'pointer' : 'default',
 						}}
 					>
 						{chart.hoveredSegment && (
@@ -211,7 +215,11 @@ export const ScrubberLayout = ({
 								anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
 							/>
 
-							{layoutMode === 'real' && <HourAxisLabels />}
+							{/* The axis reads 00:00 / 12:00 / 24:00, which is a lie once the
+							    window is shorter than a day — every dot sits in one band. */}
+							{layoutMode === 'real' && axis.span >= DAY_MS && (
+								<HourAxisLabels />
+							)}
 
 							{chart.showIssues && layoutMode === 'even' && (
 								<SeriesLayer key={`issues-${windowKey}`} animate={animate}>
