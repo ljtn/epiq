@@ -1162,11 +1162,6 @@ export const App = () => {
 				<main
 					onClick={clearPicked}
 					style={{
-						// No bottom padding: the board row is the horizontal scroll
-						// container, and a gap below it would strand its scrollbar.
-						// No right padding either: it would sit between the clipped row
-						// and the details panel as a dark strip. The gutter is a trailing
-						// spacer inside the row instead.
 						padding: '0 0 0 30px',
 						flex: 1,
 						minHeight: 0,
