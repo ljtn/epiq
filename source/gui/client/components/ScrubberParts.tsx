@@ -52,6 +52,19 @@ const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	cursor: 'pointer',
 });
 
+// Borderless, marked the way Tabs marks the open tab. The icon toggles below
+// keep their box: they carry no label, so the border is what holds their shape.
+const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
+	background: 'transparent',
+	border: 'none',
+	borderBottom: `1px solid ${active ? GUI_THEME.accent : 'transparent'}`,
+	color: active ? GUI_THEME.primary : GUI_THEME.dim,
+	borderRadius: 0,
+	fontSize: 10,
+	padding: '2px 6px 3px',
+	cursor: 'pointer',
+});
+
 const iconToggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	...toggleButtonStyle(active),
 	display: 'inline-flex',
@@ -586,8 +599,9 @@ export const ScrubberControls = ({
 				{SCOPES.map(option => (
 					<button
 						key={option}
+						aria-pressed={scope === option}
 						onClick={() => onChangeScope(option)}
-						style={toggleButtonStyle(scope === option)}
+						style={scopeButtonStyle(scope === option)}
 					>
 						{scopeButtonLabel(option)}
 					</button>
