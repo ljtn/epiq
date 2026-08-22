@@ -421,10 +421,18 @@ export const hourFractionForTime = (time: number): number => {
 // ------------------------------------------------------------------- segments
 
 // Finest first — chooseSegmentUnit relies on the order.
-const SEGMENT_UNIT_ORDER = ['hour', 'day', 'week', 'month', 'year'] as const;
+const SEGMENT_UNIT_ORDER = [
+	'minute',
+	'hour',
+	'day',
+	'week',
+	'month',
+	'year',
+] as const;
 export type SegmentUnit = (typeof SEGMENT_UNIT_ORDER)[number];
 
 const APPROX_UNIT_MS: Record<SegmentUnit, number> = {
+	minute: 60 * 1000,
 	hour: 60 * 60 * 1000,
 	day: 24 * 60 * 60 * 1000,
 	week: 7 * 24 * 60 * 60 * 1000,
@@ -436,10 +444,22 @@ const APPROX_UNIT_MS: Record<SegmentUnit, number> = {
 // unit between runs with slightly different spans.
 const MAX_SEGMENTS = 35;
 
-export const chooseSegmentUnit = (spanMs: number): SegmentUnit =>
-	SEGMENT_UNIT_ORDER.find(
+// A unit this coarse for the span leaves the track as one block, which tells
+// the reader nothing. Only the hour scope reaches it; every other span yields
+// seven segments or more.
+const MIN_SEGMENTS = 2;
+
+export const chooseSegmentUnit = (spanMs: number): SegmentUnit => {
+	const index = SEGMENT_UNIT_ORDER.findIndex(
 		unit => spanMs / APPROX_UNIT_MS[unit] <= MAX_SEGMENTS,
-	) ?? 'year';
+	);
+	if (index === -1) return 'year';
+
+	const chosen = SEGMENT_UNIT_ORDER[index]!;
+	if (spanMs / APPROX_UNIT_MS[chosen] >= MIN_SEGMENTS) return chosen;
+
+	return SEGMENT_UNIT_ORDER[Math.max(0, index - 1)]!;
+};
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_LABELS = [
@@ -458,7 +478,8 @@ const MONTH_LABELS = [
 ];
 
 const advanceByUnit = (date: Date, unit: SegmentUnit): void => {
-	if (unit === 'hour') date.setHours(date.getHours() + 1);
+	if (unit === 'minute') date.setMinutes(date.getMinutes() + 1);
+	else if (unit === 'hour') date.setHours(date.getHours() + 1);
 	else if (unit === 'day') date.setDate(date.getDate() + 1);
 	else if (unit === 'week') date.setDate(date.getDate() + 7);
 	else if (unit === 'month') date.setMonth(date.getMonth() + 1);
@@ -472,9 +493,9 @@ export type Segment = {start: number; end: number; label: string};
 export const segmentAt = (time: number, unit: SegmentUnit): Segment => {
 	const start = new Date(time);
 
-	// The hour keeps its own hour and clears below it; every coarser unit snaps
-	// to midnight first.
-	if (unit === 'hour') start.setMinutes(0, 0, 0);
+	// Each unit clears everything below it; day and coarser snap to midnight.
+	if (unit === 'minute') start.setSeconds(0, 0);
+	else if (unit === 'hour') start.setMinutes(0, 0, 0);
 	else start.setHours(0, 0, 0, 0);
 
 	if (unit === 'week') {
@@ -493,8 +514,15 @@ export const segmentAt = (time: number, unit: SegmentUnit): Segment => {
 	// week as "10 – 17 Aug" would wrongly imply 8 days.
 	const lastDay = new Date(end.getTime() - 1);
 
+	const clock = (date: Date): string =>
+		`${String(date.getHours()).padStart(2, '0')}:${String(
+			date.getMinutes(),
+		).padStart(2, '0')}`;
+
 	const label =
-		unit === 'hour'
+		unit === 'minute'
+			? clock(start)
+			: unit === 'hour'
 			? `${WEEKDAY_LABELS[start.getDay()]} ${String(start.getHours()).padStart(
 					2,
 					'0',
@@ -531,13 +559,21 @@ export const formatInterval = (start: number, end: number): string => {
 
 // --------------------------------------------------------------------- scope
 
-export type Scope = 'all' | 'day' | 'week' | 'month' | 'year';
+export type Scope = 'all' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
 export type PeriodRange = {start: number; end: number};
 
-export const SCOPES: readonly Scope[] = ['day', 'week', 'month', 'year', 'all'];
+export const SCOPES: readonly Scope[] = [
+	'hour',
+	'day',
+	'week',
+	'month',
+	'year',
+	'all',
+];
 
 const SCOPE_DURATION_MS: Record<Exclude<Scope, 'all'>, number> = {
+	hour: 60 * 60 * 1000,
 	day: 24 * 60 * 60 * 1000,
 	week: 7 * 24 * 60 * 60 * 1000,
 	month: 30 * 24 * 60 * 60 * 1000,
@@ -547,6 +583,7 @@ const SCOPE_DURATION_MS: Record<Exclude<Scope, 'all'>, number> = {
 // Every window is a rolling one ending now, so these read as durations back
 // from now rather than as calendar periods.
 const SCOPE_RECENT_LABELS: Record<Exclude<Scope, 'all'>, string> = {
+	hour: 'Last hour',
 	day: 'Last 24 hours',
 	week: 'Last 7 days',
 	month: 'Last 30 days',

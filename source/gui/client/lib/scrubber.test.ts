@@ -664,8 +664,8 @@ describe('identity views', () => {
 });
 
 describe('day scope', () => {
-	it('is offered as the finest scope', () => {
-		expect(SCOPES[0]).toBe('day');
+	it('sits directly under the hour', () => {
+		expect(SCOPES[1]).toBe('day');
 		expect(isScope('day')).toBe(true);
 	});
 
@@ -810,5 +810,56 @@ describe('dotExitScale', () => {
 		expect(dotExitScale(latest, 300)).toBeLessThanOrEqual(
 			dotExitScale(earliest, 300),
 		);
+	});
+});
+
+describe('chooseSegmentUnit', () => {
+	const HOUR = 60 * 60 * 1000;
+
+	it('goes finer than the hour for an hour-wide span', () => {
+		// The hour unit would leave the whole track as a single block.
+		expect(chooseSegmentUnit(HOUR)).toBe('minute');
+	});
+
+	it('keeps the unit every other scope already resolved to', () => {
+		expect(chooseSegmentUnit(DAY)).toBe('hour');
+		expect(chooseSegmentUnit(7 * DAY)).toBe('day');
+		expect(chooseSegmentUnit(30 * DAY)).toBe('day');
+		expect(chooseSegmentUnit(365 * DAY)).toBe('month');
+	});
+});
+
+describe('segmentAt', () => {
+	it('snaps a minute segment to its own minute and labels it as a clock time', () => {
+		const at = new Date(2026, 7, 22, 14, 23, 45, 500).getTime();
+		const segment = segmentAt(at, 'minute');
+
+		expect(new Date(segment.start).getSeconds()).toBe(0);
+		expect(segment.end - segment.start).toBe(60 * 1000);
+		expect(segment.label).toBe('14:23');
+	});
+});
+
+describe('hour scope', () => {
+	it('is a rolling sixty minutes', () => {
+		const range = getPeriodRange('hour', 0);
+
+		expect(range).not.toBeNull();
+		expect(range!.end - range!.start).toBe(60 * 60 * 1000);
+	});
+
+	it('survives a round trip through the stored value', () => {
+		expect(isScope('hour')).toBe(true);
+	});
+
+	it('leads the row, which runs finest to coarsest', () => {
+		expect([...SCOPES]).toEqual([
+			'hour',
+			'day',
+			'week',
+			'month',
+			'year',
+			'all',
+		]);
 	});
 });
