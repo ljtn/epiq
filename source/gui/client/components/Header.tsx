@@ -7,9 +7,9 @@ import {EPIQ_VERSION} from '../../../version.js';
 
 type HeaderProps = {
 	state: GuiState | null;
-	connected: boolean;
-	// Still trying on its own; once that is spent the button takes over.
-	reconnecting: boolean;
+	// 'connecting' is the first socket of a page load, which is not a fault and
+	// says nothing; the rest are.
+	connection: 'connected' | 'connecting' | 'reconnecting' | 'lost';
 	onReconnect: () => void;
 	scrubbing: boolean;
 	syncStatus: {
@@ -20,8 +20,7 @@ type HeaderProps = {
 
 export const Header = ({
 	state,
-	connected,
-	reconnecting,
+	connection,
 	onReconnect,
 	scrubbing,
 	syncStatus,
@@ -117,12 +116,12 @@ export const Header = ({
 									textAlign: 'right',
 								}}
 							>
-								{connected ? syncLabel : '-'}
+								{connection === 'connected' ? syncLabel : '-'}
 							</span>
 
 							<span
 								style={{
-									color: connected ? syncColor : GUI_THEME.dim,
+									color: connection === 'connected' ? syncColor : GUI_THEME.dim,
 									fontSize: 4,
 								}}
 							>
@@ -132,9 +131,11 @@ export const Header = ({
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
 
-						{connected ? (
+						{connection === 'connected' ? (
 							<span style={{color: GUI_THEME.dim}}>connected</span>
-						) : reconnecting ? (
+						) : connection === 'connecting' ? (
+							<span style={{color: GUI_THEME.dim}}>connecting…</span>
+						) : connection === 'reconnecting' ? (
 							<span
 								data-testid="reconnecting"
 								style={{color: GUI_THEME.accent}}

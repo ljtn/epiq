@@ -309,14 +309,17 @@ export const App = () => {
 		});
 
 		socket.addEventListener('close', () => {
-			setConnected(false);
-			mutationGate.reset();
-
 			if (socketRef.current === socket) {
 				socketRef.current = null;
 			}
 
+			// A socket this effect is replacing is not a lost connection: the next
+			// one is already opening. Reporting it would flash the whole offline
+			// treatment on every navigation, which re-runs this effect.
 			if (replaced) return;
+
+			setConnected(false);
+			mutationGate.reset();
 
 			// Without this the board is dead until a manual reload: nothing arrives
 			// and nothing is sent, while the controls carry on as if they worked.
@@ -888,7 +891,10 @@ export const App = () => {
 	// A dead socket cannot carry a mutation, so the board wears the same
 	// readonly it wears mid-scrub — every existing guard keys off this, so the
 	// kebabs, the + buttons, dragging and the editors all stand down together.
-	const offline = !connected;
+	//
+	// Only once a board has arrived: `connected` starts false, so keying off it
+	// alone would dim and freeze every first paint until the socket opens.
+	const offline = !connected && state !== null;
 
 	const shownSwimlanes = useMemo(
 		() =>
@@ -1110,8 +1116,15 @@ export const App = () => {
 
 			<Header
 				state={state}
-				connected={connected}
-				reconnecting={!connected && !reconnectExhausted}
+				connection={
+					connected
+						? 'connected'
+						: !offline
+						? 'connecting'
+						: reconnectExhausted
+						? 'lost'
+						: 'reconnecting'
+				}
 				onReconnect={reconnectNow}
 				scrubbing={state?.timeTravel?.mode === 'scrub'}
 				syncStatus={syncStatus}
