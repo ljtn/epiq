@@ -7,6 +7,7 @@ import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
 import {
+	loadEventActors,
 	loadMergedEvents,
 	loadMergedEventsWithDiagnostics,
 } from '../lib/event/event-load.js';
@@ -25,7 +26,7 @@ import {
 } from '../lib/model/context.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {getProjectFileContents} from '../lib/project-setup/project-setup.js';
-import {nodeRepo} from '../lib/repository/node-repo.js';
+import {nodeRepo, readonlyMessage} from '../lib/repository/node-repo.js';
 import {
 	resolveAndPersistRankForCreate,
 	resolveAndPersistRankForMove,
@@ -364,6 +365,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 			title: n.title,
 			parentId: n.parentNodeId,
 			readonly: Boolean(n.readonly),
+			readonlyReason: n.readonlyReason,
 		}));
 
 	return succeeded('Listed boards', boards);
@@ -385,6 +387,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 			boardId: n.parentNodeId,
 			isClosed: n.id === CLOSED_SWIMLANE_ID,
 			readonly: Boolean(n.readonly),
+			readonlyReason: n.readonlyReason,
 		}));
 
 	return succeeded('Listed swimlanes', swimlanes);
@@ -420,6 +423,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					parentNodeId: n.parentNodeId!,
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),
+					readonlyReason: n.readonlyReason,
 					tags: getIssueTags(n),
 					assignees: getIssueAssignees(n, latestNames),
 				} satisfies ApiIssue),
@@ -720,7 +724,9 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 	if (!board) return failed('Board not found');
 	if (!isBoardNode(board)) return failed('Target parent must be a board');
 	if (board.readonly)
-		return failed('Cannot add a swimlane to a readonly board');
+		return failed(
+			readonlyMessage(board, 'Cannot add a swimlane to a readonly board'),
+		);
 
 	// Boards carry no forced readonly of their own, so unlike the issue and
 	// swimlane mutations this one has to check the scrub itself. Without it a
@@ -781,7 +787,8 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 	if (!swimlane) return failed('Swimlane not found');
 	if (!isSwimlaneNode(swimlane))
 		return failed('Edit target must be a swimlane');
-	if (swimlane.readonly) return failed('Cannot edit readonly swimlane');
+	if (swimlane.readonly)
+		return failed(readonlyMessage(swimlane, 'Cannot edit readonly swimlane'));
 
 	const title = sanitizeInlineText(input.title);
 	if (!title.trim()) return failed('Swimlane title cannot be empty');
@@ -1071,6 +1078,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				ref: nodeRef(b.id),
 				title: b.title,
 				readonly: Boolean(b.readonly) || forceReadonly,
+				readonlyReason: b.readonlyReason,
 				swimlanes: (swimlanesByBoardId.get(b.id) ?? [])
 					.sort((a, b) => a.rank.localeCompare(b.rank))
 					.map(
@@ -1079,6 +1087,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 								id: swimlane.id,
 								title: swimlane.title,
 								readonly: Boolean(swimlane.readonly) || forceReadonly,
+								readonlyReason: swimlane.readonlyReason,
 								issues: (ticketsBySwimlaneId.get(swimlane.id) ?? [])
 									.sort((a, b) => a.rank.localeCompare(b.rank))
 									.map(issue => ({
@@ -1088,6 +1097,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										description: issue.props.description ?? '',
 										createdAt: decodeTime(issue.id),
 										readonly: Boolean(issue.readonly) || forceReadonly,
+										readonlyReason: issue.readonlyReason,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue, latestNames),
 										parentNodeId: issue.parentNodeId!,
@@ -1150,7 +1160,8 @@ export const editIssueDescription = async (
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Edit target must be an issue');
-	if (issue.readonly) return failed('Cannot edit readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot edit readonly issue'));
 
 	const currentDescription = issue.props.description ?? '';
 
@@ -1198,7 +1209,8 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Edit target must be an issue');
-	if (issue.readonly) return failed('Cannot edit readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot edit readonly issue'));
 
 	const title = sanitizeInlineText(input.title);
 
@@ -1250,7 +1262,8 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Tag target must be an issue');
-	if (issue.readonly) return failed('Cannot tag readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot tag readonly issue'));
 
 	const tagName = sanitizeInlineText(input.tagName).trim();
 	if (!tagName) return failed('Tag name cannot be empty');
@@ -1313,7 +1326,8 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Untag target must be an issue');
-	if (issue.readonly) return failed('Cannot untag readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot untag readonly issue'));
 
 	if (!stateResult.value.tags[input.tagId]) {
 		return failed('Tag not found');
@@ -1342,18 +1356,22 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 	});
 };
 
+// Reads actors, not decoded events: the actor comes off the file name, so an
+// event this build cannot decode still proves its author wrote something. Going
+// through the decoded log instead would let an unreadable schema version make
+// somebody look unauthored, and the guard below would clear their removal.
 const findEventLogAuthor = async (
 	stateBranchRoot: string,
 	userId: string,
 ): Promise<{id: string; name: string} | undefined> => {
-	const eventsResult = loadMergedEvents(stateBranchRoot);
-	if (isFail(eventsResult)) return undefined;
+	const actorsResult = loadEventActors(stateBranchRoot);
+	if (isFail(actorsResult)) return undefined;
 
 	let name: string | undefined;
 
 	// Last write wins: a display name changes over time, the id does not.
-	for (const event of eventsResult.value) {
-		if (event.userId === userId) name = event.userName ?? name;
+	for (const actor of actorsResult.value) {
+		if (actor.userId === userId) name = actor.userName ?? name;
 	}
 
 	return name === undefined ? undefined : {id: userId, name};
@@ -1373,7 +1391,8 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Assign target must be an issue');
-	if (issue.readonly) return failed('Cannot assign readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot assign readonly issue'));
 
 	const targetId = input.self ? actorResult.value.userId : input.assigneeId;
 
@@ -1663,11 +1682,15 @@ export const getBoardContributors = async (
 	const authorIds = new Set<string>();
 
 	// Unfiltered, unlike `authorIds`: removal is refused for anyone who has
-	// authored anywhere, so this must read the same events that guard does.
+	// authored anywhere, so this must read the same actors that guard does —
+	// off the file names, including events this build cannot decode.
 	const workspaceAuthorIds = new Set<string>();
 
-	for (const event of eventsResult.value) {
-		if (event.userId) workspaceAuthorIds.add(event.userId);
+	const actorsResult = loadEventActors(bootResult.value.stateBranchRoot);
+	if (isFail(actorsResult)) return failed(actorsResult.message);
+
+	for (const actor of actorsResult.value) {
+		if (actor.userId) workspaceAuthorIds.add(actor.userId);
 	}
 
 	for (const event of scopedEvents) {
@@ -1712,7 +1735,8 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Unassign target must be an issue');
-	if (issue.readonly) return failed('Cannot unassign readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot unassign readonly issue'));
 
 	if (!stateResult.value.contributors[input.assigneeId]) {
 		return failed('Assignee not found');
@@ -1755,7 +1779,8 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
-	if (issue.readonly) return failed('Cannot comment on readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot comment on readonly issue'));
 
 	const body = input.body.trim();
 
@@ -1826,7 +1851,10 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
-	if (issue.readonly) return failed('Cannot delete comment on readonly issue');
+	if (issue.readonly)
+		return failed(
+			readonlyMessage(issue, 'Cannot delete comment on readonly issue'),
+		);
 
 	const alreadyDeleted = stateResult.value.eventLog.some(
 		event =>
@@ -1878,7 +1906,8 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Attachment target must be an issue');
-	if (issue.readonly) return failed('Cannot attach to readonly issue');
+	if (issue.readonly)
+		return failed(readonlyMessage(issue, 'Cannot attach to readonly issue'));
 
 	const data = Buffer.from(input.dataBase64 ?? '', 'base64');
 
@@ -1953,7 +1982,9 @@ export const deleteIssueAttachment = async (
 	if (!issue) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Attachment target must be an issue');
 	if (issue.readonly) {
-		return failed('Cannot delete attachment on readonly issue');
+		return failed(
+			readonlyMessage(issue, 'Cannot delete attachment on readonly issue'),
+		);
 	}
 
 	const alreadyDeleted = stateResult.value.eventLog.some(

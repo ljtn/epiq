@@ -93,7 +93,24 @@ vi.mock('../../lib/event/event-load.js', () => {
 		return succeeded('loaded', {events: result.value, unreadable: []});
 	});
 
-	return {loadMergedEvents, loadMergedEventsWithDiagnostics};
+	// Also delegates: in production this reads actors off the event file names,
+	// so it sees exactly the same authors as the log the test steers.
+	const loadEventActors = vi.fn(() => {
+		const result = loadMergedEvents();
+		if (isFail(result)) return result;
+
+		return succeeded(
+			'loaded actors',
+			(result.value as {userId?: string; userName?: string}[]).map(
+				({userId, userName}) => ({
+					userId: userId ?? '',
+					userName: userName ?? '',
+				}),
+			),
+		);
+	});
+
+	return {loadMergedEvents, loadMergedEventsWithDiagnostics, loadEventActors};
 });
 
 const eventLoadModule = await import('../../lib/event/event-load.js');
@@ -341,6 +358,8 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 		getCommentsByIssue: vi.fn(() => []),
 		getAttachmentsByIssue: vi.fn(() => []),
 	},
+	readonlyMessage: (node: {readonlyReason?: string}, fallback: string) =>
+		node.readonlyReason ?? fallback,
 }));
 
 vi.mock('../epiq-time-travel.js', () => ({

@@ -54,6 +54,13 @@ export const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
 	return false;
 };
 
+// A load-derived lock carries why it exists; a node's own lock does not, so the
+// call site's wording stands in.
+export const readonlyMessage = (
+	node: {readonlyReason?: string},
+	fallback: string,
+): string => node.readonlyReason ?? fallback;
+
 const failIfReadonly = (
 	node: NavNode<AnyContext> | undefined,
 	action: 'move' | 'rename' | 'edit' | 'delete',
@@ -68,7 +75,8 @@ const failIfReadonly = (
 		delete: 'Cannot delete readonly node',
 	} as const;
 
-	return failed(msgByAction[action]);
+	// A derived lock knows why; the node's own lock is self-explanatory.
+	return failed(readonlyMessage(node, msgByAction[action]));
 };
 
 export const nodeRepo = {
