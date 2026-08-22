@@ -32,18 +32,28 @@ export type UnreadableEvent = {
 	targetNodeId: string | null;
 };
 
+// Best-effort, and deliberately unwilling to guess: anything ambiguous returns
+// null so the caller falls back to a board-wide lock rather than locking the
+// wrong node.
 const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
-	for (const [key, value] of Object.entries(entry)) {
-		if (key === 'id' || key === 'v') continue;
-		if (typeof value !== 'object' || value === null) continue;
+	const payloads = Object.entries(entry).filter(
+		([key]) =>
+			key !== 'id' && key !== 'v' && key !== 'userId' && key !== 'userName',
+	);
 
-		const candidate = (value as {id?: unknown}).id;
-		if (typeof candidate === 'string' && candidate.length > 0) {
-			return candidate;
-		}
-	}
+	// The one-payload-key invariant `getPersistedAction` enforces is never
+	// checked on this path, so more than one key means we cannot tell which is
+	// the action.
+	if (payloads.length !== 1) return null;
 
-	return null;
+	const value = payloads[0]?.[1];
+	if (typeof value !== 'object' || value === null) return null;
+
+	const candidate = (value as {id?: unknown}).id;
+
+	return typeof candidate === 'string' && candidate.length > 0
+		? candidate
+		: null;
 };
 
 type PersistedPayloadMap = {
@@ -310,6 +320,13 @@ function loadAllPersistedEvents(
 	return succeeded('All events loaded', getSortedEvents(entries));
 }
 
+// What the last full load found. Held here rather than in `AppState` because
+// `resetState()` wipes that, and the paths that rebuild live state after a
+// checkout have to re-apply the locks on the other side of exactly that reset.
+let lastUnreadable: UnreadableEvent[] = [];
+
+export const getLastUnreadableEvents = (): UnreadableEvent[] => lastUnreadable;
+
 // Boot paths use this to lock where history is unreadable; readers wanting
 // only the events use `loadMergedEvents`.
 export function loadMergedEventsWithDiagnostics(
@@ -324,7 +341,25 @@ export function loadMergedEventsWithDiagnostics(
 	const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
 	if (isFail(decoded)) return failed(decoded.message);
 
+	lastUnreadable = unreadable;
+
 	return succeeded('Loaded merged events', {events: decoded.value, unreadable});
+}
+
+// Actors come off the file name, so they survive a payload this build cannot
+// decode. Guards that ask "has this contributor ever authored anything" have to
+// read these rather than the decoded events, or an unreadable version makes
+// someone look unauthored.
+export function loadEventActors(
+	stateBranchRoot: string,
+): Result<{userId: string; userName: string}[]> {
+	const allEvents = loadAllPersistedEvents(stateBranchRoot);
+	if (isFail(allEvents)) return failed(allEvents.message);
+
+	return succeeded(
+		'Loaded event actors',
+		allEvents.value.map(({userId, userName}) => ({userId, userName})),
+	);
 }
 
 export function loadMergedEvents(stateBranchRoot: string): Result<AppEvent[]> {

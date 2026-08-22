@@ -6,6 +6,7 @@ import {describe, expect, it} from 'vitest';
 import {
 	decodeReconstructedEvents,
 	getSortedEvents,
+	loadEventActors,
 	loadMergedEvents,
 	loadMergedEventsBefore,
 	loadMergedEventsWithDiagnostics,
@@ -825,5 +826,153 @@ describe('locking what this build cannot read', () => {
 		expect(isFail(result)).toBe(false);
 		if (isFail(result)) return;
 		expect(result.value.unreadable).toEqual([]);
+	});
+});
+
+// The envelope is the branch's forward-compatibility contract: `v` and `id` are
+// declared stable so ancestry survives a payload this build cannot read. A
+// closed `id` tuple would make an id extension the same board-wide brick that
+// an unrecognised `v` used to be.
+describe('an id extended by a newer version', () => {
+	const write = (root: string, lines: unknown[]) => {
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, '01H0000000000000000000000F.alice.jsonl'),
+			lines.map(line => JSON.stringify(line)).join('\n') + '\n',
+		);
+	};
+
+	const A = '01H0000000000000000000000A';
+	const B = '01H0000000000000000000000B';
+	const C = '01H0000000000000000000000C';
+
+	it('loads the board instead of failing the whole file', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-idext-'));
+
+		write(root, [
+			{
+				v: 1,
+				id: [A, null],
+				'init.workspace': {id: 'ws1', name: 'W', rank: 'a0'},
+			},
+			// A third slot a future version might add — a vector clock, a merge parent.
+			{
+				v: 1,
+				id: [B, A, {clock: 7}],
+				'add.board': {id: 'b1', name: 'Board', parent: 'ws1', rank: 'a0'},
+			},
+			{
+				v: 1,
+				id: [C, B],
+				'add.board': {id: 'b2', name: 'Second', parent: 'ws1', rank: 'a1'},
+			},
+		]);
+
+		const result = loadMergedEvents(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		// Ancestry still runs off the two leading slots, so order is unchanged.
+		expect(result.value.map(e => (e.payload as {id: string}).id)).toEqual([
+			'ws1',
+			'b1',
+			'b2',
+		]);
+	});
+
+	it('still anchors a new event to that event', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-idext2-'));
+
+		write(root, [
+			{
+				v: 1,
+				id: [A, null],
+				'init.workspace': {id: 'ws1', name: 'W', rank: 'a0'},
+			},
+			{
+				v: 1,
+				id: [B, A, {clock: 7}],
+				'add.board': {id: 'b1', name: 'Board', parent: 'ws1', rank: 'a0'},
+			},
+		]);
+
+		const result = persist({
+			event: {
+				id: 'new-event',
+				userId: '01H0000000000000000000000E',
+				userName: 'bob',
+				action: 'add.board',
+				payload: {id: 'bNew', name: 'New', parent: 'ws1', rank: 'a4'},
+			} as AppEvent,
+			rootDir: root,
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.entry.id[1]).toBe(B);
+		// Unchanged on the way out: this build still writes a two-slot id.
+		expect(result.value.entry.id).toHaveLength(2);
+
+		fs.rmSync(root, {recursive: true, force: true});
+	});
+
+	it('still rejects an id that is missing its required slots', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-idext3-'));
+
+		write(root, [
+			{v: 1, id: [A], 'init.workspace': {id: 'ws1', name: 'W', rank: 'a0'}},
+		]);
+
+		const result = loadMergedEvents(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		expect(isFail(result)).toBe(true);
+	});
+});
+
+// Actors come off the file name, which no schema version can make unreadable.
+describe('loadEventActors', () => {
+	it('reports the author of an event this build cannot decode', () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-actors-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		fs.writeFileSync(
+			path.join(eventsDir, '01H0000000000000000000000F.alice.jsonl'),
+			JSON.stringify({
+				v: 1,
+				id: ['01H0000000000000000000000A', null],
+				'init.workspace': {id: 'ws1', name: 'W', rank: 'a0'},
+			}) + '\n',
+		);
+		// Bob has written only events this build cannot read.
+		fs.writeFileSync(
+			path.join(eventsDir, '01H0000000000000000000000E.bob.jsonl'),
+			JSON.stringify({
+				v: 2,
+				id: ['01H0000000000000000000000B', '01H0000000000000000000000A'],
+				'add.board': {id: 'b0', name: 'future', parent: 'ws1'},
+			}) + '\n',
+		);
+
+		const actors = loadEventActors(root);
+		const events = loadMergedEvents(root);
+		fs.rmSync(root, {recursive: true, force: true});
+
+		expect(isFail(actors)).toBe(false);
+		if (isFail(actors)) return;
+		expect(isFail(events)).toBe(false);
+		if (isFail(events)) return;
+
+		const actorIds = new Set(actors.value.map(a => a.userId));
+		const decodedIds = new Set(events.value.map(e => e.userId));
+
+		// Bob authored, and the guard that refuses removing an author must see it.
+		expect(actorIds.has('01H0000000000000000000000E')).toBe(true);
+		expect(decodedIds.has('01H0000000000000000000000E')).toBe(false);
 	});
 });

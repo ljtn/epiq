@@ -11,7 +11,7 @@ import {
 } from '../state/state.js';
 import {rankBetween} from '../utils/rank.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {UnreadableEvent} from './event-load.js';
+import {getLastUnreadableEvents, UnreadableEvent} from './event-load.js';
 import {materializeAll} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
@@ -224,19 +224,23 @@ const applyUnreadableLocks = (unreadable: UnreadableEvent[]): void => {
 
 	// Never skipped: the board-wide fallback below is a fallback, not a
 	// replacement.
-	for (const event of unreadable) {
-		if (!event.targetNodeId) continue;
+	const unlocalized = unreadable.filter(event => {
+		if (!event.targetNodeId) return true;
 
-		nodeRepo.markNodeUnreadable(
+		const marked = nodeRepo.markNodeUnreadable(
 			event.targetNodeId,
 			`Part of this item's history was written by a newer epiq (${event.detail}) and cannot be read. Upgrade to edit it.`,
 		);
-	}
 
-	const unlocalized = unreadable.filter(event => !event.targetNodeId);
+		// The id named a node this build never materialized — typically because
+		// the unreadable event is what *created* it, or because it is a tag or
+		// contributor rather than a node. Nothing was locked, so nothing bounds
+		// what the event affected either.
+		return isFail(marked);
+	});
+
 	if (unlocalized.length === 0) return;
 
-	// No node reference at all, so nothing bounds what it affected.
 	const detail = [...new Set(unlocalized.map(event => event.detail))].join(
 		', ',
 	);
@@ -246,6 +250,13 @@ const applyUnreadableLocks = (unreadable: UnreadableEvent[]): void => {
 		readOnlyReason: `This build cannot read ${unlocalized.length} event(s) in the log (${detail}), and cannot tell which items they affect. Upgrade epiq to edit this board.`,
 	});
 };
+
+// Re-derives the locks from the last full load. Every path back to live —
+// `:peek now`, `returnToLive`, the end of a replay — rebuilds the node graph
+// without going through `bootStateFromEventLog`, and would otherwise hand back
+// a writable board over a log this build cannot fully read.
+export const relockUnreadableEvents = (): void =>
+	applyUnreadableLocks(getLastUnreadableEvents());
 
 export function bootStateFromEventLog(
 	eventLog: AppEvent[],
