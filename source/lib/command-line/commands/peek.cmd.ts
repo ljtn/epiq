@@ -1,5 +1,6 @@
 import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
 import {getEventTime} from '../../event/date-utils.js';
+import {relockUnreadableEvents} from '../../event/event-boot.js';
 import {loadMergedEvents} from '../../event/event-load.js';
 import {materializeAll} from '../../event/event-materialize.js';
 import {Mode} from '../../model/action-map.model.js';
@@ -47,10 +48,17 @@ export const peekCommand = async () => {
 		patchState({
 			mode: Mode.DEFAULT,
 			readOnly: false,
+			// Cleared alongside the flag it explains, or a later time-travel
+			// refusal quotes a stale unreadable-log reason.
+			readOnlyReason: undefined,
 			timeMode: 'live',
 			unappliedEvents: [],
 			replay: null,
 		});
+
+		// `materializeAll` above rebuilt the nodes from scratch, so the
+		// load-derived locks have to be re-applied.
+		relockUnreadableEvents();
 
 		return succeeded('Peeking now', true);
 	}
