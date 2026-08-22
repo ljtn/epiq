@@ -408,7 +408,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					ref: nodeRef(n.id),
 					title: sanitizeInlineText(n.title),
 					description: n.props.description ?? '',
-					createdAt: timeFromId(n.id),
+					createdAt: decodeTime(n.id),
 					parentNodeId: n.parentNodeId!,
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),
@@ -913,17 +913,6 @@ export const sync = async (input: SyncInput = {}) => {
 	return succeeded('Synced', result.value);
 };
 
-// Ids are ULIDs in practice, but decodeTime throws on anything else and these
-// run inside the whole-state projection — one odd id would take the board down.
-// 0 reads as "unknown" to every caller.
-const timeFromId = (id: string): number => {
-	try {
-		return decodeTime(id);
-	} catch {
-		return 0;
-	}
-};
-
 /**
  * A ticket's own event log, oldest first. Reads whatever is materialized rather
  * than booting, so it stays correct mid-scrub like the state beside it.
@@ -941,7 +930,7 @@ export const getIssueHistory = (
 		'Read issue history',
 		(issue.log ?? []).map(event => ({
 			id: event.id,
-			t: timeFromId(event.id),
+			t: decodeTime(event.id),
 			action: event.action,
 			label: describeEvent(event),
 			actor: {
@@ -1025,7 +1014,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 						name: contributor?.name ?? 'Unknown',
 						color: getStringColor(contributor?.name ?? comment.authorId),
 					},
-					createdAt: timeFromId(comment.id),
+					createdAt: decodeTime(comment.id),
 				};
 			});
 	}
@@ -1050,7 +1039,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				name: attachment.name,
 				fileName: getAttachmentFileName(attachment.hash, attachment.ext),
 				bytes: attachment.bytes,
-				createdAt: timeFromId(attachment.id),
+				createdAt: decodeTime(attachment.id),
 				canDelete:
 					attachmentOwners.get(attachment.id) === settingsRes.value.userId,
 			}));
@@ -1079,7 +1068,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										ref: nodeRef(issue.id),
 										title: sanitizeInlineText(issue.title),
 										description: issue.props.description ?? '',
-										createdAt: timeFromId(issue.id),
+										createdAt: decodeTime(issue.id),
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue, latestNames),
