@@ -3,7 +3,7 @@ import {
 	restoreNavigationAnchor,
 } from '../lib/actions/default/restore-navigation.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
-import {loadMergedEventsWithDiagnostics} from '../lib/event/event-load.js';
+import {loadMergedEventsWithUnreadable} from '../lib/event/event-load.js';
 import {
 	getPersistFileName,
 	resolveActorId,
@@ -164,7 +164,7 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 
 	const allLoadedEventsResult = trace(
 		'loadMergedEvents',
-		loadMergedEventsWithDiagnostics(stateBranchRoot),
+		loadMergedEventsWithUnreadable(stateBranchRoot),
 	);
 
 	logger.debug('[sync] loadMergedEvents:result', {

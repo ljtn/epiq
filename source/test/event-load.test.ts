@@ -9,7 +9,7 @@ import {
 	loadEventActors,
 	loadMergedEvents,
 	loadMergedEventsBefore,
-	loadMergedEventsWithDiagnostics,
+	loadMergedEventsWithUnreadable,
 	ReconstructedEvent,
 	splitEventsAtTime,
 } from '../lib/event/event-load.js';
@@ -753,7 +753,7 @@ describe('locking what this build cannot read', () => {
 			},
 		]);
 
-		const result = loadMergedEventsWithDiagnostics(root);
+		const result = loadMergedEventsWithUnreadable(root);
 		fs.rmSync(root, {recursive: true, force: true});
 
 		expect(isFail(result)).toBe(false);
@@ -782,7 +782,7 @@ describe('locking what this build cannot read', () => {
 			},
 		]);
 
-		const result = loadMergedEventsWithDiagnostics(root);
+		const result = loadMergedEventsWithUnreadable(root);
 		fs.rmSync(root, {recursive: true, force: true});
 
 		expect(isFail(result)).toBe(false);
@@ -803,7 +803,7 @@ describe('locking what this build cannot read', () => {
 			},
 		]);
 
-		const result = loadMergedEventsWithDiagnostics(root);
+		const result = loadMergedEventsWithUnreadable(root);
 		fs.rmSync(root, {recursive: true, force: true});
 
 		expect(isFail(result)).toBe(false);
@@ -820,7 +820,7 @@ describe('locking what this build cannot read', () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-lock4-'));
 		write(root, base);
 
-		const result = loadMergedEventsWithDiagnostics(root);
+		const result = loadMergedEventsWithUnreadable(root);
 		fs.rmSync(root, {recursive: true, force: true});
 
 		expect(isFail(result)).toBe(false);

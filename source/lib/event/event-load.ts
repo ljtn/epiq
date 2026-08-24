@@ -329,7 +329,7 @@ export const getLastUnreadableEvents = (): UnreadableEvent[] => lastUnreadable;
 
 // Boot paths use this to lock where history is unreadable; readers wanting
 // only the events use `loadMergedEvents`.
-export function loadMergedEventsWithDiagnostics(
+export function loadMergedEventsWithUnreadable(
 	stateBranchRoot: string,
 ): Result<{events: AppEvent[]; unreadable: UnreadableEvent[]}> {
 	const allEvents = loadAllPersistedEvents(stateBranchRoot);
@@ -363,7 +363,7 @@ export function loadEventActors(
 }
 
 export function loadMergedEvents(stateBranchRoot: string): Result<AppEvent[]> {
-	const result = loadMergedEventsWithDiagnostics(stateBranchRoot);
+	const result = loadMergedEventsWithUnreadable(stateBranchRoot);
 	if (isFail(result)) return failed(result.message);
 
 	return succeeded('Loaded merged events', result.value.events);

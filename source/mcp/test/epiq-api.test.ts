@@ -86,7 +86,7 @@ vi.mock('../../lib/event/event-load.js', () => {
 
 	// Delegates, so a test that overrides loadMergedEvents also steers the
 	// diagnostics variant that boot() actually calls.
-	const loadMergedEventsWithDiagnostics = vi.fn(() => {
+	const loadMergedEventsWithUnreadable = vi.fn(() => {
 		const result = loadMergedEvents();
 		if (isFail(result)) return result;
 
@@ -110,7 +110,7 @@ vi.mock('../../lib/event/event-load.js', () => {
 		);
 	});
 
-	return {loadMergedEvents, loadMergedEventsWithDiagnostics, loadEventActors};
+	return {loadMergedEvents, loadMergedEventsWithUnreadable, loadEventActors};
 });
 
 const eventLoadModule = await import('../../lib/event/event-load.js');

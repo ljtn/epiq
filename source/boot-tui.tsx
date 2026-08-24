@@ -5,7 +5,7 @@ import {renderApp} from './Index.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {bootStateFromEventLog} from './lib/event/event-boot.js';
 import {
-	loadMergedEventsWithDiagnostics,
+	loadMergedEventsWithUnreadable,
 	UnreadableEvent,
 } from './lib/event/event-load.js';
 import {AppEvent} from './lib/event/event.model.js';
@@ -62,7 +62,7 @@ export async function bootTui(): Promise<Result<void>> {
 				logger.info(3, pullResult.message);
 			}
 
-			const eventsResult = loadMergedEventsWithDiagnostics(
+			const eventsResult = loadMergedEventsWithUnreadable(
 				stateBranchRootResult.value,
 			);
 			if (isFail(eventsResult)) return failAt(3, eventsResult.message);

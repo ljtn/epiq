@@ -6,7 +6,7 @@ import {
 	bootStateFromEventLog,
 	relockUnreadableEvents,
 } from '../lib/event/event-boot.js';
-import {loadMergedEventsWithDiagnostics} from '../lib/event/event-load.js';
+import {loadMergedEventsWithUnreadable} from '../lib/event/event-load.js';
 import {materializeAll} from '../lib/event/event-materialize.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
@@ -59,7 +59,7 @@ const write = (lines: unknown[]) => {
 };
 
 const loadAndBoot = () => {
-	const loaded = loadMergedEventsWithDiagnostics(root);
+	const loaded = loadMergedEventsWithUnreadable(root);
 	if (isFail(loaded)) throw new Error(loaded.message);
 
 	const booted = bootStateFromEventLog(

@@ -9,7 +9,7 @@ import {bootStateFromEventLog} from '../lib/event/event-boot.js';
 import {
 	loadEventActors,
 	loadMergedEvents,
-	loadMergedEventsWithDiagnostics,
+	loadMergedEventsWithUnreadable,
 } from '../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
@@ -237,7 +237,7 @@ const boot = async (
 		}
 	}
 
-	const eventsResult = loadMergedEventsWithDiagnostics(
+	const eventsResult = loadMergedEventsWithUnreadable(
 		stateBranchRootResult.value,
 	);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
@@ -666,7 +666,7 @@ export const moveIssue = async (
 
 	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
 
-	const eventsResult = loadMergedEventsWithDiagnostics(
+	const eventsResult = loadMergedEventsWithUnreadable(
 		stateBranchRootResult.value,
 	);
 	if (isFail(eventsResult)) return eventsResult;
@@ -837,7 +837,7 @@ export const moveSwimlane = async (
 
 	if (isFail(stateBranchRootResult)) return stateBranchRootResult;
 
-	const eventsResult = loadMergedEventsWithDiagnostics(
+	const eventsResult = loadMergedEventsWithUnreadable(
 		stateBranchRootResult.value,
 	);
 	if (isFail(eventsResult)) return eventsResult;
