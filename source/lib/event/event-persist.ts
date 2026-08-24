@@ -86,13 +86,12 @@ export const parsePersistedEnvelope = (
 	return succeeded('Parsed persisted event envelope', result.data);
 };
 
-// Versions this build can decode. Never a `<= SCHEMA_VERSION` test: a bump
-// that reshapes an existing payload needs a migration before its version is
-// listed here, or old events decode under new semantics.
+// Versions this build can decode, listed one by one rather than `<=
+// SCHEMA_VERSION`: if a bump changes the shape of an existing payload, write
+// the migration before adding the version here.
 const READABLE_SCHEMA_VERSIONS = [1] as const;
 
-// Compile-time proof that this build can read back what it writes. A bump that
-// forgets to list itself fails here, not on someone else's machine.
+// Fails to compile if a version bump forgets to add itself to the list above. So: fail compile time instead of runtime.
 const _assertCurrentVersionReadable: typeof SCHEMA_VERSION extends (typeof READABLE_SCHEMA_VERSIONS)[number]
 	? true
 	: never = true;
