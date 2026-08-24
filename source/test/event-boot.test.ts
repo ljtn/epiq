@@ -68,6 +68,28 @@ beforeEach(() => {
 });
 
 describe('event boot', () => {
+	// `init` persists these directly, so `ensureContributorExists` never sees
+	// them. Without a registration here the initializer authors the whole
+	// default board while absent from the registry.
+	it('registers the initializing user as a contributor', () => {
+		const result = createDefaultEvents({
+			userId: 'userId',
+			userName: 'username',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		// Second, after `init.workspace`: registering first throws on a cold
+		// state, because nothing has initialized the state it writes into.
+		const registration = result.value[1];
+		if (registration?.action !== 'create.contributor') {
+			throw new Error('Expected a default event registering the author');
+		}
+
+		expect(registration.payload).toEqual({id: 'userId', name: 'username'});
+	});
+
 	it('creates the default workspace events', () => {
 		const result = createDefaultEvents({
 			userId: 'userId',
@@ -79,9 +101,10 @@ describe('event boot', () => {
 
 		const events = result.value;
 
-		expect(events).toHaveLength(9);
+		expect(events).toHaveLength(10);
 		expect(events.map(e => e.action)).toEqual([
 			'init.workspace',
+			'create.contributor',
 			'add.board',
 			'add.swimlane',
 			'add.swimlane',
@@ -92,10 +115,10 @@ describe('event boot', () => {
 			'lock.node',
 		]);
 
-		const closedBoardEvent = events[5];
-		const closedSwimlaneEvent = events[6];
-		const lockClosedBoardEvent = events[7];
-		const lockClosedSwimlaneEvent = events[8];
+		const closedBoardEvent = events[6];
+		const closedSwimlaneEvent = events[7];
+		const lockClosedBoardEvent = events[8];
+		const lockClosedSwimlaneEvent = events[9];
 
 		if (
 			closedBoardEvent?.action !== 'add.board' ||

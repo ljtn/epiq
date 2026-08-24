@@ -116,6 +116,20 @@ export function createDefaultEvents({
 				rank: workspaceRank.value,
 			},
 		},
+		// `init` persists these directly, bypassing `ensureContributorExists`, so
+		// the author registers themselves here or not at all. Second, not first:
+		// `init.workspace` is what initializes the state every other
+		// materializer reads.
+		{
+			id: ulid(),
+			userId: userId,
+			userName: userName,
+			action: 'create.contributor',
+			payload: {
+				id: userId,
+				name: userName,
+			},
+		},
 		{
 			id: ulid(),
 			userId: userId,
