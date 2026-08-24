@@ -141,6 +141,107 @@ describe('event boot', () => {
 		expect(getState().nodes['swimlane-1']?.parentNodeId).toBe('board-1');
 	});
 
+	describe('unreadable events lock what they touched', () => {
+		const log = () =>
+			[
+				event('init.workspace', {
+					id: 'workspace-1',
+					name: 'Workspace',
+					rank: rank(),
+				}),
+				event('add.board', {
+					id: 'board-1',
+					name: 'Board',
+					parent: 'workspace-1',
+					rank: rank(),
+				}),
+				event('add.swimlane', {
+					id: 'swimlane-1',
+					name: 'Todo',
+					parent: 'board-1',
+					rank: rank(),
+				}),
+			] as const;
+
+		// Scoped, not board-wide.
+		it('locks only the targeted node, leaving the rest writable', () => {
+			const result = bootStateFromEventLog(
+				[...log()],
+				[
+					{
+						eventId: '01H0000000000000000000000Z',
+						reason: 'unknown-action',
+						detail: 'future.mystery.action',
+						targetNodeId: 'board-1',
+					},
+				],
+			);
+
+			expect(isFail(result)).toBe(false);
+			expect(getState().nodes['board-1']?.readonly).toBe(true);
+			expect(getState().nodes['board-1']?.readonlyReason).toContain(
+				'newer epiq',
+			);
+			expect(getState().nodes['swimlane-1']?.readonly).toBe(false);
+			expect(getState().readOnly).toBe(false);
+		});
+
+		// No target means no bound on what it affected.
+		it('falls back to a board-wide lock when an unreadable event cannot be localized', () => {
+			const result = bootStateFromEventLog(
+				[...log()],
+				[
+					{
+						eventId: '01H0000000000000000000000Z',
+						reason: 'unsupported-schema-version',
+						detail: 'v2',
+						targetNodeId: null,
+					},
+				],
+			);
+
+			expect(isFail(result)).toBe(false);
+			expect(getState().readOnly).toBe(true);
+			expect(getState().readOnlyReason).toContain('Upgrade epiq');
+		});
+
+		// One event we cannot place must not discard what we know about the rest.
+		it('still locks localizable nodes when another event forces a board-wide lock', () => {
+			const result = bootStateFromEventLog(
+				[...log()],
+				[
+					{
+						eventId: '01H0000000000000000000000Y',
+						reason: 'unknown-action',
+						detail: 'future.mystery.action',
+						targetNodeId: 'board-1',
+					},
+					{
+						eventId: '01H0000000000000000000000Z',
+						reason: 'unknown-action',
+						detail: 'future.bulk.action',
+						targetNodeId: null,
+					},
+				],
+			);
+
+			expect(isFail(result)).toBe(false);
+			expect(getState().readOnly).toBe(true);
+			expect(getState().nodes['board-1']?.readonly).toBe(true);
+			// Names only the event that could not be placed.
+			expect(getState().readOnlyReason).toContain('future.bulk.action');
+			expect(getState().readOnlyReason).not.toContain('future.mystery.action');
+		});
+
+		it('leaves everything writable when nothing was unreadable', () => {
+			const result = bootStateFromEventLog([...log()]);
+
+			expect(isFail(result)).toBe(false);
+			expect(getState().readOnly).toBe(false);
+			expect(getState().nodes['board-1']?.readonly).toBe(false);
+		});
+	});
+
 	// A re-boot rebuilds from the live head and resets readOnly/timeMode, so
 	// without this guard any caller silently cancels an active checkout.
 	describe.each(['peek', 'replay'] as const)(

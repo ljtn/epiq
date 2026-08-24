@@ -22,6 +22,8 @@ export type ApiIssue = {
 	/** Decoded from the issue's own ULID. */
 	createdAt: number;
 	readonly: boolean;
+	/** Present only for a load-derived lock, which knows why it exists. */
+	readonlyReason?: string;
 	tags: ApiTag[];
 	assignees: ApiAssignee[];
 	parentNodeId: string;
@@ -32,6 +34,8 @@ export type ApiSwimlane = {
 	id: string;
 	title: string;
 	readonly: boolean;
+	/** Present only for a load-derived lock, which knows why it exists. */
+	readonlyReason?: string;
 	issues: ApiIssue[];
 	parentNodeId: string;
 };
@@ -54,6 +58,8 @@ export type ApiBoard = {
 	// True for the Closed board, and for every board while time travel is
 	// scrubbed — the same forcing the swimlanes and issues below already get.
 	readonly: boolean;
+	/** Present only for a load-derived lock, which knows why it exists. */
+	readonlyReason?: string;
 	swimlanes: ApiSwimlane[];
 };
 

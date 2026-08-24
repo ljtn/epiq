@@ -73,6 +73,8 @@ export type AppState = {
 	hasProjectDefinition: boolean;
 
 	readOnly: boolean;
+	/** Why the whole board is read-only, when something other than time travel set it. */
+	readOnlyReason?: string;
 	selectedIndex: number;
 	selectedNode: NavNode<AnyContext> | null;
 	contextNodeId: string | null;

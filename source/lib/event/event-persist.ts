@@ -54,6 +54,50 @@ export const PersistedEventSchema = z.looseObject({
 	id: CompositeIdSchema,
 });
 
+// Stable across every schema version, so ancestry stays readable on a line
+// whose payload is not. Only the payload may change shape.
+export const PersistedEnvelopeSchema = z.looseObject({
+	v: z.number().int().positive(),
+	id: CompositeIdSchema,
+});
+
+export type PersistedEnvelope = z.infer<typeof PersistedEnvelopeSchema>;
+
+export const parsePersistedEnvelope = (
+	value: unknown,
+): Result<PersistedEnvelope> => {
+	const result = PersistedEnvelopeSchema.safeParse(value);
+
+	if (!result.success) {
+		return failed(
+			`Invalid persisted event envelope: ${result.error.issues
+				.map(issue => issue.path.join('.') || issue.message)
+				.join(', ')}`,
+		);
+	}
+
+	return succeeded('Parsed persisted event envelope', result.data);
+};
+
+// Versions this build can decode, listed one by one rather than `<=
+// SCHEMA_VERSION`: if a bump changes the shape of an existing payload, write
+// the migration before adding the version here.
+const READABLE_SCHEMA_VERSIONS = [1] as const;
+
+// Fails to compile if a version bump forgets to add itself to the list above. So: fail compile time instead of runtime.
+const _assertCurrentVersionReadable: typeof SCHEMA_VERSION extends (typeof READABLE_SCHEMA_VERSIONS)[number]
+	? true
+	: never = true;
+void _assertCurrentVersionReadable;
+
+const readableSchemaVersions: ReadonlySet<number> = new Set(
+	READABLE_SCHEMA_VERSIONS,
+);
+
+// Readability only; an unsupported event is still part of the history.
+export const isSupportedSchemaVersion = (version: number): boolean =>
+	readableSchemaVersions.has(version);
+
 export const parsePersistedEvent = (value: unknown): Result<PersistedEvent> => {
 	const result = PersistedEventSchema.safeParse(value);
 

@@ -14,6 +14,7 @@ import {getEventTime} from '../lib/event/date-utils.js';
 import {AppEvent, EventAction} from '../lib/event/event.model.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
+import {relockUnreadableEvents} from '../lib/event/event-boot.js';
 import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
@@ -605,10 +606,17 @@ const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 
 	patchState({
 		readOnly: false,
+		// Cleared alongside the flag it explains, or a later time-travel refusal
+		// quotes a stale unreadable-log reason.
+		readOnlyReason: undefined,
 		timeMode: 'live',
 		unappliedEvents: [],
 		replay: null,
 	});
+
+	// `materializeAll` above rebuilt the nodes from scratch, so the load-derived
+	// locks have to be re-applied.
+	relockUnreadableEvents();
 
 	return succeeded('Restored live state', true);
 };

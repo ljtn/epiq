@@ -4,7 +4,10 @@ import {ensureStateBranchWorktree} from './git/git.js';
 import {renderApp} from './Index.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {bootStateFromEventLog} from './lib/event/event-boot.js';
-import {loadMergedEvents} from './lib/event/event-load.js';
+import {
+	loadMergedEventsWithUnreadable,
+	UnreadableEvent,
+} from './lib/event/event-load.js';
 import {AppEvent} from './lib/event/event.model.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import {
@@ -27,6 +30,7 @@ export async function bootTui(): Promise<Result<void>> {
 		const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
 
 		let eventLog: AppEvent[] = [];
+		let unreadable: UnreadableEvent[] = [];
 
 		if (isSuccess(repoRootResult)) {
 			const stateBranchRootResult = getStateBranchRoot({
@@ -58,13 +62,16 @@ export async function bootTui(): Promise<Result<void>> {
 				logger.info(3, pullResult.message);
 			}
 
-			const eventsResult = loadMergedEvents(stateBranchRootResult.value);
+			const eventsResult = loadMergedEventsWithUnreadable(
+				stateBranchRootResult.value,
+			);
 			if (isFail(eventsResult)) return failAt(3, eventsResult.message);
 
-			eventLog = eventsResult.value;
+			eventLog = eventsResult.value.events;
+			unreadable = eventsResult.value.unreadable;
 		}
 
-		const bootStateResult = bootStateFromEventLog(eventLog);
+		const bootStateResult = bootStateFromEventLog(eventLog, unreadable);
 		if (isFail(bootStateResult)) return failAt(4, bootStateResult.message);
 
 		patchState({

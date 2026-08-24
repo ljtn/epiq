@@ -81,9 +81,37 @@ vi.mock('../../lib/storage/paths.js', async importOriginal => {
 	};
 });
 
-vi.mock('../../lib/event/event-load.js', () => ({
-	loadMergedEvents: vi.fn(() => succeeded('loaded', [])),
-}));
+vi.mock('../../lib/event/event-load.js', () => {
+	const loadMergedEvents = vi.fn(() => succeeded('loaded', []));
+
+	// Delegates, so a test that overrides loadMergedEvents also steers the
+	// diagnostics variant that boot() actually calls.
+	const loadMergedEventsWithUnreadable = vi.fn(() => {
+		const result = loadMergedEvents();
+		if (isFail(result)) return result;
+
+		return succeeded('loaded', {events: result.value, unreadable: []});
+	});
+
+	// Also delegates: in production this reads actors off the event file names,
+	// so it sees exactly the same authors as the log the test steers.
+	const loadEventActors = vi.fn(() => {
+		const result = loadMergedEvents();
+		if (isFail(result)) return result;
+
+		return succeeded(
+			'loaded actors',
+			(result.value as {userId?: string; userName?: string}[]).map(
+				({userId, userName}) => ({
+					userId: userId ?? '',
+					userName: userName ?? '',
+				}),
+			),
+		);
+	});
+
+	return {loadMergedEvents, loadMergedEventsWithUnreadable, loadEventActors};
+});
 
 const eventLoadModule = await import('../../lib/event/event-load.js');
 
@@ -330,6 +358,8 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 		getCommentsByIssue: vi.fn(() => []),
 		getAttachmentsByIssue: vi.fn(() => []),
 	},
+	readonlyMessage: (node: {readonlyReason?: string}, fallback: string) =>
+		node.readonlyReason ?? fallback,
 }));
 
 vi.mock('../epiq-time-travel.js', () => ({

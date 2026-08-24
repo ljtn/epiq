@@ -1,4 +1,5 @@
 import {getEventTime} from '../../event/date-utils.js';
+import {relockUnreadableEvents} from '../../event/event-boot.js';
 import {AppEvent} from '../../event/event.model.js';
 import {describeEvent} from '../../event/format-log-utils.js';
 import {
@@ -50,6 +51,9 @@ const finishReplay = (): void => {
 	patchState({
 		mode: Mode.DEFAULT,
 		readOnly: false,
+		// Cleared alongside the flag it explains, or a later time-travel refusal
+		// quotes a stale unreadable-log reason.
+		readOnlyReason: undefined,
 		timeMode: 'live',
 		unappliedEvents: [],
 		replay: null,
@@ -57,6 +61,10 @@ const finishReplay = (): void => {
 		// handed control back (replay starts with nothing selected).
 		selectedIndex: 0,
 	});
+
+	// The checkout that started the movie rebuilt the nodes from scratch, so the
+	// load-derived locks have to be re-applied before writes reopen.
+	relockUnreadableEvents();
 };
 
 // Build the normalized [0..1] position at which each event should have played.
