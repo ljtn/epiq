@@ -1,7 +1,6 @@
 import {Filter} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
-import {getContributorDisplayName} from './contributor.utils.js';
 import {nodeRefMatches} from './node-ref.js';
 
 export type FilterField =
@@ -28,9 +27,7 @@ const getAssigneeNames = (ticket: NavNode<'TICKET'>): string[] => {
 	return (ticket.props.assignees ?? [])
 		.map(assignee => {
 			const contributor = contributors[assignee];
-			return contributor
-				? getContributorDisplayName(assignee, contributor.name)
-				: undefined;
+			return contributor ? contributor.name : undefined;
 		})
 		.filter((name): name is string => Boolean(name));
 };

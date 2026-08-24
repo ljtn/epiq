@@ -4,7 +4,6 @@ import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {Contributor, Tag} from '../model/app-state.model.js';
 import {Ticket} from '../model/context.model.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {getContributorDisplayName} from '../utils/contributor.utils.js';
 import {theme} from '../theme/themes.js';
 import {getStringColor, stringToHslHexColor} from '../utils/color.js';
 import {CursorUI} from './Cursor.js';
@@ -43,7 +42,7 @@ export const TicketListItemCompactUI: React.FC<Props> = ({
 			contributor
 				? {
 						...contributor,
-						name: getContributorDisplayName(contributor.id, contributor.name),
+						name: contributor.name,
 				  }
 				: contributor,
 		)

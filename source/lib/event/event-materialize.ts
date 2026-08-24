@@ -123,6 +123,7 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 
 		case 'create.tag':
 		case 'create.contributor':
+		case 'rename.contributor':
 		case 'link.contributor.user':
 		default:
 			return [];
@@ -367,6 +368,23 @@ const materializeHandlers: MaterializeHandlers = {
 		}
 
 		return succeeded('Contributor created', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'rename.contributor': event => {
+		const {id, name} = event.payload;
+		const result = nodeRepo.renameContributor(id, name);
+
+		if (isFail(result)) {
+			return materializeFail(
+				result.message ?? 'Unable to rename contributor',
+				event,
+			);
+		}
+
+		return succeeded('Contributor renamed', {
 			action: event.action,
 			result: result.value,
 		});

@@ -231,6 +231,7 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	'add.issue.assignee': 'assigning',
 	'remove.issue.assignee': 'assigning',
 	'create.contributor': 'assigning',
+	'rename.contributor': 'assigning',
 	'tombstone.contributor': 'assigning',
 	'restore.contributor': 'assigning',
 	'link.contributor.user': 'assigning',

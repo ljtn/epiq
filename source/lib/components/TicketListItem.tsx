@@ -6,10 +6,7 @@ import {
 	sanitizeInlineText,
 	truncateWithEllipsis,
 } from '../utils/string.utils.js';
-import {
-	getContributorDisplayName,
-	hasAuthoredEvents,
-} from '../utils/contributor.utils.js';
+import {hasAuthoredEvents} from '../utils/contributor.utils.js';
 import {nodeRef, NODE_REF_LENGTH} from '../utils/node-ref.js';
 import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
@@ -88,7 +85,7 @@ export const TicketListItemUI: React.FC<{
 	const tags = getTicketTags(ticket);
 	const assignees = getTicketAssignees(ticket).map(contributor => ({
 		...contributor,
-		name: getContributorDisplayName(contributor.id, contributor.name),
+		name: contributor.name,
 	}));
 
 	// a single badge never pushes the others off the row on its own

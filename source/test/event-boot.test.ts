@@ -68,7 +68,7 @@ beforeEach(() => {
 });
 
 describe('event boot', () => {
-	// `init` persists these directly, so `ensureContributorExists` never sees
+	// `init` persists these directly, so `ensureContributorCurrent` never sees
 	// them. Without a registration here the initializer authors the whole
 	// default board while absent from the registry.
 	it('registers the initializing user as a contributor', () => {

@@ -79,6 +79,16 @@ export type AppEventMap = {
 	};
 
 	/**
+	 * Changes a contributor's display name. The registry is the only name
+	 * source, so this is how a rename reaches anybody else; the log file name
+	 * is a sanitized storage key and cannot carry one.
+	 */
+	'rename.contributor': {
+		payload: PayloadBase & {name: string};
+		result: Contributor;
+	};
+
+	/**
 	 * Clears a contributor's display name, keeping the id and its references.
 	 * A forward event: the log is never rewritten, so earlier events still carry
 	 * the name and replay unchanged.
@@ -271,6 +281,7 @@ export const EVENT_ACTIONS = [
 	'delete.node',
 	'create.tag',
 	'create.contributor',
+	'rename.contributor',
 	'tombstone.contributor',
 	'restore.contributor',
 	'add.issue.assignee',

@@ -38,7 +38,6 @@ import {
 	Contributor,
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../lib/model/app-state.model.js';
-import {preferBestName} from '../lib/utils/contributor.utils.js';
 import {describeEvent} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {MAX_COMMENT_LENGTH} from '../lib/utils/comment.limits.js';
@@ -308,47 +307,28 @@ const mergeRegistryNames = (
 ): Map<string, string> => {
 	const byId = new Map(logNames);
 
+	// The registry always wins. The log's copy survives only for an id the
+	// registry has never seen — an author on a board written before renames
+	// were events.
 	for (const contributor of Object.values(registry)) {
-		// Overwrites rather than fills a gap: their events still carry the name
-		// they authored under, so the log must never win here.
-		if (contributor.tombstoned) {
-			byId.set(contributor.id, contributor.name);
-			continue;
-		}
-
-		// The log's copy is a sanitized file name segment, so it wins only when
-		// it is a genuinely different name, not the same one spelled worse.
-		byId.set(
-			contributor.id,
-			preferBestName(contributor.name, byId.get(contributor.id)) ??
-				contributor.name,
-		);
+		byId.set(contributor.id, contributor.name);
 	}
 
 	return byId;
 };
 
-const getIssueAssignees = (
-	ticket: Ticket,
-	latestNames: Map<string, string> = new Map(),
-) =>
+const getIssueAssignees = (ticket: Ticket) =>
 	(ticket.props.assignees ?? [])
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter(contributor => contributor != undefined)
-		.map(contributor => {
-			// Unconditional for a tombstoned contributor: the log must never be able
-			// to put a cleared name back.
-			const name = contributor.tombstoned
-				? contributor.name
-				: preferBestName(contributor.name, latestNames.get(contributor.id)) ??
-				  contributor.name;
-
-			return {
-				id: contributor.id,
-				name,
-				color: getStringColor(name),
-			} satisfies ApiIssue['assignees'][number];
-		});
+		.map(
+			({id, name}) =>
+				({
+					id,
+					name,
+					color: getStringColor(name),
+				} satisfies ApiIssue['assignees'][number]),
+		);
 
 export const listBoards = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -401,7 +381,6 @@ export const listIssues = async (input: ListIssuesInput) => {
 	if (isFail(stateResult)) return stateResult;
 
 	const nodes = stateResult.value.nodes;
-	const latestNames = getLatestNamesFromLog();
 
 	const issues: ApiIssue[] = Object.values(nodes)
 		.filter(isTicketNode)
@@ -425,7 +404,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					readonly: Boolean(n.readonly),
 					readonlyReason: n.readonlyReason,
 					tags: getIssueTags(n),
-					assignees: getIssueAssignees(n, latestNames),
+					assignees: getIssueAssignees(n),
 				} satisfies ApiIssue),
 		);
 
@@ -996,7 +975,6 @@ export const deriveGuiState = (): Result<ApiState> => {
 
 	const nodes = Object.values(stateResult.value.nodes);
 	const boards = nodes.filter(n => isBoardNode(n) && !n.isDeleted);
-	const latestNames = getLatestNamesFromLog();
 
 	const swimlanesByBoardId = new Map<string, Swimlane[]>();
 	const ticketsBySwimlaneId = new Map<string, Ticket[]>();
@@ -1099,7 +1077,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										readonlyReason: issue.readonlyReason,
 										tags: getIssueTags(issue),
-										assignees: getIssueAssignees(issue, latestNames),
+										assignees: getIssueAssignees(issue),
 										parentNodeId: issue.parentNodeId!,
 										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 									})),

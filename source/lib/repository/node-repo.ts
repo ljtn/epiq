@@ -433,6 +433,29 @@ export const nodeRepo = {
 		return succeeded('Tombstoned contributor', tombstoned);
 	},
 
+	// Refuses a tombstoned record: the name there was deliberately cleared, and
+	// a rename would quietly put it back. `restoreContributor` is that path.
+	renameContributor(contributorId: string, name: string): Result<Contributor> {
+		const contributor = this.getContributor(contributorId);
+		if (!contributor) return failed('Contributor not found');
+		if (contributor.tombstoned) {
+			return failed('Cannot rename a removed contributor');
+		}
+
+		const renamed: Contributor = {...contributor, name};
+
+		const result = updateState(s => ({
+			...s,
+			contributors: {
+				...s.contributors,
+				[contributorId]: renamed,
+			},
+		}));
+
+		if (isFail(result)) return failed('Unable to rename contributor');
+		return succeeded('Renamed contributor', renamed);
+	},
+
 	restoreContributor(contributorId: string, name: string): Result<Contributor> {
 		const contributor = this.getContributor(contributorId);
 		if (!contributor) return failed('Contributor not found');
