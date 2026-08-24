@@ -54,18 +54,11 @@ export const PersistedEventSchema = z.looseObject({
 	id: CompositeIdSchema,
 });
 
-// Open-ended, unlike `CompositeIdSchema`: a closed tuple would hard-fail the
-// whole file the day a version appends a third element, which is the bricking
-// the envelope exists to prevent. Only the two leading slots are relied on.
-const EnvelopeIdSchema = z
-	.tuple([z.string().min(1), z.string().min(1).nullable()])
-	.rest(z.unknown());
-
 // Stable across every schema version, so ancestry stays readable on a line
 // whose payload is not. Only the payload may change shape.
 export const PersistedEnvelopeSchema = z.looseObject({
 	v: z.number().int().positive(),
-	id: EnvelopeIdSchema,
+	id: CompositeIdSchema,
 });
 
 export type PersistedEnvelope = z.infer<typeof PersistedEnvelopeSchema>;
