@@ -17,12 +17,11 @@ vi.mock('../lib/event/event-load.js', () => ({
 	getLastUnreadableEvents: vi.fn(() => []),
 }));
 
-vi.mock('../lib/event/event-materialize.js', () => ({
+vi.mock('../lib/event/event-materialize.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/event/event-materialize.js')>(
+		'../lib/event/event-materialize.js',
+	)),
 	materializeAll: vi.fn(),
-}));
-
-vi.mock('../lib/event/event-boot.js', () => ({
-	relockUnreadableEvents: vi.fn(),
 }));
 
 vi.mock('../lib/model/app-state.model.js', () => ({
@@ -58,8 +57,6 @@ import {
 } from '../lib/event/event-load.js';
 
 import {materializeAll} from '../lib/event/event-materialize.js';
-
-import {relockUnreadableEvents} from '../lib/event/event-boot.js';
 
 import {findInBreadCrumb} from '../lib/model/app-state.model.js';
 
@@ -141,7 +138,6 @@ describe('peekCommand', () => {
 		// The rebuild above dropped every load-derived lock, so reopening writes
 		// without re-deriving them hands back a writable board over a log this
 		// build cannot fully read.
-		expect(relockUnreadableEvents).toHaveBeenCalled();
 
 		if (isFail(result)) return result;
 		expect(isSuccess(result)).toBe(true);

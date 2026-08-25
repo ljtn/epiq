@@ -1,8 +1,11 @@
 import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
 import {getEventTime} from '../../event/date-utils.js';
-import {relockUnreadableEvents} from '../../event/event-boot.js';
 import {loadMergedEvents} from '../../event/event-load.js';
-import {materializeAll} from '../../event/event-materialize.js';
+import {
+	logSkippedEvents,
+	materializeAll,
+	partitionMaterializeResults,
+} from '../../event/event-materialize.js';
 import {Mode} from '../../model/action-map.model.js';
 import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
@@ -39,11 +42,12 @@ export const peekCommand = async () => {
 		if (isFail(resetResult)) return resetResult;
 
 		const materializeResult = materializeAll(eventsResult.value);
-		const materializeFailures = materializeResult.filter(isFail);
+		const {fatal, skipped} = partitionMaterializeResults(materializeResult);
 
-		if (materializeFailures.length > 0) {
-			return failed(materializeFailures.map(x => x.message).join(', '));
+		if (fatal.length > 0) {
+			return failed(fatal.map(x => x.message).join(', '));
 		}
+		logSkippedEvents(skipped);
 
 		patchState({
 			mode: Mode.DEFAULT,
@@ -55,10 +59,6 @@ export const peekCommand = async () => {
 			unappliedEvents: [],
 			replay: null,
 		});
-
-		// `materializeAll` above rebuilt the nodes from scratch, so the
-		// load-derived locks have to be re-applied.
-		relockUnreadableEvents();
 
 		return succeeded('Peeking now', true);
 	}

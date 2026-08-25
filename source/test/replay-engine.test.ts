@@ -11,7 +11,10 @@ vi.mock('../lib/state/state.js', () => ({
 	patchState: vi.fn(),
 }));
 
-vi.mock('../lib/event/event-materialize.js', () => ({
+vi.mock('../lib/event/event-materialize.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/event/event-materialize.js')>(
+		'../lib/event/event-materialize.js',
+	)),
 	materialize: vi.fn(() => ({status: 'success', message: 'ok', value: {}})),
 	getAffectedNodeIds: vi.fn(() => []),
 }));
@@ -20,12 +23,7 @@ vi.mock('../lib/event/format-log-utils.js', () => ({
 	describeEvent: vi.fn(() => 'Created with title "x"'),
 }));
 
-vi.mock('../lib/event/event-boot.js', () => ({
-	relockUnreadableEvents: vi.fn(),
-}));
-
 import {patchState} from '../lib/state/state.js';
-import {relockUnreadableEvents} from '../lib/event/event-boot.js';
 import {materialize} from '../lib/event/event-materialize.js';
 import {
 	cancelActiveReplay,
@@ -158,7 +156,6 @@ describe('startReplay', () => {
 		// The checkout that started the movie dropped every load-derived lock, so
 		// reopening writes without re-deriving them hands back a writable board
 		// over a log this build cannot fully read.
-		expect(relockUnreadableEvents).toHaveBeenCalled();
 	});
 
 	it('aborts the movie to live if an event fails to re-apply', () => {

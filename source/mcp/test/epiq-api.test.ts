@@ -358,8 +358,6 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 		getCommentsByIssue: vi.fn(() => []),
 		getAttachmentsByIssue: vi.fn(() => []),
 	},
-	readonlyMessage: (node: {readonlyReason?: string}, fallback: string) =>
-		node.readonlyReason ?? fallback,
 }));
 
 vi.mock('../epiq-time-travel.js', () => ({

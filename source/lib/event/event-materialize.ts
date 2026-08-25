@@ -1,3 +1,4 @@
+import {logger} from '../../logger.js';
 import {
 	isBoardNode,
 	isFieldNode,
@@ -42,6 +43,53 @@ const materializeFail = <A extends AppEvent>(
 			event.action.split('.').join(' ') + ' failed, ' + msg.toLowerCase()
 		}. Evt id: ${event.id}`,
 	);
+
+/**
+ * A precondition failure: the event lost a race, or names state this replay
+ * never applied — the ordinary result of a merge, or of skipping an action
+ * this build does not know. Replay skips these so it converges; failing the
+ * whole boot instead means one concurrent edit can leave a board that never
+ * opens again, for whoever's build understands the most.
+ *
+ * Still a failure, so a live write rejects it: there the precondition is the
+ * answer the caller asked for.
+ */
+type ConvergenceFail = ReturnFail & {convergence: true};
+
+const materializeSkip = <A extends AppEvent>(
+	msg: string,
+	event: A,
+): ConvergenceFail => ({...materializeFail(msg, event), convergence: true});
+
+export const isConvergenceFail = (result: Result): boolean =>
+	isFail(result) && (result as Partial<ConvergenceFail>).convergence === true;
+
+/**
+ * Splits replay results into a log that is actually broken and events that
+ * merely lost. Every replay path aborts on the first and skips the second.
+ */
+export const partitionMaterializeResults = (
+	results: readonly Result[],
+): {fatal: ReturnFail[]; skipped: ReturnFail[]} => {
+	const failures = results.filter(isFail);
+
+	return {
+		fatal: failures.filter(failure => !isConvergenceFail(failure)),
+		skipped: failures.filter(isConvergenceFail),
+	};
+};
+
+export const logSkippedEvents = (skipped: readonly ReturnFail[]): void => {
+	if (skipped.length === 0) return;
+
+	logger.info(
+		`Skipped ${
+			skipped.length
+		} event(s) that could not be applied to this state: ${skipped
+			.map(failure => failure.message)
+			.join('; ')}`,
+	);
+};
 
 const refreshTicketVirtualNodes = (nodeId: string): ReturnFail | null => {
 	const node = nodeRepo.getNode(nodeId);
@@ -180,7 +228,7 @@ const materializeHandlers: MaterializeHandlers = {
 
 		const result = nodeRepo.createNode(workspace);
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Failed to initialize workspace',
 				event,
 			);
@@ -201,7 +249,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.createNode(nodes.workspace(id, name, rank));
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Failed to add workspace',
 				event,
 			);
@@ -222,7 +270,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.createNode(nodes.board(id, name, parentId, rank));
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to create board', event);
+			return materializeSkip(result.message ?? 'Unable to create board', event);
 		}
 
 		if (!isBoardNode(result.value)) {
@@ -242,7 +290,7 @@ const materializeHandlers: MaterializeHandlers = {
 		);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to create swimlane',
 				event,
 			);
@@ -263,7 +311,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.createNode(nodes.ticket(id, name, parentId, rank));
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to create issue', event);
+			return materializeSkip(result.message ?? 'Unable to create issue', event);
 		}
 
 		if (!isTicketNode(result.value)) {
@@ -293,7 +341,7 @@ const materializeHandlers: MaterializeHandlers = {
 		);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? `Unable to create field: ${name}`,
 				event,
 			);
@@ -314,12 +362,12 @@ const materializeHandlers: MaterializeHandlers = {
 		const node = nodeRepo.getNode(id);
 
 		if (!node) {
-			return materializeFail(`Unable to locate node with id ${id}`, event);
+			return materializeSkip(`Unable to locate node with id ${id}`, event);
 		}
 
 		const result = nodeRepo.renameNode(id, name);
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to edit title', event);
+			return materializeSkip(result.message ?? 'Unable to edit title', event);
 		}
 
 		return succeeded('Edited title', {
@@ -333,7 +381,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.tombstoneNode(id);
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to delete node', event);
+			return materializeSkip(result.message ?? 'Unable to delete node', event);
 		}
 
 		return succeeded('Deleted node', {
@@ -347,7 +395,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.createTag({id, name});
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to create tag', event);
+			return materializeSkip(result.message ?? 'Unable to create tag', event);
 		}
 
 		return succeeded('Tag added', {
@@ -361,7 +409,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.createContributor({id, name});
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to create contributor',
 				event,
 			);
@@ -378,7 +426,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.renameContributor(id, name);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to rename contributor',
 				event,
 			);
@@ -395,7 +443,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.tombstoneContributor(id);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to remove contributor',
 				event,
 			);
@@ -412,7 +460,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.restoreContributor(id, name);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to restore contributor',
 				event,
 			);
@@ -429,7 +477,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.tag(id, tag);
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to tag issue', event);
+			return materializeSkip(result.message ?? 'Unable to tag issue', event);
 		}
 
 		return succeeded('Issue tagged', {
@@ -443,7 +491,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.untag(id, tag);
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to untag issue', event);
+			return materializeSkip(result.message ?? 'Unable to untag issue', event);
 		}
 
 		return succeeded('Issue untagged', {
@@ -457,7 +505,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.assign(id, assignee);
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to assign issue', event);
+			return materializeSkip(result.message ?? 'Unable to assign issue', event);
 		}
 
 		return succeeded('Assigned successfully', {
@@ -471,7 +519,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.unassign(id, assignee);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to unassign issue',
 				event,
 			);
@@ -493,7 +541,7 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Failed to move node', event);
+			return materializeSkip(result.message ?? 'Failed to move node', event);
 		}
 
 		return succeeded('Moved node', {
@@ -507,7 +555,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.editValue(id, md);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to edit description',
 				event,
 			);
@@ -523,17 +571,17 @@ const materializeHandlers: MaterializeHandlers = {
 		const {id, parent: parentId, rank} = event.payload;
 		const node = nodeRepo.getNode(id);
 
-		if (!node) return materializeFail('Unable to locate issue', event);
+		if (!node) return materializeSkip('Unable to locate issue', event);
 		if (!isTicketNode(node))
-			return materializeFail('Can only close issues', event);
+			return materializeSkip('Can only close issues', event);
 
 		const closeSwimlane = nodeRepo.getNode(CLOSED_SWIMLANE_ID);
 		if (!closeSwimlane) {
-			return materializeFail('Unable to locate target swimlane', event);
+			return materializeSkip('Unable to locate target swimlane', event);
 		}
 
 		if (parentId !== closeSwimlane.id) {
-			return materializeFail('Close target must be closed swimlane', event);
+			return materializeSkip('Close target must be closed swimlane', event);
 		}
 
 		const result = nodeRepo.moveNodeToRank({
@@ -543,7 +591,7 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to close issue', event);
+			return materializeSkip(result.message ?? 'Unable to close issue', event);
 		}
 
 		return succeeded('Issue closed', {
@@ -556,22 +604,22 @@ const materializeHandlers: MaterializeHandlers = {
 		const {id, parent: parentId, rank} = event.payload;
 		const node = nodeRepo.getNode(id);
 
-		if (!node) return materializeFail('Unable to locate issue', event);
+		if (!node) return materializeSkip('Unable to locate issue', event);
 		if (!isTicketNode(node))
-			return materializeFail('Can only reopen issues', event);
+			return materializeSkip('Can only reopen issues', event);
 
 		const closeSwimlane = nodeRepo.getNode(CLOSED_SWIMLANE_ID);
 		if (!closeSwimlane) {
-			return materializeFail('Unable to locate closed swimlane', event);
+			return materializeSkip('Unable to locate closed swimlane', event);
 		}
 
 		if (parentId === closeSwimlane.id) {
-			return materializeFail('Cannot reopen issue into closed swimlane', event);
+			return materializeSkip('Cannot reopen issue into closed swimlane', event);
 		}
 
 		const previousParent = nodeRepo.getNode(parentId);
 		if (!previousParent) {
-			return materializeFail('Reopen parent no longer exists', event);
+			return materializeSkip('Reopen parent no longer exists', event);
 		}
 
 		const result = nodeRepo.moveNodeToRank({
@@ -581,7 +629,7 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to reopen issue', event);
+			return materializeSkip(result.message ?? 'Unable to reopen issue', event);
 		}
 
 		return succeeded('Issue reopened', {
@@ -595,7 +643,7 @@ const materializeHandlers: MaterializeHandlers = {
 		const result = nodeRepo.lockNode(id);
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to lock node', event);
+			return materializeSkip(result.message ?? 'Unable to lock node', event);
 		}
 
 		return succeeded('Node locked', {
@@ -610,10 +658,10 @@ const materializeHandlers: MaterializeHandlers = {
 		for (const [id, rank] of Object.entries(ranks)) {
 			const node = nodeRepo.getNode(id);
 
-			if (!node) return materializeFail(`Unable to locate node ${id}`, event);
+			if (!node) return materializeSkip(`Unable to locate node ${id}`, event);
 
 			if (node.parentNodeId !== parent) {
-				return materializeFail(`Node ${id} is not child of ${parent}`, event);
+				return materializeSkip(`Node ${id} is not child of ${parent}`, event);
 			}
 
 			const result = nodeRepo.updateNode({
@@ -622,7 +670,7 @@ const materializeHandlers: MaterializeHandlers = {
 			});
 
 			if (isFail(result)) {
-				return materializeFail(
+				return materializeSkip(
 					result.message ?? 'Unable to rebalance child',
 					event,
 				);
@@ -648,7 +696,7 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to add comment', event);
+			return materializeSkip(result.message ?? 'Unable to add comment', event);
 		}
 
 		return succeeded('Comment added', {
@@ -661,15 +709,15 @@ const materializeHandlers: MaterializeHandlers = {
 		const {id, issue, md} = event.payload;
 
 		const existing = nodeRepo.getComment(id);
-		if (!existing) return materializeFail('Unable to locate comment', event);
+		if (!existing) return materializeSkip('Unable to locate comment', event);
 		if (existing.issue !== issue) {
-			return materializeFail('Comment does not belong to issue', event);
+			return materializeSkip('Comment does not belong to issue', event);
 		}
 
 		const result = nodeRepo.editComment(id, md);
 
 		if (isFail(result)) {
-			return materializeFail(result.message ?? 'Unable to edit comment', event);
+			return materializeSkip(result.message ?? 'Unable to edit comment', event);
 		}
 
 		return succeeded('Comment edited', {
@@ -682,15 +730,15 @@ const materializeHandlers: MaterializeHandlers = {
 		const {id, issue} = event.payload;
 
 		const existing = nodeRepo.getComment(id);
-		if (!existing) return materializeFail('Unable to locate comment', event);
+		if (!existing) return materializeSkip('Unable to locate comment', event);
 		if (existing.issue !== issue) {
-			return materializeFail('Comment does not belong to issue', event);
+			return materializeSkip('Comment does not belong to issue', event);
 		}
 
 		const result = nodeRepo.deleteComment(id);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to delete comment',
 				event,
 			);
@@ -716,7 +764,7 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to add attachment',
 				event,
 			);
@@ -732,15 +780,15 @@ const materializeHandlers: MaterializeHandlers = {
 		const {id, issue} = event.payload;
 
 		const existing = nodeRepo.getAttachment(id);
-		if (!existing) return materializeFail('Unable to locate attachment', event);
+		if (!existing) return materializeSkip('Unable to locate attachment', event);
 		if (existing.issue !== issue) {
-			return materializeFail('Attachment does not belong to issue', event);
+			return materializeSkip('Attachment does not belong to issue', event);
 		}
 
 		const result = nodeRepo.deleteAttachment(id);
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to delete attachment',
 				event,
 			);
@@ -760,7 +808,7 @@ const materializeHandlers: MaterializeHandlers = {
 		});
 
 		if (isFail(result)) {
-			return materializeFail(
+			return materializeSkip(
 				result.message ?? 'Unable to link contributor',
 				event,
 			);

@@ -1,4 +1,5 @@
 import {monotonicFactory, ulid} from 'ulid';
+import {logger} from '../../logger.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {Mode} from '../model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
@@ -10,9 +11,12 @@ import {
 	patchState,
 } from '../state/state.js';
 import {rankBetween} from '../utils/rank.js';
-import {nodeRepo} from '../repository/node-repo.js';
-import {getLastUnreadableEvents, UnreadableEvent} from './event-load.js';
-import {materializeAll} from './event-materialize.js';
+import {UnreadableEvent} from './event-load.js';
+import {
+	logSkippedEvents,
+	materializeAll,
+	partitionMaterializeResults,
+} from './event-materialize.js';
 import {AppEvent} from './event.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
 import {NavNode} from '../model/navigation-node.model.js';
@@ -231,46 +235,20 @@ const isCheckedOutInThePast = (): boolean => {
 	return timeMode === 'peek' || timeMode === 'replay';
 };
 
-// Writing to a node whose history we cannot fully read is a write on a stale
-// view. Scoped per node so one unknown event type does not cost the board.
-const applyUnreadableLocks = (unreadable: UnreadableEvent[]): void => {
+// Replay converges over events it cannot apply, so an unreadable one no longer
+// makes the board a stale view worth locking — it makes some of it out of date,
+// which is the same position any unsynced client is in. Reported, not enforced:
+// locking instead left a board permanently unopenable whenever the action came
+// from a build that never shipped.
+const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 	if (unreadable.length === 0) return;
 
-	// Never skipped: the board-wide fallback below is a fallback, not a
-	// replacement.
-	const unlocalized = unreadable.filter(event => {
-		if (!event.targetNodeId) return true;
+	const detail = [...new Set(unreadable.map(event => event.detail))].join(', ');
 
-		const marked = nodeRepo.markNodeUnreadable(
-			event.targetNodeId,
-			`Part of this item's history was written by a newer epiq (${event.detail}) and cannot be read. Upgrade to edit it.`,
-		);
-
-		// The id named a node this build never materialized — typically because
-		// the unreadable event is what *created* it, or because it is a tag or
-		// contributor rather than a node. Nothing was locked, so nothing bounds
-		// what the event affected either.
-		return isFail(marked);
-	});
-
-	if (unlocalized.length === 0) return;
-
-	const detail = [...new Set(unlocalized.map(event => event.detail))].join(
-		', ',
+	logger.info(
+		`This build cannot read ${unreadable.length} event(s) in the log (${detail}). They are skipped, so anything they changed may be out of date until you upgrade.`,
 	);
-
-	patchState({
-		readOnly: true,
-		readOnlyReason: `This build cannot read ${unlocalized.length} event(s) in the log (${detail}), and cannot tell which items they affect. Upgrade epiq to edit this board.`,
-	});
 };
-
-// Re-derives the locks from the last full load. Every path back to live —
-// `:peek now`, `returnToLive`, the end of a replay — rebuilds the node graph
-// without going through `bootStateFromEventLog`, and would otherwise hand back
-// a writable board over a log this build cannot fully read.
-export const relockUnreadableEvents = (): void =>
-	applyUnreadableLocks(getLastUnreadableEvents());
 
 export function bootStateFromEventLog(
 	eventLog: AppEvent[],
@@ -307,20 +285,20 @@ export function bootStateFromEventLog(
 
 	const results = materializeAll(eventLog);
 
-	const failures = results.filter(isFail);
-	if (failures.length > 0) {
+	const {fatal, skipped} = partitionMaterializeResults(results);
+	if (fatal.length > 0) {
 		return failed(
-			`Materializing failed:\n${failures.map(x => x.message).join('\n')}`,
+			`Materializing failed:\n${fatal.map(x => x.message).join('\n')}`,
 		);
 	}
+	logSkippedEvents(skipped);
 	navigateToInitialNode();
 
 	patchState({
 		hasProjectDefinition: true,
 	});
 
-	// After materializing: the nodes have to exist before they can be locked.
-	applyUnreadableLocks(unreadable);
+	reportUnreadableEvents(unreadable);
 
 	return succeeded('State booted successfully', null);
 }

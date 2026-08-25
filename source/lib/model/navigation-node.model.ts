@@ -49,8 +49,6 @@ export type NavNode<U extends AnyContext> = {
 	childRenderAxis: 'vertical' | 'horizontal';
 	childNavigationAcrossParents?: boolean;
 	readonly: boolean;
-	/** Set only for a lock derived at load time, not the node's own. */
-	readonlyReason?: string;
 	log: AppEvent[];
 	isVirtual?: boolean;
 };

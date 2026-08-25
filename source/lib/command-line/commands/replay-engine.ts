@@ -1,9 +1,9 @@
 import {getEventTime} from '../../event/date-utils.js';
-import {relockUnreadableEvents} from '../../event/event-boot.js';
 import {AppEvent} from '../../event/event.model.js';
 import {describeEvent} from '../../event/format-log-utils.js';
 import {
 	getAffectedNodeIds,
+	isConvergenceFail,
 	materialize,
 } from '../../event/event-materialize.js';
 import {Mode} from '../../model/action-map.model.js';
@@ -61,10 +61,6 @@ const finishReplay = (): void => {
 		// handed control back (replay starts with nothing selected).
 		selectedIndex: 0,
 	});
-
-	// The checkout that started the movie rebuilt the nodes from scratch, so the
-	// load-derived locks have to be re-applied before writes reopen.
-	relockUnreadableEvents();
 };
 
 // Build the normalized [0..1] position at which each event should have played.
@@ -153,6 +149,14 @@ export const startReplay = ({
 			const result = materialize(event);
 
 			if (isFail(result)) {
+				// Lost a race in the merged log — the same event live replay skips.
+				// Stopping the movie for one would make an ordinary merge look like
+				// a broken board.
+				if (isConvergenceFail(result)) {
+					cursor++;
+					continue;
+				}
+
 				// A real, already-persisted event failed to re-apply. Stop the movie
 				// rather than risk leaving an inconsistent board on screen, and hand
 				// control back to the live, editable head.
@@ -170,7 +174,7 @@ export const startReplay = ({
 			for (; cursor < totalCount; cursor++) {
 				const result = materialize(events[cursor]!);
 
-				if (isFail(result)) break;
+				if (isFail(result) && !isConvergenceFail(result)) break;
 			}
 
 			// Snap the scrubber to a full bar and let it paint for a beat before

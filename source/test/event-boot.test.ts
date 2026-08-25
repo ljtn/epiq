@@ -164,7 +164,11 @@ describe('event boot', () => {
 		expect(getState().nodes['swimlane-1']?.parentNodeId).toBe('board-1');
 	});
 
-	describe('unreadable events lock what they touched', () => {
+	// Replay converges over events it cannot apply, so an unreadable one no
+	// longer locks anything. Locking left a board permanently unopenable
+	// whenever the action came from a build that never shipped, and "upgrade
+	// epiq" was then advice nobody could follow.
+	describe('unreadable events are reported, not enforced', () => {
 		const log = () =>
 			[
 				event('init.workspace', {
@@ -186,8 +190,7 @@ describe('event boot', () => {
 				}),
 			] as const;
 
-		// Scoped, not board-wide.
-		it('locks only the targeted node, leaving the rest writable', () => {
+		it('leaves the board writable whether or not the event can be placed', () => {
 			const result = bootStateFromEventLog(
 				[...log()],
 				[
@@ -197,25 +200,8 @@ describe('event boot', () => {
 						detail: 'future.mystery.action',
 						targetNodeId: 'board-1',
 					},
-				],
-			);
-
-			expect(isFail(result)).toBe(false);
-			expect(getState().nodes['board-1']?.readonly).toBe(true);
-			expect(getState().nodes['board-1']?.readonlyReason).toContain(
-				'newer epiq',
-			);
-			expect(getState().nodes['swimlane-1']?.readonly).toBe(false);
-			expect(getState().readOnly).toBe(false);
-		});
-
-		// No target means no bound on what it affected.
-		it('falls back to a board-wide lock when an unreadable event cannot be localized', () => {
-			const result = bootStateFromEventLog(
-				[...log()],
-				[
 					{
-						eventId: '01H0000000000000000000000Z',
+						eventId: '01H0000000000000000000000Y',
 						reason: 'unsupported-schema-version',
 						detail: 'v2',
 						targetNodeId: null,
@@ -224,36 +210,10 @@ describe('event boot', () => {
 			);
 
 			expect(isFail(result)).toBe(false);
-			expect(getState().readOnly).toBe(true);
-			expect(getState().readOnlyReason).toContain('Upgrade epiq');
-		});
-
-		// One event we cannot place must not discard what we know about the rest.
-		it('still locks localizable nodes when another event forces a board-wide lock', () => {
-			const result = bootStateFromEventLog(
-				[...log()],
-				[
-					{
-						eventId: '01H0000000000000000000000Y',
-						reason: 'unknown-action',
-						detail: 'future.mystery.action',
-						targetNodeId: 'board-1',
-					},
-					{
-						eventId: '01H0000000000000000000000Z',
-						reason: 'unknown-action',
-						detail: 'future.bulk.action',
-						targetNodeId: null,
-					},
-				],
-			);
-
-			expect(isFail(result)).toBe(false);
-			expect(getState().readOnly).toBe(true);
-			expect(getState().nodes['board-1']?.readonly).toBe(true);
-			// Names only the event that could not be placed.
-			expect(getState().readOnlyReason).toContain('future.bulk.action');
-			expect(getState().readOnlyReason).not.toContain('future.mystery.action');
+			expect(getState().readOnly).toBe(false);
+			expect(getState().readOnlyReason).toBeUndefined();
+			expect(getState().nodes['board-1']?.readonly).toBe(false);
+			expect(getState().nodes['swimlane-1']?.readonly).toBe(false);
 		});
 
 		it('leaves everything writable when nothing was unreadable', () => {
@@ -386,7 +346,11 @@ describe('event boot', () => {
 		expect(targetResult.value.selectedIndex).toBe(0);
 	});
 
-	it('fails boot when event materialization fails', () => {
+	// An event naming state this replay never applied is the ordinary result of
+	// a merge, or of skipping an action this build does not know. Failing the
+	// boot for one means a single concurrent edit leaves a board that never
+	// opens again — and for whoever's build understands the most.
+	it('skips an event whose target does not exist instead of failing boot', () => {
 		const result = bootStateFromEventLog([
 			event('init.workspace', {
 				id: 'workspace-1',
@@ -399,10 +363,55 @@ describe('event boot', () => {
 			}),
 		]);
 
+		expect(isFail(result)).toBe(false);
+		expect(getState().nodes['workspace-1']).toBeDefined();
+	});
+
+	// The bug that prompted the split: a rename that arrives after a tombstone
+	// for the same contributor. Tombstone wins, and the board still opens.
+	it('skips a rename that lost to a tombstone', () => {
+		const result = bootStateFromEventLog([
+			event('init.workspace', {
+				id: 'workspace-1',
+				name: 'Workspace',
+				rank: rank(),
+			}),
+			event('create.contributor', {id: 'c1', name: 'Bob'}),
+			event('tombstone.contributor', {id: 'c1'}),
+			event('rename.contributor', {id: 'c1', name: 'Rob'}),
+		]);
+
+		expect(isFail(result)).toBe(false);
+		expect(getState().contributors['c1']?.name).toBe('removed');
+	});
+
+	// A broken actor is not a lost race, so it still stops the boot.
+	it('still fails boot on a corrupt event', () => {
+		// The handler has to succeed for the actor check to be reached: it runs
+		// after materialization, so a precondition failure short-circuits it.
+		const corrupt = {
+			...event('add.board', {
+				id: 'board-9',
+				name: 'Board',
+				parent: 'workspace-1',
+				rank: rank(),
+			}),
+			userId: '',
+			userName: '',
+		} as AppEvent;
+
+		const result = bootStateFromEventLog([
+			event('init.workspace', {
+				id: 'workspace-1',
+				name: 'Workspace',
+				rank: rank(),
+			}),
+			corrupt,
+		]);
+
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
 			expect(result.message).toContain('Materializing failed');
-			expect(result.message).toContain('edit title failed');
 		}
 	});
 });

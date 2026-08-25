@@ -15,11 +15,10 @@ vi.mock('../lib/event/event-load.js', () => ({
 	getLastUnreadableEvents: vi.fn(() => []),
 }));
 
-vi.mock('../lib/event/event-boot.js', () => ({
-	relockUnreadableEvents: vi.fn(),
-}));
-
-vi.mock('../lib/event/event-materialize.js', () => ({
+vi.mock('../lib/event/event-materialize.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/event/event-materialize.js')>(
+		'../lib/event/event-materialize.js',
+	)),
 	materializeAll: vi.fn(),
 }));
 
@@ -75,7 +74,6 @@ import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
-import {relockUnreadableEvents} from '../lib/event/event-boot.js';
 import {materializeAll} from '../lib/event/event-materialize.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
@@ -964,7 +962,6 @@ describe('epiq-time-travel', () => {
 			// The rebuild above dropped every load-derived lock, so reopening
 			// writes without re-deriving them hands back a writable board over a
 			// log this build cannot fully read.
-			expect(relockUnreadableEvents).toHaveBeenCalled();
 
 			expect(isSuccess(result)).toBe(true);
 		});

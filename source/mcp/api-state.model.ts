@@ -23,7 +23,6 @@ export type ApiIssue = {
 	createdAt: number;
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
-	readonlyReason?: string;
 	tags: ApiTag[];
 	assignees: ApiAssignee[];
 	parentNodeId: string;
@@ -35,7 +34,6 @@ export type ApiSwimlane = {
 	title: string;
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
-	readonlyReason?: string;
 	issues: ApiIssue[];
 	parentNodeId: string;
 };
@@ -59,7 +57,6 @@ export type ApiBoard = {
 	// scrubbed — the same forcing the swimlanes and issues below already get.
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
-	readonlyReason?: string;
 	swimlanes: ApiSwimlane[];
 };
 
