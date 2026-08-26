@@ -27,11 +27,29 @@ import {
 	normalizeExistingPath,
 } from './git-utils.js';
 
+/**
+ * Creates the one commit a repository needs before it can carry a branch, for
+ * the case where epiq is initialized in a repo that has none.
+ *
+ * Only ever called from `:init`. This writes in the user's own repository,
+ * which may hold unrelated or confidential work, so it is deliberately hard to
+ * fire and incapable of taking anything with it:
+ *
+ * - It fails closed. `rev-parse --verify --quiet HEAD` exits non-zero both for
+ *   an unborn HEAD and for a command that simply failed — a timeout is 124, a
+ *   spawn error 1 — so only the unmistakable signal counts: exit 1 with no
+ *   output at all. Anything else and we leave the repo alone.
+ * - It never reads the index. `commit-tree` over the empty tree cannot pick up
+ *   staged files, so even a caller that gets the check wrong cannot commit
+ *   somebody's work.
+ */
+export const INITIAL_COMMIT_MESSAGE = '[epiq:init-repo]';
+
 export const ensureInitialCommit = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
 	const headResult = await execGitAllowFail({
-		args: ['rev-parse', '--verify', 'HEAD'],
+		args: ['rev-parse', '--verify', '--quiet', 'HEAD'],
 		cwd: repoRoot,
 	});
 
@@ -39,15 +57,47 @@ export const ensureInitialCommit = async (
 		return succeeded('Initial commit already exists', false);
 	}
 
+	const isUnbornHead =
+		headResult.exitCode === 1 &&
+		headResult.stdout.trim() === '' &&
+		headResult.stderr.trim() === '';
+
+	if (!isUnbornHead) {
+		return failed(
+			[
+				'Could not determine whether the repository has any commits, so nothing was written.',
+				`git rev-parse exited ${headResult.exitCode}`,
+				headResult.stderr.trim(),
+			]
+				.filter(Boolean)
+				.join('\n'),
+		);
+	}
+
 	logger.info('Creating initial commit');
 
-	const commitResult = await git.commit({
+	const emptyTreeResult = await execGit({
+		args: ['hash-object', '-w', '-t', 'tree', '/dev/null'],
 		cwd: repoRoot,
-		message: 'Initial commit',
-		allowEmpty: true,
 	});
+	if (isFail(emptyTreeResult)) return failed(emptyTreeResult.message);
 
+	const commitResult = await execGit({
+		args: [
+			'commit-tree',
+			emptyTreeResult.value.stdout.trim(),
+			'-m',
+			INITIAL_COMMIT_MESSAGE,
+		],
+		cwd: repoRoot,
+	});
 	if (isFail(commitResult)) return failed(commitResult.message);
+
+	const updateRefResult = await execGit({
+		args: ['update-ref', 'HEAD', commitResult.value.stdout.trim()],
+		cwd: repoRoot,
+	});
+	if (isFail(updateRefResult)) return failed(updateRefResult.message);
 
 	return succeeded('Created initial commit', true);
 };

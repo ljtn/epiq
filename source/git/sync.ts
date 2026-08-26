@@ -23,7 +23,6 @@ import {
 import {
 	bootstrapStateBranchStorage,
 	createStateBranchSyncCommit,
-	ensureInitialCommit,
 	pushStateBranch,
 	stageStateBranchMediaFiles,
 	stageStateBranchOwnEventFile,
@@ -240,16 +239,6 @@ const ensureSyncReady = async ({
 	const stateBranchRoot = stateBranchRootResult.value;
 
 	logger.debug('[sync] state branch root', stateBranchRoot);
-
-	const initResult = trace(
-		'ensureInitialCommit',
-		await ensureInitialCommit(repoRoot),
-	);
-	if (isFail(initResult)) return failed(initResult.message);
-
-	logger.debug('[sync] initial commit result', {
-		created: initResult.value,
-	});
 
 	logger.debug('[sync] bootstrapping state branch storage', {
 		repoRoot,
