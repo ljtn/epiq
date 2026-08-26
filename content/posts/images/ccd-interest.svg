@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" role="img" aria-label="The cost of rebuilding understanding rises faster than the budget set aside for it">
+	<style>
+		.ax   { fill: none; stroke: rgba(78,84,133,.7); stroke-width: 1; }
+		.axl  { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .1em; }
+		.curve{ fill: none; stroke: #75d2fd; stroke-width: 1.4; }
+		.bud  { fill: none; stroke: #c6a7ff; stroke-width: 1; stroke-dasharray: 5 5; opacity: .85; }
+		.budl { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #c6a7ff; }
+		.mk   { fill: none; stroke: #75d2fd; stroke-width: 1.2; }
+		.lbl  { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
+		.gap  { fill: none; stroke: #c6a7ff; stroke-width: 1; }
+	</style>
+
+	<path class="ax" d="M96 46 V236 H660" />
+	<text class="axl" x="96" y="258">TIME</text>
+	<text class="axl" x="40" y="141" transform="rotate(-90 40 141)" text-anchor="middle">COST TO REBUILD THE THEORY</text>
+
+	<!-- what you set aside -->
+	<path class="bud" d="M96 150 H660" />
+	<text class="budl" x="104" y="142">what you budgeted</text>
+
+	<!-- what it actually costs: the gap widens on its own -->
+	<path class="curve" d="M96 222 C 230 216, 340 202, 428 178 C 505 156, 562 118, 600 76" />
+
+	<circle class="mk" cx="96" cy="222" r="3.5" />
+	<text class="lbl" x="110" y="210">debt taken on</text>
+
+	<circle class="mk" cx="600" cy="76" r="3.5" />
+	<text class="lbl" x="588" y="62" text-anchor="end">“we’ll repay it next quarter”</text>
+
+	<!-- the interest nobody planned for -->
+	<path class="gap" d="M616 84 V150 M611 84 H621 M611 150 H621" />
+	<text class="budl" x="628" y="121">interest</text>
+</svg>

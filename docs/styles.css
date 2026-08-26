@@ -977,6 +977,7 @@ kbd {
 	background: rgba(255, 255, 255, 0.02);
 }
 .post-cover img {
+	margin: 0;
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
@@ -1083,6 +1084,7 @@ kbd {
 }
 .article-cover img {
 	display: block;
+	margin: 0;
 	width: 100%;
 	height: auto;
 }
@@ -1212,10 +1214,37 @@ kbd {
 	border-radius: 0 8px 8px 0;
 	color: var(--muted);
 }
+/* A "---" in a post is a breath, not a rule: two lines fading out from a small
+   outline glyph. The glyph cycles through three motifs borrowed from the rest
+   of the site — a commit node, the wordmark's colon, an event diamond — so
+   repeated dividers in one post don't read as a repeated stamp. */
 .prose hr {
 	border: 0;
-	border-top: 1px solid var(--line);
-	margin: 42px 0;
+	height: 16px;
+	margin: 52px 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 40px;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='16' viewBox='0 0 20 16'%3E%3Ccircle cx='10' cy='8' r='3.25' fill='none' stroke='%236f86a3' stroke-width='1'/%3E%3C/svg%3E");
+}
+.prose hr::before,
+.prose hr::after {
+	content: "";
+	height: 1px;
+	width: min(150px, 26%);
+	background: linear-gradient(90deg, transparent, var(--line));
+}
+.prose hr::after {
+	background: linear-gradient(90deg, var(--line), transparent);
+}
+.prose hr:nth-of-type(3n + 2) {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='16' viewBox='0 0 20 16'%3E%3Ccircle cx='10' cy='4.6' r='1.5' fill='none' stroke='%236f86a3' stroke-width='1'/%3E%3Ccircle cx='10' cy='11.4' r='1.5' fill='none' stroke='%236f86a3' stroke-width='1'/%3E%3C/svg%3E");
+}
+.prose hr:nth-of-type(3n) {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='16' viewBox='0 0 20 16'%3E%3Cpath d='M10 3.6 L14.4 8 L10 12.4 L5.6 8 Z' fill='none' stroke='%236f86a3' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 /* Tables scroll inside their own box so a wide one never widens the page. */
 .md-table-wrap {
@@ -1234,6 +1263,11 @@ kbd {
 	padding: 10px 16px;
 	text-align: left;
 	border-bottom: 1px solid var(--line);
+}
+/* Prose wraps rather than forcing a scroll; only the label column is held on
+   one line, so the rows stay readable side by side. */
+.md-table td:first-child,
+.md-table th:first-child {
 	white-space: nowrap;
 }
 .md-table th {
@@ -1264,15 +1298,18 @@ kbd {
 }
 .md-figure img {
 	display: block;
+	margin: 0;
 	width: 100%;
 	height: auto;
 	border: 1px solid var(--line);
 	border-radius: 8px;
 }
 .md-figure figcaption {
-	margin-top: 10px;
+	max-width: 46ch;
+	margin: 10px auto 0;
 	color: var(--dim);
 	font: 12px var(--mono);
+	line-height: 1.5;
 	text-align: center;
 }
 

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" width="720" height="330" role="img" aria-label="Layered architecture scored for cost of cognitive debt">
+	<style>
+		.lbl  { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
+		.sub  { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .08em; }
+		.note { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .1em; }
+		.leakl{ font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #c6a7ff; letter-spacing: .08em; opacity: .9; }
+		.hi   { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #75d2fd; }
+		.lo   { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #c6a7ff; }
+		.bar  { fill: none; stroke: #75d2fd; stroke-width: 1; opacity: .75; }
+		.dom  { fill: none; stroke: #6f86a3; stroke-width: 1; }
+		.leak { fill: none; stroke: #c6a7ff; stroke-width: 1; stroke-dasharray: 4 4; opacity: .85; }
+		.tick { fill: none; stroke: rgba(78,84,133,.6); stroke-width: 1; }
+	</style>
+
+	<!-- layers humans must keep the theory of -->
+	<rect class="bar" x="78" y="26" width="626" height="52" rx="6" />
+	<text class="lbl" x="98" y="49">Core business rules</text>
+	<text class="sub" x="98" y="66">money, safety, the rules the strategy rests on</text>
+	<text class="hi" x="684" y="57" text-anchor="end">CCD 10</text>
+
+	<rect class="bar" x="78" y="90" width="626" height="52" rx="6" />
+	<text class="lbl" x="98" y="113">Infrastructure &amp; availability</text>
+	<text class="sub" x="98" y="130">anything that can take the system down</text>
+	<text class="hi" x="684" y="121" text-anchor="end">CCD 8</text>
+
+	<text class="note" x="78" y="166">HUMANS HOLD THE THEORY — NO UNATTENDED AGENTS</text>
+
+	<path class="tick" d="M78 178 H704" />
+
+	<!-- contained domains, where debt can be taken on deliberately -->
+	<rect class="dom" x="78" y="198" width="194" height="64" rx="6" />
+	<text class="lbl" x="94" y="226">Reporting</text>
+	<text class="lo" x="256" y="252" text-anchor="end">CCD 2</text>
+
+	<rect class="dom" x="294" y="198" width="194" height="64" rx="6" />
+	<text class="lbl" x="310" y="226">Recommendations</text>
+	<text class="lo" x="472" y="252" text-anchor="end">CCD 3</text>
+
+	<rect class="dom" x="510" y="198" width="194" height="64" rx="6" />
+	<text class="lbl" x="526" y="226">Internal tooling</text>
+	<text class="lo" x="688" y="252" text-anchor="end">CCD 2</text>
+
+	<text class="note" x="78" y="286">CONTAINED BLAST RADIUS — AGENTS, DELIBERATELY, WITH A REPAYMENT PLAN</text>
+
+	<!-- the containment is not perfect: assumptions travel up the stack -->
+	<path class="leak" d="M50 246 V52" />
+	<path class="leak" d="M43 62 L50 48 L57 62" />
+	<text class="leakl" x="26" y="149" transform="rotate(-90 26 149)" text-anchor="middle">assumptions leak upward</text>
+</svg>
