@@ -8,15 +8,17 @@ Everything under `docs/blog/` is generated. Never edit it by hand.
 ## The loop
 
 ```sh
-node scripts/build-blog.mjs --new "My New Post"   # scaffold
-node scripts/build-blog.mjs --serve               # preview on :8777, rebuilds on save
+npm run blog:new -- "My New Post"   # scaffold
+npm run blog:serve                  # preview on :8777, rebuilds on save
 ```
 
-Leave `--serve` running while you write. Save the file, refresh the browser.
+Leave `blog:serve` running while you write. Save the file, refresh the browser.
+Prefer opening the files straight off disk? `npm run blog:watch` rebuilds on
+save without starting a server.
 When you're happy, delete `draft: true` and build once more:
 
 ```sh
-node scripts/build-blog.mjs
+npm run build:blog
 ```
 
 Then commit the markdown **and** the generated `docs/` output — GitHub Pages

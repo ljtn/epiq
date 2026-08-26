@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /* The blog build.
  *
- *   node scripts/build-blog.mjs                 build once
- *   node scripts/build-blog.mjs --watch         rebuild whenever a post changes
- *   node scripts/build-blog.mjs --serve         watch + preview on :8777
- *   node scripts/build-blog.mjs --new "Title"   scaffold a new post
+ *   npm run build:blog              build once
+ *   npm run blog:watch              rebuild whenever a post changes
+ *   npm run blog:serve              watch + preview on :8777
+ *   npm run blog:new -- "Title"     scaffold a new post
  *
  * Posts live in content/posts/*.md. Everything under docs/blog/ is generated —
  * never edit it by hand. Only `title` and `date` are required in a post's
@@ -467,7 +467,7 @@ See content/posts/README.md for the full list of frontmatter fields.
 `
 	);
 	console.log(`created content/posts/${slug}.md`);
-	console.log(`  preview:  node scripts/build-blog.mjs --serve`);
+	console.log(`  preview:  npm run blog:serve`);
 	console.log(`  publish:  remove "draft: true" from the frontmatter`);
 }
 
