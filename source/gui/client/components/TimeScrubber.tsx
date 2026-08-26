@@ -99,6 +99,7 @@ export const TimeScrubber = ({
 	onRequestHistory,
 	boardId,
 	connected,
+	socketEpoch,
 	highlightEventId,
 	onInspectCommit,
 	onBoardFilterChange,
@@ -116,6 +117,9 @@ export const TimeScrubber = ({
 	onRequestHistory: (start?: number, end?: number, allBoards?: boolean) => void;
 	boardId: string | null;
 	connected: boolean;
+	// Identifies the socket in hand. A replaced socket takes its outstanding
+	// history replies with it, so the request has to go out again on the new one.
+	socketEpoch: number;
 	// The event a hovered Log row points at. Every other dot dims around it.
 	highlightEventId: string | null;
 	onInspectCommit: (sha: string) => void;
@@ -204,7 +208,7 @@ export const TimeScrubber = ({
 		if (!connected) return;
 
 		onRequestHistory(periodRange?.start, periodRange?.end, allBoards);
-	}, [scope, offset, boardId, allBoards, connected]);
+	}, [scope, offset, boardId, allBoards, connected, socketEpoch]);
 
 	const changeLayoutMode = (next: LayoutMode) => {
 		setLayoutMode(next);

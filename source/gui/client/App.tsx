@@ -87,6 +87,10 @@ export const App = () => {
 	const [searchParams, setSearchParams] = useSearchParams();
 
 	const [connected, setConnected] = useState(false);
+	// Bumped per socket, not per connection state: a socket the effect replaces
+	// never reports a disconnect, so `connected` alone cannot tell a reader that
+	// its outstanding requests died with the old socket.
+	const [socketEpoch, setSocketEpoch] = useState(0);
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>({
 		status: 'synced',
 		msg: 'idle',
@@ -300,6 +304,7 @@ export const App = () => {
 
 		socket.addEventListener('open', () => {
 			setConnected(true);
+			setSocketEpoch(epoch => epoch + 1);
 			reconnectAttempts.current = 0;
 			setReconnectExhausted(false);
 			mutationGate.reset();
@@ -1136,6 +1141,7 @@ export const App = () => {
 				historyId={history.requestId}
 				boardId={selectedBoardId}
 				connected={connected}
+				socketEpoch={socketEpoch}
 				onRequestHistory={requestBoardHistory}
 				onInspectCommit={inspectCommit}
 				highlightEventId={hoveredLogEventId}
