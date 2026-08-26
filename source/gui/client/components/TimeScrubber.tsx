@@ -356,13 +356,16 @@ export const TimeScrubber = ({
 		[identities, hiddenIdentityIds],
 	);
 
-	const issueCounts = bucketIssueCounts(
-		axis,
-		shown.timeline,
-		boardView,
-		hiddenIdentityIds,
+	// Memoized with the rest of the derived chart: hovering the track re-renders
+	// on every mouse move, and these walk every event and every commit.
+	const issueCounts = useMemo(
+		() => bucketIssueCounts(axis, shown.timeline, boardView, hiddenIdentityIds),
+		[axis, shown, boardView, hiddenIdentityIds],
 	);
-	const commitStats = bucketCommitStats(axis, shown.commits);
+	const commitStats = useMemo(
+		() => bucketCommitStats(axis, shown.commits),
+		[axis, shown.commits],
+	);
 	const liveEventDots = useMemo(
 		() => buildEventDots(shown.timeline, boardView, hiddenIdentityIds),
 		[shown, boardView, hiddenIdentityIds],
@@ -421,19 +424,31 @@ export const TimeScrubber = ({
 	// Two maxima, because a coarse bucket's count is a sum of many fine ones;
 	// normalizing every series against one max flattens the others. The scatter
 	// needs no maximum of its own: buildEventDots sizes its dots.
-	const maxIssueBucketCount = maxOf(issueCounts, 1);
-	const maxCommitCount = maxOf(
-		Array.from(commitStats.values(), stats => stats.count),
-		1,
-	);
+	const issueBars = useMemo(() => {
+		const max = maxOf(issueCounts, 1);
 
-	const issueBars = issueCounts.flatMap((count, index) =>
-		count > 0 ? [{index, intensity: count / maxIssueBucketCount}] : [],
+		return issueCounts.flatMap((count, index) =>
+			count > 0 ? [{index, intensity: count / max}] : [],
+		);
+	}, [issueCounts]);
+
+	const commitBars = useMemo(() => {
+		const max = maxOf(
+			Array.from(commitStats.values(), stats => stats.count),
+			1,
+		);
+
+		return Array.from(commitStats, ([index, stats]) => ({
+			index,
+			intensity: stats.count / max,
+		}));
+	}, [commitStats]);
+
+	const issueBarRange = useMemo(() => populatedRange(issueBars), [issueBars]);
+	const commitBarRange = useMemo(
+		() => populatedRange(commitBars),
+		[commitBars],
 	);
-	const commitBars = Array.from(commitStats, ([index, stats]) => ({
-		index,
-		intensity: stats.count / maxCommitCount,
-	}));
 
 	const armedBoardId = useRef(boardId);
 
@@ -678,9 +693,9 @@ export const TimeScrubber = ({
 				issueScatter,
 				commitScatter,
 				issueBars,
-				issueBarRange: populatedRange(issueBars),
+				issueBarRange,
 				commitBars,
-				commitBarRange: populatedRange(commitBars),
+				commitBarRange,
 				scatterLayers,
 				issueSeriesColor: soleIdentity?.color ?? boardViewColor(boardView),
 				dragging,

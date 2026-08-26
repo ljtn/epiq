@@ -2,7 +2,7 @@
 // JSX out, no state but the needle's own hover. TimeScrubber owns the data and
 // arranges these; the maths they draw against lives in lib/scrubber.
 
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {memo, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
 	barGrowAnimation,
@@ -889,12 +889,37 @@ export const SeriesLayer = ({
 // Shared by the issue histogram and the commit one mirrored below it, so the
 // two halves cannot drift apart. Empty buckets draw nothing and stay hoverable
 // anyway, since hover is resolved arithmetically rather than by hit target.
-export const VolumeBars = ({
+// Spans the full track height rather than the bar's, so empty buckets highlight
+// too. A sibling of the bars rather than one of them: it moves on every mouse
+// move, and the bars — up to MAX_TIME_BUCKETS nodes — must not re-render with
+// it.
+export const BucketHighlight = ({
+	index,
+	bucketCount,
+}: {
+	index: number;
+	bucketCount: number;
+}) => (
+	<div
+		style={{
+			position: 'absolute',
+			left: `${index * (100 / bucketCount)}%`,
+			top: 0,
+			bottom: 0,
+			width: `${100 / bucketCount}%`,
+			// A bucket can be thinner than a pixel at wide spans.
+			minWidth: 2,
+			background: BUCKET_HIGHLIGHT_COLOR,
+			pointerEvents: 'none',
+		}}
+	/>
+);
+
+const VolumeBarsImpl = ({
 	bars,
 	bucketCount,
 	firstBar,
 	lastBar,
-	highlightedIndex,
 	color,
 	direction,
 	animate,
@@ -904,7 +929,6 @@ export const VolumeBars = ({
 	// The populated span, so the growth sweep runs across drawn bars only.
 	firstBar: number;
 	lastBar: number;
-	highlightedIndex: number | null;
 	color: string;
 	// "up" is the issue histogram, "down" the mirrored commit one.
 	direction: 'up' | 'down';
@@ -926,24 +950,6 @@ export const VolumeBars = ({
 
 	return (
 		<>
-			{/* Spans the full track height rather than the bar's, so empty buckets
-			    highlight too. */}
-			{highlightedIndex !== null && (
-				<div
-					style={{
-						position: 'absolute',
-						left: `${highlightedIndex * widthPercent}%`,
-						top: 0,
-						bottom: 0,
-						width: `${widthPercent}%`,
-						// A bucket can be thinner than a pixel at wide spans.
-						minWidth: 2,
-						background: BUCKET_HIGHLIGHT_COLOR,
-						pointerEvents: 'none',
-					}}
-				/>
-			)}
-
 			{bars.map(({index, intensity}) => (
 				<div
 					key={index}
@@ -968,6 +974,10 @@ export const VolumeBars = ({
 		</>
 	);
 };
+
+// Memoized because the track re-renders on every mouse move while the bars
+// themselves change only when the window or the filter does.
+export const VolumeBars = memo(VolumeBarsImpl);
 
 // Shared by both scatter series for the same reason. The vertical padding has
 // to be added back by hand: absolute positioning ignores the track's own.
@@ -1262,11 +1272,16 @@ export const ScatterCanvas = ({
 	// Only dims when the highlighted event is actually on the chart. It may not
 	// be: an event outside the fetched window has no dot, and the bucketed
 	// fallback dots carry no id at all.
-	const activeHighlight =
-		highlightId !== null &&
-		layers.some(layer => layer.points.some(point => point.id === highlightId))
-			? highlightId
-			: null;
+	// Memoized: this walks every plotted point, and the track re-renders on
+	// every mouse move.
+	const activeHighlight = useMemo(
+		() =>
+			highlightId !== null &&
+			layers.some(layer => layer.points.some(point => point.id === highlightId))
+				? highlightId
+				: null,
+		[layers, highlightId],
+	);
 	const highlightRef = useRef(activeHighlight);
 	highlightRef.current = activeHighlight;
 	const phasesRef = useRef(new Map<string, Phase>());
