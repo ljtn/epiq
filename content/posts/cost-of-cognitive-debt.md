@@ -6,7 +6,7 @@ cover_alt: A wide, dark abstract banner
 devto: https://dev.to/ljtn/ccd-cost-of-cognitive-debt-a47
 ---
 
-It is easy to end up in one of two absolutes, either: AI is the future and traditional coding is dead, or, agentic workflows are non-deterministic with no place in modern software development. However, there may be a third way, one that recognizes the problems, and addresses the risk in a methodical way.
+It is easy to end up in one of two absolutes: either AI is the future and traditional coding is dead, or, agentic workflows are non-deterministic with no place in modern software development. However, there may be a third way, one that recognizes the problems, and addresses the risk in a methodical way.
 
 I'd like to introduce you to Cognitive Debt - the condition of nobody understanding a part of your system - and to the Cost of Cognitive Debt, or CCD, an estimation of what that condition costs in reality.
 
@@ -62,7 +62,7 @@ Now, in finance, debt is something that you are expected to eventually pay back.
 
 Repayment here means a human rebuilding the theory, reshaping it into something a person can hold in their head, and building mechanical intuition for how it behaves.
 
-We can extend the metaphor with the concept of interest. The cost of repayment is not constant, it grows. Every month the code drifts further from anybody's mental model, the people who held the surrounding context move on, and incorrect assumptions are hardened into surrounding code. Debt you meant to repay next quarter is more expensive next quarter than it is today.
+We can extend the metaphor by introducing interest. The cost of repayment is not constant, it grows. Every month the code drifts further from anybody's mental model, the people who held the surrounding context move on, and incorrect assumptions are hardened into surrounding code. Debt you meant to repay next quarter is more expensive next quarter than it is today.
 
 ![The gap between what you set aside and what it now costs is the interest.](./images/ccd-interest.svg)
 

@@ -4,6 +4,7 @@
 		"build:blog": "node scripts/build-blog.mjs",
 		"blog:watch": "node scripts/build-blog.mjs --watch",
 		"blog:serve": "node scripts/build-blog.mjs --serve",
-		"blog:new": "node scripts/build-blog.mjs --new"
+		"blog:new": "node scripts/build-blog.mjs --new",
+		"blog:og": "node scripts/build-blog.mjs --og"
 	}
 }

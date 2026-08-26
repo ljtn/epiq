@@ -74,7 +74,23 @@ An image on its own line becomes a figure, and its alt text becomes the
 caption — so write alt text worth reading.
 
 Name an image after the post (`my-new-post.webp`) and it becomes the cover
-automatically, used on the index card and as the social preview.
+automatically, used on the index card and at the top of the post.
+
+## Link previews
+
+Whenever you add or replace a cover, run:
+
+```sh
+npm run blog:og
+```
+
+That cuts a `<slug>-og.jpg` at 1200x630 — the ratio every platform crops link
+previews to, in a format they all accept. WebP is fine for the page but
+LinkedIn's crawler rejects it, so without this a shared link falls back to the
+generic site card. The build prints a note when a post is missing one.
+
+It needs ImageMagick (`brew install imagemagick`); the same goes for the
+optimisation snippet below.
 
 Covers get displayed about 1440px wide. Large PNGs are worth converting first:
 
