@@ -5,20 +5,15 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Epiq — blog</title>
 
-		<meta
-			name="description"
-			content="Writing from the Epiq project: developer experience, event sourcing, Git internals, and building a terminal-native issue tracker."
-		/>
-
+		<meta name="description" content="Writing from the Epiq project: developer experience, event sourcing, Git internals, and building a terminal-native issue tracker." />
 		<meta name="theme-color" content="#090a0f" />
+		<link rel="canonical" href="https://ljtn.github.io/epiq/blog.html" />
 
-		<meta property="og:title" content="Epiq — Blog" />
-		<meta
-			property="og:description"
-			content="Writing from the Epiq project: developer experience, event sourcing, Git internals, and building a terminal-native issue tracker."
-		/>
-		<meta property="og:type" content="website" />
+		<meta property="og:title" content="Epiq — blog" />
+		<meta property="og:description" content="Writing from the Epiq project: developer experience, event sourcing, Git internals, and building a terminal-native issue tracker." />
+		<meta property="og:url" content="https://ljtn.github.io/epiq/blog.html" />
 		<meta property="og:image" content="https://ljtn.github.io/epiq/og.jpeg" />
+		<meta name="twitter:card" content="summary_large_image" />
 
 		<link rel="icon" href="./favicon.ico" sizes="any" />
 		<link rel="stylesheet" href="./styles.css" />
@@ -27,9 +22,7 @@
 		<nav class="nav">
 			<div class="wrap nav-inner">
 				<a class="brand" href="./index.html" aria-label="Epiq home">
-					<span
-						><span class="accent">:</span>epiq</span
-					>
+					<span><span class="accent">:</span>epiq</span>
 				</a>
 				<div class="links">
 					<a class="cmd-link" href="./docs.html" aria-label="Documentation"
@@ -38,7 +31,6 @@
 					<a
 						class="cmd-link active"
 						href="./blog.html"
-						aria-current="page"
 						aria-label="Blog"
 						><span class="accent">:</span>blog</a
 					>
@@ -80,8 +72,43 @@
 			</header>
 
 			<div class="wrap rel-wrap">
-				<div id="posts" class="post-list" aria-live="polite">
-					<p class="rel-status">Fetching posts…</p>
+				<div class="post-list">
+					<article class="post">
+						<a class="post-cover" href="./blog/cost-of-cognitive-debt.html" tabindex="-1" aria-hidden="true">
+							<img src="./blog/images/cost-of-cognitive-debt.webp" alt="" loading="lazy" decoding="async" />
+						</a>
+						<div class="post-body">
+							<div class="post-meta">Aug 25, 2026  ·  3 min read</div>
+							<h2><a href="./blog/cost-of-cognitive-debt.html">Cost of Cognitive Debt</a></h2>
+							<p>It is easy to end up in one of two absolutes, either: traditional coding is dead, or, agentic worflows are non-deterministic and AI has no place in modern…</p>
+							<div class="post-tags"><span class="post-tag">#ai</span><span class="post-tag">#architecture</span><span class="post-tag">#ddd</span><span class="post-tag">#programming</span></div>
+							<a class="post-more" href="./blog/cost-of-cognitive-debt.html">Read<span class="post-more-arrow">→</span></a>
+						</div>
+					</article>
+					<article class="post">
+						<a class="post-cover" href="./blog/vision-drift.html" tabindex="-1" aria-hidden="true">
+							<img src="./blog/images/vision-drift.webp" alt="" loading="lazy" decoding="async" />
+						</a>
+						<div class="post-body">
+							<div class="post-meta">Jul 15, 2026  ·  3 min read</div>
+							<h2><a href="./blog/vision-drift.html">Vision drift: workflow replay to the rescue</a></h2>
+							<p>Harness engineering has recently popularized the idea of containing architectural drift in agentic workflows.</p>
+							<div class="post-tags"><span class="post-tag">#ai</span><span class="post-tag">#agents</span><span class="post-tag">#productivity</span><span class="post-tag">#tui</span></div>
+							<a class="post-more" href="./blog/vision-drift.html">Read<span class="post-more-arrow">→</span></a>
+						</div>
+					</article>
+					<article class="post">
+						<a class="post-cover" href="./blog/ideal-developer-experience.html" tabindex="-1" aria-hidden="true">
+							<img src="./blog/images/ideal-developer-experience.webp" alt="" loading="lazy" decoding="async" />
+						</a>
+						<div class="post-body">
+							<div class="post-meta">Jul 3, 2026  ·  6 min read</div>
+							<h2><a href="./blog/ideal-developer-experience.html">In Pursuit of the Ideal Developer Experience</a></h2>
+							<p>It seemed like the ultimate developer experience - tracking issues in the terminal, editing them the editor of your choice.</p>
+							<div class="post-tags"><span class="post-tag">#git</span><span class="post-tag">#tui</span><span class="post-tag">#productivity</span><span class="post-tag">#devex</span></div>
+							<a class="post-more" href="./blog/ideal-developer-experience.html">Read<span class="post-more-arrow">→</span></a>
+						</div>
+					</article>
 				</div>
 			</div>
 		</main>
@@ -92,304 +119,7 @@
 			</div>
 		</footer>
 
-		<script src="./md.js"></script>
-		<script>
-			(function () {
-				var KEY = "epiq_devto_posts";
-				var TTL_MS = 10 * 60 * 1000;
-				var API = "https://dev.to/api/articles?username=ljtn&per_page=30";
-				var PREVIEW_LINES = 12;
-				// Cap detail fetches; older posts fall back to the description.
-				var PREVIEW_POSTS = 10;
-				var root = document.getElementById("posts");
-
-				function esc(s) {
-					return String(s)
-						.replace(/&/g, "&amp;")
-						.replace(/</g, "&lt;")
-						.replace(/>/g, "&gt;")
-						.replace(/"/g, "&quot;");
-				}
-
-				function fmtDate(iso) {
-					var d = new Date(iso);
-					if (isNaN(d)) return "";
-					return d.toLocaleDateString("en-US", {
-						year: "numeric",
-						month: "short",
-						day: "numeric",
-						timeZone: "UTC",
-					});
-				}
-
-				// Take the first content lines of the post's markdown, skipping
-				// images and embeds; blank lines stay as paragraph breaks but
-				// don't count against the budget.
-				function excerpt(mdText, maxLines) {
-					var lines = mdText.replace(/\r\n/g, "\n").split("\n");
-					var out = [];
-					var count = 0;
-					for (var i = 0; i < lines.length && count < maxLines; i++) {
-						var t = lines[i].trim();
-						if (!t) {
-							out.push("");
-							continue;
-						}
-						if (/^!\[/.test(t) || /^\{%/.test(t)) continue;
-						out.push(t);
-						count++;
-					}
-					return out.join("\n");
-				}
-
-				function render(posts) {
-					if (!posts.length) {
-						renderError("No posts published yet.");
-						return;
-					}
-
-					root.innerHTML = posts
-						.map(function (p) {
-							var meta = [fmtDate(p.published_at)];
-							if (p.reading_time_minutes)
-								meta.push(p.reading_time_minutes + " min read");
-							meta.push("dev.to ↗");
-
-							var tags = (p.tag_list || [])
-								.map(function (t) {
-									return '<span class="post-tag">#' + esc(t) + "</span>";
-								})
-								.join("");
-
-							var body = p.preview
-								? '<div class="post-preview">' +
-								  epiqMd.render(p.preview, { heading: 4 }) +
-								  "</div>"
-								: "<p>" + esc(p.description || "") + "</p>";
-
-							return (
-								'<article class="post">' +
-								'<div class="post-meta">' +
-								esc(meta.join("  ·  ")) +
-								"</div>" +
-								'<h3><a href="' +
-								esc(p.url) +
-								'" rel="noopener">' +
-								esc(p.title) +
-								"</a></h3>" +
-								body +
-								(tags ? '<div class="post-tags">' + tags + "</div>" : "") +
-								'<a class="post-more" href="' +
-								esc(p.url) +
-								'" rel="noopener">Continue reading on dev.to →</a>' +
-								"</article>"
-							);
-						})
-						.join("");
-				}
-
-				function renderError(msg) {
-					root.innerHTML =
-						'<p class="rel-status">' +
-						esc(msg) +
-						' Read them on <a class="inline-link" href="https://dev.to/ljtn" rel="noopener">dev.to</a>.</p>';
-				}
-
-				function readCache() {
-					try {
-						var obj = JSON.parse(localStorage.getItem(KEY));
-						return obj && Array.isArray(obj.posts) ? obj : null;
-					} catch (e) {
-						return null;
-					}
-				}
-
-				// Show any cached copy instantly; refresh in the background
-				// unless it is still fresh.
-				var cache = readCache();
-				if (cache) render(cache.posts);
-				if (cache && Date.now() - cache.ts < TTL_MS) return;
-
-				fetch(API, { headers: { Accept: "application/json" } })
-					.then(function (res) {
-						return res.ok ? res.json() : Promise.reject(res.status);
-					})
-					.then(function (data) {
-						var slim = data.map(function (p) {
-							return {
-								id: p.id,
-								title: p.title,
-								description: p.description,
-								url: p.url,
-								published_at: p.published_at,
-								reading_time_minutes: p.reading_time_minutes,
-								tag_list: p.tag_list,
-							};
-						});
-
-						// Pull each article's markdown for a longer preview.
-						return Promise.all(
-							slim.map(function (p, i) {
-								if (i >= PREVIEW_POSTS) return p;
-								return fetch("https://dev.to/api/articles/" + p.id, {
-									headers: { Accept: "application/json" },
-								})
-									.then(function (res) {
-										return res.ok ? res.json() : null;
-									})
-									.then(function (full) {
-										if (full && typeof full.body_markdown === "string") {
-											p.preview = excerpt(full.body_markdown, PREVIEW_LINES);
-										}
-										return p;
-									})
-									.catch(function () {
-										return p;
-									});
-							})
-						);
-					})
-					.then(function (slim) {
-						render(slim);
-						try {
-							localStorage.setItem(
-								KEY,
-								JSON.stringify({ posts: slim, ts: Date.now() })
-							);
-						} catch (e) {}
-					})
-					.catch(function () {
-						if (!cache) renderError("Couldn’t load posts right now.");
-					});
-			})();
-		</script>
-
-		<script>
-			(function () {
-				var KEY = "epiq_version";
-				var TTL_MS = 10 * 60 * 1000;
-				// The same file the pre-push stamp reads, served by the raw CDN so it
-				// costs nothing against the GitHub API rate limit.
-				var SRC =
-					"https://raw.githubusercontent.com/ljtn/epiq/main/source/version.ts";
-				var outs = document.querySelectorAll(".nav-version");
-				if (!outs.length) return;
-
-				function render(version) {
-					outs.forEach(function (out) {
-						out.textContent = version;
-					});
-				}
-
-				function readCache() {
-					try {
-						var obj = JSON.parse(localStorage.getItem(KEY));
-						return obj && typeof obj.version === "string" ? obj : null;
-					} catch (e) {
-						return null;
-					}
-				}
-
-				// Show any cached version instantly; the markup carries the stamped
-				// version as a fallback so the nav never renders empty.
-				var cache = readCache();
-				if (cache) render(cache.version);
-				if (cache && Date.now() - cache.ts < TTL_MS) return;
-
-				fetch(SRC)
-					.then(function (res) {
-						return res.ok ? res.text() : null;
-					})
-					.then(function (text) {
-						var found = text && /EPIQ_VERSION\s*=\s*['"]([^'"]+)['"]/.exec(text);
-						if (!found) return;
-						render(found[1]);
-						try {
-							localStorage.setItem(
-								KEY,
-								JSON.stringify({ version: found[1], ts: Date.now() })
-							);
-						} catch (e) {}
-					})
-					.catch(function () {});
-			})();
-		</script>
-
-		<script>
-			(function () {
-				var KEY = "epiq_gh_stars";
-				var buttons = document.querySelectorAll(".github-stars");
-				if (!buttons.length) return;
-
-				function formatCount(n) {
-					if (n < 1000) return String(n);
-					var units = [
-						{ v: 1e6, s: "m" },
-						{ v: 1e3, s: "k" },
-					];
-					for (var i = 0; i < units.length; i++) {
-						if (n >= units[i].v) {
-							var x = n / units[i].v;
-							// Truncate (like GitHub): one decimal under 100, whole above.
-							var str =
-								x < 100
-									? (Math.floor(x * 10) / 10).toString()
-									: Math.floor(x).toString();
-							return str + units[i].s;
-						}
-					}
-				}
-
-				function render(count) {
-					var label = formatCount(Number(count));
-					buttons.forEach(function (btn) {
-						var wrap = btn.querySelector(".stars");
-						var out = btn.querySelector(".star-count");
-						if (out) out.textContent = label;
-						if (wrap) wrap.hidden = false;
-					});
-				}
-
-				var TTL_MS = 10 * 60 * 1000;
-
-				function readCache() {
-					try {
-						var obj = JSON.parse(localStorage.getItem(KEY));
-						return obj && typeof obj.count === "number" ? obj : null;
-					} catch (e) {
-						return null;
-					}
-				}
-
-				// Show any cached value instantly to avoid layout shift.
-				var cache = readCache();
-				if (cache) render(cache.count);
-
-				// Skip the network while the cache is still fresh (< 30 min).
-				if (cache && Date.now() - cache.ts < TTL_MS) return;
-
-				fetch("https://api.github.com/repos/ljtn/epiq", {
-					headers: { Accept: "application/vnd.github+json" },
-				})
-					.then(function (res) {
-						return res.ok ? res.json() : null;
-					})
-					.then(function (data) {
-						if (data && typeof data.stargazers_count === "number") {
-							render(data.stargazers_count);
-							try {
-								localStorage.setItem(
-									KEY,
-									JSON.stringify({
-										count: data.stargazers_count,
-										ts: Date.now(),
-									})
-								);
-							} catch (e) {}
-						}
-					})
-					.catch(function () {});
-			})();
-		</script>
+		<script src="./site.js"></script>
+		<script src="./analytics.js"></script>
 	</body>
 </html>

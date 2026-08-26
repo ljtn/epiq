@@ -1,0 +1,2 @@
+{"type":"send","time":1787737182648.747,"opcode":1,"data":"{\"type\":\"state:get\"}"}
+{"type":"send","time":1787737182703.845,"opcode":1,"data":"{\"type\":\"issues:create\",\"payload\":{\"title\":\"Alpha\",\"parentId\":\"01M0YPZPJ58MC0ZYFJNME8YF56\"}}"}

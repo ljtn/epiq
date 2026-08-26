@@ -1,0 +1,6 @@
+{"type":"send","time":1787737202452.982,"opcode":1,"data":"{\"type\":\"state:get\"}"}
+{"type":"receive","time":1787737202455.44,"opcode":1,"data":"{\"type\":\"state:unavailable\",\"payload\":{\"message\":\"No .epiq/project.json found in any parent\",\"repoRoot\":\"/var/folders/7p/50fkwfs95_sdhndmgb6_vm_00000gq/T/epiq-gui-bare-oHPoVl\"}}"}
+{"type":"send","time":1787737202456.829,"opcode":1,"data":"{\"type\":\"timeline:get\",\"payload\":{\"boardId\":null,\"requestId\":1}}"}
+{"type":"send","time":1787737202456.845,"opcode":1,"data":"{\"type\":\"commits:get\",\"payload\":{\"requestId\":1}}"}
+{"type":"receive","time":1787737202458.0042,"opcode":1,"data":"{\"type\":\"timeline\",\"requestId\":1,\"payload\":{\"status\":\"fail\",\"message\":\"No .epiq/project.json found in any parent\",\"value\":null}}"}
+{"type":"receive","time":1787737202458.259,"opcode":1,"data":"{\"type\":\"commits\",\"requestId\":1,\"payload\":{\"status\":\"fail\",\"message\":\"No .epiq/project.json found in any parent\",\"value\":null}}"}

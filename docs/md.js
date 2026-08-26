@@ -12,6 +12,12 @@ window.epiqMd = (function () {
 			.replace(/"/g, "&quot;");
 	}
 
+	// Only same-origin or plain http(s) targets are allowed through, so a
+	// crafted "javascript:" or "data:" URL can never become a live src/href.
+	function safeUrl(url) {
+		return /^https?:\/\//.test(url) || /^#/.test(url) || /^\.{0,2}\//.test(url);
+	}
+
 	// Inline transforms run on escaped text. Code spans and finished anchors
 	// are shielded behind placeholder tokens so later passes can't mangle
 	// their contents.
@@ -26,15 +32,22 @@ window.epiqMd = (function () {
 			return shield("<code>" + c + "</code>");
 		});
 
-		// Images: keep the alt text only.
-		s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g, "$1");
+		// Images: rendered when opts.images is on, otherwise reduced to alt text.
+		s = s.replace(
+			/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g,
+			function (_, alt, url) {
+				if (!opts.images || !safeUrl(url)) return alt;
+				return shield(
+					'<img src="' + url + '" alt="' + alt + '" loading="lazy" decoding="async" />'
+				);
+			}
+		);
 
 		// Explicit links, with optional "title".
 		s = s.replace(
 			/\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g,
 			function (_, text, url) {
-				var safe = /^https?:\/\//.test(url) || /^#/.test(url) || /^\.?\//.test(url);
-				if (!safe || !opts.links) return text;
+				if (!safeUrl(url) || !opts.links) return text;
 				return shield(
 					'<a class="inline-link" href="' + url + '" rel="noopener">' + text + "</a>"
 				);
@@ -74,103 +87,304 @@ window.epiqMd = (function () {
 		});
 	}
 
-	// Block-level rendering: headings, lists (ul/ol), blockquotes, fenced
-	// code, horizontal rules, paragraphs.
+	// Block-level rendering: headings, lists (nested ul/ol), tables,
+	// blockquotes, fenced code, horizontal rules, paragraphs.
 	function render(text, options) {
 		var opts = {
 			links: !options || options.links !== false,
-			// Tag used for every heading in the source, e.g. 3 -> <h3>.
+			// Render images as <img> rather than reducing them to alt text.
+			images: !!(options && options.images),
+			// Base heading tag, e.g. 3 -> <h3>.
 			heading: (options && options.heading) || 3,
+			// Keep the source's heading depth, offset from `heading`, instead of
+			// flattening every heading to the same tag.
+			levels: !!(options && options.levels),
 		};
-		var hTag = "h" + opts.heading;
+
+		// With `levels`, `heading` is the shallowest tag a post may use: the
+		// source's depth is kept but clamped, so "#" and "##" both land on it
+		// and no level is ever skipped.
+		function headingTag(hashes) {
+			if (!opts.levels) return "h" + opts.heading;
+			return "h" + Math.min(6, Math.max(opts.heading, hashes.length));
+		}
+
 		var lines = esc(String(text).replace(/\r\n/g, "\n")).split("\n");
 
 		var html = "";
 		var para = [];
-		var list = null; // "ul" | "ol" | null
 		var quote = [];
 		var inCode = false;
 		var code = [];
+		var codeLang = "";
+		// One frame per open list level, innermost last.
+		var stack = [];
+		var itemBuf = [];
+
+		// Marks a hard line break (a line ending in two spaces). It is appended
+		// before the text is trimmed, and survives the join below.
+		var BR = String.fromCharCode(1);
+
+		function joinLines(buf) {
+			return buf
+				.join(" ")
+				.split(BR + " ")
+				.join("<br />")
+				.split(BR)
+				.join("");
+		}
 
 		function flushPara() {
 			if (para.length) {
-				html += "<p>" + inline(para.join(" "), opts) + "</p>";
+				html += "<p>" + inline(joinLines(para), opts) + "</p>";
 				para = [];
-			}
-		}
-		function closeList() {
-			if (list) {
-				html += "</" + list + ">";
-				list = null;
 			}
 		}
 		function flushQuote() {
 			if (quote.length) {
 				html +=
-					"<blockquote><p>" + inline(quote.join(" "), opts) + "</p></blockquote>";
+					"<blockquote><p>" +
+					inline(joinLines(quote), opts) +
+					"</p></blockquote>";
 				quote = [];
 			}
 		}
 		function flushCode() {
-			html += '<pre class="code"><code>' + code.join("\n") + "</code></pre>";
+			var cls = codeLang ? ' class="lang-' + codeLang + '"' : "";
+			html +=
+				'<pre class="code"><code' + cls + ">" + code.join("\n") + "</code></pre>";
 			code = [];
+			codeLang = "";
 			inCode = false;
+		}
+
+		// Writes the buffered text of the current item, leaving its <li> open so
+		// a nested list can be emitted inside it.
+		function flushItem() {
+			if (!itemBuf.length) return;
+			var frame = stack[stack.length - 1];
+			html += "<li>" + inline(joinLines(itemBuf), opts);
+			frame.itemOpen = true;
+			itemBuf = [];
+		}
+		function closeItem() {
+			var frame = stack[stack.length - 1];
+			if (frame && frame.itemOpen) {
+				html += "</li>";
+				frame.itemOpen = false;
+			}
+		}
+		function openList(type, indent) {
+			html += "<" + type + ">";
+			stack.push({ type: type, indent: indent, itemOpen: false });
+		}
+		function closeList() {
+			closeItem();
+			html += "</" + stack.pop().type + ">";
+		}
+		function closeLists(indent) {
+			flushItem();
+			while (stack.length && stack[stack.length - 1].indent > indent) closeList();
+		}
+		function closeAllLists() {
+			flushItem();
+			while (stack.length) closeList();
 		}
 		function flushAll() {
 			flushPara();
-			closeList();
+			closeAllLists();
 			flushQuote();
 		}
 
-		lines.forEach(function (line) {
+		var TABLE_DIVIDER = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+		function splitRow(row) {
+			return row
+				.trim()
+				.replace(/^\|/, "")
+				.replace(/\|$/, "")
+				.split("|")
+				.map(function (c) {
+					return c.trim();
+				});
+		}
+
+		function renderTable(head, aligns, rows) {
+			function cell(tag, text, i) {
+				var a = aligns[i];
+				return (
+					"<" +
+					tag +
+					(a ? ' style="text-align:' + a + '"' : "") +
+					">" +
+					inline(text, opts) +
+					"</" +
+					tag +
+					">"
+				);
+			}
+			var out = '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+			out += head
+				.map(function (c, i) {
+					return cell("th", c, i);
+				})
+				.join("");
+			out += "</tr></thead><tbody>";
+			out += rows
+				.map(function (r) {
+					return (
+						"<tr>" +
+						r
+							.map(function (c, i) {
+								return cell("td", c, i);
+							})
+							.join("") +
+						"</tr>"
+					);
+				})
+				.join("");
+			return out + "</tbody></table></div>";
+		}
+
+		for (var i = 0; i < lines.length; i++) {
+			var line = lines[i];
+
 			if (inCode) {
-				if (/^```/.test(line.trim())) flushCode();
+				if (/^\s*```/.test(line)) flushCode();
 				else code.push(line);
-				return;
+				continue;
 			}
 
+			var hardBreak = /\s\s$/.test(line);
 			var t = line.trim();
 			var m;
 
 			if (/^```/.test(t)) {
 				flushAll();
+				codeLang = (t.slice(3).trim().match(/^[\w+-]+/) || [""])[0];
 				inCode = true;
-			} else if (!t) {
+				continue;
+			}
+
+			if (!t) {
+				// A blank line ends a paragraph or quote, but a list survives it:
+				// the next item continues the same list (a "loose" list).
+				flushPara();
+				flushQuote();
+				if (stack.length) flushItem();
+				continue;
+			}
+
+			// A table is only a table if the next line is its divider row, so this
+			// is checked before anything else a pipe-bearing line could be.
+			if (
+				t.indexOf("|") !== -1 &&
+				i + 1 < lines.length &&
+				lines[i + 1].indexOf("|") !== -1 &&
+				TABLE_DIVIDER.test(lines[i + 1])
+			) {
 				flushAll();
-			} else if ((m = t.match(/^#{1,6}\s+(.*)$/))) {
+				var head = splitRow(t);
+				var aligns = splitRow(lines[i + 1]).map(function (c) {
+					if (/^:-+:$/.test(c)) return "center";
+					if (/^:-+$/.test(c)) return "left";
+					if (/^-+:$/.test(c)) return "right";
+					return "";
+				});
+				var rows = [];
+				i += 2;
+				while (
+					i < lines.length &&
+					lines[i].trim() &&
+					lines[i].indexOf("|") !== -1
+				) {
+					rows.push(splitRow(lines[i].trim()));
+					i++;
+				}
+				i--;
+				html += renderTable(head, aligns, rows);
+				continue;
+			}
+
+			if ((m = t.match(/^(#{1,6})\s+(.*)$/))) {
 				flushAll();
-				html += "<" + hTag + ">" + inline(m[1], opts) + "</" + hTag + ">";
-			} else if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(t)) {
+				var hTag = headingTag(m[1]);
+				html += "<" + hTag + ">" + inline(m[2], opts) + "</" + hTag + ">";
+				continue;
+			}
+
+			if (
+				opts.images &&
+				(m = t.match(/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)$/)) &&
+				safeUrl(m[2])
+			) {
+				// A picture on its own line becomes a figure, with the alt text
+				// doubling as the caption.
+				flushAll();
+				html +=
+					'<figure class="md-figure"><img src="' +
+					m[2] +
+					'" alt="' +
+					m[1] +
+					'" loading="lazy" decoding="async" />' +
+					(m[1] ? "<figcaption>" + m[1] + "</figcaption>" : "") +
+					"</figure>";
+				continue;
+			}
+
+			if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(t)) {
 				flushAll();
 				html += "<hr />";
-			} else if ((m = t.match(/^&gt;\s?(.*)$/))) {
-				flushPara();
-				closeList();
-				quote.push(m[1]);
-			} else if ((m = t.match(/^[-*+]\s+(.*)$/))) {
-				flushPara();
-				flushQuote();
-				if (list !== "ul") {
-					closeList();
-					html += "<ul>";
-					list = "ul";
-				}
-				html += "<li>" + inline(m[1], opts) + "</li>";
-			} else if ((m = t.match(/^\d+[.)]\s+(.*)$/))) {
-				flushPara();
-				flushQuote();
-				if (list !== "ol") {
-					closeList();
-					html += "<ol>";
-					list = "ol";
-				}
-				html += "<li>" + inline(m[1], opts) + "</li>";
-			} else {
-				closeList();
-				flushQuote();
-				para.push(t);
+				continue;
 			}
-		});
+
+			if ((m = t.match(/^&gt;\s?(.*)$/))) {
+				flushPara();
+				closeAllLists();
+				quote.push(m[1] + (hardBreak ? BR : ""));
+				continue;
+			}
+
+			var bullet = line.match(/^(\s*)[-*+]\s+(.*)$/);
+			var ordered = line.match(/^(\s*)\d+[.)]\s+(.*)$/);
+			if (bullet || ordered) {
+				m = bullet || ordered;
+				var type = bullet ? "ul" : "ol";
+				var indent = m[1].length;
+				flushPara();
+				flushQuote();
+
+				if (!stack.length) {
+					openList(type, indent);
+				} else if (indent > stack[stack.length - 1].indent) {
+					flushItem();
+					openList(type, indent);
+				} else {
+					closeLists(indent);
+					var top = stack[stack.length - 1];
+					if (!top) {
+						openList(type, indent);
+					} else if (top.type !== type) {
+						closeList();
+						openList(type, indent);
+					} else {
+						closeItem();
+					}
+				}
+				itemBuf.push(m[2].replace(/\s+$/, "") + (hardBreak ? BR : ""));
+				continue;
+			}
+
+			// An indented line under a list item continues that item's text.
+			if (stack.length && /^\s+/.test(line) && itemBuf.length) {
+				itemBuf.push(t + (hardBreak ? BR : ""));
+				continue;
+			}
+
+			closeAllLists();
+			flushQuote();
+			para.push(t + (hardBreak ? BR : ""));
+		}
 
 		if (inCode) flushCode();
 		flushAll();

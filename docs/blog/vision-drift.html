@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Vision drift: workflow replay to the rescue — Epiq</title>
+
+		<meta name="description" content="Harness engineering has recently popularized the idea of containing architectural drift in agentic workflows." />
+		<meta name="theme-color" content="#090a0f" />
+		<link rel="canonical" href="https://ljtn.github.io/epiq/blog/vision-drift.html" />
+
+		<meta property="og:title" content="Vision drift: workflow replay to the rescue — Epiq" />
+		<meta property="og:description" content="Harness engineering has recently popularized the idea of containing architectural drift in agentic workflows." />
+		<meta property="og:url" content="https://ljtn.github.io/epiq/blog/vision-drift.html" />
+		<meta property="og:image" content="https://ljtn.github.io/epiq/blog/images/vision-drift.webp" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta property="article:published_time" content="2026-07-15" />
+		<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Vision drift: workflow replay to the rescue",
+  "description": "Harness engineering has recently popularized the idea of containing architectural drift in agentic workflows.",
+  "datePublished": "2026-07-15",
+  "author": {
+    "@type": "Person",
+    "name": "Jonatan Lampa"
+  },
+  "url": "https://ljtn.github.io/epiq/blog/vision-drift.html"
+}
+		</script>
+		<link rel="icon" href="../favicon.ico" sizes="any" />
+		<link rel="stylesheet" href="../styles.css" />
+	</head>
+	<body>
+		<nav class="nav">
+			<div class="wrap nav-inner">
+				<a class="brand" href="../index.html" aria-label="Epiq home">
+					<span><span class="accent">:</span>epiq</span>
+				</a>
+				<div class="links">
+					<a class="cmd-link" href="../docs.html" aria-label="Documentation"
+						><span class="accent">:</span>docs</a
+					>
+					<a
+						class="cmd-link active"
+						href="../blog.html"
+						aria-label="Blog"
+						><span class="accent">:</span>blog</a
+					>
+					<a class="cmd-link" href="../releases.html" aria-label="Releases"
+						><span class="accent">v</span><span class="nav-version">1.4.3</span></a
+					>
+					<a
+						class="btn github-stars"
+						href="https://github.com/ljtn/epiq"
+						aria-label="Epiq on GitHub"
+					>
+						<span>GitHub</span>
+						<span class="stars" hidden>
+							<svg
+								class="star-ico"
+								viewBox="0 0 24 24"
+								width="14"
+								height="14"
+								aria-hidden="true"
+								focusable="false"
+							>
+								<path
+									d="M9.15316 5.40838C10.4198 3.13613 11.0531 2 12 2C12.9469 2 13.5802 3.13612 14.8468 5.40837L15.1745 5.99623C15.5345 6.64193 15.7144 6.96479 15.9951 7.17781C16.2757 7.39083 16.6251 7.4699 17.3241 7.62805L17.9605 7.77203C20.4201 8.32856 21.65 8.60682 21.9426 9.54773C22.2352 10.4886 21.3968 11.4691 19.7199 13.4299L19.2861 13.9372C18.8096 14.4944 18.5713 14.773 18.4641 15.1177C18.357 15.4624 18.393 15.8341 18.465 16.5776L18.5306 17.2544C18.7841 19.8706 18.9109 21.1787 18.1449 21.7602C17.3788 22.3417 16.2273 21.8115 13.9243 20.7512L13.3285 20.4768C12.6741 20.1755 12.3469 20.0248 12 20.0248C11.6531 20.0248 11.3259 20.1755 10.6715 20.4768L10.0757 20.7512C7.77268 21.8115 6.62118 22.3417 5.85515 21.7602C5.08912 21.1787 5.21588 19.8706 5.4694 17.2544L5.53498 16.5776C5.60703 15.8341 5.64305 15.4624 5.53586 15.1177C5.42868 14.773 5.19043 14.4944 4.71392 13.9372L4.2801 13.4299C2.60325 11.4691 1.76482 10.4886 2.05742 9.54773C2.35002 8.60682 3.57986 8.32856 6.03954 7.77203L6.67589 7.62805C7.37485 7.4699 7.72433 7.39083 8.00494 7.17781C8.28555 6.96479 8.46553 6.64194 8.82547 5.99623L9.15316 5.40838Z"
+									fill="currentColor"
+								/>
+							</svg>
+							<span class="star-count"></span>
+						</span>
+					</a>
+				</div>
+			</div>
+		</nav>
+
+		<main id="top">
+			<article class="article wrap">
+				<header class="article-head">
+					<a class="article-back" href="../blog.html">← Blog</a>
+					<h1>Vision drift: workflow replay to the rescue</h1>
+					<div class="article-meta">Jul 15, 2026  ·  3 min read</div>
+					<div class="post-tags"><span class="post-tag">#ai</span><span class="post-tag">#agents</span><span class="post-tag">#productivity</span><span class="post-tag">#tui</span></div>
+				</header>
+
+				<figure class="article-cover">
+					<img src="./images/vision-drift.webp" alt="The epiq board running in a terminal, four columns of issues on a dark ground" />
+				</figure>
+
+				<div class="prose">
+					<p>Harness engineering has recently popularized the idea of containing <strong><em>architectural drift</em></strong> in agentic workflows. What might be missing in the discussion is a similar issue on a higher level - <strong><em>vision drift</em></strong>.</p><p>By vision drift I mean that the implementation no longer drifts only from the architecture - it drifts from the original product intent. This could happen as a result of agents administrating their own work unsupervised for too long. And it seems like restricted project management tooling is a risk. As long as issue trackers only present a static snapshot of the workflow rather than a traceable, repeatable story, drift may go unnoticed.</p><p>While Git solves this for code, issue trackers essentially lacks this capability, and while excellent at answering the question “what's going on right now?”, they fail at answering the question “how did our work in this area evolve last month?” or “what went on this time last year?”, or “how did we get from there to there?”.</p><h2>Workflow audits</h2><p>When I set off to build <a class="inline-link" href="https://ljtn.github.io/epiq/" rel="noopener">Epiq</a>, this was not a concern on my radar. Agentic coding was something I had heard distant rumors of, and in fact I was just <a class="inline-link" href="https://dev.to/ljtn/in-pursuit-of-the-ideal-developer-experience-2gp8" rel="noopener">pursuing the ideal developer experience</a>. This pursuit did however result in an issue tracker with some uncommon properties. One of these is the ability to inspect historical state by time-traveling, and replay historical board states.</p><p>Initially I thought of it as a gimmick feature, imagining the wow-factor of replaying board layout the past 2 weeks as a little movie. I thought it would help out with retros and reflection of how much (or little) work had been accomplished. Not until I set out to run my first fully autonomous agent workflow did I notice how board time-travel was going to be an essential feature for anyone serious about staying in control.</p><h2>Questions raised</h2><p>It went like this: I had made a master plan together with Claude, and asked it to administrate the plan execution and breakdown using Epiq. As I returned two hours after it set off I was delighted to see that all of the issues had moved across the board to the review column. I spent an hour or two reviewing the code. It all looked great. All solid, tested and well functioning code, following existing architectural patterns in the codebase. Only, now I was incredibly interested in how the work had elapsed. I addition to what could be inferred from the code, I found myself asking:</p><ul><li>How did we get here?</li><li>Had any new tickets been created not anticipated initially?</li><li>Has the plan been revised?</li><li>Had any other issues on the board been blockers?</li></ul><p>A single agent working independently for two hours already left me wondering how the implementation evolved. I asked myself what happens when twenty agents collaborate over three days.</p><p>How was the work coordinated? Had they wastefully worked against each other, or in harmony, building on each other's work? Most importantly - had they abandoned, or revised the initial vision?</p><p>I could see how a snapshot state of the board no longer satisfied these questions, and unless you sat and monitored the board evolution in real time you would be unequipped to answer them.</p><h2>The full story</h2><p>Luckily, with Epiq, this was but a single command away: “:replay 2h”. That was all it took for me to see the whole session replayed as a time-lapsed movie. It dawned upon me that Epiq, with its persistence model, accidentally offered powerful functionality that will be required for humans to stay in charge of the vision.</p><h2>The future of project management tooling</h2><p>It seems like agentic coding isn’t going to go away any time soon. And given that we do some course corrections in our methodology after the initial hype I can see its given place even in serious productions, given that we reserve for humans the ability to stay in the loop - in charge.</p><p>With agents getting more and more autonomy, the risk of potential vision drift calls for better workflow auditing. Just one step up from architectural audits it seems like the natural next step in the discussion surrounding agentic workflows.</p><p>Git made the evolution of source code inspectable. I believe the next generation of project management tooling will need to make the evolution of intent inspectable.</p><p><em>In case you are interested 👉 <a class="inline-link" href="https://ljtn.github.io/epiq/" rel="noopener">Explore Epiq</a></em></p>
+				</div>
+
+				<footer class="article-foot">
+					<p class="article-source">
+						Originally published on
+						<a class="inline-link" href="https://dev.to/ljtn/vision-drift-addressing-the-next-problem-in-agentic-workflows-2gfb" rel="noopener">dev.to</a>.
+					</p>
+					<div class="article-nav">
+						<a class="article-nav-link" href="./cost-of-cognitive-debt.html"><span>← Newer</span><span class="article-nav-title">Cost of Cognitive Debt</span></a>
+						<a class="article-nav-link is-next" href="./ideal-developer-experience.html"><span>Older →</span><span class="article-nav-title">In Pursuit of the Ideal Developer Experience</span></a>
+					</div>
+				</footer>
+			</article>
+		</main>
+
+		<footer class="footer">
+			<div class="wrap footer-inner">
+				<div><code>:wq</code> and move on.</div>
+			</div>
+		</footer>
+
+		<script src="../site.js"></script>
+		<script src="../analytics.js"></script>
+	</body>
+</html>
