@@ -1,5 +1,5 @@
 ---
-title: Cost of Cognitive Debt
+title: The Cost of Cognitive Debt
 date: 2026-08-25
 tags: ai, architecture, ddd, programming
 cover_alt: A wide, dark abstract banner
