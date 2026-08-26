@@ -24,6 +24,7 @@ import {
 } from '../lib/scrubber';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {
+	BucketHighlight,
 	HourAxisLabels,
 	ScatterCanvas,
 	ScatterLayer,
@@ -222,18 +223,27 @@ export const ScrubberLayout = ({
 							)}
 
 							{chart.showIssues && layoutMode === 'even' && (
-								<SeriesLayer key={`issues-${windowKey}`} animate={animate}>
-									<VolumeBars
-										bars={chart.issueBars}
-										bucketCount={axis.bucketCount}
-										firstBar={chart.issueBarRange[0]}
-										lastBar={chart.issueBarRange[1]}
-										highlightedIndex={chart.hoveredBucketIndex}
-										color={chart.issueSeriesColor}
-										direction="up"
-										animate={animate}
-									/>
-								</SeriesLayer>
+								<>
+									{/* Before the bars, so it stays underneath them. */}
+									{chart.hoveredBucketIndex !== null && (
+										<BucketHighlight
+											index={chart.hoveredBucketIndex}
+											bucketCount={axis.bucketCount}
+										/>
+									)}
+
+									<SeriesLayer key={`issues-${windowKey}`} animate={animate}>
+										<VolumeBars
+											bars={chart.issueBars}
+											bucketCount={axis.bucketCount}
+											firstBar={chart.issueBarRange[0]}
+											lastBar={chart.issueBarRange[1]}
+											color={chart.issueSeriesColor}
+											direction="up"
+											animate={animate}
+										/>
+									</SeriesLayer>
+								</>
 							)}
 
 							{/* Both series share one canvas: they are drawn against the
@@ -269,12 +279,18 @@ export const ScrubberLayout = ({
 								>
 									<TrackBaseline color={GUI_THEME.green} anchor="top" />
 
+									{chart.hoveredCommitBucketIndex !== null && (
+										<BucketHighlight
+											index={chart.hoveredCommitBucketIndex}
+											bucketCount={axis.bucketCount}
+										/>
+									)}
+
 									<VolumeBars
 										bars={chart.commitBars}
 										bucketCount={axis.bucketCount}
 										firstBar={chart.commitBarRange[0]}
 										lastBar={chart.commitBarRange[1]}
-										highlightedIndex={chart.hoveredCommitBucketIndex}
 										color={GUI_THEME.green}
 										direction="down"
 										animate={animate}

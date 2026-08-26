@@ -1,7 +1,7 @@
 // Everything the time scrubber computes or remembers, with no JSX. The chart
 // parts and the component that arranges them draw against this.
 
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {
 	formatDateTime,
 	formatTimeOfDay,
@@ -816,7 +816,9 @@ export const useExitTransition = (
 		return () => clearTimeout(timeout);
 	}, [visible]);
 
-	return {mounted, leaving};
+	// Stable identity: the memos that hang off this feed the scatter canvas,
+	// which repaints every dot when its layers change.
+	return useMemo(() => ({mounted, leaving}), [mounted, leaving]);
 };
 
 // Only an explicit stored value overrides the fallback, so a series that
