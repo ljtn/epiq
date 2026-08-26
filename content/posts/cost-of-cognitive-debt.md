@@ -68,4 +68,4 @@ We can extend the metaphor by introducing interest. The cost of repayment is not
 
 Agentic workflows are here to stay and we need a framework for reasoning in a methodical way about non-deterministic workflows in products that entire businesses rely heavily on. In the past leadership and stakeholders were often oblivious to the risks and impact of architectural decisions, relying heavily on responsible technical experts, who often saved the product by understanding the business needs. Now that many technical experts have resigned themselves to the same state of delightful ignorance, we need to address this risk in a structured way.
 
-Is this a reasonable way of addressing and reasoning about the risk introduced by agentic workflows? I would like to hear where it breaks - [start a discussion on GitHub](https://github.com/ljtn/epiq/discussions) and let me know your thoughts.
+Is this a reasonable way of addressing and reasoning about the risk introduced by agentic workflows? Feel free to - [start a discussion on GitHub](https://github.com/ljtn/epiq/discussions) and share your thoughts.
