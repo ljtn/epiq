@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 372" width="620" height="372" role="img" aria-label="A three by three matrix of cognitive complexity against severity, each cell showing the product of the two">
+	<style>
+		.ax   { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #666f91; letter-spacing: .12em; }
+		.tick { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #9aa1b5; }
+		.n    { font: 21px ui-monospace, SFMono-Regular, Menlo, monospace; }
+		/* Same reading as the layer diagram: cyan is where cost concentrates,
+		   violet is where debt is cheap to carry. */
+		.lo   { fill: rgba(198,167,255,.05); stroke: #c6a7ff; stroke-width: 1; opacity: .55; }
+		.mid  { fill: rgba(111,134,163,.07); stroke: #6f86a3; stroke-width: 1; opacity: .8; }
+		.hi   { fill: rgba(117,210,253,.10); stroke: #75d2fd; stroke-width: 1; }
+		.n-lo { fill: #c6a7ff; opacity: .75; }
+		.n-mid{ fill: #9aa1b5; }
+		.n-hi { fill: #75d2fd; }
+	</style>
+
+	<!-- severity 3 -->
+	<rect class="mid" x="150" y="28"  width="150" height="90" rx="6" />
+	<text class="n n-mid" x="225" y="81" text-anchor="middle">3</text>
+	<rect class="hi"  x="300" y="28"  width="150" height="90" rx="6" />
+	<text class="n n-hi"  x="375" y="81" text-anchor="middle">6</text>
+	<rect class="hi"  x="450" y="28"  width="150" height="90" rx="6" />
+	<text class="n n-hi"  x="525" y="81" text-anchor="middle">9</text>
+
+	<!-- severity 2 -->
+	<rect class="lo"  x="150" y="118" width="150" height="90" rx="6" />
+	<text class="n n-lo"  x="225" y="171" text-anchor="middle">2</text>
+	<rect class="mid" x="300" y="118" width="150" height="90" rx="6" />
+	<text class="n n-mid" x="375" y="171" text-anchor="middle">4</text>
+	<rect class="hi"  x="450" y="118" width="150" height="90" rx="6" />
+	<text class="n n-hi"  x="525" y="171" text-anchor="middle">6</text>
+
+	<!-- severity 1 -->
+	<rect class="lo"  x="150" y="208" width="150" height="90" rx="6" />
+	<text class="n n-lo"  x="225" y="261" text-anchor="middle">1</text>
+	<rect class="lo"  x="300" y="208" width="150" height="90" rx="6" />
+	<text class="n n-lo"  x="375" y="261" text-anchor="middle">2</text>
+	<rect class="mid" x="450" y="208" width="150" height="90" rx="6" />
+	<text class="n n-mid" x="525" y="261" text-anchor="middle">3</text>
+
+	<!-- severity runs up the left edge -->
+	<text class="tick" x="134" y="78"  text-anchor="end">3</text>
+	<text class="tick" x="134" y="168" text-anchor="end">2</text>
+	<text class="tick" x="134" y="258" text-anchor="end">1</text>
+	<text class="ax" x="46" y="163" transform="rotate(-90 46 163)" text-anchor="middle">SEVERITY</text>
+	<text class="ax" x="112" y="46" text-anchor="end" opacity=".7">high</text>
+	<text class="ax" x="112" y="290" text-anchor="end" opacity=".7">low</text>
+
+	<!-- complexity runs along the bottom -->
+	<text class="tick" x="225" y="324" text-anchor="middle">1</text>
+	<text class="tick" x="375" y="324" text-anchor="middle">2</text>
+	<text class="tick" x="525" y="324" text-anchor="middle">3</text>
+	<text class="ax" x="375" y="356" text-anchor="middle">COGNITIVE COMPLEXITY</text>
+	<text class="ax" x="150" y="356" text-anchor="start" opacity=".7">low</text>
+	<text class="ax" x="600" y="356" text-anchor="end" opacity=".7">high</text>
+</svg>

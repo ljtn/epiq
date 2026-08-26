@@ -1298,8 +1298,11 @@ kbd {
 }
 .md-figure img {
 	display: block;
-	margin: 0;
-	width: 100%;
+	/* Render at the picture's own size, capped to the column: a diagram drawn
+	   at 490px shouldn't be blown up to fill the measure. */
+	margin-inline: auto;
+	width: auto;
+	max-width: 100%;
 	height: auto;
 	border: 1px solid var(--line);
 	border-radius: 8px;
