@@ -20,6 +20,10 @@ This is not a new observation. Peter Naur argued in [Programming as Theory Build
 
 It is reasonable to assume that Cognitive Debt eventually can lead to Cognitive Meltdown - a state where no human is able to understand how a system works given any reasonable amount of time. This would hence render the system useless from a business point of view, while the cost of recovering insight would outweigh any potential gains.
 
+## A scale of understanding
+
+Understanding can range from a simple acknowledgement of the problem a piece of code solves to a deep mechanical intuition. While a review may give you a mental note on what a piece of code does, it is often necessary to hand-write the code to acquire the deepest form of understanding. Supervising agentic workflows can give you one level of insight, while prolonged manual struggle with the code gives you mechanical intuition.
+
 ## Putting a number on it
 
 To make sense of this we may be helped by a method. I suggest scoring each part of the system from 1 to 3 on two factors: cognitive complexity and severity (affecting business, money, or safety).
@@ -27,6 +31,8 @@ To make sense of this we may be helped by a method. I suggest scoring each part 
 The CCD of a part of the system is roughly the product of the two. A complex domain with high severity amplifies the Cost of Cognitive Debt.
 
 ![Cognitive Debt turns expensive where complexity and severity meet.](./images/ccd-matrix.svg)
+
+What the score decides is how much understanding you are required to keep. A high CCD means a human writes it. In the middle, agents run supervised. A low one means we can let them run unsupervised, as long as we plan for the repayment.
 
 The point of the score is not precision. It is to force the conversation to happen per domain, and to happen before the debt is taken on rather than after a meltdown.
 
@@ -36,9 +42,9 @@ Now, assuming that we have encapsulated our system into separate domains, or a l
 
 It seems natural that the core business rules of a system need to be well understood by not just developers, but by leadership and stakeholders as well, and this should result in a conservative view of what parts of the system we can expose to agentic workflows, and to the risk of Cognitive Debt.
 
-For instance, we would be wise not to introduce unattended agentic workflows in layers of a system that are concerned with critical business rules. This part of the system would score a 9.
+For instance, we would be wise not to introduce unsupervised agentic workflows in layers of a system that are concerned with critical business rules. This part of the system would score a 9.
 
-Similarly it seems obvious that any infrastructure layer that could bring the system down for any period of time would have to be overseen and understood by humans. These parts of the system would score a high CCD value as well.
+Similarly it seems obvious that any infrastructure layer that could bring the system down for any period of time would have to be supervised and understood by humans. These parts of the system would score a high CCD value as well.
 
 So far I agree with the agentic skeptic perspective.
 
