@@ -8,7 +8,7 @@ devto: https://dev.to/ljtn/ccd-cost-of-cognitive-debt-a47
 
 It is easy to end up in one of two absolutes: either agentic workflows are the future and mark the end of traditional coding, or, agentic workflows have no place in modern software development whatsoever. However, there may be a third way, one that recognizes the problems, and addresses the risk in a methodical way.
 
-I'd like to introduce you to _Cognitive Debt_ - the condition where no human understands a part of your system - and to the _Cost of Cognitive Debt_, or _CCD_, an estimation of what that condition costs in reality.
+I'd like to introduce you to _Cognitive Debt_ - the condition where human understanding of a part of your system is degraded - and to the _Cost of Cognitive Debt_, or _CCD_, an estimation of what that condition costs in reality.
 
 ## Accumulating unknown unknowns
 
