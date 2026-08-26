@@ -22,7 +22,7 @@ It is reasonable to assume that Cognitive Debt eventually can lead to Cognitive 
 
 ## A scale of understanding
 
-Understanding can range from a simple acknowledgement of the problem a piece of solves to a deep intuition. Wile a review may give you a mental note on what a piece of code does, it is often necessary to hand-write the code to acquire the deepest form of understanding. Supervising agentic workflows can give you one level of insight, while prolonged manual struggle with the code gives you _mechanical intuition_.
+Understanding can range from a simple acknowledgement of the problem a piece code of solves to a deep intuition. While a review may give you a mental note on what a piece of code does, it is often necessary to hand-write the code to acquire the deepest form of understanding. Supervising agentic workflows can give you one level of insight, while prolonged manual struggle with the code gives you _mechanical intuition_.
 
 ## Putting a number on it
 
