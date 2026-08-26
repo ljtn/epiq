@@ -34,6 +34,16 @@ const OUT_DIR = join(DOCS, "blog");
 const BASE_URL = "https://ljtn.github.io/epiq";
 const AUTHOR = "Jonatan Lampa";
 
+/* The nav version is stamped onto the hand-written pages by
+ * scripts/stamp-version.sh on pre-push. Generated pages read it back from
+ * index.html so that rebuilding never reverts that stamp. */
+const NAV_VERSION = (() => {
+	const index = readFileSync(join(DOCS, "index.html"), "utf8");
+	const found = /<span class="nav-version">([^<]*)<\/span>/.exec(index);
+	if (!found) throw new Error("docs/index.html has no .nav-version span to read");
+	return found[1];
+})();
+
 // Reuse the renderer the site already ships, so posts and release notes are
 // formatted by exactly the same code.
 const sandbox = {};
@@ -200,7 +210,7 @@ ${head}
 						><span class="accent">:</span>blog</a
 					>
 					<a class="cmd-link" href="${up}releases.html" aria-label="Releases"
-						><span class="accent">v</span><span class="nav-version">1.4.3</span></a
+						><span class="accent">v</span><span class="nav-version">${NAV_VERSION}</span></a
 					>
 					<a
 						class="btn github-stars"

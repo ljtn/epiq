@@ -14,7 +14,9 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-PAGES="docs/index.html docs/docs.html docs/blog.html docs/releases.html"
+# docs/blog.html and docs/blog/*.html are generated; the generator reads the
+# stamp back out of index.html, so stamping them here does not get reverted.
+PAGES="docs/index.html docs/docs.html docs/blog.html docs/releases.html docs/blog/*.html"
 
 if ! git fetch -q origin main 2>/dev/null; then
 	echo "stamp-version: can't reach origin, leaving the stamped version alone."
@@ -31,6 +33,7 @@ fi
 
 CHANGED=""
 for f in $PAGES; do
+	[ -f "$f" ] || continue
 	current=$(sed -n 's/.*<span class="nav-version">\([^<]*\)<\/span>.*/\1/p' "$f" | head -1)
 	if [ -z "$current" ]; then
 		echo "stamp-version: no .nav-version span in $f"
