@@ -2,9 +2,9 @@
 
 _Issue tracking as code. Open source, distributed, local-first, and code-native._
 
-**[See docs →](https://ljtn.github.io/epiq/docs.html)** · **[Blog →](https://ljtn.github.io/epiq/blog.html)**
+**[See docs →](https://ljtn.github.io/epiq/docs.html)** 
 
-Issue tracking is a core part of software development, but it often becomes a painful context-switching exercise with poor ergonomics. Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
+Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
 
 > Manage your projects in a visual kanban board — in your terminal or in your browser — while keeping all state local, Git-backed, and versioned.
 
@@ -20,16 +20,9 @@ Agents now run whole sprints unattended. Because state is a full event log, you 
 
 Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.
 
-![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-cli.gif)
-
-![Epiq gui view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-gui.gif)
-
 ## What is epiq?
 
 Epiq is a self hosted, vim-inspired issue tracker that brings developer experience to project management. It renders either as ASCII, or as a web GUI, and persists state as an immutable distributed event log, versioned and synchronized through Git.
-
-![Epiq cli kanban view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/hero.png)
-![Epiq cli log view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/log.png)
 
 ## Why Epiq?
 
@@ -45,7 +38,7 @@ These design choices result in a system that is:
 - **Command driven** — scriptable and automation-friendly, ready for the agentic era
 - **Versioned** — changes are tracked and recoverable through Git
 
-## Features
+## A Features
 
 - Issue tracking — track work in tickets with name, description, tags, assignees, history log, etc.
 - Ergonomics — fast keyboard-driven UX, command line with history, syntax highlighting etc.
