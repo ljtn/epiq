@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {execGit} from '../git/git-utils.js';
-import {resetHardToRemoteState, syncEpiqWithRemote} from '../git/sync.js';
+import {syncEpiqWithRemote} from '../git/sync.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getRelativeEventFilePath} from '../git/git-storage.js';
 
@@ -188,7 +188,10 @@ describe('sync', () => {
 		const {repoRoot} = await setupRepo();
 		const ownEventFileName = 'u1.alice.jsonl';
 
-		const bootResult = await resetHardToRemoteState(repoRoot);
+		const bootResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
 		if (isFail(bootResult)) throw new Error(bootResult.message);
 
 		writeFile(

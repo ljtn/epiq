@@ -50,12 +50,6 @@ vi.mock('../../git/sync-and-reload-state.js', () => ({
 }));
 
 vi.mock('../../git/sync.js', () => ({
-	resetHardToRemoteState: vi.fn(() =>
-		succeeded('Synced from remote', {
-			repoRoot: '/repo',
-			stateBranchRoot: '/state',
-		}),
-	),
 	syncEpiqWithRemote: vi.fn(() =>
 		succeeded('Synced', {
 			repoRoot: '/repo',

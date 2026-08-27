@@ -390,51 +390,6 @@ export const abortRebaseIfPresent = async (
 	return succeeded('No rebase to abort', false);
 };
 
-export const resetBranchHardToRemote = async ({
-	cwd,
-	branch,
-}: {
-	cwd: string;
-	branch: string;
-}): Promise<Result<boolean>> => {
-	const remoteBranchResult = await hasRemoteBranch({
-		repoRoot: cwd,
-		branch,
-	});
-
-	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
-
-	if (!remoteBranchResult.value) {
-		return succeeded('Remote branch missing, skipped reset', false);
-	}
-
-	const fetchResult = await git.fetch({
-		cwd,
-		remote: ORIGIN,
-		branch,
-	});
-
-	if (isFail(fetchResult)) {
-		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
-	}
-
-	const abortResult = await abortRebaseIfPresent(cwd);
-	if (isFail(abortResult)) return failed(abortResult.message);
-
-	const resetResult = await execGit({
-		cwd,
-		args: ['reset', '--hard', `${ORIGIN}/${branch}`],
-	});
-
-	if (isFail(resetResult)) {
-		return failed(
-			`Failed to reset ${branch} from remote\n${resetResult.message}`,
-		);
-	}
-
-	return succeeded('Reset branch from remote', true);
-};
-
 export const pullBranchRebaseIfPresent = async ({
 	cwd,
 	branch,
