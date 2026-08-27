@@ -370,10 +370,10 @@ export const getShortHeadSha = async (
 	return succeeded('Resolved short HEAD sha', result.value.stdout.trim());
 };
 
+// Only the reasons a rebase-and-retry can clear. Git prints "failed to push
+// some refs" for every rejection, hook declines included.
 export const isNonFastForward = (message: string): boolean =>
-	message.includes('fetch first') ||
-	message.includes('non-fast-forward') ||
-	message.includes('failed to push some refs');
+	message.includes('fetch first') || message.includes('non-fast-forward');
 
 export const abortRebaseIfPresent = async (
 	cwd: string,

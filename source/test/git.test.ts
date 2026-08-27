@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
-import {execGit, pullBranchRebaseIfPresent} from '../git/git-utils.js';
+import {
+	execGit,
+	isNonFastForward,
+	pullBranchRebaseIfPresent,
+} from '../git/git-utils.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getRelativeEventFilePath} from '../git/git-storage.js';
@@ -267,5 +271,34 @@ describe('pullBranchRebaseIfPresent', () => {
 			'one\ntwo\n',
 		);
 		expect(fs.existsSync(path.join(local, 'theirs.jsonl'))).toBe(true);
+	});
+});
+
+describe('isNonFastForward', () => {
+	it('matches a rejection a rebase-and-retry can clear', () => {
+		expect(
+			isNonFastForward(
+				' ! [rejected]        main -> main (fetch first)\n' +
+					"error: failed to push some refs to 'origin'\n",
+			),
+		).toBe(true);
+
+		expect(
+			isNonFastForward(
+				' ! [rejected]        main -> main (non-fast-forward)\n' +
+					"error: failed to push some refs to 'origin'\n",
+			),
+		).toBe(true);
+	});
+
+	// Retrying would rewrite history for a rejection no rebase can clear.
+	it('does not match a hook decline', () => {
+		expect(
+			isNonFastForward(
+				'remote: policy: pushes to this branch are not allowed\n' +
+					' ! [remote rejected] HEAD -> main (pre-receive hook declined)\n' +
+					"error: failed to push some refs to 'origin'\n",
+			),
+		).toBe(false);
 	});
 });
