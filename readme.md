@@ -1,20 +1,26 @@
 # Epiq
 
-_Distributed terminal-native issue tracker backed by Git._
+_Issue tracking as code. Open source, distributed, local-first, and code-native._
 
-**[See docs →](https://ljtn.github.io/epiq/docs.html)**
+**[See docs →](https://ljtn.github.io/epiq/docs.html)** · **[Blog →](https://ljtn.github.io/epiq/blog.html)**
 
 Issue tracking is a core part of software development, but it often becomes a painful context-switching exercise with poor ergonomics. Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
 
-> Manage your projects in a visual terminal kanban board (or through the browser GUI), while keeping all state local, Git-backed, and versioned.
+> Manage your projects in a visual kanban board — in your terminal or in your browser — while keeping all state local, Git-backed, and versioned.
 
 With great attention to user ergonomics and developer experience, epiq strives to make project management painless and friction free.
 
-![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-cli.gif)
+![Epiq board with the time travel timeline](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.png)
+
+## Audit the workflow
+
+Agents now run whole sprints unattended. Because state is a full event log, you can replay the board to find out what moved when, who moved it, and what changed along the way.
 
 ## Terminal + Browser
 
-Epiq originated from the command line, but also features a browser interface powered by the same Git-backed event engine.
+Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.
+
+![Epiq cli gif view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-cli.gif)
 
 ![Epiq gui view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/epiq-gui.gif)
 
@@ -22,12 +28,12 @@ Epiq originated from the command line, but also features a browser interface pow
 
 Epiq is a self hosted, vim-inspired issue tracker that brings developer experience to project management. It renders either as ASCII, or as a web GUI, and persists state as an immutable distributed event log, versioned and synchronized through Git.
 
-![Epiq cli kanban view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/overview.png)
+![Epiq cli kanban view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/hero.png)
 ![Epiq cli log view](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/log.png)
 
 ## Why Epiq?
 
-Most issue trackers live outside your workflow. Epiq brings issue tracking where you already work - your editor.
+Most issue trackers live outside your workflow. Instead of a centralized, managed service, Epiq keeps project state alongside your repository, where it travels with your code.
 
 These design choices result in a system that is:
 
@@ -44,11 +50,12 @@ These design choices result in a system that is:
 - Issue tracking — track work in tickets with name, description, tags, assignees, history log, etc.
 - Ergonomics — fast keyboard-driven UX, command line with history, syntax highlighting etc.
 - Command palette — press `?` to open a scrollable overview of all available commands and descriptions
-- Time travel — inspect your board 1h, 1 week or 1 year ago
+- Time travel — inspect the board as it was 1h, 1 week or 1 year ago, or replay its history as an animation
 - Filtering — query issues by description, tags, assignees, etc.
 - Autocompletion — minimize typing, stay in flow, reuse previous commands
 - Multi-user — collaborative synchronization via Git
 - Traceable event log — state is a full history of every change ever made
+- Export — write the current board layout to markdown
 - Browser GUI — graphical interface powered by the same Git-backed state
 - MCP integration — Model Context Protocol support for agent interaction
 
@@ -151,6 +158,12 @@ epiq gui
 
 Clear all filters with `:filter clear`
 
+### Time travel
+
+- Inspect the board as it was with `:peek <offset>`, where offset is `<n>h`, `d`, `w`, `mo` or `y` — so `:peek 3d` is the board three days ago. An absolute `YYYY-MM-DD` date works too. Step with `:peek prev|next`, and return with `:peek now`.
+- Where `:peek` shows a frozen snapshot, `:replay 1mo` plays history forward from that point as an animation. An optional second argument sets the playback duration, e.g. `:replay 1mo 30s`.
+- While peeking or replaying, the board is read-only.
+
 ### Close issue
 
 - Close issues with `:close`. This moves the issue to a special board named `Closed` which you can find if you navigate up (press `q`) a few times.
@@ -185,7 +198,7 @@ Use `--scope user` to make Epiq available in every directory; omit it to registe
 
 ### Skills
 
-Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq.
+Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq board.
 
 ### Other MCP clients
 
