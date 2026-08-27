@@ -39,6 +39,7 @@ export const git = {
 		branch: string;
 	}) => execGit({args: ['fetch', remote, branch], cwd}),
 
+	// autoStash: an event appended mid-sync would otherwise abort the rebase.
 	pullRebase: ({
 		cwd,
 		remote,
@@ -47,7 +48,11 @@ export const git = {
 		cwd: string;
 		remote: string;
 		branch: string;
-	}) => execGit({args: ['pull', '--rebase', remote, branch], cwd}),
+	}) =>
+		execGit({
+			args: ['-c', 'rebase.autoStash=true', 'pull', '--rebase', remote, branch],
+			cwd,
+		}),
 
 	checkout: ({cwd, branch}: {cwd: string; branch: string}) =>
 		execGit({args: ['checkout', branch], cwd}),
