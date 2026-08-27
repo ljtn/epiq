@@ -392,6 +392,11 @@ export const abortRebaseIfPresent = async (
 	return succeeded('No rebase to abort', false);
 };
 
+// git's wording when the branch does not exist on the remote.
+const isMissingRemoteRef = (message: string): boolean =>
+	message.includes("couldn't find remote ref") ||
+	message.includes('Could not find remote branch');
+
 export const pullBranchRebaseIfPresent = async ({
 	cwd,
 	branch,
@@ -399,29 +404,18 @@ export const pullBranchRebaseIfPresent = async ({
 	cwd: string;
 	branch: string;
 }): Promise<Result<boolean>> => {
-	const remoteBranchResult = await hasRemoteBranch({
-		repoRoot: cwd,
-		branch,
-	});
-
-	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
-
-	if (!remoteBranchResult.value) {
-		return succeeded('Remote branch missing, skipped pull', false);
-	}
-
 	const abortResult = await abortRebaseIfPresent(cwd);
 	if (isFail(abortResult)) return failed(abortResult.message);
 
-	const fetchResult = await git.fetch({cwd, remote: ORIGIN, branch});
-
-	if (isFail(fetchResult)) {
-		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
-	}
-
+	// The pull fetches on its own; asking ls-remote and fetch first was two
+	// extra round trips.
 	const pullResult = await git.pullRebase({cwd, remote: ORIGIN, branch});
 
 	if (isFail(pullResult)) {
+		if (isMissingRemoteRef(pullResult.message)) {
+			return succeeded('Remote branch missing, skipped pull', false);
+		}
+
 		return failed(`Failed during pull --rebase\n${pullResult.message}`);
 	}
 
