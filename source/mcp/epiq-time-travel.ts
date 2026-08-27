@@ -14,12 +14,15 @@ import {getEventTime} from '../lib/event/date-utils.js';
 import {AppEvent, EventAction} from '../lib/event/event.model.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
-import {relockUnreadableEvents} from '../lib/event/event-boot.js';
 import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
-import {materializeAll} from '../lib/event/event-materialize.js';
+import {
+	logSkippedEvents,
+	materializeAll,
+	partitionMaterializeResults,
+} from '../lib/event/event-materialize.js';
 import {minOf} from '../lib/utils/minmax.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
@@ -416,7 +419,16 @@ export const getCommitTimeline = async (
 				linesChanged: insertions + deletions,
 			};
 		})
-		.filter((commit): commit is CommitEntry => commit !== null);
+		.filter((commit): commit is CommitEntry => commit !== null)
+		// `--since`/`--until` match on the committer date, but a commit is plotted
+		// at its author date, and a rebase moves the two days apart. Left in, such
+		// a commit sits outside the window it was fetched for and stretches the
+		// axis to reach it.
+		.filter(
+			commit =>
+				(input.start === undefined || commit.time >= input.start) &&
+				(input.end === undefined || commit.time <= input.end),
+		);
 
 	return succeeded('Computed commit timeline', commits);
 };
@@ -598,11 +610,12 @@ const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 	currentAsOfTime = null;
 
 	const materializeResults = materializeAll(eventsResult.value);
-	const materializeFailures = materializeResults.filter(isFail);
+	const {fatal, skipped} = partitionMaterializeResults(materializeResults);
 
-	if (materializeFailures.length > 0) {
-		return failed(materializeFailures.map(x => x.message).join(', '));
+	if (fatal.length > 0) {
+		return failed(fatal.map(x => x.message).join(', '));
 	}
+	logSkippedEvents(skipped);
 
 	patchState({
 		readOnly: false,
@@ -613,10 +626,6 @@ const restoreLiveState = (stateBranchRoot: string): Result<true> => {
 		unappliedEvents: [],
 		replay: null,
 	});
-
-	// `materializeAll` above rebuilt the nodes from scratch, so the load-derived
-	// locks have to be re-applied.
-	relockUnreadableEvents();
 
 	return succeeded('Restored live state', true);
 };
@@ -664,16 +673,17 @@ export const checkoutStateAt = (
 		if (isFail(resetResult)) return resetResult;
 
 		const materializeResults = materializeAll(appliedEvents);
-		const materializeFailures = materializeResults.filter(isFail);
+		const {fatal, skipped} = partitionMaterializeResults(materializeResults);
 
 		// The reset above already emptied the singleton, so bailing out plainly
 		// would leave the board gone while still reporting live.
-		if (materializeFailures.length > 0) {
+		if (fatal.length > 0) {
 			return recoverToLiveAfterFailure(
 				stateBranchRootResult.value,
-				materializeFailures.map(x => x.message).join(', '),
+				fatal.map(x => x.message).join(', '),
 			);
 		}
+		logSkippedEvents(skipped);
 
 		patchState({
 			readOnly: true,

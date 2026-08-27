@@ -156,7 +156,7 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 		return failSync(`Unable to sync state. ${syncResult.message}`);
 	}
 
-	const {stateBranchRoot} = syncResult.value;
+	const {stateBranchRoot, offline} = syncResult.value;
 
 	logger.debug('[sync] loading merged events after sync', {
 		stateBranchRoot,
@@ -300,10 +300,10 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 
 	patchState({
 		hasProjectDefinition: true,
-		syncStatus: {
-			msg: 'Synced',
-			status: 'synced',
-		},
+		// The reload succeeded either way; only the remote half did not.
+		syncStatus: offline
+			? {msg: 'Committed locally, offline', status: 'offline'}
+			: {msg: 'Synced', status: 'synced'},
 	});
 
 	logger.debug('[sync] syncAndReloadState:done', {

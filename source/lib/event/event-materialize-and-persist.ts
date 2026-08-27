@@ -57,7 +57,7 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 		);
 	}
 
-	const contributorResult = ensureContributorExists(events[0], rootDir);
+	const contributorResult = ensureContributorCurrent(events[0], rootDir);
 
 	if (isFail(contributorResult)) {
 		return contributorResult;
@@ -81,21 +81,26 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 	);
 }
 
-export const ensureContributorExists = (
+// Also where a rename reaches the board. The log file name is a sanitized
+// storage key and cannot carry a display name, so the registry only learns a
+// new one from an event, and this is the hook every write already passes
+// through.
+export const ensureContributorCurrent = (
 	event: AppEvent,
 	rootDir: string,
 ): Result<void> => {
-	if (event.action === 'create.contributor') {
-		return succeeded('Contributor already being created', undefined);
+	if (
+		event.action === 'create.contributor' ||
+		event.action === 'rename.contributor'
+	) {
+		return succeeded('Contributor write already in flight', undefined);
 	}
 
-	if (nodeRepo.getContributor(event.userId)) {
-		return succeeded('Contributor exists', undefined);
-	}
+	const contributor = nodeRepo.getContributor(event.userId);
 
-	const contributorEvent: AppEvent<'create.contributor'> = {
+	const actorEvent: AppEvent<'create.contributor' | 'rename.contributor'> = {
 		id: ulid(),
-		action: 'create.contributor',
+		action: contributor ? 'rename.contributor' : 'create.contributor',
 		payload: {
 			id: event.userId,
 			name: event.userName,
@@ -104,11 +109,20 @@ export const ensureContributorExists = (
 		userName: event.userName,
 	};
 
-	const result = materializeAndPersist(contributorEvent, rootDir);
+	// A tombstoned name was cleared on purpose, so renaming would put it back.
+	// `restore.contributor` is the way back.
+	if (
+		contributor &&
+		(contributor.tombstoned || contributor.name === event.userName)
+	) {
+		return succeeded('Contributor name is current', undefined);
+	}
+
+	const result = materializeAndPersist(actorEvent, rootDir);
 
 	if (isFail(result)) {
 		return failed(result.message);
 	}
 
-	return succeeded('Contributor created', undefined);
+	return succeeded('Contributor name recorded', undefined);
 };

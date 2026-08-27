@@ -54,13 +54,6 @@ export const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
 	return false;
 };
 
-// A load-derived lock carries why it exists; a node's own lock does not, so the
-// call site's wording stands in.
-export const readonlyMessage = (
-	node: {readonlyReason?: string},
-	fallback: string,
-): string => node.readonlyReason ?? fallback;
-
 const failIfReadonly = (
 	node: NavNode<AnyContext> | undefined,
 	action: 'move' | 'rename' | 'edit' | 'delete',
@@ -75,8 +68,7 @@ const failIfReadonly = (
 		delete: 'Cannot delete readonly node',
 	} as const;
 
-	// A derived lock knows why; the node's own lock is self-explanatory.
-	return failed(readonlyMessage(node, msgByAction[action]));
+	return failed(msgByAction[action]);
 };
 
 export const nodeRepo = {
@@ -433,6 +425,29 @@ export const nodeRepo = {
 		return succeeded('Tombstoned contributor', tombstoned);
 	},
 
+	// Refuses a tombstoned record: the name there was deliberately cleared, and
+	// a rename would quietly put it back. `restoreContributor` is that path.
+	renameContributor(contributorId: string, name: string): Result<Contributor> {
+		const contributor = this.getContributor(contributorId);
+		if (!contributor) return failed('Contributor not found');
+		if (contributor.tombstoned) {
+			return failed('Cannot rename a removed contributor');
+		}
+
+		const renamed: Contributor = {...contributor, name};
+
+		const result = updateState(s => ({
+			...s,
+			contributors: {
+				...s.contributors,
+				[contributorId]: renamed,
+			},
+		}));
+
+		if (isFail(result)) return failed('Unable to rename contributor');
+		return succeeded('Renamed contributor', renamed);
+	},
+
 	restoreContributor(contributorId: string, name: string): Result<Contributor> {
 		const contributor = this.getContributor(contributorId);
 		if (!contributor) return failed('Contributor not found');
@@ -622,33 +637,6 @@ export const nodeRepo = {
 		if (isFail(result)) return failed('Unable to create node');
 
 		return succeeded('Node created', node);
-	},
-
-	// Derived at load and never persisted, so it lifts once the client
-	// understands those events. An already-locked node keeps its own lock.
-	markNodeUnreadable(id: string, reason: string): Result<NavNode<AnyContext>> {
-		const node = this.getNode(id);
-		if (!node) return failed('Failed to locate node');
-
-		if (node.readonly) return succeeded('Node already locked', node);
-
-		const updatedNode: NavNode<AnyContext> = {
-			...node,
-			readonly: true,
-			readonlyReason: reason,
-		};
-
-		const result = updateState(s => ({
-			...s,
-			nodes: {
-				...s.nodes,
-				[id]: updatedNode,
-			},
-		}));
-
-		if (isFail(result)) return failed(result.message);
-
-		return succeeded('Marked node unreadable', updatedNode);
 	},
 
 	lockNode(id: string): Result<NavNode<AnyContext>> {

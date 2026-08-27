@@ -15,6 +15,7 @@ import {
 } from '../../../git/git-utils.js';
 import {
 	createStateBranch,
+	ensureInitialCommit,
 	ensureStateBranchWorktree,
 	pushStateBranch,
 	stageStateBranchOwnEventFile,
@@ -109,6 +110,14 @@ export const initCommand = async () => {
 	}
 
 	// 6. create state branch (or fail if state branch already exists)
+	// A branch needs a commit to point at, so a repo with none gets one here —
+	// the only place epiq may write a commit in the user's own repository, and
+	// only because they asked for it by running init.
+	const initialCommitResult = await ensureInitialCommit(repoRoot);
+	if (isFail(initialCommitResult)) {
+		return failAt(6, initialCommitResult.message);
+	}
+
 	const stateBranch = projectFileContents.stateBranch;
 	const stateBranchExistsResult = await hasLocalBranch({
 		repoRoot,
@@ -209,9 +218,12 @@ export const initCommand = async () => {
 		return failAt(13, stageProjectResult.message);
 	}
 
+	// Pathspec, not a bare commit: without it this takes whatever else the user
+	// happened to have staged in their own repo.
 	const commitProjectResult = await git.commit({
 		cwd: repoRoot,
 		message: '[epiq:init-project]',
+		pathspec: ['.epiq/project.json', '.gitignore'],
 	});
 	if (isFail(commitProjectResult)) {
 		return failAt(13, commitProjectResult.message);

@@ -1,7 +1,11 @@
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {loadMergedEventsBefore} from '../../event/event-load.js';
 import {AppEvent} from '../../event/event.model.js';
-import {materializeAll} from '../../event/event-materialize.js';
+import {
+	logSkippedEvents,
+	materializeAll,
+	partitionMaterializeResults,
+} from '../../event/event-materialize.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getState, patchState, resetState} from '../../state/state.js';
 
@@ -38,14 +42,15 @@ export const checkoutBoardAt = ({
 	if (isFail(resetResult)) return resetResult;
 
 	const materializeResult = materializeAll(appliedEvents);
-	const materializeFailures = materializeResult.filter(isFail);
+	const {fatal, skipped} = partitionMaterializeResults(materializeResult);
 
-	if (materializeFailures.length > 0) {
+	if (fatal.length > 0) {
 		resetState();
 		patchState(previousState);
 
-		return failed(materializeFailures.map(x => x.message).join(', '));
+		return failed(fatal.map(x => x.message).join(', '));
 	}
+	logSkippedEvents(skipped);
 
 	const boardNode = getState().nodes[boardId];
 

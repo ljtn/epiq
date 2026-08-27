@@ -50,12 +50,6 @@ vi.mock('../../git/sync-and-reload-state.js', () => ({
 }));
 
 vi.mock('../../git/sync.js', () => ({
-	resetHardToRemoteState: vi.fn(() =>
-		succeeded('Synced from remote', {
-			repoRoot: '/repo',
-			stateBranchRoot: '/state',
-		}),
-	),
 	syncEpiqWithRemote: vi.fn(() =>
 		succeeded('Synced', {
 			repoRoot: '/repo',
@@ -358,8 +352,6 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 		getCommentsByIssue: vi.fn(() => []),
 		getAttachmentsByIssue: vi.fn(() => []),
 	},
-	readonlyMessage: (node: {readonlyReason?: string}, fallback: string) =>
-		node.readonlyReason ?? fallback,
 }));
 
 vi.mock('../epiq-time-travel.js', () => ({

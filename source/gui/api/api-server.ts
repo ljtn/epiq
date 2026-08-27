@@ -1,4 +1,5 @@
 import {readFile} from 'node:fs/promises';
+import {setVirtualNodesEnabled} from '../../lib/virtual-nodes/virtual-nodes.js';
 import http from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -195,6 +196,11 @@ export const startGuiServer = async (input: {
 	repoRoot: string;
 	boardId: string;
 }): Promise<Result<{url: string; server: http.Server}>> => {
+	// Nothing this server sends reads a ticket's virtual fields, and building
+	// them is most of the cost of a replay. Set here rather than in the CLI
+	// wrapper so the tests run the same configuration.
+	setVirtualNodesEnabled(false);
+
 	const server = http.createServer(async (req, res) => {
 		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
 

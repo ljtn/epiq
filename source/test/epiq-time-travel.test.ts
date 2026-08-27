@@ -15,11 +15,10 @@ vi.mock('../lib/event/event-load.js', () => ({
 	getLastUnreadableEvents: vi.fn(() => []),
 }));
 
-vi.mock('../lib/event/event-boot.js', () => ({
-	relockUnreadableEvents: vi.fn(),
-}));
-
-vi.mock('../lib/event/event-materialize.js', () => ({
+vi.mock('../lib/event/event-materialize.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/event/event-materialize.js')>(
+		'../lib/event/event-materialize.js',
+	)),
 	materializeAll: vi.fn(),
 }));
 
@@ -75,7 +74,6 @@ import {
 	loadMergedEvents,
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
-import {relockUnreadableEvents} from '../lib/event/event-boot.js';
 import {materializeAll} from '../lib/event/event-materialize.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
@@ -524,6 +522,30 @@ describe('epiq-time-travel', () => {
 			);
 		});
 
+		// A rebase rewrites the committer date but keeps the author date, so
+		// `--since` can match a commit that is plotted days outside the window.
+		it('drops commits whose author date falls outside the window', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout:
+						`${REC}aaa111${SEP}1700000050${SEP}Ada${SEP}inside the window\n` +
+						`${REC}bbb222${SEP}1600000000${SEP}Grace${SEP}rebased from long ago\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitTimeline({
+				start: 1_700_000_000_000,
+				end: 1_700_000_100_000,
+			});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.map(commit => commit.sha)).toEqual(['aaa111']);
+		});
+
 		it('skips malformed lines missing a sha or timestamp', async () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
@@ -964,7 +986,6 @@ describe('epiq-time-travel', () => {
 			// The rebuild above dropped every load-derived lock, so reopening
 			// writes without re-deriving them hands back a writable board over a
 			// log this build cannot fully read.
-			expect(relockUnreadableEvents).toHaveBeenCalled();
 
 			expect(isSuccess(result)).toBe(true);
 		});

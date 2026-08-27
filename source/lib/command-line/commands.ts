@@ -26,7 +26,6 @@ import {
 } from '../state/state.js';
 import {patchUiState} from '../state/ux-state.js';
 import {getPersistRoot} from '../storage/paths.js';
-import {preferBestName} from '../utils/contributor.utils.js';
 import {openUrl} from '../utils/open-in-browser.js';
 import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-intent.js';
@@ -80,19 +79,10 @@ const getAssignableContributors = (): {
 		authorIds.add(event.userId);
 	}
 
+	// The registry always wins; the log's sanitized copy is a fallback for an
+	// author it has never seen.
 	for (const contributor of Object.values(contributors)) {
-		// Removal must beat the log's name, or a removed name reappears here.
-		if (contributor.tombstoned) {
-			byId.set(contributor.id, contributor.name);
-			continue;
-		}
-
-		// Offer the name the user can actually type — the log's copy is sanitized.
-		byId.set(
-			contributor.id,
-			preferBestName(contributor.name, byId.get(contributor.id)) ??
-				contributor.name,
-		);
+		byId.set(contributor.id, contributor.name);
 	}
 
 	return [...byId.entries()].map(([id, name]) => ({

@@ -5,4 +5,11 @@ console.info = console.error;
 console.debug = console.error;
 console.warn = console.error;
 
+// Nothing the MCP serves reads a ticket's virtual fields, and building them is
+// most of the cost of a replay.
+const {setVirtualNodesEnabled} = await import(
+	'../lib/virtual-nodes/virtual-nodes.js'
+);
+setVirtualNodesEnabled(false);
+
 await import('./server.js');

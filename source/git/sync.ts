@@ -1,38 +1,34 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {failSync, setSynced, setSyncing} from '../lib/state/sync-state.js';
+import {
+	failSync,
+	setSynced,
+	setSyncing,
+	setSyncOffline,
+} from '../lib/state/sync-state.js';
 import {trace} from '../lib/utils/logger.utils.js';
 import {getStateBranch} from './git-constants.js';
 import {
 	ensureStateBranchLayout,
-	getRelativeEventFilePath,
 	getRepoRootDir,
 	getStateBranchRoot,
 } from './git-storage.js';
 import {
 	execGit,
-	execGitAllowFail,
 	hasInProgressGitOperation,
 	hasStagedChanges,
+	isAheadOfUpstream,
 	isDetachedHead,
 	isNonFastForward,
+	isRemoteUnreachable,
 	pullBranchRebaseIfPresent,
-	resetBranchHardToRemote,
 } from './git-utils.js';
 import {
 	bootstrapStateBranchStorage,
 	createStateBranchSyncCommit,
-	ensureInitialCommit,
 	pushStateBranch,
 	stageStateBranchMediaFiles,
 	stageStateBranchOwnEventFile,
 } from './git.js';
-import {
-	mergePersistedEvents,
-	parsePersistedEvents,
-	serializePersistedEvents,
-} from './merge.js';
 
 type SyncSummary = {
 	repoRoot: string;
@@ -42,6 +38,8 @@ type SyncSummary = {
 	pulled: boolean;
 	pushed: boolean;
 	bootstrapped: boolean;
+	// Local work is committed; the remote could not be reached.
+	offline: boolean;
 };
 
 type SyncArgs = {
@@ -52,159 +50,6 @@ type SyncArgs = {
 type SyncOwnFileCommitResult = {
 	createdCommit: boolean;
 	commitSha?: string;
-};
-
-const readFileIfExists = (filePath: string): string | null =>
-	fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : null;
-
-const writeFileIfChanged = (filePath: string, content: string): boolean => {
-	const current = readFileIfExists(filePath);
-	if (current === content) return false;
-
-	fs.mkdirSync(path.dirname(filePath), {recursive: true});
-	fs.writeFileSync(filePath, content, 'utf8');
-	return true;
-};
-
-const snapshotEventFiles = (
-	stateBranchRoot: string,
-): Result<Map<string, string>> => {
-	const eventsDir = path.join(stateBranchRoot, '.epiq', 'events');
-	const snapshots = new Map<string, string>();
-
-	if (!fs.existsSync(eventsDir)) {
-		return succeeded('No event files to snapshot', snapshots);
-	}
-
-	for (const fileName of fs.readdirSync(eventsDir)) {
-		if (!fileName.endsWith('.jsonl')) continue;
-
-		const filePath = path.join(eventsDir, fileName);
-		if (!fs.statSync(filePath).isFile()) continue;
-
-		snapshots.set(fileName, fs.readFileSync(filePath, 'utf8'));
-	}
-
-	return succeeded('Snapshotted event files', snapshots);
-};
-
-const restoreEventFilesToHead = async (
-	stateBranchRoot: string,
-): Promise<Result<null>> => {
-	const checkoutResult = await execGitAllowFail({
-		cwd: stateBranchRoot,
-		args: ['checkout', '--', getRelativeEventFilePath('')],
-	});
-
-	if (checkoutResult.exitCode !== 0) {
-		const eventsDir = path.join(stateBranchRoot, '.epiq', 'events');
-		if (fs.existsSync(eventsDir)) {
-			fs.rmSync(eventsDir, {recursive: true, force: true});
-		}
-	}
-
-	return succeeded('Restored event files to HEAD', null);
-};
-
-const mergeEventSnapshots = ({
-	stateBranchRoot,
-	snapshots,
-}: {
-	stateBranchRoot: string;
-	snapshots: Map<string, string>;
-}): Result<boolean> => {
-	let changed = false;
-
-	for (const [fileName, snapshotContent] of snapshots) {
-		const eventPath = path.join(
-			stateBranchRoot,
-			getRelativeEventFilePath(fileName),
-		);
-
-		const remoteContent = readFileIfExists(eventPath) ?? '';
-
-		const remoteEventsResult = parsePersistedEvents(remoteContent);
-		if (isFail(remoteEventsResult)) return failed(remoteEventsResult.message);
-
-		const localEventsResult = parsePersistedEvents(snapshotContent);
-		if (isFail(localEventsResult)) return failed(localEventsResult.message);
-
-		const merged = mergePersistedEvents(
-			remoteEventsResult.value,
-			localEventsResult.value,
-		);
-
-		changed =
-			writeFileIfChanged(eventPath, serializePersistedEvents(merged)) ||
-			changed;
-	}
-
-	return succeeded('Merged event snapshots', changed);
-};
-
-export const resetHardToRemoteState = async (
-	cwd = process.cwd(),
-): Promise<Result<{repoRoot: string; stateBranchRoot: string}>> => {
-	logger.debug('[sync] syncEpiqFromRemote:start', cwd);
-
-	setSyncing('Syncing from remote');
-
-	const ready = trace(
-		'ensureSyncReady',
-		await ensureSyncReady({
-			cwd,
-			ensureUpstream: false,
-		}),
-	);
-	if (isFail(ready)) return failSync(ready.message);
-
-	const {repoRoot, stateBranchRoot} = ready.value;
-
-	const stateBranchResult = trace('getStateBranch', getStateBranch(repoRoot));
-	if (isFail(stateBranchResult)) return failSync(stateBranchResult.message);
-
-	const stateBranch = stateBranchResult.value;
-
-	const snapshotsResult = trace(
-		'snapshotEventFiles',
-		snapshotEventFiles(stateBranchRoot),
-	);
-	if (isFail(snapshotsResult)) return failSync(snapshotsResult.message);
-
-	const restoreResult = trace(
-		'restoreEventFilesToHead',
-		await restoreEventFilesToHead(stateBranchRoot),
-	);
-	if (isFail(restoreResult)) return failSync(restoreResult.message);
-
-	const resetResult = trace(
-		'resetBranchHardToRemote',
-		await resetBranchHardToRemote({
-			cwd: stateBranchRoot,
-			branch: stateBranch,
-		}),
-	);
-	if (isFail(resetResult)) return failSync(resetResult.message);
-
-	const mergeResult = trace(
-		'mergeEventSnapshots',
-		mergeEventSnapshots({
-			stateBranchRoot,
-			snapshots: snapshotsResult.value,
-		}),
-	);
-	if (isFail(mergeResult)) return failSync(mergeResult.message);
-
-	setSynced(
-		mergeResult.value ? 'Synced and merged local state' : 'Synced from remote',
-	);
-
-	logger.debug('[sync] syncEpiqFromRemote:done');
-
-	return succeeded('Synced state branch from remote', {
-		repoRoot,
-		stateBranchRoot,
-	});
 };
 
 const ensureSyncReady = async ({
@@ -240,16 +85,6 @@ const ensureSyncReady = async ({
 	const stateBranchRoot = stateBranchRootResult.value;
 
 	logger.debug('[sync] state branch root', stateBranchRoot);
-
-	const initResult = trace(
-		'ensureInitialCommit',
-		await ensureInitialCommit(repoRoot),
-	);
-	if (isFail(initResult)) return failed(initResult.message);
-
-	logger.debug('[sync] initial commit result', {
-		created: initResult.value,
-	});
 
 	logger.debug('[sync] bootstrapping state branch storage', {
 		repoRoot,
@@ -353,9 +188,17 @@ const commitOwnEventFileToStateBranch = async ({
 	);
 	if (isFail(stageMediaResult)) return failed(stageMediaResult.message);
 
+	const pathspec = [stageResult.value, stageMediaResult.value].filter(
+		(entry): entry is string => entry !== null,
+	);
+
+	if (pathspec.length === 0) {
+		return succeeded('Nothing to stage', {createdCommit: false});
+	}
+
 	const changedAfterStageResult = trace(
 		'hasStagedChanges(after stage)',
-		await hasStagedChanges(stateBranchRoot),
+		await hasStagedChanges(stateBranchRoot, pathspec),
 	);
 	if (isFail(changedAfterStageResult)) {
 		return failed(changedAfterStageResult.message);
@@ -379,6 +222,7 @@ const commitOwnEventFileToStateBranch = async ({
 		await createStateBranchSyncCommit({
 			repoRoot,
 			stateBranchRoot,
+			pathspec,
 		}),
 	);
 	if (isFail(commitResult)) return failed(commitResult.message);
@@ -388,6 +232,21 @@ const commitOwnEventFileToStateBranch = async ({
 	return succeeded('Committed own event file', {
 		createdCommit: true,
 		commitSha: commitResult.value,
+	});
+};
+
+const offlineSummary = (
+	summary: Omit<SyncSummary, 'offline' | 'pulled' | 'pushed'>,
+): Result<SyncSummary> => {
+	const msg = summary.createdCommit ? 'Committed locally, offline' : 'Offline';
+
+	setSyncOffline(msg);
+
+	return succeeded(msg, {
+		...summary,
+		pulled: false,
+		pushed: false,
+		offline: true,
 	});
 };
 
@@ -499,14 +358,34 @@ export const syncEpiqWithRemote = async ({
 			branch: stateBranch,
 		}),
 	);
-	if (isFail(pullResult)) return failSync(pullResult.message);
+	if (isFail(pullResult)) {
+		if (isRemoteUnreachable(pullResult.message)) {
+			return offlineSummary({
+				repoRoot,
+				stateBranchRoot,
+				createdCommit,
+				commitSha,
+				bootstrapped,
+			});
+		}
+
+		return failSync(pullResult.message);
+	}
 
 	pulled = pullResult.value;
 
 	// ============================
 	// Push remote
 	// ============================
-	if (createdCommit || bootstrapped) {
+	// Checked after the pull, and not folded into `createdCommit`: a commit an
+	// earlier run failed to push is still ours to send.
+	const aheadResult = trace(
+		'isAheadOfUpstream',
+		await isAheadOfUpstream(stateBranchRoot),
+	);
+	if (isFail(aheadResult)) return failSync(aheadResult.message);
+
+	if (createdCommit || bootstrapped || aheadResult.value) {
 		logger.info('[sync] pushing state branch', {
 			createdCommit,
 			bootstrapped,
@@ -536,7 +415,19 @@ export const syncEpiqWithRemote = async ({
 			);
 		}
 
-		if (isFail(pushResult)) return failSync(pushResult.message);
+		if (isFail(pushResult)) {
+			if (isRemoteUnreachable(pushResult.message)) {
+				return offlineSummary({
+					repoRoot,
+					stateBranchRoot,
+					createdCommit,
+					commitSha,
+					bootstrapped,
+				});
+			}
+
+			return failSync(pushResult.message);
+		}
 
 		pushed = pushResult.value;
 	}
@@ -587,5 +478,6 @@ export const syncEpiqWithRemote = async ({
 		pulled,
 		pushed,
 		bootstrapped,
+		offline: false,
 	});
 };

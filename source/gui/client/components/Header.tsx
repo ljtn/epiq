@@ -1,5 +1,6 @@
 import {GuiState} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {SyncStatus} from '../lib/gui-sync-statusmodel';
 import {Button} from './Button';
 import {Panel} from './Panel';
 import {User} from './User';
@@ -12,10 +13,7 @@ type HeaderProps = {
 	connection: 'connected' | 'connecting' | 'reconnecting' | 'lost';
 	onReconnect: () => void;
 	scrubbing: boolean;
-	syncStatus: {
-		status: 'synced' | 'failed' | 'syncing';
-		msg: string;
-	};
+	syncStatus: SyncStatus;
 };
 
 export const Header = ({
@@ -30,6 +28,8 @@ export const Header = ({
 			? GUI_THEME.green
 			: syncStatus.status === 'failed'
 			? GUI_THEME.red
+			: syncStatus.status === 'offline'
+			? GUI_THEME.dim
 			: GUI_THEME.accent;
 
 	// Failures can carry multi-line git output — never render that in the

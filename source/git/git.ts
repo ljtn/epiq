@@ -27,11 +27,29 @@ import {
 	normalizeExistingPath,
 } from './git-utils.js';
 
+/**
+ * Creates the one commit a repository needs before it can carry a branch, for
+ * the case where epiq is initialized in a repo that has none.
+ *
+ * Only ever called from `:init`. This writes in the user's own repository,
+ * which may hold unrelated or confidential work, so it is deliberately hard to
+ * fire and incapable of taking anything with it:
+ *
+ * - It fails closed. `rev-parse --verify --quiet HEAD` exits non-zero both for
+ *   an unborn HEAD and for a command that simply failed — a timeout is 124, a
+ *   spawn error 1 — so only the unmistakable signal counts: exit 1 with no
+ *   output at all. Anything else and we leave the repo alone.
+ * - It never reads the index. `commit-tree` over the empty tree cannot pick up
+ *   staged files, so even a caller that gets the check wrong cannot commit
+ *   somebody's work.
+ */
+export const INITIAL_COMMIT_MESSAGE = '[epiq:init-repo]';
+
 export const ensureInitialCommit = async (
 	repoRoot: string,
 ): Promise<Result<boolean>> => {
 	const headResult = await execGitAllowFail({
-		args: ['rev-parse', '--verify', 'HEAD'],
+		args: ['rev-parse', '--verify', '--quiet', 'HEAD'],
 		cwd: repoRoot,
 	});
 
@@ -39,15 +57,47 @@ export const ensureInitialCommit = async (
 		return succeeded('Initial commit already exists', false);
 	}
 
+	const isUnbornHead =
+		headResult.exitCode === 1 &&
+		headResult.stdout.trim() === '' &&
+		headResult.stderr.trim() === '';
+
+	if (!isUnbornHead) {
+		return failed(
+			[
+				'Could not determine whether the repository has any commits, so nothing was written.',
+				`git rev-parse exited ${headResult.exitCode}`,
+				headResult.stderr.trim(),
+			]
+				.filter(Boolean)
+				.join('\n'),
+		);
+	}
+
 	logger.info('Creating initial commit');
 
-	const commitResult = await git.commit({
+	const emptyTreeResult = await execGit({
+		args: ['hash-object', '-w', '-t', 'tree', '/dev/null'],
 		cwd: repoRoot,
-		message: 'Initial commit',
-		allowEmpty: true,
 	});
+	if (isFail(emptyTreeResult)) return failed(emptyTreeResult.message);
 
+	const commitResult = await execGit({
+		args: [
+			'commit-tree',
+			emptyTreeResult.value.stdout.trim(),
+			'-m',
+			INITIAL_COMMIT_MESSAGE,
+		],
+		cwd: repoRoot,
+	});
 	if (isFail(commitResult)) return failed(commitResult.message);
+
+	const updateRefResult = await execGit({
+		args: ['update-ref', 'HEAD', commitResult.value.stdout.trim()],
+		cwd: repoRoot,
+	});
+	if (isFail(updateRefResult)) return failed(updateRefResult.message);
 
 	return succeeded('Created initial commit', true);
 };
@@ -120,6 +170,21 @@ const ensureLocalStateBranch = async ({
 	repoRoot: string;
 	stateBranchName: string;
 }): Promise<Result<boolean>> => {
+	// Before anything remote: in steady state this is the whole answer, and
+	// consulting the remote would fail the sync when offline.
+	const localResult = await hasLocalBranch({
+		repoRoot,
+		branch: stateBranchName,
+	});
+
+	if (isFail(localResult)) {
+		return failed('Ensure local state branch failed\n' + localResult.message);
+	}
+
+	if (localResult.value) {
+		return succeeded('Local state branch already exists', false);
+	}
+
 	const remoteResult = await hasRemote({repoRoot});
 	if (isFail(remoteResult)) {
 		return failed('Ensure local state branch failed\n' + remoteResult.message);
@@ -151,19 +216,6 @@ const ensureLocalStateBranch = async ({
 				`Failed to fetch ${stateBranchName} from remote\n${fetchResult.message}`,
 			);
 		}
-	}
-
-	const localResult = await hasLocalBranch({
-		repoRoot,
-		branch: stateBranchName,
-	});
-
-	if (isFail(localResult)) {
-		return failed('Ensure local state branch failed\n' + localResult.message);
-	}
-
-	if (localResult.value) {
-		return succeeded('Local state branch already exists', false);
 	}
 
 	if (hasRemoteStateBranch) {
@@ -451,12 +503,12 @@ export const stageStateBranchOwnEventFile = async ({
 }: {
 	stateBranchRoot: string;
 	eventFileName: string;
-}): Promise<Result<void>> => {
+}): Promise<Result<string | null>> => {
 	const eventPath = getRelativeEventFilePath(eventFileName);
 	const eventAbsolutePath = path.join(stateBranchRoot, eventPath);
 
 	if (!fs.existsSync(eventAbsolutePath)) {
-		return succeeded('No event file to stage', undefined);
+		return succeeded('No event file to stage', null);
 	}
 
 	const stageResult = await git.stage({
@@ -470,7 +522,7 @@ export const stageStateBranchOwnEventFile = async ({
 		);
 	}
 
-	return succeeded('Staged state branch event file', undefined);
+	return succeeded('Staged state branch event file', eventPath);
 };
 
 /**
@@ -482,12 +534,12 @@ export const stageStateBranchMediaFiles = async ({
 	stateBranchRoot,
 }: {
 	stateBranchRoot: string;
-}): Promise<Result<void>> => {
+}): Promise<Result<string | null>> => {
 	const mediaPath = getRelativeMediaDirPath();
 	const mediaAbsolutePath = path.join(stateBranchRoot, mediaPath);
 
 	if (!fs.existsSync(mediaAbsolutePath)) {
-		return succeeded('No media directory to stage', undefined);
+		return succeeded('No media directory to stage', null);
 	}
 
 	const stageResult = await git.stage({
@@ -501,15 +553,18 @@ export const stageStateBranchMediaFiles = async ({
 		);
 	}
 
-	return succeeded('Staged state branch media files', undefined);
+	return succeeded('Staged state branch media files', mediaPath);
 };
 
 export const createStateBranchSyncCommit = async ({
 	repoRoot,
 	stateBranchRoot,
+	pathspec,
 }: {
 	repoRoot: string;
 	stateBranchRoot: string;
+	// Only what we staged; anything else in this index is not ours to commit.
+	pathspec: string[];
 }): Promise<Result<string>> => {
 	const messageResult = await buildSyncCommitMessage(repoRoot);
 	if (isFail(messageResult)) {
@@ -521,6 +576,7 @@ export const createStateBranchSyncCommit = async ({
 	return commitAndGetSha({
 		cwd: stateBranchRoot,
 		message: messageResult.value,
+		pathspec,
 	});
 };
 
@@ -551,7 +607,15 @@ export const pushStateBranch = async ({
 		return failed(`Failed during state branch push\n${result.message}`);
 	}
 
-	return succeeded('Pushed state branch', true);
+	// git says so on stderr rather than exiting non-zero.
+	const moved = !`${result.value.stdout}${result.value.stderr}`.includes(
+		'Everything up-to-date',
+	);
+
+	return succeeded(
+		moved ? 'Pushed state branch' : 'Remote already up to date',
+		moved,
+	);
 };
 
 export const bootstrapStateBranchStorage = async ({

@@ -158,11 +158,13 @@ export const execGitAllowFail = ({
 export const commitAndGetSha = async ({
 	cwd,
 	message,
+	pathspec,
 }: {
 	cwd: string;
 	message: string;
+	pathspec?: string[];
 }): Promise<Result<string>> => {
-	const commitResult = await git.commit({cwd, message});
+	const commitResult = await git.commit({cwd, message, pathspec});
 
 	if (isFail(commitResult)) {
 		return failed(`Failed to create commit\n${commitResult.message}`);
@@ -370,10 +372,10 @@ export const getShortHeadSha = async (
 	return succeeded('Resolved short HEAD sha', result.value.stdout.trim());
 };
 
+// Only the reasons a rebase-and-retry can clear. Git prints "failed to push
+// some refs" for every rejection, hook declines included.
 export const isNonFastForward = (message: string): boolean =>
-	message.includes('fetch first') ||
-	message.includes('non-fast-forward') ||
-	message.includes('failed to push some refs');
+	message.includes('fetch first') || message.includes('non-fast-forward');
 
 export const abortRebaseIfPresent = async (
 	cwd: string,
@@ -390,50 +392,26 @@ export const abortRebaseIfPresent = async (
 	return succeeded('No rebase to abort', false);
 };
 
-export const resetBranchHardToRemote = async ({
-	cwd,
-	branch,
-}: {
-	cwd: string;
-	branch: string;
-}): Promise<Result<boolean>> => {
-	const remoteBranchResult = await hasRemoteBranch({
-		repoRoot: cwd,
-		branch,
-	});
-
-	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
-
-	if (!remoteBranchResult.value) {
-		return succeeded('Remote branch missing, skipped reset', false);
-	}
-
-	const fetchResult = await git.fetch({
-		cwd,
-		remote: ORIGIN,
-		branch,
-	});
-
-	if (isFail(fetchResult)) {
-		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
-	}
-
-	const abortResult = await abortRebaseIfPresent(cwd);
-	if (isFail(abortResult)) return failed(abortResult.message);
-
-	const resetResult = await execGit({
-		cwd,
-		args: ['reset', '--hard', `${ORIGIN}/${branch}`],
-	});
-
-	if (isFail(resetResult)) {
-		return failed(
-			`Failed to reset ${branch} from remote\n${resetResult.message}`,
-		);
-	}
-
-	return succeeded('Reset branch from remote', true);
+const readHeadSha = async (cwd: string): Promise<string | null> => {
+	const result = await execGitAllowFail({args: ['rev-parse', 'HEAD'], cwd});
+	return result.exitCode === 0 ? result.stdout.trim() : null;
 };
+
+// Network-level failures only. An auth or policy rejection reaches the user as
+// a failure, because it needs them to act; being offline does not.
+export const isRemoteUnreachable = (message: string): boolean =>
+	/could not resolve host/i.test(message) ||
+	/connection refused|connection timed out|operation timed out/i.test(
+		message,
+	) ||
+	/network is unreachable|no route to host/i.test(message) ||
+	/failed to connect to/i.test(message) ||
+	/git command timed out after/i.test(message);
+
+// git's wording when the branch does not exist on the remote.
+const isMissingRemoteRef = (message: string): boolean =>
+	message.includes("couldn't find remote ref") ||
+	message.includes('Could not find remote branch');
 
 export const pullBranchRebaseIfPresent = async ({
 	cwd,
@@ -442,40 +420,59 @@ export const pullBranchRebaseIfPresent = async ({
 	cwd: string;
 	branch: string;
 }): Promise<Result<boolean>> => {
-	const remoteBranchResult = await hasRemoteBranch({
-		repoRoot: cwd,
-		branch,
-	});
-
-	if (isFail(remoteBranchResult)) return failed(remoteBranchResult.message);
-
-	if (!remoteBranchResult.value) {
-		return succeeded('Remote branch missing, skipped pull', false);
-	}
-
 	const abortResult = await abortRebaseIfPresent(cwd);
 	if (isFail(abortResult)) return failed(abortResult.message);
 
-	const fetchResult = await git.fetch({cwd, remote: ORIGIN, branch});
+	const before = await readHeadSha(cwd);
 
-	if (isFail(fetchResult)) {
-		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
-	}
-
+	// The pull fetches on its own; asking ls-remote and fetch first was two
+	// extra round trips.
 	const pullResult = await git.pullRebase({cwd, remote: ORIGIN, branch});
 
 	if (isFail(pullResult)) {
+		if (isMissingRemoteRef(pullResult.message)) {
+			return succeeded('Remote branch missing, skipped pull', false);
+		}
+
 		return failed(`Failed during pull --rebase\n${pullResult.message}`);
 	}
 
-	return succeeded('Pulled with rebase', true);
+	const after = await readHeadSha(cwd);
+	const moved = before !== null && after !== null && before !== after;
+
+	return succeeded(moved ? 'Pulled with rebase' : 'Already up to date', moved);
+};
+
+// False when there is no upstream yet: the first push is gated on bootstrap.
+export const isAheadOfUpstream = async (
+	cwd: string,
+): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
+		args: ['rev-list', '--count', '@{u}..HEAD'],
+		cwd,
+	});
+
+	if (result.exitCode !== 0) {
+		return succeeded('No upstream to compare against', false);
+	}
+
+	return succeeded(
+		'Compared against upstream',
+		Number(result.stdout.trim()) > 0,
+	);
 };
 
 export const hasStagedChanges = async (
 	repoRoot: string,
+	pathspec?: string[],
 ): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
-		args: ['diff', '--cached', '--quiet'],
+		args: [
+			'diff',
+			'--cached',
+			'--quiet',
+			...(pathspec?.length ? ['--', ...pathspec] : []),
+		],
 		cwd: repoRoot,
 	});
 

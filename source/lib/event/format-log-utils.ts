@@ -46,6 +46,7 @@ export const formatLogAction = (action: string): string => {
 		'add.field': 'Added field',
 		'create.tag': 'Created tag',
 		'create.contributor': 'Added contributor',
+		'rename.contributor': 'Renamed contributor',
 		'link.contributor.user': 'Linked contributor',
 		'tombstone.contributor': 'Removed contributor',
 		'restore.contributor': 'Restored contributor',
@@ -138,6 +139,7 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'add.field':
 		case 'create.tag':
 		case 'create.contributor':
+		case 'rename.contributor':
 		case 'edit.title': {
 			return `"${'name' in event.payload ? event.payload.name : ''}"`;
 		}
@@ -190,6 +192,7 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'add.field':
 		case 'create.tag':
 		case 'create.contributor':
+		case 'rename.contributor':
 		case 'edit.title':
 			return 'name' in event.payload ? `"${event.payload.name}"` : '';
 

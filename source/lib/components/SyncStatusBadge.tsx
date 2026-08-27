@@ -100,6 +100,14 @@ export const SyncStatusBadge: React.FC = () => {
 			};
 		}
 
+		// Local work is committed, so this is not the "!" of a failed sync.
+		if (status === 'offline') {
+			return {
+				label: msg || 'offline',
+				icon: '⌁',
+			};
+		}
+
 		return {
 			label: `out of sync${msg ? ` ${msg}` : ''}`,
 			icon: '!',

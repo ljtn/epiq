@@ -4,17 +4,28 @@ export const git = {
 	stage: ({cwd, pathspec}: {cwd: string; pathspec: string[]}) =>
 		execGit({args: ['add', ...pathspec], cwd}),
 
+	// `pathspec` commits only those paths and ignores the rest of the index.
+	// Without it a commit takes whatever the user happened to have staged, which
+	// in their own repo means committing work that is not ours to commit.
 	commit: ({
 		cwd,
 		message,
 		allowEmpty = false,
+		pathspec,
 	}: {
 		cwd: string;
 		message: string;
 		allowEmpty?: boolean;
+		pathspec?: string[];
 	}) =>
 		execGit({
-			args: ['commit', ...(allowEmpty ? ['--allow-empty'] : []), '-m', message],
+			args: [
+				'commit',
+				...(allowEmpty ? ['--allow-empty'] : []),
+				'-m',
+				message,
+				...(pathspec?.length ? ['--', ...pathspec] : []),
+			],
 			cwd,
 		}),
 
@@ -28,6 +39,7 @@ export const git = {
 		branch: string;
 	}) => execGit({args: ['fetch', remote, branch], cwd}),
 
+	// autoStash: an event appended mid-sync would otherwise abort the rebase.
 	pullRebase: ({
 		cwd,
 		remote,
@@ -36,7 +48,11 @@ export const git = {
 		cwd: string;
 		remote: string;
 		branch: string;
-	}) => execGit({args: ['pull', '--rebase', remote, branch], cwd}),
+	}) =>
+		execGit({
+			args: ['-c', 'rebase.autoStash=true', 'pull', '--rebase', remote, branch],
+			cwd,
+		}),
 
 	checkout: ({cwd, branch}: {cwd: string; branch: string}) =>
 		execGit({args: ['checkout', branch], cwd}),

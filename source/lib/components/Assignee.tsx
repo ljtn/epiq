@@ -3,10 +3,7 @@ import React from 'react';
 import {TagColor, TAGS_DEFAULT, TagsDefault} from '../static/default-tags.js';
 import {stringToHslHexColor} from '../utils/color.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {
-	getContributorDisplayName,
-	hasAuthoredEvents,
-} from '../utils/contributor.utils.js';
+import {hasAuthoredEvents} from '../utils/contributor.utils.js';
 import {truncateWithEllipsis} from '../utils/string.utils.js';
 
 type Props = {
@@ -30,7 +27,7 @@ export const AssigneeUI: React.FC<Props> = ({id, isSelected, maxWidth}) => {
 	const contributor = nodeRepo.getContributor(id);
 	if (!contributor) return;
 
-	const displayName = getContributorDisplayName(id, contributor.name);
+	const displayName = contributor.name;
 	const name =
 		maxWidth === undefined
 			? displayName

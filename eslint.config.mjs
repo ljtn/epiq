@@ -8,6 +8,8 @@ export default tseslint.config(
 			'coverage/**',
 			'node_modules/**',
 			'source/scripts/*.mjs',
+			// Worktrees checked out inside the repo are other branches' code.
+			'.claude/worktrees/**',
 		],
 	},
 

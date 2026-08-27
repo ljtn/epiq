@@ -174,6 +174,7 @@ export const ScrubberLayout = ({
 					// rather than on either chart, so a drag or hover anywhere across
 					// the pair — the gap included — counts as one timeline.
 					<div
+						data-testid="scrubber-track"
 						onPointerDown={on.onPointerDown}
 						onPointerMove={on.onPointerMove}
 						onPointerUp={on.onPointerEnd}
