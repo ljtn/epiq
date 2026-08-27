@@ -13,6 +13,9 @@ import {bigIntToHex, midRank} from '../lib/utils/rank.js';
 // running it once at the end must land on exactly the state that running it
 // after every event would have. That is what this asserts — directly, rather
 // than hoping a rendered TUI screen happens to disagree.
+//
+// It now covers the same argument for the event logs and the ticket virtual
+// fields, which are collected during a replay and applied once at the end.
 
 const IDS = {
 	root: '01H00000000000000000000000',

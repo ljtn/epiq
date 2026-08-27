@@ -196,6 +196,34 @@ const validateEventUser = (event: AppEvent): Result => {
 	return succeeded('Valid user', null);
 };
 
+// A replay applies every event before anything reads the result, so the work
+// that only the final state needs is collected here and done once at the end.
+// Per event it was quadratic: each append copied the whole log, and a ticket's
+// virtual fields were rebuilt once for every event that touched it.
+type ReplayBatch = {
+	appLog: AppEvent[];
+	nodeLog: Map<string, AppEvent[]>;
+	virtualNodeIds: Set<string>;
+};
+
+let replayBatch: ReplayBatch | null = null;
+
+const flushReplayBatch = (batch: ReplayBatch): ReturnFail | null => {
+	for (const [nodeId, events] of batch.nodeLog) {
+		const node = nodeRepo.getNode(nodeId);
+		if (!node) continue;
+
+		nodeRepo.updateNode({...node, log: [...(node.log ?? []), ...events]});
+	}
+
+	if (batch.appLog.length > 0) {
+		updateState(s => ({...s, eventLog: [...s.eventLog, ...batch.appLog]}));
+	}
+
+	// After the logs, since a ticket's log is one of the fields these build.
+	return refreshAffectedVirtualNodes([...batch.virtualNodeIds]);
+};
+
 const completeMaterialization = (
 	event: AppEvent,
 	bypassLogging: boolean,
@@ -204,6 +232,27 @@ const completeMaterialization = (
 	if (isFail(userFail)) return userFail;
 
 	const affectedNodeIds = [...new Set(getAffectedNodeIds(event))];
+
+	if (replayBatch) {
+		for (const nodeId of affectedNodeIds) {
+			if (!bypassLogging) {
+				const events = replayBatch.nodeLog.get(nodeId);
+				if (events) events.push(event);
+				else replayBatch.nodeLog.set(nodeId, [event]);
+			}
+
+			replayBatch.virtualNodeIds.add(nodeId);
+
+			// The parent as it stands now, which a later move may change; the
+			// flush refreshes the final one too.
+			const parentId = getState().nodes[nodeId]?.parentNodeId;
+			if (parentId) replayBatch.virtualNodeIds.add(parentId);
+		}
+
+		if (!bypassLogging) replayBatch.appLog.push(event);
+
+		return null;
+	}
 
 	if (!bypassLogging) {
 		affectedNodeIds.forEach(nodeId => appendEventToNodeLog(nodeId, event));
@@ -852,9 +901,32 @@ export function materialize<A extends EventAction>(
 export const materializeAll = <const T extends readonly AppEvent[]>(
 	events: T,
 ): MaterializeResults<T> => {
-	const result = withDeferredDerive(
-		() => events.map(event => materialize(event)) as MaterializeResults<T>,
-	);
+	const result = withDeferredDerive(() => {
+		// Nested calls join the outer batch, matching withDeferredDerive.
+		const owned = replayBatch === null;
+		if (owned) {
+			replayBatch = {
+				appLog: [],
+				nodeLog: new Map(),
+				virtualNodeIds: new Set(),
+			};
+		}
+
+		try {
+			const results = events.map(event =>
+				materialize(event),
+			) as MaterializeResults<T>;
+
+			if (owned && replayBatch) {
+				const flushFail = flushReplayBatch(replayBatch);
+				if (flushFail) return events.map(() => flushFail) as typeof results;
+			}
+
+			return results;
+		} finally {
+			if (owned) replayBatch = null;
+		}
+	});
 
 	// A failed derive leaves the events applied to the base state either way;
 	// the caller reads the per-event results to decide what to do about it.
