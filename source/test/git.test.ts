@@ -316,6 +316,31 @@ describe('pullBranchRebaseIfPresent', () => {
 			'one\ntwo\n',
 		);
 		expect(fs.existsSync(path.join(local, 'theirs.jsonl'))).toBe(true);
+		if (!isFail(result)) expect(result.value).toBe(true);
+	});
+
+	it('reports no pull when the remote has nothing new', async () => {
+		const root = makeTempDir();
+		const remote = path.join(root, 'remote');
+		const local = path.join(root, 'local');
+
+		fs.mkdirSync(remote, {recursive: true});
+		await gitIn(remote, ['init', '--bare', '-q', '-b', 'main', '.']);
+		await gitIn(root, ['clone', '-q', remote, 'local']);
+		await gitIn(local, ['config', 'user.email', 'a@a']);
+		await gitIn(local, ['config', 'user.name', 'a']);
+		writeFile(path.join(local, 'f.txt'), 'x\n');
+		await gitIn(local, ['add', '-A']);
+		await gitIn(local, ['commit', '-qm', 'base']);
+		await gitIn(local, ['push', '-q', 'origin', 'HEAD:main']);
+
+		const result = await pullBranchRebaseIfPresent({
+			cwd: local,
+			branch: 'main',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) expect(result.value).toBe(false);
 	});
 
 	it('reports no pull when the branch is absent from the remote', async () => {

@@ -392,6 +392,11 @@ export const abortRebaseIfPresent = async (
 	return succeeded('No rebase to abort', false);
 };
 
+const readHeadSha = async (cwd: string): Promise<string | null> => {
+	const result = await execGitAllowFail({args: ['rev-parse', 'HEAD'], cwd});
+	return result.exitCode === 0 ? result.stdout.trim() : null;
+};
+
 // git's wording when the branch does not exist on the remote.
 const isMissingRemoteRef = (message: string): boolean =>
 	message.includes("couldn't find remote ref") ||
@@ -407,6 +412,8 @@ export const pullBranchRebaseIfPresent = async ({
 	const abortResult = await abortRebaseIfPresent(cwd);
 	if (isFail(abortResult)) return failed(abortResult.message);
 
+	const before = await readHeadSha(cwd);
+
 	// The pull fetches on its own; asking ls-remote and fetch first was two
 	// extra round trips.
 	const pullResult = await git.pullRebase({cwd, remote: ORIGIN, branch});
@@ -419,7 +426,10 @@ export const pullBranchRebaseIfPresent = async ({
 		return failed(`Failed during pull --rebase\n${pullResult.message}`);
 	}
 
-	return succeeded('Pulled with rebase', true);
+	const after = await readHeadSha(cwd);
+	const moved = before !== null && after !== null && before !== after;
+
+	return succeeded(moved ? 'Pulled with rebase' : 'Already up to date', moved);
 };
 
 export const hasStagedChanges = async (

@@ -605,7 +605,15 @@ export const pushStateBranch = async ({
 		return failed(`Failed during state branch push\n${result.message}`);
 	}
 
-	return succeeded('Pushed state branch', true);
+	// git says so on stderr rather than exiting non-zero.
+	const moved = !`${result.value.stdout}${result.value.stderr}`.includes(
+		'Everything up-to-date',
+	);
+
+	return succeeded(
+		moved ? 'Pushed state branch' : 'Remote already up to date',
+		moved,
+	);
 };
 
 export const bootstrapStateBranchStorage = async ({
