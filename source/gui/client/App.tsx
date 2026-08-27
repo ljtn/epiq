@@ -725,8 +725,10 @@ export const App = () => {
 
 	// Both requests carry the same id so their replies can be paired, and replies
 	// to an abandoned request discarded.
+	// Returns the id the reply will carry, so the caller can tell its own
+	// window's answer from one still arriving for a window it has left.
 	const requestBoardHistory = useCallback(
-		(start?: number, end?: number, allBoards?: boolean) => {
+		(start?: number, end?: number, allBoards?: boolean): number => {
 			const window = start !== undefined ? {start, end} : undefined;
 
 			const requestId = historyBuffer.open();
@@ -744,6 +746,8 @@ export const App = () => {
 				type: 'commits:get',
 				payload: {...window, requestId},
 			});
+
+			return requestId;
 		},
 		[selectedBoardId],
 	);

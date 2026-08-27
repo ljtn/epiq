@@ -114,7 +114,12 @@ export const TimeScrubber = ({
 	// Undefined start/end asks for the default "all time" window. Both series
 	// must come from one call: they share an axis derived from both, so
 	// independent fetches can put a half-updated pair on screen.
-	onRequestHistory: (start?: number, end?: number, allBoards?: boolean) => void;
+	// Returns the id its reply will carry.
+	onRequestHistory: (
+		start?: number,
+		end?: number,
+		allBoards?: boolean,
+	) => number;
 	boardId: string | null;
 	connected: boolean;
 	// Identifies the socket in hand. A replaced socket takes its outstanding
@@ -209,7 +214,11 @@ export const TimeScrubber = ({
 	useEffect(() => {
 		if (!connected) return;
 
-		onRequestHistory(periodRange?.start, periodRange?.end, allBoards);
+		pendingRequestId.current = onRequestHistory(
+			periodRange?.start,
+			periodRange?.end,
+			allBoards,
+		);
 	}, [scope, offset, boardId, allBoards, connected, socketEpoch]);
 
 	const changeLayoutMode = (next: LayoutMode) => {
@@ -283,16 +292,6 @@ export const TimeScrubber = ({
 		setAllBoards(next);
 	};
 
-	const steadyBoardId = useRef(boardId);
-	if (boardId !== null) steadyBoardId.current = boardId;
-
-	// What asks the server for a different window. Only these open the gate
-	// below, because only these are followed by a reply.
-	const requestKey = useMemo(
-		() => JSON.stringify([scope, offset, steadyBoardId.current, allBoards]),
-		[scope, offset, steadyBoardId.current, allBoards],
-	);
-
 	// What narrows the window already in hand. Answered on the spot, with no
 	// round trip, so it can replay the entrance the moment it changes.
 	const filterKey = useMemo(
@@ -302,33 +301,24 @@ export const TimeScrubber = ({
 
 	const entrance = useRef(0);
 	const armed = useRef(true);
-	const seenHistoryId = useRef(historyId);
 
 	const armEntrance = () => {
 		armed.current = true;
 	};
 
-	// A view change asks for one new window, so exactly the next history to
-	// arrive answers it. Everything after that until the next view change is
-	// scrub traffic, and the chart ignores it.
+	// Only the reply to the window this chart asked for. Taking whichever
+	// history arrived next meant a reply still in flight for the window just
+	// left could land first and be shown instead, and the real one was then
+	// ignored — the chart stuck on the previous scope.
 	const shownRef = useRef({timeline, commits});
-	const heldKey = useRef<string | null>(null);
-	const heldHistoryId = useRef<number | null>(null);
-	const awaiting = useRef(true);
+	const pendingRequestId = useRef<number | null>(null);
 
-	if (heldKey.current !== requestKey) {
-		heldKey.current = requestKey;
-		awaiting.current = true;
-	}
-
-	if (awaiting.current && heldHistoryId.current !== historyId) {
-		heldHistoryId.current = historyId;
+	if (
+		pendingRequestId.current !== null &&
+		historyId === pendingRequestId.current
+	) {
+		pendingRequestId.current = null;
 		shownRef.current = {timeline, commits};
-		awaiting.current = false;
-	}
-
-	if (seenHistoryId.current !== historyId) {
-		seenHistoryId.current = historyId;
 
 		if (armed.current) {
 			armed.current = false;
