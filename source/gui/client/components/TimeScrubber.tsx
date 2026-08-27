@@ -131,6 +131,8 @@ export const TimeScrubber = ({
 	const animate = !usePrefersReducedMotion();
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
+	// The moment last asked for, so a repeat of it is not asked again.
+	const lastTargetRef = useRef<number | null>(null);
 
 	const [layoutMode, setLayoutMode] =
 		useState<LayoutMode>(readStoredLayoutMode);
@@ -505,12 +507,23 @@ export const TimeScrubber = ({
 		// with the rest of the controls when there is nothing to ask.
 		if (!connected) return;
 
+		const target = axis.fractionToTime(fraction);
+
+		// A click dispatches on both press and release; answering the second
+		// means checking out a moment the board is already at.
+		if (target === lastTargetRef.current) return;
+
 		const now = Date.now();
 		if (!force && now - lastDispatchRef.current < SCRUB_THROTTLE_MS) return;
 
 		lastDispatchRef.current = now;
-		onScrub(axis.fractionToTime(fraction));
+		lastTargetRef.current = target;
+		onScrub(target);
 	};
+
+	useEffect(() => {
+		if (timeTravel.mode !== 'scrub') lastTargetRef.current = null;
+	}, [timeTravel.mode]);
 
 	const endDrag = () => {
 		if (dragFraction === null) return;
