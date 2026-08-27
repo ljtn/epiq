@@ -224,6 +224,51 @@ describe('sync', () => {
 	});
 });
 
+describe('sync commit scope', () => {
+	// The state worktree has its own index; anything left staged in it by an
+	// earlier run must not ride along in our commit.
+	it('commits only what it staged, leaving other staged work alone', async () => {
+		const {repoRoot} = await setupRepo();
+		const ownEventFileName = 'u1.alice.jsonl';
+
+		const bootResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(bootResult)) throw new Error(bootResult.message);
+
+		const {stateBranchRoot} = bootResult.value;
+
+		writeFile(
+			getEventsFile({root: stateBranchRoot, fileName: ownEventFileName}),
+			eventLine('01H00000000000000000000001'),
+		);
+
+		writeFile(path.join(stateBranchRoot, 'stowaway.txt'), 'not ours\n');
+		const stageResult = await execGit({
+			args: ['add', 'stowaway.txt'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(stageResult)) throw new Error(stageResult.message);
+
+		const syncResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(syncResult)) throw new Error(syncResult.message);
+		expect(syncResult.value.createdCommit).toBe(true);
+
+		const committed = await execGit({
+			args: ['show', '--name-only', '--format=', 'HEAD'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(committed)) throw new Error(committed.message);
+
+		expect(committed.value.stdout).not.toContain('stowaway.txt');
+		expect(committed.value.stdout).toContain(ownEventFileName);
+	});
+});
+
 describe('pullBranchRebaseIfPresent', () => {
 	const gitIn = async (cwd: string, args: string[]) => {
 		const result = await execGit({args, cwd});

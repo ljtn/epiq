@@ -179,9 +179,17 @@ const commitOwnEventFileToStateBranch = async ({
 	);
 	if (isFail(stageMediaResult)) return failed(stageMediaResult.message);
 
+	const pathspec = [stageResult.value, stageMediaResult.value].filter(
+		(entry): entry is string => entry !== null,
+	);
+
+	if (pathspec.length === 0) {
+		return succeeded('Nothing to stage', {createdCommit: false});
+	}
+
 	const changedAfterStageResult = trace(
 		'hasStagedChanges(after stage)',
-		await hasStagedChanges(stateBranchRoot),
+		await hasStagedChanges(stateBranchRoot, pathspec),
 	);
 	if (isFail(changedAfterStageResult)) {
 		return failed(changedAfterStageResult.message);
@@ -205,6 +213,7 @@ const commitOwnEventFileToStateBranch = async ({
 		await createStateBranchSyncCommit({
 			repoRoot,
 			stateBranchRoot,
+			pathspec,
 		}),
 	);
 	if (isFail(commitResult)) return failed(commitResult.message);

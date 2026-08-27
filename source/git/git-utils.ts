@@ -158,11 +158,13 @@ export const execGitAllowFail = ({
 export const commitAndGetSha = async ({
 	cwd,
 	message,
+	pathspec,
 }: {
 	cwd: string;
 	message: string;
+	pathspec?: string[];
 }): Promise<Result<string>> => {
-	const commitResult = await git.commit({cwd, message});
+	const commitResult = await git.commit({cwd, message, pathspec});
 
 	if (isFail(commitResult)) {
 		return failed(`Failed to create commit\n${commitResult.message}`);
@@ -428,9 +430,15 @@ export const pullBranchRebaseIfPresent = async ({
 
 export const hasStagedChanges = async (
 	repoRoot: string,
+	pathspec?: string[],
 ): Promise<Result<boolean>> => {
 	const result = await execGitAllowFail({
-		args: ['diff', '--cached', '--quiet'],
+		args: [
+			'diff',
+			'--cached',
+			'--quiet',
+			...(pathspec?.length ? ['--', ...pathspec] : []),
+		],
 		cwd: repoRoot,
 	});
 

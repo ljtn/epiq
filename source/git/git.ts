@@ -501,12 +501,12 @@ export const stageStateBranchOwnEventFile = async ({
 }: {
 	stateBranchRoot: string;
 	eventFileName: string;
-}): Promise<Result<void>> => {
+}): Promise<Result<string | null>> => {
 	const eventPath = getRelativeEventFilePath(eventFileName);
 	const eventAbsolutePath = path.join(stateBranchRoot, eventPath);
 
 	if (!fs.existsSync(eventAbsolutePath)) {
-		return succeeded('No event file to stage', undefined);
+		return succeeded('No event file to stage', null);
 	}
 
 	const stageResult = await git.stage({
@@ -520,7 +520,7 @@ export const stageStateBranchOwnEventFile = async ({
 		);
 	}
 
-	return succeeded('Staged state branch event file', undefined);
+	return succeeded('Staged state branch event file', eventPath);
 };
 
 /**
@@ -532,12 +532,12 @@ export const stageStateBranchMediaFiles = async ({
 	stateBranchRoot,
 }: {
 	stateBranchRoot: string;
-}): Promise<Result<void>> => {
+}): Promise<Result<string | null>> => {
 	const mediaPath = getRelativeMediaDirPath();
 	const mediaAbsolutePath = path.join(stateBranchRoot, mediaPath);
 
 	if (!fs.existsSync(mediaAbsolutePath)) {
-		return succeeded('No media directory to stage', undefined);
+		return succeeded('No media directory to stage', null);
 	}
 
 	const stageResult = await git.stage({
@@ -551,15 +551,18 @@ export const stageStateBranchMediaFiles = async ({
 		);
 	}
 
-	return succeeded('Staged state branch media files', undefined);
+	return succeeded('Staged state branch media files', mediaPath);
 };
 
 export const createStateBranchSyncCommit = async ({
 	repoRoot,
 	stateBranchRoot,
+	pathspec,
 }: {
 	repoRoot: string;
 	stateBranchRoot: string;
+	// Only what we staged; anything else in this index is not ours to commit.
+	pathspec: string[];
 }): Promise<Result<string>> => {
 	const messageResult = await buildSyncCommitMessage(repoRoot);
 	if (isFail(messageResult)) {
@@ -571,6 +574,7 @@ export const createStateBranchSyncCommit = async ({
 	return commitAndGetSha({
 		cwd: stateBranchRoot,
 		message: messageResult.value,
+		pathspec,
 	});
 };
 
