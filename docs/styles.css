@@ -571,17 +571,13 @@ aside:not(.docs-layout > aside) {
 	.wrap {
 		width: min(100% - 28px, 1160px);
 	}
-	/* Keep :docs and :blog visible; tighten the row and drop the
-	   star count so everything fits. */
+	/* Keep :docs and :blog visible; tighten the row so everything fits. */
 	.links {
 		gap: 12px;
 	}
 	.links .btn {
 		min-height: 38px;
 		padding: 0 12px;
-	}
-	.github-stars .stars {
-		display: none;
 	}
 	.hero {
 		padding-top: 52px;
@@ -743,22 +739,6 @@ aside:not(.docs-layout > aside) {
 }
 .copy-cmd.copied .copy-cmd-ico {
 	color: #6ee787;
-}
-
-/* GitHub button with live star count */
-.github-stars .stars {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	padding-left: 10px;
-	border-left: 1px solid var(--line);
-}
-.github-stars .star-ico {
-	display: block;
-}
-.github-stars .star-count {
-	font: 13px var(--mono);
-	letter-spacing: -0.02em;
 }
 
 /* Active nav link */
