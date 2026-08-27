@@ -62,17 +62,23 @@ export const ensureDir = (dirPath: string): Result<void> => {
 };
 
 export const ensureWorktreesDir = (): Result<boolean> => {
-	const homeResult = ensureDir(getEpiqGlobal());
+	const home = getEpiqGlobal();
+	const worktrees = getWorktreesRoot();
+	// Read before creating: callers use this to mean "bootstrap changed
+	// something", and a plain `true` makes every sync look like a first one.
+	const created = !fs.existsSync(home) || !fs.existsSync(worktrees);
+
+	const homeResult = ensureDir(home);
 	if (isFail(homeResult)) {
 		return failed('Ensure epiq home failed.\n' + homeResult.message);
 	}
 
-	const worktreesResult = ensureDir(getWorktreesRoot());
+	const worktreesResult = ensureDir(worktrees);
 	if (isFail(worktreesResult)) {
 		return failed('Ensure worktrees dir failed.\n' + worktreesResult.message);
 	}
 
-	return succeeded('Ensured epiq storage', true);
+	return succeeded('Ensured epiq storage', created);
 };
 
 export const removePath = (targetPath: string): void => {

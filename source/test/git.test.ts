@@ -224,6 +224,61 @@ describe('sync', () => {
 	});
 });
 
+describe('unpushed commits', () => {
+	// A commit an earlier sync failed to push must still go out, even though
+	// this run has nothing of its own to commit.
+	it('pushes a commit left behind by an earlier run', async () => {
+		const {repoRoot} = await setupRepo();
+		const ownEventFileName = 'u1.alice.jsonl';
+
+		const bootResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(bootResult)) throw new Error(bootResult.message);
+
+		const {stateBranchRoot} = bootResult.value;
+
+		// Stands in for a run that committed and then failed to push.
+		writeFile(
+			getEventsFile({root: stateBranchRoot, fileName: ownEventFileName}),
+			eventLine('01H00000000000000000000001'),
+		);
+		for (const args of [
+			['add', getRelativeEventFilePath(ownEventFileName)],
+			['commit', '-m', 'stranded'],
+		]) {
+			const step = await execGit({args, cwd: stateBranchRoot});
+			if (isFail(step)) throw new Error(step.message);
+		}
+
+		const headResult = await execGit({
+			args: ['rev-parse', 'HEAD'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(headResult)) throw new Error(headResult.message);
+		const head = headResult.value.stdout.trim();
+
+		const syncResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(syncResult)) throw new Error(syncResult.message);
+
+		expect(syncResult.value.createdCommit).toBe(false);
+		expect(syncResult.value.bootstrapped).toBe(false);
+		expect(syncResult.value.pushed).toBe(true);
+
+		const remoteRefResult = await execGit({
+			args: ['ls-remote', 'origin', 'refs/heads/epiq/state'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(remoteRefResult)) throw new Error(remoteRefResult.message);
+
+		expect(remoteRefResult.value.stdout).toContain(head);
+	});
+});
+
 describe('sync commit scope', () => {
 	// The state worktree has its own index; anything left staged in it by an
 	// earlier run must not ride along in our commit.

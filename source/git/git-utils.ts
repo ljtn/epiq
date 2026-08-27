@@ -432,6 +432,25 @@ export const pullBranchRebaseIfPresent = async ({
 	return succeeded(moved ? 'Pulled with rebase' : 'Already up to date', moved);
 };
 
+// False when there is no upstream yet: the first push is gated on bootstrap.
+export const isAheadOfUpstream = async (
+	cwd: string,
+): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
+		args: ['rev-list', '--count', '@{u}..HEAD'],
+		cwd,
+	});
+
+	if (result.exitCode !== 0) {
+		return succeeded('No upstream to compare against', false);
+	}
+
+	return succeeded(
+		'Compared against upstream',
+		Number(result.stdout.trim()) > 0,
+	);
+};
+
 export const hasStagedChanges = async (
 	repoRoot: string,
 	pathspec?: string[],

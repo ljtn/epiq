@@ -11,6 +11,7 @@ import {
 	execGit,
 	hasInProgressGitOperation,
 	hasStagedChanges,
+	isAheadOfUpstream,
 	isDetachedHead,
 	isNonFastForward,
 	pullBranchRebaseIfPresent,
@@ -341,7 +342,15 @@ export const syncEpiqWithRemote = async ({
 	// ============================
 	// Push remote
 	// ============================
-	if (createdCommit || bootstrapped) {
+	// Checked after the pull, and not folded into `createdCommit`: a commit an
+	// earlier run failed to push is still ours to send.
+	const aheadResult = trace(
+		'isAheadOfUpstream',
+		await isAheadOfUpstream(stateBranchRoot),
+	);
+	if (isFail(aheadResult)) return failSync(aheadResult.message);
+
+	if (createdCommit || bootstrapped || aheadResult.value) {
 		logger.info('[sync] pushing state branch', {
 			createdCommit,
 			bootstrapped,
