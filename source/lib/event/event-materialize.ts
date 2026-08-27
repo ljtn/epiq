@@ -22,7 +22,10 @@ import {
 	updateState,
 	withDeferredDerive,
 } from '../state/state.js';
-import {materializeTicketVirtualNodes} from '../virtual-nodes/virtual-nodes.js';
+import {
+	areVirtualNodesEnabled,
+	materializeTicketVirtualNodes,
+} from '../virtual-nodes/virtual-nodes.js';
 import {AppEvent, EventAction, MaterializeResult} from './event.model.js';
 import {CLOSED_SWIMLANE_ID} from './static-ids.js';
 
@@ -103,6 +106,8 @@ const refreshTicketVirtualNodes = (nodeId: string): ReturnFail | null => {
 };
 
 const refreshAffectedVirtualNodes = (nodeIds: string[]): ReturnFail | null => {
+	if (!areVirtualNodesEnabled()) return null;
+
 	for (const nodeId of nodeIds) {
 		const result = refreshTicketVirtualNodes(nodeId);
 		if (result) return result;
@@ -241,12 +246,14 @@ const completeMaterialization = (
 				else replayBatch.nodeLog.set(nodeId, [event]);
 			}
 
-			replayBatch.virtualNodeIds.add(nodeId);
+			if (areVirtualNodesEnabled()) {
+				replayBatch.virtualNodeIds.add(nodeId);
 
-			// The parent as it stands now, which a later move may change; the
-			// flush refreshes the final one too.
-			const parentId = getState().nodes[nodeId]?.parentNodeId;
-			if (parentId) replayBatch.virtualNodeIds.add(parentId);
+				// The parent as it stands now, which a later move may change; the
+				// flush refreshes the final one too.
+				const parentId = getState().nodes[nodeId]?.parentNodeId;
+				if (parentId) replayBatch.virtualNodeIds.add(parentId);
+			}
 		}
 
 		if (!bypassLogging) replayBatch.appLog.push(event);

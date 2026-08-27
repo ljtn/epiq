@@ -264,6 +264,17 @@ const getLog = (node: Ticket) => {
 		.join('\n');
 };
 
+// A ticket's virtual fields exist for the TUI to navigate into; nothing in the
+// GUI or MCP reads them. Building them is most of a replay, so those processes
+// turn them off. Defaults on, so a caller that never opts out is unaffected.
+let virtualNodesEnabled = true;
+
+export const setVirtualNodesEnabled = (enabled: boolean): void => {
+	virtualNodesEnabled = enabled;
+};
+
+export const areVirtualNodesEnabled = (): boolean => virtualNodesEnabled;
+
 export const materializeVirtualNodes = (): Result<void> => {
 	const {nodes} = getState();
 
