@@ -419,7 +419,16 @@ export const getCommitTimeline = async (
 				linesChanged: insertions + deletions,
 			};
 		})
-		.filter((commit): commit is CommitEntry => commit !== null);
+		.filter((commit): commit is CommitEntry => commit !== null)
+		// `--since`/`--until` match on the committer date, but a commit is plotted
+		// at its author date, and a rebase moves the two days apart. Left in, such
+		// a commit sits outside the window it was fetched for and stretches the
+		// axis to reach it.
+		.filter(
+			commit =>
+				(input.start === undefined || commit.time >= input.start) &&
+				(input.end === undefined || commit.time <= input.end),
+		);
 
 	return succeeded('Computed commit timeline', commits);
 };
