@@ -1,7 +1,8 @@
 import {decodeTime, ulid} from 'ulid';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
-import {ensureStateBranchWorktree} from '../git/git.js';
+import {getStateBranch} from '../git/git-constants.js';
+import {ensureLocalStateBranch, ensureStateBranchWorktree} from '../git/git.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
@@ -25,7 +26,6 @@ import {
 	Ticket,
 } from '../lib/model/context.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {getProjectFileContents} from '../lib/project-setup/project-setup.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {
 	resolveAndPersistRankForCreate,
@@ -212,12 +212,27 @@ const boot = async (
 		return failed(stateBranchRootResult.message);
 	}
 
-	const projectFileContents = getProjectFileContents();
+	// This project's branch. `getProjectFileContents()` mints a fresh descriptor
+	// carrying the default name, so any project that named its state branch
+	// something else was ignored.
+	const stateBranchResult = getStateBranch(repoRootResult.value);
+	if (isFail(stateBranchResult)) return failed(stateBranchResult.message);
+
+	// A clone that has never synced has no local state branch for the worktree
+	// to attach to. Deliberately not the full bootstrap the sync path runs:
+	// that also repairs the branch's contents with a commit, and this is on
+	// every API call.
+	const localBranchResult = await ensureLocalStateBranch({
+		repoRoot: repoRootResult.value,
+		stateBranchName: stateBranchResult.value,
+	});
+
+	if (isFail(localBranchResult)) return failed(localBranchResult.message);
 
 	const ensureWorktreeResult = await ensureStateBranchWorktree({
 		repoRoot: repoRootResult.value,
 		stateBranchRoot: stateBranchRootResult.value,
-		stateBranchName: projectFileContents.stateBranch,
+		stateBranchName: stateBranchResult.value,
 	});
 
 	if (isFail(ensureWorktreeResult)) {

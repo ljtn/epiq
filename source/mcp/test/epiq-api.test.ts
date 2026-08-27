@@ -30,6 +30,9 @@ vi.mock('../../git/git-storage.js', () => ({
 }));
 
 vi.mock('../../git/git.js', () => ({
+	ensureLocalStateBranch: vi.fn(() =>
+		succeeded('Local state branch already exists', false),
+	),
 	ensureStateBranchWorktree: vi.fn(() =>
 		succeeded('Ensured state branch worktree', undefined),
 	),
@@ -39,10 +42,9 @@ vi.mock('../../git/git-utils.js', () => ({
 	execGit: vi.fn(() => succeeded('Pulled', '')),
 }));
 
-vi.mock('../../lib/project-setup/project-setup.js', () => ({
-	getProjectFileContents: vi.fn(() => ({
-		stateBranch: 'epiq-state',
-	})),
+vi.mock('../../git/git-constants.js', () => ({
+	getStateBranch: vi.fn(() => succeeded('Resolved state branch', 'epiq-state')),
+	ORIGIN: 'origin',
 }));
 
 vi.mock('../../git/sync-and-reload-state.js', () => ({

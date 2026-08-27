@@ -163,7 +163,7 @@ export const createStateBranch = async ({
 	return succeeded('Created state branch', true);
 };
 
-const ensureLocalStateBranch = async ({
+export const ensureLocalStateBranch = async ({
 	repoRoot,
 	stateBranchName,
 }: {
