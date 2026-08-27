@@ -85,6 +85,7 @@ export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
 	const labelByStatus = {
 		synced: '    ',
 		failed: '---',
+		offline: 'off',
 		syncing: '...',
 		pending: 'idle',
 	} satisfies Record<typeof syncStatus.status, string>;
@@ -92,6 +93,8 @@ export function SyncStatusPill({syncStatus, autoSync}: SyncStatusPillProps) {
 	const colorByStatus = {
 		synced: theme.secondary2,
 		failed: theme.yellow,
+		// Not an error state: the local commit is safe, the remote is not there.
+		offline: theme.secondary2,
 		pending: theme.secondary2,
 		syncing:
 			getGradientColor(SYNC_GRADIENT, colorStep / (SYNC_STEPS - 1)) ?? '',

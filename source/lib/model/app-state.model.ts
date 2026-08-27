@@ -45,7 +45,9 @@ export type Filter = {
 };
 
 export type SyncStatus = {
-	status: 'synced' | 'failed' | 'pending' | 'syncing';
+	// 'offline' is not a failure: local work is committed, the remote is not
+	// reachable. 'failed' means something needs the user.
+	status: 'synced' | 'failed' | 'offline' | 'pending' | 'syncing';
 	msg: string;
 };
 

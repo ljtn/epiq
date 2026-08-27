@@ -397,6 +397,17 @@ const readHeadSha = async (cwd: string): Promise<string | null> => {
 	return result.exitCode === 0 ? result.stdout.trim() : null;
 };
 
+// Network-level failures only. An auth or policy rejection reaches the user as
+// a failure, because it needs them to act; being offline does not.
+export const isRemoteUnreachable = (message: string): boolean =>
+	/could not resolve host/i.test(message) ||
+	/connection refused|connection timed out|operation timed out/i.test(
+		message,
+	) ||
+	/network is unreachable|no route to host/i.test(message) ||
+	/failed to connect to/i.test(message) ||
+	/git command timed out after/i.test(message);
+
 // git's wording when the branch does not exist on the remote.
 const isMissingRemoteRef = (message: string): boolean =>
 	message.includes("couldn't find remote ref") ||

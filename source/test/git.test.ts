@@ -5,6 +5,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {
 	execGit,
 	isNonFastForward,
+	isRemoteUnreachable,
 	pullBranchRebaseIfPresent,
 } from '../git/git-utils.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
@@ -422,6 +423,31 @@ describe('pullBranchRebaseIfPresent', () => {
 	});
 });
 
+describe('isRemoteUnreachable', () => {
+	it('matches a network that is not there', () => {
+		for (const message of [
+			"fatal: unable to access 'https://x.invalid/r.git/': Could not resolve host: x.invalid",
+			'ssh: Could not resolve hostname x.invalid: nodename nor servname provided',
+			'fatal: unable to access: Failed to connect to example.com port 443: Connection refused',
+			'git ls-remote origin\nGit command timed out after 10000ms',
+		]) {
+			expect(isRemoteUnreachable(message)).toBe(true);
+		}
+	});
+
+	// These need the user to do something, so they must stay failures.
+	it('does not match a rejection the user has to act on', () => {
+		for (const message of [
+			'git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.',
+			' ! [remote rejected] HEAD -> main (pre-receive hook declined)',
+			"fatal: '/tmp/gone' does not appear to be a git repository",
+			' ! [rejected] main -> main (non-fast-forward)',
+		]) {
+			expect(isRemoteUnreachable(message)).toBe(false);
+		}
+	});
+});
+
 describe('isNonFastForward', () => {
 	it('matches a rejection a rebase-and-retry can clear', () => {
 		expect(
@@ -505,7 +531,7 @@ describe('sync across machines', () => {
 
 	// The offline commit is the one an earlier sync would strand: the next run
 	// has nothing of its own to commit, so only the ahead check sends it.
-	it('keeps an event written offline and pushes it once the remote returns', async () => {
+	it('keeps an event and pushes it once an unreachable remote returns', async () => {
 		const {remoteRoot, repoRoot: alice} = await setupRepo();
 
 		const boot = await syncActor(alice, 'u1.alice.jsonl');
@@ -551,6 +577,37 @@ describe('sync across machines', () => {
 				'utf8',
 			),
 		).toContain('01H00000000000000000000002');
+	});
+
+	it('reports offline with the work committed when the host does not resolve', async () => {
+		const {repoRoot: alice} = await setupRepo();
+
+		const boot = await syncActor(alice, 'u1.alice.jsonl');
+		if (isFail(boot)) throw new Error(boot.message);
+		const {stateBranchRoot} = boot.value;
+
+		await setRemoteUrl(alice, 'https://epiq-offline.invalid/x.git');
+
+		writeFile(
+			getEventsFile({root: stateBranchRoot, fileName: 'u1.alice.jsonl'}),
+			eventLine('01H00000000000000000000004'),
+		);
+
+		const result = await syncActor(alice, 'u1.alice.jsonl');
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.offline).toBe(true);
+		expect(result.value.createdCommit).toBe(true);
+		expect(result.value.pushed).toBe(false);
+
+		const log = await execGit({
+			args: ['log', '--oneline'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(log)) throw new Error(log.message);
+		expect(log.value.stdout.trim().split('\n').length).toBeGreaterThan(1);
 	});
 
 	it('fails an offline sync promptly instead of hanging', async () => {

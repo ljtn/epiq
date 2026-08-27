@@ -1,11 +1,7 @@
 import {broadcastGuiMessage} from '../../gui/client/lib/gui-broadcast.js';
+import {SyncStatus} from '../model/app-state.model.js';
 import {failed, Result} from '../model/result-types.js';
 import {isStateInitialized, patchState} from './state.js';
-
-type SyncStatus = {
-	status: 'synced' | 'failed' | 'syncing';
-	msg: string;
-};
 
 const patchSyncStatus = (syncStatus: SyncStatus) => {
 	if (!isStateInitialized()) return;
@@ -35,6 +31,13 @@ export const setSynced = (msg = 'Synced') => {
 export const setSyncFailed = (msg: string) => {
 	patchSyncStatus({
 		status: 'failed',
+		msg,
+	});
+};
+
+export const setSyncOffline = (msg: string) => {
+	patchSyncStatus({
+		status: 'offline',
 		msg,
 	});
 };

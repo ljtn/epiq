@@ -1,5 +1,10 @@
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {failSync, setSynced, setSyncing} from '../lib/state/sync-state.js';
+import {
+	failSync,
+	setSynced,
+	setSyncing,
+	setSyncOffline,
+} from '../lib/state/sync-state.js';
 import {trace} from '../lib/utils/logger.utils.js';
 import {getStateBranch} from './git-constants.js';
 import {
@@ -14,6 +19,7 @@ import {
 	isAheadOfUpstream,
 	isDetachedHead,
 	isNonFastForward,
+	isRemoteUnreachable,
 	pullBranchRebaseIfPresent,
 } from './git-utils.js';
 import {
@@ -32,6 +38,8 @@ type SyncSummary = {
 	pulled: boolean;
 	pushed: boolean;
 	bootstrapped: boolean;
+	// Local work is committed; the remote could not be reached.
+	offline: boolean;
 };
 
 type SyncArgs = {
@@ -227,6 +235,21 @@ const commitOwnEventFileToStateBranch = async ({
 	});
 };
 
+const offlineSummary = (
+	summary: Omit<SyncSummary, 'offline' | 'pulled' | 'pushed'>,
+): Result<SyncSummary> => {
+	const msg = summary.createdCommit ? 'Committed locally, offline' : 'Offline';
+
+	setSyncOffline(msg);
+
+	return succeeded(msg, {
+		...summary,
+		pulled: false,
+		pushed: false,
+		offline: true,
+	});
+};
+
 export const syncEpiqWithRemote = async ({
 	cwd = process.cwd(),
 	ownEventFileName,
@@ -335,7 +358,19 @@ export const syncEpiqWithRemote = async ({
 			branch: stateBranch,
 		}),
 	);
-	if (isFail(pullResult)) return failSync(pullResult.message);
+	if (isFail(pullResult)) {
+		if (isRemoteUnreachable(pullResult.message)) {
+			return offlineSummary({
+				repoRoot,
+				stateBranchRoot,
+				createdCommit,
+				commitSha,
+				bootstrapped,
+			});
+		}
+
+		return failSync(pullResult.message);
+	}
 
 	pulled = pullResult.value;
 
@@ -380,7 +415,19 @@ export const syncEpiqWithRemote = async ({
 			);
 		}
 
-		if (isFail(pushResult)) return failSync(pushResult.message);
+		if (isFail(pushResult)) {
+			if (isRemoteUnreachable(pushResult.message)) {
+				return offlineSummary({
+					repoRoot,
+					stateBranchRoot,
+					createdCommit,
+					commitSha,
+					bootstrapped,
+				});
+			}
+
+			return failSync(pushResult.message);
+		}
 
 		pushed = pushResult.value;
 	}
@@ -431,5 +478,6 @@ export const syncEpiqWithRemote = async ({
 		pulled,
 		pushed,
 		bootstrapped,
+		offline: false,
 	});
 };
