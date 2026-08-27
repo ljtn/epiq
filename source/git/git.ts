@@ -170,6 +170,21 @@ const ensureLocalStateBranch = async ({
 	repoRoot: string;
 	stateBranchName: string;
 }): Promise<Result<boolean>> => {
+	// Before anything remote: in steady state this is the whole answer, and
+	// consulting the remote would fail the sync when offline.
+	const localResult = await hasLocalBranch({
+		repoRoot,
+		branch: stateBranchName,
+	});
+
+	if (isFail(localResult)) {
+		return failed('Ensure local state branch failed\n' + localResult.message);
+	}
+
+	if (localResult.value) {
+		return succeeded('Local state branch already exists', false);
+	}
+
 	const remoteResult = await hasRemote({repoRoot});
 	if (isFail(remoteResult)) {
 		return failed('Ensure local state branch failed\n' + remoteResult.message);
@@ -201,19 +216,6 @@ const ensureLocalStateBranch = async ({
 				`Failed to fetch ${stateBranchName} from remote\n${fetchResult.message}`,
 			);
 		}
-	}
-
-	const localResult = await hasLocalBranch({
-		repoRoot,
-		branch: stateBranchName,
-	});
-
-	if (isFail(localResult)) {
-		return failed('Ensure local state branch failed\n' + localResult.message);
-	}
-
-	if (localResult.value) {
-		return succeeded('Local state branch already exists', false);
 	}
 
 	if (hasRemoteStateBranch) {
