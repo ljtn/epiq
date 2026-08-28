@@ -29,18 +29,10 @@ export const git = {
 			cwd,
 		}),
 
+	// Explicit refspec: FETCH_HEAD is shared by every process using this
+	// worktree, and a concurrent fetch leaves more than one entry in it. A named
+	// remote-tracking ref is not clobbered that way.
 	fetch: ({
-		cwd,
-		remote,
-		branch,
-	}: {
-		cwd: string;
-		remote: string;
-		branch: string;
-	}) => execGit({args: ['fetch', remote, branch], cwd}),
-
-	// autoStash: an event appended mid-sync would otherwise abort the rebase.
-	pullRebase: ({
 		cwd,
 		remote,
 		branch,
@@ -50,7 +42,18 @@ export const git = {
 		branch: string;
 	}) =>
 		execGit({
-			args: ['-c', 'rebase.autoStash=true', 'pull', '--rebase', remote, branch],
+			args: [
+				'fetch',
+				remote,
+				`+refs/heads/${branch}:refs/remotes/${remote}/${branch}`,
+			],
+			cwd,
+		}),
+
+	// autoStash: an event appended mid-sync would otherwise abort the rebase.
+	rebaseOnto: ({cwd, ref}: {cwd: string; ref: string}) =>
+		execGit({
+			args: ['-c', 'rebase.autoStash=true', 'rebase', ref],
 			cwd,
 		}),
 

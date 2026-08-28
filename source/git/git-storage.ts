@@ -101,6 +101,18 @@ export const listEventFiles = (root: string): Result<string[]> => {
 
 	return succeeded('Listed event files', files);
 };
+// One person writing from two machines appends to the same per-actor log, and
+// the two sides diverge textually. Union takes both, which is safe here because
+// line order is not load-bearing: `getSortedEvents` rebuilds order causally from
+// the edge ref and dedupes by event id.
+//
+// It lives under `.epiq/` deliberately — `ensureStateBranchIsStorageOnly` removes
+// anything at the state branch root that is not `.epiq`.
+const EVENT_LOG_ATTRIBUTES = '*.jsonl merge=union\n';
+
+export const getRelativeEventAttributesPath = (): string =>
+	path.join(EPIQ_DIR_NAME, EVENTS_DIR_NAME, '.gitattributes');
+
 export const ensureStateBranchLayout = (
 	repoRoot: string,
 	stateBranchRoot: string,
@@ -108,6 +120,19 @@ export const ensureStateBranchLayout = (
 	for (const dir of [getEventsDir(repoRoot), getEventsDir(stateBranchRoot)]) {
 		const result = ensureDir(dir);
 		if (isFail(result)) return failed(result.message);
+	}
+
+	const attributesPath = path.join(
+		stateBranchRoot,
+		getRelativeEventAttributesPath(),
+	);
+
+	try {
+		if (fs.readFileSync(attributesPath, 'utf8') !== EVENT_LOG_ATTRIBUTES) {
+			fs.writeFileSync(attributesPath, EVENT_LOG_ATTRIBUTES);
+		}
+	} catch {
+		fs.writeFileSync(attributesPath, EVENT_LOG_ATTRIBUTES);
 	}
 
 	return succeeded('Ensured state branch', undefined);

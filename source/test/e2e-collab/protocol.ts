@@ -1,0 +1,31 @@
+// What the orchestrator hands an actor process, and what it gets back.
+
+export type ActorAction =
+	| {kind: 'create'; title: string}
+	| {kind: 'comment'; issueId: string; body: string}
+	| {kind: 'tag'; issueId: string; tagName: string}
+	| {kind: 'close'; issueId: string};
+
+export type ActorJob = {
+	repoRoot: string;
+	userId: string;
+	userName: string;
+	actions: ActorAction[];
+	// Creates the project: state branch, worktree and the default events.
+	init?: boolean;
+	sync: boolean;
+	reportPath: string;
+};
+
+export type ActorReport = {
+	userId: string;
+	// Refusals rather than crashes. An action the board declined is a result the
+	// run wants to see, not a reason to stop.
+	problems: string[];
+	// Ids this actor wrote to its own log, which is what it is accountable for.
+	authoredEventIds: string[];
+	// Every id in this actor's state worktree, its own and everyone else's.
+	seenEventIds: string[];
+	// `id\ttitle` per issue, sorted, for comparing boards between actors.
+	issues: string[];
+};

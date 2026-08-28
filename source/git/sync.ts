@@ -26,6 +26,7 @@ import {
 	bootstrapStateBranchStorage,
 	createStateBranchSyncCommit,
 	pushStateBranch,
+	stageStateBranchEventAttributes,
 	stageStateBranchMediaFiles,
 	stageStateBranchOwnEventFile,
 } from './git.js';
@@ -188,9 +189,19 @@ const commitOwnEventFileToStateBranch = async ({
 	);
 	if (isFail(stageMediaResult)) return failed(stageMediaResult.message);
 
-	const pathspec = [stageResult.value, stageMediaResult.value].filter(
-		(entry): entry is string => entry !== null,
+	const stageAttributesResult = trace(
+		'stageStateBranchEventAttributes',
+		await stageStateBranchEventAttributes({stateBranchRoot}),
 	);
+	if (isFail(stageAttributesResult)) {
+		return failed(stageAttributesResult.message);
+	}
+
+	const pathspec = [
+		stageResult.value,
+		stageMediaResult.value,
+		stageAttributesResult.value,
+	].filter((entry): entry is string => entry !== null);
 
 	if (pathspec.length === 0) {
 		return succeeded('Nothing to stage', {createdCommit: false});
