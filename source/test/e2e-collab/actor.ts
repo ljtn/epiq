@@ -14,6 +14,7 @@ import {getStateBranchRoot} from '../../git/git-storage.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {createDefaultEvents} from '../../lib/event/event-boot.js';
+import {loadMergedEvents} from '../../lib/event/event-load.js';
 import {getPersistFileName, persist} from '../../lib/event/event-persist.js';
 import {isFail} from '../../lib/model/result-types.js';
 import {patchSettingsState} from '../../lib/state/settings.state.js';
@@ -113,6 +114,15 @@ if (job.sync) {
 const stateRoot = getStateBranchRoot({repoRoot: job.repoRoot});
 const issues = await listIssues({repoRoot: job.repoRoot});
 
+// Straight from the loader, so this is the causal order the board is built
+// from rather than anything the harness decides.
+const loaded = isFail(stateRoot) ? null : loadMergedEvents(stateRoot.value);
+
+if (loaded && isFail(loaded)) problems.push(`load: ${loaded.message}`);
+
+const orderedIds =
+	loaded && !isFail(loaded) ? loaded.value.map(event => event.id) : [];
+
 const report: ActorReport = {
 	userId: job.userId,
 	problems,
@@ -120,6 +130,7 @@ const report: ActorReport = {
 		? []
 		: readOwnEventIds(stateRoot.value, getPersistFileName(actor)),
 	seenEventIds: isFail(stateRoot) ? [] : readEventIds(stateRoot.value),
+	orderedEventIds: orderedIds,
 	issues: isFail(issues)
 		? []
 		: (issues.value as {id: string; title: string}[])

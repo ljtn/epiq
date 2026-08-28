@@ -79,6 +79,8 @@ describe('one person, two machines', () => {
 			const desktopSync = await runActor(desktop, {actions: [], sync: true});
 			expect(desktopSync.problems, 'desktop syncing').toEqual([]);
 
+			const settledAll = [];
+
 			for (const actor of [laptop, desktop, other]) {
 				const settled = await runActor(actor, {actions: [], sync: true});
 				expect(settled.problems, `${actor.name} settling`).toEqual([]);
@@ -88,6 +90,24 @@ describe('one person, two machines', () => {
 					[...written].filter(id => !seen.has(id)),
 					`events missing from ${actor.name}`,
 				).toEqual([]);
+
+				settledAll.push([actor.name, settled] as const);
+			}
+
+			// Union merge duplicates lines and interleaves them differently on
+			// each side, so this is where a file-order-dependent sort would show
+			// up: same events, different order, divergent boards.
+			const [reference, ...others] = settledAll;
+			for (const [name, report] of others) {
+				expect(
+					report.orderedEventIds,
+					`${name} orders events differently`,
+				).toEqual(reference?.[1].orderedEventIds);
+
+				expect(
+					new Set(report.orderedEventIds).size,
+					`${name} kept a duplicated line`,
+				).toBe(report.orderedEventIds.length);
 			}
 		},
 		TIMEOUT_MS,

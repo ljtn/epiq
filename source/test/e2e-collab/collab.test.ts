@@ -109,6 +109,14 @@ describe('collaboration', () => {
 				expect(report.issues, `${report.userId} disagrees`).toEqual(
 					first?.issues,
 				);
+
+				// The stronger claim: holding the same events is not enough, they
+				// have to derive the same causal order from them, or the boards
+				// only look alike by luck.
+				expect(
+					report.orderedEventIds,
+					`${report.userId} orders events differently`,
+				).toEqual(first?.orderedEventIds);
 			}
 		},
 		TIMEOUT_MS,
