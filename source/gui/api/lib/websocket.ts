@@ -27,6 +27,7 @@ import {
 } from '../../../mcp/epiq-api.js';
 import {
 	checkoutStateAt,
+	getCommitDiff,
 	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
@@ -178,6 +179,16 @@ export const setupWebsocket = (
 					return sendSocket(socket, {
 						type: 'commit:inspect:result',
 						payload: await openCommitDiffInEditor({
+							repoRoot,
+							sha: message.payload.sha,
+						}),
+					});
+				}
+
+				if (type === 'commit:diff:get') {
+					return sendSocket(socket, {
+						type: 'commit:diff:result',
+						payload: await getCommitDiff({
 							repoRoot,
 							sha: message.payload.sha,
 						}),

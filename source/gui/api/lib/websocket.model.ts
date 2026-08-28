@@ -80,4 +80,5 @@ export type GuiMessage =
 			// No boardId: commits are repository-wide.
 			payload?: {start?: number; end?: number; requestId?: number};
 	  }
-	| {type: 'commit:inspect'; payload: {sha: string}};
+	| {type: 'commit:inspect'; payload: {sha: string}}
+	| {type: 'commit:diff:get'; payload: {sha: string}};

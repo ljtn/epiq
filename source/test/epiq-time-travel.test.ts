@@ -91,6 +91,7 @@ import {
 } from '../lib/model/result-types.js';
 import {
 	checkoutStateAt,
+	getCommitDiff,
 	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
@@ -836,6 +837,113 @@ describe('epiq-time-travel', () => {
 				expect(openEditorOnFileNonBlocking).toHaveBeenCalled();
 				expect(isSuccess(result)).toBe(true);
 			});
+		});
+	});
+
+	describe('getCommitDiff', () => {
+		const validSha = 'b42a0bf111e4b6213abf6c1bfe65088b5c9764f8';
+
+		const mockGitForFiles = (
+			files: string[],
+			contentByPath: Record<string, string> = {},
+		) => {
+			vi.mocked(execGit).mockImplementation(async ({args}) => {
+				if (args[0] === 'diff-tree') {
+					return succeeded('changed files', {
+						stdout: files.join('\n'),
+						stderr: '',
+						exitCode: 0,
+					});
+				}
+
+				if (args[0] === 'show') {
+					const spec = args[1] ?? '';
+					const content = contentByPath[spec];
+
+					// Omit a spec to simulate a blob missing on that side.
+					return content === undefined
+						? failed('bad object (missing blob)')
+						: succeeded('blob', {stdout: content, stderr: '', exitCode: 0});
+				}
+
+				return failed(`unexpected git args: ${args.join(' ')}`);
+			});
+		};
+
+		it('rejects a sha shaped like a git flag, without ever shelling out', async () => {
+			const result = await getCommitDiff({sha: '--upload-pack=/bin/sh'});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(execGit).not.toHaveBeenCalled();
+		});
+
+		it('returns before/after content for each changed file', async () => {
+			mockGitForFiles(['source/a.ts', 'source/b.ts'], {
+				[`${validSha}~1:source/a.ts`]: 'a before',
+				[`${validSha}:source/a.ts`]: 'a after',
+				[`${validSha}~1:source/b.ts`]: 'b before',
+				[`${validSha}:source/b.ts`]: 'b after',
+			});
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value).toEqual({
+					sha: validSha,
+					files: [
+						{path: 'source/a.ts', before: 'a before', after: 'a after'},
+						{path: 'source/b.ts', before: 'b before', after: 'b after'},
+					],
+				});
+			}
+		});
+
+		it('treats a missing blob (file added or deleted here) as empty content, not a failure', async () => {
+			mockGitForFiles(['source/new-file.ts'], {
+				[`${validSha}:source/new-file.ts`]: 'brand new content',
+			});
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value.files).toEqual([
+					{
+						path: 'source/new-file.ts',
+						before: '',
+						after: 'brand new content',
+					},
+				]);
+			}
+		});
+
+		it('fails when the commit has no changed files', async () => {
+			mockGitForFiles([]);
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+
+		it('fails when the commit touches too many files to render', async () => {
+			const manyFiles = Array.from(
+				{length: 201},
+				(_, i) => `source/file-${i}.ts`,
+			);
+			mockGitForFiles(manyFiles);
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+
+		it('propagates a diff-tree failure', async () => {
+			vi.mocked(execGit).mockResolvedValue(failed('bad object'));
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
 		});
 	});
 

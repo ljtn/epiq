@@ -479,12 +479,11 @@ const readFileAtRevision = async (
 	return isFail(result) ? '' : result.value.stdout;
 };
 
-// Each side keeps its real filename so the editor detects the language.
-const openCommitAsSideBySideDiffs = async (
+// Shared by the editor path below and by getCommitDiff's data path.
+const getChangedFilePaths = async (
 	repoRoot: string,
 	sha: string,
-	editor: string,
-): Promise<Result<true>> => {
+): Promise<Result<string[]>> => {
 	const filesResult = await execGit({
 		cwd: repoRoot,
 		args: ['diff-tree', '--no-commit-id', '--name-only', '-r', sha],
@@ -499,6 +498,20 @@ const openCommitAsSideBySideDiffs = async (
 	if (filePaths.length === 0) {
 		return failed('No changed files found for this commit');
 	}
+
+	return succeeded('Listed changed files', filePaths);
+};
+
+// Each side keeps its real filename so the editor detects the language.
+const openCommitAsSideBySideDiffs = async (
+	repoRoot: string,
+	sha: string,
+	editor: string,
+): Promise<Result<true>> => {
+	const filesResult = await getChangedFilePaths(repoRoot, sha);
+	if (isFail(filesResult)) return failed(filesResult.message);
+
+	const filePaths = filesResult.value;
 
 	if (filePaths.length > MAX_DIFF_FILES_FOR_SIDE_BY_SIDE) {
 		return failed(
@@ -594,6 +607,59 @@ export const openCommitDiffInEditor = async (
 	}
 
 	return openCommitAsUnifiedDiff(repoRoot, input.sha);
+};
+
+export type CommitDiffFile = {
+	path: string;
+	before: string;
+	after: string;
+};
+
+export type CommitDiff = {
+	sha: string;
+	files: CommitDiffFile[];
+};
+
+// Bounds payload size for a pathological commit (a vendored dep, a lockfile
+// rewrite) rather than the editor-tab-count concern MAX_DIFF_FILES_FOR_SIDE_BY_SIDE
+// exists for — a rendered accordion tolerates far more files than open windows do.
+const MAX_DIFF_FILES_FOR_DATA = 200;
+
+// The GUI diff panel's data source: same git calls as the editor path above,
+// returned as content instead of written to temp files. Never touches the
+// materialized state singleton, so it is independent of any time-travel checkout.
+export const getCommitDiff = async (
+	input: ToolInput & {sha: string},
+): Promise<Result<CommitDiff>> => {
+	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
+
+	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+	const repoRoot = repoRootResult.value;
+
+	const filesResult = await getChangedFilePaths(repoRoot, input.sha);
+	if (isFail(filesResult)) return failed(filesResult.message);
+
+	const filePaths = filesResult.value;
+
+	if (filePaths.length > MAX_DIFF_FILES_FOR_DATA) {
+		return failed(
+			`Commit touches ${filePaths.length} files — too many to show as a diff`,
+		);
+	}
+
+	const files = await Promise.all(
+		filePaths.map(async (filePath): Promise<CommitDiffFile> => {
+			const [before, after] = await Promise.all([
+				readFileAtRevision(repoRoot, `${input.sha}~1`, filePath),
+				readFileAtRevision(repoRoot, input.sha, filePath),
+			]);
+
+			return {path: filePath, before, after};
+		}),
+	);
+
+	return succeeded('Loaded commit diff', {sha: input.sha, files});
 };
 
 // Takes NO lock: its callers already run inside `runExclusive`, which is not
