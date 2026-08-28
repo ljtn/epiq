@@ -40,6 +40,7 @@
 		"start": "IS_LOCAL=true tsx source/Index.tsx",
 		"start:gui": "IS_LOCAL=true tsx source/Index.tsx gui",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\" --exclude \"source/test/e2e-collab/**\"",
+		"test:containers": "sh source/scripts/test-containers.sh",
 		"test:collab": "docker run --rm -v \"$PWD\":/app:ro -v /app/node_modules -w /app epiq-e2e npm run test:collab:ci",
 		"test:collab:ci": "vitest run source/test/e2e-collab/ --no-file-parallelism",
 		"test:e2e:ci": "export IS_CI=true && npm run build:npm && vitest run source/test/e2e/ --no-file-parallelism",
