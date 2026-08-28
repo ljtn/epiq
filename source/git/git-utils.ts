@@ -425,16 +425,27 @@ export const pullBranchRebaseIfPresent = async ({
 
 	const before = await readHeadSha(cwd);
 
-	// The pull fetches on its own; asking ls-remote and fetch first was two
-	// extra round trips.
-	const pullResult = await git.pullRebase({cwd, remote: ORIGIN, branch});
+	// Fetch then rebase, rather than `pull --rebase`. A pull rebases onto
+	// whatever FETCH_HEAD holds, and that file is shared by every process using
+	// this worktree — a second fetch landing in between leaves two entries in it
+	// and git refuses with "Cannot rebase onto multiple branches".
+	const fetchResult = await git.fetch({cwd, remote: ORIGIN, branch});
 
-	if (isFail(pullResult)) {
-		if (isMissingRemoteRef(pullResult.message)) {
+	if (isFail(fetchResult)) {
+		if (isMissingRemoteRef(fetchResult.message)) {
 			return succeeded('Remote branch missing, skipped pull', false);
 		}
 
-		return failed(`Failed during pull --rebase\n${pullResult.message}`);
+		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
+	}
+
+	const rebaseResult = await git.rebaseOnto({
+		cwd,
+		ref: `${ORIGIN}/${branch}`,
+	});
+
+	if (isFail(rebaseResult)) {
+		return failed(`Failed during rebase\n${rebaseResult.message}`);
 	}
 
 	const after = await readHeadSha(cwd);
