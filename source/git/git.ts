@@ -9,6 +9,7 @@ import {
 	ensureDir,
 	ensureStateBranchIsStorageOnly,
 	ensureWorktreesDir,
+	getRelativeEventAttributesPath,
 	getRelativeEventFilePath,
 	getRelativeMediaDirPath,
 	removePath,
@@ -554,6 +555,35 @@ export const stageStateBranchMediaFiles = async ({
 	}
 
 	return succeeded('Staged state branch media files', mediaPath);
+};
+
+/**
+ * The merge attribute has to be committed on the state branch, or a clone that
+ * has not seen it yet still conflicts on the logs.
+ */
+export const stageStateBranchEventAttributes = async ({
+	stateBranchRoot,
+}: {
+	stateBranchRoot: string;
+}): Promise<Result<string | null>> => {
+	const relativePath = getRelativeEventAttributesPath();
+
+	if (!fs.existsSync(path.join(stateBranchRoot, relativePath))) {
+		return succeeded('No event log attributes to stage', null);
+	}
+
+	const stageResult = await git.stage({
+		cwd: stateBranchRoot,
+		pathspec: [relativePath],
+	});
+
+	if (isFail(stageResult)) {
+		return failed(
+			`Failed to stage event log attributes\n${stageResult.message}`,
+		);
+	}
+
+	return succeeded('Staged event log attributes', relativePath);
 };
 
 export const createStateBranchSyncCommit = async ({
