@@ -5,21 +5,21 @@ description: The distributed rules epiq's event log obeys — causal ordering by
 
 # The event log is a CRDT
 
-There is no server and no shared clock. Every actor appends to **its own** JSONL log on the state branch, git merges them, and each machine derives the same board from the same set. Everything below exists to keep that derivation a pure function of the event *set*.
+There is no server and no shared clock. Every actor appends to **its own** JSONL log on the state branch, git merges them, and each machine derives the same board from the same set. Everything below exists to keep that derivation a pure function of the event _set_.
 
 ## The model
 
 - **`id = [ulid, refId]`.** `refId` is the causal parent: the tail of the causal order this actor last saw (`getEdgeRef`). Concurrent writers legitimately share a parent.
 - **Order is derived, never stored.** `getSortedEvents` rebuilds the forest from `refId`, sorts concurrent siblings by ULID, walks depth-first, and dedupes by id. File line order is not load-bearing.
 - **The ULID is a hybrid logical clock**, not a timestamp: `getNextId(Math.max(Date.now(), decodeTime(edge) + 1))`. The wall clock is only a lower bound; causality forces monotonicity.
-- **Actor id comes from the file name; the display name does not.** `persist` calls `stripActor`, so the payload carries neither. The id is parsed from the log's file name; the *name* is resolved from the contributor registry, which `create.contributor` / `rename.contributor` build. The name segment in the file name is a sanitized storage key, not a name of record.
+- **Actor id comes from the file name; the display name does not.** `persist` calls `stripActor`, so the payload carries neither. The id is parsed from the log's file name; the _name_ is resolved from the contributor registry, which `create.contributor` / `rename.contributor` build. The name segment in the file name is a sanitized storage key, not a name of record.
 - Same event set ⇒ same order ⇒ same board. That is the whole contract.
 
 ## Invariants
 
 - **Derive order from `refId` plus the ULID tiebreak.** Nothing else.
-- **Ids are permanent.** Tombstone instead: `tombstoneNode` marks the node *and its descendants* `isDeleted`; `tombstoneContributor` clears the display name but keeps the record so assignments referencing the id still resolve.
-- **Replay is total.** An event that lost a race or names state this replay never applied is a `materializeSkip` (`ConvergenceFail`) and is skipped. The *same* precondition on a live write is a genuine failure — there the precondition is the answer the caller asked for.
+- **Ids are permanent.** Tombstone instead: `tombstoneNode` marks the node _and its descendants_ `isDeleted`; `tombstoneContributor` clears the display name but keeps the record so assignments referencing the id still resolve.
+- **Replay is total.** An event that lost a race or names state this replay never applied is a `materializeSkip` (`ConvergenceFail`) and is skipped. The _same_ precondition on a live write is a genuine failure — there the precondition is the answer the caller asked for.
 - **Unreadable stays ordered.** The envelope (`v`, `id`) parses even when the payload cannot, so an event from a newer build keeps its place in the chain.
 - **Append only.** One id always means one byte sequence. This is what makes `*.jsonl merge=union` safe.
 - **Time travel cuts causally.** `splitEventsAtTime` marks a child unapplied when its parent is unapplied, whatever its own timestamp says.
@@ -40,20 +40,10 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 
 Applied on every machine, in causal order, possibly after events it did not expect. So: make it idempotent, express preconditions as `materializeSkip` rather than fatal, and reference targets by id only.
 
-## Where the rules live
-
-| Concern | Code |
-| --- | --- |
-| Edge capture, id generation, `SCHEMA_VERSION` | `source/lib/event/event-persist.ts` |
-| Ordering, causal cut | `source/lib/event/event-load.ts` (`getSortedEvents`, `splitEventsAtTime`) |
-| Skip-vs-fail, replay batching | `source/lib/event/event-materialize.ts` |
-| Tombstones, contributor registry | `source/lib/repository/node-repo.ts` |
-| Id-vs-name resolution | `source/lib/utils/contributor.utils.ts` |
-| Union merge attribute | `source/git/git-storage.ts` |
-
 ## Proving a change is safe
 
 - `source/test/replay-equivalence.test.ts` — a batched replay must land on exactly the state a per-event replay does.
-- `npm run test:collab` — several actors on one remote must end with the same events *and* derive the same order from them.
+- `npm run test:collab` — several actors on one remote must end with the same events _and_ derive the same order from them.
+- The pre-push hook runs lint, typecheck, unit, e2e and GUI tests. Do not bypass it.
 
 Touching ordering, merge, replay or materialization means running both.
