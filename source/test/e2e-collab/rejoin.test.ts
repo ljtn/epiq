@@ -91,6 +91,9 @@ describe('someone who was away', () => {
 			).toEqual([]);
 
 			expect(bo1.issues, 'boards disagree').toEqual(ana1.issues);
+			expect(bo1.orderedEventIds, 'event order diverged').toEqual(
+				ana1.orderedEventIds,
+			);
 		},
 		TIMEOUT_MS,
 	);

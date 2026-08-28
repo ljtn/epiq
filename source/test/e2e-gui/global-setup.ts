@@ -1,11 +1,17 @@
 import fs from 'node:fs';
 import {spawn} from 'node:child_process';
+import {stripGitHookEnv} from '../setup/git-hook-env.js';
 import {HANDOFF_PATH} from './handoff.js';
 
 const READY_TIMEOUT_MS = 120_000;
 const POLL_MS = 250;
 
 const globalSetup = async () => {
+	// Under `git push` this runs from a hook, so git has exported GIT_DIR and
+	// friends. The server seeds by driving a real TUI, which would then aim its
+	// git at the developer's repository instead of its temp one.
+	stripGitHookEnv();
+
 	fs.rmSync(HANDOFF_PATH, {force: true});
 
 	const child = spawn('npx', ['tsx', 'source/test/e2e-gui/serve.ts'], {

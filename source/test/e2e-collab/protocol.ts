@@ -26,6 +26,10 @@ export type ActorReport = {
 	authoredEventIds: string[];
 	// Every id in this actor's state worktree, its own and everyone else's.
 	seenEventIds: string[];
+	// The same events in the order the loader derives — parent edge first,
+	// concurrent siblings by ulid. Two actors holding the same events must
+	// derive the same order, or they materialize different boards.
+	orderedEventIds: string[];
 	// `id\ttitle` per issue, sorted, for comparing boards between actors.
 	issues: string[];
 };
