@@ -13,28 +13,11 @@ import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {gitHookVarsIn, stripGitHookEnv} from './git-hook-env.js';
 
 const tempRoot = fs.realpathSync(os.tmpdir());
 
-/**
- * Git exports these into its hooks. They override repository discovery, so a
- * test that runs git in a temp directory is silently redirected at the
- * developer's checkout — which is how a `git push` once rewrote real branches
- * and wrote `user.name=Test` into the shared config. A path guard cannot see
- * this: there is nothing wrong with the path.
- */
-const GIT_HOOK_VARS = [
-	'GIT_DIR',
-	'GIT_WORK_TREE',
-	'GIT_INDEX_FILE',
-	'GIT_OBJECT_DIRECTORY',
-	'GIT_ALTERNATE_OBJECT_DIRECTORIES',
-	'GIT_COMMON_DIR',
-	'GIT_PREFIX',
-	'GIT_CONFIG',
-] as const;
-
-for (const name of GIT_HOOK_VARS) delete process.env[name];
+stripGitHookEnv();
 
 const isThrowaway = (dir: string): boolean => {
 	let resolved: string;
@@ -62,8 +45,8 @@ const assertThrowaway = (
 	const dir = cwd === undefined ? process.cwd() : String(cwd);
 
 	// Inherited by a child even though this process cleared its own copy.
-	const inherited = GIT_HOOK_VARS.filter(
-		name => (options as {env?: NodeJS.ProcessEnv} | undefined)?.env?.[name],
+	const inherited = gitHookVarsIn(
+		(options as {env?: NodeJS.ProcessEnv} | undefined)?.env,
 	);
 
 	if (inherited.length > 0) {
