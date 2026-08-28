@@ -44,6 +44,7 @@ Applied on every machine, in causal order, possibly after events it did not expe
 
 - `source/test/replay-equivalence.test.ts` — a batched replay must land on exactly the state a per-event replay does.
 - `npm run test:collab` — several actors on one remote must end with the same events _and_ derive the same order from them.
-- The pre-push hook runs lint, typecheck, unit, e2e and GUI tests. Do not bypass it.
+- The pre-push hook runs lint, typecheck, unit, e2e, collaboration and GUI tests. Do not bypass it.
+- Suites that shell out to git run containerised over a read-only checkout. A test that aims git at the checkout instead of a temp directory fails on the spot.
 
 Touching ordering, merge, replay or materialization means running both.
