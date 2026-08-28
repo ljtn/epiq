@@ -7,6 +7,12 @@ export const git = {
 	// `pathspec` commits only those paths and ignores the rest of the index.
 	// Without it a commit takes whatever the user happened to have staged, which
 	// in their own repo means committing work that is not ours to commit.
+	//
+	// `--no-verify`: every call here is epiq's own bookkeeping — the state
+	// branch, or `.epiq/project.json` on init — never the user's application
+	// changes, so a repo's pre-commit hook has nothing of ours to check. On the
+	// state branch it is actively wrong: that worktree holds only `.epiq/`, no
+	// package.json, so a hook built for the user's repo fails outright there.
 	commit: ({
 		cwd,
 		message,
@@ -21,6 +27,7 @@ export const git = {
 		execGit({
 			args: [
 				'commit',
+				'--no-verify',
 				...(allowEmpty ? ['--allow-empty'] : []),
 				'-m',
 				message,
@@ -60,6 +67,10 @@ export const git = {
 	checkout: ({cwd, branch}: {cwd: string; branch: string}) =>
 		execGit({args: ['checkout', branch], cwd}),
 
+	// `--no-verify`: same reasoning as `commit` above — this is epiq's own state
+	// branch push, and this repo's pre-push hook (lint/build/test/e2e/gui) has
+	// no business running against that storage-only worktree. It currently
+	// fails there outright, since `npm run` finds no package.json to work with.
 	push: ({
 		cwd,
 		remote,
@@ -73,8 +84,14 @@ export const git = {
 	}) => {
 		const args =
 			remote && branch
-				? ['push', ...(setUpstream ? ['-u'] : []), remote, branch]
-				: ['push'];
+				? [
+						'push',
+						'--no-verify',
+						...(setUpstream ? ['-u'] : []),
+						remote,
+						branch,
+				  ]
+				: ['push', '--no-verify'];
 
 		return execGit({args, cwd});
 	},
