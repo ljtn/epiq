@@ -12,7 +12,7 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 - **`id = [ulid, refId]`.** `refId` is the causal parent: the tail of the causal order this actor last saw (`getEdgeRef`). Concurrent writers legitimately share a parent.
 - **Order is derived, never stored.** `getSortedEvents` rebuilds the forest from `refId`, sorts concurrent siblings by ULID, walks depth-first, and dedupes by id. File line order is not load-bearing.
 - **The ULID is a hybrid logical clock**, not a timestamp: `getNextId(Math.max(Date.now(), decodeTime(edge) + 1))`. The wall clock is only a lower bound; causality forces monotonicity.
-- **Actor identity is the file name**, not the payload — `persist` calls `stripActor`.
+- **Actor id comes from the file name; the display name does not.** `persist` calls `stripActor`, so the payload carries neither. The id is parsed from the log's file name; the *name* is resolved from the contributor registry, which `create.contributor` / `rename.contributor` build. The name segment in the file name is a sanitized storage key, not a name of record.
 - Same event set ⇒ same order ⇒ same board. That is the whole contract.
 
 ## Invariants
@@ -33,6 +33,7 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 - **Never abort replay on an event that merely lost.** One concurrent edit would leave a board that never opens again for whoever's build understands the most.
 - **Never assume a single writer.** Any log can gain lines from another machine between two reads, including mid-sync.
 - **Never put actor identity, or anything derivable, into the payload.**
+- **Never read a display name off a log file name.** It is sanitized and may be stale — a rename starts a new file rather than changing old ones. Resolve names through the registry, by id.
 - **Never add a payload field older clients must interpret** without a `SCHEMA_VERSION` story.
 
 ## Adding an event type
@@ -46,7 +47,8 @@ Applied on every machine, in causal order, possibly after events it did not expe
 | Edge capture, id generation, `SCHEMA_VERSION` | `source/lib/event/event-persist.ts` |
 | Ordering, causal cut | `source/lib/event/event-load.ts` (`getSortedEvents`, `splitEventsAtTime`) |
 | Skip-vs-fail, replay batching | `source/lib/event/event-materialize.ts` |
-| Tombstones | `source/lib/repository/node-repo.ts` |
+| Tombstones, contributor registry | `source/lib/repository/node-repo.ts` |
+| Id-vs-name resolution | `source/lib/utils/contributor.utils.ts` |
 | Union merge attribute | `source/git/git-storage.ts` |
 
 ## Proving a change is safe
