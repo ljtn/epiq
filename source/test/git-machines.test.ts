@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {execGit} from '../git/git-utils.js';
+import {execGit, hasInProgressGitOperation} from '../git/git-utils.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {isFail} from '../lib/model/result-types.js';
 import {
@@ -216,5 +216,54 @@ describe('sync across machines', () => {
 				fs.readFileSync(getEventsFile({root, fileName: file}), 'utf8'),
 			).toContain(`01H000000000000000000000${id === 'A' ? '0A' : '0B'}`);
 		}
+	});
+
+	// BZJR3VE: a rebase interrupted mid-flight — not a genuine content conflict —
+	// used to wedge every later sync forever, because ensureSyncReady's guard
+	// rejected before pullBranchRebaseIfPresent's own abort-and-retry could run.
+	it('recovers from a stale rebase left behind by an earlier interrupted sync', async () => {
+		const {remoteRoot, repoRoot: alice} = await setupRepo();
+		const bob = await setupActor(remoteRoot);
+
+		const aliceBoot = await syncActor(alice, 'u1.alice.jsonl');
+		if (isFail(aliceBoot)) throw new Error(aliceBoot.message);
+		const {stateBranchRoot} = aliceBoot.value;
+
+		// Bob advances the remote past alice's local state-branch tip.
+		const bobBoot = await syncActor(bob, 'u2.bob.jsonl');
+		if (isFail(bobBoot)) throw new Error(bobBoot.message);
+
+		// Alice has local work of her own, on top of her now-stale tip.
+		writeFile(path.join(stateBranchRoot, 'marker.txt'), 'alice\n');
+		for (const args of [
+			['add', 'marker.txt'],
+			['commit', '-m', 'alice local'],
+		]) {
+			const step = await execGit({args, cwd: stateBranchRoot});
+			if (isFail(step)) throw new Error(step.message);
+		}
+
+		// Simulate a rebase that was interrupted after cleanly applying alice's
+		// commit — not a content conflict, just a process that never got to
+		// finish — by making the replay step itself fail.
+		const fetch = await execGit({
+			args: ['fetch', 'origin', 'epiq/state'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(fetch)) throw new Error(fetch.message);
+
+		const rebase = await execGit({
+			args: ['rebase', '--exec', 'false', 'origin/epiq/state'],
+			cwd: stateBranchRoot,
+		});
+		expect(isFail(rebase)).toBe(true);
+
+		const inProgress = await hasInProgressGitOperation(stateBranchRoot);
+		expect(isFail(inProgress)).toBe(false);
+		if (!isFail(inProgress)) expect(inProgress.value).toBe(true);
+
+		const result = await syncActor(alice, 'u1.alice.jsonl');
+
+		expect(isFail(result)).toBe(false);
 	});
 });
