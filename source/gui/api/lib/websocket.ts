@@ -28,6 +28,7 @@ import {
 import {
 	checkoutStateAt,
 	getCommitDiff,
+	getCommitsForRef,
 	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
@@ -37,6 +38,7 @@ import {
 } from '../../../mcp/epiq-time-travel.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
+import {nodeRef} from '../../../lib/utils/node-ref.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
@@ -191,6 +193,16 @@ export const setupWebsocket = (
 						payload: await getCommitDiff({
 							repoRoot,
 							sha: message.payload.sha,
+						}),
+					});
+				}
+
+				if (type === 'issue:commits:get') {
+					return sendSocket(socket, {
+						type: 'issue:commits:result',
+						payload: await getCommitsForRef({
+							repoRoot,
+							ref: nodeRef(message.payload.issueId),
 						}),
 					});
 				}

@@ -81,4 +81,5 @@ export type GuiMessage =
 			payload?: {start?: number; end?: number; requestId?: number};
 	  }
 	| {type: 'commit:inspect'; payload: {sha: string}}
-	| {type: 'commit:diff:get'; payload: {sha: string}};
+	| {type: 'commit:diff:get'; payload: {sha: string}}
+	| {type: 'issue:commits:get'; payload: {issueId: string}};

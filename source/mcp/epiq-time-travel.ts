@@ -433,6 +433,28 @@ export const getCommitTimeline = async (
 	return succeeded('Computed commit timeline', commits);
 };
 
+// Matches the convention documented in the epiq skill: a commit's subject is
+// prefixed with the issue's ref, e.g. "5S52AC8 message". Reuses
+// getCommitTimeline's full-history read rather than a second git invocation —
+// same repo, same state-branch exclusion, and this repo's whole history is a
+// few thousand commits at most.
+export const getCommitsForRef = async (
+	input: ToolInput & {ref: string},
+): Promise<Result<CommitEntry[]>> => {
+	const ref = input.ref.trim();
+	if (!ref) return failed('ref must not be empty');
+
+	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
+	if (isFail(timelineResult)) return failed(timelineResult.message);
+
+	const prefix = `${ref} `;
+
+	return succeeded(
+		'Matched commits by ref',
+		timelineResult.value.filter(commit => commit.subject.startsWith(prefix)),
+	);
+};
+
 // `sha` reaches a `git show <sha>` argv slot, where a leading `-` would be read
 // as a flag. Argument injection, not shell injection.
 const isPlausibleSha = (sha: string): boolean => /^[0-9a-f]{7,40}$/i.test(sha);

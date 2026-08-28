@@ -92,6 +92,7 @@ import {
 import {
 	checkoutStateAt,
 	getCommitDiff,
+	getCommitsForRef,
 	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
@@ -567,6 +568,60 @@ describe('epiq-time-travel', () => {
 			vi.mocked(execGit).mockResolvedValue(failed('git not found'));
 
 			const result = await getCommitTimeline();
+
+			expect(isSuccess(result)).toBe(false);
+		});
+	});
+
+	describe('getCommitsForRef', () => {
+		const SEP = '\x1f';
+		const REC = '\x1e';
+
+		it('matches commits whose subject starts with "<ref> "', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout:
+						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 add the tool\n` +
+						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}unrelated commit\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.map(commit => commit.sha)).toEqual(['aaa111']);
+		});
+
+		it('requires a space after the ref, not just a text prefix', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC89 similar but longer ref\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value).toEqual([]);
+		});
+
+		it('fails for an empty ref', async () => {
+			const result = await getCommitsForRef({ref: '   '});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(execGit).not.toHaveBeenCalled();
+		});
+
+		it('propagates a git log failure', async () => {
+			vi.mocked(execGit).mockResolvedValue(failed('git not found'));
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
 
 			expect(isSuccess(result)).toBe(false);
 		});
