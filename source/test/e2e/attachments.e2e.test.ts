@@ -18,7 +18,7 @@ import {
 	sync,
 } from '../../mcp/epiq-api.js';
 import {commonSteps} from './e2e-common-steps.js';
-import {ARROW_DOWN, ENTER, setupTui} from './e2e.helper.js';
+import {ARROW_DOWN, ENTER, removeTempRepo, setupTui} from './e2e.helper.js';
 
 const testTimeout = 60_000;
 const EMPTY_CMD = 'for command line';
@@ -128,8 +128,8 @@ describe('issue attachments', () => {
 
 	afterAll(() => {
 		cleanupTui?.();
-		fs.rmSync(repoRoot, {recursive: true, force: true});
-		fs.rmSync(remoteDir, {recursive: true, force: true});
+		removeTempRepo(repoRoot);
+		removeTempRepo(remoteDir);
 	});
 
 	it(

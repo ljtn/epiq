@@ -3,7 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import {commandLineIsIdle, ENTER, setupTui} from './e2e.helper.js';
+import {
+	commandLineIsIdle,
+	ENTER,
+	removeTempRepo,
+	setupTui,
+} from './e2e.helper.js';
 
 const testTimeout = 60_000;
 const ESCAPE = '\x1B';
@@ -85,7 +90,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
-	fs.rmSync(E2E_HOME, {recursive: true, force: true});
+	removeTempRepo(E2E_HOME);
 });
 
 describe('TUI edit-command scope e2e', () => {

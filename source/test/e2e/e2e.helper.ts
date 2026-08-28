@@ -86,6 +86,21 @@ const commandLineContent = (frame: string): string => {
  * True when the command line holds no typed command. Not "contains the
  * placeholder": the caption is absent in some contexts, so waiting on it hangs.
  */
+/**
+ * The TUI spawns git, which can still be writing into `.git/objects` when a
+ * test tears its repo down — the removal then finds the directory repopulated
+ * and throws ENOTEMPTY, failing a test that had already passed. Retrying is
+ * what `rmSync` offers for exactly this.
+ */
+export const removeTempRepo = (dir: string): void => {
+	fs.rmSync(dir, {
+		recursive: true,
+		force: true,
+		maxRetries: 20,
+		retryDelay: 100,
+	});
+};
+
 export const commandLineIsIdle = (frame: string): boolean => {
 	const content = commandLineContent(frame);
 	return content === '' || content === ': for command line';
@@ -206,7 +221,7 @@ export const setupTui = (
 		}
 
 		if (ownsCwd) {
-			fs.rmSync(cwd, {recursive: true, force: true});
+			removeTempRepo(cwd);
 		}
 	};
 

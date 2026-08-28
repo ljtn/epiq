@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {beforeAll, describe, expect, it} from 'vitest';
 import {commonSteps} from './e2e-common-steps.js';
-import {ENTER, setupTui} from './e2e.helper.js';
+import {ENTER, removeTempRepo, setupTui} from './e2e.helper.js';
 
 const testTimeout = 60_000;
 
@@ -86,7 +86,7 @@ describe('TUI reboot / event-log replay e2e', () => {
 					second.destroy();
 				}
 			} finally {
-				fs.rmSync(cwd, {recursive: true, force: true});
+				removeTempRepo(cwd);
 			}
 		},
 		testTimeout,
