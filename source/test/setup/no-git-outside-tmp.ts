@@ -16,6 +16,26 @@ import path from 'node:path';
 
 const tempRoot = fs.realpathSync(os.tmpdir());
 
+/**
+ * Git exports these into its hooks. They override repository discovery, so a
+ * test that runs git in a temp directory is silently redirected at the
+ * developer's checkout — which is how a `git push` once rewrote real branches
+ * and wrote `user.name=Test` into the shared config. A path guard cannot see
+ * this: there is nothing wrong with the path.
+ */
+const GIT_HOOK_VARS = [
+	'GIT_DIR',
+	'GIT_WORK_TREE',
+	'GIT_INDEX_FILE',
+	'GIT_OBJECT_DIRECTORY',
+	'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+	'GIT_COMMON_DIR',
+	'GIT_PREFIX',
+	'GIT_CONFIG',
+] as const;
+
+for (const name of GIT_HOOK_VARS) delete process.env[name];
+
 const isThrowaway = (dir: string): boolean => {
 	let resolved: string;
 
@@ -40,6 +60,19 @@ const assertThrowaway = (
 	// Absent means `process.cwd()`, which under vitest is the checkout itself.
 	const cwd = options?.cwd;
 	const dir = cwd === undefined ? process.cwd() : String(cwd);
+
+	// Inherited by a child even though this process cleared its own copy.
+	const inherited = GIT_HOOK_VARS.filter(
+		name => (options as {env?: NodeJS.ProcessEnv} | undefined)?.env?.[name],
+	);
+
+	if (inherited.length > 0) {
+		throw new Error(
+			`Refusing to run git with ${inherited.join(', ')} set.\n` +
+				`These override repository discovery, so git would act on that ` +
+				`repository rather than the directory under test.`,
+		);
+	}
 
 	if (isThrowaway(dir)) return;
 

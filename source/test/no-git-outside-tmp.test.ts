@@ -44,6 +44,25 @@ describe('git is confined to throwaway directories in tests', () => {
 		).not.toThrow();
 	});
 
+	// The variable that actually caused the damage: it overrides discovery, so
+	// the cwd looks innocent while git acts on someone else's repository.
+	it('clears the hook variables git exports', () => {
+		for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE']) {
+			expect(process.env[name], name).toBeUndefined();
+		}
+	});
+
+	it('refuses to hand a child a git repository override', () => {
+		const dir = tempDir();
+
+		expect(() =>
+			childProcess.execFileSync('git', ['status'], {
+				cwd: dir,
+				env: {...process.env, GIT_DIR: '/somewhere/else/.git'},
+			}),
+		).toThrow(/Refusing to run git with GIT_DIR set/);
+	});
+
 	// Only git is confined; everything else a test spawns is its own business.
 	it('leaves other commands alone', () => {
 		expect(() =>
