@@ -1665,3 +1665,4 @@
 {"v":1,"id":["01M150J6HGYK1YKEXR7TVWQMYK","01M14ZQZXZHT0PJA5J87K9RMCB"],"add.issue":{"id":"01M150J6HAK45WSA87HHPZNGT8","parent":"01KS22YK95S3336MFSE44MY70R","name":"Make comments row break in TUI and render fully","rank":"ffffffffffffffff7fffffff"}}
 {"v":1,"id":["01M150K5W8Q2XNGSMF1HXDTQB2","01M150J6HGYK1YKEXR7TVWQMYK"],"edit.description":{"id":"01M150J6HAK45WSA87HHPZNGT8","md":"Currently comments are using ellipsis on a single row, meaning they are not readable. "}}
 {"v":1,"id":["01M150Q6WMJEM0S03RYBTFJ96J","01M150K5W8Q2XNGSMF1HXDTQB2"],"add.issue":{"id":"01M150Q6WFPF9WRC27WZ486QVM","parent":"01KS22YK95S3336MFSE44MY70R","name":"Add 6month timeline scope option?","rank":"ffffffffffffffffbfffffff"}}
+{"v":1,"id":["01M150QZ219WA2MDEBNCHWX0F1","01M150Q6WMJEM0S03RYBTFJ96J"],"edit.description":{"id":"01M150Q6WFPF9WRC27WZ486QVM","md":"The gap from 1 month to a year is a big big, imo. \n"}}
