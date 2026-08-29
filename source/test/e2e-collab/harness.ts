@@ -4,13 +4,19 @@ import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {ulid} from 'ulid';
 import {execGit} from '../../git/git-utils.js';
 import {isFail} from '../../lib/model/result-types.js';
 import type {ActorAction, ActorJob, ActorReport} from './protocol.js';
 
 const STATE_BRANCH = 'epiq/state';
-const ACTOR_ENTRY = new URL('./actor.ts', import.meta.url).pathname;
+const ACTOR_ENTRY = fileURLToPath(new URL('./actor.ts', import.meta.url));
+// The checkout's own tsx: actors run from a temp cwd, where `npx` would not
+// find it and would install one into the npm cache instead, racing itself.
+const TSX = fileURLToPath(
+	new URL('../../../node_modules/.bin/tsx', import.meta.url),
+);
 
 export type Actor = {
 	name: string;
@@ -149,7 +155,7 @@ export const runActor = async (
 	};
 
 	const stderr = await new Promise<string>((resolve, reject) => {
-		const child = spawn('npx', ['tsx', ACTOR_ENTRY, JSON.stringify(job)], {
+		const child = spawn(TSX, [ACTOR_ENTRY, JSON.stringify(job)], {
 			cwd: actor.repoRoot,
 			env: {
 				...process.env,
