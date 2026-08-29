@@ -764,21 +764,31 @@ const getChangedFileBlobs = async (
 	});
 	if (isFail(diffResult)) return failed(diffResult.message);
 
-	const entries = diffResult.value.stdout
-		.split('\n')
-		.map(line => RAW_DIFF_LINE.exec(line))
-		.filter((match): match is RegExpExecArray => match !== null)
-		.map((match): ChangedFileBlobs => {
-			const beforeBlob = match[1] ?? '';
-			const afterBlob = match[2] ?? '';
-			const path = match[3] ?? '';
+	const lines = diffResult.value.stdout.split('\n').filter(line => line !== '');
 
-			return {
-				path,
-				beforeBlob: isZeroBlob(beforeBlob) ? null : beforeBlob,
-				afterBlob: isZeroBlob(afterBlob) ? null : afterBlob,
-			};
-		});
+	// A line git's --raw format doesn't match is a sign the assumed format
+	// itself is wrong for this git version/commit shape (already bit once
+	// this session: --full-index turned out to be a no-op here) — surfacing
+	// it as a failure beats silently under-reporting a commit's real files.
+	const unparseable = lines.filter(line => !RAW_DIFF_LINE.test(line));
+	if (unparseable.length > 0) {
+		return failed(
+			`Could not parse ${unparseable.length} line(s) of "git diff --raw" output, e.g. "${unparseable[0]}"`,
+		);
+	}
+
+	const entries = lines.map((line): ChangedFileBlobs => {
+		const match = RAW_DIFF_LINE.exec(line);
+		const beforeBlob = match?.[1] ?? '';
+		const afterBlob = match?.[2] ?? '';
+		const path = match?.[3] ?? '';
+
+		return {
+			path,
+			beforeBlob: isZeroBlob(beforeBlob) ? null : beforeBlob,
+			afterBlob: isZeroBlob(afterBlob) ? null : afterBlob,
+		};
+	});
 
 	if (entries.length === 0) {
 		return failed('No changed files found for this commit');
