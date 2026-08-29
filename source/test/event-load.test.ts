@@ -101,6 +101,25 @@ describe('getSortedEvents', () => {
 
 		expect(sorted.map(e => e.id[0])).toEqual(['01A', '01B', '01C']);
 	});
+
+	// Every event refs its predecessor, so a log is one chain as deep as it is
+	// long. Recursing it overflowed the call stack at ~4.7k events, which meant
+	// an ordinary board eventually stopped opening for everybody at once.
+	it('orders a chain far longer than the call stack allows', () => {
+		const chain: ReconstructedEvent[] = [];
+		let previous: string | null = null;
+
+		for (let index = 0; index < 50_000; index++) {
+			const id = ulid(index + 1);
+			chain.push(event(id, previous));
+			previous = id;
+		}
+
+		const sorted = getSortedEvents(chain);
+
+		expect(sorted).toHaveLength(chain.length);
+		expect(sorted.map(e => e.id[0])).toEqual(chain.map(e => e.id[0]));
+	});
 });
 
 describe('splitEventsAtTime', () => {

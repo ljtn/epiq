@@ -438,17 +438,26 @@ export const getSortedEvents = (
 	const result: ReconstructedEvent[] = [];
 	const placed = new Set<string>();
 
-	const visit = (event: ReconstructedEvent) => {
-		const eventId = event.id[0];
+	// Depth-first, but on an explicit stack: every event refs its predecessor,
+	// so the forest is one chain as long as the log and recursion would blow
+	// the call stack a few thousand events in.
+	const visit = (root: ReconstructedEvent) => {
+		const stack: ReconstructedEvent[] = [root];
 
-		if (placed.has(eventId)) return;
+		while (stack.length > 0) {
+			const event = stack.pop() as ReconstructedEvent;
+			const eventId = event.id[0];
 
-		result.push(event);
-		placed.add(eventId);
+			if (placed.has(eventId)) continue;
 
-		const children = childrenByRef.get(eventId) ?? [];
-		for (const child of children) {
-			visit(child);
+			result.push(event);
+			placed.add(eventId);
+
+			// Reversed, so the lowest-ULID sibling is popped first.
+			const children = childrenByRef.get(eventId) ?? [];
+			for (let index = children.length - 1; index >= 0; index--) {
+				stack.push(children[index] as ReconstructedEvent);
+			}
 		}
 	};
 
