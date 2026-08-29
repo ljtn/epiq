@@ -45,6 +45,7 @@ import {
 } from '../../client/lib/gui-broadcast.js';
 import {MUTATING_MESSAGE_TYPES} from '../../client/lib/gui-mutations.js';
 import {GuiMessage} from './websocket.model.js';
+import {isForeignOrigin} from './origin-guard.js';
 import {issueDetail, slimStateResult} from './slim-state.js';
 
 // Derives rather than boots, so a live re-materialize can't stomp a checkout.
@@ -126,11 +127,19 @@ const sendMutationResult = async (
 export const setupWebsocket = (
 	server: http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>,
 	repoRoot: string,
-	{onStateChanged}: {onStateChanged: () => void},
+	{
+		onStateChanged,
+		getPort,
+	}: {onStateChanged: () => void; getPort: () => number},
 ) => {
 	const wss = new WebSocketServer({
 		server,
 		path: '/ws',
+		// A handshake is not bound by the same-origin policy, so without this any
+		// page the user has open reaches every message below — including `sync`,
+		// which pushes to the shared remote.
+		verifyClient: (info: {origin: string}) =>
+			!isForeignOrigin(info.origin, getPort()),
 	});
 
 	wss.on('connection', socket => {
