@@ -4,8 +4,8 @@ import {execSync} from 'child_process';
 
 export const commonSteps = {
 	configureInitialSettings: async (tui: ReturnType<typeof setupTui>) => {
-		// Headroom for a cold start on slow CI hardware.
-		await tui.waitFor('choose your username', 8_000);
+		// Headroom for a cold start on slow CI hardware, or under a full container.
+		await tui.waitFor('choose your username', 20_000);
 		tui.input(':config username test\r');
 
 		await tui.waitFor('pick your editor');
@@ -14,7 +14,7 @@ export const commonSteps = {
 		await tui.waitFor('Configure auto sync');
 		tui.input(':config autoSync on\r');
 
-		await tui.waitFor('Initialize project', 8_000);
+		await tui.waitFor('Initialize project', 20_000);
 	},
 
 	init: async (tui: {
@@ -33,7 +33,7 @@ export const commonSteps = {
 		// Wait on the asserted text, not the title: they arrive in separate chunks.
 		output = await tui.waitFor(
 			'This folder is not an epiq project yet.',
-			8_000,
+			20_000,
 		);
 
 		expect(output).toContain('This folder is not an epiq project yet.');
@@ -41,10 +41,10 @@ export const commonSteps = {
 		// ENTER must be a separate chunk, or it is handled before the command is
 		// committed and the confirm is dropped.
 		tui.input(':init');
-		await tui.waitFor('<ENTER> to confirm', 8_000);
+		await tui.waitFor('<ENTER> to confirm', 20_000);
 		tui.input('\r');
 
-		output = await tui.waitFor('Default (0 issues)', 8_000);
+		output = await tui.waitFor('Default (0 issues)', 20_000);
 
 		return output;
 	},
