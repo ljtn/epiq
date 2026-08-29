@@ -570,6 +570,32 @@ export const isAheadOfUpstream = async (
 	);
 };
 
+/**
+ * Anything git would lose if this worktree were removed with `--force`:
+ * modified, staged and untracked alike. Untracked counts — a contributor's
+ * first event log is untracked until their first sync, so ignoring it would
+ * miss exactly the events most easily lost.
+ */
+export const hasUncommittedChanges = async (
+	worktreeRoot: string,
+): Promise<Result<boolean>> => {
+	const result = await execGitAllowFail({
+		args: ['status', '--porcelain', '--untracked-files=all'],
+		cwd: worktreeRoot,
+	});
+
+	if (result.exitCode !== 0) {
+		return failed(
+			result.stderr.trim() || 'Unable to inspect the worktree for changes',
+		);
+	}
+
+	return succeeded(
+		'Inspected worktree for changes',
+		result.stdout.trim().length > 0,
+	);
+};
+
 export const hasStagedChanges = async (
 	repoRoot: string,
 	pathspec?: string[],

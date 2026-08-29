@@ -24,6 +24,7 @@ import {
 	hasLocalBranch,
 	hasRemote,
 	hasRemoteBranch,
+	hasUncommittedChanges,
 	hasUpstream,
 	hasWorktree,
 	normalizeExistingPath,
@@ -343,6 +344,35 @@ export const ensureStateBranchWorktree = async ({
 	}
 
 	if (existing && existing !== expected) {
+		// `worktreeRemove` passes `--force`, which is exactly what overrides
+		// git's refusal to delete a worktree holding uncommitted work — and the
+		// state worktree nearly always holds some, because every `persist`
+		// appends to the log and nothing commits until the next sync.
+		//
+		// The paths disagree whenever two processes resolve `EPIQ_GLOBAL_DIR`
+		// differently: a dev server, a test run, an agent with its own
+		// environment. Relocating then threw away every event the other process
+		// had written since its last sync, silently, and reported success.
+		const dirtyResult = await hasUncommittedChanges(existing);
+		if (isFail(dirtyResult)) return failed(dirtyResult.message);
+
+		if (dirtyResult.value) {
+			return failed(
+				[
+					`Refusing to move the state branch worktree away from ${existing}.`,
+					'',
+					'It holds changes that are not committed yet, which for this',
+					'branch means events no sync has published. Removing it would',
+					'destroy them outright — there is no stash or reflog to recover',
+					'a deleted worktree from.',
+					'',
+					`This worktree is expected at ${expected}, so something else is`,
+					'using a different EPIQ_GLOBAL_DIR against the same repository.',
+					'Sync from that location first, or point both at the same one.',
+				].join('\n'),
+			);
+		}
+
 		logger.info('Moving state branch worktree to expected location');
 
 		const removeResult = await git.worktreeRemove({
