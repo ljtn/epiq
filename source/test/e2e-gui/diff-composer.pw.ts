@@ -129,8 +129,11 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await composer.getByRole('button', {name: 'File ticket'}).click();
 	const titleInput = page.getByPlaceholder('Ticket title');
 	await expect(titleInput).toBeVisible();
+	// Prefilled with the note, still editable.
+	await expect(titleInput).toHaveValue('needs a second look');
 	await page.screenshot({path: testInfo.outputPath('title-prompt.png')});
 	// Empty title: nothing filed, prompt stays.
+	await titleInput.fill('');
 	await titleInput.press('Enter');
 	await expect(titleInput).toBeVisible();
 	await titleInput.fill(`Follow-up ${stamp}`);

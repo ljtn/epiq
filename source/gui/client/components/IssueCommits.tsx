@@ -680,8 +680,12 @@ const FileRow = ({
 									note={note}
 									onChangeNote={setNote}
 									onAddComment={onAddComment}
+									// Prefilled with the note's first line: what was just
+									// written is usually the title, and is still editable.
 									onFileTicket={
-										onFileTicket ? () => setTicketTitle('') : undefined
+										onFileTicket
+											? () => setTicketTitle(note.trim().split('\n')[0] ?? '')
+											: undefined
 									}
 									onClear={clearSelection}
 								/>
