@@ -16,7 +16,7 @@ import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {createDefaultEvents} from '../../lib/event/event-boot.js';
 import {loadMergedEvents} from '../../lib/event/event-load.js';
 import {getPersistFileName, persist} from '../../lib/event/event-persist.js';
-import {isFail} from '../../lib/model/result-types.js';
+import {isFail, Result} from '../../lib/model/result-types.js';
 import {patchSettingsState} from '../../lib/state/settings.state.js';
 import {
 	addIssueComment,
@@ -75,7 +75,9 @@ if (swimlaneId === null) {
 }
 
 for (const action of swimlaneId === null ? [] : job.actions) {
-	const result =
+	// Widened deliberately: the four calls return different value shapes, and
+	// all this cares about is whether the board refused.
+	const result: Result<unknown> =
 		action.kind === 'create'
 			? await createIssue({
 					repoRoot: job.repoRoot,
