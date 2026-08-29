@@ -14,6 +14,17 @@ export type CommitDiffState = {
 	files: GuiCommitDiffFile[] | null;
 };
 
+// Case-insensitive like the server's own match (getCommitsForRef) — a subject
+// that doesn't actually carry the prefix (shouldn't happen, but the match
+// isn't a hard guarantee client-side) is returned unchanged rather than mangled.
+const stripRefPrefix = (subject: string, ref: string): string => {
+	const prefix = `${ref} `;
+
+	return subject.toUpperCase().startsWith(prefix.toUpperCase())
+		? subject.slice(prefix.length)
+		: subject;
+};
+
 // The timeline rail: a dot per commit, in the scrubber's own commit-series
 // color, connected to the next by a line. RAIL_DOT_OFFSET lines the dot up
 // with the header's text (padding-top plus half its line height), not the
@@ -141,83 +152,102 @@ const CommitRow = ({
 	expandedFiles: Set<string>;
 	onToggleFile: (path: string) => void;
 	diffStyle: 'split' | 'unified';
-}) => (
-	<div
-		style={{
-			border: `1px solid ${GUI_THEME.line}`,
-			borderRadius: 8,
-			overflow: 'hidden',
-		}}
-	>
-		{/* A div, not a button: it holds CopyShaButton, a real nested button,
+}) => {
+	const [hovered, setHovered] = useState(false);
+
+	return (
+		<div
+			style={{
+				border: `1px solid ${GUI_THEME.line}`,
+				borderRadius: 8,
+				overflow: 'hidden',
+			}}
+		>
+			{/* A div, not a button: it holds CopyShaButton, a real nested button,
 		    which native <button> nesting forbids. role/tabIndex/onKeyDown stand
 		    in for what the element would otherwise give for free. */}
-		<div
-			role="button"
-			tabIndex={0}
-			onClick={onToggle}
-			onKeyDown={event => {
-				if (event.key === 'Enter' || event.key === ' ') {
-					event.preventDefault();
-					onToggle();
-				}
-			}}
-			aria-expanded={expanded}
-			style={{...disclosureStyle, padding: '13px 14px'}}
-		>
-			{/* Subject leads the row with nothing before it — the sha and caret
+			<div
+				role="button"
+				tabIndex={0}
+				onClick={onToggle}
+				onKeyDown={event => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						event.preventDefault();
+						onToggle();
+					}
+				}}
+				onMouseEnter={() => setHovered(true)}
+				onMouseLeave={() => setHovered(false)}
+				aria-expanded={expanded}
+				style={{...disclosureStyle, padding: '13px 14px'}}
+			>
+				{/* Subject leads the row with nothing before it — the sha and caret
 			    are lookup/navigation chrome, not part of reading the list, so
 			    they sit at the far right instead of crowding the start of every
-			    line. The sha itself only appears once expanded, when there's a
-			    reason to want it (copying it to look at the commit elsewhere). */}
-			<span
-				style={{
-					flex: 1,
-					minWidth: 0,
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
-				}}
-			>
-				{commit.subject}
-			</span>
-			<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
-			{expanded && <CopyShaButton sha={commit.sha} />}
-			{/* Flex items shrink by default; without this a tight panel width
+			    line. The sha itself only appears on hover or once expanded —
+			    reachable without a full expand, but not permanent clutter. */}
+				<span
+					style={{
+						flex: 1,
+						minWidth: 0,
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{commit.subject}
+				</span>
+				<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
+				{/* Always mounted, opacity-toggled rather than conditionally rendered:
+			    swapping it in/out of the tree changed the row's flex height on
+			    hover, which the rail lines (sized off that height) visibly jumped
+			    with. Keeping it in flow always reserves the same space. */}
+				<span
+					style={{
+						flexShrink: 0,
+						opacity: expanded || hovered ? 1 : 0,
+						pointerEvents: expanded || hovered ? 'auto' : 'none',
+						transition: 'opacity 120ms ease',
+					}}
+				>
+					<CopyShaButton sha={commit.sha} />
+				</span>
+				{/* Flex items shrink by default; without this a tight panel width
 			    squeezes the caret toward invisible rather than truncating the
 			    (already-shrinkable) subject text further. */}
-			<span style={{flexShrink: 0, display: 'flex'}}>
-				{expanded ? (
-					<IconChevronDown size={12} />
-				) : (
-					<IconChevronRight size={12} />
-				)}
-			</span>
-		</div>
-
-		{expanded && (
-			<div
-				style={{
-					padding: '0 10px 10px',
-					borderTop: `1px solid ${GUI_THEME.line}`,
-				}}
-			>
-				{diff?.loading && <Empty>Loading files…</Empty>}
-				{!diff?.loading && diff?.error && <Empty>{diff.error}</Empty>}
-
-				{diff?.files?.map(file => (
-					<FileRow
-						key={file.path}
-						file={file}
-						expanded={expandedFiles.has(file.path)}
-						onToggle={() => onToggleFile(file.path)}
-						diffStyle={diffStyle}
-					/>
-				))}
+				<span style={{flexShrink: 0, display: 'flex'}}>
+					{expanded ? (
+						<IconChevronDown size={12} />
+					) : (
+						<IconChevronRight size={12} />
+					)}
+				</span>
 			</div>
-		)}
-	</div>
-);
+
+			{expanded && (
+				<div
+					style={{
+						padding: '0 10px 10px',
+						borderTop: `1px solid ${GUI_THEME.line}`,
+					}}
+				>
+					{diff?.loading && <Empty>Loading files…</Empty>}
+					{!diff?.loading && diff?.error && <Empty>{diff.error}</Empty>}
+
+					{diff?.files?.map(file => (
+						<FileRow
+							key={file.path}
+							file={file}
+							expanded={expandedFiles.has(file.path)}
+							onToggle={() => onToggleFile(file.path)}
+							diffStyle={diffStyle}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
+};
 
 // The tree this renders:
 //
@@ -298,8 +328,15 @@ export const IssueCommits = ({
 	}
 
 	// Oldest first, reading top-to-bottom as the story unfolded — the log
-	// itself comes back newest-first.
-	const ordered = [...commits].sort((a, b) => a.time - b.time);
+	// itself comes back newest-first. The ref prefix is stripped from the
+	// displayed subject too: every commit in this list already matches
+	// issueRef by definition, so repeating it on every row is pure noise.
+	const ordered = [...commits]
+		.sort((a, b) => a.time - b.time)
+		.map(commit => ({
+			...commit,
+			subject: stripRefPrefix(commit.subject, issueRef),
+		}));
 
 	return (
 		<div>
