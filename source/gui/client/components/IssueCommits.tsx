@@ -1,7 +1,16 @@
 import React, {useState} from 'react';
-import {SelectedLineRange} from '@pierre/diffs/react';
-import {GuiCommitDiffFile, GuiRefCommitEntry} from '../lib/gui-state.model';
+import {
+	DiffLineAnnotation,
+	SelectedLineRange,
+	SelectionSide,
+} from '@pierre/diffs/react';
+import {
+	GuiComment,
+	GuiCommitDiffFile,
+	GuiRefCommitEntry,
+} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {timeAgo} from '../lib/gui-format.helper';
 import {ActionRow, Textarea} from './FormPrimitives';
 import {Button} from './Button';
 import {CopyRef} from './CopyRef';
@@ -10,6 +19,7 @@ import {Empty} from './FormPrimitives';
 import {FileDiffView} from './DiffPanel';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {IconComment} from './IconComment';
 
 export type CommitDiffState = {
 	loading: boolean;
@@ -61,6 +71,90 @@ export const formatSelectionLabel = (range: SelectedLineRange): string => {
 		? `line ${range.start} (${sideLabel})`
 		: `lines ${range.start}-${range.end} (${sideLabel})`;
 };
+
+// Quoted lines keep their real source indentation (often several tabs deep
+// inside nested JSX) — fine in the wide diff, unreadable in a narrow comment
+// box. Strips the whitespace every non-blank line shares, same as most
+// editors' own "copy" behavior.
+export const dedent = (snippet: string): string => {
+	const lines = snippet.split('\n');
+
+	const commonIndent = lines
+		.filter(line => line.trim() !== '')
+		.reduce<number | null>((min, line) => {
+			const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
+			return min === null ? indent : Math.min(min, indent);
+		}, null);
+
+	if (!commonIndent) return snippet;
+
+	return lines.map(line => line.slice(commonIndent)).join('\n');
+};
+
+// Metadata for a diff-selection comment, carried as an HTML-comment-shaped
+// marker in the posted body — round-trips through storage intact with no
+// separate field needed on GuiComment. react-markdown does *not* silently
+// drop `<!-- ... -->` without rehype-raw as might be assumed — it renders
+// the literal text — so every render path showing a comment body must strip
+// it via stripDiffCommentMarker below rather than relying on the markdown
+// renderer to hide it.
+type DiffCommentMeta = {
+	filePath: string;
+	start: number;
+	side: SelectionSide;
+	end: number;
+	endSide: SelectionSide;
+	note: string;
+};
+
+const DIFF_COMMENT_MARKER = /<!--\s*epiq-diff-comment:(.+?)-->\n?/;
+
+export const stripDiffCommentMarker = (body: string): string =>
+	body.replace(DIFF_COMMENT_MARKER, '');
+
+export const encodeDiffCommentMarker = (meta: DiffCommentMeta): string =>
+	`<!-- epiq-diff-comment:${JSON.stringify(meta)} -->`;
+
+const isSelectionSide = (value: unknown): value is SelectedLineRange['side'] =>
+	value === 'additions' || value === 'deletions';
+
+export const parseDiffCommentMeta = (body: string): DiffCommentMeta | null => {
+	const match = DIFF_COMMENT_MARKER.exec(body);
+	if (!match?.[1]) return null;
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(match[1]);
+	} catch {
+		return null;
+	}
+
+	const meta = parsed as Partial<DiffCommentMeta> | null;
+
+	if (
+		typeof meta?.filePath !== 'string' ||
+		typeof meta.start !== 'number' ||
+		typeof meta.end !== 'number' ||
+		typeof meta.note !== 'string' ||
+		!isSelectionSide(meta.side) ||
+		!isSelectionSide(meta.endSide)
+	) {
+		return null;
+	}
+
+	return meta as DiffCommentMeta;
+};
+
+export type DiffComment = {comment: GuiComment; meta: DiffCommentMeta};
+
+export const findDiffCommentsForFile = (
+	comments: GuiComment[],
+	filePath: string,
+): DiffComment[] =>
+	comments.flatMap(comment => {
+		const meta = parseDiffCommentMeta(comment.body);
+		return meta && meta.filePath === filePath ? [{comment, meta}] : [];
+	});
 
 // The timeline rail: a dot per commit, in the scrubber's own commit-series
 // color, connected to the next by a line. RAIL_DOT_OFFSET lines the dot up
@@ -154,11 +248,25 @@ const SelectionToolbar = ({
 	const [note, setNote] = useState('');
 
 	const submit = () => {
-		const snippet = extractSnippet(file, selection);
+		const snippet = dedent(extractSnippet(file, selection));
 		const trimmedNote = note.trim();
+		// Matches extractSnippet's own default: a range without a reported side
+		// is expected to be a modern-git edge case at worst, not a real gap.
+		const side = selection.side ?? 'additions';
+		const endSide = selection.endSide ?? side;
+
+		const marker = encodeDiffCommentMarker({
+			filePath: file.path,
+			start: selection.start,
+			side,
+			end: selection.end,
+			endSide,
+			note: trimmedNote,
+		});
 
 		const body = [
 			...(trimmedNote ? [trimmedNote, ''] : []),
+			marker,
 			`\`${file.path}\` ${formatSelectionLabel(selection)}`,
 			'```',
 			snippet,
@@ -174,9 +282,10 @@ const SelectionToolbar = ({
 			style={{
 				marginTop: 8,
 				padding: 10,
-				border: `1px solid ${GUI_THEME.line}`,
+				border: `1px solid ${GUI_THEME.accent}`,
 				borderRadius: 8,
-				background: GUI_THEME.panel,
+				background: GUI_THEME.tertiary,
+				boxShadow: `0 0 0 1px ${GUI_THEME.accent}33`,
 			}}
 		>
 			<div
@@ -195,13 +304,13 @@ const SelectionToolbar = ({
 				{!composing && (
 					<>
 						{onAddComment && (
-							<Button variant="ghost" onClick={() => setComposing(true)}>
+							<Button variant="primary" onClick={() => setComposing(true)}>
 								Comment
 							</Button>
 						)}
 						{/* File-ticket filing lands in a follow-up — the button previews
 						    the intended shape rather than being omitted outright. */}
-						<Button variant="ghost" disabled title="Coming soon">
+						<Button variant="default" disabled title="Coming soon">
 							File ticket
 						</Button>
 						<Button variant="ghost" onClick={onClear}>
@@ -238,20 +347,79 @@ const SelectionToolbar = ({
 	);
 };
 
+// Rendered by MultiFileDiff at the line a diff-selection comment is anchored
+// to. Just the author and note — the full body (including the requoted
+// snippet, redundant here since the diff itself is right above it) lives in
+// the Comments tab.
+const DiffCommentAnnotation = ({
+	annotation,
+}: {
+	annotation: DiffLineAnnotation<DiffComment>;
+}) => {
+	const {comment, meta} = annotation.metadata;
+
+	return (
+		<div
+			style={{
+				margin: '4px 0',
+				padding: '8px 10px',
+				border: `1px solid ${GUI_THEME.line}`,
+				borderLeft: `2px solid ${GUI_THEME.accent}`,
+				borderRadius: 6,
+				background: GUI_THEME.tertiary,
+				fontSize: 12,
+				display: 'flex',
+				alignItems: 'flex-start',
+				gap: 8,
+			}}
+		>
+			<span style={{color: GUI_THEME.accent, flexShrink: 0, marginTop: 1}}>
+				<IconComment size={12} />
+			</span>
+			<div style={{flex: 1, minWidth: 0}}>
+				<div style={{color: GUI_THEME.secondary, fontSize: 11}}>
+					{comment.author.name ?? 'unknown'}
+					{comment.createdAt && (
+						<span style={{color: GUI_THEME.dim2}}>
+							{' '}
+							· {timeAgo(comment.createdAt)}
+						</span>
+					)}
+				</div>
+				<div style={{marginTop: 2}}>
+					{meta.note || <em style={{color: GUI_THEME.dim}}>commented</em>}
+				</div>
+			</div>
+		</div>
+	);
+};
+
 const FileRow = ({
 	file,
 	expanded,
 	onToggle,
 	diffStyle,
 	onAddComment,
+	comments,
 }: {
 	file: GuiCommitDiffFile;
 	expanded: boolean;
 	onToggle: () => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
+	comments: GuiComment[];
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
+
+	const fileComments = findDiffCommentsForFile(comments, file.path);
+
+	const lineAnnotations: DiffLineAnnotation<DiffComment>[] = fileComments.map(
+		entry => ({
+			side: entry.meta.endSide,
+			lineNumber: entry.meta.end,
+			metadata: entry,
+		}),
+	);
 
 	return (
 		<div style={{marginTop: 8}}>
@@ -279,6 +447,26 @@ const FileRow = ({
 				>
 					{file.path}
 				</span>
+				{/* Findable when collapsed — otherwise a comment left on a file with
+				    several others is easy to lose track of. */}
+				{fileComments.length > 0 && (
+					<span
+						title={`${fileComments.length} comment${
+							fileComments.length === 1 ? '' : 's'
+						}`}
+						style={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 3,
+							flexShrink: 0,
+							color: GUI_THEME.accent,
+							fontSize: 10,
+						}}
+					>
+						<IconComment size={10} />
+						{fileComments.length}
+					</span>
+				)}
 			</button>
 
 			{expanded && (
@@ -288,6 +476,10 @@ const FileRow = ({
 						diffStyle={diffStyle}
 						selectedLines={selection}
 						onSelectionEnd={setSelection}
+						lineAnnotations={lineAnnotations}
+						renderAnnotation={annotation => (
+							<DiffCommentAnnotation annotation={annotation} />
+						)}
 					/>
 					{selection && (
 						<SelectionToolbar
@@ -310,8 +502,10 @@ const CommitRow = ({
 	onToggle,
 	expandedFiles,
 	onToggleFile,
+	onSetAllFilesExpanded,
 	diffStyle,
 	onAddComment,
+	comments,
 }: {
 	commit: GuiRefCommitEntry;
 	diff: CommitDiffState | undefined;
@@ -319,8 +513,10 @@ const CommitRow = ({
 	onToggle: () => void;
 	expandedFiles: Set<string>;
 	onToggleFile: (path: string) => void;
+	onSetAllFilesExpanded: (filePaths: string[], expand: boolean) => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
+	comments: GuiComment[];
 }) => {
 	const [hovered, setHovered] = useState(false);
 	// Also tracks focus (not just mouse hover): the copy button is a real
@@ -410,6 +606,25 @@ const CommitRow = ({
 					{diff?.loading && <Empty>Loading files…</Empty>}
 					{!diff?.loading && diff?.error && <Empty>{diff.error}</Empty>}
 
+					{diff?.files && diff.files.length > 1 && (
+						<div style={{display: 'flex', justifyContent: 'flex-end'}}>
+							<Button
+								variant="ghost"
+								onClick={() => {
+									const filePaths = diff.files!.map(file => file.path);
+									const allExpanded = filePaths.every(path =>
+										expandedFiles.has(path),
+									);
+									onSetAllFilesExpanded(filePaths, !allExpanded);
+								}}
+							>
+								{diff.files.every(file => expandedFiles.has(file.path))
+									? 'Collapse all'
+									: 'Expand all'}
+							</Button>
+						</div>
+					)}
+
 					{diff?.files?.map(file => (
 						<FileRow
 							key={file.path}
@@ -418,6 +633,7 @@ const CommitRow = ({
 							onToggle={() => onToggleFile(file.path)}
 							diffStyle={diffStyle}
 							onAddComment={onAddComment}
+							comments={comments}
 						/>
 					))}
 				</div>
@@ -447,6 +663,7 @@ export const IssueCommits = ({
 	onLoadDiff,
 	diffStyle,
 	onAddComment,
+	comments,
 }: {
 	issueRef: string;
 	commits: GuiRefCommitEntry[];
@@ -456,6 +673,7 @@ export const IssueCommits = ({
 	onLoadDiff: (sha: string) => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
+	comments: GuiComment[];
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
@@ -493,6 +711,17 @@ export const IssueCommits = ({
 			}
 			return {...prev, [sha]: current};
 		});
+	};
+
+	const setAllFilesExpanded = (
+		sha: string,
+		filePaths: string[],
+		expand: boolean,
+	) => {
+		setExpandedFilesBySha(prev => ({
+			...prev,
+			[sha]: expand ? new Set(filePaths) : new Set(),
+		}));
 	};
 
 	if (loading) return <Empty>Loading commits…</Empty>;
@@ -588,8 +817,12 @@ export const IssueCommits = ({
 							onToggle={() => toggleCommit(commit.sha)}
 							expandedFiles={expandedFilesBySha[commit.sha] ?? new Set()}
 							onToggleFile={path => toggleFile(commit.sha, path)}
+							onSetAllFilesExpanded={(paths, expand) =>
+								setAllFilesExpanded(commit.sha, paths, expand)
+							}
 							diffStyle={diffStyle}
 							onAddComment={onAddComment}
+							comments={comments}
 						/>
 					</div>
 				</div>

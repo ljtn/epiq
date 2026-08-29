@@ -4,6 +4,7 @@ import {Button} from './Button';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
+import {stripDiffCommentMarker} from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {MAX_COMMENT_LENGTH} from '../../../lib/utils/comment.limits.js';
 
@@ -38,13 +39,19 @@ export const IssueComments = ({
 		setBody('');
 	};
 
+	// Newest first: the most recent activity is what a reader coming back to
+	// a ticket wants to see without scrolling.
+	const ordered = [...comments].sort(
+		(a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0),
+	);
+
 	return (
 		<div>
 			{comments.length === 0 ? (
 				<Empty>No comments</Empty>
 			) : (
 				<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-					{comments.map(comment => (
+					{ordered.map(comment => (
 						<div
 							key={comment.id}
 							style={{
@@ -88,7 +95,10 @@ export const IssueComments = ({
 									)}
 							</div>
 
-							<MarkdownContent content={comment.body} softBreaks />
+							<MarkdownContent
+								content={stripDiffCommentMarker(comment.body)}
+								softBreaks
+							/>
 						</div>
 					))}
 				</div>
