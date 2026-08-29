@@ -224,7 +224,12 @@ describe('no commit reaches the user repository outside init', () => {
 		fs.readdirSync(dir, {withFileTypes: true}).flatMap(entry => {
 			const full = path.join(dir, entry.name);
 			if (entry.isDirectory()) {
-				return entry.name === 'node_modules' ? [] : sourceFiles(full);
+				// The claim is about shipped code. Test helpers drive git against
+				// throwaway repos and are not `.test.` files, so without this they
+				// read as offenders.
+				return entry.name === 'node_modules' || entry.name === 'test'
+					? []
+					: sourceFiles(full);
 			}
 			return entry.name.endsWith('.ts') && !entry.name.includes('.test.')
 				? [full]
