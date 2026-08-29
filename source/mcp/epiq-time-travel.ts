@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit, readGitBlobsBatch} from '../git/git-utils.js';
+import {NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
 import {
 	getEditorCandidates,
 	isVSCodeEditor,
@@ -497,6 +498,17 @@ export const getCommitsForRef = async (
 ): Promise<Result<RefCommitEntry[]>> => {
 	const ref = input.ref.trim();
 	if (!ref) return failed('ref must not be empty');
+
+	// Matching below is a strict `<REF> ` prefix, so a ref of the wrong length
+	// can only ever return nothing — which reads identically to "this ticket
+	// has no commits". A ref is NODE_REF_LENGTH characters by construction, so
+	// any other length is a mistake worth naming rather than answering.
+	if (ref.length !== NODE_REF_LENGTH) {
+		return failed(
+			`"${ref}" is ${ref.length} characters; a ref is ${NODE_REF_LENGTH}. ` +
+				`Read it off the issue rather than slicing the id by hand.`,
+		);
+	}
 
 	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
 	if (isFail(timelineResult)) return failed(timelineResult.message);
