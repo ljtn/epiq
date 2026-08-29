@@ -41,6 +41,8 @@ const commit = (time: number, linesChanged = 1): GuiCommitEntry => ({
 	author: 'a',
 	subject: 's',
 	linesChanged,
+	insertions: linesChanged,
+	deletions: 0,
 });
 
 const person = (name: string): GuiEventIdentity => ({
