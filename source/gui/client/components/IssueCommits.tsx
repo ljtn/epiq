@@ -14,6 +14,14 @@ export type CommitDiffState = {
 	files: GuiCommitDiffFile[] | null;
 };
 
+// The timeline rail: a dot per commit, in the scrubber's own commit-series
+// color, connected to the next by a line. RAIL_DOT_OFFSET lines the dot up
+// with the header's text (padding-top plus half its line height), not the
+// row's overall height, which grows when a commit is expanded.
+const RAIL_WIDTH = 24;
+const RAIL_DOT_OFFSET = 19;
+const ROW_GAP = 14;
+
 const disclosureStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
@@ -132,7 +140,6 @@ const CommitRow = ({
 }) => (
 	<div
 		style={{
-			marginBottom: 14,
 			border: `1px solid ${GUI_THEME.line}`,
 			borderRadius: 8,
 			overflow: 'hidden',
@@ -278,16 +285,55 @@ export const IssueCommits = ({
 
 	return (
 		<div>
-			{ordered.map(commit => (
-				<CommitRow
-					key={commit.sha}
-					commit={commit}
-					diff={diffsBySha[commit.sha]}
-					expanded={expandedShas.has(commit.sha)}
-					onToggle={() => toggleCommit(commit.sha)}
-					expandedFiles={expandedFilesBySha[commit.sha] ?? new Set()}
-					onToggleFile={path => toggleFile(commit.sha, path)}
-				/>
+			{ordered.map((commit, index) => (
+				<div key={commit.sha} style={{display: 'flex', marginBottom: ROW_GAP}}>
+					{/* The rail: a dot per commit in the scrubber's own commit-series
+					    color, connected to the next by a line — so this list visibly
+					    reads as the same timeline, not a disconnected view of it.
+					    position: relative + stretch (the flex row's default
+					    align-items) makes this column exactly as tall as CommitRow
+					    ends up rendering, expanded or not, with no measuring needed —
+					    the line just extends into the gap below via a negative bottom. */}
+					<div style={{width: RAIL_WIDTH, flexShrink: 0, position: 'relative'}}>
+						<div
+							style={{
+								position: 'absolute',
+								left: '50%',
+								top: RAIL_DOT_OFFSET,
+								width: 8,
+								height: 8,
+								borderRadius: '50%',
+								background: GUI_THEME.green,
+								transform: 'translate(-50%, -50%)',
+							}}
+						/>
+						{index < ordered.length - 1 && (
+							<div
+								style={{
+									position: 'absolute',
+									left: '50%',
+									top: RAIL_DOT_OFFSET,
+									bottom: -ROW_GAP,
+									width: 2,
+									background: GUI_THEME.green,
+									opacity: 0.4,
+									transform: 'translateX(-50%)',
+								}}
+							/>
+						)}
+					</div>
+
+					<div style={{flex: 1, minWidth: 0}}>
+						<CommitRow
+							commit={commit}
+							diff={diffsBySha[commit.sha]}
+							expanded={expandedShas.has(commit.sha)}
+							onToggle={() => toggleCommit(commit.sha)}
+							expandedFiles={expandedFilesBySha[commit.sha] ?? new Set()}
+							onToggleFile={path => toggleFile(commit.sha, path)}
+						/>
+					</div>
+				</div>
 			))}
 		</div>
 	);
