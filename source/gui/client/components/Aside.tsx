@@ -31,18 +31,30 @@ export const readStoredAsideWidth = (): number => {
 		: ASIDE_WIDTH;
 };
 
+export type AsideRenderApi = {
+	isFullscreen: boolean;
+	toggleFullscreen: () => void;
+};
+
 export const Aside = forwardRef<
 	HTMLElement,
-	{children: React.ReactNode; onWidthChange?: (width: number) => void}
+	{
+		children: React.ReactNode | ((api: AsideRenderApi) => React.ReactNode);
+		onWidthChange?: (width: number) => void;
+	}
 >(({children, onWidthChange}, ref) => {
 	const [width, setWidth] = useState(readStoredAsideWidth);
 	const [handleHovered, setHandleHovered] = useState(false);
+	const [isFullscreen, setIsFullscreen] = useState(false);
 	// Mirrors `width` synchronously: handlePointerMove/handleDragEnd are
 	// memoized once (empty deps, so the pointermove/pointerup listeners stay
 	// stable across renders) and would otherwise close over a stale `width`
 	// from whichever render first attached them.
 	const latestWidth = useRef(width);
 	const dragStart = useRef<{pointerX: number; width: number} | null>(null);
+	// The width to come back to on un-maximizing — not persisted, since
+	// fullscreen itself is a transient view toggle, not a stored preference.
+	const preFullscreenWidth = useRef<number | null>(null);
 
 	// Fires on mount too, not just on drag — so a caller that only reads
 	// this (rather than also calling readStoredAsideWidth itself) still sees
@@ -91,6 +103,10 @@ export const Aside = forwardRef<
 
 	const handlePointerDown = (event: React.PointerEvent) => {
 		event.preventDefault();
+		// A manual resize is a clear signal the user wants a specific width,
+		// not the fullscreen one — drop out of fullscreen first so the drag
+		// starts from the panel's normal (pre-fullscreen) width.
+		if (isFullscreen) setIsFullscreen(false);
 		dragStart.current = {pointerX: event.clientX, width};
 		document.addEventListener('pointermove', handlePointerMove);
 		document.addEventListener('pointerup', handleDragEnd);
@@ -98,13 +114,27 @@ export const Aside = forwardRef<
 		document.body.style.userSelect = 'none';
 	};
 
+	const toggleFullscreen = useCallback(() => {
+		setIsFullscreen(prev => {
+			if (prev) {
+				setWidth(preFullscreenWidth.current ?? readStoredAsideWidth());
+				preFullscreenWidth.current = null;
+			} else {
+				preFullscreenWidth.current = latestWidth.current;
+			}
+			return !prev;
+		});
+	}, []);
+
+	const effectiveWidth = isFullscreen ? window.innerWidth : width;
+
 	return (
 		<aside
 			ref={ref}
 			style={{
 				boxSizing: 'border-box',
-				width,
-				minWidth: width,
+				width: effectiveWidth,
+				minWidth: effectiveWidth,
 				position: 'relative',
 				borderLeft: `1px solid ${GUI_THEME.line}`,
 				background: GUI_THEME.panel,
@@ -147,7 +177,9 @@ export const Aside = forwardRef<
 					}}
 				/>
 			</div>
-			{children}
+			{typeof children === 'function'
+				? children({isFullscreen, toggleFullscreen})
+				: children}
 		</aside>
 	);
 });
