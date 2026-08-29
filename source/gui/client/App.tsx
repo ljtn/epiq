@@ -19,6 +19,10 @@ import {InitProjectScreen} from './components/InitProjectScreen';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
+import {
+	FileTicketParams,
+	formatSelectionLabel,
+} from './components/IssueCommits';
 import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
@@ -194,6 +198,15 @@ export const App = () => {
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
+	// Set right before an issues:create request that came from "File ticket"
+	// on a diff selection, consumed by that request's own issues:create:result
+	// reply (not the issue:created broadcast, which fires for every creation
+	// on the board) — that's how the origin ticket's back-comment knows which
+	// creation to react to.
+	const pendingFileTicketOrigin = useRef<{
+		originIssueId: string;
+		originRef: string;
+	} | null>(null);
 	const [reconnectTick, setReconnectTick] = useState(0);
 	// True once the automatic attempts are spent; the topbar then offers the
 	// button rather than retrying behind the reader's back forever.
@@ -464,6 +477,29 @@ export const App = () => {
 					void navigateRef.current(
 						`/board/${boardId}/issue/${nodeRef(created.id)}?tab=overview`,
 					);
+				}
+			}
+
+			// Keyed off this request's own reply rather than the issue:created
+			// broadcast above: that one fires for every creation on the board,
+			// including other people's, and would attach the back-comment to
+			// whichever creation happened to land next.
+			if (message.type === 'issues:create:result') {
+				const origin = pendingFileTicketOrigin.current;
+				pendingFileTicketOrigin.current = null;
+
+				const created = getResultValue<{id: string}>(message.payload);
+
+				if (origin && created) {
+					sendSocketJson(socket, {
+						type: 'issue:comment:add',
+						payload: {
+							issueId: origin.originIssueId,
+							body: `Filed \`${nodeRef(
+								created.id,
+							)}\` from a code selection on this ticket.`,
+						},
+					});
 				}
 			}
 
@@ -1136,6 +1172,37 @@ export const App = () => {
 		send('issue:comment:add', {issueId, body});
 	};
 
+	const fileTicketFromSelection = (
+		originIssueId: string,
+		originRef: string,
+		params: FileTicketParams,
+	) => {
+		// The leftmost swimlane, by the board's own left-to-right "not started →
+		// done" convention — a ticket filed off a code review is new work, so it
+		// belongs there rather than beside the ticket being reviewed.
+		const targetSwimlaneId = selectedBoard?.swimlanes[0]?.id;
+		if (!targetSwimlaneId) return;
+
+		const description = [
+			...(params.note ? [params.note, ''] : []),
+			`Filed from a code selection on \`${originRef}\`.`,
+			'',
+			`\`${params.filePath}\` ${formatSelectionLabel(params.range)}`,
+			'```',
+			params.snippet,
+			'```',
+		].join('\n');
+
+		pendingFileTicketOrigin.current = {originIssueId, originRef};
+
+		send('issues:create', {
+			title: params.title,
+			parentId: targetSwimlaneId,
+			description,
+			tagNames: ['from-code-comment'],
+		});
+	};
+
 	const uploadIssueAttachments = async (issueId: string, files: File[]) => {
 		for (const file of files) {
 			setAttachmentUploadStatus({state: 'uploading', name: file.name});
@@ -1546,6 +1613,7 @@ export const App = () => {
 							onRemoveAssignee={removeIssueAssignee}
 							onAddComment={addIssueComment}
 							onDeleteComment={deleteIssueComment}
+							onFileTicket={fileTicketFromSelection}
 							attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
 							attachmentUploadStatus={attachmentUploadStatus}
 							onUploadAttachments={uploadIssueAttachments}

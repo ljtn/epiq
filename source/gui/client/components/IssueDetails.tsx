@@ -26,7 +26,7 @@ import {
 } from './FormPrimitives';
 import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
 import {IssueComments} from './IssueComments';
-import {CommitDiffState, IssueCommits} from './IssueCommits';
+import {CommitDiffState, FileTicketParams, IssueCommits} from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
@@ -56,6 +56,7 @@ export const IssueDetails = ({
 	onReopenIssue,
 	onAddComment,
 	onDeleteComment,
+	onFileTicket,
 	attachments,
 	attachmentUploadStatus,
 	onUploadAttachments,
@@ -89,6 +90,11 @@ export const IssueDetails = ({
 	onReopenIssue: (issueId: string) => void;
 	onAddComment?: (issueId: string, body: string) => void;
 	onDeleteComment?: (issueId: string, commentId: string) => void;
+	onFileTicket?: (
+		originIssueId: string,
+		originRef: string,
+		params: FileTicketParams,
+	) => void;
 	attachments: GuiAttachment[];
 	attachmentUploadStatus: AttachmentUploadStatus;
 	onUploadAttachments?: (issueId: string, files: File[]) => void;
@@ -658,6 +664,11 @@ export const IssueDetails = ({
 										disabled
 											? undefined
 											: body => onAddComment?.(issue.id, body)
+									}
+									onFileTicket={
+										disabled
+											? undefined
+											: params => onFileTicket?.(issue.id, issue.ref, params)
 									}
 								/>
 							)}
