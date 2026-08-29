@@ -54,6 +54,18 @@ describe('parseGuiMessage', () => {
 		expect(parsed.message.payload).toEqual(payload);
 	});
 
+	it('accepts a comment edit', () => {
+		const payload = {issueId, commentId: issueId, body: 'again'};
+		const parsed = parseGuiMessage({type: 'issue:comment:edit', payload});
+
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok || parsed.message.type !== 'issue:comment:edit') {
+			throw new Error('expected an issue:comment:edit message');
+		}
+
+		expect(parsed.message.payload).toEqual(payload);
+	});
+
 	it.each([
 		['null', null],
 		['a number', 123],

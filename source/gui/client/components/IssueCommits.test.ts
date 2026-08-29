@@ -11,6 +11,7 @@ import {
 	parseDiffCommentMeta,
 	readDiffLocationParams,
 	stripDiffCommentMarker,
+	withDiffCommentNote,
 	writeDiffLocationParams,
 } from './IssueCommits';
 import {GuiComment, GuiCommitDiffFile} from '../lib/gui-state.model';
@@ -354,5 +355,73 @@ describe('issueRef', () => {
 				`<!-- epiq-diff-comment:${JSON.stringify({...meta, issueRef: 7})} -->`,
 			),
 		).toBeNull();
+	});
+});
+
+describe('withDiffCommentNote', () => {
+	const meta = {
+		filePath: 'source/a.ts',
+		start: 2,
+		side: 'additions' as const,
+		end: 3,
+		endSide: 'additions' as const,
+		note: 'old note',
+		sha: 'abc123',
+	};
+	const body = [
+		'old note',
+		'',
+		encodeDiffCommentMarker(meta),
+		'`source/a.ts` lines 2–3 (added)',
+		'```',
+		'after two\nafter three',
+		'```',
+	].join('\n');
+
+	it('replaces the note in both the text and the marker, keeping the rest', () => {
+		const next = withDiffCommentNote(body, 'new note');
+
+		expect(next).not.toBeNull();
+		expect(next!.startsWith('new note\n\n')).toBe(true);
+		expect(parseDiffCommentMeta(next!)).toEqual({...meta, note: 'new note'});
+		expect(extractCommentSnippet(next!)).toBe('after two\nafter three');
+		expect(next).not.toContain('old note');
+	});
+
+	it('drops the leading text when the note is emptied', () => {
+		const next = withDiffCommentNote(body, '  ');
+
+		expect(next!.startsWith('<!-- epiq-diff-comment:')).toBe(true);
+		expect(parseDiffCommentMeta(next!)?.note).toBe('');
+		expect(extractCommentSnippet(next!)).toBe('after two\nafter three');
+	});
+
+	it('is null for a body without a marker', () => {
+		expect(withDiffCommentNote('just words', 'note')).toBeNull();
+	});
+});
+
+describe('findDiffCommentsForFile', () => {
+	it('leaves out a deleted comment, so its annotation goes with it', () => {
+		const marker = encodeDiffCommentMarker({
+			filePath: 'source/a.ts',
+			start: 1,
+			side: 'additions',
+			end: 1,
+			endSide: 'additions',
+			note: '',
+		});
+		const comment = {
+			id: 'c1',
+			issueId: 'i1',
+			body: marker,
+			author: {id: 'u', name: 'u'},
+			createdAt: 0,
+		} as GuiComment;
+
+		expect(findDiffCommentsForFile([comment], 'source/a.ts')).toHaveLength(1);
+		expect(
+			findDiffCommentsForFile([{...comment, isDeleted: true}], 'source/a.ts'),
+		).toHaveLength(0);
 	});
 });
