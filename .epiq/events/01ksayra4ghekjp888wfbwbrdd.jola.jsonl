@@ -2499,3 +2499,4 @@
 {"v":1,"id":["01M17SSTJRWGQ7GBTCD6MSZA2S","01M17SSTJCRGXMJ5KXHBMT9TE5"],"edit.description":{"id":"01M17SSTJ24ZF6FGCAHES6E62N","md":"The fullscreen lane view is a reading mode, not a scanning one: when the panel lays the tabs out as lanes, expand every commit in the Commits lane and every file in each diff without clicks. Manual collapse still works afterwards; the tabbed layout keeps its collapsed default."}}
 {"v":1,"id":["01M17SSTK0XDWP5BQ7752CR3T9","01M17SSTJRWGQ7GBTCD6MSZA2S"],"add.issue.tag":{"id":"01M17SSTJ24ZF6FGCAHES6E62N","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
 {"v":1,"id":["01M17SSTK94ENC8ZTXW09S38NN","01M17SSTK0XDWP5BQ7752CR3T9"],"add.issue.tag":{"id":"01M17SSTJ24ZF6FGCAHES6E62N","tag":"01KTMJBZKRM8X4ZDY7BM854MB7"}}
+{"v":1,"id":["01M17SV0NQP5T6PV1EXZJX2YWP","01M17SSTK94ENC8ZTXW09S38NN"],"add.issue.assignee":{"id":"01M17SSTJ24ZF6FGCAHES6E62N","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
