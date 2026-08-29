@@ -19,6 +19,7 @@ import {nodes} from '../state/node-builder.js';
 import {
 	getState,
 	initWorkspaceState,
+	isStateInitialized,
 	updateState,
 	withDeferredDerive,
 } from '../state/state.js';
@@ -890,6 +891,19 @@ export function materialize<A extends EventAction>(
 	if (!handler) {
 		return failed(
 			`Unknown event action "${event.action}", likely created by a newer epiq version. Evt id: ${event.id}`,
+		);
+	}
+
+	// Anything ordered ahead of `init.workspace` — a forged root, or an id that
+	// does not decode and so sorts before every real ULID — reaches its handler
+	// with no state to read. Most handlers land on `getState()`, which throws,
+	// and an uncaught throw here takes the whole process down on load rather
+	// than skipping one event. Replay is total: this is a precondition the
+	// replay never met, which is exactly what `materializeSkip` is for.
+	if (!isStateInitialized() && event.action !== 'init.workspace') {
+		return materializeSkip(
+			`${event.action} arrived before the workspace was initialized`,
+			event,
 		);
 	}
 
