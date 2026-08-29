@@ -10,7 +10,12 @@ import {
 	GuiRefCommitEntry,
 	GuiIssueHistoryEntry,
 } from '../lib/gui-state.model';
-import {Aside, readStoredAsideWidth, STACKED_DIFF_WIDTH} from './Aside';
+import {
+	Aside,
+	ASIDE_PADDING,
+	readStoredAsideWidth,
+	STACKED_DIFF_WIDTH,
+} from './Aside';
 import {Button} from './Button';
 import {ManageContributorsModal} from './ManageContributorsModal';
 import {CopyRef} from './CopyRef';
@@ -39,6 +44,48 @@ import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
+
+// Fullscreen on a panel at least this wide drops the tabs and lays the four
+// panes out side by side. Below it, four lanes would be too narrow to read,
+// so fullscreen keeps the tabbed layout.
+export const LANE_VIEW_WIDTH = 1400;
+const LANE_GAP = 20;
+const LANE_COUNT = 4;
+// Commits holds diffs, so it takes half the row; the other three share the rest.
+const LANE_COLUMNS =
+	'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr) minmax(0, 1fr)';
+const COMMITS_LANE_SHARE = 3 / 6;
+
+const Lane = ({
+	title,
+	count,
+	children,
+}: {
+	title: string;
+	count?: number;
+	children: React.ReactNode;
+}) => (
+	<div
+		data-testid={`lane-${title.toLowerCase()}`}
+		style={{display: 'flex', flexDirection: 'column', minHeight: 0}}
+	>
+		<div
+			style={{
+				color: GUI_THEME.secondary,
+				fontSize: 10,
+				textTransform: 'uppercase',
+				letterSpacing: '0.08em',
+				paddingBottom: 10,
+				marginBottom: 14,
+				borderBottom: `1px solid ${GUI_THEME.line}`,
+			}}
+		>
+			{title}
+			{typeof count === 'number' && ` (${count})`}
+		</div>
+		<div style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>{children}</div>
+	</div>
+);
 
 export const IssueDetails = ({
 	whoAmI,
@@ -160,15 +207,14 @@ export const IssueDetails = ({
 
 	const disabled = !issue || issue.readonly;
 
+	// No count until the list has arrived: 0 would misread as "no commits".
+	const commitsCount =
+		commitsLoading || commitsError ? undefined : commits.length;
+
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
-		// No count until the list has arrived: 0 would misread as "no commits".
-		{
-			id: 'code',
-			label: 'Commits',
-			count: commitsLoading || commitsError ? undefined : commits.length,
-		},
+		{id: 'code', label: 'Commits', count: commitsCount},
 		{id: 'history', label: 'Log', count: history.length},
 	];
 
@@ -249,459 +295,487 @@ export const IssueDetails = ({
 
 	return (
 		<Aside ref={panelRef} onWidthChange={setPanelWidth}>
-			{({isFullscreen, toggleFullscreen}) => (
-				<>
-					{issue ? (
-						<>
-							<FormHeader>
-								<span
-									style={{
-										color: GUI_THEME.secondary,
-										fontSize: 10,
-										textTransform: 'uppercase',
-										letterSpacing: '0.08em',
-									}}
-								>
-									{issue.ref && <CopyRef refValue={issue.ref} />}
-								</span>
+			{({isFullscreen, toggleFullscreen}) => {
+				const laneView = isFullscreen && panelWidth >= LANE_VIEW_WIDTH;
+				const commitsWidth = laneView
+					? (panelWidth - ASIDE_PADDING * 2 - LANE_GAP * (LANE_COUNT - 1)) *
+					  COMMITS_LANE_SHARE
+					: panelWidth;
 
-								<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
-									<FullscreenToggleButton
-										isFullscreen={isFullscreen}
-										onClick={toggleFullscreen}
-									/>
-									<Button variant="ghost" onClick={onClose}>
-										×
+				const overviewPane = issue && (
+					<>
+						{/* 0 when the id carries no time. Better to say nothing than to
+							    date the ticket to 1970. */}
+						{issue.createdAt > 0 && (
+							<div
+								data-testid="issue-created-at"
+								title={formatAbsolute(issue.createdAt)}
+								style={{
+									fontSize: 11,
+									color: GUI_THEME.dim,
+									marginBottom: 14,
+								}}
+							>
+								Created {timeAgo(issue.createdAt)}
+							</div>
+						)}
+
+						<Section
+							first={true}
+							title="Description"
+							action={
+								!issue.readonly &&
+								!editingDescription && (
+									<Button
+										variant="ghost"
+										onClick={() => setEditingDescription(true)}
+									>
+										edit
 									</Button>
-								</div>
-							</FormHeader>
+								)
+							}
+						>
+							{editingDescription ? (
+								<>
+									<Textarea
+										value={description}
+										autoFocus
+										placeholder=""
+										onChange={event => setDescription(event.target.value)}
+										onKeyDown={event => {
+											if (event.key === 'Escape') cancelDescription();
+											if (
+												(event.metaKey || event.ctrlKey) &&
+												event.key === 'Enter'
+											) {
+												saveDescription();
+											}
+										}}
+										style={{
+											font: 'inherit',
+											fontFamily: CONTENT_FONT,
+											fontSize: 13,
+											maxHeight: 320,
+											overflowY: 'auto',
+										}}
+									/>
 
-							{editingTitle ? (
-								<textarea
-									ref={titleTextareaRef}
-									value={title}
-									autoFocus
-									rows={1}
-									onChange={event => {
-										setTitle(event.target.value);
-										resizeTitleTextarea();
-									}}
-									onKeyDown={event => {
-										if (event.key === 'Enter') {
-											event.preventDefault();
-											event.currentTarget.blur();
-										}
-										if (event.key === 'Escape') cancelTitle();
-									}}
-									onBlur={saveTitle}
-									style={{
-										display: 'block',
-										width: '100%',
-										boxSizing: 'border-box',
-										resize: 'none',
-										overflow: 'hidden',
-										background: GUI_THEME.bg,
-										color: GUI_THEME.primary,
-										border: `1px solid ${GUI_THEME.line}`,
-										borderRadius: 8,
-										padding: '6px 10px',
-										outline: 'none',
-										font: 'inherit',
-										fontSize: 18,
-										fontWeight: 600,
-										lineHeight: 1.35,
-										marginBottom: 20,
-									}}
-								/>
-							) : (
+									<ActionRow>
+										<Button onClick={saveDescription}>save</Button>
+										<Button variant="ghost" onClick={cancelDescription}>
+											cancel
+										</Button>
+									</ActionRow>
+								</>
+							) : issue.description ? (
 								<div
-									onClick={() => !issue.readonly && setEditingTitle(true)}
 									style={{
-										marginBottom: 18,
-										color: GUI_THEME.primary,
-										fontSize: 18,
-										fontWeight: 600,
-										lineHeight: 1.35,
-										wordBreak: 'break-word',
-										cursor: issue.readonly ? 'default' : 'text',
+										marginTop: 8,
+										padding: '12px 16px',
+										maxHeight: 320,
+										overflowY: 'auto',
+										background: GUI_THEME.tertiary,
+										borderRadius: 8,
 									}}
 								>
-									{issue.title}
+									<MarkdownContent content={issue.description} />
 								</div>
+							) : (
+								<Empty>No description</Empty>
+							)}
+						</Section>
+
+						<Section
+							title="Tags"
+							action={
+								(!issue.readonly && !addingTag && (
+									<Button variant="ghost" onClick={() => setAddingTag(true)}>
+										+
+									</Button>
+								)) ||
+								(addingTag && (
+									<Button variant="ghost" onClick={() => setAddingTag(false)}>
+										-
+									</Button>
+								))
+							}
+						>
+							<ChipRow>
+								{issue.tags.length === 0 ? (
+									<Empty>No tags</Empty>
+								) : (
+									issue.tags.map(tag => (
+										<Button
+											key={tag.id}
+											variant="chip"
+											disabled={issue.readonly}
+											onClick={() => onRemoveTag(issue.id, tag.id)}
+											title="Remove tag"
+											style={{color: tag.color}}
+										>
+											{tag.name} {!issue.readonly && '×'}
+										</Button>
+									))
+								)}
+							</ChipRow>
+
+							{addingTag && (
+								<ChipRow>
+									{availableTags.map(tag => (
+										<Button
+											key={tag.id}
+											variant="chip"
+											disabled={issue.readonly}
+											onClick={() => onAddTag(issue.id, tag.name)}
+											title="Add existing tag"
+											style={{color: tag.color, opacity: 0.55}}
+										>
+											+ {tag.name}
+										</Button>
+									))}
+								</ChipRow>
 							)}
 
-							<Tabs tabs={tabs} activeTab={activeTab} onChange={onChangeTab} />
+							{addingTag && (
+								<AddRow>
+									<Input
+										value={tagName}
+										autoFocus
+										placeholder="tag name"
+										onChange={event => setTagName(event.target.value)}
+										onKeyDown={event => {
+											if (event.key === 'Enter') addTag();
+											if (event.key === 'Escape') {
+												setTagName('');
+												setAddingTag(false);
+											}
+										}}
+									/>
 
-							{activeTab === 'overview' && (
-								<>
-									{/* 0 when the id carries no time. Better to say nothing than to
-							    date the ticket to 1970. */}
-									{issue.createdAt > 0 && (
-										<div
-											data-testid="issue-created-at"
-											title={formatAbsolute(issue.createdAt)}
+									<Button onClick={addTag}>add</Button>
+								</AddRow>
+							)}
+						</Section>
+
+						<Section
+							title="Assignees"
+							action={
+								(!issue.readonly && !addingAssignee && (
+									<Button
+										variant="ghost"
+										onClick={() => {
+											setAddingAssignee(true);
+											onOpenAssigneePicker();
+										}}
+									>
+										+
+									</Button>
+								)) ||
+								(addingAssignee && (
+									<Button
+										variant="ghost"
+										onClick={() => setAddingAssignee(false)}
+									>
+										-
+									</Button>
+								))
+							}
+						>
+							<ChipRow>
+								{issue.assignees.length === 0 ? (
+									<Empty>No assignees</Empty>
+								) : (
+									issue.assignees.map(assignee => (
+										<Button
+											key={assignee.id}
+											variant="chip"
+											disabled={issue.readonly}
+											onClick={() => onRemoveAssignee(issue.id, assignee.id)}
+											title="Remove assignee"
+											style={{color: assignee.color}}
+										>
+											@{assignee.name} {!issue.readonly && '×'}
+										</Button>
+									))
+								)}
+							</ChipRow>
+
+							{addingAssignee && (
+								<ChipRow>
+									{availableAssignees.map(assignee => (
+										<Button
+											key={assignee.id}
+											variant="chip"
+											disabled={issue.readonly}
+											onClick={() => onAddAssignee(issue.id, assignee.id)}
+											title={
+												assignee.isSelf
+													? 'Assign yourself'
+													: !assignee.hasAuthoredAnywhere
+													? 'Has not contributed to this project'
+													: 'Add existing assignee'
+											}
 											style={{
-												fontSize: 11,
-												color: GUI_THEME.dim,
-												marginBottom: 14,
+												color: assignee.isSelf
+													? GUI_THEME.accent
+													: assignee.color,
+												opacity: assignee.isSelf ? 1 : 0.55,
+												fontWeight: assignee.isSelf ? 600 : undefined,
+												borderColor: assignee.isSelf
+													? GUI_THEME.accent
+													: undefined,
 											}}
 										>
-											Created {timeAgo(issue.createdAt)}
-										</div>
-									)}
+											+ @{assignee.isSelf ? 'me' : assignee.name}
+											{!assignee.hasAuthoredAnywhere ? ' ↗' : ''}
+										</Button>
+									))}
+								</ChipRow>
+							)}
 
-									<Section
-										first={true}
-										title="Description"
-										action={
-											!issue.readonly &&
-											!editingDescription && (
-												<Button
-													variant="ghost"
-													onClick={() => setEditingDescription(true)}
-												>
-													edit
-												</Button>
-											)
-										}
-									>
-										{editingDescription ? (
-											<>
-												<Textarea
-													value={description}
-													autoFocus
-													placeholder=""
-													onChange={event => setDescription(event.target.value)}
-													onKeyDown={event => {
-														if (event.key === 'Escape') cancelDescription();
-														if (
-															(event.metaKey || event.ctrlKey) &&
-															event.key === 'Enter'
-														) {
-															saveDescription();
-														}
-													}}
-													style={{
-														font: 'inherit',
-														fontFamily: CONTENT_FONT,
-														fontSize: 13,
-														maxHeight: 320,
-														overflowY: 'auto',
-													}}
-												/>
+							{addingAssignee &&
+								assignees.some(a => !a.hasAuthoredAnywhere && !a.isRemoved) && (
+									<ChipRow>
+										<Button
+											variant="ghost"
+											disabled={issue.readonly}
+											onClick={() => setManagingContributors(true)}
+											title="Review and remove external contributors across the whole workspace"
+										>
+											manage contributors…
+										</Button>
+									</ChipRow>
+								)}
 
-												<ActionRow>
-													<Button onClick={saveDescription}>save</Button>
-													<Button variant="ghost" onClick={cancelDescription}>
-														cancel
-													</Button>
-												</ActionRow>
-											</>
-										) : issue.description ? (
-											<div
-												style={{
-													marginTop: 8,
-													padding: '12px 16px',
-													maxHeight: 320,
-													overflowY: 'auto',
-													background: GUI_THEME.tertiary,
-													borderRadius: 8,
-												}}
-											>
-												<MarkdownContent content={issue.description} />
-											</div>
-										) : (
-											<Empty>No description</Empty>
-										)}
-									</Section>
-
-									<Section
-										title="Tags"
-										action={
-											(!issue.readonly && !addingTag && (
-												<Button
-													variant="ghost"
-													onClick={() => setAddingTag(true)}
-												>
-													+
-												</Button>
-											)) ||
-											(addingTag && (
-												<Button
-													variant="ghost"
-													onClick={() => setAddingTag(false)}
-												>
-													-
-												</Button>
-											))
-										}
-									>
-										<ChipRow>
-											{issue.tags.length === 0 ? (
-												<Empty>No tags</Empty>
-											) : (
-												issue.tags.map(tag => (
-													<Button
-														key={tag.id}
-														variant="chip"
-														disabled={issue.readonly}
-														onClick={() => onRemoveTag(issue.id, tag.id)}
-														title="Remove tag"
-														style={{color: tag.color}}
-													>
-														{tag.name} {!issue.readonly && '×'}
-													</Button>
-												))
-											)}
-										</ChipRow>
-
-										{addingTag && (
-											<ChipRow>
-												{availableTags.map(tag => (
-													<Button
-														key={tag.id}
-														variant="chip"
-														disabled={issue.readonly}
-														onClick={() => onAddTag(issue.id, tag.name)}
-														title="Add existing tag"
-														style={{color: tag.color, opacity: 0.55}}
-													>
-														+ {tag.name}
-													</Button>
-												))}
-											</ChipRow>
-										)}
-
-										{addingTag && (
-											<AddRow>
-												<Input
-													value={tagName}
-													autoFocus
-													placeholder="tag name"
-													onChange={event => setTagName(event.target.value)}
-													onKeyDown={event => {
-														if (event.key === 'Enter') addTag();
-														if (event.key === 'Escape') {
-															setTagName('');
-															setAddingTag(false);
-														}
-													}}
-												/>
-
-												<Button onClick={addTag}>add</Button>
-											</AddRow>
-										)}
-									</Section>
-
-									<Section
-										title="Assignees"
-										action={
-											(!issue.readonly && !addingAssignee && (
-												<Button
-													variant="ghost"
-													onClick={() => {
-														setAddingAssignee(true);
-														onOpenAssigneePicker();
-													}}
-												>
-													+
-												</Button>
-											)) ||
-											(addingAssignee && (
-												<Button
-													variant="ghost"
-													onClick={() => setAddingAssignee(false)}
-												>
-													-
-												</Button>
-											))
-										}
-									>
-										<ChipRow>
-											{issue.assignees.length === 0 ? (
-												<Empty>No assignees</Empty>
-											) : (
-												issue.assignees.map(assignee => (
-													<Button
-														key={assignee.id}
-														variant="chip"
-														disabled={issue.readonly}
-														onClick={() =>
-															onRemoveAssignee(issue.id, assignee.id)
-														}
-														title="Remove assignee"
-														style={{color: assignee.color}}
-													>
-														@{assignee.name} {!issue.readonly && '×'}
-													</Button>
-												))
-											)}
-										</ChipRow>
-
-										{addingAssignee && (
-											<ChipRow>
-												{availableAssignees.map(assignee => (
-													<Button
-														key={assignee.id}
-														variant="chip"
-														disabled={issue.readonly}
-														onClick={() => onAddAssignee(issue.id, assignee.id)}
-														title={
-															assignee.isSelf
-																? 'Assign yourself'
-																: !assignee.hasAuthoredAnywhere
-																? 'Has not contributed to this project'
-																: 'Add existing assignee'
-														}
-														style={{
-															color: assignee.isSelf
-																? GUI_THEME.accent
-																: assignee.color,
-															opacity: assignee.isSelf ? 1 : 0.55,
-															fontWeight: assignee.isSelf ? 600 : undefined,
-															borderColor: assignee.isSelf
-																? GUI_THEME.accent
-																: undefined,
-														}}
-													>
-														+ @{assignee.isSelf ? 'me' : assignee.name}
-														{!assignee.hasAuthoredAnywhere ? ' ↗' : ''}
-													</Button>
-												))}
-											</ChipRow>
-										)}
-
-										{addingAssignee &&
-											assignees.some(
-												a => !a.hasAuthoredAnywhere && !a.isRemoved,
-											) && (
-												<ChipRow>
-													<Button
-														variant="ghost"
-														disabled={issue.readonly}
-														onClick={() => setManagingContributors(true)}
-														title="Review and remove external contributors across the whole workspace"
-													>
-														manage contributors…
-													</Button>
-												</ChipRow>
-											)}
-
-										{addingAssignee && (
-											<AddRow>
-												<Input
-													value={assigneeName}
-													autoFocus
-													placeholder="name of unknown contributor"
-													onChange={event =>
-														setAssigneeName(event.target.value)
-													}
-													onKeyDown={event => {
-														if (event.key === 'Enter') addAssignee();
-														if (event.key === 'Escape') {
-															setAssigneeName('');
-															setAddingAssignee(false);
-														}
-													}}
-												/>
-
-												<Button
-													onClick={addAssignee}
-													title="Add someone who has not contributed to this board"
-												>
-													add
-												</Button>
-											</AddRow>
-										)}
-									</Section>
-
-									<IssueAttachments
-										issueId={issue.id}
-										readonly={Boolean(issue.readonly)}
-										attachments={attachments}
-										uploadStatus={attachmentUploadStatus}
-										onUploadFiles={onUploadAttachments}
-										onDeleteAttachment={onDeleteAttachment}
+							{addingAssignee && (
+								<AddRow>
+									<Input
+										value={assigneeName}
+										autoFocus
+										placeholder="name of unknown contributor"
+										onChange={event => setAssigneeName(event.target.value)}
+										onKeyDown={event => {
+											if (event.key === 'Enter') addAssignee();
+											if (event.key === 'Escape') {
+												setAssigneeName('');
+												setAddingAssignee(false);
+											}
+										}}
 									/>
 
-									<Section
-										title="Actions"
-										action={
-											!issue.readonly &&
-											(issue.isClosed ? (
-												<Button onClick={() => onReopenIssue(issue.id)}>
-													reopen issue
-												</Button>
-											) : (
-												<Button onClick={() => onCloseIssue(issue.id)}>
-													close issue
-												</Button>
-											))
-										}
+									<Button
+										onClick={addAssignee}
+										title="Add someone who has not contributed to this board"
 									>
-										{''}
-									</Section>
-								</>
+										add
+									</Button>
+								</AddRow>
 							)}
+						</Section>
 
-							{activeTab === 'comments' && (
-								<IssueComments
-									whoAmI={whoAmI}
-									issueId={issue.id}
-									readonly={issue.readonly}
-									comments={comments}
-									onAddComment={onAddComment}
-									onDeleteComment={onDeleteComment}
-									onOpenDiffLocation={onOpenDiffLocation}
-								/>
-							)}
-
-							{activeTab === 'history' && (
-								<IssueHistory
-									entries={history}
-									onHoverEvent={onHoverHistoryEvent}
-								/>
-							)}
-
-							{activeTab === 'code' && (
-								<IssueCommits
-									issueRef={issue.ref}
-									commits={commits}
-									loading={commitsLoading}
-									error={commitsError}
-									diffsBySha={commitDiffsBySha}
-									onLoadDiff={onLoadCommitDiff}
-									diffStyle={
-										panelWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'
-									}
-									comments={comments}
-									onAddComment={
-										disabled
-											? undefined
-											: body => onAddComment?.(issue.id, body)
-									}
-									onFileTicket={
-										disabled
-											? undefined
-											: params => onFileTicket?.(issue.id, issue.ref, params)
-									}
-									focus={diffFocus}
-								/>
-							)}
-						</>
-					) : (
-						<Empty>Select an issue</Empty>
-					)}
-
-					{managingContributors && (
-						<ManageContributorsModal
-							contributors={assignees}
-							onRemove={onRemoveContributor}
-							onClose={() => setManagingContributors(false)}
+						<IssueAttachments
+							issueId={issue.id}
+							readonly={Boolean(issue.readonly)}
+							attachments={attachments}
+							uploadStatus={attachmentUploadStatus}
+							onUploadFiles={onUploadAttachments}
+							onDeleteAttachment={onDeleteAttachment}
 						/>
-					)}
-				</>
-			)}
+
+						<Section
+							title="Actions"
+							action={
+								!issue.readonly &&
+								(issue.isClosed ? (
+									<Button onClick={() => onReopenIssue(issue.id)}>
+										reopen issue
+									</Button>
+								) : (
+									<Button onClick={() => onCloseIssue(issue.id)}>
+										close issue
+									</Button>
+								))
+							}
+						>
+							{''}
+						</Section>
+					</>
+				);
+
+				const commentsPane = issue && (
+					<IssueComments
+						whoAmI={whoAmI}
+						issueId={issue.id}
+						readonly={issue.readonly}
+						comments={comments}
+						onAddComment={onAddComment}
+						onDeleteComment={onDeleteComment}
+						onOpenDiffLocation={onOpenDiffLocation}
+					/>
+				);
+
+				const historyPane = issue && (
+					<IssueHistory entries={history} onHoverEvent={onHoverHistoryEvent} />
+				);
+
+				const commitsPane = issue && (
+					<IssueCommits
+						issueRef={issue.ref}
+						commits={commits}
+						loading={commitsLoading}
+						error={commitsError}
+						diffsBySha={commitDiffsBySha}
+						onLoadDiff={onLoadCommitDiff}
+						diffStyle={commitsWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'}
+						comments={comments}
+						onAddComment={
+							disabled ? undefined : body => onAddComment?.(issue.id, body)
+						}
+						onFileTicket={
+							disabled
+								? undefined
+								: params => onFileTicket?.(issue.id, issue.ref, params)
+						}
+						focus={diffFocus}
+					/>
+				);
+
+				return (
+					<>
+						{issue ? (
+							<div
+								style={
+									laneView
+										? {display: 'flex', flexDirection: 'column', height: '100%'}
+										: undefined
+								}
+							>
+								<FormHeader>
+									<span
+										style={{
+											color: GUI_THEME.secondary,
+											fontSize: 10,
+											textTransform: 'uppercase',
+											letterSpacing: '0.08em',
+										}}
+									>
+										{issue.ref && <CopyRef refValue={issue.ref} />}
+									</span>
+
+									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
+										<FullscreenToggleButton
+											isFullscreen={isFullscreen}
+											onClick={toggleFullscreen}
+										/>
+										<Button variant="ghost" onClick={onClose}>
+											×
+										</Button>
+									</div>
+								</FormHeader>
+
+								{editingTitle ? (
+									<textarea
+										ref={titleTextareaRef}
+										value={title}
+										autoFocus
+										rows={1}
+										onChange={event => {
+											setTitle(event.target.value);
+											resizeTitleTextarea();
+										}}
+										onKeyDown={event => {
+											if (event.key === 'Enter') {
+												event.preventDefault();
+												event.currentTarget.blur();
+											}
+											if (event.key === 'Escape') cancelTitle();
+										}}
+										onBlur={saveTitle}
+										style={{
+											display: 'block',
+											width: '100%',
+											boxSizing: 'border-box',
+											resize: 'none',
+											overflow: 'hidden',
+											background: GUI_THEME.bg,
+											color: GUI_THEME.primary,
+											border: `1px solid ${GUI_THEME.line}`,
+											borderRadius: 8,
+											padding: '6px 10px',
+											outline: 'none',
+											font: 'inherit',
+											fontSize: 18,
+											fontWeight: 600,
+											lineHeight: 1.35,
+											marginBottom: 20,
+										}}
+									/>
+								) : (
+									<div
+										onClick={() => !issue.readonly && setEditingTitle(true)}
+										style={{
+											marginBottom: 18,
+											color: GUI_THEME.primary,
+											fontSize: 18,
+											fontWeight: 600,
+											lineHeight: 1.35,
+											wordBreak: 'break-word',
+											cursor: issue.readonly ? 'default' : 'text',
+										}}
+									>
+										{issue.title}
+									</div>
+								)}
+
+								{laneView ? (
+									<div
+										style={{
+											display: 'grid',
+											gridTemplateColumns: LANE_COLUMNS,
+											gap: LANE_GAP,
+											flex: 1,
+											minHeight: 0,
+										}}
+									>
+										<Lane title="Overview">{overviewPane}</Lane>
+										<Lane title="Comments" count={comments.length}>
+											{commentsPane}
+										</Lane>
+										<Lane title="Commits" count={commitsCount}>
+											{commitsPane}
+										</Lane>
+										<Lane title="Log" count={history.length}>
+											{historyPane}
+										</Lane>
+									</div>
+								) : (
+									<>
+										<Tabs
+											tabs={tabs}
+											activeTab={activeTab}
+											onChange={onChangeTab}
+										/>
+										{activeTab === 'overview' && overviewPane}
+										{activeTab === 'comments' && commentsPane}
+										{activeTab === 'history' && historyPane}
+										{activeTab === 'code' && commitsPane}
+									</>
+								)}
+							</div>
+						) : (
+							<Empty>Select an issue</Empty>
+						)}
+
+						{managingContributors && (
+							<ManageContributorsModal
+								contributors={assignees}
+								onRemove={onRemoveContributor}
+								onClose={() => setManagingContributors(false)}
+							/>
+						)}
+					</>
+				);
+			}}
 		</Aside>
 	);
 };
