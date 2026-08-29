@@ -27,6 +27,7 @@ import {
 	editIssueTitle,
 	editSwimlaneTitle,
 	getEpiqState,
+	getIssue,
 	listBoards,
 	listIssues,
 	listSwimlanes,
@@ -78,6 +79,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await listIssues(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_get',
+		{
+			description:
+				'Get one Epiq issue by its full id or its 7-character ref. Use this rather than listing the whole board when you already know which issue you want.',
+			inputSchema: z.object({
+				idOrRef: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await getIssue(input)),
 	);
 
 	server.registerTool(

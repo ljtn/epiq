@@ -250,6 +250,16 @@ const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
 		rank: 'a0',
 		props: {description: '', tags: [], assignees: []},
 	},
+	'01H0000000000000000ABCDEFG': {
+		id: '01H0000000000000000ABCDEFG',
+		title: 'Distinct ref',
+		context: 'TICKET',
+		parentNodeId: 'swimlane-1',
+		readonly: false,
+		isDeleted: false,
+		rank: 'y0',
+		props: {description: '', tags: [], assignees: []},
+	},
 	'deleted-board': {
 		id: 'deleted-board',
 		title: 'Deleted board',
@@ -483,6 +493,68 @@ describe('mcp tools', () => {
 		}
 	});
 
+	describe('getIssue', () => {
+		it('finds an issue by its full id', async () => {
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.id).toBe(fixtureId('issue-1'));
+			expect(result.value.ref).toBe(nodeRef(fixtureId('issue-1')));
+		});
+
+		// The inverse of the commit-prefix convention: ref in, ticket out.
+		it('finds an issue by its ref', async () => {
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: 'ABCDEFG',
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.id).toBe('01H0000000000000000ABCDEFG');
+		});
+
+		it('accepts a ref in any case', async () => {
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: 'abcdefg',
+			});
+
+			expect(isFail(result)).toBe(false);
+		});
+
+		it('refuses an unknown ref rather than returning nothing', async () => {
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: 'ZZZZZZZ',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (!isFail(result)) return;
+			expect(result.message).toContain('No issue matches');
+		});
+
+		// A short query is a substring match, so it can genuinely be ambiguous.
+		it('names the candidates instead of guessing', async () => {
+			const result = await tools.getIssue({repoRoot: '/repo', idOrRef: '0'});
+
+			expect(isFail(result)).toBe(true);
+			if (!isFail(result)) return;
+			expect(result.message).toContain('matches');
+			expect(result.message).toContain('Use a full ref or id');
+		});
+
+		it('refuses an empty query', async () => {
+			const result = await tools.getIssue({repoRoot: '/repo', idOrRef: '  '});
+
+			expect(isFail(result)).toBe(true);
+		});
+	});
+
 	it('creates a swimlane on a board', async () => {
 		const result = await tools.createSwimlane({
 			repoRoot: '/repo',
@@ -659,6 +731,7 @@ describe('mcp tools', () => {
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
 			expect(result.value.map(issue => issue.id).sort()).toEqual([
+				'01H0000000000000000ABCDEFG',
 				fixtureId('issue-1'),
 				fixtureId('issue-2'),
 			]);
@@ -720,6 +793,7 @@ describe('mcp tools', () => {
 		if (!isFail(boardOne) && !isFail(boardTwo)) {
 			expect(boardOne.value.map(issue => issue.id)).toEqual([
 				fixtureId('issue-1'),
+				'01H0000000000000000ABCDEFG',
 			]);
 			expect(boardTwo.value.map(issue => issue.id)).toEqual([
 				fixtureId('issue-2'),
