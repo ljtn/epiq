@@ -164,6 +164,20 @@ export const findDiffCommentsForFile = (
 		return meta && meta.filePath === filePath ? [{comment, meta}] : [];
 	});
 
+// The fenced block a diff-selection comment's body ends with. Pulled back out
+// so the snippet can be rendered as real highlighted code instead of markdown
+// text — the body keeps carrying it verbatim so the comment still reads
+// correctly anywhere that only knows how to render markdown.
+const SNIPPET_FENCE = /```\n([\s\S]*?)\n?```\s*$/;
+
+export const extractCommentSnippet = (body: string): string | null =>
+	SNIPPET_FENCE.exec(body)?.[1] ?? null;
+
+// Everything before the fenced snippet: the author's note plus the
+// `path` lines X-Y (added) caption, still plain markdown.
+export const stripCommentSnippet = (body: string): string =>
+	body.replace(SNIPPET_FENCE, '').trimEnd();
+
 // What a "File ticket" submission carries up to the caller that owns the
 // actual issues:create call and the origin-ticket back-comment — everything
 // needed to build both without the caller re-deriving any of it.

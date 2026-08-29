@@ -3,10 +3,12 @@ import {SelectedLineRange} from '@pierre/diffs/react';
 import {
 	dedent,
 	encodeDiffCommentMarker,
+	extractCommentSnippet,
 	extractSnippet,
 	findDiffCommentsForFile,
 	formatSelectionLabel,
 	parseDiffCommentMeta,
+	stripCommentSnippet,
 	stripDiffCommentMarker,
 } from './IssueCommits';
 import {GuiComment, GuiCommitDiffFile} from '../lib/gui-state.model';
@@ -150,6 +152,38 @@ describe('encodeDiffCommentMarker / parseDiffCommentMeta', () => {
 // comment on its own (it renders as literal text without rehype-raw) — the
 // marker leaking into a rendered comment was caught live and is exactly what
 // this strips before the body ever reaches the markdown renderer.
+describe('extractCommentSnippet / stripCommentSnippet', () => {
+	const body = [
+		'a note',
+		'',
+		'`source/a.ts` lines 2-3 (added)',
+		'```',
+		'const a = 1;',
+		'const b = 2;',
+		'```',
+	].join('\n');
+
+	it('pulls the fenced snippet back out verbatim', () => {
+		expect(extractCommentSnippet(body)).toBe('const a = 1;\nconst b = 2;');
+	});
+
+	it('leaves the note and caption behind when the snippet is removed', () => {
+		expect(stripCommentSnippet(body)).toBe(
+			'a note\n\n`source/a.ts` lines 2-3 (added)',
+		);
+	});
+
+	it('preserves blank lines inside the snippet', () => {
+		const withBlank = ['```', 'first', '', 'third', '```'].join('\n');
+
+		expect(extractCommentSnippet(withBlank)).toBe('first\n\nthird');
+	});
+
+	it('returns null for a comment with no fenced block', () => {
+		expect(extractCommentSnippet('just a regular comment')).toBeNull();
+	});
+});
+
 describe('stripDiffCommentMarker', () => {
 	it('removes the marker and its trailing newline', () => {
 		const meta = {

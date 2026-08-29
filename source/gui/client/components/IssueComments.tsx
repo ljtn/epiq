@@ -1,12 +1,42 @@
 import {useState} from 'react';
 import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
+import {CodeSnippet} from './CodeSnippet';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
-import {stripDiffCommentMarker} from './IssueCommits';
+import {
+	extractCommentSnippet,
+	parseDiffCommentMeta,
+	stripCommentSnippet,
+	stripDiffCommentMarker,
+} from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {MAX_COMMENT_LENGTH} from '../../../lib/utils/comment.limits.js';
+
+// A diff-selection comment's quoted code is rendered through the same
+// highlighter the diff view uses, rather than as a markdown fence — the whole
+// point of quoting it is that it reads as code. Everything else in the body
+// (the note, the file/line caption) stays plain markdown.
+const CommentBody = ({body}: {body: string}) => {
+	const meta = parseDiffCommentMeta(body);
+	const withoutMarker = stripDiffCommentMarker(body);
+	const snippet = meta && extractCommentSnippet(withoutMarker);
+
+	if (!meta || !snippet) {
+		return <MarkdownContent content={withoutMarker} softBreaks />;
+	}
+
+	return (
+		<>
+			<MarkdownContent
+				content={stripCommentSnippet(withoutMarker)}
+				softBreaks
+			/>
+			<CodeSnippet filePath={meta.filePath} snippet={snippet} />
+		</>
+	);
+};
 
 type Props = {
 	issueId: string;
@@ -95,10 +125,7 @@ export const IssueComments = ({
 									)}
 							</div>
 
-							<MarkdownContent
-								content={stripDiffCommentMarker(comment.body)}
-								softBreaks
-							/>
+							<CommentBody body={comment.body} />
 						</div>
 					))}
 				</div>
