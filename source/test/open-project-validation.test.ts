@@ -157,13 +157,25 @@ describe(':open validation', () => {
 		expect(result.completionWordList).toEqual([]);
 	});
 
-	it.each(['1', '/some/where', '~/dev/x'])(
-		'is confirmable once %s is typed',
-		modifier => {
+	it('is confirmable once a listed number is typed', () => {
+		const result = cmdValidation[CmdKeywords.OPEN].validate(
+			CmdKeywords.OPEN,
+			'1',
+			'',
+		);
+
+		expect(result.validity).toBe(cmdValidity.Valid);
+	});
+
+	// The parser only promotes a word to `modifier` when it is in the completion
+	// list, so a path or an unlisted number arrives as `inputString`.
+	it.each(['7', '/some/where', '~/dev/x'])(
+		'is confirmable once %s is typed as free input',
+		inputString => {
 			const result = cmdValidation[CmdKeywords.OPEN].validate(
 				CmdKeywords.OPEN,
-				modifier,
 				'',
+				inputString,
 			);
 
 			expect(result.validity).toBe(cmdValidity.Valid);
