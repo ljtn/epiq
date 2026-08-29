@@ -491,16 +491,21 @@ const DiffCommentAnnotation = ({
 				borderRadius: 6,
 				background: GUI_THEME.tertiary,
 				fontSize: TEXT.ui,
-				display: 'flex',
-				alignItems: 'flex-start',
-				gap: 8,
 			}}
 		>
-			<span style={{color: GUI_THEME.accent, flexShrink: 0, marginTop: 1}}>
-				<IconComment size={12} />
-			</span>
-			<div style={{flex: 1, minWidth: 0}}>
-				<div style={{color: GUI_THEME.secondary, fontSize: TEXT.meta}}>
+			<div
+				style={{
+					display: 'flex',
+					alignItems: 'center',
+					gap: 8,
+					color: GUI_THEME.secondary,
+					fontSize: TEXT.meta,
+				}}
+			>
+				<span style={{display: 'inline-flex', color: GUI_THEME.accent}}>
+					<IconComment size={12} />
+				</span>
+				<span>
 					{comment.author.name ?? 'unknown'}
 					{comment.createdAt && (
 						<span style={{color: GUI_THEME.dim2}}>
@@ -508,10 +513,10 @@ const DiffCommentAnnotation = ({
 							· {timeAgo(comment.createdAt)}
 						</span>
 					)}
-				</div>
-				<div style={{marginTop: 2}}>
-					{meta.note || <em style={{color: GUI_THEME.dim}}>commented</em>}
-				</div>
+				</span>
+			</div>
+			<div style={{marginTop: 4}}>
+				{meta.note || <em style={{color: GUI_THEME.dim}}>commented</em>}
 			</div>
 		</div>
 	);

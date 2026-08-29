@@ -121,9 +121,6 @@ export const IssueComments = ({
 						<div
 							key={comment.id}
 							style={{
-								display: 'flex',
-								alignItems: 'flex-start',
-								gap: 8,
 								border: `1px solid ${GUI_THEME.line}`,
 								borderLeft: `2px solid ${GUI_THEME.accent}`,
 								borderRadius: 6,
@@ -131,53 +128,62 @@ export const IssueComments = ({
 								background: GUI_THEME.tertiary,
 							}}
 						>
-							<span
-								style={{color: GUI_THEME.accent, flexShrink: 0, marginTop: 1}}
+							{/* Only the header carries the icon; the body runs the card's
+							    full width underneath. */}
+							<div
+								style={{
+									display: 'flex',
+									alignItems: 'center',
+									gap: 8,
+									marginBottom: 6,
+								}}
 							>
-								<IconComment size={12} />
-							</span>
-							<div style={{flex: 1, minWidth: 0}}>
-								<div
+								<span
 									style={{
-										display: 'flex',
-										justifyContent: 'space-between',
-										gap: 12,
-										marginBottom: 4,
+										display: 'inline-flex',
+										color: GUI_THEME.accent,
+										flexShrink: 0,
 									}}
 								>
-									<div
-										style={{color: GUI_THEME.secondary, fontSize: TEXT.meta}}
-									>
-										{comment.author.name ?? 'unknown'}
-										{comment.createdAt && (
-											<span style={{color: GUI_THEME.dim2}}>
-												{' '}
-												· {timeAgo(comment.createdAt)}
-											</span>
-										)}
-									</div>
-
-									{!readonly &&
-										comment.author.id === whoAmI.id &&
-										onDeleteComment && (
-											<Button
-												variant="ghost"
-												onClick={event => {
-													event.preventDefault();
-													event.stopPropagation();
-													onDeleteComment(issueId, comment.id);
-												}}
-											>
-												×
-											</Button>
-										)}
+									<IconComment size={12} />
+								</span>
+								<div
+									style={{
+										flex: 1,
+										minWidth: 0,
+										color: GUI_THEME.secondary,
+										fontSize: TEXT.meta,
+									}}
+								>
+									{comment.author.name ?? 'unknown'}
+									{comment.createdAt && (
+										<span style={{color: GUI_THEME.dim2}}>
+											{' '}
+											· {timeAgo(comment.createdAt)}
+										</span>
+									)}
 								</div>
 
-								<CommentBody
-									body={comment.body}
-									onOpenDiffLocation={onOpenDiffLocation}
-								/>
+								{!readonly &&
+									comment.author.id === whoAmI.id &&
+									onDeleteComment && (
+										<Button
+											variant="ghost"
+											onClick={event => {
+												event.preventDefault();
+												event.stopPropagation();
+												onDeleteComment(issueId, comment.id);
+											}}
+										>
+											×
+										</Button>
+									)}
 							</div>
+
+							<CommentBody
+								body={comment.body}
+								onOpenDiffLocation={onOpenDiffLocation}
+							/>
 						</div>
 					))}
 				</div>
