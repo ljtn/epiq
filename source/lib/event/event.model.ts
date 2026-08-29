@@ -73,6 +73,21 @@ export type AppEventMap = {
 		result: Tag;
 	};
 
+	/**
+	 * Hides a tag everywhere, keeping the id and every ticket reference. A
+	 * forward event: earlier tag events still replay unchanged.
+	 */
+	'tombstone.tag': {
+		payload: PayloadBase;
+		result: Tag;
+	};
+
+	/** Undoes a `tombstone.tag`. Carries the name so replay never reads it back off earlier events. */
+	'restore.tag': {
+		payload: PayloadBase & {name: string};
+		result: Tag;
+	};
+
 	'create.contributor': {
 		payload: PayloadBase & {name: string};
 		result: Contributor;
@@ -280,6 +295,8 @@ export const EVENT_ACTIONS = [
 	'edit.title',
 	'delete.node',
 	'create.tag',
+	'tombstone.tag',
+	'restore.tag',
 	'create.contributor',
 	'rename.contributor',
 	'tombstone.contributor',

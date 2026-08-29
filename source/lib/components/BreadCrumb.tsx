@@ -51,7 +51,7 @@ export const Breadcrumb: React.FC<Props> = ({width}) => {
 	);
 	const ticket = isSuccess(ticketResult) ? ticketResult.value : undefined;
 
-	const tags = ticket?.props.tags ?? [];
+	const tags = (ticket?.props.tags ?? []).filter(tag => nodeRepo.getTag(tag));
 	const assignees = ticket?.props.assignees ?? [];
 
 	const showDetails = ticket?.parentNodeId

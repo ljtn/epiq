@@ -16,6 +16,8 @@ import {
 	getBoardContributors,
 	tombstoneContributor,
 	restoreContributor,
+	tombstoneTag,
+	restoreTag,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -283,6 +285,32 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await tombstoneContributor(input)),
+	);
+
+	server.registerTool(
+		'epiq_tag_remove',
+		{
+			description:
+				'Delete a tag from the whole workspace. It disappears from every ticket, picker and filter, but its id and history stay in the event log, and the name is free for a new tag.',
+			inputSchema: z.object({
+				tagId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await tombstoneTag(input)),
+	);
+
+	server.registerTool(
+		'epiq_tag_restore',
+		{
+			description:
+				'Put back a tag deleted with epiq_tag_remove, on every ticket that still carried it.',
+			inputSchema: z.object({
+				tagId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await restoreTag(input)),
 	);
 
 	server.registerTool(

@@ -581,7 +581,8 @@ export const nodeRepo = {
 	},
 
 	untag(targetId: string, tagId: string): Result<{tag: string}> {
-		const tag = this.getTag(tagId);
+		// The raw record: a reference to a deleted tag may still be cleared.
+		const tag = this.getTagRecord(tagId);
 		const target = this.getNode(targetId);
 
 		if (!tag) return failed('Unable to remove tag, missing tag');
@@ -608,6 +609,36 @@ export const nodeRepo = {
 		this.updateNode(updatedNode);
 
 		return succeeded('Tag removed', {tag: tagId});
+	},
+
+	tombstoneTag(tagId: string): Result<Tag> {
+		const tag = this.getTagRecord(tagId);
+		if (!tag) return failed('Tag not found');
+
+		const tombstoned: Tag = {...tag, tombstoned: true};
+
+		const result = updateState(s => ({
+			...s,
+			tags: {...s.tags, [tagId]: tombstoned},
+		}));
+
+		if (isFail(result)) return failed('Unable to delete tag');
+		return succeeded('Tombstoned tag', tombstoned);
+	},
+
+	restoreTag(tagId: string, name: string): Result<Tag> {
+		const tag = this.getTagRecord(tagId);
+		if (!tag) return failed('Tag not found');
+
+		const restored: Tag = {...tag, name, tombstoned: false};
+
+		const result = updateState(s => ({
+			...s,
+			tags: {...s.tags, [tagId]: restored},
+		}));
+
+		if (isFail(result)) return failed('Unable to restore tag');
+		return succeeded('Restored tag', restored);
 	},
 
 	createTag(tag: Tag): Result<Tag> {
@@ -678,8 +709,23 @@ export const nodeRepo = {
 		return getState().contributors[id];
 	},
 
+	// A tombstoned tag reads as absent, which is what hides it from every chip,
+	// picker and filter at once. `getTagRecord` is the raw read.
 	getTag(id: string): Tag | undefined {
+		const tag = getState().tags[id];
+		return tag?.tombstoned ? undefined : tag;
+	},
+
+	getTagRecord(id: string): Tag | undefined {
 		return getState().tags[id];
+	},
+
+	getTags(): Tag[] {
+		return Object.values(getState().tags).filter(tag => !tag.tombstoned);
+	},
+
+	findTagByName(name: string): Tag | undefined {
+		return this.getTags().find(tag => tag.name === name);
 	},
 
 	getNode<T extends AnyContext>(id: string) {

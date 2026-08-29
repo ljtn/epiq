@@ -33,7 +33,7 @@ export const FieldListUI: React.FC<Props> = ({
 			? title === FieldNames.ASSIGNEES
 				? ticket.props.assignees ?? []
 				: title === FieldNames.TAGS
-				? ticket.props.tags ?? []
+				? (ticket.props.tags ?? []).filter(tag => nodeRepo.getTag(tag))
 				: []
 			: [];
 

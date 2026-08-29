@@ -564,9 +564,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 		const overLongTag = tooLong('Tag name', tagName, MAX_TAG_NAME_LENGTH);
 		if (overLongTag) return failed(overLongTag);
 
-		const existingTag = Object.values(stateResult.value.tags).find(
-			tag => tag.name === tagName,
-		);
+		const existingTag = nodeRepo.findTagByName(tagName);
 		const tagId = existingTag?.id ?? ulid();
 
 		if (!existingTag) {
@@ -1215,7 +1213,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 							} satisfies ApiSwimlane),
 					),
 			})),
-		tags: Object.values(stateResult.value.tags).map(x => ({
+		tags: nodeRepo.getTags().map(x => ({
 			...x,
 			color: getStringColor(x.name),
 		})),
@@ -1390,9 +1388,7 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 	const overLongTag = tooLong('Tag name', tagName, MAX_TAG_NAME_LENGTH);
 	if (overLongTag) return failed(overLongTag);
 
-	const existingTag = Object.values(stateResult.value.tags).find(
-		tag => tag.name === tagName,
-	);
+	const existingTag = nodeRepo.findTagByName(tagName);
 
 	const tagId = existingTag?.id ?? ulid();
 
@@ -1433,6 +1429,84 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 		ref: nodeRef(input.issueId),
 		tag: {id: tagId, name: tagName},
 	});
+};
+
+// Tombstone, not deletion: the id and every ticket reference survive in the
+// log; the tag just stops rendering anywhere, and its name is free again.
+export const tombstoneTag = async (
+	input: ToolInput & {tagId: string},
+): Promise<Result<{id: string; name: string}>> => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const tag = stateResult.value.tags[input.tagId];
+	if (!tag) return failed('Tag not found');
+	if (tag.tombstoned) return failed('Tag is already deleted');
+
+	const events = [
+		{
+			id: ulid(),
+			...actorResult.value,
+			action: 'tombstone.tag',
+			payload: {id: input.tagId},
+		} satisfies AppEvent<'tombstone.tag'>,
+	];
+
+	const results = materializeAndPersistAll(
+		events,
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Deleted tag', {id: tag.id, name: tag.name});
+};
+
+export const restoreTag = async (
+	input: ToolInput & {tagId: string},
+): Promise<Result<{id: string; name: string}>> => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const tag = stateResult.value.tags[input.tagId];
+	if (!tag) return failed('Tag not found');
+	if (!tag.tombstoned) return failed('Tag is not deleted');
+
+	// The name may have been taken by a fresh tag in the meantime; two live
+	// tags with one name would be indistinguishable everywhere they are picked.
+	if (nodeRepo.findTagByName(tag.name)) {
+		return failed(`Cannot restore: another tag is already named "${tag.name}"`);
+	}
+
+	const events = [
+		{
+			id: ulid(),
+			...actorResult.value,
+			action: 'restore.tag',
+			payload: {id: input.tagId, name: tag.name},
+		} satisfies AppEvent<'restore.tag'>,
+	];
+
+	const results = materializeAndPersistAll(
+		events,
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Restored tag', {id: tag.id, name: tag.name});
 };
 
 export const removeIssueTag = async (input: RemoveIssueTagInput) => {

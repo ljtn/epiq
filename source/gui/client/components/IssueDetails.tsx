@@ -18,6 +18,7 @@ import {
 } from './Aside';
 import {Button} from './Button';
 import {ManageContributorsModal} from './ManageContributorsModal';
+import {ManageTagsModal} from './ManageTagsModal';
 import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
@@ -103,6 +104,7 @@ export const IssueDetails = ({
 	onAddAssignee,
 	onAddExternalAssignee,
 	onRemoveContributor,
+	onDeleteTag,
 	onRemoveAssignee,
 	onCloseIssue,
 	onReopenIssue,
@@ -139,6 +141,7 @@ export const IssueDetails = ({
 	onAddAssignee: (issueId: string, assigneeId: string) => void;
 	onAddExternalAssignee: (issueId: string, assigneeName: string) => void;
 	onRemoveContributor: (contributorId: string) => void;
+	onDeleteTag: (tagId: string) => void;
 	onRemoveAssignee: (issueId: string, assigneeId: string) => void;
 	onCloseIssue: (issueId: string) => void;
 	onReopenIssue: (issueId: string) => void;
@@ -172,6 +175,7 @@ export const IssueDetails = ({
 	const [tagName, setTagName] = useState('');
 	const [assigneeName, setAssigneeName] = useState('');
 	const [managingContributors, setManagingContributors] = useState(false);
+	const [managingTags, setManagingTags] = useState(false);
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [addingTag, setAddingTag] = useState(false);
@@ -433,6 +437,19 @@ export const IssueDetails = ({
 											+ {tag.name}
 										</Button>
 									))}
+								</ChipRow>
+							)}
+
+							{addingTag && tags.length > 0 && (
+								<ChipRow>
+									<Button
+										variant="ghost"
+										disabled={issue.readonly}
+										onClick={() => setManagingTags(true)}
+										title="Review and delete tags across the whole workspace"
+									>
+										manage tags…
+									</Button>
 								</ChipRow>
 							)}
 
@@ -771,6 +788,14 @@ export const IssueDetails = ({
 								contributors={assignees}
 								onRemove={onRemoveContributor}
 								onClose={() => setManagingContributors(false)}
+							/>
+						)}
+
+						{managingTags && (
+							<ManageTagsModal
+								tags={tags}
+								onDelete={onDeleteTag}
+								onClose={() => setManagingTags(false)}
 							/>
 						)}
 					</>

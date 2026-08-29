@@ -302,6 +302,17 @@ const DEFAULT_CONTRIBUTOR_REGISTRY = {
 	'contributor-1': {id: 'contributor-1', name: 'Alice'},
 };
 
+const tagRegistry: Record<
+	string,
+	{id: string; name: string; tombstoned?: boolean}
+> = {
+	'tag-1': {id: 'tag-1', name: 'bug'},
+};
+
+const DEFAULT_TAG_REGISTRY = {
+	'tag-1': {id: 'tag-1', name: 'bug'},
+};
+
 // The *state* event log, distinct from the merged on-disk log loadMergedEvents
 // supplies. Name resolution reads this one.
 const DEFAULT_STATE_EVENT_LOG = [
@@ -328,6 +339,8 @@ const resetContributorFixtures = () => {
 		contributorRegistry,
 		structuredClone(DEFAULT_CONTRIBUTOR_REGISTRY),
 	);
+	for (const key of Object.keys(tagRegistry)) delete tagRegistry[key];
+	Object.assign(tagRegistry, structuredClone(DEFAULT_TAG_REGISTRY));
 	stateEventLog = [...DEFAULT_STATE_EVENT_LOG];
 };
 
@@ -344,9 +357,7 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 				rootNodeId: 'workspace-1',
 				contextNode: nodes['swimlane-1'],
 				selectedIndex: 0,
-				tags: {
-					'tag-1': {id: 'tag-1', name: 'bug'},
-				},
+				tags: tagRegistry,
 				contributors: contributorRegistry,
 				eventLog: stateEventLog,
 				syncStatus: {
@@ -364,8 +375,18 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 vi.mock('../../lib/repository/node-repo.js', () => ({
 	nodeRepo: {
 		getNode: vi.fn((id: string) => nodes[id]),
+		// Mirrors the real repo: a tombstoned tag reads as absent.
 		getTag: vi.fn((id: string) =>
-			id === 'tag-1' ? {id: 'tag-1', name: 'bug'} : undefined,
+			tagRegistry[id]?.tombstoned ? undefined : tagRegistry[id],
+		),
+		getTagRecord: vi.fn((id: string) => tagRegistry[id]),
+		getTags: vi.fn(() =>
+			Object.values(tagRegistry).filter(tag => !tag.tombstoned),
+		),
+		findTagByName: vi.fn((name: string) =>
+			Object.values(tagRegistry).find(
+				tag => !tag.tombstoned && tag.name === name,
+			),
 		),
 		getContributor: vi.fn((id: string) => contributorRegistry[id]),
 		getCommentsByIssue: vi.fn(() => []),
@@ -1380,6 +1401,117 @@ describe('mcp tools', () => {
 				payload: {id: 'contributor-1'},
 			}),
 		]);
+	});
+
+	describe('tag tombstoning', () => {
+		const asDeleted = () => {
+			tagRegistry['tag-1'] = {id: 'tag-1', name: 'bug', tombstoned: true};
+		};
+
+		const persistedEvents = () =>
+			(persistModule.materializeAndPersistAll as ReturnType<typeof vi.fn>).mock
+				.calls[0]?.[0];
+
+		it('writes a tombstone for a live tag', async () => {
+			const result = await tools.tombstoneTag({
+				repoRoot: '/repo',
+				tagId: 'tag-1',
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (!isFail(result)) {
+				expect(result.value).toEqual({id: 'tag-1', name: 'bug'});
+			}
+			expect(persistedEvents()).toEqual([
+				expect.objectContaining({
+					action: 'tombstone.tag',
+					payload: {id: 'tag-1'},
+				}),
+			]);
+		});
+
+		it('refuses an unknown or already deleted tag', async () => {
+			const missing = await tools.tombstoneTag({
+				repoRoot: '/repo',
+				tagId: 'tag-9',
+			});
+			expect(isFail(missing)).toBe(true);
+
+			asDeleted();
+			const twice = await tools.tombstoneTag({
+				repoRoot: '/repo',
+				tagId: 'tag-1',
+			});
+			expect(isFail(twice)).toBe(true);
+			if (isFail(twice)) expect(twice.message).toBe('Tag is already deleted');
+		});
+
+		it('drops a deleted tag from the state and from its issues', async () => {
+			asDeleted();
+
+			const result = await tools.getGuiState({repoRoot: '/repo'});
+
+			expect(isFail(result)).toBe(false);
+			if (!isFail(result)) {
+				expect(result.value.tags).toEqual([]);
+				const issue = result.value.boards
+					.flatMap(board => board.swimlanes)
+					.flatMap(swimlane => swimlane.issues)
+					.find(issue => issue.id === fixtureId('issue-1'));
+				expect(issue?.tags).toEqual([]);
+			}
+		});
+
+		it('frees the name: tagging with it again mints a fresh tag', async () => {
+			asDeleted();
+
+			const result = await tools.addIssueTag({
+				repoRoot: '/repo',
+				issueId: fixtureId('issue-1'),
+				tagName: 'bug',
+			});
+
+			expect(isFail(result)).toBe(false);
+			const events = persistedEvents();
+			expect(events?.map((event: {action: string}) => event.action)).toEqual([
+				'create.tag',
+				'add.issue.tag',
+			]);
+			expect(events?.[0]?.payload?.id).not.toBe('tag-1');
+		});
+
+		it('restores a deleted tag under its own name', async () => {
+			asDeleted();
+
+			const result = await tools.restoreTag({
+				repoRoot: '/repo',
+				tagId: 'tag-1',
+			});
+
+			expect(isFail(result)).toBe(false);
+			// The name rides in the payload, so replay never reads it back.
+			expect(persistedEvents()).toEqual([
+				expect.objectContaining({
+					action: 'restore.tag',
+					payload: {id: 'tag-1', name: 'bug'},
+				}),
+			]);
+		});
+
+		it('refuses to restore a live tag, or one whose name was reused', async () => {
+			const live = await tools.restoreTag({repoRoot: '/repo', tagId: 'tag-1'});
+			expect(isFail(live)).toBe(true);
+			if (isFail(live)) expect(live.message).toBe('Tag is not deleted');
+
+			asDeleted();
+			tagRegistry['tag-2'] = {id: 'tag-2', name: 'bug'};
+			const taken = await tools.restoreTag({
+				repoRoot: '/repo',
+				tagId: 'tag-1',
+			});
+			expect(isFail(taken)).toBe(true);
+			if (isFail(taken)) expect(taken.message).toContain('already named');
+		});
 	});
 
 	describe('restoreContributor', () => {

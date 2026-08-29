@@ -1,4 +1,5 @@
 import {ulid} from 'ulid';
+import {nodeRepo} from '../repository/node-repo.js';
 import {exportBoardLayout} from '../../export/export.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
 import {ACTOR_NAME_ENV} from '../config/actor-env.js';
@@ -57,9 +58,6 @@ const isAddIssueCommentEvent = (
 		md: string;
 	};
 } => event.action === 'add.issue.comment';
-
-const findTagByName = (name: string) =>
-	Object.values(getState().tags).find(tag => tag.name === name);
 
 // The registry only holds people explicitly created or assigned, so it is often
 // empty even of you; log authors are candidates too.
@@ -424,7 +422,7 @@ export const commands: CommandLineActionEntry[] = [
 			const name = (modifier || inputString).trim();
 			if (!name) return failed('Provide a tag');
 
-			const existingTag = findTagByName(name);
+			const existingTag = nodeRepo.findTagByName(name);
 			if (!existingTag) return failed(`Tag "${name}" does not exist`);
 
 			const {selectedNode} = getState();
@@ -490,7 +488,7 @@ export const commands: CommandLineActionEntry[] = [
 			const persistRootResult = await getPersistRootValue();
 			if (isFail(persistRootResult)) return persistRootResult;
 
-			const existingTag = findTagByName(name);
+			const existingTag = nodeRepo.findTagByName(name);
 			const tagId = existingTag?.id ?? ulid();
 
 			const tags = ticket.props.tags ?? [];
