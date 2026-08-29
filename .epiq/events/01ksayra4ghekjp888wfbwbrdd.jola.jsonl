@@ -2521,3 +2521,7 @@
 {"v":1,"id":["01M17TG0FP0ZPJNTAYZZGFFHVZ","01M17TG0FEM1X02RHYKQ8SP1AS"],"add.issue.tag":{"id":"01M17TG0EW5DTE48TGN0P8ZXS5","tag":"01KTMJBZKRM8X4ZDY7BM854MB7"}}
 {"v":1,"id":["01M17TG0G19Z96WEV333WT4E23","01M17TG0FP0ZPJNTAYZZGFFHVZ"],"add.issue.tag":{"id":"01M17TG0EW5DTE48TGN0P8ZXS5","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
 {"v":1,"id":["01M17TG0GC4WB5A2687ANGH2ZJ","01M17TG0G19Z96WEV333WT4E23"],"add.issue.tag":{"id":"01M17TG0EW5DTE48TGN0P8ZXS5","tag":"01KVD6SFWQ044YNBB4GBSK45YB"}}
+{"v":1,"id":["01M17TG3B358N2MX031BR2KG5G","01M17TG0GC4WB5A2687ANGH2ZJ"],"add.issue":{"id":"01M17TG3ATM8SEXH8YPERXM4AZ","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"GUI: deleting a comment does nothing","rank":"fffbffffffffffffffffffff"}}
+{"v":1,"id":["01M17TG3BC6VFS06EMCYV3ZSQ7","01M17TG3B358N2MX031BR2KG5G"],"edit.description":{"id":"01M17TG3ATM8SEXH8YPERXM4AZ","md":"Clicking × on your own comment in the ticket panel has no effect. The client sends {commentId} while the websocket schema for issue:comment:delete requires {issueId, commentId}, so the frame is refused before the handler runs; the refusal comes back as an `error` frame the client ignores, and the optimistic removal edits state.commentsByIssueId while the panel renders issueDetail.comments."}}
+{"v":1,"id":["01M17TG3BQR1R8SXF3M0CHHA6J","01M17TG3BC6VFS06EMCYV3ZSQ7"],"add.issue.tag":{"id":"01M17TG3ATM8SEXH8YPERXM4AZ","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
+{"v":1,"id":["01M17TG3BZFDWET4WZYF980N3Y","01M17TG3BQR1R8SXF3M0CHHA6J"],"add.issue.tag":{"id":"01M17TG3ATM8SEXH8YPERXM4AZ","tag":"01KVFG019JYEJ3YP3SE3343WZG"}}
