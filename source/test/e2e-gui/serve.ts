@@ -38,6 +38,11 @@ const main = async () => {
 		bareRepoRoot,
 	};
 
+	// The server boots the repo on its first request; taken here rather than
+	// by the first test, whose 10s expectation is not enough for it under a
+	// full set of workers starting at once.
+	await fetch(`${handoff.baseUrl}/api/state`);
+
 	fs.writeFileSync(HANDOFF_PATH, JSON.stringify(handoff));
 
 	const shutdown = () => {
