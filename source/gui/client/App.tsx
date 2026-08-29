@@ -5,11 +5,12 @@ import {
 	useParams,
 	useSearchParams,
 } from 'react-router-dom';
-import {ASIDE_WIDTH} from './components/Aside';
+import {ASIDE_DIFF_WIDTH, ASIDE_WIDTH, Aside} from './components/Aside';
 import {Button} from './components/Button';
 import {CreateNodeModal} from './components/CreateNodeModal';
 import {AddSwimlaneColumn} from './components/AddSwimlaneColumn';
 import {ConfirmModal} from './components/ConfirmModal';
+import {DiffPanel} from './components/DiffPanel';
 import {InitProjectScreen} from './components/InitProjectScreen';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
@@ -33,6 +34,8 @@ import {
 } from './lib/gui-state-helper';
 import {
 	GuiComment,
+	GuiCommitDiff,
+	GuiCommitDiffFile,
 	GuiIssue,
 	GuiIssueHistoryEntry,
 	GuiCommitEntry,
@@ -115,9 +118,12 @@ export const App = () => {
 		commits: GuiCommitEntry[];
 	}>({requestId: 0, timeline: null, commits: []});
 	const [historyBuffer] = useState(() => createHistoryBuffer(setHistory));
-	const [commitInspectError, setCommitInspectError] = useState<string | null>(
-		null,
-	);
+	const [commitDiff, setCommitDiff] = useState<{
+		sha: string;
+		loading: boolean;
+		error: string | null;
+		files: GuiCommitDiffFile[] | null;
+	} | null>(null);
 	const [removeError, setRemoveError] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
@@ -432,11 +438,23 @@ export const App = () => {
 				}
 			}
 
-			if (
-				message.type === 'commit:inspect:result' &&
-				message.payload?.status === 'fail'
-			) {
-				setCommitInspectError(message.payload.message);
+			if (message.type === 'commit:diff:result') {
+				if (message.payload?.status === 'fail') {
+					setCommitDiff(prev =>
+						prev ? {...prev, loading: false, error: message.payload.message} : prev,
+					);
+				} else {
+					const diff = getResultValue<GuiCommitDiff>(message.payload);
+					// Ignores a reply for a sha that is no longer the one showing —
+					// a fast second click can leave an earlier request in flight.
+					if (diff) {
+						setCommitDiff(prev =>
+							prev && prev.sha === diff.sha
+								? {...prev, loading: false, error: null, files: diff.files}
+								: prev,
+						);
+					}
+				}
 			}
 
 			if (
@@ -769,16 +787,12 @@ export const App = () => {
 		setPickedIssueIds([]);
 	}, [selectedBoardId]);
 
-	const inspectCommit = useCallback((sha: string) => {
-		sendSocketJson(socketRef.current, {type: 'commit:inspect', payload: {sha}});
+	const openCommitDiff = useCallback((sha: string) => {
+		setCommitDiff({sha, loading: true, error: null, files: null});
+		sendSocketJson(socketRef.current, {type: 'commit:diff:get', payload: {sha}});
 	}, []);
 
-	useEffect(() => {
-		if (!commitInspectError) return;
-
-		const timeout = setTimeout(() => setCommitInspectError(null), 8000);
-		return () => clearTimeout(timeout);
-	}, [commitInspectError]);
+	const closeCommitDiff = useCallback(() => setCommitDiff(null), []);
 
 	useEffect(() => {
 		if (!removeError) return;
@@ -1102,13 +1116,6 @@ export const App = () => {
 		>
 			<GlobalScrollbarStyles />
 
-			{commitInspectError && (
-				<ErrorToast
-					message={`Couldn't open commit diff: ${commitInspectError}`}
-					onDismiss={() => setCommitInspectError(null)}
-				/>
-			)}
-
 			{removeError && (
 				<ErrorToast
 					message={removeError}
@@ -1147,7 +1154,7 @@ export const App = () => {
 				connected={connected}
 				socketEpoch={socketEpoch}
 				onRequestHistory={requestBoardHistory}
-				onInspectCommit={inspectCommit}
+				onInspectCommit={openCommitDiff}
 				highlightEventId={hoveredLogEventId}
 				timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 				onScrub={scrubToTime}
@@ -1283,7 +1290,7 @@ export const App = () => {
 							in clientWidth, keeping max scrollLeft identical across
 							open/closed so the board doesn't bounce back when scrolled
 							far right. */}
-						{!(selectedIssue && state?.user) && (
+						{!commitDiff && !(selectedIssue && state?.user) && (
 							<div style={{width: ASIDE_WIDTH, flexShrink: 0}} />
 						)}
 
@@ -1293,7 +1300,19 @@ export const App = () => {
 					</div>
 				</main>
 
-				{pickedIssues.length > 1 && (
+				{commitDiff && (
+					<Aside width={ASIDE_DIFF_WIDTH}>
+						<DiffPanel
+							title={`Commit ${commitDiff.sha.slice(0, 7)}`}
+							files={commitDiff.files}
+							loading={commitDiff.loading}
+							error={commitDiff.error}
+							onClose={closeCommitDiff}
+						/>
+					</Aside>
+				)}
+
+				{!commitDiff && pickedIssues.length > 1 && (
 					<BulkDetails
 						issues={pickedIssues}
 						knownTags={state?.tags ?? []}
@@ -1331,7 +1350,7 @@ export const App = () => {
 					/>
 				)}
 
-				{pickedIssues.length <= 1 && selectedIssue && state?.user && (
+				{!commitDiff && pickedIssues.length <= 1 && selectedIssue && state?.user && (
 					<IssueDetails
 						whoAmI={state.user}
 						issue={((): GuiIssue => {
