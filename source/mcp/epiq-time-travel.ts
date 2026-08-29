@@ -3,7 +3,7 @@ import {chmod} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {getStateBranchRoot} from '../git/git-storage.js';
-import {execGit} from '../git/git-utils.js';
+import {execGit, readGitBlobsBatch} from '../git/git-utils.js';
 import {
 	getEditorCandidates,
 	isVSCodeEditor,
@@ -367,6 +367,26 @@ export type CommitEntry = {
 const GIT_LOG_FIELD_SEP = '\x1f';
 const GIT_LOG_RECORD_SEP = '\x1e';
 
+// The full (unwindowed) scan is the one both the scrubber ('All' scope) and
+// getCommitsForRef ask for, typically moments apart over the same history —
+// short-lived since nothing here invalidates it on a new commit landing, just
+// long enough to cover "the Commits tab opens right after the scrubber loads".
+export const FULL_TIMELINE_CACHE_TTL_MS = 5_000;
+
+let fullTimelineCache: {
+	repoRoot: string;
+	stateBranch: string;
+	fetchedAt: number;
+	result: CommitEntry[];
+} | null = null;
+
+// Test-only: the cache is module-level state, so it would otherwise leak
+// between `it()` blocks in the same file (unlike vi.clearAllMocks(), which
+// only resets mock call state, not arbitrary module variables).
+export const resetCommitTimelineCacheForTests = (): void => {
+	fullTimelineCache = null;
+};
+
 // Pure read of the *code* repo's history, safe mid-scrub. `--not <stateBranch>`
 // is required: worktrees share one ref namespace, so epiq's own state commits
 // would otherwise appear mixed into real development history.
@@ -378,6 +398,22 @@ export const getCommitTimeline = async (
 
 	const projectResult = readProjectFile(repoRootResult.value);
 	if (isFail(projectResult)) return failed(projectResult.message);
+
+	// Only the unwindowed call is cached — it is the expensive, frequently-
+	// repeated one (a full `--shortstat` scan of the whole history); a
+	// start/end-scoped scrub is comparatively cheap and varies request to
+	// request, so caching it would mostly just grow a cache no one re-hits.
+	const cacheable = input.start === undefined && input.end === undefined;
+
+	if (
+		cacheable &&
+		fullTimelineCache &&
+		fullTimelineCache.repoRoot === repoRootResult.value &&
+		fullTimelineCache.stateBranch === projectResult.value.stateBranch &&
+		Date.now() - fullTimelineCache.fetchedAt < FULL_TIMELINE_CACHE_TTL_MS
+	) {
+		return succeeded('Computed commit timeline', fullTimelineCache.result);
+	}
 
 	const logResult = await execGit({
 		cwd: repoRootResult.value,
@@ -433,6 +469,15 @@ export const getCommitTimeline = async (
 				(input.start === undefined || commit.time >= input.start) &&
 				(input.end === undefined || commit.time <= input.end),
 		);
+
+	if (cacheable) {
+		fullTimelineCache = {
+			repoRoot: repoRootResult.value,
+			stateBranch: projectResult.value.stateBranch,
+			fetchedAt: Date.now(),
+			result: commits,
+		};
+	}
 
 	return succeeded('Computed commit timeline', commits);
 };
@@ -683,41 +728,73 @@ export type CommitDiff = {
 // exists for — a rendered accordion tolerates far more files than open windows do.
 const MAX_DIFF_FILES_FOR_DATA = 200;
 
-// Caps concurrent git subprocesses: an unbatched Promise.all over a near-
-// MAX_DIFF_FILES_FOR_DATA commit would fire hundreds of `git show` processes
-// (two per file) at once.
-const DIFF_READ_CONCURRENCY = 8;
+// All zeros (--abbrev=40 gives 40 hex chars) is git's own way of writing "no
+// blob on this side" in --raw output — the file was added or deleted here.
+const isZeroBlob = (hash: string): boolean => /^0+$/.test(hash);
 
-const readFileDiffsInBatches = async (
-	repoRoot: string,
-	sha: string,
-	filePaths: string[],
-): Promise<CommitDiffFile[]> => {
-	const files: CommitDiffFile[] = [];
+// `:<oldmode> <newmode> <oldblob> <newblob> <status>[score]\t<path>` — with
+// --no-renames every line is a plain add/modify/delete of one path, never a
+// two-path rename/copy line, so a single trailing field is always correct.
+const RAW_DIFF_LINE =
+	/^:\d{6} \d{6} ([0-9a-f]{40}) ([0-9a-f]{40}) [A-Z]\d*\t(.+)$/;
 
-	for (let i = 0; i < filePaths.length; i += DIFF_READ_CONCURRENCY) {
-		const batch = filePaths.slice(i, i + DIFF_READ_CONCURRENCY);
-
-		const batchFiles = await Promise.all(
-			batch.map(async (filePath): Promise<CommitDiffFile> => {
-				const [before, after] = await Promise.all([
-					readFileAtRevision(repoRoot, `${sha}~1`, filePath),
-					readFileAtRevision(repoRoot, sha, filePath),
-				]);
-
-				return {path: filePath, before, after};
-			}),
-		);
-
-		files.push(...batchFiles);
-	}
-
-	return files;
+type ChangedFileBlobs = {
+	path: string;
+	// null means "no blob on this side" (the file was added or deleted here),
+	// same convention getChangedFilePaths' callers already read a missing
+	// blob as — not a git failure.
+	beforeBlob: string | null;
+	afterBlob: string | null;
 };
 
-// The GUI diff panel's data source: same git calls as the editor path above,
-// returned as content instead of written to temp files. Never touches the
-// materialized state singleton, so it is independent of any time-travel checkout.
+// Blob hashes straight from git's own diff, rather than getChangedFilePaths'
+// name-only listing: this is what lets getCommitDiff below read every
+// changed file's content in one `git cat-file --batch` round trip instead of
+// two `git show` spawns per file. `--abbrev=40` forces full hashes — unlike
+// `--full-index` (documented for this but, at least as of Apple Git 2.39.5,
+// a no-op outside of `-p` patch output), this reliably defeats the
+// repo-size-dependent abbreviation `--raw` uses by default.
+const getChangedFileBlobs = async (
+	repoRoot: string,
+	sha: string,
+): Promise<Result<ChangedFileBlobs[]>> => {
+	const diffResult = await execGit({
+		cwd: repoRoot,
+		args: ['diff', '--raw', '--no-renames', '--abbrev=40', `${sha}~1`, sha],
+	});
+	if (isFail(diffResult)) return failed(diffResult.message);
+
+	const entries = diffResult.value.stdout
+		.split('\n')
+		.map(line => RAW_DIFF_LINE.exec(line))
+		.filter((match): match is RegExpExecArray => match !== null)
+		.map((match): ChangedFileBlobs => {
+			const beforeBlob = match[1] ?? '';
+			const afterBlob = match[2] ?? '';
+			const path = match[3] ?? '';
+
+			return {
+				path,
+				beforeBlob: isZeroBlob(beforeBlob) ? null : beforeBlob,
+				afterBlob: isZeroBlob(afterBlob) ? null : afterBlob,
+			};
+		});
+
+	if (entries.length === 0) {
+		return failed('No changed files found for this commit');
+	}
+
+	return succeeded('Listed changed files with blob hashes', entries);
+};
+
+// The GUI diff panel's data source: reads every changed file's before/after
+// content in one `git diff --raw` (blob hashes) plus one `git cat-file
+// --batch` (content for all of them), rather than the O(files) `git show`
+// spawns the editor path above uses — each spawn pays real process-start
+// overhead regardless of how little it reads, which dominated wall time on
+// any commit touching more than a couple of files. Never touches the
+// materialized state singleton, so it is independent of any time-travel
+// checkout.
 export const getCommitDiff = async (
 	input: ToolInput & {sha: string},
 ): Promise<Result<CommitDiff>> => {
@@ -727,18 +804,33 @@ export const getCommitDiff = async (
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 
-	const filesResult = await getChangedFilePaths(repoRoot, input.sha);
-	if (isFail(filesResult)) return failed(filesResult.message);
+	const entriesResult = await getChangedFileBlobs(repoRoot, input.sha);
+	if (isFail(entriesResult)) return failed(entriesResult.message);
 
-	const filePaths = filesResult.value;
+	const entries = entriesResult.value;
 
-	if (filePaths.length > MAX_DIFF_FILES_FOR_DATA) {
+	if (entries.length > MAX_DIFF_FILES_FOR_DATA) {
 		return failed(
-			`Commit touches ${filePaths.length} files — too many to show as a diff`,
+			`Commit touches ${entries.length} files — too many to show as a diff`,
 		);
 	}
 
-	const files = await readFileDiffsInBatches(repoRoot, input.sha, filePaths);
+	const blobHashes = entries.flatMap(entry =>
+		[entry.beforeBlob, entry.afterBlob].filter(
+			(hash): hash is string => hash !== null,
+		),
+	);
+
+	const blobsResult = await readGitBlobsBatch(blobHashes, repoRoot);
+	if (isFail(blobsResult)) return failed(blobsResult.message);
+
+	const blobs = blobsResult.value;
+
+	const files: CommitDiffFile[] = entries.map(entry => ({
+		path: entry.path,
+		before: entry.beforeBlob ? blobs.get(entry.beforeBlob) ?? '' : '',
+		after: entry.afterBlob ? blobs.get(entry.afterBlob) ?? '' : '',
+	}));
 
 	return succeeded('Loaded commit diff', {sha: input.sha, files});
 };
