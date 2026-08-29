@@ -115,6 +115,7 @@ epiq gui
 > - Authoritative Git state at `~/.epiq-global/worktrees/<id>`
 > - Updates your `.gitignore` to ignore local-only `.epiq/log/`
 >   Epiq manages a dedicated Git state branch and worktree automatically as the source of truth for synchronization.
+> - A local debug log at `.epiq/log/epiq.log` — check it first if sync, boot, or a Git operation is misbehaving.
 
 ## Usage Guide (TUI)
 
