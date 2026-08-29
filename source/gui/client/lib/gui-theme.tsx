@@ -3,6 +3,16 @@
 export const CONTENT_FONT =
 	'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+// The side panel's text sizes. Prose (descriptions, comments, notes) sits a
+// step above the mono UI text so the two fonts read at the same visual size.
+export const TEXT = {
+	label: 10,
+	meta: 11,
+	ui: 12,
+	prose: 13,
+	title: 18,
+} as const;
+
 export const GUI_THEME = {
 	bg: '#06070a',
 	bgHighlight: '#10111a65',

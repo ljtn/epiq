@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {File} from '@pierre/diffs/react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CopyShaButton} from './CopyShaButton';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
@@ -17,7 +17,7 @@ const CODE_FONT =
 // Pinned on the highlighter through its own CSS variables so the gutter drawn
 // beside it lands on the same line grid.
 const LINE_HEIGHT = 20;
-const FONT_SIZE = 12;
+const FONT_SIZE = TEXT.ui;
 const BLOCK_GAP = 8;
 
 const bareButton: React.CSSProperties = {
@@ -73,7 +73,7 @@ export const CodeSnippet = ({
 						background: 'rgba(255,255,255,0.03)',
 						borderBottom: collapsed ? 'none' : `1px solid ${GUI_THEME.line}`,
 						fontFamily: CODE_FONT,
-						fontSize: 11,
+						fontSize: TEXT.meta,
 						color: GUI_THEME.secondary,
 					}}
 				>

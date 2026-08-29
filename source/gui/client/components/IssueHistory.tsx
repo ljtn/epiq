@@ -1,5 +1,5 @@
 import {GuiIssueHistoryEntry} from '../lib/gui-state.model';
-import {GUI_THEME, CONTENT_FONT} from '../lib/gui-theme';
+import {GUI_THEME, CONTENT_FONT, TEXT} from '../lib/gui-theme';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {User} from './User';
 
@@ -12,7 +12,9 @@ export const IssueHistory = ({
 }) => {
 	if (entries.length === 0) {
 		return (
-			<div style={{color: GUI_THEME.dim, fontSize: 12}}>No history yet</div>
+			<div style={{color: GUI_THEME.dim, fontSize: TEXT.ui}}>
+				No history yet
+			</div>
 		);
 	}
 
@@ -36,7 +38,7 @@ export const IssueHistory = ({
 						gap: 14,
 						padding: '8px 0',
 						borderTop: index === 0 ? 'none' : `1px solid ${GUI_THEME.line}`,
-						fontSize: 12,
+						fontSize: TEXT.ui,
 					}}
 				>
 					<User user={entry.actor} />

@@ -5,7 +5,7 @@ import ReactMarkdown, {
 } from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
-import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
+import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	remarkTicketRefs,
 	TICKET_REF_URL_PREFIX,
@@ -58,13 +58,13 @@ const buildComponents = (
 	),
 	li: ({children}) => <li style={{margin: '2px 0'}}>{children}</li>,
 	h1: ({children}) => (
-		<h1 style={{fontSize: 16, margin: '0 0 14px'}}>{children}</h1>
+		<h1 style={{fontSize: TEXT.prose + 2, margin: '0 0 14px'}}>{children}</h1>
 	),
 	h2: ({children}) => (
-		<h2 style={{fontSize: 14, margin: '0 0 14px'}}>{children}</h2>
+		<h2 style={{fontSize: TEXT.prose + 1, margin: '0 0 14px'}}>{children}</h2>
 	),
 	h3: ({children}) => (
-		<h3 style={{fontSize: 13, margin: '0 0 14px'}}>{children}</h3>
+		<h3 style={{fontSize: TEXT.prose, margin: '0 0 14px'}}>{children}</h3>
 	),
 	a: ({children, href}) => {
 		// A ticket ref opens a ticket in this app, not a URL in a new tab, so it
@@ -127,7 +127,7 @@ const buildComponents = (
 			<code
 				style={
 					isBlock
-						? {fontFamily: CODE_FONT, fontSize: 12}
+						? {fontFamily: CODE_FONT, fontSize: TEXT.ui}
 						: {
 								fontFamily: CODE_FONT,
 								fontSize: '0.9em',
@@ -197,7 +197,7 @@ export const MarkdownContent = ({
 		<div
 			style={{
 				fontFamily: CONTENT_FONT,
-				fontSize: 13,
+				fontSize: TEXT.prose,
 				lineHeight: 1.6,
 				color: GUI_THEME.primary,
 				wordBreak: 'break-word',

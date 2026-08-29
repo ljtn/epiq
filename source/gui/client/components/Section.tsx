@@ -1,5 +1,5 @@
 import React from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
 
 export const Section = ({
 	title,
@@ -29,7 +29,7 @@ export const Section = ({
 			<span
 				style={{
 					color: GUI_THEME.secondary,
-					fontSize: 10,
+					fontSize: TEXT.label,
 					textTransform: 'uppercase',
 					letterSpacing: '0.08em',
 				}}
