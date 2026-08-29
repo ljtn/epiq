@@ -1,4 +1,4 @@
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
 
 export type TabItem<T extends string> = {
 	id: T;
@@ -43,7 +43,7 @@ export const Tabs = <T extends string>({
 						padding: '0 8px 10px',
 						marginBottom: -1,
 						font: 'inherit',
-						fontSize: 11,
+						fontSize: TEXT.meta,
 						cursor: 'pointer',
 					}}
 				>

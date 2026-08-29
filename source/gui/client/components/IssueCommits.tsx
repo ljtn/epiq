@@ -9,7 +9,7 @@ import {
 	GuiCommitDiffFile,
 	GuiRefCommitEntry,
 } from '../lib/gui-state.model';
-import {GUI_THEME} from '../lib/gui-theme';
+import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {timeAgo} from '../lib/gui-format.helper';
 import {ActionRow, Textarea} from './FormPrimitives';
 import {Button} from './Button';
@@ -293,7 +293,7 @@ const disclosureStyle: React.CSSProperties = {
 	cursor: 'pointer',
 	color: GUI_THEME.primary,
 	font: 'inherit',
-	fontSize: 12,
+	fontSize: TEXT.ui,
 };
 
 // A rounded pill rather than GitHub's five solid squares — matches the
@@ -318,7 +318,7 @@ const DiffStat = ({
 				gap: 6,
 				flexShrink: 0,
 				fontFamily: 'ui-monospace, monospace',
-				fontSize: 11,
+				fontSize: TEXT.meta,
 			}}
 		>
 			<span style={{color: GUI_THEME.green}}>+{insertions}</span>
@@ -415,7 +415,7 @@ const SelectionComposer = ({
 				boxShadow: `0 0 0 1px ${GUI_THEME.accent}33`,
 			}}
 		>
-			<div style={{fontSize: 11, color: GUI_THEME.secondary}}>
+			<div style={{fontSize: TEXT.meta, color: GUI_THEME.secondary}}>
 				{selectionLabel}
 			</div>
 
@@ -431,7 +431,13 @@ const SelectionComposer = ({
 						if (onAddComment) comment();
 					}
 				}}
-				style={{marginTop: 8, minHeight: 45, font: 'inherit', fontSize: 12}}
+				style={{
+					marginTop: 8,
+					minHeight: 45,
+					font: 'inherit',
+					fontFamily: CONTENT_FONT,
+					fontSize: TEXT.prose,
+				}}
 			/>
 
 			<ActionRow>
@@ -484,7 +490,7 @@ const DiffCommentAnnotation = ({
 				borderLeft: `2px solid ${GUI_THEME.accent}`,
 				borderRadius: 6,
 				background: GUI_THEME.tertiary,
-				fontSize: 12,
+				fontSize: TEXT.ui,
 				display: 'flex',
 				alignItems: 'flex-start',
 				gap: 8,
@@ -494,7 +500,7 @@ const DiffCommentAnnotation = ({
 				<IconComment size={12} />
 			</span>
 			<div style={{flex: 1, minWidth: 0}}>
-				<div style={{color: GUI_THEME.secondary, fontSize: 11}}>
+				<div style={{color: GUI_THEME.secondary, fontSize: TEXT.meta}}>
 					{comment.author.name ?? 'unknown'}
 					{comment.createdAt && (
 						<span style={{color: GUI_THEME.dim2}}>
@@ -644,7 +650,7 @@ const FileRow = ({
 							gap: 3,
 							flexShrink: 0,
 							color: GUI_THEME.accent,
-							fontSize: 10,
+							fontSize: TEXT.label,
 						}}
 					>
 						<IconComment size={10} />
