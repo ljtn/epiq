@@ -1,5 +1,10 @@
 import React from 'react';
-import {DiffFileInput, FileContents, MultiFileDiff} from '@pierre/diffs/react';
+import {
+	DiffFileInput,
+	FileContents,
+	MultiFileDiff,
+	SelectedLineRange,
+} from '@pierre/diffs/react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
 import {Button} from './Button';
@@ -32,9 +37,16 @@ const toDiffFileInput = (file: GuiCommitDiffFile): DiffFileInput => {
 export const FileDiffView = ({
 	file,
 	diffStyle,
+	selectedLines,
+	onSelectionEnd,
 }: {
 	file: GuiCommitDiffFile;
 	diffStyle: 'split' | 'unified';
+	// Undefined (the DiffPanel scrubber-dot flow's default) leaves selection
+	// off entirely — enabling it costs nothing there, but there's no ticket
+	// for a selection to attach to in that flow, so it stays opt-in.
+	selectedLines?: SelectedLineRange | null;
+	onSelectionEnd?: (range: SelectedLineRange | null) => void;
 }) => (
 	<div
 		style={{
@@ -46,7 +58,14 @@ export const FileDiffView = ({
 	>
 		<MultiFileDiff
 			{...toDiffFileInput(file)}
-			options={{diffStyle, theme: PIERRE_THEME}}
+			options={{
+				diffStyle,
+				theme: PIERRE_THEME,
+				enableLineSelection: onSelectionEnd !== undefined,
+				controlledSelection: onSelectionEnd !== undefined,
+				onLineSelectionEnd: onSelectionEnd,
+			}}
+			selectedLines={selectedLines}
 		/>
 	</div>
 );
