@@ -144,7 +144,7 @@ export const IssueDetails = ({
 		{id: 'history', label: 'Log', count: history.length},
 		// No count before the first load: commits are fetched lazily on opening
 		// this tab, so showing 0 until then would misread as "no commits yet".
-		{id: 'code', label: 'Code', count: commits.length || undefined},
+		{id: 'code', label: 'Commits', count: commits.length || undefined},
 	];
 
 	const saveTitle = () => {
@@ -624,6 +624,7 @@ export const IssueDetails = ({
 
 					{activeTab === 'code' && (
 						<IssueCommits
+							issueRef={issue.ref}
 							commits={commits}
 							loading={commitsLoading}
 							error={commitsError}

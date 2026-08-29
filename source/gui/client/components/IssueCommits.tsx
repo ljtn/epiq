@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {GuiCommitDiffFile, GuiCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {CopyRef} from './CopyRef';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
 import {FileDiffView} from './DiffPanel';
@@ -25,6 +26,57 @@ const disclosureStyle: React.CSSProperties = {
 	color: GUI_THEME.primary,
 	font: 'inherit',
 	fontSize: 12,
+};
+
+// A rounded pill rather than GitHub's five solid squares — matches the
+// rest of the app's soft, rounded chrome instead of copying its exact look.
+const DiffStat = ({
+	insertions,
+	deletions,
+}: {
+	insertions: number;
+	deletions: number;
+}) => {
+	const total = insertions + deletions;
+	if (total === 0) return null;
+
+	const addRatio = insertions / total;
+
+	return (
+		<div
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				gap: 6,
+				flexShrink: 0,
+				fontFamily: 'ui-monospace, monospace',
+				fontSize: 11,
+			}}
+		>
+			<span style={{color: GUI_THEME.green}}>+{insertions}</span>
+			<span style={{color: GUI_THEME.red}}>-{deletions}</span>
+			<div
+				style={{
+					width: 32,
+					height: 6,
+					borderRadius: 3,
+					overflow: 'hidden',
+					display: 'flex',
+					background: GUI_THEME.line,
+				}}
+			>
+				<div
+					style={{width: `${addRatio * 100}%`, background: GUI_THEME.green}}
+				/>
+				<div
+					style={{
+						width: `${(1 - addRatio) * 100}%`,
+						background: GUI_THEME.red,
+					}}
+				/>
+			</div>
+		</div>
+	);
 };
 
 const FileRow = ({
@@ -80,7 +132,7 @@ const CommitRow = ({
 }) => (
 	<div
 		style={{
-			marginBottom: 10,
+			marginBottom: 14,
 			border: `1px solid ${GUI_THEME.line}`,
 			borderRadius: 8,
 			overflow: 'hidden',
@@ -100,7 +152,7 @@ const CommitRow = ({
 				}
 			}}
 			aria-expanded={expanded}
-			style={{...disclosureStyle, padding: '8px 10px'}}
+			style={{...disclosureStyle, padding: '13px 14px'}}
 		>
 			{expanded ? (
 				<IconChevronDown size={12} />
@@ -118,6 +170,7 @@ const CommitRow = ({
 			>
 				{commit.subject}
 			</span>
+			<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
 		</div>
 
 		{expanded && (
@@ -156,12 +209,14 @@ const CommitRow = ({
 // ticket — a file touched in two commits shows twice, once per commit, same
 // as GitHub's "Commits" tab vs. its squashed "Files changed" tab.
 export const IssueCommits = ({
+	issueRef,
 	commits,
 	loading,
 	error,
 	diffsBySha,
 	onLoadDiff,
 }: {
+	issueRef: string;
 	commits: GuiCommitEntry[];
 	loading: boolean;
 	error: string | null;
@@ -209,7 +264,12 @@ export const IssueCommits = ({
 	if (loading) return <Empty>Loading commits…</Empty>;
 	if (error) return <Empty>{error}</Empty>;
 	if (commits.length === 0) {
-		return <Empty>No commits reference this ticket yet.</Empty>;
+		return (
+			<Empty>
+				No commits reference this ticket yet. Prefix a commit message with{' '}
+				<CopyRef refValue={issueRef} /> to link it here.
+			</Empty>
+		);
 	}
 
 	// Oldest first, reading top-to-bottom as the story unfolded — the log
