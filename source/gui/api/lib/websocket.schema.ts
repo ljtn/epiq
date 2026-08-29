@@ -59,6 +59,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message('issue:tag:add', z.object({issueId: id, tagName: z.string()})),
 	message('issue:tag:remove', z.object({issueId: id, tagId: id})),
 	message('contributor:remove', z.object({contributorId: id})),
+	message('tag:remove', z.object({tagId: id})),
 	z.object({
 		type: z.literal('contributors:get'),
 		payload: z.object({boardId: id.optional()}).optional(),

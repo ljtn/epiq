@@ -4,6 +4,7 @@ import {
 	addIssueAssignee,
 	getBoardContributors,
 	tombstoneContributor,
+	tombstoneTag,
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
@@ -382,6 +383,21 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'contributor:remove:result',
+						result,
+					);
+				}
+
+				if (type === 'tag:remove') {
+					const result = await tombstoneTag({
+						repoRoot,
+						...message.payload,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'tag:remove:result',
 						result,
 					);
 				}

@@ -28,7 +28,10 @@ vi.mock('../lib/storage/paths.js', () => ({
 	getGlobalConfigDir: vi.fn(() => '/home/test/.epiq-global'),
 }));
 
-vi.mock('../lib/repository/node-repo.js', () => ({
+// Only the ancestor walk is stubbed; the repo itself reads the real state
+// these tests build.
+vi.mock('../lib/repository/node-repo.js', async importOriginal => ({
+	...(await importOriginal<typeof import('../lib/repository/node-repo.js')>()),
 	findAncestor: vi.fn(),
 }));
 

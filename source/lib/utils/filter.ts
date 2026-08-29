@@ -1,4 +1,4 @@
-import {Filter} from '../model/app-state.model.js';
+import {Filter, Tag} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
 import {nodeRefMatches} from './node-ref.js';
@@ -17,8 +17,9 @@ const getTagNames = (ticket: NavNode<'TICKET'>): string[] => {
 	const {tags} = getState();
 
 	return (ticket.props.tags ?? [])
-		.map(tag => tags[tag]?.name)
-		.filter((name): name is string => Boolean(name));
+		.map(tag => tags[tag])
+		.filter((tag): tag is Tag => tag !== undefined && !tag.tombstoned)
+		.map(tag => tag.name);
 };
 
 const getAssigneeNames = (ticket: NavNode<'TICKET'>): string[] => {

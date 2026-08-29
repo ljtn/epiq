@@ -422,3 +422,66 @@ describe('contributor tombstone round-trip', () => {
 		expect(isFail(result)).toBe(true);
 	});
 });
+
+describe('tag tombstone round-trip', () => {
+	const TAG = '01H00000000000000000000200';
+
+	it('hides the tag on tombstone and shows it again on restore', () => {
+		setupWorkspace();
+
+		expectOk(materialize(event('create.tag', {id: TAG, name: 'bug'})));
+		expectOk(materialize(event('add.issue.tag', {id: IDS.issue, tag: TAG})));
+		expect(nodeRepo.getTag(TAG)?.name).toBe('bug');
+
+		expectOk(materialize(event('tombstone.tag', {id: TAG})));
+		// Absent to every reader, present as a record.
+		expect(nodeRepo.getTag(TAG)).toBeUndefined();
+		expect(nodeRepo.getTagRecord(TAG)?.tombstoned).toBe(true);
+		expect(nodeRepo.findTagByName('bug')).toBeUndefined();
+		expect(nodeRepo.getTags()).toEqual([]);
+
+		expectOk(materialize(event('restore.tag', {id: TAG, name: 'bug'})));
+		expect(nodeRepo.getTag(TAG)?.name).toBe('bug');
+		expect(nodeRepo.getTagRecord(TAG)?.tombstoned).toBe(false);
+	});
+
+	// The id is why this is a tombstone and not a deletion.
+	it('keeps the ticket reference across the whole sequence', () => {
+		setupWorkspace();
+
+		materializeAll([
+			event('create.tag', {id: TAG, name: 'bug'}),
+			event('add.issue.tag', {id: IDS.issue, tag: TAG}),
+			event('tombstone.tag', {id: TAG}),
+		] as const);
+
+		const issue = nodeRepo.getNode(IDS.issue);
+		expect(isTicketNode(issue!) ? issue.props.tags : undefined).toContain(TAG);
+	});
+
+	it('skips tagging with a deleted tag but still allows untagging', () => {
+		setupWorkspace();
+
+		materializeAll([
+			event('create.tag', {id: TAG, name: 'bug'}),
+			event('add.issue.tag', {id: IDS.issue, tag: TAG}),
+			event('tombstone.tag', {id: TAG}),
+		] as const);
+
+		expect(
+			isFail(materialize(event('add.issue.tag', {id: IDS.issue, tag: TAG}))),
+		).toBe(true);
+		expectOk(materialize(event('remove.issue.tag', {id: IDS.issue, tag: TAG})));
+	});
+
+	it('fails for a tag that does not exist', () => {
+		setupWorkspace();
+
+		expect(isFail(materialize(event('tombstone.tag', {id: IDS.missing})))).toBe(
+			true,
+		);
+		expect(
+			isFail(materialize(event('restore.tag', {id: IDS.missing, name: 'x'}))),
+		).toBe(true);
+	});
+});

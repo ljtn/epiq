@@ -45,6 +45,8 @@ export const formatLogAction = (action: string): string => {
 		'add.swimlane': 'Created swimlane',
 		'add.field': 'Added field',
 		'create.tag': 'Created tag',
+		'tombstone.tag': 'Deleted tag',
+		'restore.tag': 'Restored tag',
 		'create.contributor': 'Added contributor',
 		'rename.contributor': 'Renamed contributor',
 		'link.contributor.user': 'Linked contributor',
@@ -119,6 +121,11 @@ const formatEventDetails = (event: AppEvent): string => {
 				: 'unknown tag';
 		}
 
+		case 'tombstone.tag': {
+			const tag = getState().tags[event.payload.id];
+			return tag ? `"${tag.name}"` : '';
+		}
+
 		case 'add.issue.assignee': {
 			const contributor = getState().contributors[event.payload.assignee];
 			return contributor
@@ -138,6 +145,7 @@ const formatEventDetails = (event: AppEvent): string => {
 		case 'add.issue':
 		case 'add.field':
 		case 'create.tag':
+		case 'restore.tag':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'edit.title': {
@@ -186,11 +194,17 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 			return contributor ? contributor.name : '';
 		}
 
+		case 'tombstone.tag': {
+			const tag = getState().tags[event.payload.id];
+			return tag ? `"${tag.name}"` : '';
+		}
+
 		case 'add.board':
 		case 'add.swimlane':
 		case 'add.issue':
 		case 'add.field':
 		case 'create.tag':
+		case 'restore.tag':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'edit.title':

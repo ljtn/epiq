@@ -228,6 +228,8 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	'add.issue.tag': 'tagging',
 	'remove.issue.tag': 'tagging',
 	'create.tag': 'tagging',
+	'tombstone.tag': 'tagging',
+	'restore.tag': 'tagging',
 	'add.issue.assignee': 'assigning',
 	'remove.issue.assignee': 'assigning',
 	'create.contributor': 'assigning',

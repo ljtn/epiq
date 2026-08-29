@@ -593,6 +593,13 @@ export const App = () => {
 				);
 			}
 
+			if (
+				message.type === 'tag:remove:result' &&
+				message.payload?.status === 'fail'
+			) {
+				setRemoveError(`Couldn't delete a tag: ${message.payload.message}`);
+			}
+
 			if (message.type === 'contributors') {
 				const next = getResultValue<GuiContributor[]>(message.payload);
 				if (next) setContributors(next);
@@ -938,6 +945,12 @@ export const App = () => {
 	// Clears the display name only; the id and every assignment survive.
 	const removeContributor = (contributorId: string) => {
 		send('contributor:remove', {contributorId});
+	};
+
+	// Hides the tag everywhere; the id and every ticket reference survive. The
+	// state broadcast that follows drops it from every card at once.
+	const removeTag = (tagId: string) => {
+		send('tag:remove', {tagId});
 	};
 
 	// Invent a person who has no record at all in the in the event logs.
@@ -1712,6 +1725,7 @@ export const App = () => {
 								onAddAssignee={addIssueAssignee}
 								onAddExternalAssignee={addExternalIssueAssignee}
 								onRemoveContributor={removeContributor}
+								onDeleteTag={removeTag}
 								onRemoveAssignee={removeIssueAssignee}
 								onAddComment={addIssueComment}
 								onDeleteComment={deleteIssueComment}

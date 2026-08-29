@@ -23,6 +23,7 @@ export type GuiMessage =
 			type: 'contributor:remove';
 			payload: {contributorId: string};
 	  }
+	| {type: 'tag:remove'; payload: {tagId: string}}
 	| {
 			type: 'contributors:get';
 			// Optional board scope: omit for everyone in the workspace.

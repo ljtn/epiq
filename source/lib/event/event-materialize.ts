@@ -176,6 +176,8 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 			return Object.keys(event.payload.ranks);
 
 		case 'create.tag':
+		case 'tombstone.tag':
+		case 'restore.tag':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'link.contributor.user':
@@ -456,6 +458,34 @@ const materializeHandlers: MaterializeHandlers = {
 		}
 
 		return succeeded('Tag added', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'tombstone.tag': event => {
+		const {id} = event.payload;
+		const result = nodeRepo.tombstoneTag(id);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to delete tag', event);
+		}
+
+		return succeeded('Tag tombstoned', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'restore.tag': event => {
+		const {id, name} = event.payload;
+		const result = nodeRepo.restoreTag(id, name);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to restore tag', event);
+		}
+
+		return succeeded('Tag restored', {
 			action: event.action,
 			result: result.value,
 		});
