@@ -1,0 +1,3 @@
+# Worktrees are checked out inside the repo, so the format check would other-
+# wise scan another branch's working copy and fail on code that is not ours.
+.claude/
