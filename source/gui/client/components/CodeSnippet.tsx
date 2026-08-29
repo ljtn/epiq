@@ -14,6 +14,12 @@ const PIERRE_THEME = 'github-dark';
 const CODE_FONT =
 	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
 
+// Pinned on the highlighter through its own CSS variables so the gutter drawn
+// beside it lands on the same line grid.
+const LINE_HEIGHT = 20;
+const FONT_SIZE = 12;
+const BLOCK_GAP = 8;
+
 const bareButton: React.CSSProperties = {
 	background: 'transparent',
 	border: 'none',
@@ -29,6 +35,7 @@ export const CodeSnippet = ({
 	caption,
 	onOpen,
 	sha,
+	startLine,
 }: {
 	filePath: string;
 	snippet: string;
@@ -38,8 +45,13 @@ export const CodeSnippet = ({
 	caption?: string;
 	onOpen?: () => void;
 	sha?: string;
+	// Number the lines from here, as they were numbered where the snippet was
+	// taken from. The highlighter can only count from 1, so the gutter is
+	// drawn here beside it, on the same line grid.
+	startLine?: number;
 }) => {
 	const [collapsed, setCollapsed] = useState(false);
+	const lineCount = snippet.split('\n').length;
 
 	return (
 		<div
@@ -124,17 +136,50 @@ export const CodeSnippet = ({
 			)}
 
 			{!collapsed && (
-				<File
-					file={{name: filePath, contents: snippet}}
-					options={{
-						theme: PIERRE_THEME,
-						// The header already names the file and its line range, and the
-						// snippet's own numbers would start at 1 rather than at the lines
-						// it was taken from — actively misleading.
-						disableFileHeader: true,
-						disableLineNumbers: true,
-					}}
-				/>
+				<div
+					style={
+						{
+							display: 'flex',
+							'--diffs-line-height': `${LINE_HEIGHT}px`,
+							'--diffs-font-size': `${FONT_SIZE}px`,
+							'--diffs-gap-block': `${BLOCK_GAP}px`,
+						} as React.CSSProperties
+					}
+				>
+					{startLine !== undefined && (
+						<div
+							data-testid="snippet-gutter"
+							aria-hidden
+							style={{
+								flexShrink: 0,
+								padding: `${BLOCK_GAP}px 8px 0 12px`,
+								textAlign: 'right',
+								fontFamily: CODE_FONT,
+								fontSize: FONT_SIZE,
+								lineHeight: `${LINE_HEIGHT}px`,
+								color: GUI_THEME.dim,
+								userSelect: 'none',
+							}}
+						>
+							{Array.from({length: lineCount}, (_, index) => (
+								<div key={index}>{startLine + index}</div>
+							))}
+						</div>
+					)}
+					<div style={{flex: 1, minWidth: 0}}>
+						<File
+							file={{name: filePath, contents: snippet}}
+							options={{
+								theme: PIERRE_THEME,
+								// The header already names the file, and the highlighter's
+								// own numbers would start at 1 rather than at the lines the
+								// snippet was taken from — the gutter beside it has those.
+								disableFileHeader: true,
+								disableLineNumbers: true,
+							}}
+						/>
+					</div>
+				</div>
 			)}
 		</div>
 	);

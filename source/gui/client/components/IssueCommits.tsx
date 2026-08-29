@@ -463,11 +463,20 @@ type RowAnnotation =
 // to. Just the author and note — the full body (including the requoted
 // snippet, redundant here since the diff itself is right above it) lives in
 // the Comments tab.
-const DiffCommentAnnotation = ({entry}: {entry: DiffComment}) => {
+const DiffCommentAnnotation = ({
+	entry,
+	onHover,
+}: {
+	entry: DiffComment;
+	onHover: (hovering: boolean) => void;
+}) => {
 	const {comment, meta} = entry;
 
 	return (
 		<div
+			data-testid="diff-comment"
+			onMouseEnter={() => onHover(true)}
+			onMouseLeave={() => onHover(false)}
 			style={{
 				margin: '4px 0',
 				padding: '8px 10px',
@@ -535,6 +544,11 @@ const FileRow = ({
 	// the prompt is closed. Asked for rather than inferred from the note, so
 	// the note stays a note.
 	const [ticketTitle, setTicketTitle] = useState<string | null>(null);
+	// The range of the comment under the pointer, lit up so the reader can
+	// see which lines it is about.
+	const [hoveredRange, setHoveredRange] = useState<SelectedLineRange | null>(
+		null,
+	);
 
 	const clearSelection = () => {
 		setSelection(null);
@@ -644,12 +658,20 @@ const FileRow = ({
 					<FileDiffView
 						file={file}
 						diffStyle={diffStyle}
-						selectedLines={selection}
+						selectedLines={hoveredRange ?? selection}
 						onSelectionEnd={setSelection}
 						lineAnnotations={lineAnnotations}
 						renderAnnotation={({metadata}) =>
 							metadata.kind === 'comment' ? (
-								<DiffCommentAnnotation entry={metadata.entry} />
+								<DiffCommentAnnotation
+									entry={metadata.entry}
+									onHover={hovering => {
+										const {start, end, side, endSide} = metadata.entry.meta;
+										setHoveredRange(
+											hovering ? {start, end, side, endSide} : null,
+										);
+									}}
+								/>
 							) : (
 								<SelectionComposer
 									sha={sha}

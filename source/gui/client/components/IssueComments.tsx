@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 import {Button} from './Button';
 import {CodeSnippet} from './CodeSnippet';
+import {IconComment} from './IconComment';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
@@ -56,6 +57,9 @@ export const CommentBody = ({
 				snippet={snippet}
 				caption={caption}
 				sha={meta.sha}
+				// A range crossing from deletions into additions quotes both halves,
+				// which no single run of numbers describes.
+				startLine={meta.side === meta.endSide ? meta.start : undefined}
 				onOpen={
 					location && onOpenDiffLocation
 						? () => onOpenDiffLocation(location)
@@ -111,54 +115,67 @@ export const IssueComments = ({
 				<Empty>No comments</Empty>
 			) : (
 				<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
+					{/* Same card as the annotation a comment gets inside a diff
+					    (DiffCommentAnnotation), so the two read as one thing. */}
 					{ordered.map(comment => (
 						<div
 							key={comment.id}
 							style={{
+								display: 'flex',
+								alignItems: 'flex-start',
+								gap: 8,
 								border: `1px solid ${GUI_THEME.line}`,
-								borderRadius: 8,
-								padding: 12,
+								borderLeft: `2px solid ${GUI_THEME.accent}`,
+								borderRadius: 6,
+								padding: '8px 10px',
 								background: GUI_THEME.tertiary,
 							}}
 						>
-							<div
-								style={{
-									display: 'flex',
-									justifyContent: 'space-between',
-									gap: 12,
-									marginBottom: 8,
-								}}
+							<span
+								style={{color: GUI_THEME.accent, flexShrink: 0, marginTop: 1}}
 							>
-								<div style={{color: GUI_THEME.secondary, fontSize: 11}}>
-									{comment.author.name ?? 'unknown'}
-									{comment.createdAt && (
-										<span style={{color: GUI_THEME.dim2}}>
-											{' '}
-											· {timeAgo(comment.createdAt)}
-										</span>
-									)}
+								<IconComment size={12} />
+							</span>
+							<div style={{flex: 1, minWidth: 0}}>
+								<div
+									style={{
+										display: 'flex',
+										justifyContent: 'space-between',
+										gap: 12,
+										marginBottom: 4,
+									}}
+								>
+									<div style={{color: GUI_THEME.secondary, fontSize: 11}}>
+										{comment.author.name ?? 'unknown'}
+										{comment.createdAt && (
+											<span style={{color: GUI_THEME.dim2}}>
+												{' '}
+												· {timeAgo(comment.createdAt)}
+											</span>
+										)}
+									</div>
+
+									{!readonly &&
+										comment.author.id === whoAmI.id &&
+										onDeleteComment && (
+											<Button
+												variant="ghost"
+												onClick={event => {
+													event.preventDefault();
+													event.stopPropagation();
+													onDeleteComment(issueId, comment.id);
+												}}
+											>
+												×
+											</Button>
+										)}
 								</div>
 
-								{!readonly &&
-									comment.author.id === whoAmI.id &&
-									onDeleteComment && (
-										<Button
-											variant="ghost"
-											onClick={event => {
-												event.preventDefault();
-												event.stopPropagation();
-												onDeleteComment(issueId, comment.id);
-											}}
-										>
-											×
-										</Button>
-									)}
+								<CommentBody
+									body={comment.body}
+									onOpenDiffLocation={onOpenDiffLocation}
+								/>
 							</div>
-
-							<CommentBody
-								body={comment.body}
-								onOpenDiffLocation={onOpenDiffLocation}
-							/>
 						</div>
 					))}
 				</div>
