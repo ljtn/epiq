@@ -22,6 +22,10 @@ import {IssueDetails} from './components/IssueDetails';
 import {
 	FileTicketParams,
 	formatSelectionLabel,
+	clearDiffLocationParams,
+	DiffLocation,
+	readDiffLocationParams,
+	writeDiffLocationParams,
 } from './components/IssueCommits';
 import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
@@ -226,6 +230,9 @@ export const App = () => {
 		tabParam === 'comments' || tabParam === 'history' || tabParam === 'code'
 			? tabParam
 			: 'overview';
+	// Where a followed comment permalink points, if any. Read straight off the
+	// URL so the deep link survives a reload rather than living in state.
+	const diffFocus = readDiffLocationParams(searchParams);
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs (full ids in old links still resolve).
@@ -352,8 +359,22 @@ export const App = () => {
 
 	// Keyed on the issue alone, not the tab: switching to Code and back must not
 	// discard diffs already loaded there, only a genuinely different ticket should.
+	//
+	// The first ticket to appear is not a *change*, and clearing then is not
+	// harmless: children mount before this parent effect runs, so a Commits tab
+	// that requested a diff on mount (following a permalink) would have that
+	// request's state wiped straight back out, leaving the file expanded and
+	// permanently blank.
+	const previousIssueId = useRef<string | undefined>(undefined);
+
 	useEffect(() => {
-		setIssueCommitDiffs({});
+		const changed =
+			previousIssueId.current !== undefined &&
+			previousIssueId.current !== selectedIssue?.id;
+
+		previousIssueId.current = selectedIssue?.id;
+
+		if (changed) setIssueCommitDiffs({});
 	}, [selectedIssue?.id]);
 
 	// Fetched lazily on entering the Code tab rather than alongside issue:get
@@ -755,10 +776,27 @@ export const App = () => {
 			prev => {
 				const next = new URLSearchParams(prev);
 				next.set('tab', nextTab);
+				// A deep link belongs to the Commits tab it points into; leaving it
+				// on the URL after a deliberate tab change would drag the reader
+				// back to it the moment they returned.
+				clearDiffLocationParams(next);
 				return next;
 			},
 			{replace: true},
 		);
+	};
+
+	// Following a comment's file/line reference: the location goes in the URL
+	// rather than into state, so the resulting view survives a reload and can
+	// be handed to someone else. Pushed, not replaced — this is a navigation
+	// the reader should be able to come back from.
+	const openDiffLocation = (location: DiffLocation) => {
+		setSearchParams(prev => {
+			const next = new URLSearchParams(prev);
+			next.set('tab', 'code');
+			writeDiffLocationParams(next, location);
+			return next;
+		});
 	};
 
 	const editIssueTitle = (issueId: string, title: string) => {
@@ -1614,6 +1652,8 @@ export const App = () => {
 							onAddComment={addIssueComment}
 							onDeleteComment={deleteIssueComment}
 							onFileTicket={fileTicketFromSelection}
+							onOpenDiffLocation={openDiffLocation}
+							diffFocus={diffFocus}
 							attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
 							attachmentUploadStatus={attachmentUploadStatus}
 							onUploadAttachments={uploadIssueAttachments}
