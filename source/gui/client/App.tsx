@@ -233,6 +233,15 @@ export const App = () => {
 	const selectedBoardIdRef = useRef<string | null>(selectedBoardId);
 	selectedBoardIdRef.current = selectedBoardId;
 
+	// Same reasoning as selectedBoardIdRef, for navigate: it is not guaranteed
+	// referentially stable across renders, and having it in the socket effect's
+	// deps meant every call to navigate() — including a same-board ticket
+	// switch — tore the whole connection down and reopened it. Reading it from
+	// a ref lets the effect drop that dependency and stay mounted across a
+	// plain ticket switch.
+	const navigateRef = useRef(navigate);
+	navigateRef.current = navigate;
+
 	const boardSlug = selectedBoard?.ref ?? boardId;
 
 	const selectedIssue = state && issueId ? findIssue(state, issueId) : null;
@@ -452,7 +461,7 @@ export const App = () => {
 				const created = getResultValue<{id: string}>(message.payload);
 
 				if (created && boardId) {
-					void navigate(
+					void navigateRef.current(
 						`/board/${boardId}/issue/${nodeRef(created.id)}?tab=overview`,
 					);
 				}
@@ -619,8 +628,9 @@ export const App = () => {
 			socket.close();
 		};
 		// `reconnectTick` is what re-runs this after a drop; the scrubber re-asks
-		// for its window off `connected`, so history comes back with it.
-	}, [boardId, navigate, reconnectTick]);
+		// for its window off `connected`, so history comes back with it. `navigate`
+		// is deliberately excluded — see navigateRef above.
+	}, [boardId, reconnectTick]);
 
 	useEffect(() => {
 		const first = state?.boards?.[0];
