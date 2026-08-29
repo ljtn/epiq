@@ -208,10 +208,12 @@ const requireModifierOrInputStr =
 			? invalid({message: hint, completionWordList: []})
 			: valid(onOk ?? CONFIRM_MSG);
 
-const validateOpenProjectCommand: Validator = ({modifier}) => {
+// A list number lands in `modifier`; a path (or a number the list does not
+// have) is not a known modifier, so the parser leaves it in `inputString`.
+const validateOpenProjectCommand: Validator = ({modifier, inputString}) => {
 	const choices = getOpenProjectModifiers();
 
-	if (!isBlank(modifier)) return valid(CONFIRM_MSG);
+	if (!isBlank(modifier) || !isBlank(inputString)) return valid(CONFIRM_MSG);
 
 	return invalid({
 		message: choices.length
