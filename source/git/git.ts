@@ -4,6 +4,7 @@ import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {logger} from '../logger.js';
 import {git} from './git-commands.js';
 import {ORIGIN, getStateBranch} from './git-constants.js';
+import {assertLogOnlyGrew} from './log-integrity.js';
 import {
 	EMPTY_TREE_SHA,
 	ensureDir,
@@ -511,6 +512,15 @@ export const stageStateBranchOwnEventFile = async ({
 	if (!fs.existsSync(eventAbsolutePath)) {
 		return succeeded('No event file to stage', null);
 	}
+
+	// Before anything is staged, not after: a damaged working copy must not
+	// reach the index, let alone a commit that autosync would push.
+	const integrity = await assertLogOnlyGrew({
+		stateBranchRoot,
+		relativePath: eventPath,
+		workingContent: fs.readFileSync(eventAbsolutePath, 'utf8'),
+	});
+	if (isFail(integrity)) return failed(integrity.message);
 
 	const stageResult = await git.stage({
 		cwd: stateBranchRoot,
