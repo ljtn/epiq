@@ -33,14 +33,14 @@ test('bulk actions only offer what applies to the selection', async ({
 		await page.getByTitle('Add issue').first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByPlaceholder('issue name').press('Enter');
-		await page.waitForTimeout(1200);
+		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 		await page.goto(boardUrl);
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 	}
 
 	await page.evaluate(pick(titles[0]!));
 	await page.evaluate(pick(titles[1]!));
-	await page.waitForTimeout(400);
+	await expect(page.locator('aside')).toContainText('2 tickets selected');
 
 	// Nothing picked is closed, so reopen has nothing to act on.
 	expect(await page.evaluate<string[]>(actionButtons)).toEqual([
@@ -50,7 +50,7 @@ test('bulk actions only offer what applies to the selection', async ({
 	// Closing takes them to the Closed board, where the pair is all closed and
 	// the offer is the other way round.
 	await page.getByRole('button', {name: 'close 2 tickets'}).click();
-	await page.waitForTimeout(2000);
+	await expect(page.getByText(titles[0]!, {exact: true})).toHaveCount(0);
 
 	await page.getByTestId('board-switcher').click();
 	await page
@@ -62,7 +62,7 @@ test('bulk actions only offer what applies to the selection', async ({
 
 	await page.evaluate(pick(titles[0]!));
 	await page.evaluate(pick(titles[1]!));
-	await page.waitForTimeout(400);
+	await expect(page.locator('aside')).toContainText('2 tickets selected');
 
 	expect(await page.evaluate<string[]>(actionButtons)).toEqual([
 		'reopen 2 tickets',

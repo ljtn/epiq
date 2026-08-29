@@ -39,15 +39,14 @@ test('picking several tickets opens a bulk overview', async ({
 		await page.getByRole('button', {name: '+', exact: true}).first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByRole('button', {name: 'create', exact: true}).click();
-		await page.waitForTimeout(1500);
+		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 		await page.goto(boardUrl);
-		await page.waitForTimeout(500);
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 	}
 
 	await page.evaluate(pick(titles[0]!));
 	await page.evaluate(pick(titles[1]!));
-	await page.waitForTimeout(300);
+	await expect(page.locator('aside')).toContainText('2 tickets selected');
 
 	const text = await page.evaluate<string | null>(panel);
 	console.log('[panel]', text);
@@ -74,9 +73,14 @@ test('picking several tickets opens a bulk overview', async ({
 		})()
 	`);
 
-	await page.waitForTimeout(2500);
+	await expect(page.locator('aside')).toContainText('bulky');
 	await page.goto(boardUrl);
-	await page.waitForTimeout(1200);
+	await expect(
+		page
+			.locator('div[draggable="true"]')
+			.filter({hasText: `${tag}-`})
+			.filter({hasText: 'bulky'}),
+	).toHaveCount(2);
 
 	const tagged = await page.evaluate<number>(`
 		[...document.querySelectorAll('div[draggable="true"]')]
@@ -105,19 +109,18 @@ test('a plain click then a shift-click selects both', async ({
 		await page.getByRole('button', {name: '+', exact: true}).first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByRole('button', {name: 'create', exact: true}).click();
-		await page.waitForTimeout(1500);
+		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 		await page.goto(boardUrl);
-		await page.waitForTimeout(500);
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 	}
 
 	// Opens the ticket without picking it.
 	await page.evaluate(click(titles[0]!, false));
-	await page.waitForTimeout(400);
+	await expect(page.locator('aside')).toContainText(titles[0]!);
 
 	// Extends from the open one rather than starting over.
 	await page.evaluate(click(titles[1]!, true));
-	await page.waitForTimeout(400);
+	await expect(page.locator('aside')).toContainText('2 tickets selected');
 
 	const text = await page.evaluate<string | null>(panel);
 	console.log('[flow panel]', text);
@@ -142,14 +145,14 @@ test('a click on the board clears the selection', async ({
 		await page.getByRole('button', {name: '+', exact: true}).first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByRole('button', {name: 'create', exact: true}).click();
-		await page.waitForTimeout(1500);
+		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 		await page.goto(boardUrl);
-		await page.waitForTimeout(500);
+		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
 	}
 
 	await page.evaluate(click(titles[0]!, false));
 	await page.evaluate(click(titles[1]!, true));
-	await page.waitForTimeout(400);
+	await expect(page.locator('aside')).toContainText('2 tickets selected');
 
 	expect(await page.evaluate<string | null>(panel)).toContain(
 		'2 tickets selected',
@@ -164,7 +167,7 @@ test('a click on the board clears the selection', async ({
 			return true;
 		})()
 	`);
-	await page.waitForTimeout(400);
+	await expect(page.locator('aside')).not.toContainText('2 tickets selected');
 
 	const after = await page.evaluate<string | null>(panel);
 	console.log('[after board click]', after);
