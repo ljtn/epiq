@@ -17,6 +17,7 @@ import {CopyRef} from './CopyRef';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
 import {FileDiffView} from './DiffPanel';
+import {FileTicketModal} from './FileTicketModal';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {IconComment} from './IconComment';
@@ -156,6 +157,17 @@ export const findDiffCommentsForFile = (
 		return meta && meta.filePath === filePath ? [{comment, meta}] : [];
 	});
 
+// What a "File ticket" submission carries up to the caller that owns the
+// actual issues:create call and the origin-ticket back-comment — everything
+// needed to build both without the caller re-deriving any of it.
+export type FileTicketParams = {
+	filePath: string;
+	range: SelectedLineRange;
+	snippet: string;
+	title: string;
+	note: string;
+};
+
 // The timeline rail: a dot per commit, in the scrubber's own commit-series
 // color, connected to the next by a line. RAIL_DOT_OFFSET lines the dot up
 // with the header's text (padding-top plus half its line height), not the
@@ -237,18 +249,23 @@ const SelectionToolbar = ({
 	file,
 	selection,
 	onAddComment,
+	onFileTicket,
 	onClear,
 }: {
 	file: GuiCommitDiffFile;
 	selection: SelectedLineRange;
 	onAddComment?: (body: string) => void;
+	onFileTicket?: (params: FileTicketParams) => void;
 	onClear: () => void;
 }) => {
 	const [composing, setComposing] = useState(false);
+	const [filing, setFiling] = useState(false);
 	const [note, setNote] = useState('');
 
+	const snippet = dedent(extractSnippet(file, selection));
+	const selectionLabel = `${file.path} ${formatSelectionLabel(selection)}`;
+
 	const submit = () => {
-		const snippet = dedent(extractSnippet(file, selection));
 		const trimmedNote = note.trim();
 		// Matches extractSnippet's own default: a range without a reported side
 		// is expected to be a modern-git edge case at worst, not a real gap.
@@ -276,6 +293,27 @@ const SelectionToolbar = ({
 		onAddComment?.(body);
 		onClear();
 	};
+
+	if (filing) {
+		return (
+			<FileTicketModal
+				defaultTitle={selectionLabel}
+				snippetLabel={selectionLabel}
+				snippet={snippet}
+				onCreate={({title, note: filingNote}) => {
+					onFileTicket?.({
+						filePath: file.path,
+						range: selection,
+						snippet,
+						title,
+						note: filingNote,
+					});
+					onClear();
+				}}
+				onClose={onClear}
+			/>
+		);
+	}
 
 	return (
 		<div
@@ -308,11 +346,11 @@ const SelectionToolbar = ({
 								Comment
 							</Button>
 						)}
-						{/* File-ticket filing lands in a follow-up — the button previews
-						    the intended shape rather than being omitted outright. */}
-						<Button variant="default" disabled title="Coming soon">
-							File ticket
-						</Button>
+						{onFileTicket && (
+							<Button variant="default" onClick={() => setFiling(true)}>
+								File ticket
+							</Button>
+						)}
 						<Button variant="ghost" onClick={onClear}>
 							×
 						</Button>
@@ -400,6 +438,7 @@ const FileRow = ({
 	onToggle,
 	diffStyle,
 	onAddComment,
+	onFileTicket,
 	comments,
 }: {
 	file: GuiCommitDiffFile;
@@ -407,6 +446,7 @@ const FileRow = ({
 	onToggle: () => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
+	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
@@ -486,6 +526,7 @@ const FileRow = ({
 							file={file}
 							selection={selection}
 							onAddComment={onAddComment}
+							onFileTicket={onFileTicket}
 							onClear={() => setSelection(null)}
 						/>
 					)}
@@ -505,6 +546,7 @@ const CommitRow = ({
 	onSetAllFilesExpanded,
 	diffStyle,
 	onAddComment,
+	onFileTicket,
 	comments,
 }: {
 	commit: GuiRefCommitEntry;
@@ -516,6 +558,7 @@ const CommitRow = ({
 	onSetAllFilesExpanded: (filePaths: string[], expand: boolean) => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
+	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
 }) => {
 	const [hovered, setHovered] = useState(false);
@@ -633,6 +676,7 @@ const CommitRow = ({
 							onToggle={() => onToggleFile(file.path)}
 							diffStyle={diffStyle}
 							onAddComment={onAddComment}
+							onFileTicket={onFileTicket}
 							comments={comments}
 						/>
 					))}
@@ -663,6 +707,7 @@ export const IssueCommits = ({
 	onLoadDiff,
 	diffStyle,
 	onAddComment,
+	onFileTicket,
 	comments,
 }: {
 	issueRef: string;
@@ -673,6 +718,7 @@ export const IssueCommits = ({
 	onLoadDiff: (sha: string) => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
+	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
@@ -822,6 +868,7 @@ export const IssueCommits = ({
 							}
 							diffStyle={diffStyle}
 							onAddComment={onAddComment}
+							onFileTicket={onFileTicket}
 							comments={comments}
 						/>
 					</div>
