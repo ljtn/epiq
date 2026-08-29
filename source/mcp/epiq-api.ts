@@ -573,6 +573,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 	return succeeded('Created issue', {
 		id: issueId,
+		ref: nodeRef(issueId),
 		title,
 		parentId: input.parentId,
 		description,
@@ -614,7 +615,10 @@ export const closeIssue = async (input: CloseIssueInput) => {
 	);
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded('Closed issue', {id: input.issueId});
+	return succeeded('Closed issue', {
+		id: input.issueId,
+		ref: nodeRef(input.issueId),
+	});
 };
 
 export const reopenIssue = async (input: CloseIssueInput) => {
@@ -682,6 +686,7 @@ export const reopenIssue = async (input: CloseIssueInput) => {
 
 	return succeeded('Reopened issue', {
 		id: issue.id,
+		ref: nodeRef(issue.id),
 		parentId: previousParent.id,
 	});
 };
@@ -741,6 +746,7 @@ export const moveIssue = async (
 
 	return succeeded('Moved issue', {
 		id: input.issueId,
+		ref: nodeRef(input.issueId),
 		parentId: input.parentId,
 	});
 };
@@ -803,6 +809,7 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 
 	return succeeded('Created swimlane', {
 		id: swimlaneId,
+		ref: nodeRef(swimlaneId),
 		title,
 		boardId: input.boardId,
 	});
@@ -834,6 +841,7 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 	if (swimlane.title === title) {
 		return succeeded('No changes made', {
 			id: input.swimlaneId,
+			ref: nodeRef(input.swimlaneId),
 			title,
 		});
 	}
@@ -856,6 +864,7 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 
 	return succeeded('Edited swimlane title', {
 		id: input.swimlaneId,
+		ref: nodeRef(input.swimlaneId),
 		title,
 	});
 };
@@ -915,6 +924,7 @@ export const moveSwimlane = async (
 
 	return succeeded('Moved swimlane', {
 		id: input.swimlaneId,
+		ref: nodeRef(input.swimlaneId),
 		boardId: input.boardId,
 	});
 };
@@ -951,7 +961,10 @@ export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
 	);
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded('Deleted swimlane', {id: input.swimlaneId});
+	return succeeded('Deleted swimlane', {
+		id: input.swimlaneId,
+		ref: nodeRef(input.swimlaneId),
+	});
 };
 
 export const sync = async (input: SyncInput = {}) => {
@@ -1208,6 +1221,7 @@ export const editIssueDescription = async (
 	if (currentDescription === input.description) {
 		return succeeded('No changes made', {
 			id: input.issueId,
+			ref: nodeRef(input.issueId),
 			description: currentDescription,
 		});
 	}
@@ -1231,6 +1245,7 @@ export const editIssueDescription = async (
 
 	return succeeded('Edited issue description', {
 		id: input.issueId,
+		ref: nodeRef(input.issueId),
 		description: input.description,
 	});
 };
@@ -1263,6 +1278,7 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 	if (issue.title === title) {
 		return succeeded('No changes made', {
 			id: input.issueId,
+			ref: nodeRef(input.issueId),
 			title,
 		});
 	}
@@ -1286,6 +1302,7 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 
 	return succeeded('Edited issue title', {
 		id: input.issueId,
+		ref: nodeRef(input.issueId),
 		title,
 	});
 };
@@ -1352,6 +1369,7 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 
 	return succeeded('Added issue tag', {
 		id: input.issueId,
+		ref: nodeRef(input.issueId),
 		tag: {id: tagId, name: tagName},
 	});
 };
@@ -1395,6 +1413,7 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 
 	return succeeded('Removed issue tag', {
 		id: input.issueId,
+		ref: nodeRef(input.issueId),
 		tagId: input.tagId,
 	});
 };
@@ -1482,6 +1501,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 		return succeeded('Added issue assignee', {
 			id: input.issueId,
+			ref: nodeRef(input.issueId),
 			assignee: {id: assignee.id, name: assignee.name},
 		});
 	}
@@ -1565,6 +1585,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	return succeeded('Added issue assignee', {
 		id: input.issueId,
+		ref: nodeRef(input.issueId),
 		assignee: {id: assigneeId, name: resolvedName},
 	});
 };
@@ -1809,6 +1830,7 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 
 	return succeeded('Removed issue assignee', {
 		id: input.issueId,
+		ref: nodeRef(input.issueId),
 		assigneeId: input.assigneeId,
 	});
 };

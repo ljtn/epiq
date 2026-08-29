@@ -15,6 +15,7 @@ import {
 } from '../../lib/utils/text.limits.js';
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
+import {nodeRef} from '../../lib/utils/node-ref.js';
 
 // Fixture ids have to be real ULIDs: the projection decodes every one, and
 // decodeTime is strict. Crockford base32 has no I, L, O or U, so the label is
@@ -493,6 +494,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: expect.any(String),
+				ref: expect.any(String),
 				title: 'Backlog',
 				boardId: 'board-1',
 			});
@@ -535,7 +537,11 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.value).toEqual({id: 'swimlane-1', title: 'In review'});
+			expect(result.value).toEqual({
+				id: 'swimlane-1',
+				ref: nodeRef('swimlane-1'),
+				title: 'In review',
+			});
 		}
 
 		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
@@ -587,6 +593,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: 'swimlane-1',
+				ref: nodeRef('swimlane-1'),
 				boardId: 'board-2',
 			});
 		}
@@ -614,7 +621,10 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (!isFail(result)) {
-			expect(result.value).toEqual({id: 'swimlane-2'});
+			expect(result.value).toEqual({
+				id: 'swimlane-2',
+				ref: nodeRef('swimlane-2'),
+			});
 		}
 
 		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
@@ -728,6 +738,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: fixtureId('issue-created-1'),
+				ref: nodeRef(fixtureId('issue-created-1')),
 				title: 'New issue',
 				parentId: 'swimlane-1',
 				description: '',
@@ -863,6 +874,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: fixtureId('issue-created-1'),
+				ref: nodeRef(fixtureId('issue-created-1')),
 				title: 'New issue',
 				parentId: 'swimlane-1',
 				description: 'Some details',
@@ -915,6 +927,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: fixtureId('issue-1'),
+				ref: nodeRef(fixtureId('issue-1')),
 			});
 		}
 
@@ -944,6 +957,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: fixtureId('issue-1'),
+				ref: nodeRef(fixtureId('issue-1')),
 				parentId: 'swimlane-2',
 			});
 		}
@@ -1019,6 +1033,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: fixtureId('issue-1'),
+				ref: nodeRef(fixtureId('issue-1')),
 				title: 'Fix critical bug',
 			});
 		}
@@ -1905,6 +1920,7 @@ describe('mcp tools', () => {
 		if (!isFail(result)) {
 			expect(result.value).toEqual({
 				id: fixtureId('issue-closed-1'),
+				ref: nodeRef(fixtureId('issue-closed-1')),
 				parentId: 'swimlane-1',
 			});
 		}
