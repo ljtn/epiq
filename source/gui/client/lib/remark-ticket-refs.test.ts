@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest';
+import {defaultUrlTransform} from 'react-markdown';
 import {remarkTicketRefs, TICKET_REF_URL_PREFIX} from './remark-ticket-refs';
 
 type Node = {
@@ -134,5 +135,15 @@ describe('remarkTicketRefs', () => {
 		expect(run(tree).children).toEqual([
 			{type: 'code', value: 'const a = QDNP1JS;'},
 		]);
+	});
+});
+
+// Regression guard: react-markdown sanitizes hrefs whose protocol isn't on its
+// safe list, and it strips this marker. Caught live — the anchor renderer never
+// saw the prefix, so a ref rendered as an ordinary link and opened a blank tab.
+// MarkdownContent therefore passes its own urlTransform; this pins the reason.
+describe('marker vs. react-markdown url sanitizing', () => {
+	it('is stripped by the default transform, so a custom one is required', () => {
+		expect(defaultUrlTransform(`${TICKET_REF_URL_PREFIX}QDNP1JS`)).toBe('');
 	});
 });
