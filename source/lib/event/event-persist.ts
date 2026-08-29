@@ -22,6 +22,36 @@ const SCHEMA_VERSION = 1;
 
 const getNextId = monotonicFactory();
 
+// The largest timestamp ULID can encode. An id at this value has no encodable
+// successor.
+const ULID_TIME_MAX = 281474976710655;
+
+/**
+ * The edge's timestamp is a lower bound for the next id and nothing more —
+ * ordering comes from `refId`, not from this number.
+ *
+ * An edge whose id does not decode, or decodes to ULID's ceiling, has no
+ * usable successor: `decodeTime(edge) + 1` either throws on the spot or
+ * exceeds what `encodeTime` accepts. Letting that fail the mint left the board
+ * permanently unwritable on every machine at once, with no way back, because
+ * the log is append-only. So fall back to the wall clock rather than refuse.
+ * Neither shape can be produced by a well-behaved writer.
+ */
+const seedFromEdgeRef = (edgeRef: string): number => {
+	const now = Date.now();
+
+	let edgeTime: number;
+	try {
+		edgeTime = decodeTime(edgeRef);
+	} catch {
+		return now;
+	}
+
+	if (edgeTime >= ULID_TIME_MAX) return now;
+
+	return Math.max(now, edgeTime + 1);
+};
+
 type Id = string;
 type RefId = string;
 export type CompositeId = [Id, RefId | null];
@@ -185,7 +215,7 @@ export function persist({
 		if (isFail(edgeRef)) return failed(edgeRef.message);
 
 		const newId = edgeRef.value
-			? getNextId(Math.max(Date.now(), decodeTime(edgeRef.value) + 1))
+			? getNextId(seedFromEdgeRef(edgeRef.value))
 			: getNextId();
 
 		const entryResult = toPersistedEvent(stripActor(event), [

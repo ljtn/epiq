@@ -172,6 +172,36 @@ describe('event persist', () => {
 
 		expect(secondLine.id[1]).toBe(firstLine.id[0]);
 	});
+
+	// The edge is only a lower bound for the next id. An edge that cannot have
+	// a successor used to throw inside the mint, which left every machine
+	// unable to write anything ever again — the log is append-only, so there
+	// was no way back.
+	const writeEdge = (id: string) => {
+		const eventsDir = path.join(rootDir, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, '01ARZ3NDEKTSV4RRFFQ69G5FAV.mallory.jsonl'),
+			JSON.stringify({v: 1, id: [id, null], 'lock.node': {id: 'x'}}) + '\n',
+		);
+	};
+
+	it('still writes when the edge sits at the ULID timestamp ceiling', () => {
+		// encodeTime(281474976710655) === '7ZZZZZZZZZ'
+		writeEdge('7ZZZZZZZZZZZZZZZZZZZZZZZZZ');
+
+		const result = persist({event: event(), rootDir});
+
+		expect(isFail(result)).toBe(false);
+	});
+
+	it('still writes when the edge id is not a decodable ULID', () => {
+		writeEdge('not-a-ulid');
+
+		const result = persist({event: event(), rootDir});
+
+		expect(isFail(result)).toBe(false);
+	});
 });
 
 describe('schema version support', () => {
