@@ -19,6 +19,7 @@ import {
 } from '../../mcp/epiq-api.js';
 import {getTimeTravelStatus, runExclusive} from '../../mcp/epiq-time-travel.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
+import {refuseCrossSiteRequest} from './lib/origin-guard.js';
 import {setupWebsocket} from './lib/websocket.js';
 
 const distRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -70,10 +71,13 @@ const readJsonBody = async <T>(
 	maxBytes = 1024 * 1024,
 ): Promise<T> =>
 	new Promise((resolve, reject) => {
-		let body = '';
+		// Buffers, decoded once at the end: `body += chunk` decodes each chunk on
+		// its own, so a character whose bytes straddle two socket reads came out
+		// as replacement characters — silently, and then straight into the log.
+		const chunks: Buffer[] = [];
 		let received = 0;
 
-		req.on('data', chunk => {
+		req.on('data', (chunk: Buffer) => {
 			received += chunk.length;
 
 			if (received > maxBytes) {
@@ -82,10 +86,12 @@ const readJsonBody = async <T>(
 				return;
 			}
 
-			body += chunk;
+			chunks.push(chunk);
 		});
 
 		req.on('end', () => {
+			const body = Buffer.concat(chunks).toString('utf8');
+
 			try {
 				resolve(body ? JSON.parse(body) : ({} as T));
 			} catch {
@@ -201,8 +207,27 @@ export const startGuiServer = async (input: {
 	// wrapper so the tests run the same configuration.
 	setVirtualNodesEnabled(false);
 
+	// Known only after `listen`, and the handler below closes over it.
+	let boundPort = 0;
+
 	const server = http.createServer(async (req, res) => {
 		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+
+		const refusal = refuseCrossSiteRequest(
+			{
+				method: req.method,
+				origin: req.headers.origin,
+				contentType: req.headers['content-type'],
+			},
+			boundPort,
+		);
+
+		if (refusal) {
+			return sendJson(res, refusal.status, {
+				isError: true,
+				message: refusal.message,
+			});
+		}
 
 		if (url.pathname === '/api/state') {
 			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
@@ -415,7 +440,7 @@ export const startGuiServer = async (input: {
 	});
 
 	try {
-		await listen(server);
+		boundPort = await listen(server);
 	} catch (error) {
 		return failed(
 			error instanceof Error
@@ -430,6 +455,7 @@ export const startGuiServer = async (input: {
 
 	setupWebsocket(server, input.repoRoot, {
 		onStateChanged: () => guiAutoSync.queueSync(),
+		getPort: () => boundPort,
 	});
 
 	server.on('close', guiAutoSync.dispose);

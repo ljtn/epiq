@@ -3,6 +3,15 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {z} from 'zod';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {
+	MAX_ASSIGNEE_NAME_LENGTH,
+	MAX_ASSIGNEES_PER_CREATE,
+	MAX_COMMENT_LENGTH,
+	MAX_DESCRIPTION_LENGTH,
+	MAX_TAG_NAME_LENGTH,
+	MAX_TAGS_PER_CREATE,
+	MAX_TITLE_LENGTH,
+} from '../lib/utils/text.limits.js';
+import {
 	addIssueAssignee,
 	getBoardContributors,
 	tombstoneContributor,
@@ -101,7 +110,7 @@ export const createMcpServer = () => {
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				boardId: z.string().min(1),
-				title: z.string().min(1),
+				title: z.string().min(1).max(MAX_TITLE_LENGTH),
 			}),
 		},
 		async input => resultJson(await createSwimlane(input)),
@@ -114,7 +123,7 @@ export const createMcpServer = () => {
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				swimlaneId: z.string().min(1),
-				title: z.string().min(1),
+				title: z.string().min(1).max(MAX_TITLE_LENGTH),
 			}),
 		},
 		async input => resultJson(await editSwimlaneTitle(input)),
@@ -166,12 +175,18 @@ export const createMcpServer = () => {
 			description:
 				'Create an Epiq issue. Optionally set description, tags, and assignees atomically in the same call instead of separate follow-up edits.',
 			inputSchema: z.object({
-				title: z.string().min(1),
+				title: z.string().min(1).max(MAX_TITLE_LENGTH),
 				parentId: z.string().min(1),
 				repoRoot: z.string().optional(),
-				description: z.string().optional(),
-				tagNames: z.array(z.string()).optional(),
-				assigneeNames: z.array(z.string()).optional(),
+				description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
+				tagNames: z
+					.array(z.string().max(MAX_TAG_NAME_LENGTH))
+					.max(MAX_TAGS_PER_CREATE)
+					.optional(),
+				assigneeNames: z
+					.array(z.string().max(MAX_ASSIGNEE_NAME_LENGTH))
+					.max(MAX_ASSIGNEES_PER_CREATE)
+					.optional(),
 			}),
 		},
 		async input => resultJson(await createIssue(input)),
@@ -183,7 +198,7 @@ export const createMcpServer = () => {
 			description: 'Edit the markdown description of an Epiq issue',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
-				description: z.string(),
+				description: z.string().max(MAX_DESCRIPTION_LENGTH),
 				repoRoot: z.string().optional(),
 			}),
 		},
@@ -196,7 +211,7 @@ export const createMcpServer = () => {
 			description: 'Edit the title of an Epiq issue',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
-				title: z.string().min(1),
+				title: z.string().min(1).max(MAX_TITLE_LENGTH),
 				repoRoot: z.string().optional(),
 			}),
 		},
@@ -210,7 +225,7 @@ export const createMcpServer = () => {
 				'Add a tag to an Epiq issue, creating the tag if it does not exist',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
-				tagName: z.string().min(1),
+				tagName: z.string().min(1).max(MAX_TAG_NAME_LENGTH),
 				repoRoot: z.string().optional(),
 			}),
 		},
@@ -278,7 +293,11 @@ export const createMcpServer = () => {
 				issueId: z.string().min(1),
 				assigneeId: z.string().min(1).optional(),
 				self: z.boolean().optional(),
-				assigneeName: z.string().min(1).optional(),
+				assigneeName: z
+					.string()
+					.min(1)
+					.max(MAX_ASSIGNEE_NAME_LENGTH)
+					.optional(),
 				createUnlinked: z.boolean().optional(),
 				repoRoot: z.string().optional(),
 			}),
@@ -305,7 +324,7 @@ export const createMcpServer = () => {
 			description: 'Add a comment to an Epiq issue',
 			inputSchema: z.object({
 				issueId: z.string().min(1),
-				body: z.string().min(1),
+				body: z.string().min(1).max(MAX_COMMENT_LENGTH),
 				repoRoot: z.string().optional(),
 			}),
 		},

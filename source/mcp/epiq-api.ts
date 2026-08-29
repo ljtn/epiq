@@ -40,7 +40,16 @@ import {
 } from '../lib/model/app-state.model.js';
 import {describeEvent} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
-import {MAX_COMMENT_LENGTH} from '../lib/utils/comment.limits.js';
+import {
+	MAX_ASSIGNEE_NAME_LENGTH,
+	MAX_ASSIGNEES_PER_CREATE,
+	MAX_COMMENT_LENGTH,
+	MAX_DESCRIPTION_LENGTH,
+	MAX_TAG_NAME_LENGTH,
+	MAX_TAGS_PER_CREATE,
+	MAX_TITLE_LENGTH,
+	tooLong,
+} from '../lib/utils/text.limits.js';
 import {nodeRef} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {
@@ -433,6 +442,31 @@ export const createIssue = async (input: CreateIssueInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
+	// The other three title paths all sanitize; this one used to write the raw
+	// input, so a newline or a control character landed in the log for good.
+	const title = sanitizeInlineText(input.title);
+
+	if (!title) {
+		return failed('Issue title cannot be empty');
+	}
+
+	const description = input.description ?? '';
+
+	const overLong =
+		tooLong('Issue title', title, MAX_TITLE_LENGTH) ??
+		tooLong('Issue description', description, MAX_DESCRIPTION_LENGTH);
+	if (overLong) return failed(overLong);
+
+	if ((input.tagNames?.length ?? 0) > MAX_TAGS_PER_CREATE) {
+		return failed(`Cannot set more than ${MAX_TAGS_PER_CREATE} tags at once`);
+	}
+
+	if ((input.assigneeNames?.length ?? 0) > MAX_ASSIGNEES_PER_CREATE) {
+		return failed(
+			`Cannot set more than ${MAX_ASSIGNEES_PER_CREATE} assignees at once`,
+		);
+	}
+
 	const rankResult = resolveAndPersistRankForCreate(
 		input.parentId,
 		actorResult.value,
@@ -441,7 +475,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 	if (isFail(rankResult)) return rankResult;
 
 	const issueEventsResult = createIssueEvents({
-		name: input.title,
+		name: title,
 		parent: input.parentId,
 		user: actorResult.value,
 		rank: rankResult.value,
@@ -452,12 +486,12 @@ export const createIssue = async (input: CreateIssueInput) => {
 	const issueId = events.find(e => e.action === 'add.issue')?.payload.id;
 	if (!issueId) return failed('Unable to determine created issue id');
 
-	if (input.description) {
+	if (description) {
 		events.push({
 			id: ulid(),
 			...actorResult.value,
 			action: 'edit.description',
-			payload: {id: issueId, md: input.description},
+			payload: {id: issueId, md: description},
 		} satisfies AppEvent<'edit.description'>);
 	}
 
@@ -465,6 +499,9 @@ export const createIssue = async (input: CreateIssueInput) => {
 	for (const rawName of input.tagNames ?? []) {
 		const tagName = sanitizeInlineText(rawName).trim();
 		if (!tagName || tags.some(tag => tag.name === tagName)) continue;
+
+		const overLongTag = tooLong('Tag name', tagName, MAX_TAG_NAME_LENGTH);
+		if (overLongTag) return failed(overLongTag);
 
 		const existingTag = Object.values(stateResult.value.tags).find(
 			tag => tag.name === tagName,
@@ -496,6 +533,13 @@ export const createIssue = async (input: CreateIssueInput) => {
 		if (!assigneeName || assignees.some(a => a.name === assigneeName)) {
 			continue;
 		}
+
+		const overLongName = tooLong(
+			'Assignee name',
+			assigneeName,
+			MAX_ASSIGNEE_NAME_LENGTH,
+		);
+		if (overLongName) return failed(overLongName);
 
 		const existingAssignee = Object.values(stateResult.value.contributors).find(
 			contributor => contributor.name === assigneeName,
@@ -529,9 +573,9 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 	return succeeded('Created issue', {
 		id: issueId,
-		title: input.title,
+		title,
 		parentId: input.parentId,
-		description: input.description ?? '',
+		description,
 		tags,
 		assignees,
 	});
@@ -727,6 +771,9 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 	const title = sanitizeInlineText(input.title);
 	if (!title.trim()) return failed('Swimlane title cannot be empty');
 
+	const overLongTitle = tooLong('Swimlane title', title, MAX_TITLE_LENGTH);
+	if (overLongTitle) return failed(overLongTitle);
+
 	const rankResult = resolveAndPersistRankForCreate(
 		input.boardId,
 		actorResult.value,
@@ -780,6 +827,9 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 
 	const title = sanitizeInlineText(input.title);
 	if (!title.trim()) return failed('Swimlane title cannot be empty');
+
+	const overLongTitle = tooLong('Swimlane title', title, MAX_TITLE_LENGTH);
+	if (overLongTitle) return failed(overLongTitle);
 
 	if (swimlane.title === title) {
 		return succeeded('No changes made', {
@@ -1146,6 +1196,13 @@ export const editIssueDescription = async (
 	if (!isTicketNode(issue)) return failed('Edit target must be an issue');
 	if (issue.readonly) return failed('Cannot edit readonly issue');
 
+	const overLongDescription = tooLong(
+		'Issue description',
+		input.description,
+		MAX_DESCRIPTION_LENGTH,
+	);
+	if (overLongDescription) return failed(overLongDescription);
+
 	const currentDescription = issue.props.description ?? '';
 
 	if (currentDescription === input.description) {
@@ -1200,6 +1257,9 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 		return failed('Issue title cannot be empty');
 	}
 
+	const overLongTitle = tooLong('Issue title', title, MAX_TITLE_LENGTH);
+	if (overLongTitle) return failed(overLongTitle);
+
 	if (issue.title === title) {
 		return succeeded('No changes made', {
 			id: input.issueId,
@@ -1248,6 +1308,9 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 
 	const tagName = sanitizeInlineText(input.tagName).trim();
 	if (!tagName) return failed('Tag name cannot be empty');
+
+	const overLongTag = tooLong('Tag name', tagName, MAX_TAG_NAME_LENGTH);
+	if (overLongTag) return failed(overLongTag);
 
 	const existingTag = Object.values(stateResult.value.tags).find(
 		tag => tag.name === tagName,
@@ -1425,6 +1488,13 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	const assigneeName = sanitizeInlineText(input.assigneeName ?? '').trim();
 	if (!assigneeName) return failed('Provide assigneeId, self or assigneeName');
+
+	const overLongName = tooLong(
+		'Assignee name',
+		assigneeName,
+		MAX_ASSIGNEE_NAME_LENGTH,
+	);
+	if (overLongName) return failed(overLongName);
 
 	// Registry *and* event log, so this matches the same union a picker offers;
 	// the registry alone reports log-only authors as unknown.

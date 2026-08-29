@@ -6,7 +6,13 @@ import {
 	succeeded,
 } from '../../lib/model/result-types.js';
 import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
-import {MAX_COMMENT_LENGTH} from '../../lib/utils/comment.limits.js';
+import {
+	MAX_COMMENT_LENGTH,
+	MAX_DESCRIPTION_LENGTH,
+	MAX_TAG_NAME_LENGTH,
+	MAX_TAGS_PER_CREATE,
+	MAX_TITLE_LENGTH,
+} from '../../lib/utils/text.limits.js';
 import {NavNode} from '../../lib/model/navigation-node.model.js';
 import {AnyContext} from '../../lib/model/context.model.js';
 
@@ -743,6 +749,104 @@ describe('mcp tools', () => {
 			],
 			'/state',
 		);
+	});
+
+	// Everything accepted here is appended to a log that is never rewritten and
+	// replicated to every clone, so nothing may be unbounded.
+	describe('createIssue input limits', () => {
+		it('sanitizes the title, like every other title path does', async () => {
+			const result = await tools.createIssue({
+				repoRoot: '/repo',
+				title: 'Broken\ntitle\twith control',
+				parentId: 'swimlane-1',
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.title).toBe('Broken title withcontrol');
+		});
+
+		it('refuses a title that is nothing but control characters', async () => {
+			const result = await tools.createIssue({
+				repoRoot: '/repo',
+				title: '\n\t  ',
+				parentId: 'swimlane-1',
+			});
+
+			expect(isFail(result)).toBe(true);
+		});
+
+		it('refuses an over-long title', async () => {
+			const result = await tools.createIssue({
+				repoRoot: '/repo',
+				title: 'x'.repeat(MAX_TITLE_LENGTH + 1),
+				parentId: 'swimlane-1',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) {
+				expect(result.message).toContain(String(MAX_TITLE_LENGTH));
+			}
+		});
+
+		it('refuses an over-long description', async () => {
+			const result = await tools.createIssue({
+				repoRoot: '/repo',
+				title: 'New issue',
+				parentId: 'swimlane-1',
+				description: 'x'.repeat(MAX_DESCRIPTION_LENGTH + 1),
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) {
+				expect(result.message).toContain(String(MAX_DESCRIPTION_LENGTH));
+			}
+		});
+
+		it('refuses an over-long tag name', async () => {
+			const result = await tools.createIssue({
+				repoRoot: '/repo',
+				title: 'New issue',
+				parentId: 'swimlane-1',
+				tagNames: ['x'.repeat(MAX_TAG_NAME_LENGTH + 1)],
+			});
+
+			expect(isFail(result)).toBe(true);
+		});
+
+		it('refuses more tags than one call may mint', async () => {
+			const result = await tools.createIssue({
+				repoRoot: '/repo',
+				title: 'New issue',
+				parentId: 'swimlane-1',
+				tagNames: Array.from(
+					{length: MAX_TAGS_PER_CREATE + 1},
+					(_, index) => `tag-${index}`,
+				),
+			});
+
+			expect(isFail(result)).toBe(true);
+		});
+	});
+
+	it('refuses an over-long issue title on edit', async () => {
+		const result = await tools.editIssueTitle({
+			repoRoot: '/repo',
+			issueId: fixtureId('issue-1'),
+			title: 'x'.repeat(MAX_TITLE_LENGTH + 1),
+		});
+
+		expect(isFail(result)).toBe(true);
+	});
+
+	it('refuses an over-long issue description on edit', async () => {
+		const result = await tools.editIssueDescription({
+			repoRoot: '/repo',
+			issueId: fixtureId('issue-1'),
+			description: 'x'.repeat(MAX_DESCRIPTION_LENGTH + 1),
+		});
+
+		expect(isFail(result)).toBe(true);
 	});
 
 	it('creates an issue with description, tags, and assignees atomically', async () => {

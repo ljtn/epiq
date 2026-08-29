@@ -30,7 +30,7 @@ import {openUrl} from '../utils/open-in-browser.js';
 import {CmdKeywords} from './cmd-keywords.js';
 import {CmdIntent} from './command-intent.js';
 import {ConfigModifiers, getCmdModifiers} from './command-modifiers.js';
-import {MAX_COMMENT_LENGTH} from '../utils/comment.limits.js';
+import {MAX_COMMENT_LENGTH} from '../utils/text.limits.js';
 import {editCommand} from './commands/edit.cmd.js';
 import {initCommand} from './commands/init.cmd.js';
 import {moveCommand} from './commands/move.cmd.js';

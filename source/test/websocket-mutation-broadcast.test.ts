@@ -94,11 +94,17 @@ describe('websocket post-mutation state refresh', () => {
 		vi.mocked(closeIssue).mockResolvedValue(succeeded('closed', {} as never));
 
 		server = http.createServer();
-		setupWebsocket(server, '/repo', {onStateChanged: vi.fn()});
+
+		let boundPort = 0;
+		setupWebsocket(server, '/repo', {
+			onStateChanged: vi.fn(),
+			getPort: () => boundPort,
+		});
 
 		await new Promise<void>(resolve => server.listen(0, resolve));
 
 		const {port} = server.address() as AddressInfo;
+		boundPort = port;
 		client = new WebSocket(`ws://127.0.0.1:${port}/ws`);
 		client.on('message', raw => {
 			received.push(JSON.parse(raw.toString()) as ReceivedMessage);

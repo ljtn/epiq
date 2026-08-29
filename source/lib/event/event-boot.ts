@@ -37,8 +37,11 @@ export function getBootNavigationTarget(): Result<{
 		node => node.context === 'WORKSPACE',
 	);
 
+	// A replay that skipped `init.workspace` — unreadable, or cut off by a
+	// historical checkout — reaches here. Thrown, this escaped every `isFail`
+	// on the boot path and took the TUI down instead of showing the error.
 	if (!workspace) {
-		throw new Error('No workspace found in event log');
+		return failed('No workspace found in event log');
 	}
 
 	const [firstBoard] = getRenderedChildren(workspace.id);
@@ -55,14 +58,9 @@ export function getBootNavigationTarget(): Result<{
 			contextNode: firstBoard,
 			selectedIndex: 0,
 		});
-	} else if (workspace) {
-		return succeeded('Resolved boot nav target', {
-			contextNode: workspace,
-			selectedIndex: 0,
-		});
 	} else {
 		return succeeded('Resolved boot nav target', {
-			contextNode: state.nodes[state.rootNodeId] as NavNode<AnyContext>,
+			contextNode: workspace,
 			selectedIndex: 0,
 		});
 	}
@@ -243,11 +241,26 @@ const isCheckedOutInThePast = (): boolean => {
 const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 	if (unreadable.length === 0) return;
 
-	const detail = [...new Set(unreadable.map(event => event.detail))].join(', ');
+	const corrupt = unreadable.filter(event => event.reason === 'corrupt-line');
+	const newer = unreadable.filter(event => event.reason !== 'corrupt-line');
 
-	logger.info(
-		`This build cannot read ${unreadable.length} event(s) in the log (${detail}). They are skipped, so anything they changed may be out of date until you upgrade.`,
-	);
+	if (newer.length > 0) {
+		const detail = [...new Set(newer.map(event => event.detail))].join(', ');
+
+		logger.info(
+			`This build cannot read ${newer.length} event(s) in the log (${detail}). They are skipped, so anything they changed may be out of date until you upgrade.`,
+		);
+	}
+
+	// Not an upgrade problem: these lines have no envelope, so they are lost
+	// rather than pending. Named precisely so the damage can be located.
+	if (corrupt.length > 0) {
+		const detail = [...new Set(corrupt.map(event => event.detail))].join(', ');
+
+		logger.info(
+			`Skipped ${corrupt.length} corrupt line(s) in the event log (${detail}). The rest of the board loaded normally; those events are unrecoverable.`,
+		);
+	}
 };
 
 export function bootStateFromEventLog(

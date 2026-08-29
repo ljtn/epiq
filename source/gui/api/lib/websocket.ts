@@ -45,6 +45,8 @@ import {
 } from '../../client/lib/gui-broadcast.js';
 import {MUTATING_MESSAGE_TYPES} from '../../client/lib/gui-mutations.js';
 import {GuiMessage} from './websocket.model.js';
+import {isForeignOrigin} from './origin-guard.js';
+import {parseGuiMessage} from './websocket.schema.js';
 import {issueDetail, slimStateResult} from './slim-state.js';
 
 // Derives rather than boots, so a live re-materialize can't stomp a checkout.
@@ -126,11 +128,19 @@ const sendMutationResult = async (
 export const setupWebsocket = (
 	server: http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>,
 	repoRoot: string,
-	{onStateChanged}: {onStateChanged: () => void},
+	{
+		onStateChanged,
+		getPort,
+	}: {onStateChanged: () => void; getPort: () => number},
 ) => {
 	const wss = new WebSocketServer({
 		server,
 		path: '/ws',
+		// A handshake is not bound by the same-origin policy, so without this any
+		// page the user has open reaches every message below — including `sync`,
+		// which pushes to the shared remote.
+		verifyClient: (info: {origin: string}) =>
+			!isForeignOrigin(info.origin, getPort()),
 	});
 
 	wss.on('connection', socket => {
@@ -540,13 +550,6 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'issue:close') {
-					if (!message.payload.issueId) {
-						return sendSocket(socket, {
-							type: 'error',
-							message: 'Missing issueId',
-						});
-					}
-
 					const result = await closeIssue({
 						repoRoot,
 						issueId: message.payload.issueId,
@@ -562,13 +565,6 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'issue:reopen') {
-					if (!message.payload.issueId) {
-						return sendSocket(socket, {
-							type: 'error',
-							message: 'Missing issueId',
-						});
-					}
-
 					const result = await reopenIssue({
 						repoRoot,
 						issueId: message.payload.issueId,
@@ -590,7 +586,13 @@ export const setupWebsocket = (
 			};
 
 			try {
-				const message = JSON.parse(raw.toString()) as GuiMessage;
+				const parsed = parseGuiMessage(JSON.parse(raw.toString()));
+
+				if (!parsed.ok) {
+					return sendSocket(socket, {type: 'error', message: parsed.error});
+				}
+
+				const message = parsed.message;
 
 				if (!MUTATING_MESSAGE_TYPES.has(message.type)) {
 					return await dispatchMessage(message);

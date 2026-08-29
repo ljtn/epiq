@@ -101,6 +101,39 @@ describe('getSortedEvents', () => {
 
 		expect(sorted.map(e => e.id[0])).toEqual(['01A', '01B', '01C']);
 	});
+
+	// Two events sharing an id used to be settled by input order, which is
+	// `readdirSync` order — so the same event set derived a different board on
+	// each machine.
+	it('orders two events sharing an id the same way whatever the input order', () => {
+		const root = event('01A', null);
+		const first = event('01B', '01A', 'edit.title');
+		const second = {...event('01B', '01A', 'edit.title'), userName: 'Other'};
+
+		const oneWay = getSortedEvents([root, first, second]);
+		const otherWay = getSortedEvents([root, second, first]);
+
+		expect(JSON.stringify(oneWay)).toBe(JSON.stringify(otherWay));
+	});
+
+	// Every event refs its predecessor, so a log is one chain as deep as it is
+	// long. Recursing it overflowed the call stack at ~4.7k events, which meant
+	// an ordinary board eventually stopped opening for everybody at once.
+	it('orders a chain far longer than the call stack allows', () => {
+		const chain: ReconstructedEvent[] = [];
+		let previous: string | null = null;
+
+		for (let index = 0; index < 50_000; index++) {
+			const id = ulid(index + 1);
+			chain.push(event(id, previous));
+			previous = id;
+		}
+
+		const sorted = getSortedEvents(chain);
+
+		expect(sorted).toHaveLength(chain.length);
+		expect(sorted.map(e => e.id[0])).toEqual(chain.map(e => e.id[0]));
+	});
 });
 
 describe('splitEventsAtTime', () => {
@@ -298,6 +331,80 @@ describe('decodeReconstructedEvents', () => {
 		const result = decodeReconstructedEvents([malformed]);
 
 		expect(isFail(result)).toBe(true);
+	});
+});
+
+describe('loadMergedEvents with a corrupt line on disk', () => {
+	const seedLog = (lines: string[]): string => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-corrupt-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, '01ARZ3NDEKTSV4RRFFQ69G5FAV.alice.jsonl'),
+			lines.join('\n') + '\n',
+		);
+		return root;
+	};
+
+	const workspaceLine = JSON.stringify({
+		v: 1,
+		id: ['01H0000000000000000000000A', null],
+		'init.workspace': {id: 'ws1', name: 'Workspace', rank: 'a0'},
+	});
+
+	const titleLine = JSON.stringify({
+		v: 1,
+		id: ['01H0000000000000000000000C', '01H0000000000000000000000A'],
+		'edit.title': {id: 'ws1', name: 'Renamed'},
+	});
+
+	// `merge=union` splices a half-written line into every clone that pulls it,
+	// and the log is append-only. Failing the load there took the whole board
+	// offline for everybody, permanently.
+	it('skips a truncated line and still loads the rest', () => {
+		const root = seedLog([
+			workspaceLine,
+			'{"v":1,"id":["01H0000000000000000000000B",null],"lock.node"',
+			titleLine,
+		]);
+
+		const result = loadMergedEventsWithUnreadable(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.events.map(event => event.action)).toEqual([
+			'init.workspace',
+			'edit.title',
+		]);
+		expect(result.value.unreadable).toEqual([
+			{
+				eventId: null,
+				reason: 'corrupt-line',
+				detail: '01ARZ3NDEKTSV4RRFFQ69G5FAV.alice.jsonl:2 (invalid JSON)',
+				targetNodeId: null,
+			},
+		]);
+	});
+
+	it('skips a line whose envelope is malformed and still loads the rest', () => {
+		const root = seedLog([
+			workspaceLine,
+			JSON.stringify({v: 1, id: 'not-a-tuple', 'lock.node': {id: 'ws1'}}),
+			titleLine,
+		]);
+
+		const result = loadMergedEventsWithUnreadable(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.events.map(event => event.action)).toEqual([
+			'init.workspace',
+			'edit.title',
+		]);
+		expect(result.value.unreadable).toHaveLength(1);
+		expect(result.value.unreadable[0]?.reason).toBe('corrupt-line');
 	});
 });
 

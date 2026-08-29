@@ -1,7 +1,7 @@
 import {beforeAll, describe, expect, it, vi} from 'vitest';
 import {cmdValidity} from '../lib/command-line/cmd-validity.js';
 import {CmdKeywords} from '../lib/command-line/cmd-keywords.js';
-import {MAX_COMMENT_LENGTH} from '../lib/utils/comment.limits.js';
+import {MAX_COMMENT_LENGTH} from '../lib/utils/text.limits.js';
 import {
 	ConfigModifiers,
 	EditModifiers,

@@ -24,10 +24,12 @@ export type ReconstructedEvent = PersistedEnvelope & {
 	userName: string;
 };
 
-// Orderable but not interpretable. `targetNodeId` scopes the resulting lock.
+// Orderable but not interpretable — except `corrupt-line`, which has no
+// envelope to order by and is reported only so the gap is visible.
+// `targetNodeId` scopes the resulting lock.
 export type UnreadableEvent = {
-	eventId: string;
-	reason: 'unsupported-schema-version' | 'unknown-action';
+	eventId: string | null;
+	reason: 'unsupported-schema-version' | 'unknown-action' | 'corrupt-line';
 	detail: string;
 	targetNodeId: string | null;
 };
@@ -253,6 +255,7 @@ export const decodeReconstructedEvents = (
 
 export const parsePersistedEventsFile = (
 	filePath: string,
+	unreadable?: UnreadableEvent[],
 ): Result<ReconstructedEvent[]> => {
 	if (!fs.existsSync(filePath)) {
 		return succeeded('Event file missing', []);
@@ -262,8 +265,23 @@ export const parsePersistedEventsFile = (
 
 	const content = fs.readFileSync(filePath, 'utf8');
 	const entries: ReconstructedEvent[] = [];
+	const fileName = path.basename(filePath);
 
-	for (const line of content.split('\n')) {
+	// A line whose envelope will not parse carries no id, so unlike an
+	// unreadable payload it cannot keep its place in the chain. Skipping it
+	// loses that one event; failing the load loses the whole board, for
+	// everyone, permanently — `merge=union` splices a half-written line into
+	// every clone that pulls, and the log is append-only.
+	const quarantine = (lineNumber: number, reason: string) => {
+		unreadable?.push({
+			eventId: null,
+			reason: 'corrupt-line',
+			detail: `${fileName}:${lineNumber} (${reason})`,
+			targetNodeId: null,
+		});
+	};
+
+	for (const [index, line] of content.split('\n').entries()) {
 		const trimmed = line.trim();
 		if (!trimmed) continue;
 
@@ -271,14 +289,16 @@ export const parsePersistedEventsFile = (
 		try {
 			raw = JSON.parse(trimmed);
 		} catch {
-			return failed(`Failed to parse event JSON from ${filePath}: ${trimmed}`);
+			quarantine(index + 1, 'invalid JSON');
+			continue;
 		}
 
 		// Envelope only: an unreadable version is retained for its place in the
-		// chain. A malformed envelope is corruption and still fails the load.
+		// chain.
 		const parsedResult = parsePersistedEnvelope(raw);
 		if (isFail(parsedResult)) {
-			return failed(`${parsedResult.message} in ${filePath}: ${trimmed}`);
+			quarantine(index + 1, parsedResult.message);
+			continue;
 		}
 
 		entries.push({
@@ -293,6 +313,7 @@ export const parsePersistedEventsFile = (
 
 function loadAllPersistedEvents(
 	eventsRoot: string,
+	unreadable?: UnreadableEvent[],
 ): Result<ReconstructedEvent[]> {
 	const dir = getEventsDirPath(eventsRoot);
 
@@ -308,7 +329,7 @@ function loadAllPersistedEvents(
 	const entries: ReconstructedEvent[] = [];
 
 	for (const filePath of files) {
-		const result = parsePersistedEventsFile(filePath);
+		const result = parsePersistedEventsFile(filePath, unreadable);
 
 		if (isFail(result)) {
 			return failed(result.message);
@@ -332,12 +353,13 @@ export const getLastUnreadableEvents = (): UnreadableEvent[] => lastUnreadable;
 export function loadMergedEventsWithUnreadable(
 	stateBranchRoot: string,
 ): Result<{events: AppEvent[]; unreadable: UnreadableEvent[]}> {
-	const allEvents = loadAllPersistedEvents(stateBranchRoot);
+	const unreadable: UnreadableEvent[] = [];
+
+	const allEvents = loadAllPersistedEvents(stateBranchRoot, unreadable);
 	if (isFail(allEvents)) {
 		return failed(allEvents.message);
 	}
 
-	const unreadable: UnreadableEvent[] = [];
 	const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
 	if (isFail(decoded)) return failed(decoded.message);
 
@@ -414,6 +436,26 @@ export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 		persisted.value.at(-1)?.id?.[0] ?? null,
 	);
 }
+/**
+ * Total, so the order is a function of the event *set* alone.
+ *
+ * Two events can legitimately share a parent, and — through a reused id, or a
+ * line that reached two logs — they can share an id too. Comparing ids alone
+ * left equal ones tied, and a tie is settled by `readdirSync` order, so two
+ * machines holding the same events derived different boards. Falling through
+ * to the content breaks every tie the same way everywhere: the actor comes off
+ * the file name and the payload off the line, both identical on every replica.
+ */
+const compareEvents = (
+	a: ReconstructedEvent,
+	b: ReconstructedEvent,
+): number => {
+	const byId = a.id[0].localeCompare(b.id[0]);
+	if (byId !== 0) return byId;
+
+	return JSON.stringify(a).localeCompare(JSON.stringify(b));
+};
+
 export const getSortedEvents = (
 	reconstructedEvents: ReconstructedEvent[],
 ): ReconstructedEvent[] => {
@@ -432,23 +474,32 @@ export const getSortedEvents = (
 	}
 
 	for (const children of childrenByRef.values()) {
-		children.sort((a, b) => a.id[0].localeCompare(b.id[0]));
+		children.sort(compareEvents);
 	}
 
 	const result: ReconstructedEvent[] = [];
 	const placed = new Set<string>();
 
-	const visit = (event: ReconstructedEvent) => {
-		const eventId = event.id[0];
+	// Depth-first, but on an explicit stack: every event refs its predecessor,
+	// so the forest is one chain as long as the log and recursion would blow
+	// the call stack a few thousand events in.
+	const visit = (root: ReconstructedEvent) => {
+		const stack: ReconstructedEvent[] = [root];
 
-		if (placed.has(eventId)) return;
+		while (stack.length > 0) {
+			const event = stack.pop() as ReconstructedEvent;
+			const eventId = event.id[0];
 
-		result.push(event);
-		placed.add(eventId);
+			if (placed.has(eventId)) continue;
 
-		const children = childrenByRef.get(eventId) ?? [];
-		for (const child of children) {
-			visit(child);
+			result.push(event);
+			placed.add(eventId);
+
+			// Reversed, so the lowest-ULID sibling is popped first.
+			const children = childrenByRef.get(eventId) ?? [];
+			for (let index = children.length - 1; index >= 0; index--) {
+				stack.push(children[index] as ReconstructedEvent);
+			}
 		}
 	};
 
@@ -464,7 +515,7 @@ export const getSortedEvents = (
 
 			return !placed.has(eventId) && refId !== null && !byEventId.has(refId);
 		})
-		.sort((a, b) => a.id[0].localeCompare(b.id[0]));
+		.sort(compareEvents);
 
 	for (const orphanRoot of orphanRoots) {
 		visit(orphanRoot);
@@ -472,7 +523,7 @@ export const getSortedEvents = (
 
 	const remaining = reconstructedEvents
 		.filter(event => !placed.has(event.id[0]))
-		.sort((a, b) => a.id[0].localeCompare(b.id[0]));
+		.sort(compareEvents);
 
 	for (const event of remaining) {
 		visit(event);
