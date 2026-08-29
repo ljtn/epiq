@@ -102,6 +102,20 @@ describe('getSortedEvents', () => {
 		expect(sorted.map(e => e.id[0])).toEqual(['01A', '01B', '01C']);
 	});
 
+	// Two events sharing an id used to be settled by input order, which is
+	// `readdirSync` order — so the same event set derived a different board on
+	// each machine.
+	it('orders two events sharing an id the same way whatever the input order', () => {
+		const root = event('01A', null);
+		const first = event('01B', '01A', 'edit.title');
+		const second = {...event('01B', '01A', 'edit.title'), userName: 'Other'};
+
+		const oneWay = getSortedEvents([root, first, second]);
+		const otherWay = getSortedEvents([root, second, first]);
+
+		expect(JSON.stringify(oneWay)).toBe(JSON.stringify(otherWay));
+	});
+
 	// Every event refs its predecessor, so a log is one chain as deep as it is
 	// long. Recursing it overflowed the call stack at ~4.7k events, which meant
 	// an ordinary board eventually stopped opening for everybody at once.

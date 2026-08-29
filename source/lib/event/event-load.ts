@@ -436,6 +436,26 @@ export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 		persisted.value.at(-1)?.id?.[0] ?? null,
 	);
 }
+/**
+ * Total, so the order is a function of the event *set* alone.
+ *
+ * Two events can legitimately share a parent, and — through a reused id, or a
+ * line that reached two logs — they can share an id too. Comparing ids alone
+ * left equal ones tied, and a tie is settled by `readdirSync` order, so two
+ * machines holding the same events derived different boards. Falling through
+ * to the content breaks every tie the same way everywhere: the actor comes off
+ * the file name and the payload off the line, both identical on every replica.
+ */
+const compareEvents = (
+	a: ReconstructedEvent,
+	b: ReconstructedEvent,
+): number => {
+	const byId = a.id[0].localeCompare(b.id[0]);
+	if (byId !== 0) return byId;
+
+	return JSON.stringify(a).localeCompare(JSON.stringify(b));
+};
+
 export const getSortedEvents = (
 	reconstructedEvents: ReconstructedEvent[],
 ): ReconstructedEvent[] => {
@@ -454,7 +474,7 @@ export const getSortedEvents = (
 	}
 
 	for (const children of childrenByRef.values()) {
-		children.sort((a, b) => a.id[0].localeCompare(b.id[0]));
+		children.sort(compareEvents);
 	}
 
 	const result: ReconstructedEvent[] = [];
@@ -495,7 +515,7 @@ export const getSortedEvents = (
 
 			return !placed.has(eventId) && refId !== null && !byEventId.has(refId);
 		})
-		.sort((a, b) => a.id[0].localeCompare(b.id[0]));
+		.sort(compareEvents);
 
 	for (const orphanRoot of orphanRoots) {
 		visit(orphanRoot);
@@ -503,7 +523,7 @@ export const getSortedEvents = (
 
 	const remaining = reconstructedEvents
 		.filter(event => !placed.has(event.id[0]))
-		.sort((a, b) => a.id[0].localeCompare(b.id[0]));
+		.sort(compareEvents);
 
 	for (const event of remaining) {
 		visit(event);
