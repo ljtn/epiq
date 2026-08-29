@@ -1,8 +1,18 @@
-import React from 'react';
+import React, {createContext, useContext} from 'react';
 import ReactMarkdown, {type Components} from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
+
+// react-markdown wraps a fenced block in <pre><code>, and only sets a
+// className on the <code> when the fence names a language — so keying
+// block-vs-inline off className alone renders a bare ``` fence as inline,
+// wrapping it into one ragged background box per line. Being inside a <pre>
+// is the thing that actually distinguishes the two.
+const InPre = createContext(false);
+
+const CODE_FONT =
+	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
 
 const components: Components = {
 	p: ({children}) => <p style={{margin: '0 0 14px'}}>{children}</p>,
@@ -44,27 +54,46 @@ const components: Components = {
 			{children}
 		</blockquote>
 	),
-	code: ({children, className}) => {
-		const isBlock = Boolean(className);
+	code: ({children}) => {
+		const isBlock = useContext(InPre);
+
+		// A block's own chrome (background, padding, scrolling) belongs to the
+		// <pre> below, so that one contiguous box wraps every line rather than
+		// each line carrying its own.
 		return (
 			<code
-				style={{
-					fontFamily:
-						'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-					fontSize: isBlock ? 12 : '0.9em',
-					background: GUI_THEME.bg,
-					borderRadius: 4,
-					padding: isBlock ? '10px 12px' : '1px 5px',
-					display: isBlock ? 'block' : 'inline',
-					overflowX: isBlock ? 'auto' : undefined,
-					whiteSpace: isBlock ? 'pre' : undefined,
-				}}
+				style={
+					isBlock
+						? {fontFamily: CODE_FONT, fontSize: 12}
+						: {
+								fontFamily: CODE_FONT,
+								fontSize: '0.9em',
+								background: GUI_THEME.bg,
+								borderRadius: 4,
+								padding: '1px 5px',
+						  }
+				}
 			>
 				{children}
 			</code>
 		);
 	},
-	pre: ({children}) => <pre style={{margin: '0 0 14px'}}>{children}</pre>,
+	pre: ({children}) => (
+		<InPre.Provider value={true}>
+			<pre
+				style={{
+					margin: '0 0 14px',
+					padding: '10px 12px',
+					background: GUI_THEME.bg,
+					borderRadius: 6,
+					overflowX: 'auto',
+					whiteSpace: 'pre',
+				}}
+			>
+				{children}
+			</pre>
+		</InPre.Provider>
+	),
 	hr: () => (
 		<hr
 			style={{
