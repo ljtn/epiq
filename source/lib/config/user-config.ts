@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {z} from 'zod';
+import {resolveEnvActor} from './actor-env.js';
 import {GLOBAL_CONFIG_DIR_NAME, getGlobalConfigDir} from '../storage/paths.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {SettingsState} from '../state/settings.state.js';
@@ -161,7 +162,14 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		viewMode,
 	} = result.value;
 
-	if (!userName || !userId) {
+	// Applied before the check below, so an environment-supplied actor is a
+	// complete identity on a machine whose config has none.
+	const actorResult = resolveEnvActor({userId, userName});
+	if (isFail(actorResult)) return failed(actorResult.message);
+
+	const actor = actorResult.value ?? {userId, userName};
+
+	if (!actor.userName || !actor.userId) {
 		return failed(
 			`User name or ID not configured in ~/${GLOBAL_CONFIG_DIR_NAME}/config.json`,
 		);
@@ -172,8 +180,8 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 	return succeeded('successfully loaded settings', {
 		logLevel: logLevel ?? 'debug',
 		preferredEditor: preferredEditor ?? '',
-		userName,
-		userId,
+		userName: actor.userName,
+		userId: actor.userId,
 		autoSync: autoSync ?? false,
 		autoSyncIntervalMs: autoSyncIntervalMs ?? 10_000,
 		attachmentMaxKb: attachmentMaxKb ?? null,
