@@ -559,6 +559,17 @@ export const App = () => {
 				requestState();
 			}
 
+			// A frame the server could not parse is refused the same way, and
+			// was otherwise invisible — the optimistic change just quietly held.
+			if (message.type === 'error') {
+				setActionError(
+					typeof message.message === 'string'
+						? message.message
+						: 'The board could not read that change',
+				);
+				requestState();
+			}
+
 			if (message.type === 'timeline') {
 				const nextTimeline = getResultValue<GuiEventTimeline>(message.payload);
 				if (nextTimeline) {
@@ -1042,12 +1053,14 @@ export const App = () => {
 
 			const requestId = historyBuffer.open();
 			// The board scopes the timeline but not the commit log, which is
-			// repository-wide. Omitting boardId is how the API says "every board".
+			// repository-wide. Omitting boardId is how the API says "every board"
+			// — which is also the right ask before any board is known, and the
+			// only one the schema accepts (null is refused).
 			sendSocketJson(socketRef.current, {
 				type: 'timeline:get',
 				payload: {
 					...window,
-					boardId: allBoards ? undefined : selectedBoardId,
+					boardId: allBoards ? undefined : selectedBoardId ?? undefined,
 					requestId,
 				},
 			});
@@ -1409,24 +1422,39 @@ export const App = () => {
 		}
 	};
 
-	const deleteIssueComment = (_issueId: string, commentId: string) => {
-		setState(prev => {
-			if (!prev) return prev;
+	// The panel renders issueDetail's comments, not the board state's, so an
+	// optimistic change has to land there to be seen before the server's reply.
+	const updateDetailComments = (
+		issueId: string,
+		update: (comments: GuiComment[]) => GuiComment[],
+	) => {
+		setIssueDetail(prev =>
+			prev && prev.issueId === issueId
+				? {...prev, comments: update(prev.comments)}
+				: prev,
+		);
+	};
 
-			return {
-				...prev,
-				commentsByIssueId: Object.fromEntries(
-					Object.entries(prev.commentsByIssueId).map(
-						([nextIssueId, comments]) => [
-							nextIssueId,
-							comments.filter(comment => comment.id !== commentId),
-						],
-					),
-				),
-			};
-		});
+	const deleteIssueComment = (issueId: string, commentId: string) => {
+		updateDetailComments(issueId, comments =>
+			comments.filter(comment => comment.id !== commentId),
+		);
 
-		send('issue:comment:delete', {commentId});
+		send('issue:comment:delete', {issueId, commentId});
+	};
+
+	const editIssueComment = (
+		issueId: string,
+		commentId: string,
+		body: string,
+	) => {
+		updateDetailComments(issueId, comments =>
+			comments.map(comment =>
+				comment.id === commentId ? {...comment, body} : comment,
+			),
+		);
+
+		send('issue:comment:edit', {issueId, commentId, body});
 	};
 
 	// Ahead of the board: without a project there are no boards, no history and
@@ -1763,6 +1791,7 @@ export const App = () => {
 								onRemoveAssignee={removeIssueAssignee}
 								onAddComment={addIssueComment}
 								onDeleteComment={deleteIssueComment}
+								onEditComment={editIssueComment}
 								onFileTicket={fileTicketFromSelection}
 								onOpenDiffLocation={openDiffLocation}
 								diffFocus={diffFocus}

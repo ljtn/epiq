@@ -111,6 +111,7 @@ export const IssueDetails = ({
 	onReopenIssue,
 	onAddComment,
 	onDeleteComment,
+	onEditComment,
 	onFileTicket,
 	onOpenDiffLocation,
 	diffFocus,
@@ -148,6 +149,7 @@ export const IssueDetails = ({
 	onReopenIssue: (issueId: string) => void;
 	onAddComment?: (issueId: string, body: string) => void;
 	onDeleteComment?: (issueId: string, commentId: string) => void;
+	onEditComment?: (issueId: string, commentId: string, body: string) => void;
 	onFileTicket?: (
 		originIssueId: string,
 		originRef: string,
@@ -635,6 +637,7 @@ export const IssueDetails = ({
 						comments={comments}
 						onAddComment={onAddComment}
 						onDeleteComment={onDeleteComment}
+						onEditComment={onEditComment}
 						onOpenDiffLocation={onOpenDiffLocation}
 					/>
 				);

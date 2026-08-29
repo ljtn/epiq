@@ -59,6 +59,10 @@ export type GuiMessage =
 			payload: {issueId: string; commentId: string};
 	  }
 	| {
+			type: 'issue:comment:edit';
+			payload: {issueId: string; commentId: string; body: string};
+	  }
+	| {
 			// The description and comment bodies the board's state leaves out.
 			type: 'issue:get';
 			payload: {issueId: string};

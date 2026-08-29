@@ -86,6 +86,10 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message('issue:reopen', z.object({issueId: id})),
 	message('issue:comment:add', z.object({issueId: id, body: z.string()})),
 	message('issue:comment:delete', z.object({issueId: id, commentId: id})),
+	message(
+		'issue:comment:edit',
+		z.object({issueId: id, commentId: id, body: z.string()}),
+	),
 	message('issue:get', z.object({issueId: id})),
 	z.object({
 		type: z.literal('timeline:get'),

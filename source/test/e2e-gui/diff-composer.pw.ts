@@ -9,10 +9,19 @@ const addTicket = async (page: Page, title: string) => {
 	await expect(page.locator('aside')).toContainText(title);
 };
 
+// Opens the commit and its file if they aren't open already — once a diff
+// link has been followed the URL keeps pointing at the spot, and the tab then
+// opens both on its own.
 const expandDiff = async (page: Page, subject: string) => {
 	await page.getByRole('button', {name: /^Commits/}).click();
-	await page.getByRole('button', {name: subject}).click();
-	await page.getByRole('button', {name: 'notes.txt'}).click();
+	for (const name of [subject, 'notes.txt']) {
+		const toggle = page.getByRole('button', {name});
+		await expect(toggle).toBeVisible();
+		if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+			await toggle.click();
+		}
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	}
 };
 
 const openDiffAndSelectLine = async (page: Page, subject: string) => {
@@ -103,6 +112,34 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await expect(page.getByTestId('snippet-gutter')).toHaveText('2');
 	await expect(page.getByTestId('code-snippet')).toContainText('beta');
 	await page.screenshot({path: testInfo.outputPath('comment-snippet.png')});
+
+	// Editing a diff comment edits its note; the link and snippet stay.
+	await page.getByTitle('Edit comment').click();
+	const editor = page.locator('aside textarea').first();
+	await expect(editor).toHaveValue('looks off');
+	await editor.fill('looks fine after all');
+	await page.getByRole('button', {name: 'save'}).click();
+	await expect(
+		page.locator('aside').getByText('looks fine after all'),
+	).toBeVisible();
+	await expect(
+		page.locator('aside').getByTitle('Open this in the diff'),
+	).toHaveText('notes.txt line 2 (added)');
+	await expect(page.getByTestId('code-snippet')).toContainText('beta');
+
+	// ...and the annotation in the diff follows the edit.
+	await expandDiff(page, 'add notes');
+	await expect(page.getByTestId('diff-comment')).toContainText(
+		'looks fine after all',
+	);
+
+	// Deleting it takes the annotation away too.
+	await page.getByRole('button', {name: 'Comments (1)'}).click();
+	await page.getByTitle('Delete comment').click();
+	await expect(page.getByRole('button', {name: 'Comments (0)'})).toBeVisible();
+	await expandDiff(page, 'add notes');
+	await expect(page.getByTestId('diff-comment')).toHaveCount(0);
+	await expect(page.locator('[data-line]')).toHaveCount(3);
 
 	// File a ticket: the note stays the note, the title is asked for.
 	await expandDiff(page, 'add notes');

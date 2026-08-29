@@ -24,6 +24,7 @@ import {
 	createIssue,
 	createSwimlane,
 	deleteIssueComment,
+	editIssueComment,
 	deleteSwimlane,
 	editIssueDescription,
 	editIssueTitle,
@@ -383,6 +384,20 @@ export const createMcpServer = () => {
 			}),
 		},
 		async input => resultJson(await deleteIssueComment(input)),
+	);
+
+	server.registerTool(
+		'epiq_issue_comment_edit',
+		{
+			description:
+				'Replace the body of one of your own comments on an Epiq issue',
+			inputSchema: z.object({
+				commentId: z.string().min(1),
+				body: z.string().min(1).max(MAX_COMMENT_LENGTH),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		async input => resultJson(await editIssueComment(input)),
 	);
 
 	server.registerTool(

@@ -164,6 +164,27 @@ export const parseDiffCommentMeta = (body: string): DiffCommentMeta | null => {
 	return meta as DiffCommentMeta;
 };
 
+// The body of a diff-selection comment with its note replaced and everything
+// else — marker location, caption, quoted snippet — kept as it was. Null for a
+// body that carries no marker.
+export const withDiffCommentNote = (
+	body: string,
+	note: string,
+): string | null => {
+	const meta = parseDiffCommentMeta(body);
+	const match = DIFF_COMMENT_MARKER.exec(body);
+	if (!meta || !match) return null;
+
+	const trimmed = note.trim();
+	const rest = body.slice(match.index + match[0].length);
+
+	return [
+		...(trimmed ? [trimmed, ''] : []),
+		encodeDiffCommentMarker({...meta, note: trimmed}),
+		rest,
+	].join('\n');
+};
+
 export type DiffComment = {comment: GuiComment; meta: DiffCommentMeta};
 
 export const findDiffCommentsForFile = (
@@ -171,6 +192,7 @@ export const findDiffCommentsForFile = (
 	filePath: string,
 ): DiffComment[] =>
 	comments.flatMap(comment => {
+		if (comment.isDeleted) return [];
 		const meta = parseDiffCommentMeta(comment.body);
 		return meta && meta.filePath === filePath ? [{comment, meta}] : [];
 	});
@@ -290,11 +312,16 @@ const disclosureStyle: React.CSSProperties = {
 	textAlign: 'left',
 	background: 'transparent',
 	border: 'none',
+	borderRadius: 6,
 	cursor: 'pointer',
 	color: GUI_THEME.primary,
 	font: 'inherit',
 	fontSize: TEXT.ui,
+	transition: 'background 120ms ease',
 };
+
+// Says "this opens" before it is clicked.
+const DISCLOSURE_HOVER_BG = 'rgba(255,255,255,0.04)';
 
 // A rounded pill rather than GitHub's five solid squares — matches the
 // rest of the app's soft, rounded chrome instead of copying its exact look.
@@ -546,6 +573,7 @@ const FileRow = ({
 	focusRange?: SelectedLineRange | null;
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
+	const [headerLit, setHeaderLit] = useState(false);
 	// Held here rather than in the composer so re-dragging the range keeps
 	// what was typed.
 	const [note, setNote] = useState('');
@@ -621,10 +649,17 @@ const FileRow = ({
 			<button
 				onClick={onToggle}
 				aria-expanded={expanded}
+				onMouseEnter={() => setHeaderLit(true)}
+				onMouseLeave={() => setHeaderLit(false)}
+				onFocus={() => setHeaderLit(true)}
+				onBlur={() => setHeaderLit(false)}
 				style={{
 					...disclosureStyle,
 					color: GUI_THEME.secondary,
-					padding: '4px 0',
+					padding: '4px 6px',
+					margin: '0 -6px',
+					width: 'calc(100% + 12px)',
+					background: headerLit ? DISCLOSURE_HOVER_BG : 'transparent',
 				}}
 			>
 				{expanded ? (
@@ -782,7 +817,11 @@ const CommitRow = ({
 				onFocus={() => setFocused(true)}
 				onBlur={() => setFocused(false)}
 				aria-expanded={expanded}
-				style={{...disclosureStyle, padding: '13px 14px'}}
+				style={{
+					...disclosureStyle,
+					padding: '13px 14px',
+					background: revealed ? DISCLOSURE_HOVER_BG : 'transparent',
+				}}
 			>
 				{/* Subject leads the row with nothing before it — the sha and caret
 			    are lookup/navigation chrome, not part of reading the list, so

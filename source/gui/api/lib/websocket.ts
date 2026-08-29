@@ -12,6 +12,7 @@ import {
 	createSwimlane,
 	deleteSwimlane,
 	deleteIssueComment,
+	editIssueComment,
 	deriveGuiState,
 	editIssueDescription,
 	editSwimlaneTitle,
@@ -286,6 +287,21 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'issue:comment:add:result',
+						result,
+					);
+				}
+
+				if (type === 'issue:comment:edit') {
+					const result = await editIssueComment({
+						repoRoot,
+						...message.payload,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:comment:edit:result',
 						result,
 					);
 				}

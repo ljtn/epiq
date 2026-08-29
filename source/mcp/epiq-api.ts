@@ -178,6 +178,11 @@ type DeleteIssueCommentInput = ToolInput & {
 	commentId: string;
 };
 
+type EditIssueCommentInput = ToolInput & {
+	commentId: string;
+	body: string;
+};
+
 type AddIssueAttachmentInput = ToolInput & {
 	issueId: string;
 	name: string;
@@ -2090,6 +2095,81 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 	return succeeded('Deleted issue comment', {
 		id: input.commentId,
 		issueId: commentEvent.payload.issue,
+	});
+};
+
+export const editIssueComment = async (input: EditIssueCommentInput) => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const commentEvent = stateResult.value.eventLog.find(
+		(event): event is AppEvent<'add.issue.comment'> =>
+			event.action === 'add.issue.comment' &&
+			event.payload.id === input.commentId,
+	);
+
+	if (!commentEvent) {
+		return failed('Unable to resolve comment');
+	}
+
+	if (commentEvent.payload.author !== actorResult.value.userId) {
+		return failed('You can only edit your own comments');
+	}
+
+	const issue = stateResult.value.nodes[commentEvent.payload.issue];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
+	if (issue.readonly) return failed('Cannot edit comment on readonly issue');
+
+	const deleted = stateResult.value.eventLog.some(
+		event =>
+			event.action === 'delete.issue.comment' &&
+			event.payload.id === input.commentId,
+	);
+
+	if (deleted) return failed('Comment was deleted');
+
+	const body = input.body.trim();
+
+	if (!body) {
+		return failed('Comment cannot be empty');
+	}
+
+	if (body.length > MAX_COMMENT_LENGTH) {
+		return failed(
+			`Comment cannot exceed ${MAX_COMMENT_LENGTH} characters (got ${body.length})`,
+		);
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'edit.issue.comment',
+		payload: {
+			id: input.commentId,
+			issue: commentEvent.payload.issue,
+			md: body,
+		},
+	} satisfies AppEvent<'edit.issue.comment'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Edited issue comment', {
+		id: input.commentId,
+		issueId: commentEvent.payload.issue,
+		body,
 	});
 };
 

@@ -13,6 +13,7 @@ import {
 	formatSelectionLabel,
 	parseDiffCommentMeta,
 	stripDiffCommentMarker,
+	withDiffCommentNote,
 } from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
@@ -79,6 +80,7 @@ type Props = {
 	whoAmI: GuiUser;
 	onAddComment?: (issueId: string, body: string) => void;
 	onDeleteComment?: (issueId: string, commentId: string) => void;
+	onEditComment?: (issueId: string, commentId: string, body: string) => void;
 	onOpenDiffLocation?: (location: DiffLocation) => void;
 };
 
@@ -89,9 +91,30 @@ export const IssueComments = ({
 	comments = [],
 	onAddComment,
 	onDeleteComment,
+	onEditComment,
 	onOpenDiffLocation,
 }: Props) => {
 	const [body, setBody] = useState('');
+	// The comment being rewritten, if any. A diff-linked comment only exposes
+	// its note here; the marker and quoted snippet ride along untouched.
+	const [editing, setEditing] = useState<{id: string; text: string} | null>(
+		null,
+	);
+
+	const startEditing = (comment: GuiComment) => {
+		const meta = parseDiffCommentMeta(comment.body);
+		setEditing({id: comment.id, text: meta ? meta.note : comment.body});
+	};
+
+	const saveEdit = (comment: GuiComment) => {
+		if (!editing || !onEditComment) return;
+
+		const next =
+			withDiffCommentNote(comment.body, editing.text) ?? editing.text.trim();
+		if (next && next !== comment.body) onEditComment(issueId, comment.id, next);
+
+		setEditing(null);
+	};
 
 	// Trimmed, because that is what the server stores and measures.
 	const length = body.trim().length;
@@ -168,9 +191,22 @@ export const IssueComments = ({
 
 								{!readonly &&
 									comment.author.id === whoAmI.id &&
+									onEditComment &&
+									editing?.id !== comment.id && (
+										<Button
+											variant="ghost"
+											title="Edit comment"
+											onClick={() => startEditing(comment)}
+										>
+											edit
+										</Button>
+									)}
+								{!readonly &&
+									comment.author.id === whoAmI.id &&
 									onDeleteComment && (
 										<Button
 											variant="ghost"
+											title="Delete comment"
 											onClick={event => {
 												event.preventDefault();
 												event.stopPropagation();
@@ -182,10 +218,45 @@ export const IssueComments = ({
 									)}
 							</div>
 
-							<CommentBody
-								body={comment.body}
-								onOpenDiffLocation={onOpenDiffLocation}
-							/>
+							{editing?.id === comment.id ? (
+								<>
+									<Textarea
+										autoFocus
+										maxLength={Number.MAX_SAFE_INTEGER}
+										value={editing.text}
+										placeholder="write a comment"
+										onChange={event =>
+											setEditing({id: comment.id, text: event.target.value})
+										}
+										onKeyDown={event => {
+											if (event.key === 'Escape') setEditing(null);
+											if (
+												(event.metaKey || event.ctrlKey) &&
+												event.key === 'Enter'
+											) {
+												saveEdit(comment);
+											}
+										}}
+										style={{
+											minHeight: 45,
+											font: 'inherit',
+											fontFamily: CONTENT_FONT,
+											fontSize: TEXT.prose,
+										}}
+									/>
+									<ActionRow>
+										<Button variant="ghost" onClick={() => setEditing(null)}>
+											cancel
+										</Button>
+										<Button onClick={() => saveEdit(comment)}>save</Button>
+									</ActionRow>
+								</>
+							) : (
+								<CommentBody
+									body={comment.body}
+									onOpenDiffLocation={onOpenDiffLocation}
+								/>
+							)}
 						</div>
 					))}
 				</div>
