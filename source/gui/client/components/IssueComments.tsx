@@ -14,7 +14,7 @@ import {
 	stripDiffCommentMarker,
 } from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
-import {MAX_COMMENT_LENGTH} from '../../../lib/utils/comment.limits.js';
+import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
 
 // A diff-selection comment's quoted code is rendered through the same
 // highlighter the diff view uses, rather than as a markdown fence — the whole

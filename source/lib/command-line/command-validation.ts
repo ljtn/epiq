@@ -18,7 +18,7 @@ import {
 import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
 import {getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
-import {MAX_COMMENT_LENGTH} from '../utils/comment.limits.js';
+import {MAX_COMMENT_LENGTH} from '../utils/text.limits.js';
 import {
 	ticketAssigneesFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
