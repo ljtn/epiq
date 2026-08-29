@@ -154,6 +154,11 @@ const CommitRow = ({
 	diffStyle: 'split' | 'unified';
 }) => {
 	const [hovered, setHovered] = useState(false);
+	// Also tracks focus (not just mouse hover): the copy button is a real
+	// nested <button>, so a keyboard user can Tab straight to it — without
+	// this it would sit there focused but invisible (opacity 0) until Enter.
+	const [focused, setFocused] = useState(false);
+	const revealed = hovered || focused;
 
 	return (
 		<div
@@ -178,6 +183,8 @@ const CommitRow = ({
 				}}
 				onMouseEnter={() => setHovered(true)}
 				onMouseLeave={() => setHovered(false)}
+				onFocus={() => setFocused(true)}
+				onBlur={() => setFocused(false)}
 				aria-expanded={expanded}
 				style={{...disclosureStyle, padding: '13px 14px'}}
 			>
@@ -205,8 +212,8 @@ const CommitRow = ({
 				<span
 					style={{
 						flexShrink: 0,
-						opacity: expanded || hovered ? 1 : 0,
-						pointerEvents: expanded || hovered ? 'auto' : 'none',
+						opacity: expanded || revealed ? 1 : 0,
+						pointerEvents: expanded || revealed ? 'auto' : 'none',
 						transition: 'opacity 120ms ease',
 					}}
 				>
