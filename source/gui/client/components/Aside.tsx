@@ -50,7 +50,6 @@ export const Aside = forwardRef<
 	useEffect(() => {
 		latestWidth.current = width;
 		onWidthChange?.(width);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [width]);
 
 	const handlePointerMove = useCallback((event: PointerEvent) => {
@@ -79,7 +78,6 @@ export const Aside = forwardRef<
 		document.body.style.cursor = '';
 		document.body.style.userSelect = '';
 		localStorage.setItem(WIDTH_STORAGE_KEY, String(latestWidth.current));
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [handlePointerMove]);
 
 	// A drag left in progress when the panel unmounts (e.g. closing it mid-drag)
