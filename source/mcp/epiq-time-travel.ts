@@ -359,6 +359,8 @@ export type CommitEntry = {
 	author: string;
 	subject: string;
 	linesChanged: number;
+	insertions: number;
+	deletions: number;
 };
 
 // Non-printable, so a commit subject can never contain them.
@@ -417,6 +419,8 @@ export const getCommitTimeline = async (
 				author: author ?? 'unknown',
 				subject: subjectParts.join(GIT_LOG_FIELD_SEP),
 				linesChanged: insertions + deletions,
+				insertions,
+				deletions,
 			};
 		})
 		.filter((commit): commit is CommitEntry => commit !== null)

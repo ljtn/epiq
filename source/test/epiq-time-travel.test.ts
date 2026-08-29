@@ -476,6 +476,8 @@ describe('epiq-time-travel', () => {
 					author: 'Ada',
 					subject: 'fix bug',
 					linesChanged: 57,
+					insertions: 45,
+					deletions: 12,
 				},
 				{
 					sha: 'bbb222',
@@ -483,6 +485,8 @@ describe('epiq-time-travel', () => {
 					author: 'Grace',
 					subject: 'add feature',
 					linesChanged: 0,
+					insertions: 0,
+					deletions: 0,
 				},
 			]);
 		});
