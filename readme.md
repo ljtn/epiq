@@ -194,6 +194,24 @@ Use `--scope user` to make Epiq available in every directory; omit it to registe
 
 Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq board.
 
+### Agent identity
+
+Every process — your TUI, your GUI, each agent's MCP server — writes as the user in `~/.epiq-global/config.json`, so by default the board cannot tell one agent from another. Give an agent its own identity with `EPIQ_USER_NAME`:
+
+```json
+{
+	"mcpServers": {
+		"epiq": {
+			"command": "npx",
+			"args": ["-y", "-p", "epiq", "epiq-mcp"],
+			"env": {"EPIQ_USER_NAME": "claude"}
+		}
+	}
+}
+```
+
+That agent then shows up in the contributor list, assigns itself rather than you, and authors its own events. The id is derived from the name, so one name is one contributor on every machine — reuse names instead of inventing one per session, or the registry fills with single-run identities. `EPIQ_USER_ID` pins the id explicitly (26 characters of Crockford base32) if you would rather choose it. Naming yourself changes nothing.
+
 ### Other MCP clients
 
 For clients that are configured by hand, add the following to the client's MCP config file — note this is **not** the same as Claude Code's `~/.claude.json`; Claude Desktop uses `claude_desktop_config.json`:

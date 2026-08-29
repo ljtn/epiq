@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
+import {isValidUserId, isValidUserName} from '../config/actor-env.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getSettingsState, User} from '../state/settings.state.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
@@ -141,11 +142,6 @@ export const parsePersistedEvent = (value: unknown): Result<PersistedEvent> => {
 
 	return succeeded('Parsed persisted event', result.data as PersistedEvent);
 };
-
-const isValidUserId = (value: string) => /^[0-9A-HJKMNP-TV-Z]{26}$/.test(value);
-
-const isValidUserName = (value: string) =>
-	value.trim().length > 0 && value.length <= 80;
 
 export const resolveActorId = (): Result<User> => {
 	const {userName, userId} = getSettingsState();
