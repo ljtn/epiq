@@ -57,7 +57,6 @@ export const CodeSnippet = ({
 		<div
 			data-testid="code-snippet"
 			style={{
-				marginTop: 12,
 				border: `1px solid ${GUI_THEME.line}`,
 				borderRadius: 8,
 				overflow: 'hidden',

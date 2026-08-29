@@ -45,7 +45,9 @@ export const CommentBody = ({
 	} ${formatSelectionLabel(meta)}`;
 
 	return (
-		<>
+		// A flex column: sibling margins don't collapse here, so the gap between
+		// note and snippet is the gap it says it is.
+		<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
 			{meta.note && <MarkdownContent content={meta.note} softBreaks />}
 
 			{/* Only clickable when the marker recorded which commit the selection
@@ -66,7 +68,7 @@ export const CommentBody = ({
 						: undefined
 				}
 			/>
-		</>
+		</div>
 	);
 };
 
