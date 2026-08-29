@@ -71,10 +71,13 @@ const readJsonBody = async <T>(
 	maxBytes = 1024 * 1024,
 ): Promise<T> =>
 	new Promise((resolve, reject) => {
-		let body = '';
+		// Buffers, decoded once at the end: `body += chunk` decodes each chunk on
+		// its own, so a character whose bytes straddle two socket reads came out
+		// as replacement characters — silently, and then straight into the log.
+		const chunks: Buffer[] = [];
 		let received = 0;
 
-		req.on('data', chunk => {
+		req.on('data', (chunk: Buffer) => {
 			received += chunk.length;
 
 			if (received > maxBytes) {
@@ -83,10 +86,12 @@ const readJsonBody = async <T>(
 				return;
 			}
 
-			body += chunk;
+			chunks.push(chunk);
 		});
 
 		req.on('end', () => {
+			const body = Buffer.concat(chunks).toString('utf8');
+
 			try {
 				resolve(body ? JSON.parse(body) : ({} as T));
 			} catch {
