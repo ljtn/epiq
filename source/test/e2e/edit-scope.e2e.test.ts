@@ -85,7 +85,7 @@ beforeAll(async () => {
 
 		await tui.waitFor('Initialize project', 8_000);
 	} finally {
-		tui.destroy();
+		await tui.destroy();
 	}
 });
 
@@ -140,7 +140,7 @@ describe('TUI edit-command scope e2e', () => {
 				await run(tui, ':edit description', 'edit description');
 				await tui.waitFor(EDITED_DESCRIPTION, 8_000);
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,

@@ -34,7 +34,7 @@ beforeAll(async () => {
 	try {
 		await commonSteps.configureInitialSettings(tui);
 	} finally {
-		tui.destroy();
+		await tui.destroy();
 	}
 });
 
@@ -120,7 +120,7 @@ describe('TUI issue lifecycle e2e', () => {
 				expect(normalized).toContain('Moved issue to Done');
 				expect(normalized).toContain('Closed');
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,

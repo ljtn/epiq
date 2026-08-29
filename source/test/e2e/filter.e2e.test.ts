@@ -41,7 +41,7 @@ beforeAll(async () => {
 	try {
 		await commonSteps.configureInitialSettings(tui);
 	} finally {
-		tui.destroy();
+		await tui.destroy();
 	}
 });
 
@@ -128,7 +128,7 @@ describe('TUI board filtering e2e', () => {
 				expect(byTitle).not.toContain('DB sync');
 				expect(byTitle).not.toContain('Nav menu');
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,

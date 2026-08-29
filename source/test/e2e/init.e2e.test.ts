@@ -11,7 +11,7 @@ beforeAll(async () => {
 	try {
 		await commonSteps.configureInitialSettings(tui);
 	} finally {
-		tui.destroy();
+		await tui.destroy();
 	}
 });
 
@@ -26,7 +26,7 @@ describe('TUI e2e', () => {
 
 				expect(output).toContain('Default (0 issues)');
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,
@@ -55,7 +55,7 @@ describe('TUI e2e', () => {
 
 				expect(output).toContain(issueTitle);
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,
@@ -99,7 +99,7 @@ describe('TUI e2e', () => {
 				expect(finalOutput).not.toContain(':edit title Test create EDITED');
 				expect(finalOutput).toContain('Test create EDITED');
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,
@@ -172,7 +172,7 @@ describe('TUI e2e', () => {
 				expect(normalizedLogOutput).toContain('Tagged with important');
 				expect(normalizedLogOutput).toContain('Removed tag prio');
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,

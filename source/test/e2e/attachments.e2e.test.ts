@@ -73,7 +73,7 @@ describe('issue attachments', () => {
 	let remoteDir: string;
 	let stateRoot: string;
 	let issueId: string;
-	let cleanupTui: (() => void) | null = null;
+	let cleanupTui: (() => Promise<void>) | null = null;
 
 	beforeAll(async () => {
 		const setupTuiSession = setupTui();
@@ -81,7 +81,7 @@ describe('issue attachments', () => {
 		try {
 			await commonSteps.configureInitialSettings(setupTuiSession);
 		} finally {
-			setupTuiSession.destroy();
+			await setupTuiSession.destroy();
 		}
 
 		// Bootstrap a real project and one issue through the actual TUI, then
@@ -100,7 +100,7 @@ describe('issue attachments', () => {
 
 		await run(tui, ':new issue Attachment target', 'new issue Attachment');
 		await tui.waitFor('Todo (1)', 4_000);
-		tui.destroy();
+		await tui.destroy();
 		cleanupTui = null;
 
 		// Remote is added after the TUI exits so background auto-sync cannot
@@ -126,8 +126,8 @@ describe('issue attachments', () => {
 		issueId = issue.id;
 	}, testTimeout);
 
-	afterAll(() => {
-		cleanupTui?.();
+	afterAll(async () => {
+		await cleanupTui?.();
 		removeTempRepo(repoRoot);
 		removeTempRepo(remoteDir);
 	});
@@ -258,7 +258,7 @@ describe('issue attachments', () => {
 				const afterOpen = await indicatorTui.waitFor('screenshot.png', 4_000);
 				expect(afterOpen).toContain('screenshot.png');
 			} finally {
-				indicatorTui.destroy();
+				await indicatorTui.destroy();
 			}
 
 			// --- delete removes the reference but never the blob (time travel)
