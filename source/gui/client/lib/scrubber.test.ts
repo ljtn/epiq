@@ -724,16 +724,16 @@ describe('board filter', () => {
 	it('does not filter until the selection is narrowed', () => {
 		// A kind with everything still ticked is a colouring choice, not a
 		// question about which tickets matter.
-		expect(buildBoardFilter('tagging', [bug, docs], new Set())).toBeNull();
+		expect(buildBoardFilter('tagging', null)).toBeNull();
 	});
 
 	it('does not filter on a view with no identity axis', () => {
-		expect(buildBoardFilter('tickets', [bug], new Set([bug.id]))).toBeNull();
-		expect(buildBoardFilter('all', [bug], new Set([bug.id]))).toBeNull();
+		expect(buildBoardFilter('tickets', [bug.id])).toBeNull();
+		expect(buildBoardFilter('all', [bug.id])).toBeNull();
 	});
 
 	it('keeps the tickets carrying a visible tag', () => {
-		const filter = buildBoardFilter('tagging', [bug, docs], new Set([docs.id]));
+		const filter = buildBoardFilter('tagging', [bug.id]);
 
 		expect(issuePassesBoardFilter(issue([bug]), [], filter)).toBe(true);
 		expect(issuePassesBoardFilter(issue([docs]), [], filter)).toBe(false);
@@ -742,11 +742,7 @@ describe('board filter', () => {
 	});
 
 	it('reads assignees off the ticket for an assigning view', () => {
-		const filter = buildBoardFilter(
-			'assigning',
-			[jola, docs],
-			new Set([docs.id]),
-		);
+		const filter = buildBoardFilter('assigning', [jola.id]);
 
 		expect(issuePassesBoardFilter(issue([], [jola]), [], filter)).toBe(true);
 		expect(issuePassesBoardFilter(issue([], [docs]), [], filter)).toBe(false);
@@ -755,11 +751,7 @@ describe('board filter', () => {
 	});
 
 	it('reads comment authors for a comments view', () => {
-		const filter = buildBoardFilter(
-			'comments',
-			[jola, docs],
-			new Set([docs.id]),
-		);
+		const filter = buildBoardFilter('comments', [jola.id]);
 
 		expect(issuePassesBoardFilter(issue(), [jola.id], filter)).toBe(true);
 		expect(issuePassesBoardFilter(issue(), [docs.id], filter)).toBe(false);

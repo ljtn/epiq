@@ -6,31 +6,35 @@ import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {maxOf} from '../../../lib/utils/minmax.js';
 import {
 	GuiCommitEntry,
+	GuiEventIdentity,
 	GuiEventTimeline,
 	GuiTimeTravelStatus,
 } from '../lib/gui-state.model';
+import {
+	BoardSelection,
+	hiddenIdsFor,
+	isolateOnly,
+	toggleOnly,
+	withSelectedIdentities,
+} from '../lib/board-selection';
 import {
 	bucketCommitStats,
 	bucketIssueCounts,
 	buildAxis,
 	boardViewColor,
-	BoardFilter,
 	BoardView,
-	buildBoardFilter,
 	buildEventDots,
 	chooseSegmentUnit,
 	clamp,
 	DOT_EXIT_TOTAL_MS,
 	dotDetail,
 	EventDot,
-	isBoardView,
+	identityAxisFor,
 	listIdentities,
 	soleVisibleIdentity,
 	formatInterval,
 	getPeriodRange,
 	hourFractionForTime,
-	isLayoutMode,
-	isScope,
 	LayoutMode,
 	populatedRange,
 	Scope,
@@ -51,43 +55,11 @@ const boardEventRow = (count: number) =>
 	`${count} board event${count === 1 ? '' : 's'}`;
 
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
-const LAYOUT_MODE_STORAGE_KEY = 'epiq.timeScrubber.layoutMode';
-const SCOPE_STORAGE_KEY = 'epiq.timeScrubber.scope';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
 const ALL_BOARDS_STORAGE_KEY = 'epiq.timeScrubber.allBoards';
-const BOARD_VIEW_STORAGE_KEY = 'epiq.timeScrubber.boardView';
-const HIDDEN_IDENTITIES_STORAGE_KEY = 'epiq.timeScrubber.hiddenIdentities';
 const CATEGORIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.categoriesExpanded';
 const IDENTITIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.identitiesExpanded';
-
-const readStoredBoardView = (): BoardView => {
-	const stored = localStorage.getItem(BOARD_VIEW_STORAGE_KEY);
-	return isBoardView(stored) ? stored : 'all';
-};
-
-// Stored as the ids that are *off*, so a tag or contributor created later shows
-// up by default rather than being missing from everyone's saved filter.
-const readStoredHiddenIds = (): Set<string> => {
-	try {
-		const stored = localStorage.getItem(HIDDEN_IDENTITIES_STORAGE_KEY);
-		const parsed: unknown = stored ? JSON.parse(stored) : [];
-
-		return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
-	} catch {
-		return new Set();
-	}
-};
-
-const readStoredLayoutMode = (): LayoutMode => {
-	const stored = localStorage.getItem(LAYOUT_MODE_STORAGE_KEY);
-	return isLayoutMode(stored) ? stored : 'even';
-};
-
-const readStoredScope = (): Scope => {
-	const stored = localStorage.getItem(SCOPE_STORAGE_KEY);
-	return isScope(stored) ? stored : 'all';
-};
 
 export const TimeScrubber = ({
 	timeline,
@@ -102,7 +74,9 @@ export const TimeScrubber = ({
 	socketEpoch,
 	highlightEventId,
 	onInspectCommit,
-	onBoardFilterChange,
+	selection,
+	onChangeSelection,
+	knownIdentities,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -128,21 +102,22 @@ export const TimeScrubber = ({
 	// The event a hovered Log row points at. Every other dot dims around it.
 	highlightEventId: string | null;
 	onInspectCommit: (sha: string) => void;
-	// Reported upward rather than held here: the board renders outside this
-	// component, and the selection that colours the chart is the same one that
-	// decides which tickets belong on it.
-	onBoardFilterChange: (filter: BoardFilter | null) => void;
+	// Owned above rather than here: the selection that colours the chart is the
+	// same one that decides which tickets the board shows, and it lives in the
+	// URL.
+	selection: BoardSelection;
+	onChangeSelection: (patch: Partial<BoardSelection>) => void;
+	// Every tag and person the board knows, per axis, for naming a selected
+	// identity the window itself holds no event for.
+	knownIdentities: Record<'actor' | 'tag' | 'assignee', GuiEventIdentity[]>;
 }) => {
+	const {scope, offset, layout: layoutMode, view: boardView, only} = selection;
 	const animate = !usePrefersReducedMotion();
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
 	// The moment last asked for, so a repeat of it is not asked again.
 	const lastTargetRef = useRef<number | null>(null);
 
-	const [layoutMode, setLayoutMode] =
-		useState<LayoutMode>(readStoredLayoutMode);
-	const [scope, setScope] = useState<Scope>(readStoredScope);
-	const [offset, setOffset] = useState(0);
 	const [dragFraction, setDragFraction] = useState<number | null>(null);
 
 	const [collapsed, setCollapsed] = usePersistedFlag(
@@ -157,9 +132,6 @@ export const TimeScrubber = ({
 		SHOW_COMMITS_STORAGE_KEY,
 		true,
 	);
-	const [boardView, setBoardView] = useState<BoardView>(readStoredBoardView);
-	const [hiddenIdentityIds, setHiddenIdentityIds] =
-		useState<Set<string>>(readStoredHiddenIds);
 	const [categoriesExpanded, setCategoriesExpanded] = usePersistedFlag(
 		CATEGORIES_EXPANDED_STORAGE_KEY,
 		false,
@@ -221,71 +193,30 @@ export const TimeScrubber = ({
 		);
 	}, [scope, offset, boardId, allBoards, connected, socketEpoch]);
 
-	const changeLayoutMode = (next: LayoutMode) => {
-		setLayoutMode(next);
-		localStorage.setItem(LAYOUT_MODE_STORAGE_KEY, next);
-	};
+	const changeLayoutMode = (next: LayoutMode) =>
+		onChangeSelection({layout: next});
 
 	const changeScope = (nextScope: Scope) => {
 		armEntrance();
-		setScope(nextScope);
-		setOffset(0);
-		localStorage.setItem(SCOPE_STORAGE_KEY, nextScope);
+		onChangeSelection({scope: nextScope});
 	};
 
 	const changeOffset = (nextOffset: number) => {
 		armEntrance();
-		setOffset(nextOffset);
+		onChangeSelection({offset: nextOffset});
 	};
 
 	// No armEntrance on either: the window is unchanged, so these filter what is
 	// already in hand rather than asking for a new view.
-	const changeBoardView = (next: BoardView) => {
-		setBoardView(next);
-		localStorage.setItem(BOARD_VIEW_STORAGE_KEY, next);
-	};
+	const changeBoardView = (next: BoardView) => onChangeSelection({view: next});
 
 	// Toggles: isolating again restores the rest, so the button is a way back as
 	// well as a way in. Ticking each of a dozen tags to undo it is not.
-	const isolateIdentity = (id: string) => {
-		const others = identities
-			.filter(identity => identity.id !== id)
-			.map(identity => identity.id);
+	const isolateIdentity = (id: string) =>
+		onChangeSelection({only: isolateOnly(only, id)});
 
-		setHiddenIdentityIds(previous => {
-			const isolated =
-				!previous.has(id) &&
-				others.length === previous.size &&
-				others.every(other => previous.has(other));
-
-			const hidden = isolated ? new Set<string>() : new Set(others);
-
-			localStorage.setItem(
-				HIDDEN_IDENTITIES_STORAGE_KEY,
-				JSON.stringify([...hidden]),
-			);
-
-			return hidden;
-		});
-	};
-
-	const toggleIdentity = (id: string, next: boolean) => {
-		setHiddenIdentityIds(previous => {
-			const hidden = new Set(previous);
-			if (next) {
-				hidden.delete(id);
-			} else {
-				hidden.add(id);
-			}
-
-			localStorage.setItem(
-				HIDDEN_IDENTITIES_STORAGE_KEY,
-				JSON.stringify([...hidden]),
-			);
-
-			return hidden;
-		});
-	};
+	const toggleIdentity = (id: string, next: boolean) =>
+		onChangeSelection({only: toggleOnly(only, identities, id, next)});
 
 	const changeAllBoards = (next: boolean) => {
 		armEntrance();
@@ -295,8 +226,8 @@ export const TimeScrubber = ({
 	// What narrows the window already in hand. Answered on the spot, with no
 	// round trip, so it can replay the entrance the moment it changes.
 	const filterKey = useMemo(
-		() => JSON.stringify([boardView, [...hiddenIdentityIds].sort()]),
-		[boardView, hiddenIdentityIds],
+		() => JSON.stringify([boardView, only === null ? null : [...only].sort()]),
+		[boardView, only],
 	);
 
 	const entrance = useRef(0);
@@ -335,9 +266,19 @@ export const TimeScrubber = ({
 	// Only a window the server returned events for can be split at all.
 	const categoriesFiltered = (timeline?.events.length ?? 0) > 0;
 
-	const identities = useMemo(
-		() => listIdentities(shown.timeline, boardView),
-		[shown, boardView],
+	const identities = useMemo(() => {
+		const axis = identityAxisFor(boardView);
+
+		return withSelectedIdentities(
+			listIdentities(shown.timeline, boardView),
+			only,
+			axis === null ? [] : knownIdentities[axis],
+		);
+	}, [shown, boardView, only, knownIdentities]);
+
+	const hiddenIdentityIds = useMemo(
+		() => hiddenIdsFor(identities, only),
+		[identities, only],
 	);
 
 	// Filtered down to one tag or person, the bars are that identity and nothing
@@ -403,15 +344,6 @@ export const TimeScrubber = ({
 			})),
 		[liveEventDots, axis],
 	);
-
-	const boardFilter = useMemo(
-		() => buildBoardFilter(boardView, identities, hiddenIdentityIds),
-		[boardView, identities, hiddenIdentityIds],
-	);
-
-	useEffect(() => {
-		onBoardFilterChange(boardFilter);
-	}, [boardFilter]);
 
 	// Two maxima, because a coarse bucket's count is a sum of many fine ones;
 	// normalizing every series against one max flattens the others. The scatter

@@ -57,8 +57,10 @@ import {
 	GuiEventTimeline,
 	GuiState,
 	GuiSwimlane,
+	GuiUser,
 } from './lib/gui-state.model';
-import {BoardFilter, issuePassesBoardFilter} from './lib/scrubber';
+import {buildBoardFilter, issuePassesBoardFilter} from './lib/scrubber';
+import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {createMutationGate} from './lib/mutation-gate';
@@ -102,6 +104,7 @@ export const App = () => {
 		issueMatch?.params.issueId ?? legacyIssueMatch?.params.issueId;
 
 	const [searchParams, setSearchParams] = useSearchParams();
+	const [selection, changeSelection] = useBoardSelection();
 
 	const [connected, setConnected] = useState(false);
 	// Bumped per socket, not per connection state: a socket the effect replaces
@@ -313,9 +316,34 @@ export const App = () => {
 		comments: GuiComment[];
 		history: GuiIssueHistoryEntry[];
 	} | null>(null);
-	// Driven by the scrubber's own selection. Null unless it has been narrowed
-	// to particular tags or people.
-	const [boardFilter, setBoardFilter] = useState<BoardFilter | null>(null);
+	// Null unless the selection has been narrowed to particular tags or people.
+	const boardFilter = useMemo(
+		() => buildBoardFilter(selection.view, selection.only),
+		[selection.view, selection.only],
+	);
+
+	// The tag every card is narrowed to, if the selection is exactly one tag:
+	// its chips read as pressed, and pressing again is the way back.
+	const isolatedTagId =
+		selection.view === 'tagging' && selection.only?.length === 1
+			? selection.only[0] ?? null
+			: null;
+
+	const filterByTag = (tagId: string) =>
+		changeSelection(
+			isolatedTagId === tagId ? {only: null} : {view: 'tagging', only: [tagId]},
+		);
+
+	// For naming a selected identity the scrubber's window has no event for.
+	const knownIdentities = useMemo(() => {
+		const people = new Map<string, GuiUser>();
+		for (const person of [...(state?.contributors ?? []), ...contributors]) {
+			if (!people.has(person.id)) people.set(person.id, person);
+		}
+		const users = [...people.values()];
+
+		return {tag: state?.tags ?? [], actor: users, assignee: users};
+	}, [state?.tags, state?.contributors, contributors]);
 
 	// Memoized, and returning the lanes untouched when nothing is filtered:
 	// rebuilding every swimlane object each render would hand SwimlaneColumn a
@@ -1441,7 +1469,9 @@ export const App = () => {
 					timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 					onScrub={scrubToTime}
 					onReturnToLive={returnToLive}
-					onBoardFilterChange={setBoardFilter}
+					selection={selection}
+					onChangeSelection={changeSelection}
+					knownIdentities={knownIdentities}
 				/>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at
@@ -1527,6 +1557,8 @@ export const App = () => {
 									}
 									onSelectIssue={selectIssue}
 									onSelectIssueComments={selectIssueComments}
+									isolatedTagId={isolatedTagId}
+									onFilterByTag={filterByTag}
 									onCreateIssue={openCreateIssueModal}
 									onRenameSwimlane={openRenameSwimlane}
 									onDeleteSwimlane={setDeleteSwimlaneId}

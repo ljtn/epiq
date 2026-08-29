@@ -855,17 +855,12 @@ export type BoardFilter = {
 // ticked is a colouring choice, not a question about which tickets matter.
 export const buildBoardFilter = (
 	view: BoardView,
-	identities: GuiEventIdentity[],
-	hiddenIds: ReadonlySet<string>,
+	only: readonly string[] | null,
 ): BoardFilter | null => {
 	const axis = identityAxisFor(view);
-	if (axis === null || hiddenIds.size === 0) return null;
+	if (axis === null || only === null) return null;
 
-	const visibleIds = new Set(
-		identities.map(identity => identity.id).filter(id => !hiddenIds.has(id)),
-	);
-
-	return {axis, visibleIds};
+	return {axis, visibleIds: new Set(only)};
 };
 
 // Read off the board's own state, which is already the state at the needle —
