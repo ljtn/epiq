@@ -27,7 +27,13 @@ const toDiffFileInput = (file: GuiCommitDiffFile): DiffFileInput => {
 	return {oldFile, newFile};
 };
 
-export const FileDiffView = ({file}: {file: GuiCommitDiffFile}) => (
+export const FileDiffView = ({
+	file,
+	diffStyle,
+}: {
+	file: GuiCommitDiffFile;
+	diffStyle: 'split' | 'unified';
+}) => (
 	<div
 		style={{
 			marginBottom: 16,
@@ -38,7 +44,7 @@ export const FileDiffView = ({file}: {file: GuiCommitDiffFile}) => (
 	>
 		<MultiFileDiff
 			{...toDiffFileInput(file)}
-			options={{diffStyle: 'split', theme: PIERRE_THEME}}
+			options={{diffStyle, theme: PIERRE_THEME}}
 		/>
 	</div>
 );
@@ -48,12 +54,14 @@ export const DiffPanel = ({
 	files,
 	loading,
 	error,
+	diffStyle,
 	onClose,
 }: {
 	title: string;
 	files: GuiCommitDiffFile[] | null;
 	loading: boolean;
 	error: string | null;
+	diffStyle: 'split' | 'unified';
 	onClose: () => void;
 }) => (
 	<>
@@ -80,6 +88,8 @@ export const DiffPanel = ({
 
 		{!loading &&
 			!error &&
-			files?.map(file => <FileDiffView key={file.path} file={file} />)}
+			files?.map(file => (
+				<FileDiffView key={file.path} file={file} diffStyle={diffStyle} />
+			))}
 	</>
 );

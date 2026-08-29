@@ -5,7 +5,11 @@ import {
 	useParams,
 	useSearchParams,
 } from 'react-router-dom';
-import {ASIDE_DIFF_WIDTH, ASIDE_WIDTH, Aside} from './components/Aside';
+import {
+	Aside,
+	readStoredAsideWidth,
+	STACKED_DIFF_WIDTH,
+} from './components/Aside';
 import {Button} from './components/Button';
 import {CreateNodeModal} from './components/CreateNodeModal';
 import {AddSwimlaneColumn} from './components/AddSwimlaneColumn';
@@ -39,6 +43,7 @@ import {
 	GuiIssue,
 	GuiIssueHistoryEntry,
 	GuiCommitEntry,
+	GuiRefCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
 	GuiState,
@@ -124,6 +129,11 @@ export const App = () => {
 		error: string | null;
 		files: GuiCommitDiffFile[] | null;
 	} | null>(null);
+	// Tracks the resizable Aside's live width so DiffPanel can pick split vs.
+	// unified — initialized from the same persisted value Aside itself reads,
+	// so the first render already picks the right layout instead of flashing.
+	const [commitDiffPanelWidth, setCommitDiffPanelWidth] =
+		useState(readStoredAsideWidth);
 	// The ticket detail Code tab's commit list. Reset per selected issue, like
 	// issueDetail below — refetched fresh each time the tab opens rather than
 	// cached, since a full ref-prefix log scan is cheap next to the round trip.
@@ -131,7 +141,7 @@ export const App = () => {
 		issueId: string;
 		loading: boolean;
 		error: string | null;
-		commits: GuiCommitEntry[];
+		commits: GuiRefCommitEntry[];
 	} | null>(null);
 	// Per-commit diffs for whichever commits are expanded in the Code tab.
 	// Keyed by sha rather than nested under issueCommits so an expanded commit
@@ -556,7 +566,11 @@ export const App = () => {
 				// in flight, and a failed Result alone carries no issueId to check.
 				const {issueId, result} = message.payload as {
 					issueId: string;
-					result: {status: string; message: string; value?: GuiCommitEntry[]};
+					result: {
+						status: string;
+						message: string;
+						value?: GuiRefCommitEntry[];
+					};
 				};
 
 				if (result?.status === 'fail') {
@@ -566,7 +580,7 @@ export const App = () => {
 							: prev,
 					);
 				} else {
-					const commits = getResultValue<GuiCommitEntry[]>(result);
+					const commits = getResultValue<GuiRefCommitEntry[]>(result);
 					if (commits) {
 						setIssueCommits(prev =>
 							prev && prev.issueId === issueId
@@ -1411,18 +1425,12 @@ export const App = () => {
 
 						{/* Grows scrollWidth by exactly what closing the panel gave back
 							in clientWidth, keeping max scrollLeft identical across
-							open/closed so the board doesn't bounce back when scrolled
-							far right. Width must match whichever panel would be showing —
-							the commit-diff panel and a ticket's Code tab are both
-							ASIDE_DIFF_WIDTH wide, not the default ASIDE_WIDTH. */}
+							open/closed so the board doesn't bounce back when scrolled far
+							right. Reads the panel's persisted width directly rather than
+							tracking it live: the panel — and any drag — isn't mounted while
+							this spacer is, so the last-persisted value is always current. */}
 						{!commitDiff && !(selectedIssue && state?.user) && (
-							<div
-								style={{
-									width:
-										selectedTab === 'code' ? ASIDE_DIFF_WIDTH : ASIDE_WIDTH,
-									flexShrink: 0,
-								}}
-							/>
+							<div style={{width: readStoredAsideWidth(), flexShrink: 0}} />
 						)}
 
 						{/* The page's right margin, scrolling with the columns. Constant,
@@ -1432,12 +1440,15 @@ export const App = () => {
 				</main>
 
 				{commitDiff && (
-					<Aside width={ASIDE_DIFF_WIDTH}>
+					<Aside onWidthChange={setCommitDiffPanelWidth}>
 						<DiffPanel
 							title={`Commit ${commitDiff.sha.slice(0, 7)}`}
 							files={commitDiff.files}
 							loading={commitDiff.loading}
 							error={commitDiff.error}
+							diffStyle={
+								commitDiffPanelWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'
+							}
 							onClose={closeCommitDiff}
 						/>
 					</Aside>
