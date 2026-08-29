@@ -433,6 +433,14 @@ export const createIssue = async (input: CreateIssueInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
+	// The other three title paths all sanitize; this one used to write the raw
+	// input, so a newline or a control character landed in the log for good.
+	const title = sanitizeInlineText(input.title);
+
+	if (!title) {
+		return failed('Issue title cannot be empty');
+	}
+
 	const rankResult = resolveAndPersistRankForCreate(
 		input.parentId,
 		actorResult.value,
@@ -441,7 +449,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 	if (isFail(rankResult)) return rankResult;
 
 	const issueEventsResult = createIssueEvents({
-		name: input.title,
+		name: title,
 		parent: input.parentId,
 		user: actorResult.value,
 		rank: rankResult.value,
@@ -529,7 +537,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 	return succeeded('Created issue', {
 		id: issueId,
-		title: input.title,
+		title,
 		parentId: input.parentId,
 		description: input.description ?? '',
 		tags,

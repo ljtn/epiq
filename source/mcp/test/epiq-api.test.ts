@@ -745,6 +745,28 @@ describe('mcp tools', () => {
 		);
 	});
 
+	it('sanitizes the title, like every other title path does', async () => {
+		const result = await tools.createIssue({
+			repoRoot: '/repo',
+			title: 'Broken\ntitle\twith control',
+			parentId: 'swimlane-1',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.title).toBe('Broken title with control');
+	});
+
+	it('refuses a title that is nothing but control characters', async () => {
+		const result = await tools.createIssue({
+			repoRoot: '/repo',
+			title: '\n\t  ',
+			parentId: 'swimlane-1',
+		});
+
+		expect(isFail(result)).toBe(true);
+	});
+
 	it('creates an issue with description, tags, and assignees atomically', async () => {
 		const result = await tools.createIssue({
 			repoRoot: '/repo',
