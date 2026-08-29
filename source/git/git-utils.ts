@@ -13,6 +13,32 @@ export type GitExecResult = {
 
 const GIT_TIMEOUT_MS = 10_000;
 
+// A bare `spawn('git')` has execvp attempt an execve in every PATH directory
+// ahead of git's, and each miss costs milliseconds; resolve the path once.
+const resolveGitBinary = (): string => {
+	const names = process.platform === 'win32' ? ['git.exe', 'git'] : ['git'];
+
+	for (const dir of (process.env['PATH'] ?? '').split(path.delimiter)) {
+		if (!dir) continue;
+
+		for (const name of names) {
+			const candidate = path.join(dir, name);
+
+			try {
+				if (!fs.statSync(candidate).isFile()) continue;
+				fs.accessSync(candidate, fs.constants.X_OK);
+				return candidate;
+			} catch {
+				continue;
+			}
+		}
+	}
+
+	return 'git';
+};
+
+export const GIT_BIN = resolveGitBinary();
+
 export const gitEnv = {
 	...process.env,
 	GIT_TERMINAL_PROMPT: '0',
@@ -48,7 +74,7 @@ const runGit = ({
 			return;
 		}
 
-		const child = spawn('git', args, {
+		const child = spawn(GIT_BIN, args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
 			env: gitEnv,
@@ -170,7 +196,7 @@ export const readGitBlobsBatch = (
 			return;
 		}
 
-		const child = spawn('git', ['cat-file', '--batch'], {
+		const child = spawn(GIT_BIN, ['cat-file', '--batch'], {
 			cwd,
 			stdio: ['pipe', 'pipe', 'pipe'],
 			env: gitEnv,
