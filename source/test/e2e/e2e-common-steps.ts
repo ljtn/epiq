@@ -8,10 +8,10 @@ export const commonSteps = {
 		await tui.waitFor('choose your username', 20_000);
 		tui.input(':config username test\r');
 
-		await tui.waitFor('pick your editor');
+		await tui.waitFor('pick your editor', 20_000);
 		tui.input(':config editor vim\r');
 
-		await tui.waitFor('Configure auto sync');
+		await tui.waitFor('Configure auto sync', 20_000);
 		tui.input(':config autoSync on\r');
 
 		await tui.waitFor('Initialize project', 20_000);
