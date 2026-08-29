@@ -8,6 +8,7 @@ import React, {
 import {GUI_THEME} from '../lib/gui-theme';
 
 export const ASIDE_WIDTH = 440;
+export const ASIDE_PADDING = 20;
 const MIN_ASIDE_WIDTH = 380;
 // Clamped against the live window width too (see handlePointerMove) — this is
 // just a sane ceiling on an unusually wide monitor.
@@ -56,12 +57,8 @@ export const Aside = forwardRef<
 	// fullscreen itself is a transient view toggle, not a stored preference.
 	const preFullscreenWidth = useRef<number | null>(null);
 
-	// Fires on mount too, not just on drag — so a caller that only reads
-	// this (rather than also calling readStoredAsideWidth itself) still sees
-	// the persisted width immediately.
 	useEffect(() => {
 		latestWidth.current = width;
-		onWidthChange?.(width);
 	}, [width]);
 
 	const handlePointerMove = useCallback((event: PointerEvent) => {
@@ -143,17 +140,30 @@ export const Aside = forwardRef<
 
 	const effectiveWidth = isFullscreen ? windowWidth : width;
 
+	// Reports the width the panel is actually drawn at — in fullscreen the
+	// window's, not the stored one — so layout decisions track what is on
+	// screen. Fires on mount too, not just on drag, so a caller that only
+	// reads this (rather than also calling readStoredAsideWidth itself) sees
+	// the persisted width immediately.
+	useEffect(() => {
+		onWidthChange?.(effectiveWidth);
+	}, [effectiveWidth]);
+
 	return (
 		<aside
 			ref={ref}
 			style={{
 				boxSizing: 'border-box',
-				width: effectiveWidth,
-				minWidth: effectiveWidth,
-				position: 'relative',
+				// Fullscreen overlays the row rather than growing inside it: the
+				// board next to it can't shrink below its own padding, so a
+				// window-wide flex item would overflow the row and be clipped
+				// on the right. Overlaying also leaves the board's scroll alone.
+				...(isFullscreen
+					? {position: 'absolute', top: 0, right: 0, bottom: 0, left: 0}
+					: {position: 'relative', width, minWidth: width}),
 				borderLeft: `1px solid ${GUI_THEME.line}`,
 				background: GUI_THEME.panel,
-				padding: 20,
+				padding: ASIDE_PADDING,
 				fontSize: 12,
 				overflow: 'auto',
 			}}

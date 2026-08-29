@@ -1481,6 +1481,8 @@ export const App = () => {
 						display: 'flex',
 						flex: 1,
 						overflow: 'hidden',
+						// A fullscreen panel is positioned against this row.
+						position: 'relative',
 						opacity: offline ? 0.55 : 1,
 						transition: 'opacity 160ms ease',
 					}}
