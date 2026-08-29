@@ -53,7 +53,7 @@ import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
-type IssueDetailsTab = 'overview' | 'comments' | 'history';
+type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
 
 // Module scope so an absent state does not hand the memos below a new object
 // on every render.
@@ -124,6 +124,28 @@ export const App = () => {
 		error: string | null;
 		files: GuiCommitDiffFile[] | null;
 	} | null>(null);
+	// The ticket detail Code tab's commit list. Reset per selected issue, like
+	// issueDetail below — refetched fresh each time the tab opens rather than
+	// cached, since a full ref-prefix log scan is cheap next to the round trip.
+	const [issueCommits, setIssueCommits] = useState<{
+		issueId: string;
+		loading: boolean;
+		error: string | null;
+		commits: GuiCommitEntry[];
+	} | null>(null);
+	// Per-commit diffs for whichever commits are expanded in the Code tab.
+	// Keyed by sha rather than nested under issueCommits so an expanded commit
+	// survives a commits-list refetch (e.g. re-opening the tab).
+	const [issueCommitDiffs, setIssueCommitDiffs] = useState<
+		Record<
+			string,
+			{
+				loading: boolean;
+				error: string | null;
+				files: GuiCommitDiffFile[] | null;
+			}
+		>
+	>({});
 	const [removeError, setRemoveError] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
@@ -178,7 +200,9 @@ export const App = () => {
 
 	const tabParam = searchParams.get('tab');
 	const selectedTab: IssueDetailsTab =
-		tabParam === 'comments' || tabParam === 'history' ? tabParam : 'overview';
+		tabParam === 'comments' || tabParam === 'history' || tabParam === 'code'
+			? tabParam
+			: 'overview';
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs (full ids in old links still resolve).
@@ -293,6 +317,40 @@ export const App = () => {
 			payload: {issueId: selectedIssue.id},
 		});
 	}, [selectedIssue?.id, state]);
+
+	// Fetched lazily on entering the Code tab rather than alongside issue:get
+	// above: a full ref-prefix log scan on every ticket selection would be
+	// wasted on the common case where nobody opens the tab.
+	useEffect(() => {
+		setIssueCommitDiffs({});
+
+		if (!selectedIssue || selectedTab !== 'code') {
+			setIssueCommits(null);
+			return;
+		}
+
+		setIssueCommits({
+			issueId: selectedIssue.id,
+			loading: true,
+			error: null,
+			commits: [],
+		});
+		sendSocketJson(socketRef.current, {
+			type: 'issue:commits:get',
+			payload: {issueId: selectedIssue.id},
+		});
+	}, [selectedIssue?.id, selectedTab]);
+
+	const loadIssueCommitDiff = useCallback((sha: string) => {
+		setIssueCommitDiffs(prev => ({
+			...prev,
+			[sha]: {loading: true, error: null, files: null},
+		}));
+		sendSocketJson(socketRef.current, {
+			type: 'commit:diff:get',
+			payload: {sha},
+		});
+	}, []);
 
 	const requestState = () => {
 		sendSocketJson(socketRef.current, {type: 'state:get'});
@@ -439,19 +497,67 @@ export const App = () => {
 			}
 
 			if (message.type === 'commit:diff:result') {
-				if (message.payload?.status === 'fail') {
+				// Wrapped with the sha it was requested for: the scrubber's dot and
+				// the ticket tab's commit list can each have a different commit's
+				// diff in flight at once, and a failed Result alone carries no sha
+				// to attribute the failure to.
+				const {sha, result} = message.payload as {
+					sha: string;
+					result: {status: string; message: string; value?: GuiCommitDiff};
+				};
+
+				if (result?.status === 'fail') {
+					// Ignores a reply for a sha no longer showing — a fast second click
+					// can leave an earlier request in flight.
 					setCommitDiff(prev =>
-						prev ? {...prev, loading: false, error: message.payload.message} : prev,
+						prev && prev.sha === sha
+							? {...prev, loading: false, error: result.message}
+							: prev,
+					);
+					setIssueCommitDiffs(prev =>
+						prev[sha]
+							? {
+									...prev,
+									[sha]: {loading: false, error: result.message, files: null},
+							  }
+							: prev,
 					);
 				} else {
-					const diff = getResultValue<GuiCommitDiff>(message.payload);
-					// Ignores a reply for a sha that is no longer the one showing —
-					// a fast second click can leave an earlier request in flight.
+					const diff = getResultValue<GuiCommitDiff>(result);
 					if (diff) {
 						setCommitDiff(prev =>
 							prev && prev.sha === diff.sha
 								? {...prev, loading: false, error: null, files: diff.files}
 								: prev,
+						);
+						setIssueCommitDiffs(prev =>
+							prev[diff.sha]
+								? {
+										...prev,
+										[diff.sha]: {
+											loading: false,
+											error: null,
+											files: diff.files,
+										},
+								  }
+								: prev,
+						);
+					}
+				}
+			}
+
+			if (message.type === 'issue:commits:result') {
+				if (message.payload?.status === 'fail') {
+					setIssueCommits(prev =>
+						prev
+							? {...prev, loading: false, error: message.payload.message}
+							: prev,
+					);
+				} else {
+					const commits = getResultValue<GuiCommitEntry[]>(message.payload);
+					if (commits) {
+						setIssueCommits(prev =>
+							prev ? {...prev, loading: false, error: null, commits} : prev,
 						);
 					}
 				}
@@ -789,7 +895,10 @@ export const App = () => {
 
 	const openCommitDiff = useCallback((sha: string) => {
 		setCommitDiff({sha, loading: true, error: null, files: null});
-		sendSocketJson(socketRef.current, {type: 'commit:diff:get', payload: {sha}});
+		sendSocketJson(socketRef.current, {
+			type: 'commit:diff:get',
+			payload: {sha},
+		});
 	}, []);
 
 	const closeCommitDiff = useCallback(() => setCommitDiff(null), []);
@@ -1350,52 +1459,72 @@ export const App = () => {
 					/>
 				)}
 
-				{!commitDiff && pickedIssues.length <= 1 && selectedIssue && state?.user && (
-					<IssueDetails
-						whoAmI={state.user}
-						issue={((): GuiIssue => {
-							const base =
-								issueDetail?.issueId === selectedIssue.id
-									? {...selectedIssue, description: issueDetail.description}
-									: selectedIssue;
+				{!commitDiff &&
+					pickedIssues.length <= 1 &&
+					selectedIssue &&
+					state?.user && (
+						<IssueDetails
+							whoAmI={state.user}
+							issue={((): GuiIssue => {
+								const base =
+									issueDetail?.issueId === selectedIssue.id
+										? {...selectedIssue, description: issueDetail.description}
+										: selectedIssue;
 
-							return offline ? {...base, readonly: true} : base;
-						})()}
-						activeTab={selectedTab}
-						comments={
-							issueDetail?.issueId === selectedIssue.id
-								? issueDetail.comments
-								: []
-						}
-						history={
-							issueDetail?.issueId === selectedIssue.id
-								? issueDetail.history
-								: []
-						}
-						onHoverHistoryEvent={setHoveredLogEventId}
-						onChangeTab={changeIssueDetailsTab}
-						onClose={closeIssueDetails}
-						onEditTitle={editIssueTitle}
-						onEditDescription={editIssueDescription}
-						onAddTag={addIssueTag}
-						onRemoveTag={removeIssueTag}
-						onAddAssignee={addIssueAssignee}
-						onAddExternalAssignee={addExternalIssueAssignee}
-						onRemoveContributor={removeContributor}
-						onRemoveAssignee={removeIssueAssignee}
-						onAddComment={addIssueComment}
-						onDeleteComment={deleteIssueComment}
-						attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
-						attachmentUploadStatus={attachmentUploadStatus}
-						onUploadAttachments={uploadIssueAttachments}
-						onDeleteAttachment={deleteIssueAttachment}
-						onReopenIssue={reopenIssue}
-						onCloseIssue={closeIssue}
-						knownTags={state.tags ?? []}
-						knownAssignees={contributors}
-						onOpenAssigneePicker={requestContributors}
-					/>
-				)}
+								return offline ? {...base, readonly: true} : base;
+							})()}
+							activeTab={selectedTab}
+							comments={
+								issueDetail?.issueId === selectedIssue.id
+									? issueDetail.comments
+									: []
+							}
+							history={
+								issueDetail?.issueId === selectedIssue.id
+									? issueDetail.history
+									: []
+							}
+							onHoverHistoryEvent={setHoveredLogEventId}
+							onChangeTab={changeIssueDetailsTab}
+							onClose={closeIssueDetails}
+							onEditTitle={editIssueTitle}
+							onEditDescription={editIssueDescription}
+							onAddTag={addIssueTag}
+							onRemoveTag={removeIssueTag}
+							onAddAssignee={addIssueAssignee}
+							onAddExternalAssignee={addExternalIssueAssignee}
+							onRemoveContributor={removeContributor}
+							onRemoveAssignee={removeIssueAssignee}
+							onAddComment={addIssueComment}
+							onDeleteComment={deleteIssueComment}
+							attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
+							attachmentUploadStatus={attachmentUploadStatus}
+							onUploadAttachments={uploadIssueAttachments}
+							onDeleteAttachment={deleteIssueAttachment}
+							commits={
+								issueCommits?.issueId === selectedIssue.id
+									? issueCommits.commits
+									: []
+							}
+							commitsLoading={
+								issueCommits?.issueId === selectedIssue.id
+									? issueCommits.loading
+									: false
+							}
+							commitsError={
+								issueCommits?.issueId === selectedIssue.id
+									? issueCommits.error
+									: null
+							}
+							commitDiffsBySha={issueCommitDiffs}
+							onLoadCommitDiff={loadIssueCommitDiff}
+							onReopenIssue={reopenIssue}
+							onCloseIssue={closeIssue}
+							knownTags={state.tags ?? []}
+							knownAssignees={contributors}
+							onOpenAssigneePicker={requestContributors}
+						/>
+					)}
 			</div>
 
 			{createIssueModal && (

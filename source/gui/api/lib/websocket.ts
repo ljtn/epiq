@@ -188,12 +188,15 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'commit:diff:get') {
+					const {sha} = message.payload;
+
+					// Wrapped with the sha rather than sending the Result bare: two
+					// surfaces can each have a diff request in flight for a different
+					// commit (the scrubber's dot and the ticket tab's commit list), and
+					// a failed Result carries no sha of its own to tell them apart.
 					return sendSocket(socket, {
 						type: 'commit:diff:result',
-						payload: await getCommitDiff({
-							repoRoot,
-							sha: message.payload.sha,
-						}),
+						payload: {sha, result: await getCommitDiff({repoRoot, sha})},
 					});
 				}
 
