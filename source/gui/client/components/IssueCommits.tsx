@@ -909,6 +909,7 @@ export const IssueCommits = ({
 	onFileTicket,
 	comments,
 	focus,
+	expandAll = false,
 }: {
 	issueRef: string;
 	commits: GuiRefCommitEntry[];
@@ -922,11 +923,57 @@ export const IssueCommits = ({
 	comments: GuiComment[];
 	// Where a comment permalink points, read from the URL by the caller.
 	focus?: DiffLocation | null;
+	// Open every commit and file as it appears — for a layout meant for
+	// reading rather than scanning. Each is opened once, so collapsing it by
+	// hand afterwards sticks.
+	expandAll?: boolean;
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
 		Record<string, Set<string>>
 	>({});
+
+	const autoOpenedShas = useRef(new Set<string>());
+	const autoOpenedFiles = useRef(new Set<string>());
+
+	useEffect(() => {
+		if (!expandAll) return;
+
+		const fresh = commits.filter(
+			commit => !autoOpenedShas.current.has(commit.sha),
+		);
+		if (fresh.length === 0) return;
+
+		for (const commit of fresh) autoOpenedShas.current.add(commit.sha);
+		setExpandedShas(prev => {
+			const next = new Set(prev);
+			for (const commit of fresh) next.add(commit.sha);
+			return next;
+		});
+		for (const commit of fresh) {
+			const existing = diffsBySha[commit.sha];
+			if (!existing || existing.error) onLoadDiff(commit.sha);
+		}
+	}, [expandAll, commits]);
+
+	// Files are only known once a diff has arrived, so this runs as they land.
+	useEffect(() => {
+		if (!expandAll) return;
+
+		for (const commit of commits) {
+			const files = diffsBySha[commit.sha]?.files;
+			if (!files || autoOpenedFiles.current.has(commit.sha)) continue;
+
+			autoOpenedFiles.current.add(commit.sha);
+			setExpandedFilesBySha(prev => ({
+				...prev,
+				[commit.sha]: new Set([
+					...(prev[commit.sha] ?? []),
+					...files.map(file => file.path),
+				]),
+			}));
+		}
+	}, [expandAll, commits, diffsBySha]);
 
 	// Opens the commit and file a permalink names. Deliberately additive — it
 	// never collapses anything the reader already had open, so following a
