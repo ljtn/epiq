@@ -5,6 +5,7 @@ import path from 'node:path';
 import {afterEach, describe, expect, it} from 'vitest';
 import {git} from '../git/git-commands.js';
 import {ensureInitialCommit, INITIAL_COMMIT_MESSAGE} from '../git/git.js';
+import {GIT_BIN} from '../git/git-utils.js';
 import {isFail} from '../lib/model/result-types.js';
 
 // epiq writes commits in the user's own repository in exactly one place, and
@@ -14,7 +15,7 @@ import {isFail} from '../lib/model/result-types.js';
 const created: string[] = [];
 
 const gitIn = (repo: string, args: string[]): string =>
-	execFileSync('git', args, {cwd: repo, encoding: 'utf8'}).trim();
+	execFileSync(GIT_BIN, args, {cwd: repo, encoding: 'utf8'}).trim();
 
 const makeRepo = (): string => {
 	const repo = fs.realpathSync(

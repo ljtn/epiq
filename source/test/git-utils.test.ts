@@ -7,6 +7,7 @@ import {
 	execGit,
 	execGitAllowFail,
 	getCurrentBranch,
+	GIT_BIN,
 	gitEnv,
 	hasInProgressGitOperation,
 	isDetachedHead,
@@ -90,6 +91,11 @@ describe('git-utils', () => {
 		// usable agent/key opens /dev/tty to prompt, which can get a background
 		// process group (e.g. the MCP server) SIGTTIN-stopped instead of failing.
 		expect(gitEnv['GIT_SSH_COMMAND']).toContain('BatchMode=yes');
+	});
+
+	it('resolves git to an absolute executable so a spawn skips the PATH walk', () => {
+		expect(path.isAbsolute(GIT_BIN)).toBe(true);
+		expect(() => fs.accessSync(GIT_BIN, fs.constants.X_OK)).not.toThrow();
 	});
 
 	it('execGit fails when cwd does not exist', async () => {
