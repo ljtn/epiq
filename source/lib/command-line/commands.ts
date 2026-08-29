@@ -1,7 +1,8 @@
 import {ulid} from 'ulid';
 import {exportBoardLayout} from '../../export/export.js';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
-import {setConfig} from '../config/user-config.js';
+import {ACTOR_NAME_ENV} from '../config/actor-env.js';
+import {readEpiqConfig, setConfig} from '../config/user-config.js';
 import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../event/event-persist.js';
 import {resolveReopenParentFromLog} from '../event/log-utils.js';
@@ -17,7 +18,7 @@ import {failed, isFail, succeeded} from '../model/result-types.js';
 import {findAncestor} from '../repository/node-repo.js';
 import {resolveAndPersistRankForMove} from '../repository/rank.js';
 import {getCmdArg, getCmdState, replaceCmdInput} from '../state/cmd.state.js';
-import {getSettingsState, patchSettingsState} from '../state/settings.state.js';
+import {patchSettingsState} from '../state/settings.state.js';
 import {
 	getRenderedChildren,
 	getState,
@@ -831,10 +832,22 @@ export const commands: CommandLineActionEntry[] = [
 
 			switch (cmdState.modifier) {
 				case ConfigModifiers.USERNAME: {
-					const {userId, preferredEditor, userName} = getSettingsState();
+					// `EPIQ_USER_NAME` names this process, not the machine. Settings
+					// state holds that actor, so writing it back here would overwrite
+					// the configured user with whichever agent happens to be running.
+					if (process.env[ACTOR_NAME_ENV]) {
+						return failed(
+							`Cannot change the configured user while ${ACTOR_NAME_ENV} names this process`,
+						);
+					}
+
+					const configResult = readEpiqConfig();
+					if (isFail(configResult)) return configResult;
+
+					const {userId, preferredEditor, userName} = configResult.value;
 
 					const resolvedUserName = value || userName;
-					const resolvedUserId = userId ?? ulid();
+					const resolvedUserId = userId || ulid();
 
 					if (!resolvedUserName || !resolvedUserId) {
 						return failed('Unable to resolve user name or id');
