@@ -14,6 +14,8 @@ export const TicketCard = ({
 	commentCount,
 	onOpenComments,
 	onSelect,
+	isolatedTagId,
+	onFilterByTag,
 	onDragOverIssue,
 	onDropIssueAt,
 }: {
@@ -26,6 +28,9 @@ export const TicketCard = ({
 	onSelect: (options: {toggle: boolean}) => void;
 	commentCount: number;
 	onOpenComments: (issueId: string) => void;
+	// The tag the board is narrowed to, if it is exactly one.
+	isolatedTagId: string | null;
+	onFilterByTag: (tagId: string) => void;
 	onDragOverIssue: (targetIndex: number) => void;
 	onDropIssueAt: (issueId: string, targetIndex: number) => void;
 }) => {
@@ -178,21 +183,43 @@ export const TicketCard = ({
 							alignItems: 'center',
 						}}
 					>
-						{ticket.tags.map(tag => (
-							<span
-								key={tag.id}
-								style={{
-									color: tag.color,
-									border: `1px solid ${GUI_THEME.line}`,
-									borderRadius: 999,
-									padding: '2px 8px',
-									fontSize: 11,
-									background: '#ffffff08',
-								}}
-							>
-								{tag.name}
-							</span>
-						))}
+						{ticket.tags.map(tag => {
+							const isolated = tag.id === isolatedTagId;
+
+							return (
+								<button
+									key={tag.id}
+									type="button"
+									data-testid="ticket-tag"
+									aria-pressed={isolated}
+									title={
+										isolated
+											? 'Show every ticket again'
+											: `Show only tickets tagged ${tag.name}`
+									}
+									// Stopped here, or the click would also select the card.
+									onClick={event => {
+										event.stopPropagation();
+										onFilterByTag(tag.id);
+									}}
+									style={{
+										color: tag.color,
+										border: `1px solid ${
+											isolated ? tag.color : GUI_THEME.line
+										}`,
+										borderRadius: 999,
+										padding: '2px 8px',
+										fontSize: 11,
+										fontFamily: 'inherit',
+										lineHeight: 'inherit',
+										background: isolated ? `${tag.color}22` : '#ffffff08',
+										cursor: 'pointer',
+									}}
+								>
+									{tag.name}
+								</button>
+							);
+						})}
 					</div>
 				</div>
 

@@ -27,6 +27,8 @@ export const SwimlaneColumn = ({
 	dragOver,
 	dropIndex,
 	onSelectIssue,
+	isolatedTagId,
+	onFilterByTag,
 	pickedIssueIds,
 	onCreateIssue,
 	onRenameSwimlane,
@@ -48,6 +50,8 @@ export const SwimlaneColumn = ({
 	dropIndex: number | null;
 	onSelectIssueComments: (nextIssueId: string) => void;
 	onSelectIssue: (issueId: string, options: {toggle: boolean}) => void;
+	isolatedTagId: string | null;
+	onFilterByTag: (tagId: string) => void;
 	pickedIssueIds: readonly string[];
 	onCreateIssue: (swimlaneId: string) => void;
 	onRenameSwimlane: (swimlaneId: string) => void;
@@ -270,6 +274,8 @@ export const SwimlaneColumn = ({
 									isPicked={pickedIssueIds.includes(ticket.id)}
 									onSelect={options => onSelectIssue(ticket.id, options)}
 									onOpenComments={onSelectIssueComments}
+									isolatedTagId={isolatedTagId}
+									onFilterByTag={onFilterByTag}
 									commentCount={commentsByIssueId[ticket.id]?.length ?? 0}
 									onDragOverIssue={targetIndex =>
 										onDragOverIssue(swimlane.id, targetIndex)
