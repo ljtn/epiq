@@ -121,6 +121,11 @@ export type GuiCommitEntry = {
 	deletions: number;
 };
 
+// The Commits tab's shape: a matched commit whose immediate predecessor in
+// the *unfiltered* history is also a matched commit (no other ticket's
+// commit sits between them) — that's what a connecting line in the rail means.
+export type GuiRefCommitEntry = GuiCommitEntry & {precedingSha: string | null};
+
 export type GuiCommitDiffFile = {
 	path: string;
 	before: string;

@@ -40,6 +40,7 @@ export const CopyShaButton = ({sha}: {sha: string}) => {
 			style={{
 				display: 'inline-flex',
 				alignItems: 'center',
+				flexShrink: 0,
 				background: 'transparent',
 				border: 'none',
 				padding: 4,

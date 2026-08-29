@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {GuiCommitDiffFile, GuiCommitEntry} from '../lib/gui-state.model';
+import {GuiCommitDiffFile, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {CopyRef} from './CopyRef';
 import {CopyShaButton} from './CopyShaButton';
@@ -66,8 +66,8 @@ const DiffStat = ({
 			<div
 				style={{
 					width: 32,
-					height: 6,
-					borderRadius: 3,
+					height: 3,
+					borderRadius: 1.5,
 					overflow: 'hidden',
 					display: 'flex',
 					background: GUI_THEME.line,
@@ -91,10 +91,12 @@ const FileRow = ({
 	file,
 	expanded,
 	onToggle,
+	diffStyle,
 }: {
 	file: GuiCommitDiffFile;
 	expanded: boolean;
 	onToggle: () => void;
+	diffStyle: 'split' | 'unified';
 }) => (
 	<div style={{marginTop: 8}}>
 		<button
@@ -119,7 +121,7 @@ const FileRow = ({
 			</span>
 		</button>
 
-		{expanded && <FileDiffView file={file} />}
+		{expanded && <FileDiffView file={file} diffStyle={diffStyle} />}
 	</div>
 );
 
@@ -130,13 +132,15 @@ const CommitRow = ({
 	onToggle,
 	expandedFiles,
 	onToggleFile,
+	diffStyle,
 }: {
-	commit: GuiCommitEntry;
+	commit: GuiRefCommitEntry;
 	diff: CommitDiffState | undefined;
 	expanded: boolean;
 	onToggle: () => void;
 	expandedFiles: Set<string>;
 	onToggleFile: (path: string) => void;
+	diffStyle: 'split' | 'unified';
 }) => (
 	<div
 		style={{
@@ -161,15 +165,15 @@ const CommitRow = ({
 			aria-expanded={expanded}
 			style={{...disclosureStyle, padding: '13px 14px'}}
 		>
-			{expanded ? (
-				<IconChevronDown size={12} />
-			) : (
-				<IconChevronRight size={12} />
-			)}
-			<CopyShaButton sha={commit.sha} />
+			{/* Subject leads the row with nothing before it — the sha and caret
+			    are lookup/navigation chrome, not part of reading the list, so
+			    they sit at the far right instead of crowding the start of every
+			    line. The sha itself only appears once expanded, when there's a
+			    reason to want it (copying it to look at the commit elsewhere). */}
 			<span
 				style={{
 					flex: 1,
+					minWidth: 0,
 					overflow: 'hidden',
 					textOverflow: 'ellipsis',
 					whiteSpace: 'nowrap',
@@ -178,6 +182,17 @@ const CommitRow = ({
 				{commit.subject}
 			</span>
 			<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
+			{expanded && <CopyShaButton sha={commit.sha} />}
+			{/* Flex items shrink by default; without this a tight panel width
+			    squeezes the caret toward invisible rather than truncating the
+			    (already-shrinkable) subject text further. */}
+			<span style={{flexShrink: 0, display: 'flex'}}>
+				{expanded ? (
+					<IconChevronDown size={12} />
+				) : (
+					<IconChevronRight size={12} />
+				)}
+			</span>
 		</div>
 
 		{expanded && (
@@ -196,6 +211,7 @@ const CommitRow = ({
 						file={file}
 						expanded={expandedFiles.has(file.path)}
 						onToggle={() => onToggleFile(file.path)}
+						diffStyle={diffStyle}
 					/>
 				))}
 			</div>
@@ -222,13 +238,15 @@ export const IssueCommits = ({
 	error,
 	diffsBySha,
 	onLoadDiff,
+	diffStyle,
 }: {
 	issueRef: string;
-	commits: GuiCommitEntry[];
+	commits: GuiRefCommitEntry[];
 	loading: boolean;
 	error: string | null;
 	diffsBySha: Record<string, CommitDiffState>;
 	onLoadDiff: (sha: string) => void;
+	diffStyle: 'split' | 'unified';
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
@@ -288,8 +306,10 @@ export const IssueCommits = ({
 			{ordered.map((commit, index) => (
 				<div key={commit.sha} style={{display: 'flex', marginBottom: ROW_GAP}}>
 					{/* The rail: a dot per commit in the scrubber's own commit-series
-					    color, connected to the next by a line — so this list visibly
-					    reads as the same timeline, not a disconnected view of it.
+					    color. Connected to the next only when they're truly adjacent in
+					    the real history (precedingSha) — a broken chain (some other
+					    ticket's commit landed between them) gets no line, just dots, so
+					    the rail doesn't imply a continuity that isn't there.
 					    position: relative + stretch (the flex row's default
 					    align-items) makes this column exactly as tall as CommitRow
 					    ends up rendering, expanded or not, with no measuring needed —
@@ -307,20 +327,41 @@ export const IssueCommits = ({
 								transform: 'translate(-50%, -50%)',
 							}}
 						/>
-						{index < ordered.length - 1 && (
-							<div
-								style={{
-									position: 'absolute',
-									left: '50%',
-									top: RAIL_DOT_OFFSET,
-									bottom: -ROW_GAP,
-									width: 2,
-									background: GUI_THEME.green,
-									opacity: 0.4,
-									transform: 'translateX(-50%)',
-								}}
-							/>
-						)}
+						{index < ordered.length - 1 &&
+							(ordered[index + 1].precedingSha === commit.sha ? (
+								<div
+									style={{
+										position: 'absolute',
+										left: '50%',
+										top: RAIL_DOT_OFFSET,
+										// Reaches the *next* dot, not just this row's own bottom
+										// edge: that dot sits RAIL_DOT_OFFSET below the start of
+										// its own row, past the ROW_GAP margin between the two.
+										bottom: -(ROW_GAP + RAIL_DOT_OFFSET),
+										width: 2,
+										background: GUI_THEME.green,
+										opacity: 0.4,
+										transform: 'translateX(-50%)',
+									}}
+								/>
+							) : (
+								// A broken chain: some other ticket's commit sits between
+								// these two in real history. Dotted and fainter rather than
+								// no line at all — the two are still adjacent in this list,
+								// just not in the underlying history.
+								<div
+									style={{
+										position: 'absolute',
+										left: '50%',
+										top: RAIL_DOT_OFFSET,
+										bottom: -(ROW_GAP + RAIL_DOT_OFFSET),
+										width: 0,
+										borderLeft: `2px dotted ${GUI_THEME.green}`,
+										opacity: 0.25,
+										transform: 'translateX(-50%)',
+									}}
+								/>
+							))}
 					</div>
 
 					<div style={{flex: 1, minWidth: 0}}>
@@ -331,6 +372,7 @@ export const IssueCommits = ({
 							onToggle={() => toggleCommit(commit.sha)}
 							expandedFiles={expandedFilesBySha[commit.sha] ?? new Set()}
 							onToggleFile={path => toggleFile(commit.sha, path)}
+							diffStyle={diffStyle}
 						/>
 					</div>
 				</div>
