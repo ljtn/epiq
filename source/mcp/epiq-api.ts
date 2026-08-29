@@ -50,7 +50,7 @@ import {
 	MAX_TITLE_LENGTH,
 	tooLong,
 } from '../lib/utils/text.limits.js';
-import {nodeRef} from '../lib/utils/node-ref.js';
+import {nodeRef, nodeRefMatches} from '../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {
 	DEFAULT_ATTACHMENT_MAX_KB,
@@ -393,6 +393,67 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 		}));
 
 	return succeeded('Listed swimlanes', swimlanes);
+};
+
+type GetIssueInput = ToolInput & {
+	idOrRef: string;
+};
+
+/**
+ * One issue, by full id or by the 7-character ref the commit convention uses.
+ *
+ * The inverse of that convention had no tool: going from a ref back to a
+ * ticket meant listing the whole board and filtering, and on a board of any
+ * age that response is large enough to be unusable for reading one field.
+ */
+export const getIssue = async (input: GetIssueInput) => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const query = input.idOrRef.trim();
+	if (!query) return failed('Provide an issue id or ref');
+
+	const tickets = Object.values(stateResult.value.nodes)
+		.filter(isTicketNode)
+		.filter(n => !n.isDeleted);
+
+	const exact = tickets.find(n => n.id === query);
+
+	// `nodeRefMatches` is a substring match, so a short query can legitimately
+	// hit several tickets. Naming them beats guessing.
+	const matches = exact
+		? [exact]
+		: tickets.filter(n => nodeRefMatches(n.id, query));
+
+	if (matches.length === 0) {
+		return failed(`No issue matches "${query}"`);
+	}
+
+	if (matches.length > 1) {
+		return failed(
+			`"${query}" matches ${matches.length} issues: ${matches
+				.map(n => `${nodeRef(n.id)} (${sanitizeInlineText(n.title)})`)
+				.join(', ')}. Use a full ref or id.`,
+		);
+	}
+
+	const issue = matches[0] as Ticket;
+
+	return succeeded('Found issue', {
+		id: issue.id,
+		ref: nodeRef(issue.id),
+		title: sanitizeInlineText(issue.title),
+		description: issue.props.description ?? '',
+		createdAt: decodeTime(issue.id),
+		parentNodeId: issue.parentNodeId!,
+		isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
+		readonly: Boolean(issue.readonly),
+		tags: getIssueTags(issue),
+		assignees: getIssueAssignees(issue),
+	} satisfies ApiIssue);
 };
 
 export const listIssues = async (input: ListIssuesInput) => {
