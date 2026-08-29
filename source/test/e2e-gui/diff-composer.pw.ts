@@ -25,10 +25,14 @@ const commitFor = (repoRoot: string, ref: string, subject: string) => {
 	git('commit', '-q', '-m', `${ref} ${subject}`);
 };
 
-const openDiffAndSelectLine = async (page: Page, subject: string) => {
+const expandDiff = async (page: Page, subject: string) => {
 	await page.getByRole('button', {name: /^Commits/}).click();
 	await page.getByRole('button', {name: subject}).click();
 	await page.getByRole('button', {name: 'notes.txt'}).click();
+};
+
+const openDiffAndSelectLine = async (page: Page, subject: string) => {
+	await expandDiff(page, subject);
 	// A click on the number column is a one-line selection.
 	await page.locator('[data-column-number]').first().click();
 	await expect(page.getByTestId('selection-composer')).toBeVisible();
@@ -87,8 +91,9 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await composer.getByPlaceholder(/add a note/i).press('Escape');
 	await expect(composer).toBeHidden();
 
-	// Comment.
-	await page.locator('[data-column-number]').first().click();
+	// Comment on line 2.
+	await page.locator('[data-column-number]').nth(1).click();
+	await expect(composer).toContainText('notes.txt line 2');
 	await composer.getByPlaceholder(/add a note/i).fill('looks off');
 	await composer.getByRole('button', {name: 'Comment'}).click();
 	await expect(composer).toBeHidden();
@@ -96,13 +101,29 @@ test('selecting lines opens one composer under them; write, then comment or file
 	const posted = page.getByText('looks off');
 	await expect(posted).toBeVisible();
 	const postedBox = await box(posted);
-	const lineOneAfter = await box(lines.nth(0));
+	const lineTwoAfter = await box(lines.nth(1));
 	expect(postedBox.y).toBeGreaterThanOrEqual(
-		lineOneAfter.y + lineOneAfter.height - 2,
+		lineTwoAfter.y + lineTwoAfter.height - 2,
 	);
 	await expect(page.getByRole('button', {name: 'Comments (1)'})).toBeVisible();
 
+	// Hovering the comment lights up the line it is about.
+	await expect(page.locator('[data-line][data-selected-line]')).toHaveCount(0);
+	await page.getByTestId('diff-comment').hover();
+	await expect(page.locator('[data-line][data-selected-line]')).toHaveText([
+		'beta',
+	]);
+	await page.mouse.move(0, 0);
+	await expect(page.locator('[data-line][data-selected-line]')).toHaveCount(0);
+
+	// The Comments tab quotes the snippet with its real line number.
+	await page.getByRole('button', {name: 'Comments (1)'}).click();
+	await expect(page.getByTestId('snippet-gutter')).toHaveText('2');
+	await expect(page.getByTestId('code-snippet')).toContainText('beta');
+	await page.screenshot({path: testInfo.outputPath('comment-snippet.png')});
+
 	// File a ticket: the note stays the note, the title is asked for.
+	await expandDiff(page, 'add notes');
 	await page.locator('[data-column-number]').first().click();
 	await composer.getByPlaceholder(/add a note/i).fill('needs a second look');
 	await composer.getByRole('button', {name: 'File ticket'}).click();
