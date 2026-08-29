@@ -2,6 +2,7 @@ import {Filter, Tag} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
 import {nodeRefMatches} from './node-ref.js';
+import {normalizeText, textIncludes} from './text-match.js';
 
 export type FilterField =
 	| 'all'
@@ -10,8 +11,6 @@ export type FilterField =
 	| 'tag'
 	| 'assignee'
 	| 'ref';
-
-const normalize = (value: string) => value.trim().toLocaleLowerCase();
 
 const getTagNames = (ticket: NavNode<'TICKET'>): string[] => {
 	const {tags} = getState();
@@ -37,27 +36,23 @@ export const ticketMatchesFilter = (
 	ticket: NavNode<'TICKET'>,
 	filter: Filter,
 ): boolean => {
-	const query = normalize(filter.value);
+	const query = normalizeText(filter.value);
 	if (!query) return true;
 
 	switch (filter.target) {
-		case 'title': {
-			const title = normalize(ticket.title ?? '');
-			return title.includes(query);
-		}
+		case 'title':
+			return textIncludes(ticket.title ?? '', query);
 
-		case 'description': {
-			const description = normalize(ticket.props.description ?? '');
-			return description.includes(query);
-		}
+		case 'description':
+			return textIncludes(ticket.props.description ?? '', query);
 
 		case 'tag': {
-			const tagNames = getTagNames(ticket).map(normalize);
+			const tagNames = getTagNames(ticket).map(normalizeText);
 			return tagNames.some(tag => tag.includes(query));
 		}
 
 		case 'assignee': {
-			const assigneeNames = getAssigneeNames(ticket).map(normalize);
+			const assigneeNames = getAssigneeNames(ticket).map(normalizeText);
 			return assigneeNames.some(name => name.includes(query));
 		}
 
@@ -66,10 +61,10 @@ export const ticketMatchesFilter = (
 		}
 
 		// case 'all': {
-		// 	const title = normalize(ticket.title ?? '');
-		// 	const description = normalize(ticket.props.description ?? '');
-		// 	const tagNames = getTagNames(ticket).map(normalize);
-		// 	const assigneeNames = getAssigneeNames(ticket).map(normalize);
+		// 	const title = normalizeText(ticket.title ?? '');
+		// 	const description = normalizeText(ticket.props.description ?? '');
+		// 	const tagNames = getTagNames(ticket).map(normalizeText);
+		// 	const assigneeNames = getAssigneeNames(ticket).map(normalizeText);
 
 		// 	return (
 		// 		title.includes(query) ||

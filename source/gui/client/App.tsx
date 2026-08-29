@@ -38,6 +38,7 @@ import {reconnectDelayMs} from './lib/reconnect';
 import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
+import {issueMatchesText} from '../../lib/utils/text-match.js';
 import {
 	findBoard,
 	findIssue,
@@ -60,6 +61,7 @@ import {
 	GuiUser,
 } from './lib/gui-state.model';
 import {buildBoardFilter, issuePassesBoardFilter} from './lib/scrubber';
+import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
 import {createHistoryBuffer} from './lib/history-buffer';
@@ -316,6 +318,10 @@ export const App = () => {
 		comments: GuiComment[];
 		history: GuiIssueHistoryEntry[];
 	} | null>(null);
+	// Typed into the box beside the board switcher; hides cards whose ref and
+	// title both miss it. Not part of the URL selection: it is a passing
+	// narrowing, not a view worth linking to.
+	const [textFilter, setTextFilter] = useState('');
 	// Null unless the selection has been narrowed to particular tags or people.
 	const boardFilter = useMemo(
 		() => buildBoardFilter(selection.view, selection.only),
@@ -350,17 +356,22 @@ export const App = () => {
 	// new identity every time and undo its memoization.
 	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
 		const swimlanes = selectedBoard?.swimlanes ?? [];
-		if (!boardFilter) return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
+		const query = textFilter.trim();
+		if (!boardFilter && !query)
+			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
 		let hidden = 0;
 
 		const visible = swimlanes.map(swimlane => {
-			const issues = swimlane.issues.filter(issue =>
-				issuePassesBoardFilter(
-					issue,
-					(commentsByIssueId[issue.id] ?? []).map(comment => comment.author.id),
-					boardFilter,
-				),
+			const issues = swimlane.issues.filter(
+				issue =>
+					issuePassesBoardFilter(
+						issue,
+						(commentsByIssueId[issue.id] ?? []).map(
+							comment => comment.author.id,
+						),
+						boardFilter,
+					) && issueMatchesText(issue, query),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -369,7 +380,7 @@ export const App = () => {
 		});
 
 		return {visibleSwimlanes: visible, hiddenIssueCount: hidden};
-	}, [selectedBoard, boardFilter, commentsByIssueId]);
+	}, [selectedBoard, boardFilter, textFilter, commentsByIssueId]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});
@@ -1541,6 +1552,23 @@ export const App = () => {
 								}
 								placeholder="Loading..."
 								onSelect={selectBoard}
+							/>
+
+							<Input
+								data-testid="text-filter"
+								type="search"
+								value={textFilter}
+								placeholder="filter by ref or title"
+								aria-label="Filter tickets by ref or title"
+								spellCheck={false}
+								onChange={event => setTextFilter(event.target.value)}
+								onKeyDown={event => {
+									if (event.key === 'Escape') {
+										setTextFilter('');
+										event.currentTarget.blur();
+									}
+								}}
+								style={{width: 220, padding: '5px 10px', fontSize: 12}}
 							/>
 						</div>
 
