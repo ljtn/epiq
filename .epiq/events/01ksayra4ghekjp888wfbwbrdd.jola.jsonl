@@ -2539,3 +2539,4 @@
 {"v":1,"id":["01M17TT3F74CYYWFY39PXDMN3T","01M17THTRM5198TJ30VAD6YRGG"],"add.issue":{"id":"01M17TT3EYTGB000W65RDK1HGY","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","name":"Commits tab: commit and file rows show a hover state","rank":"ffffbfffffffffffffffffff"}}
 {"v":1,"id":["01M17TT3FGD90WBFZCQBMWGP4J","01M17TT3F74CYYWFY39PXDMN3T"],"edit.description":{"id":"01M17TT3EYTGB000W65RDK1HGY","md":"The accordion rows in the Commits tab (a commit, a file inside its diff) give no hover feedback, so nothing says they can be clicked open. Add a hover/focus background to both."}}
 {"v":1,"id":["01M17TT3FT05SBRM2DXVEM52ZG","01M17TT3FGD90WBFZCQBMWGP4J"],"add.issue.tag":{"id":"01M17TT3EYTGB000W65RDK1HGY","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
+{"v":1,"id":["01M17TV9PR4E56BD8KP62J0TWV","01M17TT3FT05SBRM2DXVEM52ZG"],"add.issue.assignee":{"id":"01M17TT3EYTGB000W65RDK1HGY","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
