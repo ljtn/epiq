@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# Refuses a commit whose subject starts with a broken ticket ref. Linking a
+# commit to a ticket is an exact prefix match, so a ref one character short
+# matches nothing and reports nothing — this is where that becomes visible.
+#
+# The script fails open on anything it cannot determine, so a missing board or
+# an unreadable log never blocks a commit.
+
+npx tsx source/scripts/check-commit-ref.ts "$1"
