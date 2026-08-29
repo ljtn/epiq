@@ -5,6 +5,7 @@ description: Workflow rules for working the epiq issue board — use the epiq MC
 
 # Epiq board workflow
 
+- **Never test against the real board.** Point any dev server, manual test or test run at a throwaway project, never at this repo's own. Deleting test tickets afterwards does not undo the events. Stop the dev server when you're done rather than leaving it autosyncing.
 - **Use the epiq MCP tools** (`epiq_*`) for all board operations — never the `epiq` CLI or hand-edited state files.
 - **Never edit the state branch directly.** Don't check it out, don't write to its worktree, don't touch the event log or any file under it by hand or by script — go through the MCP for every read and write. The event log is the system of record: an edit made outside it bypasses validation and ordering, and can corrupt history in ways no later fix can undo.
 - **Sync is on-demand only.** MCP reads/writes operate on local state and never pull/push automatically. Call `epiq_sync` explicitly when you need the latest remote state or want to publish local changes.
