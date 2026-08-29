@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
 	DiffLineAnnotation,
 	SelectedLineRange,
@@ -99,13 +99,18 @@ export const dedent = (snippet: string): string => {
 // the literal text — so every render path showing a comment body must strip
 // it via stripDiffCommentMarker below rather than relying on the markdown
 // renderer to hide it.
-type DiffCommentMeta = {
+export type DiffCommentMeta = {
 	filePath: string;
 	start: number;
 	side: SelectionSide;
 	end: number;
 	endSide: SelectionSide;
 	note: string;
+	// Which commit's diff the selection was made in — a file can appear in
+	// several of a ticket's commits, so linking back needs it. Optional
+	// because comments written before it was recorded should still render
+	// their inline annotation; they just aren't clickable.
+	sha?: string;
 };
 
 const DIFF_COMMENT_MARKER = /<!--\s*epiq-diff-comment:(.+?)-->\n?/;
@@ -123,7 +128,7 @@ export const encodeDiffCommentMarker = (meta: DiffCommentMeta): string =>
 		'\\u003e',
 	)} -->`;
 
-const isSelectionSide = (value: unknown): value is SelectedLineRange['side'] =>
+const isSelectionSide = (value: unknown): value is SelectionSide =>
 	value === 'additions' || value === 'deletions';
 
 export const parseDiffCommentMeta = (body: string): DiffCommentMeta | null => {
@@ -145,7 +150,8 @@ export const parseDiffCommentMeta = (body: string): DiffCommentMeta | null => {
 		typeof meta.end !== 'number' ||
 		typeof meta.note !== 'string' ||
 		!isSelectionSide(meta.side) ||
-		!isSelectionSide(meta.endSide)
+		!isSelectionSide(meta.endSide) ||
+		(meta.sha !== undefined && typeof meta.sha !== 'string')
 	) {
 		return null;
 	}
@@ -173,11 +179,6 @@ const SNIPPET_FENCE = /```\n([\s\S]*?)\n?```\s*$/;
 export const extractCommentSnippet = (body: string): string | null =>
 	SNIPPET_FENCE.exec(body)?.[1] ?? null;
 
-// Everything before the fenced snippet: the author's note plus the
-// `path` lines X-Y (added) caption, still plain markdown.
-export const stripCommentSnippet = (body: string): string =>
-	body.replace(SNIPPET_FENCE, '').trimEnd();
-
 // What a "File ticket" submission carries up to the caller that owns the
 // actual issues:create call and the origin-ticket back-comment — everything
 // needed to build both without the caller re-deriving any of it.
@@ -187,6 +188,81 @@ export type FileTicketParams = {
 	snippet: string;
 	title: string;
 	note: string;
+};
+
+// A spot in a ticket's Commits tab, deep-linkable from a comment. Lives in the
+// URL rather than in transient state so the link survives a reload and can be
+// handed to someone else.
+export type DiffLocation = {
+	sha: string;
+	filePath: string;
+	start: number;
+	end: number;
+	side: SelectionSide;
+	endSide: SelectionSide;
+};
+
+export const diffLocationFromMeta = (
+	meta: DiffCommentMeta,
+): DiffLocation | null =>
+	meta.sha
+		? {
+				sha: meta.sha,
+				filePath: meta.filePath,
+				start: meta.start,
+				end: meta.end,
+				side: meta.side,
+				endSide: meta.endSide,
+		  }
+		: null;
+
+const DIFF_LOCATION_PARAMS = [
+	'commit',
+	'file',
+	'from',
+	'to',
+	'side',
+	'endSide',
+] as const;
+
+export const writeDiffLocationParams = (
+	params: URLSearchParams,
+	location: DiffLocation,
+): void => {
+	params.set('commit', location.sha);
+	params.set('file', location.filePath);
+	params.set('from', String(location.start));
+	params.set('to', String(location.end));
+	params.set('side', location.side);
+	params.set('endSide', location.endSide);
+};
+
+export const clearDiffLocationParams = (params: URLSearchParams): void => {
+	for (const key of DIFF_LOCATION_PARAMS) params.delete(key);
+};
+
+export const readDiffLocationParams = (
+	params: URLSearchParams,
+): DiffLocation | null => {
+	const sha = params.get('commit');
+	const filePath = params.get('file');
+	const start = Number(params.get('from'));
+	const end = Number(params.get('to'));
+	const side = params.get('side');
+	const endSide = params.get('endSide');
+
+	if (
+		!sha ||
+		!filePath ||
+		!Number.isFinite(start) ||
+		!Number.isFinite(end) ||
+		!isSelectionSide(side) ||
+		!isSelectionSide(endSide)
+	) {
+		return null;
+	}
+
+	return {sha, filePath, start, end, side, endSide};
 };
 
 // The timeline rail: a dot per commit, in the scrubber's own commit-series
@@ -267,12 +343,14 @@ const DiffStat = ({
 // trying to float it exactly over the selection, which the diff library
 // doesn't hand back pixel coordinates for.
 const SelectionToolbar = ({
+	sha,
 	file,
 	selection,
 	onAddComment,
 	onFileTicket,
 	onClear,
 }: {
+	sha: string;
 	file: GuiCommitDiffFile;
 	selection: SelectedLineRange;
 	onAddComment?: (body: string) => void;
@@ -300,6 +378,7 @@ const SelectionToolbar = ({
 			end: selection.end,
 			endSide,
 			note: trimmedNote,
+			sha,
 		});
 
 		const body = [
@@ -454,6 +533,7 @@ const DiffCommentAnnotation = ({
 };
 
 const FileRow = ({
+	sha,
 	file,
 	expanded,
 	onToggle,
@@ -461,7 +541,9 @@ const FileRow = ({
 	onAddComment,
 	onFileTicket,
 	comments,
+	focusRange,
 }: {
+	sha: string;
 	file: GuiCommitDiffFile;
 	expanded: boolean;
 	onToggle: () => void;
@@ -469,8 +551,26 @@ const FileRow = ({
 	onAddComment?: (body: string) => void;
 	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
+	// Set when a comment permalink points at this file: seeds the highlight
+	// and scrolls the diff into view.
+	focusRange?: SelectedLineRange | null;
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
+	const rowRef = useRef<HTMLDivElement | null>(null);
+
+	// Keyed on the range's own values, not object identity — the parent
+	// rebuilds it from URL params on every render, and depending on identity
+	// would re-scroll (and re-select) forever.
+	const focusKey = focusRange
+		? `${focusRange.start}-${focusRange.end}-${focusRange.side}-${focusRange.endSide}`
+		: null;
+
+	useEffect(() => {
+		if (!focusRange || !expanded) return;
+
+		setSelection(focusRange);
+		rowRef.current?.scrollIntoView({block: 'center', behavior: 'smooth'});
+	}, [focusKey, expanded]);
 
 	const fileComments = findDiffCommentsForFile(comments, file.path);
 
@@ -483,7 +583,7 @@ const FileRow = ({
 	);
 
 	return (
-		<div style={{marginTop: 8}}>
+		<div ref={rowRef} style={{marginTop: 8}}>
 			<button
 				onClick={onToggle}
 				aria-expanded={expanded}
@@ -544,6 +644,7 @@ const FileRow = ({
 					/>
 					{selection && (
 						<SelectionToolbar
+							sha={sha}
 							file={file}
 							selection={selection}
 							onAddComment={onAddComment}
@@ -569,6 +670,7 @@ const CommitRow = ({
 	onAddComment,
 	onFileTicket,
 	comments,
+	focus,
 }: {
 	commit: GuiRefCommitEntry;
 	diff: CommitDiffState | undefined;
@@ -581,6 +683,8 @@ const CommitRow = ({
 	onAddComment?: (body: string) => void;
 	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
+	// Non-null only on the commit a permalink points at.
+	focus?: DiffLocation | null;
 }) => {
 	const [hovered, setHovered] = useState(false);
 	// Also tracks focus (not just mouse hover): the copy button is a real
@@ -692,6 +796,7 @@ const CommitRow = ({
 					{diff?.files?.map(file => (
 						<FileRow
 							key={file.path}
+							sha={commit.sha}
 							file={file}
 							expanded={expandedFiles.has(file.path)}
 							onToggle={() => onToggleFile(file.path)}
@@ -699,6 +804,16 @@ const CommitRow = ({
 							onAddComment={onAddComment}
 							onFileTicket={onFileTicket}
 							comments={comments}
+							focusRange={
+								focus?.filePath === file.path
+									? {
+											start: focus.start,
+											end: focus.end,
+											side: focus.side,
+											endSide: focus.endSide,
+									  }
+									: null
+							}
 						/>
 					))}
 				</div>
@@ -730,6 +845,7 @@ export const IssueCommits = ({
 	onAddComment,
 	onFileTicket,
 	comments,
+	focus,
 }: {
 	issueRef: string;
 	commits: GuiRefCommitEntry[];
@@ -741,11 +857,46 @@ export const IssueCommits = ({
 	onAddComment?: (body: string) => void;
 	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
+	// Where a comment permalink points, read from the URL by the caller.
+	focus?: DiffLocation | null;
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
 		Record<string, Set<string>>
 	>({});
+
+	// Opens the commit and file a permalink names. Deliberately additive — it
+	// never collapses anything the reader already had open, so following a
+	// link into a tab you were already using doesn't throw your place away.
+	// Keyed on the location's own values rather than object identity, which
+	// the caller rebuilds from URL params on every render.
+	const focusKey = focus ? `${focus.sha}:${focus.filePath}` : null;
+
+	useEffect(() => {
+		if (!focus) return;
+
+		setExpandedShas(prev =>
+			prev.has(focus.sha) ? prev : new Set(prev).add(focus.sha),
+		);
+
+		setExpandedFilesBySha(prev =>
+			prev[focus.sha]?.has(focus.filePath)
+				? prev
+				: {
+						...prev,
+						[focus.sha]: new Set(prev[focus.sha] ?? []).add(focus.filePath),
+				  },
+		);
+	}, [focusKey]);
+
+	// Separate from the expand effect above: the diff has to be fetched too,
+	// and only when it isn't already loading or loaded.
+	useEffect(() => {
+		if (!focus) return;
+
+		const existing = diffsBySha[focus.sha];
+		if (!existing || existing.error) onLoadDiff(focus.sha);
+	}, [focusKey]);
 
 	const toggleCommit = (sha: string) => {
 		const alreadyExpanded = expandedShas.has(sha);
@@ -891,6 +1042,7 @@ export const IssueCommits = ({
 							onAddComment={onAddComment}
 							onFileTicket={onFileTicket}
 							comments={comments}
+							focus={focus?.sha === commit.sha ? focus : null}
 						/>
 					</div>
 				</div>

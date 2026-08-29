@@ -6,9 +6,11 @@ import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {
+	DiffLocation,
+	diffLocationFromMeta,
 	extractCommentSnippet,
+	formatSelectionLabel,
 	parseDiffCommentMeta,
-	stripCommentSnippet,
 	stripDiffCommentMarker,
 } from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
@@ -16,9 +18,16 @@ import {MAX_COMMENT_LENGTH} from '../../../lib/utils/comment.limits.js';
 
 // A diff-selection comment's quoted code is rendered through the same
 // highlighter the diff view uses, rather than as a markdown fence — the whole
-// point of quoting it is that it reads as code. Everything else in the body
-// (the note, the file/line caption) stays plain markdown.
-const CommentBody = ({body}: {body: string}) => {
+// point of quoting it is that it reads as code. The note and the file/line
+// caption are rebuilt from the marker's own metadata rather than sliced back
+// out of the body, so the caption can be a real control rather than text.
+const CommentBody = ({
+	body,
+	onOpenDiffLocation,
+}: {
+	body: string;
+	onOpenDiffLocation?: (location: DiffLocation) => void;
+}) => {
 	const meta = parseDiffCommentMeta(body);
 	const withoutMarker = stripDiffCommentMarker(body);
 	const snippet = meta && extractCommentSnippet(withoutMarker);
@@ -27,12 +36,54 @@ const CommentBody = ({body}: {body: string}) => {
 		return <MarkdownContent content={withoutMarker} softBreaks />;
 	}
 
+	const location = diffLocationFromMeta(meta);
+	const caption = `${meta.filePath} ${formatSelectionLabel(meta)}`;
+
 	return (
 		<>
-			<MarkdownContent
-				content={stripCommentSnippet(withoutMarker)}
-				softBreaks
-			/>
+			{meta.note && <MarkdownContent content={meta.note} softBreaks />}
+
+			{/* Only clickable when the marker recorded which commit the selection
+			    came from — a file can appear in several of a ticket's commits, so
+			    without it there is no unambiguous place to open. Comments written
+			    before the sha was recorded stay readable, just inert. */}
+			{location && onOpenDiffLocation ? (
+				<button
+					type="button"
+					onClick={() => onOpenDiffLocation(location)}
+					title="Open this in the diff"
+					style={{
+						display: 'block',
+						width: '100%',
+						textAlign: 'left',
+						margin: '8px 0 0',
+						padding: 0,
+						background: 'transparent',
+						border: 'none',
+						cursor: 'pointer',
+						font: 'inherit',
+						fontFamily: 'ui-monospace, monospace',
+						fontSize: 11,
+						color: GUI_THEME.accent,
+						textDecoration: 'underline',
+						textUnderlineOffset: 2,
+					}}
+				>
+					{caption}
+				</button>
+			) : (
+				<div
+					style={{
+						margin: '8px 0 0',
+						fontFamily: 'ui-monospace, monospace',
+						fontSize: 11,
+						color: GUI_THEME.secondary,
+					}}
+				>
+					{caption}
+				</div>
+			)}
+
 			<CodeSnippet filePath={meta.filePath} snippet={snippet} />
 		</>
 	);
@@ -45,6 +96,7 @@ type Props = {
 	whoAmI: GuiUser;
 	onAddComment?: (issueId: string, body: string) => void;
 	onDeleteComment?: (issueId: string, commentId: string) => void;
+	onOpenDiffLocation?: (location: DiffLocation) => void;
 };
 
 export const IssueComments = ({
@@ -54,6 +106,7 @@ export const IssueComments = ({
 	comments = [],
 	onAddComment,
 	onDeleteComment,
+	onOpenDiffLocation,
 }: Props) => {
 	const [body, setBody] = useState('');
 
@@ -125,7 +178,10 @@ export const IssueComments = ({
 									)}
 							</div>
 
-							<CommentBody body={comment.body} />
+							<CommentBody
+								body={comment.body}
+								onOpenDiffLocation={onOpenDiffLocation}
+							/>
 						</div>
 					))}
 				</div>

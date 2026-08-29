@@ -26,7 +26,12 @@ import {
 } from './FormPrimitives';
 import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
 import {IssueComments} from './IssueComments';
-import {CommitDiffState, FileTicketParams, IssueCommits} from './IssueCommits';
+import {
+	CommitDiffState,
+	DiffLocation,
+	FileTicketParams,
+	IssueCommits,
+} from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
@@ -57,6 +62,8 @@ export const IssueDetails = ({
 	onAddComment,
 	onDeleteComment,
 	onFileTicket,
+	onOpenDiffLocation,
+	diffFocus,
 	attachments,
 	attachmentUploadStatus,
 	onUploadAttachments,
@@ -95,6 +102,10 @@ export const IssueDetails = ({
 		originRef: string,
 		params: FileTicketParams,
 	) => void;
+	// Following a comment's permalink: the caller puts it in the URL, and
+	// hands back where it currently points so the Commits tab can open there.
+	onOpenDiffLocation?: (location: DiffLocation) => void;
+	diffFocus?: DiffLocation | null;
 	attachments: GuiAttachment[];
 	attachmentUploadStatus: AttachmentUploadStatus;
 	onUploadAttachments?: (issueId: string, files: File[]) => void;
@@ -638,6 +649,7 @@ export const IssueDetails = ({
 									comments={comments}
 									onAddComment={onAddComment}
 									onDeleteComment={onDeleteComment}
+									onOpenDiffLocation={onOpenDiffLocation}
 								/>
 							)}
 
@@ -670,6 +682,7 @@ export const IssueDetails = ({
 											? undefined
 											: params => onFileTicket?.(issue.id, issue.ref, params)
 									}
+									focus={diffFocus}
 								/>
 							)}
 						</>

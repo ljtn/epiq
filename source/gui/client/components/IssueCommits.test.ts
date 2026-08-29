@@ -8,8 +8,9 @@ import {
 	findDiffCommentsForFile,
 	formatSelectionLabel,
 	parseDiffCommentMeta,
-	stripCommentSnippet,
+	readDiffLocationParams,
 	stripDiffCommentMarker,
+	writeDiffLocationParams,
 } from './IssueCommits';
 import {GuiComment, GuiCommitDiffFile} from '../lib/gui-state.model';
 
@@ -148,11 +149,66 @@ describe('encodeDiffCommentMarker / parseDiffCommentMeta', () => {
 	});
 });
 
-// Regression guard: react-markdown does not drop a raw `<!-- ... -->` HTML
-// comment on its own (it renders as literal text without rehype-raw) — the
-// marker leaking into a rendered comment was caught live and is exactly what
-// this strips before the body ever reaches the markdown renderer.
-describe('extractCommentSnippet / stripCommentSnippet', () => {
+// A comment's file/line reference links back into the diff, so the location
+// has to survive a round trip through the URL — that is what makes the link
+// reloadable and shareable rather than a transient bit of state.
+describe('writeDiffLocationParams / readDiffLocationParams', () => {
+	const location = {
+		sha: 'abc123',
+		filePath: 'source/gui/client/App.tsx',
+		start: 12,
+		end: 18,
+		side: 'deletions' as const,
+		endSide: 'additions' as const,
+	};
+
+	it('round-trips a location through URL params', () => {
+		const params = new URLSearchParams();
+		writeDiffLocationParams(params, location);
+
+		expect(readDiffLocationParams(params)).toEqual(location);
+	});
+
+	it('survives being serialized into a query string', () => {
+		const params = new URLSearchParams();
+		writeDiffLocationParams(params, location);
+
+		expect(
+			readDiffLocationParams(new URLSearchParams(params.toString())),
+		).toEqual(location);
+	});
+
+	it('keeps unrelated params untouched', () => {
+		const params = new URLSearchParams({tab: 'code'});
+		writeDiffLocationParams(params, location);
+
+		expect(params.get('tab')).toBe('code');
+	});
+
+	it('reads null when no location is present', () => {
+		expect(
+			readDiffLocationParams(new URLSearchParams({tab: 'code'})),
+		).toBeNull();
+	});
+
+	it('reads null when the range is not numeric', () => {
+		const params = new URLSearchParams();
+		writeDiffLocationParams(params, location);
+		params.set('from', 'not-a-number');
+
+		expect(readDiffLocationParams(params)).toBeNull();
+	});
+
+	it('reads null when a side is not a known selection side', () => {
+		const params = new URLSearchParams();
+		writeDiffLocationParams(params, location);
+		params.set('side', 'sideways');
+
+		expect(readDiffLocationParams(params)).toBeNull();
+	});
+});
+
+describe('extractCommentSnippet', () => {
 	const body = [
 		'a note',
 		'',
@@ -167,12 +223,6 @@ describe('extractCommentSnippet / stripCommentSnippet', () => {
 		expect(extractCommentSnippet(body)).toBe('const a = 1;\nconst b = 2;');
 	});
 
-	it('leaves the note and caption behind when the snippet is removed', () => {
-		expect(stripCommentSnippet(body)).toBe(
-			'a note\n\n`source/a.ts` lines 2-3 (added)',
-		);
-	});
-
 	it('preserves blank lines inside the snippet', () => {
 		const withBlank = ['```', 'first', '', 'third', '```'].join('\n');
 
@@ -184,6 +234,10 @@ describe('extractCommentSnippet / stripCommentSnippet', () => {
 	});
 });
 
+// Regression guard: react-markdown does not drop a raw `<!-- ... -->` HTML
+// comment on its own (it renders as literal text without rehype-raw) — the
+// marker leaking into a rendered comment was caught live and is exactly what
+// this strips before the body ever reaches the markdown renderer.
 describe('stripDiffCommentMarker', () => {
 	it('removes the marker and its trailing newline', () => {
 		const meta = {
