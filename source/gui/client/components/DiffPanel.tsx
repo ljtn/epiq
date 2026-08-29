@@ -1,6 +1,7 @@
 import React from 'react';
 import {
 	DiffFileInput,
+	DiffLineAnnotation,
 	FileContents,
 	MultiFileDiff,
 	SelectedLineRange,
@@ -34,11 +35,13 @@ const toDiffFileInput = (file: GuiCommitDiffFile): DiffFileInput => {
 	return {oldFile, newFile};
 };
 
-export const FileDiffView = ({
+export const FileDiffView = <LAnnotation = undefined,>({
 	file,
 	diffStyle,
 	selectedLines,
 	onSelectionEnd,
+	lineAnnotations,
+	renderAnnotation,
 }: {
 	file: GuiCommitDiffFile;
 	diffStyle: 'split' | 'unified';
@@ -47,6 +50,10 @@ export const FileDiffView = ({
 	// for a selection to attach to in that flow, so it stays opt-in.
 	selectedLines?: SelectedLineRange | null;
 	onSelectionEnd?: (range: SelectedLineRange | null) => void;
+	lineAnnotations?: DiffLineAnnotation<LAnnotation>[];
+	renderAnnotation?: (
+		annotation: DiffLineAnnotation<LAnnotation>,
+	) => React.ReactNode;
 }) => (
 	<div
 		style={{
@@ -64,8 +71,14 @@ export const FileDiffView = ({
 				enableLineSelection: onSelectionEnd !== undefined,
 				controlledSelection: onSelectionEnd !== undefined,
 				onLineSelectionEnd: onSelectionEnd,
+				// Signals a line is selectable before the user has tried dragging —
+				// otherwise the whole selection/comment feature is invisible until
+				// discovered by accident.
+				lineHoverHighlight: onSelectionEnd !== undefined ? 'both' : 'disabled',
 			}}
 			selectedLines={selectedLines}
+			lineAnnotations={lineAnnotations}
+			renderAnnotation={renderAnnotation}
 		/>
 	</div>
 );
