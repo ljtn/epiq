@@ -182,3 +182,66 @@ export const runActor = async (
 export const cleanUp = ({dirs}: Collaboration): void => {
 	for (const dir of dirs) fs.rmSync(dir, {recursive: true, force: true});
 };
+
+/**
+ * Where this actor's state worktree lives. Resolved the way the app resolves
+ * it — the committed project id under the actor's own global dir — rather than
+ * by importing `getStateBranchRoot`, which reads `EPIQ_GLOBAL_DIR` off *this*
+ * process and so would answer for the wrong machine.
+ *
+ * Only exists after the actor has synced at least once.
+ */
+export const stateBranchRootFor = (actor: Actor): string => {
+	const project = JSON.parse(
+		fs.readFileSync(path.join(actor.repoRoot, '.epiq', 'project.json'), 'utf8'),
+	) as {projectId: string};
+
+	return path.join(actor.globalDir, 'worktrees', project.projectId);
+};
+
+export const ownLogPathFor = (actor: Actor, fileName: string): string =>
+	path.join(stateBranchRootFor(actor), '.epiq', 'events', fileName);
+
+/**
+ * Appends bytes to an actor's own log without going through `persist`.
+ *
+ * This is the whole point of the hostile suite: a peer's log is arbitrary
+ * bytes that arrive over git, and nothing on the read path gets to assume a
+ * well-behaved writer produced them. `raw` is written verbatim, so a caller
+ * can leave off the trailing newline to reproduce a half-written line.
+ */
+export const appendRawToOwnLog = (
+	actor: Actor,
+	fileName: string,
+	raw: string,
+): void => {
+	const logPath = ownLogPathFor(actor, fileName);
+	fs.mkdirSync(path.dirname(logPath), {recursive: true});
+	fs.appendFileSync(logPath, raw, 'utf8');
+};
+
+/** Every event id in an actor's state worktree, in file order. */
+export const idsInStateWorktree = (actor: Actor): string[] => {
+	const dir = path.join(stateBranchRootFor(actor), '.epiq', 'events');
+	if (!fs.existsSync(dir)) return [];
+
+	return fs
+		.readdirSync(dir)
+		.filter(name => name.endsWith('.jsonl'))
+		.flatMap(name =>
+			fs
+				.readFileSync(path.join(dir, name), 'utf8')
+				.split('\n')
+				.flatMap(line => {
+					if (!line.trim()) return [];
+					try {
+						const id = (JSON.parse(line) as {id?: [string, string | null]}).id;
+						return Array.isArray(id) && typeof id[0] === 'string'
+							? [id[0]]
+							: [];
+					} catch {
+						return [];
+					}
+				}),
+		);
+};
