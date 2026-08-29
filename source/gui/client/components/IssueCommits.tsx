@@ -113,8 +113,15 @@ const DIFF_COMMENT_MARKER = /<!--\s*epiq-diff-comment:(.+?)-->\n?/;
 export const stripDiffCommentMarker = (body: string): string =>
 	body.replace(DIFF_COMMENT_MARKER, '');
 
+// `>` is escaped so a note containing `-->` cannot terminate the marker early
+// — that truncated the JSON (losing the annotation) and left the remainder
+// visible as garbage in the rendered comment. JSON.parse decodes > back
+// to `>`, so the round trip is exact.
 export const encodeDiffCommentMarker = (meta: DiffCommentMeta): string =>
-	`<!-- epiq-diff-comment:${JSON.stringify(meta)} -->`;
+	`<!-- epiq-diff-comment:${JSON.stringify(meta).replaceAll(
+		'>',
+		'\\u003e',
+	)} -->`;
 
 const isSelectionSide = (value: unknown): value is SelectedLineRange['side'] =>
 	value === 'additions' || value === 'deletions';
