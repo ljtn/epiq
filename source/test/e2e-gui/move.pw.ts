@@ -31,6 +31,19 @@ new Promise(async resolve => {
 
 	const send = b => ws.send(JSON.stringify(b));
 	const wait = ms => new Promise(r => setTimeout(r, ms));
+	const next = type => new Promise(r => {
+		const handler = event => {
+			if (JSON.parse(event.data).type !== type) return;
+			ws.removeEventListener('message', handler);
+			r();
+		};
+		ws.addEventListener('message', handler);
+	});
+	const refresh = async () => {
+		const state = next('state');
+		send({type: 'state:get'});
+		await state;
+	};
 	const laneOf = (state, title) => {
 		for (const lane of state.boards[0].swimlanes) {
 			if (lane.issues.some(i => i.title === title)) return lane.title;
@@ -39,8 +52,7 @@ new Promise(async resolve => {
 	};
 
 	await new Promise(r => ws.addEventListener('open', r));
-	send({type: 'state:get'});
-	await wait(1500);
+	await refresh();
 
 	const tag = 'S' + Math.floor(Math.random() * 1e6);
 	const [from, to] = latest.boards[0].swimlanes;
@@ -49,12 +61,12 @@ new Promise(async resolve => {
 	for (let n = 0; n < 6; n++) {
 		const title = tag + '-' + n;
 		titles.push(title);
+		const created = next('issues:create:result');
 		send({type: 'issues:create', payload: {parentId: from.id, title}});
-		await wait(1500);
+		await created;
 	}
 
-	send({type: 'state:get'});
-	await wait(1500);
+	await refresh();
 
 	const outcomes = [];
 
@@ -73,9 +85,10 @@ new Promise(async resolve => {
 		await wait(250);
 	}
 
-	await wait(8000);
-	send({type: 'state:get'});
-	await wait(1500);
+	// Room for the syncs the moves scheduled to land, and to overwrite a move
+	// if one is going to.
+	await wait(3000);
+	await refresh();
 
 	for (const title of titles) {
 		outcomes.push({title, lane: laneOf(latest, title), want: to.title});

@@ -41,7 +41,8 @@ test('a scope change animates each bar exactly once', async ({
 		await page.waitForTimeout(400);
 		const {bars} = await page.evaluate<{bars: number}>(SAMPLE);
 
-		await page.waitForTimeout(2000);
+		// Past the entrance (760ms) plus the round trip for the new window.
+		await page.waitForTimeout(1500);
 		const {starts} = await page.evaluate<{starts: number}>(SAMPLE);
 
 		expect(

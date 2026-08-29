@@ -37,29 +37,35 @@ test('the entrance plays for view changes, not for incoming data', async ({
 }) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-	// Let the first window land, which is itself an entrance.
-	await page.waitForTimeout(5000);
+	// Let the first window land, which is itself an entrance. The windows
+	// below are the entrance (BAR_ENTRANCE_TOTAL_MS, 760ms) plus a server
+	// round trip.
+	await page.waitForTimeout(1500);
 
 	await page.evaluate(WATCH);
 
 	await page.evaluate(RESET);
 	await page.getByRole('button', {name: 'Week', exact: true}).click();
-	await page.waitForTimeout(2500);
+	await page.waitForTimeout(1500);
 	const onScopeChange = await page.evaluate<number>(READ);
 
 	await page.evaluate(RESET);
 	await page.getByRole('button', {name: 'Events', exact: true}).click();
-	await page.waitForTimeout(2500);
+	await page.waitForTimeout(1500);
 	const onLayoutChange = await page.evaluate<number>(READ);
 	await page.getByRole('button', {name: 'Volume', exact: true}).click();
-	await page.waitForTimeout(2000);
+	await page.waitForTimeout(1500);
 
 	// A mutation makes the server broadcast fresh state; no view option changed.
 	await page.evaluate(RESET);
 	await page.getByRole('button', {name: '+', exact: true}).first().click();
-	await page.getByPlaceholder('issue name').fill(`E${Date.now()}`);
+	const title = `E${Date.now()}`;
+	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByRole('button', {name: 'create', exact: true}).click();
-	await page.waitForTimeout(4000);
+	// The state carrying the ticket has landed once its title shows; the window
+	// after that is where an entrance would play if data alone triggered one.
+	await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
+	await page.waitForTimeout(1500);
 	const onIncomingData = await page.evaluate<number>(READ);
 
 	console.log(
