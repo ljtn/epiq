@@ -178,7 +178,12 @@ export const IssueCommits = ({
 			return next;
 		});
 
-		if (!alreadyExpanded && !diffsBySha[sha]) onLoadDiff(sha);
+		// Also retries on a prior failure — a truthy-but-errored entry would
+		// otherwise stay stuck showing that error forever, since collapsing and
+		// re-expanding is the only other trigger and it hits this same guard.
+		if (!alreadyExpanded && (!diffsBySha[sha] || diffsBySha[sha].error)) {
+			onLoadDiff(sha);
+		}
 	};
 
 	const toggleFile = (sha: string, path: string) => {

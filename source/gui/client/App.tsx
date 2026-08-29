@@ -318,12 +318,16 @@ export const App = () => {
 		});
 	}, [selectedIssue?.id, state]);
 
+	// Keyed on the issue alone, not the tab: switching to Code and back must not
+	// discard diffs already loaded there, only a genuinely different ticket should.
+	useEffect(() => {
+		setIssueCommitDiffs({});
+	}, [selectedIssue?.id]);
+
 	// Fetched lazily on entering the Code tab rather than alongside issue:get
 	// above: a full ref-prefix log scan on every ticket selection would be
 	// wasted on the common case where nobody opens the tab.
 	useEffect(() => {
-		setIssueCommitDiffs({});
-
 		if (!selectedIssue || selectedTab !== 'code') {
 			setIssueCommits(null);
 			return;
@@ -547,17 +551,27 @@ export const App = () => {
 			}
 
 			if (message.type === 'issue:commits:result') {
-				if (message.payload?.status === 'fail') {
+				// Wrapped with the issueId it was requested for: switching tickets
+				// while the Code tab stays open can leave an older ticket's request
+				// in flight, and a failed Result alone carries no issueId to check.
+				const {issueId, result} = message.payload as {
+					issueId: string;
+					result: {status: string; message: string; value?: GuiCommitEntry[]};
+				};
+
+				if (result?.status === 'fail') {
 					setIssueCommits(prev =>
-						prev
-							? {...prev, loading: false, error: message.payload.message}
+						prev && prev.issueId === issueId
+							? {...prev, loading: false, error: result.message}
 							: prev,
 					);
 				} else {
-					const commits = getResultValue<GuiCommitEntry[]>(message.payload);
+					const commits = getResultValue<GuiCommitEntry[]>(result);
 					if (commits) {
 						setIssueCommits(prev =>
-							prev ? {...prev, loading: false, error: null, commits} : prev,
+							prev && prev.issueId === issueId
+								? {...prev, loading: false, error: null, commits}
+								: prev,
 						);
 					}
 				}
@@ -1398,9 +1412,17 @@ export const App = () => {
 						{/* Grows scrollWidth by exactly what closing the panel gave back
 							in clientWidth, keeping max scrollLeft identical across
 							open/closed so the board doesn't bounce back when scrolled
-							far right. */}
+							far right. Width must match whichever panel would be showing —
+							the commit-diff panel and a ticket's Code tab are both
+							ASIDE_DIFF_WIDTH wide, not the default ASIDE_WIDTH. */}
 						{!commitDiff && !(selectedIssue && state?.user) && (
-							<div style={{width: ASIDE_WIDTH, flexShrink: 0}} />
+							<div
+								style={{
+									width:
+										selectedTab === 'code' ? ASIDE_DIFF_WIDTH : ASIDE_WIDTH,
+									flexShrink: 0,
+								}}
+							/>
 						)}
 
 						{/* The page's right margin, scrolling with the columns. Constant,

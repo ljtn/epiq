@@ -447,11 +447,16 @@ export const getCommitsForRef = async (
 	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
 	if (isFail(timelineResult)) return failed(timelineResult.message);
 
-	const prefix = `${ref} `;
+	// Case-insensitive, matching nodeRefMatches' convention (source/lib/utils/node-ref.ts)
+	// rather than a strict-case prefix: a hand-typed or manually-copied ref
+	// should still match, not just one pasted verbatim from the MCP response.
+	const prefix = `${ref.toUpperCase()} `;
 
 	return succeeded(
 		'Matched commits by ref',
-		timelineResult.value.filter(commit => commit.subject.startsWith(prefix)),
+		timelineResult.value.filter(commit =>
+			commit.subject.toUpperCase().startsWith(prefix),
+		),
 	);
 };
 
@@ -501,14 +506,18 @@ const readFileAtRevision = async (
 	return isFail(result) ? '' : result.value.stdout;
 };
 
-// Shared by the editor path below and by getCommitDiff's data path.
+// Shared by the editor path below and by getCommitDiff's data path. A plain
+// two-tree diff against the first parent (matching readFileAtRevision's own
+// `sha~1` convention) rather than `diff-tree -r <sha>`: diff-tree's single-
+// commit mode reports no files at all for a merge commit unless told
+// otherwise, which read as "no changes" instead of the merge's real diff.
 const getChangedFilePaths = async (
 	repoRoot: string,
 	sha: string,
 ): Promise<Result<string[]>> => {
 	const filesResult = await execGit({
 		cwd: repoRoot,
-		args: ['diff-tree', '--no-commit-id', '--name-only', '-r', sha],
+		args: ['diff', '--name-only', `${sha}~1`, sha],
 	});
 	if (isFail(filesResult)) return failed(filesResult.message);
 
@@ -647,6 +656,38 @@ export type CommitDiff = {
 // exists for — a rendered accordion tolerates far more files than open windows do.
 const MAX_DIFF_FILES_FOR_DATA = 200;
 
+// Caps concurrent git subprocesses: an unbatched Promise.all over a near-
+// MAX_DIFF_FILES_FOR_DATA commit would fire hundreds of `git show` processes
+// (two per file) at once.
+const DIFF_READ_CONCURRENCY = 8;
+
+const readFileDiffsInBatches = async (
+	repoRoot: string,
+	sha: string,
+	filePaths: string[],
+): Promise<CommitDiffFile[]> => {
+	const files: CommitDiffFile[] = [];
+
+	for (let i = 0; i < filePaths.length; i += DIFF_READ_CONCURRENCY) {
+		const batch = filePaths.slice(i, i + DIFF_READ_CONCURRENCY);
+
+		const batchFiles = await Promise.all(
+			batch.map(async (filePath): Promise<CommitDiffFile> => {
+				const [before, after] = await Promise.all([
+					readFileAtRevision(repoRoot, `${sha}~1`, filePath),
+					readFileAtRevision(repoRoot, sha, filePath),
+				]);
+
+				return {path: filePath, before, after};
+			}),
+		);
+
+		files.push(...batchFiles);
+	}
+
+	return files;
+};
+
 // The GUI diff panel's data source: same git calls as the editor path above,
 // returned as content instead of written to temp files. Never touches the
 // materialized state singleton, so it is independent of any time-travel checkout.
@@ -670,16 +711,7 @@ export const getCommitDiff = async (
 		);
 	}
 
-	const files = await Promise.all(
-		filePaths.map(async (filePath): Promise<CommitDiffFile> => {
-			const [before, after] = await Promise.all([
-				readFileAtRevision(repoRoot, `${input.sha}~1`, filePath),
-				readFileAtRevision(repoRoot, input.sha, filePath),
-			]);
-
-			return {path: filePath, before, after};
-		}),
-	);
+	const files = await readFileDiffsInBatches(repoRoot, input.sha, filePaths);
 
 	return succeeded('Loaded commit diff', {sha: input.sha, files});
 };

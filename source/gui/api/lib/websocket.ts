@@ -201,12 +201,21 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'issue:commits:get') {
+					const {issueId} = message.payload;
+
+					// Wrapped with the issueId for the same reason commit:diff:result is:
+					// switching tickets while the Code tab stays open can leave an older
+					// ticket's request in flight, and the client needs to tell whose
+					// reply this is before applying it.
 					return sendSocket(socket, {
 						type: 'issue:commits:result',
-						payload: await getCommitsForRef({
-							repoRoot,
-							ref: nodeRef(message.payload.issueId),
-						}),
+						payload: {
+							issueId,
+							result: await getCommitsForRef({
+								repoRoot,
+								ref: nodeRef(issueId),
+							}),
+						},
 					});
 				}
 

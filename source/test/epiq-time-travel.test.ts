@@ -714,7 +714,7 @@ describe('epiq-time-travel', () => {
 				contentByPath: Record<string, string> = {},
 			) => {
 				vi.mocked(execGit).mockImplementation(async ({args}) => {
-					if (args[0] === 'diff-tree') {
+					if (args[0] === 'diff') {
 						return succeeded('changed files', {
 							stdout: files.join('\n'),
 							stderr: '',
@@ -903,7 +903,7 @@ describe('epiq-time-travel', () => {
 			contentByPath: Record<string, string> = {},
 		) => {
 			vi.mocked(execGit).mockImplementation(async ({args}) => {
-				if (args[0] === 'diff-tree') {
+				if (args[0] === 'diff') {
 					return succeeded('changed files', {
 						stdout: files.join('\n'),
 						stderr: '',
@@ -993,12 +993,36 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(false);
 		});
 
-		it('propagates a diff-tree failure', async () => {
+		it('propagates a diff failure', async () => {
 			vi.mocked(execGit).mockResolvedValue(failed('bad object'));
 
 			const result = await getCommitDiff({sha: validSha});
 
 			expect(isSuccess(result)).toBe(false);
+		});
+
+		// diff-tree's single-commit mode reports no files for a merge commit
+		// unless told otherwise — diffing against the first parent explicitly
+		// (`sha~1`) works for both merge and non-merge commits alike.
+		it('lists a merge commit as a diff against its first parent, not as having no changes', async () => {
+			mockGitForFiles(['source/a.ts'], {
+				[`${validSha}~1:source/a.ts`]: 'before',
+				[`${validSha}:source/a.ts`]: 'after',
+			});
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(execGit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					args: ['diff', '--name-only', `${validSha}~1`, validSha],
+				}),
+			);
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value.files).toEqual([
+					{path: 'source/a.ts', before: 'before', after: 'after'},
+				]);
+			}
 		});
 	});
 
