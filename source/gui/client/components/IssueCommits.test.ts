@@ -118,6 +118,25 @@ describe('encodeDiffCommentMarker / parseDiffCommentMeta', () => {
 		).toBeNull();
 	});
 
+	// Regression guard: `-->` inside a note used to terminate the HTML-comment
+	// marker early, truncating the JSON (annotation silently lost) and leaving
+	// the remainder rendered as visible garbage in the comment.
+	it('round-trips a note containing an HTML comment terminator', () => {
+		const meta = {
+			filePath: 'source/a.ts',
+			start: 1,
+			side: 'additions' as const,
+			end: 2,
+			endSide: 'additions' as const,
+			note: 'this --> that',
+		};
+
+		const body = `this --> that\n\n${encodeDiffCommentMarker(meta)}\nrest`;
+
+		expect(parseDiffCommentMeta(body)).toEqual(meta);
+		expect(stripDiffCommentMarker(body)).toBe('this --> that\n\nrest');
+	});
+
 	it('returns null when a required field is missing', () => {
 		const incomplete = JSON.stringify({filePath: 'a.ts', start: 1});
 
