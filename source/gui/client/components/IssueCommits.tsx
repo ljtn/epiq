@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {GuiCommitDiffFile, GuiCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
 import {FileDiffView} from './DiffPanel';
 import {IconChevronDown} from './IconChevronDown';
@@ -85,8 +86,19 @@ const CommitRow = ({
 			overflow: 'hidden',
 		}}
 	>
-		<button
+		{/* A div, not a button: it holds CopyShaButton, a real nested button,
+		    which native <button> nesting forbids. role/tabIndex/onKeyDown stand
+		    in for what the element would otherwise give for free. */}
+		<div
+			role="button"
+			tabIndex={0}
 			onClick={onToggle}
+			onKeyDown={event => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					onToggle();
+				}
+			}}
 			aria-expanded={expanded}
 			style={{...disclosureStyle, padding: '8px 10px'}}
 		>
@@ -95,11 +107,7 @@ const CommitRow = ({
 			) : (
 				<IconChevronRight size={12} />
 			)}
-			<span
-				style={{color: GUI_THEME.dim, fontFamily: 'ui-monospace, monospace'}}
-			>
-				{commit.sha.slice(0, 7)}
-			</span>
+			<CopyShaButton sha={commit.sha} />
 			<span
 				style={{
 					flex: 1,
@@ -110,7 +118,7 @@ const CommitRow = ({
 			>
 				{commit.subject}
 			</span>
-		</button>
+		</div>
 
 		{expanded && (
 			<div
