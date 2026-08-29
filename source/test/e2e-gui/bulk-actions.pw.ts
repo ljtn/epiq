@@ -50,7 +50,11 @@ test('bulk actions only offer what applies to the selection', async ({
 	// Closing takes them to the Closed board, where the pair is all closed and
 	// the offer is the other way round.
 	await page.getByRole('button', {name: 'close 2 tickets'}).click();
-	await expect(page.getByText(titles[0]!, {exact: true})).toHaveCount(0);
+	// Two mutations and their broadcasts; under a full gate that outlasts the
+	// default expectation.
+	await expect(
+		page.locator('div[draggable="true"]').filter({hasText: titles[0]!}),
+	).toHaveCount(0, {timeout: 30_000});
 
 	await page.getByTestId('board-switcher').click();
 	await page

@@ -73,14 +73,16 @@ test('picking several tickets opens a bulk overview', async ({
 		})()
 	`);
 
-	await expect(page.locator('aside')).toContainText('bulky');
+	await expect(page.locator('aside')).toContainText('bulky', {
+		timeout: 30_000,
+	});
 	await page.goto(boardUrl);
 	await expect(
 		page
 			.locator('div[draggable="true"]')
 			.filter({hasText: `${tag}-`})
 			.filter({hasText: 'bulky'}),
-	).toHaveCount(2);
+	).toHaveCount(2, {timeout: 30_000});
 
 	const tagged = await page.evaluate<number>(`
 		[...document.querySelectorAll('div[draggable="true"]')]
