@@ -117,6 +117,8 @@ export type GuiCommitEntry = {
 	author: string;
 	subject: string;
 	linesChanged: number;
+	insertions: number;
+	deletions: number;
 };
 
 export type GuiCommitDiffFile = {
