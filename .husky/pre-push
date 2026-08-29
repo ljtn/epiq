@@ -1,25 +1,3 @@
 #!/usr/bin/env sh
 
-set -e
-
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-echo "${BLUE}Running lint...${NC}"
-npm run lint:err
-
-echo "${BLUE}Running typecheck...${NC}"
-npm run build
-
-echo "${BLUE}Running tests...${NC}"
-npm test
-
-echo "${BLUE}Running e2e and collaboration tests...${NC}"
-npm run test:containers
-
-echo "${BLUE}Running GUI browser tests...${NC}"
-npm run test:gui:ci
-
-echo "${GREEN}Pre-push checks passed.${NC}"
+sh source/scripts/pre-push.sh
