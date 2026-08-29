@@ -4,7 +4,7 @@ import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {logger} from '../logger.js';
 import {git} from './git-commands.js';
 import {ORIGIN, getStateBranch} from './git-constants.js';
-import {assertLogOnlyGrew} from './log-integrity.js';
+import {assertLogOnlyGrew, findStrandedEventLogs} from './log-integrity.js';
 import {
 	EMPTY_TREE_SHA,
 	ensureDir,
@@ -24,6 +24,7 @@ import {
 	hasLocalBranch,
 	hasRemote,
 	hasRemoteBranch,
+	hasUncommittedChanges,
 	hasUpstream,
 	hasWorktree,
 	normalizeExistingPath,
@@ -294,6 +295,29 @@ const createStateBranchWorktree = async ({
 		fs.existsSync(stateBranchRoot) &&
 		!fs.existsSync(path.join(stateBranchRoot, '.git'))
 	) {
+		// A worktree missing its `.git` pointer is broken, but broken is not the
+		// same as empty: the event logs are still sitting in it, and without
+		// `.git` there is no committed copy here to recover them from. `rm -rf`
+		// would be the one deletion in this codebase that no git object survives.
+		const strandedResult = findStrandedEventLogs(stateBranchRoot);
+		if (isFail(strandedResult)) return failed(strandedResult.message);
+
+		if (strandedResult.value.length > 0) {
+			return failed(
+				[
+					`Refusing to delete ${stateBranchRoot}.`,
+					'',
+					'It is not a usable worktree — it has no .git — but it still holds',
+					`${strandedResult.value.length} event log(s) with content:`,
+					...strandedResult.value.map(name => `  ${name}`),
+					'',
+					'Deleting it would destroy them, and with no .git here there is no',
+					'committed copy to recover from. Move the directory aside and',
+					'salvage the logs before letting epiq recreate the worktree.',
+				].join('\n'),
+			);
+		}
+
 		logger.info('Removing broken state branch worktree path');
 		removePath(stateBranchRoot);
 	}
@@ -343,6 +367,35 @@ export const ensureStateBranchWorktree = async ({
 	}
 
 	if (existing && existing !== expected) {
+		// `worktreeRemove` passes `--force`, which is exactly what overrides
+		// git's refusal to delete a worktree holding uncommitted work — and the
+		// state worktree nearly always holds some, because every `persist`
+		// appends to the log and nothing commits until the next sync.
+		//
+		// The paths disagree whenever two processes resolve `EPIQ_GLOBAL_DIR`
+		// differently: a dev server, a test run, an agent with its own
+		// environment. Relocating then threw away every event the other process
+		// had written since its last sync, silently, and reported success.
+		const dirtyResult = await hasUncommittedChanges(existing);
+		if (isFail(dirtyResult)) return failed(dirtyResult.message);
+
+		if (dirtyResult.value) {
+			return failed(
+				[
+					`Refusing to move the state branch worktree away from ${existing}.`,
+					'',
+					'It holds changes that are not committed yet, which for this',
+					'branch means events no sync has published. Removing it would',
+					'destroy them outright — there is no stash or reflog to recover',
+					'a deleted worktree from.',
+					'',
+					`This worktree is expected at ${expected}, so something else is`,
+					'using a different EPIQ_GLOBAL_DIR against the same repository.',
+					'Sync from that location first, or point both at the same one.',
+				].join('\n'),
+			);
+		}
+
 		logger.info('Moving state branch worktree to expected location');
 
 		const removeResult = await git.worktreeRemove({
