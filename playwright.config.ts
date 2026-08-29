@@ -6,9 +6,10 @@ export default defineConfig({
 	// run them under the wrong runner.
 	testMatch: '**/*.pw.ts',
 	globalSetup: './source/test/e2e-gui/global-setup.ts',
-	// One GUI server over one repo, so parallel workers would race on shared
-	// state the way the TUI e2e files do.
-	workers: 1,
+	// Each worker gets its own GUI server over its own seeded repo (see
+	// global-setup.ts), so files can run side by side; a file still runs whole
+	// on one worker, so its tests share a server the way they always have.
+	workers: 4,
 	fullyParallel: false,
 	forbidOnly: Boolean(process.env['IS_CI']),
 	retries: 0,

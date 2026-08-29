@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import {test as base, expect} from '@playwright/test';
-import {HANDOFF_PATH, type Handoff} from './handoff.js';
+import {handoffPathFor, type Handoff} from './handoff.js';
 
-const readHandoff = (): Handoff =>
-	JSON.parse(fs.readFileSync(HANDOFF_PATH, 'utf8')) as Handoff;
+const readHandoff = (workerIndex: number): Handoff =>
+	JSON.parse(fs.readFileSync(handoffPathFor(workerIndex), 'utf8')) as Handoff;
 
 export const test = base.extend<{
 	appUrl: string;
+	repoRoot: string;
 	// A GUI served over a directory with no epiq project.
 	bareAppUrl: string;
 	bareRepoRoot: string;
@@ -15,16 +16,20 @@ export const test = base.extend<{
 	// would pass on a page that had already thrown.
 	pageErrors: string[];
 }>({
-	appUrl: async ({page: _}, use) => {
-		await use(readHandoff().baseUrl);
+	appUrl: async ({page: _}, use, testInfo) => {
+		await use(readHandoff(testInfo.parallelIndex).baseUrl);
 	},
 
-	bareAppUrl: async ({page: _}, use) => {
-		await use(readHandoff().bareUrl);
+	repoRoot: async ({page: _}, use, testInfo) => {
+		await use(readHandoff(testInfo.parallelIndex).repoRoot);
 	},
 
-	bareRepoRoot: async ({page: _}, use) => {
-		await use(readHandoff().bareRepoRoot);
+	bareAppUrl: async ({page: _}, use, testInfo) => {
+		await use(readHandoff(testInfo.parallelIndex).bareUrl);
+	},
+
+	bareRepoRoot: async ({page: _}, use, testInfo) => {
+		await use(readHandoff(testInfo.parallelIndex).bareRepoRoot);
 	},
 
 	pageErrors: async ({page}, use) => {

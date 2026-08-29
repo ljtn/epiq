@@ -24,6 +24,10 @@ export const HANDOFF_PATH =
 	process.env['EPIQ_GUI_E2E_HANDOFF'] ??
 	path.join(os.tmpdir(), handoffFileName());
 
+// Each Playwright worker gets its own server, and so its own handoff file.
+export const handoffPathFor = (workerIndex: number): string =>
+	HANDOFF_PATH.replace(/\.json$/, `-${workerIndex}.json`);
+
 export type Handoff = {
 	baseUrl: string;
 	repoRoot: string;

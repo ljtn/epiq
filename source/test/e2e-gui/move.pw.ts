@@ -3,7 +3,6 @@ import os from 'node:os';
 import path from 'node:path';
 import {execSync} from 'node:child_process';
 import {expect, test} from './fixtures.js';
-import {HANDOFF_PATH, type Handoff} from './handoff.js';
 
 // Every mutation schedules a sync, and `runSync` ignores the autoSync setting.
 // Without an origin that sync fails instantly, so the fixture never exercises
@@ -88,11 +87,11 @@ new Promise(async resolve => {
 
 test.setTimeout(240_000);
 
-test('moves survive the sync each one schedules', async ({page, appUrl}) => {
-	const {repoRoot} = JSON.parse(
-		fs.readFileSync(HANDOFF_PATH, 'utf8'),
-	) as Handoff;
-
+test('moves survive the sync each one schedules', async ({
+	page,
+	appUrl,
+	repoRoot,
+}) => {
 	givenARemote(repoRoot);
 
 	await page.goto(appUrl);
