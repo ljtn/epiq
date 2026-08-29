@@ -2,10 +2,21 @@ import {Button} from './Button';
 import {Panel} from './Panel';
 import {GUI_THEME} from '../lib/gui-theme';
 
+// Mirrors the server's view of the recent-projects registry; the client cannot
+// import the Node-side module that defines it.
+export type RecentProjectView = {
+	projectId: string;
+	name: string;
+	root: string;
+	lastOpenedAt: number;
+};
+
 type Props = {
 	repoRoot: string;
 	message: string;
+	recentProjects?: RecentProjectView[];
 	onRetry: () => void;
+	onOpen: (root: string) => void;
 };
 
 const codeStyle = {
@@ -16,7 +27,13 @@ const codeStyle = {
 	color: GUI_THEME.primary,
 };
 
-export const InitProjectScreen = ({repoRoot, message, onRetry}: Props) => (
+export const InitProjectScreen = ({
+	repoRoot,
+	message,
+	recentProjects = [],
+	onRetry,
+	onOpen,
+}: Props) => (
 	<div
 		data-testid="init-project-screen"
 		style={{
@@ -85,6 +102,62 @@ export const InitProjectScreen = ({repoRoot, message, onRetry}: Props) => (
 					<span style={codeStyle}>.epiq/project.json</span>. Then come back and
 					reload.
 				</div>
+
+				{recentProjects.length > 0 && (
+					<div
+						data-testid="recent-projects"
+						style={{display: 'flex', flexDirection: 'column', gap: 8}}
+					>
+						<div
+							style={{
+								color: GUI_THEME.accent,
+								fontSize: 10,
+								letterSpacing: 1,
+								textTransform: 'uppercase',
+							}}
+						>
+							Or open a recent project
+						</div>
+
+						{recentProjects.map(project => (
+							<div
+								key={project.projectId}
+								data-testid="recent-project"
+								style={{
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'space-between',
+									gap: 12,
+									fontSize: 12,
+								}}
+							>
+								<div style={{minWidth: 0}}>
+									<div style={{fontWeight: 700}}>{project.name}</div>
+									<div
+										style={{
+											color: GUI_THEME.dim,
+											fontSize: 10,
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+											whiteSpace: 'nowrap',
+										}}
+										title={project.root}
+									>
+										{project.root}
+									</div>
+								</div>
+
+								<Button
+									variant="primary"
+									onClick={() => onOpen(project.root)}
+									data-testid="open-recent-project"
+								>
+									open
+								</Button>
+							</div>
+						))}
+					</div>
+				)}
 
 				<div
 					style={{

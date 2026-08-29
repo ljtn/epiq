@@ -13,6 +13,18 @@ describe('parseGuiMessage', () => {
 		});
 	});
 
+	it('accepts an open request naming a root', () => {
+		const parsed = parseGuiMessage({
+			type: 'project:open',
+			payload: {root: '/home/me/dev/epiq'},
+		});
+
+		expect(parsed).toEqual({
+			ok: true,
+			message: {type: 'project:open', payload: {root: '/home/me/dev/epiq'}},
+		});
+	});
+
 	it('accepts a message whose payload is optional', () => {
 		expect(parseGuiMessage({type: 'state:get'}).ok).toBe(true);
 		expect(parseGuiMessage({type: 'timeline:get'}).ok).toBe(true);
@@ -78,6 +90,8 @@ describe('parseGuiMessage', () => {
 			{type: 'issue:edit:title', payload: {issueId, title: 42}},
 		],
 		['an empty id', {type: 'issue:close', payload: {issueId: ''}}],
+		['an empty root', {type: 'project:open', payload: {root: ''}}],
+		['an open with no root', {type: 'project:open', payload: {}}],
 		[
 			'a non-finite time',
 			{type: 'time-travel:scrub', payload: {targetTime: Infinity}},

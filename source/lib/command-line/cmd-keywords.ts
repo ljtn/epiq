@@ -3,6 +3,7 @@ export const CmdKeywords = {
 
 	EXIT: 'exit',
 	INIT: 'init',
+	OPEN: 'open',
 	HELP: 'help',
 	NEW: 'new',
 	TAG: 'tag',

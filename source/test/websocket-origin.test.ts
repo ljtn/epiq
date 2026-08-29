@@ -11,10 +11,14 @@ beforeEach(async () => {
 	server = http.createServer();
 
 	let boundPort = 0;
-	setupWebsocket(server, '/repo', {
-		onStateChanged: vi.fn(),
-		getPort: () => boundPort,
-	});
+	setupWebsocket(
+		server,
+		{repoRoot: '/repo'},
+		{
+			onStateChanged: vi.fn(),
+			getPort: () => boundPort,
+		},
+	);
 
 	await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 	port = (server.address() as AddressInfo).port;
