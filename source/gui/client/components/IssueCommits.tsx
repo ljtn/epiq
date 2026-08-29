@@ -17,7 +17,6 @@ import {CopyRef} from './CopyRef';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
 import {FileDiffView} from './DiffPanel';
-import {FileTicketModal} from './FileTicketModal';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {IconComment} from './IconComment';
@@ -338,14 +337,15 @@ const DiffStat = ({
 	);
 };
 
-// The bar that appears under a diff once a line range is selected — a plain
-// two-step flow (pick an action, then write the optional note) rather than
-// trying to float it exactly over the selection, which the diff library
-// doesn't hand back pixel coordinates for.
-const SelectionToolbar = ({
+// Rendered by MultiFileDiff right under the last selected line. One box for
+// both outcomes: write the note first, then choose whether it becomes a
+// comment on this ticket or a new ticket of its own.
+const SelectionComposer = ({
 	sha,
 	file,
 	selection,
+	note,
+	onChangeNote,
 	onAddComment,
 	onFileTicket,
 	onClear,
@@ -353,18 +353,16 @@ const SelectionToolbar = ({
 	sha: string;
 	file: GuiCommitDiffFile;
 	selection: SelectedLineRange;
+	note: string;
+	onChangeNote: (note: string) => void;
 	onAddComment?: (body: string) => void;
 	onFileTicket?: (params: FileTicketParams) => void;
 	onClear: () => void;
 }) => {
-	const [composing, setComposing] = useState(false);
-	const [filing, setFiling] = useState(false);
-	const [note, setNote] = useState('');
-
 	const snippet = dedent(extractSnippet(file, selection));
 	const selectionLabel = `${file.path} ${formatSelectionLabel(selection)}`;
 
-	const submit = () => {
+	const comment = () => {
 		const trimmedNote = note.trim();
 		// Matches extractSnippet's own default: a range without a reported side
 		// is expected to be a modern-git edge case at worst, not a real gap.
@@ -394,31 +392,27 @@ const SelectionToolbar = ({
 		onClear();
 	};
 
-	if (filing) {
-		return (
-			<FileTicketModal
-				defaultTitle={selectionLabel}
-				snippetLabel={selectionLabel}
-				snippet={snippet}
-				onCreate={({title, note: filingNote}) => {
-					onFileTicket?.({
-						filePath: file.path,
-						range: selection,
-						snippet,
-						title,
-						note: filingNote,
-					});
-					onClear();
-				}}
-				onClose={onClear}
-			/>
-		);
-	}
+	// The note's first line is the ticket's title, the rest its note; with no
+	// note at all the selection itself names the ticket.
+	const fileTicket = () => {
+		const [firstLine = '', ...rest] = note.trim().split('\n');
+		const title = firstLine.trim() || selectionLabel;
+
+		onFileTicket?.({
+			filePath: file.path,
+			range: selection,
+			snippet,
+			title,
+			note: rest.join('\n').trim(),
+		});
+		onClear();
+	};
 
 	return (
 		<div
+			data-testid="selection-composer"
 			style={{
-				marginTop: 8,
+				margin: '4px 0',
 				padding: 10,
 				border: `1px solid ${GUI_THEME.accent}`,
 				borderRadius: 8,
@@ -426,75 +420,56 @@ const SelectionToolbar = ({
 				boxShadow: `0 0 0 1px ${GUI_THEME.accent}33`,
 			}}
 		>
-			<div
-				style={{
-					display: 'flex',
-					alignItems: 'center',
-					gap: 8,
-					fontSize: 11,
-					color: GUI_THEME.secondary,
-				}}
-			>
-				<span style={{flex: 1}}>
-					{file.path} {formatSelectionLabel(selection)}
-				</span>
-
-				{!composing && (
-					<>
-						{onAddComment && (
-							<Button variant="primary" onClick={() => setComposing(true)}>
-								Comment
-							</Button>
-						)}
-						{onFileTicket && (
-							<Button variant="default" onClick={() => setFiling(true)}>
-								File ticket
-							</Button>
-						)}
-						<Button variant="ghost" onClick={onClear}>
-							×
-						</Button>
-					</>
-				)}
+			<div style={{fontSize: 11, color: GUI_THEME.secondary}}>
+				{selectionLabel}
 			</div>
 
-			{composing && (
-				<div style={{marginTop: 8}}>
-					<Textarea
-						autoFocus
-						maxLength={Number.MAX_SAFE_INTEGER}
-						value={note}
-						placeholder="Add a note (optional)"
-						onChange={event => setNote(event.target.value)}
-						onKeyDown={event => {
-							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-								submit();
-							}
-						}}
-						style={{minHeight: 45, font: 'inherit', fontSize: 12}}
-					/>
-					<ActionRow>
-						<Button variant="ghost" onClick={onClear}>
-							Cancel
-						</Button>
-						<Button onClick={submit}>Post comment</Button>
-					</ActionRow>
-				</div>
-			)}
+			<Textarea
+				autoFocus
+				maxLength={Number.MAX_SAFE_INTEGER}
+				value={note}
+				placeholder="Add a note (optional)"
+				onChange={event => onChangeNote(event.target.value)}
+				onKeyDown={event => {
+					if (event.key === 'Escape') onClear();
+					if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+						if (onAddComment) comment();
+					}
+				}}
+				style={{marginTop: 8, minHeight: 45, font: 'inherit', fontSize: 12}}
+			/>
+
+			<ActionRow>
+				<Button variant="ghost" onClick={onClear}>
+					Cancel
+				</Button>
+				{onFileTicket && (
+					<Button variant="default" onClick={fileTicket}>
+						File ticket
+					</Button>
+				)}
+				{onAddComment && (
+					<Button variant="primary" onClick={comment}>
+						Comment
+					</Button>
+				)}
+			</ActionRow>
 		</div>
 	);
 };
+
+// What a file's diff carries at a line: an existing comment, or the composer
+// for the range being selected right now.
+type RowAnnotation =
+	| {kind: 'comment'; entry: DiffComment}
+	| {kind: 'composer'; selection: SelectedLineRange};
 
 // Rendered by MultiFileDiff at the line a diff-selection comment is anchored
 // to. Just the author and note — the full body (including the requoted
 // snippet, redundant here since the diff itself is right above it) lives in
 // the Comments tab.
-const DiffCommentAnnotation = ({
-	annotation,
-}: {
-	annotation: DiffLineAnnotation<DiffComment>;
-}) => {
-	const {comment, meta} = annotation.metadata;
+const DiffCommentAnnotation = ({entry}: {entry: DiffComment}) => {
+	const {comment, meta} = entry;
 
 	return (
 		<div
@@ -556,7 +531,15 @@ const FileRow = ({
 	focusRange?: SelectedLineRange | null;
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
+	// Held here rather than in the composer so re-dragging the range keeps
+	// what was typed.
+	const [note, setNote] = useState('');
 	const rowRef = useRef<HTMLDivElement | null>(null);
+
+	const clearSelection = () => {
+		setSelection(null);
+		setNote('');
+	};
 
 	// Keyed on the range's own values, not object identity — the parent
 	// rebuilds it from URL params on every render, and depending on identity
@@ -574,13 +557,23 @@ const FileRow = ({
 
 	const fileComments = findDiffCommentsForFile(comments, file.path);
 
-	const lineAnnotations: DiffLineAnnotation<DiffComment>[] = fileComments.map(
+	const lineAnnotations: DiffLineAnnotation<RowAnnotation>[] = fileComments.map(
 		entry => ({
 			side: entry.meta.endSide,
 			lineNumber: entry.meta.end,
-			metadata: entry,
+			metadata: {kind: 'comment', entry},
 		}),
 	);
+
+	if (selection) {
+		const side = selection.endSide ?? selection.side ?? 'additions';
+
+		lineAnnotations.push({
+			side,
+			lineNumber: selection.end,
+			metadata: {kind: 'composer', selection},
+		});
+	}
 
 	return (
 		<div ref={rowRef} style={{marginTop: 8}}>
@@ -638,20 +631,23 @@ const FileRow = ({
 						selectedLines={selection}
 						onSelectionEnd={setSelection}
 						lineAnnotations={lineAnnotations}
-						renderAnnotation={annotation => (
-							<DiffCommentAnnotation annotation={annotation} />
-						)}
+						renderAnnotation={({metadata}) =>
+							metadata.kind === 'comment' ? (
+								<DiffCommentAnnotation entry={metadata.entry} />
+							) : (
+								<SelectionComposer
+									sha={sha}
+									file={file}
+									selection={metadata.selection}
+									note={note}
+									onChangeNote={setNote}
+									onAddComment={onAddComment}
+									onFileTicket={onFileTicket}
+									onClear={clearSelection}
+								/>
+							)
+						}
 					/>
-					{selection && (
-						<SelectionToolbar
-							sha={sha}
-							file={file}
-							selection={selection}
-							onAddComment={onAddComment}
-							onFileTicket={onFileTicket}
-							onClear={() => setSelection(null)}
-						/>
-					)}
 				</>
 			)}
 		</div>
