@@ -126,7 +126,22 @@ export const Aside = forwardRef<
 		});
 	}, []);
 
-	const effectiveWidth = isFullscreen ? window.innerWidth : width;
+	// window.innerWidth is only read at render time, so without this the panel
+	// would stay pinned to whatever width the browser happened to be when
+	// fullscreen was toggled on, ignoring a resize of the window itself while
+	// it's active.
+	const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+
+	useEffect(() => {
+		if (!isFullscreen) return;
+
+		setWindowWidth(window.innerWidth);
+		const onResize = () => setWindowWidth(window.innerWidth);
+		window.addEventListener('resize', onResize);
+		return () => window.removeEventListener('resize', onResize);
+	}, [isFullscreen]);
+
+	const effectiveWidth = isFullscreen ? windowWidth : width;
 
 	return (
 		<aside
