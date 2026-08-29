@@ -27,6 +27,8 @@ import {
 } from '../../../mcp/epiq-api.js';
 import {
 	checkoutStateAt,
+	getCommitDiff,
+	getCommitsForRef,
 	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
@@ -36,6 +38,7 @@ import {
 } from '../../../mcp/epiq-time-travel.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
+import {nodeRef} from '../../../lib/utils/node-ref.js';
 import {
 	broadcastGuiMessage,
 	registerGuiSocket,
@@ -181,6 +184,38 @@ export const setupWebsocket = (
 							repoRoot,
 							sha: message.payload.sha,
 						}),
+					});
+				}
+
+				if (type === 'commit:diff:get') {
+					const {sha} = message.payload;
+
+					// Wrapped with the sha rather than sending the Result bare: two
+					// surfaces can each have a diff request in flight for a different
+					// commit (the scrubber's dot and the ticket tab's commit list), and
+					// a failed Result carries no sha of its own to tell them apart.
+					return sendSocket(socket, {
+						type: 'commit:diff:result',
+						payload: {sha, result: await getCommitDiff({repoRoot, sha})},
+					});
+				}
+
+				if (type === 'issue:commits:get') {
+					const {issueId} = message.payload;
+
+					// Wrapped with the issueId for the same reason commit:diff:result is:
+					// switching tickets while the Code tab stays open can leave an older
+					// ticket's request in flight, and the client needs to tell whose
+					// reply this is before applying it.
+					return sendSocket(socket, {
+						type: 'issue:commits:result',
+						payload: {
+							issueId,
+							result: await getCommitsForRef({
+								repoRoot,
+								ref: nodeRef(issueId),
+							}),
+						},
 					});
 				}
 

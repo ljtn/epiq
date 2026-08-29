@@ -11,7 +11,13 @@
 //   statically. We stub it so the bundle is fully self-contained.
 
 import {execSync, execFileSync} from 'node:child_process';
-import {readFileSync, writeFileSync, copyFileSync, chmodSync} from 'node:fs';
+import {
+	readFileSync,
+	writeFileSync,
+	copyFileSync,
+	chmodSync,
+	readdirSync,
+} from 'node:fs';
 import {mkdirSync} from 'node:fs';
 import {platform} from 'node:process';
 import {fileURLToPath} from 'node:url';
@@ -105,11 +111,14 @@ run('npm run build:gui');
 const seaConfig = JSON.parse(
 	readFileSync(resolve(root, 'source/config/sea-config.json'), 'utf8'),
 );
-seaConfig.assets = {
-	'gui/index.html': resolve(root, 'dist/gui/index.html'),
-	'gui/main.js': resolve(root, 'dist/gui/main.js'),
-	'gui/favicon.ico': resolve(root, 'dist/gui/favicon.ico'),
-};
+// Embeds every file the GUI build produced, not a fixed list: esbuild code-
+// splitting (build-gui.mjs) writes one chunk per lazily-loaded language/theme
+// alongside main.js, and serveStatic (api-server.ts) resolves any of them by
+// path — a fixed list would silently 404 on whichever chunk a diff needs.
+const guiDir = resolve(root, 'dist/gui');
+seaConfig.assets = Object.fromEntries(
+	readdirSync(guiDir).map(name => [`gui/${name}`, resolve(guiDir, name)]),
+);
 // Absolute paths for main/output too, so this generated config's location
 // (dist/) doesn't change how they're resolved.
 seaConfig.main = resolve(root, seaConfig.main);

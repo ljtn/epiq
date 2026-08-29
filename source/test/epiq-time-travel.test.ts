@@ -91,6 +91,8 @@ import {
 } from '../lib/model/result-types.js';
 import {
 	checkoutStateAt,
+	getCommitDiff,
+	getCommitsForRef,
 	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
@@ -571,6 +573,60 @@ describe('epiq-time-travel', () => {
 		});
 	});
 
+	describe('getCommitsForRef', () => {
+		const SEP = '\x1f';
+		const REC = '\x1e';
+
+		it('matches commits whose subject starts with "<ref> "', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout:
+						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 add the tool\n` +
+						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}unrelated commit\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.map(commit => commit.sha)).toEqual(['aaa111']);
+		});
+
+		it('requires a space after the ref, not just a text prefix', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC89 similar but longer ref\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value).toEqual([]);
+		});
+
+		it('fails for an empty ref', async () => {
+			const result = await getCommitsForRef({ref: '   '});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(execGit).not.toHaveBeenCalled();
+		});
+
+		it('propagates a git log failure', async () => {
+			vi.mocked(execGit).mockResolvedValue(failed('git not found'));
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+	});
+
 	describe('openCommitDiffInEditor', () => {
 		const validSha = 'b42a0bf111e4b6213abf6c1bfe65088b5c9764f8';
 
@@ -658,7 +714,7 @@ describe('epiq-time-travel', () => {
 				contentByPath: Record<string, string> = {},
 			) => {
 				vi.mocked(execGit).mockImplementation(async ({args}) => {
-					if (args[0] === 'diff-tree') {
+					if (args[0] === 'diff') {
 						return succeeded('changed files', {
 							stdout: files.join('\n'),
 							stderr: '',
@@ -836,6 +892,137 @@ describe('epiq-time-travel', () => {
 				expect(openEditorOnFileNonBlocking).toHaveBeenCalled();
 				expect(isSuccess(result)).toBe(true);
 			});
+		});
+	});
+
+	describe('getCommitDiff', () => {
+		const validSha = 'b42a0bf111e4b6213abf6c1bfe65088b5c9764f8';
+
+		const mockGitForFiles = (
+			files: string[],
+			contentByPath: Record<string, string> = {},
+		) => {
+			vi.mocked(execGit).mockImplementation(async ({args}) => {
+				if (args[0] === 'diff') {
+					return succeeded('changed files', {
+						stdout: files.join('\n'),
+						stderr: '',
+						exitCode: 0,
+					});
+				}
+
+				if (args[0] === 'show') {
+					const spec = args[1] ?? '';
+					const content = contentByPath[spec];
+
+					// Omit a spec to simulate a blob missing on that side.
+					return content === undefined
+						? failed('bad object (missing blob)')
+						: succeeded('blob', {stdout: content, stderr: '', exitCode: 0});
+				}
+
+				return failed(`unexpected git args: ${args.join(' ')}`);
+			});
+		};
+
+		it('rejects a sha shaped like a git flag, without ever shelling out', async () => {
+			const result = await getCommitDiff({sha: '--upload-pack=/bin/sh'});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(execGit).not.toHaveBeenCalled();
+		});
+
+		it('returns before/after content for each changed file', async () => {
+			mockGitForFiles(['source/a.ts', 'source/b.ts'], {
+				[`${validSha}~1:source/a.ts`]: 'a before',
+				[`${validSha}:source/a.ts`]: 'a after',
+				[`${validSha}~1:source/b.ts`]: 'b before',
+				[`${validSha}:source/b.ts`]: 'b after',
+			});
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value).toEqual({
+					sha: validSha,
+					files: [
+						{path: 'source/a.ts', before: 'a before', after: 'a after'},
+						{path: 'source/b.ts', before: 'b before', after: 'b after'},
+					],
+				});
+			}
+		});
+
+		it('treats a missing blob (file added or deleted here) as empty content, not a failure', async () => {
+			mockGitForFiles(['source/new-file.ts'], {
+				[`${validSha}:source/new-file.ts`]: 'brand new content',
+			});
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value.files).toEqual([
+					{
+						path: 'source/new-file.ts',
+						before: '',
+						after: 'brand new content',
+					},
+				]);
+			}
+		});
+
+		it('fails when the commit has no changed files', async () => {
+			mockGitForFiles([]);
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+
+		it('fails when the commit touches too many files to render', async () => {
+			const manyFiles = Array.from(
+				{length: 201},
+				(_, i) => `source/file-${i}.ts`,
+			);
+			mockGitForFiles(manyFiles);
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+
+		it('propagates a diff failure', async () => {
+			vi.mocked(execGit).mockResolvedValue(failed('bad object'));
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+
+		// diff-tree's single-commit mode reports no files for a merge commit
+		// unless told otherwise — diffing against the first parent explicitly
+		// (`sha~1`) works for both merge and non-merge commits alike.
+		it('lists a merge commit as a diff against its first parent, not as having no changes', async () => {
+			mockGitForFiles(['source/a.ts'], {
+				[`${validSha}~1:source/a.ts`]: 'before',
+				[`${validSha}:source/a.ts`]: 'after',
+			});
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(execGit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					args: ['diff', '--name-only', `${validSha}~1`, validSha],
+				}),
+			);
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value.files).toEqual([
+					{path: 'source/a.ts', before: 'before', after: 'after'},
+				]);
+			}
 		});
 	});
 

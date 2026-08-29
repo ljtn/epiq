@@ -7,9 +7,10 @@ import {
 	GuiTag,
 	GuiComment,
 	GuiAttachment,
+	GuiCommitEntry,
 	GuiIssueHistoryEntry,
 } from '../lib/gui-state.model';
-import {Aside} from './Aside';
+import {ASIDE_DIFF_WIDTH, Aside} from './Aside';
 import {Button} from './Button';
 import {ManageContributorsModal} from './ManageContributorsModal';
 import {CopyRef} from './CopyRef';
@@ -24,13 +25,14 @@ import {
 } from './FormPrimitives';
 import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
 import {IssueComments} from './IssueComments';
+import {CommitDiffState, IssueCommits} from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 
-type IssueDetailsTab = 'overview' | 'comments' | 'history';
+type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
 
 export const IssueDetails = ({
 	whoAmI,
@@ -57,6 +59,11 @@ export const IssueDetails = ({
 	attachmentUploadStatus,
 	onUploadAttachments,
 	onDeleteAttachment,
+	commits,
+	commitsLoading,
+	commitsError,
+	commitDiffsBySha,
+	onLoadCommitDiff,
 	knownTags: tags,
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
@@ -85,6 +92,11 @@ export const IssueDetails = ({
 	attachmentUploadStatus: AttachmentUploadStatus;
 	onUploadAttachments?: (issueId: string, files: File[]) => void;
 	onDeleteAttachment?: (issueId: string, attachmentId: string) => void;
+	commits: GuiCommitEntry[];
+	commitsLoading: boolean;
+	commitsError: string | null;
+	commitDiffsBySha: Record<string, CommitDiffState>;
+	onLoadCommitDiff: (sha: string) => void;
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
@@ -130,6 +142,9 @@ export const IssueDetails = ({
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
 		{id: 'history', label: 'Log', count: history.length},
+		// No count before the first load: commits are fetched lazily on opening
+		// this tab, so showing 0 until then would misread as "no commits yet".
+		{id: 'code', label: 'Code', count: commits.length || undefined},
 	];
 
 	const saveTitle = () => {
@@ -208,7 +223,10 @@ export const IssueDetails = ({
 		);
 
 	return (
-		<Aside ref={panelRef}>
+		<Aside
+			ref={panelRef}
+			width={activeTab === 'code' ? ASIDE_DIFF_WIDTH : undefined}
+		>
 			{issue ? (
 				<>
 					<FormHeader>
@@ -601,6 +619,16 @@ export const IssueDetails = ({
 						<IssueHistory
 							entries={history}
 							onHoverEvent={onHoverHistoryEvent}
+						/>
+					)}
+
+					{activeTab === 'code' && (
+						<IssueCommits
+							commits={commits}
+							loading={commitsLoading}
+							error={commitsError}
+							diffsBySha={commitDiffsBySha}
+							onLoadDiff={onLoadCommitDiff}
 						/>
 					)}
 				</>

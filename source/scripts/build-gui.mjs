@@ -24,14 +24,22 @@ copyFileSync(
 	resolve(root, 'dist/gui/favicon.ico'),
 );
 
+// Splitting rather than a single --outfile: @pierre/diffs pulls in Shiki's
+// full bundled-language and theme set, which a single-file bundle inlines
+// wholesale (~12mb) regardless of which languages actually render. Splitting
+// lets each language/theme load lazily as its own chunk, only when a diff
+// actually needs it. serveStatic (api-server.ts) already serves any path
+// under dist/gui, and build-sea.mjs embeds the directory's full contents —
+// both already account for a chunked output, not just main.js.
 execFileSync(
 	esbuild,
 	[
 		'source/gui/client/main.tsx',
 		'--bundle',
+		'--splitting',
 		'--format=esm',
 		'--target=es2020',
-		'--outfile=dist/gui/main.js',
+		'--outdir=dist/gui',
 	],
 	{cwd: root, stdio: 'inherit', shell: platform === 'win32'},
 );

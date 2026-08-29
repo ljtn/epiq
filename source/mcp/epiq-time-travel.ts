@@ -433,6 +433,33 @@ export const getCommitTimeline = async (
 	return succeeded('Computed commit timeline', commits);
 };
 
+// Matches the convention documented in the epiq skill: a commit's subject is
+// prefixed with the issue's ref, e.g. "5S52AC8 message". Reuses
+// getCommitTimeline's full-history read rather than a second git invocation —
+// same repo, same state-branch exclusion, and this repo's whole history is a
+// few thousand commits at most.
+export const getCommitsForRef = async (
+	input: ToolInput & {ref: string},
+): Promise<Result<CommitEntry[]>> => {
+	const ref = input.ref.trim();
+	if (!ref) return failed('ref must not be empty');
+
+	const timelineResult = await getCommitTimeline({repoRoot: input.repoRoot});
+	if (isFail(timelineResult)) return failed(timelineResult.message);
+
+	// Case-insensitive, matching nodeRefMatches' convention (source/lib/utils/node-ref.ts)
+	// rather than a strict-case prefix: a hand-typed or manually-copied ref
+	// should still match, not just one pasted verbatim from the MCP response.
+	const prefix = `${ref.toUpperCase()} `;
+
+	return succeeded(
+		'Matched commits by ref',
+		timelineResult.value.filter(commit =>
+			commit.subject.toUpperCase().startsWith(prefix),
+		),
+	);
+};
+
 // `sha` reaches a `git show <sha>` argv slot, where a leading `-` would be read
 // as a flag. Argument injection, not shell injection.
 const isPlausibleSha = (sha: string): boolean => /^[0-9a-f]{7,40}$/i.test(sha);
@@ -479,15 +506,18 @@ const readFileAtRevision = async (
 	return isFail(result) ? '' : result.value.stdout;
 };
 
-// Each side keeps its real filename so the editor detects the language.
-const openCommitAsSideBySideDiffs = async (
+// Shared by the editor path below and by getCommitDiff's data path. A plain
+// two-tree diff against the first parent (matching readFileAtRevision's own
+// `sha~1` convention) rather than `diff-tree -r <sha>`: diff-tree's single-
+// commit mode reports no files at all for a merge commit unless told
+// otherwise, which read as "no changes" instead of the merge's real diff.
+const getChangedFilePaths = async (
 	repoRoot: string,
 	sha: string,
-	editor: string,
-): Promise<Result<true>> => {
+): Promise<Result<string[]>> => {
 	const filesResult = await execGit({
 		cwd: repoRoot,
-		args: ['diff-tree', '--no-commit-id', '--name-only', '-r', sha],
+		args: ['diff', '--name-only', `${sha}~1`, sha],
 	});
 	if (isFail(filesResult)) return failed(filesResult.message);
 
@@ -499,6 +529,20 @@ const openCommitAsSideBySideDiffs = async (
 	if (filePaths.length === 0) {
 		return failed('No changed files found for this commit');
 	}
+
+	return succeeded('Listed changed files', filePaths);
+};
+
+// Each side keeps its real filename so the editor detects the language.
+const openCommitAsSideBySideDiffs = async (
+	repoRoot: string,
+	sha: string,
+	editor: string,
+): Promise<Result<true>> => {
+	const filesResult = await getChangedFilePaths(repoRoot, sha);
+	if (isFail(filesResult)) return failed(filesResult.message);
+
+	const filePaths = filesResult.value;
 
 	if (filePaths.length > MAX_DIFF_FILES_FOR_SIDE_BY_SIDE) {
 		return failed(
@@ -594,6 +638,82 @@ export const openCommitDiffInEditor = async (
 	}
 
 	return openCommitAsUnifiedDiff(repoRoot, input.sha);
+};
+
+export type CommitDiffFile = {
+	path: string;
+	before: string;
+	after: string;
+};
+
+export type CommitDiff = {
+	sha: string;
+	files: CommitDiffFile[];
+};
+
+// Bounds payload size for a pathological commit (a vendored dep, a lockfile
+// rewrite) rather than the editor-tab-count concern MAX_DIFF_FILES_FOR_SIDE_BY_SIDE
+// exists for — a rendered accordion tolerates far more files than open windows do.
+const MAX_DIFF_FILES_FOR_DATA = 200;
+
+// Caps concurrent git subprocesses: an unbatched Promise.all over a near-
+// MAX_DIFF_FILES_FOR_DATA commit would fire hundreds of `git show` processes
+// (two per file) at once.
+const DIFF_READ_CONCURRENCY = 8;
+
+const readFileDiffsInBatches = async (
+	repoRoot: string,
+	sha: string,
+	filePaths: string[],
+): Promise<CommitDiffFile[]> => {
+	const files: CommitDiffFile[] = [];
+
+	for (let i = 0; i < filePaths.length; i += DIFF_READ_CONCURRENCY) {
+		const batch = filePaths.slice(i, i + DIFF_READ_CONCURRENCY);
+
+		const batchFiles = await Promise.all(
+			batch.map(async (filePath): Promise<CommitDiffFile> => {
+				const [before, after] = await Promise.all([
+					readFileAtRevision(repoRoot, `${sha}~1`, filePath),
+					readFileAtRevision(repoRoot, sha, filePath),
+				]);
+
+				return {path: filePath, before, after};
+			}),
+		);
+
+		files.push(...batchFiles);
+	}
+
+	return files;
+};
+
+// The GUI diff panel's data source: same git calls as the editor path above,
+// returned as content instead of written to temp files. Never touches the
+// materialized state singleton, so it is independent of any time-travel checkout.
+export const getCommitDiff = async (
+	input: ToolInput & {sha: string},
+): Promise<Result<CommitDiff>> => {
+	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
+
+	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+	const repoRoot = repoRootResult.value;
+
+	const filesResult = await getChangedFilePaths(repoRoot, input.sha);
+	if (isFail(filesResult)) return failed(filesResult.message);
+
+	const filePaths = filesResult.value;
+
+	if (filePaths.length > MAX_DIFF_FILES_FOR_DATA) {
+		return failed(
+			`Commit touches ${filePaths.length} files — too many to show as a diff`,
+		);
+	}
+
+	const files = await readFileDiffsInBatches(repoRoot, input.sha, filePaths);
+
+	return succeeded('Loaded commit diff', {sha: input.sha, files});
 };
 
 // Takes NO lock: its callers already run inside `runExclusive`, which is not
