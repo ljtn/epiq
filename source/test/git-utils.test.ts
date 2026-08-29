@@ -388,15 +388,10 @@ describe('git-utils', () => {
 				cwd: repoRoot,
 			});
 			if (isFail(hashResult)) throw new Error(hashResult.message);
-			const [emojiHash, plainHash] = hashResult.value.stdout
-				.trim()
-				.split('\n');
+			const [emojiHash, plainHash] = hashResult.value.stdout.trim().split('\n');
 			if (!emojiHash || !plainHash) throw new Error('missing blob hash');
 
-			const result = await readGitBlobsBatch(
-				[emojiHash, plainHash],
-				repoRoot,
-			);
+			const result = await readGitBlobsBatch([emojiHash, plainHash], repoRoot);
 
 			expect(isSuccess(result)).toBe(true);
 			if (isSuccess(result)) {
@@ -411,10 +406,7 @@ describe('git-utils', () => {
 			const repoRoot = makeTempDir();
 			await initRepo(repoRoot);
 
-			const result = await readGitBlobsBatch(
-				['0'.repeat(40)],
-				repoRoot,
-			);
+			const result = await readGitBlobsBatch(['0'.repeat(40)], repoRoot);
 
 			expect(isFail(result)).toBe(true);
 		});
