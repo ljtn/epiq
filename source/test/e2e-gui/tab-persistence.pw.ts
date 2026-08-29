@@ -48,6 +48,40 @@ test('the open tab carries across ticket selections', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// Regression test: switching directly from one ticket to another while the
+// Commits tab is already open used to leave the pane stuck on "Loading
+// commits…" forever — the fetch for the new ticket was silently dropped
+// because a same-render effect (recreating the websocket, keyed off an
+// unstable `navigate` reference) nulled the socket ref between this effect's
+// setup and its own send call. Re-clicking the tab was the only way to
+// recover, since only *that* triggered a genuinely fresh effect run.
+test('switching tickets with the Commits tab already open still loads the new ticket', async ({
+	page,
+	pageErrors,
+}) => {
+	const stamp = Date.now();
+	const first = `Commits refetch A ${stamp}`;
+	const second = `Commits refetch B ${stamp}`;
+
+	await addTicket(page, first);
+	await addTicket(page, second);
+
+	await openFromBoard(page, first);
+	await page.getByRole('button', {name: /^Commits/}).click();
+	await expect(page).toHaveURL(/tab=code/);
+	// Neither ticket has any linked commits, so the tab settles on the empty
+	// state — the interesting assertion is that it settles at all, not what
+	// it settles on.
+	await expect(page.getByText(/no commits reference this ticket/i)).toBeVisible();
+
+	await openFromBoard(page, second);
+	await expect(page).toHaveURL(/tab=code/);
+	await expect(page.getByText('Loading commits…')).toBeHidden();
+	await expect(page.getByText(/no commits reference this ticket/i)).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('the comment count on a card still opens comments', async ({page}) => {
 	const title = `Count ${Date.now()}`;
 	await addTicket(page, title);
