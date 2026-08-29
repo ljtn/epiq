@@ -72,12 +72,16 @@ test('switching tickets with the Commits tab already open still loads the new ti
 	// Neither ticket has any linked commits, so the tab settles on the empty
 	// state — the interesting assertion is that it settles at all, not what
 	// it settles on.
-	await expect(page.getByText(/no commits reference this ticket/i)).toBeVisible();
+	await expect(
+		page.getByText(/no commits reference this ticket/i),
+	).toBeVisible();
 
 	await openFromBoard(page, second);
 	await expect(page).toHaveURL(/tab=code/);
 	await expect(page.getByText('Loading commits…')).toBeHidden();
-	await expect(page.getByText(/no commits reference this ticket/i)).toBeVisible();
+	await expect(
+		page.getByText(/no commits reference this ticket/i),
+	).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });

@@ -189,7 +189,9 @@ export const readGitBlobsBatch = (
 
 		const timeout = setTimeout(() => {
 			child.kill('SIGTERM');
-			finish(failed(`git cat-file --batch timed out after ${GIT_TIMEOUT_MS}ms`));
+			finish(
+				failed(`git cat-file --batch timed out after ${GIT_TIMEOUT_MS}ms`),
+			);
 		}, GIT_TIMEOUT_MS);
 
 		child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
