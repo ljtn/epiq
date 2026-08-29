@@ -243,11 +243,26 @@ const isCheckedOutInThePast = (): boolean => {
 const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 	if (unreadable.length === 0) return;
 
-	const detail = [...new Set(unreadable.map(event => event.detail))].join(', ');
+	const corrupt = unreadable.filter(event => event.reason === 'corrupt-line');
+	const newer = unreadable.filter(event => event.reason !== 'corrupt-line');
 
-	logger.info(
-		`This build cannot read ${unreadable.length} event(s) in the log (${detail}). They are skipped, so anything they changed may be out of date until you upgrade.`,
-	);
+	if (newer.length > 0) {
+		const detail = [...new Set(newer.map(event => event.detail))].join(', ');
+
+		logger.info(
+			`This build cannot read ${newer.length} event(s) in the log (${detail}). They are skipped, so anything they changed may be out of date until you upgrade.`,
+		);
+	}
+
+	// Not an upgrade problem: these lines have no envelope, so they are lost
+	// rather than pending. Named precisely so the damage can be located.
+	if (corrupt.length > 0) {
+		const detail = [...new Set(corrupt.map(event => event.detail))].join(', ');
+
+		logger.info(
+			`Skipped ${corrupt.length} corrupt line(s) in the event log (${detail}). The rest of the board loaded normally; those events are unrecoverable.`,
+		);
+	}
 };
 
 export function bootStateFromEventLog(

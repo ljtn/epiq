@@ -320,6 +320,80 @@ describe('decodeReconstructedEvents', () => {
 	});
 });
 
+describe('loadMergedEvents with a corrupt line on disk', () => {
+	const seedLog = (lines: string[]): string => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-corrupt-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, '01ARZ3NDEKTSV4RRFFQ69G5FAV.alice.jsonl'),
+			lines.join('\n') + '\n',
+		);
+		return root;
+	};
+
+	const workspaceLine = JSON.stringify({
+		v: 1,
+		id: ['01H0000000000000000000000A', null],
+		'init.workspace': {id: 'ws1', name: 'Workspace', rank: 'a0'},
+	});
+
+	const titleLine = JSON.stringify({
+		v: 1,
+		id: ['01H0000000000000000000000C', '01H0000000000000000000000A'],
+		'edit.title': {id: 'ws1', name: 'Renamed'},
+	});
+
+	// `merge=union` splices a half-written line into every clone that pulls it,
+	// and the log is append-only. Failing the load there took the whole board
+	// offline for everybody, permanently.
+	it('skips a truncated line and still loads the rest', () => {
+		const root = seedLog([
+			workspaceLine,
+			'{"v":1,"id":["01H0000000000000000000000B",null],"lock.node"',
+			titleLine,
+		]);
+
+		const result = loadMergedEventsWithUnreadable(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.events.map(event => event.action)).toEqual([
+			'init.workspace',
+			'edit.title',
+		]);
+		expect(result.value.unreadable).toEqual([
+			{
+				eventId: null,
+				reason: 'corrupt-line',
+				detail: '01ARZ3NDEKTSV4RRFFQ69G5FAV.alice.jsonl:2 (invalid JSON)',
+				targetNodeId: null,
+			},
+		]);
+	});
+
+	it('skips a line whose envelope is malformed and still loads the rest', () => {
+		const root = seedLog([
+			workspaceLine,
+			JSON.stringify({v: 1, id: 'not-a-tuple', 'lock.node': {id: 'ws1'}}),
+			titleLine,
+		]);
+
+		const result = loadMergedEventsWithUnreadable(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.events.map(event => event.action)).toEqual([
+			'init.workspace',
+			'edit.title',
+		]);
+		expect(result.value.unreadable).toHaveLength(1);
+		expect(result.value.unreadable[0]?.reason).toBe('corrupt-line');
+	});
+});
+
 describe('loadMergedEvents with foreign events on disk', () => {
 	it('loads a log containing unknown actions without failing', () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-load-'));
