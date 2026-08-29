@@ -202,6 +202,19 @@ describe('event persist', () => {
 
 		expect(isFail(result)).toBe(false);
 	});
+
+	// `getEventLogPath` refuses a name containing two `.jsonl`, which used to
+	// lock this person out of writing anything at all.
+	it('writes for a display name containing ".jsonl"', () => {
+		const result = persist({
+			event: event({userName: 'a.jsonl.b'}),
+			rootDir,
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(path.basename(result.value.path)).toBe('u1.a-jsonl.b.jsonl');
+	});
 });
 
 describe('schema version support', () => {
