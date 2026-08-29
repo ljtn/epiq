@@ -7,10 +7,10 @@ import {
 	GuiTag,
 	GuiComment,
 	GuiAttachment,
-	GuiCommitEntry,
+	GuiRefCommitEntry,
 	GuiIssueHistoryEntry,
 } from '../lib/gui-state.model';
-import {ASIDE_DIFF_WIDTH, Aside} from './Aside';
+import {Aside, readStoredAsideWidth, STACKED_DIFF_WIDTH} from './Aside';
 import {Button} from './Button';
 import {ManageContributorsModal} from './ManageContributorsModal';
 import {CopyRef} from './CopyRef';
@@ -92,7 +92,7 @@ export const IssueDetails = ({
 	attachmentUploadStatus: AttachmentUploadStatus;
 	onUploadAttachments?: (issueId: string, files: File[]) => void;
 	onDeleteAttachment?: (issueId: string, attachmentId: string) => void;
-	commits: GuiCommitEntry[];
+	commits: GuiRefCommitEntry[];
 	commitsLoading: boolean;
 	commitsError: string | null;
 	commitDiffsBySha: Record<string, CommitDiffState>;
@@ -111,6 +111,10 @@ export const IssueDetails = ({
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [addingTag, setAddingTag] = useState(false);
 	const [addingAssignee, setAddingAssignee] = useState(false);
+	// Tracks the resizable Aside's live width so the Code tab can pick split
+	// vs. unified diffs — initialized from the same persisted value Aside
+	// itself reads, so the first render already picks the right layout.
+	const [panelWidth, setPanelWidth] = useState(readStoredAsideWidth);
 	const panelRef = useRef<HTMLElement | null>(null);
 	const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -223,10 +227,7 @@ export const IssueDetails = ({
 		);
 
 	return (
-		<Aside
-			ref={panelRef}
-			width={activeTab === 'code' ? ASIDE_DIFF_WIDTH : undefined}
-		>
+		<Aside ref={panelRef} onWidthChange={setPanelWidth}>
 			{issue ? (
 				<>
 					<FormHeader>
@@ -630,6 +631,7 @@ export const IssueDetails = ({
 							error={commitsError}
 							diffsBySha={commitDiffsBySha}
 							onLoadDiff={onLoadCommitDiff}
+							diffStyle={panelWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'}
 						/>
 					)}
 				</>
