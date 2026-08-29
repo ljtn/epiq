@@ -1220,6 +1220,32 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(false);
 		});
 
+		// Regression guard against a git-version quirk biting silently: --raw's
+		// line shape is assumed, not just hoped for (a real assumption already
+		// broke once this session — --full-index turned out to be a no-op on
+		// one git version). A line that doesn't parse should fail loudly rather
+		// than quietly under-report the commit's real files.
+		it('fails rather than silently dropping a diff --raw line it cannot parse', async () => {
+			vi.mocked(execGit).mockImplementation(async ({args}) => {
+				if (args[0] === 'diff') {
+					return succeeded('changed files', {
+						stdout: 'not a real diff --raw line',
+						stderr: '',
+						exitCode: 0,
+					});
+				}
+				return failed(`unexpected git args: ${args.join(' ')}`);
+			});
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+			if (isFail(result)) {
+				expect(result.message).toContain('not a real diff --raw line');
+			}
+			expect(readGitBlobsBatch).not.toHaveBeenCalled();
+		});
+
 		// diff-tree's single-commit mode reports no files for a merge commit
 		// unless told otherwise — diffing against the first parent explicitly
 		// (`sha~1`) works for both merge and non-merge commits alike.
