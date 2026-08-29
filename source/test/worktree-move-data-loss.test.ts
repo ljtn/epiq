@@ -77,6 +77,50 @@ describe('relocating the state worktree must not discard unsynced events', () =>
 		expect(fs.readFileSync(logPath(), 'utf8')).toContain('UNSYNCED EVENT');
 	});
 
+	// The other deletion on this path: a directory with no `.git` is treated as
+	// a broken worktree and `rm -rf`'d. Broken is not empty — the logs are
+	// still in it, and with no `.git` there is no committed copy here to
+	// recover them from. That is the one deletion no git object survives.
+	it('refuses to delete a broken worktree that still holds event logs', async () => {
+		// Its own repo with no worktree registered yet, so this reaches the
+		// delete rather than the relocation guard above.
+		const freshRepo = makeTempDir();
+		await execGit({args: ['init', '-q', '-b', 'main', '.'], cwd: freshRepo});
+		await execGit({args: ['config', 'user.name', 'Test'], cwd: freshRepo});
+		await execGit({args: ['config', 'user.email', 't@test'], cwd: freshRepo});
+		fs.writeFileSync(path.join(freshRepo, 'README.md'), 'x\n');
+		await execGit({args: ['add', '-A'], cwd: freshRepo});
+		await execGit({
+			args: ['commit', '-qm', 'init', '--no-verify'],
+			cwd: freshRepo,
+		});
+
+		const branch = await ensureLocalStateBranch({
+			repoRoot: freshRepo,
+			stateBranchName: BRANCH,
+		});
+		if (isFail(branch)) throw new Error(branch.message);
+
+		// A directory where the worktree should be, holding logs but no `.git`.
+		const stranded = path.join(makeTempDir(), 'worktrees', 'project');
+		fs.mkdirSync(path.join(stranded, '.epiq', 'events'), {recursive: true});
+		fs.writeFileSync(path.join(stranded, LOG), 'STRANDED EVENT\n');
+
+		const result = await ensureStateBranchWorktree({
+			repoRoot: freshRepo,
+			stateBranchRoot: stranded,
+			stateBranchName: BRANCH,
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (!isFail(result)) return;
+		expect(result.message).toContain('event log');
+
+		expect(fs.readFileSync(path.join(stranded, LOG), 'utf8')).toContain(
+			'STRANDED EVENT',
+		);
+	});
+
 	// The relocation itself is legitimate; only doing it over unsynced work is
 	// not. A committed worktree still moves.
 	it('still relocates a worktree with nothing to lose', async () => {

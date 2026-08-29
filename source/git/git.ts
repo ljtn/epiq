@@ -4,7 +4,7 @@ import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {logger} from '../logger.js';
 import {git} from './git-commands.js';
 import {ORIGIN, getStateBranch} from './git-constants.js';
-import {assertLogOnlyGrew} from './log-integrity.js';
+import {assertLogOnlyGrew, findStrandedEventLogs} from './log-integrity.js';
 import {
 	EMPTY_TREE_SHA,
 	ensureDir,
@@ -295,6 +295,29 @@ const createStateBranchWorktree = async ({
 		fs.existsSync(stateBranchRoot) &&
 		!fs.existsSync(path.join(stateBranchRoot, '.git'))
 	) {
+		// A worktree missing its `.git` pointer is broken, but broken is not the
+		// same as empty: the event logs are still sitting in it, and without
+		// `.git` there is no committed copy here to recover them from. `rm -rf`
+		// would be the one deletion in this codebase that no git object survives.
+		const strandedResult = findStrandedEventLogs(stateBranchRoot);
+		if (isFail(strandedResult)) return failed(strandedResult.message);
+
+		if (strandedResult.value.length > 0) {
+			return failed(
+				[
+					`Refusing to delete ${stateBranchRoot}.`,
+					'',
+					'It is not a usable worktree — it has no .git — but it still holds',
+					`${strandedResult.value.length} event log(s) with content:`,
+					...strandedResult.value.map(name => `  ${name}`),
+					'',
+					'Deleting it would destroy them, and with no .git here there is no',
+					'committed copy to recover from. Move the directory aside and',
+					'salvage the logs before letting epiq recreate the worktree.',
+				].join('\n'),
+			);
+		}
+
 		logger.info('Removing broken state branch worktree path');
 		removePath(stateBranchRoot);
 	}

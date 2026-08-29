@@ -1,5 +1,8 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import {execGitAllowFail} from './git-utils.js';
 import {failed, Result, succeeded} from '../lib/model/result-types.js';
+import {EPIQ_DIR_NAME, EVENTS_DIR_NAME} from '../lib/storage/paths.js';
 
 /**
  * The event log is append-only. That is not a style preference — it is what
@@ -19,6 +22,36 @@ import {failed, Result, succeeded} from '../lib/model/result-types.js';
 
 const linesIn = (content: string): string[] =>
 	content.split('\n').filter(line => line.trim().length > 0);
+
+/**
+ * Event logs sitting in a directory that is about to be deleted wholesale.
+ * Non-empty ones only: an empty file is nothing to save, and refusing over one
+ * would strand the very cleanup that unblocks the user.
+ */
+export const findStrandedEventLogs = (root: string): Result<string[]> => {
+	const dir = path.join(root, EPIQ_DIR_NAME, EVENTS_DIR_NAME);
+
+	try {
+		if (!fs.existsSync(dir)) return succeeded('No events directory', []);
+
+		const stranded = fs
+			.readdirSync(dir)
+			.filter(name => name.endsWith('.jsonl'))
+			.filter(
+				name =>
+					linesIn(fs.readFileSync(path.join(dir, name), 'utf8')).length > 0,
+			);
+
+		return succeeded('Looked for stranded event logs', stranded);
+	} catch (error) {
+		// Unreadable is not "safe to delete".
+		return failed(
+			`Unable to check ${dir} for event logs before deleting it: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
+};
 
 /** Lines present in `committed` that `working` no longer has. */
 export const findDroppedLines = (
