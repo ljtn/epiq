@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {GuiAttachment} from '../lib/gui-state.model';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
@@ -132,7 +132,7 @@ export const IssueAttachments = ({
 												width: '100%',
 												height: '100%',
 												color: GUI_THEME.dim2,
-												fontSize: 9,
+												fontSize: TEXT.label,
 												padding: 4,
 												textAlign: 'center',
 											}}
@@ -174,7 +174,7 @@ export const IssueAttachments = ({
 											borderRadius: 3,
 											background: 'rgba(4, 5, 8, 0.75)',
 											color: GUI_THEME.secondary,
-											fontSize: 10,
+											fontSize: TEXT.label,
 											cursor: 'pointer',
 										}}
 									>
@@ -191,7 +191,7 @@ export const IssueAttachments = ({
 						style={{
 							marginTop: 8,
 							color: GUI_THEME.dim2,
-							fontSize: 10,
+							fontSize: TEXT.label,
 						}}
 					>
 						drop an image to attach
@@ -203,7 +203,7 @@ export const IssueAttachments = ({
 						style={{
 							marginTop: 8,
 							color: GUI_THEME.secondary,
-							fontSize: 11,
+							fontSize: TEXT.meta,
 						}}
 					>
 						uploading {uploadStatus.name}…
@@ -215,7 +215,7 @@ export const IssueAttachments = ({
 						style={{
 							marginTop: 8,
 							color: GUI_THEME.red,
-							fontSize: 11,
+							fontSize: TEXT.meta,
 						}}
 					>
 						{uploadStatus.message}
@@ -249,7 +249,7 @@ export const IssueAttachments = ({
 							border: `1px solid ${GUI_THEME.line}`,
 						}}
 					/>
-					<div style={{color: GUI_THEME.secondary, fontSize: 11}}>
+					<div style={{color: GUI_THEME.secondary, fontSize: TEXT.meta}}>
 						{lightbox.name} · {Math.max(1, Math.round(lightbox.bytes / 1024))}{' '}
 						KB · esc to close
 					</div>

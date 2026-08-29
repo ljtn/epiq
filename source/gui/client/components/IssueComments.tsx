@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
+import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {Button} from './Button';
 import {CodeSnippet} from './CodeSnippet';
 import {IconComment} from './IconComment';
@@ -145,7 +145,9 @@ export const IssueComments = ({
 										marginBottom: 4,
 									}}
 								>
-									<div style={{color: GUI_THEME.secondary, fontSize: 11}}>
+									<div
+										style={{color: GUI_THEME.secondary, fontSize: TEXT.meta}}
+									>
 										{comment.author.name ?? 'unknown'}
 										{comment.createdAt && (
 											<span style={{color: GUI_THEME.dim2}}>
@@ -199,7 +201,7 @@ export const IssueComments = ({
 							minHeight: 45,
 							font: 'inherit',
 							fontFamily: CONTENT_FONT,
-							fontSize: 13,
+							fontSize: TEXT.prose,
 						}}
 					/>
 
@@ -209,7 +211,7 @@ export const IssueComments = ({
 							<span
 								style={{
 									alignSelf: 'center',
-									fontSize: 11,
+									fontSize: TEXT.meta,
 									color: tooLong ? GUI_THEME.red : GUI_THEME.dim,
 								}}
 							>

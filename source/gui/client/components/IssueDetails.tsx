@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
+import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
 	GuiContributor,
 	GuiUser,
@@ -74,7 +74,7 @@ const Lane = ({
 		<div
 			style={{
 				color: GUI_THEME.secondary,
-				fontSize: 10,
+				fontSize: TEXT.label,
 				textTransform: 'uppercase',
 				letterSpacing: '0.08em',
 				paddingBottom: 10,
@@ -316,7 +316,7 @@ export const IssueDetails = ({
 								data-testid="issue-created-at"
 								title={formatAbsolute(issue.createdAt)}
 								style={{
-									fontSize: 11,
+									fontSize: TEXT.meta,
 									color: GUI_THEME.dim,
 									marginBottom: 14,
 								}}
@@ -359,7 +359,7 @@ export const IssueDetails = ({
 										style={{
 											font: 'inherit',
 											fontFamily: CONTENT_FONT,
-											fontSize: 13,
+											fontSize: TEXT.prose,
 											maxHeight: 320,
 											overflowY: 'auto',
 										}}
@@ -376,10 +376,10 @@ export const IssueDetails = ({
 								<div
 									style={{
 										marginTop: 8,
-										padding: '12px 16px',
+										padding: '8px 10px',
 										maxHeight: 320,
 										overflowY: 'auto',
-										background: GUI_THEME.tertiary,
+										background: GUI_THEME.panel2,
 										borderRadius: 8,
 									}}
 								>
@@ -679,7 +679,7 @@ export const IssueDetails = ({
 									<span
 										style={{
 											color: GUI_THEME.secondary,
-											fontSize: 10,
+											fontSize: TEXT.label,
 											textTransform: 'uppercase',
 											letterSpacing: '0.08em',
 										}}
@@ -729,7 +729,7 @@ export const IssueDetails = ({
 											padding: '6px 10px',
 											outline: 'none',
 											font: 'inherit',
-											fontSize: 18,
+											fontSize: TEXT.title,
 											fontWeight: 600,
 											lineHeight: 1.35,
 											marginBottom: 20,
@@ -741,7 +741,7 @@ export const IssueDetails = ({
 										style={{
 											marginBottom: 18,
 											color: GUI_THEME.primary,
-											fontSize: 18,
+											fontSize: TEXT.title,
 											fontWeight: 600,
 											lineHeight: 1.35,
 											wordBreak: 'break-word',
