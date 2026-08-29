@@ -1793,3 +1793,5 @@
 {"v":1,"id":["01M16N38ANFPVWP36DZTTXAH8J","01M16N36F21VWV9GKZT8058G03"],"add.issue.assignee":{"id":"01M16MHB9MH96D7S3WWG1Z8197","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M16NADDFA58S1NKSG13F9QQD","01M16N38ANFPVWP36DZTTXAH8J"],"add.issue.comment":{"id":"01M16NADD863V4E9KA8ZM45N6W","issue":"01M16MHB9MH96D7S3WWG1Z8197","md":"Solution: rail column uses flexbox stretch (no DOM measurement) so the connecting line always spans exactly to the next dot, expanded row or not — verified live in a browser, including with a row expanded. Commit `e88762ae`.","author":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M16NAENZRR4C7H4D5SB6B2DH","01M16NADDFA58S1NKSG13F9QQD"],"move.node":{"id":"01M16MHB9MH96D7S3WWG1Z8197","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"f7ffffffffffffffffffffff"}}
+{"v":1,"id":["01M16NAVWPZRHRHCRBMNSB2HDX","01M16NAENZRR4C7H4D5SB6B2DH"],"move.node":{"id":"01M16MHFQ6XN4X5FBSENEVJ6WM","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"dfffffffffffffffffffffff"}}
+{"v":1,"id":["01M16NAYCXFVS4D1WZ3C5QSA66","01M16NAVWPZRHRHCRBMNSB2HDX"],"add.issue.assignee":{"id":"01M16MHFQ6XN4X5FBSENEVJ6WM","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
