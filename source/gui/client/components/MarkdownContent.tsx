@@ -1,8 +1,12 @@
-import React, {createContext, useContext} from 'react';
+import React, {createContext, useContext, useMemo} from 'react';
 import ReactMarkdown, {type Components} from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
+import {
+	remarkTicketRefs,
+	TICKET_REF_URL_PREFIX,
+} from '../lib/remark-ticket-refs';
 
 // react-markdown wraps a fenced block in <pre><code>, and only sets a
 // className on the <code> when the fence names a language — so keying
@@ -11,10 +15,29 @@ import {CONTENT_FONT, GUI_THEME} from '../lib/gui-theme';
 // is the thing that actually distinguishes the two.
 const InPre = createContext(false);
 
+// Supplied by whoever knows the board, and read straight by MarkdownContent
+// rather than threaded through every component that renders prose — a comment
+// body sits four levels below the only place that can resolve a ref.
+export type TicketRefLinks = {
+	// Both halves are needed: a ref's shape alone can't be told apart from an
+	// ordinary uppercase word, so only refs that resolve to a real ticket
+	// become links.
+	isKnownRef: (ref: string) => boolean;
+	onOpen: (ref: string) => void;
+};
+
+const TicketRefLinksContext = createContext<TicketRefLinks | null>(null);
+
+export const TicketRefLinksProvider = TicketRefLinksContext.Provider;
+
 const CODE_FONT =
 	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
 
-const components: Components = {
+// Built per-instance rather than at module scope: the anchor renderer has to
+// close over the ref-click handler.
+const buildComponents = (
+	onOpenTicketRef?: (ref: string) => void,
+): Components => ({
 	p: ({children}) => <p style={{margin: '0 0 14px'}}>{children}</p>,
 	ul: ({children}) => (
 		<ul style={{margin: '0 0 14px', paddingLeft: 20}}>{children}</ul>
@@ -32,16 +55,45 @@ const components: Components = {
 	h3: ({children}) => (
 		<h3 style={{fontSize: 13, margin: '0 0 14px'}}>{children}</h3>
 	),
-	a: ({children, href}) => (
-		<a
-			href={href}
-			target="_blank"
-			rel="noreferrer"
-			style={{color: GUI_THEME.accent}}
-		>
-			{children}
-		</a>
-	),
+	a: ({children, href}) => {
+		// A ticket ref opens a ticket in this app, not a URL in a new tab, so it
+		// is a control rather than an anchor — no href to leak into the address
+		// bar or the middle-click menu.
+		if (href?.startsWith(TICKET_REF_URL_PREFIX)) {
+			const ref = href.slice(TICKET_REF_URL_PREFIX.length);
+
+			return (
+				<button
+					type="button"
+					title={`Open ${ref}`}
+					onClick={() => onOpenTicketRef?.(ref)}
+					style={{
+						padding: 0,
+						background: 'transparent',
+						border: 'none',
+						cursor: 'pointer',
+						font: 'inherit',
+						color: GUI_THEME.accent,
+						textDecoration: 'underline',
+						textUnderlineOffset: 2,
+					}}
+				>
+					{children}
+				</button>
+			);
+		}
+
+		return (
+			<a
+				href={href}
+				target="_blank"
+				rel="noreferrer"
+				style={{color: GUI_THEME.accent}}
+			>
+				{children}
+			</a>
+		);
+	},
 	blockquote: ({children}) => (
 		<blockquote
 			style={{
@@ -103,7 +155,7 @@ const components: Components = {
 			}}
 		/>
 	),
-};
+});
 
 export const MarkdownContent = ({
 	content,
@@ -113,24 +165,39 @@ export const MarkdownContent = ({
 	// Treats single newlines as line breaks (like a chat message) instead of
 	// requiring a blank line for a new paragraph, per strict CommonMark.
 	softBreaks?: boolean;
-}) => (
-	<div
-		style={{
-			fontFamily: CONTENT_FONT,
-			fontSize: 13,
-			lineHeight: 1.6,
-			color: GUI_THEME.primary,
-			wordBreak: 'break-word',
-			// Cancels the last block child's trailing bottom margin via
-			// collapsing, so the container doesn't end in dead whitespace.
-			marginBottom: -14,
-		}}
-	>
-		<ReactMarkdown
-			remarkPlugins={softBreaks ? [remarkGfm, remarkBreaks] : [remarkGfm]}
-			components={components}
+}) => {
+	const ticketRefLinks = useContext(TicketRefLinksContext);
+
+	const components = useMemo(
+		() => buildComponents(ticketRefLinks?.onOpen),
+		[ticketRefLinks],
+	);
+
+	const remarkPlugins = useMemo(
+		() => [
+			remarkGfm,
+			...(softBreaks ? [remarkBreaks] : []),
+			...(ticketRefLinks ? [remarkTicketRefs(ticketRefLinks.isKnownRef)] : []),
+		],
+		[softBreaks, ticketRefLinks],
+	);
+
+	return (
+		<div
+			style={{
+				fontFamily: CONTENT_FONT,
+				fontSize: 13,
+				lineHeight: 1.6,
+				color: GUI_THEME.primary,
+				wordBreak: 'break-word',
+				// Cancels the last block child's trailing bottom margin via
+				// collapsing, so the container doesn't end in dead whitespace.
+				marginBottom: -14,
+			}}
 		>
-			{content}
-		</ReactMarkdown>
-	</div>
-);
+			<ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+				{content}
+			</ReactMarkdown>
+		</div>
+	);
+};
