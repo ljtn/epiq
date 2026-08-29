@@ -86,6 +86,26 @@ test('switching tickets with the Commits tab already open still loads the new ti
 	expect(pageErrors).toEqual([]);
 });
 
+test('the Commits tab shows its count before being opened, after Comments', async ({
+	page,
+	pageErrors,
+}) => {
+	await addTicket(page, `Commit count ${Date.now()}`);
+	await expect(page).toHaveURL(/tab=overview/);
+
+	const tabs = page
+		.locator('aside')
+		.getByRole('button', {name: /^(Overview|Comments|Commits|Log)\b/});
+	await expect(tabs).toHaveText([
+		/^Overview$/,
+		/^Comments \(0\)$/,
+		/^Commits \(0\)$/,
+		/^Log \(\d+\)$/,
+	]);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('the comment count on a card still opens comments', async ({page}) => {
 	const title = `Count ${Date.now()}`;
 	await addTicket(page, title);

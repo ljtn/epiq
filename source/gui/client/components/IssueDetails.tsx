@@ -163,10 +163,13 @@ export const IssueDetails = ({
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
+		// No count until the list has arrived: 0 would misread as "no commits".
+		{
+			id: 'code',
+			label: 'Commits',
+			count: commitsLoading || commitsError ? undefined : commits.length,
+		},
 		{id: 'history', label: 'Log', count: history.length},
-		// No count before the first load: commits are fetched lazily on opening
-		// this tab, so showing 0 until then would misread as "no commits yet".
-		{id: 'code', label: 'Commits', count: commits.length || undefined},
 	];
 
 	const saveTitle = () => {

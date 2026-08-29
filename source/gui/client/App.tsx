@@ -146,9 +146,9 @@ export const App = () => {
 	// so the first render already picks the right layout instead of flashing.
 	const [commitDiffPanelWidth, setCommitDiffPanelWidth] =
 		useState(readStoredAsideWidth);
-	// The ticket detail Code tab's commit list. Reset per selected issue, like
-	// issueDetail below — refetched fresh each time the tab opens rather than
-	// cached, since a full ref-prefix log scan is cheap next to the round trip.
+	// The ticket detail Commits tab's commit list, fetched on selection so the
+	// tab can show its count up front. Reset per selected issue, like
+	// issueDetail below.
 	const [issueCommits, setIssueCommits] = useState<{
 		issueId: string;
 		loading: boolean;
@@ -406,11 +406,11 @@ export const App = () => {
 		if (changed) setIssueCommitDiffs({});
 	}, [selectedIssue?.id]);
 
-	// Fetched lazily on entering the Code tab rather than alongside issue:get
-	// above: a full ref-prefix log scan on every ticket selection would be
-	// wasted on the common case where nobody opens the tab.
+	// Separate from issue:get above, which re-runs on every state broadcast:
+	// the commit list comes from git, not the event log, so a board change is
+	// no reason to rescan it.
 	useEffect(() => {
-		if (!selectedIssue || selectedTab !== 'code') {
+		if (!selectedIssue) {
 			setIssueCommits(null);
 			return;
 		}
@@ -425,7 +425,7 @@ export const App = () => {
 			type: 'issue:commits:get',
 			payload: {issueId: selectedIssue.id},
 		});
-	}, [selectedIssue?.id, selectedTab]);
+	}, [selectedIssue?.id]);
 
 	const loadIssueCommitDiff = useCallback((sha: string) => {
 		setIssueCommitDiffs(prev => ({
@@ -1725,10 +1725,12 @@ export const App = () => {
 										? issueCommits.commits
 										: []
 								}
+								// No entry for this ticket yet means its fetch is about to be
+								// sent, not that it has nothing.
 								commitsLoading={
 									issueCommits?.issueId === selectedIssue.id
 										? issueCommits.loading
-										: false
+										: true
 								}
 								commitsError={
 									issueCommits?.issueId === selectedIssue.id
