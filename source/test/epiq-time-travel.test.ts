@@ -615,6 +615,53 @@ describe('epiq-time-travel', () => {
 			expect(result.value).toEqual([]);
 		});
 
+		it('marks two matched commits as chained when nothing sits between them', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout:
+						`${REC}newer111${SEP}1700000100${SEP}Ada${SEP}5S52AC8 second\n` +
+						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 first\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(
+				result.value.map(commit => [commit.sha, commit.precedingSha]),
+			).toEqual([
+				['newer111', 'older111'],
+				['older111', null],
+			]);
+		});
+
+		it('leaves precedingSha null when an unrelated commit breaks the chain', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout:
+						`${REC}newer111${SEP}1700000200${SEP}Ada${SEP}5S52AC8 second\n` +
+						`${REC}between${SEP}1700000100${SEP}Grace${SEP}unrelated commit\n` +
+						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 first\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const result = await getCommitsForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(
+				result.value.map(commit => [commit.sha, commit.precedingSha]),
+			).toEqual([
+				['newer111', null],
+				['older111', null],
+			]);
+		});
+
 		it('fails for an empty ref', async () => {
 			const result = await getCommitsForRef({ref: '   '});
 

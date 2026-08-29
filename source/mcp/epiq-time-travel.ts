@@ -442,9 +442,14 @@ export const getCommitTimeline = async (
 // getCommitTimeline's full-history read rather than a second git invocation —
 // same repo, same state-branch exclusion, and this repo's whole history is a
 // few thousand commits at most.
+// A matched commit whose immediate predecessor in the *unfiltered* history
+// (git log's very next entry, not just the next match) is also a matched
+// commit — i.e. no other ticket's commit sits between them.
+export type RefCommitEntry = CommitEntry & {precedingSha: string | null};
+
 export const getCommitsForRef = async (
 	input: ToolInput & {ref: string},
-): Promise<Result<CommitEntry[]>> => {
+): Promise<Result<RefCommitEntry[]>> => {
 	const ref = input.ref.trim();
 	if (!ref) return failed('ref must not be empty');
 
@@ -455,13 +460,31 @@ export const getCommitsForRef = async (
 	// rather than a strict-case prefix: a hand-typed or manually-copied ref
 	// should still match, not just one pasted verbatim from the MCP response.
 	const prefix = `${ref.toUpperCase()} `;
+	const matches = (commit: CommitEntry) =>
+		commit.subject.toUpperCase().startsWith(prefix);
 
-	return succeeded(
-		'Matched commits by ref',
-		timelineResult.value.filter(commit =>
-			commit.subject.toUpperCase().startsWith(prefix),
-		),
-	);
+	// Newest-first, same order git log itself returns — so all[i + 1] is
+	// exactly the commit immediately before all[i] in real history, matched
+	// or not.
+	const all = timelineResult.value;
+
+	const matched: RefCommitEntry[] = [];
+
+	for (const [index, commit] of all.entries()) {
+		if (!matches(commit)) continue;
+
+		const precedingCommit = all[index + 1];
+
+		matched.push({
+			...commit,
+			precedingSha:
+				precedingCommit && matches(precedingCommit)
+					? precedingCommit.sha
+					: null,
+		});
+	}
+
+	return succeeded('Matched commits by ref', matched);
 };
 
 // `sha` reaches a `git show <sha>` argv slot, where a leading `-` would be read
