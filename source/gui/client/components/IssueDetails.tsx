@@ -653,6 +653,11 @@ export const IssueDetails = ({
 									diffStyle={
 										panelWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'
 									}
+									onAddComment={
+										disabled
+											? undefined
+											: body => onAddComment?.(issue.id, body)
+									}
 								/>
 							)}
 						</>

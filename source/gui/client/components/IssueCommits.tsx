@@ -1,6 +1,9 @@
 import React, {useState} from 'react';
+import {SelectedLineRange} from '@pierre/diffs/react';
 import {GuiCommitDiffFile, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {ActionRow, Textarea} from './FormPrimitives';
+import {Button} from './Button';
 import {CopyRef} from './CopyRef';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
@@ -23,6 +26,40 @@ const stripRefPrefix = (subject: string, ref: string): string => {
 	return subject.toUpperCase().startsWith(prefix.toUpperCase())
 		? subject.slice(prefix.length)
 		: subject;
+};
+
+// A selection's start/end are the real (gutter-displayed) line numbers within
+// whichever side they belong to — 'deletions' means the old file, 'additions'
+// the new one. A range can span both sides (dragged from a removed line into
+// an added one in split view): quote both halves rather than picking one.
+export const extractSnippet = (
+	file: GuiCommitDiffFile,
+	range: SelectedLineRange,
+): string => {
+	const linesFor = (side: SelectedLineRange['side']) =>
+		(side === 'deletions' ? file.before : file.after).split('\n');
+
+	const endSide = range.endSide ?? range.side;
+
+	if (endSide === range.side) {
+		return linesFor(range.side)
+			.slice(range.start - 1, range.end)
+			.join('\n');
+	}
+
+	const startHalf = linesFor(range.side).slice(range.start - 1);
+	const endHalf = linesFor(endSide).slice(0, range.end);
+
+	return [...startHalf, ...endHalf].join('\n');
+};
+
+export const formatSelectionLabel = (range: SelectedLineRange): string => {
+	const endSide = range.endSide ?? range.side;
+	const sideLabel = endSide === 'deletions' ? 'removed' : 'added';
+
+	return range.start === range.end
+		? `line ${range.start} (${sideLabel})`
+		: `lines ${range.start}-${range.end} (${sideLabel})`;
 };
 
 // The timeline rail: a dot per commit, in the scrubber's own commit-series
@@ -98,43 +135,173 @@ const DiffStat = ({
 	);
 };
 
+// The bar that appears under a diff once a line range is selected — a plain
+// two-step flow (pick an action, then write the optional note) rather than
+// trying to float it exactly over the selection, which the diff library
+// doesn't hand back pixel coordinates for.
+const SelectionToolbar = ({
+	file,
+	selection,
+	onAddComment,
+	onClear,
+}: {
+	file: GuiCommitDiffFile;
+	selection: SelectedLineRange;
+	onAddComment?: (body: string) => void;
+	onClear: () => void;
+}) => {
+	const [composing, setComposing] = useState(false);
+	const [note, setNote] = useState('');
+
+	const submit = () => {
+		const snippet = extractSnippet(file, selection);
+		const trimmedNote = note.trim();
+
+		const body = [
+			...(trimmedNote ? [trimmedNote, ''] : []),
+			`\`${file.path}\` ${formatSelectionLabel(selection)}`,
+			'```',
+			snippet,
+			'```',
+		].join('\n');
+
+		onAddComment?.(body);
+		onClear();
+	};
+
+	return (
+		<div
+			style={{
+				marginTop: 8,
+				padding: 10,
+				border: `1px solid ${GUI_THEME.line}`,
+				borderRadius: 8,
+				background: GUI_THEME.panel,
+			}}
+		>
+			<div
+				style={{
+					display: 'flex',
+					alignItems: 'center',
+					gap: 8,
+					fontSize: 11,
+					color: GUI_THEME.secondary,
+				}}
+			>
+				<span style={{flex: 1}}>
+					{file.path} {formatSelectionLabel(selection)}
+				</span>
+
+				{!composing && (
+					<>
+						{onAddComment && (
+							<Button variant="ghost" onClick={() => setComposing(true)}>
+								Comment
+							</Button>
+						)}
+						{/* File-ticket filing lands in a follow-up — the button previews
+						    the intended shape rather than being omitted outright. */}
+						<Button variant="ghost" disabled title="Coming soon">
+							File ticket
+						</Button>
+						<Button variant="ghost" onClick={onClear}>
+							×
+						</Button>
+					</>
+				)}
+			</div>
+
+			{composing && (
+				<div style={{marginTop: 8}}>
+					<Textarea
+						autoFocus
+						maxLength={Number.MAX_SAFE_INTEGER}
+						value={note}
+						placeholder="Add a note (optional)"
+						onChange={event => setNote(event.target.value)}
+						onKeyDown={event => {
+							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+								submit();
+							}
+						}}
+						style={{minHeight: 45, font: 'inherit', fontSize: 12}}
+					/>
+					<ActionRow>
+						<Button variant="ghost" onClick={onClear}>
+							Cancel
+						</Button>
+						<Button onClick={submit}>Post comment</Button>
+					</ActionRow>
+				</div>
+			)}
+		</div>
+	);
+};
+
 const FileRow = ({
 	file,
 	expanded,
 	onToggle,
 	diffStyle,
+	onAddComment,
 }: {
 	file: GuiCommitDiffFile;
 	expanded: boolean;
 	onToggle: () => void;
 	diffStyle: 'split' | 'unified';
-}) => (
-	<div style={{marginTop: 8}}>
-		<button
-			onClick={onToggle}
-			aria-expanded={expanded}
-			style={{...disclosureStyle, color: GUI_THEME.secondary, padding: '4px 0'}}
-		>
-			{expanded ? (
-				<IconChevronDown size={12} />
-			) : (
-				<IconChevronRight size={12} />
-			)}
-			<span
+	onAddComment?: (body: string) => void;
+}) => {
+	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
+
+	return (
+		<div style={{marginTop: 8}}>
+			<button
+				onClick={onToggle}
+				aria-expanded={expanded}
 				style={{
-					fontFamily: 'ui-monospace, monospace',
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
+					...disclosureStyle,
+					color: GUI_THEME.secondary,
+					padding: '4px 0',
 				}}
 			>
-				{file.path}
-			</span>
-		</button>
+				{expanded ? (
+					<IconChevronDown size={12} />
+				) : (
+					<IconChevronRight size={12} />
+				)}
+				<span
+					style={{
+						fontFamily: 'ui-monospace, monospace',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{file.path}
+				</span>
+			</button>
 
-		{expanded && <FileDiffView file={file} diffStyle={diffStyle} />}
-	</div>
-);
+			{expanded && (
+				<>
+					<FileDiffView
+						file={file}
+						diffStyle={diffStyle}
+						selectedLines={selection}
+						onSelectionEnd={setSelection}
+					/>
+					{selection && (
+						<SelectionToolbar
+							file={file}
+							selection={selection}
+							onAddComment={onAddComment}
+							onClear={() => setSelection(null)}
+						/>
+					)}
+				</>
+			)}
+		</div>
+	);
+};
 
 const CommitRow = ({
 	commit,
@@ -144,6 +311,7 @@ const CommitRow = ({
 	expandedFiles,
 	onToggleFile,
 	diffStyle,
+	onAddComment,
 }: {
 	commit: GuiRefCommitEntry;
 	diff: CommitDiffState | undefined;
@@ -152,6 +320,7 @@ const CommitRow = ({
 	expandedFiles: Set<string>;
 	onToggleFile: (path: string) => void;
 	diffStyle: 'split' | 'unified';
+	onAddComment?: (body: string) => void;
 }) => {
 	const [hovered, setHovered] = useState(false);
 	// Also tracks focus (not just mouse hover): the copy button is a real
@@ -248,6 +417,7 @@ const CommitRow = ({
 							expanded={expandedFiles.has(file.path)}
 							onToggle={() => onToggleFile(file.path)}
 							diffStyle={diffStyle}
+							onAddComment={onAddComment}
 						/>
 					))}
 				</div>
@@ -276,6 +446,7 @@ export const IssueCommits = ({
 	diffsBySha,
 	onLoadDiff,
 	diffStyle,
+	onAddComment,
 }: {
 	issueRef: string;
 	commits: GuiRefCommitEntry[];
@@ -284,6 +455,7 @@ export const IssueCommits = ({
 	diffsBySha: Record<string, CommitDiffState>;
 	onLoadDiff: (sha: string) => void;
 	diffStyle: 'split' | 'unified';
+	onAddComment?: (body: string) => void;
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
@@ -417,6 +589,7 @@ export const IssueCommits = ({
 							expandedFiles={expandedFilesBySha[commit.sha] ?? new Set()}
 							onToggleFile={path => toggleFile(commit.sha, path)}
 							diffStyle={diffStyle}
+							onAddComment={onAddComment}
 						/>
 					</div>
 				</div>
