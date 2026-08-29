@@ -100,6 +100,41 @@ describe('resolveEnvActor', () => {
 		expect(!isFail(result) && result.value).toEqual(CONFIGURED);
 	});
 
+	// Otherwise the first write emits a `rename.contributor` against them, and
+	// the board carries the agent's name for the human from then on.
+	it("refuses a pinned id that is the configured user's own", () => {
+		const result = resolveEnvActor(CONFIGURED, {
+			[ACTOR_NAME_ENV]: 'claude',
+			[ACTOR_ID_ENV]: CONFIGURED.userId,
+		});
+
+		expect(isFail(result)).toBe(true);
+	});
+
+	// The id is a function of the normalized name, so two casings are one
+	// identity. Keeping both display names would flip the registry between them
+	// on every write, one `rename.contributor` at a time.
+	it('stores the normalized name for a derived identity', () => {
+		const result = resolveEnvActor(CONFIGURED, {[ACTOR_NAME_ENV]: 'Claude'});
+
+		expect(!isFail(result) && result.value).toEqual({
+			userId: deriveActorId('claude'),
+			userName: 'claude',
+		});
+	});
+
+	it('keeps the given name when the id is pinned', () => {
+		const result = resolveEnvActor(CONFIGURED, {
+			[ACTOR_NAME_ENV]: 'Claude',
+			[ACTOR_ID_ENV]: PINNED_ID,
+		});
+
+		expect(!isFail(result) && result.value).toEqual({
+			userId: PINNED_ID,
+			userName: 'Claude',
+		});
+	});
+
 	it('is a complete identity on a machine with no configured user', () => {
 		const result = resolveEnvActor({}, {[ACTOR_NAME_ENV]: 'claude'});
 

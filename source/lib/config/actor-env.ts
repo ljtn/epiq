@@ -84,8 +84,19 @@ export const resolveEnvActor = (
 		return failed(`${ACTOR_ID_ENV} must be 26 characters of Crockford base32`);
 	}
 
+	// Writing under someone else's id renames them: the first write emits a
+	// `rename.contributor`, and the board carries this name for them from then on.
+	if (pinnedId && configured.userId && pinnedId === configured.userId) {
+		return failed(
+			`${ACTOR_ID_ENV} is the configured user's own id; using it under a different name would rename them on the board`,
+		);
+	}
+
+	// The normalized name, not the given one, because the derived id is a
+	// function of it: `Claude` and `claude` are one identity, and letting them
+	// keep separate display names makes the registry flip between the two.
 	return succeeded('Resolved actor from environment', {
 		userId: pinnedId || deriveActorId(name),
-		userName: name,
+		userName: pinnedId ? name : normalize(name),
 	});
 };

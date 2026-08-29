@@ -1,4 +1,7 @@
-import {readEpiqConfig} from '../../../lib/config/user-config.js';
+import {
+	loadSettingsFromConfig,
+	readEpiqConfig,
+} from '../../../lib/config/user-config.js';
 import {isFail} from '../../../lib/model/result-types.js';
 import {logger} from '../../../logger.js';
 import {getGuiState, sync} from '../../../mcp/epiq-api.js';
@@ -30,7 +33,12 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 		const settings = config();
 		if (!settings) return false;
 
-		const {autoSync, userName, preferredEditor} = settings;
+		const {autoSync, preferredEditor} = settings;
+		// Resolved, not the raw config: a machine that only has an environment
+		// actor has a user to sync as even though `config.json` names nobody.
+		const resolved = loadSettingsFromConfig();
+		const userName = isFail(resolved) ? null : resolved.value.userName;
+
 		return Boolean(autoSync && userName && preferredEditor);
 	};
 

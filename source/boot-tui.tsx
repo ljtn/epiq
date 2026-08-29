@@ -2,6 +2,7 @@ import {getStateBranchRoot} from './git/git-storage.js';
 import {execGit} from './git/git-utils.js';
 import {ensureStateBranchWorktree} from './git/git.js';
 import {renderApp} from './Index.js';
+import {resolveEnvActor} from './lib/config/actor-env.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {bootStateFromEventLog} from './lib/event/event-boot.js';
 import {
@@ -24,6 +25,12 @@ import {failAt, formatUnknownError} from './lib/utils/logger.utils.js';
 
 export async function bootTui(): Promise<Result<void>> {
 	try {
+		// A settings failure is normal on an unconfigured machine — setup handles
+		// it. An environment that names an actor it cannot resolve is not: booting
+		// on would write as the configured user, which is what naming one avoids.
+		const envActor = resolveEnvActor({});
+		if (isFail(envActor)) return failAt(0, envActor.message);
+
 		const settings = loadSettingsFromConfig();
 		if (isSuccess(settings)) patchSettingsState(settings.value);
 

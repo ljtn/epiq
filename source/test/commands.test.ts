@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('ulid', () => ({
 	monotonicFactory: () => () => 'generated-id',
@@ -72,6 +72,7 @@ vi.mock('../git/auto-sync.js', () => ({
 
 import {ulid} from 'ulid';
 import {CmdIntent} from '../lib/command-line/command-intent.js';
+import {ConfigModifiers} from '../lib/command-line/command-modifiers.js';
 import {commands} from '../lib/command-line/commands.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {
@@ -724,5 +725,35 @@ describe('UnassignUserFromTicket command', () => {
 		expect(result.status).toBe('fail');
 		expect(result.message).toContain('not assigned to "alice"');
 		expect(mockedMaterializeAndPersistAll).not.toHaveBeenCalled();
+	});
+});
+
+describe('Config command, username modifier', () => {
+	const configCommand = commands.find(x => x.intent === CmdIntent.Config)!;
+	const original = process.env['EPIQ_USER_NAME'];
+
+	afterEach(() => {
+		if (original === undefined) {
+			delete process.env['EPIQ_USER_NAME'];
+		} else {
+			process.env['EPIQ_USER_NAME'] = original;
+		}
+	});
+
+	// Settings state holds the environment actor, so writing it back would
+	// overwrite the machine's configured user with whichever agent is running.
+	it('refuses to rewrite the configured user while an environment actor is named', async () => {
+		process.env['EPIQ_USER_NAME'] = 'claude';
+
+		const result = await configCommand.action(
+			{} as never,
+			{
+				modifier: ConfigModifiers.USERNAME,
+				inputString: 'someone-else',
+			} as never,
+		);
+
+		expect(result.status).toBe('fail');
+		expect(result.message).toContain('EPIQ_USER_NAME');
 	});
 });
