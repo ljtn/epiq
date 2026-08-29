@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {ulid} from 'ulid';
 
@@ -31,6 +32,7 @@ vi.mock('../lib/state/state.js', () => ({
 
 vi.mock('../git/git-utils.js', () => ({
 	execGit: vi.fn(),
+	readGitBlobsBatch: vi.fn(),
 }));
 
 vi.mock('../lib/project-setup/project-setup.js', () => ({
@@ -62,7 +64,7 @@ vi.mock('node:fs/promises', () => ({
 import {existsSync} from 'node:fs';
 import {chmod} from 'node:fs/promises';
 import {getStateBranchRoot} from '../git/git-storage.js';
-import {execGit} from '../git/git-utils.js';
+import {execGit, readGitBlobsBatch} from '../git/git-utils.js';
 import {
 	getEditorCandidates,
 	isVSCodeEditor,
@@ -91,12 +93,14 @@ import {
 } from '../lib/model/result-types.js';
 import {
 	checkoutStateAt,
+	FULL_TIMELINE_CACHE_TTL_MS,
 	getCommitDiff,
 	getCommitsForRef,
 	getCommitTimeline,
 	getEventTimeline,
 	getTimeTravelStatus,
 	openCommitDiffInEditor,
+	resetCommitTimelineCacheForTests,
 	returnToLive,
 	runExclusive,
 } from '../mcp/epiq-time-travel.js';
@@ -104,6 +108,7 @@ import {
 describe('epiq-time-travel', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		resetCommitTimelineCacheForTests();
 
 		// An ambient global in the real app, so it cannot be vi.mock'd.
 		(globalThis as {logger?: unknown}).logger = {
@@ -575,6 +580,92 @@ describe('epiq-time-travel', () => {
 
 			expect(isSuccess(result)).toBe(false);
 		});
+
+		it('reuses the unwindowed scan instead of re-invoking git log within the TTL', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}fix bug\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const first = await getCommitTimeline();
+			const second = await getCommitTimeline();
+
+			expect(execGit).toHaveBeenCalledTimes(1);
+			expect(second).toEqual(first);
+		});
+
+		it('does not cache a windowed (start/end) call', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+			);
+
+			await getCommitTimeline({start: 1, end: 2});
+			await getCommitTimeline({start: 1, end: 2});
+
+			expect(execGit).toHaveBeenCalledTimes(2);
+		});
+
+		it('does not let a windowed call warm the cache for a later unwindowed one', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+			);
+
+			await getCommitTimeline({start: 1, end: 2});
+			await getCommitTimeline();
+
+			expect(execGit).toHaveBeenCalledTimes(2);
+		});
+
+		it('does not fail a repeated call out of a cached failure', async () => {
+			vi.mocked(execGit).mockResolvedValue(failed('git not found'));
+
+			await getCommitTimeline();
+
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+			);
+
+			const second = await getCommitTimeline();
+
+			expect(execGit).toHaveBeenCalledTimes(2);
+			expect(isSuccess(second)).toBe(true);
+		});
+
+		it('re-scans once the cached entry is older than the TTL', async () => {
+			vi.useFakeTimers();
+
+			try {
+				vi.mocked(execGit).mockResolvedValue(
+					succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+				);
+
+				await getCommitTimeline();
+				vi.advanceTimersByTime(FULL_TIMELINE_CACHE_TTL_MS + 1);
+				await getCommitTimeline();
+
+				expect(execGit).toHaveBeenCalledTimes(2);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it('does not share the cache across a different repo root', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {stdout: '', stderr: '', exitCode: 0}),
+			);
+
+			await getCommitTimeline();
+
+			vi.mocked(resolveClosestEpiqProjectRoot).mockReturnValue(
+				succeeded('root', '/other-repo'),
+			);
+			await getCommitTimeline();
+
+			expect(execGit).toHaveBeenCalledTimes(2);
+		});
 	});
 
 	describe('getCommitsForRef', () => {
@@ -675,6 +766,32 @@ describe('epiq-time-travel', () => {
 			const result = await getCommitsForRef({ref: '5S52AC8'});
 
 			expect(isSuccess(result)).toBe(false);
+		});
+
+		// The scrubber's own 'commits:get' (unwindowed, same as this) typically
+		// fires moments before a ticket's Commits tab does — this is the specific
+		// duplicate scan the timeline cache exists to collapse into one git call.
+		it('reuses a timeline already scanned for a different ref instead of re-scanning', async () => {
+			vi.mocked(execGit).mockResolvedValue(
+				succeeded('git log', {
+					stdout:
+						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 add the tool\n` +
+						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}QG9544B add the tab\n`,
+					stderr: '',
+					exitCode: 0,
+				}),
+			);
+
+			const first = await getCommitsForRef({ref: '5S52AC8'});
+			const second = await getCommitsForRef({ref: 'QG9544B'});
+
+			expect(execGit).toHaveBeenCalledTimes(1);
+			expect(isSuccess(first) && first.value.map(c => c.sha)).toEqual([
+				'aaa111',
+			]);
+			expect(isSuccess(second) && second.value.map(c => c.sha)).toEqual([
+				'bbb222',
+			]);
 		});
 	});
 
@@ -948,32 +1065,60 @@ describe('epiq-time-travel', () => {
 
 	describe('getCommitDiff', () => {
 		const validSha = 'b42a0bf111e4b6213abf6c1bfe65088b5c9764f8';
+		const ZERO_BLOB = '0'.repeat(40);
 
+		// Deterministic 40-hex-char stand-ins for real blob hashes, so the same
+		// label always maps to the same fake hash across a test's mocks.
+		const blobHash = (label: string): string =>
+			createHash('sha1').update(label).digest('hex');
+
+		// entries with `before`/`after` left undefined simulate that side having
+		// no blob (the file was added or deleted at this commit) — the zero hash
+		// getChangedFileBlobs reads as "no blob on this side", same convention
+		// its caller already keys off.
 		const mockGitForFiles = (
-			files: string[],
-			contentByPath: Record<string, string> = {},
+			entries: {path: string; before?: string; after?: string}[],
 		) => {
+			const blobs = new Map<string, string>();
+
+			for (const entry of entries) {
+				if (entry.before !== undefined) {
+					blobs.set(blobHash(`before:${entry.path}`), entry.before);
+				}
+				if (entry.after !== undefined) {
+					blobs.set(blobHash(`after:${entry.path}`), entry.after);
+				}
+			}
+
 			vi.mocked(execGit).mockImplementation(async ({args}) => {
 				if (args[0] === 'diff') {
-					return succeeded('changed files', {
-						stdout: files.join('\n'),
-						stderr: '',
-						exitCode: 0,
-					});
-				}
+					const stdout = entries
+						.map(entry => {
+							const beforeBlob =
+								entry.before !== undefined
+									? blobHash(`before:${entry.path}`)
+									: ZERO_BLOB;
+							const afterBlob =
+								entry.after !== undefined
+									? blobHash(`after:${entry.path}`)
+									: ZERO_BLOB;
 
-				if (args[0] === 'show') {
-					const spec = args[1] ?? '';
-					const content = contentByPath[spec];
+							return `:100644 100644 ${beforeBlob} ${afterBlob} M\t${entry.path}`;
+						})
+						.join('\n');
 
-					// Omit a spec to simulate a blob missing on that side.
-					return content === undefined
-						? failed('bad object (missing blob)')
-						: succeeded('blob', {stdout: content, stderr: '', exitCode: 0});
+					return succeeded('changed files', {stdout, stderr: '', exitCode: 0});
 				}
 
 				return failed(`unexpected git args: ${args.join(' ')}`);
 			});
+
+			vi.mocked(readGitBlobsBatch).mockImplementation(async hashes =>
+				succeeded(
+					'blobs',
+					new Map(hashes.map(hash => [hash, blobs.get(hash) ?? ''])),
+				),
+			);
 		};
 
 		it('rejects a sha shaped like a git flag, without ever shelling out', async () => {
@@ -984,12 +1129,10 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('returns before/after content for each changed file', async () => {
-			mockGitForFiles(['source/a.ts', 'source/b.ts'], {
-				[`${validSha}~1:source/a.ts`]: 'a before',
-				[`${validSha}:source/a.ts`]: 'a after',
-				[`${validSha}~1:source/b.ts`]: 'b before',
-				[`${validSha}:source/b.ts`]: 'b after',
-			});
+			mockGitForFiles([
+				{path: 'source/a.ts', before: 'a before', after: 'a after'},
+				{path: 'source/b.ts', before: 'b before', after: 'b after'},
+			]);
 
 			const result = await getCommitDiff({sha: validSha});
 
@@ -1006,9 +1149,9 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('treats a missing blob (file added or deleted here) as empty content, not a failure', async () => {
-			mockGitForFiles(['source/new-file.ts'], {
-				[`${validSha}:source/new-file.ts`]: 'brand new content',
-			});
+			mockGitForFiles([
+				{path: 'source/new-file.ts', after: 'brand new content'},
+			]);
 
 			const result = await getCommitDiff({sha: validSha});
 
@@ -1024,6 +1167,18 @@ describe('epiq-time-travel', () => {
 			}
 		});
 
+		it('fetches every changed file in one blob-batch call, not one per file', async () => {
+			mockGitForFiles([
+				{path: 'source/a.ts', before: 'a before', after: 'a after'},
+				{path: 'source/b.ts', before: 'b before', after: 'b after'},
+			]);
+
+			await getCommitDiff({sha: validSha});
+
+			expect(readGitBlobsBatch).toHaveBeenCalledTimes(1);
+			expect(execGit).toHaveBeenCalledTimes(1);
+		});
+
 		it('fails when the commit has no changed files', async () => {
 			mockGitForFiles([]);
 
@@ -1033,15 +1188,17 @@ describe('epiq-time-travel', () => {
 		});
 
 		it('fails when the commit touches too many files to render', async () => {
-			const manyFiles = Array.from(
-				{length: 201},
-				(_, i) => `source/file-${i}.ts`,
-			);
+			const manyFiles = Array.from({length: 201}, (_, i) => ({
+				path: `source/file-${i}.ts`,
+				before: 'before',
+				after: 'after',
+			}));
 			mockGitForFiles(manyFiles);
 
 			const result = await getCommitDiff({sha: validSha});
 
 			expect(isSuccess(result)).toBe(false);
+			expect(readGitBlobsBatch).not.toHaveBeenCalled();
 		});
 
 		it('propagates a diff failure', async () => {
@@ -1052,20 +1209,37 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(false);
 		});
 
+		it('propagates a blob-batch read failure', async () => {
+			mockGitForFiles([
+				{path: 'source/a.ts', before: 'before', after: 'after'},
+			]);
+			vi.mocked(readGitBlobsBatch).mockResolvedValue(failed('cat-file failed'));
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+
 		// diff-tree's single-commit mode reports no files for a merge commit
 		// unless told otherwise — diffing against the first parent explicitly
 		// (`sha~1`) works for both merge and non-merge commits alike.
 		it('lists a merge commit as a diff against its first parent, not as having no changes', async () => {
-			mockGitForFiles(['source/a.ts'], {
-				[`${validSha}~1:source/a.ts`]: 'before',
-				[`${validSha}:source/a.ts`]: 'after',
-			});
+			mockGitForFiles([
+				{path: 'source/a.ts', before: 'before', after: 'after'},
+			]);
 
 			const result = await getCommitDiff({sha: validSha});
 
 			expect(execGit).toHaveBeenCalledWith(
 				expect.objectContaining({
-					args: ['diff', '--name-only', `${validSha}~1`, validSha],
+					args: [
+						'diff',
+						'--raw',
+						'--no-renames',
+						'--abbrev=40',
+						`${validSha}~1`,
+						validSha,
+					],
 				}),
 			);
 			expect(isSuccess(result)).toBe(true);

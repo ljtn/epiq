@@ -11,9 +11,10 @@ import {
 	hasInProgressGitOperation,
 	isDetachedHead,
 	pullBranchRebaseIfPresent,
+	readGitBlobsBatch,
 } from '../git/git-utils.js';
 import {getGitDir} from '../git/git-storage.js';
-import {isFail} from '../lib/model/result-types.js';
+import {isFail, isSuccess} from '../lib/model/result-types.js';
 
 const tempDirs: string[] = [];
 
@@ -315,5 +316,107 @@ describe('git-utils', () => {
 
 		const content = fs.readFileSync(path.join(repoB, 'a.txt'), 'utf8');
 		expect(content).toBe('two');
+	});
+
+	describe('readGitBlobsBatch', () => {
+		it('resolves an empty map without spawning git for an empty request', async () => {
+			const result = await readGitBlobsBatch([], '/definitely/does/not/exist');
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value.size).toBe(0);
+			}
+		});
+
+		it('reads several blobs in one call, keyed by hash', async () => {
+			const repoRoot = makeTempDir();
+			await initRepo(repoRoot);
+
+			await commitFile({
+				repoRoot,
+				fileName: 'a.txt',
+				content: 'hello from a',
+				message: 'add a',
+			});
+			await commitFile({
+				repoRoot,
+				fileName: 'b.txt',
+				content: 'hello from b',
+				message: 'add b',
+			});
+
+			const hashResult = await execGit({
+				args: ['rev-parse', 'HEAD:a.txt', 'HEAD:b.txt'],
+				cwd: repoRoot,
+			});
+			if (isFail(hashResult)) throw new Error(hashResult.message);
+			const [hashA, hashB] = hashResult.value.stdout.trim().split('\n');
+			if (!hashA || !hashB) throw new Error('missing blob hash');
+
+			const result = await readGitBlobsBatch([hashA, hashB], repoRoot);
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value.get(hashA)).toBe('hello from a');
+				expect(result.value.get(hashB)).toBe('hello from b');
+			}
+		});
+
+		// Regression guard for the byte-vs-character-offset trap: the header's
+		// declared size is bytes, and a naive slice by JS string length (after
+		// decoding) would drift off the true boundary the moment a multi-byte
+		// character appears, corrupting every blob read after it in the batch.
+		it('reads multi-byte UTF-8 content correctly without corrupting a later blob in the same batch', async () => {
+			const repoRoot = makeTempDir();
+			await initRepo(repoRoot);
+
+			await commitFile({
+				repoRoot,
+				fileName: 'emoji.txt',
+				content: '🎉 unicode content — café, 日本語',
+				message: 'add emoji file',
+			});
+			await commitFile({
+				repoRoot,
+				fileName: 'plain.txt',
+				content: 'plain ascii after it',
+				message: 'add plain file',
+			});
+
+			const hashResult = await execGit({
+				args: ['rev-parse', 'HEAD:emoji.txt', 'HEAD:plain.txt'],
+				cwd: repoRoot,
+			});
+			if (isFail(hashResult)) throw new Error(hashResult.message);
+			const [emojiHash, plainHash] = hashResult.value.stdout
+				.trim()
+				.split('\n');
+			if (!emojiHash || !plainHash) throw new Error('missing blob hash');
+
+			const result = await readGitBlobsBatch(
+				[emojiHash, plainHash],
+				repoRoot,
+			);
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.value.get(emojiHash)).toBe(
+					'🎉 unicode content — café, 日本語',
+				);
+				expect(result.value.get(plainHash)).toBe('plain ascii after it');
+			}
+		});
+
+		it('fails clearly rather than hanging when a requested hash does not exist', async () => {
+			const repoRoot = makeTempDir();
+			await initRepo(repoRoot);
+
+			const result = await readGitBlobsBatch(
+				['0'.repeat(40)],
+				repoRoot,
+			);
+
+			expect(isFail(result)).toBe(true);
+		});
 	});
 });

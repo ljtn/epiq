@@ -155,6 +155,101 @@ export const execGitAllowFail = ({
 }): Promise<GitExecResult> =>
 	runGit({args, cwd, allowFail: true}) as Promise<GitExecResult>;
 
+// A dedicated spawn rather than a `runGit` mode: `--batch` needs its object
+// list fed on stdin (runGit's child has stdin set to 'ignore'), and the
+// header-declared byte length must be sliced off the raw stdout Buffer before
+// utf8-decoding it — decode first, as runGit does, and a multi-byte character
+// straddling the boundary would throw the offset off for every blob after it.
+export const readGitBlobsBatch = (
+	hashes: string[],
+	cwd: string,
+): Promise<Result<Map<string, string>>> =>
+	new Promise(resolve => {
+		if (hashes.length === 0) {
+			resolve(succeeded('No blobs to read', new Map()));
+			return;
+		}
+
+		const child = spawn('git', ['cat-file', '--batch'], {
+			cwd,
+			stdio: ['pipe', 'pipe', 'pipe'],
+			env: gitEnv,
+		});
+
+		const chunks: Buffer[] = [];
+		let stderr = '';
+		let settled = false;
+
+		const finish = (value: Result<Map<string, string>>) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			resolve(value);
+		};
+
+		const timeout = setTimeout(() => {
+			child.kill('SIGTERM');
+			finish(failed(`git cat-file --batch timed out after ${GIT_TIMEOUT_MS}ms`));
+		}, GIT_TIMEOUT_MS);
+
+		child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+		child.stderr.setEncoding('utf8');
+		child.stderr.on('data', chunk => {
+			stderr += chunk;
+		});
+
+		child.on('error', error => finish(failed(error.message)));
+
+		child.on('close', code => {
+			if (code !== 0) {
+				finish(
+					failed(
+						`git cat-file --batch exited ${code}${stderr ? `\n${stderr}` : ''}`,
+					),
+				);
+				return;
+			}
+
+			// `--batch` answers each stdin line in the order it was written, so
+			// walking `hashes` in that same order pairs each one with its response
+			// block without needing to trust the header's own hash back.
+			const buffer = Buffer.concat(chunks);
+			const blobs = new Map<string, string>();
+			let offset = 0;
+
+			for (const hash of hashes) {
+				const newlineIndex = buffer.indexOf(0x0a, offset);
+				if (newlineIndex === -1) {
+					finish(
+						failed(
+							`git cat-file --batch output ended before a header for ${hash}`,
+						),
+					);
+					return;
+				}
+
+				const header = buffer.toString('utf8', offset, newlineIndex);
+				offset = newlineIndex + 1;
+
+				const match = /^[0-9a-f]{4,64} \S+ (\d+)$/.exec(header);
+				if (!match || !match[1]) {
+					finish(failed(`Unexpected git cat-file --batch header: "${header}"`));
+					return;
+				}
+
+				const size = Number(match[1]);
+				blobs.set(hash, buffer.toString('utf8', offset, offset + size));
+				// +1 skips the single trailing newline `--batch` appends after content.
+				offset += size + 1;
+			}
+
+			finish(succeeded('Read blobs', blobs));
+		});
+
+		child.stdin.write(hashes.join('\n') + '\n');
+		child.stdin.end();
+	});
+
 export const commitAndGetSha = async ({
 	cwd,
 	message,
