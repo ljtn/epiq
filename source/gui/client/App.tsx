@@ -24,6 +24,7 @@ import {
 	formatSelectionLabel,
 	clearDiffLocationParams,
 	DiffLocation,
+	encodeDiffCommentMarker,
 	readDiffLocationParams,
 	writeDiffLocationParams,
 } from './components/IssueCommits';
@@ -155,9 +156,11 @@ export const App = () => {
 		error: string | null;
 		commits: GuiRefCommitEntry[];
 	} | null>(null);
-	// Per-commit diffs for whichever commits are expanded in the Code tab.
-	// Keyed by sha rather than nested under issueCommits so an expanded commit
-	// survives a commits-list refetch (e.g. re-opening the tab).
+	// Per-commit diffs for whichever commits are expanded in the Commits tab.
+	// Keyed by sha and kept for the session: a sha's diff is the same on any
+	// ticket, and clearing per ticket raced a Commits tab that requests a diff
+	// on mount (following a link into another ticket's diff), wiping the
+	// request's entry so its reply had nothing to land in.
 	const [issueCommitDiffs, setIssueCommitDiffs] = useState<
 		Record<
 			string,
@@ -385,26 +388,6 @@ export const App = () => {
 			payload: {issueId: selectedIssue.id},
 		});
 	}, [selectedIssue?.id, state]);
-
-	// Keyed on the issue alone, not the tab: switching to Code and back must not
-	// discard diffs already loaded there, only a genuinely different ticket should.
-	//
-	// The first ticket to appear is not a *change*, and clearing then is not
-	// harmless: children mount before this parent effect runs, so a Commits tab
-	// that requested a diff on mount (following a permalink) would have that
-	// request's state wiped straight back out, leaving the file expanded and
-	// permanently blank.
-	const previousIssueId = useRef<string | undefined>(undefined);
-
-	useEffect(() => {
-		const changed =
-			previousIssueId.current !== undefined &&
-			previousIssueId.current !== selectedIssue?.id;
-
-		previousIssueId.current = selectedIssue?.id;
-
-		if (changed) setIssueCommitDiffs({});
-	}, [selectedIssue?.id]);
 
 	// Separate from issue:get above, which re-runs on every state broadcast:
 	// the commit list comes from git, not the event log, so a board change is
@@ -848,6 +831,15 @@ export const App = () => {
 	// be handed to someone else. Pushed, not replaced — this is a navigation
 	// the reader should be able to come back from.
 	const openDiffLocation = (location: DiffLocation) => {
+		// Another ticket's diff: go to that ticket's Commits tab at the spot.
+		if (location.issueRef && location.issueRef !== selectedIssue?.ref) {
+			if (!boardSlug) return;
+			const params = new URLSearchParams({tab: 'code'});
+			writeDiffLocationParams(params, location);
+			void navigate(`/board/${boardSlug}/issue/${location.issueRef}?${params}`);
+			return;
+		}
+
 		setSearchParams(prev => {
 			const next = new URLSearchParams(prev);
 			next.set('tab', 'code');
@@ -1278,10 +1270,24 @@ export const App = () => {
 		const targetSwimlaneId = selectedBoard?.swimlanes[0]?.id;
 		if (!targetSwimlaneId) return;
 
+		// Same shape as a diff comment's body, so the Overview renders it the
+		// same way — note, then the snippet headed by a link that opens the
+		// origin ticket's diff at the selection.
+		const side = params.range.side ?? 'additions';
 		const description = [
 			...(params.note ? [params.note, ''] : []),
 			`Filed from a code selection on \`${originRef}\`.`,
 			'',
+			encodeDiffCommentMarker({
+				filePath: params.filePath,
+				start: params.range.start,
+				side,
+				end: params.range.end,
+				endSide: params.range.endSide ?? side,
+				note: params.note,
+				sha: params.sha,
+				issueRef: originRef,
+			}),
 			`\`${params.filePath}\` ${formatSelectionLabel(params.range)}`,
 			'```',
 			params.snippet,

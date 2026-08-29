@@ -35,6 +35,25 @@ describe('parseGuiMessage', () => {
 		expect(parsed.message.payload).toEqual({issueId, body: 'hi'});
 	});
 
+	// A ticket filed from a code selection sends both; undeclared, they were
+	// silently stripped and the ticket arrived bare.
+	it('keeps the description and tags of a created issue', () => {
+		const payload = {
+			title: 'Follow-up',
+			parentId: issueId,
+			description: 'why',
+			tagNames: ['from-code-comment'],
+		};
+		const parsed = parseGuiMessage({type: 'issues:create', payload});
+
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok || parsed.message.type !== 'issues:create') {
+			throw new Error('expected an issues:create message');
+		}
+
+		expect(parsed.message.payload).toEqual(payload);
+	});
+
 	it.each([
 		['null', null],
 		['a number', 123],

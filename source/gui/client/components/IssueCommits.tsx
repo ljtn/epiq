@@ -14,6 +14,7 @@ import {timeAgo} from '../lib/gui-format.helper';
 import {ActionRow, Textarea} from './FormPrimitives';
 import {Button} from './Button';
 import {CopyRef} from './CopyRef';
+import {CreateNodeModal} from './CreateNodeModal';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
 import {FileDiffView} from './DiffPanel';
@@ -110,6 +111,10 @@ export type DiffCommentMeta = {
 	// because comments written before it was recorded should still render
 	// their inline annotation; they just aren't clickable.
 	sha?: string;
+	// The ticket whose Commits tab holds the diff, when it isn't the one the
+	// marker sits on — a ticket filed from a selection points back at its
+	// origin this way.
+	issueRef?: string;
 };
 
 const DIFF_COMMENT_MARKER = /<!--\s*epiq-diff-comment:(.+?)-->\n?/;
@@ -150,7 +155,8 @@ export const parseDiffCommentMeta = (body: string): DiffCommentMeta | null => {
 		typeof meta.note !== 'string' ||
 		!isSelectionSide(meta.side) ||
 		!isSelectionSide(meta.endSide) ||
-		(meta.sha !== undefined && typeof meta.sha !== 'string')
+		(meta.sha !== undefined && typeof meta.sha !== 'string') ||
+		(meta.issueRef !== undefined && typeof meta.issueRef !== 'string')
 	) {
 		return null;
 	}
@@ -182,6 +188,7 @@ export const extractCommentSnippet = (body: string): string | null =>
 // actual issues:create call and the origin-ticket back-comment — everything
 // needed to build both without the caller re-deriving any of it.
 export type FileTicketParams = {
+	sha: string;
 	filePath: string;
 	range: SelectedLineRange;
 	snippet: string;
@@ -199,6 +206,8 @@ export type DiffLocation = {
 	end: number;
 	side: SelectionSide;
 	endSide: SelectionSide;
+	// Set when the diff lives on another ticket's Commits tab.
+	issueRef?: string;
 };
 
 export const diffLocationFromMeta = (
@@ -212,6 +221,7 @@ export const diffLocationFromMeta = (
 				end: meta.end,
 				side: meta.side,
 				endSide: meta.endSide,
+				...(meta.issueRef ? {issueRef: meta.issueRef} : {}),
 		  }
 		: null;
 
@@ -356,7 +366,8 @@ const SelectionComposer = ({
 	note: string;
 	onChangeNote: (note: string) => void;
 	onAddComment?: (body: string) => void;
-	onFileTicket?: (params: FileTicketParams) => void;
+	// Opens the title prompt; the row owns the actual filing.
+	onFileTicket?: () => void;
 	onClear: () => void;
 }) => {
 	const snippet = dedent(extractSnippet(file, selection));
@@ -389,22 +400,6 @@ const SelectionComposer = ({
 		].join('\n');
 
 		onAddComment?.(body);
-		onClear();
-	};
-
-	// The note's first line is the ticket's title, the rest its note; with no
-	// note at all the selection itself names the ticket.
-	const fileTicket = () => {
-		const [firstLine = '', ...rest] = note.trim().split('\n');
-		const title = firstLine.trim() || selectionLabel;
-
-		onFileTicket?.({
-			filePath: file.path,
-			range: selection,
-			snippet,
-			title,
-			note: rest.join('\n').trim(),
-		});
 		onClear();
 	};
 
@@ -444,7 +439,7 @@ const SelectionComposer = ({
 					Cancel
 				</Button>
 				{onFileTicket && (
-					<Button variant="default" onClick={fileTicket}>
+					<Button variant="default" onClick={onFileTicket}>
 						File ticket
 					</Button>
 				)}
@@ -536,9 +531,30 @@ const FileRow = ({
 	const [note, setNote] = useState('');
 	const rowRef = useRef<HTMLDivElement | null>(null);
 
+	// The title being typed for a ticket filed off the selection; null while
+	// the prompt is closed. Asked for rather than inferred from the note, so
+	// the note stays a note.
+	const [ticketTitle, setTicketTitle] = useState<string | null>(null);
+
 	const clearSelection = () => {
 		setSelection(null);
 		setNote('');
+		setTicketTitle(null);
+	};
+
+	const fileTicket = () => {
+		const title = ticketTitle?.trim();
+		if (!title || !selection) return;
+
+		onFileTicket?.({
+			sha,
+			filePath: file.path,
+			range: selection,
+			snippet: dedent(extractSnippet(file, selection)),
+			title,
+			note: note.trim(),
+		});
+		clearSelection();
 	};
 
 	// Keyed on the range's own values, not object identity — the parent
@@ -642,12 +658,26 @@ const FileRow = ({
 									note={note}
 									onChangeNote={setNote}
 									onAddComment={onAddComment}
-									onFileTicket={onFileTicket}
+									onFileTicket={
+										onFileTicket ? () => setTicketTitle('') : undefined
+									}
 									onClear={clearSelection}
 								/>
 							)
 						}
 					/>
+					{ticketTitle !== null && selection && (
+						<CreateNodeModal
+							eyebrow="File a ticket"
+							fieldLabel={`${file.path} ${formatSelectionLabel(selection)}`}
+							placeholder="Ticket title"
+							confirmLabel="file ticket"
+							title={ticketTitle}
+							onChangeTitle={setTicketTitle}
+							onCreate={fileTicket}
+							onClose={() => setTicketTitle(null)}
+						/>
+					)}
 				</>
 			)}
 		</div>
