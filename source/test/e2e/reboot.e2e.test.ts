@@ -13,7 +13,7 @@ beforeAll(async () => {
 	try {
 		await commonSteps.configureInitialSettings(tui);
 	} finally {
-		tui.destroy();
+		await tui.destroy();
 	}
 });
 
@@ -50,7 +50,7 @@ describe('TUI reboot / event-log replay e2e', () => {
 					expect(created).toContain('Persisted issue two');
 				} finally {
 					// Ctrl-C + kill the process. The cwd is preserved (caller-owned).
-					first.destroy();
+					await first.destroy();
 				}
 
 				// --- Second process: a brand new boot in the same directory. ---
@@ -83,7 +83,7 @@ describe('TUI reboot / event-log replay e2e', () => {
 					expect(appended).toContain('Persisted issue one');
 					expect(appended).toContain('Persisted issue two');
 				} finally {
-					second.destroy();
+					await second.destroy();
 				}
 			} finally {
 				removeTempRepo(cwd);

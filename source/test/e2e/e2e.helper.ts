@@ -41,7 +41,8 @@ type TuiSession = {
 		timeoutMs?: number,
 	) => Promise<string>;
 	clear: () => void;
-	destroy: () => void;
+	destroy: () => Promise<void>;
+	pid: number;
 };
 
 // Per-file isolation, so concurrent files never share a global config dir.
@@ -86,12 +87,8 @@ const commandLineContent = (frame: string): string => {
  * True when the command line holds no typed command. Not "contains the
  * placeholder": the caption is absent in some contexts, so waiting on it hangs.
  */
-/**
- * The TUI spawns git, which can still be writing into `.git/objects` when a
- * test tears its repo down — the removal then finds the directory repopulated
- * and throws ENOTEMPTY, failing a test that had already passed. Retrying is
- * what `rmSync` offers for exactly this.
- */
+// `destroy()` waits for the TUI and kills its process group first, so by now
+// nothing should be writing here; the retries cover a git that escaped anyway.
 export const removeTempRepo = (dir: string): void => {
 	fs.rmSync(dir, {
 		recursive: true,
@@ -147,6 +144,10 @@ export const setupTui = (
 		rows: height,
 		cwd,
 		env: createTuiEnv(options.env),
+	});
+
+	const exited = new Promise<void>(resolve => {
+		child.onExit(() => resolve());
 	});
 
 	const renderOutput = () => {
@@ -209,7 +210,13 @@ export const setupTui = (
 		renderOutput();
 	};
 
-	const destroy = () => {
+	// Removing the repo while the TUI or a git it spawned is still writing to
+	// it fails with ENOTEMPTY, so the process goes first: wait for it to exit,
+	// then kill its whole group — the pty made it a session leader, so the
+	// group is exactly the children it left behind.
+	const EXIT_WAIT_MS = 5_000;
+
+	const destroy = async () => {
 		if (destroyed) return;
 		destroyed = true;
 
@@ -218,6 +225,14 @@ export const setupTui = (
 			child.kill();
 		} catch {
 			// noop
+		}
+
+		await Promise.race([exited, sleep(EXIT_WAIT_MS)]);
+
+		try {
+			process.kill(-child.pid, 'SIGKILL');
+		} catch {
+			// Nothing left in the group.
 		}
 
 		if (ownsCwd) {
@@ -275,5 +290,6 @@ export const setupTui = (
 		},
 
 		destroy,
+		pid: child.pid,
 	};
 };

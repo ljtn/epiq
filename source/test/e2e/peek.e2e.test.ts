@@ -31,7 +31,7 @@ beforeAll(async () => {
 	try {
 		await commonSteps.configureInitialSettings(tui);
 	} finally {
-		tui.destroy();
+		await tui.destroy();
 	}
 });
 
@@ -185,7 +185,7 @@ describe('TUI peek / time-travel e2e', () => {
 				);
 				expect(stillLive).not.toContain('Readonly');
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,

@@ -22,7 +22,7 @@ export const commonSteps = {
 		input: (...values: string[]) => void;
 		output: () => string;
 		waitFor: (text: string, timeoutMs?: number) => Promise<string>;
-		destroy: () => void;
+		destroy: () => Promise<void>;
 	}) => {
 		let output;
 		execSync('git init', {

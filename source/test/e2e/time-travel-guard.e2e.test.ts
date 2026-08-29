@@ -114,7 +114,7 @@ describe('GUI mutation guard while time-travelling', () => {
 					server.close();
 				}
 			} finally {
-				tui.destroy();
+				await tui.destroy();
 			}
 		},
 		testTimeout,
