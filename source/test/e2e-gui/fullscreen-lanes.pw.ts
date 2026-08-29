@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {COMMIT_CACHE_MS, commitLinkedFile} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
@@ -85,6 +86,45 @@ test('a narrow fullscreen panel keeps the tabs', async ({page, pageErrors}) => {
 	await page.setViewportSize({width: 1600, height: 800});
 	await expect(tabButtons(page)).toHaveCount(0);
 	await expect(page.getByTestId('lane-commits')).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
+test('the lanes open every commit and file, ready to read', async ({
+	page,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.setViewportSize({width: 1600, height: 900});
+	await addTicket(page, `Open diffs ${Date.now()}`);
+	const ref = (
+		await page.locator('aside button[title^="Copy "]').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+
+	commitLinkedFile(repoRoot, ref!, 'add notes');
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+	await expect(
+		page.getByRole('button', {name: /^Commits \(1\)/}),
+	).toBeVisible();
+
+	// Tabbed: collapsed, as before.
+	await page.getByRole('button', {name: /^Commits/}).click();
+	await expect(
+		page.getByRole('button', {name: 'add notes +3 -0'}),
+	).toHaveAttribute('aria-expanded', 'false');
+	await expect(page.locator('[data-line]')).toHaveCount(0);
+
+	// Lanes: the diff is simply there.
+	await page.getByTitle('Fullscreen').click();
+	await expect(page.getByTestId('lane-commits')).toBeVisible();
+	await expect(page.locator('[data-line]')).toHaveCount(3);
+	await expect(page.locator('[data-line]').first()).toHaveText('alpha');
+
+	// And collapsing by hand sticks.
+	await page.getByRole('button', {name: 'notes.txt'}).click();
+	await expect(page.locator('[data-line]')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });

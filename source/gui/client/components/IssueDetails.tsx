@@ -651,6 +651,7 @@ export const IssueDetails = ({
 						error={commitsError}
 						diffsBySha={commitDiffsBySha}
 						onLoadDiff={onLoadCommitDiff}
+						expandAll={laneView}
 						diffStyle={commitsWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'}
 						comments={comments}
 						onAddComment={

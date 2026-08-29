@@ -1,28 +1,12 @@
-import {execFileSync} from 'node:child_process';
-import fs from 'node:fs';
-import path from 'node:path';
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {COMMIT_CACHE_MS, commitLinkedFile} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
-};
-
-// The seeded repo has no code history: link one commit to the ticket by
-// prefixing its subject with the ref shown in the panel.
-const commitFor = (repoRoot: string, ref: string, subject: string) => {
-	fs.writeFileSync(path.join(repoRoot, 'notes.txt'), 'alpha\nbeta\ngamma\n');
-	const git = (...args: string[]) =>
-		execFileSync(
-			'git',
-			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
-			{cwd: repoRoot, stdio: 'pipe'},
-		);
-	git('add', 'notes.txt');
-	git('commit', '-q', '-m', `${ref} ${subject}`);
 };
 
 const expandDiff = async (page: Page, subject: string) => {
@@ -55,10 +39,8 @@ test('selecting lines opens one composer under them; write, then comment or file
 	)?.trim();
 	expect(ref).toBeTruthy();
 
-	commitFor(repoRoot, ref!, 'add notes');
-	// The server caches the full commit timeline for 5s; outlive it so the
-	// reload sees the new commit.
-	await page.waitForTimeout(5_500);
+	commitLinkedFile(repoRoot, ref!, 'add notes');
+	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Composer ${stamp}`);
 
