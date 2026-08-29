@@ -38,13 +38,39 @@ new Promise(async resolve => {
 	fire(targetColumn, 'drop', clientX);
 	fire(src, 'dragend');
 
-	await wait(2500);
 	resolve({indicators});
 });
 `;
 
 const ORDER = `[...document.querySelectorAll('[data-testid="swimlane-handle"]')]
 	.map(h => h.textContent.trim().split('(')[0].trim())`;
+
+// A drop reorders optimistically; the order that counts is the one left once
+// the server has answered, since that answer can put a lane back. The tap
+// counts those answers so a test can wait for the one its drag earned.
+const tapMoveResults = async (page: Page): Promise<{count: () => number}> => {
+	let answered = 0;
+
+	await page.routeWebSocket(/\/ws/, ws => {
+		const server = ws.connectToServer();
+		ws.onMessage(message => server.send(message));
+		server.onMessage(message => {
+			if (
+				typeof message === 'string' &&
+				message.includes('"type":"swimlane:move:result"')
+			) {
+				answered += 1;
+			}
+
+			ws.send(message);
+		});
+	});
+
+	return {count: () => answered};
+};
+
+const moved = async (answers: {count: () => number}, n: number) =>
+	expect.poll(answers.count, {timeout: 15_000}).toBe(n);
 
 // Only this test's own lanes. The suite shares one board and other files add
 // columns to it, so asserting the whole row would depend on their run order.
@@ -89,6 +115,7 @@ test('dragging a swimlane header reorders the board', async ({
 	appUrl,
 	pageErrors,
 }) => {
+	const answers = await tapMoveResults(page);
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -107,6 +134,7 @@ test('dragging a swimlane header reorders the board', async ({
 
 	// Exactly one edge line, on the column being dropped against.
 	expect(indicators).toBe(1);
+	await moved(answers, 1);
 	expect(await orderOf(page, [first, second])).toEqual([second, first]);
 
 	// Survives the round-trip, rather than only living in the optimistic state.
@@ -116,6 +144,7 @@ test('dragging a swimlane header reorders the board', async ({
 
 	// And back the other way, so the reverse index is covered too.
 	await page.evaluate(dragLane(first, second, 'left'));
+	await moved(answers, 2);
 	expect(await orderOf(page, [first, second])).toEqual([first, second]);
 
 	await deleteLane(page, first);
@@ -182,7 +211,6 @@ new Promise(async resolve => {
 	fire(card, 'drop', clientX);
 	fire(src, 'dragend');
 
-	await wait(2500);
 	resolve({ticketIndicators});
 });
 `;
@@ -192,6 +220,7 @@ test('a swimlane dropped over a card still reorders', async ({
 	appUrl,
 	pageErrors,
 }) => {
+	const answers = await tapMoveResults(page);
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -223,6 +252,7 @@ test('a swimlane dropped over a card still reorders', async ({
 
 	// The ticket insertion line belongs to a ticket drag, not a column one.
 	expect(ticketIndicators).toBe(0);
+	await moved(answers, 1);
 	expect(await orderOf(page, [first, second])).toEqual([second, first]);
 
 	await deleteLane(page, first);
