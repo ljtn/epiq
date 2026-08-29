@@ -118,3 +118,14 @@ export type GuiCommitEntry = {
 	subject: string;
 	linesChanged: number;
 };
+
+export type GuiCommitDiffFile = {
+	path: string;
+	before: string;
+	after: string;
+};
+
+export type GuiCommitDiff = {
+	sha: string;
+	files: GuiCommitDiffFile[];
+};
