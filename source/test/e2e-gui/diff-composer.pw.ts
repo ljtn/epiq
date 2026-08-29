@@ -102,16 +102,51 @@ test('selecting lines opens one composer under them; write, then comment or file
 	);
 	await expect(page.getByRole('button', {name: 'Comments (1)'})).toBeVisible();
 
-	// File a ticket: first line is the title, the rest the note.
+	// File a ticket: the note stays the note, the title is asked for.
 	await page.locator('[data-column-number]').first().click();
-	await composer
-		.getByPlaceholder(/add a note/i)
-		.fill(`Follow-up ${stamp}\nneeds a second look`);
+	await composer.getByPlaceholder(/add a note/i).fill('needs a second look');
 	await composer.getByRole('button', {name: 'File ticket'}).click();
+	const titleInput = page.getByPlaceholder('Ticket title');
+	await expect(titleInput).toBeVisible();
+	await page.screenshot({path: testInfo.outputPath('title-prompt.png')});
+	// Empty title: nothing filed, prompt stays.
+	await titleInput.press('Enter');
+	await expect(titleInput).toBeVisible();
+	await titleInput.fill(`Follow-up ${stamp}`);
+	await titleInput.press('Enter');
+	await expect(titleInput).toBeHidden();
 	await expect(composer).toBeHidden();
+	const filed = page
+		.locator('[draggable="true"]')
+		.filter({hasText: `Follow-up ${stamp}`});
+	await expect(filed).toBeVisible();
+
+	// The filed ticket's description is the note plus the snippet, headed by
+	// a link back to the origin ticket's diff at the selection.
+	await filed.click();
+	await expect(page.locator('aside')).toContainText(`Follow-up ${stamp}`);
+	await expect(page.locator('aside')).toContainText('needs a second look');
+	const snippetHeader = page
+		.locator('aside')
+		.getByTitle('Open this in the diff');
+	await expect(snippetHeader).toHaveText(`${ref} · notes.txt line 1 (added)`);
+	await expect(page.locator('aside').getByText('alpha')).toBeVisible();
+	await page.screenshot({path: testInfo.outputPath('filed-ticket.png')});
+
+	// The header collapses the snippet and offers the commit's sha.
 	await expect(
-		page.locator('[draggable="true"]').filter({hasText: `Follow-up ${stamp}`}),
+		page.locator('aside').getByTitle(/^Copy [0-9a-f]{40}$/),
 	).toBeVisible();
+	await page.locator('aside').getByTitle('Hide snippet').click();
+	await expect(page.locator('aside').getByText('alpha')).toBeHidden();
+	await page.locator('aside').getByTitle('Show snippet').click();
+	await expect(page.locator('aside').getByText('alpha')).toBeVisible();
+
+	await snippetHeader.click();
+	await expect(page).toHaveURL(new RegExp(`/issue/${ref}\\?.*tab=code`));
+	await expect(page).toHaveURL(/commit=[0-9a-f]{40}/);
+	await expect(page.locator('aside')).toContainText(`Composer ${stamp}`);
+	await expect(page.locator('[data-selected-line]').first()).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });

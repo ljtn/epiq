@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {SelectedLineRange} from '@pierre/diffs/react';
 import {
 	dedent,
+	diffLocationFromMeta,
 	encodeDiffCommentMarker,
 	extractCommentSnippet,
 	extractSnippet,
@@ -321,5 +322,37 @@ describe('formatSelectionLabel', () => {
 		};
 
 		expect(formatSelectionLabel(range)).toBe('lines 1-2 (added)');
+	});
+});
+
+describe('issueRef', () => {
+	const meta = {
+		filePath: 'source/a.ts',
+		start: 2,
+		side: 'additions' as const,
+		end: 3,
+		endSide: 'additions' as const,
+		note: 'filed',
+		sha: 'abc123',
+		issueRef: 'ABCDEFG',
+	};
+
+	it('round-trips through the marker and into the location', () => {
+		expect(parseDiffCommentMeta(encodeDiffCommentMarker(meta))).toEqual(meta);
+		expect(diffLocationFromMeta(meta)?.issueRef).toBe('ABCDEFG');
+	});
+
+	it('is left off the location when the marker has none', () => {
+		const {issueRef: _, ...own} = meta;
+
+		expect(diffLocationFromMeta(own)).not.toHaveProperty('issueRef');
+	});
+
+	it('rejects a marker whose issueRef is not a string', () => {
+		expect(
+			parseDiffCommentMeta(
+				`<!-- epiq-diff-comment:${JSON.stringify({...meta, issueRef: 7})} -->`,
+			),
+		).toBeNull();
 	});
 });

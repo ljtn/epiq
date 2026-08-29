@@ -21,7 +21,9 @@ import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
 // point of quoting it is that it reads as code. The note and the file/line
 // caption are rebuilt from the marker's own metadata rather than sliced back
 // out of the body, so the caption can be a real control rather than text.
-const CommentBody = ({
+// Also what a ticket filed from a selection shows as its description, so the
+// two read the same and both link back to the diff.
+export const CommentBody = ({
 	body,
 	onOpenDiffLocation,
 }: {
@@ -37,7 +39,9 @@ const CommentBody = ({
 	}
 
 	const location = diffLocationFromMeta(meta);
-	const caption = `${meta.filePath} ${formatSelectionLabel(meta)}`;
+	const caption = `${meta.issueRef ? `${meta.issueRef} · ` : ''}${
+		meta.filePath
+	} ${formatSelectionLabel(meta)}`;
 
 	return (
 		<>
@@ -47,44 +51,17 @@ const CommentBody = ({
 			    came from — a file can appear in several of a ticket's commits, so
 			    without it there is no unambiguous place to open. Comments written
 			    before the sha was recorded stay readable, just inert. */}
-			{location && onOpenDiffLocation ? (
-				<button
-					type="button"
-					onClick={() => onOpenDiffLocation(location)}
-					title="Open this in the diff"
-					style={{
-						display: 'block',
-						width: '100%',
-						textAlign: 'left',
-						margin: '8px 0 0',
-						padding: 0,
-						background: 'transparent',
-						border: 'none',
-						cursor: 'pointer',
-						font: 'inherit',
-						fontFamily: 'ui-monospace, monospace',
-						fontSize: 11,
-						color: GUI_THEME.accent,
-						textDecoration: 'underline',
-						textUnderlineOffset: 2,
-					}}
-				>
-					{caption}
-				</button>
-			) : (
-				<div
-					style={{
-						margin: '8px 0 0',
-						fontFamily: 'ui-monospace, monospace',
-						fontSize: 11,
-						color: GUI_THEME.secondary,
-					}}
-				>
-					{caption}
-				</div>
-			)}
-
-			<CodeSnippet filePath={meta.filePath} snippet={snippet} />
+			<CodeSnippet
+				filePath={meta.filePath}
+				snippet={snippet}
+				caption={caption}
+				sha={meta.sha}
+				onOpen={
+					location && onOpenDiffLocation
+						? () => onOpenDiffLocation(location)
+						: undefined
+				}
+			/>
 		</>
 	);
 };

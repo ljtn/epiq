@@ -31,12 +31,13 @@ import {
 	Textarea,
 } from './FormPrimitives';
 import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
-import {IssueComments} from './IssueComments';
+import {CommentBody, IssueComments} from './IssueComments';
 import {
 	CommitDiffState,
 	DiffLocation,
 	FileTicketParams,
 	IssueCommits,
+	parseDiffCommentMeta,
 } from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
@@ -382,7 +383,14 @@ export const IssueDetails = ({
 										borderRadius: 8,
 									}}
 								>
-									<MarkdownContent content={issue.description} />
+									{parseDiffCommentMeta(issue.description) ? (
+										<CommentBody
+											body={issue.description}
+											onOpenDiffLocation={onOpenDiffLocation}
+										/>
+									) : (
+										<MarkdownContent content={issue.description} />
+									)}
 								</div>
 							) : (
 								<Empty>No description</Empty>
