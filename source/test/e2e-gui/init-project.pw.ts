@@ -32,3 +32,27 @@ test('leaves the board alone in a repo that does have a project', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(page.getByTestId('init-project-screen')).toHaveCount(0);
 });
+
+// The worker's seeded project was booted by the same process that serves the
+// bare directory, so it is the one recent project the bare screen can offer.
+test('offers the recently opened project and boots into it', async ({
+	page,
+	bareAppUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	await page.goto(bareAppUrl);
+
+	const screen = page.getByTestId('init-project-screen');
+	await expect(screen).toBeVisible();
+
+	const recent = page.getByTestId('recent-project');
+	await expect(recent).toHaveCount(1);
+	await expect(recent).toContainText(repoRoot);
+
+	await page.getByTestId('open-recent-project').click();
+
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await expect(page.getByTestId('init-project-screen')).toHaveCount(0);
+	expect(pageErrors).toEqual([]);
+});

@@ -1,4 +1,6 @@
 import {MIN_AUTOSYNC_DURATION_MS} from '../../git/auto-sync.js';
+import {listRecentProjects} from '../config/recent-projects.js';
+import {isFail} from '../model/result-types.js';
 import {
 	getUserSetupStatus,
 	isRepositoryInitialized,
@@ -208,6 +210,17 @@ const getYankModifiers = ({
 	];
 };
 
+// Numbers first: they are what the init screen tells the user to type.
+export const getOpenProjectModifiers = (): string[] => {
+	const recentResult = listRecentProjects({exclude: process.cwd()});
+	if (isFail(recentResult)) return [];
+
+	return [
+		...recentResult.value.map((_, index) => String(index + 1)),
+		...recentResult.value.map(entry => entry.root),
+	];
+};
+
 const getAvailableBaseCommands = ({
 	selectedNode,
 	readOnly,
@@ -222,7 +235,7 @@ const getAvailableBaseCommands = ({
 	}
 
 	if (!isRepositoryInitialized()) {
-		return [CmdKeywords.HELP, CmdKeywords.INIT];
+		return [CmdKeywords.HELP, CmdKeywords.INIT, CmdKeywords.OPEN];
 	}
 
 	if (readOnly) {
@@ -316,6 +329,7 @@ export const getCmdModifiers = (
 		[CmdKeywords.EXPORT]: [],
 		[CmdKeywords.SYNC]: [],
 		[CmdKeywords.INIT]: [],
+		[CmdKeywords.OPEN]: getOpenProjectModifiers(),
 		[CmdKeywords.HELP]: [],
 
 		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],

@@ -37,6 +37,7 @@ import {
 	ConfigModifiers,
 	EditModifiers,
 	getCmdModifiers,
+	getOpenProjectModifiers,
 	REPLAY_DURATION_HINTS,
 } from './command-modifiers.js';
 import {
@@ -206,6 +207,19 @@ const requireModifierOrInputStr =
 		isBlank(modifier) && isBlank(inputString)
 			? invalid({message: hint, completionWordList: []})
 			: valid(onOk ?? CONFIRM_MSG);
+
+const validateOpenProjectCommand: Validator = ({modifier}) => {
+	const choices = getOpenProjectModifiers();
+
+	if (!isBlank(modifier)) return valid(CONFIRM_MSG);
+
+	return invalid({
+		message: choices.length
+			? hintDefault('number from the list, or a path')
+			: hintDefault('path to an epiq project'),
+		completionWordList: choices,
+	});
+};
 
 const validateConfigCommand: Validator = ({modifier, inputString}) => {
 	const configModifiers = getCmdModifiers(CmdKeywords.CONFIG);
@@ -543,6 +557,7 @@ const validators: Record<CmdKeyword, Validator> = {
 	[CmdKeywords.EXIT]: () =>
 		valid(CONFIRM_MSG + hintDefault(' and exit the application')),
 	[CmdKeywords.INIT]: () => valid(CONFIRM_MSG),
+	[CmdKeywords.OPEN]: validateOpenProjectCommand,
 	[CmdKeywords.PALETTE]: () => valid(CONFIRM_MSG),
 
 	[CmdKeywords.FILTER]: args => {

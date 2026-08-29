@@ -20,6 +20,7 @@ import {
 import {getTimeTravelStatus, runExclusive} from '../../mcp/epiq-time-travel.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
 import {refuseCrossSiteRequest} from './lib/origin-guard.js';
+import {GuiProject} from './lib/gui-project.js';
 import {setupWebsocket} from './lib/websocket.js';
 
 const distRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -210,6 +211,9 @@ export const startGuiServer = async (input: {
 	// Known only after `listen`, and the handler below closes over it.
 	let boundPort = 0;
 
+	// Read at each request rather than captured: `project:open` moves it.
+	const project: GuiProject = {repoRoot: input.repoRoot};
+
 	const server = http.createServer(async (req, res) => {
 		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
 
@@ -230,7 +234,11 @@ export const startGuiServer = async (input: {
 		}
 
 		if (url.pathname === '/api/state') {
-			return sendJson(res, 200, await getGuiState({repoRoot: input.repoRoot}));
+			return sendJson(
+				res,
+				200,
+				await getGuiState({repoRoot: project.repoRoot}),
+			);
 		}
 
 		if (req.method === 'POST' && url.pathname === '/api/comments') {
@@ -252,7 +260,7 @@ export const startGuiServer = async (input: {
 
 				return await runMutation(res, async () => {
 					const result = await addIssueComment({
-						repoRoot: input.repoRoot,
+						repoRoot: project.repoRoot,
 						issueId,
 						body: commentBody,
 					});
@@ -267,7 +275,7 @@ export const startGuiServer = async (input: {
 					return sendJson(
 						res,
 						200,
-						await getGuiState({repoRoot: input.repoRoot}),
+						await getGuiState({repoRoot: project.repoRoot}),
 					);
 				});
 			} catch (error) {
@@ -300,7 +308,7 @@ export const startGuiServer = async (input: {
 
 				return await runMutation(res, async () => {
 					const result = await addIssueAttachment({
-						repoRoot: input.repoRoot,
+						repoRoot: project.repoRoot,
 						issueId,
 						name,
 						dataBase64,
@@ -316,7 +324,7 @@ export const startGuiServer = async (input: {
 					return sendJson(
 						res,
 						200,
-						await getGuiState({repoRoot: input.repoRoot}),
+						await getGuiState({repoRoot: project.repoRoot}),
 					);
 				});
 			} catch (error) {
@@ -345,7 +353,7 @@ export const startGuiServer = async (input: {
 
 			return runMutation(res, async () => {
 				const result = await deleteIssueAttachment({
-					repoRoot: input.repoRoot,
+					repoRoot: project.repoRoot,
 					attachmentId,
 				});
 
@@ -359,7 +367,7 @@ export const startGuiServer = async (input: {
 				return sendJson(
 					res,
 					200,
-					await getGuiState({repoRoot: input.repoRoot}),
+					await getGuiState({repoRoot: project.repoRoot}),
 				);
 			});
 		}
@@ -368,7 +376,7 @@ export const startGuiServer = async (input: {
 			const fileName = decodeURIComponent(url.pathname.replace('/media/', ''));
 
 			const blobResult = await getAttachmentBlob({
-				repoRoot: input.repoRoot,
+				repoRoot: project.repoRoot,
 				fileName,
 			});
 
@@ -413,7 +421,7 @@ export const startGuiServer = async (input: {
 
 			return runMutation(res, async () => {
 				const result = await deleteIssueComment({
-					repoRoot: input.repoRoot,
+					repoRoot: project.repoRoot,
 					commentId,
 				});
 
@@ -427,7 +435,7 @@ export const startGuiServer = async (input: {
 				return sendJson(
 					res,
 					200,
-					await getGuiState({repoRoot: input.repoRoot}),
+					await getGuiState({repoRoot: project.repoRoot}),
 				);
 			});
 		}
@@ -449,11 +457,9 @@ export const startGuiServer = async (input: {
 		);
 	}
 
-	const guiAutoSync = startGuiAutoSync({
-		repoRoot: input.repoRoot,
-	});
+	const guiAutoSync = startGuiAutoSync({project});
 
-	setupWebsocket(server, input.repoRoot, {
+	setupWebsocket(server, project, {
 		onStateChanged: () => guiAutoSync.queueSync(),
 		getPort: () => boundPort,
 	});

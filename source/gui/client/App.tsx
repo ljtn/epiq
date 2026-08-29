@@ -15,7 +15,10 @@ import {CreateNodeModal} from './components/CreateNodeModal';
 import {AddSwimlaneColumn} from './components/AddSwimlaneColumn';
 import {ConfirmModal} from './components/ConfirmModal';
 import {DiffPanel} from './components/DiffPanel';
-import {InitProjectScreen} from './components/InitProjectScreen';
+import {
+	InitProjectScreen,
+	RecentProjectView,
+} from './components/InitProjectScreen';
 import {Dropdown} from './components/Dropdown';
 import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
@@ -125,6 +128,7 @@ export const App = () => {
 	const [noProject, setNoProject] = useState<{
 		message: string;
 		repoRoot: string;
+		recentProjects: RecentProjectView[];
 	} | null>(null);
 	// Assignable people for the board on screen, unlike state.contributors, which
 	// is the registry and stays empty until somebody is explicitly assigned.
@@ -1464,7 +1468,9 @@ export const App = () => {
 			<InitProjectScreen
 				repoRoot={noProject.repoRoot}
 				message={noProject.message}
+				recentProjects={noProject.recentProjects}
 				onRetry={requestState}
+				onOpen={root => send('project:open', {root})}
 			/>
 		);
 	}

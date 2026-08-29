@@ -1,3 +1,4 @@
+import {GuiProject} from './gui-project.js';
 import {
 	loadSettingsFromConfig,
 	readEpiqConfig,
@@ -13,7 +14,7 @@ import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
 
 const DEFAULT_INTERVAL_MS = 15_000;
 
-export const startGuiAutoSync = (input: {repoRoot: string}) => {
+export const startGuiAutoSync = (input: {project: GuiProject}) => {
 	let timer: NodeJS.Timeout | undefined;
 	let disposed = false;
 	let syncing = false;
@@ -62,7 +63,7 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 			await runExclusive(async () => {
 				if (getTimeTravelStatus().mode !== 'live') return;
 
-				const result = await sync({repoRoot: input.repoRoot});
+				const result = await sync({repoRoot: input.project.repoRoot});
 				if (isFail(result)) return;
 
 				const {pulled, createdCommit, bootstrapped} = result.value;
@@ -74,7 +75,7 @@ export const startGuiAutoSync = (input: {repoRoot: string}) => {
 
 				broadcastGuiMessage({
 					type: 'state',
-					payload: await getGuiState({repoRoot: input.repoRoot}),
+					payload: await getGuiState({repoRoot: input.project.repoRoot}),
 				});
 			});
 		} finally {

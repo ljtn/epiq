@@ -2,6 +2,7 @@ import {MovePosition} from '../../../lib/event/event.model.js';
 
 export type GuiMessage =
 	| {type: 'state:get'}
+	| {type: 'project:open'; payload: {root: string}}
 	| {type: 'issues:list'}
 	| {type: 'issues:create'; payload: {title: string; parentId: string}}
 	| {type: 'swimlane:create'; payload: {title: string; boardId: string}}

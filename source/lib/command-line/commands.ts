@@ -37,6 +37,7 @@ import {editCommand} from './commands/edit.cmd.js';
 import {initCommand} from './commands/init.cmd.js';
 import {moveCommand} from './commands/move.cmd.js';
 import {newCommand} from './commands/new.cmd.js';
+import {openProjectCommand} from './commands/open.cmd.js';
 import {peekCommand} from './commands/peek.cmd.js';
 import {replayCommand} from './commands/replay.cmd.js';
 import {setAutoSyncDurationCommand} from './commands/set-auto-sync-duration.cmd.js';
@@ -369,6 +370,13 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Initialize Epiq in the current git repository',
 		mode: Mode.COMMAND_LINE,
 		action: initCommand,
+	},
+	{
+		intent: CmdIntent.OpenProject,
+		description: 'Open a recently used epiq project, by number or path',
+		mode: Mode.COMMAND_LINE,
+		action: openProjectCommand,
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
 		intent: CmdIntent.NewItem,

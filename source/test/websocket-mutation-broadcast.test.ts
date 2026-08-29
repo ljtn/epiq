@@ -97,10 +97,14 @@ describe('websocket post-mutation state refresh', () => {
 		server = http.createServer();
 
 		let boundPort = 0;
-		setupWebsocket(server, '/repo', {
-			onStateChanged: vi.fn(),
-			getPort: () => boundPort,
-		});
+		setupWebsocket(
+			server,
+			{repoRoot: '/repo'},
+			{
+				onStateChanged: vi.fn(),
+				getPort: () => boundPort,
+			},
+		);
 
 		await new Promise<void>(resolve => server.listen(0, resolve));
 

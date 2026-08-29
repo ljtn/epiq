@@ -33,6 +33,7 @@ import {
 } from '../lib/repository/rank.js';
 import {getSafeState} from '../lib/state/state.js';
 import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
+import {recordRecentProject} from '../lib/config/recent-projects.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {
 	Contributor,
@@ -1238,6 +1239,22 @@ export const deriveGuiState = (): Result<ApiState> => {
 	} satisfies ApiState);
 };
 
+// The GUI asks for state after every mutation; the registry only needs to hear
+// about a project once per session.
+let lastRememberedRoot: string | null = null;
+
+const rememberOpenedProject = (repoRoot: string): void => {
+	if (repoRoot === lastRememberedRoot) return;
+
+	const result = recordRecentProject({root: repoRoot});
+	if (isFail(result)) {
+		logger.info(result.message);
+		return;
+	}
+
+	lastRememberedRoot = repoRoot;
+};
+
 export const getGuiState = async (
 	input: ToolInput = {},
 ): Promise<Result<ApiState>> => {
@@ -1251,6 +1268,8 @@ export const getGuiState = async (
 	// is an explicit periodic sync's job.
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
+
+	rememberOpenedProject(bootResult.value.repoRoot);
 
 	return deriveGuiState();
 };

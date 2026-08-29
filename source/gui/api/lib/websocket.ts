@@ -46,6 +46,11 @@ import {
 	registerGuiSocket,
 } from '../../client/lib/gui-broadcast.js';
 import {MUTATING_MESSAGE_TYPES} from '../../client/lib/gui-mutations.js';
+import {
+	GuiProject,
+	recentProjectViews,
+	resolveRecentProjectRoot,
+} from './gui-project.js';
 import {GuiMessage} from './websocket.model.js';
 import {isForeignOrigin} from './origin-guard.js';
 import {parseGuiMessage} from './websocket.schema.js';
@@ -73,7 +78,11 @@ const sendGuiState = async (socket: WebSocket, repoRoot: string) => {
 	if (isFail(payload) && payload.message === NO_PROJECT_MESSAGE) {
 		return sendSocket(socket, {
 			type: 'state:unavailable',
-			payload: {message: payload.message, repoRoot},
+			payload: {
+				message: payload.message,
+				repoRoot,
+				recentProjects: recentProjectViews(repoRoot),
+			},
 		});
 	}
 
@@ -129,7 +138,7 @@ const sendMutationResult = async (
 
 export const setupWebsocket = (
 	server: http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>,
-	repoRoot: string,
+	project: GuiProject,
 	{
 		onStateChanged,
 		getPort,
@@ -151,6 +160,18 @@ export const setupWebsocket = (
 		socket.on('message', async raw => {
 			const dispatchMessage = async (message: GuiMessage) => {
 				const {type} = message;
+				const repoRoot = project.repoRoot;
+
+				if (type === 'project:open') {
+					const result = resolveRecentProjectRoot(message.payload.root);
+
+					sendSocket(socket, {type: 'project:open:result', payload: result});
+
+					if (isFail(result)) return;
+
+					project.repoRoot = result.value;
+					return sendGuiState(socket, result.value);
+				}
 
 				// Echoed back rather than forwarded into the API: the client pairs
 				// the timeline and commit replies by it.
