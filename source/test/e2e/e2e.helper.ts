@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-// These files run one at a time (`--no-file-parallelism`). Each drives a real
-// TUI through a pty and shells out to git, so parallelism only adds contention.
+// Each file drives real TUIs through ptys in temp repos of their own, under a
+// global dir of its own, so files run side by side.
 const width = 120;
 const height = 20;
 
