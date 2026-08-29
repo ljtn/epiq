@@ -309,7 +309,7 @@ export const commitAndGetSha = async ({
 		shaResult.value.stdout.trim(),
 	);
 };
-const getGitDir = async (repoRoot: string): Promise<Result<string>> => {
+export const getGitDir = async (repoRoot: string): Promise<Result<string>> => {
 	const result = await execGit({
 		cwd: repoRoot,
 		args: ['rev-parse', '--git-dir'],

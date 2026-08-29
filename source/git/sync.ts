@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {
 	failSync,
@@ -30,6 +31,7 @@ import {
 	stageStateBranchMediaFiles,
 	stageStateBranchOwnEventFile,
 } from './git.js';
+import {withSyncLock} from './sync-lock.js';
 
 type SyncSummary = {
 	repoRoot: string;
@@ -41,6 +43,8 @@ type SyncSummary = {
 	bootstrapped: boolean;
 	// Local work is committed; the remote could not be reached.
 	offline: boolean;
+	// Another process held the state worktree; nothing was attempted.
+	skipped?: boolean;
 };
 
 type SyncArgs = {
@@ -261,7 +265,7 @@ const offlineSummary = (
 	});
 };
 
-export const syncEpiqWithRemote = async ({
+const runSync = async ({
 	cwd = process.cwd(),
 	ownEventFileName,
 }: SyncArgs): Promise<Result<SyncSummary>> => {
@@ -491,4 +495,62 @@ export const syncEpiqWithRemote = async ({
 		bootstrapped,
 		offline: false,
 	});
+};
+
+/**
+ * Only one process may drive the state worktree at a time.
+ *
+ * `runExclusive` covers a single process; this covers the several that share
+ * one board — a TUI, a GUI autosync, an MCP server per agent. Without it,
+ * bootstrap's `git rebase --abort` could not tell a live sync's rebase from one
+ * a crashed process abandoned, and recovered from the second by destroying the
+ * first.
+ */
+export const syncEpiqWithRemote = async (
+	args: SyncArgs,
+): Promise<Result<SyncSummary>> => {
+	const cwd = args.cwd ?? process.cwd();
+
+	const repoRootResult = await getRepoRootDir(cwd);
+	if (isFail(repoRootResult)) return failSync(repoRootResult.message);
+
+	const stateBranchRootResult = getStateBranchRoot({
+		repoRoot: repoRootResult.value,
+	});
+	if (isFail(stateBranchRootResult)) {
+		return failSync(stateBranchRootResult.message);
+	}
+
+	const stateBranchRoot = stateBranchRootResult.value;
+
+	// There is no worktree to hold before bootstrap creates one. Two processes
+	// racing a project's very first sync is a narrower window than this lock
+	// addresses, and taking a lock inside a directory that does not exist yet
+	// would need somewhere else to put it.
+	if (!fs.existsSync(stateBranchRoot)) return runSync(args);
+
+	const lockedResult = await withSyncLock({
+		worktreeRoot: stateBranchRoot,
+		operation: 'sync',
+		fn: () => runSync(args),
+	});
+	if (isFail(lockedResult)) return failSync(lockedResult.message);
+
+	// Held elsewhere. Reported as a skip rather than a failure: autosync runs
+	// every few seconds, and a contended worktree is normal traffic, not an
+	// error worth putting in front of the user each time.
+	if (lockedResult.value === null) {
+		return succeeded('Another process is syncing this board', {
+			repoRoot: repoRootResult.value,
+			stateBranchRoot,
+			createdCommit: false,
+			pulled: false,
+			pushed: false,
+			bootstrapped: false,
+			offline: false,
+			skipped: true,
+		});
+	}
+
+	return lockedResult.value;
 };
