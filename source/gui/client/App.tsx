@@ -1441,16 +1441,22 @@ export const App = () => {
 
 				{commitDiff && (
 					<Aside onWidthChange={setCommitDiffPanelWidth}>
-						<DiffPanel
-							title={`Commit ${commitDiff.sha.slice(0, 7)}`}
-							files={commitDiff.files}
-							loading={commitDiff.loading}
-							error={commitDiff.error}
-							diffStyle={
-								commitDiffPanelWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'
-							}
-							onClose={closeCommitDiff}
-						/>
+						{({isFullscreen, toggleFullscreen}) => (
+							<DiffPanel
+								sha={commitDiff.sha}
+								files={commitDiff.files}
+								loading={commitDiff.loading}
+								error={commitDiff.error}
+								diffStyle={
+									commitDiffPanelWidth >= STACKED_DIFF_WIDTH
+										? 'split'
+										: 'unified'
+								}
+								onClose={closeCommitDiff}
+								isFullscreen={isFullscreen}
+								toggleFullscreen={toggleFullscreen}
+							/>
+						)}
 					</Aside>
 				)}
 
