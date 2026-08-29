@@ -37,8 +37,11 @@ export function getBootNavigationTarget(): Result<{
 		node => node.context === 'WORKSPACE',
 	);
 
+	// A replay that skipped `init.workspace` — unreadable, or cut off by a
+	// historical checkout — reaches here. Thrown, this escaped every `isFail`
+	// on the boot path and took the TUI down instead of showing the error.
 	if (!workspace) {
-		throw new Error('No workspace found in event log');
+		return failed('No workspace found in event log');
 	}
 
 	const [firstBoard] = getRenderedChildren(workspace.id);
@@ -55,14 +58,9 @@ export function getBootNavigationTarget(): Result<{
 			contextNode: firstBoard,
 			selectedIndex: 0,
 		});
-	} else if (workspace) {
-		return succeeded('Resolved boot nav target', {
-			contextNode: workspace,
-			selectedIndex: 0,
-		});
 	} else {
 		return succeeded('Resolved boot nav target', {
-			contextNode: state.nodes[state.rootNodeId] as NavNode<AnyContext>,
+			contextNode: workspace,
 			selectedIndex: 0,
 		});
 	}
