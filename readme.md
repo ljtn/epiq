@@ -16,6 +16,24 @@ With great attention to user ergonomics and developer experience, epiq strives t
 
 Agents now run whole sprints unattended. Because state is a full event log, you can replay the board to find out what moved when, who moved it, and what changed along the way.
 
+## Code, linked to tickets
+
+Prefix a commit's subject with the ticket's ref and the two are linked:
+
+```
+git commit -m "1YRTG8T document the commit-to-ticket link in the readme"
+```
+
+That commit now shows up in the ticket's **Commits** tab with its diffstat, and expands into a per-file diff right inside the ticket. Drag across diff lines to quote them into a comment on the ticket, or file a new ticket straight from the selection — the quote links back to the exact lines. The scrubber plots commits alongside board events; click a commit dot to open its diff in the ticket it belongs to.
+
+![A ticket's Commits tab, showing the diff of a linked commit](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/code-diff.jpeg)
+
+The link is nothing more than the commit subject: Epiq matches commits whose subject starts with `<REF> ` (case-insensitive) and stores nothing else. That makes it robust — no hooks, no database — but it means your merge strategy has to keep those subjects on the branch you inspect:
+
+- **Prefix every commit** with the ref of the ticket it belongs to. Agents get it from the `ref` field on `epiq_issue_list` and `epiq_board_list` responses.
+- **Rebase-merge** (`gh pr merge --rebase`) so the ref-prefixed commits land on `main` as they are. A merge commit adds a subject carrying no ref; a squash merge folds every commit into one whose subject GitHub invents from the PR title, and the link is gone.
+- Squashing _within_ one ticket's commits is fine as long as the result keeps the prefix. Never squash commits carrying different refs into one.
+
 ## Terminal + Browser
 
 Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.
@@ -44,6 +62,7 @@ These design choices result in a system that is:
 - Ergonomics — fast keyboard-driven UX, command line with history, syntax highlighting etc.
 - Command palette — press `?` to open a scrollable overview of all available commands and descriptions
 - Time travel — inspect the board as it was 1h, 1 week or 1 year ago, or replay its history as an animation
+- Linked commits — prefix commits with a ticket ref to browse their diffs from the ticket, quote lines into comments, and see them on the timeline
 - Filtering — query issues by description, tags, assignees, etc.
 - Autocompletion — minimize typing, stay in flow, reuse previous commands
 - Multi-user — collaborative synchronization via Git
