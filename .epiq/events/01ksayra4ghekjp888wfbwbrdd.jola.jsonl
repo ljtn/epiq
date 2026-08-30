@@ -2816,3 +2816,4 @@
 {"v":1,"id":["01M19JKFVRA78GMSPPEA4XFC0G","01M19JKFVD7KYCF9DMKGV9DJ5Z"],"edit.description":{"id":"01M19JKFV4D1E17H822GSTRT9T","md":"The readme's hero strip and diff image predate today's GUI recordings. Replace time-travel.png with a full-frame still from the new hero recording, swap code-diff.jpeg for the clean Commits-tab screenshot used on the site, and add a TUI still to the Terminal + Browser section."}}
 {"v":1,"id":["01M19JM4V0B7Q1V6HXBGA8KMHP","01M19JKFVRA78GMSPPEA4XFC0G"],"add.issue.assignee":{"id":"01M19JKFV4D1E17H822GSTRT9T","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
 {"v":1,"id":["01M19JM4XP934BGHQ4CJSAQH43","01M19JM4V0B7Q1V6HXBGA8KMHP"],"add.issue.tag":{"id":"01M19JKFV4D1E17H822GSTRT9T","tag":"01M12PMYDSM2AQZ2R4GKCDC3CP"}}
+{"v":1,"id":["01M19JMKB3CZAD94SWDGNB3243","01M19JM4XP934BGHQ4CJSAQH43"],"move.node":{"id":"01M19JKFV4D1E17H822GSTRT9T","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"ffffffff7fffffffffffffff"}}
