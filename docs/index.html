@@ -87,8 +87,11 @@
 						<br />
 						<p class="lead">
 							Issue tracking as code: Git-native, local-first, in your
-							terminal or browser. Replay what your agents did while you were
-							away.
+							terminal or browser.
+							<br />
+							Replay what your agents did while you were away,
+							<br />
+							and open the diff behind every ticket.
 						</p>
 						<div class="actions">
 							<button
@@ -104,16 +107,33 @@
 								>
 								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
 							</button>
+							<a
+								class="github-stars"
+								href="https://github.com/ljtn/epiq"
+								aria-label="Epiq on GitHub"
+							>
+								<svg
+									class="star-ico"
+									viewBox="0 0 24 24"
+									width="14"
+									height="14"
+									aria-hidden="true"
+									focusable="false"
+								>
+									<path d="M9.15316 5.40838C10.4198 3.13613 11.0531 2 12 2C12.9469 2 13.5802 3.13612 14.8468 5.40837L15.1745 5.99623C15.5345 6.64193 15.7144 6.96479 15.9951 7.17781C16.2757 7.39083 16.6251 7.4699 17.3241 7.62805L17.9605 7.77203C20.4201 8.32856 21.65 8.60682 21.9426 9.54773C22.2352 10.4886 21.3968 11.4691 19.7199 13.4299L19.2861 13.9372C18.8096 14.4944 18.5713 14.773 18.4641 15.1177C18.357 15.4624 18.393 15.8341 18.465 16.5776L18.5306 17.2544C18.7841 19.8706 18.9109 21.1787 18.1449 21.7602C17.3788 22.3417 16.2273 21.8115 13.9243 20.7512L13.3285 20.4768C12.6741 20.1755 12.3469 20.0248 12 20.0248C11.6531 20.0248 11.3259 20.1755 10.6715 20.4768L10.0757 20.7512C7.77268 21.8115 6.62118 22.3417 5.85515 21.7602C5.08912 21.1787 5.21588 19.8706 5.4694 17.2544L5.53498 16.5776C5.60703 15.8341 5.64305 15.4624 5.53586 15.1177C5.42868 14.773 5.19043 14.4944 4.71392 13.9372L4.2801 13.4299C2.60325 11.4691 1.76482 10.4886 2.05742 9.54773C2.35002 8.60682 3.57986 8.32856 6.03954 7.77203L6.67589 7.62805C7.37485 7.4699 7.72433 7.39083 8.00494 7.17781C8.28555 6.96479 8.46553 6.64194 8.82547 5.99623L9.15316 5.40838Z" fill="currentColor" />
+								</svg>
+								<span class="star-count">340</span>
+								<span>stars on GitHub</span>
+							</a>
 						</div>
 					</div>
 				</div>
 			</header>
 
 			<div class="hero-placeholder">
-				<img
-					src="time-travel.png"
-					alt="The Epiq board with its time travel timeline above it, plotting board events and commits across a year"
-				/>
+				<video autoplay muted loop playsinline preload="auto" poster="epiq-timeline.jpeg">
+					<source src="epiq-timeline-c.mp4" type="video/mp4" />
+				</video>
 			</div>
 
 			<section id="audit" class="wrap">
@@ -123,16 +143,35 @@
 						<h2>Review What Happened While You Were Away.</h2>
 					</div>
 					<p>
-						Agents now run whole sprints unattended. Find out what moved when,
-						who moved it, and what changed along the way. Click to open
-						git-diff.
+						Agents now run whole sprints unattended. Scrub the timeline to find
+						out what moved when, who moved it, and what changed along the way.
 					</p>
 				</div>
 
 				<div class="media-placeholder">
-					<video autoplay muted loop playsinline preload="auto" poster="epiq-diff.jpeg">
-						<source src="epiq-diff-c.mp4" type="video/mp4" />
+					<video autoplay muted loop playsinline preload="auto" poster="epiq-scrub.jpeg">
+						<source src="epiq-scrub-c.mp4" type="video/mp4" />
 					</video>
+				</div>
+			</section>
+
+			<section id="diff" class="wrap">
+				<div class="section-head">
+					<div>
+						<div class="kicker">Follow the diff</div>
+						<h2>Every Ticket Knows Its Commits.</h2>
+					</div>
+					<p>
+						Prefix a commit with the ticket's ref and it lands in the ticket's
+						Commits tab: diffstat, per-file diff, and a comment box on any
+						line.
+					</p>
+				</div>
+				<div class="media-placeholder">
+					<img
+						src="epiq-commits.jpeg"
+						alt="A ticket's Commits tab beside the board, showing a linked commit expanded into a side-by-side diff"
+					/>
 				</div>
 			</section>
 
@@ -149,7 +188,7 @@
 					</p>
 				</div>
 				<div class="media-placeholder">
-					<video autoplay muted loop playsinline preload="auto">
+					<video autoplay muted loop playsinline preload="auto" poster="epiq-cli.jpeg">
 						<source src="epiq-cli-c.mp4" type="video/mp4" />
 					</video>
 				</div>
@@ -558,6 +597,48 @@
 								JSON.stringify({ version: found[1], ts: Date.now() })
 							);
 						} catch (e) {}
+					})
+					.catch(function () {});
+			})();
+		</script>
+		<script>
+			// Live star count under the install command. The markup carries a
+			// static number so nothing shifts if the API is slow or rate-limited.
+			(function () {
+				var KEY = "epiq_gh_stars";
+				var TTL_MS = 10 * 60 * 1000;
+				var out = document.querySelector(".github-stars .star-count");
+				if (!out) return;
+				function render(n) {
+					out.textContent =
+						n < 1000
+							? String(n)
+							: (n < 1e5 ? Math.floor(n / 100) / 10 : Math.floor(n / 1000)) + "k";
+				}
+				var hit = null;
+				try {
+					hit = JSON.parse(localStorage.getItem(KEY));
+				} catch (e) {}
+				if (hit && typeof hit.count === "number") {
+					render(hit.count);
+					if (Date.now() - hit.ts < TTL_MS) return;
+				}
+				fetch("https://api.github.com/repos/ljtn/epiq", {
+					headers: { Accept: "application/vnd.github+json" },
+				})
+					.then(function (res) {
+						return res.ok ? res.json() : null;
+					})
+					.then(function (data) {
+						if (data && typeof data.stargazers_count === "number") {
+							render(data.stargazers_count);
+							try {
+								localStorage.setItem(
+									KEY,
+									JSON.stringify({ count: data.stargazers_count, ts: Date.now() })
+								);
+							} catch (e) {}
+						}
 					})
 					.catch(function () {});
 			})();

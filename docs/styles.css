@@ -499,7 +499,8 @@ h2 {
 	place-items: center;
 	text-align: center;
 }
-.hero-placeholder > img {
+.hero-placeholder > img,
+.hero-placeholder > video {
 	width: 100%;
 	max-width: 1640px;
 	border-radius: 8px;
@@ -693,6 +694,23 @@ aside:not(.docs-layout > aside) {
 }
 
 /* Copy-to-clipboard command */
+/* Star count under the install command */
+.github-stars {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font: 13px var(--mono);
+	letter-spacing: -0.02em;
+	color: var(--muted);
+	text-decoration: none;
+	transition: color 0.15s ease;
+}
+.github-stars:hover {
+	color: var(--text);
+}
+.github-stars .star-ico {
+	display: block;
+}
 .copy-cmd {
 	display: inline-flex;
 	align-items: stretch;
@@ -1631,7 +1649,8 @@ h2 {
 		padding: 10px 0;
 		overflow: hidden;
 	}
-	.hero-placeholder > img {
+	.hero-placeholder > img,
+	.hero-placeholder > video {
 		width: auto;
 		max-width: none;
 		height: 320px;
