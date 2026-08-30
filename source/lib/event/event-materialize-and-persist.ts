@@ -9,7 +9,7 @@ import {
 import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
 import {materialize} from './event-materialize.js';
-import {persist} from './event-persist.js';
+import {EdgeCursor, persist} from './event-persist.js';
 import {
 	AppEvent,
 	AppEventMap,
@@ -26,6 +26,7 @@ type MaterializedValue<A extends EventAction> = {
 function materializeAndPersist<A extends EventAction>(
 	event: AppEvent<A>,
 	rootDir: string,
+	edge?: EdgeCursor,
 ): MaterializeResult<A> {
 	const materialized = materialize(event);
 
@@ -33,7 +34,7 @@ function materializeAndPersist<A extends EventAction>(
 		return materialized;
 	}
 
-	const persistResult = persist({event, rootDir});
+	const persistResult = persist({event, rootDir, edge});
 	if (isFail(persistResult)) return persistResult;
 
 	return materialized;
@@ -57,13 +58,19 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 		);
 	}
 
-	const contributorResult = ensureContributorCurrent(events[0], rootDir);
+	// One cursor for the whole batch: the loop below is synchronous, so
+	// nothing in this process appends between two of its persists.
+	const edge: EdgeCursor = {};
+
+	const contributorResult = ensureContributorCurrent(events[0], rootDir, edge);
 
 	if (isFail(contributorResult)) {
 		return contributorResult;
 	}
 
-	const results = events.map(event => materializeAndPersist(event, rootDir));
+	const results = events.map(event =>
+		materializeAndPersist(event, rootDir, edge),
+	);
 
 	const failures = results.filter(isFail);
 	if (failures.length > 0) {
@@ -88,6 +95,7 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 export const ensureContributorCurrent = (
 	event: AppEvent,
 	rootDir: string,
+	edge?: EdgeCursor,
 ): Result<void> => {
 	if (
 		event.action === 'create.contributor' ||
@@ -118,7 +126,7 @@ export const ensureContributorCurrent = (
 		return succeeded('Contributor name is current', undefined);
 	}
 
-	const result = materializeAndPersist(actorEvent, rootDir);
+	const result = materializeAndPersist(actorEvent, rootDir, edge);
 
 	if (isFail(result)) {
 		return failed(result.message);
