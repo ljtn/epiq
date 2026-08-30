@@ -2623,3 +2623,4 @@
 {"v":1,"id":["01M1869V71YAQXTEN6J2KNSA8S","01M1869V6QPN7GMQ73ARWHQR9D"],"edit.description":{"id":"01M1869V6DWPETMNJHSNDHG2BW","md":"A snippet quoted into a comment renders with pierre's github-dark background (#24292e), a near match for the comment card (rgb 31 33 43). Paint it with the app's darker bg so the block stands out."}}
 {"v":1,"id":["01M1869V7B3NC14ZCMQ1H0VR1K","01M1869V71YAQXTEN6J2KNSA8S"],"add.issue.tag":{"id":"01M1869V6DWPETMNJHSNDHG2BW","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
 {"v":1,"id":["01M1869V7MXNC8EHH8GKH5YYT5","01M1869V7B3NC14ZCMQ1H0VR1K"],"add.issue.tag":{"id":"01M1869V6DWPETMNJHSNDHG2BW","tag":"01KVFG019JYEJ3YP3SE3343WZG"}}
+{"v":1,"id":["01M1869ZG5BWG38M5REV1JTXSX","01M1869V7MXNC8EHH8GKH5YYT5"],"add.issue.assignee":{"id":"01M1869V6DWPETMNJHSNDHG2BW","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
