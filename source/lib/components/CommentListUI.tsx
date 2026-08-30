@@ -17,12 +17,17 @@ import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {AssigneeUI} from './Assignee.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {CommentItem, createCommentNode} from '../utils/comment.utils.js';
+import {renderMarkdownLines} from '../utils/markdown-lite.js';
+import {MarkdownLinesUI} from './MarkdownLinesUI.js';
 
 type Props = {
 	ticket: Ticket;
 	width: number;
 	height: number;
 };
+
+// Top border, two header rows, one row of padding under the body.
+const CARD_CHROME_ROWS = 4;
 
 const getCommentsRootNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'comments');
@@ -69,14 +74,6 @@ const attachCommentNodes = (
 	return nodes;
 };
 
-const renderCommentBody = (md: string, maxLength: number) => {
-	const normalized = md.replace(/\s+/g, ' ').trim();
-
-	if (normalized.length <= maxLength) return normalized;
-
-	return `${normalized.slice(0, Math.max(0, maxLength - 1))}…`;
-};
-
 export function CommentListUI({ticket, width, height}: Props) {
 	const comments = useMemo(() => getCommentItems(ticket), [ticket]);
 
@@ -97,6 +94,18 @@ export function CommentListUI({ticket, width, height}: Props) {
 	const padding = 4;
 	const scrollHeight = Math.max(1, height - padding);
 	const bodyWidth = Math.max(20, width - 8);
+
+	// Every row a comment needs, so nothing is cut: header, the wrapped body,
+	// and the card's own border and padding (CARD_CHROME_ROWS of them).
+	const bodies = useMemo(
+		() =>
+			comments.map(comment => {
+				const lines = renderMarkdownLines(comment.md, bodyWidth);
+				return lines.length > 0 ? lines : [{kind: 'blank' as const}];
+			}),
+		[comments, bodyWidth],
+	);
+	const itemHeights = bodies.map(lines => lines.length + CARD_CHROME_ROWS);
 
 	if (comments.length === 0) {
 		return (
@@ -128,7 +137,7 @@ export function CommentListUI({ticket, width, height}: Props) {
 
 			<ScrollBoxUI
 				height={scrollHeight}
-				itemHeight={4}
+				itemHeights={itemHeights}
 				selectedIndex={selectedIndex}
 			>
 				{comments.map((comment, index) => {
@@ -157,9 +166,10 @@ export function CommentListUI({ticket, width, height}: Props) {
 							</Box>
 
 							<Box paddingLeft={3} paddingBottom={1}>
-								<Text color={theme.primary}>
-									{renderCommentBody(comment.md, bodyWidth)}
-								</Text>
+								<MarkdownLinesUI
+									lines={bodies[index] ?? []}
+									width={bodyWidth}
+								/>
 							</Box>
 						</Box>
 					);
