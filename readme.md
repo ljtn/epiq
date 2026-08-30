@@ -10,7 +10,7 @@ Epiq provides issue tracking as a portable, integrated part of the development e
 
 With great attention to user ergonomics and developer experience, epiq strives to make project management painless and friction free.
 
-![Epiq board with the time travel timeline](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.png)
+![Epiq board with the time travel timeline above it](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/time-travel.jpeg)
 
 ## Audit the workflow
 
@@ -37,6 +37,8 @@ The link is nothing more than the commit subject: Epiq matches commits whose sub
 ## Terminal + Browser
 
 Epiq originated from the command line and offers a first-class terminal experience, but also features a browser interface powered by the same Git-backed event engine.
+
+![The Epiq terminal UI: the same board rendered in a terminal, with the command palette along the bottom](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/tui.jpeg)
 
 ## What is epiq?
 
