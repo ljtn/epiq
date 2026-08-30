@@ -825,7 +825,9 @@ export const TrackBaseline = ({
 			height: anchor === 'top' ? 1 : 2,
 			borderRadius: 999,
 			background: color,
-			opacity: 0.2,
+			// The centre line runs through the scatter's dots, so it sits a shade
+			// fainter than the edge-anchored baselines.
+			opacity: anchor === 'centre' ? 0.14 : 0.2,
 		}}
 	/>
 );
