@@ -147,10 +147,13 @@ export const Panel = <T extends ElementType = 'div'>({
 				}}
 			/>
 
+			{/* Positioned so it paints over the glow above (same z level, later in
+			    the tree), but with no z-index of its own: that would make the panel
+			    a stacking context and trap any popover inside it under positioned
+			    content elsewhere on the page. */}
 			<div
 				style={{
 					position: 'relative',
-					zIndex: 1,
 					height: '100%',
 					display: 'flex',
 					flexDirection: 'column',
