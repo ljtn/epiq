@@ -41,6 +41,7 @@ import {
 	reopenIssue,
 	sync,
 } from './epiq-api.js';
+import {runExclusive} from './epiq-time-travel.js';
 
 export const resultJson = <T>(result: Result<T>) => ({
 	isError: isFail(result),
@@ -51,6 +52,17 @@ export const resultJson = <T>(result: Result<T>) => ({
 		},
 	],
 });
+
+// The MCP SDK does not serialize requests, and every epiq-api call is a
+// boot-read-persist over the shared state singleton across several awaits —
+// two in flight interleave, so one call's boot() can rebuild the state another
+// call already checked its preconditions against. Serialized here, at the
+// registration boundary, like the GUI's `runMutation` and websocket handlers.
+// `runExclusive` is not re-entrant; nothing reached from epiq-api takes it.
+const exclusiveTool =
+	<I, R>(fn: (input: I) => Promise<Result<R>>) =>
+	(input: I) =>
+		runExclusive(async () => resultJson(await fn(input)));
 
 export const createMcpServer = () => {
 	const server = new McpServer({
@@ -67,7 +79,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await getEpiqState(input)),
+		exclusiveTool(getEpiqState),
 	);
 
 	server.registerTool(
@@ -81,7 +93,7 @@ export const createMcpServer = () => {
 				boardId: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await listIssues(input)),
+		exclusiveTool(listIssues),
 	);
 
 	server.registerTool(
@@ -94,7 +106,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await getIssue(input)),
+		exclusiveTool(getIssue),
 	);
 
 	server.registerTool(
@@ -105,7 +117,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await listBoards(input)),
+		exclusiveTool(listBoards),
 	);
 
 	server.registerTool(
@@ -117,7 +129,7 @@ export const createMcpServer = () => {
 				boardId: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await listSwimlanes(input)),
+		exclusiveTool(listSwimlanes),
 	);
 
 	server.registerTool(
@@ -130,7 +142,7 @@ export const createMcpServer = () => {
 				title: z.string().min(1).max(MAX_TITLE_LENGTH),
 			}),
 		},
-		async input => resultJson(await createSwimlane(input)),
+		exclusiveTool(createSwimlane),
 	);
 
 	server.registerTool(
@@ -143,7 +155,7 @@ export const createMcpServer = () => {
 				title: z.string().min(1).max(MAX_TITLE_LENGTH),
 			}),
 		},
-		async input => resultJson(await editSwimlaneTitle(input)),
+		exclusiveTool(editSwimlaneTitle),
 	);
 
 	server.registerTool(
@@ -170,7 +182,7 @@ export const createMcpServer = () => {
 					.optional(),
 			}),
 		},
-		async input => resultJson(await moveSwimlane(input)),
+		exclusiveTool(moveSwimlane),
 	);
 
 	server.registerTool(
@@ -183,7 +195,7 @@ export const createMcpServer = () => {
 				swimlaneId: z.string().min(1),
 			}),
 		},
-		async input => resultJson(await deleteSwimlane(input)),
+		exclusiveTool(deleteSwimlane),
 	);
 
 	server.registerTool(
@@ -206,7 +218,7 @@ export const createMcpServer = () => {
 					.optional(),
 			}),
 		},
-		async input => resultJson(await createIssue(input)),
+		exclusiveTool(createIssue),
 	);
 
 	server.registerTool(
@@ -219,7 +231,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await editIssueDescription(input)),
+		exclusiveTool(editIssueDescription),
 	);
 
 	server.registerTool(
@@ -232,7 +244,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await editIssueTitle(input)),
+		exclusiveTool(editIssueTitle),
 	);
 
 	server.registerTool(
@@ -246,7 +258,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await addIssueTag(input)),
+		exclusiveTool(addIssueTag),
 	);
 
 	server.registerTool(
@@ -259,7 +271,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await removeIssueTag(input)),
+		exclusiveTool(removeIssueTag),
 	);
 
 	server.registerTool(
@@ -272,7 +284,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await getBoardContributors(input)),
+		exclusiveTool(getBoardContributors),
 	);
 
 	server.registerTool(
@@ -285,7 +297,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await tombstoneContributor(input)),
+		exclusiveTool(tombstoneContributor),
 	);
 
 	server.registerTool(
@@ -298,7 +310,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await tombstoneTag(input)),
+		exclusiveTool(tombstoneTag),
 	);
 
 	server.registerTool(
@@ -311,7 +323,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await restoreTag(input)),
+		exclusiveTool(restoreTag),
 	);
 
 	server.registerTool(
@@ -324,7 +336,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await restoreContributor(input)),
+		exclusiveTool(restoreContributor),
 	);
 
 	server.registerTool(
@@ -345,7 +357,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await addIssueAssignee(input)),
+		exclusiveTool(addIssueAssignee),
 	);
 
 	server.registerTool(
@@ -358,7 +370,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await removeIssueAssignee(input)),
+		exclusiveTool(removeIssueAssignee),
 	);
 
 	server.registerTool(
@@ -371,7 +383,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await addIssueComment(input)),
+		exclusiveTool(addIssueComment),
 	);
 
 	server.registerTool(
@@ -383,7 +395,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await deleteIssueComment(input)),
+		exclusiveTool(deleteIssueComment),
 	);
 
 	server.registerTool(
@@ -397,7 +409,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await editIssueComment(input)),
+		exclusiveTool(editIssueComment),
 	);
 
 	server.registerTool(
@@ -410,7 +422,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await reopenIssue(input)),
+		exclusiveTool(reopenIssue),
 	);
 
 	server.registerTool(
@@ -422,7 +434,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await closeIssue(input)),
+		exclusiveTool(closeIssue),
 	);
 
 	server.registerTool(
@@ -449,7 +461,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await moveIssue(input)),
+		exclusiveTool(moveIssue),
 	);
 
 	server.registerTool(
@@ -461,7 +473,7 @@ export const createMcpServer = () => {
 				repoRoot: z.string().optional(),
 			}),
 		},
-		async input => resultJson(await sync(input)),
+		exclusiveTool(sync),
 	);
 
 	return server;
@@ -472,5 +484,3 @@ export const startMcpServer = async () => {
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
 };
-
-await startMcpServer();
