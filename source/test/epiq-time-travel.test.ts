@@ -367,6 +367,44 @@ describe('epiq-time-travel', () => {
 			expect(result.value.events.at(-1)?.label).toBe('Tagged with bug');
 		});
 
+		// Deleting or restoring names the tag as the event's own id, so the Tags
+		// view can colour and untick those dots like any other tagging event.
+		it('attributes a tag deletion and restore to the tag itself', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'create.tag',
+					payload: {id: 'tag-1', name: 'bug'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'tombstone.tag',
+					payload: {id: 'tag-1'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'restore.tag',
+					payload: {id: 'tag-1', name: 'bug'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			const [, deleted, restored] = result.value.events;
+			expect(deleted?.label).toBe('Deleted tag bug');
+			expect(deleted?.tag?.id).toBe('tag-1');
+			expect(restored?.label).toBe('Restored tag bug');
+			expect(restored?.tag?.id).toBe('tag-1');
+		});
+
 		it('sorts the entries by time regardless of log order', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [

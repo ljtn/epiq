@@ -130,21 +130,32 @@ const buildNameIndex = (events: AppEvent[]): Map<string, string> => {
 	return names;
 };
 
+// Which tag an event is about. Tagging a ticket names it as `tag`; deleting or
+// restoring the tag itself names it as the event's own `id`.
+const tagOf = (event: AppEvent): string | undefined => {
+	// Optional like filterEventsForBoard's: a malformed log entry must not take
+	// the whole timeline down with it.
+	const payload = event.payload as {id?: string; tag?: string} | undefined;
+
+	return event.action === 'tombstone.tag' || event.action === 'restore.tag'
+		? payload?.id
+		: payload?.tag;
+};
+
 // The TUI's phrasing minus the details that need state. A renamed tag reads
 // under its original name, which is what the log itself says happened.
 const describeTimelineEvent = (
 	event: AppEvent,
 	names: Map<string, string>,
 ): string => {
-	// Optional like filterEventsForBoard's: a malformed log entry must not take
-	// the whole timeline down with it.
 	const payload = event.payload as
-		| {name?: string; tag?: string; assignee?: string}
+		| {name?: string; assignee?: string}
 		| undefined;
+	const tag = tagOf(event);
 
 	const detail =
-		payload?.tag !== undefined
-			? names.get(payload.tag) ?? ''
+		tag !== undefined
+			? names.get(tag) ?? ''
 			: payload?.assignee !== undefined
 			? names.get(payload.assignee) ?? ''
 			: payload?.name !== undefined
@@ -173,9 +184,7 @@ const identitiesFor = (
 	event: AppEvent,
 	names: Map<string, string>,
 ): Pick<EventTimelineEntry, 'actor' | 'tag' | 'assignee'> => {
-	const payload = event.payload as
-		| {tag?: string; assignee?: string}
-		| undefined;
+	const payload = event.payload as {assignee?: string} | undefined;
 
 	return {
 		actor: event.userId
@@ -185,7 +194,7 @@ const identitiesFor = (
 					color: getStringColor(event.userName ?? event.userId),
 			  }
 			: null,
-		tag: identityFor(payload?.tag, names),
+		tag: identityFor(tagOf(event), names),
 		assignee: identityFor(payload?.assignee, names),
 	};
 };

@@ -82,7 +82,10 @@ export type AppEventMap = {
 		result: Tag;
 	};
 
-	/** Undoes a `tombstone.tag`. Carries the name so replay never reads it back off earlier events. */
+	/**
+	 * Undoes a `tombstone.tag`. Carries the name so replay never has to read
+	 * it back off earlier events.
+	 */
 	'restore.tag': {
 		payload: PayloadBase & {name: string};
 		result: Tag;
