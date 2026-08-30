@@ -12,4 +12,5 @@ const {setVirtualNodesEnabled} = await import(
 );
 setVirtualNodesEnabled(false);
 
-await import('./server.js');
+const {startMcpServer} = await import('./server.js');
+await startMcpServer();
