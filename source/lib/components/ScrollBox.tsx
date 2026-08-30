@@ -7,7 +7,34 @@ type Props = {
 	height: number; // height in terminal rows
 	selectedIndex: number;
 	itemHeight?: number;
+	// Per-child heights, for children that are not all the same size. The
+	// window then holds whichever run of children fits around the selection.
+	itemHeights?: number[];
 	scrollByOne?: boolean;
+};
+
+const windowByHeights = (
+	heights: number[],
+	count: number,
+	selected: number,
+	height: number,
+): {start: number; end: number} => {
+	const heightAt = (index: number) => Math.max(1, heights[index] ?? 1);
+
+	let start = selected;
+	let end = selected + 1;
+	let used = heightAt(selected);
+
+	while (end < count && used + heightAt(end) <= height) {
+		used += heightAt(end);
+		end++;
+	}
+	while (start > 0 && used + heightAt(start - 1) <= height) {
+		start--;
+		used += heightAt(start);
+	}
+
+	return {start, end};
 };
 
 export const ScrollBoxUI: React.FC<Props> = ({
@@ -15,6 +42,7 @@ export const ScrollBoxUI: React.FC<Props> = ({
 	height,
 	selectedIndex,
 	itemHeight = 1,
+	itemHeights,
 	scrollByOne = false,
 }) => {
 	if (children.length === 0) {
@@ -24,26 +52,51 @@ export const ScrollBoxUI: React.FC<Props> = ({
 	const safeHeight = Math.max(1, Math.floor(height));
 	const safeItemHeight = Math.max(1, Math.ceil(itemHeight));
 
-	const visibleItemCount = Math.max(1, Math.floor(safeHeight / safeItemHeight));
-
 	const clampedSelectedIndex = Math.max(
 		0,
 		Math.min(selectedIndex, children.length - 1),
 	);
 
-	const maxStart = Math.max(0, children.length - visibleItemCount);
+	const uniformVisibleCount = Math.max(
+		1,
+		Math.floor(safeHeight / safeItemHeight),
+	);
+	const maxStart = Math.max(0, children.length - uniformVisibleCount);
 
-	const start = scrollByOne
-		? Math.min(
-				maxStart,
-				Math.max(0, clampedSelectedIndex - visibleItemCount + 1),
+	const {start, end} = itemHeights
+		? windowByHeights(
+				itemHeights,
+				children.length,
+				clampedSelectedIndex,
+				safeHeight,
 		  )
-		: Math.min(
-				maxStart,
-				Math.floor(clampedSelectedIndex / visibleItemCount) * visibleItemCount,
-		  );
+		: scrollByOne
+		? {
+				start: Math.min(
+					maxStart,
+					Math.max(0, clampedSelectedIndex - uniformVisibleCount + 1),
+				),
+				end:
+					Math.min(
+						maxStart,
+						Math.max(0, clampedSelectedIndex - uniformVisibleCount + 1),
+					) + uniformVisibleCount,
+		  }
+		: {
+				start: Math.min(
+					maxStart,
+					Math.floor(clampedSelectedIndex / uniformVisibleCount) *
+						uniformVisibleCount,
+				),
+				end:
+					Math.min(
+						maxStart,
+						Math.floor(clampedSelectedIndex / uniformVisibleCount) *
+							uniformVisibleCount,
+					) + uniformVisibleCount,
+		  };
 
-	const end = start + visibleItemCount;
+	const visibleItemCount = Math.max(1, end - start);
 	const visibleChildren = children.slice(start, end);
 
 	const showScrollbar = children.length > visibleItemCount;
