@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {checkCommitRef} from '../lib/utils/commit-ref.js';
+import {checkCommitRef, commitTicketRef} from '../lib/utils/commit-ref.js';
 
 // Real shape: a ULID whose last 7 characters are the ref.
 const ids = [
@@ -100,5 +100,20 @@ describe('checkCommitRef', () => {
 				'01M179WTBBX27A6EKNHW1TCS1X',
 			]).ok,
 		).toBe(true);
+	});
+});
+
+describe('commitTicketRef', () => {
+	const known = new Set(['ABCDEFG', '1234567']);
+
+	it('is the leading token when it is a known ref, whatever its case', () => {
+		expect(commitTicketRef('abcdefg fix the thing', known)).toBe('ABCDEFG');
+		expect(commitTicketRef('  1234567 tidy', known)).toBe('1234567');
+	});
+
+	it('is null for a subject that links nowhere', () => {
+		expect(commitTicketRef('BUILD the thing', known)).toBeNull();
+		expect(commitTicketRef('fix ABCDEFG later', known)).toBeNull();
+		expect(commitTicketRef('', known)).toBeNull();
 	});
 });

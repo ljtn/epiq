@@ -27,6 +27,7 @@ import {
 	formatSelectionLabel,
 	clearDiffLocationParams,
 	DiffLocation,
+	readCommitFocusParam,
 	encodeDiffCommentMarker,
 	readDiffLocationParams,
 	writeDiffLocationParams,
@@ -43,6 +44,7 @@ import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {issueMatchesText} from '../../lib/utils/text-match.js';
+import {commitTicketRef} from '../../lib/utils/commit-ref.js';
 import {
 	findBoard,
 	findIssue,
@@ -245,7 +247,8 @@ export const App = () => {
 			: 'overview';
 	// Where a followed comment permalink points, if any. Read straight off the
 	// URL so the deep link survives a reload rather than living in state.
-	const diffFocus = readDiffLocationParams(searchParams);
+	const diffFocus =
+		readDiffLocationParams(searchParams) ?? readCommitFocusParam(searchParams);
 	const navigate = useNavigate();
 
 	// Route params carry shorthand refs (full ids in old links still resolve).
@@ -1105,13 +1108,30 @@ export const App = () => {
 		setPickedIssueIds([]);
 	}, [selectedBoardId]);
 
-	const openCommitDiff = useCallback((sha: string) => {
-		setCommitDiff({sha, loading: true, error: null, files: null});
-		sendSocketJson(socketRef.current, {
-			type: 'commit:diff:get',
-			payload: {sha},
-		});
-	}, []);
+	// A commit that links to a ticket is read on that ticket's Commits tab,
+	// next to its comments and the rest of its commits; only one that links
+	// nowhere gets the bare panel.
+	const openCommitDiff = useCallback(
+		(sha: string) => {
+			const subject =
+				history.commits.find(commit => commit.sha === sha)?.subject ?? '';
+			const ref = commitTicketRef(subject, knownTicketRefs);
+
+			if (ref && boardSlug) {
+				void navigate(
+					`/board/${boardSlug}/issue/${ref}?tab=code&commit=${sha}`,
+				);
+				return;
+			}
+
+			setCommitDiff({sha, loading: true, error: null, files: null});
+			sendSocketJson(socketRef.current, {
+				type: 'commit:diff:get',
+				payload: {sha},
+			});
+		},
+		[history.commits, knownTicketRefs, boardSlug, navigate],
+	);
 
 	const closeCommitDiff = useCallback(() => setCommitDiff(null), []);
 

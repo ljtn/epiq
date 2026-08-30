@@ -90,3 +90,15 @@ export const checkCommitRef = (
 	// Ambiguous or ordinary prose. Not enough evidence to block a commit.
 	return {ok: true};
 };
+
+// The ticket a commit subject links to: its leading token, when that is one
+// of the refs on the board. Null for a commit that links nowhere — including
+// one whose token merely looks like a ref, which checkCommitRef is for.
+export const commitTicketRef = (
+	subject: string,
+	knownRefs: ReadonlySet<string>,
+): string | null => {
+	const token = (subject.trim().split(/\s+/)[0] ?? '').toUpperCase();
+
+	return token && knownRefs.has(token) ? token : null;
+};

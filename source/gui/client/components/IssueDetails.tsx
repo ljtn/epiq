@@ -34,6 +34,7 @@ import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
 import {CommentBody, IssueComments} from './IssueComments';
 import {
 	CommitDiffState,
+	CommitFocus,
 	DiffLocation,
 	FileTicketParams,
 	IssueCommits,
@@ -158,7 +159,7 @@ export const IssueDetails = ({
 	// Following a comment's permalink: the caller puts it in the URL, and
 	// hands back where it currently points so the Commits tab can open there.
 	onOpenDiffLocation?: (location: DiffLocation) => void;
-	diffFocus?: DiffLocation | null;
+	diffFocus?: CommitFocus | null;
 	attachments: GuiAttachment[];
 	attachmentUploadStatus: AttachmentUploadStatus;
 	onUploadAttachments?: (issueId: string, files: File[]) => void;

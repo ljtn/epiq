@@ -48,10 +48,19 @@ test('selecting lines opens one composer under them; write, then comment or file
 	)?.trim();
 	expect(ref).toBeTruthy();
 
-	commitLinkedFile(repoRoot, ref!, 'add notes');
+	const sha = commitLinkedFile(repoRoot, ref!, 'add notes');
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Composer ${stamp}`);
+
+	// A link naming only the commit (what a scrubber dot opens for a linked
+	// commit) lands on the Commits tab with it open.
+	await page.goto(`${page.url().split('?')[0]}?tab=code&commit=${sha}`);
+	await expect(
+		page.getByRole('button', {name: 'add notes +3 -0'}),
+	).toHaveAttribute('aria-expanded', 'true');
+	await expect(page.getByRole('button', {name: 'notes.txt'})).toBeVisible();
+	await page.getByRole('button', {name: 'Overview'}).click();
 
 	await openDiffAndSelectLine(page, 'add notes');
 	const composer = page.getByTestId('selection-composer');
