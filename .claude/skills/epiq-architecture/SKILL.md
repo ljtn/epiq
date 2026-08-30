@@ -27,7 +27,7 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 ## Never
 
 - **Never order, compare or resolve conflicts by wall clock.** No "latest write wins by timestamp". `Date.now()` is a lower bound for id generation and a display value; it is not a fact about ordering.
-- **Never mint an id without seeding past the current edge.** An id that sorts before its own parent corrupts the DAG.
+- **Never mint an id without seeding past the current edge.** An id that sorts before its own parent corrupts the DAG. Exception: an edge that is itself damage — undecodable, at ULID's ceiling, or more than a day ahead of the wall clock — seeds from the wall clock instead (`seedFromEdgeRef`); ordering survives because it comes from `refId`, not the timestamp.
 - **Never hard-delete** a node, contributor, tag or event, and never reuse or rewrite an id. Replay would then reach a reference that no longer exists.
 - **Never rewrite, reorder or de-duplicate existing log lines.** Rewriting breaks the identity that union merge depends on.
 - **Never abort replay on an event that merely lost.** One concurrent edit would leave a board that never opens again for whoever's build understands the most.

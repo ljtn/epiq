@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
+import {logger} from '../../logger.js';
 import {isValidUserId, isValidUserName} from '../config/actor-env.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getSettingsState, User} from '../state/settings.state.js';
@@ -27,6 +28,12 @@ const getNextId = monotonicFactory();
 // successor.
 const ULID_TIME_MAX = 281474976710655;
 
+// Honest clock skew between machines is minutes. An edge further ahead of the
+// wall clock than this would, via `Math.max` below, become the lower bound of
+// every id minted by every client from then on — one century-out ULID drags
+// all later `createdAt`s and the whole time-travel axis with it, permanently.
+const MAX_EDGE_AHEAD_MS = 24 * 60 * 60 * 1000;
+
 /**
  * The edge's timestamp is a lower bound for the next id and nothing more —
  * ordering comes from `refId`, not from this number.
@@ -49,6 +56,14 @@ const seedFromEdgeRef = (edgeRef: string): number => {
 	}
 
 	if (edgeTime >= ULID_TIME_MAX) return now;
+
+	if (edgeTime > now + MAX_EDGE_AHEAD_MS) {
+		logger.error(
+			'[persist] edge id is too far in the future; seeding from the wall clock instead',
+			{edgeRef, edgeTime, now},
+		);
+		return now;
+	}
 
 	return Math.max(now, edgeTime + 1);
 };

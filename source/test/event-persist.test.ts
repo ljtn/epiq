@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {decodeTime, ulid} from 'ulid';
 import {beforeEach, describe, expect, it} from 'vitest';
 import {
 	isSupportedSchemaVersion,
@@ -201,6 +202,21 @@ describe('event persist', () => {
 		const result = persist({event: event(), rootDir});
 
 		expect(isFail(result)).toBe(false);
+	});
+
+	it('seeds from the wall clock when the edge is absurdly far in the future', () => {
+		const centuryOut = ulid(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+		writeEdge(centuryOut);
+
+		const result = persist({event: event(), rootDir});
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(decodeTime(result.value.entry.id[0])).toBeLessThan(
+			Date.now() + 60_000,
+		);
+		expect(result.value.entry.id[1]).toBe(centuryOut);
 	});
 
 	// `getEventLogPath` refuses a name containing two `.jsonl`, which used to
