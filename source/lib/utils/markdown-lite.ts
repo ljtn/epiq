@@ -72,13 +72,21 @@ export const inlineSpans = (text: string): Span[] => {
 const spansToText = (spans: Span[]): string =>
 	spans.map(span => (span.code ? `\`${span.text}\`` : span.text)).join('');
 
+// A terminal advances a tab to the next tab stop while string measuring
+// counts it as nothing, so a tab-indented line looks narrower than it draws
+// and overflows the box. Spaces measure as they draw.
+const TAB_WIDTH = 4;
+
+export const expandTabs = (text: string): string =>
+	text.replace(/\r$/, '').replaceAll('\t', ' '.repeat(TAB_WIDTH));
+
 // One rendered line per source row, nothing wrapped or dropped: what a
 // line-numbered view needs, since its rows have to keep lining up with the
 // text they came from. The marker row becomes its caption; fence rows stay.
-export const classifyRows = (rows: string[]): RenderedLine[] => {
+export const classifyRows = (rawRows: string[]): RenderedLine[] => {
 	let inFence = false;
 
-	return rows.map((row): RenderedLine => {
+	return rawRows.map(expandTabs).map((row): RenderedLine => {
 		if (/^\s*```/.test(row)) {
 			inFence = !inFence;
 			return {kind: 'fence'};
@@ -150,7 +158,7 @@ export const renderMarkdownLines = (
 	}
 
 	const lead = extractCommentLead(md);
-	const lines = snippet.split('\n');
+	const lines = snippet.split('\n').map(expandTabs);
 	// A range crossing from deletions into additions quotes both halves,
 	// which no single run of numbers describes.
 	const startLine = meta.side === meta.endSide ? meta.start : undefined;

@@ -68,6 +68,39 @@ describe('classifyRows', () => {
 });
 
 describe('renderMarkdownLines', () => {
+	it('expands tabs so a code line measures as wide as it draws', () => {
+		const md = '```\n\tif (x) {\n\t\treturn;\n```';
+
+		expect(renderMarkdownLines(md, 40)).toEqual([
+			{kind: 'code', text: '    if (x) {'},
+			{kind: 'code', text: '        return;'},
+		]);
+	});
+
+	it('wraps a tab-indented snippet line by its drawn width', () => {
+		const marker = encodeDiffCommentMarker({
+			filePath: 'a.ts',
+			start: 7,
+			side: 'additions',
+			end: 7,
+			endSide: 'additions',
+			note: '',
+		});
+		const md = [
+			marker,
+			'`a.ts` line 7 (added)',
+			'```',
+			'\t\tabcdef',
+			'```',
+		].join('\n');
+
+		// Width 20, gutter "7 │ " is 4: 16 columns per row, the line is 14.
+		expect(renderMarkdownLines(md, 20)).toEqual([
+			{kind: 'caption', text: 'a.ts line 7 (added)'},
+			{kind: 'code', text: '        abcdef', number: 7},
+		]);
+	});
+
 	it('wraps paragraphs, drops fence rows and collapses blank runs', () => {
 		const md = 'one two three four\n\n\n```\nlet x = 1;\n```\n';
 
