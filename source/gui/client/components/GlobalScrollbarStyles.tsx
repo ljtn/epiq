@@ -8,6 +8,14 @@ const SCROLLBAR_SIZE = 3;
 
 export const GlobalScrollbarStyles = () => (
 	<style>{`
+		/* Placeholders are a pseudo-element too. Unstyled they take the
+		   browser's warm grey, which sits oddly against the palette. */
+		input::placeholder,
+		textarea::placeholder {
+			color: ${GUI_THEME.dim};
+			opacity: 1;
+		}
+
 		/* Gated deliberately: Chrome implements scrollbar-width/-color too, and
 		   setting either makes it ignore the ::-webkit-scrollbar rules below. */
 		@supports not selector(::-webkit-scrollbar) {
