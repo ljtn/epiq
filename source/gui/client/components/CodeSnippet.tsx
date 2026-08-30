@@ -11,6 +11,11 @@ import {IconChevronRight} from './IconChevronRight';
 // the quoting side keeps the real file path around.
 const PIERRE_THEME = 'github-dark';
 
+// The theme's own background is a near match for the comment card the
+// snippet sits in; the app's darker one keeps the two apart. The theme sets
+// `--diffs-bg` on the shadow host, where only its own CSS can reach.
+const SNIPPET_CSS = `:host { --diffs-bg: ${GUI_THEME.bg}; background-color: ${GUI_THEME.bg}; }`;
+
 const CODE_FONT =
 	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
 
@@ -139,6 +144,7 @@ export const CodeSnippet = ({
 					style={
 						{
 							display: 'flex',
+							background: GUI_THEME.bg,
 							'--diffs-line-height': `${LINE_HEIGHT}px`,
 							'--diffs-font-size': `${FONT_SIZE}px`,
 							'--diffs-gap-block': `${BLOCK_GAP}px`,
@@ -175,6 +181,7 @@ export const CodeSnippet = ({
 								// snippet was taken from — the gutter beside it has those.
 								disableFileHeader: true,
 								disableLineNumbers: true,
+								unsafeCSS: SNIPPET_CSS,
 							}}
 						/>
 					</div>
