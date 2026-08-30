@@ -116,6 +116,24 @@ describe('getSortedEvents', () => {
 		expect(JSON.stringify(oneWay)).toBe(JSON.stringify(otherWay));
 	});
 
+	// A `refId: null` line is trivially forgeable, and a low ULID made it sort
+	// in front of init.workspace — reordering all of history for every client.
+	it('anchors a forged second root after the known history, not before genesis', () => {
+		const genesis = event('01B0000000000000000000000A', null, 'init.workspace');
+		const first = event('01B0000000000000000000000B', genesis.id[0]);
+		const second = event('01B0000000000000000000000C', first.id[0]);
+		const forged = event('00000000000000000000000000', null, 'evil.event');
+
+		const sorted = getSortedEvents([forged, second, genesis, first]);
+
+		expect(sorted.map(e => e.id[0])).toEqual([
+			genesis.id[0],
+			first.id[0],
+			second.id[0],
+			forged.id[0],
+		]);
+	});
+
 	// Every event refs its predecessor, so a log is one chain as deep as it is
 	// long. Recursing it overflowed the call stack at ~4.7k events, which meant
 	// an ordinary board eventually stopped opening for everybody at once.

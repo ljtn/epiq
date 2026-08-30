@@ -503,7 +503,12 @@ export const getSortedEvents = (
 		}
 	};
 
-	const roots = childrenByRef.get(null) ?? [];
+	// Only genesis is a legal root. Any other `refId: null` event — trivially
+	// forgeable, and able to sort in front of all of history via a low ULID —
+	// is anchored after the known history, with the orphans.
+	const roots = (childrenByRef.get(null) ?? []).filter(
+		event => 'init.workspace' in event,
+	);
 	for (const root of roots) {
 		visit(root);
 	}
@@ -513,7 +518,9 @@ export const getSortedEvents = (
 			const eventId = event.id[0];
 			const refId = event.id[1] ?? null;
 
-			return !placed.has(eventId) && refId !== null && !byEventId.has(refId);
+			if (placed.has(eventId)) return false;
+
+			return refId === null || !byEventId.has(refId);
 		})
 		.sort(compareEvents);
 
