@@ -206,6 +206,20 @@ const SNIPPET_FENCE = /```\n([\s\S]*?)\n?```\s*$/;
 export const extractCommentSnippet = (body: string): string | null =>
 	SNIPPET_FENCE.exec(body)?.[1] ?? null;
 
+// The caption line the GUI writes right above the fence: the quoted file in
+// backticks, then the line range.
+const CAPTION_LINE = /`[^`\n]+`[^\n]*\n?$/;
+
+// What a diff-linked body says in its own words: everything before the
+// marker's caption and quoted snippet. Read off the body rather than the
+// marker's `note` copy, so text typed into the body by hand (a description
+// edited in the Overview, a comment edited from the TUI) still shows.
+export const extractCommentLead = (body: string): string =>
+	stripDiffCommentMarker(body)
+		.replace(SNIPPET_FENCE, '')
+		.replace(CAPTION_LINE, '')
+		.trim();
+
 // What a "File ticket" submission carries up to the caller that owns the
 // actual issues:create call and the origin-ticket back-comment — everything
 // needed to build both without the caller re-deriving any of it.

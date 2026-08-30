@@ -4,6 +4,7 @@ import {
 	dedent,
 	diffLocationFromMeta,
 	encodeDiffCommentMarker,
+	extractCommentLead,
 	extractCommentSnippet,
 	extractSnippet,
 	findDiffCommentsForFile,
@@ -423,5 +424,41 @@ describe('findDiffCommentsForFile', () => {
 		expect(
 			findDiffCommentsForFile([{...comment, isDeleted: true}], 'source/a.ts'),
 		).toHaveLength(0);
+	});
+});
+
+describe('extractCommentLead', () => {
+	const marker = encodeDiffCommentMarker({
+		filePath: 'source/a.ts',
+		start: 2,
+		side: 'additions',
+		end: 3,
+		endSide: 'additions',
+		note: 'as written',
+	});
+	const tail = ['`source/a.ts` lines 2–3 (added)', '```', 'code', '```'];
+
+	it('is the text before the caption and snippet, not the marker copy', () => {
+		const body = ['as written', '', marker, ...tail].join('\n');
+		expect(extractCommentLead(body)).toBe('as written');
+
+		const edited = [
+			'as written',
+			'',
+			'and more, by hand',
+			'',
+			marker,
+			...tail,
+		].join('\n');
+		expect(extractCommentLead(edited)).toBe('as written\n\nand more, by hand');
+	});
+
+	it('is empty for a body that is only the quote', () => {
+		expect(extractCommentLead([marker, ...tail].join('\n'))).toBe('');
+	});
+
+	it('keeps a caption-shaped line that is part of the text', () => {
+		const body = ['see `source/b.ts` too', '', marker, ...tail].join('\n');
+		expect(extractCommentLead(body)).toBe('see `source/b.ts` too');
 	});
 });

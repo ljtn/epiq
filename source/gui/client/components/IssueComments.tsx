@@ -9,6 +9,7 @@ import {timeAgo} from '../lib/gui-format.helper';
 import {
 	DiffLocation,
 	diffLocationFromMeta,
+	extractCommentLead,
 	extractCommentSnippet,
 	formatSelectionLabel,
 	parseDiffCommentMeta,
@@ -41,6 +42,7 @@ export const CommentBody = ({
 	}
 
 	const location = diffLocationFromMeta(meta);
+	const lead = extractCommentLead(body);
 	const caption = `${meta.issueRef ? `${meta.issueRef} · ` : ''}${
 		meta.filePath
 	} ${formatSelectionLabel(meta)}`;
@@ -49,7 +51,7 @@ export const CommentBody = ({
 		// A flex column: sibling margins don't collapse here, so the gap between
 		// note and snippet is the gap it says it is.
 		<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-			{meta.note && <MarkdownContent content={meta.note} softBreaks />}
+			{lead && <MarkdownContent content={lead} softBreaks />}
 
 			{/* Only clickable when the marker recorded which commit the selection
 			    came from — a file can appear in several of a ticket's commits, so
@@ -103,7 +105,10 @@ export const IssueComments = ({
 
 	const startEditing = (comment: GuiComment) => {
 		const meta = parseDiffCommentMeta(comment.body);
-		setEditing({id: comment.id, text: meta ? meta.note : comment.body});
+		setEditing({
+			id: comment.id,
+			text: meta ? extractCommentLead(comment.body) : comment.body,
+		});
 	};
 
 	const saveEdit = (comment: GuiComment) => {
