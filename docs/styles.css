@@ -1645,17 +1645,46 @@ h2 {
 	}
 }
 
-/* Mobile hero: crop the banner instead of shrinking it into a strip. */
+/* Mobile media: crop-zoom into the middle (or the busy end) of each shot
+   instead of shrinking a wide frame into an unreadable strip. The container
+   clips; flex centering overflows the frame evenly on both sides. */
 @media (max-width: 620px) {
-	.hero-placeholder {
+	.hero-placeholder,
+	.media-placeholder {
 		min-height: 0;
-		padding: 10px 0;
+		padding: 0;
 		overflow: hidden;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+	.hero-placeholder > img,
+	.hero-placeholder > video,
+	.media-placeholder > img,
+	.media-placeholder > video {
+		flex: none;
+		width: auto;
+		max-width: none;
+		margin: 0;
+		border-radius: 0;
 	}
 	.hero-placeholder > img,
 	.hero-placeholder > video {
-		width: auto;
-		max-width: none;
+		height: 460px;
+	}
+	.media-placeholder > video {
+		height: 260px;
+	}
+	.media-placeholder > img {
 		height: 320px;
+	}
+	/* Anchor each crop where the action is: the scrubbing and the diff panel
+	   sit at the right edge, the TUI's breadcrumb and command line at the left. */
+	#audit .media-placeholder,
+	#diff .media-placeholder {
+		justify-content: flex-end;
+	}
+	#cli .media-placeholder {
+		justify-content: flex-start;
 	}
 }
