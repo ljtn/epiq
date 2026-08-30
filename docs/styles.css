@@ -601,6 +601,9 @@ aside:not(.docs-layout > aside) {
 	.actions {
 		align-self: stretch;
 	}
+	.hero .actions {
+		flex-wrap: wrap;
+	}
 	.copy-cmd {
 		display: flex;
 		width: 100%;
@@ -694,7 +697,21 @@ aside:not(.docs-layout > aside) {
 }
 
 /* Copy-to-clipboard command */
-/* Star count under the install command */
+/* Hero: the star count sits beside the install command, wrapping under it
+   once the row runs out of room. */
+.hero .actions {
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 18px;
+}
+.hero .copy-cmd {
+	min-width: 0;
+}
+.hero .github-stars {
+	flex: none;
+}
+/* Star count beside the install command */
 .github-stars {
 	display: inline-flex;
 	align-items: center;
