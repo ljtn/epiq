@@ -120,6 +120,23 @@ describe(':open completions', () => {
 		expect(getCmdModifiers(CmdKeywords.OPEN)).toEqual(['1', '2', newer, older]);
 	});
 
+	it('is only read when completing the open command itself', () => {
+		const root = makeProject('p');
+		recordRecentProject({root, now: 1});
+		const globalDir = process.env['EPIQ_GLOBAL_DIR']!;
+		fs.chmodSync(globalDir, 0o000);
+
+		try {
+			// Other commands must not stall or fail on an unreadable registry.
+			expect(() => getCmdModifiers(CmdKeywords.HELP)).not.toThrow();
+			expect(getCmdModifiers(CmdKeywords.INIT)).toEqual([]);
+		} finally {
+			fs.chmodSync(globalDir, 0o755);
+		}
+
+		expect(getCmdModifiers(CmdKeywords.OPEN)).toEqual(['1', root]);
+	});
+
 	it('offers nothing from a corrupt registry', () => {
 		const globalDir = process.env['EPIQ_GLOBAL_DIR']!;
 		fs.mkdirSync(globalDir, {recursive: true});

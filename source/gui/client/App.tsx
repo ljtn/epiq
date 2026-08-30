@@ -507,6 +507,16 @@ export const App = () => {
 				setNoProject(message.payload);
 			}
 
+			if (message.type === 'project:open:result') {
+				const result = message.payload as {status: string; message: string};
+
+				if (result.status !== 'success') {
+					setNoProject(current =>
+						current ? {...current, message: result.message} : current,
+					);
+				}
+			}
+
 			if (message.type === 'issue') {
 				const detail = getResultValue<{
 					issueId: string;

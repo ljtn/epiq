@@ -329,7 +329,9 @@ export const getCmdModifiers = (
 		[CmdKeywords.EXPORT]: [],
 		[CmdKeywords.SYNC]: [],
 		[CmdKeywords.INIT]: [],
-		[CmdKeywords.OPEN]: getOpenProjectModifiers(),
+		// Reads the registry, so only when this is the command being completed.
+		[CmdKeywords.OPEN]:
+			keyword === CmdKeywords.OPEN ? getOpenProjectModifiers() : [],
 		[CmdKeywords.HELP]: [],
 
 		[CmdKeywords.PEEK]: [...generatePeekOffsetHints(), 'now', 'prev', 'next'],
