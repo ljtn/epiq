@@ -122,6 +122,17 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await expect(page.getByTestId('code-snippet')).toContainText('beta');
 	await page.screenshot({path: testInfo.outputPath('comment-snippet.png')});
 
+	// The snippet paints the app's background, not the highlighter theme's,
+	// which is a near match for the card around it.
+	const snippetBackground = await page.evaluate<string>(`
+		(() => {
+			const snippet = document.querySelector('[data-testid="code-snippet"]');
+			const host = [...snippet.querySelectorAll('*')].find(el => el.shadowRoot);
+			return getComputedStyle(host).backgroundColor;
+		})()
+	`);
+	expect(snippetBackground).toBe('rgb(6, 7, 10)');
+
 	// Editing a diff comment edits its note; the link and snippet stay.
 	await page.getByTitle('Edit comment').click();
 	const editor = page.locator('aside textarea').first();
