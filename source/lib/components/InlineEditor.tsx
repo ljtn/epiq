@@ -8,6 +8,12 @@ import {theme} from '../theme/themes.js';
 import {truncateWithEllipsis} from '../utils/string.utils.js';
 import {CursorUI} from './Cursor.js';
 import {ScrollBoxUI} from './ScrollBox.js';
+import {RenderedLineUI} from './MarkdownLinesUI.js';
+import {
+	classifyRows,
+	inlineSpans,
+	RenderedLine,
+} from '../utils/markdown-lite.js';
 import {bigIntToHex} from '../utils/rank.js';
 
 type Props = {
@@ -89,9 +95,30 @@ export const InlineEditor: React.FC<Props> = ({
 		};
 	}, [id, rowKey]);
 
-	const renderMarkdownInline = (md: string) => String(md).replace(/\r?\n/g, '');
+	// Styled row for row, so the line numbers keep pointing at the text
+	// they name; a row wider than the box is cut, as before.
+	const rowWidth = maxWidth - 10;
+	const styledRows = useMemo(
+		() =>
+			classifyRows(rows).map((line): RenderedLine => {
+				if (line.kind === 'code') {
+					return {...line, text: truncateWithEllipsis(line.text, rowWidth)};
+				}
+				if (line.kind === 'text' || line.kind === 'heading') {
+					const text = line.spans
+						.map(span => (span.code ? `\`${span.text}\`` : span.text))
+						.join('');
+					return {
+						...line,
+						spans: inlineSpans(truncateWithEllipsis(text, rowWidth)),
+					};
+				}
+				return line;
+			}),
+		[rows, rowWidth],
+	);
 
-	const renderedItems = rows.map((row, i) => {
+	const renderedItems = styledRows.map((line, i) => {
 		const isSel = contextNode.id === id && selectedIndex === i;
 
 		return (
@@ -103,13 +130,18 @@ export const InlineEditor: React.FC<Props> = ({
 					{`${i + 1}   `.padStart(5, '\u00A0')}
 				</Text>
 
-				<Text backgroundColor={isSel ? 'gray' : undefined}>
-					{renderMarkdownInline(
-						row.length
-							? truncateWithEllipsis(row, maxWidth - 10)
-							: EMPTY_ROW_FALLBACK,
-					)}
-				</Text>
+				{line.kind === 'blank' ? (
+					<Text backgroundColor={isSel ? 'gray' : undefined}>
+						{EMPTY_ROW_FALLBACK}
+					</Text>
+				) : (
+					<Box>
+						<RenderedLineUI
+							line={line}
+							width={line.kind === 'code' ? rowWidth : 0}
+						/>
+					</Box>
+				)}
 			</Box>
 		);
 	});
