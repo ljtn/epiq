@@ -601,9 +601,6 @@ aside:not(.docs-layout > aside) {
 	.actions {
 		align-self: stretch;
 	}
-	.hero .actions {
-		flex-wrap: wrap;
-	}
 	.copy-cmd {
 		display: flex;
 		width: 100%;
@@ -697,36 +694,25 @@ aside:not(.docs-layout > aside) {
 }
 
 /* Copy-to-clipboard command */
-/* Hero: the star count sits beside the install command, wrapping under it
-   once the row runs out of room. */
-.hero .actions {
-	flex-direction: row;
-	flex-wrap: nowrap;
-	align-items: center;
-	gap: 18px;
-}
-.hero .copy-cmd {
-	min-width: 0;
-}
-.hero .github-stars {
-	flex: none;
-}
-/* Star count beside the install command */
-.github-stars {
+/* GitHub button with live star count; hidden once the nav gets tight. */
+.github-stars .stars {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	font: 13px var(--mono);
-	letter-spacing: -0.02em;
-	color: var(--muted);
-	text-decoration: none;
-	transition: color 0.15s ease;
-}
-.github-stars:hover {
-	color: var(--text);
+	gap: 5px;
+	padding-left: 10px;
+	border-left: 1px solid var(--line);
 }
 .github-stars .star-ico {
 	display: block;
+}
+.github-stars .star-count {
+	font: 13px var(--mono);
+	letter-spacing: -0.02em;
+}
+@media (max-width: 900px) {
+	.github-stars .stars {
+		display: none;
+	}
 }
 .copy-cmd {
 	display: inline-flex;
