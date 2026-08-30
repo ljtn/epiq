@@ -205,12 +205,20 @@ export const toPersistedEvent = (
 
 	return parsePersistedEvent(candidate);
 };
+// A batch's edge, threaded through its persists: resolved from disk by the
+// first persist that needs it (`undefined` = unresolved, `null` = empty log)
+// and advanced in place per event, instead of re-reading and re-sorting the
+// whole log every time.
+export type EdgeCursor = {current?: string | null};
+
 export function persist({
 	event,
 	rootDir,
+	edge,
 }: {
 	event: AppEvent;
 	rootDir: string;
+	edge?: EdgeCursor;
 }): Result<PersistSuccess> {
 	try {
 		const ensureEventsDirResult = ensureEventsDir(rootDir);
@@ -222,17 +230,20 @@ export function persist({
 		});
 		if (isFail(filePath)) return filePath;
 
-		const edgeRef = getEdgeRef(rootDir);
-		if (isFail(edgeRef)) return failed(edgeRef.message);
+		let edgeValue: string | null;
+		if (edge && edge.current !== undefined) {
+			edgeValue = edge.current;
+		} else {
+			const edgeRef = getEdgeRef(rootDir);
+			if (isFail(edgeRef)) return failed(edgeRef.message);
+			edgeValue = edgeRef.value;
+		}
 
-		const newId = edgeRef.value
-			? getNextId(seedFromEdgeRef(edgeRef.value))
+		const newId = edgeValue
+			? getNextId(seedFromEdgeRef(edgeValue))
 			: getNextId();
 
-		const entryResult = toPersistedEvent(stripActor(event), [
-			newId,
-			edgeRef.value,
-		]);
+		const entryResult = toPersistedEvent(stripActor(event), [newId, edgeValue]);
 
 		if (isFail(entryResult)) return failed(entryResult.message);
 
@@ -241,6 +252,10 @@ export function persist({
 			`${JSON.stringify(entryResult.value)}\n`,
 			'utf8',
 		);
+
+		// Advanced only after the line is on disk, so a failed persist leaves
+		// the cursor pointing at an event that exists.
+		if (edge) edge.current = newId;
 
 		return succeeded<PersistSuccess>('Event persisted', {
 			path: filePath.value,
