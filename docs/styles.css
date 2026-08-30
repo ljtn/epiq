@@ -505,6 +505,24 @@ h2 {
 	max-width: 1640px;
 	border-radius: 8px;
 }
+/* The scrubber still is a near-black strip: no panel, no glow, and its
+   edges fade out so it dissolves into the page instead of sitting on it. */
+#audit .media-placeholder {
+	min-height: 0;
+	padding: 0;
+	background: none;
+}
+#audit .media-placeholder > img {
+	box-shadow: none;
+	-webkit-mask-image:
+		linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent),
+		linear-gradient(180deg, transparent, #000 15%, #000 90%, transparent);
+	-webkit-mask-composite: source-in;
+	mask-image:
+		linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent),
+		linear-gradient(180deg, transparent, #000 15%, #000 90%, transparent);
+	mask-composite: intersect;
+}
 video,
 img {
 	margin: 40px;
@@ -1677,6 +1695,9 @@ h2 {
 	}
 	.media-placeholder > img {
 		height: 320px;
+	}
+	#audit .media-placeholder > img {
+		height: 260px;
 	}
 	/* Anchor each crop where the action is: the scrubbing and the diff panel
 	   sit at the right edge, the TUI's breadcrumb and command line at the left. */
