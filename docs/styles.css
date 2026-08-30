@@ -213,6 +213,9 @@ h1 {
 	line-height: 0.86;
 	max-width: 860px;
 }
+.hero h1 > span:not(.accent) {
+	display: block;
+}
 
 .lead {
 	max-width: 710px;
@@ -581,6 +584,10 @@ aside:not(.docs-layout > aside) {
 	}
 	.hero {
 		padding-top: 52px;
+	}
+	/* Keep "Issue Tracking." on one line down to 375px-wide phones. */
+	h1 {
+		font-size: clamp(40px, 12vw, 52px);
 	}
 	.cards,
 	.logos {
