@@ -14,7 +14,7 @@ export const commitLinkedFile = (
 	subject: string,
 	fileName = 'notes.txt',
 	contents = 'alpha\nbeta\ngamma\n',
-) => {
+): string => {
 	fs.writeFileSync(path.join(repoRoot, fileName), contents);
 	const git = (...args: string[]) =>
 		execFileSync(
@@ -24,4 +24,6 @@ export const commitLinkedFile = (
 		);
 	git('add', fileName);
 	git('commit', '-q', '-m', `${ref} ${subject}`);
+
+	return git('rev-parse', 'HEAD').toString().trim();
 };

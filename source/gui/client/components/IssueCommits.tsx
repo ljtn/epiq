@@ -180,6 +180,17 @@ export const writeDiffLocationParams = (
 	params.set('endSide', location.endSide);
 };
 
+// A deep link that names only a commit: open it, nothing narrower to show.
+// A full DiffLocation is one of these too.
+export type CommitFocus = {sha: string} & Partial<Omit<DiffLocation, 'sha'>>;
+
+export const readCommitFocusParam = (
+	params: URLSearchParams,
+): CommitFocus | null => {
+	const sha = params.get('commit');
+	return sha ? {sha} : null;
+};
+
 export const clearDiffLocationParams = (params: URLSearchParams): void => {
 	for (const key of DIFF_LOCATION_PARAMS) params.delete(key);
 };
@@ -694,7 +705,7 @@ const CommitRow = ({
 	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
 	// Non-null only on the commit a permalink points at.
-	focus?: DiffLocation | null;
+	focus?: CommitFocus | null;
 }) => {
 	const [hovered, setHovered] = useState(false);
 	// Also tracks focus (not just mouse hover): the copy button is a real
@@ -819,7 +830,11 @@ const CommitRow = ({
 							onFileTicket={onFileTicket}
 							comments={comments}
 							focusRange={
-								focus?.filePath === file.path
+								focus?.filePath === file.path &&
+								focus.start !== undefined &&
+								focus.end !== undefined &&
+								focus.side &&
+								focus.endSide
 									? {
 											start: focus.start,
 											end: focus.end,
@@ -873,7 +888,7 @@ export const IssueCommits = ({
 	onFileTicket?: (params: FileTicketParams) => void;
 	comments: GuiComment[];
 	// Where a comment permalink points, read from the URL by the caller.
-	focus?: DiffLocation | null;
+	focus?: CommitFocus | null;
 	// Open every commit and file as it appears — for a layout meant for
 	// reading rather than scanning. Each is opened once, so collapsing it by
 	// hand afterwards sticks.
@@ -931,7 +946,7 @@ export const IssueCommits = ({
 	// link into a tab you were already using doesn't throw your place away.
 	// Keyed on the location's own values rather than object identity, which
 	// the caller rebuilds from URL params on every render.
-	const focusKey = focus ? `${focus.sha}:${focus.filePath}` : null;
+	const focusKey = focus ? `${focus.sha}:${focus.filePath ?? ''}` : null;
 
 	useEffect(() => {
 		if (!focus) return;
@@ -940,12 +955,15 @@ export const IssueCommits = ({
 			prev.has(focus.sha) ? prev : new Set(prev).add(focus.sha),
 		);
 
+		const filePath = focus.filePath;
+		if (filePath === undefined) return;
+
 		setExpandedFilesBySha(prev =>
-			prev[focus.sha]?.has(focus.filePath)
+			prev[focus.sha]?.has(filePath)
 				? prev
 				: {
 						...prev,
-						[focus.sha]: new Set(prev[focus.sha] ?? []).add(focus.filePath),
+						[focus.sha]: new Set(prev[focus.sha] ?? []).add(filePath),
 				  },
 		);
 	}, [focusKey]);
