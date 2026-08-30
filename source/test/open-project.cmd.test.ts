@@ -12,6 +12,12 @@ vi.mock('../lib/state/cmd.state.js', () => ({
 	replaceCmdInput: vi.fn(),
 }));
 
+let hasProjectDefinition = false;
+
+vi.mock('../lib/state/state.js', () => ({
+	getState: () => ({hasProjectDefinition}),
+}));
+
 import {loadProject} from '../lib/boot/load-project.js';
 import {
 	openProjectCommand,
@@ -58,6 +64,7 @@ let originalHome: string | undefined;
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	hasProjectDefinition = false;
 	originalCwd = process.cwd();
 	originalHome = process.env['HOME'];
 	originalGlobalDir = process.env['EPIQ_GLOBAL_DIR'];
@@ -215,6 +222,20 @@ describe('openProjectCommand', () => {
 
 		expect(result.message).toBe('Opened there');
 		expect(loadProject).toHaveBeenCalledWith(there);
+	});
+
+	it('refuses to switch away from a project that is already loaded', async () => {
+		hasProjectDefinition = true;
+		const root = makeProject('elsewhere');
+		vi.mocked(getCmdArg).mockReturnValue(root);
+		const cwdBefore = process.cwd();
+
+		const result = await openProjectCommand();
+
+		expect(isFail(result)).toBe(true);
+		expect(result.message).toContain('Already in a project');
+		expect(process.cwd()).toBe(cwdBefore);
+		expect(loadProject).not.toHaveBeenCalled();
 	});
 
 	it('fails without touching cwd when the target is not a project', async () => {

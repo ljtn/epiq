@@ -8,6 +8,7 @@ import {
 } from '../../config/recent-projects.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getCmdArg, replaceCmdInput} from '../../state/cmd.state.js';
+import {getState} from '../../state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
 
 const expandHome = (input: string): string =>
@@ -50,6 +51,12 @@ export const resolveOpenTarget = (
 export const openProjectCommand = async (): Promise<Result<null>> => {
 	const arg = getCmdArg();
 	replaceCmdInput('');
+
+	// Loading materialises onto whatever state is live, and nothing upstream
+	// stops a keyword the init screen did not offer from being typed.
+	if (getState().hasProjectDefinition) {
+		return failed('Already in a project; run epiq from another directory');
+	}
 
 	const recentResult = listRecentProjects({exclude: process.cwd()});
 	const recent = isFail(recentResult) ? [] : recentResult.value;
