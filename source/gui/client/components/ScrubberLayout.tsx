@@ -187,6 +187,10 @@ export const ScrubberLayout = ({
 							flexDirection: 'column',
 							gap: 8,
 							cursor: chart.connected ? 'pointer' : 'default',
+							// A scrub-drag must never turn into a native text selection or
+							// drag of the axis labels underneath the pointer.
+							userSelect: 'none',
+							WebkitUserSelect: 'none',
 						}}
 					>
 						{chart.hoveredSegment && (
