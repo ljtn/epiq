@@ -2608,3 +2608,6 @@
 {"v":1,"id":["01M185TR4PD0SXAVPMTEBF9EAB","01M185TR4DRJ4941D1AJJEN9FZ"],"add.issue.tag":{"id":"01M185TR3MCB819G1D4SWTV1Z6","tag":"01KZPSQ7GH85FW18DJDRYBRXB9"}}
 {"v":1,"id":["01M185VDM44XJRX5S667P2SR5R","01M185TR4PD0SXAVPMTEBF9EAB"],"move.node":{"id":"01M18545D1SCF10P8ZR1J98GDN","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffbfffffffffffffffff"}}
 {"v":1,"id":["01M185VECE2TARWA5D4M73TZRR","01M185VDM44XJRX5S667P2SR5R"],"move.node":{"id":"01M18548KD5R5ME68742STENR2","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffdfffffffffffffffff"}}
+{"v":1,"id":["01M185WB0VZX7ECXJ69GQ7MM6Z","01M185VECE2TARWA5D4M73TZRR"],"edit.title":{"id":"01M185TR3MCB819G1D4SWTV1Z6","name":"Scrubber commit dot opens the diff inside its linked ticket"}}
+{"v":1,"id":["01M185WB4ENSF6P01ZYPNYQGSX","01M185WB0VZX7ECXJ69GQ7MM6Z"],"edit.description":{"id":"01M185TR3MCB819G1D4SWTV1Z6","md":"Clicking a commit dot on the timeline scrubber opens a standalone diff panel. When the commit's subject carries a ticket ref, open that ticket's Commits tab with the commit expanded instead, so the diff is read in the ticket's context (comments, other commits). With no linked ticket, fall back to the standalone panel as today."}}
+{"v":1,"id":["01M185WDWATRSJTPEQJKFPC1PH","01M185WB4ENSF6P01ZYPNYQGSX"],"add.issue.assignee":{"id":"01M185TR3MCB819G1D4SWTV1Z6","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
