@@ -68,6 +68,38 @@ test('a click on the track asks the server to scrub once', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// A drag is a scrub, never a native text selection: without user-select off,
+// sweeping the needle could pick up the axis labels and drag them as a ghost.
+test('a drag never starts a text selection', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const track = page.getByTestId('scrubber-track');
+	await expect(track).toHaveCSS('user-select', 'none');
+
+	const box = await track.boundingBox();
+	if (!box) throw new Error('scrubber track is not on screen');
+
+	const y = box.y + box.height / 2;
+	await page.mouse.move(box.x + box.width * 0.2, y);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width * 0.8, y, {steps: 10});
+
+	const selected = await page.evaluate(
+		'window.getSelection()?.toString() ?? ""',
+	);
+	await page.mouse.up();
+
+	expect(selected).toBe('');
+
+	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});
+
 // The press dispatches immediately and the moves are throttled, so without the
 // release the last stretch of a drag would never be asked for.
 test('a drag commits the position it ends on', async ({
