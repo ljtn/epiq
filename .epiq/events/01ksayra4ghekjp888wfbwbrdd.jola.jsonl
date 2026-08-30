@@ -2596,3 +2596,7 @@
 {"v":1,"id":["01M185CKE043K13T0XC30PCCY0","01M185CKDQ84NS05S9DDTHKXVN"],"edit.description":{"id":"01M185CKDERGCTRCVK63YWGDN4","md":"With a diff open in the right panel, the file headers of the diff view stack above the filter dropdown opened from the scrubber row above it, so the dropdown is partly hidden. Suspected stacking-context clash: the scrubber lives in a Panel whose content wrapper is z-index 1, and later positioned content in the aside ends up at the same level."}}
 {"v":1,"id":["01M185CKE9HTKMA0F46HVDYF41","01M185CKE043K13T0XC30PCCY0"],"add.issue.tag":{"id":"01M185CKDERGCTRCVK63YWGDN4","tag":"01KV714YDXAAV1X0EMPR7VG4WS"}}
 {"v":1,"id":["01M185CKEHRC5ZSEKYPENC9HY7","01M185CKE9HTKMA0F46HVDYF41"],"add.issue.tag":{"id":"01M185CKDERGCTRCVK63YWGDN4","tag":"01KVFG019JYEJ3YP3SE3343WZG"}}
+{"v":1,"id":["01M185CXA77PKSRNYXQ7JWVKA9","01M185CKEHRC5ZSEKYPENC9HY7"],"move.node":{"id":"01M185CGN4MMBEGK6RCAAFMYR3","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffefffffffffffffffffff"}}
+{"v":1,"id":["01M185CYQZGNGMD2MZ8CQYKPA7","01M185CXA77PKSRNYXQ7JWVKA9"],"move.node":{"id":"01M185CKDERGCTRCVK63YWGDN4","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"fffff7ffffffffffffffffff"}}
+{"v":1,"id":["01M185D22KBV05SY5RJ9K7MRCG","01M185CYQZGNGMD2MZ8CQYKPA7"],"add.issue.assignee":{"id":"01M185CGN4MMBEGK6RCAAFMYR3","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
+{"v":1,"id":["01M185D3KAYFMP063XK1FRB70W","01M185D22KBV05SY5RJ9K7MRCG"],"add.issue.assignee":{"id":"01M185CKDERGCTRCVK63YWGDN4","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
