@@ -2,6 +2,7 @@ import React, {
 	forwardRef,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from 'react';
@@ -144,8 +145,11 @@ export const Aside = forwardRef<
 	// window's, not the stored one — so layout decisions track what is on
 	// screen. Fires on mount too, not just on drag, so a caller that only
 	// reads this (rather than also calling readStoredAsideWidth itself) sees
-	// the persisted width immediately.
-	useEffect(() => {
+	// the persisted width immediately. A layout effect so the caller's
+	// re-render lands before the browser paints: a passive effect would let
+	// a frame through with the panel at its new width but the content still
+	// laid out for the old one.
+	useLayoutEffect(() => {
 		onWidthChange?.(effectiveWidth);
 	}, [effectiveWidth]);
 
