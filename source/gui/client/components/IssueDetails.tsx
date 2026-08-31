@@ -22,6 +22,8 @@ import {ManageTagsModal} from './ManageTagsModal';
 import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
+import {IconCollapseLane} from './IconCollapseLane';
+import {IconExpandLane} from './IconExpandLane';
 import {
 	ActionRow,
 	AddRow,
@@ -67,6 +69,8 @@ const LANE_KEYS = Object.keys(LANE_SHARES) as LaneKey[];
 
 // Wide enough for the upright label and a comfortable click target.
 const COLLAPSED_LANE_WIDTH = 28;
+// Long enough to read as a movement, short enough not to be waited on.
+const LANE_COLLAPSE_MS = 180;
 
 const LANE_LABEL_STYLE = {
 	color: GUI_THEME.secondary,
@@ -74,6 +78,54 @@ const LANE_LABEL_STYLE = {
 	textTransform: 'uppercase',
 	letterSpacing: '0.08em',
 } as const;
+
+// Same footprint and hover as FullscreenToggleButton, which is the other
+// icon-only control in this panel.
+const LaneIconButton = ({
+	label,
+	icon,
+	onClick,
+	style,
+	children,
+}: {
+	label: string;
+	icon: React.ReactNode;
+	onClick: () => void;
+	style?: React.CSSProperties;
+	children?: React.ReactNode;
+}) => (
+	<button
+		type="button"
+		aria-label={label}
+		title={label}
+		onClick={onClick}
+		style={{
+			display: 'inline-flex',
+			alignItems: 'center',
+			flexShrink: 0,
+			background: 'transparent',
+			border: 'none',
+			padding: 4,
+			borderRadius: 4,
+			cursor: 'pointer',
+			color: GUI_THEME.dim,
+			fontFamily: 'inherit',
+			transition: 'color 120ms ease, background 120ms ease',
+			...style,
+		}}
+		onMouseEnter={event => {
+			event.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+			event.currentTarget.style.color = GUI_THEME.accent;
+		}}
+		onMouseLeave={event => {
+			event.currentTarget.style.background = 'transparent';
+			event.currentTarget.style.color = GUI_THEME.dim;
+		}}
+	>
+		{icon}
+		{children}
+	</button>
+);
 
 /**
  * One column of the lanes view, collapsible to a rail so the lanes that stay
@@ -101,58 +153,45 @@ const Lane = ({
 }) => {
 	const label = `${title}${typeof count === 'number' ? ` (${count})` : ''}`;
 	const testId = `lane-${title.toLowerCase()}`;
-	const headerStyle = {
-		...LANE_LABEL_STYLE,
-		textAlign: 'left',
-		padding: 0,
-		paddingBottom: 10,
-		marginBottom: 14,
-		// Longhand throughout: mixing `border` with `borderBottom` makes React
-		// warn about shorthand/longhand conflicts on every rerender.
-		borderTop: 'none',
-		borderLeft: 'none',
-		borderRight: 'none',
-		borderBottom: `1px solid ${GUI_THEME.line}`,
-		background: 'transparent',
-		fontFamily: 'inherit',
-	} as const;
 
 	if (collapsed) {
 		return (
 			<div
 				data-testid={testId}
 				data-collapsed="true"
-				style={{display: 'flex', minHeight: 0}}
+				style={{display: 'flex', minHeight: 0, overflow: 'hidden'}}
 			>
-				<button
-					type="button"
-					aria-label={`Expand ${title}`}
-					title={`Expand ${title}`}
+				{/* The whole rail is the target here, unlike the open header: at 28px
+				    there is no room to aim at anything smaller, and re-opening a lane
+				    by accident costs nothing. */}
+				<LaneIconButton
+					label={`Expand ${title}`}
 					onClick={onToggle}
+					icon={<IconExpandLane size={12} />}
 					style={{
-						...LANE_LABEL_STYLE,
 						flex: 1,
-						display: 'flex',
-						justifyContent: 'center',
-						alignItems: 'flex-start',
-						paddingTop: 2,
-						background: 'transparent',
-						borderTop: 'none',
-						borderLeft: 'none',
-						borderBottom: 'none',
+						flexDirection: 'column',
+						gap: 8,
+						alignItems: 'center',
+						justifyContent: 'flex-start',
+						paddingTop: 8,
+						borderRadius: 0,
 						borderRight: `1px solid ${GUI_THEME.line}`,
-						fontFamily: 'inherit',
-						cursor: 'pointer',
 					}}
 				>
 					{/* Bottom-to-top, so the label reads upward from the panel floor
 					    rather than upside down. */}
 					<span
-						style={{writingMode: 'vertical-rl', transform: 'rotate(180deg)'}}
+						style={{
+							...LANE_LABEL_STYLE,
+							writingMode: 'vertical-rl',
+							transform: 'rotate(180deg)',
+							whiteSpace: 'nowrap',
+						}}
 					>
 						{label}
 					</span>
-				</button>
+				</LaneIconButton>
 			</div>
 		);
 	}
@@ -163,22 +202,31 @@ const Lane = ({
 			data-collapsed="false"
 			style={{display: 'flex', flexDirection: 'column', minHeight: 0}}
 		>
-			{canCollapse ? (
-				<button
-					type="button"
-					aria-label={`Collapse ${title}`}
-					title={`Collapse ${title}`}
-					onClick={onToggle}
-					style={{...headerStyle, cursor: 'pointer'}}
-				>
-					{label}
-				</button>
-			) : (
-				// The last open lane has nowhere to collapse to. A plain heading
-				// rather than a dead button: nothing to activate, and no control
-				// named after a lane for the tab count in fullscreen-lanes to find.
-				<div style={headerStyle}>{label}</div>
-			)}
+			<div
+				style={{
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					gap: 8,
+					paddingBottom: 6,
+					marginBottom: 14,
+					borderBottom: `1px solid ${GUI_THEME.line}`,
+				}}
+			>
+				<span style={{...LANE_LABEL_STYLE, minWidth: 0}}>{label}</span>
+
+				{/* Only the button collapses the lane. The header used to do it
+				    wholesale, which was far too easy to trigger by aiming at nothing
+				    in particular. The last open lane has nowhere to collapse to, so
+				    it shows no control at all. */}
+				{canCollapse && (
+					<LaneIconButton
+						label={`Collapse ${title}`}
+						onClick={onToggle}
+						icon={<IconCollapseLane size={12} />}
+					/>
+				)}
+			</div>
 			<div style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>{children}</div>
 		</div>
 	);
@@ -448,19 +496,26 @@ export const IssueDetails = ({
 					LANE_GAP * (LANE_COUNT - 1) -
 					railTotal;
 
-				const laneColumns = LANE_KEYS.map(key =>
+				// Every track in pixels, including the open ones. A track going from
+				// `minmax(0, 1fr)` to `28px` changes type, and CSS cannot interpolate
+				// across types — it snaps, whatever transition is set. Sizing both
+				// states in the same unit is what lets the collapse animate at all.
+				// Floored, so rounding can only leave a sliver of the row unused
+				// rather than overflow it.
+				const laneWidth = (key: LaneKey): number =>
 					laneCollapsed[key]
-						? `${COLLAPSED_LANE_WIDTH}px`
-						: `minmax(0, ${LANE_SHARES[key]}fr)`,
-				).join(' ');
+						? COLLAPSED_LANE_WIDTH
+						: Math.floor(
+								(laneRoom * LANE_SHARES[key]) / Math.max(openShares, 1),
+						  );
 
-				// Drives the diff's split/unified choice, so it has to track the
-				// width the Commits lane actually ends up with.
-				const commitsWidth = laneView
-					? laneCollapsed.commits || openShares === 0
-						? 0
-						: laneRoom * (LANE_SHARES.commits / openShares)
-					: panelWidth;
+				const laneColumns = LANE_KEYS.map(key => `${laneWidth(key)}px`).join(
+					' ',
+				);
+
+				// The width the Commits lane is actually given, which is what the
+				// diff's split/unified choice has to follow.
+				const commitsWidth = laneView ? laneWidth('commits') : panelWidth;
 
 				const overviewPane = issue && (
 					<>
@@ -929,6 +984,7 @@ export const IssueDetails = ({
 											gap: LANE_GAP,
 											flex: 1,
 											minHeight: 0,
+											transition: `grid-template-columns ${LANE_COLLAPSE_MS}ms ease`,
 										}}
 									>
 										{(
