@@ -145,7 +145,6 @@ describe('applySelectionPatch', () => {
 	describe('zoom', () => {
 		const zoomed = applySelectionPatch(narrowed, {
 			zoom: {start: 1000, end: 5000},
-			scope: 'hour',
 		});
 
 		it('leaves the offset behind, since a zoom is the window itself', () => {
@@ -153,9 +152,12 @@ describe('applySelectionPatch', () => {
 			expect(zoomed.offset).toBe(0);
 		});
 
-		it('is cleared by naming any scope, including the one it reads as', () => {
+		// While zoomed no scope button reads as pressed, so every one of them is
+		// a way out — the one already held included.
+		it('is cleared by naming any scope, the one already held included', () => {
+			expect(applySelectionPatch(zoomed, {scope: 'day'}).zoom).toBeNull();
 			expect(applySelectionPatch(zoomed, {scope: 'week'}).zoom).toBeNull();
-			expect(applySelectionPatch(zoomed, {scope: 'hour'}).zoom).toBeNull();
+			expect(zoomed.scope).toBe('week');
 		});
 
 		it('survives a patch that says nothing about it', () => {

@@ -29,7 +29,6 @@ import {
 	isScope,
 	populatedRange,
 	SCOPES,
-	scopeForSpan,
 	SCRUBBER_KEYFRAMES,
 	segmentAt,
 } from './scrubber';
@@ -447,21 +446,6 @@ describe('formatPeriodLabel', () => {
 				true,
 			),
 		).toBe('09:15 – 11:45');
-	});
-});
-
-describe('scopeForSpan', () => {
-	it('names the shortest scope long enough to hold the span', () => {
-		expect(scopeForSpan(30 * 60 * 1000)).toBe('hour');
-		expect(scopeForSpan(60 * 60 * 1000)).toBe('hour');
-		expect(scopeForSpan(60 * 60 * 1000 + 1)).toBe('day');
-		expect(scopeForSpan(3 * DAY)).toBe('week');
-		expect(scopeForSpan(20 * DAY)).toBe('month');
-		expect(scopeForSpan(200 * DAY)).toBe('year');
-	});
-
-	it('falls back to the longest for a span past every scope', () => {
-		expect(scopeForSpan(4000 * DAY)).toBe('year');
 	});
 });
 
