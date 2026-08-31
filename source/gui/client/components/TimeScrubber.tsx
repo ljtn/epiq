@@ -474,10 +474,26 @@ export const TimeScrubber = ({
 		[commitPoints, issuePoints, commitScatter, issueScatter, windowKey],
 	);
 
+	// Null when the moment the needle stands for is not in the window, so it is
+	// not drawn rather than drawn somewhere it is not. fractionForTime clamps,
+	// so a moment off either end would otherwise pin the needle to that edge and
+	// read as "the board is parked here" — pointing at a time the window does
+	// not contain.
+	//
+	// While live it stands for the present, which is in the window exactly when
+	// the window runs up to it. That is read off the selection rather than by
+	// comparing against the clock: an "up to now" window is only fetched up to
+	// the moment it was asked for, so seconds later the clock is already past
+	// its end and the needle would blink out.
 	const confirmedFraction =
 		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
-			? axis.fractionForTime(timeTravel.asOfTime)
-			: 1;
+			? timeTravel.asOfTime >= axis.earliest &&
+			  timeTravel.asOfTime <= axis.latest
+				? axis.fractionForTime(timeTravel.asOfTime)
+				: null
+			: atLatest
+			? 1
+			: null;
 
 	const fractionFromClientX = (clientX: number) => {
 		const track = trackRef.current;

@@ -108,7 +108,9 @@ export type ScrubberChart = {
 	hoveredSegment: Segment | null;
 	// Nothing can be asked for with the socket down.
 	connected: boolean;
-	thumbFraction: number;
+	// Null when the moment it marks is outside the window, which is drawn as no
+	// needle at all rather than one clamped to an edge it is not at.
+	thumbFraction: number | null;
 	// The one event singled out by a hovered Log row, or null.
 	highlightEventId: string | null;
 	trackWidthPx: number;
@@ -310,10 +312,12 @@ export const ScrubberLayout = ({
 								</div>
 							)}
 
-						<ScrubberNeedle
-							fraction={chart.thumbFraction}
-							onGrab={on.onGrabNeedle}
-						/>
+						{chart.thumbFraction !== null && (
+							<ScrubberNeedle
+								fraction={chart.thumbFraction}
+								onGrab={on.onGrabNeedle}
+							/>
+						)}
 
 						{chart.rangeSelection && (
 							<RangeSelection {...chart.rangeSelection} />
