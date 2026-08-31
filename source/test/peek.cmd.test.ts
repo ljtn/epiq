@@ -304,6 +304,50 @@ describe('peekCommand', () => {
 		);
 	});
 
+	// Events created this session hold their creation ULID in memory while the
+	// log holds the edge-chained id persist gave them, so the lookup misses on
+	// every one of them until a reload. Stepping has to fall back to the event's
+	// own time rather than report there is nothing to step to.
+	it('falls back to the event own time when the log has no entry for its id', async () => {
+		const previousTime = Date.now() - 1000;
+		const previousId = ulid(previousTime);
+
+		vi.mocked(loadEffectiveEventTimes).mockReturnValue(
+			succeeded('times', new Map([[ulid(previousTime - 5000), 1]])),
+		);
+
+		vi.mocked(getCmdState).mockReturnValue({
+			commandMeta: {
+				modifier: 'prev',
+			},
+		} as never);
+
+		vi.mocked(getState).mockReturnValue({
+			breadCrumb: [],
+			eventLog: [{id: previousId}],
+			unappliedEvents: [],
+			nodes: {
+				'board-1': {
+					id: 'board-1',
+				},
+			},
+		} as never);
+
+		vi.mocked(loadMergedEventsBefore).mockReturnValue(
+			succeeded('events', {
+				appliedEvents: [],
+				unappliedEvents: [],
+			} as never),
+		);
+
+		await peekCommand();
+
+		expect(loadMergedEventsBefore).toHaveBeenCalledWith(
+			'/repo/.epiq',
+			previousTime,
+		);
+	});
+
 	it('restores previous state if materialization fails', async () => {
 		const previousState = {
 			breadCrumb: [],

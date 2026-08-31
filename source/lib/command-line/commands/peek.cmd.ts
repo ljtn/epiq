@@ -1,4 +1,5 @@
 import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
+import {clampUlidTime, getEventTime} from '../../event/date-utils.js';
 import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
@@ -73,12 +74,21 @@ export const peekCommand = async () => {
 		const stepTimes = loadEffectiveEventTimes(stateBranchRoot.value);
 		if (isFail(stepTimes)) return stepTimes;
 
-		const stepId =
+		const stepEvent =
 			modifier === 'prev'
-				? getState().eventLog.at(-1)?.id
-				: getState().unappliedEvents.at(0)?.id;
+				? getState().eventLog.at(-1)
+				: getState().unappliedEvents.at(0);
+
+		// An event minted this session carries its creation ULID in memory, while
+		// the log carries the edge-chained id `persist` assigned it, so the lookup
+		// misses until a reload puts the persisted ids back into state. That id is
+		// honest by construction — the mint guard clamps it — so it stands in.
+		const ownTime = stepEvent === undefined ? null : getEventTime(stepEvent);
 		const stepTime =
-			stepId === undefined ? null : stepTimes.value.get(stepId) ?? null;
+			(stepEvent === undefined
+				? null
+				: stepTimes.value.get(stepEvent.id) ?? null) ??
+			(ownTime === null ? null : clampUlidTime(ownTime));
 
 		if (stepTime === null) {
 			return failed(
