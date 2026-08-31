@@ -39,18 +39,20 @@ const descriptionHeight = async (page: Page): Promise<number> => {
 // aside is the one scroller for this region; anything here is a second bar
 // inside it. Horizontal scrollers are left alone — a wide code block gets one,
 // and `overflow-x: auto` makes the computed `overflow-y` read `auto` too.
-const verticalScrollersInDescription = (page: Page) =>
-	page.getByTestId('description-box').evaluate(box => {
-		const elements = [box, ...box.querySelectorAll('*')];
+const verticalScrollersInDescription = async (page: Page): Promise<number> =>
+	(await page.evaluate(`
+(() => {
+	const box = document.querySelector('[data-testid="description-box"]');
 
-		return elements
-			.filter(element => element.scrollHeight - element.clientHeight > 2)
-			.filter(element => {
-				const overflowY = getComputedStyle(element).overflowY;
+	return [box, ...box.querySelectorAll('*')]
+		.filter(element => element.scrollHeight - element.clientHeight > 2)
+		.filter(element => {
+			const overflowY = getComputedStyle(element).overflowY;
 
-				return overflowY === 'auto' || overflowY === 'scroll';
-			}).length;
-	});
+			return overflowY === 'auto' || overflowY === 'scroll';
+		}).length;
+})()
+`)) as number;
 
 test('a long description is clamped with a show more, not a second scrollbar', async ({
 	page,
