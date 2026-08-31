@@ -1,4 +1,4 @@
-import {getEventTime} from '../../event/date-utils.js';
+import {clampUlidTimes, getEventTime} from '../../event/date-utils.js';
 import {AppEvent} from '../../event/event.model.js';
 import {describeEvent} from '../../event/format-log-utils.js';
 import {
@@ -104,7 +104,11 @@ export const startReplay = ({
 	cancelActiveReplay();
 
 	const totalCount = events.length;
-	const times = events.map(event => getEventTime(event) ?? startTime);
+	// Set-clamped so one poisoned far-future id cannot swallow the whole
+	// playback budget in a single gap.
+	const times = clampUlidTimes(events.map(event => getEventTime(event))).map(
+		time => time ?? startTime,
+	);
 	const endTime = times[totalCount - 1] ?? Date.now();
 	const fractions = buildPlaybackFractions(times);
 
@@ -142,6 +146,7 @@ export const startReplay = ({
 
 		const flashNodeIds: string[] = [];
 		let lastApplied: AppEvent | undefined;
+		let lastAppliedTime: number | undefined;
 
 		// Apply every event whose scheduled position has been reached this frame.
 		while (cursor < totalCount && fractions[cursor]! <= progress) {
@@ -166,6 +171,7 @@ export const startReplay = ({
 
 			flashNodeIds.push(...getAffectedNodeIds(event));
 			lastApplied = event;
+			lastAppliedTime = times[cursor];
 			cursor++;
 		}
 
@@ -211,7 +217,7 @@ export const startReplay = ({
 				// On idle fast-forward frames (no event applied) keep showing the last
 				// event's caption, time, and spotlight rather than blanking out.
 				currentTime: lastApplied
-					? getEventTime(lastApplied) ?? previous?.currentTime ?? startTime
+					? lastAppliedTime ?? previous?.currentTime ?? startTime
 					: previous?.currentTime ?? startTime,
 				currentLabel: lastApplied
 					? describeEvent(lastApplied)

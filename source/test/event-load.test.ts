@@ -284,6 +284,46 @@ describe('splitEventsAtTime', () => {
 		expect(appliedEvents).toEqual([]);
 		expect(unappliedEvents.map(e => e.id[0])).toEqual([invalidId]);
 	});
+
+	it('applies a poisoned far-future event at a checkout of the present', () => {
+		const honest = ulid(Date.now() - 10_000);
+		const poisoned = ulid(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(honest, null), event(poisoned, honest)],
+			Date.now(),
+		);
+
+		expect(appliedEvents.map(e => e.id[0])).toEqual([honest, poisoned]);
+		expect(unappliedEvents).toEqual([]);
+	});
+
+	it('does not let a poisoned event hide its honest descendants at the present', () => {
+		const poisoned = ulid(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+		const honestChild = ulid(Date.now() - 5_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(poisoned, null), event(honestChild, poisoned)],
+			Date.now(),
+		);
+
+		expect(appliedEvents.map(e => e.id[0])).toEqual([poisoned, honestChild]);
+		expect(unappliedEvents).toEqual([]);
+	});
+
+	it('keeps a poisoned event unapplied for a checkout before the latest honest time', () => {
+		const early = ulid(Date.now() - 60_000);
+		const late = ulid(Date.now() - 5_000);
+		const poisoned = ulid(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[event(early, null), event(late, early), event(poisoned, late)],
+			Date.now() - 30_000,
+		);
+
+		expect(appliedEvents.map(e => e.id[0])).toEqual([early]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([late, poisoned]);
+	});
 });
 
 describe('decodeReconstructedEvents', () => {
