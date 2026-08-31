@@ -43,6 +43,40 @@ const sharesRowWithRef = async (page: Page, title: string) => {
 	);
 };
 
+// Left to right: the ref, then the title, then the age at the far end of the
+// row. The slack belongs between the title and the age, not after all three.
+test('the header row reads ref, title, then age against the right edge', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	const title = `Header ${Date.now()}`;
+	await openTicket(page, appUrl, title);
+	await dockTo(page, 'bottom');
+
+	const aside = page.locator('aside');
+	const ref = await aside
+		.locator('button[title^="Copy "]')
+		.first()
+		.boundingBox();
+	const heading = await aside.getByText(title, {exact: true}).boundingBox();
+	const age = await page.getByTestId('issue-created-at').boundingBox();
+
+	if (!ref || !heading || !age) throw new Error('header parts not found');
+
+	expect(heading.x).toBeGreaterThan(ref.x + ref.width);
+	expect(age.x).toBeGreaterThan(heading.x + heading.width);
+
+	// Against the right edge rather than trailing the title: the gap left of
+	// the age is the wider one.
+	const asideBox = await aside.boundingBox();
+	const gapBefore = age.x - (heading.x + heading.width);
+	const gapAfter = asideBox!.x + asideBox!.width - (age.x + age.width);
+	expect(gapBefore).toBeGreaterThan(gapAfter);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('docked to the bottom the title rides in the header row, and moves back below it on the right', async ({
 	page,
 	appUrl,
