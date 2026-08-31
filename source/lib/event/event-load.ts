@@ -5,7 +5,7 @@ import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
-import {clampUlidTimes} from './date-utils.js';
+import {toEffectiveUlidTimes} from './date-utils.js';
 import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
 import {
 	isSupportedSchemaVersion,
@@ -540,6 +540,43 @@ export const getSortedEvents = (
 	return result;
 };
 
+// The time a checkout cut judges each event by: raw where honest, inherited
+// where poisoned. One computation over the full reconstructed set, so every
+// consumer of a cut agrees on where a poisoned id falls.
+export const effectiveEventTimes = (
+	events: ReadonlyArray<Pick<ReconstructedEvent, 'id'>>,
+): Array<number | null> =>
+	toEffectiveUlidTimes(
+		events.map(event => {
+			try {
+				return decodeTime(event.id[0]);
+			} catch {
+				return null;
+			}
+		}),
+	);
+
+// For callers that pick a cut time from one event (`:peek prev/next`) — the
+// values come from the same full set splitEventsAtTime will judge by.
+export function loadEffectiveEventTimes(
+	stateBranchRoot: string,
+): Result<Map<string, number | null>> {
+	const allEvents = loadAllPersistedEvents(stateBranchRoot);
+	if (isFail(allEvents)) return failed(allEvents.message);
+
+	const times = effectiveEventTimes(allEvents.value);
+
+	return succeeded(
+		'Loaded effective event times',
+		new Map(
+			allEvents.value.map((event, index) => [
+				event.id[0],
+				times[index] ?? null,
+			]),
+		),
+	);
+}
+
 export const splitEventsAtTime = (
 	events: ReconstructedEvent[],
 	targetTime: number,
@@ -551,17 +588,7 @@ export const splitEventsAtTime = (
 	const appliedEvents: ReconstructedEvent[] = [];
 	const unappliedEvents: ReconstructedEvent[] = [];
 
-	// Clamped over the whole set so a poisoned far-future id cuts at the latest
-	// honest time instead of hiding its causal descendants from every checkout.
-	const times = clampUlidTimes(
-		events.map(event => {
-			try {
-				return decodeTime(event.id[0]);
-			} catch {
-				return null;
-			}
-		}),
-	);
+	const times = effectiveEventTimes(events);
 
 	for (let index = 0; index < events.length; index++) {
 		const event = events[index]!;

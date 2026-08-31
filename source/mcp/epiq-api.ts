@@ -1,4 +1,4 @@
-import {decodeTime, ulid} from 'ulid';
+import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
 import {getStateBranch} from '../git/git-constants.js';
@@ -6,7 +6,7 @@ import {ensureLocalStateBranch, ensureStateBranchWorktree} from '../git/git.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
-import {clampUlidTime} from '../lib/event/date-utils.js';
+import {ulidTimeMs} from '../lib/event/date-utils.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
 import {
 	loadEventActors,
@@ -454,7 +454,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		ref: nodeRef(issue.id),
 		title: sanitizeInlineText(issue.title),
 		description: issue.props.description ?? '',
-		createdAt: clampUlidTime(decodeTime(issue.id)),
+		createdAt: ulidTimeMs(issue.id),
 		parentNodeId: issue.parentNodeId!,
 		isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 		readonly: Boolean(issue.readonly),
@@ -488,7 +488,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					ref: nodeRef(n.id),
 					title: sanitizeInlineText(n.title),
 					description: n.props.description ?? '',
-					createdAt: clampUlidTime(decodeTime(n.id)),
+					createdAt: ulidTimeMs(n.id),
 					parentNodeId: n.parentNodeId!,
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),
@@ -1072,7 +1072,7 @@ export const getIssueHistory = (
 		'Read issue history',
 		(issue.log ?? []).map(event => ({
 			id: event.id,
-			t: clampUlidTime(decodeTime(event.id)),
+			t: ulidTimeMs(event.id),
 			action: event.action,
 			label: describeEvent(event),
 			actor: {
@@ -1155,7 +1155,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 						name: contributor?.name ?? 'Unknown',
 						color: getStringColor(contributor?.name ?? comment.authorId),
 					},
-					createdAt: clampUlidTime(decodeTime(comment.id)),
+					createdAt: ulidTimeMs(comment.id),
 				};
 			});
 	}
@@ -1180,7 +1180,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				name: attachment.name,
 				fileName: getAttachmentFileName(attachment.hash, attachment.ext),
 				bytes: attachment.bytes,
-				createdAt: clampUlidTime(decodeTime(attachment.id)),
+				createdAt: ulidTimeMs(attachment.id),
 				canDelete:
 					attachmentOwners.get(attachment.id) === settingsRes.value.userId,
 			}));
@@ -1209,7 +1209,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										ref: nodeRef(issue.id),
 										title: sanitizeInlineText(issue.title),
 										description: issue.props.description ?? '',
-										createdAt: clampUlidTime(decodeTime(issue.id)),
+										createdAt: ulidTimeMs(issue.id),
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue),

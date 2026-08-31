@@ -1,6 +1,8 @@
 import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
-import {clampUlidTimes, getEventTime} from '../../event/date-utils.js';
-import {loadMergedEvents} from '../../event/event-load.js';
+import {
+	loadEffectiveEventTimes,
+	loadMergedEvents,
+} from '../../event/event-load.js';
 import {
 	logSkippedEvents,
 	materializeAll,
@@ -65,27 +67,28 @@ export const peekCommand = async () => {
 
 	let targetTime: number;
 
-	// Clamped over the same full set splitEventsAtTime sees, so a step onto a
-	// poisoned far-future id cuts where the checkout will.
-	const {eventLog, unappliedEvents} = getState();
-	const stepTimes = clampUlidTimes(
-		[...eventLog, ...unappliedEvents].map(event => getEventTime(event)),
-	);
+	if (modifier === 'prev' || modifier === 'next') {
+		// Effective times over the same full set splitEventsAtTime judges by, so
+		// a step onto a poisoned far-future id cuts where the checkout will.
+		const stepTimes = loadEffectiveEventTimes(stateBranchRoot.value);
+		if (isFail(stepTimes)) return stepTimes;
 
-	if (modifier === 'prev') {
-		const previousTime =
-			eventLog.length > 0 ? stepTimes[eventLog.length - 1] ?? null : null;
+		const stepId =
+			modifier === 'prev'
+				? getState().eventLog.at(-1)?.id
+				: getState().unappliedEvents.at(0)?.id;
+		const stepTime =
+			stepId === undefined ? null : stepTimes.value.get(stepId) ?? null;
 
-		if (previousTime === null) return failed('No previous event to peek');
+		if (stepTime === null) {
+			return failed(
+				modifier === 'prev'
+					? 'No previous event to peek'
+					: 'No next event to peek',
+			);
+		}
 
-		targetTime = previousTime;
-	} else if (modifier === 'next') {
-		const nextTime =
-			unappliedEvents.length > 0 ? stepTimes[eventLog.length] ?? null : null;
-
-		if (nextTime === null) return failed('No next event to peek');
-
-		targetTime = nextTime + 1;
+		targetTime = modifier === 'prev' ? stepTime : stepTime + 1;
 	} else {
 		// Offsets (e.g. `2y`) arrive as `modifier`; absolute dates (YYYY-MM-DD)
 		// are not in the modifier allow-list, so they arrive as `inputString`.

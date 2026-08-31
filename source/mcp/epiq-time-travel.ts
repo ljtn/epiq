@@ -11,7 +11,7 @@ import {
 	openEditorDiffNonBlocking,
 	openEditorOnFileNonBlocking,
 } from '../lib/editor/editor.js';
-import {clampUlidTimes, getEventTime} from '../lib/event/date-utils.js';
+import {getEventTime, toEffectiveUlidTimes} from '../lib/event/date-utils.js';
 import {AppEvent, EventAction} from '../lib/event/event.model.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
@@ -288,14 +288,20 @@ export const getEventTimeline = async (
 	// ULIDs where it means "bug" or "jola".
 	const names = buildNameIndex(eventsResult.value);
 
-	// Set-clamped: a poisoned far-future id lands at the latest honest time
-	// instead of falling outside every window ending at now.
-	const clampedTimes = clampUlidTimes(
-		scopedEvents.map(event => getEventTime(event)),
+	// Effective times over the full log, not the board-scoped subset, so a
+	// poisoned id's dot lands where the scrub/checkout path will cut.
+	const effectiveTimes = toEffectiveUlidTimes(
+		eventsResult.value.map(event => getEventTime(event)),
+	);
+	const timeByEventId = new Map(
+		eventsResult.value.map((event, index) => [
+			event.id,
+			effectiveTimes[index] ?? null,
+		]),
 	);
 
-	const timed = scopedEvents.flatMap((event, index) => {
-		const t = clampedTimes[index] ?? null;
+	const timed = scopedEvents.flatMap(event => {
+		const t = timeByEventId.get(event.id) ?? null;
 
 		return t === null
 			? []
