@@ -24,6 +24,37 @@ beforeAll(async () => {
 });
 
 describe('TUI comments', () => {
+	// The compact row showed `[N]`; the wide card showed nothing, so widening
+	// the terminal lost information.
+	it(
+		'shows the comment count on the board row in wide view too',
+		async () => {
+			const tui = setupTui();
+			try {
+				await commonSteps.init(tui);
+				tui.input(ENTER);
+				await tui.waitFor('Todo (0)');
+
+				await run(tui, ':new issue Count badge', 'new issue Count badge');
+				await tui.waitFor('Todo (1)', 4_000);
+				await run(tui, ':comment first', 'comment first');
+				await run(tui, ':comment second', 'comment second');
+
+				// The dense board (the default) already shows the count.
+				await tui.waitFor('[2]', 4_000);
+
+				await run(tui, ':config view wide', 'config view wide');
+
+				// The screen is now the wide board: the card, and on it the count.
+				await tui.waitFor('Count badge', 4_000);
+				await tui.waitFor('[2]', 4_000);
+			} finally {
+				await tui.destroy();
+			}
+		},
+		testTimeout,
+	);
+
 	it(
 		'wraps a long comment onto more rows instead of cutting it off',
 		async () => {
