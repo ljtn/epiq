@@ -33,6 +33,7 @@ import {
 	Textarea,
 } from './FormPrimitives';
 import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
+import {CollapsibleBody} from './CollapsibleBody';
 import {CommentBody, IssueComments} from './IssueComments';
 import {
 	CommitDiffState,
@@ -611,23 +612,27 @@ export const IssueDetails = ({
 								</>
 							) : issue.description ? (
 								<div
+									data-testid="description-box"
 									style={{
 										marginTop: 8,
 										padding: '8px 10px',
-										maxHeight: 320,
-										overflowY: 'auto',
 										background: GUI_THEME.panel2,
 										borderRadius: 8,
 									}}
 								>
-									{parseDiffCommentMeta(issue.description) ? (
-										<CommentBody
-											body={issue.description}
-											onOpenDiffLocation={onOpenDiffLocation}
-										/>
-									) : (
-										<MarkdownContent content={issue.description} />
-									)}
+									{/* Keyed on the issue, so opening another ticket starts
+									    its description collapsed rather than inheriting the
+									    last one's expanded state. */}
+									<CollapsibleBody key={issue.id} testId="description-body">
+										{parseDiffCommentMeta(issue.description) ? (
+											<CommentBody
+												body={issue.description}
+												onOpenDiffLocation={onOpenDiffLocation}
+											/>
+										) : (
+											<MarkdownContent content={issue.description} />
+										)}
+									</CollapsibleBody>
 								</div>
 							) : (
 								<Empty>No description</Empty>
