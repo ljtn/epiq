@@ -55,7 +55,10 @@ suites() {
 	echo 0 >"$log_dir/build.rc"
 
 	EPIQ_SKIP_BUILD=1 run containers npm run test:containers &
-	run gui sh -c 'npx playwright install --no-shell chromium && npx playwright test' &
+	# Not `--no-shell`: headless Chromium runs as the headless shell, which that
+	# flag is what skips downloading. It only ever passed here because a machine
+	# that had run a plain `playwright install` already had one cached.
+	run gui sh -c 'npx playwright install chromium && npx playwright test' &
 	wait
 }
 
