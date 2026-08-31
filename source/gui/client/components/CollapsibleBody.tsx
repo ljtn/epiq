@@ -1,0 +1,96 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
+
+// Room for a couple of paragraphs. Past it the body is clipped rather than
+// given a scrollbar of its own: the aside already scrolls, and a second bar
+// inside it is what this replaces.
+export const COLLAPSED_BODY_HEIGHT = 320;
+
+const FADE_HEIGHT = 64;
+
+export const CollapsibleBody = ({
+	children,
+	fadeTo = GUI_THEME.panel2,
+	testId,
+}: {
+	children: React.ReactNode;
+	fadeTo?: string;
+	testId?: string;
+}) => {
+	const [expanded, setExpanded] = useState(false);
+	const [overflows, setOverflows] = useState(false);
+	const contentRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const content = contentRef.current;
+		if (!content) return;
+
+		// Measured, not guessed from the text's length: markdown reflows as
+		// images load and as the aside is resized, and either can carry the
+		// content across the clamp on its own.
+		const measure = () =>
+			setOverflows(content.scrollHeight > COLLAPSED_BODY_HEIGHT);
+
+		measure();
+
+		const observer = new ResizeObserver(measure);
+		observer.observe(content);
+
+		return () => observer.disconnect();
+	}, [children]);
+
+	const clamped = overflows && !expanded;
+
+	return (
+		<div data-testid={testId} style={{position: 'relative'}}>
+			<div
+				style={{
+					maxHeight: clamped ? COLLAPSED_BODY_HEIGHT : undefined,
+					overflow: 'hidden',
+				}}
+			>
+				<div ref={contentRef}>{children}</div>
+			</div>
+
+			{clamped && (
+				<div
+					aria-hidden={true}
+					style={{
+						position: 'absolute',
+						left: 0,
+						right: 0,
+						bottom: 0,
+						height: FADE_HEIGHT,
+						background: `linear-gradient(to bottom, ${GUI_THEME.transparent}, ${fadeTo})`,
+						pointerEvents: 'none',
+					}}
+				/>
+			)}
+
+			{overflows && (
+				<div style={{display: 'flex', justifyContent: 'center'}}>
+					<button
+						type="button"
+						data-testid="description-show-more"
+						aria-expanded={expanded}
+						onClick={() => setExpanded(!expanded)}
+						style={{
+							position: 'relative',
+							appearance: 'none',
+							WebkitAppearance: 'none',
+							background: 'transparent',
+							border: 'none',
+							color: GUI_THEME.dim2,
+							cursor: 'pointer',
+							fontFamily: 'inherit',
+							fontSize: TEXT.ui,
+							padding: '6px 8px 2px',
+						}}
+					>
+						{expanded ? 'show less' : 'show more'}
+					</button>
+				</div>
+			)}
+		</div>
+	);
+};
