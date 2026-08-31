@@ -2929,3 +2929,4 @@
 {"v":1,"id":["01M1BT1ZE81D1321YKESFRE0G4","01M1BT1WJPTEWYCX4R3CRP45EC"],"move.node":{"id":"01M1BT1R61T61CE2BBCVFMBQCJ","parent":"01KS22YK95S3336MFSE44MY70Q","rank":"21ffffffffffffffffffffff"}}
 {"v":1,"id":["01M1BT2Q76PSVGZVYNDDYSPMBG","01M1BT1ZE81D1321YKESFRE0G4"],"add.issue":{"id":"01M1BT2Q6XZGTWKFH8ZTVWQZ8S","parent":"01M1BT1R61T61CE2BBCVFMBQCJ","name":"Make it possible to click-and-drag zoom in on the timeline","rank":"7fffffffffffffffffffffff"}}
 {"v":1,"id":["01M1BT3DYSQYWRD2NDAB8TV0GE","01M1BT2Q76PSVGZVYNDDYSPMBG"],"edit.description":{"id":"01M1BT2Q6XZGTWKFH8ZTVWQZ8S","md":"would require that we only allow timetrabel by dragging the needle, or the interactions would collide\n"}}
+{"v":1,"id":["01M1BT3ZQAHF57K46HZ95Q1Y3K","01M1BT3DYSQYWRD2NDAB8TV0GE"],"add.issue":{"id":"01M1BT3ZQ0S0PN114CEE9G5S4V","parent":"01M1BT1R61T61CE2BBCVFMBQCJ","name":"Add \"enter-to-confirm\" when editing descriptions","rank":"bfffffffffffffffffffffff"}}
