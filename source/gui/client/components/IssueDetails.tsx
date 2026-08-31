@@ -335,13 +335,22 @@ export const IssueDetails = ({
 										placeholder=""
 										onChange={event => setDescription(event.target.value)}
 										onKeyDown={event => {
-											if (event.key === 'Escape') cancelDescription();
-											if (
-												(event.metaKey || event.ctrlKey) &&
-												event.key === 'Enter'
-											) {
-												saveDescription();
-											}
+											if (event.key === 'Escape') return cancelDescription();
+											if (event.key !== 'Enter') return;
+
+											// Enter confirms, so Shift+Enter is what a paragraph
+											// break costs now. Cmd/Ctrl+Enter still confirms too,
+											// which is what the comment boxes take.
+											if (event.shiftKey) return;
+
+											// An IME is mid-word: Enter is choosing a candidate,
+											// not finishing the description. Committing here would
+											// close the editor on a half-typed character.
+											if (event.nativeEvent.isComposing) return;
+
+											// Or the newline lands in the value on its way out.
+											event.preventDefault();
+											saveDescription();
 										}}
 										style={{
 											font: 'inherit',
