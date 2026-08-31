@@ -217,7 +217,28 @@ Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workfl
 
 ### Agent identity
 
-Every process — your TUI, your GUI, each agent's MCP server — writes as the user in `~/.epiq-global/config.json`, so by default the board cannot tell one agent from another. Give an agent its own identity with `EPIQ_USER_NAME`:
+Every process — your TUI, your GUI, each agent's MCP server — writes as the user in `~/.epiq-global/config.json`, so by default the board cannot tell one agent from another. Name an agent's server and it gets its own identity:
+
+```bash
+claude mcp add --scope user epiq -- npx -y -p epiq epiq-mcp claude
+```
+
+Or, in a hand-written config, as the argument after the command:
+
+```json
+{
+	"mcpServers": {
+		"epiq": {
+			"command": "npx",
+			"args": ["-y", "-p", "epiq", "epiq-mcp", "claude"]
+		}
+	}
+}
+```
+
+That agent then shows up in the contributor list, assigns itself rather than you, and authors its own events. The id is derived from the name, so one name is one contributor on every machine — reuse names instead of inventing one per session, or the registry fills with single-run identities. Naming yourself changes nothing.
+
+`EPIQ_USER_NAME` does the same thing through the environment, for a client whose config sets variables more readily than arguments:
 
 ```json
 {
@@ -231,7 +252,14 @@ Every process — your TUI, your GUI, each agent's MCP server — writes as the 
 }
 ```
 
-That agent then shows up in the contributor list, assigns itself rather than you, and authors its own events. The id is derived from the name, so one name is one contributor on every machine — reuse names instead of inventing one per session, or the registry fills with single-run identities. `EPIQ_USER_ID` pins the id explicitly (26 characters of Crockford base32) if you would rather choose it. Naming yourself changes nothing.
+Setting both is an error unless they agree, rather than one quietly winning. `EPIQ_USER_ID` pins the id explicitly (26 characters of Crockford base32) if you would rather choose it, and stays environment-only.
+
+The TUI and GUI take the same name as `--as`, since their first argument is already the command:
+
+```bash
+epiq --as claude
+epiq gui --as claude
+```
 
 ### Other MCP clients
 

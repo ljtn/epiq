@@ -5,6 +5,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 import {
 	ACTOR_ID_ENV,
 	ACTOR_NAME_ENV,
+	applyActorNameArgument,
 	deriveActorId,
 	isValidUserId,
 	resolveEnvActor,
@@ -142,6 +143,42 @@ describe('resolveEnvActor', () => {
 			userId: deriveActorId('claude'),
 			userName: 'claude',
 		});
+	});
+});
+
+describe('applyActorNameArgument', () => {
+	it('resolves through the same path as the environment', () => {
+		const env: NodeJS.ProcessEnv = {};
+
+		expect(isFail(applyActorNameArgument('claude', '--as', env))).toBe(false);
+		expect(resolveEnvActor(CONFIGURED, env).value).toEqual({
+			userId: deriveActorId('claude'),
+			userName: 'claude',
+		});
+	});
+
+	it('names the argument, not the variable, when the name is unusable', () => {
+		const result = applyActorNameArgument('  ', '--as', {});
+
+		expect(isFail(result)).toBe(true);
+		expect(result.message).toContain('--as');
+		expect(result.message).not.toContain(ACTOR_NAME_ENV);
+	});
+
+	// Letting either source win quietly names the board's author behind the
+	// caller's back, which is the one thing naming an actor is meant to prevent.
+	it('refuses a name that disagrees with the environment', () => {
+		const env = {[ACTOR_NAME_ENV]: 'codex'};
+		const result = applyActorNameArgument('claude', '--as', env);
+
+		expect(isFail(result)).toBe(true);
+		expect(env[ACTOR_NAME_ENV]).toBe('codex');
+	});
+
+	it('accepts a name the environment already agrees with', () => {
+		const env = {[ACTOR_NAME_ENV]: 'Claude'};
+
+		expect(isFail(applyActorNameArgument('claude', '--as', env))).toBe(false);
 	});
 });
 

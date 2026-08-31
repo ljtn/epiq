@@ -4,6 +4,7 @@ import meow from 'meow';
 import React from 'react';
 import {startGui} from './gui/init.js';
 import EpiqApp from './lib/components/EpiqApp.js';
+import {applyActorNameArgument} from './lib/config/actor-env.js';
 import {failed, isFail, Result, succeeded} from './lib/model/result-types.js';
 import {initUiState} from './lib/state/ux-state.js';
 import {formatUnknownError} from './lib/utils/logger.utils.js';
@@ -20,6 +21,9 @@ ${chalk.dim('Boot in directory:')}
 
 ${chalk.dim('Launch GUI:')}
   ${chalk.cyan('$ epiq gui')}
+
+${chalk.dim('Act as somebody other than the configured user:')}
+  ${chalk.cyan('$ epiq --as claude')}
 `;
 
 const cli = meow(helpText, {
@@ -30,6 +34,9 @@ const cli = meow(helpText, {
 			type: 'boolean',
 			default: false,
 		},
+		as: {
+			type: 'string',
+		},
 	},
 });
 
@@ -37,6 +44,16 @@ const command = cli.input[0];
 if (command && command !== 'gui') {
 	console.error(chalk.red(`Unknown command: ${command}`));
 	process.exit(1);
+}
+
+// A flag rather than a positional, because `input[0]` is already the command.
+if (cli.flags.as !== undefined) {
+	const actor = applyActorNameArgument(cli.flags.as, '--as');
+
+	if (isFail(actor)) {
+		console.error(chalk.red(actor.message));
+		process.exit(1);
+	}
 }
 
 let width = process.stdout.columns || 120;
