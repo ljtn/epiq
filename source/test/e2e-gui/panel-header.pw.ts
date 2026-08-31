@@ -77,6 +77,32 @@ test('the header row reads ref, title, then age against the right edge', async (
 	expect(pageErrors).toEqual([]);
 });
 
+// The age stands next to the panel's buttons, so it has to sit on their line:
+// it used to belong to the group that aligns the ref and the title on their
+// baseline, which left it off by a few pixels against everything beside it.
+test('the age is centred on the line the panel buttons keep', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openTicket(page, appUrl, `Header ${Date.now()}`);
+	await dockTo(page, 'bottom');
+
+	const age = await page.getByTestId('issue-created-at').boundingBox();
+	const close = await page
+		.locator('aside')
+		.getByRole('button', {name: '×'})
+		.boundingBox();
+
+	if (!age || !close) throw new Error('header parts not found');
+
+	const ageMiddle = age.y + age.height / 2;
+	const closeMiddle = close.y + close.height / 2;
+	expect(Math.abs(ageMiddle - closeMiddle)).toBeLessThanOrEqual(1);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('docked to the bottom the title rides in the header row, and moves back below it on the right', async ({
 	page,
 	appUrl,
