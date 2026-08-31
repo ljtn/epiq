@@ -60,6 +60,15 @@ const IMAGE_EXTS = [".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg"];
 const OG_SIZE = { width: 1200, height: 630 };
 const SOCIAL_EXTS = [".jpg", ".jpeg", ".png", ".gif"];
 
+/* The card a page falls back to when it has none of its own. The filename is
+ * versioned because crawlers cache by URL: a new picture at the old name leaves
+ * every preview already in the wild showing the old one. */
+const SITE_CARD = {
+	url: `${BASE_URL}/og-timeline.jpeg`,
+	alt: "The Epiq board in the browser, its time-travel timeline plotting a week of board events above the columns",
+	...OG_SIZE,
+};
+
 /* ---------- reading posts ---------- */
 
 function slugify(s) {
@@ -168,7 +177,7 @@ function socialImage(post) {
 			alt: post.coverAlt || post.title,
 		};
 	}
-	return { url: `${BASE_URL}/og.jpeg`, alt: "Epiq" };
+	return SITE_CARD;
 }
 
 /* ---------- rendering ---------- */
@@ -302,7 +311,7 @@ function renderIndex(posts) {
 		description:
 			"Writing from the Epiq project: developer experience, event sourcing, Git internals, and building a terminal-native issue tracker.",
 		canonical: `${BASE_URL}/blog.html`,
-		image: { url: `${BASE_URL}/og.jpeg`, alt: "Epiq" },
+		image: SITE_CARD,
 		depth: 0,
 		body: `		<main id="top">
 			<header class="docs-head wrap">
