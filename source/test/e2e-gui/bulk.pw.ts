@@ -21,6 +21,14 @@ const panel = `
 })()
 `;
 
+// The board as the server has it, not as the client is drawing it. `addIssueTag`
+// updates GUI state optimistically and then fire-and-forgets over the socket,
+// so anything read off the panel is true before the write has landed.
+type ServedIssue = {title: string; tags: {name: string}[]};
+type ServedState = {
+	value?: {boards?: {swimlanes?: {issues?: ServedIssue[]}[]}[]};
+};
+
 test.setTimeout(180_000);
 
 test('picking several tickets opens a bulk overview', async ({
@@ -76,6 +84,30 @@ test('picking several tickets opens a bulk overview', async ({
 	await expect(page.locator('aside')).toContainText('bulky', {
 		timeout: 30_000,
 	});
+
+	// Confirmed by the server before navigating away. The panel above is the
+	// client's optimistic copy, so waiting only on it would let the reload race
+	// the writes — and a write that never landed would then read as a rendering
+	// fault on a board that is in fact correct.
+	await expect
+		.poll(
+			async () => {
+				const response = await page.request.get(`${appUrl}/api/state`);
+				const body = (await response.json()) as ServedState;
+
+				return (body.value?.boards ?? [])
+					.flatMap(board => board.swimlanes ?? [])
+					.flatMap(swimlane => swimlane.issues ?? [])
+					.filter(
+						issue =>
+							issue.title.startsWith(`${tag}-`) &&
+							issue.tags.some(each => each.name === 'bulky'),
+					).length;
+			},
+			{timeout: 30_000},
+		)
+		.toBe(2);
+
 	await page.goto(boardUrl);
 	await expect(
 		page
