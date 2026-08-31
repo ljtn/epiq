@@ -247,3 +247,54 @@ test('a drag across the track zooms the window to it, without scrubbing', async 
 	await returnToLive(page);
 	expect(pageErrors).toEqual([]);
 });
+
+// fractionForTime clamps, so a moment off either end of the window would pin
+// the needle to that edge and read as "the board is parked here" while pointing
+// at a time the window does not contain.
+test('the needle is not drawn for a moment the window does not contain', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const needle = page.getByTestId('scrubber-needle-grip');
+	const track = page.getByTestId('scrubber-track');
+	const box = await track.boundingBox();
+	if (!box) throw new Error('scrubber track is not on screen');
+
+	// Live, in a window that runs up to the present: the needle stands for now,
+	// which is in view.
+	await expect(needle).toBeVisible();
+
+	const y = box.y + box.height / 2;
+	await page.mouse.click(box.x + box.width * 0.2, y);
+	await expect(
+		page.getByRole('button', {name: 'Resume', exact: true}),
+	).toBeEnabled();
+	await expect(needle).toBeVisible();
+
+	// A stretch well to the right of where the board is parked. Zooming rather
+	// than naming a period keeps this independent of when the seed data was
+	// written: the moment is outside the new window by construction.
+	await page.mouse.move(box.x + box.width * 0.6, y);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width * 0.9, y, {steps: 10});
+	await page.mouse.up();
+	await expect(page.getByRole('button', {name: 'Zoom'})).toHaveAttribute(
+		'aria-pressed',
+		'true',
+	);
+
+	await expect(needle).toHaveCount(0);
+
+	// Still in history, so this is the needle standing down rather than the
+	// board quietly resuming.
+	await expect(
+		page.getByRole('button', {name: 'Resume', exact: true}),
+	).toBeEnabled();
+
+	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});
