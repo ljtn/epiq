@@ -29,6 +29,7 @@ import {
 } from '../../../mcp/epiq-api.js';
 import {
 	checkoutStateAt,
+	checkoutStateAtEvent,
 	getCommitDiff,
 	getCommitsForRef,
 	getCommitTimeline,
@@ -256,6 +257,22 @@ export const setupWebsocket = (
 					const result = await checkoutStateAt({
 						repoRoot,
 						targetTime: message.payload.targetTime,
+					});
+
+					sendSocket(socket, {
+						type: 'time-travel:result',
+						payload: result,
+					});
+
+					if (isFail(result)) return;
+
+					return broadcastDerivedState();
+				}
+
+				if (type === 'time-travel:checkout-event') {
+					const result = await checkoutStateAtEvent({
+						repoRoot,
+						eventId: message.payload.eventId,
 					});
 
 					sendSocket(socket, {

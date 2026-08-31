@@ -1057,6 +1057,13 @@ export const App = () => {
 		send('time-travel:scrub', {targetTime});
 	};
 
+	// Checks the board out at the moment one Log row stands for. The event is
+	// named rather than timed: the server resolves the cut, so a row's displayed
+	// timestamp never has to agree with the log's own ordering.
+	const checkoutHistoryEvent = (eventId: string) => {
+		send('time-travel:checkout-event', {eventId});
+	};
+
 	const returnToLive = () => {
 		send('time-travel:live', {});
 	};
@@ -1832,6 +1839,9 @@ export const App = () => {
 										: []
 								}
 								onHoverHistoryEvent={setHoveredLogEventId}
+								onCheckoutHistoryEvent={
+									connected ? checkoutHistoryEvent : undefined
+								}
 								onChangeTab={changeIssueDetailsTab}
 								onClose={closeIssueDetails}
 								onEditTitle={editIssueTitle}

@@ -80,6 +80,7 @@ export type GuiMessage =
 			};
 	  }
 	| {type: 'time-travel:scrub'; payload: {targetTime: number}}
+	| {type: 'time-travel:checkout-event'; payload: {eventId: string}}
 	| {type: 'time-travel:live'}
 	| {
 			type: 'commits:get';

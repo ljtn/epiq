@@ -78,6 +78,21 @@ describe('parseGuiMessage', () => {
 		expect(parsed.message.payload).toEqual(payload);
 	});
 
+	it('accepts a checkout addressed by event id', () => {
+		const payload = {eventId: '01H0000000000000000000000B'};
+		const parsed = parseGuiMessage({
+			type: 'time-travel:checkout-event',
+			payload,
+		});
+
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok || parsed.message.type !== 'time-travel:checkout-event') {
+			throw new Error('expected a time-travel:checkout-event message');
+		}
+
+		expect(parsed.message.payload).toEqual(payload);
+	});
+
 	it.each([
 		['null', null],
 		['a number', 123],
@@ -99,6 +114,10 @@ describe('parseGuiMessage', () => {
 		[
 			'NaN as a time',
 			{type: 'time-travel:scrub', payload: {targetTime: Number.NaN}},
+		],
+		[
+			'a checkout naming no event',
+			{type: 'time-travel:checkout-event', payload: {eventId: ''}},
 		],
 		[
 			'an unknown move position',
