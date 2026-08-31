@@ -1,16 +1,57 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {GuiAttachment} from '../lib/gui-state.model';
-import {Button} from './Button';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
 import {getAttachmentUrl} from '../../../lib/media/attachment-url.js';
-import {IMAGE_FILE_ACCEPT, imageFilesFrom} from '../lib/image-insert';
+import {imageFilesFrom} from '../lib/image-insert';
+import {AddImageButton} from './AddImageButton';
 
 export type AttachmentUploadStatus =
 	| {state: 'idle'}
 	| {state: 'uploading'; name: string}
 	| {state: 'error'; message: string};
+
+// It sits on top of whatever was uploaded, so it cannot borrow contrast from
+// what is behind it. The dark fill carries it over a pale photo, the light ring
+// carries it over a dark one, and the shadow lifts it off a busy one — a 16px
+// dim × in the corner disappeared into all three.
+const DeleteAttachmentButton = ({onDelete}: {onDelete: () => void}) => {
+	const [hovered, setHovered] = useState(false);
+
+	return (
+		<button
+			type="button"
+			title="Delete attachment"
+			aria-label="Delete attachment"
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
+			onClick={onDelete}
+			style={{
+				position: 'absolute',
+				top: 3,
+				right: 3,
+				width: 18,
+				height: 18,
+				lineHeight: '16px',
+				padding: 0,
+				border: `1px solid ${
+					hovered ? GUI_THEME.red : 'rgba(255, 255, 255, 0.5)'
+				}`,
+				borderRadius: 4,
+				background: hovered ? GUI_THEME.red : 'rgba(4, 5, 8, 0.85)',
+				// Full strength rather than the dim secondary: this is the one mark
+				// that has to survive whatever it is sitting on.
+				color: '#fff',
+				fontSize: TEXT.label,
+				boxShadow: '0 1px 4px rgba(0, 0, 0, 0.65)',
+				cursor: 'pointer',
+			}}
+		>
+			×
+		</button>
+	);
+};
 
 export const IssueAttachments = ({
 	issueId,
@@ -71,27 +112,17 @@ export const IssueAttachments = ({
 			}`}
 			action={
 				canUpload && (
-					<>
-						<Button
-							variant="ghost"
-							onClick={() => fileInputRef.current?.click()}
-						>
-							add image
-						</Button>
-						<input
-							data-testid="attachment-image-input"
-							ref={fileInputRef}
-							type="file"
-							accept={IMAGE_FILE_ACCEPT}
-							multiple
-							hidden
-							onChange={event => {
-								upload(imageFilesFrom(event.target.files));
-								// Or re-picking the same file fires no change event.
-								event.target.value = '';
-							}}
-						/>
-					</>
+					<AddImageButton
+						testId="attachment-image-input"
+						busy={uploadStatus.state === 'uploading'}
+						onPick={() => fileInputRef.current?.click()}
+						inputRef={fileInputRef}
+						onInputChange={event => {
+							upload(imageFilesFrom(event.target.files));
+							// Or re-picking the same file fires no change event.
+							event.target.value = '';
+						}}
+					/>
 				)
 			}
 		>
@@ -187,28 +218,9 @@ export const IssueAttachments = ({
 								</button>
 
 								{attachment.canDelete && !readonly && onDeleteAttachment && (
-									<button
-										type="button"
-										title="Delete attachment"
-										onClick={() => onDeleteAttachment(issueId, attachment.id)}
-										style={{
-											position: 'absolute',
-											top: 2,
-											right: 2,
-											width: 16,
-											height: 16,
-											lineHeight: '14px',
-											padding: 0,
-											border: `1px solid ${GUI_THEME.line}`,
-											borderRadius: 3,
-											background: 'rgba(4, 5, 8, 0.75)',
-											color: GUI_THEME.secondary,
-											fontSize: TEXT.label,
-											cursor: 'pointer',
-										}}
-									>
-										×
-									</button>
+									<DeleteAttachmentButton
+										onDelete={() => onDeleteAttachment(issueId, attachment.id)}
+									/>
 								)}
 							</div>
 						))}

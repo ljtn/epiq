@@ -4,10 +4,15 @@
 // a content-hashed URL nobody is going to type by hand.
 
 import {useCallback, useRef, useState} from 'react';
+import {GUI_THEME} from './gui-theme';
 
 // What the blob store accepts. The real check is the magic bytes server-side;
 // this only keeps the file picker from offering what would be refused.
 export const IMAGE_FILE_ACCEPT = 'image/png,image/jpeg,image/gif,image/webp';
+
+// The dashed accent the Attachments section already shows while an image is
+// over it, so the two drop targets read as the same thing.
+const DROP_TARGET_TINT = 'rgba(118, 212, 255, 0.08)';
 
 export const imageFilesFrom = (
 	files: ArrayLike<File> | null | undefined,
@@ -107,6 +112,17 @@ export const useImageInsert = ({
 		dragging,
 		busy,
 		inputRef,
+		// What the textarea wears while an image is over it, so a drag has
+		// somewhere visible to land rather than being a guess.
+		// The shorthand, not borderColor/borderStyle: the Textarea primitive sets
+		// `border`, and React warns that mixing the two on one element can drop
+		// whichever loses the race.
+		dropStyle: dragging
+			? {
+					border: `1px dashed ${GUI_THEME.accent}`,
+					background: DROP_TARGET_TINT,
+			  }
+			: undefined,
 		pickFiles: () => inputRef.current?.click(),
 		onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => {
 			void insert(imageFilesFrom(event.target.files));
