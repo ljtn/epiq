@@ -10,6 +10,7 @@ import {
 	GuiRefCommitEntry,
 } from '../lib/gui-state.model';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {diffLineCount, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {COMMENT_CARD_STYLE} from '../lib/comment-card.style';
 import {
 	DiffCommentMeta,
@@ -617,6 +618,24 @@ const FileRow = ({
 						{fileComments.length}
 					</span>
 				)}
+				{/* Says why "Expand all" passed this one over. Only while shut: once
+				    it is open the diff speaks for itself. */}
+				{!expanded && isLargeDiff(file) && (
+					<span
+						data-testid="large-diff-badge"
+						title={`${diffLineCount(
+							file,
+						).toLocaleString()} lines — left collapsed, open it to load the diff`}
+						style={{
+							flexShrink: 0,
+							color: GUI_THEME.dim,
+							fontSize: TEXT.label,
+							whiteSpace: 'nowrap',
+						}}
+					>
+						large diff
+					</span>
+				)}
 			</button>
 
 			{expanded && (
@@ -711,6 +730,18 @@ const CommitRow = ({
 	const [focused, setFocused] = useState(false);
 	const revealed = hovered || focused;
 
+	// Large files are not part of "expand all", so the button reads its state
+	// off the ones that are. The fallback covers a commit where every file is
+	// large, so the button can still collapse what was opened by hand rather
+	// than sitting there doing nothing.
+	const expandablePaths = (diff?.files ?? [])
+		.filter(file => !isLargeDiff(file))
+		.map(file => file.path);
+	const allExpandableExpanded =
+		expandablePaths.length > 0
+			? expandablePaths.every(path => expandedFiles.has(path))
+			: (diff?.files ?? []).some(file => expandedFiles.has(file.path));
+
 	return (
 		<div
 			style={{
@@ -801,16 +832,15 @@ const CommitRow = ({
 							<Button
 								variant="ghost"
 								onClick={() => {
-									const filePaths = diff.files!.map(file => file.path);
-									const allExpanded = filePaths.every(path =>
-										expandedFiles.has(path),
+									// Expanding skips the large ones; collapsing still takes
+									// everything, including a large file opened by hand.
+									onSetAllFilesExpanded(
+										allExpandableExpanded ? [] : expandablePaths,
+										!allExpandableExpanded,
 									);
-									onSetAllFilesExpanded(filePaths, !allExpanded);
 								}}
 							>
-								{diff.files.every(file => expandedFiles.has(file.path))
-									? 'Collapse all'
-									: 'Expand all'}
+								{allExpandableExpanded ? 'Collapse all' : 'Expand all'}
 							</Button>
 						</div>
 					)}
@@ -932,7 +962,9 @@ export const IssueCommits = ({
 				...prev,
 				[commit.sha]: new Set([
 					...(prev[commit.sha] ?? []),
-					...files.map(file => file.path),
+					// A lockfile opened unasked is what stalls this view, so the
+					// large ones stay shut until they are asked for by name.
+					...files.filter(file => !isLargeDiff(file)).map(file => file.path),
 				]),
 			}));
 		}

@@ -18,22 +18,34 @@ export const COMMIT_CACHE_MS = 5_500;
  */
 export const linkedFileName = (ref: string): string => `notes-${ref}.txt`;
 
-export const commitLinkedFile = (
+/** One commit carrying several files, keyed by name. */
+export const commitLinkedFiles = (
 	repoRoot: string,
 	ref: string,
 	subject: string,
-	fileName = linkedFileName(ref),
-	contents = 'alpha\nbeta\ngamma\n',
+	contentsByFileName: Record<string, string>,
 ): string => {
-	fs.writeFileSync(path.join(repoRoot, fileName), contents);
 	const git = (...args: string[]) =>
 		execFileSync(
 			'git',
 			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
 			{cwd: repoRoot, stdio: 'pipe'},
 		);
-	git('add', fileName);
+
+	for (const [fileName, contents] of Object.entries(contentsByFileName)) {
+		fs.writeFileSync(path.join(repoRoot, fileName), contents);
+		git('add', fileName);
+	}
+
 	git('commit', '-q', '-m', `${ref} ${subject}`);
 
 	return git('rev-parse', 'HEAD').toString().trim();
 };
+
+export const commitLinkedFile = (
+	repoRoot: string,
+	ref: string,
+	subject: string,
+	fileName = linkedFileName(ref),
+	contents = 'alpha\nbeta\ngamma\n',
+): string => commitLinkedFiles(repoRoot, ref, subject, {[fileName]: contents});
