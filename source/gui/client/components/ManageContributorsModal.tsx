@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {GuiContributor} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {manageRowStyle} from '../lib/manage-row.style';
 import {Button} from './Button';
 import {IconLock} from './IconLock';
 import {IconTrash} from './IconTrash';
@@ -19,6 +20,7 @@ export const ManageContributorsModal = ({
 	// Two-step: the first click arms one row, the second commits it. Arming by
 	// id rather than a boolean so moving to another row cancels the first.
 	const [armedId, setArmedId] = useState<string | null>(null);
+	const [hoveredId, setHoveredId] = useState<string | null>(null);
 
 	// Everyone is listed, including those that can't be removed: omitting them
 	// would just look like a missing name.
@@ -84,14 +86,18 @@ export const ManageContributorsModal = ({
 						return (
 							<div
 								key={contributor.id}
-								style={{
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'space-between',
-									gap: 8,
-									padding: '6px 8px',
-									borderRadius: 6,
-								}}
+								data-testid="manage-contributor-row"
+								data-armed={armed ? 'true' : 'false'}
+								onMouseEnter={() => setHoveredId(contributor.id)}
+								onMouseLeave={() =>
+									setHoveredId(current =>
+										current === contributor.id ? null : current,
+									)
+								}
+								style={manageRowStyle({
+									armed,
+									hovered: hoveredId === contributor.id,
+								})}
 							>
 								<span
 									style={{
