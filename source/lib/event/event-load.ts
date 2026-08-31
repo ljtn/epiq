@@ -30,7 +30,11 @@ export type ReconstructedEvent = PersistedEnvelope & {
 // `targetNodeId` scopes the resulting lock.
 export type UnreadableEvent = {
 	eventId: string | null;
-	reason: 'unsupported-schema-version' | 'unknown-action' | 'corrupt-line';
+	reason:
+		| 'unsupported-schema-version'
+		| 'unknown-action'
+		| 'invalid-payload'
+		| 'corrupt-line';
 	detail: string;
 	targetNodeId: string | null;
 };
@@ -207,12 +211,18 @@ export const decodeReconstructedEvents = (
 
 		const eventResult = fromPersistedEvent(entry);
 
+		// Quarantined, not fatal: `merge=union` splices any line a peer pushes
+		// into every clone, so a malformed payload that failed the load would
+		// brick the board for everyone, permanently. The envelope parsed, so the
+		// event keeps its place in the chain.
 		if (isFail(eventResult)) {
-			return failed(
-				`Failed to decode event ${entry.id?.[0] ?? '<unknown>'}: ${
-					eventResult.message
-				}`,
-			);
+			unreadable?.push({
+				eventId: entry.id[0],
+				reason: 'invalid-payload',
+				detail: eventResult.message,
+				targetNodeId: getTargetNodeId(entry),
+			});
+			continue;
 		}
 
 		// Events written by a newer epiq may carry actions this version does

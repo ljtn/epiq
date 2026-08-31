@@ -12,6 +12,7 @@ import {
 	loadMergedEventsWithUnreadable,
 	ReconstructedEvent,
 	splitEventsAtTime,
+	UnreadableEvent,
 } from '../lib/event/event-load.js';
 import {persist} from '../lib/event/event-persist.js';
 import {AppEvent} from '../lib/event/event.model.js';
@@ -400,7 +401,7 @@ describe('decodeReconstructedEvents', () => {
 		]);
 	});
 
-	it('still fails on structurally invalid entries', () => {
+	it('quarantines an entry with no action key instead of failing the load', () => {
 		const malformed = {
 			id: ['01KQMFD60TR62NRKX8B32KNKWH', null],
 			userId: 'user',
@@ -408,9 +409,36 @@ describe('decodeReconstructedEvents', () => {
 			v: 1,
 		} as unknown as ReconstructedEvent;
 
-		const result = decodeReconstructedEvents([malformed]);
+		const unreadable: UnreadableEvent[] = [];
+		const result = decodeReconstructedEvents([malformed], unreadable);
 
-		expect(isFail(result)).toBe(true);
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value).toEqual([]);
+		expect(unreadable.map(e => e.reason)).toEqual(['invalid-payload']);
+	});
+
+	it('quarantines an entry with two action keys instead of failing the load', () => {
+		const goodId = '01KQMFD60TR62NRKX8B32KNKWH';
+		const twoKeys = {
+			id: ['01KQN37Z9877YBRV6P2YG7Q62S', goodId],
+			'evil.event': {},
+			'init.workspace': {id: 'ws', name: 'Forged'},
+			userId: 'user',
+			userName: 'User',
+			v: 1,
+		} as unknown as ReconstructedEvent;
+
+		const unreadable: UnreadableEvent[] = [];
+		const result = decodeReconstructedEvents(
+			[entry(goodId, 'edit.title', {id: 'node-1', name: 'Renamed'}), twoKeys],
+			unreadable,
+		);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+		expect(result.value.map(e => e.action)).toEqual(['edit.title']);
+		expect(unreadable.map(e => e.reason)).toEqual(['invalid-payload']);
 	});
 });
 

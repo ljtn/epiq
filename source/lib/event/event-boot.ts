@@ -241,8 +241,15 @@ const isCheckedOutInThePast = (): boolean => {
 const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 	if (unreadable.length === 0) return;
 
-	const corrupt = unreadable.filter(event => event.reason === 'corrupt-line');
-	const newer = unreadable.filter(event => event.reason !== 'corrupt-line');
+	const corrupt = unreadable.filter(
+		event =>
+			event.reason === 'corrupt-line' || event.reason === 'invalid-payload',
+	);
+	const newer = unreadable.filter(
+		event =>
+			event.reason === 'unsupported-schema-version' ||
+			event.reason === 'unknown-action',
+	);
 
 	if (newer.length > 0) {
 		const detail = [...new Set(newer.map(event => event.detail))].join(', ');
@@ -252,7 +259,7 @@ const reportUnreadableEvents = (unreadable: UnreadableEvent[]): void => {
 		);
 	}
 
-	// Not an upgrade problem: these lines have no envelope, so they are lost
+	// Not an upgrade problem: these lines are malformed, so they are lost
 	// rather than pending. Named precisely so the damage can be located.
 	if (corrupt.length > 0) {
 		const detail = [...new Set(corrupt.map(event => event.detail))].join(', ');
