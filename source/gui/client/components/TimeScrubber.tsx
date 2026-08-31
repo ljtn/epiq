@@ -40,7 +40,6 @@ import {
 	MIN_ZOOM_SPAN_MS,
 	populatedRange,
 	Scope,
-	scopeForSpan,
 	segmentAt,
 	useExitTransition,
 	usePersistedFlag,
@@ -226,16 +225,13 @@ export const TimeScrubber = ({
 	const changeLayoutMode = (next: LayoutMode) =>
 		onChangeSelection({layout: next});
 
-	// Naming a scope is also the way out of a zoom, which applySelectionPatch
-	// clears for any patch that names one.
+	// Naming a scope is also the only way out of a zoom, which
+	// applySelectionPatch clears for any patch that names one — including a
+	// patch naming the scope already held, since while zoomed no scope button
+	// reads as pressed and every one of them is a way out.
 	const changeScope = (nextScope: Scope) => {
 		armEntrance();
 		onChangeSelection({scope: nextScope});
-	};
-
-	const clearZoom = () => {
-		armEntrance();
-		onChangeSelection({zoom: null});
 	};
 
 	// Under a zoom there are no periods to count back, so the pager slides the
@@ -260,17 +256,17 @@ export const TimeScrubber = ({
 	// present is not, so a window already at it has nowhere later to go.
 	const atLatest = zoom ? zoom.end >= Date.now() : offset === 0;
 
+	// The scope is left as it was rather than inferred from the span: nothing
+	// reads it while a zoom is up. The chart's bucketing and segment unit come
+	// off the axis span, the pager slides by the window's own width, and the
+	// label dates the window — so the only scope that matters is the one named
+	// on the way out.
 	const zoomToRange = (from: number, to: number) => {
 		const start = Math.min(from, to);
 		const span = Math.max(MIN_ZOOM_SPAN_MS, Math.abs(to - from));
 
 		armEntrance();
-		onChangeSelection({
-			zoom: {start, end: start + span},
-			// The window keeps its exact bounds; the scope is what the controls
-			// call it, and what the pager steps by once it is cleared.
-			scope: scopeForSpan(span),
-		});
+		onChangeSelection({zoom: {start, end: start + span}});
 	};
 
 	// No armEntrance on either: the window is unchanged, so these filter what is
@@ -695,7 +691,6 @@ export const TimeScrubber = ({
 				periodRange,
 				zoomed: zoom !== null,
 				atLatest,
-				onClearZoom: clearZoom,
 				layoutMode,
 				showIssues,
 				showCommits,

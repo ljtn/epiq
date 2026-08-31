@@ -191,6 +191,19 @@ test('a drag across the track zooms the window to it, without scrubbing', async 
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
+	// Off "All", so the period pager is already on the row and the only thing
+	// that can move the scope buttons is the one under test.
+	const week = page.getByRole('button', {name: 'Week', exact: true});
+	await week.click();
+	await expect(week).toHaveAttribute('aria-pressed', 'true');
+
+	const zoom = page.getByRole('button', {name: 'Zoom'});
+	const hour = page.getByRole('button', {name: 'Hour', exact: true});
+	const before = {
+		hour: await hour.boundingBox(),
+		zoom: await zoom.boundingBox(),
+	};
+
 	const track = page.getByTestId('scrubber-track');
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
@@ -206,8 +219,16 @@ test('a drag across the track zooms the window to it, without scrubbing', async 
 
 	await page.mouse.up();
 
-	const zoomed = page.getByRole('button', {name: 'Clear zoom'});
-	await expect(zoomed).toBeVisible();
+	// The window is now none of the periods on offer, so the seventh option
+	// stands for it and none of the rest reads as pressed.
+	await expect(zoom).toHaveAttribute('aria-pressed', 'true');
+	await expect(week).toHaveAttribute('aria-pressed', 'false');
+
+	// Zoom holds its width while it stands for nothing, so coming and going
+	// never slides the row out from under the pointer.
+	expect(await zoom.boundingBox()).toEqual(before.zoom);
+	expect(await hour.boundingBox()).toEqual(before.hour);
+	expect(before.zoom?.width).toBeGreaterThan(0);
 
 	const params = new URL(page.url()).searchParams;
 	const from = Number(params.get('from'));
@@ -217,9 +238,10 @@ test('a drag across the track zooms the window to it, without scrubbing', async 
 	await page.waitForTimeout(2000);
 	expect(targets).toEqual([]);
 
-	// And back out again, to the window the drag was made in.
-	await zoomed.click();
-	await expect(zoomed).toBeHidden();
+	// And back out again by naming a period, which is the only way out.
+	await week.click();
+	await expect(zoom).toHaveAttribute('aria-pressed', 'false');
+	await expect(week).toHaveAttribute('aria-pressed', 'true');
 	expect(new URL(page.url()).searchParams.get('from')).toBeNull();
 
 	await returnToLive(page);

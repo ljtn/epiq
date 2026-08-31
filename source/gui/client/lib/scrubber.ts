@@ -582,10 +582,14 @@ export type Scope = 'all' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
 export type PeriodRange = {start: number; end: number};
 
-// Shortest first, which is also the order a span is matched against them.
-const TIMED_SCOPES = ['hour', 'day', 'week', 'month', 'year'] as const;
-
-export const SCOPES: readonly Scope[] = [...TIMED_SCOPES, 'all'];
+export const SCOPES: readonly Scope[] = [
+	'hour',
+	'day',
+	'week',
+	'month',
+	'year',
+	'all',
+];
 
 const SCOPE_DURATION_MS: Record<Exclude<Scope, 'all'>, number> = {
 	hour: 60 * 60 * 1000,
@@ -619,12 +623,6 @@ export const getPeriodRange = (
 
 	return {start: end - durationMs, end};
 };
-
-// The shortest scope long enough to hold the span. A hand-picked window keeps
-// its exact bounds; this only decides what the controls call it and how far the
-// pager steps, since what the chart draws is derived from the axis span itself.
-export const scopeForSpan = (spanMs: number): Exclude<Scope, 'all'> =>
-	TIMED_SCOPES.find(scope => SCOPE_DURATION_MS[scope] >= spanMs) ?? 'year';
 
 // Narrow enough for the fixed-width label beside the pager, and dated only when
 // the window spans more than the one day a date would name.

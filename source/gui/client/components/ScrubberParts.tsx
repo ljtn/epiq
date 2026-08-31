@@ -512,7 +512,6 @@ export const ScrubberControls = ({
 	periodRange,
 	zoomed,
 	atLatest,
-	onClearZoom,
 	layoutMode,
 	showIssues,
 	showCommits,
@@ -543,13 +542,12 @@ export const ScrubberControls = ({
 	scope: Scope;
 	offset: number;
 	periodRange: PeriodRange | null;
-	// The window was dragged out on the chart. The scope buttons still show the
-	// one it reads as, since that is what the chart is drawn at.
+	// The window was dragged out on the chart, so it is none of the periods the
+	// scope row lists and a seventh option stands for it instead.
 	zoomed: boolean;
 	// The window already reaches the present, so there is nothing later to page
 	// to.
 	atLatest: boolean;
-	onClearZoom: () => void;
 	layoutMode: LayoutMode;
 	showIssues: boolean;
 	showCommits: boolean;
@@ -587,17 +585,6 @@ export const ScrubberControls = ({
 		<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
 			{(scope !== 'all' || zoomed) && (
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
-					{zoomed && (
-						<button
-							title="Back to the whole period"
-							aria-label="Clear zoom"
-							disabled={!connected}
-							onClick={onClearZoom}
-							style={{...navButtonStyle, ...(connected ? {} : mutedStyle)}}
-						>
-							✕
-						</button>
-					)}
 					<button
 						title="Earlier"
 						disabled={!connected}
@@ -640,17 +627,45 @@ export const ScrubberControls = ({
 				{SCOPES.map(option => (
 					<button
 						key={option}
-						aria-pressed={scope === option}
+						// Nothing in this row is what a zoomed window is, so while one is
+						// up none of them reads as pressed and Zoom does instead.
+						aria-pressed={!zoomed && scope === option}
 						disabled={!connected}
 						onClick={() => onChangeScope(option)}
 						style={{
-							...scopeButtonStyle(scope === option),
+							...scopeButtonStyle(!zoomed && scope === option),
 							...(connected ? {} : mutedStyle),
 						}}
 					>
 						{scopeButtonLabel(option)}
 					</button>
 				))}
+
+				{/* Only ever the current state, never a way in: a window is zoomed by
+				    dragging one out on the chart, and left by naming any period to
+				    its left. It sits at the end of the row because it is not a period
+				    on the same scale as the rest.
+
+				    Faded rather than unmounted, the way the pager's ▶ sits out a
+				    period it cannot go to: the row must not shift by its width
+				    underneath the pointer as a zoom comes and goes. Its title carries
+				    the gesture, since a button nobody can press has to say why. */}
+				<button
+					title={
+						zoomed
+							? 'A window dragged out on the chart — pick a period to leave it'
+							: 'Drag across the chart to zoom the window to a stretch of it'
+					}
+					aria-pressed={zoomed}
+					disabled
+					style={{
+						...scopeButtonStyle(zoomed),
+						opacity: zoomed ? 1 : 0.35,
+						cursor: 'default',
+					}}
+				>
+					Zoom
+				</button>
 			</div>
 		</div>
 
