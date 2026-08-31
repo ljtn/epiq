@@ -38,6 +38,7 @@ import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {TicketRefLinksProvider} from './components/MarkdownContent';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
+import {useAsideDock} from './lib/aside-dock';
 import {moveIssue} from './lib/gui-move-issue';
 import {reconnectDelayMs} from './lib/reconnect';
 import {moveSwimlane} from './lib/gui-move-swimlane';
@@ -155,6 +156,10 @@ export const App = () => {
 	// so the first render already picks the right layout instead of flashing.
 	const [commitDiffPanelWidth, setCommitDiffPanelWidth] =
 		useState(readStoredAsideWidth);
+	// Which edge every panel attaches to. Owned here rather than inside
+	// `Aside`, because the row below turns into a column for a bottom dock and
+	// a component cannot style its own parent.
+	const [asideDock, setAsideDock] = useAsideDock();
 	// The ticket detail Commits tab's commit list, fetched on selection so the
 	// tab can show its count up front. Reset per selected issue, like
 	// issueDetail below.
@@ -1601,6 +1606,7 @@ export const App = () => {
 				<div
 					style={{
 						display: 'flex',
+						flexDirection: asideDock === 'bottom' ? 'column' : 'row',
 						flex: 1,
 						overflow: 'hidden',
 						// A fullscreen panel is positioned against this row.
@@ -1746,10 +1752,14 @@ export const App = () => {
 							open/closed so the board doesn't bounce back when scrolled far
 							right. Reads the panel's persisted width directly rather than
 							tracking it live: the panel — and any drag — isn't mounted while
-							this spacer is, so the last-persisted value is always current. */}
-							{!commitDiff && !(selectedIssue && state?.user) && (
-								<div style={{width: readStoredAsideWidth(), flexShrink: 0}} />
-							)}
+							this spacer is, so the last-persisted value is always current.
+							Only for a side dock: a bottom panel takes height, not width, so
+							reserving width for it would shove the board the other way. */}
+							{asideDock === 'right' &&
+								!commitDiff &&
+								!(selectedIssue && state?.user) && (
+									<div style={{width: readStoredAsideWidth(), flexShrink: 0}} />
+								)}
 
 							{/* The page's right margin, scrolling with the columns. Constant,
 							so it cancels out of the invariant above. */}
@@ -1758,7 +1768,7 @@ export const App = () => {
 					</main>
 
 					{commitDiff && (
-						<Aside onWidthChange={setCommitDiffPanelWidth}>
+						<Aside dock={asideDock} onWidthChange={setCommitDiffPanelWidth}>
 							{({isFullscreen, toggleFullscreen}) => (
 								<DiffPanel
 									sha={commitDiff.sha}
@@ -1773,6 +1783,8 @@ export const App = () => {
 									onClose={closeCommitDiff}
 									isFullscreen={isFullscreen}
 									toggleFullscreen={toggleFullscreen}
+									dock={asideDock}
+									onDock={setAsideDock}
 								/>
 							)}
 						</Aside>
@@ -1780,6 +1792,7 @@ export const App = () => {
 
 					{!commitDiff && pickedIssues.length > 1 && (
 						<BulkDetails
+							dock={asideDock}
 							issues={pickedIssues}
 							knownTags={state?.tags ?? []}
 							knownAssignees={contributors}
@@ -1821,6 +1834,8 @@ export const App = () => {
 						selectedIssue &&
 						state?.user && (
 							<IssueDetails
+								dock={asideDock}
+								onDock={setAsideDock}
 								whoAmI={state.user}
 								issue={((): GuiIssue => {
 									const base =

@@ -1,6 +1,7 @@
 import {GuiContributor, GuiIssue, GuiTag} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {Aside} from './Aside';
+import {AsideDock} from '../lib/aside-dock';
 import {Button} from './Button';
 import {ChipRow, Empty, Input, AddRow} from './FormPrimitives';
 import {Section} from './Section';
@@ -27,6 +28,7 @@ const ticketWord = (count: number): string =>
 	count === 1 ? 'ticket' : 'tickets';
 
 export const BulkDetails = ({
+	dock,
 	issues,
 	knownTags,
 	knownAssignees,
@@ -42,6 +44,7 @@ export const BulkDetails = ({
 	onReopenIssues,
 	onClear,
 }: {
+	dock: AsideDock;
 	issues: GuiIssue[];
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
@@ -78,7 +81,7 @@ export const BulkDetails = ({
 		count === total ? '' : ` ${count}/${total}`;
 
 	return (
-		<Aside>
+		<Aside dock={dock}>
 			<div
 				style={{
 					display: 'flex',

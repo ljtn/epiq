@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 
 export type KebabMenuItem = {
@@ -10,11 +10,18 @@ export type KebabMenuItem = {
 };
 
 export const KebabMenu = ({
-	items,
+	items = [],
 	testId,
+	title = 'Actions',
+	children,
 }: {
-	items: KebabMenuItem[];
+	items?: KebabMenuItem[];
 	testId?: string;
+	title?: string;
+	// Rendered above the items, for a menu whose contents are a control rather
+	// than a list of commands. Handed the same close the items get, so choosing
+	// inside it dismisses the menu and shows what it did.
+	children?: (close: () => void) => React.ReactNode;
 }) => {
 	const [open, setOpen] = useState(false);
 	const [hovered, setHovered] = useState(false);
@@ -47,7 +54,7 @@ export const KebabMenu = ({
 			<button
 				type="button"
 				data-testid={testId}
-				title="Swimlane actions"
+				title={title}
 				aria-haspopup="menu"
 				aria-expanded={open}
 				onClick={() => setOpen(value => !value)}
@@ -90,6 +97,8 @@ export const KebabMenu = ({
 						zIndex: 20,
 					}}
 				>
+					{children?.(() => setOpen(false))}
+
 					{items.map(item => (
 						<MenuItem
 							key={item.id}
