@@ -1,6 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {Ticket} from '../model/context.model.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {theme} from '../theme/themes.js';
 import {
 	sanitizeInlineText,
@@ -91,6 +92,12 @@ export const TicketListItemUI: React.FC<{
 	// a single badge never pushes the others off the row on its own
 	const maxNameWidth = Math.max(1, contentWidth - TAG_WIDTH);
 
+	// '[N]' plus one column of air, same form as the compact row's count
+	const comments = nodeRepo.getCommentsByIssue(ticket.id);
+	const commentsWidth = comments.length
+		? String(comments.length).length + 2 + 1
+		: 0;
+
 	const {shown, hidden} = fitBadges(
 		[
 			...tags.map(tag => ({
@@ -107,7 +114,7 @@ export const TicketListItemUI: React.FC<{
 					(hasAuthoredEvents(assignee.id) ? 0 : 1),
 			})),
 		],
-		contentWidth,
+		contentWidth - commentsWidth,
 	);
 
 	return (
@@ -137,21 +144,32 @@ export const TicketListItemUI: React.FC<{
 				)}
 			</Box>
 
-			<Box flexDirection="row" paddingLeft={1} paddingRight={1}>
-				{shown.map(badge => (
-					<Box paddingRight={1} key={badge.id}>
-						{badge.isTag ? (
-							<TagUI id={badge.id} maxWidth={maxNameWidth} />
-						) : (
-							<AssigneeUI id={badge.id} maxWidth={maxNameWidth} />
-						)}
-					</Box>
-				))}
+			<Box
+				flexDirection="row"
+				paddingLeft={1}
+				paddingRight={1}
+				justifyContent="space-between"
+			>
+				<Box flexDirection="row">
+					{shown.map(badge => (
+						<Box paddingRight={1} key={badge.id}>
+							{badge.isTag ? (
+								<TagUI id={badge.id} maxWidth={maxNameWidth} />
+							) : (
+								<AssigneeUI id={badge.id} maxWidth={maxNameWidth} />
+							)}
+						</Box>
+					))}
 
-				{hidden > 0 && (
-					<Text color={theme.secondary2} dimColor>
-						+{hidden}
-					</Text>
+					{hidden > 0 && (
+						<Text color={theme.secondary2} dimColor>
+							+{hidden}
+						</Text>
+					)}
+				</Box>
+
+				{comments.length > 0 && (
+					<Text color={theme.accent}>[{comments.length}]</Text>
 				)}
 			</Box>
 		</Box>
