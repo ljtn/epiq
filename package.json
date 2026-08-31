@@ -53,7 +53,7 @@
 		"publish:dry": "rm -f epiq-*.tgz && npm pack && FILE=$(ls -t epiq-*.tgz | head -n 1) && npm publish --dry-run \"$FILE\"",
 		"publish:tarball": "FILE=$(ls -t epiq-*.tgz | head -n 1) && echo \"Publishing $FILE\" && npm publish \"$FILE\"",
 		"release": "npm run pack:check && npm run publish:tarball",
-		"start:mcp": "IS_LOCAL=true tsx source/mcp/server.ts",
+		"start:mcp": "IS_LOCAL=true tsx source/mcp/index.ts",
 		"inspect:mcp": "npx @modelcontextprotocol/inspector",
 		"lint": "eslint .",
 		"lint:err": "eslint . --quiet",
