@@ -1,6 +1,10 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {COMMIT_CACHE_MS, commitLinkedFile} from './linked-commit.js';
+import {
+	COMMIT_CACHE_MS,
+	commitLinkedFile,
+	linkedFileName,
+} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
@@ -12,9 +16,9 @@ const addTicket = async (page: Page, title: string) => {
 // Opens the commit and its file if they aren't open already — once a diff
 // link has been followed the URL keeps pointing at the spot, and the tab then
 // opens both on its own.
-const expandDiff = async (page: Page, subject: string) => {
+const expandDiff = async (page: Page, subject: string, fileName: string) => {
 	await page.getByRole('button', {name: /^Commits/}).click();
-	for (const name of [subject, 'notes.txt']) {
+	for (const name of [subject, fileName]) {
 		const toggle = page.getByRole('button', {name});
 		await expect(toggle).toBeVisible();
 		if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
@@ -24,8 +28,12 @@ const expandDiff = async (page: Page, subject: string) => {
 	}
 };
 
-const openDiffAndSelectLine = async (page: Page, subject: string) => {
-	await expandDiff(page, subject);
+const openDiffAndSelectLine = async (
+	page: Page,
+	subject: string,
+	fileName: string,
+) => {
+	await expandDiff(page, subject, fileName);
 	// A click on the number column is a one-line selection.
 	await page.locator('[data-column-number]').first().click();
 	await expect(page.getByTestId('selection-composer')).toBeVisible();
@@ -48,6 +56,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 	)?.trim();
 	expect(ref).toBeTruthy();
 
+	const fileName = linkedFileName(ref!);
 	const sha = commitLinkedFile(repoRoot, ref!, 'add notes');
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
@@ -59,12 +68,12 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await expect(
 		page.getByRole('button', {name: 'add notes +3 -0'}),
 	).toHaveAttribute('aria-expanded', 'true');
-	await expect(page.getByRole('button', {name: 'notes.txt'})).toBeVisible();
+	await expect(page.getByRole('button', {name: fileName})).toBeVisible();
 	await page.getByRole('button', {name: 'Overview'}).click();
 
-	await openDiffAndSelectLine(page, 'add notes');
+	await openDiffAndSelectLine(page, 'add notes', fileName);
 	const composer = page.getByTestId('selection-composer');
-	await expect(composer).toContainText('notes.txt line 1');
+	await expect(composer).toContainText(`${fileName} line 1`);
 	// Sits inside the diff between the selected line and the next one — not
 	// below the file.
 	const box = async (locator: ReturnType<Page['locator']>) => {
@@ -93,7 +102,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 
 	// Comment on line 2.
 	await page.locator('[data-column-number]').nth(1).click();
-	await expect(composer).toContainText('notes.txt line 2');
+	await expect(composer).toContainText(`${fileName} line 2`);
 	await composer.getByPlaceholder(/add a note/i).fill('looks off');
 	await composer.getByRole('button', {name: 'Comment'}).click();
 	await expect(composer).toBeHidden();
@@ -144,11 +153,11 @@ test('selecting lines opens one composer under them; write, then comment or file
 	).toBeVisible();
 	await expect(
 		page.locator('aside').getByTitle('Open this in the diff'),
-	).toHaveText('notes.txt line 2 (added)');
+	).toHaveText(`${fileName} line 2 (added)`);
 	await expect(page.getByTestId('code-snippet')).toContainText('beta');
 
 	// ...and the annotation in the diff follows the edit.
-	await expandDiff(page, 'add notes');
+	await expandDiff(page, 'add notes', fileName);
 	await expect(page.getByTestId('diff-comment')).toContainText(
 		'looks fine after all',
 	);
@@ -157,12 +166,12 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await page.getByRole('button', {name: 'Comments (1)'}).click();
 	await page.getByTitle('Delete comment').click();
 	await expect(page.getByRole('button', {name: 'Comments (0)'})).toBeVisible();
-	await expandDiff(page, 'add notes');
+	await expandDiff(page, 'add notes', fileName);
 	await expect(page.getByTestId('diff-comment')).toHaveCount(0);
 	await expect(page.locator('[data-line]')).toHaveCount(3);
 
 	// File a ticket: the note stays the note, the title is asked for.
-	await expandDiff(page, 'add notes');
+	await expandDiff(page, 'add notes', fileName);
 	await page.locator('[data-column-number]').first().click();
 	await composer.getByPlaceholder(/add a note/i).fill('needs a second look');
 	await composer.getByRole('button', {name: 'File ticket'}).click();
@@ -192,7 +201,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 	const snippetHeader = page
 		.locator('aside')
 		.getByTitle('Open this in the diff');
-	await expect(snippetHeader).toHaveText(`${ref} · notes.txt line 1 (added)`);
+	await expect(snippetHeader).toHaveText(`${ref} · ${fileName} line 1 (added)`);
 	await expect(page.locator('aside').getByText('alpha')).toBeVisible();
 	await page.screenshot({path: testInfo.outputPath('filed-ticket.png')});
 

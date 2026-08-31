@@ -8,11 +8,21 @@ import path from 'node:path';
 // outlive it before a reload sees the commit.
 export const COMMIT_CACHE_MS = 5_500;
 
+/**
+ * Every worker's tests share one seeded repo, so a fixed path collides: two
+ * files committing the same contents leave nothing to stage and `git commit`
+ * exits non-zero, and two committing different contents make the second a
+ * modification rather than the addition its diff stat is asserted to be. The
+ * ref is a fresh ticket's, so it is unique per call — including across a
+ * retry, which re-runs against the same repo.
+ */
+export const linkedFileName = (ref: string): string => `notes-${ref}.txt`;
+
 export const commitLinkedFile = (
 	repoRoot: string,
 	ref: string,
 	subject: string,
-	fileName = 'notes.txt',
+	fileName = linkedFileName(ref),
 	contents = 'alpha\nbeta\ngamma\n',
 ): string => {
 	fs.writeFileSync(path.join(repoRoot, fileName), contents);

@@ -1,6 +1,10 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {COMMIT_CACHE_MS, commitLinkedFile} from './linked-commit.js';
+import {
+	COMMIT_CACHE_MS,
+	commitLinkedFile,
+	linkedFileName,
+} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
@@ -102,6 +106,7 @@ test('the lanes open every commit and file, ready to read', async ({
 	)?.trim();
 	expect(ref).toBeTruthy();
 
+	const fileName = linkedFileName(ref!);
 	commitLinkedFile(repoRoot, ref!, 'add notes');
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
@@ -123,7 +128,7 @@ test('the lanes open every commit and file, ready to read', async ({
 	await expect(page.locator('[data-line]').first()).toHaveText('alpha');
 
 	// And collapsing by hand sticks.
-	await page.getByRole('button', {name: 'notes.txt'}).click();
+	await page.getByRole('button', {name: fileName}).click();
 	await expect(page.locator('[data-line]')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);

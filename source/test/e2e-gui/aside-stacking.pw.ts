@@ -1,6 +1,10 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {COMMIT_CACHE_MS, commitLinkedFile} from './linked-commit.js';
+import {
+	COMMIT_CACHE_MS,
+	commitLinkedFile,
+	linkedFileName,
+} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
@@ -9,9 +13,9 @@ const addTicket = async (page: Page, title: string) => {
 	await expect(page.locator('aside')).toContainText(title);
 };
 
-const expandDiff = async (page: Page, subject: string) => {
+const expandDiff = async (page: Page, subject: string, fileName: string) => {
 	await page.getByRole('button', {name: /^Commits/}).click();
-	for (const name of [subject, 'notes.txt']) {
+	for (const name of [subject, fileName]) {
 		const toggle = page.getByRole('button', {name});
 		await expect(toggle).toBeVisible();
 		if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
@@ -45,14 +49,14 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 		repoRoot,
 		ref!,
 		'add notes',
-		'notes.txt',
+		linkedFileName(ref!),
 		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
 			'\n',
 	);
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Stacking ${stamp}`);
-	await expandDiff(page, 'add notes');
+	await expandDiff(page, 'add notes', linkedFileName(ref!));
 
 	await page.getByText('All board events').click();
 	await expect(page.getByRole('radiogroup')).toBeVisible();
