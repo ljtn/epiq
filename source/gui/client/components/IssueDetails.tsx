@@ -244,6 +244,7 @@ export const IssueDetails = ({
 	comments,
 	history,
 	onHoverHistoryEvent,
+	onCheckoutHistoryEvent,
 	activeTab,
 	onChangeTab,
 	issue,
@@ -285,6 +286,7 @@ export const IssueDetails = ({
 	comments: GuiComment[];
 	history: GuiIssueHistoryEntry[];
 	onHoverHistoryEvent: (eventId: string | null) => void;
+	onCheckoutHistoryEvent?: (eventId: string) => void;
 	onClose: () => void;
 	activeTab: IssueDetailsTab;
 	onChangeTab: (tab: IssueDetailsTab) => void;
@@ -890,7 +892,11 @@ export const IssueDetails = ({
 				);
 
 				const historyPane = issue && (
-					<IssueHistory entries={history} onHoverEvent={onHoverHistoryEvent} />
+					<IssueHistory
+						entries={history}
+						onHoverEvent={onHoverHistoryEvent}
+						onCheckoutEvent={onCheckoutHistoryEvent}
+					/>
 				);
 
 				const commitsPane = issue && (

@@ -11,6 +11,7 @@ vi.mock('../lib/storage/paths.js', () => ({
 }));
 
 vi.mock('../lib/event/event-load.js', () => ({
+	loadEffectiveEventTimes: vi.fn(),
 	loadMergedEvents: vi.fn(),
 	loadMergedEventsBefore: vi.fn(),
 	getLastUnreadableEvents: vi.fn(() => []),
@@ -73,6 +74,7 @@ import {
 } from '../lib/editor/editor.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {
+	loadEffectiveEventTimes,
 	loadMergedEvents,
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
@@ -93,6 +95,7 @@ import {
 } from '../lib/model/result-types.js';
 import {
 	checkoutStateAt,
+	checkoutStateAtEvent,
 	FULL_TIMELINE_CACHE_TTL_MS,
 	getCommitDiff,
 	getCommitsForRef,
@@ -1465,6 +1468,80 @@ describe('epiq-time-travel', () => {
 			expect(result.message.indexOf('boom')).toBeLessThan(
 				result.message.indexOf('log unreadable'),
 			);
+		});
+	});
+
+	describe('checkoutStateAtEvent', () => {
+		beforeEach(() => {
+			vi.mocked(loadMergedEventsBefore).mockReturnValue(
+				succeeded('events', {
+					appliedEvents: [{id: 'a'}],
+					unappliedEvents: [{id: 'b'}],
+				} as never),
+			);
+		});
+
+		// The cut is exclusive, so checking out *at* the event's own time would
+		// show the state before it — the description it replaced, not the one it
+		// wrote.
+		it('cuts one millisecond after the named event, so that event is applied', async () => {
+			vi.mocked(loadEffectiveEventTimes).mockReturnValue(
+				succeeded('times', new Map([['evt-1', 5000]])),
+			);
+
+			const result = await checkoutStateAtEvent({eventId: 'evt-1'});
+
+			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 5001);
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.asOfTime).toBe(5001);
+		});
+
+		// The Log row displays the raw ULID time; the split judges by the
+		// effective one. Resolving here rather than on the client is what keeps a
+		// poisoned far-future id from checking out the whole log.
+		it('resolves the effective time rather than trusting a displayed one', async () => {
+			vi.mocked(loadEffectiveEventTimes).mockReturnValue(
+				succeeded('times', new Map([['poisoned', 1000]])),
+			);
+
+			await checkoutStateAtEvent({eventId: 'poisoned'});
+
+			expect(loadMergedEventsBefore).toHaveBeenCalledWith('/repo/.epiq', 1001);
+		});
+
+		it('fails without touching state when the event is not in the log', async () => {
+			vi.mocked(loadEffectiveEventTimes).mockReturnValue(
+				succeeded('times', new Map([['evt-1', 5000]])),
+			);
+
+			const result = await checkoutStateAtEvent({eventId: 'missing'});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(loadMergedEventsBefore).not.toHaveBeenCalled();
+			expect(resetState).not.toHaveBeenCalled();
+		});
+
+		it('fails when the event carries no decodable time', async () => {
+			vi.mocked(loadEffectiveEventTimes).mockReturnValue(
+				succeeded('times', new Map([['evt-1', null]])),
+			);
+
+			const result = await checkoutStateAtEvent({eventId: 'evt-1'});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(loadMergedEventsBefore).not.toHaveBeenCalled();
+		});
+
+		it('fails when the event times cannot be read', async () => {
+			vi.mocked(loadEffectiveEventTimes).mockReturnValue(failed('unreadable'));
+
+			const result = await checkoutStateAtEvent({eventId: 'evt-1'});
+
+			expect(isSuccess(result)).toBe(false);
+			if (isSuccess(result)) return;
+			expect(result.message).toContain('unreadable');
+			expect(resetState).not.toHaveBeenCalled();
 		});
 	});
 

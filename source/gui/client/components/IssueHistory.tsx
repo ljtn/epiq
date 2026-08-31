@@ -1,14 +1,20 @@
 import {GuiIssueHistoryEntry} from '../lib/gui-state.model';
 import {GUI_THEME, CONTENT_FONT, TEXT} from '../lib/gui-theme';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
+import {Button} from './Button';
+import {IconClock} from './IconClock';
 import {User} from './User';
 
 export const IssueHistory = ({
 	entries,
 	onHoverEvent,
+	onCheckoutEvent,
 }: {
 	entries: GuiIssueHistoryEntry[];
 	onHoverEvent: (eventId: string | null) => void;
+	// Absent with the socket down: nothing can be checked out from a page that
+	// cannot ask the server for it.
+	onCheckoutEvent?: (eventId: string) => void;
 }) => {
 	if (entries.length === 0) {
 		return (
@@ -34,7 +40,7 @@ export const IssueHistory = ({
 					onMouseEnter={() => onHoverEvent(entry.id)}
 					style={{
 						display: 'flex',
-						alignItems: 'baseline',
+						alignItems: 'center',
 						gap: 14,
 						padding: '8px 0',
 						borderTop: index === 0 ? 'none' : `1px solid ${GUI_THEME.line}`,
@@ -59,6 +65,23 @@ export const IssueHistory = ({
 					>
 						{timeAgo(entry.t)}
 					</span>
+
+					{onCheckoutEvent && (
+						<Button
+							variant="ghost"
+							data-testid="issue-history-checkout"
+							aria-label={`Check out the board as it was after: ${entry.label}`}
+							title="Check out the board as it was just after this event"
+							onClick={() => onCheckoutEvent(entry.id)}
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								color: GUI_THEME.dim,
+							}}
+						>
+							<IconClock size={13} />
+						</Button>
+					)}
 				</div>
 			))}
 		</div>

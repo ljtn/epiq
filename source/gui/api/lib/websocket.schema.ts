@@ -114,6 +114,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 			.optional(),
 	}),
 	message('time-travel:scrub', z.object({targetTime: epochMs})),
+	message('time-travel:checkout-event', z.object({eventId: z.string().min(1)})),
 	message('commit:inspect', z.object({sha: z.string()})),
 	message('commit:diff:get', z.object({sha: z.string()})),
 	message('issue:commits:get', z.object({issueId: id})),

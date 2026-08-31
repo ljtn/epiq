@@ -16,6 +16,7 @@ import {AppEvent, EventAction} from '../lib/event/event.model.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {getStringColor} from '../lib/utils/color.js';
 import {
+	loadEffectiveEventTimes,
 	loadMergedEvents,
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
@@ -980,6 +981,31 @@ export const checkoutStateAt = (
 			asOfTime: input.targetTime,
 		});
 	});
+
+// Rewinds to just after one event in the log, so the state the checkout shows
+// is the state that event produced. The cut is exclusive, hence the +1.
+//
+// Resolved against effective times, not the raw ULID a Log row displays: a
+// poisoned far-future id is judged by the clamped time `splitEventsAtTime` will
+// cut on, so the checkout lands where the scrubber's dot for it sits.
+export const checkoutStateAtEvent = async (
+	input: ToolInput & {eventId: string},
+): Promise<Result<{asOfTime: number}>> => {
+	const stateBranchRootResult = resolveStateBranchRoot(input.repoRoot);
+	if (isFail(stateBranchRootResult)) {
+		return failed(stateBranchRootResult.message);
+	}
+
+	// Deliberately outside `runExclusive`: `checkoutStateAt` takes that lock and
+	// it is not re-entrant.
+	const timesResult = loadEffectiveEventTimes(stateBranchRootResult.value);
+	if (isFail(timesResult)) return failed(timesResult.message);
+
+	const time = timesResult.value.get(input.eventId) ?? null;
+	if (time === null) return failed('Event not found in the log');
+
+	return checkoutStateAt({repoRoot: input.repoRoot, targetTime: time + 1});
+};
 
 export const returnToLive = (input: ToolInput = {}): Promise<Result<true>> =>
 	runExclusive(async () => {
