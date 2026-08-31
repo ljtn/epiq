@@ -1,5 +1,6 @@
-// A panel squeezed shut: chevrons pressing inward against the edge it collapses
-// to. The mirrored pair (IconExpandLane) pushes back out.
+// A panel squeezed shut: two chevrons pressing inward. Drawn as just the pair —
+// a centre bar between them collapses into the chevron tips at the 12px this
+// renders at, and the three marks together read as a star rather than an arrow.
 export const IconCollapseLane = ({size = 16}: {size?: number}) => (
 	<svg
 		width={size}
@@ -12,8 +13,7 @@ export const IconCollapseLane = ({size = 16}: {size?: number}) => (
 		strokeLinejoin="round"
 		aria-hidden="true"
 	>
-		<polyline points="5 7 9 12 5 17" />
-		<line x1="12" y1="5" x2="12" y2="19" />
-		<polyline points="19 7 15 12 19 17" />
+		<polyline points="4 6 9 12 4 18" />
+		<polyline points="20 6 15 12 20 18" />
 	</svg>
 );
