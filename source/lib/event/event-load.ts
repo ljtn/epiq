@@ -516,10 +516,15 @@ export const getSortedEvents = (
 
 	// Only genesis is a legal root. Any other `refId: null` event — trivially
 	// forgeable, and able to sort in front of all of history via a low ULID —
-	// is anchored after the known history, with the orphans.
-	const roots = (childrenByRef.get(null) ?? []).filter(
-		event => 'init.workspace' in event,
-	);
+	// is anchored after the known history, with the orphans. Exactly one action
+	// key, or extra keys smuggle a payload past a bare `in` check.
+	const roots = (childrenByRef.get(null) ?? []).filter(event => {
+		const keys = Object.keys(event).filter(
+			key =>
+				key !== 'id' && key !== 'v' && key !== 'userId' && key !== 'userName',
+		);
+		return keys.length === 1 && keys[0] === 'init.workspace';
+	});
 	for (const root of roots) {
 		visit(root);
 	}
