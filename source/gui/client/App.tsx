@@ -1379,7 +1379,15 @@ export const App = () => {
 		});
 	};
 
-	const uploadIssueAttachments = async (issueId: string, files: File[]) => {
+	// Returns one markdown reference per file that made it, so a composer can
+	// leave them at the cursor. A rejected file contributes nothing and the
+	// error is reported through attachmentUploadStatus as before.
+	const uploadIssueAttachments = async (
+		issueId: string,
+		files: File[],
+	): Promise<string[]> => {
+		const inserted: string[] = [];
+
 		for (const file of files) {
 			setAttachmentUploadStatus({state: 'uploading', name: file.name});
 
@@ -1387,7 +1395,7 @@ export const App = () => {
 
 			if ('error' in compressed) {
 				setAttachmentUploadStatus({state: 'error', message: compressed.error});
-				return;
+				return inserted;
 			}
 
 			try {
@@ -1410,21 +1418,27 @@ export const App = () => {
 						state: 'error',
 						message: payload?.message ?? 'Upload failed',
 					});
-					return;
+					return inserted;
 				}
 
 				const nextState = getResultValue<GuiState>(payload);
 				if (nextState) setState(nextState);
+
+				const markdown = (payload as {attachment?: {markdown?: string}})
+					?.attachment?.markdown;
+				if (markdown) inserted.push(markdown);
 			} catch (error) {
 				setAttachmentUploadStatus({
 					state: 'error',
 					message: error instanceof Error ? error.message : 'Upload failed',
 				});
-				return;
+				return inserted;
 			}
 		}
 
 		setAttachmentUploadStatus({state: 'idle'});
+
+		return inserted;
 	};
 
 	const deleteIssueAttachment = async (

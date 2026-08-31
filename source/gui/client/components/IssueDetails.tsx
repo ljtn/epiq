@@ -46,6 +46,8 @@ import {Tabs, TabItem} from './Tabs';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {usePersistedFlag} from '../lib/scrubber';
+import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
+import {IMAGE_FILE_ACCEPT, useImageInsert} from '../lib/image-insert';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
 
@@ -256,7 +258,9 @@ export const IssueDetails = ({
 	diffFocus?: CommitFocus | null;
 	attachments: GuiAttachment[];
 	attachmentUploadStatus: AttachmentUploadStatus;
-	onUploadAttachments?: (issueId: string, files: File[]) => void;
+	// Resolves to one markdown reference per stored file, so a composer can
+	// leave them at the cursor.
+	onUploadAttachments?: (issueId: string, files: File[]) => Promise<string[]>;
 	onDeleteAttachment?: (issueId: string, attachmentId: string) => void;
 	commits: GuiRefCommitEntry[];
 	commitsLoading: boolean;
@@ -316,6 +320,7 @@ export const IssueDetails = ({
 	const openLaneCount = LANE_KEYS.filter(key => !laneCollapsed[key]).length;
 	const panelRef = useRef<HTMLElement | null>(null);
 	const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+	const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
 	const resizeTitleTextarea = () => {
 		const el = titleTextareaRef.current;
@@ -340,6 +345,14 @@ export const IssueDetails = ({
 	}, [issue?.id, issue?.title, issue?.description]);
 
 	const disabled = !issue || issue.readonly;
+
+	// Below `disabled`, which it reads: a readonly ticket takes no images.
+	const descriptionImages = useImageInsert({
+		issueId: issue?.id ?? '',
+		setValue: setDescription,
+		textareaRef: descriptionRef,
+		onUploadImages: disabled ? undefined : onUploadAttachments,
+	});
 
 	// No count until the list has arrived: 0 would misread as "no commits".
 	const commitsCount =
@@ -482,10 +495,20 @@ export const IssueDetails = ({
 							{editingDescription ? (
 								<>
 									<Textarea
+										ref={descriptionRef}
 										value={description}
 										autoFocus
 										placeholder=""
+										// The primitive's default is 1500, which silently dropped
+										// the tail of anything longer — and seven descriptions on
+										// this board are already past it, written from the TUI or
+										// over MCP where no such cap applies.
+										maxLength={MAX_DESCRIPTION_LENGTH}
 										onChange={event => setDescription(event.target.value)}
+										onDragOver={descriptionImages.onDragOver}
+										onDragLeave={descriptionImages.onDragLeave}
+										onDrop={descriptionImages.onDrop}
+										onPaste={descriptionImages.onPaste}
 										onKeyDown={event => {
 											if (event.key === 'Escape') return cancelDescription();
 											if (event.key !== 'Enter') return;
@@ -514,6 +537,25 @@ export const IssueDetails = ({
 									/>
 
 									<ActionRow>
+										{descriptionImages.enabled && (
+											<>
+												<Button
+													variant="ghost"
+													onClick={descriptionImages.pickFiles}
+												>
+													{descriptionImages.busy ? 'adding…' : 'add image'}
+												</Button>
+												<input
+													data-testid="description-image-input"
+													ref={descriptionImages.inputRef}
+													type="file"
+													accept={IMAGE_FILE_ACCEPT}
+													multiple
+													hidden
+													onChange={descriptionImages.onInputChange}
+												/>
+											</>
+										)}
 										<Button onClick={saveDescription}>save</Button>
 										<Button variant="ghost" onClick={cancelDescription}>
 											cancel
@@ -785,6 +827,7 @@ export const IssueDetails = ({
 						onDeleteComment={onDeleteComment}
 						onEditComment={onEditComment}
 						onOpenDiffLocation={onOpenDiffLocation}
+						onUploadImages={issue.readonly ? undefined : onUploadAttachments}
 					/>
 				);
 

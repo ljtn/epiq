@@ -1,8 +1,11 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {GuiAttachment} from '../lib/gui-state.model';
+import {Button} from './Button';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
+import {getAttachmentUrl} from '../../../lib/media/attachment-url.js';
+import {IMAGE_FILE_ACCEPT, imageFilesFrom} from '../lib/image-insert';
 
 export type AttachmentUploadStatus =
 	| {state: 'idle'}
@@ -27,6 +30,7 @@ export const IssueAttachments = ({
 	const [dragging, setDragging] = useState(false);
 	const [lightbox, setLightbox] = useState<GuiAttachment | null>(null);
 	const [broken, setBroken] = useState<Record<string, boolean>>({});
+	const fileInputRef = useRef<HTMLInputElement | null>(null);
 
 	useEffect(() => {
 		setLightbox(null);
@@ -47,17 +51,17 @@ export const IssueAttachments = ({
 
 	const canUpload = !readonly && Boolean(onUploadFiles);
 
+	const upload = (files: File[]) => {
+		if (files.length > 0) onUploadFiles?.(issueId, files);
+	};
+
 	const handleDrop = (event: React.DragEvent) => {
 		event.preventDefault();
 		setDragging(false);
 
 		if (!canUpload) return;
 
-		const files = Array.from(event.dataTransfer.files).filter(file =>
-			file.type.startsWith('image/'),
-		);
-
-		if (files.length > 0) onUploadFiles?.(issueId, files);
+		upload(imageFilesFrom(event.dataTransfer.files));
 	};
 
 	return (
@@ -65,6 +69,31 @@ export const IssueAttachments = ({
 			title={`Attachments${
 				attachments.length ? ` (${attachments.length})` : ''
 			}`}
+			action={
+				canUpload && (
+					<>
+						<Button
+							variant="ghost"
+							onClick={() => fileInputRef.current?.click()}
+						>
+							add image
+						</Button>
+						<input
+							data-testid="attachment-image-input"
+							ref={fileInputRef}
+							type="file"
+							accept={IMAGE_FILE_ACCEPT}
+							multiple
+							hidden
+							onChange={event => {
+								upload(imageFilesFrom(event.target.files));
+								// Or re-picking the same file fires no change event.
+								event.target.value = '';
+							}}
+						/>
+					</>
+				)
+			}
 		>
 			<div
 				onDragOver={event => {
@@ -141,7 +170,7 @@ export const IssueAttachments = ({
 										</span>
 									) : (
 										<img
-											src={`/media/${attachment.fileName}`}
+											src={getAttachmentUrl(attachment.fileName)}
 											alt={attachment.name}
 											loading="lazy"
 											onError={() =>
@@ -240,7 +269,7 @@ export const IssueAttachments = ({
 					}}
 				>
 					<img
-						src={`/media/${lightbox.fileName}`}
+						src={getAttachmentUrl(lightbox.fileName)}
 						alt={lightbox.name}
 						style={{
 							maxWidth: '90vw',
