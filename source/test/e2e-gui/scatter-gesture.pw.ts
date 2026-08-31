@@ -188,3 +188,33 @@ test('a ticket opened after an unlinked commit replaces its diff', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// Every other way of reaching a ticket used to leave the panel where it was:
+// only a click on a card cleared it. Creating one navigates on the create
+// reply — from a column here, and from the diff panel's own "File ticket" —
+// so the ticket it lands on was drawn behind the diff that opened it.
+test('a ticket created while an unlinked commit diff is open replaces it', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const {dot, sha} = await seedCommitOnScatter(page, appUrl, repoRoot, {
+		link: false,
+	});
+
+	await page.mouse.click(dot.x, dot.y);
+
+	const diffPanel = page.locator(`aside button[title="Copy ${sha}"]`);
+	await expect(diffPanel).toBeVisible();
+
+	const title = `Filed under a diff ${Date.now()}`;
+	await page.getByTitle('Add issue').first().click();
+	await page.getByPlaceholder('issue name').fill(title);
+	await page.getByPlaceholder('issue name').press('Enter');
+
+	await expect(page.locator('aside')).toContainText(title);
+	await expect(diffPanel).toHaveCount(0);
+
+	expect(pageErrors).toEqual([]);
+});

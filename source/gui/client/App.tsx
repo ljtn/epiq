@@ -1139,6 +1139,16 @@ export const App = () => {
 
 	const closeCommitDiff = useCallback(() => setCommitDiff(null), []);
 
+	// A diff belongs to the view it was opened over, and the ticket panel
+	// renders only while no diff does — so one left up hides whatever the next
+	// route lands on. Cleared here rather than at each call site: a ticket is
+	// also reached by creating one, by a ref link, and by a comment permalink,
+	// and each of those had to remember on its own. Selecting the ticket
+	// already open is the one case this cannot see, and selectIssue clears it.
+	useEffect(() => {
+		setCommitDiff(null);
+	}, [boardId, issueId]);
+
 	useEffect(() => {
 		if (!removeError) return;
 
