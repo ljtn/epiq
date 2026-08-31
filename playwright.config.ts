@@ -9,7 +9,13 @@ export default defineConfig({
 	// Each worker gets its own GUI server over its own seeded repo (see
 	// global-setup.ts), so files can run side by side; a file still runs whole
 	// on one worker, so its tests share a server the way they always have.
-	workers: 6,
+	//
+	// A worker is not cheap: it seeds by driving a real TUI through a pty, then
+	// holds two servers and a browser. Six of those want more than the four
+	// vCPUs a hosted runner has, and the tests that suffer first are the ones
+	// waiting on a state the app is trying to leave. A developer machine has
+	// the cores to spare.
+	workers: process.env['IS_CI'] ? 2 : 6,
 	fullyParallel: false,
 	forbidOnly: Boolean(process.env['IS_CI']),
 	retries: 0,
