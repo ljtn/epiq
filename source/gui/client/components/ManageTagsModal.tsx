@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {GuiTag} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {manageRowStyle} from '../lib/manage-row.style';
 import {Button} from './Button';
 import {IconTrash} from './IconTrash';
 
@@ -14,6 +15,7 @@ export const ManageTagsModal = ({tags, onDelete, onClose}: Props) => {
 	// Two-step: the first click arms one row, the second commits it. Arming by
 	// id rather than a boolean so moving to another row cancels the first.
 	const [armedId, setArmedId] = useState<string | null>(null);
+	const [hoveredId, setHoveredId] = useState<string | null>(null);
 
 	const sorted = [...tags].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -72,18 +74,18 @@ export const ManageTagsModal = ({tags, onDelete, onClose}: Props) => {
 				>
 					{sorted.map(tag => {
 						const armed = armedId === tag.id;
+						const hovered = hoveredId === tag.id;
 
 						return (
 							<div
 								key={tag.id}
-								style={{
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'space-between',
-									gap: 8,
-									padding: '6px 8px',
-									borderRadius: 6,
-								}}
+								data-testid="manage-tag-row"
+								data-armed={armed ? 'true' : 'false'}
+								onMouseEnter={() => setHoveredId(tag.id)}
+								onMouseLeave={() =>
+									setHoveredId(current => (current === tag.id ? null : current))
+								}
+								style={manageRowStyle({armed, hovered})}
 							>
 								<span style={{fontSize: 12, color: tag.color}}>{tag.name}</span>
 
