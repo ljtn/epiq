@@ -219,9 +219,8 @@ export const App = () => {
 	const socketRef = useRef<WebSocket | null>(null);
 	// Set right before an issues:create request that came from "File ticket"
 	// on a diff selection, consumed by that request's own issues:create:result
-	// reply (not the issue:created broadcast, which fires for every creation
-	// on the board) — that's how the origin ticket's back-comment knows which
-	// creation to react to.
+	// reply — that's how the origin ticket's back-comment knows which creation
+	// to react to.
 	const pendingFileTicketOrigin = useRef<{
 		originIssueId: string;
 		originRef: string;
@@ -531,7 +530,14 @@ export const App = () => {
 				if (detail) setIssueDetail(detail);
 			}
 
-			if (message.type === 'issue:created') {
+			// Keyed off this request's own reply, never a broadcast: a broadcast
+			// fires for every creation on the board, including other people's,
+			// and navigating on one yanked every connected client to whichever
+			// ticket happened to be created next.
+			if (message.type === 'issues:create:result') {
+				const origin = pendingFileTicketOrigin.current;
+				pendingFileTicketOrigin.current = null;
+
 				const created = getResultValue<{id: string}>(message.payload);
 
 				if (created && boardId) {
@@ -539,17 +545,6 @@ export const App = () => {
 						`/board/${boardId}/issue/${nodeRef(created.id)}?tab=overview`,
 					);
 				}
-			}
-
-			// Keyed off this request's own reply rather than the issue:created
-			// broadcast above: that one fires for every creation on the board,
-			// including other people's, and would attach the back-comment to
-			// whichever creation happened to land next.
-			if (message.type === 'issues:create:result') {
-				const origin = pendingFileTicketOrigin.current;
-				pendingFileTicketOrigin.current = null;
-
-				const created = getResultValue<{id: string}>(message.payload);
 
 				if (origin && created) {
 					sendSocketJson(socket, {
