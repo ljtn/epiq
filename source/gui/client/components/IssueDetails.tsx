@@ -626,6 +626,7 @@ export const IssueDetails = ({
 							) : issue.description ? (
 								<div
 									data-testid="description-box"
+									title={issue.readonly ? undefined : 'Double-click to edit'}
 									style={{
 										marginTop: 8,
 										padding: '8px 10px',
@@ -636,7 +637,25 @@ export const IssueDetails = ({
 									{/* Keyed on the issue, so opening another ticket starts
 									    its description collapsed rather than inheriting the
 									    last one's expanded state. */}
-									<CollapsibleBody key={issue.id} testId="description-body">
+									<CollapsibleBody
+										key={issue.id}
+										testId="description-body"
+										onDoubleClick={event => {
+											if (issue.readonly) return;
+
+											// A description carries links, images and the code
+											// snippet's copy button. A double-click that landed
+											// on one of those was aimed at it, not at editing.
+											if (
+												(event.target as HTMLElement).closest(
+													'a, button, img, input, textarea, select',
+												)
+											)
+												return;
+
+											setEditingDescription(true);
+										}}
+									>
 										{parseDiffCommentMeta(issue.description) ? (
 											<CommentBody
 												body={issue.description}
