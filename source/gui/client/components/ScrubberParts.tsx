@@ -732,7 +732,13 @@ export const ScrubberControls = ({
 		</div>
 
 		{/* Present while live too, as the status of the board rather than a way
-		    back to it, so entering history never resizes the row. */}
+		    back to it, so entering history never resizes the row.
+
+		    "Now" only over a window that runs up to the present, though. It sits
+		    at the end of the row, above the end of the track, so it reads as
+		    naming that end — and over a window paged back or dragged out, that
+		    end is not now. "Resume" is unaffected: it is an action, not a claim
+		    about the far end. The slot holds its width either way. */}
 		<button
 			onClick={onReturnToLive}
 			disabled={!isScrubbing}
@@ -758,7 +764,7 @@ export const ScrubberControls = ({
 				flexShrink: 0,
 			}}
 		>
-			{isScrubbing ? 'Resume' : 'Now'}
+			{isScrubbing ? 'Resume' : atLatest ? 'Now' : ''}
 		</button>
 	</div>
 );
