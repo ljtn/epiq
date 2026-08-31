@@ -5,6 +5,7 @@ import {
 	isLayoutMode,
 	isScope,
 	LayoutMode,
+	PeriodRange,
 	Scope,
 } from './scrubber';
 
@@ -13,8 +14,11 @@ import {
 // localStorage as the fallback for a bare board link.
 export type BoardSelection = {
 	scope: Scope;
-	// Periods back from now; meaningless under 'all'.
+	// Periods back from now; meaningless under 'all' or under a zoom.
 	offset: number;
+	// A window dragged out on the timeline, standing in for the rolling one
+	// scope and offset describe. Null while the scope buttons are in charge.
+	zoom: PeriodRange | null;
 	layout: LayoutMode;
 	view: BoardView;
 	// Identity ids the view is narrowed to — a positive list rather than the
@@ -26,31 +30,58 @@ export type BoardSelection = {
 export const DEFAULT_SELECTION: BoardSelection = {
 	scope: 'all',
 	offset: 0,
+	zoom: null,
 	layout: 'even',
 	view: 'all',
 	only: null,
 };
 
-const PARAM_KEYS = ['scope', 'offset', 'layout', 'view', 'only'] as const;
+const PARAM_KEYS = [
+	'scope',
+	'offset',
+	'from',
+	'to',
+	'layout',
+	'view',
+	'only',
+] as const;
 
 const STORAGE_KEY = 'epiq.board.selection';
 
 const unique = (ids: readonly string[]): string[] => [...new Set(ids)];
 
-const normalize = (selection: BoardSelection): BoardSelection => ({
-	...selection,
-	offset:
-		selection.scope === 'all' ||
-		!Number.isInteger(selection.offset) ||
-		selection.offset < 0
-			? 0
-			: selection.offset,
-	only: selection.only === null ? null : unique(selection.only),
-});
+// A window has to be two real moments in order, or the axis it builds spans
+// NaN and every fraction on the chart goes with it.
+const validZoom = (zoom: PeriodRange | null): PeriodRange | null =>
+	zoom !== null &&
+	Number.isFinite(zoom.start) &&
+	Number.isFinite(zoom.end) &&
+	zoom.end > zoom.start
+		? zoom
+		: null;
+
+const normalize = (selection: BoardSelection): BoardSelection => {
+	const zoom = validZoom(selection.zoom);
+
+	return {
+		...selection,
+		zoom,
+		// A zoom is the window, so there is no period left to page by count.
+		offset:
+			zoom !== null ||
+			selection.scope === 'all' ||
+			!Number.isInteger(selection.offset) ||
+			selection.offset < 0
+				? 0
+				: selection.offset,
+		only: selection.only === null ? null : unique(selection.only),
+	};
+};
 
 export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.scope === DEFAULT_SELECTION.scope &&
 	selection.offset === DEFAULT_SELECTION.offset &&
+	selection.zoom === null &&
 	selection.layout === DEFAULT_SELECTION.layout &&
 	selection.view === DEFAULT_SELECTION.view &&
 	selection.only === null;
@@ -66,9 +97,20 @@ export const applySelectionPatch = (
 		patch.scope !== undefined && patch.scope !== current.scope;
 	const viewChanged = patch.view !== undefined && patch.view !== current.view;
 
+	// Reaching for a scope button is how you get back out of a zoom, so it
+	// clears one even when the scope named is the one a zoom inferred — which is
+	// the button that looks pressed while zoomed.
+	const zoom =
+		patch.zoom !== undefined
+			? patch.zoom
+			: patch.scope !== undefined
+			? null
+			: current.zoom;
+
 	return normalize({
 		...current,
 		...patch,
+		zoom,
 		offset: scopeChanged ? 0 : patch.offset ?? current.offset,
 		only:
 			patch.only !== undefined ? patch.only : viewChanged ? null : current.only,
@@ -92,10 +134,16 @@ export const readSelectionParams = (
 	const layout = params.get('layout');
 	const view = params.get('view');
 	const only = params.get('only');
+	const from = params.get('from');
+	const to = params.get('to');
 
 	return normalize({
 		scope: isScope(scope) ? scope : DEFAULT_SELECTION.scope,
 		offset: Number(params.get('offset') ?? 0),
+		zoom:
+			from === null || to === null
+				? null
+				: {start: Number(from), end: Number(to)},
 		layout: isLayoutMode(layout) ? layout : DEFAULT_SELECTION.layout,
 		view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
 		only: only === null ? null : only.split(',').filter(Boolean),
@@ -119,6 +167,8 @@ export const writeSelectionParams = (
 
 	put('scope', next.scope === DEFAULT_SELECTION.scope ? null : next.scope);
 	put('offset', next.offset === 0 ? null : String(next.offset));
+	put('from', next.zoom === null ? null : String(next.zoom.start));
+	put('to', next.zoom === null ? null : String(next.zoom.end));
 	put('layout', next.layout === DEFAULT_SELECTION.layout ? null : next.layout);
 	put('view', next.view === DEFAULT_SELECTION.view ? null : next.view);
 	put('only', next.only === null ? null : next.only.join(','));
@@ -126,8 +176,9 @@ export const writeSelectionParams = (
 
 // ------------------------------------------------------------------- storage
 
-// The offset is not kept: a period back from now is a moment, not a
-// preference, and reopening the board a week later on it would be a surprise.
+// Neither the offset nor a zoom is kept: a stretch of last Tuesday is a
+// moment, not a preference, and reopening the board a week later on it would be
+// a surprise.
 export const readStoredSelection = (): BoardSelection => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
@@ -143,6 +194,7 @@ export const readStoredSelection = (): BoardSelection => {
 				? (scope as Scope)
 				: DEFAULT_SELECTION.scope,
 			offset: 0,
+			zoom: null,
 			layout: isLayoutMode(String(layout))
 				? (layout as LayoutMode)
 				: DEFAULT_SELECTION.layout,

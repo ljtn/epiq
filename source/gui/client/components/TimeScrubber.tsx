@@ -36,8 +36,11 @@ import {
 	getPeriodRange,
 	hourFractionForTime,
 	LayoutMode,
+	MIN_RANGE_DRAG_PX,
+	MIN_ZOOM_SPAN_MS,
 	populatedRange,
 	Scope,
+	scopeForSpan,
 	segmentAt,
 	useExitTransition,
 	usePersistedFlag,
@@ -111,7 +114,14 @@ export const TimeScrubber = ({
 	// identity the window itself holds no event for.
 	knownIdentities: Record<'actor' | 'tag' | 'assignee', GuiEventIdentity[]>;
 }) => {
-	const {scope, offset, layout: layoutMode, view: boardView, only} = selection;
+	const {
+		scope,
+		offset,
+		zoom,
+		layout: layoutMode,
+		view: boardView,
+		only,
+	} = selection;
 	const animate = !usePrefersReducedMotion();
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
@@ -119,6 +129,14 @@ export const TimeScrubber = ({
 	const lastTargetRef = useRef<number | null>(null);
 
 	const [dragFraction, setDragFraction] = useState<number | null>(null);
+	// Where a range drag started and where it has reached, as track fractions.
+	const [rangeDrag, setRangeDrag] = useState<{
+		from: number;
+		to: number;
+	} | null>(null);
+	// Set by the needle's own press, which fires before the track's: it says
+	// this drag moves the needle rather than dragging out a range.
+	const grabbedNeedleRef = useRef(false);
 
 	const [collapsed, setCollapsed] = usePersistedFlag(
 		COLLAPSED_STORAGE_KEY,
@@ -179,10 +197,13 @@ export const TimeScrubber = ({
 		number | null
 	>(null);
 
-	const periodRange = getPeriodRange(scope, offset);
+	// A dragged-out window stands in for the rolling one, and is the only kind
+	// with fixed bounds — every other is anchored to now.
+	const periodRange = zoom ?? getPeriodRange(scope, offset);
 
 	// periodRange is derived from scope/offset each render, so it is
-	// deliberately absent from the dependencies.
+	// deliberately absent from the dependencies; the zoom's own bounds are
+	// listed instead, since it is a fresh object on every read of the URL.
 	useEffect(() => {
 		if (!connected) return;
 
@@ -191,19 +212,65 @@ export const TimeScrubber = ({
 			periodRange?.end,
 			allBoards,
 		);
-	}, [scope, offset, boardId, allBoards, connected, socketEpoch]);
+	}, [
+		scope,
+		offset,
+		zoom?.start,
+		zoom?.end,
+		boardId,
+		allBoards,
+		connected,
+		socketEpoch,
+	]);
 
 	const changeLayoutMode = (next: LayoutMode) =>
 		onChangeSelection({layout: next});
 
+	// Naming a scope is also the way out of a zoom, which applySelectionPatch
+	// clears for any patch that names one.
 	const changeScope = (nextScope: Scope) => {
 		armEntrance();
 		onChangeSelection({scope: nextScope});
 	};
 
+	const clearZoom = () => {
+		armEntrance();
+		onChangeSelection({zoom: null});
+	};
+
+	// Under a zoom there are no periods to count back, so the pager slides the
+	// window by its own width instead — one press back is the stretch before the
+	// one on screen.
 	const changeOffset = (nextOffset: number) => {
 		armEntrance();
-		onChangeSelection({offset: nextOffset});
+
+		if (!zoom) {
+			onChangeSelection({offset: nextOffset});
+			return;
+		}
+
+		const span = zoom.end - zoom.start;
+		const shift = (nextOffset - offset) * span;
+		const end = Math.min(Date.now(), zoom.end - shift);
+
+		onChangeSelection({zoom: {start: end - span, end}});
+	};
+
+	// Zooming in on the last few minutes is a legitimate ask; zooming past the
+	// present is not, so a window already at it has nowhere later to go.
+	const atLatest = zoom ? zoom.end >= Date.now() : offset === 0;
+
+	const zoomToRange = (from: number, to: number) => {
+		const start = Math.min(from, to);
+		const span = Math.max(MIN_ZOOM_SPAN_MS, Math.abs(to - from));
+
+		armEntrance();
+		onChangeSelection({
+			zoom: {start, end: start + span},
+			// The window keeps its exact bounds; the scope is what the controls
+			// call it, and what the pager steps by once it is cleared.
+			scope: scopeForSpan(span),
+		});
 	};
 
 	// No armEntrance on either: the window is unchanged, so these filter what is
@@ -304,7 +371,7 @@ export const TimeScrubber = ({
 		[shown, boardView, hiddenIdentityIds],
 	);
 
-	const dragging = dragFraction !== null;
+	const dragging = dragFraction !== null || rangeDrag !== null;
 
 	// Both series as one list for the canvas, in the order they should stack:
 	// commits first, board events over them, as the old zIndex did.
@@ -448,10 +515,29 @@ export const TimeScrubber = ({
 	}, [timeTravel.mode]);
 
 	const endDrag = () => {
-		if (dragFraction === null) return;
+		grabbedNeedleRef.current = false;
 
-		dispatchScrub(dragFraction, true);
-		setDragFraction(null);
+		if (dragFraction !== null) {
+			dispatchScrub(dragFraction, true);
+			setDragFraction(null);
+			return;
+		}
+
+		if (rangeDrag === null) return;
+
+		const {from, to} = rangeDrag;
+		setRangeDrag(null);
+
+		const trackWidth = trackRef.current?.clientWidth ?? 0;
+
+		// Pressed and released on one spot: a click, which still scrubs. Only a
+		// drag wide enough to have been aimed is read as a range.
+		if (Math.abs(to - from) * trackWidth < MIN_RANGE_DRAG_PX) {
+			dispatchScrub(from, true);
+			return;
+		}
+
+		zoomToRange(axis.fractionToTime(from), axis.fractionToTime(to));
 	};
 
 	// Measures `event.currentTarget`, not trackRef, so one handler serves both
@@ -583,6 +669,21 @@ export const TimeScrubber = ({
 
 	const segmentUnit = chooseSegmentUnit(axis.span);
 
+	// Everything hover puts on the chart is about the bucket under the pointer,
+	// which is not what a range drag is asking about — and it is drawn over the
+	// stretch being picked. So the drag takes the chart over while it lasts, and
+	// says what it has covered so far in place of the hover's own hint.
+	const pickingRange = rangeDrag !== null;
+
+	const rangeHint: HintContent | null = rangeDrag && {
+		label: formatInterval(
+			axis.fractionToTime(Math.min(rangeDrag.from, rangeDrag.to)),
+			axis.fractionToTime(Math.max(rangeDrag.from, rangeDrag.to)),
+		),
+		rows: ['Release to zoom the window to this stretch'],
+		fraction: (rangeDrag.from + rangeDrag.to) / 2,
+	};
+
 	return (
 		<ScrubberLayout
 			collapsed={collapsed}
@@ -592,6 +693,9 @@ export const TimeScrubber = ({
 				scope,
 				offset,
 				periodRange,
+				zoomed: zoom !== null,
+				atLatest,
+				onClearZoom: clearZoom,
 				layoutMode,
 				showIssues,
 				showCommits,
@@ -634,39 +738,63 @@ export const TimeScrubber = ({
 				scatterLayers,
 				issueSeriesColor: soleIdentity?.color ?? boardViewColor(boardView),
 				dragging,
+				rangeSelection: rangeDrag,
 				// Exits still need their animation, so this only silences a series
 				// that has finished arriving.
 
 				commits: shown.commits,
 				hoveredCommitSha: hoveredCommit?.commit.sha ?? null,
-				hoveredBucketIndex,
-				hoveredCommitBucketIndex,
+				hoveredBucketIndex: pickingRange ? null : hoveredBucketIndex,
+				hoveredCommitBucketIndex: pickingRange
+					? null
+					: hoveredCommitBucketIndex,
 				hoveredSegment:
-					hoveredSegmentTime !== null
+					hoveredSegmentTime !== null && !pickingRange
 						? segmentAt(hoveredSegmentTime, segmentUnit)
 						: null,
 				connected,
 				thumbFraction: dragFraction ?? confirmedFraction,
 				highlightEventId,
 				trackWidthPx: trackRef.current?.clientWidth ?? 0,
-				boardHint,
-				commitHint,
+				boardHint: pickingRange ? rangeHint : boardHint,
+				commitHint: pickingRange ? null : commitHint,
 				on: {
 					onPointerDown: event => {
 						event.currentTarget.setPointerCapture(event.pointerId);
 
 						const fraction = fractionFromClientX(event.clientX);
+
+						// Off the needle, a press is the corner of a range until it turns
+						// out to have been a click. Scrubbing on the way would checkout
+						// every moment swept over on the way to picking a window.
+						if (!grabbedNeedleRef.current) {
+							setRangeDrag({from: fraction, to: fraction});
+							return;
+						}
+
 						setDragFraction(fraction);
 						dispatchScrub(fraction, true);
 					},
 					onPointerMove: event => {
-						if (dragFraction === null) return;
+						// The handler is on the wrapper, so this runs for every move over
+						// the whole scrubber. Measuring the track is a layout read, and
+						// nothing outside a drag has a use for it.
+						if (dragFraction === null && rangeDrag === null) return;
 
 						const fraction = fractionFromClientX(event.clientX);
+
+						if (rangeDrag !== null) {
+							setRangeDrag({from: rangeDrag.from, to: fraction});
+							return;
+						}
+
 						setDragFraction(fraction);
 						dispatchScrub(fraction, false);
 					},
 					onPointerEnd: endDrag,
+					onGrabNeedle: () => {
+						grabbedNeedleRef.current = true;
+					},
 					onTrackMouseMove: event => {
 						if (layoutMode === 'even') {
 							setHoveredBucketIndex(bucketIndexFromEvent(event));

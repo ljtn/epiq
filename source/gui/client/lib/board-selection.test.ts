@@ -52,6 +52,7 @@ describe('selection in the URL', () => {
 		const selection: BoardSelection = {
 			scope: 'month',
 			offset: 2,
+			zoom: null,
 			layout: 'real',
 			view: 'tagging',
 			only: ['bug', 'docs'],
@@ -108,6 +109,7 @@ describe('applySelectionPatch', () => {
 	const narrowed: BoardSelection = {
 		scope: 'week',
 		offset: 3,
+		zoom: null,
 		layout: 'even',
 		view: 'tagging',
 		only: ['bug'],
@@ -139,6 +141,49 @@ describe('applySelectionPatch', () => {
 		).toBe(true);
 		expect(isDefaultSelection(narrowed)).toBe(false);
 	});
+
+	describe('zoom', () => {
+		const zoomed = applySelectionPatch(narrowed, {
+			zoom: {start: 1000, end: 5000},
+			scope: 'hour',
+		});
+
+		it('leaves the offset behind, since a zoom is the window itself', () => {
+			expect(zoomed.zoom).toEqual({start: 1000, end: 5000});
+			expect(zoomed.offset).toBe(0);
+		});
+
+		it('is cleared by naming any scope, including the one it reads as', () => {
+			expect(applySelectionPatch(zoomed, {scope: 'week'}).zoom).toBeNull();
+			expect(applySelectionPatch(zoomed, {scope: 'hour'}).zoom).toBeNull();
+		});
+
+		it('survives a patch that says nothing about it', () => {
+			expect(applySelectionPatch(zoomed, {layout: 'real'}).zoom).toEqual({
+				start: 1000,
+				end: 5000,
+			});
+		});
+
+		it('refuses a window that is not two moments in order', () => {
+			for (const zoom of [
+				{start: 5000, end: 1000},
+				{start: 1000, end: 1000},
+				{start: Number.NaN, end: 5000},
+			]) {
+				expect(applySelectionPatch(narrowed, {zoom}).zoom).toBeNull();
+			}
+		});
+
+		it('round-trips through the URL', () => {
+			expect(readSelectionParams(params(written(zoomed)))).toEqual(zoomed);
+		});
+
+		it('needs both bounds in the URL to mean anything', () => {
+			expect(readSelectionParams(params('from=1000'))?.zoom).toBeNull();
+			expect(readSelectionParams(params('to=5000'))?.zoom).toBeNull();
+		});
+	});
 });
 
 describe('stored selection', () => {
@@ -160,10 +205,11 @@ describe('stored selection', () => {
 		expect(readStoredSelection()).toEqual(DEFAULT_SELECTION);
 	});
 
-	it('keeps everything but the offset', () => {
+	it('keeps everything but the moment in time — the offset and the zoom', () => {
 		storeSelection({
 			scope: 'month',
 			offset: 4,
+			zoom: {start: 1000, end: 2000},
 			layout: 'real',
 			view: 'tagging',
 			only: ['bug'],
@@ -172,6 +218,7 @@ describe('stored selection', () => {
 		expect(readStoredSelection()).toEqual({
 			scope: 'month',
 			offset: 0,
+			zoom: null,
 			layout: 'real',
 			view: 'tagging',
 			only: ['bug'],

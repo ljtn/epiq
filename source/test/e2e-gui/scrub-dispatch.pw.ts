@@ -68,8 +68,9 @@ test('a click on the track asks the server to scrub once', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// A drag is a scrub, never a native text selection: without user-select off,
-// sweeping the needle could pick up the axis labels and drag them as a ghost.
+// A drag is a gesture on the chart, never a native text selection: without
+// user-select off, sweeping across could pick up the axis labels and drag them
+// as a ghost.
 test('a drag never starts a text selection', async ({
 	page,
 	appUrl,
@@ -100,13 +101,8 @@ test('a drag never starts a text selection', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The press dispatches immediately and the moves are throttled, so without the
-// release the last stretch of a drag would never be asked for.
-test('a drag commits the position it ends on', async ({
-	page,
-	appUrl,
-	pageErrors,
-}) => {
+// Watches every scrub the page asks the server for, in order.
+const recordScrubs = async (page: Page): Promise<number[]> => {
 	const targets: number[] = [];
 
 	await page.routeWebSocket(/\/ws/, ws => {
@@ -128,6 +124,18 @@ test('a drag commits the position it ends on', async ({
 		server.onMessage(message => ws.send(message));
 	});
 
+	return targets;
+};
+
+// The press dispatches immediately and the moves are throttled, so without the
+// release the last stretch of a drag would never be asked for.
+test('dragging the needle commits the position it ends on', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	const targets = await recordScrubs(page);
+
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -136,7 +144,19 @@ test('a drag commits the position it ends on', async ({
 	if (!box) throw new Error('scrubber track is not on screen');
 
 	const y = box.y + box.height / 2;
-	await page.mouse.move(box.x + box.width * 0.2, y);
+
+	// The needle parks at the right edge while live, so it has to be put
+	// somewhere draggable first.
+	await page.mouse.click(box.x + box.width * 0.2, y);
+	await expect(
+		page.getByRole('button', {name: 'Resume', exact: true}),
+	).toBeEnabled();
+
+	const grip = page.getByTestId('scrubber-needle-grip');
+	const gripBox = await grip.boundingBox();
+	if (!gripBox) throw new Error('scrubber needle is not on screen');
+
+	await page.mouse.move(gripBox.x + gripBox.width / 2, y);
 	await page.mouse.down();
 	for (const at of [0.4, 0.6, 0.8]) {
 		await page.mouse.move(box.x + box.width * at, y);
@@ -149,6 +169,58 @@ test('a drag commits the position it ends on', async ({
 	// The release lands on the far right, so the last request must be the
 	// largest moment asked for.
 	expect(targets[targets.length - 1]).toBe(Math.max(...targets));
+
+	// A needle drag scrubs and nothing more: the window it was dragged across
+	// is the same one it started in.
+	expect(new URL(page.url()).searchParams.get('from')).toBeNull();
+
+	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});
+
+// The gesture the needle drag had to give up. Dragging anywhere else across
+// the track picks a stretch of time and makes it the whole window, which is
+// only unambiguous because it never scrubs on the way.
+test('a drag across the track zooms the window to it, without scrubbing', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	const targets = await recordScrubs(page);
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const track = page.getByTestId('scrubber-track');
+	const box = await track.boundingBox();
+	if (!box) throw new Error('scrubber track is not on screen');
+
+	const y = box.y + box.height / 2;
+	await page.mouse.move(box.x + box.width * 0.3, y);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width * 0.7, y, {steps: 10});
+
+	// The stretch is drawn while it is being dragged out, so it can be seen
+	// before it is committed.
+	await expect(page.getByTestId('scrubber-range-selection')).toBeVisible();
+
+	await page.mouse.up();
+
+	const zoomed = page.getByRole('button', {name: 'Clear zoom'});
+	await expect(zoomed).toBeVisible();
+
+	const params = new URL(page.url()).searchParams;
+	const from = Number(params.get('from'));
+	const to = Number(params.get('to'));
+	expect(to).toBeGreaterThan(from);
+
+	await page.waitForTimeout(2000);
+	expect(targets).toEqual([]);
+
+	// And back out again, to the window the drag was made in.
+	await zoomed.click();
+	await expect(zoomed).toBeHidden();
+	expect(new URL(page.url()).searchParams.get('from')).toBeNull();
 
 	await returnToLive(page);
 	expect(pageErrors).toEqual([]);
