@@ -16,6 +16,9 @@ export type SeedTui = {
 	cwd: string;
 	input: (value: string) => void;
 	waitFor: (text: string, timeoutMs?: number) => Promise<void>;
+	// Drops everything seen so far, so a `waitFor` after it can only be
+	// satisfied by a frame drawn from here on.
+	forget: () => void;
 	destroy: () => void;
 };
 
@@ -33,13 +36,21 @@ export const startSeedTui = (): SeedTui => {
 
 	let output = '';
 
+	// Ink stops rendering frame by frame when it detects CI and writes only the
+	// final frame, on unmount — so on a CI runner the pty stays silent and every
+	// `waitFor` here times out on empty output. The TUI e2e helper strips the
+	// same two for the same reason.
+	const env = {...process.env};
+	delete env['CI'];
+	delete env['GITHUB_ACTIONS'];
+
 	const child = pty.spawn(process.execPath, [cliPath], {
 		name: 'xterm-color',
 		cols: 200,
 		rows: 50,
 		cwd,
 		env: {
-			...process.env,
+			...env,
 			EPIQ_GLOBAL_DIR: globalDir,
 			TERM: 'xterm-256color',
 		} as Record<string, string>,
@@ -65,6 +76,9 @@ export const startSeedTui = (): SeedTui => {
 
 				await new Promise(resolve => setTimeout(resolve, 50));
 			}
+		},
+		forget: () => {
+			output = '';
 		},
 		destroy: () => {
 			try {
@@ -115,6 +129,11 @@ export const seedProject = async (): Promise<string> => {
 	tui.input(':new board QA');
 	await tui.waitFor('<ENTER> to confirm');
 	tui.input('\r');
+	// The command being typed is itself on screen, so "QA" is in the buffer
+	// before ENTER is even sent. Without forgetting it first, this wait is
+	// already satisfied and `destroy` can land before the board is written —
+	// leaving a seeded repo whose switcher has nothing to switch to.
+	tui.forget();
 	await tui.waitFor('QA');
 
 	tui.destroy();
