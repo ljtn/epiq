@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useRef, useState} from 'react';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {Button} from './Button';
 import {CodeSnippet} from './CodeSnippet';
@@ -19,6 +19,7 @@ import {
 } from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
+import {IMAGE_FILE_ACCEPT, useImageInsert} from '../lib/image-insert';
 
 // A diff-selection comment's quoted code is rendered through the same
 // highlighter the diff view uses, rather than as a markdown fence — the whole
@@ -85,6 +86,8 @@ type Props = {
 	onDeleteComment?: (issueId: string, commentId: string) => void;
 	onEditComment?: (issueId: string, commentId: string, body: string) => void;
 	onOpenDiffLocation?: (location: DiffLocation) => void;
+	// Resolves to one markdown reference per stored file, left at the cursor.
+	onUploadImages?: (issueId: string, files: File[]) => Promise<string[]>;
 };
 
 export const IssueComments = ({
@@ -96,8 +99,17 @@ export const IssueComments = ({
 	onDeleteComment,
 	onEditComment,
 	onOpenDiffLocation,
+	onUploadImages,
 }: Props) => {
 	const [body, setBody] = useState('');
+	const composerRef = useRef<HTMLTextAreaElement | null>(null);
+
+	const composerImages = useImageInsert({
+		issueId,
+		setValue: setBody,
+		textareaRef: composerRef,
+		onUploadImages: readonly ? undefined : onUploadImages,
+	});
 	// The comment being rewritten, if any. A diff-linked comment only exposes
 	// its note here; the marker and quoted snippet ride along untouched.
 	const [editing, setEditing] = useState<{id: string; text: string} | null>(
@@ -263,9 +275,14 @@ export const IssueComments = ({
 						// Uncapped: maxLength drops a long paste's tail silently. The
 						// counter and disabled button refuse it visibly instead.
 						maxLength={Number.MAX_SAFE_INTEGER}
+						ref={composerRef}
 						value={body}
 						placeholder="write a comment"
 						onChange={event => setBody(event.target.value)}
+						onDragOver={composerImages.onDragOver}
+						onDragLeave={composerImages.onDragLeave}
+						onDrop={composerImages.onDrop}
+						onPaste={composerImages.onPaste}
 						onKeyDown={event => {
 							if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
 								addComment();
@@ -280,6 +297,23 @@ export const IssueComments = ({
 					/>
 
 					<ActionRow>
+						{composerImages.enabled && (
+							<>
+								<Button variant="ghost" onClick={composerImages.pickFiles}>
+									{composerImages.busy ? 'adding…' : 'add image'}
+								</Button>
+								<input
+									data-testid="comment-image-input"
+									ref={composerImages.inputRef}
+									type="file"
+									accept={IMAGE_FILE_ACCEPT}
+									multiple
+									hidden
+									onChange={composerImages.onInputChange}
+								/>
+							</>
+						)}
+
 						{/* Hidden until halfway, so a one-liner is not nagged. */}
 						{length > MAX_COMMENT_LENGTH / 2 && (
 							<span

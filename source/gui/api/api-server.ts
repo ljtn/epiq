@@ -342,11 +342,14 @@ export const startGuiServer = async (input: {
 						});
 					}
 
-					return sendJson(
-						res,
-						200,
-						await getGuiState({repoRoot: project.repoRoot}),
-					);
+					// The state, plus the attachment just made. Its markdown is
+					// built here anyway, and the client needs it to leave a
+					// reference at the cursor — finding it again on the client would
+					// mean picking the new one out of the whole state.
+					return sendJson(res, 200, {
+						...(await getGuiState({repoRoot: project.repoRoot})),
+						attachment: result.value,
+					});
 				});
 			} catch (error) {
 				return sendJson(res, 400, {

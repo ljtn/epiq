@@ -19,10 +19,14 @@ export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
 	/>
 );
 
-export const Textarea = (
-	props: React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-) => (
+// Forwards its ref: inserting an image at the cursor has to read
+// selectionStart off the element, which only the owner of the ref can do.
+export const Textarea = React.forwardRef<
+	HTMLTextAreaElement,
+	React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>((props, ref) => (
 	<textarea
+		ref={ref}
 		maxLength={props.maxLength ?? 1500}
 		{...props}
 		style={{
@@ -41,7 +45,9 @@ export const Textarea = (
 			...props.style,
 		}}
 	/>
-);
+));
+
+Textarea.displayName = 'Textarea';
 
 export const ActionRow = ({children}: {children: React.ReactNode}) => (
 	<div

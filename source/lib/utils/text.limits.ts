@@ -7,7 +7,11 @@
 export const MAX_COMMENT_LENGTH = 4000;
 
 export const MAX_TITLE_LENGTH = 300;
-export const MAX_DESCRIPTION_LENGTH = 100_000;
+
+// Room for a long ticket without room for a document. The longest description
+// on this board is ~4.5k, so this is several times the real ceiling while
+// being small enough that one accepted string cannot bloat every clone's log.
+export const MAX_DESCRIPTION_LENGTH = 20_000;
 export const MAX_TAG_NAME_LENGTH = 60;
 export const MAX_ASSIGNEE_NAME_LENGTH = 80;
 export const MAX_ATTACHMENT_NAME_LENGTH = 200;
