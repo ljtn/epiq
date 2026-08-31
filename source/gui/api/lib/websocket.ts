@@ -504,11 +504,6 @@ export const setupWebsocket = (
 						});
 					}
 
-					broadcastGuiMessage({
-						type: 'issue:created',
-						payload: result.value,
-					});
-
 					onStateChanged();
 					return sendGuiState(socket, repoRoot);
 				}
