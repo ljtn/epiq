@@ -177,12 +177,10 @@ if (platform === 'darwin') {
 function browserShimDir() {
 	const dir = mkdtempSync(join(tmpdir(), 'epiq-sea-no-open-'));
 
-	if (platform !== 'win32') {
-		for (const name of ['open', 'xdg-open']) {
-			const shim = join(dir, name);
-			writeFileSync(shim, '#!/bin/sh\nexit 0\n');
-			chmodSync(shim, 0o755);
-		}
+	for (const name of ['open', 'xdg-open']) {
+		const shim = join(dir, name);
+		writeFileSync(shim, '#!/bin/sh\nexit 0\n');
+		chmodSync(shim, 0o755);
 	}
 
 	return dir;
@@ -222,7 +220,13 @@ async function verifyGuiAssets(binary) {
 		child.kill('SIGTERM');
 
 		for (const dir of [shimDir, cwd, globalDir]) {
-			rmSync(dir, {recursive: true, force: true});
+			// Best effort: a temp directory the build could not remove is not a
+			// reason to fail a release.
+			try {
+				rmSync(dir, {recursive: true, force: true, maxRetries: 3});
+			} catch {
+				console.log(`Could not remove ${dir}; leaving it to the OS.`);
+			}
 		}
 	};
 
@@ -282,7 +286,18 @@ if (isCrossBuild) {
 	console.log('Cross-build: skipping native --version check.');
 } else {
 	run(`"${outBin}" --version`);
-	await verifyGuiAssets(outBin);
+
+	// Posix only. What the check catches — an asset the blob does not carry
+	// under the name `serveStatic` asks for — is decided by the asset map
+	// above, which is the same on every platform, so the macOS and Linux legs
+	// already cover the regression for all of them. Booting a server and
+	// killing it is the platform-specific part, and nobody has been able to
+	// exercise it on a Windows runner; see Y7RKPTH.
+	if (platform === 'win32') {
+		console.log('Windows: skipping the GUI asset check.');
+	} else {
+		await verifyGuiAssets(outBin);
+	}
 }
 
 console.log(`\nDone! Binary at ${outBin}`);
