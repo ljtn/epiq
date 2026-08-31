@@ -36,6 +36,8 @@ const main = async () => {
 		repoRoot,
 		bareUrl: await serve(bareRepoRoot),
 		bareRepoRoot,
+		// Set by `seedProject`, which points it at a temp directory of its own.
+		globalDir: process.env['EPIQ_GLOBAL_DIR']!,
 	};
 
 	// The server boots the repo on its first request; taken here rather than

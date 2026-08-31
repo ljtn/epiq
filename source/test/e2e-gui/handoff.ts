@@ -35,4 +35,7 @@ export type Handoff = {
 	// load here" screen can be opened without tearing down the seeded one.
 	bareUrl: string;
 	bareRepoRoot: string;
+	// The seeded project's state lives under here, not in the repo, so a test
+	// that starts a server of its own has to point it at the same directory.
+	globalDir: string;
 };
