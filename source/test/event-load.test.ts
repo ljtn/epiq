@@ -135,6 +135,25 @@ describe('getSortedEvents', () => {
 		]);
 	});
 
+	// An `init.workspace` key alongside another action would otherwise pass a
+	// bare `'init.workspace' in event` check and front-run genesis.
+	it('anchors a forged root that smuggles an init.workspace key after history too', () => {
+		const genesis = event('01B0000000000000000000000A', null, 'init.workspace');
+		const first = event('01B0000000000000000000000B', genesis.id[0]);
+		const forged = {
+			...event('00000000000000000000000000', null, 'evil.event'),
+			'init.workspace': {id: 'ws-forged', name: 'Forged'},
+		} as ReconstructedEvent;
+
+		const sorted = getSortedEvents([forged, genesis, first]);
+
+		expect(sorted.map(e => e.id[0])).toEqual([
+			genesis.id[0],
+			first.id[0],
+			forged.id[0],
+		]);
+	});
+
 	// Every event refs its predecessor, so a log is one chain as deep as it is
 	// long. Recursing it overflowed the call stack at ~4.7k events, which meant
 	// an ordinary board eventually stopped opening for everybody at once.
