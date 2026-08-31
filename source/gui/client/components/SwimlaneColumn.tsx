@@ -228,6 +228,7 @@ export const SwimlaneColumn = ({
 					{!swimlane.readonly && (
 						<KebabMenu
 							testId="swimlane-menu"
+							title="Swimlane actions"
 							items={[
 								{
 									id: 'rename',

@@ -22,6 +22,7 @@ import {ManageTagsModal} from './ManageTagsModal';
 import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
+import {PanelDockMenu} from './PanelDockMenu';
 import {IconCollapseLane} from './IconCollapseLane';
 import {IconExpandLane} from './IconExpandLane';
 import {
@@ -48,6 +49,7 @@ import {Tabs, TabItem} from './Tabs';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {usePersistedFlag} from '../lib/scrubber';
+import {AsideDock} from '../lib/aside-dock';
 import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
@@ -236,6 +238,8 @@ const Lane = ({
 };
 
 export const IssueDetails = ({
+	dock,
+	onDock,
 	whoAmI,
 	comments,
 	history,
@@ -274,6 +278,8 @@ export const IssueDetails = ({
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
 }: {
+	dock: AsideDock;
+	onDock: (next: AsideDock) => void;
 	whoAmI: GuiUser;
 	issue: GuiIssue | null;
 	comments: GuiComment[];
@@ -490,9 +496,14 @@ export const IssueDetails = ({
 		);
 
 	return (
-		<Aside ref={panelRef} onWidthChange={setPanelWidth}>
+		<Aside ref={panelRef} dock={dock} onWidthChange={setPanelWidth}>
 			{({isFullscreen, toggleFullscreen}) => {
-				const laneView = isFullscreen && panelWidth >= LANE_VIEW_WIDTH;
+				// Docked to the bottom the panel already spans the window, so it earns
+				// the lanes without fullscreen. Not width alone: MAX_ASIDE_WIDTH and
+				// LANE_VIEW_WIDTH are both 1400, so a side panel dragged to its limit
+				// would otherwise flip into lanes on the last pixel.
+				const laneView =
+					(isFullscreen || dock === 'bottom') && panelWidth >= LANE_VIEW_WIDTH;
 
 				// A collapsed lane costs a fixed rail; the rest of the width is split
 				// between the lanes still open, so the diff actually receives what
@@ -947,6 +958,7 @@ export const IssueDetails = ({
 									</div>
 
 									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
+										<PanelDockMenu dock={dock} onDock={onDock} />
 										<FullscreenToggleButton
 											isFullscreen={isFullscreen}
 											onClick={toggleFullscreen}

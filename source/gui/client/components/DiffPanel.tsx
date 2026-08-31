@@ -13,6 +13,8 @@ import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
 import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
+import {PanelDockMenu} from './PanelDockMenu';
+import {AsideDock} from '../lib/aside-dock';
 
 // A single dark theme: the app has no light mode to match (GUI_THEME is a
 // fixed dark palette), so there is no pair to switch between.
@@ -92,6 +94,8 @@ export const DiffPanel = ({
 	onClose,
 	isFullscreen,
 	toggleFullscreen,
+	dock,
+	onDock,
 }: {
 	sha: string;
 	files: GuiCommitDiffFile[] | null;
@@ -101,6 +105,8 @@ export const DiffPanel = ({
 	onClose: () => void;
 	isFullscreen: boolean;
 	toggleFullscreen: () => void;
+	dock: AsideDock;
+	onDock: (next: AsideDock) => void;
 }) => (
 	<>
 		<FormHeader>
@@ -117,6 +123,7 @@ export const DiffPanel = ({
 
 			<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 				<CopyShaButton sha={sha} />
+				<PanelDockMenu dock={dock} onDock={onDock} />
 				<FullscreenToggleButton
 					isFullscreen={isFullscreen}
 					onClick={toggleFullscreen}
