@@ -20,7 +20,10 @@ import {
 	HOVER_HINT_WIDTH,
 	LayoutMode,
 	NEEDLE_COLOR,
+	NEEDLE_GRIP_WIDTH,
 	PeriodRange,
+	RANGE_SELECTION_COLOR,
+	RANGE_SELECTION_EDGE,
 	Scope,
 	scopeButtonLabel,
 	SCOPES,
@@ -507,6 +510,9 @@ export const ScrubberControls = ({
 	scope,
 	offset,
 	periodRange,
+	zoomed,
+	atLatest,
+	onClearZoom,
 	layoutMode,
 	showIssues,
 	showCommits,
@@ -537,6 +543,13 @@ export const ScrubberControls = ({
 	scope: Scope;
 	offset: number;
 	periodRange: PeriodRange | null;
+	// The window was dragged out on the chart. The scope buttons still show the
+	// one it reads as, since that is what the chart is drawn at.
+	zoomed: boolean;
+	// The window already reaches the present, so there is nothing later to page
+	// to.
+	atLatest: boolean;
+	onClearZoom: () => void;
 	layoutMode: LayoutMode;
 	showIssues: boolean;
 	showCommits: boolean;
@@ -572,8 +585,19 @@ export const ScrubberControls = ({
 		}}
 	>
 		<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-			{scope !== 'all' && (
+			{(scope !== 'all' || zoomed) && (
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
+					{zoomed && (
+						<button
+							title="Back to the whole period"
+							aria-label="Clear zoom"
+							disabled={!connected}
+							onClick={onClearZoom}
+							style={{...navButtonStyle, ...(connected ? {} : mutedStyle)}}
+						>
+							✕
+						</button>
+					)}
 					<button
 						title="Earlier"
 						disabled={!connected}
@@ -595,16 +619,16 @@ export const ScrubberControls = ({
 							textAlign: 'center',
 						}}
 					>
-						{formatPeriodLabel(scope, offset, periodRange)}
+						{formatPeriodLabel(scope, offset, periodRange, zoomed)}
 					</span>
 					<button
 						title="Later"
-						disabled={offset === 0 || !connected}
-						onClick={() => onChangeOffset(Math.max(0, offset - 1))}
+						disabled={atLatest || !connected}
+						onClick={() => onChangeOffset(offset - 1)}
 						style={{
 							...navButtonStyle,
-							opacity: offset === 0 ? 0.35 : 1,
-							cursor: offset === 0 ? 'default' : 'pointer',
+							opacity: atLatest ? 0.35 : 1,
+							cursor: atLatest ? 'default' : 'pointer',
 						}}
 					>
 						▶
@@ -804,6 +828,34 @@ export const SegmentHighlight = ({
 		>
 			{segment.label}
 		</div>
+	);
+};
+
+// The stretch a range drag has covered so far. Spans both charts and the gap,
+// like the segment highlight, because the window it will zoom to is one window
+// over both series.
+export const RangeSelection = ({from, to}: {from: number; to: number}) => {
+	const left = Math.min(from, to);
+
+	return (
+		<div
+			data-testid="scrubber-range-selection"
+			style={{
+				position: 'absolute',
+				left: `${left * 100}%`,
+				width: `${Math.abs(to - from) * 100}%`,
+				top: 0,
+				bottom: 0,
+				background: RANGE_SELECTION_COLOR,
+				borderLeft: `1px solid ${RANGE_SELECTION_EDGE}`,
+				borderRight: `1px solid ${RANGE_SELECTION_EDGE}`,
+				boxSizing: 'border-box',
+				pointerEvents: 'none',
+				// Over the needle: the needle marks where the board is, the selection
+				// what is about to replace the whole window.
+				zIndex: 4,
+			}}
+		/>
 	);
 };
 
@@ -1049,18 +1101,43 @@ export const ScatterDot = ({
 
 // Lives on the chart wrapper rather than inside either chart, so it runs
 // unbroken through both and the gap between them.
-export const ScrubberNeedle = ({fraction}: {fraction: number}) => {
+export const ScrubberNeedle = ({
+	fraction,
+	onGrab,
+}: {
+	fraction: number;
+	// A press here is a scrub, not the start of a range drag. The event still
+	// bubbles to the track, which owns the pointer capture and the moving.
+	onGrab: () => void;
+}) => {
 	const [hovered, setHovered] = useState(false);
 
-	const hover = {
+	const grip = {
 		onMouseEnter: () => setHovered(true),
 		onMouseLeave: () => setHovered(false),
+		onPointerDown: onGrab,
 	};
 
 	return (
 		<>
+			{/* A hairline is a 1px drag target. This is the same line's worth of
+			    grabbable width, invisible, centred on it. */}
 			<div
-				{...hover}
+				{...grip}
+				data-testid="scrubber-needle-grip"
+				style={{
+					position: 'absolute',
+					left: `${fraction * 100}%`,
+					top: 0,
+					bottom: 0,
+					width: NEEDLE_GRIP_WIDTH,
+					transform: `translateX(${-NEEDLE_GRIP_WIDTH / 2}px)`,
+					zIndex: 3,
+					pointerEvents: 'auto',
+					cursor: 'ew-resize',
+				}}
+			/>
+			<div
 				style={{
 					position: 'absolute',
 					left: `${fraction * 100}%`,
@@ -1072,12 +1149,11 @@ export const ScrubberNeedle = ({fraction}: {fraction: number}) => {
 					background: NEEDLE_COLOR,
 					zIndex: 3,
 					transform: 'translateX(-0.5px)',
-					pointerEvents: 'auto',
-					cursor: 'pointer',
+					pointerEvents: 'none',
 				}}
 			/>
 			<div
-				{...hover}
+				{...grip}
 				style={{
 					position: 'absolute',
 					left: `${fraction * 100}%`,
@@ -1090,7 +1166,7 @@ export const ScrubberNeedle = ({fraction}: {fraction: number}) => {
 					zIndex: 3,
 					transform: `translateX(${hovered ? -6 : -5}px)`,
 					pointerEvents: 'auto',
-					cursor: 'pointer',
+					cursor: 'ew-resize',
 				}}
 			/>
 		</>

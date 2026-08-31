@@ -44,6 +44,22 @@ export const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 157, 214, 0.14)';
 export const BUCKET_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.06)';
 export const NEEDLE_COLOR = 'rgba(255, 255, 255, 0.62)';
 
+// Brighter than either highlight: this one is being drawn by hand and has to
+// read against whatever it is dragged over.
+export const RANGE_SELECTION_COLOR = 'rgba(122, 157, 214, 0.22)';
+export const RANGE_SELECTION_EDGE = 'rgba(160, 195, 250, 0.75)';
+
+// The needle is drawn as a hairline, which is a 1px drag target. This is how
+// wide the invisible grip over it is.
+export const NEEDLE_GRIP_WIDTH = 11;
+
+// Under this a press is a click, which scrubs, rather than a range to zoom to.
+export const MIN_RANGE_DRAG_PX = 6;
+
+// A range drag can end a pixel from where it started even past that threshold,
+// and a window of milliseconds has no axis worth drawing.
+export const MIN_ZOOM_SPAN_MS = 60 * 1000;
+
 // Past this count a bar is ~2px, too thin to give up a pixel to the gap.
 const MIN_BUCKET_COUNT_FOR_GAP = 300;
 
@@ -566,14 +582,10 @@ export type Scope = 'all' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
 export type PeriodRange = {start: number; end: number};
 
-export const SCOPES: readonly Scope[] = [
-	'hour',
-	'day',
-	'week',
-	'month',
-	'year',
-	'all',
-];
+// Shortest first, which is also the order a span is matched against them.
+const TIMED_SCOPES = ['hour', 'day', 'week', 'month', 'year'] as const;
+
+export const SCOPES: readonly Scope[] = [...TIMED_SCOPES, 'all'];
 
 const SCOPE_DURATION_MS: Record<Exclude<Scope, 'all'>, number> = {
 	hour: 60 * 60 * 1000,
@@ -608,21 +620,38 @@ export const getPeriodRange = (
 	return {start: end - durationMs, end};
 };
 
+// The shortest scope long enough to hold the span. A hand-picked window keeps
+// its exact bounds; this only decides what the controls call it and how far the
+// pager steps, since what the chart draws is derived from the axis span itself.
+export const scopeForSpan = (spanMs: number): Exclude<Scope, 'all'> =>
+	TIMED_SCOPES.find(scope => SCOPE_DURATION_MS[scope] >= spanMs) ?? 'year';
+
+// Narrow enough for the fixed-width label beside the pager, and dated only when
+// the window spans more than the one day a date would name.
+const compactRangeLabel = (range: PeriodRange): string => {
+	const start = new Date(range.start);
+	const end = new Date(range.end);
+
+	return isSameDay(start, end)
+		? `${formatTimeOfDay(start)} – ${formatTimeOfDay(end)}`
+		: `${start.getMonth() + 1}/${start.getDate()} – ${
+				end.getMonth() + 1
+		  }/${end.getDate()}`;
+};
+
 export const formatPeriodLabel = (
 	scope: Scope,
 	offset: number,
 	range: PeriodRange | null,
+	// A window dragged out on the chart, which no scope's name describes.
+	zoomed = false,
 ): string => {
-	if (scope === 'all' || !range) return 'All time';
-
+	if (!range) return 'All time';
+	if (zoomed) return compactRangeLabel(range);
+	if (scope === 'all') return 'All time';
 	if (offset === 0) return SCOPE_RECENT_LABELS[scope];
 
-	const start = new Date(range.start);
-	const end = new Date(range.end);
-
-	return `${start.getMonth() + 1}/${start.getDate()} – ${
-		end.getMonth() + 1
-	}/${end.getDate()}`;
+	return compactRangeLabel(range);
 };
 
 export const scopeButtonLabel = (scope: Scope): string =>

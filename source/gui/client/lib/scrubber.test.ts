@@ -29,6 +29,7 @@ import {
 	isScope,
 	populatedRange,
 	SCOPES,
+	scopeForSpan,
 	SCRUBBER_KEYFRAMES,
 	segmentAt,
 } from './scrubber';
@@ -411,6 +412,56 @@ describe('formatPeriodLabel', () => {
 				end: new Date(2026, 7, 10).getTime(),
 			}),
 		).toBe('8/3 – 8/10');
+	});
+
+	it('dates a zoomed window even at its most recent, which no scope names', () => {
+		expect(
+			formatPeriodLabel('week', 0, {
+				start: new Date(2026, 7, 3).getTime(),
+				end: new Date(2026, 7, 10).getTime(),
+			}),
+		).toBe('Last 7 days');
+
+		expect(
+			formatPeriodLabel(
+				'week',
+				0,
+				{
+					start: new Date(2026, 7, 3).getTime(),
+					end: new Date(2026, 7, 10).getTime(),
+				},
+				true,
+			),
+		).toBe('8/3 – 8/10');
+	});
+
+	it('gives the clock rather than two identical dates inside one day', () => {
+		expect(
+			formatPeriodLabel(
+				'hour',
+				0,
+				{
+					start: new Date(2026, 7, 3, 9, 15).getTime(),
+					end: new Date(2026, 7, 3, 11, 45).getTime(),
+				},
+				true,
+			),
+		).toBe('09:15 – 11:45');
+	});
+});
+
+describe('scopeForSpan', () => {
+	it('names the shortest scope long enough to hold the span', () => {
+		expect(scopeForSpan(30 * 60 * 1000)).toBe('hour');
+		expect(scopeForSpan(60 * 60 * 1000)).toBe('hour');
+		expect(scopeForSpan(60 * 60 * 1000 + 1)).toBe('day');
+		expect(scopeForSpan(3 * DAY)).toBe('week');
+		expect(scopeForSpan(20 * DAY)).toBe('month');
+		expect(scopeForSpan(200 * DAY)).toBe('year');
+	});
+
+	it('falls back to the longest for a span past every scope', () => {
+		expect(scopeForSpan(4000 * DAY)).toBe('year');
 	});
 });
 

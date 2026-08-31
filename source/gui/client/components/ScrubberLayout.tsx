@@ -26,6 +26,7 @@ import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {
 	BucketHighlight,
 	HourAxisLabels,
+	RangeSelection,
 	ScatterCanvas,
 	ScatterLayer,
 	ScatterPoint,
@@ -60,6 +61,7 @@ export type ScrubberChartHandlers = {
 	onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
 	onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
 	onPointerEnd: () => void;
+	onGrabNeedle: () => void;
 	onTrackMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
 	onTrackMouseLeave: () => void;
 	onCommitTrackMouseEnter: () => void;
@@ -96,6 +98,9 @@ export type ScrubberChart = {
 	// track otherwise crosses hundreds of them, and each enter and leave sets
 	// state — 1.5s of blocking over a three-second drag.
 	dragging: boolean;
+	// The stretch a range drag has covered so far, in track fractions, or null
+	// when no range is being dragged out.
+	rangeSelection: {from: number; to: number} | null;
 	commits: GuiCommitEntry[];
 	hoveredCommitSha: string | null;
 	hoveredBucketIndex: number | null;
@@ -186,9 +191,11 @@ export const ScrubberLayout = ({
 							display: 'flex',
 							flexDirection: 'column',
 							gap: 8,
-							cursor: chart.connected ? 'pointer' : 'default',
-							// A scrub-drag must never turn into a native text selection or
-							// drag of the axis labels underneath the pointer.
+							// Crosshair, not a hand: a press picks a moment but a drag picks
+							// out a range, and the pointer has to say the second is on offer.
+							cursor: chart.connected ? 'crosshair' : 'default',
+							// A drag must never turn into a native text selection or a drag
+							// of the axis labels underneath the pointer.
 							userSelect: 'none',
 							WebkitUserSelect: 'none',
 						}}
@@ -303,7 +310,14 @@ export const ScrubberLayout = ({
 								</div>
 							)}
 
-						<ScrubberNeedle fraction={chart.thumbFraction} />
+						<ScrubberNeedle
+							fraction={chart.thumbFraction}
+							onGrab={on.onGrabNeedle}
+						/>
+
+						{chart.rangeSelection && (
+							<RangeSelection {...chart.rangeSelection} />
+						)}
 
 						{/* Both hints belong on the wrapper so they hang below the whole
 						    scrubber rather than on top of the commit chart. */}
