@@ -1049,6 +1049,8 @@ export const IssueDetails = ({
 											{issue.ref && <CopyRef refValue={issue.ref} />}
 										</span>
 
+										{inlineTitle && titleNode}
+
 										{/* 0 when the id carries no time. Better to say nothing
 										    than to date the ticket to 1970. */}
 										{issue.createdAt > 0 && (
@@ -1058,13 +1060,18 @@ export const IssueDetails = ({
 												style={{
 													fontSize: TEXT.meta,
 													color: GUI_THEME.dim,
+													// Sharing the row with the title, the age takes the
+													// far end of it, next to the panel's controls: the
+													// slack then falls between the two rather than
+													// after both.
+													...(inlineTitle
+														? {marginLeft: 'auto', whiteSpace: 'nowrap'}
+														: {}),
 												}}
 											>
 												{timeAgo(issue.createdAt)}
 											</span>
 										)}
-
-										{inlineTitle && titleNode}
 									</div>
 
 									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
