@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {decodeTime} from 'ulid';
+import {clampUlidTime} from './date-utils.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
 import {getStringColor} from '../utils/color.js';
@@ -169,7 +170,7 @@ const formatEventDetails = (event: AppEvent): string => {
 };
 
 const formatLogTime = (id: string): string => {
-	const ago = timeAgo(decodeTime(id));
+	const ago = timeAgo(clampUlidTime(decodeTime(id)));
 	return chalk.gray(padVisibleStart(ago, 8));
 };
 

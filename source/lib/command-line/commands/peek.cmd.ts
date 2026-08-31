@@ -1,5 +1,5 @@
 import {getRepoRootDir, getStateBranchRoot} from '../../../git/git-storage.js';
-import {getEventTime} from '../../event/date-utils.js';
+import {clampUlidTimes, getEventTime} from '../../event/date-utils.js';
 import {loadMergedEvents} from '../../event/event-load.js';
 import {
 	logSkippedEvents,
@@ -65,16 +65,23 @@ export const peekCommand = async () => {
 
 	let targetTime: number;
 
+	// Clamped over the same full set splitEventsAtTime sees, so a step onto a
+	// poisoned far-future id cuts where the checkout will.
+	const {eventLog, unappliedEvents} = getState();
+	const stepTimes = clampUlidTimes(
+		[...eventLog, ...unappliedEvents].map(event => getEventTime(event)),
+	);
+
 	if (modifier === 'prev') {
-		const previousEvent = getState().eventLog.at(-1);
-		const previousTime = getEventTime(previousEvent);
+		const previousTime =
+			eventLog.length > 0 ? stepTimes[eventLog.length - 1] ?? null : null;
 
 		if (previousTime === null) return failed('No previous event to peek');
 
 		targetTime = previousTime;
 	} else if (modifier === 'next') {
-		const nextEvent = getState().unappliedEvents.at(0);
-		const nextTime = getEventTime(nextEvent);
+		const nextTime =
+			unappliedEvents.length > 0 ? stepTimes[eventLog.length] ?? null : null;
 
 		if (nextTime === null) return failed('No next event to peek');
 

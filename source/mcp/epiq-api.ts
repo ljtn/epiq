@@ -6,6 +6,7 @@ import {ensureLocalStateBranch, ensureStateBranchWorktree} from '../git/git.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
+import {clampUlidTime} from '../lib/event/date-utils.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
 import {
 	loadEventActors,
@@ -453,7 +454,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		ref: nodeRef(issue.id),
 		title: sanitizeInlineText(issue.title),
 		description: issue.props.description ?? '',
-		createdAt: decodeTime(issue.id),
+		createdAt: clampUlidTime(decodeTime(issue.id)),
 		parentNodeId: issue.parentNodeId!,
 		isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 		readonly: Boolean(issue.readonly),
@@ -487,7 +488,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					ref: nodeRef(n.id),
 					title: sanitizeInlineText(n.title),
 					description: n.props.description ?? '',
-					createdAt: decodeTime(n.id),
+					createdAt: clampUlidTime(decodeTime(n.id)),
 					parentNodeId: n.parentNodeId!,
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),
@@ -1071,7 +1072,7 @@ export const getIssueHistory = (
 		'Read issue history',
 		(issue.log ?? []).map(event => ({
 			id: event.id,
-			t: decodeTime(event.id),
+			t: clampUlidTime(decodeTime(event.id)),
 			action: event.action,
 			label: describeEvent(event),
 			actor: {
@@ -1154,7 +1155,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 						name: contributor?.name ?? 'Unknown',
 						color: getStringColor(contributor?.name ?? comment.authorId),
 					},
-					createdAt: decodeTime(comment.id),
+					createdAt: clampUlidTime(decodeTime(comment.id)),
 				};
 			});
 	}
@@ -1179,7 +1180,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 				name: attachment.name,
 				fileName: getAttachmentFileName(attachment.hash, attachment.ext),
 				bytes: attachment.bytes,
-				createdAt: decodeTime(attachment.id),
+				createdAt: clampUlidTime(decodeTime(attachment.id)),
 				canDelete:
 					attachmentOwners.get(attachment.id) === settingsRes.value.userId,
 			}));
@@ -1208,7 +1209,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										ref: nodeRef(issue.id),
 										title: sanitizeInlineText(issue.title),
 										description: issue.props.description ?? '',
-										createdAt: decodeTime(issue.id),
+										createdAt: clampUlidTime(decodeTime(issue.id)),
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue),

@@ -5,6 +5,7 @@ import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
+import {clampUlidTimes} from './date-utils.js';
 import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
 import {
 	isSupportedSchemaVersion,
@@ -550,17 +551,25 @@ export const splitEventsAtTime = (
 	const appliedEvents: ReconstructedEvent[] = [];
 	const unappliedEvents: ReconstructedEvent[] = [];
 
-	for (const event of events) {
+	// Clamped over the whole set so a poisoned far-future id cuts at the latest
+	// honest time instead of hiding its causal descendants from every checkout.
+	const times = clampUlidTimes(
+		events.map(event => {
+			try {
+				return decodeTime(event.id[0]);
+			} catch {
+				return null;
+			}
+		}),
+	);
+
+	for (let index = 0; index < events.length; index++) {
+		const event = events[index]!;
 		const eventId = event.id[0];
 		const refId = event.id[1];
 
-		let shouldBeApplied = false;
-
-		try {
-			shouldBeApplied = decodeTime(eventId) < targetTime;
-		} catch {
-			shouldBeApplied = false;
-		}
+		const time = times[index] ?? null;
+		const shouldBeApplied = time !== null && time < targetTime;
 
 		if (!shouldBeApplied || (refId && unappliedIds.has(refId))) {
 			unappliedIds.add(eventId);

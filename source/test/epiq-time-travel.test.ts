@@ -231,6 +231,33 @@ describe('epiq-time-travel', () => {
 			]);
 		});
 
+		it('keeps a poisoned far-future event visible at the latest honest time', async () => {
+			const baseTime = Date.now() - 60_000;
+			const poisonedTime = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000;
+			const events = [
+				{id: ulid(baseTime), action: 'add.issue'},
+				{id: ulid(baseTime + 10_000), action: 'close.issue'},
+				{id: ulid(poisonedTime), action: 'add.issue.tag'},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			// The default window ends at now; the poisoned event must not fall
+			// outside it, and must land at the set's latest honest time.
+			expect(result.value.events).toHaveLength(3);
+			const poisoned = result.value.events.find(
+				entry => entry.action === 'add.issue.tag',
+			);
+			expect(poisoned?.t).toBe(baseTime + 10_000);
+		});
+
 		it('keeps comments, which hang off `issue` rather than `parent`', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [
