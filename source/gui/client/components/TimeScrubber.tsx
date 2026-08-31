@@ -136,6 +136,11 @@ export const TimeScrubber = ({
 	// Set by the needle's own press, which fires before the track's: it says
 	// this drag moves the needle rather than dragging out a range.
 	const grabbedNeedleRef = useRef(false);
+	// Likewise from the scatter, naming the commit a press landed on. A click on
+	// a dot opens its diff instead of time travelling; a drag from one is a range
+	// like any other. Cleared at the end of every gesture, so a press that never
+	// crosses the canvas cannot inherit it.
+	const pressedCommitRef = useRef<string | null>(null);
 
 	const [collapsed, setCollapsed] = usePersistedFlag(
 		COLLAPSED_STORAGE_KEY,
@@ -529,6 +534,9 @@ export const TimeScrubber = ({
 	const endDrag = () => {
 		grabbedNeedleRef.current = false;
 
+		const pressedCommit = pressedCommitRef.current;
+		pressedCommitRef.current = null;
+
 		if (dragFraction !== null) {
 			dispatchScrub(dragFraction, true);
 			setDragFraction(null);
@@ -542,9 +550,17 @@ export const TimeScrubber = ({
 
 		const trackWidth = trackRef.current?.clientWidth ?? 0;
 
-		// Pressed and released on one spot: a click, which still scrubs. Only a
-		// drag wide enough to have been aimed is read as a range.
+		// Pressed and released on one spot: a click. Only a drag wide enough to
+		// have been aimed is read as a range.
 		if (Math.abs(to - from) * trackWidth < MIN_RANGE_DRAG_PX) {
+			// A click that began on a commit dot was aimed at the commit, so it
+			// opens the diff rather than time travelling. The dot pressed decides
+			// it, not whatever the release happens to land on.
+			if (pressedCommit !== null) {
+				onInspectCommit(pressedCommit);
+				return;
+			}
+
 			dispatchScrub(from, true);
 			return;
 		}
@@ -826,7 +842,9 @@ export const TimeScrubber = ({
 					onCommitTrackMouseLeave: () => setHoveredCommitBucketIndex(null),
 					onScatterPointEnter,
 					onScatterPointLeave,
-					onInspectCommit,
+					onPressCommit: sha => {
+						pressedCommitRef.current = sha;
+					},
 				},
 			}}
 		/>

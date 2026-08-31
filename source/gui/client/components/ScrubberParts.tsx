@@ -1347,7 +1347,7 @@ export const ScatterCanvas = ({
 	highlightId,
 	onPointEnter,
 	onPointLeave,
-	onInspectCommit,
+	onPressCommit,
 }: {
 	layers: readonly ScatterLayer[];
 	animate: boolean;
@@ -1355,7 +1355,10 @@ export const ScatterCanvas = ({
 	highlightId: string | null;
 	onPointEnter: (point: ScatterPoint) => void;
 	onPointLeave: () => void;
-	onInspectCommit: (sha: string) => void;
+	// The commit a press landed on, or null for anywhere else. Reported rather
+	// than acted on: the track holds the pointer capture, so it is the one that
+	// can tell this press apart from the start of a range drag.
+	onPressCommit: (sha: string | null) => void;
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const sizeRef = useRef({width: 0, height: 0});
@@ -1570,15 +1573,15 @@ export const ScatterCanvas = ({
 				hoveredRef.current = null;
 				onPointLeave();
 			}}
-			// Only over a commit: anywhere else the press has to reach the track
-			// and begin a scrub.
-			onPointerDown={event => {
-				if (hitTest(event)?.commitSha) event.stopPropagation();
-			}}
-			onClick={event => {
-				const sha = hitTest(event)?.commitSha;
-				if (sha) onInspectCommit(sha);
-			}}
+			// Never stopped, not even over a commit: every press has to reach the
+			// track, or a range drag that begins on a dot never begins at all — and
+			// on a busy scatter most of them do. What the press turns out to mean is
+			// settled on release, by how far it travelled.
+			//
+			// There is deliberately no onClick here. The track takes pointer
+			// capture, which retargets the compatibility mouse events with it, so a
+			// click on the canvas is not the canvas's to hear.
+			onPointerDown={event => onPressCommit(hitTest(event)?.commitSha ?? null)}
 		/>
 	);
 };

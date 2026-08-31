@@ -69,7 +69,7 @@ export type ScrubberChartHandlers = {
 	onCommitTrackMouseLeave: () => void;
 	onScatterPointEnter: (point: ScatterPoint) => void;
 	onScatterPointLeave: () => void;
-	onInspectCommit: (sha: string) => void;
+	onPressCommit: (sha: string | null) => void;
 };
 
 export type ScrubberChart = {
@@ -269,7 +269,7 @@ export const ScrubberLayout = ({
 									highlightId={chart.highlightEventId}
 									onPointEnter={on.onScatterPointEnter}
 									onPointLeave={on.onScatterPointLeave}
-									onInspectCommit={on.onInspectCommit}
+									onPressCommit={on.onPressCommit}
 								/>
 							)}
 						</div>
