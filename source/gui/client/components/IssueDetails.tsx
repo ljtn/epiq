@@ -946,6 +946,79 @@ export const IssueDetails = ({
 					/>
 				);
 
+				// Docked to the bottom the panel is wide and short, so the title
+				// rides in the header row beside the ref and the age rather than
+				// taking a row of its own. Docked right it is the other way round:
+				// height to spare, width to protect.
+				const inlineTitle = dock === 'bottom';
+
+				const titleNode =
+					issue &&
+					(editingTitle ? (
+						<textarea
+							ref={titleTextareaRef}
+							value={title}
+							autoFocus
+							rows={1}
+							onChange={event => {
+								setTitle(event.target.value);
+								resizeTitleTextarea();
+							}}
+							onKeyDown={event => {
+								if (event.key === 'Enter') {
+									event.preventDefault();
+									event.currentTarget.blur();
+								}
+								if (event.key === 'Escape') cancelTitle();
+							}}
+							onBlur={saveTitle}
+							style={{
+								display: 'block',
+								width: '100%',
+								boxSizing: 'border-box',
+								resize: 'none',
+								overflow: 'hidden',
+								background: GUI_THEME.bg,
+								color: GUI_THEME.primary,
+								border: `1px solid ${GUI_THEME.line}`,
+								borderRadius: 8,
+								padding: '6px 10px',
+								outline: 'none',
+								font: 'inherit',
+								fontSize: TEXT.title,
+								fontWeight: 600,
+								lineHeight: 1.35,
+								marginBottom: inlineTitle ? 0 : 20,
+							}}
+						/>
+					) : (
+						<div
+							onClick={() => !issue.readonly && setEditingTitle(true)}
+							title={inlineTitle ? issue.title : undefined}
+							style={{
+								marginBottom: inlineTitle ? 0 : 18,
+								color: GUI_THEME.primary,
+								fontSize: TEXT.title,
+								fontWeight: 600,
+								lineHeight: 1.35,
+								cursor: issue.readonly ? 'default' : 'text',
+								// One row shared with the ref, the age and the panel's
+								// own controls: a long title takes what is left and
+								// gives up the rest, rather than wrapping the row.
+								...(inlineTitle
+									? {
+											minWidth: 0,
+											whiteSpace: 'nowrap',
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+									  }
+									: {wordBreak: 'break-word'}),
+							}}
+						>
+							{issue.title}
+						</div>
+					));
+
 				return (
 					<>
 						{issue ? (
@@ -958,7 +1031,12 @@ export const IssueDetails = ({
 							>
 								<FormHeader>
 									<div
-										style={{display: 'flex', alignItems: 'baseline', gap: 10}}
+										style={{
+											display: 'flex',
+											alignItems: 'baseline',
+											gap: 10,
+											...(inlineTitle ? {flex: 1, minWidth: 0} : {}),
+										}}
 									>
 										<span
 											style={{
@@ -982,9 +1060,11 @@ export const IssueDetails = ({
 													color: GUI_THEME.dim,
 												}}
 											>
-												Created {timeAgo(issue.createdAt)}
+												{timeAgo(issue.createdAt)}
 											</span>
 										)}
+
+										{inlineTitle && titleNode}
 									</div>
 
 									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
@@ -999,59 +1079,7 @@ export const IssueDetails = ({
 									</div>
 								</FormHeader>
 
-								{editingTitle ? (
-									<textarea
-										ref={titleTextareaRef}
-										value={title}
-										autoFocus
-										rows={1}
-										onChange={event => {
-											setTitle(event.target.value);
-											resizeTitleTextarea();
-										}}
-										onKeyDown={event => {
-											if (event.key === 'Enter') {
-												event.preventDefault();
-												event.currentTarget.blur();
-											}
-											if (event.key === 'Escape') cancelTitle();
-										}}
-										onBlur={saveTitle}
-										style={{
-											display: 'block',
-											width: '100%',
-											boxSizing: 'border-box',
-											resize: 'none',
-											overflow: 'hidden',
-											background: GUI_THEME.bg,
-											color: GUI_THEME.primary,
-											border: `1px solid ${GUI_THEME.line}`,
-											borderRadius: 8,
-											padding: '6px 10px',
-											outline: 'none',
-											font: 'inherit',
-											fontSize: TEXT.title,
-											fontWeight: 600,
-											lineHeight: 1.35,
-											marginBottom: 20,
-										}}
-									/>
-								) : (
-									<div
-										onClick={() => !issue.readonly && setEditingTitle(true)}
-										style={{
-											marginBottom: 18,
-											color: GUI_THEME.primary,
-											fontSize: TEXT.title,
-											fontWeight: 600,
-											lineHeight: 1.35,
-											wordBreak: 'break-word',
-											cursor: issue.readonly ? 'default' : 'text',
-										}}
-									>
-										{issue.title}
-									</div>
-								)}
+								{!inlineTitle && titleNode}
 
 								{laneView ? (
 									<div
