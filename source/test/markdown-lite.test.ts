@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {encodeDiffCommentMarker} from '../lib/utils/diff-comment.js';
 import {
 	classifyRows,
+	collapseImages,
 	inlineSpans,
 	renderMarkdownLines,
 	wrapText,
@@ -64,6 +65,40 @@ describe('classifyRows', () => {
 			kind: 'caption',
 			text: 'a.ts lines 3-5 (added)',
 		});
+	});
+});
+
+describe('collapseImages', () => {
+	it('names the image instead of printing its url', () => {
+		expect(collapseImages('before ![a shot](/media/abc.png) after')).toBe(
+			'before [image: a shot] after',
+		);
+	});
+
+	it('falls back to a bare marker when there is no alt text', () => {
+		expect(collapseImages('![](/media/abc.png)')).toBe('[image]');
+	});
+
+	it('leaves an ordinary link alone', () => {
+		expect(collapseImages('[a shot](/media/abc.png)')).toBe(
+			'[a shot](/media/abc.png)',
+		);
+	});
+});
+
+describe('classifyRows', () => {
+	it('collapses an image row to one line, keeping rows aligned', () => {
+		expect(classifyRows(['![a shot](/media/abc.png)'])).toEqual([
+			{kind: 'text', spans: [{text: '[image: a shot]'}]},
+		]);
+	});
+
+	it('leaves image markdown inside a fence as the code it is', () => {
+		expect(classifyRows(['```', '![a shot](/media/abc.png)', '```'])).toEqual([
+			{kind: 'fence'},
+			{kind: 'code', text: '![a shot](/media/abc.png)'},
+			{kind: 'fence'},
+		]);
 	});
 });
 

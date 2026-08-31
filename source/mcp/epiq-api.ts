@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
@@ -57,6 +59,7 @@ import {sanitizeInlineText} from '../lib/utils/string.utils.js';
 import {
 	DEFAULT_ATTACHMENT_MAX_KB,
 	getAttachmentFileName,
+	getAttachmentMarkdown,
 	resolveAttachmentBlob,
 	writeAttachmentBlob,
 } from '../lib/media/media-store.js';
@@ -187,8 +190,38 @@ type EditIssueCommentInput = ToolInput & {
 
 type AddIssueAttachmentInput = ToolInput & {
 	issueId: string;
-	name: string;
-	dataBase64: string;
+	name?: string;
+	// Either the bytes inline, as the GUI's upload endpoint sends them, or a
+	// path for a caller that already has the image on disk — an agent holding
+	// a screenshot should not have to base64 it through its own context.
+	dataBase64?: string;
+	filePath?: string;
+};
+
+const readAttachmentBytes = (
+	input: AddIssueAttachmentInput,
+): Result<{data: Buffer; name: string}> => {
+	if (input.filePath) {
+		try {
+			return succeeded('Read attachment file', {
+				data: fs.readFileSync(input.filePath),
+				name: input.name ?? path.basename(input.filePath),
+			});
+		} catch (error) {
+			return failed(
+				`Unable to read ${input.filePath}: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+	}
+
+	if (!input.dataBase64) return failed('Provide either filePath or dataBase64');
+
+	return succeeded('Decoded attachment data', {
+		data: Buffer.from(input.dataBase64, 'base64'),
+		name: input.name ?? 'image',
+	});
 };
 
 type DeleteIssueAttachmentInput = ToolInput & {
@@ -2209,16 +2242,17 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 	if (!isTicketNode(issue)) return failed('Attachment target must be an issue');
 	if (issue.readonly) return failed('Cannot attach to readonly issue');
 
-	const data = Buffer.from(input.dataBase64 ?? '', 'base64');
+	const bytesResult = readAttachmentBytes(input);
+	if (isFail(bytesResult)) return bytesResult;
 
 	const written = writeAttachmentBlob(
 		bootResult.value.stateBranchRoot,
-		data,
+		bytesResult.value.data,
 		getAttachmentMaxKb(),
 	);
 	if (isFail(written)) return written;
 
-	const name = sanitizeInlineText(input.name ?? '').trim() || 'image';
+	const name = sanitizeInlineText(bytesResult.value.name).trim() || 'image';
 	const attachmentId = ulid();
 
 	const event = {
@@ -2243,11 +2277,14 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 
 	if (isFail(results)) return failed(results.message);
 
+	const fileName = getAttachmentFileName(written.value.hash, written.value.ext);
+
 	return succeeded('Added issue attachment', {
 		id: attachmentId,
 		issueId: input.issueId,
-		fileName: getAttachmentFileName(written.value.hash, written.value.ext),
+		fileName,
 		bytes: written.value.bytes,
+		markdown: getAttachmentMarkdown(name, fileName),
 	});
 };
 

@@ -105,6 +105,30 @@ const buildComponents = (
 			</a>
 		);
 	},
+	// An attached image referenced from a body. Bounded to the column it sits
+	// in — a screenshot is wider than any panel here — and clickable through to
+	// the blob itself, which is the only way to read one at full size.
+	img: ({src, alt}) => (
+		<a
+			href={typeof src === 'string' ? src : undefined}
+			target="_blank"
+			rel="noreferrer"
+			style={{display: 'block'}}
+		>
+			<img
+				src={typeof src === 'string' ? src : undefined}
+				alt={alt ?? ''}
+				loading="lazy"
+				style={{
+					display: 'block',
+					maxWidth: '100%',
+					borderRadius: 6,
+					border: `1px solid ${GUI_THEME.line}`,
+					cursor: 'zoom-in',
+				}}
+			/>
+		</a>
+	),
 	blockquote: ({children}) => (
 		<blockquote
 			style={{
