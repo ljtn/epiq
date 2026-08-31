@@ -225,10 +225,18 @@ export const Aside = forwardRef<
 					? {position: 'relative', height, minHeight: height}
 					: {position: 'relative', width, minWidth: width}),
 				// The border faces the board, which is above it in one dock and
-				// beside it in the other.
+				// beside it in the other. It carries a shadow cast the same way,
+				// so the panel reads as a surface in front of the board rather
+				// than as more of it.
 				...(bottom && !isFullscreen
-					? {borderTop: `1px solid ${GUI_THEME.line}`}
-					: {borderLeft: `1px solid ${GUI_THEME.line}`}),
+					? {
+							borderTop: `1px solid ${GUI_THEME.edge}`,
+							boxShadow: '0 -10px 24px rgba(0, 0, 0, 0.45)',
+					  }
+					: {
+							borderLeft: `1px solid ${GUI_THEME.edge}`,
+							boxShadow: '-10px 0 24px rgba(0, 0, 0, 0.45)',
+					  }),
 				background: GUI_THEME.panel,
 				padding: ASIDE_PADDING,
 				fontSize: 12,

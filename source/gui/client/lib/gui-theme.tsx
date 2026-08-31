@@ -19,6 +19,10 @@ export const GUI_THEME = {
 	panel: '#11141b',
 	panel2: '#151a24',
 	line: 'rgba(70, 87, 126, 0.15)',
+	// The detail panel's own outer edge. `line` divides sections inside one
+	// surface; this one has to hold the panel apart from the board behind it,
+	// which takes considerably more contrast.
+	edge: 'rgba(96, 116, 165, 0.55)',
 	primary: '#c2c5d0',
 	secondary: '#7f8aa3',
 	tertiary: 'rgb(31 33 43)',
