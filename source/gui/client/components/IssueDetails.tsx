@@ -1019,6 +1019,22 @@ export const IssueDetails = ({
 						</div>
 					));
 
+				// 0 when the id carries no time. Better to say nothing than to
+				// date the ticket to 1970.
+				const ageNode = issue && issue.createdAt > 0 && (
+					<span
+						data-testid="issue-created-at"
+						title={formatAbsolute(issue.createdAt)}
+						style={{
+							fontSize: TEXT.meta,
+							color: GUI_THEME.dim,
+							whiteSpace: 'nowrap',
+						}}
+					>
+						{timeAgo(issue.createdAt)}
+					</span>
+				);
+
 				return (
 					<>
 						{issue ? (
@@ -1049,32 +1065,21 @@ export const IssueDetails = ({
 											{issue.ref && <CopyRef refValue={issue.ref} />}
 										</span>
 
-										{inlineTitle && titleNode}
-
-										{/* 0 when the id carries no time. Better to say nothing
-										    than to date the ticket to 1970. */}
-										{issue.createdAt > 0 && (
-											<span
-												data-testid="issue-created-at"
-												title={formatAbsolute(issue.createdAt)}
-												style={{
-													fontSize: TEXT.meta,
-													color: GUI_THEME.dim,
-													// Sharing the row with the title, the age takes the
-													// far end of it, next to the panel's controls: the
-													// slack then falls between the two rather than
-													// after both.
-													...(inlineTitle
-														? {marginLeft: 'auto', whiteSpace: 'nowrap'}
-														: {}),
-												}}
-											>
-												{timeAgo(issue.createdAt)}
-											</span>
-										)}
+										{inlineTitle ? titleNode : ageNode}
 									</div>
 
+									{/* Sharing the row with the title, the age belongs to the
+									    far end of it rather than trailing the title — and to
+									    this group rather than the one beside it, which aligns
+									    on the baseline the ref and the title read along. Here
+									    it is centred on the line the buttons keep. */}
 									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
+										{/* Its own margin rather than the row's gap, which is
+										    the spacing the three buttons keep from each other. */}
+										{inlineTitle && (
+											<span style={{marginRight: 6}}>{ageNode}</span>
+										)}
+
 										<PanelDockMenu dock={dock} onDock={onDock} />
 										<FullscreenToggleButton
 											isFullscreen={isFullscreen}
