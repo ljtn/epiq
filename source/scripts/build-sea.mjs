@@ -10,18 +10,21 @@
 //   react-devtools-core is a dev-only optional dep that ink tries to import
 //   statically. We stub it so the bundle is fully self-contained.
 
-import {execSync, execFileSync} from 'node:child_process';
+import {execSync, execFileSync, spawn} from 'node:child_process';
 import {
 	readFileSync,
 	writeFileSync,
 	copyFileSync,
 	chmodSync,
 	readdirSync,
+	mkdtempSync,
+	rmSync,
 } from 'node:fs';
 import {mkdirSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {platform} from 'node:process';
 import {fileURLToPath} from 'node:url';
-import {dirname, resolve} from 'node:path';
+import {dirname, delimiter, join, resolve} from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
@@ -169,6 +172,107 @@ if (platform === 'darwin') {
 	run(`codesign --sign - ${outBin}`);
 }
 
+// `epiq gui` opens a browser on startup. Shadowing the opener on PATH keeps
+// the verification below from throwing a window at whoever is building.
+function browserShimDir() {
+	const dir = mkdtempSync(join(tmpdir(), 'epiq-sea-no-open-'));
+
+	if (platform !== 'win32') {
+		for (const name of ['open', 'xdg-open']) {
+			const shim = join(dir, name);
+			writeFileSync(shim, '#!/bin/sh\nexit 0\n');
+			chmodSync(shim, 0o755);
+		}
+	}
+
+	return dir;
+}
+
+// The GUI client ships inside the binary as SEA assets, which `serveStatic`
+// (source/gui/api/api-server.ts) reads through `sea.getAsset`. Nothing else
+// takes that branch: the source and npm builds both read the same files off
+// disk, so an asset the blob is missing or names differently is invisible
+// until a user opens the GUI. Booting the binary's own server and pulling the
+// client through it is the only check that covers it, and it only costs the
+// seconds of a build that already takes minutes.
+async function verifyGuiAssets(binary) {
+	const cwd = mkdtempSync(join(tmpdir(), 'epiq-sea-gui-'));
+	const shimDir = browserShimDir();
+	// Or the check writes into the builder's own epiq state.
+	const globalDir = mkdtempSync(join(tmpdir(), 'epiq-sea-global-'));
+
+	const child = spawn(binary, ['gui'], {
+		cwd,
+		env: {
+			...process.env,
+			PATH: `${shimDir}${delimiter}${process.env.PATH ?? ''}`,
+			EPIQ_GLOBAL_DIR: globalDir,
+		},
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+
+	let output = '';
+	child.stdout.on('data', chunk => (output += String(chunk)));
+	child.stderr.on('data', chunk => (output += String(chunk)));
+
+	let exited = false;
+	child.on('exit', () => (exited = true));
+
+	const cleanup = () => {
+		child.kill('SIGTERM');
+
+		for (const dir of [shimDir, cwd, globalDir]) {
+			rmSync(dir, {recursive: true, force: true});
+		}
+	};
+
+	try {
+		// It reports itself as epiq.localhost; only the port is portable, since
+		// that name is not guaranteed to resolve on a build machine.
+		const servedPort = /http:\/\/\S*?:(\d+)/;
+		const deadline = Date.now() + 60_000;
+
+		while (!servedPort.test(output)) {
+			if (exited) throw new Error(`GUI exited before it served:\n${output}`);
+			if (Date.now() > deadline) {
+				throw new Error(`Timed out starting the GUI:\n${output}`);
+			}
+
+			await new Promise(done => setTimeout(done, 100));
+		}
+
+		const base = `http://127.0.0.1:${servedPort.exec(output)[1]}`;
+		const index = await fetch(base);
+		if (!index.ok) throw new Error(`GET / served ${index.status}`);
+
+		const html = await index.text();
+		// Every asset index.html references, not just the entry bundle: the
+		// client is code-split, and the blob embeds one file per chunk.
+		const assets = [...html.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map(
+			match => match[1],
+		);
+
+		if (assets.length === 0) {
+			throw new Error(`index.html referenced no assets:\n${html}`);
+		}
+
+		for (const asset of assets) {
+			const response = await fetch(`${base}${asset}`);
+			const body = await response.arrayBuffer();
+
+			if (!response.ok || body.byteLength === 0) {
+				throw new Error(
+					`GET ${asset} served ${response.status} (${body.byteLength} bytes)`,
+				);
+			}
+		}
+
+		console.log(`GUI assets served from the binary: ${assets.join(', ')}`);
+	} finally {
+		cleanup();
+	}
+}
+
 // 7. Verify
 console.log('\n[7/7] Verifying...');
 if (isCrossBuild) {
@@ -178,6 +282,7 @@ if (isCrossBuild) {
 	console.log('Cross-build: skipping native --version check.');
 } else {
 	run(`"${outBin}" --version`);
+	await verifyGuiAssets(outBin);
 }
 
 console.log(`\nDone! Binary at ${outBin}`);
