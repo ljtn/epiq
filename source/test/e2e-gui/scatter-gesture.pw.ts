@@ -2,6 +2,7 @@ import {execFileSync} from 'node:child_process';
 import type {Locator, Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 import {COMMIT_CACHE_MS, commitLinkedFile} from './linked-commit.js';
+import {LARGE_DIFF_LINES} from '../../lib/utils/diff-size.js';
 
 // A dot is painted on a canvas, so there is no node to aim at and no
 // bounding box to read. Its x is pinned instead by handing the scrubber a
@@ -31,7 +32,10 @@ const seedCommitOnScatter = async (
 	page: Page,
 	appUrl: string,
 	repoRoot: string,
-	{link = true}: {link?: boolean} = {},
+	{
+		link = true,
+		contents,
+	}: {link?: boolean; contents?: (stamp: number) => string} = {},
 ) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -57,7 +61,7 @@ const seedCommitOnScatter = async (
 		link ? ref! : 'chore:',
 		subject,
 		`notes-${stamp}.txt`,
-		`line for ${stamp}\n`,
+		contents ? contents(stamp) : `line for ${stamp}\n`,
 	);
 	const committedAt =
 		Number(
@@ -87,6 +91,7 @@ const seedCommitOnScatter = async (
 	return {
 		dot,
 		sha,
+		fileName: `notes-${stamp}.txt`,
 		title: `Scatter ${stamp}`,
 		window: {from: url.searchParams.get('from')!},
 	};
@@ -215,6 +220,38 @@ test('a ticket created while an unlinked commit diff is open replaces it', async
 
 	await expect(page.locator('aside')).toContainText(title);
 	await expect(diffPanel).toHaveCount(0);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// This panel has no per-file disclosure — every file of the commit renders at
+// once — so a lockfile opened here stalls the view with no action from the
+// reader at all. Just past the limit and no further: the point is the
+// threshold, not the size.
+test('the commit panel holds a large file behind a "Show diff"', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const {dot, fileName} = await seedCommitOnScatter(page, appUrl, repoRoot, {
+		link: false,
+		contents: stamp =>
+			`${Array.from(
+				{length: LARGE_DIFF_LINES + 1},
+				(_, index) => `    "package-${index}": "1.0.0", ${stamp}`,
+			).join('\n')}\n`,
+	});
+
+	await page.mouse.click(dot.x, dot.y);
+
+	const notice = page.getByTestId('large-diff-notice');
+	await expect(notice).toBeVisible();
+	await expect(notice).toContainText(fileName);
+
+	// Collapsed is the default, not a refusal.
+	await notice.getByRole('button', {name: 'Show diff'}).click();
+	await expect(page.getByTestId('large-diff-notice')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });

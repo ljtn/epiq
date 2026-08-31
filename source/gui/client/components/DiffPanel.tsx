@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
 	DiffFileInput,
 	DiffLineAnnotation,
@@ -8,6 +8,7 @@ import {
 } from '@pierre/diffs/react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
+import {diffLineCount, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {Button} from './Button';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
@@ -85,6 +86,61 @@ export const FileDiffView = <LAnnotation = undefined,>({
 	</div>
 );
 
+// This panel has no per-file disclosure to hide behind — it opens every file
+// of a commit at once — so a lockfile here stalls the view with no action from
+// the reader at all. Collapsed until asked for, the way the commit list leaves
+// its own large files shut.
+const PanelFile = ({
+	file,
+	diffStyle,
+}: {
+	file: GuiCommitDiffFile;
+	diffStyle: 'split' | 'unified';
+}) => {
+	const [shown, setShown] = useState(false);
+
+	if (shown || !isLargeDiff(file)) {
+		return <FileDiffView file={file} diffStyle={diffStyle} />;
+	}
+
+	return (
+		<div
+			data-testid="large-diff-notice"
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'space-between',
+				gap: 12,
+				marginBottom: 16,
+				padding: '10px 12px',
+				border: `1px solid ${GUI_THEME.line}`,
+				borderRadius: 8,
+				color: GUI_THEME.dim,
+				fontSize: 12,
+			}}
+		>
+			<span
+				style={{
+					fontFamily: 'ui-monospace, monospace',
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
+				}}
+			>
+				{file.path}
+			</span>
+			<span
+				style={{flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8}}
+			>
+				{diffLineCount(file).toLocaleString()} lines
+				<Button variant="ghost" onClick={() => setShown(true)}>
+					Show diff
+				</Button>
+			</span>
+		</div>
+	);
+};
+
 export const DiffPanel = ({
 	sha,
 	files,
@@ -141,7 +197,7 @@ export const DiffPanel = ({
 		{!loading &&
 			!error &&
 			files?.map(file => (
-				<FileDiffView key={file.path} file={file} diffStyle={diffStyle} />
+				<PanelFile key={file.path} file={file} diffStyle={diffStyle} />
 			))}
 	</>
 );
