@@ -20,7 +20,7 @@ const index = await esbuild.context({
 
 const mcp = await esbuild.context({
 	...shared,
-	entryPoints: ['source/mcp/server.ts'],
+	entryPoints: ['source/mcp/index.ts'],
 	outfile: 'dist/mcp.js',
 });
 
