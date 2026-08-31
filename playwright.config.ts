@@ -18,7 +18,14 @@ export default defineConfig({
 	workers: process.env['IS_CI'] ? 2 : 6,
 	fullyParallel: false,
 	forbidOnly: Boolean(process.env['IS_CI']),
-	retries: 0,
+	// One retry on CI only. Two known intermittents predate this suite running
+	// there — `756310J` (a bulk tag reaching one of two tickets) and `GCYVZR3`
+	// (a diff stat that has not landed inside one budget) — and at roughly one
+	// run in five between them, a gate nobody can trust is a gate nobody reads.
+	// This does not bury them: a test that fails and then passes is reported as
+	// flaky by name, not as a pass, and the job stays red for anything that
+	// fails twice. Drop this back to 0 once both are closed.
+	retries: process.env['IS_CI'] ? 1 : 0,
 	reporter: process.env['IS_CI'] ? 'list' : 'line',
 	timeout: 30_000,
 	expect: {timeout: 10_000},

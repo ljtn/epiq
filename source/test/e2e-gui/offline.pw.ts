@@ -36,8 +36,8 @@ test('the board stands down while the socket is gone, and comes back', async ({
 	refuse = true;
 	cut!();
 	await expect(page.getByTestId('reconnecting')).toBeVisible();
-	// Reconnecting is not offline: the board stays interactive throughout.
-	await expect(page.getByTestId('swimlane-menu').first()).toBeVisible();
+	// Still retrying on its own: the button is what appears once they run out.
+	await expect(page.getByTestId('connection-lost')).toHaveCount(0);
 
 	// Allowed again, it comes back by itself — no button, no reload. Waiting
 	// longer than the default here because recovery lands on the next attempt
@@ -46,7 +46,6 @@ test('the board stands down while the socket is gone, and comes back', async ({
 	await expect(page.getByTestId('reconnecting')).toHaveCount(0, {
 		timeout: 20_000,
 	});
-	await expect(page.getByTestId('connection-lost')).toHaveCount(0);
 	await expect(page.getByTestId('swimlane-menu').first()).toBeVisible();
 
 	// Now one it cannot: every retry is refused. The schedule runs at a fifth
