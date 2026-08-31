@@ -8,6 +8,7 @@ import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getSettingsState, User} from '../state/settings.state.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
 import {sanitizeFilePart} from '../utils/file-part.js';
+import {MAX_ULID_AHEAD_MS} from './date-utils.js';
 import {getEdgeRef} from './event-load.js';
 import {
 	AppEvent,
@@ -28,11 +29,9 @@ const getNextId = monotonicFactory();
 // successor.
 const ULID_TIME_MAX = 281474976710655;
 
-// Honest clock skew between machines is minutes. An edge further ahead of the
-// wall clock than this would, via `Math.max` below, become the lower bound of
-// every id minted by every client from then on — one century-out ULID drags
-// all later `createdAt`s and the whole time-travel axis with it, permanently.
-const MAX_EDGE_AHEAD_MS = 24 * 60 * 60 * 1000;
+// An edge further ahead than this would, via `Math.max` below, become the
+// lower bound of every id minted by every client from then on, permanently.
+const MAX_EDGE_AHEAD_MS = MAX_ULID_AHEAD_MS;
 
 /**
  * The edge's timestamp is a lower bound for the next id and nothing more —

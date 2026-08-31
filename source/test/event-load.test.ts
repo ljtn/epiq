@@ -311,7 +311,29 @@ describe('splitEventsAtTime', () => {
 		expect(unappliedEvents).toEqual([]);
 	});
 
-	it('keeps a poisoned event unapplied for a checkout before the latest honest time', () => {
+	it('keeps honest descendants of a poisoned event visible at a historical checkout', () => {
+		const root = ulid(Date.now() - 60_000);
+		const poisoned = ulid(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+		const child = ulid(Date.now() - 40_000);
+		const grandChild = ulid(Date.now() - 20_000);
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			[
+				event(root, null),
+				event(poisoned, root),
+				event(child, poisoned),
+				event(grandChild, child),
+			],
+			Date.now() - 30_000,
+		);
+
+		// The poisoned event inherits its predecessor's time, so the checkout
+		// keeps it and its honest descendants up to the target.
+		expect(appliedEvents.map(e => e.id[0])).toEqual([root, poisoned, child]);
+		expect(unappliedEvents.map(e => e.id[0])).toEqual([grandChild]);
+	});
+
+	it('keeps a poisoned event unapplied for a checkout before its inherited time', () => {
 		const early = ulid(Date.now() - 60_000);
 		const late = ulid(Date.now() - 5_000);
 		const poisoned = ulid(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);

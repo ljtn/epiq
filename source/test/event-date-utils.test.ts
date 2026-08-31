@@ -2,8 +2,9 @@ import {describe, expect, it} from 'vitest';
 import {ulid} from 'ulid';
 import {
 	clampUlidTime,
-	clampUlidTimes,
 	safeDateFromUlid,
+	toEffectiveUlidTimes,
+	ulidTimeMs,
 } from '../lib/event/date-utils.js';
 import {isSuccess} from '../lib/model/result-types.js';
 
@@ -28,31 +29,68 @@ describe('clampUlidTime', () => {
 	});
 });
 
-describe('clampUlidTimes', () => {
-	it('maps a poisoned time to the latest honest time in the set', () => {
-		const now = Date.now();
-		const honest = [now - 10_000, now - 5_000];
+describe('ulidTimeMs', () => {
+	it('decodes an honest id exactly', () => {
+		const t = Date.now() - 5_000;
+		expect(ulidTimeMs(ulid(t))).toBe(t);
+	});
 
-		expect(clampUlidTimes([...honest, now + CENTURY_MS])).toEqual([
-			...honest,
+	it('clamps a poisoned id to the present', () => {
+		const before = Date.now();
+		const t = ulidTimeMs(ulid(before + CENTURY_MS));
+		const after = Date.now();
+
+		expect(t).toBeGreaterThanOrEqual(before);
+		expect(t).toBeLessThanOrEqual(after);
+	});
+});
+
+describe('toEffectiveUlidTimes', () => {
+	it('gives a poisoned time its predecessor’s effective time, not the set maximum', () => {
+		const now = Date.now();
+		const times = [now - 10_000, now + CENTURY_MS, now - 5_000];
+
+		expect(toEffectiveUlidTimes(times)).toEqual([
+			now - 10_000,
+			now - 10_000,
 			now - 5_000,
 		]);
 	});
 
-	it('leaves nulls and honest times untouched', () => {
+	it('chains inherited times through consecutive poisoned entries', () => {
 		const now = Date.now();
-		const times = [null, now - 1_000, null];
+		const times = [now - 10_000, now + CENTURY_MS, now + CENTURY_MS * 2];
 
-		expect(clampUlidTimes(times)).toEqual(times);
+		expect(toEffectiveUlidTimes(times)).toEqual([
+			now - 10_000,
+			now - 10_000,
+			now - 10_000,
+		]);
 	});
 
-	it('falls back to now when every time is poisoned', () => {
-		const before = Date.now();
-		const [clamped] = clampUlidTimes([before + CENTURY_MS]);
-		const after = Date.now();
+	it('falls back to the first honest time for a poisoned leading entry', () => {
+		const now = Date.now();
+		const times = [now + CENTURY_MS, now - 5_000];
 
-		expect(clamped).toBeGreaterThanOrEqual(before);
-		expect(clamped).toBeLessThanOrEqual(after);
+		expect(toEffectiveUlidTimes(times)).toEqual([now - 5_000, now - 5_000]);
+	});
+
+	it('passes an all-poisoned set through raw, keeping it self-consistent', () => {
+		const now = Date.now();
+		const times = [now + CENTURY_MS, now + CENTURY_MS + 1_000];
+
+		expect(toEffectiveUlidTimes(times)).toEqual(times);
+	});
+
+	it('passes nulls through without advancing the inheritance', () => {
+		const now = Date.now();
+		const times = [now - 10_000, null, now + CENTURY_MS];
+
+		expect(toEffectiveUlidTimes(times)).toEqual([
+			now - 10_000,
+			null,
+			now - 10_000,
+		]);
 	});
 });
 

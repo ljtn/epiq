@@ -2,7 +2,7 @@ import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useRef} from 'react';
 import {decodeTime} from 'ulid';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
-import {clampUlidTime} from '../event/date-utils.js';
+import {ulidTimeMs} from '../event/date-utils.js';
 import {timeAgo} from '../utils/date.utils.js';
 import {
 	Comment,
@@ -161,7 +161,7 @@ export function CommentListUI({ticket, width, height}: Props) {
 									<Text color={theme.secondary2}>{`#${index + 1} `}</Text>
 									<AssigneeUI id={comment.authorId} />
 									<Text color={theme.secondary2}>
-										{' ' + timeAgo(clampUlidTime(decodeTime(comment.id)))}
+										{' ' + timeAgo(ulidTimeMs(comment.id))}
 									</Text>
 								</Box>
 							</Box>

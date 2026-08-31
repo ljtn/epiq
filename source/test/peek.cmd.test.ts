@@ -12,6 +12,7 @@ vi.mock('../lib/actions/default/navigation-action-utils.js', () => ({
 }));
 
 vi.mock('../lib/event/event-load.js', () => ({
+	loadEffectiveEventTimes: vi.fn(),
 	loadMergedEvents: vi.fn(),
 	loadMergedEventsBefore: vi.fn(),
 	getLastUnreadableEvents: vi.fn(() => []),
@@ -52,6 +53,7 @@ import {getRepoRootDir, getStateBranchRoot} from '../git/git-storage.js';
 import {navigationUtils} from '../lib/actions/default/navigation-action-utils.js';
 
 import {
+	loadEffectiveEventTimes,
 	loadMergedEvents,
 	loadMergedEventsBefore,
 } from '../lib/event/event-load.js';
@@ -218,6 +220,10 @@ describe('peekCommand', () => {
 		const previousTime = Date.now() - 1000;
 		const previousId = ulid(previousTime);
 
+		vi.mocked(loadEffectiveEventTimes).mockReturnValue(
+			succeeded('times', new Map([[previousId, previousTime]])),
+		);
+
 		vi.mocked(getCmdState).mockReturnValue({
 			commandMeta: {
 				modifier: 'prev',
@@ -257,6 +263,10 @@ describe('peekCommand', () => {
 	it('uses next unapplied event time plus one for :peek next', async () => {
 		const nextTime = Date.now() + 1000;
 		const nextId = ulid(nextTime);
+
+		vi.mocked(loadEffectiveEventTimes).mockReturnValue(
+			succeeded('times', new Map([[nextId, nextTime]])),
+		);
 
 		vi.mocked(getCmdState).mockReturnValue({
 			commandMeta: {

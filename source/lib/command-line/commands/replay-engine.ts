@@ -1,4 +1,4 @@
-import {clampUlidTimes, getEventTime} from '../../event/date-utils.js';
+import {getEventTime, toEffectiveUlidTimes} from '../../event/date-utils.js';
 import {AppEvent} from '../../event/event.model.js';
 import {describeEvent} from '../../event/format-log-utils.js';
 import {
@@ -104,11 +104,11 @@ export const startReplay = ({
 	cancelActiveReplay();
 
 	const totalCount = events.length;
-	// Set-clamped so one poisoned far-future id cannot swallow the whole
+	// Effective times, so one poisoned far-future id cannot swallow the whole
 	// playback budget in a single gap.
-	const times = clampUlidTimes(events.map(event => getEventTime(event))).map(
-		time => time ?? startTime,
-	);
+	const times = toEffectiveUlidTimes(
+		events.map(event => getEventTime(event)),
+	).map(time => time ?? startTime);
 	const endTime = times[totalCount - 1] ?? Date.now();
 	const fractions = buildPlaybackFractions(times);
 
