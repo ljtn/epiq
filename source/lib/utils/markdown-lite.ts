@@ -69,6 +69,16 @@ export const inlineSpans = (text: string): Span[] => {
 		.filter(span => span.text.length > 0);
 };
 
+// A terminal cannot draw the image, so its markdown collapses to a note
+// naming it rather than a line of content-hashed URL. One row still yields
+// one line, which the line-numbered view depends on.
+const IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/g;
+
+export const collapseImages = (text: string): string =>
+	text.replace(IMAGE_PATTERN, (_match, alt: string) =>
+		alt.trim() ? `[image: ${alt.trim()}]` : '[image]',
+	);
+
 const spansToText = (spans: Span[]): string =>
 	spans.map(span => (span.code ? `\`${span.text}\`` : span.text)).join('');
 
@@ -96,12 +106,14 @@ export const classifyRows = (rawRows: string[]): RenderedLine[] => {
 		const meta = parseDiffCommentMeta(row);
 		if (meta) return {kind: 'caption', text: formatDiffCaption(meta)};
 
-		if (row.trim() === '') return {kind: 'blank'};
+		const text = collapseImages(row);
 
-		const heading = /^#{1,6}\s+(.*)$/.exec(row);
+		if (text.trim() === '') return {kind: 'blank'};
+
+		const heading = /^#{1,6}\s+(.*)$/.exec(text);
 		if (heading) return {kind: 'heading', spans: inlineSpans(heading[1] ?? '')};
 
-		return {kind: 'text', spans: inlineSpans(row)};
+		return {kind: 'text', spans: inlineSpans(text)};
 	});
 };
 

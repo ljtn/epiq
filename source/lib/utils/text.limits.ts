@@ -10,6 +10,7 @@ export const MAX_TITLE_LENGTH = 300;
 export const MAX_DESCRIPTION_LENGTH = 100_000;
 export const MAX_TAG_NAME_LENGTH = 60;
 export const MAX_ASSIGNEE_NAME_LENGTH = 80;
+export const MAX_ATTACHMENT_NAME_LENGTH = 200;
 
 // One call should not be able to mint an unbounded number of tags or
 // contributors either.

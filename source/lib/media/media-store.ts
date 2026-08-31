@@ -25,6 +25,21 @@ export const getAttachmentFileName = (
 export const isValidAttachmentFileName = (fileName: string): boolean =>
 	BLOB_FILE_PATTERN.test(fileName);
 
+// Where the GUI serves blobs from. Kept beside the filename so the markdown
+// an attachment is referenced by and the route that answers it are one fact.
+export const ATTACHMENT_URL_PREFIX = '/media/';
+
+export const getAttachmentUrl = (fileName: string): string =>
+	`${ATTACHMENT_URL_PREFIX}${fileName}`;
+
+/**
+ * The markdown that renders an attachment inline wherever a body is drawn as
+ * markdown — a comment or a description. Handed back by the API that created
+ * the attachment so a caller never has to build the path itself.
+ */
+export const getAttachmentMarkdown = (name: string, fileName: string): string =>
+	`![${name}](${getAttachmentUrl(fileName)})`;
+
 /**
  * Determines the image type from the file's magic bytes. Extensions and
  * MIME types arriving over sync or an API are never trusted — synced blobs

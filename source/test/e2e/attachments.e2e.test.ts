@@ -147,6 +147,10 @@ describe('issue attachments', () => {
 			if (isFail(added)) return;
 
 			const {fileName} = added.value;
+			// What a caller pastes into a comment to render the image inline.
+			expect(added.value.markdown).toBe(
+				`![screenshot.png](/media/${fileName})`,
+			);
 			const blobPath = path.join(getMediaDirPath(stateRoot), fileName);
 			expect(fs.existsSync(blobPath)).toBe(true);
 			expect(fs.readFileSync(blobPath).equals(PNG_1PX)).toBe(true);
@@ -299,6 +303,52 @@ describe('issue attachments', () => {
 			);
 			expect(remoteFiles).toContain(`.epiq/media/${fileName}`);
 			expect(remoteFiles).toContain('.epiq/events/');
+		},
+		testTimeout,
+	);
+
+	it(
+		'attaches from a file path, naming the attachment after the file',
+		async () => {
+			const source = path.join(os.tmpdir(), `epiq-shot-${Date.now()}.png`);
+			fs.writeFileSync(source, PNG_1PX);
+
+			try {
+				const added = await addIssueAttachment({
+					repoRoot,
+					issueId,
+					filePath: source,
+				});
+
+				expect(isFail(added)).toBe(false);
+				if (isFail(added)) return;
+
+				expect(added.value.markdown).toBe(
+					`![${path.basename(source)}](/media/${added.value.fileName})`,
+				);
+				expect(
+					fs.existsSync(
+						path.join(getMediaDirPath(stateRoot), added.value.fileName),
+					),
+				).toBe(true);
+			} finally {
+				fs.rmSync(source, {force: true});
+			}
+		},
+		testTimeout,
+	);
+
+	it(
+		'refuses a path it cannot read rather than writing an empty blob',
+		async () => {
+			const missing = await addIssueAttachment({
+				repoRoot,
+				issueId,
+				filePath: path.join(os.tmpdir(), 'epiq-does-not-exist.png'),
+			});
+
+			expect(isFail(missing)).toBe(true);
+			expect(missing.message).toContain('Unable to read');
 		},
 		testTimeout,
 	);

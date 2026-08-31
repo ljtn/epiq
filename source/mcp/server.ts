@@ -5,6 +5,7 @@ import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	MAX_ASSIGNEES_PER_CREATE,
+	MAX_ATTACHMENT_NAME_LENGTH,
 	MAX_COMMENT_LENGTH,
 	MAX_DESCRIPTION_LENGTH,
 	MAX_TAG_NAME_LENGTH,
@@ -13,6 +14,7 @@ import {
 } from '../lib/utils/text.limits.js';
 import {
 	addIssueAssignee,
+	addIssueAttachment,
 	getBoardContributors,
 	tombstoneContributor,
 	restoreContributor,
@@ -384,6 +386,21 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(addIssueComment),
+	);
+
+	server.registerTool(
+		'epiq_issue_attachment_add',
+		{
+			description:
+				'Attach an image file to an Epiq issue. Returns `markdown` — paste it into a comment or description body to render the image inline.',
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				filePath: z.string().min(1),
+				name: z.string().min(1).max(MAX_ATTACHMENT_NAME_LENGTH).optional(),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(addIssueAttachment),
 	);
 
 	server.registerTool(
