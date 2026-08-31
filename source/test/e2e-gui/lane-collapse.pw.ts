@@ -19,6 +19,60 @@ const openLanes = async (page: Page, appUrl: string) => {
 const laneWidth = async (page: Page, name: string): Promise<number> =>
 	(await page.getByTestId(`lane-${name}`).boundingBox())?.width ?? 0;
 
+// Clicking the header used to collapse the lane wholesale, which was far too
+// easy to do by aiming at nothing in particular.
+test('only the button collapses a lane, not the header', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openLanes(page, appUrl);
+
+	await page.getByTestId('lane-overview').getByText('Overview').click();
+	await expect(page.getByTestId('lane-overview')).toHaveAttribute(
+		'data-collapsed',
+		'false',
+	);
+
+	await page.getByRole('button', {name: 'Collapse Overview'}).click();
+	await expect(page.getByTestId('lane-overview')).toHaveAttribute(
+		'data-collapsed',
+		'true',
+	);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A track going from `minmax(0, 1fr)` to `28px` changes type, and CSS cannot
+// interpolate across types — it snaps however the transition is written. The
+// widths are computed in pixels precisely so the collapse can animate, and
+// a single `fr` creeping back in would silently kill it.
+test('the lane tracks are sized so the collapse can animate', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openLanes(page, appUrl);
+
+	// A string body, like the other DOM reads in this suite: the tests compile
+	// under the root tsconfig, which carries no DOM lib.
+	const style = await page.evaluate<{columns: string; transition: string}>(`
+		(() => {
+			const lane = document.querySelector('[data-testid="lane-commits"]');
+			const computed = getComputedStyle(lane.parentElement);
+			return {
+				columns: computed.gridTemplateColumns,
+				transition: computed.transitionProperty,
+			};
+		})()
+	`);
+
+	expect(style.columns).not.toContain('fr');
+	expect(style.transition).toContain('grid-template-columns');
+
+	expect(pageErrors).toEqual([]);
+});
+
 // Four even-ish lanes leave the diff a quarter of the panel. Collapsing the
 // ones you are not reading is what hands that width to the commits lane.
 test('collapsing a lane gives its width to the ones still open', async ({
