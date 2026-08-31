@@ -14,6 +14,8 @@ export const MUTATING_MESSAGE_TYPES = new Set<string>([
 	'issue:edit:description',
 	'issue:tag:add',
 	'issue:tag:remove',
+	'issue:epic:set',
+	'issue:epic:clear',
 	'contributor:remove',
 	'tag:remove',
 	'issue:assignee:add',

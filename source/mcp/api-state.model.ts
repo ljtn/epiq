@@ -1,5 +1,9 @@
 export type ApiTag = {id: string; name: string; color: string};
 
+// Coloured like a tag so the board can draw it as a chip, but a ticket
+// carries one or none rather than a list.
+export type ApiEpic = {id: string; name: string; color: string};
+
 export type ApiAssignee = {
 	id: string;
 	name: string;
@@ -24,6 +28,7 @@ export type ApiIssue = {
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
 	tags: ApiTag[];
+	epic: ApiEpic | null;
 	assignees: ApiAssignee[];
 	parentNodeId: string;
 	isClosed: boolean;
@@ -78,6 +83,7 @@ export type ApiTimeTravelStatus = {
 
 export type ApiState = {
 	tags: ApiTag[];
+	epics: ApiEpic[];
 	contributors: ApiAssignee[];
 	user: ApiAssignee;
 	boards: ApiBoard[];

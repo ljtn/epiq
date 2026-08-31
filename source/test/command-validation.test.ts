@@ -43,6 +43,8 @@ vi.mock('../lib/state/settings.state.js', () => ({
 vi.mock('../lib/repository/node-repo.js', () => ({
 	nodeRepo: {
 		getExistingTags: () => ['critical', 'frontend', 'backend'],
+		getExistingEpics: () => [],
+		getEpic: () => undefined,
 		getExistingAssignees: () => ['john', 'jane'],
 	},
 }));

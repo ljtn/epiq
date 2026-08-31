@@ -103,7 +103,7 @@ describe('TUI issue lifecycle e2e', () => {
 				tui.input(ENTER);
 				await tui.waitFor('History ››', 4_000);
 
-				tui.input(ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ENTER);
+				tui.input(ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ENTER);
 				await tui.waitFor('Event log', 4_000);
 				const log = await tui.waitFor(
 					'Created with title "Lifecycle issue"',

@@ -9,6 +9,8 @@ export type TicketProps = {
 	description?: string;
 	assignees?: string[];
 	tags?: string[];
+	// One id or absent, unlike tags: a ticket sits in one epic.
+	epic?: string;
 };
 
 export type BoardProps = {

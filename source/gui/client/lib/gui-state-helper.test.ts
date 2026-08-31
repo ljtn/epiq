@@ -12,6 +12,7 @@ const issue = (id: string, ref: string, title: string): GuiIssue => ({
 	readonly: false,
 	isClosed: false,
 	tags: [],
+	epic: null,
 	assignees: [],
 });
 
@@ -45,6 +46,7 @@ const state: GuiState = {
 		},
 	],
 	tags: [],
+	epics: [],
 	contributors: [],
 	user: {id: 'u', name: 'u', color: ''},
 	commentsByIssueId: {},

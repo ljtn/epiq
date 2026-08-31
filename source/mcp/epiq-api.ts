@@ -49,6 +49,7 @@ import {
 	MAX_ASSIGNEES_PER_CREATE,
 	MAX_COMMENT_LENGTH,
 	MAX_DESCRIPTION_LENGTH,
+	MAX_EPIC_NAME_LENGTH,
 	MAX_TAG_NAME_LENGTH,
 	MAX_TAGS_PER_CREATE,
 	MAX_TITLE_LENGTH,
@@ -154,6 +155,17 @@ type AddIssueTagInput = ToolInput & {
 type RemoveIssueTagInput = ToolInput & {
 	issueId: string;
 	tagId: string;
+};
+
+// Set by name, cleared by nothing but the issue: a ticket has one epic, so
+// there is no id to name on the way out.
+type SetIssueEpicInput = ToolInput & {
+	issueId: string;
+	epicName: string;
+};
+
+type ClearIssueEpicInput = ToolInput & {
+	issueId: string;
 };
 
 type AddIssueAssigneeInput = ToolInput & {
@@ -349,6 +361,20 @@ const getIssueTags = (ticket: Ticket) =>
 			color: getStringColor(tag.name),
 		}));
 
+const getIssueEpic = (ticket: Ticket) => {
+	const epic = ticket.props.epic
+		? nodeRepo.getEpic(ticket.props.epic)
+		: undefined;
+
+	return epic
+		? {
+				id: epic.id,
+				name: epic.name,
+				color: getStringColor(epic.name),
+		  }
+		: null;
+};
+
 // A contributor node's name is written once at create.contributor and never
 // updated; the event log carries the current one.
 const getLatestNamesFromLog = (): Map<string, string> => {
@@ -492,6 +518,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 		readonly: Boolean(issue.readonly),
 		tags: getIssueTags(issue),
+		epic: getIssueEpic(issue),
 		assignees: getIssueAssignees(issue),
 	} satisfies ApiIssue);
 };
@@ -526,6 +553,7 @@ export const listIssues = async (input: ListIssuesInput) => {
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),
 					tags: getIssueTags(n),
+					epic: getIssueEpic(n),
 					assignees: getIssueAssignees(n),
 				} satisfies ApiIssue),
 		);
@@ -1245,6 +1273,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										createdAt: ulidTimeMs(issue.id),
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
+										epic: getIssueEpic(issue),
 										assignees: getIssueAssignees(issue),
 										parentNodeId: issue.parentNodeId!,
 										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
@@ -1254,6 +1283,10 @@ export const deriveGuiState = (): Result<ApiState> => {
 					),
 			})),
 		tags: nodeRepo.getTags().map(x => ({
+			...x,
+			color: getStringColor(x.name),
+		})),
+		epics: nodeRepo.getEpics().map(x => ({
 			...x,
 			color: getStringColor(x.name),
 		})),
@@ -1491,6 +1524,109 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 
 // Tombstone, not deletion: the id and every ticket reference survive in the
 // log; the tag just stops rendering anywhere, and its name is free again.
+export const setIssueEpic = async (input: SetIssueEpicInput) => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Epic target must be an issue');
+	if (issue.readonly) return failed("Cannot set a readonly issue's epic");
+
+	const epicName = sanitizeInlineText(input.epicName).trim();
+	if (!epicName) return failed('Epic name cannot be empty');
+
+	const overLong = tooLong('Epic name', epicName, MAX_EPIC_NAME_LENGTH);
+	if (overLong) return failed(overLong);
+
+	// One name is one registry entry, so the second ticket in a epic points
+	// at the id already there. That is what lets the board group by it.
+	const existingEpic = nodeRepo.findEpicByName(epicName);
+	const epicId = existingEpic?.id ?? ulid();
+
+	const events = [
+		...(existingEpic
+			? []
+			: [
+					{
+						id: ulid(),
+						...actorResult.value,
+						action: 'create.epic',
+						payload: {
+							id: epicId,
+							name: epicName,
+						},
+					} satisfies AppEvent<'create.epic'>,
+			  ]),
+		{
+			id: ulid(),
+			...actorResult.value,
+			action: 'set.issue.epic',
+			payload: {
+				id: input.issueId,
+				epic: epicId,
+			},
+		} satisfies AppEvent<'set.issue.epic'>,
+	];
+
+	const results = materializeAndPersistAll(
+		events,
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded("Set the issue's epic", {
+		id: input.issueId,
+		ref: nodeRef(input.issueId),
+		epic: {id: epicId, name: epicName},
+	});
+};
+
+export const clearIssueEpic = async (input: ClearIssueEpicInput) => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[input.issueId];
+
+	if (!issue) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Epic target must be an issue');
+	if (issue.readonly) return failed("Cannot clear a readonly issue's epic");
+	if (!issue.props.epic) return failed('Issue has no epic');
+
+	const results = materializeAndPersistAll(
+		[
+			{
+				id: ulid(),
+				...actorResult.value,
+				action: 'clear.issue.epic',
+				payload: {id: input.issueId},
+			} satisfies AppEvent<'clear.issue.epic'>,
+		],
+		bootResult.value.stateBranchRoot,
+	);
+
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded("Cleared the issue's epic", {
+		id: input.issueId,
+		ref: nodeRef(input.issueId),
+	});
+};
+
 export const tombstoneTag = async (
 	input: ToolInput & {tagId: string},
 ): Promise<Result<{id: string; name: string}>> => {

@@ -4,6 +4,7 @@ import {
 	GuiContributor,
 	GuiUser,
 	GuiIssue,
+	GuiEpic,
 	GuiTag,
 	GuiComment,
 	GuiAttachment,
@@ -253,6 +254,8 @@ export const IssueDetails = ({
 	onEditTitle,
 	onEditDescription,
 	onAddTag,
+	onSetEpic,
+	onClearEpic,
 	onRemoveTag,
 	onAddAssignee,
 	onAddExternalAssignee,
@@ -277,6 +280,7 @@ export const IssueDetails = ({
 	commitDiffsBySha,
 	onLoadCommitDiff,
 	knownTags: tags,
+	knownEpics,
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
 }: {
@@ -294,6 +298,8 @@ export const IssueDetails = ({
 	onEditTitle: (issueId: string, title: string) => void;
 	onEditDescription: (issueId: string, description: string) => void;
 	onAddTag: (issueId: string, tagName: string) => void;
+	onSetEpic?: (issueId: string, epicName: string) => void;
+	onClearEpic?: (issueId: string) => void;
 	onRemoveTag: (issueId: string, tagId: string) => void;
 	onAddAssignee: (issueId: string, assigneeId: string) => void;
 	onAddExternalAssignee: (issueId: string, assigneeName: string) => void;
@@ -326,6 +332,7 @@ export const IssueDetails = ({
 	commitDiffsBySha: Record<string, CommitDiffState>;
 	onLoadCommitDiff: (sha: string) => void;
 	knownTags: GuiTag[];
+	knownEpics: GuiEpic[];
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
 	onOpenAssigneePicker: () => void;
@@ -339,6 +346,8 @@ export const IssueDetails = ({
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [editingDescription, setEditingDescription] = useState(false);
 	const [addingTag, setAddingTag] = useState(false);
+	const [settingEpic, setSettingEpic] = useState(false);
+	const [epicName, setEpicName] = useState('');
 	const [addingAssignee, setAddingAssignee] = useState(false);
 	// Tracks the resizable Aside's live width so the Code tab can pick split
 	// vs. unified diffs — initialized from the same persisted value Aside
@@ -400,6 +409,8 @@ export const IssueDetails = ({
 		setEditingDescription(false);
 		setAddingTag(false);
 		setAddingAssignee(false);
+		setSettingEpic(false);
+		setEpicName('');
 	}, [issue?.id, issue?.title, issue?.description]);
 
 	const disabled = !issue || issue.readonly;
@@ -458,6 +469,15 @@ export const IssueDetails = ({
 	const cancelDescription = () => {
 		setDescription(issue?.description ?? '');
 		setEditingDescription(false);
+	};
+
+	const submitEpic = () => {
+		const name = epicName.trim();
+		if (!name || !issue) return;
+
+		onSetEpic?.(issue.id, name);
+		setEpicName('');
+		setSettingEpic(false);
 	};
 
 	const addTag = () => {
@@ -668,6 +688,85 @@ export const IssueDetails = ({
 								</div>
 							) : (
 								<Empty>No description</Empty>
+							)}
+						</Section>
+
+						<Section
+							title="Epic"
+							action={
+								!issue.readonly &&
+								!settingEpic && (
+									<Button
+										variant="ghost"
+										// A word, not '+': a ticket has one epic, so this
+										// sets it rather than adding another, and '+' already
+										// means "add another" on Tags and Assignees below.
+										onClick={() => setSettingEpic(true)}
+									>
+										{issue.epic ? 'change' : 'set'}
+									</Button>
+								)
+							}
+						>
+							{issue.epic ? (
+								<ChipRow>
+									<Button
+										variant="chip"
+										disabled={issue.readonly}
+										title={`Clear the ${issue.epic.name} epic`}
+										onClick={() => onClearEpic?.(issue.id)}
+										style={{color: issue.epic.color}}
+									>
+										{issue.epic.name} ×
+									</Button>
+								</ChipRow>
+							) : (
+								!settingEpic && <Empty>No epic</Empty>
+							)}
+
+							{settingEpic && (
+								<>
+									{/* The ones already on the board first: a epic is only
+									    worth having when tickets share it, so picking an
+									    existing one is the common case. */}
+									{knownEpics.length > 0 && (
+										<ChipRow>
+											{knownEpics
+												.filter(epic => epic.id !== issue.epic?.id)
+												.map(epic => (
+													<Button
+														key={epic.id}
+														variant="chip"
+														style={{color: epic.color}}
+														onClick={() => {
+															onSetEpic?.(issue.id, epic.name);
+															setSettingEpic(false);
+														}}
+													>
+														{epic.name}
+													</Button>
+												))}
+										</ChipRow>
+									)}
+
+									<AddRow>
+										<Input
+											value={epicName}
+											autoFocus
+											placeholder="epic name"
+											onChange={event => setEpicName(event.target.value)}
+											onKeyDown={event => {
+												if (event.key === 'Enter') submitEpic();
+												if (event.key === 'Escape') {
+													setEpicName('');
+													setSettingEpic(false);
+												}
+											}}
+										/>
+
+										<Button onClick={submitEpic}>set</Button>
+									</AddRow>
+								</>
 							)}
 						</Section>
 

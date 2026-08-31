@@ -55,6 +55,7 @@ describe('selection in the URL', () => {
 			zoom: null,
 			layout: 'real',
 			view: 'tagging',
+			epic: null,
 			only: ['bug', 'docs'],
 			windowOnly: true,
 		};
@@ -113,6 +114,7 @@ describe('applySelectionPatch', () => {
 		zoom: null,
 		layout: 'even',
 		view: 'tagging',
+		epic: null,
 		only: ['bug'],
 		windowOnly: false,
 	};
@@ -216,6 +218,7 @@ describe('stored selection', () => {
 			zoom: {start: 1000, end: 2000},
 			layout: 'real',
 			view: 'tagging',
+			epic: null,
 			only: ['bug'],
 			windowOnly: true,
 		});
@@ -226,6 +229,7 @@ describe('stored selection', () => {
 			zoom: null,
 			layout: 'real',
 			view: 'tagging',
+			epic: null,
 			only: ['bug'],
 			// Not kept: a filter that hides tickets is not a preference to come
 			// back to days later.

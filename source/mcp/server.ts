@@ -8,6 +8,7 @@ import {
 	MAX_ATTACHMENT_NAME_LENGTH,
 	MAX_COMMENT_LENGTH,
 	MAX_DESCRIPTION_LENGTH,
+	MAX_EPIC_NAME_LENGTH,
 	MAX_TAG_NAME_LENGTH,
 	MAX_TAGS_PER_CREATE,
 	MAX_TITLE_LENGTH,
@@ -22,6 +23,7 @@ import {
 	restoreTag,
 	addIssueComment,
 	addIssueTag,
+	clearIssueEpic,
 	closeIssue,
 	createIssue,
 	createSwimlane,
@@ -40,6 +42,7 @@ import {
 	moveSwimlane,
 	removeIssueAssignee,
 	removeIssueTag,
+	setIssueEpic,
 	reopenIssue,
 	sync,
 } from './epiq-api.js';
@@ -274,6 +277,32 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(removeIssueTag),
+	);
+
+	server.registerTool(
+		'epiq_issue_epic_set',
+		{
+			description:
+				"Set the Epiq issue's epic, creating the epic if it does not exist. A ticket has exactly one epic, which is the bucket the board groups it by — distinct from tags, which are many and topical.",
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				epicName: z.string().min(1).max(MAX_EPIC_NAME_LENGTH),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(setIssueEpic),
+	);
+
+	server.registerTool(
+		'epiq_issue_epic_clear',
+		{
+			description: "Clear the Epiq issue's epic",
+			inputSchema: z.object({
+				issueId: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(clearIssueEpic),
 	);
 
 	server.registerTool(

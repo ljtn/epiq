@@ -536,6 +536,106 @@ export const commands: CommandLineActionEntry[] = [
 		onSuccess: () => patchState({mode: Mode.DEFAULT}),
 	},
 	{
+		intent: CmdIntent.SetTicketEpic,
+		description: "Set the selected issue's epic, creating it if it is new",
+		mode: Mode.COMMAND_LINE,
+		action: async () => {
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+			const {modifier, inputString} = getCmdState().commandMeta;
+			const name = (modifier || inputString).trim();
+			if (!name) return failed('Provide a epic');
+
+			const {selectedNode} = getState();
+			if (!selectedNode) return failed('Invalid epic target');
+
+			const ticketResult = findAncestor(selectedNode.id, 'TICKET');
+			if (isFail(ticketResult)) {
+				return failed('Unable to set a epic in this context');
+			}
+
+			const ticket = ticketResult.value;
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
+
+			const persistRootResult = await getPersistRootValue();
+			if (isFail(persistRootResult)) return persistRootResult;
+
+			const existingEpic = nodeRepo.findEpicByName(name);
+			const epicId = existingEpic?.id ?? ulid();
+
+			if (ticket.props.epic === epicId) {
+				return failed('Already in that epic');
+			}
+
+			return materializeAndPersistAll(
+				[
+					...(existingEpic
+						? []
+						: [
+								{
+									id: ulid(),
+									action: 'create.epic' as const,
+									payload: {
+										id: epicId,
+										name,
+									},
+									...userRes.value,
+								},
+						  ]),
+					{
+						id: ulid(),
+						action: 'set.issue.epic',
+						payload: {
+							id: ticket.id,
+							epic: epicId,
+						},
+						...userRes.value,
+					},
+				],
+				persistRootResult.value,
+			);
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
+		intent: CmdIntent.ClearTicketEpic,
+		description: "Clear the selected issue's epic",
+		mode: Mode.COMMAND_LINE,
+		action: async () => {
+			const userRes = resolveActorId();
+			if (isFail(userRes)) return failed('Unable to resolve user ID');
+
+			const {selectedNode} = getState();
+			if (!selectedNode) return failed('Invalid epic target');
+
+			const ticketResult = findAncestor(selectedNode.id, 'TICKET');
+			if (isFail(ticketResult)) {
+				return failed('Unable to clear a epic in this context');
+			}
+
+			const ticket = ticketResult.value;
+			if (!isTicketNode(ticket)) return failed('Target node is not issue');
+			if (!ticket.props.epic) return failed('Issue has no epic');
+
+			const persistRootResult = await getPersistRootValue();
+			if (isFail(persistRootResult)) return persistRootResult;
+
+			return materializeAndPersistAll(
+				[
+					{
+						id: ulid(),
+						action: 'clear.issue.epic',
+						payload: {id: ticket.id},
+						...userRes.value,
+					},
+				],
+				persistRootResult.value,
+			);
+		},
+		onSuccess: () => patchState({mode: Mode.DEFAULT}),
+	},
+	{
 		intent: CmdIntent.AssignUserToTicket,
 		description: 'Assign a user to the selected issue',
 		mode: Mode.COMMAND_LINE,

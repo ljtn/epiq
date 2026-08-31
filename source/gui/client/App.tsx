@@ -376,6 +376,15 @@ export const App = () => {
 			isolatedTagId === tagId ? {only: null} : {view: 'tagging', only: [tagId]},
 		);
 
+	const isolatedEpicId = selection.epic;
+
+	// A toggle, like the tag chips: clicking the epic you are already in is
+	// the way back to the whole board.
+	const filterByEpic = (epicId: string) =>
+		changeSelection({
+			epic: isolatedEpicId === epicId ? null : epicId,
+		});
+
 	// For naming a selected identity the scrubber's window has no event for.
 	const knownIdentities = useMemo(() => {
 		const people = new Map<string, GuiUser>();
@@ -393,7 +402,7 @@ export const App = () => {
 	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
 		const swimlanes = selectedBoard?.swimlanes ?? [];
 		const query = textFilter.trim();
-		if (!boardFilter && !query && windowIds === null)
+		if (!boardFilter && !query && windowIds === null && !isolatedEpicId)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
 		let hidden = 0;
@@ -409,7 +418,11 @@ export const App = () => {
 						boardFilter,
 					) &&
 					issueMatchesText(issue, query) &&
-					(windowIds === null || windowIds.has(issue.id)),
+					(windowIds === null || windowIds.has(issue.id)) &&
+					// Read off the ticket's own epic rather than off the events in
+					// the window, so the narrowing survives time travel the same way
+					// the board filter does.
+					(!isolatedEpicId || issue.epic?.id === isolatedEpicId),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -418,7 +431,14 @@ export const App = () => {
 		});
 
 		return {visibleSwimlanes: visible, hiddenIssueCount: hidden};
-	}, [selectedBoard, boardFilter, textFilter, commentsByIssueId, windowIds]);
+	}, [
+		selectedBoard,
+		boardFilter,
+		textFilter,
+		commentsByIssueId,
+		windowIds,
+		isolatedEpicId,
+	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});
@@ -985,6 +1005,38 @@ export const App = () => {
 		});
 
 		send('issue:tag:remove', {issueId, tagId});
+	};
+
+	const setIssueEpic = (issueId: string, epicName: string) => {
+		setState(prev => {
+			if (!prev) return prev;
+
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				// Replaces rather than appends: one ticket, one epic. The
+				// placeholder id is swapped for the real one by the broadcast.
+				epic: {
+					id: `placeholder-epic-${epicName}`,
+					name: epicName,
+					color: GUI_THEME.dim,
+				},
+			}));
+		});
+
+		send('issue:epic:set', {issueId, epicName});
+	};
+
+	const clearIssueEpic = (issueId: string) => {
+		setState(prev => {
+			if (!prev) return prev;
+
+			return updateIssueInGuiState(prev, issueId, issue => ({
+				...issue,
+				epic: null,
+			}));
+		});
+
+		send('issue:epic:clear', {issueId});
 	};
 
 	const addIssueAssignee = (issueId: string, assigneeId: string) => {
@@ -1738,6 +1790,8 @@ export const App = () => {
 									onSelectIssueComments={selectIssueComments}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={filterByTag}
+									isolatedEpicId={isolatedEpicId}
+									onFilterByEpic={filterByEpic}
 									onCreateIssue={openCreateIssueModal}
 									onRenameSwimlane={openRenameSwimlane}
 									onDeleteSwimlane={setDeleteSwimlaneId}
@@ -1935,6 +1989,9 @@ export const App = () => {
 								onReopenIssue={reopenIssue}
 								onCloseIssue={closeIssue}
 								knownTags={state.tags ?? []}
+								knownEpics={state.epics ?? []}
+								onSetEpic={setIssueEpic}
+								onClearEpic={clearIssueEpic}
 								knownAssignees={contributors}
 								onOpenAssigneePicker={requestContributors}
 							/>

@@ -9,6 +9,7 @@ export type FilterField =
 	| 'title'
 	| 'description'
 	| 'tag'
+	| 'epic'
 	| 'assignee'
 	| 'ref';
 
@@ -19,6 +20,13 @@ const getTagNames = (ticket: NavNode<'TICKET'>): string[] => {
 		.map(tag => tags[tag])
 		.filter((tag): tag is Tag => tag !== undefined && !tag.tombstoned)
 		.map(tag => tag.name);
+};
+
+const getEpicName = (ticket: NavNode<'TICKET'>): string | undefined => {
+	const {epics} = getState();
+	const epic = ticket.props.epic;
+
+	return epic ? epics[epic]?.name : undefined;
 };
 
 const getAssigneeNames = (ticket: NavNode<'TICKET'>): string[] => {
@@ -49,6 +57,11 @@ export const ticketMatchesFilter = (
 		case 'tag': {
 			const tagNames = getTagNames(ticket).map(normalizeText);
 			return tagNames.some(tag => tag.includes(query));
+		}
+
+		case 'epic': {
+			const epic = getEpicName(ticket);
+			return epic !== undefined && normalizeText(epic).includes(query);
 		}
 
 		case 'assignee': {

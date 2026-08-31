@@ -6,13 +6,19 @@ vi.mock('../lib/config/setup-utils.js', () => ({
 	isRepositoryInitialized: () => true,
 }));
 vi.mock('../lib/repository/node-repo.js', () => ({
-	nodeRepo: {getExistingTags: () => [], getExistingAssignees: () => []},
+	nodeRepo: {
+		getExistingTags: () => [],
+		getExistingEpics: () => [],
+		getExistingAssignees: () => [],
+	},
 }));
 vi.mock('../lib/utils/ticket.utils.js', () => ({
 	getTicketAssignees: () => [],
 	getTicketTags: () => [],
+	getTicketEpic: () => undefined,
 	ticketAssigneesFromBreadCrumb: () => ({status: 'success', value: []}),
 	ticketTagsFromBreadCrumb: () => ({status: 'success', value: []}),
+	ticketEpicFromBreadCrumb: () => ({status: 'success', value: undefined}),
 }));
 vi.mock('../lib/state/state.js', () => ({getState: () => ({})}));
 

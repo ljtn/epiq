@@ -58,11 +58,11 @@ export const ActionRow = ({children}: {children: React.ReactNode}) => (
 );
 
 export const AddRow = ({children}: {children: React.ReactNode}) => (
-	<div style={{display: 'flex', gap: 8, marginTop: 10}}>{children}</div>
+	<div style={{display: 'flex', gap: 8, marginTop: 8}}>{children}</div>
 );
 
 export const ChipRow = ({children}: {children: React.ReactNode}) => (
-	<div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10}}>
+	<div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8}}>
 		{children}
 	</div>
 );

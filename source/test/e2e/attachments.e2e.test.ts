@@ -248,7 +248,7 @@ describe('issue attachments', () => {
 				expect(detailsFrame).toContain('Attachments (1)');
 
 				// last row in the details tree — walk down and enter it
-				for (let i = 0; i < 5; i++) indicatorTui.input(ARROW_DOWN);
+				for (let i = 0; i < 6; i++) indicatorTui.input(ARROW_DOWN);
 				indicatorTui.input(ENTER);
 				// Wait for the actual row, not just the static "enter to open"
 				// header — the header can paint a frame before the attachment

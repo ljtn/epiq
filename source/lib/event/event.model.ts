@@ -1,5 +1,10 @@
 import {Result} from '../model/result-types.js';
-import {AttachmentExt, Contributor, Tag} from '../model/app-state.model.js';
+import {
+	AttachmentExt,
+	Contributor,
+	Epic,
+	Tag,
+} from '../model/app-state.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
@@ -91,6 +96,17 @@ export type AppEventMap = {
 		result: Tag;
 	};
 
+	/**
+	 * The registry entry for a epic. Epics are their own namespace rather
+	 * than a tag convention: a tag is one of many topical labels, a epic is
+	 * the single bucket a ticket belongs to, and mixing them makes neither
+	 * question answerable.
+	 */
+	'create.epic': {
+		payload: PayloadBase & {name: string};
+		result: Epic;
+	};
+
 	'create.contributor': {
 		payload: PayloadBase & {name: string};
 		result: Contributor;
@@ -160,6 +176,27 @@ export type AppEventMap = {
 		};
 		result: {
 			tag: string;
+		};
+	};
+
+	/**
+	 * Sets the ticket's epic, replacing whatever it was. Idempotent by
+	 * overwrite, so two actors setting it concurrently converge on whichever
+	 * event sorts last rather than on a merge of both.
+	 */
+	'set.issue.epic': {
+		payload: PayloadBase & {
+			epic: string;
+		};
+		result: {
+			epic: string;
+		};
+	};
+
+	'clear.issue.epic': {
+		payload: PayloadBase;
+		result: {
+			id: string;
 		};
 	};
 
@@ -308,6 +345,9 @@ export const EVENT_ACTIONS = [
 	'remove.issue.assignee',
 	'add.issue.tag',
 	'remove.issue.tag',
+	'create.epic',
+	'set.issue.epic',
+	'clear.issue.epic',
 	'move.node',
 	'edit.description',
 	'add.issue.comment',

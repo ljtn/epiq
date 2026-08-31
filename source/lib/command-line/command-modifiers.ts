@@ -18,8 +18,10 @@ import {getState} from '../state/state.js';
 import {TAGS_DEFAULT} from '../static/default-tags.js';
 import {
 	getTicketAssignees,
+	getTicketEpic,
 	getTicketTags,
 	ticketAssigneesFromBreadCrumb,
+	ticketEpicFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
@@ -125,6 +127,8 @@ const EDIT_COMMANDS = [
 const TICKET_COMMANDS = [
 	CmdKeywords.TAG,
 	CmdKeywords.UNTAG,
+	CmdKeywords.EPIC,
+	CmdKeywords.UNEPIC,
 	CmdKeywords.ASSIGN,
 	CmdKeywords.UNASSIGN,
 	CmdKeywords.CLOSE_ISSUE,
@@ -288,6 +292,10 @@ const getAvailableBaseCommands = ({
 			return Boolean(ticket && getTicketTags(ticket).length > 0);
 		}
 
+		if (command === CmdKeywords.UNEPIC) {
+			return Boolean(ticket && getTicketEpic(ticket));
+		}
+
 		if (command === CmdKeywords.UNASSIGN) {
 			return Boolean(ticket && getTicketAssignees(ticket).length > 0);
 		}
@@ -302,6 +310,13 @@ const getAvailableBaseCommands = ({
 
 		return true;
 	});
+};
+
+// The one it has, so the completion confirms what is about to go rather than
+// offering every epic on the board.
+const getUnepicModifiers = (): string[] => {
+	const epic = ticketEpicFromBreadCrumb()?.value;
+	return epic ? [epic.name] : [];
 };
 
 export const getCmdModifiers = (
@@ -362,6 +377,7 @@ export const getCmdModifiers = (
 
 		[CmdKeywords.FILTER]: [
 			'tag',
+			'epic',
 			'assignee',
 			'description',
 			'title',
@@ -376,6 +392,13 @@ export const getCmdModifiers = (
 		[CmdKeywords.UNTAG]: [
 			...(ticketTagsFromBreadCrumb()?.value?.map(({name}) => name) ?? []),
 		],
+
+		// Reads the registry, so only when this is the command being completed.
+		[CmdKeywords.EPIC]:
+			keyword === CmdKeywords.EPIC ? nodeRepo.getExistingEpics() : [],
+
+		[CmdKeywords.UNEPIC]:
+			keyword === CmdKeywords.UNEPIC ? getUnepicModifiers() : [],
 
 		[CmdKeywords.UNASSIGN]: [
 			...(ticketAssigneesFromBreadCrumb()?.value?.map(({name}) => name) ?? []),

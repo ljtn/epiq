@@ -11,6 +11,8 @@ vi.mock('../mcp/epiq-api.js', () => ({
 	restoreTag: vi.fn(),
 	addIssueComment: vi.fn(),
 	addIssueTag: vi.fn(),
+	setIssueEpic: vi.fn(),
+	clearIssueEpic: vi.fn(),
 	closeIssue: vi.fn(),
 	createIssue: vi.fn(),
 	createSwimlane: vi.fn(),

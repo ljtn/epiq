@@ -15,7 +15,9 @@ export const TicketCard = ({
 	onOpenComments,
 	onSelect,
 	isolatedTagId,
+	isolatedEpicId,
 	onFilterByTag,
+	onFilterByEpic,
 	onDragOverIssue,
 	onDropIssueAt,
 }: {
@@ -31,6 +33,8 @@ export const TicketCard = ({
 	// The tag the board is narrowed to, if it is exactly one.
 	isolatedTagId: string | null;
 	onFilterByTag: (tagId: string) => void;
+	isolatedEpicId: string | null;
+	onFilterByEpic: (epicId: string) => void;
 	onDragOverIssue: (targetIndex: number) => void;
 	onDropIssueAt: (issueId: string, targetIndex: number) => void;
 }) => {
@@ -183,6 +187,47 @@ export const TicketCard = ({
 							alignItems: 'center',
 						}}
 					>
+						{ticket.epic && (
+							<button
+								key={ticket.epic.id}
+								type="button"
+								data-testid="ticket-epic"
+								aria-pressed={ticket.epic.id === isolatedEpicId}
+								title={
+									ticket.epic.id === isolatedEpicId
+										? 'Show every ticket again'
+										: `Show only the ${ticket.epic.name} epic`
+								}
+								// Stopped here, or the click would also select the card.
+								onClick={event => {
+									event.stopPropagation();
+									onFilterByEpic(ticket.epic!.id);
+								}}
+								style={{
+									color: ticket.epic.color,
+									// Square, where a tag is a pill: one is the bucket the
+									// ticket sits in, the others are labels on it.
+									border: `1px solid ${
+										ticket.epic.id === isolatedEpicId
+											? ticket.epic.color
+											: GUI_THEME.line
+									}`,
+									borderRadius: 4,
+									padding: '2px 8px',
+									fontSize: 11,
+									fontFamily: 'inherit',
+									lineHeight: 'inherit',
+									background:
+										ticket.epic.id === isolatedEpicId
+											? `${ticket.epic.color}22`
+											: '#ffffff08',
+									cursor: 'pointer',
+								}}
+							>
+								{ticket.epic.name}
+							</button>
+						)}
+
 						{ticket.tags.map(tag => {
 							const isolated = tag.id === isolatedTagId;
 

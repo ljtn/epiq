@@ -168,6 +168,8 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'reopen.issue':
 		case 'add.issue.tag':
 		case 'remove.issue.tag':
+		case 'set.issue.epic':
+		case 'clear.issue.epic':
 		case 'add.issue.assignee':
 		case 'remove.issue.assignee':
 			return [event.payload.id];
@@ -175,9 +177,12 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'rebalance.children':
 			return Object.keys(event.payload.ranks);
 
+		// Registry entries, belonging to no node: nothing to append a log line to
+		// and no virtual node to refresh.
 		case 'create.tag':
 		case 'tombstone.tag':
 		case 'restore.tag':
+		case 'create.epic':
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'link.contributor.user':
@@ -605,6 +610,54 @@ const materializeHandlers: MaterializeHandlers = {
 		return succeeded('Contributor restored', {
 			action: event.action,
 			result: result.value,
+		});
+	},
+
+	'create.epic': event => {
+		const {id, name} = event.payload;
+		const result = nodeRepo.createEpic({id, name});
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to create epic', event);
+		}
+
+		return succeeded('Epic created', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'set.issue.epic': event => {
+		const {id, epic} = event.payload;
+		const result = nodeRepo.setEpic(id, epic);
+
+		if (isFail(result)) {
+			return materializeSkip(
+				result.message ?? "Unable to set the issue's epic",
+				event,
+			);
+		}
+
+		return succeeded('Issue epic set', {
+			action: event.action,
+			result: {epic},
+		});
+	},
+
+	'clear.issue.epic': event => {
+		const {id} = event.payload;
+		const result = nodeRepo.clearEpic(id);
+
+		if (isFail(result)) {
+			return materializeSkip(
+				result.message ?? "Unable to clear the issue's epic",
+				event,
+			);
+		}
+
+		return succeeded('Issue epic cleared', {
+			action: event.action,
+			result: {id},
 		});
 	},
 

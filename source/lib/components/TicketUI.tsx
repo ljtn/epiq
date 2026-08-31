@@ -1,6 +1,7 @@
 import {Box, Text} from 'ink';
 import React, {useMemo} from 'react';
 import {isFieldListNode, isFieldNode, Ticket} from '../model/context.model.js';
+import {FieldNames} from '../repository/fielNames.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getRenderedChildren, useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
@@ -9,6 +10,7 @@ import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {AttachmentListUI} from './AttachmentListUI.js';
 import {CommentListUI} from './CommentListUI.js';
 import {CursorUI} from './Cursor.js';
+import {EpicUI} from './Epic.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
 
@@ -22,6 +24,8 @@ const getDescriptionNodeId = (ticketId: string) =>
 
 const getCommentsNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'comments');
+
+const getEpicNodeId = (ticketId: string) => virtualNodeId(ticketId, 'epic');
 
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
@@ -42,6 +46,8 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		() => getCommentsNodeId(ticket.id),
 		[ticket.id],
 	);
+
+	const epicNodeId = useMemo(() => getEpicNodeId(ticket.id), [ticket.id]);
 
 	const logNodeId = useMemo(() => getLogNodeId(ticket.id), [ticket.id]);
 
@@ -138,6 +144,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const fieldCount = children.reduce(
 		(count, child) =>
 			isFieldListNode(child) ||
+			child.id === epicNodeId ||
 			child.id === commentsNodeId ||
 			child.id === attachmentsNodeId ||
 			child.id === logNodeId
@@ -178,6 +185,25 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 					selected={selected}
 					selectedIndex={selectedIndex}
 				/>
+			);
+		}
+
+		if (child.id === epicNodeId) {
+			return (
+				<Box key={child.id} alignItems="center" paddingTop={1}>
+					<Box minWidth={12}>
+						<CursorUI isSelected={selected} />
+						<Text color={selected ? theme.accent : theme.secondary2}>
+							{`${FieldNames.EPIC}:`}
+						</Text>
+					</Box>
+
+					<Box marginLeft={1} paddingRight={1}>
+						{ticket.props.epic ? (
+							<EpicUI id={ticket.props.epic} isSelected={selected} />
+						) : null}
+					</Box>
+				</Box>
 			);
 		}
 

@@ -153,10 +153,14 @@ describe('TUI e2e', () => {
 
 				expect(detailOutput).toContain('Description');
 				expect(detailOutput).toContain('Assignees:');
+				// A navigable row has to be a drawn one: the epic node sits between
+				// assignees and tags, so an unrendered row would shift every row
+				// below it while showing nothing.
+				expect(detailOutput).toContain('Epic:');
 				expect(detailOutput).toContain('important');
 				expect(detailOutput).toContain('History ››');
 
-				tui.input(ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ENTER);
+				tui.input(ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ARROW_DOWN, ENTER);
 
 				await tui.waitFor('Event log');
 				const logOutput = await tui.waitFor(

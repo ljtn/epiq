@@ -1,4 +1,6 @@
 export type GuiTag = {id: string; name: string; color: string};
+// One per ticket rather than a list: the bucket the board groups by.
+export type GuiEpic = {id: string; name: string; color: string};
 export type GuiUser = {id: string; name: string; color: string};
 
 // Who can be assigned, as opposed to GuiState.contributors, which is only the
@@ -40,6 +42,7 @@ export type GuiIssue = {
 	createdAt: number;
 	readonly: boolean;
 	tags: GuiTag[];
+	epic: GuiEpic | null;
 	assignees: GuiUser[];
 };
 
@@ -76,6 +79,7 @@ export type GuiTimeTravelStatus = {
 export type GuiState = {
 	boards: GuiBoard[];
 	tags: GuiTag[];
+	epics: GuiEpic[];
 	contributors: GuiUser[];
 	user: GuiUser;
 	commentsByIssueId: Record<string, GuiComment[]>;

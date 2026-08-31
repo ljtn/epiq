@@ -21,6 +21,7 @@ import {getGradientWord, getStringColor} from '../utils/color.js';
 import {MAX_COMMENT_LENGTH} from '../utils/text.limits.js';
 import {
 	ticketAssigneesFromBreadCrumb,
+	ticketEpicFromBreadCrumb,
 	ticketTagsFromBreadCrumb,
 } from '../utils/ticket.utils.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
@@ -734,6 +735,38 @@ const validators: Record<CmdKeyword, Validator> = {
 		return requireModifierOrInputStr({
 			hint: hintDefault(' ... ') + tags.join(''),
 		})(args);
+	},
+
+	[CmdKeywords.EPIC]: args => {
+		const epics = nodeRepo.getExistingEpics().slice(0, 10).map(chip);
+		const existingEpics = epics.join('');
+
+		return requireModifierOrInputStr({
+			hint: existingEpics.length
+				? hintDefault('join epic or create:') + existingEpics + hintDefault('')
+				: hintDefault('create epic ...'),
+		})(args);
+	},
+
+	[CmdKeywords.UNEPIC]: () => {
+		const epicRes = ticketEpicFromBreadCrumb();
+		if (isFail(epicRes)) {
+			return invalid({
+				message: hintAlert('Invalid unepic target'),
+				completionWordList: [],
+			});
+		}
+
+		if (!epicRes.value) {
+			return invalid({
+				message: hintAlert('Issue has no epic'),
+				completionWordList: [],
+			});
+		}
+
+		// Nothing to pick: a ticket has one epic, so confirming is the whole
+		// interaction.
+		return valid(` ${epicRes.value.name}`);
 	},
 
 	[CmdKeywords.ASSIGN]: args => {

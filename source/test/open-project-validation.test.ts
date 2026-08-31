@@ -9,6 +9,7 @@ vi.mock('../lib/state/state.js', () => ({
 		selectedNode: undefined,
 		contributors: {},
 		tags: {},
+		epics: {},
 		breadCrumb: [],
 		readOnly: false,
 	}),

@@ -27,6 +27,8 @@ const getAssigneesNodeId = (ticketId: string) =>
 
 const getTagsNodeId = (ticketId: string) => virtualNodeId(ticketId, 'tags');
 
+const getEpicNodeId = (ticketId: string) => virtualNodeId(ticketId, 'epic');
+
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
 const getAttachmentsNodeId = (ticketId: string) =>
@@ -165,6 +167,7 @@ export const materializeTicketVirtualNodes = (
 ): Result<void> => {
 	const descriptionRank = bigIntToHex(MAX_RANK / 4n);
 	const assigneesRank = bigIntToHex(MAX_RANK / 2n);
+	const epicRank = bigIntToHex((MAX_RANK * 5n) / 8n);
 	const tagsRank = bigIntToHex((MAX_RANK * 3n) / 4n);
 	const commentsRank = bigIntToHex((MAX_RANK * 7n) / 8n);
 	const attachmentsRank = bigIntToHex((MAX_RANK * 15n) / 16n);
@@ -172,6 +175,7 @@ export const materializeTicketVirtualNodes = (
 
 	if (isFail(descriptionRank)) return descriptionRank;
 	if (isFail(assigneesRank)) return assigneesRank;
+	if (isFail(epicRank)) return epicRank;
 	if (isFail(tagsRank)) return tagsRank;
 	if (isFail(commentsRank)) return commentsRank;
 	if (isFail(attachmentsRank)) return attachmentsRank;
@@ -195,6 +199,18 @@ export const materializeTicketVirtualNodes = (
 		readonly: true,
 	});
 	if (isFail(assigneesResult)) return assigneesResult;
+
+	// A plain field rather than a list: a ticket has one epic, so there is
+	// nothing to enumerate under it.
+	const epicResult = createOrUpdateVirtualField({
+		id: getEpicNodeId(node.id),
+		name: FieldNames.EPIC,
+		parentNodeId: node.id,
+		rank: epicRank.value,
+		value: node.props.epic ? nodeRepo.getEpic(node.props.epic)?.name ?? '' : '',
+		readonly: true,
+	});
+	if (isFail(epicResult)) return epicResult;
 
 	const tagsResult = createOrUpdateVirtualFieldList({
 		id: getTagsNodeId(node.id),

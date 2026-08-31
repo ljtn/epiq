@@ -27,6 +27,11 @@ export type ViewMode = 'wide' | 'dense';
 // A tombstoned tag keeps its id and record but reads as absent everywhere, and
 // its name is free for a fresh tag.
 export type Tag = {id: string; name: string; tombstoned?: boolean};
+
+// The bucket a ticket belongs to. Its own namespace rather than a tag: a
+// ticket has many tags and exactly one epic, which is what makes grouping
+// by it well defined.
+export type Epic = {id: string; name: string};
 // A placeholder, not an empty name, so a tombstoned assignee still reads as one.
 export const REMOVED_CONTRIBUTOR_NAME = 'removed';
 
@@ -41,7 +46,7 @@ export type Contributor = {
 };
 
 export type Filter = {
-	target: 'tag' | 'assignee' | 'description' | 'title' | 'ref';
+	target: 'tag' | 'epic' | 'assignee' | 'description' | 'title' | 'ref';
 	operator: '=' | '!=';
 	value: string;
 };
@@ -86,6 +91,7 @@ export type AppState = {
 	filters: Filter[];
 	contributors: Record<string, Contributor>;
 	tags: Record<string, Tag>;
+	epics: Record<string, Epic>;
 	mode: ModeUnion;
 	availableActions: ActionEntry[];
 	actionIndex: ActionIndex;

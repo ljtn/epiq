@@ -63,6 +63,8 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'tombstone.tag': withId,
 	'restore.tag': z.looseObject({id, name}),
 
+	'create.epic': z.looseObject({id, name}),
+
 	'create.contributor': z.looseObject({id, name}),
 	'rename.contributor': z.looseObject({id, name}),
 	'tombstone.contributor': withId,
@@ -73,6 +75,11 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'remove.issue.assignee': z.looseObject({id, assignee: id}),
 	'add.issue.tag': z.looseObject({id, tag: id}),
 	'remove.issue.tag': z.looseObject({id, tag: id}),
+
+	// Clearing names no epic: the handler reads the id and nothing else, so a
+	// ticket whose epic is already gone still clears cleanly.
+	'set.issue.epic': z.looseObject({id, epic: id}),
+	'clear.issue.epic': withId,
 
 	// `author` is unconstrained on both, though the type declares it. The
 	// attachment handler never reads it, and the comment handler resolves it

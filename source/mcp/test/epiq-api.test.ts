@@ -313,6 +313,10 @@ const DEFAULT_TAG_REGISTRY = {
 	'tag-1': {id: 'tag-1', name: 'bug'},
 };
 
+const epicRegistry: Record<string, {id: string; name: string}> = {};
+
+const DEFAULT_EPIC_REGISTRY = {};
+
 // The *state* event log, distinct from the merged on-disk log loadMergedEvents
 // supplies. Name resolution reads this one.
 const DEFAULT_STATE_EVENT_LOG = [
@@ -341,6 +345,8 @@ const resetContributorFixtures = () => {
 	);
 	for (const key of Object.keys(tagRegistry)) delete tagRegistry[key];
 	Object.assign(tagRegistry, structuredClone(DEFAULT_TAG_REGISTRY));
+	for (const key of Object.keys(epicRegistry)) delete epicRegistry[key];
+	Object.assign(epicRegistry, structuredClone(DEFAULT_EPIC_REGISTRY));
 	stateEventLog = [...DEFAULT_STATE_EVENT_LOG];
 };
 
@@ -358,6 +364,7 @@ vi.mock('../../lib/state/state.js', async importOriginal => {
 				contextNode: nodes['swimlane-1'],
 				selectedIndex: 0,
 				tags: tagRegistry,
+				epics: epicRegistry,
 				contributors: contributorRegistry,
 				eventLog: stateEventLog,
 				syncStatus: {
@@ -387,6 +394,11 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 			Object.values(tagRegistry).find(
 				tag => !tag.tombstoned && tag.name === name,
 			),
+		),
+		getEpic: vi.fn((id: string) => epicRegistry[id]),
+		getEpics: vi.fn(() => Object.values(epicRegistry)),
+		findEpicByName: vi.fn((name: string) =>
+			Object.values(epicRegistry).find(epic => epic.name === name),
 		),
 		getContributor: vi.fn((id: string) => contributorRegistry[id]),
 		getCommentsByIssue: vi.fn(() => []),

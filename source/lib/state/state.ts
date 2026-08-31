@@ -132,6 +132,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		readOnly: false,
 		filters: [],
 		tags: {},
+		epics: {},
 		contributors: {},
 		mode: Mode.DEFAULT,
 		nodes: {[workspace.id]: workspace},

@@ -47,6 +47,12 @@ export const getCommandIntent = (command: string): CommandIntent => {
 		case CmdKeywords.UNTAG:
 			return CmdIntent.UntagTicket;
 
+		case CmdKeywords.EPIC:
+			return CmdIntent.SetTicketEpic;
+
+		case CmdKeywords.UNEPIC:
+			return CmdIntent.ClearTicketEpic;
+
 		case CmdKeywords.ASSIGN:
 			return CmdIntent.AssignUserToTicket;
 
@@ -107,6 +113,8 @@ export const CmdIntent = {
 
 	TagTicket: 'ticket-tag',
 	UntagTicket: 'ticket-untag',
+	SetTicketEpic: 'ticket-epic-set',
+	ClearTicketEpic: 'ticket-epic-clear',
 	AssignUserToTicket: 'ticket-assign-user',
 	UnassignUserFromTicket: 'ticket-unassign-user',
 	CloseIssue: 'close-issue',

@@ -1,4 +1,4 @@
-import {Contributor, Tag} from '../model/app-state.model.js';
+import {Contributor, Epic, Tag} from '../model/app-state.model.js';
 import {isTicketNode, Ticket} from '../model/context.model.js';
 import {failed, Result, succeeded} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
@@ -19,6 +19,25 @@ export const getTicketAssignees = (ticket: Ticket): Contributor[] =>
 	getTicketAssigneeIds(ticket)
 		.map(assignee => nodeRepo.getContributor(assignee))
 		.filter((contributor): contributor is Contributor => Boolean(contributor));
+
+export const getTicketEpic = (ticket: Ticket): Epic | undefined =>
+	ticket.props.epic ? nodeRepo.getEpic(ticket.props.epic) : undefined;
+
+export const ticketEpicFromBreadCrumb = (): Result<Epic | undefined> => {
+	const {breadCrumb, selectedNode} = getState();
+	const ticket = [...breadCrumb, selectedNode].find(
+		x => x?.context === 'TICKET',
+	);
+
+	if (!ticket || !isTicketNode(ticket)) {
+		return failed('Invalid epic target');
+	}
+
+	return succeeded(
+		'Retrieved the epic from the ticket in breadcrumb',
+		getTicketEpic(ticket),
+	);
+};
 
 export const ticketTagsFromBreadCrumb = (): Result<Tag[]> => {
 	const {breadCrumb, selectedNode} = getState();

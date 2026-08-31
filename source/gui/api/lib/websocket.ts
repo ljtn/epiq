@@ -7,6 +7,7 @@ import {
 	tombstoneTag,
 	addIssueComment,
 	addIssueTag,
+	clearIssueEpic,
 	closeIssue,
 	createIssue,
 	createSwimlane,
@@ -24,6 +25,7 @@ import {
 	moveSwimlane,
 	removeIssueAssignee,
 	removeIssueTag,
+	setIssueEpic,
 	reopenIssue,
 	sync,
 } from '../../../mcp/epiq-api.js';
@@ -422,6 +424,36 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'issue:tag:remove:result',
+						result,
+					);
+				}
+
+				if (type === 'issue:epic:set') {
+					const result = await setIssueEpic({
+						repoRoot,
+						...message.payload,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:epic:set:result',
+						result,
+					);
+				}
+
+				if (type === 'issue:epic:clear') {
+					const result = await clearIssueEpic({
+						repoRoot,
+						...message.payload,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'issue:epic:clear:result',
 						result,
 					);
 				}

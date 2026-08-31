@@ -13,6 +13,7 @@ export const MAX_TITLE_LENGTH = 300;
 // being small enough that one accepted string cannot bloat every clone's log.
 export const MAX_DESCRIPTION_LENGTH = 20_000;
 export const MAX_TAG_NAME_LENGTH = 60;
+export const MAX_EPIC_NAME_LENGTH = 60;
 export const MAX_ASSIGNEE_NAME_LENGTH = 80;
 export const MAX_ATTACHMENT_NAME_LENGTH = 200;
 

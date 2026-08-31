@@ -14,7 +14,9 @@ export const Section = ({
 }) => (
 	<section
 		style={{
-			padding: first ? '0px 0 20px 0' : '20px 0',
+			// 14 rather than 20: the panel stacks six of these, so the padding
+			// was costing more than a ticket card's worth of height in total.
+			padding: first ? '0px 0 14px 0' : '14px 0',
 			borderTop: first ? 'none' : `1px solid ${GUI_THEME.line}`,
 		}}
 	>

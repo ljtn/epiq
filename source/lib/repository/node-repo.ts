@@ -2,6 +2,7 @@ import {
 	AttachmentState,
 	CommentState,
 	Contributor,
+	Epic,
 	Tag,
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../model/app-state.model.js';
@@ -668,6 +669,57 @@ export const nodeRepo = {
 		return succeeded('Tag created', tag);
 	},
 
+	setEpic(targetId: string, epicId: string): Result<{epic: string}> {
+		const epic = this.getEpic(epicId);
+		const target = this.getNode(targetId);
+
+		if (!epic) return failed('Unable to set epic, missing epic');
+		if (!target) return failed('Unable to set epic, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+
+		// Overwrites rather than refusing when one is already set: a ticket has
+		// one epic, so setting it again is the caller restating the answer,
+		// and replay of two concurrent sets converges on the later event.
+		this.updateNode({
+			...target,
+			props: {...target.props, epic: epicId},
+		});
+
+		return succeeded('Epic set', {epic: epicId});
+	},
+
+	clearEpic(targetId: string): Result<{id: string}> {
+		const target = this.getNode(targetId);
+
+		if (!target) return failed('Unable to clear epic, missing target');
+
+		const readonlyFail = failIfReadonly(target, 'edit');
+		if (readonlyFail) return readonlyFail;
+
+		if (!isTicketNode(target)) return failed('Target is not an issue');
+
+		// Succeeds on a ticket that has none: clearing twice converges, and a
+		// replay may reach this after another actor already cleared it.
+		const {epic: _cleared, ...props} = target.props;
+		this.updateNode({...target, props});
+
+		return succeeded('Epic cleared', {id: targetId});
+	},
+
+	createEpic(epic: Epic): Result<Epic> {
+		const result = updateState(s => ({
+			...s,
+			epics: {...s.epics, [epic.id]: epic},
+		}));
+
+		if (isFail(result)) return failed('Could not create epic');
+		return succeeded('Epic created', epic);
+	},
+
 	createNode<T extends AnyContext>(
 		node: NavNode<T>,
 	): Result<NavNode<AnyContext>> {
@@ -740,6 +792,28 @@ export const nodeRepo = {
 
 	findTagByName(name: string): Tag | undefined {
 		return this.getTags().find(tag => tag.name === name);
+	},
+
+	getEpic(id: string): Epic | undefined {
+		return getState().epics[id];
+	},
+
+	getEpics(): Epic[] {
+		return Object.values(getState().epics);
+	},
+
+	findEpicByName(name: string): Epic | undefined {
+		return this.getEpics().find(epic => epic.name === name);
+	},
+
+	getExistingEpics(): string[] {
+		return [
+			...new Set(
+				this.getEpics()
+					.map(epic => epic.name)
+					.filter(Boolean),
+			),
+		];
 	},
 
 	getNode<T extends AnyContext>(id: string) {

@@ -27,6 +27,7 @@ export const virtualNodeId = (
 		| 'description'
 		| 'assignees'
 		| 'tags'
+		| 'epic'
 		| 'history'
 		| 'comments'
 		| 'attachments',

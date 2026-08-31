@@ -67,6 +67,11 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	),
 	message('issue:tag:add', z.object({issueId: id, tagName: z.string()})),
 	message('issue:tag:remove', z.object({issueId: id, tagId: id})),
+	message(
+		'issue:epic:set',
+		z.object({issueId: id, epicName: z.string().min(1)}),
+	),
+	message('issue:epic:clear', z.object({issueId: id})),
 	message('contributor:remove', z.object({contributorId: id})),
 	message('tag:remove', z.object({tagId: id})),
 	z.object({

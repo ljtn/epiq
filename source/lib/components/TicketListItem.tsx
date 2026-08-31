@@ -9,8 +9,13 @@ import {
 } from '../utils/string.utils.js';
 import {hasAuthoredEvents} from '../utils/contributor.utils.js';
 import {nodeRef, NODE_REF_LENGTH} from '../utils/node-ref.js';
-import {getTicketAssignees, getTicketTags} from '../utils/ticket.utils.js';
+import {
+	getTicketAssignees,
+	getTicketEpic,
+	getTicketTags,
+} from '../utils/ticket.utils.js';
 import {AssigneeUI} from './Assignee.js';
+import {EpicUI} from './Epic.js';
 import {TagUI} from './Tag.js';
 import {useFlashColor} from './useFlashColor.js';
 
@@ -30,7 +35,7 @@ const splitAtWordBoundary = (
 	];
 };
 
-type Badge = {id: string; width: number; isTag: boolean};
+type Badge = {id: string; width: number; kind: 'epic' | 'tag' | 'assignee'};
 
 // ' name ' plus the gap to the next badge; '@name' plus that same gap.
 const TAG_WIDTH = 3;
@@ -83,6 +88,7 @@ export const TicketListItemUI: React.FC<{
 				contentWidth,
 		  ) || null;
 
+	const epic = getTicketEpic(ticket);
 	const tags = getTicketTags(ticket);
 	const assignees = getTicketAssignees(ticket).map(contributor => ({
 		...contributor,
@@ -100,14 +106,25 @@ export const TicketListItemUI: React.FC<{
 
 	const {shown, hidden} = fitBadges(
 		[
+			// First: it is the one bucket the ticket is in, and the badge row is
+			// the first thing dropped when the card runs out of width.
+			...(epic
+				? [
+						{
+							id: epic.id,
+							kind: 'epic' as const,
+							width: Math.min(epic.name.length, maxNameWidth) + TAG_WIDTH,
+						},
+				  ]
+				: []),
 			...tags.map(tag => ({
 				id: tag.id,
-				isTag: true,
+				kind: 'tag' as const,
 				width: Math.min(tag.name.length, maxNameWidth) + TAG_WIDTH,
 			})),
 			...assignees.map(assignee => ({
 				id: assignee.id,
-				isTag: false,
+				kind: 'assignee' as const,
 				width:
 					Math.min(assignee.name.length, maxNameWidth) +
 					ASSIGNEE_WIDTH +
@@ -153,7 +170,9 @@ export const TicketListItemUI: React.FC<{
 				<Box flexDirection="row">
 					{shown.map(badge => (
 						<Box paddingRight={1} key={badge.id}>
-							{badge.isTag ? (
+							{badge.kind === 'epic' ? (
+								<EpicUI id={badge.id} maxWidth={maxNameWidth} />
+							) : badge.kind === 'tag' ? (
 								<TagUI id={badge.id} maxWidth={maxNameWidth} />
 							) : (
 								<AssigneeUI id={badge.id} maxWidth={maxNameWidth} />
