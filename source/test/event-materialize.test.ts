@@ -1,5 +1,9 @@
 import {beforeEach, describe, expect, it} from 'vitest';
-import {materialize, materializeAll} from '../lib/event/event-materialize.js';
+import {
+	isConvergenceFail,
+	materialize,
+	materializeAll,
+} from '../lib/event/event-materialize.js';
 import {AppEvent} from '../lib/event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {isTicketNode} from '../lib/model/context.model.js';
@@ -260,6 +264,38 @@ describe('event materialize', () => {
 
 		expect(results).toHaveLength(2);
 		expect(results.every(result => !isFail(result as Result))).toBe(true);
+	});
+
+	// A forged root carrying a lone `init.workspace` passes the root filter by
+	// construction, and a high ULID anchors it after real history. Re-running
+	// genesis resets state, wiping the board for every clone that pulls it.
+	it('skips a second genesis rather than resetting the board', () => {
+		const results = materializeAll([
+			event('init.workspace', {
+				id: IDS.workspace,
+				name: 'Workspace',
+				rank: rank(),
+			}),
+			event('add.board', {
+				id: IDS.board,
+				name: 'Board',
+				parent: IDS.workspace,
+				rank: rank(),
+			}),
+			event('init.workspace', {
+				id: IDS.missing,
+				name: 'Forged',
+				rank: rank(),
+			}),
+		] as const);
+
+		expectOk(results[0]);
+		expectOk(results[1]);
+		// Skipped, not fatal: replay carries on past the forged root.
+		expect(isConvergenceFail(results[2])).toBe(true);
+
+		expect(nodeRepo.getNode(IDS.workspace)).toBeDefined();
+		expect(nodeRepo.getNode(IDS.board)?.parentNodeId).toBe(IDS.workspace);
 	});
 });
 

@@ -212,6 +212,7 @@ type ReplayBatch = {
 	appLog: AppEvent[];
 	nodeLog: Map<string, AppEvent[]>;
 	virtualNodeIds: Set<string>;
+	genesisApplied: boolean;
 };
 
 let replayBatch: ReplayBatch | null = null;
@@ -937,6 +938,20 @@ export function materialize<A extends EventAction>(
 		);
 	}
 
+	// Genesis initializes state from scratch, so a second one part-way through a
+	// replay discards everything applied before it. A forged root carrying a lone
+	// `init.workspace` satisfies the root filter, and a high ULID anchors it
+	// after real history — one such line would empty the board on every clone
+	// that pulled it. Only the replay's first genesis counts; the guard is per
+	// batch because state stays initialized between replays.
+	if (event.action === 'init.workspace' && replayBatch) {
+		if (replayBatch.genesisApplied) {
+			return materializeSkip('the workspace is already initialized', event);
+		}
+
+		replayBatch.genesisApplied = true;
+	}
+
 	const result = handler(event);
 	if (isFail(result)) return result;
 
@@ -960,6 +975,7 @@ export const materializeAll = <const T extends readonly AppEvent[]>(
 				appLog: [],
 				nodeLog: new Map(),
 				virtualNodeIds: new Set(),
+				genesisApplied: false,
 			};
 		}
 
