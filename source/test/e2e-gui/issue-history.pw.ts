@@ -58,7 +58,8 @@ test('the panel header names when the ticket was created', async ({page}) => {
 
 	const created = page.getByTestId('issue-created-at');
 	await expect(created).toBeVisible();
-	await expect(created).toContainText(/Created (just now|\d+\w+ ago)/);
+	// The age alone: "Created" said nothing the "ago" does not.
+	await expect(created).toHaveText(/^(just now|\d+\w+ ago)$/);
 	// The exact timestamp stays on hover rather than crowding the line.
 	await expect(created).toHaveAttribute(
 		'title',
