@@ -48,3 +48,12 @@ Applied on every machine, in causal order, possibly after events it did not expe
 - Suites that shell out to git run containerised over a read-only checkout. A test that aims git at the checkout instead of a temp directory fails on the spot.
 
 Touching ordering, merge, replay or materialization means running both.
+
+
+## Workflow
+- Make branch in worktree
+- Make changes
+- Review your work
+- Address findings
+- On green light - merge via rebase
+- Squash commits only if they are trivial and share the same ticket ref prefix. Otherwise, keep them separate for history and bisectability.
