@@ -38,7 +38,7 @@ test('the log tab lists the ticket’s own events', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-test('the overview names when the ticket was created', async ({page}) => {
+test('the panel header names when the ticket was created', async ({page}) => {
 	const title = `Created ${Date.now()}`;
 	await openFirstTicket(page, title);
 
@@ -50,6 +50,11 @@ test('the overview names when the ticket was created', async ({page}) => {
 		'title',
 		new RegExp(String(new Date().getFullYear())),
 	);
+
+	// It lives in the header beside the ref, not in the Overview pane, so it
+	// survives a tab change.
+	await page.getByRole('button', {name: /^Log/}).click();
+	await expect(created).toBeVisible();
 });
 
 test('the log tab survives a reload on its own url', async ({page}) => {

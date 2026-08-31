@@ -312,22 +312,6 @@ export const IssueDetails = ({
 
 				const overviewPane = issue && (
 					<>
-						{/* 0 when the id carries no time. Better to say nothing than to
-							    date the ticket to 1970. */}
-						{issue.createdAt > 0 && (
-							<div
-								data-testid="issue-created-at"
-								title={formatAbsolute(issue.createdAt)}
-								style={{
-									fontSize: TEXT.meta,
-									color: GUI_THEME.dim,
-									marginBottom: 14,
-								}}
-							>
-								Created {timeAgo(issue.createdAt)}
-							</div>
-						)}
-
 						<Section
 							first={true}
 							title="Description"
@@ -681,16 +665,35 @@ export const IssueDetails = ({
 								}
 							>
 								<FormHeader>
-									<span
-										style={{
-											color: GUI_THEME.secondary,
-											fontSize: TEXT.label,
-											textTransform: 'uppercase',
-											letterSpacing: '0.08em',
-										}}
+									<div
+										style={{display: 'flex', alignItems: 'baseline', gap: 10}}
 									>
-										{issue.ref && <CopyRef refValue={issue.ref} />}
-									</span>
+										<span
+											style={{
+												color: GUI_THEME.secondary,
+												fontSize: TEXT.label,
+												textTransform: 'uppercase',
+												letterSpacing: '0.08em',
+											}}
+										>
+											{issue.ref && <CopyRef refValue={issue.ref} />}
+										</span>
+
+										{/* 0 when the id carries no time. Better to say nothing
+										    than to date the ticket to 1970. */}
+										{issue.createdAt > 0 && (
+											<span
+												data-testid="issue-created-at"
+												title={formatAbsolute(issue.createdAt)}
+												style={{
+													fontSize: TEXT.meta,
+													color: GUI_THEME.dim,
+												}}
+											>
+												Created {timeAgo(issue.createdAt)}
+											</span>
+										)}
+									</div>
 
 									<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 										<FullscreenToggleButton
