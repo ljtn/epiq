@@ -803,6 +803,10 @@ export const App = () => {
 	const selectIssue = (nextIssueId: string, {toggle} = {toggle: false}) => {
 		if (toggle) return togglePicked(nextIssueId);
 
+		// The ticket panel renders only while no commit diff does, so a diff left
+		// open by an earlier dot click would hide the ticket just asked for.
+		setCommitDiff(null);
+
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
 		setPickedIssueIds([nextIssueId]);
@@ -846,6 +850,8 @@ export const App = () => {
 
 	const selectIssueComments = (nextIssueId: string) => {
 		if (!boardSlug) return;
+
+		setCommitDiff(null);
 
 		void navigate(
 			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=comments`,
@@ -1113,6 +1119,9 @@ export const App = () => {
 			const ref = commitTicketRef(subject, knownTicketRefs);
 
 			if (ref && boardSlug) {
+				// A bare panel left open by an earlier unlinked commit would sit in
+				// front of the ticket this one opens, still showing that older diff.
+				setCommitDiff(null);
 				void navigate(
 					`/board/${boardSlug}/issue/${ref}?tab=code&commit=${sha}`,
 				);

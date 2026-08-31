@@ -23,12 +23,15 @@ const findCommitDot = async (page: Page, canvas: Locator, hint: Locator) => {
 	throw new Error('no commit dot found down the middle of the scatter');
 };
 
-// Board, ticket, and one commit linked to it, with the scrubber left showing
-// the scatter over a two-minute window centred on that commit.
+// Board, ticket, and one commit, with the scrubber left showing the scatter
+// over a two-minute window centred on that commit. `link: false` gives the
+// commit a subject that starts with no ref, which is what sends a click to the
+// bare diff panel instead of the ticket.
 const seedCommitOnScatter = async (
 	page: Page,
 	appUrl: string,
 	repoRoot: string,
+	{link = true}: {link?: boolean} = {},
 ) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -50,7 +53,8 @@ const seedCommitOnScatter = async (
 	const subject = `notes ${stamp}`;
 	const sha = commitLinkedFile(
 		repoRoot,
-		ref!,
+		// `chore:` carries a colon, so it can never be read as a ref.
+		link ? ref! : 'chore:',
 		subject,
 		`notes-${stamp}.txt`,
 		`line for ${stamp}\n`,
@@ -80,7 +84,12 @@ const seedCommitOnScatter = async (
 	const hint = page.getByText(subject, {exact: false}).last();
 	const dot = await findCommitDot(page, canvas, hint);
 
-	return {dot, sha, window: {from: url.searchParams.get('from')!}};
+	return {
+		dot,
+		sha,
+		title: `Scatter ${stamp}`,
+		window: {from: url.searchParams.get('from')!},
+	};
 };
 
 const windowOf = (page: Page) => new URL(page.url()).searchParams.get('from');
@@ -146,6 +155,36 @@ test('a click on a commit dot opens its diff', async ({
 
 	await expect.poll(async () => commitOf(page)).toBe(sha);
 	expect(new URL(page.url()).searchParams.get('tab')).toBe('code');
+
+	expect(pageErrors).toEqual([]);
+});
+
+// The ticket panel renders only while no commit diff does, and nothing used to
+// take the diff back down: a dot with no ref opened the bare panel, and every
+// ticket opened afterwards stayed hidden behind that same stale diff.
+test('a ticket opened after an unlinked commit replaces its diff', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const {dot, sha, title} = await seedCommitOnScatter(page, appUrl, repoRoot, {
+		link: false,
+	});
+
+	await page.mouse.click(dot.x, dot.y);
+
+	// The sha on the copy button is what only the diff panel carries — the
+	// ticket's own "Commits" tab would answer to anything looser.
+	const diffPanel = page.locator(`aside button[title="Copy ${sha}"]`);
+	await expect(diffPanel).toBeVisible();
+	// No ref to follow, so this is the bare panel rather than a ticket route.
+	expect(commitOf(page)).toBeNull();
+
+	await page.getByText(title, {exact: false}).first().click();
+
+	await expect(page.locator('aside')).toContainText(title);
+	await expect(diffPanel).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });
