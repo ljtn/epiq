@@ -32,10 +32,36 @@ jobs:
 
       - run: npm run test:e2e:ci
 
+  # Its own job rather than more steps on `test`: it needs a browser and its
+  # own build, shares no state with anything above, and a red GUI run should
+  # say so by name instead of hiding behind a job called Test. Running beside
+  # `test` also keeps the wall clock roughly where it was.
+  gui:
+    name: GUI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # The suite seeds each project by driving the real TUI, which runs git.
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - run: npm ci
+
+      - run: npm run test:gui:ci
+
   release:
     name: Release ${{ matrix.artifact }}
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: test
+    needs: [test, gui]
     permissions:
       contents: write
     strategy:
@@ -85,7 +111,7 @@ jobs:
   release-macos-x64:
     name: Release epiq-macos-x64
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: test
+    needs: [test, gui]
     permissions:
       contents: write
     runs-on: macos-latest
