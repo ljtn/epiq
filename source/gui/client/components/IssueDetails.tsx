@@ -45,6 +45,7 @@ import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
+import {usePersistedFlag} from '../lib/scrubber';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
 
@@ -55,40 +56,133 @@ export const LANE_VIEW_WIDTH = 1400;
 const LANE_GAP = 20;
 const LANE_COUNT = 4;
 // Commits holds diffs, so it takes half the row; the other three share the rest.
-const LANE_COLUMNS =
-	'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr) minmax(0, 1fr)';
-const COMMITS_LANE_SHARE = 3 / 6;
+const LANE_SHARES = {
+	overview: 1,
+	comments: 1,
+	commits: 3,
+	log: 1,
+} as const;
+type LaneKey = keyof typeof LANE_SHARES;
+const LANE_KEYS = Object.keys(LANE_SHARES) as LaneKey[];
 
+// Wide enough for the upright label and a comfortable click target.
+const COLLAPSED_LANE_WIDTH = 28;
+
+const LANE_LABEL_STYLE = {
+	color: GUI_THEME.secondary,
+	fontSize: TEXT.label,
+	textTransform: 'uppercase',
+	letterSpacing: '0.08em',
+} as const;
+
+/**
+ * One column of the lanes view, collapsible to a rail so the lanes that stay
+ * open — the diff, usually — get the width back.
+ *
+ * The toggles are labelled "Collapse …"/"Expand …" rather than by the lane
+ * name: `fullscreen-lanes.pw.ts` proves the tabs are gone in this view by
+ * counting buttons named after a lane, and a header button named "Comments"
+ * would read as a tab to it.
+ */
 const Lane = ({
 	title,
 	count,
+	collapsed,
+	canCollapse,
+	onToggle,
 	children,
 }: {
 	title: string;
 	count?: number;
+	collapsed: boolean;
+	canCollapse: boolean;
+	onToggle: () => void;
 	children: React.ReactNode;
-}) => (
-	<div
-		data-testid={`lane-${title.toLowerCase()}`}
-		style={{display: 'flex', flexDirection: 'column', minHeight: 0}}
-	>
+}) => {
+	const label = `${title}${typeof count === 'number' ? ` (${count})` : ''}`;
+	const testId = `lane-${title.toLowerCase()}`;
+	const headerStyle = {
+		...LANE_LABEL_STYLE,
+		textAlign: 'left',
+		padding: 0,
+		paddingBottom: 10,
+		marginBottom: 14,
+		// Longhand throughout: mixing `border` with `borderBottom` makes React
+		// warn about shorthand/longhand conflicts on every rerender.
+		borderTop: 'none',
+		borderLeft: 'none',
+		borderRight: 'none',
+		borderBottom: `1px solid ${GUI_THEME.line}`,
+		background: 'transparent',
+		fontFamily: 'inherit',
+	} as const;
+
+	if (collapsed) {
+		return (
+			<div
+				data-testid={testId}
+				data-collapsed="true"
+				style={{display: 'flex', minHeight: 0}}
+			>
+				<button
+					type="button"
+					aria-label={`Expand ${title}`}
+					title={`Expand ${title}`}
+					onClick={onToggle}
+					style={{
+						...LANE_LABEL_STYLE,
+						flex: 1,
+						display: 'flex',
+						justifyContent: 'center',
+						alignItems: 'flex-start',
+						paddingTop: 2,
+						background: 'transparent',
+						borderTop: 'none',
+						borderLeft: 'none',
+						borderBottom: 'none',
+						borderRight: `1px solid ${GUI_THEME.line}`,
+						fontFamily: 'inherit',
+						cursor: 'pointer',
+					}}
+				>
+					{/* Bottom-to-top, so the label reads upward from the panel floor
+					    rather than upside down. */}
+					<span
+						style={{writingMode: 'vertical-rl', transform: 'rotate(180deg)'}}
+					>
+						{label}
+					</span>
+				</button>
+			</div>
+		);
+	}
+
+	return (
 		<div
-			style={{
-				color: GUI_THEME.secondary,
-				fontSize: TEXT.label,
-				textTransform: 'uppercase',
-				letterSpacing: '0.08em',
-				paddingBottom: 10,
-				marginBottom: 14,
-				borderBottom: `1px solid ${GUI_THEME.line}`,
-			}}
+			data-testid={testId}
+			data-collapsed="false"
+			style={{display: 'flex', flexDirection: 'column', minHeight: 0}}
 		>
-			{title}
-			{typeof count === 'number' && ` (${count})`}
+			{canCollapse ? (
+				<button
+					type="button"
+					aria-label={`Collapse ${title}`}
+					title={`Collapse ${title}`}
+					onClick={onToggle}
+					style={{...headerStyle, cursor: 'pointer'}}
+				>
+					{label}
+				</button>
+			) : (
+				// The last open lane has nowhere to collapse to. A plain heading
+				// rather than a dead button: nothing to activate, and no control
+				// named after a lane for the tab count in fullscreen-lanes to find.
+				<div style={headerStyle}>{label}</div>
+			)}
+			<div style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>{children}</div>
 		</div>
-		<div style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>{children}</div>
-	</div>
-);
+	);
+};
 
 export const IssueDetails = ({
 	whoAmI,
@@ -188,6 +282,38 @@ export const IssueDetails = ({
 	// vs. unified diffs — initialized from the same persisted value Aside
 	// itself reads, so the first render already picks the right layout.
 	const [panelWidth, setPanelWidth] = useState(readStoredAsideWidth);
+	// Read synchronously rather than in an effect: entering fullscreen has to
+	// lay the lanes out in the same commit, which aside-stacking.pw.ts proves.
+	const [overviewCollapsed, setOverviewCollapsed] = usePersistedFlag(
+		'epiq.lane.overview.collapsed',
+		false,
+	);
+	const [commentsCollapsed, setCommentsCollapsed] = usePersistedFlag(
+		'epiq.lane.comments.collapsed',
+		false,
+	);
+	const [commitsCollapsed, setCommitsCollapsed] = usePersistedFlag(
+		'epiq.lane.commits.collapsed',
+		false,
+	);
+	const [logCollapsed, setLogCollapsed] = usePersistedFlag(
+		'epiq.lane.log.collapsed',
+		false,
+	);
+	const laneCollapsed: Record<LaneKey, boolean> = {
+		overview: overviewCollapsed,
+		comments: commentsCollapsed,
+		commits: commitsCollapsed,
+		log: logCollapsed,
+	};
+	const setLaneCollapsed: Record<LaneKey, (next: boolean) => void> = {
+		overview: setOverviewCollapsed,
+		comments: setCommentsCollapsed,
+		commits: setCommitsCollapsed,
+		log: setLogCollapsed,
+	};
+	// Collapsing the last one would leave four rails and nothing to read.
+	const openLaneCount = LANE_KEYS.filter(key => !laneCollapsed[key]).length;
 	const panelRef = useRef<HTMLElement | null>(null);
 	const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -305,9 +431,35 @@ export const IssueDetails = ({
 		<Aside ref={panelRef} onWidthChange={setPanelWidth}>
 			{({isFullscreen, toggleFullscreen}) => {
 				const laneView = isFullscreen && panelWidth >= LANE_VIEW_WIDTH;
+
+				// A collapsed lane costs a fixed rail; the rest of the width is split
+				// between the lanes still open, so the diff actually receives what
+				// collapsing its neighbours gave up.
+				const openShares = LANE_KEYS.filter(key => !laneCollapsed[key]).reduce(
+					(total, key) => total + LANE_SHARES[key],
+					0,
+				);
+				const railTotal =
+					LANE_KEYS.filter(key => laneCollapsed[key]).length *
+					COLLAPSED_LANE_WIDTH;
+				const laneRoom =
+					panelWidth -
+					ASIDE_PADDING * 2 -
+					LANE_GAP * (LANE_COUNT - 1) -
+					railTotal;
+
+				const laneColumns = LANE_KEYS.map(key =>
+					laneCollapsed[key]
+						? `${COLLAPSED_LANE_WIDTH}px`
+						: `minmax(0, ${LANE_SHARES[key]}fr)`,
+				).join(' ');
+
+				// Drives the diff's split/unified choice, so it has to track the
+				// width the Commits lane actually ends up with.
 				const commitsWidth = laneView
-					? (panelWidth - ASIDE_PADDING * 2 - LANE_GAP * (LANE_COUNT - 1)) *
-					  COMMITS_LANE_SHARE
+					? laneCollapsed.commits || openShares === 0
+						? 0
+						: laneRoom * (LANE_SHARES.commits / openShares)
 					: panelWidth;
 
 				const overviewPane = issue && (
@@ -773,22 +925,33 @@ export const IssueDetails = ({
 									<div
 										style={{
 											display: 'grid',
-											gridTemplateColumns: LANE_COLUMNS,
+											gridTemplateColumns: laneColumns,
 											gap: LANE_GAP,
 											flex: 1,
 											minHeight: 0,
 										}}
 									>
-										<Lane title="Overview">{overviewPane}</Lane>
-										<Lane title="Comments" count={comments.length}>
-											{commentsPane}
-										</Lane>
-										<Lane title="Commits" count={commitsCount}>
-											{commitsPane}
-										</Lane>
-										<Lane title="Log" count={history.length}>
-											{historyPane}
-										</Lane>
+										{(
+											[
+												['overview', 'Overview', undefined, overviewPane],
+												['comments', 'Comments', comments.length, commentsPane],
+												['commits', 'Commits', commitsCount, commitsPane],
+												['log', 'Log', history.length, historyPane],
+											] as const
+										).map(([key, title, count, pane]) => (
+											<Lane
+												key={key}
+												title={title}
+												count={count}
+												collapsed={laneCollapsed[key]}
+												canCollapse={laneCollapsed[key] || openLaneCount > 1}
+												onToggle={() =>
+													setLaneCollapsed[key](!laneCollapsed[key])
+												}
+											>
+												{pane}
+											</Lane>
+										))}
 									</div>
 								) : (
 									<>
