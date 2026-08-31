@@ -3192,3 +3192,5 @@
 {"v":1,"id":["01M1CWJEH7MRMY8QSD7MJW0ZDX","01M1CWJBG9ZZKVH9ABTENMFMYR"],"move.node":{"id":"01M1CVKZ01X2EM4T4DY5RYVN23","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"03ffffffffefffffffffffff"}}
 {"v":1,"id":["01M1CWPF33E52PYFAEC8ZF04K8","01M1CWJEH7MRMY8QSD7MJW0ZDX"],"add.issue":{"id":"01M1CWPF2GGQBARHDF15GSVH6T","parent":"01M1BT1R61T61CE2BBCVFMBQCJ","name":"Collapse large diffs even if you pressed expand all","rank":"c7ffffffffffffffffffffff"}}
 {"v":1,"id":["01M1CWQYN5MC6Q10S2PE34GYC6","01M1CWPF33E52PYFAEC8ZF04K8"],"edit.description":{"id":"01M1CWPF2GGQBARHDF15GSVH6T","md":"some diffs (like a package-lock.json), is just too big to be rendered by default, even user presses expand all. collapse those similar to how it is done in gitlab... "}}
+{"v":1,"id":["01M1CWWBSWX397A6A8SBDSDP0H","01M1CWQYN5MC6Q10S2PE34GYC6"],"move.node":{"id":"01M1CWPF2GGQBARHDF15GSVH6T","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"7fffbfffffffffffffffffff"}}
+{"v":1,"id":["01M1CWWDHMBB8A2D38PGX2K4M7","01M1CWWBSWX397A6A8SBDSDP0H"],"add.issue.assignee":{"id":"01M1CWPF2GGQBARHDF15GSVH6T","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
