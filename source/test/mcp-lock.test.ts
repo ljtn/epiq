@@ -3,6 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 // Every entry point server.ts imports must exist on the mock.
 vi.mock('../mcp/epiq-api.js', () => ({
 	addIssueAssignee: vi.fn(),
+	addIssueAttachment: vi.fn(),
 	getBoardContributors: vi.fn(),
 	tombstoneContributor: vi.fn(),
 	restoreContributor: vi.fn(),
