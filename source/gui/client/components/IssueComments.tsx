@@ -6,6 +6,7 @@ import {IconComment} from './IconComment';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
+import {COMMENT_CARD_STYLE} from '../lib/comment-card.style';
 import {
 	DiffLocation,
 	diffLocationFromMeta,
@@ -145,19 +146,8 @@ export const IssueComments = ({
 				<Empty>No comments</Empty>
 			) : (
 				<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-					{/* Same card as the annotation a comment gets inside a diff
-					    (DiffCommentAnnotation), so the two read as one thing. */}
 					{ordered.map(comment => (
-						<div
-							key={comment.id}
-							style={{
-								border: `1px solid ${GUI_THEME.line}`,
-								borderLeft: `2px solid ${GUI_THEME.accent}`,
-								borderRadius: 6,
-								padding: '8px 10px',
-								background: GUI_THEME.tertiary,
-							}}
-						>
+						<div key={comment.id} style={COMMENT_CARD_STYLE}>
 							{/* Only the header carries the icon; the body runs the card's
 							    full width underneath. */}
 							<div

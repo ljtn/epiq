@@ -10,6 +10,7 @@ import {
 	GuiRefCommitEntry,
 } from '../lib/gui-state.model';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
+import {COMMENT_CARD_STYLE} from '../lib/comment-card.style';
 import {
 	DiffCommentMeta,
 	encodeDiffCommentMarker,
@@ -434,12 +435,8 @@ const DiffCommentAnnotation = ({
 			onMouseEnter={() => onHover(true)}
 			onMouseLeave={() => onHover(false)}
 			style={{
+				...COMMENT_CARD_STYLE,
 				margin: '4px 0',
-				padding: '8px 10px',
-				border: `1px solid ${GUI_THEME.line}`,
-				borderLeft: `2px solid ${GUI_THEME.accent}`,
-				borderRadius: 6,
-				background: GUI_THEME.tertiary,
 				fontSize: TEXT.ui,
 			}}
 		>
