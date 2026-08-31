@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import {test as base, expect} from '@playwright/test';
 import {handoffPathFor, type Handoff} from './handoff.js';
 
-const readHandoff = (workerIndex: number): Handoff =>
+export const readHandoff = (workerIndex: number): Handoff =>
 	JSON.parse(fs.readFileSync(handoffPathFor(workerIndex), 'utf8')) as Handoff;
 
 export const test = base.extend<{
