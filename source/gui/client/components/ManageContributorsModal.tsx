@@ -146,7 +146,12 @@ export const ManageContributorsModal = ({
 											alignItems: 'center',
 											gap: 6,
 											color: armed ? GUI_THEME.red : GUI_THEME.dim,
-											borderColor: armed ? GUI_THEME.red : undefined,
+											// The whole shorthand, and only when armed: Button sets
+											// `border` itself, and React warns that an element given
+											// both it and `borderColor` can drop whichever loses the
+											// race. Spreading `border: undefined` is not the other
+											// branch — that reads as "remove this style".
+											...(armed ? {border: `1px solid ${GUI_THEME.red}`} : {}),
 										}}
 									>
 										{armed && <span style={{fontSize: 10}}>confirm</span>}
