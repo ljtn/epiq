@@ -19,7 +19,8 @@ import {
 } from './IssueCommits';
 import {MarkdownContent} from './MarkdownContent';
 import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
-import {IMAGE_FILE_ACCEPT, useImageInsert} from '../lib/image-insert';
+import {useImageInsert} from '../lib/image-insert';
+import {AddImageButton} from './AddImageButton';
 
 // A diff-selection comment's quoted code is rendered through the same
 // highlighter the diff view uses, rather than as a markdown fence — the whole
@@ -293,25 +294,19 @@ export const IssueComments = ({
 							font: 'inherit',
 							fontFamily: CONTENT_FONT,
 							fontSize: TEXT.prose,
+							...composerImages.dropStyle,
 						}}
 					/>
 
 					<ActionRow>
 						{composerImages.enabled && (
-							<>
-								<Button variant="ghost" onClick={composerImages.pickFiles}>
-									{composerImages.busy ? 'adding…' : 'add image'}
-								</Button>
-								<input
-									data-testid="comment-image-input"
-									ref={composerImages.inputRef}
-									type="file"
-									accept={IMAGE_FILE_ACCEPT}
-									multiple
-									hidden
-									onChange={composerImages.onInputChange}
-								/>
-							</>
+							<AddImageButton
+								testId="comment-image-input"
+								busy={composerImages.busy}
+								onPick={composerImages.pickFiles}
+								inputRef={composerImages.inputRef}
+								onInputChange={composerImages.onInputChange}
+							/>
 						)}
 
 						{/* Hidden until halfway, so a one-liner is not nagged. */}

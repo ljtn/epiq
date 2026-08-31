@@ -105,9 +105,18 @@ test('dropping an image on the comment composer inserts it', async ({
 	})()`);
 
 	await composer.dispatchEvent('dragover', {dataTransfer: handle});
+
+	// The composer says it will take it, rather than leaving the drag to guess.
+	// toHaveCSS resolves the computed value, so no DOM types are needed here.
+	await expect(composer).toHaveCSS('border-style', 'dashed');
+	await expect(composer).toHaveCSS('border-color', 'rgb(118, 212, 255)');
+
 	await composer.dispatchEvent('drop', {dataTransfer: handle});
 
 	await expect(composer).toHaveValue(MEDIA_REF, {timeout: 15_000});
+
+	// And stands down once the image has landed.
+	await expect(composer).not.toHaveCSS('border-style', 'dashed');
 
 	expect(pageErrors).toEqual([]);
 });

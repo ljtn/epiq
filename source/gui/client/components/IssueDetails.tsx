@@ -47,7 +47,8 @@ import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {usePersistedFlag} from '../lib/scrubber';
 import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
-import {IMAGE_FILE_ACCEPT, useImageInsert} from '../lib/image-insert';
+import {useImageInsert} from '../lib/image-insert';
+import {AddImageButton} from './AddImageButton';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
 
@@ -533,28 +534,19 @@ export const IssueDetails = ({
 											fontSize: TEXT.prose,
 											maxHeight: 320,
 											overflowY: 'auto',
+											...descriptionImages.dropStyle,
 										}}
 									/>
 
 									<ActionRow>
 										{descriptionImages.enabled && (
-											<>
-												<Button
-													variant="ghost"
-													onClick={descriptionImages.pickFiles}
-												>
-													{descriptionImages.busy ? 'adding…' : 'add image'}
-												</Button>
-												<input
-													data-testid="description-image-input"
-													ref={descriptionImages.inputRef}
-													type="file"
-													accept={IMAGE_FILE_ACCEPT}
-													multiple
-													hidden
-													onChange={descriptionImages.onInputChange}
-												/>
-											</>
+											<AddImageButton
+												testId="description-image-input"
+												busy={descriptionImages.busy}
+												onPick={descriptionImages.pickFiles}
+												inputRef={descriptionImages.inputRef}
+												onInputChange={descriptionImages.onInputChange}
+											/>
 										)}
 										<Button onClick={saveDescription}>save</Button>
 										<Button variant="ghost" onClick={cancelDescription}>
