@@ -100,3 +100,33 @@ export const resolveEnvActor = (
 		userName: pinnedId ? name : normalize(name),
 	});
 };
+
+/**
+ * Puts a name given on the command line where `resolveEnvActor` reads it, so an
+ * argument and the environment resolve through the same path. A conflicting
+ * variable is an error rather than a precedence rule: whichever source lost
+ * would have named the board's author silently.
+ */
+export const applyActorNameArgument = (
+	name: string,
+	source: string,
+	env: NodeJS.ProcessEnv = process.env,
+): Result<string> => {
+	const trimmed = name.trim();
+
+	if (!isValidUserName(trimmed)) {
+		return failed(`${source} must be 1-${MAX_NAME_LENGTH} characters of text`);
+	}
+
+	const fromEnv = (env[ACTOR_NAME_ENV] ?? '').trim();
+
+	if (fromEnv && normalize(fromEnv) !== normalize(trimmed)) {
+		return failed(
+			`${source} names ${trimmed}, but ${ACTOR_NAME_ENV} names ${fromEnv}`,
+		);
+	}
+
+	env[ACTOR_NAME_ENV] = trimmed;
+
+	return succeeded('Applied actor name argument', trimmed);
+};
