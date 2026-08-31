@@ -61,33 +61,36 @@ export const CollapsibleBody = ({
 	};
 
 	return (
-		<div data-testid={testId} style={{position: 'relative'}}>
-			{/* The double-click belongs to the content, so the toggle and the
-			    fade below it are outside this element. */}
+		<div data-testid={testId}>
+			{/* The double-click belongs to the content, so the toggle below is
+			    outside this element. The fade is inside it, which is what puts
+			    the gradient over the last lines of text rather than over the
+			    toggle. */}
 			<div
 				onDoubleClick={handleDoubleClick}
 				style={{
+					position: 'relative',
 					maxHeight: clamped ? COLLAPSED_BODY_HEIGHT : undefined,
 					overflow: 'hidden',
 				}}
 			>
 				<div ref={contentRef}>{children}</div>
-			</div>
 
-			{clamped && (
-				<div
-					aria-hidden={true}
-					style={{
-						position: 'absolute',
-						left: 0,
-						right: 0,
-						bottom: 0,
-						height: FADE_HEIGHT,
-						background: `linear-gradient(to bottom, ${GUI_THEME.transparent}, ${fadeTo})`,
-						pointerEvents: 'none',
-					}}
-				/>
-			)}
+				{clamped && (
+					<div
+						aria-hidden={true}
+						style={{
+							position: 'absolute',
+							left: 0,
+							right: 0,
+							bottom: 0,
+							height: FADE_HEIGHT,
+							background: `linear-gradient(to bottom, ${GUI_THEME.transparent}, ${fadeTo})`,
+							pointerEvents: 'none',
+						}}
+					/>
+				)}
+			</div>
 
 			{overflows && (
 				<div style={{display: 'flex', justifyContent: 'center'}}>
