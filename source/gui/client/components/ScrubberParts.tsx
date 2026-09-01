@@ -582,75 +582,80 @@ export const ScrubberControls = ({
 	onOnlyIdentity: (id: string) => void;
 	onToggleCategoriesExpanded: () => void;
 	onSetIdentitiesExpanded: (next: boolean) => void;
-}) => (
-	<div
-		style={{
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'flex-end',
-			gap: 12,
-		}}
-	>
-		<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-			{(scope !== 'all' || zoomed) && (
-				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
-					<button
-						title="Earlier"
-						disabled={!connected}
-						onClick={() => onChangeOffset(offset + 1)}
-						style={{...navButtonStyle, ...(connected ? {} : mutedStyle)}}
-					>
-						◀
-					</button>
-					<span
-						style={{
-							fontSize: 10,
-							color: GUI_THEME.dim,
-							whiteSpace: 'nowrap',
-							overflow: 'hidden',
-							// Fixed, not min, so the changing label never shifts the
-							// buttons around it.
-							width: 88,
-							flexShrink: 0,
-							textAlign: 'center',
-						}}
-					>
-						{formatPeriodLabel(scope, offset, periodRange, zoomed)}
-					</span>
-					<button
-						title="Later"
-						disabled={atLatest || !connected}
-						onClick={() => onChangeOffset(offset - 1)}
-						style={{
-							...navButtonStyle,
-							opacity: atLatest ? 0.35 : 1,
-							cursor: atLatest ? 'default' : 'pointer',
-						}}
-					>
-						▶
-					</button>
-				</div>
-			)}
+}) => {
+	// "All time" with no zoom is the whole log, so narrowing the board to what
+	// is in it would hide nothing.
+	const everythingInScope = scope === 'all' && !zoomed;
 
-			<div style={{display: 'flex', gap: 2}}>
-				{SCOPES.map(option => (
-					<button
-						key={option}
-						// Nothing in this row is what a zoomed window is, so while one is
-						// up none of them reads as pressed and Zoom does instead.
-						aria-pressed={!zoomed && scope === option}
-						disabled={!connected}
-						onClick={() => onChangeScope(option)}
-						style={{
-							...scopeButtonStyle(!zoomed && scope === option),
-							...(connected ? {} : mutedStyle),
-						}}
-					>
-						{scopeButtonLabel(option)}
-					</button>
-				))}
+	return (
+		<div
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'flex-end',
+				gap: 12,
+			}}
+		>
+			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+				{(scope !== 'all' || zoomed) && (
+					<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
+						<button
+							title="Earlier"
+							disabled={!connected}
+							onClick={() => onChangeOffset(offset + 1)}
+							style={{...navButtonStyle, ...(connected ? {} : mutedStyle)}}
+						>
+							◀
+						</button>
+						<span
+							style={{
+								fontSize: 10,
+								color: GUI_THEME.dim,
+								whiteSpace: 'nowrap',
+								overflow: 'hidden',
+								// Fixed, not min, so the changing label never shifts the
+								// buttons around it.
+								width: 88,
+								flexShrink: 0,
+								textAlign: 'center',
+							}}
+						>
+							{formatPeriodLabel(scope, offset, periodRange, zoomed)}
+						</span>
+						<button
+							title="Later"
+							disabled={atLatest || !connected}
+							onClick={() => onChangeOffset(offset - 1)}
+							style={{
+								...navButtonStyle,
+								opacity: atLatest ? 0.35 : 1,
+								cursor: atLatest ? 'default' : 'pointer',
+							}}
+						>
+							▶
+						</button>
+					</div>
+				)}
 
-				{/* Only ever the current state, never a way in: a window is zoomed by
+				<div style={{display: 'flex', gap: 2}}>
+					{SCOPES.map(option => (
+						<button
+							key={option}
+							// Nothing in this row is what a zoomed window is, so while one is
+							// up none of them reads as pressed and Zoom does instead.
+							aria-pressed={!zoomed && scope === option}
+							disabled={!connected}
+							onClick={() => onChangeScope(option)}
+							style={{
+								...scopeButtonStyle(!zoomed && scope === option),
+								...(connected ? {} : mutedStyle),
+							}}
+						>
+							{scopeButtonLabel(option)}
+						</button>
+					))}
+
+					{/* Only ever the current state, never a way in: a window is zoomed by
 				    dragging one out on the chart, and left by naming any period to
 				    its left. It sits at the end of the row because it is not a period
 				    on the same scale as the rest.
@@ -659,114 +664,107 @@ export const ScrubberControls = ({
 				    period it cannot go to: the row must not shift by its width
 				    underneath the pointer as a zoom comes and goes. Its title carries
 				    the gesture, since a button nobody can press has to say why. */}
+					<button
+						title={
+							zoomed
+								? 'A window dragged out on the chart — pick a period to leave it'
+								: 'Drag across the chart to zoom the window to a stretch of it'
+						}
+						aria-pressed={zoomed}
+						disabled
+						style={{
+							...scopeButtonStyle(zoomed),
+							opacity: zoomed ? 1 : 0.35,
+							cursor: 'default',
+						}}
+					>
+						Zoom
+					</button>
+				</div>
+			</div>
+
+			<div style={{display: 'flex', gap: 2}}>
 				<button
-					title={
-						zoomed
-							? 'A window dragged out on the chart — pick a period to leave it'
-							: 'Drag across the chart to zoom the window to a stretch of it'
-					}
-					aria-pressed={zoomed}
-					disabled
+					title="Volume — how much happened, per equal-width period, with no empty gaps for quiet stretches"
+					aria-label="Volume"
+					aria-pressed={layoutMode === 'even'}
+					disabled={!connected}
+					onClick={() => onChangeLayoutMode('even')}
 					style={{
-						...scopeButtonStyle(zoomed),
-						opacity: zoomed ? 1 : 0.35,
-						cursor: 'default',
+						...iconToggleButtonStyle(layoutMode === 'even'),
+						...(connected ? {} : mutedStyle),
 					}}
 				>
-					Zoom
+					<IconBars size={13} />
+				</button>
+				<button
+					title="Events — individual events by exact moment, x is elapsed time and y is time of day"
+					aria-label="Events"
+					aria-pressed={layoutMode === 'real'}
+					disabled={!connected}
+					onClick={() => onChangeLayoutMode('real')}
+					style={{
+						...iconToggleButtonStyle(layoutMode === 'real'),
+						...(connected ? {} : mutedStyle),
+					}}
+				>
+					<IconScatter size={13} />
 				</button>
 			</div>
 
-			{/* Bordered rather than underlined like the row beside it: it narrows
-			    the board below rather than naming the window, and must not read as
-			    a seventh period.
+			<div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
+				<Checkbox
+					label="Code"
+					checked={showCommits}
+					activeColor={GUI_THEME.green}
+					disabled={!connected}
+					onChange={onChangeShowCommits}
+				/>
+				<BoardSeriesGroup
+					connected={connected}
+					showIssues={showIssues}
+					view={boardView}
+					identities={identities}
+					hiddenIds={hiddenIdentityIds}
+					expanded={categoriesExpanded}
+					identitiesExpanded={identitiesExpanded}
+					filtered={categoriesFiltered}
+					onChangeShowIssues={onChangeShowIssues}
+					onChangeView={onChangeBoardView}
+					onToggleIdentity={onToggleIdentity}
+					onOnlyIdentity={onOnlyIdentity}
+					onToggleExpanded={onToggleCategoriesExpanded}
+					onSetIdentitiesExpanded={onSetIdentitiesExpanded}
+				/>
 
-			    Nothing to match on where the server capped the window — its
-			    buckets carry counts, not the tickets they counted — so it says so
-			    rather than emptying the board. */}
-			<button
-				title={
-					!windowFilterable
-						? 'Too many events in this window to tell which tickets they belong to'
-						: windowOnly
-						? 'Showing only tickets with activity in this window'
-						: 'Show only tickets with activity in this window'
-				}
-				aria-pressed={windowOnly}
-				disabled={!connected || !windowFilterable}
-				onClick={() => onChangeWindowOnly(!windowOnly)}
-				style={{
-					...toggleButtonStyle(windowOnly),
-					...(connected && windowFilterable ? {} : mutedStyle),
-				}}
-			>
-				In window
-			</button>
-		</div>
+				{/* Beside the series checkboxes rather than by the scope row, so every
+			    narrowing on this bar is in one place. The window it names is the
+			    one those buttons select — under "All" that is every event there
+			    is, which narrows nothing, so it goes flat instead of pretending
+			    to. */}
+				<Checkbox
+					label="Scope only"
+					title={
+						everythingInScope
+							? 'Every event is in scope — pick a period to narrow the board'
+							: !windowFilterable
+							? 'Too many events in this window to tell which tickets they belong to'
+							: 'Show only tickets with activity in the selected window'
+					}
+					checked={windowOnly}
+					disabled={!connected || !windowFilterable || everythingInScope}
+					onChange={onChangeWindowOnly}
+				/>
 
-		<div style={{display: 'flex', gap: 2}}>
-			<button
-				title="Volume — how much happened, per equal-width period, with no empty gaps for quiet stretches"
-				aria-label="Volume"
-				aria-pressed={layoutMode === 'even'}
-				disabled={!connected}
-				onClick={() => onChangeLayoutMode('even')}
-				style={{
-					...iconToggleButtonStyle(layoutMode === 'even'),
-					...(connected ? {} : mutedStyle),
-				}}
-			>
-				<IconBars size={13} />
-			</button>
-			<button
-				title="Events — individual events by exact moment, x is elapsed time and y is time of day"
-				aria-label="Events"
-				aria-pressed={layoutMode === 'real'}
-				disabled={!connected}
-				onClick={() => onChangeLayoutMode('real')}
-				style={{
-					...iconToggleButtonStyle(layoutMode === 'real'),
-					...(connected ? {} : mutedStyle),
-				}}
-			>
-				<IconScatter size={13} />
-			</button>
-		</div>
-
-		<div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
-			<Checkbox
-				label="Code"
-				checked={showCommits}
-				activeColor={GUI_THEME.green}
-				disabled={!connected}
-				onChange={onChangeShowCommits}
-			/>
-			<BoardSeriesGroup
-				connected={connected}
-				showIssues={showIssues}
-				view={boardView}
-				identities={identities}
-				hiddenIds={hiddenIdentityIds}
-				expanded={categoriesExpanded}
-				identitiesExpanded={identitiesExpanded}
-				filtered={categoriesFiltered}
-				onChangeShowIssues={onChangeShowIssues}
-				onChangeView={onChangeBoardView}
-				onToggleIdentity={onToggleIdentity}
-				onOnlyIdentity={onOnlyIdentity}
-				onToggleExpanded={onToggleCategoriesExpanded}
-				onSetIdentitiesExpanded={onSetIdentitiesExpanded}
-			/>
-
-			{/* <Checkbox
+				{/* <Checkbox
 				label="All boards"
 				checked={allBoards}
 				activeColor={GUI_THEME.accent}
 				onChange={onChangeAllBoards}
 			/> */}
-		</div>
+			</div>
 
-		{/* Present while live too, as the status of the board rather than a way
+			{/* Present while live too, as the status of the board rather than a way
 		    back to it, so entering history never resizes the row.
 
 		    "Now" only over a window that runs up to the present, though. It sits
@@ -774,35 +772,36 @@ export const ScrubberControls = ({
 		    naming that end — and over a window paged back or dragged out, that
 		    end is not now. "Resume" is unaffected: it is an action, not a claim
 		    about the far end. The slot holds its width either way. */}
-		<button
-			onClick={onReturnToLive}
-			disabled={!isScrubbing}
-			title={
-				isScrubbing ? 'Leave history and follow the board again' : undefined
-			}
-			style={{
-				background: 'transparent',
-				border: `1px solid ${
-					isScrubbing ? GUI_THEME.accent : GUI_THEME.transparent
-				}`,
-				color: isScrubbing ? GUI_THEME.accent : GUI_THEME.dim,
-				borderRadius: 6,
-				fontFamily: 'inherit',
-				width: 60,
-				display: 'inline-flex',
-				alignItems: 'center',
-				justifyContent: isScrubbing ? 'center' : 'flex-end',
-				fontSize: 10,
-				padding: '2px 8px',
-				cursor: isScrubbing ? 'pointer' : 'default',
-				whiteSpace: 'nowrap',
-				flexShrink: 0,
-			}}
-		>
-			{isScrubbing ? 'Resume' : atLatest ? 'Now' : ''}
-		</button>
-	</div>
-);
+			<button
+				onClick={onReturnToLive}
+				disabled={!isScrubbing}
+				title={
+					isScrubbing ? 'Leave history and follow the board again' : undefined
+				}
+				style={{
+					background: 'transparent',
+					border: `1px solid ${
+						isScrubbing ? GUI_THEME.accent : GUI_THEME.transparent
+					}`,
+					color: isScrubbing ? GUI_THEME.accent : GUI_THEME.dim,
+					borderRadius: 6,
+					fontFamily: 'inherit',
+					width: 60,
+					display: 'inline-flex',
+					alignItems: 'center',
+					justifyContent: isScrubbing ? 'center' : 'flex-end',
+					fontSize: 10,
+					padding: '2px 8px',
+					cursor: isScrubbing ? 'pointer' : 'default',
+					whiteSpace: 'nowrap',
+					flexShrink: 0,
+				}}
+			>
+				{isScrubbing ? 'Resume' : atLatest ? 'Now' : ''}
+			</button>
+		</div>
+	);
+};
 
 export const ScrubberHeader = ({
 	collapsed,
