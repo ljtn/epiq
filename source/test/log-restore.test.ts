@@ -133,6 +133,22 @@ describe('restoreDroppedEventLines', () => {
 		expect(read(root).sort()).toEqual([line(1), line(2), line(9)].sort());
 	});
 
+	/**
+	 * A crash mid-append leaves a line with no id, which the loader quarantines
+	 * and no replica can order. Putting it back would only re-dirty the file
+	 * and give the next commit something to publish.
+	 */
+	it('does not put back a half-written line', () => {
+		const root = makeRoot();
+		fs.writeFileSync(logPath(root), `${line(1)}\n{"v":1,"id":["01H`);
+
+		const snapshot = snapshotEventLogs(root);
+		write(root, [line(1)]);
+
+		expect(restoreDroppedEventLines(root, snapshot)).toEqual([]);
+		expect(read(root)).toEqual([line(1)]);
+	});
+
 	it('splices onto a file git left without a trailing newline', () => {
 		const root = makeRoot();
 		write(root, [line(1), line(2)]);
