@@ -11,7 +11,54 @@ export type GitExecResult = {
 	exitCode: number;
 };
 
+/**
+ * A local git call against a worktree holding only `.epiq/` answers in
+ * milliseconds. Ten seconds is already far past "something is wrong".
+ */
 const GIT_TIMEOUT_MS = 10_000;
+
+/**
+ * Everything whose duration is set by how much data there is rather than by
+ * whether anything is wrong: the calls that talk to a remote, and the ones
+ * that write the worktree out.
+ *
+ * A fetch is bounded by the link and by how much history and media the state
+ * branch carries, so the short cap turned "slow" into "timed out" — and a
+ * timed-out fetch used to read as *offline*, a quiet, self-healing-looking
+ * state that never healed. The others are worse when cut short than when slow:
+ * a SIGTERMed rebase leaves `.git/rebase-merge` for the next process to abort,
+ * and a SIGTERMed checkout or `worktree add` leaves the state worktree
+ * half-written — which is exactly what a second machine joining an established
+ * board does first.
+ *
+ * Long enough that reaching it means something is genuinely wrong rather than
+ * merely slow, and a caller that reaches it now hears about it.
+ */
+const GIT_SLOW_TIMEOUT_MS = 120_000;
+
+// Matched on argv rather than declared per call site: `execGit` is reached from
+// a dozen places and the cost of forgetting one is a truncated fetch.
+const SLOW_GIT_SUBCOMMANDS = new Set([
+	'fetch',
+	'push',
+	'pull',
+	'clone',
+	'ls-remote',
+	'rebase',
+	'checkout',
+	'worktree',
+]);
+
+const timeoutFor = (args: string[]): number => {
+	// `-c key=value` pairs precede the subcommand.
+	const subcommand = args.find(
+		(arg, index) => !arg.startsWith('-') && args[index - 1] !== '-c',
+	);
+
+	return subcommand && SLOW_GIT_SUBCOMMANDS.has(subcommand)
+		? GIT_SLOW_TIMEOUT_MS
+		: GIT_TIMEOUT_MS;
+};
 
 // A bare `spawn('git')` has execvp attempt an execve in every PATH directory
 // ahead of git's, and each miss costs milliseconds; resolve the path once.
@@ -91,13 +138,15 @@ const runGit = ({
 			resolve(value);
 		};
 
+		const timeoutMs = timeoutFor(args);
+
 		const timeout = setTimeout(() => {
 			child.kill('SIGTERM');
 
 			const message = [
 				`git ${args.join(' ')}`,
 				`cwd=${cwd}`,
-				`Git command timed out after ${GIT_TIMEOUT_MS}ms`,
+				`Git command timed out after ${timeoutMs}ms`,
 			].join('\n');
 
 			if (allowFail) {
@@ -105,7 +154,7 @@ const runGit = ({
 			} else {
 				finish(failed(message));
 			}
-		}, GIT_TIMEOUT_MS);
+		}, timeoutMs);
 
 		child.stdout.setEncoding('utf8');
 		child.stderr.setEncoding('utf8');
@@ -520,16 +569,23 @@ const readHeadSha = async (cwd: string): Promise<string | null> => {
 	return result.exitCode === 0 ? result.stdout.trim() : null;
 };
 
-// Network-level failures only. An auth or policy rejection reaches the user as
-// a failure, because it needs them to act; being offline does not.
+/**
+ * Network-level failures only. An auth or policy rejection reaches the user as
+ * a failure, because it needs them to act; being offline does not.
+ *
+ * Our own timeout is deliberately *not* here. A remote that answers, slowly,
+ * looked identical to one that is not there: the board reported "committed
+ * locally, offline", every later attempt hit the same cap, and the work never
+ * published — silently, forever. Being slow needs the user to act, so it
+ * reaches them as a failure like any other.
+ */
 export const isRemoteUnreachable = (message: string): boolean =>
 	/could not resolve host/i.test(message) ||
 	/connection refused|connection timed out|operation timed out/i.test(
 		message,
 	) ||
 	/network is unreachable|no route to host/i.test(message) ||
-	/failed to connect to/i.test(message) ||
-	/git command timed out after/i.test(message);
+	/failed to connect to/i.test(message);
 
 // git's wording when the branch does not exist on the remote.
 const isMissingRemoteRef = (message: string): boolean =>

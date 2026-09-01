@@ -10,7 +10,6 @@ describe('isRemoteUnreachable', () => {
 			"fatal: unable to access 'https://x.invalid/r.git/': Could not resolve host: x.invalid",
 			'ssh: Could not resolve hostname x.invalid: nodename nor servname provided',
 			'fatal: unable to access: Failed to connect to example.com port 443: Connection refused',
-			'git ls-remote origin\nGit command timed out after 10000ms',
 		]) {
 			expect(isRemoteUnreachable(message)).toBe(true);
 		}
@@ -23,6 +22,10 @@ describe('isRemoteUnreachable', () => {
 			' ! [remote rejected] HEAD -> main (pre-receive hook declined)',
 			"fatal: '/tmp/gone' does not appear to be a git repository",
 			' ! [rejected] main -> main (non-fast-forward)',
+			// Our own cap, not the network's answer. Reported as offline it was
+			// a permanent, silent failure to publish: every later sync hit the
+			// same cap and the board went on saying it had merely saved locally.
+			'git fetch origin\nGit command timed out after 120000ms',
 		]) {
 			expect(isRemoteUnreachable(message)).toBe(false);
 		}
