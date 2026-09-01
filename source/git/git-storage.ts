@@ -173,9 +173,14 @@ export const ensureStateBranchIsStorageOnly = async (
 		return failed(`Failed to clean storage branch\n${removeResult.message}`);
 	}
 
+	// Only the paths this repair removed. Without a pathspec the commit takes
+	// whatever else is in the index — and this runs during bootstrap, before
+	// the pull and before `assertLogOnlyGrew`, so event-log content a crashed
+	// sync left staged would be published here with no integrity check at all.
 	const commitResult = await commitAndGetSha({
 		cwd: stateBranchRoot,
 		message: '[epiq:repair-storage-branch]',
+		pathspec: disallowedFiles,
 	});
 
 	if (isFail(commitResult)) return failed(commitResult.message);
