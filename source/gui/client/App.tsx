@@ -69,6 +69,7 @@ import {
 } from './lib/gui-state.model';
 import {
 	buildBoardFilter,
+	isPeriodWindow,
 	issuePassesBoardFilter,
 	windowIssueIds,
 } from './lib/scrubber';
@@ -346,12 +347,21 @@ export const App = () => {
 		[selection.view, selection.only],
 	);
 
+	const zoomed = selection.zoom !== null;
+
 	// The tickets the scrubber's window has an event for, once the board has
 	// been narrowed to them. Null while it has not, and where the window is one
 	// the server answered with counts alone.
+	//
+	// The period test is the same one that greys the box: a narrowing left on
+	// from a period the user has since left must not go on hiding tickets from
+	// under a control that can no longer be pressed.
 	const windowIds = useMemo(
-		() => (selection.windowOnly ? windowIssueIds(history.timeline) : null),
-		[selection.windowOnly, history.timeline],
+		() =>
+			selection.windowOnly && isPeriodWindow(selection.scope, zoomed)
+				? windowIssueIds(history.timeline)
+				: null,
+		[selection.windowOnly, selection.scope, zoomed, history.timeline],
 	);
 
 	// The tag every card is narrowed to, if the selection is exactly one tag:
@@ -1620,6 +1630,7 @@ export const App = () => {
 					selection={selection}
 					onChangeSelection={changeSelection}
 					knownIdentities={knownIdentities}
+					refreshOn={selection.windowOnly ? state : null}
 				/>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at

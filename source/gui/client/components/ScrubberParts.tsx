@@ -46,6 +46,10 @@ import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {IconScatter} from './IconScatter';
 
+// Named once: the collapsed header puts the same box up when the rest of this
+// row is not on screen.
+export const SCOPE_ONLY_LABEL = 'Scope only';
+
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	background: 'transparent',
 	border: `1px solid ${active ? GUI_THEME.accent : GUI_THEME.dim}`,
@@ -742,7 +746,7 @@ export const ScrubberControls = ({
 			    is, which narrows nothing, so it goes flat instead of pretending
 			    to. */}
 				<Checkbox
-					label="Scope only"
+					label={SCOPE_ONLY_LABEL}
 					title={
 						everythingInScope
 							? 'Every event is in scope — pick a period to narrow the board'
@@ -751,7 +755,15 @@ export const ScrubberControls = ({
 							: 'Show only tickets with activity in the selected window'
 					}
 					checked={windowOnly}
-					disabled={!connected || !windowFilterable || everythingInScope}
+					// Unlike its neighbours it asks the socket for nothing — it
+					// narrows what is already on screen — so offline it can still be
+					// let go of, just not taken up over a window that can no longer be
+					// refreshed.
+					disabled={
+						everythingInScope ||
+						!windowFilterable ||
+						(!connected && !windowOnly)
+					}
 					onChange={onChangeWindowOnly}
 				/>
 

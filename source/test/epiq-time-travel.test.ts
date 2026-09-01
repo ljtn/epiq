@@ -323,6 +323,16 @@ describe('epiq-time-travel', () => {
 					action: 'add.issue.comment',
 					payload: {id: 'comment-1', issue: 'issue-1', md: 'hi'},
 				},
+				{
+					id: ulid(baseTime + 5_000),
+					action: 'add.field',
+					payload: {id: 'field-1', parent: 'issue-1', name: 'points'},
+				},
+				{
+					id: ulid(baseTime + 6_000),
+					action: 'edit.title',
+					payload: {id: 'field-1', name: 'story points'},
+				},
 			];
 
 			vi.mocked(loadMergedEvents).mockReturnValue(
@@ -345,6 +355,10 @@ describe('epiq-time-travel', () => {
 				['close.issue', 'issue-1'],
 				// The comment's own id is `id`; the ticket it hangs off is `issue`.
 				['add.issue.comment', 'issue-1'],
+				// A field node, and an edit naming the field rather than the ticket:
+				// both are found by walking up to the ticket they hang off.
+				['add.field', 'issue-1'],
+				['edit.title', 'issue-1'],
 			]);
 		});
 

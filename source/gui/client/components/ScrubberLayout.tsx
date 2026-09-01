@@ -35,12 +35,14 @@ import {
 	ScrubberHeader,
 	ScrubberHoverHint,
 	ScrubberNeedle,
+	SCOPE_ONLY_LABEL,
 	SegmentHighlight,
 	SeriesLayer,
 	TrackBaseline,
 	VolumeBars,
 } from './ScrubberParts';
 import {Panel} from './Panel';
+import {Checkbox} from './Checkbox';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -176,7 +178,22 @@ export const ScrubberLayout = ({
 						onToggleCollapsed={onToggleCollapsed}
 					/>
 
-					{!collapsed && <ScrubberControls {...controls} />}
+					{collapsed ? (
+						// The narrowing outlives the chart it belongs to — a link can
+						// arrive with the scrubber shut, and collapsing it is remembered
+						// — so its box comes up here rather than leaving the board
+						// hiding tickets behind a control nobody can see.
+						controls.windowOnly && (
+							<Checkbox
+								label={SCOPE_ONLY_LABEL}
+								title="Show every ticket again"
+								checked
+								onChange={controls.onChangeWindowOnly}
+							/>
+						)
+					) : (
+						<ScrubberControls {...controls} />
+					)}
 				</div>
 
 				{!collapsed && (
