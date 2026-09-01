@@ -7,7 +7,9 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {ulid} from 'ulid';
 import {execGit} from '../../git/git-utils.js';
+import {deriveActorId} from '../../lib/config/actor-env.js';
 import {isFail} from '../../lib/model/result-types.js';
+import {sanitizeFilePart} from '../../lib/utils/file-part.js';
 import type {ActorAction, ActorJob, ActorReport} from './protocol.js';
 
 const STATE_BRANCH = 'epiq/state';
@@ -26,6 +28,9 @@ export type Actor = {
 	// Identity and the state worktree both live here, so this is what makes two
 	// clones two different machines.
 	globalDir: string;
+	// Set when this identity comes from the environment rather than
+	// `config.json` — a second tool on somebody's machine, not a second machine.
+	envActorName?: string;
 };
 
 export type Collaboration = {
@@ -135,13 +140,40 @@ export const startCollaboration = async ({
 	return {remoteRoot, actors, dirs};
 };
 
+/**
+ * A second tool on the same machine: the same clone, the same state worktree,
+ * a different identity. That is a GUI beside an MCP server beside a TUI —
+ * several processes appending to one events directory — as opposed to
+ * `startCollaboration`, whose actors are separate machines.
+ *
+ * The identity comes from `EPIQ_USER_NAME`, so it must be derived the way
+ * `resolveEnvActor` derives it or the two would disagree about which log file
+ * is this actor's own.
+ */
+export const sameMachineTool = (host: Actor, name: string): Actor => ({
+	name,
+	userId: deriveActorId(name),
+	userName: name.trim().toLowerCase(),
+	repoRoot: host.repoRoot,
+	globalDir: host.globalDir,
+	envActorName: name,
+});
+
 export const runActor = async (
 	actor: Actor,
 	{
 		actions,
 		sync,
 		init = false,
-	}: {actions: ActorAction[]; sync: boolean; init?: boolean},
+		startDelayMs,
+		pauseMs,
+	}: {
+		actions: ActorAction[];
+		sync: boolean;
+		init?: boolean;
+		startDelayMs?: number;
+		pauseMs?: number;
+	},
 ): Promise<ActorReport> => {
 	const reportPath = path.join(actor.globalDir, `report-${ulid()}.json`);
 	const job: ActorJob = {
@@ -152,6 +184,8 @@ export const runActor = async (
 		init,
 		sync,
 		reportPath,
+		startDelayMs,
+		pauseMs,
 	};
 
 	const stderr = await new Promise<string>((resolve, reject) => {
@@ -161,6 +195,7 @@ export const runActor = async (
 				...process.env,
 				EPIQ_GLOBAL_DIR: actor.globalDir,
 				IS_LOCAL: 'true',
+				...(actor.envActorName ? {EPIQ_USER_NAME: actor.envActorName} : {}),
 			},
 		});
 
@@ -185,6 +220,57 @@ export const runActor = async (
 	return JSON.parse(fs.readFileSync(reportPath, 'utf8')) as ActorReport;
 };
 
+/**
+ * Starts an actor and kills it partway through, without waiting for a report.
+ *
+ * A sync that dies mid-git is not exotic: the 10s cap on every git call
+ * SIGTERMs a slow fetch, an agent session ends, a laptop sleeps. What it
+ * leaves behind — a stopped rebase, a stash nobody popped — is what the next
+ * process has to cope with.
+ */
+export const runActorAndKill = async (
+	actor: Actor,
+	{
+		actions,
+		sync,
+		killAfterMs,
+	}: {actions: ActorAction[]; sync: boolean; killAfterMs: number},
+): Promise<void> => {
+	const reportPath = path.join(actor.globalDir, `report-${ulid()}.json`);
+	const job: ActorJob = {
+		repoRoot: actor.repoRoot,
+		userId: actor.userId,
+		userName: actor.userName,
+		actions,
+		sync,
+		reportPath,
+	};
+
+	await new Promise<void>(resolve => {
+		const child = spawn(TSX, [ACTOR_ENTRY, JSON.stringify(job)], {
+			cwd: actor.repoRoot,
+			stdio: 'ignore',
+			env: {
+				...process.env,
+				EPIQ_GLOBAL_DIR: actor.globalDir,
+				IS_LOCAL: 'true',
+				...(actor.envActorName ? {EPIQ_USER_NAME: actor.envActorName} : {}),
+			},
+		});
+
+		const timer = setTimeout(() => child.kill('SIGKILL'), killAfterMs);
+
+		child.on('error', () => {
+			clearTimeout(timer);
+			resolve();
+		});
+		child.on('close', () => {
+			clearTimeout(timer);
+			resolve();
+		});
+	});
+};
+
 export const cleanUp = ({dirs}: Collaboration): void => {
 	for (const dir of dirs) fs.rmSync(dir, {recursive: true, force: true});
 };
@@ -207,6 +293,29 @@ export const stateBranchRootFor = (actor: Actor): string => {
 
 export const ownLogPathFor = (actor: Actor, fileName: string): string =>
 	path.join(stateBranchRootFor(actor), '.epiq', 'events', fileName);
+
+/** The log file this actor writes, named the way `persist` names it. */
+export const logFileNameFor = (actor: Actor): string =>
+	`${sanitizeFilePart(actor.userId)}.${sanitizeFilePart(actor.userName)}.jsonl`;
+
+/** Event ids currently in this actor's own log, straight off disk. */
+export const idsInOwnLog = (actor: Actor): string[] => {
+	const logPath = ownLogPathFor(actor, logFileNameFor(actor));
+	if (!fs.existsSync(logPath)) return [];
+
+	return fs
+		.readFileSync(logPath, 'utf8')
+		.split('\n')
+		.flatMap(line => {
+			if (!line.trim()) return [];
+			try {
+				const id = (JSON.parse(line) as {id?: [string, string | null]}).id;
+				return Array.isArray(id) && typeof id[0] === 'string' ? [id[0]] : [];
+			} catch {
+				return [];
+			}
+		});
+};
 
 /**
  * Appends bytes to an actor's own log without going through `persist`.
