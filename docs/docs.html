@@ -184,6 +184,18 @@
 							<code>.gitignore</code> to ignore local-only
 							<code>.epiq/log/</code>.
 						</div>
+
+						<h3>Two front ends, one board</h3>
+						<p>
+							<code>epiq</code> opens the terminal UI, <code>epiq gui</code>
+							opens the browser app. They are two views of the same board — the
+							same event log in the same repository — so you can switch
+							whenever you like, or keep both open side by side. The TUI is
+							keyboard-first and stays in the terminal you are already in; the
+							GUI adds drag-and-drop, the timeline scrubber, and each ticket's
+							Commits tab with full diffs. Nothing is set up per front end:
+							whatever one writes, the other shows.
+						</p>
 					</section>
 
 					<!-- Core concepts -->
@@ -746,6 +758,37 @@
 							<code>epiq … ✔ Connected</code>). MCP servers load at startup, so
 							<strong>restart Claude Code</strong> after adding the server.
 						</p>
+
+						<h3>The Epiq skill</h3>
+						<p>
+							Registering the server tells an agent <em>what it can do</em>; the
+							skill tells it <em>how to work the board</em> — use the MCP tools
+							rather than the CLI, sync on demand, keep tickets small and their
+							status current, and record the outcome as a comment. Epiq's own
+							skill lives at
+							<a
+								class="inline"
+								href="https://github.com/ljtn/epiq/blob/main/.claude/skills/epiq/SKILL.md"
+								>.claude/skills/epiq/SKILL.md</a
+							>. Copy it into your project's <code>.claude/skills/</code> and
+							trim the rules that are specific to this repository:
+						</p>
+						<pre
+							class="code"
+						><code><span class="g">mkdir</span> -p .claude/skills/epiq
+<span class="g">curl</span> -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md \
+  -o .claude/skills/epiq/SKILL.md</code></pre>
+
+						<div class="docs-note">
+							<strong>This is what fills the Commits tab.</strong> A commit links
+							to a ticket when its subject <em>starts</em> with that ticket's ref
+							— the seven characters shown on the ticket, and what
+							<code>:yank ref</code> copies:
+							<code>git commit -m "A1B2C3D fix the parser"</code>. Follow the
+							convention and the ticket gains a Commits tab with the diffstat,
+							the per-file diff, and a comment box on any line; skip it and the
+							work is done but invisible from the board.
+						</div>
 
 						<h3>Other MCP clients</h3>
 						<p>
