@@ -122,6 +122,7 @@ export const ScrollBoxUI: React.FC<Props> = ({
 				{visibleChildren}
 			</Box>
 
+			{/* Held even when idle, and counted in inline-editor-layout.ts */}
 			<Box flexDirection="column" width={1} height={scrollBarHeight}>
 				{Array.from({length: scrollBarHeight}).map((_, i) => (
 					<Text

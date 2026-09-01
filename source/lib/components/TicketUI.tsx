@@ -227,6 +227,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	};
 
 	return (
+		// The right padding is counted in inline-editor-layout.ts
 		<Box
 			width={maxWidth}
 			flexDirection="column"

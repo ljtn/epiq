@@ -5,7 +5,7 @@ import {isSuccess} from '../model/result-types.js';
 import {nodes} from '../state/node-builder.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
-import {truncateWithEllipsis} from '../utils/string.utils.js';
+import {truncateToWidth} from '../utils/string.utils.js';
 import {
 	inlineEditorGutterWidth,
 	inlineEditorRowWidth,
@@ -106,8 +106,8 @@ export const InlineEditor: React.FC<Props> = ({
 	const styledRows = useMemo(
 		() =>
 			classifyRows(rows).map((line): RenderedLine => {
-				if (line.kind === 'code') {
-					return {...line, text: truncateWithEllipsis(line.text, rowWidth)};
+				if (line.kind === 'code' || line.kind === 'caption') {
+					return {...line, text: truncateToWidth(line.text, rowWidth)};
 				}
 				if (line.kind === 'text' || line.kind === 'heading') {
 					const text = line.spans
@@ -115,7 +115,7 @@ export const InlineEditor: React.FC<Props> = ({
 						.join('');
 					return {
 						...line,
-						spans: inlineSpans(truncateWithEllipsis(text, rowWidth)),
+						spans: inlineSpans(truncateToWidth(text, rowWidth)),
 					};
 				}
 				return line;
@@ -128,12 +128,16 @@ export const InlineEditor: React.FC<Props> = ({
 
 		return (
 			<Box key={toInlineLineNodeId(id, i)}>
-				<Text
-					color={isSel ? theme.primary : theme.secondary2}
-					dimColor={!isSel}
-				>
-					{`${i + 1}   `.padStart(gutterWidth, '\u00A0')}
-				</Text>
+				{/* Never shrinks: a row that still overflows must cost the text
+				    its columns, not push the numbers onto a second line. */}
+				<Box flexShrink={0}>
+					<Text
+						color={isSel ? theme.primary : theme.secondary2}
+						dimColor={!isSel}
+					>
+						{`${i + 1}   `.padStart(gutterWidth, '\u00A0')}
+					</Text>
+				</Box>
 
 				{line.kind === 'blank' ? (
 					<Text backgroundColor={isSel ? 'gray' : undefined}>
@@ -159,6 +163,7 @@ export const InlineEditor: React.FC<Props> = ({
 				<Text color={selected ? theme.accent : theme.secondary2}>{label}</Text>
 			</Box>
 
+			{/* Margin, border and padding are counted in inline-editor-layout.ts */}
 			<Box
 				flexDirection="row"
 				borderStyle="round"
