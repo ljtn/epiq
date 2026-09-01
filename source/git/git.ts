@@ -593,6 +593,13 @@ export const stageStateBranchOwnEventFile = async ({
  * Stages the content-addressed attachment blobs so they land in the same
  * commit as the events that reference them. Blobs are immutable and unique
  * per content, so staging the whole directory is always conflict-free.
+ *
+ * `--ignore-removal`, so a blob missing from the worktree is not committed as
+ * deleted. Nothing removes one on purpose — `delete.issue.attachment` writes a
+ * tombstone and keeps the bytes, precisely so a historical checkout can still
+ * render them — so a gap here is damage, and the same reasoning that makes
+ * `assertLogOnlyGrew` refuse a shrunken log applies: the last thing to do with
+ * a damaged worktree is publish it.
  */
 export const stageStateBranchMediaFiles = async ({
 	stateBranchRoot,
@@ -609,6 +616,7 @@ export const stageStateBranchMediaFiles = async ({
 	const stageResult = await git.stage({
 		cwd: stateBranchRoot,
 		pathspec: [mediaPath],
+		ignoreRemoval: true,
 	});
 
 	if (isFail(stageResult)) {

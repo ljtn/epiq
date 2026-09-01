@@ -1,8 +1,25 @@
 import {execGit} from './git-utils.js';
 
 export const git = {
-	stage: ({cwd, pathspec}: {cwd: string; pathspec: string[]}) =>
-		execGit({args: ['add', ...pathspec], cwd}),
+	// `ignoreRemoval`: stage additions and modifications but not deletions, for
+	// paths where a missing file is damage rather than an intent to remove it.
+	stage: ({
+		cwd,
+		pathspec,
+		ignoreRemoval = false,
+	}: {
+		cwd: string;
+		pathspec: string[];
+		ignoreRemoval?: boolean;
+	}) =>
+		execGit({
+			args: [
+				'add',
+				...(ignoreRemoval ? ['--ignore-removal'] : []),
+				...pathspec,
+			],
+			cwd,
+		}),
 
 	// `pathspec` commits only those paths and ignores the rest of the index.
 	// Without it a commit takes whatever the user happened to have staged, which
