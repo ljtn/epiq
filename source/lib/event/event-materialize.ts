@@ -952,7 +952,23 @@ export function materialize<A extends EventAction>(
 		replayBatch.genesisApplied = true;
 	}
 
-	const result = handler(event);
+	// Last line of defence. Payloads are validated on load and every
+	// precondition below is a `materializeSkip`, but a handler this build gets
+	// wrong must still not stop the board: a throw here escapes every `isFail`
+	// on the boot path, and the log that caused it is append-only and already
+	// in every clone. Converging on a skipped event beats never opening again.
+	let result: MaterializeResult<A>;
+	try {
+		result = handler(event);
+	} catch (error) {
+		return materializeSkip(
+			`threw while materializing (${
+				error instanceof Error ? error.message : String(error)
+			})`,
+			event,
+		);
+	}
+
 	if (isFail(result)) return result;
 
 	const completionFail = completeMaterialization(event, bypassLogging);

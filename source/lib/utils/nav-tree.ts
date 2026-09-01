@@ -13,10 +13,16 @@ export function buildBreadCrumb(
 	}
 
 	const path: NavNode<AnyContext>[] = [];
+	// Bounded on nodes already seen: this walk runs inside `derive`, so a loop
+	// in the node map would hang every render rather than fail one lookup.
+	// A loop cannot reach the root, so stopping leaves the "not connected to
+	// root" failure below to report it.
+	const seen = new Set<string>();
 	let current: NavNode<AnyContext> | undefined = contextNode;
 
-	while (current) {
+	while (current && !seen.has(current.id)) {
 		path.push(current);
+		seen.add(current.id);
 
 		if (current.id === rootNodeId) break;
 		if (!current.parentNodeId) break;
