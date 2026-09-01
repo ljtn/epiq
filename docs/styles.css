@@ -399,7 +399,9 @@ h2 {
 	display: grid;
 	grid-template-columns: 0.9fr 1.1fr;
 	gap: 16px;
-	align-items: stretch;
+	/* The statement panel holds a heading and a paragraph; letting it stretch
+	   to the height of the list beside it leaves a half-empty box. */
+	align-items: center;
 }
 .panel {
 	background: rgb(14 18 30 / 5%);
