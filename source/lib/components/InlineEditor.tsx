@@ -6,6 +6,10 @@ import {nodes} from '../state/node-builder.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {truncateWithEllipsis} from '../utils/string.utils.js';
+import {
+	inlineEditorGutterWidth,
+	inlineEditorRowWidth,
+} from '../utils/inline-editor-layout.js';
 import {CursorUI} from './Cursor.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 import {RenderedLineUI} from './MarkdownLinesUI.js';
@@ -97,7 +101,8 @@ export const InlineEditor: React.FC<Props> = ({
 
 	// Styled row for row, so the line numbers keep pointing at the text
 	// they name; a row wider than the box is cut, as before.
-	const rowWidth = maxWidth - 10;
+	const gutterWidth = inlineEditorGutterWidth(rows.length);
+	const rowWidth = inlineEditorRowWidth(maxWidth, rows.length);
 	const styledRows = useMemo(
 		() =>
 			classifyRows(rows).map((line): RenderedLine => {
@@ -127,7 +132,7 @@ export const InlineEditor: React.FC<Props> = ({
 					color={isSel ? theme.primary : theme.secondary2}
 					dimColor={!isSel}
 				>
-					{`${i + 1}   `.padStart(5, '\u00A0')}
+					{`${i + 1}   `.padStart(gutterWidth, '\u00A0')}
 				</Text>
 
 				{line.kind === 'blank' ? (
@@ -139,6 +144,7 @@ export const InlineEditor: React.FC<Props> = ({
 						<RenderedLineUI
 							line={line}
 							width={line.kind === 'code' ? rowWidth : 0}
+							wrap="truncate-end"
 						/>
 					</Box>
 				)}
