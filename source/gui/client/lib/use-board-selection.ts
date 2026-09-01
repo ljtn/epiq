@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo} from 'react';
+import {useCallback, useEffect, useMemo, useRef} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {
 	applySelectionPatch,
@@ -21,10 +21,23 @@ export const useBoardSelection = (): [
 	const [searchParams, setSearchParams] = useSearchParams();
 
 	const fromUrl = hasSelectionParams(searchParams);
-	const selection = useMemo(
-		() => readSelectionParams(searchParams) ?? readStoredSelection(),
-		[searchParams],
-	);
+
+	// The one narrowing storage does not keep, carried across the routes of
+	// this session instead: opening a ticket rebuilds the query from scratch,
+	// and a board narrowed to a window must not widen under the reader who
+	// clicked one of the cards it left showing. A reload still starts wide —
+	// hiding tickets is where somebody is, not a preference to restore.
+	const windowOnly = useRef(false);
+
+	const selection = useMemo(() => {
+		const fromParams = readSelectionParams(searchParams);
+
+		return (
+			fromParams ?? {...readStoredSelection(), windowOnly: windowOnly.current}
+		);
+	}, [searchParams]);
+
+	windowOnly.current = selection.windowOnly;
 
 	useEffect(() => {
 		if (fromUrl) {

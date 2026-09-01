@@ -146,36 +146,53 @@ const tagOf = (event: AppEvent): string | undefined => {
 		: payload?.tag;
 };
 
-// Ticket ids, taken from the log's own add.issue events: a payload's `id`
-// names a node of some kind, and nothing else in it says which kind.
-const buildIssueIdIndex = (events: AppEvent[]): Set<string> => {
-	const ids = new Set<string>();
+// Which ids are tickets, and what hangs off what: a payload's `id` names a node
+// of some kind, and nothing else in it says which kind. Built as the scan
+// proceeds, like filterEventsForBoard's.
+type IssueIndex = {
+	issueIds: Set<string>;
+	parentById: Map<string, string>;
+};
+
+const buildIssueIndex = (events: AppEvent[]): IssueIndex => {
+	const issueIds = new Set<string>();
+	const parentById = new Map<string, string>();
 
 	for (const event of events) {
-		if (event.action !== 'add.issue') continue;
+		const payload = event.payload as {id?: string; parent?: string} | undefined;
+		const id = payload?.id;
+		if (!id) continue;
 
-		const payload = event.payload as {id?: string} | undefined;
-
-		if (payload?.id) ids.add(payload.id);
+		if (event.action === 'add.issue') issueIds.add(id);
+		if (payload.parent) parentById.set(id, payload.parent);
 	}
 
-	return ids;
+	return {issueIds, parentById};
 };
 
 // Which ticket an event is about. Comments and attachments name it as `issue`,
-// their own `id` being the comment's; everything else that happens to a ticket
-// carries it as `id`.
+// their own `id` being the comment's; anything else that happened under a
+// ticket — the ticket itself, or a field node hanging off it — is found by
+// walking up from the id the event carries.
 const issueOf = (
 	event: AppEvent,
-	issueIds: ReadonlySet<string>,
+	{issueIds, parentById}: IssueIndex,
 ): string | null => {
 	const payload = event.payload as {id?: string; issue?: string} | undefined;
 
 	if (payload?.issue) return payload.issue;
 
-	return payload?.id !== undefined && issueIds.has(payload.id)
-		? payload.id
-		: null;
+	const seen = new Set<string>();
+	let current = payload?.id;
+
+	while (current !== undefined && !seen.has(current)) {
+		if (issueIds.has(current)) return current;
+
+		seen.add(current);
+		current = parentById.get(current);
+	}
+
+	return null;
 };
 
 // The TUI's phrasing minus the details that need state. A renamed tag reads
@@ -326,7 +343,7 @@ export const getEventTimeline = async (
 
 	// Over the unscoped log too, so an issue whose board changed since its
 	// add.issue is still recognised as an issue.
-	const issueIds = buildIssueIdIndex(eventsResult.value);
+	const issueIndex = buildIssueIndex(eventsResult.value);
 
 	// Effective times over the full log, not the board-scoped subset, so a
 	// poisoned id's dot lands where the scrub/checkout path will cut.
@@ -351,7 +368,7 @@ export const getEventTimeline = async (
 						t,
 						action: event.action,
 						label: describeTimelineEvent(event, names),
-						issue: issueOf(event, issueIds),
+						issue: issueOf(event, issueIndex),
 						...identitiesFor(event, names),
 					},
 			  ];

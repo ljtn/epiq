@@ -81,6 +81,7 @@ export const TimeScrubber = ({
 	selection,
 	onChangeSelection,
 	knownIdentities,
+	refreshOn,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -114,6 +115,12 @@ export const TimeScrubber = ({
 	// Every tag and person the board knows, per axis, for naming a selected
 	// identity the window itself holds no event for.
 	knownIdentities: Record<'actor' | 'tag' | 'assignee', GuiEventIdentity[]>;
+	// Anything whose identity changing means the window has to be asked for
+	// again. The window is otherwise fetched only when it moves, which is fine
+	// while it is just a picture — but once it decides which tickets the board
+	// shows, a ticket filed since the last fetch is missing from it, and would
+	// be hidden from the board it has just joined.
+	refreshOn: unknown;
 }) => {
 	const {
 		scope,
@@ -228,6 +235,7 @@ export const TimeScrubber = ({
 		allBoards,
 		connected,
 		socketEpoch,
+		refreshOn,
 	]);
 
 	const changeLayoutMode = (next: LayoutMode) =>
