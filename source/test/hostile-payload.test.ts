@@ -111,7 +111,6 @@ const bootInChildProcess = (root: string): Promise<BootOutcome> =>
 				...process.env,
 				EPIQ_GLOBAL_DIR: root,
 				IS_LOCAL: 'true',
-				// The child would otherwise resolve the checkout as its project.
 				EPIQ_LOG_LEVEL: 'error',
 			},
 			cwd: root,
