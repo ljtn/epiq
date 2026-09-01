@@ -209,7 +209,7 @@ describe('stored selection', () => {
 		expect(readStoredSelection()).toEqual(DEFAULT_SELECTION);
 	});
 
-	it('keeps everything but the moment in time — the offset and the zoom', () => {
+	it('keeps everything but the moment in time, and the ticket filter', () => {
 		storeSelection({
 			scope: 'month',
 			offset: 4,
@@ -227,7 +227,9 @@ describe('stored selection', () => {
 			layout: 'real',
 			view: 'tagging',
 			only: ['bug'],
-			windowOnly: true,
+			// Not kept: a filter that hides tickets is not a preference to come
+			// back to days later.
+			windowOnly: false,
 		});
 	});
 

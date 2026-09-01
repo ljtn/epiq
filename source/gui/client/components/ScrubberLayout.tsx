@@ -16,6 +16,7 @@ import {
 	hourFractionForTime,
 	LayoutMode,
 	ScrubberAxis,
+	SCOPED_OUTLINE_COLOR,
 	SCRUBBER_KEYFRAMES,
 	Segment,
 	SeriesPresence,
@@ -108,6 +109,9 @@ export type ScrubberChart = {
 	hoveredSegment: Segment | null;
 	// Nothing can be asked for with the socket down.
 	connected: boolean;
+	// The board below is narrowed to this window, so the timeline is not only a
+	// picture of it but the control hiding the tickets that are missing.
+	scoped: boolean;
 	// Null when the moment it marks is outside the window, which is drawn as no
 	// needle at all rather than one clamped to an edge it is not at.
 	thumbFraction: number | null;
@@ -196,6 +200,14 @@ export const ScrubberLayout = ({
 							// Crosshair, not a hand: a press picks a moment but a drag picks
 							// out a range, and the pointer has to say the second is on offer.
 							cursor: chart.connected ? 'crosshair' : 'default',
+							// Outline rather than a border: it takes up no space, so
+							// narrowing the board cannot reflow the charts under the
+							// pointer that just clicked.
+							outline: chart.scoped
+								? `1px solid ${SCOPED_OUTLINE_COLOR}`
+								: undefined,
+							outlineOffset: 5,
+							borderRadius: 4,
 							// A drag must never turn into a native text selection or a drag
 							// of the axis labels underneath the pointer.
 							userSelect: 'none',
