@@ -276,6 +276,35 @@ const completeMaterialization = (
 	return null;
 };
 
+/**
+ * The two ways a creation event can damage state rather than add to it.
+ *
+ * `createNode` writes into the node map unconditionally — it has to, since the
+ * TUI rebuilds ephemeral nodes under fixed ids on every render — so a second
+ * `add.*` naming a live id replaces that node's title, rank, parent,
+ * description, tags, assignees and readonly flag. And a node that is its own
+ * parent turns every ancestor walk into a loop.
+ *
+ * Neither is reachable from this build's writers; both are reachable from a
+ * log, which is why they are convergence skips rather than failures. First
+ * writer wins, which is the only choice that converges.
+ */
+const refuseUncreatableNode = (
+	id: string,
+	parentId: string | undefined,
+	event: AppEvent,
+): ConvergenceFail | null => {
+	if (nodeRepo.getNode(id)) {
+		return materializeSkip(`a node with id ${id} already exists`, event);
+	}
+
+	if (parentId === id) {
+		return materializeSkip('a node cannot be its own parent', event);
+	}
+
+	return null;
+};
+
 const materializeHandlers: MaterializeHandlers = {
 	'init.workspace': event => {
 		const {id, name, rank} = event.payload;
@@ -306,6 +335,10 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.workspace': event => {
 		const {id, name, rank} = event.payload;
+
+		const uncreatable = refuseUncreatableNode(id, undefined, event);
+		if (uncreatable) return uncreatable;
+
 		const result = nodeRepo.createNode(nodes.workspace(id, name, rank));
 
 		if (isFail(result)) {
@@ -327,6 +360,10 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.board': event => {
 		const {id, name, parent: parentId, rank} = event.payload;
+
+		const uncreatable = refuseUncreatableNode(id, parentId, event);
+		if (uncreatable) return uncreatable;
+
 		const result = nodeRepo.createNode(nodes.board(id, name, parentId, rank));
 
 		if (isFail(result)) {
@@ -345,6 +382,10 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.swimlane': event => {
 		const {id, name, parent: parentId, rank} = event.payload;
+
+		const uncreatable = refuseUncreatableNode(id, parentId, event);
+		if (uncreatable) return uncreatable;
+
 		const result = nodeRepo.createNode(
 			nodes.swimlane(id, name, parentId, rank),
 		);
@@ -368,6 +409,10 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.issue': event => {
 		const {id, name, parent: parentId, rank} = event.payload;
+
+		const uncreatable = refuseUncreatableNode(id, parentId, event);
+		if (uncreatable) return uncreatable;
+
 		const result = nodeRepo.createNode(nodes.ticket(id, name, parentId, rank));
 
 		if (isFail(result)) {
@@ -386,6 +431,9 @@ const materializeHandlers: MaterializeHandlers = {
 
 	'add.field': event => {
 		const {id, name, parent: parentId, val: value, rank} = event.payload;
+
+		const uncreatable = refuseUncreatableNode(id, parentId, event);
+		if (uncreatable) return uncreatable;
 
 		const result = nodeRepo.createNode(
 			nodes.field({
