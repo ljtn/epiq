@@ -3331,3 +3331,5 @@
 {"v":1,"id":["01M1FDS0YQ0S50A8GB4RTSEZ1E","01M1FDRZM3V2YEHF5XNX41MMYG"],"move.node":{"id":"01M1FD5ESHXTNK3SBFXHZGPGZP","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffff7fffffffffffffffff"}}
 {"v":1,"id":["01M1FDS20G750B0TV3CX5PQ59P","01M1FDS0YQ0S50A8GB4RTSEZ1E"],"move.node":{"id":"01M1FD5SWJYYJNQSBPGTBPKP07","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffffbfffffffffffffffff"}}
 {"v":1,"id":["01M1FDS82J95FC11Z4QBFBS718","01M1FDS20G750B0TV3CX5PQ59P"],"move.node":{"id":"01M1FD4W9E6W2SBBQMZVCE9WDC","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffffdfffffffffffffffff"}}
+{"v":1,"id":["01M1FDVX94R4EAXJ5EK5CC6W69","01M1FDS82J95FC11Z4QBFBS718"],"add.issue":{"id":"01M1FDVX8S2R601JATB2M8RHZ0","parent":"01M1BT1R61T61CE2BBCVFMBQCJ","name":"Add button for filter on scope selection (only view tickets in scope)","rank":"c7ffffffffffffffffffffff"}}
+{"v":1,"id":["01M1FDW562SCADA9N29PTX1MPS","01M1FDVX94R4EAXJ5EK5CC6W69"],"edit.title":{"id":"01M1FDVX8S2R601JATB2M8RHZ0","name":"Add button for filter on scope selection (only view tickets in timeline scope)"}}
