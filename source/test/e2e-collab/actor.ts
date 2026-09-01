@@ -32,6 +32,10 @@ import type {ActorJob, ActorReport} from './protocol.js';
 const job = JSON.parse(process.argv[2] ?? '{}') as ActorJob;
 const problems: string[] = [];
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+if (job.startDelayMs) await sleep(job.startDelayMs);
+
 const settings = loadSettingsFromConfig();
 if (isFail(settings)) problems.push(`settings: ${settings.message}`);
 else patchSettingsState(settings.value);
@@ -102,6 +106,8 @@ for (const action of swimlaneId === null ? [] : job.actions) {
 			  });
 
 	if (isFail(result)) problems.push(`${action.kind}: ${result.message}`);
+
+	if (job.pauseMs) await sleep(job.pauseMs);
 }
 
 if (job.sync) {

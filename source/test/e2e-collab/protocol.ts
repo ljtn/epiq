@@ -15,6 +15,12 @@ export type ActorJob = {
 	init?: boolean;
 	sync: boolean;
 	reportPath: string;
+	// Holds the process still before it starts, so two of them can be aimed at
+	// the same moment rather than merely started together.
+	startDelayMs?: number;
+	// Spreads the actions out, so a writer stays writing for as long as the
+	// sync it is racing takes.
+	pauseMs?: number;
 };
 
 export type ActorReport = {
