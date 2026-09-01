@@ -41,6 +41,11 @@ test('the scope filter narrows the board to what the window holds, and lets go a
 	await page.goto(zoomed(boardUrl, now - HOUR_MS, now + HOUR_MS));
 	await expect(scopeOnly).toBeChecked();
 	await expect(card(page, title)).toBeVisible();
+	// The timeline is outlined while it is the thing doing the hiding.
+	await expect(page.getByTestId('scrubber-track')).toHaveCSS(
+		'outline-style',
+		'solid',
+	);
 
 	// A stretch that ended before the repository existed holds no event, so it
 	// holds no ticket either.
@@ -53,6 +58,10 @@ test('the scope filter narrows the board to what the window holds, and lets go a
 	await scopeOnly.click();
 	await expect(card(page, title)).toBeVisible();
 	await expect(page).not.toHaveURL(/window=1/);
+	await expect(page.getByTestId('scrubber-track')).not.toHaveCSS(
+		'outline-style',
+		'solid',
+	);
 
 	// Ticked again on the same page, the ticket goes away a second time — so
 	// the empty board above was the filter and not a board still loading.

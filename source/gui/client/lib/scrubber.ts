@@ -44,6 +44,10 @@ export const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 157, 214, 0.14)';
 export const BUCKET_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.06)';
 export const NEEDLE_COLOR = 'rgba(255, 255, 255, 0.62)';
 
+// Ties the board's narrowing to the window doing it: the accent the checkbox
+// wears while it is on, dimmed to sit around a chart rather than in a row.
+export const SCOPED_OUTLINE_COLOR = 'rgba(118, 212, 255, 0.45)';
+
 // Brighter than either highlight: this one is being drawn by hand and has to
 // read against whatever it is dragged over.
 export const RANGE_SELECTION_COLOR = 'rgba(122, 157, 214, 0.22)';
@@ -611,6 +615,11 @@ const SCOPE_RECENT_LABELS: Record<Exclude<Scope, 'all'>, string> = {
 
 export const isScope = (value: string | null): value is Scope =>
 	(SCOPES as readonly string[]).includes(value ?? '');
+
+// Whether the window is a period at all. "All time" with no zoom is the whole
+// log, so narrowing anything to it would narrow nothing.
+export const isPeriodWindow = (scope: Scope, zoomed: boolean): boolean =>
+	scope !== 'all' || zoomed;
 
 export const getPeriodRange = (
 	scope: Scope,

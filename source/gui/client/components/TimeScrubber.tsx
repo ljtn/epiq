@@ -42,6 +42,7 @@ import {
 	Scope,
 	segmentAt,
 	useExitTransition,
+	isPeriodWindow,
 	usePersistedFlag,
 	usePrefersReducedMotion,
 	windowNamesIssues,
@@ -755,6 +756,13 @@ export const TimeScrubber = ({
 				onSetIdentitiesExpanded: setIdentitiesExpanded,
 			}}
 			chart={{
+				// Only where it is actually hiding something: ticked over a window
+				// that narrows nothing draws no outline, the way the box itself goes
+				// flat there.
+				scoped:
+					windowOnly &&
+					isPeriodWindow(scope, zoom !== null) &&
+					windowNamesIssues(timeline),
 				trackRef,
 				axis,
 				layoutMode,

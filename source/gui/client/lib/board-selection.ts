@@ -186,7 +186,8 @@ export const writeSelectionParams = (
 
 // Neither the offset nor a zoom is kept: a stretch of last Tuesday is a
 // moment, not a preference, and reopening the board a week later on it would be
-// a surprise.
+// a surprise. Nor is windowOnly: it hides tickets outright, which is too much
+// to restore silently days later — it travels in the URL and nowhere else.
 export const readStoredSelection = (): BoardSelection => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
@@ -195,10 +196,7 @@ export const readStoredSelection = (): BoardSelection => {
 		const parsed: unknown = JSON.parse(stored);
 		if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SELECTION;
 
-		const {scope, layout, view, only, windowOnly} = parsed as Record<
-			string,
-			unknown
-		>;
+		const {scope, layout, view, only} = parsed as Record<string, unknown>;
 
 		return normalize({
 			scope: isScope(String(scope))
@@ -211,7 +209,7 @@ export const readStoredSelection = (): BoardSelection => {
 				: DEFAULT_SELECTION.layout,
 			view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
 			only: Array.isArray(only) ? only.map(String) : null,
-			windowOnly: windowOnly === true,
+			windowOnly: DEFAULT_SELECTION.windowOnly,
 		});
 	} catch {
 		return DEFAULT_SELECTION;
@@ -220,10 +218,10 @@ export const readStoredSelection = (): BoardSelection => {
 
 export const storeSelection = (selection: BoardSelection): void => {
 	try {
-		const {scope, layout, view, only, windowOnly} = selection;
+		const {scope, layout, view, only} = selection;
 		localStorage.setItem(
 			STORAGE_KEY,
-			JSON.stringify({scope, layout, view, only, windowOnly}),
+			JSON.stringify({scope, layout, view, only}),
 		);
 	} catch {
 		// Storage unavailable: the URL still carries the selection.

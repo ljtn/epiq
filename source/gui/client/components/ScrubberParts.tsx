@@ -18,6 +18,7 @@ import {
 	FADE_IN_ANIMATION,
 	formatPeriodLabel,
 	HOVER_HINT_WIDTH,
+	isPeriodWindow,
 	LayoutMode,
 	NEEDLE_COLOR,
 	NEEDLE_GRIP_WIDTH,
@@ -583,9 +584,7 @@ export const ScrubberControls = ({
 	onToggleCategoriesExpanded: () => void;
 	onSetIdentitiesExpanded: (next: boolean) => void;
 }) => {
-	// "All time" with no zoom is the whole log, so narrowing the board to what
-	// is in it would hide nothing.
-	const everythingInScope = scope === 'all' && !zoomed;
+	const everythingInScope = !isPeriodWindow(scope, zoomed);
 
 	return (
 		<div
