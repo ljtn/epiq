@@ -44,6 +44,7 @@ import {
 	useExitTransition,
 	usePersistedFlag,
 	usePrefersReducedMotion,
+	windowNamesIssues,
 } from '../lib/scrubber';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 import {ScatterLayer, ScatterPoint} from './ScrubberParts';
@@ -120,6 +121,7 @@ export const TimeScrubber = ({
 		layout: layoutMode,
 		view: boardView,
 		only,
+		windowOnly,
 	} = selection;
 	const animate = !usePrefersReducedMotion();
 	const trackRef = useRef<HTMLDivElement | null>(null);
@@ -723,12 +725,16 @@ export const TimeScrubber = ({
 				periodRange,
 				zoomed: zoom !== null,
 				atLatest,
+				windowOnly,
+				windowFilterable: windowNamesIssues(timeline),
 				layoutMode,
 				showIssues,
 				showCommits,
 				allBoards,
 				onChangeScope: changeScope,
 				onChangeOffset: changeOffset,
+				onChangeWindowOnly: (next: boolean) =>
+					onChangeSelection({windowOnly: next}),
 				onChangeLayoutMode: changeLayoutMode,
 				onChangeShowIssues: setShowIssues,
 				onChangeShowCommits: setShowCommits,

@@ -31,6 +31,8 @@ import {
 	SCOPES,
 	SCRUBBER_KEYFRAMES,
 	segmentAt,
+	windowIssueIds,
+	windowNamesIssues,
 } from './scrubber';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -63,6 +65,7 @@ const entry = (
 	actor: null,
 	tag: null,
 	assignee: null,
+	issue: null,
 	...extra,
 });
 
@@ -795,6 +798,53 @@ describe('board filter', () => {
 
 	it('passes everything through when there is no filter', () => {
 		expect(issuePassesBoardFilter(issue(), [], null)).toBe(true);
+	});
+});
+
+describe('windowIssueIds', () => {
+	const touching = (t: number, issue: string | null) =>
+		entry(t, 'add.issue.tag', {issue});
+
+	it('is the set of tickets the window has an event for', () => {
+		const ids = windowIssueIds(
+			timeline([], undefined, [
+				touching(1, 'issue-1'),
+				touching(2, 'issue-2'),
+				touching(3, 'issue-1'),
+			]),
+		);
+
+		expect(ids && [...ids].sort()).toEqual(['issue-1', 'issue-2']);
+	});
+
+	it('skips the events that happened to no ticket', () => {
+		const ids = windowIssueIds(
+			timeline([], undefined, [touching(1, null), touching(2, 'issue-1')]),
+		);
+
+		expect(ids && [...ids]).toEqual(['issue-1']);
+	});
+
+	it('narrows nothing before a timeline has arrived', () => {
+		expect(windowIssueIds(null)).toBeNull();
+	});
+
+	it('narrows nothing where the server answered with counts alone', () => {
+		// Past its event cap the server sends buckets and no events, so there is
+		// no way to tell which tickets they counted.
+		expect(windowIssueIds(timeline([{t: 1, count: 40}]))).toBeNull();
+	});
+
+	it('narrows to nothing over a window where nothing happened', () => {
+		expect(windowIssueIds(timeline([]))?.size).toBe(0);
+	});
+
+	it('tells a capped window from a quiet one, so the toggle stays escapable', () => {
+		// Both name no tickets, but only the capped one is unfilterable — a
+		// quiet window has to stay togglable, or a narrowed board over it
+		// cannot be widened again.
+		expect(windowNamesIssues(timeline([{t: 1, count: 40}]))).toBe(false);
+		expect(windowNamesIssues(timeline([]))).toBe(true);
 	});
 });
 

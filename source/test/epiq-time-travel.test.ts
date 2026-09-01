@@ -295,6 +295,58 @@ describe('epiq-time-travel', () => {
 				'add.issue.comment',
 			);
 		});
+		it('names the ticket each event happened to, and none for the rest', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.board',
+					payload: {id: 'board-1', name: 'Default'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'add.swimlane',
+					payload: {id: 'lane-1', parent: 'board-1', name: 'Backlog'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'add.issue',
+					payload: {id: 'issue-1', parent: 'lane-1', name: 'Ship v2'},
+				},
+				{
+					id: ulid(baseTime + 3_000),
+					action: 'close.issue',
+					payload: {id: 'issue-1', parent: 'lane-1', rank: 'a'},
+				},
+				{
+					id: ulid(baseTime + 4_000),
+					action: 'add.issue.comment',
+					payload: {id: 'comment-1', issue: 'issue-1', md: 'hi'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline({boardId: 'board-1'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(
+				result.value.events.map(entry => [entry.action, entry.issue]),
+			).toEqual([
+				// A board and a swimlane happened to no ticket, and the lane's
+				// own id must not be mistaken for one.
+				['add.board', null],
+				['add.swimlane', null],
+				['add.issue', 'issue-1'],
+				['close.issue', 'issue-1'],
+				// The comment's own id is `id`; the ticket it hangs off is `issue`.
+				['add.issue.comment', 'issue-1'],
+			]);
+		});
 
 		it('names a tag under a board scope, where create.tag itself is out of scope', async () => {
 			const baseTime = 1_700_000_000_000;
