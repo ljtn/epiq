@@ -100,9 +100,26 @@ export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 };
 
 /**
+ * A line worth putting back: one that parses, so it carries an id and can take
+ * its place in the causal order.
+ *
+ * A half-written line — a crash mid-append — has no id and is already lost to
+ * the loader, which quarantines it. Restoring one would only re-dirty the file
+ * and hand the next commit something to publish.
+ */
+const isRestorable = (line: string): boolean => {
+	try {
+		const parsed: unknown = JSON.parse(line);
+		return typeof parsed === 'object' && parsed !== null;
+	} catch {
+		return false;
+	}
+};
+
+/**
  * Puts back any line the snapshot had that the file no longer does.
  *
- * Append-only makes this always safe: an id means one byte sequence forever,
+ * Append-only makes this safe: an id means one byte sequence forever,
  * `getSortedEvents` dedupes by id, and file order is not load-bearing — so
  * re-appending a line that is already there costs nothing and re-appending one
  * git dropped restores an event that had no other copy.
@@ -124,13 +141,16 @@ export const restoreDroppedEventLines = (
 		const filePath = path.join(dir, name);
 
 		try {
-			const present = new Set(
-				fs.existsSync(filePath)
-					? linesIn(fs.readFileSync(filePath, 'utf8'))
-					: [],
-			);
+			const content = fs.existsSync(filePath)
+				? fs.readFileSync(filePath, 'utf8')
+				: null;
 
-			const dropped = lines.filter(line => !present.has(line));
+			const present = new Set(content === null ? [] : linesIn(content));
+
+			const dropped = lines
+				.filter(line => !present.has(line))
+				.filter(isRestorable);
+
 			if (dropped.length === 0) continue;
 
 			fs.mkdirSync(dir, {recursive: true});
@@ -138,9 +158,7 @@ export const restoreDroppedEventLines = (
 			// A file git truncated may have no trailing newline, and splicing a
 			// line onto a partial one would corrupt both.
 			const needsNewline =
-				fs.existsSync(filePath) &&
-				fs.readFileSync(filePath, 'utf8').replace(/\n$/, '').length > 0 &&
-				!fs.readFileSync(filePath, 'utf8').endsWith('\n');
+				content !== null && content.length > 0 && !content.endsWith('\n');
 
 			fs.appendFileSync(
 				filePath,
