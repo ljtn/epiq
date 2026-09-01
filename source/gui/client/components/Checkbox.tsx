@@ -34,6 +34,9 @@ export const Checkbox = ({
 				color,
 				cursor: disabled ? 'not-allowed' : 'pointer',
 				opacity: disabled ? 0.4 : 1,
+				// A label that wraps takes the row's height with it.
+				whiteSpace: 'nowrap',
+				flexShrink: 0,
 			}}
 		>
 			<span
