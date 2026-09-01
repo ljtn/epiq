@@ -3333,3 +3333,5 @@
 {"v":1,"id":["01M1FDS82J95FC11Z4QBFBS718","01M1FDS20G750B0TV3CX5PQ59P"],"move.node":{"id":"01M1FD4W9E6W2SBBQMZVCE9WDC","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"ffffffdfffffffffffffffff"}}
 {"v":1,"id":["01M1FDVX94R4EAXJ5EK5CC6W69","01M1FDS82J95FC11Z4QBFBS718"],"add.issue":{"id":"01M1FDVX8S2R601JATB2M8RHZ0","parent":"01M1BT1R61T61CE2BBCVFMBQCJ","name":"Add button for filter on scope selection (only view tickets in scope)","rank":"c7ffffffffffffffffffffff"}}
 {"v":1,"id":["01M1FDW562SCADA9N29PTX1MPS","01M1FDVX94R4EAXJ5EK5CC6W69"],"edit.title":{"id":"01M1FDVX8S2R601JATB2M8RHZ0","name":"Add button for filter on scope selection (only view tickets in timeline scope)"}}
+{"v":1,"id":["01M1FEVNM46CDDW1Y1MJE53KPM","01M1FDW562SCADA9N29PTX1MPS"],"add.issue.assignee":{"id":"01M1FDVX8S2R601JATB2M8RHZ0","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
+{"v":1,"id":["01M1FEVNPS9423RY3SK11BY37C","01M1FEVNM46CDDW1Y1MJE53KPM"],"move.node":{"id":"01M1FDVX8S2R601JATB2M8RHZ0","parent":"01KVDH0RK4K4MSS29JPPP6WKKC","rank":"7fffbfffffffffffffffffff"}}
