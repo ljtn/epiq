@@ -12,6 +12,7 @@ import {
 	parsePersistedEnvelope,
 	PersistedEnvelope,
 } from './event-persist.js';
+import {parseEventPayload} from './event-payload.schema.js';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default('unknown'),
@@ -235,6 +236,21 @@ export const decodeReconstructedEvents = (
 				eventId: entry.id[0],
 				reason: 'unknown-action',
 				detail: action,
+				targetNodeId: getTargetNodeId(entry),
+			});
+			continue;
+		}
+
+		// The action is one we know, so the payload is one we are about to
+		// dereference. Quarantined like any other unreadable line rather than
+		// handed to a materializer that assumes a well-behaved writer produced
+		// it — the same reasoning as the envelope check above, one layer in.
+		const payloadResult = parseEventPayload(action, eventResult.value.payload);
+		if (isFail(payloadResult)) {
+			unreadable?.push({
+				eventId: entry.id[0],
+				reason: 'invalid-payload',
+				detail: payloadResult.message,
 				targetNodeId: getTargetNodeId(entry),
 			});
 			continue;

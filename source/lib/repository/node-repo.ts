@@ -17,6 +17,13 @@ import {
 import {getState, patchState, updateState} from '../state/state.js';
 import {getOrderedChildren} from './rank.js';
 
+/**
+ * Every walk up `parentNodeId` bounds itself on the nodes it has already
+ * seen. The tree is acyclic as long as only this build's writers built it —
+ * `moveNodeToRank` refuses a move into a descendant, and applying those one at
+ * a time can never close a loop — but the node map is built from a log, and a
+ * loop there costs a hung process rather than a wrong answer.
+ */
 export const findAncestor = <T extends AnyContext>(
 	targetId: string,
 	ctx: T,
@@ -30,12 +37,15 @@ export const findAncestor = <T extends AnyContext>(
 		return succeeded('Resolved ancestor node', start as NavNode<T>);
 	}
 
+	const seen = new Set<string>([start.id]);
 	let current = start.parentNodeId ? nodes[start.parentNodeId] : undefined;
 
-	while (current) {
+	while (current && !seen.has(current.id)) {
 		if (current.context === ctx) {
 			return succeeded('Resolved ancestor node', current as NavNode<T>);
 		}
+
+		seen.add(current.id);
 		current = current.parentNodeId ? nodes[current.parentNodeId] : undefined;
 	}
 
@@ -45,9 +55,13 @@ export const findAncestor = <T extends AnyContext>(
 export const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
 	const {nodes} = getState();
 
+	const seen = new Set<string>();
 	let current = nodes[nodeId];
-	while (current?.parentNodeId) {
+
+	while (current?.parentNodeId && !seen.has(current.id)) {
 		if (current.parentNodeId === ancestorId) return true;
+
+		seen.add(current.id);
 		current = nodes[current.parentNodeId];
 	}
 
