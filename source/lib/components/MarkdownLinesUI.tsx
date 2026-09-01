@@ -1,10 +1,18 @@
-import {Box, Text} from 'ink';
+import {Box, Text, TextProps} from 'ink';
 import React from 'react';
 import {theme} from '../theme/themes.js';
 import {RenderedLine, Span} from '../utils/markdown-lite.js';
 
-const SpansUI = ({spans, bold}: {spans: Span[]; bold?: boolean}) => (
-	<Text color={theme.primary} bold={bold}>
+const SpansUI = ({
+	spans,
+	bold,
+	wrap,
+}: {
+	spans: Span[];
+	bold?: boolean;
+	wrap?: TextProps['wrap'];
+}) => (
+	<Text color={theme.primary} bold={bold} wrap={wrap}>
 		{spans.map((span, index) =>
 			span.code ? (
 				<Text key={index} color={theme.yellow}>
@@ -18,15 +26,18 @@ const SpansUI = ({spans, bold}: {spans: Span[]; bold?: boolean}) => (
 );
 
 // One rendered line. `width` is what a code line is padded to, so a fenced
-// block reads as a block rather than a ragged right edge.
+// block reads as a block rather than a ragged right edge. `wrap` is how a line
+// too wide for its box is handled.
 export const RenderedLineUI = ({
 	line,
 	width,
 	gutter = 0,
+	wrap,
 }: {
 	line: RenderedLine;
 	width: number;
 	gutter?: number;
+	wrap?: TextProps['wrap'];
 }) => {
 	switch (line.kind) {
 		case 'blank':
@@ -34,11 +45,15 @@ export const RenderedLineUI = ({
 		case 'fence':
 			return <Text color={theme.secondary2}>```</Text>;
 		case 'caption':
-			return <Text color={theme.accent}>{line.text}</Text>;
+			return (
+				<Text color={theme.accent} wrap={wrap}>
+					{line.text}
+				</Text>
+			);
 		case 'heading':
-			return <SpansUI spans={line.spans} bold />;
+			return <SpansUI spans={line.spans} bold wrap={wrap} />;
 		case 'text':
-			return <SpansUI spans={line.spans} />;
+			return <SpansUI spans={line.spans} wrap={wrap} />;
 		case 'code': {
 			const number =
 				gutter > 0
@@ -47,7 +62,11 @@ export const RenderedLineUI = ({
 					  ) + ' │ '
 					: '';
 			return (
-				<Text backgroundColor={theme.secondary} color={theme.primary}>
+				<Text
+					backgroundColor={theme.secondary}
+					color={theme.primary}
+					wrap={wrap}
+				>
 					{number}
 					{line.text.padEnd(Math.max(0, width - number.length))}
 				</Text>
