@@ -53,6 +53,112 @@ export const findStrandedEventLogs = (root: string): Result<string[]> => {
 	}
 };
 
+export type EventLogSnapshot = ReadonlyMap<string, string[]>;
+
+const eventsDirIn = (root: string): string =>
+	path.join(root, EPIQ_DIR_NAME, EVENTS_DIR_NAME);
+
+/**
+ * Every event log line on disk right now, per file.
+ *
+ * Paired with `restoreDroppedEventLines` around anything that hands the
+ * worktree to git. `withSyncLock` binds the processes that *sync*; nothing
+ * binds the processes that *write*, so while one process rebases, another may
+ * be appending to and reading from the directory git is rewriting.
+ * `rebase.autoStash` widens that window — it reverts the working copy to HEAD
+ * and puts it back afterwards — and an interrupted rebase widens it further,
+ * since the next process recovers with `git rebase --abort`, which resets the
+ * working tree over anything written in between.
+ *
+ * Snapshotting is not a lock. It is the weaker guarantee that whatever was
+ * already on disk is still on disk when git is done, which is the same rule
+ * `assertLogOnlyGrew` enforces at the commit boundary: a log may gain lines
+ * and reorder nothing.
+ */
+export const snapshotEventLogs = (root: string): EventLogSnapshot => {
+	const dir = eventsDirIn(root);
+	const snapshot = new Map<string, string[]>();
+
+	try {
+		if (!fs.existsSync(dir)) return snapshot;
+
+		for (const name of fs.readdirSync(dir)) {
+			if (!name.endsWith('.jsonl')) continue;
+
+			snapshot.set(
+				name,
+				linesIn(fs.readFileSync(path.join(dir, name), 'utf8')),
+			);
+		}
+	} catch {
+		// Best effort by design: this is a safety net over git, and failing the
+		// sync because the net could not be strung would be the worse outcome.
+		return snapshot;
+	}
+
+	return snapshot;
+};
+
+/**
+ * Puts back any line the snapshot had that the file no longer does.
+ *
+ * Append-only makes this always safe: an id means one byte sequence forever,
+ * `getSortedEvents` dedupes by id, and file order is not load-bearing — so
+ * re-appending a line that is already there costs nothing and re-appending one
+ * git dropped restores an event that had no other copy.
+ *
+ * Returns the files it repaired, for the caller to report.
+ */
+export const restoreDroppedEventLines = (
+	root: string,
+	snapshot: EventLogSnapshot,
+): string[] => {
+	if (snapshot.size === 0) return [];
+
+	const dir = eventsDirIn(root);
+	const repaired: string[] = [];
+
+	for (const [name, lines] of snapshot) {
+		if (lines.length === 0) continue;
+
+		const filePath = path.join(dir, name);
+
+		try {
+			const present = new Set(
+				fs.existsSync(filePath)
+					? linesIn(fs.readFileSync(filePath, 'utf8'))
+					: [],
+			);
+
+			const dropped = lines.filter(line => !present.has(line));
+			if (dropped.length === 0) continue;
+
+			fs.mkdirSync(dir, {recursive: true});
+
+			// A file git truncated may have no trailing newline, and splicing a
+			// line onto a partial one would corrupt both.
+			const needsNewline =
+				fs.existsSync(filePath) &&
+				fs.readFileSync(filePath, 'utf8').replace(/\n$/, '').length > 0 &&
+				!fs.readFileSync(filePath, 'utf8').endsWith('\n');
+
+			fs.appendFileSync(
+				filePath,
+				`${needsNewline ? '\n' : ''}${dropped.join('\n')}\n`,
+				'utf8',
+			);
+
+			repaired.push(`${name} (${dropped.length})`);
+		} catch {
+			// Same reasoning as above: a net that cannot be checked is not a
+			// reason to fail the operation it was watching.
+			continue;
+		}
+	}
+
+	return repaired;
+};
+
 /** Lines present in `committed` that `working` no longer has. */
 export const findDroppedLines = (
 	committed: string,

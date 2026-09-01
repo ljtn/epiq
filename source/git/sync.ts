@@ -31,6 +31,7 @@ import {
 	stageStateBranchMediaFiles,
 	stageStateBranchOwnEventFile,
 } from './git.js';
+import {restoreDroppedEventLines, snapshotEventLogs} from './log-integrity.js';
 import {withSyncLock} from './sync-lock.js';
 
 type SyncSummary = {
@@ -498,6 +499,41 @@ const runSync = async ({
 };
 
 /**
+ * Runs the sync with the event logs on disk held to their one rule: they may
+ * gain lines and lose none.
+ *
+ * Everything inside hands the worktree to git — a checkout, a `rebase
+ * --abort`, an autostash reverting the working copy to HEAD and putting it
+ * back — while other processes on this machine are appending to the same
+ * directory with no lock of their own. Lines that were there when we took the
+ * worktree and are not there when we give it back were lost by git, never
+ * removed on purpose, so they go back.
+ *
+ * `finally`, because a sync that failed part-way is exactly when a rebase is
+ * left half-applied.
+ */
+const withEventLogsIntact = async <T>(
+	stateBranchRoot: string,
+	fn: () => Promise<T>,
+): Promise<T> => {
+	const snapshot = snapshotEventLogs(stateBranchRoot);
+
+	try {
+		return await fn();
+	} finally {
+		const repaired = restoreDroppedEventLines(stateBranchRoot, snapshot);
+
+		if (repaired.length > 0) {
+			logger.error(
+				`[sync] restored event log lines git dropped from the worktree: ${repaired.join(
+					', ',
+				)}`,
+			);
+		}
+	}
+};
+
+/**
  * Only one process may drive the state worktree at a time.
  *
  * `runExclusive` covers a single process; this covers the several that share
@@ -532,7 +568,7 @@ export const syncEpiqWithRemote = async (
 	const lockedResult = await withSyncLock({
 		worktreeRoot: stateBranchRoot,
 		operation: 'sync',
-		fn: () => runSync(args),
+		fn: () => withEventLogsIntact(stateBranchRoot, () => runSync(args)),
 	});
 	if (isFail(lockedResult)) return failSync(lockedResult.message);
 
