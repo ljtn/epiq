@@ -56,6 +56,7 @@ describe('selection in the URL', () => {
 			layout: 'real',
 			view: 'tagging',
 			only: ['bug', 'docs'],
+			windowOnly: true,
 		};
 
 		expect(readSelectionParams(params(written(selection)))).toEqual(selection);
@@ -113,6 +114,7 @@ describe('applySelectionPatch', () => {
 		layout: 'even',
 		view: 'tagging',
 		only: ['bug'],
+		windowOnly: false,
 	};
 
 	it('starts a new scope at its most recent period', () => {
@@ -215,6 +217,7 @@ describe('stored selection', () => {
 			layout: 'real',
 			view: 'tagging',
 			only: ['bug'],
+			windowOnly: true,
 		});
 
 		expect(readStoredSelection()).toEqual({
@@ -224,6 +227,7 @@ describe('stored selection', () => {
 			layout: 'real',
 			view: 'tagging',
 			only: ['bug'],
+			windowOnly: true,
 		});
 	});
 

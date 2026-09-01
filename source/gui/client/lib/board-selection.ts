@@ -25,6 +25,9 @@ export type BoardSelection = {
 	// hidden ones, so it says what to show without knowing what else exists.
 	// Null when nothing is hidden; [] when everything is.
 	only: readonly string[] | null;
+	// Narrows the board to the tickets the window holds an event for, rather
+	// than to what the selection colours.
+	windowOnly: boolean;
 };
 
 export const DEFAULT_SELECTION: BoardSelection = {
@@ -34,6 +37,7 @@ export const DEFAULT_SELECTION: BoardSelection = {
 	layout: 'even',
 	view: 'all',
 	only: null,
+	windowOnly: false,
 };
 
 const PARAM_KEYS = [
@@ -44,6 +48,7 @@ const PARAM_KEYS = [
 	'layout',
 	'view',
 	'only',
+	'window',
 ] as const;
 
 const STORAGE_KEY = 'epiq.board.selection';
@@ -84,7 +89,8 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.zoom === null &&
 	selection.layout === DEFAULT_SELECTION.layout &&
 	selection.view === DEFAULT_SELECTION.view &&
-	selection.only === null;
+	selection.only === null &&
+	selection.windowOnly === DEFAULT_SELECTION.windowOnly;
 
 // A change to one field, with what it implies for the others: a new scope
 // starts at its most recent period, and a new view drops a narrowing that
@@ -147,6 +153,7 @@ export const readSelectionParams = (
 		layout: isLayoutMode(layout) ? layout : DEFAULT_SELECTION.layout,
 		view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
 		only: only === null ? null : only.split(',').filter(Boolean),
+		windowOnly: params.get('window') === '1',
 	});
 };
 
@@ -172,6 +179,7 @@ export const writeSelectionParams = (
 	put('layout', next.layout === DEFAULT_SELECTION.layout ? null : next.layout);
 	put('view', next.view === DEFAULT_SELECTION.view ? null : next.view);
 	put('only', next.only === null ? null : next.only.join(','));
+	put('window', next.windowOnly ? '1' : null);
 };
 
 // ------------------------------------------------------------------- storage
@@ -187,7 +195,10 @@ export const readStoredSelection = (): BoardSelection => {
 		const parsed: unknown = JSON.parse(stored);
 		if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SELECTION;
 
-		const {scope, layout, view, only} = parsed as Record<string, unknown>;
+		const {scope, layout, view, only, windowOnly} = parsed as Record<
+			string,
+			unknown
+		>;
 
 		return normalize({
 			scope: isScope(String(scope))
@@ -200,6 +211,7 @@ export const readStoredSelection = (): BoardSelection => {
 				: DEFAULT_SELECTION.layout,
 			view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
 			only: Array.isArray(only) ? only.map(String) : null,
+			windowOnly: windowOnly === true,
 		});
 	} catch {
 		return DEFAULT_SELECTION;
@@ -208,10 +220,10 @@ export const readStoredSelection = (): BoardSelection => {
 
 export const storeSelection = (selection: BoardSelection): void => {
 	try {
-		const {scope, layout, view, only} = selection;
+		const {scope, layout, view, only, windowOnly} = selection;
 		localStorage.setItem(
 			STORAGE_KEY,
-			JSON.stringify({scope, layout, view, only}),
+			JSON.stringify({scope, layout, view, only, windowOnly}),
 		);
 	} catch {
 		// Storage unavailable: the URL still carries the selection.

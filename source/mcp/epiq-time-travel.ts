@@ -107,6 +107,9 @@ export type EventTimelineEntry = {
 	// the scatter colours a tagging or assigning dot by.
 	tag: EventIdentity | null;
 	assignee: EventIdentity | null;
+	// The ticket the event happened to, where it happened to one. Null for
+	// board- and swimlane-level events, which belong to no ticket.
+	issue: string | null;
 };
 
 // Tag and contributor names come from the log's own create events rather than
@@ -141,6 +144,38 @@ const tagOf = (event: AppEvent): string | undefined => {
 	return event.action === 'tombstone.tag' || event.action === 'restore.tag'
 		? payload?.id
 		: payload?.tag;
+};
+
+// Ticket ids, taken from the log's own add.issue events: a payload's `id`
+// names a node of some kind, and nothing else in it says which kind.
+const buildIssueIdIndex = (events: AppEvent[]): Set<string> => {
+	const ids = new Set<string>();
+
+	for (const event of events) {
+		if (event.action !== 'add.issue') continue;
+
+		const payload = event.payload as {id?: string} | undefined;
+
+		if (payload?.id) ids.add(payload.id);
+	}
+
+	return ids;
+};
+
+// Which ticket an event is about. Comments and attachments name it as `issue`,
+// their own `id` being the comment's; everything else that happens to a ticket
+// carries it as `id`.
+const issueOf = (
+	event: AppEvent,
+	issueIds: ReadonlySet<string>,
+): string | null => {
+	const payload = event.payload as {id?: string; issue?: string} | undefined;
+
+	if (payload?.issue) return payload.issue;
+
+	return payload?.id !== undefined && issueIds.has(payload.id)
+		? payload.id
+		: null;
 };
 
 // The TUI's phrasing minus the details that need state. A renamed tag reads
@@ -289,6 +324,10 @@ export const getEventTimeline = async (
 	// ULIDs where it means "bug" or "jola".
 	const names = buildNameIndex(eventsResult.value);
 
+	// Over the unscoped log too, so an issue whose board changed since its
+	// add.issue is still recognised as an issue.
+	const issueIds = buildIssueIdIndex(eventsResult.value);
+
 	// Effective times over the full log, not the board-scoped subset, so a
 	// poisoned id's dot lands where the scrub/checkout path will cut.
 	const effectiveTimes = toEffectiveUlidTimes(
@@ -312,6 +351,7 @@ export const getEventTimeline = async (
 						t,
 						action: event.action,
 						label: describeTimelineEvent(event, names),
+						issue: issueOf(event, issueIds),
 						...identitiesFor(event, names),
 					},
 			  ];

@@ -100,6 +100,9 @@ export type GuiEventTimelineEntry = {
 	actor: GuiEventIdentity | null;
 	tag: GuiEventIdentity | null;
 	assignee: GuiEventIdentity | null;
+	// The ticket the event happened to, for the board's window filter. Null for
+	// board- and swimlane-level events.
+	issue: string | null;
 };
 
 export type GuiEventTimeline = {

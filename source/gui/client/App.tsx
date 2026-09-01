@@ -67,7 +67,11 @@ import {
 	GuiSwimlane,
 	GuiUser,
 } from './lib/gui-state.model';
-import {buildBoardFilter, issuePassesBoardFilter} from './lib/scrubber';
+import {
+	buildBoardFilter,
+	issuePassesBoardFilter,
+	windowIssueIds,
+} from './lib/scrubber';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
@@ -342,6 +346,14 @@ export const App = () => {
 		[selection.view, selection.only],
 	);
 
+	// The tickets the scrubber's window has an event for, once the board has
+	// been narrowed to them. Null while it has not, and where the window is one
+	// the server answered with counts alone.
+	const windowIds = useMemo(
+		() => (selection.windowOnly ? windowIssueIds(history.timeline) : null),
+		[selection.windowOnly, history.timeline],
+	);
+
 	// The tag every card is narrowed to, if the selection is exactly one tag:
 	// its chips read as pressed, and pressing again is the way back.
 	const isolatedTagId =
@@ -371,7 +383,7 @@ export const App = () => {
 	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
 		const swimlanes = selectedBoard?.swimlanes ?? [];
 		const query = textFilter.trim();
-		if (!boardFilter && !query)
+		if (!boardFilter && !query && windowIds === null)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
 		let hidden = 0;
@@ -385,7 +397,9 @@ export const App = () => {
 							comment => comment.author.id,
 						),
 						boardFilter,
-					) && issueMatchesText(issue, query),
+					) &&
+					issueMatchesText(issue, query) &&
+					(windowIds === null || windowIds.has(issue.id)),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -394,7 +408,7 @@ export const App = () => {
 		});
 
 		return {visibleSwimlanes: visible, hiddenIssueCount: hidden};
-	}, [selectedBoard, boardFilter, textFilter, commentsByIssueId]);
+	}, [selectedBoard, boardFilter, textFilter, commentsByIssueId, windowIds]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});

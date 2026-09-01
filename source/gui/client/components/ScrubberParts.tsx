@@ -512,6 +512,8 @@ export const ScrubberControls = ({
 	periodRange,
 	zoomed,
 	atLatest,
+	windowOnly,
+	windowFilterable,
 	layoutMode,
 	showIssues,
 	showCommits,
@@ -526,6 +528,7 @@ export const ScrubberControls = ({
 	onReturnToLive,
 	onChangeScope,
 	onChangeOffset,
+	onChangeWindowOnly,
 	onChangeLayoutMode,
 	onChangeShowIssues,
 	onChangeShowCommits,
@@ -548,6 +551,11 @@ export const ScrubberControls = ({
 	// The window already reaches the present, so there is nothing later to page
 	// to.
 	atLatest: boolean;
+	// The board is narrowed to the tickets this window has an event for.
+	windowOnly: boolean;
+	// False where the window came back as counts alone, naming no tickets to
+	// narrow to.
+	windowFilterable: boolean;
 	layoutMode: LayoutMode;
 	showIssues: boolean;
 	showCommits: boolean;
@@ -564,6 +572,7 @@ export const ScrubberControls = ({
 	onReturnToLive: () => void;
 	onChangeScope: (scope: Scope) => void;
 	onChangeOffset: (offset: number) => void;
+	onChangeWindowOnly: (next: boolean) => void;
 	onChangeLayoutMode: (mode: LayoutMode) => void;
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeShowCommits: (next: boolean) => void;
@@ -667,6 +676,32 @@ export const ScrubberControls = ({
 					Zoom
 				</button>
 			</div>
+
+			{/* Bordered rather than underlined like the row beside it: it narrows
+			    the board below rather than naming the window, and must not read as
+			    a seventh period.
+
+			    Nothing to match on where the server capped the window — its
+			    buckets carry counts, not the tickets they counted — so it says so
+			    rather than emptying the board. */}
+			<button
+				title={
+					!windowFilterable
+						? 'Too many events in this window to tell which tickets they belong to'
+						: windowOnly
+						? 'Showing only tickets with activity in this window'
+						: 'Show only tickets with activity in this window'
+				}
+				aria-pressed={windowOnly}
+				disabled={!connected || !windowFilterable}
+				onClick={() => onChangeWindowOnly(!windowOnly)}
+				style={{
+					...toggleButtonStyle(windowOnly),
+					...(connected && windowFilterable ? {} : mutedStyle),
+				}}
+			>
+				In window
+			</button>
 		</div>
 
 		<div style={{display: 'flex', gap: 2}}>
