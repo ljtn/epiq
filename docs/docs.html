@@ -60,8 +60,8 @@
 				<div class="kicker">Documentation</div>
 				<h1>how it works.</h1>
 				<p class="lead">
-					This page covers installation, the core model, every command, keyboard
-					shortcuts, synchronization, and agent integration.
+					This page covers installation, the core model, the terminal UI and
+					the browser GUI, synchronization, and agent integration.
 				</p>
 			</header>
 
@@ -72,7 +72,7 @@
 					<a href="#getting-started">Getting started</a>
 					<a href="#concepts">Core concepts</a>
 
-					<span class="grp">Using Epiq</span>
+					<span class="grp">In the terminal (TUI)</span>
 					<a href="#navigation">Navigation &amp; shortcuts</a>
 					<div class="side-cmd-head">
 						<a href="#commands">Command reference</a>
@@ -112,6 +112,11 @@
 					</div>
 					<a href="#time-travel">Time travel</a>
 					<a href="#config">Configuration</a>
+
+					<span class="grp">In the browser (GUI)</span>
+					<a href="#gui-board">The board</a>
+					<a href="#gui-ticket">Tickets &amp; commits</a>
+					<a href="#gui-timeline">Timeline</a>
 
 					<span class="grp">Collaboration</span>
 					<a href="#sync">Sync &amp; Git</a>
@@ -187,14 +192,12 @@
 
 						<h3>Two front ends, one board</h3>
 						<p>
-							<code>epiq</code> opens the terminal UI, <code>epiq gui</code>
-							opens the browser app. They are two views of the same board — the
-							same event log in the same repository — so you can switch
-							whenever you like, or keep both open side by side. The TUI is
-							keyboard-first and stays in the terminal you are already in; the
-							GUI adds drag-and-drop, the timeline scrubber, and each ticket's
-							Commits tab with full diffs. Nothing is set up per front end:
-							whatever one writes, the other shows.
+							<code>epiq</code> opens the terminal UI, <code>epiq gui</code> the
+							browser app. They are two views of the same event log in the same
+							repository — switch whenever you like, or keep both open; whatever
+							one writes, the other shows. The rest of this page is split the
+							same way: <a class="inline" href="#navigation">the terminal</a>,
+							then <a class="inline" href="#gui-board">the browser</a>.
 						</p>
 					</section>
 
@@ -706,6 +709,47 @@
 								</tr>
 							</tbody>
 						</table>
+					</section>
+
+					<!-- GUI -->
+					<section id="gui-board" class="docs-section">
+						<h2>The board</h2>
+						<p>
+							<code>epiq gui</code> serves the same board in the browser, and it
+							is meant to be poked at rather than read about. Swimlanes sit side
+							by side; drag a ticket to another lane, or a lane to reorder it.
+							Add tickets and lanes in place, and narrow a busy board with the
+							filter box — it matches on ref or title.
+						</p>
+					</section>
+
+					<section id="gui-ticket" class="docs-section">
+						<h2>Tickets &amp; commits</h2>
+						<p>
+							Clicking a ticket opens its panel, docked to the right or along
+							the bottom. Four tabs: <strong>Overview</strong> for description,
+							tags, assignees and attachments, <strong>Comments</strong>,
+							<strong>Commits</strong>, and <strong>Log</strong> for the ticket's
+							event history. Descriptions and comments take markdown, and images
+							can be pasted or dropped straight in.
+						</p>
+						<p>
+							The Commits tab is where the ref convention pays off: every commit
+							whose subject starts with the ticket's ref shows up with its
+							diffstat and per-file diff, and any line can be commented on.
+						</p>
+					</section>
+
+					<section id="gui-timeline" class="docs-section">
+						<h2>Timeline</h2>
+						<p>
+							The scrubber is time travel with a mouse — the GUI's answer to
+							<code>:peek</code> and <code>:replay</code>. Drag across the
+							history to check out the board as it was at that moment, as
+							volume per period or as individual events. The header reads
+							<strong>Read-only</strong> while you are in the past, and
+							<strong>Now</strong> brings you back.
+						</p>
 					</section>
 
 					<!-- Sync -->
