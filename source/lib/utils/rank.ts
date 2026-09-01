@@ -46,8 +46,14 @@ export function rankBetween(prev?: string, next?: string): Result<string> {
 	const a = aResult.value;
 	const b = bResult.value;
 
+	// Neighbours out of order, or holding the same rank — which two clients
+	// appending to one lane while unsynced produce routinely, since both read
+	// the same last sibling and compute the same midpoint. Returning the middle
+	// of the whole space instead put the node somewhere nobody asked for, and
+	// could collide again. A failure is what `resolveMoveRank` turns into
+	// `needsRebalance`, and rebalancing is the repair this case wants.
 	if (b <= a) {
-		return bigIntToHex(MAX_RANK / 2n, HEX_LEN);
+		return failed('Neighbouring ranks leave no space between them');
 	}
 
 	const mid = (a + b) / 2n;
