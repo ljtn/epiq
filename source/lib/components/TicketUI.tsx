@@ -11,6 +11,7 @@ import {CommentListUI} from './CommentListUI.js';
 import {CursorUI} from './Cursor.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
+import {inlineEditorRowCount} from '../utils/inline-editor-layout.js';
 
 type Props = {
 	ticket: Ticket;
@@ -110,8 +111,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		const logValue =
 			logNode && isFieldNode(logNode) ? logNode.props.value ?? '' : '';
 
-		const commandPromptHeight = 3;
-		const editorHeight = height - commandPromptHeight;
+		const editorRows = inlineEditorRowCount(height);
 
 		return (
 			<Box
@@ -128,7 +128,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 						text={logValue}
 						selected={false}
 						maxWidth={maxWidth}
-						height={editorHeight}
+						rows={editorRows}
 					/>
 				) : null}
 			</Box>
@@ -146,11 +146,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		0,
 	);
 
-	const spacing = 2;
-	const commandPromptHeight = 3;
-	const fieldListsHeight = fieldCount;
-	const editorHeight =
-		height - commandPromptHeight - fieldListsHeight - spacing;
+	const editorRows = inlineEditorRowCount(height, fieldCount);
 
 	const renderNode = (
 		child: ReturnType<typeof getRenderedChildren>[number],
@@ -165,7 +161,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 					text={ticket.props.description ?? ''}
 					selected={selected}
 					maxWidth={maxWidth}
-					height={editorHeight}
+					rows={editorRows}
 				/>
 			);
 		}

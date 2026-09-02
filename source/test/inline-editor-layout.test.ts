@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
 	inlineEditorGutterWidth,
+	inlineEditorRowCount,
 	inlineEditorRowWidth,
 } from '../lib/utils/inline-editor-layout.js';
 
@@ -35,5 +36,21 @@ describe('inline editor layout', () => {
 	it('never asks for a negative row width in a narrow terminal', () => {
 		expect(inlineEditorRowWidth(10, 1)).toBe(0);
 		expect(inlineEditorRowWidth(0, 1)).toBe(0);
+	});
+});
+
+describe('inline editor row count', () => {
+	// A 24-row terminal leaves the ticket pane 20 rows once the breadcrumb and
+	// the command line have theirs. The pane spends 5 on its own chrome and 2
+	// on each field below the box, so 5 rows of text are left.
+	it('leaves the chrome and the fields below the room they take', () => {
+		expect(inlineEditorRowCount(20, 5)).toBe(5);
+		expect(inlineEditorRowCount(20, 0)).toBe(15);
+		expect(inlineEditorRowCount(45, 5)).toBe(30);
+	});
+
+	it('asks for a row even in a terminal with no room for one', () => {
+		expect(inlineEditorRowCount(4, 5)).toBe(1);
+		expect(inlineEditorRowCount(0, 0)).toBe(1);
 	});
 });
