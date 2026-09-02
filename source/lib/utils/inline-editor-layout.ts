@@ -17,3 +17,16 @@ export const inlineEditorRowWidth = (
 	rowCount: number,
 ): number =>
 	Math.max(0, maxWidth - CHROME_WIDTH - inlineEditorGutterWidth(rowCount));
+
+// Rows the ticket pane spends around the editor rather than on text: its own
+// bottom padding, the editor's top padding, its label, and two borders.
+const CHROME_ROWS = 5;
+
+// A field below the editor costs its own row plus the blank one above it.
+const FIELD_ROWS = 2;
+
+// How many rows of text the box can draw. One row too many and the last of
+// them lands on the bottom border: the row list keeps the height it was given
+// while the box around it shrinks to the space that is left.
+export const inlineEditorRowCount = (height: number, fieldCount = 0): number =>
+	Math.max(1, height - CHROME_ROWS - FIELD_ROWS * fieldCount);

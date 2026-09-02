@@ -24,7 +24,8 @@ type Props = {
 	id: string;
 	label: string;
 	text: string;
-	height: number;
+	// Rows of text the box draws, its borders and label excluded.
+	rows: number;
 	selected: boolean;
 	maxWidth: number;
 };
@@ -78,7 +79,7 @@ export const InlineEditor: React.FC<Props> = ({
 	id,
 	label,
 	text,
-	height,
+	rows: rowCount,
 	selected,
 	maxWidth,
 }) => {
@@ -163,17 +164,20 @@ export const InlineEditor: React.FC<Props> = ({
 				<Text color={selected ? theme.accent : theme.secondary2}>{label}</Text>
 			</Box>
 
-			{/* Margin, border and padding are counted in inline-editor-layout.ts */}
+			{/* Margin, border and padding are counted in inline-editor-layout.ts.
+			    Clipped, so a terminal too short for the rows it was given cuts
+			    them rather than drawing them over the border. */}
 			<Box
 				flexDirection="row"
 				borderStyle="round"
 				borderColor={theme.secondary}
 				paddingLeft={1}
 				marginLeft={1}
+				overflowY="hidden"
 			>
 				<ScrollBoxUI
 					scrollByOne={true}
-					height={height - 3}
+					height={rowCount}
 					selectedIndex={selectedIndex}
 					itemHeight={1}
 				>
