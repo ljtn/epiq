@@ -1195,6 +1195,14 @@ export const App = () => {
 		? state.timeTravel.asOfTime
 		: Infinity;
 
+	// Sliced when the moment moves rather than on every render: a movie renders
+	// the board on every animation frame but reaches a new event a few times a
+	// second, and the panel below only wants a new list for the latter.
+	const logEntries = useMemo(
+		() => logEntriesUpTo(logRows, logMoment),
+		[logRows, logMoment],
+	);
+
 	// A movie is checked out one frame at a time over the socket, so a dropped
 	// one leaves the player running against nothing. It closes rather than
 	// stalling; the board is already parked wherever the last frame landed, and
@@ -1792,7 +1800,7 @@ export const App = () => {
 					>
 						{logOpen && (
 							<EventLog
-								entries={logEntriesUpTo(logRows, logMoment)}
+								entries={logEntries}
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 							/>
 						)}

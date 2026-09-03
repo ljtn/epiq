@@ -7,8 +7,9 @@
 // runs, the checkout while the needle is parked, the present while live — but
 // the slice does not.
 
+import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
-import {EVENT_CATEGORY_COLORS, GUI_THEME} from './gui-theme';
+import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
 import {categoryOf} from './scrubber';
 
 // One line of the log. `color` is the dot it is marked with, which is the whole
@@ -47,16 +48,15 @@ export const buildLogEntries = (
 		})),
 	].sort((left, right) => left.t - right.t);
 
-// How many lines the panel is handed. Enough to fill a tall pane to its top —
-// the panel is a column of the board's full height, and a log that stopped
-// short of it would read as a box parked at the bottom rather than as the
-// board's log.
+// How many lines the panel is handed. Well past what one pane shows, because
+// the pane scrolls and reaching back through it is the point — and because
+// folding, not this, is now what bounds the document: a folded day is one row
+// however many events it holds, so the rows actually mounted are the open
+// days' and nothing else.
 //
-// Still a hard cap on the document, which is the point: what the pane cannot
-// show is clipped into the fade, and the panel costs these rows on a year of
-// history exactly as on an hour. Rows past the pane's height are the only
-// waste, and eighty of them is nothing next to a board of cards.
-export const LOG_LINES = 80;
+// Still a hard cap, so the panel costs the same on a decade of history as on
+// an hour.
+export const LOG_LINES = 400;
 
 // The height of one line, which is what the column shifts by as a line lands.
 // Fixed rather than measured: every row is one clipped line, so the shift is
@@ -112,6 +112,41 @@ export const logEntriesUpTo = <T extends {t: number}>(
 	return events.slice(Math.max(0, last - LOG_LINES + 1), last + 1);
 };
 
+// One day's worth of the log, which is the unit the panel folds by.
+export type LogDay = {
+	// Stable across re-slices, so a day left open stays open as lines arrive.
+	key: string;
+	label: string;
+	entries: LogEntry[];
+};
+
+// Split into days, oldest first, each already labelled the way its divider
+// reads. Grouped here rather than in the panel so what a day *is* — and what
+// identifies it across renders — is settled in one place.
+export const groupByDay = (entries: readonly LogEntry[]): LogDay[] => {
+	const days: LogDay[] = [];
+
+	for (const entry of entries) {
+		const at = new Date(entry.t);
+		const key = formatDate(at);
+		const last = days[days.length - 1];
+
+		if (last?.key === key) last.entries.push(entry);
+		else days.push({key, label: formatDayLabel(at), entries: [entry]});
+	}
+
+	return days;
+};
+
+// Whether a day's lines are shown. Every day is folded but the newest, until a
+// reader says otherwise — and their say has to outlive the slice moving, which
+// is why the override is keyed by day rather than by index.
+export const isDayOpen = (
+	days: readonly LogDay[],
+	index: number,
+	overrides: ReadonlyMap<string, boolean>,
+): boolean => overrides.get(days[index]!.key) ?? index === days.length - 1;
+
 // A seek can replace the whole column at once. Sliding that far would be a
 // swipe rather than a crawl, so the shift is capped at what an ordinary step
 // can be — one line, or a line and the day header it brought with it.
@@ -135,14 +170,54 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 	easing: 'ease-out',
 };
 
-// Mounted with the panel, so it carries its own entrance rather than depending
-// on a player being up to define it.
-export const EVENT_LOG_KEYFRAMES = `
+// A line is one element. Its clock and its dot are drawn as pseudo-elements
+// off the row itself rather than as spans inside it, which is the difference
+// between four nodes a line and one — and the panel can hold hundreds.
+//
+// The clock is `attr()`ed off the row, the dot's colour comes in as a custom
+// property, and both are laid out in `ch` so the columns hold at whatever size
+// the row's font ends up.
+export const LOG_TIME_CHARS = 5;
+export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
+
+// Mounted with the panel, so it carries its own look rather than depending on
+// a player being up to define it.
+export const EVENT_LOG_STYLES = `
+.epiq-log-line {
+	position: relative;
+	height: ${LOG_ROW_HEIGHT}px;
+	line-height: ${LOG_ROW_HEIGHT}px;
+	font-size: ${TEXT.meta}px;
+	color: ${GUI_THEME.secondary};
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	animation: epiqLogLine 260ms ease-out;
+}
+.epiq-log-line::before {
+	content: attr(data-time);
+	display: inline-block;
+	width: ${LOG_TIME_CHARS}ch;
+	margin-right: 14px;
+	color: ${GUI_THEME.dim2};
+	font-variant-numeric: tabular-nums;
+}
+.epiq-log-line::after {
+	content: '';
+	position: absolute;
+	left: calc(${LOG_TIME_CHARS}ch + 4px);
+	top: 50%;
+	width: 5px;
+	height: 5px;
+	margin-top: -2.5px;
+	border-radius: 50%;
+	background: var(${LOG_DOT_COLOR_PROPERTY});
+}
 @keyframes epiqLogLine {
 	from { opacity: 0; }
 	to { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-	@keyframes epiqLogLine { from { opacity: 1; } to { opacity: 1; } }
+	.epiq-log-line { animation: none; }
 }
 `;

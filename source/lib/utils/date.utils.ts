@@ -53,6 +53,11 @@ const MONTH_LABELS = [
 	'Dec',
 ];
 
+// The day as a sortable key, which is what a list groups by. The label a reader
+// sees is formatDayLabel below.
+export const formatDate = (date: Date): string =>
+	`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
 export const formatMonth = (date: Date): string =>
 	MONTH_LABELS[date.getMonth()]!;
 
