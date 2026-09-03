@@ -7,6 +7,7 @@ import {
 	lastIndexAtOrBefore,
 	LOG_LINES,
 	logEntriesUpTo,
+	LogEntry,
 } from './event-log';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME} from './gui-theme';
@@ -175,11 +176,24 @@ const DAY = 24 * 60 * 60 * 1000;
 const on = (day: number, hour: number) =>
 	new Date(2026, 8, day, hour).getTime();
 
+// Grouping and folding care about a row's day and nothing else, so where these
+// tests build rows by hand they say only that much. What a row links to is
+// log-destination's, and is tested there.
+const row = (id: string, t: number, label = id): LogEntry => ({
+	id,
+	t,
+	label,
+	color: '#111',
+	issue: null,
+	action: null,
+	sha: null,
+});
+
 describe('groupByDay', () => {
 	const rows = [
-		{id: 'a', t: on(1, 9), label: 'a', color: '#111'},
-		{id: 'b', t: on(1, 17), label: 'b', color: '#111'},
-		{id: 'c', t: on(2, 9), label: 'c', color: '#111'},
+		row('a', on(1, 9)),
+		row('b', on(1, 17)),
+		row('c', on(2, 9)),
 	];
 
 	it('splits into days, oldest first, keeping each day whole', () => {
@@ -210,8 +224,8 @@ describe('groupByDay', () => {
 	// Two events a day apart to the minute are still two days.
 	it('splits on the calendar day, not on elapsed time', () => {
 		const days = groupByDay([
-			{id: 'a', t: on(1, 23), label: 'a', color: '#111'},
-			{id: 'b', t: on(1, 23) + DAY, label: 'b', color: '#111'},
+			row('a', on(1, 23)),
+			row('b', on(1, 23) + DAY),
 		]);
 
 		expect(days).toHaveLength(2);
@@ -220,9 +234,9 @@ describe('groupByDay', () => {
 
 describe('isDayOpen', () => {
 	const days = groupByDay([
-		{id: 'a', t: on(1, 9), label: 'a', color: '#111'},
-		{id: 'b', t: on(2, 9), label: 'b', color: '#111'},
-		{id: 'c', t: on(3, 9), label: 'c', color: '#111'},
+		row('a', on(1, 9)),
+		row('b', on(2, 9)),
+		row('c', on(3, 9)),
 	]);
 
 	it('opens the newest days and folds the rest', () => {
@@ -258,9 +272,9 @@ describe('isDayOpen', () => {
 	it('keeps a day open once the newest day is a different one', () => {
 		const overrides = new Map([['2026-09-02', true]]);
 		const later = groupByDay([
-			{id: 'b', t: on(2, 9), label: 'b', color: '#111'},
-			{id: 'c', t: on(3, 9), label: 'c', color: '#111'},
-			{id: 'd', t: on(4, 9), label: 'd', color: '#111'},
+			row('b', on(2, 9)),
+			row('c', on(3, 9)),
+			row('d', on(4, 9)),
 		]);
 
 		expect(isDayOpen(later, 0, overrides, 1)).toBe(true);
@@ -269,12 +283,9 @@ describe('isDayOpen', () => {
 
 describe('daysToOpen', () => {
 	const dayOf = (day: number, lines: number) =>
-		Array.from({length: lines}, (_, index) => ({
-			id: `d${day}-${index}`,
-			t: on(day, 9) + index * 1000,
-			label: 'x',
-			color: '#111',
-		}));
+		Array.from({length: lines}, (_, index) =>
+			row(`d${day}-${index}`, on(day, 9) + index * 1000, 'x'),
+		);
 
 	// Three days of four lines each: an open day costs its lines plus its
 	// divider, a folded one costs the divider alone.

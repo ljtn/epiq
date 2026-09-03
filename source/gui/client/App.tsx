@@ -79,6 +79,7 @@ import {
 	useTheatrePlayback,
 } from './lib/theatre';
 import {useEventLog} from './lib/use-event-log';
+import {LogDestination} from './lib/log-destination';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
@@ -751,14 +752,33 @@ export const App = () => {
 		[knownTicketRefs, boardSlug, navigate],
 	);
 
-	const selectIssueComments = (nextIssueId: string) => {
+	// Opening a ticket at a named tab, as against `selectIssue`, which carries
+	// whichever tab is already open. Used wherever the thing being followed says
+	// which view it belongs in — a comment reference, a log line.
+	const openIssueTab = (nextIssueId: string, tab: IssueDetailsTab) => {
 		if (!boardSlug) return;
 
 		setCommitDiff(null);
 
 		void navigate(
-			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=comments`,
+			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=${tab}`,
 		);
+	};
+
+	const selectIssueComments = (nextIssueId: string) =>
+		openIssueTab(nextIssueId, 'comments');
+
+	// A log line goes where the thing it names is read: a commit to its diff, a
+	// comment among the comments, anything else to the ticket's overview. Which
+	// of those it is was decided in lib/log-destination and travelled here on
+	// the row.
+	const openLogDestination = (destination: LogDestination) => {
+		if (destination.kind === 'commit') {
+			openCommitDiff(destination.sha);
+			return;
+		}
+
+		openIssueTab(destination.issueId, destination.tab);
 	};
 
 	const changeIssueDetailsTab = (nextTab: IssueDetailsTab) => {
@@ -1614,6 +1634,7 @@ export const App = () => {
 							<EventLog
 								entries={logEntries}
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
+								onOpen={openLogDestination}
 							/>
 						)}
 

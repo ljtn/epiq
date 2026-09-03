@@ -216,3 +216,50 @@ test('the log obeys the bar\u2019s own filters', async ({
 	await page.getByTestId('log-toggle').click();
 	expect(pageErrors).toEqual([]);
 });
+
+// The row carries where it goes and one handler on the pane reads it back, so
+// what the unit tests cannot cover is exactly this: that a click on a line
+// lands on the view the line named.
+test('a line goes to where the thing it names is read', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	// The seeded board is a bare project — its log is the two setup commits and
+	// the board and swimlanes, none of which happened to a ticket. So the line
+	// worth following has to be made here.
+	await page.getByTitle('Add issue').first().click();
+	await page.getByPlaceholder('issue name').fill(`Followed ${Date.now()}`);
+	await page.getByPlaceholder('issue name').press('Enter');
+
+	// Filing one opens it, which is the URL under test — so the board goes back
+	// to showing no ticket before the click that has to produce it.
+	await page.goto(boardUrl);
+	await page.getByTestId('log-toggle').click();
+	await expect(page.getByTestId('event-log')).toBeVisible();
+
+	const ticketLine = page.locator('[data-log-issue][data-log-tab="overview"]');
+	await expect.poll(async () => await ticketLine.count()).toBeGreaterThan(0);
+	await ticketLine.first().click();
+
+	await expect(page).toHaveURL(/\/issue\/[A-Z0-9]{7}\?tab=overview/);
+
+	// Board- and swimlane-level events happened to no ticket, and the setup
+	// commits link to none either. They carry no destination at all, which is
+	// what makes them inert without a second check.
+	await page.goto(boardUrl);
+	const inert = page.locator(
+		'[data-testid="log-line"]:not([data-log-issue]):not([data-log-sha])',
+	);
+	await expect.poll(async () => await inert.count()).toBeGreaterThan(0);
+
+	const before = page.url();
+	await inert.first().click();
+	await expect(page).toHaveURL(before);
+
+	await page.getByTestId('log-toggle').click();
+	expect(pageErrors).toEqual([]);
+});
