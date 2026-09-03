@@ -4,7 +4,13 @@ import path from 'node:path';
 // The port a GUI asks for first. A second epiq on the same machine only lands
 // somewhere else because this one was taken, which is the whole reason an
 // instance needs to be identifiable.
-export const PREFERRED_GUI_PORT = 3710;
+//
+// Settable, because the port is not only this process's business: a browser
+// reaching the server through a forwarded port sends that port in its Origin,
+// and the guard on the websocket handshake refuses a handshake whose origin
+// port is not the one the server bound. Anything in front of the server has to
+// be able to make the two agree.
+export const PREFERRED_GUI_PORT = Number(process.env['EPIQ_GUI_PORT']) || 3710;
 
 export const INSTANCE_PATH = '/api/instance';
 export const INSTANCE_APP = 'epiq';
