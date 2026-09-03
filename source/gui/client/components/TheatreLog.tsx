@@ -18,7 +18,7 @@ import {
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {usePrefersReducedMotion} from '../lib/scrubber';
 import {
-	THEATRE_CRAWL_FRAMES,
+	crawlShiftFrames,
 	THEATRE_CRAWL_TIMING,
 	THEATRE_LOG_ROW_HEIGHT,
 	THEATRE_PLAYER_CLEARANCE,
@@ -66,13 +66,28 @@ const toRows = (entries: TheatreEvent[]): LogRow[] => {
 export const TheatreLog = ({entries}: {entries: TheatreEvent[]}) => {
 	const animate = !usePrefersReducedMotion();
 	const columnRef = useRef<HTMLDivElement | null>(null);
+	const rows = toRows(entries);
 	const newestId = entries[entries.length - 1]?.id ?? null;
+
+	// The keys on screen before this render. The column slides by however many
+	// rows joined the bottom, which is not always one: an event that crosses
+	// midnight brings a day header down with it, and a fixed shift would leave
+	// the crawl stepping at every boundary.
+	const shownKeysRef = useRef<Set<string>>(new Set());
 
 	useEffect(() => {
 		const column = columnRef.current;
-		if (!column || !animate || newestId === null) return;
+		const shown = shownKeysRef.current;
+		const appended = rows.filter(row => !shown.has(row.key)).length;
 
-		column.animate(THEATRE_CRAWL_FRAMES, THEATRE_CRAWL_TIMING);
+		shownKeysRef.current = new Set(rows.map(row => row.key));
+
+		if (!column || !animate || newestId === null || appended === 0) return;
+
+		column.animate(crawlShiftFrames(appended), THEATRE_CRAWL_TIMING);
+		// Deliberately keyed on the newest line rather than on `rows`, which is
+		// rebuilt every render: the crawl moves when the log does, not when the
+		// board above it repaints.
 	}, [newestId, animate]);
 
 	return (
@@ -110,7 +125,7 @@ export const TheatreLog = ({entries}: {entries: TheatreEvent[]}) => {
 				}}
 			>
 				<div ref={columnRef}>
-					{toRows(entries).map(row => (
+					{rows.map(row => (
 						<div
 							key={row.key}
 							data-testid={
