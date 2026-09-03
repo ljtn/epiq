@@ -158,10 +158,9 @@ console.log(
 	}\n`,
 );
 
-await step('generate the log', () =>
+const generated = await step('generate the log', () =>
 	generateLog({
 		stateRoot,
-		boardId,
 		laneIds: lanes.map(lane => lane.id),
 		actors: Array.from({length: ACTORS}, (_, i) => ({
 			userId: `u-${String(i).padStart(3, '0')}`,
@@ -173,6 +172,7 @@ await step('generate the log', () =>
 		// STRESS_SHAPE=add.issue,move.node narrows the log to those actions, which
 		// is how a slow handler is found: time one kind at two sizes.
 		shape: process.env['STRESS_SHAPE']?.split(','),
+		openTickets: Number(process.env['STRESS_OPEN'] ?? '') || undefined,
 	}),
 );
 
@@ -182,7 +182,11 @@ const onDisk = fs
 	.filter(file => file.endsWith('.jsonl'))
 	.reduce((sum, file) => sum + fs.statSync(path.join(eventsDir, file)).size, 0);
 
-console.log(`  ${'log on disk'.padEnd(38)} ${mb(onDisk).padStart(9)}\n`);
+console.log(`  ${'log on disk'.padEnd(38)} ${mb(onDisk).padStart(9)}`);
+console.log(
+	`  ${'tickets closed / left open'.padEnd(38)} ` +
+		`${generated.closed.toLocaleString()} / ${generated.open.toLocaleString()}\n`,
+);
 
 const {loadMergedEvents} = await import('../../lib/event/event-load.js');
 const {getEventTimeline} = await import('../../mcp/epiq-time-travel.js');
