@@ -58,8 +58,16 @@ type Action = (typeof SHAPE)[number];
 
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
-// Compared lexicographically, which is what the rank ordering does.
-const RANKS = ['aQ', 'aV', 'b0', 'b5', 'cB', 'cH'];
+// Distinct and climbing, the way rankBetween mints them.
+//
+// A handful of values cycled instead put hundreds of thousands of tickets on
+// six ranks, and a lane of duplicates is not what a board holds — it is what
+// sends every later write into a rebalance, so the fixture reported a write
+// cost the product does not actually have.
+//
+// Fixed width so the string order is the numeric one, and in steps rather than
+// singles so there is room to insert between two without rebalancing.
+const rankAt = (n: number): string => String(n * 100).padStart(12, '0');
 
 // A ticket on the board, and how far along the lanes it has been worked.
 type OpenTicket = {id: string; lane: number};
@@ -208,7 +216,7 @@ export const generateLog = async (
 					name: `Ticket ${i}: something a person actually wrote down`,
 					// Filed into the first lane, rather than dropped wherever.
 					parent: input.laneIds[0]!,
-					rank: RANKS[i % RANKS.length]!,
+					rank: rankAt(i),
 				},
 				id,
 				refId,
@@ -232,7 +240,7 @@ export const generateLog = async (
 					id: ticket.id,
 					// The handler refuses any parent but this one.
 					parent: CLOSED_SWIMLANE_ID,
-					rank: RANKS[i % RANKS.length]!,
+					rank: rankAt(i),
 				},
 				id,
 				refId,
@@ -256,7 +264,7 @@ export const generateLog = async (
 				{
 					id: ticket.id,
 					parent: input.laneIds[ticket.lane]!,
-					rank: RANKS[i % RANKS.length]!,
+					rank: rankAt(i),
 				},
 				id,
 				refId,
