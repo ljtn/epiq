@@ -232,26 +232,18 @@ export const Aside = forwardRef<
 					? {
 							borderTop: `1px solid ${GUI_THEME.edge}`,
 							boxShadow: '0 -10px 24px rgba(0, 0, 0, 0.45)',
-							paddingTop: ASIDE_PADDING,
 					  }
 					: {
 							borderLeft: `1px solid ${GUI_THEME.edge}`,
 							boxShadow: '-10px 0 24px rgba(0, 0, 0, 0.45)',
-							// The gap at the top is a border rather than padding, because
-							// padding lies inside the scrollport: content scrolls through
-							// it, and shows above anything pinned to the top of the panel —
-							// a diff's file header included. Border-box sizing means it
-							// takes exactly the room the padding did. The bottom dock keeps
-							// its padding: that edge is the resize handle's, and the panel
-							// clips the handle to the same scrollport.
-							borderTop: `${ASIDE_PADDING}px solid ${GUI_THEME.panel}`,
 					  }),
 				background: GUI_THEME.panel,
-				paddingBottom: ASIDE_PADDING,
-				paddingLeft: ASIDE_PADDING,
-				paddingRight: ASIDE_PADDING,
+				padding: ASIDE_PADDING,
 				fontSize: 12,
-				overflow: 'auto',
+				// The panel frames the scrolling, it does not do it — see the pane
+				// below. Its own overflow only has the resize handle to clip, which
+				// it clipped before too.
+				overflow: 'hidden',
 			}}
 		>
 			{/* A wide invisible hit area with a thin visible indicator centered in
@@ -301,9 +293,17 @@ export const Aside = forwardRef<
 					}}
 				/>
 			</div>
-			{typeof children === 'function'
-				? children({isFullscreen, toggleFullscreen})
-				: children}
+			{/* The pane that scrolls, inside the panel's padding rather than around
+			    it. Padding on a scroll container lies inside its scrollport, so
+			    content scrolls through it and shows in the gap above anything
+			    pinned to the top — a diff's file header included. Here the gap is
+			    the panel's, the scrolling is the pane's, and nothing can be drawn
+			    above what the pane pins. */}
+			<div data-testid="aside-pane" style={{height: '100%', overflow: 'auto'}}>
+				{typeof children === 'function'
+					? children({isFullscreen, toggleFullscreen})
+					: children}
+			</div>
 		</aside>
 	);
 });
