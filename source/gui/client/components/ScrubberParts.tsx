@@ -780,7 +780,9 @@ export const ScrubberControls = ({
 				<Checkbox
 					label={SCOPE_ONLY_LABEL}
 					title={
-						everythingInScope
+						ticketFocus
+							? 'The board is already down to one ticket — untick "This ticket" to narrow by window instead'
+							: everythingInScope
 							? 'Every event is in scope — pick a period to narrow the board'
 							: !windowFilterable
 							? 'Too many events in this window to tell which tickets they belong to'
@@ -791,7 +793,11 @@ export const ScrubberControls = ({
 					// narrows what is already on screen — so offline it can still be
 					// let go of, just not taken up over a window that can no longer be
 					// refreshed.
+					// Flat under the ticket narrowing, which has already taken the
+					// board down to one card: there is nothing left for a window to
+					// take away, and two lit boxes would claim otherwise.
 					disabled={
+						ticketFocus ||
 						everythingInScope ||
 						!windowFilterable ||
 						(!connected && !windowOnly)

@@ -232,6 +232,24 @@ describe('applySelectionPatch', () => {
 			expect(readSelectionParams(params(written(focused)))).toEqual(focused);
 			expect(readSelectionParams(params('ticket=1'))?.ticketOnly).toBe(true);
 		});
+
+		// One named ticket is the narrower ask, so the window filter goes with
+		// it rather than leaving a second box lit that decides nothing.
+		it('takes the window filter with it', () => {
+			const scoped = applySelectionPatch(narrowed, {windowOnly: true});
+			expect(scoped.windowOnly).toBe(true);
+
+			const both = applySelectionPatch(scoped, {ticketOnly: true});
+			expect(both.ticketOnly).toBe(true);
+			expect(both.windowOnly).toBe(false);
+		});
+
+		it('cannot be made to hold both, even by hand in the URL', () => {
+			const read = readSelectionParams(params('scope=week&window=1&ticket=1'));
+
+			expect(read?.ticketOnly).toBe(true);
+			expect(read?.windowOnly).toBe(false);
+		});
 	});
 });
 

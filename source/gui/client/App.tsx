@@ -364,6 +364,12 @@ export const App = () => {
 		[selection.windowOnly, selection.scope, zoomed, history.timeline],
 	);
 
+	// The board narrows to the ticket as well as the chart, so its card can be
+	// watched crossing the lanes on its own while the needle is dragged. Only
+	// while one is actually open: the box can be left ticked by a link.
+	const isolatedIssueId =
+		selection.ticketOnly && selectedIssue ? selectedIssue.id : null;
+
 	// The tag every card is narrowed to, if the selection is exactly one tag:
 	// its chips read as pressed, and pressing again is the way back.
 	const isolatedTagId =
@@ -393,7 +399,7 @@ export const App = () => {
 	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
 		const swimlanes = selectedBoard?.swimlanes ?? [];
 		const query = textFilter.trim();
-		if (!boardFilter && !query && windowIds === null)
+		if (!boardFilter && !query && windowIds === null && !isolatedIssueId)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
 		let hidden = 0;
@@ -409,7 +415,8 @@ export const App = () => {
 						boardFilter,
 					) &&
 					issueMatchesText(issue, query) &&
-					(windowIds === null || windowIds.has(issue.id)),
+					(windowIds === null || windowIds.has(issue.id)) &&
+					(!isolatedIssueId || issue.id === isolatedIssueId),
 			);
 
 			hidden += swimlane.issues.length - issues.length;
@@ -418,7 +425,14 @@ export const App = () => {
 		});
 
 		return {visibleSwimlanes: visible, hiddenIssueCount: hidden};
-	}, [selectedBoard, boardFilter, textFilter, commentsByIssueId, windowIds]);
+	}, [
+		selectedBoard,
+		boardFilter,
+		textFilter,
+		commentsByIssueId,
+		windowIds,
+		isolatedIssueId,
+	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});
