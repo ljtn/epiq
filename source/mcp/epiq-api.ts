@@ -12,6 +12,7 @@ import {createIssueEvents} from '../lib/event/common-events.js';
 import {ulidTimeMs} from '../lib/event/date-utils.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
 import {logSignature} from '../lib/event/log-signature.js';
+import {getEpiqDirPath} from '../lib/storage/paths.js';
 import {
 	loadEventActors,
 	loadMergedEvents,
@@ -248,6 +249,18 @@ const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	return succeeded('Resolved Epiq repo root', result.value);
 };
 
+// The state branch and its worktree, once this process has seen them in place.
+//
+// Both checks spawn a subprocess, about 160ms for the pair, and every read and
+// every write runs them before doing anything. What they guard against is a
+// first call: a clone that never synced has no local branch for the worktree to
+// attach to. Neither comes and goes under a running server.
+//
+// Revalidated by looking for the worktree's own directory, which is what
+// disappears when another process relocates it — cheap enough to do every time,
+// and the case those checks would otherwise be catching.
+let ensuredBranch: {repoRoot: string; stateBranchRoot: string} | null = null;
+
 // The log this process last booted from. Held for the life of it, and for one
 // root: a server serves one project.
 let lastBoot: {root: string; signature: string} | null = null;
@@ -273,25 +286,37 @@ const boot = async (
 	const stateBranchResult = getStateBranch(repoRootResult.value);
 	if (isFail(stateBranchResult)) return failed(stateBranchResult.message);
 
-	// A clone that has never synced has no local state branch for the worktree
-	// to attach to. Deliberately not the full bootstrap the sync path runs:
-	// that also repairs the branch's contents with a commit, and this is on
-	// every API call.
-	const localBranchResult = await ensureLocalStateBranch({
-		repoRoot: repoRootResult.value,
-		stateBranchName: stateBranchResult.value,
-	});
+	const inPlace =
+		ensuredBranch !== null &&
+		ensuredBranch.repoRoot === repoRootResult.value &&
+		ensuredBranch.stateBranchRoot === stateBranchRootResult.value &&
+		fs.existsSync(getEpiqDirPath(stateBranchRootResult.value));
 
-	if (isFail(localBranchResult)) return failed(localBranchResult.message);
+	if (!inPlace) {
+		// A clone that has never synced has no local state branch for the
+		// worktree to attach to. Deliberately not the full bootstrap the sync
+		// path runs: that also repairs the branch's contents with a commit.
+		const localBranchResult = await ensureLocalStateBranch({
+			repoRoot: repoRootResult.value,
+			stateBranchName: stateBranchResult.value,
+		});
 
-	const ensureWorktreeResult = await ensureStateBranchWorktree({
-		repoRoot: repoRootResult.value,
-		stateBranchRoot: stateBranchRootResult.value,
-		stateBranchName: stateBranchResult.value,
-	});
+		if (isFail(localBranchResult)) return failed(localBranchResult.message);
 
-	if (isFail(ensureWorktreeResult)) {
-		return failed(ensureWorktreeResult.message);
+		const ensureWorktreeResult = await ensureStateBranchWorktree({
+			repoRoot: repoRootResult.value,
+			stateBranchRoot: stateBranchRootResult.value,
+			stateBranchName: stateBranchResult.value,
+		});
+
+		if (isFail(ensureWorktreeResult)) {
+			return failed(ensureWorktreeResult.message);
+		}
+
+		ensuredBranch = {
+			repoRoot: repoRootResult.value,
+			stateBranchRoot: stateBranchRootResult.value,
+		};
 	}
 
 	// MCP tools are local-only by default; fetching remote state is explicit.
