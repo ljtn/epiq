@@ -139,10 +139,14 @@ const EventRow = ({entry}: {entry: LogEntry}) => (
 
 const EventLogPanel = ({
 	entries,
+	moment,
 	bottomClearance,
 	onOpen,
 }: {
 	entries: readonly LogEntry[];
+	// The moment the lines were sliced against. Moving it is moving the
+	// timeline, and the pane snaps to its foot for that — see below.
+	moment: number;
 	// Following a line. One handler on the pane rather than one per row: the
 	// rows carry where they go, and hundreds of closures would be the expensive
 	// half of a feature whose whole point is that it costs nothing until used.
@@ -222,6 +226,20 @@ const EventLogPanel = ({
 
 		pane.scrollTop = pane.scrollHeight;
 	}, [newestId, days.length, foldOverrides, openCount]);
+
+	// Moving the timeline is different from a line arriving: reading back
+	// through the log is reading the moment the board stands at, and once that
+	// moment changes the place being read is gone with it. So the pane goes to
+	// the foot whether or not it was there — and is pinned again, so what lands
+	// next follows. Without this a scrub that shortens the log by hundreds of
+	// lines left the pane scrolled to where they used to be, showing nothing.
+	useLayoutEffect(() => {
+		const pane = scrollRef.current;
+		if (!pane) return;
+
+		pinnedRef.current = true;
+		pane.scrollTop = pane.scrollHeight;
+	}, [moment]);
 
 	// The keys on screen before this render. The column slides by however many
 	// rows joined the bottom, which is not always one: an event that crosses

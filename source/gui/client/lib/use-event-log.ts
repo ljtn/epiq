@@ -61,6 +61,13 @@ export const momentOnScreen = (
 	return Infinity;
 };
 
+export type EventLogView = {
+	entries: LogEntry[];
+	// The moment the lines were sliced against, handed out with them: the panel
+	// snaps to its foot when this moves, and not when a line merely arrives.
+	moment: number;
+};
+
 export const useEventLog = ({
 	open,
 	timeline,
@@ -72,7 +79,7 @@ export const useEventLog = ({
 	playing,
 	playheadTime,
 	timeTravel,
-}: EventLogSources): LogEntry[] => {
+}: EventLogSources): EventLogView => {
 	const {view, only, ticketOnly} = selection;
 
 	// The board is down to one ticket only while one is actually open — the box
@@ -105,5 +112,7 @@ export const useEventLog = ({
 	// Sliced when the moment moves rather than on every render: a movie renders
 	// the board on every animation frame but reaches a new event a few times a
 	// second, and the panel only wants a new list for the latter.
-	return useMemo(() => logEntriesUpTo(rows, moment), [rows, moment]);
+	const entries = useMemo(() => logEntriesUpTo(rows, moment), [rows, moment]);
+
+	return useMemo(() => ({entries, moment}), [entries, moment]);
 };
