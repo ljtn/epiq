@@ -36,6 +36,7 @@ import {
 	ScrubberHeader,
 	ScrubberHoverHint,
 	ScrubberNeedle,
+	ScrubberPlayButton,
 	SCOPE_ONLY_LABEL,
 	SegmentHighlight,
 	SeriesLayer,
@@ -151,7 +152,12 @@ export const ScrubberLayout = ({
 	// are part of what is being watched — the needle sweeps them as the movie
 	// runs — so they stay lit.
 	standDown: boolean;
-	controls: React.ComponentProps<typeof ScrubberControls>;
+	// The transport is not the caller's to pass: this component decides where it
+	// goes, which differs between the open row and the collapsed one.
+	controls: Omit<
+		React.ComponentProps<typeof ScrubberControls>,
+		'canPlay' | 'playTitle' | 'onPlay'
+	>;
 	chart: ScrubberChart;
 }) => {
 	const {axis, layoutMode, animate, windowKey, on} = chart;
@@ -197,28 +203,40 @@ export const ScrubberLayout = ({
 					<ScrubberHeader
 						collapsed={collapsed}
 						onToggleCollapsed={onToggleCollapsed}
-						canPlay={canPlay}
-						playTitle={playTitle}
-						onPlay={onPlay}
 						logOpen={logOpen}
 						onChangeLogOpen={onChangeLogOpen}
 					/>
 
 					{collapsed ? (
-						// The narrowing outlives the chart it belongs to — a link can
-						// arrive with the scrubber shut, and collapsing it is remembered
-						// — so its box comes up here rather than leaving the board
-						// hiding tickets behind a control nobody can see.
-						controls.windowOnly && (
-							<Checkbox
-								label={SCOPE_ONLY_LABEL}
-								title="Show every ticket again"
-								checked
-								onChange={controls.onChangeWindowOnly}
+						// What outlives the charts comes up here rather than going out of
+						// reach with them: the transport, which plays the window rather
+						// than drawing it, and the narrowing — a link can arrive with the
+						// scrubber shut, and collapsing it is remembered, so the board
+						// must not be left hiding tickets behind a control nobody can
+						// see.
+						<div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+							{controls.windowOnly && (
+								<Checkbox
+									label={SCOPE_ONLY_LABEL}
+									title="Show every ticket again"
+									checked
+									onChange={controls.onChangeWindowOnly}
+								/>
+							)}
+
+							<ScrubberPlayButton
+								canPlay={canPlay}
+								playTitle={playTitle}
+								onPlay={onPlay}
 							/>
-						)
+						</div>
 					) : (
-						<ScrubberControls {...controls} />
+						<ScrubberControls
+							{...controls}
+							canPlay={canPlay}
+							playTitle={playTitle}
+							onPlay={onPlay}
+						/>
 					)}
 				</div>
 
