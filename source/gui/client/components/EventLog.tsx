@@ -120,6 +120,11 @@ const EventRow = ({entry}: {entry: LogEntry}) => (
 		data-testid="log-line"
 		className="epiq-log-line"
 		data-time={formatTimeOfDay(new Date(entry.t))}
+		// A row is one clipped line, so a long label is cut off with nowhere to
+		// read the rest. Only the browser knows which rows are actually clipped,
+		// but a title costs nothing until it is hovered, where measuring every row
+		// on every render would not.
+		title={entry.label}
 		// Absent on a line that leads nowhere, which is what leaves it inert.
 		{...rowAttributes(entry)}
 		style={{[LOG_DOT_COLOR_PROPERTY]: entry.color} as React.CSSProperties}
