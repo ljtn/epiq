@@ -14,14 +14,12 @@
 // routinely in the middle. Appending would be wrong in exactly the case this
 // exists for.
 
-import {existsSync, readdirSync, statSync} from 'node:fs';
-import path from 'node:path';
 import {getEventTime, toEffectiveUlidTimes} from '../lib/event/date-utils.js';
 import {AppEvent, EventAction} from '../lib/event/event.model.js';
 import {loadMergedEvents} from '../lib/event/event-load.js';
+import {logSignature} from '../lib/event/log-signature.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {getEventsDirPath} from '../lib/storage/paths.js';
 import {getStringColor} from '../lib/utils/color.js';
 
 // Colour resolved here rather than on the client: getStringColor pulls in
@@ -356,28 +354,6 @@ export const buildTimelineEntries = (events: AppEvent[]): TimelineEntry[] => {
 	// Sorted here rather than per request: effective times are not the order the
 	// log is stored in, and a window is a range over this axis.
 	return entries.sort((left, right) => left.t - right.t);
-};
-
-// What the log looked like when the entries were built.
-//
-// Every actor writes its own file, so this covers the directory rather than one
-// file: a teammate's events arriving is their file growing, or appearing for
-// the first time, and either moves the signature. Append-only means a size that
-// has not moved is content that has not moved; mtime catches a file a sync
-// replaced wholesale rather than appended to.
-const logSignature = (stateBranchRoot: string): string => {
-	const dir = getEventsDirPath(stateBranchRoot);
-	if (!existsSync(dir)) return 'none';
-
-	return readdirSync(dir)
-		.filter(file => file.endsWith('.jsonl'))
-		.sort()
-		.map(file => {
-			const {size, mtimeMs} = statSync(path.join(dir, file));
-
-			return `${file}:${size}:${mtimeMs}`;
-		})
-		.join('|');
 };
 
 // Held for the life of the process, and only ever for one root: the GUI server
