@@ -5,7 +5,7 @@ import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
-import {logSignature} from './log-signature.js';
+import {logSignature, signatureAfterOwnAppend} from './log-signature.js';
 import {toEffectiveUlidTimes} from './date-utils.js';
 import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
 import {
@@ -522,43 +522,11 @@ export function advanceEdgeRef(
 ): void {
 	if (!edgeCache || edgeCache.root !== rootDir) return;
 
-	const before = new Map(
-		edgeCache.signature.split('|').map(part => {
-			const at = part.indexOf(':');
-			return [part.slice(0, at), part.slice(at + 1)] as const;
-		}),
-	);
+	const next = signatureAfterOwnAppend(rootDir, edgeCache.signature, fileName);
 
-	const after = new Map(
-		logSignature(rootDir)
-			.split('|')
-			.map(part => {
-				const at = part.indexOf(':');
-				return [part.slice(0, at), part.slice(at + 1)] as const;
-			}),
-	);
-
-	for (const [file, entry] of after) {
-		if (file === fileName) continue;
-		if (before.get(file) !== entry) {
-			edgeCache = null;
-			return;
-		}
-	}
-
-	// A file that was there and is gone is someone else's change too.
-	for (const file of before.keys()) {
-		if (file !== fileName && !after.has(file)) {
-			edgeCache = null;
-			return;
-		}
-	}
-
-	edgeCache = {
-		root: rootDir,
-		signature: [...after].map(([file, entry]) => `${file}:${entry}`).join('|'),
-		edge: id,
-	};
+	// Null means someone else's events arrived, and the tail is theirs to
+	// decide — so the cache is dropped and the next read derives it.
+	edgeCache = next === null ? null : {root: rootDir, signature: next, edge: id};
 }
 
 // The tests drive the log through mocks, so they need the edge gone between
