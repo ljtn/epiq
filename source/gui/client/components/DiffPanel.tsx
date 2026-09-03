@@ -7,6 +7,7 @@ import {
 	SelectedLineRange,
 } from '@pierre/diffs/react';
 import {GUI_THEME} from '../lib/gui-theme';
+import {CODE_TEXT_VARS} from '../lib/code-text.style';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
 import {diffLineCount, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {Button} from './Button';
@@ -60,6 +61,7 @@ export const FileDiffView = <LAnnotation = undefined,>({
 }) => (
 	<div
 		style={{
+			...CODE_TEXT_VARS,
 			marginBottom: 16,
 			border: `1px solid ${GUI_THEME.line}`,
 			borderRadius: 8,

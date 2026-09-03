@@ -1,6 +1,11 @@
 import {useState} from 'react';
 import {File} from '@pierre/diffs/react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {
+	CODE_FONT,
+	CODE_LINE_HEIGHT,
+	CODE_TEXT_VARS,
+} from '../lib/code-text.style';
 import {CopyShaButton} from './CopyShaButton';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
@@ -16,13 +21,8 @@ const PIERRE_THEME = 'github-dark';
 // `--diffs-bg` on the shadow host, where only its own CSS can reach.
 const SNIPPET_CSS = `:host { --diffs-bg: ${GUI_THEME.bg}; background-color: ${GUI_THEME.bg}; }`;
 
-const CODE_FONT =
-	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-
-// Pinned on the highlighter through its own CSS variables so the gutter drawn
-// beside it lands on the same line grid.
-const LINE_HEIGHT = 20;
-const FONT_SIZE = TEXT.ui;
+// The gutter drawn beside the highlighter has to sit on its line grid, so the
+// block's own top padding is pinned here too.
 const BLOCK_GAP = 8;
 
 const bareButton: React.CSSProperties = {
@@ -143,10 +143,9 @@ export const CodeSnippet = ({
 				<div
 					style={
 						{
+							...CODE_TEXT_VARS,
 							display: 'flex',
 							background: GUI_THEME.bg,
-							'--diffs-line-height': `${LINE_HEIGHT}px`,
-							'--diffs-font-size': `${FONT_SIZE}px`,
 							'--diffs-gap-block': `${BLOCK_GAP}px`,
 						} as React.CSSProperties
 					}
@@ -160,8 +159,8 @@ export const CodeSnippet = ({
 								padding: `${BLOCK_GAP}px 8px 0 12px`,
 								textAlign: 'right',
 								fontFamily: CODE_FONT,
-								fontSize: FONT_SIZE,
-								lineHeight: `${LINE_HEIGHT}px`,
+								fontSize: TEXT.ui,
+								lineHeight: `${CODE_LINE_HEIGHT}px`,
 								color: GUI_THEME.dim,
 								userSelect: 'none',
 							}}
