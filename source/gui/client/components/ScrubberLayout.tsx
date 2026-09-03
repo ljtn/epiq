@@ -1,6 +1,7 @@
 // The scrubber's markup entry point: how the header, controls, charts, needle
-// and hints are arranged. The pieces it places come from ScrubberParts, the
-// numbers it places them at from TimeScrubber, which owns all the logic.
+// and hints are arranged. The pieces it places come from ScrubberControls,
+// ScrubberTrack and ScatterCanvas; the numbers it places them at from
+// TimeScrubber, which owns all the logic.
 
 import {memo} from 'react';
 import {GuiCommitEntry} from '../lib/gui-state.model';
@@ -25,24 +26,24 @@ import {
 	VolumeBar,
 } from '../lib/scrubber';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
+import {ScatterCanvas, ScatterLayer, ScatterPoint} from './ScatterCanvas';
+import {
+	ScrubberControls,
+	ScrubberHeader,
+	ScrubberPlayButton,
+	SCOPE_ONLY_LABEL,
+} from './ScrubberControls';
 import {
 	BucketHighlight,
 	HourAxisLabels,
 	RangeSelection,
-	ScatterCanvas,
-	ScatterLayer,
-	ScatterPoint,
-	ScrubberControls,
-	ScrubberHeader,
 	ScrubberHoverHint,
 	ScrubberNeedle,
-	ScrubberPlayButton,
-	SCOPE_ONLY_LABEL,
 	SegmentHighlight,
 	SeriesLayer,
 	TrackBaseline,
 	VolumeBars,
-} from './ScrubberParts';
+} from './ScrubberTrack';
 import {Panel} from './Panel';
 import {Checkbox} from './Checkbox';
 
