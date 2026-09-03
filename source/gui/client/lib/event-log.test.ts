@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
 	buildLogEntries,
+	daysToOpen,
 	groupByDay,
 	isDayOpen,
 	lastIndexAtOrBefore,
@@ -224,12 +225,17 @@ describe('isDayOpen', () => {
 		{id: 'c', t: on(3, 9), label: 'c', color: '#111'},
 	]);
 
-	it('opens the newest day and folds the rest', () => {
+	it('opens the newest days and folds the rest', () => {
 		const none = new Map<string, boolean>();
 
-		expect([0, 1, 2].map(i => isDayOpen(days, i, none))).toEqual([
+		expect([0, 1, 2].map(i => isDayOpen(days, i, none, 1))).toEqual([
 			false,
 			false,
+			true,
+		]);
+		expect([0, 1, 2].map(i => isDayOpen(days, i, none, 2))).toEqual([
+			false,
+			true,
 			true,
 		]);
 	});
@@ -240,7 +246,7 @@ describe('isDayOpen', () => {
 			['2026-09-03', false],
 		]);
 
-		expect([0, 1, 2].map(i => isDayOpen(days, i, overrides))).toEqual([
+		expect([0, 1, 2].map(i => isDayOpen(days, i, overrides, 1))).toEqual([
 			true,
 			false,
 			false,
@@ -257,6 +263,44 @@ describe('isDayOpen', () => {
 			{id: 'd', t: on(4, 9), label: 'd', color: '#111'},
 		]);
 
-		expect(isDayOpen(later, 0, overrides)).toBe(true);
+		expect(isDayOpen(later, 0, overrides, 1)).toBe(true);
+	});
+});
+
+describe('daysToOpen', () => {
+	const dayOf = (day: number, lines: number) =>
+		Array.from({length: lines}, (_, index) => ({
+			id: `d${day}-${index}`,
+			t: on(day, 9) + index * 1000,
+			label: 'x',
+			color: '#111',
+		}));
+
+	// Three days of four lines each: an open day costs its lines plus its
+	// divider, a folded one costs the divider alone.
+	const days = groupByDay([...dayOf(1, 4), ...dayOf(2, 4), ...dayOf(3, 4)]);
+
+	it('opens the newest days until the pane is full', () => {
+		// One open day is 1 + 4 rows, plus 2 for the days still folded: 7, which
+		// leaves a tall pane with room to spare.
+		expect(daysToOpen(days, 20)).toBe(3);
+		expect(daysToOpen(days, 11)).toBe(2);
+	});
+
+	// Stopping short of it would leave the panel mostly empty above a run of
+	// folded dates, which is the thing this exists to avoid — and the overflow
+	// is scrollable.
+	it('opens the day that crosses the pane rather than leaving a gap', () => {
+		expect(daysToOpen(days, 10)).toBe(2);
+	});
+
+	// Otherwise a pane too short for one day would open on a list of dates.
+	it('always opens the newest day, however little room there is', () => {
+		expect(daysToOpen(days, 1)).toBe(1);
+		expect(daysToOpen(days, 0)).toBe(1);
+	});
+
+	it('is nothing to open for an empty log', () => {
+		expect(daysToOpen([], 40)).toBe(0);
 	});
 });
