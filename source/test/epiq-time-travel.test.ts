@@ -501,6 +501,149 @@ describe('epiq-time-travel', () => {
 			expect(restored?.tag?.id).toBe('tag-1');
 		});
 
+		// "Moved issue" says neither which lane nor whether the lane changed, and
+		// reordering inside one lane is the commoner of the two.
+		it('says which lane a move went to', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.swimlane',
+					payload: {id: 'lane-todo', name: 'Todo', parent: 'b1'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'add.swimlane',
+					payload: {id: 'lane-done', name: 'Done', parent: 'b1'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'add.issue',
+					payload: {id: 'i1', name: 'Ship v2', parent: 'lane-todo'},
+				},
+				{
+					id: ulid(baseTime + 3_000),
+					action: 'move.node',
+					payload: {id: 'i1', parent: 'lane-done', rank: 'a'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.at(-1)?.label).toBe('Moved to Done');
+		});
+
+		// The ticket never left the lane, so "Moved to Todo" would read as a lane
+		// change that did not happen.
+		it('says a reorder inside one lane is within it', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.swimlane',
+					payload: {id: 'lane-todo', name: 'Todo', parent: 'b1'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'add.issue',
+					payload: {id: 'i1', name: 'Ship v2', parent: 'lane-todo'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'move.node',
+					payload: {id: 'i1', parent: 'lane-todo', rank: 'b'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.at(-1)?.label).toBe('Moved within Todo');
+		});
+
+		// Where the ticket sat before a move is routinely outside the window being
+		// drawn, so the index has to be built over the whole log — otherwise every
+		// move at the start of a window reads as a lane change.
+		it('reads the lane a move came from even when it is outside the window', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.swimlane',
+					payload: {id: 'lane-todo', name: 'Todo', parent: 'b1'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'add.issue',
+					payload: {id: 'i1', name: 'Ship v2', parent: 'lane-todo'},
+				},
+				{
+					id: ulid(baseTime + 2_000),
+					action: 'move.node',
+					payload: {id: 'i1', parent: 'lane-todo', rank: 'b'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			// A window holding the move alone, not the creation that seeded it.
+			const result = await getEventTimeline({
+				start: baseTime + 1_500,
+				end: baseTime + 3_000,
+			});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.map(entry => entry.label)).toEqual([
+				'Moved within Todo',
+			]);
+		});
+
+		// A lane with no create event in the log has no name to give, and a raw
+		// ULID reads worse than saying less.
+		it('falls back to the bare action for a lane it cannot name', async () => {
+			const baseTime = 1_700_000_000_000;
+			const events = [
+				{
+					id: ulid(baseTime),
+					action: 'add.issue',
+					payload: {id: 'i1', name: 'Ship v2', parent: 'lane-todo'},
+				},
+				{
+					id: ulid(baseTime + 1_000),
+					action: 'move.node',
+					payload: {id: 'i1', parent: 'lane-unknown', rank: 'a'},
+				},
+			];
+
+			vi.mocked(loadMergedEvents).mockReturnValue(
+				succeeded('events', events as never),
+			);
+
+			const result = await getEventTimeline();
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+
+			expect(result.value.events.at(-1)?.label).toBe('Moved issue');
+		});
+
 		it('sorts the entries by time regardless of log order', async () => {
 			const baseTime = 1_700_000_000_000;
 			const events = [
