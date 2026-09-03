@@ -30,16 +30,20 @@ import {
 	groupByDay,
 	isDayOpen,
 	LogEntry,
+	LOG_ARROW_CLASS,
 	LOG_DOT_COLOR_PROPERTY,
+	LOG_PANE_PADDING_X,
 	LOG_ROW_HEIGHT,
 } from '../lib/event-log';
 import {
 	LogDestination,
+	linkedRowFrom,
 	readDestination,
 	rowAttributes,
 } from '../lib/log-destination';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {usePrefersReducedMotion} from '../lib/scrubber';
+import {IconArrowUpRight} from './IconArrowUpRight';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 
@@ -255,6 +259,23 @@ const EventLogPanel = ({
 		// board beside it repaints.
 	}, [newestId, animate]);
 
+	// The arrow that marks the row under the pointer is one node for the whole
+	// panel, carried to whichever row that is. Moved through its ref rather
+	// than by state: hovering sweeps across rows, and re-rendering the column
+	// at every one of them is the cost this panel is built to avoid.
+	const arrowRef = useRef<HTMLSpanElement>(null);
+
+	const markRow = (target: EventTarget | null) => {
+		const arrow = arrowRef.current;
+		if (!arrow) return;
+
+		const row = linkedRowFrom(target);
+		// `offsetTop` is inside the scrolled column, which is what the arrow is
+		// positioned in too — so it rides the scroll with the row it is on.
+		if (row) arrow.style.top = `${row.offsetTop}px`;
+		arrow.style.opacity = row ? '1' : '0';
+	};
+
 	return (
 		<aside
 			data-testid="event-log"
@@ -278,21 +299,42 @@ const EventLogPanel = ({
 					const destination = readDestination(event.target);
 					if (destination) onOpen(destination);
 				}}
+				// One pair of handlers for the pane, like the click above: the rows
+				// say where they go, and hundreds of listeners would be the costly
+				// half of a panel whose lines are one node each.
+				onMouseOver={event => markRow(event.target)}
+				onMouseLeave={() => markRow(null)}
 				data-testid="event-log-scroll"
 				style={{
 					flex: 1,
 					minHeight: 0,
 					overflowY: 'auto',
 					overflowX: 'hidden',
+					// The arrow is placed against this, in the column's own
+					// coordinates rather than the window's.
+					position: 'relative',
 					// A column, so the block below can push itself down with an auto
 					// margin. `justify-content: flex-end` would do the same until the
 					// content overflowed, at which point it puts the overflow above the
 					// scrollable area, where it cannot be reached.
 					display: 'flex',
 					flexDirection: 'column',
-					padding: `0 14px ${bottomClearance + LOG_ROW_HEIGHT * 2}px 30px`,
+					padding: `0 ${LOG_PANE_PADDING_X}px ${
+						bottomClearance + LOG_ROW_HEIGHT * 2
+					}px 30px`,
 				}}
 			>
+				{/* Hidden until a row that leads somewhere is under the pointer, and
+				    inert throughout — the row is what takes the click. */}
+				<span
+					ref={arrowRef}
+					className={LOG_ARROW_CLASS}
+					data-testid="log-row-arrow"
+					aria-hidden="true"
+				>
+					<IconArrowUpRight size={11} />
+				</span>
+
 				{/* Holds a short log at the foot of the panel, so the newest line is
 				    always in the same place however few of them there are. */}
 				<div ref={columnRef} style={{marginTop: 'auto'}}>

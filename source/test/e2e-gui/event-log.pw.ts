@@ -263,3 +263,59 @@ test('a line goes to where the thing it names is read', async ({
 	await page.getByTestId('log-toggle').click();
 	expect(pageErrors).toEqual([]);
 });
+
+test('a line that leads somewhere says so under the pointer', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	// As above: the seeded board's own log is board- and swimlane-level events,
+	// so a line that leads anywhere has to be made here.
+	await page.getByTitle('Add issue').first().click();
+	await page.getByPlaceholder('issue name').fill(`Pointed ${Date.now()}`);
+	await page.getByPlaceholder('issue name').press('Enter');
+
+	await page.goto(boardUrl);
+	await page.getByTestId('log-toggle').click();
+	await expect(page.getByTestId('event-log')).toBeVisible();
+
+	const arrow = page.getByTestId('log-row-arrow');
+	await expect(arrow).toHaveCSS('opacity', '0');
+
+	const linking = page.locator('[data-log-issue]').first();
+	await expect.poll(async () => await linking.count()).toBeGreaterThan(0);
+	await expect(linking).toHaveCSS('cursor', 'pointer');
+
+	await linking.hover();
+	await expect(arrow).toHaveCSS('opacity', '1');
+
+	// On the hovered row, not merely somewhere in the panel: one arrow serves
+	// every row, so where it sits is the whole of what it says.
+	const rowBox = await linking.boundingBox();
+	const arrowBox = await arrow.boundingBox();
+	expect(rowBox).not.toBeNull();
+	expect(arrowBox).not.toBeNull();
+	expect(Math.abs(arrowBox!.y - rowBox!.y)).toBeLessThanOrEqual(1);
+	// And at the end of the line rather than out in the panel's margin.
+	expect(arrowBox!.x + arrowBox!.width).toBeLessThanOrEqual(
+		rowBox!.x + rowBox!.width + 1,
+	);
+
+	// A line that leads nowhere stays inert, and takes the arrow away with it.
+	const inert = page
+		.locator(
+			'[data-testid="log-line"]:not([data-log-issue]):not([data-log-sha])',
+		)
+		.first();
+	await expect.poll(async () => await inert.count()).toBeGreaterThan(0);
+	await expect(inert).not.toHaveCSS('cursor', 'pointer');
+
+	await inert.hover();
+	await expect(arrow).toHaveCSS('opacity', '0');
+
+	await page.getByTestId('log-toggle').click();
+	expect(pageErrors).toEqual([]);
+});
