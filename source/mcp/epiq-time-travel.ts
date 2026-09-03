@@ -197,14 +197,39 @@ const issueOf = (
 
 // The TUI's phrasing minus the details that need state. A renamed tag reads
 // under its original name, which is what the log itself says happened.
+// How much of a comment the timeline carries. A window can hold twenty
+// thousand events and every one of them is shipped to the browser, so the whole
+// body is not on offer — enough to recognise which comment it was.
+const COMMENT_PREVIEW_CHARS = 90;
+
+// The first line of a comment, flattened. A body is markdown and often several
+// paragraphs; a log line is one line.
+const commentPreview = (md: string): string => {
+	const firstLine = md.trim().split('\n')[0]?.trim() ?? '';
+
+	return firstLine.length > COMMENT_PREVIEW_CHARS
+		? `${firstLine.slice(0, COMMENT_PREVIEW_CHARS).trimEnd()}…`
+		: firstLine;
+};
+
 const describeTimelineEvent = (
 	event: AppEvent,
 	names: Map<string, string>,
 ): string => {
 	const payload = event.payload as
-		| {name?: string; assignee?: string}
+		| {name?: string; assignee?: string; md?: string}
 		| undefined;
 	const tag = tagOf(event);
+
+	const action = event.action ? formatLogAction(event.action) : '';
+
+	// A comment says what it said, after a colon — "Commented" alone is the one
+	// action whose own name tells the reader nothing about it.
+	if (payload?.md !== undefined) {
+		const preview = commentPreview(payload.md);
+
+		return preview ? `${action}: ${preview}` : action;
+	}
 
 	const detail =
 		tag !== undefined
@@ -214,8 +239,6 @@ const describeTimelineEvent = (
 			: payload?.name !== undefined
 			? `"${payload.name}"`
 			: '';
-
-	const action = event.action ? formatLogAction(event.action) : '';
 
 	return [action, detail].filter(Boolean).join(' ');
 };
