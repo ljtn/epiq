@@ -8,6 +8,7 @@ import {
 } from '../../event/event-materialize.js';
 import {Mode} from '../../model/action-map.model.js';
 import {isFail} from '../../model/result-types.js';
+import {buildPlaybackFractions} from '../../utils/playback-pacing.js';
 import {getState, patchState} from '../../state/state.js';
 
 // Target frame rate for the movie.
@@ -61,28 +62,6 @@ const finishReplay = (): void => {
 		// handed control back (replay starts with nothing selected).
 		selectedIndex: 0,
 	});
-};
-
-// Build the normalized [0..1] position at which each event should have played.
-// Inter-event gaps are weighted by their square root so long idle stretches
-// compress (a month-long gap costs far less than 30 day-long ones) while bursts
-// of rapid edits keep their relative spacing — quiet periods fast-forward,
-// crunch weeks burst. Falls back to even spacing when timestamps are identical.
-const buildPlaybackFractions = (times: number[]): number[] => {
-	const cumulative: number[] = [];
-	let acc = 0;
-
-	for (let i = 0; i < times.length; i++) {
-		const gap = i === 0 ? 0 : Math.max(0, times[i]! - times[i - 1]!);
-		acc += Math.sqrt(gap);
-		cumulative[i] = acc;
-	}
-
-	const total = acc;
-
-	return cumulative.map((value, i) =>
-		total > 0 ? value / total : (i + 1) / times.length,
-	);
 };
 
 // Drive the forward replay. `events` are the (causally ordered) events that
