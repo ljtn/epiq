@@ -6,6 +6,7 @@ import {execGit} from '../git/git-utils.js';
 import {getStateBranch} from '../git/git-constants.js';
 import {ensureLocalStateBranch, ensureStateBranchWorktree} from '../git/git.js';
 import {syncEpiqWithRemote} from '../git/sync.js';
+import {applyActorNameArgument} from '../lib/config/actor-env.js';
 import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {ulidTimeMs} from '../lib/event/date-utils.js';
@@ -1524,6 +1525,56 @@ export const tombstoneTag = async (
 	if (isFail(results)) return failed(results.message);
 
 	return succeeded('Deleted tag', {id: tag.id, name: tag.name});
+};
+
+/**
+ * Takes a board identity for the rest of this process. The actor is resolved
+ * per write from the environment, so setting it here reaches the very next
+ * event — no relaunch. A name given at launch wins: `applyActorNameArgument`
+ * refuses to rename a process that was already told who it is.
+ */
+export const assumeActor = async (
+	input: ToolInput & {name: string},
+): Promise<Result<{userId: string; userName: string; registered: boolean}>> => {
+	const applied = applyActorNameArgument(input.name, 'name');
+	if (isFail(applied)) return failed(applied.message);
+
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const actor = actorResult.value;
+
+	// Registered here rather than left to the first write, because the log file
+	// name is a lossy storage key — `claude/peter` sanitizes to `claude-peter`
+	// — and the registry is where display names are read from.
+	const isRegistered = Boolean(stateResult.value.contributors[actor.userId]);
+
+	if (!isRegistered) {
+		const results = materializeAndPersistAll(
+			[
+				{
+					id: ulid(),
+					...actor,
+					action: 'create.contributor',
+					payload: {id: actor.userId, name: actor.userName},
+				} satisfies AppEvent<'create.contributor'>,
+			],
+			bootResult.value.stateBranchRoot,
+		);
+
+		if (isFail(results)) return failed(results.message);
+	}
+
+	return succeeded(`Assumed ${actor.userName}`, {
+		...actor,
+		registered: !isRegistered,
+	});
 };
 
 export const restoreTag = async (
