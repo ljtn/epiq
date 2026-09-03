@@ -10,6 +10,30 @@ const ticketOnly = (page: Page) =>
 const scopeButton = (page: Page, name: string) =>
 	page.getByRole('button', {name, exact: true});
 
+// Counts the timeline replies the page is handed, so a test can say that
+// clicking around asked the server for nothing.
+const watchTimeline = async (page: Page) => {
+	const seen = {count: 0};
+
+	await page.routeWebSocket(/\/ws/, ws => {
+		const server = ws.connectToServer();
+
+		ws.onMessage(message => server.send(message));
+		server.onMessage(message => {
+			if (
+				typeof message === 'string' &&
+				message.startsWith('{"type":"timeline"')
+			) {
+				seen.count += 1;
+			}
+
+			ws.send(message);
+		});
+	});
+
+	return seen;
+};
+
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
@@ -118,6 +142,49 @@ test('it takes the board down to the one ticket, and the window box with it', as
 	await expect(ticketOnly(page)).not.toBeChecked();
 	await expect(card(other)).toBeVisible();
 	await expect(scopeOnly).toBeEnabled();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// The window is the ticket's only while the narrowing is on. With it off, one
+// ticket is as good as another to the scrubber, and asking the server for the
+// whole timeline again on every click between two of them made selecting a
+// ticket crawl.
+test('selecting tickets asks for no timeline while the narrowing is off', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	const seen = await watchTimeline(page);
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const first = `Quiet first ${Date.now()}`;
+	const second = `Quiet second ${Date.now()}`;
+	await addTicket(page, first);
+	await addTicket(page, second);
+
+	const card = (title: string) =>
+		page.locator('[draggable="true"]').filter({hasText: title}).first();
+
+	// Let everything creating the tickets set off settle before counting.
+	await page.waitForTimeout(1500);
+	const before = seen.count;
+
+	await card(first).click();
+	await expect(page).toHaveURL(/\/issue\//);
+	await card(second).click();
+	await card(first).click();
+	await page.waitForTimeout(1500);
+
+	expect(seen.count).toBe(before);
+
+	// And with it on, the ticket *is* the window, so switching does ask again.
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).toBeChecked();
+	await page.waitForTimeout(1500);
+	expect(seen.count).toBeGreaterThan(before);
 
 	expect(pageErrors).toEqual([]);
 });
