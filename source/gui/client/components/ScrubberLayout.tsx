@@ -18,6 +18,8 @@ import {
 	LayoutMode,
 	ScrubberAxis,
 	SCOPED_OUTLINE_COLOR,
+	SCOPED_OUTLINE_INSET_X,
+	SCOPED_OUTLINE_INSET_Y,
 	SCRUBBER_KEYFRAMES,
 	Segment,
 	SeriesPresence,
@@ -262,25 +264,39 @@ export const ScrubberLayout = ({
 							// Crosshair, not a hand: a press picks a moment but a drag picks
 							// out a range, and the pointer has to say the second is on offer.
 							cursor: chart.connected ? 'crosshair' : 'default',
-							// Outline rather than a border: it takes up no space, so
-							// narrowing the board cannot reflow the charts under the
-							// pointer that just clicked.
-							outline: chart.scoped
-								? `1px solid ${SCOPED_OUTLINE_COLOR}`
-								: undefined,
-							outlineOffset: 5,
-							borderRadius: 4,
 							// A drag must never turn into a native text selection or a drag
 							// of the axis labels underneath the pointer.
 							userSelect: 'none',
 							WebkitUserSelect: 'none',
 						}}
 					>
+						{/* The box that says the board is showing this window and
+					    nothing else. Positioned rather than an outline: it takes up
+					    no space either way, so narrowing cannot reflow the charts
+					    under the pointer that just clicked, but insets can differ
+					    per edge where an outline's offset cannot. It needs more room
+					    at the sides than above — the needle's grip overhangs the
+					    live end by half its width — and less above, where the
+					    controls are only TRACK_HIT_PADDING away. */}
+						{chart.scoped && (
+							<div
+								aria-hidden
+								style={{
+									position: 'absolute',
+									inset: `${-SCOPED_OUTLINE_INSET_Y}px ${-SCOPED_OUTLINE_INSET_X}px`,
+									border: `1px solid ${SCOPED_OUTLINE_COLOR}`,
+									// Cornered like the row's buttons, not like a card: this is
+									// chrome around the chart, and 4px read as a pill on a line
+									// this thin.
+									borderRadius: 2,
+									pointerEvents: 'none',
+								}}
+							/>
+						)}
+
 						{/* The gap above the charts, made part of the track for the
 					    pointer and nothing else. Absolutely positioned so it draws
-					    nothing, takes no room, and leaves the scoped outline on the
-					    box it already framed — a padding here would carry that
-					    outline up with it. */}
+					    nothing and takes no room. */}
 						<div
 							aria-hidden
 							style={{
