@@ -1,5 +1,12 @@
 import {describe, expect, it} from 'vitest';
-import {lastIndexAtOrBefore, LOG_LINES, logEntriesUpTo} from './event-log';
+import {
+	buildLogEntries,
+	lastIndexAtOrBefore,
+	LOG_LINES,
+	logEntriesUpTo,
+} from './event-log';
+import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
+import {EVENT_CATEGORY_COLORS, GUI_THEME} from './gui-theme';
 
 const at = (id: string, t: number) => ({id, t, label: `event ${id}`});
 
@@ -83,5 +90,80 @@ describe('logEntriesUpTo', () => {
 		const parked = logEntriesUpTo(events, events[events.length - 1]!.t);
 
 		expect(live).toEqual(parked);
+	});
+});
+
+const event = (
+	id: string,
+	t: number,
+	action: string,
+): GuiEventTimelineEntry => ({
+	id,
+	t,
+	action,
+	label: `event ${id}`,
+	actor: null,
+	tag: null,
+	assignee: null,
+	issue: null,
+});
+
+const commit = (sha: string, time: number): GuiCommitEntry => ({
+	sha,
+	time,
+	author: 'jo',
+	subject: `commit ${sha}`,
+	linesChanged: 3,
+	insertions: 2,
+	deletions: 1,
+});
+
+describe('buildLogEntries', () => {
+	it('interleaves commits with events by the clock', () => {
+		const rows = buildLogEntries(
+			[event('a', 100, 'create.issue'), event('b', 300, 'create.issue')],
+			[commit('sha1', 200)],
+		);
+
+		expect(rows.map(row => row.id)).toEqual(['a', 'commit-sha1', 'b']);
+	});
+
+	// A sha and a ULID share no namespace, and both end up as React keys in one
+	// column.
+	it('keeps commit ids from colliding with event ids', () => {
+		const rows = buildLogEntries(
+			[event('sha1', 1, 'create.issue')],
+			[commit('sha1', 2)],
+		);
+
+		expect(new Set(rows.map(row => row.id)).size).toBe(2);
+	});
+
+	it('marks a commit with the green its dots already have on the chart', () => {
+		const rows = buildLogEntries([], [commit('sha1', 1)]);
+
+		expect(rows[0]!.color).toBe(GUI_THEME.green);
+		expect(rows[0]!.label).toBe('commit sha1');
+	});
+
+	// The same colour the scatter gives the kind, so a line reads the same in
+	// both places.
+	it('marks a board event with its category colour', () => {
+		const rows = buildLogEntries(
+			[
+				event('a', 1, 'add.issue.comment'),
+				event('b', 2, 'add.issue.tag'),
+				event('c', 3, 'add.issue.assignee'),
+				event('d', 4, 'create.issue'),
+			],
+			[],
+		);
+
+		expect(rows.map(row => row.color)).toEqual([
+			EVENT_CATEGORY_COLORS.comments,
+			EVENT_CATEGORY_COLORS.tagging,
+			EVENT_CATEGORY_COLORS.assigning,
+			EVENT_CATEGORY_COLORS.tickets,
+		]);
 	});
 });

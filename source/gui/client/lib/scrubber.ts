@@ -4,7 +4,9 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {
 	formatDateTime,
+	formatMonth,
 	formatTimeOfDay,
+	formatWeekday,
 	isSameDay,
 } from '../../../lib/utils/date.utils.js';
 import {maxOf, minOf} from '../../../lib/utils/minmax.js';
@@ -497,22 +499,6 @@ export const chooseSegmentUnit = (spanMs: number): SegmentUnit => {
 	return SEGMENT_UNIT_ORDER[Math.max(0, index - 1)]!;
 };
 
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_LABELS = [
-	'Jan',
-	'Feb',
-	'Mar',
-	'Apr',
-	'May',
-	'Jun',
-	'Jul',
-	'Aug',
-	'Sep',
-	'Oct',
-	'Nov',
-	'Dec',
-];
-
 const advanceByUnit = (date: Date, unit: SegmentUnit): void => {
 	if (unit === 'minute') date.setMinutes(date.getMinutes() + 1);
 	else if (unit === 'hour') date.setHours(date.getHours() + 1);
@@ -559,24 +545,20 @@ export const segmentAt = (time: number, unit: SegmentUnit): Segment => {
 		unit === 'minute'
 			? clock(start)
 			: unit === 'hour'
-			? `${WEEKDAY_LABELS[start.getDay()]} ${String(start.getHours()).padStart(
+			? `${formatWeekday(start)} ${String(start.getHours()).padStart(
 					2,
 					'0',
 			  )}:00`
 			: unit === 'day'
-			? `${WEEKDAY_LABELS[start.getDay()]} ${start.getDate()} ${
-					MONTH_LABELS[start.getMonth()]
-			  }`
+			? `${formatWeekday(start)} ${start.getDate()} ${formatMonth(start)}`
 			: unit === 'week'
 			? start.getMonth() === lastDay.getMonth()
-				? `${start.getDate()}–${lastDay.getDate()} ${
-						MONTH_LABELS[start.getMonth()]
-				  }`
-				: `${start.getDate()} ${
-						MONTH_LABELS[start.getMonth()]
-				  } – ${lastDay.getDate()} ${MONTH_LABELS[lastDay.getMonth()]}`
+				? `${start.getDate()}–${lastDay.getDate()} ${formatMonth(start)}`
+				: `${start.getDate()} ${formatMonth(
+						start,
+				  )} – ${lastDay.getDate()} ${formatMonth(lastDay)}`
 			: unit === 'month'
-			? `${MONTH_LABELS[start.getMonth()]} ${start.getFullYear()}`
+			? `${formatMonth(start)} ${start.getFullYear()}`
 			: `${start.getFullYear()}`;
 
 	return {start: start.getTime(), end: end.getTime(), label};
