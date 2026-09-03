@@ -747,7 +747,10 @@ const CommitRow = ({
 			style={{
 				border: `1px solid ${GUI_THEME.line}`,
 				borderRadius: 8,
-				overflow: 'hidden',
+				// Clip rather than hide, so the card rounds its corners without
+				// becoming a scroll container — one would trap each file's sticky
+				// header in a box that never scrolls.
+				overflow: 'clip',
 			}}
 		>
 			{/* A div, not a button: it holds CopyShaButton, a real nested button,
