@@ -233,6 +233,15 @@ export const TimeScrubber = ({
 	// The events this narrowing keeps. Null leaves every ticket's events in.
 	const issueOnly = ticketFocus ? selectedIssue.id : null;
 
+	// Which ticket the window is cut from, and null whenever it is not cut from
+	// one. Only while the narrowing is on does a different ticket mean a
+	// different window to ask the server for; listing the open ticket itself
+	// would refetch the whole timeline on every click between two of them,
+	// which is most clicks and none of them a change of window.
+	const ticketWindowKey = ticketFocus
+		? `${selectedIssue.id}:${selectedIssue.createdAt}`
+		: null;
+
 	// A dragged-out window stands in for the rolling one, and is the only kind
 	// with fixed bounds — every other is anchored to now.
 	const periodRange = ticketRange ?? zoom ?? getPeriodRange(scope, offset);
@@ -255,9 +264,7 @@ export const TimeScrubber = ({
 		offset,
 		zoom?.start,
 		zoom?.end,
-		ticketFocus,
-		selectedIssue?.id,
-		selectedIssue?.createdAt,
+		ticketWindowKey,
 		boardId,
 		allBoards,
 		connected,
