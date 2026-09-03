@@ -281,6 +281,7 @@ export const ScrubberLayout = ({
 						{chart.scoped && (
 							<div
 								aria-hidden
+								data-testid="scrubber-scoped"
 								style={{
 									position: 'absolute',
 									inset: `${-SCOPED_OUTLINE_INSET_Y}px ${-SCOPED_OUTLINE_INSET_X}px`,
