@@ -176,6 +176,53 @@ test('the transport pauses and resumes, and the movie ends on a full bar', async
 	expect(pageErrors).toEqual([]);
 });
 
+// The crawl is a slice of the script, not a list grown as events land, which
+// is what keeps a long movie from adding a node per event to the overlay.
+test('the pop-out puts the log over the board, capped at what it can show', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	await page.getByTestId('theatre-play').click();
+
+	const log = page.getByTestId('theatre-log');
+	await expect(log).toHaveCount(0);
+
+	const toggle = page.getByTestId('theatre-log-toggle');
+	await toggle.click();
+	await expect(log).toBeVisible();
+	await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+	// Lines arrive as the movie plays. That they stay capped however long it
+	// runs is theatre.test.ts's job — this only holds that the cap is a real
+	// bound on the document rather than on the reading alone.
+	const lines = page.getByTestId('theatre-log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(1);
+	expect(await lines.count()).toBeLessThanOrEqual(30);
+
+	// The day each run of lines belongs to is called once above them, rather
+	// than repeated on every line.
+	await expect(page.getByTestId('theatre-log-day').first()).toBeVisible();
+
+	// A panel, not a wash over the board: it takes its own width and the first
+	// swimlane starts to the right of where it ends.
+	const logBox = (await log.boundingBox())!;
+	const lane = (await page
+		.getByTestId('swimlane-handle')
+		.first()
+		.boundingBox())!;
+
+	expect(logBox.width).toBeGreaterThan(100);
+	expect(lane.x).toBeGreaterThanOrEqual(logBox.x + logBox.width);
+
+	await toggle.click();
+	await expect(log).toHaveCount(0);
+
+	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});
+
 test('closing the player hands the board back, live and editable', async ({
 	page,
 	appUrl,

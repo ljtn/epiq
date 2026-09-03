@@ -127,6 +127,26 @@ export const playbackPosition = (progress: number): number =>
 export const seekTimeFor = (plan: TheatrePlan, cursor: number): number =>
 	cursor < 0 ? plan.startTime : plan.events[cursor]!.t + 1;
 
+// How many played events the log holds. It is a cap on the DOM as much as on
+// the reading: rows above this have scrolled up out of the fade, and keeping
+// them mounted would grow the overlay by one node per event for the length of
+// the movie.
+export const THEATRE_LOG_LINES = 24;
+
+// The tail of what has played, oldest first. Sliced off the plan rather than
+// accumulated as events land: a seek has to take the log with it, backwards as
+// readily as forwards, and a slice of the script is already exactly that.
+export const theatreLogEntries = (
+	plan: TheatrePlan,
+	cursor: number,
+): TheatreEvent[] =>
+	cursor < 0
+		? []
+		: plan.events.slice(
+				Math.max(0, cursor - THEATRE_LOG_LINES + 1),
+				cursor + 1,
+		  );
+
 export type TheatrePlayback = {
 	// [0..1], off the local clock rather than the events applied, so the bar
 	// glides through quiet stretches instead of waiting on the next round trip.
@@ -311,8 +331,8 @@ export const useTheatrePlayback = ({
 // is up. The flash is what marks the ticket an event just landed on.
 export const THEATRE_KEYFRAMES = `
 @keyframes epiqTheatreRise {
-	from { opacity: 0; transform: translate(-50%, 18px); }
-	to { opacity: 1; transform: translate(-50%, 0); }
+	from { opacity: 0; transform: translateY(100%); }
+	to { opacity: 1; transform: translateY(0); }
 }
 @keyframes epiqTheatreFade {
 	from { opacity: 0; }
@@ -326,10 +346,15 @@ export const THEATRE_KEYFRAMES = `
 	from { opacity: 0; transform: scale(0.96); }
 	to { opacity: 1; transform: scale(1); }
 }
+@keyframes epiqTheatreLogLine {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) {
-	@keyframes epiqTheatreRise { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 1; transform: translate(-50%, 0); } }
+	@keyframes epiqTheatreRise { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }
 	@keyframes epiqTheatreCardIn { from { opacity: 1; } to { opacity: 1; } }
 	@keyframes epiqTheatreCaption { from { opacity: 1; } to { opacity: 1; } }
+	@keyframes epiqTheatreLogLine { from { opacity: 1; } to { opacity: 1; } }
 }
 `;
 
@@ -351,5 +376,28 @@ export const THEATRE_FLASH_FRAMES: Keyframe[] = [
 
 export const THEATRE_FLASH_TIMING: KeyframeAnimationOptions = {
 	duration: 900,
+	easing: 'ease-out',
+};
+
+// The height of the player's drawer. The board and the log panel both give it
+// up rather than running underneath and playing their last rows behind the
+// transport, so the two have to read it from one place.
+export const THEATRE_PLAYER_CLEARANCE = 80;
+
+// One row of the log, which is what the whole column shifts by as a line
+// arrives. Fixed rather than measured: every row is one clipped line, so the
+// shift is the same every time and the crawl stays even.
+export const THEATRE_LOG_ROW_HEIGHT = 18;
+
+// The column slides up by a row as each line lands, rather than the stack
+// jumping. Run off the element for the same reason the card flash is: lines
+// arrive faster than the animation is long, and a restart has to be a restart.
+export const THEATRE_CRAWL_FRAMES: Keyframe[] = [
+	{transform: `translateY(${THEATRE_LOG_ROW_HEIGHT}px)`},
+	{transform: 'translateY(0)'},
+];
+
+export const THEATRE_CRAWL_TIMING: KeyframeAnimationOptions = {
+	duration: 220,
 	easing: 'ease-out',
 };

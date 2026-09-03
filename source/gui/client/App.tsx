@@ -39,6 +39,7 @@ import {TicketRefLinksProvider} from './components/MarkdownContent';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
 import {TheatrePlayer} from './components/TheatrePlayer';
+import {TheatreLog} from './components/TheatreLog';
 import {useAsideDock} from './lib/aside-dock';
 import {moveIssue} from './lib/gui-move-issue';
 import {reconnectDelayMs} from './lib/reconnect';
@@ -74,7 +75,13 @@ import {
 	issuePassesBoardFilter,
 	windowIssueIds,
 } from './lib/scrubber';
-import {buildTheatrePlan, TheatrePlan, useTheatrePlayback} from './lib/theatre';
+import {
+	buildTheatrePlan,
+	THEATRE_PLAYER_CLEARANCE,
+	TheatrePlan,
+	theatreLogEntries,
+	useTheatrePlayback,
+} from './lib/theatre';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
@@ -96,11 +103,6 @@ const BOARD_GUTTER = 30;
 
 // What the chrome around the board wears while a movie plays. Faded rather than
 // unmounted: the page must not reflow around the picture being watched.
-// The room the floating player takes at the foot of the page, which the board
-// gives up while one is open. Must cover the player's own height and the gap
-// it sits above.
-const THEATRE_PLAYER_CLEARANCE = 118;
-
 const DIMMED_WHILE_PLAYING: React.CSSProperties = {
 	opacity: 0.3,
 	pointerEvents: 'none',
@@ -172,6 +174,9 @@ export const App = () => {
 	// Bumped per answered time-travel request. The player's clock waits on it
 	// rather than stacking a checkout on one the server has not answered yet.
 	const [scrubAck, setScrubAck] = useState(0);
+	// The log panel is open. Owned here rather than in the player: it is a panel
+	// in the board's own row, and the board moves over for it.
+	const [theatreLogOpen, setTheatreLogOpen] = useState(false);
 	const [commitDiff, setCommitDiff] = useState<{
 		sha: string;
 		loading: boolean;
@@ -1734,6 +1739,10 @@ export const App = () => {
 						transition: 'opacity 160ms ease',
 					}}
 				>
+					{theatre && theatreLogOpen && (
+						<TheatreLog entries={theatreLogEntries(theatre, playback.cursor)} />
+					)}
+
 					{/* Vertical overflow is hidden here: the swimlanes size themselves to
 				    this box, so anything spilling out would put a second scrollbar on
 				    the page next to the columns' own. */}
@@ -2056,6 +2065,8 @@ export const App = () => {
 					<TheatrePlayer
 						plan={theatre}
 						playback={playback}
+						logOpen={theatreLogOpen}
+						onToggleLog={() => setTheatreLogOpen(open => !open)}
 						onExit={exitTheatre}
 					/>
 				)}
