@@ -44,6 +44,7 @@ import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {IconPlay} from './IconPlayback';
 import {IconScatter} from './IconScatter';
 
 // Named once: the collapsed header puts the same box up when the rest of this
@@ -880,9 +881,14 @@ export const ScrubberControls = ({
 export const ScrubberHeader = ({
 	collapsed,
 	onToggleCollapsed,
+	canPlay,
+	onPlay,
 }: {
 	collapsed: boolean;
 	onToggleCollapsed: () => void;
+	// False where the window holds too little to play, or the socket is down.
+	canPlay: boolean;
+	onPlay: () => void;
 }) => (
 	<div
 		style={{
@@ -914,6 +920,34 @@ export const ScrubberHeader = ({
 			) : (
 				<IconChevronDown size={14} />
 			)}
+		</button>
+
+		{/* On the header rather than in the controls row, so it is still there
+		    with the scrubber shut — the movie is watched on the board, and the
+		    charts are not part of it. */}
+		<button
+			data-testid="theatre-play"
+			onClick={onPlay}
+			disabled={!canPlay}
+			title={
+				canPlay
+					? "Play this window of the board's history"
+					: 'Not enough history in this window to play'
+			}
+			aria-label="Play the board's history"
+			style={{
+				background: GUI_THEME.panel2,
+				border: `1px solid ${canPlay ? GUI_THEME.line : GUI_THEME.transparent}`,
+				borderRadius: 6,
+				color: canPlay ? GUI_THEME.accent : GUI_THEME.dim,
+				padding: '3px 7px',
+				cursor: canPlay ? 'pointer' : 'default',
+				opacity: canPlay ? 1 : 0.4,
+				display: 'inline-flex',
+				alignItems: 'center',
+			}}
+		>
+			<IconPlay size={14} />
 		</button>
 	</div>
 );

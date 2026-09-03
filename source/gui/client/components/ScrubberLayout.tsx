@@ -129,11 +129,20 @@ export type ScrubberChart = {
 export const ScrubberLayout = ({
 	collapsed,
 	onToggleCollapsed,
+	canPlay,
+	onPlay,
+	standDown,
 	controls,
 	chart,
 }: {
 	collapsed: boolean;
 	onToggleCollapsed: () => void;
+	canPlay: boolean;
+	onPlay: () => void;
+	// The history player is up and owns the board's position. The whole bar goes
+	// quiet rather than offering a second control for the same thing — the
+	// needle keeps following, so it still says where the movie is.
+	standDown: boolean;
 	controls: React.ComponentProps<typeof ScrubberControls>;
 	chart: ScrubberChart;
 }) => {
@@ -153,6 +162,9 @@ export const ScrubberLayout = ({
 				// which would lop off the overhanging hint. Safe to disable only
 				// because this panel is square.
 				overflow: 'visible',
+				opacity: standDown ? 0.3 : 1,
+				pointerEvents: standDown ? 'none' : undefined,
+				transition: 'opacity 240ms ease',
 			}}
 		>
 			<style>{SCRUBBER_KEYFRAMES}</style>
@@ -177,6 +189,8 @@ export const ScrubberLayout = ({
 					<ScrubberHeader
 						collapsed={collapsed}
 						onToggleCollapsed={onToggleCollapsed}
+						canPlay={canPlay}
+						onPlay={onPlay}
 					/>
 
 					{collapsed ? (

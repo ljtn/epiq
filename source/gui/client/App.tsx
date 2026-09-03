@@ -38,6 +38,7 @@ import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {TicketRefLinksProvider} from './components/MarkdownContent';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
+import {TheatrePlayer} from './components/TheatrePlayer';
 import {useAsideDock} from './lib/aside-dock';
 import {moveIssue} from './lib/gui-move-issue';
 import {reconnectDelayMs} from './lib/reconnect';
@@ -73,6 +74,7 @@ import {
 	issuePassesBoardFilter,
 	windowIssueIds,
 } from './lib/scrubber';
+import {buildTheatrePlan, TheatrePlan, useTheatrePlayback} from './lib/theatre';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
@@ -91,6 +93,19 @@ const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
 // The board's page margin, matching the left padding on <main>.
 const BOARD_GUTTER = 30;
+
+// What the chrome around the board wears while a movie plays. Faded rather than
+// unmounted: the page must not reflow around the picture being watched.
+// The room the floating player takes at the foot of the page, which the board
+// gives up while one is open. Must cover the player's own height and the gap
+// it sits above.
+const THEATRE_PLAYER_CLEARANCE = 118;
+
+const DIMMED_WHILE_PLAYING: React.CSSProperties = {
+	opacity: 0.3,
+	pointerEvents: 'none',
+	transition: 'opacity 240ms ease',
+};
 
 export const DropIndicator = () => (
 	<div
@@ -150,6 +165,13 @@ export const App = () => {
 		commits: GuiCommitEntry[];
 	}>({requestId: 0, timeline: null, commits: []});
 	const [historyBuffer] = useState(() => createHistoryBuffer(setHistory));
+	// The movie on screen, or null for no player. Held rather than derived from
+	// the timeline: the window is re-fetched while the board changes underneath
+	// it, and a plan that changed halfway would be a different film.
+	const [theatre, setTheatre] = useState<TheatrePlan | null>(null);
+	// Bumped per answered time-travel request. The player's clock waits on it
+	// rather than stacking a checkout on one the server has not answered yet.
+	const [scrubAck, setScrubAck] = useState(0);
 	const [commitDiff, setCommitDiff] = useState<{
 		sha: string;
 		loading: boolean;
@@ -443,11 +465,16 @@ export const App = () => {
 			return;
 		}
 
+		// Not while a movie is playing: this re-runs on every state broadcast, and
+		// a movie is a broadcast per frame — for a panel that is not even on
+		// screen. The board's own state is what the player is showing.
+		if (theatre) return;
+
 		sendSocketJson(socketRef.current, {
 			type: 'issue:get',
 			payload: {issueId: selectedIssue.id},
 		});
-	}, [selectedIssue?.id, state]);
+	}, [selectedIssue?.id, state, theatre]);
 
 	// Separate from issue:get above, which re-runs on every state broadcast:
 	// the commit list comes from git, not the event log, so a board change is
@@ -753,12 +780,15 @@ export const App = () => {
 				}
 			}
 
-			if (
-				message.type === 'time-travel:result' &&
-				message.payload?.status === 'fail'
-			) {
-				console.log('Time travel failed', message);
-				requestState();
+			if (message.type === 'time-travel:result') {
+				// Every reply, refusals included: the player's clock is waiting on
+				// one, and a refused checkout it never heard about would stall it.
+				setScrubAck(count => count + 1);
+
+				if (message.payload?.status === 'fail') {
+					console.log('Time travel failed', message);
+					requestState();
+				}
 			}
 
 			if (message.type === 'sync-status') {
@@ -1110,6 +1140,35 @@ export const App = () => {
 	const returnToLive = () => {
 		send('time-travel:live', {});
 	};
+
+	// Plays the window the scrubber is showing. Its own timeline is the script:
+	// the same events it has drawn, in the order the clock put them in.
+	const startTheatre = () => {
+		if (!history.timeline) return;
+
+		setTheatre(buildTheatrePlan(history.timeline));
+	};
+
+	// Leaving the cinema hands the board back, live and editable, wherever the
+	// movie happened to stop.
+	const exitTheatre = () => {
+		setTheatre(null);
+		returnToLive();
+	};
+
+	const playback = useTheatrePlayback({
+		plan: theatre,
+		ack: scrubAck,
+		onSeek: scrubToTime,
+	});
+
+	// A movie is checked out one frame at a time over the socket, so a dropped
+	// one leaves the player running against nothing. It closes rather than
+	// stalling; the board is already parked wherever the last frame landed, and
+	// the reconnect brings the way back with it.
+	useEffect(() => {
+		if (!connected) setTheatre(null);
+	}, [connected]);
 
 	// Both requests carry the same id so their replies can be paired, and replies
 	// to an abandoned request discarded.
@@ -1612,21 +1671,26 @@ export const App = () => {
 					/>
 				)}
 
-				<Header
-					state={state}
-					connection={
-						connected
-							? 'connected'
-							: !offline
-							? 'connecting'
-							: reconnectExhausted
-							? 'lost'
-							: 'reconnecting'
-					}
-					onReconnect={reconnectNow}
-					scrubbing={state?.timeTravel?.mode === 'scrub'}
-					syncStatus={syncStatus}
-				/>
+				{/* Dimmed and inert with the rest of the chrome while a movie plays:
+				    the board is the picture, and everything around it is the room
+				    lights. */}
+				<div style={theatre ? DIMMED_WHILE_PLAYING : undefined}>
+					<Header
+						state={state}
+						connection={
+							connected
+								? 'connected'
+								: !offline
+								? 'connecting'
+								: reconnectExhausted
+								? 'lost'
+								: 'reconnecting'
+						}
+						onReconnect={reconnectNow}
+						scrubbing={state?.timeTravel?.mode === 'scrub'}
+						syncStatus={syncStatus}
+					/>
+				</div>
 
 				<TimeScrubber
 					timeline={history.timeline}
@@ -1641,6 +1705,8 @@ export const App = () => {
 					timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 					onScrub={scrubToTime}
 					onReturnToLive={returnToLive}
+					onPlayTheatre={startTheatre}
+					theatreOpen={theatre !== null}
 					selection={selection}
 					onChangeSelection={changeSelection}
 					selectedIssue={
@@ -1649,7 +1715,9 @@ export const App = () => {
 							: null
 					}
 					knownIdentities={knownIdentities}
-					refreshOn={selection.windowOnly ? state : null}
+					// Not while a movie plays: the window would be re-fetched on every
+					// frame, and the plan is drawn from it.
+					refreshOn={selection.windowOnly && !theatre ? state : null}
 				/>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at
@@ -1686,6 +1754,7 @@ export const App = () => {
 								display: 'flex',
 								alignItems: 'center',
 								gap: 10,
+								...(theatre ? DIMMED_WHILE_PLAYING : {}),
 							}}
 						>
 							<Dropdown
@@ -1738,6 +1807,16 @@ export const App = () => {
 								minHeight: 0,
 								overflowX: 'auto',
 								overflowY: 'hidden',
+								// Lit, but not touchable: the board is what a movie is
+								// watched on, and the panel a click would open is closed for
+								// the duration anyway.
+								pointerEvents: theatre ? 'none' : undefined,
+								// The player floats over the board, and a column running
+								// under it would play its last cards behind the transport.
+								// Reserved rather than overlaid, so the whole picture stays
+								// in view.
+								paddingBottom: theatre ? THEATRE_PLAYER_CLEARANCE : 0,
+								transition: 'padding-bottom 240ms ease',
 							}}
 						>
 							{shownSwimlanes.map(swimlane => (
@@ -1782,6 +1861,14 @@ export const App = () => {
 										);
 										clearPicked();
 									}}
+									theatre={
+										theatre
+											? {
+													flashIssueId: playback.current?.issue ?? null,
+													flashKey: playback.current?.id ?? null,
+											  }
+											: null
+									}
 									pickedIssueIds={pickedIssueIds}
 									onDragOver={setDragOverSwimlaneId}
 									onDragOverIssue={(swimlaneId, index) =>
@@ -1818,7 +1905,11 @@ export const App = () => {
 						</div>
 					</main>
 
-					{commitDiff && (
+					{/* The side panels close for the film rather than dimming: at
+					    440px they are a third of the picture, and none of what they
+					    show is part of it. Closing is only visual — the ticket stays
+					    selected, and the panel is back when the player leaves. */}
+					{!theatre && commitDiff && (
 						<Aside dock={asideDock} onWidthChange={setCommitDiffPanelWidth}>
 							{({isFullscreen, toggleFullscreen}) => (
 								<DiffPanel
@@ -1841,7 +1932,7 @@ export const App = () => {
 						</Aside>
 					)}
 
-					{!commitDiff && pickedIssues.length > 1 && (
+					{!theatre && !commitDiff && pickedIssues.length > 1 && (
 						<BulkDetails
 							dock={asideDock}
 							issues={pickedIssues}
@@ -1880,7 +1971,8 @@ export const App = () => {
 						/>
 					)}
 
-					{!commitDiff &&
+					{!theatre &&
+						!commitDiff &&
 						pickedIssues.length <= 1 &&
 						selectedIssue &&
 						state?.user && (
@@ -1959,6 +2051,14 @@ export const App = () => {
 							/>
 						)}
 				</div>
+
+				{theatre && (
+					<TheatrePlayer
+						plan={theatre}
+						playback={playback}
+						onExit={exitTheatre}
+					/>
+				)}
 
 				{createIssueModal && (
 					<CreateNodeModal

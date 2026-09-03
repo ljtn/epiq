@@ -1,6 +1,11 @@
 import {useEffect, useRef} from 'react';
 import {GuiComment, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
+import {
+	THEATRE_CARD_IN_ANIMATION,
+	THEATRE_FLASH_FRAMES,
+	THEATRE_FLASH_TIMING,
+} from '../lib/theatre';
 import {isSwimlaneDrag} from '../lib/gui-move-swimlane';
 import {CopyRef} from './CopyRef';
 import {IconComment} from './IconComment';
@@ -18,6 +23,8 @@ export const TicketCard = ({
 	onFilterByTag,
 	onDragOverIssue,
 	onDropIssueAt,
+	theatre,
+	flashKey,
 }: {
 	ticket: GuiIssue;
 	index: number;
@@ -33,6 +40,13 @@ export const TicketCard = ({
 	onFilterByTag: (tagId: string) => void;
 	onDragOverIssue: (targetIndex: number) => void;
 	onDropIssueAt: (issueId: string, targetIndex: number) => void;
+	// The history player is up, so a card arriving on the board is one the movie
+	// just produced and is worth an entrance.
+	theatre: boolean;
+	// The id of the event that just landed on this ticket, or null. Its identity
+	// is what matters, not its content: two events in a row on one ticket have
+	// to flash twice.
+	flashKey: string | null;
 }) => {
 	const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,6 +61,25 @@ export const TicketCard = ({
 			inline: 'nearest',
 		});
 	}, [isSelected]);
+
+	// Run off the element rather than through a CSS animation on the style prop:
+	// the card's entrance already owns that property, and the board re-renders
+	// on every frame of the movie, which would put the entrance back and cut a
+	// running flash short. A web animation overrides the inline styles for its
+	// own duration and reverts, and starts fresh on every call — which is what
+	// makes two events in a row on one ticket flash twice.
+	//
+	// Deliberately not cancelled on the way out: events land closer together
+	// than the flash is long, so cancelling as the spotlight moves to the next
+	// ticket would cut every one of them short. A later flash on this same card
+	// simply wins, and a finished one drops off on its own.
+	useEffect(() => {
+		const card = cardRef.current;
+		if (!card || flashKey === null) return;
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+		card.animate(THEATRE_FLASH_FRAMES, THEATRE_FLASH_TIMING);
+	}, [flashKey]);
 
 	const getVisualTargetIndex = (isAfterMiddle: boolean) =>
 		index + (isAfterMiddle ? 1 : 0);
@@ -115,6 +148,10 @@ export const TicketCard = ({
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
 				}`,
+				// The flash is applied to the node directly (see above), so it must
+				// not be set here too or React would put it back on every render and
+				// cut the running one short.
+				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
 			<div
