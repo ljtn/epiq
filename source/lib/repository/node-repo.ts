@@ -201,6 +201,27 @@ export const nodeRepo = {
 		);
 	},
 
+	// Every issue's comments, in one pass over them.
+	//
+	// The caller that wants them all wanted `getCommentsByIssue` per issue, and
+	// that reads every comment on the board each time: O(issues x comments),
+	// which on a board with a hundred thousand of each is ten billion
+	// comparisons and a page that never finishes loading.
+	getCommentsGroupedByIssue(): Map<string, CommentState[]> {
+		const byIssue = new Map<string, CommentState[]>();
+
+		for (const comment of Object.values(getState().comments ?? {})) {
+			if (comment.deleted) continue;
+
+			const existing = byIssue.get(comment.issue);
+
+			if (existing) existing.push(comment);
+			else byIssue.set(comment.issue, [comment]);
+		}
+
+		return byIssue;
+	},
+
 	createAttachment(attachment: AttachmentState): Result<AttachmentState> {
 		const issue = this.getNode(attachment.issue);
 
@@ -258,6 +279,22 @@ export const nodeRepo = {
 		return Object.values(getState().attachments ?? {}).filter(
 			attachment => attachment.issue === issueId && !attachment.deleted,
 		);
+	},
+
+	// The same one pass, for the same reason.
+	getAttachmentsGroupedByIssue(): Map<string, AttachmentState[]> {
+		const byIssue = new Map<string, AttachmentState[]>();
+
+		for (const attachment of Object.values(getState().attachments ?? {})) {
+			if (attachment.deleted) continue;
+
+			const existing = byIssue.get(attachment.issue);
+
+			if (existing) existing.push(attachment);
+			else byIssue.set(attachment.issue, [attachment]);
+		}
+
+		return byIssue;
 	},
 
 	editValue(targetId: string, md: string): Result<{md: string}> {
