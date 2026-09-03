@@ -22,6 +22,7 @@ import {
 	stripDiffCommentMarker,
 } from '../../../lib/utils/diff-comment.js';
 import {timeAgo} from '../lib/gui-format.helper';
+import {useOpenFilesByDefault} from '../lib/diff-expansion';
 import {ActionRow, Textarea} from './FormPrimitives';
 import {Button} from './Button';
 import {CopyRef} from './CopyRef';
@@ -744,6 +745,7 @@ const CommitRow = ({
 
 	return (
 		<div
+			data-testid="commit-card"
 			style={{
 				border: `1px solid ${GUI_THEME.line}`,
 				borderRadius: 8,
@@ -925,6 +927,7 @@ export const IssueCommits = ({
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
 		Record<string, Set<string>>
 	>({});
+	const [openFilesByDefault, setOpenFilesByDefault] = useOpenFilesByDefault();
 
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
@@ -950,8 +953,10 @@ export const IssueCommits = ({
 	}, [expandAll, commits]);
 
 	// Files are only known once a diff has arrived, so this runs as they land.
+	// Outside the reading layout it applies to whichever commits the reader has
+	// opened, since those are the only ones whose diffs are ever fetched.
 	useEffect(() => {
-		if (!expandAll) return;
+		if (!expandAll && !openFilesByDefault) return;
 
 		for (const commit of commits) {
 			const files = diffsBySha[commit.sha]?.files;
@@ -968,7 +973,7 @@ export const IssueCommits = ({
 				]),
 			}));
 		}
-	}, [expandAll, commits, diffsBySha]);
+	}, [expandAll, openFilesByDefault, commits, diffsBySha]);
 
 	// Opens the commit and file a permalink names. Deliberately additive — it
 	// never collapses anything the reader already had open, so following a
@@ -1048,6 +1053,11 @@ export const IssueCommits = ({
 			...prev,
 			[sha]: expand ? new Set(filePaths) : new Set(),
 		}));
+
+		// Asking for all of them is also how you say how you like to read, so
+		// the next commit opened follows suit. Only this wholesale control sets
+		// it: opening one file of interest says nothing about the rest.
+		setOpenFilesByDefault(expand);
 	};
 
 	if (loading) return <Empty>Loading commits…</Empty>;
