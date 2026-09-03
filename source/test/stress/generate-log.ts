@@ -2,9 +2,15 @@
 // stress run has something real to chew on.
 //
 // The lines are minted the way persist() mints them — `{[action]: payload, v,
-// id: [ulid, refId]}`, ULIDs that climb, a refId chain per actor — because a
-// log of plausible-looking lines that fails to materialize would be worse than
-// no test at all: it would look like it passed.
+// id: [ulid, refId]}`, ULIDs that climb, a refId chain per actor — and every
+// payload is checked against the schema the product parses with. A log of
+// plausible-looking lines that fails to apply would be worse than no test at
+// all: it would look like it passed.
+//
+// What it writes is a board being worked, not a board being filled. Tickets are
+// opened into the first lane, walked along the lanes as they are worked, and
+// closed — so the open board stays the size a real one is, and the decade of
+// history piles up where a decade of history actually goes: the closed board.
 //
 // Not a test file. Nothing runs this but `npm run stress`.
 
@@ -13,27 +19,30 @@ import path from 'node:path';
 import {ulid} from 'ulid';
 import {parseEventPayload} from '../../lib/event/event-payload.schema.js';
 import {EventAction} from '../../lib/event/event.model.js';
+import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
 import {isFail} from '../../lib/model/result-types.js';
 
 export type GenerateInput = {
 	stateRoot: string;
-	boardId: string;
 	laneIds: string[];
 	actors: {userId: string; userName: string}[];
 	events: number;
 	years: number;
-	// Which actions the log is made of, when narrowing it to one is how you
-	// find out which handler is the slow one.
+	// Which actions the log is made of. Narrowing it to one or two is how a slow
+	// handler is found.
 	shape?: readonly string[];
 	// Created by the log itself, so replay has them before anything uses them.
 	tagNames: string[];
+	// How many tickets stay open. A board's open count is a steady state rather
+	// than a fraction of its age: a team closes work to keep the board readable,
+	// so ten years of history leaves about as many open tickets as one year.
+	openTickets?: number;
 };
 
-// Roughly what a person does to a ticket, in the proportions a board actually
-// sees: far more tagging and commenting than creating.
+// Roughly what a person does to a ticket, in the proportions a board sees: far
+// more tagging, commenting and moving than creating.
 const SHAPE = [
 	'add.issue',
-	'add.issue.tag',
 	'add.issue.tag',
 	'add.issue.comment',
 	'add.issue.comment',
@@ -42,15 +51,22 @@ const SHAPE = [
 	'edit.title',
 	'edit.description',
 	'add.issue.assignee',
+	'close.issue',
 ] as const;
+
+type Action = (typeof SHAPE)[number];
 
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
+// Compared lexicographically, which is what the rank ordering does.
 const RANKS = ['aQ', 'aV', 'b0', 'b5', 'cB', 'cH'];
+
+// A ticket on the board, and how far along the lanes it has been worked.
+type OpenTicket = {id: string; lane: number};
 
 export const generateLog = async (
 	input: GenerateInput,
-): Promise<{lines: number}> => {
+): Promise<{lines: number; closed: number; open: number}> => {
 	const eventsDir = path.join(input.stateRoot, '.epiq', 'events');
 	fs.mkdirSync(eventsDir, {recursive: true});
 
@@ -65,25 +81,20 @@ export const generateLog = async (
 		buffer: [] as string[],
 	}));
 
-	const shape = (input.shape ?? SHAPE) as readonly (typeof SHAPE)[number][];
+	const shape = (input.shape ?? SHAPE) as readonly Action[];
+	const openTarget = input.openTickets ?? 250;
 
 	const start = Date.now() - input.years * YEAR_MS;
 	const step = Math.max(1, Math.floor((input.years * YEAR_MS) / input.events));
 
 	// The tail of the causal order, which is what an actor refs when it has
-	// synced. Advanced globally rather than per actor so the forest is mostly a
-	// chain, the way a team that syncs often really looks.
+	// synced. Advanced globally rather than per actor, the way a team that syncs
+	// often really looks.
 	let edge: string | null = null;
 
 	// A minority of events ref an older edge instead: concurrent work, which is
 	// what makes getSortedEvents do more than walk a list.
 	let staleEdge: string | null = null;
-
-	// Issues are referred to long after they are made, so keep a pool rather
-	// than only ever touching the newest.
-	const issues: string[] = [];
-
-	let written = 0;
 
 	// Checked against the schema the product parses with, not against what this
 	// file believes. A payload missing a field materializes anyway — nothing
@@ -106,19 +117,26 @@ export const generateLog = async (
 		}
 	};
 
-	const emit = (
+	let written = 0;
+	let closed = 0;
+
+	const write = (
 		action: string,
 		payload: Record<string, unknown>,
-		at: number,
+		id: string,
+		refId: string | null,
 	) => {
 		const stream = streams[written % streams.length]!;
-		const id = ulid(at);
 
 		validate(action, payload);
-
 		stream.buffer.push(
-			JSON.stringify({[action]: payload, v: 1, id: [id, edge]}),
+			JSON.stringify({[action]: payload, v: 1, id: [id, refId]}),
 		);
+
+		if (stream.buffer.length >= 4096) {
+			stream.out.write(stream.buffer.join('\n') + '\n');
+			stream.buffer.length = 0;
+		}
 
 		staleEdge = edge;
 		edge = id;
@@ -132,74 +150,132 @@ export const generateLog = async (
 	//
 	// Strictly before the first event that uses them, so no reordering of
 	// concurrent branches can put a tagging ahead of its tag.
-	const preambleCount = input.actors.length + input.tagNames.length;
-	let preambleAt = start - preambleCount;
+	let preambleAt = start - (input.actors.length + input.tagNames.length);
 
 	const tagIds = input.tagNames.map((_, index) =>
 		ulid(start - input.tagNames.length + index),
 	);
 
 	for (const actor of input.actors) {
-		emit(
+		write(
 			'create.contributor',
 			{id: actor.userId, name: actor.userName},
-			preambleAt++,
+			ulid(preambleAt++),
+			edge,
 		);
 	}
 
 	input.tagNames.forEach((name, index) => {
-		emit('create.tag', {id: tagIds[index]!, name}, preambleAt++);
+		write('create.tag', {id: tagIds[index]!, name}, ulid(preambleAt++), edge);
 	});
 
-	for (let i = 0; i < input.events; i++) {
-		const stream = streams[i % streams.length]!;
-		const action = shape[i % shape.length]!;
+	// The tickets on the board, oldest first.
+	const open: OpenTicket[] = [];
 
-		// Climbing, and never behind the parent it points at — the same rule
-		// persist() enforces when it seeds from the edge.
-		const id = ulid(start + i * step);
+	for (let i = 0; i < input.events; i++) {
+		const shaped = shape[i % shape.length]!;
+
+		// Closing is what holds the open board at its size. Below the target a
+		// team has nothing it would be closing, so the event becomes work on a
+		// ticket instead — which also stops the pool emptying and later events
+		// naming tickets that are not there.
+		// A comment rather than another tagging: the same ticket tagged with the
+		// same tag twice is a skip on replay, and standing in with one would
+		// manufacture thousands of them.
+		const action: Action =
+			shaped === 'close.issue' && open.length <= openTarget
+				? 'add.issue.comment'
+				: shaped;
 
 		// Some events ref an older edge: concurrent work, which is what makes
 		// getSortedEvents do more than walk a list. Never the first, though —
 		// branching off the preamble makes this event a sibling of the last
 		// create.tag, and siblings sort by ULID, so its whole subtree would be
-		// walked before the tags it goes on to use exist.
+		// walked before the tags it uses exist.
 		const refId = i > 0 && i % 17 === 0 && staleEdge ? staleEdge : edge;
 
-		const issueId =
-			action === 'add.issue'
-				? ulid(start + i * step)
-				: issues[i % Math.max(1, issues.length)] ?? ulid(start + i * step);
+		const id = ulid(start + i * step);
+		const actorId = streams[written % streams.length]!.actor.userId;
 
-		if (action === 'add.issue') issues.push(issueId);
+		if (action === 'add.issue') {
+			const ticket: OpenTicket = {id, lane: 0};
+			open.push(ticket);
 
-		const payload = buildPayload(action, {
-			id: issueId,
-			laneId: input.laneIds[i % input.laneIds.length]!,
-			tagId: tagIds[i % tagIds.length]!,
-			actorId: stream.actor.userId,
-			n: i,
-		});
+			write(
+				action,
+				{
+					id: ticket.id,
+					name: `Ticket ${i}: something a person actually wrote down`,
+					// Filed into the first lane, rather than dropped wherever.
+					parent: input.laneIds[0]!,
+					rank: RANKS[i % RANKS.length]!,
+				},
+				id,
+				refId,
+			);
 
-		validate(action, payload);
-
-		stream.buffer.push(
-			JSON.stringify({[action]: payload, v: 1, id: [id, refId]}),
-		);
-
-		if (stream.buffer.length >= 4096) {
-			stream.out.write(stream.buffer.join('\n') + '\n');
-			stream.buffer.length = 0;
+			continue;
 		}
 
-		staleEdge = edge;
-		edge = id;
-		written++;
+		if (open.length === 0) continue;
+
+		// Closing takes the oldest: a backlog drains from the far end.
+		const ticket = action === 'close.issue' ? open[0]! : open[i % open.length]!;
+
+		if (action === 'close.issue') {
+			open.shift();
+			closed++;
+
+			write(
+				action,
+				{
+					id: ticket.id,
+					// The handler refuses any parent but this one.
+					parent: CLOSED_SWIMLANE_ID,
+					rank: RANKS[i % RANKS.length]!,
+				},
+				id,
+				refId,
+			);
+
+			continue;
+		}
+
+		if (action === 'move.node') {
+			// Along the lanes, not between random ones: a ticket is worked from
+			// one column to the next, and now and then sent back one, which is
+			// what a review that failed looks like.
+			const back = i % 9 === 0 && ticket.lane > 0;
+
+			ticket.lane = back
+				? ticket.lane - 1
+				: Math.min(ticket.lane + 1, input.laneIds.length - 1);
+
+			write(
+				action,
+				{
+					id: ticket.id,
+					parent: input.laneIds[ticket.lane]!,
+					rank: RANKS[i % RANKS.length]!,
+				},
+				id,
+				refId,
+			);
+
+			continue;
+		}
+
+		write(
+			action,
+			workPayload(action, ticket.id, i, actorId, tagIds),
+			id,
+			refId,
+		);
 	}
 
-	// Awaited, not merely ended: `end()` returns before the bytes reach the
-	// disk, and reading the log a moment later then finds a file that is empty
-	// or half written — which measures an empty board and calls it a pass.
+	// Awaited, not merely ended: `end()` returns before the bytes reach the disk,
+	// and reading the log a moment later then finds a file that is empty or half
+	// written — which measures an empty board and calls it a pass.
 	await Promise.all(
 		streams.map(
 			stream =>
@@ -216,49 +292,42 @@ export const generateLog = async (
 		),
 	);
 
-	return {lines: written};
+	return {lines: written, closed, open: open.length};
 };
 
-const buildPayload = (
-	action: (typeof SHAPE)[number],
-	at: {id: string; laneId: string; tagId: string; actorId: string; n: number},
+// Everything that happens to a ticket without moving or closing it.
+const workPayload = (
+	action: Action,
+	issueId: string,
+	n: number,
+	actorId: string,
+	tagIds: string[],
 ): Record<string, unknown> => {
 	switch (action) {
-		case 'add.issue':
-			return {
-				id: at.id,
-				name: `Ticket ${at.n}: something a person actually wrote down`,
-				parent: at.laneId,
-				rank: RANKS[at.n % RANKS.length],
-			};
 		case 'add.issue.tag':
-			return {id: at.id, tag: at.tagId};
+			return {id: issueId, tag: tagIds[n % tagIds.length]!};
 		case 'add.issue.comment':
 			return {
 				id: ulid(),
-				issue: at.id,
+				issue: issueId,
 				// Required. Without it the event still materializes — nothing
-				// validates a payload on load — and then takes the GUI down on the
-				// first read, with a stack trace pointing at colour generation.
-				author: at.actorId,
+				// validates a payload on load — and takes the GUI down on the first
+				// read, inside colour generation, a long way from the mistake.
+				author: actorId,
 				md: `Had a look at this — the part to watch is the ${
-					at.n % 7 === 0 ? 'window derivation' : 'ordering'
+					n % 7 === 0 ? 'window derivation' : 'ordering'
 				}.`,
 			};
-		case 'move.node':
-			return {
-				id: at.id,
-				parent: at.laneId,
-				rank: RANKS[at.n % RANKS.length],
-			};
 		case 'edit.title':
-			return {id: at.id, name: `Ticket ${at.n}, renamed`};
+			return {id: issueId, name: `Ticket ${n}, renamed`};
 		case 'edit.description':
 			return {
-				id: at.id,
-				md: `Longer body for ticket ${at.n}.\n\nSecond paragraph.`,
+				id: issueId,
+				md: `Longer body for ticket ${n}.\n\nSecond paragraph.`,
 			};
 		case 'add.issue.assignee':
-			return {id: at.id, assignee: at.actorId};
+			return {id: issueId, assignee: actorId};
+		default:
+			throw new Error(`no payload for ${action}`);
 	}
 };
