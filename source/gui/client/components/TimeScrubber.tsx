@@ -793,7 +793,10 @@ export const TimeScrubber = ({
 		? 'Not while the connection is down'
 		: canPlayTimeline(timeline)
 		? "Play this window of the board's history"
-		: timeline && timeline.buckets.length > 0
+		: // Capped, not empty: the server sends counts alone past its cap, so a
+		// window with no events but plenty of buckets holds too much to play,
+		// not too little. One event fails `canPlayTimeline` too, and has both.
+		timeline && timeline.events.length === 0 && timeline.buckets.length > 0
 		? 'Too many events in this window to play it — narrow the window'
 		: 'Not enough history in this window to play';
 
