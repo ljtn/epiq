@@ -41,6 +41,7 @@ export const SwimlaneColumn = ({
 	onDragOver,
 	onDragOverIssue,
 	onDragLeave,
+	theatre,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
@@ -56,6 +57,10 @@ export const SwimlaneColumn = ({
 	onCreateIssue: (swimlaneId: string) => void;
 	onRenameSwimlane: (swimlaneId: string) => void;
 	onDeleteSwimlane: (swimlaneId: string) => void;
+	// Null unless the history player is up. `flashIssueId` is the ticket the
+	// event that just landed happened to, and `flashKey` that event's id, which
+	// is what restarts the flash when two of them in a row touch one ticket.
+	theatre: {flashIssueId: string | null; flashKey: string | null} | null;
 	// Which edge of this column the dragged swimlane would land on, if any.
 	dropSide: 'left' | 'right' | null;
 	onSwimlaneDragOver: (swimlaneId: string, side: 'left' | 'right') => void;
@@ -285,6 +290,12 @@ export const SwimlaneColumn = ({
 										onDropIssue(issueId, swimlane.id, targetIndex);
 										onDragLeave();
 									}}
+									theatre={theatre !== null}
+									flashKey={
+										theatre && theatre.flashIssueId === ticket.id
+											? theatre.flashKey
+											: null
+									}
 								/>
 							</React.Fragment>
 						))}

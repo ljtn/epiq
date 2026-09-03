@@ -47,6 +47,7 @@ import {
 	usePrefersReducedMotion,
 	windowNamesIssues,
 } from '../lib/scrubber';
+import {canPlayTimeline} from '../lib/theatre';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 import {ScatterLayer, ScatterPoint} from './ScrubberParts';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -83,6 +84,8 @@ export const TimeScrubber = ({
 	selectedIssue,
 	knownIdentities,
 	refreshOn,
+	onPlayTheatre,
+	theatreOpen,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -127,6 +130,11 @@ export const TimeScrubber = ({
 	// shows, a ticket filed since the last fetch is missing from it, and would
 	// be hidden from the board it has just joined.
 	refreshOn: unknown;
+	// Opens the history player over this window.
+	onPlayTheatre: () => void;
+	// The player is up. It owns the board's position for as long as it is, so
+	// the whole bar stands down rather than competing for the same thing.
+	theatreOpen: boolean;
 }) => {
 	const {
 		scope,
@@ -559,6 +567,11 @@ export const TimeScrubber = ({
 		// with the rest of the controls when there is nothing to ask.
 		if (!connected) return;
 
+		// The player is driving the board's position. Pointer events cannot reach
+		// the chart while it is up, but a drag begun before it opened still ends
+		// somewhere.
+		if (theatreOpen) return;
+
 		const target = axis.fractionToTime(fraction);
 
 		// A click dispatches on both press and release; answering the second
@@ -762,6 +775,9 @@ export const TimeScrubber = ({
 		<ScrubberLayout
 			collapsed={collapsed}
 			onToggleCollapsed={() => setCollapsed(!collapsed)}
+			canPlay={connected && !theatreOpen && canPlayTimeline(timeline)}
+			onPlay={onPlayTheatre}
+			standDown={theatreOpen}
 			controls={{
 				connected,
 				scope,
