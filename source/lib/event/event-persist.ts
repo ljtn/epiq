@@ -9,7 +9,7 @@ import {getSettingsState, User} from '../state/settings.state.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
 import {sanitizeFilePart} from '../utils/file-part.js';
 import {MAX_ULID_AHEAD_MS} from './date-utils.js';
-import {getEdgeRef} from './event-load.js';
+import {advanceEdgeRef, getEdgeRef} from './event-load.js';
 import {
 	AppEvent,
 	AppEventMap,
@@ -255,6 +255,12 @@ export function persist({
 		// Advanced only after the line is on disk, so a failed persist leaves
 		// the cursor pointing at an event that exists.
 		if (edge) edge.current = newId;
+
+		// And the same for the next lone write, which would otherwise read the
+		// whole log again to learn what this one just decided. Dropped rather
+		// than advanced if another actor's file moved meanwhile — the tail is
+		// then theirs to decide.
+		advanceEdgeRef(rootDir, path.basename(filePath.value), newId);
 
 		return succeeded<PersistSuccess>('Event persisted', {
 			path: filePath.value,
