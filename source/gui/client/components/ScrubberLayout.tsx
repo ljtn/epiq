@@ -145,7 +145,7 @@ export const ScrubberLayout = ({
 	canPlay: boolean;
 	playTitle: string;
 	onPlay: () => void;
-	// The event log panel, switched here and from the player's own pop-out.
+	// The event log panel, switched from the box in this row.
 	logOpen: boolean;
 	onChangeLogOpen: (next: boolean) => void;
 	// The history player is up and owns the board's position. Nothing on the bar

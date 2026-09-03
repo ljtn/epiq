@@ -204,9 +204,8 @@ export const App = () => {
 	// Bumped per answered time-travel request. The player's clock waits on it
 	// rather than stacking a checkout on one the server has not answered yet.
 	const [scrubAck, setScrubAck] = useState(0);
-	// The log panel is open. Owned here rather than in the scrubber or the
-	// player: it is a panel in the board's own row, the board moves over for it,
-	// and its checkbox and the player's pop-out are two controls over one flag.
+	// The log panel is open. Owned here rather than in the scrubber: it is a
+	// panel in the board's own row, and the board moves over for it.
 	const [logOpen, setLogOpen] = usePersistedFlag(LOG_STORAGE_KEY, false);
 	const [showIssues, setShowIssues] = usePersistedFlag(
 		SHOW_ISSUES_STORAGE_KEY,
@@ -1965,8 +1964,6 @@ export const App = () => {
 					<TheatrePlayer
 						plan={theatre}
 						playback={playback}
-						logOpen={logOpen}
-						onToggleLog={() => setLogOpen(!logOpen)}
 						onExit={exitTheatre}
 					/>
 				)}

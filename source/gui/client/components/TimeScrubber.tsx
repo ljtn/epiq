@@ -139,8 +139,8 @@ export const TimeScrubber = ({
 	refreshOn: unknown;
 	// Opens the history player over this window.
 	onPlayTheatre: () => void;
-	// The event log panel, which the player's own pop-out also switches. Owned
-	// above because the panel is in the board's row, not in this bar.
+	// The event log panel. Owned above because the panel is in the board's row,
+	// not in this bar.
 	logOpen: boolean;
 	onChangeLogOpen: (next: boolean) => void;
 	// The two series. Owned above because the log is drawn from them too, and it
