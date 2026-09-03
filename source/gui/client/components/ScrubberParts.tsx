@@ -50,7 +50,6 @@ import {IconScatter} from './IconScatter';
 // Named once: the collapsed header puts the same box up when the rest of this
 // row is not on screen.
 export const SCOPE_ONLY_LABEL = 'Scope only';
-export const LOG_LABEL = 'Log';
 export const TICKET_ONLY_LABEL = 'Ticket only';
 
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
@@ -879,6 +878,22 @@ export const ScrubberControls = ({
 	);
 };
 
+// The two panel toggles and the transport all sit in one family: a panel, a
+// hairline and a glyph. Nothing here is the brightest thing on the bar.
+//
+// Cornered the way the player's own transport is rather than the way a card is:
+// a 6px radius on a box this small reads as a pill, and these are chrome.
+const headerButtonStyle: React.CSSProperties = {
+	background: GUI_THEME.panel2,
+	border: `1px solid ${GUI_THEME.line}`,
+	borderRadius: 3,
+	color: GUI_THEME.secondary,
+	padding: '3px 7px',
+	cursor: 'pointer',
+	display: 'inline-flex',
+	alignItems: 'center',
+};
+
 export const ScrubberHeader = ({
 	collapsed,
 	onToggleCollapsed,
@@ -914,16 +929,7 @@ export const ScrubberHeader = ({
 			title={collapsed ? 'Show time travel' : 'Hide time travel'}
 			aria-label={collapsed ? 'Show time travel' : 'Hide time travel'}
 			aria-expanded={!collapsed}
-			style={{
-				background: GUI_THEME.panel2,
-				border: `1px solid ${GUI_THEME.line}`,
-				borderRadius: 6,
-				color: GUI_THEME.secondary,
-				padding: '3px 7px',
-				cursor: 'pointer',
-				display: 'inline-flex',
-				alignItems: 'center',
-			}}
+			style={headerButtonStyle}
 		>
 			{collapsed ? (
 				<IconChevronRight size={14} />
@@ -932,50 +938,44 @@ export const ScrubberHeader = ({
 			)}
 		</button>
 
-		{/* On the header rather than in the controls row, so it is still there
-		    with the scrubber shut — the movie is watched on the board, and the
-		    charts are not part of it. */}
+		{/* The same control as the one beside it, because it does the same kind of
+		    thing: both open a panel. A labelled checkbox among icon buttons was a
+		    third idiom for one act.
+
+		    On the header rather than in the controls row, so it is still there
+		    with the scrubber shut — and it asks the socket for nothing, the window
+		    it lists being already on screen, so it stays usable offline. */}
+		<button
+			data-testid="log-toggle"
+			onClick={() => onChangeLogOpen(!logOpen)}
+			title={logOpen ? 'Hide the event log' : 'Show the event log'}
+			aria-label={logOpen ? 'Hide the event log' : 'Show the event log'}
+			aria-expanded={logOpen}
+			style={headerButtonStyle}
+		>
+			{logOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+		</button>
+
+		{/* Set apart from the two panel toggles by a gap rather than by colour: it
+		    is the one control here that starts something rather than opening
+		    something, and a lit accent made it the loudest thing on a bar of quiet
+		    chrome. */}
 		<button
 			data-testid="theatre-play"
 			onClick={onPlay}
 			disabled={!canPlay}
 			title={playTitle}
 			aria-label="Play the board's history"
-			// Square and outlined rather than a filled key next to the chevron's
-			// panel: it is the same affordance the player's own transport is, and
-			// the two have to read as one thing in two places.
 			style={{
-				background: 'transparent',
-				border: `1px solid ${canPlay ? GUI_THEME.accent : GUI_THEME.line}`,
-				borderRadius: 3,
-				color: canPlay ? GUI_THEME.accent : GUI_THEME.dim,
-				width: 24,
-				height: 24,
-				padding: 0,
+				...headerButtonStyle,
+				marginLeft: 10,
+				color: canPlay ? GUI_THEME.secondary : GUI_THEME.dim,
 				cursor: canPlay ? 'pointer' : 'default',
 				opacity: canPlay ? 1 : 0.4,
-				display: 'inline-flex',
-				alignItems: 'center',
-				justifyContent: 'center',
 			}}
 		>
 			<IconPlay size={13} />
 		</button>
-
-		{/* Beside the play button rather than among the checkboxes at the far end
-		    of the bar: those all narrow what is drawn, and this puts a panel on
-		    the board — the same kind of thing as starting a movie. Here it is also
-		    still on screen with the scrubber collapsed, which the controls row is
-		    not.
-
-		    It asks the socket for nothing, the window it lists being already on
-		    screen, so it stays usable offline. */}
-		<Checkbox
-			label={LOG_LABEL}
-			title="Show the event log down the left of the board"
-			checked={logOpen}
-			onChange={onChangeLogOpen}
-		/>
 	</div>
 );
 

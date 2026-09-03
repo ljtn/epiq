@@ -245,7 +245,7 @@ test('the log stays on the board after the player leaves', async ({
 	await openBoard(page, appUrl);
 
 	const log = page.getByTestId('event-log');
-	const box = page.getByRole('checkbox', {name: 'Log', exact: true});
+	const box = page.getByTestId('log-toggle');
 
 	await expect(log).toHaveCount(0);
 	await box.click();
@@ -283,7 +283,7 @@ test('the log picks up what happens on the board while it is open', async ({
 }) => {
 	await openBoard(page, appUrl);
 
-	const box = page.getByRole('checkbox', {name: 'Log', exact: true});
+	const box = page.getByTestId('log-toggle');
 	await box.click();
 	await expect(page.getByTestId('event-log')).toBeVisible();
 
@@ -318,7 +318,7 @@ test('a day folds to its divider and opens again', async ({
 }) => {
 	await openBoard(page, appUrl);
 
-	const box = page.getByRole('checkbox', {name: 'Log', exact: true});
+	const box = page.getByTestId('log-toggle');
 	await box.click();
 
 	const lines = page.getByTestId('log-line');
