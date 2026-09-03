@@ -322,3 +322,88 @@ test('a line that leads somewhere says so under the pointer', async ({
 	await page.getByTestId('log-toggle').click();
 	expect(pageErrors).toEqual([]);
 });
+
+// Reading back through the log is reading the moment the board stands at.
+// Moving the timeline changes that moment, so the pane goes to the foot — a
+// scrub that shortened the log by hundreds of lines used to leave it scrolled
+// to where they had been, showing nothing.
+test('moving the timeline takes the log to its foot, wherever it was', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	// Short, so a dozen lines is more than the pane can show.
+	await page.setViewportSize({width: 1280, height: 420});
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	// Filed from the board behind the panel each one opens, so there is no
+	// round trip per ticket; one line in the log apiece.
+	const stamp = Date.now();
+	for (let index = 0; index < 10; index++) {
+		await page.getByTitle('Add issue').first().click();
+		await page.getByPlaceholder('issue name').fill(`Foot ${stamp}-${index}`);
+		await page.getByPlaceholder('issue name').press('Enter');
+		await expect(page.locator('aside')).toContainText(`Foot ${stamp}-${index}`);
+	}
+	await page.goto(boardUrl);
+
+	await page.getByTestId('log-toggle').click();
+	const pane = page.getByTestId('event-log-scroll');
+	await expect(pane).toBeVisible();
+	await expect
+		.poll(async () => await page.getByTestId('log-line').count())
+		.toBeGreaterThan(10);
+
+	const scrolled = () =>
+		page.evaluate(`
+(() => {
+	const pane = document.querySelector('[data-testid="event-log-scroll"]');
+	return {
+		overflow: pane.scrollHeight - pane.clientHeight,
+		fromFoot: pane.scrollHeight - pane.scrollTop - pane.clientHeight,
+		top: pane.scrollTop,
+	};
+})()
+`) as Promise<{overflow: number; fromFoot: number; top: number}>;
+
+	// The premise: there is somewhere to scroll to. A pane that does not
+	// overflow is at its foot whatever happens, and would prove nothing.
+	await expect.poll(async () => (await scrolled()).overflow).toBeGreaterThan(0);
+
+	// Read back to the top, which is the position a scrub used to keep.
+	await page.evaluate(
+		`document.querySelector('[data-testid="event-log-scroll"]').scrollTop = 0`,
+	);
+	await expect.poll(async () => (await scrolled()).top).toBe(0);
+
+	// Into the past, but only just: the board stands at an earlier moment while
+	// the log stays longer than the pane. A scrub that shortened it to fit would
+	// leave the pane at its foot with nothing to prove — so that is asserted.
+	const track = page.getByTestId('scrubber-track');
+	const box = await track.boundingBox();
+	if (!box) throw new Error('scrubber track is not on screen');
+	await page.mouse.click(box.x + box.width * 0.97, box.y + box.height / 2);
+	await expect(
+		page.getByRole('button', {name: 'Resume', exact: true}),
+	).toBeVisible();
+
+	await expect.poll(async () => (await scrolled()).overflow).toBeGreaterThan(0);
+	await expect
+		.poll(async () => (await scrolled()).fromFoot)
+		.toBeLessThanOrEqual(1);
+
+	// And back to the present is a move of the timeline too.
+	await page.evaluate(
+		`document.querySelector('[data-testid="event-log-scroll"]').scrollTop = 0`,
+	);
+	await expect.poll(async () => (await scrolled()).top).toBe(0);
+	await page.getByRole('button', {name: 'Resume', exact: true}).click();
+	await expect
+		.poll(async () => (await scrolled()).fromFoot)
+		.toBeLessThanOrEqual(1);
+
+	await page.getByTestId('log-toggle').click();
+	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});

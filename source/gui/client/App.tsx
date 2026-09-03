@@ -1039,7 +1039,7 @@ export const App = () => {
 		return () => window.clearTimeout(timer);
 	}, [state, theatre, selection.windowOnly, logOpen]);
 
-	const logEntries = useEventLog({
+	const {entries: logEntries, moment: logMoment} = useEventLog({
 		open: logOpen,
 		timeline: history.timeline,
 		commits: history.commits,
@@ -1633,6 +1633,7 @@ export const App = () => {
 						{logOpen && (
 							<EventLog
 								entries={logEntries}
+								moment={logMoment}
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 								onOpen={openLogDestination}
 							/>
