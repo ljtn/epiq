@@ -19,7 +19,7 @@ import {
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent, MovePosition} from '../lib/event/event.model.js';
-import {filterEventsForBoard} from './epiq-time-travel.js';
+import {filterEventsForBoard} from './timeline-index.js';
 import {resolveReopenParentFromLog} from '../lib/event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 import {

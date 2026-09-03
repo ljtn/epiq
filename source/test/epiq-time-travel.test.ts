@@ -8,6 +8,10 @@ vi.mock('../git/git-storage.js', () => ({
 
 vi.mock('../lib/storage/paths.js', () => ({
 	resolveClosestEpiqProjectRoot: vi.fn(),
+	// The timeline index stats the log files to notice when they move. These
+	// tests hand it events through the mocked loader instead, so it must find no
+	// directory — and clearTimelineCache below is what stands in for a signature.
+	getEventsDirPath: vi.fn(() => '/epiq-timeline-index-no-such-dir'),
 }));
 
 vi.mock('../lib/event/event-load.js', () => ({
@@ -73,6 +77,7 @@ import {
 	openEditorOnFileNonBlocking,
 } from '../lib/editor/editor.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
+import {clearTimelineCache} from '../mcp/timeline-index.js';
 import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
@@ -112,6 +117,7 @@ describe('epiq-time-travel', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		resetCommitTimelineCacheForTests();
+		clearTimelineCache();
 
 		// An ambient global in the real app, so it cannot be vi.mock'd.
 		(globalThis as {logger?: unknown}).logger = {

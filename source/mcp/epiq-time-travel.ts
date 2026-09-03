@@ -11,10 +11,6 @@ import {
 	openEditorDiffNonBlocking,
 	openEditorOnFileNonBlocking,
 } from '../lib/editor/editor.js';
-import {getEventTime, toEffectiveUlidTimes} from '../lib/event/date-utils.js';
-import {AppEvent, EventAction} from '../lib/event/event.model.js';
-import {formatLogAction} from '../lib/event/format-log-utils.js';
-import {getStringColor} from '../lib/utils/color.js';
 import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
@@ -25,7 +21,6 @@ import {
 	materializeAll,
 	partitionMaterializeResults,
 } from '../lib/event/event-materialize.js';
-import {minOf} from '../lib/utils/minmax.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
@@ -36,6 +31,7 @@ import {
 	patchState,
 	resetState,
 } from '../lib/state/state.js';
+import {EventTimelineEntry, getTimelineEntries} from './timeline-index.js';
 import {ApiTimeTravelStatus} from './api-state.model.js';
 
 type ToolInput = {repoRoot?: string};
@@ -90,243 +86,6 @@ export const getTimeTravelStatus = (): ApiTimeTravelStatus => {
 
 export type EventTimelineBucket = {t: number; count: number};
 
-// Colour resolved here rather than on the client: getStringColor pulls in
-// chalk, which the GUI bundle cannot take.
-export type EventIdentity = {id: string; name: string; color: string};
-
-export type EventTimelineEntry = {
-	// The event's own id, so a client can match a dot to a ticket's log line.
-	id: string;
-	t: number;
-	action: EventAction;
-	// Phrased like a TUI log line — "Tagged with bug", "Commented".
-	label: string;
-	// Who performed the event. On a comment that is its author.
-	actor: EventIdentity | null;
-	// The tag or contributor the event is *about*, where it has one — the thing
-	// the scatter colours a tagging or assigning dot by.
-	tag: EventIdentity | null;
-	assignee: EventIdentity | null;
-	// The ticket the event happened to, where it happened to one. Null for
-	// board- and swimlane-level events, which belong to no ticket.
-	issue: string | null;
-};
-
-// Tag, contributor and swimlane names come from the log's own create events
-// rather than from the materialized state, which getEventTimeline must not
-// touch. Same technique as filterEventsForBoard: build the index as the scan
-// proceeds.
-//
-// A name renamed later reads under the one it was created with, which is what
-// the log itself says happened at the moment being described.
-const NAMING_ACTIONS = new Set<EventAction>([
-	'create.tag',
-	'create.contributor',
-	// Carries the lane's name, and is what lets a move say which lane it went
-	// to.
-	'add.swimlane',
-]);
-
-const buildNameIndex = (events: AppEvent[]): Map<string, string> => {
-	const names = new Map<string, string>();
-
-	for (const event of events) {
-		if (!NAMING_ACTIONS.has(event.action)) continue;
-
-		const payload = event.payload as {id?: string; name?: string} | undefined;
-
-		if (payload?.id && payload.name) names.set(payload.id, payload.name);
-	}
-
-	return names;
-};
-
-// Where each node sat before the move an event describes, keyed by that event's
-// id — which is what separates "moved to another lane" from "reordered inside
-// the one it was in".
-//
-// Over the whole log and in causal order, the order loadMergedEvents already
-// returns: a move inside the window is only tellable apart from a reorder by
-// what came before it, which is routinely outside the window.
-const buildPreviousParentIndex = (
-	events: AppEvent[],
-): Map<string, string | undefined> => {
-	const previousParent = new Map<string, string | undefined>();
-	const parentByNode = new Map<string, string>();
-
-	for (const event of events) {
-		const payload = event.payload as {id?: string; parent?: string} | undefined;
-
-		if (!payload?.id || !payload.parent) continue;
-
-		if (event.action === 'move.node') {
-			previousParent.set(event.id, parentByNode.get(payload.id));
-		}
-
-		// Creations seed it and moves update it, so the next move reads where
-		// this one left the node.
-		parentByNode.set(payload.id, payload.parent);
-	}
-
-	return previousParent;
-};
-
-// Which tag an event is about. Tagging a ticket names it as `tag`; deleting or
-// restoring the tag itself names it as the event's own `id`.
-const tagOf = (event: AppEvent): string | undefined => {
-	// Optional like filterEventsForBoard's: a malformed log entry must not take
-	// the whole timeline down with it.
-	const payload = event.payload as {id?: string; tag?: string} | undefined;
-
-	return event.action === 'tombstone.tag' || event.action === 'restore.tag'
-		? payload?.id
-		: payload?.tag;
-};
-
-// Which ids are tickets, and what hangs off what: a payload's `id` names a node
-// of some kind, and nothing else in it says which kind. Built as the scan
-// proceeds, like filterEventsForBoard's.
-type IssueIndex = {
-	issueIds: Set<string>;
-	parentById: Map<string, string>;
-};
-
-const buildIssueIndex = (events: AppEvent[]): IssueIndex => {
-	const issueIds = new Set<string>();
-	const parentById = new Map<string, string>();
-
-	for (const event of events) {
-		const payload = event.payload as {id?: string; parent?: string} | undefined;
-		const id = payload?.id;
-		if (!id) continue;
-
-		if (event.action === 'add.issue') issueIds.add(id);
-		if (payload.parent) parentById.set(id, payload.parent);
-	}
-
-	return {issueIds, parentById};
-};
-
-// Which ticket an event is about. Comments and attachments name it as `issue`,
-// their own `id` being the comment's; anything else that happened under a
-// ticket — the ticket itself, or a field node hanging off it — is found by
-// walking up from the id the event carries.
-const issueOf = (
-	event: AppEvent,
-	{issueIds, parentById}: IssueIndex,
-): string | null => {
-	const payload = event.payload as {id?: string; issue?: string} | undefined;
-
-	if (payload?.issue) return payload.issue;
-
-	const seen = new Set<string>();
-	let current = payload?.id;
-
-	while (current !== undefined && !seen.has(current)) {
-		if (issueIds.has(current)) return current;
-
-		seen.add(current);
-		current = parentById.get(current);
-	}
-
-	return null;
-};
-
-// The TUI's phrasing minus the details that need state. A renamed tag reads
-// under its original name, which is what the log itself says happened.
-// How much of a comment the timeline carries. A window can hold twenty
-// thousand events and every one of them is shipped to the browser, so the whole
-// body is not on offer — enough to recognise which comment it was.
-const COMMENT_PREVIEW_CHARS = 90;
-
-// The first line of a comment, flattened. A body is markdown and often several
-// paragraphs; a log line is one line.
-const commentPreview = (md: string): string => {
-	const firstLine = md.trim().split('\n')[0]?.trim() ?? '';
-
-	return firstLine.length > COMMENT_PREVIEW_CHARS
-		? `${firstLine.slice(0, COMMENT_PREVIEW_CHARS).trimEnd()}…`
-		: firstLine;
-};
-
-const describeTimelineEvent = (
-	event: AppEvent,
-	names: Map<string, string>,
-	previousParents: Map<string, string | undefined>,
-): string => {
-	const payload = event.payload as
-		| {name?: string; assignee?: string; md?: string; parent?: string}
-		| undefined;
-	const tag = tagOf(event);
-
-	const action = event.action ? formatLogAction(event.action) : '';
-
-	// A comment says what it said, after a colon — "Commented" alone is the one
-	// action whose own name tells the reader nothing about it.
-	if (payload?.md !== undefined) {
-		const preview = commentPreview(payload.md);
-
-		return preview ? `${action}: ${preview}` : action;
-	}
-
-	// A move says which lane, and whether it changed lanes at all — "Moved
-	// issue" answers neither, and reordering within a lane is the commoner of
-	// the two. Falls back to the bare action where the lane has no create event
-	// in the log to take a name from.
-	if (event.action === 'move.node' && payload?.parent) {
-		const lane = names.get(payload.parent);
-
-		if (!lane) return action;
-
-		return previousParents.get(event.id) === payload.parent
-			? `Moved within ${lane}`
-			: `Moved to ${lane}`;
-	}
-
-	const detail =
-		tag !== undefined
-			? names.get(tag) ?? ''
-			: payload?.assignee !== undefined
-			? names.get(payload.assignee) ?? ''
-			: payload?.name !== undefined
-			? `"${payload.name}"`
-			: '';
-
-	return [action, detail].filter(Boolean).join(' ');
-};
-
-// A referenced id with no create event in the log still gets an entry, under
-// the id itself: dropping it would silently thin the filter's list.
-const identityFor = (
-	id: string | undefined,
-	names: Map<string, string>,
-): EventIdentity | null => {
-	if (!id) return null;
-
-	const name = names.get(id) ?? id;
-
-	return {id, name, color: getStringColor(name)};
-};
-
-const identitiesFor = (
-	event: AppEvent,
-	names: Map<string, string>,
-): Pick<EventTimelineEntry, 'actor' | 'tag' | 'assignee'> => {
-	const payload = event.payload as {assignee?: string} | undefined;
-
-	return {
-		actor: event.userId
-			? {
-					id: event.userId,
-					name: event.userName ?? event.userId,
-					color: getStringColor(event.userName ?? event.userId),
-			  }
-			: null,
-		tag: identityFor(tagOf(event), names),
-		assignee: identityFor(payload?.assignee, names),
-	};
-};
-
 export type EventTimeline = {
 	bucketMs: number;
 	buckets: EventTimelineBucket[];
@@ -339,59 +98,20 @@ export type EventTimeline = {
 	latest: number;
 };
 
-// The id -> parent map is built as the scan proceeds, so each event is
-// attributed using the hierarchy as it stood then. No-board events are dropped.
-export const filterEventsForBoard = (
-	events: AppEvent[],
-	boardId: string,
-): AppEvent[] => {
-	const parentById = new Map<string, string>();
-	const boardIds = new Set<string>();
+// The first entry at or after `t`, or the length where none is. The entries
+// are in time order, so a window is two of these and the slice between them.
+const firstAtOrAfter = (entries: readonly {t: number}[], t: number): number => {
+	let low = 0;
+	let high = entries.length;
 
-	const resolveBoard = (id: string): string | null => {
-		const seen = new Set<string>();
-		let current: string | undefined = id;
+	while (low < high) {
+		const mid = (low + high) >> 1;
 
-		while (current && !seen.has(current)) {
-			if (boardIds.has(current)) return current;
-			seen.add(current);
-			current = parentById.get(current);
-		}
-
-		return null;
-	};
-
-	const matching: AppEvent[] = [];
-
-	for (const event of events) {
-		const payload = event.payload as {
-			id?: string;
-			parent?: string;
-			issue?: string;
-		};
-		const id = payload?.id;
-		if (!id) continue;
-
-		// Before matching, so a board's own add event is attributed to it.
-		if (event.action === 'add.board') {
-			boardIds.add(id);
-		}
-
-		// Comments and attachments hang off `issue`: their `id` is the comment's
-		// or attachment's own, so without this they resolve to no board at all
-		// and drop out of every board-scoped view.
-		const parent = payload.parent ?? payload.issue;
-
-		if (parent) {
-			parentById.set(id, parent);
-		}
-
-		if (id === boardId || resolveBoard(id) === boardId) {
-			matching.push(event);
-		}
+		if (entries[mid]!.t < t) low = mid + 1;
+		else high = mid;
 	}
 
-	return matching;
+	return low;
 };
 
 // Pure read: never touches the materialized state singleton, so it is safe
@@ -403,65 +123,17 @@ export const getEventTimeline = async (
 	if (isFail(stateBranchRootResult))
 		return failed(stateBranchRootResult.message);
 
-	const eventsResult = loadMergedEvents(stateBranchRootResult.value);
-	if (isFail(eventsResult)) return failed(eventsResult.message);
+	// Derived once per state of the log and reused, which is what keeps a scrub
+	// off the whole history: every step below is over the window alone.
+	const entriesResult = getTimelineEntries(stateBranchRootResult.value);
+	if (isFail(entriesResult)) return failed(entriesResult.message);
 
-	const scopedEvents = input.boardId
-		? filterEventsForBoard(eventsResult.value, input.boardId)
-		: eventsResult.value;
-
-	// Indexed over the unscoped log, and over all of it rather than the window.
-	// Tags and contributors are global — their create events hang off no board,
-	// so scoping first leaves every name unresolved and the timeline shows raw
-	// ULIDs where it means "bug" or "jola".
-	const names = buildNameIndex(eventsResult.value);
-
-	// Over the unscoped log too: a move inside the window is only tellable from
-	// a reorder by where the ticket sat before it, which is routinely outside.
-	const previousParents = buildPreviousParentIndex(eventsResult.value);
-
-	// Over the unscoped log too, so an issue whose board changed since its
-	// add.issue is still recognised as an issue.
-	const issueIndex = buildIssueIndex(eventsResult.value);
-
-	// Effective times over the full log, not the board-scoped subset, so a
-	// poisoned id's dot lands where the scrub/checkout path will cut.
-	const effectiveTimes = toEffectiveUlidTimes(
-		eventsResult.value.map(event => getEventTime(event)),
-	);
-	const timeByEventId = new Map(
-		eventsResult.value.map((event, index) => [
-			event.id,
-			effectiveTimes[index] ?? null,
-		]),
-	);
-
-	const timed = scopedEvents.flatMap(event => {
-		const t = timeByEventId.get(event.id) ?? null;
-
-		return t === null
-			? []
-			: [
-					{
-						id: event.id,
-						t,
-						action: event.action,
-						label: describeTimelineEvent(event, names, previousParents),
-						issue: issueOf(event, issueIndex),
-						...identitiesFor(event, names),
-					},
-			  ];
-	});
+	const timed = entriesResult.value;
 
 	const now = Date.now();
 	const windowEnd = input.end ?? now;
-	// Folded, not spread: `timed` can hold one entry per event in the whole log.
-	const windowStart =
-		input.start ??
-		minOf(
-			timed.map(entry => entry.t),
-			windowEnd,
-		);
+	// The entries are in time order, so the earliest is the first of them.
+	const windowStart = input.start ?? timed[0]?.t ?? windowEnd;
 
 	if (windowEnd <= windowStart) {
 		return succeeded('Empty time window', {
@@ -473,9 +145,17 @@ export const getEventTimeline = async (
 		});
 	}
 
+	// A range over a sorted axis rather than a scan of it: at half a million
+	// events the difference is the whole cost of a request.
+	const from = firstAtOrAfter(timed, windowStart);
+	const until = firstAtOrAfter(timed, windowEnd);
+
 	const inWindow = timed
-		.filter(entry => entry.t >= windowStart && entry.t < windowEnd)
-		.sort((a, b) => a.t - b.t);
+		.slice(from, until)
+		// The board narrowing happens here, over the window, rather than over the
+		// log: which board an event belongs to was settled when it was derived.
+		.filter(entry => !input.boardId || entry.board === input.boardId)
+		.map(({board: _board, ...entry}) => entry);
 
 	const times = inWindow.map(entry => entry.t);
 
