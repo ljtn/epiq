@@ -74,6 +74,15 @@ export const TheatrePlayer = ({
 		endSeek,
 	} = playback;
 
+	// Held in refs so the listener below is bound once for the life of the
+	// player. Both are re-created on every render of the board above, and the
+	// board renders on every frame of the movie — listing them would add and
+	// drop a document listener sixty times a second.
+	const onExitRef = useRef(onExit);
+	onExitRef.current = onExit;
+	const toggleRef = useRef(toggle);
+	toggleRef.current = toggle;
+
 	// Space is the transport and Escape is the way out, for as long as the
 	// player is up. Bound on the document rather than the panel: nothing inside
 	// it holds focus after a click on the board behind.
@@ -81,31 +90,33 @@ export const TheatrePlayer = ({
 		const onKeyDown = (event: KeyboardEvent) => {
 			const target = event.target as HTMLElement | null;
 
-			// A form field's own keys win. Every input on the page is standing down
-			// while the player is up, but the player can be opened with one focused.
+			// Anything that answers a key itself keeps it. Form fields because the
+			// player can be opened with one focused, and buttons because Space is
+			// how a focused one is pressed — swallowing it here would leave the
+			// player's own controls unreachable from the keyboard.
 			if (
 				target &&
 				(target.isContentEditable ||
-					['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+					['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName))
 			) {
 				return;
 			}
 
 			if (event.key === 'Escape') {
 				event.preventDefault();
-				onExit();
+				onExitRef.current();
 				return;
 			}
 
 			if (event.key === ' ' || event.key === 'Spacebar') {
 				event.preventDefault();
-				toggle();
+				toggleRef.current();
 			}
 		};
 
 		document.addEventListener('keydown', onKeyDown);
 		return () => document.removeEventListener('keydown', onKeyDown);
-	}, [onExit, toggle]);
+	}, []);
 
 	const fractionFromEvent = (event: React.PointerEvent<HTMLDivElement>) => {
 		const rect = event.currentTarget.getBoundingClientRect();

@@ -389,11 +389,21 @@ export const THEATRE_PLAYER_CLEARANCE = 80;
 // shift is the same every time and the crawl stays even.
 export const THEATRE_LOG_ROW_HEIGHT = 18;
 
-// The column slides up by a row as each line lands, rather than the stack
-// jumping. Run off the element for the same reason the card flash is: lines
-// arrive faster than the animation is long, and a restart has to be a restart.
-export const THEATRE_CRAWL_FRAMES: Keyframe[] = [
-	{transform: `translateY(${THEATRE_LOG_ROW_HEIGHT}px)`},
+// A seek can replace the whole column at once. Sliding that far would be a
+// swipe rather than a crawl, so the shift is capped at what an ordinary step
+// can be — one line, or a line and the day header it brought with it.
+const MAX_CRAWL_ROWS = 2;
+
+// The column slides up by however many rows joined the bottom, rather than the
+// stack jumping. Run off the element for the same reason the card flash is:
+// lines arrive faster than the animation is long, and a restart has to be a
+// restart.
+export const crawlShiftFrames = (rows: number): Keyframe[] => [
+	{
+		transform: `translateY(${
+			Math.min(rows, MAX_CRAWL_ROWS) * THEATRE_LOG_ROW_HEIGHT
+		}px)`,
+	},
 	{transform: 'translateY(0)'},
 ];
 

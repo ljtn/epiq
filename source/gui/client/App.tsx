@@ -1739,162 +1739,184 @@ export const App = () => {
 						transition: 'opacity 160ms ease',
 					}}
 				>
-					{theatre && theatreLogOpen && (
-						<TheatreLog entries={theatreLogEntries(theatre, playback.cursor)} />
-					)}
-
-					{/* Vertical overflow is hidden here: the swimlanes size themselves to
-				    this box, so anything spilling out would put a second scrollbar on
-				    the page next to the columns' own. */}
-					<main
-						onClick={clearPicked}
+					{/* The log and the board are their own row inside this one, which
+					    turns into a column for a bottom-docked panel. Without it the
+					    log would stack above the board rather than beside it, as a
+					    band the crawl has no height to run in. With no log open this
+					    is one flex child holding another, which lays out exactly as
+					    the board did on its own. */}
+					<div
 						style={{
-							padding: '0 0 0 30px',
-							flex: 1,
-							minHeight: 0,
 							display: 'flex',
-							flexDirection: 'column',
+							flex: 1,
+							minWidth: 0,
+							minHeight: 0,
 							overflow: 'hidden',
 						}}
 					>
-						<div
-							style={{
-								padding: '20px 10px',
-								display: 'flex',
-								alignItems: 'center',
-								gap: 10,
-								...(theatre ? DIMMED_WHILE_PLAYING : {}),
-							}}
-						>
-							<Dropdown
-								testId="board-switcher"
-								label="Board:"
-								value={
-									selectedBoard
-										? {
-												id: selectedBoard.id,
-												label: selectedBoard.title,
-										  }
-										: null
-								}
-								items={
-									state?.boards.map(board => ({
-										id: board.id,
-										label: board.title,
-									})) ?? []
-								}
-								placeholder="Loading..."
-								onSelect={selectBoard}
+						{theatre && theatreLogOpen && (
+							<TheatreLog
+								entries={theatreLogEntries(theatre, playback.cursor)}
 							/>
+						)}
 
-							<Input
-								data-testid="text-filter"
-								type="search"
-								value={textFilter}
-								placeholder="filter by ref or title"
-								aria-label="Filter tickets by ref or title"
-								spellCheck={false}
-								onChange={event => setTextFilter(event.target.value)}
-								onKeyDown={event => {
-									if (event.key === 'Escape') {
-										setTextFilter('');
-										event.currentTarget.blur();
-									}
-								}}
-								style={{width: 220, padding: '5px 10px', fontSize: 12}}
-							/>
-						</div>
-
-						{/* Scrolling sideways is this row's job; scrolling down is each
-					    column's. Both on one element gives a page-level vertical bar
-					    alongside each column's own. */}
-						<div
+						{/* Vertical overflow is hidden here: the swimlanes size themselves to
+				    this box, so anything spilling out would put a second scrollbar on
+				    the page next to the columns' own. */}
+						<main
+							onClick={clearPicked}
 							style={{
-								display: 'flex',
-								gap: 8,
+								padding: '0 0 0 30px',
 								flex: 1,
+								// Beside the log it has to be able to give up the width the
+								// panel takes; a flex item's default floor is its content.
+								minWidth: 0,
 								minHeight: 0,
-								overflowX: 'auto',
-								overflowY: 'hidden',
-								// Lit, but not touchable: the board is what a movie is
-								// watched on, and the panel a click would open is closed for
-								// the duration anyway.
-								pointerEvents: theatre ? 'none' : undefined,
-								// The player floats over the board, and a column running
-								// under it would play its last cards behind the transport.
-								// Reserved rather than overlaid, so the whole picture stays
-								// in view.
-								paddingBottom: theatre ? THEATRE_PLAYER_CLEARANCE : 0,
-								transition: 'padding-bottom 240ms ease',
+								display: 'flex',
+								flexDirection: 'column',
+								overflow: 'hidden',
 							}}
 						>
-							{shownSwimlanes.map(swimlane => (
-								<SwimlaneColumn
-									key={swimlane.id}
-									swimlane={swimlane}
-									selected={false}
-									selectedIssueId={selectedIssue?.id ?? null}
-									commentsByIssueId={commentsByIssueId}
-									dragOver={dragOverSwimlaneId === swimlane.id}
-									dropIndex={
-										dropTarget?.swimlaneId === swimlane.id
-											? dropTarget.index
-											: null
-									}
-									onSelectIssue={selectIssue}
-									onSelectIssueComments={selectIssueComments}
-									isolatedTagId={isolatedTagId}
-									onFilterByTag={filterByTag}
-									onCreateIssue={openCreateIssueModal}
-									onRenameSwimlane={openRenameSwimlane}
-									onDeleteSwimlane={setDeleteSwimlaneId}
-									dropSide={
-										swimlaneDropEdge?.swimlaneId === swimlane.id
-											? swimlaneDropEdge.side
-											: null
-									}
-									onSwimlaneDragOver={(swimlaneId, side) =>
-										setSwimlaneDropEdge({swimlaneId, side})
-									}
-									onSwimlaneDragEnd={() => setSwimlaneDropEdge(null)}
-									onDropSwimlane={dropSwimlane}
-									onDropIssue={(issueId, swimlaneId, targetIndex) => {
-										const moving = pickedIssueIds.includes(issueId)
-											? pickedIssueIds
-											: [issueId];
-
-										moveIssue(state, setState, send)(
-											moving,
-											swimlaneId,
-											targetIndex,
-										);
-										clearPicked();
-									}}
-									theatre={
-										theatre
+							<div
+								style={{
+									padding: '20px 10px',
+									display: 'flex',
+									alignItems: 'center',
+									gap: 10,
+									...(theatre ? DIMMED_WHILE_PLAYING : {}),
+								}}
+							>
+								<Dropdown
+									testId="board-switcher"
+									label="Board:"
+									value={
+										selectedBoard
 											? {
-													flashIssueId: playback.current?.issue ?? null,
-													flashKey: playback.current?.id ?? null,
+													id: selectedBoard.id,
+													label: selectedBoard.title,
 											  }
 											: null
 									}
-									pickedIssueIds={pickedIssueIds}
-									onDragOver={setDragOverSwimlaneId}
-									onDragOverIssue={(swimlaneId, index) =>
-										setDropTarget({swimlaneId, index})
+									items={
+										state?.boards.map(board => ({
+											id: board.id,
+											label: board.title,
+										})) ?? []
 									}
-									onDragLeave={clearDragState}
+									placeholder="Loading..."
+									onSelect={selectBoard}
 								/>
-							))}
 
-							{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
+								<Input
+									data-testid="text-filter"
+									type="search"
+									value={textFilter}
+									placeholder="filter by ref or title"
+									aria-label="Filter tickets by ref or title"
+									spellCheck={false}
+									onChange={event => setTextFilter(event.target.value)}
+									onKeyDown={event => {
+										if (event.key === 'Escape') {
+											setTextFilter('');
+											event.currentTarget.blur();
+										}
+									}}
+									style={{width: 220, padding: '5px 10px', fontSize: 12}}
+								/>
+							</div>
+
+							{/* Scrolling sideways is this row's job; scrolling down is each
+					    column's. Both on one element gives a page-level vertical bar
+					    alongside each column's own. */}
+							<div
+								style={{
+									display: 'flex',
+									gap: 8,
+									flex: 1,
+									minHeight: 0,
+									overflowX: 'auto',
+									overflowY: 'hidden',
+									// Lit, but not touchable: the board is what a movie is
+									// watched on, and the panel a click would open is closed for
+									// the duration anyway.
+									pointerEvents: theatre ? 'none' : undefined,
+									// The player floats over the board, and a column running
+									// under it would play its last cards behind the transport.
+									// Reserved rather than overlaid, so the whole picture stays
+									// in view.
+									paddingBottom: theatre ? THEATRE_PLAYER_CLEARANCE : 0,
+									transition: 'padding-bottom 240ms ease',
+								}}
+							>
+								{shownSwimlanes.map(swimlane => (
+									<SwimlaneColumn
+										key={swimlane.id}
+										swimlane={swimlane}
+										selected={false}
+										selectedIssueId={selectedIssue?.id ?? null}
+										commentsByIssueId={commentsByIssueId}
+										dragOver={dragOverSwimlaneId === swimlane.id}
+										dropIndex={
+											dropTarget?.swimlaneId === swimlane.id
+												? dropTarget.index
+												: null
+										}
+										onSelectIssue={selectIssue}
+										onSelectIssueComments={selectIssueComments}
+										isolatedTagId={isolatedTagId}
+										onFilterByTag={filterByTag}
+										onCreateIssue={openCreateIssueModal}
+										onRenameSwimlane={openRenameSwimlane}
+										onDeleteSwimlane={setDeleteSwimlaneId}
+										dropSide={
+											swimlaneDropEdge?.swimlaneId === swimlane.id
+												? swimlaneDropEdge.side
+												: null
+										}
+										onSwimlaneDragOver={(swimlaneId, side) =>
+											setSwimlaneDropEdge({swimlaneId, side})
+										}
+										onSwimlaneDragEnd={() => setSwimlaneDropEdge(null)}
+										onDropSwimlane={dropSwimlane}
+										onDropIssue={(issueId, swimlaneId, targetIndex) => {
+											const moving = pickedIssueIds.includes(issueId)
+												? pickedIssueIds
+												: [issueId];
+
+											moveIssue(state, setState, send)(
+												moving,
+												swimlaneId,
+												targetIndex,
+											);
+											clearPicked();
+										}}
+										theatre={
+											theatre
+												? {
+														flashIssueId: playback.current?.issue ?? null,
+														flashKey: playback.current?.id ?? null,
+												  }
+												: null
+										}
+										pickedIssueIds={pickedIssueIds}
+										onDragOver={setDragOverSwimlaneId}
+										onDragOverIssue={(swimlaneId, index) =>
+											setDropTarget({swimlaneId, index})
+										}
+										onDragLeave={clearDragState}
+									/>
+								))}
+
+								{/* Appends: `createSwimlane` ranks at the end, so the ghost sits
 							where the new column will actually appear. Hidden on a readonly
 							board, which also covers a scrubbed timeline. */}
-							{selectedBoard && !selectedBoard.readonly && !offline && (
-								<AddSwimlaneColumn onClick={() => setCreateSwimlaneTitle('')} />
-							)}
+								{selectedBoard && !selectedBoard.readonly && !offline && (
+									<AddSwimlaneColumn
+										onClick={() => setCreateSwimlaneTitle('')}
+									/>
+								)}
 
-							{/* Grows scrollWidth by exactly what closing the panel gave back
+								{/* Grows scrollWidth by exactly what closing the panel gave back
 							in clientWidth, keeping max scrollLeft identical across
 							open/closed so the board doesn't bounce back when scrolled far
 							right. Reads the panel's persisted width directly rather than
@@ -1902,17 +1924,20 @@ export const App = () => {
 							this spacer is, so the last-persisted value is always current.
 							Only for a side dock: a bottom panel takes height, not width, so
 							reserving width for it would shove the board the other way. */}
-							{asideDock === 'right' &&
-								!commitDiff &&
-								!(selectedIssue && state?.user) && (
-									<div style={{width: readStoredAsideWidth(), flexShrink: 0}} />
-								)}
+								{asideDock === 'right' &&
+									!commitDiff &&
+									!(selectedIssue && state?.user) && (
+										<div
+											style={{width: readStoredAsideWidth(), flexShrink: 0}}
+										/>
+									)}
 
-							{/* The page's right margin, scrolling with the columns. Constant,
+								{/* The page's right margin, scrolling with the columns. Constant,
 							so it cancels out of the invariant above. */}
-							<div style={{width: BOARD_GUTTER, flexShrink: 0}} />
-						</div>
-					</main>
+								<div style={{width: BOARD_GUTTER, flexShrink: 0}} />
+							</div>
+						</main>
+					</div>
 
 					{/* The side panels close for the film rather than dimming: at
 					    440px they are a third of the picture, and none of what they
