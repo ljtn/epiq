@@ -190,11 +190,7 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 });
 
 describe('groupByDay', () => {
-	const rows = [
-		row('a', on(1, 9)),
-		row('b', on(1, 17)),
-		row('c', on(2, 9)),
-	];
+	const rows = [row('a', on(1, 9)), row('b', on(1, 17)), row('c', on(2, 9))];
 
 	it('splits into days, oldest first, keeping each day whole', () => {
 		const days = groupByDay(rows);
@@ -223,10 +219,7 @@ describe('groupByDay', () => {
 
 	// Two events a day apart to the minute are still two days.
 	it('splits on the calendar day, not on elapsed time', () => {
-		const days = groupByDay([
-			row('a', on(1, 23)),
-			row('b', on(1, 23) + DAY),
-		]);
+		const days = groupByDay([row('a', on(1, 23)), row('b', on(1, 23) + DAY)]);
 
 		expect(days).toHaveLength(2);
 	});
