@@ -14,7 +14,6 @@ import {useEffect, useRef} from 'react';
 import {
 	formatDayLabel,
 	formatTimeOfDay,
-	formatWeekday,
 	isSameDay,
 } from '../../../lib/utils/date.utils.js';
 import {
@@ -76,10 +75,10 @@ const toRows = (entries: readonly LogEntry[]): Row[] => {
 		rows.push({
 			kind: 'event',
 			key: entry.id,
-			// The weekday against every line, not only against the day it opens:
-			// the header scrolls off the top long before the lines under it do,
-			// and a bare clock says nothing about which day it belongs to.
-			time: `${formatWeekday(at)} ${formatTimeOfDay(at)}`,
+			// The clock alone: the divider above a run of lines already names the
+			// day they belong to, and repeating it against each of them says the
+			// same thing twenty times.
+			time: formatTimeOfDay(at),
 			label: entry.label,
 			color: entry.color,
 		});
