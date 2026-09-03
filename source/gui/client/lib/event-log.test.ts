@@ -1,6 +1,8 @@
 import {describe, expect, it} from 'vitest';
 import {
 	buildLogEntries,
+	groupByDay,
+	isDayOpen,
 	lastIndexAtOrBefore,
 	LOG_LINES,
 	logEntriesUpTo,
@@ -165,5 +167,96 @@ describe('buildLogEntries', () => {
 			EVENT_CATEGORY_COLORS.assigning,
 			EVENT_CATEGORY_COLORS.tickets,
 		]);
+	});
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+const on = (day: number, hour: number) =>
+	new Date(2026, 8, day, hour).getTime();
+
+describe('groupByDay', () => {
+	const rows = [
+		{id: 'a', t: on(1, 9), label: 'a', color: '#111'},
+		{id: 'b', t: on(1, 17), label: 'b', color: '#111'},
+		{id: 'c', t: on(2, 9), label: 'c', color: '#111'},
+	];
+
+	it('splits into days, oldest first, keeping each day whole', () => {
+		const days = groupByDay(rows);
+
+		expect(days.map(day => day.entries.map(entry => entry.id))).toEqual([
+			['a', 'b'],
+			['c'],
+		]);
+	});
+
+	it('labels each day the way its divider reads', () => {
+		expect(groupByDay(rows)[0]!.label).toBe('Tue, Sep 1');
+	});
+
+	// The key is what a fold is remembered against, so it has to name the day
+	// rather than a position in a slice that keeps moving.
+	it('keys a day by the day itself', () => {
+		const days = groupByDay(rows);
+
+		expect(days.map(day => day.key)).toEqual(['2026-09-01', '2026-09-02']);
+	});
+
+	it('is empty for no entries', () => {
+		expect(groupByDay([])).toEqual([]);
+	});
+
+	// Two events a day apart to the minute are still two days.
+	it('splits on the calendar day, not on elapsed time', () => {
+		const days = groupByDay([
+			{id: 'a', t: on(1, 23), label: 'a', color: '#111'},
+			{id: 'b', t: on(1, 23) + DAY, label: 'b', color: '#111'},
+		]);
+
+		expect(days).toHaveLength(2);
+	});
+});
+
+describe('isDayOpen', () => {
+	const days = groupByDay([
+		{id: 'a', t: on(1, 9), label: 'a', color: '#111'},
+		{id: 'b', t: on(2, 9), label: 'b', color: '#111'},
+		{id: 'c', t: on(3, 9), label: 'c', color: '#111'},
+	]);
+
+	it('opens the newest day and folds the rest', () => {
+		const none = new Map<string, boolean>();
+
+		expect([0, 1, 2].map(i => isDayOpen(days, i, none))).toEqual([
+			false,
+			false,
+			true,
+		]);
+	});
+
+	it('lets a reader open an older day, and fold the newest', () => {
+		const overrides = new Map([
+			['2026-09-01', true],
+			['2026-09-03', false],
+		]);
+
+		expect([0, 1, 2].map(i => isDayOpen(days, i, overrides))).toEqual([
+			true,
+			false,
+			false,
+		]);
+	});
+
+	// The override is keyed by day precisely so that it survives the slice
+	// moving: a day opened by hand stays open as new lines push others off.
+	it('keeps a day open once the newest day is a different one', () => {
+		const overrides = new Map([['2026-09-02', true]]);
+		const later = groupByDay([
+			{id: 'b', t: on(2, 9), label: 'b', color: '#111'},
+			{id: 'c', t: on(3, 9), label: 'c', color: '#111'},
+			{id: 'd', t: on(4, 9), label: 'd', color: '#111'},
+		]);
+
+		expect(isDayOpen(later, 0, overrides)).toBe(true);
 	});
 });

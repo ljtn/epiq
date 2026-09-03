@@ -204,9 +204,18 @@ test('the pop-out puts the log beside the board', async ({
 	// than repeated on every line.
 	await expect(page.getByTestId('log-day').first()).toBeVisible();
 
-	// Every line is marked with its kind, commits included — the dot is the
-	// whole of what separates one from a board event.
-	expect(await page.getByTestId('log-dot').count()).toBe(await lines.count());
+	// Every line is marked with its kind, commits included. The dot is a
+	// pseudo-element rather than a node of its own — the panel holds hundreds of
+	// these — so what is asserted is the colour each row hands it.
+	// Evaluated as a string, like the other DOM reads in this suite: these files
+	// are type-checked against the Node libs, which have no `HTMLElement`.
+	const dotColours = (await page.evaluate(
+		`[...document.querySelectorAll('[data-testid="log-line"]')]` +
+			`.map(row => row.style.getPropertyValue('--epiq-log-dot').trim())`,
+	)) as string[];
+
+	expect(dotColours).toHaveLength(await lines.count());
+	expect(dotColours.every(colour => colour.length > 0)).toBe(true);
 
 	// A panel, not a wash over the board: it takes its own width and the first
 	// swimlane starts to the right of where it ends.
@@ -294,6 +303,38 @@ test('the log picks up what happens on the board while it is open', async ({
 	// board that has already filled it a new line pushes the oldest off the top
 	// instead of adding to the tally.
 	await expect(page.getByTestId('event-log')).toContainText(name);
+
+	await box.click();
+	await expect(page.getByTestId('event-log')).toHaveCount(0);
+	expect(pageErrors).toEqual([]);
+});
+
+// Folding is what bounds the panel: a folded day is one row however many
+// events it holds, so a long history is a handful of rows until asked for.
+test('a day folds to its divider and opens again', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const box = page.getByRole('checkbox', {name: 'Log', exact: true});
+	await box.click();
+
+	const lines = page.getByTestId('log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
+
+	// The newest day is the one open by default.
+	const day = page.getByTestId('log-day').last();
+	await expect(day).toHaveAttribute('aria-expanded', 'true');
+
+	await day.click();
+	await expect(day).toHaveAttribute('aria-expanded', 'false');
+	await expect(lines).toHaveCount(0);
+
+	await day.click();
+	await expect(day).toHaveAttribute('aria-expanded', 'true');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
 
 	await box.click();
 	await expect(page.getByTestId('event-log')).toHaveCount(0);
