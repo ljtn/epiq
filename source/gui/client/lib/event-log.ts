@@ -20,6 +20,15 @@ export type LogEntry = {
 	t: number;
 	label: string;
 	color: string;
+	// What the line was about, which is all a click needs to find its way — see
+	// lib/log-destination. Copied off the source entry rather than worked out
+	// here: every event in the window becomes one of these, and at most one of
+	// them is ever followed.
+	//
+	// A board- or swimlane-level event has no ticket and leads nowhere.
+	issue: string | null;
+	action: string | null;
+	sha: string | null;
 };
 
 // Both series in one column, in clock order. Commits are lines and nothing
@@ -37,6 +46,9 @@ export const buildLogEntries = (
 			// The colour its dot already has on the scatter, so a kind reads the
 			// same in both places.
 			color: EVENT_CATEGORY_COLORS[categoryOf(event.action)],
+			issue: event.issue,
+			action: event.action,
+			sha: null,
 		})),
 		// Prefixed, because a sha and a ULID share no namespace and both end up
 		// as React keys in the same column.
@@ -45,6 +57,12 @@ export const buildLogEntries = (
 			t: commit.time,
 			label: commit.subject,
 			color: GUI_THEME.green,
+			// A commit belongs to whichever ticket its subject is prefixed with,
+			// which the board resolves when the line is clicked — it already has to,
+			// for the scatter's own commit dots.
+			issue: null,
+			action: null,
+			sha: commit.sha,
 		})),
 	].sort((left, right) => left.t - right.t);
 

@@ -33,6 +33,11 @@ import {
 	LOG_DOT_COLOR_PROPERTY,
 	LOG_ROW_HEIGHT,
 } from '../lib/event-log';
+import {
+	LogDestination,
+	readDestination,
+	rowAttributes,
+} from '../lib/log-destination';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {usePrefersReducedMotion} from '../lib/scrubber';
 import {IconChevronDown} from './IconChevronDown';
@@ -115,6 +120,8 @@ const EventRow = ({entry}: {entry: LogEntry}) => (
 		data-testid="log-line"
 		className="epiq-log-line"
 		data-time={formatTimeOfDay(new Date(entry.t))}
+		// Absent on a line that leads nowhere, which is what leaves it inert.
+		{...rowAttributes(entry)}
 		style={{[LOG_DOT_COLOR_PROPERTY]: entry.color} as React.CSSProperties}
 	>
 		{entry.label}
@@ -124,8 +131,13 @@ const EventRow = ({entry}: {entry: LogEntry}) => (
 const EventLogPanel = ({
 	entries,
 	bottomClearance,
+	onOpen,
 }: {
 	entries: readonly LogEntry[];
+	// Following a line. One handler on the pane rather than one per row: the
+	// rows carry where they go, and hundreds of closures would be the expensive
+	// half of a feature whose whole point is that it costs nothing until used.
+	onOpen: (destination: LogDestination) => void;
 	// Room to leave at the foot of the column for whatever is floating over it —
 	// the history player's drawer, when one is up. A row past it, because the
 	// crawl starts each line one row low and slides it up.
@@ -257,6 +269,10 @@ const EventLogPanel = ({
 			<div
 				ref={scrollRef}
 				onScroll={onScroll}
+				onClick={event => {
+					const destination = readDestination(event.target);
+					if (destination) onOpen(destination);
+				}}
 				data-testid="event-log-scroll"
 				style={{
 					flex: 1,
