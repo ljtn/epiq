@@ -13,6 +13,18 @@ const addTicket = async (page: Page, title: string) => {
 	await expect(page.locator('aside')).toContainText(title);
 };
 
+// The highlighter fills its shadow root asynchronously, and `aria-expanded` on
+// the file's own toggle says nothing about that. Measuring before it lands
+// finds no host at all, which reads as a broken test rather than a broken
+// feature — so wait for the header itself.
+const waitForDiffHeader = async (page: Page) => {
+	await page.waitForFunction(`
+		[...document.querySelector('aside').querySelectorAll('*')].some(element =>
+			element.shadowRoot?.querySelector('[data-diffs-header]'),
+		)
+	`);
+};
+
 const expandDiff = async (page: Page, subject: string, fileName: string) => {
 	await page.getByRole('button', {name: /^Commits/}).click();
 	for (const name of [subject, fileName]) {
@@ -58,6 +70,8 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	await expect(page.locator('aside')).toContainText(`Stacking ${stamp}`);
 	await expandDiff(page, 'add notes', linkedFileName(ref!));
 
+	await waitForDiffHeader(page);
+
 	await page.getByRole('button', {name: 'Board events'}).click();
 	await expect(page.getByRole('radiogroup')).toBeVisible();
 
@@ -71,9 +85,10 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 		element.shadowRoot?.querySelector('[data-diffs-header]'),
 	);
 	const header = host.shadowRoot.querySelector('[data-diffs-header]');
+	const pane = aside.querySelector('[data-testid="aside-pane"]');
 
 	const popoverBox = popover.getBoundingClientRect();
-	aside.scrollTop +=
+	pane.scrollTop +=
 		header.getBoundingClientRect().top -
 		(popoverBox.top + popoverBox.height / 2);
 
@@ -120,6 +135,7 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Sticky ${stamp}`);
 	await expandDiff(page, 'add notes', linkedFileName(ref!));
+	await waitForDiffHeader(page);
 
 	// Scrolls the diff's own top out of the panel and asks where its header
 	// ended up. It lives in a shadow root, so there is no locator for it.
@@ -130,11 +146,12 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 		element.shadowRoot?.querySelector('[data-diffs-header]'),
 	);
 	const header = host.shadowRoot.querySelector('[data-diffs-header]');
-	// The panel's top gap is a border, so its scrollport starts below it —
-	// which is where anything pinned to the top of the panel belongs.
-	const scrollportTop = aside.getBoundingClientRect().top + aside.clientTop;
+	// The pane inside the panel is what scrolls, and its top is where anything
+	// pinned to the top of the panel belongs.
+	const pane = aside.querySelector('[data-testid="aside-pane"]');
+	const scrollportTop = pane.getBoundingClientRect().top;
 
-	aside.scrollTop += host.getBoundingClientRect().top - scrollportTop + 60;
+	pane.scrollTop += host.getBoundingClientRect().top - scrollportTop + 60;
 
 	const headerBox = header.getBoundingClientRect();
 	return {
@@ -158,6 +175,64 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 	expect(pinned.headerTop).toBeGreaterThanOrEqual(0);
 	expect(pinned.headerTop).toBeLessThanOrEqual(2);
 	expect(pinned.headerBottom).toBeGreaterThan(pinned.headerTop);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// The same panel docked the other way, on a window too narrow for the lanes —
+// so the tabs scroll, and it is this pane doing it rather than a lane's own.
+test('a bottom-docked panel pins the file name too', async ({
+	page,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.setViewportSize({width: 1280, height: 720});
+	const stamp = Date.now();
+	await addTicket(page, `Docked ${stamp}`);
+	const ref = (
+		await page.locator('aside button[title^="Copy "]').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+
+	commitLinkedFile(
+		repoRoot,
+		ref!,
+		'add notes',
+		linkedFileName(ref!),
+		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
+			'\n',
+	);
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+	await expect(page.locator('aside')).toContainText(`Docked ${stamp}`);
+
+	await page.getByTestId('panel-menu').click();
+	await page.getByRole('button', {name: 'Dock to bottom'}).click();
+	await expect(page.getByTestId('lane-overview')).toHaveCount(0);
+
+	await expandDiff(page, 'add notes', linkedFileName(ref!));
+	await waitForDiffHeader(page);
+
+	const headerTop = await page.evaluate(`
+(() => {
+	const aside = document.querySelector('aside');
+	const pane = aside.querySelector('[data-testid="aside-pane"]');
+	const host = [...aside.querySelectorAll('*')].find(element =>
+		element.shadowRoot?.querySelector('[data-diffs-header]'),
+	);
+	const header = host.shadowRoot.querySelector('[data-diffs-header]');
+	const scrollportTop = pane.getBoundingClientRect().top;
+
+	pane.scrollTop += host.getBoundingClientRect().top - scrollportTop + 60;
+
+	return Math.round(
+		header.getBoundingClientRect().top - scrollportTop,
+	);
+})()
+`);
+
+	expect(headerTop).toBeGreaterThanOrEqual(0);
+	expect(headerTop).toBeLessThanOrEqual(2);
 
 	expect(pageErrors).toEqual([]);
 });
