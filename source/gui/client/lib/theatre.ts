@@ -7,6 +7,7 @@
 
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {buildPlaybackFractions} from '../../../lib/utils/playback-pacing.js';
+import {lastIndexAtOrBefore} from './event-log';
 import {GuiEventTimeline} from './gui-state.model';
 import {clamp} from './scrubber';
 
@@ -88,27 +89,10 @@ export const nextSpeed = (speed: TheatreSpeed): TheatreSpeed =>
 	THEATRE_SPEEDS[(THEATRE_SPEEDS.indexOf(speed) + 1) % THEATRE_SPEEDS.length]!;
 
 // The index of the last event whose scheduled position `progress` has reached,
-// or -1 before the first one lands. A binary search rather than a walk on from
-// the last answer, because dragging the player's bar seeks backwards as readily
-// as forwards.
-export const cursorAt = (fractions: number[], progress: number): number => {
-	let low = 0;
-	let high = fractions.length - 1;
-	let found = -1;
-
-	while (low <= high) {
-		const mid = (low + high) >> 1;
-
-		if (fractions[mid]! <= progress) {
-			found = mid;
-			low = mid + 1;
-		} else {
-			high = mid - 1;
-		}
-	}
-
-	return found;
-};
+// or -1 before the first one lands. The same search the log takes its tail
+// with, over positions rather than moments.
+export const cursorAt = (fractions: number[], progress: number): number =>
+	lastIndexAtOrBefore(fractions, progress);
 
 // The opening beat, as a share of the movie: the board as it was before any of
 // this happened, held long enough to be read as a starting point. Without it
@@ -126,26 +110,6 @@ export const playbackPosition = (progress: number): number =>
 // hence the +1: what the movie shows is the state the event produced.
 export const seekTimeFor = (plan: TheatrePlan, cursor: number): number =>
 	cursor < 0 ? plan.startTime : plan.events[cursor]!.t + 1;
-
-// How many played events the log holds. It is a cap on the DOM as much as on
-// the reading: rows above this have scrolled up out of the fade, and keeping
-// them mounted would grow the overlay by one node per event for the length of
-// the movie.
-export const THEATRE_LOG_LINES = 24;
-
-// The tail of what has played, oldest first. Sliced off the plan rather than
-// accumulated as events land: a seek has to take the log with it, backwards as
-// readily as forwards, and a slice of the script is already exactly that.
-export const theatreLogEntries = (
-	plan: TheatrePlan,
-	cursor: number,
-): TheatreEvent[] =>
-	cursor < 0
-		? []
-		: plan.events.slice(
-				Math.max(0, cursor - THEATRE_LOG_LINES + 1),
-				cursor + 1,
-		  );
 
 export type TheatrePlayback = {
 	// [0..1], off the local clock rather than the events applied, so the bar
@@ -346,15 +310,10 @@ export const THEATRE_KEYFRAMES = `
 	from { opacity: 0; transform: scale(0.96); }
 	to { opacity: 1; transform: scale(1); }
 }
-@keyframes epiqTheatreLogLine {
-	from { opacity: 0; }
-	to { opacity: 1; }
-}
 @media (prefers-reduced-motion: reduce) {
 	@keyframes epiqTheatreRise { from { opacity: 1; transform: none; } to { opacity: 1; transform: none; } }
 	@keyframes epiqTheatreCardIn { from { opacity: 1; } to { opacity: 1; } }
 	@keyframes epiqTheatreCaption { from { opacity: 1; } to { opacity: 1; } }
-	@keyframes epiqTheatreLogLine { from { opacity: 1; } to { opacity: 1; } }
 }
 `;
 
@@ -383,31 +342,3 @@ export const THEATRE_FLASH_TIMING: KeyframeAnimationOptions = {
 // up rather than running underneath and playing their last rows behind the
 // transport, so the two have to read it from one place.
 export const THEATRE_PLAYER_CLEARANCE = 80;
-
-// One row of the log, which is what the whole column shifts by as a line
-// arrives. Fixed rather than measured: every row is one clipped line, so the
-// shift is the same every time and the crawl stays even.
-export const THEATRE_LOG_ROW_HEIGHT = 18;
-
-// A seek can replace the whole column at once. Sliding that far would be a
-// swipe rather than a crawl, so the shift is capped at what an ordinary step
-// can be — one line, or a line and the day header it brought with it.
-const MAX_CRAWL_ROWS = 2;
-
-// The column slides up by however many rows joined the bottom, rather than the
-// stack jumping. Run off the element for the same reason the card flash is:
-// lines arrive faster than the animation is long, and a restart has to be a
-// restart.
-export const crawlShiftFrames = (rows: number): Keyframe[] => [
-	{
-		transform: `translateY(${
-			Math.min(rows, MAX_CRAWL_ROWS) * THEATRE_LOG_ROW_HEIGHT
-		}px)`,
-	},
-	{transform: 'translateY(0)'},
-];
-
-export const THEATRE_CRAWL_TIMING: KeyframeAnimationOptions = {
-	duration: 220,
-	easing: 'ease-out',
-};

@@ -186,7 +186,7 @@ test('the pop-out puts the log over the board, capped at what it can show', asyn
 	await openBoard(page, appUrl);
 	await page.getByTestId('theatre-play').click();
 
-	const log = page.getByTestId('theatre-log');
+	const log = page.getByTestId('event-log');
 	await expect(log).toHaveCount(0);
 
 	const toggle = page.getByTestId('theatre-log-toggle');
@@ -197,13 +197,13 @@ test('the pop-out puts the log over the board, capped at what it can show', asyn
 	// Lines arrive as the movie plays. That they stay capped however long it
 	// runs is theatre.test.ts's job — this only holds that the cap is a real
 	// bound on the document rather than on the reading alone.
-	const lines = page.getByTestId('theatre-log-line');
+	const lines = page.getByTestId('log-line');
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(1);
 	expect(await lines.count()).toBeLessThanOrEqual(30);
 
 	// The day each run of lines belongs to is called once above them, rather
 	// than repeated on every line.
-	await expect(page.getByTestId('theatre-log-day').first()).toBeVisible();
+	await expect(page.getByTestId('log-day').first()).toBeVisible();
 
 	// A panel, not a wash over the board: it takes its own width and the first
 	// swimlane starts to the right of where it ends.
@@ -217,6 +217,44 @@ test('the pop-out puts the log over the board, capped at what it can show', asyn
 	expect(lane.x).toBeGreaterThanOrEqual(logBox.x + logBox.width);
 
 	await toggle.click();
+	await expect(log).toHaveCount(0);
+
+	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});
+
+// The panel is the board's, not the movie's: the pop-out and the Log box are
+// two controls over one flag, and leaving the player does not take it away.
+test('the log stays on the board after the player leaves', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const log = page.getByTestId('event-log');
+	const box = page.getByRole('checkbox', {name: 'Log', exact: true});
+
+	await expect(log).toHaveCount(0);
+	await box.click();
+	await expect(log).toBeVisible();
+
+	// Live, with no movie anywhere near it: the tail of the window.
+	await expect
+		.poll(async () => await page.getByTestId('log-line').count())
+		.toBeGreaterThan(0);
+
+	await page.getByTestId('theatre-play').click();
+	await expect(page.getByTestId('theatre-player')).toBeVisible();
+	await expect(log).toBeVisible();
+
+	await page.getByTestId('theatre-exit').click();
+	await expect(page.getByTestId('theatre-player')).toHaveCount(0);
+
+	// Still there, and still the same panel.
+	await expect(log).toBeVisible();
+
+	await box.click();
 	await expect(log).toHaveCount(0);
 
 	await returnToLive(page);

@@ -39,7 +39,7 @@ import {TicketRefLinksProvider} from './components/MarkdownContent';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
 import {TheatrePlayer} from './components/TheatrePlayer';
-import {TheatreLog} from './components/TheatreLog';
+import {EventLog} from './components/EventLog';
 import {useAsideDock} from './lib/aside-dock';
 import {moveIssue} from './lib/gui-move-issue';
 import {reconnectDelayMs} from './lib/reconnect';
@@ -65,6 +65,7 @@ import {
 	GuiRefCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
+	GuiEventTimelineEntry,
 	GuiState,
 	GuiSwimlane,
 	GuiUser,
@@ -73,15 +74,16 @@ import {
 	buildBoardFilter,
 	isPeriodWindow,
 	issuePassesBoardFilter,
+	usePersistedFlag,
 	windowIssueIds,
 } from './lib/scrubber';
 import {
 	buildTheatrePlan,
 	THEATRE_PLAYER_CLEARANCE,
 	TheatrePlan,
-	theatreLogEntries,
 	useTheatrePlayback,
 } from './lib/theatre';
+import {logEntriesUpTo} from './lib/event-log';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
@@ -98,8 +100,16 @@ type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
 // on every render.
 const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
+// Module scope for the same reason: a shut log must not hand the memo below a
+// new array on every render.
+const EMPTY_LOG_EVENTS: GuiEventTimelineEntry[] = [];
+
 // The board's page margin, matching the left padding on <main>.
 const BOARD_GUTTER = 30;
+
+// Remembered beside the scrubber's own view flags, which is what its checkbox
+// sits among.
+const LOG_STORAGE_KEY = 'epiq.timeScrubber.showLog';
 
 // What the chrome around the board wears while a movie plays. Faded rather than
 // unmounted: the page must not reflow around the picture being watched.
@@ -174,9 +184,10 @@ export const App = () => {
 	// Bumped per answered time-travel request. The player's clock waits on it
 	// rather than stacking a checkout on one the server has not answered yet.
 	const [scrubAck, setScrubAck] = useState(0);
-	// The log panel is open. Owned here rather than in the player: it is a panel
-	// in the board's own row, and the board moves over for it.
-	const [theatreLogOpen, setTheatreLogOpen] = useState(false);
+	// The log panel is open. Owned here rather than in the scrubber or the
+	// player: it is a panel in the board's own row, the board moves over for it,
+	// and its checkbox and the player's pop-out are two controls over one flag.
+	const [logOpen, setLogOpen] = usePersistedFlag(LOG_STORAGE_KEY, false);
 	const [commitDiff, setCommitDiff] = useState<{
 		sha: string;
 		loading: boolean;
@@ -1167,6 +1178,26 @@ export const App = () => {
 		onSeek: scrubToTime,
 	});
 
+	// The window in clock order, which is not the order the log stores it in.
+	// Sorted once per window rather than per render, and not at all while the
+	// panel is shut.
+	const logEvents = useMemo(() => {
+		if (!logOpen) return EMPTY_LOG_EVENTS;
+
+		return [...(history.timeline?.events ?? [])].sort(
+			(left, right) => left.t - right.t,
+		);
+	}, [logOpen, history.timeline]);
+
+	// Where the board is standing, which is the only thing the three cases
+	// differ by: the playhead while a movie runs, the checkout while the needle
+	// is parked, and the present while live.
+	const logMoment = theatre
+		? playback.current?.t ?? -Infinity
+		: state?.timeTravel?.mode === 'scrub' && state.timeTravel.asOfTime !== null
+		? state.timeTravel.asOfTime
+		: Infinity;
+
 	// A movie is checked out one frame at a time over the socket, so a dropped
 	// one leaves the player running against nothing. It closes rather than
 	// stalling; the board is already parked wherever the last frame landed, and
@@ -1712,6 +1743,8 @@ export const App = () => {
 					onReturnToLive={returnToLive}
 					onPlayTheatre={startTheatre}
 					theatreOpen={theatre !== null}
+					logOpen={logOpen}
+					onChangeLogOpen={setLogOpen}
 					selection={selection}
 					onChangeSelection={changeSelection}
 					selectedIssue={
@@ -1754,9 +1787,10 @@ export const App = () => {
 							overflow: 'hidden',
 						}}
 					>
-						{theatre && theatreLogOpen && (
-							<TheatreLog
-								entries={theatreLogEntries(theatre, playback.cursor)}
+						{logOpen && (
+							<EventLog
+								entries={logEntriesUpTo(logEvents, logMoment)}
+								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 							/>
 						)}
 
@@ -2090,8 +2124,8 @@ export const App = () => {
 					<TheatrePlayer
 						plan={theatre}
 						playback={playback}
-						logOpen={theatreLogOpen}
-						onToggleLog={() => setTheatreLogOpen(open => !open)}
+						logOpen={logOpen}
+						onToggleLog={() => setLogOpen(!logOpen)}
 						onExit={exitTheatre}
 					/>
 				)}
