@@ -9,7 +9,9 @@
 // or a handler per line: a window holds up to twenty thousand events, of which
 // exactly one is ever followed, so the route is built on the click.
 
-import {LogEntry} from './event-log';
+// Type-only on purpose: the styles in `event-log` need the row selector from
+// here, and a value import back the other way would close that loop.
+import type {LogEntry} from './event-log';
 import {categoryOf} from './scrubber';
 
 // The tab a ticket opens on. A comment is read among the comments; everything
@@ -80,11 +82,18 @@ export const destinationFromAttributes = (
 
 // The row a click landed in. Null when the click missed every row that leads
 // anywhere — the padding, a day divider, the pane itself.
+// The row under a pointer, when that row leads somewhere. The click path asks
+// where it goes; the panel asks only where it is, to mark it as a target. Both
+// find it the same way, and neither spells the selector out.
+export const linkedRowFrom = (target: EventTarget | null): HTMLElement | null =>
+	target instanceof Element
+		? target.closest<HTMLElement>(LOG_ROW_SELECTOR)
+		: null;
+
 export const readDestination = (
 	target: EventTarget | null,
 ): LogDestination | null => {
-	const row =
-		target instanceof Element ? target.closest(LOG_ROW_SELECTOR) : null;
+	const row = linkedRowFrom(target);
 
 	return row ? destinationFromAttributes(name => row.getAttribute(name)) : null;
 };

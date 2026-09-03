@@ -10,6 +10,7 @@
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
+import {LOG_ROW_SELECTOR} from './log-destination';
 import {categoryOf} from './scrubber';
 
 // One line of the log. `color` is the dot it is marked with, which is the whole
@@ -229,6 +230,24 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 export const LOG_TIME_CHARS = 5;
 export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
 
+// The gap between the column of lines and either side of the panel. Shared
+// with the arrow below, which hangs at the end of a line rather than at the
+// edge of the panel it happens to be drawn in.
+export const LOG_PANE_PADDING_X = 14;
+
+// The rows that lead somewhere, and only those. The attribute names belong to
+// `log-destination` — it hands over the selector rather than the names, so
+// what these rules point at cannot drift from what a click follows.
+const linkedRow = (suffix = ''): string =>
+	LOG_ROW_SELECTOR.split(',')
+		.map(attribute => `.epiq-log-line${attribute}${suffix}`)
+		.join(',');
+
+// One arrow for the whole panel, moved onto whichever row is hovered — see
+// EventLog, and the same node budget the pseudo-elements above are about. It
+// is decorative: the row is the target, so nothing here takes a pointer.
+export const LOG_ARROW_CLASS = 'epiq-log-arrow';
+
 // Mounted with the panel, so it carries its own look rather than depending on
 // a player being up to define it.
 export const EVENT_LOG_STYLES = `
@@ -262,11 +281,37 @@ export const EVENT_LOG_STYLES = `
 	border-radius: 50%;
 	background: var(${LOG_DOT_COLOR_PROPERTY});
 }
+${linkedRow()} {
+	cursor: pointer;
+}
+${linkedRow(':hover')} {
+	color: ${GUI_THEME.primary};
+	background: ${GUI_THEME.hover};
+}
+.${LOG_ARROW_CLASS} {
+	position: absolute;
+	right: ${LOG_PANE_PADDING_X}px;
+	display: flex;
+	align-items: center;
+	height: ${LOG_ROW_HEIGHT}px;
+	padding: 0 3px;
+	border-radius: 4px;
+	color: ${GUI_THEME.secondary};
+	/* Opaque, so a long line is cut off behind it rather than running under —
+	   and mixed exactly as the row it sits on is, so it does not read as a
+	   patch laid over one. */
+	background: linear-gradient(${GUI_THEME.hover}, ${GUI_THEME.hover}),
+		${GUI_THEME.panel};
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease;
+}
 @keyframes epiqLogLine {
 	from { opacity: 0; }
 	to { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
 	.epiq-log-line { animation: none; }
+	.${LOG_ARROW_CLASS} { transition: none; }
 }
 `;

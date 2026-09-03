@@ -28,6 +28,10 @@ export const GUI_THEME = {
 	tertiary: 'rgb(31 33 43)',
 	dim: '#585d78',
 	dim2: 'rgb(100 107 133)',
+	// What anything the pointer is over takes on, throughout: buttons, rows,
+	// menu items. A lift off whatever it sits on rather than a colour of its
+	// own, so it reads the same on the panel as on the board.
+	hover: 'rgba(255,255,255,0.04)',
 	accent: '#76d4ff',
 	green: '#8ce99a',
 	red: '#ff8787',
