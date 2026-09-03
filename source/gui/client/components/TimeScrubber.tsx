@@ -50,7 +50,7 @@ import {
 } from '../lib/scrubber';
 import {canPlayTimeline} from '../lib/theatre';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
-import {ScatterLayer, ScatterPoint} from './ScrubberParts';
+import {ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {GUI_THEME} from '../lib/gui-theme';
 
 const SCRUB_THROTTLE_MS = 120;
