@@ -243,6 +243,61 @@ export function withDeferredDerive<T>(fn: () => T): Result<T> {
 export const patchState = (patch: Partial<BaseState>) =>
 	updateState(old => ({...old, ...patch}));
 
+// The keyed collections of the base state — the ones a single event writes one
+// entry of.
+type StateMapKey = {
+	[K in keyof BaseState]-?: NonNullable<BaseState[K]> extends Record<
+		string,
+		object
+	>
+		? K
+		: never;
+}[keyof BaseState];
+
+/**
+ * Writes one entry of a keyed collection.
+ *
+ * Inside a replay batch the collection is written in place. Rebuilding it per
+ * write is what made a replay quadratic a second time: `{...s.nodes, [id]: n}`
+ * copies every node a board has, once per event, so a log twice as long cost
+ * four times as much — 5k events took 1.1s, 40k took 96s. Deferring the derive
+ * fixed the index being rebuilt per event; it never touched this.
+ *
+ * Outside a batch it copies, because a reader holding the previous state must
+ * not see it change underneath them. Nothing reads derived state mid-batch —
+ * that is what makes the write safe rather than merely faster.
+ */
+export function setStateEntry<K extends StateMapKey>(
+	key: K,
+	id: string,
+	value: NonNullable<BaseState[K]>[string],
+): Result<string> {
+	if (!deferring) {
+		return updateState(
+			old =>
+				({
+					...old,
+					[key]: {...((old[key] ?? {}) as object), [id]: value},
+				}) as BaseState,
+		);
+	}
+
+	const prev = getState();
+	const collection = (prev[key] ?? {}) as Record<string, unknown>;
+
+	collection[id] = value;
+
+	// The batch still has to carry what it wrote, or the flush finds nothing to
+	// derive from. Spreading the state's own keys is a fixed, small cost — it is
+	// the collection that grows.
+	const nextBase = {...prev, [key]: collection} as BaseState;
+
+	deferredBase = nextBase;
+	_appState = {...prev, ...nextBase};
+
+	return succeeded('State updated', null);
+}
+
 export const isChildSelected = (
 	parent: NavNode<AnyContext>,
 	i: number,
