@@ -49,7 +49,7 @@ import {IconScatter} from './IconScatter';
 // Named once: the collapsed header puts the same box up when the rest of this
 // row is not on screen.
 export const SCOPE_ONLY_LABEL = 'Scope only';
-export const TICKET_ONLY_LABEL = 'This ticket';
+export const TICKET_ONLY_LABEL = 'Ticket only';
 
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	background: 'transparent',
@@ -617,7 +617,7 @@ export const ScrubberControls = ({
 						<button
 							title={
 								ticketFocus
-									? 'The ticket\u2019s own stretch — untick "This ticket" to page'
+									? 'The ticket\u2019s own stretch — untick "Ticket only" to page'
 									: 'Earlier'
 							}
 							disabled={!connected || ticketFocus}
@@ -700,7 +700,7 @@ export const ScrubberControls = ({
 					<button
 						title={
 							ticketFocus
-								? 'Held behind the ticket’s own stretch — untick "This ticket" to come back to it'
+								? 'Held behind the ticket’s own stretch — untick "Ticket only" to come back to it'
 								: zoomed
 								? 'A window dragged out on the chart — pick a period to leave it'
 								: 'Drag across the chart to zoom the window to a stretch of it'
@@ -781,7 +781,7 @@ export const ScrubberControls = ({
 					label={SCOPE_ONLY_LABEL}
 					title={
 						ticketFocus
-							? 'The board is already down to one ticket — untick "This ticket" to narrow by window instead'
+							? 'The board is already down to one ticket — untick "Ticket only" to narrow by window instead'
 							: everythingInScope
 							? 'Every event is in scope — pick a period to narrow the board'
 							: !windowFilterable
