@@ -12,14 +12,16 @@
 
 import {useEffect, useRef} from 'react';
 import {
-	formatDate,
+	formatDayLabel,
 	formatTimeOfDay,
+	formatWeekday,
 	isSameDay,
 } from '../../../lib/utils/date.utils.js';
 import {
 	crawlShiftFrames,
 	CRAWL_TIMING,
 	EVENT_LOG_KEYFRAMES,
+	LogEntry,
 	LOG_ROW_HEIGHT,
 } from '../lib/event-log';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
@@ -38,18 +40,25 @@ const CRAWL_MASK = `linear-gradient(to bottom, transparent 0, #000 ${
 	FADE_ROWS * LOG_ROW_HEIGHT
 }px)`;
 
-// What the panel needs of an event. Structural, so both the timeline's own rows
-// and a movie's cut-down ones satisfy it without either being converted.
-export type EventLogRow = {id: string; t: number; label: string};
+// A few pixels across, and no more: it marks a line's kind without becoming
+// the thing the eye lands on.
+const DOT_SIZE = 5;
+
+const dividerRuleStyle: React.CSSProperties = {
+	flex: 1,
+	height: 1,
+	alignSelf: 'center',
+	background: GUI_THEME.line,
+};
 
 // The clock alone against each line, with the day called once above the lines
 // that share it — a full date on all of them is the same ten characters twenty
 // times over.
 type Row =
 	| {kind: 'day'; key: string; label: string}
-	| {kind: 'event'; key: string; time: string; label: string};
+	| {kind: 'event'; key: string; time: string; label: string; color: string};
 
-const toRows = (entries: readonly EventLogRow[]): Row[] => {
+const toRows = (entries: readonly LogEntry[]): Row[] => {
 	const rows: Row[] = [];
 	let previous: Date | null = null;
 
@@ -57,14 +66,22 @@ const toRows = (entries: readonly EventLogRow[]): Row[] => {
 		const at = new Date(entry.t);
 
 		if (!previous || !isSameDay(previous, at)) {
-			rows.push({kind: 'day', key: `day-${entry.id}`, label: formatDate(at)});
+			rows.push({
+				kind: 'day',
+				key: `day-${entry.id}`,
+				label: formatDayLabel(at),
+			});
 		}
 
 		rows.push({
 			kind: 'event',
 			key: entry.id,
-			time: formatTimeOfDay(at),
+			// The weekday against every line, not only against the day it opens:
+			// the header scrolls off the top long before the lines under it do,
+			// and a bare clock says nothing about which day it belongs to.
+			time: `${formatWeekday(at)} ${formatTimeOfDay(at)}`,
 			label: entry.label,
+			color: entry.color,
 		});
 
 		previous = at;
@@ -77,7 +94,7 @@ export const EventLog = ({
 	entries,
 	bottomClearance,
 }: {
-	entries: readonly EventLogRow[];
+	entries: readonly LogEntry[];
 	// Room to leave at the foot of the column for whatever is floating over it —
 	// the history player's drawer, when one is up. A row past it, because the
 	// crawl starts each line one row low and slides it up.
@@ -168,14 +185,21 @@ export const EventLog = ({
 							}}
 						>
 							{row.kind === 'day' ? (
-								<span
-									style={{
-										color: GUI_THEME.dim,
-										fontVariantNumeric: 'tabular-nums',
-									}}
-								>
-									{row.label}
-								</span>
+								// A rule either side of the day, so it reads as a divider
+								// between one day's lines and the next rather than as another
+								// line of the log.
+								<>
+									<span aria-hidden style={dividerRuleStyle} />
+									<span
+										style={{
+											color: GUI_THEME.dim,
+											flexShrink: 0,
+										}}
+									>
+										{row.label}
+									</span>
+									<span aria-hidden style={dividerRuleStyle} />
+								</>
 							) : (
 								<>
 									<span
@@ -187,6 +211,20 @@ export const EventLog = ({
 									>
 										{row.time}
 									</span>
+									{/* Between the clock and the line, so a run of them makes a
+									    column of its own down the panel. */}
+									<span
+										data-testid="log-dot"
+										aria-hidden
+										style={{
+											width: DOT_SIZE,
+											height: DOT_SIZE,
+											borderRadius: '50%',
+											background: row.color,
+											flexShrink: 0,
+											alignSelf: 'center',
+										}}
+									/>
 									<span
 										style={{
 											color: GUI_THEME.secondary,

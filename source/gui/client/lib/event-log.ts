@@ -7,6 +7,46 @@
 // runs, the checkout while the needle is parked, the present while live — but
 // the slice does not.
 
+import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
+import {EVENT_CATEGORY_COLORS, GUI_THEME} from './gui-theme';
+import {categoryOf} from './scrubber';
+
+// One line of the log. `color` is the dot it is marked with, which is the whole
+// of what says a line is a commit rather than a board event — so it is resolved
+// once here rather than being decided again wherever a row is drawn.
+export type LogEntry = {
+	id: string;
+	t: number;
+	label: string;
+	color: string;
+};
+
+// Both series in one column, in clock order. Commits are lines and nothing
+// more: they change no board state, so they never drive a checkout and never
+// become a frame of a movie — the playhead is still walked by events alone.
+export const buildLogEntries = (
+	events: readonly GuiEventTimelineEntry[],
+	commits: readonly GuiCommitEntry[],
+): LogEntry[] =>
+	[
+		...events.map(event => ({
+			id: event.id,
+			t: event.t,
+			label: event.label,
+			// The colour its dot already has on the scatter, so a kind reads the
+			// same in both places.
+			color: EVENT_CATEGORY_COLORS[categoryOf(event.action)],
+		})),
+		// Prefixed, because a sha and a ULID share no namespace and both end up
+		// as React keys in the same column.
+		...commits.map(commit => ({
+			id: `commit-${commit.sha}`,
+			t: commit.time,
+			label: commit.subject,
+			color: GUI_THEME.green,
+		})),
+	].sort((left, right) => left.t - right.t);
+
 // How many lines the panel is handed. Enough to fill a tall pane to its top —
 // the panel is a column of the board's full height, and a log that stopped
 // short of it would read as a box parked at the bottom rather than as the

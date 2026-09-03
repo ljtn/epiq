@@ -204,6 +204,10 @@ test('the pop-out puts the log beside the board', async ({
 	// than repeated on every line.
 	await expect(page.getByTestId('log-day').first()).toBeVisible();
 
+	// Every line is marked with its kind, commits included — the dot is the
+	// whole of what separates one from a board event.
+	expect(await page.getByTestId('log-dot').count()).toBe(await lines.count());
+
 	// A panel, not a wash over the board: it takes its own width and the first
 	// swimlane starts to the right of where it ends.
 	const logBox = (await log.boundingBox())!;
@@ -276,7 +280,6 @@ test('the log picks up what happens on the board while it is open', async ({
 
 	const lines = page.getByTestId('log-line');
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
-	const before = await lines.count();
 
 	// A swimlane, because it writes an event without needing a ticket first.
 	const name = `log-live-${Date.now()}`;
@@ -286,8 +289,10 @@ test('the log picks up what happens on the board while it is open', async ({
 
 	await expect(page.getByText(name, {exact: true}).first()).toBeVisible();
 
-	// The line for it arrives without the window being touched.
-	await expect.poll(async () => await lines.count()).toBeGreaterThan(before);
+	// Its line arrives without the window being touched. Asserted by what the
+	// line says rather than by the count going up: the log is capped, and on a
+	// board that has already filled it a new line pushes the oldest off the top
+	// instead of adding to the tally.
 	await expect(page.getByTestId('event-log')).toContainText(name);
 
 	await box.click();

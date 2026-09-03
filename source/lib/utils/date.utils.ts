@@ -31,10 +31,37 @@ export const formatDateTime = (date: Date): string =>
 	`${pad(date.getHours())}:` +
 	`${pad(date.getMinutes())}`;
 
-// Only the day, for a list that marks where one ends and prints the clock alone
-// against every line inside it.
-export const formatDate = (date: Date): string =>
-	`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// The day of the week, which tells a reader what a date on its own does not:
+// whether a stretch of work was a Tuesday or a Sunday.
+export const formatWeekday = (date: Date): string =>
+	WEEKDAY_LABELS[date.getDay()]!;
+
+const MONTH_LABELS = [
+	'Jan',
+	'Feb',
+	'Mar',
+	'Apr',
+	'May',
+	'Jun',
+	'Jul',
+	'Aug',
+	'Sep',
+	'Oct',
+	'Nov',
+	'Dec',
+];
+
+export const formatMonth = (date: Date): string =>
+	MONTH_LABELS[date.getMonth()]!;
+
+// "Tue, Oct 7" — a day written to be read rather than parsed, for the divider
+// a list puts between one day's entries and the next. No year: a divider says
+// which day the lines under it belong to, and the lines themselves are already
+// in order.
+export const formatDayLabel = (date: Date): string =>
+	`${formatWeekday(date)}, ${formatMonth(date)} ${date.getDate()}`;
 
 // Only the clock, for the second half of an interval that stays inside one day.
 export const formatTimeOfDay = (date: Date): string =>

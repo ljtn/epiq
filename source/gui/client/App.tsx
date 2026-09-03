@@ -65,7 +65,6 @@ import {
 	GuiRefCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
-	GuiEventTimelineEntry,
 	GuiState,
 	GuiSwimlane,
 	GuiUser,
@@ -83,7 +82,7 @@ import {
 	TheatrePlan,
 	useTheatrePlayback,
 } from './lib/theatre';
-import {logEntriesUpTo} from './lib/event-log';
+import {buildLogEntries, LogEntry, logEntriesUpTo} from './lib/event-log';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
@@ -102,7 +101,7 @@ const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
 // Module scope for the same reason: a shut log must not hand the memo below a
 // new array on every render.
-const EMPTY_LOG_EVENTS: GuiEventTimelineEntry[] = [];
+const EMPTY_LOG_ROWS: LogEntry[] = [];
 
 // The board's page margin, matching the left padding on <main>.
 const BOARD_GUTTER = 30;
@@ -1178,16 +1177,14 @@ export const App = () => {
 		onSeek: scrubToTime,
 	});
 
-	// The window in clock order, which is not the order the log stores it in.
-	// Sorted once per window rather than per render, and not at all while the
-	// panel is shut.
-	const logEvents = useMemo(() => {
-		if (!logOpen) return EMPTY_LOG_EVENTS;
+	// Both series of the window in one column, in clock order — which is not the
+	// order the log stores either of them in. Built once per window rather than
+	// per render, and not at all while the panel is shut.
+	const logRows = useMemo(() => {
+		if (!logOpen) return EMPTY_LOG_ROWS;
 
-		return [...(history.timeline?.events ?? [])].sort(
-			(left, right) => left.t - right.t,
-		);
-	}, [logOpen, history.timeline]);
+		return buildLogEntries(history.timeline?.events ?? [], history.commits);
+	}, [logOpen, history.timeline, history.commits]);
 
 	// Where the board is standing, which is the only thing the three cases
 	// differ by: the playhead while a movie runs, the checkout while the needle
@@ -1795,7 +1792,7 @@ export const App = () => {
 					>
 						{logOpen && (
 							<EventLog
-								entries={logEntriesUpTo(logEvents, logMoment)}
+								entries={logEntriesUpTo(logRows, logMoment)}
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 							/>
 						)}
