@@ -260,6 +260,41 @@ test('the log stays on the board after the player leaves', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// The log is drawn from the scrubber's window, which is fetched when the window
+// moves — not when the board changes. Without the log asking for it too, a
+// swimlane made while the panel is open never reaches the panel listing it.
+test('the log picks up what happens on the board while it is open', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const box = page.getByRole('checkbox', {name: 'Log', exact: true});
+	await box.click();
+	await expect(page.getByTestId('event-log')).toBeVisible();
+
+	const lines = page.getByTestId('log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
+	const before = await lines.count();
+
+	// A swimlane, because it writes an event without needing a ticket first.
+	const name = `log-live-${Date.now()}`;
+	await page.getByTestId('add-swimlane').click();
+	await page.getByPlaceholder('swimlane name').fill(name);
+	await page.getByPlaceholder('swimlane name').press('Enter');
+
+	await expect(page.getByText(name, {exact: true}).first()).toBeVisible();
+
+	// The line for it arrives without the window being touched.
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(before);
+	await expect(page.getByTestId('event-log')).toContainText(name);
+
+	await box.click();
+	await expect(page.getByTestId('event-log')).toHaveCount(0);
+	expect(pageErrors).toEqual([]);
+});
+
 test('closing the player hands the board back, live and editable', async ({
 	page,
 	appUrl,

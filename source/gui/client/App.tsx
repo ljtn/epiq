@@ -1753,9 +1753,15 @@ export const App = () => {
 							: null
 					}
 					knownIdentities={knownIdentities}
-					// Not while a movie plays: the window would be re-fetched on every
-					// frame, and the plan is drawn from it.
-					refreshOn={selection.windowOnly && !theatre ? state : null}
+					// The log reads the window, so a swimlane or ticket made while it
+					// is open has to reach it — the board's own broadcast is what says
+					// there is something new to fetch.
+					//
+					// Not while a movie plays: the state changes on every frame of one,
+					// and the window it is drawn from must not move underneath it.
+					refreshOn={
+						(selection.windowOnly || logOpen) && !theatre ? state : null
+					}
 				/>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at

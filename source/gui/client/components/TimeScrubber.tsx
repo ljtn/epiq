@@ -128,9 +128,11 @@ export const TimeScrubber = ({
 	knownIdentities: Record<'actor' | 'tag' | 'assignee', GuiEventIdentity[]>;
 	// Anything whose identity changing means the window has to be asked for
 	// again. The window is otherwise fetched only when it moves, which is fine
-	// while it is just a picture — but once it decides which tickets the board
-	// shows, a ticket filed since the last fetch is missing from it, and would
-	// be hidden from the board it has just joined.
+	// while it is just a picture — but two things read it as live data. Once it
+	// decides which tickets the board shows, a ticket filed since the last fetch
+	// is missing from it and would be hidden from the board it has just joined;
+	// and once the log is drawn from it, an event made since the last fetch
+	// never reaches the panel that is supposed to be listing it.
 	refreshOn: unknown;
 	// Opens the history player over this window.
 	onPlayTheatre: () => void;
