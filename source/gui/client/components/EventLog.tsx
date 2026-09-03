@@ -38,18 +38,7 @@ import {usePrefersReducedMotion} from '../lib/scrubber';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 
-const LOG_WIDTH = 380;
-
-// How many rows the top of the log dissolves over. Measured in rows rather than
-// as a share of anything, so the fade is the same depth whatever height the
-// panel happens to have.
-const FADE_ROWS = 3;
-
-// Dissolves the top of the pane so lines leave rather than being cut off. Both
-// spellings, since the unprefixed property is not in Safari.
-const CRAWL_MASK = `linear-gradient(to bottom, transparent 0, #000 ${
-	FADE_ROWS * LOG_ROW_HEIGHT
-}px)`;
+const LOG_WIDTH = 440;
 
 // How near the foot counts as being at it. A couple of rows, so a pin survives
 // a sub-pixel scroll position or a rounding difference between scrollHeight and
@@ -281,8 +270,6 @@ const EventLogPanel = ({
 					display: 'flex',
 					flexDirection: 'column',
 					padding: `0 14px ${bottomClearance + LOG_ROW_HEIGHT * 2}px 30px`,
-					maskImage: CRAWL_MASK,
-					WebkitMaskImage: CRAWL_MASK,
 				}}
 			>
 				{/* Holds a short log at the foot of the panel, so the newest line is
