@@ -122,6 +122,61 @@ test('it takes the board down to the one ticket, and the window box with it', as
 	expect(pageErrors).toEqual([]);
 });
 
+// A mode you are in rather than something the next click quietly cancels: the
+// narrowing follows to whichever ticket is opened next and re-derives there.
+test('it follows to the next ticket rather than being cancelled by it', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const first = `Follow first ${Date.now()}`;
+	const second = `Follow second ${Date.now()}`;
+	await addTicket(page, first);
+	await addTicket(page, second);
+
+	// Open the first, narrow to it, then reach the second through the filter —
+	// the board is down to one card, so there is no second card to click.
+	await page
+		.locator('[draggable="true"]')
+		.filter({hasText: first})
+		.first()
+		.click();
+	await expect(page).toHaveURL(/\/issue\//);
+
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).toBeChecked();
+	await expect(
+		page.locator('[draggable="true"]').filter({hasText: second}),
+	).toHaveCount(0);
+
+	const firstUrl = page.url();
+
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).not.toBeChecked();
+	await page
+		.locator('[draggable="true"]')
+		.filter({hasText: second})
+		.first()
+		.click();
+	await expect(page).not.toHaveURL(firstUrl);
+
+	// Back on: from here, opening another ticket must keep it ticked.
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).toBeChecked();
+
+	await page.goBack();
+	await expect(page).toHaveURL(/\/issue\//);
+	await expect(ticketOnly(page)).toBeChecked();
+	await expect
+		.poll(() => new URL(page.url()).searchParams.get('ticket'))
+		.toBe('1');
+
+	expect(pageErrors).toEqual([]);
+});
+
 // It never writes a window into the selection, so what it hands back is
 // whatever was in force — a dragged-out one included.
 test('unticking hands back the window it was turned on over', async ({
