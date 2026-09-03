@@ -22,6 +22,7 @@ import {
 	restoreTag,
 	addIssueComment,
 	addIssueTag,
+	assumeActor,
 	closeIssue,
 	createIssue,
 	createSwimlane,
@@ -479,6 +480,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(moveIssue),
+	);
+
+	server.registerTool(
+		'epiq_actor_assume',
+		{
+			description:
+				'Take a board identity for the rest of this session, so your writes are attributed to you rather than to the user. Pass the name you announced — the model provider, a slash, then a short human first name, e.g. "claude/peter". Takes effect on the very next write; no relaunch. A name the server was launched with wins, and re-assuming the same name is harmless. Reuse an existing agent identity (epiq_contributor_list) before inventing one: a name is permanent once it has authored anything.',
+			inputSchema: z.object({
+				name: z.string().min(1).max(80),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(assumeActor),
 	);
 
 	server.registerTool(
