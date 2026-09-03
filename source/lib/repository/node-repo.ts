@@ -14,7 +14,7 @@ import {
 	ReturnFail,
 	succeeded,
 } from '../model/result-types.js';
-import {getState, patchState, updateState} from '../state/state.js';
+import {getState, patchState, setStateEntry, updateState} from '../state/state.js';
 import {getOrderedChildren} from './rank.js';
 
 /**
@@ -135,16 +135,10 @@ export const nodeRepo = {
 		if (!issue) return failed('Unable to create comment, missing issue');
 		if (!isTicketNode(issue)) return failed('Can only comment on issues');
 
-		const result = updateState(s => ({
-			...s,
-			comments: {
-				...(s.comments ?? {}),
-				[comment.id]: {
-					...comment,
-					deleted: false,
-				},
-			},
-		}));
+		const result = setStateEntry('comments', comment.id, {
+			...comment,
+			deleted: false,
+		});
 
 		if (isFail(result)) return failed('Unable to create comment');
 
@@ -169,13 +163,7 @@ export const nodeRepo = {
 			deleted: false,
 		};
 
-		const result = updateState(s => ({
-			...s,
-			comments: {
-				...(s.comments ?? {}),
-				[commentId]: updatedComment,
-			},
-		}));
+		const result = setStateEntry('comments', commentId, updatedComment);
 
 		if (isFail(result)) return failed('Unable to edit comment');
 
@@ -191,13 +179,7 @@ export const nodeRepo = {
 			deleted: true,
 		};
 
-		const result = updateState(s => ({
-			...s,
-			comments: {
-				...(s.comments ?? {}),
-				[commentId]: updatedComment,
-			},
-		}));
+		const result = setStateEntry('comments', commentId, updatedComment);
 
 		if (isFail(result)) return failed('Unable to delete comment');
 
@@ -671,13 +653,7 @@ export const nodeRepo = {
 	createNode<T extends AnyContext>(
 		node: NavNode<T>,
 	): Result<NavNode<AnyContext>> {
-		const result = updateState(s => ({
-			...s,
-			nodes: {
-				...s.nodes,
-				[node.id]: node,
-			},
-		}));
+		const result = setStateEntry('nodes', node.id, node);
 
 		if (isFail(result)) return failed('Unable to create node');
 
@@ -693,13 +669,7 @@ export const nodeRepo = {
 			readonly: true,
 		};
 
-		const result = updateState(s => ({
-			...s,
-			nodes: {
-				...s.nodes,
-				[id]: updatedNode,
-			},
-		}));
+		const result = setStateEntry('nodes', id, updatedNode);
 
 		if (isFail(result)) return failed(result.message);
 
@@ -707,13 +677,7 @@ export const nodeRepo = {
 	},
 
 	updateNode(node: NavNode<AnyContext>) {
-		const result = updateState(s => ({
-			...s,
-			nodes: {
-				...s.nodes,
-				[node.id]: node,
-			},
-		}));
+		const result = setStateEntry('nodes', node.id, node);
 
 		if (isFail(result)) return result;
 		return succeeded('Updated node', node);
