@@ -112,19 +112,26 @@ export type EventTimelineEntry = {
 	issue: string | null;
 };
 
-// Tag and contributor names come from the log's own create events rather than
-// from the materialized state, which getEventTimeline must not touch. Same
-// technique as filterEventsForBoard: build the index as the scan proceeds.
+// Tag, contributor and swimlane names come from the log's own create events
+// rather than from the materialized state, which getEventTimeline must not
+// touch. Same technique as filterEventsForBoard: build the index as the scan
+// proceeds.
+//
+// A name renamed later reads under the one it was created with, which is what
+// the log itself says happened at the moment being described.
+const NAMING_ACTIONS = new Set<EventAction>([
+	'create.tag',
+	'create.contributor',
+	// Carries the lane's name, and is what lets a move say which lane it went
+	// to.
+	'add.swimlane',
+]);
+
 const buildNameIndex = (events: AppEvent[]): Map<string, string> => {
 	const names = new Map<string, string>();
 
 	for (const event of events) {
-		if (
-			event.action !== 'create.tag' &&
-			event.action !== 'create.contributor'
-		) {
-			continue;
-		}
+		if (!NAMING_ACTIONS.has(event.action)) continue;
 
 		const payload = event.payload as {id?: string; name?: string} | undefined;
 
@@ -132,6 +139,36 @@ const buildNameIndex = (events: AppEvent[]): Map<string, string> => {
 	}
 
 	return names;
+};
+
+// Where each node sat before the move an event describes, keyed by that event's
+// id — which is what separates "moved to another lane" from "reordered inside
+// the one it was in".
+//
+// Over the whole log and in causal order, the order loadMergedEvents already
+// returns: a move inside the window is only tellable apart from a reorder by
+// what came before it, which is routinely outside the window.
+const buildPreviousParentIndex = (
+	events: AppEvent[],
+): Map<string, string | undefined> => {
+	const previousParent = new Map<string, string | undefined>();
+	const parentByNode = new Map<string, string>();
+
+	for (const event of events) {
+		const payload = event.payload as {id?: string; parent?: string} | undefined;
+
+		if (!payload?.id || !payload.parent) continue;
+
+		if (event.action === 'move.node') {
+			previousParent.set(event.id, parentByNode.get(payload.id));
+		}
+
+		// Creations seed it and moves update it, so the next move reads where
+		// this one left the node.
+		parentByNode.set(payload.id, payload.parent);
+	}
+
+	return previousParent;
 };
 
 // Which tag an event is about. Tagging a ticket names it as `tag`; deleting or
@@ -215,9 +252,10 @@ const commentPreview = (md: string): string => {
 const describeTimelineEvent = (
 	event: AppEvent,
 	names: Map<string, string>,
+	previousParents: Map<string, string | undefined>,
 ): string => {
 	const payload = event.payload as
-		| {name?: string; assignee?: string; md?: string}
+		| {name?: string; assignee?: string; md?: string; parent?: string}
 		| undefined;
 	const tag = tagOf(event);
 
@@ -229,6 +267,20 @@ const describeTimelineEvent = (
 		const preview = commentPreview(payload.md);
 
 		return preview ? `${action}: ${preview}` : action;
+	}
+
+	// A move says which lane, and whether it changed lanes at all — "Moved
+	// issue" answers neither, and reordering within a lane is the commoner of
+	// the two. Falls back to the bare action where the lane has no create event
+	// in the log to take a name from.
+	if (event.action === 'move.node' && payload?.parent) {
+		const lane = names.get(payload.parent);
+
+		if (!lane) return action;
+
+		return previousParents.get(event.id) === payload.parent
+			? `Moved within ${lane}`
+			: `Moved to ${lane}`;
 	}
 
 	const detail =
@@ -364,6 +416,10 @@ export const getEventTimeline = async (
 	// ULIDs where it means "bug" or "jola".
 	const names = buildNameIndex(eventsResult.value);
 
+	// Over the unscoped log too: a move inside the window is only tellable from
+	// a reorder by where the ticket sat before it, which is routinely outside.
+	const previousParents = buildPreviousParentIndex(eventsResult.value);
+
 	// Over the unscoped log too, so an issue whose board changed since its
 	// add.issue is still recognised as an issue.
 	const issueIndex = buildIssueIndex(eventsResult.value);
@@ -390,7 +446,7 @@ export const getEventTimeline = async (
 						id: event.id,
 						t,
 						action: event.action,
-						label: describeTimelineEvent(event, names),
+						label: describeTimelineEvent(event, names, previousParents),
 						issue: issueOf(event, issueIndex),
 						...identitiesFor(event, names),
 					},
