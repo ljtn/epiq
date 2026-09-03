@@ -139,9 +139,10 @@ export const ScrubberLayout = ({
 	onToggleCollapsed: () => void;
 	canPlay: boolean;
 	onPlay: () => void;
-	// The history player is up and owns the board's position. The whole bar goes
-	// quiet rather than offering a second control for the same thing — the
-	// needle keeps following, so it still says where the movie is.
+	// The history player is up and owns the board's position. Nothing on the bar
+	// answers a pointer while it is, but only the controls dim for it: the charts
+	// are part of what is being watched — the needle sweeps them as the movie
+	// runs — so they stay lit.
 	standDown: boolean;
 	controls: React.ComponentProps<typeof ScrubberControls>;
 	chart: ScrubberChart;
@@ -162,9 +163,7 @@ export const ScrubberLayout = ({
 				// which would lop off the overhanging hint. Safe to disable only
 				// because this panel is square.
 				overflow: 'visible',
-				opacity: standDown ? 0.3 : 1,
 				pointerEvents: standDown ? 'none' : undefined,
-				transition: 'opacity 240ms ease',
 			}}
 		>
 			<style>{SCRUBBER_KEYFRAMES}</style>
@@ -184,6 +183,8 @@ export const ScrubberLayout = ({
 						// Holds the row's height when collapsing takes the controls out
 						// of it.
 						minHeight: 22,
+						opacity: standDown ? 0.3 : 1,
+						transition: 'opacity 240ms ease',
 					}}
 				>
 					<ScrubberHeader

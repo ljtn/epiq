@@ -935,19 +935,25 @@ export const ScrubberHeader = ({
 					: 'Not enough history in this window to play'
 			}
 			aria-label="Play the board's history"
+			// Square and outlined rather than a filled key next to the chevron's
+			// panel: it is the same affordance the player's own transport is, and
+			// the two have to read as one thing in two places.
 			style={{
-				background: GUI_THEME.panel2,
-				border: `1px solid ${canPlay ? GUI_THEME.line : GUI_THEME.transparent}`,
-				borderRadius: 6,
+				background: 'transparent',
+				border: `1px solid ${canPlay ? GUI_THEME.accent : GUI_THEME.line}`,
+				borderRadius: 3,
 				color: canPlay ? GUI_THEME.accent : GUI_THEME.dim,
-				padding: '3px 7px',
+				width: 24,
+				height: 24,
+				padding: 0,
 				cursor: canPlay ? 'pointer' : 'default',
 				opacity: canPlay ? 1 : 0.4,
 				display: 'inline-flex',
 				alignItems: 'center',
+				justifyContent: 'center',
 			}}
 		>
-			<IconPlay size={14} />
+			<IconPlay size={13} />
 		</button>
 	</div>
 );

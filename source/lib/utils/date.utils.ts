@@ -31,6 +31,11 @@ export const formatDateTime = (date: Date): string =>
 	`${pad(date.getHours())}:` +
 	`${pad(date.getMinutes())}`;
 
+// Only the day, for a list that marks where one ends and prints the clock alone
+// against every line inside it.
+export const formatDate = (date: Date): string =>
+	`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
 // Only the clock, for the second half of an interval that stays inside one day.
 export const formatTimeOfDay = (date: Date): string =>
 	`${pad(date.getHours())}:${pad(date.getMinutes())}`;

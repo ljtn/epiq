@@ -7,38 +7,53 @@ import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {clamp, usePrefersReducedMotion} from '../lib/scrubber';
 import {THEATRE_KEYFRAMES, TheatrePlan, TheatrePlayback} from '../lib/theatre';
-import {IconClose, IconPause, IconPlay, IconReplay} from './IconPlayback';
+import {
+	IconClose,
+	IconPause,
+	IconPlay,
+	IconPopOut,
+	IconReplay,
+} from './IconPlayback';
 
-const PLAYER_WIDTH = 760;
 // How far an arrow key moves the bar, as a share of the whole movie.
 const SEEK_STEP = 0.02;
-const BAR_HEIGHT = 4;
-const KNOB_SIZE = 12;
+const BAR_HEIGHT = 2;
+const KNOB_SIZE = 9;
+
+// Square and outlined at one size, the transport included: a filled accent
+// disc is a media widget, and this sits in a terminal. The transport is set
+// apart by colour alone, which is all it needs to be the one to reach for.
+const TRANSPORT_SIZE = 24;
 
 const transportButtonStyle = (primary: boolean): React.CSSProperties => ({
-	background: primary ? GUI_THEME.accent : 'transparent',
+	background: 'transparent',
 	border: `1px solid ${primary ? GUI_THEME.accent : GUI_THEME.line}`,
-	color: primary ? GUI_THEME.bg : GUI_THEME.secondary,
-	borderRadius: 999,
-	width: primary ? 34 : 26,
-	height: primary ? 34 : 26,
+	color: primary ? GUI_THEME.accent : GUI_THEME.secondary,
+	borderRadius: 3,
+	width: TRANSPORT_SIZE,
+	height: TRANSPORT_SIZE,
 	display: 'inline-flex',
 	alignItems: 'center',
 	justifyContent: 'center',
 	cursor: 'pointer',
 	flexShrink: 0,
 	padding: 0,
-	transition:
-		'background 160ms ease, color 160ms ease, border-color 160ms ease',
+	transition: 'color 160ms ease, border-color 160ms ease',
 });
 
 export const TheatrePlayer = ({
 	plan,
 	playback,
+	logOpen,
+	onToggleLog,
 	onExit,
 }: {
 	plan: TheatrePlan;
 	playback: TheatrePlayback;
+	// Owned above: the log is a panel in the board's own row, so the layout has
+	// to know about it, not just the drawer that opens it.
+	logOpen: boolean;
+	onToggleLog: () => void;
 	onExit: () => void;
 }) => {
 	const animate = !usePrefersReducedMotion();
@@ -122,23 +137,25 @@ export const TheatrePlayer = ({
 				data-testid="theatre-player"
 				role="group"
 				aria-label="History player"
+				// A drawer risen from the foot of the window rather than a card
+				// floating over it: attached edge to edge, square, and held apart
+				// from the board by one hairline the way a dev tool's panel is. The
+				// board's own 30px gutter carries through, so the transport lines up
+				// with the first column.
 				style={{
 					position: 'fixed',
-					left: '50%',
-					bottom: 26,
-					transform: 'translateX(-50%)',
-					width: `min(${PLAYER_WIDTH}px, calc(100vw - 60px))`,
+					left: 0,
+					right: 0,
+					bottom: 0,
 					zIndex: 50,
 					display: 'flex',
 					flexDirection: 'column',
-					gap: 10,
-					padding: '14px 18px 16px',
-					borderRadius: 14,
-					border: `1px solid ${GUI_THEME.edge}`,
-					background: 'rgba(17, 20, 27, 0.92)',
+					gap: 9,
+					padding: '11px 30px 13px',
+					borderTop: `1px solid ${GUI_THEME.line}`,
+					background: 'rgba(13, 16, 22, 0.94)',
 					backdropFilter: 'blur(14px)',
 					WebkitBackdropFilter: 'blur(14px)',
-					boxShadow: '0 24px 60px rgba(0, 0, 0, 0.6)',
 					animation: animate ? 'epiqTheatreRise 260ms ease-out' : undefined,
 				}}
 			>
@@ -152,11 +169,11 @@ export const TheatrePlayer = ({
 						style={transportButtonStyle(true)}
 					>
 						{done ? (
-							<IconReplay size={15} />
+							<IconReplay size={13} />
 						) : playing ? (
-							<IconPause size={16} />
+							<IconPause size={13} />
 						) : (
-							<IconPlay size={16} />
+							<IconPlay size={13} />
 						)}
 					</button>
 
@@ -230,7 +247,6 @@ export const TheatrePlayer = ({
 								height: BAR_HEIGHT,
 								borderRadius: 999,
 								background: `linear-gradient(90deg, #b3a5ff, ${GUI_THEME.accent})`,
-								boxShadow: `0 0 10px rgba(118, 212, 255, 0.45)`,
 							}}
 						/>
 						<div
@@ -242,7 +258,7 @@ export const TheatrePlayer = ({
 								marginLeft: -KNOB_SIZE / 2,
 								borderRadius: '50%',
 								background: GUI_THEME.accent,
-								boxShadow: '0 0 12px rgba(118, 212, 255, 0.7)',
+								boxShadow: '0 0 5px rgba(118, 212, 255, 0.35)',
 							}}
 						/>
 					</div>
@@ -254,8 +270,7 @@ export const TheatrePlayer = ({
 						title="Playback speed"
 						style={{
 							...transportButtonStyle(false),
-							width: 38,
-							borderRadius: 8,
+							width: 34,
 							fontFamily: 'inherit',
 							fontSize: TEXT.label,
 							color: GUI_THEME.accent,
@@ -272,7 +287,7 @@ export const TheatrePlayer = ({
 						aria-label="Close the history player"
 						style={transportButtonStyle(false)}
 					>
-						<IconClose size={13} />
+						<IconClose size={12} />
 					</button>
 				</div>
 
@@ -331,6 +346,35 @@ export const TheatrePlayer = ({
 									new Date(plan.events[0]!.t),
 							  )}`}
 					</span>
+
+					{/* Beside the line it expands: the caption is the last of the log,
+					    and this is the rest of it. */}
+					<button
+						type="button"
+						data-testid="theatre-log-toggle"
+						aria-pressed={logOpen}
+						onClick={onToggleLog}
+						title={
+							logOpen
+								? 'Hide the log'
+								: 'Show every event as it plays, over the board'
+						}
+						aria-label="Show the log over the board"
+						style={{
+							background: 'transparent',
+							border: 'none',
+							padding: 0,
+							marginLeft: 'auto',
+							color: logOpen ? GUI_THEME.accent : GUI_THEME.dim,
+							cursor: 'pointer',
+							display: 'inline-flex',
+							alignItems: 'center',
+							flexShrink: 0,
+							transition: 'color 160ms ease',
+						}}
+					>
+						<IconPopOut size={12} />
+					</button>
 				</div>
 			</div>
 		</>

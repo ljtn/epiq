@@ -9,7 +9,9 @@ import {
 	playbackPosition,
 	seekTimeFor,
 	THEATRE_LEAD_IN,
+	THEATRE_LOG_LINES,
 	theatreDurationMs,
+	theatreLogEntries,
 } from './theatre';
 
 const entry = (
@@ -156,6 +158,48 @@ describe('seekTimeFor', () => {
 	it('asks for the moment just past the event, so its own change is in', () => {
 		expect(seekTimeFor(plan, 0)).toBe(101);
 		expect(seekTimeFor(plan, 1)).toBe(201);
+	});
+});
+
+describe('theatreLogEntries', () => {
+	const plan = buildTheatrePlan(
+		timeline(
+			Array.from({length: THEATRE_LOG_LINES + 10}, (_, index) =>
+				entry(`e${index}`, 1000 + index),
+			),
+		),
+	)!;
+
+	it('is empty until the first event has played', () => {
+		expect(theatreLogEntries(plan, -1)).toEqual([]);
+	});
+
+	it('reads oldest first, ending on the event that just landed', () => {
+		const entries = theatreLogEntries(plan, 3);
+
+		expect(entries.map(event => event.id)).toEqual(['e0', 'e1', 'e2', 'e3']);
+	});
+
+	// The cap is on the document as much as on the reading: rows above it have
+	// scrolled out of the fade, and keeping them would grow the overlay by a
+	// node per event for the length of the movie.
+	it('never holds more lines than the overlay can show', () => {
+		const entries = theatreLogEntries(plan, plan.events.length - 1);
+
+		expect(entries).toHaveLength(THEATRE_LOG_LINES);
+		expect(entries[entries.length - 1]!.id).toBe(
+			plan.events[plan.events.length - 1]!.id,
+		);
+	});
+
+	// Sliced off the plan rather than accumulated as events land, which is what
+	// lets it follow the bar backwards as well as forwards.
+	it('goes back with a seek backwards', () => {
+		expect(theatreLogEntries(plan, 2).map(event => event.id)).toEqual([
+			'e0',
+			'e1',
+			'e2',
+		]);
 	});
 });
 
