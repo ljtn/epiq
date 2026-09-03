@@ -7,13 +7,7 @@ import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {clamp, usePrefersReducedMotion} from '../lib/scrubber';
 import {THEATRE_KEYFRAMES, TheatrePlan, TheatrePlayback} from '../lib/theatre';
-import {
-	IconClose,
-	IconPause,
-	IconPlay,
-	IconPopOut,
-	IconReplay,
-} from './IconPlayback';
+import {IconClose, IconPause, IconPlay, IconReplay} from './IconPlayback';
 
 // How far an arrow key moves the bar, as a share of the whole movie.
 const SEEK_STEP = 0.02;
@@ -44,16 +38,10 @@ const transportButtonStyle = (primary: boolean): React.CSSProperties => ({
 export const TheatrePlayer = ({
 	plan,
 	playback,
-	logOpen,
-	onToggleLog,
 	onExit,
 }: {
 	plan: TheatrePlan;
 	playback: TheatrePlayback;
-	// Owned above: the log is a panel in the board's own row, so the layout has
-	// to know about it, not just the drawer that opens it.
-	logOpen: boolean;
-	onToggleLog: () => void;
 	onExit: () => void;
 }) => {
 	const animate = !usePrefersReducedMotion();
@@ -364,35 +352,6 @@ export const TheatrePlayer = ({
 									new Date(plan.events[0]!.t),
 							  )}`}
 					</span>
-
-					{/* Beside the line it expands: the caption is the last of the log,
-					    and this is the rest of it. */}
-					<button
-						type="button"
-						data-testid="theatre-log-toggle"
-						aria-pressed={logOpen}
-						onClick={onToggleLog}
-						title={
-							logOpen
-								? 'Hide the log'
-								: 'Show every event as it plays, over the board'
-						}
-						aria-label={logOpen ? 'Hide the log' : 'Show the log'}
-						style={{
-							background: 'transparent',
-							border: 'none',
-							padding: 0,
-							marginLeft: 'auto',
-							color: logOpen ? GUI_THEME.accent : GUI_THEME.dim,
-							cursor: 'pointer',
-							display: 'inline-flex',
-							alignItems: 'center',
-							flexShrink: 0,
-							transition: 'color 160ms ease',
-						}}
-					>
-						<IconPopOut size={12} />
-					</button>
 				</div>
 			</div>
 		</>

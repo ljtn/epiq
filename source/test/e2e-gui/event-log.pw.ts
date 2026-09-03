@@ -1,27 +1,30 @@
 // The event log panel: what it holds, when it updates, and how it folds. The
-// player is one of three things that can drive it (see theatre.pw.ts) and is
-// used here only where the behaviour under test is the log's.
+// player is used here only where the behaviour under test is the log's.
 
 import {expect, test} from './fixtures.js';
 import {openBoard, returnToLive} from './live-board.js';
 
 // The crawl is a slice of the script, not a list grown as events land, which
 // is what keeps a long movie from adding a node per event to the overlay.
-test('the pop-out puts the log beside the board', async ({
+test('the log fills beside the board as the movie plays', async ({
 	page,
 	appUrl,
 	pageErrors,
 }) => {
 	await openBoard(page, appUrl);
-	await page.getByTestId('theatre-play').click();
 
 	const log = page.getByTestId('event-log');
+	const box = page.getByTestId('log-toggle');
+
 	await expect(log).toHaveCount(0);
 
-	const toggle = page.getByTestId('theatre-log-toggle');
-	await toggle.click();
+	// Opened before the movie: the bar stands down while the player owns the
+	// board's position, so the Log box is not there to click once it is up.
+	await box.click();
 	await expect(log).toBeVisible();
-	await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+	await page.getByTestId('theatre-play').click();
+	await expect(page.getByTestId('theatre-player')).toBeVisible();
 
 	// Lines arrive as the movie plays. How many the panel holds at most is
 	// event-log.test.ts's job — a bound asserted here would only be a bound on
@@ -57,15 +60,16 @@ test('the pop-out puts the log beside the board', async ({
 	expect(logBox.width).toBeGreaterThan(100);
 	expect(lane.x).toBeGreaterThanOrEqual(logBox.x + logBox.width);
 
-	await toggle.click();
+	await page.getByTestId('theatre-exit').click();
+	await box.click();
 	await expect(log).toHaveCount(0);
 
 	await returnToLive(page);
 	expect(pageErrors).toEqual([]);
 });
 
-// The panel is the board's, not the movie's: the pop-out and the Log box are
-// two controls over one flag, and leaving the player does not take it away.
+// The panel is the board's, not the movie's: the Log box is the only control
+// over it, and leaving the player does not take it away.
 test('the log stays on the board after the player leaves', async ({
 	page,
 	appUrl,
