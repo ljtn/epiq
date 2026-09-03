@@ -5,6 +5,7 @@ import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
+import {logSignature} from './log-signature.js';
 import {toEffectiveUlidTimes} from './date-utils.js';
 import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
 import {
@@ -344,6 +345,11 @@ function loadAllPersistedEvents(
 ): Result<ReconstructedEvent[]> {
 	const dir = getEventsDirPath(eventsRoot);
 
+	// Before the read, never after: a line landing in the gap would otherwise be
+	// remembered under a signature that already accounts for it, and the edge
+	// would stay wrong until something else moved.
+	const signature = logSignature(eventsRoot);
+
 	if (!fs.existsSync(dir)) {
 		return succeeded('No events found', []);
 	}
@@ -365,7 +371,17 @@ function loadAllPersistedEvents(
 		entries.push(...result.value);
 	}
 
-	return succeeded('All events loaded', getSortedEvents(entries));
+	const sorted = getSortedEvents(entries);
+
+	// The causal order's tail, which is what the next write points at. Recorded
+	// here because this is the one place that has just paid for it.
+	edgeCache = {
+		root: eventsRoot,
+		signature,
+		edge: sorted.at(-1)?.id?.[0] ?? null,
+	};
+
+	return succeeded('All events loaded', sorted);
 }
 
 // What the last full load found. Held here rather than in `AppState` because
@@ -452,7 +468,29 @@ export function loadMergedEventsBefore(
 	});
 }
 
+// The tail of the causal order, which every write has to point at.
+//
+// Held rather than re-derived. Reading it meant reading every line the board
+// has ever held and rebuilding the whole forest, to take one id off the end:
+// on a two-hundred-thousand-event board that was four seconds to file a single
+// ticket. `EdgeCursor` already avoids it within a batch, for the same reason;
+// a lone write had nothing to belong to.
+let edgeCache: {root: string; signature: string; edge: string | null} | null =
+	null;
+
 export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
+	const signature = logSignature(rootDir);
+
+	if (
+		edgeCache &&
+		edgeCache.root === rootDir &&
+		edgeCache.signature === signature
+	) {
+		return succeeded('Loaded edge reference, unchanged', edgeCache.edge);
+	}
+
+	// Populates the cache on its way through, so a boot pays for this once and
+	// the writes after it do not pay at all.
 	const persisted = loadAllPersistedEvents(rootDir);
 	if (isFail(persisted)) {
 		return failed(persisted.message);
@@ -462,6 +500,71 @@ export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 		'Loaded edge reference',
 		persisted.value.at(-1)?.id?.[0] ?? null,
 	);
+}
+
+/**
+ * Moves the edge on after this actor wrote `id` to `fileName`, without reading
+ * the log to confirm it.
+ *
+ * Safe only because of what the id is: a child of the edge it was minted
+ * against, and the deepest node in the forest, so the walk that derives the
+ * order ends on it.
+ *
+ * Any other file moving means someone else's events arrived, and the tail is
+ * then theirs to decide — so the cache is dropped rather than advanced, and the
+ * next read derives it properly. That is the case this has to get right; a
+ * board with one writer would not need the check at all.
+ */
+export function advanceEdgeRef(
+	rootDir: string,
+	fileName: string,
+	id: string,
+): void {
+	if (!edgeCache || edgeCache.root !== rootDir) return;
+
+	const before = new Map(
+		edgeCache.signature.split('|').map(part => {
+			const at = part.indexOf(':');
+			return [part.slice(0, at), part.slice(at + 1)] as const;
+		}),
+	);
+
+	const after = new Map(
+		logSignature(rootDir)
+			.split('|')
+			.map(part => {
+				const at = part.indexOf(':');
+				return [part.slice(0, at), part.slice(at + 1)] as const;
+			}),
+	);
+
+	for (const [file, entry] of after) {
+		if (file === fileName) continue;
+		if (before.get(file) !== entry) {
+			edgeCache = null;
+			return;
+		}
+	}
+
+	// A file that was there and is gone is someone else's change too.
+	for (const file of before.keys()) {
+		if (file !== fileName && !after.has(file)) {
+			edgeCache = null;
+			return;
+		}
+	}
+
+	edgeCache = {
+		root: rootDir,
+		signature: [...after].map(([file, entry]) => `${file}:${entry}`).join('|'),
+		edge: id,
+	};
+}
+
+// The tests drive the log through mocks, so they need the edge gone between
+// cases; a signature is no help where the files never existed.
+export function clearEdgeCache(): void {
+	edgeCache = null;
 }
 /**
  * Total, so the order is a function of the event *set* alone.

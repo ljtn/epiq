@@ -279,6 +279,32 @@ console.log(
 		`${perRequest.toFixed(1).padStart(6)} ms`,
 );
 
+// What an edit costs, which is not what a read costs: a write grows the log,
+// and anything holding a derived view of it has to notice.
+const writeAt = performance.now();
+ok(
+	await api.createIssue({
+		repoRoot: REPO,
+		title: 'A ticket filed on a board this size',
+		parentId: lanes[0]!.id,
+	}),
+);
+const wrote = performance.now() - writeAt;
+
+const afterWriteAt = performance.now();
+ok(await api.getGuiState({repoRoot: REPO}));
+const afterWrite = performance.now() - afterWriteAt;
+
+const steadyAt = performance.now();
+ok(await api.getGuiState({repoRoot: REPO}));
+const steady = performance.now() - steadyAt;
+
+console.log(
+	`  ${'filing a ticket'.padEnd(38)} ${secs(wrote).padStart(9)}\n` +
+		`  ${'the read after it'.padEnd(38)} ${secs(afterWrite).padStart(9)}\n` +
+		`  ${'the read after that'.padEnd(38)} ${secs(steady).padStart(9)}`,
+);
+
 console.log(
 	`\n  peak rss ${mb(process.memoryUsage().rss)}   ` + `project at ${REPO}\n`,
 );
