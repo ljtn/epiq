@@ -1136,6 +1136,16 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 	});
 };
 
+// How far back the closed lane is sent. It is the one collection that grows
+// without bound — everything a team finishes lands there and stays — so a
+// decade of a twenty-person board is ninety-five thousand closed tickets
+// against a couple of hundred open ones.
+//
+// A year is what a reader is plausibly still looking for by eye. Reaching
+// further back is a request of its own rather than a cost every board pays on
+// every load.
+const CLOSED_TICKET_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+
 // Reads whatever is currently materialized, live or a historical checkout. Must
 // never boot: booting discards an active time-travel checkout.
 export const deriveGuiState = (): Result<ApiState> => {
@@ -1147,6 +1157,8 @@ export const deriveGuiState = (): Result<ApiState> => {
 
 	const nodes = Object.values(stateResult.value.nodes);
 	const boards = nodes.filter(n => isBoardNode(n) && !n.isDeleted);
+
+	const closedSince = Date.now() - CLOSED_TICKET_WINDOW_MS;
 
 	const swimlanesByBoardId = new Map<string, Swimlane[]>();
 	const ticketsBySwimlaneId = new Map<string, Ticket[]>();
@@ -1161,10 +1173,31 @@ export const deriveGuiState = (): Result<ApiState> => {
 		}
 
 		if (isTicketNode(node) && node.parentNodeId) {
+			// Everything a team ever finished lands in the closed lane and stays,
+			// so it is the one collection with no ceiling: a decade of a
+			// twenty-person board is ninety-five thousand tickets against a
+			// couple of hundred open ones, and sending them all is most of an
+			// 88 MB payload the browser has to parse before it can draw.
+			if (
+				node.parentNodeId === CLOSED_SWIMLANE_ID &&
+				ulidTimeMs(node.id) < closedSince
+			) {
+				continue;
+			}
+
 			const list = ticketsBySwimlaneId.get(node.parentNodeId) ?? [];
 			list.push(node);
 			ticketsBySwimlaneId.set(node.parentNodeId, list);
 		}
+	}
+
+	// The tickets the payload actually carries. Comments and attachments are
+	// built for these rather than for every ticket that has ever existed: a
+	// closed ticket nobody is sent does not need its conversation sent either.
+	const sentIssueIds = new Set<string>();
+
+	for (const tickets of ticketsBySwimlaneId.values()) {
+		for (const ticket of tickets) sentIssueIds.add(ticket.id);
 	}
 
 	const settingsRes = loadSettingsFromConfig();
@@ -1172,12 +1205,16 @@ export const deriveGuiState = (): Result<ApiState> => {
 
 	const commentsByIssueId: ApiState['commentsByIssueId'] = {};
 
-	for (const issue of nodes.filter(isTicketNode)) {
-		if (issue.isDeleted) continue;
+	// Grouped once rather than asked for per issue: asking per issue reads every
+	// comment on the board each time, which on a board with a hundred thousand
+	// of each never finishes.
+	const commentsByIssue = nodeRepo.getCommentsGroupedByIssue();
 
-		commentsByIssueId[issue.id] = nodeRepo
-			.getCommentsByIssue(issue.id)
-			.map(comment => {
+	for (const issue of nodes.filter(isTicketNode)) {
+		if (issue.isDeleted || !sentIssueIds.has(issue.id)) continue;
+
+		commentsByIssueId[issue.id] = (commentsByIssue.get(issue.id) ?? []).map(
+			comment => {
 				const contributor = nodeRepo.getContributor(comment.authorId);
 
 				return {
@@ -1197,7 +1234,8 @@ export const deriveGuiState = (): Result<ApiState> => {
 					},
 					createdAt: ulidTimeMs(comment.id),
 				};
-			});
+			},
+		);
 	}
 
 	const attachmentOwners = new Map<string, string>();
@@ -1209,21 +1247,23 @@ export const deriveGuiState = (): Result<ApiState> => {
 
 	const attachmentsByIssueId: ApiState['attachmentsByIssueId'] = {};
 
-	for (const issue of nodes.filter(isTicketNode)) {
-		if (issue.isDeleted) continue;
+	const attachmentsByIssue = nodeRepo.getAttachmentsGroupedByIssue();
 
-		attachmentsByIssueId[issue.id] = nodeRepo
-			.getAttachmentsByIssue(issue.id)
-			.map(attachment => ({
-				id: attachment.id,
-				issueId: attachment.issue,
-				name: attachment.name,
-				fileName: getAttachmentFileName(attachment.hash, attachment.ext),
-				bytes: attachment.bytes,
-				createdAt: ulidTimeMs(attachment.id),
-				canDelete:
-					attachmentOwners.get(attachment.id) === settingsRes.value.userId,
-			}));
+	for (const issue of nodes.filter(isTicketNode)) {
+		if (issue.isDeleted || !sentIssueIds.has(issue.id)) continue;
+
+		attachmentsByIssueId[issue.id] = (
+			attachmentsByIssue.get(issue.id) ?? []
+		).map(attachment => ({
+			id: attachment.id,
+			issueId: attachment.issue,
+			name: attachment.name,
+			fileName: getAttachmentFileName(attachment.hash, attachment.ext),
+			bytes: attachment.bytes,
+			createdAt: ulidTimeMs(attachment.id),
+			canDelete:
+				attachmentOwners.get(attachment.id) === settingsRes.value.userId,
+		}));
 	}
 
 	return succeeded('Retrieved Epiq GUI state', {
