@@ -61,8 +61,6 @@ const boardEventRow = (count: number) =>
 	`${count} board event${count === 1 ? '' : 's'}`;
 
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
-const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
-const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
 const ALL_BOARDS_STORAGE_KEY = 'epiq.timeScrubber.allBoards';
 const CATEGORIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.categoriesExpanded';
 const IDENTITIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.identitiesExpanded';
@@ -89,6 +87,10 @@ export const TimeScrubber = ({
 	theatreOpen,
 	logOpen,
 	onChangeLogOpen,
+	showIssues,
+	onChangeShowIssues,
+	showCommits,
+	onChangeShowCommits,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -141,6 +143,12 @@ export const TimeScrubber = ({
 	// above because the panel is in the board's row, not in this bar.
 	logOpen: boolean;
 	onChangeLogOpen: (next: boolean) => void;
+	// The two series. Owned above because the log is drawn from them too, and it
+	// is not this component's to draw.
+	showIssues: boolean;
+	onChangeShowIssues: (next: boolean) => void;
+	showCommits: boolean;
+	onChangeShowCommits: (next: boolean) => void;
 	// The player is up. It owns the board's position for as long as it is, so
 	// the whole bar stands down rather than competing for the same thing.
 	theatreOpen: boolean;
@@ -180,14 +188,6 @@ export const TimeScrubber = ({
 	const [collapsed, setCollapsed] = usePersistedFlag(
 		COLLAPSED_STORAGE_KEY,
 		false,
-	);
-	const [showIssues, setShowIssues] = usePersistedFlag(
-		SHOW_ISSUES_STORAGE_KEY,
-		true,
-	);
-	const [showCommits, setShowCommits] = usePersistedFlag(
-		SHOW_COMMITS_STORAGE_KEY,
-		true,
 	);
 	const [categoriesExpanded, setCategoriesExpanded] = usePersistedFlag(
 		CATEGORIES_EXPANDED_STORAGE_KEY,
@@ -836,8 +836,8 @@ export const TimeScrubber = ({
 				onChangeTicketOnly: (next: boolean) =>
 					onChangeSelection({ticketOnly: next}),
 				onChangeLayoutMode: changeLayoutMode,
-				onChangeShowIssues: setShowIssues,
-				onChangeShowCommits: setShowCommits,
+				onChangeShowIssues,
+				onChangeShowCommits,
 				onChangeAllBoards: changeAllBoards,
 				boardView,
 				identities,

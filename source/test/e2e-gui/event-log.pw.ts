@@ -169,3 +169,46 @@ test('a day folds to its divider and opens again', async ({
 	await expect(page.getByTestId('event-log')).toHaveCount(0);
 	expect(pageErrors).toEqual([]);
 });
+
+// The log draws what the chart draws. Reciting events the picture above it is
+// not showing makes the two disagree about what is in the window.
+test('the log obeys the bar\u2019s own filters', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	await page.getByTestId('log-toggle').click();
+
+	const lines = page.getByTestId('log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
+
+	// Commits go with the box that draws them.
+	const code = page.getByRole('checkbox', {name: 'Code', exact: true});
+	const commitColour = 'rgb(140, 233, 154)';
+	const greens = async () =>
+		(
+			(await page.evaluate(
+				`[...document.querySelectorAll('[data-testid="log-line"]')]` +
+					`.map(row => getComputedStyle(row, '::after').backgroundColor)`,
+			)) as string[]
+		).filter(colour => colour === commitColour).length;
+
+	await expect.poll(greens).toBeGreaterThan(0);
+	await code.click();
+	await expect.poll(greens).toBe(0);
+	await code.click();
+	await expect.poll(greens).toBeGreaterThan(0);
+
+	// And the board series takes its own events with it.
+	// The name sits on the wrapper, not the box: the box itself is unlabelled.
+	const series = page.getByTitle('Show board events');
+	const before = await lines.count();
+	await series.click();
+	await expect.poll(async () => await lines.count()).toBeLessThan(before);
+	await series.click();
+
+	await expect.poll(async () => await lines.count()).toBe(before);
+	await page.getByTestId('log-toggle').click();
+	expect(pageErrors).toEqual([]);
+});

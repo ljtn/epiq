@@ -361,7 +361,9 @@ const EVENT_DOT_OPACITY = 0.55;
 // An event is drawn when its kind matches the view and the identity it would be
 // coloured by has not been unticked. An event with no identity under this view
 // always shows: there is nothing in the list for the user to have hidden it by.
-const isShown = (
+// The rule the chart draws by, exported so the log can draw by the same one
+// rather than growing a second copy to drift from it.
+export const isShown = (
 	entry: GuiEventTimelineEntry,
 	view: BoardView,
 	hiddenIds: ReadonlySet<string>,

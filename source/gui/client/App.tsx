@@ -82,7 +82,7 @@ import {
 	TheatrePlan,
 	useTheatrePlayback,
 } from './lib/theatre';
-import {buildLogEntries, LogEntry, logEntriesUpTo} from './lib/event-log';
+import {useEventLog} from './lib/use-event-log';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {sendSocketJson} from './lib/socket-send';
@@ -99,10 +99,6 @@ type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
 // on every render.
 const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
-// Module scope for the same reason: a shut log must not hand the memo below a
-// new array on every render.
-const EMPTY_LOG_ROWS: LogEntry[] = [];
-
 // The board's page margin, matching the left padding on <main>.
 const BOARD_GUTTER = 30;
 
@@ -116,9 +112,12 @@ const LOG_REFRESH_QUIET_MS = 400;
 // so the field reads as lit rather than as selected.
 const FILTER_ON_RING = 'rgba(118, 212, 255, 0.18)';
 
-// Remembered beside the scrubber's own view flags, which is what its checkbox
-// sits among.
+// Remembered beside the scrubber's own view flags, which is what their controls
+// sit among. The two series live here rather than in the scrubber because the
+// log is drawn from them and is not the scrubber's to draw.
 const LOG_STORAGE_KEY = 'epiq.timeScrubber.showLog';
+const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
+const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
 
 // What the chrome around the board wears while a movie plays. Faded rather than
 // unmounted: the page must not reflow around the picture being watched.
@@ -197,6 +196,14 @@ export const App = () => {
 	// player: it is a panel in the board's own row, the board moves over for it,
 	// and its checkbox and the player's pop-out are two controls over one flag.
 	const [logOpen, setLogOpen] = usePersistedFlag(LOG_STORAGE_KEY, false);
+	const [showIssues, setShowIssues] = usePersistedFlag(
+		SHOW_ISSUES_STORAGE_KEY,
+		true,
+	);
+	const [showCommits, setShowCommits] = usePersistedFlag(
+		SHOW_COMMITS_STORAGE_KEY,
+		true,
+	);
 	const [commitDiff, setCommitDiff] = useState<{
 		sha: string;
 		loading: boolean;
@@ -1214,31 +1221,18 @@ export const App = () => {
 		return () => window.clearTimeout(timer);
 	}, [state, theatre, selection.windowOnly, logOpen]);
 
-	// Both series of the window in one column, in clock order — which is not the
-	// order the log stores either of them in. Built once per window rather than
-	// per render, and not at all while the panel is shut.
-	const logRows = useMemo(() => {
-		if (!logOpen) return EMPTY_LOG_ROWS;
-
-		return buildLogEntries(history.timeline?.events ?? [], history.commits);
-	}, [logOpen, history.timeline, history.commits]);
-
-	// Where the board is standing, which is the only thing the three cases
-	// differ by: the playhead while a movie runs, the checkout while the needle
-	// is parked, and the present while live.
-	const logMoment = theatre
-		? playback.current?.t ?? -Infinity
-		: state?.timeTravel?.mode === 'scrub' && state.timeTravel.asOfTime !== null
-		? state.timeTravel.asOfTime
-		: Infinity;
-
-	// Sliced when the moment moves rather than on every render: a movie renders
-	// the board on every animation frame but reaches a new event a few times a
-	// second, and the panel below only wants a new list for the latter.
-	const logEntries = useMemo(
-		() => logEntriesUpTo(logRows, logMoment),
-		[logRows, logMoment],
-	);
+	const logEntries = useEventLog({
+		open: logOpen,
+		timeline: history.timeline,
+		commits: history.commits,
+		selection,
+		selectedIssueId: selectedIssue?.id ?? null,
+		showIssues,
+		showCommits,
+		playing: theatre !== null,
+		playheadTime: playback.current?.t ?? null,
+		timeTravel: state?.timeTravel,
+	});
 
 	// A movie is checked out one frame at a time over the socket, so a dropped
 	// one leaves the player running against nothing. It closes rather than
@@ -1787,6 +1781,10 @@ export const App = () => {
 					theatreOpen={theatre !== null}
 					logOpen={logOpen}
 					onChangeLogOpen={setLogOpen}
+					showIssues={showIssues}
+					onChangeShowIssues={setShowIssues}
+					showCommits={showCommits}
+					onChangeShowCommits={setShowCommits}
 					selection={selection}
 					onChangeSelection={changeSelection}
 					selectedIssue={
