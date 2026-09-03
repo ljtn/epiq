@@ -139,8 +139,15 @@ export const stringToHslHexColor = (value: string): string => {
 	return rgbToHex(rgb);
 };
 
-export const getStringColor = (id: string, config = TAGS_DEFAULT): string => {
-	const normalized = normalizeName(id);
+// Tolerates a missing name rather than throwing on one. Callers colour things
+// the log does not have to name — a comment whose author was never written, an
+// event from a build that knew a field this one does not — and a colour is
+// never worth taking a request down for.
+export const getStringColor = (
+	id: string | undefined,
+	config = TAGS_DEFAULT,
+): string => {
+	const normalized = normalizeName(id ?? '');
 
 	if (normalized && config[normalized]) return config[normalized];
 
