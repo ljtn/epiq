@@ -21,6 +21,7 @@ import {
 	Segment,
 	SeriesPresence,
 	TRACK_HEIGHT,
+	TRACK_HIT_PADDING,
 	VolumeBar,
 } from '../lib/scrubber';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
@@ -160,7 +161,7 @@ export const ScrubberLayout = ({
 				style={{
 					display: 'flex',
 					flexDirection: 'column',
-					gap: collapsed ? 0 : 8,
+					gap: collapsed ? 0 : TRACK_HIT_PADDING,
 				}}
 			>
 				<div
@@ -231,6 +232,22 @@ export const ScrubberLayout = ({
 							WebkitUserSelect: 'none',
 						}}
 					>
+						{/* The gap above the charts, made part of the track for the
+					    pointer and nothing else. Absolutely positioned so it draws
+					    nothing, takes no room, and leaves the scoped outline on the
+					    box it already framed — a padding here would carry that
+					    outline up with it. */}
+						<div
+							aria-hidden
+							style={{
+								position: 'absolute',
+								left: 0,
+								right: 0,
+								top: -TRACK_HIT_PADDING,
+								height: TRACK_HIT_PADDING,
+							}}
+						/>
+
 						{chart.hoveredSegment && (
 							<SegmentHighlight
 								segment={chart.hoveredSegment}
