@@ -11,6 +11,7 @@ import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {ulidTimeMs} from '../lib/event/date-utils.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
+import {logSignature} from '../lib/event/log-signature.js';
 import {
 	loadEventActors,
 	loadMergedEvents,
@@ -35,7 +36,7 @@ import {
 	resolveAndPersistRankForCreate,
 	resolveAndPersistRankForMove,
 } from '../lib/repository/rank.js';
-import {getSafeState} from '../lib/state/state.js';
+import {getSafeState, isStateInitialized} from '../lib/state/state.js';
 import {setSynced, setSyncFailed, setSyncing} from '../lib/state/sync-state.js';
 import {recordRecentProject} from '../lib/config/recent-projects.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
@@ -247,6 +248,10 @@ const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 	return succeeded('Resolved Epiq repo root', result.value);
 };
 
+// The log this process last booted from. Held for the life of it, and for one
+// root: a server serves one project.
+let lastBoot: {root: string; signature: string} | null = null;
+
 const boot = async (
 	repoRoot?: string,
 	options?: {pull?: boolean},
@@ -301,6 +306,34 @@ const boot = async (
 		}
 	}
 
+	const booted = {
+		repoRoot: repoRootResult.value,
+		stateBranchRoot: stateBranchRootResult.value,
+	};
+
+	// Before the load, never after — see log-signature for why that order is
+	// the one that stays correct when another machine writes mid-read.
+	const signature = logSignature(stateBranchRootResult.value);
+
+	// Reading the board should not mean deriving it again. Every call came
+	// through here re-reading the whole log and replaying every event: on a
+	// twenty-person decade that is 169 MB and 960,000 events, about eight
+	// seconds, for a board that had not changed since the last request a moment
+	// earlier.
+	//
+	// Only while live. A checkout in the past is materialized by the time-travel
+	// path and would be thrown away by a boot; `bootStateFromEventLog` refuses
+	// that case too, and skipping must not quietly take its place.
+	if (
+		lastBoot &&
+		lastBoot.root === stateBranchRootResult.value &&
+		lastBoot.signature === signature &&
+		isStateInitialized() &&
+		getTimeTravelStatus().mode === 'live'
+	) {
+		return succeeded('Booted Epiq state, unchanged', booted);
+	}
+
 	const eventsResult = loadMergedEventsWithUnreadable(
 		stateBranchRootResult.value,
 	);
@@ -312,10 +345,11 @@ const boot = async (
 	);
 	if (isFail(bootResult)) return failed(bootResult.message);
 
-	return succeeded('Booted Epiq state', {
-		repoRoot: repoRootResult.value,
-		stateBranchRoot: stateBranchRootResult.value,
-	});
+	// Recorded after the boot, so a failed one is retried rather than remembered
+	// as done.
+	lastBoot = {root: stateBranchRootResult.value, signature};
+
+	return succeeded('Booted Epiq state', booted);
 };
 
 const getActor = (): Result<Actor> => {
