@@ -5,7 +5,7 @@ import {expect, test} from './fixtures.js';
 // so its state comes back a tick later and Playwright's own re-click races it.
 
 const ticketOnly = (page: Page) =>
-	page.getByRole('checkbox', {name: 'This ticket'});
+	page.getByRole('checkbox', {name: 'Ticket only'});
 
 const scopeButton = (page: Page, name: string) =>
 	page.getByRole('button', {name, exact: true});

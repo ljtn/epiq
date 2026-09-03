@@ -113,7 +113,7 @@ export const TimeScrubber = ({
 	// URL.
 	selection: BoardSelection;
 	onChangeSelection: (patch: Partial<BoardSelection>) => void;
-	// The ticket whose details are open, which the "This ticket" narrowing
+	// The ticket whose details are open, which the "Ticket only" narrowing
 	// needs for both halves of what it does: its id filters the events, and the
 	// moment it was created is where its window starts. Null with none open,
 	// which is what greys that checkbox out.
