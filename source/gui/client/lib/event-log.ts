@@ -7,32 +7,44 @@
 // runs, the checkout while the needle is parked, the present while live — but
 // the slice does not.
 
-// How many lines the panel holds. A cap on the document as much as on the
-// reading: rows above this have scrolled up out of the fade, and keeping them
-// mounted would grow the panel by a node per event for as long as it is open.
-export const LOG_LINES = 24;
+// How many lines the panel is handed. Enough to fill a tall pane to its top —
+// the panel is a column of the board's full height, and a log that stopped
+// short of it would read as a box parked at the bottom rather than as the
+// board's log.
+//
+// Still a hard cap on the document, which is the point: what the pane cannot
+// show is clipped into the fade, and the panel costs these rows on a year of
+// history exactly as on an hour. Rows past the pane's height are the only
+// waste, and eighty of them is nothing next to a board of cards.
+export const LOG_LINES = 80;
 
 // The height of one line, which is what the column shifts by as a line lands.
 // Fixed rather than measured: every row is one clipped line, so the shift is
 // the same every time and the crawl stays even.
 export const LOG_ROW_HEIGHT = 18;
 
-// The index of the last entry whose value is at or before `limit`, or -1 when
+// The index of the last item whose value is at or before `limit`, or -1 when
 // none is. A binary search rather than a walk on from the last answer, because
 // the moment can move backwards — a seek, or a needle dragged left — as
 // readily as forwards.
-export const lastIndexAtOrBefore = (
-	values: readonly number[],
+//
+// Reads the value through `valueOf` rather than taking an array of numbers:
+// this runs in a render that repeats every animation frame of a movie, and
+// projecting twenty thousand timestamps into a fresh array first would be an
+// O(n) walk in front of the O(log n) search that follows it.
+export const lastIndexAtOrBefore = <T>(
+	items: readonly T[],
 	limit: number,
+	valueOf: (item: T) => number,
 ): number => {
 	let low = 0;
-	let high = values.length - 1;
+	let high = items.length - 1;
 	let found = -1;
 
 	while (low <= high) {
 		const mid = (low + high) >> 1;
 
-		if (values[mid]! <= limit) {
+		if (valueOf(items[mid]!) <= limit) {
 			found = mid;
 			low = mid + 1;
 		} else {
@@ -53,10 +65,7 @@ export const logEntriesUpTo = <T extends {t: number}>(
 	events: readonly T[],
 	upTo: number,
 ): T[] => {
-	const last = lastIndexAtOrBefore(
-		events.map(event => event.t),
-		upTo,
-	);
+	const last = lastIndexAtOrBefore(events, upTo, event => event.t);
 
 	if (last < 0) return [];
 

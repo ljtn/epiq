@@ -89,24 +89,31 @@ export const TheatrePlayer = ({
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			const target = event.target as HTMLElement | null;
+			const tag = target?.tagName ?? '';
 
-			// Anything that answers a key itself keeps it. Form fields because the
-			// player can be opened with one focused, and buttons because Space is
-			// how a focused one is pressed — swallowing it here would leave the
-			// player's own controls unreachable from the keyboard.
+			// A form field keeps every key: the player can be opened with one
+			// focused.
 			if (
 				target &&
 				(target.isContentEditable ||
-					['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName))
+					['INPUT', 'TEXTAREA', 'SELECT'].includes(tag))
 			) {
 				return;
 			}
 
+			// Ahead of the button check below, and deliberately: Escape is the way
+			// out from wherever focus happens to be, and after a click on any of
+			// the player's own controls that is one of its buttons.
 			if (event.key === 'Escape') {
 				event.preventDefault();
 				onExitRef.current();
 				return;
 			}
+
+			// Space is how a focused button is pressed, so it belongs to the
+			// button — taking it here would leave the player's own controls
+			// unreachable from the keyboard.
+			if (tag === 'BUTTON') return;
 
 			if (event.key === ' ' || event.key === 'Spacebar') {
 				event.preventDefault();
@@ -370,7 +377,7 @@ export const TheatrePlayer = ({
 								? 'Hide the log'
 								: 'Show every event as it plays, over the board'
 						}
-						aria-label="Show the log over the board"
+						aria-label={logOpen ? 'Hide the log' : 'Show the log'}
 						style={{
 							background: 'transparent',
 							border: 'none',

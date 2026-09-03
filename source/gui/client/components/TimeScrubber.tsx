@@ -784,12 +784,26 @@ export const TimeScrubber = ({
 		fraction: (rangeDrag.from + rangeDrag.to) / 2,
 	};
 
+	// A window can be unplayable for opposite reasons: too little in it, or so
+	// much that the server sent counts alone and named no moments to walk. The
+	// same disabled button stands for both, so the title has to separate them.
+	const playTitle = !connected
+		? 'Not while the connection is down'
+		: canPlayTimeline(timeline)
+		? "Play this window of the board's history"
+		: timeline && timeline.buckets.length > 0
+		? 'Too many events in this window to play it — narrow the window'
+		: 'Not enough history in this window to play';
+
 	return (
 		<ScrubberLayout
 			collapsed={collapsed}
 			onToggleCollapsed={() => setCollapsed(!collapsed)}
 			canPlay={connected && !theatreOpen && canPlayTimeline(timeline)}
+			playTitle={playTitle}
 			onPlay={onPlayTheatre}
+			logOpen={logOpen}
+			onChangeLogOpen={onChangeLogOpen}
 			standDown={theatreOpen}
 			controls={{
 				connected,
@@ -800,8 +814,6 @@ export const TimeScrubber = ({
 				atLatest,
 				windowOnly,
 				windowFilterable: windowNamesIssues(timeline),
-				logOpen,
-				onChangeLogOpen,
 				ticketOnly,
 				ticketSelected: selectedIssue !== null,
 				ticketFocus,

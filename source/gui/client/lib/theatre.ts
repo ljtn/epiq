@@ -92,7 +92,7 @@ export const nextSpeed = (speed: TheatreSpeed): TheatreSpeed =>
 // or -1 before the first one lands. The same search the log takes its tail
 // with, over positions rather than moments.
 export const cursorAt = (fractions: number[], progress: number): number =>
-	lastIndexAtOrBefore(fractions, progress);
+	lastIndexAtOrBefore(fractions, progress, fraction => fraction);
 
 // The opening beat, as a share of the movie: the board as it was before any of
 // this happened, held long enough to be read as a starting point. Without it

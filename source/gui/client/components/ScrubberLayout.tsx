@@ -130,7 +130,10 @@ export const ScrubberLayout = ({
 	collapsed,
 	onToggleCollapsed,
 	canPlay,
+	playTitle,
 	onPlay,
+	logOpen,
+	onChangeLogOpen,
 	standDown,
 	controls,
 	chart,
@@ -138,7 +141,11 @@ export const ScrubberLayout = ({
 	collapsed: boolean;
 	onToggleCollapsed: () => void;
 	canPlay: boolean;
+	playTitle: string;
 	onPlay: () => void;
+	// The event log panel, switched here and from the player's own pop-out.
+	logOpen: boolean;
+	onChangeLogOpen: (next: boolean) => void;
 	// The history player is up and owns the board's position. Nothing on the bar
 	// answers a pointer while it is, but only the controls dim for it: the charts
 	// are part of what is being watched — the needle sweeps them as the movie
@@ -191,7 +198,10 @@ export const ScrubberLayout = ({
 						collapsed={collapsed}
 						onToggleCollapsed={onToggleCollapsed}
 						canPlay={canPlay}
+						playTitle={playTitle}
 						onPlay={onPlay}
+						logOpen={logOpen}
+						onChangeLogOpen={onChangeLogOpen}
 					/>
 
 					{collapsed ? (
