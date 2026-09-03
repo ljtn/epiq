@@ -106,6 +106,12 @@ const EMPTY_LOG_ROWS: LogEntry[] = [];
 // The board's page margin, matching the left padding on <main>.
 const BOARD_GUTTER = 30;
 
+// How long the board has to be quiet before an open log asks for the window
+// again. A state broadcast is not a rare thing — a needle drag makes one every
+// 120ms and a bulk action one per ticket — and each refetch is a full replay of
+// the event log plus a `git log`, so a burst has to cost one ask, not one each.
+const LOG_REFRESH_QUIET_MS = 400;
+
 // The ring around the text filter while it holds one. The accent at low alpha,
 // so the field reads as lit rather than as selected.
 const FILTER_ON_RING = 'rgba(118, 212, 255, 0.18)';
@@ -1181,6 +1187,33 @@ export const App = () => {
 		onSeek: scrubToTime,
 	});
 
+	// Bumped when the board has changed in a way that means the scrubber's window
+	// has to be asked for again. A number rather than the state itself, because
+	// the scrubber re-fetches on this value *changing*: handing it null while a
+	// movie plays would itself be a change, and would fetch a window anchored to
+	// now — later than the one the movie was planned from, so the log would lose
+	// the very lines the playhead is narrating.
+	const [historyTick, setHistoryTick] = useState(0);
+
+	useEffect(() => {
+		// The plan is drawn from the window, so nothing may move it mid-movie.
+		if (theatre) return;
+
+		const bump = () => setHistoryTick(tick => tick + 1);
+
+		// The narrowing hides tickets, so it cannot wait: a ticket filed a moment
+		// ago would be missing from the board it has just joined.
+		if (selection.windowOnly) {
+			bump();
+			return;
+		}
+
+		if (!logOpen) return;
+
+		const timer = window.setTimeout(bump, LOG_REFRESH_QUIET_MS);
+		return () => window.clearTimeout(timer);
+	}, [state, theatre, selection.windowOnly, logOpen]);
+
 	// Both series of the window in one column, in clock order — which is not the
 	// order the log stores either of them in. Built once per window rather than
 	// per render, and not at all while the panel is shut.
@@ -1762,15 +1795,7 @@ export const App = () => {
 							: null
 					}
 					knownIdentities={knownIdentities}
-					// The log reads the window, so a swimlane or ticket made while it
-					// is open has to reach it — the board's own broadcast is what says
-					// there is something new to fetch.
-					//
-					// Not while a movie plays: the state changes on every frame of one,
-					// and the window it is drawn from must not move underneath it.
-					refreshOn={
-						(selection.windowOnly || logOpen) && !theatre ? state : null
-					}
+					refreshOn={historyTick}
 				/>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at
