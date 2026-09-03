@@ -6,7 +6,7 @@
 // have meant passing a dozen state setters into a hook, which relocates the
 // coupling rather than removing it.
 
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {createMutationGate} from './mutation-gate';
 import {reconnectDelayMs} from './reconnect';
 import {sendSocketJson} from './socket-send';
@@ -79,10 +79,16 @@ export const useBoardSocket = ({
 
 	const holdsState = useCallback(() => gate.holdsState(), [gate]);
 
-	const actions = useMemo(
-		() => ({send, sendRaw, requestState, holdsState}),
-		[send, sendRaw, requestState, holdsState],
-	);
+	// A ref, not a dependency, for the same reason the handler is one — and
+	// because a useMemo is a cache React is free to discard, which would tear
+	// down a live socket to rebuild an identical object.
+	const actionsRef = useRef<BoardSocketActions>({
+		send,
+		sendRaw,
+		requestState,
+		holdsState,
+	});
+	actionsRef.current = {send, sendRaw, requestState, holdsState};
 
 	const reconnectNow = useCallback(() => {
 		reconnectAttempts.current = 0;
@@ -147,7 +153,7 @@ export const useBoardSocket = ({
 			// broadcast may be applied.
 			gate.received(message.type);
 
-			onMessageRef.current(message, actions);
+			onMessageRef.current(message, actionsRef.current);
 		});
 
 		return () => {
@@ -164,9 +170,9 @@ export const useBoardSocket = ({
 
 			socket.close();
 		};
-		// `reconnectTick` is what re-runs this after a drop. `actions` and `gate`
-		// are stable for the life of the hook.
-	}, [boardId, reconnectTick, actions, gate]);
+		// `reconnectTick` is what re-runs this after a drop. `gate` is stable for
+		// the life of the hook.
+	}, [boardId, reconnectTick, gate]);
 
 	return {
 		connected,

@@ -172,9 +172,6 @@ export const App = () => {
 		onMessage: (message, socket) => socketMessageRef.current(message, socket),
 	});
 
-	// Bumped per socket, not per connection state: a socket the effect replaces
-	// never reports a disconnect, so `connected` alone cannot tell a reader that
-	// its outstanding requests died with the old socket.
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>({
 		status: 'synced',
 		msg: 'idle',
