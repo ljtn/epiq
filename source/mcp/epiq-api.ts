@@ -1187,7 +1187,13 @@ export const deriveGuiState = (): Result<ApiState> => {
 					author: {
 						id: comment.authorId,
 						name: contributor?.name ?? 'Unknown',
-						color: getStringColor(contributor?.name ?? comment.authorId),
+						// The author is optional in the log by design — the payload
+						// schema leaves it unconstrained so an event already written
+						// without one is not thrown away. So it can be missing here,
+						// and a colour is not worth taking the whole board down for.
+						color: getStringColor(
+							contributor?.name ?? comment.authorId ?? 'Unknown',
+						),
 					},
 					createdAt: ulidTimeMs(comment.id),
 				};
