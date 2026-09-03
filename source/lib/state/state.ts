@@ -5,16 +5,12 @@ import {inputActions} from '../actions/input/input-actions.js';
 import {Hints} from '../hints/hints.js';
 import {readProjectFile} from '../project-setup/project-setup.js';
 import {Mode} from '../model/action-map.model.js';
-import type {AppState, Filter} from '../model/app-state.model.js';
-import {
-	isTicketNode,
-	type AnyContext,
-	type Workspace,
-} from '../model/context.model.js';
+import type {AppState} from '../model/app-state.model.js';
+import {type AnyContext, type Workspace} from '../model/context.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
-import {ticketMatchesFilter} from '../utils/filter.js';
+import {groupChildrenByParent} from '../repository/children.js';
 import {buildBreadCrumb} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
 
@@ -240,6 +236,10 @@ export function withDeferredDerive<T>(fn: () => T): Result<T> {
 	}
 }
 
+// Whether a replay batch is open, and the derived half of the state therefore
+// stale. A reader that would otherwise trust a derived index has to know.
+export const isDeferringDerive = (): boolean => deferring;
+
 export const patchState = (patch: Partial<BaseState>) =>
 	updateState(old => ({...old, ...patch}));
 
@@ -308,40 +308,7 @@ export const isChildSelected = (
 export const useAppState = () =>
 	useSyncExternalStore(subscribe, getState, getState);
 
-const buildChildIndex = (
-	nodes: Record<string, NavNode<AnyContext>>,
-	filters: Filter[],
-) => {
-	const index: Record<string, NavNode<AnyContext>[]> = {};
-
-	for (const node of Object.values(nodes)) {
-		if (
-			isTicketNode(node) &&
-			filters.length > 0 &&
-			!filters.every(filter => ticketMatchesFilter(node, filter))
-		)
-			continue;
-
-		if (!node.parentNodeId || node.isDeleted) continue;
-
-		if (!node.parentNodeId || !index[node.parentNodeId]) {
-			index[node.parentNodeId] = [];
-		}
-
-		index[node.parentNodeId]!.push(node);
-	}
-
-	for (const parentId of Object.keys(index)) {
-		index[parentId]!.sort((a, b) => {
-			const left = nodes[a.id];
-			const right = nodes[b.id];
-			if (!left || !right) return 0;
-			return left.rank.localeCompare(right.rank);
-		});
-	}
-
-	return index;
-};
+const buildChildIndex = groupChildrenByParent;
 
 export const getRenderedChildren = (id: string): NavNode<AnyContext>[] => {
 	return getState()?.renderedChildrenIndex[id] ?? [];

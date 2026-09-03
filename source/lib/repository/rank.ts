@@ -4,7 +4,8 @@ import {MovePosition} from '../event/event.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
-import {getState} from '../state/state.js';
+import {getState, isDeferringDerive} from '../state/state.js';
+import {orderChildrenOf} from './children.js';
 import {rankBetween} from '../utils/rank.js';
 
 export type ResolveRankResult = {
@@ -88,13 +89,29 @@ export const resolveMoveRank = (
 	}
 };
 
-export const getOrderedChildren = (parentId: string) =>
-	Object.values(getState().nodes)
-		.filter(
-			(node): node is NavNode<AnyContext> =>
-				!!node && !node.isDeleted && node.parentNodeId === parentId,
-		)
-		.sort((a, b) => a.rank.localeCompare(b.rank));
+// A parent's children, in rank order.
+//
+// `derive` has already grouped every node by parent, and with no filter applied
+// its index skips exactly what this skips — deleted nodes — in exactly this
+// order. So where that index is current, it *is* the answer, and scanning the
+// board again to rebuild one lane's worth of it is the cost of a write on a
+// large board: filing a ticket resolves its rank this way, and on ninety-six
+// thousand nodes that was 2.5 of the 3.4 seconds it took.
+//
+// Not while a replay batch is open, when the derived half of the state is by
+// design out of date, and not while a filter is on, when the index is a subset
+// of the children rather than all of them. Both fall back to the scan, which is
+// always right and only ever slow.
+export const getOrderedChildren = (parentId: string) => {
+	const state = getState();
+
+	if (!isDeferringDerive() && state.filters.length === 0) {
+		const indexed = state.renderedChildrenIndex[parentId];
+		if (indexed) return indexed;
+	}
+
+	return orderChildrenOf(state.nodes, parentId);
+};
 
 export const getSiblingIndex = (
 	siblings: NavNode<AnyContext>[],
