@@ -93,6 +93,75 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+test('a diff keeps its file name in view while the panel scrolls past it', async ({
+	page,
+	pageErrors,
+	repoRoot,
+}) => {
+	// Short, so the panel has to scroll.
+	await page.setViewportSize({width: 1280, height: 480});
+	const stamp = Date.now();
+	await addTicket(page, `Sticky ${stamp}`);
+	const ref = (
+		await page.locator('aside button[title^="Copy "]').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+
+	// Long enough to outlast its own header on the way past.
+	commitLinkedFile(
+		repoRoot,
+		ref!,
+		'add notes',
+		linkedFileName(ref!),
+		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
+			'\n',
+	);
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+	await expect(page.locator('aside')).toContainText(`Sticky ${stamp}`);
+	await expandDiff(page, 'add notes', linkedFileName(ref!));
+
+	// Scrolls the diff's own top out of the panel and asks where its header
+	// ended up. It lives in a shadow root, so there is no locator for it.
+	const pinned = (await page.evaluate(`
+(() => {
+	const aside = document.querySelector('aside');
+	const host = [...aside.querySelectorAll('*')].find(element =>
+		element.shadowRoot?.querySelector('[data-diffs-header]'),
+	);
+	const header = host.shadowRoot.querySelector('[data-diffs-header]');
+	// The panel's top gap is a border, so its scrollport starts below it —
+	// which is where anything pinned to the top of the panel belongs.
+	const scrollportTop = aside.getBoundingClientRect().top + aside.clientTop;
+
+	aside.scrollTop += host.getBoundingClientRect().top - scrollportTop + 60;
+
+	const headerBox = header.getBoundingClientRect();
+	return {
+		fileName: header.textContent.trim(),
+		// Negative: the diff itself has started leaving the panel.
+		hostTop: Math.round(host.getBoundingClientRect().top - scrollportTop),
+		headerTop: Math.round(headerBox.top - scrollportTop),
+		headerBottom: Math.round(headerBox.bottom - scrollportTop),
+	};
+})()
+`)) as {
+		fileName: string;
+		hostTop: number;
+		headerTop: number;
+		headerBottom: number;
+	};
+
+	expect(pinned.fileName).toContain(linkedFileName(ref!));
+	expect(pinned.hostTop).toBeLessThan(0);
+	// Pinned against the panel's top edge rather than carried off with the box.
+	expect(pinned.headerTop).toBeGreaterThanOrEqual(0);
+	expect(pinned.headerTop).toBeLessThanOrEqual(2);
+	expect(pinned.headerBottom).toBeGreaterThan(pinned.headerTop);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('entering fullscreen lays the panel out for its full width in the same frame', async ({
 	page,
 	pageErrors,

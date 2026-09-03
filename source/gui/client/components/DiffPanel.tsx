@@ -65,7 +65,10 @@ export const FileDiffView = <LAnnotation = undefined,>({
 			marginBottom: 16,
 			border: `1px solid ${GUI_THEME.line}`,
 			borderRadius: 8,
-			overflow: 'hidden',
+			// Clip, not hidden: both round the corners off the diff, but `hidden`
+			// makes this a scroll container, and the header inside then sticks to
+			// a box that never scrolls — which is to say, not at all.
+			overflow: 'clip',
 		}}
 	>
 		<MultiFileDiff
@@ -80,6 +83,11 @@ export const FileDiffView = <LAnnotation = undefined,>({
 				// otherwise the whole selection/comment feature is invisible until
 				// discovered by accident.
 				lineHoverHighlight: onSelectionEnd !== undefined ? 'both' : 'disabled',
+				// Keeps the file's name against the top of the panel for as long as
+				// any of its diff is on screen. A commit opens every file it touched
+				// into one column, so without this a scrolled-to hunk belongs to
+				// whichever name has already gone past.
+				stickyHeader: true,
 			}}
 			selectedLines={selectedLines}
 			lineAnnotations={lineAnnotations}
