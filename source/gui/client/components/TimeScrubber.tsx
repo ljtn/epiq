@@ -86,6 +86,8 @@ export const TimeScrubber = ({
 	refreshOn,
 	onPlayTheatre,
 	theatreOpen,
+	logOpen,
+	onChangeLogOpen,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -132,6 +134,10 @@ export const TimeScrubber = ({
 	refreshOn: unknown;
 	// Opens the history player over this window.
 	onPlayTheatre: () => void;
+	// The event log panel, which the player's own pop-out also switches. Owned
+	// above because the panel is in the board's row, not in this bar.
+	logOpen: boolean;
+	onChangeLogOpen: (next: boolean) => void;
 	// The player is up. It owns the board's position for as long as it is, so
 	// the whole bar stands down rather than competing for the same thing.
 	theatreOpen: boolean;
@@ -794,6 +800,8 @@ export const TimeScrubber = ({
 				atLatest,
 				windowOnly,
 				windowFilterable: windowNamesIssues(timeline),
+				logOpen,
+				onChangeLogOpen,
 				ticketOnly,
 				ticketSelected: selectedIssue !== null,
 				ticketFocus,

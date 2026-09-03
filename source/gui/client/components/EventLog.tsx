@@ -1,13 +1,14 @@
-// The movie's log: a panel down the left of the board holding one timestamped
-// line per event as it lands, the column sliding up by a row each time and the
-// oldest lines dissolving off the top.
+// The board's event log: a panel down the left holding one timestamped line
+// per event, the column sliding up by a row as each lands and the oldest lines
+// dissolving off the top.
 //
 // A panel rather than a wash over the board — it takes its own width and the
 // board moves over for it, so neither has to be read through the other.
 //
-// The rows are a slice of the script rather than a list grown as events arrive,
-// so what is off the top is not merely invisible — it is not in the document at
-// all, and the panel costs the same at the end of a long movie as at the start.
+// The rows it is handed are a slice taken against the moment the board is
+// standing at, never a list grown as events arrive, so what is off the top is
+// not merely invisible — it is not in the document at all, and the panel costs
+// the same on a year of history as on an hour.
 
 import {useEffect, useRef} from 'react';
 import {
@@ -15,32 +16,52 @@ import {
 	formatTimeOfDay,
 	isSameDay,
 } from '../../../lib/utils/date.utils.js';
-import {GUI_THEME, TEXT} from '../lib/gui-theme';
-import {usePrefersReducedMotion} from '../lib/scrubber';
 import {
 	crawlShiftFrames,
-	THEATRE_CRAWL_TIMING,
-	THEATRE_LOG_ROW_HEIGHT,
-	THEATRE_PLAYER_CLEARANCE,
-	TheatreEvent,
-} from '../lib/theatre';
+	CRAWL_TIMING,
+	EVENT_LOG_KEYFRAMES,
+	LOG_LINES,
+	LOG_ROW_HEIGHT,
+} from '../lib/event-log';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {usePrefersReducedMotion} from '../lib/scrubber';
 
 const LOG_WIDTH = 380;
 
-// Dissolves the top of the column so lines leave rather than being clipped off.
-// On the column alone, not the panel: the panel keeps its edges. Both spellings,
-// since the unprefixed property is not in Safari.
-const CRAWL_MASK = 'linear-gradient(to bottom, transparent 0%, #000 34%)';
+// How many rows the top of the log dissolves over. Measured in rows rather
+// than as a share of anything, so the fade is the same depth whatever height
+// the panel happens to have.
+const FADE_ROWS = 3;
+
+// The box the lines live in, bottom-anchored inside the panel and no taller
+// than a full log. Sized in rows rather than left to fill the panel: the mask
+// below is positioned against this box, so its top edge has to be where the
+// topmost line is and not where the panel begins — or the fade is spent on the
+// empty space above the lines and only bites the first of them.
+//
+// Two rows over the cap, for the day headers a run of lines can carry. Anything
+// past that clips into the fade, which is where it should go anyway.
+const BOX_ROWS = LOG_LINES + 2;
+
+// Dissolves the top of the box so lines leave rather than being cut off. Both
+// spellings, since the unprefixed property is not in Safari.
+const CRAWL_MASK = `linear-gradient(to bottom, transparent 0, #000 ${
+	FADE_ROWS * LOG_ROW_HEIGHT
+}px)`;
+
+// What the panel needs of an event. Structural, so both the timeline's own rows
+// and a movie's cut-down ones satisfy it without either being converted.
+export type EventLogRow = {id: string; t: number; label: string};
 
 // The clock alone against each line, with the day called once above the lines
 // that share it — a full date on all of them is the same ten characters twenty
 // times over.
-type LogRow =
+type Row =
 	| {kind: 'day'; key: string; label: string}
 	| {kind: 'event'; key: string; time: string; label: string};
 
-const toRows = (entries: TheatreEvent[]): LogRow[] => {
-	const rows: LogRow[] = [];
+const toRows = (entries: readonly EventLogRow[]): Row[] => {
+	const rows: Row[] = [];
 	let previous: Date | null = null;
 
 	for (const entry of entries) {
@@ -63,7 +84,16 @@ const toRows = (entries: TheatreEvent[]): LogRow[] => {
 	return rows;
 };
 
-export const TheatreLog = ({entries}: {entries: TheatreEvent[]}) => {
+export const EventLog = ({
+	entries,
+	bottomClearance,
+}: {
+	entries: readonly EventLogRow[];
+	// Room to leave at the foot of the column for whatever is floating over it —
+	// the history player's drawer, when one is up. A row past it, because the
+	// crawl starts each line one row low and slides it up.
+	bottomClearance: number;
+}) => {
 	const animate = !usePrefersReducedMotion();
 	const columnRef = useRef<HTMLDivElement | null>(null);
 	const rows = toRows(entries);
@@ -84,15 +114,15 @@ export const TheatreLog = ({entries}: {entries: TheatreEvent[]}) => {
 
 		if (!column || !animate || newestId === null || appended === 0) return;
 
-		column.animate(crawlShiftFrames(appended), THEATRE_CRAWL_TIMING);
+		column.animate(crawlShiftFrames(appended), CRAWL_TIMING);
 		// Deliberately keyed on the newest line rather than on `rows`, which is
 		// rebuilt every render: the crawl moves when the log does, not when the
-		// board above it repaints.
+		// board beside it repaints.
 	}, [newestId, animate]);
 
 	return (
 		<aside
-			data-testid="theatre-log"
+			data-testid="event-log"
 			aria-live="off"
 			style={{
 				width: LOG_WIDTH,
@@ -100,26 +130,30 @@ export const TheatreLog = ({entries}: {entries: TheatreEvent[]}) => {
 				minHeight: 0,
 				display: 'flex',
 				flexDirection: 'column',
+				// The lines sit at the foot of the panel, so the newest is always in
+				// the same place however few of them there are.
+				justifyContent: 'flex-end',
 				borderRight: `1px solid ${GUI_THEME.line}`,
 				background: GUI_THEME.panel,
 			}}
 		>
+			<style>{EVENT_LOG_KEYFRAMES}</style>
+
 			<div
 				style={{
-					flex: 1,
-					minHeight: 0,
+					height: BOX_ROWS * LOG_ROW_HEIGHT,
+					// Never past the panel, however tall a full log would be.
+					maxHeight: '100%',
 					display: 'flex',
 					flexDirection: 'column',
 					// Filled from the bottom, so a new line pushes the column up and the
 					// oldest one off the top into the fade.
 					justifyContent: 'flex-end',
 					overflow: 'hidden',
-					// A row's worth past the drawer: the crawl starts each line one
-					// row low and slides it up, and at rest against the drawer that
-					// slide would run the newest line in behind it.
-					padding: `0 14px ${
-						THEATRE_PLAYER_CLEARANCE + THEATRE_LOG_ROW_HEIGHT
-					}px 30px`,
+					// The clearance keeps the lines off whatever floats over the foot of
+					// the board; the two rows past it are what the crawl slides through
+					// on its way up, which would otherwise be clipped as it went.
+					padding: `0 14px ${bottomClearance + LOG_ROW_HEIGHT * 2}px 30px`,
 					maskImage: CRAWL_MASK,
 					WebkitMaskImage: CRAWL_MASK,
 				}}
@@ -128,21 +162,17 @@ export const TheatreLog = ({entries}: {entries: TheatreEvent[]}) => {
 					{rows.map(row => (
 						<div
 							key={row.key}
-							data-testid={
-								row.kind === 'day' ? 'theatre-log-day' : 'theatre-log-line'
-							}
+							data-testid={row.kind === 'day' ? 'log-day' : 'log-line'}
 							style={{
 								display: 'flex',
 								gap: 10,
-								height: THEATRE_LOG_ROW_HEIGHT,
-								lineHeight: `${THEATRE_LOG_ROW_HEIGHT}px`,
+								height: LOG_ROW_HEIGHT,
+								lineHeight: `${LOG_ROW_HEIGHT}px`,
 								fontSize: TEXT.meta,
 								// One clipped line each, which is what makes the crawl even:
 								// every row is the height the column slides by.
 								whiteSpace: 'nowrap',
-								animation: animate
-									? 'epiqTheatreLogLine 260ms ease-out'
-									: undefined,
+								animation: animate ? 'epiqLogLine 260ms ease-out' : undefined,
 							}}
 						>
 							{row.kind === 'day' ? (

@@ -50,6 +50,7 @@ import {IconScatter} from './IconScatter';
 // Named once: the collapsed header puts the same box up when the rest of this
 // row is not on screen.
 export const SCOPE_ONLY_LABEL = 'Scope only';
+export const LOG_LABEL = 'Log';
 export const TICKET_ONLY_LABEL = 'Ticket only';
 
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
@@ -521,6 +522,7 @@ export const ScrubberControls = ({
 	atLatest,
 	windowOnly,
 	windowFilterable,
+	logOpen,
 	ticketOnly,
 	ticketSelected,
 	ticketFocus,
@@ -539,6 +541,7 @@ export const ScrubberControls = ({
 	onChangeScope,
 	onChangeOffset,
 	onChangeWindowOnly,
+	onChangeLogOpen,
 	onChangeTicketOnly,
 	onChangeLayoutMode,
 	onChangeShowIssues,
@@ -564,6 +567,8 @@ export const ScrubberControls = ({
 	atLatest: boolean;
 	// The board is narrowed to the tickets this window has an event for.
 	windowOnly: boolean;
+	// The event log panel is on the board.
+	logOpen: boolean;
 	// False where the window came back as counts alone, naming no tickets to
 	// narrow to.
 	windowFilterable: boolean;
@@ -590,6 +595,7 @@ export const ScrubberControls = ({
 	onChangeScope: (scope: Scope) => void;
 	onChangeOffset: (offset: number) => void;
 	onChangeWindowOnly: (next: boolean) => void;
+	onChangeLogOpen: (next: boolean) => void;
 	onChangeTicketOnly: (next: boolean) => void;
 	onChangeLayoutMode: (mode: LayoutMode) => void;
 	onChangeShowIssues: (next: boolean) => void;
@@ -749,6 +755,19 @@ export const ScrubberControls = ({
 			</div>
 
 			<div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
+				{/* First in the row, ahead of the narrowings further along it: this
+			    one hides no ticket and changes no window. It puts a panel on the
+			    board, which is a different kind of thing from everything else
+			    here, so it stands at the head rather than among them.
+
+			    It asks the socket for nothing — the window it lists is already on
+			    screen — so it stays usable offline, as the narrowings do. */}
+				<Checkbox
+					label={LOG_LABEL}
+					title="Show the event log down the left of the board"
+					checked={logOpen}
+					onChange={onChangeLogOpen}
+				/>
 				<Checkbox
 					label="Code"
 					checked={showCommits}
