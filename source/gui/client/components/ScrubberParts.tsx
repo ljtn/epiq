@@ -526,6 +526,10 @@ const BoardSeriesGroup = ({
 //
 // Its own component because it holds the open/shut state, and ScrubberControls
 // is a plain expression with nowhere to put a hook.
+// The narrow form's width, shared by the trigger and the menu under it so the
+// two line up.
+const SCOPE_SELECT_WIDTH = 108;
+
 const ScopeSelect = ({
 	scope,
 	zoomed,
@@ -576,7 +580,7 @@ const ScopeSelect = ({
 				title="Choose the window the timeline covers"
 				style={{
 					...selectTriggerStyle(GUI_THEME.primary, !connected),
-					width: 108,
+					width: SCOPE_SELECT_WIDTH,
 				}}
 			>
 				{/* A dragged-out window is none of the periods on offer, so it names
@@ -588,7 +592,13 @@ const ScopeSelect = ({
 			</button>
 
 			{open && (
-				<div role="listbox" style={popoverStyle}>
+				// Narrower than the shared popover's default, which is sized for the
+				// series menu's identity lists: a column of period names needs no
+				// more than the trigger it drops from.
+				<div
+					role="listbox"
+					style={{...popoverStyle, minWidth: SCOPE_SELECT_WIDTH}}
+				>
 					{SCOPES.map(option => (
 						<button
 							key={option}
@@ -999,10 +1009,10 @@ export const ScrubberControls = ({
 		    so entering history never resizes the row.
 
 		    "Now" only over a window that runs up to the present, though. It sits
-		    at the end of the row, above the end of the track, so it reads as
-		    naming that end — and over a window paged back or dragged out, that
-		    end is not now. "Resume" is unaffected: it is an action, not a claim
-		    about the far end. The slot holds its width either way. */}
+		    Wearing what every other button on this row wears while it is one,
+		    and nothing at all while it is not: an empty slot with a panel and a
+		    border would read as a control that had stopped working. The width is
+		    held either way, so leaving history never shifts the row. */}
 			<button
 				onClick={onReturnToLive}
 				disabled={!isScrubbing}
@@ -1010,18 +1020,17 @@ export const ScrubberControls = ({
 					isScrubbing ? 'Leave history and follow the board again' : undefined
 				}
 				style={{
-					background: 'transparent',
-					border: `1px solid ${
-						isScrubbing ? GUI_THEME.accent : GUI_THEME.transparent
-					}`,
+					...(isScrubbing
+						? headerButtonStyle
+						: {background: 'transparent', border: 'none'}),
 					color: isScrubbing ? GUI_THEME.accent : GUI_THEME.dim,
-					borderRadius: 6,
 					fontFamily: 'inherit',
+					fontSize: 10,
 					width: 60,
+					boxSizing: 'border-box',
 					display: 'inline-flex',
 					alignItems: 'center',
-					justifyContent: isScrubbing ? 'center' : 'flex-end',
-					fontSize: 10,
+					justifyContent: 'center',
 					padding: '2px 8px',
 					cursor: isScrubbing ? 'pointer' : 'default',
 					whiteSpace: 'nowrap',
