@@ -20,7 +20,6 @@ import {
 	crawlShiftFrames,
 	CRAWL_TIMING,
 	EVENT_LOG_KEYFRAMES,
-	LOG_LINES,
 	LOG_ROW_HEIGHT,
 } from '../lib/event-log';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
@@ -33,17 +32,7 @@ const LOG_WIDTH = 380;
 // the panel happens to have.
 const FADE_ROWS = 3;
 
-// The box the lines live in, bottom-anchored inside the panel and no taller
-// than a full log. Sized in rows rather than left to fill the panel: the mask
-// below is positioned against this box, so its top edge has to be where the
-// topmost line is and not where the panel begins — or the fade is spent on the
-// empty space above the lines and only bites the first of them.
-//
-// Two rows over the cap, for the day headers a run of lines can carry. Anything
-// past that clips into the fade, which is where it should go anyway.
-const BOX_ROWS = LOG_LINES + 2;
-
-// Dissolves the top of the box so lines leave rather than being cut off. Both
+// Dissolves the top of the pane so lines leave rather than being cut off. Both
 // spellings, since the unprefixed property is not in Safari.
 const CRAWL_MASK = `linear-gradient(to bottom, transparent 0, #000 ${
 	FADE_ROWS * LOG_ROW_HEIGHT
@@ -141,9 +130,12 @@ export const EventLog = ({
 
 			<div
 				style={{
-					height: BOX_ROWS * LOG_ROW_HEIGHT,
-					// Never past the panel, however tall a full log would be.
-					maxHeight: '100%',
+					// The lines run the whole height of the panel and are cut off at
+					// its top, where the fade is. Bounded to the pane rather than to a
+					// row count, so the log reaches the top of whatever height it is
+					// given instead of stopping short in a box of its own.
+					flex: 1,
+					minHeight: 0,
 					display: 'flex',
 					flexDirection: 'column',
 					// Filled from the bottom, so a new line pushes the column up and the

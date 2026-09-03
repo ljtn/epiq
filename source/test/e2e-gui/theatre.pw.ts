@@ -178,7 +178,7 @@ test('the transport pauses and resumes, and the movie ends on a full bar', async
 
 // The crawl is a slice of the script, not a list grown as events land, which
 // is what keeps a long movie from adding a node per event to the overlay.
-test('the pop-out puts the log over the board, capped at what it can show', async ({
+test('the pop-out puts the log beside the board', async ({
 	page,
 	appUrl,
 	pageErrors,
@@ -194,12 +194,11 @@ test('the pop-out puts the log over the board, capped at what it can show', asyn
 	await expect(log).toBeVisible();
 	await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 
-	// Lines arrive as the movie plays. That they stay capped however long it
-	// runs is theatre.test.ts's job — this only holds that the cap is a real
-	// bound on the document rather than on the reading alone.
+	// Lines arrive as the movie plays. How many the panel holds at most is
+	// event-log.test.ts's job — a bound asserted here would only be a bound on
+	// the seeded window, which is smaller than the cap and so proves nothing.
 	const lines = page.getByTestId('log-line');
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(1);
-	expect(await lines.count()).toBeLessThanOrEqual(30);
 
 	// The day each run of lines belongs to is called once above them, rather
 	// than repeated on every line.

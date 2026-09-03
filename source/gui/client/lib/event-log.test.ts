@@ -5,23 +5,37 @@ const at = (id: string, t: number) => ({id, t, label: `event ${id}`});
 
 describe('lastIndexAtOrBefore', () => {
 	const values = [10, 20, 30];
+	const self = (value: number) => value;
 
 	it('is -1 when nothing is at or before the limit', () => {
-		expect(lastIndexAtOrBefore(values, 9)).toBe(-1);
-		expect(lastIndexAtOrBefore([], 100)).toBe(-1);
+		expect(lastIndexAtOrBefore(values, 9, self)).toBe(-1);
+		expect(lastIndexAtOrBefore([], 100, self)).toBe(-1);
 	});
 
 	it('includes the value that sits exactly on the limit', () => {
-		expect(lastIndexAtOrBefore(values, 10)).toBe(0);
-		expect(lastIndexAtOrBefore(values, 30)).toBe(2);
+		expect(lastIndexAtOrBefore(values, 10, self)).toBe(0);
+		expect(lastIndexAtOrBefore(values, 30, self)).toBe(2);
 	});
 
 	it('holds the last one passed between two values', () => {
-		expect(lastIndexAtOrBefore(values, 29)).toBe(1);
+		expect(lastIndexAtOrBefore(values, 29, self)).toBe(1);
 	});
 
 	it('takes everything for a limit past the end', () => {
-		expect(lastIndexAtOrBefore(values, Infinity)).toBe(2);
+		expect(lastIndexAtOrBefore(values, Infinity, self)).toBe(2);
+	});
+
+	// The reason it reads through an accessor: this runs in a render that
+	// repeats every animation frame, and projecting the values into an array
+	// first would put an O(n) walk in front of the search.
+	it('reads only the items the search visits', () => {
+		const seen: number[] = [];
+		lastIndexAtOrBefore(values, 25, value => {
+			seen.push(value);
+			return value;
+		});
+
+		expect(seen.length).toBeLessThan(values.length);
 	});
 });
 

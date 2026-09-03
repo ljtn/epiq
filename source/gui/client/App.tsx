@@ -1957,10 +1957,14 @@ export const App = () => {
 							tracking it live: the panel — and any drag — isn't mounted while
 							this spacer is, so the last-persisted value is always current.
 							Only for a side dock: a bottom panel takes height, not width, so
-							reserving width for it would shove the board the other way. */}
+							reserving width for it would shove the board the other way.
+
+							A film closes every one of those panels, so the width has to be
+							reserved for that too — or pressing play over a board scrolled
+							hard right bounces it back by the panel's width. */}
 								{asideDock === 'right' &&
-									!commitDiff &&
-									!(selectedIssue && state?.user) && (
+									(theatre ||
+										(!commitDiff && !(selectedIssue && state?.user))) && (
 										<div
 											style={{width: readStoredAsideWidth(), flexShrink: 0}}
 										/>
