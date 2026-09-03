@@ -68,9 +68,7 @@ test('the board stands down while the socket is gone, and comes back', async ({
 	await expect(
 		page.getByRole('button', {name: 'Volume', exact: true}),
 	).toBeDisabled();
-	await expect(
-		page.getByRole('button', {name: 'All board events'}),
-	).toBeDisabled();
+	await expect(page.getByRole('button', {name: 'Board events'})).toBeDisabled();
 	await expect(page.getByTitle('Show board events')).toBeDisabled();
 
 	// Once the automatic attempts are spent the button takes over.

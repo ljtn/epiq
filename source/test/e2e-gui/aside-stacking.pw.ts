@@ -58,7 +58,7 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	await expect(page.locator('aside')).toContainText(`Stacking ${stamp}`);
 	await expandDiff(page, 'add notes', linkedFileName(ref!));
 
-	await page.getByText('All board events').click();
+	await page.getByRole('button', {name: 'Board events'}).click();
 	await expect(page.getByRole('radiogroup')).toBeVisible();
 
 	// The diff renders its own file header with a z-index inside a shadow

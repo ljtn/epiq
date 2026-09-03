@@ -21,9 +21,7 @@ test.afterEach(async ({page}) => {
 
 	if ((await resume.count()) > 0 && (await resume.isEnabled())) {
 		await resume.click();
-		await expect(
-			page.getByRole('button', {name: 'Now', exact: true}),
-		).toBeVisible();
+		await expect(resume).toHaveCount(0);
 	}
 });
 
@@ -143,9 +141,7 @@ test('checking out a Log row reads the description as it was then', async ({
 	await expect(aside).not.toContainText('second draft');
 
 	await resume.click();
-	await expect(
-		page.getByRole('button', {name: 'Now', exact: true}),
-	).toBeVisible();
+	await expect(resume).toHaveCount(0);
 	await expect(aside).toContainText('second draft');
 
 	expect(pageErrors).toEqual([]);
