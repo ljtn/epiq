@@ -37,6 +37,12 @@ export const EVENTS_SCATTER_HEIGHT = TRACK_HEIGHT + 16;
 export const EVENTS_MODE_VERTICAL_PADDING =
 	(EVENTS_MODE_TOTAL_HEIGHT - EVENTS_SCATTER_HEIGHT) / 2;
 
+// The blank strip between the controls row and the charts, which the track
+// claims for the pointer without drawing in it: aiming at the top of a tall bar
+// otherwise lands just over it, on nothing. It is exactly the gap, so the strip
+// reaches the controls and no further.
+export const TRACK_HIT_PADDING = 8;
+
 export const HOVER_HINT_WIDTH = 220;
 
 // Must stay fainter than the bucket highlight drawn over it.
