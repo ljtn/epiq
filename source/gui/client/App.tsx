@@ -106,6 +106,10 @@ const EMPTY_LOG_ROWS: LogEntry[] = [];
 // The board's page margin, matching the left padding on <main>.
 const BOARD_GUTTER = 30;
 
+// The ring around the text filter while it holds one. The accent at low alpha,
+// so the field reads as lit rather than as selected.
+const FILTER_ON_RING = 'rgba(118, 212, 255, 0.18)';
+
 // Remembered beside the scrubber's own view flags, which is what its checkbox
 // sits among.
 const LOG_STORAGE_KEY = 'epiq.timeScrubber.showLog';
@@ -1866,7 +1870,20 @@ export const App = () => {
 											event.currentTarget.blur();
 										}
 									}}
-									style={{width: 220, padding: '5px 10px', fontSize: 12}}
+									style={{
+										width: 220,
+										padding: '5px 10px',
+										fontSize: 12,
+										// Lit while it holds one: it is the only one of the board's
+										// narrowings with nothing else to say it is on, so a word
+										// typed a while ago reads as a board missing its tickets.
+										border: `1px solid ${
+											textFilter.trim() ? GUI_THEME.accent : GUI_THEME.line
+										}`,
+										boxShadow: textFilter.trim()
+											? `0 0 0 2px ${FILTER_ON_RING}`
+											: undefined,
+									}}
 								/>
 							</div>
 
