@@ -934,6 +934,7 @@ export const IssueCommits = ({
 
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
+	const settledFiles = useRef(new Set<string>());
 
 	useEffect(() => {
 		if (!expandAll) return;
@@ -956,27 +957,44 @@ export const IssueCommits = ({
 	}, [expandAll, commits]);
 
 	// Files are only known once a diff has arrived, so this runs as they land.
-	// Outside the reading layout it applies to whichever commits the reader has
-	// opened, since those are the only ones whose diffs are ever fetched.
+	const openEveryFile = (sha: string, files: GuiCommitDiffFile[]) => {
+		setExpandedFilesBySha(prev => ({
+			...prev,
+			[sha]: new Set([
+				...(prev[sha] ?? []),
+				// A lockfile opened unasked is what stalls this view, so the
+				// large ones stay shut until they are asked for by name.
+				...files.filter(file => !isLargeDiff(file)).map(file => file.path),
+			]),
+		}));
+	};
+
 	useEffect(() => {
-		if (!expandAll && !openFilesByDefault) return;
+		if (!expandAll) return;
 
 		for (const commit of commits) {
 			const files = diffsBySha[commit.sha]?.files;
 			if (!files || autoOpenedFiles.current.has(commit.sha)) continue;
 
 			autoOpenedFiles.current.add(commit.sha);
-			setExpandedFilesBySha(prev => ({
-				...prev,
-				[commit.sha]: new Set([
-					...(prev[commit.sha] ?? []),
-					// A lockfile opened unasked is what stalls this view, so the
-					// large ones stay shut until they are asked for by name.
-					...files.filter(file => !isLargeDiff(file)).map(file => file.path),
-				]),
-			}));
+			openEveryFile(commit.sha, files);
 		}
-	}, [expandAll, openFilesByDefault, commits, diffsBySha]);
+	}, [expandAll, commits, diffsBySha]);
+
+	// The remembered habit is asked once per commit, the moment its files first
+	// arrive — which outside the reading layout is when the reader opens it,
+	// those being the only commits ever fetched. Deciding then and remembering
+	// that it was decided is what keeps a later "Expand all" from reaching back
+	// and unfolding commits that were opened while the habit was the other way.
+	useEffect(() => {
+		for (const commit of commits) {
+			const files = diffsBySha[commit.sha]?.files;
+			if (!files || settledFiles.current.has(commit.sha)) continue;
+
+			settledFiles.current.add(commit.sha);
+			if (openFilesByDefault) openEveryFile(commit.sha, files);
+		}
+	}, [openFilesByDefault, commits, diffsBySha]);
 
 	// Opens the commit and file a permalink names. Deliberately additive — it
 	// never collapses anything the reader already had open, so following a
@@ -1059,8 +1077,10 @@ export const IssueCommits = ({
 
 		// Asking for all of them is also how you say how you like to read, so
 		// the next commit opened follows suit. Only this wholesale control sets
-		// it: opening one file of interest says nothing about the rest.
-		setOpenFilesByDefault(expand);
+		// it: opening one file of interest says nothing about the rest. And not
+		// from the reading layout, which unfolds everything whatever the habit
+		// says — there the button means "hide this one", not "and the next".
+		if (!expandAll) setOpenFilesByDefault(expand);
 	};
 
 	if (loading) return <Empty>Loading commits…</Empty>;
