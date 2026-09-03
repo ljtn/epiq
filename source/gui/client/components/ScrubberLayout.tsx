@@ -31,8 +31,8 @@ import {
 	ScrubberControls,
 	ScrubberHeader,
 	ScrubberPlayButton,
-	SCOPE_ONLY_LABEL,
 } from './ScrubberControls';
+import {SCOPE_ONLY_LABEL} from './ScrubberSelects';
 import {
 	BucketHighlight,
 	HourAxisLabels,
