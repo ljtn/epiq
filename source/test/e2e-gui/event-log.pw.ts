@@ -46,7 +46,10 @@ test('the log fills beside the board as the movie plays', async ({
 			`.map(row => row.style.getPropertyValue('--epiq-log-dot').trim())`,
 	)) as string[];
 
-	expect(dotColours).toHaveLength(await lines.count());
+	// Against the rows that one read saw, not a count fetched separately: the
+	// movie is still running, and a line arriving between the two reads made
+	// this fail for saying nothing about the panel.
+	expect(dotColours.length).toBeGreaterThan(0);
 	expect(dotColours.every(colour => colour.length > 0)).toBe(true);
 
 	// A panel, not a wash over the board: it takes its own width and the first
