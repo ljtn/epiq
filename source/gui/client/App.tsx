@@ -42,7 +42,6 @@ import {TheatrePlayer} from './components/TheatrePlayer';
 import {EventLog} from './components/EventLog';
 import {useAsideDock} from './lib/aside-dock';
 import {moveIssue} from './lib/gui-move-issue';
-import {reconnectDelayMs} from './lib/reconnect';
 import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
@@ -85,9 +84,8 @@ import {
 import {useEventLog} from './lib/use-event-log';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
-import {sendSocketJson} from './lib/socket-send';
+import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {createHistoryBuffer} from './lib/history-buffer';
-import {createMutationGate} from './lib/mutation-gate';
 import {blobToBase64, compressImage} from './lib/compress-image';
 import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
@@ -155,11 +153,9 @@ export const App = () => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [selection, changeSelection] = useBoardSelection();
 
-	const [connected, setConnected] = useState(false);
 	// Bumped per socket, not per connection state: a socket the effect replaces
 	// never reports a disconnect, so `connected` alone cannot tell a reader that
 	// its outstanding requests died with the old socket.
-	const [socketEpoch, setSocketEpoch] = useState(0);
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>({
 		status: 'synced',
 		msg: 'idle',
@@ -280,7 +276,6 @@ export const App = () => {
 	} | null>(null);
 
 	const boardMenuRef = useRef<HTMLDivElement | null>(null);
-	const socketRef = useRef<WebSocket | null>(null);
 	// Set right before an issues:create request that came from "File ticket"
 	// on a diff selection, consumed by that request's own issues:create:result
 	// reply — that's how the origin ticket's back-comment knows which creation
@@ -289,19 +284,6 @@ export const App = () => {
 		originIssueId: string;
 		originRef: string;
 	} | null>(null);
-	const [reconnectTick, setReconnectTick] = useState(0);
-	// True once the automatic attempts are spent; the topbar then offers the
-	// button rather than retrying behind the reader's back forever.
-	const [reconnectExhausted, setReconnectExhausted] = useState(false);
-	const reconnectAttempts = useRef(0);
-	const reconnectTimer = useRef<number | null>(null);
-
-	const reconnectNow = () => {
-		reconnectAttempts.current = 0;
-		setReconnectExhausted(false);
-		setReconnectTick(tick => tick + 1);
-	};
-	const [mutationGate] = useState(createMutationGate);
 
 	const tabParam = searchParams.get('tab');
 	const selectedTab: IssueDetailsTab =
@@ -502,7 +484,7 @@ export const App = () => {
 		// screen. The board's own state is what the player is showing.
 		if (theatre) return;
 
-		sendSocketJson(socketRef.current, {
+		sendRaw({
 			type: 'issue:get',
 			payload: {issueId: selectedIssue.id},
 		});
@@ -523,7 +505,7 @@ export const App = () => {
 			error: null,
 			commits: [],
 		});
-		sendSocketJson(socketRef.current, {
+		sendRaw({
 			type: 'issue:commits:get',
 			payload: {issueId: selectedIssue.id},
 		});
@@ -534,318 +516,257 @@ export const App = () => {
 			...prev,
 			[sha]: {loading: true, error: null, files: null},
 		}));
-		sendSocketJson(socketRef.current, {
+		sendRaw({
 			type: 'commit:diff:get',
 			payload: {sha},
 		});
 	}, []);
 
-	const requestState = () => {
-		sendSocketJson(socketRef.current, {type: 'state:get'});
-	};
-
-	useEffect(() => {
-		const socket = new WebSocket(
-			`ws://${window.location.host}/ws${boardId ? `?boardId=${boardId}` : ''}`,
-		);
-
-		socketRef.current = socket;
-		// Distinguishes a socket the effect is tearing down from one that dropped
-		// on its own; only the latter is worth reconnecting.
-		let replaced = false;
-
-		socket.addEventListener('open', () => {
-			setConnected(true);
-			setSocketEpoch(epoch => epoch + 1);
-			reconnectAttempts.current = 0;
-			setReconnectExhausted(false);
-			mutationGate.reset();
-			sendSocketJson(socket, {type: 'state:get'});
-			// History is not requested here: the scrubber owns the scope and drives
-			// that fetch itself, so asking here would ignore its stored selection.
-		});
-
-		socket.addEventListener('close', () => {
-			if (socketRef.current === socket) {
-				socketRef.current = null;
+	// Every frame the board's connection delivers, and what it means. The
+	// connection itself — opening, losing, retrying, sending — is
+	// `useBoardSocket`'s; this is only the reading of what arrives on it.
+	//
+	// Declared before the hook that stores it: the hook keeps it in a ref, which
+	// it fills while rendering.
+	const onSocketMessage = (message: any, socket: BoardSocketActions) => {
+		if (message.type === 'state' && !socket.holdsState()) {
+			const nextState = getResultValue<GuiState>(message.payload);
+			if (nextState) {
+				setState(nextState);
+				setNoProject(null);
 			}
+		}
 
-			// A socket this effect is replacing is not a lost connection: the next
-			// one is already opening. Reporting it would flash the whole offline
-			// treatment on every navigation, which re-runs this effect.
-			if (replaced) return;
+		if (message.type === 'state:unavailable') {
+			setNoProject(message.payload);
+		}
 
-			setConnected(false);
-			mutationGate.reset();
+		if (message.type === 'project:open:result') {
+			const result = message.payload as {status: string; message: string};
 
-			// Without this the board is dead until a manual reload: nothing arrives
-			// and nothing is sent, while the controls carry on as if they worked.
-			const delay = reconnectDelayMs(reconnectAttempts.current);
-
-			if (delay === null) {
-				setReconnectExhausted(true);
-				return;
-			}
-
-			reconnectAttempts.current += 1;
-			reconnectTimer.current = window.setTimeout(
-				() => setReconnectTick(tick => tick + 1),
-				delay,
-			);
-		});
-
-		socket.addEventListener('message', event => {
-			const message = JSON.parse(event.data);
-
-			mutationGate.received(message.type);
-
-			if (message.type === 'state' && !mutationGate.holdsState()) {
-				const nextState = getResultValue<GuiState>(message.payload);
-				if (nextState) {
-					setState(nextState);
-					setNoProject(null);
-				}
-			}
-
-			if (message.type === 'state:unavailable') {
-				setNoProject(message.payload);
-			}
-
-			if (message.type === 'project:open:result') {
-				const result = message.payload as {status: string; message: string};
-
-				if (result.status !== 'success') {
-					setNoProject(current =>
-						current ? {...current, message: result.message} : current,
-					);
-				}
-			}
-
-			if (message.type === 'issue') {
-				const detail = getResultValue<{
-					issueId: string;
-					description: string;
-					comments: GuiComment[];
-					history: GuiIssueHistoryEntry[];
-				}>(message.payload);
-
-				if (detail) setIssueDetail(detail);
-			}
-
-			// Keyed off this request's own reply, never a broadcast: a broadcast
-			// fires for every creation on the board, including other people's,
-			// and navigating on one yanked every connected client to whichever
-			// ticket happened to be created next.
-			if (message.type === 'issues:create:result') {
-				const origin = pendingFileTicketOrigin.current;
-				pendingFileTicketOrigin.current = null;
-
-				const created = getResultValue<{id: string}>(message.payload);
-
-				if (created && boardId) {
-					void navigateRef.current(
-						`/board/${boardId}/issue/${nodeRef(created.id)}?tab=overview`,
-					);
-				}
-
-				if (origin && created) {
-					sendSocketJson(socket, {
-						type: 'issue:comment:add',
-						payload: {
-							issueId: origin.originIssueId,
-							body: `Filed \`${nodeRef(
-								created.id,
-							)}\` from a code selection on this ticket.`,
-						},
-					});
-				}
-			}
-
-			// A refused mutation is otherwise invisible: the optimistic update is
-			// simply undone by the state that follows, which reads as the board
-			// ignoring the action.
-			if (message.type === 'failed') {
-				setActionError(
-					typeof message.payload === 'string'
-						? message.payload
-						: 'The board refused that change',
+			if (result.status !== 'success') {
+				setNoProject(current =>
+					current ? {...current, message: result.message} : current,
 				);
-				requestState();
 			}
+		}
 
-			// A frame the server could not parse is refused the same way, and
-			// was otherwise invisible — the optimistic change just quietly held.
-			if (message.type === 'error') {
-				setActionError(
-					typeof message.message === 'string'
-						? message.message
-						: 'The board could not read that change',
+		if (message.type === 'issue') {
+			const detail = getResultValue<{
+				issueId: string;
+				description: string;
+				comments: GuiComment[];
+				history: GuiIssueHistoryEntry[];
+			}>(message.payload);
+
+			if (detail) setIssueDetail(detail);
+		}
+
+		// Keyed off this request's own reply, never a broadcast: a broadcast
+		// fires for every creation on the board, including other people's,
+		// and navigating on one yanked every connected client to whichever
+		// ticket happened to be created next.
+		if (message.type === 'issues:create:result') {
+			const origin = pendingFileTicketOrigin.current;
+			pendingFileTicketOrigin.current = null;
+
+			const created = getResultValue<{id: string}>(message.payload);
+
+			if (created && boardId) {
+				void navigateRef.current(
+					`/board/${boardId}/issue/${nodeRef(created.id)}?tab=overview`,
 				);
-				requestState();
 			}
 
-			if (message.type === 'timeline') {
-				const nextTimeline = getResultValue<GuiEventTimeline>(message.payload);
-				if (nextTimeline) {
-					historyBuffer.accept(message.requestId, {timeline: nextTimeline});
-				}
-			}
-
-			// The state broadcast carries board data, not the assignable-people
-			// list, so assigning and removing need an explicit re-request.
-			if (
-				message.type === 'contributor:remove:result' ||
-				message.type === 'issue:assignee:add:result'
-			) {
-				sendSocketJson(socketRef.current, {
-					type: 'contributors:get',
-					payload: {boardId: selectedBoardIdRef.current},
+			if (origin && created) {
+				socket.sendRaw({
+					type: 'issue:comment:add',
+					payload: {
+						issueId: origin.originIssueId,
+						body: `Filed \`${nodeRef(
+							created.id,
+						)}\` from a code selection on this ticket.`,
+					},
 				});
 			}
+		}
 
-			if (
-				message.type === 'contributor:remove:result' &&
-				message.payload?.status === 'fail'
-			) {
-				setRemoveError(
-					`Couldn't remove a contributor: ${message.payload.message}`,
+		// A refused mutation is otherwise invisible: the optimistic update is
+		// simply undone by the state that follows, which reads as the board
+		// ignoring the action.
+		if (message.type === 'failed') {
+			setActionError(
+				typeof message.payload === 'string'
+					? message.payload
+					: 'The board refused that change',
+			);
+			socket.requestState();
+		}
+
+		// A frame the server could not parse is refused the same way, and
+		// was otherwise invisible — the optimistic change just quietly held.
+		if (message.type === 'error') {
+			setActionError(
+				typeof message.message === 'string'
+					? message.message
+					: 'The board could not read that change',
+			);
+			socket.requestState();
+		}
+
+		if (message.type === 'timeline') {
+			const nextTimeline = getResultValue<GuiEventTimeline>(message.payload);
+			if (nextTimeline) {
+				historyBuffer.accept(message.requestId, {timeline: nextTimeline});
+			}
+		}
+
+		// The state broadcast carries board data, not the assignable-people
+		// list, so assigning and removing need an explicit re-request.
+		if (
+			message.type === 'contributor:remove:result' ||
+			message.type === 'issue:assignee:add:result'
+		) {
+			socket.sendRaw({
+				type: 'contributors:get',
+				payload: {boardId: selectedBoardIdRef.current},
+			});
+		}
+
+		if (
+			message.type === 'contributor:remove:result' &&
+			message.payload?.status === 'fail'
+		) {
+			setRemoveError(
+				`Couldn't remove a contributor: ${message.payload.message}`,
+			);
+		}
+
+		if (
+			message.type === 'tag:remove:result' &&
+			message.payload?.status === 'fail'
+		) {
+			setRemoveError(`Couldn't delete a tag: ${message.payload.message}`);
+		}
+
+		if (message.type === 'contributors') {
+			const next = getResultValue<GuiContributor[]>(message.payload);
+			if (next) setContributors(next);
+		}
+
+		if (message.type === 'commits') {
+			const nextCommits = getResultValue<GuiCommitEntry[]>(message.payload);
+			if (nextCommits) {
+				historyBuffer.accept(message.requestId, {commits: nextCommits});
+			}
+		}
+
+		if (message.type === 'commit:diff:result') {
+			// Wrapped with the sha it was requested for: the scrubber's dot and
+			// the ticket tab's commit list can each have a different commit's
+			// diff in flight at once, and a failed Result alone carries no sha
+			// to attribute the failure to.
+			const {sha, result} = message.payload as {
+				sha: string;
+				result: {status: string; message: string; value?: GuiCommitDiff};
+			};
+
+			if (result?.status === 'fail') {
+				// Ignores a reply for a sha no longer showing — a fast second click
+				// can leave an earlier request in flight.
+				setCommitDiff(prev =>
+					prev && prev.sha === sha
+						? {...prev, loading: false, error: result.message}
+						: prev,
 				);
-			}
-
-			if (
-				message.type === 'tag:remove:result' &&
-				message.payload?.status === 'fail'
-			) {
-				setRemoveError(`Couldn't delete a tag: ${message.payload.message}`);
-			}
-
-			if (message.type === 'contributors') {
-				const next = getResultValue<GuiContributor[]>(message.payload);
-				if (next) setContributors(next);
-			}
-
-			if (message.type === 'commits') {
-				const nextCommits = getResultValue<GuiCommitEntry[]>(message.payload);
-				if (nextCommits) {
-					historyBuffer.accept(message.requestId, {commits: nextCommits});
-				}
-			}
-
-			if (message.type === 'commit:diff:result') {
-				// Wrapped with the sha it was requested for: the scrubber's dot and
-				// the ticket tab's commit list can each have a different commit's
-				// diff in flight at once, and a failed Result alone carries no sha
-				// to attribute the failure to.
-				const {sha, result} = message.payload as {
-					sha: string;
-					result: {status: string; message: string; value?: GuiCommitDiff};
-				};
-
-				if (result?.status === 'fail') {
-					// Ignores a reply for a sha no longer showing — a fast second click
-					// can leave an earlier request in flight.
+				setIssueCommitDiffs(prev =>
+					prev[sha]
+						? {
+								...prev,
+								[sha]: {loading: false, error: result.message, files: null},
+						  }
+						: prev,
+				);
+			} else {
+				const diff = getResultValue<GuiCommitDiff>(result);
+				if (diff) {
 					setCommitDiff(prev =>
-						prev && prev.sha === sha
-							? {...prev, loading: false, error: result.message}
+						prev && prev.sha === diff.sha
+							? {...prev, loading: false, error: null, files: diff.files}
 							: prev,
 					);
 					setIssueCommitDiffs(prev =>
-						prev[sha]
+						prev[diff.sha]
 							? {
 									...prev,
-									[sha]: {loading: false, error: result.message, files: null},
+									[diff.sha]: {
+										loading: false,
+										error: null,
+										files: diff.files,
+									},
 							  }
 							: prev,
 					);
-				} else {
-					const diff = getResultValue<GuiCommitDiff>(result);
-					if (diff) {
-						setCommitDiff(prev =>
-							prev && prev.sha === diff.sha
-								? {...prev, loading: false, error: null, files: diff.files}
-								: prev,
-						);
-						setIssueCommitDiffs(prev =>
-							prev[diff.sha]
-								? {
-										...prev,
-										[diff.sha]: {
-											loading: false,
-											error: null,
-											files: diff.files,
-										},
-								  }
-								: prev,
-						);
-					}
 				}
 			}
+		}
 
-			if (message.type === 'issue:commits:result') {
-				// Wrapped with the issueId it was requested for: switching tickets
-				// while the Code tab stays open can leave an older ticket's request
-				// in flight, and a failed Result alone carries no issueId to check.
-				const {issueId, result} = message.payload as {
-					issueId: string;
-					result: {
-						status: string;
-						message: string;
-						value?: GuiRefCommitEntry[];
-					};
+		if (message.type === 'issue:commits:result') {
+			// Wrapped with the issueId it was requested for: switching tickets
+			// while the Code tab stays open can leave an older ticket's request
+			// in flight, and a failed Result alone carries no issueId to check.
+			const {issueId, result} = message.payload as {
+				issueId: string;
+				result: {
+					status: string;
+					message: string;
+					value?: GuiRefCommitEntry[];
 				};
+			};
 
-				if (result?.status === 'fail') {
+			if (result?.status === 'fail') {
+				setIssueCommits(prev =>
+					prev && prev.issueId === issueId
+						? {...prev, loading: false, error: result.message}
+						: prev,
+				);
+			} else {
+				const commits = getResultValue<GuiRefCommitEntry[]>(result);
+				if (commits) {
 					setIssueCommits(prev =>
 						prev && prev.issueId === issueId
-							? {...prev, loading: false, error: result.message}
+							? {...prev, loading: false, error: null, commits}
 							: prev,
 					);
-				} else {
-					const commits = getResultValue<GuiRefCommitEntry[]>(result);
-					if (commits) {
-						setIssueCommits(prev =>
-							prev && prev.issueId === issueId
-								? {...prev, loading: false, error: null, commits}
-								: prev,
-						);
-					}
 				}
 			}
+		}
 
-			if (message.type === 'time-travel:result') {
-				// Every reply, refusals included: the player's clock is waiting on
-				// one, and a refused checkout it never heard about would stall it.
-				setScrubAck(count => count + 1);
+		if (message.type === 'time-travel:result') {
+			// Every reply, refusals included: the player's clock is waiting on
+			// one, and a refused checkout it never heard about would stall it.
+			setScrubAck(count => count + 1);
 
-				if (message.payload?.status === 'fail') {
-					console.log('Time travel failed', message);
-					requestState();
-				}
+			if (message.payload?.status === 'fail') {
+				console.log('Time travel failed', message);
+				socket.requestState();
 			}
+		}
 
-			if (message.type === 'sync-status') {
-				setSyncStatus(message.payload);
-			}
-		});
+		if (message.type === 'sync-status') {
+			setSyncStatus(message.payload);
+		}
+	};
 
-		return () => {
-			replaced = true;
-
-			if (reconnectTimer.current !== null) {
-				clearTimeout(reconnectTimer.current);
-				reconnectTimer.current = null;
-			}
-
-			if (socketRef.current === socket) {
-				socketRef.current = null;
-			}
-
-			socket.close();
-		};
-		// `reconnectTick` is what re-runs this after a drop; the scrubber re-asks
-		// for its window off `connected`, so history comes back with it. `navigate`
-		// is deliberately excluded — see navigateRef above.
-	}, [boardId, reconnectTick]);
+	const {
+		connected,
+		socketEpoch,
+		reconnectExhausted,
+		reconnectNow,
+		send,
+		sendRaw,
+		requestState,
+	} = useBoardSocket({boardId, onMessage: onSocketMessage});
 
 	useEffect(() => {
 		const first = state?.boards?.[0];
@@ -872,11 +793,6 @@ export const App = () => {
 	const clearDragState = () => {
 		setDragOverSwimlaneId(null);
 		setDropTarget(null);
-	};
-
-	const send = (type: string, payload: unknown) => {
-		mutationGate.sent(type);
-		sendSocketJson(socketRef.current, {type, payload});
 	};
 
 	const togglePicked = (nextIssueId: string) => {
@@ -1255,7 +1171,7 @@ export const App = () => {
 			// repository-wide. Omitting boardId is how the API says "every board"
 			// — which is also the right ask before any board is known, and the
 			// only one the schema accepts (null is refused).
-			sendSocketJson(socketRef.current, {
+			sendRaw({
 				type: 'timeline:get',
 				payload: {
 					...window,
@@ -1263,7 +1179,7 @@ export const App = () => {
 					requestId,
 				},
 			});
-			sendSocketJson(socketRef.current, {
+			sendRaw({
 				type: 'commits:get',
 				payload: {...window, requestId},
 			});
@@ -1277,7 +1193,7 @@ export const App = () => {
 	// picker is its only reader — so it is fetched when that picker opens rather
 	// than eagerly for every board.
 	const requestContributors = useCallback(() => {
-		sendSocketJson(socketRef.current, {
+		sendRaw({
 			type: 'contributors:get',
 			payload: {boardId: selectedBoardIdRef.current},
 		});
@@ -1310,7 +1226,7 @@ export const App = () => {
 			}
 
 			setCommitDiff({sha, loading: true, error: null, files: null});
-			sendSocketJson(socketRef.current, {
+			sendRaw({
 				type: 'commit:diff:get',
 				payload: {sha},
 			});
