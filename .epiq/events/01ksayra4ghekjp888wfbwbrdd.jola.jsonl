@@ -3546,3 +3546,6 @@
 {"v":1,"id":["01M1M270VXP0X2E2FBX21EXXB4","01M1M270VWM0F5B514HE8394DC"],"edit.description":{"id":"01M1M270VEMNBF0NYKWAN83DR8","md":"The epiq skill forbade `--squash` outright, so branches reached main carrying their fixups. Squashing is only a problem across refs, where one ticket loses its commits — within a ref it is just tidy history. Rewrite the rule: rebase onto the target, never merge into it, and squash freely as long as every landing commit opens with its ticket's ref."}}
 {"v":1,"id":["01M1M270VY10N2J1TF8GYTE1PF","01M1M270VXP0X2E2FBX21EXXB4"],"create.tag":{"id":"01M1M270VFWC0J7W908N2Z01ZZ","name":"documentation"}}
 {"v":1,"id":["01M1M270VZH9YRDJY4WXSGZJB4","01M1M270VY10N2J1TF8GYTE1PF"],"add.issue.tag":{"id":"01M1M270VEMNBF0NYKWAN83DR8","tag":"01M1M270VFWC0J7W908N2Z01ZZ"}}
+{"v":1,"id":["01M1M27FRTBJ9X5EGKJ2AVXN5Y","01M1M270VZH9YRDJY4WXSGZJB4"],"add.issue.tag":{"id":"01M1M270VEMNBF0NYKWAN83DR8","tag":"01M12PMYDSM2AQZ2R4GKCDC3CP"}}
+{"v":1,"id":["01M1M27M14VK8HZXR510V0B64G","01M1M27FRTBJ9X5EGKJ2AVXN5Y"],"tombstone.tag":{"id":"01M1M270VFWC0J7W908N2Z01ZZ"}}
+{"v":1,"id":["01M1M27RJ9ZNWK4Y4W2E1HW2PA","01M1M27M14VK8HZXR510V0B64G"],"add.issue.assignee":{"id":"01M1M270VEMNBF0NYKWAN83DR8","assignee":"01KSAYRA4GHEKJP888WFBWBRDD"}}
