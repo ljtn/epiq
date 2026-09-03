@@ -15,12 +15,13 @@
 
 set -eu
 
-# What the browser on this machine opens. Inside the container the GUI binds
-# 3710 on loopback — its own design — so socat bridges the two: it cannot
-# listen on 3710 itself, since 0.0.0.0 covers loopback and node would then find
-# the port taken and quietly move to another one.
+# One port, end to end. The GUI binds loopback by design, so a published port
+# cannot reach it and socat has to bridge — but the bridge must not change the
+# number: a browser sends the port it dialled in its Origin, and the websocket
+# handshake is refused when that is not the port the server bound. So the
+# server is told to use this one too, and socat listens on the container's own
+# address rather than 0.0.0.0, which would take the port from under it.
 PORT="${STRESS_PORT:-3720}"
-GUI_PORT=3710
 
 SERVE="${STRESS_SERVE:-true}"
 MEMORY="${STRESS_MEMORY:-6g}"
@@ -60,6 +61,7 @@ exec docker run --rm ${TTY_FLAGS} --init \
 	-e STRESS_YEARS="${STRESS_YEARS:-}" \
 	-e STRESS_SERVE="${SERVE}" \
 	-e NODE_OPTIONS="--max-old-space-size=${NODE_HEAP}" \
+	-e EPIQ_GUI_PORT="${PORT}" \
 	-v "$PWD":/app:ro \
 	-v /app/node_modules \
 	-w /app \
@@ -68,7 +70,8 @@ exec docker run --rm ${TTY_FLAGS} --init \
 		if [ '${SERVE}' = 'true' ]; then
 			apt-get update >/dev/null 2>&1
 			apt-get install -y socat >/dev/null 2>&1
-			socat TCP-LISTEN:${PORT},fork,reuseaddr TCP:127.0.0.1:${GUI_PORT} &
+			socat TCP-LISTEN:${PORT},fork,reuseaddr,bind=\$(hostname -i) \
+				TCP:127.0.0.1:${PORT} &
 		fi
 		npx tsx source/test/stress/run.ts
 	"

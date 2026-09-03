@@ -14,7 +14,12 @@ import {
 	ReturnFail,
 	succeeded,
 } from '../model/result-types.js';
-import {getState, patchState, setStateEntry, updateState} from '../state/state.js';
+import {
+	getState,
+	patchState,
+	setStateEntry,
+	updateState,
+} from '../state/state.js';
 import {getOrderedChildren} from './rank.js';
 
 /**

@@ -278,7 +278,7 @@ export function setStateEntry<K extends StateMapKey>(
 				({
 					...old,
 					[key]: {...((old[key] ?? {}) as object), [id]: value},
-				}) as BaseState,
+				} as BaseState),
 		);
 	}
 
