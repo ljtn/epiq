@@ -153,6 +153,27 @@ export const App = () => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [selection, changeSelection] = useBoardSelection();
 
+	// The connection is opened here, before anything that sends on it, and is
+	// handed a trampoline rather than the handler itself: the handler is written
+	// further down, where the state it sets is declared, and everything between
+	// the two still gets to use `send`.
+	const socketMessageRef = useRef<
+		(message: any, socket: BoardSocketActions) => void
+	>(() => {});
+
+	const {
+		connected,
+		socketEpoch,
+		reconnectExhausted,
+		reconnectNow,
+		send,
+		sendRaw,
+		requestState,
+	} = useBoardSocket({
+		boardId,
+		onMessage: (message, socket) => socketMessageRef.current(message, socket),
+	});
+
 	// Bumped per socket, not per connection state: a socket the effect replaces
 	// never reports a disconnect, so `connected` alone cannot tell a reader that
 	// its outstanding requests died with the old socket.
@@ -525,9 +546,6 @@ export const App = () => {
 	// Every frame the board's connection delivers, and what it means. The
 	// connection itself — opening, losing, retrying, sending — is
 	// `useBoardSocket`'s; this is only the reading of what arrives on it.
-	//
-	// Declared before the hook that stores it: the hook keeps it in a ref, which
-	// it fills while rendering.
 	const onSocketMessage = (message: any, socket: BoardSocketActions) => {
 		if (message.type === 'state' && !socket.holdsState()) {
 			const nextState = getResultValue<GuiState>(message.payload);
@@ -758,15 +776,7 @@ export const App = () => {
 		}
 	};
 
-	const {
-		connected,
-		socketEpoch,
-		reconnectExhausted,
-		reconnectNow,
-		send,
-		sendRaw,
-		requestState,
-	} = useBoardSocket({boardId, onMessage: onSocketMessage});
+	socketMessageRef.current = onSocketMessage;
 
 	useEffect(() => {
 		const first = state?.boards?.[0];
