@@ -80,6 +80,7 @@ export const TimeScrubber = ({
 	onInspectCommit,
 	selection,
 	onChangeSelection,
+	selectedIssue,
 	knownIdentities,
 	refreshOn,
 }: {
@@ -112,6 +113,11 @@ export const TimeScrubber = ({
 	// URL.
 	selection: BoardSelection;
 	onChangeSelection: (patch: Partial<BoardSelection>) => void;
+	// The ticket whose details are open, which the "This ticket" narrowing
+	// needs for both halves of what it does: its id filters the events, and the
+	// moment it was created is where its window starts. Null with none open,
+	// which is what greys that checkbox out.
+	selectedIssue: {id: string; createdAt: number} | null;
 	// Every tag and person the board knows, per axis, for naming a selected
 	// identity the window itself holds no event for.
 	knownIdentities: Record<'actor' | 'tag' | 'assignee', GuiEventIdentity[]>;
@@ -130,6 +136,7 @@ export const TimeScrubber = ({
 		view: boardView,
 		only,
 		windowOnly,
+		ticketOnly,
 	} = selection;
 	const animate = !usePrefersReducedMotion();
 	const trackRef = useRef<HTMLDivElement | null>(null);
@@ -211,13 +218,30 @@ export const TimeScrubber = ({
 		number | null
 	>(null);
 
+	// Only while a ticket is actually open: the checkbox can be left ticked by
+	// a link, and a window starting at a ticket that is not on screen would be
+	// a stretch nobody chose.
+	const ticketFocus = ticketOnly && selectedIssue !== null;
+
+	// The ticket's whole life, which stands in front of a dragged-out window
+	// the way that one stands in front of the rolling period. Derived rather
+	// than written into the selection, so unticking hands back what was there.
+	const ticketRange = ticketFocus
+		? {start: selectedIssue.createdAt, end: Date.now()}
+		: null;
+
+	// The events this narrowing keeps. Null leaves every ticket's events in.
+	const issueOnly = ticketFocus ? selectedIssue.id : null;
+
 	// A dragged-out window stands in for the rolling one, and is the only kind
 	// with fixed bounds — every other is anchored to now.
-	const periodRange = zoom ?? getPeriodRange(scope, offset);
+	const periodRange = ticketRange ?? zoom ?? getPeriodRange(scope, offset);
 
 	// periodRange is derived from scope/offset each render, so it is
 	// deliberately absent from the dependencies; the zoom's own bounds are
-	// listed instead, since it is a fresh object on every read of the URL.
+	// listed instead, since it is a fresh object on every read of the URL. The
+	// ticket window is the same: anchored to now like the rolling one, so what
+	// is listed is the ticket it is cut from rather than the range itself.
 	useEffect(() => {
 		if (!connected) return;
 
@@ -231,6 +255,9 @@ export const TimeScrubber = ({
 		offset,
 		zoom?.start,
 		zoom?.end,
+		ticketFocus,
+		selectedIssue?.id,
+		selectedIssue?.createdAt,
 		boardId,
 		allBoards,
 		connected,
@@ -371,16 +398,24 @@ export const TimeScrubber = ({
 	// Memoized with the rest of the derived chart: hovering the track re-renders
 	// on every mouse move, and these walk every event and every commit.
 	const issueCounts = useMemo(
-		() => bucketIssueCounts(axis, shown.timeline, boardView, hiddenIdentityIds),
-		[axis, shown, boardView, hiddenIdentityIds],
+		() =>
+			bucketIssueCounts(
+				axis,
+				shown.timeline,
+				boardView,
+				hiddenIdentityIds,
+				issueOnly,
+			),
+		[axis, shown, boardView, hiddenIdentityIds, issueOnly],
 	);
 	const commitStats = useMemo(
 		() => bucketCommitStats(axis, shown.commits),
 		[axis, shown.commits],
 	);
 	const liveEventDots = useMemo(
-		() => buildEventDots(shown.timeline, boardView, hiddenIdentityIds),
-		[shown, boardView, hiddenIdentityIds],
+		() =>
+			buildEventDots(shown.timeline, boardView, hiddenIdentityIds, issueOnly),
+		[shown, boardView, hiddenIdentityIds, issueOnly],
 	);
 
 	const dragging = dragFraction !== null || rangeDrag !== null;
@@ -736,6 +771,9 @@ export const TimeScrubber = ({
 				atLatest,
 				windowOnly,
 				windowFilterable: windowNamesIssues(timeline),
+				ticketOnly,
+				ticketSelected: selectedIssue !== null,
+				ticketFocus,
 				layoutMode,
 				showIssues,
 				showCommits,
@@ -744,6 +782,8 @@ export const TimeScrubber = ({
 				onChangeOffset: changeOffset,
 				onChangeWindowOnly: (next: boolean) =>
 					onChangeSelection({windowOnly: next}),
+				onChangeTicketOnly: (next: boolean) =>
+					onChangeSelection({ticketOnly: next}),
 				onChangeLayoutMode: changeLayoutMode,
 				onChangeShowIssues: setShowIssues,
 				onChangeShowCommits: setShowCommits,
