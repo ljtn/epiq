@@ -86,6 +86,11 @@ const normalize = (selection: BoardSelection): BoardSelection => {
 			selection.offset < 0
 				? 0
 				: selection.offset,
+		// One named ticket is a narrower ask than every ticket a window happens
+		// to touch, so the two never hold at once — the ticket wins, and its box
+		// is the only one lit. Enforced here rather than at the patch, so a URL
+		// carrying both cannot put the board in a state the controls cannot say.
+		windowOnly: selection.ticketOnly ? false : selection.windowOnly,
 		only: selection.only === null ? null : unique(selection.only),
 	};
 };

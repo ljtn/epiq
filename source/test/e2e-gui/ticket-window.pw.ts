@@ -72,6 +72,56 @@ test('the ticket narrowing waits for a ticket, then owns the window', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// The point of narrowing the board too: the ticket's own card can be watched
+// crossing the lanes on its own, with nothing else moving around it.
+test('it takes the board down to the one ticket, and the window box with it', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const mine = `Kept ${Date.now()}`;
+	const other = `Hidden ${Date.now()}`;
+	await addTicket(page, other);
+	await addTicket(page, mine);
+
+	const card = (title: string) =>
+		page.locator('[draggable="true"]').filter({hasText: title});
+
+	await expect(card(mine)).toBeVisible();
+	await expect(card(other)).toBeVisible();
+
+	// A period, so the window box is live enough to be worth putting out.
+	await scopeButton(page, 'Week').click();
+	const scopeOnly = page.getByRole('checkbox', {name: 'Scope only'});
+	await expect(scopeOnly).toBeEnabled();
+	await scopeOnly.click();
+	await expect(scopeOnly).toBeChecked();
+
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).toBeChecked();
+
+	// One lit box, not two: the narrower ask took the other with it.
+	await expect(scopeOnly).not.toBeChecked();
+	await expect(scopeOnly).toBeDisabled();
+	await expect
+		.poll(() => new URL(page.url()).searchParams.get('window'))
+		.toBeNull();
+
+	await expect(card(mine)).toBeVisible();
+	await expect(card(other)).toHaveCount(0);
+
+	// And back: unticking returns every card and hands the window box back.
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).not.toBeChecked();
+	await expect(card(other)).toBeVisible();
+	await expect(scopeOnly).toBeEnabled();
+
+	expect(pageErrors).toEqual([]);
+});
+
 // It never writes a window into the selection, so what it hands back is
 // whatever was in force — a dragged-out one included.
 test('unticking hands back the window it was turned on over', async ({
