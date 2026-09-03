@@ -542,31 +542,17 @@ const ScopeSelect = ({
 	onChangeScope: (scope: Scope) => void;
 }) => {
 	const [open, setOpen] = useState(false);
-	const ref = useRef<HTMLDivElement | null>(null);
 
-	// A select closes when you look away from it, unlike the series disclosure
-	// beside it — that one is a remembered preference, this one is a menu. And
-	// its popover sits over the chart, so one left open takes the timeline's
-	// pointer with it.
+	// The dismissal the board series menu already uses: a select closes when you
+	// look away from it, and this popover sits over the chart, so one left open
+	// takes the timeline's pointer with it.
+	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
+
+	// A dropped socket disables the trigger, and a menu nobody can act on must
+	// not be left sitting there.
 	useEffect(() => {
-		if (!open) return;
-
-		const onPointerDown = (event: MouseEvent) => {
-			if (!ref.current?.contains(event.target as Node)) setOpen(false);
-		};
-
-		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') setOpen(false);
-		};
-
-		document.addEventListener('mousedown', onPointerDown);
-		document.addEventListener('keydown', onKeyDown);
-
-		return () => {
-			document.removeEventListener('mousedown', onPointerDown);
-			document.removeEventListener('keydown', onKeyDown);
-		};
-	}, [open]);
+		if (!connected) setOpen(false);
+	}, [connected]);
 
 	return (
 		<div ref={ref} style={{position: 'relative'}}>
@@ -1019,11 +1005,19 @@ export const ScrubberControls = ({
 				title={
 					isScrubbing ? 'Leave history and follow the board again' : undefined
 				}
+				// Inverted while the board is in the past: bright ground, dark text.
+				// Every other control on this row is quiet chrome, and this one is
+				// the standing answer to "why is nothing I do landing?" — it has to
+				// be the thing you cannot miss.
 				style={{
 					...(isScrubbing
-						? headerButtonStyle
+						? {
+								...headerButtonStyle,
+								background: GUI_THEME.accent,
+								border: `1px solid ${GUI_THEME.accent}`,
+						  }
 						: {background: 'transparent', border: 'none'}),
-					color: isScrubbing ? GUI_THEME.accent : GUI_THEME.dim,
+					color: isScrubbing ? GUI_THEME.bg : GUI_THEME.dim,
 					fontFamily: 'inherit',
 					fontSize: 10,
 					width: 60,
