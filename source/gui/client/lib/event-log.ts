@@ -138,14 +138,45 @@ export const groupByDay = (entries: readonly LogEntry[]): LogDay[] => {
 	return days;
 };
 
-// Whether a day's lines are shown. Every day is folded but the newest, until a
+// How many of the newest days to open before the pane has been measured, and
+// wherever a measurement is not to be had.
+export const DEFAULT_OPEN_DAYS = 3;
+
+// How many of the newest days to open so the pane is filled. A folded day costs
+// one row; an open one costs a row and its lines.
+//
+// The day that crosses the pane's height is opened rather than left folded: it
+// is what fills the last of the pane, the overflow is scrollable, and stopping
+// short of it leaves the panel mostly empty above a run of folded dates — which
+// is the thing this exists to avoid. The newest day is always open for the same
+// reason, however long it is.
+export const daysToOpen = (
+	days: readonly LogDay[],
+	rowsAvailable: number,
+): number => {
+	let openRows = 0;
+	let opened = 0;
+
+	for (let taken = 1; taken <= days.length; taken++) {
+		opened = taken;
+		openRows += 1 + days[days.length - taken]!.entries.length;
+
+		if (openRows + (days.length - taken) >= rowsAvailable) break;
+	}
+
+	return opened;
+};
+
+// Whether a day's lines are shown. The newest `openCount` days are, until a
 // reader says otherwise — and their say has to outlive the slice moving, which
 // is why the override is keyed by day rather than by index.
 export const isDayOpen = (
 	days: readonly LogDay[],
 	index: number,
 	overrides: ReadonlyMap<string, boolean>,
-): boolean => overrides.get(days[index]!.key) ?? index === days.length - 1;
+	openCount: number,
+): boolean =>
+	overrides.get(days[index]!.key) ?? index >= days.length - openCount;
 
 // A seek can replace the whole column at once. Sliding that far would be a
 // swipe rather than a crawl, so the shift is capped at what an ordinary step

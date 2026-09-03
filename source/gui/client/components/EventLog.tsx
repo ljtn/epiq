@@ -24,6 +24,8 @@ import {formatTimeOfDay} from '../../../lib/utils/date.utils.js';
 import {
 	crawlShiftFrames,
 	CRAWL_TIMING,
+	DEFAULT_OPEN_DAYS,
+	daysToOpen,
 	EVENT_LOG_STYLES,
 	groupByDay,
 	isDayOpen,
@@ -155,6 +157,18 @@ const EventLogPanel = ({
 	const days = useMemo(() => groupByDay(entries), [entries]);
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
+	// How many rows the pane has room for, so the days opened by default fill it
+	// rather than leaving it mostly empty. Null until it has been measured.
+	const [paneRows, setPaneRows] = useState<number | null>(null);
+
+	const openCount = useMemo(
+		() =>
+			paneRows === null
+				? Math.min(DEFAULT_OPEN_DAYS, days.length)
+				: daysToOpen(days, paneRows),
+		[days, paneRows],
+	);
+
 	// Whether the pane was at the foot before this render's rows landed, which is
 	// what decides whether it follows them down.
 	const pinnedRef = useRef(true);
@@ -167,6 +181,28 @@ const EventLogPanel = ({
 			pane.scrollHeight - pane.scrollTop - pane.clientHeight <= PINNED_SLACK_PX;
 	};
 
+	// Measured off the pane's own height, which does not depend on what is in it
+	// — so opening days to fill the pane cannot feed back into how many fit.
+	// Before paint, so the first frame is already filled rather than showing one
+	// day and then growing.
+	useLayoutEffect(() => {
+		const pane = scrollRef.current;
+		if (!pane) return;
+
+		const measure = () => {
+			const usable = pane.clientHeight - bottomClearance - LOG_ROW_HEIGHT * 2;
+
+			setPaneRows(Math.max(1, Math.floor(usable / LOG_ROW_HEIGHT)));
+		};
+
+		measure();
+
+		const observer = new ResizeObserver(measure);
+		observer.observe(pane);
+
+		return () => observer.disconnect();
+	}, [bottomClearance]);
+
 	// Before paint, so a line arriving never shows the pane a frame out of place.
 	// Only while the reader is at the foot: scrolled back, the log is something
 	// being read, and pulling it to the bottom would take that away.
@@ -175,7 +211,7 @@ const EventLogPanel = ({
 		if (!pane || !pinnedRef.current) return;
 
 		pane.scrollTop = pane.scrollHeight;
-	}, [newestId, days.length, foldOverrides]);
+	}, [newestId, days.length, foldOverrides, openCount]);
 
 	// The keys on screen before this render. The column slides by however many
 	// rows joined the bottom, which is not always one: an event that crosses
@@ -187,7 +223,7 @@ const EventLogPanel = ({
 		const column = columnRef.current;
 		const shown = shownKeysRef.current;
 		const onScreen = days.flatMap((day, index) =>
-			isDayOpen(days, index, foldOverrides)
+			isDayOpen(days, index, foldOverrides, openCount)
 				? [day.key, ...day.entries.map(entry => entry.id)]
 				: [day.key],
 		);
@@ -253,7 +289,7 @@ const EventLogPanel = ({
 				    always in the same place however few of them there are. */}
 				<div ref={columnRef} style={{marginTop: 'auto'}}>
 					{days.map((day, index) => {
-						const open = isDayOpen(days, index, foldOverrides);
+						const open = isDayOpen(days, index, foldOverrides, openCount);
 
 						return (
 							<div key={day.key}>
