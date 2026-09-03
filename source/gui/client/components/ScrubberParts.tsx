@@ -44,6 +44,7 @@ import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {IconLog} from './IconLog';
 import {IconPlay} from './IconPlayback';
 import {IconScatter} from './IconScatter';
 
@@ -521,6 +522,9 @@ export const ScrubberControls = ({
 	atLatest,
 	windowOnly,
 	windowFilterable,
+	canPlay,
+	playTitle,
+	onPlay,
 	ticketOnly,
 	ticketSelected,
 	ticketFocus,
@@ -564,6 +568,9 @@ export const ScrubberControls = ({
 	atLatest: boolean;
 	// The board is narrowed to the tickets this window has an event for.
 	windowOnly: boolean;
+	canPlay: boolean;
+	playTitle: string;
+	onPlay: () => void;
 	// False where the window came back as counts alone, naming no tickets to
 	// narrow to.
 	windowFilterable: boolean;
@@ -612,6 +619,14 @@ export const ScrubberControls = ({
 				gap: 12,
 			}}
 		>
+			{/* At the head of the controls rather than over by the collapse
+			    chevron: it acts on the window these buttons pick out. */}
+			<ScrubberPlayButton
+				canPlay={canPlay}
+				playTitle={playTitle}
+				onPlay={onPlay}
+			/>
+
 			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
 				{(scope !== 'all' || zoomed || ticketFocus) && (
 					<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
@@ -897,20 +912,11 @@ const headerButtonStyle: React.CSSProperties = {
 export const ScrubberHeader = ({
 	collapsed,
 	onToggleCollapsed,
-	canPlay,
-	playTitle,
-	onPlay,
 	logOpen,
 	onChangeLogOpen,
 }: {
 	collapsed: boolean;
 	onToggleCollapsed: () => void;
-	// False where the window holds nothing to play, or the socket is down.
-	canPlay: boolean;
-	// Why, when it cannot be pressed — a window can be unplayable for opposite
-	// reasons, and a button nobody can press has to say which.
-	playTitle: string;
-	onPlay: () => void;
 	// The event log panel is on the board.
 	logOpen: boolean;
 	onChangeLogOpen: (next: boolean) => void;
@@ -924,6 +930,27 @@ export const ScrubberHeader = ({
 			whiteSpace: 'nowrap',
 		}}
 	>
+		{/* First, and marked with what it opens rather than with a chevron: the
+		    panel beside the board is a thing in its own right, where the chevron
+		    next to it only shows and hides the bar it sits on.
+
+		    Here rather than in the controls row so it survives that bar being
+		    collapsed, and it asks the socket for nothing — the window it lists is
+		    already on screen — so it stays usable offline. */}
+		<button
+			data-testid="log-toggle"
+			onClick={() => onChangeLogOpen(!logOpen)}
+			title={logOpen ? 'Hide the event log' : 'Show the event log'}
+			aria-label={logOpen ? 'Hide the event log' : 'Show the event log'}
+			aria-pressed={logOpen}
+			style={{
+				...headerButtonStyle,
+				color: logOpen ? GUI_THEME.accent : GUI_THEME.secondary,
+			}}
+		>
+			<IconLog size={13} />
+		</button>
+
 		<button
 			onClick={onToggleCollapsed}
 			title={collapsed ? 'Show time travel' : 'Hide time travel'}
@@ -937,46 +964,39 @@ export const ScrubberHeader = ({
 				<IconChevronDown size={14} />
 			)}
 		</button>
-
-		{/* The same control as the one beside it, because it does the same kind of
-		    thing: both open a panel. A labelled checkbox among icon buttons was a
-		    third idiom for one act.
-
-		    On the header rather than in the controls row, so it is still there
-		    with the scrubber shut — and it asks the socket for nothing, the window
-		    it lists being already on screen, so it stays usable offline. */}
-		<button
-			data-testid="log-toggle"
-			onClick={() => onChangeLogOpen(!logOpen)}
-			title={logOpen ? 'Hide the event log' : 'Show the event log'}
-			aria-label={logOpen ? 'Hide the event log' : 'Show the event log'}
-			aria-expanded={logOpen}
-			style={headerButtonStyle}
-		>
-			{logOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-		</button>
-
-		{/* Set apart from the two panel toggles by a gap rather than by colour: it
-		    is the one control here that starts something rather than opening
-		    something, and a lit accent made it the loudest thing on a bar of quiet
-		    chrome. */}
-		<button
-			data-testid="theatre-play"
-			onClick={onPlay}
-			disabled={!canPlay}
-			title={playTitle}
-			aria-label="Play the board's history"
-			style={{
-				...headerButtonStyle,
-				marginLeft: 10,
-				color: canPlay ? GUI_THEME.secondary : GUI_THEME.dim,
-				cursor: canPlay ? 'pointer' : 'default',
-				opacity: canPlay ? 1 : 0.4,
-			}}
-		>
-			<IconPlay size={13} />
-		</button>
 	</div>
+);
+
+// The transport, wherever it is put: among the controls while the bar is open,
+// and beside the collapsed row's own box when it is not — it must not go out of
+// reach just because the charts are shut.
+export const ScrubberPlayButton = ({
+	canPlay,
+	playTitle,
+	onPlay,
+}: {
+	// False where the window holds nothing to play, or the socket is down.
+	canPlay: boolean;
+	// Why, when it cannot be pressed — a window can be unplayable for opposite
+	// reasons, and a button nobody can press has to say which.
+	playTitle: string;
+	onPlay: () => void;
+}) => (
+	<button
+		data-testid="theatre-play"
+		onClick={onPlay}
+		disabled={!canPlay}
+		title={playTitle}
+		aria-label="Play the board's history"
+		style={{
+			...headerButtonStyle,
+			color: canPlay ? GUI_THEME.secondary : GUI_THEME.dim,
+			cursor: canPlay ? 'pointer' : 'default',
+			opacity: canPlay ? 1 : 0.4,
+		}}
+	>
+		<IconPlay size={13} />
+	</button>
 );
 
 // Deliberately one block spanning both charts and the gap: hovering a commit
