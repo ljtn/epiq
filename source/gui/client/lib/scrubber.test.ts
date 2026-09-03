@@ -206,6 +206,57 @@ describe('bucketIssueCounts', () => {
 			true,
 		);
 	});
+
+	describe('narrowed to one ticket', () => {
+		const events = [
+			entry(0, 'add.issue', {issue: 'mine'}),
+			entry(DAY, 'edit.title', {issue: 'theirs'}),
+			entry(2 * DAY, 'add.issue.comment', {issue: 'mine'}),
+			// Board-level: belongs to no ticket at all.
+			entry(3 * DAY, 'add.swimlane'),
+		];
+
+		const axis = () => buildAxis(null, [commit(0), commit(10 * DAY)], 10 * DAY);
+
+		it('counts only that ticket, board-level events included out', () => {
+			const built = axis();
+			const counts = bucketIssueCounts(
+				built,
+				timeline([], {earliest: 0, latest: 10 * DAY}, events),
+				'all',
+				new Set(),
+				'mine',
+			);
+
+			expect(counts.reduce((sum, count) => sum + count, 0)).toBe(2);
+		});
+
+		it('counts every ticket when narrowed to none', () => {
+			const built = axis();
+			const counts = bucketIssueCounts(
+				built,
+				timeline([], {earliest: 0, latest: 10 * DAY}, events),
+			);
+
+			expect(counts.reduce((sum, count) => sum + count, 0)).toBe(4);
+		});
+
+		// The cap's fallback is pre-summed across every ticket, so there is
+		// nothing left for the filter to act on. The checkbox says so rather
+		// than the chart quietly lying.
+		it('cannot narrow the bucketed fallback, and does not pretend to', () => {
+			const built = axis();
+			const counts = bucketIssueCounts(
+				built,
+				timeline([{t: 0, count: 7}], {earliest: 0, latest: 10 * DAY}),
+				'all',
+				new Set(),
+				'mine',
+			);
+
+			expect(counts.reduce((sum, count) => sum + count, 0)).toBe(7);
+		});
+	});
 });
 
 describe('bucketCommitStats', () => {
@@ -482,6 +533,21 @@ describe('buildEventDots', () => {
 		);
 
 		expect(new Set(dots.map(dot => dot.key)).size).toBe(2);
+	});
+
+	it('plots one ticket alone when narrowed to it', () => {
+		const dots = buildEventDots(
+			timeline([{t: 100, count: 3}], undefined, [
+				entry(100, 'add.issue', {issue: 'mine', label: 'Created'}),
+				entry(140, 'add.issue.tag', {issue: 'theirs', label: 'Tagged'}),
+				entry(180, 'add.issue.comment', {issue: 'mine', label: 'Commented'}),
+			]),
+			'all',
+			new Set(),
+			'mine',
+		);
+
+		expect(dots.map(dot => dot.label)).toEqual(['Created', 'Commented']);
 	});
 
 	it('sizes per-event dots uniformly, having no count to encode', () => {

@@ -159,16 +159,17 @@ export const bucketIssueCounts = (
 	timeline: GuiEventTimeline | null,
 	view: BoardView = 'all',
 	hiddenIds: ReadonlySet<string> = new Set(),
+	issueOnly: string | null = null,
 ): number[] => {
 	const counts = new Array<number>(axis.bucketCount).fill(0);
 
-	// Counted off the events where they exist, since only they carry the action
-	// and identity a filter needs. The buckets cannot be filtered — they arrive
-	// pre-summed across every kind — so past the server's cap the filter has
-	// nothing to act on and everything is counted.
+	// Counted off the events where they exist, since only they carry the action,
+	// identity and ticket a filter needs. The buckets cannot be filtered — they
+	// arrive pre-summed across every kind — so past the server's cap the filter
+	// has nothing to act on and everything is counted.
 	if (timeline && timeline.events.length > 0) {
 		for (const entry of timeline.events) {
-			if (!isShown(entry, view, hiddenIds)) continue;
+			if (!isShown(entry, view, hiddenIds, issueOnly)) continue;
 
 			counts[axis.bucketIndexForTime(entry.t)]! += 1;
 		}
@@ -362,7 +363,12 @@ const isShown = (
 	entry: GuiEventTimelineEntry,
 	view: BoardView,
 	hiddenIds: ReadonlySet<string>,
+	issueOnly: string | null = null,
 ): boolean => {
+	// Board- and swimlane-level events carry no issue, so narrowing to one
+	// ticket drops them too: they are not what happened to it.
+	if (issueOnly !== null && entry.issue !== issueOnly) return false;
+
 	if (view !== 'all' && categoryOf(entry.action) !== view) return false;
 
 	const identity = identityOf(entry, view);
@@ -374,12 +380,13 @@ export const buildEventDots = (
 	timeline: GuiEventTimeline | null,
 	view: BoardView = 'all',
 	hiddenIds: ReadonlySet<string> = new Set(),
+	issueOnly: string | null = null,
 ): EventDot[] => {
 	if (!timeline) return [];
 
 	if (timeline.events.length > 0) {
 		return timeline.events.flatMap((entry, index) => {
-			if (!isShown(entry, view, hiddenIds)) return [];
+			if (!isShown(entry, view, hiddenIds, issueOnly)) return [];
 
 			const category = categoryOf(entry.action);
 			const identity = identityOf(entry, view);

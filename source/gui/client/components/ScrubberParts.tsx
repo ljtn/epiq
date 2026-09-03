@@ -49,6 +49,7 @@ import {IconScatter} from './IconScatter';
 // Named once: the collapsed header puts the same box up when the rest of this
 // row is not on screen.
 export const SCOPE_ONLY_LABEL = 'Scope only';
+export const TICKET_ONLY_LABEL = 'This ticket';
 
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
 	background: 'transparent',
@@ -519,6 +520,9 @@ export const ScrubberControls = ({
 	atLatest,
 	windowOnly,
 	windowFilterable,
+	ticketOnly,
+	ticketSelected,
+	ticketFocus,
 	layoutMode,
 	showIssues,
 	showCommits,
@@ -534,6 +538,7 @@ export const ScrubberControls = ({
 	onChangeScope,
 	onChangeOffset,
 	onChangeWindowOnly,
+	onChangeTicketOnly,
 	onChangeLayoutMode,
 	onChangeShowIssues,
 	onChangeShowCommits,
@@ -561,6 +566,12 @@ export const ScrubberControls = ({
 	// False where the window came back as counts alone, naming no tickets to
 	// narrow to.
 	windowFilterable: boolean;
+	// The chart is narrowed to the open ticket: its window, and its events only.
+	ticketOnly: boolean;
+	// Whether there is a ticket to narrow to at all.
+	ticketSelected: boolean;
+	// Both of the above — the narrowing is actually in force.
+	ticketFocus: boolean;
 	layoutMode: LayoutMode;
 	showIssues: boolean;
 	showCommits: boolean;
@@ -578,6 +589,7 @@ export const ScrubberControls = ({
 	onChangeScope: (scope: Scope) => void;
 	onChangeOffset: (offset: number) => void;
 	onChangeWindowOnly: (next: boolean) => void;
+	onChangeTicketOnly: (next: boolean) => void;
 	onChangeLayoutMode: (mode: LayoutMode) => void;
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeShowCommits: (next: boolean) => void;
@@ -600,13 +612,20 @@ export const ScrubberControls = ({
 			}}
 		>
 			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-				{(scope !== 'all' || zoomed) && (
+				{(scope !== 'all' || zoomed || ticketFocus) && (
 					<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 						<button
-							title="Earlier"
-							disabled={!connected}
+							title={
+								ticketFocus
+									? 'The ticket\u2019s own stretch — untick "This ticket" to page'
+									: 'Earlier'
+							}
+							disabled={!connected || ticketFocus}
 							onClick={() => onChangeOffset(offset + 1)}
-							style={{...navButtonStyle, ...(connected ? {} : mutedStyle)}}
+							style={{
+								...navButtonStyle,
+								...(connected && !ticketFocus ? {} : mutedStyle),
+							}}
 						>
 							◀
 						</button>
@@ -623,16 +642,21 @@ export const ScrubberControls = ({
 								textAlign: 'center',
 							}}
 						>
-							{formatPeriodLabel(scope, offset, periodRange, zoomed)}
+							{formatPeriodLabel(
+								scope,
+								offset,
+								periodRange,
+								zoomed || ticketFocus,
+							)}
 						</span>
 						<button
 							title="Later"
-							disabled={atLatest || !connected}
+							disabled={atLatest || !connected || ticketFocus}
 							onClick={() => onChangeOffset(offset - 1)}
 							style={{
 								...navButtonStyle,
-								opacity: atLatest ? 0.35 : 1,
-								cursor: atLatest ? 'default' : 'pointer',
+								opacity: atLatest || ticketFocus ? 0.35 : 1,
+								cursor: atLatest || ticketFocus ? 'default' : 'pointer',
 							}}
 						>
 							▶
@@ -646,11 +670,13 @@ export const ScrubberControls = ({
 							key={option}
 							// Nothing in this row is what a zoomed window is, so while one is
 							// up none of them reads as pressed and Zoom does instead.
-							aria-pressed={!zoomed && scope === option}
+							aria-pressed={!zoomed && !ticketFocus && scope === option}
 							disabled={!connected}
 							onClick={() => onChangeScope(option)}
 							style={{
-								...scopeButtonStyle(!zoomed && scope === option),
+								...scopeButtonStyle(
+									!zoomed && !ticketFocus && scope === option,
+								),
 								...(connected ? {} : mutedStyle),
 							}}
 						>
@@ -666,18 +692,24 @@ export const ScrubberControls = ({
 				    Faded rather than unmounted, the way the pager's ▶ sits out a
 				    period it cannot go to: the row must not shift by its width
 				    underneath the pointer as a zoom comes and goes. Its title carries
-				    the gesture, since a button nobody can press has to say why. */}
+				    the gesture, since a button nobody can press has to say why.
+
+				    Flat under a ticket window even while a dragged one is still
+				    held: that window is not what is on screen, and the whole row
+				    reads as unpressed there, the scope buttons included. */}
 					<button
 						title={
-							zoomed
+							ticketFocus
+								? 'Held behind the ticket’s own stretch — untick "This ticket" to come back to it'
+								: zoomed
 								? 'A window dragged out on the chart — pick a period to leave it'
 								: 'Drag across the chart to zoom the window to a stretch of it'
 						}
-						aria-pressed={zoomed}
+						aria-pressed={zoomed && !ticketFocus}
 						disabled
 						style={{
-							...scopeButtonStyle(zoomed),
-							opacity: zoomed ? 1 : 0.35,
+							...scopeButtonStyle(zoomed && !ticketFocus),
+							opacity: zoomed && !ticketFocus ? 1 : 0.35,
 							cursor: 'default',
 						}}
 					>
@@ -765,6 +797,31 @@ export const ScrubberControls = ({
 						(!connected && !windowOnly)
 					}
 					onChange={onChangeWindowOnly}
+				/>
+
+				{/* Its own narrowing rather than a seventh scope: a scope names a
+			    period, and this names a period *and* whose events survive it.
+			    Greyed rather than unmounted with no ticket open, so the row does
+			    not change width every time the details panel opens and closes.
+
+			    Not gated on windowFilterable the way its neighbour is: that
+			    describes the window on screen, and this one replaces it. Once the
+			    ticket's own stretch comes back the title says so if it, too, came
+			    back as counts alone. */}
+				<Checkbox
+					label={TICKET_ONLY_LABEL}
+					title={
+						!ticketSelected
+							? 'Open a ticket to narrow the timeline to it'
+							: ticketFocus && !windowFilterable
+							? 'Too many events in this stretch to tell which are the ticket\u2019s'
+							: 'Narrow to this ticket: the stretch it has existed for, and only its events'
+					}
+					checked={ticketOnly}
+					// Like its neighbour it asks the socket for nothing it cannot
+					// already draw, so offline it can still be let go of.
+					disabled={!ticketSelected || (!connected && !ticketOnly)}
+					onChange={onChangeTicketOnly}
 				/>
 
 				{/* <Checkbox

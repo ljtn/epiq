@@ -1629,6 +1629,11 @@ export const App = () => {
 					onReturnToLive={returnToLive}
 					selection={selection}
 					onChangeSelection={changeSelection}
+					selectedIssue={
+						selectedIssue
+							? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
+							: null
+					}
 					knownIdentities={knownIdentities}
 					refreshOn={selection.windowOnly ? state : null}
 				/>

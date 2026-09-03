@@ -57,6 +57,7 @@ describe('selection in the URL', () => {
 			view: 'tagging',
 			only: ['bug', 'docs'],
 			windowOnly: true,
+			ticketOnly: false,
 		};
 
 		expect(readSelectionParams(params(written(selection)))).toEqual(selection);
@@ -115,6 +116,7 @@ describe('applySelectionPatch', () => {
 		view: 'tagging',
 		only: ['bug'],
 		windowOnly: false,
+		ticketOnly: false,
 	};
 
 	it('starts a new scope at its most recent period', () => {
@@ -188,6 +190,49 @@ describe('applySelectionPatch', () => {
 			expect(readSelectionParams(params('to=5000'))?.zoom).toBeNull();
 		});
 	});
+
+	describe('the ticket window', () => {
+		const focused = applySelectionPatch(narrowed, {ticketOnly: true});
+
+		// It stands in front of both the rolling period and a dragged-out
+		// window, so reaching for either is how you leave it.
+		it('is cleared by naming a scope', () => {
+			expect(applySelectionPatch(focused, {scope: 'day'}).ticketOnly).toBe(
+				false,
+			);
+			expect(applySelectionPatch(focused, {scope: 'week'}).ticketOnly).toBe(
+				false,
+			);
+		});
+
+		it('is cleared by dragging a window out', () => {
+			expect(
+				applySelectionPatch(focused, {zoom: {start: 1000, end: 5000}})
+					.ticketOnly,
+			).toBe(false);
+		});
+
+		it('survives a patch that says nothing about it', () => {
+			expect(applySelectionPatch(focused, {layout: 'real'}).ticketOnly).toBe(
+				true,
+			);
+		});
+
+		// The ticket's own stretch replaces the window, so it never writes one
+		// into the selection — unticking hands back whatever was there.
+		it('leaves the scope and zoom it was turned on over untouched', () => {
+			expect(focused.scope).toBe('week');
+			expect(focused.zoom).toBeNull();
+			expect(applySelectionPatch(focused, {ticketOnly: false}).scope).toBe(
+				'week',
+			);
+		});
+
+		it('round-trips through the URL', () => {
+			expect(readSelectionParams(params(written(focused)))).toEqual(focused);
+			expect(readSelectionParams(params('ticket=1'))?.ticketOnly).toBe(true);
+		});
+	});
 });
 
 describe('stored selection', () => {
@@ -218,6 +263,7 @@ describe('stored selection', () => {
 			view: 'tagging',
 			only: ['bug'],
 			windowOnly: true,
+			ticketOnly: false,
 		});
 
 		expect(readStoredSelection()).toEqual({
@@ -230,6 +276,7 @@ describe('stored selection', () => {
 			// Not kept: a filter that hides tickets is not a preference to come
 			// back to days later.
 			windowOnly: false,
+			ticketOnly: false,
 		});
 	});
 

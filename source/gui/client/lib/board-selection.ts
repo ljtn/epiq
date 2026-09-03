@@ -28,6 +28,11 @@ export type BoardSelection = {
 	// Narrows the board to the tickets the window holds an event for, rather
 	// than to what the selection colours.
 	windowOnly: boolean;
+	// Narrows the chart to the selected ticket: the window becomes the stretch
+	// that ticket has existed for, and every event belonging to another goes.
+	// The window is derived while this is on rather than written into `zoom`,
+	// so turning it off hands the scope buttons back what they had.
+	ticketOnly: boolean;
 };
 
 export const DEFAULT_SELECTION: BoardSelection = {
@@ -38,6 +43,7 @@ export const DEFAULT_SELECTION: BoardSelection = {
 	view: 'all',
 	only: null,
 	windowOnly: false,
+	ticketOnly: false,
 };
 
 const PARAM_KEYS = [
@@ -49,6 +55,7 @@ const PARAM_KEYS = [
 	'view',
 	'only',
 	'window',
+	'ticket',
 ] as const;
 
 const STORAGE_KEY = 'epiq.board.selection';
@@ -90,7 +97,8 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.layout === DEFAULT_SELECTION.layout &&
 	selection.view === DEFAULT_SELECTION.view &&
 	selection.only === null &&
-	selection.windowOnly === DEFAULT_SELECTION.windowOnly;
+	selection.windowOnly === DEFAULT_SELECTION.windowOnly &&
+	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly;
 
 // A change to one field, with what it implies for the others: a new scope
 // starts at its most recent period, and a new view drops a narrowing that
@@ -113,10 +121,21 @@ export const applySelectionPatch = (
 			? null
 			: current.zoom;
 
+	// The ticket's own window stands in front of both of those, so naming a
+	// scope or dragging one out is how you leave it, the same way naming a
+	// scope is how you leave a zoom.
+	const ticketOnly =
+		patch.ticketOnly !== undefined
+			? patch.ticketOnly
+			: patch.scope !== undefined || patch.zoom !== undefined
+			? false
+			: current.ticketOnly;
+
 	return normalize({
 		...current,
 		...patch,
 		zoom,
+		ticketOnly,
 		offset: scopeChanged ? 0 : patch.offset ?? current.offset,
 		only:
 			patch.only !== undefined ? patch.only : viewChanged ? null : current.only,
@@ -154,6 +173,7 @@ export const readSelectionParams = (
 		view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
 		only: only === null ? null : only.split(',').filter(Boolean),
 		windowOnly: params.get('window') === '1',
+		ticketOnly: params.get('ticket') === '1',
 	});
 };
 
@@ -180,6 +200,7 @@ export const writeSelectionParams = (
 	put('view', next.view === DEFAULT_SELECTION.view ? null : next.view);
 	put('only', next.only === null ? null : next.only.join(','));
 	put('window', next.windowOnly ? '1' : null);
+	put('ticket', next.ticketOnly ? '1' : null);
 };
 
 // ------------------------------------------------------------------- storage
@@ -187,7 +208,8 @@ export const writeSelectionParams = (
 // Neither the offset nor a zoom is kept: a stretch of last Tuesday is a
 // moment, not a preference, and reopening the board a week later on it would be
 // a surprise. Nor is windowOnly: it hides tickets outright, which is too much
-// to restore silently days later — it travels in the URL and nowhere else.
+// to restore silently days later — it travels in the URL and nowhere else. Nor
+// is ticketOnly, which names a ticket that need not even be open next time.
 export const readStoredSelection = (): BoardSelection => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
@@ -210,6 +232,7 @@ export const readStoredSelection = (): BoardSelection => {
 			view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
 			only: Array.isArray(only) ? only.map(String) : null,
 			windowOnly: DEFAULT_SELECTION.windowOnly,
+			ticketOnly: DEFAULT_SELECTION.ticketOnly,
 		});
 	} catch {
 		return DEFAULT_SELECTION;
