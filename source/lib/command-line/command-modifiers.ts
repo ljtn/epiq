@@ -363,6 +363,7 @@ export const getCmdModifiers = (
 		[CmdKeywords.FILTER]: [
 			'tag',
 			'assignee',
+			'actor',
 			'description',
 			'title',
 			'ref',

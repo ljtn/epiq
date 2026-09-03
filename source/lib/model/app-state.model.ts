@@ -41,7 +41,7 @@ export type Contributor = {
 };
 
 export type Filter = {
-	target: 'tag' | 'assignee' | 'description' | 'title' | 'ref';
+	target: 'tag' | 'assignee' | 'actor' | 'description' | 'title' | 'ref';
 	operator: '=' | '!=';
 	value: string;
 };
