@@ -10,6 +10,7 @@ import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
 import {sanitizeFilePart} from '../utils/file-part.js';
 import {MAX_ULID_AHEAD_MS} from './date-utils.js';
 import {advanceEdgeRef, getEdgeRef} from './event-load.js';
+import {noteOwnAppend} from './log-signature.js';
 import {
 	AppEvent,
 	AppEventMap,
@@ -260,7 +261,14 @@ export function persist({
 		// whole log again to learn what this one just decided. Dropped rather
 		// than advanced if another actor's file moved meanwhile — the tail is
 		// then theirs to decide.
-		advanceEdgeRef(rootDir, path.basename(filePath.value), newId);
+		const fileName = path.basename(filePath.value);
+
+		advanceEdgeRef(rootDir, fileName, newId);
+
+		// The board already has this event: materializing runs before persisting.
+		// So the log growing by this line does not mean the process is behind it,
+		// and the next read has nothing to catch up on.
+		noteOwnAppend(rootDir, fileName);
 
 		return succeeded<PersistSuccess>('Event persisted', {
 			path: filePath.value,

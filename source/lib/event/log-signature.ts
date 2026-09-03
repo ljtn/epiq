@@ -35,3 +35,85 @@ export const logSignature = (stateBranchRoot: string): string => {
 		})
 		.join('|');
 };
+
+// The signature that follows an append this process made itself, or null when
+// anything else moved.
+//
+// A write is the one change a process does not have to discover: it wrote the
+// line, and — since materializing comes before persisting — it had already
+// applied the event when the file grew. So the new signature can be adopted
+// rather than paid for with a re-read of the whole log.
+//
+// Only when this actor's file is the one that moved. Another log growing,
+// appearing or vanishing means someone else's events arrived, which this
+// process has *not* applied, and adopting a signature that covers them would
+// leave it certain of a board it never derived.
+const entries = (signature: string): Map<string, string> =>
+	new Map(
+		signature
+			.split('|')
+			.filter(Boolean)
+			.map(part => {
+				const at = part.indexOf(':');
+				return [part.slice(0, at), part.slice(at + 1)] as const;
+			}),
+	);
+
+export const signatureAfterOwnAppend = (
+	stateBranchRoot: string,
+	previous: string,
+	fileName: string,
+): string | null => {
+	const before = entries(previous);
+	const next = logSignature(stateBranchRoot);
+	const after = entries(next);
+
+	for (const [file, entry] of after) {
+		if (file === fileName) continue;
+		if (before.get(file) !== entry) return null;
+	}
+
+	// A file that was there and is gone is someone else's change too.
+	for (const file of before.keys()) {
+		if (file !== fileName && !after.has(file)) return null;
+	}
+
+	return next;
+};
+
+// What this process has both read and applied. Boot sets it once it has
+// derived the board; a write advances it, because it already applied what it
+// wrote. Anything else moving leaves it alone, and the next read derives.
+let accounted: {root: string; signature: string} | null = null;
+
+export const accountedSignature = (stateBranchRoot: string): string | null =>
+	accounted && accounted.root === stateBranchRoot ? accounted.signature : null;
+
+export const accountFor = (
+	stateBranchRoot: string,
+	signature: string,
+): void => {
+	accounted = {root: stateBranchRoot, signature};
+};
+
+export const noteOwnAppend = (
+	stateBranchRoot: string,
+	fileName: string,
+): void => {
+	if (!accounted || accounted.root !== stateBranchRoot) return;
+
+	const next = signatureAfterOwnAppend(
+		stateBranchRoot,
+		accounted.signature,
+		fileName,
+	);
+
+	// Null means someone else wrote too, and this process has not applied their
+	// events — so it must forget what it thought it knew rather than claim it.
+	accounted = next === null ? null : {root: stateBranchRoot, signature: next};
+};
+
+// The tests drive the log through mocks, so they need this gone between cases.
+export const clearAccountedSignature = (): void => {
+	accounted = null;
+};

@@ -11,7 +11,11 @@ import {loadSettingsFromConfig} from '../lib/config/user-config.js';
 import {createIssueEvents} from '../lib/event/common-events.js';
 import {ulidTimeMs} from '../lib/event/date-utils.js';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
-import {logSignature} from '../lib/event/log-signature.js';
+import {
+	accountedSignature,
+	accountFor,
+	logSignature,
+} from '../lib/event/log-signature.js';
 import {getEpiqDirPath} from '../lib/storage/paths.js';
 import {
 	loadEventActors,
@@ -261,10 +265,6 @@ const resolveRepoRoot = (repoRoot?: string): Result<string> => {
 // and the case those checks would otherwise be catching.
 let ensuredBranch: {repoRoot: string; stateBranchRoot: string} | null = null;
 
-// The log this process last booted from. Held for the life of it, and for one
-// root: a server serves one project.
-let lastBoot: {root: string; signature: string} | null = null;
-
 const boot = async (
 	repoRoot?: string,
 	options?: {pull?: boolean},
@@ -350,9 +350,7 @@ const boot = async (
 	// path and would be thrown away by a boot; `bootStateFromEventLog` refuses
 	// that case too, and skipping must not quietly take its place.
 	if (
-		lastBoot &&
-		lastBoot.root === stateBranchRootResult.value &&
-		lastBoot.signature === signature &&
+		accountedSignature(stateBranchRootResult.value) === signature &&
 		isStateInitialized() &&
 		getTimeTravelStatus().mode === 'live'
 	) {
@@ -371,8 +369,9 @@ const boot = async (
 	if (isFail(bootResult)) return failed(bootResult.message);
 
 	// Recorded after the boot, so a failed one is retried rather than remembered
-	// as done.
-	lastBoot = {root: stateBranchRootResult.value, signature};
+	// as done. From here on a write advances this rather than invalidating it:
+	// the process applied what it wrote, so it does not have to read it back.
+	accountFor(stateBranchRootResult.value, signature);
 
 	return succeeded('Booted Epiq state', booted);
 };

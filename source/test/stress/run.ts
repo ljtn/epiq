@@ -299,10 +299,34 @@ const steadyAt = performance.now();
 ok(await api.getGuiState({repoRoot: REPO}));
 const steady = performance.now() - steadyAt;
 
+// The first write is the fixture's cost, not a user's: the generator wrote the
+// log outside boot's knowledge, so that boot has to read it once however fast
+// the code is. The second is the one a person would feel — a board this
+// process has already derived, edited again.
+const secondAt = performance.now();
+ok(
+	await api.createIssue({
+		repoRoot: REPO,
+		title: 'A second ticket, on a board this process has already derived',
+		parentId: lanes[0]!.id,
+	}),
+);
+const second = performance.now() - secondAt;
+
+const afterSecondAt = performance.now();
+ok(await api.getGuiState({repoRoot: REPO}));
+const afterSecond = performance.now() - afterSecondAt;
+
 console.log(
-	`  ${'filing a ticket'.padEnd(38)} ${secs(wrote).padStart(9)}\n` +
+	`  ${'filing a ticket (the fixture\u2019s reload)'.padEnd(38)} ` +
+		`${secs(wrote).padStart(9)}\n` +
 		`  ${'the read after it'.padEnd(38)} ${secs(afterWrite).padStart(9)}\n` +
-		`  ${'the read after that'.padEnd(38)} ${secs(steady).padStart(9)}`,
+		`  ${'the read after that'.padEnd(38)} ${secs(steady).padStart(9)}\n` +
+		`  ${'filing a second (what a user feels)'.padEnd(38)} ` +
+		`${secs(second).padStart(9)}\n` +
+		`  ${'the read after that one'.padEnd(38)} ${secs(afterSecond).padStart(
+			9,
+		)}`,
 );
 
 console.log(
