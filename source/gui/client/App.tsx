@@ -55,13 +55,10 @@ import {
 	updateSwimlaneInGuiState,
 } from './lib/gui-state-helper';
 import {
-	GuiComment,
 	GuiCommitDiff,
 	GuiCommitDiffFile,
 	GuiIssue,
-	GuiIssueHistoryEntry,
 	GuiCommitEntry,
-	GuiRefCommitEntry,
 	GuiContributor,
 	GuiEventTimeline,
 	GuiState,
@@ -85,6 +82,7 @@ import {useEventLog} from './lib/use-event-log';
 import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
+import {useIssueDetail} from './lib/use-issue-detail';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {blobToBase64, compressImage} from './lib/compress-image';
 import {AttachmentUploadStatus} from './components/IssueAttachments';
@@ -236,30 +234,6 @@ export const App = () => {
 	// `Aside`, because the row below turns into a column for a bottom dock and
 	// a component cannot style its own parent.
 	const [asideDock, setAsideDock] = useAsideDock();
-	// The ticket detail Commits tab's commit list, fetched on selection so the
-	// tab can show its count up front. Reset per selected issue, like
-	// issueDetail below.
-	const [issueCommits, setIssueCommits] = useState<{
-		issueId: string;
-		loading: boolean;
-		error: string | null;
-		commits: GuiRefCommitEntry[];
-	} | null>(null);
-	// Per-commit diffs for whichever commits are expanded in the Commits tab.
-	// Keyed by sha and kept for the session: a sha's diff is the same on any
-	// ticket, and clearing per ticket raced a Commits tab that requests a diff
-	// on mount (following a link into another ticket's diff), wiping the
-	// request's entry so its reply had nothing to land in.
-	const [issueCommitDiffs, setIssueCommitDiffs] = useState<
-		Record<
-			string,
-			{
-				loading: boolean;
-				error: string | null;
-				files: GuiCommitDiffFile[] | null;
-			}
-		>
-	>({});
 	const [removeError, setRemoveError] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [dragOverSwimlaneId, setDragOverSwimlaneId] = useState<string | null>(
@@ -385,15 +359,24 @@ export const App = () => {
 
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
-	// The board's state carries no descriptions or comment bodies — they are
-	// most of its weight and nothing on the board draws them. Fetched here for
-	// the one ticket whose details are open.
-	const [issueDetail, setIssueDetail] = useState<{
-		issueId: string;
-		description: string;
-		comments: GuiComment[];
-		history: GuiIssueHistoryEntry[];
-	} | null>(null);
+	// The board's state carries no descriptions, comment bodies or commits —
+	// they are most of a ticket's weight and nothing on the board draws them.
+	// Fetched, and kept up to date, for the one ticket whose details are open.
+	const {
+		detail: issueDetail,
+		commits: issueCommits,
+		commitDiffs: issueCommitDiffs,
+		loadCommitDiff: loadIssueCommitDiff,
+		updateComments: updateDetailComments,
+		onMessage: onIssueDetailMessage,
+	} = useIssueDetail({
+		issueId: selectedIssue?.id ?? null,
+		boardState: state,
+		// The board's own state is what a movie is showing; the panel is not
+		// even on screen.
+		paused: theatre !== null,
+		sendRaw,
+	});
 	// Typed into the box beside the board switcher; hides cards whose ref and
 	// title both miss it. Not part of the URL selection: it is a passing
 	// narrowing, not a view worth linking to.
@@ -494,59 +477,14 @@ export const App = () => {
 	const [attachmentUploadStatus, setAttachmentUploadStatus] =
 		useState<AttachmentUploadStatus>({state: 'idle'});
 
-	useEffect(() => {
-		if (!selectedIssue) {
-			setIssueDetail(null);
-			return;
-		}
-
-		// Not while a movie is playing: this re-runs on every state broadcast, and
-		// a movie is a broadcast per frame — for a panel that is not even on
-		// screen. The board's own state is what the player is showing.
-		if (theatre) return;
-
-		sendRaw({
-			type: 'issue:get',
-			payload: {issueId: selectedIssue.id},
-		});
-	}, [selectedIssue?.id, state, theatre]);
-
-	// Separate from issue:get above, which re-runs on every state broadcast:
-	// the commit list comes from git, not the event log, so a board change is
-	// no reason to rescan it.
-	useEffect(() => {
-		if (!selectedIssue) {
-			setIssueCommits(null);
-			return;
-		}
-
-		setIssueCommits({
-			issueId: selectedIssue.id,
-			loading: true,
-			error: null,
-			commits: [],
-		});
-		sendRaw({
-			type: 'issue:commits:get',
-			payload: {issueId: selectedIssue.id},
-		});
-	}, [selectedIssue?.id]);
-
-	const loadIssueCommitDiff = useCallback((sha: string) => {
-		setIssueCommitDiffs(prev => ({
-			...prev,
-			[sha]: {loading: true, error: null, files: null},
-		}));
-		sendRaw({
-			type: 'commit:diff:get',
-			payload: {sha},
-		});
-	}, []);
-
 	// Every frame the board's connection delivers, and what it means. The
 	// connection itself — opening, losing, retrying, sending — is
 	// `useBoardSocket`'s; this is only the reading of what arrives on it.
 	const onSocketMessage = (message: any, socket: BoardSocketActions) => {
+		// Not exclusive: `commit:diff:result` is also read below, for the diff the
+		// scrubber's own commit dot opens.
+		onIssueDetailMessage(message);
+
 		if (message.type === 'state' && !socket.holdsState()) {
 			const nextState = getResultValue<GuiState>(message.payload);
 			if (nextState) {
@@ -567,17 +505,6 @@ export const App = () => {
 					current ? {...current, message: result.message} : current,
 				);
 			}
-		}
-
-		if (message.type === 'issue') {
-			const detail = getResultValue<{
-				issueId: string;
-				description: string;
-				comments: GuiComment[];
-				history: GuiIssueHistoryEntry[];
-			}>(message.payload);
-
-			if (detail) setIssueDetail(detail);
 		}
 
 		// Keyed off this request's own reply, never a broadcast: a broadcast
@@ -697,63 +624,12 @@ export const App = () => {
 						? {...prev, loading: false, error: result.message}
 						: prev,
 				);
-				setIssueCommitDiffs(prev =>
-					prev[sha]
-						? {
-								...prev,
-								[sha]: {loading: false, error: result.message, files: null},
-						  }
-						: prev,
-				);
 			} else {
 				const diff = getResultValue<GuiCommitDiff>(result);
 				if (diff) {
 					setCommitDiff(prev =>
 						prev && prev.sha === diff.sha
 							? {...prev, loading: false, error: null, files: diff.files}
-							: prev,
-					);
-					setIssueCommitDiffs(prev =>
-						prev[diff.sha]
-							? {
-									...prev,
-									[diff.sha]: {
-										loading: false,
-										error: null,
-										files: diff.files,
-									},
-							  }
-							: prev,
-					);
-				}
-			}
-		}
-
-		if (message.type === 'issue:commits:result') {
-			// Wrapped with the issueId it was requested for: switching tickets
-			// while the Code tab stays open can leave an older ticket's request
-			// in flight, and a failed Result alone carries no issueId to check.
-			const {issueId, result} = message.payload as {
-				issueId: string;
-				result: {
-					status: string;
-					message: string;
-					value?: GuiRefCommitEntry[];
-				};
-			};
-
-			if (result?.status === 'fail') {
-				setIssueCommits(prev =>
-					prev && prev.issueId === issueId
-						? {...prev, loading: false, error: result.message}
-						: prev,
-				);
-			} else {
-				const commits = getResultValue<GuiRefCommitEntry[]>(result);
-				if (commits) {
-					setIssueCommits(prev =>
-						prev && prev.issueId === issueId
-							? {...prev, loading: false, error: null, commits}
 							: prev,
 					);
 				}
@@ -1589,19 +1465,6 @@ export const App = () => {
 						: 'Unable to delete attachment',
 			});
 		}
-	};
-
-	// The panel renders issueDetail's comments, not the board state's, so an
-	// optimistic change has to land there to be seen before the server's reply.
-	const updateDetailComments = (
-		issueId: string,
-		update: (comments: GuiComment[]) => GuiComment[],
-	) => {
-		setIssueDetail(prev =>
-			prev && prev.issueId === issueId
-				? {...prev, comments: update(prev.comments)}
-				: prev,
-		);
 	};
 
 	const deleteIssueComment = (issueId: string, commentId: string) => {
