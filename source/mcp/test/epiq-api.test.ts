@@ -396,6 +396,9 @@ vi.mock('../../lib/repository/node-repo.js', () => ({
 
 vi.mock('../epiq-time-travel.js', () => ({
 	getTimeTravelStatus: vi.fn(() => ({mode: 'live', asOfTime: null})),
+}));
+
+vi.mock('../timeline-index.js', () => ({
 	// Stand-in for the real tree walk; fixtures carry boardId on the payload.
 	filterEventsForBoard: vi.fn(
 		(events: {payload?: {boardId?: string}}[], boardId: string) =>
