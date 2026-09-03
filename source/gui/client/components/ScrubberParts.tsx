@@ -538,9 +538,34 @@ const ScopeSelect = ({
 	onChangeScope: (scope: Scope) => void;
 }) => {
 	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement | null>(null);
+
+	// A select closes when you look away from it, unlike the series disclosure
+	// beside it — that one is a remembered preference, this one is a menu. And
+	// its popover sits over the chart, so one left open takes the timeline's
+	// pointer with it.
+	useEffect(() => {
+		if (!open) return;
+
+		const onPointerDown = (event: MouseEvent) => {
+			if (!ref.current?.contains(event.target as Node)) setOpen(false);
+		};
+
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setOpen(false);
+		};
+
+		document.addEventListener('mousedown', onPointerDown);
+		document.addEventListener('keydown', onKeyDown);
+
+		return () => {
+			document.removeEventListener('mousedown', onPointerDown);
+			document.removeEventListener('keydown', onKeyDown);
+		};
+	}, [open]);
 
 	return (
-		<div style={{position: 'relative'}}>
+		<div ref={ref} style={{position: 'relative'}}>
 			<button
 				type="button"
 				data-testid="scope-select"

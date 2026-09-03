@@ -408,6 +408,26 @@ test('the scope row folds into a select on a narrow window', async ({
 		.poll(() => new URL(page.url()).searchParams.get('scope'))
 		.toBe('week');
 
+	// It closes when you look away from it: its popover sits over the chart, and
+	// one left open would take the timeline's pointer with it.
+	await select.click();
+	await expect(
+		page.getByRole('option', {name: 'Day', exact: true}),
+	).toBeVisible();
+	await page.getByTestId('board-switcher').click({position: {x: 2, y: 2}});
+	await expect(
+		page.getByRole('option', {name: 'Day', exact: true}),
+	).toHaveCount(0);
+
+	await select.click();
+	await expect(
+		page.getByRole('option', {name: 'Day', exact: true}),
+	).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(
+		page.getByRole('option', {name: 'Day', exact: true}),
+	).toHaveCount(0);
+
 	// Wide again, and the buttons come back rather than both forms showing.
 	await page.setViewportSize({width: 1400, height: 800});
 	await expect(week).toBeVisible();
