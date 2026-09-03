@@ -8,10 +8,16 @@ const materializeAndPersistAll = vi.hoisted(() => vi.fn());
 
 const state = vi.hoisted(() => ({
 	nodes: {} as Record<string, Partial<NavNode<AnyContext>>>,
+	filters: [] as unknown[],
+	renderedChildrenIndex: {} as Record<string, unknown>,
 }));
 
 vi.mock('../lib/state/state.js', () => ({
 	getState: () => state,
+	// These tests drive rank resolution over a hand-built node map, with no
+	// derivation behind it — so the fast path must not be taken, and the scan
+	// is what they are testing.
+	isDeferringDerive: () => false,
 }));
 
 vi.mock('../lib/event/create-rebalance-children-event.js', () => ({
