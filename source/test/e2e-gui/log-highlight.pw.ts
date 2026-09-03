@@ -69,7 +69,7 @@ test('an event with no dot on the chart leaves the scatter alone', async ({
 
 	// Narrowing the series to Tags drops the ticket-creation dot from the chart
 	// while the Log row still points at that event.
-	await page.getByText('All board events').click();
+	await page.getByRole('button', {name: 'Board events'}).click();
 	await page.getByRole('radio', {name: 'Tags'}).click();
 	await page.waitForTimeout(800);
 

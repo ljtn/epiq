@@ -5,9 +5,8 @@ import {expect, test} from './fixtures.js';
 // finishes loading for the next test.
 const returnToLive = async (page: Page) => {
 	const exit = page.getByTestId('theatre-exit');
-	// The one button reads "Resume" while the board is in the past and "Now"
-	// once it is back, so the label is what says where it got to.
-	const now = page.getByRole('button', {name: 'Now', exact: true});
+	// The button carries the word "Resume" only while the board is in the past,
+	// so its absence is what live looks like.
 	const resume = page.getByRole('button', {name: 'Resume', exact: true});
 
 	if ((await exit.count()) > 0) await exit.click();
@@ -16,13 +15,13 @@ const returnToLive = async (page: Page) => {
 	// message like any other and a socket replaced under it drops it silently,
 	// which would leave the board parked in the past for the rest of the file.
 	await expect(async () => {
-		if (await now.isVisible()) return;
-		// Bounded: the button relabels itself to "Now" the moment live lands, and
-		// an unbounded click on the old label would sit out the whole retry
-		// budget waiting for an element that has already become the answer.
-		if (await resume.isVisible()) await resume.click({timeout: 1_000});
+		if ((await resume.count()) === 0) return;
+		// Bounded: the word goes the moment live lands, and an unbounded click on
+		// a button that has already lost its name would sit out the whole retry
+		// budget.
+		await resume.click({timeout: 1_000});
 
-		await expect(now).toBeVisible({timeout: 2_000});
+		await expect(resume).toHaveCount(0, {timeout: 2_000});
 	}).toPass({timeout: 20_000});
 };
 
@@ -355,8 +354,8 @@ test('closing the player hands the board back, live and editable', async ({
 	await expect(page.getByTestId('theatre-player')).toHaveCount(0);
 	await expect(page.getByTestId('theatre-vignette')).toHaveCount(0);
 	await expect(
-		page.getByRole('button', {name: 'Now', exact: true}),
-	).toBeVisible();
+		page.getByRole('button', {name: 'Resume', exact: true}),
+	).toHaveCount(0);
 	await expect(page.getByTestId('scrubber-track')).not.toHaveCSS(
 		'pointer-events',
 		'none',
@@ -375,8 +374,45 @@ test('escape leaves the player', async ({page, appUrl, pageErrors}) => {
 	// Escape is the way out, and the way out hands the board back.
 	await expect(page.getByTestId('theatre-player')).toHaveCount(0);
 	await expect(
-		page.getByRole('button', {name: 'Now', exact: true}),
-	).toBeVisible();
+		page.getByRole('button', {name: 'Resume', exact: true}),
+	).toHaveCount(0);
 
+	expect(pageErrors).toEqual([]);
+});
+
+// The controls row is a long single line. Below the breakpoint the scope
+// buttons — the widest thing on it — fold into one select, so the end of the
+// row, where the transport is, is not squeezed off.
+test('the scope row folds into a select on a narrow window', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.setViewportSize({width: 900, height: 800});
+	await openBoard(page, appUrl);
+
+	const select = page.getByTestId('scope-select');
+	const week = page.getByRole('button', {name: 'Week', exact: true});
+
+	await expect(select).toBeVisible();
+	await expect(week).toHaveCount(0);
+
+	// The transport survives the squeeze, being what the row loses first.
+	await expect(page.getByTestId('theatre-play')).toBeVisible();
+
+	// It names the scope in hand, and picking one from it moves the window.
+	await select.click();
+	await page.getByRole('option', {name: 'Week', exact: true}).click();
+	await expect(select).toContainText('Week');
+	await expect
+		.poll(() => new URL(page.url()).searchParams.get('scope'))
+		.toBe('week');
+
+	// Wide again, and the buttons come back rather than both forms showing.
+	await page.setViewportSize({width: 1400, height: 800});
+	await expect(week).toBeVisible();
+	await expect(select).toHaveCount(0);
+
+	await returnToLive(page);
 	expect(pageErrors).toEqual([]);
 });

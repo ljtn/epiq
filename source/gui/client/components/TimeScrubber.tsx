@@ -44,6 +44,7 @@ import {
 	useExitTransition,
 	isPeriodWindow,
 	usePersistedFlag,
+	useNarrowBar,
 	usePrefersReducedMotion,
 	windowNamesIssues,
 } from '../lib/scrubber';
@@ -155,6 +156,7 @@ export const TimeScrubber = ({
 		ticketOnly,
 	} = selection;
 	const animate = !usePrefersReducedMotion();
+	const narrow = useNarrowBar();
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const lastDispatchRef = useRef(0);
 	// The moment last asked for, so a repeat of it is not asked again.
@@ -819,6 +821,7 @@ export const TimeScrubber = ({
 				atLatest,
 				windowOnly,
 				windowFilterable: windowNamesIssues(timeline),
+				narrow,
 				ticketOnly,
 				ticketSelected: selectedIssue !== null,
 				ticketFocus,

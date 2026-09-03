@@ -785,6 +785,28 @@ export const SCRUBBER_KEYFRAMES = `
 
 // Gated in JS rather than by a stylesheet media query because the animations it
 // guards are inline styles, which a stylesheet can only beat with !important.
+// Below this the controls row runs out of room for seven scope buttons beside
+// everything else on it, and the end of the row — where the transport is — is
+// the first thing squeezed. Measured against the row's own content rather than
+// a device class: it is the bar that is narrow, not the phone.
+const NARROW_BAR_QUERY = '(max-width: 1180px)';
+
+export const useNarrowBar = (): boolean => {
+	const [narrow, setNarrow] = useState(
+		() => window.matchMedia(NARROW_BAR_QUERY).matches,
+	);
+
+	useEffect(() => {
+		const query = window.matchMedia(NARROW_BAR_QUERY);
+		const onChange = () => setNarrow(query.matches);
+
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	}, []);
+
+	return narrow;
+};
+
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export const usePrefersReducedMotion = (): boolean => {

@@ -7,9 +7,9 @@ const returnToLive = async (page: Page) => {
 	const resume = page.getByRole('button', {name: 'Resume', exact: true});
 	if ((await resume.count()) > 0 && (await resume.isEnabled())) {
 		await resume.click();
-		await expect(
-			page.getByRole('button', {name: 'Now', exact: true}),
-		).toBeVisible();
+		// Live is the absence of the Resume button: the slot holds its width but
+		// carries no word of its own.
+		await expect(resume).toHaveCount(0);
 	}
 };
 
@@ -54,10 +54,9 @@ test('a click on the track asks the server to scrub once', async ({
 
 	// Returning to live and clicking the same spot is a real request again, so
 	// the de-duplication must not outlive the scrub it belongs to.
-	await page.getByRole('button', {name: 'Resume', exact: true}).click();
-	await expect(
-		page.getByRole('button', {name: 'Now', exact: true}),
-	).toBeVisible();
+	const resumeButton = page.getByRole('button', {name: 'Resume', exact: true});
+	await resumeButton.click();
+	await expect(resumeButton).toHaveCount(0);
 
 	await page.mouse.click(box.x + box.width * 0.4, box.y + box.height / 2);
 	await page.waitForTimeout(2000);

@@ -43,8 +43,10 @@ import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
 import {IconChevronDown} from './IconChevronDown';
+import {IconChevronLeft} from './IconChevronLeft';
 import {IconChevronRight} from './IconChevronRight';
 import {IconLog} from './IconLog';
+import {IconTimeline} from './IconTimeline';
 import {IconPlay} from './IconPlayback';
 import {IconScatter} from './IconScatter';
 
@@ -112,18 +114,19 @@ const disclosureStyle: React.CSSProperties = {
 	cursor: 'pointer',
 };
 
-// "All board events" rather than "All": as the collapsed trigger it is the only
+// "Board events" rather than "All": as the collapsed trigger it is the only
 // thing naming the series, and a bare "All" two controls from "All boards" says
 // nothing about which is which.
 const VIEW_LABELS: Record<BoardView, string> = {
-	all: 'All board events',
+	all: 'Board events',
 	...CATEGORY_LABELS,
 };
 
 // Fixed, not sized to its label: the selection changes as the thing is used,
 // and a trigger that grew with it would shove the scope buttons beside it out
-// from under the pointer. Wide enough for "Assignees: <a long name>".
-const SELECT_TRIGGER_WIDTH = 180;
+// from under the pointer. Wide enough for the labels themselves; a name long
+// enough to overflow is clipped, and the open list spells it out in full.
+const SELECT_TRIGGER_WIDTH = 148;
 
 // A select. Filled rather than outlined, unlike the toggles beside it: it is the
 // only control here reporting a colour, and an outline in that colour drowned
@@ -176,7 +179,7 @@ const popoverStyle: React.CSSProperties = {
 	padding: '10px 14px 10px 10px',
 	// Sized for the common case up front, so opening a kind with a list does
 	// not visibly widen the panel under the pointer.
-	minWidth: 200,
+	minWidth: 178,
 	// Slightly sheer over a blur, so the chart it filters stays legible beneath
 	// it rather than being covered outright.
 	background: 'rgba(21, 26, 36, 0.88)',
@@ -240,12 +243,17 @@ const Radio = ({
 	selected,
 	color,
 	disabled,
+	square,
 	onSelect,
 }: {
 	label: string;
 	selected: boolean;
 	color: string;
 	disabled?: boolean;
+	// The row that stands for the whole series rather than one kind of it. Drawn
+	// square, like the series checkbox on the bar, so it reads as the parent of
+	// the kinds indented under it — which is what the word "All" used to do.
+	square?: boolean;
 	onSelect: () => void;
 }) => (
 	<button
@@ -272,7 +280,7 @@ const Radio = ({
 			style={{
 				width: 12,
 				height: 12,
-				borderRadius: '50%',
+				borderRadius: square ? 2 : '50%',
 				border: `1px solid ${selected ? color : GUI_THEME.dim}`,
 				display: 'inline-flex',
 				alignItems: 'center',
@@ -285,7 +293,7 @@ const Radio = ({
 					style={{
 						width: 6,
 						height: 6,
-						borderRadius: '50%',
+						borderRadius: square ? 1 : '50%',
 						background: color,
 					}}
 				/>
@@ -296,7 +304,7 @@ const Radio = ({
 );
 
 // A checkbox for the series and a select for what it draws, one kind at a time.
-// That is what lets a colour mean one thing: "All board events" colours by kind,
+// That is what lets a colour mean one thing: "Board events" colours by kind,
 // and any single kind colours by the tag or person behind each event, never both
 // at once. The trigger reads back whatever is selected, down to the one tag or
 // person left when the rest are unticked — the same name and colour the bars and
@@ -416,10 +424,20 @@ const BoardSeriesGroup = ({
 						const hasList = identityAxisFor(option) !== null;
 						const open = selected && identitiesExpanded;
 
+						// The whole series heads the list; the kinds of it are indented
+						// under that, which is the hierarchy the word "All" used to say
+						// out loud.
+						const isWholeSeries = option === 'all';
+
 						return (
 							<div
 								key={option}
-								style={{display: 'flex', flexDirection: 'column', gap: 7}}
+								style={{
+									display: 'flex',
+									flexDirection: 'column',
+									gap: 7,
+									paddingLeft: isWholeSeries ? 0 : 14,
+								}}
 							>
 								<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
 									<Radio
@@ -427,6 +445,7 @@ const BoardSeriesGroup = ({
 										selected={selected}
 										color={boardViewColor(option)}
 										disabled={!showIssues || !filtered}
+										square={isWholeSeries}
 										onSelect={() => onChangeView(option)}
 									/>
 									{hasList && (
@@ -502,15 +521,104 @@ const BoardSeriesGroup = ({
 	);
 };
 
-const navButtonStyle: React.CSSProperties = {
-	background: 'transparent',
-	border: `1px solid ${GUI_THEME.dim}`,
-	color: GUI_THEME.dim,
-	borderRadius: 6,
-	fontSize: 10,
-	padding: '2px 6px',
+// The scope row's narrow form: one trigger naming the scope in hand, over the
+// same popover the board series uses, rather than seven buttons that do not fit.
+//
+// Its own component because it holds the open/shut state, and ScrubberControls
+// is a plain expression with nowhere to put a hook.
+const ScopeSelect = ({
+	scope,
+	zoomed,
+	connected,
+	onChangeScope,
+}: {
+	scope: Scope;
+	zoomed: boolean;
+	connected: boolean;
+	onChangeScope: (scope: Scope) => void;
+}) => {
+	const [open, setOpen] = useState(false);
+
+	return (
+		<div style={{position: 'relative'}}>
+			<button
+				type="button"
+				data-testid="scope-select"
+				onClick={() => setOpen(!open)}
+				disabled={!connected}
+				aria-haspopup="listbox"
+				aria-expanded={open}
+				title="Choose the window the timeline covers"
+				style={{
+					...selectTriggerStyle(GUI_THEME.primary, !connected),
+					width: 108,
+				}}
+			>
+				{/* A dragged-out window is none of the periods on offer, so it names
+				    itself here the way it reads as pressed on the wide row. */}
+				<span>{zoomed ? 'Zoom' : scopeButtonLabel(scope)}</span>
+				<span style={{display: 'inline-flex', flexShrink: 0}}>
+					<IconChevronDown size={12} />
+				</span>
+			</button>
+
+			{open && (
+				<div role="listbox" style={popoverStyle}>
+					{SCOPES.map(option => (
+						<button
+							key={option}
+							type="button"
+							role="option"
+							aria-selected={!zoomed && scope === option}
+							onClick={() => {
+								onChangeScope(option);
+								setOpen(false);
+							}}
+							style={{
+								background: 'transparent',
+								border: 'none',
+								padding: 0,
+								textAlign: 'left',
+								fontFamily: 'inherit',
+								fontSize: 10,
+								cursor: 'pointer',
+								color:
+									!zoomed && scope === option
+										? GUI_THEME.accent
+										: GUI_THEME.secondary,
+							}}
+						>
+							{scopeButtonLabel(option)}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	);
+};
+
+// The two panel toggles and the transport all sit in one family: a panel, a
+// hairline and a glyph. Nothing here is the brightest thing on the bar.
+//
+// Cornered the way the player's own transport is rather than the way a card is:
+// a 6px radius on a box this small reads as a pill, and these are chrome.
+const headerButtonStyle: React.CSSProperties = {
+	background: GUI_THEME.panel2,
+	border: `1px solid ${GUI_THEME.line}`,
+	borderRadius: 3,
+	color: GUI_THEME.secondary,
+	padding: '3px 7px',
 	cursor: 'pointer',
-	lineHeight: 1,
+	display: 'inline-flex',
+	alignItems: 'center',
+};
+
+// The pager wears what the rest of this bar's icon buttons wear. It used to
+// have a border of its own colour, a rounder corner and a unicode triangle for
+// a glyph — three ways of not matching the row it sits on.
+const navButtonStyle: React.CSSProperties = {
+	...headerButtonStyle,
+	padding: '2px 4px',
 };
 
 export const ScrubberControls = ({
@@ -525,6 +633,7 @@ export const ScrubberControls = ({
 	canPlay,
 	playTitle,
 	onPlay,
+	narrow,
 	ticketOnly,
 	ticketSelected,
 	ticketFocus,
@@ -571,6 +680,8 @@ export const ScrubberControls = ({
 	canPlay: boolean;
 	playTitle: string;
 	onPlay: () => void;
+	// The row has no space for the scope buttons, so they fold into a select.
+	narrow: boolean;
 	// False where the window came back as counts alone, naming no tickets to
 	// narrow to.
 	windowFilterable: boolean;
@@ -619,14 +730,6 @@ export const ScrubberControls = ({
 				gap: 12,
 			}}
 		>
-			{/* At the head of the controls rather than over by the collapse
-			    chevron: it acts on the window these buttons pick out. */}
-			<ScrubberPlayButton
-				canPlay={canPlay}
-				playTitle={playTitle}
-				onPlay={onPlay}
-			/>
-
 			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
 				{(scope !== 'all' || zoomed || ticketFocus) && (
 					<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
@@ -638,12 +741,13 @@ export const ScrubberControls = ({
 							}
 							disabled={!connected || ticketFocus}
 							onClick={() => onChangeOffset(offset + 1)}
+							aria-label="Earlier"
 							style={{
 								...navButtonStyle,
 								...(connected && !ticketFocus ? {} : mutedStyle),
 							}}
 						>
-							◀
+							<IconChevronLeft size={12} />
 						</button>
 						<span
 							style={{
@@ -669,38 +773,47 @@ export const ScrubberControls = ({
 							title="Later"
 							disabled={atLatest || !connected || ticketFocus}
 							onClick={() => onChangeOffset(offset - 1)}
+							aria-label="Later"
 							style={{
 								...navButtonStyle,
 								opacity: atLatest || ticketFocus ? 0.35 : 1,
 								cursor: atLatest || ticketFocus ? 'default' : 'pointer',
 							}}
 						>
-							▶
+							<IconChevronRight size={12} />
 						</button>
 					</div>
 				)}
 
-				<div style={{display: 'flex', gap: 2}}>
-					{SCOPES.map(option => (
-						<button
-							key={option}
-							// Nothing in this row is what a zoomed window is, so while one is
-							// up none of them reads as pressed and Zoom does instead.
-							aria-pressed={!zoomed && !ticketFocus && scope === option}
-							disabled={!connected}
-							onClick={() => onChangeScope(option)}
-							style={{
-								...scopeButtonStyle(
-									!zoomed && !ticketFocus && scope === option,
-								),
-								...(connected ? {} : mutedStyle),
-							}}
-						>
-							{scopeButtonLabel(option)}
-						</button>
-					))}
+				{narrow ? (
+					<ScopeSelect
+						scope={scope}
+						zoomed={zoomed}
+						connected={connected}
+						onChangeScope={onChangeScope}
+					/>
+				) : (
+					<div style={{display: 'flex', gap: 2}}>
+						{SCOPES.map(option => (
+							<button
+								key={option}
+								// Nothing in this row is what a zoomed window is, so while one is
+								// up none of them reads as pressed and Zoom does instead.
+								aria-pressed={!zoomed && !ticketFocus && scope === option}
+								disabled={!connected}
+								onClick={() => onChangeScope(option)}
+								style={{
+									...scopeButtonStyle(
+										!zoomed && !ticketFocus && scope === option,
+									),
+									...(connected ? {} : mutedStyle),
+								}}
+							>
+								{scopeButtonLabel(option)}
+							</button>
+						))}
 
-					{/* Only ever the current state, never a way in: a window is zoomed by
+						{/* Only ever the current state, never a way in: a window is zoomed by
 				    dragging one out on the chart, and left by naming any period to
 				    its left. It sits at the end of the row because it is not a period
 				    on the same scale as the rest.
@@ -713,25 +826,26 @@ export const ScrubberControls = ({
 				    Flat under a ticket window even while a dragged one is still
 				    held: that window is not what is on screen, and the whole row
 				    reads as unpressed there, the scope buttons included. */}
-					<button
-						title={
-							ticketFocus
-								? 'Held behind the ticket’s own stretch — untick "Ticket only" to come back to it'
-								: zoomed
-								? 'A window dragged out on the chart — pick a period to leave it'
-								: 'Drag across the chart to zoom the window to a stretch of it'
-						}
-						aria-pressed={zoomed && !ticketFocus}
-						disabled
-						style={{
-							...scopeButtonStyle(zoomed && !ticketFocus),
-							opacity: zoomed && !ticketFocus ? 1 : 0.35,
-							cursor: 'default',
-						}}
-					>
-						Zoom
-					</button>
-				</div>
+						<button
+							title={
+								ticketFocus
+									? 'Held behind the ticket’s own stretch — untick "Ticket only" to come back to it'
+									: zoomed
+									? 'A window dragged out on the chart — pick a period to leave it'
+									: 'Drag across the chart to zoom the window to a stretch of it'
+							}
+							aria-pressed={zoomed && !ticketFocus}
+							disabled
+							style={{
+								...scopeButtonStyle(zoomed && !ticketFocus),
+								opacity: zoomed && !ticketFocus ? 1 : 0.35,
+								cursor: 'default',
+							}}
+						>
+							Zoom
+						</button>
+					</div>
+				)}
 			</div>
 
 			<div style={{display: 'flex', gap: 2}}>
@@ -854,8 +968,10 @@ export const ScrubberControls = ({
 			/> */}
 			</div>
 
-			{/* Present while live too, as the status of the board rather than a way
-		    back to it, so entering history never resizes the row.
+			{/* Present while live too, as an empty slot rather than a word: it sits
+		    at the end of the row and the transport now sits past it, so a label
+		    naming that end has nothing left to name. Held rather than unmounted
+		    so entering history never resizes the row.
 
 		    "Now" only over a window that runs up to the present, though. It sits
 		    at the end of the row, above the end of the track, so it reads as
@@ -887,26 +1003,18 @@ export const ScrubberControls = ({
 					flexShrink: 0,
 				}}
 			>
-				{isScrubbing ? 'Resume' : atLatest ? 'Now' : ''}
+				{isScrubbing ? 'Resume' : ''}
 			</button>
+
+			{/* Last on the row, past everything that draws or narrows the window:
+			    it is the one control here that starts something. */}
+			<ScrubberPlayButton
+				canPlay={canPlay}
+				playTitle={playTitle}
+				onPlay={onPlay}
+			/>
 		</div>
 	);
-};
-
-// The two panel toggles and the transport all sit in one family: a panel, a
-// hairline and a glyph. Nothing here is the brightest thing on the bar.
-//
-// Cornered the way the player's own transport is rather than the way a card is:
-// a 6px radius on a box this small reads as a pill, and these are chrome.
-const headerButtonStyle: React.CSSProperties = {
-	background: GUI_THEME.panel2,
-	border: `1px solid ${GUI_THEME.line}`,
-	borderRadius: 3,
-	color: GUI_THEME.secondary,
-	padding: '3px 7px',
-	cursor: 'pointer',
-	display: 'inline-flex',
-	alignItems: 'center',
 };
 
 export const ScrubberHeader = ({
@@ -951,18 +1059,21 @@ export const ScrubberHeader = ({
 			<IconLog size={13} />
 		</button>
 
+		{/* Marked with the thing it opens, as its neighbour is, and lit the same
+		    way while it is open — a chevron said only "there is more here", which
+		    is true of every disclosure on the page. */}
 		<button
+			data-testid="timeline-toggle"
 			onClick={onToggleCollapsed}
 			title={collapsed ? 'Show time travel' : 'Hide time travel'}
 			aria-label={collapsed ? 'Show time travel' : 'Hide time travel'}
 			aria-expanded={!collapsed}
-			style={headerButtonStyle}
+			style={{
+				...headerButtonStyle,
+				color: collapsed ? GUI_THEME.secondary : GUI_THEME.accent,
+			}}
 		>
-			{collapsed ? (
-				<IconChevronRight size={14} />
-			) : (
-				<IconChevronDown size={14} />
-			)}
+			<IconTimeline size={14} />
 		</button>
 	</div>
 );
