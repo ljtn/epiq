@@ -407,3 +407,65 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 	await returnToLive(page);
 	expect(pageErrors).toEqual([]);
 });
+
+// The hover arrow is positioned inside the scroll pane, and a positioned child
+// holds the pane's overflow open wherever it is left. Hovered onto a row deep
+// in a tall log and then orphaned by a movie emptying the column, it used to
+// leave the foot snap scrolled into a stretch of nothing until the log grew
+// back down to it.
+test('an arrow left below the fold does not hold the pane open when the log empties', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.setViewportSize({width: 1280, height: 420});
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	const stamp = Date.now();
+	for (let index = 0; index < 10; index++) {
+		await page.getByTitle('Add issue').first().click();
+		await page.getByPlaceholder('issue name').fill(`Arrow ${stamp}-${index}`);
+		await page.getByPlaceholder('issue name').press('Enter');
+		await expect(page.locator('aside')).toContainText(
+			`Arrow ${stamp}-${index}`,
+		);
+	}
+	await page.goto(boardUrl);
+
+	await page.getByTestId('log-toggle').click();
+	const lines = page.getByTestId('log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(10);
+
+	const overflow = () =>
+		page.evaluate(`
+(() => {
+	const pane = document.querySelector('[data-testid="event-log-scroll"]');
+	return pane.scrollHeight - pane.clientHeight;
+})()
+`) as Promise<number>;
+
+	// The premise: the log is taller than the pane, so the newest row sits
+	// below where the pane's foot will be once the column is empty.
+	await expect.poll(overflow).toBeGreaterThan(0);
+	await lines.last().hover();
+	await expect(page.getByTestId('log-row-arrow')).toHaveCSS('opacity', '1');
+	await page.mouse.move(900, 300);
+
+	// A movie opens on the board before any of its events, with an empty log.
+	// The pane has nothing to overflow with then — unless the arrow is holding
+	// it open from where the last row used to be.
+	await page.getByTestId('theatre-play').click();
+	await expect(page.getByTestId('theatre-player')).toBeVisible();
+	await page.getByTestId('theatre-toggle').click();
+	await expect(page.getByTestId('theatre-toggle')).toHaveAttribute(
+		'aria-label',
+		'Play',
+	);
+
+	await expect.poll(overflow).toBe(0);
+
+	await returnToLive(page);
+	await page.getByTestId('log-toggle').click();
+	expect(pageErrors).toEqual([]);
+});

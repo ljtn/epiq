@@ -217,6 +217,29 @@ const EventLogPanel = ({
 		return () => observer.disconnect();
 	}, [bottomClearance]);
 
+	// The arrow that marks the row under the pointer is one node for the whole
+	// panel, carried to whichever row that is. Moved through its ref rather
+	// than by state: hovering sweeps across rows, and re-rendering the column
+	// at every one of them is the cost this panel is built to avoid.
+	const arrowRef = useRef<HTMLSpanElement>(null);
+
+	// An absolutely positioned child extends the pane's scrollable overflow,
+	// hidden or not. So an arrow left on a row the column has since lost is a
+	// stretch of empty pane below the last line, and a snap to the foot lands in
+	// it — showing nothing until the log grows back down to where the row was.
+	// Called before either snap above: past the end of the column the arrow
+	// marks nothing, and goes back to the top where it takes no room.
+	const parkStrayArrow = () => {
+		const arrow = arrowRef.current;
+		const column = columnRef.current;
+		if (!arrow || !column) return;
+
+		if (arrow.offsetTop < column.offsetTop + column.offsetHeight) return;
+
+		arrow.style.top = '0px';
+		arrow.style.opacity = '0';
+	};
+
 	// Before paint, so a line arriving never shows the pane a frame out of place.
 	// Only while the reader is at the foot: scrolled back, the log is something
 	// being read, and pulling it to the bottom would take that away.
@@ -224,6 +247,7 @@ const EventLogPanel = ({
 		const pane = scrollRef.current;
 		if (!pane || !pinnedRef.current) return;
 
+		parkStrayArrow();
 		pane.scrollTop = pane.scrollHeight;
 	}, [newestId, days.length, foldOverrides, openCount]);
 
@@ -238,6 +262,7 @@ const EventLogPanel = ({
 		if (!pane) return;
 
 		pinnedRef.current = true;
+		parkStrayArrow();
 		pane.scrollTop = pane.scrollHeight;
 	}, [moment]);
 
@@ -276,12 +301,6 @@ const EventLogPanel = ({
 		// rebuilt every render: the crawl moves when the log does, not when the
 		// board beside it repaints.
 	}, [newestId, animate]);
-
-	// The arrow that marks the row under the pointer is one node for the whole
-	// panel, carried to whichever row that is. Moved through its ref rather
-	// than by state: hovering sweeps across rows, and re-rendering the column
-	// at every one of them is the cost this panel is built to avoid.
-	const arrowRef = useRef<HTMLSpanElement>(null);
 
 	const markRow = (target: EventTarget | null) => {
 		const arrow = arrowRef.current;
