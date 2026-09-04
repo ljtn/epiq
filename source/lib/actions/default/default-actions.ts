@@ -43,7 +43,6 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.InitCommandLine,
 		mode: Mode.DEFAULT,
-		description: '[:] focus command line',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			replaceCmdInput('');
@@ -103,7 +102,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.Yank,
 		mode: Mode.DEFAULT,
-		description: '[y] yank to clipboard',
+		description: '[y] yank',
 		action: () => {
 			const {selectedNode} = getState();
 

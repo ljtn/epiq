@@ -20,7 +20,7 @@ export const toggleMoveMode: ActionEntry[] = [
 	{
 		intent: Intent.InitMove,
 		mode: Mode.DEFAULT,
-		description: '[m] move (init/confirm)',
+		description: '[m] move',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			replaceCmdInput(`move start`);
@@ -30,6 +30,7 @@ export const toggleMoveMode: ActionEntry[] = [
 	{
 		intent: Intent.ConfirmMove,
 		mode: Mode.MOVE,
+		description: '[m] confirm move',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			replaceCmdInput(`move confirm`);

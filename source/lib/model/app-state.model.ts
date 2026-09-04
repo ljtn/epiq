@@ -1,3 +1,4 @@
+import {ActionHint} from '../hints/hints.js';
 import {AppEvent} from '../../lib/event/event.model.js';
 import {failed, Result, succeeded} from './result-types.js';
 import {ActionEntry, ActionIndex, ModeUnion} from './action-map.model.js';
@@ -89,7 +90,7 @@ export type AppState = {
 	mode: ModeUnion;
 	availableActions: ActionEntry[];
 	actionIndex: ActionIndex;
-	availableHints: string[];
+	availableHints: ActionHint[];
 	breadCrumb: BreadCrumb;
 	rootNodeId: string;
 	nodes: Record<string, NavNode<AnyContext>>;

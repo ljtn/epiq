@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React, {useEffect, useMemo} from 'react';
 import {ulid} from 'ulid';
 import {navigationUtils} from '../actions/default/navigation-action-utils.js';
+import {ActionHint, parseActionHint} from '../hints/hints.js';
 import {isTextNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {isFail, isSuccess} from '../model/result-types.js';
@@ -28,24 +29,15 @@ const getHelpItems = (): HelpItem[] =>
 				),
 		),
 	]
-		.map(desc => {
-			const [leftRaw, rightRaw] = desc.split(']');
-			const keys = leftRaw?.replace('[', '');
-			const action = rightRaw?.trim();
-
-			return [keys, action];
-		})
-		.filter(
-			(entry): entry is [string, string] =>
-				entry[0] !== undefined && entry[1] !== undefined,
-		)
-		.sort(([a], [b]) => {
+		.map(parseActionHint)
+		.filter((hint): hint is ActionHint => hint !== null)
+		.sort(({keys: a}, {keys: b}) => {
 			if (a.length === 1 && b.length !== 1) return -1;
 			if (a.length !== 1 && b.length === 1) return 1;
 
 			return a.localeCompare(b, undefined, {sensitivity: 'base'});
 		})
-		.map(([keys, action]) => ({keys, action}));
+		.map(({keys, label}) => ({keys, action: label}));
 
 const createHelpRootNode = (parentNodeId: string): NavNode<'TEXT'> =>
 	nodes.text({

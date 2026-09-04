@@ -5,6 +5,7 @@ import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {
 	commandLineIsIdle,
+	commandLineShows,
 	ENTER,
 	removeTempRepo,
 	setupTui,
@@ -43,7 +44,7 @@ const ENV = {
 // Run a command-line command and wait for it to fully settle (see lifecycle).
 const run = async (tui: Tui, cmd: string, echo: string) => {
 	tui.input(cmd);
-	await tui.waitFor(echo, 4_000);
+	await tui.waitFor(commandLineShows(echo), 4_000);
 	tui.input(ENTER);
 	await tui.waitFor(commandLineIsIdle, 5_000);
 };
