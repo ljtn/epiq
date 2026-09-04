@@ -32,8 +32,6 @@ export const CmdKeywords = {
 
 	EXPORT: 'export',
 
-	COFFEE: 'coffee',
-
 	NONE: '',
 } as const;
 export type CmdKeyword = (typeof CmdKeywords)[keyof typeof CmdKeywords];
