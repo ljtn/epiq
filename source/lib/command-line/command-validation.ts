@@ -771,31 +771,6 @@ const validators: Record<CmdKeyword, Validator> = {
 	},
 
 	[CmdKeywords.SYNC]: () => valid(CONFIRM_MSG),
-	[CmdKeywords.COFFEE]: args => {
-		const {modifier} = args;
-		const modifiers = getCmdModifiers(CmdKeywords.COFFEE);
-
-		if (
-			modifier.length &&
-			modifier.length <= 1 &&
-			!modifiers.includes(modifier)
-		) {
-			return invalid({
-				message: hintDefault('enter an amount ... '),
-				completionWordList: modifiers.filter(x => x.startsWith(modifier)),
-			});
-		}
-
-		return requireModifierOrInputStr({
-			hint: buildOptionsHint({
-				prefix: 'fuel continued development with ... $ ',
-				wordList: ['1', ' 3 ', '5', '20', 'custom'],
-				inputString: '',
-				minLengthForHints: 0,
-			}),
-			onOk: 'Thank you for your support! 🫡',
-		})(args);
-	},
 };
 
 type CmdValidator = {
