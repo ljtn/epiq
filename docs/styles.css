@@ -560,6 +560,9 @@ h2 {
 }
 #audit .media-placeholder > img {
 	box-shadow: none;
+	/* True-black background: screened over the page, black contributes nothing,
+	   so the grid and tints show through and only the chart remains. */
+	mix-blend-mode: screen;
 	-webkit-mask-image:
 		linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent),
 		linear-gradient(180deg, transparent, #000 15%, #000 90%, transparent);
