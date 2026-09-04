@@ -436,8 +436,8 @@ h2 {
 	color: var(--muted);
 	line-height: 1.58;
 }
-/* Install: three steps down one column, every box the same width and the
-   same weight. */
+/* Get started: a label-and-note column beside a commands column, every box
+   the same width and weight. */
 .install .quote {
 	margin-bottom: 72px;
 }
@@ -448,67 +448,83 @@ h2 {
 }
 .install > p {
 	max-width: 640px;
-	margin: 0 0 36px;
+	margin: 0 0 40px;
 	color: var(--muted);
 	line-height: 1.58;
 }
-.steps {
-	list-style: none;
-	margin: 0;
-	padding: 0;
+.setup {
 	display: grid;
-	gap: 32px;
-	max-width: 760px;
+	gap: 28px;
+	max-width: 920px;
 }
-.steps li {
-	min-width: 0;
+.setup-row {
+	display: grid;
+	grid-template-columns: 240px minmax(0, 1fr);
+	gap: 12px 40px;
+	align-items: start;
 }
-.steps .label,
-.steps .or {
+.setup-side .label {
 	font: 12px var(--mono);
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
-}
-.steps .label {
 	color: var(--deepBlue);
-	margin-bottom: 10px;
+	margin: 14px 0 6px;
 }
-.steps .or {
-	display: block;
+.setup-side p {
+	margin: 0;
+	font-size: 14px;
 	color: var(--muted);
-	margin: 10px 0;
+	line-height: 1.5;
+	max-width: 24ch;
 }
-.steps .body {
+.setup-body {
+	display: grid;
+	gap: 10px;
 	min-width: 0;
 }
-.steps .copy-cmd {
+.setup-body > * {
+	min-width: 0;
+}
+.setup-body .copy-cmd {
 	display: flex;
 	width: 100%;
 }
-.steps .copy-cmd-text {
+.setup-body .copy-cmd-text {
 	flex: 1;
 }
-.steps .code {
+.setup-body .code {
 	border-radius: 2px;
 	padding: 12px 16px;
 	line-height: 24px;
 }
-.points {
-	display: grid;
-	gap: 28px;
-	max-width: 640px;
-	margin: 0;
-}
-.points dt {
-	font-weight: 700;
-	margin-bottom: 5px;
-}
-.points dd {
-	margin: 0;
+.setup-divider {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	max-width: 920px;
+	margin: 48px 0 28px;
+	font: 12px var(--mono);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
 	color: var(--muted);
-	line-height: 1.5;
 }
-
+.setup-divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--line);
+}
+@media (max-width: 720px) {
+	.setup-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.setup-side .label {
+		margin-top: 0;
+	}
+	.setup-side p {
+		max-width: none;
+	}
+}
 .media-placeholder > video,
 .media-placeholder > img {
 	width: 100%;

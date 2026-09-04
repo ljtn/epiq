@@ -413,63 +413,105 @@
 					<p>"Issue tracking should be smooth."</p>
 					<span>- probably someone</span>
 				</div>
-				<div class="kicker">Install</div>
-				<h3>Start in three commands.</h3>
+				<div class="kicker">Get started</div>
+				<h3>Three commands for you. Two more for your agents.</h3>
 				<p>
 					Install the single binary, enter any Git repository, and run Epiq. The
-					first launch opens a setup wizard; after that, stay in the terminal or
-					open the browser GUI.
+					first launch opens a setup wizard.
 				</p>
-				<ol class="steps">
-					<li>
-						<div class="body">
-							<div class="label">Install the binary</div>
+
+				<div class="setup">
+					<div class="setup-row">
+						<div class="setup-side">
+							<div class="label">Install</div>
+							<p>The binary, or the npm package.</p>
+						</div>
+						<div class="setup-body">
 							<button
 								class="copy-cmd"
 								type="button"
 								data-copy="curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh"
 								aria-label="Copy curl install command"
 							>
-								<span class="copy-cmd-text"
-									><span class="accent">$</span>curl -fsSL
-									https://raw.githubusercontent.com/ljtn/epiq/main/install.sh |
-									sh</span
-								>
+								<span class="copy-cmd-text"><span class="accent">$</span>curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh</span>
 								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
 							</button>
-							<span class="or">or</span>
 							<button
 								class="copy-cmd"
 								type="button"
 								data-copy="npm install --global epiq"
 								aria-label="Copy npm install command"
 							>
-								<span class="copy-cmd-text"
-									><span class="accent">$</span>npm install --global epiq</span
-								>
+								<span class="copy-cmd-text"><span class="accent">$</span>npm install --global epiq</span>
 								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
 							</button>
 						</div>
-					</li>
-					<li>
-						<div class="body">
+					</div>
+					<div class="setup-row">
+						<div class="setup-side">
 							<div class="label">Enter a repository</div>
-							<pre
-								class="code"
-							><code><span class="g">cd</span> your-repo-with-a-remote</code></pre>
+							<p>Any Git repository with a remote.</p>
 						</div>
-					</li>
-					<li>
-						<div class="body">
+						<div class="setup-body">
+							<pre class="code"><code><span class="g">cd</span> your-repo</code></pre>
+						</div>
+					</div>
+					<div class="setup-row">
+						<div class="setup-side">
 							<div class="label">Run</div>
-							<pre class="code"><code><span class="c"># in the terminal</span>
-<span class="g">epiq</span>
-
-<span class="c"># in the browser</span>
-<span class="g">epiq gui</span></code></pre>
+							<p>In the terminal, or in the browser.</p>
 						</div>
-					</li>
-				</ol>
+						<div class="setup-body">
+							<pre class="code"><code><span class="g">epiq</span>
+<span class="g">epiq</span> gui</code></pre>
+						</div>
+					</div>
+				</div>
+
+				<div class="setup-divider"><span>For agents</span></div>
+
+				<div class="setup">
+					<div class="setup-row">
+						<div class="setup-side">
+							<div class="label">Register the MCP server</div>
+							<p>
+								Claude Code shown; any MCP client works. Restart the client
+								afterwards.
+							</p>
+						</div>
+						<div class="setup-body">
+							<button
+								class="copy-cmd"
+								type="button"
+								data-copy="claude mcp add --scope user epiq -- npx -y -p epiq epiq-mcp"
+								aria-label="Copy the MCP registration command"
+							>
+								<span class="copy-cmd-text"><span class="accent">$</span>claude mcp add --scope user epiq -- npx -y -p epiq epiq-mcp</span>
+								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+							</button>
+						</div>
+					</div>
+					<div class="setup-row">
+						<div class="setup-side">
+							<div class="label">Add the skill</div>
+							<p>
+								Drops
+								<a
+									class="inline-link"
+									href="https://github.com/ljtn/epiq/blob/main/.claude/skills/epiq/SKILL.md"
+									rel="noopener"
+									>SKILL.md</a
+								>
+								into your project, so the agent knows the workflow.
+							</p>
+						</div>
+						<div class="setup-body">
+							<pre class="code"><code><span class="g">mkdir</span> -p .claude/skills/epiq
+<span class="g">curl</span> -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/.claude/skills/epiq/SKILL.md \
+  -o .claude/skills/epiq/SKILL.md</code></pre>
+						</div>
+					</div>
+				</div>
 			</section>
 		</main>
 
