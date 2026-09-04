@@ -373,64 +373,73 @@
 				</dl>
 			</section>
 
-			<section id="install" class="wrap">
+			<section id="install" class="wrap install">
 				<div class="quote">
 					<p>"Issue tracking should be smooth."</p>
 					<span>- probably someone</span>
 				</div>
-				<div class="panel">
-					<div class="kicker">Install</div>
-					<h3>Start in three commands.</h3>
-					<p>
-						Install the single binary then enter any Git repository and run
-						Epiq. First launch opens an interactive setup wizard. Then either
-						stay in your terminal or launch the browser GUI.
-					</p>
-					<div class="actions">
-						<button
-							class="copy-cmd"
-							type="button"
-							data-copy="curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh"
-							aria-label="Copy curl install command"
-						>
-							<span class="copy-cmd-text"
-								><span class="accent">$</span>curl -fsSL
-								https://raw.githubusercontent.com/ljtn/epiq/main/install.sh |
-								sh</span
+				<div class="kicker">Install</div>
+				<h3>Start in three commands.</h3>
+				<p>
+					Install the single binary, enter any Git repository, and run Epiq. The
+					first launch opens a setup wizard; after that, stay in the terminal or
+					open the browser GUI.
+				</p>
+				<ol class="steps">
+					<li>
+						<div class="body">
+							<div class="label">Install the binary</div>
+							<button
+								class="copy-cmd"
+								type="button"
+								data-copy="curl -fsSL https://raw.githubusercontent.com/ljtn/epiq/main/install.sh | sh"
+								aria-label="Copy curl install command"
 							>
-							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
-						</button>
-						<span class="kicker kicker-step">or</span>
-						<button
-							class="copy-cmd"
-							type="button"
-							data-copy="npm install --global epiq"
-							aria-label="Copy npm install command"
-						>
-							<span class="copy-cmd-text"
-								><span class="accent">$</span>npm install --global epiq</span
+								<span class="copy-cmd-text"
+									><span class="accent">$</span>curl -fsSL
+									https://raw.githubusercontent.com/ljtn/epiq/main/install.sh |
+									sh</span
+								>
+								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+							</button>
+							<span class="or">or</span>
+							<button
+								class="copy-cmd"
+								type="button"
+								data-copy="npm install --global epiq"
+								aria-label="Copy npm install command"
 							>
-							<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
-						</button>
-					</div>
-					<span class="kicker kicker-step">then:</span>
-					<pre
-						class="code"
-					><code><span class="g">cd</span> your-existing-repo-with-remote-tracking</code></pre>
-
-					<span class="kicker kicker-step">then:</span>
-					<pre class="code"><code><span class="c"># open in terminal</span>
+								<span class="copy-cmd-text"
+									><span class="accent">$</span>npm install --global epiq</span
+								>
+								<span class="copy-cmd-ico" aria-hidden="true">Copy</span>
+							</button>
+						</div>
+					</li>
+					<li>
+						<div class="body">
+							<div class="label">Enter a repository</div>
+							<pre
+								class="code"
+							><code><span class="g">cd</span> your-repo-with-a-remote</code></pre>
+						</div>
+					</li>
+					<li>
+						<div class="body">
+							<div class="label">Run</div>
+							<pre class="code"><code><span class="c"># in the terminal</span>
 <span class="g">epiq</span>
 
-<span class="c"># open in browser</span>
+<span class="c"># in the browser</span>
 <span class="g">epiq gui</span></code></pre>
-				</div>
+						</div>
+					</li>
+				</ol>
 			</section>
 		</main>
 
 		<footer>
 			<div class="wrap footer-inner">
-				<div><code>:wq</code> and move on.</div>
 			</div>
 		</footer>
 

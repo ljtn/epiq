@@ -350,9 +350,6 @@ h2 {
 	margin-bottom: 12px;
 }
 /* A kicker used between two blocks rather than at the head of a section. */
-.kicker-step {
-	margin-top: 24px;
-}
 .accent {
 	color: var(--cyan);
 }
@@ -445,6 +442,63 @@ h2 {
 	margin: 0 0 44px;
 	color: var(--muted);
 	line-height: 1.58;
+}
+/* Install: three steps down one column, every box the same width and the
+   same weight. */
+.install .quote {
+	margin-bottom: 72px;
+}
+.install h3 {
+	margin: 0 0 14px;
+	font-size: 28px;
+	letter-spacing: -0.03em;
+}
+.install > p {
+	max-width: 640px;
+	margin: 0 0 36px;
+	color: var(--muted);
+	line-height: 1.58;
+}
+.steps {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 32px;
+	max-width: 760px;
+}
+.steps li {
+	min-width: 0;
+}
+.steps .label,
+.steps .or {
+	font: 12px var(--mono);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+.steps .label {
+	color: var(--deepBlue);
+	margin-bottom: 10px;
+}
+.steps .or {
+	display: block;
+	color: var(--muted);
+	margin: 10px 0;
+}
+.steps .body {
+	min-width: 0;
+}
+.steps .copy-cmd {
+	display: flex;
+	width: 100%;
+}
+.steps .copy-cmd-text {
+	flex: 1;
+}
+.steps .code {
+	border-radius: 2px;
+	padding: 12px 16px;
+	line-height: 24px;
 }
 .points {
 	display: grid;
@@ -748,9 +802,6 @@ aside:not(.docs-layout > aside) {
 .copy-cmd:hover {
 	border-color: rgba(255, 255, 255, 0.26);
 	background: rgba(0, 0, 0, 0.5);
-}
-.copy-cmd:nth-of-type(2n) .copy-cmd-text {
-	color: #727283;
 }
 .copy-cmd-text {
 	font-size: 13px;
