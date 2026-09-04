@@ -35,7 +35,7 @@ export const PaletteActions: ActionEntry[] = [
 	{
 		intent: Intent.InitCommandPalette,
 		mode: Mode.DEFAULT,
-		description: '[?] all commands',
+		description: '[?] command palette',
 		action: () => {
 			replaceCmdInput('');
 			const {contextNode, selectedIndex, selectedNode, breadCrumb} = getState();
