@@ -40,6 +40,17 @@ export type ApiIssue = {
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
 
+// What a list is scanned for: enough to pick a ticket out and take its ref,
+// and nothing that runs to paragraphs.
+export type ApiIssueBrief = {
+	id: string;
+	ref: string;
+	title: string;
+	swimlane: string;
+	tags: string[];
+	assignees: string[];
+};
+
 export type ApiSwimlane = {
 	id: string;
 	title: string;

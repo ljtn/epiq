@@ -74,6 +74,7 @@ import {logger} from '../logger.js';
 import {
 	ApiAssignee,
 	ApiIssue,
+	ApiIssueBrief,
 	ApiIssueComment,
 	ApiIssueDetail,
 	ApiState,
@@ -97,6 +98,11 @@ type MoveIssueInput = ToolInput & {
 type ListIssuesInput = ToolInput & {
 	includeClosed?: boolean;
 	boardId?: string;
+	swimlaneId?: string;
+	tag?: string;
+	assignee?: string;
+	query?: string;
+	brief?: boolean;
 };
 
 type ListSwimlanesInput = ToolInput & {
@@ -573,7 +579,16 @@ export const getIssue = async (input: GetIssueInput) => {
 	} satisfies ApiIssueDetail);
 };
 
-export const listIssues = async (input: ListIssuesInput) => {
+const sameName = (a: string, b: string) =>
+	a.trim().toLowerCase() === b.trim().toLowerCase();
+
+export function listIssues(
+	input: ListIssuesInput & {brief: true},
+): Promise<Result<ApiIssueBrief[]>>;
+export function listIssues(input: ListIssuesInput): Promise<Result<ApiIssue[]>>;
+export async function listIssues(
+	input: ListIssuesInput,
+): Promise<Result<ApiIssue[] | ApiIssueBrief[]>> {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
@@ -581,8 +596,9 @@ export const listIssues = async (input: ListIssuesInput) => {
 	if (isFail(stateResult)) return stateResult;
 
 	const nodes = stateResult.value.nodes;
+	const query = input.query?.trim().toLowerCase();
 
-	const issues: ApiIssue[] = Object.values(nodes)
+	const tickets = Object.values(nodes)
 		.filter(isTicketNode)
 		.filter(n => !n.isDeleted)
 		.filter(n => input.includeClosed || n.parentNodeId !== CLOSED_SWIMLANE_ID)
@@ -591,7 +607,49 @@ export const listIssues = async (input: ListIssuesInput) => {
 			const swimlane = n.parentNodeId ? nodes[n.parentNodeId] : undefined;
 			return swimlane?.parentNodeId === input.boardId;
 		})
-		.map(
+		.filter(n => !input.swimlaneId || n.parentNodeId === input.swimlaneId)
+		.filter(
+			n =>
+				!input.tag ||
+				getIssueTags(n).some(tag => sameName(tag.name, input.tag!)),
+		)
+		.filter(
+			n =>
+				!input.assignee ||
+				getIssueAssignees(n).some(a => sameName(a.name, input.assignee!)),
+		)
+		.filter(
+			n =>
+				!query ||
+				n.title.toLowerCase().includes(query) ||
+				(n.props.description ?? '').toLowerCase().includes(query),
+		);
+
+	const swimlaneTitle = (n: Ticket) =>
+		sanitizeInlineText(
+			(n.parentNodeId ? nodes[n.parentNodeId]?.title : undefined) ?? '',
+		);
+
+	if (input.brief) {
+		return succeeded(
+			'Listed issues',
+			tickets.map(
+				n =>
+					({
+						id: n.id,
+						ref: nodeRef(n.id),
+						title: sanitizeInlineText(n.title),
+						swimlane: swimlaneTitle(n),
+						tags: getIssueTags(n).map(tag => tag.name),
+						assignees: getIssueAssignees(n).map(a => a.name),
+					} satisfies ApiIssueBrief),
+			),
+		);
+	}
+
+	return succeeded(
+		'Listed issues',
+		tickets.map(
 			n =>
 				({
 					id: n.id,
@@ -605,10 +663,9 @@ export const listIssues = async (input: ListIssuesInput) => {
 					tags: getIssueTags(n),
 					assignees: getIssueAssignees(n),
 				} satisfies ApiIssue),
-		);
-
-	return succeeded('Listed issues', issues);
-};
+		),
+	);
+}
 
 export const createIssue = async (input: CreateIssueInput) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});

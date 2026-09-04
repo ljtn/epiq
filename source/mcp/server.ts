@@ -89,11 +89,16 @@ export const createMcpServer = () => {
 		'epiq_issue_list',
 		{
 			description:
-				'List Epiq issues. Pass boardId to scope results to a single board and reduce response size.',
+				'List Epiq issues. Narrow with boardId, swimlaneId, tag, assignee or query (matched against title and description), and pass brief to get id, ref, title, swimlane, tag names and assignee names only — descriptions are the bulk of a board. Read one ticket with epiq_issue_get.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				includeClosed: z.boolean().optional(),
 				boardId: z.string().optional(),
+				swimlaneId: z.string().optional(),
+				tag: z.string().optional(),
+				assignee: z.string().optional(),
+				query: z.string().optional(),
+				brief: z.boolean().optional(),
 			}),
 		},
 		exclusiveTool(listIssues),
