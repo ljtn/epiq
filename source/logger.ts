@@ -5,7 +5,7 @@ import {isFail} from './lib/model/result-types.js';
 import {EPIQ_DIR_NAME, resolveClosestEpiqRoot} from './lib/storage/paths.js';
 import {LogLevel} from './lib/state/settings.state.js';
 
-export const MAX_LINES = 1000;
+export const MAX_LINES = 500;
 // One message may span many lines (a stack trace does), so the file is bounded
 // in bytes as well: a log past V8's string cap cannot be read back to trim it,
 // and a trim that throws inside the logger takes the whole app down with it.
