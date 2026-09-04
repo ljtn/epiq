@@ -609,19 +609,63 @@ aside:not(.docs-layout > aside) {
 }
 
 .footer {
-	padding: 48px 0 70px;
+	padding: 56px 0 40px;
 	color: var(--muted);
 	border-top: 1px solid var(--line);
 }
 .footer-inner {
 	display: flex;
 	justify-content: space-between;
-	gap: 24px;
-	align-items: center;
-	padding: 40px 0;
+	align-items: flex-start;
+	gap: 48px;
+	flex-wrap: wrap;
+	padding-bottom: 40px;
 }
-.footer code {
-	color: var(--cyan);
+.footer-brand {
+	max-width: 320px;
+}
+.footer-brand .brand {
+	color: var(--text);
+	margin-bottom: 12px;
+}
+.footer-brand p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.55;
+}
+.footer-cols {
+	display: flex;
+	align-items: flex-start;
+	gap: 64px;
+}
+.footer-col {
+	display: grid;
+	gap: 10px;
+	font-size: 14px;
+}
+.footer-col a {
+	color: var(--muted);
+	transition: color 0.15s ease;
+}
+.footer-col a:hover {
+	color: var(--text);
+}
+.footer-head {
+	font: 12px var(--mono);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--deepBlue);
+	margin-bottom: 4px;
+}
+.footer-foot {
+	display: flex;
+	justify-content: space-between;
+	gap: 24px;
+	flex-wrap: wrap;
+	padding-top: 24px;
+	border-top: 1px solid var(--line);
+	font: 12px var(--mono);
+	letter-spacing: 0.02em;
 }
 
 @media (max-width: 900px) {
