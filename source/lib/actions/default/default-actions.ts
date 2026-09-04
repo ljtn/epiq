@@ -17,6 +17,17 @@ import {PaletteActions} from '../palette/palette-actions.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
 export const DefaultActions: ActionEntry[] = [
+	// First, so it leads the shortcut bar: it is the way to every command.
+	{
+		intent: Intent.InitCommandLine,
+		mode: Mode.DEFAULT,
+		description: '[:] write command',
+		action: () => {
+			patchState({mode: Mode.COMMAND_LINE});
+			replaceCmdInput('');
+			return succeeded('Entering command line mode', null);
+		},
+	},
 	...HelpActions,
 	...PaletteActions,
 	{
@@ -40,15 +51,6 @@ export const DefaultActions: ActionEntry[] = [
 		},
 	},
 
-	{
-		intent: Intent.InitCommandLine,
-		mode: Mode.DEFAULT,
-		action: () => {
-			patchState({mode: Mode.COMMAND_LINE});
-			replaceCmdInput('');
-			return succeeded('Entering command line mode', null);
-		},
-	},
 	{
 		intent: Intent.Confirm,
 		mode: Mode.DEFAULT,
@@ -143,7 +145,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.EditDescription,
 		mode: Mode.DEFAULT,
-		description: '[e] edit description',
+		description: '[e] edit desc',
 		action: () => {
 			patchState({mode: Mode.COMMAND_LINE});
 			replaceCmdInput(`${CmdKeywords.EDIT} description `);
