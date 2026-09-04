@@ -1151,6 +1151,106 @@ describe('mcp tools', () => {
 		);
 	});
 
+	// A release sweep is dozens of closes; one call for them, and a miss in the
+	// middle does not stop the rest.
+	describe('many tickets in one call', () => {
+		it('closes each target on its own and reports the ones it could not', async () => {
+			const result = await tools.closeIssue({
+				repoRoot: '/repo',
+				issueIds: [
+					fixtureId('issue-1'),
+					fixtureId('nope'),
+					fixtureId('issue-2'),
+				],
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.message).toBe('Closed 2 issues, 1 failed');
+			expect(result.value.done.map(d => d.id)).toEqual([
+				fixtureId('issue-1'),
+				fixtureId('issue-2'),
+			]);
+			expect(result.value.failed).toEqual([
+				{
+					id: fixtureId('nope'),
+					ref: nodeRef(fixtureId('nope')),
+					reason: 'Issue not found',
+				},
+			]);
+			expect(persistModule.materializeAndPersistAll).toHaveBeenCalledTimes(2);
+		});
+
+		it('fails outright when no target went through', async () => {
+			const result = await tools.closeIssue({
+				repoRoot: '/repo',
+				issueIds: [fixtureId('nope')],
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (!isFail(result)) return;
+			expect(result.message).toContain('Closed 0 issues, 1 failed');
+			expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+		});
+
+		it('moves each target', async () => {
+			const result = await tools.moveIssue({
+				repoRoot: '/repo',
+				issueIds: [fixtureId('issue-1'), '01H0000000000000000ABCDEFG'],
+				parentId: 'swimlane-2',
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.done).toHaveLength(2);
+			expect(result.value.failed).toEqual([]);
+			expect(persistModule.materializeAndPersistAll).toHaveBeenCalledTimes(2);
+		});
+
+		it('tags every target in one persist, behind the tag it creates', async () => {
+			const result = await tools.addIssueTag({
+				repoRoot: '/repo',
+				issueIds: [
+					fixtureId('issue-1'),
+					fixtureId('nope'),
+					'01H0000000000000000ABCDEFG',
+				],
+				tagName: 'urgent',
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.done).toHaveLength(2);
+			expect(result.value.failed.map(f => f.id)).toEqual([fixtureId('nope')]);
+			expect(result.value.tag.name).toBe('urgent');
+			expect(persistModule.materializeAndPersistAll).toHaveBeenCalledTimes(1);
+			expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+				[
+					expect.objectContaining({action: 'create.tag'}),
+					expect.objectContaining({
+						action: 'add.issue.tag',
+						payload: expect.objectContaining({id: fixtureId('issue-1')}),
+					}),
+					expect.objectContaining({
+						action: 'add.issue.tag',
+						payload: expect.objectContaining({
+							id: '01H0000000000000000ABCDEFG',
+						}),
+					}),
+				],
+				'/state',
+			);
+		});
+
+		it('asks for a target when given none', async () => {
+			const result = await tools.closeIssue({repoRoot: '/repo'});
+
+			expect(isFail(result)).toBe(true);
+			if (!isFail(result)) return;
+			expect(result.message).toBe('Provide issueId or issueIds');
+		});
+	});
+
 	it('moves an issue', async () => {
 		const result = await tools.moveIssue({
 			repoRoot: '/repo',

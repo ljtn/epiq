@@ -73,6 +73,7 @@ import {
 import {logger} from '../logger.js';
 import {
 	ApiAssignee,
+	ApiBatchOutcome,
 	ApiIssue,
 	ApiIssueBrief,
 	ApiIssueComment,
@@ -89,11 +90,18 @@ type ToolInput = {
 
 type SyncInput = ToolInput;
 
-type MoveIssueInput = ToolInput & {
-	issueId: string;
-	parentId: string;
-	position?: MovePosition;
+// One ticket or many. issueIds asks for a per-ticket outcome; issueId alone
+// keeps the single answer.
+type IssueTargets = {
+	issueId?: string;
+	issueIds?: string[];
 };
+
+type MoveIssueInput = ToolInput &
+	IssueTargets & {
+		parentId: string;
+		position?: MovePosition;
+	};
 
 type ListIssuesInput = ToolInput & {
 	includeClosed?: boolean;
@@ -137,9 +145,7 @@ type CreateIssueInput = ToolInput & {
 	assigneeNames?: string[];
 };
 
-type CloseIssueInput = ToolInput & {
-	issueId: string;
-};
+type CloseIssueInput = ToolInput & IssueTargets;
 
 type BootResult = {
 	repoRoot: string;
@@ -161,10 +167,10 @@ type EditIssueTitleInput = ToolInput & {
 	title: string;
 };
 
-type AddIssueTagInput = ToolInput & {
-	issueId: string;
-	tagName: string;
-};
+type AddIssueTagInput = ToolInput &
+	IssueTargets & {
+		tagName: string;
+	};
 
 type RemoveIssueTagInput = ToolInput & {
 	issueId: string;
@@ -475,6 +481,71 @@ const getIssueAssignees = (ticket: Ticket) =>
 					color: getStringColor(name),
 				} satisfies ApiIssue['assignees'][number]),
 		);
+
+const targetIds = (input: IssueTargets): Result<string[]> => {
+	const ids = [
+		...new Set([
+			...(input.issueIds ?? []),
+			...(input.issueId ? [input.issueId] : []),
+		]),
+	];
+
+	return ids.length
+		? succeeded('Resolved targets', ids)
+		: failed('Provide issueId or issueIds');
+};
+
+const batchResult = (
+	verb: string,
+	outcome: ApiBatchOutcome,
+): Result<ApiBatchOutcome> => {
+	const done = outcome.done.length;
+	const summary =
+		`${verb} ${done} issue${done === 1 ? '' : 's'}` +
+		(outcome.failed.length ? `, ${outcome.failed.length} failed` : '');
+
+	return done
+		? succeeded(summary, outcome)
+		: failed(
+				`${summary}: ${outcome.failed
+					.map(f => `${f.ref} ${f.reason}`)
+					.join('; ')}`,
+		  );
+};
+
+// Runs one write per target and sorts the outcomes. Each write persists on
+// its own: a rank is resolved against the state the write before it left, so
+// the saving is the round trip and the result in the caller's context, not
+// the persist.
+const forEachTarget = (
+	ids: string[],
+	write: (id: string) => Result<unknown>,
+): ApiBatchOutcome => {
+	const outcome: ApiBatchOutcome = {done: [], failed: []};
+
+	for (const id of ids) {
+		const result = write(id);
+		if (isFail(result)) {
+			outcome.failed.push({id, ref: nodeRef(id), reason: result.message});
+		} else {
+			outcome.done.push({id, ref: nodeRef(id)});
+		}
+	}
+
+	return outcome;
+};
+
+const findWritableIssue = (id: string): Result<Ticket> => {
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const issue = stateResult.value.nodes[id];
+	if (!issue || issue.isDeleted) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Target must be an issue');
+	if (issue.readonly) return failed('Issue is readonly');
+
+	return succeeded('Found issue', issue);
+};
 
 export const listBoards = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -815,46 +886,63 @@ export const createIssue = async (input: CreateIssueInput) => {
 	});
 };
 
-export const closeIssue = async (input: CloseIssueInput) => {
+const closeOne = (id: string, actor: Actor, stateBranchRoot: string) => {
+	const issueResult = findWritableIssue(id);
+	if (isFail(issueResult)) return issueResult;
+
+	const rankResult = resolveAndPersistRankForMove(
+		CLOSED_SWIMLANE_ID,
+		id,
+		{at: 'end'},
+		actor,
+		stateBranchRoot,
+	);
+	if (isFail(rankResult)) return rankResult;
+
+	const event = {
+		id: ulid(),
+		...actor,
+		action: 'close.issue',
+		payload: {
+			id,
+			parent: CLOSED_SWIMLANE_ID,
+			rank: rankResult.value,
+		},
+	} satisfies AppEvent<'close.issue'>;
+
+	const results = materializeAndPersistAll([event], stateBranchRoot);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Closed issue', {id, ref: nodeRef(id)});
+};
+
+type IssueRef = {id: string; ref: string};
+
+export function closeIssue(
+	input: CloseIssueInput & {issueIds: string[]},
+): Promise<Result<ApiBatchOutcome>>;
+export function closeIssue(input: CloseIssueInput): Promise<Result<IssueRef>>;
+export async function closeIssue(
+	input: CloseIssueInput,
+): Promise<Result<ApiBatchOutcome | IssueRef>> {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
 	if (isFail(actorResult)) return actorResult;
 
-	const rankResult = resolveAndPersistRankForMove(
-		CLOSED_SWIMLANE_ID,
-		input.issueId,
-		{at: 'end'},
-		actorResult.value,
-		bootResult.value.stateBranchRoot,
-	);
-	if (isFail(rankResult)) return rankResult;
+	const idsResult = targetIds(input);
+	if (isFail(idsResult)) return idsResult;
 
-	const event = {
-		id: ulid(),
-		...actorResult.value,
-		action: 'close.issue',
-		payload: {
-			id: input.issueId,
-			parent: CLOSED_SWIMLANE_ID,
-			rank: rankResult.value,
-		},
-	} satisfies AppEvent<'close.issue'>;
+	const close = (id: string) =>
+		closeOne(id, actorResult.value, bootResult.value.stateBranchRoot);
 
-	const results = materializeAndPersistAll(
-		[event],
-		bootResult.value.stateBranchRoot,
-	);
-	if (isFail(results)) return failed(results.message);
+	if (!input.issueIds) return close(idsResult.value[0]!);
 
-	return succeeded('Closed issue', {
-		id: input.issueId,
-		ref: nodeRef(input.issueId),
-	});
-};
+	return batchResult('Closed', forEachTarget(idsResult.value, close));
+}
 
-export const reopenIssue = async (input: CloseIssueInput) => {
+export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
@@ -924,9 +1012,54 @@ export const reopenIssue = async (input: CloseIssueInput) => {
 	});
 };
 
-export const moveIssue = async (
+const moveOne = (
+	id: string,
 	input: MoveIssueInput,
-): Promise<Result<{id: string; parentId: string}>> => {
+	actor: Actor,
+	stateBranchRoot: string,
+) => {
+	const issueResult = findWritableIssue(id);
+	if (isFail(issueResult)) return issueResult;
+
+	const rankResult = resolveAndPersistRankForMove(
+		input.parentId,
+		id,
+		input.position ?? {at: 'end'},
+		actor,
+		stateBranchRoot,
+	);
+	if (isFail(rankResult)) return rankResult;
+
+	const event = {
+		id: ulid(),
+		...actor,
+		action: 'move.node',
+		payload: {
+			id,
+			parent: input.parentId,
+			rank: rankResult.value,
+		},
+	} satisfies AppEvent<'move.node'>;
+
+	const results = materializeAndPersistAll([event], stateBranchRoot);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Moved issue', {
+		id,
+		ref: nodeRef(id),
+		parentId: input.parentId,
+	});
+};
+
+export function moveIssue(
+	input: MoveIssueInput & {issueIds: string[]},
+): Promise<Result<ApiBatchOutcome>>;
+export function moveIssue(
+	input: MoveIssueInput,
+): Promise<Result<IssueRef & {parentId: string}>>;
+export async function moveIssue(
+	input: MoveIssueInput,
+): Promise<Result<ApiBatchOutcome | (IssueRef & {parentId: string})>> {
 	const repoRootResult = resolveRepoRoot(input.repoRoot);
 	if (isFail(repoRootResult)) return repoRootResult;
 
@@ -950,39 +1083,16 @@ export const moveIssue = async (
 	);
 	if (isFail(bootStateResult)) return bootStateResult;
 
-	const rankResult = resolveAndPersistRankForMove(
-		input.parentId,
-		input.issueId,
-		input.position ?? {at: 'end'},
-		actorResult.value,
-		stateBranchRootResult.value,
-	);
+	const idsResult = targetIds(input);
+	if (isFail(idsResult)) return idsResult;
 
-	if (isFail(rankResult)) return rankResult;
+	const move = (id: string) =>
+		moveOne(id, input, actorResult.value, stateBranchRootResult.value);
 
-	const event = {
-		id: ulid(),
-		...actorResult.value,
-		action: 'move.node',
-		payload: {
-			id: input.issueId,
-			parent: input.parentId,
-			rank: rankResult.value,
-		},
-	} satisfies AppEvent<'move.node'>;
+	if (!input.issueIds) return move(idsResult.value[0]!);
 
-	const results = materializeAndPersistAll(
-		[event],
-		stateBranchRootResult.value,
-	);
-	if (isFail(results)) return failed(results.message);
-
-	return succeeded('Moved issue', {
-		id: input.issueId,
-		ref: nodeRef(input.issueId),
-		parentId: input.parentId,
-	});
-};
+	return batchResult('Moved', forEachTarget(idsResult.value, move));
+}
 
 export const createSwimlane = async (input: CreateSwimlaneInput) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -1604,27 +1714,52 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 	});
 };
 
-export const addIssueTag = async (input: AddIssueTagInput) => {
+type TagRef = {tag: {id: string; name: string}};
+
+export function addIssueTag(
+	input: AddIssueTagInput & {issueIds: string[]},
+): Promise<Result<ApiBatchOutcome & TagRef>>;
+export function addIssueTag(
+	input: AddIssueTagInput,
+): Promise<Result<IssueRef & TagRef>>;
+export async function addIssueTag(
+	input: AddIssueTagInput,
+): Promise<Result<(ApiBatchOutcome & TagRef) | (IssueRef & TagRef)>> {
 	const bootResult = await boot(input.repoRoot, {pull: false});
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
 	if (isFail(actorResult)) return actorResult;
 
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Tag target must be an issue');
-	if (issue.readonly) return failed('Cannot tag readonly issue');
+	const idsResult = targetIds(input);
+	if (isFail(idsResult)) return idsResult;
 
 	const tagName = sanitizeInlineText(input.tagName).trim();
 	if (!tagName) return failed('Tag name cannot be empty');
 
 	const overLongTag = tooLong('Tag name', tagName, MAX_TAG_NAME_LENGTH);
 	if (overLongTag) return failed(overLongTag);
+
+	// Tagging needs no rank, so every target that checks out goes into one
+	// persist, behind the tag's creation if it is new.
+	const outcome: ApiBatchOutcome = {done: [], failed: []};
+
+	for (const id of idsResult.value) {
+		const issueResult = findWritableIssue(id);
+		if (isFail(issueResult)) {
+			outcome.failed.push({id, ref: nodeRef(id), reason: issueResult.message});
+		} else {
+			outcome.done.push({id, ref: nodeRef(id)});
+		}
+	}
+
+	if (!input.issueIds && outcome.failed[0]) {
+		return failed(outcome.failed[0].reason);
+	}
+
+	if (outcome.done.length === 0) {
+		return failed(batchResult('Tagged', outcome).message);
+	}
 
 	const existingTag = nodeRepo.findTagByName(tagName);
 
@@ -1644,15 +1779,18 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 						},
 					} satisfies AppEvent<'create.tag'>,
 			  ]),
-		{
-			id: ulid(),
-			...actorResult.value,
-			action: 'add.issue.tag',
-			payload: {
-				id: input.issueId,
-				tag: tagId,
-			},
-		} satisfies AppEvent<'add.issue.tag'>,
+		...outcome.done.map(
+			({id}) =>
+				({
+					id: ulid(),
+					...actorResult.value,
+					action: 'add.issue.tag',
+					payload: {
+						id,
+						tag: tagId,
+					},
+				} satisfies AppEvent<'add.issue.tag'>),
+		),
 	];
 
 	const results = materializeAndPersistAll(
@@ -1662,12 +1800,17 @@ export const addIssueTag = async (input: AddIssueTagInput) => {
 
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded('Added issue tag', {
-		id: input.issueId,
-		ref: nodeRef(input.issueId),
-		tag: {id: tagId, name: tagName},
-	});
-};
+	const tag = {id: tagId, name: tagName};
+
+	if (!input.issueIds) {
+		return succeeded('Added issue tag', {...outcome.done[0]!, tag});
+	}
+
+	const batch = batchResult('Tagged', outcome);
+	return isFail(batch)
+		? batch
+		: succeeded(batch.message, {...batch.value, tag});
+}
 
 // Tombstone, not deletion: the id and every ticket reference survive in the
 // log; the tag just stops rendering anywhere, and its name is free again.
