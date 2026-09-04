@@ -513,6 +513,7 @@ h2 {
 .media-placeholder > img {
 	width: 100%;
 	display: block;
+	border-radius: 4px;
 }
 .media-placeholder {
 	min-height: 360px;
