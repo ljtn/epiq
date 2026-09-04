@@ -211,14 +211,45 @@ export const toPersistedEvent = (
 // whole log every time.
 export type EdgeCursor = {current?: string | null};
 
+/**
+ * The identity an event gets: an id minted past the edge it follows, and that
+ * edge as its causal parent.
+ *
+ * Its own step because the board has to apply an event under the id the log
+ * will carry. Materializing under one id and writing another leaves a board no
+ * replay reproduces, and nothing that addresses an event by id — a ticket's log
+ * row, a checkout of one — can match the two up.
+ */
+export function mintEventId(
+	rootDir: string,
+	edge?: EdgeCursor,
+): Result<CompositeId> {
+	let edgeValue: string | null;
+	if (edge && edge.current !== undefined) {
+		edgeValue = edge.current;
+	} else {
+		const edgeRef = getEdgeRef(rootDir);
+		if (isFail(edgeRef)) return failed(edgeRef.message);
+		edgeValue = edgeRef.value;
+	}
+
+	const newId = edgeValue ? getNextId(seedFromEdgeRef(edgeValue)) : getNextId();
+
+	return succeeded('Minted event id', [newId, edgeValue]);
+}
+
 export function persist({
 	event,
 	rootDir,
 	edge,
+	id,
 }: {
 	event: AppEvent;
 	rootDir: string;
 	edge?: EdgeCursor;
+	// The identity a caller already minted, so it could apply the event under
+	// it. Minted here when absent — the same rule either way.
+	id?: CompositeId;
 }): Result<PersistSuccess> {
 	try {
 		const ensureEventsDirResult = ensureEventsDir(rootDir);
@@ -230,18 +261,12 @@ export function persist({
 		});
 		if (isFail(filePath)) return filePath;
 
-		let edgeValue: string | null;
-		if (edge && edge.current !== undefined) {
-			edgeValue = edge.current;
-		} else {
-			const edgeRef = getEdgeRef(rootDir);
-			if (isFail(edgeRef)) return failed(edgeRef.message);
-			edgeValue = edgeRef.value;
-		}
+		const identity = id
+			? succeeded('Minted event id', id)
+			: mintEventId(rootDir, edge);
+		if (isFail(identity)) return failed(identity.message);
 
-		const newId = edgeValue
-			? getNextId(seedFromEdgeRef(edgeValue))
-			: getNextId();
+		const [newId, edgeValue] = identity.value;
 
 		const entryResult = toPersistedEvent(stripActor(event), [newId, edgeValue]);
 
