@@ -365,6 +365,9 @@ h2 {
 	grid-template-columns: repeat(3, 1fr);
 	gap: 14px;
 }
+.cards-two {
+	grid-template-columns: repeat(2, 1fr);
+}
 .card {
 	min-height: 230px;
 	padding: 20px 10px;

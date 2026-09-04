@@ -214,6 +214,46 @@
 				</div>
 			</section>
 
+			<section id="agents" class="wrap">
+				<div class="section-head">
+					<div>
+						<div class="kicker">Agent ready</div>
+						<h2>MCP + SKILL.md.</h2>
+					</div>
+					<p>
+						An agent works the board through the same log you do. The MCP
+						server gives it the tools; the skill file gives it the rules.
+					</p>
+				</div>
+
+				<div class="cards cards-two">
+					<article class="card">
+						<div class="icon">mcp</div>
+						<h3>The MCP server</h3>
+						<p>
+							Thirty-odd tools over stdio: list, create, move, tag, comment,
+							close, sync. One server per agent session, each under its own
+							board name, so the log reads "claude/oskar moved it", not yours.
+						</p>
+					</article>
+					<article class="card">
+						<div class="icon">skill</div>
+						<h3>SKILL.md</h3>
+						<p>
+							Epiq ships a skill with sane defaults. Some of them: assume a
+							name, branch in a worktree, prefix every commit with the ticket
+							ref, close with a Solution comment, never touch the state branch.
+						</p>
+						<a
+							class="inline-link"
+							href="https://github.com/ljtn/epiq/blob/main/.claude/skills/epiq/SKILL.md"
+							rel="noopener"
+							>Read the skill &#8594;</a
+						>
+					</article>
+				</div>
+			</section>
+
 			<section id="why" class="wrap">
 				<div class="section-head">
 					<div>
