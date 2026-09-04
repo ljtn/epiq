@@ -259,9 +259,10 @@ export const createMcpServer = () => {
 		'epiq_issue_tag_add',
 		{
 			description:
-				'Add a tag to an Epiq issue, creating the tag if it does not exist',
+				'Add a tag to an Epiq issue, or to many at once with issueIds, creating the tag if it does not exist',
 			inputSchema: z.object({
-				issueId: z.string().min(1),
+				issueId: z.string().min(1).optional(),
+				issueIds: z.array(z.string().min(1)).min(1).max(200).optional(),
 				tagName: z.string().min(1).max(MAX_TAG_NAME_LENGTH),
 				repoRoot: z.string().optional(),
 			}),
@@ -451,9 +452,11 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_issue_close',
 		{
-			description: 'Close an Epiq issue',
+			description:
+				'Close an Epiq issue, or many at once with issueIds — one call, an outcome per ticket',
 			inputSchema: z.object({
-				issueId: z.string().min(1),
+				issueId: z.string().min(1).optional(),
+				issueIds: z.array(z.string().min(1)).min(1).max(200).optional(),
 				repoRoot: z.string().optional(),
 			}),
 		},
@@ -463,9 +466,11 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_issue_move',
 		{
-			description: 'Move an Epiq issue to another swimlane',
+			description:
+				'Move an Epiq issue to another swimlane, or many at once with issueIds — one call, an outcome per ticket',
 			inputSchema: z.object({
-				issueId: z.string().min(1),
+				issueId: z.string().min(1).optional(),
+				issueIds: z.array(z.string().min(1)).min(1).max(200).optional(),
 				parentId: z.string().min(1),
 				position: z
 					.discriminatedUnion('at', [

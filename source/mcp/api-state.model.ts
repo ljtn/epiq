@@ -40,6 +40,13 @@ export type ApiIssue = {
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
 
+// One write over many tickets: which went through and which did not, and
+// why. A failure is per ticket, not per call.
+export type ApiBatchOutcome = {
+	done: {id: string; ref: string}[];
+	failed: {id: string; ref: string; reason: string}[];
+};
+
 // What a list is scanned for: enough to pick a ticket out and take its ref,
 // and nothing that runs to paragraphs.
 export type ApiIssueBrief = {
