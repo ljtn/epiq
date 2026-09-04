@@ -15,6 +15,47 @@ import {
 useTempHome();
 
 describe('sync', () => {
+	it('commits locally and reports no remote when the repo has no origin', async () => {
+		const {repoRoot} = await setupRepo();
+		const ownEventFileName = 'u1.alice.jsonl';
+
+		const bootResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(bootResult)) throw new Error(bootResult.message);
+
+		const removeResult = await execGit({
+			args: ['remote', 'remove', 'origin'],
+			cwd: repoRoot,
+		});
+		if (isFail(removeResult)) throw new Error(removeResult.message);
+
+		writeFile(
+			getEventsFile({
+				root: bootResult.value.stateBranchRoot,
+				fileName: ownEventFileName,
+			}),
+			eventLine('01H00000000000000000000001'),
+		);
+
+		const syncResult = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName,
+		});
+		if (isFail(syncResult)) throw new Error(syncResult.message);
+
+		expect(syncResult.value.createdCommit).toBe(true);
+		expect(syncResult.value.offline).toBe(true);
+		expect(syncResult.message).toBe('Committed locally, no remote');
+
+		const again = await syncEpiqWithRemote({cwd: repoRoot, ownEventFileName});
+		if (isFail(again)) throw new Error(again.message);
+
+		expect(again.value.createdCommit).toBe(false);
+		expect(again.message).toBe('No remote');
+	});
+
 	it('allows write sync when main repo is in detached HEAD state', async () => {
 		const {repoRoot} = await setupRepo();
 

@@ -16,6 +16,7 @@ import {
 import {
 	execGit,
 	hasInProgressGitOperation,
+	hasRemote,
 	hasStagedChanges,
 	isAheadOfUpstream,
 	isDetachedHead,
@@ -42,7 +43,8 @@ type SyncSummary = {
 	pulled: boolean;
 	pushed: boolean;
 	bootstrapped: boolean;
-	// Local work is committed; the remote could not be reached.
+	// Local work is committed; the remote could not be reached, or there is
+	// none to reach.
 	offline: boolean;
 	// Another process held the state worktree; nothing was attempted.
 	skipped?: boolean;
@@ -253,8 +255,13 @@ const commitOwnEventFileToStateBranch = async ({
 
 const offlineSummary = (
 	summary: Omit<SyncSummary, 'offline' | 'pulled' | 'pushed'>,
+	reason: 'offline' | 'no remote' = 'offline',
 ): Result<SyncSummary> => {
-	const msg = summary.createdCommit ? 'Committed locally, offline' : 'Offline';
+	const msg = summary.createdCommit
+		? `Committed locally, ${reason}`
+		: reason === 'offline'
+		? 'Offline'
+		: 'No remote';
 
 	setSyncOffline(msg);
 
@@ -367,6 +374,21 @@ const runSync = async ({
 	// ============================
 	// Pull remote
 	// ============================
+	// A repository with no origin is a local-only board, not a broken one:
+	// nothing to pull or push, and nothing to fail on every autosync tick.
+	const remoteResult = trace(
+		'hasRemote',
+		await hasRemote({repoRoot: stateBranchRoot}),
+	);
+	if (isFail(remoteResult)) return failSync(remoteResult.message);
+
+	if (!remoteResult.value) {
+		return offlineSummary(
+			{repoRoot, stateBranchRoot, createdCommit, commitSha, bootstrapped},
+			'no remote',
+		);
+	}
+
 	const pullResult = trace(
 		'pullBranchRebaseIfPresent',
 		await pullBranchRebaseIfPresent({
