@@ -823,6 +823,65 @@ describe('mcp tools', () => {
 		}
 	});
 
+	describe('listIssues narrowing', () => {
+		const ids = async (input: Parameters<typeof tools.listIssues>[0]) => {
+			const result = await tools.listIssues(input);
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return [];
+			return result.value.map(issue => issue.id).sort();
+		};
+
+		it('narrows to one swimlane', async () => {
+			expect(await ids({repoRoot: '/repo', swimlaneId: 'swimlane-1'})).toEqual([
+				'01H0000000000000000ABCDEFG',
+				fixtureId('issue-1'),
+			]);
+		});
+
+		it('narrows by tag name, whatever its case', async () => {
+			expect(await ids({repoRoot: '/repo', tag: 'BUG'})).toEqual([
+				fixtureId('issue-1'),
+			]);
+		});
+
+		it('narrows by assignee name', async () => {
+			expect(await ids({repoRoot: '/repo', assignee: 'alice'})).toEqual([
+				fixtureId('issue-1'),
+			]);
+		});
+
+		it('matches a query against the title and the description', async () => {
+			expect(await ids({repoRoot: '/repo', query: 'distinct'})).toEqual([
+				'01H0000000000000000ABCDEFG',
+			]);
+			expect(await ids({repoRoot: '/repo', query: 'bug description'})).toEqual([
+				fixtureId('issue-1'),
+			]);
+		});
+
+		// A list is scanned, not read: the descriptions are most of a board's
+		// bytes and rarely what the caller came for.
+		it('brief drops the description and names tags, assignees and the lane', async () => {
+			const result = await tools.listIssues({
+				repoRoot: '/repo',
+				swimlaneId: 'swimlane-1',
+				brief: true,
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value).toContainEqual({
+				id: fixtureId('issue-1'),
+				ref: nodeRef(fixtureId('issue-1')),
+				title: 'Fix bug',
+				swimlane: 'Todo',
+				tags: ['bug'],
+				assignees: ['Alice'],
+			});
+			expect(result.value.every(issue => !('description' in issue))).toBe(true);
+		});
+	});
+
 	it('excludes deleted (tombstoned) nodes from boards, swimlanes, and issues', async () => {
 		const boards = await tools.listBoards({repoRoot: '/repo'});
 		const swimlanes = await tools.listSwimlanes({repoRoot: '/repo'});
