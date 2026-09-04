@@ -103,7 +103,7 @@ export const createMcpServer = () => {
 		'epiq_issue_get',
 		{
 			description:
-				'Get one Epiq issue by its full id or its 7-character ref. Use this rather than listing the whole board when you already know which issue you want.',
+				'Get one Epiq issue by its full id or its 7-character ref, with its comments in log order. Use this rather than listing the whole board when you already know which issue you want, and rather than epiq_state_get to read a thread.',
 			inputSchema: z.object({
 				idOrRef: z.string().min(1),
 				repoRoot: z.string().optional(),

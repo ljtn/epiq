@@ -431,6 +431,7 @@ let tools: typeof import('../epiq-api.js');
 let persistModule: typeof import('../../lib/event/event-materialize-and-persist.js');
 let timeTravelModule: typeof import('../epiq-time-travel.js');
 let gitUtilsModule: typeof import('../../git/git-utils.js');
+let nodeRepoModule: typeof import('../../lib/repository/node-repo.js');
 
 beforeAll(async () => {
 	tools = await import('../epiq-api.js');
@@ -439,6 +440,7 @@ beforeAll(async () => {
 	);
 	timeTravelModule = await import('../epiq-time-travel.js');
 	gitUtilsModule = await import('../../git/git-utils.js');
+	nodeRepoModule = await import('../../lib/repository/node-repo.js');
 });
 
 describe('mcp tools', () => {
@@ -530,6 +532,51 @@ describe('mcp tools', () => {
 			if (isFail(result)) return;
 			expect(result.value.id).toBe(fixtureId('issue-1'));
 			expect(result.value.ref).toBe(nodeRef(fixtureId('issue-1')));
+		});
+
+		// The skill tells an agent to read a thread before starting; without this
+		// the only tool that carried a comment was the whole state.
+		it('carries the comments in log order, named by their author', async () => {
+			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
+				[
+					{
+						id: fixtureId('comment-2'),
+						issue: fixtureId('issue-1'),
+						authorId: 'nobody',
+						authorName: 'Bob',
+						md: 'Second',
+					},
+					{
+						id: fixtureId('comment-1'),
+						issue: fixtureId('issue-1'),
+						authorId: 'contributor-1',
+						authorName: 'Alice',
+						md: 'First',
+					},
+				],
+			);
+
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.comments).toEqual([
+				{
+					id: fixtureId('comment-1'),
+					author: 'Alice',
+					createdAt: expect.any(Number),
+					body: 'First',
+				},
+				{
+					id: fixtureId('comment-2'),
+					author: 'Bob',
+					createdAt: expect.any(Number),
+					body: 'Second',
+				},
+			]);
 		});
 
 		// The inverse of the commit-prefix convention: ref in, ticket out.
