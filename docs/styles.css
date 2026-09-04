@@ -395,14 +395,6 @@ h2 {
 	line-height: 1.55;
 }
 
-.split {
-	display: grid;
-	grid-template-columns: 0.9fr 1.1fr;
-	gap: 16px;
-	/* The statement panel holds a heading and a paragraph; letting it stretch
-	   to the height of the list beside it leaves a half-empty box. */
-	align-items: center;
-}
 .panel {
 	background: rgb(14 18 30 / 5%);
 	padding: 24px;
@@ -441,40 +433,31 @@ h2 {
 	color: var(--violet);
 }
 
-.timeline {
-	display: grid;
-	gap: 10px;
+/* The model, stated plainly: heading, paragraph, then the points, all on one
+   left edge and no wider than a comfortable line. */
+.model h3 {
+	margin: 0 0 14px;
+	font-size: 28px;
+	letter-spacing: -0.03em;
 }
-.step {
-	display: grid;
-	grid-template-columns: 42px 1fr;
-	gap: 14px;
-	align-items: start;
-	padding: 14px;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	background: linear-gradient(
-		100deg,
-		rgba(0, 128, 255, 0.045),
-		rgba(72, 0, 255, 0.065)
-	);
+.model > p {
+	max-width: 640px;
+	margin: 0 0 44px;
+	color: var(--muted);
+	line-height: 1.58;
 }
-.num {
-	width: 42px;
-	height: 42px;
-	border-radius: 8px;
+.points {
 	display: grid;
-	place-items: center;
-	background: rgba(118, 168, 255, 0.1);
-	color: var(--deepBlue);
-	font: 700 14px var(--mono);
-	border: 1px solid rgba(118, 145, 255, 0.22);
+	gap: 28px;
+	max-width: 640px;
+	margin: 0;
 }
-.step b {
-	display: block;
+.points dt {
+	font-weight: 700;
 	margin-bottom: 5px;
 }
-.step span {
+.points dd {
+	margin: 0;
 	color: var(--muted);
 	line-height: 1.5;
 }
@@ -588,8 +571,7 @@ aside:not(.docs-layout > aside) {
 }
 
 @media (max-width: 900px) {
-	.hero-grid,
-	.split {
+	.hero-grid {
 		grid-template-columns: minmax(0, 1fr);
 	}
 	/* No room for the animated board once the hero stacks. */
