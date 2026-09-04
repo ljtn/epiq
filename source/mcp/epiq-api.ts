@@ -74,6 +74,8 @@ import {logger} from '../logger.js';
 import {
 	ApiAssignee,
 	ApiIssue,
+	ApiIssueComment,
+	ApiIssueDetail,
 	ApiState,
 	ApiIssueHistoryEntry,
 	ApiSwimlane,
@@ -440,6 +442,21 @@ const mergeRegistryNames = (
 	return byId;
 };
 
+// A comment's id is its ULID, so sorting the ids is log order.
+const getIssueComments = (issueId: string): ApiIssueComment[] =>
+	nodeRepo
+		.getCommentsByIssue(issueId)
+		.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+		.map(comment => ({
+			id: comment.id,
+			author:
+				nodeRepo.getContributor(comment.authorId)?.name ??
+				comment.authorName ??
+				'Unknown',
+			createdAt: ulidTimeMs(comment.id),
+			body: comment.md,
+		}));
+
 const getIssueAssignees = (ticket: Ticket) =>
 	(ticket.props.assignees ?? [])
 		.map(assignee => nodeRepo.getContributor(assignee))
@@ -552,7 +569,8 @@ export const getIssue = async (input: GetIssueInput) => {
 		readonly: Boolean(issue.readonly),
 		tags: getIssueTags(issue),
 		assignees: getIssueAssignees(issue),
-	} satisfies ApiIssue);
+		comments: getIssueComments(issue.id),
+	} satisfies ApiIssueDetail);
 };
 
 export const listIssues = async (input: ListIssuesInput) => {

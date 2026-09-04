@@ -14,6 +14,15 @@ export type ApiComment = {
 	createdAt: number;
 };
 
+// A comment as epiq_issue_get carries it: what a thread is read for, and
+// nothing the GUI needs to draw one.
+export type ApiIssueComment = {
+	id: string;
+	author: string;
+	createdAt: number;
+	body: string;
+};
+
 export type ApiIssue = {
 	id: string;
 	ref: string;
@@ -28,6 +37,8 @@ export type ApiIssue = {
 	parentNodeId: string;
 	isClosed: boolean;
 };
+
+export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};
 
 export type ApiSwimlane = {
 	id: string;
