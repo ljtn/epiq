@@ -1,5 +1,9 @@
 import {renderApp} from './Index.js';
-import {loadProject, loadWithoutProject} from './lib/boot/load-project.js';
+import {
+	loadProject,
+	loadWithoutProject,
+	refreshProjectInBackground,
+} from './lib/boot/load-project.js';
 import {resolveEnvActor} from './lib/config/actor-env.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
@@ -36,6 +40,11 @@ export async function bootTui(): Promise<Result<void>> {
 		if (isFail(renderResult)) return failAt(6, renderResult.message);
 
 		initListeners();
+
+		// After the first frame, so the board is up while the network answers.
+		if (isSuccess(repoRootResult)) {
+			refreshProjectInBackground(repoRootResult.value);
+		}
 
 		return succeeded('Booted Epiq', undefined);
 	} catch (error) {
