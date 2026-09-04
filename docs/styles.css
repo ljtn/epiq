@@ -363,26 +363,16 @@ h2 {
 .cards {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
-	gap: 14px;
+	gap: 40px 56px;
+	margin-top: 40px;
 }
 .cards-two {
 	grid-template-columns: repeat(2, 1fr);
 }
+/* A card is a heading and a paragraph on the page itself: no panel, no
+   icon, the space between them doing the separating. */
 .card {
-	min-height: 230px;
-	padding: 20px 10px;
-	background: linear-gradient(180deg, rgb(0 128 255 / 3%), rgb(72 0 255 / 4%));
-}
-.icon {
-	width: 56px;
-	height: 56px;
-	border-radius: 4px;
-	display: grid;
-	place-items: center;
-	margin-bottom: 18px;
-	background: rgba(97, 93, 154, 0.1);
-	color: #226fdc;
-	font: 18px var(--mono);
+	padding: 12px 0 0;
 }
 .card h3 {
 	margin: 0 0 10px;
@@ -582,8 +572,6 @@ video,
 img {
 	margin: 40px;
 }
-video,
-img,
 aside:not(.docs-layout > aside) {
 	box-shadow: 0 0 48px #4c839e55;
 }
