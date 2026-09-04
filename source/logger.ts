@@ -5,7 +5,14 @@ import {isFail} from './lib/model/result-types.js';
 import {EPIQ_DIR_NAME, resolveClosestEpiqRoot} from './lib/storage/paths.js';
 import {LogLevel} from './lib/state/settings.state.js';
 
-const MAX_LINES = 1000;
+export const MAX_LINES = 1000;
+// One message may span many lines (a stack trace does), so the file is bounded
+// in bytes as well: a log past V8's string cap cannot be read back to trim it,
+// and a trim that throws inside the logger takes the whole app down with it.
+export const MAX_BYTES = 4 * 1024 * 1024;
+// Caps a single message, so one dump of a large object or a deep stack cannot
+// eat the whole horizon on its own.
+export const MAX_MESSAGE_CHARS = 16 * 1024;
 const TRIM_EVERY_N_WRITES = 50;
 
 let writesSinceTrim = 0;
@@ -27,45 +34,83 @@ const getLogPath = () => {
 	return path.join(epiqRootDirResult.value, EPIQ_DIR_NAME, 'log', 'epiq.log');
 };
 
-function enforceLogHorizon() {
-	const logPath = getLogPath();
+// The last `maxBytes` of the file, starting at a line boundary, without
+// decoding what comes before them.
+const readTail = (filePath: string, maxBytes: number): string => {
+	const size = fs.statSync(filePath).size;
 
-	if (!logPath) return;
+	if (size <= maxBytes) {
+		return fs.readFileSync(filePath, 'utf8');
+	}
+
+	const fd = fs.openSync(filePath, 'r');
+	try {
+		const buffer = Buffer.alloc(maxBytes);
+		fs.readSync(fd, buffer, 0, maxBytes, size - maxBytes);
+		const text = buffer.toString('utf8');
+		const firstNewline = text.indexOf('\n');
+
+		return firstNewline === -1 ? '' : text.slice(firstNewline + 1);
+	} finally {
+		fs.closeSync(fd);
+	}
+};
+
+export function enforceLogHorizon(logPath: string) {
 	if (!fs.existsSync(logPath)) return;
 
-	const content = fs.readFileSync(logPath, 'utf8');
-	const lines = content.split('\n');
+	const size = fs.statSync(logPath).size;
+	const lines = readTail(logPath, MAX_BYTES).split('\n');
 
 	if (lines[lines.length - 1] === '') {
 		lines.pop();
 	}
 
-	if (lines.length <= MAX_LINES) return;
+	if (size <= MAX_BYTES && lines.length <= MAX_LINES) return;
 
 	const trimmed = lines.slice(-MAX_LINES).join('\n') + '\n';
 
 	fs.writeFileSync(logPath, trimmed, 'utf8');
 }
 
+const clip = (message: string): string => {
+	if (message.length <= MAX_MESSAGE_CHARS) return message;
+
+	const dropped = message.length - MAX_MESSAGE_CHARS;
+
+	return `${message.slice(0, MAX_MESSAGE_CHARS)} … [${dropped} more chars]`;
+};
+
 function write(prefix: string, args: unknown[], short = false) {
 	const logPath = getLogPath();
 	if (!logPath) return;
 
-	const message = util.format(...args);
+	const message = clip(util.format(...args));
 	const now = new Date();
 
 	const timestamp = short ? now.toISOString().slice(11, 19) : now.toISOString();
 
 	const line = `[${timestamp}] ${prefix} ${message}\n`;
 
-	fs.mkdirSync(path.dirname(logPath), {recursive: true});
-	fs.appendFileSync(logPath, line, 'utf8');
+	// A log that cannot be written or trimmed is not a reason to take the app
+	// down: the callers are already on an error path or in a render.
+	try {
+		fs.mkdirSync(path.dirname(logPath), {recursive: true});
+		fs.appendFileSync(logPath, line, 'utf8');
 
-	writesSinceTrim++;
+		writesSinceTrim++;
 
-	if (writesSinceTrim >= TRIM_EVERY_N_WRITES) {
-		writesSinceTrim = 0;
-		enforceLogHorizon();
+		// The byte cap is checked on every write, not every fiftieth: a log
+		// inherited from an older build may already be far past it.
+		if (
+			writesSinceTrim >= TRIM_EVERY_N_WRITES ||
+			fs.statSync(logPath).size > MAX_BYTES
+		) {
+			writesSinceTrim = 0;
+			enforceLogHorizon(logPath);
+		}
+	} catch {
+		// Dropped on purpose.
 	}
 }
 
@@ -107,5 +152,3 @@ export const logger = {
 };
 
 (globalThis as {logger?: typeof logger}).logger = logger;
-
-export {};
