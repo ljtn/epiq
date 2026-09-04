@@ -9,7 +9,7 @@ import {
 import {nodeRepo} from '../repository/node-repo.js';
 import {getState} from '../state/state.js';
 import {materialize} from './event-materialize.js';
-import {EdgeCursor, persist} from './event-persist.js';
+import {EdgeCursor, mintEventId, persist} from './event-persist.js';
 import {
 	AppEvent,
 	AppEventMap,
@@ -23,18 +23,40 @@ type MaterializedValue<A extends EventAction> = {
 	result: AppEventMap[A]['result'];
 };
 
+/**
+ * Applies an event to the board and writes it to the log, under one identity.
+ *
+ * The id a caller builds an event with is a placeholder: the real one is minted
+ * here, against the edge the event will follow, before the board sees it. So
+ * what a ticket's log holds is what its line in the file holds, and the state
+ * this leaves behind is the state replaying that line produces.
+ *
+ * Minted before materializing rather than after persisting, because a live
+ * write whose precondition fails must leave the log untouched — an event
+ * appended and then rejected would be skipped by every replay, for good.
+ */
 function materializeAndPersist<A extends EventAction>(
 	event: AppEvent<A>,
 	rootDir: string,
 	edge?: EdgeCursor,
 ): MaterializeResult<A> {
-	const materialized = materialize(event);
+	const id = mintEventId(rootDir, edge);
+	if (isFail(id)) return failed(id.message);
+
+	const identified = {...event, id: id.value[0]};
+
+	const materialized = materialize(identified);
 
 	if (materialized.status !== resultStatuses.Success) {
 		return materialized;
 	}
 
-	const persistResult = persist({event, rootDir, edge});
+	const persistResult = persist({
+		event: identified,
+		rootDir,
+		edge,
+		id: id.value,
+	});
 	if (isFail(persistResult)) return persistResult;
 
 	return materialized;

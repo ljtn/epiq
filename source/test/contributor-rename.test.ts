@@ -3,11 +3,23 @@ import {AppEvent} from '../lib/event/event.model.js';
 
 const persisted: AppEvent[] = [];
 
+let minted = 0;
+
 vi.mock('../lib/event/event-persist.js', () => ({
 	persist: vi.fn(({event}: {event: AppEvent}) => {
 		persisted.push(event);
 		return {status: 'success', message: 'mocked persist', value: null};
 	}),
+	// The write path identifies an event before applying it, so the board and
+	// the log agree on what it is called.
+	mintEventId: vi.fn(() => ({
+		status: 'success',
+		message: 'mocked mint',
+		value: [
+			`01H0000000000000000MINT${String(++minted).padStart(2, '0')}`,
+			null,
+		],
+	})),
 	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
 }));
 
