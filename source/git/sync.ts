@@ -534,7 +534,7 @@ const runSync = async ({
  * `finally`, because a sync that failed part-way is exactly when a rebase is
  * left half-applied.
  */
-const withEventLogsIntact = async <T>(
+export const withEventLogsIntact = async <T>(
 	stateBranchRoot: string,
 	fn: () => Promise<T>,
 ): Promise<T> => {

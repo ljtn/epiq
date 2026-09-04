@@ -5,6 +5,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('../lib/boot/load-project.js', () => ({
 	loadProject: vi.fn(),
+	refreshProjectInBackground: vi.fn(),
 }));
 
 vi.mock('../lib/state/cmd.state.js', () => ({

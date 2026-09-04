@@ -1,6 +1,9 @@
 import os from 'node:os';
 import path from 'node:path';
-import {loadProject} from '../../boot/load-project.js';
+import {
+	loadProject,
+	refreshProjectInBackground,
+} from '../../boot/load-project.js';
 import {
 	listRecentProjects,
 	RecentProject,
@@ -85,6 +88,8 @@ export const openProjectCommand = async (): Promise<Result<null>> => {
 		process.chdir(previousCwd);
 		return failed(loadResult.message);
 	}
+
+	refreshProjectInBackground(root);
 
 	return succeeded(`Opened ${recentProjectName(root)}`, null);
 };

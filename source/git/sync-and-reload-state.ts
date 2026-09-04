@@ -158,6 +158,36 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 
 	const {stateBranchRoot, offline} = syncResult.value;
 
+	const reloadResult = reloadStateFromEventLog(stateBranchRoot);
+	if (isFail(reloadResult)) return reloadResult;
+
+	patchState({
+		hasProjectDefinition: true,
+		// The reload succeeded either way; only the remote half did not.
+		syncStatus: offline
+			? {msg: 'Committed locally, offline', status: 'offline'}
+			: {msg: 'Synced', status: 'synced'},
+	});
+
+	logger.debug('[sync] syncAndReloadState:done', {
+		syncStatus: getState().syncStatus,
+	});
+
+	return succeeded('Synced', true);
+};
+
+/**
+ * Re-materialises the board from the event log on disk without losing the
+ * user's place: filters are view state the replay would reset, and navigation
+ * is anchored before and restored after. Refused while editing, so a reload
+ * never drops half-typed input.
+ *
+ * Shared by the sync and by the boot-time pull: both leave new lines on disk
+ * that the board has to show.
+ */
+export const reloadStateFromEventLog = (
+	stateBranchRoot: string,
+): Result<null> => {
 	logger.debug('[sync] loading merged events after sync', {
 		stateBranchRoot,
 	});
@@ -298,19 +328,7 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 		return restoreResult;
 	}
 
-	patchState({
-		hasProjectDefinition: true,
-		// The reload succeeded either way; only the remote half did not.
-		syncStatus: offline
-			? {msg: 'Committed locally, offline', status: 'offline'}
-			: {msg: 'Synced', status: 'synced'},
-	});
-
-	logger.debug('[sync] syncAndReloadState:done', {
-		syncStatus: getState().syncStatus,
-	});
-
-	return succeeded('Synced', true);
+	return succeeded('Reloaded state from event log', null);
 };
 
 const failReloadIfNotDefaultMode = (): Result<null> | null => {
