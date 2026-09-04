@@ -200,10 +200,11 @@ pre {
 .hero {
 	padding: 46px 0 32px;
 }
+/* One column: the animated board that used to sit beside the copy is gone,
+   and the row of calls to action needs the width. */
 .hero-grid {
 	display: grid;
-	grid-template-columns: 1.02fr 0.98fr;
-	gap: 120px;
+	grid-template-columns: minmax(0, 1fr);
 	align-items: center;
 	min-height: 440px;
 }
@@ -234,6 +235,18 @@ h1 {
 	gap: 12px;
 	flex-direction: column;
 	align-items: flex-start;
+}
+/* The hero's two calls to action sit side by side, the same height. */
+.hero .actions {
+	flex-direction: row;
+	align-items: stretch;
+}
+.hero-cta {
+	min-height: 48px;
+	padding: 0 20px;
+	font: 14px var(--mono);
+	letter-spacing: -0.02em;
+	white-space: nowrap;
 }
 /* In the install panel the commands are alternatives, so they share a width
    instead of each sizing to its own text and landing ragged. Full width also
