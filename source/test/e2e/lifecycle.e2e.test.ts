@@ -1,10 +1,16 @@
 import path from 'node:path';
 import {beforeAll, describe, expect, it} from 'vitest';
 import {commonSteps} from './e2e-common-steps.js';
-import {ARROW_DOWN, ENTER, setupTui} from './e2e.helper.js';
+import {
+	ARROW_DOWN,
+	commandLineIsIdle,
+	commandLineShows,
+	ENTER,
+	setupTui,
+} from './e2e.helper.js';
 
 const testTimeout = 60_000;
-const EMPTY_CMD = 'for command line';
+const EMPTY_CMD = commandLineIsIdle;
 
 // `epiq` only accepts editors from a fixed allow-list, but `$EDITOR` is one of
 // them and is expanded through the shell at edit time. So we register `$EDITOR`
@@ -23,7 +29,7 @@ type Tui = ReturnType<typeof setupTui>;
 // this completes lets keystrokes merge into a single un-submitted buffer.
 const run = async (tui: Tui, cmd: string, echo: string) => {
 	tui.input(cmd);
-	await tui.waitFor(echo, 4_000);
+	await tui.waitFor(commandLineShows(echo), 4_000);
 	tui.input(ENTER);
 	await tui.waitFor(EMPTY_CMD, 5_000);
 };

@@ -1,25 +1,34 @@
-import chalk from 'chalk';
-import {Mode} from '../model/action-map.model.js';
-import {NavNodeCtx} from '../model/context.model.js';
-import {theme} from '../theme/themes.js';
+import {ActionEntry, ModeUnion} from '../model/action-map.model.js';
 
-const initCommandPalette = chalk.dim.hex(theme.secondary2)(
-	`: for command line`,
-);
+// One keyboard shortcut as the bottom bar and the help screen show it, parsed
+// from an action description of the form `[keys] label`.
+export type ActionHint = {keys: string; label: string};
 
-const exit = `q to exit`;
+export const parseActionHint = (description: string): ActionHint | null => {
+	const match = /^\[(.+?)\]\s*(.+)$/.exec(description);
+	if (!match) return null;
 
-const confirmMove = `${chalk.hex(theme.accent)('m')} ${'to confirm'}`;
+	return {keys: match[1] ?? '', label: match[2] ?? ''};
+};
 
-export const Hints = {
-	[NavNodeCtx.WORKSPACE]: [initCommandPalette],
-	[NavNodeCtx.BOARD]: [initCommandPalette],
-	[NavNodeCtx.BOARD + Mode.COMMAND_LINE]: [initCommandPalette],
-	[NavNodeCtx.SWIMLANE]: [initCommandPalette],
-	[NavNodeCtx.TICKET + Mode.HELP]: [exit],
-	[NavNodeCtx.SWIMLANE + Mode.HELP]: [exit],
-	[NavNodeCtx.TICKET]: [],
-	[NavNodeCtx.FIELD]: [],
-	[NavNodeCtx.SWIMLANE + Mode.MOVE]: [confirmMove],
-	[NavNodeCtx.TICKET + Mode.MOVE]: [confirmMove],
+// Single keys first, then chords and key groups; stable within each rank, so
+// the declaration order of the actions is the order the bar reads in.
+const rankOf = ({keys}: ActionHint): number => (keys.length === 1 ? 0 : 1);
+
+export const getActionHints = (
+	actions: ActionEntry[],
+	mode: ModeUnion,
+): ActionHint[] => {
+	const descriptions = new Set<string>();
+
+	for (const action of actions) {
+		if (action.mode !== mode || !action.description) continue;
+
+		descriptions.add(action.description);
+	}
+
+	return [...descriptions]
+		.map(parseActionHint)
+		.filter((hint): hint is ActionHint => hint !== null)
+		.sort((a, b) => rankOf(a) - rankOf(b));
 };

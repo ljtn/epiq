@@ -2,7 +2,7 @@ import {useSyncExternalStore} from 'react';
 import {contextActions} from '../actions/action-map.js';
 import {DefaultActions} from '../actions/default/default-actions.js';
 import {inputActions} from '../actions/input/input-actions.js';
-import {Hints} from '../hints/hints.js';
+import {getActionHints} from '../hints/hints.js';
 import {readProjectFile} from '../project-setup/project-setup.js';
 import {Mode} from '../model/action-map.model.js';
 import type {AppState} from '../model/app-state.model.js';
@@ -69,13 +69,12 @@ function derive(state: BaseState): Result<AppState> {
 	const breadCrumb = breadCrumbResult.value;
 
 	const {context} = contextNode;
-	const availableHints = Hints[context + mode] ?? Hints[context] ?? [];
-
 	const availableActions = [
 		...DefaultActions,
 		...(contextActions[context] ?? []),
 		...inputActions,
 	];
+	const availableHints = getActionHints(availableActions, mode);
 	const actionIndex = buildActionIndex(availableActions);
 
 	const renderedChildrenIndex = buildChildIndex(nodes, filters);

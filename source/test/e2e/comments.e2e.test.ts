@@ -1,15 +1,21 @@
 import {beforeAll, describe, expect, it} from 'vitest';
 import {commonSteps} from './e2e-common-steps.js';
-import {ARROW_DOWN, ENTER, setupTui} from './e2e.helper.js';
+import {
+	ARROW_DOWN,
+	commandLineIsIdle,
+	commandLineShows,
+	ENTER,
+	setupTui,
+} from './e2e.helper.js';
 
 const testTimeout = 60_000;
-const EMPTY_CMD = 'for command line';
+const EMPTY_CMD = commandLineIsIdle;
 
 type Tui = ReturnType<typeof setupTui>;
 
 const run = async (tui: Tui, cmd: string, echo: string) => {
 	tui.input(cmd);
-	await tui.waitFor(echo, 4_000);
+	await tui.waitFor(commandLineShows(echo), 4_000);
 	tui.input(ENTER);
 	await tui.waitFor(EMPTY_CMD, 5_000);
 };

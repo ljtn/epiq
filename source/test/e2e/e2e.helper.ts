@@ -71,21 +71,34 @@ const createTuiEnv = (extra: Record<string, string> = {}) => {
 const sleep = async (ms: number) =>
 	await new Promise(resolve => setTimeout(resolve, ms));
 
-// Text inside the command-line box, which is the last bordered row of a frame.
-const commandLineContent = (frame: string): string => {
-	const lines = frame.split('\n');
+// Text inside the bottom box: the rows under the last full-width top border,
+// joined, since a long input wraps onto a second row. The bottom border can
+// sit below the last screen row, so the box ends at it or at the frame's end.
+// Null while the box is not there, as when an external editor has the
+// terminal or a frame is only half drawn and still ends in swimlane columns,
+// whose top borders are several boxes wide rather than one.
+const commandLineContent = (frame: string): string | null => {
+	const lines = frame.split('\n').map(line => line.trim());
+	const top = lines.findLastIndex(line => /^╭─+╮$/.test(line));
+	if (top === -1) return null;
 
-	for (let index = lines.length - 1; index >= 0; index--) {
-		const match = /^│(.*)│$/.exec((lines[index] ?? '').trim());
-		if (match) return (match[1] ?? '').trim();
+	const rows: string[] = [];
+
+	for (const line of lines.slice(top + 1)) {
+		if (line.startsWith('╰') || line === '') break;
+
+		const match = /^│([^│]*)│$/.exec(line);
+		if (!match) return null;
+
+		rows.push((match[1] ?? '').trim());
 	}
 
-	return '';
+	return rows.length ? rows.join(' ').trim() : null;
 };
 
 /**
- * True when the command line holds no typed command. Not "contains the
- * placeholder": the caption is absent in some contexts, so waiting on it hangs.
+ * True when the command line holds no typed command: the bottom row is then
+ * the shortcut bar rather than an input.
  */
 // `destroy()` waits for the TUI and kills its process group first, so by now
 // nothing should be writing here; the retries cover a git that escaped anyway.
@@ -98,9 +111,26 @@ export const removeTempRepo = (dir: string): void => {
 	});
 };
 
+// An input opens with `:` or `?` and runs straight into the text or the
+// cursor; the shortcut bar's leading `?` shortcut is followed by a space.
+const isCommandInput = (content: string): boolean =>
+	/^[:?](\S|$)/.test(content);
+
+// The typed command as echoed in the command line, and only there: the
+// shortcut bar repeats command names (`e edit description`), so a match
+// anywhere on screen can fire before a keystroke has landed.
+export const commandLineShows =
+	(text: string) =>
+	(frame: string): boolean => {
+		const content = commandLineContent(frame);
+		return (
+			content !== null && isCommandInput(content) && content.includes(text)
+		);
+	};
+
 export const commandLineIsIdle = (frame: string): boolean => {
 	const content = commandLineContent(frame);
-	return content === '' || content === ': for command line';
+	return content !== null && !isCommandInput(content);
 };
 
 const describeWaitTarget = (

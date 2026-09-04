@@ -1,9 +1,9 @@
 import {beforeAll, describe, expect, it} from 'vitest';
 import {commonSteps} from './e2e-common-steps.js';
-import {ARROW_DOWN, ENTER, setupTui} from './e2e.helper.js';
+import {ARROW_DOWN, commandLineIsIdle, ENTER, setupTui} from './e2e.helper.js';
 
 const testTimeout = 60_000;
-const EMPTY_COMMAND_LINE = ': for command line';
+const EMPTY_COMMAND_LINE = commandLineIsIdle;
 
 beforeAll(async () => {
 	const tui = setupTui();

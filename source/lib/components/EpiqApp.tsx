@@ -54,6 +54,9 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 	const isSetupMode = !isSetupDone;
 	const isUninitializedRepo = isSetupDone && !state.hasProjectDefinition;
 
+	// The setup and init screens carry their own instructions; the board's
+	// shortcuts do nothing there.
+
 	if (isSetupMode) {
 		return (
 			<Box flexDirection="column">
@@ -62,11 +65,7 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 					<SettingsUI height={height} width={width} />
 				</Box>
 
-				<ContextBar
-					width={width}
-					mode={state.mode}
-					availableHints={state.availableHints}
-				/>
+				<ContextBar width={width} mode={state.mode} availableHints={[]} />
 			</Box>
 		);
 	}
@@ -79,11 +78,7 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 					<InitProjectUI height={height} width={width} />
 				</Box>
 
-				<ContextBar
-					width={width}
-					mode={state.mode}
-					availableHints={state.availableHints}
-				/>
+				<ContextBar width={width} mode={state.mode} availableHints={[]} />
 			</Box>
 		);
 	}
