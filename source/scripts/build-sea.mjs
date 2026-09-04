@@ -97,7 +97,14 @@ writeFileSync(resolve(root, 'dist/sea-inner.js'), inner);
 console.log('\n[3/7] Creating CJS bootstrap...');
 const esmCode = readFileSync(resolve(root, 'dist/sea-inner.js'), 'utf8');
 const b64 = Buffer.from(esmCode).toString('base64');
+// Installed before the import so that no stack ever names the data: URL.
+const stackTrace = readFileSync(
+	resolve(root, 'source/scripts/sea-stack-trace.cjs'),
+	'utf8',
+).replace(/^'use strict';\n/, '');
 const cjsWrapper = `'use strict';
+${stackTrace}
+Error.prepareStackTrace = prepareStackTrace;
 const {pathToFileURL} = require('node:url');
 process.env.__EPIQ_SEA_URL__ = pathToFileURL(process.execPath).href;
 (async () => {
