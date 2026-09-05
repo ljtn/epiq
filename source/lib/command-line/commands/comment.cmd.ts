@@ -7,7 +7,7 @@ import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {findAncestor} from '../../repository/node-repo.js';
 import {getState} from '../../state/state.js';
 import {MAX_COMMENT_LENGTH} from '../../utils/text.limits.js';
-import {getPersistRootValue} from './command-utils.js';
+import {getPersistRootValue} from './persist-root.js';
 import {CommandLineInput} from '../../model/action-map.model.js';
 
 export const commentCommand = async (cmdState: CommandLineInput) => {
