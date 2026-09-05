@@ -576,11 +576,14 @@ h2 {
 	place-items: center;
 	text-align: center;
 }
+/* The hero clip alone keeps a faint glow, so it lifts off the page where
+   the media further down sits flat on it. */
 .hero-placeholder > img,
 .hero-placeholder > video {
 	width: 100%;
 	max-width: 1640px;
 	border-radius: 8px;
+	box-shadow: 0 0 64px rgba(76, 131, 158, 0.22);
 }
 /* The scrubber still is a near-black strip: no panel, no glow, and its
    edges fade out so it dissolves into the page instead of sitting on it. */
