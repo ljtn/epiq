@@ -37,14 +37,13 @@ import {IssueAttachments} from './IssueAttachments';
 import {AttachmentUploadStatus} from '../lib/use-issue-mutations';
 import {CollapsibleBody} from './CollapsibleBody';
 import {CommentBody, IssueComments} from './IssueComments';
+import {CommitDiffState, IssueCommits} from './IssueCommits';
 import {
-	CommitDiffState,
 	CommitFocus,
 	DiffLocation,
 	FileTicketParams,
-	IssueCommits,
-	parseDiffCommentMeta,
-} from './IssueCommits';
+} from '../lib/diff-selection';
+import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
