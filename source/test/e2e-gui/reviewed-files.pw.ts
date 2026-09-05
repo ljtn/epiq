@@ -58,10 +58,12 @@ test('a file ticked off as reviewed folds, and arrives folded next time', async 
 	await expect(toggle(files[1]!)).toHaveAttribute('aria-expanded', 'true');
 	await expect(reviewed(files[0]!)).not.toBeChecked();
 
-	// Ticking one off folds it; the other is untouched.
+	// Ticking one off folds it; the other is untouched. Folded, it still says
+	// how big it is.
 	await reviewed(files[0]!).check();
 	await expect(toggle(files[0]!)).toHaveAttribute('aria-expanded', 'false');
 	await expect(toggle(files[1]!)).toHaveAttribute('aria-expanded', 'true');
+	await expect(row(files[0]!)).toContainText('+2');
 
 	// Folded, it can still be opened for another look without unticking it.
 	await toggle(files[0]!).click();

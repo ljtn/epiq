@@ -21,6 +21,8 @@ const file: GuiCommitDiffFile = {
 	path: 'source/a.ts',
 	before: 'before one\nbefore two\nbefore three\nbefore four',
 	after: 'after one\nafter two\nafter three\nafter four',
+	insertions: 4,
+	deletions: 4,
 };
 
 describe('extractSnippet', () => {

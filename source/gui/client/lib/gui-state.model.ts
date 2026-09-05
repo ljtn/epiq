@@ -133,6 +133,8 @@ export type GuiCommitDiffFile = {
 	path: string;
 	before: string;
 	after: string;
+	insertions: number;
+	deletions: number;
 };
 
 export type GuiCommitDiff = {
