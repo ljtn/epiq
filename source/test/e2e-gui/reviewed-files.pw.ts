@@ -44,7 +44,9 @@ test('a file ticked off as reviewed folds, and arrives folded next time', async 
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Review ${stamp}`);
 	await page.getByRole('button', {name: /^Commits/}).click();
-	await page.getByRole('button', {name: 'two files'}).click();
+	// The ticket's only commit, so the tab opens it on its own.
+	const commit = page.getByRole('button', {name: /^two files/});
+	await expect(commit).toHaveAttribute('aria-expanded', 'true');
 
 	const row = (fileName: string) =>
 		page.getByTestId('file-row').filter({hasText: fileName});
@@ -74,7 +76,7 @@ test('a file ticked off as reviewed folds, and arrives folded next time', async 
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Review ${stamp}`);
 	await page.getByRole('button', {name: /^Commits/}).click();
-	await page.getByRole('button', {name: 'two files'}).click();
+	await expect(commit).toHaveAttribute('aria-expanded', 'true');
 
 	await expect(reviewed(files[0]!)).toBeChecked();
 	await expect(toggle(files[0]!)).toHaveAttribute('aria-expanded', 'false');

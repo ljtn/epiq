@@ -1003,8 +1003,14 @@ export const IssueCommits = ({
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
 
+	// The reading layout opens every commit; either layout opens the only
+	// commit, since with one there is nothing to choose between and the click
+	// that would open it is just in the way. Once each, so collapsing it by
+	// hand sticks.
+	const openCommitsOnArrival = expandAll || commits.length === 1;
+
 	useEffect(() => {
-		if (!expandAll) return;
+		if (!openCommitsOnArrival) return;
 
 		const fresh = commits.filter(
 			commit => !autoOpenedShas.current.has(commit.sha),
@@ -1021,7 +1027,7 @@ export const IssueCommits = ({
 			const existing = diffsBySha[commit.sha];
 			if (!existing || existing.error) onLoadDiff(commit.sha);
 		}
-	}, [expandAll, commits]);
+	}, [openCommitsOnArrival, commits]);
 
 	// A commit's files open as they arrive, in either layout: the diff is what
 	// the reader came for. Once per commit, the moment its files first land,

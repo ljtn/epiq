@@ -106,12 +106,16 @@ test('the lanes open every commit and file, ready to read', async ({
 	)?.trim();
 	expect(ref).toBeTruthy();
 
+	// Two commits: a lone one opens on its own in either layout, and the point
+	// here is what the lanes do that the tabs do not.
 	const fileName = linkedFileName(ref!);
+	const otherFile = `other-${ref}.txt`;
 	commitLinkedFile(repoRoot, ref!, 'add notes');
+	commitLinkedFile(repoRoot, ref!, 'add more', otherFile);
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(
-		page.getByRole('button', {name: /^Commits \(1\)/}),
+		page.getByRole('button', {name: /^Commits \(2\)/}),
 	).toBeVisible();
 
 	// Tabbed: collapsed, as before.
@@ -121,15 +125,15 @@ test('the lanes open every commit and file, ready to read', async ({
 	).toHaveAttribute('aria-expanded', 'false');
 	await expect(page.locator('[data-line]')).toHaveCount(0);
 
-	// Lanes: the diff is simply there.
+	// Lanes: the diffs are simply there.
 	await page.getByTitle('Fullscreen').click();
 	await expect(page.getByTestId('lane-commits')).toBeVisible();
-	await expect(page.locator('[data-line]')).toHaveCount(3);
+	await expect(page.locator('[data-line]')).toHaveCount(6);
 	await expect(page.locator('[data-line]').first()).toHaveText('alpha');
 
 	// And collapsing by hand sticks.
 	await page.getByRole('button', {name: fileName}).click();
-	await expect(page.locator('[data-line]')).toHaveCount(0);
+	await expect(page.locator('[data-line]')).toHaveCount(3);
 
 	expect(pageErrors).toEqual([]);
 });

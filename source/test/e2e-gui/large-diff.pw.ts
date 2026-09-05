@@ -55,7 +55,11 @@ test('a commit opens the ordinary files and leaves a lockfile shut', async ({
 	await expect(page.locator('aside')).toContainText(`Lockfile ${stamp}`);
 
 	await page.getByRole('button', {name: /^Commits/}).click();
-	await page.getByRole('button', {name: 'bump deps'}).click();
+	// The ticket's only commit, so the tab opens it on its own.
+	await expect(page.getByRole('button', {name: /^bump deps/})).toHaveAttribute(
+		'aria-expanded',
+		'true',
+	);
 
 	const code = page.getByRole('button', {name: codeFile});
 	const lock = page.getByRole('button', {name: lockFile});
