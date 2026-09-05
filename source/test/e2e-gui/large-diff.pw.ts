@@ -32,9 +32,9 @@ test.beforeEach(async ({page, appUrl}) => {
 });
 
 // The reported case: a commit that touches a lockfile alongside real code.
-// Expand all is for reading the code, and a 4000-line lockfile rendered
-// alongside it is what stalls the tab.
-test('“Expand all” opens the ordinary files and leaves a lockfile shut', async ({
+// The files open on arrival for reading the code, and a 4000-line lockfile
+// rendered alongside it is what stalls the tab.
+test('a commit opens the ordinary files and leaves a lockfile shut', async ({
 	page,
 	pageErrors,
 	repoRoot,
@@ -59,16 +59,11 @@ test('“Expand all” opens the ordinary files and leaves a lockfile shut', asy
 
 	const code = page.getByRole('button', {name: codeFile});
 	const lock = page.getByRole('button', {name: lockFile});
-	await expect(code).toBeVisible();
-	await expect(lock).toBeVisible();
-
-	// Says why it is going to be passed over, before anything is clicked.
-	await expect(lock.getByTestId('large-diff-badge')).toBeVisible();
-
-	await page.getByRole('button', {name: 'Expand all'}).click();
-
 	await expect(code).toHaveAttribute('aria-expanded', 'true');
 	await expect(lock).toHaveAttribute('aria-expanded', 'false');
+
+	// Says why it was passed over, before anything is clicked.
+	await expect(lock.getByTestId('large-diff-badge')).toBeVisible();
 
 	// Still reachable by hand — collapsed is the default, not a refusal.
 	await lock.click();
@@ -80,6 +75,11 @@ test('“Expand all” opens the ordinary files and leaves a lockfile shut', asy
 	// opened — otherwise a large file opened by hand would be stuck open.
 	await page.getByRole('button', {name: 'Collapse all'}).click();
 	await expect(code).toHaveAttribute('aria-expanded', 'false');
+	await expect(lock).toHaveAttribute('aria-expanded', 'false');
+
+	// And opening everything again still passes the large one over.
+	await page.getByRole('button', {name: 'Expand all'}).click();
+	await expect(code).toHaveAttribute('aria-expanded', 'true');
 	await expect(lock).toHaveAttribute('aria-expanded', 'false');
 
 	expect(pageErrors).toEqual([]);
