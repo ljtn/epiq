@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {
 	DiffLineAnnotation,
+	FileDiffMetadata,
 	SelectedLineRange,
 	SelectionSide,
 } from '@pierre/diffs/react';
@@ -29,7 +30,7 @@ import {CopyRef} from './CopyRef';
 import {CreateNodeModal} from './CreateNodeModal';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
-import {FileDiffView} from './DiffPanel';
+import {DIFF_BOX_STYLE, FileDiffView} from './DiffPanel';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {IconComment} from './IconComment';
@@ -471,6 +472,121 @@ const DiffCommentAnnotation = ({
 	);
 };
 
+// The one header a file gets, open or shut. Open, the highlighter renders it
+// in its sticky slot in place of its own (change icon, name, counts), so the
+// name that stays in view while the diff scrolls is also the one that folds
+// it; shut, FileRow stands it in the same box by itself. The counts come off
+// the highlighter's own parse, so they only appear once the diff is open — a
+// shut file is not parsed at all.
+const FileHeader = ({
+	file,
+	expanded,
+	onToggle,
+	commentCount,
+	stat,
+}: {
+	file: GuiCommitDiffFile;
+	expanded: boolean;
+	onToggle: () => void;
+	commentCount: number;
+	stat?: FileDiffMetadata;
+}) => {
+	const [lit, setLit] = useState(false);
+
+	return (
+		<div
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				gap: 10,
+				padding: '4px 10px 4px 4px',
+			}}
+		>
+			<button
+				onClick={onToggle}
+				aria-expanded={expanded}
+				onMouseEnter={() => setLit(true)}
+				onMouseLeave={() => setLit(false)}
+				onFocus={() => setLit(true)}
+				onBlur={() => setLit(false)}
+				style={{
+					...disclosureStyle,
+					flex: 1,
+					minWidth: 0,
+					width: 'auto',
+					color: GUI_THEME.secondary,
+					padding: '4px 6px',
+					background: lit ? DISCLOSURE_HOVER_BG : 'transparent',
+				}}
+			>
+				{expanded ? (
+					<IconChevronDown size={12} />
+				) : (
+					<IconChevronRight size={12} />
+				)}
+				<span
+					style={{
+						fontFamily: 'ui-monospace, monospace',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{file.path}
+				</span>
+				{/* Findable when collapsed — otherwise a comment left on a file with
+				    several others is easy to lose track of. */}
+				{commentCount > 0 && (
+					<span
+						title={`${commentCount} comment${commentCount === 1 ? '' : 's'}`}
+						style={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 3,
+							flexShrink: 0,
+							color: GUI_THEME.accent,
+							fontSize: TEXT.label,
+						}}
+					>
+						<IconComment size={10} />
+						{commentCount}
+					</span>
+				)}
+				{/* Says why "Expand all" passed this one over. Only while shut: once
+				    it is open the diff speaks for itself. */}
+				{!expanded && isLargeDiff(file) && (
+					<span
+						data-testid="large-diff-badge"
+						title={`${diffLineCount(
+							file,
+						).toLocaleString()} lines — left collapsed, open it to load the diff`}
+						style={{
+							flexShrink: 0,
+							color: GUI_THEME.dim,
+							fontSize: TEXT.label,
+							whiteSpace: 'nowrap',
+						}}
+					>
+						large diff
+					</span>
+				)}
+			</button>
+			{stat && (
+				<DiffStat
+					insertions={stat.hunks.reduce(
+						(sum, hunk) => sum + hunk.additionLines,
+						0,
+					)}
+					deletions={stat.hunks.reduce(
+						(sum, hunk) => sum + hunk.deletionLines,
+						0,
+					)}
+				/>
+			)}
+		</div>
+	);
+};
+
 const FileRow = ({
 	sha,
 	file,
@@ -495,7 +611,6 @@ const FileRow = ({
 	focusRange?: SelectedLineRange | null;
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
-	const [headerLit, setHeaderLit] = useState(false);
 	// Held here rather than in the composer so re-dragging the range keeps
 	// what was typed.
 	const [note, setNote] = useState('');
@@ -566,80 +681,19 @@ const FileRow = ({
 		});
 	}
 
-	return (
-		<div ref={rowRef} style={{marginTop: 8}}>
-			<button
-				onClick={onToggle}
-				aria-expanded={expanded}
-				onMouseEnter={() => setHeaderLit(true)}
-				onMouseLeave={() => setHeaderLit(false)}
-				onFocus={() => setHeaderLit(true)}
-				onBlur={() => setHeaderLit(false)}
-				style={{
-					...disclosureStyle,
-					color: GUI_THEME.secondary,
-					padding: '4px 6px',
-					margin: '0 -6px',
-					width: 'calc(100% + 12px)',
-					background: headerLit ? DISCLOSURE_HOVER_BG : 'transparent',
-				}}
-			>
-				{expanded ? (
-					<IconChevronDown size={12} />
-				) : (
-					<IconChevronRight size={12} />
-				)}
-				<span
-					style={{
-						fontFamily: 'ui-monospace, monospace',
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
-					}}
-				>
-					{file.path}
-				</span>
-				{/* Findable when collapsed — otherwise a comment left on a file with
-				    several others is easy to lose track of. */}
-				{fileComments.length > 0 && (
-					<span
-						title={`${fileComments.length} comment${
-							fileComments.length === 1 ? '' : 's'
-						}`}
-						style={{
-							display: 'inline-flex',
-							alignItems: 'center',
-							gap: 3,
-							flexShrink: 0,
-							color: GUI_THEME.accent,
-							fontSize: TEXT.label,
-						}}
-					>
-						<IconComment size={10} />
-						{fileComments.length}
-					</span>
-				)}
-				{/* Says why "Expand all" passed this one over. Only while shut: once
-				    it is open the diff speaks for itself. */}
-				{!expanded && isLargeDiff(file) && (
-					<span
-						data-testid="large-diff-badge"
-						title={`${diffLineCount(
-							file,
-						).toLocaleString()} lines — left collapsed, open it to load the diff`}
-						style={{
-							flexShrink: 0,
-							color: GUI_THEME.dim,
-							fontSize: TEXT.label,
-							whiteSpace: 'nowrap',
-						}}
-					>
-						large diff
-					</span>
-				)}
-			</button>
+	const header = (stat?: FileDiffMetadata) => (
+		<FileHeader
+			file={file}
+			expanded={expanded}
+			onToggle={onToggle}
+			commentCount={fileComments.length}
+			stat={stat}
+		/>
+	);
 
-			{expanded && (
+	return (
+		<div ref={rowRef}>
+			{expanded ? (
 				<>
 					<FileDiffView
 						file={file}
@@ -647,6 +701,7 @@ const FileRow = ({
 						selectedLines={hoveredRange ?? selection}
 						onSelectionEnd={setSelection}
 						lineAnnotations={lineAnnotations}
+						renderCustomHeader={header}
 						renderAnnotation={({metadata}) =>
 							metadata.kind === 'comment' ? (
 								<DiffCommentAnnotation
@@ -691,6 +746,11 @@ const FileRow = ({
 						/>
 					)}
 				</>
+			) : (
+				// No diff mounted while shut — a large file left collapsed is
+				// meant to cost nothing — so the header stands in the same box
+				// by itself.
+				<div style={DIFF_BOX_STYLE}>{header()}</div>
 			)}
 		</div>
 	);
