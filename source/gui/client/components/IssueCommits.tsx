@@ -23,7 +23,6 @@ import {
 	stripDiffCommentMarker,
 } from '../../../lib/utils/diff-comment.js';
 import {timeAgo} from '../lib/gui-format.helper';
-import {useOpenFilesByDefault} from '../lib/diff-expansion';
 import {ActionRow, Textarea} from './FormPrimitives';
 import {Button} from './Button';
 import {CopyRef} from './CopyRef';
@@ -981,20 +980,17 @@ export const IssueCommits = ({
 	comments: GuiComment[];
 	// Where a comment permalink points, read from the URL by the caller.
 	focus?: CommitFocus | null;
-	// Open every commit and file as it appears — for a layout meant for
-	// reading rather than scanning. Each is opened once, so collapsing it by
-	// hand afterwards sticks.
+	// Open every commit as it appears — for a layout meant for reading rather
+	// than scanning. Each is opened once, so collapsing it by hand afterwards
+	// sticks.
 	expandAll?: boolean;
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
 		Record<string, Set<string>>
 	>({});
-	const [openFilesByDefault, setOpenFilesByDefault] = useOpenFilesByDefault();
-
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
-	const settledFiles = useRef(new Set<string>());
 
 	useEffect(() => {
 		if (!expandAll) return;
@@ -1016,45 +1012,27 @@ export const IssueCommits = ({
 		}
 	}, [expandAll, commits]);
 
-	// Files are only known once a diff has arrived, so this runs as they land.
-	const openEveryFile = (sha: string, files: GuiCommitDiffFile[]) => {
-		setExpandedFilesBySha(prev => ({
-			...prev,
-			[sha]: new Set([
-				...(prev[sha] ?? []),
-				// A lockfile opened unasked is what stalls this view, so the
-				// large ones stay shut until they are asked for by name.
-				...files.filter(file => !isLargeDiff(file)).map(file => file.path),
-			]),
-		}));
-	};
-
+	// A commit's files open as they arrive, in either layout: the diff is what
+	// the reader came for. Once per commit, the moment its files first land,
+	// so a file shut by hand afterwards stays shut — and a later "Expand all"
+	// on one commit does not reach back into another.
 	useEffect(() => {
-		if (!expandAll) return;
-
 		for (const commit of commits) {
 			const files = diffsBySha[commit.sha]?.files;
 			if (!files || autoOpenedFiles.current.has(commit.sha)) continue;
 
 			autoOpenedFiles.current.add(commit.sha);
-			openEveryFile(commit.sha, files);
+			setExpandedFilesBySha(prev => ({
+				...prev,
+				[commit.sha]: new Set([
+					...(prev[commit.sha] ?? []),
+					// A lockfile opened unasked is what stalls this view, so the
+					// large ones stay shut until they are asked for by name.
+					...files.filter(file => !isLargeDiff(file)).map(file => file.path),
+				]),
+			}));
 		}
-	}, [expandAll, commits, diffsBySha]);
-
-	// The remembered habit is asked once per commit, the moment its files first
-	// arrive — which outside the reading layout is when the reader opens it,
-	// those being the only commits ever fetched. Deciding then and remembering
-	// that it was decided is what keeps a later "Expand all" from reaching back
-	// and unfolding commits that were opened while the habit was the other way.
-	useEffect(() => {
-		for (const commit of commits) {
-			const files = diffsBySha[commit.sha]?.files;
-			if (!files || settledFiles.current.has(commit.sha)) continue;
-
-			settledFiles.current.add(commit.sha);
-			if (openFilesByDefault) openEveryFile(commit.sha, files);
-		}
-	}, [openFilesByDefault, commits, diffsBySha]);
+	}, [commits, diffsBySha]);
 
 	// Opens the commit and file a permalink names. Deliberately additive — it
 	// never collapses anything the reader already had open, so following a
@@ -1134,13 +1112,6 @@ export const IssueCommits = ({
 			...prev,
 			[sha]: expand ? new Set(filePaths) : new Set(),
 		}));
-
-		// Asking for all of them is also how you say how you like to read, so
-		// the next commit opened follows suit. Only this wholesale control sets
-		// it: opening one file of interest says nothing about the rest. And not
-		// from the reading layout, which unfolds everything whatever the habit
-		// says — there the button means "hide this one", not "and the next".
-		if (!expandAll) setOpenFilesByDefault(expand);
 	};
 
 	if (loading) return <Empty>Loading commits…</Empty>;
