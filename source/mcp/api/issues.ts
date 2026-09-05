@@ -52,15 +52,13 @@ import {
 	getIssueTags,
 	getIssueComments,
 	getIssueAssignees,
-} from './issue-view.js';
-import {
 	IssueTargets,
 	IssueRef,
 	targetIds,
 	batchResult,
 	forEachTarget,
 	findWritableIssue,
-} from './targets.js';
+} from './issue-helpers.js';
 
 type MoveIssueInput = ToolInput &
 	IssueTargets & {

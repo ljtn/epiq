@@ -13,7 +13,10 @@ import {
 	accountFor,
 	logSignature,
 } from '../../lib/event/log-signature.js';
-import {getEpiqDirPath} from '../../lib/storage/paths.js';
+import {
+	getEpiqDirPath,
+	resolveClosestEpiqProjectRoot,
+} from '../../lib/storage/paths.js';
 import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
 import {
 	failed,
@@ -22,7 +25,6 @@ import {
 	succeeded,
 } from '../../lib/model/result-types.js';
 import {getSafeState, isStateInitialized} from '../../lib/state/state.js';
-import {resolveClosestEpiqProjectRoot} from '../../lib/storage/paths.js';
 import {logger} from '../../logger.js';
 import {getTimeTravelStatus} from '../epiq-time-travel.js';
 
