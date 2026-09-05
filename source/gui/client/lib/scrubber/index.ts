@@ -21,6 +21,15 @@ export {
 	MIN_RANGE_DRAG_PX,
 	MIN_ZOOM_SPAN_MS,
 	barWidthCss,
+	dotEntranceScale,
+	dotExitScale,
+	dotAppearAnimation,
+	dotExitAnimation,
+	DOT_EXIT_TOTAL_MS,
+	barGrowAnimation,
+	BAR_ENTRANCE_TOTAL_MS,
+	FADE_IN_ANIMATION,
+	SCRUBBER_KEYFRAMES,
 } from './layout';
 export type {LayoutMode} from './layout';
 export {
@@ -42,32 +51,27 @@ export {
 	identityOf,
 	listIdentities,
 	soleVisibleIdentity,
-} from './categories';
-export type {EventCategory, BoardView} from './categories';
-export {dotDetail, isShown, buildEventDots} from './dots';
-export type {EventDot} from './dots';
-export {chooseSegmentUnit, segmentAt, formatInterval} from './segments';
-export type {SegmentUnit, Segment} from './segments';
+	dotDetail,
+	isShown,
+	buildEventDots,
+	buildBoardFilter,
+	windowNamesIssues,
+	windowIssueIds,
+	issuePassesBoardFilter,
+} from './series';
+export type {EventCategory, BoardView, EventDot, BoardFilter} from './series';
 export {
+	chooseSegmentUnit,
+	segmentAt,
+	formatInterval,
 	SCOPES,
 	isScope,
 	isPeriodWindow,
 	getPeriodRange,
 	formatPeriodLabel,
 	scopeButtonLabel,
-} from './scope';
-export type {Scope, PeriodRange} from './scope';
-export {
-	dotEntranceScale,
-	dotExitScale,
-	dotAppearAnimation,
-	dotExitAnimation,
-	DOT_EXIT_TOTAL_MS,
-	barGrowAnimation,
-	BAR_ENTRANCE_TOTAL_MS,
-	FADE_IN_ANIMATION,
-	SCRUBBER_KEYFRAMES,
-} from './animation';
+} from './time';
+export type {SegmentUnit, Segment, Scope, PeriodRange} from './time';
 export {
 	useNarrowBar,
 	usePrefersReducedMotion,
@@ -75,10 +79,3 @@ export {
 	usePersistedFlag,
 } from './hooks';
 export type {SeriesPresence} from './hooks';
-export {
-	buildBoardFilter,
-	windowNamesIssues,
-	windowIssueIds,
-	issuePassesBoardFilter,
-} from './board-filter';
-export type {BoardFilter} from './board-filter';
