@@ -63,9 +63,9 @@ import {
 	buildBoardFilter,
 	isPeriodWindow,
 	issuePassesBoardFilter,
-	usePersistedFlag,
 	windowIssueIds,
 } from './lib/scrubber';
+import {usePersistedFlag} from './lib/use-persisted-flag';
 import {
 	buildTheatrePlan,
 	THEATRE_PLAYER_CLEARANCE,

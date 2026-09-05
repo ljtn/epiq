@@ -30,8 +30,11 @@ export {
 	BAR_ENTRANCE_TOTAL_MS,
 	FADE_IN_ANIMATION,
 	SCRUBBER_KEYFRAMES,
+	useNarrowBar,
+	usePrefersReducedMotion,
+	useExitTransition,
 } from './layout';
-export type {LayoutMode} from './layout';
+export type {LayoutMode, SeriesPresence} from './layout';
 export {
 	bucketCountForSpan,
 	buildAxis,
@@ -72,10 +75,3 @@ export {
 	scopeButtonLabel,
 } from './time';
 export type {SegmentUnit, Segment, Scope, PeriodRange} from './time';
-export {
-	useNarrowBar,
-	usePrefersReducedMotion,
-	useExitTransition,
-	usePersistedFlag,
-} from './hooks';
-export type {SeriesPresence} from './hooks';

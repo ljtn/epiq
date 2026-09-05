@@ -50,7 +50,7 @@ import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
-import {usePersistedFlag} from '../lib/scrubber';
+import {usePersistedFlag} from '../lib/use-persisted-flag';
 import {AsideDock} from '../lib/aside-dock';
 import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
