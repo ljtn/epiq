@@ -6,7 +6,7 @@ import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {resolveAndPersistRankForMove} from '../../repository/rank.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRootValue} from './command-utils.js';
 
 export const closeIssueCommand = async () => {
 	const userRes = resolveActorId();

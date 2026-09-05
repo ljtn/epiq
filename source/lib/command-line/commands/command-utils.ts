@@ -1,4 +1,13 @@
+import {isFail, succeeded} from '../../model/result-types.js';
+import {getPersistRoot} from '../../storage/paths.js';
 import {getState} from '../../state/state.js';
+
+export const getPersistRootValue = async () => {
+	const persistRootResult = await getPersistRoot();
+	if (isFail(persistRootResult)) return persistRootResult;
+
+	return succeeded('Resolved persist root', persistRootResult.value);
+};
 
 // The registry only holds people explicitly created or assigned, so it is often
 // empty even of you; log authors are candidates too.
