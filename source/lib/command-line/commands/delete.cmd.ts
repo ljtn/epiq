@@ -5,7 +5,7 @@ import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {AppEvent} from '../../event/event.model.js';
-import {getPersistRootValue} from './command-utils.js';
+import {getPersistRootValue} from './persist-root.js';
 
 const isAddIssueCommentEvent = (
 	event: AppEvent,
