@@ -208,3 +208,5 @@
 {"v":1,"id":["01M1R2D9FD08AECJY2SHG83S01","01M1R2D8R0F7B1M9QY81SS4WY4"],"add.issue.comment":{"id":"01M1R2D9FDMHY897QT1BKC6VG1","issue":"01M1R2BY07FHSFQ57WPW5KWR6H","md":"Solution: the `.hero-cta` accent and hover rules from 1KEWA6W are removed; it inherits the plain `.btn` look again. Commit 3a8e3d70 on branch ghpages-glow.","author":"YEZWEN8801VDBA4Q79PDYKGCPX"}}
 {"v":1,"id":["01M1R2DBPYSRGW14XX5A161FJP","01M1R2D9FD08AECJY2SHG83S01"],"move.node":{"id":"01M1R2BVVBYKZENBYDDN1MV171","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"fffffffffffeffffffffffff"}}
 {"v":1,"id":["01M1R2DBSW2QJPXPZRGSXHJ7ZM","01M1R2DBPYSRGW14XX5A161FJP"],"move.node":{"id":"01M1R2BY07FHSFQ57WPW5KWR6H","parent":"01KTSHVBHGWMN2ZDC8TWCQCVCC","rank":"ffffffffffff7fffffffffff"}}
+{"v":1,"id":["01M1R33MFKZB8HF0X40QCWAB5H","01M1R339V59VCW3NW8KVFQPD7F"],"move.node":{"id":"01M1R2BVVBYKZENBYDDN1MV171","parent":"01KS22YK95S3336MFSE44MY70T","rank":"ffffffefffffffffffffffff"}}
+{"v":1,"id":["01M1R33MHSYA4RHXTFHF2F1SYP","01M1R33MFKZB8HF0X40QCWAB5H"],"move.node":{"id":"01M1R2BY07FHSFQ57WPW5KWR6H","parent":"01KS22YK95S3336MFSE44MY70T","rank":"fffffff7ffffffffffffffff"}}
