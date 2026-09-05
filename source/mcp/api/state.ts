@@ -30,7 +30,7 @@ import {
 	resolveRepoRoot,
 	getActor,
 } from './boot.js';
-import {getIssueTags, getIssueAssignees} from './issue-helpers.js';
+import {getIssueTags, getIssueAssignees} from './issue-projection.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {getPersistFileName} from '../../lib/event/event-persist.js';
