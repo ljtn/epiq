@@ -1,7 +1,7 @@
 import {ulid} from 'ulid';
 import {ACTOR_NAME_ENV} from '../../config/actor-env.js';
 import {readEpiqConfig, setConfig} from '../../config/user-config.js';
-import {Mode} from '../../model/action-map.model.js';
+import {CommandLineInput, Mode} from '../../model/action-map.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {patchSettingsState} from '../../state/settings.state.js';
 import {patchState} from '../../state/state.js';
@@ -10,7 +10,6 @@ import {setAutoSyncDurationCommand} from '../commands/set-auto-sync-duration.cmd
 import {setAttachmentMaxKbCommand} from '../commands/set-attachment-max-kb.cmd.js';
 import {setAutoSyncCommand} from '../commands/set-auto-sync.cmd.js';
 import {setLogLevelCommand} from '../commands/set-log-level.cmd.js';
-import {CommandLineInput} from '../../model/action-map.model.js';
 
 export const configCommand = (cmdState: CommandLineInput) => {
 	const value = cmdState.inputString.trim();
