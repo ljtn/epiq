@@ -23,8 +23,10 @@ import {
 	stripDiffCommentMarker,
 } from '../../../lib/utils/diff-comment.js';
 import {timeAgo} from '../lib/gui-format.helper';
+import {ReviewedFiles, useReviewedFiles} from '../lib/reviewed-files';
 import {ActionRow, Textarea} from './FormPrimitives';
 import {Button} from './Button';
+import {Checkbox} from './Checkbox';
 import {CopyRef} from './CopyRef';
 import {CreateNodeModal} from './CreateNodeModal';
 import {CopyShaButton} from './CopyShaButton';
@@ -483,12 +485,16 @@ const FileHeader = ({
 	onToggle,
 	commentCount,
 	stat,
+	reviewed,
+	onReviewed,
 }: {
 	file: GuiCommitDiffFile;
 	expanded: boolean;
 	onToggle: () => void;
 	commentCount: number;
 	stat?: FileDiffMetadata;
+	reviewed: boolean;
+	onReviewed: (next: boolean) => void;
 }) => {
 	const [lit, setLit] = useState(false);
 
@@ -582,6 +588,14 @@ const FileHeader = ({
 					)}
 				/>
 			)}
+			{/* Beside the toggle rather than inside it: ticking a file off must
+			    not also fold or unfold it by accident. */}
+			<Checkbox
+				label="reviewed"
+				checked={reviewed}
+				onChange={onReviewed}
+				activeColor={GUI_THEME.green}
+			/>
 		</div>
 	);
 };
@@ -596,11 +610,15 @@ const FileRow = ({
 	onFileTicket,
 	comments,
 	focusRange,
+	reviewed,
+	onReviewed,
 }: {
 	sha: string;
 	file: GuiCommitDiffFile;
 	expanded: boolean;
 	onToggle: () => void;
+	reviewed: boolean;
+	onReviewed: (next: boolean) => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
 	onFileTicket?: (params: FileTicketParams) => void;
@@ -687,11 +705,13 @@ const FileRow = ({
 			onToggle={onToggle}
 			commentCount={fileComments.length}
 			stat={stat}
+			reviewed={reviewed}
+			onReviewed={onReviewed}
 		/>
 	);
 
 	return (
-		<div ref={rowRef}>
+		<div ref={rowRef} data-testid="file-row">
 			{expanded ? (
 				<>
 					<FileDiffView
@@ -763,6 +783,7 @@ const CommitRow = ({
 	expandedFiles,
 	onToggleFile,
 	onSetAllFilesExpanded,
+	reviewedFiles,
 	diffStyle,
 	onAddComment,
 	onFileTicket,
@@ -776,6 +797,7 @@ const CommitRow = ({
 	expandedFiles: Set<string>;
 	onToggleFile: (path: string) => void;
 	onSetAllFilesExpanded: (filePaths: string[], expand: boolean) => void;
+	reviewedFiles: ReviewedFiles;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
 	onFileTicket?: (params: FileTicketParams) => void;
@@ -916,6 +938,10 @@ const CommitRow = ({
 							file={file}
 							expanded={expandedFiles.has(file.path)}
 							onToggle={() => onToggleFile(file.path)}
+							reviewed={reviewedFiles.isReviewed(commit.sha, file.path)}
+							onReviewed={next =>
+								reviewedFiles.setReviewed(commit.sha, file.path, next)
+							}
 							diffStyle={diffStyle}
 							onAddComment={onAddComment}
 							onFileTicket={onFileTicket}
@@ -989,6 +1015,8 @@ export const IssueCommits = ({
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
 		Record<string, Set<string>>
 	>({});
+	const {isReviewed, setReviewed} = useReviewedFiles();
+
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
 
@@ -1027,8 +1055,14 @@ export const IssueCommits = ({
 				[commit.sha]: new Set([
 					...(prev[commit.sha] ?? []),
 					// A lockfile opened unasked is what stalls this view, so the
-					// large ones stay shut until they are asked for by name.
-					...files.filter(file => !isLargeDiff(file)).map(file => file.path),
+					// large ones stay shut until they are asked for by name. A file
+					// already reviewed stays shut too: what is left open is what is
+					// left to read.
+					...files
+						.filter(
+							file => !isLargeDiff(file) && !isReviewed(commit.sha, file.path),
+						)
+						.map(file => file.path),
 				]),
 			}));
 		}
@@ -1095,6 +1129,21 @@ export const IssueCommits = ({
 		setExpandedFilesBySha(prev => {
 			const current = new Set(prev[sha] ?? []);
 			if (current.has(path)) {
+				current.delete(path);
+			} else {
+				current.add(path);
+			}
+			return {...prev, [sha]: current};
+		});
+	};
+
+	// Ticking a file off is also how you say you are done looking at it, so
+	// it folds; unticking it opens it back up for another look.
+	const reviewFile = (sha: string, path: string, next: boolean) => {
+		setReviewed(sha, path, next);
+		setExpandedFilesBySha(prev => {
+			const current = new Set(prev[sha] ?? []);
+			if (next) {
 				current.delete(path);
 			} else {
 				current.add(path);
@@ -1210,6 +1259,7 @@ export const IssueCommits = ({
 							onSetAllFilesExpanded={(paths, expand) =>
 								setAllFilesExpanded(commit.sha, paths, expand)
 							}
+							reviewedFiles={{isReviewed, setReviewed: reviewFile}}
 							diffStyle={diffStyle}
 							onAddComment={onAddComment}
 							onFileTicket={onFileTicket}
