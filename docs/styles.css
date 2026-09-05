@@ -241,28 +241,12 @@ h1 {
 	flex-direction: row;
 	align-items: stretch;
 }
-/* Get started is the page's one primary action, so it alone carries the
-   accent: cyan text and border, a faint tint, and a glow that brightens on
-   hover. */
 .hero-cta {
 	min-height: 48px;
 	padding: 0 20px;
 	font: 14px var(--mono);
 	letter-spacing: -0.02em;
 	white-space: nowrap;
-	color: var(--cyan);
-	border-color: rgba(117, 210, 253, 0.55);
-	background: rgba(117, 210, 253, 0.06);
-	box-shadow: 0 0 0 1px rgba(117, 210, 253, 0.06),
-		0 0 28px rgba(117, 210, 253, 0.16);
-	transition: border-color 0.18s ease, background 0.18s ease,
-		box-shadow 0.18s ease;
-}
-.hero-cta:hover {
-	border-color: var(--cyan);
-	background: rgba(117, 210, 253, 0.12);
-	box-shadow: 0 0 0 1px rgba(117, 210, 253, 0.2),
-		0 0 36px rgba(117, 210, 253, 0.28);
 }
 /* In the install panel the commands are alternatives, so they share a width
    instead of each sizing to its own text and landing ragged. Full width also
