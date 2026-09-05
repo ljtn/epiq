@@ -33,7 +33,8 @@ import {
 	Input,
 	Textarea,
 } from './FormPrimitives';
-import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
+import {IssueAttachments} from './IssueAttachments';
+import {AttachmentUploadStatus} from '../lib/use-issue-mutations';
 import {CollapsibleBody} from './CollapsibleBody';
 import {CommentBody, IssueComments} from './IssueComments';
 import {
