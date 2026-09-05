@@ -1,8 +1,7 @@
 import {maxOf, minOf} from '../../../../lib/utils/minmax.js';
 import {GuiCommitEntry, GuiEventTimeline} from '../gui-state.model';
 import {clamp} from './layout';
-import {BoardView} from './categories';
-import {isShown} from './dots';
+import {BoardView, isShown} from './series';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
