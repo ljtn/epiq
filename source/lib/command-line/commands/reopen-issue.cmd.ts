@@ -8,7 +8,7 @@ import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {findAncestor} from '../../repository/node-repo.js';
 import {resolveAndPersistRankForMove} from '../../repository/rank.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {getPersistRootValue} from './command-utils.js';
+import {getPersistRootValue} from './persist-root.js';
 
 export const reopenIssueCommand = async () => {
 	const userRes = resolveActorId();

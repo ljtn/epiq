@@ -6,7 +6,7 @@ import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
-import {getPersistRootValue} from './command-utils.js';
+import {getPersistRootValue} from './persist-root.js';
 
 export const untagTicketCommand = async () => {
 	const userRes = resolveActorId();
