@@ -1,3 +1,14 @@
+import {
+	isFail,
+	failed,
+	Result,
+	succeeded,
+} from '../../lib/model/result-types.js';
+import {getSafeState} from '../../lib/state/state.js';
+import {
+	Contributor,
+	REMOVED_CONTRIBUTOR_NAME,
+} from '../../lib/model/app-state.model.js';
 import {ulid} from 'ulid';
 import {applyActorNameArgument} from '../../lib/config/actor-env.js';
 import {loadEventActors, loadMergedEvents} from '../../lib/event/event-load.js';
@@ -5,13 +16,6 @@ import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-pe
 import {AppEvent} from '../../lib/event/event.model.js';
 import {filterEventsForBoard} from '../timeline-index.js';
 import {isTicketNode} from '../../lib/model/context.model.js';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../../lib/model/result-types.js';
-import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
 import {getStringColor} from '../../lib/utils/color.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
@@ -21,7 +25,38 @@ import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
-import {getLatestNamesFromLog, mergeRegistryNames} from './issue-helpers.js';
+
+// A contributor node's name is written once at create.contributor and never
+// updated; the event log carries the current one.
+const getLatestNamesFromLog = (): Map<string, string> => {
+	const stateResult = getSafeState();
+	const eventLog = isFail(stateResult) ? [] : stateResult.value.eventLog ?? [];
+	const byId = new Map<string, string>();
+
+	for (const event of eventLog) {
+		if (event.userId && event.userName) byId.set(event.userId, event.userName);
+	}
+
+	return byId;
+};
+
+// Shared so that every surface offering or matching a contributor agrees on the
+// answer; disagreement mints duplicate ids for the same person.
+const mergeRegistryNames = (
+	logNames: Map<string, string>,
+	registry: Record<string, Contributor>,
+): Map<string, string> => {
+	const byId = new Map(logNames);
+
+	// The registry always wins. The log's copy survives only for an id the
+	// registry has never seen — an author on a board written before renames
+	// were events.
+	for (const contributor of Object.values(registry)) {
+		byId.set(contributor.id, contributor.name);
+	}
+
+	return byId;
+};
 
 type AddIssueAssigneeInput = ToolInput & {
 	issueId: string;
