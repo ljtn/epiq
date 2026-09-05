@@ -225,10 +225,13 @@ export const readDiffLocationParams = (
 
 // The timeline rail: a dot per commit, in the scrubber's own commit-series
 // color, connected to the next by a line. RAIL_DOT_OFFSET lines the dot up
-// with the header's text (padding-top plus half its line height), not the
-// row's overall height, which grows when a commit is expanded.
+// with the header's text — the card's border, then the header's padding,
+// then half its content height (the copy button, its tallest child, at 20px,
+// with the subject centred against it) — not the row's overall height, which
+// grows when a commit is expanded.
 const RAIL_WIDTH = 24;
-const RAIL_DOT_OFFSET = 19;
+const COMMIT_HEADER_PADDING = 13;
+const RAIL_DOT_OFFSET = 1 + COMMIT_HEADER_PADDING + 10;
 const ROW_GAP = 14;
 
 const disclosureStyle: React.CSSProperties = {
@@ -839,15 +842,21 @@ const CommitRow = ({
 				aria-expanded={expanded}
 				style={{
 					...disclosureStyle,
-					padding: '13px 14px',
+					padding: `${COMMIT_HEADER_PADDING}px 14px`,
 					background: revealed ? DISCLOSURE_HOVER_BG : 'transparent',
 				}}
 			>
-				{/* Subject leads the row with nothing before it — the sha and caret
-			    are lookup/navigation chrome, not part of reading the list, so
-			    they sit at the far right instead of crowding the start of every
-			    line. The sha itself only appears on hover or once expanded —
-			    reachable without a full expand, but not permanent clutter. */}
+				{/* The caret leads, as it does on the file rows, so a row reads as
+			    foldable and its state is plain. flexShrink: 0 because a tight
+			    panel width would otherwise squeeze it toward invisible rather
+			    than truncate the (already-shrinkable) subject further. */}
+				<span style={{flexShrink: 0, display: 'flex'}}>
+					{expanded ? (
+						<IconChevronDown size={12} />
+					) : (
+						<IconChevronRight size={12} />
+					)}
+				</span>
 				<span
 					style={{
 						flex: 1,
@@ -860,7 +869,10 @@ const CommitRow = ({
 					{commit.subject}
 				</span>
 				<DiffStat insertions={commit.insertions} deletions={commit.deletions} />
-				{/* Always mounted, opacity-toggled rather than conditionally rendered:
+				{/* The sha is lookup chrome, not part of reading the list, so it
+			    sits at the far right and only appears on hover or once expanded —
+			    reachable without a full expand, but not permanent clutter.
+			    Always mounted, opacity-toggled rather than conditionally rendered:
 			    swapping it in/out of the tree changed the row's flex height on
 			    hover, which the rail lines (sized off that height) visibly jumped
 			    with. Keeping it in flow always reserves the same space. */}
@@ -873,16 +885,6 @@ const CommitRow = ({
 					}}
 				>
 					<CopyShaButton sha={commit.sha} />
-				</span>
-				{/* Flex items shrink by default; without this a tight panel width
-			    squeezes the caret toward invisible rather than truncating the
-			    (already-shrinkable) subject text further. */}
-				<span style={{flexShrink: 0, display: 'flex'}}>
-					{expanded ? (
-						<IconChevronDown size={12} />
-					) : (
-						<IconChevronRight size={12} />
-					)}
 				</span>
 			</div>
 
