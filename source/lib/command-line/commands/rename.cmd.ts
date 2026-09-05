@@ -4,7 +4,7 @@ import {resolveActorId} from '../../event/event-persist.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getCmdArg} from '../../state/cmd.state.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRootValue} from './command-utils.js';
 
 export const renameCommand = async () => {
 	const userRes = resolveActorId();

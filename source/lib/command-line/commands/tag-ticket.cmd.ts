@@ -1,13 +1,12 @@
 import {ulid} from 'ulid';
-import {nodeRepo} from '../../repository/node-repo.js';
+import {nodeRepo, findAncestor} from '../../repository/node-repo.js';
 import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../../event/event-persist.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
-import {findAncestor} from '../../repository/node-repo.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRootValue} from './command-utils.js';
 
 export const tagTicketCommand = async () => {
 	const userRes = resolveActorId();
