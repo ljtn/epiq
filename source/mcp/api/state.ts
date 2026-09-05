@@ -8,7 +8,12 @@ import {
 	Swimlane,
 	Ticket,
 } from '../../lib/model/context.model.js';
-import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
+import {
+	isFail,
+	Result,
+	succeeded,
+	failed,
+} from '../../lib/model/result-types.js';
 import {nodeRepo} from '../../lib/repository/node-repo.js';
 import {recordRecentProject} from '../../lib/config/recent-projects.js';
 import {getStringColor} from '../../lib/utils/color.js';
@@ -18,9 +23,22 @@ import {getAttachmentFileName} from '../../lib/media/media-store.js';
 import {logger} from '../../logger.js';
 import {ApiState, ApiSwimlane} from '../api-state.model.js';
 import {getTimeTravelStatus} from '../epiq-time-travel.js';
-import {ToolInput, boot, getStateResult} from './boot.js';
-import {getIssueTags, getIssueAssignees} from './issue-view.js';
+import {
+	ToolInput,
+	boot,
+	getStateResult,
+	resolveRepoRoot,
+	getActor,
+} from './boot.js';
+import {getIssueTags, getIssueAssignees} from './issue-helpers.js';
 import {getAttachmentMaxKb} from './attachments.js';
+import {syncEpiqWithRemote} from '../../git/sync.js';
+import {getPersistFileName} from '../../lib/event/event-persist.js';
+import {
+	setSynced,
+	setSyncFailed,
+	setSyncing,
+} from '../../lib/state/sync-state.js';
 
 export const getEpiqState = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -257,4 +275,28 @@ export const getGuiState = async (
 	rememberOpenedProject(bootResult.value.repoRoot);
 
 	return deriveGuiState();
+};
+
+type SyncInput = ToolInput;
+
+export const sync = async (input: SyncInput = {}) => {
+	setSyncing();
+	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	if (isFail(repoRootResult)) return failed('Sync failed');
+
+	const actor = getActor();
+	if (isFail(actor)) return actor;
+
+	const result = await syncEpiqWithRemote({
+		cwd: repoRootResult.value,
+		ownEventFileName: getPersistFileName(actor.value),
+	});
+
+	if (isFail(result)) {
+		setSyncFailed(result.message);
+		return result;
+	}
+
+	setSynced();
+	return succeeded('Synced', result.value);
 };

@@ -1,4 +1,4 @@
-export {sync} from './api/sync.js';
+export {sync, getEpiqState, deriveGuiState, getGuiState} from './api/state.js';
 export {
 	getIssue,
 	listIssues,
@@ -42,4 +42,3 @@ export {
 	deleteIssueAttachment,
 	getAttachmentBlob,
 } from './api/attachments.js';
-export {getEpiqState, deriveGuiState, getGuiState} from './api/state.js';
