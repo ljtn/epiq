@@ -4,13 +4,17 @@
 // rather than the socket and carry their own upload status.
 
 import {Dispatch, SetStateAction, useState} from 'react';
-import {AttachmentUploadStatus} from '../components/IssueAttachments';
 import {blobToBase64, compressImage} from './compress-image';
 import {getResultValue, updateIssueInGuiState} from './gui-state-helper';
 import {GuiContributor, GuiState} from './gui-state.model';
 import {GUI_THEME} from './gui-theme';
 import {BoardSocketActions} from './use-board-socket';
 import {IssueDetailPanel} from './use-issue-detail';
+
+export type AttachmentUploadStatus =
+	| {state: 'idle'}
+	| {state: 'uploading'; name: string}
+	| {state: 'error'; message: string};
 
 export const useIssueMutations = ({
 	send,
