@@ -6,8 +6,10 @@ import {failed, isFail} from '../../model/result-types.js';
 import {findAncestor} from '../../repository/node-repo.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
-import {getAssignableContributors} from './assignable-contributors.js';
-import {getPersistRootValue} from './persist-root.js';
+import {
+	getAssignableContributors,
+	getPersistRootValue,
+} from './command-utils.js';
 
 export const unassignUserCommand = async () => {
 	const userRes = resolveActorId();
