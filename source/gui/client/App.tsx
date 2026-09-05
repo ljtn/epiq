@@ -24,14 +24,16 @@ import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
 import {
 	FileTicketParams,
-	formatSelectionLabel,
 	clearDiffLocationParams,
 	DiffLocation,
 	readCommitFocusParam,
-	encodeDiffCommentMarker,
 	readDiffLocationParams,
 	writeDiffLocationParams,
-} from './components/IssueCommits';
+} from './lib/diff-selection';
+import {
+	formatSelectionLabel,
+	encodeDiffCommentMarker,
+} from '../../lib/utils/diff-comment.js';
 import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
