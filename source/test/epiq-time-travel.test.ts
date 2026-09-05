@@ -1359,8 +1359,17 @@ describe('epiq-time-travel', () => {
 		// no blob (the file was added or deleted at this commit) — the zero hash
 		// getChangedFileBlobs reads as "no blob on this side", same convention
 		// its caller already keys off.
+		// `binary` stands in for git's `-\t-` numstat line, a file with no line
+		// count to give.
 		const mockGitForFiles = (
-			entries: {path: string; before?: string; after?: string}[],
+			entries: {
+				path: string;
+				before?: string;
+				after?: string;
+				insertions?: number;
+				deletions?: number;
+				binary?: boolean;
+			}[],
 		) => {
 			const blobs = new Map<string, string>();
 
@@ -1375,20 +1384,27 @@ describe('epiq-time-travel', () => {
 
 			vi.mocked(execGit).mockImplementation(async ({args}) => {
 				if (args[0] === 'diff') {
-					const stdout = entries
-						.map(entry => {
-							const beforeBlob =
-								entry.before !== undefined
-									? blobHash(`before:${entry.path}`)
-									: ZERO_BLOB;
-							const afterBlob =
-								entry.after !== undefined
-									? blobHash(`after:${entry.path}`)
-									: ZERO_BLOB;
+					const raw = entries.map(entry => {
+						const beforeBlob =
+							entry.before !== undefined
+								? blobHash(`before:${entry.path}`)
+								: ZERO_BLOB;
+						const afterBlob =
+							entry.after !== undefined
+								? blobHash(`after:${entry.path}`)
+								: ZERO_BLOB;
 
-							return `:100644 100644 ${beforeBlob} ${afterBlob} M\t${entry.path}`;
-						})
-						.join('\n');
+						return `:100644 100644 ${beforeBlob} ${afterBlob} M\t${entry.path}`;
+					});
+					// The raw block first, then the numstat block, as git prints them.
+					const numstat = entries.map(entry =>
+						entry.binary
+							? `-\t-\t${entry.path}`
+							: `${entry.insertions ?? 0}\t${entry.deletions ?? 0}\t${
+									entry.path
+							  }`,
+					);
+					const stdout = [...raw, ...numstat].join('\n');
 
 					return succeeded('changed files', {stdout, stderr: '', exitCode: 0});
 				}
@@ -1424,10 +1440,51 @@ describe('epiq-time-travel', () => {
 				expect(result.value).toEqual({
 					sha: validSha,
 					files: [
-						{path: 'source/a.ts', before: 'a before', after: 'a after'},
-						{path: 'source/b.ts', before: 'b before', after: 'b after'},
+						{
+							path: 'source/a.ts',
+							before: 'a before',
+							after: 'a after',
+							insertions: 0,
+							deletions: 0,
+						},
+						{
+							path: 'source/b.ts',
+							before: 'b before',
+							after: 'b after',
+							insertions: 0,
+							deletions: 0,
+						},
 					],
 				});
+			}
+		});
+
+		it("carries each file's line counts, reading a binary's as none", async () => {
+			mockGitForFiles([
+				{
+					path: 'source/a.ts',
+					before: 'a',
+					after: 'b',
+					insertions: 7,
+					deletions: 2,
+				},
+				{path: 'logo.png', before: 'x', after: 'y', binary: true},
+			]);
+
+			const result = await getCommitDiff({sha: validSha});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(
+					result.value.files.map(({path, insertions, deletions}) => ({
+						path,
+						insertions,
+						deletions,
+					})),
+				).toEqual([
+					{path: 'source/a.ts', insertions: 7, deletions: 2},
+					{path: 'logo.png', insertions: 0, deletions: 0},
+				]);
 			}
 		});
 
@@ -1445,6 +1502,8 @@ describe('epiq-time-travel', () => {
 						path: 'source/new-file.ts',
 						before: '',
 						after: 'brand new content',
+						insertions: 0,
+						deletions: 0,
 					},
 				]);
 			}
@@ -1544,6 +1603,7 @@ describe('epiq-time-travel', () => {
 					args: [
 						'diff',
 						'--raw',
+						'--numstat',
 						'--no-renames',
 						'--abbrev=40',
 						`${validSha}~1`,
@@ -1554,7 +1614,13 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(result)).toBe(true);
 			if (isSuccess(result)) {
 				expect(result.value.files).toEqual([
-					{path: 'source/a.ts', before: 'before', after: 'after'},
+					{
+						path: 'source/a.ts',
+						before: 'before',
+						after: 'after',
+						insertions: 0,
+						deletions: 0,
+					},
 				]);
 			}
 		});

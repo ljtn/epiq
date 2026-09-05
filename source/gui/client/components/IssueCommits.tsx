@@ -1,7 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {
 	DiffLineAnnotation,
-	FileDiffMetadata,
 	SelectedLineRange,
 	SelectionSide,
 } from '@pierre/diffs/react';
@@ -476,15 +475,12 @@ const DiffCommentAnnotation = ({
 // The one header a file gets, open or shut. Open, the highlighter renders it
 // in its sticky slot in place of its own (change icon, name, counts), so the
 // name that stays in view while the diff scrolls is also the one that folds
-// it; shut, FileRow stands it in the same box by itself. The counts come off
-// the highlighter's own parse, so they only appear once the diff is open — a
-// shut file is not parsed at all.
+// it; shut, FileRow stands it in the same box by itself.
 const FileHeader = ({
 	file,
 	expanded,
 	onToggle,
 	commentCount,
-	stat,
 	reviewed,
 	onReviewed,
 }: {
@@ -492,7 +488,6 @@ const FileHeader = ({
 	expanded: boolean;
 	onToggle: () => void;
 	commentCount: number;
-	stat?: FileDiffMetadata;
 	reviewed: boolean;
 	onReviewed: (next: boolean) => void;
 }) => {
@@ -576,18 +571,7 @@ const FileHeader = ({
 					</span>
 				)}
 			</button>
-			{stat && (
-				<DiffStat
-					insertions={stat.hunks.reduce(
-						(sum, hunk) => sum + hunk.additionLines,
-						0,
-					)}
-					deletions={stat.hunks.reduce(
-						(sum, hunk) => sum + hunk.deletionLines,
-						0,
-					)}
-				/>
-			)}
+			<DiffStat insertions={file.insertions} deletions={file.deletions} />
 			{/* Beside the toggle rather than inside it: ticking a file off must
 			    not also fold or unfold it by accident. */}
 			<Checkbox
@@ -698,13 +682,12 @@ const FileRow = ({
 		});
 	}
 
-	const header = (stat?: FileDiffMetadata) => (
+	const header = () => (
 		<FileHeader
 			file={file}
 			expanded={expanded}
 			onToggle={onToggle}
 			commentCount={fileComments.length}
-			stat={stat}
 			reviewed={reviewed}
 			onReviewed={onReviewed}
 		/>

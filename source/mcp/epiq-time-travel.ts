@@ -566,6 +566,8 @@ export type CommitDiffFile = {
 	path: string;
 	before: string;
 	after: string;
+	insertions: number;
+	deletions: number;
 };
 
 export type CommitDiff = {
@@ -588,6 +590,10 @@ const isZeroBlob = (hash: string): boolean => /^0+$/.test(hash);
 const RAW_DIFF_LINE =
 	/^:\d{6} \d{6} ([0-9a-f]{40}) ([0-9a-f]{40}) [A-Z]\d*\t(.+)$/;
 
+// `<insertions>\t<deletions>\t<path>`, or `-\t-\t<path>` for a binary file,
+// which has no line count to give.
+const NUMSTAT_LINE = /^(\d+|-)\t(\d+|-)\t(.+)$/;
+
 type ChangedFileBlobs = {
 	path: string;
 	// null means "no blob on this side" (the file was added or deleted here),
@@ -595,12 +601,17 @@ type ChangedFileBlobs = {
 	// blob as — not a git failure.
 	beforeBlob: string | null;
 	afterBlob: string | null;
+	insertions: number;
+	deletions: number;
 };
 
 // Blob hashes straight from git's own diff, rather than getChangedFilePaths'
 // name-only listing: this is what lets getCommitDiff below read every
 // changed file's content in one `git cat-file --batch` round trip instead of
-// two `git show` spawns per file. `--abbrev=40` forces full hashes — unlike
+// two `git show` spawns per file. `--numstat` rides along in the same spawn,
+// so each file's line counts come for free: git prints the raw block and the
+// numstat block one after the other, and the two line shapes are disjoint.
+// `--abbrev=40` forces full hashes — unlike
 // `--full-index` (documented for this but, at least as of Apple Git 2.39.5,
 // a no-op outside of `-p` patch output), this reliably defeats the
 // repo-size-dependent abbreviation `--raw` uses by default.
@@ -610,35 +621,63 @@ const getChangedFileBlobs = async (
 ): Promise<Result<ChangedFileBlobs[]>> => {
 	const diffResult = await execGit({
 		cwd: repoRoot,
-		args: ['diff', '--raw', '--no-renames', '--abbrev=40', `${sha}~1`, sha],
+		args: [
+			'diff',
+			'--raw',
+			'--numstat',
+			'--no-renames',
+			'--abbrev=40',
+			`${sha}~1`,
+			sha,
+		],
 	});
 	if (isFail(diffResult)) return failed(diffResult.message);
 
 	const lines = diffResult.value.stdout.split('\n').filter(line => line !== '');
 
-	// A line git's --raw format doesn't match is a sign the assumed format
-	// itself is wrong for this git version/commit shape (already bit once
-	// this session: --full-index turned out to be a no-op here) — surfacing
-	// it as a failure beats silently under-reporting a commit's real files.
-	const unparseable = lines.filter(line => !RAW_DIFF_LINE.test(line));
+	// A line neither format matches is a sign the assumed format itself is
+	// wrong for this git version/commit shape (already bit once this session:
+	// --full-index turned out to be a no-op) — surfacing it as a failure beats
+	// silently under-reporting a commit's real files.
+	const unparseable = lines.filter(
+		line => !RAW_DIFF_LINE.test(line) && !NUMSTAT_LINE.test(line),
+	);
 	if (unparseable.length > 0) {
 		return failed(
-			`Could not parse ${unparseable.length} line(s) of "git diff --raw" output, e.g. "${unparseable[0]}"`,
+			`Could not parse ${unparseable.length} line(s) of "git diff --raw --numstat" output, e.g. "${unparseable[0]}"`,
 		);
 	}
 
-	const entries = lines.map((line): ChangedFileBlobs => {
-		const match = RAW_DIFF_LINE.exec(line);
-		const beforeBlob = match?.[1] ?? '';
-		const afterBlob = match?.[2] ?? '';
-		const path = match?.[3] ?? '';
+	// A binary file's `-` counts as nothing changed line-wise, which is true.
+	const countsByPath = new Map<
+		string,
+		{insertions: number; deletions: number}
+	>();
+	for (const line of lines) {
+		const match = NUMSTAT_LINE.exec(line);
+		if (!match) continue;
 
-		return {
-			path,
-			beforeBlob: isZeroBlob(beforeBlob) ? null : beforeBlob,
-			afterBlob: isZeroBlob(afterBlob) ? null : afterBlob,
-		};
-	});
+		countsByPath.set(match[3] ?? '', {
+			insertions: match[1] === '-' ? 0 : Number(match[1]),
+			deletions: match[2] === '-' ? 0 : Number(match[2]),
+		});
+	}
+
+	const entries = lines
+		.filter(line => RAW_DIFF_LINE.test(line))
+		.map((line): ChangedFileBlobs => {
+			const match = RAW_DIFF_LINE.exec(line);
+			const beforeBlob = match?.[1] ?? '';
+			const afterBlob = match?.[2] ?? '';
+			const path = match?.[3] ?? '';
+
+			return {
+				path,
+				beforeBlob: isZeroBlob(beforeBlob) ? null : beforeBlob,
+				afterBlob: isZeroBlob(afterBlob) ? null : afterBlob,
+				...(countsByPath.get(path) ?? {insertions: 0, deletions: 0}),
+			};
+		});
 
 	if (entries.length === 0) {
 		return failed('No changed files found for this commit');
@@ -690,6 +729,8 @@ export const getCommitDiff = async (
 		path: entry.path,
 		before: entry.beforeBlob ? blobs.get(entry.beforeBlob) ?? '' : '',
 		after: entry.afterBlob ? blobs.get(entry.afterBlob) ?? '' : '',
+		insertions: entry.insertions,
+		deletions: entry.deletions,
 	}));
 
 	return succeeded('Loaded commit diff', {sha: input.sha, files});
