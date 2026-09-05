@@ -154,8 +154,11 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 	pane.scrollTop += host.getBoundingClientRect().top - scrollportTop + 60;
 
 	const headerBox = header.getBoundingClientRect();
+	// The header's content is the app's own, slotted in from the light DOM,
+	// so its text is read off what the slot was given rather than the slot.
+	const slotted = header.querySelector('slot').assignedElements();
 	return {
-		fileName: header.textContent.trim(),
+		fileName: slotted.map(element => element.textContent).join(' ').trim(),
 		// Negative: the diff itself has started leaving the panel.
 		hostTop: Math.round(host.getBoundingClientRect().top - scrollportTop),
 		headerTop: Math.round(headerBox.top - scrollportTop),

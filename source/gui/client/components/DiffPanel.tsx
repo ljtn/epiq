@@ -3,6 +3,7 @@ import {
 	DiffFileInput,
 	DiffLineAnnotation,
 	FileContents,
+	FileDiffMetadata,
 	MultiFileDiff,
 	SelectedLineRange,
 } from '@pierre/diffs/react';
@@ -39,6 +40,19 @@ const toDiffFileInput = (file: GuiCommitDiffFile): DiffFileInput => {
 	return {oldFile, newFile};
 };
 
+// The box a file's diff sits in. Shared with whatever stands in for the diff
+// while it is collapsed, so a file looks the same shut as open.
+export const DIFF_BOX_STYLE: React.CSSProperties = {
+	...CODE_TEXT_VARS,
+	marginBottom: 16,
+	border: `1px solid ${GUI_THEME.line}`,
+	borderRadius: 8,
+	// Clip, not hidden: both round the corners off the diff, but `hidden`
+	// makes this a scroll container, and the header inside then sticks to
+	// a box that never scrolls — which is to say, not at all.
+	overflow: 'clip',
+};
+
 export const FileDiffView = <LAnnotation = undefined,>({
 	file,
 	diffStyle,
@@ -46,6 +60,7 @@ export const FileDiffView = <LAnnotation = undefined,>({
 	onSelectionEnd,
 	lineAnnotations,
 	renderAnnotation,
+	renderCustomHeader,
 }: {
 	file: GuiCommitDiffFile;
 	diffStyle: 'split' | 'unified';
@@ -58,19 +73,11 @@ export const FileDiffView = <LAnnotation = undefined,>({
 	renderAnnotation?: (
 		annotation: DiffLineAnnotation<LAnnotation>,
 	) => React.ReactNode;
+	// Replaces the highlighter's own file header (name, change icon, counts)
+	// with the caller's, in the same sticky slot.
+	renderCustomHeader?: (fileDiff: FileDiffMetadata) => React.ReactNode;
 }) => (
-	<div
-		style={{
-			...CODE_TEXT_VARS,
-			marginBottom: 16,
-			border: `1px solid ${GUI_THEME.line}`,
-			borderRadius: 8,
-			// Clip, not hidden: both round the corners off the diff, but `hidden`
-			// makes this a scroll container, and the header inside then sticks to
-			// a box that never scrolls — which is to say, not at all.
-			overflow: 'clip',
-		}}
-	>
+	<div style={DIFF_BOX_STYLE}>
 		<MultiFileDiff
 			{...toDiffFileInput(file)}
 			options={{
@@ -92,6 +99,7 @@ export const FileDiffView = <LAnnotation = undefined,>({
 			selectedLines={selectedLines}
 			lineAnnotations={lineAnnotations}
 			renderAnnotation={renderAnnotation}
+			renderCustomHeader={renderCustomHeader}
 		/>
 	</div>
 );
