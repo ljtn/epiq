@@ -20,7 +20,7 @@ import {
 	targetIds,
 	batchResult,
 	findWritableIssue,
-} from './targets.js';
+} from './issue-helpers.js';
 
 type AddIssueTagInput = ToolInput &
 	IssueTargets & {

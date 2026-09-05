@@ -21,7 +21,7 @@ import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
-import {getLatestNamesFromLog, mergeRegistryNames} from './issue-view.js';
+import {getLatestNamesFromLog, mergeRegistryNames} from './issue-helpers.js';
 
 type AddIssueAssigneeInput = ToolInput & {
 	issueId: string;
