@@ -6,6 +6,7 @@ import {
 } from '../../../lib/config/user-config.js';
 import {logSignature} from '../../../lib/event/log-signature.js';
 import {isFail} from '../../../lib/model/result-types.js';
+import {resolveClosestEpiqProjectRoot} from '../../../lib/storage/paths.js';
 import {logger} from '../../../logger.js';
 import {getGuiState, sync} from '../../../mcp/epiq-api.js';
 import {
@@ -23,17 +24,25 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 	let syncing = false;
 	let lastStartedAt = 0;
 
-	// The log every client has been sent. Compared against the log on disk after
-	// each pass, so what decides a broadcast is whether the board changed — not
-	// whether git reported the pass a success. A pull that landed before a push
-	// was refused, a remote that came back, an agent appending to the same
-	// worktree: all of them move the log and none of them move the sync result.
-	let published: string | null = currentSignature();
+	// The log as of the last pass that found it changed. Compared against the
+	// log on disk after each sync, so what decides a broadcast is whether the
+	// board changed — not whether git reported the pass a success. A pull that
+	// landed before a push was refused, a remote that came back, an agent
+	// appending to the same worktree: all of them move the log and none of them
+	// move the sync result.
+	//
+	// Recorded before the derive, not after it succeeds: a log that cannot be
+	// derived is tried again only once it changes, which is also the only time
+	// its outcome can change.
+	let attempted: string | null = currentSignature();
 
 	function currentSignature(): string | null {
-		const stateBranchRoot = getStateBranchRoot({
-			repoRoot: input.project.repoRoot,
-		});
+		// Walks up like every other read on this path: the GUI may have been
+		// launched in a subdirectory of the project.
+		const projectRoot = resolveClosestEpiqProjectRoot(input.project.repoRoot);
+		if (isFail(projectRoot)) return null;
+
+		const stateBranchRoot = getStateBranchRoot({repoRoot: projectRoot.value});
 
 		return isFail(stateBranchRoot) ? null : logSignature(stateBranchRoot.value);
 	}
@@ -87,18 +96,17 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 				// whatever the user was part-way through. An unchanged log is not
 				// worth that; a failed sync over a changed one is.
 				const signature = currentSignature();
-				if (signature === null || signature === published) return;
+				if (signature === null || signature === attempted) return;
+				attempted = signature;
 
 				const payload = slimStateResult(
 					await getGuiState({repoRoot: input.project.repoRoot}),
 				);
 
-				// A log that cannot be derived yet — mid-rebase, half-written — is
-				// left for the next pass; the board the clients hold is better than
-				// an error in its place.
+				// A log that cannot be derived — mid-rebase, half-written — is not
+				// sent as an error in place of the board the clients hold.
 				if (isFail(payload)) return;
 
-				published = signature;
 				broadcastGuiMessage({type: 'state', payload});
 			});
 		} finally {
