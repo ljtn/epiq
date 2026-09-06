@@ -75,17 +75,54 @@ export const initProjectTool = async (
 		);
 	}
 
-	const patch: Parameters<typeof setConfig>[0] = {};
+	// Fills in what the machine lacks and never changes what it has: a
+	// different name here would rename the configured user on every board they
+	// write to, and a different editor would silently replace their choice.
+	// Changing an answer is the TUI's `:config`, made by the user.
+	const given = {
+		userName: givenName || undefined,
+		preferredEditor: input.preferredEditor?.trim() || undefined,
+		autoSync: input.autoSync,
+	};
 
-	if (givenName) {
-		patch.userName = givenName;
-		patch.userId = config.userId || ulid();
+	const existing = {
+		userName: config.userName?.trim() || undefined,
+		preferredEditor: config.preferredEditor?.trim() || undefined,
+		autoSync:
+			typeof config.autoSync === 'boolean' ? config.autoSync : undefined,
+	};
+
+	for (const field of SETUP_FIELDS) {
+		const wanted = given[field.name];
+		const current = existing[field.name];
+
+		if (wanted === undefined || current === undefined || wanted === current) {
+			continue;
+		}
+
+		return failed(
+			`This machine is already set up with ${field.name} ${JSON.stringify(
+				current,
+			)}; epiq_project_init does not change it. Call again without ${
+				field.name
+			}, or let the user change it in the TUI with :config.`,
+		);
 	}
 
-	const editor = input.preferredEditor?.trim();
-	if (editor) patch.preferredEditor = editor;
+	const patch: Parameters<typeof setConfig>[0] = {};
 
-	if (input.autoSync !== undefined) patch.autoSync = input.autoSync;
+	if (given.userName && !existing.userName) patch.userName = given.userName;
+	if (given.preferredEditor && !existing.preferredEditor) {
+		patch.preferredEditor = given.preferredEditor;
+	}
+	if (given.autoSync !== undefined && existing.autoSync === undefined) {
+		patch.autoSync = given.autoSync;
+	}
+
+	// A name without an id is not a user yet; the id is minted once and kept.
+	if ((patch.userName || existing.userName) && !config.userId) {
+		patch.userId = ulid();
+	}
 
 	if (Object.keys(patch).length > 0) {
 		const persisted = setConfig(patch);
