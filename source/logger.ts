@@ -2,7 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import util from 'util';
 import {isFail} from './lib/model/result-types.js';
-import {EPIQ_DIR_NAME, resolveClosestEpiqRoot} from './lib/storage/paths.js';
+import {
+	EPIQ_DIR_NAME,
+	getGlobalConfigDir,
+	resolveClosestEpiqRoot,
+} from './lib/storage/paths.js';
 import {LogLevel} from './lib/state/settings.state.js';
 
 export const MAX_LINES = 500;
@@ -24,8 +28,11 @@ const getLogPath = () => {
 	const epiqRootDirResult = resolveClosestEpiqRoot(cwd);
 
 	if (isFail(epiqRootDirResult)) {
+		// Not into the working directory: an MCP server is launched in
+		// repositories that have no project yet, and a stray file there is an
+		// uncommitted change that stops `epiq_project_init` from creating one.
 		if (isMcp()) {
-			return path.join(process.cwd(), '.epiq-mcp.log');
+			return path.join(getGlobalConfigDir(), 'epiq-mcp.log');
 		}
 
 		return undefined;

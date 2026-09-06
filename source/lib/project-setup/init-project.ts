@@ -41,7 +41,8 @@ export type InitProjectOutcome = {
 	warnings: string[];
 };
 
-const hasDiff = async (repoRoot: string) => {
+// The paths `git status` reports, so a refusal can name what is in the way.
+const dirtyPaths = async (repoRoot: string): Promise<Result<string[]>> => {
 	const result = await execGit({
 		cwd: repoRoot,
 		args: ['status', '--porcelain'],
@@ -49,7 +50,13 @@ const hasDiff = async (repoRoot: string) => {
 
 	if (isFail(result)) return result;
 
-	return succeeded('Checked git diff', result.value.stdout.trim().length > 0);
+	return succeeded(
+		'Checked git diff',
+		result.value.stdout
+			.split('\n')
+			.filter(line => line.trim().length > 0)
+			.map(line => line.slice(3)),
+	);
 };
 
 const failAt = (step: number, message: string) =>
@@ -91,15 +98,17 @@ export const initProject = async ({
 	}
 
 	// 3. fail if there are files in the diff
-	const diffResult = await hasDiff(repoRoot);
+	const diffResult = await dirtyPaths(repoRoot);
 	if (isFail(diffResult)) {
 		return failAt(2.5, diffResult.message);
 	}
 
-	if (diffResult.value) {
+	if (diffResult.value.length > 0) {
 		return failAt(
 			3,
-			'Cannot initialize Epiq with uncommitted changes. Commit or stash your changes first.',
+			`Cannot initialize Epiq with uncommitted changes (${diffResult.value.join(
+				', ',
+			)}). Commit or stash your changes first.`,
 		);
 	}
 

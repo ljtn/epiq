@@ -9,6 +9,7 @@ import {
 	MAX_LINES,
 	MAX_MESSAGE_CHARS,
 } from '../logger.js';
+import {getGlobalConfigDir} from '../lib/storage/global-config-dir.js';
 
 const originalCwd = process.cwd();
 let root: string;
@@ -71,6 +72,27 @@ describe('enforceLogHorizon', () => {
 });
 
 describe('logger', () => {
+	// Launched in a repository with no project yet, the MCP server must leave
+	// that repository clean, or `epiq_project_init` refuses it on its next call.
+	it('logs into the global dir, not the working directory, when the MCP has no project', () => {
+		const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-logger-bare-'));
+		process.chdir(bare);
+		process.env['EPIQ_MCP'] = 'true';
+
+		try {
+			logger.error('hello');
+
+			expect(fs.readdirSync(bare)).toEqual([]);
+			expect(
+				fs.existsSync(path.join(getGlobalConfigDir(), 'epiq-mcp.log')),
+			).toBe(true);
+		} finally {
+			delete process.env['EPIQ_MCP'];
+			process.chdir(root);
+			fs.rmSync(bare, {recursive: true, force: true});
+		}
+	});
+
 	it('clips a single oversized message', () => {
 		logger.info('x'.repeat(MAX_MESSAGE_CHARS * 3));
 
