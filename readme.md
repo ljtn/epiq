@@ -211,6 +211,18 @@ claude mcp add epiq -- npx -y -p epiq epiq-mcp
 
 Use `--scope user` to make Epiq available in every directory; omit it to register Epiq only for the current project. Verify the connection with `claude mcp list` (it should report `epiq … ✔ Connected`). MCP servers are loaded at startup, so **restart Claude Code** after adding the server before its tools become available.
 
+### Setting up a board from an agent
+
+An agent can initialize a repository without anyone opening the TUI. `epiq_project_init` runs the same steps as `:init` — state branch, default board, `.epiq/project.json` — in the repository at `repoRoot` (default: the current directory), which must have no uncommitted changes. It tries to push both branches and reports a push that fails as a warning rather than an error, so a repository without a remote still works.
+
+On a machine with no `~/.epiq-global/config.json` yet, the tool also records the user's setup. Called without the answers it fails, naming what it still needs, so the agent asks the user and calls again:
+
+- `userName` — how the user wants to appear on the board
+- `preferredEditor` — the command that opens a file, e.g. `vim` or `code --wait`
+- `autoSync` — whether the TUI and GUI sync with the remote on their own
+
+Whatever was given is kept between calls. The name recorded is the user's, not the agent's: an agent running under its own identity (see below) is refused if it passes that name here.
+
 ### Skills
 
 Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq board.
