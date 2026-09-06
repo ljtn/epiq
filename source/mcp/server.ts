@@ -511,7 +511,7 @@ export const createMcpServer = () => {
 		'epiq_project_init',
 		{
 			description:
-				'Set up a new Epiq board in a git repository without the TUI. Runs in the repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine it also records the user\'s setup: ask the user for userName (how they want to appear on the board), preferredEditor (e.g. "vim" or "code --wait") and autoSync (whether the TUI and GUI sync with the remote on their own) and pass them here; called without them it fails naming what is still missing, keeping whatever was given. Pass the user\'s name, never your own agent identity. Commits the state branch and .epiq/project.json and tries to push both; a push that fails is a warning, not an error. Afterwards the other tools work in that repository.',
+				'Set up a new Epiq board in a git repository without the TUI. Runs in the repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine it also records the user\'s setup: ask the user for userName (how they want to appear on the board), preferredEditor (e.g. "vim" or "code --wait") and autoSync (whether the TUI and GUI sync with the remote on their own) and pass them here; called without them it fails naming what is still missing, keeping whatever was given. It fills in answers the machine lacks and refuses to change ones it has. Pass the user\'s name, never your own agent identity. Commits the state branch and .epiq/project.json and tries to push both; a push that fails is a warning, not an error. Afterwards the other tools work in that repository.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				userName: z.string().min(1).max(80).optional(),
@@ -526,7 +526,7 @@ export const createMcpServer = () => {
 		'epiq_skill_install',
 		{
 			description:
-				'Write the official Epiq workflow skill into the repository at .claude/skills/epiq/SKILL.md, so agents working there follow the same board rules. Use it after epiq_project_init, or in any project that lacks the file. Refuses to overwrite a differing file unless force is true; an identical file is left alone.',
+				'Write the official Epiq workflow skill into the repository at .claude/skills/epiq/SKILL.md, so agents working there follow the same board rules. Run it after epiq_project_init, not before: the new file is an uncommitted change that init refuses. In a project that already has a board, run it any time. Refuses to overwrite a differing file unless force is true; an identical file is left alone.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				force: z.boolean().optional(),

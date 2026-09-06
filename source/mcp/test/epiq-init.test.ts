@@ -124,20 +124,67 @@ describe('epiq_project_init', () => {
 		expect(boards.value.map(board => board.title)).toContain('Default');
 	});
 
-	it('keeps the user id a machine already has', async () => {
+	it('refuses to change an answer the machine already has', async () => {
 		const {repoRoot} = await setupPlainRepo();
 		const first = await initProjectTool({repoRoot, ...answers});
 		if (isFail(first)) throw new Error(first.message);
 
 		const {repoRoot: secondRepo} = await setupPlainRepo();
-		const second = await initProjectTool({
+		const renamed = await initProjectTool({
 			repoRoot: secondRepo,
 			userName: 'Jo Renamed',
 		});
+		expect(isFail(renamed)).toBe(true);
+		expect(renamed.message).toContain('already set up with userName "Jo"');
+
+		const otherEditor = await initProjectTool({
+			repoRoot: secondRepo,
+			preferredEditor: 'code --wait',
+		});
+		expect(isFail(otherEditor)).toBe(true);
+		expect(otherEditor.message).toContain('preferredEditor "vim"');
+
+		const otherSync = await initProjectTool({
+			repoRoot: secondRepo,
+			autoSync: true,
+		});
+		expect(isFail(otherSync)).toBe(true);
+		expect(otherSync.message).toContain('autoSync false');
+
+		expect(readConfig()).toMatchObject(answers);
+		expect(fs.existsSync(path.join(secondRepo, '.epiq'))).toBe(false);
+	});
+
+	it('accepts the answers it already has, and keeps the user id', async () => {
+		const {repoRoot} = await setupPlainRepo();
+		const first = await initProjectTool({repoRoot, ...answers});
+		if (isFail(first)) throw new Error(first.message);
+
+		const {repoRoot: secondRepo} = await setupPlainRepo();
+		const second = await initProjectTool({repoRoot: secondRepo, ...answers});
 		if (isFail(second)) throw new Error(second.message);
 
 		expect(second.value.user.userId).toBe(first.value.user.userId);
-		expect(readConfig().userName).toBe('Jo Renamed');
+	});
+
+	it('mints an id for a configured name that has none', async () => {
+		const {repoRoot} = await setupPlainRepo();
+		fs.mkdirSync(path.dirname(getEpiqConfigPath()), {recursive: true});
+		fs.writeFileSync(
+			getEpiqConfigPath(),
+			JSON.stringify({logLevel: 'info', userName: 'Jo'}),
+		);
+
+		const result = await initProjectTool({
+			repoRoot,
+			preferredEditor: 'vim',
+			autoSync: false,
+		});
+		if (isFail(result)) throw new Error(result.message);
+
+		expect(result.value.user.userName).toBe('Jo');
+		expect(readConfig().userId).toBe(result.value.user.userId);
+		expect(result.value.user.userId).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
 	});
 
 	it("refuses the agent's own name as the user's", async () => {

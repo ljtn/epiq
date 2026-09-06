@@ -221,11 +221,11 @@ On a machine with no `~/.epiq-global/config.json` yet, the tool also records the
 - `preferredEditor` — the command that opens a file, e.g. `vim` or `code --wait`
 - `autoSync` — whether the TUI and GUI sync with the remote on their own
 
-Whatever was given is kept between calls. The name recorded is the user's, not the agent's: an agent running under its own identity (see below) is refused if it passes that name here.
+Whatever was given is kept between calls. On a machine that is already set up the tool fills in nothing and changes nothing: a different answer is refused, since renaming the configured user would rename them on every board. The name recorded is the user's, not the agent's: an agent running under its own identity (see below) is refused if it passes that name here.
 
 ### Skills
 
-Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq board. `epiq_skill_install` writes the same file into any repository that lacks it, so a project set up from an agent gets the rules too; it leaves an identical copy alone and refuses to overwrite a differing one unless told to with `force`.
+Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq board. `epiq_skill_install` writes the same file into any repository that lacks it, so a project set up from an agent gets the rules too — after `epiq_project_init`, since init refuses a repository with uncommitted files; it leaves an identical copy alone and refuses to overwrite a differing one unless told to with `force`.
 
 ### Agent identity
 
