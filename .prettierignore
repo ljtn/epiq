@@ -1,3 +1,6 @@
 # Worktrees are checked out inside the repo, so the format check would other-
 # wise scan another branch's working copy and fail on code that is not ours.
 .claude/
+
+# Generated from the skill file by write-skill.mjs; a JSON string, not prose.
+source/mcp/skill-content.ts

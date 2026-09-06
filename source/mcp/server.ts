@@ -45,6 +45,7 @@ import {
 	sync,
 } from './epiq-api.js';
 import {initProjectTool} from './epiq-init.js';
+import {installSkill} from './epiq-skill.js';
 import {runExclusive} from './epiq-time-travel.js';
 
 export const resultJson = <T>(result: Result<T>) => ({
@@ -519,6 +520,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(initProjectTool),
+	);
+
+	server.registerTool(
+		'epiq_skill_install',
+		{
+			description:
+				'Write the official Epiq workflow skill into the repository at .claude/skills/epiq/SKILL.md, so agents working there follow the same board rules. Use it after epiq_project_init, or in any project that lacks the file. Refuses to overwrite a differing file unless force is true; an identical file is left alone.',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				force: z.boolean().optional(),
+			}),
+		},
+		exclusiveTool(installSkill),
 	);
 
 	server.registerTool(

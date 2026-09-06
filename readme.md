@@ -225,7 +225,7 @@ Whatever was given is kept between calls. The name recorded is the user's, not t
 
 ### Skills
 
-Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq board.
+Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workflow for working the Epiq board. `epiq_skill_install` writes the same file into any repository that lacks it, so a project set up from an agent gets the rules too; it leaves an identical copy alone and refuses to overwrite a differing one unless told to with `force`.
 
 ### Agent identity
 
