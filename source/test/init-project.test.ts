@@ -106,7 +106,9 @@ describe('initProject', () => {
 		const result = await initProject({cwd: repoRoot, user});
 
 		expect(isFail(result)).toBe(true);
-		expect(result.message).toMatch(/^\[3\] .*uncommitted/);
+		expect(result.message).toMatch(
+			/^\[3\] .*uncommitted changes \(dirty.txt\)/,
+		);
 	});
 
 	it('refuses a repository that is already a project', async () => {
