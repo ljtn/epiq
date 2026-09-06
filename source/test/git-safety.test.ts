@@ -237,7 +237,7 @@ describe('no commit reaches the user repository outside init', () => {
 				: [];
 		});
 
-	it('only init.cmd.ts commits with cwd: repoRoot', () => {
+	it('only init-project.ts commits with cwd: repoRoot', () => {
 		const offenders = sourceFiles(sourceRoot).filter(file => {
 			const body = fs.readFileSync(file, 'utf8');
 
@@ -253,11 +253,11 @@ describe('no commit reaches the user repository outside init', () => {
 		});
 
 		expect(offenders.map(file => path.relative(sourceRoot, file))).toEqual([
-			'lib/command-line/commands/init.cmd.ts',
+			'lib/project-setup/init-project.ts',
 		]);
 	});
 
-	it('only init.cmd.ts stages with cwd: repoRoot', () => {
+	it('only init-project.ts stages with cwd: repoRoot', () => {
 		const offenders = sourceFiles(sourceRoot).filter(file => {
 			const body = fs.readFileSync(file, 'utf8');
 
@@ -271,13 +271,13 @@ describe('no commit reaches the user repository outside init', () => {
 		});
 
 		expect(offenders.map(file => path.relative(sourceRoot, file))).toEqual([
-			'lib/command-line/commands/init.cmd.ts',
+			'lib/project-setup/init-project.ts',
 		]);
 	});
 
 	// Pushing from the user's repo pushes their branch, not ours. Init does it
 	// once, by request; nothing else may acquire the habit.
-	it('only init.cmd.ts pushes from the user repository', () => {
+	it('only init-project.ts pushes from the user repository', () => {
 		const offenders = sourceFiles(sourceRoot).filter(file => {
 			const body = fs.readFileSync(file, 'utf8');
 
@@ -291,7 +291,7 @@ describe('no commit reaches the user repository outside init', () => {
 		});
 
 		expect(offenders.map(file => path.relative(sourceRoot, file))).toEqual([
-			'lib/command-line/commands/init.cmd.ts',
+			'lib/project-setup/init-project.ts',
 		]);
 	});
 

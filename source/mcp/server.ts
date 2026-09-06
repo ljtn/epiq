@@ -44,6 +44,7 @@ import {
 	reopenIssue,
 	sync,
 } from './epiq-api.js';
+import {initProjectTool} from './epiq-init.js';
 import {runExclusive} from './epiq-time-travel.js';
 
 export const resultJson = <T>(result: Result<T>) => ({
@@ -503,6 +504,21 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(assumeActor),
+	);
+
+	server.registerTool(
+		'epiq_project_init',
+		{
+			description:
+				'Set up a new Epiq board in a git repository without the TUI. Runs in the repository at repoRoot (default: the current directory), which must have no uncommitted changes. The first time on a machine it also records the user\'s setup: ask the user for userName (how they want to appear on the board), preferredEditor (e.g. "vim" or "code --wait") and autoSync (whether the TUI and GUI sync with the remote on their own) and pass them here; called without them it fails naming what is still missing, keeping whatever was given. Pass the user\'s name, never your own agent identity. Commits the state branch and .epiq/project.json and tries to push both; a push that fails is a warning, not an error. Afterwards the other tools work in that repository.',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				userName: z.string().min(1).max(80).optional(),
+				preferredEditor: z.string().min(1).max(200).optional(),
+				autoSync: z.boolean().optional(),
+			}),
+		},
+		exclusiveTool(initProjectTool),
 	);
 
 	server.registerTool(
