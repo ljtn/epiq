@@ -24,14 +24,16 @@ import {Header} from './components/Header';
 import {IssueDetails} from './components/IssueDetails';
 import {
 	FileTicketParams,
-	formatSelectionLabel,
 	clearDiffLocationParams,
 	DiffLocation,
 	readCommitFocusParam,
-	encodeDiffCommentMarker,
 	readDiffLocationParams,
 	writeDiffLocationParams,
-} from './components/IssueCommits';
+} from './lib/diff-selection';
+import {
+	formatSelectionLabel,
+	encodeDiffCommentMarker,
+} from '../../lib/utils/diff-comment.js';
 import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
@@ -47,13 +49,7 @@ import {DropTarget} from './lib/gui-result.model';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {issueMatchesText} from '../../lib/utils/text-match.js';
 import {commitTicketRef} from '../../lib/utils/commit-ref.js';
-import {
-	findBoard,
-	findIssue,
-	getResultValue,
-	updateIssueInGuiState,
-	updateSwimlaneInGuiState,
-} from './lib/gui-state-helper';
+import {findBoard, findIssue, getResultValue} from './lib/gui-state-helper';
 import {
 	GuiCommitDiff,
 	GuiCommitDiffFile,
@@ -69,9 +65,9 @@ import {
 	buildBoardFilter,
 	isPeriodWindow,
 	issuePassesBoardFilter,
-	usePersistedFlag,
 	windowIssueIds,
 } from './lib/scrubber';
+import {usePersistedFlag} from './lib/use-persisted-flag';
 import {
 	buildTheatrePlan,
 	THEATRE_PLAYER_CLEARANCE,
@@ -84,9 +80,9 @@ import {Input} from './components/FormPrimitives';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
+import {useIssueMutations} from './lib/use-issue-mutations';
+import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
-import {blobToBase64, compressImage} from './lib/compress-image';
-import {AttachmentUploadStatus} from './components/IssueAttachments';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
@@ -245,15 +241,6 @@ export const App = () => {
 		swimlaneId: string;
 		title: string;
 	} | null>(null);
-	// Only a title: the board it lands on is whichever one is on screen.
-	const [createSwimlaneTitle, setCreateSwimlaneTitle] = useState<string | null>(
-		null,
-	);
-	const [renameSwimlane, setRenameSwimlane] = useState<{
-		swimlaneId: string;
-		title: string;
-	} | null>(null);
-	const [deleteSwimlaneId, setDeleteSwimlaneId] = useState<string | null>(null);
 	// Which column edge the dragged swimlane would land on. Held as an edge
 	// rather than an index so each column can draw its own line without needing
 	// to know its position in the row.
@@ -471,8 +458,6 @@ export const App = () => {
 		isolatedIssueId,
 	]);
 	const attachmentsByIssueId = state?.attachmentsByIssueId ?? {};
-	const [attachmentUploadStatus, setAttachmentUploadStatus] =
-		useState<AttachmentUploadStatus>({state: 'idle'});
 
 	// Every frame the board's connection delivers, and what it means. The
 	// connection itself — opening, losing, retrying, sending — is
@@ -818,163 +803,31 @@ export const App = () => {
 		});
 	};
 
-	const editIssueTitle = (issueId: string, title: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => ({
-				...issue,
-				title,
-			}));
-		});
-
-		send('issue:edit:title', {issueId, title});
-	};
-
-	const editIssueDescription = (issueId: string, description: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => ({
-				...issue,
-				description,
-			}));
-		});
-
-		send('issue:edit:description', {issueId, description});
-	};
-
-	const addIssueTag = (issueId: string, tagName: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => {
-				if (issue.tags.some(tag => tag.name === tagName)) return issue;
-
-				return {
-					...issue,
-					tags: [
-						...issue.tags,
-						{
-							id: `placeholder-tag-${tagName}`,
-							name: tagName,
-							color: GUI_THEME.dim,
-						},
-					],
-				};
-			});
-		});
-
-		send('issue:tag:add', {issueId, tagName});
-	};
-
-	const removeIssueTag = (issueId: string, tagId: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => ({
-				...issue,
-				tags: issue.tags.filter(tag => tag.id !== tagId),
-			}));
-		});
-
-		send('issue:tag:remove', {issueId, tagId});
-	};
-
-	const addIssueAssignee = (issueId: string, assigneeId: string) => {
-		const picked = contributors.find(c => c.id === assigneeId);
-
-		setState(prev => {
-			if (!prev || !picked) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue =>
-				issue.assignees.some(assignee => assignee.id === assigneeId)
-					? issue
-					: {...issue, assignees: [...issue.assignees, picked]},
-			);
-		});
-
-		send('issue:assignee:add', {issueId, assigneeId});
-	};
-
-	// Clears the display name only; the id and every assignment survive.
-	const removeContributor = (contributorId: string) => {
-		send('contributor:remove', {contributorId});
-	};
-
-	// Hides the tag everywhere; the id and every ticket reference survive. The
-	// state broadcast that follows drops it from every card at once.
-	const removeTag = (tagId: string) => {
-		send('tag:remove', {tagId});
-	};
-
-	// Invent a person who has no record at all in the in the event logs.
-	const addExternalIssueAssignee = (issueId: string, assigneeName: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => {
-				if (issue.assignees.some(assignee => assignee.name === assigneeName)) {
-					return issue;
-				}
-
-				return {
-					...issue,
-					assignees: [
-						...issue.assignees,
-						{
-							id: `placeholder-assignee-${assigneeName}`,
-							name: assigneeName,
-							color: GUI_THEME.dim,
-						},
-					],
-				};
-			});
-		});
-
-		send('issue:assignee:add', {issueId, assigneeName, createUnlinked: true});
-	};
-
-	const removeIssueAssignee = (issueId: string, assigneeId: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => ({
-				...issue,
-				assignees: issue.assignees.filter(
-					assignee => assignee.id !== assigneeId,
-				),
-			}));
-		});
-
-		send('issue:assignee:remove', {issueId, assigneeId});
-	};
-
-	const closeIssue = (issueId: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => ({
-				...issue,
-				isClosed: true,
-			}));
-		});
-
-		send('issue:close', {issueId});
-	};
-
-	const reopenIssue = (issueId: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			return updateIssueInGuiState(prev, issueId, issue => ({
-				...issue,
-				isClosed: false,
-			}));
-		});
-
-		send('issue:reopen', {issueId});
-	};
+	const {
+		attachmentUploadStatus,
+		editIssueTitle,
+		editIssueDescription,
+		addIssueTag,
+		removeIssueTag,
+		addIssueAssignee,
+		removeContributor,
+		removeTag,
+		addExternalIssueAssignee,
+		removeIssueAssignee,
+		closeIssue,
+		reopenIssue,
+		addIssueComment,
+		deleteIssueComment,
+		editIssueComment,
+		uploadIssueAttachments,
+		deleteIssueAttachment,
+	} = useIssueMutations({
+		send,
+		setState,
+		contributors,
+		updateComments: updateDetailComments,
+		attachmentMaxKb: state?.attachmentMaxKb,
+	});
 
 	const scrubToTime = (targetTime: number) => {
 		send('time-travel:scrub', {targetTime});
@@ -1190,80 +1043,18 @@ export const App = () => {
 		});
 	};
 
-	const createSwimlane = () => {
-		if (createSwimlaneTitle === null || !selectedBoard) return;
-
-		const title = createSwimlaneTitle.trim() || 'New swimlane';
-		const boardId = selectedBoard.id;
-
-		setCreateSwimlaneTitle(null);
-
-		// Placeholder id: the real one arrives with the state that follows. Marked
-		// readonly until then, which hides the kebab and disables `+` — both would
-		// otherwise send this id, and the server has never heard of it.
-		setState(prev =>
-			prev
-				? {
-						...prev,
-						boards: prev.boards.map(board =>
-							board.id === boardId
-								? {
-										...board,
-										swimlanes: [
-											...board.swimlanes,
-											{
-												id: `pending-swimlane-${title}`,
-												title,
-												readonly: true,
-												issues: [],
-											},
-										],
-								  }
-								: board,
-						),
-				  }
-				: prev,
-		);
-
-		send('swimlane:create', {title, boardId});
-	};
-
-	const openRenameSwimlane = (swimlaneId: string) => {
-		const swimlane = visibleSwimlanes.find(x => x.id === swimlaneId);
-		if (!swimlane) return;
-
-		setRenameSwimlane({swimlaneId, title: swimlane.title});
-	};
-
-	const submitRenameSwimlane = () => {
-		if (!renameSwimlane) return;
-
-		const {swimlaneId} = renameSwimlane;
-		const title = renameSwimlane.title.trim();
-
-		setRenameSwimlane(null);
-
-		// An empty title is refused by the server, and blanking a column is never
-		// what the reader meant by it, so treat it as a cancel.
-		if (!title) return;
-
-		setState(prev =>
-			prev
-				? updateSwimlaneInGuiState(prev, swimlaneId, swimlane => ({
-						...swimlane,
-						title,
-				  }))
-				: prev,
-		);
-
-		send('swimlane:edit:title', {swimlaneId, title});
-	};
-
-	// From the board rather than the filtered lanes, and resolved at render
-	// rather than captured when the menu was clicked: the confirm counts what the
-	// delete destroys, which a board filter must not be able to talk down.
-	const deletingSwimlane =
-		selectedBoard?.swimlanes.find(x => x.id === deleteSwimlaneId) ?? null;
+	const {
+		createSwimlaneTitle,
+		setCreateSwimlaneTitle,
+		renameSwimlane,
+		setRenameSwimlane,
+		setDeleteSwimlaneId,
+		deletingSwimlane,
+		createSwimlane,
+		openRenameSwimlane,
+		submitRenameSwimlane,
+		confirmDeleteSwimlane,
+	} = useSwimlaneEditing({send, setState, selectedBoard, visibleSwimlanes});
 
 	// A dead socket cannot carry a mutation, so the board wears the same
 	// readonly it wears mid-scrub — every existing guard keys off this, so the
@@ -1302,45 +1093,6 @@ export const App = () => {
 			selectedBoard.id,
 			edge.side === 'left' ? overIndex : overIndex + 1,
 		);
-	};
-
-	const confirmDeleteSwimlane = () => {
-		if (!deleteSwimlaneId) return;
-
-		setState(prev =>
-			prev
-				? updateSwimlaneInGuiState(prev, deleteSwimlaneId, () => null)
-				: prev,
-		);
-
-		send('swimlane:delete', {swimlaneId: deleteSwimlaneId});
-		setDeleteSwimlaneId(null);
-	};
-
-	const addIssueComment = (issueId: string, body: string) => {
-		setState(prev => {
-			if (!prev) return prev;
-
-			const previousComments = prev.commentsByIssueId[issueId] ?? [];
-			const placeholderComment = {
-				id: `placeholder-comment-${crypto.randomUUID()}`,
-				issueId,
-				body,
-				isDeleted: false,
-				author: prev.user,
-				createdAt: new Date().getTime(),
-			} as (typeof previousComments)[number];
-
-			return {
-				...prev,
-				commentsByIssueId: {
-					...prev.commentsByIssueId,
-					[issueId]: [...previousComments, placeholderComment],
-				},
-			};
-		});
-
-		send('issue:comment:add', {issueId, body});
 	};
 
 	const fileTicketFromSelection = (
@@ -1386,123 +1138,6 @@ export const App = () => {
 			description,
 			tagNames: ['from-code-comment'],
 		});
-	};
-
-	// Returns one markdown reference per file that made it, so a composer can
-	// leave them at the cursor. A rejected file contributes nothing and the
-	// error is reported through attachmentUploadStatus as before.
-	const uploadIssueAttachments = async (
-		issueId: string,
-		files: File[],
-	): Promise<string[]> => {
-		const inserted: string[] = [];
-
-		for (const file of files) {
-			setAttachmentUploadStatus({state: 'uploading', name: file.name});
-
-			const compressed = await compressImage(file, state?.attachmentMaxKb);
-
-			if ('error' in compressed) {
-				setAttachmentUploadStatus({state: 'error', message: compressed.error});
-				return inserted;
-			}
-
-			try {
-				const dataBase64 = await blobToBase64(compressed.blob);
-
-				const response = await fetch('/api/attachments', {
-					method: 'POST',
-					headers: {'content-type': 'application/json'},
-					body: JSON.stringify({
-						issueId,
-						name: compressed.name,
-						dataBase64,
-					}),
-				});
-
-				const payload = await response.json();
-
-				if (!response.ok) {
-					setAttachmentUploadStatus({
-						state: 'error',
-						message: payload?.message ?? 'Upload failed',
-					});
-					return inserted;
-				}
-
-				const nextState = getResultValue<GuiState>(payload);
-				if (nextState) setState(nextState);
-
-				const markdown = (payload as {attachment?: {markdown?: string}})
-					?.attachment?.markdown;
-				if (markdown) inserted.push(markdown);
-			} catch (error) {
-				setAttachmentUploadStatus({
-					state: 'error',
-					message: error instanceof Error ? error.message : 'Upload failed',
-				});
-				return inserted;
-			}
-		}
-
-		setAttachmentUploadStatus({state: 'idle'});
-
-		return inserted;
-	};
-
-	const deleteIssueAttachment = async (
-		_issueId: string,
-		attachmentId: string,
-	) => {
-		try {
-			const response = await fetch(
-				`/api/attachments/${encodeURIComponent(attachmentId)}`,
-				{method: 'DELETE'},
-			);
-
-			const payload = await response.json();
-
-			if (!response.ok) {
-				setAttachmentUploadStatus({
-					state: 'error',
-					message: payload?.message ?? 'Unable to delete attachment',
-				});
-				return;
-			}
-
-			const nextState = getResultValue<GuiState>(payload);
-			if (nextState) setState(nextState);
-		} catch (error) {
-			setAttachmentUploadStatus({
-				state: 'error',
-				message:
-					error instanceof Error
-						? error.message
-						: 'Unable to delete attachment',
-			});
-		}
-	};
-
-	const deleteIssueComment = (issueId: string, commentId: string) => {
-		updateDetailComments(issueId, comments =>
-			comments.filter(comment => comment.id !== commentId),
-		);
-
-		send('issue:comment:delete', {issueId, commentId});
-	};
-
-	const editIssueComment = (
-		issueId: string,
-		commentId: string,
-		body: string,
-	) => {
-		updateDetailComments(issueId, comments =>
-			comments.map(comment =>
-				comment.id === commentId ? {...comment, body} : comment,
-			),
-		);
-
-		send('issue:comment:edit', {issueId, commentId, body});
 	};
 
 	// Ahead of the board: without a project there are no boards, no history and

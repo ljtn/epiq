@@ -6,11 +6,7 @@ import {Section} from './Section';
 import {getAttachmentUrl} from '../../../lib/media/attachment-url.js';
 import {imageFilesFrom} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
-
-export type AttachmentUploadStatus =
-	| {state: 'idle'}
-	| {state: 'uploading'; name: string}
-	| {state: 'error'; message: string};
+import {AttachmentUploadStatus} from '../lib/use-issue-mutations';
 
 // It sits on top of whatever was uploaded, so it cannot borrow contrast from
 // what is behind it. The dark fill carries it over a pale photo, the light ring

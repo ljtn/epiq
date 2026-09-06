@@ -3,19 +3,21 @@ import {SelectedLineRange} from '@pierre/diffs/react';
 import {
 	dedent,
 	diffLocationFromMeta,
+	extractSnippet,
+	findDiffCommentsForFile,
+	readDiffLocationParams,
+	writeDiffLocationParams,
+} from './diff-selection';
+import {
 	encodeDiffCommentMarker,
 	extractCommentLead,
 	extractCommentSnippet,
-	extractSnippet,
-	findDiffCommentsForFile,
 	formatSelectionLabel,
 	parseDiffCommentMeta,
-	readDiffLocationParams,
 	stripDiffCommentMarker,
 	withDiffCommentNote,
-	writeDiffLocationParams,
-} from './IssueCommits';
-import {GuiComment, GuiCommitDiffFile} from '../lib/gui-state.model';
+} from '../../../lib/utils/diff-comment.js';
+import {GuiComment, GuiCommitDiffFile} from './gui-state.model';
 
 const file: GuiCommitDiffFile = {
 	path: 'source/a.ts',

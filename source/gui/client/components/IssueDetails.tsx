@@ -33,23 +33,23 @@ import {
 	Input,
 	Textarea,
 } from './FormPrimitives';
-import {AttachmentUploadStatus, IssueAttachments} from './IssueAttachments';
+import {IssueAttachments} from './IssueAttachments';
+import {AttachmentUploadStatus} from '../lib/use-issue-mutations';
 import {CollapsibleBody} from './CollapsibleBody';
 import {CommentBody, IssueComments} from './IssueComments';
+import {CommitDiffState, IssueCommits} from './IssueCommits';
 import {
-	CommitDiffState,
 	CommitFocus,
 	DiffLocation,
 	FileTicketParams,
-	IssueCommits,
-	parseDiffCommentMeta,
-} from './IssueCommits';
+} from '../lib/diff-selection';
+import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
-import {usePersistedFlag} from '../lib/scrubber';
+import {usePersistedFlag} from '../lib/use-persisted-flag';
 import {AsideDock} from '../lib/aside-dock';
 import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';

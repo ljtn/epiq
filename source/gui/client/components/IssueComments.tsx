@@ -7,16 +7,15 @@ import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
 import {COMMENT_CARD_STYLE} from '../lib/comment-card.style';
+import {DiffLocation, diffLocationFromMeta} from '../lib/diff-selection';
 import {
-	DiffLocation,
-	diffLocationFromMeta,
 	extractCommentLead,
 	extractCommentSnippet,
 	formatSelectionLabel,
 	parseDiffCommentMeta,
 	stripDiffCommentMarker,
 	withDiffCommentNote,
-} from './IssueCommits';
+} from '../../../lib/utils/diff-comment.js';
 import {MarkdownContent} from './MarkdownContent';
 import {MAX_COMMENT_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
