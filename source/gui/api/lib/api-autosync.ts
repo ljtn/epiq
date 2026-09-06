@@ -1,8 +1,10 @@
 import {GuiProject} from './gui-project.js';
+import {getStateBranchRoot} from '../../../git/git-storage.js';
 import {
 	loadSettingsFromConfig,
 	readEpiqConfig,
 } from '../../../lib/config/user-config.js';
+import {logSignature} from '../../../lib/event/log-signature.js';
 import {isFail} from '../../../lib/model/result-types.js';
 import {logger} from '../../../logger.js';
 import {getGuiState, sync} from '../../../mcp/epiq-api.js';
@@ -11,6 +13,7 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
+import {slimStateResult} from './slim-state.js';
 
 const DEFAULT_INTERVAL_MS = 15_000;
 
@@ -19,6 +22,21 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 	let disposed = false;
 	let syncing = false;
 	let lastStartedAt = 0;
+
+	// The log every client has been sent. Compared against the log on disk after
+	// each pass, so what decides a broadcast is whether the board changed — not
+	// whether git reported the pass a success. A pull that landed before a push
+	// was refused, a remote that came back, an agent appending to the same
+	// worktree: all of them move the log and none of them move the sync result.
+	let published: string | null = currentSignature();
+
+	function currentSignature(): string | null {
+		const stateBranchRoot = getStateBranchRoot({
+			repoRoot: input.project.repoRoot,
+		});
+
+		return isFail(stateBranchRoot) ? null : logSignature(stateBranchRoot.value);
+	}
 
 	const config = () => {
 		const result = readEpiqConfig();
@@ -63,20 +81,25 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 			await runExclusive(async () => {
 				if (getTimeTravelStatus().mode !== 'live') return;
 
-				const result = await sync({repoRoot: input.project.repoRoot});
-				if (isFail(result)) return;
-
-				const {pulled, createdCommit, bootstrapped} = result.value;
+				await sync({repoRoot: input.project.repoRoot});
 
 				// Publishing replaces every client's board wholesale, discarding
-				// whatever the user was part-way through. An unchanged repository is
-				// not worth that.
-				if (!pulled && !createdCommit && !bootstrapped) return;
+				// whatever the user was part-way through. An unchanged log is not
+				// worth that; a failed sync over a changed one is.
+				const signature = currentSignature();
+				if (signature === null || signature === published) return;
 
-				broadcastGuiMessage({
-					type: 'state',
-					payload: await getGuiState({repoRoot: input.project.repoRoot}),
-				});
+				const payload = slimStateResult(
+					await getGuiState({repoRoot: input.project.repoRoot}),
+				);
+
+				// A log that cannot be derived yet — mid-rebase, half-written — is
+				// left for the next pass; the board the clients hold is better than
+				// an error in its place.
+				if (isFail(payload)) return;
+
+				published = signature;
+				broadcastGuiMessage({type: 'state', payload});
 			});
 		} finally {
 			syncing = false;

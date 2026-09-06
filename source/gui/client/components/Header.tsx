@@ -35,7 +35,9 @@ export const Header = ({
 	// Failures can carry multi-line git output — never render that in the
 	// topbar. Show a short label and keep the details in the hover tooltip.
 	const syncLabel =
-		syncStatus.status === 'failed' ? '-' : syncStatus.msg.toLowerCase();
+		syncStatus.status === 'failed'
+			? 'sync failed'
+			: syncStatus.msg.toLowerCase();
 
 	return (
 		<Panel
