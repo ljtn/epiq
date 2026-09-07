@@ -282,6 +282,7 @@ export const IssueDetails = ({
 	stats,
 	statsLoading,
 	statsError,
+	onOpenStatsFile,
 	knownTags: tags,
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
@@ -334,6 +335,8 @@ export const IssueDetails = ({
 	stats: IssueStatsPayload | null;
 	statsLoading: boolean;
 	statsError: string | null;
+	// Following a file from the Stats tab into its diff on the Commits tab.
+	onOpenStatsFile?: (file: {sha: string; path: string}) => void;
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
@@ -960,7 +963,12 @@ export const IssueDetails = ({
 				// side by side with what is said about it, and a page of numbers is
 				// not something to read alongside anything.
 				const statsPane = issue && (
-					<IssueStats stats={stats} loading={statsLoading} error={statsError} />
+					<IssueStats
+						stats={stats}
+						loading={statsLoading}
+						error={statsError}
+						onOpenFile={onOpenStatsFile}
+					/>
 				);
 
 				// Docked to the bottom the panel is wide and short, so the title

@@ -9,11 +9,9 @@
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {deriveChangeShape} from './change-shape.js';
 import {deriveCommentDensity} from './comment-density.js';
-import {CoverageReport} from './coverage-report.js';
 import {deriveFlags} from './flags.js';
 import {IssueStats, StatsCommit} from './issue-stats.model.js';
 import {deriveLanguages} from './languages.js';
-import {derivePatchCoverage} from './patch-coverage.js';
 import {scanTicketPatch} from './patch-scan.js';
 import {readRepoBaseline} from './repo-baseline.js';
 import {deriveTestSignal} from './test-signal.js';
@@ -29,15 +27,10 @@ export const deriveIssueStats = async ({
 	repoRoot,
 	ref,
 	commits,
-	report,
 }: {
 	repoRoot: string;
 	ref: string;
 	commits: StatsCommit[];
-	// Handed in rather than discovered here: the caller caches this answer, and
-	// a cache has to be keyed on the report it was computed against. Finding it
-	// inside would hide that dependency from the key.
-	report: CoverageReport | null;
 }): Promise<Result<IssueStats>> => {
 	const patchResult = await scanTicketPatch({
 		repoRoot,
@@ -52,24 +45,9 @@ export const deriveIssueStats = async ({
 		? await readRepoBaseline({repoRoot, sha: first})
 		: null;
 
-	const shape = deriveChangeShape({commits, patch});
-
-	const coverage = await derivePatchCoverage({
-		repoRoot,
-		patch,
-		// Newest first, which is both the order getCommitsForRef answers in
-		// and the one "is this ticket in this checkout at all" is asked in.
-		shas: [...commits]
-			.sort((a, b) => b.time - a.time)
-			.map(commit => commit.sha),
-		lastCommitAt: shape.lastCommitAt,
-		report,
-	});
-
 	return succeeded('Derived issue stats', {
 		ref,
-		shape,
-		coverage,
+		shape: deriveChangeShape({commits, patch}),
 		languages: deriveLanguages({
 			patch,
 			languagesBefore: baseline?.languages ?? null,

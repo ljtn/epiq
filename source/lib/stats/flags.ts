@@ -12,7 +12,8 @@ import {
 	isDocPath,
 	isGeneratedPath,
 } from './file-kinds.js';
-import {ChangeFlags} from './issue-stats.model.js';
+import {filePointer} from './file-pointer.js';
+import {ChangeFlags, FilePointer} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
 
 // A print left in by accident looks exactly like one left in on purpose, so
@@ -96,12 +97,15 @@ const countDuplicatedLines = (normalized: NormalizedLine[]): number => {
 };
 
 export const deriveFlags = ({patch}: {patch: TicketPatch}): ChangeFlags => {
-	const generatedPaths: string[] = [];
-	const dependencyManifests: string[] = [];
-	const buildOrCiPaths: string[] = [];
+	const generatedPaths: FilePointer[] = [];
+	const dependencyManifests: FilePointer[] = [];
+	const buildOrCiPaths: FilePointer[] = [];
 	let docsTouched = false;
 	let debugPrintLinesAdded = 0;
 	let maxIndentLevels = 0;
+	// The file the deepest nesting is in, so the number is a place to look
+	// rather than a fact with nowhere to go.
+	let deepestFile: FilePointer | null = null;
 
 	// One pool across the whole change: the copy-paste worth catching is the
 	// one from one file into another, which a per-file pass would miss. Each
@@ -110,9 +114,10 @@ export const deriveFlags = ({patch}: {patch: TicketPatch}): ChangeFlags => {
 	const normalizedAdded: NormalizedLine[] = [];
 
 	for (const [index, file] of patch.files.entries()) {
-		if (isGeneratedPath(file.path)) generatedPaths.push(file.path);
-		if (isDependencyManifest(file.path)) dependencyManifests.push(file.path);
-		if (isBuildOrCiPath(file.path)) buildOrCiPaths.push(file.path);
+		if (isGeneratedPath(file.path)) generatedPaths.push(filePointer(file));
+		if (isDependencyManifest(file.path))
+			dependencyManifests.push(filePointer(file));
+		if (isBuildOrCiPath(file.path)) buildOrCiPaths.push(filePointer(file));
 		if (isDocPath(file.path)) docsTouched = true;
 
 		if (file.binary || isGeneratedPath(file.path)) continue;
@@ -129,7 +134,12 @@ export const deriveFlags = ({patch}: {patch: TicketPatch}): ChangeFlags => {
 		for (const text of texts) {
 			if (DEBUG_PRINT.test(text)) debugPrintLinesAdded++;
 
-			maxIndentLevels = Math.max(maxIndentLevels, indentLevelsOf(text, unit));
+			const levels = indentLevelsOf(text, unit);
+			if (levels > maxIndentLevels) {
+				maxIndentLevels = levels;
+				deepestFile = filePointer(file);
+			}
+
 			if (shipping) normalizedAdded.push({text: text.trim(), file: index});
 		}
 
@@ -145,6 +155,7 @@ export const deriveFlags = ({patch}: {patch: TicketPatch}): ChangeFlags => {
 		docsTouched,
 		debugPrintLinesAdded,
 		maxIndentLevels,
+		deepestFile,
 		duplicatedLines: countDuplicatedLines(normalizedAdded),
 	};
 };

@@ -31,11 +31,13 @@ export const deriveLanguages = ({
 		}
 
 		const name = languageOf(file.path);
+		// `share` is filled in below, once every language's total is known.
 		const entry = byName.get(name) ?? {
 			name,
 			added: 0,
 			removed: 0,
 			addedInTests: 0,
+			share: 0,
 		};
 
 		entry.added += file.addedCount;
@@ -45,9 +47,21 @@ export const deriveLanguages = ({
 		byName.set(name, entry);
 	}
 
-	const languages = [...byName.values()].sort(
-		(a, b) => b.added + b.removed - (a.added + a.removed),
+	const totalChanged = [...byName.values()].reduce(
+		(total, entry) => total + entry.added + entry.removed,
+		0,
 	);
+
+	const languages = [...byName.values()]
+		// Share of the change rather than raw counts: which language this
+		// ticket is *in* is the question, and the +/- is already on the tab
+		// next door.
+		.map(entry => ({
+			...entry,
+			share:
+				totalChanged === 0 ? 0 : (entry.added + entry.removed) / totalChanged,
+		}))
+		.sort((a, b) => b.added + b.removed - (a.added + a.removed));
 
 	return {
 		languages,

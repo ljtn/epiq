@@ -333,7 +333,7 @@ describe('deriveChangeShape', () => {
 			),
 		});
 
-		expect(shape.largestFile).toEqual({path: 'big.ts', changed: 3});
+		expect(shape.largestFile).toEqual({path: 'big.ts', sha: 'aaa', changed: 3});
 		expect(shape.concentration).toBeCloseTo(0.75);
 	});
 
@@ -369,7 +369,11 @@ describe('deriveChangeShape', () => {
 			},
 		});
 
-		expect(shape.largestFile).toEqual({path: 'huge.ts', changed: 5_000});
+		expect(shape.largestFile).toEqual({
+			path: 'huge.ts',
+			sha: 'aaa',
+			changed: 5_000,
+		});
 		expect(shape.concentration).toBe(1);
 	});
 

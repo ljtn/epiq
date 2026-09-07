@@ -132,7 +132,24 @@ export const readCommitFocusParam = (
 	params: URLSearchParams,
 ): CommitFocus | null => {
 	const sha = params.get('commit');
-	return sha ? {sha} : null;
+	if (!sha) return null;
+
+	// `file` without a line range: what the Stats tab links with, since it
+	// names a file rather than a spot inside one. The Commits tab already
+	// opens `focus.filePath` when it has one.
+	const filePath = params.get('file');
+
+	return filePath ? {sha, filePath} : {sha};
+};
+
+/** The Stats tab's link: a file, in the commit that last touched it. */
+export const writeFileFocusParams = (
+	params: URLSearchParams,
+	file: {sha: string; path: string},
+): void => {
+	clearDiffLocationParams(params);
+	params.set('commit', file.sha);
+	params.set('file', file.path);
 };
 
 export const clearDiffLocationParams = (params: URLSearchParams): void => {

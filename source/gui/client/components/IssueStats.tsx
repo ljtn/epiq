@@ -1,11 +1,15 @@
-import {IssueStats as Stats} from '../../../lib/stats/issue-stats.model.js';
+import {
+	FilePointer,
+	IssueStats as Stats,
+} from '../../../lib/stats/issue-stats.model.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
+	LINE,
 	percent,
 	plural,
-	relativeAge,
 	ROW,
-	shareOf,
+	shortPath,
+	STAT_CELL,
 	STAT_GRID,
 	STAT_LABEL,
 	STAT_NOTE,
@@ -17,12 +21,64 @@ import {Section} from './Section';
 // What the ticket's own code says about itself, read as an answer to one
 // question: how hard should somebody look at this diff, and where.
 //
-// So there is no score here, and there will not be one. A single number would
-// be gamed within a week and would hide which of its inputs moved. What the
-// page does instead is put each figure next to the thing it should be read
-// against — the repo's own comment share, the lines that were never measured,
-// the count that is a floor rather than a total — and let a reader draw the
-// conclusion themselves.
+// Two rules hold the page together. There is no score — a single number would
+// be gamed within a week and would hide which of its inputs moved. And every
+// path on the page is a link into that file's diff, so "22% of this change is
+// in one file" is somewhere to go rather than something to know.
+
+const FileLink = ({
+	file,
+	onOpen,
+	children,
+}: {
+	file: FilePointer;
+	onOpen?: (file: FilePointer) => void;
+	children?: string;
+}) => {
+	const label = children ?? shortPath(file.path);
+
+	// No sha means the scan never saw which commit last touched it, which
+	// leaves nothing to open — so it stays text rather than becoming a link
+	// that goes nowhere.
+	if (!onOpen || !file.sha) {
+		return <span title={file.path}>{label}</span>;
+	}
+
+	return (
+		<button
+			type="button"
+			title={`${file.path} — open the diff`}
+			onClick={() => onOpen(file)}
+			style={{
+				background: 'transparent',
+				border: 'none',
+				padding: 0,
+				font: 'inherit',
+				color: 'inherit',
+				// Dotted rather than solid: at this size a solid rule reads as
+				// part of the text, and these sit among figures that are not
+				// links. Enough to say "this goes somewhere", quiet enough not to
+				// compete with the number above it.
+				textDecoration: 'underline dotted',
+				textDecorationColor: GUI_THEME.dim2,
+				textUnderlineOffset: 3,
+				cursor: 'pointer',
+				maxWidth: '100%',
+				overflow: 'hidden',
+				textOverflow: 'ellipsis',
+				whiteSpace: 'nowrap',
+			}}
+			onMouseEnter={event => {
+				event.currentTarget.style.color = GUI_THEME.accent;
+			}}
+			onMouseLeave={event => {
+				event.currentTarget.style.color = 'inherit';
+			}}
+		>
+			{label}
+		</button>
+	);
+};
 
 const Stat = ({
 	value,
@@ -31,116 +87,56 @@ const Stat = ({
 }: {
 	value: string;
 	label: string;
-	note?: string;
+	note?: React.ReactNode;
 }) => (
-	<div>
+	<div style={STAT_CELL}>
 		<div style={STAT_VALUE}>{value}</div>
 		<div style={STAT_LABEL}>{label}</div>
 		{note && <div style={STAT_NOTE}>{note}</div>}
 	</div>
 );
 
-const Row = ({left, right}: {left: string; right: string}) => (
+const Row = ({left, right}: {left: React.ReactNode; right: string}) => (
 	<div style={ROW}>
-		<span style={{color: GUI_THEME.secondary}}>{left}</span>
-		<span style={{color: GUI_THEME.primary}}>{right}</span>
+		<span
+			style={{
+				color: GUI_THEME.secondary,
+				minWidth: 0,
+				overflow: 'hidden',
+				textOverflow: 'ellipsis',
+				whiteSpace: 'nowrap',
+			}}
+		>
+			{left}
+		</span>
+		<span style={{color: GUI_THEME.primary, flexShrink: 0}}>{right}</span>
 	</div>
 );
 
-// A flag earns a line only when it has something to say. A page of zeroes
-// reads as a checklist somebody has to work through; a page of three lines
-// reads as three things to look at.
-const Flag = ({when, children}: {when: boolean; children: string}) =>
-	when ? (
-		<div style={{...ROW, color: GUI_THEME.primary}}>
-			<span>{children}</span>
-		</div>
-	) : null;
-
-const CoverageSection = ({coverage}: {coverage: Stats['coverage']}) => {
-	const measured = coverage.covered + coverage.uncovered;
-	const unmeasured = coverage.notInstrumented + coverage.notInReport;
-
-	return (
-		<Section title="Coverage">
-			{!coverage.anchored ? (
-				<div style={STAT_NOTE}>{coverage.notAnchoredReason}</div>
-			) : !coverage.report ? (
-				<div style={STAT_NOTE}>
-					No coverage report found. Epiq reads one your own toolchain writes
-					(lcov) — put it at coverage/lcov.info, or name it in .epiq/stats.json.
-				</div>
-			) : (
-				<>
-					<div style={STAT_GRID}>
-						<Stat
-							value={shareOf(coverage.covered, measured)}
-							label="Patch coverage"
-							note={`${coverage.covered} of ${plural(
-								measured,
-								'measured line',
-							)}`}
-						/>
-						<Stat
-							value={String(unmeasured)}
-							label="Lines not measured"
-							note={`${coverage.notInstrumented} carry no record, ${coverage.notInReport} in files the report does not cover`}
-						/>
-						<Stat
-							value={shareOf(
-								coverage.report.totalCovered,
-								coverage.report.totalLines,
-							)}
-							label="Repo coverage"
-							note={coverage.report.path}
-						/>
-					</div>
-
-					<div style={{...STAT_NOTE, marginTop: 12}}>
-						{coverage.truncated
-							? `Measured on ${coverage.survivingLines} lines, from the first files of a ticket too wide to read all of — a floor, not a total. `
-							: `Measured on ${coverage.survivingLines} of the ${plural(
-									coverage.linesAdded,
-									'line',
-							  )} this ticket added that still stand at HEAD, matched to the report by blame. `}
-						{coverage.report.olderThanLastCommit
-							? 'The report was written before this ticket’s last commit, so it predates the code it is being read against.'
-							: `Report written ${relativeAge(
-									coverage.report.modifiedAt,
-									Date.now(),
-							  )}.`}
-					</div>
-
-					{coverage.files
-						.filter(file => file.inReport && file.uncovered > 0)
-						.slice(0, 8)
-						.map(file => (
-							<Row
-								key={file.path}
-								left={file.path}
-								right={`${plural(file.uncovered, 'line')} uncovered`}
-							/>
-						))}
-				</>
-			)}
-		</Section>
-	);
-};
+// A note earns a line only when it has something to say. A page of zeroes
+// reads as a checklist somebody has to work through; three lines read as
+// three things to look at.
+const Note = ({when, children}: {when: boolean; children: React.ReactNode}) =>
+	when ? <div style={LINE}>{children}</div> : null;
 
 export const IssueStats = ({
 	stats,
 	loading,
 	error,
+	onOpenFile,
 }: {
 	stats: Stats | null;
 	loading: boolean;
 	error: string | null;
+	// Opens a file's diff on the Commits tab. Absent on a readonly board, where
+	// there is still everything to read and nowhere to click to.
+	onOpenFile?: (file: FilePointer) => void;
 }) => {
 	if (error) return <Empty>{error}</Empty>;
 	if (loading || !stats)
 		return <Empty>Reading this ticket&rsquo;s code…</Empty>;
 
-	const {shape, coverage, languages, tests, comments, flags} = stats;
+	const {shape, languages, tests, comments, flags} = stats;
 
 	if (shape.commits === 0) {
 		return (
@@ -151,19 +147,28 @@ export const IssueStats = ({
 		);
 	}
 
+	const flaggedFiles = [
+		...flags.dependencyManifests.map(file => ({file, what: 'dependencies'})),
+		...flags.buildOrCiPaths.map(file => ({file, what: 'build or CI'})),
+		...flags.generatedPaths.map(file => ({file, what: 'generated'})),
+	];
+
 	return (
 		<div style={{fontSize: TEXT.ui}}>
 			<Section title="The change" first>
 				<div style={STAT_GRID}>
 					<Stat
-						value={`+${shape.insertions} / −${shape.deletions}`}
-						label="Lines"
-						note={`net ${shape.net >= 0 ? '+' : ''}${shape.net}`}
-					/>
-					<Stat
 						value={String(shape.files)}
 						label="Files"
-						note={`${shape.filesAdded} added, ${shape.filesModified} modified, ${shape.filesDeleted} deleted`}
+						// Only what happened: "0 deleted" is a line of noise that
+						// wraps the note onto two lines in a narrow panel.
+						note={[
+							shape.filesAdded > 0 && `${shape.filesAdded} added`,
+							shape.filesModified > 0 && `${shape.filesModified} modified`,
+							shape.filesDeleted > 0 && `${shape.filesDeleted} deleted`,
+						]
+							.filter(Boolean)
+							.join(' · ')}
 					/>
 					<Stat
 						value={String(shape.directories)}
@@ -173,23 +178,22 @@ export const IssueStats = ({
 					<Stat
 						value={percent(shape.concentration)}
 						label="In its largest file"
-						note={shape.largestFile?.path}
+						note={
+							shape.largestFile && (
+								<FileLink file={shape.largestFile} onOpen={onOpenFile} />
+							)
+						}
 					/>
 				</div>
 
-				{shape.selfChurn > 0 && (
-					<div style={{...STAT_NOTE, marginTop: 12}}>
-						{plural(shape.selfChurn, 'line')} the ticket wrote and then rewrote
-						itself.
-					</div>
-				)}
+				<Note when={shape.selfChurn > 0}>
+					{`${plural(shape.selfChurn, 'line')} rewritten more than once`}
+				</Note>
 
-				{shape.truncated && (
-					<div style={{...STAT_NOTE, marginTop: 12}}>
-						This ticket is large enough that the scan stopped early — every
-						count here is a floor.
-					</div>
-				)}
+				<Note when={shape.truncated}>
+					This ticket is large enough that the scan stopped early — every count
+					here is a floor.
+				</Note>
 			</Section>
 
 			<Section title="Tests">
@@ -200,138 +204,120 @@ export const IssueStats = ({
 						note={`${tests.testLinesAdded} test, ${tests.codeLinesAdded} code`}
 					/>
 					<Stat
-						value={tests.touchedTests ? 'Yes' : 'No'}
-						label="Touched a test"
-						note={
-							tests.testFilesAdded > 0
-								? `${plural(tests.testFilesAdded, 'test file')} added`
-								: undefined
-						}
+						value={String(tests.addedTestFiles.length)}
+						label="Test files added"
+						note={tests.addedTestFiles.slice(0, 3).map(file => (
+							<div key={file.path}>
+								<FileLink file={file} onOpen={onOpenFile} />
+							</div>
+						))}
 					/>
 				</div>
 
-				<div style={{marginTop: 12}}>
-					<Flag when={tests.testFilesDeleted > 0}>
-						{`${plural(tests.testFilesDeleted, 'test file')} deleted`}
-					</Flag>
-					<Flag when={tests.testLinesRemoved > 0}>
-						{`${plural(tests.testLinesRemoved, 'test line')} removed`}
-					</Flag>
-					<Flag when={tests.focusedTestLinesAdded > 0}>
-						{`${plural(
-							tests.focusedTestLinesAdded,
-							'focused test',
-						)} added — .only silences the rest of the suite`}
-					</Flag>
-					<Flag when={tests.skippedTestLinesAdded > 0}>
-						{`${plural(tests.skippedTestLinesAdded, 'skipped test')} added`}
-					</Flag>
-				</div>
-			</Section>
+				<Note when={tests.deletedTestFiles.length > 0}>
+					{`${plural(tests.deletedTestFiles.length, 'test file')} deleted: `}
+					{tests.deletedTestFiles.map(file => (
+						<span key={file.path}>
+							<FileLink file={file} onOpen={onOpenFile} />{' '}
+						</span>
+					))}
+				</Note>
 
-			<CoverageSection coverage={coverage} />
+				<Note when={tests.testLinesRemoved > 0}>
+					{`${plural(tests.testLinesRemoved, 'test line')} removed`}
+				</Note>
+
+				<Note when={tests.focusedTestLinesAdded > 0}>
+					{`${plural(
+						tests.focusedTestLinesAdded,
+						'focused test',
+					)} added — .only silences the rest of the suite`}
+				</Note>
+
+				<Note when={tests.skippedTestLinesAdded > 0}>
+					{`${plural(tests.skippedTestLinesAdded, 'skipped test')} added`}
+				</Note>
+			</Section>
 
 			<Section title="Languages">
 				{languages.languages.map(language => (
 					<Row
 						key={language.name}
 						left={language.name}
-						right={`+${language.added} / −${language.removed}${
-							language.addedInTests > 0
-								? ` · ${language.addedInTests} in tests`
-								: ''
-						}`}
+						right={percent(language.share)}
 					/>
 				))}
 
-				{languages.introduced.length > 0 && (
-					<div style={{...STAT_NOTE, marginTop: 12}}>
-						New to this repository: {languages.introduced.join(', ')}.
-					</div>
-				)}
-
-				{languages.generatedLines > 0 && (
-					<div style={{...STAT_NOTE, marginTop: 12}}>
-						{plural(languages.generatedLines, 'generated line')} excluded from
-						every ratio above.
-					</div>
-				)}
+				<Note when={languages.introduced.length > 0}>
+					{`New to this repository: ${languages.introduced.join(', ')}`}
+				</Note>
 			</Section>
 
 			<Section title="Comments">
-				<div style={STAT_GRID}>
-					{comments.byLanguage.map(language => (
-						<Stat
-							key={language.name}
-							value={shareOf(
-								language.commentLines,
-								language.commentLines + language.codeLines,
-							)}
-							label={`${language.name} comment lines`}
-							note={
-								language.repoShare === null
-									? 'no repo baseline to compare with'
-									: `repo: ${percent(language.repoShare)}`
-							}
-						/>
-					))}
-				</div>
+				{comments.byLanguage.map(language => (
+					<Row
+						key={language.name}
+						left={language.name}
+						right={
+							language.repoShare === null
+								? percent(language.share)
+								: `${percent(language.share)} · repo ${percent(
+										language.repoShare,
+								  )}`
+						}
+					/>
+				))}
 
-				<div style={{marginTop: 12}}>
-					<Flag when={comments.todoLinesAdded + comments.todoLinesRemoved > 0}>
-						{`TODO/FIXME: ${comments.todoLinesAdded} added, ${comments.todoLinesRemoved} removed`}
-					</Flag>
-					<Flag when={comments.commentedOutCodeLines > 0}>
-						{`${plural(
-							comments.commentedOutCodeLines,
-							'line',
-						)} of commented-out code`}
-					</Flag>
-				</div>
+				<Note when={comments.todoLinesAdded + comments.todoLinesRemoved > 0}>
+					{`TODO/FIXME: ${comments.todoLinesAdded} added, ${comments.todoLinesRemoved} removed`}
+				</Note>
 
-				<div style={{...STAT_NOTE, marginTop: 12}}>
-					Classified line by line — a diff carries no context to lex with — and
-					shown against this repository&rsquo;s own share, which is the only
-					reading of it worth anything.
-				</div>
+				<Note when={comments.commentedOutCodeLines > 0}>
+					{`${plural(
+						comments.commentedOutCodeLines,
+						'line',
+					)} of commented-out code`}
+				</Note>
 			</Section>
 
-			<Section title="Worth a look">
-				<Flag when={flags.dependencyManifests.length > 0}>
-					{`Dependencies changed: ${flags.dependencyManifests.join(', ')}`}
-				</Flag>
-				<Flag when={flags.buildOrCiPaths.length > 0}>
-					{`Build or CI changed: ${flags.buildOrCiPaths.join(', ')}`}
-				</Flag>
-				<Flag when={flags.generatedPaths.length > 0}>
-					{`Generated files touched: ${flags.generatedPaths.join(', ')}`}
-				</Flag>
-				<Flag when={flags.debugPrintLinesAdded > 0}>
-					{`${plural(flags.debugPrintLinesAdded, 'debug print')} added`}
-				</Flag>
-				<Flag when={flags.duplicatedLines > 0}>
+			<Section title="Complexity">
+				<Note when={flags.maxIndentLevels > 0}>
+					{`Nested ${flags.maxIndentLevels} levels deep at its deepest`}
+					{flags.deepestFile && (
+						<>
+							{', in '}
+							<FileLink file={flags.deepestFile} onOpen={onOpenFile} />
+						</>
+					)}
+				</Note>
+
+				<Note when={flags.duplicatedLines > 0}>
 					{`${plural(
 						flags.duplicatedLines,
 						'line',
 					)} repeated across files in this change`}
-				</Flag>
-				<Flag when={flags.maxIndentLevels >= 6}>
-					{`Nested ${flags.maxIndentLevels} levels deep at its deepest`}
-				</Flag>
-				<Flag when={shape.binaryFiles > 0}>
-					{`${plural(shape.binaryFiles, 'binary file')} changed`}
-				</Flag>
+				</Note>
 
-				{flags.dependencyManifests.length === 0 &&
-					flags.buildOrCiPaths.length === 0 &&
-					flags.generatedPaths.length === 0 &&
-					flags.debugPrintLinesAdded === 0 &&
-					flags.duplicatedLines === 0 &&
-					flags.maxIndentLevels < 6 &&
-					shape.binaryFiles === 0 && (
-						<div style={STAT_NOTE}>Nothing flagged.</div>
-					)}
+				<Note when={flags.debugPrintLinesAdded > 0}>
+					{`${plural(flags.debugPrintLinesAdded, 'debug print')} added`}
+				</Note>
 			</Section>
+
+			{(flaggedFiles.length > 0 || shape.binaryFiles > 0) && (
+				<Section title="Worth a look">
+					{flaggedFiles.map(({file, what}) => (
+						<Row
+							key={`${what}:${file.path}`}
+							left={<FileLink file={file} onOpen={onOpenFile} />}
+							right={what}
+						/>
+					))}
+
+					<Note when={shape.binaryFiles > 0}>
+						{`${plural(shape.binaryFiles, 'binary file')} changed`}
+					</Note>
+				</Section>
+			)}
 		</div>
 	);
 };
