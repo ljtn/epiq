@@ -4,7 +4,7 @@ import {
 	GuiEventTimelineEntry,
 } from '../gui-state.model';
 import {
-	BOARD_PEOPLE_COLOR,
+	BOARD_CONTRIBUTOR_COLOR,
 	EVENT_CATEGORY_COLORS,
 	GUI_THEME,
 } from '../gui-theme';
@@ -21,25 +21,29 @@ export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
 // What the Board series is showing. 'all' draws every kind and colours by kind;
 // picking one kind draws only it and colours by the identity behind each event;
-// 'people' draws every kind, like 'all', and colours by who caused each one.
+// 'contributors' draws every kind, like 'all', and colours by who caused each.
 // Exactly one at a time, which is what keeps a colour from meaning two things.
-export type BoardView = 'all' | EventCategory | 'people';
+export type BoardView = 'all' | EventCategory | 'contributors';
 
-export const BOARD_VIEWS: BoardView[] = ['all', ...EVENT_CATEGORIES, 'people'];
+export const BOARD_VIEWS: BoardView[] = [
+	'all',
+	...EVENT_CATEGORIES,
+	'contributors',
+];
 
 export const isBoardView = (value: unknown): value is BoardView =>
 	BOARD_VIEWS.includes(value as BoardView);
 
 // The kind a view draws, or null for the two that draw every kind.
 const viewCategory = (view: BoardView): EventCategory | null =>
-	view === 'all' || view === 'people' ? null : view;
+	view === 'all' || view === 'contributors' ? null : view;
 
 // One place for the series colour, so the bars, the baseline and the filter's
 // own rows cannot drift apart.
 const BOARD_VIEW_COLORS: Record<BoardView, string> = {
 	all: GUI_THEME.accent,
 	...EVENT_CATEGORY_COLORS,
-	people: BOARD_PEOPLE_COLOR,
+	contributors: BOARD_CONTRIBUTOR_COLOR,
 };
 
 export const boardViewColor = (view: BoardView): string =>
@@ -87,7 +91,7 @@ export const identityAxisFor = (view: BoardView): FilterAxis | null =>
 		? 'tag'
 		: view === 'assigning'
 		? 'assignee'
-		: view === 'people'
+		: view === 'contributors'
 		? 'actor'
 		: null;
 

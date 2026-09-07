@@ -681,7 +681,7 @@ describe('identity views', () => {
 		expect(identityAxisFor('comments')).toBe('commenter');
 		expect(identityAxisFor('tagging')).toBe('tag');
 		expect(identityAxisFor('assigning')).toBe('assignee');
-		expect(identityAxisFor('people')).toBe('actor');
+		expect(identityAxisFor('contributors')).toBe('actor');
 		// Every event is somebody changing a ticket, so there is nothing to
 		// colour by that the kind does not already say.
 		expect(identityAxisFor('tickets')).toBeNull();
