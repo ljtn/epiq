@@ -45,6 +45,7 @@ import {
 	sync,
 } from './epiq-api.js';
 import {initProjectTool} from './epiq-init.js';
+import {getIssueStats} from './epiq-issue-stats.js';
 import {installSkill} from './epiq-skill.js';
 import {runExclusive} from './epiq-time-travel.js';
 
@@ -117,6 +118,22 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(getIssue),
+	);
+
+	server.registerTool(
+		'epiq_issue_stats',
+		{
+			description:
+				'Code stats for one issue, derived from the commits whose subject carries its ref: how big the change is, how it is spread, and how much of it the ticket spent rewriting its own work. Reads git only — it never touches the board — so it is safe to call while other work is in flight. No commits carrying the ref reads as a change of zero size, which is not the same as no work: a commit only links if its subject opens with the ref.',
+			inputSchema: z.object({
+				idOrRef: z.string().min(1),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		// Deliberately not exclusiveTool: this reads git and never the state
+		// singleton, so taking the write lock for it would only make board calls
+		// queue behind a scan.
+		async input => resultJson(await getIssueStats(input)),
 	);
 
 	server.registerTool(
