@@ -9,7 +9,7 @@
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {deriveChangeShape} from './change-shape.js';
 import {deriveCommentDensity} from './comment-density.js';
-import {discoverCoverageReport} from './coverage-report.js';
+import {CoverageReport} from './coverage-report.js';
 import {deriveFlags} from './flags.js';
 import {IssueStats, StatsCommit} from './issue-stats.model.js';
 import {deriveLanguages} from './languages.js';
@@ -29,10 +29,15 @@ export const deriveIssueStats = async ({
 	repoRoot,
 	ref,
 	commits,
+	report,
 }: {
 	repoRoot: string;
 	ref: string;
 	commits: StatsCommit[];
+	// Handed in rather than discovered here: the caller caches this answer, and
+	// a cache has to be keyed on the report it was computed against. Finding it
+	// inside would hide that dependency from the key.
+	report: CoverageReport | null;
 }): Promise<Result<IssueStats>> => {
 	const patchResult = await scanTicketPatch({
 		repoRoot,
@@ -58,7 +63,7 @@ export const deriveIssueStats = async ({
 			.sort((a, b) => b.time - a.time)
 			.map(commit => commit.sha),
 		lastCommitAt: shape.lastCommitAt,
-		report: discoverCoverageReport(repoRoot),
+		report,
 	});
 
 	return succeeded('Derived issue stats', {

@@ -31,12 +31,16 @@ export type FileChange = {
 	// No line counts to give. Excluded from every line-based stat rather than
 	// counted as zero.
 	binary: boolean;
+	// Line *content*, and so capped: past MAX_RETAINED_ADDED_LINES the scan
+	// keeps counting and stops keeping. Every stat that reads text — comments,
+	// flags, skipped tests — reads these and is partial when the cap bites.
 	added: PatchLine[];
-	// The count rather than `removedLines.length`: retention is capped and the
-	// count is not, so on a huge ticket the two part company and the count is
-	// the one that stays true.
-	removed: number;
 	removedLines: PatchLine[];
+	// The counts, which are never capped. Every stat that is a number rather
+	// than a reading of text uses these, so the totals always add up to the
+	// ticket's real +/- however much text was kept.
+	addedCount: number;
+	removed: number;
 	// The ticket's commits that touched this file, oldest first.
 	shas: string[];
 };
@@ -64,6 +68,23 @@ export const MAX_SCANNED_COMMITS = 200;
 // Text retention is the memory cost here — the counts are just numbers. Past
 // this the scan keeps counting and stops keeping.
 export const MAX_RETAINED_ADDED_LINES = 200_000;
+
+// Self-churn's bookkeeping is one entry per distinct added line text per file.
+// Bounded for the same reason as the arrays above; a file with more distinct
+// added lines than this is a generated one, where self-churn means nothing.
+const MAX_SELF_CHURN_KEYS_PER_FILE = 50_000;
+
+// `git show` writes every commit's patch into one string, so the shas are
+// read a batch at a time rather than all at once: 200 commits that each
+// regenerate a lockfile is hundreds of megabytes in a single accumulating
+// buffer, and past V8's string limit that throws inside a stream handler —
+// outside any caller's try/catch, taking the process with it.
+const SHAS_PER_SHOW = 25;
+
+// And a budget across the batches, so a ticket that is pathological rather
+// than merely large stops the scan instead of the process. Generous: this
+// repo's entire history of patches is a fraction of it.
+const MAX_PATCH_BYTES = 64 * 1024 * 1024;
 
 // Non-printable, so it cannot occur inside a sha or a patch line.
 const RECORD_SEP = '\x1e';
@@ -102,28 +123,53 @@ const statusFor = (
  * the only place a line number appears at all), and they are all reachable
  * from a fixture without a repository.
  */
-export const parsePatchOutput = (
-	stdout: string,
-): Omit<TicketPatch, 'truncated' | 'scannedCommits'> & {
+export type ScanState = {
+	byPath: Map<string, OpenFile>;
+	insertions: number;
+	deletions: number;
+	selfChurn: number;
 	retainedLines: number;
-} => {
-	const byPath = new Map<string, OpenFile>();
+};
+
+export const createScanState = (): ScanState => ({
+	byPath: new Map(),
+	insertions: 0,
+	deletions: 0,
+	selfChurn: 0,
+	retainedLines: 0,
+});
+
+// Folds one `git show` batch into a scan already in progress. Carried across
+// batches rather than merged afterwards, so self-churn still sees a line added
+// in one batch and removed in the next.
+export const parsePatchInto = (state: ScanState, stdout: string): void => {
+	const byPath = state.byPath;
 
 	let sha = '';
 	let open: OpenFile | null = null;
 	let pendingPath: string | null = null;
 	let oldPath: string | null = null;
+	// True between a `diff --git` line and that file's first hunk — the only
+	// window in which a `---`/`+++`/`Binary files` line is a header rather than
+	// content that happens to start the same way.
+	let inHeader = false;
 	let nextLine = 0;
-	let selfChurn = 0;
-	let insertions = 0;
-	let deletions = 0;
-	let retainedLines = 0;
+
+	// A file the ticket created and then edited is still a file the ticket
+	// created: `added` survives a later `modified`. Deletion is the exception,
+	// because it is where the file actually ended up — and a path added, then
+	// deleted, then added again is `added` once more.
+	const foldStatus = (
+		before: FileChangeStatus,
+		next: FileChangeStatus,
+	): FileChangeStatus =>
+		next === 'modified' && before === 'added' ? 'added' : next;
 
 	const openPath = (path: string, status: FileChangeStatus): OpenFile => {
 		const existing = byPath.get(path);
 
 		if (existing) {
-			existing.entry.status = status;
+			existing.entry.status = foldStatus(existing.entry.status, status);
 			if (!existing.entry.shas.includes(sha)) existing.entry.shas.push(sha);
 			return existing;
 		}
@@ -133,6 +179,7 @@ export const parsePatchOutput = (
 			status,
 			binary: false,
 			added: [],
+			addedCount: 0,
 			removed: 0,
 			removedLines: [],
 			shas: [sha],
@@ -150,30 +197,47 @@ export const parsePatchOutput = (
 			open = null;
 			pendingPath = null;
 			oldPath = null;
+			inHeader = false;
 			continue;
 		}
 
 		if (line.startsWith('diff --git ')) {
 			open = null;
 			oldPath = null;
+			inHeader = true;
 			pendingPath = DIFF_GIT.exec(line)?.[1] ?? null;
 			continue;
 		}
 
 		// Only ever seen for a binary file: a text diff opens with ---/+++ and
-		// takes the branch below before this one can matter.
-		if (line.startsWith('Binary files ') && pendingPath) {
-			open = openPath(pendingPath, 'modified');
+		// takes the branch below before this one can matter. The /dev/null on
+		// either side is git's own way of saying which of add, delete and
+		// modify this was — the same convention the text branch reads.
+		if (inHeader && line.startsWith('Binary files ') && pendingPath) {
+			const [, sides = ''] = /^Binary files (.*) differ$/.exec(line) ?? [];
+			const [beforeSide = '', afterSide = ''] = sides.split(' and ');
+
+			open = openPath(
+				pendingPath,
+				statusFor(
+					beforeSide === '/dev/null' ? null : beforeSide,
+					afterSide === '/dev/null' ? null : afterSide,
+				),
+			);
 			open.entry.binary = true;
 			continue;
 		}
 
-		if (line.startsWith('--- ')) {
+		// Guarded by `inHeader`, which holds only between a `diff --git` line
+		// and that file's first hunk. Without it, a *content* line reading
+		// `-- old sql comment` or `++ marker` is read as a file header, and
+		// every line after it lands in a file that does not exist.
+		if (inHeader && line.startsWith('--- ')) {
 			oldPath = stripPrefix(line.slice(4), 'a/');
 			continue;
 		}
 
-		if (line.startsWith('+++ ')) {
+		if (inHeader && line.startsWith('+++ ')) {
 			const newPath = stripPrefix(line.slice(4), 'b/');
 			const path = newPath ?? oldPath ?? pendingPath;
 			if (path) open = openPath(path, statusFor(oldPath, newPath));
@@ -183,6 +247,7 @@ export const parsePatchOutput = (
 		const hunk = HUNK.exec(line);
 		if (hunk) {
 			nextLine = Number(hunk[1]);
+			inHeader = false;
 			continue;
 		}
 
@@ -190,30 +255,36 @@ export const parsePatchOutput = (
 
 		if (line.startsWith('+')) {
 			const text = line.slice(1);
-			insertions++;
+			state.insertions++;
+			open.entry.addedCount++;
 
-			if (retainedLines < MAX_RETAINED_ADDED_LINES) {
+			if (state.retainedLines < MAX_RETAINED_ADDED_LINES) {
 				open.entry.added.push({sha, line: nextLine, text});
-				retainedLines++;
+				state.retainedLines++;
 			}
 
-			open.pendingByText.set(text, (open.pendingByText.get(text) ?? 0) + 1);
+			// Bounded for the same reason the line arrays are: one entry per
+			// distinct added line text, and a vendored tree has millions.
+			if (open.pendingByText.size < MAX_SELF_CHURN_KEYS_PER_FILE) {
+				open.pendingByText.set(text, (open.pendingByText.get(text) ?? 0) + 1);
+			}
+
 			nextLine++;
 			continue;
 		}
 
 		if (line.startsWith('-')) {
 			const text = line.slice(1);
-			deletions++;
+			state.deletions++;
 			open.entry.removed++;
 
-			if (retainedLines < MAX_RETAINED_ADDED_LINES) {
+			if (state.retainedLines < MAX_RETAINED_ADDED_LINES) {
 				// A removed line has no line number worth carrying — it is gone
 				// from the after-side, and the before-side numbering it belonged to
 				// is not what any later read is anchored on. The sha and the text
 				// are what the stats above it ask for.
 				open.entry.removedLines.push({sha, line: 0, text});
-				retainedLines++;
+				state.retainedLines++;
 			}
 
 			const pending = open.pendingByText.get(text) ?? 0;
@@ -221,19 +292,31 @@ export const parsePatchOutput = (
 			// turn any reformatting into "thrash"; a closing brace is the same
 			// line in every function.
 			if (pending > 0 && text.trim().length > 2) {
-				selfChurn++;
+				state.selfChurn++;
 				open.pendingByText.set(text, pending - 1);
 			}
 		}
 	}
+};
 
-	return {
-		files: [...byPath.values()].map(file => file.entry),
-		insertions,
-		deletions,
-		selfChurn,
-		retainedLines,
-	};
+const scanResult = (
+	state: ScanState,
+): Omit<TicketPatch, 'truncated' | 'scannedCommits'> & {
+	retainedLines: number;
+} => ({
+	files: [...state.byPath.values()].map(file => file.entry),
+	insertions: state.insertions,
+	deletions: state.deletions,
+	selfChurn: state.selfChurn,
+	retainedLines: state.retainedLines,
+});
+
+/** One batch, start to finish — the shape the parser's own tests drive. */
+export const parsePatchOutput = (stdout: string) => {
+	const state = createScanState();
+	parsePatchInto(state, stdout);
+
+	return scanResult(state);
 };
 
 /**
@@ -260,38 +343,58 @@ export const scanTicketPatch = async ({
 	}
 
 	// The newest are kept when the cap bites: a truncated answer should be
-	// about the part of the ticket somebody is currently reading.
-	const scanned = shas.slice(0, MAX_SCANNED_COMMITS);
+	// about the part of the ticket somebody is currently reading. Reversed, so
+	// the scan runs oldest first — self-churn is "added earlier, removed later".
+	const scanned = shas.slice(0, MAX_SCANNED_COMMITS).reverse();
 
-	const showResult = await execGit({
-		cwd: repoRoot,
-		args: [
-			// Otherwise a non-ASCII path arrives octal-escaped and quoted, and
-			// stops matching the paths every other git call here reports.
-			'-c',
-			'core.quotePath=false',
-			'show',
-			'--unified=0',
-			'--no-renames',
-			'--no-color',
-			`--format=${RECORD_SEP}%H`,
-			// Oldest first: self-churn is "added earlier, removed later".
-			...[...scanned].reverse(),
-		],
-	});
+	const state = createScanState();
 
-	if (isFail(showResult)) return failed(showResult.message);
+	let bytes = 0;
+	let scannedCommits = 0;
+	let overBudget = false;
 
-	const parsed = parsePatchOutput(showResult.value.stdout);
+	for (let start = 0; start < scanned.length; start += SHAS_PER_SHOW) {
+		const batch = scanned.slice(start, start + SHAS_PER_SHOW);
+
+		const showResult = await execGit({
+			cwd: repoRoot,
+			args: [
+				// Otherwise a non-ASCII path arrives octal-escaped and quoted, and
+				// stops matching the paths every other git call here reports.
+				'-c',
+				'core.quotePath=false',
+				'show',
+				'--unified=0',
+				'--no-renames',
+				'--no-color',
+				`--format=${RECORD_SEP}%H`,
+				...batch,
+			],
+		});
+
+		if (isFail(showResult)) return failed(showResult.message);
+
+		parsePatchInto(state, showResult.value.stdout);
+		bytes += showResult.value.stdout.length;
+		scannedCommits += batch.length;
+
+		if (bytes > MAX_PATCH_BYTES) {
+			overBudget = true;
+			break;
+		}
+	}
+
+	const parsed = scanResult(state);
 
 	return succeeded('Scanned ticket patch', {
 		files: parsed.files,
 		insertions: parsed.insertions,
 		deletions: parsed.deletions,
 		selfChurn: parsed.selfChurn,
-		scannedCommits: scanned.length,
+		scannedCommits,
 		truncated:
-			scanned.length < shas.length ||
+			overBudget ||
+			scannedCommits < shas.length ||
 			parsed.retainedLines >= MAX_RETAINED_ADDED_LINES,
 	});
 };

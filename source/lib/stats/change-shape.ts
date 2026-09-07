@@ -25,7 +25,7 @@ export const deriveChangeShape = ({
 
 	const changedPerFile = patch.files.map(file => ({
 		path: file.path,
-		changed: file.added.length + file.removed,
+		changed: file.addedCount + file.removed,
 	}));
 
 	const largestFile = changedPerFile.reduce<{

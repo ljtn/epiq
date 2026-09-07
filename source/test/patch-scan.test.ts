@@ -96,6 +96,105 @@ describe('parsePatchOutput', () => {
 		expect(parsed.files[0]?.added).toHaveLength(2);
 	});
 
+	// A file created in one commit and edited in the next is still a file this
+	// ticket created; reading it as "modified" made every new file in a
+	// multi-commit ticket disappear from "N added".
+	it('keeps a file added, even after a later commit edits it', () => {
+		const parsed = parsePatchOutput(
+			[
+				patch('aaa', [
+					'diff --git a/new.ts b/new.ts',
+					'--- /dev/null',
+					'+++ b/new.ts',
+					'@@ -0,0 +1 @@',
+					'+first',
+				]),
+				patch('bbb', [
+					'diff --git a/new.ts b/new.ts',
+					'--- a/new.ts',
+					'+++ b/new.ts',
+					'@@ -1 +1,2 @@',
+					'+second',
+				]),
+			].join('\n'),
+		);
+
+		expect(parsed.files[0]?.status).toBe('added');
+	});
+
+	it('still reads a file the ticket added and later deleted as deleted', () => {
+		const parsed = parsePatchOutput(
+			[
+				patch('aaa', [
+					'diff --git a/tmp.ts b/tmp.ts',
+					'--- /dev/null',
+					'+++ b/tmp.ts',
+					'@@ -0,0 +1 @@',
+					'+first',
+				]),
+				patch('bbb', [
+					'diff --git a/tmp.ts b/tmp.ts',
+					'--- a/tmp.ts',
+					'+++ /dev/null',
+					'@@ -1 +0,0 @@',
+					'-first',
+				]),
+			].join('\n'),
+		);
+
+		expect(parsed.files[0]?.status).toBe('deleted');
+	});
+
+	// A removed SQL or Haskell comment (`-- old`) is written in the patch as
+	// `--- old`, and an added line reading `++ marker` as `+++ marker`. Read as
+	// file headers, they invented a file and swallowed the rest of the real
+	// one's diff.
+	it('does not mistake content beginning ++ or -- for a file header', () => {
+		const parsed = parsePatchOutput(
+			patch('aaa', [
+				'diff --git a/query.sql b/query.sql',
+				'--- a/query.sql',
+				'+++ b/query.sql',
+				'@@ -1 +1,2 @@',
+				'--- old comment',
+				'+++ marker',
+				'+select 1;',
+			]),
+		);
+
+		expect(parsed.files.map(file => file.path)).toEqual(['query.sql']);
+		expect(parsed.insertions).toBe(2);
+		expect(parsed.deletions).toBe(1);
+		expect(parsed.files[0]?.added.map(line => line.text)).toEqual([
+			'++ marker',
+			'select 1;',
+		]);
+	});
+
+	it('reads an added binary file as added, not modified', () => {
+		const parsed = parsePatchOutput(
+			[
+				patch('aaa', [
+					'diff --git a/logo.png b/logo.png',
+					'index 0000000..2222222 100644',
+					'Binary files /dev/null and b/logo.png differ',
+				]),
+				patch('bbb', [
+					'diff --git a/old.png b/old.png',
+					'index 1111111..0000000 100644',
+					'Binary files a/old.png and /dev/null differ',
+				]),
+			].join('\n'),
+		);
+
+		expect(
+			parsed.files.map(file => [file.path, file.status, file.binary]),
+		).toEqual([
+			['logo.png', 'added', true],
+			['old.png', 'deleted', true],
+		]);
+	});
+
 	it('counts a line the ticket added and later removed as self-churn', () => {
 		const parsed = parsePatchOutput(
 			[
@@ -236,6 +335,42 @@ describe('deriveChangeShape', () => {
 
 		expect(shape.largestFile).toEqual({path: 'big.ts', changed: 3});
 		expect(shape.concentration).toBeCloseTo(0.75);
+	});
+
+	// Line *text* is capped and line *counts* are not, so the two part company
+	// on a huge ticket. Anything that is a number reads the counts, or the
+	// figures on the page stop adding up to the +/- at the top of it.
+	it('sizes a file by its true line count, not by how much text was kept', () => {
+		const parsed = parsePatchOutput(
+			patch('aaa', [
+				'diff --git a/huge.ts b/huge.ts',
+				'--- a/huge.ts',
+				'+++ b/huge.ts',
+				'@@ -0,0 +1 @@',
+				'+kept',
+			]),
+		);
+
+		const [file] = parsed.files;
+		if (!file) throw new Error('expected a file');
+
+		// What a capped scan looks like: one line of text kept, 5000 counted.
+		file.addedCount = 5_000;
+
+		const shape = deriveChangeShape({
+			commits,
+			patch: {
+				files: parsed.files,
+				insertions: 5_000,
+				deletions: 0,
+				selfChurn: 0,
+				scannedCommits: 1,
+				truncated: true,
+			},
+		});
+
+		expect(shape.largestFile).toEqual({path: 'huge.ts', changed: 5_000});
+		expect(shape.concentration).toBe(1);
 	});
 
 	it('reports each author once and the span the commits cover', () => {
