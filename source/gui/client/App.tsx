@@ -810,14 +810,19 @@ export const App = () => {
 	// Opening a ticket at a named tab, as against `selectIssue`, which carries
 	// whichever tab is already open. Used wherever the thing being followed says
 	// which view it belongs in — a comment reference, a log line.
-	const openIssueTab = (nextIssueId: string, tab: IssueDetailsTab) => {
-		if (!boardSlug) return;
+	// `board` names which one to open it on, for the project-wide search, whose
+	// hit need not be on the board being looked at. Everything else means the
+	// one already on screen.
+	const openIssueTab = (
+		nextIssueId: string,
+		tab: IssueDetailsTab,
+		board = boardSlug,
+	) => {
+		if (!board) return;
 
 		setCommitDiff(null);
 
-		void navigate(
-			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=${tab}`,
-		);
+		void navigate(`/board/${board}/issue/${nodeRef(nextIssueId)}?tab=${tab}`);
 	};
 
 	const selectIssueComments = (nextIssueId: string) =>
@@ -1139,6 +1144,24 @@ export const App = () => {
 		confirmDeleteSwimlane,
 	} = useSwimlaneEditing({send, setState, selectedBoard, visibleSwimlanes});
 
+	// Flattened once per state change rather than per keystroke: the palette
+	// matches over this on every character typed into its second step.
+	const searchableTickets = useMemo(
+		() =>
+			(state?.boards ?? []).flatMap(board =>
+				board.swimlanes.flatMap(swimlane =>
+					swimlane.issues.map(issue => ({
+						id: issue.id,
+						ref: issue.ref,
+						title: issue.title,
+						boardTitle: board.title,
+						boardRef: board.ref,
+					})),
+				),
+			),
+		[state],
+	);
+
 	const commandPalette = useCommandPalette();
 	const recentCommands = useRecentCommands();
 	const commands = useMemo(() => buildCommandRegistry(), []);
@@ -1151,6 +1174,7 @@ export const App = () => {
 		scrubbing: state?.timeTravel?.mode === 'scrub',
 		issue: selectedIssue,
 		tags: state?.tags ?? [],
+		tickets: searchableTickets,
 		contributors,
 		handlers: {
 			// The palette has no column in hand, so a ticket goes to the first one
@@ -1160,6 +1184,8 @@ export const App = () => {
 				if (swimlaneId) setCreateIssueModal({swimlaneId, title: ''});
 			},
 			createSwimlane: () => setCreateSwimlaneTitle(''),
+			openIssue: (id: string, boardRef: string) =>
+				openIssueTab(id, 'overview', boardRef),
 			closeIssue,
 			reopenIssue,
 			addIssueTag,
@@ -1322,6 +1348,7 @@ export const App = () => {
 						onReconnect={reconnectNow}
 						scrubbing={state?.timeTravel?.mode === 'scrub'}
 						syncStatus={syncStatus}
+						onOpenCommands={() => commandPalette.setOpen(true)}
 					/>
 				</div>
 

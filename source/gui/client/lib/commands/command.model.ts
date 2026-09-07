@@ -14,6 +14,9 @@ export type GuiCommandId = CmdKeyword | `gui:${string}`;
 export type CommandArgument = {
 	id: string;
 	title: string;
+	// Extra words this can be found by — a ticket's ref, which is what somebody
+	// types when they already know it.
+	keywords?: string[];
 	hint?: string;
 	color?: string;
 };
@@ -23,18 +26,35 @@ export type CommandGroup = 'Ticket' | 'Board' | 'View' | 'History';
 // Everything a command needs to decide whether it can run, and to run. Handlers
 // are passed in rather than reached for, so the registry is a value the tests
 // can build without a React tree.
+// One ticket anywhere in the project, flattened for the search command. A list
+// rather than the boards themselves, so the registry never has to know how a
+// board is shaped.
+export type SearchableTicket = {
+	id: string;
+	ref: string;
+	title: string;
+	boardTitle: string;
+	// The board's human-facing ref, which is what its route is keyed by: a
+	// project-wide search can land on a ticket that is not on the board being
+	// looked at, and opening it has to go there.
+	boardRef: string;
+};
+
 export type CommandContext = {
 	connected: boolean;
 	// The board is checked out in the past, where the server refuses writes.
 	scrubbing: boolean;
 	issue: GuiIssue | null;
 	tags: GuiTag[];
+	// Every ticket in every board, for the project-wide search.
+	tickets: SearchableTicket[];
 	contributors: GuiContributor[];
 	handlers: CommandHandlers;
 };
 
 export type CommandHandlers = {
 	createIssue: () => void;
+	openIssue: (issueId: string, boardRef: string) => void;
 	closeIssue: (issueId: string) => void;
 	reopenIssue: (issueId: string) => void;
 	addIssueTag: (issueId: string, tagName: string) => void;

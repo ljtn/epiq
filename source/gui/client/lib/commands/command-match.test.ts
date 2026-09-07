@@ -75,6 +75,38 @@ describe('matchItems', () => {
 		expect(titles(matchItems(items, 'push'))).toEqual(['Sync with the remote']);
 	});
 
+	// A project can hold thousands of tickets and the list is a picker: every
+	// row returned becomes a DOM node behind a window showing eight.
+	describe('the cap', () => {
+		const many = Array.from({length: 5_000}, (_, index) =>
+			item(`t${index}`, `Ticket number ${index}`),
+		);
+
+		it('returns no more than the limit from a query that matches everything', () => {
+			expect(matchItems(many, 'ticket', {limit: 10})).toHaveLength(10);
+		});
+
+		// The one wanted is last in the input, so a cap applied while scanning
+		// would have thrown it away before ever reaching it.
+		it('keeps the best of the whole set, not the first it scanned', () => {
+			const capped = matchItems(many, 'ticket number 4999', {limit: 10});
+
+			expect(capped[0]?.item.title).toBe('Ticket number 4999');
+		});
+
+		it('caps the resting list too, where nothing has been typed', () => {
+			expect(matchItems(many, '', {limit: 10})).toHaveLength(10);
+		});
+
+		it('leaves the list whole when no cap is asked for', () => {
+			expect(matchItems(items, '')).toHaveLength(items.length);
+		});
+
+		it('caps to what matched, not to the limit', () => {
+			expect(matchItems(items, 'sync', {limit: 10}).length).toBeLessThan(10);
+		});
+	});
+
 	it('drops what matches nowhere', () => {
 		expect(matchItems(items, 'zzz')).toEqual([]);
 	});

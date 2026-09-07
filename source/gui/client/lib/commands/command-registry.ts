@@ -40,6 +40,36 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.createIssue(),
 	},
 	{
+		// `gui:` rather than the TUI's `filter`: that one narrows the board on
+		// screen, and this crosses every board in the project to open one ticket.
+		// Different enough that borrowing the name would misdescribe both.
+		id: 'gui:search',
+		title: 'Search all tickets',
+		group: 'Board',
+		keywords: ['search', 'find', 'goto', 'jump', 'filter'],
+		// Searches what has already arrived, so it works offline and in the past.
+		unavailable: context =>
+			context.tickets.length ? null : 'No tickets to search',
+		// The whole project, matched down by the second step's own query — which
+		// is what makes this a search rather than a list.
+		getArguments: context =>
+			context.tickets.map(ticket => ({
+				id: ticket.id,
+				title: ticket.title,
+				// The ref is what somebody types when they know it, and the board
+				// says which one they are about to be taken to.
+				keywords: [ticket.ref],
+				hint: `${ticket.boardTitle} · ${ticket.ref}`,
+			})),
+		// The board is read back off the ticket rather than carried on the
+		// argument: an argument is a label and an id, and this needs a route.
+		run: (context, argument) => {
+			const ticket = context.tickets.find(one => one.id === argument?.id);
+
+			if (ticket) context.handlers.openIssue(ticket.id, ticket.boardRef);
+		},
+	},
+	{
 		id: 'gui:swimlane',
 		title: 'New swimlane',
 		group: 'Board',

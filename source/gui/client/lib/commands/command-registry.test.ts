@@ -6,6 +6,7 @@ import {GuiIssue} from '../gui-state.model';
 
 const handlers = (): CommandHandlers => ({
 	createIssue: vi.fn(),
+	openIssue: vi.fn(),
 	closeIssue: vi.fn(),
 	reopenIssue: vi.fn(),
 	addIssueTag: vi.fn(),
@@ -39,6 +40,7 @@ const context = (overrides: Partial<CommandContext> = {}): CommandContext => ({
 	scrubbing: false,
 	issue: issue(),
 	tags: [],
+	tickets: [],
 	contributors: [],
 	handlers: handlers(),
 	...overrides,
@@ -241,6 +243,67 @@ describe('the GUI command registry', () => {
 		it('does not invent an argument for the commands that cannot take one', () => {
 			expect(find(CmdKeywords.UNTAG).freeTextArgument).toBeUndefined();
 			expect(find(CmdKeywords.ASSIGN).freeTextArgument).toBeUndefined();
+		});
+
+		// Project-wide, not the board on screen: the point is to reach a ticket
+		// you cannot see from where you are standing.
+		it('searches every board, and opens what is picked', () => {
+			const searching = context({
+				tickets: [
+					{
+						id: 'i1',
+						ref: 'AAA1111',
+						title: 'Here',
+						boardTitle: 'Default',
+						boardRef: 'DEF1234',
+					},
+					{
+						id: 'i2',
+						ref: 'BBB2222',
+						title: 'Elsewhere',
+						boardTitle: 'Other',
+						boardRef: 'OTH5678',
+					},
+				],
+			});
+
+			const offered = find('gui:search').getArguments?.(searching);
+
+			expect(offered?.map(one => one.title)).toEqual(['Here', 'Elsewhere']);
+			// The ref is matchable, and the board says where you are being taken.
+			expect(offered?.[1]?.keywords).toEqual(['BBB2222']);
+			expect(offered?.[1]?.hint).toBe('Other · BBB2222');
+
+			// Taken to the board it is on, not the one being looked at.
+			find('gui:search').run(searching, offered![1]!);
+			expect(searching.handlers.openIssue).toHaveBeenCalledWith(
+				'i2',
+				'OTH5678',
+			);
+		});
+
+		it('says so rather than searching an empty project', () => {
+			expect(find('gui:search').unavailable(context())).toBe(
+				'No tickets to search',
+			);
+		});
+
+		// Reading what already arrived, so a dead socket and a board in the past
+		// are both fine.
+		it('searches offline and mid-scrub', () => {
+			const ticket = {
+				id: 'i1',
+				ref: 'AAA1111',
+				title: 'Here',
+				boardTitle: 'Default',
+				boardRef: 'DEF1234',
+			};
+
+			expect(
+				find('gui:search').unavailable(
+					context({tickets: [ticket], connected: false, scrubbing: true}),
+				),
+			).toBeNull();
 		});
 
 		// A stale second step: the ticket closed under it, or the palette was

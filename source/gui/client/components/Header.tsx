@@ -2,6 +2,7 @@ import {GuiState} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {SyncStatus} from '../lib/gui-sync-statusmodel';
 import {Button} from './Button';
+import {CommandPaletteHint} from './CommandPaletteHint';
 import {Panel} from './Panel';
 import {User} from './User';
 import {EPIQ_VERSION} from '../../../version.js';
@@ -14,6 +15,7 @@ type HeaderProps = {
 	onReconnect: () => void;
 	scrubbing: boolean;
 	syncStatus: SyncStatus;
+	onOpenCommands: () => void;
 };
 
 export const Header = ({
@@ -22,6 +24,7 @@ export const Header = ({
 	onReconnect,
 	scrubbing,
 	syncStatus,
+	onOpenCommands,
 }: HeaderProps) => {
 	const syncColor =
 		syncStatus.status === 'synced'
@@ -62,14 +65,18 @@ export const Header = ({
 					justifyContent: 'space-between',
 				}}
 			>
-				<div
-					style={{
-						color: GUI_THEME.accent,
-						fontSize: 12,
-						fontWeight: 700,
-					}}
-				>
-					:epiq
+				<div style={{display: 'flex', alignItems: 'center', gap: 14}}>
+					<div
+						style={{
+							color: GUI_THEME.accent,
+							fontSize: 12,
+							fontWeight: 700,
+						}}
+					>
+						:epiq
+					</div>
+
+					<CommandPaletteHint onOpen={onOpenCommands} />
 				</div>
 
 				<div
