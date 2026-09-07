@@ -63,10 +63,10 @@ test('the Stats tab measures the ticket own commits', async ({
 	// its own share.
 	await expect(page.getByTitle(/^TypeScript — \d+%$/)).toBeVisible();
 
-	// The contributor count comes off the commits, so the seeded repo's own
-	// git author is the one named — never the board's assignees.
+	// One author, counted off the commits rather than off the board — the
+	// ticket has no assignee at all, so a board-sourced count would be zero.
+	// The name itself is not shown; the singular label is what says it is one.
 	await expect(page.getByText('Author', {exact: true})).toBeVisible();
-	await expect(page.getByText('e2e', {exact: true})).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });
@@ -107,7 +107,9 @@ test('a file named on the Stats tab opens its own diff', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-test('a ticket with no commits says so rather than reporting a change of nothing', async ({
+// A ticket nobody has started is exactly when how long it has been sitting is
+// the whole story, so the board figures stay even with no code to measure.
+test('a ticket with no commits still says how long it has been sitting', async ({
 	page,
 	pageErrors,
 }) => {
@@ -116,5 +118,11 @@ test('a ticket with no commits says so rather than reporting a change of nothing
 	await page.getByRole('button', {name: /^Stats/}).click();
 
 	await expect(page.getByText(/No commit carries this ticket/)).toBeVisible();
+
+	await expect(page.getByText('Days old')).toBeVisible();
+	await expect(page.getByText('Times sent back')).toBeVisible();
+	// The lane the seeded board files a new ticket into, named in the label.
+	await expect(page.getByText(/^Days in /)).toBeVisible();
+
 	expect(pageErrors).toEqual([]);
 });

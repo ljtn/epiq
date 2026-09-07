@@ -622,6 +622,9 @@ export const getIssueHistory = (
 			t: ulidTimeMs(event.id),
 			action: event.action,
 			label: describeEvent(event),
+			...(event.action === 'move.node'
+				? {parentId: (event.payload as {parent?: string}).parent}
+				: {}),
 			actor: {
 				id: event.userId,
 				name: event.userName,
