@@ -16,6 +16,7 @@ import {
 	SelectionCarry,
 	storeSelection,
 	toggleOnly,
+	withNarrowing,
 	withSelectedIdentities,
 	writeSelectionParams,
 } from './board-selection';
@@ -59,12 +60,34 @@ describe('selection in the URL', () => {
 			zoom: null,
 			layout: 'real',
 			view: 'tagging',
-			only: ['bug', 'docs'],
+			only: {tag: ['bug', 'docs'], assignee: ['jola']},
 			windowOnly: true,
 			ticketOnly: false,
 		};
 
 		expect(readSelectionParams(params(written(selection)))).toEqual(selection);
+	});
+
+	it('names the axis of every list it writes', () => {
+		expect(
+			written({
+				...DEFAULT_SELECTION,
+				only: {tag: ['bug'], assignee: ['jola']},
+			}),
+		).toBe('only=tag%3Abug%3Bassignee%3Ajola');
+	});
+
+	// The one-axis form, from before each axis carried its own list: it named
+	// no axis because the view was the axis.
+	it('reads an unprefixed list onto the axis the view colours by', () => {
+		expect(
+			readSelectionParams(params('view=tagging&only=bug,docs'))?.only,
+		).toEqual({tag: ['bug', 'docs']});
+		expect(
+			readSelectionParams(params('view=comments&only=jola'))?.only,
+		).toEqual({commenter: ['jola']});
+		// No axis to put it on, so there is nothing to read it as.
+		expect(readSelectionParams(params('view=all&only=bug'))?.only).toEqual({});
 	});
 
 	it('writes nothing for the defaults, and clears what was there', () => {
@@ -81,19 +104,19 @@ describe('selection in the URL', () => {
 	});
 
 	it('tells an empty narrowing from none', () => {
-		expect(written({...DEFAULT_SELECTION, view: 'tagging', only: []})).toBe(
-			'view=tagging&only=',
+		expect(written({...DEFAULT_SELECTION, only: {tag: []}})).toBe(
+			'only=tag%3A',
 		);
-		expect(readSelectionParams(params('view=tagging&only='))?.only).toEqual([]);
-		expect(readSelectionParams(params('view=tagging'))?.only).toBeNull();
+		expect(readSelectionParams(params('only=tag%3A'))?.only).toEqual({tag: []});
+		expect(readSelectionParams(params('view=tagging'))?.only).toEqual({});
 	});
 
 	it('falls back per field on values it does not recognise', () => {
 		expect(
 			readSelectionParams(
-				params('scope=fortnight&offset=x&layout=3d&view=nope&only=bug'),
+				params('scope=fortnight&offset=x&layout=3d&view=nope&only=nope%3Abug'),
 			),
-		).toEqual({...DEFAULT_SELECTION, only: ['bug']});
+		).toEqual(DEFAULT_SELECTION);
 	});
 
 	it('has no offset under all time, and none negative', () => {
@@ -106,8 +129,8 @@ describe('selection in the URL', () => {
 
 	it('drops duplicate ids', () => {
 		expect(
-			readSelectionParams(params('view=tagging&only=bug,bug,docs'))?.only,
-		).toEqual(['bug', 'docs']);
+			readSelectionParams(params('only=tag%3Abug,bug,docs'))?.only,
+		).toEqual({tag: ['bug', 'docs']});
 	});
 });
 
@@ -118,7 +141,7 @@ describe('applySelectionPatch', () => {
 		zoom: null,
 		layout: 'even',
 		view: 'tagging',
-		only: ['bug'],
+		only: {tag: ['bug']},
 		windowOnly: false,
 		ticketOnly: false,
 	};
@@ -128,23 +151,40 @@ describe('applySelectionPatch', () => {
 		expect(applySelectionPatch(narrowed, {scope: 'week'}).offset).toBe(3);
 	});
 
-	it('drops the narrowing when the view changes, since its ids belonged to the old one', () => {
-		expect(applySelectionPatch(narrowed, {view: 'assigning'}).only).toBeNull();
-		expect(applySelectionPatch(narrowed, {view: 'tagging'}).only).toEqual([
-			'bug',
-		]);
+	// Each axis keeps its own list, so there is nothing belonging to the old
+	// view left to throw away.
+	it('keeps the narrowing when the view changes', () => {
+		expect(applySelectionPatch(narrowed, {view: 'assigning'}).only).toEqual({
+			tag: ['bug'],
+		});
 	});
 
 	it('lets a patch set the view and the narrowing together', () => {
 		expect(
-			applySelectionPatch(DEFAULT_SELECTION, {view: 'tagging', only: ['gui']}),
-		).toEqual({...DEFAULT_SELECTION, view: 'tagging', only: ['gui']});
+			applySelectionPatch(DEFAULT_SELECTION, {
+				view: 'tagging',
+				only: {tag: ['gui']},
+			}),
+		).toEqual({...DEFAULT_SELECTION, view: 'tagging', only: {tag: ['gui']}});
+	});
+
+	it('narrows several axes at once, each on its own', () => {
+		const both = applySelectionPatch(narrowed, {
+			only: withNarrowing(narrowed.only, 'assignee', ['jola']),
+		});
+
+		expect(both.only).toEqual({tag: ['bug'], assignee: ['jola']});
+		expect(
+			applySelectionPatch(both, {
+				only: withNarrowing(both.only, 'tag', null),
+			}).only,
+		).toEqual({assignee: ['jola']});
 	});
 
 	it('is the default once everything is put back', () => {
 		expect(
 			isDefaultSelection(
-				applySelectionPatch(narrowed, {scope: 'all', view: 'all'}),
+				applySelectionPatch(narrowed, {scope: 'all', view: 'all', only: {}}),
 			),
 		).toBe(true);
 		expect(isDefaultSelection(narrowed)).toBe(false);
@@ -283,7 +323,7 @@ describe('stored selection', () => {
 			zoom: {start: 1000, end: 2000},
 			layout: 'real',
 			view: 'tagging',
-			only: ['bug'],
+			only: {tag: ['bug'], assignee: ['jola']},
 			windowOnly: true,
 			ticketOnly: false,
 		});
@@ -294,12 +334,28 @@ describe('stored selection', () => {
 			zoom: null,
 			layout: 'real',
 			view: 'tagging',
-			only: ['bug'],
+			only: {tag: ['bug'], assignee: ['jola']},
 			// Not kept: a filter that hides tickets is not a preference to come
 			// back to days later.
 			windowOnly: false,
 			ticketOnly: false,
 		});
+	});
+
+	// Written before each axis carried its own list, when the stored view was
+	// the axis.
+	it('reads a stored bare list onto the axis the stored view colours by', () => {
+		localStorage.setItem(
+			'epiq.board.selection',
+			'{"scope":"all","layout":"even","view":"assigning","only":["jola"]}',
+		);
+		expect(readStoredSelection().only).toEqual({assignee: ['jola']});
+
+		localStorage.setItem(
+			'epiq.board.selection',
+			'{"scope":"all","layout":"even","view":"all","only":["jola"]}',
+		);
+		expect(readStoredSelection().only).toEqual({});
 	});
 
 	it('shrugs off garbage', () => {

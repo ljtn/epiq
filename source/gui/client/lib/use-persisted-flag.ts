@@ -19,3 +19,25 @@ export const usePersistedFlag = (
 		},
 	];
 };
+
+// The same store, for one choice out of a fixed set rather than a flag, with
+// null for "none of them". A stored value the set no longer holds reads as
+// null, so a renamed option cannot leave a control stuck on something it has
+// stopped offering.
+export const usePersistedChoice = <T extends string>(
+	key: string,
+	isValid: (value: string) => value is T,
+): [T | null, (next: T | null) => void] => {
+	const [value, setValue] = useState<T | null>(() => {
+		const stored = localStorage.getItem(key);
+		return stored !== null && isValid(stored) ? stored : null;
+	});
+
+	return [
+		value,
+		(next: T | null) => {
+			setValue(next);
+			localStorage.setItem(key, next ?? '');
+		},
+	];
+};

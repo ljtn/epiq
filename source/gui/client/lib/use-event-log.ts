@@ -7,14 +7,14 @@
 // between one rule and four that drift.
 
 import {useMemo} from 'react';
-import {BoardSelection, hiddenIdsFor} from './board-selection';
+import {BoardSelection, hiddenIdsFor, narrowingFor} from './board-selection';
 import {buildLogEntries, LogEntry, logEntriesUpTo} from './event-log';
 import {
 	GuiCommitEntry,
 	GuiEventTimeline,
 	GuiTimeTravelStatus,
 } from './gui-state.model';
-import {isShown, listIdentities} from './scrubber';
+import {identityAxisFor, isShown, listIdentities} from './scrubber';
 
 // Module scope, so a shut panel does not hand the memos below a new array on
 // every render.
@@ -97,7 +97,13 @@ export const useEventLog = ({
 		// `isShown` is the chart's own rule, imported rather than restated: the
 		// log and the picture above it must never disagree about what is in the
 		// window.
-		const hidden = hiddenIdsFor(listIdentities(timeline, view), only);
+		// Only the axis the chart is coloured by hides events; the others narrow
+		// the board under it without taking anything out of the picture above.
+		const axis = identityAxisFor(view);
+		const hidden = hiddenIdsFor(
+			listIdentities(timeline, axis),
+			narrowingFor(only, axis),
+		);
 
 		return buildLogEntries(
 			showIssues

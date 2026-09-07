@@ -13,8 +13,11 @@ import {
 import {
 	BoardSelection,
 	hiddenIdsFor,
+	isNarrowed,
 	isolateOnly,
+	narrowingFor,
 	toggleOnly,
+	withNarrowing,
 	withSelectedIdentities,
 } from '../lib/board-selection';
 import {
@@ -29,7 +32,10 @@ import {
 	DOT_EXIT_TOTAL_MS,
 	dotDetail,
 	EventDot,
+	FILTER_AXES,
+	FilterAxis,
 	identityAxisFor,
+	isFilterAxis,
 	listIdentities,
 	soleVisibleIdentity,
 	formatInterval,
@@ -47,13 +53,18 @@ import {
 	usePrefersReducedMotion,
 	windowNamesIssues,
 } from '../lib/scrubber';
-import {usePersistedFlag} from '../lib/use-persisted-flag';
+import {usePersistedChoice, usePersistedFlag} from '../lib/use-persisted-flag';
 import {canPlayTimeline} from '../lib/theatre';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 import {ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {GUI_THEME} from '../lib/gui-theme';
 
 const SCRUB_THROTTLE_MS = 120;
+
+// Module scope, so a view that colours by nothing hands the chart the same
+// empty legend every render rather than a fresh one to re-memoize against.
+const EMPTY_IDENTITIES: GuiEventIdentity[] = [];
+const EMPTY_HIDDEN: ReadonlySet<string> = new Set<string>();
 
 // Still needed by the Volume hover, which reads a bucket's count rather than a
 // dot. The scatter's own hint comes from dotDetail.
@@ -63,7 +74,9 @@ const boardEventRow = (count: number) =>
 const COLLAPSED_STORAGE_KEY = 'epiq.timeScrubber.collapsed';
 const ALL_BOARDS_STORAGE_KEY = 'epiq.timeScrubber.allBoards';
 const CATEGORIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.categoriesExpanded';
-const IDENTITIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.identitiesExpanded';
+// Which axis's list is open in the series popover, not whether one is: with an
+// axis per row only one is shown at a time, so the answer is a name.
+const EXPANDED_AXIS_STORAGE_KEY = 'epiq.timeScrubber.expandedAxis';
 
 export const TimeScrubber = ({
 	timeline,
@@ -128,7 +141,7 @@ export const TimeScrubber = ({
 	selectedIssue: {id: string; createdAt: number} | null;
 	// Every tag and person the board knows, per axis, for naming a selected
 	// identity the window itself holds no event for.
-	knownIdentities: Record<'actor' | 'tag' | 'assignee', GuiEventIdentity[]>;
+	knownIdentities: Record<FilterAxis, GuiEventIdentity[]>;
 	// Anything whose identity changing means the window has to be asked for
 	// again. The window is otherwise fetched only when it moves, which is fine
 	// while it is just a picture — but two things read it as live data. Once it
@@ -193,9 +206,9 @@ export const TimeScrubber = ({
 		CATEGORIES_EXPANDED_STORAGE_KEY,
 		false,
 	);
-	const [identitiesExpanded, setIdentitiesExpanded] = usePersistedFlag(
-		IDENTITIES_EXPANDED_STORAGE_KEY,
-		false,
+	const [expandedAxis, setExpandedAxis] = usePersistedChoice<FilterAxis>(
+		EXPANDED_AXIS_STORAGE_KEY,
+		isFilterAxis,
 	);
 	// Unlike the series toggles this changes what is fetched, not just what is
 	// drawn.
@@ -342,12 +355,26 @@ export const TimeScrubber = ({
 	const changeBoardView = (next: BoardView) => onChangeSelection({view: next});
 
 	// Toggles: isolating again restores the rest, so the button is a way back as
-	// well as a way in. Ticking each of a dozen tags to undo it is not.
-	const isolateIdentity = (id: string) =>
-		onChangeSelection({only: isolateOnly(only, id)});
+	// well as a way in. Ticking each of a dozen tags to undo it is not. Both act
+	// on one axis and leave the others where they are, which is what lets a tag
+	// and an assignee narrow the board at once.
+	const isolateIdentity = (axis: FilterAxis, id: string) =>
+		onChangeSelection({
+			only: withNarrowing(
+				only,
+				axis,
+				isolateOnly(narrowingFor(only, axis), id),
+			),
+		});
 
-	const toggleIdentity = (id: string, next: boolean) =>
-		onChangeSelection({only: toggleOnly(only, identities, id, next)});
+	const toggleIdentity = (axis: FilterAxis, id: string, next: boolean) =>
+		onChangeSelection({
+			only: withNarrowing(
+				only,
+				axis,
+				toggleOnly(narrowingFor(only, axis), identitiesByAxis[axis], id, next),
+			),
+		});
 
 	const changeAllBoards = (next: boolean) => {
 		armEntrance();
@@ -357,7 +384,14 @@ export const TimeScrubber = ({
 	// What narrows the window already in hand. Answered on the spot, with no
 	// round trip, so it can replay the entrance the moment it changes.
 	const filterKey = useMemo(
-		() => JSON.stringify([boardView, only === null ? null : [...only].sort()]),
+		() =>
+			JSON.stringify([
+				boardView,
+				FILTER_AXES.map(axis => {
+					const ids = only[axis];
+					return ids === undefined ? null : [...ids].sort();
+				}),
+			]),
 		[boardView, only],
 	);
 
@@ -397,20 +431,41 @@ export const TimeScrubber = ({
 	// Only a window the server returned events for can be split at all.
 	const categoriesFiltered = (timeline?.events.length ?? 0) > 0;
 
-	const identities = useMemo(() => {
-		const axis = identityAxisFor(boardView);
+	// Every axis's legend, not just the plotted one's: each is a filter of its
+	// own now, and all four are on offer in the popover at once.
+	const identitiesByAxis = useMemo(() => {
+		const lists = {} as Record<FilterAxis, GuiEventIdentity[]>;
 
-		return withSelectedIdentities(
-			listIdentities(shown.timeline, boardView),
-			only,
-			axis === null ? [] : knownIdentities[axis],
-		);
-	}, [shown, boardView, only, knownIdentities]);
+		for (const axis of FILTER_AXES) {
+			lists[axis] = withSelectedIdentities(
+				listIdentities(shown.timeline, axis),
+				narrowingFor(only, axis),
+				knownIdentities[axis],
+			);
+		}
 
-	const hiddenIdentityIds = useMemo(
-		() => hiddenIdsFor(identities, only),
-		[identities, only],
-	);
+		return lists;
+	}, [shown, only, knownIdentities]);
+
+	const hiddenIdsByAxis = useMemo(() => {
+		const hidden = {} as Record<FilterAxis, ReadonlySet<string>>;
+
+		for (const axis of FILTER_AXES) {
+			hidden[axis] = hiddenIdsFor(
+				identitiesByAxis[axis],
+				narrowingFor(only, axis),
+			);
+		}
+
+		return hidden;
+	}, [identitiesByAxis, only]);
+
+	// What the chart itself is coloured by, which is still one axis at a time.
+	const viewAxis = identityAxisFor(boardView);
+	const identities =
+		viewAxis === null ? EMPTY_IDENTITIES : identitiesByAxis[viewAxis];
+	const hiddenIdentityIds =
+		viewAxis === null ? EMPTY_HIDDEN : hiddenIdsByAxis[viewAxis];
 
 	// Filtered down to one tag or person, the bars are that identity and nothing
 	// else, so they take its colour rather than the kind's. The scatter already
@@ -840,10 +895,11 @@ export const TimeScrubber = ({
 				onChangeShowCommits,
 				onChangeAllBoards: changeAllBoards,
 				boardView,
-				identities,
-				hiddenIdentityIds,
+				identitiesByAxis,
+				hiddenIdsByAxis,
+				narrowed: isNarrowed(only),
 				categoriesExpanded,
-				identitiesExpanded,
+				expandedAxis,
 				categoriesFiltered,
 				isScrubbing: timeTravel.mode === 'scrub',
 				onReturnToLive,
@@ -852,7 +908,7 @@ export const TimeScrubber = ({
 				onOnlyIdentity: isolateIdentity,
 				onToggleCategoriesExpanded: () =>
 					setCategoriesExpanded(!categoriesExpanded),
-				onSetIdentitiesExpanded: setIdentitiesExpanded,
+				onSetExpandedAxis: setExpandedAxis,
 			}}
 			chart={{
 				// Only where it is actually hiding something: ticked over a window
