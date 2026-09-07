@@ -436,14 +436,19 @@ export const App = () => {
 	const tagOnly = selection.only.tag ?? null;
 	const isolatedTagId = tagOnly?.length === 1 ? tagOnly[0] ?? null : null;
 
-	// Points the chart at tags as well as narrowing the board to one: a chip is
-	// a "show me this tag" gesture, and the picture above answering it in the
-	// tag's own colour is the half the board cannot show.
-	const filterByTag = (tagId: string) =>
+	// Narrowing to a chip points the chart at tags as well: a chip is a "show me
+	// this tag" gesture, and the picture above answering it in the tag's own
+	// colour is the half the board cannot show. Pressing the lit one again only
+	// lets go of the tag — it is not an ask for a series, so whatever the chart
+	// had been switched to since stays where it is.
+	const filterByTag = (tagId: string) => {
+		const next = isolateOnly(tagOnly, tagId);
+
 		changeSelection({
-			view: 'tagging',
-			only: withNarrowing(selection.only, 'tag', isolateOnly(tagOnly, tagId)),
+			...(next === null ? {} : {view: 'tagging' as const}),
+			only: withNarrowing(selection.only, 'tag', next),
 		});
+	};
 
 	// For naming a selected identity the scrubber's window has no event for.
 	const knownIdentities = useMemo(() => {

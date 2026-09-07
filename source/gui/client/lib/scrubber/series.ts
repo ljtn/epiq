@@ -126,6 +126,19 @@ export const identityOf = (
 	return axis === null ? null : entry[AXIS_FIELD[axis]];
 };
 
+// The identity an event offers an axis, or null where it offers none — an
+// assigning event on the tag axis, or a `create.contributor` on the assignee
+// axis, which names nobody assigned.
+const identityOnAxis = (
+	entry: GuiEventTimelineEntry,
+	axis: FilterAxis,
+): GuiEventIdentity | null => {
+	const category = AXIS_CATEGORY[axis];
+	if (category !== null && categoryOf(entry.action) !== category) return null;
+
+	return entry[AXIS_FIELD[axis]];
+};
+
 // Every identity present in the window on this axis, in first-seen order.
 // Doubles as the filter's legend, so it lists what is actually there rather
 // than every tag or contributor the repo has ever had.
@@ -135,18 +148,39 @@ export const listIdentities = (
 ): GuiEventIdentity[] => {
 	if (!timeline || axis === null) return [];
 
-	const category = AXIS_CATEGORY[axis];
-	const field = AXIS_FIELD[axis];
 	const byId = new Map<string, GuiEventIdentity>();
 
 	for (const entry of timeline.events) {
-		if (category !== null && categoryOf(entry.action) !== category) continue;
-
-		const identity = entry[field];
+		const identity = identityOnAxis(entry, axis);
 		if (identity && !byId.has(identity.id)) byId.set(identity.id, identity);
 	}
 
 	return [...byId.values()];
+};
+
+// Every axis's legend at once, in one pass. The popover offers all four, and
+// the lists are rebuilt on every board broadcast — a needle drag makes one
+// every 120ms — so walking a whole window's events once per axis is four times
+// the work for the same answer.
+export const listIdentitiesByAxis = (
+	timeline: GuiEventTimeline | null,
+): Record<FilterAxis, GuiEventIdentity[]> => {
+	const byAxis = {} as Record<FilterAxis, Map<string, GuiEventIdentity>>;
+	for (const axis of FILTER_AXES) byAxis[axis] = new Map();
+
+	for (const entry of timeline?.events ?? []) {
+		for (const axis of FILTER_AXES) {
+			const identity = identityOnAxis(entry, axis);
+			if (identity && !byAxis[axis].has(identity.id)) {
+				byAxis[axis].set(identity.id, identity);
+			}
+		}
+	}
+
+	const lists = {} as Record<FilterAxis, GuiEventIdentity[]>;
+	for (const axis of FILTER_AXES) lists[axis] = [...byAxis[axis].values()];
+
+	return lists;
 };
 
 // The one identity left when everything else in the view is hidden — reached by

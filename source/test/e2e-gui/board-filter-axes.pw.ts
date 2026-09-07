@@ -74,7 +74,7 @@ test('opening a row list leaves the plotted series alone', async ({
 	// The caret opens that axis's list without selecting its row, which is the
 	// whole point of a list per axis: narrow by one while the chart plots
 	// another.
-	await page.getByRole('button', {name: 'Pick which to show'}).first().click();
+	await page.getByRole('button', {name: 'Pick which comments to show'}).click();
 	await expect(page.getByRole('radio', {name: 'Tags'})).toHaveAttribute(
 		'aria-checked',
 		'true',

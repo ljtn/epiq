@@ -25,7 +25,7 @@ test('the People list narrows the board to who caused an event on a ticket', asy
 
 	await page.getByRole('button', {name: 'Board events'}).click();
 	await page.getByRole('radio', {name: 'Tags'}).click();
-	await page.getByRole('button', {name: 'Pick which to show'}).last().click();
+	await page.getByRole('button', {name: 'Pick which people to show'}).click();
 
 	// The People list is the actor behind every kind of event, not just the
 	// author of a comment, so unticking the lot leaves no ticket anybody has

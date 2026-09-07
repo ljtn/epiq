@@ -245,6 +245,11 @@ const Radio = ({
 	</button>
 );
 
+// Module scope, so a view that colours by nothing hands the same empty legend
+// down every render rather than a fresh one to re-memoize against.
+const EMPTY_IDENTITIES: GuiEventIdentity[] = [];
+const EMPTY_HIDDEN: ReadonlySet<string> = new Set<string>();
+
 // A checkbox for the series and a select for what it draws, one kind at a time.
 // That is what lets a colour mean one thing: "Board events" colours by kind,
 // and any single kind colours by the tag or person behind each event, never both
@@ -256,9 +261,6 @@ const Radio = ({
 // with a list can be ticked down, several at once, and the board below shows
 // the tickets that pass all of them. Only the plotted row's list changes the
 // picture; the rest narrow what is underneath it.
-const EMPTY_IDENTITIES: GuiEventIdentity[] = [];
-const EMPTY_HIDDEN: ReadonlySet<string> = new Set<string>();
-
 export const BoardSeriesGroup = ({
 	connected,
 	showIssues,
@@ -388,6 +390,7 @@ export const BoardSeriesGroup = ({
 						// closed panel.
 						const rowNarrowed =
 							axis !== null && filtered && hiddenIdsByAxis[axis].size > 0;
+						const rowLabel = VIEW_LABELS[option].toLowerCase();
 
 						// The whole series heads the list; the kinds of it are indented
 						// under that, which is the hierarchy the word "All" used to say
@@ -421,12 +424,22 @@ export const BoardSeriesGroup = ({
 											// point of a list per axis is narrowing by one while the
 											// chart goes on plotting another.
 											onClick={() => onSetExpandedAxis(open ? null : axis)}
-											title={open ? 'Hide the list' : 'Pick which to show'}
+											// Named after its own row: four rows now carry one of
+											// these, and "Pick which to show" on all four says
+											// nothing about which list is being opened.
+											title={
+												open
+													? `Hide the ${rowLabel} list`
+													: `Pick which ${rowLabel} to show`
+											}
 											aria-expanded={open}
 											style={{
 												...disclosureStyle,
+												// In the row's own colour rather than the accent, so
+												// the lit caret reads as belonging to the thing it
+												// is holding back.
 												color: rowNarrowed
-													? GUI_THEME.accent
+													? boardViewColor(option)
 													: disclosureStyle.color,
 											}}
 										>

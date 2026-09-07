@@ -54,6 +54,7 @@ export {
 	identityAxisFor,
 	categoryOf,
 	listIdentities,
+	listIdentitiesByAxis,
 	soleVisibleIdentity,
 	dotDetail,
 	isShown,
