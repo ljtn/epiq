@@ -18,6 +18,7 @@ import {
 	identityAxisFor,
 	FILTER_AXES,
 	listIdentities,
+	NO_IDENTITY,
 	listIdentitiesByAxis,
 	plottedView,
 	soleVisibleIdentity,
@@ -693,9 +694,13 @@ describe('identity views', () => {
 		expect(listIdentities(window(), 'commenter').map(i => i.name)).toEqual([
 			'jola',
 			'demo',
+			'No comments',
 		]);
 		// The tag axis lists tags, not the people who applied them.
-		expect(listIdentities(window(), 'tag').map(i => i.name)).toEqual(['bug']);
+		expect(listIdentities(window(), 'tag').map(i => i.name)).toEqual([
+			'bug',
+			'Untagged',
+		]);
 	});
 
 	// The commenter axis stops at comments; the actor axis takes whoever caused
@@ -722,13 +727,17 @@ describe('identity views', () => {
 		}
 	});
 
-	it('has an empty list per axis with no timeline', () => {
-		expect(listIdentitiesByAxis(null)).toEqual({
-			commenter: [],
-			tag: [],
-			assignee: [],
-			actor: [],
-		});
+	// The window decides which tags and people are on offer; the none row is
+	// there whatever the window holds, because every board has tickets with
+	// none of them.
+	it('offers the none row even with no timeline', () => {
+		const byAxis = listIdentitiesByAxis(null);
+
+		// Every ticket was created by somebody, so there is no such thing as an
+		// untouched one and the actor axis offers no such row.
+		expect(
+			FILTER_AXES.map(axis => byAxis[axis].map(identity => identity.name)),
+		).toEqual([['No comments'], ['Untagged'], ['Unassigned'], []]);
 	});
 
 	it('takes each dot colour from its identity, not its kind', () => {
@@ -767,10 +776,12 @@ describe('identity views', () => {
 	describe('soleVisibleIdentity', () => {
 		const listed = () => listIdentities(window(), 'commenter');
 
+		// The none row is one of them, so narrowing down to a single name means
+		// unticking that too — which is what ticking one name alone does.
 		it('names the one identity left when the rest are hidden', () => {
-			expect(soleVisibleIdentity(listed(), new Set([jola.id]))?.name).toBe(
-				'demo',
-			);
+			expect(
+				soleVisibleIdentity(listed(), new Set([jola.id, NO_IDENTITY]))?.name,
+			).toBe('demo');
 		});
 
 		it('is null while more than one is still shown', () => {
@@ -778,16 +789,19 @@ describe('identity views', () => {
 		});
 
 		it('is null when everything is hidden', () => {
-			expect(soleVisibleIdentity(listed(), new Set([jola.id, demo.id]))).toBe(
-				null,
-			);
+			expect(
+				soleVisibleIdentity(listed(), new Set([jola.id, demo.id, NO_IDENTITY])),
+			).toBe(null);
 		});
 
 		it('names the only identity a window holds, filter or not', () => {
 			// One tag in the whole window: the series really is that tag, whether
 			// anyone unticked their way down to it or it arrived alone.
 			expect(
-				soleVisibleIdentity(listIdentities(window(), 'tag'), new Set())?.name,
+				soleVisibleIdentity(
+					listIdentities(window(), 'tag'),
+					new Set([NO_IDENTITY]),
+				)?.name,
 			).toBe('bug');
 		});
 
@@ -959,6 +973,64 @@ describe('board filter', () => {
 		expect(issuePassesBoardFilter(issue([docs], [jola]), nothing, filter)).toBe(
 			false,
 		);
+	});
+
+	// The trap the none row exists to close: a ticket with nothing on an axis
+	// used to belong to no row, so it could not be ticked, so unticking anybody
+	// dropped it — every ticket nobody had touched went with the one name you
+	// meant to hide.
+	describe('the none row', () => {
+		it('keeps the tickets with nothing on the axis, while a name is unticked', () => {
+			// Anna stays ticked, Bo is unticked, and so is nothing-at-all still
+			// ticked: the untagged ticket is not what anybody unticked.
+			const filter = buildBoardFilter({tag: [bug.id, NO_IDENTITY]});
+
+			expect(issuePassesBoardFilter(issue([bug]), nothing, filter)).toBe(true);
+			expect(issuePassesBoardFilter(issue([docs]), nothing, filter)).toBe(
+				false,
+			);
+			expect(issuePassesBoardFilter(issue(), nothing, filter)).toBe(true);
+		});
+
+		it('narrows to only the tickets with nothing on the axis', () => {
+			const filter = buildBoardFilter({assignee: [NO_IDENTITY]});
+
+			expect(issuePassesBoardFilter(issue(), nothing, filter)).toBe(true);
+			expect(issuePassesBoardFilter(issue([], [jola]), nothing, filter)).toBe(
+				false,
+			);
+		});
+
+		it('narrows to only the tickets with something, when it is the one unticked', () => {
+			const filter = buildBoardFilter({assignee: [jola.id, docs.id]});
+
+			expect(issuePassesBoardFilter(issue([], [jola]), nothing, filter)).toBe(
+				true,
+			);
+			expect(issuePassesBoardFilter(issue(), nothing, filter)).toBe(false);
+		});
+
+		// Every row ticked, the none row among them, covers every ticket — so
+		// the axis asks nothing rather than demanding the ticket carry
+		// something.
+		it('asks nothing of anybody with the whole axis ticked', () => {
+			const filter = buildBoardFilter({tag: 'all'});
+
+			expect(issuePassesBoardFilter(issue([bug]), nothing, filter)).toBe(true);
+			expect(issuePassesBoardFilter(issue(), nothing, filter)).toBe(true);
+		});
+
+		// The actor axis has no none row, so its rows are the people and
+		// carrying one of them stays the question — which is how it has always
+		// behaved.
+		it('still asks the actor axis for somebody, there being no none row', () => {
+			const touched = {commenterIds: [], actorIds: [jola.id]};
+			const untouched = {commenterIds: [], actorIds: []};
+			const filter = buildBoardFilter({actor: 'all'});
+
+			expect(issuePassesBoardFilter(issue(), touched, filter)).toBe(true);
+			expect(issuePassesBoardFilter(issue(), untouched, filter)).toBe(false);
+		});
 	});
 
 	it('fails everything on an axis narrowed to nothing', () => {

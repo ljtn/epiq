@@ -78,10 +78,11 @@ test('opening a row list does not switch its axis on', async ({
 
 	// Reading what is under a row is not the same as filtering by it.
 	await page.getByRole('button', {name: 'Pick which comments to show'}).click();
-	await expect(page.getByRole('checkbox', {name: 'Comments'})).toHaveAttribute(
-		'aria-checked',
-		'false',
-	);
+	// Exact: the list it opened has a `No comments` row of its own, and a
+	// substring match takes both.
+	await expect(
+		page.getByRole('checkbox', {name: 'Comments', exact: true}),
+	).toHaveAttribute('aria-checked', 'false');
 	await expect(page).not.toHaveURL(/only=/);
 
 	expect(pageErrors).toEqual([]);

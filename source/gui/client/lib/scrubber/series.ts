@@ -83,6 +83,11 @@ const AXIS_CATEGORY: Record<FilterAxis, EventCategory | null> = {
 // the named few.
 export type AxisNarrowing = 'all' | readonly string[];
 
+// The row every ticket with nothing on an axis belongs to — untagged,
+// unassigned, uncommented, untouched. Lower case, so it can never collide with
+// a ULID: every real tag, contributor and assignee id is Crockford base32.
+export const NO_IDENTITY = 'none';
+
 // A narrowing per axis: an axis absent takes no part in the filter, an axis
 // present asks its question of every ticket. Several hold at once and a ticket
 // has to pass them all, which is what "every tag, for these two contributors"
@@ -177,9 +182,43 @@ const identityOnAxis = (
 	return entry[AXIS_FIELD[axis]];
 };
 
-// Every identity present in the window on this axis, in first-seen order.
-// Doubles as the filter's legend, so it lists what is actually there rather
-// than every tag or contributor the repo has ever had.
+// What the none row is called, per axis. Said in the axis's own words rather
+// than a bare "none", which reads as an absence of a row instead of a row.
+//
+// These three read the board itself, so the row is true outright: a ticket has
+// no tags, nobody is assigned, nobody has commented.
+//
+// The actor axis has none, deliberately. Every ticket was created by somebody,
+// so "untouched" is never true of one — the only thing such a row could mean
+// is "nothing happened to it inside the window on screen", which is a
+// statement about the scrubber rather than about the ticket, and reads as a
+// claim about the ticket. Without the row that axis keeps behaving as it
+// always has: ticked means the ticket has to have been touched in view.
+const NONE_LABELS: Record<FilterAxis, string | null> = {
+	commenter: 'No comments',
+	tag: 'Untagged',
+	assignee: 'Unassigned',
+	actor: null,
+};
+
+// Whether an axis offers a row for the tickets with nothing on it.
+export const hasNoneRow = (axis: FilterAxis): boolean =>
+	NONE_LABELS[axis] !== null;
+
+// Drawn in the dim the rest of the interface uses for an absence, so it reads
+// as the odd one out in a list of names — which it is.
+export const noneIdentity = (axis: FilterAxis): GuiEventIdentity | null => {
+	const name = NONE_LABELS[axis];
+
+	return name === null ? null : {id: NO_IDENTITY, name, color: GUI_THEME.dim2};
+};
+
+export const isNoneIdentity = (id: string): boolean => id === NO_IDENTITY;
+
+// Every identity present in the window on this axis, in first-seen order, and
+// the none row after them. Doubles as the filter's legend, so it lists what is
+// actually there rather than every tag or contributor the repo has ever had —
+// plus the row that covers the tickets with none of them.
 export const listIdentities = (
 	timeline: GuiEventTimeline | null,
 	axis: FilterAxis | null,
@@ -193,7 +232,9 @@ export const listIdentities = (
 		if (identity && !byId.has(identity.id)) byId.set(identity.id, identity);
 	}
 
-	return [...byId.values()];
+	const none = noneIdentity(axis);
+
+	return none === null ? [...byId.values()] : [...byId.values(), none];
 };
 
 // Every axis's legend at once, in one pass. The popover offers all four, and
@@ -216,7 +257,13 @@ export const listIdentitiesByAxis = (
 	}
 
 	const lists = {} as Record<FilterAxis, GuiEventIdentity[]>;
-	for (const axis of FILTER_AXES) lists[axis] = [...byAxis[axis].values()];
+	for (const axis of FILTER_AXES) {
+		// Last, and whatever the window holds: the window decides which tags and
+		// people are on offer, but "the ones with none" is a row every board has
+		// — on the axes that have one at all.
+		const none = noneIdentity(axis);
+		lists[axis] = [...byAxis[axis].values(), ...(none === null ? [] : [none])];
+	}
 
 	return lists;
 };
@@ -462,8 +509,16 @@ export const issuePassesBoardFilter = (
 		// rather than failing every ticket against an answer nobody has.
 		if (ids === null) return true;
 
-		// On with every identity: carrying one is the whole question.
-		if (visibleIds === null) return ids.length > 0;
+		// Every row ticked. Where a none row is among them the axis covers every
+		// ticket and so asks nothing of any of them; where there is none, the
+		// rows are the identities, and carrying one is the question.
+		if (visibleIds === null) return hasNoneRow(axis) || ids.length > 0;
+
+		// A ticket with nothing on this axis is not homeless where the axis has
+		// a none row: it belongs to that row, and passes exactly when the row is
+		// ticked. Without one it belongs nowhere and passes nothing.
+		if (ids.length === 0)
+			return hasNoneRow(axis) && visibleIds.has(NO_IDENTITY);
 
 		return ids.some(id => visibleIds.has(id));
 	});
