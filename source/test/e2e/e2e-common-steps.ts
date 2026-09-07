@@ -3,7 +3,12 @@ import {setupTui} from './e2e.helper.js';
 import {execSync} from 'child_process';
 
 export const commonSteps = {
-	configureInitialSettings: async (tui: ReturnType<typeof setupTui>) => {
+	// `autoSync` is the one answer worth varying: a suite that only exercises
+	// the interface wants no background git work behind it.
+	configureInitialSettings: async (
+		tui: ReturnType<typeof setupTui>,
+		autoSync: 'on' | 'off' = 'on',
+	) => {
 		// Headroom for a cold start on slow CI hardware, or under a full container.
 		await tui.waitFor('choose your username', 20_000);
 		tui.input(':config username test\r');
@@ -12,7 +17,7 @@ export const commonSteps = {
 		tui.input(':config editor vim\r');
 
 		await tui.waitFor('Configure auto sync', 20_000);
-		tui.input(':config autoSync on\r');
+		tui.input(`:config autoSync ${autoSync}\r`);
 
 		await tui.waitFor('Initialize project', 20_000);
 	},
