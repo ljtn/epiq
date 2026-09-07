@@ -9,15 +9,22 @@ console.warn = console.error;
 // server, saving every client config an `env` block for the common case.
 const {applyActorNameArgument} = await import('../lib/config/actor-env.js');
 const {isFail} = await import('../lib/model/result-types.js');
-const args = process.argv.slice(2);
+const {parseMcpArgs} = await import('./args.js');
+const parsed = parseMcpArgs(process.argv.slice(2));
 
-if (args.length > 1) {
-	console.error(`Expected at most one name argument, got ${args.length}`);
+if (parsed.kind === 'error') {
+	console.error(parsed.message);
 	process.exit(1);
 }
 
-if (args[0] !== undefined) {
-	const applied = applyActorNameArgument(args[0], 'The name argument');
+// `console.log` is stderr here, and a version is worth piping.
+if (parsed.kind === 'print') {
+	process.stdout.write(parsed.text);
+	process.exit(0);
+}
+
+if (parsed.kind === 'name') {
+	const applied = applyActorNameArgument(parsed.name, 'The name argument');
 
 	if (isFail(applied)) {
 		console.error(applied.message);
