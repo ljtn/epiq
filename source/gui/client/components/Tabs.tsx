@@ -10,12 +10,17 @@ type Props<T extends string> = {
 	activeTab: T;
 	tabs: TabItem<T>[];
 	onChange: (tab: T) => void;
+	// False in a panel too narrow to hold five tabs and their counts on one
+	// line. The count is the first thing to go: a tab whose name has wrapped
+	// under its own number is harder to read than one without the number.
+	showCounts?: boolean;
 };
 
 export const Tabs = <T extends string>({
 	activeTab,
 	tabs,
 	onChange,
+	showCounts = true,
 }: Props<T>) => (
 	<div
 		style={{
@@ -48,7 +53,7 @@ export const Tabs = <T extends string>({
 					}}
 				>
 					{tab.label}
-					{typeof tab.count === 'number' && (
+					{showCounts && typeof tab.count === 'number' && (
 						<span
 							style={{color: tab.count ? GUI_THEME.secondary : GUI_THEME.dim}}
 						>

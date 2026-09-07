@@ -10,7 +10,7 @@ import {
 	ROW,
 	shortPath,
 	STAT_CELL,
-	STAT_GRID,
+	statGrid,
 	STAT_LABEL,
 	STAT_NOTE,
 	STAT_VALUE,
@@ -94,7 +94,18 @@ const Stat = ({
 	label: string;
 	note?: React.ReactNode;
 }) => (
-	<div style={STAT_CELL}>
+	<div
+		style={STAT_CELL}
+		// The same lift every hoverable surface in the app takes, so a figure
+		// under the pointer separates from the four beside it — and a path in
+		// the note below reads as part of that block rather than as loose text.
+		onMouseEnter={event => {
+			event.currentTarget.style.background = GUI_THEME.hover;
+		}}
+		onMouseLeave={event => {
+			event.currentTarget.style.background = 'transparent';
+		}}
+	>
 		<div style={STAT_VALUE}>{value}</div>
 		<div style={STAT_LABEL}>{label}</div>
 		{note && <div style={STAT_NOTE}>{note}</div>}
@@ -164,14 +175,16 @@ const Note = ({when, children}: {when: boolean; children: React.ReactNode}) =>
  */
 const BoardSection = ({
 	boardStats,
+	compact,
 	first = false,
 }: {
 	boardStats: BoardStats | null;
+	compact: boolean;
 	first?: boolean;
 }) =>
 	boardStats ? (
 		<Section title="Board" first={first}>
-			<div style={STAT_GRID}>
+			<div style={statGrid(compact)}>
 				<Stat value={inDays(boardStats.ageMs)} label="Days old" />
 				<Stat
 					value={String(boardStats.timesSentBack)}
@@ -191,6 +204,7 @@ export const IssueStats = ({
 	error,
 	onOpenFile,
 	boardStats,
+	compact = false,
 }: {
 	stats: Stats | null;
 	loading: boolean;
@@ -200,6 +214,8 @@ export const IssueStats = ({
 	onOpenFile?: (file: FilePointer) => void;
 	// Null while the board has yet to arrive, or for a ticket no lane holds.
 	boardStats: BoardStats | null;
+	// The panel is too narrow for four figures across.
+	compact?: boolean;
 }) => {
 	if (error) return <Empty>{error}</Empty>;
 	if (loading || !stats)
@@ -213,7 +229,7 @@ export const IssueStats = ({
 	if (shape.commits === 0) {
 		return (
 			<div style={{fontSize: TEXT.ui}}>
-				<BoardSection boardStats={boardStats} first />
+				<BoardSection boardStats={boardStats} compact={compact} first />
 
 				<Section title="Code">
 					<div style={LINE}>
@@ -238,7 +254,7 @@ export const IssueStats = ({
 	return (
 		<div style={{fontSize: TEXT.ui}}>
 			<Section title="Code" first>
-				<div style={STAT_GRID}>
+				<div style={statGrid(compact)}>
 					<Stat
 						value={String(shape.files)}
 						label="Files"
@@ -282,7 +298,7 @@ export const IssueStats = ({
 			</Section>
 
 			<Section title="Tests">
-				<div style={STAT_GRID}>
+				<div style={statGrid(compact)}>
 					<Stat value={String(tests.testLinesAdded)} label="Test lines added" />
 					<Stat
 						value={String(tests.addedTestFiles.length)}
@@ -445,7 +461,7 @@ export const IssueStats = ({
 			)}
 
 			{/* Last, because it is the only section that is not about the diff. */}
-			<BoardSection boardStats={boardStats} />
+			<BoardSection boardStats={boardStats} compact={compact} />
 		</div>
 	);
 };

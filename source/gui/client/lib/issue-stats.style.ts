@@ -9,28 +9,39 @@
 
 import {GUI_THEME} from './gui-theme';
 
-export const STAT_GRID: React.CSSProperties = {
+/**
+ * Four across where there is room, two by two where there is not.
+ *
+ * Explicit rather than auto-fit: left to itself the grid drops to three
+ * columns first, which puts one stat of four alone on a second row and reads
+ * as a mistake. Two by two is a layout.
+ */
+export const statGrid = (compact: boolean): React.CSSProperties => ({
 	display: 'grid',
-	// Narrow enough that four stats still sit on one row in the panel at its
-	// default width — one of four wrapping onto a line of its own reads as a
-	// mistake rather than as a layout. Labels wrap instead, which reads fine.
-	gridTemplateColumns: 'repeat(auto-fit, minmax(82px, 1fr))',
+	gridTemplateColumns: compact
+		? 'repeat(2, 1fr)'
+		: 'repeat(auto-fit, minmax(82px, 1fr))',
 	gap: 16,
 	marginTop: 14,
-};
+});
 
 export const STAT_CELL: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
 	alignItems: 'center',
 	textAlign: 'center',
-	gap: 3,
+	gap: 4,
 	minWidth: 0,
+	// Room for the hover ground to sit around the figure rather than against
+	// it, and a shape for it to be.
+	padding: '6px 4px',
+	borderRadius: 6,
+	transition: 'background 120ms ease',
 };
 
 export const STAT_VALUE: React.CSSProperties = {
 	color: GUI_THEME.primary,
-	fontSize: 30,
+	fontSize: 38,
 	lineHeight: 1,
 	// Tabular-ish spacing: a column of figures that shifts as it updates reads
 	// as movement rather than as a number.
