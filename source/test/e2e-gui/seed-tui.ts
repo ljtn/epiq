@@ -104,7 +104,10 @@ export const seedProject = async (): Promise<string> => {
 	};
 
 	await tui.waitFor('choose your username');
-	await command(':config username test');
+	// A slash in it on purpose: the log's file name cannot hold one, so a name
+	// read back out of the file reads `claude-tester` where the registry says
+	// `claude/tester`. A fixture named `test` cannot tell the two apart.
+	await command(':config username claude/tester');
 
 	await tui.waitFor('pick your editor');
 	await command(':config editor vim');

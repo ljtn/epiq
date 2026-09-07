@@ -148,6 +148,63 @@ describe('timeline-index', () => {
 			);
 		});
 
+		// `userName` on a loaded event is parsed back out of the log's file name,
+		// which sanitizing lowercased and stripped — so the actor has to be
+		// named out of the registry the tag and the assignee are named out of,
+		// or the same person reads `claude-adolph` here and `claude/adolph`
+		// where they are assigned.
+		it('names an actor the way the log named them, not the way the file did', () => {
+			const entries = buildTimelineEntries([
+				{
+					id: ulid(baseTime),
+					action: 'create.contributor',
+					payload: {id: 'u-1', name: 'claude/adolph'},
+					userId: 'u-1',
+					userName: 'claude-adolph',
+				},
+				event(2, {userId: 'u-1', userName: 'claude-adolph'}),
+			] as never);
+
+			expect(entries.map(entry => entry.actor?.name)).toEqual([
+				'claude/adolph',
+				'claude/adolph',
+			]);
+		});
+
+		// The colour is hashed from the name, so a name read two ways is a
+		// person drawn in two colours.
+		it('gives an actor the colour their assigned self is drawn in', () => {
+			const entries = buildTimelineEntries([
+				{
+					id: ulid(baseTime),
+					action: 'create.contributor',
+					payload: {id: 'u-1', name: 'claude/adolph'},
+					userId: 'u-1',
+					userName: 'claude-adolph',
+				},
+				{
+					id: ulid(baseTime + 1000),
+					action: 'add.issue.assignee',
+					payload: {id: 'i1', assignee: 'u-1'},
+					userId: 'u-1',
+					userName: 'claude-adolph',
+				},
+			] as never);
+
+			const assigning = entries[1]!;
+			expect(assigning.actor?.color).toBe(assigning.assignee?.color);
+		});
+
+		// An id the log has no create event for keeps the file's copy: better a
+		// lowercased name than a raw ULID.
+		it('falls back to the file’s copy for an actor the log never named', () => {
+			const [entry] = buildTimelineEntries([
+				event(1, {userId: 'u-9', userName: 'someone-else'}),
+			] as never);
+
+			expect(entry!.actor?.name).toBe('someone-else');
+		});
+
 		// Resolved once at build time so a request can narrow to its own board
 		// over the window rather than walking the log again.
 		it('carries the board each event belongs to', () => {

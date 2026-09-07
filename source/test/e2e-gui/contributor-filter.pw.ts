@@ -57,3 +57,30 @@ test('the Contributors list narrows the board to who caused an event on a ticket
 
 	expect(pageErrors).toEqual([]);
 });
+
+test('lists a contributor under the name the board knows, not the log file', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await page.getByRole('button', {name: 'Board events'}).click();
+	await page
+		.getByRole('button', {name: 'Pick which contributors to show'})
+		.click();
+
+	// The list is built from the window's events, whose author is reconstructed
+	// from the log's file name — and that has had the slash sanitised out of
+	// it. The board knows them as `claude/tester`, and so must this.
+	const list = page.getByRole('group', {name: 'Which contributors to show'});
+	await expect(
+		list.getByRole('checkbox', {name: 'claude/tester'}),
+	).toBeVisible();
+	await expect(list.getByRole('checkbox', {name: 'claude-tester'})).toHaveCount(
+		0,
+	);
+
+	expect(pageErrors).toEqual([]);
+});

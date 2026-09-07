@@ -232,10 +232,11 @@ const describeTimelineEvent = (
 const identityFor = (
 	id: string | undefined,
 	names: Map<string, string>,
+	fallback?: string,
 ): EventIdentity | null => {
 	if (!id) return null;
 
-	const name = names.get(id) ?? id;
+	const name = names.get(id) ?? fallback ?? id;
 
 	return {id, name, color: getStringColor(name)};
 };
@@ -247,13 +248,15 @@ const identitiesFor = (
 	const payload = event.payload as {assignee?: string} | undefined;
 
 	return {
-		actor: event.userId
-			? {
-					id: event.userId,
-					name: event.userName ?? event.userId,
-					color: getStringColor(event.userName ?? event.userId),
-			  }
-			: null,
+		// Through the same name index the tag and the assignee go through. The
+		// name on a loaded event is not a name: it is parsed back out of the log
+		// file, which `sanitizeFilePart` lowercased and stripped, so an actor read
+		// straight off it turns up as `claude-adolph` beside the `claude/adolph`
+		// they are assigned under — in a different colour, since the colour is
+		// hashed from whichever spelling is in hand. The file's copy is the
+		// fallback and nothing more: an id the log has no `create.contributor`
+		// for, from a board written before renames were events.
+		actor: identityFor(event.userId, names, event.userName),
 		tag: identityFor(tagOf(event), names),
 		assignee: identityFor(payload?.assignee, names),
 	};
