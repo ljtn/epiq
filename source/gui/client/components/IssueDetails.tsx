@@ -77,6 +77,11 @@ const LANE_SHARES = {
 type LaneKey = keyof typeof LANE_SHARES;
 const LANE_KEYS = Object.keys(LANE_SHARES) as LaneKey[];
 
+// Below this the five tabs and their counts no longer fit on one line, and
+// each label wraps under its own number. Measured against the longest set the
+// panel has — Overview, Comments, Commits, Stats, Log — rather than guessed.
+const TAB_COUNTS_WIDTH = 430;
+
 // Wide enough for the upright label and a comfortable click target.
 const COLLAPSED_LANE_WIDTH = 28;
 // Long enough to read as a movement, short enough not to be waited on.
@@ -974,6 +979,7 @@ export const IssueDetails = ({
 						error={statsError}
 						onOpenFile={onOpenStatsFile}
 						boardStats={boardStats}
+						compact={panelWidth < TAB_COUNTS_WIDTH}
 					/>
 				);
 
@@ -1163,6 +1169,7 @@ export const IssueDetails = ({
 											tabs={tabs}
 											activeTab={activeTab}
 											onChange={onChangeTab}
+											showCounts={panelWidth >= TAB_COUNTS_WIDTH}
 										/>
 										{activeTab === 'overview' && overviewPane}
 										{activeTab === 'comments' && commentsPane}
