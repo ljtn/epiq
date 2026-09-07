@@ -2,13 +2,14 @@ import {GUI_THEME} from '../lib/gui-theme';
 
 // The two bars the Stats tab draws, and the only colour on it.
 //
-// Both are the same 8px mark: thin, rounded at the ends of the whole bar and
-// square where segments meet, with a 2px gap in the panel colour doing the
-// separating rather than a stroke. Neither carries a legend of its own — the
-// rows underneath name every segment and repeat its colour, so identity is
-// never colour alone.
+// Both are the same 4px mark: thin enough to read as a measure beside the
+// figures rather than as a block competing with them. Rounded at the ends of
+// the whole bar, square where segments meet, with a 2px gap in the panel
+// colour doing the separating rather than a stroke. Neither carries a legend
+// of its own — the rows underneath name every segment and repeat its colour,
+// so identity is never colour alone.
 
-const BAR_HEIGHT = 8;
+const BAR_HEIGHT = 4;
 const SEGMENT_GAP = 2;
 
 export type BarSegment = {

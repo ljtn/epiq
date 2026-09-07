@@ -66,6 +66,9 @@ export type GuiIssueHistoryEntry = {
 	action: string;
 	label: string;
 	actor: GuiUser;
+	// Which lane a move put the ticket in — moves only. What the Stats tab
+	// counts to say a ticket has gone backwards.
+	parentId?: string;
 };
 
 export type GuiTimeTravelStatus = {

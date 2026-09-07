@@ -47,6 +47,7 @@ import {useAsideDock} from './lib/aside-dock';
 import {moveIssue} from './lib/gui-move-issue';
 import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
+import {deriveBoardStats} from '../../lib/stats/board-stats.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {issueMatchesText} from '../../lib/utils/text-match.js';
 import {commitTicketRef} from '../../lib/utils/commit-ref.js';
@@ -388,6 +389,33 @@ export const App = () => {
 
 		loadIssueStats(selectedIssue.id, statsSignature);
 	}, [selectedTab, selectedIssue?.id, statsSignature, loadIssueStats]);
+
+	// The board's own half of the Stats tab, derived here because this is where
+	// the lanes are: "backwards" is a fact about their order, and the panel
+	// below is handed the answer rather than the board to work it out from.
+	const boardStats = useMemo(() => {
+		if (!selectedIssue || !state) return null;
+
+		const board = state.boards.find(candidate =>
+			candidate.swimlanes.some(lane =>
+				lane.issues.some(issue => issue.id === selectedIssue.id),
+			),
+		);
+		const lane = board?.swimlanes.find(candidate =>
+			candidate.issues.some(issue => issue.id === selectedIssue.id),
+		);
+
+		if (!board || !lane) return null;
+
+		return deriveBoardStats({
+			createdAt: selectedIssue.createdAt,
+			now: Date.now(),
+			history:
+				issueDetail?.issueId === selectedIssue.id ? issueDetail.history : [],
+			lanes: board.swimlanes,
+			currentLaneId: lane.id,
+		});
+	}, [selectedIssue?.id, state, issueDetail]);
 
 	// Typed into the box beside the board switcher; hides cards whose ref and
 	// title both miss it. Not part of the URL selection: it is a passing
@@ -1698,6 +1726,7 @@ export const App = () => {
 										: true
 								}
 								onOpenStatsFile={openStatsFile}
+								boardStats={boardStats}
 								statsError={
 									issueStats?.issueId === selectedIssue.id
 										? issueStats.error

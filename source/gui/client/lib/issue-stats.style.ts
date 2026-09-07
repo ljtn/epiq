@@ -72,6 +72,14 @@ export const percent = (value: number): string => `${Math.round(value * 100)}%`;
 export const plural = (count: number, noun: string): string =>
 	`${count} ${noun}${count === 1 ? '' : 's'}`;
 
+// Whole days, and never "0": a ticket filed this morning has been open for
+// less than a day, which is a different statement from none at all.
+export const inDays = (ms: number): string => {
+	const days = Math.floor(ms / 86_400_000);
+
+	return days < 1 ? '<1' : String(days);
+};
+
 // Only ever the last two segments: the full path is a paragraph in a column
 // this narrow, and the tail is what identifies a file to somebody who knows
 // the repo. The whole path rides along as a title attribute.

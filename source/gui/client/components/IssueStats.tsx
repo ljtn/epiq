@@ -15,9 +15,11 @@ import {
 	STAT_NOTE,
 	STAT_VALUE,
 	COMMENT_YELLOW,
+	inDays,
 	seriesColor,
 } from '../lib/issue-stats.style';
 import {ProportionBar, StackedBar} from './StatBars';
+import {BoardStats} from '../../../lib/stats/board-stats.js';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
 
@@ -151,11 +153,44 @@ const Row = ({
 const Note = ({when, children}: {when: boolean; children: React.ReactNode}) =>
 	when ? <div style={LINE}>{children}</div> : null;
 
+/**
+ * The other half of a ticket: not what the code says, but what the board has
+ * done with it. A ticket can be old because it is hard or because nobody
+ * looked at it, and the third figure — how long it has sat where it is now —
+ * is what separates the two.
+ *
+ * Its own component because it is the one section that still means something
+ * for a ticket with no code at all. That is, in fact, when it means most.
+ */
+const BoardSection = ({
+	boardStats,
+	first = false,
+}: {
+	boardStats: BoardStats | null;
+	first?: boolean;
+}) =>
+	boardStats ? (
+		<Section title="Board" first={first}>
+			<div style={STAT_GRID}>
+				<Stat value={inDays(boardStats.ageMs)} label="Days old" />
+				<Stat
+					value={String(boardStats.timesSentBack)}
+					label="Times sent back"
+				/>
+				<Stat
+					value={inDays(boardStats.inLaneMs)}
+					label={`Days in ${boardStats.laneTitle}`}
+				/>
+			</div>
+		</Section>
+	) : null;
+
 export const IssueStats = ({
 	stats,
 	loading,
 	error,
 	onOpenFile,
+	boardStats,
 }: {
 	stats: Stats | null;
 	loading: boolean;
@@ -163,6 +198,8 @@ export const IssueStats = ({
 	// Opens a file's diff on the Commits tab. Absent on a readonly board, where
 	// there is still everything to read and nowhere to click to.
 	onOpenFile?: (file: FilePointer) => void;
+	// Null while the board has yet to arrive, or for a ticket no lane holds.
+	boardStats: BoardStats | null;
 }) => {
 	if (error) return <Empty>{error}</Empty>;
 	if (loading || !stats)
@@ -170,12 +207,21 @@ export const IssueStats = ({
 
 	const {shape, languages, tests, comments, flags} = stats;
 
+	// No code yet is not nothing to say: how long a ticket has been open, and
+	// how long it has sat where it is, is the whole story of one that has not
+	// been started.
 	if (shape.commits === 0) {
 		return (
-			<Empty>
-				No commit carries this ticket&rsquo;s ref, so there is no code to
-				measure. That is not the same as no work.
-			</Empty>
+			<div style={{fontSize: TEXT.ui}}>
+				<BoardSection boardStats={boardStats} first />
+
+				<Section title="Code">
+					<div style={LINE}>
+						No commit carries this ticket&rsquo;s ref, so there is no code to
+						measure. That is not the same as no work.
+					</div>
+				</Section>
+			</div>
 		);
 	}
 
@@ -206,11 +252,7 @@ export const IssueStats = ({
 							.filter(Boolean)
 							.join(' · ')}
 					/>
-					<Stat
-						value={String(shape.directories)}
-						label="Directories"
-						note={plural(shape.commits, 'commit')}
-					/>
+					<Stat value={String(shape.directories)} label="Directories" />
 					<Stat
 						value={percent(shape.concentration)}
 						label="In one file"
@@ -226,7 +268,6 @@ export const IssueStats = ({
 					<Stat
 						value={String(shape.authors.length)}
 						label={shape.authors.length === 1 ? 'Author' : 'Authors'}
-						note={shape.authors.join(', ')}
 					/>
 				</div>
 
@@ -242,15 +283,7 @@ export const IssueStats = ({
 
 			<Section title="Tests">
 				<div style={STAT_GRID}>
-					<Stat
-						value={String(tests.testLinesAdded)}
-						label="Test lines added"
-						note={
-							tests.addedTestFiles.length > 0
-								? plural(tests.addedTestFiles.length, 'new file')
-								: 'in files that already existed'
-						}
-					/>
+					<Stat value={String(tests.testLinesAdded)} label="Test lines added" />
 					<Stat
 						value={String(tests.addedTestFiles.length)}
 						label={
@@ -410,6 +443,9 @@ export const IssueStats = ({
 					</Note>
 				</Section>
 			)}
+
+			{/* Last, because it is the only section that is not about the diff. */}
+			<BoardSection boardStats={boardStats} />
 		</div>
 	);
 };

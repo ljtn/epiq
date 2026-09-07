@@ -76,6 +76,10 @@ export type ApiIssueHistoryEntry = {
 	action: string;
 	label: string;
 	actor: {id: string; name: string; color: string};
+	// Where a move put the ticket, for the move events only. The label already
+	// says it in prose; this says it in a form something can count — which lane
+	// a ticket went to, and so whether it went forwards or back.
+	parentId?: string;
 };
 
 export type ApiBoard = {

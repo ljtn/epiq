@@ -50,6 +50,7 @@ import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
 import {IssueStats as IssueStatsPayload} from '../../../lib/stats/issue-stats.model.js';
+import {BoardStats} from '../../../lib/stats/board-stats.js';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {usePersistedFlag} from '../lib/use-persisted-flag';
@@ -283,6 +284,7 @@ export const IssueDetails = ({
 	statsLoading,
 	statsError,
 	onOpenStatsFile,
+	boardStats,
 	knownTags: tags,
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
@@ -337,6 +339,9 @@ export const IssueDetails = ({
 	statsError: string | null;
 	// Following a file from the Stats tab into its diff on the Commits tab.
 	onOpenStatsFile?: (file: {sha: string; path: string}) => void;
+	// The board half of the Stats tab, worked out by the caller: what counts as
+	// backwards is a fact about lane order, which lives up there.
+	boardStats: BoardStats | null;
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
@@ -968,6 +973,7 @@ export const IssueDetails = ({
 						loading={statsLoading}
 						error={statsError}
 						onOpenFile={onOpenStatsFile}
+						boardStats={boardStats}
 					/>
 				);
 
