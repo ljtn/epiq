@@ -44,6 +44,10 @@ import {TimeScrubber} from './components/TimeScrubber';
 import {TheatrePlayer} from './components/TheatrePlayer';
 import {EventLog} from './components/EventLog';
 import {useAsideDock} from './lib/aside-dock';
+import {CommandPalette} from './components/CommandPalette';
+import {buildCommandRegistry} from './lib/commands/command-registry';
+import {useRecentCommands} from './lib/commands/command-recents';
+import {useCommandPalette} from './lib/use-command-palette';
 import {moveIssue} from './lib/gui-move-issue';
 import {moveSwimlane} from './lib/gui-move-swimlane';
 import {DropTarget} from './lib/gui-result.model';
@@ -1135,6 +1139,44 @@ export const App = () => {
 		confirmDeleteSwimlane,
 	} = useSwimlaneEditing({send, setState, selectedBoard, visibleSwimlanes});
 
+	const commandPalette = useCommandPalette();
+	const recentCommands = useRecentCommands();
+	const commands = useMemo(() => buildCommandRegistry(), []);
+
+	// Rebuilt each render rather than memoized: it reads most of the board, so
+	// the dependency list would be the thing to get wrong, and the commands only
+	// read it when the palette is open.
+	const commandContext = {
+		connected,
+		scrubbing: state?.timeTravel?.mode === 'scrub',
+		issue: selectedIssue,
+		tags: state?.tags ?? [],
+		contributors,
+		handlers: {
+			// The palette has no column in hand, so a ticket goes to the first one
+			// — the same place the board's own + button starts from.
+			createIssue: () => {
+				const swimlaneId = visibleSwimlanes[0]?.id;
+				if (swimlaneId) setCreateIssueModal({swimlaneId, title: ''});
+			},
+			createSwimlane: () => setCreateSwimlaneTitle(''),
+			closeIssue,
+			reopenIssue,
+			addIssueTag,
+			removeIssueTag,
+			addIssueAssignee,
+			removeIssueAssignee,
+			// Opens the thread rather than posting: what to say is the point, and
+			// the palette has nowhere to say it.
+			commentOnIssue: (id: string) => openIssueTab(id, 'comments'),
+			copyRef: (ref: string) => void navigator.clipboard?.writeText(ref),
+			sync: () => send('sync', {}),
+			startTheatre,
+			returnToLive,
+			toggleLog: () => setLogOpen(!logOpen),
+		},
+	};
+
 	// A dead socket cannot carry a mutation, so the board wears the same
 	// readonly it wears mid-scrub — every existing guard keys off this, so the
 	// kebabs, the + buttons, dragging and the editors all stand down together.
@@ -1777,6 +1819,16 @@ export const App = () => {
 						onChangeTitle={setCreateSwimlaneTitle}
 						onCreate={createSwimlane}
 						onClose={() => setCreateSwimlaneTitle(null)}
+					/>
+				)}
+
+				{commandPalette.open && (
+					<CommandPalette
+						commands={commands}
+						context={commandContext}
+						recentIds={recentCommands.ids}
+						onRun={command => recentCommands.remember(command.id)}
+						onClose={() => commandPalette.setOpen(false)}
 					/>
 				)}
 			</div>
