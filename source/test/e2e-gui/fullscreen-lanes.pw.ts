@@ -120,9 +120,15 @@ test('the lanes open every commit and file, ready to read', async ({
 
 	// Tabbed: collapsed, as before.
 	await page.getByRole('button', {name: /^Commits/}).click();
-	await expect(
-		page.getByRole('button', {name: 'add notes +3 -0'}),
-	).toHaveAttribute('aria-expanded', 'false');
+
+	// A budget each, because these are two arrivals: the row comes with the
+	// commit, its diff stat only once git has been asked for one. Sharing a
+	// single 10s timeout between them is what made this flake on a busy
+	// machine — and said "element not found" for whichever half was late.
+	const commitRow = page.getByRole('button', {name: /^add notes/});
+	await expect(commitRow).toBeVisible();
+	await expect(commitRow).toHaveAccessibleName('add notes +3 -0');
+	await expect(commitRow).toHaveAttribute('aria-expanded', 'false');
 	await expect(page.locator('[data-line]')).toHaveCount(0);
 
 	// Lanes: the diffs are simply there.
