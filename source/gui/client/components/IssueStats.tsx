@@ -190,7 +190,7 @@ export const IssueStats = ({
 
 	return (
 		<div style={{fontSize: TEXT.ui}}>
-			<Section title="The change" first>
+			<Section title="Code" first>
 				<div style={STAT_GRID}>
 					<Stat
 						value={String(shape.files)}
@@ -242,13 +242,21 @@ export const IssueStats = ({
 			<Section title="Tests">
 				<div style={STAT_GRID}>
 					<Stat
-						value={tests.ratio === null ? '—' : tests.ratio.toFixed(2)}
-						label="Test lines per code line"
-						note={`${tests.testLinesAdded} test, ${tests.codeLinesAdded} code`}
+						value={String(tests.testLinesAdded)}
+						label="Test lines added"
+						note={
+							tests.addedTestFiles.length > 0
+								? plural(tests.addedTestFiles.length, 'new file')
+								: 'in files that already existed'
+						}
 					/>
 					<Stat
 						value={String(tests.addedTestFiles.length)}
-						label="Test files added"
+						label={
+							tests.addedTestFiles.length === 1
+								? 'Test file added'
+								: 'Test files added'
+						}
 						note={tests.addedTestFiles.slice(0, 3).map(file => (
 							<div key={file.path}>
 								<FileLink file={file} onOpen={onOpenFile} />
@@ -256,22 +264,6 @@ export const IssueStats = ({
 						))}
 					/>
 				</div>
-
-				{/* The ratio again, as a shape: how much of what this ticket wrote
-				    is test. One series against its track — two colours would claim
-				    two things are being compared. */}
-				<ProportionBar
-					value={
-						tests.testLinesAdded + tests.codeLinesAdded === 0
-							? 0
-							: tests.testLinesAdded /
-							  (tests.testLinesAdded + tests.codeLinesAdded)
-					}
-					color={seriesColor(2)}
-					label={`${tests.testLinesAdded} of ${
-						tests.testLinesAdded + tests.codeLinesAdded
-					} added lines are test`}
-				/>
 
 				<Note when={tests.deletedTestFiles.length > 0}>
 					{`${plural(tests.deletedTestFiles.length, 'test file')} deleted: `}
@@ -331,7 +323,11 @@ export const IssueStats = ({
 				{leadComments && (
 					<ProportionBar
 						value={leadComments.share}
-						color={seriesColor(0)}
+						// Yellow for the prose, blue for the code it explains — the
+						// same yellow the diff itself now gives a comment, so the bar
+						// and the file agree about which is which.
+						color={seriesColor(3)}
+						restColor={seriesColor(0)}
 						label={`${percent(leadComments.share)} of the ${
 							leadComments.name
 						} lines this ticket added are comments`}

@@ -50,8 +50,8 @@ test('the Stats tab measures the ticket own commits', async ({
 	await expect(page.getByText('Directories', {exact: true})).toBeVisible();
 
 	// The test signal: one test line per code line, and one test file added.
-	await expect(page.getByText('Test lines per code line')).toBeVisible();
-	await expect(page.getByText('Test files added')).toBeVisible();
+	await expect(page.getByText('Test lines added')).toBeVisible();
+	await expect(page.getByText('Test file added')).toBeVisible();
 
 	// Named twice on the page — once for its share of the change, once for its
 	// comment share — so this is the first, not the only.

@@ -1,5 +1,4 @@
 import {GUI_THEME} from '../lib/gui-theme';
-import {SERIES_REST} from '../lib/issue-stats.style';
 
 // The two bars the Stats tab draws, and the only colour on it.
 //
@@ -53,19 +52,24 @@ export const StackedBar = ({segments}: {segments: BarSegment[]}) => {
 };
 
 /**
- * One share against its track, with an optional mark where a comparison sits —
- * the repository's own figure, in the case this exists for. A second colour
- * would say "two things"; there is one thing here, and a reference line.
+ * A part against the whole it is part of: the filled share in one colour, what
+ * is left in another, and an optional mark where a comparison sits — the
+ * repository's own figure, in the case this exists for.
+ *
+ * The mark is a slot cut through the bar in the panel's own colour rather than
+ * a line drawn over it, so it reads the same whichever segment it lands in.
  */
 export const ProportionBar = ({
 	value,
 	color,
+	restColor = GUI_THEME.tertiary,
 	label,
 	reference,
 	referenceLabel,
 }: {
 	value: number;
 	color: string;
+	restColor?: string;
 	label: string;
 	reference?: number | null;
 	referenceLabel?: string;
@@ -76,7 +80,7 @@ export const ProportionBar = ({
 			position: 'relative',
 			height: BAR_HEIGHT,
 			borderRadius: BAR_HEIGHT / 2,
-			background: GUI_THEME.tertiary,
+			background: restColor,
 			overflow: 'hidden',
 			marginTop: 12,
 		}}
@@ -97,11 +101,9 @@ export const ProportionBar = ({
 					position: 'absolute',
 					top: 0,
 					bottom: 0,
-					// The 2px gap rule again: the marker is a slot cut in the bar,
-					// not a line drawn over it.
 					left: `calc(${Math.min(100, Math.max(0, reference * 100))}% - 1px)`,
 					width: 2,
-					background: SERIES_REST,
+					background: GUI_THEME.panel,
 				}}
 			/>
 		)}

@@ -124,7 +124,7 @@ describe('deriveLanguages', () => {
 });
 
 describe('deriveTestSignal', () => {
-	it('reports the ratio of test lines to code lines', () => {
+	it('counts the test lines and leaves the code beside them alone', () => {
 		const signal = deriveTestSignal({
 			patch: patchOf(
 				[
@@ -134,18 +134,23 @@ describe('deriveTestSignal', () => {
 			),
 		});
 
-		expect(signal.codeLinesAdded).toBe(2);
 		expect(signal.testLinesAdded).toBe(1);
-		expect(signal.ratio).toBeCloseTo(0.5);
-		expect(signal.touchedTests).toBe(true);
 	});
 
-	it('gives no ratio at all for a ticket that added no code lines', () => {
+	it('counts test lines added to a file that already existed', () => {
 		const signal = deriveTestSignal({
-			patch: patchOf(file('source/test/app.test.ts', ['expect(a).toBe(1);'])),
+			patch: patchOf(
+				file('source/test/app.test.ts', [
+					'expect(a).toBe(1);',
+					'expect(b).toBe(2);',
+				]),
+			),
 		});
 
-		expect(signal.ratio).toBeNull();
+		// No new test file, which is not the same as no new tests — the reason
+		// the count is lines rather than files.
+		expect(signal.addedTestFiles).toEqual([]);
+		expect(signal.testLinesAdded).toBe(2);
 	});
 
 	it('counts deleted test files and removed test lines', () => {
