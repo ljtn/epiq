@@ -38,8 +38,7 @@ const DockButton = ({
 				// row of dim ones says which it is without adding a frame the rest
 				// of this header does not have.
 				color: active ? GUI_THEME.accent : GUI_THEME.dim,
-				background:
-					active || hovered ? 'rgba(255,255,255,0.04)' : 'transparent',
+				background: active || hovered ? GUI_THEME.hover : 'transparent',
 				transition: 'color 120ms ease, background 120ms ease',
 			}}
 		>

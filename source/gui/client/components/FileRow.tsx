@@ -19,7 +19,8 @@ import {
 	findDiffCommentsForFile,
 	FileTicketParams,
 } from '../lib/diff-selection';
-import {disclosureStyle, DISCLOSURE_HOVER_BG} from '../lib/commit-row.style';
+import {disclosureStyle} from '../lib/commit-row.style';
+import {CODE_FONT} from '../lib/code-text.style';
 import {DiffStat} from './DiffStat';
 import {SelectionComposer} from './SelectionComposer';
 
@@ -126,7 +127,7 @@ const FileHeader = ({
 					width: 'auto',
 					color: GUI_THEME.secondary,
 					padding: '4px 6px',
-					background: lit ? DISCLOSURE_HOVER_BG : 'transparent',
+					background: lit ? GUI_THEME.hover : 'transparent',
 				}}
 			>
 				{expanded ? (
@@ -136,7 +137,7 @@ const FileHeader = ({
 				)}
 				<span
 					style={{
-						fontFamily: 'ui-monospace, monospace',
+						fontFamily: CODE_FONT,
 						overflow: 'hidden',
 						textOverflow: 'ellipsis',
 						whiteSpace: 'nowrap',

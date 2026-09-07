@@ -9,11 +9,7 @@ import {Empty} from './FormPrimitives';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {FileTicketParams, CommitFocus} from '../lib/diff-selection';
-import {
-	COMMIT_HEADER_PADDING,
-	disclosureStyle,
-	DISCLOSURE_HOVER_BG,
-} from '../lib/commit-row.style';
+import {COMMIT_HEADER_PADDING, disclosureStyle} from '../lib/commit-row.style';
 import {DiffStat} from './DiffStat';
 import {FileRow} from './FileRow';
 import {CommitDiffState} from '../lib/use-issue-detail';
@@ -100,7 +96,7 @@ export const CommitRow = ({
 				style={{
 					...disclosureStyle,
 					padding: `${COMMIT_HEADER_PADDING}px 14px`,
-					background: revealed ? DISCLOSURE_HOVER_BG : 'transparent',
+					background: revealed ? GUI_THEME.hover : 'transparent',
 				}}
 			>
 				{/* The caret leads, as it does on the file rows, so a row reads as

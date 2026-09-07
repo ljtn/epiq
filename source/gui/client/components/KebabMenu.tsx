@@ -63,7 +63,7 @@ export const KebabMenu = ({
 				style={{
 					appearance: 'none',
 					WebkitAppearance: 'none',
-					background: hovered ? 'rgba(255,255,255,0.04)' : 'transparent',
+					background: hovered ? GUI_THEME.hover : 'transparent',
 					border: `1px solid ${
 						open || hovered ? GUI_THEME.line : 'transparent'
 					}`,

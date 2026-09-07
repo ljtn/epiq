@@ -27,6 +27,3 @@ export const disclosureStyle: React.CSSProperties = {
 	fontSize: TEXT.ui,
 	transition: 'background 120ms ease',
 };
-
-// Says "this opens" before it is clicked.
-export const DISCLOSURE_HOVER_BG = 'rgba(255,255,255,0.04)';

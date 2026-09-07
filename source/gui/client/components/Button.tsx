@@ -34,7 +34,7 @@ export const Button = ({
 						? 'rgb(41, 44, 57)'
 						: GUI_THEME.tertiary
 					: hovered
-					? 'rgba(255,255,255,0.04)'
+					? GUI_THEME.hover
 					: 'transparent',
 				color: GUI_THEME.secondary,
 				border: isPrimary

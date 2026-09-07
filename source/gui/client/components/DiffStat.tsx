@@ -1,4 +1,5 @@
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {CODE_FONT} from '../lib/code-text.style';
 
 // A rounded pill rather than GitHub's five solid squares — matches the
 // rest of the app's soft, rounded chrome instead of copying its exact look.
@@ -21,7 +22,7 @@ export const DiffStat = ({
 				alignItems: 'center',
 				gap: 6,
 				flexShrink: 0,
-				fontFamily: 'ui-monospace, monospace',
+				fontFamily: CODE_FONT,
 				fontSize: TEXT.meta,
 			}}
 		>
