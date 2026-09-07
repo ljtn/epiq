@@ -14,7 +14,9 @@ import {
 	STAT_LABEL,
 	STAT_NOTE,
 	STAT_VALUE,
+	seriesColor,
 } from '../lib/issue-stats.style';
+import {ProportionBar, StackedBar} from './StatBars';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
 
@@ -96,10 +98,25 @@ const Stat = ({
 	</div>
 );
 
-const Row = ({left, right}: {left: React.ReactNode; right: string}) => (
-	<div style={ROW}>
+const Row = ({
+	left,
+	right,
+	dot,
+	last = false,
+}: {
+	left: React.ReactNode;
+	right: string;
+	dot?: string;
+	// The section below draws its own top border, so a rule under the final row
+	// is that border twice.
+	last?: boolean;
+}) => (
+	<div style={last ? {...ROW, borderBottom: 'none'} : ROW}>
 		<span
 			style={{
+				display: 'flex',
+				alignItems: 'center',
+				gap: 8,
 				color: GUI_THEME.secondary,
 				minWidth: 0,
 				overflow: 'hidden',
@@ -107,6 +124,20 @@ const Row = ({left, right}: {left: React.ReactNode; right: string}) => (
 				whiteSpace: 'nowrap',
 			}}
 		>
+			{dot && (
+				// The bar above says which share is which by position; this says
+				// it again by name, so the reading never rests on colour alone.
+				<span
+					aria-hidden
+					style={{
+						width: 7,
+						height: 7,
+						borderRadius: 2,
+						background: dot,
+						flexShrink: 0,
+					}}
+				/>
+			)}
 			{left}
 		</span>
 		<span style={{color: GUI_THEME.primary, flexShrink: 0}}>{right}</span>
@@ -147,6 +178,10 @@ export const IssueStats = ({
 		);
 	}
 
+	// The language the ticket is most written in — the one whose comment share
+	// is worth drawing, since the rest are a handful of lines each.
+	const leadComments = comments.byLanguage[0];
+
 	const flaggedFiles = [
 		...flags.dependencyManifests.map(file => ({file, what: 'dependencies'})),
 		...flags.buildOrCiPaths.map(file => ({file, what: 'build or CI'})),
@@ -173,16 +208,24 @@ export const IssueStats = ({
 					<Stat
 						value={String(shape.directories)}
 						label="Directories"
-						note={`across ${plural(shape.commits, 'commit')}`}
+						note={plural(shape.commits, 'commit')}
 					/>
 					<Stat
 						value={percent(shape.concentration)}
-						label="In its largest file"
+						label="In one file"
 						note={
 							shape.largestFile && (
 								<FileLink file={shape.largestFile} onOpen={onOpenFile} />
 							)
 						}
+					/>
+					{/* Off the commits, not off the board: who is assigned a ticket
+					    and who actually wrote its code are different questions, and
+					    this is the second one. */}
+					<Stat
+						value={String(shape.authors.length)}
+						label={shape.authors.length === 1 ? 'Author' : 'Authors'}
+						note={shape.authors.join(', ')}
 					/>
 				</div>
 
@@ -214,6 +257,22 @@ export const IssueStats = ({
 					/>
 				</div>
 
+				{/* The ratio again, as a shape: how much of what this ticket wrote
+				    is test. One series against its track — two colours would claim
+				    two things are being compared. */}
+				<ProportionBar
+					value={
+						tests.testLinesAdded + tests.codeLinesAdded === 0
+							? 0
+							: tests.testLinesAdded /
+							  (tests.testLinesAdded + tests.codeLinesAdded)
+					}
+					color={seriesColor(2)}
+					label={`${tests.testLinesAdded} of ${
+						tests.testLinesAdded + tests.codeLinesAdded
+					} added lines are test`}
+				/>
+
 				<Note when={tests.deletedTestFiles.length > 0}>
 					{`${plural(tests.deletedTestFiles.length, 'test file')} deleted: `}
 					{tests.deletedTestFiles.map(file => (
@@ -240,11 +299,21 @@ export const IssueStats = ({
 			</Section>
 
 			<Section title="Languages">
-				{languages.languages.map(language => (
+				<StackedBar
+					segments={languages.languages.map((language, index) => ({
+						label: language.name,
+						value: language.added + language.removed,
+						color: seriesColor(index),
+					}))}
+				/>
+
+				{languages.languages.map((language, index) => (
 					<Row
 						key={language.name}
+						dot={seriesColor(index)}
 						left={language.name}
 						right={percent(language.share)}
+						last={index === languages.languages.length - 1}
 					/>
 				))}
 
@@ -254,7 +323,28 @@ export const IssueStats = ({
 			</Section>
 
 			<Section title="Comments">
-				{comments.byLanguage.map(language => (
+				{/* One bar, for the language the ticket is mostly written in, with
+				    the repository's own share marked on it. A bar per language
+				    turned three true numbers into a wall of stripes, and the
+				    comparison — this change against this codebase — is the only
+				    reading of a comment share worth anything. */}
+				{leadComments && (
+					<ProportionBar
+						value={leadComments.share}
+						color={seriesColor(0)}
+						label={`${percent(leadComments.share)} of the ${
+							leadComments.name
+						} lines this ticket added are comments`}
+						reference={leadComments.repoShare}
+						referenceLabel={
+							leadComments.repoShare === null
+								? undefined
+								: `This repository sits at ${percent(leadComments.repoShare)}`
+						}
+					/>
+				)}
+
+				{comments.byLanguage.map((language, index) => (
 					<Row
 						key={language.name}
 						left={language.name}
@@ -265,6 +355,7 @@ export const IssueStats = ({
 										language.repoShare,
 								  )}`
 						}
+						last={index === comments.byLanguage.length - 1}
 					/>
 				))}
 
