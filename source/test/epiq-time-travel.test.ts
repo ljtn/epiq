@@ -18,7 +18,6 @@ vi.mock('../lib/event/event-load.js', () => ({
 	loadEffectiveEventTimes: vi.fn(),
 	loadMergedEvents: vi.fn(),
 	loadMergedEventsBefore: vi.fn(),
-	getLastUnreadableEvents: vi.fn(() => []),
 }));
 
 vi.mock('../lib/event/event-materialize.js', async () => ({
