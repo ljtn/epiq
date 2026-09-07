@@ -3,6 +3,9 @@ import {GuiEventIdentity} from './gui-state.model';
 import {
 	applySelectionPatch,
 	BoardSelection,
+	carryChange,
+	carryRender,
+	DEFAULT_CARRY,
 	DEFAULT_SELECTION,
 	hasSelectionParams,
 	hiddenIdsFor,
@@ -10,6 +13,7 @@ import {
 	isolateOnly,
 	readSelectionParams,
 	readStoredSelection,
+	SelectionCarry,
 	storeSelection,
 	toggleOnly,
 	withSelectedIdentities,
@@ -304,6 +308,63 @@ describe('stored selection', () => {
 
 		localStorage.setItem('epiq.board.selection', '{"scope":"never","only":3}');
 		expect(readStoredSelection()).toEqual(DEFAULT_SELECTION);
+	});
+});
+
+describe('carried selection', () => {
+	// What the hook does with these: derive the selection from the query, or
+	// from the carried values when the query says nothing, then offer that
+	// selection back to the carry.
+	const derive = (carry: SelectionCarry, query: string): BoardSelection =>
+		readSelectionParams(params(query)) ?? {
+			...readStoredSelection(),
+			...carry.values,
+		};
+
+	const render = (carry: SelectionCarry, query: string) => {
+		const selection = derive(carry, query);
+		return {carry: carryRender(carry, query, selection), selection};
+	};
+
+	it('picks the four up from a query that names them', () => {
+		const {carry} = render(DEFAULT_CARRY, 'ticket=1&scope=week&offset=2');
+		expect(carry.values.ticketOnly).toBe(true);
+		expect(carry.values.offset).toBe(2);
+	});
+
+	it('hands them to a query that has been rebuilt without them', () => {
+		const {carry} = render(DEFAULT_CARRY, 'ticket=1');
+		const opened = render(carry, '');
+		expect(opened.selection.ticketOnly).toBe(true);
+	});
+
+	// The bug: a change is two steps — the carried values, then the URL a
+	// render later — and a re-render from anywhere else lands in between still
+	// holding the pre-change query. Unkeyed it read the switched-off narrowing
+	// back over the change, and the empty query then put it straight back on.
+	it('survives a re-render landing between the change and its URL', () => {
+		let {carry} = render(DEFAULT_CARRY, 'ticket=1');
+
+		const next = applySelectionPatch(derive(carry, 'ticket=1'), {
+			ticketOnly: false,
+		});
+		carry = carryChange(carry, next);
+
+		({carry} = render(carry, 'ticket=1'));
+
+		expect(render(carry, '').selection.ticketOnly).toBe(false);
+	});
+
+	// The same guard must not stick: once the query really does move on, what
+	// it says is newer than anything held here.
+	it('takes up what a later query says', () => {
+		let {carry} = render(DEFAULT_CARRY, 'ticket=1');
+		carry = carryChange(carry, {...derive(carry, 'ticket=1'), offset: 3});
+
+		({carry} = render(carry, 'window=1'));
+		expect(carry.values.windowOnly).toBe(true);
+		expect(carry.values.ticketOnly).toBe(false);
+		expect(carry.values.offset).toBe(0);
 	});
 });
 
