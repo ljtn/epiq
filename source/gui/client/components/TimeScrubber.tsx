@@ -189,6 +189,12 @@ export const TimeScrubber = ({
 		from: number;
 		to: number;
 	} | null>(null);
+	// The same two, live. Pointer moves arrive faster than React commits, so a
+	// release handler reading the state would ask for wherever the last
+	// *rendered* move was rather than where the pointer let go — parking the
+	// board behind the release, or zooming to a window short of it.
+	const dragFractionRef = useRef<number | null>(null);
+	const rangeDragRef = useRef<{from: number; to: number} | null>(null);
 	// Set by the needle's own press, which fires before the track's: it says
 	// this drag moves the needle rather than dragging out a range.
 	const grabbedNeedleRef = useRef(false);
@@ -409,7 +415,18 @@ export const TimeScrubber = ({
 	const shownRef = useRef({timeline, commits});
 	const pendingRequestId = useRef<number | null>(null);
 
+	// Held back while the pointer is down. The window is the coordinate system a
+	// drag is working in — every fraction of the track stands for a moment in
+	// it — so adopting a new one mid-gesture moves the ground under the pointer,
+	// and the needle released at one spot commits another. Scrubbing itself
+	// causes a broadcast and so a fresh window, which is exactly when this
+	// happens. The release re-renders, and that is where the held reply is taken
+	// up.
+	const gestureInFlight =
+		dragFractionRef.current !== null || rangeDragRef.current !== null;
+
 	if (
+		!gestureInFlight &&
 		pendingRequestId.current !== null &&
 		historyId === pendingRequestId.current
 	) {
@@ -668,15 +685,20 @@ export const TimeScrubber = ({
 		const pressedCommit = pressedCommitRef.current;
 		pressedCommitRef.current = null;
 
-		if (dragFraction !== null) {
-			dispatchScrub(dragFraction, true);
+		const draggedTo = dragFractionRef.current;
+		const range = rangeDragRef.current;
+
+		if (draggedTo !== null) {
+			dispatchScrub(draggedTo, true);
+			dragFractionRef.current = null;
 			setDragFraction(null);
 			return;
 		}
 
-		if (rangeDrag === null) return;
+		if (range === null) return;
 
-		const {from, to} = rangeDrag;
+		const {from, to} = range;
+		rangeDragRef.current = null;
 		setRangeDrag(null);
 
 		const trackWidth = trackRef.current?.clientWidth ?? 0;
@@ -964,10 +986,12 @@ export const TimeScrubber = ({
 						// out to have been a click. Scrubbing on the way would checkout
 						// every moment swept over on the way to picking a window.
 						if (!grabbedNeedleRef.current) {
+							rangeDragRef.current = {from: fraction, to: fraction};
 							setRangeDrag({from: fraction, to: fraction});
 							return;
 						}
 
+						dragFractionRef.current = fraction;
 						setDragFraction(fraction);
 						dispatchScrub(fraction, true);
 					},
@@ -975,15 +999,18 @@ export const TimeScrubber = ({
 						// The handler is on the wrapper, so this runs for every move over
 						// the whole scrubber. Measuring the track is a layout read, and
 						// nothing outside a drag has a use for it.
-						if (dragFraction === null && rangeDrag === null) return;
+						const range = rangeDragRef.current;
+						if (dragFractionRef.current === null && range === null) return;
 
 						const fraction = fractionFromClientX(event.clientX);
 
-						if (rangeDrag !== null) {
-							setRangeDrag({from: rangeDrag.from, to: fraction});
+						if (range !== null) {
+							rangeDragRef.current = {from: range.from, to: fraction};
+							setRangeDrag({from: range.from, to: fraction});
 							return;
 						}
 
+						dragFractionRef.current = fraction;
 						setDragFraction(fraction);
 						dispatchScrub(fraction, false);
 					},
