@@ -77,14 +77,11 @@ export type LanguageBreakdown = {
 };
 
 export type TestSignal = {
+	// Lines, not a ratio against the code beside them: test-lines-per-code-line
+	// says more about how a language is written than about whether a change is
+	// tested, and a number nobody can act on is a number in the way.
 	testLinesAdded: number;
 	testLinesRemoved: number;
-	codeLinesAdded: number;
-	// Null when the ticket added no code lines at all: dividing by nothing
-	// would print Infinity for a tests-only ticket, which is exactly the case
-	// somebody would misread as the best score on the board.
-	ratio: number | null;
-	touchedTests: boolean;
 
 	// The test files this ticket added, so the count links to the tests
 	// themselves rather than only asserting they exist.

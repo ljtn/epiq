@@ -19,22 +19,16 @@ import {TicketPatch} from './patch-scan.js';
 export const deriveTestSignal = ({patch}: {patch: TicketPatch}): TestSignal => {
 	let testLinesAdded = 0;
 	let testLinesRemoved = 0;
-	let codeLinesAdded = 0;
 	const addedTestFiles: FilePointer[] = [];
 	const deletedTestFiles: FilePointer[] = [];
 	let skippedTestLinesAdded = 0;
 	let focusedTestLinesAdded = 0;
-	let touchedTests = false;
 
 	for (const file of patch.files) {
 		if (file.binary || isGeneratedPath(file.path)) continue;
 
-		if (!isTestPath(file.path)) {
-			codeLinesAdded += file.addedCount;
-			continue;
-		}
+		if (!isTestPath(file.path)) continue;
 
-		touchedTests = true;
 		testLinesAdded += file.addedCount;
 		testLinesRemoved += file.removed;
 		if (file.status === 'added') addedTestFiles.push(filePointer(file));
@@ -49,9 +43,6 @@ export const deriveTestSignal = ({patch}: {patch: TicketPatch}): TestSignal => {
 	return {
 		testLinesAdded,
 		testLinesRemoved,
-		codeLinesAdded,
-		ratio: codeLinesAdded === 0 ? null : testLinesAdded / codeLinesAdded,
-		touchedTests,
 		addedTestFiles,
 		deletedTestFiles,
 		skippedTestLinesAdded,

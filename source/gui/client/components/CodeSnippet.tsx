@@ -9,12 +9,13 @@ import {
 import {CopyShaButton} from './CopyShaButton';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {EPIQ_DIFF_THEME} from '../lib/diff-theme';
 
 // The same highlighter and theme the diff view itself renders with, so a
 // snippet quoted into a comment looks like the code it was taken from rather
 // than like markdown text. `name` is what infers the language, which is why
 // the quoting side keeps the real file path around.
-const PIERRE_THEME = 'github-dark';
+const PIERRE_THEME = EPIQ_DIFF_THEME;
 
 // The theme's own background is a near match for the comment card the
 // snippet sits in; the app's darker one keeps the two apart. The theme sets

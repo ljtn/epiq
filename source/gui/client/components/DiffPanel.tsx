@@ -18,10 +18,12 @@ import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
 import {PanelDockMenu} from './PanelDockMenu';
 import {AsideDock} from '../lib/aside-dock';
+import {EPIQ_DIFF_THEME} from '../lib/diff-theme';
 
 // A single dark theme: the app has no light mode to match (GUI_THEME is a
-// fixed dark palette), so there is no pair to switch between.
-const PIERRE_THEME = 'github-dark';
+// fixed dark palette), so there is no pair to switch between. github-dark with
+// its comments brought forward — see lib/diff-theme.
+const PIERRE_THEME = EPIQ_DIFF_THEME;
 
 // Independently-nullable before/after strings don't structurally match
 // DiffFileInput's three-branch union (it forbids "both null"), so this picks
