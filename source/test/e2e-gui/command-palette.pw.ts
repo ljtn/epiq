@@ -38,6 +38,50 @@ test('it opens on the chord and leaves on escape', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// The TUI's own way in. Somebody who learned `:` there should not have to
+// learn a second key here.
+test('a bare colon opens it too, the way the TUI reaches a command', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await page.keyboard.press(':');
+	await expect(palette(page)).toBeVisible();
+
+	// It types into the palette rather than closing it: only the chord toggles.
+	await page.keyboard.press(':');
+	await expect(palette(page)).toBeVisible();
+
+	await page.keyboard.press('Escape');
+	await expect(palette(page)).toBeHidden();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A colon belongs to whatever field is being typed in — a ticket title can
+// hold one, and stealing it would be worse than having no shortcut.
+test('a colon typed into a field stays in the field', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await page.getByTitle('Add issue').first().click();
+	const field = page.getByPlaceholder('issue name');
+	await field.fill('Fix');
+	await field.press(':');
+
+	await expect(palette(page)).toBeHidden();
+	await expect(field).toHaveValue('Fix:');
+
+	expect(pageErrors).toEqual([]);
+});
+
 // The chord has to reach the board from wherever the pointer left the focus,
 // but not out of a field somebody is typing in.
 test('it stays out of the way while you are typing', async ({
@@ -162,6 +206,59 @@ test('backspace leaves the argument list without leaving the palette', async ({
 	await expect(
 		rows(page).filter({hasText: 'Sync with the remote'}),
 	).toHaveCount(1);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A shortcut nobody can discover is a shortcut nobody uses, so the topbar
+// carries the chord and opens the palette when clicked.
+test('the topbar hint opens the palette', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const hint = page.getByTestId('command-palette-hint');
+	await expect(hint).toBeVisible();
+	await expect(hint).toContainText('commands');
+
+	await hint.click();
+	await expect(palette(page)).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// Project-wide rather than the board's own filter: it reaches a ticket by ref
+// or title and opens it.
+test('search reaches a ticket and opens it', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const title = `Palette search ${Date.now()}`;
+	await addTicket(page, title);
+
+	// Off the ticket, so opening it is a visible change rather than a no-op.
+	await page.keyboard.press('Escape');
+
+	await openPalette(page);
+	await page.keyboard.type('search');
+	await expect(rows(page).first()).toContainText('Search all tickets');
+	await page.keyboard.press('Enter');
+
+	await expect(palette(page)).toBeVisible();
+	await page.keyboard.type(title);
+	await expect(rows(page).filter({hasText: title})).toHaveCount(1);
+	await page.keyboard.press('Enter');
+
+	await expect(palette(page)).toBeHidden();
+	await expect(page).toHaveURL(/\/issue\//);
+	await expect(page.locator('aside')).toContainText(title);
 
 	expect(pageErrors).toEqual([]);
 });

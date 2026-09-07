@@ -62,17 +62,27 @@ const scoreHits = (text: string, query: string, hits: number[]): number => {
 export const matchItems = <T extends Matchable>(
 	items: readonly T[],
 	query: string,
-	options: {recentIds?: readonly string[]; rank?: (item: T) => number} = {},
+	options: {
+		recentIds?: readonly string[];
+		rank?: (item: T) => number;
+		// Kept after ranking, so what survives is the best of the whole set and
+		// not the first N it happened to scan. A project can hold thousands of
+		// tickets and the list is a picker: nobody reads past the top of it, and
+		// a row that is never read still costs a DOM node to build.
+		limit?: number;
+	} = {},
 ): Match<T>[] => {
-	const {recentIds = [], rank = () => 0} = options;
+	const {recentIds = [], rank = () => 0, limit} = options;
 	const normalized = query.trim().toLowerCase();
+	const cap = <R>(matches: R[]): R[] =>
+		limit === undefined ? matches : matches.slice(0, limit);
 
 	if (!normalized) {
 		const recency = new Map(
 			recentIds.map((id, index) => [id, recentIds.length - index]),
 		);
 
-		return [...items]
+		const ordered = [...items]
 			.map((item, index) => ({item, hits: [], score: 0, index}))
 			.sort((a, b) => {
 				const byRank = rank(a.item) - rank(b.item);
@@ -83,36 +93,40 @@ export const matchItems = <T extends Matchable>(
 				if (byRecency !== 0) return byRecency;
 
 				return a.index - b.index;
-			})
-			.map(({item, hits, score}) => ({item, hits, score}));
+			});
+
+		return cap(ordered.map(({item, hits, score}) => ({item, hits, score})));
 	}
 
-	return items
-		.flatMap(item => {
-			const titleHits = subsequenceHits(item.title, normalized);
+	const scored = items.flatMap(item => {
+		const titleHits = subsequenceHits(item.title, normalized);
 
-			if (titleHits) {
-				return [
-					{
-						item,
-						hits: titleHits,
-						score: scoreHits(item.title, normalized, titleHits),
-					},
-				];
-			}
+		if (titleHits) {
+			return [
+				{
+					item,
+					hits: titleHits,
+					score: scoreHits(item.title, normalized, titleHits),
+				},
+			];
+		}
 
-			// The keywords carry the TUI spelling, so `:tag` finds "Add a tag" even
-			// though the title says neither. No hits: nothing in the title to mark.
-			const byKeyword = [item.id, ...(item.keywords ?? [])].some(keyword =>
-				keyword.toLowerCase().includes(normalized),
-			);
+		// The keywords carry the TUI spelling and a ticket's ref, so `:tag` finds
+		// "Add a tag" and `ABC1234` finds the ticket it names. No hits: nothing in
+		// the title to mark.
+		const byKeyword = [item.id, ...(item.keywords ?? [])].some(keyword =>
+			keyword.toLowerCase().includes(normalized),
+		);
 
-			return byKeyword ? [{item, hits: [], score: 0}] : [];
-		})
-		.sort((a, b) => {
+		return byKeyword ? [{item, hits: [], score: 0}] : [];
+	});
+
+	return cap(
+		scored.sort((a, b) => {
 			const byRank = rank(a.item) - rank(b.item);
 			if (byRank !== 0) return byRank;
 
 			return b.score - a.score;
-		});
+		}),
+	);
 };

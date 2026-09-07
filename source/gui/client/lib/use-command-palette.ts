@@ -33,11 +33,26 @@ export const useCommandPalette = (): {
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.key !== 'k' || !(event.metaKey || event.ctrlKey)) return;
+			const chord = event.key === 'k' && (event.metaKey || event.ctrlKey);
+
+			// The TUI's own way in, carried across: `:` is how you reach every
+			// command there, and the palette is what it reaches here. Bare, so it
+			// only counts where nothing is being typed — which the check below is.
+			//
+			// `?` is deliberately not a second way in. It is the TUI's palette key,
+			// but on the web it means "show the keyboard shortcuts", and spending
+			// it on a door that `:` already opens would cost that and buy nothing.
+			const colon = event.key === ':' && !event.metaKey && !event.ctrlKey;
+
+			if (!chord && !colon) return;
 
 			// The palette's own input is a typing target, so closing on the same
 			// chord has to come before that check.
 			if (!open && isTypingTarget(event.target)) return;
+
+			// Only the chord toggles: `:` typed at an open palette is a character
+			// its own field should receive, and it never reaches here anyway.
+			if (open && !chord) return;
 
 			event.preventDefault();
 			setOpen(!open);
