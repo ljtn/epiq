@@ -292,6 +292,20 @@ export const FileRow = ({
 		});
 	}
 
+	// Everything the two render props below read that is not handed to them by
+	// the diff itself. FileDiffView is memoized on this, so a value the header
+	// or the composer draws from and that is missing here would freeze on
+	// screen — see its own note.
+	const renderKey = [
+		expanded,
+		reviewed,
+		fileComments.length,
+		note,
+		selection ? `${selection.start}-${selection.end}` : '',
+		hoveredRange ? `${hoveredRange.start}-${hoveredRange.end}` : '',
+		ticketTitle,
+	].join('|');
+
 	const header = () => (
 		<FileHeader
 			file={file}
@@ -310,6 +324,7 @@ export const FileRow = ({
 					<FileDiffView
 						file={file}
 						diffStyle={diffStyle}
+						renderKey={renderKey}
 						selectedLines={hoveredRange ?? selection}
 						onSelectionEnd={setSelection}
 						lineAnnotations={lineAnnotations}
