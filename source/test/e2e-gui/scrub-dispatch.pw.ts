@@ -151,11 +151,34 @@ test('dragging the needle commits the position it ends on', async ({
 		page.getByRole('button', {name: 'Resume', exact: true}),
 	).toBeEnabled();
 
-	const grip = page.getByTestId('scrubber-needle-grip');
-	const gripBox = await grip.boundingBox();
-	if (!gripBox) throw new Error('scrubber needle is not on screen');
+	// That first scrub hands the board a new window, so the moments the track
+	// stands for afterwards are not the ones it stood for before. Only the
+	// drag's own requests are on one coordinate system and so comparable — the
+	// click that set the needle up is not.
+	targets.length = 0;
 
-	await page.mouse.move(gripBox.x + gripBox.width / 2, y);
+	const grip = page.getByTestId('scrubber-needle-grip');
+	const gripCentre = async () => {
+		const gripBox = await grip.boundingBox();
+		if (!gripBox) throw new Error('scrubber needle is not on screen');
+		return gripBox.x + gripBox.width / 2;
+	};
+
+	// The needle is placed against the window, and the scrub above fetches a
+	// fresh one — so where it sits has to be read after it has stopped moving.
+	// Pressing on yesterday's position lands beside the grip, and a press off
+	// the needle drags out a range instead of moving it.
+	let centre = await gripCentre();
+	await expect
+		.poll(async () => {
+			const now = await gripCentre();
+			const settled = Math.abs(now - centre) < 1;
+			centre = now;
+			return settled;
+		})
+		.toBe(true);
+
+	await page.mouse.move(centre, y);
 	await page.mouse.down();
 	for (const at of [0.4, 0.6, 0.8]) {
 		await page.mouse.move(box.x + box.width * at, y);
@@ -163,10 +186,12 @@ test('dragging the needle commits the position it ends on', async ({
 	await page.mouse.up();
 	await page.waitForTimeout(2000);
 
-	expect(targets.length).toBeGreaterThan(1);
-
-	// The release lands on the far right, so the last request must be the
-	// largest moment asked for.
+	// The drag ends on the far right, so the last request must be the largest
+	// moment asked for: that is what says the board holds where the pointer let
+	// go rather than wherever the throttle last got a word in. Not a count —
+	// how many of the moves the throttle passes is not fixed, and a release
+	// landing on a moment already asked for rightly has nothing to add.
+	expect(targets.length).toBeGreaterThan(0);
 	expect(targets[targets.length - 1]).toBe(Math.max(...targets));
 
 	// A needle drag scrubs and nothing more: the window it was dragged across
