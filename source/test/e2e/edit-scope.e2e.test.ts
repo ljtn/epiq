@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {commonSteps} from './e2e-common-steps.js';
 import {
 	commandLineIsIdle,
 	commandLineShows,
@@ -73,18 +74,12 @@ beforeAll(async () => {
 	const tui = setupTui([], {env: ENV});
 
 	try {
-		await tui.waitFor('choose your username', 8_000);
-		tui.input(':config username test\r');
-
-		await tui.waitFor('pick your editor');
-		tui.input(':config editor vim\r');
-
-		await tui.waitFor('Configure auto sync');
-		// Off: this file only exercises command autocompletion, and disabling
-		// autosync avoids any background git work.
-		tui.input(':config autoSync off\r');
-
-		await tui.waitFor('Initialize project', 8_000);
+		// The shared walk-through rather than a copy of it. This one carried its
+		// own timeouts — one of them the 3s default, where the shared walk allows
+		// the 20s a cold start under a full container can take, which is what
+		// failed. Off: this file only exercises command autocompletion, and
+		// disabling autosync avoids any background git work.
+		await commonSteps.configureInitialSettings(tui, 'off');
 	} finally {
 		await tui.destroy();
 	}
