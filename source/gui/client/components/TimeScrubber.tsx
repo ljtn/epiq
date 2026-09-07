@@ -686,20 +686,27 @@ export const TimeScrubber = ({
 		const pressedCommit = pressedCommitRef.current;
 		pressedCommitRef.current = null;
 
+		// Everything the gesture was holding goes at once, before deciding what it
+		// was: a second pointer can leave both a range and a needle drag set, and
+		// a ref left behind by the branch not taken would read as a gesture still
+		// in flight — which now holds the window back for good rather than just
+		// parking the thumb.
 		const draggedTo = dragFractionRef.current;
 		const range = rangeDragRef.current;
 
+		dragFractionRef.current = null;
+		rangeDragRef.current = null;
+
 		if (draggedTo !== null) {
 			dispatchScrub(draggedTo, true);
-			dragFractionRef.current = null;
 			setDragFraction(null);
+			setRangeDrag(null);
 			return;
 		}
 
 		if (range === null) return;
 
 		const {from, to} = range;
-		rangeDragRef.current = null;
 		setRangeDrag(null);
 
 		const trackWidth = trackRef.current?.clientWidth ?? 0;
