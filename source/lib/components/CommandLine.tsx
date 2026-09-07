@@ -3,6 +3,12 @@ import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useState} from 'react';
 import {CmdKeyword} from '../command-line/cmd-keywords.js';
 import {CmdValidity, cmdValidity} from '../command-line/cmd-validity.js';
+import {
+	commandLineHint,
+	commandLineSigil,
+	PENDING_FRAMES,
+	PENDING_FRAME_MS,
+} from '../command-line/command-line-sigil.js';
 import {AutoCompletion} from '../command-line/command-auto-complete.js';
 import {Mode, ModeUnion} from '../model/action-map.model.js';
 import {
@@ -174,6 +180,39 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 	const isFailureMessage =
 		commandIsPending && validationStatus === cmdValidity.Invalid;
 
+	const hint = commandLineHint({infoMessage, isPending: commandIsPending});
+
+	// Only while something is running, so an idle command line costs no timer.
+	const [pendingFrame, setPendingFrame] = useState(0);
+
+	useEffect(() => {
+		if (!commandIsPending) {
+			setPendingFrame(0);
+			return;
+		}
+
+		const id = setInterval(() => {
+			setPendingFrame(prev => (prev + 1) % PENDING_FRAMES.length);
+		}, PENDING_FRAME_MS);
+
+		return () => {
+			clearInterval(id);
+		};
+	}, [commandIsPending]);
+
+	// Outside the line's own memo: this changes several times a second while a
+	// command runs, and re-styling every character for it would be work for a
+	// single column. It also picks up `mode`, which the memo reads without
+	// listing.
+	// Outside the line's own memo: this changes several times a second while a
+	// command runs, and re-styling every character for it would be work for a
+	// single column.
+	const sigil = commandLineSigil({
+		isPalette: mode === Mode.PALETTE,
+		isPending: commandIsPending,
+		frame: pendingFrame,
+	});
+
 	const fullLine = useMemo(() => {
 		const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
 		const commandRange = getCommandRange({value, command});
@@ -232,12 +271,7 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 			renderedAfter = GRAY(autoCompletion.remainder.slice(1) + afterCursor);
 		}
 
-		return (
-			GRAY(mode === Mode.PALETTE ? '?' : ':') +
-			renderedBefore +
-			renderedCursor +
-			renderedAfter
-		);
+		return renderedBefore + renderedCursor + renderedAfter;
 	}, [value, cursorPosition, autoCompletion, command, modifier]);
 	return (
 		<Box flexDirection="column" justifyContent="flex-start">
@@ -249,13 +283,16 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 				width={width}
 			>
 				<Box>
-					<Text>{fullLine}</Text>
-					{infoMessage && (
+					<Text>
+						{GRAY(sigil)}
+						{fullLine}
+					</Text>
+					{hint && (
 						<Text
 							wrap="truncate"
 							color={isFailureMessage ? theme.red : theme.secondary2}
 						>
-							{` ${infoMessage} `}
+							{` ${hint} `}
 						</Text>
 					)}
 				</Box>
