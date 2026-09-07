@@ -49,10 +49,11 @@ export const EVENT_CATEGORY_COLORS = {
 	assigning: '#ff9ecd',
 } as const;
 
-// The People series, which is not a kind of event but a way of splitting every
-// kind. Its own hue rather than the Board accent: it plots what "Board events"
-// plots, so sharing a colour would leave the two rows saying the same thing.
-export const BOARD_PEOPLE_COLOR = '#7fd8c4';
+// The Contributors series, which is not a kind of event but a way of splitting
+// every kind. Its own hue rather than the Board accent: it plots what "Board
+// events" plots, so sharing a colour would leave the two rows saying the same
+// thing.
+export const BOARD_CONTRIBUTOR_COLOR = '#7fd8c4';
 
 export const getContrastTextColor = (backgroundColor: string): string => {
 	const hex = backgroundColor.replace('#', '');

@@ -61,14 +61,17 @@ const disclosureStyle: React.CSSProperties = {
 const VIEW_LABELS: Record<BoardView, string> = {
 	all: 'Board events',
 	...CATEGORY_LABELS,
-	people: 'People',
+	contributors: 'Contributors',
 };
 
 // Fixed, not sized to its label: the selection changes as the thing is used,
 // and a trigger that grew with it would shove the scope buttons beside it out
-// from under the pointer. Wide enough for the labels themselves; a name long
-// enough to overflow is clipped, and the open list spells it out in full.
-const SELECT_TRIGGER_WIDTH = 148;
+// from under the pointer. Wide enough for the labels themselves — the longest
+// being "Board events (filtered)" at 23 monospace characters, plus the padding,
+// the chevron and a couple of pixels of slack — measured exactly to the text it
+// still ellipsised. A tag or a person's name long enough to overflow past that
+// is clipped, and the open list spells it out in full.
+const SELECT_TRIGGER_WIDTH = 180;
 
 // A select. Filled rather than outlined, unlike the toggles beside it: it is the
 // only control here reporting a colour, and an outline in that colour drowned
