@@ -11,11 +11,14 @@ import {
 	GuiTimeTravelStatus,
 } from '../lib/gui-state.model';
 import {
+	AxisState,
+	axisState,
 	BoardSelection,
 	hiddenIdsFor,
 	isNarrowed,
 	isolateOnly,
 	narrowingFor,
+	toggleAxis,
 	toggleOnly,
 	withNarrowing,
 	withSelectedIdentities,
@@ -25,7 +28,6 @@ import {
 	bucketIssueCounts,
 	buildAxis,
 	boardViewColor,
-	BoardView,
 	buildEventDots,
 	chooseSegmentUnit,
 	clamp,
@@ -37,6 +39,8 @@ import {
 	identityAxisFor,
 	isFilterAxis,
 	listIdentitiesByAxis,
+	narrowedIds,
+	plottedView,
 	soleVisibleIdentity,
 	formatInterval,
 	getPeriodRange,
@@ -171,11 +175,13 @@ export const TimeScrubber = ({
 		offset,
 		zoom,
 		layout: layoutMode,
-		view: boardView,
 		only,
 		windowOnly,
 		ticketOnly,
 	} = selection;
+	// Read off the filter rather than picked beside it: one axis on and the
+	// chart is that axis, none or several and it draws every kind.
+	const boardView = plottedView(only);
 	const animate = !usePrefersReducedMotion();
 	const narrow = useNarrowBar();
 	const trackRef = useRef<HTMLDivElement | null>(null);
@@ -356,9 +362,10 @@ export const TimeScrubber = ({
 		onChangeSelection({zoom: {start, end: start + span}});
 	};
 
-	// No armEntrance on either: the window is unchanged, so these filter what is
-	// already in hand rather than asking for a new view.
-	const changeBoardView = (next: BoardView) => onChangeSelection({view: next});
+	// No armEntrance on any of these: the window is unchanged, so they filter
+	// what is already in hand rather than asking for a new one.
+	const toggleAxisOn = (axis: FilterAxis, on: boolean) =>
+		onChangeSelection({only: toggleAxis(only, axis, on)});
 
 	// Toggles: isolating again restores the rest, so the button is a way back as
 	// well as a way in. Ticking each of a dozen tags to undo it is not. Both act
@@ -369,7 +376,7 @@ export const TimeScrubber = ({
 			only: withNarrowing(
 				only,
 				axis,
-				isolateOnly(narrowingFor(only, axis), id),
+				isolateOnly(narrowedIds(narrowingFor(only, axis)), id) ?? 'all',
 			),
 		});
 
@@ -393,7 +400,7 @@ export const TimeScrubber = ({
 	// the board underneath and not a dot up here, and replaying the entrance
 	// over it would animate a picture nothing had happened to.
 	const filterKey = useMemo(() => {
-		const plotted = narrowingFor(only, identityAxisFor(boardView));
+		const plotted = narrowedIds(narrowingFor(only, identityAxisFor(boardView)));
 
 		return JSON.stringify([
 			boardView,
@@ -457,13 +464,22 @@ export const TimeScrubber = ({
 		for (const axis of FILTER_AXES) {
 			lists[axis] = withSelectedIdentities(
 				listed[axis],
-				narrowingFor(only, axis),
+				narrowedIds(narrowingFor(only, axis)),
 				knownIdentities[axis],
 			);
 		}
 
 		return lists;
 	}, [shown, only, knownIdentities]);
+
+	// What each top-level row says: off, on with everything, or the dash for on
+	// with some of it.
+	const axisStates = useMemo(() => {
+		const states = {} as Record<FilterAxis, AxisState>;
+		for (const axis of FILTER_AXES) states[axis] = axisState(only, axis);
+
+		return states;
+	}, [only]);
 
 	const hiddenIdsByAxis = useMemo(() => {
 		const hidden = {} as Record<FilterAxis, ReadonlySet<string>>;
@@ -927,13 +943,14 @@ export const TimeScrubber = ({
 				boardView,
 				identitiesByAxis,
 				hiddenIdsByAxis,
+				axisStates,
 				narrowed: isNarrowed(only),
 				categoriesExpanded,
 				expandedAxis,
 				categoriesFiltered,
 				isScrubbing: timeTravel.mode === 'scrub',
 				onReturnToLive,
-				onChangeBoardView: changeBoardView,
+				onToggleAxis: toggleAxisOn,
 				onToggleIdentity: toggleIdentity,
 				onOnlyIdentity: isolateIdentity,
 				onToggleCategoriesExpanded: () =>

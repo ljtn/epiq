@@ -15,6 +15,7 @@ import {
 	BoardView,
 	FilterAxis,
 } from '../lib/scrubber';
+import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
@@ -110,6 +111,7 @@ export const ScrubberControls = ({
 	boardView,
 	identitiesByAxis,
 	hiddenIdsByAxis,
+	axisStates,
 	narrowed,
 	categoriesExpanded,
 	expandedAxis,
@@ -124,7 +126,7 @@ export const ScrubberControls = ({
 	onChangeShowIssues,
 	onChangeShowCommits,
 	onChangeAllBoards,
-	onChangeBoardView,
+	onToggleAxis,
 	onToggleIdentity,
 	onOnlyIdentity,
 	onToggleCategoriesExpanded,
@@ -167,6 +169,8 @@ export const ScrubberControls = ({
 	// the board, not just the one the chart is coloured by.
 	identitiesByAxis: Record<FilterAxis, GuiEventIdentity[]>;
 	hiddenIdsByAxis: Record<FilterAxis, ReadonlySet<string>>;
+	// What each top-level row says: off, on with everything, or on with some.
+	axisStates: Record<FilterAxis, AxisState>;
 	// Any axis at all is narrowed, which is what the collapsed trigger reports.
 	narrowed: boolean;
 	categoriesExpanded: boolean;
@@ -185,7 +189,7 @@ export const ScrubberControls = ({
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeShowCommits: (next: boolean) => void;
 	onChangeAllBoards: (next: boolean) => void;
-	onChangeBoardView: (view: BoardView) => void;
+	onToggleAxis: (axis: FilterAxis, on: boolean) => void;
 	onToggleIdentity: (axis: FilterAxis, id: string, next: boolean) => void;
 	onOnlyIdentity: (axis: FilterAxis, id: string) => void;
 	onToggleCategoriesExpanded: () => void;
@@ -363,12 +367,13 @@ export const ScrubberControls = ({
 					view={boardView}
 					identitiesByAxis={identitiesByAxis}
 					hiddenIdsByAxis={hiddenIdsByAxis}
+					axisStates={axisStates}
 					narrowed={narrowed}
 					expanded={categoriesExpanded}
 					expandedAxis={expandedAxis}
 					filtered={categoriesFiltered}
 					onChangeShowIssues={onChangeShowIssues}
-					onChangeView={onChangeBoardView}
+					onToggleAxis={onToggleAxis}
 					onToggleIdentity={onToggleIdentity}
 					onOnlyIdentity={onOnlyIdentity}
 					onToggleExpanded={onToggleCategoriesExpanded}

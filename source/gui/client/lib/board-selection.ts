@@ -1,5 +1,6 @@
 import {GuiEventIdentity} from './gui-state.model';
 import {
+	AxisNarrowing,
 	BoardView,
 	FILTER_AXES,
 	FilterAxis,
@@ -9,6 +10,7 @@ import {
 	isLayoutMode,
 	isScope,
 	LayoutMode,
+	narrowedIds,
 	PeriodRange,
 	Scope,
 	SelectionNarrowing,
@@ -25,12 +27,11 @@ export type BoardSelection = {
 	// scope and offset describe. Null while the scope buttons are in charge.
 	zoom: PeriodRange | null;
 	layout: LayoutMode;
-	view: BoardView;
-	// Identity ids the board is narrowed to, per axis — a positive list rather
-	// than the hidden ones, so it says what to show without knowing what else
-	// exists. An axis absent is not narrowed; [] hides everything on it. Axes
-	// hold at once and a ticket has to pass them all, so "assigned to her" and
-	// "tagged bug" is one question rather than two that overwrite each other.
+	// What each axis asks of a ticket. Absent takes no part; 'all' asks only
+	// that the ticket carry something on that axis; a list names the few that
+	// pass. Axes hold at once and a ticket has to pass them all, so "assigned to
+	// her" and "tagged bug" is one question rather than two that overwrite each
+	// other. What the chart plots is read off this rather than chosen beside it.
 	only: SelectionNarrowing;
 	// Narrows the board to the tickets the window holds an event for, rather
 	// than to what the selection colours.
@@ -47,7 +48,6 @@ export const DEFAULT_SELECTION: BoardSelection = {
 	offset: 0,
 	zoom: null,
 	layout: 'even',
-	view: 'all',
 	only: {},
 	windowOnly: false,
 	ticketOnly: false,
@@ -75,37 +75,70 @@ const unique = (ids: readonly string[]): string[] => [...new Set(ids)];
 export const isNarrowed = (only: SelectionNarrowing): boolean =>
 	FILTER_AXES.some(axis => only[axis] !== undefined);
 
-// One axis's list, or null where that axis is not narrowed — the shape every
-// legend helper below takes, and what a caller with no axis in hand gets.
+// What one axis is asking, or undefined where it asks nothing — which is also
+// what a caller with no axis in hand gets.
 export const narrowingFor = (
 	only: SelectionNarrowing,
 	axis: FilterAxis | null,
-): readonly string[] | null => (axis === null ? null : only[axis] ?? null);
+): AxisNarrowing | undefined => (axis === null ? undefined : only[axis]);
 
-// Setting one axis's list. Null removes the axis rather than storing an empty
-// one: [] already means "everything on this axis is hidden".
+// Setting one axis. Undefined switches it off, which is also where an empty
+// list lands: a row nothing can pass is not a state the checkbox can say.
 export const withNarrowing = (
 	only: SelectionNarrowing,
 	axis: FilterAxis,
-	ids: readonly string[] | null,
+	narrowing: AxisNarrowing | undefined,
 ): SelectionNarrowing => {
 	const next = {...only};
+	const ids = narrowing === undefined ? [] : narrowedIds(narrowing);
 
-	if (ids === null) {
+	if (narrowing === undefined || (ids !== null && ids.length === 0)) {
 		delete next[axis];
 	} else {
-		next[axis] = ids;
+		next[axis] = narrowing;
 	}
 
 	return next;
 };
 
+// The three things a top-level row can say. 'some' is the dash: on, but not
+// with everything under it.
+export type AxisState = 'off' | 'all' | 'some';
+
+export const axisState = (
+	only: SelectionNarrowing,
+	axis: FilterAxis,
+): AxisState => {
+	const narrowing = only[axis];
+	if (narrowing === undefined) return 'off';
+
+	return narrowedIds(narrowing) === null ? 'all' : 'some';
+};
+
+// Ticking the parent takes the whole axis, unticking it switches the axis off
+// — which is the way back out of a list ticked down to one, and the reason
+// unticking the last child cannot strand the board on an axis nothing passes.
+export const toggleAxis = (
+	only: SelectionNarrowing,
+	axis: FilterAxis,
+	on: boolean,
+): SelectionNarrowing => withNarrowing(only, axis, on ? 'all' : undefined);
+
+// An axis narrowed to nothing is an axis nothing can pass, which is not a
+// state any control can say and not one anybody means — it becomes off.
 const normalizeNarrowing = (only: SelectionNarrowing): SelectionNarrowing => {
 	const next: SelectionNarrowing = {};
 
 	for (const axis of FILTER_AXES) {
-		const ids = only[axis];
-		if (ids !== undefined) next[axis] = unique(ids);
+		const narrowing = only[axis];
+		if (narrowing === undefined) continue;
+
+		const ids = narrowedIds(narrowing);
+		if (ids === null) {
+			next[axis] = 'all';
+		} else if (ids.length > 0) {
+			next[axis] = unique(ids);
+		}
 	}
 
 	return next;
@@ -149,7 +182,6 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.offset === DEFAULT_SELECTION.offset &&
 	selection.zoom === null &&
 	selection.layout === DEFAULT_SELECTION.layout &&
-	selection.view === DEFAULT_SELECTION.view &&
 	!isNarrowed(selection.only) &&
 	selection.windowOnly === DEFAULT_SELECTION.windowOnly &&
 	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly;
@@ -254,12 +286,20 @@ export const hasSelectionParams = (params: URLSearchParams): boolean =>
 const AXIS_SEPARATOR = ';';
 const NAME_SEPARATOR = ':';
 
+// `*` is the axis on with every identity, as against a list naming a few.
+const ALL_IDENTITIES = '*';
+
 const writeNarrowing = (only: SelectionNarrowing): string | null => {
 	const groups = FILTER_AXES.flatMap(axis => {
-		const ids = only[axis];
-		return ids === undefined
-			? []
-			: [`${axis}${NAME_SEPARATOR}${ids.join(',')}`];
+		const narrowing = only[axis];
+		if (narrowing === undefined) return [];
+
+		const ids = narrowedIds(narrowing);
+		return [
+			`${axis}${NAME_SEPARATOR}${
+				ids === null ? ALL_IDENTITIES : ids.join(',')
+			}`,
+		];
 	});
 
 	return groups.length === 0 ? null : groups.join(AXIS_SEPARATOR);
@@ -283,9 +323,9 @@ const readNarrowing = (
 		const axis = at === -1 ? identityAxisFor(view) : group.slice(0, at);
 		if (axis === null || !isFilterAxis(axis)) continue;
 
-		only[axis] = (at === -1 ? group : group.slice(at + 1))
-			.split(',')
-			.filter(Boolean);
+		const value = at === -1 ? group : group.slice(at + 1);
+		only[axis] =
+			value === ALL_IDENTITIES ? 'all' : value.split(',').filter(Boolean);
 	}
 
 	return only;
@@ -301,10 +341,13 @@ export const readSelectionParams = (
 
 	const scope = params.get('scope');
 	const layout = params.get('layout');
-	const viewParam = params.get('view');
 	const from = params.get('from');
 	const to = params.get('to');
-	const view = isBoardView(viewParam) ? viewParam : DEFAULT_SELECTION.view;
+	// Read but never written: `view` was the picked series, and the only thing
+	// still asking for it is a link from then, whose unprefixed `only` list
+	// named no axis because the view was the axis.
+	const viewParam = params.get('view');
+	const legacyView = isBoardView(viewParam) ? viewParam : 'all';
 
 	return normalize({
 		scope: isScope(scope) ? scope : DEFAULT_SELECTION.scope,
@@ -314,8 +357,7 @@ export const readSelectionParams = (
 				? null
 				: {start: Number(from), end: Number(to)},
 		layout: isLayoutMode(layout) ? layout : DEFAULT_SELECTION.layout,
-		view,
-		only: readNarrowing(params.get('only'), view),
+		only: readNarrowing(params.get('only'), legacyView),
 		windowOnly: params.get('window') === '1',
 		ticketOnly: params.get('ticket') === '1',
 	});
@@ -341,7 +383,8 @@ export const writeSelectionParams = (
 	put('from', next.zoom === null ? null : String(next.zoom.start));
 	put('to', next.zoom === null ? null : String(next.zoom.end));
 	put('layout', next.layout === DEFAULT_SELECTION.layout ? null : next.layout);
-	put('view', next.view === DEFAULT_SELECTION.view ? null : next.view);
+	// Not written any more: what the chart plots is read off `only`.
+	put('view', null);
 	put('only', writeNarrowing(next.only));
 	put('window', next.windowOnly ? '1' : null);
 	put('ticket', next.ticketOnly ? '1' : null);
@@ -367,7 +410,8 @@ const readStoredNarrowing = (
 
 	for (const axis of FILTER_AXES) {
 		const ids = stored[axis];
-		if (Array.isArray(ids)) only[axis] = ids.map(String);
+		if (ids === 'all') only[axis] = 'all';
+		else if (Array.isArray(ids)) only[axis] = ids.map(String);
 	}
 
 	return only;
@@ -387,7 +431,7 @@ export const readStoredSelection = (): BoardSelection => {
 		if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SELECTION;
 
 		const {scope, layout, view, only} = parsed as Record<string, unknown>;
-		const boardView = isBoardView(view) ? view : DEFAULT_SELECTION.view;
+		const legacyView = isBoardView(view) ? view : 'all';
 
 		return normalize({
 			scope: isScope(String(scope))
@@ -398,8 +442,7 @@ export const readStoredSelection = (): BoardSelection => {
 			layout: isLayoutMode(String(layout))
 				? (layout as LayoutMode)
 				: DEFAULT_SELECTION.layout,
-			view: boardView,
-			only: readStoredNarrowing(only, boardView),
+			only: readStoredNarrowing(only, legacyView),
 			windowOnly: DEFAULT_SELECTION.windowOnly,
 			ticketOnly: DEFAULT_SELECTION.ticketOnly,
 		});
@@ -410,11 +453,8 @@ export const readStoredSelection = (): BoardSelection => {
 
 export const storeSelection = (selection: BoardSelection): void => {
 	try {
-		const {scope, layout, view, only} = selection;
-		localStorage.setItem(
-			STORAGE_KEY,
-			JSON.stringify({scope, layout, view, only}),
-		);
+		const {scope, layout, only} = selection;
+		localStorage.setItem(STORAGE_KEY, JSON.stringify({scope, layout, only}));
 	} catch {
 		// Storage unavailable: the URL still carries the selection.
 	}
@@ -422,30 +462,38 @@ export const storeSelection = (selection: BoardSelection): void => {
 
 // ---------------------------------------------------------------- narrowing
 
-// What the legend shows unticked, given what it lists.
+// What the legend shows unticked, given what it lists. An axis switched off
+// has none of its children ticked; on with everything has all of them.
 export const hiddenIdsFor = (
 	identities: readonly GuiEventIdentity[],
-	only: readonly string[] | null,
+	narrowing: AxisNarrowing | undefined,
 ): Set<string> => {
-	if (only === null) return new Set();
+	const listed = identities.map(identity => identity.id);
+	if (narrowing === undefined) return new Set(listed);
 
-	const shown = new Set(only);
-	return new Set(
-		identities.map(identity => identity.id).filter(id => !shown.has(id)),
-	);
+	const ids = narrowedIds(narrowing);
+	if (ids === null) return new Set();
+
+	const shown = new Set(ids);
+	return new Set(listed.filter(id => !shown.has(id)));
 };
 
-// Ticking or unticking one identity. Back to null once every listed identity
-// is ticked, so a tag or person that turns up later is shown rather than
-// missing from a list nobody meant to close.
+// Ticking or unticking one identity. Back to 'all' once every listed identity
+// is ticked, so a tag or person that turns up later joins the axis rather than
+// being missing from a list nobody meant to close.
 export const toggleOnly = (
-	only: readonly string[] | null,
+	narrowing: AxisNarrowing | undefined,
 	identities: readonly GuiEventIdentity[],
 	id: string,
 	shown: boolean,
-): readonly string[] | null => {
+): AxisNarrowing | undefined => {
 	const listed = identities.map(identity => identity.id);
-	const next = new Set(only ?? listed);
+	// An axis switched off has nothing ticked under it, so the first child
+	// ticked is the only one — ticking into an off axis switches it on.
+	const ids = narrowedIds(narrowing);
+	const next = new Set(
+		narrowing === undefined ? [] : ids === null ? listed : ids,
+	);
 
 	if (shown) {
 		next.add(id);
@@ -453,7 +501,11 @@ export const toggleOnly = (
 		next.delete(id);
 	}
 
-	return listed.every(listedId => next.has(listedId)) ? null : [...next];
+	// Every one of them ticked is the axis itself, which is what the parent
+	// says; none of them is the axis switched off.
+	if (next.size === 0) return undefined;
+
+	return listed.every(listedId => next.has(listedId)) ? 'all' : [...next];
 };
 
 // A toggle: isolating the identity already isolated restores the rest.

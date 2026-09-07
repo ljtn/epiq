@@ -66,6 +66,7 @@ import {
 import {
 	actorIdsByIssue,
 	buildBoardFilter,
+	narrowedIds,
 	FilterAxis,
 	isPeriodWindow,
 	issuePassesBoardFilter,
@@ -437,22 +438,22 @@ export const App = () => {
 	// one: its chips read as pressed, and pressing again is the way back. Read
 	// off that axis alone, so a chip stays lit while the board is also narrowed
 	// by assignee or by who touched it.
-	const tagOnly = selection.only.tag ?? null;
+	const tagOnly = narrowedIds(selection.only.tag);
 	const isolatedTagId = tagOnly?.length === 1 ? tagOnly[0] ?? null : null;
 
-	// Narrowing to a chip points the chart at tags as well: a chip is a "show me
-	// this tag" gesture, and the picture above answering it in the tag's own
-	// colour is the half the board cannot show. Pressing the lit one again only
-	// lets go of the tag — it is not an ask for a series, so whatever the chart
-	// had been switched to since stays where it is.
-	const filterByTag = (tagId: string) => {
-		const next = isolateOnly(tagOnly, tagId);
-
+	// Narrowing to a chip points the chart at tags as well, without asking it
+	// to: with the tag axis the only one on, that is what the chart draws. A
+	// chip is a "show me this tag" gesture, and the picture above answering it
+	// in the tag's own colour is the half the board cannot show. Pressing the
+	// lit one again lets go of the tag and switches its axis off.
+	const filterByTag = (tagId: string) =>
 		changeSelection({
-			...(next === null ? {} : {view: 'tagging' as const}),
-			only: withNarrowing(selection.only, 'tag', next),
+			only: withNarrowing(
+				selection.only,
+				'tag',
+				isolateOnly(tagOnly, tagId) ?? undefined,
+			),
 		});
-	};
 
 	// For naming a selected identity the scrubber's window has no event for.
 	const knownIdentities = useMemo(() => {

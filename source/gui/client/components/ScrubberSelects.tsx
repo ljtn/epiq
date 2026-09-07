@@ -9,14 +9,15 @@ import {
 	Scope,
 	scopeButtonLabel,
 	SCOPES,
-	BOARD_VIEWS,
 	boardViewColor,
 	soleVisibleIdentity,
 	identityAxisFor,
 	BoardView,
 	EventCategory,
+	FILTER_AXES,
 	FilterAxis,
 } from '../lib/scrubber';
+import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
@@ -62,6 +63,23 @@ const VIEW_LABELS: Record<BoardView, string> = {
 	all: 'Board events',
 	...CATEGORY_LABELS,
 	contributors: 'Contributors',
+};
+
+// The row an axis is drawn as. Kept here rather than imported so the labels and
+// the rows they sit on are read off one table.
+const VIEW_FOR_AXIS: Record<FilterAxis, BoardView> = {
+	commenter: 'comments',
+	tag: 'tagging',
+	assignee: 'assigning',
+	actor: 'contributors',
+};
+
+// What ticking a row asks of every ticket, said in full where the label cannot.
+const AXIS_TITLES: Record<FilterAxis, string> = {
+	commenter: 'Only tickets somebody has commented on',
+	tag: 'Only tickets carrying a tag',
+	assignee: 'Only tickets somebody is assigned to',
+	actor: 'Only tickets somebody has touched in this window',
 };
 
 // Fixed, not sized to its label: the selection changes as the thing is used,
@@ -270,12 +288,13 @@ export const BoardSeriesGroup = ({
 	view,
 	identitiesByAxis,
 	hiddenIdsByAxis,
+	axisStates,
 	narrowed,
 	expanded,
 	expandedAxis,
 	filtered,
 	onChangeShowIssues,
-	onChangeView,
+	onToggleAxis,
 	onToggleIdentity,
 	onOnlyIdentity,
 	onToggleExpanded,
@@ -288,12 +307,15 @@ export const BoardSeriesGroup = ({
 	// for what is on screen rather than a catalogue of the whole repo.
 	identitiesByAxis: Record<FilterAxis, GuiEventIdentity[]>;
 	hiddenIdsByAxis: Record<FilterAxis, ReadonlySet<string>>;
+	// What each row says: off, on with everything under it, or the dash for on
+	// with some of it.
+	axisStates: Record<FilterAxis, AxisState>;
 	narrowed: boolean;
 	expanded: boolean;
 	expandedAxis: FilterAxis | null;
 	filtered: boolean;
 	onChangeShowIssues: (next: boolean) => void;
-	onChangeView: (view: BoardView) => void;
+	onToggleAxis: (axis: FilterAxis, on: boolean) => void;
 	onToggleIdentity: (axis: FilterAxis, id: string, next: boolean) => void;
 	onOnlyIdentity: (axis: FilterAxis, id: string) => void;
 	onToggleExpanded: () => void;
@@ -383,80 +405,72 @@ export const BoardSeriesGroup = ({
 			</div>
 
 			{expanded && (
-				<div role="radiogroup" style={popoverStyle}>
-					{BOARD_VIEWS.map(option => {
-						const selected = view === option;
-						const axis = identityAxisFor(option);
-						const open = axis !== null && expandedAxis === axis;
-						// Lit while this row's axis is holding something back, which is
-						// the only sign a row that is not the plotted one leaves on the
-						// closed panel.
-						const rowNarrowed =
-							axis !== null && filtered && hiddenIdsByAxis[axis].size > 0;
+				<div role="group" aria-label="Filter the board" style={popoverStyle}>
+					{FILTER_AXES.map(axis => {
+						const option = VIEW_FOR_AXIS[axis];
+						const state = axisStates[axis];
+						const open = expandedAxis === axis;
 						const rowLabel = VIEW_LABELS[option].toLowerCase();
-
-						// The whole series heads the list; the kinds of it are indented
-						// under that, which is the hierarchy the word "All" used to say
-						// out loud.
-						const isWholeSeries = option === 'all';
 
 						return (
 							<div
-								key={option}
+								key={axis}
 								style={{
 									display: 'flex',
 									flexDirection: 'column',
 									gap: 7,
-									paddingLeft: isWholeSeries ? 0 : 14,
 								}}
 							>
 								<div style={{display: 'flex', alignItems: 'center', gap: 3}}>
-									<Radio
+									<Checkbox
 										label={VIEW_LABELS[option]}
-										selected={selected}
-										color={boardViewColor(option)}
+										checked={state === 'all'}
+										mixed={state === 'some'}
+										activeColor={boardViewColor(option)}
 										disabled={!showIssues || !filtered}
-										square={isWholeSeries}
-										onSelect={() => onChangeView(option)}
+										title={AXIS_TITLES[axis]}
+										onChange={next => onToggleAxis(axis, next)}
 									/>
-									{axis !== null && (
-										<button
-											type="button"
-											disabled={!showIssues || !filtered}
-											// Opening a list no longer selects the row: the whole
-											// point of a list per axis is narrowing by one while the
-											// chart goes on plotting another.
-											onClick={() => onSetExpandedAxis(open ? null : axis)}
-											// Named after its own row: four rows now carry one of
-											// these, and "Pick which to show" on all four says
-											// nothing about which list is being opened.
-											title={
-												open
-													? `Hide the ${rowLabel} list`
-													: `Pick which ${rowLabel} to show`
-											}
-											aria-expanded={open}
-											style={{
-												...disclosureStyle,
-												// In the row's own colour rather than the accent, so
-												// the lit caret reads as belonging to the thing it
-												// is holding back.
-												color: rowNarrowed
+									<button
+										type="button"
+										disabled={!showIssues || !filtered}
+										// Opening a list does not switch its axis on: reading what
+										// is under a row is not the same as filtering by it.
+										onClick={() => onSetExpandedAxis(open ? null : axis)}
+										// Named after its own row: four rows carry one of these,
+										// and "Pick which to show" on all four says nothing about
+										// which list is being opened.
+										title={
+											open
+												? `Hide the ${rowLabel} list`
+												: `Pick which ${rowLabel} to show`
+										}
+										aria-expanded={open}
+										style={{
+											...disclosureStyle,
+											// In the row's own colour rather than the accent, so a
+											// lit caret reads as belonging to the thing it is
+											// holding back.
+											color:
+												state === 'some'
 													? boardViewColor(option)
 													: disclosureStyle.color,
-											}}
-										>
-											{open ? (
-												<IconChevronDown size={12} />
-											) : (
-												<IconChevronRight size={12} />
-											)}
-										</button>
-									)}
+										}}
+									>
+										{open ? (
+											<IconChevronDown size={12} />
+										) : (
+											<IconChevronRight size={12} />
+										)}
+									</button>
 								</div>
 
-								{open && axis !== null && identitiesByAxis[axis].length > 0 && (
+								{open && identitiesByAxis[axis].length > 0 && (
 									<div
+										// Named, so what is under a row is tellable from the rows
+										// themselves — every one of these is a checkbox too.
+										role="group"
+										aria-label={`Which ${rowLabel} to show`}
 										style={{
 											...nestedListStyle,
 											// A repo with dozens of tags would otherwise push the

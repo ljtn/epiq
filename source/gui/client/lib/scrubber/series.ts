@@ -77,10 +77,44 @@ const AXIS_CATEGORY: Record<FilterAxis, EventCategory | null> = {
 	actor: null,
 };
 
-// A narrowing per axis: an axis absent is not narrowed at all, an axis present
-// lists the only ids that pass it. Several can hold at once, and a ticket has
-// to pass every one of them.
-export type SelectionNarrowing = Partial<Record<FilterAxis, readonly string[]>>;
+// What one axis is asking of a ticket. 'all' is the axis switched on with every
+// identity under it, which asks only that the ticket carry one — assigned to
+// somebody, tagged with something, touched by somebody. A list narrows that to
+// the named few.
+export type AxisNarrowing = 'all' | readonly string[];
+
+// A narrowing per axis: an axis absent takes no part in the filter, an axis
+// present asks its question of every ticket. Several hold at once and a ticket
+// has to pass them all, which is what "every tag, for these two contributors"
+// means.
+export type SelectionNarrowing = Partial<Record<FilterAxis, AxisNarrowing>>;
+
+// The ids an axis is narrowed to, or null where it is on with all of them.
+export const narrowedIds = (
+	narrowing: AxisNarrowing | undefined,
+): readonly string[] | null =>
+	narrowing === undefined || narrowing === 'all' ? null : narrowing;
+
+// Which axes are asking anything at all, in the order they are listed.
+export const activeAxes = (only: SelectionNarrowing): FilterAxis[] =>
+	FILTER_AXES.filter(axis => only[axis] !== undefined);
+
+// The view an axis is drawn as, which is the inverse of identityAxisFor.
+const VIEW_FOR_AXIS: Record<FilterAxis, BoardView> = {
+	commenter: 'comments',
+	tag: 'tagging',
+	assignee: 'assigning',
+	actor: 'contributors',
+};
+
+// What the chart draws, read off the filter rather than picked beside it. One
+// axis on and the chart is that axis — its kind, in its identities' colours,
+// which is what choosing that view used to do. None or several on and there is
+// no single thing to colour by, so it draws every kind and colours by kind.
+export const plottedView = (only: SelectionNarrowing): BoardView => {
+	const active = activeAxes(only);
+	return active.length === 1 ? VIEW_FOR_AXIS[active[0]!] : 'all';
+};
 
 // Which side of the event a view colours by. Tickets has none — every event is
 // somebody changing a ticket, so it stays the plain Board accent.
@@ -325,19 +359,22 @@ export const buildEventDots = (
 };
 
 // What the scrubber's selection means for the board below it: one entry per
-// narrowed axis, and empty when the selection narrows nothing.
-export type AxisFilter = {axis: FilterAxis; visibleIds: ReadonlySet<string>};
+// axis switched on, and empty when none is. `visibleIds` null is the axis on
+// with every identity, which asks only that the ticket carry one.
+export type AxisFilter = {
+	axis: FilterAxis;
+	visibleIds: ReadonlySet<string> | null;
+};
 
 export type BoardFilter = readonly AxisFilter[];
 
-// Only a narrowed axis filters the board. A kind with everything still ticked
-// is a colouring choice, not a question about which tickets matter — and which
-// kind is plotted says nothing either way, so a narrowing survives switching
-// the chart to something else.
+// An axis nobody switched on asks nothing, and which kind the chart happens to
+// be plotting says nothing either way — so a narrowing outlives the picture it
+// was made under.
 export const buildBoardFilter = (only: SelectionNarrowing): BoardFilter =>
-	FILTER_AXES.flatMap(axis => {
-		const ids = only[axis];
-		return ids === undefined ? [] : [{axis, visibleIds: new Set(ids)}];
+	activeAxes(only).map(axis => {
+		const ids = narrowedIds(only[axis]);
+		return {axis, visibleIds: ids === null ? null : new Set(ids)};
 	});
 
 // Whether the window says which tickets its events belong to. Past the
@@ -421,5 +458,12 @@ export const issuePassesBoardFilter = (
 				? facts.commenterIds
 				: facts.actorIds;
 
-		return ids === null || ids.some(id => visibleIds.has(id));
+		// The window cannot say who touched what, so the axis goes unenforced
+		// rather than failing every ticket against an answer nobody has.
+		if (ids === null) return true;
+
+		// On with every identity: carrying one is the whole question.
+		if (visibleIds === null) return ids.length > 0;
+
+		return ids.some(id => visibleIds.has(id));
 	});

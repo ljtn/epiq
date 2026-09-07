@@ -73,14 +73,16 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	await waitForDiffHeader(page);
 
 	await page.getByRole('button', {name: 'Board events'}).click();
-	await expect(page.getByRole('radiogroup')).toBeVisible();
+	await expect(
+		page.getByRole('group', {name: 'Filter the board'}),
+	).toBeVisible();
 
 	// The diff renders its own file header with a z-index inside a shadow
 	// root. Scroll it under the popover and ask the browser which is on top.
 	const onTop = await page.evaluate(`
 (() => {
 	const aside = document.querySelector('aside');
-	const popover = document.querySelector('[role="radiogroup"]');
+	const popover = document.querySelector('[role="group"]');
 	const host = [...aside.querySelectorAll('*')].find(element =>
 		element.shadowRoot?.querySelector('[data-diffs-header]'),
 	);

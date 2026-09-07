@@ -19,6 +19,7 @@ import {
 	FILTER_AXES,
 	listIdentities,
 	listIdentitiesByAxis,
+	plottedView,
 	soleVisibleIdentity,
 	chooseSegmentUnit,
 	dotAppearAnimation,
@@ -968,6 +969,24 @@ describe('board filter', () => {
 				buildBoardFilter({tag: []}),
 			),
 		).toBe(false);
+	});
+});
+
+describe('plottedView', () => {
+	// One axis on and there is a single thing to colour by, which is what
+	// picking that series used to say out loud.
+	it('is the one axis switched on', () => {
+		expect(plottedView({tag: 'all'})).toBe('tagging');
+		expect(plottedView({assignee: ['jola']})).toBe('assigning');
+		expect(plottedView({commenter: 'all'})).toBe('comments');
+		expect(plottedView({actor: 'all'})).toBe('contributors');
+	});
+
+	// Two axes have no single colour between them, and none has nothing to
+	// colour by at all — both draw every kind, coloured by kind.
+	it('is every kind with none or several on', () => {
+		expect(plottedView({})).toBe('all');
+		expect(plottedView({tag: 'all', assignee: ['jola']})).toBe('all');
 	});
 });
 
