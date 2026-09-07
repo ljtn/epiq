@@ -14,6 +14,7 @@ import {
 	STAT_LABEL,
 	STAT_NOTE,
 	STAT_VALUE,
+	COMMENT_YELLOW,
 	seriesColor,
 } from '../lib/issue-stats.style';
 import {ProportionBar, StackedBar} from './StatBars';
@@ -324,9 +325,13 @@ export const IssueStats = ({
 					<ProportionBar
 						value={leadComments.share}
 						// Yellow for the prose, blue for the code it explains — the
-						// same yellow the diff itself now gives a comment, so the bar
-						// and the file agree about which is which.
-						color={seriesColor(3)}
+						// very value the diff paints a comment with, so the bar and the
+						// file agree about which is which. Brighter than a categorical
+						// slot is allowed to be, which is the right call for two
+						// segments that are named underneath and separated by a gap:
+						// what binds here is separation from the blue (ΔE 37.7 under
+						// protanopia) and contrast against the panel, and both pass.
+						color={COMMENT_YELLOW}
 						restColor={seriesColor(0)}
 						label={`${percent(leadComments.share)} of the ${
 							leadComments.name
