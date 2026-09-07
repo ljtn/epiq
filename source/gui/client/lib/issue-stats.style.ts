@@ -11,10 +11,10 @@ import {GUI_THEME} from './gui-theme';
 
 export const STAT_GRID: React.CSSProperties = {
 	display: 'grid',
-	// Narrow enough that three stats still sit on one row in the panel at its
-	// default width — wrapping one of three onto a line of its own reads as a
-	// mistake rather than as a layout.
-	gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
+	// Narrow enough that four stats still sit on one row in the panel at its
+	// default width — one of four wrapping onto a line of its own reads as a
+	// mistake rather than as a layout. Labels wrap instead, which reads fine.
+	gridTemplateColumns: 'repeat(auto-fit, minmax(82px, 1fr))',
 	gap: 16,
 	marginTop: 14,
 };
@@ -80,3 +80,28 @@ export const shortPath = (path: string): string => {
 
 	return parts.length <= 2 ? path : `…/${parts.slice(-2).join('/')}`;
 };
+
+/**
+ * The categorical series, in fixed order — slot 1 for the biggest share, and
+ * never cycled: a sixth language folds into "Other" rather than reusing a hue.
+ *
+ * Validated against this panel's own surface (#11141b) rather than assumed:
+ * lightness band, chroma floor, adjacent-pair separation under protanopia and
+ * tritanopia, the normal-vision floor, and contrast all pass. The theme's own
+ * accents do not — they sit at one lightness, and #ffd479 against #8ce99a is
+ * ΔE 3.8 under protanopia, which is the same colour to a good many readers.
+ */
+export const SERIES = [
+	'#3987e5',
+	'#d95926',
+	'#199e70',
+	'#c98500',
+	'#d55181',
+] as const;
+
+// Everything past the fifth language, and the unfilled half of a proportion
+// bar. Neutral on purpose: it is the absence of a series, not a series.
+export const SERIES_REST = GUI_THEME.dim2;
+
+export const seriesColor = (index: number): string =>
+	SERIES[index] ?? SERIES_REST;

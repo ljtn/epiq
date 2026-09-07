@@ -59,6 +59,15 @@ test('the Stats tab measures the ticket own commits', async ({
 		page.getByText('TypeScript', {exact: true}).first(),
 	).toBeVisible();
 
+	// And drawn: the language bar carries a segment per language, each naming
+	// its own share.
+	await expect(page.getByTitle(/^TypeScript — \d+%$/)).toBeVisible();
+
+	// The contributor count comes off the commits, so the seeded repo's own
+	// git author is the one named — never the board's assignees.
+	await expect(page.getByText('Author', {exact: true})).toBeVisible();
+	await expect(page.getByText('e2e', {exact: true})).toBeVisible();
+
 	expect(pageErrors).toEqual([]);
 });
 
