@@ -16,7 +16,9 @@ import {
 	categoryOf,
 	issuePassesBoardFilter,
 	identityAxisFor,
+	FILTER_AXES,
 	listIdentities,
+	listIdentitiesByAxis,
 	soleVisibleIdentity,
 	chooseSegmentUnit,
 	dotAppearAnimation,
@@ -706,6 +708,26 @@ describe('identity views', () => {
 
 	it('has no list without an axis', () => {
 		expect(listIdentities(window(), null)).toEqual([]);
+	});
+
+	// The popover offers all four at once, and rebuilding them is on the path a
+	// needle drag walks every 120ms, so they are collected in one pass. Same
+	// answer as asking axis by axis, which is the only thing that matters here.
+	it('collects every axis in one pass, agreeing with the single-axis list', () => {
+		const byAxis = listIdentitiesByAxis(window());
+
+		for (const axis of FILTER_AXES) {
+			expect(byAxis[axis]).toEqual(listIdentities(window(), axis));
+		}
+	});
+
+	it('has an empty list per axis with no timeline', () => {
+		expect(listIdentitiesByAxis(null)).toEqual({
+			commenter: [],
+			tag: [],
+			assignee: [],
+			actor: [],
+		});
 	});
 
 	it('takes each dot colour from its identity, not its kind', () => {

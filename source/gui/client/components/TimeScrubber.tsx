@@ -36,7 +36,7 @@ import {
 	FilterAxis,
 	identityAxisFor,
 	isFilterAxis,
-	listIdentities,
+	listIdentitiesByAxis,
 	soleVisibleIdentity,
 	formatInterval,
 	getPeriodRange,
@@ -388,18 +388,18 @@ export const TimeScrubber = ({
 	};
 
 	// What narrows the window already in hand. Answered on the spot, with no
-	// round trip, so it can replay the entrance the moment it changes.
-	const filterKey = useMemo(
-		() =>
-			JSON.stringify([
-				boardView,
-				FILTER_AXES.map(axis => {
-					const ids = only[axis];
-					return ids === undefined ? null : [...ids].sort();
-				}),
-			]),
-		[boardView, only],
-	);
+	// round trip, so it can replay the entrance the moment it changes. Only the
+	// plotted axis counts: narrowing one the chart is not coloured by changes
+	// the board underneath and not a dot up here, and replaying the entrance
+	// over it would animate a picture nothing had happened to.
+	const filterKey = useMemo(() => {
+		const plotted = narrowingFor(only, identityAxisFor(boardView));
+
+		return JSON.stringify([
+			boardView,
+			plotted === null ? null : [...plotted].sort(),
+		]);
+	}, [boardView, only]);
 
 	const entrance = useRef(0);
 	const armed = useRef(true);
@@ -451,11 +451,12 @@ export const TimeScrubber = ({
 	// Every axis's legend, not just the plotted one's: each is a filter of its
 	// own now, and all four are on offer in the popover at once.
 	const identitiesByAxis = useMemo(() => {
+		const listed = listIdentitiesByAxis(shown.timeline);
 		const lists = {} as Record<FilterAxis, GuiEventIdentity[]>;
 
 		for (const axis of FILTER_AXES) {
 			lists[axis] = withSelectedIdentities(
-				listIdentities(shown.timeline, axis),
+				listed[axis],
 				narrowingFor(only, axis),
 				knownIdentities[axis],
 			);
