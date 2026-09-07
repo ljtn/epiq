@@ -37,6 +37,7 @@ const empty = (linesAdded: number, reason: string | null): PatchCoverage => ({
 	notAnchoredReason: reason,
 	linesAdded,
 	survivingLines: 0,
+	truncated: false,
 	covered: 0,
 	uncovered: 0,
 	notInstrumented: 0,
@@ -122,14 +123,12 @@ export const derivePatchCoverage = async ({
 
 	const shaSet = new Set(shas);
 
-	const candidates = patch.files
-		.filter(
-			file =>
-				!file.binary &&
-				!isGeneratedPath(file.path) &&
-				file.status !== 'deleted',
-		)
-		.slice(0, MAX_BLAMED_FILES);
+	const blameable = patch.files.filter(
+		file =>
+			!file.binary && !isGeneratedPath(file.path) && file.status !== 'deleted',
+	);
+
+	const candidates = blameable.slice(0, MAX_BLAMED_FILES);
 
 	const files: FileCoverage[] = [];
 
@@ -206,6 +205,8 @@ export const derivePatchCoverage = async ({
 		notAnchoredReason: null,
 		linesAdded,
 		survivingLines,
+		// Everything below counts only the files blame actually ran over.
+		truncated: candidates.length < blameable.length || patch.truncated,
 		covered,
 		uncovered,
 		notInstrumented,
