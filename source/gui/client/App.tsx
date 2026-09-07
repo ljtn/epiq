@@ -436,8 +436,12 @@ export const App = () => {
 	const tagOnly = selection.only.tag ?? null;
 	const isolatedTagId = tagOnly?.length === 1 ? tagOnly[0] ?? null : null;
 
+	// Points the chart at tags as well as narrowing the board to one: a chip is
+	// a "show me this tag" gesture, and the picture above answering it in the
+	// tag's own colour is the half the board cannot show.
 	const filterByTag = (tagId: string) =>
 		changeSelection({
+			view: 'tagging',
 			only: withNarrowing(selection.only, 'tag', isolateOnly(tagOnly, tagId)),
 		});
 
