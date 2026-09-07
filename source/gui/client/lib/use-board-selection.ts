@@ -3,16 +3,17 @@ import {useSearchParams} from 'react-router-dom';
 import {
 	applySelectionPatch,
 	BoardSelection,
+	carryChange,
+	carryRender,
+	DEFAULT_CARRY,
 	hasSelectionParams,
 	isDefaultSelection,
 	readSelectionParams,
 	readStoredSelection,
+	SelectionCarry,
 	storeSelection,
 	writeSelectionParams,
 } from './board-selection';
-
-// What a route change carries that neither the rebuilt query nor storage does.
-type CarriedKey = 'offset' | 'zoom' | 'windowOnly' | 'ticketOnly';
 
 // The URL wins when it says anything; a bare board link falls back to what
 // was last used here, and gets that written into the address bar so copying
@@ -25,36 +26,24 @@ export const useBoardSelection = (): [
 
 	const fromUrl = hasSelectionParams(searchParams);
 
-	// The four storage does not keep, carried across the routes of this
-	// session instead: opening a ticket rebuilds the query from scratch, and
-	// none of a board narrowed to a window, a stretch dragged out of the chart,
-	// or a window paged back off the present must come undone under the reader
-	// who clicked one of the cards it left showing. A reload still starts wide,
-	// unzoomed and at the present — where somebody is looking is a moment, not
-	// a preference to restore.
+	// The four storage does not keep, carried across the routes of this session
+	// instead. A reload still starts wide, unzoomed and at the present — where
+	// somebody is looking is a moment, not a preference to restore.
 	//
 	// The ticket narrowing travels with them, so it follows to whichever ticket
 	// is opened next and re-derives there rather than being cancelled by the
 	// click that moved between them.
-	const carried = useRef<Pick<BoardSelection, CarriedKey>>({
-		offset: 0,
-		zoom: null,
-		windowOnly: false,
-		ticketOnly: false,
-	});
+	const carried = useRef<SelectionCarry>(DEFAULT_CARRY);
+
+	const query = searchParams.toString();
 
 	const selection = useMemo(() => {
 		const fromParams = readSelectionParams(searchParams);
 
-		return fromParams ?? {...readStoredSelection(), ...carried.current};
+		return fromParams ?? {...readStoredSelection(), ...carried.current.values};
 	}, [searchParams]);
 
-	carried.current = {
-		offset: selection.offset,
-		zoom: selection.zoom,
-		windowOnly: selection.windowOnly,
-		ticketOnly: selection.ticketOnly,
-	};
+	carried.current = carryRender(carried.current, query, selection);
 
 	useEffect(() => {
 		if (fromUrl) {
@@ -88,14 +77,8 @@ export const useBoardSelection = (): [
 			// Carried forward here rather than waiting for the render the new URL
 			// causes: turning the last of these off empties the query, and a bare
 			// query reads the carried values back — which, a beat before that
-			// render, are still the ones just switched off. The narrowing would
-			// put itself straight back on.
-			carried.current = {
-				offset: next.offset,
-				zoom: next.zoom,
-				windowOnly: next.windowOnly,
-				ticketOnly: next.ticketOnly,
-			};
+			// render, would still be the ones just switched off.
+			carried.current = carryChange(carried.current, next);
 
 			setSearchParams(
 				prev => {

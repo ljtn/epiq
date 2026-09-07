@@ -147,6 +147,55 @@ export const applySelectionPatch = (
 	});
 };
 
+// ---------------------------------------------------------------- carrying
+
+// What a route change carries that neither the rebuilt query nor storage does:
+// opening a ticket rebuilds the query from scratch, and none of a board
+// narrowed to a window, a stretch dragged out of the chart, or a window paged
+// back off the present must come undone under the reader who clicked one of
+// the cards it left showing.
+export type CarriedSelection = Pick<
+	BoardSelection,
+	'offset' | 'zoom' | 'windowOnly' | 'ticketOnly'
+>;
+
+// The carried values together with the query they were read out of. The query
+// is what makes a change survive: writing one is two steps — the values here,
+// then the URL a render later — and any re-render in between still reads the
+// pre-change query. Keyed, such a render is recognised as having nothing newer
+// to say and leaves the values alone; unkeyed it reads the switched-off
+// narrowing back over them, and a bare query then puts it straight back on.
+export type SelectionCarry = {query: string; values: CarriedSelection};
+
+const carriedFrom = (selection: BoardSelection): CarriedSelection => ({
+	offset: selection.offset,
+	zoom: selection.zoom,
+	windowOnly: selection.windowOnly,
+	ticketOnly: selection.ticketOnly,
+});
+
+export const DEFAULT_CARRY: SelectionCarry = {
+	query: '',
+	values: carriedFrom(DEFAULT_SELECTION),
+};
+
+// A render offering the selection it derived. The query is compared as a
+// string rather than by identity, since a fresh URLSearchParams for the same
+// query says nothing new either.
+export const carryRender = (
+	carry: SelectionCarry,
+	query: string,
+	selection: BoardSelection,
+): SelectionCarry =>
+	carry.query === query ? carry : {query, values: carriedFrom(selection)};
+
+// A change, ahead of the URL it is about to write. The query stays the one
+// these values now supersede, so the renders still holding it are skipped.
+export const carryChange = (
+	carry: SelectionCarry,
+	next: BoardSelection,
+): SelectionCarry => ({query: carry.query, values: carriedFrom(next)});
+
 // ------------------------------------------------------------------- the URL
 
 export const hasSelectionParams = (params: URLSearchParams): boolean =>
