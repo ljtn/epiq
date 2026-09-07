@@ -126,7 +126,11 @@ export const applyActorNameArgument = (
 		);
 	}
 
-	env[ACTOR_NAME_ENV] = trimmed;
+	// Only when the variable is not already saying it. With `EPIQ_USER_ID`
+	// pinned, `resolveEnvActor` takes the display name from here verbatim, so
+	// writing the argument's casing over an agreeing variable renames that
+	// contributor on the board.
+	if (!fromEnv) env[ACTOR_NAME_ENV] = trimmed;
 
-	return succeeded('Applied actor name argument', trimmed);
+	return succeeded('Applied actor name argument', fromEnv || trimmed);
 };
