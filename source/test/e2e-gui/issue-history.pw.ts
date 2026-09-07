@@ -39,6 +39,12 @@ test('the log tab lists the ticket’s own events', async ({
 	// Phrased by the same formatter the TUI log uses.
 	await expect(history).toContainText(`Created with title "${title}"`);
 
+	// Under the name the board knows them by. The row shows an initial, so the
+	// name itself is on the avatar's title — and the log's file name, which has
+	// had the slash sanitised out of it, must not be what reaches it.
+	await expect(history.getByTitle('claude/tester').first()).toBeVisible();
+	await expect(history.getByTitle('claude-tester')).toHaveCount(0);
+
 	// A further change lands in the same list, newest first.
 	await page.getByRole('button', {name: 'Overview'}).click();
 	await page.getByRole('button', {name: 'close issue'}).click();
