@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {memo, useState} from 'react';
 import {
 	DiffFileInput,
 	DiffLineAnnotation,
@@ -55,7 +55,7 @@ export const DIFF_BOX_STYLE: React.CSSProperties = {
 	overflow: 'clip',
 };
 
-export const FileDiffView = <LAnnotation = undefined,>({
+const FileDiffViewInner = <LAnnotation = undefined,>({
 	file,
 	diffStyle,
 	selectedLines,
@@ -78,6 +78,18 @@ export const FileDiffView = <LAnnotation = undefined,>({
 	// Replaces the highlighter's own file header (name, change icon, counts)
 	// with the caller's, in the same sticky slot.
 	renderCustomHeader?: (fileDiff: FileDiffMetadata) => React.ReactNode;
+	/**
+	 * Everything the two render props above close over, as a string.
+	 *
+	 * This component is memoized, and a render prop is a closure: skipping a
+	 * re-render would otherwise leave the header and the annotations drawn from
+	 * whatever state they captured last. The caller says here what they depend
+	 * on — a file's expanded and reviewed flags, the note being typed — and a
+	 * change to it is what lets the re-render through. Omitted, the diff never
+	 * re-renders for anything but its own data, which is right for a caller
+	 * whose render props close over nothing.
+	 */
+	renderKey?: string;
 }) => (
 	<div style={DIFF_BOX_STYLE}>
 		<MultiFileDiff
@@ -105,6 +117,65 @@ export const FileDiffView = <LAnnotation = undefined,>({
 		/>
 	</div>
 );
+
+// What a selection is, for comparison: two line numbers and the sides they
+// belong to. Compared by value because it is rebuilt from URL params on every
+// render, so its identity means nothing.
+const sameSelection = (
+	a: SelectedLineRange | null | undefined,
+	b: SelectedLineRange | null | undefined,
+): boolean =>
+	a === b ||
+	(!!a &&
+		!!b &&
+		a.start === b.start &&
+		a.end === b.end &&
+		a.side === b.side &&
+		a.endSide === b.endSide);
+
+// An annotation is a place plus a thing to draw there. The metadata is
+// deliberately not compared: what it holds is the caller's, and `renderKey` is
+// where the caller declares that it changed.
+const sameAnnotations = <L,>(
+	a: DiffLineAnnotation<L>[] | undefined,
+	b: DiffLineAnnotation<L>[] | undefined,
+): boolean => {
+	if (a === b) return true;
+	if (!a || !b || a.length !== b.length) return false;
+
+	return a.every(
+		(annotation, index) =>
+			annotation.side === b[index]?.side &&
+			annotation.lineNumber === b[index]?.lineNumber,
+	);
+};
+
+/**
+ * Memoized, because this is the expensive boundary in the whole client: below
+ * it sits the syntax highlighter and one DOM node per line of the file.
+ *
+ * The board broadcasts its whole state on every sync, and a sync that changed
+ * nothing about this ticket still rebuilt the arrays this tree is drawn from —
+ * measured at four full re-renders of every open file per broadcast, for a
+ * board that had not changed. None of the props that matter had changed; only
+ * their identities had.
+ *
+ * So the comparison is by value, and `renderKey` carries what the render props
+ * close over. Without that key a memo here would be quietly wrong rather than
+ * merely useless: the header and the composer are closures, and skipping their
+ * re-render would freeze them.
+ */
+export const FileDiffView = memo(FileDiffViewInner, (previous, next) => {
+	return (
+		previous.file === next.file &&
+		previous.diffStyle === next.diffStyle &&
+		previous.renderKey === next.renderKey &&
+		sameSelection(previous.selectedLines, next.selectedLines) &&
+		sameAnnotations(previous.lineAnnotations, next.lineAnnotations)
+	);
+	// A generic component loses its type parameter through `memo`; the cast
+	// hands it back, so callers still infer their own annotation metadata.
+}) as typeof FileDiffViewInner;
 
 // This panel has no per-file disclosure to hide behind — it opens every file
 // of a commit at once — so a lockfile here stalls the view with no action from
