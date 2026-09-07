@@ -105,3 +105,14 @@ export const SERIES_REST = GUI_THEME.dim2;
 
 export const seriesColor = (index: number): string =>
 	SERIES[index] ?? SERIES_REST;
+
+/**
+ * What a comment is, wherever one is drawn: the yellow the diff paints comment
+ * lines and the yellow the comment bar fills with.
+ *
+ * Defined here rather than beside the diff theme so both sides read one value
+ * — a bar that disagreed with the file it describes would be worse than no bar.
+ * Bright on purpose: 14.5:1 against the code background, and still 12.2:1 on
+ * the green of an added row.
+ */
+export const COMMENT_YELLOW = '#ffe066';

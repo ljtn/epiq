@@ -8,14 +8,15 @@
 // prose, it is worth reading.
 
 import {registerCustomTheme, resolveTheme} from '@pierre/diffs';
+import {COMMENT_YELLOW} from './issue-stats.style';
 
 const BASE_THEME = 'github-dark';
 
 export const EPIQ_DIFF_THEME = 'epiq-dark';
 
-// The Stats tab's comment share wears this too, so the bar and the file agree
-// about which half is prose.
-export const COMMENT_COLOR = '#ffd479';
+// The Stats tab's comment share wears the same value, so the bar and the file
+// agree about which half is prose.
+const COMMENT_COLOR = COMMENT_YELLOW;
 
 // A tmTheme rule's scope is one selector or a list of them, and a comment is
 // scoped `comment` or `comment.line…`/`comment.block…` depending on the
