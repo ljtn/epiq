@@ -55,8 +55,7 @@ test('clicking a tag on a card narrows the board to it, and the URL carries it',
 	await expect(card(page, tagged)).toBeVisible();
 	await expect(chip).toHaveAttribute('aria-pressed', 'true');
 	await expect(page).not.toHaveURL(/\/issue\//);
-	await expect(page).toHaveURL(/view=tagging/);
-	await expect(page).toHaveURL(/only=/);
+	await expect(page).toHaveURL(/only=tag/);
 	const narrowedUrl = page.url();
 
 	// The link alone reproduces the view.

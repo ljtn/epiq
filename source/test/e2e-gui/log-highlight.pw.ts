@@ -67,10 +67,11 @@ test('an event with no dot on the chart leaves the scatter alone', async ({
 	await row.hover();
 	await expect(canvas).not.toHaveAttribute('data-highlight', '');
 
-	// Narrowing the series to Tags drops the ticket-creation dot from the chart
-	// while the Log row still points at that event.
+	// Tags on its own is the whole filter, so the chart draws tags and nothing
+	// else — the ticket-creation dot goes, while the Log row still points at
+	// that event.
 	await page.getByRole('button', {name: 'Board events'}).click();
-	await page.getByRole('radio', {name: 'Tags'}).click();
+	await page.getByRole('checkbox', {name: 'Tags'}).click();
 	await page.waitForTimeout(800);
 
 	await row.hover();

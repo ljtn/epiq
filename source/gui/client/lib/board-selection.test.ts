@@ -10,11 +10,13 @@ import {
 	hasSelectionParams,
 	hiddenIdsFor,
 	isDefaultSelection,
+	axisState,
 	isolateOnly,
 	readSelectionParams,
 	readStoredSelection,
 	SelectionCarry,
 	storeSelection,
+	toggleAxis,
 	toggleOnly,
 	withNarrowing,
 	withSelectedIdentities,
@@ -59,7 +61,6 @@ describe('selection in the URL', () => {
 			offset: 2,
 			zoom: null,
 			layout: 'real',
-			view: 'tagging',
 			only: {tag: ['bug', 'docs'], assignee: ['jola']},
 			windowOnly: true,
 			ticketOnly: false,
@@ -75,6 +76,24 @@ describe('selection in the URL', () => {
 				only: {tag: ['bug'], assignee: ['jola']},
 			}),
 		).toBe('only=tag%3Abug%3Bassignee%3Ajola');
+	});
+
+	it('writes a whole axis as a star, not as every id it happens to hold', () => {
+		expect(written({...DEFAULT_SELECTION, only: {assignee: 'all'}})).toBe(
+			'only=assignee%3A*',
+		);
+		expect(readSelectionParams(params('only=assignee%3A*'))?.only).toEqual({
+			assignee: 'all',
+		});
+	});
+
+	// The series used to be picked beside the filter; it is read off it now, so
+	// there is nothing left to write.
+	it('never writes a view, and drops one it is handed', () => {
+		expect(written({...DEFAULT_SELECTION, only: {tag: ['bug']}})).toBe(
+			'only=tag%3Abug',
+		);
+		expect(written(DEFAULT_SELECTION, 'view=tagging')).toBe('');
 	});
 
 	// The one-axis form, from before each axis carried its own list: it named
@@ -103,11 +122,11 @@ describe('selection in the URL', () => {
 		);
 	});
 
-	it('tells an empty narrowing from none', () => {
-		expect(written({...DEFAULT_SELECTION, only: {tag: []}})).toBe(
-			'only=tag%3A',
-		);
-		expect(readSelectionParams(params('only=tag%3A'))?.only).toEqual({tag: []});
+	// An axis nothing can pass is not a state any control can say, so it reads
+	// and normalises as the axis switched off.
+	it('reads an axis narrowed to nothing as an axis switched off', () => {
+		expect(written({...DEFAULT_SELECTION, only: {tag: []}})).toBe('');
+		expect(readSelectionParams(params('only=tag%3A'))?.only).toEqual({});
 		expect(readSelectionParams(params('view=tagging'))?.only).toEqual({});
 	});
 
@@ -140,7 +159,6 @@ describe('applySelectionPatch', () => {
 		offset: 3,
 		zoom: null,
 		layout: 'even',
-		view: 'tagging',
 		only: {tag: ['bug']},
 		windowOnly: false,
 		ticketOnly: false,
@@ -151,23 +169,6 @@ describe('applySelectionPatch', () => {
 		expect(applySelectionPatch(narrowed, {scope: 'week'}).offset).toBe(3);
 	});
 
-	// Each axis keeps its own list, so there is nothing belonging to the old
-	// view left to throw away.
-	it('keeps the narrowing when the view changes', () => {
-		expect(applySelectionPatch(narrowed, {view: 'assigning'}).only).toEqual({
-			tag: ['bug'],
-		});
-	});
-
-	it('lets a patch set the view and the narrowing together', () => {
-		expect(
-			applySelectionPatch(DEFAULT_SELECTION, {
-				view: 'tagging',
-				only: {tag: ['gui']},
-			}),
-		).toEqual({...DEFAULT_SELECTION, view: 'tagging', only: {tag: ['gui']}});
-	});
-
 	it('narrows several axes at once, each on its own', () => {
 		const both = applySelectionPatch(narrowed, {
 			only: withNarrowing(narrowed.only, 'assignee', ['jola']),
@@ -176,7 +177,7 @@ describe('applySelectionPatch', () => {
 		expect(both.only).toEqual({tag: ['bug'], assignee: ['jola']});
 		expect(
 			applySelectionPatch(both, {
-				only: withNarrowing(both.only, 'tag', null),
+				only: withNarrowing(both.only, 'tag', undefined),
 			}).only,
 		).toEqual({assignee: ['jola']});
 	});
@@ -184,7 +185,7 @@ describe('applySelectionPatch', () => {
 	it('is the default once everything is put back', () => {
 		expect(
 			isDefaultSelection(
-				applySelectionPatch(narrowed, {scope: 'all', view: 'all', only: {}}),
+				applySelectionPatch(narrowed, {scope: 'all', only: {}}),
 			),
 		).toBe(true);
 		expect(isDefaultSelection(narrowed)).toBe(false);
@@ -322,8 +323,7 @@ describe('stored selection', () => {
 			offset: 4,
 			zoom: {start: 1000, end: 2000},
 			layout: 'real',
-			view: 'tagging',
-			only: {tag: ['bug'], assignee: ['jola']},
+			only: {tag: ['bug'], assignee: 'all'},
 			windowOnly: true,
 			ticketOnly: false,
 		});
@@ -333,8 +333,7 @@ describe('stored selection', () => {
 			offset: 0,
 			zoom: null,
 			layout: 'real',
-			view: 'tagging',
-			only: {tag: ['bug'], assignee: ['jola']},
+			only: {tag: ['bug'], assignee: 'all'},
 			// Not kept: a filter that hides tickets is not a preference to come
 			// back to days later.
 			windowOnly: false,
@@ -428,19 +427,57 @@ describe('narrowing', () => {
 	const listed = [bug, docs, gui];
 
 	it('hides nothing until narrowed, then whatever is not named', () => {
-		expect(hiddenIdsFor(listed, null).size).toBe(0);
+		expect(hiddenIdsFor(listed, 'all').size).toBe(0);
 		expect([...hiddenIdsFor(listed, ['docs'])]).toEqual(['bug', 'gui']);
-		expect([...hiddenIdsFor(listed, [])]).toEqual(['bug', 'docs', 'gui']);
+		// An axis switched off has none of its children ticked.
+		expect([...hiddenIdsFor(listed, undefined)]).toEqual([
+			'bug',
+			'docs',
+			'gui',
+		]);
 	});
 
 	it('unticking one names the rest', () => {
-		expect(toggleOnly(null, listed, 'docs', false)).toEqual(['bug', 'gui']);
+		expect(toggleOnly('all', listed, 'docs', false)).toEqual(['bug', 'gui']);
 		expect(toggleOnly(['bug', 'gui'], listed, 'bug', false)).toEqual(['gui']);
 	});
 
-	it('ticking the last one back restores everything', () => {
-		expect(toggleOnly(['bug', 'gui'], listed, 'docs', true)).toBeNull();
+	it('ticking the last one back is the whole axis again', () => {
+		expect(toggleOnly(['bug', 'gui'], listed, 'docs', true)).toBe('all');
 		expect(toggleOnly(['bug'], listed, 'docs', true)).toEqual(['bug', 'docs']);
+	});
+
+	// The parent is the way back out, so a list ticked down to nothing switches
+	// its axis off rather than leaving one no ticket can pass.
+	it('unticking the last one switches the axis off', () => {
+		expect(toggleOnly(['bug'], listed, 'bug', false)).toBeUndefined();
+	});
+
+	// Nothing under an axis that is off is ticked, so the first tick is the
+	// only one.
+	it('ticking into an axis that is off names just that one', () => {
+		expect(toggleOnly(undefined, listed, 'docs', true)).toEqual(['docs']);
+	});
+
+	describe('a top-level row', () => {
+		it('says off, all, or the dash for some', () => {
+			expect(axisState({}, 'tag')).toBe('off');
+			expect(axisState({tag: 'all'}, 'tag')).toBe('all');
+			expect(axisState({tag: ['bug']}, 'tag')).toBe('some');
+		});
+
+		it('takes the whole axis when ticked, and switches it off when not', () => {
+			expect(toggleAxis({}, 'tag', true)).toEqual({tag: 'all'});
+			// Off from a half-ticked list too: the parent is the way back out.
+			expect(toggleAxis({tag: ['bug']}, 'tag', false)).toEqual({});
+		});
+
+		it('leaves the other axes where they are', () => {
+			expect(toggleAxis({assignee: ['jola']}, 'tag', true)).toEqual({
+				tag: 'all',
+				assignee: ['jola'],
+			});
+		});
 	});
 
 	it('isolates, and isolating again is the way back', () => {

@@ -14,7 +14,12 @@ import {
 	GuiEventTimeline,
 	GuiTimeTravelStatus,
 } from './gui-state.model';
-import {identityAxisFor, isShown, listIdentities} from './scrubber';
+import {
+	identityAxisFor,
+	isShown,
+	listIdentities,
+	plottedView,
+} from './scrubber';
 
 // Module scope, so a shut panel does not hand the memos below a new array on
 // every render.
@@ -80,7 +85,8 @@ export const useEventLog = ({
 	playheadTime,
 	timeTravel,
 }: EventLogSources): EventLogView => {
-	const {view, only, ticketOnly} = selection;
+	const {only, ticketOnly} = selection;
+	const view = plottedView(only);
 
 	// The board is down to one ticket only while one is actually open — the box
 	// can be left ticked by a link.
