@@ -32,7 +32,11 @@ export type FileChange = {
 	// counted as zero.
 	binary: boolean;
 	added: PatchLine[];
+	// The count rather than `removedLines.length`: retention is capped and the
+	// count is not, so on a huge ticket the two part company and the count is
+	// the one that stays true.
 	removed: number;
+	removedLines: PatchLine[];
 	// The ticket's commits that touched this file, oldest first.
 	shas: string[];
 };
@@ -130,6 +134,7 @@ export const parsePatchOutput = (
 			binary: false,
 			added: [],
 			removed: 0,
+			removedLines: [],
 			shas: [sha],
 		};
 
@@ -201,6 +206,15 @@ export const parsePatchOutput = (
 			const text = line.slice(1);
 			deletions++;
 			open.entry.removed++;
+
+			if (retainedLines < MAX_RETAINED_ADDED_LINES) {
+				// A removed line has no line number worth carrying — it is gone
+				// from the after-side, and the before-side numbering it belonged to
+				// is not what any later read is anchored on. The sha and the text
+				// are what the stats above it ask for.
+				open.entry.removedLines.push({sha, line: 0, text});
+				retainedLines++;
+			}
 
 			const pending = open.pendingByText.get(text) ?? 0;
 			// Blank and near-blank lines match each other everywhere and would
