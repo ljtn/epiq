@@ -253,7 +253,12 @@ export const IssueStats = ({
 
 	return (
 		<div style={{fontSize: TEXT.ui}}>
-			<Section title="Code" first>
+			{/* First: what the board has done with a ticket is the frame the
+			    code is read in — whether this change is a week old and still
+			    moving, or has been sent back twice already. */}
+			<BoardSection boardStats={boardStats} compact={compact} first />
+
+			<Section title="Code">
 				<div style={statGrid(compact)}>
 					<Stat
 						value={String(shape.files)}
@@ -459,9 +464,6 @@ export const IssueStats = ({
 					</Note>
 				</Section>
 			)}
-
-			{/* Last, because it is the only section that is not about the diff. */}
-			<BoardSection boardStats={boardStats} compact={compact} />
 		</div>
 	);
 };
