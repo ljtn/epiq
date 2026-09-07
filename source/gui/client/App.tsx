@@ -63,6 +63,7 @@ import {
 	GuiUser,
 } from './lib/gui-state.model';
 import {
+	actorIdsByIssue,
 	buildBoardFilter,
 	FilterAxis,
 	isPeriodWindow,
@@ -397,6 +398,14 @@ export const App = () => {
 		[selection.only],
 	);
 
+	// Who caused an event on each ticket, for the axis the board state cannot
+	// answer. Null past the server's cap, which leaves that axis unenforced
+	// rather than emptying the board.
+	const eventActorIds = useMemo(
+		() => actorIdsByIssue(history.timeline),
+		[history.timeline],
+	);
+
 	const zoomed = selection.zoom !== null;
 
 	// The tickets the scrubber's window has an event for, once the board has
@@ -444,6 +453,7 @@ export const App = () => {
 			tag: state?.tags ?? [],
 			commenter: users,
 			assignee: users,
+			actor: users,
 		} satisfies Record<FilterAxis, GuiEventIdentity[]>;
 	}, [state?.tags, state?.contributors, contributors]);
 
@@ -472,6 +482,10 @@ export const App = () => {
 							commenterIds: (commentsByIssueId[issue.id] ?? []).map(
 								comment => comment.author.id,
 							),
+							actorIds:
+								eventActorIds === null
+									? null
+									: [...(eventActorIds.get(issue.id) ?? [])],
 						},
 						boardFilter,
 					) &&
@@ -491,6 +505,7 @@ export const App = () => {
 		boardFilter,
 		textFilter,
 		commentsByIssueId,
+		eventActorIds,
 		windowIds,
 		isolatedIssueId,
 	]);

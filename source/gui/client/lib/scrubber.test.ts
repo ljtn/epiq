@@ -6,6 +6,7 @@ import {
 	GuiEventTimelineEntry,
 } from './gui-state.model';
 import {
+	actorIdsByIssue,
 	bucketCommitStats,
 	bucketCountForSpan,
 	bucketIssueCounts,
@@ -678,6 +679,7 @@ describe('identity views', () => {
 		expect(identityAxisFor('comments')).toBe('commenter');
 		expect(identityAxisFor('tagging')).toBe('tag');
 		expect(identityAxisFor('assigning')).toBe('assignee');
+		expect(identityAxisFor('people')).toBe('actor');
 		// Every event is somebody changing a ticket, so there is nothing to
 		// colour by that the kind does not already say.
 		expect(identityAxisFor('tickets')).toBeNull();
@@ -691,6 +693,15 @@ describe('identity views', () => {
 		]);
 		// The tag axis lists tags, not the people who applied them.
 		expect(listIdentities(window(), 'tag').map(i => i.name)).toEqual(['bug']);
+	});
+
+	// The commenter axis stops at comments; the actor axis takes whoever caused
+	// anything at all, which is what "who touched this ticket" needs.
+	it('lists the author of every kind of event on the actor axis', () => {
+		expect(listIdentities(window(), 'actor').map(i => i.name)).toEqual([
+			'jola',
+			'demo',
+		]);
 	});
 
 	it('has no list without an axis', () => {
@@ -822,7 +833,7 @@ describe('board filter', () => {
 	) => ({id: 'i1', tags, assignees});
 
 	// Nothing to say about the ticket beyond its own row.
-	const nothing = {commenterIds: []};
+	const nothing = {commenterIds: [], actorIds: []};
 
 	it('does not filter until an axis is narrowed', () => {
 		// A kind with everything still ticked is a colouring choice, not a
@@ -859,12 +870,53 @@ describe('board filter', () => {
 		const filter = buildBoardFilter({commenter: [jola.id]});
 
 		expect(
-			issuePassesBoardFilter(issue(), {commenterIds: [jola.id]}, filter),
+			issuePassesBoardFilter(
+				issue(),
+				{commenterIds: [jola.id], actorIds: []},
+				filter,
+			),
 		).toBe(true);
 		expect(
-			issuePassesBoardFilter(issue(), {commenterIds: [docs.id]}, filter),
+			issuePassesBoardFilter(
+				issue(),
+				{commenterIds: [docs.id], actorIds: []},
+				filter,
+			),
 		).toBe(false);
 		expect(issuePassesBoardFilter(issue(), nothing, filter)).toBe(false);
+	});
+
+	it('reads whoever caused an event on the actor axis', () => {
+		const filter = buildBoardFilter({actor: [jola.id]});
+
+		expect(
+			issuePassesBoardFilter(
+				issue(),
+				{commenterIds: [], actorIds: [jola.id]},
+				filter,
+			),
+		).toBe(true);
+		// Commenting is one way to have touched it, but not the only one, so the
+		// two axes are not each other.
+		expect(
+			issuePassesBoardFilter(
+				issue(),
+				{commenterIds: [jola.id], actorIds: [docs.id]},
+				filter,
+			),
+		).toBe(false);
+	});
+
+	// Past the server's cap the window answers with counts alone, which name
+	// nobody: enforcing the axis there would empty the board.
+	it('leaves the actor axis unenforced where the window cannot say', () => {
+		expect(
+			issuePassesBoardFilter(
+				issue(),
+				{commenterIds: [], actorIds: null},
+				buildBoardFilter({actor: [jola.id]}),
+			),
+		).toBe(true);
 	});
 
 	it('makes a ticket pass every narrowed axis, not just one', () => {
@@ -894,6 +946,37 @@ describe('board filter', () => {
 				buildBoardFilter({tag: []}),
 			),
 		).toBe(false);
+	});
+});
+
+describe('actorIdsByIssue', () => {
+	const jola = person('jola');
+	const demo = person('demo');
+
+	const touched = (t: number, issue: string | null, actor = jola) =>
+		entry(t, 'edit.issue.title', {issue, actor});
+
+	it('collects every person who caused an event on each ticket', () => {
+		const byIssue = actorIdsByIssue(
+			timeline([], undefined, [
+				touched(1, 'i1'),
+				touched(2, 'i1', demo),
+				touched(3, 'i2', demo),
+				// Board-level: no ticket to file it under.
+				touched(4, null),
+			]),
+		);
+
+		expect([...byIssue!.get('i1')!]).toEqual([jola.id, demo.id]);
+		expect([...byIssue!.get('i2')!]).toEqual([demo.id]);
+		expect(byIssue!.has('board')).toBe(false);
+	});
+
+	it('is null where the window names no tickets at all', () => {
+		expect(actorIdsByIssue(null)).toBeNull();
+		// Past its event cap the server sends buckets and no events, so there is
+		// no way to tell whose those counts were.
+		expect(actorIdsByIssue(timeline([{t: 1, count: 40}]))).toBeNull();
 	});
 });
 

@@ -61,6 +61,7 @@ const disclosureStyle: React.CSSProperties = {
 const VIEW_LABELS: Record<BoardView, string> = {
 	all: 'Board events',
 	...CATEGORY_LABELS,
+	people: 'People',
 };
 
 // Fixed, not sized to its label: the selection changes as the thing is used,

@@ -61,6 +61,7 @@ export {
 	buildBoardFilter,
 	windowNamesIssues,
 	windowIssueIds,
+	actorIdsByIssue,
 	issuePassesBoardFilter,
 } from './series';
 export type {
