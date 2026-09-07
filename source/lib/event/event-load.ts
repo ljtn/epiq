@@ -384,13 +384,6 @@ function loadAllPersistedEvents(
 	return succeeded('All events loaded', sorted);
 }
 
-// What the last full load found. Held here rather than in `AppState` because
-// `resetState()` wipes that, and the paths that rebuild live state after a
-// checkout have to re-apply the locks on the other side of exactly that reset.
-let lastUnreadable: UnreadableEvent[] = [];
-
-export const getLastUnreadableEvents = (): UnreadableEvent[] => lastUnreadable;
-
 // Boot paths use this to lock where history is unreadable; readers wanting
 // only the events use `loadMergedEvents`.
 export function loadMergedEventsWithUnreadable(
@@ -405,8 +398,6 @@ export function loadMergedEventsWithUnreadable(
 
 	const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
 	if (isFail(decoded)) return failed(decoded.message);
-
-	lastUnreadable = unreadable;
 
 	return succeeded('Loaded merged events', {events: decoded.value, unreadable});
 }
