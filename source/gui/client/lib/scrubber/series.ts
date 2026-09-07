@@ -3,7 +3,11 @@ import {
 	GuiEventTimeline,
 	GuiEventTimelineEntry,
 } from '../gui-state.model';
-import {EVENT_CATEGORY_COLORS, GUI_THEME} from '../gui-theme';
+import {
+	BOARD_PEOPLE_COLOR,
+	EVENT_CATEGORY_COLORS,
+	GUI_THEME,
+} from '../gui-theme';
 import {maxOf} from '../../../../lib/utils/minmax.js';
 
 export const EVENT_CATEGORIES = [
@@ -35,10 +39,7 @@ export const viewCategory = (view: BoardView): EventCategory | null =>
 const BOARD_VIEW_COLORS: Record<BoardView, string> = {
 	all: GUI_THEME.accent,
 	...EVENT_CATEGORY_COLORS,
-	// Its own hue rather than the Board accent: 'people' plots the same events
-	// 'all' does, so sharing a colour with it would leave the two rows saying
-	// the same thing.
-	people: '#7fd8c4',
+	people: BOARD_PEOPLE_COLOR,
 };
 
 export const boardViewColor = (view: BoardView): string =>
