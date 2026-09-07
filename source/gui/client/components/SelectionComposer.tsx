@@ -1,4 +1,3 @@
-import React from 'react';
 import {SelectedLineRange} from '@pierre/diffs/react';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';

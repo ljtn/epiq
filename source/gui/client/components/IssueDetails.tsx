@@ -37,7 +37,8 @@ import {IssueAttachments} from './IssueAttachments';
 import {AttachmentUploadStatus} from '../lib/use-issue-mutations';
 import {CollapsibleBody} from './CollapsibleBody';
 import {CommentBody, IssueComments} from './IssueComments';
-import {CommitDiffState, IssueCommits} from './IssueCommits';
+import {IssueCommits} from './IssueCommits';
+import {CommitDiffState} from '../lib/use-issue-detail';
 import {
 	CommitFocus,
 	DiffLocation,

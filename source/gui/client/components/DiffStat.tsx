@@ -1,4 +1,3 @@
-import React from 'react';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 
 // A rounded pill rather than GitHub's five solid squares — matches the
