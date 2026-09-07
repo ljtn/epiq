@@ -1,38 +1,60 @@
-// The Stats tab's vocabulary: a stat is a number, a unit and — wherever there
-// is one — the thing it should be read against.
+// The Stats tab's vocabulary: a number, what it is, and — under it, quietly —
+// what it was worked out from.
 //
-// Kept out of the component because the rule is the point rather than the
-// styling: nothing on that tab is allowed to be a bare figure. A share carries
-// its denominator, a comparison carries what it is compared with, and a fact
-// nobody could measure says so instead of printing a zero.
+// The hierarchy is the whole design. A stat is read at a glance or not at all,
+// so the figure carries the weight and everything supporting it is deliberately
+// small: the label a hair above legible, the working smaller still. Nothing on
+// the tab is allowed to be a bare figure, but nor is a figure allowed to be
+// crowded by its own footnotes.
 
 import {GUI_THEME} from './gui-theme';
 
 export const STAT_GRID: React.CSSProperties = {
 	display: 'grid',
-	gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
-	gap: 12,
-	marginTop: 12,
+	// Narrow enough that three stats still sit on one row in the panel at its
+	// default width — wrapping one of three onto a line of its own reads as a
+	// mistake rather than as a layout.
+	gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
+	gap: 16,
+	marginTop: 14,
+};
+
+export const STAT_CELL: React.CSSProperties = {
+	display: 'flex',
+	flexDirection: 'column',
+	alignItems: 'center',
+	textAlign: 'center',
+	gap: 3,
+	minWidth: 0,
 };
 
 export const STAT_VALUE: React.CSSProperties = {
 	color: GUI_THEME.primary,
-	fontSize: 20,
-	lineHeight: 1.1,
+	fontSize: 30,
+	lineHeight: 1,
+	// Tabular-ish spacing: a column of figures that shifts as it updates reads
+	// as movement rather than as a number.
+	letterSpacing: '-0.01em',
 };
 
 export const STAT_LABEL: React.CSSProperties = {
 	color: GUI_THEME.secondary,
-	fontSize: 10,
+	fontSize: 9,
 	textTransform: 'uppercase',
-	letterSpacing: '0.08em',
-	marginTop: 4,
+	letterSpacing: '0.1em',
 };
 
 export const STAT_NOTE: React.CSSProperties = {
 	color: GUI_THEME.dim,
+	fontSize: 10,
+	lineHeight: 1.35,
+};
+
+// A fact with nowhere to go: one line, no number, no decoration.
+export const LINE: React.CSSProperties = {
+	color: GUI_THEME.secondary,
 	fontSize: 11,
-	marginTop: 4,
+	marginTop: 12,
 };
 
 export const ROW: React.CSSProperties = {
@@ -47,28 +69,14 @@ export const ROW: React.CSSProperties = {
 
 export const percent = (value: number): string => `${Math.round(value * 100)}%`;
 
-/**
- * A share of nothing is not 0% — it is nothing to divide. Every place a
- * percentage is shown has to be able to say so, so the formatting says it once
- * rather than each caller inventing its own dash.
- */
-export const shareOf = (part: number, whole: number): string =>
-	whole === 0 ? '—' : percent(part / whole);
-
 export const plural = (count: number, noun: string): string =>
 	`${count} ${noun}${count === 1 ? '' : 's'}`;
 
-// Coarse on purpose: the exact age of a coverage report is never the point,
-// and "3 days ago" is the sentence a reader needs to decide whether to trust
-// the number beside it.
-export const relativeAge = (at: number, now: number): string => {
-	const minutes = Math.max(0, Math.round((now - at) / 60_000));
+// Only ever the last two segments: the full path is a paragraph in a column
+// this narrow, and the tail is what identifies a file to somebody who knows
+// the repo. The whole path rides along as a title attribute.
+export const shortPath = (path: string): string => {
+	const parts = path.split('/');
 
-	if (minutes < 1) return 'just now';
-	if (minutes < 60) return `${plural(minutes, 'minute')} ago`;
-
-	const hours = Math.round(minutes / 60);
-	if (hours < 24) return `${plural(hours, 'hour')} ago`;
-
-	return `${plural(Math.round(hours / 24), 'day')} ago`;
+	return parts.length <= 2 ? path : `…/${parts.slice(-2).join('/')}`;
 };

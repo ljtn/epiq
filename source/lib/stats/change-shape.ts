@@ -5,7 +5,8 @@
 // it is a different thing to read, and the point of the numbers is to say
 // which kind of reading this is before anyone opens the diff.
 
-import {ChangeShape, StatsCommit} from './issue-stats.model.js';
+import {filePointer} from './file-pointer.js';
+import {ChangeShape, FilePointer, StatsCommit} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
 
 const directoryOf = (path: string): string => {
@@ -24,14 +25,13 @@ export const deriveChangeShape = ({
 	const times = commits.map(commit => commit.time);
 
 	const changedPerFile = patch.files.map(file => ({
-		path: file.path,
+		...filePointer(file),
 		changed: file.addedCount + file.removed,
 	}));
 
-	const largestFile = changedPerFile.reduce<{
-		path: string;
-		changed: number;
-	} | null>(
+	const largestFile = changedPerFile.reduce<
+		(FilePointer & {changed: number}) | null
+	>(
 		(largest, file) =>
 			largest === null || file.changed > largest.changed ? file : largest,
 		null,

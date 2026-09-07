@@ -3,9 +3,7 @@
 // say about the change is a question about patches (source/lib/stats). This
 // file is the seam, and the only place that knows about both.
 
-import {execGitAllowFail} from '../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {discoverCoverageReport} from '../lib/stats/coverage-report.js';
 import {deriveIssueStats} from '../lib/stats/issue-stats.js';
 import {IssueStats, StatsCommit} from '../lib/stats/issue-stats.model.js';
 import {nodeRef, NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
@@ -25,17 +23,6 @@ const cache = new Map<string, IssueStats>();
 // blocks, same reason resetCommitTimelineCacheForTests exists.
 export const resetIssueStatsCacheForTests = (): void => {
 	cache.clear();
-};
-
-// Never fails the whole read: a repo with no commits at all still has stats
-// to give (a ticket with no code), and "no HEAD" is a perfectly good cache key.
-const readHeadSha = async (repoRoot: string): Promise<string | null> => {
-	const result = await execGitAllowFail({
-		cwd: repoRoot,
-		args: ['rev-parse', 'HEAD'],
-	});
-
-	return result.exitCode === 0 ? result.stdout.trim() : null;
 };
 
 const remember = (key: string, stats: IssueStats): IssueStats => {
@@ -77,26 +64,17 @@ export const getIssueStats = async (
 		subject: commit.subject,
 	}));
 
-	// Everything the answer depends on, in the key. The shas alone were not
-	// enough: coverage is read from a report on disk and anchored against
-	// HEAD, so a first visit before `npm test` had ever run would have gone on
-	// saying "no coverage report found" for the life of the process, and the
-	// surviving-line counts would have gone stale as unrelated commits landed.
-	const report = discoverCoverageReport(repoRoot);
-	const head = await readHeadSha(repoRoot);
-
-	const key = [
-		repoRoot,
-		ref,
-		head ?? 'no-head',
-		report ? `${report.path}@${report.modifiedAt}` : 'no-report',
-		commits.map(commit => commit.sha).join(','),
-	].join(' ');
+	// Everything the answer depends on is in the key: this repo, this ticket,
+	// and the exact commits it owns. Nothing here reads the working tree or
+	// HEAD any more, so nothing can go stale underneath it.
+	const key = [repoRoot, ref, commits.map(commit => commit.sha).join(',')].join(
+		' ',
+	);
 
 	const cached = cache.get(key);
 	if (cached) return succeeded('Derived issue stats', cached);
 
-	const statsResult = await deriveIssueStats({repoRoot, ref, commits, report});
+	const statsResult = await deriveIssueStats({repoRoot, ref, commits});
 	if (isFail(statsResult)) return failed(statsResult.message);
 
 	return succeeded('Derived issue stats', remember(key, statsResult.value));

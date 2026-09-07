@@ -78,8 +78,8 @@ describe('deriveLanguages', () => {
 		});
 
 		expect(breakdown.languages).toEqual([
-			{name: 'TypeScript', added: 3, removed: 0, addedInTests: 1},
-			{name: 'Shell', added: 1, removed: 0, addedInTests: 0},
+			{name: 'TypeScript', added: 3, removed: 0, addedInTests: 1, share: 0.75},
+			{name: 'Shell', added: 1, removed: 0, addedInTests: 0, share: 0.25},
 		]);
 		expect(breakdown.introduced).toEqual([]);
 	});
@@ -117,7 +117,7 @@ describe('deriveLanguages', () => {
 		});
 
 		expect(breakdown.languages).toEqual([
-			{name: 'TypeScript', added: 1, removed: 0, addedInTests: 0},
+			{name: 'TypeScript', added: 1, removed: 0, addedInTests: 0, share: 1},
 		]);
 		expect(breakdown.generatedLines).toBe(2);
 	});
@@ -172,7 +172,10 @@ describe('deriveTestSignal', () => {
 			},
 		});
 
-		expect(signal.testFilesDeleted).toBe(1);
+		// The file itself, not just a count: the Stats tab links to it.
+		expect(signal.deletedTestFiles).toEqual([
+			{path: 'source/test/old.test.ts', sha: 'aaa'},
+		]);
 		expect(signal.testLinesRemoved).toBe(2);
 	});
 

@@ -12,15 +12,16 @@ import {
 	isSkippedTestLine,
 	isTestPath,
 } from './file-kinds.js';
-import {TestSignal} from './issue-stats.model.js';
+import {filePointer} from './file-pointer.js';
+import {FilePointer, TestSignal} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
 
 export const deriveTestSignal = ({patch}: {patch: TicketPatch}): TestSignal => {
 	let testLinesAdded = 0;
 	let testLinesRemoved = 0;
 	let codeLinesAdded = 0;
-	let testFilesAdded = 0;
-	let testFilesDeleted = 0;
+	const addedTestFiles: FilePointer[] = [];
+	const deletedTestFiles: FilePointer[] = [];
 	let skippedTestLinesAdded = 0;
 	let focusedTestLinesAdded = 0;
 	let touchedTests = false;
@@ -36,8 +37,8 @@ export const deriveTestSignal = ({patch}: {patch: TicketPatch}): TestSignal => {
 		touchedTests = true;
 		testLinesAdded += file.addedCount;
 		testLinesRemoved += file.removed;
-		if (file.status === 'added') testFilesAdded++;
-		if (file.status === 'deleted') testFilesDeleted++;
+		if (file.status === 'added') addedTestFiles.push(filePointer(file));
+		if (file.status === 'deleted') deletedTestFiles.push(filePointer(file));
 
 		for (const {text} of file.added) {
 			if (isSkippedTestLine(text)) skippedTestLinesAdded++;
@@ -51,8 +52,8 @@ export const deriveTestSignal = ({patch}: {patch: TicketPatch}): TestSignal => {
 		codeLinesAdded,
 		ratio: codeLinesAdded === 0 ? null : testLinesAdded / codeLinesAdded,
 		touchedTests,
-		testFilesAdded,
-		testFilesDeleted,
+		addedTestFiles,
+		deletedTestFiles,
 		skippedTestLinesAdded,
 		focusedTestLinesAdded,
 	};

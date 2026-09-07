@@ -129,9 +129,16 @@ describe('deriveFlags', () => {
 			),
 		});
 
-		expect(flags.generatedPaths).toEqual(['package-lock.json']);
-		expect(flags.dependencyManifests).toEqual(['package.json']);
-		expect(flags.buildOrCiPaths).toEqual(['.github/workflows/ci.yml']);
+		// Pointers, not paths: each one links into that file's diff.
+		expect(flags.generatedPaths).toEqual([
+			{path: 'package-lock.json', sha: 'aaa'},
+		]);
+		expect(flags.dependencyManifests).toEqual([
+			{path: 'package.json', sha: 'aaa'},
+		]);
+		expect(flags.buildOrCiPaths).toEqual([
+			{path: '.github/workflows/ci.yml', sha: 'aaa'},
+		]);
 		expect(flags.docsTouched).toBe(true);
 	});
 

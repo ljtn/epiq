@@ -29,6 +29,7 @@ import {
 	readCommitFocusParam,
 	readDiffLocationParams,
 	writeDiffLocationParams,
+	writeFileFocusParams,
 } from './lib/diff-selection';
 import {
 	formatSelectionLabel,
@@ -828,6 +829,19 @@ export const App = () => {
 		}
 
 		openIssueTab(destination.issueId, destination.tab);
+	};
+
+	// Following a file from the Stats tab into its diff. Pushed, not replaced:
+	// this is a navigation the reader should be able to come back from, and
+	// coming back means landing on the stats they clicked from.
+	const openStatsFile = (file: {sha: string; path: string}) => {
+		setSearchParams(prev => {
+			const next = new URLSearchParams(prev);
+			next.set('tab', 'code');
+			writeFileFocusParams(next, file);
+
+			return next;
+		});
 	};
 
 	const changeIssueDetailsTab = (nextTab: IssueDetailsTab) => {
@@ -1682,6 +1696,7 @@ export const App = () => {
 										? issueStats.loading
 										: true
 								}
+								onOpenStatsFile={openStatsFile}
 								statsError={
 									issueStats?.issueId === selectedIssue.id
 										? issueStats.error

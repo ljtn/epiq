@@ -12,6 +12,18 @@ export type StatsCommit = {
 	subject: string;
 };
 
+/**
+ * A file, and the last of the ticket's commits to touch it.
+ *
+ * The sha is what makes a stat a place rather than a number: a reader who sees
+ * "22% of the change is in one file" wants that file's diff, and the pair is
+ * exactly what the Commits tab's deep link takes.
+ */
+export type FilePointer = {
+	path: string;
+	sha: string;
+};
+
 export type ChangeShape = {
 	commits: number;
 	authors: string[];
@@ -35,7 +47,7 @@ export type ChangeShape = {
 	// The single busiest file, and its share of every changed line. A ticket
 	// at 0.9 is one file's rewrite with some tidying; at 0.1 it is spread
 	// evenly and there is no obvious place to start.
-	largestFile: {path: string; changed: number} | null;
+	largestFile: (FilePointer & {changed: number}) | null;
 	concentration: number;
 
 	// Lines the ticket added and then removed again in a later commit of its
@@ -52,6 +64,8 @@ export type LanguageLines = {
 	removed: number;
 	// Of `added`, how much landed in test files.
 	addedInTests: number;
+	// This language's share of every changed line in the ticket.
+	share: number;
 };
 
 export type LanguageBreakdown = {
@@ -72,8 +86,10 @@ export type TestSignal = {
 	ratio: number | null;
 	touchedTests: boolean;
 
-	testFilesAdded: number;
-	testFilesDeleted: number;
+	// The test files this ticket added, so the count links to the tests
+	// themselves rather than only asserting they exist.
+	addedTestFiles: FilePointer[];
+	deletedTestFiles: FilePointer[];
 
 	skippedTestLinesAdded: number;
 	focusedTestLinesAdded: number;
@@ -103,9 +119,9 @@ export type CommentDensity = {
 };
 
 export type ChangeFlags = {
-	generatedPaths: string[];
-	dependencyManifests: string[];
-	buildOrCiPaths: string[];
+	generatedPaths: FilePointer[];
+	dependencyManifests: FilePointer[];
+	buildOrCiPaths: FilePointer[];
 	docsTouched: boolean;
 
 	debugPrintLinesAdded: number;
@@ -114,59 +130,17 @@ export type ChangeFlags = {
 	// nothing more: it is not cyclomatic complexity and does not stand in for
 	// it.
 	maxIndentLevels: number;
+	// Where that deepest nesting is, so the number is a place to look.
+	deepestFile: FilePointer | null;
 
 	// Added lines inside a run of six or more identical lines appearing
 	// somewhere else in the change.
 	duplicatedLines: number;
 };
 
-export type FileCoverage = {
-	path: string;
-	survivingLines: number;
-	covered: number;
-	uncovered: number;
-	notInstrumented: number;
-	inReport: boolean;
-};
-
-export type PatchCoverage = {
-	report: {
-		path: string;
-		modifiedAt: number;
-		totalLines: number;
-		totalCovered: number;
-		// The tests have not been run since the code changed. The numbers are
-		// still shown — a reader who knows they are stale can use them; one who
-		// is not told cannot.
-		olderThanLastCommit: boolean;
-	} | null;
-
-	// False when the ticket's commits are not in the current checkout. Every
-	// count below is then zero, and saying so is the point: "not measurable
-	// here" is not "none of this is covered".
-	anchored: boolean;
-	notAnchoredReason: string | null;
-
-	linesAdded: number;
-	// Of those, how many still stand at HEAD.
-	survivingLines: number;
-	// More files than blame was willing to run over, so `survivingLines` and
-	// every count below it are a floor. Without this a wide ticket reads as
-	// one whose code was mostly rewritten away.
-	truncated: boolean;
-
-	covered: number;
-	uncovered: number;
-	notInstrumented: number;
-	notInReport: number;
-
-	files: FileCoverage[];
-};
-
 export type IssueStats = {
 	ref: string;
 	shape: ChangeShape;
-	coverage: PatchCoverage;
 	languages: LanguageBreakdown;
 	tests: TestSignal;
 	comments: CommentDensity;
