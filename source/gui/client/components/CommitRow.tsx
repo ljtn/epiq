@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import {useState} from 'react';
 import {GuiComment, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {isLargeDiff} from '../../../lib/utils/diff-size.js';
@@ -16,7 +16,7 @@ import {
 } from '../lib/commit-row.style';
 import {DiffStat} from './DiffStat';
 import {FileRow} from './FileRow';
-import {CommitDiffState} from './IssueCommits';
+import {CommitDiffState} from '../lib/use-issue-detail';
 
 export const CommitRow = ({
 	commit,

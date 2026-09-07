@@ -1,9 +1,5 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {
-	GuiComment,
-	GuiCommitDiffFile,
-	GuiRefCommitEntry,
-} from '../lib/gui-state.model';
+import {useEffect, useRef, useState} from 'react';
+import {GuiComment, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {useReviewedFiles} from '../lib/reviewed-files';
@@ -12,12 +8,7 @@ import {Empty} from './FormPrimitives';
 import {FileTicketParams, CommitFocus} from '../lib/diff-selection';
 import {RAIL_WIDTH, RAIL_DOT_OFFSET, ROW_GAP} from '../lib/commit-row.style';
 import {CommitRow} from './CommitRow';
-
-export type CommitDiffState = {
-	loading: boolean;
-	error: string | null;
-	files: GuiCommitDiffFile[] | null;
-};
+import {CommitDiffState} from '../lib/use-issue-detail';
 
 // Case-insensitive like the server's own match (getCommitsForRef) — a subject
 // that doesn't actually carry the prefix (shouldn't happen, but the match

@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {DiffLineAnnotation, SelectedLineRange} from '@pierre/diffs/react';
 import {GuiComment, GuiCommitDiffFile} from '../lib/gui-state.model';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';

@@ -43,15 +43,13 @@ export {
 	populatedRange,
 	hourFractionForTime,
 } from './axis';
-export type {ScrubberAxis, CommitBucketStats, VolumeBar} from './axis';
+export type {ScrubberAxis, VolumeBar} from './axis';
 export {
-	EVENT_CATEGORIES,
 	BOARD_VIEWS,
 	isBoardView,
 	boardViewColor,
 	identityAxisFor,
 	categoryOf,
-	identityOf,
 	listIdentities,
 	soleVisibleIdentity,
 	dotDetail,
@@ -62,7 +60,7 @@ export {
 	windowIssueIds,
 	issuePassesBoardFilter,
 } from './series';
-export type {EventCategory, BoardView, EventDot, BoardFilter} from './series';
+export type {EventCategory, BoardView, EventDot} from './series';
 export {
 	chooseSegmentUnit,
 	segmentAt,
@@ -74,4 +72,4 @@ export {
 	formatPeriodLabel,
 	scopeButtonLabel,
 } from './time';
-export type {SegmentUnit, Segment, Scope, PeriodRange} from './time';
+export type {Segment, Scope, PeriodRange} from './time';
