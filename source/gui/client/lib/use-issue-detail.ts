@@ -37,10 +37,32 @@ export type IssueCommits = {
 
 export type IssueStatsState = {
 	issueId: string;
+	// What this answer was computed from: the ticket's newest sha, or an empty
+	// string when it has no commits. A change means the answer is stale.
+	signature: string;
 	loading: boolean;
 	error: string | null;
 	stats: IssueStats | null;
 };
+
+/**
+ * Whether the Stats tab has to ask again.
+ *
+ * Nothing on screen: yes. A different ticket, or the same one with a new
+ * newest commit: yes, what is held describes something else. An answer that
+ * failed: yes — a failure is not an answer, and without this the tab would
+ * show the same error until the reader switched tickets and back. Otherwise
+ * no: a ticket's stats are a function of its commits, and those have not moved.
+ */
+export const needsStats = (
+	held: IssueStatsState | null,
+	issueId: string,
+	signature: string,
+): boolean =>
+	held === null ||
+	held.issueId !== issueId ||
+	held.signature !== signature ||
+	held.error !== null;
 
 export type CommitDiffState = {
 	loading: boolean;
@@ -55,7 +77,7 @@ export type IssueDetailPanel = {
 	// Asked for when the Stats tab opens rather than on every ticket, since it
 	// costs a git scan of every commit the ticket owns and most tickets are
 	// opened to be read, not measured.
-	loadStats: (issueId: string) => void;
+	loadStats: (issueId: string, signature: string) => void;
 	commitDiffs: Record<string, CommitDiffState>;
 	loadCommitDiff: (sha: string) => void;
 	// An optimistic edit to the comments on screen, before the board's own state
@@ -127,13 +149,23 @@ export const useIssueDetail = ({
 	}, [issueId]);
 
 	// Asking is only ever "put this ticket into loading"; the request itself is
-	// the effect below. A ticket's stats are a function of its commits, so
-	// re-opening the tab on a ticket already measured asks for nothing.
-	const loadStats = useCallback((id: string) => {
+	// the effect below.
+	//
+	// `signature` is what the answer was computed from — the ticket's newest
+	// sha. A ticket's stats are a function of its commits, so an unchanged
+	// signature asks for nothing and a new commit on the open ticket asks
+	// again. An answer that failed is always retried: it is not an answer.
+	const loadStats = useCallback((id: string, signature: string) => {
 		setStats(prev =>
-			prev && prev.issueId === id
-				? prev
-				: {issueId: id, loading: true, error: null, stats: null},
+			needsStats(prev, id, signature)
+				? {
+						issueId: id,
+						signature,
+						loading: true,
+						error: null,
+						stats: null,
+				  }
+				: prev,
 		);
 	}, []);
 
@@ -141,7 +173,7 @@ export const useIssueDetail = ({
 		if (!stats?.loading) return;
 
 		sendRaw({type: 'issue:stats:get', payload: {issueId: stats.issueId}});
-	}, [stats?.issueId, stats?.loading, sendRaw]);
+	}, [stats?.issueId, stats?.signature, stats?.loading, sendRaw]);
 
 	const loadCommitDiff = useCallback(
 		(sha: string) => {

@@ -368,11 +368,20 @@ export const App = () => {
 	});
 	// The one view that costs a git scan of every commit a ticket owns, so it
 	// is asked for when it is opened rather than with the rest of the ticket.
+	//
+	// Keyed on the ticket's newest sha as well as its id: a commit landing on
+	// the ticket while the tab is open makes the numbers on screen wrong, and
+	// nothing else would ask again.
+	const statsSignature =
+		issueCommits?.issueId === selectedIssue?.id
+			? issueCommits?.commits[0]?.sha ?? ''
+			: '';
+
 	useEffect(() => {
 		if (selectedTab !== 'stats' || !selectedIssue) return;
 
-		loadIssueStats(selectedIssue.id);
-	}, [selectedTab, selectedIssue?.id, loadIssueStats]);
+		loadIssueStats(selectedIssue.id, statsSignature);
+	}, [selectedTab, selectedIssue?.id, statsSignature, loadIssueStats]);
 
 	// Typed into the box beside the board switcher; hides cards whose ref and
 	// title both miss it. Not part of the URL selection: it is a passing
