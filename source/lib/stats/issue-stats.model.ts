@@ -150,6 +150,10 @@ export type PatchCoverage = {
 	linesAdded: number;
 	// Of those, how many still stand at HEAD.
 	survivingLines: number;
+	// More files than blame was willing to run over, so `survivingLines` and
+	// every count below it are a floor. Without this a wide ticket reads as
+	// one whose code was mostly rewritten away.
+	truncated: boolean;
 
 	covered: number;
 	uncovered: number;

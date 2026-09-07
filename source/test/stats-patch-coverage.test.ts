@@ -163,6 +163,47 @@ describe('derivePatchCoverage', () => {
 		expect(coverage.report?.olderThanLastCommit).toBe(true);
 	});
 
+	// Blame runs on at most 100 files. Silently, a ticket touching 300 would
+	// read as one whose code has mostly been rewritten away.
+	it('says so when there were more files than blame would run over', async () => {
+		mocked.mockImplementation(async ({args}) =>
+			args[0] === 'merge-base'
+				? ok('')
+				: ok(blameOf([{sha: TICKET_SHA, line: 1}])),
+		);
+
+		const parsed = parsePatchOutput(
+			Array.from({length: 120}, (_, index) =>
+				[
+					`${REC}aaa`,
+					`diff --git a/file-${index}.ts b/file-${index}.ts`,
+					`--- a/file-${index}.ts`,
+					`+++ b/file-${index}.ts`,
+					'@@ -0,0 +1 @@',
+					'+line',
+				].join('\n'),
+			).join('\n'),
+		);
+
+		const coverage = await derivePatchCoverage({
+			repoRoot: '/repo',
+			patch: {
+				files: parsed.files,
+				insertions: parsed.insertions,
+				deletions: parsed.deletions,
+				selfChurn: parsed.selfChurn,
+				scannedCommits: 1,
+				truncated: false,
+			},
+			shas: [TICKET_SHA],
+			lastCommitAt: 1000,
+			report: null,
+		});
+
+		expect(coverage.files).toHaveLength(100);
+		expect(coverage.truncated).toBe(true);
+	});
+
 	it('reports lines added beside lines still standing', async () => {
 		mocked.mockImplementation(async ({args}) =>
 			args[0] === 'merge-base'
