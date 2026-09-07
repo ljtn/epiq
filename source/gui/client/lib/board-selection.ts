@@ -349,11 +349,6 @@ export const writeSelectionParams = (
 
 // ------------------------------------------------------------------- storage
 
-// Neither the offset nor a zoom is kept: a stretch of last Tuesday is a
-// moment, not a preference, and reopening the board a week later on it would be
-// a surprise. Nor is windowOnly: it hides tickets outright, which is too much
-// to restore silently days later — it travels in the URL and nowhere else. Nor
-// is ticketOnly, which names a ticket that need not even be open next time.
 // A bare array is what was stored before the narrowing had axes; like the URL's
 // unprefixed list it belonged to whichever axis the stored view colours by.
 const readStoredNarrowing = (
@@ -378,6 +373,11 @@ const readStoredNarrowing = (
 	return only;
 };
 
+// Neither the offset nor a zoom is kept: a stretch of last Tuesday is a
+// moment, not a preference, and reopening the board a week later on it would be
+// a surprise. Nor is windowOnly: it hides tickets outright, which is too much
+// to restore silently days later — it travels in the URL and nowhere else. Nor
+// is ticketOnly, which names a ticket that need not even be open next time.
 export const readStoredSelection = (): BoardSelection => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);

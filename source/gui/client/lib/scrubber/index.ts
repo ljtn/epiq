@@ -47,7 +47,6 @@ export type {ScrubberAxis, VolumeBar} from './axis';
 export {
 	BOARD_VIEWS,
 	isBoardView,
-	viewCategory,
 	boardViewColor,
 	FILTER_AXES,
 	isFilterAxis,
@@ -71,7 +70,6 @@ export type {
 	EventDot,
 	FilterAxis,
 	SelectionNarrowing,
-	AxisFilter,
 	BoardFilter,
 	IssueFilterFacts,
 } from './series';

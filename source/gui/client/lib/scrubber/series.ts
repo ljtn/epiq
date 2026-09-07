@@ -31,7 +31,7 @@ export const isBoardView = (value: unknown): value is BoardView =>
 	BOARD_VIEWS.includes(value as BoardView);
 
 // The kind a view draws, or null for the two that draw every kind.
-export const viewCategory = (view: BoardView): EventCategory | null =>
+const viewCategory = (view: BoardView): EventCategory | null =>
 	view === 'all' || view === 'people' ? null : view;
 
 // One place for the series colour, so the bars, the baseline and the filter's
