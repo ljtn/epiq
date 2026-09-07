@@ -16,33 +16,39 @@ export const EVENT_CATEGORIES = [
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
 // What the Board series is showing. 'all' draws every kind and colours by kind;
-// picking one kind draws only it and colours by the identity behind each event.
+// picking one kind draws only it and colours by the identity behind each event;
+// 'people' draws every kind, like 'all', and colours by who caused each one.
 // Exactly one at a time, which is what keeps a colour from meaning two things.
-export type BoardView = 'all' | EventCategory;
+export type BoardView = 'all' | EventCategory | 'people';
 
-export const BOARD_VIEWS: BoardView[] = ['all', ...EVENT_CATEGORIES];
+export const BOARD_VIEWS: BoardView[] = ['all', ...EVENT_CATEGORIES, 'people'];
 
 export const isBoardView = (value: unknown): value is BoardView =>
 	BOARD_VIEWS.includes(value as BoardView);
 
-// The kind a view draws, or null for the one that draws every kind.
+// The kind a view draws, or null for the two that draw every kind.
 export const viewCategory = (view: BoardView): EventCategory | null =>
-	view === 'all' ? null : view;
+	view === 'all' || view === 'people' ? null : view;
 
 // One place for the series colour, so the bars, the baseline and the filter's
 // own rows cannot drift apart.
 const BOARD_VIEW_COLORS: Record<BoardView, string> = {
 	all: GUI_THEME.accent,
 	...EVENT_CATEGORY_COLORS,
+	// Its own hue rather than the Board accent: 'people' plots the same events
+	// 'all' does, so sharing a colour with it would leave the two rows saying
+	// the same thing.
+	people: '#7fd8c4',
 };
 
 export const boardViewColor = (view: BoardView): string =>
 	BOARD_VIEW_COLORS[view];
 
-// The sides of an event the board can be narrowed by. `commenter` reads the
-// author of a comment, which is the only kind of event whose author the board
-// state itself can answer for.
-export const FILTER_AXES = ['commenter', 'tag', 'assignee'] as const;
+// The four sides of an event the board can be narrowed by. `commenter` and
+// `actor` both read the event's author: the first only over comments, so it
+// answers "who talked about this ticket", the second over every kind, so it
+// answers "who touched it".
+export const FILTER_AXES = ['commenter', 'tag', 'assignee', 'actor'] as const;
 
 export type FilterAxis = (typeof FILTER_AXES)[number];
 
@@ -54,13 +60,16 @@ const AXIS_FIELD: Record<FilterAxis, 'actor' | 'tag' | 'assignee'> = {
 	commenter: 'actor',
 	tag: 'tag',
 	assignee: 'assignee',
+	actor: 'actor',
 };
 
-// The kind of event an axis's legend is drawn from.
-const AXIS_CATEGORY: Record<FilterAxis, EventCategory> = {
+// The kind of event an axis's legend is drawn from. Null for `actor`, which
+// lists whoever caused anything at all.
+const AXIS_CATEGORY: Record<FilterAxis, EventCategory | null> = {
 	commenter: 'comments',
 	tag: 'tagging',
 	assignee: 'assigning',
+	actor: null,
 };
 
 // A narrowing per axis: an axis absent is not narrowed at all, an axis present
@@ -77,6 +86,8 @@ export const identityAxisFor = (view: BoardView): FilterAxis | null =>
 		? 'tag'
 		: view === 'assigning'
 		? 'assignee'
+		: view === 'people'
+		? 'actor'
 		: null;
 
 // Listed rather than matched on substrings: "attachment" and "assignee" both
@@ -128,7 +139,7 @@ export const listIdentities = (
 	const byId = new Map<string, GuiEventIdentity>();
 
 	for (const entry of timeline.events) {
-		if (categoryOf(entry.action) !== category) continue;
+		if (category !== null && categoryOf(entry.action) !== category) continue;
 
 		const identity = entry[field];
 		if (identity && !byId.has(identity.id)) byId.set(identity.id, identity);
@@ -315,15 +326,43 @@ export const windowIssueIds = (
 	return ids;
 };
 
+// Who caused an event on each ticket, over the window in hand. Null where the
+// window names no tickets at all — past the server's cap it answers with
+// bucket counts, and reading those as "nobody touched anything" would empty
+// the board rather than leave the axis unanswerable.
+export const actorIdsByIssue = (
+	timeline: GuiEventTimeline | null,
+): Map<string, Set<string>> | null => {
+	if (timeline === null || !windowNamesIssues(timeline)) return null;
+
+	const byIssue = new Map<string, Set<string>>();
+
+	for (const entry of timeline.events) {
+		if (entry.issue === null || entry.actor === null) continue;
+
+		const ids = byIssue.get(entry.issue) ?? new Set<string>();
+		ids.add(entry.actor.id);
+		byIssue.set(entry.issue, ids);
+	}
+
+	return byIssue;
+};
+
 // What a ticket carries that its own row cannot answer for.
 export type IssueFilterFacts = {
 	// Who has commented on it, read off the board state at the needle.
 	commenterIds: readonly string[];
+	// Who has caused any event on it inside the window. Null where the window
+	// cannot say, which leaves that axis unenforced rather than failing every
+	// ticket against it.
+	actorIds: readonly string[] | null;
 };
 
-// Read off the board's own state, which is already the state at the needle —
-// so a filtered board answers "who/what, as of here", matching the moment the
-// scrubber is parked on rather than the events inside the window.
+// Tags and assignees are read off the board's own state, which is already the
+// state at the needle — so a filtered board answers "who/what, as of here",
+// matching the moment the scrubber is parked on rather than the events inside
+// the window. The actor axis is the exception: nothing but the window knows who
+// caused what, so that one narrows by the window.
 export const issuePassesBoardFilter = (
 	issue: {
 		id: string;
@@ -339,7 +378,9 @@ export const issuePassesBoardFilter = (
 				? issue.tags.map(tag => tag.id)
 				: axis === 'assignee'
 				? issue.assignees.map(assignee => assignee.id)
-				: facts.commenterIds;
+				: axis === 'commenter'
+				? facts.commenterIds
+				: facts.actorIds;
 
-		return ids.some(id => visibleIds.has(id));
+		return ids === null || ids.some(id => visibleIds.has(id));
 	});
