@@ -974,7 +974,7 @@ describe('mcp tools', () => {
 		it('sanitizes the title, like every other title path does', async () => {
 			const result = await tools.createIssue({
 				repoRoot: '/repo',
-				title: 'Broken\ntitle\twith control',
+				title: 'Broken\ntitle\twith\x00control',
 				parentId: 'swimlane-1',
 			});
 
@@ -986,7 +986,7 @@ describe('mcp tools', () => {
 		it('refuses a title that is nothing but control characters', async () => {
 			const result = await tools.createIssue({
 				repoRoot: '/repo',
-				title: '\n\t  ',
+				title: '\n\t \x00',
 				parentId: 'swimlane-1',
 			});
 
