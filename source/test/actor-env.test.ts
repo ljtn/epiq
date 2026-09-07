@@ -180,6 +180,18 @@ describe('applyActorNameArgument', () => {
 
 		expect(isFail(applyActorNameArgument('claude', '--as', env))).toBe(false);
 	});
+
+	// The unpinned path normalizes and hides this: only a pinned id carries the
+	// variable's casing through to the display name.
+	it('keeps the environment casing when a pinned actor already agrees', () => {
+		const env = {[ACTOR_NAME_ENV]: 'Claude', [ACTOR_ID_ENV]: PINNED_ID};
+
+		expect(applyActorNameArgument('claude', '--as', env).value).toBe('Claude');
+		expect(resolveEnvActor(CONFIGURED, env).value).toEqual({
+			userId: PINNED_ID,
+			userName: 'Claude',
+		});
+	});
 });
 
 describe('loadSettingsFromConfig', () => {
