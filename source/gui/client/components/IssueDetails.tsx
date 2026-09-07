@@ -48,6 +48,8 @@ import {parseDiffCommentMeta} from '../../../lib/utils/diff-comment.js';
 import {MarkdownContent} from './MarkdownContent';
 import {Section} from './Section';
 import {Tabs, TabItem} from './Tabs';
+import {IssueStats} from './IssueStats';
+import {IssueStats as IssueStatsPayload} from '../../../lib/stats/issue-stats.model.js';
 import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {usePersistedFlag} from '../lib/use-persisted-flag';
@@ -56,7 +58,7 @@ import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
 
-type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
+type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code' | 'stats';
 
 // Fullscreen on a panel at least this wide drops the tabs and lays the four
 // panes out side by side. Below it, four lanes would be too narrow to read,
@@ -277,6 +279,9 @@ export const IssueDetails = ({
 	commitsError,
 	commitDiffsBySha,
 	onLoadCommitDiff,
+	stats,
+	statsLoading,
+	statsError,
 	knownTags: tags,
 	knownAssignees: assignees,
 	onOpenAssigneePicker,
@@ -326,6 +331,9 @@ export const IssueDetails = ({
 	commitsError: string | null;
 	commitDiffsBySha: Record<string, CommitDiffState>;
 	onLoadCommitDiff: (sha: string) => void;
+	stats: IssueStatsPayload | null;
+	statsLoading: boolean;
+	statsError: string | null;
 	knownTags: GuiTag[];
 	knownAssignees: GuiContributor[];
 	// Fired when the picker opens, so the caller can fetch the list only then.
@@ -421,6 +429,7 @@ export const IssueDetails = ({
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
 		{id: 'code', label: 'Commits', count: commitsCount},
+		{id: 'stats', label: 'Stats'},
 		{id: 'history', label: 'Log', count: history.length},
 	];
 
@@ -947,6 +956,13 @@ export const IssueDetails = ({
 					/>
 				);
 
+				// A tab rather than a fifth lane: the reading layout puts the diff
+				// side by side with what is said about it, and a page of numbers is
+				// not something to read alongside anything.
+				const statsPane = issue && (
+					<IssueStats stats={stats} loading={statsLoading} error={statsError} />
+				);
+
 				// Docked to the bottom the panel is wide and short, so the title
 				// rides in the header row beside the ref and the age rather than
 				// taking a row of its own. Docked right it is the other way round:
@@ -1138,6 +1154,7 @@ export const IssueDetails = ({
 										{activeTab === 'comments' && commentsPane}
 										{activeTab === 'history' && historyPane}
 										{activeTab === 'code' && commitsPane}
+										{activeTab === 'stats' && statsPane}
 									</>
 								)}
 							</div>

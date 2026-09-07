@@ -86,7 +86,7 @@ import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
-type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code';
+type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code' | 'stats';
 
 // Module scope so an absent state does not hand the memos below a new object
 // on every render.
@@ -266,7 +266,10 @@ export const App = () => {
 
 	const tabParam = searchParams.get('tab');
 	const selectedTab: IssueDetailsTab =
-		tabParam === 'comments' || tabParam === 'history' || tabParam === 'code'
+		tabParam === 'comments' ||
+		tabParam === 'history' ||
+		tabParam === 'code' ||
+		tabParam === 'stats'
 			? tabParam
 			: 'overview';
 	// Where a followed comment permalink points, if any. Read straight off the
@@ -351,6 +354,8 @@ export const App = () => {
 		commits: issueCommits,
 		commitDiffs: issueCommitDiffs,
 		loadCommitDiff: loadIssueCommitDiff,
+		stats: issueStats,
+		loadStats: loadIssueStats,
 		updateComments: updateDetailComments,
 		onMessage: onIssueDetailMessage,
 	} = useIssueDetail({
@@ -361,6 +366,14 @@ export const App = () => {
 		paused: theatre !== null,
 		sendRaw,
 	});
+	// The one view that costs a git scan of every commit a ticket owns, so it
+	// is asked for when it is opened rather than with the rest of the ticket.
+	useEffect(() => {
+		if (selectedTab !== 'stats' || !selectedIssue) return;
+
+		loadIssueStats(selectedIssue.id);
+	}, [selectedTab, selectedIssue?.id, loadIssueStats]);
+
 	// Typed into the box beside the board switcher; hides cards whose ref and
 	// title both miss it. Not part of the URL selection: it is a passing
 	// narrowing, not a view worth linking to.
@@ -1608,6 +1621,21 @@ export const App = () => {
 								}
 								commitDiffsBySha={issueCommitDiffs}
 								onLoadCommitDiff={loadIssueCommitDiff}
+								stats={
+									issueStats?.issueId === selectedIssue.id
+										? issueStats.stats
+										: null
+								}
+								statsLoading={
+									issueStats?.issueId === selectedIssue.id
+										? issueStats.loading
+										: true
+								}
+								statsError={
+									issueStats?.issueId === selectedIssue.id
+										? issueStats.error
+										: null
+								}
 								onReopenIssue={reopenIssue}
 								onCloseIssue={closeIssue}
 								knownTags={state.tags ?? []}

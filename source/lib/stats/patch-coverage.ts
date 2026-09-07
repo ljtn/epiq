@@ -22,47 +22,8 @@
 import {execGitAllowFail} from '../../git/git-utils.js';
 import {CoverageReport} from './coverage-report.js';
 import {isGeneratedPath} from './file-kinds.js';
+import {FileCoverage, PatchCoverage} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
-
-export type FileCoverage = {
-	path: string;
-	survivingLines: number;
-	covered: number;
-	uncovered: number;
-	notInstrumented: number;
-	inReport: boolean;
-};
-
-export type PatchCoverage = {
-	report: {
-		path: string;
-		modifiedAt: number;
-		totalLines: number;
-		totalCovered: number;
-		// True when the report predates the ticket's last commit, i.e. the
-		// tests have not been run since the code changed. The numbers are
-		// still shown — a reader who knows they are stale can use them; one
-		// who is not told cannot.
-		olderThanLastCommit: boolean;
-	} | null;
-
-	// False when the ticket's commits are not in the current checkout, so
-	// blame cannot see them at all. Everything below is then zero, and saying
-	// so is the whole point of the flag: it is "not measurable here", not
-	// "none of this is covered".
-	anchored: boolean;
-	notAnchoredReason: string | null;
-
-	linesAdded: number;
-	survivingLines: number;
-
-	covered: number;
-	uncovered: number;
-	notInstrumented: number;
-	notInReport: number;
-
-	files: FileCoverage[];
-};
 
 // Blame is one spawn per file. Past this a ticket is broad enough that the
 // per-file table was never going to be read anyway.

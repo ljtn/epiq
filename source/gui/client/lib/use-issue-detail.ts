@@ -8,6 +8,10 @@
 // changes again.
 
 import {useCallback, useEffect, useState} from 'react';
+// Types only, from a module that declares nothing but types and imports
+// nothing at all — so reading the server's own shape here costs the client
+// bundle nothing and cannot drag Node code across the boundary.
+import {IssueStats} from '../../../lib/stats/issue-stats.model.js';
 import {getResultValue} from './gui-state-helper';
 import {
 	GuiComment,
@@ -31,6 +35,13 @@ export type IssueCommits = {
 	commits: GuiRefCommitEntry[];
 };
 
+export type IssueStatsState = {
+	issueId: string;
+	loading: boolean;
+	error: string | null;
+	stats: IssueStats | null;
+};
+
 export type CommitDiffState = {
 	loading: boolean;
 	error: string | null;
@@ -40,6 +51,11 @@ export type CommitDiffState = {
 export type IssueDetailPanel = {
 	detail: IssueDetail | null;
 	commits: IssueCommits | null;
+	stats: IssueStatsState | null;
+	// Asked for when the Stats tab opens rather than on every ticket, since it
+	// costs a git scan of every commit the ticket owns and most tickets are
+	// opened to be read, not measured.
+	loadStats: (issueId: string) => void;
 	commitDiffs: Record<string, CommitDiffState>;
 	loadCommitDiff: (sha: string) => void;
 	// An optimistic edit to the comments on screen, before the board's own state
@@ -102,6 +118,31 @@ export const useIssueDetail = ({
 		sendRaw({type: 'issue:commits:get', payload: {issueId}});
 	}, [issueId, sendRaw]);
 
+	const [stats, setStats] = useState<IssueStatsState | null>(null);
+
+	// Cleared on a ticket change rather than refetched: the tab the reader is
+	// on decides whether the next one is measured at all.
+	useEffect(() => {
+		setStats(null);
+	}, [issueId]);
+
+	// Asking is only ever "put this ticket into loading"; the request itself is
+	// the effect below. A ticket's stats are a function of its commits, so
+	// re-opening the tab on a ticket already measured asks for nothing.
+	const loadStats = useCallback((id: string) => {
+		setStats(prev =>
+			prev && prev.issueId === id
+				? prev
+				: {issueId: id, loading: true, error: null, stats: null},
+		);
+	}, []);
+
+	useEffect(() => {
+		if (!stats?.loading) return;
+
+		sendRaw({type: 'issue:stats:get', payload: {issueId: stats.issueId}});
+	}, [stats?.issueId, stats?.loading, sendRaw]);
+
 	const loadCommitDiff = useCallback(
 		(sha: string) => {
 			setCommitDiffs(prev => ({
@@ -162,6 +203,36 @@ export const useIssueDetail = ({
 			return;
 		}
 
+		if (message.type === 'issue:stats:result') {
+			// Wrapped with the issueId for the same reason the commits reply is:
+			// the Stats tab stays open across a change of ticket.
+			const {issueId: forIssue, result} = message.payload as {
+				issueId: string;
+				result: {status: string; message: string; value?: IssueStats};
+			};
+
+			if (result?.status === 'fail') {
+				setStats(prev =>
+					prev && prev.issueId === forIssue
+						? {...prev, loading: false, error: result.message}
+						: prev,
+				);
+				return;
+			}
+
+			const next = getResultValue<IssueStats>(result);
+
+			if (next) {
+				setStats(prev =>
+					prev && prev.issueId === forIssue
+						? {...prev, loading: false, error: null, stats: next}
+						: prev,
+				);
+			}
+
+			return;
+		}
+
 		if (message.type === 'commit:diff:result') {
 			const {sha, result} = message.payload as {
 				sha: string;
@@ -204,6 +275,8 @@ export const useIssueDetail = ({
 	return {
 		detail,
 		commits,
+		stats,
+		loadStats,
 		commitDiffs,
 		loadCommitDiff,
 		updateComments,
