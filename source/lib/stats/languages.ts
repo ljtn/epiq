@@ -5,25 +5,8 @@
 // lines of Go is not half a change in each.
 
 import {isGeneratedPath, isTestPath, languageOf} from './file-kinds.js';
+import {LanguageBreakdown, LanguageLines} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
-
-export type LanguageLines = {
-	name: string;
-	added: number;
-	removed: number;
-	// Of `added`, how much landed in test files. A language present only in
-	// tests is a different fact from one the ticket wrote features in.
-	addedInTests: number;
-};
-
-export type LanguageBreakdown = {
-	languages: LanguageLines[];
-	// Languages that appear in this change and in no file the repository had
-	// at the commit before the ticket started. Empty when the baseline could
-	// not be read (a root commit has no "before").
-	introduced: string[];
-	generatedLines: number;
-};
 
 export const deriveLanguages = ({
 	patch,

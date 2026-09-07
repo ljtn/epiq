@@ -12,6 +12,7 @@ import {
 	isDocPath,
 	isGeneratedPath,
 } from './file-kinds.js';
+import {ChangeFlags} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
 
 // A print left in by accident looks exactly like one left in on purpose, so
@@ -22,31 +23,6 @@ const DEBUG_PRINT =
 // Six is long enough that two identical runs are unlikely to be coincidence
 // and short enough to catch a copy-pasted block before it grows.
 const DUPLICATE_BLOCK_LINES = 6;
-
-export type ChangeFlags = {
-	// Paths rather than counts: which lockfile moved is the question a reader
-	// actually has. Capped, since the answer stops being useful long before
-	// the list stops being long.
-	generatedPaths: string[];
-	dependencyManifests: string[];
-	buildOrCiPaths: string[];
-	docsTouched: boolean;
-
-	debugPrintLinesAdded: number;
-
-	// The deepest nesting the change introduced, in levels of the file's own
-	// indentation — a tab is one level, and a space-indented file's unit is
-	// inferred from its own added lines. An approximation of nesting, and
-	// nothing more: it is not cyclomatic complexity and does not stand in for
-	// it.
-	maxIndentLevels: number;
-
-	// Added lines that sit inside a run of six or more identical lines
-	// appearing somewhere else in the change. Counted in lines rather than
-	// blocks so the number means one thing: a longer copy is a bigger number.
-	// Whitespace-normalised, so a re-indented copy still matches.
-	duplicatedLines: number;
-};
 
 const PATH_LIST_LIMIT = 10;
 

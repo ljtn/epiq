@@ -12,27 +12,8 @@ import {
 	isSkippedTestLine,
 	isTestPath,
 } from './file-kinds.js';
+import {TestSignal} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
-
-export type TestSignal = {
-	testLinesAdded: number;
-	testLinesRemoved: number;
-	codeLinesAdded: number;
-	// Test lines per code line. Null when the ticket added no code lines at
-	// all — dividing by nothing would print Infinity for a tests-only ticket,
-	// which is exactly the case somebody would misread as the best score on
-	// the board.
-	ratio: number | null;
-	touchedTests: boolean;
-
-	testFilesAdded: number;
-	testFilesDeleted: number;
-
-	// Lines, not tests: counting cases would need a parser per framework, and
-	// the number is a prompt to look rather than a measurement.
-	skippedTestLinesAdded: number;
-	focusedTestLinesAdded: number;
-};
 
 export const deriveTestSignal = ({patch}: {patch: TicketPatch}): TestSignal => {
 	let testLinesAdded = 0;

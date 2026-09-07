@@ -5,48 +5,8 @@
 // it is a different thing to read, and the point of the numbers is to say
 // which kind of reading this is before anyone opens the diff.
 
+import {ChangeShape, StatsCommit} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
-
-// The commit metadata the shape needs, named here rather than imported from
-// the MCP layer that produces it: source/lib/stats takes numbers in and gives
-// numbers out, so it stays reachable from the TUI, the GUI server and the MCP
-// alike.
-export type StatsCommit = {
-	sha: string;
-	time: number;
-	author: string;
-	subject: string;
-};
-
-export type ChangeShape = {
-	commits: number;
-	authors: string[];
-	firstCommitAt: number | null;
-	lastCommitAt: number | null;
-
-	files: number;
-	filesAdded: number;
-	filesModified: number;
-	filesDeleted: number;
-	binaryFiles: number;
-	// How many distinct directories the change touches. One file in each of
-	// fourteen directories and fourteen files in one are the same +/- and
-	// nothing like the same review.
-	directories: number;
-
-	insertions: number;
-	deletions: number;
-	net: number;
-
-	// The single busiest file, and its share of every changed line. A ticket
-	// at 0.9 is one file's rewrite with some tidying; at 0.1 it is spread
-	// evenly and there is no obvious place to start.
-	largestFile: {path: string; changed: number} | null;
-	concentration: number;
-
-	selfChurn: number;
-	truncated: boolean;
-};
 
 const directoryOf = (path: string): string => {
 	const cut = path.lastIndexOf('/');

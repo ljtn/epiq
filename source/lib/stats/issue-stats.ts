@@ -7,25 +7,16 @@
 // here and a line below — never a third walk over git.
 
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
-import {ChangeShape, deriveChangeShape, StatsCommit} from './change-shape.js';
-import {CommentDensity, deriveCommentDensity} from './comment-density.js';
+import {deriveChangeShape} from './change-shape.js';
+import {deriveCommentDensity} from './comment-density.js';
 import {discoverCoverageReport} from './coverage-report.js';
-import {ChangeFlags, deriveFlags} from './flags.js';
-import {deriveLanguages, LanguageBreakdown} from './languages.js';
-import {derivePatchCoverage, PatchCoverage} from './patch-coverage.js';
+import {deriveFlags} from './flags.js';
+import {IssueStats, StatsCommit} from './issue-stats.model.js';
+import {deriveLanguages} from './languages.js';
+import {derivePatchCoverage} from './patch-coverage.js';
 import {scanTicketPatch} from './patch-scan.js';
 import {readRepoBaseline} from './repo-baseline.js';
-import {deriveTestSignal, TestSignal} from './test-signal.js';
-
-export type IssueStats = {
-	ref: string;
-	shape: ChangeShape;
-	languages: LanguageBreakdown;
-	tests: TestSignal;
-	comments: CommentDensity;
-	flags: ChangeFlags;
-	coverage: PatchCoverage;
-};
+import {deriveTestSignal} from './test-signal.js';
 
 const oldestSha = (commits: StatsCommit[]): string | null =>
 	commits.reduce<StatsCommit | null>(

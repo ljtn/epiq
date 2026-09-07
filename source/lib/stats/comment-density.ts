@@ -13,6 +13,7 @@ import {
 	isGeneratedPath,
 	languageOf,
 } from './file-kinds.js';
+import {CommentDensity} from './issue-stats.model.js';
 import {TicketPatch} from './patch-scan.js';
 
 export type LineKind = 'blank' | 'comment' | 'code';
@@ -63,33 +64,6 @@ const stripMarkers = (text: string, syntax: CommentSyntax): string => {
 	return stripped;
 };
 
-export type LanguageCommentShare = {
-	name: string;
-	commentLines: number;
-	codeLines: number;
-	// Comments as a share of the lines that are not blank. Blanks are excluded
-	// from both sides: a file's spacing is a formatting habit and would
-	// otherwise move the number without anybody writing a word.
-	share: number;
-	// The same share across the repository just before this ticket, or null
-	// when there was no baseline to read. Null renders as "no comparison",
-	// never as zero.
-	repoShare: number | null;
-};
-
-export type CommentDensity = {
-	byLanguage: LanguageCommentShare[];
-	commentLines: number;
-	codeLines: number;
-	blankLines: number;
-	share: number;
-	todoLinesAdded: number;
-	todoLinesRemoved: number;
-	// Comment lines that read like code somebody switched off rather than
-	// prose somebody wrote.
-	commentedOutCodeLines: number;
-};
-
 export const deriveCommentDensity = ({
 	patch,
 	repoShareByLanguage,
@@ -110,6 +84,15 @@ export const deriveCommentDensity = ({
 		if (file.binary || isGeneratedPath(file.path)) continue;
 
 		const syntax = commentSyntaxOf(file.path);
+
+		// A language with no comment syntax at all — JSON is the one that turns
+		// up — can only ever report 0%, against a repo baseline of 0%. Left in,
+		// it is a row that looks like a finding and is a property of the file
+		// format.
+		if (!syntax || (syntax.line.length === 0 && syntax.block.length === 0)) {
+			continue;
+		}
+
 		const name = languageOf(file.path);
 		const entry = byName.get(name) ?? {comment: 0, code: 0};
 

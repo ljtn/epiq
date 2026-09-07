@@ -39,6 +39,7 @@ import {
 	returnToLive,
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
+import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
@@ -248,6 +249,24 @@ export const setupWebsocket = (
 							result: await getCommitsForRef({
 								repoRoot,
 								ref: nodeRef(issueId),
+							}),
+						},
+					});
+				}
+
+				if (type === 'issue:stats:get') {
+					const {issueId} = message.payload;
+
+					// Wrapped with the issueId like the two above, and for the same
+					// reason: the Stats tab stays open across a change of ticket, so
+					// an older request can still be in flight when the reply lands.
+					return sendSocket(socket, {
+						type: 'issue:stats:result',
+						payload: {
+							issueId,
+							result: await getIssueStats({
+								repoRoot,
+								idOrRef: nodeRef(issueId),
 							}),
 						},
 					});
