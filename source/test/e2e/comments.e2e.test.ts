@@ -81,16 +81,24 @@ describe('TUI comments', () => {
 				)}${tail}`;
 				await run(tui, `:comment ${body}`, 'comment a fairly');
 
-				// Into the ticket, down to its Comments field, and in.
+				// Into the ticket, down to its Comments field, and in. Every press is
+				// confirmed on the row it lands on before the next goes out: pressing
+				// on a timer and checking the frame afterwards races the render, and
+				// a slow one lets all six presses through — which walks the cursor off
+				// the end of the six rows and back to the one it started on.
 				tui.input(ENTER);
 				await tui.waitFor('Comments (1) ››', 4_000);
-				// Description, Assignees, Tags, History come first; stop on Comments.
-				for (let step = 0; step < 6; step++) {
-					if (/❯\s+Comments \(1\)/.test(tui.output())) break;
+
+				for (const row of [
+					/❯\s+Assignees/,
+					/❯\s+Tags/,
+					/❯\s+History/,
+					/❯\s+Comments \(1\)/,
+				]) {
 					tui.input(ARROW_DOWN);
-					await new Promise(resolve => setTimeout(resolve, 150));
+					await tui.waitFor(row, 4_000);
 				}
-				await tui.waitFor(/❯\s+Comments \(1\)/, 4_000);
+
 				tui.input(ENTER);
 				await tui.waitFor('#1 ', 4_000);
 
