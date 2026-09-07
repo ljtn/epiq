@@ -9,8 +9,10 @@
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {ChangeShape, deriveChangeShape, StatsCommit} from './change-shape.js';
 import {CommentDensity, deriveCommentDensity} from './comment-density.js';
+import {discoverCoverageReport} from './coverage-report.js';
 import {ChangeFlags, deriveFlags} from './flags.js';
 import {deriveLanguages, LanguageBreakdown} from './languages.js';
+import {derivePatchCoverage, PatchCoverage} from './patch-coverage.js';
 import {scanTicketPatch} from './patch-scan.js';
 import {readRepoBaseline} from './repo-baseline.js';
 import {deriveTestSignal, TestSignal} from './test-signal.js';
@@ -22,6 +24,7 @@ export type IssueStats = {
 	tests: TestSignal;
 	comments: CommentDensity;
 	flags: ChangeFlags;
+	coverage: PatchCoverage;
 };
 
 const oldestSha = (commits: StatsCommit[]): string | null =>
@@ -53,9 +56,24 @@ export const deriveIssueStats = async ({
 		? await readRepoBaseline({repoRoot, sha: first})
 		: null;
 
+	const shape = deriveChangeShape({commits, patch});
+
+	const coverage = await derivePatchCoverage({
+		repoRoot,
+		patch,
+		// Newest first, which is both the order getCommitsForRef answers in
+		// and the one "is this ticket in this checkout at all" is asked in.
+		shas: [...commits]
+			.sort((a, b) => b.time - a.time)
+			.map(commit => commit.sha),
+		lastCommitAt: shape.lastCommitAt,
+		report: discoverCoverageReport(repoRoot),
+	});
+
 	return succeeded('Derived issue stats', {
 		ref,
-		shape: deriveChangeShape({commits, patch}),
+		shape,
+		coverage,
 		languages: deriveLanguages({
 			patch,
 			languagesBefore: baseline?.languages ?? null,
