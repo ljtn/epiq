@@ -29,12 +29,12 @@ export const deriveTestSignal = ({patch}: {patch: TicketPatch}): TestSignal => {
 		if (file.binary || isGeneratedPath(file.path)) continue;
 
 		if (!isTestPath(file.path)) {
-			codeLinesAdded += file.added.length;
+			codeLinesAdded += file.addedCount;
 			continue;
 		}
 
 		touchedTests = true;
-		testLinesAdded += file.added.length;
+		testLinesAdded += file.addedCount;
 		testLinesRemoved += file.removed;
 		if (file.status === 'added') testFilesAdded++;
 		if (file.status === 'deleted') testFilesDeleted++;

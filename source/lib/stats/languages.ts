@@ -23,7 +23,7 @@ export const deriveLanguages = ({
 	for (const file of patch.files) {
 		if (file.binary) continue;
 
-		const changed = file.added.length + file.removed;
+		const changed = file.addedCount + file.removed;
 
 		if (isGeneratedPath(file.path)) {
 			generatedLines += changed;
@@ -38,9 +38,9 @@ export const deriveLanguages = ({
 			addedInTests: 0,
 		};
 
-		entry.added += file.added.length;
+		entry.added += file.addedCount;
 		entry.removed += file.removed;
-		if (isTestPath(file.path)) entry.addedInTests += file.added.length;
+		if (isTestPath(file.path)) entry.addedInTests += file.addedCount;
 
 		byName.set(name, entry);
 	}
