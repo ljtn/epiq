@@ -97,9 +97,12 @@ const CoverageSection = ({coverage}: {coverage: Stats['coverage']}) => {
 					</div>
 
 					<div style={{...STAT_NOTE, marginTop: 12}}>
-						Measured on {coverage.survivingLines} of the{' '}
-						{plural(coverage.linesAdded, 'line')} this ticket added that still
-						stand at HEAD, matched to the report by blame.{' '}
+						{coverage.truncated
+							? `Measured on ${coverage.survivingLines} lines, from the first files of a ticket too wide to read all of — a floor, not a total. `
+							: `Measured on ${coverage.survivingLines} of the ${plural(
+									coverage.linesAdded,
+									'line',
+							  )} this ticket added that still stand at HEAD, matched to the report by blame. `}
 						{coverage.report.olderThanLastCommit
 							? 'The report was written before this ticket’s last commit, so it predates the code it is being read against.'
 							: `Report written ${relativeAge(
