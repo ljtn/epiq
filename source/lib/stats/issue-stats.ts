@@ -7,12 +7,24 @@
 
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {ChangeShape, deriveChangeShape, StatsCommit} from './change-shape.js';
+import {deriveLanguages, LanguageBreakdown} from './languages.js';
 import {scanTicketPatch} from './patch-scan.js';
+import {readLanguagesBefore} from './repo-baseline.js';
+import {deriveTestSignal, TestSignal} from './test-signal.js';
 
 export type IssueStats = {
 	ref: string;
 	shape: ChangeShape;
+	languages: LanguageBreakdown;
+	tests: TestSignal;
 };
+
+const oldestSha = (commits: StatsCommit[]): string | null =>
+	commits.reduce<StatsCommit | null>(
+		(oldest, commit) =>
+			oldest === null || commit.time < oldest.time ? commit : oldest,
+		null,
+	)?.sha ?? null;
 
 export const deriveIssueStats = async ({
 	repoRoot,
@@ -29,9 +41,17 @@ export const deriveIssueStats = async ({
 	});
 
 	if (isFail(patchResult)) return failed(patchResult.message);
+	const patch = patchResult.value;
+
+	const first = oldestSha(commits);
+	const languagesBefore = first
+		? await readLanguagesBefore({repoRoot, sha: first})
+		: null;
 
 	return succeeded('Derived issue stats', {
 		ref,
-		shape: deriveChangeShape({commits, patch: patchResult.value}),
+		shape: deriveChangeShape({commits, patch}),
+		languages: deriveLanguages({patch, languagesBefore}),
+		tests: deriveTestSignal({patch}),
 	});
 };
