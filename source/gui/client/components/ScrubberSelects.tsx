@@ -15,6 +15,7 @@ import {
 	identityAxisFor,
 	BoardView,
 	EventCategory,
+	FilterAxis,
 } from '../lib/scrubber';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
@@ -249,54 +250,76 @@ const Radio = ({
 // at once. The trigger reads back whatever is selected, down to the one tag or
 // person left when the rest are unticked — the same name and colour the bars and
 // dots are then drawn in.
+//
+// Narrowing is the other half, and it is not tied to that choice: every row
+// with a list can be ticked down, several at once, and the board below shows
+// the tickets that pass all of them. Only the plotted row's list changes the
+// picture; the rest narrow what is underneath it.
+const EMPTY_IDENTITIES: GuiEventIdentity[] = [];
+const EMPTY_HIDDEN: ReadonlySet<string> = new Set<string>();
+
 export const BoardSeriesGroup = ({
 	connected,
 	showIssues,
 	view,
-	identities,
-	hiddenIds,
+	identitiesByAxis,
+	hiddenIdsByAxis,
+	narrowed,
 	expanded,
-	identitiesExpanded,
+	expandedAxis,
 	filtered,
 	onChangeShowIssues,
 	onChangeView,
 	onToggleIdentity,
 	onOnlyIdentity,
 	onToggleExpanded,
-	onSetIdentitiesExpanded,
+	onSetExpandedAxis,
 }: {
 	connected: boolean;
 	showIssues: boolean;
 	view: BoardView;
-	// What the current window actually holds, so the list is a legend for what
-	// is on screen rather than a catalogue of the whole repo.
-	identities: GuiEventIdentity[];
-	hiddenIds: ReadonlySet<string>;
+	// What the current window actually holds, per axis, so each list is a legend
+	// for what is on screen rather than a catalogue of the whole repo.
+	identitiesByAxis: Record<FilterAxis, GuiEventIdentity[]>;
+	hiddenIdsByAxis: Record<FilterAxis, ReadonlySet<string>>;
+	narrowed: boolean;
 	expanded: boolean;
-	identitiesExpanded: boolean;
+	expandedAxis: FilterAxis | null;
 	filtered: boolean;
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeView: (view: BoardView) => void;
-	onToggleIdentity: (id: string, next: boolean) => void;
-	onOnlyIdentity: (id: string) => void;
+	onToggleIdentity: (axis: FilterAxis, id: string, next: boolean) => void;
+	onOnlyIdentity: (axis: FilterAxis, id: string) => void;
 	onToggleExpanded: () => void;
-	onSetIdentitiesExpanded: (next: boolean) => void;
+	onSetExpandedAxis: (axis: FilterAxis | null) => void;
 }) => {
+	const viewAxis = identityAxisFor(view);
+	const identities =
+		viewAxis === null ? EMPTY_IDENTITIES : identitiesByAxis[viewAxis];
+	const hiddenIds =
+		viewAxis === null ? EMPTY_HIDDEN : hiddenIdsByAxis[viewAxis];
+
 	// Down to one tag or person, that identity *is* the series, so it gives the
 	// trigger its name and its colour. Several hidden and no single colour would
 	// be honest, so the trigger only says that it is narrowed.
 	const sole = soleVisibleIdentity(identities, hiddenIds);
-	const partial =
-		filtered && hiddenIds.size > 0 && identityAxisFor(view) !== null;
+	const partial = filtered && hiddenIds.size > 0 && viewAxis !== null;
+	// Narrowed somewhere the plotted series does not show: the picture is intact
+	// and the board under it is not, which the trigger has to say or nothing on
+	// this row accounts for the missing tickets.
+	const elsewhere = filtered && narrowed && !partial && sole === null;
 
 	const label = sole
 		? `${VIEW_LABELS[view]}: ${sole.name}`
 		: partial
 		? `${VIEW_LABELS[view]} (multi)`
+		: elsewhere
+		? `${VIEW_LABELS[view]} (filtered)`
 		: VIEW_LABELS[view];
 
 	const color =
-		sole?.color ?? (partial ? GUI_THEME.dim2 : boardViewColor(view));
+		sole?.color ??
+		(partial || elsewhere ? GUI_THEME.dim2 : boardViewColor(view));
 
 	// Where the server capped the window its buckets are pre-summed across every
 	// kind, so nothing in here is selectable. The select still opens — the greyed
@@ -357,12 +380,13 @@ export const BoardSeriesGroup = ({
 				<div role="radiogroup" style={popoverStyle}>
 					{BOARD_VIEWS.map(option => {
 						const selected = view === option;
-						// Drawn from the view alone, not from whether a list has been
-						// loaded for it: only the selected view has its identities to
-						// hand, and hiding the caret until then made every other row
-						// look like it had nothing under it.
-						const hasList = identityAxisFor(option) !== null;
-						const open = selected && identitiesExpanded;
+						const axis = identityAxisFor(option);
+						const open = axis !== null && expandedAxis === axis;
+						// Lit while this row's axis is holding something back, which is
+						// the only sign a row that is not the plotted one leaves on the
+						// closed panel.
+						const rowNarrowed =
+							axis !== null && filtered && hiddenIdsByAxis[axis].size > 0;
 
 						// The whole series heads the list; the kinds of it are indented
 						// under that, which is the hierarchy the word "All" used to say
@@ -388,20 +412,22 @@ export const BoardSeriesGroup = ({
 										square={isWholeSeries}
 										onSelect={() => onChangeView(option)}
 									/>
-									{hasList && (
+									{axis !== null && (
 										<button
 											type="button"
 											disabled={!showIssues || !filtered}
-											// From an unselected row this both selects and opens,
-											// which is the one thing anyone wants from a caret on a
-											// row that is not current.
-											onClick={() => {
-												if (!selected) onChangeView(option);
-												onSetIdentitiesExpanded(!open);
-											}}
+											// Opening a list no longer selects the row: the whole
+											// point of a list per axis is narrowing by one while the
+											// chart goes on plotting another.
+											onClick={() => onSetExpandedAxis(open ? null : axis)}
 											title={open ? 'Hide the list' : 'Pick which to show'}
 											aria-expanded={open}
-											style={disclosureStyle}
+											style={{
+												...disclosureStyle,
+												color: rowNarrowed
+													? GUI_THEME.accent
+													: disclosureStyle.color,
+											}}
 										>
 											{open ? (
 												<IconChevronDown size={12} />
@@ -412,7 +438,7 @@ export const BoardSeriesGroup = ({
 									)}
 								</div>
 
-								{open && identities.length > 0 && (
+								{open && axis !== null && identitiesByAxis[axis].length > 0 && (
 									<div
 										style={{
 											...nestedListStyle,
@@ -422,7 +448,7 @@ export const BoardSeriesGroup = ({
 											overflowY: 'auto',
 										}}
 									>
-										{identities.map(identity => (
+										{identitiesByAxis[axis].map(identity => (
 											<div
 												key={identity.id}
 												style={{
@@ -434,16 +460,18 @@ export const BoardSeriesGroup = ({
 											>
 												<Checkbox
 													label={identity.name}
-													checked={!hiddenIds.has(identity.id)}
+													checked={!hiddenIdsByAxis[axis].has(identity.id)}
 													activeColor={identity.color}
 													disabled={!showIssues}
-													onChange={next => onToggleIdentity(identity.id, next)}
+													onChange={next =>
+														onToggleIdentity(axis, identity.id, next)
+													}
 												/>
 												<button
 													type="button"
 													title={`Show only ${identity.name}`}
 													disabled={!showIssues}
-													onClick={() => onOnlyIdentity(identity.id)}
+													onClick={() => onOnlyIdentity(axis, identity.id)}
 													style={onlyButtonStyle}
 												>
 													only

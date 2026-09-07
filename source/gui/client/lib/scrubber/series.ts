@@ -25,18 +25,54 @@ export const BOARD_VIEWS: BoardView[] = ['all', ...EVENT_CATEGORIES];
 export const isBoardView = (value: unknown): value is BoardView =>
 	BOARD_VIEWS.includes(value as BoardView);
 
+// The kind a view draws, or null for the one that draws every kind.
+export const viewCategory = (view: BoardView): EventCategory | null =>
+	view === 'all' ? null : view;
+
 // One place for the series colour, so the bars, the baseline and the filter's
 // own rows cannot drift apart.
+const BOARD_VIEW_COLORS: Record<BoardView, string> = {
+	all: GUI_THEME.accent,
+	...EVENT_CATEGORY_COLORS,
+};
+
 export const boardViewColor = (view: BoardView): string =>
-	view === 'all' ? GUI_THEME.accent : EVENT_CATEGORY_COLORS[view];
+	BOARD_VIEW_COLORS[view];
+
+// The sides of an event the board can be narrowed by. `commenter` reads the
+// author of a comment, which is the only kind of event whose author the board
+// state itself can answer for.
+export const FILTER_AXES = ['commenter', 'tag', 'assignee'] as const;
+
+export type FilterAxis = (typeof FILTER_AXES)[number];
+
+export const isFilterAxis = (value: unknown): value is FilterAxis =>
+	FILTER_AXES.includes(value as FilterAxis);
+
+// The field on a timeline entry each axis reads its identity out of.
+const AXIS_FIELD: Record<FilterAxis, 'actor' | 'tag' | 'assignee'> = {
+	commenter: 'actor',
+	tag: 'tag',
+	assignee: 'assignee',
+};
+
+// The kind of event an axis's legend is drawn from.
+const AXIS_CATEGORY: Record<FilterAxis, EventCategory> = {
+	commenter: 'comments',
+	tag: 'tagging',
+	assignee: 'assigning',
+};
+
+// A narrowing per axis: an axis absent is not narrowed at all, an axis present
+// lists the only ids that pass it. Several can hold at once, and a ticket has
+// to pass every one of them.
+export type SelectionNarrowing = Partial<Record<FilterAxis, readonly string[]>>;
 
 // Which side of the event a view colours by. Tickets has none — every event is
 // somebody changing a ticket, so it stays the plain Board accent.
-export const identityAxisFor = (
-	view: BoardView,
-): 'actor' | 'tag' | 'assignee' | null =>
+export const identityAxisFor = (view: BoardView): FilterAxis | null =>
 	view === 'comments'
-		? 'actor'
+		? 'commenter'
 		: view === 'tagging'
 		? 'tag'
 		: view === 'assigning'
@@ -75,24 +111,26 @@ export const identityOf = (
 	view: BoardView,
 ): GuiEventIdentity | null => {
 	const axis = identityAxisFor(view);
-	return axis === null ? null : entry[axis];
+	return axis === null ? null : entry[AXIS_FIELD[axis]];
 };
 
-// Every identity present in the window under this view, in first-seen order.
+// Every identity present in the window on this axis, in first-seen order.
 // Doubles as the filter's legend, so it lists what is actually there rather
 // than every tag or contributor the repo has ever had.
 export const listIdentities = (
 	timeline: GuiEventTimeline | null,
-	view: BoardView,
+	axis: FilterAxis | null,
 ): GuiEventIdentity[] => {
-	if (!timeline || identityAxisFor(view) === null) return [];
+	if (!timeline || axis === null) return [];
 
+	const category = AXIS_CATEGORY[axis];
+	const field = AXIS_FIELD[axis];
 	const byId = new Map<string, GuiEventIdentity>();
 
 	for (const entry of timeline.events) {
-		if (categoryOf(entry.action) !== view) continue;
+		if (categoryOf(entry.action) !== category) continue;
 
-		const identity = identityOf(entry, view);
+		const identity = entry[field];
 		if (identity && !byId.has(identity.id)) byId.set(identity.id, identity);
 	}
 
@@ -169,7 +207,8 @@ export const isShown = (
 	// ticket drops them too: they are not what happened to it.
 	if (issueOnly !== null && entry.issue !== issueOnly) return false;
 
-	if (view !== 'all' && categoryOf(entry.action) !== view) return false;
+	const category = viewCategory(view);
+	if (category !== null && categoryOf(entry.action) !== category) return false;
 
 	const identity = identityOf(entry, view);
 
@@ -235,24 +274,21 @@ export const buildEventDots = (
 	});
 };
 
-// What the scrubber's selection means for the board below it. Null when the
-// selection narrows nothing, so the board is left alone.
-export type BoardFilter = {
-	axis: 'actor' | 'tag' | 'assignee';
-	visibleIds: ReadonlySet<string>;
-};
+// What the scrubber's selection means for the board below it: one entry per
+// narrowed axis, and empty when the selection narrows nothing.
+export type AxisFilter = {axis: FilterAxis; visibleIds: ReadonlySet<string>};
 
-// Only a narrowed selection filters the board. A kind with everything still
-// ticked is a colouring choice, not a question about which tickets matter.
-export const buildBoardFilter = (
-	view: BoardView,
-	only: readonly string[] | null,
-): BoardFilter | null => {
-	const axis = identityAxisFor(view);
-	if (axis === null || only === null) return null;
+export type BoardFilter = readonly AxisFilter[];
 
-	return {axis, visibleIds: new Set(only)};
-};
+// Only a narrowed axis filters the board. A kind with everything still ticked
+// is a colouring choice, not a question about which tickets matter — and which
+// kind is plotted says nothing either way, so a narrowing survives switching
+// the chart to something else.
+export const buildBoardFilter = (only: SelectionNarrowing): BoardFilter =>
+	FILTER_AXES.flatMap(axis => {
+		const ids = only[axis];
+		return ids === undefined ? [] : [{axis, visibleIds: new Set(ids)}];
+	});
 
 // Whether the window says which tickets its events belong to. Past the
 // server's cap it answers with bucket counts alone, which name none — as
@@ -279,6 +315,12 @@ export const windowIssueIds = (
 	return ids;
 };
 
+// What a ticket carries that its own row cannot answer for.
+export type IssueFilterFacts = {
+	// Who has commented on it, read off the board state at the needle.
+	commenterIds: readonly string[];
+};
+
 // Read off the board's own state, which is already the state at the needle —
 // so a filtered board answers "who/what, as of here", matching the moment the
 // scrubber is parked on rather than the events inside the window.
@@ -288,17 +330,16 @@ export const issuePassesBoardFilter = (
 		tags: {id: string}[];
 		assignees: {id: string}[];
 	},
-	commentAuthorIds: readonly string[],
-	filter: BoardFilter | null,
-): boolean => {
-	if (!filter) return true;
+	facts: IssueFilterFacts,
+	filter: BoardFilter,
+): boolean =>
+	filter.every(({axis, visibleIds}) => {
+		const ids =
+			axis === 'tag'
+				? issue.tags.map(tag => tag.id)
+				: axis === 'assignee'
+				? issue.assignees.map(assignee => assignee.id)
+				: facts.commenterIds;
 
-	const ids =
-		filter.axis === 'tag'
-			? issue.tags.map(tag => tag.id)
-			: filter.axis === 'assignee'
-			? issue.assignees.map(assignee => assignee.id)
-			: commentAuthorIds;
-
-	return ids.some(id => filter.visibleIds.has(id));
-};
+		return ids.some(id => visibleIds.has(id));
+	});

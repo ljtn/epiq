@@ -13,6 +13,7 @@ import {
 	scopeButtonLabel,
 	SCOPES,
 	BoardView,
+	FilterAxis,
 } from '../lib/scrubber';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
@@ -107,10 +108,11 @@ export const ScrubberControls = ({
 	showCommits,
 	allBoards,
 	boardView,
-	identities,
-	hiddenIdentityIds,
+	identitiesByAxis,
+	hiddenIdsByAxis,
+	narrowed,
 	categoriesExpanded,
-	identitiesExpanded,
+	expandedAxis,
 	categoriesFiltered,
 	isScrubbing,
 	onReturnToLive,
@@ -126,7 +128,7 @@ export const ScrubberControls = ({
 	onToggleIdentity,
 	onOnlyIdentity,
 	onToggleCategoriesExpanded,
-	onSetIdentitiesExpanded,
+	onSetExpandedAxis,
 }: {
 	// Nothing can be fetched with the socket down, so the controls say so rather
 	// than moving the selection over a chart that cannot follow.
@@ -161,10 +163,15 @@ export const ScrubberControls = ({
 	showCommits: boolean;
 	allBoards: boolean;
 	boardView: BoardView;
-	identities: GuiEventIdentity[];
-	hiddenIdentityIds: ReadonlySet<string>;
+	// A legend per filter axis, and what is unticked on each: every axis narrows
+	// the board, not just the one the chart is coloured by.
+	identitiesByAxis: Record<FilterAxis, GuiEventIdentity[]>;
+	hiddenIdsByAxis: Record<FilterAxis, ReadonlySet<string>>;
+	// Any axis at all is narrowed, which is what the collapsed trigger reports.
+	narrowed: boolean;
 	categoriesExpanded: boolean;
-	identitiesExpanded: boolean;
+	// The one axis whose list is open, or null while none is.
+	expandedAxis: FilterAxis | null;
 	// False where the server capped the window: the buckets it fell back to are
 	// pre-summed across every kind, so there is nothing to filter.
 	categoriesFiltered: boolean;
@@ -179,10 +186,10 @@ export const ScrubberControls = ({
 	onChangeShowCommits: (next: boolean) => void;
 	onChangeAllBoards: (next: boolean) => void;
 	onChangeBoardView: (view: BoardView) => void;
-	onToggleIdentity: (id: string, next: boolean) => void;
-	onOnlyIdentity: (id: string) => void;
+	onToggleIdentity: (axis: FilterAxis, id: string, next: boolean) => void;
+	onOnlyIdentity: (axis: FilterAxis, id: string) => void;
 	onToggleCategoriesExpanded: () => void;
-	onSetIdentitiesExpanded: (next: boolean) => void;
+	onSetExpandedAxis: (axis: FilterAxis | null) => void;
 }) => {
 	const everythingInScope = !isPeriodWindow(scope, zoomed);
 
@@ -354,17 +361,18 @@ export const ScrubberControls = ({
 					connected={connected}
 					showIssues={showIssues}
 					view={boardView}
-					identities={identities}
-					hiddenIds={hiddenIdentityIds}
+					identitiesByAxis={identitiesByAxis}
+					hiddenIdsByAxis={hiddenIdsByAxis}
+					narrowed={narrowed}
 					expanded={categoriesExpanded}
-					identitiesExpanded={identitiesExpanded}
+					expandedAxis={expandedAxis}
 					filtered={categoriesFiltered}
 					onChangeShowIssues={onChangeShowIssues}
 					onChangeView={onChangeBoardView}
 					onToggleIdentity={onToggleIdentity}
 					onOnlyIdentity={onOnlyIdentity}
 					onToggleExpanded={onToggleCategoriesExpanded}
-					onSetIdentitiesExpanded={onSetIdentitiesExpanded}
+					onSetExpandedAxis={onSetExpandedAxis}
 				/>
 
 				{/* Beside the series checkboxes rather than by the scope row, so every

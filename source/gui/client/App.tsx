@@ -56,6 +56,7 @@ import {
 	GuiIssue,
 	GuiCommitEntry,
 	GuiContributor,
+	GuiEventIdentity,
 	GuiEventTimeline,
 	GuiState,
 	GuiSwimlane,
@@ -63,6 +64,7 @@ import {
 } from './lib/gui-state.model';
 import {
 	buildBoardFilter,
+	FilterAxis,
 	isPeriodWindow,
 	issuePassesBoardFilter,
 	windowIssueIds,
@@ -77,6 +79,7 @@ import {
 import {useEventLog} from './lib/use-event-log';
 import {LogDestination} from './lib/log-destination';
 import {Input} from './components/FormPrimitives';
+import {isolateOnly, withNarrowing} from './lib/board-selection';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
@@ -387,10 +390,11 @@ export const App = () => {
 	// title both miss it. Not part of the URL selection: it is a passing
 	// narrowing, not a view worth linking to.
 	const [textFilter, setTextFilter] = useState('');
-	// Null unless the selection has been narrowed to particular tags or people.
+	// One entry per narrowed axis, and empty while nothing is narrowed. Every
+	// axis has to pass, so a tag and an assignee ask one question together.
 	const boardFilter = useMemo(
-		() => buildBoardFilter(selection.view, selection.only),
-		[selection.view, selection.only],
+		() => buildBoardFilter(selection.only),
+		[selection.only],
 	);
 
 	const zoomed = selection.zoom !== null;
@@ -416,17 +420,17 @@ export const App = () => {
 	const isolatedIssueId =
 		selection.ticketOnly && selectedIssue ? selectedIssue.id : null;
 
-	// The tag every card is narrowed to, if the selection is exactly one tag:
-	// its chips read as pressed, and pressing again is the way back.
-	const isolatedTagId =
-		selection.view === 'tagging' && selection.only?.length === 1
-			? selection.only[0] ?? null
-			: null;
+	// The tag every card is narrowed to, if the tag axis is narrowed to exactly
+	// one: its chips read as pressed, and pressing again is the way back. Read
+	// off that axis alone, so a chip stays lit while the board is also narrowed
+	// by assignee or by who touched it.
+	const tagOnly = selection.only.tag ?? null;
+	const isolatedTagId = tagOnly?.length === 1 ? tagOnly[0] ?? null : null;
 
 	const filterByTag = (tagId: string) =>
-		changeSelection(
-			isolatedTagId === tagId ? {only: null} : {view: 'tagging', only: [tagId]},
-		);
+		changeSelection({
+			only: withNarrowing(selection.only, 'tag', isolateOnly(tagOnly, tagId)),
+		});
 
 	// For naming a selected identity the scrubber's window has no event for.
 	const knownIdentities = useMemo(() => {
@@ -436,7 +440,11 @@ export const App = () => {
 		}
 		const users = [...people.values()];
 
-		return {tag: state?.tags ?? [], actor: users, assignee: users};
+		return {
+			tag: state?.tags ?? [],
+			commenter: users,
+			assignee: users,
+		} satisfies Record<FilterAxis, GuiEventIdentity[]>;
 	}, [state?.tags, state?.contributors, contributors]);
 
 	// Memoized, and returning the lanes untouched when nothing is filtered:
@@ -445,7 +453,12 @@ export const App = () => {
 	const {visibleSwimlanes, hiddenIssueCount} = useMemo(() => {
 		const swimlanes = selectedBoard?.swimlanes ?? [];
 		const query = textFilter.trim();
-		if (!boardFilter && !query && windowIds === null && !isolatedIssueId)
+		if (
+			boardFilter.length === 0 &&
+			!query &&
+			windowIds === null &&
+			!isolatedIssueId
+		)
 			return {visibleSwimlanes: swimlanes, hiddenIssueCount: 0};
 
 		let hidden = 0;
@@ -455,9 +468,11 @@ export const App = () => {
 				issue =>
 					issuePassesBoardFilter(
 						issue,
-						(commentsByIssueId[issue.id] ?? []).map(
-							comment => comment.author.id,
-						),
+						{
+							commenterIds: (commentsByIssueId[issue.id] ?? []).map(
+								comment => comment.author.id,
+							),
+						},
 						boardFilter,
 					) &&
 					issueMatchesText(issue, query) &&

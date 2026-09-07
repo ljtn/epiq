@@ -1,12 +1,17 @@
 import {GuiEventIdentity} from './gui-state.model';
 import {
 	BoardView,
+	FILTER_AXES,
+	FilterAxis,
+	identityAxisFor,
 	isBoardView,
+	isFilterAxis,
 	isLayoutMode,
 	isScope,
 	LayoutMode,
 	PeriodRange,
 	Scope,
+	SelectionNarrowing,
 } from './scrubber';
 
 // What the scrubber is looking at, and what that narrows the board to. Kept
@@ -21,10 +26,12 @@ export type BoardSelection = {
 	zoom: PeriodRange | null;
 	layout: LayoutMode;
 	view: BoardView;
-	// Identity ids the view is narrowed to — a positive list rather than the
-	// hidden ones, so it says what to show without knowing what else exists.
-	// Null when nothing is hidden; [] when everything is.
-	only: readonly string[] | null;
+	// Identity ids the board is narrowed to, per axis — a positive list rather
+	// than the hidden ones, so it says what to show without knowing what else
+	// exists. An axis absent is not narrowed; [] hides everything on it. Axes
+	// hold at once and a ticket has to pass them all, so "assigned to her" and
+	// "tagged bug" is one question rather than two that overwrite each other.
+	only: SelectionNarrowing;
 	// Narrows the board to the tickets the window holds an event for, rather
 	// than to what the selection colours.
 	windowOnly: boolean;
@@ -41,7 +48,7 @@ export const DEFAULT_SELECTION: BoardSelection = {
 	zoom: null,
 	layout: 'even',
 	view: 'all',
-	only: null,
+	only: {},
 	windowOnly: false,
 	ticketOnly: false,
 };
@@ -61,6 +68,48 @@ const PARAM_KEYS = [
 const STORAGE_KEY = 'epiq.board.selection';
 
 const unique = (ids: readonly string[]): string[] => [...new Set(ids)];
+
+// ------------------------------------------------------------- the narrowing
+
+// Whether the board is narrowed at all, on any axis.
+export const isNarrowed = (only: SelectionNarrowing): boolean =>
+	FILTER_AXES.some(axis => only[axis] !== undefined);
+
+// One axis's list, or null where that axis is not narrowed — the shape every
+// legend helper below takes, and what a caller with no axis in hand gets.
+export const narrowingFor = (
+	only: SelectionNarrowing,
+	axis: FilterAxis | null,
+): readonly string[] | null => (axis === null ? null : only[axis] ?? null);
+
+// Setting one axis's list. Null removes the axis rather than storing an empty
+// one: [] already means "everything on this axis is hidden".
+export const withNarrowing = (
+	only: SelectionNarrowing,
+	axis: FilterAxis,
+	ids: readonly string[] | null,
+): SelectionNarrowing => {
+	const next = {...only};
+
+	if (ids === null) {
+		delete next[axis];
+	} else {
+		next[axis] = ids;
+	}
+
+	return next;
+};
+
+const normalizeNarrowing = (only: SelectionNarrowing): SelectionNarrowing => {
+	const next: SelectionNarrowing = {};
+
+	for (const axis of FILTER_AXES) {
+		const ids = only[axis];
+		if (ids !== undefined) next[axis] = unique(ids);
+	}
+
+	return next;
+};
 
 // A window has to be two real moments in order, or the axis it builds spans
 // NaN and every fraction on the chart goes with it.
@@ -91,7 +140,7 @@ const normalize = (selection: BoardSelection): BoardSelection => {
 		// is the only one lit. Enforced here rather than at the patch, so a URL
 		// carrying both cannot put the board in a state the controls cannot say.
 		windowOnly: selection.ticketOnly ? false : selection.windowOnly,
-		only: selection.only === null ? null : unique(selection.only),
+		only: normalizeNarrowing(selection.only),
 	};
 };
 
@@ -101,20 +150,20 @@ export const isDefaultSelection = (selection: BoardSelection): boolean =>
 	selection.zoom === null &&
 	selection.layout === DEFAULT_SELECTION.layout &&
 	selection.view === DEFAULT_SELECTION.view &&
-	selection.only === null &&
+	!isNarrowed(selection.only) &&
 	selection.windowOnly === DEFAULT_SELECTION.windowOnly &&
 	selection.ticketOnly === DEFAULT_SELECTION.ticketOnly;
 
 // A change to one field, with what it implies for the others: a new scope
-// starts at its most recent period, and a new view drops a narrowing that
-// named the previous view's identities.
+// starts at its most recent period. A new view implies nothing for the
+// narrowing any more — every axis keeps its own list, so switching what the
+// chart plots no longer throws away what the board was narrowed to.
 export const applySelectionPatch = (
 	current: BoardSelection,
 	patch: Partial<BoardSelection>,
 ): BoardSelection => {
 	const scopeChanged =
 		patch.scope !== undefined && patch.scope !== current.scope;
-	const viewChanged = patch.view !== undefined && patch.view !== current.view;
 
 	// Reaching for a scope button is how you get back out of a zoom, so it
 	// clears one even when the scope named is the one a zoom inferred — which is
@@ -142,8 +191,6 @@ export const applySelectionPatch = (
 		zoom,
 		ticketOnly,
 		offset: scopeChanged ? 0 : patch.offset ?? current.offset,
-		only:
-			patch.only !== undefined ? patch.only : viewChanged ? null : current.only,
 	});
 };
 
@@ -201,6 +248,49 @@ export const carryChange = (
 export const hasSelectionParams = (params: URLSearchParams): boolean =>
 	PARAM_KEYS.some(key => params.has(key));
 
+// The narrowing rides in the one `only` key rather than a key per axis, which
+// would put four more names in the query's way for the sake of a shape nobody
+// types by hand: `only=tag:a,b;assignee:c`.
+const AXIS_SEPARATOR = ';';
+const NAME_SEPARATOR = ':';
+
+const writeNarrowing = (only: SelectionNarrowing): string | null => {
+	const groups = FILTER_AXES.flatMap(axis => {
+		const ids = only[axis];
+		return ids === undefined
+			? []
+			: [`${axis}${NAME_SEPARATOR}${ids.join(',')}`];
+	});
+
+	return groups.length === 0 ? null : groups.join(AXIS_SEPARATOR);
+};
+
+// A group with no axis in front of it is the one-axis form links were written
+// in before: it named no axis because the view was the axis, so it is read onto
+// whichever axis the view in the same URL colours by.
+const readNarrowing = (
+	value: string | null,
+	view: BoardView,
+): SelectionNarrowing => {
+	if (value === null) return {};
+
+	const only: SelectionNarrowing = {};
+
+	for (const group of value.split(AXIS_SEPARATOR)) {
+		if (group === '') continue;
+
+		const at = group.indexOf(NAME_SEPARATOR);
+		const axis = at === -1 ? identityAxisFor(view) : group.slice(0, at);
+		if (axis === null || !isFilterAxis(axis)) continue;
+
+		only[axis] = (at === -1 ? group : group.slice(at + 1))
+			.split(',')
+			.filter(Boolean);
+	}
+
+	return only;
+};
+
 // Null when the URL says nothing about the selection. Any one key present
 // makes the URL authoritative for all of them, so a link means the same thing
 // whoever opens it.
@@ -211,10 +301,10 @@ export const readSelectionParams = (
 
 	const scope = params.get('scope');
 	const layout = params.get('layout');
-	const view = params.get('view');
-	const only = params.get('only');
+	const viewParam = params.get('view');
 	const from = params.get('from');
 	const to = params.get('to');
+	const view = isBoardView(viewParam) ? viewParam : DEFAULT_SELECTION.view;
 
 	return normalize({
 		scope: isScope(scope) ? scope : DEFAULT_SELECTION.scope,
@@ -224,8 +314,8 @@ export const readSelectionParams = (
 				? null
 				: {start: Number(from), end: Number(to)},
 		layout: isLayoutMode(layout) ? layout : DEFAULT_SELECTION.layout,
-		view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
-		only: only === null ? null : only.split(',').filter(Boolean),
+		view,
+		only: readNarrowing(params.get('only'), view),
 		windowOnly: params.get('window') === '1',
 		ticketOnly: params.get('ticket') === '1',
 	});
@@ -252,7 +342,7 @@ export const writeSelectionParams = (
 	put('to', next.zoom === null ? null : String(next.zoom.end));
 	put('layout', next.layout === DEFAULT_SELECTION.layout ? null : next.layout);
 	put('view', next.view === DEFAULT_SELECTION.view ? null : next.view);
-	put('only', next.only === null ? null : next.only.join(','));
+	put('only', writeNarrowing(next.only));
 	put('window', next.windowOnly ? '1' : null);
 	put('ticket', next.ticketOnly ? '1' : null);
 };
@@ -264,6 +354,30 @@ export const writeSelectionParams = (
 // a surprise. Nor is windowOnly: it hides tickets outright, which is too much
 // to restore silently days later — it travels in the URL and nowhere else. Nor
 // is ticketOnly, which names a ticket that need not even be open next time.
+// A bare array is what was stored before the narrowing had axes; like the URL's
+// unprefixed list it belonged to whichever axis the stored view colours by.
+const readStoredNarrowing = (
+	value: unknown,
+	view: BoardView,
+): SelectionNarrowing => {
+	if (Array.isArray(value)) {
+		const axis = identityAxisFor(view);
+		return axis === null ? {} : {[axis]: value.map(String)};
+	}
+
+	if (typeof value !== 'object' || value === null) return {};
+
+	const stored = value as Record<string, unknown>;
+	const only: SelectionNarrowing = {};
+
+	for (const axis of FILTER_AXES) {
+		const ids = stored[axis];
+		if (Array.isArray(ids)) only[axis] = ids.map(String);
+	}
+
+	return only;
+};
+
 export const readStoredSelection = (): BoardSelection => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
@@ -273,6 +387,7 @@ export const readStoredSelection = (): BoardSelection => {
 		if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SELECTION;
 
 		const {scope, layout, view, only} = parsed as Record<string, unknown>;
+		const boardView = isBoardView(view) ? view : DEFAULT_SELECTION.view;
 
 		return normalize({
 			scope: isScope(String(scope))
@@ -283,8 +398,8 @@ export const readStoredSelection = (): BoardSelection => {
 			layout: isLayoutMode(String(layout))
 				? (layout as LayoutMode)
 				: DEFAULT_SELECTION.layout,
-			view: isBoardView(view) ? view : DEFAULT_SELECTION.view,
-			only: Array.isArray(only) ? only.map(String) : null,
+			view: boardView,
+			only: readStoredNarrowing(only, boardView),
 			windowOnly: DEFAULT_SELECTION.windowOnly,
 			ticketOnly: DEFAULT_SELECTION.ticketOnly,
 		});

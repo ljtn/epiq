@@ -47,7 +47,10 @@ export type {ScrubberAxis, VolumeBar} from './axis';
 export {
 	BOARD_VIEWS,
 	isBoardView,
+	viewCategory,
 	boardViewColor,
+	FILTER_AXES,
+	isFilterAxis,
 	identityAxisFor,
 	categoryOf,
 	listIdentities,
@@ -60,7 +63,16 @@ export {
 	windowIssueIds,
 	issuePassesBoardFilter,
 } from './series';
-export type {EventCategory, BoardView, EventDot} from './series';
+export type {
+	EventCategory,
+	BoardView,
+	EventDot,
+	FilterAxis,
+	SelectionNarrowing,
+	AxisFilter,
+	BoardFilter,
+	IssueFilterFacts,
+} from './series';
 export {
 	chooseSegmentUnit,
 	segmentAt,

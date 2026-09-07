@@ -675,7 +675,7 @@ describe('identity views', () => {
 		]);
 
 	it('colours by the side of the event the view is about', () => {
-		expect(identityAxisFor('comments')).toBe('actor');
+		expect(identityAxisFor('comments')).toBe('commenter');
 		expect(identityAxisFor('tagging')).toBe('tag');
 		expect(identityAxisFor('assigning')).toBe('assignee');
 		// Every event is somebody changing a ticket, so there is nothing to
@@ -685,19 +685,16 @@ describe('identity views', () => {
 	});
 
 	it('lists each identity once, as the legend for what is on screen', () => {
-		expect(listIdentities(window(), 'comments').map(i => i.name)).toEqual([
+		expect(listIdentities(window(), 'commenter').map(i => i.name)).toEqual([
 			'jola',
 			'demo',
 		]);
-		// The tagging view lists tags, not the people who applied them.
-		expect(listIdentities(window(), 'tagging').map(i => i.name)).toEqual([
-			'bug',
-		]);
+		// The tag axis lists tags, not the people who applied them.
+		expect(listIdentities(window(), 'tag').map(i => i.name)).toEqual(['bug']);
 	});
 
-	it('has no list for a view with no identity axis', () => {
-		expect(listIdentities(window(), 'tickets')).toEqual([]);
-		expect(listIdentities(window(), 'all')).toEqual([]);
+	it('has no list without an axis', () => {
+		expect(listIdentities(window(), null)).toEqual([]);
 	});
 
 	it('takes each dot colour from its identity, not its kind', () => {
@@ -734,7 +731,7 @@ describe('identity views', () => {
 	});
 
 	describe('soleVisibleIdentity', () => {
-		const listed = () => listIdentities(window(), 'comments');
+		const listed = () => listIdentities(window(), 'commenter');
 
 		it('names the one identity left when the rest are hidden', () => {
 			expect(soleVisibleIdentity(listed(), new Set([jola.id]))?.name).toBe(
@@ -756,14 +753,13 @@ describe('identity views', () => {
 			// One tag in the whole window: the series really is that tag, whether
 			// anyone unticked their way down to it or it arrived alone.
 			expect(
-				soleVisibleIdentity(listIdentities(window(), 'tagging'), new Set())
-					?.name,
+				soleVisibleIdentity(listIdentities(window(), 'tag'), new Set())?.name,
 			).toBe('bug');
 		});
 
 		it('has nothing to name in a view with no identity axis', () => {
 			expect(
-				soleVisibleIdentity(listIdentities(window(), 'all'), new Set()),
+				soleVisibleIdentity(listIdentities(window(), null), new Set()),
 			).toBeNull();
 		});
 	});
@@ -825,45 +821,79 @@ describe('board filter', () => {
 		assignees: {id: string}[] = [],
 	) => ({id: 'i1', tags, assignees});
 
-	it('does not filter until the selection is narrowed', () => {
+	// Nothing to say about the ticket beyond its own row.
+	const nothing = {commenterIds: []};
+
+	it('does not filter until an axis is narrowed', () => {
 		// A kind with everything still ticked is a colouring choice, not a
 		// question about which tickets matter.
-		expect(buildBoardFilter('tagging', null)).toBeNull();
-	});
-
-	it('does not filter on a view with no identity axis', () => {
-		expect(buildBoardFilter('tickets', [bug.id])).toBeNull();
-		expect(buildBoardFilter('all', [bug.id])).toBeNull();
+		expect(buildBoardFilter({})).toEqual([]);
+		expect(issuePassesBoardFilter(issue(), nothing, [])).toBe(true);
 	});
 
 	it('keeps the tickets carrying a visible tag', () => {
-		const filter = buildBoardFilter('tagging', [bug.id]);
+		const filter = buildBoardFilter({tag: [bug.id]});
 
-		expect(issuePassesBoardFilter(issue([bug]), [], filter)).toBe(true);
-		expect(issuePassesBoardFilter(issue([docs]), [], filter)).toBe(false);
+		expect(issuePassesBoardFilter(issue([bug]), nothing, filter)).toBe(true);
+		expect(issuePassesBoardFilter(issue([docs]), nothing, filter)).toBe(false);
 		// Untagged: nothing visible to match, so it is not part of this answer.
-		expect(issuePassesBoardFilter(issue(), [], filter)).toBe(false);
+		expect(issuePassesBoardFilter(issue(), nothing, filter)).toBe(false);
 	});
 
-	it('reads assignees off the ticket for an assigning view', () => {
-		const filter = buildBoardFilter('assigning', [jola.id]);
+	it('reads assignees off the ticket', () => {
+		const filter = buildBoardFilter({assignee: [jola.id]});
 
-		expect(issuePassesBoardFilter(issue([], [jola]), [], filter)).toBe(true);
-		expect(issuePassesBoardFilter(issue([], [docs]), [], filter)).toBe(false);
+		expect(issuePassesBoardFilter(issue([], [jola]), nothing, filter)).toBe(
+			true,
+		);
+		expect(issuePassesBoardFilter(issue([], [docs]), nothing, filter)).toBe(
+			false,
+		);
 		// A tag of the same id must not satisfy an assignee filter.
-		expect(issuePassesBoardFilter(issue([jola], []), [], filter)).toBe(false);
+		expect(issuePassesBoardFilter(issue([jola], []), nothing, filter)).toBe(
+			false,
+		);
 	});
 
-	it('reads comment authors for a comments view', () => {
-		const filter = buildBoardFilter('comments', [jola.id]);
+	it('reads comment authors on the commenter axis', () => {
+		const filter = buildBoardFilter({commenter: [jola.id]});
 
-		expect(issuePassesBoardFilter(issue(), [jola.id], filter)).toBe(true);
-		expect(issuePassesBoardFilter(issue(), [docs.id], filter)).toBe(false);
-		expect(issuePassesBoardFilter(issue(), [], filter)).toBe(false);
+		expect(
+			issuePassesBoardFilter(issue(), {commenterIds: [jola.id]}, filter),
+		).toBe(true);
+		expect(
+			issuePassesBoardFilter(issue(), {commenterIds: [docs.id]}, filter),
+		).toBe(false);
+		expect(issuePassesBoardFilter(issue(), nothing, filter)).toBe(false);
 	});
 
-	it('passes everything through when there is no filter', () => {
-		expect(issuePassesBoardFilter(issue(), [], null)).toBe(true);
+	it('makes a ticket pass every narrowed axis, not just one', () => {
+		const filter = buildBoardFilter({
+			tag: [bug.id],
+			assignee: [jola.id],
+		});
+
+		expect(issuePassesBoardFilter(issue([bug], [jola]), nothing, filter)).toBe(
+			true,
+		);
+		// Tagged right, assigned wrong.
+		expect(issuePassesBoardFilter(issue([bug], [docs]), nothing, filter)).toBe(
+			false,
+		);
+		// Assigned right, tagged wrong.
+		expect(issuePassesBoardFilter(issue([docs], [jola]), nothing, filter)).toBe(
+			false,
+		);
+	});
+
+	it('fails everything on an axis narrowed to nothing', () => {
+		expect(
+			issuePassesBoardFilter(
+				issue([bug]),
+				nothing,
+				buildBoardFilter({tag: []}),
+			),
+		).toBe(false);
 	});
 });
 
