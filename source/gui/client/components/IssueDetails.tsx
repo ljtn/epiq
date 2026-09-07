@@ -129,7 +129,7 @@ const LaneIconButton = ({
 			...style,
 		}}
 		onMouseEnter={event => {
-			event.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+			event.currentTarget.style.background = GUI_THEME.hover;
 			event.currentTarget.style.color = GUI_THEME.accent;
 		}}
 		onMouseLeave={event => {

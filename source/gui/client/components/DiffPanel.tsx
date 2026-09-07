@@ -8,7 +8,7 @@ import {
 	SelectedLineRange,
 } from '@pierre/diffs/react';
 import {GUI_THEME} from '../lib/gui-theme';
-import {CODE_TEXT_VARS} from '../lib/code-text.style';
+import {CODE_FONT, CODE_TEXT_VARS} from '../lib/code-text.style';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
 import {diffLineCount, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {Button} from './Button';
@@ -212,7 +212,7 @@ const PanelFile = ({
 		>
 			<span
 				style={{
-					fontFamily: 'ui-monospace, monospace',
+					fontFamily: CODE_FONT,
 					overflow: 'hidden',
 					textOverflow: 'ellipsis',
 					whiteSpace: 'nowrap',

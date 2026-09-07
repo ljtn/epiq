@@ -50,7 +50,7 @@ export const CopyShaButton = ({sha}: {sha: string}) => {
 				transition: 'color 120ms ease, background 120ms ease',
 			}}
 			onMouseEnter={event => {
-				event.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+				event.currentTarget.style.background = GUI_THEME.hover;
 				if (!copied) event.currentTarget.style.color = GUI_THEME.accent;
 			}}
 			onMouseLeave={event => {
