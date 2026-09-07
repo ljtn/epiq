@@ -400,10 +400,13 @@ export const App = () => {
 
 	// Who caused an event on each ticket, for the axis the board state cannot
 	// answer. Null past the server's cap, which leaves that axis unenforced
-	// rather than emptying the board.
+	// rather than emptying the board — and null while nobody is narrowing by it,
+	// which is nearly always: this walks the whole window, and a needle drag
+	// broadcasts a new one several times a second.
+	const narrowsByActor = selection.only.actor !== undefined;
 	const eventActorIds = useMemo(
-		() => actorIdsByIssue(history.timeline),
-		[history.timeline],
+		() => (narrowsByActor ? actorIdsByIssue(history.timeline) : null),
+		[narrowsByActor, history.timeline],
 	);
 
 	const zoomed = selection.zoom !== null;
