@@ -1,8 +1,8 @@
 import type {Locator, Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 
-// The lane the icon would be drawn on: an empty column offers no stats, so
-// asserting on the first header would pass whether the feature works or not.
+// A lane holding tickets, for the assertions that read real figures off the
+// panel: an empty column reaches the same panel but has nothing to put in it.
 const laneWithTickets = async (page: Page): Promise<Locator> => {
 	const headers = page.getByTestId('swimlane-handle');
 
@@ -119,5 +119,35 @@ test('no lane offers stats while the board is scrubbed', async ({
 	).toHaveCount(0);
 
 	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});
+
+// A board nobody has filled yet still has to offer its lanes' stats. The
+// median is what goes missing, not the way in — and the title says so rather
+// than quoting an empty figure.
+test('an empty lane still opens its stats, with no figure in the title', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	// A filter nothing matches empties every lane while the board stays live,
+	// which is the same shape as a board with no tickets on it yet.
+	const filter = page.getByPlaceholder('filter by ref or title');
+	await filter.fill('zzzz-no-such-ticket');
+
+	const header = page.getByTestId('swimlane-handle').first();
+	await expect(header).toContainText('(0)');
+
+	const stats = header.getByTestId('swimlane-stats-open');
+	await expect(stats).toHaveAttribute('title', 'Swimlane Stats');
+
+	await stats.click();
+	await expect(page.getByTestId('swimlane-stats')).toBeVisible();
+
+	// Left as it was found: the suite shares one board across files.
+	await filter.fill('');
 	expect(pageErrors).toEqual([]);
 });

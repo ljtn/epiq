@@ -94,7 +94,6 @@ import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
-import {useBoardStayTrends} from './lib/use-board-stay-trends';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
@@ -389,9 +388,6 @@ export const App = () => {
 	const {stats: swimlaneStats, onMessage: onSwimlaneStatsMessage} =
 		useSwimlaneStats({swimlaneId: statsSwimlaneId, sendRaw});
 
-	const {trends: stayTrends, onMessage: onStayTrendsMessage} =
-		useBoardStayTrends({boardId: boardId ?? null, socketEpoch, sendRaw});
-
 	// The one view that costs a git scan of every commit a ticket owns, so it
 	// is asked for when it is opened rather than with the rest of the ticket.
 	//
@@ -581,7 +577,6 @@ export const App = () => {
 		// scrubber's own commit dot opens.
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
-		onStayTrendsMessage(message);
 
 		if (message.type === 'state' && !socket.holdsState()) {
 			const nextState = getResultValue<GuiState>(message.payload);
@@ -1606,7 +1601,6 @@ export const App = () => {
 										swimlane={swimlane}
 										live={state?.timeTravel?.mode !== 'scrub'}
 										statsOpen={statsSwimlaneId === swimlane.id}
-										trend={stayTrends[swimlane.id] ?? []}
 										onOpenStats={openSwimlaneStats}
 										selected={false}
 										selectedIssueId={selectedIssue?.id ?? null}

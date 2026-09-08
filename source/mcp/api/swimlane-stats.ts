@@ -7,7 +7,7 @@
 // than ridden along on the board broadcast.
 
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
-import {isSwimlaneNode, isTicketNode} from '../../lib/model/context.model.js';
+import {isTicketNode} from '../../lib/model/context.model.js';
 import {
 	failed,
 	isFail,
@@ -15,12 +15,8 @@ import {
 	succeeded,
 } from '../../lib/model/result-types.js';
 import {deriveLaneFlow} from '../../lib/stats/swimlane-flow.js';
+import {deriveLaneStayTrend} from '../../lib/stats/lane-trend.js';
 import {
-	deriveLaneStayTrend,
-	deriveLaneStayTrends,
-} from '../../lib/stats/lane-trend.js';
-import {
-	LaneStayPoint,
 	SwimlaneCode,
 	SwimlaneStats,
 } from '../../lib/stats/swimlane-stats.model.js';
@@ -67,36 +63,6 @@ const codeForLane = async (
 	}
 
 	return code;
-};
-
-/**
- * Every lane's stay trend in one answer, for the curves the board draws in its
- * swimlane headers. No git, unlike the panel's own figures — which is what lets
- * a header afford this at all.
- */
-export const getBoardStayTrends = (): Result<
-	Record<string, LaneStayPoint[]>
-> => {
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const {nodes} = stateResult.value;
-	const now = Date.now();
-
-	// Walked once and read by every lane: a ticket's visits are a fact about the
-	// ticket, not about the lane doing the asking.
-	const journeys = Object.values(nodes)
-		.filter(isTicketNode)
-		.map(ticket => laneVisits(ticket.log ?? [], ulidTimeMs(ticket.id)));
-
-	const laneIds = Object.values(nodes)
-		.filter(isSwimlaneNode)
-		.map(node => node.id);
-
-	return succeeded(
-		'Derived board stay trends',
-		deriveLaneStayTrends({laneIds, journeys, now, days: TREND_DAYS}),
-	);
 };
 
 export const getSwimlaneStats = async (input: {
