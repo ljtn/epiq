@@ -12,6 +12,7 @@ export {
 } from './api/issues.js';
 export {
 	listBoards,
+	createBoard,
 	listSwimlanes,
 	createSwimlane,
 	editSwimlaneTitle,

@@ -20,6 +20,7 @@ const handlers = (): CommandHandlers => ({
 	returnToLive: vi.fn(),
 	toggleLog: vi.fn(),
 	createSwimlane: vi.fn(),
+	createBoard: vi.fn(),
 });
 
 const issue = (overrides: Partial<GuiIssue> = {}): GuiIssue => ({
@@ -132,6 +133,26 @@ describe('the GUI command registry', () => {
 			expect(
 				find('gui:live').unavailable(context({scrubbing: true})),
 			).toBeNull();
+		});
+
+		// A board is not made on a ticket: unlike everything in the Ticket group
+		// this has to be offered with none open.
+		it('creates a board with no ticket open', () => {
+			const empty = context({issue: null});
+
+			expect(find('gui:board').unavailable(empty)).toBeNull();
+
+			find('gui:board').run(empty);
+			expect(empty.handlers.createBoard).toHaveBeenCalled();
+		});
+
+		it('holds a new board back offline and in the past', () => {
+			expect(find('gui:board').unavailable(context({connected: false}))).toBe(
+				'Not connected',
+			);
+			expect(find('gui:board').unavailable(context({scrubbing: true}))).toBe(
+				'Read-only while viewing history',
+			);
 		});
 
 		it('sorts what cannot run last', () => {
