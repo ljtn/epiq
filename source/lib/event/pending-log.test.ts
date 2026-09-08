@@ -1,0 +1,186 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {isSuccess, Result} from '../model/result-types.js';
+import {
+	flushPendingLogs,
+	isPendingFileName,
+	toPendingFileName,
+	trackedFileNameFor,
+} from './pending-log.js';
+
+const TRACKED = '01hzz.ana.jsonl';
+const PENDING = '01hzz~pending.ana.jsonl';
+
+let root: string;
+let eventsDir: string;
+
+const unwrap = <T>(result: Result<T>): T => {
+	if (!isSuccess(result)) throw new Error(result.message);
+	return result.value;
+};
+
+const write = (name: string, lines: string[]) =>
+	fs.writeFileSync(
+		path.join(eventsDir, name),
+		lines.map(line => `${line}\n`).join(''),
+	);
+
+const linesOf = (name: string): string[] => {
+	const filePath = path.join(eventsDir, name);
+	if (!fs.existsSync(filePath)) return [];
+
+	return fs
+		.readFileSync(filePath, 'utf8')
+		.split('\n')
+		.filter(line => line.trim().length > 0);
+};
+
+const namesIn = (): string[] => fs.readdirSync(eventsDir).sort();
+
+beforeEach(() => {
+	root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-pending-'));
+	eventsDir = path.join(root, '.epiq', 'events');
+	fs.mkdirSync(eventsDir, {recursive: true});
+});
+
+afterEach(() => {
+	fs.rmSync(root, {recursive: true, force: true});
+});
+
+describe('the pending log name', () => {
+	it('marks the id segment, which is the one that cannot hold a dot', () => {
+		expect(toPendingFileName(TRACKED)).toBe(PENDING);
+		expect(trackedFileNameFor(PENDING)).toBe(TRACKED);
+	});
+
+	// The whole reason the marker is not a `.pending` suffix: a name may contain
+	// dots, so a contributor actually called "pending" would be unreadable from
+	// a real pending file.
+	it('does not mistake a contributor named "pending" for a pending file', () => {
+		expect(trackedFileNameFor('01hzz.pending.jsonl')).toBeNull();
+		expect(isPendingFileName('01hzz.pending.jsonl')).toBe(false);
+	});
+
+	it('survives a name that contains dots of its own', () => {
+		const tracked = '01hzz.j.-lampa.jsonl';
+
+		expect(trackedFileNameFor(toPendingFileName(tracked))).toBe(tracked);
+	});
+
+	// A rotated file is still read and still resolves to the same actor, so
+	// events stay visible while a flush is part-way through.
+	it('recognises a rotated file, and resolves it to the same log', () => {
+		const rotated = '01hzz~pending-01abc.ana.jsonl';
+
+		expect(isPendingFileName(rotated)).toBe(true);
+		expect(trackedFileNameFor(rotated)).toBe(TRACKED);
+	});
+
+	it('leaves an ordinary log alone', () => {
+		expect(trackedFileNameFor(TRACKED)).toBeNull();
+		expect(isPendingFileName(TRACKED)).toBe(false);
+	});
+});
+
+describe('flushing pending logs', () => {
+	it('does nothing when there is nothing pending', () => {
+		write(TRACKED, ['a']);
+
+		expect(unwrap(flushPendingLogs(root))).toBe(0);
+		expect(linesOf(TRACKED)).toEqual(['a']);
+	});
+
+	it('folds the pending lines onto the end of the tracked log', () => {
+		write(TRACKED, ['a', 'b']);
+		write(PENDING, ['c', 'd']);
+
+		expect(unwrap(flushPendingLogs(root))).toBe(2);
+		expect(linesOf(TRACKED)).toEqual(['a', 'b', 'c', 'd']);
+		expect(namesIn()).toEqual([TRACKED]);
+	});
+
+	it('creates the tracked log when the actor has only ever written pending', () => {
+		write(PENDING, ['a']);
+
+		unwrap(flushPendingLogs(root));
+
+		expect(linesOf(TRACKED)).toEqual(['a']);
+	});
+
+	// A crash between the append and the delete leaves a rotated file behind.
+	// The next flush has to find it — that is the whole reason it globs rather
+	// than looking only at the live name.
+	it('picks up a rotated file a crashed flush left behind', () => {
+		write(TRACKED, ['a']);
+		write('01hzz~pending-01abc.ana.jsonl', ['stranded']);
+
+		expect(unwrap(flushPendingLogs(root))).toBe(1);
+		expect(linesOf(TRACKED)).toEqual(['a', 'stranded']);
+		expect(namesIn()).toEqual([TRACKED]);
+	});
+
+	it('folds a stray and the live file in the same pass', () => {
+		write(TRACKED, ['a']);
+		write('01hzz~pending-01abc.ana.jsonl', ['stranded']);
+		write(PENDING, ['live']);
+
+		unwrap(flushPendingLogs(root));
+
+		expect(linesOf(TRACKED).sort()).toEqual(['a', 'live', 'stranded']);
+		expect(namesIn()).toEqual([TRACKED]);
+	});
+
+	it('keeps each actor with their own log', () => {
+		write('01hzz.ana.jsonl', ['ana-1']);
+		write('01hzz~pending.ana.jsonl', ['ana-2']);
+		write('02aaa.bo.jsonl', ['bo-1']);
+		write('02aaa~pending.bo.jsonl', ['bo-2']);
+
+		unwrap(flushPendingLogs(root));
+
+		expect(linesOf('01hzz.ana.jsonl')).toEqual(['ana-1', 'ana-2']);
+		expect(linesOf('02aaa.bo.jsonl')).toEqual(['bo-1', 'bo-2']);
+	});
+
+	// A line that is not newline-terminated would otherwise be joined to the
+	// first line of the tracked log's next append — two events lost, and union
+	// merge relies on every line standing alone.
+	it('terminates a final line the writer left unterminated', () => {
+		write(TRACKED, ['a']);
+		fs.writeFileSync(path.join(eventsDir, PENDING), 'b');
+
+		unwrap(flushPendingLogs(root));
+
+		expect(linesOf(TRACKED)).toEqual(['a', 'b']);
+		expect(fs.readFileSync(path.join(eventsDir, TRACKED), 'utf8')).toMatch(
+			/\n$/,
+		);
+	});
+
+	it('leaves an empty pending file behind no trace', () => {
+		write(TRACKED, ['a']);
+		fs.writeFileSync(path.join(eventsDir, PENDING), '');
+
+		expect(unwrap(flushPendingLogs(root))).toBe(0);
+		expect(linesOf(TRACKED)).toEqual(['a']);
+		expect(namesIn()).toEqual([TRACKED]);
+	});
+
+	it('is safe to run twice', () => {
+		write(TRACKED, ['a']);
+		write(PENDING, ['b']);
+
+		unwrap(flushPendingLogs(root));
+		unwrap(flushPendingLogs(root));
+
+		expect(linesOf(TRACKED)).toEqual(['a', 'b']);
+	});
+
+	it('shrugs off an events directory that is not there yet', () => {
+		fs.rmSync(eventsDir, {recursive: true, force: true});
+
+		expect(unwrap(flushPendingLogs(root))).toBe(0);
+	});
+});

@@ -58,6 +58,43 @@ const acceptedTitles = (report: ActorReport, expected: string[]): string[] => {
 	return refused.length > 0 ? [] : expected;
 };
 
+/**
+ * A sync that lost the race to a concurrent write.
+ *
+ * Nothing holds a lock on the append path, deliberately: a write that had to
+ * wait on a sync would stall the person doing it, and this is the busiest path
+ * in the app. So git can find the log dirty at any point while it rebases and
+ * refuse — before it starts, at its pre-flight check, or part-way through the
+ * replay, which is why this matches three different refusals.
+ *
+ * The sync fails having changed nothing and the next one picks it up. That is
+ * the design, not a defect, and it is not what this file is here to catch: the
+ * contract in the header is that an accepted issue does not go missing, and
+ * that stays asserted exactly as strictly as before.
+ */
+const BLOCKED_BY_A_CONCURRENT_WRITE =
+	/unstaged changes|would be overwritten|could not detach HEAD/;
+
+/**
+ * Tolerated, but counted. An occasional blip is what the design trades for a
+ * lock-free write path; every round failing is a regression that would
+ * otherwise hide behind the same message. This is the line between them.
+ */
+const MAX_BLOCKED_SYNCS = 4;
+
+// Anything that is neither of the two known, expected outcomes. One of these
+// fails the round it appears in, on its first occurrence.
+const unexpectedProblems = (problems: string[]): string[] =>
+	problems.filter(
+		problem =>
+			!/Another process is syncing/.test(problem) &&
+			!BLOCKED_BY_A_CONCURRENT_WRITE.test(problem),
+	);
+
+const blockedSyncs = (problems: string[]): number =>
+	problems.filter(problem => BLOCKED_BY_A_CONCURRENT_WRITE.test(problem))
+		.length;
+
 const publishRemoteWork = async (peer: Actor, round: number): Promise<void> => {
 	for (let commit = 0; commit < COMMITS_PER_ROUND; commit += 1) {
 		const published = await runActor(peer, {
@@ -101,6 +138,7 @@ describe('a tool writes while another process syncs the same worktree', () => {
 			).toEqual([]);
 
 			const expected: string[] = [];
+			let blocked = 0;
 
 			for (let round = 0; round < ROUNDS; round += 1) {
 				await publishRemoteWork(bo, round);
@@ -120,13 +158,21 @@ describe('a tool writes while another process syncs the same worktree', () => {
 				]);
 
 				expect(
-					syncing.problems.filter(p => !/Another process is syncing/.test(p)),
+					unexpectedProblems(syncing.problems),
 					`ana syncing round ${round}`,
 				).toEqual([]);
+
+				blocked += blockedSyncs(syncing.problems);
 
 				expected.push(...acceptedTitles(writing, titles));
 			}
 
+			expect(
+				blocked,
+				'syncs blocked by a concurrent write',
+			).toBeLessThanOrEqual(MAX_BLOCKED_SYNCS);
+
+			// Nothing is writing any more, so this one has no excuse.
 			const settled = await runActor(agent, {actions: [], sync: true});
 			expect(settled.problems, 'agent settling').toEqual([]);
 
@@ -172,6 +218,7 @@ describe('a tool writes while another process syncs the same worktree', () => {
 			).toEqual([]);
 
 			const expected: string[] = [];
+			let blocked = 0;
 
 			for (let round = 0; round < ROUNDS; round += 1) {
 				await publishRemoteWork(elsewhere, round);
@@ -191,13 +238,21 @@ describe('a tool writes while another process syncs the same worktree', () => {
 				]);
 
 				expect(
-					syncing.problems.filter(p => !/Another process is syncing/.test(p)),
+					unexpectedProblems(syncing.problems),
 					`syncing round ${round}`,
 				).toEqual([]);
+
+				blocked += blockedSyncs(syncing.problems);
 
 				expected.push(...acceptedTitles(writing, titles));
 			}
 
+			expect(
+				blocked,
+				'syncs blocked by a concurrent write',
+			).toBeLessThanOrEqual(MAX_BLOCKED_SYNCS);
+
+			// Nothing is writing any more, so this one has no excuse.
 			const settled = await runActor(here, {actions: [], sync: true});
 			expect(settled.problems, 'settling').toEqual([]);
 

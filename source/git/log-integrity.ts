@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execGitAllowFail} from './git-utils.js';
 import {failed, Result, succeeded} from '../lib/model/result-types.js';
+import {isPendingFileName} from '../lib/event/pending-log.js';
 import {EPIQ_DIR_NAME, EVENTS_DIR_NAME} from '../lib/storage/paths.js';
 
 /**
@@ -84,6 +85,14 @@ export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 
 		for (const name of fs.readdirSync(dir)) {
 			if (!name.endsWith('.jsonl')) continue;
+
+			// A pending log is untracked and ignored, so git has nothing to drop
+			// from it — protecting it is unnecessary, and worse than unnecessary:
+			// a sync folds one into the tracked log and deletes it, and a snapshot
+			// taken beforehand would read that as lines going missing and put the
+			// file back. The lines would then be in both, and the next flush would
+			// append them again, every sync, forever.
+			if (isPendingFileName(name)) continue;
 
 			snapshot.set(
 				name,

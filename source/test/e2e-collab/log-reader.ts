@@ -3,6 +3,7 @@
 // Losing one is data loss whether or not we can read it.
 import fs from 'node:fs';
 import path from 'node:path';
+import {toPendingFileName} from '../../lib/event/pending-log.js';
 
 const eventsDir = (stateBranchRoot: string): string =>
 	path.join(stateBranchRoot, '.epiq', 'events');
@@ -26,14 +27,22 @@ const idsInFile = (filePath: string): string[] => {
 	return ids;
 };
 
+/**
+ * What this actor has written — including what it has not synced yet.
+ *
+ * An append lands in the pending log and stays there until a sync folds it into
+ * the tracked one, so reading the tracked file alone answers "what have I
+ * published", which is a different question and reads as nothing at all for
+ * somebody working offline.
+ */
 export const readOwnEventIds = (
 	stateBranchRoot: string,
 	fileName: string,
-): string[] => {
-	const filePath = path.join(eventsDir(stateBranchRoot), fileName);
-
-	return fs.existsSync(filePath) ? idsInFile(filePath) : [];
-};
+): string[] =>
+	[fileName, toPendingFileName(fileName)]
+		.map(name => path.join(eventsDir(stateBranchRoot), name))
+		.filter(filePath => fs.existsSync(filePath))
+		.flatMap(idsInFile);
 
 export const readEventIds = (stateBranchRoot: string): string[] => {
 	const dir = eventsDir(stateBranchRoot);

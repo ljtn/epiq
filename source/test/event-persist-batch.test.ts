@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
+import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent} from '../lib/event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
@@ -50,8 +51,12 @@ afterEach(() => {
 	fs.rmSync(rootDir, {recursive: true, force: true});
 });
 
-const ownLogLines = (): Array<{id: [string, string | null]}> =>
-	fs
+// Folded in first: a batch appends to the pending log, and this asks what the
+// actor's own log holds once a sync has taken it.
+const ownLogLines = (): Array<{id: [string, string | null]}> => {
+	flushPendingLogs(rootDir);
+
+	return fs
 		.readFileSync(
 			path.join(
 				rootDir,
@@ -64,6 +69,7 @@ const ownLogLines = (): Array<{id: [string, string | null]}> =>
 		.trim()
 		.split('\n')
 		.map(line => JSON.parse(line));
+};
 
 describe('materializeAndPersistAll edge threading', () => {
 	it('reads the log once per batch, not once per event', () => {

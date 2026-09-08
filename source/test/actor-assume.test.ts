@@ -6,6 +6,7 @@ import {createDefaultEvents} from '../lib/event/event-boot.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent} from '../lib/event/event.model.js';
+import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {
 	assumeActor,
@@ -63,6 +64,10 @@ describe('assumeActor', () => {
 		// to read the name back from.
 		const branchRoot = getStateBranchRoot({repoRoot});
 		if (isFail(branchRoot)) throw new Error(branchRoot.message);
+
+		// Appends land in the pending log, out of reach of a sync; folding them
+		// in is what puts them in the file a replay reads.
+		flushPendingLogs(branchRoot.value);
 
 		const written = fs.readFileSync(
 			getEventsFile({
@@ -153,6 +158,8 @@ describe('assumeActor', () => {
 			parentId: swimlanes.value[0]!.id,
 		});
 		if (isFail(created)) throw new Error(created.message);
+
+		flushPendingLogs(branchRoot.value);
 
 		// Attribution is the file the event landed in: the actor id is parsed back
 		// out of the log's name, never carried in the payload.

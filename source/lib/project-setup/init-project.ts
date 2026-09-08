@@ -22,6 +22,7 @@ import {
 } from '../../git/git.js';
 import {createDefaultEvents} from '../event/event-boot.js';
 import {getPersistFileName, persist} from '../event/event-persist.js';
+import {flushPendingLogs} from '../event/pending-log.js';
 import {AppEvent} from '../event/event.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {User} from '../state/settings.state.js';
@@ -188,6 +189,14 @@ export const initProject = async ({
 		const persistResult = persist({event, rootDir: stateBranchRoot});
 		if (isFail(persistResult)) return failAt(9, persistResult.message);
 	}
+
+	// Those appends went to the pending log, which is untracked by design and
+	// ignored outright — so there would be nothing to stage, and the first
+	// commit of a new project would fail with "nothing added to commit". Folded
+	// in here for the same reason a sync folds them in: this is the moment the
+	// tracked log is about to be handed to git.
+	const flushResult = flushPendingLogs(stateBranchRoot);
+	if (isFail(flushResult)) return failAt(9, flushResult.message);
 
 	// 10. commit initial event log on state branch
 	const stageStateEventFileResult = await stageStateBranchOwnEventFile({

@@ -110,8 +110,33 @@ export const listEventFiles = (root: string): Result<string[]> => {
 // anything at the state branch root that is not `.epiq`.
 const EVENT_LOG_ATTRIBUTES = '*.jsonl merge=union\n';
 
+/**
+ * A pending log is protected by being untracked — git resets the files it
+ * tracks, and leaves the rest alone. Untracked is not the same as ignored,
+ * though: a bare `git add -A` in this worktree would stage one, and once
+ * committed it is tracked, and the protection is silently gone for good.
+ *
+ * Ignoring them makes that impossible rather than merely unlikely. Committed
+ * for the same reason the merge attribute is: a clone that has not seen this
+ * file yet does not have the rule.
+ */
+const EVENT_LOG_IGNORES = '*~pending*.jsonl\n';
+
 export const getRelativeEventAttributesPath = (): string =>
 	path.join(EPIQ_DIR_NAME, EVENTS_DIR_NAME, '.gitattributes');
+
+export const getRelativeEventIgnorePath = (): string =>
+	path.join(EPIQ_DIR_NAME, EVENTS_DIR_NAME, '.gitignore');
+
+const writeIfDifferent = (filePath: string, content: string): void => {
+	try {
+		if (fs.readFileSync(filePath, 'utf8') !== content) {
+			fs.writeFileSync(filePath, content);
+		}
+	} catch {
+		fs.writeFileSync(filePath, content);
+	}
+};
 
 export const ensureStateBranchLayout = (
 	repoRoot: string,
@@ -122,18 +147,15 @@ export const ensureStateBranchLayout = (
 		if (isFail(result)) return failed(result.message);
 	}
 
-	const attributesPath = path.join(
-		stateBranchRoot,
-		getRelativeEventAttributesPath(),
+	writeIfDifferent(
+		path.join(stateBranchRoot, getRelativeEventAttributesPath()),
+		EVENT_LOG_ATTRIBUTES,
 	);
 
-	try {
-		if (fs.readFileSync(attributesPath, 'utf8') !== EVENT_LOG_ATTRIBUTES) {
-			fs.writeFileSync(attributesPath, EVENT_LOG_ATTRIBUTES);
-		}
-	} catch {
-		fs.writeFileSync(attributesPath, EVENT_LOG_ATTRIBUTES);
-	}
+	writeIfDifferent(
+		path.join(stateBranchRoot, getRelativeEventIgnorePath()),
+		EVENT_LOG_IGNORES,
+	);
 
 	return succeeded('Ensured state branch', undefined);
 };
