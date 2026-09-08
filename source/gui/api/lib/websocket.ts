@@ -58,6 +58,17 @@ import {isForeignOrigin} from './origin-guard.js';
 import {parseGuiMessage} from './websocket.schema.js';
 import {issueDetail, slimStateResult} from './slim-state.js';
 
+/**
+ * The ceiling on one websocket frame.
+ *
+ * `MAX_DESCRIPTION_LENGTH` is the longest field this socket carries, and a
+ * character can reach four bytes as UTF-8, so this is that with room for the
+ * envelope and then an order of magnitude over — generous enough that no real
+ * message meets it, small enough that a hostile one cannot make the server hold
+ * a hundred megabytes while it finds out the field is too long anyway.
+ */
+export const MAX_SOCKET_FRAME_BYTES = 1024 * 1024;
+
 // Derives rather than boots, so a live re-materialize can't stomp a checkout.
 const broadcastDerivedState = () => {
 	broadcastGuiMessage({
@@ -149,6 +160,15 @@ export const setupWebsocket = (
 	const wss = new WebSocketServer({
 		server,
 		path: '/ws',
+		// A frame is buffered whole and then parsed before any handler sees it, so
+		// without a ceiling the size checks the API applies — a 300-character
+		// title, a 20,000-character description — only get their say after the
+		// whole thing is in memory twice over. `ws` defaults to 100 MiB.
+		//
+		// Well clear of anything legitimate: the largest message this socket
+		// carries is a description at 20,000 characters, and attachments go over
+		// HTTP rather than through here.
+		maxPayload: MAX_SOCKET_FRAME_BYTES,
 		// A handshake is not bound by the same-origin policy, so without this any
 		// page the user has open reaches every message below — including `sync`,
 		// which pushes to the shared remote.
