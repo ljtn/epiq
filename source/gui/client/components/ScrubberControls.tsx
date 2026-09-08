@@ -356,6 +356,10 @@ export const ScrubberControls = ({
 			<div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
 				<Checkbox
 					label="Code"
+					// Its own hint, phrased like the board series' beside it — the two
+					// checkboxes sit together and one having nothing to say reads as an
+					// oversight rather than as a difference.
+					title="Show commits"
 					checked={showCommits}
 					activeColor={GUI_THEME.green}
 					disabled={!connected}

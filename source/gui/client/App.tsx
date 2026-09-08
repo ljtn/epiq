@@ -39,6 +39,7 @@ import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {SwimlaneStats} from './components/SwimlaneStats';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
+import {TooltipLayer} from './components/TooltipLayer';
 import {TicketRefLinksProvider} from './components/MarkdownContent';
 import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
@@ -1382,6 +1383,7 @@ export const App = () => {
 				}}
 			>
 				<GlobalScrollbarStyles />
+				<TooltipLayer />
 
 				{removeError && (
 					<ErrorToast
