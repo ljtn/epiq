@@ -28,6 +28,10 @@ import {
 	getStateResult,
 } from './boot.js';
 
+type CreateBoardInput = ToolInput & {
+	title: string;
+};
+
 type ListSwimlanesInput = ToolInput & {
 	boardId?: string;
 };
@@ -70,6 +74,69 @@ export const listBoards = async (input: ToolInput = {}) => {
 		}));
 
 	return succeeded('Listed boards', boards);
+};
+
+export const createBoard = async (input: CreateBoardInput) => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	// Boards hang off the workspace, and there is exactly one of those: the
+	// caller has no parent to pass, and could not be trusted with it anyway.
+	const workspace = stateResult.value.nodes[stateResult.value.rootNodeId];
+	if (!workspace) return failed('Workspace not found');
+
+	// The workspace carries no readonly of its own, so — as with a swimlane on a
+	// board — the scrub guard has to be this function's.
+	if (getTimeTravelStatus().mode !== 'live') {
+		return failed('Cannot add a board while time travelling');
+	}
+
+	const title = sanitizeInlineText(input.title);
+	if (!title.trim()) return failed('Board title cannot be empty');
+
+	const overLongTitle = tooLong('Board title', title, MAX_TITLE_LENGTH);
+	if (overLongTitle) return failed(overLongTitle);
+
+	const rankResult = resolveAndPersistRankForCreate(
+		workspace.id,
+		actorResult.value,
+		bootResult.value.stateBranchRoot,
+	);
+	if (isFail(rankResult)) return rankResult;
+
+	const boardId = ulid();
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'add.board',
+		payload: {
+			id: boardId,
+			name: title,
+			parent: workspace.id,
+			rank: rankResult.value,
+		},
+	} satisfies AppEvent<'add.board'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+	if (isFail(results)) return failed(results.message);
+
+	// No swimlanes: the TUI's `:new board` makes a bare one too, and the board
+	// shows the add-column ghost from empty.
+	return succeeded('Created board', {
+		id: boardId,
+		ref: nodeRef(boardId),
+		title,
+	});
 };
 
 export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {

@@ -286,3 +286,33 @@ test('what was run last leads the list, and survives a reload', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The one command that leaves the board it was run from: making a board is
+// only worth anything if you land on it.
+test('a new board is created from the palette, and the switcher moves to it', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const name = `Palette board ${Date.now()}`;
+
+	await openPalette(page);
+	await page.keyboard.type('new board');
+	await expect(rows(page).first()).toContainText('New board');
+	await page.keyboard.press('Enter');
+
+	await page.getByPlaceholder('board name').fill(name);
+	await page.getByPlaceholder('board name').press('Enter');
+
+	await expect(page.getByTestId('board-switcher')).toContainText(name);
+	await expect(page).toHaveURL(/\/board\//);
+
+	// Bare, the way the TUI's `:new board` leaves one — the ghost column is the
+	// way out of an empty board.
+	await expect(page.getByTestId('add-swimlane')).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});

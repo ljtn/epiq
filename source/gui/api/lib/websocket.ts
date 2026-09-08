@@ -8,6 +8,7 @@ import {
 	addIssueComment,
 	addIssueTag,
 	closeIssue,
+	createBoard,
 	createIssue,
 	createSwimlane,
 	deleteSwimlane,
@@ -578,6 +579,21 @@ export const setupWebsocket = (
 
 					onStateChanged();
 					return sendGuiState(socket, repoRoot);
+				}
+
+				if (type === 'board:create') {
+					const result = await createBoard({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'board:create:result',
+						result,
+					);
 				}
 
 				if (type === 'swimlane:create') {
