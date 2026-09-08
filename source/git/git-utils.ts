@@ -549,19 +549,63 @@ export const getShortHeadSha = async (
 export const isNonFastForward = (message: string): boolean =>
 	message.includes('fetch first') || message.includes('non-fast-forward');
 
+/**
+ * Whether a rebase is actually in progress.
+ *
+ * Asked of git rather than inferred from the exit code of `rebase --abort`,
+ * which is non-zero both when there was nothing to abort and when there was one
+ * it could not unwind — two states that want opposite responses. Asked
+ * structurally rather than by matching git's message, too: the environment
+ * these commands run in inherits `LANG`, so the wording is not ours to rely on.
+ *
+ * `--git-path` is what resolves this correctly inside a linked worktree, where
+ * the state sits under `.git/worktrees/<name>/` rather than beside HEAD.
+ */
+const rebaseInProgress = async (cwd: string): Promise<boolean> => {
+	// One spawn, not one per state directory: autosync runs this every few
+	// seconds and the answer is almost always "no rebase", so the common case
+	// should cost a single `rev-parse` and two `existsSync` calls.
+	const result = await execGitAllowFail({
+		cwd,
+		args: ['rev-parse', '--absolute-git-dir'],
+	});
+
+	if (result.exitCode !== 0) return false;
+
+	const gitDir = result.stdout.trim();
+	if (!gitDir) return false;
+
+	// `rebase-merge` is the interactive and merge backend, `rebase-apply` the
+	// am-based one. Either means a rebase is in progress.
+	return (
+		fs.existsSync(path.join(gitDir, 'rebase-merge')) ||
+		fs.existsSync(path.join(gitDir, 'rebase-apply'))
+	);
+};
+
 export const abortRebaseIfPresent = async (
 	cwd: string,
 ): Promise<Result<boolean>> => {
+	if (!(await rebaseInProgress(cwd))) {
+		return succeeded('No rebase to abort', false);
+	}
+
 	const result = await execGitAllowFail({
 		cwd,
 		args: ['rebase', '--abort'],
 	});
 
-	if (result.exitCode === 0) {
-		return succeeded('Aborted stale rebase', true);
+	// A rebase that is present and will not unwind. Returned as a failure rather
+	// than swallowed as "nothing to do": the caller's next move is to start a
+	// second rebase over the stuck one, and the error it then reports names the
+	// new rebase while the cause sits underneath it.
+	if (result.exitCode !== 0) {
+		return failed(
+			`Failed to abort the rebase in progress at ${cwd}\n${result.stderr.trim()}`,
+		);
 	}
 
-	return succeeded('No rebase to abort', false);
+	return succeeded('Aborted stale rebase', true);
 };
 
 const readHeadSha = async (cwd: string): Promise<string | null> => {
