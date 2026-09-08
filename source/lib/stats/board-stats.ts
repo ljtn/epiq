@@ -45,12 +45,18 @@ const MOVE = 'move.node';
  */
 export const deriveBoardStats = ({
 	createdAt,
+	enteredLaneAt,
 	now,
 	history,
 	lanes,
 	currentLaneId,
 }: {
 	createdAt: number;
+	// When the ticket last arrived where it is, derived once from the whole log
+	// by `laneEntryTime` and carried on the ticket. Not recomputed here: this
+	// function sees only the moves, and a move within one lane looks exactly
+	// like an arrival from that angle.
+	enteredLaneAt: number;
 	now: number;
 	// Oldest first, as the ticket's log is kept.
 	history: BoardMove[];
@@ -60,7 +66,6 @@ export const deriveBoardStats = ({
 	const orderById = new Map(lanes.map((lane, index) => [lane.id, index]));
 
 	let timesSentBack = 0;
-	let landedInCurrentAt: number | null = null;
 
 	// Walked forwards, carrying where the ticket was. A ticket is filed into
 	// the board's first lane, so that is where the first move is measured
@@ -80,14 +85,13 @@ export const deriveBoardStats = ({
 			timesSentBack++;
 		}
 
-		if (event.parentId === currentLaneId) landedInCurrentAt = event.t;
 		if (index !== undefined) previousIndex = index;
 	}
 
 	return {
 		ageMs: Math.max(0, now - createdAt),
 		timesSentBack,
-		inLaneMs: Math.max(0, now - (landedInCurrentAt ?? createdAt)),
+		inLaneMs: Math.max(0, now - enteredLaneAt),
 		laneTitle: lanes.find(lane => lane.id === currentLaneId)?.title ?? '',
 	};
 };

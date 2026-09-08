@@ -15,27 +15,42 @@ const parentOf = (event: AppEvent): string | null => {
 	}
 };
 
+export type LaneVisit = {laneId: string; enteredAt: number};
+
 /**
- * When the ticket last arrived in the lane it is in now, read off its own log.
+ * Every lane the ticket has been in, oldest first, read off its own log.
+ *
  * The parent is compared rather than counted: dragging a card up its own column
- * writes a move carrying the lane it is already in, and must not restart the
- * clock. Falls back to `createdAt` for a log that never names a parent.
+ * writes a move carrying the lane it is already in, which is not a visit. One
+ * walk answers all three questions a lane gets asked — when a ticket arrived,
+ * where it came from, and where it went next.
+ */
+export const laneVisits = (
+	log: readonly AppEvent[],
+	createdAt: number,
+): LaneVisit[] => {
+	const visits: LaneVisit[] = [];
+
+	for (const event of log) {
+		const laneId = parentOf(event);
+		if (laneId === null || laneId === visits.at(-1)?.laneId) continue;
+
+		const time = getEventTime(event);
+
+		visits.push({
+			laneId,
+			enteredAt: time === null ? createdAt : clampUlidTime(time),
+		});
+	}
+
+	return visits;
+};
+
+/**
+ * When the ticket last arrived in the lane it is in now. Falls back to
+ * `createdAt` for a log that never names a parent.
  */
 export const laneEntryTime = (
 	log: readonly AppEvent[],
 	createdAt: number,
-): number => {
-	let parent: string | null = null;
-	let entered = createdAt;
-
-	for (const event of log) {
-		const next = parentOf(event);
-		if (next === null || next === parent) continue;
-
-		const time = getEventTime(event);
-		parent = next;
-		if (time !== null) entered = clampUlidTime(time);
-	}
-
-	return entered;
-};
+): number => laneVisits(log, createdAt).at(-1)?.enteredAt ?? createdAt;

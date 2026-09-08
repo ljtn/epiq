@@ -21,6 +21,7 @@ describe('deriveBoardStats', () => {
 	it('ages a ticket from when it was filed', () => {
 		const stats = deriveBoardStats({
 			createdAt: NOW - 3 * DAY,
+			enteredLaneAt: NOW - 3 * DAY,
 			now: NOW,
 			history: [],
 			lanes,
@@ -36,6 +37,7 @@ describe('deriveBoardStats', () => {
 	it('measures time in lane from filing when nothing has moved', () => {
 		const stats = deriveBoardStats({
 			createdAt: NOW - 3 * DAY,
+			enteredLaneAt: NOW - 3 * DAY,
 			now: NOW,
 			history: [],
 			lanes,
@@ -45,9 +47,10 @@ describe('deriveBoardStats', () => {
 		expect(stats.inLaneMs).toBe(3 * DAY);
 	});
 
-	it('measures time in lane from the move that put it there', () => {
+	it('measures time in lane from the arrival it is given', () => {
 		const stats = deriveBoardStats({
 			createdAt: NOW - 8 * DAY,
+			enteredLaneAt: NOW - 2 * DAY,
 			now: NOW,
 			history: [
 				moved(NOW - 6 * DAY, 'ongoing'),
@@ -61,9 +64,31 @@ describe('deriveBoardStats', () => {
 		expect(stats.laneTitle).toBe('Review');
 	});
 
+	// Dragging a card up its own column writes a move naming the lane it is
+	// already in. Reading the moves for an arrival cannot tell that from a real
+	// one, which is why the arrival is derived from the whole log elsewhere and
+	// handed in — tidying a column used to zero every clock in it.
+	it('is not reset by a move within the lane the ticket is already in', () => {
+		const stats = deriveBoardStats({
+			createdAt: NOW - 9 * DAY,
+			enteredLaneAt: NOW - 5 * DAY,
+			now: NOW,
+			history: [
+				moved(NOW - 5 * DAY, 'review'),
+				// A reorder, a minute ago.
+				moved(NOW - 60_000, 'review'),
+			],
+			lanes,
+			currentLaneId: 'review',
+		});
+
+		expect(stats.inLaneMs).toBe(5 * DAY);
+	});
+
 	it('counts a move to an earlier lane, and only that', () => {
 		const stats = deriveBoardStats({
 			createdAt: NOW - 8 * DAY,
+			enteredLaneAt: NOW - 3 * DAY,
 			now: NOW,
 			history: [
 				moved(NOW - 7 * DAY, 'ongoing'),
@@ -84,6 +109,7 @@ describe('deriveBoardStats', () => {
 	it('does not count going forwards, however far', () => {
 		const stats = deriveBoardStats({
 			createdAt: NOW - 2 * DAY,
+			enteredLaneAt: NOW - DAY,
 			now: NOW,
 			history: [moved(NOW - DAY, 'done')],
 			lanes,
@@ -98,6 +124,7 @@ describe('deriveBoardStats', () => {
 	it('ignores a move to a lane this board does not have', () => {
 		const stats = deriveBoardStats({
 			createdAt: NOW - 4 * DAY,
+			enteredLaneAt: NOW - 3 * DAY,
 			now: NOW,
 			history: [
 				moved(NOW - 3 * DAY, 'review'),
@@ -113,6 +140,7 @@ describe('deriveBoardStats', () => {
 	it('ignores every event that is not a move', () => {
 		const stats = deriveBoardStats({
 			createdAt: NOW - 4 * DAY,
+			enteredLaneAt: NOW - 4 * DAY,
 			now: NOW,
 			history: [
 				{t: NOW - 3 * DAY, action: 'add.comment'},
