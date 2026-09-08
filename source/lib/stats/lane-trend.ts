@@ -8,31 +8,74 @@ import {LaneStayPoint} from './swimlane-stats.model.js';
 // the last thirty days is a slope. Every ticket's visits say exactly which lane
 // it was in at any past moment and when it got there, so each day's figure is
 // reconstructed rather than remembered — no snapshot has to have been kept.
+//
+// Driven from the visits rather than from the days: a stay already knows the run
+// of days it covers, so each one is counted into the lane it was actually in.
+// Asking every lane about every ticket on every day gives the same answer and
+// costs the product of all four.
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** How long the ticket had been in `laneId` at `t`, or null if it was elsewhere. */
-const ageAt = (
-	visits: readonly LaneVisit[],
-	laneId: string,
-	t: number,
-): number | null => {
-	for (const [index, visit] of visits.entries()) {
-		if (visit.laneId !== laneId || visit.enteredAt > t) continue;
+/**
+ * One point per day for each of `laneIds`, oldest first, ending at `now`.
+ *
+ * `journeys` is every ticket's visits — including tickets that have long since
+ * left, since what makes the line move is as much what left the lane as what is
+ * standing in it.
+ */
+export const deriveLaneStayTrends = ({
+	laneIds,
+	journeys,
+	now,
+	days,
+}: {
+	laneIds: readonly string[];
+	journeys: ReadonlyArray<readonly LaneVisit[]>;
+	now: number;
+	days: number;
+}): Record<string, LaneStayPoint[]> => {
+	const earliest = now - (days - 1) * DAY;
 
-		// Still there at `t` only if nothing moved it away before then.
-		const left = visits[index + 1]?.enteredAt;
-		if (left === undefined || left > t) return t - visit.enteredAt;
+	const ages = new Map<string, number[][]>(
+		laneIds.map(laneId => [
+			laneId,
+			Array.from({length: days}, () => [] as number[]),
+		]),
+	);
+
+	for (const visits of journeys) {
+		for (const [index, visit] of visits.entries()) {
+			const lane = ages.get(visit.laneId);
+			if (!lane) continue;
+
+			// The sampled days this one stay covers: from the first day at or after
+			// it arrived, to the last day before something moved it on.
+			const left = visits[index + 1]?.enteredAt;
+			const from = Math.max(0, Math.ceil((visit.enteredAt - earliest) / DAY));
+			const to =
+				left === undefined
+					? days - 1
+					: Math.min(days - 1, Math.ceil((left - earliest) / DAY) - 1);
+
+			for (let day = from; day <= to; day++) {
+				lane[day]!.push(earliest + day * DAY - visit.enteredAt);
+			}
+		}
 	}
 
-	return null;
+	return Object.fromEntries(
+		[...ages].map(([laneId, byDay]) => [
+			laneId,
+			byDay.map((dayAges, day) => ({
+				t: earliest + day * DAY,
+				median: medianOfSorted(dayAges.sort((a, b) => a - b)),
+				count: dayAges.length,
+			})),
+		]),
+	);
 };
 
-/**
- * One point per day, oldest first, ending at `now`. `journeys` is every ticket's
- * visits — including tickets that have long since left, since what makes the
- * line move is as much what left the lane as what is standing in it.
- */
+/** One lane's trend, for the panel that shows only that lane. */
 export const deriveLaneStayTrend = ({
 	laneId,
 	journeys,
@@ -44,13 +87,4 @@ export const deriveLaneStayTrend = ({
 	now: number;
 	days: number;
 }): LaneStayPoint[] =>
-	Array.from({length: days}, (_, index) => {
-		const t = now - (days - 1 - index) * DAY;
-
-		const ages = journeys
-			.map(visits => ageAt(visits, laneId, t))
-			.filter((age): age is number => age !== null)
-			.sort((a, b) => a - b);
-
-		return {t, median: medianOfSorted(ages), count: ages.length};
-	});
+	deriveLaneStayTrends({laneIds: [laneId], journeys, now, days})[laneId]!;

@@ -1,5 +1,8 @@
 import {describe, expect, it} from 'vitest';
-import {deriveLaneStayTrend} from '../lib/stats/lane-trend.js';
+import {
+	deriveLaneStayTrend,
+	deriveLaneStayTrends,
+} from '../lib/stats/lane-trend.js';
 import {LaneVisit} from '../lib/utils/lane-dwell.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -81,5 +84,35 @@ describe('deriveLaneStayTrend', () => {
 		const points = trend([[visit('todo', 3), visit('done', 1)]], 4);
 
 		expect(points.every(point => point.median === null)).toBe(true);
+	});
+});
+
+describe('deriveLaneStayTrends', () => {
+	// The header draws every lane at once, so one pass fills them all — and each
+	// lane has to come back with only its own tickets in it.
+	it('keeps each lane to its own tickets in one pass', () => {
+		const trends = deriveLaneStayTrends({
+			laneIds: ['review', 'done'],
+			journeys: [[visit('review', 4), visit('done', 2)], [visit('review', 1)]],
+			now: NOW,
+			days: 5,
+		});
+
+		expect(trends['review']!.map(point => point.count)).toEqual([
+			1, 1, 0, 1, 1,
+		]);
+		expect(trends['done']!.map(point => point.count)).toEqual([0, 0, 1, 1, 1]);
+	});
+
+	it('gives an untouched lane a full series of empty days', () => {
+		const trends = deriveLaneStayTrends({
+			laneIds: ['review', 'icebox'],
+			journeys: [[visit('review', 1)]],
+			now: NOW,
+			days: 3,
+		});
+
+		expect(trends['icebox']).toHaveLength(3);
+		expect(trends['icebox']!.every(point => point.median === null)).toBe(true);
 	});
 });
