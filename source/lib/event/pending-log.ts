@@ -80,6 +80,33 @@ export const getPendingLogPath = (
 ): string =>
 	path.join(getEventsDirPath(eventsRoot), toPendingFileName(trackedFileName));
 
+const hasLines = (filePath: string): boolean =>
+	fs.readFileSync(filePath, 'utf8').trim().length > 0;
+
+/**
+ * Whether any pending log holds lines.
+ *
+ * Pending logs are ignored, so `git status` does not list them — but they hold
+ * every event written since the last sync, and a guard that asks git whether a
+ * worktree still has unpublished work has to ask this too. Any actor's: the
+ * worktree is shared, and the lines are somebody's either way. Unreadable
+ * counts as held, for the same reason `findStrandedEventLogs` refuses.
+ */
+export const hasPendingLines = (eventsRoot: string): boolean => {
+	const dir = getEventsDirPath(eventsRoot);
+
+	try {
+		if (!fs.existsSync(dir)) return false;
+
+		return fs
+			.readdirSync(dir)
+			.filter(isPendingFileName)
+			.some(name => hasLines(path.join(dir, name)));
+	} catch {
+		return true;
+	}
+};
+
 // Bounded for a filesystem whose inode numbers are not stable, where the check
 // below could never agree and every append would otherwise loop.
 const MAX_APPEND_ATTEMPTS = 3;

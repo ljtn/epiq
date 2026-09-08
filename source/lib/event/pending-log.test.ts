@@ -6,6 +6,7 @@ import {isSuccess, Result} from '../model/result-types.js';
 import {
 	appendPendingLine,
 	flushPendingLogs,
+	hasPendingLines,
 	isPendingFileName,
 	toPendingFileName,
 	trackedFileNameFor,
@@ -231,5 +232,27 @@ describe('appending to a pending log', () => {
 
 		expect(linesOf(TRACKED)).toEqual(['before']);
 		expect(linesOf(PENDING)).toEqual(['during']);
+	});
+});
+
+describe('whether pending lines are held', () => {
+	it('is false with no pending logs, or only empty ones', () => {
+		write(TRACKED, ['a']);
+		expect(hasPendingLines(root)).toBe(false);
+
+		fs.writeFileSync(path.join(eventsDir, PENDING), '');
+		expect(hasPendingLines(root)).toBe(false);
+	});
+
+	it("is true for any actor's pending lines, live or rotated", () => {
+		write('02aaa~pending-01abc.bo.jsonl', ['bo']);
+
+		expect(hasPendingLines(root)).toBe(true);
+	});
+
+	it('is false when the events directory does not exist', () => {
+		fs.rmSync(eventsDir, {recursive: true, force: true});
+
+		expect(hasPendingLines(root)).toBe(false);
 	});
 });
