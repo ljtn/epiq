@@ -800,25 +800,12 @@ describe('identity views', () => {
 	});
 });
 
-// Filed as Z486QVM: the step from a month to a year was the widest gap in the
-// row, so a half-year sits between them.
-describe('halfyear scope', () => {
-	it('sits between the month and the year', () => {
-		expect(SCOPES[4]).toBe('halfyear');
-		expect(isScope('halfyear')).toBe(true);
-	});
-
-	it('spans six of the month scope, not half of the year', () => {
-		const range = getPeriodRange('halfyear', 0);
-
-		expect(range!.end - range!.start).toBe(180 * DAY);
-	});
-
-	it('names itself in months, since capitalizing its id would not', () => {
-		expect(scopeButtonLabel('halfyear')).toBe('6 months');
-		expect(
-			formatPeriodLabel('halfyear', 0, getPeriodRange('halfyear', 0)),
-		).toBe('Last 180 days');
+// A scope that was withdrawn (`PM58DTN`, undoing `Z486QVM`): an id the row no
+// longer offers must not survive in a bookmarked URL either.
+describe('a withdrawn scope', () => {
+	it('is not a scope any more', () => {
+		expect([...SCOPES]).not.toContain('halfyear');
+		expect(isScope('halfyear')).toBe(false);
 	});
 });
 
@@ -1180,7 +1167,6 @@ describe('hour scope', () => {
 			'day',
 			'week',
 			'month',
-			'halfyear',
 			'year',
 			'all',
 		]);

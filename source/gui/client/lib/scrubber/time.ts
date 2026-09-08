@@ -125,14 +125,7 @@ export const formatInterval = (start: number, end: number): string => {
 
 // --------------------------------------------------------------------- scope
 
-export type Scope =
-	| 'all'
-	| 'hour'
-	| 'day'
-	| 'week'
-	| 'month'
-	| 'halfyear'
-	| 'year';
+export type Scope = 'all' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
 export type PeriodRange = {start: number; end: number};
 
@@ -141,19 +134,15 @@ export const SCOPES: readonly Scope[] = [
 	'day',
 	'week',
 	'month',
-	'halfyear',
 	'year',
 	'all',
 ];
 
-// Six of the month above rather than half of the year below, so stepping the
-// pager by a half-year lands on month boundaries the month scope also uses.
 const SCOPE_DURATION_MS: Record<Exclude<Scope, 'all'>, number> = {
 	hour: 60 * 60 * 1000,
 	day: 24 * 60 * 60 * 1000,
 	week: 7 * 24 * 60 * 60 * 1000,
 	month: 30 * 24 * 60 * 60 * 1000,
-	halfyear: 180 * 24 * 60 * 60 * 1000,
 	year: 365 * 24 * 60 * 60 * 1000,
 };
 
@@ -164,7 +153,6 @@ const SCOPE_RECENT_LABELS: Record<Exclude<Scope, 'all'>, string> = {
 	day: 'Last 24 hours',
 	week: 'Last 7 days',
 	month: 'Last 30 days',
-	halfyear: 'Last 180 days',
 	year: 'Last 365 days',
 };
 
@@ -218,10 +206,6 @@ export const formatPeriodLabel = (
 
 // Every other scope names its own period, so capitalizing the id is the label.
 export const scopeButtonLabel = (scope: Scope): string =>
-	scope === 'all'
-		? 'All'
-		: scope === 'halfyear'
-		? '6 months'
-		: scope[0]!.toUpperCase() + scope.slice(1);
+	scope === 'all' ? 'All' : scope[0]!.toUpperCase() + scope.slice(1);
 
 // ---------------------------------------------------------------- animations
