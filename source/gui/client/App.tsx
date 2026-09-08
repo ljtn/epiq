@@ -37,6 +37,7 @@ import {
 } from '../../lib/utils/diff-comment.js';
 import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
+import {SwimlaneStats} from './components/SwimlaneStats';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
 import {TicketRefLinksProvider} from './components/MarkdownContent';
 import {ErrorToast} from './components/ErrorToast';
@@ -91,6 +92,7 @@ import {isolateOnly, withNarrowing} from './lib/board-selection';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
+import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
@@ -355,6 +357,11 @@ export const App = () => {
 		void navigate(`/board/${boardSlug}`);
 	};
 
+	// The lane whose stats the inspector is showing, if any. Not in the URL like
+	// the open ticket: it is a glance at a column rather than a place on the
+	// board worth linking somebody to.
+	const [statsSwimlaneId, setStatsSwimlaneId] = useState<string | null>(null);
+
 	const commentsByIssueId = state?.commentsByIssueId ?? EMPTY_COMMENTS;
 
 	// The board's state carries no descriptions, comment bodies or commits —
@@ -377,6 +384,9 @@ export const App = () => {
 		paused: theatre !== null,
 		sendRaw,
 	});
+	const {stats: swimlaneStats, onMessage: onSwimlaneStatsMessage} =
+		useSwimlaneStats({swimlaneId: statsSwimlaneId, sendRaw});
+
 	// The one view that costs a git scan of every commit a ticket owns, so it
 	// is asked for when it is opened rather than with the rest of the ticket.
 	//
@@ -413,6 +423,7 @@ export const App = () => {
 
 		return deriveBoardStats({
 			createdAt: selectedIssue.createdAt,
+			enteredLaneAt: selectedIssue.enteredLaneAt,
 			now: Date.now(),
 			history:
 				issueDetail?.issueId === selectedIssue.id ? issueDetail.history : [],
@@ -564,6 +575,7 @@ export const App = () => {
 		// Not exclusive: `commit:diff:result` is also read below, for the diff the
 		// scrubber's own commit dot opens.
 		onIssueDetailMessage(message);
+		onSwimlaneStatsMessage(message);
 
 		if (message.type === 'state' && !socket.holdsState()) {
 			const nextState = getResultValue<GuiState>(message.payload);
@@ -793,6 +805,9 @@ export const App = () => {
 		// The ticket panel renders only while no commit diff does, so a diff left
 		// open by an earlier dot click would hide the ticket just asked for.
 		setCommitDiff(null);
+		// One inspector, one subject: a lane's stats left open would hide the
+		// ticket just asked for the same way.
+		setStatsSwimlaneId(null);
 
 		// A plain click both opens the ticket and makes it the selection, so a
 		// following modifier-click extends from it instead of starting over.
@@ -805,6 +820,15 @@ export const App = () => {
 		void navigate(
 			`/board/${boardSlug}/issue/${nodeRef(nextIssueId)}?tab=${selectedTab}`,
 		);
+	};
+
+	// Clicking the lane's own stats icon again closes the panel, which is what
+	// a toggle on the thing itself has to do.
+	const openSwimlaneStats = (swimlaneId: string) => {
+		setCommitDiff(null);
+		clearPicked();
+		closeIssueDetails();
+		setStatsSwimlaneId(current => (current === swimlaneId ? null : swimlaneId));
 	};
 
 	// Every ref that resolves to a real ticket, across every board — a ref
@@ -1251,6 +1275,16 @@ export const App = () => {
 		[offline, visibleSwimlanes],
 	);
 
+	// The lane the stats panel is for, as the board currently has it — so the
+	// figures follow a ticket dropped into the lane while the panel is open.
+	// Absent while scrubbed: every figure on that panel is measured against
+	// now, which a board being replayed is not.
+	const statsSwimlane =
+		state?.timeTravel?.mode === 'scrub'
+			? null
+			: shownSwimlanes.find(swimlane => swimlane.id === statsSwimlaneId) ??
+			  null;
+
 	// The dragged id comes off the drop event rather than being remembered from
 	// dragstart: a drag can begin in one window and end in this one, and the
 	// dataTransfer is the only thing that crosses.
@@ -1454,7 +1488,15 @@ export const App = () => {
 				    this box, so anything spilling out would put a second scrollbar on
 				    the page next to the columns' own. */}
 						<main
-							onClick={clearPicked}
+							// The lane panel closes on a click past it, unlike the ticket
+							// panel beside it, which deliberately stays open (see
+							// details-close.pw.ts): a ticket holds a half-written
+							// description that a stray click must not throw away, and a
+							// lane's figures hold nothing at all.
+							onClick={() => {
+								clearPicked();
+								setStatsSwimlaneId(null);
+							}}
 							style={{
 								padding: '0 0 0 30px',
 								flex: 1,
@@ -1556,6 +1598,8 @@ export const App = () => {
 										key={swimlane.id}
 										swimlane={swimlane}
 										live={state?.timeTravel?.mode !== 'scrub'}
+										statsOpen={statsSwimlaneId === swimlane.id}
+										onOpenStats={openSwimlaneStats}
 										selected={false}
 										selectedIssueId={selectedIssue?.id ?? null}
 										commentsByIssueId={commentsByIssueId}
@@ -1674,47 +1718,62 @@ export const App = () => {
 						</Aside>
 					)}
 
-					{!theatre && !commitDiff && pickedIssues.length > 1 && (
-						<BulkDetails
+					{!theatre && !commitDiff && statsSwimlane && (
+						<SwimlaneStats
 							dock={asideDock}
-							issues={pickedIssues}
-							knownTags={state?.tags ?? []}
-							knownAssignees={contributors}
-							tagName={bulkTagName}
-							assigneeName={bulkAssigneeName}
-							onChangeTagName={setBulkTagName}
-							onChangeAssigneeName={setBulkAssigneeName}
-							onAddTag={name => {
-								forPicked(id => addIssueTag(id, name));
-								setBulkTagName('');
-							}}
-							onRemoveTag={tagId => forPicked(id => removeIssueTag(id, tagId))}
-							onAddAssignee={assigneeId =>
-								forPicked(id => addIssueAssignee(id, assigneeId))
-							}
-							onRemoveAssignee={assigneeId =>
-								forPicked(id => removeIssueAssignee(id, assigneeId))
-							}
-							onCloseIssues={() => {
-								// Skips the ones already closed: the event log would otherwise
-								// carry a second "Closed" for each of them.
-								for (const issue of pickedIssues) {
-									if (!issue.isClosed) closeIssue(issue.id);
-								}
-								clearPicked();
-							}}
-							onReopenIssues={() => {
-								for (const issue of pickedIssues) {
-									if (issue.isClosed) reopenIssue(issue.id);
-								}
-								clearPicked();
-							}}
-							onClear={clearPicked}
+							swimlane={statsSwimlane}
+							state={swimlaneStats}
+							onClose={() => setStatsSwimlaneId(null)}
 						/>
 					)}
 
 					{!theatre &&
 						!commitDiff &&
+						!statsSwimlane &&
+						pickedIssues.length > 1 && (
+							<BulkDetails
+								dock={asideDock}
+								issues={pickedIssues}
+								knownTags={state?.tags ?? []}
+								knownAssignees={contributors}
+								tagName={bulkTagName}
+								assigneeName={bulkAssigneeName}
+								onChangeTagName={setBulkTagName}
+								onChangeAssigneeName={setBulkAssigneeName}
+								onAddTag={name => {
+									forPicked(id => addIssueTag(id, name));
+									setBulkTagName('');
+								}}
+								onRemoveTag={tagId =>
+									forPicked(id => removeIssueTag(id, tagId))
+								}
+								onAddAssignee={assigneeId =>
+									forPicked(id => addIssueAssignee(id, assigneeId))
+								}
+								onRemoveAssignee={assigneeId =>
+									forPicked(id => removeIssueAssignee(id, assigneeId))
+								}
+								onCloseIssues={() => {
+									// Skips the ones already closed: the event log would otherwise
+									// carry a second "Closed" for each of them.
+									for (const issue of pickedIssues) {
+										if (!issue.isClosed) closeIssue(issue.id);
+									}
+									clearPicked();
+								}}
+								onReopenIssues={() => {
+									for (const issue of pickedIssues) {
+										if (issue.isClosed) reopenIssue(issue.id);
+									}
+									clearPicked();
+								}}
+								onClear={clearPicked}
+							/>
+						)}
+
+					{!theatre &&
+						!commitDiff &&
+						!statsSwimlane &&
 						pickedIssues.length <= 1 &&
 						selectedIssue &&
 						state?.user && (

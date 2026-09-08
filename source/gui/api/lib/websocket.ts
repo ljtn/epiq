@@ -40,6 +40,7 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
+import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
@@ -288,6 +289,21 @@ export const setupWebsocket = (
 								repoRoot,
 								idOrRef: nodeRef(issueId),
 							}),
+						},
+					});
+				}
+
+				if (type === 'swimlane:stats:get') {
+					const {swimlaneId} = message.payload;
+
+					// Wrapped with the swimlaneId like the replies above: the panel
+					// stays open across a change of lane, so an older request can
+					// still be in flight when this one lands.
+					return sendSocket(socket, {
+						type: 'swimlane:stats:result',
+						payload: {
+							swimlaneId,
+							result: await getSwimlaneStats({repoRoot, swimlaneId}),
 						},
 					});
 				}

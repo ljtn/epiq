@@ -1,3 +1,4 @@
+import {medianOfSorted} from '../../../lib/utils/number.js';
 import {GuiIssue} from './gui-state.model';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -19,14 +20,6 @@ export type LaneDwell = {median: number; mean: number; max: number};
 export const dwellOf = (issue: GuiIssue, now: number): number =>
 	Math.max(0, now - issue.enteredLaneAt);
 
-const median = (sorted: readonly number[]): number => {
-	const middle = Math.floor(sorted.length / 2);
-
-	return sorted.length % 2 === 0
-		? (sorted[middle - 1]! + sorted[middle]!) / 2
-		: sorted[middle]!;
-};
-
 /** How long the lane's open tickets have been sitting in it. */
 export const laneDwell = (
 	issues: readonly GuiIssue[],
@@ -40,7 +33,7 @@ export const laneDwell = (
 	if (dwells.length === 0) return null;
 
 	return {
-		median: median(dwells),
+		median: medianOfSorted(dwells) ?? 0,
 		mean: dwells.reduce((total, dwell) => total + dwell, 0) / dwells.length,
 		max: dwells[dwells.length - 1]!,
 	};
