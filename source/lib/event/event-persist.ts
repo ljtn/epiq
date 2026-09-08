@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
@@ -9,7 +8,7 @@ import {getSettingsState, User} from '../state/settings.state.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
 import {sanitizeFilePart} from '../utils/file-part.js';
 import {MAX_ULID_AHEAD_MS} from './date-utils.js';
-import {getPendingLogPath} from './pending-log.js';
+import {appendPendingLine, getPendingLogPath} from './pending-log.js';
 import {advanceEdgeRef, getEdgeRef} from './event-load.js';
 import {noteOwnAppend} from './log-signature.js';
 import {
@@ -282,11 +281,7 @@ export function persist({
 
 		if (isFail(entryResult)) return failed(entryResult.message);
 
-		fs.appendFileSync(
-			filePath.value,
-			`${JSON.stringify(entryResult.value)}\n`,
-			'utf8',
-		);
+		appendPendingLine(filePath.value, `${JSON.stringify(entryResult.value)}\n`);
 
 		// Advanced only after the line is on disk, so a failed persist leaves
 		// the cursor pointing at an event that exists.

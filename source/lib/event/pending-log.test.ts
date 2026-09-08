@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {isSuccess, Result} from '../model/result-types.js';
 import {
+	appendPendingLine,
 	flushPendingLogs,
 	isPendingFileName,
 	toPendingFileName,
@@ -46,6 +47,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	vi.restoreAllMocks();
 	fs.rmSync(root, {recursive: true, force: true});
 });
 
@@ -198,5 +200,36 @@ describe('flushing pending logs', () => {
 		fs.rmSync(eventsDir, {recursive: true, force: true});
 
 		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(0);
+	});
+});
+
+describe('appending to a pending log', () => {
+	it('appends a line', () => {
+		appendPendingLine(path.join(eventsDir, PENDING), 'a\n');
+		appendPendingLine(path.join(eventsDir, PENDING), 'b\n');
+
+		expect(linesOf(PENDING)).toEqual(['a', 'b']);
+	});
+
+	// The writer opened the file, then a flush renamed it, read it and deleted
+	// it, and only then did the write happen. O_APPEND follows the inode, so
+	// the line went into the file that was just deleted. Reproduced exactly by
+	// running the flush between the open and the write.
+	it('keeps a line written into a file a flush rotated underneath it', () => {
+		write(PENDING, ['before']);
+
+		const writeSync = fs.writeSync;
+		vi.spyOn(fs, 'writeSync').mockImplementationOnce(((
+			fd: number,
+			data: string,
+		) => {
+			unwrap(flushPendingLogs(root, TRACKED));
+			return writeSync(fd, data);
+		}) as typeof fs.writeSync);
+
+		appendPendingLine(path.join(eventsDir, PENDING), 'during\n');
+
+		expect(linesOf(TRACKED)).toEqual(['before']);
+		expect(linesOf(PENDING)).toEqual(['during']);
 	});
 });

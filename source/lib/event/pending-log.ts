@@ -80,6 +80,44 @@ export const getPendingLogPath = (
 ): string =>
 	path.join(getEventsDirPath(eventsRoot), toPendingFileName(trackedFileName));
 
+// Bounded for a filesystem whose inode numbers are not stable, where the check
+// below could never agree and every append would otherwise loop.
+const MAX_APPEND_ATTEMPTS = 3;
+
+/**
+ * Appends one line to a pending log, and makes sure it stays reachable.
+ *
+ * A flush rotates the pending file by renaming it, reads the renamed file and
+ * deletes it. An append is open, write, close, in a process holding no lock —
+ * and O_APPEND follows the inode, so a writer preempted between its open and
+ * its write lands the line in a file the flush has already read and is about
+ * to delete. So after writing, check that the path still leads to the file
+ * written to; if not, write again to whatever is there now. A line that lands
+ * in both is deduped by id; one that lands in neither is gone.
+ */
+export const appendPendingLine = (filePath: string, line: string): void => {
+	for (let attempt = 1; ; attempt++) {
+		const fd = fs.openSync(filePath, 'a');
+		let written: number;
+
+		try {
+			fs.writeSync(fd, line);
+			written = fs.fstatSync(fd).ino;
+		} finally {
+			fs.closeSync(fd);
+		}
+
+		let current: number | null;
+		try {
+			current = fs.statSync(filePath).ino;
+		} catch {
+			current = null;
+		}
+
+		if (current === written || attempt >= MAX_APPEND_ATTEMPTS) return;
+	}
+};
+
 /**
  * Whether the log can take an appended line as a line of its own. A file that
  * is missing or empty can; one whose last byte is not a newline ends in a
@@ -118,9 +156,10 @@ const endsCleanly = (filePath: string): boolean => {
  *
  * Rotate, append, delete — in that order, and never truncate. Renaming first
  * means an append landing after the rotate creates a fresh pending file rather
- * than being erased. Appending before deleting means a crash leaves lines in
- * both files, and `getSortedEvents` dedupes by id, so a duplicate costs nothing
- * while a loss cannot be undone.
+ * than being erased, and `appendPendingLine` covers the one that opened the
+ * file before the rename. Appending before deleting means a crash leaves lines
+ * in both files, and `getSortedEvents` dedupes by id, so a duplicate costs
+ * nothing while a loss cannot be undone.
  *
  * A crash therefore leaves a rotated file behind, which is why this picks up
  * every pending file of the actor's rather than only the live one.
