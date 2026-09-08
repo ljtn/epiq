@@ -9,6 +9,7 @@ const issue = (id: string, ref: string, title: string): GuiIssue => ({
 	title,
 	description: '',
 	createdAt: 0,
+	enteredLaneAt: 0,
 	readonly: false,
 	isClosed: false,
 	tags: [],

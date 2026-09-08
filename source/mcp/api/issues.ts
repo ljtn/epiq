@@ -31,6 +31,7 @@ import {
 	MAX_TITLE_LENGTH,
 	tooLong,
 } from '../../lib/utils/text.limits.js';
+import {laneEntryTime} from '../../lib/utils/lane-dwell.js';
 import {nodeRef, nodeRefMatches} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {
@@ -151,6 +152,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		title: sanitizeInlineText(issue.title),
 		description: issue.props.description ?? '',
 		createdAt: ulidTimeMs(issue.id),
+		enteredLaneAt: laneEntryTime(issue.log ?? [], ulidTimeMs(issue.id)),
 		parentNodeId: issue.parentNodeId!,
 		isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
 		readonly: Boolean(issue.readonly),
@@ -238,6 +240,7 @@ export async function listIssues(
 					title: sanitizeInlineText(n.title),
 					description: n.props.description ?? '',
 					createdAt: ulidTimeMs(n.id),
+					enteredLaneAt: laneEntryTime(n.log ?? [], ulidTimeMs(n.id)),
 					parentNodeId: n.parentNodeId!,
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
 					readonly: Boolean(n.readonly),

@@ -38,6 +38,8 @@ export type GuiIssue = {
 	description: string;
 	/** Epoch ms, decoded from the issue's own ULID. */
 	createdAt: number;
+	/** Epoch ms it last arrived in the swimlane it is in. */
+	enteredLaneAt: number;
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];

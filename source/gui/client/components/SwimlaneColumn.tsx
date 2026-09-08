@@ -1,7 +1,10 @@
 import React from 'react';
 import {DropIndicator} from '../App';
-import {GuiComment, GuiSwimlane} from '../lib/gui-state.model';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
+import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {formatDuration} from '../lib/gui-format.helper';
+import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
+import {CardDwell} from './TicketCard';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
@@ -42,6 +45,7 @@ export const SwimlaneColumn = ({
 	onDragOverIssue,
 	onDragLeave,
 	theatre,
+	live,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
@@ -74,7 +78,23 @@ export const SwimlaneColumn = ({
 	onDragOver: (swimlaneId: string) => void;
 	onDragOverIssue: (swimlaneId: string, targetIndex: number) => void;
 	onDragLeave: () => void;
+	// The board is showing the present. A dwell is time elapsed until now, which
+	// says nothing about a board being replayed at some other moment.
+	live: boolean;
 }) => {
+	// One reading for the whole column, so the header's figures and the clocks on
+	// the cards under it are answers to the same question.
+	const now = Date.now();
+	const dwell = live ? laneDwell(swimlane.issues, now) : null;
+
+	const cardDwell = (ticket: GuiIssue): CardDwell | null => {
+		if (!dwell) return null;
+
+		const ms = dwellOf(ticket, now);
+
+		return {ms, level: dwellLevel(ms, dwell, swimlane.issues.length)};
+	};
+
 	return (
 		<Panel
 			as="section"
@@ -193,6 +213,7 @@ export const SwimlaneColumn = ({
 						display: 'flex',
 						alignItems: 'center',
 						gap: 8,
+						minWidth: 0,
 					}}
 				>
 					<span
@@ -202,12 +223,39 @@ export const SwimlaneColumn = ({
 					</span>
 
 					<strong
-						style={{color: selected ? GUI_THEME.accent : GUI_THEME.primary}}
+						style={{
+							color: selected ? GUI_THEME.accent : GUI_THEME.primary,
+							// The lane's own figures are the fixed part of this row: a
+							// title long enough to crowd them out is cut instead.
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+						}}
 					>
 						{swimlane.title}
 					</strong>
 
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
+
+					{dwell && (
+						<span
+							data-testid="swimlane-dwell"
+							title={`Time in this lane — median ${formatDuration(
+								dwell.median,
+							)}, average ${formatDuration(
+								dwell.mean,
+							)}, oldest ${formatDuration(dwell.max)}`}
+							style={{
+								color: GUI_THEME.dim,
+								fontSize: TEXT.meta,
+								whiteSpace: 'nowrap',
+								flexShrink: 0,
+							}}
+						>
+							{formatDuration(dwell.median) || '0s'} med ·{' '}
+							{formatDuration(dwell.max) || '0s'} max
+						</span>
+					)}
 
 					{swimlane.readonly && (
 						<span
@@ -280,6 +328,7 @@ export const SwimlaneColumn = ({
 									isPicked={pickedIssueIds.includes(ticket.id)}
 									onSelect={options => onSelectIssue(ticket.id, options)}
 									onOpenComments={onSelectIssueComments}
+									dwell={cardDwell(ticket)}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={onFilterByTag}
 									commentCount={commentsByIssueId[ticket.id]?.length ?? 0}
