@@ -1,6 +1,5 @@
 import {existsSync} from 'node:fs';
 import {chmod} from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit, readGitBlobsBatch} from '../git/git-utils.js';

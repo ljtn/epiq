@@ -583,6 +583,51 @@ const rebaseInProgress = async (cwd: string): Promise<boolean> => {
 	);
 };
 
+/**
+ * The rebase, re-attempted while the only thing that stopped it was a race it
+ * can win next time.
+ *
+ * `rebase.autoStash` reverts the working copy and puts it back, but the moment
+ * between the stash and the checkout is not covered: nothing holds a lock on
+ * the *write* path, so a GUI, an MCP server and a TUI all append to this
+ * directory while one of them syncs. An append landing inside that moment
+ * leaves the log dirty again and git refuses to detach HEAD — the sync fails
+ * having done nothing, over a condition that is gone milliseconds later.
+ *
+ * The two failures are told apart structurally rather than by reading git's
+ * message, whose wording follows `LANG`. A rebase that *started* and stopped on
+ * a conflict left its state directory behind, and replaying it would land in
+ * the same place; one that never started left nothing, and the next attempt is
+ * a fresh throw against a window a few milliseconds wide.
+ *
+ * That same test is what keeps the slow timeout from multiplying: a rebase
+ * SIGTERMed at the 120s cap leaves `rebase-merge` behind like any interrupted
+ * one, so it is read as started and not re-attempted. Only a rebase that cost
+ * nothing is paid for again.
+ */
+const REBASE_ATTEMPTS = 3;
+const REBASE_RETRY_DELAY_MS = 120;
+
+const delay = (ms: number): Promise<void> =>
+	new Promise(resolve => setTimeout(resolve, ms));
+
+const rebaseWithRetry = async (
+	cwd: string,
+	ref: string,
+): Promise<Result<GitExecResult>> => {
+	let result = await git.rebaseOnto({cwd, ref});
+
+	for (let attempt = 1; attempt < REBASE_ATTEMPTS; attempt += 1) {
+		if (!isFail(result)) return result;
+		if (await rebaseInProgress(cwd)) return result;
+
+		await delay(REBASE_RETRY_DELAY_MS);
+		result = await git.rebaseOnto({cwd, ref});
+	}
+
+	return result;
+};
+
 export const abortRebaseIfPresent = async (
 	cwd: string,
 ): Promise<Result<boolean>> => {
@@ -662,10 +707,7 @@ export const pullBranchRebaseIfPresent = async ({
 		return failed(`Failed to fetch ${branch}\n${fetchResult.message}`);
 	}
 
-	const rebaseResult = await git.rebaseOnto({
-		cwd,
-		ref: `${ORIGIN}/${branch}`,
-	});
+	const rebaseResult = await rebaseWithRetry(cwd, `${ORIGIN}/${branch}`);
 
 	if (isFail(rebaseResult)) {
 		return failed(`Failed during rebase\n${rebaseResult.message}`);
