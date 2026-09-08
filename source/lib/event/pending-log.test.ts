@@ -163,6 +163,18 @@ describe('flushing pending logs', () => {
 		);
 	});
 
+	// The other side of the same splice: a tracked log that ends in a partial
+	// line — a crash mid-append, or a git truncation — must not have the first
+	// pending line glued onto it.
+	it('separates the pending lines from a partial tail in the tracked log', () => {
+		fs.writeFileSync(path.join(eventsDir, TRACKED), 'a\n{"id":["b",nu');
+		write(PENDING, ['c', 'd']);
+
+		unwrap(flushPendingLogs(root, TRACKED));
+
+		expect(linesOf(TRACKED)).toEqual(['a', '{"id":["b",nu', 'c', 'd']);
+	});
+
 	it('leaves an empty pending file behind no trace', () => {
 		write(TRACKED, ['a']);
 		fs.writeFileSync(path.join(eventsDir, PENDING), '');

@@ -81,6 +81,33 @@ export const getPendingLogPath = (
 	path.join(getEventsDirPath(eventsRoot), toPendingFileName(trackedFileName));
 
 /**
+ * Whether the log can take an appended line as a line of its own. A file that
+ * is missing or empty can; one whose last byte is not a newline ends in a
+ * partial line — a crash mid-append, or a git truncation — and a line spliced
+ * onto it would be lost with it. Reads one byte, not the file.
+ */
+const endsCleanly = (filePath: string): boolean => {
+	let fd: number;
+	try {
+		fd = fs.openSync(filePath, 'r');
+	} catch {
+		return true;
+	}
+
+	try {
+		const {size} = fs.fstatSync(fd);
+		if (size === 0) return true;
+
+		const last = Buffer.alloc(1);
+		fs.readSync(fd, last, 0, 1, size - 1);
+
+		return last[0] === 0x0a;
+	} finally {
+		fs.closeSync(fd);
+	}
+};
+
+/**
  * Folds one actor's pending file(s) into the tracked log they belong to.
  *
  * Only the syncing actor's own. A sync commits only its own file, so folding
@@ -138,13 +165,15 @@ export const flushPendingLogs = (
 			const content = fs.readFileSync(rotatedPath, 'utf8');
 
 			if (content.trim().length > 0) {
-				// Newline-terminated regardless of what the source ended with: a
-				// joined pair of lines is two events lost, and union merge relies
-				// on every line standing alone.
-				const normalized = content.endsWith('\n') ? content : `${content}\n`;
+				// Newline-terminated on both sides regardless of what either file
+				// ended with: a joined pair of lines is two events lost, and union
+				// merge relies on every line standing alone.
+				const normalized =
+					(endsCleanly(trackedPath) ? '' : '\n') +
+					(content.endsWith('\n') ? content : `${content}\n`);
 
 				fs.appendFileSync(trackedPath, normalized, 'utf8');
-				folded += normalized.trimEnd().split('\n').length;
+				folded += content.trimEnd().split('\n').length;
 			}
 
 			fs.rmSync(rotatedPath, {force: true});
