@@ -99,6 +99,51 @@ jobs:
       # against the TypeScript sources, so `npm ci` is the whole preparation.
       - run: npm run test:collab:ci
 
+  # GitHub makes a release `latest` the moment it is published, which is the
+  # moment the tag lands — five to ten minutes before the first binary is
+  # uploaded. `install.sh` reads `releases/latest/download/<asset>` and 404s for
+  # that whole window. `latest` skips prereleases, so holding the flag until the
+  # uploads finish makes it mean "the newest release you can actually download".
+  #
+  # No `needs`, so the hold lands within a minute of the push rather than after
+  # the test suites. `release-publish` lifts it; if an upload fails, nothing
+  # lifts it and `latest` stays on the last complete release — which is also the
+  # answer to a red `gui` job silently skipping the Release jobs and leaving
+  # `latest` on a release with no assets at all.
+  release-hold:
+    name: Hold release
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      was-prerelease: ${{ steps.hold.outputs.was-prerelease }}
+    steps:
+      - name: Mark the release a prerelease
+        id: hold
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # On a 404 `gh api` prints the error body to stdout and exits 1, so the
+          # status is what says whether there is a release — not the output.
+          if ! id="$(gh api "repos/$REPO/releases/tags/$TAG" --jq .id 2>/dev/null)"; then
+            # A bare tag push with no release behind it. The upload jobs create
+            # one, and they create it as a prerelease.
+            echo "No release for $TAG yet; the upload jobs will create one."
+            echo "was-prerelease=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          was="$(gh api "repos/$REPO/releases/$id" --jq .prerelease)"
+          echo "was-prerelease=$was" >> "$GITHUB_OUTPUT"
+          if [ "$was" = "true" ]; then
+            echo "Already a prerelease; leaving it alone."
+            exit 0
+          fi
+          gh api -X PATCH "repos/$REPO/releases/$id" -F prerelease=true >/dev/null
+          echo "Held $TAG out of \`latest\` until its binaries are up." >> "$GITHUB_STEP_SUMMARY"
+
   release:
     name: Release ${{ matrix.artifact }}
     if: startsWith(github.ref, 'refs/tags/v')
@@ -144,6 +189,10 @@ jobs:
         with:
           files: dist/${{ matrix.artifact }}
           fail_on_unmatched_files: true
+          # Re-asserted on every upload rather than relying on the action to
+          # preserve what `release-hold` set, and it is what creates the release
+          # as a prerelease when the tag was pushed without one.
+          prerelease: true
 
   # macOS Intel (x64) is cross-built on the Apple-silicon runner rather than
   # on a macos-13 Intel runner, whose hosted pool is scarce and was the cause
@@ -199,3 +248,27 @@ jobs:
         with:
           files: dist/epiq-macos-x64
           fail_on_unmatched_files: true
+          prerelease: true
+
+  # Every binary is up, so the release can become `latest`. Skipped when the
+  # release was already a prerelease before CI touched it — that was somebody's
+  # deliberate choice, not this workflow's hold.
+  release-publish:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v') && needs.release-hold.outputs.was-prerelease != 'true'
+    needs: [release-hold, release, release-macos-x64]
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Promote the release to latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          id="$(gh api "repos/$REPO/releases/tags/$TAG" --jq .id)"
+          gh api -X PATCH "repos/$REPO/releases/$id" \
+            -F prerelease=false -f make_latest=true >/dev/null
+          echo "$TAG is now \`latest\`, with all five binaries behind it." >> "$GITHUB_STEP_SUMMARY"
