@@ -195,13 +195,15 @@ export const initProject = async ({
 	// commit of a new project would fail with "nothing added to commit". Folded
 	// in here for the same reason a sync folds them in: this is the moment the
 	// tracked log is about to be handed to git.
-	const flushResult = flushPendingLogs(stateBranchRoot);
+	const ownEventFileName = getPersistFileName({userId, userName});
+
+	const flushResult = flushPendingLogs(stateBranchRoot, ownEventFileName);
 	if (isFail(flushResult)) return failAt(9, flushResult.message);
 
 	// 10. commit initial event log on state branch
 	const stageStateEventFileResult = await stageStateBranchOwnEventFile({
 		stateBranchRoot,
-		eventFileName: getPersistFileName({userId, userName}),
+		eventFileName: ownEventFileName,
 	});
 	if (isFail(stageStateEventFileResult)) {
 		return failAt(10, stageStateEventFileResult.message);

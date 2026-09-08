@@ -100,7 +100,7 @@ afterEach(() => {
 // Folded in first: an append lands in the pending log, where a sync resetting
 // the worktree cannot reach it, and this asks what the actor's own log holds.
 const persistedIds = (): string[] => {
-	flushPendingLogs(rootDir);
+	flushPendingLogs(rootDir, getPersistFileName(actor));
 
 	return fs
 		.readFileSync(

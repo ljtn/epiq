@@ -125,7 +125,7 @@ describe('a write while git holds the worktree', () => {
 		fs.appendFileSync(path.join(eventsDir, PENDING), eventLine('written'));
 
 		git('checkout', '--', '.');
-		flushPendingLogs(repo);
+		flushPendingLogs(repo, TRACKED);
 
 		expect(idsIn(TRACKED)).toEqual(['committed', 'written']);
 		expect(fs.existsSync(path.join(eventsDir, PENDING))).toBe(false);
@@ -140,7 +140,7 @@ describe('a write while git holds the worktree', () => {
 		fs.appendFileSync(path.join(eventsDir, PENDING), eventLine('written'));
 
 		const snapshot = snapshotEventLogs(repo);
-		flushPendingLogs(repo);
+		flushPendingLogs(repo, TRACKED);
 		const restored = restoreDroppedEventLines(repo, snapshot);
 
 		expect(restored).toEqual([]);
@@ -170,5 +170,37 @@ describe('a write while git holds the worktree', () => {
 		git('add', '-A');
 
 		expect(git('diff', '--cached', '--name-only')).not.toContain(PENDING);
+	});
+});
+
+// The sync's order is snapshot (pending excluded), flush, stage the own file,
+// commit, hand the worktree to git, restore. Another actor sharing the worktree
+// has lines in their pending log throughout; they are committed by nobody here.
+// Folding them would put them in a tracked file with nothing behind them —
+// leaving them pending is what keeps them.
+describe("another actor's pending log during someone else's sync", () => {
+	const OTHER = '01hzzother.bo.jsonl';
+
+	it('survives the whole sequence untouched', () => {
+		fs.writeFileSync(path.join(eventsDir, OTHER), eventLine('bo-committed'));
+		git('add', '-A');
+		git('commit', '-q', '-m', 'both logs');
+
+		fs.appendFileSync(
+			path.join(eventsDir, toPendingFileName(OTHER)),
+			eventLine('bo-written'),
+		);
+		fs.appendFileSync(path.join(eventsDir, PENDING), eventLine('ana-written'));
+
+		const snapshot = snapshotEventLogs(repo);
+		flushPendingLogs(repo, TRACKED);
+		git('add', '--', `.epiq/events/${TRACKED}`);
+		git('commit', '-q', '-m', 'ana sync');
+		git('checkout', '--', '.');
+		restoreDroppedEventLines(repo, snapshot);
+
+		expect(idsIn(TRACKED)).toEqual(['committed', 'ana-written']);
+		expect(idsIn(OTHER)).toEqual(['bo-committed']);
+		expect(idsIn(toPendingFileName(OTHER))).toEqual(['bo-written']);
 	});
 });

@@ -54,7 +54,10 @@ afterEach(() => {
 // Folded in first: a batch appends to the pending log, and this asks what the
 // actor's own log holds once a sync has taken it.
 const ownLogLines = (): Array<{id: [string, string | null]}> => {
-	flushPendingLogs(rootDir);
+	flushPendingLogs(
+		rootDir,
+		getPersistFileName({userId: 'u1', userName: 'alice'}),
+	);
 
 	return fs
 		.readFileSync(

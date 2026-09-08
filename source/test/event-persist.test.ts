@@ -131,7 +131,7 @@ describe('event persist', () => {
 
 		// An append lands in the pending log, out of reach of a sync resetting
 		// the worktree; folding it in is what puts it in the actor's own log.
-		flushPendingLogs(rootDir);
+		flushPendingLogs(rootDir, 'u1.alice.jsonl');
 
 		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
 
@@ -168,7 +168,7 @@ describe('event persist', () => {
 
 		expect(isFail(second)).toBe(false);
 
-		flushPendingLogs(rootDir);
+		flushPendingLogs(rootDir, 'u1.alice.jsonl');
 
 		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
 

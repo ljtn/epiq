@@ -67,15 +67,17 @@ describe('assumeActor', () => {
 
 		// Appends land in the pending log, out of reach of a sync; folding them
 		// in is what puts them in the file a replay reads.
-		flushPendingLogs(branchRoot.value);
+		const peterFile = getPersistFileName({
+			userId: deriveActorId('claude/peter'),
+			userName: 'claude/peter',
+		});
+
+		flushPendingLogs(branchRoot.value, peterFile);
 
 		const written = fs.readFileSync(
 			getEventsFile({
 				root: branchRoot.value,
-				fileName: getPersistFileName({
-					userId: deriveActorId('claude/peter'),
-					userName: 'claude/peter',
-				}),
+				fileName: peterFile,
 			}),
 			'utf-8',
 		);
@@ -159,7 +161,7 @@ describe('assumeActor', () => {
 		});
 		if (isFail(created)) throw new Error(created.message);
 
-		flushPendingLogs(branchRoot.value);
+		flushPendingLogs(branchRoot.value, getPersistFileName(assumed.value));
 
 		// Attribution is the file the event landed in: the actor id is parsed back
 		// out of the log's name, never carried in the payload.
