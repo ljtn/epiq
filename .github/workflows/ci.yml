@@ -58,6 +58,47 @@ jobs:
 
       - run: npm run test:gui:ci
 
+  # Its own job for the same reasons the GUI one is, plus a sharper one: until
+  # now this suite ran nowhere but the local pre-push hook. That made a failure
+  # invisible on every pull request and turned it into a block on whoever
+  # pushed next — `V8TZ5CD` sat broken on main exactly that way, and the person
+  # who found it was the person it stopped.
+  #
+  # This is the suite that says whether several epiq processes on one board
+  # still converge. Nothing else covers it: the unit suite never syncs, and the
+  # e2e suite drives one actor.
+  collaboration:
+    name: Collaboration
+    runs-on: ubuntu-latest
+    # Individual tests allow up to fifteen minutes each, deliberately — they
+    # race real syncs and a slow one is not a failed one. This is a bound on a
+    # job that has stopped making progress, not a target.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # Every actor is a real epiq process, and every one of them runs git.
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - run: npm ci
+
+      # `test:collab` wraps this in the e2e docker image, which exists to give a
+      # developer's machine the disposable, read-only checkout a hosted runner
+      # already is. Same reason `test:e2e:ci` runs bare here.
+      #
+      # No build step: actors are spawned through the checkout's own `tsx`
+      # against the TypeScript sources, so `npm ci` is the whole preparation.
+      - run: npm run test:collab:ci
+
   release:
     name: Release ${{ matrix.artifact }}
     if: startsWith(github.ref, 'refs/tags/v')
