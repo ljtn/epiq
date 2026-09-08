@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React from 'react';
 import {DropIndicator} from '../App';
 import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -6,8 +6,6 @@ import {formatDuration} from '../lib/gui-format.helper';
 import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
 import {CardDwell} from './TicketCard';
 import {IconLaneStats} from './IconLaneStats';
-import {LaneSparkline} from './LaneSparkline';
-import {LaneStayPoint} from '../../../lib/stats/swimlane-stats.model.js';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
@@ -51,7 +49,6 @@ export const SwimlaneColumn = ({
 	live,
 	statsOpen,
 	onOpenStats,
-	trend,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
@@ -90,19 +87,20 @@ export const SwimlaneColumn = ({
 	// This lane's stats are the ones the inspector is showing.
 	statsOpen: boolean;
 	onOpenStats: (swimlaneId: string) => void;
-	// The lane's own stay curve, for the sparkline in its header. Empty until
-	// the board's trends have arrived.
-	trend: LaneStayPoint[];
 }) => {
 	// One reading for the whole column, so the header's figures and the clocks on
 	// the cards under it are answers to the same question.
-	// Real hover, not the curve's proximity glow: the glow reaches across a
-	// couple of hundred pixels, and a frame drawn that far out would promise a
-	// click on a column the pointer is nowhere near.
-	const [statsHovered, setStatsHovered] = useState(false);
-
 	const now = Date.now();
 	const dwell = live ? laneDwell(swimlane.issues, now) : null;
+
+	// An empty lane has no median, and a lane filled in the last second rounds to
+	// nothing — `formatDuration` answers '' below its smallest unit. Either way
+	// the panel is still worth reaching, so the figure drops out of the title
+	// rather than the control out of the header.
+	const medianWait = dwell ? formatDuration(dwell.median) : '';
+	const statsTitle = medianWait
+		? `Swimlane Stats — ${medianWait} median wait time`
+		: 'Swimlane Stats';
 
 	const cardDwell = (ticket: GuiIssue): CardDwell | null => {
 		if (!dwell) return null;
@@ -256,6 +254,28 @@ export const SwimlaneColumn = ({
 
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
+					{live && (
+						<Button
+							variant="ghost"
+							data-testid="swimlane-stats-open"
+							title={statsTitle}
+							onClick={event => {
+								// Stopped here, or the header's own click would take the
+								// selection with it.
+								event.stopPropagation();
+								onOpenStats(swimlane.id);
+							}}
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								color: statsOpen ? GUI_THEME.accent : GUI_THEME.dim,
+								flexShrink: 0,
+							}}
+						>
+							<IconLaneStats />
+						</Button>
+					)}
+
 					{swimlane.readonly && (
 						<span
 							title="Read-only"
@@ -265,67 +285,6 @@ export const SwimlaneColumn = ({
 						</span>
 					)}
 				</div>
-
-				{/* Its own section between the title and the buttons rather than
-				    trailing the count, so the chart sits mid-header instead of
-				    wherever the title happens to end. A middle that flexes cannot
-				    collide with a long title the way a centred overlay would. */}
-				<div
-					style={{
-						flex: 1,
-						display: 'flex',
-						justifyContent: 'center',
-						alignItems: 'center',
-						minWidth: 0,
-					}}
-				>
-					{/* One control, not two beside each other: where the lane has a
-					    curve the curve is the button, and where it has none — a lane
-					    opened today, or one being drawn as it was mid-scrub — the icon
-					    stands in, so the panel is never unreachable. */}
-					{dwell && (
-						<Button
-							variant="ghost"
-							data-testid="swimlane-stats-open"
-							title={`Lane stats — tickets here have waited ${formatDuration(
-								dwell.median,
-							)} on average, the longest ${formatDuration(dwell.max)}`}
-							onClick={event => {
-								// Stopped here, or the header's own click would take the
-								// selection with it.
-								event.stopPropagation();
-								onOpenStats(swimlane.id);
-							}}
-							onMouseEnter={() => setStatsHovered(true)}
-							onMouseLeave={() => setStatsHovered(false)}
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								color: statsOpen ? GUI_THEME.accent : GUI_THEME.dim,
-								flexShrink: 0,
-								// A frame only under the pointer. The panel's own outer
-								// edge rather than its inner `line`: a 1px box round a
-								// small control needs the weight that holds a panel apart
-								// from the board, not the one that divides sections
-								// inside it.
-								border: `1px solid ${
-									statsHovered ? GUI_THEME.edge : 'transparent'
-								}`,
-								borderRadius: 4,
-								background: 'transparent',
-								padding: '2px 4px',
-								transition: 'border-color 140ms ease',
-							}}
-						>
-							{live && trend.length > 0 ? (
-								<LaneSparkline points={trend} />
-							) : (
-								<IconLaneStats />
-							)}
-						</Button>
-					)}
-				</div>
-
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 					<Button
 						variant="ghost"

@@ -120,7 +120,6 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message('issue:commits:get', z.object({issueId: id})),
 	message('issue:stats:get', z.object({issueId: id})),
 	message('swimlane:stats:get', z.object({swimlaneId: id})),
-	bare('board:stay-trends:get'),
 ]);
 
 // Proof the schema still covers the transport it validates: a message the
