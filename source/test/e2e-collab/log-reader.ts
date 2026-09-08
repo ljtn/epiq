@@ -3,7 +3,7 @@
 // Losing one is data loss whether or not we can read it.
 import fs from 'node:fs';
 import path from 'node:path';
-import {toPendingFileName} from '../../lib/event/pending-log.js';
+import {trackedFileNameFor} from '../../lib/event/pending-log.js';
 
 const eventsDir = (stateBranchRoot: string): string =>
 	path.join(stateBranchRoot, '.epiq', 'events');
@@ -33,16 +33,21 @@ const idsInFile = (filePath: string): string[] => {
  * An append lands in the pending log and stays there until a sync folds it into
  * the tracked one, so reading the tracked file alone answers "what have I
  * published", which is a different question and reads as nothing at all for
- * somebody working offline.
+ * somebody working offline. Every pending file of the actor's counts — live,
+ * rotated or folded — since a flush part-way through leaves lines in any of them.
  */
 export const readOwnEventIds = (
 	stateBranchRoot: string,
 	fileName: string,
-): string[] =>
-	[fileName, toPendingFileName(fileName)]
-		.map(name => path.join(eventsDir(stateBranchRoot), name))
-		.filter(filePath => fs.existsSync(filePath))
-		.flatMap(idsInFile);
+): string[] => {
+	const dir = eventsDir(stateBranchRoot);
+	if (!fs.existsSync(dir)) return [];
+
+	return fs
+		.readdirSync(dir)
+		.filter(name => name === fileName || trackedFileNameFor(name) === fileName)
+		.flatMap(name => idsInFile(path.join(dir, name)));
+};
 
 export const readEventIds = (stateBranchRoot: string): string[] => {
 	const dir = eventsDir(stateBranchRoot);

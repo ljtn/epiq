@@ -30,10 +30,15 @@ import {getEventsDirPath} from '../storage/paths.js';
  */
 const PENDING_MARKER = '~pending';
 
-// A rotated file keeps the marker and adds a unique suffix, so it is still
-// read, still resolves to the same actor, and is still recognisably pending
-// while a flush is part-way through it.
-const PENDING_SEGMENT = /~pending(-[0-9a-z]+)?$/i;
+// The id segment of a pending file is one of three shapes, all still read and
+// all resolving to the same actor:
+//
+//   <id>~pending                 live: what `persist` appends to
+//   <id>~pending-<ulid>          rotated: a flush has renamed it and is reading it
+//   <id>~pending-<ulid>-f<bytes> folded: the first <bytes> are in the tracked log
+const PENDING_SEGMENT = /~pending(-[0-9a-z]+)*$/i;
+
+const FOLDED_SUFFIX = /-f(\d+)$/;
 
 /** `<id>.<name>.jsonl` -> `<id>~pending.<name>.jsonl`. */
 export const toPendingFileName = (trackedFileName: string): string => {
@@ -47,17 +52,21 @@ export const toPendingFileName = (trackedFileName: string): string => {
 	);
 };
 
+const splitName = (fileName: string): [string, string] => {
+	const separator = fileName.indexOf('.');
+
+	return separator === -1
+		? [fileName, '']
+		: [fileName.slice(0, separator), fileName.slice(separator)];
+};
+
 /** The tracked log a pending file belongs to, or null if it is not one. */
 export const trackedFileNameFor = (fileName: string): string | null => {
-	const separator = fileName.indexOf('.');
-	const idSegment = separator === -1 ? fileName : fileName.slice(0, separator);
+	const [idSegment, rest] = splitName(fileName);
 
 	if (!PENDING_SEGMENT.test(idSegment)) return null;
 
-	return (
-		idSegment.replace(PENDING_SEGMENT, '') +
-		(separator === -1 ? '' : fileName.slice(separator))
-	);
+	return idSegment.replace(PENDING_SEGMENT, '') + rest;
 };
 
 /**
@@ -74,17 +83,38 @@ export const stripPendingMarker = (idSegment: string): string =>
 export const isPendingFileName = (fileName: string): boolean =>
 	fileName.endsWith('.jsonl') && trackedFileNameFor(fileName) !== null;
 
+/** How many leading bytes of a folded file are already in the tracked log. */
+export const foldedBytesOf = (fileName: string): number | null => {
+	const [idSegment] = splitName(fileName);
+	const match = FOLDED_SUFFIX.exec(idSegment);
+
+	return match && isPendingFileName(fileName) ? Number(match[1]) : null;
+};
+
+const rotatedFileName = (trackedFileName: string): string =>
+	toPendingFileName(trackedFileName).replace(
+		PENDING_MARKER,
+		`${PENDING_MARKER}-${ulid().toLowerCase()}`,
+	);
+
+const foldedFileName = (rotatedName: string, bytes: number): string => {
+	const [idSegment, rest] = splitName(rotatedName);
+
+	return `${idSegment.replace(FOLDED_SUFFIX, '')}-f${bytes}${rest}`;
+};
+
 export const getPendingLogPath = (
 	eventsRoot: string,
 	trackedFileName: string,
 ): string =>
 	path.join(getEventsDirPath(eventsRoot), toPendingFileName(trackedFileName));
 
-const hasLines = (filePath: string): boolean =>
-	fs.readFileSync(filePath, 'utf8').trim().length > 0;
+/** Bytes not yet folded: all of a live or rotated file, the tail of a folded one. */
+const unfoldedBytes = (filePath: string, name: string): number =>
+	Math.max(0, fs.statSync(filePath).size - (foldedBytesOf(name) ?? 0));
 
 /**
- * Whether any pending log holds lines.
+ * Whether any pending log holds lines that are in no tracked log yet.
  *
  * Pending logs are ignored, so `git status` does not list them — but they hold
  * every event written since the last sync, and a guard that asks git whether a
@@ -101,7 +131,7 @@ export const hasPendingLines = (eventsRoot: string): boolean => {
 		return fs
 			.readdirSync(dir)
 			.filter(isPendingFileName)
-			.some(name => hasLines(path.join(dir, name)));
+			.some(name => unfoldedBytes(path.join(dir, name), name) > 0);
 	} catch {
 		return true;
 	}
@@ -114,13 +144,18 @@ const MAX_APPEND_ATTEMPTS = 3;
 /**
  * Appends one line to a pending log, and makes sure it stays reachable.
  *
- * A flush rotates the pending file by renaming it, reads the renamed file and
- * deletes it. An append is open, write, close, in a process holding no lock —
- * and O_APPEND follows the inode, so a writer preempted between its open and
- * its write lands the line in a file the flush has already read and is about
- * to delete. So after writing, check that the path still leads to the file
- * written to; if not, write again to whatever is there now. A line that lands
- * in both is deduped by id; one that lands in neither is gone.
+ * A flush rotates the pending file by renaming it. An append is open, write,
+ * close, in a process holding no lock — and O_APPEND follows the inode, so a
+ * writer preempted between its open and its write lands the line in a file the
+ * flush has already read. So after writing, check that the path still leads to
+ * the file written to; if not, write again to whatever is there now. A line
+ * that lands in both is deduped by id.
+ *
+ * This is a belt, not the braces. The comparison is by inode number, and that
+ * is not a sound oracle on its own: ext4 hands a freed number to the next file
+ * created, and APFS can resolve a just-renamed path to the old inode for a
+ * moment under concurrent lookups. What keeps the line safe is the flush never
+ * deleting a file a writer could still reach — see `flushPendingLogs`.
  */
 export const appendPendingLine = (filePath: string, line: string): void => {
 	for (let attempt = 1; ; attempt++) {
@@ -172,6 +207,45 @@ const endsCleanly = (filePath: string): boolean => {
 	}
 };
 
+const NEWLINE = 0x0a;
+
+/**
+ * Appends the whole lines in `bytes` to the tracked log and returns how many
+ * bytes that covered. A trailing fragment with no newline is a write still in
+ * flight or a crash remnant; it is not a line yet, so it is left for the next
+ * pass rather than spliced onto the log — unless this is the file's last pass
+ * (`final`), when it is appended terminated: a fragment that old is a remnant,
+ * and the loader's quarantine is the right place for it, not the bin.
+ */
+const foldLines = (
+	trackedPath: string,
+	bytes: Buffer,
+	final = false,
+): {bytes: number; lines: number} => {
+	const end = final ? bytes.length : bytes.lastIndexOf(NEWLINE) + 1;
+	if (end === 0) return {bytes: 0, lines: 0};
+
+	const whole = bytes.subarray(0, end);
+	if (whole.toString('utf8').trim().length === 0) return {bytes: end, lines: 0};
+
+	// Newline-terminated on both sides: a joined pair of lines is two events
+	// lost, and union merge relies on every line standing alone.
+	fs.appendFileSync(
+		trackedPath,
+		Buffer.concat([
+			Buffer.from(endsCleanly(trackedPath) ? '' : '\n'),
+			whole,
+			Buffer.from(whole[whole.length - 1] === NEWLINE ? '' : '\n'),
+		]),
+	);
+
+	let lines = 0;
+	for (const byte of whole) if (byte === NEWLINE) lines++;
+	if (whole[whole.length - 1] !== NEWLINE) lines++;
+
+	return {bytes: end, lines};
+};
+
 /**
  * Folds one actor's pending file(s) into the tracked log they belong to.
  *
@@ -181,15 +255,26 @@ const endsCleanly = (filePath: string): boolean => {
  * in no snapshot either — which is the loss this file exists to prevent. Theirs
  * stay pending, out of git's reach, until they sync.
  *
- * Rotate, append, delete — in that order, and never truncate. Renaming first
- * means an append landing after the rotate creates a fresh pending file rather
- * than being erased, and `appendPendingLine` covers the one that opened the
- * file before the rename. Appending before deleting means a crash leaves lines
- * in both files, and `getSortedEvents` dedupes by id, so a duplicate costs
- * nothing while a loss cannot be undone.
+ * Each pass moves a file one step along: live → rotated → folded → gone.
  *
- * A crash therefore leaves a rotated file behind, which is why this picks up
- * every pending file of the actor's rather than only the live one.
+ * Rotating first means an append landing after the rename creates a fresh live
+ * file rather than being erased. Folding appends the whole lines read and
+ * records how many bytes that was in the name, so the next pass can fold only
+ * what arrived after. Deleting waits for that next pass, and that is the
+ * load-bearing part: a writer can still reach a file that was just rotated — one
+ * preempted between opening it and writing, or one whose path lookup resolved
+ * to the old inode after the rename (measured on APFS under contention) — and
+ * a file deleted while it is reachable takes those lines with it, on ext4 past
+ * the writer's own inode check too, since the freed number goes to the next
+ * file created. The rename to the folded name purges the stale lookup, the
+ * file stays readable and attributed to the actor meanwhile, and by the next
+ * sync nothing has held it open for seconds.
+ *
+ * Appending before renaming or deleting means a crash leaves lines in both
+ * files, and `getSortedEvents` dedupes by id, so a duplicate costs nothing
+ * while a loss cannot be undone. A crash therefore leaves a rotated or folded
+ * file behind, which is why this picks up every pending file of the actor's
+ * rather than only the live one.
  *
  * Must run while this process holds the state worktree — it writes the tracked
  * log, which is exactly what a sync must not have happening underneath it.
@@ -211,38 +296,37 @@ export const flushPendingLogs = (
 		let folded = 0;
 
 		for (const name of pending) {
+			const already = foldedBytesOf(name);
+
+			if (already !== null) {
+				// Folded on the previous pass: take whatever arrived since, then
+				// it is safe to delete — nothing can reach it any more.
+				const filePath = path.join(dir, name);
+				const tail = fs.readFileSync(filePath).subarray(already);
+
+				folded += foldLines(trackedPath, tail, true).lines;
+				fs.rmSync(filePath, {force: true});
+				continue;
+			}
+
 			// One already carrying a unique suffix was left by a flush that did
 			// not finish. Take it as it stands rather than rotating a rotation.
-			const alreadyRotated = /~pending-/i.test(name);
-
-			const rotated = alreadyRotated
+			const rotated = /~pending-/i.test(name)
 				? name
-				: toPendingFileName(ownFileName).replace(
-						PENDING_MARKER,
-						`${PENDING_MARKER}-${ulid().toLowerCase()}`,
-				  );
-
+				: rotatedFileName(ownFileName);
 			const rotatedPath = path.join(dir, rotated);
 
-			if (!alreadyRotated) {
+			if (rotated !== name) {
 				fs.renameSync(path.join(dir, name), rotatedPath);
 			}
 
-			const content = fs.readFileSync(rotatedPath, 'utf8');
+			const result = foldLines(trackedPath, fs.readFileSync(rotatedPath));
+			folded += result.lines;
 
-			if (content.trim().length > 0) {
-				// Newline-terminated on both sides regardless of what either file
-				// ended with: a joined pair of lines is two events lost, and union
-				// merge relies on every line standing alone.
-				const normalized =
-					(endsCleanly(trackedPath) ? '' : '\n') +
-					(content.endsWith('\n') ? content : `${content}\n`);
-
-				fs.appendFileSync(trackedPath, normalized, 'utf8');
-				folded += content.trimEnd().split('\n').length;
-			}
-
-			fs.rmSync(rotatedPath, {force: true});
+			fs.renameSync(
+				rotatedPath,
+				path.join(dir, foldedFileName(rotated, result.bytes)),
+			);
 		}
 
 		return succeeded('Folded pending logs', folded);
