@@ -300,6 +300,9 @@ export const TicketCard = ({
 								fontSize: 11,
 								fontWeight: 600,
 								lineHeight: 1,
+								// The assignee's height, so the two sit on one centre line
+								// rather than each on its own text box.
+								height: 20,
 								marginTop: '-4px',
 								whiteSpace: 'nowrap',
 							}}
