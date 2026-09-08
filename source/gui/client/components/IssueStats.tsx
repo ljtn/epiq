@@ -23,6 +23,13 @@ import {BoardStats} from '../../../lib/stats/board-stats.js';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
 
+// The timeline's own two series, so a colour means the same thing wherever it
+// appears: green is a commit, the accent is the board. A dot beside the
+// heading rather than a coloured figure — a number in green reads as a pass,
+// which is not what any of these say.
+const CODE_TONE = GUI_THEME.green;
+const BOARD_TONE = GUI_THEME.accent;
+
 // What the ticket's own code says about itself, read as an answer to one
 // question: how hard should somebody look at this diff, and where.
 //
@@ -183,7 +190,7 @@ const BoardSection = ({
 	first?: boolean;
 }) =>
 	boardStats ? (
-		<Section title="Board" first={first}>
+		<Section title="Board" first={first} tone={BOARD_TONE}>
 			<div style={statGrid(compact)}>
 				<Stat value={inDays(boardStats.ageMs)} label="Days old" />
 				<Stat
@@ -231,7 +238,7 @@ export const IssueStats = ({
 			<div style={{fontSize: TEXT.ui}}>
 				<BoardSection boardStats={boardStats} compact={compact} first />
 
-				<Section title="Code">
+				<Section title="Code" tone={CODE_TONE}>
 					<div style={LINE}>
 						No commit carries this ticket&rsquo;s ref, so there is no code to
 						measure. That is not the same as no work.
@@ -258,7 +265,7 @@ export const IssueStats = ({
 			    moving, or has been sent back twice already. */}
 			<BoardSection boardStats={boardStats} compact={compact} first />
 
-			<Section title="Code">
+			<Section title="Code" tone={CODE_TONE}>
 				<div style={statGrid(compact)}>
 					<Stat
 						value={String(shape.files)}
@@ -302,7 +309,7 @@ export const IssueStats = ({
 				</Note>
 			</Section>
 
-			<Section title="Tests">
+			<Section title="Tests" tone={CODE_TONE}>
 				<div style={statGrid(compact)}>
 					<Stat value={String(tests.testLinesAdded)} label="Test lines added" />
 					<Stat
@@ -345,7 +352,7 @@ export const IssueStats = ({
 				</Note>
 			</Section>
 
-			<Section title="Languages">
+			<Section title="Languages" tone={CODE_TONE}>
 				<StackedBar
 					segments={languages.languages.map((language, index) => ({
 						label: language.name,
@@ -369,7 +376,7 @@ export const IssueStats = ({
 				</Note>
 			</Section>
 
-			<Section title="Comments">
+			<Section title="Comments" tone={CODE_TONE}>
 				{/* One bar, for the language the ticket is mostly written in, with
 				    the repository's own share marked on it. A bar per language
 				    turned three true numbers into a wall of stripes, and the
@@ -426,7 +433,7 @@ export const IssueStats = ({
 				</Note>
 			</Section>
 
-			<Section title="Complexity">
+			<Section title="Complexity" tone={CODE_TONE}>
 				<Note when={flags.maxIndentLevels > 0}>
 					{`Nested ${flags.maxIndentLevels} levels deep at its deepest`}
 					{flags.deepestFile && (
@@ -450,7 +457,7 @@ export const IssueStats = ({
 			</Section>
 
 			{(flaggedFiles.length > 0 || shape.binaryFiles > 0) && (
-				<Section title="Worth a look">
+				<Section title="Worth a look" tone={CODE_TONE}>
 					{flaggedFiles.map(({file, what}) => (
 						<Row
 							key={`${what}:${file.path}`}
