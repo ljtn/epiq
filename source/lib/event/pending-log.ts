@@ -81,22 +81,30 @@ export const getPendingLogPath = (
 	path.join(getEventsDirPath(eventsRoot), toPendingFileName(trackedFileName));
 
 /**
- * Folds every pending file into the tracked log it belongs to.
+ * Folds one actor's pending file(s) into the tracked log they belong to.
+ *
+ * Only the syncing actor's own. A sync commits only its own file, so folding
+ * somebody else's pending lines would leave them dirty in a tracked file for
+ * the whole rebase — in no commit and, since the snapshot skips pending logs,
+ * in no snapshot either — which is the loss this file exists to prevent. Theirs
+ * stay pending, out of git's reach, until they sync.
  *
  * Rotate, append, delete — in that order, and never truncate. Renaming first
- * means an append landing mid-flush creates a fresh pending file at the
- * original path rather than being erased; the rename is atomic, so no line
- * falls between the two. Appending before deleting means a crash leaves lines
- * in both files, and `getSortedEvents` dedupes by id, so a duplicate costs
- * nothing while a loss cannot be undone.
+ * means an append landing after the rotate creates a fresh pending file rather
+ * than being erased. Appending before deleting means a crash leaves lines in
+ * both files, and `getSortedEvents` dedupes by id, so a duplicate costs nothing
+ * while a loss cannot be undone.
  *
  * A crash therefore leaves a rotated file behind, which is why this picks up
- * every pending file it finds rather than only the live one.
+ * every pending file of the actor's rather than only the live one.
  *
  * Must run while this process holds the state worktree — it writes the tracked
  * log, which is exactly what a sync must not have happening underneath it.
  */
-export const flushPendingLogs = (eventsRoot: string): Result<number> => {
+export const flushPendingLogs = (
+	eventsRoot: string,
+	ownFileName: string,
+): Result<number> => {
 	const dir = getEventsDirPath(eventsRoot);
 
 	if (!fs.existsSync(dir)) return succeeded('No events directory', 0);
@@ -104,22 +112,19 @@ export const flushPendingLogs = (eventsRoot: string): Result<number> => {
 	try {
 		const pending = fs
 			.readdirSync(dir)
-			.filter(name => name.endsWith('.jsonl'))
-			.filter(isPendingFileName);
+			.filter(name => trackedFileNameFor(name) === ownFileName);
 
+		const trackedPath = path.join(dir, ownFileName);
 		let folded = 0;
 
 		for (const name of pending) {
-			const tracked = trackedFileNameFor(name);
-			if (!tracked) continue;
-
 			// One already carrying a unique suffix was left by a flush that did
 			// not finish. Take it as it stands rather than rotating a rotation.
 			const alreadyRotated = /~pending-/i.test(name);
 
 			const rotated = alreadyRotated
 				? name
-				: toPendingFileName(tracked).replace(
+				: toPendingFileName(ownFileName).replace(
 						PENDING_MARKER,
 						`${PENDING_MARKER}-${ulid().toLowerCase()}`,
 				  );
@@ -138,7 +143,7 @@ export const flushPendingLogs = (eventsRoot: string): Result<number> => {
 				// on every line standing alone.
 				const normalized = content.endsWith('\n') ? content : `${content}\n`;
 
-				fs.appendFileSync(path.join(dir, tracked), normalized, 'utf8');
+				fs.appendFileSync(trackedPath, normalized, 'utf8');
 				folded += normalized.trimEnd().split('\n').length;
 			}
 

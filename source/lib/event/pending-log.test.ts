@@ -88,7 +88,7 @@ describe('flushing pending logs', () => {
 	it('does nothing when there is nothing pending', () => {
 		write(TRACKED, ['a']);
 
-		expect(unwrap(flushPendingLogs(root))).toBe(0);
+		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(0);
 		expect(linesOf(TRACKED)).toEqual(['a']);
 	});
 
@@ -96,7 +96,7 @@ describe('flushing pending logs', () => {
 		write(TRACKED, ['a', 'b']);
 		write(PENDING, ['c', 'd']);
 
-		expect(unwrap(flushPendingLogs(root))).toBe(2);
+		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(2);
 		expect(linesOf(TRACKED)).toEqual(['a', 'b', 'c', 'd']);
 		expect(namesIn()).toEqual([TRACKED]);
 	});
@@ -104,7 +104,7 @@ describe('flushing pending logs', () => {
 	it('creates the tracked log when the actor has only ever written pending', () => {
 		write(PENDING, ['a']);
 
-		unwrap(flushPendingLogs(root));
+		unwrap(flushPendingLogs(root, TRACKED));
 
 		expect(linesOf(TRACKED)).toEqual(['a']);
 	});
@@ -116,7 +116,7 @@ describe('flushing pending logs', () => {
 		write(TRACKED, ['a']);
 		write('01hzz~pending-01abc.ana.jsonl', ['stranded']);
 
-		expect(unwrap(flushPendingLogs(root))).toBe(1);
+		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(1);
 		expect(linesOf(TRACKED)).toEqual(['a', 'stranded']);
 		expect(namesIn()).toEqual([TRACKED]);
 	});
@@ -126,22 +126,26 @@ describe('flushing pending logs', () => {
 		write('01hzz~pending-01abc.ana.jsonl', ['stranded']);
 		write(PENDING, ['live']);
 
-		unwrap(flushPendingLogs(root));
+		unwrap(flushPendingLogs(root, TRACKED));
 
 		expect(linesOf(TRACKED).sort()).toEqual(['a', 'live', 'stranded']);
 		expect(namesIn()).toEqual([TRACKED]);
 	});
 
-	it('keeps each actor with their own log', () => {
+	// A sync commits only its own file. Folding another actor's pending lines
+	// would leave them dirty in a tracked file through the rebase, in no commit
+	// and no snapshot — so they stay where git cannot reach them.
+	it("leaves another actor's pending log where it is", () => {
 		write('01hzz.ana.jsonl', ['ana-1']);
 		write('01hzz~pending.ana.jsonl', ['ana-2']);
 		write('02aaa.bo.jsonl', ['bo-1']);
 		write('02aaa~pending.bo.jsonl', ['bo-2']);
 
-		unwrap(flushPendingLogs(root));
+		unwrap(flushPendingLogs(root, '01hzz.ana.jsonl'));
 
 		expect(linesOf('01hzz.ana.jsonl')).toEqual(['ana-1', 'ana-2']);
-		expect(linesOf('02aaa.bo.jsonl')).toEqual(['bo-1', 'bo-2']);
+		expect(linesOf('02aaa.bo.jsonl')).toEqual(['bo-1']);
+		expect(linesOf('02aaa~pending.bo.jsonl')).toEqual(['bo-2']);
 	});
 
 	// A line that is not newline-terminated would otherwise be joined to the
@@ -151,7 +155,7 @@ describe('flushing pending logs', () => {
 		write(TRACKED, ['a']);
 		fs.writeFileSync(path.join(eventsDir, PENDING), 'b');
 
-		unwrap(flushPendingLogs(root));
+		unwrap(flushPendingLogs(root, TRACKED));
 
 		expect(linesOf(TRACKED)).toEqual(['a', 'b']);
 		expect(fs.readFileSync(path.join(eventsDir, TRACKED), 'utf8')).toMatch(
@@ -163,7 +167,7 @@ describe('flushing pending logs', () => {
 		write(TRACKED, ['a']);
 		fs.writeFileSync(path.join(eventsDir, PENDING), '');
 
-		expect(unwrap(flushPendingLogs(root))).toBe(0);
+		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(0);
 		expect(linesOf(TRACKED)).toEqual(['a']);
 		expect(namesIn()).toEqual([TRACKED]);
 	});
@@ -172,8 +176,8 @@ describe('flushing pending logs', () => {
 		write(TRACKED, ['a']);
 		write(PENDING, ['b']);
 
-		unwrap(flushPendingLogs(root));
-		unwrap(flushPendingLogs(root));
+		unwrap(flushPendingLogs(root, TRACKED));
+		unwrap(flushPendingLogs(root, TRACKED));
 
 		expect(linesOf(TRACKED)).toEqual(['a', 'b']);
 	});
@@ -181,6 +185,6 @@ describe('flushing pending logs', () => {
 	it('shrugs off an events directory that is not there yet', () => {
 		fs.rmSync(eventsDir, {recursive: true, force: true});
 
-		expect(unwrap(flushPendingLogs(root))).toBe(0);
+		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(0);
 	});
 });

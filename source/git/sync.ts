@@ -359,16 +359,18 @@ const runSync = async ({
 		stateBranchRoot,
 	});
 
-	// Everything written since the last sync lives in pending files, which git
-	// does not track and therefore cannot reset out from under a writer. Folded
-	// in here: this process holds the worktree, and it is before the commit, so
-	// the lines go out with this sync rather than waiting for the next one.
+	// Everything this actor wrote since the last sync lives in a pending file,
+	// which git does not track and therefore cannot reset out from under a
+	// writer. Folded in here: this process holds the worktree, and it is before
+	// the commit, so the lines go out with this sync rather than waiting for the
+	// next one. Own file only — the commit below takes nothing else, and other
+	// actors' lines are safer left pending than dirty in a tracked file.
 	//
 	// Not fatal on its own. The lines are still on disk and the next sync will
 	// try again — refusing to sync at all would strand them further.
 	const flushResult = trace(
 		'flushPendingLogs',
-		flushPendingLogs(stateBranchRoot),
+		flushPendingLogs(stateBranchRoot, ownEventFileName),
 	);
 	if (isFail(flushResult)) {
 		logger.error(`[sync] ${flushResult.message}`);
