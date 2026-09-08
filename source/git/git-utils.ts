@@ -587,18 +587,26 @@ const rebaseInProgress = async (cwd: string): Promise<boolean> => {
  * The rebase, re-attempted while the only thing that stopped it was a race it
  * can win next time.
  *
- * `rebase.autoStash` reverts the working copy and puts it back, but the moment
- * between the stash and the checkout is not covered: nothing holds a lock on
- * the *write* path, so a GUI, an MCP server and a TUI all append to this
- * directory while one of them syncs. An append landing inside that moment
- * leaves the log dirty again and git refuses to detach HEAD — the sync fails
- * having done nothing, over a condition that is gone milliseconds later.
+ * Nothing holds a lock on the *write* path, so a GUI, an MCP server and a TUI
+ * all append to this directory while one of them syncs. `rebase.autoStash`
+ * reverts the working copy and puts it back, but it does not exclude those
+ * writers, and an append that lands while git has the worktree leaves the log
+ * dirty under it.
+ *
+ * The exposed window is the *whole* rebase, not one gap inside it. Three
+ * different refusals have been seen from the same cause: "could not detach
+ * HEAD" before it starts, "cannot rebase: You have unstaged changes" at the
+ * pre-flight check, and "would be overwritten by merge" during the replay. So
+ * this narrows the odds rather than closing them — the sync that still loses
+ * fails as it did before, and the next autosync tries again. Closing it for
+ * real means excluding writers for the duration, which is a lock on the append
+ * path and a much larger change than this.
  *
  * The two failures are told apart structurally rather than by reading git's
  * message, whose wording follows `LANG`. A rebase that *started* and stopped on
  * a conflict left its state directory behind, and replaying it would land in
- * the same place; one that never started left nothing, and the next attempt is
- * a fresh throw against a window a few milliseconds wide.
+ * the same place; one that never started left nothing, so it is worth one more
+ * throw.
  *
  * That same test is what keeps the slow timeout from multiplying: a rebase
  * SIGTERMed at the 120s cap leaves `rebase-merge` behind like any interrupted
