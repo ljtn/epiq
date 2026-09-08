@@ -91,4 +91,5 @@ export type GuiMessage =
 	| {type: 'commit:diff:get'; payload: {sha: string}}
 	| {type: 'issue:commits:get'; payload: {issueId: string}}
 	| {type: 'issue:stats:get'; payload: {issueId: string}}
-	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}};
+	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}}
+	| {type: 'board:stay-trends:get'};

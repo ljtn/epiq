@@ -40,7 +40,10 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
-import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
+import {
+	getBoardStayTrends,
+	getSwimlaneStats,
+} from '../../../mcp/api/swimlane-stats.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
@@ -305,6 +308,15 @@ export const setupWebsocket = (
 							swimlaneId,
 							result: await getSwimlaneStats({repoRoot, swimlaneId}),
 						},
+					});
+				}
+
+				if (type === 'board:stay-trends:get') {
+					// Every lane at once, and no git: the headers draw all of these
+					// or none of them, and one request beats one per column.
+					return sendSocket(socket, {
+						type: 'board:stay-trends:result',
+						payload: getBoardStayTrends(),
 					});
 				}
 
