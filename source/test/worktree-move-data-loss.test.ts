@@ -3,6 +3,8 @@ import path from 'node:path';
 import {beforeEach, describe, expect, it} from 'vitest';
 import {execGit} from '../git/git-utils.js';
 import {ensureLocalStateBranch, ensureStateBranchWorktree} from '../git/git.js';
+import {ensureStateBranchLayout} from '../git/git-storage.js';
+import {toPendingFileName} from '../lib/event/pending-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {makeTempDir} from './helpers/git-repo.js';
 
@@ -75,6 +77,38 @@ describe('relocating the state worktree must not discard unsynced events', () =>
 
 		expect(fs.existsSync(logPath())).toBe(true);
 		expect(fs.readFileSync(logPath(), 'utf8')).toContain('UNSYNCED EVENT');
+	});
+
+	// An append lands in the pending log, which the committed layout ignores —
+	// so `git status`, which is what the guard asks, does not list it. It is
+	// still every event written since the last sync.
+	it('refuses over a pending log that git status cannot see', async () => {
+		const layout = ensureStateBranchLayout(repoRoot, originalRoot);
+		if (isFail(layout)) throw new Error(layout.message);
+
+		await execGit({args: ['add', '-A'], cwd: originalRoot});
+		await execGit({
+			args: ['commit', '-qm', 'sync', '--no-verify'],
+			cwd: originalRoot,
+		});
+
+		const pendingPath = path.join(
+			path.dirname(logPath()),
+			toPendingFileName(path.basename(LOG)),
+		);
+		fs.writeFileSync(pendingPath, 'PENDING EVENT\n');
+
+		const result = await ensureStateBranchWorktree({
+			repoRoot,
+			stateBranchRoot: otherRoot,
+			stateBranchName: BRANCH,
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (!isFail(result)) return;
+		expect(result.message).toContain('not committed yet');
+
+		expect(fs.readFileSync(pendingPath, 'utf8')).toContain('PENDING EVENT');
 	});
 
 	// The other deletion on this path: a directory with no `.git` is treated as

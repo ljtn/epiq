@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {hasPendingLines} from '../lib/event/pending-log.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {logger} from '../logger.js';
 import {git} from './git-commands.js';
@@ -380,7 +381,9 @@ export const ensureStateBranchWorktree = async ({
 		const dirtyResult = await hasUncommittedChanges(existing);
 		if (isFail(dirtyResult)) return failed(dirtyResult.message);
 
-		if (dirtyResult.value) {
+		// Pending logs are ignored, so git does not count them — and on a live
+		// board they are where every unpublished line is.
+		if (dirtyResult.value || hasPendingLines(existing)) {
 			return failed(
 				[
 					`Refusing to move the state branch worktree away from ${existing}.`,
