@@ -10,6 +10,7 @@ import {
 import {loadMergedEvents} from '../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
 import {getPersistFileName, persist} from '../lib/event/event-persist.js';
+import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {AppEvent} from '../lib/event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
@@ -96,8 +97,12 @@ afterEach(() => {
 	fs.rmSync(rootDir, {recursive: true, force: true});
 });
 
-const persistedIds = (): string[] =>
-	fs
+// Folded in first: an append lands in the pending log, where a sync resetting
+// the worktree cannot reach it, and this asks what the actor's own log holds.
+const persistedIds = (): string[] => {
+	flushPendingLogs(rootDir);
+
+	return fs
 		.readFileSync(
 			path.join(rootDir, '.epiq', 'events', getPersistFileName(actor)),
 			'utf8',
@@ -105,6 +110,7 @@ const persistedIds = (): string[] =>
 		.trim()
 		.split('\n')
 		.map(line => (JSON.parse(line) as {id: [string, string | null]}).id[0]);
+};
 
 const loggedIds = (nodeId: string): string[] =>
 	(getState().nodes[nodeId]?.log ?? []).map(event => event.id);

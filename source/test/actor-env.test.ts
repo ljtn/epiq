@@ -16,6 +16,7 @@ import {
 	persist,
 	resolveActorId,
 } from '../lib/event/event-persist.js';
+import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {patchSettingsState} from '../lib/state/settings.state.js';
 
@@ -276,6 +277,11 @@ describe('loadSettingsFromConfig', () => {
 		});
 
 		expect(isFail(written)).toBe(false);
+
+		// The append lands in the pending log; folding it in is what leaves the
+		// events directory holding one file, named for the actor who wrote it.
+		flushPendingLogs(rootDir);
+
 		expect(fs.readdirSync(path.join(rootDir, '.epiq', 'events'))).toEqual([
 			getPersistFileName(actor.value),
 		]);

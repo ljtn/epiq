@@ -28,11 +28,12 @@ import {
 	bootstrapStateBranchStorage,
 	createStateBranchSyncCommit,
 	pushStateBranch,
-	stageStateBranchEventAttributes,
+	stageStateBranchEventConfig,
 	stageStateBranchMediaFiles,
 	stageStateBranchOwnEventFile,
 } from './git.js';
 import {restoreDroppedEventLines, snapshotEventLogs} from './log-integrity.js';
+import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {withSyncLock} from './sync-lock.js';
 
 type SyncSummary = {
@@ -196,18 +197,18 @@ const commitOwnEventFileToStateBranch = async ({
 	);
 	if (isFail(stageMediaResult)) return failed(stageMediaResult.message);
 
-	const stageAttributesResult = trace(
-		'stageStateBranchEventAttributes',
-		await stageStateBranchEventAttributes({stateBranchRoot}),
+	const stageConfigResult = trace(
+		'stageStateBranchEventConfig',
+		await stageStateBranchEventConfig({stateBranchRoot}),
 	);
-	if (isFail(stageAttributesResult)) {
-		return failed(stageAttributesResult.message);
+	if (isFail(stageConfigResult)) {
+		return failed(stageConfigResult.message);
 	}
 
 	const pathspec = [
 		stageResult.value,
 		stageMediaResult.value,
-		stageAttributesResult.value,
+		...stageConfigResult.value,
 	].filter((entry): entry is string => entry !== null);
 
 	if (pathspec.length === 0) {
@@ -357,6 +358,21 @@ const runSync = async ({
 		stateBranch,
 		stateBranchRoot,
 	});
+
+	// Everything written since the last sync lives in pending files, which git
+	// does not track and therefore cannot reset out from under a writer. Folded
+	// in here: this process holds the worktree, and it is before the commit, so
+	// the lines go out with this sync rather than waiting for the next one.
+	//
+	// Not fatal on its own. The lines are still on disk and the next sync will
+	// try again — refusing to sync at all would strand them further.
+	const flushResult = trace(
+		'flushPendingLogs',
+		flushPendingLogs(stateBranchRoot),
+	);
+	if (isFail(flushResult)) {
+		logger.error(`[sync] ${flushResult.message}`);
+	}
 
 	const localCommitResult = trace(
 		'commitOwnEventFileToStateBranch',

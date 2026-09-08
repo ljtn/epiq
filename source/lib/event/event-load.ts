@@ -14,6 +14,7 @@ import {
 	PersistedEnvelope,
 } from './event-persist.js';
 import {parseEventPayload} from './event-payload.schema.js';
+import {stripPendingMarker} from './pending-log.js';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default('unknown'),
@@ -87,8 +88,12 @@ const parseEventFileActor = (
 	// contain any number of them ("J. Lampa" -> `<id>.j.-lampa`), while the id
 	// segment never can.
 	const separatorIndex = baseName.indexOf('.');
-	const userId =
-		separatorIndex === -1 ? baseName : baseName.slice(0, separatorIndex);
+	// The pending log's marker rides on the id segment, so it comes off here —
+	// the actor is the same one either way, and a line is not attributed
+	// differently for having been written while a sync held the worktree.
+	const userId = stripPendingMarker(
+		separatorIndex === -1 ? baseName : baseName.slice(0, separatorIndex),
+	);
 	// Undefined, not '', so the schema's 'unknown' default applies rather than
 	// tripping its min(1).
 	const userName =

@@ -9,6 +9,7 @@ import {getSettingsState, User} from '../state/settings.state.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
 import {sanitizeFilePart} from '../utils/file-part.js';
 import {MAX_ULID_AHEAD_MS} from './date-utils.js';
+import {getPendingLogPath} from './pending-log.js';
 import {advanceEdgeRef, getEdgeRef} from './event-load.js';
 import {noteOwnAppend} from './log-signature.js';
 import {
@@ -255,11 +256,20 @@ export function persist({
 		const ensureEventsDirResult = ensureEventsDir(rootDir);
 		if (isFail(ensureEventsDirResult)) return ensureEventsDirResult;
 
-		const filePath = getEventLogPath(rootDir, {
+		// The tracked log's name is still what identifies this actor's file; the
+		// line itself goes to the pending one beside it, which git does not
+		// track and therefore cannot reset out from under a write. A sync folds
+		// it in once git is finished with the worktree.
+		const trackedPath = getEventLogPath(rootDir, {
 			userId: event.userId,
 			userName: event.userName,
 		});
-		if (isFail(filePath)) return filePath;
+		if (isFail(trackedPath)) return trackedPath;
+
+		const filePath = succeeded(
+			'Resolved pending event log path',
+			getPendingLogPath(rootDir, path.basename(trackedPath.value)),
+		);
 
 		const identity = id
 			? succeeded('Minted event id', id)

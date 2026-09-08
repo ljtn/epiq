@@ -11,6 +11,7 @@ import {
 	ensureStateBranchIsStorageOnly,
 	ensureWorktreesDir,
 	getRelativeEventAttributesPath,
+	getRelativeEventIgnorePath,
 	getRelativeEventFilePath,
 	getRelativeMediaDirPath,
 	removePath,
@@ -632,29 +633,35 @@ export const stageStateBranchMediaFiles = async ({
  * The merge attribute has to be committed on the state branch, or a clone that
  * has not seen it yet still conflicts on the logs.
  */
-export const stageStateBranchEventAttributes = async ({
+export const stageStateBranchEventConfig = async ({
 	stateBranchRoot,
 }: {
 	stateBranchRoot: string;
-}): Promise<Result<string | null>> => {
-	const relativePath = getRelativeEventAttributesPath();
+}): Promise<Result<string[]>> => {
+	// Both carry rules a clone needs before it can behave correctly: the merge
+	// attribute, without which concurrent logs conflict, and the ignore, without
+	// which a pending log can be staged and so stop being protected.
+	const relativePaths = [
+		getRelativeEventAttributesPath(),
+		getRelativeEventIgnorePath(),
+	].filter(relativePath =>
+		fs.existsSync(path.join(stateBranchRoot, relativePath)),
+	);
 
-	if (!fs.existsSync(path.join(stateBranchRoot, relativePath))) {
-		return succeeded('No event log attributes to stage', null);
+	if (relativePaths.length === 0) {
+		return succeeded('No event log config to stage', []);
 	}
 
 	const stageResult = await git.stage({
 		cwd: stateBranchRoot,
-		pathspec: [relativePath],
+		pathspec: relativePaths,
 	});
 
 	if (isFail(stageResult)) {
-		return failed(
-			`Failed to stage event log attributes\n${stageResult.message}`,
-		);
+		return failed(`Failed to stage event log config\n${stageResult.message}`);
 	}
 
-	return succeeded('Staged event log attributes', relativePath);
+	return succeeded('Staged event log config', relativePaths);
 };
 
 export const createStateBranchSyncCommit = async ({

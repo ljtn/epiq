@@ -9,6 +9,7 @@ import {
 	persist,
 	toPersistedEvent,
 } from '../lib/event/event-persist.js';
+import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
 import {AppEvent, StoredAppEvent} from '../lib/event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
@@ -128,6 +129,10 @@ describe('event persist', () => {
 
 		expect(isFail(result)).toBe(false);
 
+		// An append lands in the pending log, out of reach of a sync resetting
+		// the worktree; folding it in is what puts it in the actor's own log.
+		flushPendingLogs(rootDir);
+
 		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
 
 		expect(fs.existsSync(filePath)).toBe(true);
@@ -162,6 +167,8 @@ describe('event persist', () => {
 		});
 
 		expect(isFail(second)).toBe(false);
+
+		flushPendingLogs(rootDir);
 
 		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
 
@@ -229,7 +236,7 @@ describe('event persist', () => {
 
 		expect(isFail(result)).toBe(false);
 		if (isFail(result)) return;
-		expect(path.basename(result.value.path)).toBe('u1.a-jsonl.b.jsonl');
+		expect(path.basename(result.value.path)).toBe('u1~pending.a-jsonl.b.jsonl');
 	});
 });
 
