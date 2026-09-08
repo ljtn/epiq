@@ -6,6 +6,7 @@ import {isSuccess, Result} from '../model/result-types.js';
 import {
 	appendPendingLine,
 	flushPendingLogs,
+	foldedBytesOf,
 	hasPendingLines,
 	isPendingFileName,
 	toPendingFileName,
@@ -40,6 +41,16 @@ const linesOf = (name: string): string[] => {
 };
 
 const namesIn = (): string[] => fs.readdirSync(eventsDir).sort();
+
+// A flush leaves the file it folded behind, renamed, for the next pass to
+// delete; these read past that so a test can say what the log holds now.
+const foldedNames = (): string[] =>
+	namesIn().filter(name => foldedBytesOf(name) !== null);
+
+const flushTwice = (): void => {
+	unwrap(flushPendingLogs(root, TRACKED));
+	unwrap(flushPendingLogs(root, TRACKED));
+};
 
 beforeEach(() => {
 	root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-pending-'));
@@ -79,6 +90,16 @@ describe('the pending log name', () => {
 
 		expect(isPendingFileName(rotated)).toBe(true);
 		expect(trackedFileNameFor(rotated)).toBe(TRACKED);
+		expect(foldedBytesOf(rotated)).toBeNull();
+	});
+
+	it('recognises a folded file, and reads how much of it is folded', () => {
+		const folded = '01hzz~pending-01abc-f120.ana.jsonl';
+
+		expect(isPendingFileName(folded)).toBe(true);
+		expect(trackedFileNameFor(folded)).toBe(TRACKED);
+		expect(foldedBytesOf(folded)).toBe(120);
+		expect(foldedBytesOf(TRACKED)).toBeNull();
 	});
 
 	it('leaves an ordinary log alone', () => {
@@ -101,6 +122,53 @@ describe('flushing pending logs', () => {
 
 		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(2);
 		expect(linesOf(TRACKED)).toEqual(['a', 'b', 'c', 'd']);
+		expect(fs.existsSync(path.join(eventsDir, PENDING))).toBe(false);
+	});
+
+	// The file it read is renamed, not deleted: a writer can still reach it — one
+	// preempted between opening and writing, or one whose lookup of the live
+	// path resolved to the old inode after the rename. Deleting it now would
+	// take those lines with it. The next pass deletes it, once nothing can.
+	it('keeps the file it folded until the next pass, then deletes it', () => {
+		write(TRACKED, ['a']);
+		write(PENDING, ['b']);
+
+		unwrap(flushPendingLogs(root, TRACKED));
+
+		expect(foldedNames()).toHaveLength(1);
+		expect(linesOf(foldedNames()[0]!)).toEqual(['b']);
+
+		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(0);
+		expect(namesIn()).toEqual([TRACKED]);
+		expect(linesOf(TRACKED)).toEqual(['a', 'b']);
+	});
+
+	it('folds what arrived in the kept file after it was read', () => {
+		write(TRACKED, ['a']);
+		write(PENDING, ['b']);
+		unwrap(flushPendingLogs(root, TRACKED));
+
+		// A writer that still had the old file open, or reached it by a stale
+		// path, lands its line here rather than in the fresh live file.
+		fs.appendFileSync(path.join(eventsDir, foldedNames()[0]!), 'late\n');
+
+		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(1);
+		expect(linesOf(TRACKED)).toEqual(['a', 'b', 'late']);
+		expect(namesIn()).toEqual([TRACKED]);
+	});
+
+	it('leaves a trailing fragment for the next pass rather than splicing it', () => {
+		write(TRACKED, ['a']);
+		fs.writeFileSync(path.join(eventsDir, PENDING), 'b\n{"half');
+		unwrap(flushPendingLogs(root, TRACKED));
+
+		expect(linesOf(TRACKED)).toEqual(['a', 'b']);
+		expect(foldedBytesOf(foldedNames()[0]!)).toBe(2);
+
+		fs.appendFileSync(path.join(eventsDir, foldedNames()[0]!), '":1}\n');
+		unwrap(flushPendingLogs(root, TRACKED));
+
+		expect(linesOf(TRACKED)).toEqual(['a', 'b', '{"half":1}']);
 		expect(namesIn()).toEqual([TRACKED]);
 	});
 
@@ -112,15 +180,18 @@ describe('flushing pending logs', () => {
 		expect(linesOf(TRACKED)).toEqual(['a']);
 	});
 
-	// A crash between the append and the delete leaves a rotated file behind.
-	// The next flush has to find it — that is the whole reason it globs rather
-	// than looking only at the live name.
+	// A crash between the rename and the fold leaves a rotated file behind. The
+	// next flush has to find it — that is the whole reason it globs rather than
+	// looking only at the live name.
 	it('picks up a rotated file a crashed flush left behind', () => {
 		write(TRACKED, ['a']);
 		write('01hzz~pending-01abc.ana.jsonl', ['stranded']);
 
 		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(1);
 		expect(linesOf(TRACKED)).toEqual(['a', 'stranded']);
+		expect(foldedNames()).toEqual(['01hzz~pending-01abc-f9.ana.jsonl']);
+
+		unwrap(flushPendingLogs(root, TRACKED));
 		expect(namesIn()).toEqual([TRACKED]);
 	});
 
@@ -129,7 +200,7 @@ describe('flushing pending logs', () => {
 		write('01hzz~pending-01abc.ana.jsonl', ['stranded']);
 		write(PENDING, ['live']);
 
-		unwrap(flushPendingLogs(root, TRACKED));
+		flushTwice();
 
 		expect(linesOf(TRACKED).sort()).toEqual(['a', 'live', 'stranded']);
 		expect(namesIn()).toEqual([TRACKED]);
@@ -151,19 +222,23 @@ describe('flushing pending logs', () => {
 		expect(linesOf('02aaa~pending.bo.jsonl')).toEqual(['bo-2']);
 	});
 
-	// A line that is not newline-terminated would otherwise be joined to the
-	// first line of the tracked log's next append — two events lost, and union
-	// merge relies on every line standing alone.
-	it('terminates a final line the writer left unterminated', () => {
+	// A line that is not newline-terminated is a write still in flight on the
+	// first pass. By the file's last pass it is a remnant, and it goes in
+	// terminated rather than being joined to the tracked log's next append —
+	// two events lost, and union merge relies on every line standing alone.
+	it('terminates a final line the writer left unterminated, on the last pass', () => {
 		write(TRACKED, ['a']);
 		fs.writeFileSync(path.join(eventsDir, PENDING), 'b');
 
 		unwrap(flushPendingLogs(root, TRACKED));
+		expect(linesOf(TRACKED)).toEqual(['a']);
 
+		unwrap(flushPendingLogs(root, TRACKED));
 		expect(linesOf(TRACKED)).toEqual(['a', 'b']);
 		expect(fs.readFileSync(path.join(eventsDir, TRACKED), 'utf8')).toMatch(
 			/\n$/,
 		);
+		expect(namesIn()).toEqual([TRACKED]);
 	});
 
 	// The other side of the same splice: a tracked log that ends in a partial
@@ -184,6 +259,8 @@ describe('flushing pending logs', () => {
 
 		expect(unwrap(flushPendingLogs(root, TRACKED))).toBe(0);
 		expect(linesOf(TRACKED)).toEqual(['a']);
+
+		flushTwice();
 		expect(namesIn()).toEqual([TRACKED]);
 	});
 
@@ -233,6 +310,35 @@ describe('appending to a pending log', () => {
 		expect(linesOf(TRACKED)).toEqual(['before']);
 		expect(linesOf(PENDING)).toEqual(['during']);
 	});
+
+	// The same preempted writer, but another writer creates the next live file
+	// before it runs its check. On ext4 a deleted file's inode number goes to
+	// the very next file created, so the check would pass against the wrong
+	// file — which is why the flush must not have deleted the old one.
+	it('keeps the line when the next live file takes the old inode number', () => {
+		write(PENDING, ['before']);
+
+		const writeSync = fs.writeSync;
+		vi.spyOn(fs, 'writeSync').mockImplementationOnce(((
+			fd: number,
+			data: string,
+		) => {
+			unwrap(flushPendingLogs(root, TRACKED));
+			return writeSync(fd, data);
+		}) as typeof fs.writeSync);
+
+		const closeSync = fs.closeSync;
+		vi.spyOn(fs, 'closeSync').mockImplementationOnce((fd: number) => {
+			closeSync(fd);
+			fs.appendFileSync(path.join(eventsDir, PENDING), 'other\n');
+		});
+
+		appendPendingLine(path.join(eventsDir, PENDING), 'during\n');
+		flushTwice();
+
+		expect(linesOf(TRACKED)).toContain('during');
+		expect(linesOf(TRACKED)).toContain('other');
+	});
 });
 
 describe('whether pending lines are held', () => {
@@ -247,6 +353,19 @@ describe('whether pending lines are held', () => {
 	it("is true for any actor's pending lines, live or rotated", () => {
 		write('02aaa~pending-01abc.bo.jsonl', ['bo']);
 
+		expect(hasPendingLines(root)).toBe(true);
+	});
+
+	// A folded file's lines are in the tracked log already; only what arrived
+	// after the fold is unpublished.
+	it('counts only the unfolded tail of a folded file', () => {
+		write(TRACKED, ['a']);
+		write(PENDING, ['b']);
+		unwrap(flushPendingLogs(root, TRACKED));
+
+		expect(hasPendingLines(root)).toBe(false);
+
+		fs.appendFileSync(path.join(eventsDir, foldedNames()[0]!), 'late\n');
 		expect(hasPendingLines(root)).toBe(true);
 	});
 

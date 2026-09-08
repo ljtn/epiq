@@ -280,6 +280,8 @@ describe('loadSettingsFromConfig', () => {
 
 		// The append lands in the pending log; folding it in is what leaves the
 		// events directory holding one file, named for the actor who wrote it.
+		// Two passes: a flush keeps the file it folded until the next one.
+		flushPendingLogs(rootDir, getPersistFileName(actor.value));
 		flushPendingLogs(rootDir, getPersistFileName(actor.value));
 
 		expect(fs.readdirSync(path.join(rootDir, '.epiq', 'events'))).toEqual([
