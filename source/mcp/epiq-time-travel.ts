@@ -1,4 +1,4 @@
-import {existsSync, lstatSync, mkdirSync, chmodSync} from 'node:fs';
+import {existsSync} from 'node:fs';
 import {chmod} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,6 +24,7 @@ import {
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
+import {privateTempDir} from '../lib/storage/private-temp-dir.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {
 	getState,
@@ -385,40 +386,6 @@ export const getCommitsForRef = async (
 // `sha` reaches a `git show <sha>` argv slot, where a leading `-` would be read
 // as a flag. Argument injection, not shell injection.
 const isPlausibleSha = (sha: string): boolean => /^[0-9a-f]{7,40}$/i.test(sha);
-
-/**
- * A directory under the system temp dir that only this user can enter.
- *
- * `os.tmpdir()` is per-user on macOS but shared on Linux, where the default
- * 0755 left a private repository's diffs readable by every local account — and,
- * worse, let one of them pre-create a path here as a symlink so the write
- * landed on a file of their choosing.
- *
- * The mode is set on creation *and* on a directory that was already there: an
- * older build made these 0755, and `mkdirSync` leaves an existing directory's
- * permissions alone. A symlink is refused outright rather than chmod-ed, since
- * following one is the thing being prevented.
- */
-export const privateTempDir = (...segments: string[]): Result<string> => {
-	const dir = path.join(os.tmpdir(), 'epiq', ...segments);
-
-	try {
-		if (existsSync(dir) && lstatSync(dir).isSymbolicLink()) {
-			return failed(`Refusing to write diffs through a symlink at ${dir}`);
-		}
-
-		mkdirSync(dir, {recursive: true, mode: 0o700});
-		chmodSync(dir, 0o700);
-
-		return succeeded('Prepared private temp dir', dir);
-	} catch (error) {
-		return failed(
-			`Unable to prepare ${dir}: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
-	}
-};
 
 // Fallback: editors highlight the +/- lines but not the code's own language.
 const openCommitAsUnifiedDiff = async (

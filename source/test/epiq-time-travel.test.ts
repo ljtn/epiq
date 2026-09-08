@@ -61,6 +61,18 @@ vi.mock('node:fs', () => ({
 	existsSync: vi.fn(),
 }));
 
+// Mocked as a unit rather than by widening the `node:fs` mock above: the
+// directory it prepares is a real one with real permissions, which is its own
+// test's business (lib/storage/private-temp-dir.test.ts). Here it only has to
+// name a path for the diff assertions to match against.
+vi.mock('../lib/storage/private-temp-dir.js', () => ({
+	privateTempDir: (...segments: string[]) => ({
+		status: 'success',
+		message: 'Prepared private temp dir',
+		value: ['/tmp/epiq', ...segments].join('/'),
+	}),
+}));
+
 vi.mock('node:fs/promises', () => ({
 	chmod: vi.fn(),
 }));

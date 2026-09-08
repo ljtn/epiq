@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {isFail, isSuccess, Result} from '../lib/model/result-types.js';
-import {privateTempDir} from './epiq-time-travel.js';
+import {isFail, isSuccess, Result} from '../model/result-types.js';
+import {privateTempDir} from './private-temp-dir.js';
 
 // A temp root of this test's own, so the assertions are about directories this
 // test created rather than whatever the developer's real one already holds.
