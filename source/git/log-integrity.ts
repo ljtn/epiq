@@ -3,6 +3,7 @@ import path from 'node:path';
 import {execGitAllowFail} from './git-utils.js';
 import {failed, Result, succeeded} from '../lib/model/result-types.js';
 import {isPendingFileName} from '../lib/event/pending-log.js';
+import {isVanished} from '../lib/event/log-signature.js';
 import {EPIQ_DIR_NAME, EVENTS_DIR_NAME} from '../lib/storage/paths.js';
 
 /**
@@ -94,10 +95,16 @@ export const snapshotEventLogs = (root: string): EventLogSnapshot => {
 			// append them again, every sync, forever.
 			if (isPendingFileName(name)) continue;
 
-			snapshot.set(
-				name,
-				linesIn(fs.readFileSync(path.join(dir, name), 'utf8')),
-			);
+			try {
+				snapshot.set(
+					name,
+					linesIn(fs.readFileSync(path.join(dir, name), 'utf8')),
+				);
+			} catch (error) {
+				// Gone since the listing: nothing of it to protect, and the rest
+				// of the logs still deserve the net.
+				if (!isVanished(error)) throw error;
+			}
 		}
 	} catch {
 		// Best effort by design: this is a safety net over git, and failing the

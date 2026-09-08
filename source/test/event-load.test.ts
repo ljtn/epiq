@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {ulid} from 'ulid';
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {
 	decodeReconstructedEvents,
 	getSortedEvents,
@@ -532,6 +532,74 @@ describe('loadMergedEvents with a corrupt line on disk', () => {
 		]);
 		expect(result.value.unreadable).toHaveLength(1);
 		expect(result.value.unreadable[0]?.reason).toBe('corrupt-line');
+	});
+});
+
+// Nothing holds the events directory still between listing it and reading the
+// files: a sync in another process renames a pending log and deletes it, and
+// git rewrites a tracked log while it rebases. A file gone by the time it is
+// read is a directory that moved, not a broken board.
+describe('loadMergedEvents while another process moves a file', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	const seed = (): {root: string; alice: string; bob: string} => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-vanish-'));
+		const eventsDir = path.join(root, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+
+		const alice = path.join(
+			eventsDir,
+			'01ARZ3NDEKTSV4RRFFQ69G5FAV.alice.jsonl',
+		);
+		const bob = path.join(eventsDir, '01BRZ3NDEKTSV4RRFFQ69G5FAV.bob.jsonl');
+
+		fs.writeFileSync(
+			alice,
+			[
+				JSON.stringify({
+					v: 1,
+					id: ['01H0000000000000000000000A', null],
+					'init.workspace': {id: 'ws1', name: 'Workspace', rank: 'a0'},
+				}),
+				'{"v":1,"id":["01H0000000000000000000000B",null],"lock.node"',
+			].join('\n') + '\n',
+		);
+		fs.writeFileSync(
+			bob,
+			JSON.stringify({
+				v: 1,
+				id: ['01H0000000000000000000000C', '01H0000000000000000000000A'],
+				'edit.title': {id: 'ws1', name: 'Renamed'},
+			}) + '\n',
+		);
+
+		return {root, alice, bob};
+	};
+
+	it('lists again rather than failing, and reports a corrupt line once', () => {
+		const {root, bob} = seed();
+
+		// Bob's log goes at the moment the scan reaches it: listed, then gone
+		// before its bytes could be read.
+		const readFileSync = fs.readFileSync;
+		vi.spyOn(fs, 'readFileSync').mockImplementation(((
+			...args: Parameters<typeof fs.readFileSync>
+		) => {
+			if (args[0] === bob) fs.rmSync(bob, {force: true});
+			return readFileSync(...args);
+		}) as typeof fs.readFileSync);
+
+		const result = loadMergedEventsWithUnreadable(root);
+
+		expect(isFail(result)).toBe(false);
+		if (isFail(result)) return;
+
+		expect(result.value.events.map(event => event.action)).toEqual([
+			'init.workspace',
+		]);
+		expect(result.value.unreadable).toHaveLength(1);
 	});
 });
 

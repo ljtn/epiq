@@ -57,9 +57,12 @@ vi.mock('../lib/storage/file-manager.js', () => ({
 	},
 }));
 
-vi.mock('node:fs', () => ({
-	existsSync: vi.fn(),
-}));
+// Both shapes, since the code under test reaches fs by named import and by
+// the default object alike.
+vi.mock('node:fs', () => {
+	const existsSync = vi.fn();
+	return {existsSync, default: {existsSync}};
+});
 
 // Mocked as a unit rather than by widening the `node:fs` mock above: the
 // directory it prepares is a real one with real permissions, which is its own

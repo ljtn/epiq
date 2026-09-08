@@ -5,7 +5,13 @@ import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
-import {logSignature, signatureAfterOwnAppend} from './log-signature.js';
+import {
+	isVanished,
+	listEventFiles,
+	logSignature,
+	SCAN_ATTEMPTS,
+	signatureAfterOwnAppend,
+} from './log-signature.js';
 import {toEffectiveUlidTimes} from './date-utils.js';
 import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
 import {
@@ -286,17 +292,22 @@ export const decodeReconstructedEvents = (
 	return succeeded('Decoded reconstructed events', decoded);
 };
 
+/** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
 export const parsePersistedEventsFile = (
 	filePath: string,
 	unreadable?: UnreadableEvent[],
-): Result<ReconstructedEvent[]> => {
-	if (!fs.existsSync(filePath)) {
-		return succeeded('Event file missing', []);
-	}
+): Result<ReconstructedEvent[] | null> => {
 	const actorResult = parseEventFileActor(filePath);
 	if (isFail(actorResult)) return failed(actorResult.message);
 
-	const content = fs.readFileSync(filePath, 'utf8');
+	let content: string;
+	try {
+		content = fs.readFileSync(filePath, 'utf8');
+	} catch (error) {
+		if (isVanished(error)) return succeeded('Event file missing', null);
+		throw error;
+	}
+
 	const entries: ReconstructedEvent[] = [];
 	const fileName = path.basename(filePath);
 
@@ -359,22 +370,43 @@ function loadAllPersistedEvents(
 		return succeeded('No events found', []);
 	}
 
-	const files = fs
-		.readdirSync(dir)
-		.filter(file => file.endsWith('.jsonl'))
-		.map(file => path.join(dir, file));
+	// A file gone between the listing and its read is one a sync just renamed
+	// or git just rewrote; the listing is taken again so the read sees the
+	// directory as it is, not as it was. Quarantined lines are collected per
+	// attempt, or a listing that had to be repeated would report them twice.
+	let entries: ReconstructedEvent[] = [];
+	let quarantined: UnreadableEvent[] = [];
 
-	const entries: ReconstructedEvent[] = [];
+	for (let attempt = 1; ; attempt++) {
+		entries = [];
+		quarantined = [];
+		let listAgain = false;
 
-	for (const filePath of files) {
-		const result = parsePersistedEventsFile(filePath, unreadable);
+		for (const file of listEventFiles(dir)) {
+			const result = parsePersistedEventsFile(
+				path.join(dir, file),
+				quarantined,
+			);
 
-		if (isFail(result)) {
-			return failed(result.message);
+			if (isFail(result)) {
+				return failed(result.message);
+			}
+
+			if (result.value === null) {
+				if (attempt < SCAN_ATTEMPTS) {
+					listAgain = true;
+					break;
+				}
+				continue;
+			}
+
+			entries.push(...result.value);
 		}
 
-		entries.push(...result.value);
+		if (!listAgain) break;
 	}
+
+	unreadable?.push(...quarantined);
 
 	const sorted = getSortedEvents(entries);
 

@@ -17,23 +17,53 @@
 // Taken afterwards, that write would be stored under the signature of a log it
 // does not match, and nothing would ever rebuild it.
 
-import {existsSync, readdirSync, statSync} from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import {getEventsDirPath} from '../storage/paths.js';
 
+/**
+ * A file listed a moment ago and gone now. Nothing holds the events directory
+ * still between a listing and the reads that follow it: a sync in another
+ * process renames a pending log twice and deletes it, and git rewrites a
+ * tracked log while it rebases. So a scan that meets one of these lists again
+ * rather than failing — and, having listed a few times, treats what is still
+ * gone as absent, which the next read will find out about for itself.
+ */
+export const isVanished = (error: unknown): boolean =>
+	(error as NodeJS.ErrnoException | null)?.code === 'ENOENT';
+
+export const SCAN_ATTEMPTS = 3;
+
+export const listEventFiles = (dir: string): string[] =>
+	fs
+		.readdirSync(dir)
+		.filter(file => file.endsWith('.jsonl'))
+		.sort();
+
 export const logSignature = (stateBranchRoot: string): string => {
 	const dir = getEventsDirPath(stateBranchRoot);
-	if (!existsSync(dir)) return 'none';
 
-	return readdirSync(dir)
-		.filter(file => file.endsWith('.jsonl'))
-		.sort()
-		.map(file => {
-			const {size, mtimeMs} = statSync(path.join(dir, file));
+	for (let attempt = 1; ; attempt++) {
+		if (!fs.existsSync(dir)) return 'none';
 
-			return `${file}:${size}:${mtimeMs}`;
-		})
-		.join('|');
+		const parts: string[] = [];
+		let listAgain = false;
+
+		for (const file of listEventFiles(dir)) {
+			try {
+				const {size, mtimeMs} = fs.statSync(path.join(dir, file));
+				parts.push(`${file}:${size}:${mtimeMs}`);
+			} catch (error) {
+				if (!isVanished(error)) throw error;
+				if (attempt < SCAN_ATTEMPTS) {
+					listAgain = true;
+					break;
+				}
+			}
+		}
+
+		if (!listAgain) return parts.join('|');
+	}
 };
 
 // The signature that follows an append this process made itself, or null when
