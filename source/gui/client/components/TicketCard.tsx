@@ -7,9 +7,21 @@ import {
 	THEATRE_FLASH_TIMING,
 } from '../lib/theatre';
 import {isSwimlaneDrag} from '../lib/gui-move-swimlane';
+import {DwellLevel} from '../lib/lane-dwell';
+import {formatDuration} from '../lib/gui-format.helper';
 import {CopyRef} from './CopyRef';
+import {IconClock} from './IconClock';
 import {IconComment} from './IconComment';
 import {User} from './User';
+
+/** How long this ticket has sat in its lane, and how that reads beside its peers. */
+export type CardDwell = {ms: number; level: DwellLevel};
+
+const DWELL_COLOR: Record<DwellLevel, string> = {
+	none: GUI_THEME.dim,
+	warn: GUI_THEME.amber,
+	alert: GUI_THEME.red,
+};
 
 export const TicketCard = ({
 	ticket,
@@ -25,6 +37,7 @@ export const TicketCard = ({
 	onDropIssueAt,
 	theatre,
 	flashKey,
+	dwell,
 }: {
 	ticket: GuiIssue;
 	index: number;
@@ -47,6 +60,9 @@ export const TicketCard = ({
 	// is what matters, not its content: two events in a row on one ticket have
 	// to flash twice.
 	flashKey: string | null;
+	// Null while the board is not showing the present, where an elapsed time
+	// measured against now means nothing.
+	dwell: CardDwell | null;
 }) => {
 	const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -269,6 +285,33 @@ export const TicketCard = ({
 						paddingTop: 2,
 					}}
 				>
+					{dwell && dwell.level !== 'none' && (
+						<span
+							data-testid="ticket-dwell"
+							data-dwell-level={dwell.level}
+							title={`In this lane ${formatDuration(
+								dwell.ms,
+							)} — far longer than the rest of the column`}
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 4,
+								color: DWELL_COLOR[dwell.level],
+								fontSize: 11,
+								fontWeight: 600,
+								lineHeight: 1,
+								// The assignee's height, so the two sit on one centre line
+								// rather than each on its own text box.
+								height: 20,
+								marginTop: '-4px',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							<IconClock size={12} />
+							<span>{formatDuration(dwell.ms)}</span>
+						</span>
+					)}
+
 					{commentCount > 0 && (
 						<button
 							type="button"

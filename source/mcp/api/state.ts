@@ -17,6 +17,7 @@ import {
 import {nodeRepo} from '../../lib/repository/node-repo.js';
 import {recordRecentProject} from '../../lib/config/recent-projects.js';
 import {getStringColor} from '../../lib/utils/color.js';
+import {laneEntryTime} from '../../lib/utils/lane-dwell.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {getAttachmentFileName} from '../../lib/media/media-store.js';
@@ -212,6 +213,10 @@ export const deriveGuiState = (): Result<ApiState> => {
 										title: sanitizeInlineText(issue.title),
 										description: issue.props.description ?? '',
 										createdAt: ulidTimeMs(issue.id),
+										enteredLaneAt: laneEntryTime(
+											issue.log ?? [],
+											ulidTimeMs(issue.id),
+										),
 										readonly: Boolean(issue.readonly) || forceReadonly,
 										tags: getIssueTags(issue),
 										assignees: getIssueAssignees(issue),

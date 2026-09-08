@@ -1555,6 +1555,7 @@ export const App = () => {
 									<SwimlaneColumn
 										key={swimlane.id}
 										swimlane={swimlane}
+										live={state?.timeTravel?.mode !== 'scrub'}
 										selected={false}
 										selectedIssueId={selectedIssue?.id ?? null}
 										commentsByIssueId={commentsByIssueId}

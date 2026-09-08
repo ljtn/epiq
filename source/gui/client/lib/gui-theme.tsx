@@ -34,6 +34,9 @@ export const GUI_THEME = {
 	hover: 'rgba(255,255,255,0.04)',
 	accent: '#76d4ff',
 	green: '#8ce99a',
+	// One step short of `red`, at the same pastel weight, for anything that
+	// warns before it alarms.
+	amber: '#ffc078',
 	red: '#ff8787',
 	transparent: 'rgba(0, 0, 0, 0)',
 };

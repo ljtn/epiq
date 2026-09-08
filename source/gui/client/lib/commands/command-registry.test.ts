@@ -29,6 +29,7 @@ const issue = (overrides: Partial<GuiIssue> = {}): GuiIssue => ({
 	title: 'A ticket',
 	description: '',
 	createdAt: 0,
+	enteredLaneAt: 0,
 	readonly: false,
 	tags: [],
 	assignees: [],

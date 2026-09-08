@@ -30,6 +30,11 @@ export type ApiIssue = {
 	description: string;
 	/** Decoded from the issue's own ULID. */
 	createdAt: number;
+	/**
+	 * When it last arrived in the swimlane it is in, from its own log. Equal to
+	 * `createdAt` for a ticket that has never moved.
+	 */
+	enteredLaneAt: number;
 	readonly: boolean;
 	/** Present only for a load-derived lock, which knows why it exists. */
 	tags: ApiTag[];
