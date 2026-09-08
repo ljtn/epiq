@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {
 	accountedSignature,
@@ -32,7 +32,54 @@ describe('what this process has accounted for', () => {
 	});
 
 	afterEach(() => {
+		vi.restoreAllMocks();
 		fs.rmSync(root, {recursive: true, force: true});
+	});
+
+	// Nothing holds the directory still between the listing and the stats: a
+	// sync in another process renames a pending log twice and deletes it, and
+	// git rewrites a tracked log while it rebases. A file gone by then is a
+	// directory that moved, and the answer is the directory as it is now.
+	describe('when a file goes between the listing and its stat', () => {
+		it('lists again rather than throwing', () => {
+			write('u-1', 'a\n');
+			write('u-2', 'x\n');
+
+			const statSync = fs.statSync;
+			vi.spyOn(fs, 'statSync').mockImplementationOnce(((
+				...args: Parameters<typeof fs.statSync>
+			) => {
+				fs.rmSync(path.join(eventsDir(), fileFor('u-2')));
+				return statSync(...args);
+			}) as typeof fs.statSync);
+
+			const signature = logSignature(root);
+
+			expect(signature).toBe(logSignature(root));
+			expect(signature).toContain(fileFor('u-1'));
+			expect(signature).not.toContain(fileFor('u-2'));
+		});
+
+		it('treats a file still gone after listing again as absent', () => {
+			write('u-1', 'a\n');
+			write('u-2', 'x\n');
+
+			const statSync = fs.statSync;
+			vi.spyOn(fs, 'statSync').mockImplementation(((
+				...args: Parameters<typeof fs.statSync>
+			) => {
+				if (String(args[0]).endsWith(fileFor('u-2'))) {
+					throw Object.assign(new Error('ENOENT'), {code: 'ENOENT'});
+				}
+				return statSync(...args);
+			}) as typeof fs.statSync);
+
+			expect(logSignature(root)).toBe(
+				`${fileFor('u-1')}:2:${
+					statSync(path.join(eventsDir(), fileFor('u-1'))).mtimeMs
+				}`,
+			);
+		});
 	});
 
 	it('is nothing until something says so', () => {

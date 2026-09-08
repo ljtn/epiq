@@ -76,10 +76,19 @@ const ownLogLines = (): Array<{id: [string, string | null]}> => {
 
 describe('materializeAndPersistAll edge threading', () => {
 	it('reads the log once per batch, not once per event', () => {
-		// The dir must exist or the loads short-circuit before readdir.
-		fs.mkdirSync(path.join(rootDir, '.epiq', 'events'), {recursive: true});
+		// One log to read, so a re-read per event would show up as a count.
+		const eventsDir = path.join(rootDir, '.epiq', 'events');
+		fs.mkdirSync(eventsDir, {recursive: true});
+		fs.writeFileSync(
+			path.join(eventsDir, '01ARZ3NDEKTSV4RRFFQ69G5FAV.mallory.jsonl'),
+			JSON.stringify({
+				v: 1,
+				id: ['01H00000000000000000000099', null],
+				'init.workspace': {id: 'w', name: 'W'},
+			}) + '\n',
+		);
 
-		const readdirSpy = vi.spyOn(fs, 'readdirSync');
+		const readSpy = vi.spyOn(fs, 'readFileSync');
 
 		const result = materializeAndPersistAll(
 			[
@@ -92,10 +101,12 @@ describe('materializeAndPersistAll edge threading', () => {
 
 		expect(isFail(result)).toBe(false);
 
-		const eventDirReads = readdirSpy.mock.calls.filter(([dir]) =>
-			String(dir).endsWith(path.join('.epiq', 'events')),
+		// The signature is a listing and a stat per file, cheap and taken per
+		// write; what must not repeat is reading and parsing the logs.
+		const logReads = readSpy.mock.calls.filter(([file]) =>
+			String(file).endsWith('.jsonl'),
 		);
-		expect(eventDirReads).toHaveLength(1);
+		expect(logReads).toHaveLength(1);
 	});
 
 	it('chains every persisted event to its predecessor, starting at the loaded edge', () => {
