@@ -1,10 +1,11 @@
 import React from 'react';
 import {DropIndicator} from '../App';
 import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
-import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {GUI_THEME} from '../lib/gui-theme';
 import {formatDuration} from '../lib/gui-format.helper';
 import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
 import {CardDwell} from './TicketCard';
+import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
@@ -46,6 +47,8 @@ export const SwimlaneColumn = ({
 	onDragLeave,
 	theatre,
 	live,
+	statsOpen,
+	onOpenStats,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
@@ -81,6 +84,9 @@ export const SwimlaneColumn = ({
 	// The board is showing the present. A dwell is time elapsed until now, which
 	// says nothing about a board being replayed at some other moment.
 	live: boolean;
+	// This lane's stats are the ones the inspector is showing.
+	statsOpen: boolean;
+	onOpenStats: (swimlaneId: string) => void;
 }) => {
 	// One reading for the whole column, so the header's figures and the clocks on
 	// the cards under it are answers to the same question.
@@ -238,23 +244,27 @@ export const SwimlaneColumn = ({
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
 					{dwell && (
-						<span
-							data-testid="swimlane-dwell"
-							title={`Time in this lane — median ${formatDuration(
+						<Button
+							variant="ghost"
+							data-testid="swimlane-stats-open"
+							title={`Lane stats — tickets here have waited ${formatDuration(
 								dwell.median,
-							)}, average ${formatDuration(
-								dwell.mean,
-							)}, oldest ${formatDuration(dwell.max)}`}
+							)} on average, the longest ${formatDuration(dwell.max)}`}
+							onClick={event => {
+								// Stopped here, or the header's own click would take the
+								// selection with it.
+								event.stopPropagation();
+								onOpenStats(swimlane.id);
+							}}
 							style={{
-								color: GUI_THEME.dim,
-								fontSize: TEXT.meta,
-								whiteSpace: 'nowrap',
+								display: 'flex',
+								alignItems: 'center',
+								color: statsOpen ? GUI_THEME.accent : GUI_THEME.dim,
 								flexShrink: 0,
 							}}
 						>
-							{formatDuration(dwell.median) || '0s'} med ·{' '}
-							{formatDuration(dwell.max) || '0s'} max
-						</span>
+							<IconLaneStats />
+						</Button>
 					)}
 
 					{swimlane.readonly && (

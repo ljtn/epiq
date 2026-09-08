@@ -22,6 +22,7 @@ import {ProportionBar, StackedBar} from './StatBars';
 import {BoardStats} from '../../../lib/stats/board-stats.js';
 import {Empty} from './FormPrimitives';
 import {Section} from './Section';
+import {Stat, StatRow} from './StatRow';
 
 // The timeline's own two series, so a colour means the same thing wherever it
 // appears: green is a commit, the accent is the board. A dot beside the
@@ -91,79 +92,6 @@ const FileLink = ({
 		</button>
 	);
 };
-
-const Stat = ({
-	value,
-	label,
-	note,
-}: {
-	value: string;
-	label: string;
-	note?: React.ReactNode;
-}) => (
-	<div
-		style={STAT_CELL}
-		// The same lift every hoverable surface in the app takes, so a figure
-		// under the pointer separates from the four beside it — and a path in
-		// the note below reads as part of that block rather than as loose text.
-		onMouseEnter={event => {
-			event.currentTarget.style.background = GUI_THEME.hover;
-		}}
-		onMouseLeave={event => {
-			event.currentTarget.style.background = 'transparent';
-		}}
-	>
-		<div style={STAT_VALUE}>{value}</div>
-		<div style={STAT_LABEL}>{label}</div>
-		{note && <div style={STAT_NOTE}>{note}</div>}
-	</div>
-);
-
-const Row = ({
-	left,
-	right,
-	dot,
-	last = false,
-}: {
-	left: React.ReactNode;
-	right: string;
-	dot?: string;
-	// The section below draws its own top border, so a rule under the final row
-	// is that border twice.
-	last?: boolean;
-}) => (
-	<div style={last ? {...ROW, borderBottom: 'none'} : ROW}>
-		<span
-			style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: 8,
-				color: GUI_THEME.secondary,
-				minWidth: 0,
-				overflow: 'hidden',
-				textOverflow: 'ellipsis',
-				whiteSpace: 'nowrap',
-			}}
-		>
-			{dot && (
-				// The bar above says which share is which by position; this says
-				// it again by name, so the reading never rests on colour alone.
-				<span
-					aria-hidden
-					style={{
-						width: 7,
-						height: 7,
-						borderRadius: 2,
-						background: dot,
-						flexShrink: 0,
-					}}
-				/>
-			)}
-			{left}
-		</span>
-		<span style={{color: GUI_THEME.primary, flexShrink: 0}}>{right}</span>
-	</div>
-);
 
 // A note earns a line only when it has something to say. A page of zeroes
 // reads as a checklist somebody has to work through; three lines read as
@@ -362,7 +290,7 @@ export const IssueStats = ({
 				/>
 
 				{languages.languages.map((language, index) => (
-					<Row
+					<StatRow
 						key={language.name}
 						dot={seriesColor(index)}
 						left={language.name}
@@ -407,7 +335,7 @@ export const IssueStats = ({
 				)}
 
 				{comments.byLanguage.map((language, index) => (
-					<Row
+					<StatRow
 						key={language.name}
 						left={language.name}
 						right={
@@ -459,7 +387,7 @@ export const IssueStats = ({
 			{(flaggedFiles.length > 0 || shape.binaryFiles > 0) && (
 				<Section title="Worth a look" tone={CODE_TONE}>
 					{flaggedFiles.map(({file, what}) => (
-						<Row
+						<StatRow
 							key={`${what}:${file.path}`}
 							left={<FileLink file={file} onOpen={onOpenFile} />}
 							right={what}
