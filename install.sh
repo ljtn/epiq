@@ -45,9 +45,31 @@ fi
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 
+missing="no prebuilt binary for ${os_name}-${arch_name} (asset: $asset). It may not be published for this platform yet."
+
 printf 'Downloading %s...\n' "$asset"
-curl -fsSL "$url" -o "$tmp" \
-  || err "no prebuilt binary for ${os_name}-${arch_name} (asset: $asset). It may not be published for this platform yet."
+# The 404 is handled below, so curl's own report of it would only confuse.
+if ! curl -fsSL "$url" -o "$tmp" 2>/dev/null; then
+  if [ -n "${EPIQ_VERSION:-}" ]; then
+    err "$missing"
+  fi
+  # A release becomes `latest` when it is published, but its binaries are built
+  # afterwards. Rather than fail for those few minutes, take the newest release
+  # that actually carries this asset — the API lists releases newest first, and
+  # omits drafts, so the first matching URL is the one we want.
+  printf 'Not in the latest release yet; looking for the newest one with %s...\n' "$asset"
+  releases="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=20")" \
+    || err "cannot reach the GitHub API to look up $asset"
+  url="$(printf '%s\n' "$releases" \
+    | grep -o "\"browser_download_url\": *\"[^\"]*/${asset}\"" \
+    | sed 's/.*"\(https[^"]*\)"/\1/' \
+    | head -n 1)"
+  [ -n "$url" ] || err "$missing"
+
+  tag="${url#https://github.com/${REPO}/releases/download/}"
+  printf 'Installing %s.\n' "${tag%/*}"
+  curl -fsSL "$url" -o "$tmp" || err "$missing"
+fi
 
 mkdir -p "$INSTALL_DIR"
 chmod +x "$tmp"
