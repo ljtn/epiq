@@ -49,6 +49,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 			tagNames: z.array(z.string()).optional(),
 		}),
 	),
+	message('board:create', z.object({title: z.string()})),
 	message('swimlane:create', z.object({title: z.string(), boardId: id})),
 	message('swimlane:edit:title', z.object({swimlaneId: id, title: z.string()})),
 	message('swimlane:delete', z.object({swimlaneId: id})),

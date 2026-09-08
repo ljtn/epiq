@@ -68,6 +68,7 @@ export type CommandHandlers = {
 	returnToLive: () => void;
 	toggleLog: () => void;
 	createSwimlane: () => void;
+	createBoard: () => void;
 };
 
 export type GuiCommand = {

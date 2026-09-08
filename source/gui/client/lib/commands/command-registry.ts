@@ -78,6 +78,17 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		run: context => context.handlers.createSwimlane(),
 	},
 	{
+		// The TUI reaches this as `:new board`, where the modifier says which
+		// thing is being made. A palette has no modifiers, so the two creates are
+		// two commands.
+		id: 'gui:board',
+		title: 'New board',
+		group: 'Board',
+		keywords: ['create', 'add', 'project', 'another'],
+		unavailable: needsWrite,
+		run: context => context.handlers.createBoard(),
+	},
+	{
 		id: CmdKeywords.COMMENT,
 		title: 'Comment on ticket',
 		group: 'Ticket',

@@ -162,6 +162,16 @@ vi.mock('../../lib/repository/rank.js', () => ({
 }));
 
 const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
+	// The root every board hangs off, as the real state carries it: without it
+	// there is nothing for a new board to be a child of.
+	'workspace-1': {
+		id: 'workspace-1',
+		title: 'Workspace',
+		context: 'WORKSPACE',
+		readonly: false,
+		isDeleted: false,
+		rank: 'a0',
+	},
 	'board-1': {
 		id: 'board-1',
 		title: 'Default',
@@ -626,6 +636,63 @@ describe('mcp tools', () => {
 
 			expect(isFail(result)).toBe(true);
 		});
+	});
+
+	it('creates a board on the workspace', async () => {
+		const result = await tools.createBoard({
+			repoRoot: '/repo',
+			title: 'Roadmap',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({
+				id: expect.any(String),
+				ref: expect.any(String),
+				title: 'Roadmap',
+			});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'add.board',
+					payload: expect.objectContaining({
+						name: 'Roadmap',
+						parent: 'workspace-1',
+						rank: expect.any(String),
+					}),
+				}),
+			],
+			'/state',
+		);
+	});
+
+	// Nothing above a board is readonly, so this guard is the only thing
+	// standing between a scrubbed checkout and a write to the state branch.
+	it('refuses a board while the checkout is in the past', async () => {
+		vi.mocked(timeTravelModule.getTimeTravelStatus).mockReturnValueOnce({
+			mode: 'scrub',
+			asOfTime: 123,
+		});
+
+		const result = await tools.createBoard({repoRoot: '/repo', title: 'Later'});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Cannot add a board while time travelling');
+		}
+
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('refuses a board with a blank title', async () => {
+		const result = await tools.createBoard({repoRoot: '/repo', title: '   '});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Board title cannot be empty');
+		}
 	});
 
 	it('creates a swimlane on a board', async () => {
