@@ -110,39 +110,47 @@ jobs:
   # lifts it and `latest` stays on the last complete release — which is also the
   # answer to a red `gui` job silently skipping the Release jobs and leaving
   # `latest` on a release with no assets at all.
+  #
+  # Nothing here reads the flag back to decide what to do, so re-running the
+  # workflow over a tag whose hold is already in place behaves exactly like the
+  # first run. Which release is a prerelease on purpose is decided by the tag —
+  # see `release-publish`.
   release-hold:
     name: Hold release
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    outputs:
-      was-prerelease: ${{ steps.hold.outputs.was-prerelease }}
+
     steps:
       - name: Mark the release a prerelease
-        id: hold
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          # On a 404 `gh api` prints the error body to stdout and exits 1, so the
-          # status is what says whether there is a release — not the output.
-          if ! id="$(gh api "repos/$REPO/releases/tags/$TAG" --jq .id 2>/dev/null)"; then
-            # A bare tag push with no release behind it. The upload jobs create
-            # one, and they create it as a prerelease.
-            echo "No release for $TAG yet; the upload jobs will create one."
-            echo "was-prerelease=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          was="$(gh api "repos/$REPO/releases/$id" --jq .prerelease)"
-          echo "was-prerelease=$was" >> "$GITHUB_OUTPUT"
-          if [ "$was" = "true" ]; then
-            echo "Already a prerelease; leaving it alone."
-            exit 0
-          fi
-          gh api -X PATCH "repos/$REPO/releases/$id" -F prerelease=true >/dev/null
-          echo "Held $TAG out of \`latest\` until its binaries are up." >> "$GITHUB_STEP_SUMMARY"
+          # Branch on the HTTP status rather than on `gh`'s exit code: a 401, a
+          # 403 or a passing 502 all exit non-zero too, and reading them as "no
+          # release yet" would skip the hold and leave open the window this job
+          # exists to close — silently, and with a green tick.
+          status="$(gh api -i "repos/$REPO/releases/tags/$TAG" 2>/dev/null | head -n 1 || true)"
+
+          case "$status" in
+            *' 200'*)
+              gh release edit "$TAG" --prerelease
+              echo "Held $TAG out of \`latest\` until its binaries are up." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            *' 404'*)
+              # A bare tag push with no release behind it. The upload jobs
+              # create one, and they create it as a prerelease.
+              echo "No release for $TAG yet; the upload jobs will create one."
+              ;;
+            *)
+              echo "::error::Could not read the release for $TAG (${status:-no response}), so it was not held out of \`latest\`."
+              exit 1
+              ;;
+          esac
 
   release:
     name: Release ${{ matrix.artifact }}
@@ -250,13 +258,14 @@ jobs:
           fail_on_unmatched_files: true
           prerelease: true
 
-  # Every binary is up, so the release can become `latest`. Skipped when the
-  # release was already a prerelease before CI touched it — that was somebody's
-  # deliberate choice, not this workflow's hold.
+  # Every binary is up, so the release can stop being a prerelease. A tag
+  # carrying a semver prerelease suffix — `v1.9.0-rc.1` — is one on purpose and
+  # is left held; that is the tag, not a flag this workflow also writes, so it
+  # reads the same on a re-run as on the first run.
   release-publish:
     name: Publish release
-    if: startsWith(github.ref, 'refs/tags/v') && needs.release-hold.outputs.was-prerelease != 'true'
-    needs: [release-hold, release, release-macos-x64]
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    needs: [release, release-macos-x64]
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -265,10 +274,43 @@ jobs:
       - name: Promote the release to latest
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          id="$(gh api "repos/$REPO/releases/tags/$TAG" --jq .id)"
-          gh api -X PATCH "repos/$REPO/releases/$id" \
-            -F prerelease=false -f make_latest=true >/dev/null
+          gh release edit "$TAG" --prerelease=false
+
+          # Clearing the flag is not what moves `latest`, and forcing it would
+          # drag `latest` backwards onto a hotfix cut from an old branch. So
+          # claim it only when this really is the highest version — reading the
+          # list after the flag is cleared, so this release is in it.
+          #
+          # Only strict `vX.Y.Z` tags are compared: the repo carries at least
+          # one historical typo, `v.1.3.2`, which `sort -V` ranks above every
+          # real tag and which would otherwise veto every promotion forever.
+          newest="v$(gh api "repos/$REPO/releases?per_page=100" \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sed 's/^v//' \
+            | sort -V \
+            | tail -n 1)"
+
+          if [ "$newest" != "$TAG" ]; then
+            # Loud, not just a summary line: if this ever misfires it stops
+            # every release from going live, and silence is how that lasts.
+            echo "::warning::$newest ranks above $TAG, so \`latest\` was left where it is."
+            echo "$newest ranks above $TAG; leaving \`latest\` where it is." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          gh release edit "$TAG" --latest
+
+          # And confirm it took, because a promotion that silently does nothing
+          # leaves exactly the broken `latest` this whole job is here to avoid.
+          actual="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
+          if [ "$actual" != "$TAG" ]; then
+            echo "::error::\`latest\` is $actual, not $TAG — the promotion did not take."
+            exit 1
+          fi
+
           echo "$TAG is now \`latest\`, with all five binaries behind it." >> "$GITHUB_STEP_SUMMARY"
