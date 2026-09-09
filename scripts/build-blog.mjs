@@ -317,7 +317,6 @@ function renderIndex(posts) {
 			<header class="docs-head wrap">
 				<div class="kicker">Blog</div>
 				<h1>Epiq lore.</h1>
-				<p class="lead">An author's sketches.</p>
 			</header>
 
 			<div class="wrap rel-wrap">
