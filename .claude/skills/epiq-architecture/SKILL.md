@@ -1,6 +1,6 @@
 ---
 name: epiq-architecture
-description: The distributed rules epiq's event log obeys — causal ordering by last-known edge, logical clocks, tombstones, total replay. Read before touching events, ordering, merge, replay, materialization, sync, or before adding an event type.
+description: How epiq is built — the distributed rules its event log obeys (causal ordering by last-known edge, logical clocks, tombstones, total replay), and the layers the code is arranged in. Read before touching events, ordering, merge, replay, materialization or sync, before adding an event type or a websocket message, and before adding a module, a hook or a capability that crosses layers.
 ---
 
 # The event log is a CRDT
@@ -49,6 +49,44 @@ Applied on every machine, in causal order, possibly after events it did not expe
 
 Touching ordering, merge, replay or materialization means running both.
 
+
+## The layers
+
+Dependencies point one way, and nothing lower reaches up.
+
+- **`source/lib/`** — the domain. The event log, the node repository, ranks, state, and the TUI that draws it. Knows nothing about MCP, HTTP or React, which is what lets the same code answer all three.
+- **`source/mcp/api/`** — one function per board operation: `createBoard`, `moveIssue`, `addIssueTag`. Boots, checks its preconditions, writes events, returns a `Result`. A mutation lives here and only here.
+- **`source/mcp/server.ts` and `source/gui/api/`** — the front doors. An MCP tool and a websocket message are two ways into the *same* `mcp/api` function; neither re-implements one. A guard that exists in only one door is a bug in the other.
+- **`source/gui/client/`** — React, and nothing else. It cannot import `source/lib/event/*` or anything else Node-side; the GUI build fails on it.
+
+Two rules that hold across all of them:
+
+- **Errors are returned, never thrown** — `failed()` / `succeeded()` and `isFail`, up to the front door, which turns the `Result` into a tool response or a socket frame.
+- **A change in `lib/` lands in the TUI, the MCP and the GUI at once.** Check all three before calling it done.
+
+The one inversion is `lib/state/sync-state.ts` reaching up into `gui/client/lib/gui-broadcast.js` to push a sync status. It is a wart to work around, not a pattern to copy.
+
+## Modular per concept, not per fragment
+
+The layering above is what exists; following it is the cheapest thing you can do for the next reader. What gets *added* has to keep it legible, and that means one module owning one high-level concept — a domain, a question, a screen's worth of state — rather than a slice of several.
+
+- **A capability is a vertical slice through the layers, never a shortcut across them.** Creating a board from the GUI is `createBoard` in `mcp/api/boards.ts`, a `board:create` message, a hook, and a palette entry: four small additions in four layers, not one socket handler that writes an event itself.
+- **Name a module after its concept, so somebody can guess the file.** `use-swimlane-editing.ts` owns the column editors, `use-board-creation.ts` the new-board modal, `commands/command-registry.ts` what the palette offers.
+- **State lives where it is drawn**, and a module that owns a question answers it for every caller — reuse the rule rather than restating it. `needsWrite` in the command registry is written once and used by every command that mutates.
+- **A few domain modules of a few hundred lines beat a file per fragment.** The entry file stays a brief overview of the flow.
+- **Keep the domain a value, not a React tree.** The command registry is built from injected handlers, so a test constructs the whole thing with no DOM.
+
+What the rule prevents is already on the board: `HZCA9EG` — App.tsx at 1900 lines, handing 27 hook return values down as props — and `XCNBCDB` — the same nine-line boot/actor/state preamble repeated at 21 `mcp/api` call sites. Both are what adding to a layer without giving the addition a home costs later.
+
+### Adding a websocket message
+
+Five places. Miss one and it fails quietly rather than loudly:
+
+- `gui/api/lib/websocket.model.ts` — the type
+- `gui/api/lib/websocket.schema.ts` — the zod shape; an unlisted message is refused at the door
+- `gui/client/lib/gui-mutations.ts` — if it mutates, so the client holds broadcasts until its own reply lands
+- `gui/api/lib/websocket.ts` — the handler, which calls `mcp/api` and does nothing else
+- `mcp/epiq-api.ts` — the export, when the function is new
 
 ## Workflow
 - Make branch in worktree

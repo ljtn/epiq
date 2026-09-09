@@ -95,6 +95,7 @@ import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useIssueMutations} from './lib/use-issue-mutations';
+import {useBoardCreation} from './lib/use-board-creation';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
@@ -627,6 +628,14 @@ export const App = () => {
 					},
 				});
 			}
+		}
+
+		// This client's own reply again, for the same reason: a broadcast would
+		// drag everyone else's board to whatever was created last.
+		if (message.type === 'board:create:result') {
+			const created = getResultValue<{ref: string}>(message.payload);
+
+			if (created) void navigateRef.current(`/board/${created.ref}`);
 		}
 
 		// A refused mutation is otherwise invisible: the optimistic update is
@@ -1197,6 +1206,12 @@ export const App = () => {
 		confirmDeleteSwimlane,
 	} = useSwimlaneEditing({send, setState, selectedBoard, visibleSwimlanes});
 
+	const {createBoardTitle, setCreateBoardTitle, createBoard} = useBoardCreation(
+		{
+			send,
+		},
+	);
+
 	// Flattened once per state change rather than per keystroke: the palette
 	// matches over this on every character typed into its second step.
 	const searchableTickets = useMemo(
@@ -1237,6 +1252,7 @@ export const App = () => {
 				if (swimlaneId) setCreateIssueModal({swimlaneId, title: ''});
 			},
 			createSwimlane: () => setCreateSwimlaneTitle(''),
+			createBoard: () => setCreateBoardTitle(''),
 			openIssue: (id: string, boardRef: string) =>
 				openIssueTab(id, 'overview', boardRef),
 			closeIssue,
@@ -1925,6 +1941,18 @@ export const App = () => {
 						confirmLabel="delete"
 						onConfirm={confirmDeleteSwimlane}
 						onClose={() => setDeleteSwimlaneId(null)}
+					/>
+				)}
+
+				{createBoardTitle !== null && (
+					<CreateNodeModal
+						eyebrow="New board"
+						fieldLabel="title"
+						placeholder="board name"
+						title={createBoardTitle}
+						onChangeTitle={setCreateBoardTitle}
+						onCreate={createBoard}
+						onClose={() => setCreateBoardTitle(null)}
 					/>
 				)}
 
