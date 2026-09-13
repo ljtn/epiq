@@ -2,6 +2,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+
+// These drive the TypeScript index through a mocked loader; the Rust index
+// reads the log itself and is compared with this one in core-timeline.test.ts.
+process.env['EPIQ_CORE'] = 'js';
 import {ulid} from 'ulid';
 
 vi.mock('../lib/event/event-load.js', () => ({

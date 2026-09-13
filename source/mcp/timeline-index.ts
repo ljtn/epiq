@@ -21,6 +21,8 @@ import {logSignature} from '../lib/event/log-signature.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {getStringColor} from '../lib/utils/color.js';
+import {useRustCore} from '../lib/native/core-load.js';
+import {loadTimelineWindowViaCore} from '../lib/native/core-timeline.js';
 
 // Colour resolved here rather than on the client: getStringColor pulls in
 // chalk, which the GUI bundle cannot take.
@@ -400,4 +402,92 @@ export const getTimelineEntries = (
 // between cases; a signature is no help where the files never existed.
 export const clearTimelineCache = (): void => {
 	cache = null;
+};
+
+// A window over the timeline, which is all a request ever needs: the entries
+// between `start` and `end`, narrowed to one board, plus every event's time
+// for the buckets, and where the whole log begins. Under the Rust core the
+// store derives the entries once per state of the log and answers the window
+// itself, so the whole index never crosses the boundary; the TypeScript core
+// slices the cached index built above.
+export type TimelineWindow = {
+	/** Empty past `cap`: a client then falls back to the buckets. */
+	entries: EventTimelineEntry[];
+	/** Every event in the window, by time, capped or not. */
+	times: number[];
+	/** The first event of the whole log, or null for an empty one. */
+	earliest: number | null;
+	windowStart: number;
+	windowEnd: number;
+};
+
+export type TimelineWindowRequest = {
+	start?: number;
+	end?: number;
+	boardId?: string;
+	cap: number;
+	now: number;
+};
+
+// The first entry at or after `t`, or the length where none is. The entries
+// are in time order, so a window is two of these and the slice between them.
+const firstAtOrAfter = (entries: readonly {t: number}[], t: number): number => {
+	let low = 0;
+	let high = entries.length;
+
+	while (low < high) {
+		const mid = (low + high) >> 1;
+
+		if (entries[mid]!.t < t) low = mid + 1;
+		else high = mid;
+	}
+
+	return low;
+};
+
+export const getTimelineWindow = (
+	stateBranchRoot: string,
+	request: TimelineWindowRequest,
+): Result<TimelineWindow> => {
+	if (useRustCore()) {
+		return loadTimelineWindowViaCore(stateBranchRoot, request);
+	}
+
+	const entriesResult = getTimelineEntries(stateBranchRoot);
+	if (isFail(entriesResult)) return failed(entriesResult.message);
+
+	const timed = entriesResult.value;
+	const earliest = timed[0]?.t ?? null;
+	const windowEnd = request.end ?? request.now;
+	const windowStart = request.start ?? earliest ?? windowEnd;
+
+	if (windowEnd <= windowStart) {
+		return succeeded('Empty time window', {
+			entries: [],
+			times: [],
+			earliest,
+			windowStart,
+			windowEnd,
+		});
+	}
+
+	// A range over a sorted axis rather than a scan of it: at half a million
+	// events the difference is the whole cost of a request.
+	const from = firstAtOrAfter(timed, windowStart);
+	const until = firstAtOrAfter(timed, windowEnd);
+
+	const inWindow = timed
+		.slice(from, until)
+		// The board narrowing happens here, over the window, rather than over the
+		// log: which board an event belongs to was settled when it was derived.
+		.filter(entry => !request.boardId || entry.board === request.boardId)
+		.map(({board: _board, ...entry}) => entry);
+
+	return succeeded('Timeline window', {
+		entries: inWindow.length > request.cap ? [] : inWindow,
+		times: inWindow.map(entry => entry.t),
+		earliest,
+		windowStart,
+		windowEnd,
+	});
 };

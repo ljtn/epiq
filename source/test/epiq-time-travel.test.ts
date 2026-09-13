@@ -1,5 +1,9 @@
 import {createHash} from 'node:crypto';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+// These drive the TypeScript index through a mocked loader; the Rust index
+// reads the log itself and is compared with this one in core-timeline.test.ts.
+process.env['EPIQ_CORE'] = 'js';
 import {ulid} from 'ulid';
 
 vi.mock('../git/git-storage.js', () => ({

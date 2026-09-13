@@ -7,6 +7,7 @@ use crate::model::{RawEvent, Unreadable};
 use crate::order;
 use crate::parse::parse_file;
 use crate::store;
+use crate::timeline;
 use crate::times;
 
 /// Every answer is a JSON document. A failure is `{"error": "<message>"}`, so
@@ -18,6 +19,7 @@ pub fn call(op: &str, input: &[u8]) -> Vec<u8> {
         "parse_files" => parse_files(input),
         "load_files" => load_files(input),
         "load" => load(input),
+        "timeline" => timeline_window(input),
         _ => Err(format!("unknown op: {op}")),
     };
 
@@ -165,8 +167,8 @@ fn split_params(items: Vec<NamedBytes<'_>>) -> Result<(LoadParams, Vec<NamedByte
 fn load(input: &[u8]) -> Result<Vec<u8>, String> {
     let (params, files) = split_params(frame::decode(input)?)?;
 
-    store::with_snapshot(&params.root, &files, |snapshot, cache| {
-        answer(&params, snapshot, cache)
+    store::with_snapshot(&params.root, &files, |snapshot, derived| {
+        answer(&params, snapshot, &mut derived.host_cache)
     })?
 }
 
@@ -418,5 +420,128 @@ mod bench {
         let t = Instant::now();
         let json = to_json(&decoded).unwrap();
         eprintln!("json dec   {:?}  ({} MB)", t.elapsed(), json.len() / 1_000_000);
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TimelineParams {
+    #[serde(default)]
+    root: String,
+    now: f64,
+    start: Option<f64>,
+    end: Option<f64>,
+    board_id: Option<String>,
+    /// Past this many events in the window, only their times are answered.
+    #[serde(default = "default_cap")]
+    cap: usize,
+    /// The well-known tag colours, so the table lives in one place.
+    #[serde(default)]
+    tag_colors: rustc_hash::FxHashMap<String, String>,
+    /// The log has not moved since the last request: answer from the entries
+    /// already derived, no files attached. Refused when there are none.
+    #[serde(default)]
+    unchanged: bool,
+}
+
+fn default_cap() -> usize {
+    20_000
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TimelineWindow<'a> {
+    entries: Vec<timeline::Sent<'a>>,
+    times: Vec<timeline::JsNumber>,
+    earliest: Option<timeline::JsNumber>,
+    /// How many events the window holds, capped or not.
+    count: usize,
+}
+
+/// A window of the timeline: the entries between `start` and `end` on the
+/// effective-time axis, narrowed to one board, derived once per state of the
+/// store. `earliest` is the first entry of the whole log, which is what a
+/// window without a start begins at.
+fn timeline_window(input: &[u8]) -> Result<Vec<u8>, String> {
+    let (params, files) = split_timeline_params(frame::decode(input)?)?;
+
+    if params.unchanged {
+        return store::with_derived(&params.root, |derived| {
+            let entries = &derived.timeline.as_ref()?.1;
+            Some(window_answer(&params, entries))
+        })
+        .unwrap_or_else(|| Err("timeline: nothing derived for this root yet".to_string()));
+    }
+
+    store::with_snapshot(&params.root, &files, |snapshot, derived| {
+        let fresh = match &derived.timeline {
+            Some((revision, _)) if *revision == derived.revision => false,
+            _ => true,
+        };
+
+        if fresh {
+            let sorted = order::sorted(snapshot.events);
+            let entries = timeline::build(&sorted, params.now, &params.tag_colors);
+            derived.timeline = Some((derived.revision, entries));
+        }
+
+        window_answer(&params, &derived.timeline.as_ref().expect("just built").1)
+    })?
+}
+
+fn window_answer(params: &TimelineParams, entries: &[timeline::Entry]) -> Result<Vec<u8>, String> {
+    {
+        let earliest = entries.first().map(|e| e.t);
+
+        let window_end = params.end.unwrap_or(params.now);
+        let window_start = params.start.or(earliest).unwrap_or(window_end);
+
+        if window_end <= window_start {
+            return to_json(&TimelineWindow {
+                entries: Vec::new(),
+                times: Vec::new(),
+                earliest: earliest.map(timeline::JsNumber),
+                count: 0,
+            });
+        }
+
+        let from = timeline::first_at_or_after(entries, window_start);
+        let until = timeline::first_at_or_after(entries, window_end);
+
+        let in_window: Vec<&timeline::Entry> = entries[from..until]
+            .iter()
+            .filter(|entry| match &params.board_id {
+                Some(board) => entry.board.as_deref() == Some(board.as_str()),
+                None => true,
+            })
+            .collect();
+
+        let count = in_window.len();
+
+        to_json(&TimelineWindow {
+            entries: if count > params.cap {
+                Vec::new()
+            } else {
+                in_window.iter().map(|e| timeline::Sent(e)).collect()
+            },
+            times: in_window.iter().map(|e| timeline::JsNumber(e.t)).collect(),
+            earliest: earliest.map(timeline::JsNumber),
+            count,
+        })
+    }
+}
+
+fn split_timeline_params(
+    items: Vec<NamedBytes<'_>>,
+) -> Result<(TimelineParams, Vec<NamedBytes<'_>>), String> {
+    let mut items = items.into_iter();
+
+    match items.next() {
+        Some(first) if first.name == PARAMS => {
+            let params = serde_json::from_slice(first.data).map_err(|e| format!("{PARAMS}: {e}"))?;
+            Ok((params, items.collect()))
+        }
+        Some(first) => Err(format!("timeline: expected {PARAMS} first, got {}", first.name)),
+        None => Err(format!("timeline: expected {PARAMS} first")),
     }
 }

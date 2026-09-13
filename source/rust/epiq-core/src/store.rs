@@ -102,11 +102,21 @@ impl HostCache {
     }
 }
 
+/// What a load derives besides the events, kept with them: the host cache,
+/// and the timeline entries with the store revision they were built from.
+#[derive(Default)]
+pub struct Derived {
+    pub host_cache: HostCache,
+    /// Bumped whenever a file's kept events change or a file goes.
+    pub revision: u64,
+    pub timeline: Option<(u64, Vec<crate::timeline::Entry>)>,
+}
+
 pub struct Store {
     root: String,
     files: FxHashMap<String, FileEntry>,
     file_ids: FxHashMap<String, u32>,
-    host_cache: HostCache,
+    derived: Derived,
 }
 
 thread_local! {
@@ -138,7 +148,7 @@ impl Store {
             root: root.to_string(),
             files: FxHashMap::default(),
             file_ids: FxHashMap::default(),
-            host_cache: HostCache::default(),
+            derived: Derived::default(),
         }
     }
 
@@ -148,15 +158,17 @@ impl Store {
     }
 
     /// Brings one file up to date: reuses the kept prefix when its bytes are
-    /// what they were, parses the tail or the whole file otherwise.
+    /// what they were, parses the tail or the whole file otherwise. Answers
+    /// whether the kept events changed.
     fn update_file(
         &mut self,
         previous: Option<FileEntry>,
         name: &str,
         bytes: &[u8],
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
         let parsed_len = complete_prefix_len(bytes);
 
+        let mut changed = false;
         let mut entry = match previous {
             Some(entry)
                 if entry.parsed_len <= parsed_len
@@ -164,7 +176,9 @@ impl Store {
             {
                 entry
             }
-            previous => FileEntry {
+            previous => {
+                changed = true;
+                FileEntry {
                 file_id: self.file_id(name),
                 generation: previous.map_or(0, |entry| entry.generation + 1),
                 actor: parse_actor(name)?,
@@ -173,7 +187,8 @@ impl Store {
                 lines: 0,
                 events: Vec::new(),
                 unreadable: Vec::new(),
-            },
+            }
+            }
         };
 
         if entry.parsed_len < parsed_len {
@@ -192,11 +207,12 @@ impl Store {
             entry.lines += lines;
             entry.parsed_len = parsed_len;
             entry.hash = hash_of(&bytes[..parsed_len]);
+            changed = true;
         }
 
         self.files.insert(name.to_string(), entry);
 
-        Ok(())
+        Ok(changed)
     }
 }
 
@@ -206,7 +222,7 @@ impl Store {
 pub fn with_snapshot<T>(
     root: &str,
     files: &[NamedBytes<'_>],
-    answer: impl FnOnce(Snapshot<'_>, &mut HostCache) -> T,
+    answer: impl FnOnce(Snapshot<'_>, &mut Derived) -> T,
 ) -> Result<T, String> {
     STORE.with(|cell| {
         let mut slot = cell.borrow_mut();
@@ -217,17 +233,23 @@ pub fn with_snapshot<T>(
         };
 
         let mut kept = std::mem::take(&mut store.files);
+        let mut changed = false;
 
         for file in files {
-            store.update_file(kept.remove(file.name), file.name, file.data)?;
+            changed |= store.update_file(kept.remove(file.name), file.name, file.data)?;
         }
 
         // What is left in `kept` vanished from the directory; dropped with it.
+        changed |= !kept.is_empty();
         drop(kept);
+
+        if changed {
+            store.derived.revision += 1;
+        }
 
         let Store {
             files: entries,
-            host_cache,
+            derived,
             ..
         } = &mut *store;
 
@@ -259,7 +281,7 @@ pub fn with_snapshot<T>(
         // the snapshot does.
         events.extend(trailing.iter());
 
-        Ok(answer(Snapshot { events, unreadable }, host_cache))
+        Ok(answer(Snapshot { events, unreadable }, derived))
     })
 }
 
@@ -419,4 +441,16 @@ mod tests {
         cache.clear();
         assert!(cache.needs("short", Some(elsewhere)));
     }
+}
+
+/// What the store already derived for `root`, without touching the files:
+/// for a request that knows the log has not moved. None when the store holds
+/// another root, or nothing yet.
+pub fn with_derived<T>(root: &str, answer: impl FnOnce(&mut Derived) -> Option<T>) -> Option<T> {
+    STORE.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        let store = slot.as_mut().filter(|store| store.root == root)?;
+
+        answer(&mut store.derived)
+    })
 }

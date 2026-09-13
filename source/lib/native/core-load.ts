@@ -76,7 +76,7 @@ let cache: {dir: string; byId: Map<string, unknown>} | null = null;
  * sync just renamed or git just rewrote; the listing is taken again so the
  * read sees the directory as it is, not as it was.
  */
-const readLogFiles = (dir: string): NamedBytes[] => {
+export const readLogFiles = (dir: string): NamedBytes[] => {
 	for (let attempt = 1; ; attempt++) {
 		const files: NamedBytes[] = [];
 		let listAgain = false;

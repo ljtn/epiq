@@ -31,7 +31,7 @@ import {
 	patchState,
 	resetState,
 } from '../lib/state/state.js';
-import {EventTimelineEntry, getTimelineEntries} from './timeline-index.js';
+import {EventTimelineEntry, getTimelineWindow} from './timeline-index.js';
 import {ApiTimeTravelStatus} from './api-state.model.js';
 
 type ToolInput = {repoRoot?: string};
@@ -98,22 +98,6 @@ export type EventTimeline = {
 	latest: number;
 };
 
-// The first entry at or after `t`, or the length where none is. The entries
-// are in time order, so a window is two of these and the slice between them.
-const firstAtOrAfter = (entries: readonly {t: number}[], t: number): number => {
-	let low = 0;
-	let high = entries.length;
-
-	while (low < high) {
-		const mid = (low + high) >> 1;
-
-		if (entries[mid]!.t < t) low = mid + 1;
-		else high = mid;
-	}
-
-	return low;
-};
-
 // Pure read: never touches the materialized state singleton, so it is safe
 // mid-scrub. Omit `start`/`end` for an [earliest event, now] window.
 export const getEventTimeline = async (
@@ -124,16 +108,17 @@ export const getEventTimeline = async (
 		return failed(stateBranchRootResult.message);
 
 	// Derived once per state of the log and reused, which is what keeps a scrub
-	// off the whole history: every step below is over the window alone.
-	const entriesResult = getTimelineEntries(stateBranchRootResult.value);
-	if (isFail(entriesResult)) return failed(entriesResult.message);
+	// off the whole history: the window is all that reaches this point.
+	const windowResult = getTimelineWindow(stateBranchRootResult.value, {
+		start: input.start,
+		end: input.end,
+		boardId: input.boardId,
+		cap: TIMELINE_EVENT_CAP,
+		now: Date.now(),
+	});
+	if (isFail(windowResult)) return failed(windowResult.message);
 
-	const timed = entriesResult.value;
-
-	const now = Date.now();
-	const windowEnd = input.end ?? now;
-	// The entries are in time order, so the earliest is the first of them.
-	const windowStart = input.start ?? timed[0]?.t ?? windowEnd;
+	const {entries, times, windowStart, windowEnd} = windowResult.value;
 
 	if (windowEnd <= windowStart) {
 		return succeeded('Empty time window', {
@@ -144,20 +129,6 @@ export const getEventTimeline = async (
 			latest: windowEnd,
 		});
 	}
-
-	// A range over a sorted axis rather than a scan of it: at half a million
-	// events the difference is the whole cost of a request.
-	const from = firstAtOrAfter(timed, windowStart);
-	const until = firstAtOrAfter(timed, windowEnd);
-
-	const inWindow = timed
-		.slice(from, until)
-		// The board narrowing happens here, over the window, rather than over the
-		// log: which board an event belongs to was settled when it was derived.
-		.filter(entry => !input.boardId || entry.board === input.boardId)
-		.map(({board: _board, ...entry}) => entry);
-
-	const times = inWindow.map(entry => entry.t);
 
 	const bucketMs = Math.max(
 		1,
@@ -186,7 +157,8 @@ export const getEventTimeline = async (
 	return succeeded('Computed event timeline', {
 		bucketMs,
 		buckets,
-		events: inWindow.length > TIMELINE_EVENT_CAP ? [] : inWindow,
+		// Already empty past the cap: the window answers with times alone.
+		events: entries,
 		earliest: windowStart,
 		latest: windowEnd,
 	});
