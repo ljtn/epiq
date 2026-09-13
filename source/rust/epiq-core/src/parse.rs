@@ -102,7 +102,7 @@ fn canonical_user_id(user_id: &str) -> String {
 
 /// JavaScript's `String.prototype.trim` set: WhiteSpace plus LineTerminator,
 /// which has U+FEFF and lacks U+0085 relative to Unicode White_Space.
-fn is_js_space(c: char) -> bool {
+pub(crate) fn is_js_space(c: char) -> bool {
     matches!(
         c,
         '\t' | '\n'

@@ -14,6 +14,7 @@ mod order;
 mod pairs;
 mod store;
 mod parse;
+mod timeline;
 mod times;
 
 #[cfg(target_arch = "wasm32")]
