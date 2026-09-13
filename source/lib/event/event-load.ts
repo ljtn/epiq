@@ -21,6 +21,12 @@ import {
 } from './event-persist.js';
 import {parseEventPayload} from './event-payload.schema.js';
 import {stripPendingMarker} from './pending-log.js';
+import {
+	CoreLoaded,
+	LoadRequest,
+	loadViaCore,
+	useRustCore,
+} from '../native/core-load.js';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default('unknown'),
@@ -421,11 +427,51 @@ function loadAllPersistedEvents(
 	return succeeded('All events loaded', sorted);
 }
 
+// The same read through the Rust core: the signature first, the files' bytes
+// in, and the store's answer out, with the edge cache filled the way
+// `loadAllPersistedEvents` fills it. A missing directory is an empty log and
+// leaves the cache alone, as it does there.
+function loadThroughCore<E>(
+	eventsRoot: string,
+	request: LoadRequest,
+): Result<CoreLoaded<E>> {
+	const dir = getEventsDirPath(eventsRoot);
+	const signature = logSignature(eventsRoot);
+
+	if (!fs.existsSync(dir)) {
+		return succeeded('No events found', {
+			events: [],
+			unappliedEvents: [],
+			unreadable: [],
+			edge: null,
+			times: [],
+			actors: [],
+		});
+	}
+
+	const loaded = loadViaCore<E>(dir, request);
+	if (isFail(loaded)) return failed(loaded.message);
+
+	edgeCache = {root: eventsRoot, signature, edge: loaded.value.edge};
+
+	return loaded;
+}
+
 // Boot paths use this to lock where history is unreadable; readers wanting
 // only the events use `loadMergedEvents`.
 export function loadMergedEventsWithUnreadable(
 	stateBranchRoot: string,
 ): Result<{events: AppEvent[]; unreadable: UnreadableEvent[]}> {
+	if (useRustCore()) {
+		const loaded = loadThroughCore<AppEvent>(stateBranchRoot, {decode: true});
+		if (isFail(loaded)) return failed(loaded.message);
+
+		return succeeded('Loaded merged events', {
+			events: loaded.value.events,
+			unreadable: loaded.value.unreadable,
+		});
+	}
+
 	const unreadable: UnreadableEvent[] = [];
 
 	const allEvents = loadAllPersistedEvents(stateBranchRoot, unreadable);
@@ -446,6 +492,22 @@ export function loadMergedEventsWithUnreadable(
 export function loadEventActors(
 	stateBranchRoot: string,
 ): Result<{userId: string; userName: string}[]> {
+	if (useRustCore()) {
+		const loaded = loadThroughCore(stateBranchRoot, {
+			actors: true,
+			omitEvents: true,
+		});
+		if (isFail(loaded)) return failed(loaded.message);
+
+		return succeeded(
+			'Loaded event actors',
+			(loaded.value.actors ?? []).map(([userId, userName]) => ({
+				userId,
+				userName,
+			})),
+		);
+	}
+
 	const allEvents = loadAllPersistedEvents(stateBranchRoot);
 	if (isFail(allEvents)) return failed(allEvents.message);
 
@@ -469,6 +531,19 @@ export function loadMergedEventsBefore(
 	appliedEvents: AppEvent[];
 	unappliedEvents: AppEvent[];
 }> {
+	if (useRustCore()) {
+		const loaded = loadThroughCore<AppEvent>(stateBranchRoot, {
+			decode: true,
+			splitAt: targetTime,
+		});
+		if (isFail(loaded)) return failed(loaded.message);
+
+		return succeeded('Loaded merged events before time', {
+			appliedEvents: loaded.value.events,
+			unappliedEvents: loaded.value.unappliedEvents ?? [],
+		});
+	}
+
 	const allEvents = loadAllPersistedEvents(stateBranchRoot);
 
 	if (isFail(allEvents)) {
@@ -519,6 +594,13 @@ export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
 
 	// Populates the cache on its way through, so a boot pays for this once and
 	// the writes after it do not pay at all.
+	if (useRustCore()) {
+		const loaded = loadThroughCore(rootDir, {omitEvents: true});
+		if (isFail(loaded)) return failed(loaded.message);
+
+		return succeeded('Loaded edge reference', loaded.value.edge);
+	}
+
 	const persisted = loadAllPersistedEvents(rootDir);
 	if (isFail(persisted)) {
 		return failed(persisted.message);
@@ -698,6 +780,19 @@ export const effectiveEventTimes = (
 export function loadEffectiveEventTimes(
 	stateBranchRoot: string,
 ): Result<Map<string, number | null>> {
+	if (useRustCore()) {
+		const loaded = loadThroughCore(stateBranchRoot, {
+			times: true,
+			omitEvents: true,
+		});
+		if (isFail(loaded)) return failed(loaded.message);
+
+		return succeeded(
+			'Loaded effective event times',
+			new Map(loaded.value.times ?? []),
+		);
+	}
+
 	const allEvents = loadAllPersistedEvents(stateBranchRoot);
 	if (isFail(allEvents)) return failed(allEvents.message);
 

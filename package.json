@@ -39,7 +39,7 @@
 		"dev:start": "npm run build:rust && IS_LOCAL=true tsx source/Index.tsx",
 		"start": "npm run build:rust && IS_LOCAL=true tsx source/Index.tsx",
 		"start:gui": "npm run build:rust && IS_LOCAL=true tsx source/Index.tsx gui",
-		"test": "npm run build:rust && prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\" --exclude \"source/test/e2e-collab/**\"",
+		"test": "npm run build:rust && prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\" --exclude \"source/test/e2e-collab/**\" && npm run test:core-js",
 		"test:containers": "sh source/scripts/test-containers.sh",
 		"stress": "sh source/scripts/stress.sh",
 		"test:collab": "docker run --rm -v \"$PWD\":/app:ro -v /app/node_modules -w /app epiq-e2e npm run test:collab:ci",
@@ -59,7 +59,8 @@
 		"lint": "eslint .",
 		"lint:err": "eslint . --quiet",
 		"prepare": "husky",
-		"build:rust": "node source/scripts/build-rust.mjs"
+		"build:rust": "node source/scripts/build-rust.mjs",
+		"test:core-js": "EPIQ_CORE=js vitest run source/test/event-load.test.ts source/test/edge-cache.test.ts source/test/unreadable-events.test.ts source/test/write-identity.test.ts source/test/replay-equivalence.test.ts source/test/event-boot.test.ts source/test/hostile-payload.test.ts source/test/log-integrity.test.ts source/test/contributor-rename.test.ts source/test/peek.cmd.test.ts source/test/load-project.test.ts source/test/init-project.test.ts"
 	},
 	"files": [
 		"dist"

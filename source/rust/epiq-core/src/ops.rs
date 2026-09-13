@@ -90,6 +90,14 @@ struct LoadParams {
     /// every event this build cannot read quarantined.
     #[serde(default)]
     decode: bool,
+    /// Whether to answer who wrote each event, in order — what a caller that
+    /// only wants authors reads instead of the events.
+    #[serde(default)]
+    actors: bool,
+    /// Leave the events out of the answer: for a caller after the edge, the
+    /// times or the actors alone, which is a fraction of the bytes.
+    #[serde(default)]
+    omit_events: bool,
 }
 
 #[derive(Serialize)]
@@ -102,6 +110,8 @@ struct Loaded<E: Serialize> {
     edge: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     times: Option<Vec<(String, Option<f64>)>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actors: Option<Vec<(String, String)>>,
 }
 
 fn split_params(items: Vec<NamedBytes<'_>>) -> Result<(LoadParams, Vec<NamedBytes<'_>>), String> {
@@ -134,7 +144,16 @@ fn load(input: &[u8]) -> Result<Vec<u8>, String> {
             .collect()
     });
 
+    let actors = params.actors.then(|| {
+        sorted
+            .iter()
+            .map(|event| (event.user_id.clone(), event.user_name.clone()))
+            .collect()
+    });
+
     let (events, unapplied_events) = match params.split_at {
+        Some(_) if params.omit_events => (Vec::new(), None),
+        None if params.omit_events => (Vec::new(), None),
         Some(target) => {
             let (applied, unapplied) = times::split_at(sorted, target, params.now);
             (applied, Some(unapplied))
@@ -145,7 +164,7 @@ fn load(input: &[u8]) -> Result<Vec<u8>, String> {
     let mut unreadable = parsed.unreadable;
 
     if !params.decode {
-        return to_json(&Loaded { events, unapplied_events, unreadable, edge, times });
+        return to_json(&Loaded { events, unapplied_events, unreadable, edge, times, actors });
     }
 
     // Applied first, then unapplied, so the quarantine list reads in causal
@@ -153,7 +172,7 @@ fn load(input: &[u8]) -> Result<Vec<u8>, String> {
     let events: Vec<DecodedEvent> = decode::decode(events, &mut unreadable);
     let unapplied_events = unapplied_events.map(|events| decode::decode(events, &mut unreadable));
 
-    to_json(&Loaded { events, unapplied_events, unreadable, edge, times })
+    to_json(&Loaded { events, unapplied_events, unreadable, edge, times, actors })
 }
 
 #[cfg(test)]
@@ -242,6 +261,21 @@ mod tests {
         assert!(doc.get("unappliedEvents").is_none());
         assert!(doc.get("times").is_none());
         assert_eq!(doc["edge"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn load_can_answer_actors_and_leave_the_events_out() {
+        let params = format!("{{\"now\":{NOW},\"splitAt\":{NOW},\"actors\":true,\"omitEvents\":true}}");
+        let lines = format!("{{\"v\":1,\"id\":[\"{EARLIER}\",null],\"init.workspace\":{{}}}}\n");
+        let framed = frame::encode(&[(PARAMS, params.as_bytes()), ("01A.alice.jsonl", lines.as_bytes())]);
+        let out = call("load", &framed);
+        let doc: serde_json::Value = serde_json::from_slice(&out).unwrap();
+
+        assert!(doc["events"].as_array().unwrap().is_empty());
+        assert!(doc.get("unappliedEvents").is_none());
+        assert_eq!(doc["actors"][0][0], "01A");
+        assert_eq!(doc["actors"][0][1], "alice");
+        assert_eq!(doc["edge"], EARLIER);
     }
 
     #[test]
