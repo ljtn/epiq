@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+use crate::decode::{self, DecodedEvent};
 use crate::frame::{self, NamedBytes};
 use crate::model::{RawEvent, Unreadable};
 use crate::order;
@@ -85,14 +86,18 @@ struct LoadParams {
     /// Whether to answer the effective time of every event.
     #[serde(default)]
     times: bool,
+    /// Whether to decode: `AppEvent`s out instead of reconstructed ones, and
+    /// every event this build cannot read quarantined.
+    #[serde(default)]
+    decode: bool,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Loaded {
-    events: Vec<RawEvent>,
+struct Loaded<E: Serialize> {
+    events: Vec<E>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    unapplied_events: Option<Vec<RawEvent>>,
+    unapplied_events: Option<Vec<E>>,
     unreadable: Vec<Unreadable>,
     edge: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -137,13 +142,18 @@ fn load(input: &[u8]) -> Result<Vec<u8>, String> {
         None => (sorted, None),
     };
 
-    to_json(&Loaded {
-        events,
-        unapplied_events,
-        unreadable: parsed.unreadable,
-        edge,
-        times,
-    })
+    let mut unreadable = parsed.unreadable;
+
+    if !params.decode {
+        return to_json(&Loaded { events, unapplied_events, unreadable, edge, times });
+    }
+
+    // Applied first, then unapplied, so the quarantine list reads in causal
+    // order across the cut.
+    let events: Vec<DecodedEvent> = decode::decode(events, &mut unreadable);
+    let unapplied_events = unapplied_events.map(|events| decode::decode(events, &mut unreadable));
+
+    to_json(&Loaded { events, unapplied_events, unreadable, edge, times })
 }
 
 #[cfg(test)]

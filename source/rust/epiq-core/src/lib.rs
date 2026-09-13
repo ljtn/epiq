@@ -6,6 +6,7 @@
 //! bytes across the boundary and nothing else, so a native facade can be
 //! added without touching anything here.
 
+mod decode;
 mod frame;
 mod model;
 mod ops;
