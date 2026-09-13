@@ -6,7 +6,10 @@
 //! bytes across the boundary and nothing else, so a native facade can be
 //! added without touching anything here.
 
+mod frame;
+mod model;
 mod ops;
+mod parse;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm;
