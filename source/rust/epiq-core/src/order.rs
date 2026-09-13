@@ -7,7 +7,7 @@
 //! in `event-load.ts`, step for step.
 
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
 
 use crate::model::RawEvent;
 
@@ -43,71 +43,89 @@ pub fn sorted(events: Vec<RawEvent>) -> Vec<RawEvent> {
         .collect()
 }
 
-fn order_indices<'a>(events: &'a [RawEvent]) -> Vec<usize> {
-    let mut known_ids: HashSet<&'a str> = HashSet::with_capacity(events.len());
-    let mut children_by_ref: HashMap<Option<&str>, Vec<usize>> = HashMap::new();
+// Every event is a slot; two extra slots stand for "no parent" and "a parent
+// nobody has". Children are grouped by their parent's slot in one flat array
+// (counts, prefix sums, fill), so the forest costs two allocations rather
+// than a list per parent.
+fn order_indices(events: &[RawEvent]) -> Vec<usize> {
+    let n = events.len();
+    let root_slot = n;
+    let orphan_slot = n + 1;
 
+    // The first index carrying each id: an id's slot. Grouping is by the id
+    // *string*, so events sharing an id share a slot, as they share a key in
+    // TypeScript's maps.
+    let mut slot_of_id: FxHashMap<&str, usize> =
+        FxHashMap::with_capacity_and_hasher(n, Default::default());
     for (index, event) in events.iter().enumerate() {
-        known_ids.insert(&event.id);
-        children_by_ref
-            .entry(event.ref_id.as_deref())
-            .or_default()
-            .push(index);
+        slot_of_id.entry(&event.id).or_insert(index);
     }
 
-    for children in children_by_ref.values_mut() {
-        children.sort_by(|&a, &b| compare(&events[a], &events[b]));
+    let canonical: Vec<usize> = events.iter().map(|e| slot_of_id[e.id.as_str()]).collect();
+    let parent_slot: Vec<usize> = events
+        .iter()
+        .map(|e| match e.ref_id.as_deref() {
+            None => root_slot,
+            Some(ref_id) => slot_of_id.get(ref_id).copied().unwrap_or(orphan_slot),
+        })
+        .collect();
+
+    let mut start = vec![0usize; n + 3];
+    for &slot in &parent_slot {
+        start[slot + 1] += 1;
+    }
+    for slot in 0..n + 2 {
+        start[slot + 1] += start[slot];
     }
 
-    let mut order: Vec<usize> = Vec::with_capacity(events.len());
-    let mut placed: HashSet<&'a str> = HashSet::with_capacity(events.len());
+    let mut children = vec![0usize; n];
+    let mut cursor = start.clone();
+    for (index, &slot) in parent_slot.iter().enumerate() {
+        children[cursor[slot]] = index;
+        cursor[slot] += 1;
+    }
+
+    for slot in 0..n + 2 {
+        children[start[slot]..start[slot + 1]].sort_by(|&a, &b| compare(&events[a], &events[b]));
+    }
+
+    let children_of = |slot: usize| &children[start[slot]..start[slot + 1]];
+
+    let mut order: Vec<usize> = Vec::with_capacity(n);
+    let mut placed = vec![false; n];
 
     // Depth-first on an explicit stack: every event refs its predecessor, so
     // the forest is one chain as long as the log.
-    let visit = |root: usize, order: &mut Vec<usize>, placed: &mut HashSet<&'a str>| {
+    let visit = |root: usize, order: &mut Vec<usize>, placed: &mut Vec<bool>| {
         let mut stack = vec![root];
 
         while let Some(index) = stack.pop() {
-            let event: &RawEvent = &events[index];
+            let id_slot = canonical[index];
 
-            if !placed.insert(&event.id) {
+            if placed[id_slot] {
                 continue;
             }
 
+            placed[id_slot] = true;
             order.push(index);
 
             // Reversed, so the lowest sibling is popped first.
-            if let Some(children) = children_by_ref.get(&Some(event.id.as_str())) {
-                stack.extend(children.iter().rev());
-            }
+            stack.extend(children_of(id_slot).iter().rev());
         }
     };
 
-    let roots: Vec<usize> = children_by_ref
-        .get(&None)
-        .map(|indices| {
-            indices
-                .iter()
-                .copied()
-                .filter(|&index| is_genesis(&events[index]))
-                .collect()
-        })
-        .unwrap_or_default();
+    let roots: Vec<usize> = children_of(root_slot)
+        .iter()
+        .copied()
+        .filter(|&index| is_genesis(&events[index]))
+        .collect();
 
     for root in roots {
         visit(root, &mut order, &mut placed);
     }
 
-    let mut orphan_roots: Vec<usize> = (0..events.len())
-        .filter(|&index| {
-            let event = &events[index];
-
-            !placed.contains(event.id.as_str())
-                && match event.ref_id.as_deref() {
-                    None => true,
-                    Some(ref_id) => !known_ids.contains(ref_id),
-                }
-        })
+    let mut orphan_roots: Vec<usize> = (0..n)
+        .filter(|&index| !placed[canonical[index]] && parent_slot[index] >= root_slot)
         .collect();
     orphan_roots.sort_by(|&a, &b| compare(&events[a], &events[b]));
 
@@ -115,9 +133,7 @@ fn order_indices<'a>(events: &'a [RawEvent]) -> Vec<usize> {
         visit(root, &mut order, &mut placed);
     }
 
-    let mut remaining: Vec<usize> = (0..events.len())
-        .filter(|&index| !placed.contains(events[index].id.as_str()))
-        .collect();
+    let mut remaining: Vec<usize> = (0..n).filter(|&index| !placed[canonical[index]]).collect();
     remaining.sort_by(|&a, &b| compare(&events[a], &events[b]));
 
     for index in remaining {
@@ -130,17 +146,15 @@ fn order_indices<'a>(events: &'a [RawEvent]) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, Map, Number};
+    use crate::model::raw_json;
+    use serde_json::Number;
 
     fn event(id: &str, after: Option<&str>, action: &str) -> RawEvent {
-        let mut rest = Map::new();
-        rest.insert(action.into(), json!({}));
-
         RawEvent {
             v: Number::from(1),
             id: id.into(),
             ref_id: after.map(Into::into),
-            rest,
+            rest: vec![(action.into(), raw_json("{}"))],
             user_id: "user".into(),
             user_name: "User".into(),
         }
@@ -236,7 +250,7 @@ mod tests {
     #[test]
     fn anchors_a_root_that_smuggles_a_genesis_key_after_history_too() {
         let mut forged = event("00Z", None, GENESIS);
-        forged.rest.insert("evil".into(), json!({}));
+        forged.rest.push(("evil".into(), raw_json("{}")));
 
         let sorted = sorted(vec![forged, genesis("01A"), event("01B", Some("01A"), "x")]);
 
