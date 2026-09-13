@@ -11,6 +11,7 @@ mod frame;
 mod model;
 mod ops;
 mod order;
+mod pairs;
 mod parse;
 mod times;
 

@@ -10,16 +10,17 @@
 
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
-use serde_json::Value;
+use serde_json::value::RawValue;
 
 use crate::model::{RawEvent, Unreadable, INVALID_PAYLOAD, UNKNOWN_ACTION, UNSUPPORTED_SCHEMA_VERSION};
+use crate::pairs::{is_non_empty_string, is_number, is_object, is_string, js_type_of, Pairs};
 
 /// An `AppEvent`: what the materializer consumes.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct DecodedEvent {
     pub id: String,
     pub action: String,
-    pub payload: Value,
+    pub payload: Box<RawValue>,
     pub user_id: String,
     pub user_name: String,
 }
@@ -93,26 +94,19 @@ fn required_fields(action: &str) -> Option<&'static [Field]> {
     })
 }
 
+#[cfg(test)]
 pub fn is_known_action(action: &str) -> bool {
     required_fields(action).is_some()
 }
 
-fn received(value: Option<&Value>) -> &'static str {
-    match value {
-        None => "undefined",
-        Some(Value::Null) => "null",
-        Some(Value::Bool(_)) => "boolean",
-        Some(Value::Number(_)) => "number",
-        Some(Value::String(_)) => "string",
-        Some(Value::Array(_)) => "array",
-        Some(Value::Object(_)) => "object",
-    }
+fn received(value: Option<&RawValue>) -> &'static str {
+    value.map_or("undefined", js_type_of)
 }
 
-fn check_string(path: &str, value: Option<&Value>, non_empty: bool, issues: &mut Vec<String>) {
+fn check_string(path: &str, value: Option<&RawValue>, non_empty: bool, issues: &mut Vec<String>) {
     match value {
-        Some(Value::String(s)) => {
-            if non_empty && s.is_empty() {
+        Some(raw) if is_string(raw) => {
+            if non_empty && !is_non_empty_string(raw) {
                 issues.push(format!("{path} Too small: expected string to have >=1 characters"));
             }
         }
@@ -124,41 +118,53 @@ fn check_string(path: &str, value: Option<&Value>, non_empty: bool, issues: &mut
 }
 
 /// The issues zod would report, in its order, or none.
-fn payload_issues(fields: &[Field], payload: &Value) -> Vec<String> {
-    let Value::Object(object) = payload else {
+fn payload_issues(fields: &[Field], payload: &RawValue) -> Vec<String> {
+    let pairs: Option<Pairs<'_>> = if is_object(payload) {
+        serde_json::from_str(payload.get()).ok()
+    } else {
+        None
+    };
+
+    let Some(pairs) = pairs else {
         return vec![format!(
             "payload Invalid input: expected object, received {}",
-            received(Some(payload))
+            js_type_of(payload)
         )];
     };
 
     let mut issues = Vec::new();
 
     for (name, kind) in fields {
-        let value = object.get(*name);
+        let value = pairs.get(name);
 
         match kind {
             Kind::Id => check_string(name, value, true, &mut issues),
             Kind::Str => check_string(name, value, false, &mut issues),
             Kind::Num => {
-                if !matches!(value, Some(Value::Number(_))) {
+                if !value.is_some_and(is_number) {
                     issues.push(format!(
                         "{name} Invalid input: expected number, received {}",
                         received(value)
                     ));
                 }
             }
-            Kind::RankRecord => match value {
-                Some(Value::Object(ranks)) => {
-                    for (key, rank) in ranks {
-                        check_string(&format!("{name}.{key}"), Some(rank), false, &mut issues);
+            Kind::RankRecord => {
+                let ranks: Option<Pairs<'_>> = value
+                    .filter(|raw| is_object(raw))
+                    .and_then(|raw| serde_json::from_str(raw.get()).ok());
+
+                match ranks {
+                    Some(ranks) => {
+                        for (key, rank) in &ranks.0 {
+                            check_string(&format!("{name}.{key}"), Some(rank), false, &mut issues);
+                        }
                     }
+                    None => issues.push(format!(
+                        "{name} Invalid input: expected record, received {}",
+                        received(value)
+                    )),
                 }
-                other => issues.push(format!(
-                    "{name} Invalid input: expected record, received {}",
-                    received(other)
-                )),
-            },
+            }
         }
     }
 
@@ -169,16 +175,18 @@ fn payload_issues(fields: &[Field], payload: &Value) -> Vec<String> {
 /// None so the caller falls back to a board-wide lock rather than locking the
 /// wrong node.
 fn target_node_id(event: &RawEvent) -> Option<String> {
-    if event.rest.len() != 1 {
+    let [(_, payload)] = event.rest.as_slice() else {
+        return None;
+    };
+
+    if !is_object(payload) {
         return None;
     }
 
-    let payload = event.rest.values().next()?;
+    let pairs: Pairs<'_> = serde_json::from_str(payload.get()).ok()?;
+    let id = pairs.get("id").filter(|raw| is_non_empty_string(raw))?;
 
-    match payload.get("id") {
-        Some(Value::String(id)) if !id.is_empty() => Some(id.clone()),
-        _ => None,
-    }
+    serde_json::from_str::<String>(id.get()).ok()
 }
 
 fn is_supported_version(v: &serde_json::Number) -> bool {
@@ -215,14 +223,13 @@ pub fn decode(events: Vec<RawEvent>, unreadable: &mut Vec<Unreadable>) -> Vec<De
             continue;
         }
 
-        let action = event.rest.keys().next().expect("one key").clone();
+        let (action, payload) = &event.rest[0];
 
-        let Some(fields) = required_fields(&action) else {
-            unreadable.push(quarantine(UNKNOWN_ACTION, action));
+        let Some(fields) = required_fields(action) else {
+            unreadable.push(quarantine(UNKNOWN_ACTION, action.clone()));
             continue;
         };
 
-        let payload = event.rest.values().next().expect("one value");
         let issues = payload_issues(fields, payload);
 
         if !issues.is_empty() {
@@ -231,7 +238,7 @@ pub fn decode(events: Vec<RawEvent>, unreadable: &mut Vec<Unreadable>) -> Vec<De
         }
 
         let mut event = event;
-        let payload = event.rest.shift_remove(&action).expect("the one value");
+        let (action, payload) = event.rest.pop().expect("the one pair");
 
         decoded.push(DecodedEvent {
             id: event.id,
@@ -248,19 +255,15 @@ pub fn decode(events: Vec<RawEvent>, unreadable: &mut Vec<Unreadable>) -> Vec<De
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, Map, Number};
+    use crate::model::raw_json;
+    use serde_json::Number;
 
-    fn raw(v: i64, id: &str, rest: &[(&str, Value)]) -> RawEvent {
-        let mut map = Map::new();
-        for (key, value) in rest {
-            map.insert((*key).into(), value.clone());
-        }
-
+    fn raw(v: i64, id: &str, rest: &[(&str, &str)]) -> RawEvent {
         RawEvent {
             v: Number::from(v),
             id: id.into(),
             ref_id: None,
-            rest: map,
+            rest: rest.iter().map(|(k, t)| ((*k).to_string(), raw_json(t))).collect(),
             user_id: "u".into(),
             user_name: "U".into(),
         }
@@ -277,7 +280,7 @@ mod tests {
         let (decoded, unreadable) = run(vec![raw(
             1,
             "01B",
-            &[("edit.title", json!({"id": "n", "name": "T", "extra": 1}))],
+            &[("edit.title", r#"{"id":"n","name":"T","extra":1}"#)],
         )]);
 
         assert!(unreadable.is_empty());
@@ -290,12 +293,12 @@ mod tests {
     #[test]
     fn quarantines_in_the_loaders_order() {
         let (decoded, unreadable) = run(vec![
-            raw(2, "01A", &[("edit.title", json!({"id": "n", "name": "T"}))]),
+            raw(2, "01A", &[("edit.title", r#"{"id":"n","name":"T"}"#)]),
             raw(1, "01B", &[]),
-            raw(1, "01C", &[("evil", json!({})), ("init.workspace", json!({"id": "ws"}))]),
-            raw(1, "01D", &[("redact.contributor", json!({"id": "c"}))]),
-            raw(1, "01E", &[("add.issue", json!({"id": "n", "name": "x", "parent": "p", "rank": 42}))]),
-            raw(1, "01F", &[("edit.title", json!("str"))]),
+            raw(1, "01C", &[("evil", "{}"), ("init.workspace", r#"{"id":"ws"}"#)]),
+            raw(1, "01D", &[("redact.contributor", r#"{"id":"c"}"#)]),
+            raw(1, "01E", &[("add.issue", r#"{"id":"n","name":"x","parent":"p","rank":42}"#)]),
+            raw(1, "01F", &[("edit.title", "\"str\"")]),
         ]);
 
         assert!(decoded.is_empty());
@@ -321,38 +324,51 @@ mod tests {
 
     #[test]
     fn reports_every_issue_the_way_zod_does() {
-        let cases: &[(&str, Value, &str)] = &[
-            ("add.issue", json!({"id": 5, "name": "n"}), "id Invalid input: expected string, received number, parent Invalid input: expected string, received undefined, rank Invalid input: expected string, received undefined"),
-            ("add.issue", json!({"id": "", "name": null, "parent": "p", "rank": "r"}), "id Too small: expected string to have >=1 characters, name Invalid input: expected string, received null"),
-            ("rebalance.children", json!({"parent": "p", "ranks": null}), "ranks Invalid input: expected record, received null"),
-            ("rebalance.children", json!({"parent": "p", "ranks": []}), "ranks Invalid input: expected record, received array"),
-            ("rebalance.children", json!({"parent": "p", "ranks": {"k": 2, "m": "r", "z": null}}), "ranks.k Invalid input: expected string, received number, ranks.z Invalid input: expected string, received null"),
-            ("add.issue.attachment", json!({"id": "a", "issue": "i", "hash": "", "ext": "png", "name": "n", "bytes": "1"}), "hash Too small: expected string to have >=1 characters, bytes Invalid input: expected number, received string"),
-            ("edit.title", json!(null), "payload Invalid input: expected object, received null"),
-            ("edit.title", json!([]), "payload Invalid input: expected object, received array"),
+        let cases: &[(&str, &str, &str)] = &[
+            ("add.issue", r#"{"id":5,"name":"n"}"#, "id Invalid input: expected string, received number, parent Invalid input: expected string, received undefined, rank Invalid input: expected string, received undefined"),
+            ("add.issue", r#"{"id":"","name":null,"parent":"p","rank":"r"}"#, "id Too small: expected string to have >=1 characters, name Invalid input: expected string, received null"),
+            ("rebalance.children", r#"{"parent":"p","ranks":null}"#, "ranks Invalid input: expected record, received null"),
+            ("rebalance.children", r#"{"parent":"p","ranks":[]}"#, "ranks Invalid input: expected record, received array"),
+            ("rebalance.children", r#"{"parent":"p","ranks":{"k":2,"m":"r","z":null}}"#, "ranks.k Invalid input: expected string, received number, ranks.z Invalid input: expected string, received null"),
+            ("add.issue.attachment", r#"{"id":"a","issue":"i","hash":"","ext":"png","name":"n","bytes":"1"}"#, "hash Too small: expected string to have >=1 characters, bytes Invalid input: expected number, received string"),
+            ("edit.title", "null", "payload Invalid input: expected object, received null"),
+            ("edit.title", "[]", "payload Invalid input: expected object, received array"),
+            ("edit.title", "true", "payload Invalid input: expected object, received boolean"),
+            ("edit.title", "-2", "payload Invalid input: expected object, received number"),
         ];
 
         for (action, payload, expected) in cases {
-            let (_, unreadable) = run(vec![raw(1, "01A", &[(action, payload.clone())])]);
+            let (_, unreadable) = run(vec![raw(1, "01A", &[(action, payload)])]);
             assert_eq!(unreadable[0].detail, format!("{action}: {expected}"), "{action}");
         }
     }
 
     #[test]
     fn accepts_what_the_schemas_accept() {
-        let cases: &[(&str, Value)] = &[
-            ("add.issue.comment", json!({"id": "c", "issue": "i", "md": ""})),
-            ("add.issue.attachment", json!({"id": "a", "issue": "i", "hash": "h", "ext": "weird", "name": "", "bytes": 1.5})),
-            ("rebalance.children", json!({"parent": "p", "ranks": {}})),
-            ("link.contributor.user", json!({"contributor": "c"})),
-            ("add.field", json!({"id": "f", "name": "n", "parent": "p", "rank": "r", "val": [1, 2]})),
+        let cases: &[(&str, &str)] = &[
+            ("add.issue.comment", r#"{"id":"c","issue":"i","md":""}"#),
+            ("add.issue.attachment", r#"{"id":"a","issue":"i","hash":"h","ext":"weird","name":"","bytes":1.5}"#),
+            ("rebalance.children", r#"{"parent":"p","ranks":{}}"#),
+            ("link.contributor.user", r#"{"contributor":"c"}"#),
+            ("add.field", r#"{"id":"f","name":"n","parent":"p","rank":"r","val":[1,2]}"#),
+            ("edit.title", r#"{"id":"A","name":"\n"}"#),
         ];
 
         for (action, payload) in cases {
-            let (decoded, unreadable) = run(vec![raw(1, "01A", &[(action, payload.clone())])]);
+            let (decoded, unreadable) = run(vec![raw(1, "01A", &[(action, payload)])]);
             assert!(unreadable.is_empty(), "{action}: {:?}", unreadable);
             assert_eq!(decoded[0].action, *action);
         }
+    }
+
+    #[test]
+    fn a_repeated_payload_key_is_judged_by_its_last_value() {
+        let (decoded, unreadable) = run(vec![raw(1, "01A", &[("edit.title", r#"{"id":5,"name":"n","id":"ok"}"#)])]);
+        assert!(unreadable.is_empty());
+        assert_eq!(decoded.len(), 1);
+
+        let (_, unreadable) = run(vec![raw(1, "01A", &[("edit.title", r#"{"id":"ok","name":"n","id":5}"#)])]);
+        assert_eq!(unreadable[0].detail, "edit.title: id Invalid input: expected string, received number");
     }
 
     #[test]

@@ -252,3 +252,52 @@ mod tests {
         assert_eq!(doc["error"], "load: expected @params first, got 01A.alice.jsonl");
     }
 }
+
+// `EPIQ_BENCH_DIR=<events dir> cargo test --release -- --ignored --nocapture bench_phases`
+#[cfg(test)]
+mod bench {
+    use super::*;
+    use std::time::Instant;
+
+    #[test]
+    #[ignore]
+    fn bench_phases() {
+        let Ok(dir) = std::env::var("EPIQ_BENCH_DIR") else { return };
+        let mut names: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".jsonl"))
+            .collect();
+        names.sort();
+        let data: Vec<(String, Vec<u8>)> = names
+            .iter()
+            .map(|n| (n.clone(), std::fs::read(format!("{dir}/{n}")).unwrap()))
+            .collect();
+        let files: Vec<NamedBytes<'_>> = data
+            .iter()
+            .map(|(n, d)| NamedBytes { name: n, data: d })
+            .collect();
+
+        let t = Instant::now();
+        let parsed = parse_all(&files).unwrap();
+        eprintln!("parse      {:?}  ({} events)", t.elapsed(), parsed.events.len());
+
+        let t = Instant::now();
+        let sorted = order::sorted(parsed.events);
+        eprintln!("order      {:?}", t.elapsed());
+
+        let t = Instant::now();
+        let raw_json = to_json(&sorted).unwrap();
+        eprintln!("json raw   {:?}  ({} MB)", t.elapsed(), raw_json.len() / 1_000_000);
+
+        let t = Instant::now();
+        let mut unreadable = parsed.unreadable;
+        let decoded = decode::decode(sorted, &mut unreadable);
+        eprintln!("decode     {:?}", t.elapsed());
+
+        let t = Instant::now();
+        let json = to_json(&decoded).unwrap();
+        eprintln!("json dec   {:?}  ({} MB)", t.elapsed(), json.len() / 1_000_000);
+    }
+}

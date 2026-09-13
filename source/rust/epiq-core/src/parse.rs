@@ -6,9 +6,11 @@
 //! `parseEventFileActor` in `event-load.ts`, down to the messages, so a
 //! quarantine reads the same whichever side produced it.
 
-use serde_json::{Map, Value};
+use serde_json::value::RawValue;
+use serde_json::Number;
 
 use crate::model::{RawEvent, Unreadable, CORRUPT_LINE};
+use crate::pairs::{is_non_empty_string, js_type_of, Pairs};
 
 #[derive(Debug)]
 pub struct Actor {
@@ -71,11 +73,11 @@ pub fn strip_pending_marker(id_segment: &str) -> &str {
 
     let tail = &lower[marker + "~pending".len()..];
     let tail_is_groups = tail.is_empty()
-        || tail
-            .split('-')
-            .skip(1)
-            .all(|group| !group.is_empty() && group.bytes().all(|b| b.is_ascii_alphanumeric()))
-            && tail.starts_with('-');
+        || tail.starts_with('-')
+            && tail
+                .split('-')
+                .skip(1)
+                .all(|group| !group.is_empty() && group.bytes().all(|b| b.is_ascii_alphanumeric()));
 
     if tail_is_groups {
         &id_segment[..marker]
@@ -120,83 +122,19 @@ fn is_js_space(c: char) -> bool {
     )
 }
 
-fn js_type_name(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "null",
-        Value::Bool(_) => "boolean",
-        Value::Number(_) => "number",
-        Value::String(_) => "string",
-        Value::Array(_) => "array",
-        Value::Object(_) => "object",
-    }
+enum LineError {
+    InvalidJson,
+    Envelope(String),
 }
 
-/// The envelope: `v` a positive integer, `id` a pair of a non-empty string
-/// and a nullable non-empty string, anything else kept. Issues are reported
-/// the way zod's are — a path where there is one, the message where there is
-/// not — and joined with `, `.
-fn parse_envelope(value: Value) -> Result<(serde_json::Number, String, Option<String>, Map<String, Value>), String> {
-    let Value::Object(mut object) = value else {
-        return Err(format!(
-            "Invalid persisted event envelope: Invalid input: expected object, received {}",
-            js_type_name(&value)
-        ));
-    };
-
-    let mut issues: Vec<String> = Vec::new();
-
-    let v = match object.shift_remove("v") {
-        Some(Value::Number(n)) if is_positive_integer(&n) => Some(n),
-        _ => {
-            issues.push("v".into());
-            None
-        }
-    };
-
-    let id = match object.shift_remove("id") {
-        Some(Value::Array(items)) if items.len() == 2 => {
-            let mut items = items.into_iter();
-            let first = items.next().expect("two items");
-            let second = items.next().expect("two items");
-
-            let id = match first {
-                Value::String(s) if !s.is_empty() => Some(s),
-                _ => {
-                    issues.push("id.0".into());
-                    None
-                }
-            };
-
-            let ref_id = match second {
-                Value::Null => Some(None),
-                Value::String(s) if !s.is_empty() => Some(Some(s)),
-                _ => {
-                    issues.push("id.1".into());
-                    None
-                }
-            };
-
-            id.zip(ref_id)
-        }
-        _ => {
-            issues.push("id".into());
-            None
-        }
-    };
-
-    if !issues.is_empty() {
-        return Err(format!(
-            "Invalid persisted event envelope: {}",
-            issues.join(", ")
-        ));
-    }
-
-    let (id, ref_id) = id.expect("no issues means both parsed");
-
-    Ok((v.expect("no issues means v parsed"), id, ref_id, object))
+fn envelope_error(issues: &[&str]) -> LineError {
+    LineError::Envelope(format!(
+        "Invalid persisted event envelope: {}",
+        issues.join(", ")
+    ))
 }
 
-fn is_positive_integer(n: &serde_json::Number) -> bool {
+fn is_positive_integer(n: &Number) -> bool {
     if let Some(u) = n.as_u64() {
         return u > 0;
     }
@@ -209,6 +147,87 @@ fn is_positive_integer(n: &serde_json::Number) -> bool {
         Some(f) => f.is_finite() && f > 0.0 && f.fract() == 0.0,
         None => false,
     }
+}
+
+/// The envelope: `v` a positive integer, `id` a pair of a non-empty string
+/// and a nullable non-empty string, anything else kept as it is. Issues are
+/// reported the way zod's are — a path where there is one, the message where
+/// there is not — and joined with `, `.
+fn parse_line(line: &str, actor: &Actor) -> Result<RawEvent, LineError> {
+    let pairs: Pairs<'_> = match serde_json::from_str(line) {
+        Ok(pairs) => pairs,
+        Err(_) => {
+            // Valid JSON that is not an object reads as an envelope issue;
+            // anything else did not parse at all.
+            return match serde_json::from_str::<&RawValue>(line) {
+                Ok(raw) => Err(LineError::Envelope(format!(
+                    "Invalid persisted event envelope: Invalid input: expected object, received {}",
+                    js_type_of(raw)
+                ))),
+                Err(_) => Err(LineError::InvalidJson),
+            };
+        }
+    };
+
+    let mut issues: Vec<&str> = Vec::new();
+
+    let v = pairs
+        .get("v")
+        .and_then(|raw| serde_json::from_str::<Number>(raw.get()).ok())
+        .filter(is_positive_integer);
+
+    if v.is_none() {
+        issues.push("v");
+    }
+
+    let mut id = None;
+    let mut ref_id = None;
+
+    match pairs
+        .get("id")
+        .and_then(|raw| serde_json::from_str::<Vec<&RawValue>>(raw.get()).ok())
+    {
+        Some(items) if items.len() == 2 => {
+            if is_non_empty_string(items[0]) {
+                id = serde_json::from_str::<String>(items[0].get()).ok();
+            }
+
+            if id.is_none() {
+                issues.push("id.0");
+            }
+
+            if items[1].get() == "null" {
+                ref_id = Some(None);
+            } else if is_non_empty_string(items[1]) {
+                ref_id = serde_json::from_str::<String>(items[1].get()).ok().map(Some);
+            }
+
+            if ref_id.is_none() {
+                issues.push("id.1");
+            }
+        }
+        _ => issues.push("id"),
+    }
+
+    if !issues.is_empty() {
+        return Err(envelope_error(&issues));
+    }
+
+    let rest = pairs
+        .0
+        .into_iter()
+        .filter(|(key, _)| key != "v" && key != "id")
+        .map(|(key, raw)| (key.into_owned(), raw.to_owned()))
+        .collect();
+
+    Ok(RawEvent {
+        v: v.expect("checked"),
+        id: id.expect("checked"),
+        ref_id: ref_id.expect("checked"),
+        rest,
+        user_id: actor.user_id.clone(),
+        user_name: actor.user_name.clone(),
+    })
 }
 
 /// Every line of one file. A line that will not parse, or parses to no
@@ -229,39 +248,22 @@ pub fn parse_file(
             continue;
         }
 
-        let mut quarantine = |reason: &str| {
-            unreadable.push(Unreadable {
-                event_id: None,
-                reason: CORRUPT_LINE,
-                detail: format!("{file_name}:{} ({reason})", index + 1),
-                target_node_id: None,
-            })
-        };
+        match parse_line(trimmed, &actor) {
+            Ok(event) => events.push(event),
+            Err(error) => {
+                let reason = match error {
+                    LineError::InvalidJson => "invalid JSON".to_string(),
+                    LineError::Envelope(message) => message,
+                };
 
-        let raw: Value = match serde_json::from_str(trimmed) {
-            Ok(value) => value,
-            Err(_) => {
-                quarantine("invalid JSON");
-                continue;
+                unreadable.push(Unreadable {
+                    event_id: None,
+                    reason: CORRUPT_LINE,
+                    detail: format!("{file_name}:{} ({reason})", index + 1),
+                    target_node_id: None,
+                });
             }
-        };
-
-        let (v, id, ref_id, rest) = match parse_envelope(raw) {
-            Ok(parts) => parts,
-            Err(message) => {
-                quarantine(&message);
-                continue;
-            }
-        };
-
-        events.push(RawEvent {
-            v,
-            id,
-            ref_id,
-            rest,
-            user_id: actor.user_id.clone(),
-            user_name: actor.user_name.clone(),
-        });
+        }
     }
 
     Ok(events)
@@ -323,17 +325,17 @@ mod tests {
     }
 
     #[test]
-    fn keeps_every_key_and_the_actor() {
+    fn keeps_every_key_verbatim_and_the_actor() {
         let (events, unreadable) = parse(
-            r#"{"add.issue":{"id":"n","name":"x"},"v":1,"id":["01B","01A"],"extra":true}
+            r#"{"add.issue": {"id":"n", "name":"x"},"v":1,"id":["01B","01A"],"extra":true}
 "#,
         );
 
         assert!(unreadable.is_empty());
         assert_eq!(events.len(), 1);
         assert_eq!(
-            events[0].stringified(),
-            r#"{"v":1,"id":["01B","01A"],"add.issue":{"id":"n","name":"x"},"extra":true,"userId":"01A","userName":"alice"}"#
+            serde_json::to_string(&events[0]).unwrap(),
+            r#"{"v":1,"id":["01B","01A"],"add.issue":{"id":"n", "name":"x"},"extra":true,"userId":"01A","userName":"alice"}"#
         );
     }
 
@@ -345,6 +347,27 @@ mod tests {
             events[0].action_keys().collect::<Vec<_>>(),
             ["init.workspace", "evil"]
         );
+    }
+
+    #[test]
+    fn a_repeated_key_keeps_its_first_place_and_last_value() {
+        let (events, _) = parse(r#"{"x":1,"v":1,"id":["01A",null],"y":2,"x":3,"v":2}"#);
+        assert_eq!(events[0].v, Number::from(2));
+
+        let (events, _) = parse(r#"{"x":1,"v":2,"id":["01A",null],"y":2,"x":3,"v":1}"#);
+        assert_eq!(events[0].v, Number::from(1));
+        assert_eq!(
+            serde_json::to_string(&events[0]).unwrap(),
+            r#"{"v":1,"id":["01A",null],"x":3,"y":2,"userId":"01A","userName":"alice"}"#
+        );
+    }
+
+    #[test]
+    fn unescapes_the_ids() {
+        let (events, _) = parse(r#"{"v":1,"id":["01A","01é"],"x":{}}"#);
+
+        assert_eq!(events[0].id, "01A");
+        assert_eq!(events[0].ref_id.as_deref(), Some("01é"));
     }
 
     #[test]

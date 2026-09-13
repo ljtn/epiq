@@ -1,20 +1,28 @@
 //! The shapes the TypeScript side already has, kept field for field so the
 //! JSON that crosses the boundary is what `event-load.ts` would have built.
+//!
+//! Payloads stay as the text the line had them in: `serde_json::RawValue`
+//! validates the JSON and keeps the bytes, so a load allocates one string per
+//! payload rather than a tree per event, and hands the text through to the
+//! host verbatim — `JSON.parse` there normalises it exactly as parsing the
+//! line would have.
 
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
-use serde_json::{Map, Number, Value};
+use serde_json::value::RawValue;
+use serde_json::{Number, Value};
 
 /// A `ReconstructedEvent`: the envelope of one log line plus the actor the
 /// file name carries. `rest` is every key that is not `v` or `id`, in the
 /// order the line had them — the action key among them, and any others a
-/// peer's build wrote.
-#[derive(Debug, Clone, PartialEq)]
+/// peer's build wrote. A key the line repeats keeps its first position and
+/// its last value, as `JSON.parse` leaves it.
+#[derive(Debug, Clone)]
 pub struct RawEvent {
     pub v: Number,
     pub id: String,
     pub ref_id: Option<String>,
-    pub rest: Map<String, Value>,
+    pub rest: Vec<(String, Box<RawValue>)>,
     pub user_id: String,
     pub user_name: String,
 }
@@ -23,13 +31,49 @@ impl RawEvent {
     /// The keys that are neither envelope nor actor: what `getPersistedAction`
     /// counts, and what the genesis check reads.
     pub fn action_keys(&self) -> impl Iterator<Item = &str> {
-        self.rest.keys().map(String::as_str)
+        self.rest.iter().map(|(key, _)| key.as_str())
     }
 
-    /// The tie-break text: `JSON.stringify` of the reconstructed event, whose
-    /// key order is `v`, `id`, the line's other keys, then the actor.
+    /// The tie-break text: `JSON.stringify` of the reconstructed event as
+    /// TypeScript holds it — parsed, so whitespace and escapes are canonical
+    /// — whose key order is `v`, `id`, the line's other keys, then the actor.
+    /// Only two events sharing an id ever need it.
     pub fn stringified(&self) -> String {
-        serde_json::to_string(self).expect("an event serialises")
+        let mut map = serde_json::Map::new();
+        map.insert("v".into(), Value::Number(self.v.clone()));
+        map.insert(
+            "id".into(),
+            Value::Array(vec![
+                Value::String(self.id.clone()),
+                self.ref_id.clone().map_or(Value::Null, Value::String),
+            ]),
+        );
+
+        for (key, raw) in &self.rest {
+            let value = serde_json::from_str(raw.get()).unwrap_or(Value::Null);
+            map.insert(key.clone(), value);
+        }
+
+        map.insert("userId".into(), Value::String(self.user_id.clone()));
+        map.insert("userName".into(), Value::String(self.user_name.clone()));
+
+        Value::Object(map).to_string()
+    }
+}
+
+impl PartialEq for RawEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.v == other.v
+            && self.id == other.id
+            && self.ref_id == other.ref_id
+            && self.user_id == other.user_id
+            && self.user_name == other.user_name
+            && self.rest.len() == other.rest.len()
+            && self
+                .rest
+                .iter()
+                .zip(&other.rest)
+                .all(|(a, b)| a.0 == b.0 && a.1.get() == b.1.get())
     }
 }
 
@@ -77,24 +121,30 @@ pub const UNKNOWN_ACTION: &str = "unknown-action";
 pub const INVALID_PAYLOAD: &str = "invalid-payload";
 
 #[cfg(test)]
+pub fn raw_json(text: &str) -> Box<RawValue> {
+    RawValue::from_string(text.to_string()).expect("valid JSON in a test")
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn serialises_in_the_reconstructed_key_order() {
-        let mut rest = Map::new();
-        rest.insert("edit.title".into(), json!({"id": "n", "name": "T"}));
-
         let event = RawEvent {
             v: Number::from(1),
             id: "01B".into(),
             ref_id: Some("01A".into()),
-            rest,
+            rest: vec![("edit.title".into(), raw_json(r#"{"id": "n","name":"T"}"#))],
             user_id: "U".into(),
             user_name: "Ann".into(),
         };
 
+        // Verbatim across the boundary, canonical for the tie-break.
+        assert_eq!(
+            serde_json::to_string(&event).unwrap(),
+            r#"{"v":1,"id":["01B","01A"],"edit.title":{"id": "n","name":"T"},"userId":"U","userName":"Ann"}"#
+        );
         assert_eq!(
             event.stringified(),
             r#"{"v":1,"id":["01B","01A"],"edit.title":{"id":"n","name":"T"},"userId":"U","userName":"Ann"}"#
@@ -107,7 +157,7 @@ mod tests {
             v: Number::from(1),
             id: "01A".into(),
             ref_id: None,
-            rest: Map::new(),
+            rest: vec![],
             user_id: "U".into(),
             user_name: "Ann".into(),
         };
