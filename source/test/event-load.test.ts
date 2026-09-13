@@ -117,6 +117,34 @@ describe('getSortedEvents', () => {
 		expect(JSON.stringify(oneWay)).toBe(JSON.stringify(otherWay));
 	});
 
+	// `localeCompare` collates by the process locale, and ICU puts a lower-case
+	// letter before its capital where code units put every capital first — so a
+	// forged or foreign id could sort one way on one machine and another way on
+	// the next. Code-unit order is the same everywhere.
+	it('orders siblings and id ties by code unit, not by the locale', () => {
+		const root = event('01A', null);
+		const siblings = [
+			event('b1', '01A'),
+			event('A1', '01A'),
+			event('a1', '01A'),
+			event('B1', '01A'),
+		];
+		const tieLower = {...event('c1', '01A'), userName: 'a'};
+		const tieUpper = {...event('c1', '01A'), userName: 'B'};
+
+		const sorted = getSortedEvents([root, ...siblings, tieLower, tieUpper]);
+
+		expect(sorted.map(e => e.id[0])).toEqual([
+			'01A',
+			'A1',
+			'B1',
+			'a1',
+			'b1',
+			'c1',
+		]);
+		expect(sorted.at(-1)?.userName).toBe('B');
+	});
+
 	// A `refId: null` line is trivially forgeable, and a low ULID made it sort
 	// in front of init.workspace — reordering all of history for every client.
 	it('anchors a forged second root after the known history, not before genesis', () => {
