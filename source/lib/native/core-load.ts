@@ -5,6 +5,12 @@
 // the rest: envelope, order, effective times, a cut, decoding. What comes back
 // is the same shape `event-load.ts` builds itself, so the caller cannot tell
 // which side produced it.
+//
+// A decoded load keeps its events here, by id, and tells the store so: the
+// next answer is then the order as ids plus only the events this process has
+// not seen, which is a few lines after a write rather than the whole log. The
+// objects are the ones state retains in `eventLog` anyway, so the map costs
+// its entries, not the events. One events directory at a time, like the store.
 import fs from 'node:fs';
 import path from 'node:path';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
@@ -29,19 +35,32 @@ export type LoadRequest = {
 	omitEvents?: boolean;
 };
 
+type Unreadable = {
+	eventId: string | null;
+	reason:
+		| 'unsupported-schema-version'
+		| 'unknown-action'
+		| 'invalid-payload'
+		| 'corrupt-line';
+	detail: string;
+	targetNodeId: string | null;
+};
+
 export type CoreLoaded<E> = {
 	events: E[];
 	unappliedEvents?: E[];
-	unreadable: {
-		eventId: string | null;
-		reason:
-			| 'unsupported-schema-version'
-			| 'unknown-action'
-			| 'invalid-payload'
-			| 'corrupt-line';
-		detail: string;
-		targetNodeId: string | null;
-	}[];
+	unreadable: Unreadable[];
+	edge: string | null;
+	times?: [string, number | null][];
+	actors?: [string, string][];
+};
+
+// What the store answers a decoded load with once this process caches.
+type Handed<E> = {
+	order: string[];
+	unappliedOrder?: string[];
+	fresh: E[];
+	unreadable: Unreadable[];
 	edge: string | null;
 	times?: [string, number | null][];
 	actors?: [string, string][];
@@ -49,6 +68,8 @@ export type CoreLoaded<E> = {
 
 const PARAMS = '@params';
 const encoder = new TextEncoder();
+
+let cache: {dir: string; byId: Map<string, unknown>} | null = null;
 
 /**
  * Every log's bytes. A file gone between the listing and its read is one a
@@ -77,21 +98,99 @@ const readLogFiles = (dir: string): NamedBytes[] => {
 	}
 };
 
+const callLoad = <T>(
+	files: NamedBytes[],
+	params: Record<string, unknown>,
+): Result<T> => {
+	const frame = encodeFrame([
+		{name: PARAMS, data: encoder.encode(JSON.stringify(params))},
+		...files,
+	]);
+
+	const result = coreCallJson<T>('load', frame);
+	if (isFail(result) || !result.value) return failed(result.message);
+
+	return succeeded('Loaded the log through epiq-core', result.value);
+};
+
+// The answer for a caching process, resolved against the cache. Null when an
+// id in the order is one this process never received — the cache and the
+// store disagree, and only a full answer settles it.
+const resolve = <E extends {id: string}>(
+	handed: Handed<E>,
+	byId: Map<string, unknown>,
+): CoreLoaded<E> | null => {
+	for (const event of handed.fresh) byId.set(event.id, event);
+
+	const pick = (order: string[]): E[] | null => {
+		const events: E[] = [];
+
+		for (const id of order) {
+			const event = byId.get(id) as E | undefined;
+			if (!event) return null;
+			events.push(event);
+		}
+
+		return events;
+	};
+
+	const events = pick(handed.order);
+	if (!events) return null;
+
+	const unappliedEvents = handed.unappliedOrder
+		? pick(handed.unappliedOrder)
+		: undefined;
+	if (handed.unappliedOrder && !unappliedEvents) return null;
+
+	return {
+		events,
+		unappliedEvents: unappliedEvents ?? undefined,
+		unreadable: handed.unreadable,
+		edge: handed.edge,
+		times: handed.times,
+		actors: handed.actors,
+	};
+};
+
 /** The whole read, over the files in `dir`, answered by the store. */
 export const loadViaCore = <E>(
 	dir: string,
 	request: LoadRequest,
 ): Result<CoreLoaded<E>> => {
-	const params = {...request, now: Date.now()};
-	const frame = encodeFrame([
-		{name: PARAMS, data: encoder.encode(JSON.stringify(params))},
-		...readLogFiles(dir),
-	]);
+	const files = readLogFiles(dir);
+	const params = {...request, root: dir, now: Date.now()};
 
-	const result = coreCallJson<CoreLoaded<E>>('load', frame);
-	if (isFail(result) || !result.value) return failed(result.message);
+	if (!request.decode || request.omitEvents) {
+		return callLoad<CoreLoaded<E>>(files, params);
+	}
 
-	return succeeded('Loaded the log through epiq-core', result.value);
+	if (cache && cache.dir === dir) {
+		const handed = callLoad<Handed<E & {id: string}>>(files, {
+			...params,
+			known: true,
+		});
+		if (isFail(handed) || !handed.value) return failed(handed.message);
+
+		const resolved = resolve(handed.value, cache.byId);
+		if (resolved)
+			return succeeded('Loaded the log through epiq-core', resolved);
+	}
+
+	// No cache for this directory, or one the store no longer agrees with:
+	// a full answer, which starts a fresh one.
+	const full = callLoad<CoreLoaded<E & {id: string}>>(files, {
+		...params,
+		known: false,
+	});
+	if (isFail(full) || !full.value) return failed(full.message);
+
+	const byId = new Map<string, unknown>();
+	for (const event of full.value.events) byId.set(event.id, event);
+	for (const event of full.value.unappliedEvents ?? [])
+		byId.set(event.id, event);
+	cache = {dir, byId};
+
+	return succeeded('Loaded the log through epiq-core', full.value);
 };
 
 /** `EPIQ_CORE=js` keeps the TypeScript loader, for comparison and as a way out. */

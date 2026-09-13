@@ -7,10 +7,21 @@
 //! host verbatim — `JSON.parse` there normalises it exactly as parsing the
 //! line would have.
 
+use std::cell::OnceCell;
+
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 use serde_json::value::RawValue;
 use serde_json::{Number, Value};
+
+/// Where a stored event lives, precisely enough to tell whether the host's
+/// cache holds this very one: a file parsed again bumps its generation.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Origin {
+    pub file_id: u32,
+    pub generation: u32,
+    pub index: usize,
+}
 
 /// A `ReconstructedEvent`: the envelope of one log line plus the actor the
 /// file name carries. `rest` is every key that is not `v` or `id`, in the
@@ -25,6 +36,26 @@ pub struct RawEvent {
     pub rest: Vec<(String, Box<RawValue>)>,
     pub user_id: String,
     pub user_name: String,
+    /// Set by the store for a kept event; a trailing line's event has none.
+    pub origin: Option<Origin>,
+    /// The decode outcome, computed once: None when decodable, else the
+    /// quarantine entry. A pure function of the event, so it never changes.
+    pub verdict: OnceCell<Option<Unreadable>>,
+}
+
+impl Default for RawEvent {
+    fn default() -> Self {
+        RawEvent {
+            v: Number::from(0),
+            id: String::new(),
+            ref_id: None,
+            rest: Vec::new(),
+            user_id: String::new(),
+            user_name: String::new(),
+            origin: None,
+            verdict: OnceCell::new(),
+        }
+    }
 }
 
 impl RawEvent {
@@ -138,6 +169,7 @@ mod tests {
             rest: vec![("edit.title".into(), raw_json(r#"{"id": "n","name":"T"}"#))],
             user_id: "U".into(),
             user_name: "Ann".into(),
+            ..Default::default()
         };
 
         // Verbatim across the boundary, canonical for the tie-break.
@@ -160,6 +192,7 @@ mod tests {
             rest: vec![],
             user_id: "U".into(),
             user_name: "Ann".into(),
+            ..Default::default()
         };
 
         assert_eq!(
