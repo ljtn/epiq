@@ -9,6 +9,7 @@
 mod frame;
 mod model;
 mod ops;
+mod order;
 mod parse;
 
 #[cfg(target_arch = "wasm32")]

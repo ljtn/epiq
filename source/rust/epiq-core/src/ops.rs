@@ -3,6 +3,7 @@ use serde_json::json;
 
 use crate::frame;
 use crate::model::{RawEvent, Unreadable};
+use crate::order;
 use crate::parse::parse_file;
 
 /// Every answer is a JSON document. A failure is `{"error": "<message>"}`, so
@@ -12,6 +13,7 @@ pub fn call(op: &str, input: &[u8]) -> Vec<u8> {
     let answer = match op {
         "ping" => ping(input),
         "parse_files" => parse_files(input),
+        "load_files" => load_files(input),
         _ => Err(format!("unknown op: {op}")),
     };
 
@@ -40,9 +42,7 @@ struct Parsed {
     unreadable: Vec<Unreadable>,
 }
 
-/// Framed files in, their reconstructed events out in file order, unordered:
-/// what `parsePersistedEventsFile` yields for each file, concatenated.
-fn parse_files(input: &[u8]) -> Result<Vec<u8>, String> {
+fn parse_all(input: &[u8]) -> Result<Parsed, String> {
     let files = frame::decode(input)?;
     let mut events = Vec::new();
     let mut unreadable = Vec::new();
@@ -51,7 +51,24 @@ fn parse_files(input: &[u8]) -> Result<Vec<u8>, String> {
         events.extend(parse_file(file.name, file.data, &mut unreadable)?);
     }
 
-    to_json(&Parsed { events, unreadable })
+    Ok(Parsed { events, unreadable })
+}
+
+/// Framed files in, their reconstructed events out in file order, unordered:
+/// what `parsePersistedEventsFile` yields for each file, concatenated.
+fn parse_files(input: &[u8]) -> Result<Vec<u8>, String> {
+    to_json(&parse_all(input)?)
+}
+
+/// Framed files in, their events out in causal order: what
+/// `loadAllPersistedEvents` yields, before decoding.
+fn load_files(input: &[u8]) -> Result<Vec<u8>, String> {
+    let parsed = parse_all(input)?;
+
+    to_json(&Parsed {
+        events: order::sorted(parsed.events),
+        unreadable: parsed.unreadable,
+    })
 }
 
 #[cfg(test)]
