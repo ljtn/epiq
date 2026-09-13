@@ -8,6 +8,7 @@
 #   npm run stress                     # the default: ~960k events, serves the GUI
 #   STRESS_EVENTS=50000 npm run stress # something smaller, to see it work first
 #   STRESS_SERVE=false npm run stress  # numbers only, exits when done
+#   STRESS_CORE=js npm run stress      # the TypeScript loader instead of the Rust core
 #
 # A container so it neither touches the real board nor depends on this machine
 # having the right node. The image is the e2e one, which already carries git and
@@ -60,6 +61,10 @@ exec docker run --rm ${TTY_FLAGS} --init \
 	-e STRESS_ACTORS="${STRESS_ACTORS:-}" \
 	-e STRESS_YEARS="${STRESS_YEARS:-}" \
 	-e STRESS_SERVE="${SERVE}" \
+	-e STRESS_VIRTUAL="${STRESS_VIRTUAL:-}" \
+	-e STRESS_SHAPE="${STRESS_SHAPE:-}" \
+	-e STRESS_OPEN="${STRESS_OPEN:-}" \
+	-e EPIQ_CORE="${STRESS_CORE:-}" \
 	-e NODE_OPTIONS="--max-old-space-size=${NODE_HEAP}" \
 	-e EPIQ_GUI_PORT="${PORT}" \
 	-v "$PWD":/app:ro \
