@@ -120,20 +120,18 @@ pub fn edge(events: &[RawEvent]) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, Map, Number};
+    use crate::model::raw_json;
+    use serde_json::Number;
 
     const NOW: f64 = 1_700_000_000_000.0;
     const DAY: f64 = 24.0 * 60.0 * 60.0 * 1000.0;
 
     fn event(id: &str, after: Option<&str>) -> RawEvent {
-        let mut rest = Map::new();
-        rest.insert("x".into(), json!({}));
-
         RawEvent {
             v: Number::from(1),
             id: id.into(),
             ref_id: after.map(Into::into),
-            rest,
+            rest: vec![("x".into(), raw_json("{}"))],
             user_id: "u".into(),
             user_name: "U".into(),
         }
