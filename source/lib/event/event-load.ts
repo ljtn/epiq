@@ -562,6 +562,13 @@ export function advanceEdgeRef(
 export function clearEdgeCache(): void {
 	edgeCache = null;
 }
+
+// Code units, not `localeCompare`: collation follows the process locale, so
+// the same ids could order differently on two machines. The relational
+// operators compare UTF-16 code units, which every runtime does the same way.
+const byCodeUnit = (a: string, b: string): number =>
+	a < b ? -1 : a > b ? 1 : 0;
+
 /**
  * Total, so the order is a function of the event *set* alone.
  *
@@ -576,10 +583,10 @@ const compareEvents = (
 	a: ReconstructedEvent,
 	b: ReconstructedEvent,
 ): number => {
-	const byId = a.id[0].localeCompare(b.id[0]);
+	const byId = byCodeUnit(a.id[0], b.id[0]);
 	if (byId !== 0) return byId;
 
-	return JSON.stringify(a).localeCompare(JSON.stringify(b));
+	return byCodeUnit(JSON.stringify(a), JSON.stringify(b));
 };
 
 export const getSortedEvents = (
