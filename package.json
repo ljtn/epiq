@@ -60,7 +60,8 @@
 		"lint:err": "eslint . --quiet",
 		"prepare": "husky",
 		"build:rust": "node source/scripts/build-rust.mjs",
-		"test:core-js": "EPIQ_CORE=js vitest run source/test/event-load.test.ts source/test/edge-cache.test.ts source/test/unreadable-events.test.ts source/test/write-identity.test.ts source/test/replay-equivalence.test.ts source/test/event-boot.test.ts source/test/hostile-payload.test.ts source/test/log-integrity.test.ts source/test/contributor-rename.test.ts source/test/peek.cmd.test.ts source/test/load-project.test.ts source/test/init-project.test.ts"
+		"test:core-js": "EPIQ_CORE=js vitest run source/test/event-load.test.ts source/test/edge-cache.test.ts source/test/unreadable-events.test.ts source/test/write-identity.test.ts source/test/replay-equivalence.test.ts source/test/event-boot.test.ts source/test/hostile-payload.test.ts source/test/log-integrity.test.ts source/test/contributor-rename.test.ts source/test/peek.cmd.test.ts source/test/load-project.test.ts source/test/init-project.test.ts",
+		"bench:core": "sh source/scripts/bench-core.sh"
 	},
 	"files": [
 		"dist"
