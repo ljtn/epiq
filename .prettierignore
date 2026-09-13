@@ -4,3 +4,6 @@
 
 # Generated from the skill file by write-skill.mjs; a JSON string, not prose.
 source/mcp/skill-content.ts
+
+# Generated from the Rust crate by build-rust.mjs; a base64 string, not code.
+source/lib/native/epiq-core.wasm.ts

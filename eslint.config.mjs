@@ -9,6 +9,8 @@ export default tseslint.config(
 			'coverage/**',
 			'node_modules/**',
 			'source/scripts/*.mjs',
+			// The wasm module, as one base64 string.
+			'source/lib/native/epiq-core.wasm.ts',
 			// Worktrees checked out inside the repo are other branches' code.
 			'.claude/worktrees/**',
 		],

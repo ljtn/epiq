@@ -1,0 +1,20 @@
+[package]
+name = "epiq-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "The event-log hot path of epiq: parse, order, split, index"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

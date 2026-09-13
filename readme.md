@@ -99,6 +99,18 @@ npm install --global epiq
 epiq --version
 ```
 
+### From source
+
+The event-log core is a Rust crate compiled to wasm and embedded in the JavaScript bundle, so a source checkout needs a Rust toolchain besides Node:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+npm install
+npm run build:npm
+```
+
+`rust-toolchain.toml` pins the compiler and the `wasm32-unknown-unknown` target; rustup fetches both on the first build. Every `npm run build*`, `start*` and `test` script rebuilds the module first, so the checkout never runs against a stale one.
+
 ---
 
 ## Getting Started in 2 steps

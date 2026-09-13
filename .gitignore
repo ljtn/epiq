@@ -17,3 +17,7 @@ test-results
 playwright-report
 blob-report
 .playwright
+
+# [rust] the crate builds to source/lib/native/epiq-core.wasm.ts; build-rust.mjs regenerates it
+source/rust/epiq-core/target/
+source/lib/native/epiq-core.wasm.ts
