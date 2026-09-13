@@ -17,6 +17,13 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # rustup is on every runner; the pinned toolchain and the wasm32 target
+      # come from rust-toolchain.toml. The cache keeps the crate's deps and
+      # its target directory between runs.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/rust/epiq-core
+
       - name: Configure Git
         run: |
           git config --global user.name "GitHub Actions"
@@ -47,6 +54,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      # rustup is on every runner; the pinned toolchain and the wasm32 target
+      # come from rust-toolchain.toml. The cache keeps the crate's deps and
+      # its target directory between runs.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/rust/epiq-core
 
       # The suite seeds each project by driving the real TUI, which runs git.
       - name: Configure Git
@@ -82,6 +96,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      # rustup is on every runner; the pinned toolchain and the wasm32 target
+      # come from rust-toolchain.toml. The cache keeps the crate's deps and
+      # its target directory between runs.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/rust/epiq-core
 
       # Every actor is a real epiq process, and every one of them runs git.
       - name: Configure Git
@@ -185,6 +206,13 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # rustup is on every runner; the pinned toolchain and the wasm32 target
+      # come from rust-toolchain.toml. The cache keeps the crate's deps and
+      # its target directory between runs.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/rust/epiq-core
+
       - run: npm ci
 
       - run: npm run build:binary
@@ -221,6 +249,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      # rustup is on every runner; the pinned toolchain and the wasm32 target
+      # come from rust-toolchain.toml. The cache keeps the crate's deps and
+      # its target directory between runs.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/rust/epiq-core
 
       - run: npm ci
 
@@ -314,3 +349,32 @@ jobs:
           fi
 
           echo "$TAG is now \`latest\`, with all five binaries behind it." >> "$GITHUB_STEP_SUMMARY"
+
+  # The published package says `node >= 18`, and the wasm module is the one
+  # part of it that a Node this old could refuse: built on 22 like everything
+  # else, then instantiated and called on 18.
+  node18:
+    name: Node 18 wasm smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/rust/epiq-core
+
+      - run: npm ci
+
+      - run: npm run build:rust
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - run: node source/scripts/core-smoke.mjs
