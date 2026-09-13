@@ -50,6 +50,19 @@ const findCargo = () => {
 const cargo = findCargo();
 
 if (!cargo) {
+	// A container or a machine without Rust can still run against a module
+	// built elsewhere — the e2e image mounts the checkout, and stress.sh builds
+	// on the host — as long as it says so; EPIQ_RUST_REQUIRE=1 makes that an
+	// error, for a build that must not ship a stale module.
+	if (fs.existsSync(outFile) && !process.env['EPIQ_RUST_REQUIRE']) {
+		const built = fs.statSync(outFile).mtime.toISOString();
+		console.warn(
+			`cargo not found: reusing source/lib/native/epiq-core.wasm.ts built ${built}. ` +
+				'Install Rust to rebuild it, or set EPIQ_RUST_REQUIRE=1 to fail instead.',
+		);
+		process.exit(0);
+	}
+
 	console.error(INSTALL_HINT);
 	process.exit(1);
 }
