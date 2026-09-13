@@ -33,21 +33,15 @@ fn is_genesis(event: &RawEvent) -> bool {
     matches!((keys.next(), keys.next()), (Some(GENESIS), None))
 }
 
-pub fn sorted(events: Vec<RawEvent>) -> Vec<RawEvent> {
-    let order = order_indices(&events);
-    let mut slots: Vec<Option<RawEvent>> = events.into_iter().map(Some).collect();
-
-    order
-        .into_iter()
-        .map(|index| slots[index].take().expect("each index placed once"))
-        .collect()
+pub fn sorted<'a>(events: Vec<&'a RawEvent>) -> Vec<&'a RawEvent> {
+    order_indices(&events).into_iter().map(|index| events[index]).collect()
 }
 
 // Every event is a slot; two extra slots stand for "no parent" and "a parent
 // nobody has". Children are grouped by their parent's slot in one flat array
 // (counts, prefix sums, fill), so the forest costs two allocations rather
 // than a list per parent.
-fn order_indices(events: &[RawEvent]) -> Vec<usize> {
+fn order_indices<'a>(events: &[&'a RawEvent]) -> Vec<usize> {
     let n = events.len();
     let root_slot = n;
     let orphan_slot = n + 1;
@@ -55,7 +49,7 @@ fn order_indices(events: &[RawEvent]) -> Vec<usize> {
     // The first index carrying each id: an id's slot. Grouping is by the id
     // *string*, so events sharing an id share a slot, as they share a key in
     // TypeScript's maps.
-    let mut slot_of_id: FxHashMap<&str, usize> =
+    let mut slot_of_id: FxHashMap<&'a str, usize> =
         FxHashMap::with_capacity_and_hasher(n, Default::default());
     for (index, event) in events.iter().enumerate() {
         slot_of_id.entry(&event.id).or_insert(index);
@@ -86,7 +80,7 @@ fn order_indices(events: &[RawEvent]) -> Vec<usize> {
     }
 
     for slot in 0..n + 2 {
-        children[start[slot]..start[slot + 1]].sort_by(|&a, &b| compare(&events[a], &events[b]));
+        children[start[slot]..start[slot + 1]].sort_by(|&a, &b| compare(events[a], events[b]));
     }
 
     let children_of = |slot: usize| &children[start[slot]..start[slot + 1]];
@@ -117,7 +111,7 @@ fn order_indices(events: &[RawEvent]) -> Vec<usize> {
     let roots: Vec<usize> = children_of(root_slot)
         .iter()
         .copied()
-        .filter(|&index| is_genesis(&events[index]))
+        .filter(|&index| is_genesis(events[index]))
         .collect();
 
     for root in roots {
@@ -127,14 +121,14 @@ fn order_indices(events: &[RawEvent]) -> Vec<usize> {
     let mut orphan_roots: Vec<usize> = (0..n)
         .filter(|&index| !placed[canonical[index]] && parent_slot[index] >= root_slot)
         .collect();
-    orphan_roots.sort_by(|&a, &b| compare(&events[a], &events[b]));
+    orphan_roots.sort_by(|&a, &b| compare(events[a], events[b]));
 
     for root in orphan_roots {
         visit(root, &mut order, &mut placed);
     }
 
     let mut remaining: Vec<usize> = (0..n).filter(|&index| !placed[canonical[index]]).collect();
-    remaining.sort_by(|&a, &b| compare(&events[a], &events[b]));
+    remaining.sort_by(|&a, &b| compare(events[a], events[b]));
 
     for index in remaining {
         visit(index, &mut order, &mut placed);
@@ -149,6 +143,11 @@ mod tests {
     use crate::model::raw_json;
     use serde_json::Number;
 
+    // The tests build owned events; the order borrows them.
+    fn sorted(events: Vec<RawEvent>) -> Vec<RawEvent> {
+        super::sorted(events.iter().collect()).into_iter().cloned().collect()
+    }
+
     fn event(id: &str, after: Option<&str>, action: &str) -> RawEvent {
         RawEvent {
             v: Number::from(1),
@@ -157,6 +156,7 @@ mod tests {
             rest: vec![(action.into(), raw_json("{}"))],
             user_id: "user".into(),
             user_name: "User".into(),
+            ..Default::default()
         }
     }
 

@@ -9,10 +9,10 @@
 use serde_json::value::RawValue;
 use serde_json::Number;
 
-use crate::model::{RawEvent, Unreadable, CORRUPT_LINE};
+use crate::model::{Origin, RawEvent, Unreadable, CORRUPT_LINE};
 use crate::pairs::{is_non_empty_string, js_type_of, Pairs};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Actor {
     pub user_id: String,
     pub user_name: String,
@@ -227,6 +227,7 @@ fn parse_line(line: &str, actor: &Actor) -> Result<RawEvent, LineError> {
         rest,
         user_id: actor.user_id.clone(),
         user_name: actor.user_name.clone(),
+        ..Default::default()
     })
 }
 
@@ -242,14 +243,38 @@ pub fn parse_file(
     let content = String::from_utf8_lossy(bytes);
     let mut events = Vec::new();
 
-    for (index, line) in content.split('\n').enumerate() {
+    parse_lines(file_name, &actor, &content, 0, None, &mut events, unreadable);
+
+    Ok(events)
+}
+
+/// The lines of `text`, numbered from `lines_before + 1` as the file counts
+/// them, appended to `events` and `unreadable`. Answers how many newlines
+/// `text` held, which is how many complete lines a caller may consider kept.
+pub fn parse_lines(
+    file_name: &str,
+    actor: &Actor,
+    text: &str,
+    lines_before: usize,
+    origin: Option<(u32, u32)>,
+    events: &mut Vec<RawEvent>,
+    unreadable: &mut Vec<Unreadable>,
+) -> usize {
+    for (index, line) in text.split('\n').enumerate() {
         let trimmed = line.trim_matches(is_js_space);
         if trimmed.is_empty() {
             continue;
         }
 
-        match parse_line(trimmed, &actor) {
-            Ok(event) => events.push(event),
+        match parse_line(trimmed, actor) {
+            Ok(mut event) => {
+                event.origin = origin.map(|(file_id, generation)| Origin {
+                    file_id,
+                    generation,
+                    index: events.len(),
+                });
+                events.push(event);
+            }
             Err(error) => {
                 let reason = match error {
                     LineError::InvalidJson => "invalid JSON".to_string(),
@@ -259,14 +284,14 @@ pub fn parse_file(
                 unreadable.push(Unreadable {
                     event_id: None,
                     reason: CORRUPT_LINE,
-                    detail: format!("{file_name}:{} ({reason})", index + 1),
+                    detail: format!("{file_name}:{} ({reason})", lines_before + index + 1),
                     target_node_id: None,
                 });
             }
         }
     }
 
-    Ok(events)
+    text.bytes().filter(|&b| b == b'\n').count()
 }
 
 #[cfg(test)]

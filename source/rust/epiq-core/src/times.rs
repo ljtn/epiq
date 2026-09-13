@@ -80,7 +80,7 @@ pub fn effective_times(times: &[Option<f64>], now: f64) -> Vec<Option<f64>> {
 }
 
 /// The effective time of every event of a causally ordered set.
-pub fn effective_event_times(events: &[RawEvent], now: f64) -> Vec<Option<f64>> {
+pub fn effective_event_times(events: &[&RawEvent], now: f64) -> Vec<Option<f64>> {
     let raw: Vec<Option<f64>> = events.iter().map(|e| decode_time(&e.id)).collect();
 
     effective_times(&raw, now)
@@ -88,7 +88,7 @@ pub fn effective_event_times(events: &[RawEvent], now: f64) -> Vec<Option<f64>> 
 
 /// A cut at `target`: applied where the effective time is known and earlier,
 /// and the parent is applied too; unapplied otherwise, descendants included.
-pub fn split_at(events: Vec<RawEvent>, target: f64, now: f64) -> (Vec<RawEvent>, Vec<RawEvent>) {
+pub fn split_at<'a>(events: Vec<&'a RawEvent>, target: f64, now: f64) -> (Vec<&'a RawEvent>, Vec<&'a RawEvent>) {
     let times = effective_event_times(&events, now);
     let mut unapplied_ids: HashSet<String> = HashSet::new();
     let mut applied = Vec::new();
@@ -113,7 +113,7 @@ pub fn split_at(events: Vec<RawEvent>, target: f64, now: f64) -> (Vec<RawEvent>,
 }
 
 /// The tail of the causal order, which the next write points at.
-pub fn edge(events: &[RawEvent]) -> Option<&str> {
+pub fn edge<'a>(events: &[&'a RawEvent]) -> Option<&'a str> {
     events.last().map(|e| e.id.as_str())
 }
 
@@ -122,6 +122,19 @@ mod tests {
     use super::*;
     use crate::model::raw_json;
     use serde_json::Number;
+
+    // The tests build owned events; the cut borrows them.
+    fn split_at(events: Vec<RawEvent>, target: f64, now: f64) -> (Vec<RawEvent>, Vec<RawEvent>) {
+        let (applied, unapplied) = super::split_at(events.iter().collect(), target, now);
+        (
+            applied.into_iter().cloned().collect(),
+            unapplied.into_iter().cloned().collect(),
+        )
+    }
+
+    fn edge(events: &[RawEvent]) -> Option<&str> {
+        super::edge(&events.iter().collect::<Vec<_>>())
+    }
 
     const NOW: f64 = 1_700_000_000_000.0;
     const DAY: f64 = 24.0 * 60.0 * 60.0 * 1000.0;
@@ -134,6 +147,7 @@ mod tests {
             rest: vec![("x".into(), raw_json("{}"))],
             user_id: "u".into(),
             user_name: "U".into(),
+            ..Default::default()
         }
     }
 

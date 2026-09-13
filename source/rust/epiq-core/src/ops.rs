@@ -6,6 +6,7 @@ use crate::frame::{self, NamedBytes};
 use crate::model::{RawEvent, Unreadable};
 use crate::order;
 use crate::parse::parse_file;
+use crate::store;
 use crate::times;
 
 /// Every answer is a JSON document. A failure is `{"error": "<message>"}`, so
@@ -62,14 +63,20 @@ fn parse_files(input: &[u8]) -> Result<Vec<u8>, String> {
     to_json(&parse_all(&frame::decode(input)?)?)
 }
 
+#[derive(Serialize)]
+struct Ordered<'a> {
+    events: Vec<&'a RawEvent>,
+    unreadable: &'a [Unreadable],
+}
+
 /// Framed files in, their events out in causal order: what
 /// `loadAllPersistedEvents` yields, before decoding.
 fn load_files(input: &[u8]) -> Result<Vec<u8>, String> {
     let parsed = parse_all(&frame::decode(input)?)?;
 
-    to_json(&Parsed {
-        events: order::sorted(parsed.events),
-        unreadable: parsed.unreadable,
+    to_json(&Ordered {
+        events: order::sorted(parsed.events.iter().collect()),
+        unreadable: &parsed.unreadable,
     })
 }
 
@@ -79,6 +86,9 @@ const PARAMS: &str = "@params";
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct LoadParams {
+    /// The events directory, which is what the resident store is keyed by.
+    #[serde(default)]
+    root: String,
     /// The wall clock, for the poisoned-id ceiling; never read in here.
     now: f64,
     /// A cut: applied events before it, unapplied at or after it.
@@ -98,6 +108,28 @@ struct LoadParams {
     /// times or the actors alone, which is a fraction of the bytes.
     #[serde(default)]
     omit_events: bool,
+    /// The host holds a cache of the decoded events this store has handed it
+    /// for this root: answer with the order as ids and only the events it
+    /// has not seen. False empties the store's picture of that cache.
+    #[serde(default)]
+    known: bool,
+}
+
+/// The answer to a decoded load for a host that caches: ids in order, and
+/// the events it does not have yet.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Handed<'a> {
+    order: Vec<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unapplied_order: Option<Vec<&'a str>>,
+    fresh: Vec<DecodedEvent<'a>>,
+    unreadable: Vec<Unreadable>,
+    edge: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    times: Option<Vec<(String, Option<f64>)>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actors: Option<Vec<(String, String)>>,
 }
 
 #[derive(Serialize)]
@@ -132,8 +164,18 @@ fn split_params(items: Vec<NamedBytes<'_>>) -> Result<(LoadParams, Vec<NamedByte
 /// cut.
 fn load(input: &[u8]) -> Result<Vec<u8>, String> {
     let (params, files) = split_params(frame::decode(input)?)?;
-    let parsed = parse_all(&files)?;
-    let sorted = order::sorted(parsed.events);
+
+    store::with_snapshot(&params.root, &files, |snapshot, cache| {
+        answer(&params, snapshot, cache)
+    })?
+}
+
+fn answer(
+    params: &LoadParams,
+    snapshot: store::Snapshot<'_>,
+    cache: &mut store::HostCache,
+) -> Result<Vec<u8>, String> {
+    let sorted = order::sorted(snapshot.events);
     let edge = times::edge(&sorted).map(str::to_string);
 
     let times = params.times.then(|| {
@@ -161,18 +203,61 @@ fn load(input: &[u8]) -> Result<Vec<u8>, String> {
         None => (sorted, None),
     };
 
-    let mut unreadable = parsed.unreadable;
+    let mut unreadable = snapshot.unreadable;
 
     if !params.decode {
         return to_json(&Loaded { events, unapplied_events, unreadable, edge, times, actors });
     }
 
-    // Applied first, then unapplied, so the quarantine list reads in causal
-    // order across the cut.
-    let events: Vec<DecodedEvent> = decode::decode(events, &mut unreadable);
-    let unapplied_events = unapplied_events.map(|events| decode::decode(events, &mut unreadable));
+    if !params.known {
+        cache.clear();
+    }
 
-    to_json(&Loaded { events, unapplied_events, unreadable, edge, times, actors })
+    // Applied first, then unapplied, so the quarantine list reads in causal
+    // order across the cut. The host cache is fed either way: a full answer
+    // is what starts it, and only what it lacks travels after that.
+    let mut applied = Vec::new();
+    let order = hand(&events, cache, &mut applied, &mut unreadable);
+
+    let mut unapplied = Vec::new();
+    let unapplied_order = unapplied_events
+        .as_deref()
+        .map(|events| hand(events, cache, &mut unapplied, &mut unreadable));
+
+    if params.known {
+        applied.extend(unapplied);
+
+        return to_json(&Handed { order, unapplied_order, fresh: applied, unreadable, edge, times, actors });
+    }
+
+    let unapplied_events = unapplied_order.map(|_| unapplied);
+
+    to_json(&Loaded { events: applied, unapplied_events, unreadable, edge, times, actors })
+}
+
+/// Decodes `events` in order for a caching host: their ids, with every event
+/// the host's cache lacks pushed onto `fresh`.
+fn hand<'a>(
+    events: &[&'a RawEvent],
+    cache: &mut store::HostCache,
+    fresh: &mut Vec<DecodedEvent<'a>>,
+    unreadable: &mut Vec<Unreadable>,
+) -> Vec<&'a str> {
+    let mut order = Vec::with_capacity(events.len());
+
+    for &event in events {
+        let Some(decoded) = decode::decode_one(event, unreadable) else {
+            continue;
+        };
+
+        if cache.needs(decoded.id, event.origin) {
+            fresh.push(decoded.clone());
+        }
+
+        order.push(decoded.id);
+    }
+
+    order
 }
 
 #[cfg(test)]
@@ -318,7 +403,7 @@ mod bench {
         eprintln!("parse      {:?}  ({} events)", t.elapsed(), parsed.events.len());
 
         let t = Instant::now();
-        let sorted = order::sorted(parsed.events);
+        let sorted = order::sorted(parsed.events.iter().collect());
         eprintln!("order      {:?}", t.elapsed());
 
         let t = Instant::now();
@@ -327,7 +412,7 @@ mod bench {
 
         let t = Instant::now();
         let mut unreadable = parsed.unreadable;
-        let decoded = decode::decode(sorted, &mut unreadable);
+        let decoded = decode::decode(&sorted, &mut unreadable);
         eprintln!("decode     {:?}", t.elapsed());
 
         let t = Instant::now();

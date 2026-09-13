@@ -15,17 +15,18 @@ use serde_json::value::RawValue;
 use crate::model::{RawEvent, Unreadable, INVALID_PAYLOAD, UNKNOWN_ACTION, UNSUPPORTED_SCHEMA_VERSION};
 use crate::pairs::{is_non_empty_string, is_number, is_object, is_string, js_type_of, Pairs};
 
-/// An `AppEvent`: what the materializer consumes.
+/// An `AppEvent`: what the materializer consumes. Borrows from the stored
+/// event, so decoding a resident log copies nothing.
 #[derive(Debug, Clone)]
-pub struct DecodedEvent {
-    pub id: String,
-    pub action: String,
-    pub payload: Box<RawValue>,
-    pub user_id: String,
-    pub user_name: String,
+pub struct DecodedEvent<'a> {
+    pub id: &'a str,
+    pub action: &'a str,
+    pub payload: &'a RawValue,
+    pub user_id: &'a str,
+    pub user_name: &'a str,
 }
 
-impl Serialize for DecodedEvent {
+impl Serialize for DecodedEvent<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(5))?;
         map.serialize_entry("id", &self.id)?;
@@ -196,60 +197,72 @@ fn is_supported_version(v: &serde_json::Number) -> bool {
 
 /// Every event this build can apply, in the order given; the rest quarantined
 /// onto `unreadable` with the reason a client needs to scope a lock.
-pub fn decode(events: Vec<RawEvent>, unreadable: &mut Vec<Unreadable>) -> Vec<DecodedEvent> {
-    let mut decoded = Vec::with_capacity(events.len());
+#[cfg(test)]
+pub fn decode<'a>(events: &[&'a RawEvent], unreadable: &mut Vec<Unreadable>) -> Vec<DecodedEvent<'a>> {
+    events
+        .iter()
+        .filter_map(|&event| decode_one(event, unreadable))
+        .collect()
+}
 
-    for event in events {
+/// One event, or None with the reason quarantined onto `unreadable`. The
+/// verdict is a pure function of the event and is kept on it, so a resident
+/// event is judged once however many loads it serves.
+pub fn decode_one<'a>(event: &'a RawEvent, unreadable: &mut Vec<Unreadable>) -> Option<DecodedEvent<'a>> {
+    if let Some(entry) = event.verdict.get_or_init(|| verdict_of(event)) {
+        unreadable.push(entry.clone());
+        return None;
+    }
+
+    let (action, payload) = &event.rest[0];
+
+    Some(DecodedEvent {
+        id: &event.id,
+        action,
+        payload,
+        user_id: &event.user_id,
+        user_name: &event.user_name,
+    })
+}
+
+/// Why this build cannot apply the event, or None when it can.
+fn verdict_of(event: &RawEvent) -> Option<Unreadable> {
+    {
         let quarantine = |reason: &'static str, detail: String| Unreadable {
             event_id: Some(event.id.clone()),
             reason,
             detail,
-            target_node_id: target_node_id(&event),
+            target_node_id: target_node_id(event),
         };
 
         if !is_supported_version(&event.v) {
-            unreadable.push(quarantine(UNSUPPORTED_SCHEMA_VERSION, format!("v{}", event.v)));
-            continue;
+            return Some(quarantine(UNSUPPORTED_SCHEMA_VERSION, format!("v{}", event.v)));
         }
 
         if event.rest.len() != 1 {
-            unreadable.push(quarantine(
+            return Some(quarantine(
                 INVALID_PAYLOAD,
                 format!(
                     "Invalid persisted event: expected exactly 1 action key, got {}",
                     event.rest.len()
                 ),
             ));
-            continue;
         }
 
         let (action, payload) = &event.rest[0];
 
         let Some(fields) = required_fields(action) else {
-            unreadable.push(quarantine(UNKNOWN_ACTION, action.clone()));
-            continue;
+            return Some(quarantine(UNKNOWN_ACTION, action.clone()));
         };
 
         let issues = payload_issues(fields, payload);
 
         if !issues.is_empty() {
-            unreadable.push(quarantine(INVALID_PAYLOAD, format!("{action}: {}", issues.join(", "))));
-            continue;
+            return Some(quarantine(INVALID_PAYLOAD, format!("{action}: {}", issues.join(", "))));
         }
 
-        let mut event = event;
-        let (action, payload) = event.rest.pop().expect("the one pair");
-
-        decoded.push(DecodedEvent {
-            id: event.id,
-            action,
-            payload,
-            user_id: event.user_id,
-            user_name: event.user_name,
-        });
+        None
     }
-
-    decoded
 }
 
 #[cfg(test)]
@@ -266,12 +279,19 @@ mod tests {
             rest: rest.iter().map(|(k, t)| ((*k).to_string(), raw_json(t))).collect(),
             user_id: "u".into(),
             user_name: "U".into(),
+            ..Default::default()
         }
     }
 
-    fn run(events: Vec<RawEvent>) -> (Vec<DecodedEvent>, Vec<Unreadable>) {
+    // Action and JSON of each decoded event, owned, since the decoded ones
+    // borrow the input.
+    fn run(events: Vec<RawEvent>) -> (Vec<(String, String)>, Vec<Unreadable>) {
         let mut unreadable = Vec::new();
-        let decoded = decode(events, &mut unreadable);
+        let refs: Vec<&RawEvent> = events.iter().collect();
+        let decoded = decode(&refs, &mut unreadable)
+            .iter()
+            .map(|d| (d.action.to_string(), serde_json::to_string(d).unwrap()))
+            .collect();
         (decoded, unreadable)
     }
 
@@ -285,7 +305,7 @@ mod tests {
 
         assert!(unreadable.is_empty());
         assert_eq!(
-            serde_json::to_string(&decoded[0]).unwrap(),
+            decoded[0].1,
             r#"{"id":"01B","action":"edit.title","payload":{"id":"n","name":"T","extra":1},"userId":"u","userName":"U"}"#
         );
     }
@@ -357,7 +377,7 @@ mod tests {
         for (action, payload) in cases {
             let (decoded, unreadable) = run(vec![raw(1, "01A", &[(action, payload)])]);
             assert!(unreadable.is_empty(), "{action}: {:?}", unreadable);
-            assert_eq!(decoded[0].action, *action);
+            assert_eq!(decoded[0].0, *action);
         }
     }
 

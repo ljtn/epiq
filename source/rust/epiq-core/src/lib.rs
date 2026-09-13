@@ -12,6 +12,7 @@ mod model;
 mod ops;
 mod order;
 mod pairs;
+mod store;
 mod parse;
 mod times;
 
