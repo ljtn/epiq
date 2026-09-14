@@ -32,6 +32,11 @@ type CreateBoardInput = ToolInput & {
 	title: string;
 };
 
+type EditBoardTitleInput = ToolInput & {
+	boardId: string;
+	title: string;
+};
+
 type ListSwimlanesInput = ToolInput & {
 	boardId?: string;
 };
@@ -135,6 +140,65 @@ export const createBoard = async (input: CreateBoardInput) => {
 	return succeeded('Created board', {
 		id: boardId,
 		ref: nodeRef(boardId),
+		title,
+	});
+};
+
+export const editBoardTitle = async (input: EditBoardTitleInput) => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const board = stateResult.value.nodes[input.boardId];
+
+	if (!board) return failed('Board not found');
+	if (!isBoardNode(board)) return failed('Edit target must be a board');
+	if (board.readonly) return failed('Cannot edit readonly board');
+
+	// A board is readonly only when it is the Closed one, so the scrub guard
+	// is this function's, as it is for creating one.
+	if (getTimeTravelStatus().mode !== 'live') {
+		return failed('Cannot rename a board while time travelling');
+	}
+
+	const title = sanitizeInlineText(input.title);
+	if (!title.trim()) return failed('Board title cannot be empty');
+
+	const overLongTitle = tooLong('Board title', title, MAX_TITLE_LENGTH);
+	if (overLongTitle) return failed(overLongTitle);
+
+	if (board.title === title) {
+		return succeeded('No changes made', {
+			id: input.boardId,
+			ref: nodeRef(input.boardId),
+			title,
+		});
+	}
+
+	const event = {
+		id: ulid(),
+		...actorResult.value,
+		action: 'edit.title',
+		payload: {
+			id: input.boardId,
+			name: title,
+		},
+	} satisfies AppEvent<'edit.title'>;
+
+	const results = materializeAndPersistAll(
+		[event],
+		bootResult.value.stateBranchRoot,
+	);
+	if (isFail(results)) return failed(results.message);
+
+	return succeeded('Edited board title', {
+		id: input.boardId,
+		ref: nodeRef(input.boardId),
 		title,
 	});
 };

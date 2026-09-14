@@ -316,3 +316,44 @@ test('a new board is created from the palette, and the switcher moves to it', as
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The other half of managing boards from the browser: a board made here can
+// be named again here, and the switcher is where the name shows.
+test('the board on screen is renamed from the palette', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	// A board of this test's own: renaming Default would reach every other test
+	// on the shared project.
+	const name = `Renamable ${Date.now()}`;
+	const renamed = `${name} renamed`;
+
+	await openPalette(page);
+	await page.keyboard.type('new board');
+	await page.keyboard.press('Enter');
+	await page.getByPlaceholder('board name').fill(name);
+	await page.getByPlaceholder('board name').press('Enter');
+	await expect(page.getByTestId('board-switcher')).toContainText(name);
+
+	await openPalette(page);
+	await page.keyboard.type('rename board');
+	await expect(rows(page).first()).toContainText('Rename board');
+	await page.keyboard.press('Enter');
+
+	// Prefilled with the current title, the way the swimlane rename is.
+	await expect(page.getByPlaceholder('board name')).toHaveValue(name);
+	await page.getByPlaceholder('board name').fill(renamed);
+	await page.getByPlaceholder('board name').press('Enter');
+
+	await expect(page.getByTestId('board-switcher')).toContainText(renamed);
+
+	// Not just the optimistic title: the server's state carries it too.
+	await page.reload();
+	await expect(page.getByTestId('board-switcher')).toContainText(renamed);
+
+	expect(pageErrors).toEqual([]);
+});

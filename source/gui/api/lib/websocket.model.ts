@@ -6,6 +6,7 @@ export type GuiMessage =
 	| {type: 'issues:list'}
 	| {type: 'issues:create'; payload: {title: string; parentId: string}}
 	| {type: 'board:create'; payload: {title: string}}
+	| {type: 'board:edit:title'; payload: {boardId: string; title: string}}
 	| {type: 'swimlane:create'; payload: {title: string; boardId: string}}
 	| {type: 'swimlane:edit:title'; payload: {swimlaneId: string; title: string}}
 	| {type: 'swimlane:delete'; payload: {swimlaneId: string}}

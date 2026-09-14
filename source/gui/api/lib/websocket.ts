@@ -9,6 +9,7 @@ import {
 	addIssueTag,
 	closeIssue,
 	createBoard,
+	editBoardTitle,
 	createIssue,
 	createSwimlane,
 	deleteSwimlane,
@@ -592,6 +593,21 @@ export const setupWebsocket = (
 						repoRoot,
 						onStateChanged,
 						'board:create:result',
+						result,
+					);
+				}
+
+				if (type === 'board:edit:title') {
+					const result = await editBoardTitle({
+						...message.payload,
+						repoRoot,
+					});
+
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						'board:edit:title:result',
 						result,
 					);
 				}

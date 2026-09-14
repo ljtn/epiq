@@ -18,6 +18,17 @@ const needsWrite = (context: CommandContext): string | null => {
 const needsWritableTicket = (context: CommandContext): string | null =>
 	needsWrite(context) ?? needsTicket(context);
 
+// The Closed board is the one board that is readonly, and the only one whose
+// title is not the reader's to change.
+const needsWritableBoard = (context: CommandContext): string | null => {
+	const held = needsWrite(context);
+	if (held) return held;
+	if (!context.board) return 'No board on screen';
+	if (context.board.readonly) return 'This board is read-only';
+
+	return null;
+};
+
 /**
  * Every command the GUI offers, in the order an empty palette lists them.
  *
@@ -87,6 +98,16 @@ export const buildCommandRegistry = (): GuiCommand[] => [
 		keywords: ['create', 'add', 'project', 'another'],
 		unavailable: needsWrite,
 		run: context => context.handlers.createBoard(),
+	},
+	{
+		// The TUI renames a board as `:rename` on it from the workspace; the GUI
+		// only ever has one on screen, so the command needs no argument.
+		id: 'gui:board:rename',
+		title: 'Rename board',
+		group: 'Board',
+		keywords: ['title', 'edit', 'name'],
+		unavailable: needsWritableBoard,
+		run: context => context.handlers.renameBoard(),
 	},
 	{
 		id: CmdKeywords.COMMENT,

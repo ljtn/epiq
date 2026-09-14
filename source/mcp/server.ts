@@ -32,6 +32,7 @@ import {
 	deleteSwimlane,
 	editIssueDescription,
 	editIssueTitle,
+	editBoardTitle,
 	editSwimlaneTitle,
 	getEpiqState,
 	getIssue,
@@ -197,6 +198,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(editSwimlaneTitle),
+	);
+
+	server.registerTool(
+		'epiq_board_title_edit',
+		{
+			description: 'Edit an Epiq board title',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				boardId: z.string().min(1),
+				title: z.string().min(1).max(MAX_TITLE_LENGTH),
+			}),
+		},
+		exclusiveTool(editBoardTitle),
 	);
 
 	server.registerTool(
