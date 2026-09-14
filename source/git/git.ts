@@ -2,6 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {hasPendingLines} from '../lib/event/pending-log.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
+import {
+	STATE_IDENTITY_PATH,
+	verifyProjectIdentity,
+} from '../lib/project-setup/project-identity.js';
 import {logger} from '../logger.js';
 import {git} from './git-commands.js';
 import {ORIGIN, getStateBranch} from './git-constants.js';
@@ -15,6 +19,7 @@ import {
 	getRelativeEventIgnorePath,
 	getRelativeEventFilePath,
 	getRelativeMediaDirPath,
+	getWorktreesRoot,
 	removePath,
 } from './git-storage.js';
 import {
@@ -339,7 +344,55 @@ const createStateBranchWorktree = async ({
 	return succeeded('Created state branch worktree', true);
 };
 
+/**
+ * The state branch checked out where this project expects it, and the branch
+ * and the checkout agreeing on which project that is. A branch from before
+ * branches carried an identity takes this checkout's, which the next sync
+ * publishes; a mismatch is refused with the way out.
+ */
 export const ensureStateBranchWorktree = async ({
+	repoRoot,
+	stateBranchRoot,
+	stateBranchName,
+}: {
+	repoRoot: string;
+	stateBranchRoot: string;
+	stateBranchName: string;
+}): Promise<Result<boolean>> => {
+	const placed = await placeStateBranchWorktree({
+		repoRoot,
+		stateBranchRoot,
+		stateBranchName,
+	});
+	if (isFail(placed)) return placed;
+
+	const identity = verifyProjectIdentity({
+		repoRoot,
+		stateBranchRoot,
+		stateBranch: stateBranchName,
+	});
+	if (isFail(identity)) return failed(identity.message);
+
+	if (identity.value === 'stamped') {
+		logger.info('Stamped the state branch with this project’s identity');
+	}
+
+	return placed;
+};
+
+// Two worktree roots under the same global directory differ only in the
+// project id in their last segment: two ids for one branch, which is a
+// checkout that minted a second identity for an existing board (JQS9XDR),
+// not a process with another EPIQ_GLOBAL_DIR.
+const isProjectIdDrift = (existing: string, expected: string): boolean => {
+	const worktrees = normalizeExistingPath(getWorktreesRoot());
+
+	return (
+		path.dirname(existing) === worktrees && path.dirname(expected) === worktrees
+	);
+};
+
+const placeStateBranchWorktree = async ({
 	repoRoot,
 	stateBranchRoot,
 	stateBranchName,
@@ -365,6 +418,25 @@ export const ensureStateBranchWorktree = async ({
 		return succeeded(
 			'State branch already checked out in expected worktree',
 			false,
+		);
+	}
+
+	if (
+		existing &&
+		existing !== expected &&
+		isProjectIdDrift(existing, expected)
+	) {
+		return failed(
+			[
+				`The state branch ${stateBranchName} is checked out under project ${path.basename(
+					existing,
+				)}, but this checkout names project ${path.basename(expected)}.`,
+				'',
+				'Two ids for one branch means a checkout minted a second identity for',
+				'a board that already existed. Nothing on the board is lost by it, but',
+				`every checkout has to agree on one: compare ${STATE_IDENTITY_PATH} here`,
+				`with \`git show ${stateBranchName}:${STATE_IDENTITY_PATH}\`, and keep the branch's.`,
+			].join('\n'),
 		);
 	}
 
@@ -641,12 +713,15 @@ export const stageStateBranchEventConfig = async ({
 }: {
 	stateBranchRoot: string;
 }): Promise<Result<string[]>> => {
-	// Both carry rules a clone needs before it can behave correctly: the merge
-	// attribute, without which concurrent logs conflict, and the ignore, without
-	// which a pending log can be staged and so stop being protected.
+	// All carry what a clone needs before it can behave correctly: the merge
+	// attribute, without which concurrent logs conflict; the ignore, without
+	// which a pending log can be staged and so stop being protected; and the
+	// project's identity, without which a clone cannot tell which project the
+	// branch is.
 	const relativePaths = [
 		getRelativeEventAttributesPath(),
 		getRelativeEventIgnorePath(),
+		STATE_IDENTITY_PATH,
 	].filter(relativePath =>
 		fs.existsSync(path.join(stateBranchRoot, relativePath)),
 	);

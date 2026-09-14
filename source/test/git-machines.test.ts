@@ -10,18 +10,19 @@ import {
 	getEventsFile,
 	makeTempDir,
 	setupRepo,
+	onMachine,
 	useTempHome,
 	writeFile,
-	writeProjectFile,
 } from './helpers/git-repo.js';
 
 useTempHome();
 
 describe('sync across machines', () => {
+	// A clone carries the project file the first machine committed, so both
+	// name one project; each runs under a global dir of its own.
 	const setupActor = async (remoteRoot: string): Promise<string> => {
 		const repoRoot = makeTempDir();
 		await cloneRepo({remoteRoot, cloneRoot: repoRoot});
-		writeProjectFile(repoRoot);
 		return repoRoot;
 	};
 
@@ -34,7 +35,9 @@ describe('sync across machines', () => {
 	};
 
 	const syncActor = async (repoRoot: string, ownEventFileName: string) =>
-		syncEpiqWithRemote({cwd: repoRoot, ownEventFileName});
+		onMachine(repoRoot, () =>
+			syncEpiqWithRemote({cwd: repoRoot, ownEventFileName}),
+		);
 
 	it('carries one machine event log to another', async () => {
 		const {remoteRoot, repoRoot: alice} = await setupRepo();
