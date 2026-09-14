@@ -7,7 +7,7 @@ import {
 	succeeded,
 } from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {getState} from '../state/state.js';
+import {getState, withDeferredDerive} from '../state/state.js';
 import {materialize} from './event-materialize.js';
 import {EdgeCursor, mintEventId, persist} from './event-persist.js';
 import {
@@ -80,34 +80,51 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 		);
 	}
 
-	// One cursor for the whole batch: the loop below is synchronous, so
-	// nothing in this process appends between two of its persists.
-	const edge: EdgeCursor = {};
+	// One derivation for the whole write. Each event, and each of the virtual
+	// fields it refreshes, otherwise copies the node map and regroups the board
+	// on its own — seven derivations to file one ticket, each over every node
+	// the board has. Inside the batch the writes land in place and the flush
+	// rebuilds only the parents they touched.
+	const batched = withDeferredDerive(
+		(): Result<NonEmptyArray<MaterializedValue<T[number]['action']>>> => {
+			// One cursor for the whole batch: the loop below is synchronous, so
+			// nothing in this process appends between two of its persists.
+			const edge: EdgeCursor = {};
 
-	const contributorResult = ensureContributorCurrent(events[0], rootDir, edge);
+			const contributorResult = ensureContributorCurrent(
+				events[0]!,
+				rootDir,
+				edge,
+			);
 
-	if (isFail(contributorResult)) {
-		return contributorResult;
-	}
+			if (isFail(contributorResult)) {
+				return failed(contributorResult.message);
+			}
 
-	const results = events.map(event =>
-		materializeAndPersist(event, rootDir, edge),
+			const results = events.map(event =>
+				materializeAndPersist(event, rootDir, edge),
+			);
+
+			const failures = results.filter(isFail);
+			if (failures.length > 0) {
+				return failed(
+					'Materialize and persist failed: ' +
+						failures.map(result => result.message).join(', '),
+				);
+			}
+
+			return succeeded(
+				'Materialization succeeded',
+				results.map(result => result.value) as NonEmptyArray<
+					MaterializedValue<T[number]['action']>
+				>,
+			);
+		},
 	);
 
-	const failures = results.filter(isFail);
-	if (failures.length > 0) {
-		return failed(
-			'Materialize and persist failed: ' +
-				failures.map(result => result.message).join(', '),
-		);
-	}
+	if (isFail(batched)) return failed(batched.message);
 
-	return succeeded(
-		'Materialization succeeded',
-		results.map(result => result.value) as NonEmptyArray<
-			MaterializedValue<T[number]['action']>
-		>,
-	);
+	return batched.value ?? failed('Materialize and persist produced nothing');
 }
 
 // Also where a rename reaches the board. The log file name is a sanitized

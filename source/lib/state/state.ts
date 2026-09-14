@@ -10,7 +10,10 @@ import {type AnyContext, type Workspace} from '../model/context.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
-import {groupChildrenByParent} from '../repository/children.js';
+import {
+	groupChildrenByParent,
+	groupChildrenOfSome,
+} from '../repository/children.js';
 import {buildBreadCrumb} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
 
@@ -173,6 +176,9 @@ export function updateState(cb: (old: AppState) => BaseState): Result<string> {
 	const nextBase = cb(prev);
 
 	if (deferring) {
+		// A batch that swapped the whole map wrote nodes this did not see.
+		if (nextBase.nodes !== prev.nodes) dirtyParents = null;
+
 		deferredBase = nextBase;
 		// Readers inside the batch still see every base field — nodes, tags,
 		// contributors — just not the derived ones, which nothing writing events
@@ -197,6 +203,7 @@ export function withDeferredDerive<T>(fn: () => T): Result<T> {
 
 	deferring = true;
 	deferredBase = null;
+	dirtyParents = new Set();
 
 	// Applies whatever the batch wrote. Returns null when it wrote nothing —
 	// which is also the path a boot takes before its first event has built the
@@ -284,6 +291,13 @@ export function setStateEntry<K extends StateMapKey>(
 	const prev = getState();
 	const collection = (prev[key] ?? {}) as Record<string, unknown>;
 
+	if (key === 'nodes') {
+		const before = collection[id] as NavNode<AnyContext> | undefined;
+		const after = value as NavNode<AnyContext>;
+		if (before?.parentNodeId) dirtyParents?.add(before.parentNodeId);
+		if (after.parentNodeId) dirtyParents?.add(after.parentNodeId);
+	}
+
 	collection[id] = value;
 
 	// The batch still has to carry what it wrote, or the flush finds nothing to
@@ -307,7 +321,52 @@ export const isChildSelected = (
 export const useAppState = () =>
 	useSyncExternalStore(subscribe, getState, getState);
 
-const buildChildIndex = groupChildrenByParent;
+// Which parents a batch's in-place node writes touched, or null when a write
+// went past this — a swapped map, or a filter that decides membership by more
+// than the node — and only a full rebuild is right.
+let dirtyParents: Set<string> | null = null;
+
+// The node map the current index was grouped from. A batch writes that map in
+// place, so it is the same object at the flush; anything else is a new one.
+let indexedNodes: Record<string, NavNode<AnyContext>> | null = null;
+
+// The whole index for a whole board; one parent's list for each parent a
+// batch touched. Regrouping every node per write is what made a write on a
+// large board cost most of a second — the TUI holds six virtual fields per
+// ticket — and a write touches a ticket, its lane, and at most the lane it
+// left.
+const buildChildIndex = (
+	nodes: Record<string, NavNode<AnyContext>>,
+	filters: AppState['filters'],
+): Record<string, NavNode<AnyContext>[]> => {
+	const previous = _appState?.renderedChildrenIndex;
+	const incremental =
+		previous !== undefined &&
+		dirtyParents !== null &&
+		nodes === indexedNodes &&
+		filters.length === 0 &&
+		_appState?.filters.length === 0;
+
+	let index: Record<string, NavNode<AnyContext>[]>;
+
+	if (incremental) {
+		index = {...previous};
+		const touched = groupChildrenOfSome(nodes, dirtyParents!);
+
+		for (const parentId of dirtyParents!) {
+			const children = touched[parentId];
+			if (children) index[parentId] = children;
+			else delete index[parentId];
+		}
+	} else {
+		index = groupChildrenByParent(nodes, filters);
+	}
+
+	indexedNodes = nodes;
+	dirtyParents = new Set();
+
+	return index;
+};
 
 export const getRenderedChildren = (id: string): NavNode<AnyContext>[] => {
 	return getState()?.renderedChildrenIndex[id] ?? [];
