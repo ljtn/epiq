@@ -17,11 +17,13 @@ import type {Filter} from '../model/app-state.model.js';
 import type {NavNode} from '../model/navigation-node.model.js';
 import {ticketMatchesFilter} from '../utils/filter.js';
 
-// Lexicographic, which is what a rank is built to be compared as.
+// Lexicographic by code unit, which is what a rank is built to be compared
+// as. Not `localeCompare`: collation is locale-dependent and an order of
+// magnitude slower, and a rank is lowercase hex, where the two agree.
 export const byRank = (
 	left: NavNode<AnyContext>,
 	right: NavNode<AnyContext>,
-): number => left.rank.localeCompare(right.rank);
+): number => (left.rank < right.rank ? -1 : left.rank > right.rank ? 1 : 0);
 
 // A deleted node is not a child: it keeps its id and its parent forever —
 // tombstoned, never removed — so every reader has to skip it rather than
@@ -60,6 +62,33 @@ export const groupChildrenByParent = (
 		}
 
 		if (!node.parentNodeId || node.isDeleted) continue;
+
+		const siblings = index[node.parentNodeId];
+
+		if (siblings) siblings.push(node);
+		else index[node.parentNodeId] = [node];
+	}
+
+	for (const parentId of Object.keys(index)) {
+		index[parentId]!.sort(byRank);
+	}
+
+	return index;
+};
+
+// The lists of these parents alone, in one pass over the nodes: what a
+// write's derivation needs, since a write touches a ticket, its lane and at
+// most the lane it left. One pass whatever their number, so a batch that
+// touched every parent costs what grouping the whole board costs, not more.
+export const groupChildrenOfSome = (
+	nodes: Record<string, NavNode<AnyContext>>,
+	parentIds: ReadonlySet<string>,
+): Record<string, NavNode<AnyContext>[]> => {
+	const index: Record<string, NavNode<AnyContext>[]> = {};
+
+	for (const node of Object.values(nodes)) {
+		if (!node.parentNodeId || node.isDeleted) continue;
+		if (!parentIds.has(node.parentNodeId)) continue;
 
 		const siblings = index[node.parentNodeId];
 
