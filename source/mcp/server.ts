@@ -24,6 +24,7 @@ import {
 	addIssueTag,
 	assumeActor,
 	closeIssue,
+	createBoard,
 	createIssue,
 	createSwimlane,
 	deleteIssueComment,
@@ -145,6 +146,19 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(listBoards),
+	);
+
+	server.registerTool(
+		'epiq_board_create',
+		{
+			description:
+				'Create an Epiq board. It comes out without swimlanes; add them with epiq_swimlane_create. Refused while time travelling.',
+			inputSchema: z.object({
+				repoRoot: z.string().optional(),
+				title: z.string().min(1).max(MAX_TITLE_LENGTH),
+			}),
+		},
+		exclusiveTool(createBoard),
 	);
 
 	server.registerTool(
