@@ -793,6 +793,99 @@ describe('mcp tools', () => {
 		}
 	});
 
+	it('edits a board title', async () => {
+		const result = await tools.editBoardTitle({
+			repoRoot: '/repo',
+			boardId: 'board-2',
+			title: 'Roadmap',
+		});
+
+		expect(isFail(result)).toBe(false);
+		if (!isFail(result)) {
+			expect(result.value).toEqual({
+				id: 'board-2',
+				ref: nodeRef('board-2'),
+				title: 'Roadmap',
+			});
+		}
+
+		expect(persistModule.materializeAndPersistAll).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					action: 'edit.title',
+					payload: {id: 'board-2', name: 'Roadmap'},
+				}),
+			],
+			'/state',
+		);
+	});
+
+	it('writes nothing when the board already has that title', async () => {
+		const result = await tools.editBoardTitle({
+			repoRoot: '/repo',
+			boardId: 'board-2',
+			title: 'Other board',
+		});
+
+		expect(isFail(result)).toBe(false);
+		expect(result.message).toBe('No changes made');
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
+	it('fails editing a readonly board title', async () => {
+		nodes['board-2']!.readonly = true;
+
+		try {
+			const result = await tools.editBoardTitle({
+				repoRoot: '/repo',
+				boardId: 'board-2',
+				title: 'Renamed',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) {
+				expect(result.message).toBe('Cannot edit readonly board');
+			}
+		} finally {
+			nodes['board-2']!.readonly = false;
+		}
+	});
+
+	it('fails editing a board title when target is not a board', async () => {
+		const result = await tools.editBoardTitle({
+			repoRoot: '/repo',
+			boardId: 'swimlane-1',
+			title: 'Renamed',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe('Edit target must be a board');
+		}
+	});
+
+	it('refuses a board rename while the checkout is in the past', async () => {
+		vi.mocked(timeTravelModule.getTimeTravelStatus).mockReturnValueOnce({
+			mode: 'scrub',
+			asOfTime: 123,
+		});
+
+		const result = await tools.editBoardTitle({
+			repoRoot: '/repo',
+			boardId: 'board-2',
+			title: 'Later',
+		});
+
+		expect(isFail(result)).toBe(true);
+		if (isFail(result)) {
+			expect(result.message).toBe(
+				'Cannot rename a board while time travelling',
+			);
+		}
+
+		expect(persistModule.materializeAndPersistAll).not.toHaveBeenCalled();
+	});
+
 	it('moves a swimlane to another board', async () => {
 		const result = await tools.moveSwimlane({
 			repoRoot: '/repo',

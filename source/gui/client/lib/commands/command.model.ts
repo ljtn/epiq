@@ -45,6 +45,8 @@ export type CommandContext = {
 	// The board is checked out in the past, where the server refuses writes.
 	scrubbing: boolean;
 	issue: GuiIssue | null;
+	// The board on screen, which is the one a board command acts on.
+	board: {id: string; title: string; readonly: boolean} | null;
 	tags: GuiTag[];
 	// Every ticket in every board, for the project-wide search.
 	tickets: SearchableTicket[];
@@ -69,6 +71,7 @@ export type CommandHandlers = {
 	toggleLog: () => void;
 	createSwimlane: () => void;
 	createBoard: () => void;
+	renameBoard: () => void;
 };
 
 export type GuiCommand = {

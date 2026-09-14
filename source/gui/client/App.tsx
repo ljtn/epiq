@@ -95,7 +95,7 @@ import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useIssueMutations} from './lib/use-issue-mutations';
-import {useBoardCreation} from './lib/use-board-creation';
+import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
@@ -1206,11 +1206,15 @@ export const App = () => {
 		confirmDeleteSwimlane,
 	} = useSwimlaneEditing({send, setState, selectedBoard, visibleSwimlanes});
 
-	const {createBoardTitle, setCreateBoardTitle, createBoard} = useBoardCreation(
-		{
-			send,
-		},
-	);
+	const {
+		createBoardTitle,
+		setCreateBoardTitle,
+		createBoard,
+		renameBoard,
+		setRenameBoard,
+		openRenameBoard,
+		submitRenameBoard,
+	} = useBoardEditing({send, setState, selectedBoard});
 
 	// Flattened once per state change rather than per keystroke: the palette
 	// matches over this on every character typed into its second step.
@@ -1241,6 +1245,13 @@ export const App = () => {
 		connected,
 		scrubbing: state?.timeTravel?.mode === 'scrub',
 		issue: selectedIssue,
+		board: selectedBoard
+			? {
+					id: selectedBoard.id,
+					title: selectedBoard.title,
+					readonly: selectedBoard.readonly,
+			  }
+			: null,
 		tags: state?.tags ?? [],
 		tickets: searchableTickets,
 		contributors,
@@ -1253,6 +1264,7 @@ export const App = () => {
 			},
 			createSwimlane: () => setCreateSwimlaneTitle(''),
 			createBoard: () => setCreateBoardTitle(''),
+			renameBoard: openRenameBoard,
 			openIssue: (id: string, boardRef: string) =>
 				openIssueTab(id, 'overview', boardRef),
 			closeIssue,
@@ -1953,6 +1965,21 @@ export const App = () => {
 						onChangeTitle={setCreateBoardTitle}
 						onCreate={createBoard}
 						onClose={() => setCreateBoardTitle(null)}
+					/>
+				)}
+
+				{renameBoard && (
+					<CreateNodeModal
+						eyebrow="Rename board"
+						fieldLabel="title"
+						placeholder="board name"
+						confirmLabel="rename"
+						title={renameBoard.title}
+						onChangeTitle={title =>
+							setRenameBoard(prev => (prev ? {...prev, title} : prev))
+						}
+						onCreate={submitRenameBoard}
+						onClose={() => setRenameBoard(null)}
 					/>
 				)}
 

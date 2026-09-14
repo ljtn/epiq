@@ -13,6 +13,7 @@ export {
 export {
 	listBoards,
 	createBoard,
+	editBoardTitle,
 	listSwimlanes,
 	createSwimlane,
 	editSwimlaneTitle,

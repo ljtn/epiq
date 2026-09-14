@@ -21,6 +21,7 @@ const handlers = (): CommandHandlers => ({
 	toggleLog: vi.fn(),
 	createSwimlane: vi.fn(),
 	createBoard: vi.fn(),
+	renameBoard: vi.fn(),
 });
 
 const issue = (overrides: Partial<GuiIssue> = {}): GuiIssue => ({
@@ -41,6 +42,7 @@ const context = (overrides: Partial<CommandContext> = {}): CommandContext => ({
 	connected: true,
 	scrubbing: false,
 	issue: issue(),
+	board: {id: 'board-1', title: 'Default', readonly: false},
 	tags: [],
 	tickets: [],
 	contributors: [],
@@ -162,6 +164,33 @@ describe('the GUI command registry', () => {
 			expect(rank(find(CmdKeywords.SYNC))).toBe(0);
 			expect(rank(find(CmdKeywords.COMMENT))).toBe(1);
 		});
+	});
+
+	it('renames the board on screen', () => {
+		const empty = context({issue: null});
+
+		expect(find('gui:board:rename').unavailable(empty)).toBeNull();
+
+		find('gui:board:rename').run(empty);
+		expect(empty.handlers.renameBoard).toHaveBeenCalled();
+	});
+
+	// The Closed board cannot be renamed anywhere, and a page with no board on
+	// it has nothing to rename.
+	it('holds a rename back on a readonly board, and with none on screen', () => {
+		const closed = context({
+			board: {id: 'closed', title: 'Closed', readonly: true},
+		});
+
+		expect(find('gui:board:rename').unavailable(closed)).toBe(
+			'This board is read-only',
+		);
+		expect(find('gui:board:rename').unavailable(context({board: null}))).toBe(
+			'No board on screen',
+		);
+		expect(
+			find('gui:board:rename').unavailable(context({scrubbing: true})),
+		).toBe('Read-only while viewing history');
 	});
 
 	describe('the two-stage commands', () => {
