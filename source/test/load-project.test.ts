@@ -30,9 +30,9 @@ import {
 import {
 	cloneRepo,
 	makeTempDir,
+	onMachine,
 	setupRepo,
 	useTempHome,
-	writeProjectFile,
 } from './helpers/git-repo.js';
 
 const git = async (cwd: string, args: string[]) => {
@@ -139,24 +139,28 @@ describe('loadProject', () => {
 	});
 });
 
-// Two clones of one remote: alice writes, bob boots. Alice's writes go through
+// Two clones of one remote: alice writes, bob boots. Alice.s writes go through
 // the same API the MCP uses, so bob replays real events, not hand-made lines.
+// Bob is this test.s machine, the global dir of the surrounding beforeEach;
+// alice.s side runs on a machine of her own.
 const seedRemote = async () => {
 	const {remoteRoot, repoRoot: alice} = await setupRepo();
 
-	const assumed = await assumeActor({repoRoot: alice, name: 'alice'});
+	const assumed = await onMachine(alice, () =>
+		assumeActor({repoRoot: alice, name: 'alice'}),
+	);
 	if (isFail(assumed)) throw new Error(assumed.message);
 
 	const ownEventFileName = getPersistFileName(assumed.value);
 
-	const sync = () => syncEpiqWithRemote({cwd: alice, ownEventFileName});
+	const sync = () =>
+		onMachine(alice, () => syncEpiqWithRemote({cwd: alice, ownEventFileName}));
 
 	const bootstrapped = await sync();
 	if (isFail(bootstrapped)) throw new Error(bootstrapped.message);
 
 	const bob = makeTempDir();
 	await cloneRepo({remoteRoot, cloneRoot: bob});
-	writeProjectFile(bob);
 
 	const seedBoard = async () => {
 		const defaults = createDefaultEvents(assumed.value);
@@ -173,19 +177,21 @@ const seedRemote = async () => {
 	};
 
 	const writeIssue = async (title: string) => {
-		const boards = await listBoards({repoRoot: alice});
-		if (isFail(boards)) throw new Error(boards.message);
+		const created = await onMachine(alice, async () => {
+			const boards = await listBoards({repoRoot: alice});
+			if (isFail(boards)) throw new Error(boards.message);
 
-		const swimlanes = await listSwimlanes({
-			repoRoot: alice,
-			boardId: boards.value[0]!.id,
-		});
-		if (isFail(swimlanes)) throw new Error(swimlanes.message);
+			const swimlanes = await listSwimlanes({
+				repoRoot: alice,
+				boardId: boards.value[0]!.id,
+			});
+			if (isFail(swimlanes)) throw new Error(swimlanes.message);
 
-		const created = await createIssue({
-			repoRoot: alice,
-			title,
-			parentId: swimlanes.value[0]!.id,
+			return createIssue({
+				repoRoot: alice,
+				title,
+				parentId: swimlanes.value[0]!.id,
+			});
 		});
 		if (isFail(created)) throw new Error(created.message);
 

@@ -12,10 +12,13 @@ import {
 	execGit,
 	hasInProgressGitOperation,
 	hasLocalBranch,
+	hasRemote,
+	hasRemoteBranch,
 } from '../../git/git-utils.js';
 import {
 	createStateBranch,
 	ensureInitialCommit,
+	ensureLocalStateBranch,
 	ensureStateBranchWorktree,
 	pushStateBranch,
 	stageStateBranchOwnEventFile,
@@ -27,7 +30,12 @@ import {AppEvent} from '../event/event.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {User} from '../state/settings.state.js';
 import {hasLocalProjectFile} from '../storage/paths.js';
-import {ensureProjectFile, getProjectFileContents} from './project-setup.js';
+import {
+	ensureProjectFile,
+	EpiqProject,
+	getProjectFileContents,
+} from './project-setup.js';
+import {STATE_IDENTITY_PATH, writeStateIdentity} from './project-identity.js';
 
 export type InitProjectOutcome = {
 	repoRoot: string;
@@ -147,6 +155,20 @@ export const initProject = async ({
 		return failAt(6, `State branch already exists: ${stateBranch}`);
 	}
 
+	// A fresh clone has no local state branch and no project file, which is
+	// exactly the checkout that used to mint a second id for a board that
+	// already existed on origin (JQS9XDR). The branch there is the project:
+	// adopt its identity when it carries one, and refuse when it does not.
+	const remoteBranchResult = await hasRemoteStateBranch({
+		repoRoot,
+		stateBranch,
+	});
+	if (isFail(remoteBranchResult)) return failAt(6, remoteBranchResult.message);
+
+	if (remoteBranchResult.value) {
+		return adoptRemoteProject({repoRoot, stateBranch});
+	}
+
 	const createStateBranchResult = await createStateBranch({
 		repoRoot,
 		stateBranchName: stateBranch,
@@ -200,6 +222,14 @@ export const initProject = async ({
 	const flushResult = flushPendingLogs(stateBranchRoot, ownEventFileName);
 	if (isFail(flushResult)) return failAt(9, flushResult.message);
 
+	// The branch carries the project's identity from its first commit, so a
+	// clone that has lost its project file can adopt it rather than mint one.
+	const identityResult = writeStateIdentity(
+		stateBranchRoot,
+		projectFileContents,
+	);
+	if (isFail(identityResult)) return failAt(9, identityResult.message);
+
 	// 10. commit initial event log on state branch
 	const stageStateEventFileResult = await stageStateBranchOwnEventFile({
 		stateBranchRoot,
@@ -207,6 +237,14 @@ export const initProject = async ({
 	});
 	if (isFail(stageStateEventFileResult)) {
 		return failAt(10, stageStateEventFileResult.message);
+	}
+
+	const stageIdentityResult = await git.stage({
+		cwd: stateBranchRoot,
+		pathspec: [STATE_IDENTITY_PATH],
+	});
+	if (isFail(stageIdentityResult)) {
+		return failAt(10, stageIdentityResult.message);
 	}
 
 	const commitStateBranchResult = await commitAndGetSha({
@@ -280,6 +318,142 @@ export const initProject = async ({
 		stateBranch,
 		stateBranchRoot,
 		defaultEvents: defaultEventsResult.value,
+		warnings,
+	});
+};
+
+// Whether origin already has the state branch: a repository that is already an
+// epiq project, seen from a clone that does not know it yet. Offline, or with
+// no remote at all, the answer is no, and init proceeds as a first init.
+const hasRemoteStateBranch = async ({
+	repoRoot,
+	stateBranch,
+}: {
+	repoRoot: string;
+	stateBranch: string;
+}): Promise<Result<boolean>> => {
+	const remoteResult = await hasRemote({repoRoot});
+	if (isFail(remoteResult)) return failed(remoteResult.message);
+	if (!remoteResult.value) return succeeded('No remote', false);
+
+	const branchResult = await hasRemoteBranch({repoRoot, branch: stateBranch});
+	// Unreachable is not absent: init must not mint an id because the network
+	// was down, so this is a refusal rather than a first init.
+	if (isFail(branchResult)) {
+		return failed(
+			`Could not ask origin whether ${stateBranch} exists: ${branchResult.message}`,
+		);
+	}
+
+	return branchResult;
+};
+
+/**
+ * Makes this clone a checkout of the project origin already holds: the
+ * identity comes off the state branch, is written and committed as
+ * `.epiq/project.json` here, and the worktree is set up as a boot would set
+ * it up. A branch that carries no identity — written before branches did —
+ * cannot say which id it is, and the person is pointed at a checkout that can.
+ */
+const adoptRemoteProject = async ({
+	repoRoot,
+	stateBranch,
+}: {
+	repoRoot: string;
+	stateBranch: string;
+}): Promise<Result<InitProjectOutcome>> => {
+	const fetchResult = await execGit({
+		cwd: repoRoot,
+		args: ['fetch', 'origin', stateBranch],
+	});
+	if (isFail(fetchResult)) return failAt(6, fetchResult.message);
+
+	const identityResult = await execGit({
+		cwd: repoRoot,
+		args: ['show', `origin/${stateBranch}:${STATE_IDENTITY_PATH}`],
+	});
+
+	if (isFail(identityResult)) {
+		return failAt(
+			6,
+			[
+				`This repository is already an epiq project: origin has the state branch ${stateBranch}.`,
+				'Initialising again would mint a second id for the same board.',
+				'',
+				`The branch was written before branches carried their identity, so restore`,
+				`${STATE_IDENTITY_PATH} from a checkout that has it, for example:`,
+				'',
+				`  git show origin/main:${STATE_IDENTITY_PATH} > ${STATE_IDENTITY_PATH}`,
+				'',
+				'and commit it; every later boot then stamps the branch, and the next clone adopts it.',
+			].join('\n'),
+		);
+	}
+
+	let project: EpiqProject;
+	try {
+		project = JSON.parse(identityResult.value.stdout) as EpiqProject;
+	} catch (error) {
+		return failAt(
+			6,
+			`The identity on origin/${stateBranch} is not readable: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
+
+	const projectResult = ensureProjectFile({repoRoot, fileContents: project});
+	if (isFail(projectResult)) return failAt(12, projectResult.message);
+
+	const stageResult = await git.stage({
+		cwd: repoRoot,
+		pathspec: [STATE_IDENTITY_PATH],
+	});
+	if (isFail(stageResult)) return failAt(13, stageResult.message);
+
+	const commitResult = await git.commit({
+		cwd: repoRoot,
+		message: '[epiq:adopt-project]',
+		pathspec: [STATE_IDENTITY_PATH],
+	});
+	if (isFail(commitResult)) return failAt(13, commitResult.message);
+
+	const ensureWorktreesDirResult = ensureWorktreesDir();
+	if (isFail(ensureWorktreesDirResult)) {
+		return failAt(7, ensureWorktreesDirResult.message);
+	}
+
+	const stateBranchRoot = path.join(getWorktreesRoot(), project.projectId);
+
+	const localBranchResult = await ensureLocalStateBranch({
+		repoRoot,
+		stateBranchName: stateBranch,
+	});
+	if (isFail(localBranchResult)) return failAt(8, localBranchResult.message);
+
+	const ensureWorktreeResult = await ensureStateBranchWorktree({
+		repoRoot,
+		stateBranchRoot,
+		stateBranchName: stateBranch,
+	});
+	if (isFail(ensureWorktreeResult)) {
+		return failAt(8, ensureWorktreeResult.message);
+	}
+
+	const warnings: string[] = [];
+
+	const pushResult = await execGit({
+		cwd: repoRoot,
+		args: ['push', '-u', 'origin', 'HEAD'],
+	});
+	if (isFail(pushResult)) warnings.push(`[init:14] ${pushResult.message}`);
+
+	return succeeded('Adopted the project origin already holds', {
+		repoRoot,
+		projectId: project.projectId,
+		stateBranch: project.stateBranch,
+		stateBranchRoot,
+		defaultEvents: [],
 		warnings,
 	});
 };

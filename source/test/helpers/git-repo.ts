@@ -125,12 +125,24 @@ export const setupRepo = async (): Promise<{
 	await cloneRepo({remoteRoot, cloneRoot: repoRoot});
 	writeProjectFile(repoRoot);
 
+	// Committed, as init commits it: a clone of this remote is then a checkout
+	// of the same project, with the same id.
 	await commitFile({
 		repoRoot,
 		fileName: 'README.md',
 		content: 'hello\n',
 		message: 'initial',
 	});
+	const stageProject = await execGit({
+		args: ['add', '.epiq/project.json'],
+		cwd: repoRoot,
+	});
+	if (isFail(stageProject)) throw new Error(stageProject.message);
+	const commitProject = await execGit({
+		args: ['commit', '-q', '-m', '[epiq:init-project]'],
+		cwd: repoRoot,
+	});
+	if (isFail(commitProject)) throw new Error(commitProject.message);
 
 	const pushResult = await execGit({
 		args: ['push', '-u', 'origin', 'main'],
@@ -162,4 +174,34 @@ export const useTempHome = (): void => {
 			fs.rmSync(dir, {recursive: true, force: true});
 		}
 	});
+};
+
+// One global dir per machine, as every real machine has: two clones of one
+// project sharing a global dir would fight over one state worktree, since
+// both name the same project.
+const globalDirs = new Map<string, string>();
+
+export const globalDirFor = (repoRoot: string): string => {
+	let dir = globalDirs.get(repoRoot);
+	if (!dir) {
+		dir = path.join(makeTempDir(), '.epiq-global');
+		globalDirs.set(repoRoot, dir);
+	}
+	return dir;
+};
+
+/** Runs `fn` as the machine that owns `repoRoot`, then puts the global dir back. */
+export const onMachine = async <T>(
+	repoRoot: string,
+	fn: () => Promise<T>,
+): Promise<T> => {
+	const previous = process.env['EPIQ_GLOBAL_DIR'];
+	process.env['EPIQ_GLOBAL_DIR'] = globalDirFor(repoRoot);
+
+	try {
+		return await fn();
+	} finally {
+		if (previous === undefined) delete process.env['EPIQ_GLOBAL_DIR'];
+		else process.env['EPIQ_GLOBAL_DIR'] = previous;
+	}
 };
