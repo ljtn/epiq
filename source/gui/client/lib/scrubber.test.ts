@@ -75,6 +75,8 @@ const entry = (
 	tag: null,
 	assignee: null,
 	issue: null,
+	lane: null,
+	laneBefore: null,
 	...extra,
 });
 
@@ -86,6 +88,8 @@ const timeline = (
 	bucketMs: DAY,
 	buckets,
 	events,
+	lanesAtStart: {},
+	laneNames: {},
 	earliest: bounds?.earliest ?? buckets[0]?.t ?? 0,
 	latest: bounds?.latest ?? buckets[buckets.length - 1]?.t ?? 0,
 });

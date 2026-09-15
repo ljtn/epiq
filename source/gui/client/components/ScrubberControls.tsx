@@ -22,6 +22,7 @@ import {IconBars} from './IconBars';
 import {IconChevronLeft} from './IconChevronLeft';
 import {IconChevronRight} from './IconChevronRight';
 import {IconFlashlight} from './IconFlashlight';
+import {IconFlow} from './IconFlow';
 import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
 import {IconPlay} from './IconPlayback';
@@ -360,6 +361,19 @@ export const ScrubberControls = ({
 				>
 					<IconScatter size={13} />
 				</button>
+				<button
+					title="Flow between swimlanes, one line per ticket"
+					aria-label="Flow"
+					aria-pressed={layoutMode === 'flow'}
+					disabled={!connected}
+					onClick={() => onChangeLayoutMode('flow')}
+					style={{
+						...iconToggleButtonStyle(layoutMode === 'flow'),
+						...(connected ? {} : mutedStyle),
+					}}
+				>
+					<IconFlow size={13} />
+				</button>
 			</div>
 
 			<div
@@ -376,6 +390,7 @@ export const ScrubberControls = ({
 			>
 				<CommitSeriesGroup
 					connected={connected}
+					idle={layoutMode === 'flow'}
 					showCommits={showCommits}
 					linkedOnly={linkedCommitsOnly}
 					onChangeShowCommits={onChangeShowCommits}

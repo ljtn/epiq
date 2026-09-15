@@ -108,6 +108,11 @@ export type GuiEventTimelineEntry = {
 	// The ticket the event happened to, for the board's window filter. Null for
 	// board- and swimlane-level events.
 	issue: string | null;
+	// The swimlane that ticket is in once the event has happened, and the one a
+	// move, close or reopen took it out of. Null where the event is under no
+	// ticket, and `laneBefore` null where the ticket stayed put.
+	lane: string | null;
+	laneBefore: string | null;
 };
 
 export type GuiEventTimeline = {
@@ -115,6 +120,12 @@ export type GuiEventTimeline = {
 	buckets: GuiEventTimelineBucket[];
 	// Empty when the server capped the window; the scatter falls back to buckets.
 	events: GuiEventTimelineEntry[];
+	// The lane of every ticket open as the window begins, by id, so the flow
+	// chart runs a line across a stretch nothing happened in.
+	lanesAtStart: Record<string, string>;
+	// Every swimlane the log ever created, under its last known name, for one
+	// the board has since deleted.
+	laneNames: Record<string, string>;
 	earliest: number;
 	latest: number;
 };

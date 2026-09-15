@@ -12,6 +12,9 @@ import {
 	BUCKET_HIGHLIGHT_COLOR,
 	clamp,
 	EVENTS_MODE_VERTICAL_PADDING,
+	FlowGeometry,
+	FlowStrand,
+	flowStrandCentre,
 	FADE_IN_ANIMATION,
 	HOVER_HINT_WIDTH,
 	NEEDLE_COLOR,
@@ -201,6 +204,43 @@ export const HourAxisLabels = () => (
 				}}
 			>
 				{label}
+			</span>
+		))}
+	</>
+);
+
+// The strands' names, one beside each, the way the hour labels sit beside the
+// scatter. Kept short: the chart is the width of the board and the lines run
+// under these from the left edge.
+export const FlowStrandLabels = ({
+	strands,
+	geometry,
+}: {
+	strands: readonly FlowStrand[];
+	geometry: FlowGeometry;
+}) => (
+	<>
+		{strands.map((strand, index) => (
+			<span
+				key={strand.id}
+				style={{
+					position: 'absolute',
+					left: 2,
+					top: flowStrandCentre(geometry, index),
+					transform: 'translateY(-50%)',
+					maxWidth: 150,
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
+					fontSize: 9,
+					lineHeight: 1,
+					color: GUI_THEME.dim,
+					// Legible over a full band, which is a solid block of lines.
+					textShadow: '0 0 3px rgba(0, 0, 0, 0.95), 0 0 1px rgba(0, 0, 0, 1)',
+					pointerEvents: 'none',
+				}}
+			>
+				{strand.title}
 			</span>
 		))}
 	</>

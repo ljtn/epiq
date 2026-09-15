@@ -528,6 +528,52 @@ export const App = () => {
 		[state?.boards],
 	);
 
+	// What the flow layout draws from: this board's lanes as the columns stand,
+	// every lane's title, the lane a close moves a ticket into — told by the
+	// closed tickets, since the state does not name it — and each ticket's ref
+	// and title for the line under the pointer.
+	const boardLanes = useMemo(
+		() => (selectedBoard?.swimlanes ?? []).map(({id, title}) => ({id, title})),
+		[selectedBoard],
+	);
+	const laneTitles = useMemo(
+		() =>
+			new Map(
+				(state?.boards ?? []).flatMap(board =>
+					board.swimlanes.map(lane => [lane.id, lane.title] as const),
+				),
+			),
+		[state?.boards],
+	);
+	const closedLaneId = useMemo(
+		() =>
+			(state?.boards ?? [])
+				.flatMap(board => board.swimlanes)
+				.find(lane => lane.issues.some(issue => issue.isClosed))?.id ?? null,
+		[state?.boards],
+	);
+	const issueSummaryById = useMemo(
+		() =>
+			new Map(
+				(state?.boards ?? []).flatMap(board =>
+					board.swimlanes.flatMap(swimlane =>
+						swimlane.issues.map(
+							issue =>
+								[
+									issue.id,
+									{
+										ref: issue.ref,
+										title: issue.title,
+										assignee: issue.assignees[0] ?? null,
+									},
+								] as const,
+						),
+					),
+				),
+			),
+		[state?.boards],
+	);
+
 	// The tickets the text query keeps, for the chart and the log: they plot
 	// what the columns show. Null while there is no query, so nothing above
 	// walks a set that would keep everything.
@@ -1477,6 +1523,7 @@ export const App = () => {
 					socketEpoch={socketEpoch}
 					onRequestHistory={requestBoardHistory}
 					onInspectCommit={openCommitDiff}
+					onOpenIssue={id => openIssueTab(id, 'overview')}
 					highlightEventId={hoveredLogEventId}
 					timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
 					onScrub={scrubToTime}
@@ -1492,6 +1539,10 @@ export const App = () => {
 					linkedCommitsOnly={linkedCommitsOnly}
 					onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
 					issueIdByRef={issueIdByRef}
+					lanes={boardLanes}
+					laneTitles={laneTitles}
+					closedLaneId={closedLaneId}
+					issueSummaryById={issueSummaryById}
 					selection={selection}
 					onChangeSelection={changeSelection}
 					selectedIssue={
