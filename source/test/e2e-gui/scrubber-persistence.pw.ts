@@ -1,7 +1,7 @@
 import {expect, test} from './fixtures.js';
 
 const scatterPressed = (page: import('@playwright/test').Page) =>
-	page.getByTitle(/^Events —/);
+	page.getByTitle('Events by moment and time of day');
 
 test('the chart layout survives a reload', async ({page, appUrl}) => {
 	await page.goto(appUrl);
@@ -18,7 +18,7 @@ test('the chart layout survives a reload', async ({page, appUrl}) => {
 	await expect(page.getByTestId('scatter-canvas')).toBeVisible();
 
 	// And back, so the stored value tracks the choice rather than sticking.
-	await page.getByTitle(/^Volume —/).click();
+	await page.getByTitle('Volume per period').click();
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(page.getByTestId('scatter-canvas')).toHaveCount(0);

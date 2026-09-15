@@ -30,10 +30,10 @@ export const TicketOnlyToggle = ({
 		disabled={disabled}
 		title={
 			narrowed && capped
-				? 'Too many events in this stretch to tell which are the ticket\u2019s — show the whole window again'
+				? 'Too many events to single out — show all'
 				: narrowed
-				? 'Show the whole window again'
-				: 'Narrow the timeline to this ticket: the stretch it has existed for, and only its events'
+				? 'Show the whole timeline'
+				: 'Narrow log and timeline to ticket'
 		}
 		onClick={() => onChange(!narrowed)}
 		style={{
@@ -63,6 +63,6 @@ export const TicketOnlyToggle = ({
 				: GUI_THEME.dim;
 		}}
 	>
-		<IconTimeline size={12} />
+		<IconTimeline size={14} />
 	</button>
 );

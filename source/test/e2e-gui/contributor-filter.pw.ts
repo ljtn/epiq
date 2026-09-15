@@ -30,9 +30,7 @@ test('the Contributors list narrows the board to who caused an event on a ticket
 
 	await page.getByRole('button', {name: 'Board', exact: true}).click();
 	await page.getByRole('checkbox', {name: 'Contributors'}).click();
-	await page
-		.getByRole('button', {name: 'Pick which contributors to show'})
-		.click();
+	await page.getByRole('button', {name: 'Pick contributors'}).click();
 
 	// The Contributors list is the actor behind every kind of event, not just
 	// the author of a comment. Switched on with everyone under it the axis asks
@@ -67,9 +65,7 @@ test('lists a contributor under the name the board knows, not the log file', asy
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByRole('button', {name: 'Board', exact: true}).click();
-	await page
-		.getByRole('button', {name: 'Pick which contributors to show'})
-		.click();
+	await page.getByRole('button', {name: 'Pick contributors'}).click();
 
 	// The list is built from the window's events, whose author is reconstructed
 	// from the log's file name — and that has had the slash sanitised out of

@@ -21,7 +21,7 @@ test('clicking outside the details leaves it open', async ({
 	// A scrubber control and a swimlane header: clicks that were never about the
 	// panel. Settled before asserting, or the check can land before a close has
 	// had time to navigate and pass on nothing.
-	await page.getByTitle(/^Events —/).click();
+	await page.getByTitle('Events by moment and time of day').click();
 	await page.waitForTimeout(600);
 	await expect(page).toHaveURL(/\/issue\//);
 
@@ -39,7 +39,7 @@ test('an in-progress description survives a click outside', async ({page}) => {
 	const draft = 'half-written thought';
 	await page.getByRole('textbox').last().fill(draft);
 
-	await page.getByTitle(/^Events —/).click();
+	await page.getByTitle('Events by moment and time of day').click();
 	await page.waitForTimeout(600);
 
 	await expect(page.getByRole('textbox').last()).toHaveValue(draft);

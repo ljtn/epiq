@@ -101,7 +101,7 @@ import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
 import {GUI_THEME} from './lib/gui-theme';
 
-type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code' | 'stats';
+type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 
 // Module scope so an absent state does not hand the memos below a new object
 // on every render.
@@ -282,10 +282,7 @@ export const App = () => {
 
 	const tabParam = searchParams.get('tab');
 	const selectedTab: IssueDetailsTab =
-		tabParam === 'comments' ||
-		tabParam === 'history' ||
-		tabParam === 'code' ||
-		tabParam === 'stats'
+		tabParam === 'comments' || tabParam === 'code' || tabParam === 'stats'
 			? tabParam
 			: 'overview';
 	// Where a followed comment permalink points, if any. Read straight off the
@@ -1014,13 +1011,6 @@ export const App = () => {
 		send('time-travel:scrub', {targetTime});
 	};
 
-	// Checks the board out at the moment one Log row stands for. The event is
-	// named rather than timed: the server resolves the cut, so a row's displayed
-	// timestamp never has to agree with the log's own ordering.
-	const checkoutHistoryEvent = (eventId: string) => {
-		send('time-travel:checkout-event', {eventId});
-	};
-
 	const returnToLive = () => {
 		send('time-travel:live', {});
 	};
@@ -1549,6 +1539,7 @@ export const App = () => {
 							<EventLog
 								entries={logEntries}
 								moment={logMoment}
+								onHoverEvent={setHoveredLogEventId}
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 								onOpen={openLogDestination}
 							/>
@@ -1833,15 +1824,6 @@ export const App = () => {
 									issueDetail?.issueId === selectedIssue.id
 										? issueDetail.comments
 										: []
-								}
-								history={
-									issueDetail?.issueId === selectedIssue.id
-										? issueDetail.history
-										: []
-								}
-								onHoverHistoryEvent={setHoveredLogEventId}
-								onCheckoutHistoryEvent={
-									connected ? checkoutHistoryEvent : undefined
 								}
 								onChangeTab={changeIssueDetailsTab}
 								onClose={closeIssueDetails}

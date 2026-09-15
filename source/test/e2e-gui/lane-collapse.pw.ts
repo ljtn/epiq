@@ -132,7 +132,7 @@ test('a collapsed lane stays collapsed across a reload', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// Collapsing the last one would leave four rails and nothing to read, so the
+// Collapsing the last one would leave three rails and nothing to read, so the
 // final open lane stops offering the control at all.
 test('the last open lane cannot be collapsed', async ({
 	page,
@@ -141,7 +141,7 @@ test('the last open lane cannot be collapsed', async ({
 }) => {
 	await openLanes(page, appUrl);
 
-	for (const name of ['Overview', 'Comments', 'Log']) {
+	for (const name of ['Overview', 'Comments']) {
 		await page.getByRole('button', {name: `Collapse ${name}`}).click();
 	}
 
@@ -154,7 +154,7 @@ test('the last open lane cannot be collapsed', async ({
 	).toHaveCount(0);
 
 	// Reopening any other lane hands the control back.
-	await page.getByRole('button', {name: 'Expand Log'}).click();
+	await page.getByRole('button', {name: 'Expand Comments'}).click();
 	await expect(
 		page.getByRole('button', {name: 'Collapse Commits'}),
 	).toHaveCount(1);

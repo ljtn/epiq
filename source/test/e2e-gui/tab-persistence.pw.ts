@@ -40,10 +40,12 @@ test('the open tab carries across ticket selections', async ({
 	await expect(page.getByPlaceholder(/comment/i)).toBeVisible();
 
 	// Any tab, not just comments.
-	await page.getByRole('button', {name: /^Log/}).click();
+	await page.getByRole('button', {name: /^Commits/}).click();
 	await openFromBoard(page, second);
-	await expect(page).toHaveURL(/tab=history/);
-	await expect(page.getByTestId('issue-history')).toBeVisible();
+	await expect(page).toHaveURL(/tab=code/);
+	await expect(
+		page.getByText(/no commits reference this ticket/i),
+	).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
 });
@@ -95,12 +97,11 @@ test('the Commits tab shows its count before being opened, after Comments', asyn
 
 	const tabs = page
 		.locator('aside')
-		.getByRole('button', {name: /^(Overview|Comments|Commits|Log)\b/});
+		.getByRole('button', {name: /^(Overview|Comments|Commits)\b/});
 	await expect(tabs).toHaveText([
 		/^Overview$/,
 		/^Comments \(0\)$/,
 		/^Commits \(0\)$/,
-		/^Log \(\d+\)$/,
 	]);
 
 	expect(pageErrors).toEqual([]);

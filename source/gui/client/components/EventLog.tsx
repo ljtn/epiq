@@ -137,6 +137,8 @@ const EventRow = ({entry}: {entry: LogEntry}) => (
 		// but a title costs nothing until it is hovered, where measuring every row
 		// on every render would not.
 		title={entry.label}
+		// The event, for the chart to single out while the row is hovered.
+		data-event-id={entry.id}
 		// Absent on a line that leads nowhere, which is what leaves it inert.
 		{...rowAttributes(entry)}
 		style={{[LOG_DOT_COLOR_PROPERTY]: entry.color} as React.CSSProperties}
@@ -150,6 +152,7 @@ const EventLogPanel = ({
 	moment,
 	bottomClearance,
 	onOpen,
+	onHoverEvent,
 }: {
 	entries: readonly LogEntry[];
 	// The moment the lines were sliced against. Moving it is moving the
@@ -159,6 +162,9 @@ const EventLogPanel = ({
 	// rows carry where they go, and hundreds of closures would be the expensive
 	// half of a feature whose whole point is that it costs nothing until used.
 	onOpen: (destination: LogDestination) => void;
+	// The event under the pointer, or null off the rows: what the chart lights
+	// up while a row is hovered.
+	onHoverEvent?: (eventId: string | null) => void;
 	// Room to leave at the foot of the column for whatever is floating over it —
 	// the history player's drawer, when one is up. A row past it, because the
 	// crawl starts each line one row low and slides it up.
@@ -365,8 +371,18 @@ const EventLogPanel = ({
 				// One pair of handlers for the pane, like the click above: the rows
 				// say where they go, and hundreds of listeners would be the costly
 				// half of a panel whose lines are one node each.
-				onMouseOver={event => markRow(event.target)}
-				onMouseLeave={() => markRow(null)}
+				onMouseOver={event => {
+					markRow(event.target);
+					onHoverEvent?.(
+						(event.target as Element)
+							.closest('[data-event-id]')
+							?.getAttribute('data-event-id') ?? null,
+					);
+				}}
+				onMouseLeave={() => {
+					markRow(null);
+					onHoverEvent?.(null);
+				}}
 				data-testid="event-log-scroll"
 				style={{
 					flex: 1,

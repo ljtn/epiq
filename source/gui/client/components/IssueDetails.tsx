@@ -8,7 +8,6 @@ import {
 	GuiComment,
 	GuiAttachment,
 	GuiRefCommitEntry,
-	GuiIssueHistoryEntry,
 } from '../lib/gui-state.model';
 import {
 	Aside,
@@ -52,7 +51,6 @@ import {Tabs, TabItem} from './Tabs';
 import {IssueStats} from './IssueStats';
 import {IssueStats as IssueStatsPayload} from '../../../lib/stats/issue-stats.model.js';
 import {BoardStats} from '../../../lib/stats/board-stats.js';
-import {IssueHistory} from './IssueHistory';
 import {formatAbsolute, timeAgo} from '../lib/gui-format.helper';
 import {usePersistedFlag} from '../lib/use-persisted-flag';
 import {AsideDock} from '../lib/aside-dock';
@@ -60,20 +58,19 @@ import {MAX_DESCRIPTION_LENGTH} from '../../../lib/utils/text.limits.js';
 import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
 
-type IssueDetailsTab = 'overview' | 'comments' | 'history' | 'code' | 'stats';
+type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 
-// Fullscreen on a panel at least this wide drops the tabs and lays the four
-// panes out side by side. Below it, four lanes would be too narrow to read,
-// so fullscreen keeps the tabbed layout.
+// Fullscreen on a panel at least this wide drops the tabs and lays the three
+// panes out side by side. Below it, the lanes would be too narrow to read, so
+// fullscreen keeps the tabbed layout.
 export const LANE_VIEW_WIDTH = 1400;
 const LANE_GAP = 20;
-const LANE_COUNT = 4;
-// Commits holds diffs, so it takes half the row; the other three share the rest.
+const LANE_COUNT = 3;
+// Commits holds diffs, so it takes most of the row; the other two share the rest.
 const LANE_SHARES = {
 	overview: 1,
 	comments: 1,
 	commits: 3,
-	log: 1,
 } as const;
 type LaneKey = keyof typeof LANE_SHARES;
 const LANE_KEYS = Object.keys(LANE_SHARES) as LaneKey[];
@@ -253,9 +250,6 @@ export const IssueDetails = ({
 	onDock,
 	whoAmI,
 	comments,
-	history,
-	onHoverHistoryEvent,
-	onCheckoutHistoryEvent,
 	activeTab,
 	onChangeTab,
 	issue,
@@ -304,9 +298,6 @@ export const IssueDetails = ({
 	whoAmI: GuiUser;
 	issue: GuiIssue | null;
 	comments: GuiComment[];
-	history: GuiIssueHistoryEntry[];
-	onHoverHistoryEvent: (eventId: string | null) => void;
-	onCheckoutHistoryEvent?: (eventId: string) => void;
 	onClose: () => void;
 	// The timeline narrowed to this ticket — its own stretch, and its events
 	// only. It lives in the board's selection; the panel is where it is
@@ -394,21 +385,15 @@ export const IssueDetails = ({
 		'epiq.lane.commits.collapsed',
 		false,
 	);
-	const [logCollapsed, setLogCollapsed] = usePersistedFlag(
-		'epiq.lane.log.collapsed',
-		false,
-	);
 	const laneCollapsed: Record<LaneKey, boolean> = {
 		overview: overviewCollapsed,
 		comments: commentsCollapsed,
 		commits: commitsCollapsed,
-		log: logCollapsed,
 	};
 	const setLaneCollapsed: Record<LaneKey, (next: boolean) => void> = {
 		overview: setOverviewCollapsed,
 		comments: setCommentsCollapsed,
 		commits: setCommitsCollapsed,
-		log: setLogCollapsed,
 	};
 	// Collapsing the last one would leave four rails and nothing to read.
 	const openLaneCount = LANE_KEYS.filter(key => !laneCollapsed[key]).length;
@@ -457,7 +442,6 @@ export const IssueDetails = ({
 		{id: 'comments', label: 'Comments', count: comments.length},
 		{id: 'code', label: 'Commits', count: commitsCount},
 		{id: 'stats', label: 'Stats'},
-		{id: 'history', label: 'Log', count: history.length},
 	];
 
 	const saveTitle = () => {
@@ -952,14 +936,6 @@ export const IssueDetails = ({
 					/>
 				);
 
-				const historyPane = issue && (
-					<IssueHistory
-						entries={history}
-						onHoverEvent={onHoverHistoryEvent}
-						onCheckoutEvent={onCheckoutHistoryEvent}
-					/>
-				);
-
 				const commitsPane = issue && (
 					<IssueCommits
 						issueRef={issue.ref}
@@ -1142,7 +1118,13 @@ export const IssueDetails = ({
 											isFullscreen={isFullscreen}
 											onClick={toggleFullscreen}
 										/>
-										<Button variant="ghost" onClick={onClose}>
+										<Button
+											variant="ghost"
+											onClick={onClose}
+											// The header's icons are 14px; a 12px cross beside them
+											// reads as a speck.
+											style={{fontSize: 14}}
+										>
 											×
 										</Button>
 									</div>
@@ -1166,7 +1148,6 @@ export const IssueDetails = ({
 												['overview', 'Overview', undefined, overviewPane],
 												['comments', 'Comments', comments.length, commentsPane],
 												['commits', 'Commits', commitsCount, commitsPane],
-												['log', 'Log', history.length, historyPane],
 											] as const
 										).map(([key, title, count, pane]) => (
 											<Lane
@@ -1193,7 +1174,6 @@ export const IssueDetails = ({
 										/>
 										{activeTab === 'overview' && overviewPane}
 										{activeTab === 'comments' && commentsPane}
-										{activeTab === 'history' && historyPane}
 										{activeTab === 'code' && commitsPane}
 										{activeTab === 'stats' && statsPane}
 									</>
