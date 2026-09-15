@@ -279,6 +279,57 @@ console.log(
 		`${perRequest.toFixed(1).padStart(6)} ms`,
 );
 
+// The flow layout, which is the client's own derivation over a reply: a line
+// per ticket open in the window, stacked into strands. Timed over a year,
+// where the reply still names its events, and over the month a drag steps
+// through — the pure builder the GUI runs, on the same replies it would get.
+// By a path the root typecheck does not follow: the client tree resolves its
+// imports the browser bundle's way, not this tsconfig's. tsx runs it fine.
+const FLOW_MODULE: string = '../../gui/client/lib/scrubber/flow.js';
+const {buildFlowChart} = (await import(FLOW_MODULE)) as {
+	buildFlowChart: (
+		timeline: unknown,
+		lanes: {id: string; title: string}[],
+		laneTitles: Map<string, string>,
+	) => {paths: unknown[]; strands: unknown[]};
+};
+const laneList = ok(await api.listSwimlanes({repoRoot: REPO})) as {
+	id: string;
+	title: string;
+}[];
+const laneTitles = new Map(laneList.map(lane => [lane.id, lane.title]));
+
+for (const [label, days] of [
+	['flow chart, a year window', 365],
+	['flow chart, a month window', 30],
+] as const) {
+	const end = Date.now();
+	const reply = await getEventTimeline({
+		repoRoot: REPO,
+		boardId,
+		start: end - days * 24 * 60 * 60 * 1000,
+		end,
+	});
+	if (reply.status === 'fail' || !reply.value) throw new Error(reply.message);
+
+	const flowAt = performance.now();
+	let chart = buildFlowChart(reply.value, laneList, laneTitles);
+	for (let i = 1; i < 10; i++) {
+		chart = buildFlowChart(reply.value, laneList, laneTitles);
+	}
+	const perChart = (performance.now() - flowAt) / 10;
+	const capped =
+		reply.value.events.length === 0 && reply.value.buckets.length > 0;
+
+	console.log(
+		`  ${label.padEnd(38)} ${perChart.toFixed(1).padStart(6)} ms   ` +
+			`${chart.paths.length.toLocaleString()} lines, ${
+				chart.strands.length
+			} strands, ${reply.value.events.length.toLocaleString()} events` +
+			(capped ? '   <-- capped, nothing drawn' : ''),
+	);
+}
+
 // What an edit costs, which is not what a read costs: a write grows the log,
 // and anything holding a derived view of it has to notice.
 const writeAt = performance.now();

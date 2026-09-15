@@ -7,6 +7,10 @@ export {
 	TRACK_HEIGHT,
 	EVENTS_SCATTER_HEIGHT,
 	EVENTS_MODE_VERTICAL_PADDING,
+	FLOW_SLOT_PX,
+	flowGeometry,
+	flowLineY,
+	flowStrandCentre,
 	TRACK_HIT_PADDING,
 	HOVER_HINT_WIDTH,
 	SEGMENT_BOUNDARY_COLOR,
@@ -36,7 +40,7 @@ export {
 	usePrefersReducedMotion,
 	useExitTransition,
 } from './layout';
-export type {LayoutMode, SeriesPresence} from './layout';
+export type {FlowGeometry, LayoutMode, SeriesPresence} from './layout';
 export {
 	bucketCountForSpan,
 	buildAxis,
@@ -96,3 +100,17 @@ export {
 	scopeButtonLabel,
 } from './time';
 export type {Segment, Scope, PeriodRange} from './time';
+export {
+	buildFlowChart,
+	CLOSED_STRAND_ID,
+	flowPathAt,
+	flowStrandOf,
+	flowVertexAt,
+} from './flow';
+export type {
+	FlowChart,
+	FlowLane,
+	FlowPath,
+	FlowStrand,
+	FlowVertex,
+} from './flow';

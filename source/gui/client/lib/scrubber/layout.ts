@@ -5,21 +5,106 @@ export const clamp = (value: number, min: number, max: number) =>
 
 // ---------------------------------------------------------------- dimensions
 
-// "even" is the "Volume" histogram, "real" the "Events" scatter.
-export type LayoutMode = 'even' | 'real';
+// "even" is the "Volume" histogram, "real" the "Events" scatter, "flow" the
+// strata of swimlanes each ticket's line travels between.
+export type LayoutMode = 'even' | 'real' | 'flow';
 
 export const isLayoutMode = (value: string | null): value is LayoutMode =>
-	value === 'even' || value === 'real';
+	value === 'even' || value === 'real' || value === 'flow';
 
 export const TRACK_HEIGHT = 24;
 
-// Both modes must occupy the same total height or switching modes reflows the
-// board content below. "Volume" is two TRACK_HEIGHT boxes plus the column's
-// 8px gap; "Events" centres one taller scatter area in that same total.
+// "Volume" and "Events" occupy the same total height, so switching between
+// them never reflows the board content below. "Volume" is two TRACK_HEIGHT
+// boxes plus the column's 8px gap; "Events" centres one taller scatter area in
+// that same total. "Flow" is the exception, below.
 const EVENTS_MODE_TOTAL_HEIGHT = 8 + TRACK_HEIGHT * 2;
 export const EVENTS_SCATTER_HEIGHT = TRACK_HEIGHT + 16;
 export const EVENTS_MODE_VERTICAL_PADDING =
 	(EVENTS_MODE_TOTAL_HEIGHT - EVENTS_SCATTER_HEIGHT) / 2;
+
+// "Flow" is the one mode whose height is the board's to set: a strand per
+// swimlane, each a band the lines sharing it are stacked inside. A band is
+// fanned into as many slots as lines it holds at once, a couple of pixels
+// apart, and grows with them up to a cap — past it the slots close up, and the
+// band reads as its load. So a board with more lanes, or busier ones, reflows
+// the columns below once on the way in; the alternative was lines drawn over
+// one another with no way to tell them apart.
+export const FLOW_SLOT_PX = 2;
+const FLOW_STRAND_MIN = 14;
+const FLOW_STRAND_MAX = 32;
+// Room a band keeps above and below its outermost line.
+const FLOW_BAND_MARGIN = 3;
+
+// The grain's labels sit along the top edge of the chart, and the first
+// strand's title would sit on top of them; the strands start below that row.
+const FLOW_TOP_INSET = 10;
+
+export type FlowGeometry = {
+	// Each strand's top edge and height, in px from the chart's top.
+	tops: number[];
+	heights: number[];
+	height: number;
+};
+
+const strandHeight = (slots: number): number =>
+	clamp(
+		2 * FLOW_BAND_MARGIN + Math.max(1, slots) * FLOW_SLOT_PX,
+		FLOW_STRAND_MIN,
+		FLOW_STRAND_MAX,
+	);
+
+export const flowGeometry = (
+	strands: readonly {slots: number}[],
+): FlowGeometry => {
+	const heights = strands.map(strand => strandHeight(strand.slots));
+	const tops: number[] = [];
+	let top = FLOW_TOP_INSET;
+
+	for (const height of heights) {
+		tops.push(top);
+		top += height;
+	}
+
+	// Never shorter than the other modes: a board of few lanes keeps its
+	// strands spread over the room the histogram had.
+	const height = Math.max(EVENTS_MODE_TOTAL_HEIGHT, top);
+	const spare = height - top;
+
+	if (spare > 0 && heights.length > 0) {
+		const extra = spare / heights.length;
+		let shifted = FLOW_TOP_INSET;
+
+		for (let index = 0; index < heights.length; index++) {
+			heights[index]! += extra;
+			tops[index] = shifted;
+			shifted += heights[index]!;
+		}
+	}
+
+	return {tops, heights, height};
+};
+
+export const flowStrandCentre = (
+	geometry: FlowGeometry,
+	strand: number,
+): number => geometry.tops[strand]! + geometry.heights[strand]! / 2;
+
+// A line's y: its strand's centre, offset by its slot with the strand's slots
+// fanned symmetrically about that centre, closed up where the band is full.
+export const flowLineY = (
+	geometry: FlowGeometry,
+	strand: number,
+	slot: number,
+	slots: number,
+): number => {
+	const band = geometry.heights[strand]! - 2 * FLOW_BAND_MARGIN;
+	const spacing = Math.min(FLOW_SLOT_PX, band / Math.max(1, slots));
+
+	return (
+		flowStrandCentre(geometry, strand) + (slot - (slots - 1) / 2) * spacing
+	);
+};
 
 // The blank strip between the controls row and the charts, which the track
 // claims for the pointer without drawing in it: aiming at the top of a tall bar
