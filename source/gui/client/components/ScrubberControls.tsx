@@ -222,9 +222,7 @@ export const ScrubberControls = ({
 					<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 						<button
 							title={
-								ticketFocus
-									? 'The ticket\u2019s own stretch — let the ticket go in its panel to page'
-									: 'Earlier'
+								ticketFocus ? 'No paging while narrowed to a ticket' : 'Earlier'
 							}
 							disabled={!connected || ticketFocus}
 							onClick={() => onChangeOffset(offset + 1)}
@@ -316,10 +314,10 @@ export const ScrubberControls = ({
 						<button
 							title={
 								ticketFocus
-									? 'Held behind the ticket’s own stretch — let the ticket go in its panel to come back to it'
+									? 'Held while narrowed to a ticket'
 									: zoomed
-									? 'A window dragged out on the chart — pick a period to leave it'
-									: 'Drag across the chart to zoom the window to a stretch of it'
+									? 'Zoomed by a drag — pick a period to leave'
+									: 'Drag across the chart to zoom'
 							}
 							aria-pressed={zoomed && !ticketFocus}
 							disabled
@@ -337,7 +335,7 @@ export const ScrubberControls = ({
 
 			<div style={{display: 'flex', gap: 2}}>
 				<button
-					title="Volume — how much happened, per equal-width period, with no empty gaps for quiet stretches"
+					title="Volume per period"
 					aria-label="Volume"
 					aria-pressed={layoutMode === 'even'}
 					disabled={!connected}
@@ -350,7 +348,7 @@ export const ScrubberControls = ({
 					<IconBars size={13} />
 				</button>
 				<button
-					title="Events — individual events by exact moment, x is elapsed time and y is time of day"
+					title="Events by moment and time of day"
 					aria-label="Events"
 					aria-pressed={layoutMode === 'real'}
 					disabled={!connected}
@@ -410,12 +408,12 @@ export const ScrubberControls = ({
 				<SpotlightToggle
 					title={
 						ticketFocus
-							? 'The board is already down to one ticket — let the ticket go in its panel to spotlight a window instead'
+							? 'Already narrowed to a ticket'
 							: everythingInScope
-							? 'Every event is in scope — pick a period for the spotlight to narrow the board to'
+							? 'Pick a period first'
 							: !windowFilterable
-							? 'Too many events in this window to tell which tickets they belong to'
-							: 'Spotlight: show only the tickets with activity in the timeline\u2019s window'
+							? 'Too many events to tell tickets apart'
+							: 'Spotlight tickets active in this window'
 					}
 					on={windowOnly}
 					// Unlike its neighbours it asks the socket for nothing — it
@@ -457,9 +455,7 @@ export const ScrubberControls = ({
 			<button
 				onClick={onReturnToLive}
 				disabled={!isScrubbing}
-				title={
-					isScrubbing ? 'Leave history and follow the board again' : undefined
-				}
+				title={isScrubbing ? 'Back to live' : undefined}
 				// Inverted while the board is in the past: bright ground, dark text.
 				// Every other control on this row is quiet chrome, and this one is
 				// the standing answer to "why is nothing I do landing?" — it has to
@@ -567,7 +563,7 @@ export const TextFilterInput = ({
 			value={value}
 			placeholder="ref or title"
 			aria-label="Filter tickets by ref or title"
-			title="Show only tickets whose ref or title contains this, on the board and in the chart"
+			title="Filter tickets by ref or title"
 			spellCheck={false}
 			onChange={event => onChange(event.target.value)}
 			onKeyDown={event => {

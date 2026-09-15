@@ -77,7 +77,7 @@ test('opening a row list does not switch its axis on', async ({
 	await page.getByRole('button', {name: 'Board', exact: true}).click();
 
 	// Reading what is under a row is not the same as filtering by it.
-	await page.getByRole('button', {name: 'Pick which comments to show'}).click();
+	await page.getByRole('button', {name: 'Pick comments'}).click();
 	await expect(page.getByRole('checkbox', {name: 'Comments'})).toHaveAttribute(
 		'aria-checked',
 		'false',
@@ -110,7 +110,7 @@ test('a half-ticked list puts its row in the dash', async ({
 	await tags.click();
 	await expect(tags).toHaveAttribute('aria-checked', 'true');
 
-	await page.getByRole('button', {name: 'Pick which tags to show'}).click();
+	await page.getByRole('button', {name: 'Pick tags'}).click();
 	const tagList = page.getByRole('group', {name: 'Which tags to show'});
 	await tagList.getByRole('checkbox', {name: `ta${stamp}`}).click();
 

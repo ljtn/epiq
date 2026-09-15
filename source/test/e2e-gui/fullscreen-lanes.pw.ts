@@ -16,7 +16,7 @@ const addTicket = async (page: Page, title: string) => {
 const tabButtons = (page: Page) =>
 	page
 		.locator('aside')
-		.getByRole('button', {name: /^(Overview|Comments|Commits|Log)\b/});
+		.getByRole('button', {name: /^(Overview|Comments|Commits)\b/});
 
 test.beforeEach(async ({page, appUrl}) => {
 	await page.goto(appUrl);
@@ -29,12 +29,12 @@ test('a wide fullscreen panel shows every pane side by side', async ({
 }, testInfo) => {
 	await page.setViewportSize({width: 1600, height: 900});
 	await addTicket(page, `Lanes ${Date.now()}`);
-	await expect(tabButtons(page)).toHaveCount(4);
+	await expect(tabButtons(page)).toHaveCount(3);
 
 	await page.getByTitle('Fullscreen').click();
 
 	await expect(tabButtons(page)).toHaveCount(0);
-	for (const lane of ['overview', 'comments', 'commits', 'log']) {
+	for (const lane of ['overview', 'comments', 'commits']) {
 		await expect(page.getByTestId(`lane-${lane}`)).toBeVisible();
 	}
 	// Each lane holds its pane's actual content, not just a heading.
@@ -43,19 +43,18 @@ test('a wide fullscreen panel shows every pane side by side', async ({
 	await expect(
 		page.getByText(/no commits reference this ticket/i),
 	).toBeVisible();
-	await expect(page.getByTestId('issue-history')).toBeVisible();
 
 	// The commits lane is the wide one: at least twice any other.
 	const widthOf = async (lane: string) =>
 		(await page.getByTestId(`lane-${lane}`).boundingBox())?.width ?? 0;
 	const commits = await widthOf('commits');
-	for (const lane of ['overview', 'comments', 'log']) {
+	for (const lane of ['overview', 'comments']) {
 		expect(commits).toBeGreaterThanOrEqual((await widthOf(lane)) * 2);
 	}
 
 	// Nothing runs off the right edge of the window.
 	for (const target of [
-		page.getByTestId('lane-log'),
+		page.getByTestId('lane-commits'),
 		page.getByTitle('Exit fullscreen'),
 	]) {
 		const box = await target.boundingBox();
@@ -70,7 +69,7 @@ test('a wide fullscreen panel shows every pane side by side', async ({
 
 	// Leaving fullscreen brings the tabs back.
 	await page.getByTitle('Exit fullscreen').click();
-	await expect(tabButtons(page)).toHaveCount(4);
+	await expect(tabButtons(page)).toHaveCount(3);
 	await expect(page.getByPlaceholder(/comment/i)).toBeHidden();
 
 	expect(pageErrors).toEqual([]);
@@ -82,7 +81,7 @@ test('a narrow fullscreen panel keeps the tabs', async ({page, pageErrors}) => {
 
 	await page.getByTitle('Fullscreen').click();
 
-	await expect(tabButtons(page)).toHaveCount(4);
+	await expect(tabButtons(page)).toHaveCount(3);
 	await expect(page.getByTestId('lane-overview')).toHaveCount(0);
 	await expect(page.getByPlaceholder(/comment/i)).toBeHidden();
 

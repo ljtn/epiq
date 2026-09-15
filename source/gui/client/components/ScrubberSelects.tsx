@@ -78,10 +78,10 @@ const VIEW_FOR_AXIS: Record<FilterAxis, BoardView> = {
 
 // What ticking a row asks of every ticket, said in full where the label cannot.
 const AXIS_TITLES: Record<FilterAxis, string> = {
-	commenter: 'Only tickets somebody has commented on',
-	tag: 'Only tickets carrying a tag',
-	assignee: 'Only tickets somebody is assigned to',
-	actor: 'Only tickets somebody has touched in this window',
+	commenter: 'Only tickets with comments',
+	tag: 'Only tagged tickets',
+	assignee: 'Only assigned tickets',
+	actor: 'Only tickets touched in this window',
 };
 
 // Fixed, not sized to its label: the selection changes as the thing is used,
@@ -290,8 +290,8 @@ export const BoardSeriesGroup = ({
 					disabled={!showIssues || !connected}
 					title={
 						filtered
-							? 'Choose what the board series plots'
-							: 'This window holds too many events to split by kind'
+							? 'Choose what to plot'
+							: 'Too many events to split by kind'
 					}
 					aria-haspopup="listbox"
 					aria-expanded={expanded}
@@ -345,11 +345,7 @@ export const BoardSeriesGroup = ({
 										// Named after its own row: four rows carry one of these,
 										// and "Pick which to show" on all four says nothing about
 										// which list is being opened.
-										title={
-											open
-												? `Hide the ${rowLabel} list`
-												: `Pick which ${rowLabel} to show`
-										}
+										title={open ? `Hide ${rowLabel}` : `Pick ${rowLabel}`}
 										aria-expanded={open}
 										style={{
 											...disclosureStyle,
@@ -477,7 +473,7 @@ export const CommitSeriesGroup = ({
 					disabled={!showCommits || !connected}
 					aria-haspopup="listbox"
 					aria-expanded={open}
-					title="Choose which commits the Code series plots"
+					title="Choose which commits to plot"
 					style={{
 						...selectTriggerStyle(GUI_THEME.green, !showCommits),
 						width: COMMIT_SELECT_WIDTH,
@@ -561,7 +557,7 @@ export const ScopeSelect = ({
 				disabled={!connected}
 				aria-haspopup="listbox"
 				aria-expanded={open}
-				title="Choose the window the timeline covers"
+				title="Choose the window"
 				style={{
 					...selectTriggerStyle(GUI_THEME.primary, !connected),
 					width: SCOPE_SELECT_WIDTH,
