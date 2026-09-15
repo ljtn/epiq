@@ -1,7 +1,9 @@
+import {MAX_TITLE_LENGTH} from '../../../lib/utils/text.limits.js';
 import {Button} from './Button';
 import {GUI_THEME} from '../lib/gui-theme';
 
-// Shared by the issue and swimlane modals; only the wording differs.
+// Shared by the issue, swimlane and board modals, creating and renaming;
+// only the wording differs.
 type Props = {
 	eyebrow: string;
 	fieldLabel: string;
@@ -76,6 +78,9 @@ export const CreateNodeModal = ({
 			<input
 				autoFocus
 				value={title}
+				// The server's own cap, so an overlong title is stopped here rather
+				// than shown on the board and then taken back by the refusal.
+				maxLength={MAX_TITLE_LENGTH}
 				placeholder={placeholder}
 				onChange={event => onChangeTitle(event.target.value)}
 				onKeyDown={event => {
