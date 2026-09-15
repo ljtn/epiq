@@ -191,7 +191,7 @@ test('the log obeys the bar\u2019s own filters', async ({
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
 
 	// Commits go with the box that draws them.
-	const code = page.getByRole('checkbox', {name: 'Code', exact: true});
+	const code = page.getByTitle('Show commits');
 	const commitColour = 'rgb(140, 233, 154)';
 	const greens = async () =>
 		(

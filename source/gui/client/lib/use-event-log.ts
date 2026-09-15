@@ -6,6 +6,7 @@
 // playhead — enough moving parts that keeping them together is the difference
 // between one rule and four that drift.
 
+import {keptCommits} from './commit-link';
 import {useMemo} from 'react';
 import {BoardSelection, hiddenIdsFor, narrowingFor} from './board-selection';
 import {buildLogEntries, LogEntry, logEntriesUpTo} from './event-log';
@@ -38,6 +39,10 @@ export type EventLogSources = {
 	selectedIssueId: string | null;
 	// The tickets the text query keeps, and null while there is no query.
 	queryIssueIds: ReadonlySet<string> | null;
+	// The Code series narrowed to commits linked to a ticket, and the tickets
+	// by ref that rule reads.
+	linkedCommitsOnly: boolean;
+	issueIdByRef: ReadonlyMap<string, string>;
 	// The two series checkboxes. A series the chart is not drawing is not one
 	// the log should be reciting either.
 	showIssues: boolean;
@@ -83,6 +88,8 @@ export const useEventLog = ({
 	selection,
 	selectedIssueId,
 	queryIssueIds,
+	linkedCommitsOnly,
+	issueIdByRef,
 	showIssues,
 	showCommits,
 	playing,
@@ -123,7 +130,9 @@ export const useEventLog = ({
 			showIssues
 				? events.filter(entry => isShown(entry, view, hidden, keptIssues))
 				: [],
-			showCommits ? commits : [],
+			showCommits
+				? keptCommits(commits, linkedCommitsOnly, issueIdByRef, keptIssues)
+				: [],
 		);
 	}, [
 		open,
@@ -132,6 +141,8 @@ export const useEventLog = ({
 		view,
 		only,
 		keptIssues,
+		linkedCommitsOnly,
+		issueIdByRef,
 		showIssues,
 		showCommits,
 	]);

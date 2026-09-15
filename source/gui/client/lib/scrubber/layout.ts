@@ -207,21 +207,31 @@ export const SCRUBBER_KEYFRAMES = `
 // row; below this it has already given all it can with the pager up.
 const NARROW_BAR_QUERY = '(max-width: 1240px)';
 
-export const useNarrowBar = (): boolean => {
-	const [narrow, setNarrow] = useState(
-		() => window.matchMedia(NARROW_BAR_QUERY).matches,
+// Wider than that by the room the period pager takes when it comes up: the
+// text filter is drawn at its short width from here down, so the pager never
+// has to take that room from it — a filter that shrank as the pager appeared
+// would shift every control to its left under the pointer that just clicked.
+const TIGHT_BAR_QUERY = '(max-width: 1320px)';
+
+const useMediaQuery = (mediaQuery: string): boolean => {
+	const [matches, setMatches] = useState(
+		() => window.matchMedia(mediaQuery).matches,
 	);
 
 	useEffect(() => {
-		const query = window.matchMedia(NARROW_BAR_QUERY);
-		const onChange = () => setNarrow(query.matches);
+		const query = window.matchMedia(mediaQuery);
+		const onChange = () => setMatches(query.matches);
 
 		query.addEventListener('change', onChange);
 		return () => query.removeEventListener('change', onChange);
-	}, []);
+	}, [mediaQuery]);
 
-	return narrow;
+	return matches;
 };
+
+export const useNarrowBar = (): boolean => useMediaQuery(NARROW_BAR_QUERY);
+
+export const useTightBar = (): boolean => useMediaQuery(TIGHT_BAR_QUERY);
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
