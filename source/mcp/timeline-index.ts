@@ -21,6 +21,7 @@ import {logSignature} from '../lib/event/log-signature.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {getStringColor} from '../lib/utils/color.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 
 // Colour resolved here rather than on the client: getStringColor pulls in
 // chalk, which the GUI bundle cannot take.
@@ -42,6 +43,13 @@ export type EventTimelineEntry = {
 	// The ticket the event happened to, where it happened to one. Null for
 	// board- and swimlane-level events, which belong to no ticket.
 	issue: string | null;
+	// The swimlane that ticket sits in once this event has happened, and the
+	// one it left where this event moved it out of another — a move, a close or
+	// a reopen. Null for an event under no ticket, and `laneBefore` null for one
+	// that left the ticket where it was. What lets a window place a ticket
+	// without the moves outside it.
+	lane: string | null;
+	laneBefore: string | null;
 };
 
 // Tag, contributor and swimlane names come from the log's own create events
@@ -162,6 +170,52 @@ const issueOf = (
 	}
 
 	return null;
+};
+
+// The events that put a ticket in a swimlane. A close is a move to the closed
+// lane and a reopen a move back out of it, so both carry a `parent` like a move
+// does.
+const LANE_ACTIONS = new Set<EventAction>([
+	'add.issue',
+	'move.node',
+	'close.issue',
+	'reopen.issue',
+]);
+
+type LanePlacement = Pick<EventTimelineEntry, 'lane' | 'laneBefore'>;
+
+// Where each ticket sits after each event, positionally, and where a lane
+// change took it from. Over the whole log in order, like the previous-parent
+// index: a ticket's lane at any event is set by whichever move came last,
+// which is routinely outside the window being asked for.
+const lanesForEvents = (
+	events: AppEvent[],
+	issueIndex: IssueIndex,
+): LanePlacement[] => {
+	const laneByIssue = new Map<string, string>();
+
+	return events.map(event => {
+		const issue = issueOf(event, issueIndex);
+		if (issue === null) return {lane: null, laneBefore: null};
+
+		const payload = event.payload as {id?: string; parent?: string} | undefined;
+		let laneBefore: string | null = null;
+
+		if (
+			LANE_ACTIONS.has(event.action) &&
+			payload?.id === issue &&
+			payload.parent
+		) {
+			const previous = laneByIssue.get(issue);
+			if (previous !== undefined && previous !== payload.parent) {
+				laneBefore = previous;
+			}
+
+			laneByIssue.set(issue, payload.parent);
+		}
+
+		return {lane: laneByIssue.get(issue) ?? null, laneBefore};
+	});
 };
 
 // The TUI's phrasing minus the details that need state. A renamed tag reads
@@ -297,11 +351,19 @@ const boardsForEvents = (events: AppEvent[]): (string | null)[] => {
 		// Before resolving, so a board's own add event is attributed to it.
 		if (event.action === 'add.board') boardIds.add(id);
 
+		// A close moves the ticket into the closed lane, which hangs off the
+		// Closed board — so read where it stood first, or the close belongs to
+		// the board nobody was looking at and the ticket's own board never sees
+		// it leave.
+		const closedFrom = event.action === 'close.issue' ? resolveBoard(id) : null;
+
 		// Comments and attachments hang off `issue`: their `id` is the comment's
 		// or attachment's own, so without this they resolve to no board at all
 		// and drop out of every board-scoped view.
 		const parent = payload.parent ?? payload.issue;
 		if (parent) parentById.set(id, parent);
+
+		if (closedFrom !== null) return closedFrom;
 
 		// A board is its own board, which is what keeps its add and its edits in
 		// its own timeline.
@@ -328,6 +390,7 @@ export const buildTimelineEntries = (events: AppEvent[]): TimelineEntry[] => {
 	const names = buildNameIndex(events);
 	const previousParents = buildPreviousParentIndex(events);
 	const issueIndex = buildIssueIndex(events);
+	const lanes = lanesForEvents(events, issueIndex);
 	const boards = boardsForEvents(events);
 
 	// Over the whole log, so a poisoned id's dot lands where the scrub and
@@ -348,6 +411,7 @@ export const buildTimelineEntries = (events: AppEvent[]): TimelineEntry[] => {
 						action: event.action,
 						label: describeTimelineEvent(event, names, previousParents),
 						issue: issueOf(event, issueIndex),
+						...lanes[index]!,
 						board: boards[index] ?? null,
 						...identitiesFor(event, names),
 					},
@@ -359,18 +423,114 @@ export const buildTimelineEntries = (events: AppEvent[]): TimelineEntry[] => {
 	return entries.sort((left, right) => left.t - right.t);
 };
 
+// One change of lane: the ticket sits in `lane`, on `board`, from `t` until
+// the next change.
+type LaneChange = {t: number; lane: string; board: string | null};
+
+// Every ticket's lane over time, in time order, for answering where each one
+// sat at any moment without walking the entries up to it.
+export type LaneIndex = ReadonlyMap<string, readonly LaneChange[]>;
+
+export const buildLaneIndex = (
+	entries: readonly TimelineEntry[],
+): LaneIndex => {
+	const index = new Map<string, LaneChange[]>();
+
+	for (const entry of entries) {
+		if (entry.issue === null || entry.lane === null) continue;
+
+		const changes = index.get(entry.issue) ?? [];
+		const last = changes[changes.length - 1];
+
+		if (last === undefined || last.lane !== entry.lane) {
+			changes.push({t: entry.t, lane: entry.lane, board: entry.board});
+			index.set(entry.issue, changes);
+		}
+	}
+
+	return index;
+};
+
+// The last change strictly before `t`, or undefined where the ticket did not
+// yet exist.
+const changeBefore = (
+	changes: readonly LaneChange[],
+	t: number,
+): LaneChange | undefined => {
+	let low = 0;
+	let high = changes.length;
+
+	while (low < high) {
+		const mid = (low + high) >> 1;
+
+		if (changes[mid]!.t < t) low = mid + 1;
+		else high = mid;
+	}
+
+	return changes[low - 1];
+};
+
+// The lane of every ticket open at a moment, by ticket id — what lets a window
+// draw the tickets that sat still through it. Closed tickets are left out: the
+// flow chart ends a line at its close, and a ticket closed before the window
+// has no line in it. Narrowed to a board where one is named, by the board the
+// ticket was on at that moment.
+export const lanesOpenAt = (
+	index: LaneIndex,
+	t: number,
+	boardId?: string,
+): Record<string, string> => {
+	const lanes: Record<string, string> = {};
+
+	for (const [issue, changes] of index) {
+		const change = changeBefore(changes, t);
+		if (change === undefined || change.lane === CLOSED_SWIMLANE_ID) continue;
+		if (boardId && change.board !== boardId) continue;
+
+		lanes[issue] = change.lane;
+	}
+
+	return lanes;
+};
+
+// Every swimlane the log ever created, under its last known name — renamed
+// where it was renamed — so a lane the board has since deleted can still be
+// named on a chart drawn from its history.
+export const buildLaneNames = (events: AppEvent[]): Record<string, string> => {
+	const lanes: Record<string, string> = {};
+
+	for (const event of events) {
+		const payload = event.payload as {id?: string; name?: string} | undefined;
+		if (!payload?.id || payload.name === undefined) continue;
+
+		if (event.action === 'add.swimlane') lanes[payload.id] = payload.name;
+		else if (event.action === 'edit.title' && payload.id in lanes) {
+			lanes[payload.id] = payload.name;
+		}
+	}
+
+	return lanes;
+};
+
+export type TimelineIndex = {
+	entries: readonly TimelineEntry[];
+	lanes: LaneIndex;
+	laneNames: Record<string, string>;
+};
+
 // Held for the life of the process, and only ever for one root: the GUI server
 // serves one project, and a second entry would be a second copy of a history
 // this large.
-let cache: {root: string; signature: string; entries: TimelineEntry[]} | null =
+let cache: {root: string; signature: string; index: TimelineIndex} | null =
 	null;
 
-// The whole log as timeline entries, rebuilt only when the log has moved. The
-// raw events are dropped on the way out — they are three times the weight of
-// what is derived from them, and nothing downstream of here reads them.
-export const getTimelineEntries = (
+// The whole log as timeline entries, with the lane index over them, rebuilt
+// only when the log has moved. The raw events are dropped on the way out —
+// they are three times the weight of what is derived from them, and nothing
+// downstream of here reads them.
+export const getTimelineIndex = (
 	stateBranchRoot: string,
-): Result<readonly TimelineEntry[]> => {
+): Result<TimelineIndex> => {
 	// Read before the log, never after. Any file can gain lines from another
 	// machine between two reads, sync included: taken first, a write that lands
 	// in the gap is cached under the older signature and rebuilt on the next
@@ -383,17 +543,31 @@ export const getTimelineEntries = (
 		cache.root === stateBranchRoot &&
 		cache.signature === signature
 	) {
-		return succeeded('Timeline entries, cached', cache.entries);
+		return succeeded('Timeline entries, cached', cache.index);
 	}
 
 	const eventsResult = loadMergedEvents(stateBranchRoot);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
 	const entries = buildTimelineEntries(eventsResult.value);
+	const index = {
+		entries,
+		lanes: buildLaneIndex(entries),
+		laneNames: buildLaneNames(eventsResult.value),
+	};
 
-	cache = {root: stateBranchRoot, signature, entries};
+	cache = {root: stateBranchRoot, signature, index};
 
-	return succeeded('Timeline entries, built', entries);
+	return succeeded('Timeline entries, built', index);
+};
+
+export const getTimelineEntries = (
+	stateBranchRoot: string,
+): Result<readonly TimelineEntry[]> => {
+	const result = getTimelineIndex(stateBranchRoot);
+	return isFail(result)
+		? result
+		: succeeded(result.message, result.value.entries);
 };
 
 // The tests drive the log through a mocked loader, so they need the cache gone

@@ -9,6 +9,7 @@ import {
 	GuiEventIdentity,
 	GuiEventTimeline,
 	GuiTimeTravelStatus,
+	GuiUser,
 } from '../lib/gui-state.model';
 import {
 	AxisState,
@@ -27,6 +28,10 @@ import {
 	bucketCommitStats,
 	bucketIssueCounts,
 	buildAxis,
+	buildFlowChart,
+	FlowChart,
+	FlowLane,
+	flowStrandOf,
 	boardViewColor,
 	buildEventDots,
 	keptIssueIds,
@@ -65,6 +70,7 @@ import {canPlayTimeline} from '../lib/theatre';
 import {keptCommits} from '../lib/commit-link';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 import {ScatterLayer, ScatterPoint} from './ScatterCanvas';
+import {FlowHover} from './FlowCanvas';
 import {GUI_THEME} from '../lib/gui-theme';
 
 const SCRUB_THROTTLE_MS = 120;
@@ -73,6 +79,9 @@ const SCRUB_THROTTLE_MS = 120;
 // empty legend every render rather than a fresh one to re-memoize against.
 const EMPTY_IDENTITIES: GuiEventIdentity[] = [];
 const EMPTY_HIDDEN: ReadonlySet<string> = new Set<string>();
+// The flow chart outside the flow layout: nothing to draw, and nothing to
+// rebuild on every window while the other layouts are up.
+const EMPTY_FLOW: FlowChart = {strands: [], paths: []};
 
 // Still needed by the Volume hover, which reads a bucket's count rather than a
 // dot. The scatter's own hint comes from dotDetail.
@@ -99,6 +108,7 @@ export const TimeScrubber = ({
 	socketEpoch,
 	highlightEventId,
 	onInspectCommit,
+	onOpenIssue,
 	selection,
 	onChangeSelection,
 	selectedIssue,
@@ -118,6 +128,10 @@ export const TimeScrubber = ({
 	linkedCommitsOnly,
 	onChangeLinkedCommitsOnly,
 	issueIdByRef,
+	lanes,
+	laneTitles,
+	closedLaneId,
+	issueSummaryById,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -143,6 +157,8 @@ export const TimeScrubber = ({
 	// The event a hovered Log row points at. Every other dot dims around it.
 	highlightEventId: string | null;
 	onInspectCommit: (sha: string) => void;
+	// A click on a flow line opens its ticket.
+	onOpenIssue: (issueId: string) => void;
 	// Owned above rather than here: the selection that colours the chart is the
 	// same one that decides which tickets the board shows, and it lives in the
 	// URL.
@@ -165,6 +181,19 @@ export const TimeScrubber = ({
 	linkedCommitsOnly: boolean;
 	onChangeLinkedCommitsOnly: (next: boolean) => void;
 	issueIdByRef: ReadonlyMap<string, string>;
+	// What the flow layout draws its strands from: this board's lanes in column
+	// order, every lane's title for one the window names off this board, and
+	// the lane a close moves a ticket into. Null until a closed ticket says
+	// which lane that is.
+	lanes: readonly FlowLane[];
+	laneTitles: ReadonlyMap<string, string>;
+	closedLaneId: string | null;
+	// Every ticket by id, for naming and colouring its line: the line takes its
+	// first assignee's colour, so a board's lines say whose tickets they are.
+	issueSummaryById: ReadonlyMap<
+		string,
+		{ref: string; title: string; assignee: GuiUser | null}
+	>;
 	// Every tag and person the board knows, per axis, for naming a selected
 	// identity the window itself holds no event for.
 	knownIdentities: Record<FilterAxis, GuiEventIdentity[]>;
@@ -231,6 +260,9 @@ export const TimeScrubber = ({
 	// like any other. Cleared at the end of every gesture, so a press that never
 	// crosses the canvas cannot inherit it.
 	const pressedCommitRef = useRef<string | null>(null);
+	// And from the flow chart, naming the ticket whose line a press landed on:
+	// a click on a line opens the ticket.
+	const pressedIssueRef = useRef<string | null>(null);
 
 	const [collapsed, setCollapsed] = usePersistedFlag(
 		COLLAPSED_STORAGE_KEY,
@@ -274,6 +306,8 @@ export const TimeScrubber = ({
 		commit: GuiCommitEntry;
 		fraction: number;
 	} | null>(null);
+	// The ticket line under the pointer in the flow layout, and where along it.
+	const [hoveredFlow, setHoveredFlow] = useState<FlowHover | null>(null);
 	// Resolved arithmetically from the pointer's x rather than by per-bucket hit
 	// targets: at wide spans a bucket is only ~2px across.
 	const [hoveredBucketIndex, setHoveredBucketIndex] = useState<number | null>(
@@ -565,6 +599,62 @@ export const TimeScrubber = ({
 		[shown, boardView, hiddenIdentityIds, keptIssues],
 	);
 
+	// Built only while it is on screen: it walks every event in the window. The
+	// Board series off leaves the strands and takes the lines, the way the
+	// volume layout folds the board track away.
+	const issueColors = useMemo(() => {
+		const colors = new Map<string, string>();
+
+		for (const [id, summary] of issueSummaryById) {
+			if (summary.assignee) colors.set(id, summary.assignee.color);
+		}
+
+		return colors;
+	}, [issueSummaryById]);
+
+	const flowChart = useMemo(
+		() =>
+			layoutMode === 'flow'
+				? buildFlowChart(
+						showIssues ? shown.timeline : null,
+						lanes,
+						closedLaneId,
+						laneTitles,
+						boardView,
+						hiddenIdentityIds,
+						keptIssues,
+						issueColors,
+				  )
+				: EMPTY_FLOW,
+		[
+			layoutMode,
+			showIssues,
+			shown,
+			lanes,
+			closedLaneId,
+			laneTitles,
+			boardView,
+			hiddenIdentityIds,
+			keptIssues,
+			issueColors,
+		],
+	);
+
+	// The hovered line; else the line a hovered log row's event sits on; else
+	// the open ticket's, so opening one mutes every other line around it.
+	const flowFocusIssue = useMemo(() => {
+		if (hoveredFlow) return hoveredFlow.path.issue;
+
+		if (highlightEventId !== null) {
+			const lit = flowChart.paths.find(path =>
+				path.vertices.some(vertex => vertex.eventId === highlightEventId),
+			);
+			if (lit) return lit.issue;
+		}
+
+		return selectedIssue?.id ?? null;
+	}, [hoveredFlow, highlightEventId, flowChart, selectedIssue]);
+
 	const dragging = dragFraction !== null || rangeDrag !== null;
 
 	// Both series as one list for the canvas, in the order they should stack:
@@ -734,6 +824,8 @@ export const TimeScrubber = ({
 
 		const pressedCommit = pressedCommitRef.current;
 		pressedCommitRef.current = null;
+		const pressedIssue = pressedIssueRef.current;
+		pressedIssueRef.current = null;
 
 		// Everything the gesture was holding goes at once, before deciding what it
 		// was: a second pointer can leave both a range and a needle drag set, and
@@ -768,6 +860,11 @@ export const TimeScrubber = ({
 			// it, not whatever the release happens to land on.
 			if (pressedCommit !== null) {
 				onInspectCommit(pressedCommit);
+				return;
+			}
+
+			if (pressedIssue !== null) {
+				onOpenIssue(pressedIssue);
 				return;
 			}
 
@@ -832,6 +929,36 @@ export const TimeScrubber = ({
 		setHoveredCommit(null);
 	}, []);
 
+	const onFlowPathEnter = useCallback((hover: FlowHover) => {
+		setHoveredFlow(hover);
+	}, []);
+
+	const onFlowPathLeave = useCallback(() => {
+		setHoveredFlow(null);
+	}, []);
+
+	// What the hovered line says: the ticket, and the lane it is in at the
+	// pointer's moment.
+	const flowHint: HintContent | null = useMemo(() => {
+		if (layoutMode !== 'flow' || hoveredFlow === null) return null;
+
+		const {path, t, fraction} = hoveredFlow;
+		const summary = issueSummaryById.get(path.issue);
+		const strand = flowStrandOf(path, t);
+		const strandTitle =
+			strand === null ? null : flowChart.strands[strand]?.title ?? null;
+
+		return {
+			label: formatDateTime(new Date(t)),
+			rows: [
+				summary ? `${summary.ref} ${summary.title}` : path.issue,
+				...(strandTitle === null ? [] : [`In ${strandTitle}`]),
+				...(summary?.assignee ? [`Assigned to ${summary.assignee.name}`] : []),
+			],
+			fraction,
+		};
+	}, [layoutMode, hoveredFlow, issueSummaryById, flowChart]);
+
 	const hoveredBucketTime = bucketTimeAt(hoveredBucketIndex);
 	const hoveredBucketCount =
 		hoveredBucketIndex !== null ? issueCounts[hoveredBucketIndex] : undefined;
@@ -839,7 +966,9 @@ export const TimeScrubber = ({
 	// the track is folded away, but the hit strip above it still sets the
 	// hovered bucket.
 	const boardHint: HintContent | null =
-		layoutMode === 'even'
+		layoutMode === 'flow'
+			? flowHint
+			: layoutMode === 'even'
 			? showIssues &&
 			  hoveredBucketTime !== undefined &&
 			  hoveredBucketCount !== undefined
@@ -867,7 +996,9 @@ export const TimeScrubber = ({
 			: undefined;
 	const hoveredCommitBucketTime = bucketTimeAt(hoveredCommitBucketIndex);
 	const commitHint: HintContent | null =
-		layoutMode === 'even'
+		layoutMode === 'flow'
+			? null
+			: layoutMode === 'even'
 			? hoveredCommitStats && hoveredCommitBucketTime !== undefined
 				? {
 						label: formatInterval(
@@ -904,6 +1035,7 @@ export const TimeScrubber = ({
 			? hoveredBucketTime ?? bucketTimeAt(hoveredCommitBucketIndex)
 			: // A hovered point wins over the raw pointer, so the highlight agrees
 			  // with the tooltip's own moment.
+			  hoveredFlow?.t ??
 			  hoveredEvent?.t ??
 			  hoveredCommit?.commit.time ??
 			  (pointerFraction !== null
@@ -1023,6 +1155,8 @@ export const TimeScrubber = ({
 				commitBars,
 				commitBarRange,
 				scatterLayers,
+				flowChart,
+				flowFocusIssue,
 				issueSeriesColor: soleIdentity?.color ?? boardViewColor(boardView),
 				dragging,
 				rangeSelection: rangeDrag,
@@ -1115,6 +1249,11 @@ export const TimeScrubber = ({
 					onCommitTrackMouseLeave: () => setHoveredCommitBucketIndex(null),
 					onScatterPointEnter,
 					onScatterPointLeave,
+					onFlowPathEnter,
+					onFlowPathLeave,
+					onPressFlowPath: issue => {
+						pressedIssueRef.current = issue;
+					},
 					onPressCommit: sha => {
 						pressedCommitRef.current = sha;
 					},
