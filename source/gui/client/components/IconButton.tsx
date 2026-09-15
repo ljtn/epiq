@@ -20,13 +20,15 @@ export const IconButton = ({
 	children,
 	...rest
 }: {
-	// Read as the tooltip and, unless overridden, as the accessible name.
+	// Read as the tooltip, and as the accessible name where nothing sets one:
+	// only an explicit aria-label is one, so a button nested in another (the
+	// copy button in a commit row) does not lend its name to the row's.
 	title: string;
 	// A control that is on or off. Absent on one that only acts.
 	pressed?: boolean;
 	disabled?: boolean;
 	testId?: string;
-	onClick: () => void;
+	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 	children: React.ReactNode;
 } & Pick<
 	React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -39,7 +41,7 @@ export const IconButton = ({
 		<button
 			type="button"
 			title={title}
-			aria-label={rest['aria-label'] ?? title}
+			aria-label={rest['aria-label']}
 			aria-pressed={pressed}
 			aria-haspopup={rest['aria-haspopup']}
 			aria-expanded={rest['aria-expanded']}

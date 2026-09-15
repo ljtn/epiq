@@ -58,7 +58,7 @@ test('the entrance plays for view changes, not for incoming data', async ({
 
 	// A mutation makes the server broadcast fresh state; no view option changed.
 	await page.evaluate(RESET);
-	await page.getByRole('button', {name: '+', exact: true}).first().click();
+	await page.getByTitle('Add issue').first().click();
 	const title = `E${Date.now()}`;
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByRole('button', {name: 'create', exact: true}).click();

@@ -22,7 +22,7 @@ import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
 import {IconButton, ICON_SIZE} from './IconButton';
-import {IconClose} from './IconClose';
+import {IconClose} from './IconPlayback';
 import {TicketOnlyToggle} from './TicketOnlyToggle';
 import {PanelDockMenu} from './PanelDockMenu';
 import {IconCollapseLane} from './IconCollapseLane';
