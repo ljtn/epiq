@@ -833,9 +833,14 @@ export const TimeScrubber = ({
 	const hoveredBucketTime = bucketTimeAt(hoveredBucketIndex);
 	const hoveredBucketCount =
 		hoveredBucketIndex !== null ? issueCounts[hoveredBucketIndex] : undefined;
+	// Nothing to say about a series that is not drawn: with the box unticked
+	// the track is folded away, but the hit strip above it still sets the
+	// hovered bucket.
 	const boardHint: HintContent | null =
 		layoutMode === 'even'
-			? hoveredBucketTime !== undefined && hoveredBucketCount !== undefined
+			? showIssues &&
+			  hoveredBucketTime !== undefined &&
+			  hoveredBucketCount !== undefined
 				? {
 						label: formatInterval(
 							hoveredBucketTime,
