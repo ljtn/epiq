@@ -18,8 +18,9 @@ const needsWrite = (context: CommandContext): string | null => {
 const needsWritableTicket = (context: CommandContext): string | null =>
 	needsWrite(context) ?? needsTicket(context);
 
-// The Closed board is the one board that is readonly, and the only one whose
-// title is not the reader's to change.
+// Readonly is the Closed board, and every board while the timeline is
+// scrubbed; needsWrite has already said the latter, so what is left to say
+// here is the Closed board's.
 const needsWritableBoard = (context: CommandContext): string | null => {
 	const held = needsWrite(context);
 	if (held) return held;

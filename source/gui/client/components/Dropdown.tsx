@@ -13,9 +13,9 @@ type DropdownItem = {
 	label: string;
 };
 
-// Fixed, not sized to its label, so the controls beside it stay put as the
-// selection changes; a title too long for it is clipped, and the open list
-// spells it out in full.
+// Fixed, not sized to its label, so switching boards does not resize the
+// trigger under the pointer; a title too long for it is clipped, and the open
+// list spells it out in full.
 const TRIGGER_WIDTH = 200;
 
 export const Dropdown = ({

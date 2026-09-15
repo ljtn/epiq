@@ -156,7 +156,9 @@ export const editBoardTitle = async (input: EditBoardTitleInput) => {
 
 	const board = stateResult.value.nodes[input.boardId];
 
-	if (!board) return failed('Board not found');
+	// A tombstoned board is one listBoards no longer shows, and one this must
+	// not touch either.
+	if (!board || board.isDeleted) return failed('Board not found');
 	if (!isBoardNode(board)) return failed('Edit target must be a board');
 	if (board.readonly) return failed('Cannot edit readonly board');
 
@@ -300,7 +302,7 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 
 	const swimlane = stateResult.value.nodes[input.swimlaneId];
 
-	if (!swimlane) return failed('Swimlane not found');
+	if (!swimlane || swimlane.isDeleted) return failed('Swimlane not found');
 	if (!isSwimlaneNode(swimlane))
 		return failed('Edit target must be a swimlane');
 	if (swimlane.readonly) return failed('Cannot edit readonly swimlane');

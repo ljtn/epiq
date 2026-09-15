@@ -203,7 +203,7 @@ export const createMcpServer = () => {
 	server.registerTool(
 		'epiq_board_title_edit',
 		{
-			description: 'Edit an Epiq board title',
+			description: 'Edit an Epiq board title. Refused while time travelling.',
 			inputSchema: z.object({
 				repoRoot: z.string().optional(),
 				boardId: z.string().min(1),

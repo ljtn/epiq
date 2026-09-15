@@ -780,6 +780,23 @@ describe('mcp tools', () => {
 		}
 	});
 
+	it('fails editing a tombstoned swimlane, which the list no longer shows', async () => {
+		nodes['swimlane-2']!.isDeleted = true;
+
+		try {
+			const result = await tools.editSwimlaneTitle({
+				repoRoot: '/repo',
+				swimlaneId: 'swimlane-2',
+				title: 'Renamed',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) expect(result.message).toBe('Swimlane not found');
+		} finally {
+			nodes['swimlane-2']!.isDeleted = false;
+		}
+	});
+
 	it('fails editing a swimlane title when target is not a swimlane', async () => {
 		const result = await tools.editSwimlaneTitle({
 			repoRoot: '/repo',
@@ -848,6 +865,23 @@ describe('mcp tools', () => {
 			}
 		} finally {
 			nodes['board-2']!.readonly = false;
+		}
+	});
+
+	it('fails editing a tombstoned board, which the list no longer shows', async () => {
+		nodes['board-2']!.isDeleted = true;
+
+		try {
+			const result = await tools.editBoardTitle({
+				repoRoot: '/repo',
+				boardId: 'board-2',
+				title: 'Renamed',
+			});
+
+			expect(isFail(result)).toBe(true);
+			if (isFail(result)) expect(result.message).toBe('Board not found');
+		} finally {
+			nodes['board-2']!.isDeleted = false;
 		}
 	});
 
