@@ -1,51 +1,7 @@
-import {useState} from 'react';
 import {AsideDock} from '../lib/aside-dock';
-import {GUI_THEME} from '../lib/gui-theme';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconDockBottom} from './IconDockBottom';
 import {IconDockRight} from './IconDockRight';
-
-const DockButton = ({
-	label,
-	active,
-	icon,
-	onClick,
-}: {
-	label: string;
-	active: boolean;
-	icon: React.ReactNode;
-	onClick: () => void;
-}) => {
-	const [hovered, setHovered] = useState(false);
-
-	return (
-		<button
-			type="button"
-			aria-label={label}
-			aria-pressed={active}
-			title={label}
-			onClick={onClick}
-			onMouseEnter={() => setHovered(true)}
-			onMouseLeave={() => setHovered(false)}
-			style={{
-				display: 'inline-flex',
-				alignItems: 'center',
-				flexShrink: 0,
-				border: 'none',
-				padding: 4,
-				borderRadius: 4,
-				cursor: 'pointer',
-				// The selected side is lit rather than boxed: one accent mark in a
-				// row of dim ones says which it is without adding a frame the rest
-				// of this header does not have.
-				color: active ? GUI_THEME.accent : GUI_THEME.dim,
-				background: active || hovered ? GUI_THEME.hover : 'transparent',
-				transition: 'color 120ms ease, background 120ms ease',
-			}}
-		>
-			{icon}
-		</button>
-	);
-};
 
 /**
  * Which edge the panel is attached to, as the pair of states rather than a
@@ -60,17 +16,19 @@ export const DockButtons = ({
 	onDock: (next: AsideDock) => void;
 }) => (
 	<>
-		<DockButton
-			label="Dock to bottom"
-			active={dock === 'bottom'}
-			icon={<IconDockBottom size={12} />}
+		<IconButton
+			title="Dock to bottom"
+			pressed={dock === 'bottom'}
 			onClick={() => onDock('bottom')}
-		/>
-		<DockButton
-			label="Dock to right"
-			active={dock === 'right'}
-			icon={<IconDockRight size={12} />}
+		>
+			<IconDockBottom size={ICON_SIZE} />
+		</IconButton>
+		<IconButton
+			title="Dock to right"
+			pressed={dock === 'right'}
 			onClick={() => onDock('right')}
-		/>
+		>
+			<IconDockRight size={ICON_SIZE} />
+		</IconButton>
 	</>
 );

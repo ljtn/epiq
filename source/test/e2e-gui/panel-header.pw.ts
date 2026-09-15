@@ -91,7 +91,7 @@ test('the age is centred on the line the panel buttons keep', async ({
 	const age = await page.getByTestId('issue-created-at').boundingBox();
 	const close = await page
 		.locator('aside')
-		.getByRole('button', {name: '×'})
+		.getByRole('button', {name: 'Close', exact: true})
 		.boundingBox();
 
 	if (!age || !close) throw new Error('header parts not found');

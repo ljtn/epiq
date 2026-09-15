@@ -21,6 +21,8 @@ import {ManageTagsModal} from './ManageTagsModal';
 import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
+import {IconButton, ICON_SIZE} from './IconButton';
+import {IconClose} from './IconClose';
 import {TicketOnlyToggle} from './TicketOnlyToggle';
 import {PanelDockMenu} from './PanelDockMenu';
 import {IconCollapseLane} from './IconCollapseLane';
@@ -92,8 +94,9 @@ const LANE_LABEL_STYLE = {
 	letterSpacing: '0.08em',
 } as const;
 
-// Same footprint and hover as FullscreenToggleButton, which is the other
-// icon-only control in this panel.
+// The collapsed lane's rail: the whole rail is the target, with the label
+// running up it, so it is not the square IconButton the open header uses,
+// but it hovers and lights the same way.
 const LaneIconButton = ({
 	label,
 	icon,
@@ -233,11 +236,9 @@ const Lane = ({
 				    in particular. The last open lane has nowhere to collapse to, so
 				    it shows no control at all. */}
 				{canCollapse && (
-					<LaneIconButton
-						label={`Collapse ${title}`}
-						onClick={onToggle}
-						icon={<IconCollapseLane size={12} />}
-					/>
+					<IconButton title={`Collapse ${title}`} onClick={onToggle}>
+						<IconCollapseLane size={ICON_SIZE} />
+					</IconButton>
 				)}
 			</div>
 			<div style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>{children}</div>
@@ -1118,15 +1119,9 @@ export const IssueDetails = ({
 											isFullscreen={isFullscreen}
 											onClick={toggleFullscreen}
 										/>
-										<Button
-											variant="ghost"
-											onClick={onClose}
-											// The header's icons are 14px; a 12px cross beside them
-											// reads as a speck.
-											style={{fontSize: 14}}
-										>
-											×
-										</Button>
+										<IconButton title="Close" onClick={onClose}>
+											<IconClose size={ICON_SIZE} />
+										</IconButton>
 									</div>
 								</FormHeader>
 

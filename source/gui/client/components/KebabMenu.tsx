@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
+import {IconButton} from './IconButton';
 
 export type KebabMenuItem = {
 	id: string;
@@ -24,7 +25,6 @@ export const KebabMenu = ({
 	children?: (close: () => void) => React.ReactNode;
 }) => {
 	const [open, setOpen] = useState(false);
-	const [hovered, setHovered] = useState(false);
 	const ref = useRef<HTMLDivElement | null>(null);
 
 	useEffect(() => {
@@ -51,35 +51,16 @@ export const KebabMenu = ({
 
 	return (
 		<div ref={ref} style={{position: 'relative', display: 'flex'}}>
-			<button
-				type="button"
-				data-testid={testId}
+			<IconButton
+				testId={testId}
 				title={title}
+				pressed={open}
 				aria-haspopup="menu"
 				aria-expanded={open}
 				onClick={() => setOpen(value => !value)}
-				onMouseEnter={() => setHovered(true)}
-				onMouseLeave={() => setHovered(false)}
-				style={{
-					appearance: 'none',
-					WebkitAppearance: 'none',
-					background: hovered ? GUI_THEME.hover : 'transparent',
-					border: `1px solid ${
-						open || hovered ? GUI_THEME.line : 'transparent'
-					}`,
-					borderRadius: 6,
-					color: open || hovered ? GUI_THEME.secondary : GUI_THEME.dim,
-					cursor: 'pointer',
-					fontFamily: 'inherit',
-					fontSize: 12,
-					lineHeight: 1,
-					padding: '3px 6px',
-					outline: 'none',
-					transition: 'color 120ms ease, background 120ms ease',
-				}}
 			>
 				⋮
-			</button>
+			</IconButton>
 
 			{open && (
 				<div
