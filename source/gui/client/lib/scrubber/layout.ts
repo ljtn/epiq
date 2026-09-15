@@ -34,6 +34,11 @@ export const HOVER_HINT_WIDTH = 220;
 
 // Must stay fainter than the bucket highlight drawn over it.
 export const SEGMENT_HIGHLIGHT_COLOR = 'rgba(122, 157, 214, 0.14)';
+// The grain, drawn all the time: a hairline at every segment boundary, faint
+// enough to sit under the bars and the dots and under the highlight above,
+// and the short label beside it, a shade up from the line so it can be read.
+export const SEGMENT_BOUNDARY_COLOR = 'rgba(122, 157, 214, 0.06)';
+export const SEGMENT_LABEL_COLOR = 'rgba(122, 157, 214, 0.32)';
 export const BUCKET_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.06)';
 export const NEEDLE_COLOR = 'rgba(255, 255, 255, 0.62)';
 

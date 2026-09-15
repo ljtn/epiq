@@ -30,6 +30,7 @@ import {
 	boardViewColor,
 	buildEventDots,
 	keptIssueIds,
+	chooseGrainUnit,
 	chooseSegmentUnit,
 	clamp,
 	DOT_EXIT_TOTAL_MS,
@@ -52,6 +53,7 @@ import {
 	populatedRange,
 	Scope,
 	segmentAt,
+	segmentBoundaries,
 	useExitTransition,
 	isPeriodWindow,
 	useNarrowBar,
@@ -909,6 +911,12 @@ export const TimeScrubber = ({
 					: undefined)) ?? null;
 
 	const segmentUnit = chooseSegmentUnit(axis.span);
+	// Coarser than the hover's segments: every line is on screen at once.
+	const grainUnit = chooseGrainUnit(axis.span);
+	const boundaries = useMemo(
+		() => segmentBoundaries(axis.earliest, axis.latest, grainUnit),
+		[axis, grainUnit],
+	);
 
 	// Everything hover puts on the chart is about the bucket under the pointer,
 	// which is not what a range drag is asking about — and it is drawn over the
@@ -1030,6 +1038,14 @@ export const TimeScrubber = ({
 				hoveredSegment:
 					hoveredSegmentTime !== null && !pickingRange
 						? segmentAt(hoveredSegmentTime, segmentUnit)
+						: null,
+				segmentBoundaries: boundaries,
+				// The grain segment under the pointer, whose label the highlight's
+				// name stands in for — the whole segment, since the hover may cut
+				// finer than the grain and its name lands anywhere inside it.
+				hoveredGrain:
+					hoveredSegmentTime !== null && !pickingRange
+						? segmentAt(hoveredSegmentTime, grainUnit)
 						: null,
 				connected,
 				thumbFraction: dragFraction ?? confirmedFraction,
