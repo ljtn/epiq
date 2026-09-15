@@ -469,3 +469,44 @@ test('an arrow left below the fold does not hold the pane open when the log empt
 	await page.getByTestId('log-toggle').click();
 	expect(pageErrors).toEqual([]);
 });
+
+// Dragged to size from its board-side edge, and the width kept for the next
+// open, as the ticket panel on the other side is.
+test('the log is dragged to size, and keeps its width', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	await page.getByTestId('log-toggle').click();
+
+	const log = page.getByTestId('event-log');
+	await expect(log).toBeVisible();
+	const before = (await log.boundingBox())!;
+
+	const handle = (await page.getByTestId('event-log-resize').boundingBox())!;
+	const x = handle.x + handle.width / 2;
+	const y = handle.y + handle.height / 2;
+	await page.mouse.move(x, y);
+	await page.mouse.down();
+	await page.mouse.move(x + 120, y, {steps: 8});
+	await page.mouse.up();
+
+	const after = (await log.boundingBox())!;
+	expect(Math.round(after.width - before.width)).toBe(120);
+
+	// The board moves over, as it does for the panel's opening.
+	const lane = (await page
+		.getByTestId('swimlane-handle')
+		.first()
+		.boundingBox())!;
+	expect(lane.x).toBeGreaterThanOrEqual(after.x + after.width);
+
+	await page.reload();
+	await expect(log).toBeVisible();
+	expect(Math.round((await log.boundingBox())!.width)).toBe(
+		Math.round(after.width),
+	);
+
+	expect(pageErrors).toEqual([]);
+});
