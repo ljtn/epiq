@@ -21,6 +21,7 @@ import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
 import {IconChevronLeft} from './IconChevronLeft';
 import {IconChevronRight} from './IconChevronRight';
+import {IconFlashlight} from './IconFlashlight';
 import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
 import {IconPlay} from './IconPlayback';
@@ -31,7 +32,6 @@ import {
 	CommitSeriesGroup,
 	mutedStyle,
 	ScopeSelect,
-	SCOPE_ONLY_LABEL,
 } from './ScrubberSelects';
 
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
@@ -403,22 +403,21 @@ export const ScrubberControls = ({
 				/>
 
 				{/* Beside the series checkboxes rather than by the scope row, so every
-			    narrowing on this bar is in one place. The window it names is the
+			    narrowing on this bar is in one place. The window it lights is the
 			    one those buttons select — under "All" that is every event there
 			    is, which narrows nothing, so it goes flat instead of pretending
 			    to. */}
-				<Checkbox
-					label={SCOPE_ONLY_LABEL}
+				<SpotlightToggle
 					title={
 						ticketFocus
-							? 'The board is already down to one ticket — let the ticket go in its panel to narrow by window instead'
+							? 'The board is already down to one ticket — let the ticket go in its panel to spotlight a window instead'
 							: everythingInScope
-							? 'Every event is in scope — pick a period to narrow the board'
+							? 'Every event is in scope — pick a period for the spotlight to narrow the board to'
 							: !windowFilterable
 							? 'Too many events in this window to tell which tickets they belong to'
-							: 'Show only tickets with activity in the selected window'
+							: 'Spotlight: show only the tickets with activity in the timeline\u2019s window'
 					}
-					checked={windowOnly}
+					on={windowOnly}
 					// Unlike its neighbours it asks the socket for nothing — it
 					// narrows what is already on screen — so offline it can still be
 					// let go of, just not taken up over a window that can no longer be
@@ -500,6 +499,50 @@ export const ScrubberControls = ({
 		</div>
 	);
 };
+
+// The spotlight: the board narrowed to the tickets with activity in the
+// timeline's window. A flashlight that lights while it narrows — borderless,
+// like the boxes it sits among, since it is one more narrowing and not a
+// layout switch. Drawn once, since the collapsed header puts the same one up
+// when the rest of the row is not on screen.
+const spotlightStyle = (on: boolean): React.CSSProperties => ({
+	display: 'inline-flex',
+	alignItems: 'center',
+	background: 'transparent',
+	border: 'none',
+	padding: '2px 3px',
+	color: on ? GUI_THEME.accent : GUI_THEME.dim,
+	cursor: 'pointer',
+	transition: 'color 120ms ease',
+});
+
+export const SpotlightToggle = ({
+	on,
+	disabled = false,
+	title,
+	onChange,
+}: {
+	on: boolean;
+	disabled?: boolean;
+	title: string;
+	onChange: (next: boolean) => void;
+}) => (
+	<button
+		type="button"
+		data-testid="spotlight"
+		aria-label="Spotlight"
+		aria-pressed={on}
+		disabled={disabled}
+		title={title}
+		onClick={() => onChange(!on)}
+		style={{
+			...spotlightStyle(on),
+			...(disabled ? mutedStyle : {}),
+		}}
+	>
+		<IconFlashlight size={16} lit={on} />
+	</button>
+);
 
 // The board's text query, beside the other narrowings. Worn like the selects
 // on this row — the same fill, no border — so the bar reads as one family of

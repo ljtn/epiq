@@ -31,11 +31,11 @@ import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {ScatterCanvas, ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {
 	ScrubberControls,
+	SpotlightToggle,
 	TextFilterInput,
 	ScrubberHeader,
 	ScrubberPlayButton,
 } from './ScrubberControls';
-import {SCOPE_ONLY_LABEL} from './ScrubberSelects';
 import {
 	BucketHighlight,
 	HourAxisLabels,
@@ -48,7 +48,6 @@ import {
 	VolumeBars,
 } from './ScrubberTrack';
 import {Panel} from './Panel';
-import {Checkbox} from './Checkbox';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -225,10 +224,9 @@ export const ScrubberLayout = ({
 							/>
 
 							{controls.windowOnly && (
-								<Checkbox
-									label={SCOPE_ONLY_LABEL}
+								<SpotlightToggle
+									on
 									title="Show every ticket again"
-									checked
 									onChange={controls.onChangeWindowOnly}
 								/>
 							)}
