@@ -191,7 +191,7 @@ const EMPTY_IDENTITIES: GuiEventIdentity[] = [];
 const EMPTY_HIDDEN: ReadonlySet<string> = new Set<string>();
 
 // A checkbox for the series and a select for what it draws, one kind at a time.
-// That is what lets a colour mean one thing: "Board events" colours by kind,
+// That is what lets a colour mean one thing: "Board" colours by kind,
 // and any single kind colours by the tag or person behind each event, never both
 // at once. The trigger reads back whatever is selected, down to the one tag or
 // person left when the rest are unticked — the same name and colour the bars and
@@ -509,7 +509,7 @@ export const CommitSeriesGroup = ({
 						square
 						onSelect={() => choose(false)}
 					/>
-					{/* Linked to a ticket the board knows — and, while the board is
+					{/* Linked to a ticket the client knows, on any board — and, while the board is
 					    narrowed to some tickets, only to those, the same way the
 					    board events above the columns follow that narrowing. */}
 					<Radio

@@ -576,10 +576,10 @@ export const TextFilterInput = ({
 					held ? GUI_THEME.accent : GUI_THEME.primary,
 					false,
 				),
-				// And still the one thing on this row that can give when it is
-				// tighter than either width allows for, since a query is readable
-				// at this size and the transport would otherwise be pushed off the
-				// edge.
+				// Above the tight breakpoint it is also the one thing on this row
+				// that can give, down to the short width, should the row run out of
+				// room before the breakpoint says so: a query is readable at that
+				// size, and the transport would otherwise be pushed off the edge.
 				width: tight ? 70 : 110,
 				minWidth: 70,
 				flexShrink: 1,

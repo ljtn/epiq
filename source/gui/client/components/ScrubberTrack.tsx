@@ -349,9 +349,11 @@ export const ScrubberHoverHint = ({
 	fraction,
 	trackWidthPx,
 	empty = false,
+	testId,
 }: {
 	label: string;
 	rows: string[];
+	testId?: string;
 	// Drawn above the hint's own label, so the hovered moment names its period.
 	segmentLabel: string | undefined;
 	stripeColor: string;
@@ -362,6 +364,7 @@ export const ScrubberHoverHint = ({
 	empty?: boolean;
 }) => (
 	<div
+		data-testid={testId}
 		style={{
 			position: 'absolute',
 			top: '100%',

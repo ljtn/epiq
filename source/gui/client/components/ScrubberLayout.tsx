@@ -266,7 +266,9 @@ export const ScrubberLayout = ({
 							position: 'relative',
 							display: 'flex',
 							flexDirection: 'column',
-							gap: 8,
+							// No gap under a board track folded away with its series off:
+							// the fold is to nothing, not to a blank band.
+							gap: layoutMode === 'even' && !chart.showIssues ? 0 : 8,
 							// Crosshair, not a hand: a press picks a moment but a drag picks
 							// out a range, and the pointer has to say the second is on offer.
 							cursor: chart.connected ? 'crosshair' : 'default',
@@ -454,6 +456,7 @@ export const ScrubberLayout = ({
 						{chart.boardHint && (
 							<ScrubberHoverHint
 								{...chart.boardHint}
+								testId="board-hint"
 								segmentLabel={chart.hoveredSegment?.label}
 								stripeColor={chart.issueSeriesColor}
 								trackWidthPx={chart.trackWidthPx}

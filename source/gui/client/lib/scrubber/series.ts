@@ -273,12 +273,6 @@ export const dotDetail = (dot: EventDot): string => {
 const EVENT_DOT_SIZE = 4;
 const EVENT_DOT_OPACITY = 0.55;
 
-// The scatter plots each dot at its own timestamp, so it wants events, not
-// buckets. Buckets are the fallback for a window the server capped, and only
-// there do size and opacity carry a count.
-// An event is drawn when its kind matches the view and the identity it would be
-// coloured by has not been unticked. An event with no identity under this view
-// always shows: there is nothing in the list for the user to have hidden it by.
 // The tickets whose events the chart keeps, and null for every ticket's. The
 // "Ticket only" narrowing and the text query are the board's two ways down to
 // particular tickets, and both in force keep what passes both, as the board
@@ -295,6 +289,12 @@ export const keptIssueIds = (
 	return new Set();
 };
 
+// The scatter plots each dot at its own timestamp, so it wants events, not
+// buckets. Buckets are the fallback for a window the server capped, and only
+// there do size and opacity carry a count.
+// An event is drawn when its kind matches the view and the identity it would be
+// coloured by has not been unticked. An event with no identity under this view
+// always shows: there is nothing in the list for the user to have hidden it by.
 // The rule the chart draws by, exported so the log can draw by the same one
 // rather than growing a second copy to drift from it.
 export const isShown = (

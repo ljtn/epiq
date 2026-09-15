@@ -115,3 +115,32 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The track folds away with its series off, but the hit strip above the
+// charts is still the track's for the pointer: what it must not do is put up
+// a count of board events for a series that is not drawn.
+test('no board hint comes up over a board track folded away', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const track = page.getByTestId('scrubber-track');
+	const box = (await track.boundingBox())!;
+	const aboveTheCharts = {x: box.x + box.width * 0.5, y: box.y - 2};
+
+	await page.mouse.move(aboveTheCharts.x, aboveTheCharts.y);
+	await expect(page.getByTestId('board-hint')).toBeVisible();
+	await page.mouse.move(box.x + box.width * 0.5, box.y + box.height + 200);
+
+	await page.getByTitle('Show board events').click();
+	const folded = (await track.boundingBox())!;
+	await page.mouse.move(folded.x + folded.width * 0.5, folded.y - 2);
+	await page.waitForTimeout(300);
+	await expect(page.getByTestId('board-hint')).toHaveCount(0);
+
+	await page.getByTitle('Show board events').click();
+	expect(pageErrors).toEqual([]);
+});

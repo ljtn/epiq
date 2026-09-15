@@ -527,7 +527,7 @@ export const App = () => {
 					),
 				),
 			),
-		[state],
+		[state?.boards],
 	);
 
 	// The tickets the text query keeps, for the chart and the log: they plot
