@@ -22,6 +22,7 @@ import {ManageTagsModal} from './ManageTagsModal';
 import {CopyRef} from './CopyRef';
 import {FormHeader} from './FormHeader';
 import {FullscreenToggleButton} from './FullscreenToggleButton';
+import {TicketOnlyToggle} from './TicketOnlyToggle';
 import {PanelDockMenu} from './PanelDockMenu';
 import {IconCollapseLane} from './IconCollapseLane';
 import {IconExpandLane} from './IconExpandLane';
@@ -259,6 +260,9 @@ export const IssueDetails = ({
 	onChangeTab,
 	issue,
 	onClose,
+	timelineNarrowed,
+	canNarrowTimeline,
+	onChangeTimelineNarrowed,
 	onEditTitle,
 	onEditDescription,
 	onAddTag,
@@ -303,6 +307,13 @@ export const IssueDetails = ({
 	onHoverHistoryEvent: (eventId: string | null) => void;
 	onCheckoutHistoryEvent?: (eventId: string) => void;
 	onClose: () => void;
+	// The timeline narrowed to this ticket — its own stretch, and its events
+	// only. It lives in the board's selection; the panel is where it is
+	// switched, since what it narrows to is the ticket on screen.
+	timelineNarrowed: boolean;
+	// Offline the narrowing can still be let go of, just not taken up.
+	canNarrowTimeline: boolean;
+	onChangeTimelineNarrowed: (next: boolean) => void;
 	activeTab: IssueDetailsTab;
 	onChangeTab: (tab: IssueDetailsTab) => void;
 	onEditTitle: (issueId: string, title: string) => void;
@@ -1117,6 +1128,11 @@ export const IssueDetails = ({
 											<span style={{marginRight: 6}}>{ageNode}</span>
 										)}
 
+										<TicketOnlyToggle
+											narrowed={timelineNarrowed}
+											disabled={!canNarrowTimeline}
+											onChange={onChangeTimelineNarrowed}
+										/>
 										<PanelDockMenu dock={dock} onDock={onDock} />
 										<FullscreenToggleButton
 											isFullscreen={isFullscreen}

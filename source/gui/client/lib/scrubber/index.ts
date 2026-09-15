@@ -31,7 +31,6 @@ export {
 	FADE_IN_ANIMATION,
 	SCRUBBER_KEYFRAMES,
 	useNarrowBar,
-	useTightBar,
 	usePrefersReducedMotion,
 	useExitTransition,
 } from './layout';

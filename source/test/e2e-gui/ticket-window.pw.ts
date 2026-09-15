@@ -1,11 +1,11 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 
-// Clicked rather than check()/uncheck(): the box is controlled through the URL,
-// so its state comes back a tick later and Playwright's own re-click races it.
+// The toggle sits in the ticket's panel and is controlled through the URL, so
+// its state comes back a tick later; read it off aria-pressed rather than
+// through Playwright's own check()/uncheck(), whose re-click races it.
 
-const ticketOnly = (page: Page) =>
-	page.getByRole('checkbox', {name: 'Ticket only'});
+const ticketOnly = (page: Page) => page.getByTestId('ticket-only');
 
 const scopeButton = (page: Page, name: string) =>
 	page.getByRole('button', {name, exact: true});
@@ -41,9 +41,8 @@ const addTicket = async (page: Page, title: string) => {
 	await expect(page.locator('aside')).toContainText(title);
 };
 
-// The narrowing needs a ticket for both halves of what it does, so with none
-// open it is greyed rather than gone: the row must not change width every time
-// the details panel opens and closes.
+// The narrowing needs a ticket for both halves of what it does, and lives in
+// that ticket's panel: with none open there is no toggle to find.
 test('the ticket narrowing waits for a ticket, then owns the window', async ({
 	page,
 	appUrl,
@@ -52,8 +51,7 @@ test('the ticket narrowing waits for a ticket, then owns the window', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await expect(ticketOnly(page)).toBeVisible();
-	await expect(ticketOnly(page)).toBeDisabled();
+	await expect(ticketOnly(page)).toHaveCount(0);
 
 	await addTicket(page, `Window target ${Date.now()}`);
 	await expect(ticketOnly(page)).toBeEnabled();
@@ -66,7 +64,7 @@ test('the ticket narrowing waits for a ticket, then owns the window', async ({
 	);
 
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 	await expect
 		.poll(() => new URL(page.url()).searchParams.get('ticket'))
 		.toBe('1');
@@ -84,7 +82,7 @@ test('the ticket narrowing waits for a ticket, then owns the window', async ({
 
 	// Naming a scope is the way out, and the scope named is the one you get.
 	await scopeButton(page, 'Day').click();
-	await expect(ticketOnly(page)).not.toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'false');
 	await expect(scopeButton(page, 'Day')).toHaveAttribute(
 		'aria-pressed',
 		'true',
@@ -125,7 +123,7 @@ test('it takes the board down to the one ticket, and the window box with it', as
 	await expect(scopeOnly).toBeChecked();
 
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 
 	// One lit box, not two: the narrower ask took the other with it.
 	await expect(scopeOnly).not.toBeChecked();
@@ -139,7 +137,7 @@ test('it takes the board down to the one ticket, and the window box with it', as
 
 	// And back: unticking returns every card and hands the window box back.
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).not.toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'false');
 	await expect(card(other)).toBeVisible();
 	await expect(scopeOnly).toBeEnabled();
 
@@ -182,7 +180,7 @@ test('selecting tickets asks for no timeline while the narrowing is off', async 
 
 	// And with it on, the ticket *is* the window, so switching does ask again.
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 	await page.waitForTimeout(1500);
 	expect(seen.count).toBeGreaterThan(before);
 
@@ -214,7 +212,7 @@ test('it follows to the next ticket rather than being cancelled by it', async ({
 	await expect(page).toHaveURL(/\/issue\//);
 
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 	await expect(
 		page.locator('[draggable="true"]').filter({hasText: second}),
 	).toHaveCount(0);
@@ -222,7 +220,7 @@ test('it follows to the next ticket rather than being cancelled by it', async ({
 	const firstUrl = page.url();
 
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).not.toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'false');
 	await page
 		.locator('[draggable="true"]')
 		.filter({hasText: second})
@@ -232,11 +230,11 @@ test('it follows to the next ticket rather than being cancelled by it', async ({
 
 	// Back on: from here, opening another ticket must keep it ticked.
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 
 	await page.goBack();
 	await expect(page).toHaveURL(/\/issue\//);
-	await expect(ticketOnly(page)).toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 	await expect
 		.poll(() => new URL(page.url()).searchParams.get('ticket'))
 		.toBe('1');
@@ -275,13 +273,13 @@ test('unticking hands back the window it was turned on over', async ({
 	expect(from).not.toBeNull();
 
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 	// The dragged window is still in the URL, standing behind the ticket's.
 	await expect(zoom).toHaveAttribute('aria-pressed', 'false');
 	expect(new URL(page.url()).searchParams.get('from')).toBe(from);
 
 	await ticketOnly(page).click();
-	await expect(ticketOnly(page)).not.toBeChecked();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'false');
 	await expect(zoom).toHaveAttribute('aria-pressed', 'true');
 	const after = new URL(page.url()).searchParams;
 	expect(after.get('from')).toBe(from);

@@ -1844,6 +1844,11 @@ export const App = () => {
 								}
 								onChangeTab={changeIssueDetailsTab}
 								onClose={closeIssueDetails}
+								timelineNarrowed={selection.ticketOnly}
+								canNarrowTimeline={connected || selection.ticketOnly}
+								onChangeTimelineNarrowed={next =>
+									changeSelection({ticketOnly: next})
+								}
 								onEditTitle={editIssueTitle}
 								onEditDescription={editIssueDescription}
 								onAddTag={addIssueTag}

@@ -146,7 +146,7 @@ export const TimeScrubber = ({
 	// URL.
 	selection: BoardSelection;
 	onChangeSelection: (patch: Partial<BoardSelection>) => void;
-	// The ticket whose details are open, which the "Ticket only" narrowing
+	// The ticket whose details are open, which the ticket narrowing
 	// needs for both halves of what it does: its id filters the events, and the
 	// moment it was created is where its window starts. Null with none open,
 	// which is what greys that checkbox out.
@@ -959,8 +959,6 @@ export const TimeScrubber = ({
 				windowOnly,
 				windowFilterable: windowNamesIssues(timeline),
 				narrow,
-				ticketOnly,
-				ticketSelected: selectedIssue !== null,
 				ticketFocus,
 				textFilter,
 				onChangeTextFilter,
@@ -974,8 +972,6 @@ export const TimeScrubber = ({
 				onChangeOffset: changeOffset,
 				onChangeWindowOnly: (next: boolean) =>
 					onChangeSelection({windowOnly: next}),
-				onChangeTicketOnly: (next: boolean) =>
-					onChangeSelection({ticketOnly: next}),
 				onChangeLayoutMode: changeLayoutMode,
 				onChangeShowIssues,
 				onChangeShowCommits,
