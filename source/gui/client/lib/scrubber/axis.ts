@@ -114,7 +114,7 @@ export type CommitBucketStats = {count: number; linesChanged: number};
 // contents have to be exactly what happened inside its own window.
 export const bucketCommitStats = (
 	axis: ScrubberAxis,
-	commits: GuiCommitEntry[],
+	commits: readonly GuiCommitEntry[],
 ): Map<number, CommitBucketStats> => {
 	const byIndex = new Map<number, CommitBucketStats>();
 

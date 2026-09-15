@@ -60,6 +60,7 @@ import {
 } from '../lib/scrubber';
 import {usePersistedChoice, usePersistedFlag} from '../lib/use-persisted-flag';
 import {canPlayTimeline} from '../lib/theatre';
+import {keptCommits} from '../lib/commit-link';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 import {ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -112,6 +113,9 @@ export const TimeScrubber = ({
 	onChangeShowIssues,
 	showCommits,
 	onChangeShowCommits,
+	linkedCommitsOnly,
+	onChangeLinkedCommitsOnly,
+	issueIdByRef,
 }: {
 	timeline: GuiEventTimeline | null;
 	commits: GuiCommitEntry[];
@@ -154,6 +158,11 @@ export const TimeScrubber = ({
 	// The tickets that query keeps, and null while there is none: the chart
 	// plots the tickets the columns show.
 	queryIssueIds: ReadonlySet<string> | null;
+	// The Code series down to commits linked to a ticket, remembered with the
+	// series flags above; and every ticket by ref, which that rule reads.
+	linkedCommitsOnly: boolean;
+	onChangeLinkedCommitsOnly: (next: boolean) => void;
+	issueIdByRef: ReadonlyMap<string, string>;
 	// Every tag and person the board knows, per axis, for naming a selected
 	// identity the window itself holds no event for.
 	knownIdentities: Record<FilterAxis, GuiEventIdentity[]>;
@@ -537,9 +546,16 @@ export const TimeScrubber = ({
 			),
 		[axis, shown, boardView, hiddenIdentityIds, keptIssues],
 	);
+	// Narrowed where commits are drawn and not where the axis is built, as the
+	// ticket narrowing of events is: toggling it must not rescale the window.
+	const drawnCommits = useMemo(
+		() =>
+			keptCommits(shown.commits, linkedCommitsOnly, issueIdByRef, keptIssues),
+		[shown.commits, linkedCommitsOnly, issueIdByRef, keptIssues],
+	);
 	const commitStats = useMemo(
-		() => bucketCommitStats(axis, shown.commits),
-		[axis, shown.commits],
+		() => bucketCommitStats(axis, drawnCommits),
+		[axis, drawnCommits],
 	);
 	const liveEventDots = useMemo(
 		() =>
@@ -553,7 +569,7 @@ export const TimeScrubber = ({
 	// commits first, board events over them, as the old zIndex did.
 	const commitPoints = useMemo(
 		(): ScatterPoint[] =>
-			shown.commits.map(commit => ({
+			drawnCommits.map(commit => ({
 				key: commit.sha,
 				id: null,
 				t: commit.time,
@@ -568,7 +584,7 @@ export const TimeScrubber = ({
 				} (${commit.linesChanged.toLocaleString()} lines)`,
 				commitSha: commit.sha,
 			})),
-		[shown.commits, axis],
+		[drawnCommits, axis],
 	);
 
 	const issuePoints = useMemo(
@@ -789,7 +805,7 @@ export const TimeScrubber = ({
 	const onScatterPointEnter = useCallback(
 		(point: ScatterPoint) => {
 			if (point.commitSha) {
-				const commit = shown.commits.find(c => c.sha === point.commitSha);
+				const commit = drawnCommits.find(c => c.sha === point.commitSha);
 				if (commit) {
 					setHoveredCommit({commit, fraction: point.fraction});
 					setHoveredEvent(null);
@@ -806,7 +822,7 @@ export const TimeScrubber = ({
 				fraction: point.fraction,
 			});
 		},
-		[shown.commits],
+		[drawnCommits],
 	);
 
 	const onScatterPointLeave = useCallback(() => {
@@ -946,6 +962,8 @@ export const TimeScrubber = ({
 				layoutMode,
 				showIssues,
 				showCommits,
+				linkedCommitsOnly,
+				onChangeLinkedCommitsOnly,
 				allBoards,
 				onChangeScope: changeScope,
 				onChangeOffset: changeOffset,
@@ -1002,7 +1020,7 @@ export const TimeScrubber = ({
 				// Exits still need their animation, so this only silences a series
 				// that has finished arriving.
 
-				commits: shown.commits,
+				commits: drawnCommits,
 				hoveredCommitSha: hoveredCommit?.commit.sha ?? null,
 				hoveredBucketIndex: pickingRange ? null : hoveredBucketIndex,
 				hoveredCommitBucketIndex: pickingRange

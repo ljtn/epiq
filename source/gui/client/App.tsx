@@ -121,6 +121,7 @@ const LOG_REFRESH_QUIET_MS = 400;
 const LOG_STORAGE_KEY = 'epiq.timeScrubber.showLog';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
+const LINKED_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.linkedCommitsOnly';
 
 // What the chrome around the board wears while a movie plays. Faded rather than
 // unmounted: the page must not reflow around the picture being watched.
@@ -221,6 +222,10 @@ export const App = () => {
 	const [showCommits, setShowCommits] = usePersistedFlag(
 		SHOW_COMMITS_STORAGE_KEY,
 		true,
+	);
+	const [linkedCommitsOnly, setLinkedCommitsOnly] = usePersistedFlag(
+		LINKED_COMMITS_STORAGE_KEY,
+		false,
 	);
 	const [commitDiff, setCommitDiff] = useState<{
 		sha: string;
@@ -510,6 +515,20 @@ export const App = () => {
 			actor: users,
 		} satisfies Record<FilterAxis, GuiEventIdentity[]>;
 	}, [state?.tags, state?.contributors, contributors]);
+
+	// Every ticket on every board by its ref, for the commits linked to one:
+	// commits are repository-wide, so a link can name a ticket on any board.
+	const issueIdByRef = useMemo(
+		() =>
+			new Map(
+				(state?.boards ?? []).flatMap(board =>
+					board.swimlanes.flatMap(swimlane =>
+						swimlane.issues.map(issue => [issue.ref, issue.id] as const),
+					),
+				),
+			),
+		[state],
+	);
 
 	// The tickets the text query keeps, for the chart and the log: they plot
 	// what the columns show. Null while there is no query, so nothing above
@@ -1060,6 +1079,8 @@ export const App = () => {
 		selection,
 		selectedIssueId: selectedIssue?.id ?? null,
 		queryIssueIds,
+		linkedCommitsOnly,
+		issueIdByRef,
 		showIssues,
 		showCommits,
 		playing: theatre !== null,
@@ -1477,6 +1498,9 @@ export const App = () => {
 					onChangeShowIssues={setShowIssues}
 					showCommits={showCommits}
 					onChangeShowCommits={setShowCommits}
+					linkedCommitsOnly={linkedCommitsOnly}
+					onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
+					issueIdByRef={issueIdByRef}
 					selection={selection}
 					onChangeSelection={changeSelection}
 					selectedIssue={

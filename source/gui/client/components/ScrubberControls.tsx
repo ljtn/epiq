@@ -14,6 +14,7 @@ import {
 	SCOPES,
 	BoardView,
 	FilterAxis,
+	useTightBar,
 } from '../lib/scrubber';
 import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
@@ -28,6 +29,7 @@ import {IconScatter} from './IconScatter';
 import {selectTriggerStyle} from '../lib/select-style';
 import {
 	BoardSeriesGroup,
+	CommitSeriesGroup,
 	mutedStyle,
 	ScopeSelect,
 	SCOPE_ONLY_LABEL,
@@ -110,6 +112,8 @@ export const ScrubberControls = ({
 	layoutMode,
 	showIssues,
 	showCommits,
+	linkedCommitsOnly,
+	onChangeLinkedCommitsOnly,
 	allBoards,
 	boardView,
 	identitiesByAxis,
@@ -169,6 +173,9 @@ export const ScrubberControls = ({
 	layoutMode: LayoutMode;
 	showIssues: boolean;
 	showCommits: boolean;
+	// The Code series down to commits linked to a ticket.
+	linkedCommitsOnly: boolean;
+	onChangeLinkedCommitsOnly: (next: boolean) => void;
 	allBoards: boolean;
 	boardView: BoardView;
 	// A legend per filter axis, and what is unticked on each: every axis narrows
@@ -209,7 +216,9 @@ export const ScrubberControls = ({
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'flex-end',
-				gap: 12,
+				// The same gap between the groups as within the narrowing group:
+				// the row fits a laptop's width with the pager up by a few pixels.
+				gap: 10,
 				// Sized by the bar rather than by what is on it: the text filter is
 				// the one control here that gives when the row is tight, and a row
 				// sized to its own content would never be tight.
@@ -367,23 +376,21 @@ export const ScrubberControls = ({
 			<div
 				style={{
 					display: 'flex',
-					gap: 12,
+					// A touch closer than the row's own gap: this is one group of
+					// narrowings, and it is the row's widest at a laptop's width.
+					gap: 10,
 					alignItems: 'center',
 					// Shrinkable past its content, which is what lets the text filter
 					// at its end give way on a tight row; nothing else in here can.
 					minWidth: 0,
 				}}
 			>
-				<Checkbox
-					label="Code"
-					// Its own hint, phrased like the board series' beside it — the two
-					// checkboxes sit together and one having nothing to say reads as an
-					// oversight rather than as a difference.
-					title="Show commits"
-					checked={showCommits}
-					activeColor={GUI_THEME.green}
-					disabled={!connected}
-					onChange={onChangeShowCommits}
+				<CommitSeriesGroup
+					connected={connected}
+					showCommits={showCommits}
+					linkedOnly={linkedCommitsOnly}
+					onChangeShowCommits={onChangeShowCommits}
+					onChangeLinkedOnly={onChangeLinkedCommitsOnly}
 				/>
 				<BoardSeriesGroup
 					connected={connected}
@@ -543,6 +550,10 @@ export const TextFilterInput = ({
 	onChange: (next: string) => void;
 }) => {
 	const held = value.trim() !== '';
+	// Short on a bar that could not fit the pager beside it at full width:
+	// decided by the viewport, not by the row's overflow, so the pager coming
+	// up never resizes it under the pointer.
+	const tight = useTightBar();
 
 	return (
 		<input
@@ -565,13 +576,11 @@ export const TextFilterInput = ({
 					held ? GUI_THEME.accent : GUI_THEME.primary,
 					false,
 				),
-				// Narrow enough that the pager coming up beside the scope buttons
-				// never has to take room from it on a bar the width of a laptop:
-				// the row must not shift under the pointer that just clicked. And
-				// the one thing on this row that can give when it is tighter still,
-				// since a query is still readable at half this width and the
-				// transport would otherwise be pushed off the edge.
-				width: 110,
+				// And still the one thing on this row that can give when it is
+				// tighter than either width allows for, since a query is readable
+				// at this size and the transport would otherwise be pushed off the
+				// edge.
+				width: tight ? 70 : 110,
 				minWidth: 70,
 				flexShrink: 1,
 				boxShadow: held ? `0 0 0 1px ${GUI_THEME.accent}` : undefined,

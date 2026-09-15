@@ -49,3 +49,24 @@ export const commitLinkedFile = (
 	fileName = linkedFileName(ref),
 	contents = 'alpha\nbeta\ngamma\n',
 ): string => commitLinkedFiles(repoRoot, ref, subject, {[fileName]: contents});
+
+/** A commit that names no ticket, for the linked-only narrowing to drop. */
+export const commitPlainFile = (
+	repoRoot: string,
+	fileName: string,
+	subject: string,
+	contents = 'one\ntwo\n',
+): string => {
+	const git = (...args: string[]) =>
+		execFileSync(
+			'git',
+			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
+			{cwd: repoRoot, stdio: 'pipe'},
+		);
+
+	fs.writeFileSync(path.join(repoRoot, fileName), contents);
+	git('add', fileName);
+	git('commit', '-q', '-m', subject);
+
+	return git('rev-parse', 'HEAD').toString().trim();
+};

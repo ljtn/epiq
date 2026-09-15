@@ -430,6 +430,100 @@ export const BoardSeriesGroup = ({
 	);
 };
 
+// The Code series' select, the shape of the board series' beside it: a box
+// for whether commits are drawn at all, and a trigger naming which — every
+// commit in the repository, or only the ones linked to a ticket. Narrower than
+// the board series' trigger, since its two names are short and the row has no
+// room to spare at a laptop's width; the open list says each in full.
+const COMMIT_SELECT_WIDTH = 76;
+
+export const CommitSeriesGroup = ({
+	connected,
+	showCommits,
+	linkedOnly,
+	onChangeShowCommits,
+	onChangeLinkedOnly,
+}: {
+	connected: boolean;
+	showCommits: boolean;
+	linkedOnly: boolean;
+	onChangeShowCommits: (next: boolean) => void;
+	onChangeLinkedOnly: (next: boolean) => void;
+}) => {
+	const [open, setOpen] = useState(false);
+	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
+
+	useEffect(() => {
+		if (!connected) setOpen(false);
+	}, [connected]);
+
+	const choose = (next: boolean) => {
+		onChangeLinkedOnly(next);
+		setOpen(false);
+	};
+
+	return (
+		<div ref={ref} style={{position: 'relative'}}>
+			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+				{/* Unlabelled, as the board series' box is: the select beside it
+				    names the series. */}
+				<Checkbox
+					label={null}
+					title="Show commits"
+					checked={showCommits}
+					activeColor={GUI_THEME.green}
+					disabled={!connected}
+					onChange={onChangeShowCommits}
+				/>
+				<button
+					type="button"
+					data-testid="commit-select"
+					onClick={() => setOpen(!open)}
+					disabled={!showCommits || !connected}
+					aria-haspopup="listbox"
+					aria-expanded={open}
+					title="Choose which commits the Code series plots"
+					style={{
+						...selectTriggerStyle(GUI_THEME.green, !showCommits),
+						width: COMMIT_SELECT_WIDTH,
+						...(connected ? {} : mutedStyle),
+					}}
+				>
+					<span style={selectLabelStyle}>{linkedOnly ? 'Linked' : 'Code'}</span>
+					<span style={{display: 'inline-flex', flexShrink: 0}}>
+						<IconChevronDown size={12} />
+					</span>
+				</button>
+			</div>
+
+			{open && (
+				<div
+					role="group"
+					aria-label="Which commits to plot"
+					style={{...popoverStyle, minWidth: 160}}
+				>
+					<Radio
+						label="All commits"
+						selected={!linkedOnly}
+						color={GUI_THEME.green}
+						square
+						onSelect={() => choose(false)}
+					/>
+					{/* Linked to a ticket the board knows — and, while the board is
+					    narrowed to some tickets, only to those, the same way the
+					    board events above the columns follow that narrowing. */}
+					<Radio
+						label="Linked to a ticket"
+						selected={linkedOnly}
+						color={GUI_THEME.green}
+						onSelect={() => choose(true)}
+					/>
+				</div>
+			)}
+		</div>
+	);
+};
+
 // The scope row's narrow form: one trigger naming the scope in hand, over the
 // same popover the board series uses, rather than seven buttons that do not fit.
 //

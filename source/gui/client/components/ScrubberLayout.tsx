@@ -110,7 +110,7 @@ export type ScrubberChart = {
 	// The stretch a range drag has covered so far, in track fractions, or null
 	// when no range is being dragged out.
 	rangeSelection: {from: number; to: number} | null;
-	commits: GuiCommitEntry[];
+	commits: readonly GuiCommitEntry[];
 	hoveredCommitSha: string | null;
 	hoveredBucketIndex: number | null;
 	hoveredCommitBucketIndex: number | null;
