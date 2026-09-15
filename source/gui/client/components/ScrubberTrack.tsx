@@ -12,6 +12,9 @@ import {
 	BUCKET_HIGHLIGHT_COLOR,
 	clamp,
 	EVENTS_MODE_VERTICAL_PADDING,
+	FlowGeometry,
+	FlowStrand,
+	flowStrandCentre,
 	FADE_IN_ANIMATION,
 	HOVER_HINT_WIDTH,
 	NEEDLE_COLOR,
@@ -180,27 +183,61 @@ export const TrackBaseline = ({
 
 // Absolute positioning ignores the track's padding, so top and bottom add it
 // back to line up with the points.
+// A label beside the chart's edge, on a darkened pane over whatever is drawn
+// under it, so it stays readable when a full band or a lit line runs there.
+const chartLabelStyle: React.CSSProperties = {
+	position: 'absolute',
+	left: 2,
+	fontSize: 9,
+	lineHeight: 1,
+	color: GUI_THEME.secondary,
+	padding: '2px 4px',
+	borderRadius: 2,
+	background: 'rgba(0, 0, 0, 0.55)',
+	pointerEvents: 'none',
+};
+
 export const HourAxisLabels = () => (
 	<>
 		{(
 			[
-				['00:00', {top: EVENTS_MODE_VERTICAL_PADDING}],
+				['00:00', {top: EVENTS_MODE_VERTICAL_PADDING - 2}],
 				['12:00', {top: '50%', transform: 'translateY(-50%)'}],
-				['24:00', {bottom: EVENTS_MODE_VERTICAL_PADDING}],
+				['24:00', {bottom: EVENTS_MODE_VERTICAL_PADDING - 2}],
 			] as const
 		).map(([label, position]) => (
+			<span key={label} style={{...chartLabelStyle, ...position}}>
+				{label}
+			</span>
+		))}
+	</>
+);
+
+// The strands' names, one beside each, the way the hour labels sit beside the
+// scatter. Kept short: the chart is the width of the board and the lines run
+// under these from the left edge.
+export const FlowStrandLabels = ({
+	strands,
+	geometry,
+}: {
+	strands: readonly FlowStrand[];
+	geometry: FlowGeometry;
+}) => (
+	<>
+		{strands.map((strand, index) => (
 			<span
-				key={label}
+				key={strand.id}
 				style={{
-					position: 'absolute',
-					left: 2,
-					fontSize: 9,
-					color: GUI_THEME.dim,
-					pointerEvents: 'none',
-					...position,
+					...chartLabelStyle,
+					top: flowStrandCentre(geometry, index),
+					transform: 'translateY(-50%)',
+					maxWidth: 150,
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
 				}}
 			>
-				{label}
+				{strand.title}
 			</span>
 		))}
 	</>

@@ -25,12 +25,17 @@ const entry = (
 	tag: null,
 	assignee: null,
 	issue,
+	lane: null,
+	laneBefore: null,
 });
 
 const timeline = (events: GuiEventTimelineEntry[]): GuiEventTimeline => ({
 	bucketMs: 1000,
 	buckets: [],
 	events,
+	lanesAtStart: {},
+	laneNames: {},
+	closedLane: 'closed-lane',
 	earliest: 0,
 	latest: 10_000,
 });

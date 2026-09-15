@@ -430,12 +430,16 @@ const COMMIT_SELECT_WIDTH = 76;
 
 export const CommitSeriesGroup = ({
 	connected,
+	// The layout draws no commits, so the series is not on offer there. The
+	// box keeps its value: the log still reads it.
+	idle,
 	showCommits,
 	linkedOnly,
 	onChangeShowCommits,
 	onChangeLinkedOnly,
 }: {
 	connected: boolean;
+	idle: boolean;
 	showCommits: boolean;
 	linkedOnly: boolean;
 	onChangeShowCommits: (next: boolean) => void;
@@ -443,10 +447,11 @@ export const CommitSeriesGroup = ({
 }) => {
 	const [open, setOpen] = useState(false);
 	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
+	const usable = connected && !idle;
 
 	useEffect(() => {
-		if (!connected) setOpen(false);
-	}, [connected]);
+		if (!usable) setOpen(false);
+	}, [usable]);
 
 	const choose = (next: boolean) => {
 		onChangeLinkedOnly(next);
@@ -460,24 +465,26 @@ export const CommitSeriesGroup = ({
 				    names the series. */}
 				<Checkbox
 					label={null}
-					title="Show commits"
+					title={idle ? 'Flow draws tickets only' : 'Show commits'}
 					checked={showCommits}
 					activeColor={GUI_THEME.green}
-					disabled={!connected}
+					disabled={!usable}
 					onChange={onChangeShowCommits}
 				/>
 				<button
 					type="button"
 					data-testid="commit-select"
 					onClick={() => setOpen(!open)}
-					disabled={!showCommits || !connected}
+					disabled={!showCommits || !usable}
 					aria-haspopup="listbox"
 					aria-expanded={open}
-					title="Choose which commits to plot"
+					title={
+						idle ? 'Flow draws tickets only' : 'Choose which commits to plot'
+					}
 					style={{
-						...selectTriggerStyle(GUI_THEME.green, !showCommits),
+						...selectTriggerStyle(GUI_THEME.green, !showCommits || idle),
 						width: COMMIT_SELECT_WIDTH,
-						...(connected ? {} : mutedStyle),
+						...(usable ? {} : mutedStyle),
 					}}
 				>
 					<span style={selectLabelStyle}>{linkedOnly ? 'Linked' : 'Code'}</span>

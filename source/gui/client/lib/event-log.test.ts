@@ -110,6 +110,8 @@ const event = (
 	tag: null,
 	assignee: null,
 	issue: null,
+	lane: null,
+	laneBefore: null,
 });
 
 const commit = (sha: string, time: number): GuiCommitEntry => ({

@@ -1,7 +1,7 @@
 // The scrubber's markup entry point: how the header, controls, charts, needle
 // and hints are arranged. The pieces it places come from ScrubberControls,
-// ScrubberTrack and ScatterCanvas; the numbers it places them at from
-// TimeScrubber, which owns all the logic.
+// ScrubberTrack, ScatterCanvas and FlowCanvas; the numbers it places them at
+// from TimeScrubber, which owns all the logic.
 
 import {memo} from 'react';
 import {GuiCommitEntry} from '../lib/gui-state.model';
@@ -14,6 +14,8 @@ import {
 	EVENTS_SCATTER_HEIGHT,
 	EventDot,
 	FADE_IN_ANIMATION,
+	FlowChart,
+	flowGeometry,
 	hourFractionForTime,
 	LayoutMode,
 	ScrubberAxis,
@@ -30,6 +32,7 @@ import {
 } from '../lib/scrubber';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {ScatterCanvas, ScatterLayer, ScatterPoint} from './ScatterCanvas';
+import {FlowCanvas, FlowHover} from './FlowCanvas';
 import {
 	ScrubberControls,
 	SpotlightToggle,
@@ -39,6 +42,7 @@ import {
 } from './ScrubberControls';
 import {
 	BucketHighlight,
+	FlowStrandLabels,
 	HourAxisLabels,
 	RangeSelection,
 	ScrubberHoverHint,
@@ -79,6 +83,9 @@ export type ScrubberChartHandlers = {
 	onCommitTrackMouseLeave: () => void;
 	onScatterPointEnter: (point: ScatterPoint) => void;
 	onScatterPointLeave: () => void;
+	onFlowPathEnter: (hover: FlowHover) => void;
+	onFlowPathLeave: () => void;
+	onPressFlowPath: (issue: string | null) => void;
 	onPressCommit: (sha: string | null) => void;
 };
 
@@ -101,6 +108,10 @@ export type ScrubberChart = {
 	commitBarRange: [number, number];
 	// One entry per series, each animating in and out on its own.
 	scatterLayers: ScatterLayer[];
+	// The strata for the flow layout, and the one ticket singled out on it —
+	// hovered, or the owner of a hovered log row.
+	flowChart: FlowChart;
+	flowFocusIssue: string | null;
 	// The Board series' colour under the current view, so the bars and the
 	// baseline say the same thing the scatter's dots do.
 	issueSeriesColor: string;
@@ -171,6 +182,7 @@ export const ScrubberLayout = ({
 	chart: ScrubberChart;
 }) => {
 	const {axis, layoutMode, animate, windowKey, on} = chart;
+	const flowGeo = flowGeometry(chart.flowChart.strands);
 
 	return (
 		<Panel
@@ -348,6 +360,8 @@ export const ScrubberLayout = ({
 								height:
 									layoutMode === 'real'
 										? EVENTS_SCATTER_HEIGHT
+										: layoutMode === 'flow'
+										? flowGeo.height
 										: chart.showIssues
 										? TRACK_HEIGHT
 										: 0,
@@ -360,7 +374,8 @@ export const ScrubberLayout = ({
 								alignItems: 'center',
 							}}
 						>
-							{(layoutMode === 'real' || chart.showIssues) && (
+							{(layoutMode === 'real' ||
+								(layoutMode === 'even' && chart.showIssues)) && (
 								<TrackBaseline
 									color={chart.issueSeriesColor}
 									anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
@@ -408,6 +423,29 @@ export const ScrubberLayout = ({
 									onPointLeave={on.onScatterPointLeave}
 									onPressCommit={on.onPressCommit}
 								/>
+							)}
+
+							{/* The strands draw their own baselines: one per lane. The
+							    labels come after the canvas so they sit over the lines. */}
+							{layoutMode === 'flow' && (
+								<>
+									<FlowCanvas
+										chart={chart.flowChart}
+										fractionForTime={axis.fractionForTime}
+										fractionToTime={axis.fractionToTime}
+										color={chart.issueSeriesColor}
+										animate={animate}
+										generation={windowKey}
+										focusIssue={chart.flowFocusIssue}
+										onPathEnter={on.onFlowPathEnter}
+										onPathLeave={on.onFlowPathLeave}
+										onPressPath={on.onPressFlowPath}
+									/>
+									<FlowStrandLabels
+										strands={chart.flowChart.strands}
+										geometry={flowGeo}
+									/>
+								</>
 							)}
 						</div>
 

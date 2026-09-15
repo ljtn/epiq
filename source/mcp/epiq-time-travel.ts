@@ -31,7 +31,12 @@ import {
 	patchState,
 	resetState,
 } from '../lib/state/state.js';
-import {EventTimelineEntry, getTimelineEntries} from './timeline-index.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {
+	EventTimelineEntry,
+	getTimelineIndex,
+	lanesOpenAt,
+} from './timeline-index.js';
 import {ApiTimeTravelStatus} from './api-state.model.js';
 
 type ToolInput = {repoRoot?: string};
@@ -94,6 +99,16 @@ export type EventTimeline = {
 	// the same slot. Empty past TIMELINE_EVENT_CAP, where the scatter falls back
 	// to `buckets` rather than the payload growing without bound.
 	events: EventTimelineEntry[];
+	// The lane of every ticket open as the window begins, by id — the ones with
+	// no event inside it included, so the flow chart can run their lines across
+	// a stretch nothing happened in.
+	lanesAtStart: Record<string, string>;
+	// Every swimlane the log ever created, by id, under its last known name —
+	// for naming one the board has since deleted.
+	laneNames: Record<string, string>;
+	// The lane a close moves a ticket into, so the client can tell a ticket
+	// sitting closed from one sitting in a lane the board no longer has.
+	closedLane: string;
 	earliest: number;
 	latest: number;
 };
@@ -125,10 +140,10 @@ export const getEventTimeline = async (
 
 	// Derived once per state of the log and reused, which is what keeps a scrub
 	// off the whole history: every step below is over the window alone.
-	const entriesResult = getTimelineEntries(stateBranchRootResult.value);
-	if (isFail(entriesResult)) return failed(entriesResult.message);
+	const indexResult = getTimelineIndex(stateBranchRootResult.value);
+	if (isFail(indexResult)) return failed(indexResult.message);
 
-	const timed = entriesResult.value;
+	const timed = indexResult.value.entries;
 
 	const now = Date.now();
 	const windowEnd = input.end ?? now;
@@ -140,6 +155,9 @@ export const getEventTimeline = async (
 			bucketMs: 0,
 			buckets: [],
 			events: [],
+			lanesAtStart: {},
+			laneNames: indexResult.value.laneNames,
+			closedLane: CLOSED_SWIMLANE_ID,
 			earliest: windowStart,
 			latest: windowEnd,
 		});
@@ -187,6 +205,13 @@ export const getEventTimeline = async (
 		bucketMs,
 		buckets,
 		events: inWindow.length > TIMELINE_EVENT_CAP ? [] : inWindow,
+		lanesAtStart: lanesOpenAt(
+			indexResult.value.lanes,
+			windowStart,
+			input.boardId,
+		),
+		laneNames: indexResult.value.laneNames,
+		closedLane: CLOSED_SWIMLANE_ID,
 		earliest: windowStart,
 		latest: windowEnd,
 	});
