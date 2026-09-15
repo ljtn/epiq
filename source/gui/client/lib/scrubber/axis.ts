@@ -82,7 +82,7 @@ export const bucketIssueCounts = (
 	timeline: GuiEventTimeline | null,
 	view: BoardView = 'all',
 	hiddenIds: ReadonlySet<string> = new Set(),
-	issueOnly: string | null = null,
+	keptIssues: ReadonlySet<string> | null = null,
 ): number[] => {
 	const counts = new Array<number>(axis.bucketCount).fill(0);
 
@@ -92,7 +92,7 @@ export const bucketIssueCounts = (
 	// has nothing to act on and everything is counted.
 	if (timeline && timeline.events.length > 0) {
 		for (const entry of timeline.events) {
-			if (!isShown(entry, view, hiddenIds, issueOnly)) continue;
+			if (!isShown(entry, view, hiddenIds, keptIssues)) continue;
 
 			counts[axis.bucketIndexForTime(entry.t)]! += 1;
 		}

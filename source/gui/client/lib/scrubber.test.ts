@@ -13,6 +13,7 @@ import {
 	buildAxis,
 	buildBoardFilter,
 	buildEventDots,
+	keptIssueIds,
 	categoryOf,
 	issuePassesBoardFilter,
 	identityAxisFor,
@@ -230,7 +231,7 @@ describe('bucketIssueCounts', () => {
 				timeline([], {earliest: 0, latest: 10 * DAY}, events),
 				'all',
 				new Set(),
-				'mine',
+				new Set(['mine']),
 			);
 
 			expect(counts.reduce((sum, count) => sum + count, 0)).toBe(2);
@@ -256,7 +257,7 @@ describe('bucketIssueCounts', () => {
 				timeline([{t: 0, count: 7}], {earliest: 0, latest: 10 * DAY}),
 				'all',
 				new Set(),
-				'mine',
+				new Set(['mine']),
 			);
 
 			expect(counts.reduce((sum, count) => sum + count, 0)).toBe(7);
@@ -508,6 +509,26 @@ describe('formatPeriodLabel', () => {
 	});
 });
 
+describe('keptIssueIds', () => {
+	it('keeps every ticket with neither narrowing on', () => {
+		expect(keptIssueIds(null, null)).toBeNull();
+	});
+
+	it('keeps what the query keeps, or the one ticket, alone', () => {
+		expect(keptIssueIds(null, new Set(['a', 'b']))).toEqual(
+			new Set(['a', 'b']),
+		);
+		expect(keptIssueIds('a', null)).toEqual(new Set(['a']));
+	});
+
+	// Both in force keep what passes both, as the board does: a ticket the query
+	// does not match is not on the board, so it is not in the picture either.
+	it('keeps the one ticket only where the query keeps it too', () => {
+		expect(keptIssueIds('a', new Set(['a', 'b']))).toEqual(new Set(['a']));
+		expect(keptIssueIds('a', new Set(['b']))).toEqual(new Set());
+	});
+});
+
 describe('buildEventDots', () => {
 	it('draws one dot per event, not one per bucket', () => {
 		// Three events inside a single bucket: the bucketed payload has already
@@ -549,7 +570,23 @@ describe('buildEventDots', () => {
 			]),
 			'all',
 			new Set(),
-			'mine',
+			new Set(['mine']),
+		);
+
+		expect(dots.map(dot => dot.label)).toEqual(['Created', 'Commented']);
+	});
+
+	it('plots the tickets a query keeps, and nothing above ticket level', () => {
+		const dots = buildEventDots(
+			timeline([{t: 100, count: 4}], undefined, [
+				entry(100, 'add.issue', {issue: 'mine', label: 'Created'}),
+				entry(120, 'add.swimlane', {issue: null, label: 'Lane'}),
+				entry(140, 'add.issue.tag', {issue: 'theirs', label: 'Tagged'}),
+				entry(180, 'add.issue.comment', {issue: 'other', label: 'Commented'}),
+			]),
+			'all',
+			new Set(),
+			new Set(['mine', 'other']),
 		);
 
 		expect(dots.map(dot => dot.label)).toEqual(['Created', 'Commented']);

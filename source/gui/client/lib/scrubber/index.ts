@@ -60,6 +60,7 @@ export {
 	soleVisibleIdentity,
 	dotDetail,
 	isShown,
+	keptIssueIds,
 	buildEventDots,
 	buildBoardFilter,
 	windowNamesIssues,

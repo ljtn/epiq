@@ -17,6 +17,7 @@ import {
 import {
 	identityAxisFor,
 	isShown,
+	keptIssueIds,
 	listIdentities,
 	plottedView,
 } from './scrubber';
@@ -35,6 +36,8 @@ export type EventLogSources = {
 	// is down to one ticket.
 	selection: BoardSelection;
 	selectedIssueId: string | null;
+	// The tickets the text query keeps, and null while there is no query.
+	queryIssueIds: ReadonlySet<string> | null;
 	// The two series checkboxes. A series the chart is not drawing is not one
 	// the log should be reciting either.
 	showIssues: boolean;
@@ -79,6 +82,7 @@ export const useEventLog = ({
 	commits,
 	selection,
 	selectedIssueId,
+	queryIssueIds,
 	showIssues,
 	showCommits,
 	playing,
@@ -92,6 +96,10 @@ export const useEventLog = ({
 	// can be left ticked by a link.
 	const issueOnly =
 		ticketOnly && selectedIssueId !== null ? selectedIssueId : null;
+	const keptIssues = useMemo(
+		() => keptIssueIds(issueOnly, queryIssueIds),
+		[issueOnly, queryIssueIds],
+	);
 
 	// Both series in one column, filtered the way the chart above filters them
 	// and in clock order, which is not the order the log stores either of them
@@ -113,11 +121,20 @@ export const useEventLog = ({
 
 		return buildLogEntries(
 			showIssues
-				? events.filter(entry => isShown(entry, view, hidden, issueOnly))
+				? events.filter(entry => isShown(entry, view, hidden, keptIssues))
 				: [],
 			showCommits ? commits : [],
 		);
-	}, [open, timeline, commits, view, only, issueOnly, showIssues, showCommits]);
+	}, [
+		open,
+		timeline,
+		commits,
+		view,
+		only,
+		keptIssues,
+		showIssues,
+		showCommits,
+	]);
 
 	const moment = momentOnScreen(playing, playheadTime, timeTravel);
 

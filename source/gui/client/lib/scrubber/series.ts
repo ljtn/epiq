@@ -279,17 +279,38 @@ const EVENT_DOT_OPACITY = 0.55;
 // An event is drawn when its kind matches the view and the identity it would be
 // coloured by has not been unticked. An event with no identity under this view
 // always shows: there is nothing in the list for the user to have hidden it by.
+// The tickets whose events the chart keeps, and null for every ticket's. The
+// "Ticket only" narrowing and the text query are the board's two ways down to
+// particular tickets, and both in force keep what passes both, as the board
+// does — so the picture above never shows a ticket the columns below do not.
+export const keptIssueIds = (
+	issueOnly: string | null,
+	queryIssueIds: ReadonlySet<string> | null,
+): ReadonlySet<string> | null => {
+	if (issueOnly === null) return queryIssueIds;
+	if (queryIssueIds === null || queryIssueIds.has(issueOnly)) {
+		return new Set([issueOnly]);
+	}
+
+	return new Set();
+};
+
 // The rule the chart draws by, exported so the log can draw by the same one
 // rather than growing a second copy to drift from it.
 export const isShown = (
 	entry: GuiEventTimelineEntry,
 	view: BoardView,
 	hiddenIds: ReadonlySet<string>,
-	issueOnly: string | null = null,
+	keptIssues: ReadonlySet<string> | null = null,
 ): boolean => {
-	// Board- and swimlane-level events carry no issue, so narrowing to one
-	// ticket drops them too: they are not what happened to it.
-	if (issueOnly !== null && entry.issue !== issueOnly) return false;
+	// Board- and swimlane-level events carry no issue, so narrowing to some
+	// tickets drops them too: they are not what happened to those.
+	if (
+		keptIssues !== null &&
+		(entry.issue === null || !keptIssues.has(entry.issue))
+	) {
+		return false;
+	}
 
 	const category = viewCategory(view);
 	if (category !== null && categoryOf(entry.action) !== category) return false;
@@ -303,13 +324,13 @@ export const buildEventDots = (
 	timeline: GuiEventTimeline | null,
 	view: BoardView = 'all',
 	hiddenIds: ReadonlySet<string> = new Set(),
-	issueOnly: string | null = null,
+	keptIssues: ReadonlySet<string> | null = null,
 ): EventDot[] => {
 	if (!timeline) return [];
 
 	if (timeline.events.length > 0) {
 		return timeline.events.flatMap((entry, index) => {
-			if (!isShown(entry, view, hiddenIds, issueOnly)) return [];
+			if (!isShown(entry, view, hiddenIds, keptIssues)) return [];
 
 			const category = categoryOf(entry.action);
 			const identity = identityOf(entry, view);

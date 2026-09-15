@@ -31,6 +31,7 @@ import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {ScatterCanvas, ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {
 	ScrubberControls,
+	TextFilterInput,
 	ScrubberHeader,
 	ScrubberPlayButton,
 } from './ScrubberControls';
@@ -218,6 +219,11 @@ export const ScrubberLayout = ({
 						// must not be left hiding tickets behind a control nobody can
 						// see.
 						<div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+							<TextFilterInput
+								value={controls.textFilter}
+								onChange={controls.onChangeTextFilter}
+							/>
+
 							{controls.windowOnly && (
 								<Checkbox
 									label={SCOPE_ONLY_LABEL}
