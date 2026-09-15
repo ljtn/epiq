@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import {AsideDock} from '../lib/aside-dock';
 import {GUI_THEME} from '../lib/gui-theme';
+import {ResizeHandle} from './ResizeHandle';
 
 export const ASIDE_WIDTH = 440;
 export const ASIDE_PADDING = 20;
@@ -68,8 +69,10 @@ export const Aside = forwardRef<
 >(({children, onWidthChange, dock = 'right'}, ref) => {
 	const [width, setWidth] = useState(readStoredAsideWidth);
 	const [height, setHeight] = useState(readStoredAsideHeight);
-	const [handleHovered, setHandleHovered] = useState(false);
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	// State rather than the ref below: the handle re-renders on its own hover
+	// and reads this as a prop, so a drag ending has to reach it as a render.
+	const [dragging, setDragging] = useState(false);
 	const bottom = dock === 'bottom';
 
 	// Mirrors the sizes synchronously: handlePointerMove/handleDragEnd are
@@ -120,6 +123,7 @@ export const Aside = forwardRef<
 	const handleDragEnd = useCallback(() => {
 		const wasBottom = dragStart.current?.bottom ?? false;
 		dragStart.current = null;
+		setDragging(false);
 		document.removeEventListener('pointermove', handlePointerMove);
 		document.removeEventListener('pointerup', handleDragEnd);
 		document.body.style.cursor = '';
@@ -162,6 +166,7 @@ export const Aside = forwardRef<
 				: Math.min(MAX_ASIDE_WIDTH, window.innerWidth * MAX_ASIDE_RATIO),
 		};
 
+		setDragging(true);
 		document.addEventListener('pointermove', handlePointerMove);
 		document.addEventListener('pointerup', handleDragEnd);
 		document.body.style.cursor = bottom ? 'ns-resize' : 'ew-resize';
@@ -246,53 +251,11 @@ export const Aside = forwardRef<
 				overflow: 'hidden',
 			}}
 		>
-			{/* A wide invisible hit area with a thin visible indicator centered in
-			    it — the indicator alone (a border's worth of pixels) would be too
-			    thin a target to reliably grab.
-			    eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-			<div
+			<ResizeHandle
+				edge={bottom ? 'top' : 'left'}
+				active={dragging}
 				onPointerDown={handlePointerDown}
-				onMouseEnter={() => setHandleHovered(true)}
-				onMouseLeave={() => setHandleHovered(false)}
-				title="Drag to resize"
-				style={{
-					position: 'absolute',
-					zIndex: 1,
-					display: 'flex',
-					...(bottom
-						? {
-								top: 0,
-								left: 0,
-								right: 0,
-								height: 12,
-								marginTop: -6,
-								cursor: 'ns-resize',
-								alignItems: 'center',
-						  }
-						: {
-								left: 0,
-								top: 0,
-								bottom: 0,
-								width: 12,
-								marginLeft: -6,
-								cursor: 'ew-resize',
-								justifyContent: 'center',
-						  }),
-				}}
-			>
-				<div
-					style={{
-						...(bottom
-							? {height: 2, width: '100%'}
-							: {width: 2, alignSelf: 'stretch'}),
-						background:
-							handleHovered || dragStart.current
-								? GUI_THEME.accent
-								: 'transparent',
-						transition: 'background 120ms ease',
-					}}
-				/>
-			</div>
+			/>
 			{/* The pane that scrolls, inside the panel's padding rather than around
 			    it. Padding on a scroll container lies inside its scrollport, so
 			    content scrolls through it and shows in the gap above anything

@@ -43,11 +43,19 @@ import {
 } from '../lib/log-destination';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {usePrefersReducedMotion} from '../lib/scrubber';
+import {useResizableWidth} from '../lib/use-resizable-width';
+import {ResizeHandle} from './ResizeHandle';
 import {IconArrowUpRight} from './IconArrowUpRight';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 
 const LOG_WIDTH = 440;
+// Narrow enough to still fit a line's time and a few words of it; wide
+// enough at the top to read a whole subject, short of taking the board.
+const MIN_LOG_WIDTH = 280;
+const MAX_LOG_WIDTH = 1000;
+const MAX_LOG_RATIO = 0.6;
+const LOG_WIDTH_STORAGE_KEY = 'epiq.eventLog.width';
 
 // How near the foot counts as being at it. A couple of rows, so a pin survives
 // a sub-pixel scroll position or a rounding difference between scrollHeight and
@@ -313,12 +321,23 @@ const EventLogPanel = ({
 		arrow.style.opacity = row ? '1' : '0';
 	};
 
+	// Dragged to size from its board-side edge and remembered, as the ticket
+	// panel on the other side is.
+	const resize = useResizableWidth({
+		storageKey: LOG_WIDTH_STORAGE_KEY,
+		fallback: LOG_WIDTH,
+		min: MIN_LOG_WIDTH,
+		max: () => Math.min(MAX_LOG_WIDTH, window.innerWidth * MAX_LOG_RATIO),
+		grows: 'right',
+	});
+
 	return (
 		<aside
 			data-testid="event-log"
 			aria-live="off"
 			style={{
-				width: LOG_WIDTH,
+				position: 'relative',
+				width: resize.width,
 				flexShrink: 0,
 				minHeight: 0,
 				display: 'flex',
@@ -328,6 +347,13 @@ const EventLogPanel = ({
 			}}
 		>
 			<style>{EVENT_LOG_STYLES}</style>
+
+			<ResizeHandle
+				edge="right"
+				active={resize.dragging}
+				onPointerDown={resize.onPointerDown}
+				testId="event-log-resize"
+			/>
 
 			<div
 				ref={scrollRef}
