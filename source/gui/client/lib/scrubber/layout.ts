@@ -202,8 +202,10 @@ export const SCRUBBER_KEYFRAMES = `
 // Below this the controls row runs out of room for seven scope buttons beside
 // everything else on it, and the end of the row — where the transport is — is
 // the first thing squeezed. Measured against the row's own content rather than
-// a device class: it is the bar that is narrow, not the phone.
-const NARROW_BAR_QUERY = '(max-width: 1180px)';
+// a device class: it is the bar that is narrow, not the phone. The text filter
+// is the row's one shrinkable item and absorbs some sixty pixels of a tight
+// row; below this it has already given all it can with the pager up.
+const NARROW_BAR_QUERY = '(max-width: 1240px)';
 
 export const useNarrowBar = (): boolean => {
 	const [narrow, setNarrow] = useState(

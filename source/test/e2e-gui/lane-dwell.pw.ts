@@ -135,7 +135,7 @@ test('an empty lane still opens its stats, with no figure in the title', async (
 
 	// A filter nothing matches empties every lane while the board stays live,
 	// which is the same shape as a board with no tickets on it yet.
-	const filter = page.getByPlaceholder('filter by ref or title');
+	const filter = page.getByTestId('text-filter');
 	await filter.fill('zzzz-no-such-ticket');
 
 	const header = page.getByTestId('swimlane-handle').first();

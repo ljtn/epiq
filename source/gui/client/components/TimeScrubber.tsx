@@ -29,6 +29,7 @@ import {
 	buildAxis,
 	boardViewColor,
 	buildEventDots,
+	keptIssueIds,
 	chooseSegmentUnit,
 	clamp,
 	DOT_EXIT_TOTAL_MS,
@@ -98,6 +99,9 @@ export const TimeScrubber = ({
 	selection,
 	onChangeSelection,
 	selectedIssue,
+	textFilter,
+	onChangeTextFilter,
+	queryIssueIds,
 	knownIdentities,
 	refreshOn,
 	onPlayTheatre,
@@ -143,6 +147,13 @@ export const TimeScrubber = ({
 	// moment it was created is where its window starts. Null with none open,
 	// which is what greys that checkbox out.
 	selectedIssue: {id: string; createdAt: number} | null;
+	// The board's text query. Owned above with the rest of the board's
+	// narrowings; it sits on this bar because every narrowing does.
+	textFilter: string;
+	onChangeTextFilter: (next: string) => void;
+	// The tickets that query keeps, and null while there is none: the chart
+	// plots the tickets the columns show.
+	queryIssueIds: ReadonlySet<string> | null;
 	// Every tag and person the board knows, per axis, for naming a selected
 	// identity the window itself holds no event for.
 	knownIdentities: Record<FilterAxis, GuiEventIdentity[]>;
@@ -275,6 +286,10 @@ export const TimeScrubber = ({
 
 	// The events this narrowing keeps. Null leaves every ticket's events in.
 	const issueOnly = ticketFocus ? selectedIssue.id : null;
+	const keptIssues = useMemo(
+		() => keptIssueIds(issueOnly, queryIssueIds),
+		[issueOnly, queryIssueIds],
+	);
 
 	// Which ticket the window is cut from, and null whenever it is not cut from
 	// one. Only while the narrowing is on does a different ticket mean a
@@ -518,9 +533,9 @@ export const TimeScrubber = ({
 				shown.timeline,
 				boardView,
 				hiddenIdentityIds,
-				issueOnly,
+				keptIssues,
 			),
-		[axis, shown, boardView, hiddenIdentityIds, issueOnly],
+		[axis, shown, boardView, hiddenIdentityIds, keptIssues],
 	);
 	const commitStats = useMemo(
 		() => bucketCommitStats(axis, shown.commits),
@@ -528,8 +543,8 @@ export const TimeScrubber = ({
 	);
 	const liveEventDots = useMemo(
 		() =>
-			buildEventDots(shown.timeline, boardView, hiddenIdentityIds, issueOnly),
-		[shown, boardView, hiddenIdentityIds, issueOnly],
+			buildEventDots(shown.timeline, boardView, hiddenIdentityIds, keptIssues),
+		[shown, boardView, hiddenIdentityIds, keptIssues],
 	);
 
 	const dragging = dragFraction !== null || rangeDrag !== null;
@@ -926,6 +941,8 @@ export const TimeScrubber = ({
 				ticketOnly,
 				ticketSelected: selectedIssue !== null,
 				ticketFocus,
+				textFilter,
+				onChangeTextFilter,
 				layoutMode,
 				showIssues,
 				showCommits,

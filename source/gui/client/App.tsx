@@ -88,7 +88,6 @@ import {
 } from './lib/theatre';
 import {useEventLog} from './lib/use-event-log';
 import {LogDestination} from './lib/log-destination';
-import {Input} from './components/FormPrimitives';
 import {isolateOnly, withNarrowing} from './lib/board-selection';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
@@ -115,10 +114,6 @@ const BOARD_GUTTER = 30;
 // 120ms and a bulk action one per ticket — and each refetch is a full replay of
 // the event log plus a `git log`, so a burst has to cost one ask, not one each.
 const LOG_REFRESH_QUIET_MS = 400;
-
-// The ring around the text filter while it holds one. The accent at low alpha,
-// so the field reads as lit rather than as selected.
-const FILTER_ON_RING = 'rgba(118, 212, 255, 0.18)';
 
 // Remembered beside the scrubber's own view flags, which is what their controls
 // sit among. The two series live here rather than in the scrubber because the
@@ -515,6 +510,22 @@ export const App = () => {
 			actor: users,
 		} satisfies Record<FilterAxis, GuiEventIdentity[]>;
 	}, [state?.tags, state?.contributors, contributors]);
+
+	// The tickets the text query keeps, for the chart and the log: they plot
+	// what the columns show. Null while there is no query, so nothing above
+	// walks a set that would keep everything.
+	const queryIssueIds = useMemo(() => {
+		const query = textFilter.trim();
+		if (!query || !selectedBoard) return null;
+
+		return new Set(
+			selectedBoard.swimlanes.flatMap(swimlane =>
+				swimlane.issues
+					.filter(issue => issueMatchesText(issue, query))
+					.map(issue => issue.id),
+			),
+		);
+	}, [selectedBoard, textFilter]);
 
 	// Memoized, and returning the lanes untouched when nothing is filtered:
 	// rebuilding every swimlane object each render would hand SwimlaneColumn a
@@ -1048,6 +1059,7 @@ export const App = () => {
 		commits: history.commits,
 		selection,
 		selectedIssueId: selectedIssue?.id ?? null,
+		queryIssueIds,
 		showIssues,
 		showCommits,
 		playing: theatre !== null,
@@ -1472,6 +1484,9 @@ export const App = () => {
 							? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
 							: null
 					}
+					textFilter={textFilter}
+					onChangeTextFilter={setTextFilter}
+					queryIssueIds={queryIssueIds}
 					knownIdentities={knownIdentities}
 					refreshOn={historyTick}
 				/>
@@ -1566,36 +1581,6 @@ export const App = () => {
 									}
 									placeholder="Loading..."
 									onSelect={selectBoard}
-								/>
-
-								<Input
-									data-testid="text-filter"
-									type="search"
-									value={textFilter}
-									placeholder="filter by ref or title"
-									aria-label="Filter tickets by ref or title"
-									spellCheck={false}
-									onChange={event => setTextFilter(event.target.value)}
-									onKeyDown={event => {
-										if (event.key === 'Escape') {
-											setTextFilter('');
-											event.currentTarget.blur();
-										}
-									}}
-									style={{
-										width: 220,
-										padding: '5px 10px',
-										fontSize: 12,
-										// Lit while it holds one: it is the only one of the board's
-										// narrowings with nothing else to say it is on, so a word
-										// typed a while ago reads as a board missing its tickets.
-										border: `1px solid ${
-											textFilter.trim() ? GUI_THEME.accent : GUI_THEME.line
-										}`,
-										boxShadow: textFilter.trim()
-											? `0 0 0 2px ${FILTER_ON_RING}`
-											: undefined,
-									}}
 								/>
 							</div>
 

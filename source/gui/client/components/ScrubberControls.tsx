@@ -25,6 +25,7 @@ import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
 import {IconPlay} from './IconPlayback';
 import {IconScatter} from './IconScatter';
+import {selectTriggerStyle} from '../lib/select-style';
 import {
 	BoardSeriesGroup,
 	mutedStyle,
@@ -104,6 +105,8 @@ export const ScrubberControls = ({
 	ticketOnly,
 	ticketSelected,
 	ticketFocus,
+	textFilter,
+	onChangeTextFilter,
 	layoutMode,
 	showIssues,
 	showCommits,
@@ -160,6 +163,9 @@ export const ScrubberControls = ({
 	ticketSelected: boolean;
 	// Both of the above — the narrowing is actually in force.
 	ticketFocus: boolean;
+	// The board's text query, one more narrowing on this bar.
+	textFilter: string;
+	onChangeTextFilter: (next: string) => void;
 	layoutMode: LayoutMode;
 	showIssues: boolean;
 	showCommits: boolean;
@@ -204,6 +210,11 @@ export const ScrubberControls = ({
 				alignItems: 'center',
 				justifyContent: 'flex-end',
 				gap: 12,
+				// Sized by the bar rather than by what is on it: the text filter is
+				// the one control here that gives when the row is tight, and a row
+				// sized to its own content would never be tight.
+				flex: '1 1 0',
+				minWidth: 0,
 			}}
 		>
 			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
@@ -353,7 +364,16 @@ export const ScrubberControls = ({
 				</button>
 			</div>
 
-			<div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
+			<div
+				style={{
+					display: 'flex',
+					gap: 12,
+					alignItems: 'center',
+					// Shrinkable past its content, which is what lets the text filter
+					// at its end give way on a tight row; nothing else in here can.
+					minWidth: 0,
+				}}
+			>
 				<Checkbox
 					label="Code"
 					// Its own hint, phrased like the board series' beside it — the two
@@ -448,6 +468,8 @@ export const ScrubberControls = ({
 				activeColor={GUI_THEME.accent}
 				onChange={onChangeAllBoards}
 			/> */}
+
+				<TextFilterInput value={textFilter} onChange={onChangeTextFilter} />
 			</div>
 
 			{/* Present while live too, as an empty slot rather than a word: it sits
@@ -503,6 +525,59 @@ export const ScrubberControls = ({
 				onPlay={onPlay}
 			/>
 		</div>
+	);
+};
+
+// The board's text query, beside the other narrowings. Worn like the selects
+// on this row — the same fill, no border — so the bar reads as one family of
+// controls; lit in the accent while it holds a query, since unlike its
+// neighbours it has no box to show it is on, and a word typed a while ago
+// reads as a board missing its tickets. The tickets it keeps are the ones the
+// columns show and the ones the chart plots; Escape empties it and lets go of
+// the focus.
+export const TextFilterInput = ({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (next: string) => void;
+}) => {
+	const held = value.trim() !== '';
+
+	return (
+		<input
+			data-testid="text-filter"
+			type="search"
+			value={value}
+			placeholder="ref or title"
+			aria-label="Filter tickets by ref or title"
+			title="Show only tickets whose ref or title contains this, on the board and in the chart"
+			spellCheck={false}
+			onChange={event => onChange(event.target.value)}
+			onKeyDown={event => {
+				if (event.key === 'Escape') {
+					onChange('');
+					event.currentTarget.blur();
+				}
+			}}
+			style={{
+				...selectTriggerStyle(
+					held ? GUI_THEME.accent : GUI_THEME.primary,
+					false,
+				),
+				// Narrow enough that the pager coming up beside the scope buttons
+				// never has to take room from it on a bar the width of a laptop:
+				// the row must not shift under the pointer that just clicked. And
+				// the one thing on this row that can give when it is tighter still,
+				// since a query is still readable at half this width and the
+				// transport would otherwise be pushed off the edge.
+				width: 110,
+				minWidth: 70,
+				flexShrink: 1,
+				boxShadow: held ? `0 0 0 1px ${GUI_THEME.accent}` : undefined,
+				outline: 'none',
+			}}
+		/>
 	);
 };
 
