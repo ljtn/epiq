@@ -35,6 +35,16 @@ const MAX_SEGMENTS = 35;
 // seven segments or more.
 const MIN_SEGMENTS = 2;
 
+// The grain drawn all the time has a tighter budget than the hover: every
+// boundary is on screen at once, so a short window that the hover cuts into
+// minutes is lined by the hour instead, and a day by hours, a month by weeks.
+const MAX_GRAIN_LINES = 24;
+
+export const chooseGrainUnit = (spanMs: number): SegmentUnit =>
+	SEGMENT_UNIT_ORDER.find(
+		unit => spanMs / APPROX_UNIT_MS[unit] <= MAX_GRAIN_LINES,
+	) ?? 'year';
+
 export const chooseSegmentUnit = (spanMs: number): SegmentUnit => {
 	const index = SEGMENT_UNIT_ORDER.findIndex(
 		unit => spanMs / APPROX_UNIT_MS[unit] <= MAX_SEGMENTS,
@@ -57,6 +67,69 @@ const advanceByUnit = (date: Date, unit: SegmentUnit): void => {
 };
 
 export type Segment = {start: number; end: number; label: string};
+
+// The shortest thing that tells one segment from the next at a glance, for
+// the label beside each boundary line: the clock time, the day of the month,
+// the week's first day, the month, the year. A bare hour would read as a date
+// as easily as a time, so hours keep their minutes. The hover highlight spells
+// the full one out.
+export const shortSegmentLabel = (start: number, unit: SegmentUnit): string => {
+	const date = new Date(start);
+	const clock = `${String(date.getHours()).padStart(2, '0')}:${String(
+		date.getMinutes(),
+	).padStart(2, '0')}`;
+
+	return unit === 'minute' || unit === 'hour'
+		? clock
+		: unit === 'day' || unit === 'week'
+		? String(date.getDate())
+		: unit === 'month'
+		? formatMonth(date)
+		: String(date.getFullYear());
+};
+
+// Every line is drawn, but at the finer grains only some are worth a label:
+// twenty-four clock times in a row are a wall, and every third hour says as
+// much. Days and coarser are few enough to label each.
+const labelled = (start: number, unit: SegmentUnit): boolean => {
+	const date = new Date(start);
+
+	return unit === 'hour'
+		? date.getHours() % 3 === 0
+		: unit === 'minute'
+		? date.getMinutes() % 5 === 0
+		: true;
+};
+
+// The label is null on a line that goes unlabelled.
+export type SegmentBoundary = {time: number; label: string | null};
+
+// Every segment boundary strictly inside a window, in order, each with the
+// short label of the segment that starts there where it earns one: where the
+// track's grain is drawn. Walked segment by segment off `segmentAt`, so the
+// lines fall exactly where the hover highlight's edges do, DST included.
+export const segmentBoundaries = (
+	earliest: number,
+	latest: number,
+	unit: SegmentUnit,
+): SegmentBoundary[] => {
+	const boundaries: SegmentBoundary[] = [];
+	let boundary = segmentAt(earliest, unit).end;
+
+	// The unit is chosen to keep the count under MAX_SEGMENTS; the cap is only
+	// a guard against a window the choice was not made for.
+	while (boundary < latest && boundaries.length <= MAX_SEGMENTS * 2) {
+		boundaries.push({
+			time: boundary,
+			label: labelled(boundary, unit)
+				? shortSegmentLabel(boundary, unit)
+				: null,
+		});
+		boundary = segmentAt(boundary, unit).end;
+	}
+
+	return boundaries;
+};
 
 // Stepping via the Date setters rather than millisecond arithmetic is what
 // keeps midnight at midnight across DST, where a day is 23 or 25 hours long.

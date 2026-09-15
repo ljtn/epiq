@@ -9,6 +9,8 @@ export {
 	EVENTS_MODE_VERTICAL_PADDING,
 	TRACK_HIT_PADDING,
 	HOVER_HINT_WIDTH,
+	SEGMENT_BOUNDARY_COLOR,
+	SEGMENT_LABEL_COLOR,
 	SEGMENT_HIGHLIGHT_COLOR,
 	BUCKET_HIGHLIGHT_COLOR,
 	NEEDLE_COLOR,
@@ -44,6 +46,7 @@ export {
 	hourFractionForTime,
 } from './axis';
 export type {ScrubberAxis, VolumeBar} from './axis';
+export type {SegmentBoundary} from './time';
 export {
 	BOARD_VIEWS,
 	isBoardView,
@@ -79,8 +82,11 @@ export type {
 	IssueFilterFacts,
 } from './series';
 export {
+	chooseGrainUnit,
 	chooseSegmentUnit,
 	segmentAt,
+	segmentBoundaries,
+	shortSegmentLabel,
 	formatInterval,
 	SCOPES,
 	isScope,

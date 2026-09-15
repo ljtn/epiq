@@ -19,10 +19,67 @@ import {
 	RANGE_SELECTION_COLOR,
 	RANGE_SELECTION_EDGE,
 	Segment,
+	SegmentBoundary,
+	SEGMENT_BOUNDARY_COLOR,
 	SEGMENT_HIGHLIGHT_COLOR,
+	SEGMENT_LABEL_COLOR,
 	TRACK_HEIGHT,
 	VolumeBar,
 } from '../lib/scrubber';
+
+// The track's grain: a hairline at every segment boundary, spanning both
+// charts and the gap like the highlight does, with the shortest label of the
+// segment that starts there tucked against it, so the hour, day or week the
+// window is cut into can be read without the pointer. The highlight sits over
+// them and spells out the one under the pointer.
+export const SegmentBoundaries = ({
+	boundaries,
+	hovered,
+	fractionForTime,
+}: {
+	boundaries: readonly SegmentBoundary[];
+	// The grain segment under the pointer: the highlight's full name stands
+	// in for its short label, which would otherwise sit beside or under the
+	// name and collide with it.
+	hovered: Segment | null;
+	fractionForTime: (time: number) => number;
+}) => (
+	<>
+		{boundaries.map(({time, label}) => (
+			<div
+				key={time}
+				data-testid="segment-boundary"
+				aria-hidden
+				style={{
+					position: 'absolute',
+					left: `${fractionForTime(time) * 100}%`,
+					top: 0,
+					bottom: 0,
+					width: 1,
+					background: SEGMENT_BOUNDARY_COLOR,
+					pointerEvents: 'none',
+				}}
+			>
+				{label !== null &&
+					!(hovered && time >= hovered.start && time < hovered.end) && (
+						<span
+							style={{
+								position: 'absolute',
+								top: 1,
+								left: 3,
+								fontSize: 8,
+								lineHeight: 1,
+								color: SEGMENT_LABEL_COLOR,
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{label}
+						</span>
+					)}
+			</div>
+		))}
+	</>
+);
 
 export const SegmentHighlight = ({
 	segment,
@@ -43,22 +100,27 @@ export const SegmentHighlight = ({
 				bottom: 0,
 				background: SEGMENT_HIGHLIGHT_COLOR,
 				pointerEvents: 'none',
-				display: 'flex',
-				justifyContent: 'center',
-				paddingTop: 3,
-				// With top and bottom both pinned, content-box would add the padding
-				// on top of the resolved height and push the block past the wrapper
-				// it spans.
-				boxSizing: 'border-box',
-				fontSize: 9,
-				color: GUI_THEME.dim2,
-				whiteSpace: 'nowrap',
 				// The label is wider than its block at month and year scopes; only
 				// one segment is ever highlighted, so it has nothing to overlap.
 				overflow: 'visible',
 			}}
 		>
-			{segment.label}
+			{/* Exactly where the boundary's short label sits, in its size: the
+			    full name takes the short one's place rather than floating over
+			    the block. */}
+			<span
+				style={{
+					position: 'absolute',
+					top: 1,
+					left: 3,
+					fontSize: 8,
+					lineHeight: 1,
+					color: GUI_THEME.dim2,
+					whiteSpace: 'nowrap',
+				}}
+			>
+				{segment.label}
+			</span>
 		</div>
 	);
 };

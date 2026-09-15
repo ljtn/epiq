@@ -26,6 +26,7 @@ import {
 	TRACK_HEIGHT,
 	TRACK_HIT_PADDING,
 	VolumeBar,
+	SegmentBoundary,
 } from '../lib/scrubber';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {ScatterCanvas, ScatterLayer, ScatterPoint} from './ScatterCanvas';
@@ -42,6 +43,7 @@ import {
 	RangeSelection,
 	ScrubberHoverHint,
 	ScrubberNeedle,
+	SegmentBoundaries,
 	SegmentHighlight,
 	SeriesLayer,
 	TrackBaseline,
@@ -114,6 +116,11 @@ export type ScrubberChart = {
 	hoveredBucketIndex: number | null;
 	hoveredCommitBucketIndex: number | null;
 	hoveredSegment: Segment | null;
+	// Where the window is cut into segments, drawn as the track's grain, and
+	// the grain segment under the pointer, whose short label gives way to the
+	// highlight's full name.
+	segmentBoundaries: readonly SegmentBoundary[];
+	hoveredGrain: Segment | null;
 	// Nothing can be asked for with the socket down.
 	connected: boolean;
 	// The board below is narrowed to this window, so the timeline is not only a
@@ -313,6 +320,12 @@ export const ScrubberLayout = ({
 								top: -TRACK_HIT_PADDING,
 								height: TRACK_HIT_PADDING,
 							}}
+						/>
+
+						<SegmentBoundaries
+							boundaries={chart.segmentBoundaries}
+							hovered={chart.hoveredGrain}
+							fractionForTime={axis.fractionForTime}
 						/>
 
 						{chart.hoveredSegment && (

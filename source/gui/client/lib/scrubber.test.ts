@@ -22,6 +22,7 @@ import {
 	listIdentitiesByAxis,
 	plottedView,
 	soleVisibleIdentity,
+	chooseGrainUnit,
 	chooseSegmentUnit,
 	dotAppearAnimation,
 	dotEntranceScale,
@@ -37,6 +38,8 @@ import {
 	SCOPES,
 	SCRUBBER_KEYFRAMES,
 	segmentAt,
+	segmentBoundaries,
+	shortSegmentLabel,
 	windowIssueIds,
 	windowNamesIssues,
 } from './scrubber';
@@ -304,6 +307,84 @@ describe('chooseSegmentUnit', () => {
 		expect(chooseSegmentUnit(120 * DAY)).toBe('week');
 		expect(chooseSegmentUnit(2 * 365 * DAY)).toBe('month');
 		expect(chooseSegmentUnit(50 * 365 * DAY)).toBe('year');
+	});
+});
+
+describe('chooseGrainUnit', () => {
+	it('lines a window by a coarser unit than the hover cuts it into', () => {
+		// Seventy minutes: the hover names minutes, the grain marks the hour.
+		expect(chooseSegmentUnit(70 * 60 * 1000)).toBe('minute');
+		expect(chooseGrainUnit(70 * 60 * 1000)).toBe('hour');
+		expect(chooseGrainUnit(DAY)).toBe('hour');
+		expect(chooseGrainUnit(7 * DAY)).toBe('day');
+		expect(chooseGrainUnit(30 * DAY)).toBe('week');
+		expect(chooseGrainUnit(365 * DAY)).toBe('month');
+		expect(chooseGrainUnit(50 * 365 * DAY)).toBe('year');
+	});
+});
+
+describe('segmentBoundaries', () => {
+	it('lists every boundary strictly inside the window, at the segment edges', () => {
+		const from = new Date(2026, 7, 10, 9, 0).getTime();
+		const to = new Date(2026, 7, 14, 15, 0).getTime();
+
+		const boundaries = segmentBoundaries(from, to, 'day');
+
+		// Midnight of the 11th through the 14th: four lines, none at either end,
+		// each labelled with the day that starts there and nothing more.
+		expect(boundaries.map(({time}) => new Date(time).getDate())).toEqual([
+			11, 12, 13, 14,
+		]);
+		expect(boundaries.every(({time}) => new Date(time).getHours() === 0)).toBe(
+			true,
+		);
+		expect(boundaries[0]?.time).toBe(segmentAt(from, 'day').end);
+		expect(boundaries.map(({label}) => label)).toEqual([
+			'11',
+			'12',
+			'13',
+			'14',
+		]);
+	});
+
+	it('labels every third hour and draws the rest bare', () => {
+		const from = new Date(2026, 7, 10, 0, 30).getTime();
+		const to = new Date(2026, 7, 10, 8, 30).getTime();
+
+		const boundaries = segmentBoundaries(from, to, 'hour');
+
+		expect(boundaries.map(({label}) => label)).toEqual([
+			null,
+			null,
+			'03:00',
+			null,
+			null,
+			'06:00',
+			null,
+			null,
+		]);
+	});
+
+	it('is empty for a window inside one segment', () => {
+		const from = new Date(2026, 7, 10, 9, 0).getTime();
+
+		expect(segmentBoundaries(from, from + 60 * 60 * 1000, 'day')).toEqual([]);
+	});
+});
+
+describe('shortSegmentLabel', () => {
+	it('is the one thing that tells a segment from the next', () => {
+		const at = new Date(2026, 7, 10, 9, 5).getTime();
+
+		expect(shortSegmentLabel(at, 'minute')).toBe('09:05');
+		expect(shortSegmentLabel(at, 'hour')).toBe('09:05');
+		expect(shortSegmentLabel(new Date(2026, 7, 10, 9).getTime(), 'hour')).toBe(
+			'09:00',
+		);
+		expect(shortSegmentLabel(at, 'day')).toBe('10');
+		expect(shortSegmentLabel(at, 'week')).toBe('10');
+		expect(shortSegmentLabel(at, 'month')).toBe('Aug');
+		expect(shortSegmentLabel(at, 'year')).toBe('2026');
 	});
 });
 
