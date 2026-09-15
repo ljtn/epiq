@@ -75,3 +75,36 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 
 	expect(pageErrors).toEqual([]);
 });
+
+// An empty window keeps its baseline, the way the board track does: the
+// series narrowed to commits the window has none of must not take the green
+// row away, or the scrubber's height would come and go with the narrowing.
+test('the Code track stays up, baseline and all, when the window has no commits to plot', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const track = page.getByTestId('scrubber-track');
+	const withEveryCommit = (await track.boundingBox())!.height;
+
+	await page.getByTestId('commit-select').click();
+	await page.getByRole('radio', {name: 'Linked to a ticket'}).click();
+	await expect(page.getByTestId('commit-select')).toHaveText('Linked');
+
+	expect((await track.boundingBox())!.height).toBe(withEveryCommit);
+
+	// Off is the one thing that takes the row away.
+	await page.getByTitle('Show commits').click();
+	await expect
+		.poll(async () => (await track.boundingBox())!.height)
+		.toBeLessThan(withEveryCommit);
+
+	await page.getByTitle('Show commits').click();
+	await page.getByTestId('commit-select').click();
+	await page.getByRole('radio', {name: 'All commits'}).click();
+
+	expect(pageErrors).toEqual([]);
+});

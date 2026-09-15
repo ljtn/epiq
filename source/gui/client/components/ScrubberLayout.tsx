@@ -387,43 +387,45 @@ export const ScrubberLayout = ({
 							)}
 						</div>
 
-						{chart.showCommits &&
-							layoutMode === 'even' &&
-							chart.commits.length > 0 && (
-								<div
-									key={`commits-${windowKey}`}
-									// Clears the board hover and stops the move reaching the
-									// wrapper, so the two hints never stack at the same spot.
-									onMouseEnter={on.onCommitTrackMouseEnter}
-									onMouseMove={on.onCommitTrackMouseMove}
-									onMouseLeave={on.onCommitTrackMouseLeave}
-									style={{
-										position: 'relative',
-										width: '100%',
-										height: TRACK_HEIGHT,
-										animation: animate ? FADE_IN_ANIMATION : undefined,
-									}}
-								>
-									<TrackBaseline color={GUI_THEME.green} anchor="top" />
+						{/* Up whenever the series is, commits or none: an empty window
+						    keeps its baseline the way the board track above keeps its,
+						    and the scrubber's height does not come and go with what the
+						    window happens to hold. */}
+						{chart.showCommits && layoutMode === 'even' && (
+							<div
+								key={`commits-${windowKey}`}
+								// Clears the board hover and stops the move reaching the
+								// wrapper, so the two hints never stack at the same spot.
+								onMouseEnter={on.onCommitTrackMouseEnter}
+								onMouseMove={on.onCommitTrackMouseMove}
+								onMouseLeave={on.onCommitTrackMouseLeave}
+								style={{
+									position: 'relative',
+									width: '100%',
+									height: TRACK_HEIGHT,
+									animation: animate ? FADE_IN_ANIMATION : undefined,
+								}}
+							>
+								<TrackBaseline color={GUI_THEME.green} anchor="top" />
 
-									{chart.hoveredCommitBucketIndex !== null && (
-										<BucketHighlight
-											index={chart.hoveredCommitBucketIndex}
-											bucketCount={axis.bucketCount}
-										/>
-									)}
-
-									<VolumeBars
-										bars={chart.commitBars}
+								{chart.hoveredCommitBucketIndex !== null && (
+									<BucketHighlight
+										index={chart.hoveredCommitBucketIndex}
 										bucketCount={axis.bucketCount}
-										firstBar={chart.commitBarRange[0]}
-										lastBar={chart.commitBarRange[1]}
-										color={GUI_THEME.green}
-										direction="down"
-										animate={animate}
 									/>
-								</div>
-							)}
+								)}
+
+								<VolumeBars
+									bars={chart.commitBars}
+									bucketCount={axis.bucketCount}
+									firstBar={chart.commitBarRange[0]}
+									lastBar={chart.commitBarRange[1]}
+									color={GUI_THEME.green}
+									direction="down"
+									animate={animate}
+								/>
+							</div>
+						)}
 
 						{chart.thumbFraction !== null && (
 							<ScrubberNeedle
