@@ -74,7 +74,7 @@ test('the scope filter narrows the board to what the window holds, and lets go a
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	const boardUrl = page.url();
-	const scopeOnly = page.getByRole('checkbox', {name: 'Scope only'});
+	const scopeOnly = page.getByTestId('spotlight');
 
 	// Under "All" the window is the whole log, so there is nothing to narrow.
 	await expect(scopeOnly).toBeDisabled();
@@ -86,7 +86,7 @@ test('the scope filter narrows the board to what the window holds, and lets go a
 
 	// A window the ticket was filed inside: narrowed, and still there.
 	await page.goto(zoomed(boardUrl, now - HOUR_MS, now + HOUR_MS));
-	await expect(scopeOnly).toBeChecked();
+	await expect(scopeOnly).toHaveAttribute('aria-pressed', 'true');
 	await expect(card(page, title)).toBeVisible();
 	// The timeline is boxed while it is the thing doing the hiding.
 	await expect(page.getByTestId('scrubber-scoped')).toBeVisible();
@@ -125,7 +125,10 @@ test('a ticket filed while the filter is on joins the board it belongs to', asyn
 
 	// A window that runs up to now, and is narrowing the board already.
 	await page.goto(`${boardUrl}?scope=day&window=1`);
-	await expect(page.getByRole('checkbox', {name: 'Scope only'})).toBeChecked();
+	await expect(page.getByTestId('spotlight')).toHaveAttribute(
+		'aria-pressed',
+		'true',
+	);
 	await timeline.settled();
 
 	// Filing a ticket does not move the window, and the window is what the
@@ -169,7 +172,7 @@ test('leaving the period puts every ticket back, box and all', async ({
 	// that can no longer be pressed — not even for the round trip.
 	await page.getByRole('button', {name: 'All', exact: true}).click();
 	await expect(card(page, title)).toBeVisible({timeout: REPLY_DELAY_MS / 3});
-	await expect(page.getByRole('checkbox', {name: 'Scope only'})).toBeDisabled();
+	await expect(page.getByTestId('spotlight')).toBeDisabled();
 
 	expect(pageErrors).toEqual([]);
 });
@@ -194,7 +197,7 @@ test('collapsing the scrubber keeps the filter reachable', async ({
 	await expect(page.getByTestId('scrubber-track')).toHaveCount(0);
 
 	// The chart is gone but its narrowing is not, so the box has to be here.
-	const scopeOnly = page.getByRole('checkbox', {name: 'Scope only'});
+	const scopeOnly = page.getByTestId('spotlight');
 	await expect(scopeOnly).toBeVisible();
 	await scopeOnly.click();
 	await expect(card(page, title)).toBeVisible();

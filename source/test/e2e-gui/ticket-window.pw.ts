@@ -117,16 +117,16 @@ test('it takes the board down to the one ticket, and the window box with it', as
 
 	// A period, so the window box is live enough to be worth putting out.
 	await scopeButton(page, 'Week').click();
-	const scopeOnly = page.getByRole('checkbox', {name: 'Scope only'});
+	const scopeOnly = page.getByTestId('spotlight');
 	await expect(scopeOnly).toBeEnabled();
 	await scopeOnly.click();
-	await expect(scopeOnly).toBeChecked();
+	await expect(scopeOnly).toHaveAttribute('aria-pressed', 'true');
 
 	await ticketOnly(page).click();
 	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
 
 	// One lit box, not two: the narrower ask took the other with it.
-	await expect(scopeOnly).not.toBeChecked();
+	await expect(scopeOnly).toHaveAttribute('aria-pressed', 'false');
 	await expect(scopeOnly).toBeDisabled();
 	await expect
 		.poll(() => new URL(page.url()).searchParams.get('window'))

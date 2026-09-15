@@ -29,10 +29,6 @@ import {Checkbox} from './Checkbox';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 
-// Named once: the collapsed header puts the same box up when the rest of this
-// row is not on screen.
-export const SCOPE_ONLY_LABEL = 'Scope only';
-
 // What every control wears while the socket is down.
 export const mutedStyle: React.CSSProperties = {
 	opacity: 0.4,
