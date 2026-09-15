@@ -14,11 +14,15 @@ export const KebabMenu = ({
 	items = [],
 	testId,
 	title = 'Actions',
+	icon,
 	children,
 }: {
 	items?: KebabMenuItem[];
 	testId?: string;
 	title?: string;
+	// What the trigger shows. Three dots by default, for a menu of actions;
+	// a menu that holds a state can show the state in force instead.
+	icon?: React.ReactNode;
 	// Rendered above the items, for a menu whose contents are a control rather
 	// than a list of commands. Handed the same close the items get, so choosing
 	// inside it dismisses the menu and shows what it did.
@@ -59,7 +63,7 @@ export const KebabMenu = ({
 				aria-expanded={open}
 				onClick={() => setOpen(value => !value)}
 			>
-				⋮
+				{icon ?? '⋮'}
 			</IconButton>
 
 			{open && (
