@@ -1,15 +1,18 @@
 import {AsideDock} from '../lib/aside-dock';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {DockButtons} from './DockButtons';
+import {ICON_SIZE} from './IconButton';
+import {IconDockBottom} from './IconDockBottom';
+import {IconDockRight} from './IconDockRight';
 import {KebabMenu} from './KebabMenu';
 
 /**
- * Where the panel attaches, tucked behind the header's kebab.
+ * Where the panel attaches, behind a trigger that shows the side in force.
  *
  * Out of the header proper on purpose: it is a preference set once, and the
- * row beside the close button is for things you reach for every ticket. Inside
- * the menu it still shows both sides at once, so the lit one answers "where is
- * it now" without a click.
+ * row beside the close button is for things you reach for every ticket. The
+ * trigger wears the current dock's icon rather than three dots, so the header
+ * answers "where is it now" without a click; inside, both sides show at once.
  */
 export const PanelDockMenu = ({
 	dock,
@@ -18,7 +21,17 @@ export const PanelDockMenu = ({
 	dock: AsideDock;
 	onDock: (next: AsideDock) => void;
 }) => (
-	<KebabMenu testId="panel-menu" title="Panel options">
+	<KebabMenu
+		testId="panel-menu"
+		title={dock === 'bottom' ? 'Docked to bottom' : 'Docked to right'}
+		icon={
+			dock === 'bottom' ? (
+				<IconDockBottom size={ICON_SIZE} />
+			) : (
+				<IconDockRight size={ICON_SIZE} />
+			)
+		}
+	>
 		{close => (
 			<div
 				style={{
