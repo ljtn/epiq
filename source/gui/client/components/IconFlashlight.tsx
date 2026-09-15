@@ -1,8 +1,8 @@
 // A hand-held torch, angled down at the timeline the bar sits over: a
 // rounded body with its switch, a break, then the head, a cone widening into
-// a short cylinder — drawn light
-// so it stays open at the size the bar draws it. Lit, three rays fan out
-// ahead of the lens, clear of it: on is light, not only a colour.
+// a short cylinder — drawn light so it stays open at the size the bar draws
+// it. Lit, three rays fan out ahead of the lens, clear of it: on is light,
+// not only a colour.
 export const IconFlashlight = ({
 	size = 16,
 	lit = false,
