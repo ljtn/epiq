@@ -14,7 +14,6 @@ import {
 	SCOPES,
 	BoardView,
 	FilterAxis,
-	useTightBar,
 } from '../lib/scrubber';
 import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
@@ -33,7 +32,6 @@ import {
 	mutedStyle,
 	ScopeSelect,
 	SCOPE_ONLY_LABEL,
-	TICKET_ONLY_LABEL,
 } from './ScrubberSelects';
 
 const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
@@ -104,8 +102,6 @@ export const ScrubberControls = ({
 	playTitle,
 	onPlay,
 	narrow,
-	ticketOnly,
-	ticketSelected,
 	ticketFocus,
 	textFilter,
 	onChangeTextFilter,
@@ -128,7 +124,6 @@ export const ScrubberControls = ({
 	onChangeScope,
 	onChangeOffset,
 	onChangeWindowOnly,
-	onChangeTicketOnly,
 	onChangeLayoutMode,
 	onChangeShowIssues,
 	onChangeShowCommits,
@@ -161,11 +156,8 @@ export const ScrubberControls = ({
 	// False where the window came back as counts alone, naming no tickets to
 	// narrow to.
 	windowFilterable: boolean;
-	// The chart is narrowed to the open ticket: its window, and its events only.
-	ticketOnly: boolean;
-	// Whether there is a ticket to narrow to at all.
-	ticketSelected: boolean;
-	// Both of the above — the narrowing is actually in force.
+	// The chart is narrowed to the open ticket — its own stretch, and its
+	// events only — which the ticket's panel switches on and off.
 	ticketFocus: boolean;
 	// The board's text query, one more narrowing on this bar.
 	textFilter: string;
@@ -197,7 +189,6 @@ export const ScrubberControls = ({
 	onChangeScope: (scope: Scope) => void;
 	onChangeOffset: (offset: number) => void;
 	onChangeWindowOnly: (next: boolean) => void;
-	onChangeTicketOnly: (next: boolean) => void;
 	onChangeLayoutMode: (mode: LayoutMode) => void;
 	onChangeShowIssues: (next: boolean) => void;
 	onChangeShowCommits: (next: boolean) => void;
@@ -232,7 +223,7 @@ export const ScrubberControls = ({
 						<button
 							title={
 								ticketFocus
-									? 'The ticket\u2019s own stretch — untick "Ticket only" to page'
+									? 'The ticket\u2019s own stretch — let the ticket go in its panel to page'
 									: 'Earlier'
 							}
 							disabled={!connected || ticketFocus}
@@ -325,7 +316,7 @@ export const ScrubberControls = ({
 						<button
 							title={
 								ticketFocus
-									? 'Held behind the ticket’s own stretch — untick "Ticket only" to come back to it'
+									? 'Held behind the ticket’s own stretch — let the ticket go in its panel to come back to it'
 									: zoomed
 									? 'A window dragged out on the chart — pick a period to leave it'
 									: 'Drag across the chart to zoom the window to a stretch of it'
@@ -420,7 +411,7 @@ export const ScrubberControls = ({
 					label={SCOPE_ONLY_LABEL}
 					title={
 						ticketFocus
-							? 'The board is already down to one ticket — untick "Ticket only" to narrow by window instead'
+							? 'The board is already down to one ticket — let the ticket go in its panel to narrow by window instead'
 							: everythingInScope
 							? 'Every event is in scope — pick a period to narrow the board'
 							: !windowFilterable
@@ -442,31 +433,6 @@ export const ScrubberControls = ({
 						(!connected && !windowOnly)
 					}
 					onChange={onChangeWindowOnly}
-				/>
-
-				{/* Its own narrowing rather than a seventh scope: a scope names a
-			    period, and this names a period *and* whose events survive it.
-			    Greyed rather than unmounted with no ticket open, so the row does
-			    not change width every time the details panel opens and closes.
-
-			    Not gated on windowFilterable the way its neighbour is: that
-			    describes the window on screen, and this one replaces it. Once the
-			    ticket's own stretch comes back the title says so if it, too, came
-			    back as counts alone. */}
-				<Checkbox
-					label={TICKET_ONLY_LABEL}
-					title={
-						!ticketSelected
-							? 'Open a ticket to narrow the timeline to it'
-							: ticketFocus && !windowFilterable
-							? 'Too many events in this stretch to tell which are the ticket\u2019s'
-							: 'Narrow to this ticket: the stretch it has existed for, and only its events'
-					}
-					checked={ticketOnly}
-					// Like its neighbour it asks the socket for nothing it cannot
-					// already draw, so offline it can still be let go of.
-					disabled={!ticketSelected || (!connected && !ticketOnly)}
-					onChange={onChangeTicketOnly}
 				/>
 
 				{/* <Checkbox
@@ -550,10 +516,6 @@ export const TextFilterInput = ({
 	onChange: (next: string) => void;
 }) => {
 	const held = value.trim() !== '';
-	// Short on a bar that could not fit the pager beside it at full width:
-	// decided by the viewport, not by the row's overflow, so the pager coming
-	// up never resizes it under the pointer.
-	const tight = useTightBar();
 
 	return (
 		<input
@@ -576,11 +538,11 @@ export const TextFilterInput = ({
 					held ? GUI_THEME.accent : GUI_THEME.primary,
 					false,
 				),
-				// Above the tight breakpoint it is also the one thing on this row
-				// that can give, down to the short width, should the row run out of
-				// room before the breakpoint says so: a query is readable at that
+				// Also the one thing on this row that can give, down to the short
+				// width, should the row run out of room before the narrow-bar
+				// breakpoint folds the scope buttons: a query is readable at that
 				// size, and the transport would otherwise be pushed off the edge.
-				width: tight ? 70 : 110,
+				width: 110,
 				minWidth: 70,
 				flexShrink: 1,
 				boxShadow: held ? `0 0 0 1px ${GUI_THEME.accent}` : undefined,

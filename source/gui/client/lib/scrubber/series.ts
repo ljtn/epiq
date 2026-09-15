@@ -274,7 +274,7 @@ const EVENT_DOT_SIZE = 4;
 const EVENT_DOT_OPACITY = 0.55;
 
 // The tickets whose events the chart keeps, and null for every ticket's. The
-// "Ticket only" narrowing and the text query are the board's two ways down to
+// ticket narrowing and the text query are the board's two ways down to
 // particular tickets, and both in force keep what passes both, as the board
 // does — so the picture above never shows a ticket the columns below do not.
 export const keptIssueIds = (

@@ -203,15 +203,9 @@ export const SCRUBBER_KEYFRAMES = `
 // everything else on it, and the end of the row — where the transport is — is
 // the first thing squeezed. Measured against the row's own content rather than
 // a device class: it is the bar that is narrow, not the phone. The text filter
-// is the row's one shrinkable item and absorbs some sixty pixels of a tight
-// row; below this it has already given all it can with the pager up.
-const NARROW_BAR_QUERY = '(max-width: 1240px)';
-
-// Wider than that by the room the period pager takes when it comes up: the
-// text filter is drawn at its short width from here down, so the pager never
-// has to take that room from it — a filter that shrank as the pager appeared
-// would shift every control to its left under the pointer that just clicked.
-const TIGHT_BAR_QUERY = '(max-width: 1320px)';
+// is the row's one shrinkable item and gives up to forty pixels first; below
+// this it has given all it can with the pager up.
+const NARROW_BAR_QUERY = '(max-width: 1180px)';
 
 const useMediaQuery = (mediaQuery: string): boolean => {
 	const [matches, setMatches] = useState(
@@ -230,8 +224,6 @@ const useMediaQuery = (mediaQuery: string): boolean => {
 };
 
 export const useNarrowBar = (): boolean => useMediaQuery(NARROW_BAR_QUERY);
-
-export const useTightBar = (): boolean => useMediaQuery(TIGHT_BAR_QUERY);
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
