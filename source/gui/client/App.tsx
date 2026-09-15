@@ -1550,7 +1550,6 @@ export const App = () => {
 							>
 								<Dropdown
 									testId="board-switcher"
-									label="Board:"
 									value={
 										selectedBoard
 											? {

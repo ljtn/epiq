@@ -3,8 +3,14 @@
 // people, and the scope picker, which is the same choice of window the wide
 // bar spells out in full. Both are popovers that dismiss on a click away.
 
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
+import {
+	popoverStyle,
+	selectLabelStyle,
+	selectTriggerStyle,
+} from '../lib/select-style';
+import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {
 	Scope,
 	scopeButtonLabel,
@@ -91,33 +97,6 @@ const AXIS_TITLES: Record<FilterAxis, string> = {
 // is clipped, and the open list spells it out in full.
 const SELECT_TRIGGER_WIDTH = 180;
 
-// A select. Filled rather than outlined, unlike the toggles beside it: it is the
-// only control here reporting a colour, and an outline in that colour drowned
-// out the text carrying it. The fill also separates a thing you open from the
-// things you switch.
-const selectTriggerStyle = (
-	color: string,
-	disabled: boolean,
-): React.CSSProperties => ({
-	display: 'inline-flex',
-	alignItems: 'center',
-	justifyContent: 'space-between',
-	gap: 6,
-	width: SELECT_TRIGGER_WIDTH,
-	boxSizing: 'border-box',
-	background: 'rgba(208, 223, 255, 0.08)',
-	// None, but padded as though there were, so it sits at the same height as
-	// the bordered toggles on either side.
-	border: 'none',
-	color: disabled ? GUI_THEME.dim : color,
-	borderRadius: 6,
-	fontFamily: 'inherit',
-	fontSize: 10,
-	padding: '3px 7px 3px 9px',
-	cursor: disabled ? 'not-allowed' : 'pointer',
-	opacity: disabled ? 0.4 : 1,
-});
-
 const nestedListStyle: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
@@ -125,35 +104,6 @@ const nestedListStyle: React.CSSProperties = {
 	marginLeft: 5,
 	paddingLeft: 8,
 	borderLeft: `1px solid ${GUI_THEME.line}`,
-};
-
-// Floated rather than in flow: the controls sit directly above the chart, and
-// a tree that grew the row would shove the very thing being filtered downward.
-const popoverStyle: React.CSSProperties = {
-	position: 'absolute',
-	top: '100%',
-	left: 0,
-	marginTop: 6,
-	// Carries the column and its gap itself. Without them the options stack as
-	// plain blocks and their radios sit edge to edge.
-	display: 'flex',
-	flexDirection: 'column',
-	gap: 7,
-	padding: '10px 14px 10px 10px',
-	// Sized for the common case up front, so opening a kind with a list does
-	// not visibly widen the panel under the pointer.
-	minWidth: 178,
-	// Slightly sheer over a blur, so the chart it filters stays legible beneath
-	// it rather than being covered outright.
-	background: 'rgba(21, 26, 36, 0.88)',
-	backdropFilter: 'blur(12px)',
-	WebkitBackdropFilter: 'blur(12px)',
-	border: `1px solid ${GUI_THEME.line}`,
-	borderRadius: 8,
-	boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
-	// Above the dots and the needle, which sit at 1 and 2.
-	zIndex: 30,
-	whiteSpace: 'nowrap',
 };
 
 const onlyButtonStyle: React.CSSProperties = {
@@ -166,37 +116,6 @@ const onlyButtonStyle: React.CSSProperties = {
 	lineHeight: 1,
 	padding: '2px 4px',
 	cursor: 'pointer',
-};
-
-// Closes on a click anywhere else, which is the half of "dropdown" that a bare
-// toggle leaves out.
-const useDismissOnOutsideClick = (
-	open: boolean,
-	onDismiss: () => void,
-): React.RefObject<HTMLDivElement | null> => {
-	const ref = useRef<HTMLDivElement | null>(null);
-
-	useEffect(() => {
-		if (!open) return;
-
-		const onPointerDown = (event: MouseEvent) => {
-			if (!ref.current?.contains(event.target as Node)) onDismiss();
-		};
-
-		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') onDismiss();
-		};
-
-		document.addEventListener('mousedown', onPointerDown);
-		document.addEventListener('keydown', onKeyDown);
-
-		return () => {
-			document.removeEventListener('mousedown', onPointerDown);
-			document.removeEventListener('keydown', onKeyDown);
-		};
-	}, [open, onDismiss]);
-
-	return ref;
 };
 
 // Drawn as a dot rather than a box, so a row picking one of several kinds never
@@ -383,21 +302,12 @@ export const BoardSeriesGroup = ({
 					aria-expanded={expanded}
 					style={{
 						...selectTriggerStyle(color, !showIssues),
+						width: SELECT_TRIGGER_WIDTH,
 						...(connected ? {} : mutedStyle),
 					}}
 				>
-					{/* Clipped rather than wrapped: a tag name long enough to overflow
-					    is still recognisable from its start, and the open list spells it
-					    out in full. No title of its own — the button's explains more. */}
-					<span
-						style={{
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-							whiteSpace: 'nowrap',
-						}}
-					>
-						{label}
-					</span>
+					{/* No title of its own — the button's explains more. */}
+					<span style={selectLabelStyle}>{label}</span>
 					<span style={{display: 'inline-flex', flexShrink: 0}}>
 						<IconChevronDown size={12} />
 					</span>
