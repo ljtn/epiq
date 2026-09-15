@@ -48,6 +48,6 @@ test('an in-progress description survives a click outside', async ({page}) => {
 test('the × button still closes it', async ({page}) => {
 	await openTicket(page);
 
-	await page.getByRole('button', {name: '×'}).click();
+	await page.getByRole('button', {name: 'Close', exact: true}).click();
 	await expect(page).not.toHaveURL(/\/issue\//);
 });

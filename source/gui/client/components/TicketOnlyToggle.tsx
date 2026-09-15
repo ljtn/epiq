@@ -1,10 +1,9 @@
 // The timeline narrowed to the ticket on screen — its own stretch, and its
 // events only. Switched here, in the ticket's own panel, rather than on the
 // scrubber bar: the bar has no way to say which ticket it would narrow to,
-// and the panel is that ticket. Icon-only, the footprint of the fullscreen
-// and dock buttons beside it.
+// and the panel is that ticket.
 
-import {GUI_THEME} from '../lib/gui-theme';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconTimeline} from './IconTimeline';
 
 export const TicketOnlyToggle = ({
@@ -23,10 +22,9 @@ export const TicketOnlyToggle = ({
 	disabled: boolean;
 	onChange: (next: boolean) => void;
 }) => (
-	<button
-		type="button"
-		data-testid="ticket-only"
-		aria-pressed={narrowed}
+	<IconButton
+		testId="ticket-only"
+		pressed={narrowed}
 		disabled={disabled}
 		title={
 			narrowed && capped
@@ -36,33 +34,7 @@ export const TicketOnlyToggle = ({
 				: 'Narrow log and timeline to ticket'
 		}
 		onClick={() => onChange(!narrowed)}
-		style={{
-			display: 'inline-flex',
-			alignItems: 'center',
-			flexShrink: 0,
-			background: narrowed ? GUI_THEME.hover : 'transparent',
-			border: 'none',
-			padding: 4,
-			borderRadius: 4,
-			cursor: disabled ? 'default' : 'pointer',
-			color: narrowed ? GUI_THEME.accent : GUI_THEME.dim,
-			opacity: disabled ? 0.4 : 1,
-			transition: 'color 120ms ease, background 120ms ease',
-		}}
-		onMouseEnter={event => {
-			if (disabled) return;
-			event.currentTarget.style.background = GUI_THEME.hover;
-			event.currentTarget.style.color = GUI_THEME.accent;
-		}}
-		onMouseLeave={event => {
-			event.currentTarget.style.background = narrowed
-				? GUI_THEME.hover
-				: 'transparent';
-			event.currentTarget.style.color = narrowed
-				? GUI_THEME.accent
-				: GUI_THEME.dim;
-		}}
 	>
-		<IconTimeline size={14} />
-	</button>
+		<IconTimeline size={ICON_SIZE} />
+	</IconButton>
 );
