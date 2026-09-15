@@ -96,12 +96,19 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 
 	expect((await track.boundingBox())!.height).toBe(withEveryCommit);
 
-	// Off is the one thing that takes the row away.
+	// Off is the one thing that takes the row away — for either series.
 	await page.getByTitle('Show commits').click();
 	await expect
 		.poll(async () => (await track.boundingBox())!.height)
 		.toBeLessThan(withEveryCommit);
+	const withoutCommits = (await track.boundingBox())!.height;
 
+	await page.getByTitle('Show board events').click();
+	await expect
+		.poll(async () => (await track.boundingBox())!.height)
+		.toBeLessThan(withoutCommits);
+
+	await page.getByTitle('Show board events').click();
 	await page.getByTitle('Show commits').click();
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All commits'}).click();

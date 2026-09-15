@@ -322,13 +322,22 @@ export const ScrubberLayout = ({
 							/>
 						)}
 
+						{/* Kept mounted with the series off — the pointer geometry is
+						    measured off it — but folded to nothing in volume layout, the
+						    way the commit track below goes when its box is unticked: a
+						    series switched off leaves no row, baseline or otherwise. In
+						    the scatter both series share this one box, so it stays. */}
 						<div
 							ref={chart.trackRef}
 							style={{
 								position: 'relative',
 								width: '100%',
 								height:
-									layoutMode === 'real' ? EVENTS_SCATTER_HEIGHT : TRACK_HEIGHT,
+									layoutMode === 'real'
+										? EVENTS_SCATTER_HEIGHT
+										: chart.showIssues
+										? TRACK_HEIGHT
+										: 0,
 								paddingTop:
 									layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
 								paddingBottom:
@@ -338,10 +347,12 @@ export const ScrubberLayout = ({
 								alignItems: 'center',
 							}}
 						>
-							<TrackBaseline
-								color={chart.issueSeriesColor}
-								anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
-							/>
+							{(layoutMode === 'real' || chart.showIssues) && (
+								<TrackBaseline
+									color={chart.issueSeriesColor}
+									anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
+								/>
+							)}
 
 							{/* The axis reads 00:00 / 12:00 / 24:00, which is a lie once the
 							    window is shorter than a day — every dot sits in one band. */}
