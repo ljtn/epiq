@@ -78,6 +78,7 @@ import {
 	isPeriodWindow,
 	issuePassesBoardFilter,
 	windowIssueIds,
+	windowNamesIssues,
 } from './lib/scrubber';
 import {usePersistedFlag} from './lib/use-persisted-flag';
 import {
@@ -1845,6 +1846,9 @@ export const App = () => {
 								onChangeTab={changeIssueDetailsTab}
 								onClose={closeIssueDetails}
 								timelineNarrowed={selection.ticketOnly}
+								timelineCapped={
+									selection.ticketOnly && !windowNamesIssues(history.timeline)
+								}
 								canNarrowTimeline={connected || selection.ticketOnly}
 								onChangeTimelineNarrowed={next =>
 									changeSelection({ticketOnly: next})

@@ -261,6 +261,7 @@ export const IssueDetails = ({
 	issue,
 	onClose,
 	timelineNarrowed,
+	timelineCapped,
 	canNarrowTimeline,
 	onChangeTimelineNarrowed,
 	onEditTitle,
@@ -311,6 +312,8 @@ export const IssueDetails = ({
 	// only. It lives in the board's selection; the panel is where it is
 	// switched, since what it narrows to is the ticket on screen.
 	timelineNarrowed: boolean;
+	// The narrowed window came back as counts alone, naming no events.
+	timelineCapped: boolean;
 	// Offline the narrowing can still be let go of, just not taken up.
 	canNarrowTimeline: boolean;
 	onChangeTimelineNarrowed: (next: boolean) => void;
@@ -1130,6 +1133,7 @@ export const IssueDetails = ({
 
 										<TicketOnlyToggle
 											narrowed={timelineNarrowed}
+											capped={timelineCapped}
 											disabled={!canNarrowTimeline}
 											onChange={onChangeTimelineNarrowed}
 										/>

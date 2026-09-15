@@ -9,10 +9,15 @@ import {IconTimeline} from './IconTimeline';
 
 export const TicketOnlyToggle = ({
 	narrowed,
+	capped,
 	disabled,
 	onChange,
 }: {
 	narrowed: boolean;
+	// The ticket's stretch came back from the server as counts alone, naming
+	// no events: the narrowing holds the window but cannot pick its events
+	// out, and the title says so rather than the chart quietly lying.
+	capped: boolean;
 	// Offline the narrowing can still be let go of, just not taken up: the
 	// window it hands back is one the chart already has.
 	disabled: boolean;
@@ -24,7 +29,9 @@ export const TicketOnlyToggle = ({
 		aria-pressed={narrowed}
 		disabled={disabled}
 		title={
-			narrowed
+			narrowed && capped
+				? 'Too many events in this stretch to tell which are the ticket\u2019s — show the whole window again'
+				: narrowed
 				? 'Show the whole window again'
 				: 'Narrow the timeline to this ticket: the stretch it has existed for, and only its events'
 		}
