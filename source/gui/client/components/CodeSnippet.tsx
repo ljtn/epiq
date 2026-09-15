@@ -7,6 +7,7 @@ import {
 	CODE_TEXT_VARS,
 } from '../lib/code-text.style';
 import {CopyShaButton} from './CopyShaButton';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {EPIQ_DIFF_THEME} from '../lib/diff-theme';
@@ -82,25 +83,17 @@ export const CodeSnippet = ({
 						color: GUI_THEME.secondary,
 					}}
 				>
-					<button
-						type="button"
-						aria-expanded={!collapsed}
+					<IconButton
 						title={collapsed ? 'Show snippet' : 'Hide snippet'}
+						aria-expanded={!collapsed}
 						onClick={() => setCollapsed(value => !value)}
-						style={{
-							...bareButton,
-							display: 'inline-flex',
-							alignItems: 'center',
-							padding: 4,
-							color: GUI_THEME.dim,
-						}}
 					>
 						{collapsed ? (
-							<IconChevronRight size={12} />
+							<IconChevronRight size={ICON_SIZE} />
 						) : (
-							<IconChevronDown size={12} />
+							<IconChevronDown size={ICON_SIZE} />
 						)}
-					</button>
+					</IconButton>
 
 					{onOpen ? (
 						<button

@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconCheck} from './IconCheck';
 import {IconCopy} from './IconCopy';
 
@@ -15,7 +15,8 @@ const copyToClipboard = async (value: string): Promise<boolean> => {
 };
 
 // Icon-only, unlike CopyRef: the sha is not meant to sit in the row as text,
-// only to be reachable from it. The full sha lives in the tooltip.
+// only to be reachable from it. The full sha lives in the tooltip, and the
+// button stays lit for a moment with a tick once it has copied.
 export const CopyShaButton = ({sha}: {sha: string}) => {
 	const [copied, setCopied] = useState(false);
 	const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -25,9 +26,9 @@ export const CopyShaButton = ({sha}: {sha: string}) => {
 	useEffect(() => () => clearTimeout(resetTimer.current), []);
 
 	return (
-		<button
-			type="button"
+		<IconButton
 			title={copied ? 'Copied!' : `Copy ${sha}`}
+			pressed={copied}
 			onClick={async event => {
 				event.stopPropagation();
 
@@ -37,30 +38,8 @@ export const CopyShaButton = ({sha}: {sha: string}) => {
 					resetTimer.current = setTimeout(() => setCopied(false), 1_200);
 				}
 			}}
-			style={{
-				display: 'inline-flex',
-				alignItems: 'center',
-				flexShrink: 0,
-				background: 'transparent',
-				border: 'none',
-				padding: 4,
-				borderRadius: 4,
-				cursor: 'pointer',
-				color: copied ? GUI_THEME.green : GUI_THEME.dim,
-				transition: 'color 120ms ease, background 120ms ease',
-			}}
-			onMouseEnter={event => {
-				event.currentTarget.style.background = GUI_THEME.hover;
-				if (!copied) event.currentTarget.style.color = GUI_THEME.accent;
-			}}
-			onMouseLeave={event => {
-				event.currentTarget.style.background = 'transparent';
-				event.currentTarget.style.color = copied
-					? GUI_THEME.green
-					: GUI_THEME.dim;
-			}}
 		>
-			{copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-		</button>
+			{copied ? <IconCheck size={ICON_SIZE} /> : <IconCopy size={ICON_SIZE} />}
+		</IconButton>
 	);
 };

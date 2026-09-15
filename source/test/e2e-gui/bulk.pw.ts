@@ -44,7 +44,7 @@ test('picking several tickets opens a bulk overview', async ({
 	const titles = [`${tag}-one`, `${tag}-two`];
 
 	for (const title of titles) {
-		await page.getByRole('button', {name: '+', exact: true}).first().click();
+		await page.getByTitle('Add issue').first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByRole('button', {name: 'create', exact: true}).click();
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
@@ -140,7 +140,7 @@ test('a plain click then a shift-click selects both', async ({
 	const titles = [`${tag}-one`, `${tag}-two`];
 
 	for (const title of titles) {
-		await page.getByRole('button', {name: '+', exact: true}).first().click();
+		await page.getByTitle('Add issue').first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByRole('button', {name: 'create', exact: true}).click();
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();
@@ -176,7 +176,7 @@ test('a click on the board clears the selection', async ({
 	const titles = [`${tag}-one`, `${tag}-two`];
 
 	for (const title of titles) {
-		await page.getByRole('button', {name: '+', exact: true}).first().click();
+		await page.getByTitle('Add issue').first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByRole('button', {name: 'create', exact: true}).click();
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();

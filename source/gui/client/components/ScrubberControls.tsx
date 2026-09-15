@@ -19,6 +19,7 @@ import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconChevronLeft} from './IconChevronLeft';
 import {IconChevronRight} from './IconChevronRight';
 import {IconFlashlight} from './IconFlashlight';
@@ -34,16 +35,6 @@ import {
 	ScopeSelect,
 } from './ScrubberSelects';
 
-const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
-	background: 'transparent',
-	border: `1px solid ${active ? GUI_THEME.accent : GUI_THEME.dim}`,
-	color: active ? GUI_THEME.accent : GUI_THEME.dim,
-	borderRadius: 6,
-	fontSize: 10,
-	padding: '2px 8px',
-	cursor: 'pointer',
-});
-
 // Borderless, marked the way Tabs marks the open tab. The icon toggles below
 // keep their box: they carry no label, so the border is what holds their shape.
 const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
@@ -55,14 +46,6 @@ const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
 	fontSize: 10,
 	padding: '2px 6px 3px',
 	cursor: 'pointer',
-});
-
-const iconToggleButtonStyle = (active: boolean): React.CSSProperties => ({
-	...toggleButtonStyle(active),
-	display: 'inline-flex',
-	alignItems: 'center',
-	justifyContent: 'center',
-	padding: '3px 7px',
 });
 
 // The two panel toggles and the transport all sit in one family: a panel, a
@@ -79,14 +62,6 @@ const headerButtonStyle: React.CSSProperties = {
 	cursor: 'pointer',
 	display: 'inline-flex',
 	alignItems: 'center',
-};
-
-// The pager wears what the rest of this bar's icon buttons wear. It used to
-// have a border of its own colour, a rounder corner and a unicode triangle for
-// a glyph — three ways of not matching the row it sits on.
-const navButtonStyle: React.CSSProperties = {
-	...headerButtonStyle,
-	padding: '2px 4px',
 };
 
 export const ScrubberControls = ({
@@ -220,20 +195,16 @@ export const ScrubberControls = ({
 			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
 				{(scope !== 'all' || zoomed || ticketFocus) && (
 					<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
-						<button
+						<IconButton
 							title={
 								ticketFocus ? 'No paging while narrowed to a ticket' : 'Earlier'
 							}
+							aria-label="Earlier"
 							disabled={!connected || ticketFocus}
 							onClick={() => onChangeOffset(offset + 1)}
-							aria-label="Earlier"
-							style={{
-								...navButtonStyle,
-								...(connected && !ticketFocus ? {} : mutedStyle),
-							}}
 						>
-							<IconChevronLeft size={12} />
-						</button>
+							<IconChevronLeft size={ICON_SIZE} />
+						</IconButton>
 						<span
 							style={{
 								fontSize: 10,
@@ -254,19 +225,13 @@ export const ScrubberControls = ({
 								zoomed || ticketFocus,
 							)}
 						</span>
-						<button
+						<IconButton
 							title="Later"
 							disabled={atLatest || !connected || ticketFocus}
 							onClick={() => onChangeOffset(offset - 1)}
-							aria-label="Later"
-							style={{
-								...navButtonStyle,
-								opacity: atLatest || ticketFocus ? 0.35 : 1,
-								cursor: atLatest || ticketFocus ? 'default' : 'pointer',
-							}}
 						>
-							<IconChevronRight size={12} />
-						</button>
+							<IconChevronRight size={ICON_SIZE} />
+						</IconButton>
 					</div>
 				)}
 
@@ -334,32 +299,24 @@ export const ScrubberControls = ({
 			</div>
 
 			<div style={{display: 'flex', gap: 2}}>
-				<button
+				<IconButton
 					title="Volume per period"
 					aria-label="Volume"
-					aria-pressed={layoutMode === 'even'}
+					pressed={layoutMode === 'even'}
 					disabled={!connected}
 					onClick={() => onChangeLayoutMode('even')}
-					style={{
-						...iconToggleButtonStyle(layoutMode === 'even'),
-						...(connected ? {} : mutedStyle),
-					}}
 				>
-					<IconBars size={13} />
-				</button>
-				<button
+					<IconBars size={ICON_SIZE} />
+				</IconButton>
+				<IconButton
 					title="Events by moment and time of day"
 					aria-label="Events"
-					aria-pressed={layoutMode === 'real'}
+					pressed={layoutMode === 'real'}
 					disabled={!connected}
 					onClick={() => onChangeLayoutMode('real')}
-					style={{
-						...iconToggleButtonStyle(layoutMode === 'real'),
-						...(connected ? {} : mutedStyle),
-					}}
 				>
-					<IconScatter size={13} />
-				</button>
+					<IconScatter size={ICON_SIZE} />
+				</IconButton>
 			</div>
 
 			<div
@@ -497,21 +454,9 @@ export const ScrubberControls = ({
 };
 
 // The spotlight: the board narrowed to the tickets with activity in the
-// timeline's window. A flashlight that lights while it narrows — borderless,
-// like the boxes it sits among, since it is one more narrowing and not a
-// layout switch. Drawn once, since the collapsed header puts the same one up
-// when the rest of the row is not on screen.
-const spotlightStyle = (on: boolean): React.CSSProperties => ({
-	display: 'inline-flex',
-	alignItems: 'center',
-	background: 'transparent',
-	border: 'none',
-	padding: '2px 3px',
-	color: on ? GUI_THEME.accent : GUI_THEME.dim,
-	cursor: 'pointer',
-	transition: 'color 120ms ease',
-});
-
+// timeline's window. A lamp that lights while it narrows, on the same button
+// as every other icon control. Drawn once, since the collapsed header puts the
+// same one up when the rest of the row is not on screen.
 export const SpotlightToggle = ({
 	on,
 	disabled = false,
@@ -523,21 +468,16 @@ export const SpotlightToggle = ({
 	title: string;
 	onChange: (next: boolean) => void;
 }) => (
-	<button
-		type="button"
-		data-testid="spotlight"
-		aria-label="Spotlight"
-		aria-pressed={on}
-		disabled={disabled}
+	<IconButton
+		testId="spotlight"
 		title={title}
+		aria-label="Spotlight"
+		pressed={on}
+		disabled={disabled}
 		onClick={() => onChange(!on)}
-		style={{
-			...spotlightStyle(on),
-			...(disabled ? mutedStyle : {}),
-		}}
 	>
-		<IconFlashlight size={16} lit={on} />
-	</button>
+		<IconFlashlight size={ICON_SIZE} lit={on} />
+	</IconButton>
 );
 
 // The board's text query, beside the other narrowings. Worn like the selects
@@ -619,36 +559,27 @@ export const ScrubberHeader = ({
 		    Here rather than in the controls row so it survives that bar being
 		    collapsed, and it asks the socket for nothing — the window it lists is
 		    already on screen — so it stays usable offline. */}
-		<button
-			data-testid="log-toggle"
-			onClick={() => onChangeLogOpen(!logOpen)}
+		<IconButton
+			testId="log-toggle"
 			title={logOpen ? 'Hide the event log' : 'Show the event log'}
-			aria-label={logOpen ? 'Hide the event log' : 'Show the event log'}
-			aria-pressed={logOpen}
-			style={{
-				...headerButtonStyle,
-				color: logOpen ? GUI_THEME.accent : GUI_THEME.secondary,
-			}}
+			pressed={logOpen}
+			onClick={() => onChangeLogOpen(!logOpen)}
 		>
-			<IconLog size={13} />
-		</button>
+			<IconLog size={ICON_SIZE} />
+		</IconButton>
 
 		{/* Marked with the thing it opens, as its neighbour is, and lit the same
 		    way while it is open — a chevron said only "there is more here", which
 		    is true of every disclosure on the page. */}
-		<button
-			data-testid="timeline-toggle"
-			onClick={onToggleCollapsed}
+		<IconButton
+			testId="timeline-toggle"
 			title={collapsed ? 'Show time travel' : 'Hide time travel'}
-			aria-label={collapsed ? 'Show time travel' : 'Hide time travel'}
+			pressed={!collapsed}
 			aria-expanded={!collapsed}
-			style={{
-				...headerButtonStyle,
-				color: collapsed ? GUI_THEME.secondary : GUI_THEME.accent,
-			}}
+			onClick={onToggleCollapsed}
 		>
-			<IconTimeline size={14} />
-		</button>
+			<IconTimeline size={ICON_SIZE} />
+		</IconButton>
 	</div>
 );
 
@@ -667,21 +598,15 @@ export const ScrubberPlayButton = ({
 	playTitle: string;
 	onPlay: () => void;
 }) => (
-	<button
-		data-testid="theatre-play"
-		onClick={onPlay}
-		disabled={!canPlay}
+	<IconButton
+		testId="theatre-play"
 		title={playTitle}
 		aria-label="Play the board's history"
-		style={{
-			...headerButtonStyle,
-			color: canPlay ? GUI_THEME.secondary : GUI_THEME.dim,
-			cursor: canPlay ? 'pointer' : 'default',
-			opacity: canPlay ? 1 : 0.4,
-		}}
+		disabled={!canPlay}
+		onClick={onPlay}
 	>
-		<IconPlay size={13} />
-	</button>
+		<IconPlay size={ICON_SIZE} />
+	</IconButton>
 );
 
 // Deliberately one block spanning both charts and the gap: hovering a commit

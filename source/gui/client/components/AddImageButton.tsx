@@ -1,5 +1,5 @@
 import React from 'react';
-import {Button} from './Button';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconImage} from './IconImage';
 import {IMAGE_FILE_ACCEPT} from '../lib/image-insert';
 
@@ -26,23 +26,14 @@ export const AddImageButton = ({
 	onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }) => (
 	<>
-		<Button
-			variant="ghost"
-			disabled={busy}
+		<IconButton
 			title={busy ? 'Adding the image…' : 'Add an image'}
 			aria-label="Add an image"
+			disabled={busy}
 			onClick={onPick}
-			style={{
-				display: 'inline-flex',
-				alignItems: 'center',
-				// Squared off, so the icon sits centred rather than in a word-shaped
-				// box, and dimmed while the upload is in flight.
-				padding: '4px 6px',
-				opacity: busy ? 0.5 : 1,
-			}}
 		>
-			<IconImage size={14} />
-		</Button>
+			<IconImage size={ICON_SIZE} />
+		</IconButton>
 
 		<input
 			data-testid={testId}

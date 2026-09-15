@@ -9,7 +9,8 @@ import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
 import {Panel} from './Panel';
 import {TicketCard} from './TicketCard';
-import {Button} from './Button';
+import {IconButton, ICON_SIZE} from './IconButton';
+import {IconPlus} from './IconPlus';
 import {KebabMenu} from './KebabMenu';
 import {SWIMLANE_DRAG_TYPE, isSwimlaneDrag} from '../lib/gui-move-swimlane';
 
@@ -255,25 +256,19 @@ export const SwimlaneColumn = ({
 					<span style={{color: GUI_THEME.dim}}>({swimlane.issues.length})</span>
 
 					{live && (
-						<Button
-							variant="ghost"
-							data-testid="swimlane-stats-open"
+						<IconButton
+							testId="swimlane-stats-open"
 							title={statsTitle}
+							pressed={statsOpen}
 							onClick={event => {
 								// Stopped here, or the header's own click would take the
 								// selection with it.
 								event.stopPropagation();
 								onOpenStats(swimlane.id);
 							}}
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								color: statsOpen ? GUI_THEME.accent : GUI_THEME.dim,
-								flexShrink: 0,
-							}}
 						>
-							<IconLaneStats />
-						</Button>
+							<IconLaneStats size={ICON_SIZE} />
+						</IconButton>
 					)}
 
 					{swimlane.readonly && (
@@ -286,14 +281,13 @@ export const SwimlaneColumn = ({
 					)}
 				</div>
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
-					<Button
-						variant="ghost"
-						onClick={() => onCreateIssue(swimlane.id)}
-						disabled={swimlane.readonly}
+					<IconButton
 						title="Add issue"
+						disabled={swimlane.readonly}
+						onClick={() => onCreateIssue(swimlane.id)}
 					>
-						+
-					</Button>
+						<IconPlus size={ICON_SIZE} />
+					</IconButton>
 
 					{/* Absent rather than disabled on a readonly swimlane: every entry
 					    behind it is a write, so the menu would open onto nothing. */}

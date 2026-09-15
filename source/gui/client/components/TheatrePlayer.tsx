@@ -7,6 +7,7 @@ import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {clamp, usePrefersReducedMotion} from '../lib/scrubber';
 import {THEATRE_KEYFRAMES, TheatrePlan, TheatrePlayback} from '../lib/theatre';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconClose, IconPause, IconPlay, IconReplay} from './IconPlayback';
 
 // How far an arrow key moves the bar, as a share of the whole movie.
@@ -166,22 +167,21 @@ export const TheatrePlayer = ({
 				}}
 			>
 				<div style={{display: 'flex', alignItems: 'center', gap: 14}}>
-					<button
-						type="button"
-						data-testid="theatre-toggle"
-						onClick={toggle}
+					<IconButton
+						testId="theatre-toggle"
 						title={done ? 'Play again' : playing ? 'Pause' : 'Play'}
 						aria-label={done ? 'Play again' : playing ? 'Pause' : 'Play'}
-						style={transportButtonStyle(true)}
+						pressed={playing}
+						onClick={toggle}
 					>
 						{done ? (
-							<IconReplay size={13} />
+							<IconReplay size={ICON_SIZE} />
 						) : playing ? (
-							<IconPause size={13} />
+							<IconPause size={ICON_SIZE} />
 						) : (
-							<IconPlay size={13} />
+							<IconPlay size={ICON_SIZE} />
 						)}
-					</button>
+					</IconButton>
 
 					{/* The board's position while the player is up. The scrubber stands
 					    down for exactly this reason: two controls for one position
@@ -285,16 +285,14 @@ export const TheatrePlayer = ({
 						{speed}×
 					</button>
 
-					<button
-						type="button"
-						data-testid="theatre-exit"
-						onClick={onExit}
-						title="Leave the player and follow the board again"
+					<IconButton
+						testId="theatre-exit"
+						title="Close the player"
 						aria-label="Close the history player"
-						style={transportButtonStyle(false)}
+						onClick={onExit}
 					>
-						<IconClose size={12} />
-					</button>
+						<IconClose size={ICON_SIZE} />
+					</IconButton>
 				</div>
 
 				<div
