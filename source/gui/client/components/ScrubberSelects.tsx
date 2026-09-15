@@ -62,11 +62,12 @@ const disclosureStyle: React.CSSProperties = {
 	cursor: 'pointer',
 };
 
-// "Board events" rather than "All": as the collapsed trigger it is the only
-// thing naming the series, and a bare "All" two controls from "All boards" says
-// nothing about which is which.
+// "Board" rather than "All": as the collapsed trigger it is the only thing
+// naming the series, and a bare "All" two controls from "All boards" says
+// nothing about which is which. The commit series' trigger beside it says
+// "Code" the same way.
 const VIEW_LABELS: Record<BoardView, string> = {
-	all: 'Board events',
+	all: 'Board',
 	...CATEGORY_LABELS,
 	contributors: 'Contributors',
 };
@@ -91,11 +92,10 @@ const AXIS_TITLES: Record<FilterAxis, string> = {
 // Fixed, not sized to its label: the selection changes as the thing is used,
 // and a trigger that grew with it would shove the scope buttons beside it out
 // from under the pointer. Wide enough for the labels themselves — the longest
-// being "Board events (filtered)" at 23 monospace characters, plus the padding,
-// the chevron and a couple of pixels of slack — measured exactly to the text it
-// still ellipsised. A tag or a person's name long enough to overflow past that
-// is clipped, and the open list spells it out in full.
-const SELECT_TRIGGER_WIDTH = 180;
+// being "Board (filtered)" at 16 monospace characters, plus the padding, the
+// chevron and some slack. A tag or a person's name long enough to overflow
+// past that is clipped, and the open list spells it out in full.
+const SELECT_TRIGGER_WIDTH = 150;
 
 const nestedListStyle: React.CSSProperties = {
 	display: 'flex',

@@ -74,7 +74,7 @@ test('opening a row list does not switch its axis on', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByRole('button', {name: 'Board events'}).click();
+	await page.getByRole('button', {name: 'Board', exact: true}).click();
 
 	// Reading what is under a row is not the same as filtering by it.
 	await page.getByRole('button', {name: 'Pick which comments to show'}).click();
@@ -104,7 +104,7 @@ test('a half-ticked list puts its row in the dash', async ({
 	}
 
 	await page.goto(boardUrl);
-	await page.getByRole('button', {name: 'Board events'}).click();
+	await page.getByRole('button', {name: 'Board', exact: true}).click();
 
 	const tags = page.getByRole('checkbox', {name: 'Tags'});
 	await tags.click();

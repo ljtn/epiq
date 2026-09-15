@@ -76,7 +76,7 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 
 	await waitForDiffHeader(page);
 
-	await page.getByRole('button', {name: 'Board events'}).click();
+	await page.getByRole('button', {name: 'Board', exact: true}).click();
 	await expect(
 		page.getByRole('group', {name: 'Filter the board'}),
 	).toBeVisible();
