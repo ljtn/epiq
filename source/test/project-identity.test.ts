@@ -11,7 +11,9 @@ import {
 import {isFail} from '../lib/model/result-types.js';
 import {initProject} from '../lib/project-setup/init-project.js';
 import {
+	findStagedIdentityDrift,
 	getStateIdentityPath,
+	readCommittedStateIdentity,
 	readStateIdentity,
 	STATE_IDENTITY_PATH,
 	verifyProjectIdentity,
@@ -212,6 +214,72 @@ describe('the project identity on the state branch', () => {
 		expect(verdict.message).toContain(
 			`git show ${DEFAULT_STATE_BRANCH}:${STATE_IDENTITY_PATH}`,
 		);
+	});
+
+	// The commit that started JQS9XDR: a checkout stages a project file with a
+	// second id. Read through the checkout's own id the branch's identity is
+	// nowhere — that id names no worktree — so the drift has to be read off the
+	// branch as git holds it.
+	it('finds a staged id that is not the branch’s, where the checkout’s own id names no worktree', async () => {
+		const {repoRoot, projectId} = await initialised();
+		const drifted = ulid();
+
+		fs.writeFileSync(
+			path.join(repoRoot, STATE_IDENTITY_PATH),
+			JSON.stringify(
+				{
+					projectId: drifted,
+					stateBranch: DEFAULT_STATE_BRANCH,
+					createdAt: new Date().toISOString(),
+				},
+				null,
+				2,
+			) + '\n',
+		);
+		await git(repoRoot, ['add', STATE_IDENTITY_PATH]);
+
+		const throughTheCheckout = getStateBranchRoot({repoRoot});
+		if (isFail(throughTheCheckout)) throw new Error(throughTheCheckout.message);
+		expect(fs.existsSync(throughTheCheckout.value)).toBe(false);
+
+		const committed = await readCommittedStateIdentity({
+			repoRoot,
+			stateBranch: DEFAULT_STATE_BRANCH,
+		});
+		if (isFail(committed)) throw new Error(committed.message);
+		expect(committed.value?.projectId).toBe(projectId);
+
+		const drift = await findStagedIdentityDrift({
+			repoRoot,
+			stateBranch: DEFAULT_STATE_BRANCH,
+			stateBranchRoot: throughTheCheckout.value,
+		});
+		if (isFail(drift)) throw new Error(drift.message);
+		expect(drift.value?.checkout.projectId).toBe(drifted);
+		expect(drift.value?.branch.projectId).toBe(projectId);
+	});
+
+	it('finds no drift in a staged file that agrees with the branch, or with nothing staged', async () => {
+		const {repoRoot, stateBranchRoot} = await initialised();
+
+		const nothingStaged = await findStagedIdentityDrift({
+			repoRoot,
+			stateBranch: DEFAULT_STATE_BRANCH,
+			stateBranchRoot,
+		});
+		if (isFail(nothingStaged)) throw new Error(nothingStaged.message);
+		expect(nothingStaged.value).toBeNull();
+
+		// The same file again, staged: what a sync or a rename of the state
+		// branch would stage.
+		await git(repoRoot, ['add', '-f', STATE_IDENTITY_PATH]);
+		const agreeing = await findStagedIdentityDrift({
+			repoRoot,
+			stateBranch: DEFAULT_STATE_BRANCH,
+			stateBranchRoot,
+		});
+		if (isFail(agreeing)) throw new Error(agreeing.message);
+		expect(agreeing.value).toBeNull();
 	});
 
 	it('refuses to move the state worktree between two ids of one branch', async () => {
