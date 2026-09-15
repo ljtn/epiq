@@ -10,6 +10,8 @@
 // commits and pushes like any other change on the branch.
 import fs from 'node:fs';
 import path from 'node:path';
+import {ORIGIN} from '../../git/git-constants.js';
+import {execGit} from '../../git/git-utils.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getProjectFilePath} from '../storage/paths.js';
 import {EpiqProject, readProjectFile} from './project-setup.js';
@@ -78,6 +80,99 @@ export const describeIdentityMismatch = ({
 		'project file while the state branch already exists; nothing on the',
 		'board is lost by it, but every checkout has to agree on one.',
 	].join('\n');
+
+// A project file as git holds it: on a branch, or in the index. Null where
+// the ref or the index carries no such file; a failure only for a file that
+// is there and unreadable.
+const showProjectFile = async (
+	repoRoot: string,
+	spec: string,
+): Promise<Result<EpiqProject | null>> => {
+	const shown = await execGit({cwd: repoRoot, args: ['show', spec]});
+	if (isFail(shown)) return succeeded(`Nothing at ${spec}`, null);
+
+	try {
+		return succeeded(
+			`Read ${spec}`,
+			JSON.parse(shown.value.stdout) as EpiqProject,
+		);
+	} catch (error) {
+		return failed(
+			`${spec} is not a readable project file: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
+};
+
+/**
+ * The identity the state branch carries as git knows it — the local branch,
+ * else origin's — rather than through a worktree path derived from the
+ * checkout's own file, which is the file in question when drift is what is
+ * being asked about. Null for a branch that has not committed one yet.
+ */
+export const readCommittedStateIdentity = async ({
+	repoRoot,
+	stateBranch,
+}: {
+	repoRoot: string;
+	stateBranch: string;
+}): Promise<Result<EpiqProject | null>> => {
+	for (const ref of [stateBranch, `${ORIGIN}/${stateBranch}`]) {
+		const shown = await showProjectFile(
+			repoRoot,
+			`${ref}:${STATE_IDENTITY_PATH}`,
+		);
+		if (isFail(shown)) return shown;
+		if (shown.value !== null) return shown;
+	}
+
+	return succeeded('The state branch carries no committed identity', null);
+};
+
+/**
+ * A staged project file whose id is not the state branch's: the commit that
+ * started JQS9XDR, caught where it is made. Null when nothing is staged there,
+ * when the branch has no identity to disagree with, or when the two agree.
+ * The branch's identity is read from git first; a branch stamped by a boot
+ * but not yet synced has it only in the state worktree, which comes second.
+ */
+export const findStagedIdentityDrift = async ({
+	repoRoot,
+	stateBranch,
+	stateBranchRoot,
+}: {
+	repoRoot: string;
+	stateBranch: string;
+	stateBranchRoot: string | null;
+}): Promise<Result<{checkout: EpiqProject; branch: EpiqProject} | null>> => {
+	const staged = await showProjectFile(repoRoot, `:${STATE_IDENTITY_PATH}`);
+	if (isFail(staged)) return staged;
+	if (staged.value === null) return succeeded('No project file staged', null);
+
+	const committed = await readCommittedStateIdentity({repoRoot, stateBranch});
+	if (isFail(committed)) return committed;
+
+	let branch = committed.value;
+	if (branch === null && stateBranchRoot !== null) {
+		const stamped = readStateIdentity(stateBranchRoot);
+		if (isFail(stamped)) return stamped;
+		branch = stamped.value;
+	}
+
+	if (branch === null) {
+		return succeeded('The state branch has no identity to compare', null);
+	}
+
+	if (branch.projectId === staged.value.projectId) {
+		return succeeded('The staged file and the state branch agree', null);
+	}
+
+	return succeeded('The staged file names another project', {
+		checkout: staged.value,
+		branch,
+	});
+};
 
 export type IdentityCheck = 'matched' | 'stamped' | 'no-checkout-file';
 
