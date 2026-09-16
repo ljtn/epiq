@@ -526,7 +526,7 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
 
 	const header = page.getByTestId('event-log-header');
-	for (const field of ['Time', 'Actor', 'Type', 'Label']) {
+	for (const field of ['Time', 'Actor', 'Type', 'Changes', 'Label']) {
 		await expect(header.getByLabel(field, {exact: true})).toBeChecked();
 	}
 
@@ -547,18 +547,28 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	// figure rather than between spans; which name sets it is unit-tested.)
 	const actorColumn = (await page.evaluate(
 		`(() => {
-			const pane = document.querySelector('[data-testid="event-log-scroll"]');
+			const panel = document.querySelector('[data-testid="event-log"]');
 			const spans = [...document.querySelectorAll('.epiq-log-actor')];
 			return {
-				chars: getComputedStyle(pane).getPropertyValue('--epiq-log-actor-width').trim(),
+				chars: getComputedStyle(panel).getPropertyValue('--epiq-log-actor-width').trim(),
 				widest: Math.max(...spans.map(span => span.textContent.length)),
 				widths: spans.map(span => Math.round(span.getBoundingClientRect().width)),
 			};
 		})()`,
 	)) as {chars: string; widest: number; widths: number[]};
 	expect(actorColumn.widths.length).toBeGreaterThan(1);
-	expect(actorColumn.chars).toBe(`${actorColumn.widest}ch`);
+	expect(actorColumn.chars).toContain(`${actorColumn.widest}ch`);
 	expect(new Set(actorColumn.widths).size).toBe(1);
+
+	// A commit's line carries what it did to the code; the seeded log opens
+	// with the setup commits, one of which added files.
+	const changes = page.locator('.epiq-log-changes').first();
+	await expect(changes).toBeVisible();
+	await expect(changes).toContainText('+');
+	await header.getByLabel('Changes', {exact: true}).click();
+	await expect(changes).toBeHidden();
+	await header.getByLabel('Changes', {exact: true}).click();
+	await expect(changes).toBeVisible();
 
 	// Where the text starts: the row's padding, which is what the clock's
 	// column and the dot's gap add up to.
@@ -583,14 +593,16 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	await expect.poll(() => pseudoDisplay('::after')).toBe('none');
 	expect(await textInset()).toBeLessThan(withoutClock);
 
-	// With the name and the label both off, a line has nothing left to say.
+	// With the name, the stat and the label all off, a line has nothing left
+	// to say.
 	await header.getByLabel('Actor', {exact: true}).click();
+	await header.getByLabel('Changes', {exact: true}).click();
 	await header.getByLabel('Label', {exact: true}).click();
 	await expect(lines.first()).toHaveText('', {useInnerText: true});
 
 	await page.reload();
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
-	for (const field of ['Time', 'Actor', 'Type', 'Label']) {
+	for (const field of ['Time', 'Actor', 'Type', 'Changes', 'Label']) {
 		await expect(header.getByLabel(field, {exact: true})).not.toBeChecked();
 	}
 	await expect(lines.first()).toHaveText('', {useInnerText: true});

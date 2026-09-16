@@ -31,12 +31,18 @@ import {
 	isDayOpen,
 	LogEntry,
 	actorColumnChars,
+	actorColumnWidth,
+	changesColumnChars,
+	changesColumnWidth,
 	LOG_ACTOR_CLASS,
 	LOG_ACTOR_WIDTH_PROPERTY,
+	LOG_CHANGES_CLASS,
+	LOG_CHANGES_WIDTH_PROPERTY,
 	LOG_ARROW_CLASS,
 	LOG_DOT_COLOR_PROPERTY,
 	LOG_PANE_PADDING_X,
 	LOG_ROW_HEIGHT,
+	touchedLines,
 } from '../lib/event-log';
 import {
 	LogField,
@@ -47,6 +53,7 @@ import {
 	useLogFields,
 } from '../lib/log-fields';
 import {Checkbox} from './Checkbox';
+import {DiffStat} from './DiffStat';
 import {
 	LogDestination,
 	linkedRowFrom,
@@ -174,6 +181,11 @@ const EventRow = ({
 				{entry.actor.name}
 			</span>
 		)}
+		{entry.changes && touchedLines(entry.changes) && (
+			<span className={LOG_CHANGES_CLASS}>
+				<DiffStat {...entry.changes} />
+			</span>
+		)}
 		{showLabel && entry.label}
 	</div>
 );
@@ -266,6 +278,7 @@ const EventLogPanel = ({
 	// during a movie is every animation frame.
 	const days = useMemo(() => groupByDay(entries), [entries]);
 	const actorChars = useMemo(() => actorColumnChars(entries), [entries]);
+	const changesChars = useMemo(() => changesColumnChars(entries), [entries]);
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
 	// How many rows the pane has room for, so the days opened by default fill it
@@ -426,16 +439,21 @@ const EventLogPanel = ({
 		<aside
 			data-testid="event-log"
 			aria-live="off"
-			style={{
-				position: 'relative',
-				width: inWindow ? '100%' : resize.width,
-				flexShrink: 0,
-				minHeight: 0,
-				display: 'flex',
-				flexDirection: 'column',
-				borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.line}`,
-				background: GUI_THEME.panel,
-			}}
+			style={
+				{
+					position: 'relative',
+					width: inWindow ? '100%' : resize.width,
+					flexShrink: 0,
+					minHeight: 0,
+					display: 'flex',
+					flexDirection: 'column',
+					borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.line}`,
+					background: GUI_THEME.panel,
+					// The columns' widths, for every row at once.
+					[LOG_ACTOR_WIDTH_PROPERTY]: actorColumnWidth(actorChars),
+					[LOG_CHANGES_WIDTH_PROPERTY]: changesColumnWidth(changesChars),
+				} as React.CSSProperties
+			}
 		>
 			<style>{EVENT_LOG_STYLES}</style>
 

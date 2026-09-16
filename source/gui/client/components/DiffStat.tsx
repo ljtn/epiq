@@ -1,5 +1,6 @@
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
+import {DIFF_STAT_BAR_WIDTH, DIFF_STAT_GAP} from '../lib/diff-stat.style';
 
 // A rounded pill rather than GitHub's five solid squares — matches the
 // rest of the app's soft, rounded chrome instead of copying its exact look.
@@ -20,7 +21,7 @@ export const DiffStat = ({
 			style={{
 				display: 'flex',
 				alignItems: 'center',
-				gap: 6,
+				gap: DIFF_STAT_GAP,
 				flexShrink: 0,
 				fontFamily: CODE_FONT,
 				fontSize: TEXT.meta,
@@ -30,7 +31,7 @@ export const DiffStat = ({
 			<span style={{color: GUI_THEME.red}}>-{deletions}</span>
 			<div
 				style={{
-					width: 32,
+					width: DIFF_STAT_BAR_WIDTH,
 					height: 3,
 					borderRadius: 1.5,
 					overflow: 'hidden',
