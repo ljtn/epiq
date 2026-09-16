@@ -28,6 +28,7 @@ import {
 	bucketCommitStats,
 	bucketIssueCounts,
 	buildAxis,
+	isScrubbable,
 	buildFlowChart,
 	FlowChart,
 	FlowLane,
@@ -856,6 +857,11 @@ export const TimeScrubber = ({
 		// the chart while it is up, but a drag begun before it opened still ends
 		// somewhere.
 		if (theatreOpen) return;
+
+		// Nothing to scrub to until a window has been drawn: every fraction on a
+		// degenerate axis reads as now, so the click would check the board out at
+		// the live instant and park the needle there with Resume lit.
+		if (!isScrubbable(axis)) return;
 
 		const target = axis.fractionToTime(fraction);
 

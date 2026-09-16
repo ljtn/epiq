@@ -47,6 +47,7 @@ export type {FlowGeometry, LayoutMode, SeriesPresence} from './layout';
 export {
 	bucketCountForSpan,
 	buildAxis,
+	isScrubbable,
 	bucketIssueCounts,
 	bucketCommitStats,
 	populatedRange,
