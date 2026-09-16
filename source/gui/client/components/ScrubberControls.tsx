@@ -40,7 +40,7 @@ const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
 	borderBottom: `1px solid ${active ? GUI_THEME.accent : 'transparent'}`,
 	color: active ? GUI_THEME.primary : GUI_THEME.dim,
 	borderRadius: 0,
-	fontSize: 10,
+	fontSize: 11,
 	padding: '2px 6px 3px',
 	cursor: 'pointer',
 });
@@ -191,8 +191,9 @@ export const ScrubberControls = ({
 			style={{
 				display: 'flex',
 				alignItems: 'center',
-				// The same gap between the groups as within the narrowing group.
-				gap: 10,
+				// Twice the gap the narrowing group keeps within itself, so the
+				// breaks between groups read as the wider ones.
+				gap: 20,
 				// Sized by the bar rather than by what is on it: the text filter is
 				// the one control here that gives when the row is tight, and a row
 				// sized to its own content would never be tight.
@@ -408,7 +409,7 @@ export const ScrubberControls = ({
 						: {background: 'transparent', border: 'none'}),
 					color: isScrubbing ? GUI_THEME.bg : GUI_THEME.dim,
 					fontFamily: 'inherit',
-					fontSize: 10,
+					fontSize: 11,
 					width: 60,
 					boxSizing: 'border-box',
 					display: 'inline-flex',

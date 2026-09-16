@@ -25,8 +25,8 @@ export const selectTriggerStyle = (
 	color: disabled ? GUI_THEME.dim : color,
 	borderRadius: 6,
 	fontFamily: 'inherit',
-	fontSize: 10,
-	padding: '3px 7px 3px 9px',
+	fontSize: 11,
+	padding: '5px 7px 5px 9px',
 	cursor: disabled ? 'not-allowed' : 'pointer',
 	opacity: disabled ? 0.4 : 1,
 });
