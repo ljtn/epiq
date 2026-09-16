@@ -8,12 +8,10 @@
 // once read as two streams rather than as one column nobody can untangle.
 
 import {LogEntry} from './event-log';
-import {GUI_THEME} from './gui-theme';
 import {usePersistedFlag} from './use-persisted-flag';
 
 export type LogLane = {
 	name: string;
-	color: string;
 	// The last lane, standing for everybody the pane had no room for.
 	others?: boolean;
 };
@@ -49,10 +47,7 @@ export const logLanes = (
 	entries: readonly LogEntry[],
 	capacity = Number.POSITIVE_INFINITY,
 ): LogLane[] => {
-	const counted = new Map<
-		string,
-		{name: string; color: string; lines: number}
-	>();
+	const counted = new Map<string, {name: string; lines: number}>();
 
 	for (const entry of entries) {
 		if (!entry.actor) continue;
@@ -61,19 +56,12 @@ export const logLanes = (
 
 		if (seen) seen.lines++;
 		else {
-			counted.set(entry.actor.name, {
-				name: entry.actor.name,
-				color: entry.actor.color,
-				lines: 1,
-			});
+			counted.set(entry.actor.name, {name: entry.actor.name, lines: 1});
 		}
 	}
 
 	const actors = [...counted.values()];
-	const lane = ({name, color}: {name: string; color: string}): LogLane => ({
-		name,
-		color,
-	});
+	const lane = ({name}: {name: string}): LogLane => ({name});
 
 	if (actors.length <= capacity) return actors.sort(byName).map(lane);
 
@@ -86,11 +74,7 @@ export const logLanes = (
 
 	return [
 		...kept.map(lane),
-		{
-			name: `+${actors.length - kept.length} more`,
-			color: GUI_THEME.dim,
-			others: true,
-		},
+		{name: `+${actors.length - kept.length} more`, others: true},
 	];
 };
 

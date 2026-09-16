@@ -13,7 +13,6 @@ import {
 	logEntriesUpTo,
 	LogEntry,
 } from './event-log';
-import {MARK_CHARS} from './agent-identity';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME} from './gui-theme';
 
@@ -157,9 +156,9 @@ describe('buildLogEntries', () => {
 		};
 		const rows = buildLogEntries([signed], [commit('sha1', 2)]);
 
-		expect(rows[0]!.actor).toEqual({name: 'jola', color: '#abc'});
+		expect(rows[0]!.actor).toEqual({name: 'jola'});
 		// An author has no colour on the board, so the line lends its own.
-		expect(rows[1]!.actor).toEqual({name: 'jo', color: GUI_THEME.secondary});
+		expect(rows[1]!.actor).toEqual({name: 'jo'});
 	});
 
 	it('carries a commit\u2019s line counts, and nothing for an event', () => {
@@ -229,7 +228,7 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 describe('actorColumnChars', () => {
 	const signed = (id: string, name: string): LogEntry => ({
 		...row(id, 1),
-		actor: {name, color: '#abc'},
+		actor: {name},
 	});
 
 	it('is the widest name in the slice', () => {
@@ -238,11 +237,11 @@ describe('actorColumnChars', () => {
 		).toBe('Jonatan Lampa'.length);
 	});
 
-	// An agent's name is drawn as a mark and its bare name, and the column is
-	// sized to that rather than to the prefix it no longer shows.
-	it('measures an agent by its mark and name, not its prefix', () => {
+	// An agent's name is drawn without its provider, and the column is sized to
+	// that rather than to the prefix it no longer shows.
+	it('measures an agent by the name it shows, not by its prefix', () => {
 		expect(actorColumnChars([signed('a', 'claude/tester')])).toBe(
-			'Tester'.length + MARK_CHARS,
+			'/tester'.length,
 		);
 	});
 

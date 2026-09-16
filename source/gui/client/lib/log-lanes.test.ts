@@ -8,10 +8,7 @@ import {
 	MIN_LANE_WIDTH_PX,
 } from './log-lanes';
 
-const line = (
-	id: string,
-	actor: {name: string; color: string} | null,
-): LogEntry => ({
+const line = (id: string, actor: {name: string} | null): LogEntry => ({
 	id,
 	t: Number(id),
 	label: `line ${id}`,
@@ -23,10 +20,10 @@ const line = (
 	sha: null,
 });
 
-const jo = {name: 'jo', color: '#a1a'};
-const will = {name: 'claude/william', color: '#1aa'};
+const jo = {name: 'jo'};
+const will = {name: 'claude/william'};
 
-const named = (name: string) => ({name, color: '#888'});
+const named = (name: string) => ({name});
 
 describe('logLanes', () => {
 	// By name rather than by first appearance: the slice slides as lines land,
@@ -41,10 +38,6 @@ describe('logLanes', () => {
 
 	it('has no lane for a slice nobody signed', () => {
 		expect(logLanes([line('1', null), line('2', null)])).toEqual([]);
-	});
-
-	it('keeps each actor’s colour, so a heading reads as they do elsewhere', () => {
-		expect(logLanes([line('1', jo)])[0]?.color).toBe(jo.color);
 	});
 
 	// Past what the pane holds, the busiest keep their own lane and the rest

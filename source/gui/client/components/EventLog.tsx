@@ -34,7 +34,6 @@ import {
 	actorColumnWidth,
 	LOG_ACTOR_CLASS,
 	LOG_ACTOR_WIDTH_PROPERTY,
-	LOG_MARK_CLASS,
 	LOG_DIFF_CLASS,
 	LOG_ARROW_CLASS,
 	LOG_LANES_CLASS,
@@ -66,7 +65,6 @@ import {
 } from '../lib/log-lanes';
 import {actorDisplay} from '../lib/agent-identity';
 import {Checkbox} from './Checkbox';
-import {IconProvider} from './IconProvider';
 import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
 import {
@@ -213,27 +211,16 @@ const EventRow = ({
 	</div>
 );
 
-// Who signed the line, in their colour. An agent's provider prefix is drawn
-// as its mark — see lib/agent-identity — and the name gets its capital; a
-// person's name is written as it is. The full name stays in the title.
-const ActorLabel = ({name}: {name: string}) => {
-	const {label, provider} = actorDisplay(name);
-
-	return (
-		<>
-			{provider && (
-				<span className={LOG_MARK_CLASS} data-provider={provider}>
-					<IconProvider provider={provider} />
-				</span>
-			)}
-			{label}
-		</>
-	);
-};
-
-const ActorName = ({name, color}: {name: string; color: string}) => (
-	<span className={LOG_ACTOR_CLASS} style={{color}} title={name}>
-		<ActorLabel name={name} />
+// Who signed the line. An agent's provider prefix goes — see
+// lib/agent-identity — leaving the slash and the name; a person's name is
+// written as it is, and the full name stays in the title.
+//
+// Quieter than the time beside it and the label after it, and in nobody's
+// colour: a signature repeated down every row is what the eye should skip,
+// not what it should land on.
+const ActorName = ({name}: {name: string}) => (
+	<span className={LOG_ACTOR_CLASS} title={name}>
+		{actorDisplay(name).label}
 	</span>
 );
 
@@ -329,8 +316,8 @@ const LogHeader = ({
 const LaneHeadings = ({lanes}: {lanes: readonly LogLane[]}) => (
 	<div data-testid="log-lane-heads" className={LOG_LANE_HEAD_CLASS}>
 		{lanes.map(lane => (
-			<span key={lane.name} style={{color: lane.color}} title={lane.name}>
-				<ActorLabel name={lane.name} />
+			<span key={lane.name} title={lane.name}>
+				{actorDisplay(lane.name).label}
 			</span>
 		))}
 	</div>
