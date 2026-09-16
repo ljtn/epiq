@@ -174,6 +174,14 @@ test('dragging the needle commits the position it ends on', async ({
 
 	const y = box.y + box.height / 2;
 
+	// Not before the chart has its window: the board's name shows before the
+	// window has been fetched and paired, and until then the axis is a single
+	// instant, so a click at 20 % asks for now and parks the needle at the
+	// live end — which is where a drag meant to run rightwards then starts.
+	await expect
+		.poll(async () => Number(await track.getAttribute('data-axis-span')))
+		.toBeGreaterThan(1000);
+
 	// The needle parks at the right edge while live, so it has to be put
 	// somewhere draggable first.
 	await page.mouse.click(box.x + box.width * 0.2, y);
