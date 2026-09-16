@@ -110,6 +110,7 @@ export const BulkDetails = ({
 								variant="chip"
 								title="Remove from every selected ticket"
 								onClick={() => onRemoveTag(item.id)}
+								tint={item.color}
 								style={{color: item.color}}
 							>
 								{item.name}
@@ -126,6 +127,7 @@ export const BulkDetails = ({
 							variant="chip"
 							title="Add to every selected ticket"
 							onClick={() => onAddTag(tag.name)}
+							tint={tag.color}
 							style={{color: tag.color, opacity: 0.6}}
 						>
 							+ {tag.name}

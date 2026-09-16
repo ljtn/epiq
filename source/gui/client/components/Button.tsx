@@ -4,12 +4,19 @@ import {GUI_THEME} from '../lib/gui-theme';
 export const Button = ({
 	children,
 	variant = 'default',
+	tint,
 	style,
 	onMouseEnter,
 	onMouseLeave,
 	...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
 	variant?: 'default' | 'ghost' | 'chip' | 'primary';
+	// A hex colour the button *stands for*, rather than one it is painted in: a
+	// tag's own colour. The fill and the border take a wash of it, so the name,
+	// what it sits on and what encloses it read as one object instead of three.
+	// Kept far enough down that it colours the chip without competing with the
+	// title above it.
+	tint?: string;
 }) => {
 	const [hovered, setHovered] = useState(false);
 
@@ -29,7 +36,9 @@ export const Button = ({
 			style={{
 				appearance: 'none',
 				WebkitAppearance: 'none',
-				background: isPrimary
+				background: tint
+					? `${tint}${hovered ? '2b' : '1c'}`
+					: isPrimary
 					? hovered
 						? 'rgb(41, 44, 57)'
 						: GUI_THEME.tertiary
@@ -37,7 +46,9 @@ export const Button = ({
 					? GUI_THEME.hover
 					: 'transparent',
 				color: GUI_THEME.secondary,
-				border: isPrimary
+				border: tint
+					? `1px solid ${tint}${hovered ? '7a' : '3d'}`
+					: isPrimary
 					? `none`
 					: variant === 'ghost' && !hovered
 					? '1px solid transparent'
