@@ -330,6 +330,10 @@ export const ScrubberLayout = ({
 					// the pair — the gap included — counts as one timeline.
 					<div
 						data-testid="scrubber-track"
+						// The stretch the chart is drawing, for anything that has to know
+						// whether it is drawing one yet: with no window the axis is a
+						// single instant, and a press on it asks for now.
+						data-axis-span={Math.round(axis.span)}
 						ref={chart.pageRef}
 						className={PAGED_TRACK_CLASS}
 						onPointerDown={on.onPointerDown}
