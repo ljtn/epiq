@@ -45,6 +45,24 @@ const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
 	cursor: 'pointer',
 });
 
+// A fixture on this bar: a well the controls that are not about the chart sit
+// in — the panel toggles at one end, the transport at the other. Both outlive
+// the charts, which is what the well says and what a bare icon among the chart
+// buttons did not.
+//
+// The gap is a sliver of the well's own ground, for a pair of switches in one
+// fixture rather than one control with two halves: at a pixel the rounded
+// grounds swallow it, past two it stops reading as a pair.
+const fixtureWellStyle: React.CSSProperties = {
+	display: 'inline-flex',
+	alignItems: 'center',
+	gap: 2,
+	padding: 1,
+	borderRadius: 6,
+	background: GUI_THEME.panel2,
+	border: `1px solid ${GUI_THEME.line}`,
+};
+
 // The two panel toggles and the transport all sit in one family: a panel, a
 // hairline and a glyph. Nothing here is the brightest thing on the bar.
 //
@@ -503,9 +521,7 @@ export const ScrubberHeader = ({
 }) => (
 	<div
 		style={{
-			display: 'flex',
-			alignItems: 'center',
-			gap: 8,
+			...fixtureWellStyle,
 			fontSize: 11,
 			whiteSpace: 'nowrap',
 		}}
@@ -556,15 +572,20 @@ export const ScrubberPlayButton = ({
 	playTitle: string;
 	onPlay: () => void;
 }) => (
-	<IconButton
-		testId="theatre-play"
-		title={playTitle}
-		aria-label="Play the board's history"
-		disabled={!canPlay}
-		onClick={onPlay}
-	>
-		<IconPlay size={ICON_SIZE} />
-	</IconButton>
+	// In the same well as the panel toggles at the row's other end: it starts
+	// something rather than drawing the chart, and it is on the bar whether the
+	// charts are up or shut.
+	<span style={fixtureWellStyle}>
+		<IconButton
+			testId="theatre-play"
+			title={playTitle}
+			aria-label="Play the board's history"
+			disabled={!canPlay}
+			onClick={onPlay}
+		>
+			<IconPlay size={ICON_SIZE} />
+		</IconButton>
+	</span>
 );
 
 // Deliberately one block spanning both charts and the gap: hovering a commit
