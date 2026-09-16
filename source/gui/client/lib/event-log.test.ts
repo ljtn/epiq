@@ -143,6 +143,24 @@ describe('buildLogEntries', () => {
 		expect(new Set(rows.map(row => row.id)).size).toBe(2);
 	});
 
+	it('signs an event with its actor and a commit with its author', () => {
+		const signed = {
+			...event('a', 1, 'create.issue'),
+			actor: {id: 'u1', name: 'jola', color: '#abc'},
+		};
+		const rows = buildLogEntries([signed], [commit('sha1', 2)]);
+
+		expect(rows[0]!.actor).toEqual({name: 'jola', color: '#abc'});
+		// An author has no colour on the board, so the line lends its own.
+		expect(rows[1]!.actor).toEqual({name: 'jo', color: GUI_THEME.secondary});
+	});
+
+	it('leaves an unsigned event with no actor', () => {
+		const rows = buildLogEntries([event('a', 1, 'create.issue')], []);
+
+		expect(rows[0]!.actor).toBeNull();
+	});
+
 	it('marks a commit with the green its dots already have on the chart', () => {
 		const rows = buildLogEntries([], [commit('sha1', 1)]);
 
@@ -184,6 +202,7 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 	t,
 	label,
 	color: '#111',
+	actor: null,
 	issue: null,
 	action: null,
 	sha: null,
