@@ -216,20 +216,26 @@ const EventRow = ({
 // Who signed the line, in their colour. An agent's provider prefix is drawn
 // as its mark — see lib/agent-identity — and the name gets its capital; a
 // person's name is written as it is. The full name stays in the title.
-const ActorName = ({name, color}: {name: string; color: string}) => {
+const ActorLabel = ({name}: {name: string}) => {
 	const {label, provider} = actorDisplay(name);
 
 	return (
-		<span className={LOG_ACTOR_CLASS} style={{color}} title={name}>
+		<>
 			{provider && (
 				<span className={LOG_MARK_CLASS} data-provider={provider}>
 					<IconProvider provider={provider} />
 				</span>
 			)}
 			{label}
-		</span>
+		</>
 	);
 };
+
+const ActorName = ({name, color}: {name: string; color: string}) => (
+	<span className={LOG_ACTOR_CLASS} style={{color}} title={name}>
+		<ActorLabel name={name} />
+	</span>
+);
 
 // What each line shows, chosen at the top of the panel. Quiet when ticked:
 // four lit boxes would outshine the lines they are about.
@@ -324,7 +330,7 @@ const LaneHeadings = ({lanes}: {lanes: readonly LogLane[]}) => (
 	<div data-testid="log-lane-heads" className={LOG_LANE_HEAD_CLASS}>
 		{lanes.map(lane => (
 			<span key={lane.name} style={{color: lane.color}} title={lane.name}>
-				{lane.name}
+				<ActorLabel name={lane.name} />
 			</span>
 		))}
 	</div>
