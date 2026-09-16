@@ -97,3 +97,58 @@ test('a bare board link picks up the last selection, and a link wins over it', a
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The card's tag used to be a hand-rolled button: its own radius, padding, type
+// size and a flat `#ffffff08` fill, while the panel drew the same tag as a
+// washed chip. One component now, and the isolated state — which used to *be*
+// the wash — reads as a step above it instead.
+test('a card draws its tag as the same washed chip the panel does', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	const tag = `t${stamp}`;
+
+	await addTicket(page, `Washed card ${stamp}`);
+	await tagOpenTicket(page, tag);
+	await page.getByRole('button', {name: 'Close', exact: true}).click();
+
+	const chip = page.getByTestId('ticket-tag').filter({hasText: tag});
+	await expect(chip).toBeVisible();
+
+	// As a string, like every other computed-style read in this suite: the DOM
+	// globals inside it are the browser's, and the root tsconfig has no lib for
+	// them.
+	const read = () =>
+		page.evaluate<[string, string]>(`
+			(() => {
+				const chip = document.querySelector('[data-testid="ticket-tag"]');
+				const computed = getComputedStyle(chip);
+				return [computed.backgroundColor, computed.color];
+			})()
+		`);
+
+	const rgba = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/;
+
+	const [resting, text] = await read();
+	const [, r, g, b, restingAlpha] = rgba.exec(resting) ?? [];
+	expect(`rgb(${r}, ${g}, ${b})`).toBe(text);
+	expect(Number(restingAlpha)).toBeGreaterThan(0);
+	expect(Number(restingAlpha)).toBeLessThan(0.2);
+
+	// Isolating holds the chip a step above its neighbours, and the pointer is
+	// moved off it first so what is measured is `held` rather than hover.
+	await chip.click();
+	await expect(chip).toHaveAttribute('aria-pressed', 'true');
+	await page.mouse.move(0, 0);
+
+	const [isolated] = await read();
+	const [, , , , isolatedAlpha] = rgba.exec(isolated) ?? [];
+	expect(Number(isolatedAlpha)).toBeGreaterThan(Number(restingAlpha));
+
+	expect(pageErrors).toEqual([]);
+});

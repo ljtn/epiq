@@ -7,6 +7,7 @@ import {
 	THEATRE_FLASH_TIMING,
 } from '../lib/theatre';
 import {isSwimlaneDrag} from '../lib/gui-move-swimlane';
+import {Button} from './Button';
 import {DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
 import {CopyRef} from './CopyRef';
@@ -267,11 +268,14 @@ export const TicketCard = ({
 							const isolated = tag.id === isolatedTagId;
 
 							return (
-								<button
+								<Button
 									key={tag.id}
-									type="button"
+									variant="chip"
 									data-testid="ticket-tag"
 									aria-pressed={isolated}
+									tint={tag.color}
+									held={isolated}
+									dense
 									title={
 										isolated
 											? 'Show every ticket again'
@@ -282,22 +286,10 @@ export const TicketCard = ({
 										event.stopPropagation();
 										onFilterByTag(tag.id);
 									}}
-									style={{
-										color: tag.color,
-										border: `1px solid ${
-											isolated ? tag.color : GUI_THEME.line
-										}`,
-										borderRadius: 999,
-										padding: '2px 8px',
-										fontSize: 11,
-										fontFamily: 'inherit',
-										lineHeight: 'inherit',
-										background: isolated ? `${tag.color}22` : '#ffffff08',
-										cursor: 'pointer',
-									}}
+									style={{color: tag.color}}
 								>
 									{tag.name}
-								</button>
+								</Button>
 							);
 						})}
 					</div>
