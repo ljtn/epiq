@@ -200,7 +200,11 @@ export const TicketCard = ({
 					lineHeight: `${TITLE_LINE_HEIGHT}px`,
 					textAlign: 'right',
 					fontSize: 10,
-					color: isSelected ? GUI_THEME.accent : GUI_THEME.dim,
+					// A mark in the margin, not a figure to read: well under the
+					// ref's tone, and no brighter on the selected card, so it can
+					// never draw the eye off the title.
+					color: GUI_THEME.dim,
+					opacity: 0.4,
 					fontVariantNumeric: 'tabular-nums',
 					pointerEvents: 'none',
 				}}
