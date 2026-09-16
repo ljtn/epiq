@@ -64,3 +64,48 @@ test('arming a delete highlights the whole tag row', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The chip used to be coloured text inside the neutral hairline every other
+// button wears, which at that contrast left it reading as two words rather than
+// one element. Fill, border and name are all the tag's own colour now.
+test("a tag chip is washed with the tag's own colour", async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+
+	await page.getByTitle('Add issue').first().click();
+	await page.getByPlaceholder('issue name').fill(`Washed ${stamp}`);
+	await page.getByPlaceholder('issue name').press('Enter');
+	await expect(page.locator('aside')).toContainText(`Washed ${stamp}`);
+
+	const name = `wash${stamp}`;
+	await addTag(page, name);
+
+	// As a string, like every other computed-style read in this suite: the DOM
+	// globals inside it are the browser's, and the root tsconfig has no lib for
+	// them.
+	const [fill, text] = await page.evaluate<[string, string]>(`
+		(() => {
+			const chip = [...document.querySelectorAll('aside button')]
+				.find(button => button.textContent.startsWith('${name}'));
+			const computed = getComputedStyle(chip);
+			return [computed.backgroundColor, computed.color];
+		})()
+	`);
+
+	// Same hue as the name it sits behind, and far enough down that the chip
+	// never competes with the title above it.
+	const rgba = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/;
+	const [, r, g, b, alpha] = rgba.exec(fill) ?? [];
+	expect(fill).toMatch(rgba);
+	expect(`rgb(${r}, ${g}, ${b})`).toBe(text);
+	expect(Number(alpha)).toBeGreaterThan(0);
+	expect(Number(alpha)).toBeLessThan(0.2);
+
+	expect(pageErrors).toEqual([]);
+});

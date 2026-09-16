@@ -719,6 +719,7 @@ export const IssueDetails = ({
 											disabled={issue.readonly}
 											onClick={() => onRemoveTag(issue.id, tag.id)}
 											title="Remove tag"
+											tint={tag.color}
 											style={{color: tag.color}}
 										>
 											{tag.name} {!issue.readonly && '×'}
@@ -736,6 +737,7 @@ export const IssueDetails = ({
 											disabled={issue.readonly}
 											onClick={() => onAddTag(issue.id, tag.name)}
 											title="Add existing tag"
+											tint={tag.color}
 											style={{color: tag.color, opacity: 0.55}}
 										>
 											+ {tag.name}
