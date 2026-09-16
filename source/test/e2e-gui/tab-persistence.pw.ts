@@ -139,13 +139,30 @@ test('the comment count on a card still opens comments', async ({page}) => {
 	await expect(lane.getByTestId('ticket-index').first()).toHaveText('1');
 	const index = card.getByTestId('ticket-index');
 	await expect(index).toHaveText(/^\d+$/);
-	const indexBox = (await index.boundingBox())!;
-	const titleBox = (await card.getByTestId('ticket-title').boundingBox())!;
-	const boxes = `index ${JSON.stringify(indexBox)}, title ${JSON.stringify(
-		titleBox,
-	)}`;
-	expect(indexBox.x + indexBox.width, boxes).toBeLessThanOrEqual(titleBox.x);
-	expect(Math.abs(indexBox.y - titleBox.y), boxes).toBeLessThan(2);
+	// Both rectangles in one read: opening the ticket selected the card, which
+	// scrolls itself into view, and two reads either side of that scroll put
+	// the same card's index and title hundreds of pixels apart.
+	type Rect = {x: number; y: number; width: number; height: number};
+	const geometry = await card.evaluate(node => {
+		const rect = (selector: string): Rect =>
+			(
+				node as unknown as {
+					querySelector: (s: string) => {getBoundingClientRect: () => Rect};
+				}
+			)
+				.querySelector(selector)
+				.getBoundingClientRect();
+
+		return {
+			index: rect('[data-testid="ticket-index"]'),
+			title: rect('[data-testid="ticket-title"]'),
+		};
+	});
+	const boxes = JSON.stringify(geometry);
+	expect(geometry.index.x + geometry.index.width, boxes).toBeLessThanOrEqual(
+		geometry.title.x,
+	);
+	expect(Math.abs(geometry.index.y - geometry.title.y), boxes).toBeLessThan(2);
 
 	await count.click();
 	await expect(page).toHaveURL(/tab=comments/);
