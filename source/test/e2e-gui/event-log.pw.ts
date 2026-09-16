@@ -526,7 +526,7 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
 
 	const header = page.getByTestId('event-log-header');
-	for (const field of ['Time', 'Actor', 'Type', 'Changes', 'Label']) {
+	for (const field of ['Time', 'Actor', 'Type', 'Diff', 'Label']) {
 		await expect(header.getByLabel(field, {exact: true})).toBeChecked();
 	}
 
@@ -553,22 +553,31 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 				chars: getComputedStyle(panel).getPropertyValue('--epiq-log-actor-width').trim(),
 				widest: Math.max(...spans.map(span => span.textContent.length)),
 				widths: spans.map(span => Math.round(span.getBoundingClientRect().width)),
+				// A name within the cap is shown whole: the column is sized to it.
+				cut: spans.some(span => span.scrollWidth > span.clientWidth),
 			};
 		})()`,
-	)) as {chars: string; widest: number; widths: number[]};
+	)) as {chars: string; widest: number; widths: number[]; cut: boolean};
 	expect(actorColumn.widths.length).toBeGreaterThan(1);
+	expect(actorColumn.cut).toBe(false);
 	expect(actorColumn.chars).toContain(`${actorColumn.widest}ch`);
 	expect(new Set(actorColumn.widths).size).toBe(1);
 
 	// A commit's line carries what it did to the code; the seeded log opens
-	// with the setup commits, one of which added files.
-	const changes = page.locator('.epiq-log-changes').first();
-	await expect(changes).toBeVisible();
-	await expect(changes).toContainText('+');
-	await header.getByLabel('Changes', {exact: true}).click();
-	await expect(changes).toBeHidden();
-	await header.getByLabel('Changes', {exact: true}).click();
-	await expect(changes).toBeVisible();
+	// with the setup commits, one of which added files. The stat is not a
+	// column: it pushes that row's label along and no other row's.
+	const diff = page.locator('.epiq-log-diff').first();
+	await expect(diff).toBeVisible();
+	await expect(diff).toContainText('+');
+	const insets = (await page.evaluate(
+		`[...document.querySelectorAll('[data-testid="log-line"]')]` +
+			`.map(row => getComputedStyle(row).paddingLeft)`,
+	)) as string[];
+	expect(new Set(insets).size).toBe(1);
+	await header.getByLabel('Diff', {exact: true}).click();
+	await expect(diff).toBeHidden();
+	await header.getByLabel('Diff', {exact: true}).click();
+	await expect(diff).toBeVisible();
 
 	// Where the text starts: the row's padding, which is what the clock's
 	// column and the dot's gap add up to.
@@ -596,13 +605,13 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	// With the name, the stat and the label all off, a line has nothing left
 	// to say.
 	await header.getByLabel('Actor', {exact: true}).click();
-	await header.getByLabel('Changes', {exact: true}).click();
+	await header.getByLabel('Diff', {exact: true}).click();
 	await header.getByLabel('Label', {exact: true}).click();
 	await expect(lines.first()).toHaveText('', {useInnerText: true});
 
 	await page.reload();
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
-	for (const field of ['Time', 'Actor', 'Type', 'Changes', 'Label']) {
+	for (const field of ['Time', 'Actor', 'Type', 'Diff', 'Label']) {
 		await expect(header.getByLabel(field, {exact: true})).not.toBeChecked();
 	}
 	await expect(lines.first()).toHaveText('', {useInnerText: true});

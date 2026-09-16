@@ -3,12 +3,11 @@ import {
 	actorColumnChars,
 	actorColumnWidth,
 	buildLogEntries,
-	changesColumnChars,
-	changesColumnWidth,
 	daysToOpen,
 	MAX_ACTOR_CHARS,
 	groupByDay,
 	isDayOpen,
+	touchedLines,
 	lastIndexAtOrBefore,
 	LOG_LINES,
 	logEntriesUpTo,
@@ -168,8 +167,8 @@ describe('buildLogEntries', () => {
 			[commit('sha1', 2)],
 		);
 
-		expect(rows[0]!.changes).toBeNull();
-		expect(rows[1]!.changes).toEqual({insertions: 2, deletions: 1});
+		expect(rows[0]!.diff).toBeNull();
+		expect(rows[1]!.diff).toEqual({insertions: 2, deletions: 1});
 	});
 
 	it('leaves an unsigned event with no actor', () => {
@@ -220,7 +219,7 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 	label,
 	color: '#111',
 	actor: null,
-	changes: null,
+	diff: null,
 	issue: null,
 	action: null,
 	sha: null,
@@ -251,38 +250,22 @@ describe('actorColumnChars', () => {
 	});
 });
 
-describe('changesColumnChars', () => {
-	const changed = (
-		id: string,
-		insertions: number,
-		deletions: number,
-	): LogEntry => ({
-		...row(id, 1),
-		changes: {insertions, deletions},
-	});
-
-	it('is the widest pair of figures in the slice, signs included', () => {
-		expect(
-			changesColumnChars([changed('a', 5, 0), changed('b', 120, 34)]),
-		).toBe('+120'.length + '-34'.length);
-	});
-
-	it('is zero without a commit that changed a line', () => {
-		expect(changesColumnChars([row('a', 1)])).toBe(0);
-		expect(changesColumnChars([changed('a', 0, 0)])).toBe(0);
+// A merge, or a tag's empty commit, has no stat to show.
+describe('touchedLines', () => {
+	it('is whether a commit changed any line at all', () => {
+		expect(touchedLines({insertions: 0, deletions: 0})).toBe(false);
+		expect(touchedLines({insertions: 0, deletions: 1})).toBe(true);
 	});
 });
 
-describe('column widths', () => {
+describe('actorColumnWidth', () => {
 	// A column with nothing in it keeps no gap open either.
-	it('fold to nothing at zero', () => {
+	it('folds to nothing at zero', () => {
 		expect(actorColumnWidth(0)).toBe('0px');
-		expect(changesColumnWidth(0)).toBe('0px');
 	});
 
-	it('hold the figures and the gap after them', () => {
+	it('holds the name and the gap after it', () => {
 		expect(actorColumnWidth(13)).toBe('calc(13ch + 8px)');
-		expect(changesColumnWidth(7)).toBe(`calc(7ch + ${44 + 8}px)`);
 	});
 });
 
