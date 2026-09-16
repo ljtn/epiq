@@ -641,51 +641,67 @@ test('the header splits the log into a lane per actor', async ({
 
 	await expect(heads).toHaveCount(0);
 
-	// Who signed each line, read off the name column while it is still up.
-	const names = (await page.evaluate(
-		`[...document.querySelectorAll('[data-testid="log-line"]')]` +
-			`.map(row => row.querySelector('.epiq-log-actor')?.textContent ?? null)`,
-	)) as (string | null)[];
-	const signed = [...new Set(names.filter(name => name !== null))];
-	expect(signed.length).toBeGreaterThan(0);
-
 	await header.getByLabel('Split', {exact: true}).click();
 	await expect(heads).toBeVisible();
-	await expect(heads.locator('span')).toHaveCount(signed.length);
 
-	// The name column folds away — the lane says who — and its box stands down
-	// rather than claiming to show a column that is gone.
-	await expect(page.locator('.epiq-log-actor').first()).toBeHidden();
+	// The name column folds to nothing — the lane says who — and its box stands
+	// down rather than claiming to show a column that is not there. The names
+	// stay in the page for a reader who cannot see the lanes.
 	await expect(header.getByLabel('Actor', {exact: true})).toBeDisabled();
+	await expect(page.locator('.epiq-log-actor').first()).toHaveText(/\S/);
+	expect(
+		await page.evaluate(
+			`getComputedStyle(document.querySelector('.epiq-log-pane'))` +
+				`.getPropertyValue('--epiq-log-actor-width').trim()`,
+		),
+	).toBe('0px');
 
-	// Where each line was put: its lane is its indent, in whole lanes.
-	const lanes = (await page.evaluate(
+	// Who signed each line and where the line was put, in one read: the board is
+	// live, so a name taken before the click and an inset taken after it would
+	// be two different columns paired by position.
+	const placed = (await page.evaluate(
 		`(() => {
-			// A lane's width off a heading rather than off the custom property,
-			// which is a calc over a percentage and comes back unresolved.
-			const width = document
-				.querySelector('[data-testid="log-lane-heads"] > span')
-				.getBoundingClientRect().width;
-			const rows = [...document.querySelectorAll('[data-testid="log-line"]')];
-			const base = Math.min(...rows.map(row => parseFloat(getComputedStyle(row).paddingLeft)));
-			return rows.map(row =>
-				Math.round((parseFloat(getComputedStyle(row).paddingLeft) - base) / width),
-			);
+			const lanes = [...document.querySelectorAll('[data-testid="log-lane-heads"] > span')]
+				.map(head => ({name: head.textContent, left: head.getBoundingClientRect().left}));
+			const rows = [...document.querySelectorAll('[data-testid="log-line"]')].map(row => {
+				const box = row.getBoundingClientRect();
+				const start = box.left + parseFloat(getComputedStyle(row).paddingLeft);
+				return {
+					actor: row.querySelector('.epiq-log-actor')?.textContent ?? null,
+					// The lane whose heading stands over where this line starts.
+					lane: lanes.findIndex(lane => Math.abs(lane.left - start) < 1),
+					// A line nobody signed spans every lane rather than sitting in one.
+					full: Math.round(box.width) === Math.round(row.parentElement.getBoundingClientRect().width),
+				};
+			});
+			return {lanes: lanes.map(lane => lane.name), rows};
 		})()`,
-	)) as number[];
+	)) as {
+		lanes: string[];
+		rows: {actor: string | null; lane: number; full: boolean}[];
+	};
 
-	const laneByName = new Map<string, number>();
-	names.forEach((name, index) => {
-		// An unsigned line belongs to no lane and spans them all.
-		if (name === null) return expect(lanes[index]).toBe(0);
+	expect(placed.lanes.length).toBeGreaterThan(0);
+	expect(placed.rows.length).toBeGreaterThan(0);
 
-		const lane = laneByName.get(name);
-		if (lane === undefined) laneByName.set(name, lanes[index]!);
-		else expect(lanes[index]).toBe(lane);
-	});
+	for (const row of placed.rows) {
+		if (row.actor === null) {
+			expect(row.full).toBe(true);
+			continue;
+		}
 
-	// One lane each, not one lane between them.
-	expect(new Set(laneByName.values()).size).toBe(signed.length);
+		// Every signed line starts under a heading, and under its own.
+		expect(row.lane).toBeGreaterThanOrEqual(0);
+		expect(placed.lanes[row.lane]).toBe(row.actor);
+	}
+
+	// Each name has a lane of its own, not one between them.
+	const signed = new Set(
+		placed.rows.map(row => row.actor).filter(actor => actor !== null),
+	);
+	expect(
+		new Set(placed.rows.filter(row => row.actor).map(row => row.lane)).size,
+	).toBe(signed.size);
 
 	// The choice outlives the page, as the field boxes do.
 	await page.reload();

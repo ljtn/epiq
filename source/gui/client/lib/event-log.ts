@@ -438,6 +438,7 @@ ${linkedRow(':hover')} {
 	.${LOG_ARROW_CLASS} { transition: none; }
 }
 .${LOG_SPLIT_CLASS} {
+	${LOG_ACTOR_WIDTH_PROPERTY}: 0px;
 	${LOG_LANE_WIDTH_PROPERTY}: calc(
 		(100% - var(${TIME_BLOCK_PROPERTY}) - var(${LEAD_PROPERTY})) /
 			var(${LOG_LANE_COUNT_PROPERTY})
@@ -459,6 +460,14 @@ ${linkedRow(':hover')} {
 }
 .${LOG_SPLIT_CLASS} .${LOG_LANE_ALL_CLASS} {
 	width: 100%;
+}
+/* Out of the way rather than gone: the lane says who to somebody looking at
+   it, and says nothing at all to somebody listening to it — so the name stays
+   in the page for them, a pixel wide and clipped. */
+.${LOG_SPLIT_CLASS} .${LOG_ACTOR_CLASS} {
+	width: 1px;
+	height: 1px;
+	clip-path: inset(50%);
 }
 /* One hairline at the head of each lane, drawn behind the day's lines rather
    than on them — a border per row would be a rule broken at every gap. */
