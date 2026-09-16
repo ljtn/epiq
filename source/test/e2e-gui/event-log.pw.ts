@@ -566,3 +566,69 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The log goes into a window of its own and the panel leaves the board; the
+// window is fed by the board and hands its clicks back; closing it brings the
+// panel back.
+test('the log pops out into its own window, and comes back when it closes', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	// A line worth following, as in the destination test above.
+	await page.getByTitle('Add issue').first().click();
+	await page.getByPlaceholder('issue name').fill(`Popped ${Date.now()}`);
+	await page.getByPlaceholder('issue name').press('Enter');
+	await page.goto(boardUrl);
+
+	const box = page.getByTestId('log-toggle');
+	await box.click();
+	const panel = page.getByTestId('event-log');
+	await expect(panel).toBeVisible();
+
+	const popupOpened = page.context().waitForEvent('page');
+	await page.getByTestId('log-pop-out').click();
+	const popup = await popupOpened;
+
+	// The board's panel goes; the window fills with the same lines.
+	await expect(panel).toHaveCount(0);
+	await expect(box).toHaveAttribute('aria-pressed', 'true');
+	const popped = popup.getByTestId('event-log');
+	await expect(popped).toBeVisible();
+	await expect
+		.poll(async () => await popup.getByTestId('log-line').count())
+		.toBeGreaterThan(0);
+
+	// Fed live: what happens on the board reaches the window.
+	const name = `log-window-${Date.now()}`;
+	await page.getByTestId('add-swimlane').click();
+	await page.getByPlaceholder('swimlane name').fill(name);
+	await page.getByPlaceholder('swimlane name').press('Enter');
+	await expect(popped).toContainText(name);
+
+	// A click in the window opens the ticket on the board.
+	await popup
+		.locator('[data-log-issue][data-log-tab="overview"]')
+		.first()
+		.click();
+	await expect(page).toHaveURL(/\/issue\/[A-Z0-9]{7}\?tab=overview/);
+
+	// The window's own way back, which is the same as closing it.
+	await popup.getByTestId('log-dock').click();
+	await expect(panel).toBeVisible();
+	await expect(box).toHaveAttribute('aria-pressed', 'true');
+
+	// Turning the log off takes the window with it.
+	const again = page.context().waitForEvent('page');
+	await page.getByTestId('log-pop-out').click();
+	const second = await again;
+	await expect(second.getByTestId('event-log')).toBeVisible();
+	await box.click();
+	await expect.poll(() => second.isClosed()).toBe(true);
+	await expect(panel).toHaveCount(0);
+
+	expect(pageErrors).toEqual([]);
+});

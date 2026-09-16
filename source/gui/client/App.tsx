@@ -88,6 +88,7 @@ import {
 	useTheatrePlayback,
 } from './lib/theatre';
 import {useEventLog} from './lib/use-event-log';
+import {useLogWindow} from './lib/log-window';
 import {LogDestination} from './lib/log-destination';
 import {isolateOnly, withNarrowing} from './lib/board-selection';
 import {useBoardSelection} from './lib/use-board-selection';
@@ -1117,6 +1118,15 @@ export const App = () => {
 		timeTravel: state?.timeTravel,
 	});
 
+	// The same slice, mirrored to a window of its own while one is up — in
+	// which case the panel is not drawn here.
+	const logWindow = useLogWindow({
+		entries: logEntries,
+		moment: logMoment,
+		open: logOpen,
+		onOpen: openLogDestination,
+	});
+
 	// A movie is checked out one frame at a time over the socket, so a dropped
 	// one leaves the player running against nothing. It closes rather than
 	// stalling; the board is already parked wherever the last frame landed, and
@@ -1577,13 +1587,14 @@ export const App = () => {
 							overflow: 'hidden',
 						}}
 					>
-						{logOpen && (
+						{logOpen && !logWindow.poppedOut && (
 							<EventLog
 								entries={logEntries}
 								moment={logMoment}
 								onHoverEvent={setHoveredLogEventId}
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 								onOpen={openLogDestination}
+								onPopOut={logWindow.popOut}
 							/>
 						)}
 
