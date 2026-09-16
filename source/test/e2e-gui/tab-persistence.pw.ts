@@ -132,15 +132,17 @@ test('the comment count on a card still opens comments', async ({page}) => {
 		),
 	).toBe('transparent');
 
-	// The index lives in the card's margin and takes no room from the title:
-	// it is placed against the card rather than laid out in its column.
+	// The index sits in the card's margin on the title's first line and takes
+	// no room from the title, whatever its figure. Counted from one: the
+	// lane's first card says so, since this card's own position is not known.
+	const lane = card.locator('..');
+	await expect(lane.getByTestId('ticket-index').first()).toHaveText('1');
 	const index = card.getByTestId('ticket-index');
 	await expect(index).toHaveText(/^\d+$/);
-	expect(
-		await index.evaluate(
-			node => (node as unknown as {style: {position: string}}).style.position,
-		),
-	).toBe('absolute');
+	const indexBox = (await index.boundingBox())!;
+	const titleBox = (await card.getByText(title).boundingBox())!;
+	expect(indexBox.x + indexBox.width).toBeLessThanOrEqual(titleBox.x);
+	expect(Math.abs(indexBox.y - titleBox.y)).toBeLessThan(2);
 
 	await count.click();
 	await expect(page).toHaveURL(/tab=comments/);
