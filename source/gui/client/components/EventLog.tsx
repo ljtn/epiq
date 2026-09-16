@@ -56,6 +56,7 @@ import {
 	useLogFields,
 } from '../lib/log-fields';
 import {
+	laneCapacity,
 	laneIndexByName,
 	laneIndexOf,
 	LogLane,
@@ -303,7 +304,7 @@ const LogHeader = ({
 // see the sticky rule in EVENT_LOG_STYLES — because a lane is only a position
 // until something names it, and the name column is folded away while split.
 const LaneHeadings = ({lanes}: {lanes: readonly LogLane[]}) => (
-	<div data-testid="log-lane-heads" className={LOG_LANE_HEAD_CLASS} aria-hidden>
+	<div data-testid="log-lane-heads" className={LOG_LANE_HEAD_CLASS}>
 		{lanes.map(lane => (
 			<span key={lane.name} style={{color: lane.color}} title={lane.name}>
 				{lane.name}
@@ -362,17 +363,25 @@ const EventLogPanel = ({
 	const days = useMemo(() => groupByDay(entries), [entries]);
 	const actorChars = useMemo(() => actorColumnChars(entries), [entries]);
 
-	// The lanes are the actors in the slice on screen, so they follow it as the
-	// moment moves rather than standing for a board nobody in this window
-	// touched — see lib/log-lanes.
-	const lanes = useMemo(() => logLanes(entries), [entries]);
-	const laneIndexes = useMemo(() => laneIndexByName(lanes), [lanes]);
-	const split = splitWanted && lanes.length > 0;
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
 	// How many rows the pane has room for, so the days opened by default fill it
 	// rather than leaving it mostly empty. Null until it has been measured.
 	const [paneRows, setPaneRows] = useState<number | null>(null);
+	// And how wide it is, which is how many lanes it can hold — see
+	// lib/log-lanes. Zero until measured, which caps the lanes at one rather
+	// than drawing a pane's worth of them before the pane is known.
+	const [paneWidth, setPaneWidth] = useState(0);
+
+	// The lanes are the actors in the slice on screen, so they follow it as the
+	// moment moves rather than standing for a board nobody in this window
+	// touched — see lib/log-lanes.
+	const lanes = useMemo(
+		() => logLanes(entries, laneCapacity(paneWidth)),
+		[entries, paneWidth],
+	);
+	const laneIndexes = useMemo(() => laneIndexByName(lanes), [lanes]);
+	const split = splitWanted && lanes.length > 0;
 
 	const openCount = useMemo(
 		() =>
@@ -406,6 +415,7 @@ const EventLogPanel = ({
 			const usable = pane.clientHeight - bottomClearance - LOG_ROW_HEIGHT * 2;
 
 			setPaneRows(Math.max(1, Math.floor(usable / LOG_ROW_HEIGHT)));
+			setPaneWidth(pane.clientWidth);
 		};
 
 		measure();
@@ -598,9 +608,9 @@ const EventLogPanel = ({
 
 			<div
 				ref={scrollRef}
-				className={`epiq-log-pane ${logPaneClassName(
-					split ? {...fields, actor: false} : fields,
-				)} ${split ? LOG_SPLIT_CLASS : ''}`
+				className={`epiq-log-pane ${logPaneClassName(fields)} ${
+					split ? LOG_SPLIT_CLASS : ''
+				}`
 					.replace(/\s+/g, ' ')
 					.trim()}
 				onScroll={onScroll}
@@ -680,14 +690,16 @@ const EventLogPanel = ({
 								{/* A folded day is its divider and nothing else: no rows are
 								    built for it, so what the panel costs is what is open. */}
 								{open && (
-									<div className={split ? LOG_LANES_CLASS : undefined}>
+									<div className={LOG_LANES_CLASS}>
 										{day.entries.map(entry => (
 											<EventRow
 												key={entry.id}
 												entry={entry}
 												showLabel={fields.label}
 												lane={
-													split ? laneIndexOf(entry, laneIndexes) : undefined
+													split
+														? laneIndexOf(entry, lanes, laneIndexes)
+														: undefined
 												}
 											/>
 										))}
