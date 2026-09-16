@@ -622,6 +622,85 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// Split, the panel stops being one interleaved column and becomes a lane per
+// actor: a line keeps its place in time and moves sideways into its own
+// actor's lane, which the heading above it names.
+test('the header splits the log into a lane per actor', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	await page.getByTestId('log-toggle').click();
+
+	const lines = page.getByTestId('log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
+
+	const header = page.getByTestId('event-log-header');
+	const heads = page.getByTestId('log-lane-heads');
+
+	await expect(heads).toHaveCount(0);
+
+	// Who signed each line, read off the name column while it is still up.
+	const names = (await page.evaluate(
+		`[...document.querySelectorAll('[data-testid="log-line"]')]` +
+			`.map(row => row.querySelector('.epiq-log-actor')?.textContent ?? null)`,
+	)) as (string | null)[];
+	const signed = [...new Set(names.filter(name => name !== null))];
+	expect(signed.length).toBeGreaterThan(0);
+
+	await header.getByLabel('Split', {exact: true}).click();
+	await expect(heads).toBeVisible();
+	await expect(heads.locator('span')).toHaveCount(signed.length);
+
+	// The name column folds away — the lane says who — and its box stands down
+	// rather than claiming to show a column that is gone.
+	await expect(page.locator('.epiq-log-actor').first()).toBeHidden();
+	await expect(header.getByLabel('Actor', {exact: true})).toBeDisabled();
+
+	// Where each line was put: its lane is its indent, in whole lanes.
+	const lanes = (await page.evaluate(
+		`(() => {
+			// A lane's width off a heading rather than off the custom property,
+			// which is a calc over a percentage and comes back unresolved.
+			const width = document
+				.querySelector('[data-testid="log-lane-heads"] > span')
+				.getBoundingClientRect().width;
+			const rows = [...document.querySelectorAll('[data-testid="log-line"]')];
+			const base = Math.min(...rows.map(row => parseFloat(getComputedStyle(row).paddingLeft)));
+			return rows.map(row =>
+				Math.round((parseFloat(getComputedStyle(row).paddingLeft) - base) / width),
+			);
+		})()`,
+	)) as number[];
+
+	const laneByName = new Map<string, number>();
+	names.forEach((name, index) => {
+		// An unsigned line belongs to no lane and spans them all.
+		if (name === null) return expect(lanes[index]).toBe(0);
+
+		const lane = laneByName.get(name);
+		if (lane === undefined) laneByName.set(name, lanes[index]!);
+		else expect(lanes[index]).toBe(lane);
+	});
+
+	// One lane each, not one lane between them.
+	expect(new Set(laneByName.values()).size).toBe(signed.length);
+
+	// The choice outlives the page, as the field boxes do.
+	await page.reload();
+	await expect(page.getByTestId('log-lane-heads')).toBeVisible();
+
+	await page
+		.getByTestId('event-log-header')
+		.getByLabel('Split', {exact: true})
+		.click();
+	await expect(page.getByTestId('log-lane-heads')).toHaveCount(0);
+	await expect(page.locator('.epiq-log-actor').first()).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
 // The log goes into a window of its own and the panel leaves the board; the
 // window is fed by the board and hands its clicks back; closing it brings the
 // panel back.

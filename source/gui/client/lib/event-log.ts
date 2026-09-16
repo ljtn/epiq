@@ -291,6 +291,21 @@ export const LOG_DIFF_CLASS = 'epiq-log-diff';
 // rows that are commits and pushes only their labels along, rather than
 // holding every board event's label out to the right of a stat it lacks.
 export const LOG_ACTOR_WIDTH_PROPERTY = '--epiq-log-actor-width';
+
+// Split, the pane is divided into a lane per actor — see lib/log-lanes. The
+// panel says how many there are, each row says which one it is in, and the
+// rules below turn the pair into an indent and a width, so a line is drawn in
+// its own lane and cut off at the next one's edge. The class is on the pane,
+// like the field classes: nothing about a row changes but the number it
+// carries.
+export const LOG_SPLIT_CLASS = 'epiq-log--split';
+export const LOG_LANES_CLASS = 'epiq-log-lanes';
+export const LOG_LANE_HEAD_CLASS = 'epiq-log-lane-head';
+export const LOG_LANE_COUNT_PROPERTY = '--epiq-log-lanes';
+export const LOG_LANE_PROPERTY = '--epiq-log-lane';
+export const LOG_LANE_WIDTH_PROPERTY = '--epiq-log-lane-width';
+// The lane a line nobody signed is given: it spans them all.
+export const LOG_LANE_ALL_CLASS = 'epiq-log-line--every-lane';
 export const MAX_ACTOR_CHARS = 18;
 const TIME_BLOCK_PROPERTY = '--epiq-log-time-block';
 const LEAD_PROPERTY = '--epiq-log-lead';
@@ -421,5 +436,75 @@ ${linkedRow(':hover')} {
 @media (prefers-reduced-motion: reduce) {
 	.epiq-log-line { animation: none; }
 	.${LOG_ARROW_CLASS} { transition: none; }
+}
+.${LOG_SPLIT_CLASS} {
+	${LOG_LANE_WIDTH_PROPERTY}: calc(
+		(100% - var(${TIME_BLOCK_PROPERTY}) - var(${LEAD_PROPERTY})) /
+			var(${LOG_LANE_COUNT_PROPERTY})
+	);
+}
+/* The indent is the lanes to its left, the width is those plus its own: a
+   long label is cut off at its lane's edge rather than running across the
+   next actor's column. */
+.${LOG_SPLIT_CLASS} .epiq-log-line {
+	box-sizing: border-box;
+	padding-left: calc(
+		var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}) +
+			var(${LOG_LANE_PROPERTY}) * var(${LOG_LANE_WIDTH_PROPERTY})
+	);
+	width: calc(
+		var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}) +
+			(var(${LOG_LANE_PROPERTY}) + 1) * var(${LOG_LANE_WIDTH_PROPERTY})
+	);
+}
+.${LOG_SPLIT_CLASS} .${LOG_LANE_ALL_CLASS} {
+	width: 100%;
+}
+/* One hairline at the head of each lane, drawn behind the day's lines rather
+   than on them — a border per row would be a rule broken at every gap. */
+.${LOG_SPLIT_CLASS} .${LOG_LANES_CLASS} {
+	/* The time block is a ch, so this box has to be set in the rows' own font
+	   or its lanes come out a different width from theirs and the rules drift
+	   off the lines they divide. */
+	font-size: ${TEXT.meta}px;
+	background-image: linear-gradient(
+		to right,
+		${GUI_THEME.line} 0 1px,
+		transparent 1px
+	);
+	background-size: var(${LOG_LANE_WIDTH_PROPERTY}) 100%;
+	background-position: calc(
+			var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY})
+		)
+		0;
+	background-repeat: repeat-x;
+}
+/* Who each lane is, held at the top of the pane: the lines scroll under it,
+   and without it a column of unsigned-looking rows says nothing about whose
+   it is. */
+.${LOG_LANE_HEAD_CLASS} {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: flex;
+	height: ${LOG_ROW_HEIGHT}px;
+	line-height: ${LOG_ROW_HEIGHT}px;
+	margin-bottom: 2px;
+	background: ${GUI_THEME.panel};
+	border-bottom: 1px solid ${GUI_THEME.line};
+	font-size: ${TEXT.meta}px;
+}
+/* The lead is the first name's margin rather than the row's padding: a lane's
+   width is a share of this box, so padding here would measure every lane
+   against a narrower box than the lines are and walk the headings off their
+   own lanes, further with each one. */
+.${LOG_LANE_HEAD_CLASS} > span {
+	flex: 0 0 var(${LOG_LANE_WIDTH_PROPERTY});
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.${LOG_LANE_HEAD_CLASS} > span:first-child {
+	margin-left: calc(var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}));
 }
 `;
