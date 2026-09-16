@@ -155,7 +155,7 @@ jobs:
   release:
     name: Release ${{ matrix.artifact }}
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, gui]
+    needs: [test, gui, collaboration]
     permissions:
       contents: write
     strategy:
@@ -209,7 +209,7 @@ jobs:
   release-macos-x64:
     name: Release epiq-macos-x64
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, gui]
+    needs: [test, gui, collaboration]
     permissions:
       contents: write
     runs-on: macos-latest
