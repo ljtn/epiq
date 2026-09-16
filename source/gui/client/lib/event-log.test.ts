@@ -13,6 +13,7 @@ import {
 	logEntriesUpTo,
 	LogEntry,
 } from './event-log';
+import {MARK_CHARS} from './agent-identity';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME} from './gui-theme';
 
@@ -233,8 +234,16 @@ describe('actorColumnChars', () => {
 
 	it('is the widest name in the slice', () => {
 		expect(
-			actorColumnChars([signed('a', 'jo'), signed('b', 'claude/tester')]),
-		).toBe('claude/tester'.length);
+			actorColumnChars([signed('a', 'jo'), signed('b', 'Jonatan Lampa')]),
+		).toBe('Jonatan Lampa'.length);
+	});
+
+	// An agent's name is drawn as a mark and its bare name, and the column is
+	// sized to that rather than to the prefix it no longer shows.
+	it('measures an agent by its mark and name, not its prefix', () => {
+		expect(actorColumnChars([signed('a', 'claude/tester')])).toBe(
+			'Tester'.length + MARK_CHARS,
+		);
 	});
 
 	it('is zero when nobody signed anything', () => {
