@@ -34,6 +34,7 @@ import {
 	actorColumnWidth,
 	LOG_ACTOR_CLASS,
 	LOG_ACTOR_WIDTH_PROPERTY,
+	LOG_MARK_CLASS,
 	LOG_DIFF_CLASS,
 	LOG_ARROW_CLASS,
 	LOG_LANES_CLASS,
@@ -63,7 +64,9 @@ import {
 	logLanes,
 	useLogSplit,
 } from '../lib/log-lanes';
+import {actorDisplay} from '../lib/agent-identity';
 import {Checkbox} from './Checkbox';
+import {IconProvider} from './IconProvider';
 import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
 import {
@@ -200,11 +203,7 @@ const EventRow = ({
 			} as React.CSSProperties
 		}
 	>
-		{entry.actor && (
-			<span className={LOG_ACTOR_CLASS} style={{color: entry.actor.color}}>
-				{entry.actor.name}
-			</span>
-		)}
+		{entry.actor && <ActorName {...entry.actor} />}
 		{entry.diff && touchedLines(entry.diff) && (
 			<span className={LOG_DIFF_CLASS}>
 				<DiffStat {...entry.diff} bar={false} />
@@ -213,6 +212,24 @@ const EventRow = ({
 		{showLabel && entry.label}
 	</div>
 );
+
+// Who signed the line, in their colour. An agent's provider prefix is drawn
+// as its mark — see lib/agent-identity — and the name gets its capital; a
+// person's name is written as it is. The full name stays in the title.
+const ActorName = ({name, color}: {name: string; color: string}) => {
+	const {label, provider} = actorDisplay(name);
+
+	return (
+		<span className={LOG_ACTOR_CLASS} style={{color}} title={name}>
+			{provider && (
+				<span className={LOG_MARK_CLASS} data-provider={provider}>
+					<IconProvider provider={provider} />
+				</span>
+			)}
+			{label}
+		</span>
+	);
+};
 
 // What each line shows, chosen at the top of the panel. Quiet when ticked:
 // four lit boxes would outshine the lines they are about.

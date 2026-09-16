@@ -8,6 +8,7 @@
 // the slice does not.
 
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
+import {actorDisplayChars, MARK_CHARS} from './agent-identity';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
 import {LOG_ROW_SELECTOR} from './log-destination';
@@ -87,7 +88,10 @@ export const actorColumnChars = (entries: readonly LogEntry[]): number => {
 	let widest = 0;
 
 	for (const entry of entries) {
-		if (entry.actor) widest = Math.max(widest, entry.actor.name.length);
+		// As drawn, not as stored: an agent's name loses its prefix to a mark.
+		if (entry.actor) {
+			widest = Math.max(widest, actorDisplayChars(entry.actor.name));
+		}
 	}
 
 	return Math.min(widest, MAX_ACTOR_CHARS);
@@ -278,6 +282,8 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 export const LOG_TIME_CHARS = 5;
 export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
 export const LOG_ACTOR_CLASS = 'epiq-log-actor';
+// The provider's mark in front of an agent's name — see lib/agent-identity.
+export const LOG_MARK_CLASS = 'epiq-log-mark';
 export const LOG_DIFF_CLASS = 'epiq-log-diff';
 // The name is a column too, so the labels line up whoever signed each line.
 // It is as wide as the widest name in the slice — see actorColumnChars — set
@@ -378,6 +384,13 @@ export const EVENT_LOG_STYLES = `
 	width: calc(var(${LOG_ACTOR_WIDTH_PROPERTY}) - ${LOG_COLUMN_GAP_PX}px);
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+.${LOG_MARK_CLASS} {
+	display: inline-flex;
+	align-items: center;
+	height: ${LOG_ROW_HEIGHT}px;
+	width: ${MARK_CHARS}ch;
+	vertical-align: top;
 }
 .${LOG_DIFF_CLASS} {
 	display: inline-flex;
