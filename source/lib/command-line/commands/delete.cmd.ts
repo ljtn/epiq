@@ -4,20 +4,8 @@ import {resolveActorId} from '../../event/event-persist.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {AppEvent} from '../../event/event.model.js';
-import {getPersistRootValue} from './persist-root.js';
-
-const isAddIssueCommentEvent = (
-	event: AppEvent,
-): event is AppEvent & {
-	action: 'add.issue.comment';
-	payload: {
-		id: string;
-		issue: string;
-		author: string;
-		md: string;
-	};
-} => event.action === 'add.issue.comment';
+import {isAddCommentEvent} from '../../utils/comment.utils.js';
+import {getPersistRoot} from '../../storage/paths.js';
 
 export const deleteCommand = async () => {
 	const userRes = resolveActorId();
@@ -27,7 +15,7 @@ export const deleteCommand = async () => {
 	const child = getRenderedChildren(contextNode.id)[selectedIndex];
 	if (!child) return failed('Unable to resolve child to delete');
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
 	if (child.context === 'COMMENT') {
@@ -46,7 +34,7 @@ export const deleteCommand = async () => {
 		}
 
 		const commentEvent = ticket.log
-			?.filter(isAddIssueCommentEvent)
+			?.filter(isAddCommentEvent)
 			.find(event => event.payload.id === commentId);
 
 		if (!commentEvent) return failed('Unable to resolve comment');

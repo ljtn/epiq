@@ -7,7 +7,7 @@ import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {findAncestor} from '../../repository/node-repo.js';
 import {getState} from '../../state/state.js';
 import {MAX_COMMENT_LENGTH} from '../../utils/text.limits.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRoot} from '../../storage/paths.js';
 import {CommandLineInput} from '../../model/action-map.model.js';
 
 export const commentCommand = async (cmdState: CommandLineInput) => {
@@ -42,7 +42,7 @@ export const commentCommand = async (cmdState: CommandLineInput) => {
 	const ticket = ticketResult.value;
 	if (!isTicketNode(ticket)) return failed('Target node is not issue');
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
 	return materializeAndPersistAll(

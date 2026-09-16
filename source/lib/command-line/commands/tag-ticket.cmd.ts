@@ -6,7 +6,7 @@ import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRoot} from '../../storage/paths.js';
 
 export const tagTicketCommand = async () => {
 	const userRes = resolveActorId();
@@ -27,7 +27,7 @@ export const tagTicketCommand = async () => {
 	const ticket = ticketResult.value;
 	if (!isTicketNode(ticket)) return failed('Target node is not issue');
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
 	const existingTag = nodeRepo.findTagByName(name);

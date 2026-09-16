@@ -6,7 +6,7 @@ import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {resolveAndPersistRankForMove} from '../../repository/rank.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRoot} from '../../storage/paths.js';
 
 export const closeIssueCommand = async () => {
 	const userRes = resolveActorId();
@@ -25,7 +25,7 @@ export const closeIssueCommand = async () => {
 		return failed('Issue is already closed');
 	}
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 	const persistRoot = persistRootResult.value;
 

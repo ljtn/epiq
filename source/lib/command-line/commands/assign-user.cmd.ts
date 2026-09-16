@@ -7,7 +7,7 @@ import {findAncestor} from '../../repository/node-repo.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getAssignableContributors} from './assignable-contributors.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRoot} from '../../storage/paths.js';
 
 export const assignUserCommand = async () => {
 	const userRes = resolveActorId();
@@ -35,7 +35,7 @@ export const assignUserCommand = async () => {
 	const ticket = ticketResult.value;
 	if (!isTicketNode(ticket)) return failed('Target node is not issue');
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
 	const candidates = getAssignableContributors();
