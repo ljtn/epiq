@@ -180,7 +180,7 @@ const EventRow = ({
 		)}
 		{entry.diff && touchedLines(entry.diff) && (
 			<span className={LOG_DIFF_CLASS}>
-				<DiffStat {...entry.diff} />
+				<DiffStat {...entry.diff} bar={false} />
 			</span>
 		)}
 		{showLabel && entry.label}

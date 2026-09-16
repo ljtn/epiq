@@ -7,9 +7,13 @@ import {DIFF_STAT_BAR_WIDTH, DIFF_STAT_GAP} from '../lib/diff-stat.style';
 export const DiffStat = ({
 	insertions,
 	deletions,
+	bar = true,
 }: {
 	insertions: number;
 	deletions: number;
+	// The pill after the figures. Off where the figures are enough — a log
+	// line has no room for a picture of what its two numbers already say.
+	bar?: boolean;
 }) => {
 	const total = insertions + deletions;
 	if (total === 0) return null;
@@ -29,26 +33,28 @@ export const DiffStat = ({
 		>
 			<span style={{color: GUI_THEME.green}}>+{insertions}</span>
 			<span style={{color: GUI_THEME.red}}>-{deletions}</span>
-			<div
-				style={{
-					width: DIFF_STAT_BAR_WIDTH,
-					height: 3,
-					borderRadius: 1.5,
-					overflow: 'hidden',
-					display: 'flex',
-					background: GUI_THEME.line,
-				}}
-			>
-				<div
-					style={{width: `${addRatio * 100}%`, background: GUI_THEME.green}}
-				/>
+			{bar && (
 				<div
 					style={{
-						width: `${(1 - addRatio) * 100}%`,
-						background: GUI_THEME.red,
+						width: DIFF_STAT_BAR_WIDTH,
+						height: 3,
+						borderRadius: 1.5,
+						overflow: 'hidden',
+						display: 'flex',
+						background: GUI_THEME.line,
 					}}
-				/>
-			</div>
+				>
+					<div
+						style={{width: `${addRatio * 100}%`, background: GUI_THEME.green}}
+					/>
+					<div
+						style={{
+							width: `${(1 - addRatio) * 100}%`,
+							background: GUI_THEME.red,
+						}}
+					/>
+				</div>
+			)}
 		</div>
 	);
 };
