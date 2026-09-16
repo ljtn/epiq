@@ -32,12 +32,9 @@ import {
 	LogEntry,
 	actorColumnChars,
 	actorColumnWidth,
-	changesColumnChars,
-	changesColumnWidth,
 	LOG_ACTOR_CLASS,
 	LOG_ACTOR_WIDTH_PROPERTY,
-	LOG_CHANGES_CLASS,
-	LOG_CHANGES_WIDTH_PROPERTY,
+	LOG_DIFF_CLASS,
 	LOG_ARROW_CLASS,
 	LOG_DOT_COLOR_PROPERTY,
 	LOG_PANE_PADDING_X,
@@ -181,9 +178,9 @@ const EventRow = ({
 				{entry.actor.name}
 			</span>
 		)}
-		{entry.changes && touchedLines(entry.changes) && (
-			<span className={LOG_CHANGES_CLASS}>
-				<DiffStat {...entry.changes} />
+		{entry.diff && touchedLines(entry.diff) && (
+			<span className={LOG_DIFF_CLASS}>
+				<DiffStat {...entry.diff} />
 			</span>
 		)}
 		{showLabel && entry.label}
@@ -278,7 +275,6 @@ const EventLogPanel = ({
 	// during a movie is every animation frame.
 	const days = useMemo(() => groupByDay(entries), [entries]);
 	const actorChars = useMemo(() => actorColumnChars(entries), [entries]);
-	const changesChars = useMemo(() => changesColumnChars(entries), [entries]);
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
 	// How many rows the pane has room for, so the days opened by default fill it
@@ -449,9 +445,8 @@ const EventLogPanel = ({
 					flexDirection: 'column',
 					borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.line}`,
 					background: GUI_THEME.panel,
-					// The columns' widths, for every row at once.
+					// The name column's width, for every row at once.
 					[LOG_ACTOR_WIDTH_PROPERTY]: actorColumnWidth(actorChars),
-					[LOG_CHANGES_WIDTH_PROPERTY]: changesColumnWidth(changesChars),
 				} as React.CSSProperties
 			}
 		>
@@ -511,28 +506,24 @@ const EventLogPanel = ({
 					onHoverEvent?.(null);
 				}}
 				data-testid="event-log-scroll"
-				style={
-					{
-						flex: 1,
-						minHeight: 0,
-						overflowY: 'auto',
-						overflowX: 'hidden',
-						// The name column's width, for every row at once.
-						[LOG_ACTOR_WIDTH_PROPERTY]: `${actorChars}ch`,
-						// The arrow is placed against this, in the column's own
-						// coordinates rather than the window's.
-						position: 'relative',
-						// A column, so the block below can push itself down with an auto
-						// margin. `justify-content: flex-end` would do the same until the
-						// content overflowed, at which point it puts the overflow above the
-						// scrollable area, where it cannot be reached.
-						display: 'flex',
-						flexDirection: 'column',
-						padding: `0 ${LOG_PANE_PADDING_X}px ${
-							bottomClearance + LOG_ROW_HEIGHT * 2
-						}px 30px`,
-					} as React.CSSProperties
-				}
+				style={{
+					flex: 1,
+					minHeight: 0,
+					overflowY: 'auto',
+					overflowX: 'hidden',
+					// The arrow is placed against this, in the column's own
+					// coordinates rather than the window's.
+					position: 'relative',
+					// A column, so the block below can push itself down with an auto
+					// margin. `justify-content: flex-end` would do the same until the
+					// content overflowed, at which point it puts the overflow above the
+					// scrollable area, where it cannot be reached.
+					display: 'flex',
+					flexDirection: 'column',
+					padding: `0 ${LOG_PANE_PADDING_X}px ${
+						bottomClearance + LOG_ROW_HEIGHT * 2
+					}px 30px`,
+				}}
 			>
 				{/* Hidden until a row that leads somewhere is under the pointer, and
 				    inert throughout — the row is what takes the click. */}
