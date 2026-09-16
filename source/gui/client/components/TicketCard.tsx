@@ -154,7 +154,6 @@ export const TicketCard = ({
 			style={{
 				display: 'flex',
 				alignItems: 'flex-start',
-				gap: 10,
 				color: isSelected || isPicked ? GUI_THEME.accent : GUI_THEME.primary,
 				fontSize: 11,
 				cursor: ticket.readonly ? 'default' : 'grab',
@@ -162,10 +161,13 @@ export const TicketCard = ({
 					isSelected || isPicked
 						? 'rgba(118,228,255,0.08)'
 						: 'rgba(185, 192, 255, 0.06)',
-				padding: '10px 12px',
+				// Roomier than a list row: a card is read, not scanned, and the
+				// air around its title is what keeps a column of them from
+				// running together.
+				padding: '14px 16px',
 				minHeight: '58px',
 				borderRadius: '8px',
-				marginBottom: 4,
+				marginBottom: 8,
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
 				}`,
@@ -189,7 +191,7 @@ export const TicketCard = ({
 						minWidth: 0,
 						display: 'flex',
 						flexDirection: 'column',
-						gap: 10,
+						gap: 12,
 						flex: 1,
 					}}
 				>
