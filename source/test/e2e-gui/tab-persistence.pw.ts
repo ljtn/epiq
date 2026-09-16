@@ -140,9 +140,12 @@ test('the comment count on a card still opens comments', async ({page}) => {
 	const index = card.getByTestId('ticket-index');
 	await expect(index).toHaveText(/^\d+$/);
 	const indexBox = (await index.boundingBox())!;
-	const titleBox = (await card.getByText(title).boundingBox())!;
-	expect(indexBox.x + indexBox.width).toBeLessThanOrEqual(titleBox.x);
-	expect(Math.abs(indexBox.y - titleBox.y)).toBeLessThan(2);
+	const titleBox = (await card.getByTestId('ticket-title').boundingBox())!;
+	const boxes = `index ${JSON.stringify(indexBox)}, title ${JSON.stringify(
+		titleBox,
+	)}`;
+	expect(indexBox.x + indexBox.width, boxes).toBeLessThanOrEqual(titleBox.x);
+	expect(Math.abs(indexBox.y - titleBox.y), boxes).toBeLessThan(2);
 
 	await count.click();
 	await expect(page).toHaveURL(/tab=comments/);

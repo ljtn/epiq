@@ -226,6 +226,7 @@ export const TicketCard = ({
 					}}
 				>
 					<div
+						data-testid="ticket-title"
 						style={{
 							display: '-webkit-box',
 							WebkitLineClamp: 2,
