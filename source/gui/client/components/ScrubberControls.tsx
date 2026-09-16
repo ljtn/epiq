@@ -60,7 +60,12 @@ const fixtureWellStyle: React.CSSProperties = {
 	padding: 1,
 	borderRadius: 6,
 	background: GUI_THEME.panel2,
-	border: `1px solid ${GUI_THEME.line}`,
+	// Longhand, because the transport's well turns its colour off and React
+	// warns — rightly — about a shorthand and a longhand for the same value
+	// meeting on a rerender.
+	borderWidth: 1,
+	borderStyle: 'solid',
+	borderColor: GUI_THEME.line,
 };
 
 // The two panel toggles and the transport all sit in one family: a panel, a
@@ -575,7 +580,19 @@ export const ScrubberPlayButton = ({
 	// In the same well as the panel toggles at the row's other end: it starts
 	// something rather than drawing the chart, and it is on the bar whether the
 	// charts are up or shut.
-	<span style={fixtureWellStyle}>
+	//
+	// The well goes when it cannot be pressed, as the Resume slot's does: a
+	// panel and a border around a button that does nothing reads as a control
+	// that has stopped working. The box is kept either way, so an unplayable
+	// window does not shift the row.
+	<span
+		style={{
+			...fixtureWellStyle,
+			...(canPlay
+				? {}
+				: {background: 'transparent', borderColor: 'transparent'}),
+		}}
+	>
 		<IconButton
 			testId="theatre-play"
 			title={playTitle}
