@@ -1,7 +1,10 @@
 import {describe, expect, it} from 'vitest';
 import {
 	actorColumnChars,
+	actorColumnWidth,
 	buildLogEntries,
+	changesColumnChars,
+	changesColumnWidth,
 	daysToOpen,
 	MAX_ACTOR_CHARS,
 	groupByDay,
@@ -159,6 +162,16 @@ describe('buildLogEntries', () => {
 		expect(rows[1]!.actor).toEqual({name: 'jo', color: GUI_THEME.secondary});
 	});
 
+	it('carries a commit\u2019s line counts, and nothing for an event', () => {
+		const rows = buildLogEntries(
+			[event('a', 1, 'create.issue')],
+			[commit('sha1', 2)],
+		);
+
+		expect(rows[0]!.changes).toBeNull();
+		expect(rows[1]!.changes).toEqual({insertions: 2, deletions: 1});
+	});
+
 	it('leaves an unsigned event with no actor', () => {
 		const rows = buildLogEntries([event('a', 1, 'create.issue')], []);
 
@@ -207,6 +220,7 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 	label,
 	color: '#111',
 	actor: null,
+	changes: null,
 	issue: null,
 	action: null,
 	sha: null,
@@ -234,6 +248,41 @@ describe('actorColumnChars', () => {
 		expect(actorColumnChars([signed('a', 'x'.repeat(80))])).toBe(
 			MAX_ACTOR_CHARS,
 		);
+	});
+});
+
+describe('changesColumnChars', () => {
+	const changed = (
+		id: string,
+		insertions: number,
+		deletions: number,
+	): LogEntry => ({
+		...row(id, 1),
+		changes: {insertions, deletions},
+	});
+
+	it('is the widest pair of figures in the slice, signs included', () => {
+		expect(
+			changesColumnChars([changed('a', 5, 0), changed('b', 120, 34)]),
+		).toBe('+120'.length + '-34'.length);
+	});
+
+	it('is zero without a commit that changed a line', () => {
+		expect(changesColumnChars([row('a', 1)])).toBe(0);
+		expect(changesColumnChars([changed('a', 0, 0)])).toBe(0);
+	});
+});
+
+describe('column widths', () => {
+	// A column with nothing in it keeps no gap open either.
+	it('fold to nothing at zero', () => {
+		expect(actorColumnWidth(0)).toBe('0px');
+		expect(changesColumnWidth(0)).toBe('0px');
+	});
+
+	it('hold the figures and the gap after them', () => {
+		expect(actorColumnWidth(13)).toBe('calc(13ch + 8px)');
+		expect(changesColumnWidth(7)).toBe(`calc(7ch + ${44 + 8}px)`);
 	});
 });
 

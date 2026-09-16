@@ -10,6 +10,7 @@
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
+import {DIFF_STAT_CHROME_PX} from './diff-stat.style';
 import {LOG_ROW_SELECTOR} from './log-destination';
 import {categoryOf} from './scrubber';
 
@@ -25,6 +26,9 @@ export type LogEntry = {
 	// who has no identity on the board and so wears the panel's own text colour.
 	// Null on an event nobody signed.
 	actor: {name: string; color: string} | null;
+	// What a commit did to the code, for the stat beside its subject. Null on
+	// a board event, which touched no file.
+	changes: {insertions: number; deletions: number} | null;
 	// What the line was about, which is all a click needs to find its way — see
 	// lib/log-destination. Copied off the source entry rather than worked out
 	// here: every event in the window becomes one of these, and at most one of
@@ -54,6 +58,7 @@ export const buildLogEntries = (
 			actor: event.actor
 				? {name: event.actor.name, color: event.actor.color}
 				: null,
+			changes: null,
 			issue: event.issue,
 			action: event.action,
 			sha: null,
@@ -66,6 +71,7 @@ export const buildLogEntries = (
 			label: commit.subject,
 			color: GUI_THEME.green,
 			actor: {name: commit.author, color: GUI_THEME.secondary},
+			changes: {insertions: commit.insertions, deletions: commit.deletions},
 			// A commit belongs to whichever ticket its subject is prefixed with,
 			// which the board resolves when the line is clicked — it already has to,
 			// for the scatter's own commit dots.
@@ -87,6 +93,42 @@ export const actorColumnChars = (entries: readonly LogEntry[]): number => {
 
 	return Math.min(widest, MAX_ACTOR_CHARS);
 };
+
+// How wide the changes column's figures are, in characters: the widest
+// "+added" and "-removed" pair in the slice, side by side. Zero when the slice
+// holds no commit, which folds the column away.
+// A commit that changed no line — a merge, or a tag's empty commit — shows no
+// stat, and opens no column for one.
+export const touchedLines = (changes: {
+	insertions: number;
+	deletions: number;
+}): boolean => changes.insertions + changes.deletions > 0;
+
+export const changesColumnChars = (entries: readonly LogEntry[]): number => {
+	let widest = 0;
+
+	for (const entry of entries) {
+		if (!entry.changes || !touchedLines(entry.changes)) continue;
+
+		const {insertions, deletions} = entry.changes;
+		widest = Math.max(widest, `+${insertions}`.length + `-${deletions}`.length);
+	}
+
+	return widest;
+};
+
+// The columns' widths as the panel sets them on itself, gap included, or
+// nothing at all for a column with nothing in it — so an unsigned slice, or
+// one without a commit, keeps no blank column open.
+const LOG_COLUMN_GAP_PX = 8;
+
+export const actorColumnWidth = (chars: number): string =>
+	chars === 0 ? '0px' : `calc(${chars}ch + ${LOG_COLUMN_GAP_PX}px)`;
+
+export const changesColumnWidth = (chars: number): string =>
+	chars === 0
+		? '0px'
+		: `calc(${chars}ch + ${DIFF_STAT_CHROME_PX + LOG_COLUMN_GAP_PX}px)`;
 
 // How many lines the panel is handed. Well past what one pane shows, because
 // the pane scrolls and reaching back through it is the point — and because
@@ -241,10 +283,10 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 	easing: 'ease-out',
 };
 
-// A line is one element and, when somebody signed it, a span for their name.
-// Its clock and its dot are drawn as pseudo-elements off the row itself rather
-// than as spans inside it, which is the difference between four nodes a line
-// and two — and the panel can hold hundreds.
+// A line is one element, a span for who signed it, and for a commit a span
+// holding its stat. Its clock and its dot are drawn as pseudo-elements off the
+// row itself rather than as spans inside it, which is the difference between
+// five nodes a line and two or three — and the panel can hold hundreds.
 //
 // The clock is `attr()`ed off the row, the dot's colour comes in as a custom
 // property, and both are laid out in `ch` so the columns hold at whatever size
@@ -258,11 +300,17 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 export const LOG_TIME_CHARS = 5;
 export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
 export const LOG_ACTOR_CLASS = 'epiq-log-actor';
-// The name is a column too, so the labels line up whoever signed each line.
-// Its width is the widest name in the slice, set on the pane by the panel —
-// see actorColumnChars — and never past this, so one long name cannot push
-// every label off the right edge; past it the name is cut with an ellipsis.
+export const LOG_CHANGES_CLASS = 'epiq-log-changes';
+// The name and the stat are columns too, so the labels line up whoever signed
+// each line and whatever a commit did. Each is as wide as the widest of its
+// kind in the slice — see actorColumnChars and changesColumnChars — set on
+// the panel and read by every row, and the name is never wider than this, so
+// one long name cannot push every label off the right edge; past it the name
+// is cut with an ellipsis. Set on the panel rather than the pane: the pane is
+// what wears the field classes, and a class on it zeroes a column the panel
+// has sized, where a class could not beat an inline value on the same node.
 export const LOG_ACTOR_WIDTH_PROPERTY = '--epiq-log-actor-width';
+export const LOG_CHANGES_WIDTH_PROPERTY = '--epiq-log-changes-width';
 export const MAX_ACTOR_CHARS = 18;
 const TIME_BLOCK_PROPERTY = '--epiq-log-time-block';
 const LEAD_PROPERTY = '--epiq-log-lead';
@@ -297,7 +345,10 @@ export const EVENT_LOG_STYLES = `
 	position: relative;
 	height: ${LOG_ROW_HEIGHT}px;
 	line-height: ${LOG_ROW_HEIGHT}px;
-	padding-left: calc(var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}));
+	padding-left: calc(
+		var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}) +
+			var(${LOG_ACTOR_WIDTH_PROPERTY}) + var(${LOG_CHANGES_WIDTH_PROPERTY})
+	);
 	font-size: ${TEXT.meta}px;
 	color: ${GUI_THEME.secondary};
 	white-space: nowrap;
@@ -326,19 +377,37 @@ export const EVENT_LOG_STYLES = `
 	background: var(${LOG_DOT_COLOR_PROPERTY});
 }
 .${LOG_ACTOR_CLASS} {
-	display: inline-block;
-	width: var(${LOG_ACTOR_WIDTH_PROPERTY});
-	margin-right: 8px;
+	position: absolute;
+	top: 0;
+	left: calc(var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}));
+	width: calc(var(${LOG_ACTOR_WIDTH_PROPERTY}) - ${LOG_COLUMN_GAP_PX}px);
 	overflow: hidden;
 	text-overflow: ellipsis;
-	vertical-align: top;
+}
+.${LOG_CHANGES_CLASS} {
+	position: absolute;
+	top: 0;
+	left: calc(
+		var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}) +
+			var(${LOG_ACTOR_WIDTH_PROPERTY})
+	);
+	height: ${LOG_ROW_HEIGHT}px;
+	display: flex;
+	align-items: center;
 }
 .epiq-log--no-time {
 	${TIME_BLOCK_PROPERTY}: 0px;
 }
+.epiq-log--no-actor {
+	${LOG_ACTOR_WIDTH_PROPERTY}: 0px;
+}
+.epiq-log--no-changes {
+	${LOG_CHANGES_WIDTH_PROPERTY}: 0px;
+}
 .epiq-log--no-time .epiq-log-line::before,
 .epiq-log--no-kind .epiq-log-line::after,
-.epiq-log--no-actor .${LOG_ACTOR_CLASS} {
+.epiq-log--no-actor .${LOG_ACTOR_CLASS},
+.epiq-log--no-changes .${LOG_CHANGES_CLASS} {
 	display: none;
 }
 .epiq-log--no-kind {

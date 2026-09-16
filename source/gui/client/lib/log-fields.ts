@@ -8,7 +8,7 @@
 
 import {usePersistedFlag} from './use-persisted-flag';
 
-export type LogField = 'time' | 'actor' | 'kind' | 'label';
+export type LogField = 'time' | 'actor' | 'kind' | 'changes' | 'label';
 
 export type LogFields = Readonly<Record<LogField, boolean>>;
 
@@ -16,6 +16,7 @@ export const ALL_LOG_FIELDS: LogFields = {
 	time: true,
 	actor: true,
 	kind: true,
+	changes: true,
 	label: true,
 };
 
@@ -24,6 +25,7 @@ export const LOG_FIELD_ORDER: readonly LogField[] = [
 	'time',
 	'actor',
 	'kind',
+	'changes',
 	'label',
 ];
 
@@ -31,6 +33,7 @@ export const LOG_FIELD_NAMES: Readonly<Record<LogField, string>> = {
 	time: 'Time',
 	actor: 'Actor',
 	kind: 'Type',
+	changes: 'Changes',
 	label: 'Label',
 };
 
@@ -53,17 +56,22 @@ export const useLogFields = (): {
 	const [time, setTime] = usePersistedFlag(storageKeyFor('time'), true);
 	const [actor, setActor] = usePersistedFlag(storageKeyFor('actor'), true);
 	const [kind, setKind] = usePersistedFlag(storageKeyFor('kind'), true);
+	const [changes, setChanges] = usePersistedFlag(
+		storageKeyFor('changes'),
+		true,
+	);
 	const [label, setLabel] = usePersistedFlag(storageKeyFor('label'), true);
 
 	const setters: Record<LogField, (on: boolean) => void> = {
 		time: setTime,
 		actor: setActor,
 		kind: setKind,
+		changes: setChanges,
 		label: setLabel,
 	};
 
 	return {
-		fields: {time, actor, kind, label},
+		fields: {time, actor, kind, changes, label},
 		setField: (field, on) => setters[field](on),
 	};
 };
