@@ -168,7 +168,6 @@ export const ScrubberControls = ({
 			style={{
 				display: 'flex',
 				alignItems: 'center',
-				justifyContent: 'flex-end',
 				// The same gap between the groups as within the narrowing group.
 				gap: 10,
 				// Sized by the bar rather than by what is on it: the text filter is
@@ -178,6 +177,38 @@ export const ScrubberControls = ({
 				minWidth: 0,
 			}}
 		>
+			{/* First on the row, ahead of the periods: what the chart is redraws it
+			    whole, where a period only says how much of it to show. */}
+			<div style={{display: 'flex', gap: 2}}>
+				<IconButton
+					title="Volume per period"
+					aria-label="Volume"
+					pressed={layoutMode === 'even'}
+					disabled={!connected}
+					onClick={() => onChangeLayoutMode('even')}
+				>
+					<IconBars size={ICON_SIZE} />
+				</IconButton>
+				<IconButton
+					title="Events by moment and time of day"
+					aria-label="Events"
+					pressed={layoutMode === 'real'}
+					disabled={!connected}
+					onClick={() => onChangeLayoutMode('real')}
+				>
+					<IconScatter size={ICON_SIZE} />
+				</IconButton>
+				<IconButton
+					title="Flow between swimlanes, one line per ticket"
+					aria-label="Flow"
+					pressed={layoutMode === 'flow'}
+					disabled={!connected}
+					onClick={() => onChangeLayoutMode('flow')}
+				>
+					<IconFlow size={ICON_SIZE} />
+				</IconButton>
+			</div>
+
 			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
 				{narrow ? (
 					<ScopeSelect
@@ -209,8 +240,8 @@ export const ScrubberControls = ({
 
 						{/* Only ever the current state, never a way in: a window is zoomed by
 				    dragging one out on the chart, and left by naming any period to
-				    its left. It sits at the end of the row because it is not a period
-				    on the same scale as the rest.
+				    its left. It sits at the end of this group because it is not a
+				    period on the same scale as the rest.
 
 				    Faded rather than unmounted: the row must not shift by its width
 				    underneath the pointer as a zoom comes and goes. Its title carries
@@ -241,35 +272,9 @@ export const ScrubberControls = ({
 				)}
 			</div>
 
-			<div style={{display: 'flex', gap: 2}}>
-				<IconButton
-					title="Volume per period"
-					aria-label="Volume"
-					pressed={layoutMode === 'even'}
-					disabled={!connected}
-					onClick={() => onChangeLayoutMode('even')}
-				>
-					<IconBars size={ICON_SIZE} />
-				</IconButton>
-				<IconButton
-					title="Events by moment and time of day"
-					aria-label="Events"
-					pressed={layoutMode === 'real'}
-					disabled={!connected}
-					onClick={() => onChangeLayoutMode('real')}
-				>
-					<IconScatter size={ICON_SIZE} />
-				</IconButton>
-				<IconButton
-					title="Flow between swimlanes, one line per ticket"
-					aria-label="Flow"
-					pressed={layoutMode === 'flow'}
-					disabled={!connected}
-					onClick={() => onChangeLayoutMode('flow')}
-				>
-					<IconFlow size={ICON_SIZE} />
-				</IconButton>
-			</div>
+			{/* The row's slack, so the two controls that draw the chart sit at its
+			    left end and everything that narrows the board at its right. */}
+			<div aria-hidden style={{flex: '1 1 0', minWidth: 0}} />
 
 			<div
 				style={{
@@ -279,7 +284,7 @@ export const ScrubberControls = ({
 					gap: 10,
 					alignItems: 'center',
 					// Shrinkable past its content, which is what lets the text filter
-					// at its end give way on a tight row; nothing else in here can.
+					// in it give way on a tight row; nothing else in here can.
 					minWidth: 0,
 				}}
 			>
@@ -310,11 +315,13 @@ export const ScrubberControls = ({
 					onSetExpandedAxis={onSetExpandedAxis}
 				/>
 
-				{/* Beside the series checkboxes rather than by the scope row, so every
-			    narrowing on this bar is in one place. The window it lights is the
-			    one those buttons select — under "All" that is every event there
-			    is, which narrows nothing, so it goes flat instead of pretending
-			    to. */}
+				<TextFilterInput value={textFilter} onChange={onChangeTextFilter} />
+
+				{/* Last of the narrowings, past the series pickers and the query
+			    rather than off by the scope row, so they are all in one place.
+			    The window it lights is the one those buttons select — under
+			    "All" that is every event there is, which narrows nothing, so it
+			    goes flat instead of pretending to. */}
 				<SpotlightToggle
 					title={
 						ticketFocus
@@ -348,8 +355,6 @@ export const ScrubberControls = ({
 				activeColor={GUI_THEME.accent}
 				onChange={onChangeAllBoards}
 			/> */}
-
-				<TextFilterInput value={textFilter} onChange={onChangeTextFilter} />
 			</div>
 
 			{/* Present while live too, as an empty slot rather than a word: it sits

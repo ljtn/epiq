@@ -268,6 +268,10 @@ export const ScrubberLayout = ({
 						display: 'flex',
 						alignItems: 'center',
 						justifyContent: 'space-between',
+						// Wider than any gap inside the controls: the panel toggles are
+						// page chrome and the chart buttons begin right beside them, and
+						// two lit boxes touching would read as one group.
+						gap: 18,
 						// Holds the row's height when collapsing takes the controls out
 						// of it.
 						minHeight: 22,
