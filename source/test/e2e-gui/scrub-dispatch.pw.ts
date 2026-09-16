@@ -195,19 +195,18 @@ test('dragging the needle commits the position it ends on', async ({
 		return gripBox.x + gripBox.width / 2;
 	};
 
-	// The needle is placed against the window, and the scrub above fetches a
-	// fresh one — so where it sits has to be read after it has stopped moving.
-	// Pressing on yesterday's position lands beside the grip, and a press off
-	// the needle drags out a range instead of moving it.
-	let centre = await gripCentre();
+	// The drag below runs rightwards from where the click parked the needle,
+	// so that is where the needle has to be before it is pressed — not merely
+	// somewhere still. Resume lighting up is not enough: the needle has been
+	// seen parked at the live end with Resume lit, and two reads of that stale
+	// position agreed with each other, so the press landed there and the drag
+	// ran leftwards. Pressing on yesterday's position also lands beside the
+	// grip, and a press off the needle drags out a range instead of moving it.
+	const parkedAt = box.x + box.width * 0.2;
 	await expect
-		.poll(async () => {
-			const now = await gripCentre();
-			const settled = Math.abs(now - centre) < 1;
-			centre = now;
-			return settled;
-		})
+		.poll(async () => Math.abs((await gripCentre()) - parkedAt) < 12)
 		.toBe(true);
+	const centre = await gripCentre();
 
 	await page.mouse.move(centre, y);
 	await page.mouse.down();
