@@ -36,6 +36,12 @@ import {
 	LOG_ACTOR_WIDTH_PROPERTY,
 	LOG_DIFF_CLASS,
 	LOG_ARROW_CLASS,
+	LOG_LANES_CLASS,
+	LOG_LANE_ALL_CLASS,
+	LOG_LANE_COUNT_PROPERTY,
+	LOG_LANE_HEAD_CLASS,
+	LOG_LANE_PROPERTY,
+	LOG_SPLIT_CLASS,
 	LOG_DOT_COLOR_PROPERTY,
 	LOG_PANE_PADDING_X,
 	LOG_ROW_HEIGHT,
@@ -49,6 +55,13 @@ import {
 	logPaneClassName,
 	useLogFields,
 } from '../lib/log-fields';
+import {
+	laneIndexByName,
+	laneIndexOf,
+	LogLane,
+	logLanes,
+	useLogSplit,
+} from '../lib/log-lanes';
 import {Checkbox} from './Checkbox';
 import {DiffStat} from './DiffStat';
 import {
@@ -154,13 +167,20 @@ const DayDivider = ({
 const EventRow = ({
 	entry,
 	showLabel,
+	lane,
 }: {
 	entry: LogEntry;
 	showLabel: boolean;
+	// Which lane the row sits in while the log is split: a number, null on a
+	// line nobody signed — it spans them all — and undefined while the log is
+	// not split, which leaves the row exactly as it was.
+	lane?: number | null;
 }) => (
 	<div
 		data-testid="log-line"
-		className="epiq-log-line"
+		className={
+			lane === null ? `epiq-log-line ${LOG_LANE_ALL_CLASS}` : 'epiq-log-line'
+		}
 		data-time={formatTimeOfDay(new Date(entry.t))}
 		// A row is one clipped line, so a long label is cut off with nowhere to
 		// read the rest. Only the browser knows which rows are actually clipped,
@@ -171,7 +191,12 @@ const EventRow = ({
 		data-event-id={entry.id}
 		// Absent on a line that leads nowhere, which is what leaves it inert.
 		{...rowAttributes(entry)}
-		style={{[LOG_DOT_COLOR_PROPERTY]: entry.color} as React.CSSProperties}
+		style={
+			{
+				[LOG_DOT_COLOR_PROPERTY]: entry.color,
+				[LOG_LANE_PROPERTY]: lane ?? 0,
+			} as React.CSSProperties
+		}
 	>
 		{entry.actor && (
 			<span className={LOG_ACTOR_CLASS} style={{color: entry.actor.color}}>
@@ -192,10 +217,18 @@ const EventRow = ({
 const LogHeader = ({
 	fields,
 	onChangeField,
+	split,
+	onChangeSplit,
+	canSplit,
 	children,
 }: {
 	fields: LogFields;
 	onChangeField: (field: LogField, on: boolean) => void;
+	// One lane per actor rather than one column for everybody.
+	split: boolean;
+	onChangeSplit: (next: boolean) => void;
+	// False where the slice names nobody: there would be no lanes to draw.
+	canSplit: boolean;
 	// Whatever else the header carries, at its far end.
 	children?: React.ReactNode;
 }) => (
@@ -211,19 +244,69 @@ const LogHeader = ({
 			borderBottom: `1px solid ${GUI_THEME.line}`,
 		}}
 	>
-		{LOG_FIELD_ORDER.map(field => (
+		{LOG_FIELD_ORDER.map(field => {
+			// The name column is folded away while the log is split — the lane it
+			// is in says who — so its box stands down rather than claiming to show
+			// a column that is not there.
+			const spoken = field === 'actor' && split && canSplit;
+
+			return (
+				<Checkbox
+					key={field}
+					label={LOG_FIELD_NAMES[field]}
+					checked={fields[field] && !spoken}
+					disabled={spoken}
+					activeColor={GUI_THEME.secondary}
+					title={
+						spoken
+							? 'The lane says who'
+							: `${fields[field] ? 'Hide' : 'Show'} the ${LOG_FIELD_NAMES[
+									field
+							  ].toLowerCase()} on each line`
+					}
+					onChange={on => onChangeField(field, on)}
+				/>
+			);
+		})}
+		{/* Not one of the fields, and set apart from them: those say what a line
+		    shows, this says where the line is put. */}
+		<span
+			style={{
+				display: 'inline-flex',
+				alignItems: 'center',
+				paddingLeft: 12,
+				borderLeft: `1px solid ${GUI_THEME.line}`,
+				height: 14,
+			}}
+		>
 			<Checkbox
-				key={field}
-				label={LOG_FIELD_NAMES[field]}
-				checked={fields[field]}
+				label="Split"
+				checked={split && canSplit}
+				disabled={!canSplit}
 				activeColor={GUI_THEME.secondary}
-				title={`${fields[field] ? 'Hide' : 'Show'} the ${LOG_FIELD_NAMES[
-					field
-				].toLowerCase()} on each line`}
-				onChange={on => onChangeField(field, on)}
+				title={
+					canSplit
+						? 'Give each actor a lane of their own'
+						: 'Nobody signed these lines'
+				}
+				onChange={onChangeSplit}
 			/>
-		))}
+		</span>
+
 		<span style={{marginLeft: 'auto', display: 'inline-flex'}}>{children}</span>
+	</div>
+);
+
+// Who each lane is, across the top of the pane. The lines scroll under it —
+// see the sticky rule in EVENT_LOG_STYLES — because a lane is only a position
+// until something names it, and the name column is folded away while split.
+const LaneHeadings = ({lanes}: {lanes: readonly LogLane[]}) => (
+	<div data-testid="log-lane-heads" className={LOG_LANE_HEAD_CLASS} aria-hidden>
+		{lanes.map(lane => (
+			<span key={lane.name} style={{color: lane.color}} title={lane.name}>
+				{lane.name}
+			</span>
+		))}
 	</div>
 );
 
@@ -262,6 +345,7 @@ const EventLogPanel = ({
 }) => {
 	const animate = !usePrefersReducedMotion();
 	const {fields, setField} = useLogFields();
+	const [splitWanted, setSplitWanted] = useLogSplit();
 	const scrollRef = useRef<HTMLDivElement | null>(null);
 	const columnRef = useRef<HTMLDivElement | null>(null);
 
@@ -275,6 +359,13 @@ const EventLogPanel = ({
 	// during a movie is every animation frame.
 	const days = useMemo(() => groupByDay(entries), [entries]);
 	const actorChars = useMemo(() => actorColumnChars(entries), [entries]);
+
+	// The lanes are the actors in the slice on screen, so they follow it as the
+	// moment moves rather than standing for a board nobody in this window
+	// touched — see lib/log-lanes.
+	const lanes = useMemo(() => logLanes(entries), [entries]);
+	const laneIndexes = useMemo(() => laneIndexByName(lanes), [lanes]);
+	const split = splitWanted && lanes.length > 0;
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
 	// How many rows the pane has room for, so the days opened by default fill it
@@ -417,6 +508,19 @@ const EventLogPanel = ({
 		// positioned in too — so it rides the scroll with the row it is on.
 		if (row) arrow.style.top = `${row.offsetTop}px`;
 		arrow.style.opacity = row ? '1' : '0';
+
+		// Split, a row ends at its own lane rather than at the pane, so the arrow
+		// goes to the end of the line instead of to the far right, where it would
+		// hang over lanes the row has nothing to do with.
+		if (row && split) {
+			arrow.style.right = 'auto';
+			arrow.style.left = `${
+				row.offsetLeft + row.offsetWidth - arrow.offsetWidth
+			}px`;
+		} else if (!split) {
+			arrow.style.right = '';
+			arrow.style.left = '';
+		}
 	};
 
 	// Dragged to size from its board-side edge and remembered, as the ticket
@@ -447,6 +551,8 @@ const EventLogPanel = ({
 					background: GUI_THEME.panel,
 					// The name column's width, for every row at once.
 					[LOG_ACTOR_WIDTH_PROPERTY]: actorColumnWidth(actorChars),
+					// How many lanes the pane divides into while it is split.
+					[LOG_LANE_COUNT_PROPERTY]: lanes.length,
 				} as React.CSSProperties
 			}
 		>
@@ -461,7 +567,13 @@ const EventLogPanel = ({
 				/>
 			)}
 
-			<LogHeader fields={fields} onChangeField={setField}>
+			<LogHeader
+				fields={fields}
+				onChangeField={setField}
+				split={splitWanted}
+				onChangeSplit={setSplitWanted}
+				canSplit={lanes.length > 0}
+			>
 				{onPopOut && (
 					<IconButton
 						testId="log-pop-out"
@@ -484,7 +596,11 @@ const EventLogPanel = ({
 
 			<div
 				ref={scrollRef}
-				className={`epiq-log-pane ${logPaneClassName(fields)}`.trim()}
+				className={`epiq-log-pane ${logPaneClassName(
+					split ? {...fields, actor: false} : fields,
+				)} ${split ? LOG_SPLIT_CLASS : ''}`
+					.replace(/\s+/g, ' ')
+					.trim()}
 				onScroll={onScroll}
 				onClick={event => {
 					const destination = readDestination(event.target);
@@ -536,6 +652,8 @@ const EventLogPanel = ({
 					<IconArrowUpRight size={11} />
 				</span>
 
+				{split && <LaneHeadings lanes={lanes} />}
+
 				{/* Holds a short log at the foot of the panel, so the newest line is
 				    always in the same place however few of them there are. */}
 				<div ref={columnRef} style={{marginTop: 'auto'}}>
@@ -559,14 +677,20 @@ const EventLogPanel = ({
 
 								{/* A folded day is its divider and nothing else: no rows are
 								    built for it, so what the panel costs is what is open. */}
-								{open &&
-									day.entries.map(entry => (
-										<EventRow
-											key={entry.id}
-											entry={entry}
-											showLabel={fields.label}
-										/>
-									))}
+								{open && (
+									<div className={split ? LOG_LANES_CLASS : undefined}>
+										{day.entries.map(entry => (
+											<EventRow
+												key={entry.id}
+												entry={entry}
+												showLabel={fields.label}
+												lane={
+													split ? laneIndexOf(entry, laneIndexes) : undefined
+												}
+											/>
+										))}
+									</div>
+								)}
 							</div>
 						);
 					})}
