@@ -5,10 +5,8 @@
 
 import {GUI_THEME} from '../lib/gui-theme';
 import {
-	formatPeriodLabel,
 	isPeriodWindow,
 	LayoutMode,
-	PeriodRange,
 	Scope,
 	scopeButtonLabel,
 	SCOPES,
@@ -20,8 +18,6 @@ import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
 import {IconButton, ICON_SIZE} from './IconButton';
-import {IconChevronLeft} from './IconChevronLeft';
-import {IconChevronRight} from './IconChevronRight';
 import {IconFlashlight} from './IconFlashlight';
 import {IconFlow} from './IconFlow';
 import {IconLog} from './IconLog';
@@ -68,10 +64,7 @@ const headerButtonStyle: React.CSSProperties = {
 export const ScrubberControls = ({
 	connected,
 	scope,
-	offset,
-	periodRange,
 	zoomed,
-	atLatest,
 	windowOnly,
 	windowFilterable,
 	canPlay,
@@ -98,7 +91,6 @@ export const ScrubberControls = ({
 	isScrubbing,
 	onReturnToLive,
 	onChangeScope,
-	onChangeOffset,
 	onChangeWindowOnly,
 	onChangeLayoutMode,
 	onChangeShowIssues,
@@ -114,14 +106,9 @@ export const ScrubberControls = ({
 	// than moving the selection over a chart that cannot follow.
 	connected: boolean;
 	scope: Scope;
-	offset: number;
-	periodRange: PeriodRange | null;
 	// The window was dragged out on the chart, so it is none of the periods the
 	// scope row lists and a seventh option stands for it instead.
 	zoomed: boolean;
-	// The window already reaches the present, so there is nothing later to page
-	// to.
-	atLatest: boolean;
 	// The board is narrowed to the tickets this window has an event for.
 	windowOnly: boolean;
 	canPlay: boolean;
@@ -163,7 +150,6 @@ export const ScrubberControls = ({
 	isScrubbing: boolean;
 	onReturnToLive: () => void;
 	onChangeScope: (scope: Scope) => void;
-	onChangeOffset: (offset: number) => void;
 	onChangeWindowOnly: (next: boolean) => void;
 	onChangeLayoutMode: (mode: LayoutMode) => void;
 	onChangeShowIssues: (next: boolean) => void;
@@ -183,8 +169,7 @@ export const ScrubberControls = ({
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'flex-end',
-				// The same gap between the groups as within the narrowing group:
-				// the row fits a laptop's width with the pager up by a few pixels.
+				// The same gap between the groups as within the narrowing group.
 				gap: 10,
 				// Sized by the bar rather than by what is on it: the text filter is
 				// the one control here that gives when the row is tight, and a row
@@ -194,48 +179,6 @@ export const ScrubberControls = ({
 			}}
 		>
 			<div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-				{(scope !== 'all' || zoomed || ticketFocus) && (
-					<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
-						<IconButton
-							title={
-								ticketFocus ? 'No paging while narrowed to a ticket' : 'Earlier'
-							}
-							aria-label="Earlier"
-							disabled={!connected || ticketFocus}
-							onClick={() => onChangeOffset(offset + 1)}
-						>
-							<IconChevronLeft size={ICON_SIZE} />
-						</IconButton>
-						<span
-							style={{
-								fontSize: 10,
-								color: GUI_THEME.dim,
-								whiteSpace: 'nowrap',
-								overflow: 'hidden',
-								// Fixed, not min, so the changing label never shifts the
-								// buttons around it.
-								width: 88,
-								flexShrink: 0,
-								textAlign: 'center',
-							}}
-						>
-							{formatPeriodLabel(
-								scope,
-								offset,
-								periodRange,
-								zoomed || ticketFocus,
-							)}
-						</span>
-						<IconButton
-							title="Later"
-							disabled={atLatest || !connected || ticketFocus}
-							onClick={() => onChangeOffset(offset - 1)}
-						>
-							<IconChevronRight size={ICON_SIZE} />
-						</IconButton>
-					</div>
-				)}
-
 				{narrow ? (
 					<ScopeSelect
 						scope={scope}
@@ -269,8 +212,7 @@ export const ScrubberControls = ({
 				    its left. It sits at the end of the row because it is not a period
 				    on the same scale as the rest.
 
-				    Faded rather than unmounted, the way the pager's ▶ sits out a
-				    period it cannot go to: the row must not shift by its width
+				    Faded rather than unmounted: the row must not shift by its width
 				    underneath the pointer as a zoom comes and goes. Its title carries
 				    the gesture, since a button nobody can press has to say why.
 

@@ -257,6 +257,28 @@ export const FADE_IN_ANIMATION = 'epiqScrubberFadeIn 320ms ease-out';
 
 // The one exception to this codebase's inline-style-only convention:
 // @keyframes cannot be expressed as a React style object.
+// The chart's own pager: an arrow off either end of the track, there only
+// while the pointer is over the chart or one of them has been reached by
+// keyboard, so the chart carries no chrome until it is being used. Keyboard
+// focus specifically: a click leaves the button focused too, and the arrow
+// would otherwise stay lit after the pointer had gone.
+export const PAGE_ARROW_CLASS = 'epiq-scrubber-page';
+export const PAGED_TRACK_CLASS = 'epiq-scrubber-paged';
+
+export const SCRUBBER_PAGER_STYLES = `
+	.${PAGE_ARROW_CLASS} {
+		opacity: 0;
+		transition: opacity 120ms ease;
+	}
+	.${PAGED_TRACK_CLASS}:hover .${PAGE_ARROW_CLASS},
+	.${PAGE_ARROW_CLASS}:has(:focus-visible) {
+		opacity: 1;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.${PAGE_ARROW_CLASS} { transition: none; }
+	}
+`;
+
 export const SCRUBBER_KEYFRAMES = `
 	/* Must animate the standalone 'scale' property, not 'transform': the dots
 	   carry a 'transform: translate(...)' to centre themselves, and animating

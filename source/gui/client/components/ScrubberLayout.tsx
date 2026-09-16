@@ -22,7 +22,10 @@ import {
 	SCOPED_OUTLINE_COLOR,
 	SCOPED_OUTLINE_INSET_X,
 	SCOPED_OUTLINE_INSET_Y,
+	PAGE_ARROW_CLASS,
+	PAGED_TRACK_CLASS,
 	SCRUBBER_KEYFRAMES,
+	SCRUBBER_PAGER_STYLES,
 	Segment,
 	SeriesPresence,
 	TRACK_HEIGHT,
@@ -30,6 +33,9 @@ import {
 	VolumeBar,
 	SegmentBoundary,
 } from '../lib/scrubber';
+import {IconButton, ICON_BUTTON_SIZE, ICON_SIZE} from './IconButton';
+import {IconChevronLeft} from './IconChevronLeft';
+import {IconChevronRight} from './IconChevronRight';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {ScatterCanvas, ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {FlowCanvas, FlowHover} from './FlowCanvas';
@@ -64,6 +70,42 @@ const dotAnimation = (key: string, animate: boolean, leaving: boolean) =>
 		? dotExitAnimation(key)
 		: dotAppearAnimation(key);
 
+// One end of the chart's pager. Its own pointer events stop here: the track
+// behind it reads a press as the corner of a range and a move as a hover.
+const PageArrow = ({
+	side,
+	onPage,
+}: {
+	side: 'earlier' | 'later';
+	onPage: () => void;
+}) => (
+	<span
+		className={PAGE_ARROW_CLASS}
+		onPointerDown={event => event.stopPropagation()}
+		onMouseMove={event => event.stopPropagation()}
+		style={{
+			position: 'absolute',
+			top: '50%',
+			[side === 'earlier' ? 'left' : 'right']: -(ICON_BUTTON_SIZE + 4),
+			transform: 'translateY(-50%)',
+			display: 'inline-flex',
+			cursor: 'default',
+		}}
+	>
+		<IconButton
+			testId={side === 'earlier' ? 'page-earlier' : 'page-later'}
+			title={side === 'earlier' ? 'Earlier' : 'Later'}
+			onClick={onPage}
+		>
+			{side === 'earlier' ? (
+				<IconChevronLeft size={ICON_SIZE} />
+			) : (
+				<IconChevronRight size={ICON_SIZE} />
+			)}
+		</IconButton>
+	</span>
+);
+
 export type HintContent = {
 	label: string;
 	rows: string[];
@@ -87,10 +129,20 @@ export type ScrubberChartHandlers = {
 	onFlowPathLeave: () => void;
 	onPressFlowPath: (issue: string | null) => void;
 	onPressCommit: (sha: string | null) => void;
+	// Paging the window from the chart's ends.
+	onPageEarlier: () => void;
+	onPageLater: () => void;
 };
 
 export type ScrubberChart = {
 	trackRef: React.RefObject<HTMLDivElement | null>;
+	// The wrapper round both charts, which a horizontal wheel over pages the
+	// window — the listener is native, for the preventDefault React's cannot
+	// give, so it is attached by ref.
+	pageRef: React.RefObject<HTMLDivElement | null>;
+	// Which way the window can be paged, and what to call the one on screen
+	// when the scope buttons do not already say — null while they do.
+	paging: {earlier: boolean; later: boolean; label: string | null};
 	axis: ScrubberAxis;
 	layoutMode: LayoutMode;
 	animate: boolean;
@@ -202,6 +254,7 @@ export const ScrubberLayout = ({
 			}}
 		>
 			<style>{SCRUBBER_KEYFRAMES}</style>
+			<style>{SCRUBBER_PAGER_STYLES}</style>
 
 			<div
 				style={{
@@ -273,6 +326,8 @@ export const ScrubberLayout = ({
 					// the pair — the gap included — counts as one timeline.
 					<div
 						data-testid="scrubber-track"
+						ref={chart.pageRef}
+						className={PAGED_TRACK_CLASS}
 						onPointerDown={on.onPointerDown}
 						onPointerMove={on.onPointerMove}
 						onPointerUp={on.onPointerEnd}
@@ -519,6 +574,40 @@ export const ScrubberLayout = ({
 								stripeColor={GUI_THEME.green}
 								trackWidthPx={chart.trackWidthPx}
 							/>
+						)}
+
+						{/* The pager, off either end of the track in the panel's own
+						    margin, so it covers no data. Shown while the chart is
+						    hovered — see SCRUBBER_PAGER_STYLES — and only the way the
+						    window can actually go. */}
+						{chart.paging.earlier && (
+							<PageArrow side="earlier" onPage={on.onPageEarlier} />
+						)}
+						{chart.paging.later && (
+							<PageArrow side="later" onPage={on.onPageLater} />
+						)}
+
+						{/* What the window is, where no scope button says: a stretch
+						    paged back to, dragged out, or cut to a ticket. Tucked into
+						    the track's top corner over whatever grain label lands there. */}
+						{chart.paging.label !== null && (
+							<span
+								data-testid="scrubber-window-label"
+								style={{
+									position: 'absolute',
+									top: 1,
+									right: 0,
+									padding: '0 0 0 4px',
+									fontSize: 8,
+									lineHeight: 1,
+									color: GUI_THEME.dim,
+									background: GUI_THEME.panel,
+									whiteSpace: 'nowrap',
+									pointerEvents: 'none',
+								}}
+							>
+								{chart.paging.label}
+							</span>
 						)}
 					</div>
 				)}
