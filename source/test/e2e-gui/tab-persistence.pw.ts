@@ -124,15 +124,23 @@ test('the comment count on a card still opens comments', async ({page}) => {
 	const count = card.getByTestId('ticket-comments');
 	await expect(count).toHaveText('1');
 
-	// Quiet chrome, like every other icon button: no ground until hovered, and
-	// no index number in front of the title.
+	// Quiet chrome, like every other icon button: no ground until hovered.
 	expect(
 		await count.evaluate(
 			node =>
 				(node as unknown as {style: {background: string}}).style.background,
 		),
 	).toBe('transparent');
-	await expect(card).not.toHaveText(/^\s*\d/);
+
+	// The index lives in the card's margin and takes no room from the title:
+	// it is placed against the card rather than laid out in its column.
+	const index = card.getByTestId('ticket-index');
+	await expect(index).toHaveText(/^\d+$/);
+	expect(
+		await index.evaluate(
+			node => (node as unknown as {style: {position: string}}).style.position,
+		),
+	).toBe('absolute');
 
 	await count.click();
 	await expect(page).toHaveURL(/tab=comments/);

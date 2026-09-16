@@ -19,6 +19,13 @@ import {User} from './User';
 // dwell, the comment count, the assignees — centre themselves on.
 const TITLE_LINE_HEIGHT = 16;
 
+// The card's padding, and the margin on the left that the index lives in:
+// wide enough for two figures, so the number sits in the card's edge rather
+// than in its column and never pushes the title.
+const CARD_PADDING_Y = 16;
+const CARD_PADDING_RIGHT = 18;
+const CARD_INDEX_MARGIN = 30;
+
 /** How long this ticket has sat in its lane, and how that reads beside its peers. */
 export type CardDwell = {ms: number; level: DwellLevel};
 
@@ -164,10 +171,12 @@ export const TicketCard = ({
 				// Roomier than a list row: a card is read, not scanned, and the
 				// air around its title is what keeps a column of them from
 				// running together.
-				padding: '14px 16px',
+				padding: `${CARD_PADDING_Y}px ${CARD_PADDING_RIGHT}px ${CARD_PADDING_Y}px ${CARD_INDEX_MARGIN}px`,
 				minHeight: '58px',
 				borderRadius: '8px',
 				marginBottom: 8,
+				// The index is placed against the card.
+				position: 'relative',
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
 				}`,
@@ -177,6 +186,28 @@ export const TicketCard = ({
 				animation: theatre ? THEATRE_CARD_IN_ANIMATION : undefined,
 			}}
 		>
+			{/* The card's number, in the margin the padding leaves on the left:
+			    positioned, so it takes no room from the title and a two-figure
+			    number costs the layout nothing. On the title's first line. */}
+			<span
+				data-testid="ticket-index"
+				aria-hidden
+				style={{
+					position: 'absolute',
+					left: 0,
+					top: CARD_PADDING_Y,
+					width: CARD_INDEX_MARGIN - 8,
+					lineHeight: `${TITLE_LINE_HEIGHT}px`,
+					textAlign: 'right',
+					fontSize: 10,
+					color: isSelected ? GUI_THEME.accent : GUI_THEME.dim,
+					fontVariantNumeric: 'tabular-nums',
+					pointerEvents: 'none',
+				}}
+			>
+				{index + 1}
+			</span>
+
 			<div
 				style={{
 					flex: 1,
