@@ -107,7 +107,7 @@ const onlyButtonStyle: React.CSSProperties = {
 	borderRadius: 4,
 	color: GUI_THEME.dim,
 	fontFamily: 'inherit',
-	fontSize: 9,
+	fontSize: 10,
 	lineHeight: 1,
 	padding: '2px 4px',
 	cursor: 'pointer',
@@ -146,7 +146,7 @@ const Radio = ({
 			background: 'transparent',
 			border: 'none',
 			padding: 0,
-			fontSize: 10,
+			fontSize: 11,
 			fontFamily: 'inherit',
 			color: selected ? color : GUI_THEME.dim,
 			cursor: disabled ? 'not-allowed' : 'pointer',
@@ -602,7 +602,7 @@ export const ScopeSelect = ({
 								padding: 0,
 								textAlign: 'left',
 								fontFamily: 'inherit',
-								fontSize: 10,
+								fontSize: 11,
 								cursor: 'pointer',
 								color:
 									!zoomed && scope === option

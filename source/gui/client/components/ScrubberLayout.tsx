@@ -245,7 +245,7 @@ export const ScrubberLayout = ({
 				borderLeft: 'none',
 				borderRight: 'none',
 				borderTop: 'none',
-				padding: '10px 30px',
+				padding: '18px 30px',
 				// Panel clips children to keep its glow inside its rounded corners,
 				// which would lop off the overhanging hint. Safe to disable only
 				// because this panel is square.
@@ -271,7 +271,7 @@ export const ScrubberLayout = ({
 						// The wells at either end carry the break between what draws the
 						// chart and what does not, so this is the same gap as between the
 						// groups of controls.
-						gap: 10,
+						gap: 20,
 						opacity: standDown ? 0.3 : 1,
 						transition: 'opacity 240ms ease',
 					}}

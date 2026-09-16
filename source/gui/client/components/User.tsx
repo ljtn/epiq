@@ -13,8 +13,8 @@ export const User = ({
 		key={user.id}
 		title={user.name}
 		style={{
-			width: 20,
-			height: 20,
+			width: 18,
+			height: 18,
 			borderRadius: '50%',
 			display: 'flex',
 			alignItems: 'center',
