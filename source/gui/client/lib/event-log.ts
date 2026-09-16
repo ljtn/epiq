@@ -75,6 +75,19 @@ export const buildLogEntries = (
 		})),
 	].sort((left, right) => left.t - right.t);
 
+// How wide the name column is, in characters: the longest name in the slice,
+// up to MAX_ACTOR_CHARS. Zero when nobody signed anything, which is a slice
+// with no name spans in it.
+export const actorColumnChars = (entries: readonly LogEntry[]): number => {
+	let widest = 0;
+
+	for (const entry of entries) {
+		if (entry.actor) widest = Math.max(widest, entry.actor.name.length);
+	}
+
+	return Math.min(widest, MAX_ACTOR_CHARS);
+};
+
 // How many lines the panel is handed. Well past what one pane shows, because
 // the pane scrolls and reaching back through it is the point — and because
 // folding, not this, is now what bounds the document: a folded day is one row
@@ -240,10 +253,17 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 // Which of them a row shows is the pane's say — see lib/log-fields — carried
 // as a class on it: the clock's column collapses to nothing when it is off,
 // and the dot goes with it into the gap the row keeps in front of its text.
-// That gap is the lead below, and closes only when both are off.
+// That gap is the lead below: room for the dot while it is drawn, a word
+// space after the clock once it is not, and nothing once the clock goes too.
 export const LOG_TIME_CHARS = 5;
 export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
 export const LOG_ACTOR_CLASS = 'epiq-log-actor';
+// The name is a column too, so the labels line up whoever signed each line.
+// Its width is the widest name in the slice, set on the pane by the panel —
+// see actorColumnChars — and never past this, so one long name cannot push
+// every label off the right edge; past it the name is cut with an ellipsis.
+export const LOG_ACTOR_WIDTH_PROPERTY = '--epiq-log-actor-width';
+export const MAX_ACTOR_CHARS = 18;
 const TIME_BLOCK_PROPERTY = '--epiq-log-time-block';
 const LEAD_PROPERTY = '--epiq-log-lead';
 const LOG_LEAD_PX = 14;
@@ -306,7 +326,12 @@ export const EVENT_LOG_STYLES = `
 	background: var(${LOG_DOT_COLOR_PROPERTY});
 }
 .${LOG_ACTOR_CLASS} {
-	margin-right: 6px;
+	display: inline-block;
+	width: var(${LOG_ACTOR_WIDTH_PROPERTY});
+	margin-right: 8px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	vertical-align: top;
 }
 .epiq-log--no-time {
 	${TIME_BLOCK_PROPERTY}: 0px;
@@ -315,6 +340,9 @@ export const EVENT_LOG_STYLES = `
 .epiq-log--no-kind .epiq-log-line::after,
 .epiq-log--no-actor .${LOG_ACTOR_CLASS} {
 	display: none;
+}
+.epiq-log--no-kind {
+	${LEAD_PROPERTY}: 1ch;
 }
 .epiq-log--no-time.epiq-log--no-kind {
 	${LEAD_PROPERTY}: 0px;

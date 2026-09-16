@@ -1,7 +1,9 @@
 import {describe, expect, it} from 'vitest';
 import {
+	actorColumnChars,
 	buildLogEntries,
 	daysToOpen,
+	MAX_ACTOR_CHARS,
 	groupByDay,
 	isDayOpen,
 	lastIndexAtOrBefore,
@@ -208,6 +210,31 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 	issue: null,
 	action: null,
 	sha: null,
+});
+
+describe('actorColumnChars', () => {
+	const signed = (id: string, name: string): LogEntry => ({
+		...row(id, 1),
+		actor: {name, color: '#abc'},
+	});
+
+	it('is the widest name in the slice', () => {
+		expect(
+			actorColumnChars([signed('a', 'jo'), signed('b', 'claude/tester')]),
+		).toBe('claude/tester'.length);
+	});
+
+	it('is zero when nobody signed anything', () => {
+		expect(actorColumnChars([row('a', 1)])).toBe(0);
+		expect(actorColumnChars([])).toBe(0);
+	});
+
+	// One long name must not push every label off the right edge.
+	it('is capped', () => {
+		expect(actorColumnChars([signed('a', 'x'.repeat(80))])).toBe(
+			MAX_ACTOR_CHARS,
+		);
+	});
 });
 
 describe('groupByDay', () => {

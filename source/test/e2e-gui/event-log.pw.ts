@@ -541,13 +541,47 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	expect(await pseudoDisplay('::before')).not.toBe('none');
 	expect(await pseudoDisplay('::after')).not.toBe('none');
 
+	// The names are a column, as wide as the widest of them: every span is
+	// that width, whatever its own name's length. (The seeded names happen to
+	// be equally long, so the column's width is checked against the pane's own
+	// figure rather than between spans; which name sets it is unit-tested.)
+	const actorColumn = (await page.evaluate(
+		`(() => {
+			const pane = document.querySelector('[data-testid="event-log-scroll"]');
+			const spans = [...document.querySelectorAll('.epiq-log-actor')];
+			return {
+				chars: getComputedStyle(pane).getPropertyValue('--epiq-log-actor-width').trim(),
+				widest: Math.max(...spans.map(span => span.textContent.length)),
+				widths: spans.map(span => Math.round(span.getBoundingClientRect().width)),
+			};
+		})()`,
+	)) as {chars: string; widest: number; widths: number[]};
+	expect(actorColumn.widths.length).toBeGreaterThan(1);
+	expect(actorColumn.chars).toBe(`${actorColumn.widest}ch`);
+	expect(new Set(actorColumn.widths).size).toBe(1);
+
+	// Where the text starts: the row's padding, which is what the clock's
+	// column and the dot's gap add up to.
+	const textInset = async () =>
+		parseFloat(
+			(await page.evaluate(
+				`getComputedStyle(document.querySelector('[data-testid="log-line"]')).paddingLeft`,
+			)) as string,
+		);
+
+	const withEverything = await textInset();
+
 	await header.getByLabel('Time', {exact: true}).click();
 	await expect.poll(() => pseudoDisplay('::before')).toBe('none');
 	// The dot moves up into the room the clock left, and the line with it.
 	expect(await pseudoDisplay('::after')).not.toBe('none');
+	const withoutClock = await textInset();
+	expect(withoutClock).toBeLessThan(withEverything);
 
+	// And the text moves left again once the dot goes: its gap is not kept.
 	await header.getByLabel('Type', {exact: true}).click();
 	await expect.poll(() => pseudoDisplay('::after')).toBe('none');
+	expect(await textInset()).toBeLessThan(withoutClock);
 
 	// With the name and the label both off, a line has nothing left to say.
 	await header.getByLabel('Actor', {exact: true}).click();
