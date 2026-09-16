@@ -101,8 +101,18 @@ test('a drag never starts a text selection', async ({
 });
 
 // Watches every scrub the page asks the server for, in order.
-const recordScrubs = async (page: Page): Promise<number[]> => {
-	const targets: number[] = [];
+// The scrubs the page sent, in order — and, beside them, every window the
+// server handed back, since a scrub's moment is a fraction of whichever window
+// the chart was drawing when it was asked for. A window landing mid-drag moves
+// the axis under the pointer, and the record of both is what says so when a
+// run fails: the assertion below prints it.
+type ScrubRecord = {
+	targets: number[];
+	windows: {earliest: number; latest: number; afterScrubs: number}[];
+};
+
+const recordScrubs = async (page: Page): Promise<ScrubRecord> => {
+	const record: ScrubRecord = {targets: [], windows: []};
 
 	await page.routeWebSocket(/\/ws/, ws => {
 		const server = ws.connectToServer();
@@ -112,7 +122,7 @@ const recordScrubs = async (page: Page): Promise<number[]> => {
 				typeof message === 'string' &&
 				message.includes('"type":"time-travel:scrub"')
 			) {
-				targets.push(
+				record.targets.push(
 					(JSON.parse(message) as {payload: {targetTime: number}}).payload
 						.targetTime,
 				);
@@ -120,10 +130,29 @@ const recordScrubs = async (page: Page): Promise<number[]> => {
 
 			server.send(message);
 		});
-		server.onMessage(message => ws.send(message));
+		server.onMessage(message => {
+			if (
+				typeof message === 'string' &&
+				message.startsWith('{"type":"timeline"')
+			) {
+				const {payload} = JSON.parse(message) as {
+					payload: {value?: {earliest: number; latest: number}};
+				};
+
+				if (payload.value) {
+					record.windows.push({
+						earliest: payload.value.earliest,
+						latest: payload.value.latest,
+						afterScrubs: record.targets.length,
+					});
+				}
+			}
+
+			ws.send(message);
+		});
 	});
 
-	return targets;
+	return record;
 };
 
 // The press dispatches immediately and the moves are throttled, so without the
@@ -133,7 +162,8 @@ test('dragging the needle commits the position it ends on', async ({
 	appUrl,
 	pageErrors,
 }) => {
-	const targets = await recordScrubs(page);
+	const record = await recordScrubs(page);
+	const {targets} = record;
 
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -156,6 +186,7 @@ test('dragging the needle commits the position it ends on', async ({
 	// drag's own requests are on one coordinate system and so comparable — the
 	// click that set the needle up is not.
 	targets.length = 0;
+	record.windows.length = 0;
 
 	const grip = page.getByTestId('scrubber-needle-grip');
 	const gripCentre = async () => {
@@ -192,7 +223,15 @@ test('dragging the needle commits the position it ends on', async ({
 	// how many of the moves the throttle passes is not fixed, and a release
 	// landing on a moment already asked for rightly has nothing to add.
 	expect(targets.length).toBeGreaterThan(0);
-	expect(targets[targets.length - 1]).toBe(Math.max(...targets));
+	// With the record alongside: a window that arrived partway through the
+	// drag (afterScrubs between 0 and the count) is an axis that moved under
+	// the pointer, which no fraction can be compared across.
+	expect(
+		targets[targets.length - 1],
+		`scrubs ${JSON.stringify(targets)}, windows ${JSON.stringify(
+			record.windows,
+		)}`,
+	).toBe(Math.max(...targets));
 
 	// A needle drag scrubs and nothing more: the window it was dragged across
 	// is the same one it started in.
@@ -210,7 +249,7 @@ test('a drag across the track zooms the window to it, without scrubbing', async 
 	appUrl,
 	pageErrors,
 }) => {
-	const targets = await recordScrubs(page);
+	const {targets} = await recordScrubs(page);
 
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
