@@ -8,7 +8,7 @@ import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {findAncestor} from '../../repository/node-repo.js';
 import {resolveAndPersistRankForMove} from '../../repository/rank.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRoot} from '../../storage/paths.js';
 
 export const reopenIssueCommand = async () => {
 	const userRes = resolveActorId();
@@ -51,7 +51,7 @@ export const reopenIssueCommand = async () => {
 	const previousParent = getState().nodes[previousParentId];
 	if (!previousParent) return failed('Previous parent no longer exists');
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 	const persistRoot = persistRootResult.value;
 

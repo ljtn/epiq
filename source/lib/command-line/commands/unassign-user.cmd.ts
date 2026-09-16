@@ -7,7 +7,7 @@ import {findAncestor} from '../../repository/node-repo.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
 import {getAssignableContributors} from './assignable-contributors.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRoot} from '../../storage/paths.js';
 
 export const unassignUserCommand = async () => {
 	const userRes = resolveActorId();
@@ -58,7 +58,7 @@ export const unassignUserCommand = async () => {
 		);
 	}
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
 	return materializeAndPersistAll(

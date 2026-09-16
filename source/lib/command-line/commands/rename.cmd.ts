@@ -4,7 +4,7 @@ import {resolveActorId} from '../../event/event-persist.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getCmdArg} from '../../state/cmd.state.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
-import {getPersistRootValue} from './persist-root.js';
+import {getPersistRoot} from '../../storage/paths.js';
 
 export const renameCommand = async () => {
 	const userRes = resolveActorId();
@@ -18,7 +18,7 @@ export const renameCommand = async () => {
 	const newName = getCmdArg();
 	if (!newName) return failed('Provide a title');
 
-	const persistRootResult = await getPersistRootValue();
+	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
 	return materializeAndPersistAll(

@@ -18,6 +18,7 @@ import {
 	IssueRef,
 	targetIds,
 	batchResult,
+	forEachTarget,
 } from './issue-targets.js';
 import {findWritableIssue} from './node-targets.js';
 
@@ -59,16 +60,7 @@ export async function addIssueTag(
 
 	// Tagging needs no rank, so every target that checks out goes into one
 	// persist, behind the tag's creation if it is new.
-	const outcome: ApiBatchOutcome = {done: [], failed: []};
-
-	for (const id of idsResult.value) {
-		const issueResult = findWritableIssue(id);
-		if (isFail(issueResult)) {
-			outcome.failed.push({id, ref: nodeRef(id), reason: issueResult.message});
-		} else {
-			outcome.done.push({id, ref: nodeRef(id)});
-		}
-	}
+	const outcome = forEachTarget(idsResult.value, findWritableIssue);
 
 	if (!input.issueIds && outcome.failed[0]) {
 		return failed(outcome.failed[0].reason);
