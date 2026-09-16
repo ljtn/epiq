@@ -1,37 +1,39 @@
 import {describe, expect, it} from 'vitest';
-import {actorDisplay, actorDisplayChars, MARK_CHARS} from './agent-identity';
+import {actorDisplay, actorDisplayChars} from './agent-identity';
 
 describe('actorDisplay', () => {
-	it('turns a provider prefix into a mark and gives the name its capital', () => {
+	it('drops an agent’s provider and keeps the slash', () => {
 		expect(actorDisplay('claude/peter')).toEqual({
-			label: 'Peter',
-			provider: 'claude',
+			label: '/peter',
+			isAgent: true,
 		});
-		expect(actorDisplay('codex/fred')).toEqual({
-			label: 'Fred',
-			provider: 'codex',
+		// Any provider, not a list of the ones we know.
+		expect(actorDisplay('gemini/ann')).toEqual({
+			label: '/ann',
+			isAgent: true,
 		});
 	});
 
 	it('leaves every other name as it is', () => {
-		expect(actorDisplay('jola')).toEqual({label: 'jola', provider: null});
+		expect(actorDisplay('jola')).toEqual({label: 'jola', isAgent: false});
 		expect(actorDisplay('Jonatan Lampa')).toEqual({
 			label: 'Jonatan Lampa',
-			provider: null,
+			isAgent: false,
 		});
-		// A slash alone is not a provider, and an unknown one is just a name.
-		expect(actorDisplay('gemini/ann')).toEqual({
-			label: 'gemini/ann',
-			provider: null,
+		// A prefix with nothing behind it, a name that is already bare, and a
+		// path-like name are none of them `provider/name`.
+		expect(actorDisplay('claude/')).toEqual({
+			label: 'claude/',
+			isAgent: false,
 		});
-		expect(actorDisplay('claude/')).toEqual({label: 'claude/', provider: null});
-		expect(actorDisplay('/peter')).toEqual({label: '/peter', provider: null});
+		expect(actorDisplay('/peter')).toEqual({label: '/peter', isAgent: false});
+		expect(actorDisplay('a/b/c')).toEqual({label: 'a/b/c', isAgent: false});
 	});
 });
 
 describe('actorDisplayChars', () => {
-	it('counts the label and the mark, not the prefix', () => {
-		expect(actorDisplayChars('claude/peter')).toBe('Peter'.length + MARK_CHARS);
+	it('counts what is written, not the prefix', () => {
+		expect(actorDisplayChars('claude/peter')).toBe('/peter'.length);
 		expect(actorDisplayChars('jola')).toBe(4);
 	});
 });

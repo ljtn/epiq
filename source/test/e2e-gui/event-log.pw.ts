@@ -562,16 +562,14 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	expect(actorColumn.cut).toBe(false);
 
 	// The seed's board events are signed claude/tester, which the log draws
-	// as Claude's mark and the name with its capital; the full name is kept
-	// in the title. The commits' author is a person and stays as written.
-	const agent = page.locator('.epiq-log-actor', {hasText: 'Tester'}).first();
-	await expect(agent).toHaveText('Tester');
+	// without its provider; the full name is kept in the title. The commits'
+	// author is a person and stays as written.
+	const agent = page.locator('.epiq-log-actor', {hasText: 'tester'}).first();
+	await expect(agent).toHaveText('/tester');
 	await expect(agent).toHaveAttribute('title', 'claude/tester');
-	await expect(agent.locator('.epiq-log-mark')).toHaveAttribute(
-		'data-provider',
-		'claude',
-	);
-	await expect(page.locator('.epiq-log-actor', {hasText: '/'})).toHaveCount(0);
+	await expect(
+		page.locator('.epiq-log-actor', {hasText: 'claude/'}),
+	).toHaveCount(0);
 	expect(actorColumn.chars).toContain(`${actorColumn.widest}ch`);
 	expect(new Set(actorColumn.widths).size).toBe(1);
 

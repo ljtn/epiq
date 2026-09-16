@@ -8,7 +8,7 @@
 // the slice does not.
 
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
-import {actorDisplayChars, MARK_CHARS} from './agent-identity';
+import {actorDisplayChars} from './agent-identity';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
 import {LOG_ROW_SELECTOR} from './log-destination';
@@ -25,7 +25,7 @@ export type LogEntry = {
 	// Who did it: the event's actor in their own colour, or a commit's author,
 	// who has no identity on the board and so wears the panel's own text colour.
 	// Null on an event nobody signed.
-	actor: {name: string; color: string} | null;
+	actor: {name: string} | null;
 	// What a commit did to the code, for the stat beside its subject. Null on
 	// a board event, which touched no file.
 	diff: {insertions: number; deletions: number} | null;
@@ -55,9 +55,7 @@ export const buildLogEntries = (
 			// The colour its dot already has on the scatter, so a kind reads the
 			// same in both places.
 			color: EVENT_CATEGORY_COLORS[categoryOf(event.action)],
-			actor: event.actor
-				? {name: event.actor.name, color: event.actor.color}
-				: null,
+			actor: event.actor ? {name: event.actor.name} : null,
 			diff: null,
 			issue: event.issue,
 			action: event.action,
@@ -70,7 +68,7 @@ export const buildLogEntries = (
 			t: commit.time,
 			label: commit.subject,
 			color: GUI_THEME.green,
-			actor: {name: commit.author, color: GUI_THEME.secondary},
+			actor: {name: commit.author},
 			diff: {insertions: commit.insertions, deletions: commit.deletions},
 			// A commit belongs to whichever ticket its subject is prefixed with,
 			// which the board resolves when the line is clicked — it already has to,
@@ -88,7 +86,7 @@ export const actorColumnChars = (entries: readonly LogEntry[]): number => {
 	let widest = 0;
 
 	for (const entry of entries) {
-		// As drawn, not as stored: an agent's name loses its prefix to a mark.
+		// As drawn, not as stored: an agent's name loses its provider prefix.
 		if (entry.actor) {
 			widest = Math.max(widest, actorDisplayChars(entry.actor.name));
 		}
@@ -283,7 +281,6 @@ export const LOG_TIME_CHARS = 5;
 export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
 export const LOG_ACTOR_CLASS = 'epiq-log-actor';
 // The provider's mark in front of an agent's name — see lib/agent-identity.
-export const LOG_MARK_CLASS = 'epiq-log-mark';
 export const LOG_DIFF_CLASS = 'epiq-log-diff';
 // The name is a column too, so the labels line up whoever signed each line.
 // It is as wide as the widest name in the slice — see actorColumnChars — set
@@ -379,18 +376,12 @@ export const EVENT_LOG_STYLES = `
 }
 .${LOG_ACTOR_CLASS} {
 	position: absolute;
+	color: ${GUI_THEME.dim};
 	top: 0;
 	left: calc(var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}));
 	width: calc(var(${LOG_ACTOR_WIDTH_PROPERTY}) - ${LOG_COLUMN_GAP_PX}px);
 	overflow: hidden;
 	text-overflow: ellipsis;
-}
-.${LOG_MARK_CLASS} {
-	display: inline-flex;
-	align-items: center;
-	height: ${LOG_ROW_HEIGHT}px;
-	width: ${MARK_CHARS}ch;
-	vertical-align: top;
 }
 .${LOG_DIFF_CLASS} {
 	display: inline-flex;
@@ -522,6 +513,10 @@ ${linkedRow(':hover')} {
    own lanes, further with each one. */
 .${LOG_LANE_HEAD_CLASS} > span {
 	flex: 0 0 var(${LOG_LANE_WIDTH_PROPERTY});
+	/* A heading, so it is read once and sits at the lines' own weight rather
+	   than at the signatures' quieter one. In nobody's colour either: the lane
+	   is the column, not the tint. */
+	color: ${GUI_THEME.secondary};
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
