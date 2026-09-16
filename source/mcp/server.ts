@@ -257,7 +257,7 @@ export const createMcpServer = () => {
 		'epiq_issue_create',
 		{
 			description:
-				'Create an Epiq issue. Optionally set description, tags, and assignees atomically in the same call instead of separate follow-up edits.',
+				'Create an Epiq issue in a swimlane: parentId is the swimlane id (epiq_swimlane_list), never a board id. Optionally set description, tags, and assignees atomically in the same call instead of separate follow-up edits.',
 			inputSchema: z.object({
 				title: z.string().min(1).max(MAX_TITLE_LENGTH),
 				parentId: z.string().min(1),
@@ -514,7 +514,7 @@ export const createMcpServer = () => {
 		'epiq_issue_move',
 		{
 			description:
-				'Move an Epiq issue to another swimlane, or many at once with issueIds — one call, an outcome per ticket',
+				'Move an Epiq issue to another swimlane (parentId is the swimlane id), or many at once with issueIds — one call, an outcome per ticket',
 			inputSchema: z.object({
 				issueId: z.string().min(1).optional(),
 				issueIds: z.array(z.string().min(1)).min(1).max(200).optional(),

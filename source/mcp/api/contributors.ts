@@ -15,7 +15,6 @@ import {loadEventActors, loadMergedEvents} from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {AppEvent} from '../../lib/event/event.model.js';
 import {filterEventsForBoard} from '../timeline-index.js';
-import {isTicketNode} from '../../lib/model/context.model.js';
 import {getStringColor} from '../../lib/utils/color.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
@@ -25,6 +24,7 @@ import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {findWritableIssue} from './node-targets.js';
 
 // A contributor node's name is written once at create.contributor and never
 // updated; the event log carries the current one.
@@ -157,11 +157,8 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Assign target must be an issue');
-	if (issue.readonly) return failed('Cannot assign readonly issue');
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
 
 	const targetId = input.self ? actorResult.value.userId : input.assigneeId;
 
@@ -509,11 +506,8 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Unassign target must be an issue');
-	if (issue.readonly) return failed('Cannot unassign readonly issue');
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
 
 	if (!stateResult.value.contributors[input.assigneeId]) {
 		return failed('Assignee not found');

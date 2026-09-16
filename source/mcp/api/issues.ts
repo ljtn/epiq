@@ -60,8 +60,8 @@ import {
 	targetIds,
 	batchResult,
 	forEachTarget,
-	findWritableIssue,
 } from './issue-targets.js';
+import {findWritableIssue, findWritableSwimlane} from './node-targets.js';
 
 type MoveIssueInput = ToolInput &
 	IssueTargets & {
@@ -286,6 +286,9 @@ export const createIssue = async (input: CreateIssueInput) => {
 		);
 	}
 
+	const laneResult = findWritableSwimlane(input.parentId);
+	if (isFail(laneResult)) return laneResult;
+
 	const rankResult = resolveAndPersistRankForCreate(
 		input.parentId,
 		actorResult.value,
@@ -465,8 +468,8 @@ export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
 
 	const issue = stateResult.value.nodes[input.issueId];
 
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Target node is not issue');
+	if (!issue || issue.isDeleted) return failed('Issue not found');
+	if (!isTicketNode(issue)) return failed('Target must be an issue');
 
 	if (issue.parentNodeId !== CLOSED_SWIMLANE_ID) {
 		return failed('Issue is not closed');
@@ -482,11 +485,9 @@ export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
 		return failed('Previous parent resolves to closed swimlane');
 	}
 
-	const previousParent = stateResult.value.nodes[previousParentId];
-
-	if (!previousParent) {
-		return failed('Previous parent no longer exists');
-	}
+	const previousParentResult = findWritableSwimlane(previousParentId);
+	if (isFail(previousParentResult)) return previousParentResult;
+	const previousParent = previousParentResult.value;
 
 	const rankResult = resolveAndPersistRankForMove(
 		previousParent.id,
@@ -531,6 +532,9 @@ const moveOne = (
 ) => {
 	const issueResult = findWritableIssue(id);
 	if (isFail(issueResult)) return issueResult;
+
+	const laneResult = findWritableSwimlane(input.parentId);
+	if (isFail(laneResult)) return laneResult;
 
 	const rankResult = resolveAndPersistRankForMove(
 		input.parentId,
@@ -649,11 +653,9 @@ export const editIssueDescription = async (
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Edit target must be an issue');
-	if (issue.readonly) return failed('Cannot edit readonly issue');
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
+	const issue = issueResult.value;
 
 	const overLongDescription = tooLong(
 		'Issue description',
@@ -706,11 +708,9 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Edit target must be an issue');
-	if (issue.readonly) return failed('Cannot edit readonly issue');
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
+	const issue = issueResult.value;
 
 	const title = sanitizeInlineText(input.title);
 

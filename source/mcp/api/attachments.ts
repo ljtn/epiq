@@ -4,7 +4,6 @@ import {ulid} from 'ulid';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {AppEvent} from '../../lib/event/event.model.js';
-import {isTicketNode} from '../../lib/model/context.model.js';
 import {
 	failed,
 	isFail,
@@ -12,6 +11,7 @@ import {
 	succeeded,
 } from '../../lib/model/result-types.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
+import {findWritableIssue} from './node-targets.js';
 import {
 	DEFAULT_ATTACHMENT_MAX_KB,
 	getAttachmentFileName,
@@ -82,11 +82,8 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Attachment target must be an issue');
-	if (issue.readonly) return failed('Cannot attach to readonly issue');
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
 
 	const bytesResult = readAttachmentBytes(input);
 	if (isFail(bytesResult)) return bytesResult;
@@ -160,13 +157,8 @@ export const deleteIssueAttachment = async (
 		return failed('You can only delete your own attachments');
 	}
 
-	const issue = stateResult.value.nodes[attachmentEvent.payload.issue];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Attachment target must be an issue');
-	if (issue.readonly) {
-		return failed('Cannot delete attachment on readonly issue');
-	}
+	const issueResult = findWritableIssue(attachmentEvent.payload.issue);
+	if (isFail(issueResult)) return issueResult;
 
 	const alreadyDeleted = stateResult.value.eventLog.some(
 		event =>

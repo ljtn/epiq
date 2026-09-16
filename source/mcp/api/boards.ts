@@ -5,7 +5,7 @@ import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {AppEvent, MovePosition} from '../../lib/event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
-import {isBoardNode, isSwimlaneNode} from '../../lib/model/context.model.js';
+import {isBoardNode} from '../../lib/model/context.model.js';
 import {
 	failed,
 	isFail,
@@ -27,6 +27,7 @@ import {
 	getActor,
 	getStateResult,
 } from './boot.js';
+import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
 type CreateBoardInput = ToolInput & {
 	title: string;
@@ -236,11 +237,8 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const board = stateResult.value.nodes[input.boardId];
-	if (!board) return failed('Board not found');
-	if (!isBoardNode(board)) return failed('Target parent must be a board');
-	if (board.readonly)
-		return failed('Cannot add a swimlane to a readonly board');
+	const boardResult = findWritableBoard(input.boardId);
+	if (isFail(boardResult)) return boardResult;
 
 	// Boards carry no forced readonly of their own, so unlike the issue and
 	// swimlane mutations this one has to check the scrub itself. Without it a
@@ -300,12 +298,9 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const swimlane = stateResult.value.nodes[input.swimlaneId];
-
-	if (!swimlane || swimlane.isDeleted) return failed('Swimlane not found');
-	if (!isSwimlaneNode(swimlane))
-		return failed('Edit target must be a swimlane');
-	if (swimlane.readonly) return failed('Cannot edit readonly swimlane');
+	const swimlaneResult = findWritableSwimlane(input.swimlaneId);
+	if (isFail(swimlaneResult)) return swimlaneResult;
+	const swimlane = swimlaneResult.value;
 
 	const title = sanitizeInlineText(input.title);
 	if (!title.trim()) return failed('Swimlane title cannot be empty');
@@ -370,6 +365,12 @@ export const moveSwimlane = async (
 	);
 	if (isFail(bootStateResult)) return bootStateResult;
 
+	const laneResult = findWritableSwimlane(input.swimlaneId);
+	if (isFail(laneResult)) return laneResult;
+
+	const boardResult = findWritableBoard(input.boardId);
+	if (isFail(boardResult)) return boardResult;
+
 	const rankResult = resolveAndPersistRankForMove(
 		input.boardId,
 		input.swimlaneId,
@@ -414,12 +415,8 @@ export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const swimlane = stateResult.value.nodes[input.swimlaneId];
-
-	if (!swimlane) return failed('Swimlane not found');
-	if (!isSwimlaneNode(swimlane)) {
-		return failed('Delete target must be a swimlane');
-	}
+	const swimlaneResult = findWritableSwimlane(input.swimlaneId);
+	if (isFail(swimlaneResult)) return swimlaneResult;
 
 	const event = {
 		id: ulid(),

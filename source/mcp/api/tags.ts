@@ -1,7 +1,6 @@
 import {ulid} from 'ulid';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {AppEvent} from '../../lib/event/event.model.js';
-import {isTicketNode} from '../../lib/model/context.model.js';
 import {
 	failed,
 	isFail,
@@ -19,8 +18,8 @@ import {
 	IssueRef,
 	targetIds,
 	batchResult,
-	findWritableIssue,
 } from './issue-targets.js';
+import {findWritableIssue} from './node-targets.js';
 
 type AddIssueTagInput = ToolInput &
 	IssueTargets & {
@@ -218,11 +217,8 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Untag target must be an issue');
-	if (issue.readonly) return failed('Cannot untag readonly issue');
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
 
 	if (!stateResult.value.tags[input.tagId]) {
 		return failed('Tag not found');

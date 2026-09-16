@@ -1,4 +1,3 @@
-import {Ticket, isTicketNode} from '../../lib/model/context.model.js';
 import {
 	isFail,
 	failed,
@@ -7,7 +6,6 @@ import {
 } from '../../lib/model/result-types.js';
 import {ApiBatchOutcome} from '../api-state.model.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
-import {getStateResult} from './boot.js';
 
 // One ticket or many. issueIds asks for a per-ticket outcome; issueId alone
 // keeps the single answer.
@@ -67,18 +65,6 @@ export const forEachTarget = (
 	}
 
 	return outcome;
-};
-
-export const findWritableIssue = (id: string): Result<Ticket> => {
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const issue = stateResult.value.nodes[id];
-	if (!issue || issue.isDeleted) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Target must be an issue');
-	if (issue.readonly) return failed('Issue is readonly');
-
-	return succeeded('Found issue', issue);
 };
 
 export type IssueRef = {id: string; ref: string};

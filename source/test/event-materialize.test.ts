@@ -165,6 +165,37 @@ describe('event materialize', () => {
 		expect(nodeRepo.getNode(IDS.issue)?.parentNodeId).toBe(IDS.swimlaneDoing);
 	});
 
+	// The door refuses a non-swimlane parent; replay must not, or a log written
+	// before the guard would lose the ticket and every event after it.
+	it('replays an issue filed under a board, and its move into a lane', () => {
+		setupWorkspace();
+
+		const strayId = '01H00000000000000000000006';
+
+		expectOk(
+			materialize(
+				event('add.issue', {
+					id: strayId,
+					name: 'Filed under the board',
+					parent: IDS.board,
+					rank: rank(),
+				}),
+			),
+		);
+		expect(nodeRepo.getNode(strayId)?.parentNodeId).toBe(IDS.board);
+
+		expectOk(
+			materialize(
+				event('move.node', {
+					id: strayId,
+					parent: IDS.swimlaneTodo,
+					rank: rank(),
+				}),
+			),
+		);
+		expect(nodeRepo.getNode(strayId)?.parentNodeId).toBe(IDS.swimlaneTodo);
+	});
+
 	it('closes an issue by moving it to the closed swimlane', () => {
 		setupWorkspace();
 
