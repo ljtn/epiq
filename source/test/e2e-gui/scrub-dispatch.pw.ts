@@ -13,6 +13,22 @@ const returnToLive = async (page: Page) => {
 	}
 };
 
+// The chart with its window drawn. The board's name shows before the window
+// has been fetched and paired, and until then the axis is a single instant —
+// a span of exactly 1, the floor buildAxis gives an empty one: a click
+// anywhere on it asks for now, which the server checks out, parking the
+// needle at the live end with Resume lit. Every test that clicks the track
+// for a moment waits for this first.
+const trackWithWindow = async (page: Page) => {
+	const track = page.getByTestId('scrubber-track');
+
+	await expect
+		.poll(async () => Number(await track.getAttribute('data-axis-span')))
+		.toBeGreaterThan(1);
+
+	return track;
+};
+
 // Every scrub makes the server check out the whole event log and answer with a
 // full state broadcast, so a duplicate is not just a wasted frame.
 test('a click on the track asks the server to scrub once', async ({
@@ -41,8 +57,7 @@ test('a click on the track asks the server to scrub once', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	const track = page.getByTestId('scrubber-track');
-	await expect(track).toBeVisible();
+	const track = await trackWithWindow(page);
 
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
@@ -168,19 +183,11 @@ test('dragging the needle commits the position it ends on', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 
 	const y = box.y + box.height / 2;
-
-	// Not before the chart has its window: the board's name shows before the
-	// window has been fetched and paired, and until then the axis is a single
-	// instant, so a click at 20 % asks for now and parks the needle at the
-	// live end — which is where a drag meant to run rightwards then starts.
-	await expect
-		.poll(async () => Number(await track.getAttribute('data-axis-span')))
-		.toBeGreaterThan(1000);
 
 	// The needle parks at the right edge while live, so it has to be put
 	// somewhere draggable first.
@@ -330,7 +337,7 @@ test('the needle is not drawn for a moment the window does not contain', async (
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const needle = page.getByTestId('scrubber-needle-grip');
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 
@@ -344,6 +351,17 @@ test('the needle is not drawn for a moment the window does not contain', async (
 		page.getByRole('button', {name: 'Resume', exact: true}),
 	).toBeEnabled();
 	await expect(needle).toBeVisible();
+	// And at the click, not at the live end: the zoom below is placed to the
+	// right of it, and a needle parked at the end would leave the window on
+	// the other side and pass the check for the wrong reason.
+	await expect
+		.poll(async () => {
+			const grip = await needle.boundingBox();
+			return grip
+				? Math.abs(grip.x + grip.width / 2 - (box.x + box.width * 0.2)) < 12
+				: false;
+		})
+		.toBe(true);
 
 	// A stretch well to the right of where the board is parked. Zooming rather
 	// than naming a period keeps this independent of when the seed data was
