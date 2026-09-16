@@ -76,6 +76,12 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 
 	await waitForDiffHeader(page);
 
+	// The commit track goes, which lifts the panel by its height: the list
+	// hangs a fixed distance below the bar, and with both tracks up it reaches
+	// the panel's top edge by a pixel — an overlap that any change to the bar's
+	// own height takes away, leaving the test green over nothing.
+	await page.getByTitle('Show commits').click();
+
 	await page.getByRole('button', {name: 'Board', exact: true}).click();
 	await expect(
 		page.getByRole('group', {name: 'Filter the board'}),
