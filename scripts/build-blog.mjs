@@ -64,8 +64,8 @@ const SOCIAL_EXTS = [".jpg", ".jpeg", ".png", ".gif"];
  * versioned because crawlers cache by URL: a new picture at the old name leaves
  * every preview already in the wild showing the old one. */
 const SITE_CARD = {
-	url: `${BASE_URL}/og-timeline.jpeg`,
-	alt: "The Epiq board in the browser, its time-travel timeline plotting a week of board events above the columns",
+	url: `${BASE_URL}/og-diff.jpeg`,
+	alt: "The Epiq board in the browser, a done ticket beside the diff that closed it, with the time-travel timeline plotting board events above",
 	...OG_SIZE,
 };
 
@@ -273,7 +273,28 @@ ${body}
 
 		<footer class="footer">
 			<div class="wrap footer-inner">
-				<div><code>:wq</code> and move on.</div>
+				<div class="footer-brand">
+					<a class="brand" href="${up}index.html" aria-label="Epiq home"
+						><span><span class="accent">:</span>epiq</span></a
+					>
+					<p>Git-native issue tracking.</p>
+				</div>
+				<div class="footer-cols">
+					<div class="footer-col">
+						<div class="footer-head">Read</div>
+						<a href="${up}docs.html">Docs</a>
+						<a href="${up}blog.html">Blog</a>
+						<a href="${up}releases.html">Releases</a>
+					</div>
+					<div class="footer-col">
+						<div class="footer-head">Project</div>
+						<a href="https://github.com/ljtn/epiq" rel="noopener">GitHub</a>
+						<a href="https://www.npmjs.com/package/epiq" rel="noopener">npm</a>
+					</div>
+				</div>
+			</div>
+			<div class="wrap footer-foot">
+				<span>Open source under the MIT license.</span>
 			</div>
 		</footer>
 
