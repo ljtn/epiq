@@ -30,7 +30,9 @@ import {
 	groupByDay,
 	isDayOpen,
 	LogEntry,
+	actorColumnChars,
 	LOG_ACTOR_CLASS,
+	LOG_ACTOR_WIDTH_PROPERTY,
 	LOG_ARROW_CLASS,
 	LOG_DOT_COLOR_PROPERTY,
 	LOG_PANE_PADDING_X,
@@ -263,6 +265,7 @@ const EventLogPanel = ({
 	// Walked when the log moves, not when the board beside it repaints — which
 	// during a movie is every animation frame.
 	const days = useMemo(() => groupByDay(entries), [entries]);
+	const actorChars = useMemo(() => actorColumnChars(entries), [entries]);
 	const newestId = entries[entries.length - 1]?.id ?? null;
 
 	// How many rows the pane has room for, so the days opened by default fill it
@@ -490,24 +493,28 @@ const EventLogPanel = ({
 					onHoverEvent?.(null);
 				}}
 				data-testid="event-log-scroll"
-				style={{
-					flex: 1,
-					minHeight: 0,
-					overflowY: 'auto',
-					overflowX: 'hidden',
-					// The arrow is placed against this, in the column's own
-					// coordinates rather than the window's.
-					position: 'relative',
-					// A column, so the block below can push itself down with an auto
-					// margin. `justify-content: flex-end` would do the same until the
-					// content overflowed, at which point it puts the overflow above the
-					// scrollable area, where it cannot be reached.
-					display: 'flex',
-					flexDirection: 'column',
-					padding: `0 ${LOG_PANE_PADDING_X}px ${
-						bottomClearance + LOG_ROW_HEIGHT * 2
-					}px 30px`,
-				}}
+				style={
+					{
+						flex: 1,
+						minHeight: 0,
+						overflowY: 'auto',
+						overflowX: 'hidden',
+						// The name column's width, for every row at once.
+						[LOG_ACTOR_WIDTH_PROPERTY]: `${actorChars}ch`,
+						// The arrow is placed against this, in the column's own
+						// coordinates rather than the window's.
+						position: 'relative',
+						// A column, so the block below can push itself down with an auto
+						// margin. `justify-content: flex-end` would do the same until the
+						// content overflowed, at which point it puts the overflow above the
+						// scrollable area, where it cannot be reached.
+						display: 'flex',
+						flexDirection: 'column',
+						padding: `0 ${LOG_PANE_PADDING_X}px ${
+							bottomClearance + LOG_ROW_HEIGHT * 2
+						}px 30px`,
+					} as React.CSSProperties
+				}
 			>
 				{/* Hidden until a row that leads somewhere is under the pointer, and
 				    inert throughout — the row is what takes the click. */}
