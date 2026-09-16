@@ -36,6 +36,9 @@ export {
 	BAR_ENTRANCE_TOTAL_MS,
 	FADE_IN_ANIMATION,
 	SCRUBBER_KEYFRAMES,
+	SCRUBBER_PAGER_STYLES,
+	PAGE_ARROW_CLASS,
+	PAGED_TRACK_CLASS,
 	useNarrowBar,
 	usePrefersReducedMotion,
 	useExitTransition,
@@ -99,6 +102,13 @@ export {
 	formatPeriodLabel,
 	scopeButtonLabel,
 } from './time';
+export {
+	createWheelPager,
+	isHorizontalWheel,
+	WHEEL_PAGE_THRESHOLD_PX,
+	WHEEL_GESTURE_QUIET_MS,
+} from './paging';
+export type {PageDirection, WheelPager} from './paging';
 export type {Segment, Scope, PeriodRange} from './time';
 export {
 	buildFlowChart,

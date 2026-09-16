@@ -49,9 +49,12 @@ import {
 	narrowedIds,
 	plottedView,
 	soleVisibleIdentity,
+	createWheelPager,
 	formatInterval,
+	formatPeriodLabel,
 	getPeriodRange,
 	hourFractionForTime,
+	isHorizontalWheel,
 	LayoutMode,
 	MIN_RANGE_DRAG_PX,
 	MIN_ZOOM_SPAN_MS,
@@ -404,6 +407,64 @@ export const TimeScrubber = ({
 	// Zooming in on the last few minutes is a legitimate ask; zooming past the
 	// present is not, so a window already at it has nowhere later to go.
 	const atLatest = zoom ? zoom.end >= Date.now() : offset === 0;
+
+	// Paging is off the chart's ends and a horizontal wheel over it. Not over
+	// all time, which has no periods to count back; not while narrowed to a
+	// ticket, whose window is the ticket's; and not with the socket down, since
+	// a page is a fetch. The label says which window this is where the scope
+	// buttons cannot: paged back, dragged out, or cut to a ticket.
+	const pageable =
+		connected && !ticketFocus && (scope !== 'all' || zoom !== null);
+	const paging = {
+		earlier: pageable,
+		later: pageable && !atLatest,
+		label:
+			ticketFocus || zoom !== null || (scope !== 'all' && offset !== 0)
+				? formatPeriodLabel(
+						scope,
+						offset,
+						periodRange,
+						zoom !== null || ticketFocus,
+				  )
+				: null,
+	};
+
+	// The wheel listener is native rather than React's: React registers wheel
+	// as passive, and a horizontal swipe left to the browser is a step back
+	// through its history. One page per gesture — see lib/scrubber/paging.
+	const pageRef = useRef<HTMLDivElement | null>(null);
+	const changeOffsetRef = useRef(changeOffset);
+	changeOffsetRef.current = changeOffset;
+	const pagingRef = useRef(paging);
+	pagingRef.current = paging;
+	const offsetRef = useRef(offset);
+	offsetRef.current = offset;
+
+	useEffect(() => {
+		const track = pageRef.current;
+		if (!track) return;
+
+		const pager = createWheelPager();
+
+		const onWheel = (event: WheelEvent) => {
+			if (!isHorizontalWheel(event.deltaX, event.deltaY)) return;
+
+			event.preventDefault();
+
+			const turn = pager.feed(event.deltaX, event.deltaY, event.timeStamp);
+			const {earlier, later} = pagingRef.current;
+
+			if (turn === -1 && earlier)
+				changeOffsetRef.current(offsetRef.current + 1);
+			else if (turn === 1 && later)
+				changeOffsetRef.current(offsetRef.current - 1);
+		};
+
+		track.addEventListener('wheel', onWheel, {passive: false});
+
+		return () => track.removeEventListener('wheel', onWheel);
+		// Re-attached when the charts mount: collapsing the bar unmounts them.
+	}, [collapsed]);
 
 	// The scope is left as it was rather than inferred from the span: nothing
 	// reads it while a zoom is up. The chart's bucketing and segment unit come
@@ -1087,10 +1148,7 @@ export const TimeScrubber = ({
 			controls={{
 				connected,
 				scope,
-				offset,
-				periodRange,
 				zoomed: zoom !== null,
-				atLatest,
 				windowOnly,
 				windowFilterable: windowNamesIssues(timeline),
 				narrow,
@@ -1104,7 +1162,6 @@ export const TimeScrubber = ({
 				onChangeLinkedCommitsOnly,
 				allBoards,
 				onChangeScope: changeScope,
-				onChangeOffset: changeOffset,
 				onChangeWindowOnly: (next: boolean) =>
 					onChangeSelection({windowOnly: next}),
 				onChangeLayoutMode: changeLayoutMode,
@@ -1137,6 +1194,8 @@ export const TimeScrubber = ({
 					isPeriodWindow(scope, zoom !== null) &&
 					windowNamesIssues(timeline),
 				trackRef,
+				pageRef,
+				paging,
 				axis,
 				layoutMode,
 				animate,
@@ -1183,6 +1242,8 @@ export const TimeScrubber = ({
 				boardHint: pickingRange ? rangeHint : boardHint,
 				commitHint: pickingRange ? null : commitHint,
 				on: {
+					onPageEarlier: () => changeOffset(offset + 1),
+					onPageLater: () => changeOffset(offset - 1),
 					onPointerDown: event => {
 						event.currentTarget.setPointerCapture(event.pointerId);
 
