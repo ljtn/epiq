@@ -63,6 +63,7 @@ import {
 	useLogSplit,
 } from '../lib/log-lanes';
 import {Checkbox} from './Checkbox';
+import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
 import {
 	LogDestination,
@@ -268,32 +269,33 @@ const LogHeader = ({
 				/>
 			);
 		})}
-		{/* Not one of the fields, and set apart from them: those say what a line
-		    shows, this says where the line is put. */}
+		{/* Not one of the fields, so it is not worn as a box and does not stand
+		    among them: those say what a line shows, this says where the line is
+		    put. It sits with the panel's own buttons at the far end. */}
 		<span
 			style={{
+				marginLeft: 'auto',
 				display: 'inline-flex',
 				alignItems: 'center',
-				paddingLeft: 12,
-				borderLeft: `1px solid ${GUI_THEME.line}`,
-				height: 14,
 			}}
 		>
-			<Checkbox
-				label="Split"
-				checked={split && canSplit}
-				disabled={!canSplit}
-				activeColor={GUI_THEME.secondary}
+			<IconButton
+				testId="log-split"
 				title={
 					canSplit
 						? 'Give each actor a lane of their own'
 						: 'Nobody signed these lines'
 				}
-				onChange={onChangeSplit}
-			/>
-		</span>
+				aria-label="Split"
+				pressed={split && canSplit}
+				disabled={!canSplit}
+				onClick={() => onChangeSplit(!split)}
+			>
+				<IconColumns size={ICON_SIZE} />
+			</IconButton>
 
-		<span style={{marginLeft: 'auto', display: 'inline-flex'}}>{children}</span>
+			{children}
+		</span>
 	</div>
 );
 
