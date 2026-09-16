@@ -18,6 +18,7 @@ export const IconButton = ({
 	testId,
 	onClick,
 	children,
+	label,
 	...rest
 }: {
 	// Read as the tooltip, and as the accessible name where nothing sets one:
@@ -30,6 +31,9 @@ export const IconButton = ({
 	testId?: string;
 	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 	children: React.ReactNode;
+	// A figure after the icon — a count — which widens the square into a
+	// short pill of the same height and look.
+	label?: string;
 } & Pick<
 	React.ButtonHTMLAttributes<HTMLButtonElement>,
 	'aria-label' | 'aria-haspopup' | 'aria-expanded'
@@ -54,10 +58,11 @@ export const IconButton = ({
 				display: 'inline-flex',
 				alignItems: 'center',
 				justifyContent: 'center',
-				width: ICON_BUTTON_SIZE,
+				gap: 4,
+				width: label === undefined ? ICON_BUTTON_SIZE : undefined,
 				height: ICON_BUTTON_SIZE,
 				flexShrink: 0,
-				padding: 0,
+				padding: label === undefined ? 0 : '0 6px 0 5px',
 				background: lit ? GUI_THEME.hover : 'transparent',
 				border: 'none',
 				borderRadius: 4,
@@ -71,6 +76,11 @@ export const IconButton = ({
 			}}
 		>
 			{children}
+			{label !== undefined && (
+				<span style={{fontSize: 11, fontVariantNumeric: 'tabular-nums'}}>
+					{label}
+				</span>
+			)}
 		</button>
 	);
 };

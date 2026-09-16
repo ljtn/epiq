@@ -120,11 +120,20 @@ test('the comment count on a card still opens comments', async ({page}) => {
 	await page.getByRole('button', {name: 'Overview'}).click();
 	await expect(page).toHaveURL(/tab=overview/);
 
-	await page
-		.locator('[draggable="true"]')
-		.filter({hasText: title})
-		.getByTitle(/comment/i)
-		.click();
+	const card = page.locator('[draggable="true"]').filter({hasText: title});
+	const count = card.getByTestId('ticket-comments');
+	await expect(count).toHaveText('1');
 
+	// Quiet chrome, like every other icon button: no ground until hovered, and
+	// no index number in front of the title.
+	expect(
+		await count.evaluate(
+			node =>
+				(node as unknown as {style: {background: string}}).style.background,
+		),
+	).toBe('transparent');
+	await expect(card).not.toHaveText(/^\s*\d/);
+
+	await count.click();
 	await expect(page).toHaveURL(/tab=comments/);
 });
