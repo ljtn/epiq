@@ -21,6 +21,10 @@ export type LogEntry = {
 	t: number;
 	label: string;
 	color: string;
+	// Who did it: the event's actor in their own colour, or a commit's author,
+	// who has no identity on the board and so wears the panel's own text colour.
+	// Null on an event nobody signed.
+	actor: {name: string; color: string} | null;
 	// What the line was about, which is all a click needs to find its way — see
 	// lib/log-destination. Copied off the source entry rather than worked out
 	// here: every event in the window becomes one of these, and at most one of
@@ -47,6 +51,9 @@ export const buildLogEntries = (
 			// The colour its dot already has on the scatter, so a kind reads the
 			// same in both places.
 			color: EVENT_CATEGORY_COLORS[categoryOf(event.action)],
+			actor: event.actor
+				? {name: event.actor.name, color: event.actor.color}
+				: null,
 			issue: event.issue,
 			action: event.action,
 			sha: null,
@@ -58,6 +65,7 @@ export const buildLogEntries = (
 			t: commit.time,
 			label: commit.subject,
 			color: GUI_THEME.green,
+			actor: {name: commit.author, color: GUI_THEME.secondary},
 			// A commit belongs to whichever ticket its subject is prefixed with,
 			// which the board resolves when the line is clicked — it already has to,
 			// for the scatter's own commit dots.
@@ -220,15 +228,25 @@ export const CRAWL_TIMING: KeyframeAnimationOptions = {
 	easing: 'ease-out',
 };
 
-// A line is one element. Its clock and its dot are drawn as pseudo-elements
-// off the row itself rather than as spans inside it, which is the difference
-// between four nodes a line and one — and the panel can hold hundreds.
+// A line is one element and, when somebody signed it, a span for their name.
+// Its clock and its dot are drawn as pseudo-elements off the row itself rather
+// than as spans inside it, which is the difference between four nodes a line
+// and two — and the panel can hold hundreds.
 //
 // The clock is `attr()`ed off the row, the dot's colour comes in as a custom
 // property, and both are laid out in `ch` so the columns hold at whatever size
 // the row's font ends up.
+//
+// Which of them a row shows is the pane's say — see lib/log-fields — carried
+// as a class on it: the clock's column collapses to nothing when it is off,
+// and the dot goes with it into the gap the row keeps in front of its text.
+// That gap is the lead below, and closes only when both are off.
 export const LOG_TIME_CHARS = 5;
 export const LOG_DOT_COLOR_PROPERTY = '--epiq-log-dot';
+export const LOG_ACTOR_CLASS = 'epiq-log-actor';
+const TIME_BLOCK_PROPERTY = '--epiq-log-time-block';
+const LEAD_PROPERTY = '--epiq-log-lead';
+const LOG_LEAD_PX = 14;
 
 // The gap between the column of lines and either side of the panel. Shared
 // with the arrow below, which hangs at the end of a line rather than at the
@@ -251,10 +269,15 @@ export const LOG_ARROW_CLASS = 'epiq-log-arrow';
 // Mounted with the panel, so it carries its own look rather than depending on
 // a player being up to define it.
 export const EVENT_LOG_STYLES = `
+.epiq-log-pane {
+	${TIME_BLOCK_PROPERTY}: ${LOG_TIME_CHARS}ch;
+	${LEAD_PROPERTY}: ${LOG_LEAD_PX}px;
+}
 .epiq-log-line {
 	position: relative;
 	height: ${LOG_ROW_HEIGHT}px;
 	line-height: ${LOG_ROW_HEIGHT}px;
+	padding-left: calc(var(${TIME_BLOCK_PROPERTY}) + var(${LEAD_PROPERTY}));
 	font-size: ${TEXT.meta}px;
 	color: ${GUI_THEME.secondary};
 	white-space: nowrap;
@@ -264,22 +287,37 @@ export const EVENT_LOG_STYLES = `
 }
 .epiq-log-line::before {
 	content: attr(data-time);
-	display: inline-block;
-	width: ${LOG_TIME_CHARS}ch;
-	margin-right: 14px;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: var(${TIME_BLOCK_PROPERTY});
 	color: ${GUI_THEME.dim2};
 	font-variant-numeric: tabular-nums;
 }
 .epiq-log-line::after {
 	content: '';
 	position: absolute;
-	left: calc(${LOG_TIME_CHARS}ch + 4px);
+	left: calc(var(${TIME_BLOCK_PROPERTY}) + 4px);
 	top: 50%;
 	width: 5px;
 	height: 5px;
 	margin-top: -2.5px;
 	border-radius: 50%;
 	background: var(${LOG_DOT_COLOR_PROPERTY});
+}
+.${LOG_ACTOR_CLASS} {
+	margin-right: 6px;
+}
+.epiq-log--no-time {
+	${TIME_BLOCK_PROPERTY}: 0px;
+}
+.epiq-log--no-time .epiq-log-line::before,
+.epiq-log--no-kind .epiq-log-line::after,
+.epiq-log--no-actor .${LOG_ACTOR_CLASS} {
+	display: none;
+}
+.epiq-log--no-time.epiq-log--no-kind {
+	${LEAD_PROPERTY}: 0px;
 }
 ${linkedRow()} {
 	cursor: pointer;

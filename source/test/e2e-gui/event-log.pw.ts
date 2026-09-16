@@ -510,3 +510,59 @@ test('the log is dragged to size, and keeps its width', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// Each line is its clock, who did it, the dot for its kind, and the line
+// itself. The header at the top of the panel takes any of them away, all four
+// are on until then, and the choice outlives the page.
+test('the header chooses what each line shows, and keeps the choice', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	await page.getByTestId('log-toggle').click();
+
+	const lines = page.getByTestId('log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
+
+	const header = page.getByTestId('event-log-header');
+	for (const field of ['Time', 'Actor', 'Type', 'Label']) {
+		await expect(header.getByLabel(field, {exact: true})).toBeChecked();
+	}
+
+	// The clock and the dot are pseudo-elements, so what is asserted is
+	// whether the browser still draws them.
+	const pseudoDisplay = async (pseudo: string) =>
+		(await page.evaluate(
+			`getComputedStyle(document.querySelector('[data-testid="log-line"]'),` +
+				`'${pseudo}').display`,
+		)) as string;
+
+	expect(await pseudoDisplay('::before')).not.toBe('none');
+	expect(await pseudoDisplay('::after')).not.toBe('none');
+
+	await header.getByLabel('Time', {exact: true}).click();
+	await expect.poll(() => pseudoDisplay('::before')).toBe('none');
+	// The dot moves up into the room the clock left, and the line with it.
+	expect(await pseudoDisplay('::after')).not.toBe('none');
+
+	await header.getByLabel('Type', {exact: true}).click();
+	await expect.poll(() => pseudoDisplay('::after')).toBe('none');
+
+	// With the name and the label both off, a line has nothing left to say.
+	await header.getByLabel('Actor', {exact: true}).click();
+	await header.getByLabel('Label', {exact: true}).click();
+	await expect(lines.first()).toHaveText('', {useInnerText: true});
+
+	await page.reload();
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
+	for (const field of ['Time', 'Actor', 'Type', 'Label']) {
+		await expect(header.getByLabel(field, {exact: true})).not.toBeChecked();
+	}
+	await expect(lines.first()).toHaveText('', {useInnerText: true});
+
+	await header.getByLabel('Label', {exact: true}).click();
+	await expect(lines.first()).not.toHaveText('', {useInnerText: true});
+
+	expect(pageErrors).toEqual([]);
+});

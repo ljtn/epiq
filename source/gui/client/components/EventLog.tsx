@@ -30,11 +30,21 @@ import {
 	groupByDay,
 	isDayOpen,
 	LogEntry,
+	LOG_ACTOR_CLASS,
 	LOG_ARROW_CLASS,
 	LOG_DOT_COLOR_PROPERTY,
 	LOG_PANE_PADDING_X,
 	LOG_ROW_HEIGHT,
 } from '../lib/event-log';
+import {
+	LogField,
+	LogFields,
+	LOG_FIELD_NAMES,
+	LOG_FIELD_ORDER,
+	logPaneClassName,
+	useLogFields,
+} from '../lib/log-fields';
+import {Checkbox} from './Checkbox';
 import {
 	LogDestination,
 	linkedRowFrom,
@@ -56,6 +66,7 @@ const MIN_LOG_WIDTH = 280;
 const MAX_LOG_WIDTH = 1000;
 const MAX_LOG_RATIO = 0.6;
 const LOG_WIDTH_STORAGE_KEY = 'epiq.eventLog.width';
+const LOG_HEADER_HEIGHT = 28;
 
 // How near the foot counts as being at it. A couple of rows, so a pin survives
 // a sub-pixel scroll position or a rounding difference between scrollHeight and
@@ -123,11 +134,21 @@ const DayDivider = ({
 	</button>
 );
 
-// One element, and one text node inside it. The clock and the kind dot are
-// pseudo-elements of this row rather than spans in it — see EVENT_LOG_STYLES —
-// because the panel holds hundreds of these and three spans apiece is three
-// hundred nodes of nothing.
-const EventRow = ({entry}: {entry: LogEntry}) => (
+// One element, a span for who did it, and one text node. The clock and the
+// kind dot are pseudo-elements of this row rather than spans in it — see
+// EVENT_LOG_STYLES — because the panel holds hundreds of these and three spans
+// apiece is three hundred nodes of nothing.
+//
+// The clock, the dot and the name are shown or hidden by the pane's class;
+// the label is the one field with no element of its own to hide, so it is the
+// one the row is told about.
+const EventRow = ({
+	entry,
+	showLabel,
+}: {
+	entry: LogEntry;
+	showLabel: boolean;
+}) => (
 	<div
 		data-testid="log-line"
 		className="epiq-log-line"
@@ -143,7 +164,52 @@ const EventRow = ({entry}: {entry: LogEntry}) => (
 		{...rowAttributes(entry)}
 		style={{[LOG_DOT_COLOR_PROPERTY]: entry.color} as React.CSSProperties}
 	>
-		{entry.label}
+		{entry.actor && (
+			<span className={LOG_ACTOR_CLASS} style={{color: entry.actor.color}}>
+				{entry.actor.name}
+			</span>
+		)}
+		{showLabel && entry.label}
+	</div>
+);
+
+// What each line shows, chosen at the top of the panel. Quiet when ticked:
+// four lit boxes would outshine the lines they are about.
+const LogHeader = ({
+	fields,
+	onChangeField,
+	children,
+}: {
+	fields: LogFields;
+	onChangeField: (field: LogField, on: boolean) => void;
+	// Whatever else the header carries, at its far end.
+	children?: React.ReactNode;
+}) => (
+	<div
+		data-testid="event-log-header"
+		style={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 12,
+			flexShrink: 0,
+			height: LOG_HEADER_HEIGHT,
+			padding: `0 ${LOG_PANE_PADDING_X}px 0 30px`,
+			borderBottom: `1px solid ${GUI_THEME.line}`,
+		}}
+	>
+		{LOG_FIELD_ORDER.map(field => (
+			<Checkbox
+				key={field}
+				label={LOG_FIELD_NAMES[field]}
+				checked={fields[field]}
+				activeColor={GUI_THEME.secondary}
+				title={`${fields[field] ? 'Hide' : 'Show'} the ${LOG_FIELD_NAMES[
+					field
+				].toLowerCase()} on each line`}
+				onChange={on => onChangeField(field, on)}
+			/>
+		))}
+		{children && <span style={{marginLeft: 'auto'}}>{children}</span>}
 	</div>
 );
 
@@ -171,6 +237,7 @@ const EventLogPanel = ({
 	bottomClearance: number;
 }) => {
 	const animate = !usePrefersReducedMotion();
+	const {fields, setField} = useLogFields();
 	const scrollRef = useRef<HTMLDivElement | null>(null);
 	const columnRef = useRef<HTMLDivElement | null>(null);
 
@@ -361,8 +428,11 @@ const EventLogPanel = ({
 				testId="event-log-resize"
 			/>
 
+			<LogHeader fields={fields} onChangeField={setField} />
+
 			<div
 				ref={scrollRef}
+				className={`epiq-log-pane ${logPaneClassName(fields)}`.trim()}
 				onScroll={onScroll}
 				onClick={event => {
 					const destination = readDestination(event.target);
@@ -439,7 +509,11 @@ const EventLogPanel = ({
 								    built for it, so what the panel costs is what is open. */}
 								{open &&
 									day.entries.map(entry => (
-										<EventRow key={entry.id} entry={entry} />
+										<EventRow
+											key={entry.id}
+											entry={entry}
+											showLabel={fields.label}
+										/>
 									))}
 							</div>
 						);

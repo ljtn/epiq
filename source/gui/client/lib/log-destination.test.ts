@@ -11,6 +11,7 @@ const entry = (over: Partial<LogEntry>): LogEntry => ({
 	t: 1,
 	label: 'a line',
 	color: '#111',
+	actor: null,
 	issue: null,
 	action: null,
 	sha: null,
