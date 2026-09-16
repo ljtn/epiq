@@ -24,6 +24,13 @@ export const GUI_THEME = {
 	// which takes considerably more contrast.
 	edge: 'rgba(96, 116, 165, 0.55)',
 	primary: '#c2c5d0',
+	// One step under `primary`, for text that is the content of what it sits in
+	// but repeats all the way down a column — a card's title. Thirty of those at
+	// full `primary` is the brightest thing on the board, louder than the accent
+	// marking the selected card, and it leaves the ref and the tags nothing to
+	// stand against. Still well clear of a reading contrast: what comes off is
+	// the shout, not the legibility.
+	primarySoft: '#aeb3c2',
 	secondary: '#7f8aa3',
 	tertiary: 'rgb(31 33 43)',
 	dim: '#585d78',

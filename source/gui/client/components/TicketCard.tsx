@@ -159,7 +159,10 @@ export const TicketCard = ({
 			style={{
 				display: 'flex',
 				alignItems: 'flex-start',
-				color: isSelected || isPicked ? GUI_THEME.accent : GUI_THEME.primary,
+				// Inherited by the title and nothing else: everything else on the card
+				// sets a tone of its own.
+				color:
+					isSelected || isPicked ? GUI_THEME.accent : GUI_THEME.primarySoft,
 				fontSize: 11,
 				cursor: ticket.readonly ? 'default' : 'grab',
 				background:
