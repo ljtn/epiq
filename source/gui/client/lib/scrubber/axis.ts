@@ -74,6 +74,13 @@ export const buildAxis = (
 	};
 };
 
+// Whether the axis describes a stretch of time a position can be read off. It
+// does not before the first window arrives: with no timeline and no commits,
+// earliest and latest are both `now`, the span floor of 1ms is all that is
+// left, and every fraction maps to the same instant — so a click anywhere
+// would read as a scrub to now.
+export const isScrubbable = (axis: ScrubberAxis): boolean => axis.span > 1;
+
 // Re-aggregated rather than rendering the server's buckets directly: those are
 // sparse, so using them as display slots gives every bar a different real
 // duration.

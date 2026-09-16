@@ -11,6 +11,7 @@ import {
 	bucketCountForSpan,
 	bucketIssueCounts,
 	buildAxis,
+	isScrubbable,
 	buildBoardFilter,
 	buildEventDots,
 	keptIssueIds,
@@ -191,6 +192,36 @@ describe('buildAxis', () => {
 
 		expect(axis.bucketIndexForTime(-DAY)).toBe(0);
 		expect(axis.bucketIndexForTime(99 * DAY)).toBe(axis.bucketCount - 1);
+	});
+});
+
+describe('isScrubbable', () => {
+	it('is false before a window has arrived, where every fraction is now', () => {
+		const axis = buildAxis(null, [], 1_000);
+
+		// The reason the guard exists: the whole track is one millisecond wide,
+		// so a click at either end asks for the same live moment.
+		expect(axis.fractionToTime(1) - axis.fractionToTime(0)).toBe(1);
+		expect(isScrubbable(axis)).toBe(false);
+	});
+
+	it('is true once the axis covers a real stretch', () => {
+		const axis = buildAxis(
+			timeline([{t: 100 * DAY, count: 1}], {
+				earliest: 100 * DAY,
+				latest: 107 * DAY,
+			}),
+			[],
+			107 * DAY,
+		);
+
+		expect(isScrubbable(axis)).toBe(true);
+	});
+
+	it('is true for a window one commit wide but not one instant wide', () => {
+		const axis = buildAxis(null, [commit(0), commit(2)], 2);
+
+		expect(isScrubbable(axis)).toBe(true);
 	});
 });
 
