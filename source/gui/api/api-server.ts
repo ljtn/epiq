@@ -464,7 +464,8 @@ export const startGuiServer = async (input: {
 			});
 		}
 
-		if (url.pathname.startsWith('/board/')) {
+		// The client's own routes: a board, and the event log popped out of one.
+		if (url.pathname.startsWith('/board/') || url.pathname === '/log') {
 			return serveStatic('/', res);
 		}
 

@@ -56,8 +56,11 @@ import {usePrefersReducedMotion} from '../lib/scrubber';
 import {useResizableWidth} from '../lib/use-resizable-width';
 import {ResizeHandle} from './ResizeHandle';
 import {IconArrowUpRight} from './IconArrowUpRight';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
+import {IconLog} from './IconLog';
+import {IconPopOut} from './IconPopOut';
 
 const LOG_WIDTH = 440;
 // Narrow enough to still fit a line's time and a few words of it; wide
@@ -209,7 +212,7 @@ const LogHeader = ({
 				onChange={on => onChangeField(field, on)}
 			/>
 		))}
-		{children && <span style={{marginLeft: 'auto'}}>{children}</span>}
+		<span style={{marginLeft: 'auto', display: 'inline-flex'}}>{children}</span>
 	</div>
 );
 
@@ -219,6 +222,9 @@ const EventLogPanel = ({
 	bottomClearance,
 	onOpen,
 	onHoverEvent,
+	layout = 'panel',
+	onPopOut,
+	onDock,
 }: {
 	entries: readonly LogEntry[];
 	// The moment the lines were sliced against. Moving it is moving the
@@ -235,6 +241,13 @@ const EventLogPanel = ({
 	// the history player's drawer, when one is up. A row past it, because the
 	// crawl starts each line one row low and slides it up.
 	bottomClearance: number;
+	// A panel beside the board, dragged to width; or a window of its own, which
+	// it fills — see lib/log-window.
+	layout?: 'panel' | 'window';
+	// Sends the log to a window of its own. Absent where it cannot go anywhere.
+	onPopOut?: () => void;
+	// Brings a popped-out log back beside the board.
+	onDock?: () => void;
 }) => {
 	const animate = !usePrefersReducedMotion();
 	const {fields, setField} = useLogFields();
@@ -404,31 +417,54 @@ const EventLogPanel = ({
 		grows: 'right',
 	});
 
+	const inWindow = layout === 'window';
+
 	return (
 		<aside
 			data-testid="event-log"
 			aria-live="off"
 			style={{
 				position: 'relative',
-				width: resize.width,
+				width: inWindow ? '100%' : resize.width,
 				flexShrink: 0,
 				minHeight: 0,
 				display: 'flex',
 				flexDirection: 'column',
-				borderRight: `1px solid ${GUI_THEME.line}`,
+				borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.line}`,
 				background: GUI_THEME.panel,
 			}}
 		>
 			<style>{EVENT_LOG_STYLES}</style>
 
-			<ResizeHandle
-				edge="right"
-				active={resize.dragging}
-				onPointerDown={resize.onPointerDown}
-				testId="event-log-resize"
-			/>
+			{!inWindow && (
+				<ResizeHandle
+					edge="right"
+					active={resize.dragging}
+					onPointerDown={resize.onPointerDown}
+					testId="event-log-resize"
+				/>
+			)}
 
-			<LogHeader fields={fields} onChangeField={setField} />
+			<LogHeader fields={fields} onChangeField={setField}>
+				{onPopOut && (
+					<IconButton
+						testId="log-pop-out"
+						title="Open the log in its own window"
+						onClick={onPopOut}
+					>
+						<IconPopOut size={ICON_SIZE} />
+					</IconButton>
+				)}
+				{onDock && (
+					<IconButton
+						testId="log-dock"
+						title="Put the log back beside the board"
+						onClick={onDock}
+					>
+						<IconLog size={ICON_SIZE} />
+					</IconButton>
+				)}
+			</LogHeader>
 
 			<div
 				ref={scrollRef}
