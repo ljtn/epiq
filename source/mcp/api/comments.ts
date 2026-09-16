@@ -1,10 +1,10 @@
 import {ulid} from 'ulid';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {AppEvent} from '../../lib/event/event.model.js';
-import {isTicketNode} from '../../lib/model/context.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {MAX_COMMENT_LENGTH} from '../../lib/utils/text.limits.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {findWritableIssue} from './node-targets.js';
 
 type AddIssueCommentInput = ToolInput & {
 	issueId: string;
@@ -30,11 +30,8 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const issue = stateResult.value.nodes[input.issueId];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
-	if (issue.readonly) return failed('Cannot comment on readonly issue');
+	const issueResult = findWritableIssue(input.issueId);
+	if (isFail(issueResult)) return issueResult;
 
 	const body = input.body.trim();
 
@@ -101,11 +98,8 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 		return failed('You can only delete your own comments');
 	}
 
-	const issue = stateResult.value.nodes[commentEvent.payload.issue];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
-	if (issue.readonly) return failed('Cannot delete comment on readonly issue');
+	const issueResult = findWritableIssue(commentEvent.payload.issue);
+	if (isFail(issueResult)) return issueResult;
 
 	const alreadyDeleted = stateResult.value.eventLog.some(
 		event =>
@@ -167,11 +161,8 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 		return failed('You can only edit your own comments');
 	}
 
-	const issue = stateResult.value.nodes[commentEvent.payload.issue];
-
-	if (!issue) return failed('Issue not found');
-	if (!isTicketNode(issue)) return failed('Comment target must be an issue');
-	if (issue.readonly) return failed('Cannot edit comment on readonly issue');
+	const issueResult = findWritableIssue(commentEvent.payload.issue);
+	if (isFail(issueResult)) return issueResult;
 
 	const deleted = stateResult.value.eventLog.some(
 		event =>

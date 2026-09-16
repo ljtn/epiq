@@ -1,10 +1,5 @@
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
-import {
-	failed,
-	isFail,
-	Result,
-	succeeded,
-} from '../../lib/model/result-types.js';
+import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
 import {
 	MAX_COMMENT_LENGTH,
@@ -145,20 +140,8 @@ vi.mock('../../lib/event/event-materialize-and-persist.js', () => ({
 }));
 
 vi.mock('../../lib/repository/rank.js', () => ({
-	resolveAndPersistRankForCreate: vi.fn((parentId: string) => {
-		if (parentId === 'missing') {
-			return failed('Unable to locate parent swimlane: missing');
-		}
-
-		return succeeded('Resolved rank', 'm0');
-	}),
-	resolveAndPersistRankForMove: vi.fn((parentId: string) => {
-		if (parentId === 'readonly-swimlane') {
-			return failed('Cannot move issue to readonly swimlane');
-		}
-
-		return succeeded('Resolved rank', 'm0');
-	}),
+	resolveAndPersistRankForCreate: vi.fn(() => succeeded('Resolved rank', 'm0')),
+	resolveAndPersistRankForMove: vi.fn(() => succeeded('Resolved rank', 'm0')),
 }));
 
 const nodes: Record<string, Partial<NavNode<AnyContext>>> = {
@@ -736,7 +719,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
-			expect(result.message).toBe('Target parent must be a board');
+			expect(result.message).toBe('Target must be a board');
 		}
 	});
 
@@ -776,7 +759,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
-			expect(result.message).toBe('Cannot edit readonly swimlane');
+			expect(result.message).toBe('Swimlane is readonly');
 		}
 	});
 
@@ -806,7 +789,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
-			expect(result.message).toBe('Edit target must be a swimlane');
+			expect(result.message).toBe('Target must be a swimlane');
 		}
 	});
 
@@ -985,7 +968,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
-			expect(result.message).toBe('Delete target must be a swimlane');
+			expect(result.message).toBe('Target must be a swimlane');
 		}
 	});
 
@@ -1313,7 +1296,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
-			expect(result.message).toBe('Unable to locate parent swimlane: missing');
+			expect(result.message).toBe('Swimlane not found');
 		}
 	});
 
@@ -1486,7 +1469,7 @@ describe('mcp tools', () => {
 
 		expect(isFail(result)).toBe(true);
 		if (isFail(result)) {
-			expect(result.message).toBe('Cannot move issue to readonly swimlane');
+			expect(result.message).toBe('Swimlane is readonly');
 		}
 	});
 
