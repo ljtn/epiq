@@ -231,7 +231,11 @@ const words = (value: string): string[] =>
 	value
 		.toLowerCase()
 		.split(/[^a-z0-9]+/)
-		.filter(word => word.length > 2);
+		// Two characters, not three: plenty of people go by a handle that short,
+		// and dropping those left `mine` empty and matched nothing at all for
+		// exactly the users this is for. A loose token costs a glance, since every
+		// candidate is confirmed by a person.
+		.filter(word => word.length >= 2);
 
 export const suggestOwnEmails = async (input: ToolInput = {}) => {
 	const bootResult = await boot(input.repoRoot, {pull: false});
@@ -243,7 +247,9 @@ export const suggestOwnEmails = async (input: ToolInput = {}) => {
 	const stateResult = getStateResult();
 	if (isFail(stateResult)) return stateResult;
 
-	const commitsResult = await getCommitTimeline({repoRoot: input.repoRoot});
+	const commitsResult = await getCommitTimeline({
+		repoRoot: bootResult.value.repoRoot,
+	});
 	if (isFail(commitsResult)) return failed(commitsResult.message);
 
 	const {userId, userName} = actorResult.value;
@@ -274,7 +280,7 @@ export const suggestOwnEmails = async (input: ToolInput = {}) => {
 		byEmail.set(email, seen);
 	}
 
-	const candidates = [...byEmail.entries()]
+	const scored = [...byEmail.entries()]
 		.map(([email, seen]) => ({
 			email,
 			names: [...seen.names],
@@ -286,13 +292,28 @@ export const suggestOwnEmails = async (input: ToolInput = {}) => {
 					words(name).some(word => mine.has(word)),
 				) || words(email.split('@')[0] ?? '').some(word => mine.has(word)),
 		}))
-		.filter(candidate => candidate.looksLikeYours)
-		.sort((a, b) => b.commits - a.commits);
+		.sort((a, b) =>
+			a.looksLikeYours === b.looksLikeYours
+				? b.commits - a.commits
+				: Number(b.looksLikeYours) - Number(a.looksLikeYours),
+		);
+
+	const likely = scored.filter(candidate => candidate.looksLikeYours);
+
+	// Everything unclaimed, rather than nothing, when no name is known to match
+	// against. Returning an empty list there would be a confident "none of these
+	// are yours" about a history that may be almost entirely yours.
+	const candidates = likely.length > 0 ? likely : scored;
+	const guessed = likely.length > 0;
 
 	return succeeded(
 		candidates.length === 0
-			? 'No unclaimed addresses in this history look like yours'
-			: `Found ${candidates.length} unclaimed address(es) that look like yours. Show them to the user and link only the ones they confirm; each one is a permanent event that replicates to every clone.`,
-		{contributor: userId, candidates},
+			? 'Every address in this history is already linked'
+			: `${candidates.length} unclaimed address(es) in this history${
+					guessed
+						? ' look like yours'
+						: ', none obviously yours — nothing here matches your name, so these are simply everything unclaimed'
+			  }. Show them to the user and link only the ones they confirm; each is a permanent event that replicates to every clone.`,
+		{contributor: userId, candidates, guessed},
 	);
 };

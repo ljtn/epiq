@@ -5,6 +5,7 @@ import {
 	refreshProjectInBackground,
 } from './lib/boot/load-project.js';
 import {resolveEnvActor} from './lib/config/actor-env.js';
+import {readGitEmail} from './lib/config/git-identity.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import {
@@ -29,6 +30,13 @@ export async function bootTui(): Promise<Result<void>> {
 		if (isSuccess(settings)) patchSettingsState(settings.value);
 
 		const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
+
+		// The same fill `boot()` does for the MCP and the GUI. Without it the TUI
+		// resolves no git address at all, so a TUI-only user never links one and
+		// their commits keep showing a raw git name with nothing saying why.
+		if (isSuccess(repoRootResult)) {
+			patchSettingsState({gitEmail: await readGitEmail(repoRootResult.value)});
+		}
 
 		const loadResult = isSuccess(repoRootResult)
 			? await loadProject(repoRootResult.value)

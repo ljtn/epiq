@@ -136,6 +136,9 @@ export type GuiEventTimeline = {
 // which is Node-side, and the GUI build refuses a client import of it.
 export type GuiIdentity = {id: string; name: string; color: string};
 
+/** A commit's author, and whether it is a board identity or a raw git name. */
+export type GuiCommitAuthor = GuiIdentity & {resolved: boolean};
+
 export type GuiCommitEntry = {
 	sha: string;
 	time: number;
@@ -146,7 +149,7 @@ export type GuiCommitEntry = {
 	 * Who the author is on this board. Resolved on the server, because matching
 	 * needs the event log the client cannot import.
 	 */
-	authorIdentity?: GuiIdentity;
+	authorIdentity?: GuiCommitAuthor;
 	subject: string;
 	linesChanged: number;
 	insertions: number;

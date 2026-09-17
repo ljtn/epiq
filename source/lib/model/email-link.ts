@@ -126,6 +126,19 @@ export const emailOwnerIndex = (
 };
 
 /**
+ * Whether this contributor has retracted this address before.
+ *
+ * Separate from "does anyone claim it", which ignores tombstones. The auto-link
+ * needs both: a retraction is a decision, and re-making the link on the next
+ * write would undo it silently and append an event every time.
+ */
+export const wasRetractedBy = (
+	links: Readonly<Record<string, EmailLink>>,
+	email: string,
+	contributor: string,
+): boolean => links[emailLinkKey(email, contributor)]?.tombstoned === true;
+
+/**
  * Who may retract a link: whoever wrote it, or whoever it points at.
  *
  * Deliberately not "anybody", which would let one writer strip every link on

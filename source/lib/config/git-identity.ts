@@ -14,16 +14,33 @@ import {normalizeEmail} from '../model/email-link.js';
  * `allowFail`, because a repository with no `user.email` is ordinary and not an
  * error: nothing is linked, and commits keep showing their raw author name.
  */
+const emailByRepo = new Map<string, string | null>();
+
+/**
+ * Cleared when a test, or a process that outlives a config change, needs the
+ * next read to go to git again.
+ */
+export const forgetGitEmail = (): void => emailByRepo.clear();
+
 export const readGitEmail = async (cwd: string): Promise<string | null> => {
+	// Cached per repository. `boot()` runs on every MCP call and every socket
+	// message, above the fast path that exists to avoid redundant work, so an
+	// uncached read here would spawn a git process per request to answer the
+	// same thing every time.
+	const cached = emailByRepo.get(cwd);
+	if (cached !== undefined) return cached;
+
 	const result = await execGitAllowFail({
 		args: ['config', '--get', 'user.email'],
 		cwd,
 	});
 
-	if (result.exitCode !== 0) return null;
+	const email =
+		result.exitCode === 0 ? normalizeEmail(result.stdout ?? '') : '';
+	const resolved = email.length > 0 ? email : null;
 
-	const email = normalizeEmail(result.stdout ?? '');
-	return email.length > 0 ? email : null;
+	emailByRepo.set(cwd, resolved);
+	return resolved;
 };
 
 /**
