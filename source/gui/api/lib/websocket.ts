@@ -36,6 +36,7 @@ import {
 	getCommitsForRef,
 	getCommitTimeline,
 	getEventTimeline,
+	getSquashedDiffForRef,
 	getTimeTravelStatus,
 	openCommitDiffInEditor,
 	returnToLive,
@@ -292,6 +293,23 @@ export const setupWebsocket = (
 						payload: {
 							issueId,
 							result: await getCommitsForRef({
+								repoRoot,
+								ref: nodeRef(issueId),
+							}),
+						},
+					});
+				}
+
+				// The same ticket's commits as one diff, for the Diff tab's compacted
+				// view. Wrapped with the issueId like its neighbours above.
+				if (type === 'issue:squashed-diff:get') {
+					const {issueId} = message.payload;
+
+					return sendSocket(socket, {
+						type: 'issue:squashed-diff:result',
+						payload: {
+							issueId,
+							result: await getSquashedDiffForRef({
 								repoRoot,
 								ref: nodeRef(issueId),
 							}),

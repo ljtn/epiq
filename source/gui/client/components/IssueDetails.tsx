@@ -8,6 +8,7 @@ import {
 	GuiComment,
 	GuiAttachment,
 	GuiRefCommitEntry,
+	GuiSquashedDiff,
 } from '../lib/gui-state.model';
 import {
 	Aside,
@@ -40,6 +41,8 @@ import {AttachmentUploadStatus} from '../lib/use-issue-mutations';
 import {CollapsibleBody} from './CollapsibleBody';
 import {CommentBody, IssueComments} from './IssueComments';
 import {IssueCommits} from './IssueCommits';
+import {DiffViewSwitch} from './DiffViewSwitch';
+import {SquashedDiff} from './SquashedDiff';
 import {CommitDiffState} from '../lib/use-issue-detail';
 import {
 	CommitFocus,
@@ -61,6 +64,16 @@ import {useImageInsert} from '../lib/image-insert';
 import {AddImageButton} from './AddImageButton';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
+
+// The Diff tab's two views and the switch between them. One object rather than
+// five props: they are a single control and the thing it draws.
+export type DiffViewState = {
+	compacted: boolean;
+	onChangeCompacted: (next: boolean) => void;
+	squashed: GuiSquashedDiff | null;
+	loading: boolean;
+	error: string | null;
+};
 
 // Fullscreen on a panel at least this wide drops the tabs and lays the three
 // panes out side by side. Below it, the lanes would be too narrow to read, so
@@ -291,6 +304,7 @@ export const IssueDetails = ({
 	commitsError,
 	commitDiffsBySha,
 	onLoadCommitDiff,
+	diffView,
 	stats,
 	statsLoading,
 	statsError,
@@ -351,6 +365,7 @@ export const IssueDetails = ({
 	commitsError: string | null;
 	commitDiffsBySha: Record<string, CommitDiffState>;
 	onLoadCommitDiff: (sha: string) => void;
+	diffView: DiffViewState;
 	stats: IssueStatsPayload | null;
 	statsLoading: boolean;
 	statsError: string | null;
@@ -945,7 +960,7 @@ export const IssueDetails = ({
 					/>
 				);
 
-				const commitsPane = issue && (
+				const perCommitPane = issue && (
 					<IssueCommits
 						issueRef={issue.ref}
 						commits={commits}
@@ -966,6 +981,28 @@ export const IssueDetails = ({
 						}
 						focus={diffFocus}
 					/>
+				);
+
+				const squashedPane = issue && (
+					<SquashedDiff
+						diff={diffView.squashed}
+						loading={diffView.loading}
+						error={diffView.error}
+						diffStyle={commitsWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'}
+					/>
+				);
+
+				// The tab itself: the switch, which stays put across the change, and
+				// whichever of the two views it names.
+				const commitsPane = issue && (
+					<div>
+						<DiffViewSwitch
+							compacted={diffView.compacted}
+							onChange={diffView.onChangeCompacted}
+							pinnedToCommits={Boolean(diffFocus)}
+						/>
+						{diffView.compacted ? squashedPane : perCommitPane}
+					</div>
 				);
 
 				// A tab rather than a fifth lane: the reading layout puts the diff

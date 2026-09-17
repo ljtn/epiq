@@ -159,3 +159,18 @@ export type GuiCommitDiff = {
 	sha: string;
 	files: GuiCommitDiffFile[];
 };
+
+// The Diff tab's compacted view: every commit on the ticket as one diff.
+export type GuiSquashedDiff = {
+	ref: string;
+	from: string;
+	to: string;
+	commits: number;
+	files: GuiCommitDiffFile[];
+	// False when another ticket's commit landed between two of this one's, so
+	// the range compared is not this ticket's work alone. `overlappingPaths`
+	// then names the files where that actually shows; empty means the
+	// interleaving missed every file this ticket touched.
+	contiguous: boolean;
+	overlappingPaths: string[];
+};

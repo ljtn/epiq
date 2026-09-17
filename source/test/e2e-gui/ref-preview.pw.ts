@@ -1,5 +1,18 @@
-import type {Page} from '@playwright/test';
+import type {Locator, Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+
+// The hover is retried, not the assertion. A state broadcast re-lays the
+// panel out, and the panel can move out from under a pointer that is not
+// itself moving — which is a hover that ended, not a preview that failed to
+// open. Hovering again is what a reader does without noticing.
+const hoverUntilPreviewed = async (page: Page, trigger: Locator) => {
+	await expect(async () => {
+		await trigger.hover();
+		await expect(page.getByTestId('ticket-preview')).toBeVisible({
+			timeout: 2_000,
+		});
+	}).toPass({timeout: 15_000});
+};
 
 // Returns the new ticket's ref, which is what the URL is keyed by.
 const createTicket = async (
@@ -18,7 +31,7 @@ const createTicket = async (
 	await box.press('ControlOrMeta+Enter');
 	await expect(page.getByTestId('description-box')).toBeVisible();
 
-	return new URL(page.url()).pathname.split('/issue/')[1];
+	return new URL(page.url()).pathname.split('/issue/')[1]!;
 };
 
 test('hovering a ticket ref previews the ticket it names', async ({
@@ -51,10 +64,9 @@ test('hovering a ticket ref previews the ticket it names', async ({
 		.getByRole('button', {name: `Open ${targetRef}`});
 	await expect(refLink).toBeVisible();
 
-	await refLink.hover();
+	await hoverUntilPreviewed(page, refLink);
 
 	const preview = page.getByTestId('ticket-preview');
-	await expect(preview).toBeVisible();
 	await expect(preview).toContainText(targetTitle);
 	await expect(preview).toContainText(targetRef);
 	// The excerpt: prose kept, heading marks and the fenced block dropped.
@@ -91,8 +103,10 @@ test('the preview goes away when the pointer leaves the ref', async ({
 	);
 
 	const description = page.getByTestId('description-box');
-	await description.getByRole('button', {name: `Open ${targetRef}`}).hover();
-	await expect(page.getByTestId('ticket-preview')).toBeVisible();
+	await hoverUntilPreviewed(
+		page,
+		description.getByRole('button', {name: `Open ${targetRef}`}),
+	);
 
 	await description.hover({position: {x: 5, y: 5}});
 	await expect(page.getByTestId('ticket-preview')).toBeHidden();

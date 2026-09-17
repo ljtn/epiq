@@ -24,6 +24,7 @@ import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
 import {IconPlay} from './IconPlayback';
 import {IconScatter} from './IconScatter';
+import {segmentedButtonStyle} from '../lib/segmented.style';
 import {selectTriggerStyle} from '../lib/select-style';
 import {
 	BoardSeriesGroup,
@@ -34,16 +35,6 @@ import {
 
 // Borderless, marked the way Tabs marks the open tab. The icon toggles below
 // keep their box: they carry no label, so the border is what holds their shape.
-const scopeButtonStyle = (active: boolean): React.CSSProperties => ({
-	background: 'transparent',
-	border: 'none',
-	borderBottom: `1px solid ${active ? GUI_THEME.accent : 'transparent'}`,
-	color: active ? GUI_THEME.primary : GUI_THEME.dim,
-	borderRadius: 0,
-	fontSize: 11,
-	padding: '2px 6px 3px',
-	cursor: 'pointer',
-});
 
 // A fixture on this bar: a well the controls that are not about the chart sit
 // in — the panel toggles at one end, the transport at the other. Both outlive
@@ -252,7 +243,7 @@ export const ScrubberControls = ({
 								disabled={!connected}
 								onClick={() => onChangeScope(option)}
 								style={{
-									...scopeButtonStyle(
+									...segmentedButtonStyle(
 										!zoomed && !ticketFocus && scope === option,
 									),
 									...(connected ? {} : mutedStyle),
@@ -285,7 +276,7 @@ export const ScrubberControls = ({
 							aria-pressed={zoomed && !ticketFocus}
 							disabled
 							style={{
-								...scopeButtonStyle(zoomed && !ticketFocus),
+								...segmentedButtonStyle(zoomed && !ticketFocus),
 								opacity: zoomed && !ticketFocus ? 1 : 0.35,
 								cursor: 'default',
 							}}

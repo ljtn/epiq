@@ -154,37 +154,61 @@ export const TicketPreviewLayer = ({
 	const hover = useRef(onHover);
 	hover.current = onHover;
 
-	// The element the card is currently for, readable from the listener below
-	// without making it depend on the state it sets.
-	const shownTrigger = useRef<HTMLElement | null>(null);
-	shownTrigger.current = shown?.trigger ?? null;
+	// What the card is currently for, readable from the listener below without
+	// making it depend on the state it sets.
+	const shownNow = useRef<Shown | null>(null);
+	shownNow.current = shown;
+
+	// What the delay is running for. Held rather than captured in the timer,
+	// so the element can be swapped underneath it without the wait restarting.
+	const pending = useRef<Shown | null>(null);
 
 	useEffect(() => {
 		const hide = () => {
 			if (timer.current !== null) clearTimeout(timer.current);
 			timer.current = null;
+			pending.current = null;
 			setShown(null);
 		};
 
+		// Which ticket the pointer is over decides this, not which element:
+		// every state broadcast re-renders the prose these controls live in, and
+		// a replaced node fires `mouseover` again. Keying off the node would
+		// read each of those as a fresh hover and restart the wait, so on a
+		// board anything is happening on the card would never open at all.
 		const onOver = (event: MouseEvent) => {
 			const trigger = triggerFor(event.target);
 			const ref = trigger?.getAttribute(TICKET_REF_ATTRIBUTE);
 
 			if (!trigger || !ref) return hide();
-			// Already showing for this element: leave it alone rather than
-			// restarting the delay on every mousemove across the same word.
-			if (trigger === shownTrigger.current) return;
+
+			if (shownNow.current?.ref === ref) {
+				// Same ticket, new node: follow it, so the card stays put against
+				// the control that is actually on screen.
+				if (shownNow.current.trigger !== trigger) setShown({ref, trigger});
+				return;
+			}
+
+			if (pending.current?.ref === ref) {
+				pending.current = {ref, trigger};
+				return;
+			}
 
 			hide();
 			hover.current(ref);
+			pending.current = {ref, trigger};
 
-			timer.current = setTimeout(
-				() => setShown({ref, trigger}),
-				HOVER_DELAY_MS,
-			);
+			timer.current = setTimeout(() => {
+				const next = pending.current;
+				pending.current = null;
+				if (next) setShown(next);
+			}, HOVER_DELAY_MS);
 		};
 
-		const stopDismiss = onHoverDismiss(hide);
+		const stopDismiss = onHoverDismiss(
+			hide,
+			() => shownNow.current?.trigger ?? pending.current?.trigger ?? null,
+		);
 		document.addEventListener('mouseover', onOver);
 
 		return () => {

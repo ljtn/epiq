@@ -19,6 +19,7 @@ import {
 	GuiCommitDiffFile,
 	GuiIssueHistoryEntry,
 	GuiRefCommitEntry,
+	GuiSquashedDiff,
 } from './gui-state.model';
 
 export type IssueDetail = {
@@ -35,6 +36,17 @@ export type IssueCommits = {
 	commits: GuiRefCommitEntry[];
 };
 
+export type IssueSquashedDiffState = {
+	issueId: string;
+	// The ticket's newest sha, exactly as the stats state uses it: a squashed
+	// diff is a function of the commits it squashes, so an unchanged signature
+	// needs no second look and a new commit needs one.
+	signature: string;
+	loading: boolean;
+	error: string | null;
+	diff: GuiSquashedDiff | null;
+};
+
 export type IssueStatsState = {
 	issueId: string;
 	// What this answer was computed from: the ticket's newest sha, or an empty
@@ -46,7 +58,10 @@ export type IssueStatsState = {
 };
 
 /**
- * Whether the Stats tab has to ask again.
+ * Whether an answer derived from a ticket's commits has to be asked for again.
+ *
+ * Read by the Stats tab and by the Diff tab's compacted view, which are the
+ * same question over the same signature.
  *
  * Nothing on screen: yes. A different ticket, or the same one with a new
  * newest commit: yes, what is held describes something else. An answer that
@@ -55,7 +70,7 @@ export type IssueStatsState = {
  * no: a ticket's stats are a function of its commits, and those have not moved.
  */
 export const needsStats = (
-	held: IssueStatsState | null,
+	held: {issueId: string; signature: string; error: string | null} | null,
 	issueId: string,
 	signature: string,
 ): boolean =>
@@ -78,6 +93,10 @@ export type IssueDetailPanel = {
 	// costs a git scan of every commit the ticket owns and most tickets are
 	// opened to be read, not measured.
 	loadStats: (issueId: string, signature: string) => void;
+	squashed: IssueSquashedDiffState | null;
+	// Same bargain as `loadStats`: asked for when the compacted view is opened,
+	// not with the rest of the ticket. Most readers never open it.
+	loadSquashedDiff: (issueId: string, signature: string) => void;
 	commitDiffs: Record<string, CommitDiffState>;
 	loadCommitDiff: (sha: string) => void;
 	// An optimistic edit to the comments on screen, before the board's own state
@@ -175,6 +194,29 @@ export const useIssueDetail = ({
 		sendRaw({type: 'issue:stats:get', payload: {issueId: stats.issueId}});
 	}, [stats?.issueId, stats?.signature, stats?.loading, sendRaw]);
 
+	const [squashed, setSquashed] = useState<IssueSquashedDiffState | null>(null);
+
+	useEffect(() => {
+		setSquashed(null);
+	}, [issueId]);
+
+	const loadSquashedDiff = useCallback((id: string, signature: string) => {
+		setSquashed(prev =>
+			needsStats(prev, id, signature)
+				? {issueId: id, signature, loading: true, error: null, diff: null}
+				: prev,
+		);
+	}, []);
+
+	useEffect(() => {
+		if (!squashed?.loading) return;
+
+		sendRaw({
+			type: 'issue:squashed-diff:get',
+			payload: {issueId: squashed.issueId},
+		});
+	}, [squashed?.issueId, squashed?.signature, squashed?.loading, sendRaw]);
+
 	const loadCommitDiff = useCallback(
 		(sha: string) => {
 			setCommitDiffs(prev => ({
@@ -265,6 +307,36 @@ export const useIssueDetail = ({
 			return;
 		}
 
+		if (message.type === 'issue:squashed-diff:result') {
+			// Wrapped with the issueId like its neighbours: the compacted view
+			// stays open across a change of ticket.
+			const {issueId: forIssue, result} = message.payload as {
+				issueId: string;
+				result: {status: string; message: string; value?: GuiSquashedDiff};
+			};
+
+			if (result?.status === 'fail') {
+				setSquashed(prev =>
+					prev && prev.issueId === forIssue
+						? {...prev, loading: false, error: result.message}
+						: prev,
+				);
+				return;
+			}
+
+			const next = getResultValue<GuiSquashedDiff>(result);
+
+			if (next) {
+				setSquashed(prev =>
+					prev && prev.issueId === forIssue
+						? {...prev, loading: false, error: null, diff: next}
+						: prev,
+				);
+			}
+
+			return;
+		}
+
 		if (message.type === 'commit:diff:result') {
 			const {sha, result} = message.payload as {
 				sha: string;
@@ -309,6 +381,8 @@ export const useIssueDetail = ({
 		commits,
 		stats,
 		loadStats,
+		squashed,
+		loadSquashedDiff,
 		commitDiffs,
 		loadCommitDiff,
 		updateComments,
