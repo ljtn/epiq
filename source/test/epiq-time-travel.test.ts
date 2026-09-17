@@ -118,6 +118,7 @@ import {
 	getCommitsForRef,
 	getCommitTimeline,
 	getEventTimeline,
+	getSquashedDiffForRef,
 	getTimeTravelStatus,
 	openCommitDiffInEditor,
 	resetCommitTimelineCacheForTests,
@@ -1087,6 +1088,236 @@ describe('epiq-time-travel', () => {
 			expect(isSuccess(second) && second.value.map(c => c.sha)).toEqual([
 				'bbb222',
 			]);
+		});
+	});
+
+	describe('getSquashedDiffForRef', () => {
+		const SEP = '\x1f';
+		const REC = '\x1e';
+		const ZERO_BLOB = '0'.repeat(40);
+
+		// A real 40-hex sha per label: the per-commit walk keys off a line being
+		// exactly that shape, so a readable stand-in like "newer000…" would be
+		// skipped rather than read as a commit.
+		const sha = (label: string): string =>
+			createHash('sha1').update(label).digest('hex');
+
+		// The three git calls this can make, each answered from the shape the
+		// test describes: the commit timeline (which commits carry the ref), the
+		// per-commit path walk (only asked for when the run is broken), and the
+		// range diff itself.
+		const mockGit = ({
+			history,
+			pathsByCommit = {},
+			diffFiles = [],
+		}: {
+			// Newest first, as git log returns them.
+			history: {sha: string; subject: string}[];
+			pathsByCommit?: Record<string, string[]>;
+			diffFiles?: string[];
+		}) => {
+			vi.mocked(execGit).mockImplementation(async ({args}) => {
+				if (args[0] === 'log' && !args.includes('--raw')) {
+					return succeeded('git log', {
+						stdout: history
+							.map(
+								(commit, index) =>
+									`${REC}${commit.sha}${SEP}${
+										1700000000 + index
+									}${SEP}Ada${SEP}${commit.subject}`,
+							)
+							.join('\n'),
+						stderr: '',
+						exitCode: 0,
+					});
+				}
+
+				if (args[0] === 'log') {
+					return succeeded('git log --raw', {
+						stdout: Object.entries(pathsByCommit)
+							.map(([label, paths]) =>
+								[
+									sha(label),
+									...paths.map(
+										path =>
+											`:100644 100644 ${ZERO_BLOB.slice(
+												0,
+												39,
+											)}1 ${ZERO_BLOB.slice(0, 39)}2 M\t${path}`,
+									),
+								].join('\n'),
+							)
+							.join('\n'),
+						stderr: '',
+						exitCode: 0,
+					});
+				}
+
+				if (args[0] === 'diff') {
+					const raw = diffFiles.map(
+						path =>
+							`:100644 100644 ${ZERO_BLOB.slice(0, 39)}a ${ZERO_BLOB.slice(
+								0,
+								39,
+							)}b M\t${path}`,
+					);
+					const numstat = diffFiles.map(path => `1\t1\t${path}`);
+
+					return succeeded('git diff', {
+						stdout: [...raw, ...numstat].join('\n'),
+						stderr: '',
+						exitCode: 0,
+					});
+				}
+
+				return failed(`unexpected git args: ${args.join(' ')}`);
+			});
+
+			vi.mocked(readGitBlobsBatch).mockImplementation(async hashes =>
+				succeeded('blobs', new Map(hashes.map(hash => [hash, 'content']))),
+			);
+		};
+
+		const lastDiffArgs = (): string[] =>
+			vi
+				.mocked(execGit)
+				.mock.calls.map(([call]) => call.args)
+				.filter(args => args[0] === 'diff')
+				.at(-1)!;
+
+		it('compares the oldest commit’s parent against the newest', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 second'},
+					{sha: sha('older'), subject: '5S52AC8 first'},
+				],
+				diffFiles: ['source/a.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.from).toBe(`${sha('older')}~1`);
+			expect(result.value.to).toBe(sha('newer'));
+			expect(result.value.commits).toBe(2);
+			expect(result.value.files.map(file => file.path)).toEqual([
+				'source/a.ts',
+			]);
+		});
+
+		// A contiguous run is exactly what the ticket did, so there is nothing
+		// to narrow and no second walk to pay for.
+		it('asks git nothing extra when the commits are a contiguous run', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 second'},
+					{sha: sha('older'), subject: '5S52AC8 first'},
+				],
+				diffFiles: ['source/a.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.contiguous).toBe(true);
+			expect(result.value.overlappingPaths).toEqual([]);
+			expect(lastDiffArgs()).not.toContain('--');
+		});
+
+		// The whole reason this is not just `git diff oldest~1 newest`: another
+		// ticket's commit in the range would otherwise arrive as this ticket's.
+		it('narrows a broken run to the files the ticket’s own commits touched', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 second'},
+					{sha: sha('other'), subject: 'QG9544B someone else'},
+					{sha: sha('older'), subject: '5S52AC8 first'},
+				],
+				pathsByCommit: {
+					newer: ['source/mine.ts'],
+					other: ['source/theirs.ts'],
+					older: ['source/mine.ts'],
+				},
+				diffFiles: ['source/mine.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.contiguous).toBe(false);
+			expect(lastDiffArgs()).toContain('--');
+			expect(lastDiffArgs()).toContain('source/mine.ts');
+			expect(lastDiffArgs()).not.toContain('source/theirs.ts');
+		});
+
+		// Narrowing keeps the other ticket's *files* out; it cannot keep its
+		// changes out of a file both touched. That file is named rather than
+		// passed off as clean.
+		it('names a file the interleaved commit also touched', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 second'},
+					{sha: sha('other'), subject: 'QG9544B someone else'},
+					{sha: sha('older'), subject: '5S52AC8 first'},
+				],
+				pathsByCommit: {
+					newer: ['source/shared.ts'],
+					other: ['source/shared.ts', 'source/theirs.ts'],
+					older: ['source/mine.ts'],
+				},
+				diffFiles: ['source/mine.ts', 'source/shared.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.overlappingPaths).toEqual(['source/shared.ts']);
+		});
+
+		// A broken run whose interleaving misses every file the ticket touched
+		// is exact after all, and says so.
+		it('reports no overlap when the interleaved commit touched other files', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 second'},
+					{sha: sha('other'), subject: 'QG9544B someone else'},
+					{sha: sha('older'), subject: '5S52AC8 first'},
+				],
+				pathsByCommit: {
+					newer: ['source/mine.ts'],
+					other: ['source/theirs.ts'],
+					older: ['source/mine.ts'],
+				},
+				diffFiles: ['source/mine.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.contiguous).toBe(false);
+			expect(result.value.overlappingPaths).toEqual([]);
+		});
+
+		it('fails when no commit carries the ref', async () => {
+			mockGit({
+				history: [{sha: sha('other'), subject: 'QG9544B someone else'}],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(false);
+		});
+
+		it('propagates a bad ref rather than answering with nothing', async () => {
+			const result = await getSquashedDiffForRef({ref: 'TOOLONGREF'});
+
+			expect(isSuccess(result)).toBe(false);
+			expect(execGit).not.toHaveBeenCalled();
 		});
 	});
 

@@ -645,9 +645,15 @@ type ChangedFileBlobs = {
 // `--full-index` (documented for this but, at least as of Apple Git 2.39.5,
 // a no-op outside of `-p` patch output), this reliably defeats the
 // repo-size-dependent abbreviation `--raw` uses by default.
+// Any two revisions, not just a commit and its parent: one commit's diff is
+// `<sha>~1 <sha>`, a whole ticket's is its oldest commit's parent against its
+// newest. `paths`, when given, narrows the answer to those files — which is
+// how the ticket-wide diff keeps another ticket's commits out of it.
 const getChangedFileBlobs = async (
 	repoRoot: string,
-	sha: string,
+	from: string,
+	to: string,
+	paths?: string[],
 ): Promise<Result<ChangedFileBlobs[]>> => {
 	const diffResult = await execGit({
 		cwd: repoRoot,
@@ -657,8 +663,11 @@ const getChangedFileBlobs = async (
 			'--numstat',
 			'--no-renames',
 			'--abbrev=40',
-			`${sha}~1`,
-			sha,
+			from,
+			to,
+			// `--` is what stops a path that looks like a revision being read as
+			// one; without it a file called `main` would silently change the diff.
+			...(paths && paths.length > 0 ? ['--', ...paths] : []),
 		],
 	});
 	if (isFail(diffResult)) return failed(diffResult.message);
@@ -710,10 +719,47 @@ const getChangedFileBlobs = async (
 		});
 
 	if (entries.length === 0) {
-		return failed('No changed files found for this commit');
+		return failed('No changed files found between these revisions');
 	}
 
 	return succeeded('Listed changed files with blob hashes', entries);
+};
+
+// Reads `entries` into the CommitDiffFile shape the GUI draws, pulling every
+// before/after blob in one `git cat-file --batch`. Shared by the one-commit
+// diff and the ticket-wide one, which differ only in the revisions they asked
+// git to compare.
+const readDiffFiles = async (
+	repoRoot: string,
+	entries: ChangedFileBlobs[],
+): Promise<Result<CommitDiffFile[]>> => {
+	if (entries.length > MAX_DIFF_FILES_FOR_DATA) {
+		return failed(
+			`${entries.length} files changed — too many to show as a diff`,
+		);
+	}
+
+	const blobHashes = entries.flatMap(entry =>
+		[entry.beforeBlob, entry.afterBlob].filter(
+			(hash): hash is string => hash !== null,
+		),
+	);
+
+	const blobsResult = await readGitBlobsBatch(blobHashes, repoRoot);
+	if (isFail(blobsResult)) return failed(blobsResult.message);
+
+	const blobs = blobsResult.value;
+
+	return succeeded(
+		'Read changed file contents',
+		entries.map(entry => ({
+			path: entry.path,
+			before: entry.beforeBlob ? blobs.get(entry.beforeBlob) ?? '' : '',
+			after: entry.afterBlob ? blobs.get(entry.afterBlob) ?? '' : '',
+			insertions: entry.insertions,
+			deletions: entry.deletions,
+		})),
+	);
 };
 
 // The GUI diff panel's data source: reads every changed file's before/after
@@ -733,37 +779,196 @@ export const getCommitDiff = async (
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 
-	const entriesResult = await getChangedFileBlobs(repoRoot, input.sha);
+	const entriesResult = await getChangedFileBlobs(
+		repoRoot,
+		`${input.sha}~1`,
+		input.sha,
+	);
 	if (isFail(entriesResult)) return failed(entriesResult.message);
 
-	const entries = entriesResult.value;
+	const filesResult = await readDiffFiles(repoRoot, entriesResult.value);
+	if (isFail(filesResult)) return failed(filesResult.message);
 
-	if (entries.length > MAX_DIFF_FILES_FOR_DATA) {
-		return failed(
-			`Commit touches ${entries.length} files — too many to show as a diff`,
-		);
-	}
-
-	const blobHashes = entries.flatMap(entry =>
-		[entry.beforeBlob, entry.afterBlob].filter(
-			(hash): hash is string => hash !== null,
-		),
-	);
-
-	const blobsResult = await readGitBlobsBatch(blobHashes, repoRoot);
-	if (isFail(blobsResult)) return failed(blobsResult.message);
-
-	const blobs = blobsResult.value;
-
-	const files: CommitDiffFile[] = entries.map(entry => ({
-		path: entry.path,
-		before: entry.beforeBlob ? blobs.get(entry.beforeBlob) ?? '' : '',
-		after: entry.afterBlob ? blobs.get(entry.afterBlob) ?? '' : '',
-		insertions: entry.insertions,
-		deletions: entry.deletions,
-	}));
+	const files = filesResult.value;
 
 	return succeeded('Loaded commit diff', {sha: input.sha, files});
+};
+
+export type SquashedDiff = {
+	ref: string;
+	// The revisions compared: the oldest commit's parent, and the newest
+	// commit. Carried so a reader can reproduce the diff by hand.
+	from: string;
+	to: string;
+	commits: number;
+	files: CommitDiffFile[];
+	// Whether the ticket's commits are a contiguous run of real history. When
+	// they are, this diff is exactly what the ticket did and nothing else.
+	contiguous: boolean;
+	// Only when they are not: files this ticket touched that a commit from
+	// outside it also touched somewhere in the range. Those files' diffs carry
+	// the other change too, and there is no way to take it back out without
+	// replaying the ticket's commits onto a tree of their own. Empty means the
+	// interleaving happened to miss every file this ticket cares about, and
+	// the diff is exact after all.
+	overlappingPaths: string[];
+};
+
+// `<sha>` on a line of its own, then that commit's `--raw` lines. `-z` is not
+// used: a path containing a newline would already have broken RAW_DIFF_LINE
+// everywhere else here, and git quotes such a path rather than emitting it raw.
+const LOG_COMMIT_LINE = /^[0-9a-f]{40}$/;
+
+/**
+ * Every commit in `from..to` with the paths it touched.
+ *
+ * One spawn for the whole range, rather than one `git diff` per commit: the
+ * range is a ticket's worth of history, and process start dominates.
+ */
+const changedPathsByCommit = async (
+	repoRoot: string,
+	from: string,
+	to: string,
+): Promise<Result<Map<string, Set<string>>>> => {
+	const logResult = await execGit({
+		cwd: repoRoot,
+		args: [
+			'log',
+			'--raw',
+			'--no-renames',
+			'--abbrev=40',
+			'--format=%H',
+			`${from}..${to}`,
+		],
+	});
+	if (isFail(logResult)) return failed(logResult.message);
+
+	const byCommit = new Map<string, Set<string>>();
+	let current: Set<string> | null = null;
+
+	for (const line of logResult.value.stdout.split('\n')) {
+		if (LOG_COMMIT_LINE.test(line)) {
+			current = new Set<string>();
+			byCommit.set(line, current);
+			continue;
+		}
+
+		const match = RAW_DIFF_LINE.exec(line);
+		if (match && current) current.add(match[3] ?? '');
+	}
+
+	return succeeded('Listed changed paths per commit', byCommit);
+};
+
+const union = (sets: Iterable<Set<string>>): Set<string> => {
+	const all = new Set<string>();
+	for (const set of sets) for (const value of set) all.add(value);
+
+	return all;
+};
+
+/**
+ * A ticket's commits as one diff — what the Diff tab's compacted view draws.
+ *
+ * The comparison is the oldest commit's parent against the newest, which is
+ * exact whenever the ticket's commits are a contiguous run of history. They
+ * usually are: a ticket is a branch, and a branch rebases onto main as a
+ * block.
+ *
+ * When they are not — another ticket's commit landed between two of this
+ * one's — a plain range diff would quietly hand back both tickets' work as
+ * this ticket's. So the range is narrowed to the paths this ticket's own
+ * commits touched, and any of those paths a foreign commit also touched is
+ * named in `overlappingPaths` rather than passed off as clean. Taking the
+ * foreign change back out would mean replaying this ticket's commits onto a
+ * tree of their own, which can conflict and is a great deal of machinery for
+ * a case the workflow already makes rare.
+ */
+export const getSquashedDiffForRef = async (
+	input: ToolInput & {ref: string},
+): Promise<Result<SquashedDiff>> => {
+	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+	const repoRoot = repoRootResult.value;
+
+	const commitsResult = await getCommitsForRef({repoRoot, ref: input.ref});
+	if (isFail(commitsResult)) return failed(commitsResult.message);
+
+	// Newest first, as getCommitsForRef returns them.
+	const commits = commitsResult.value;
+	if (commits.length === 0) return failed('No commits reference this ticket');
+
+	const newest = commits[0]!.sha;
+	const oldest = commits[commits.length - 1]!.sha;
+	const from = `${oldest}~1`;
+
+	// Every commit but the oldest knows whether the commit before it in real
+	// history was also this ticket's. All of them saying yes is the definition
+	// of a contiguous run, and it costs nothing to ask.
+	const contiguous = commits
+		.slice(0, -1)
+		.every(commit => commit.precedingSha !== null);
+
+	let paths: string[] | undefined;
+	let overlappingPaths: string[] = [];
+
+	if (!contiguous) {
+		const walkResult = await changedPathsByCommit(repoRoot, from, newest);
+		if (isFail(walkResult)) return failed(walkResult.message);
+
+		const walk = walkResult.value;
+		const mine = new Set(commits.map(commit => commit.sha));
+
+		const ours = union(
+			[...walk.entries()]
+				.filter(([sha]) => mine.has(sha))
+				.map(([, touched]) => touched),
+		);
+		const theirs = union(
+			[...walk.entries()]
+				.filter(([sha]) => !mine.has(sha))
+				.map(([, touched]) => touched),
+		);
+
+		// `git diff A B --` with no pathspec is a full diff, not an empty one, so
+		// a ticket whose commits touched nothing git reports (an empty commit, a
+		// merge) has to be answered here rather than by narrowing to nothing.
+		if (ours.size === 0) {
+			return succeeded('Loaded squashed diff', {
+				ref: input.ref.trim().toUpperCase(),
+				from,
+				to: newest,
+				commits: commits.length,
+				files: [],
+				contiguous,
+				overlappingPaths: [],
+			});
+		}
+
+		paths = [...ours];
+		overlappingPaths = [...ours].filter(path => theirs.has(path)).sort();
+	}
+
+	const entriesResult = await getChangedFileBlobs(
+		repoRoot,
+		from,
+		newest,
+		paths,
+	);
+	if (isFail(entriesResult)) return failed(entriesResult.message);
+
+	const filesResult = await readDiffFiles(repoRoot, entriesResult.value);
+	if (isFail(filesResult)) return failed(filesResult.message);
+
+	return succeeded('Loaded squashed diff', {
+		ref: input.ref.trim().toUpperCase(),
+		from,
+		to: newest,
+		commits: commits.length,
+		files: filesResult.value,
+		contiguous,
+		overlappingPaths,
+	});
 };
 
 // Takes NO lock: its callers already run inside `runExclusive`, which is not
