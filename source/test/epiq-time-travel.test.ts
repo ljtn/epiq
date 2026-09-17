@@ -1102,21 +1102,48 @@ describe('epiq-time-travel', () => {
 		const sha = (label: string): string =>
 			createHash('sha1').update(label).digest('hex');
 
-		// The three git calls this can make, each answered from the shape the
-		// test describes: the commit timeline (which commits carry the ref), the
-		// per-commit path walk (only asked for when the run is broken), and the
+		// Every git call this can make, answered from the shape the test
+		// describes: the commit timeline (which commits carry the ref), the
+		// ancestry checks that pin the endpoints to one line of history, the
+		// root-commit check, the per-commit path walk over the range, and the
 		// range diff itself.
 		const mockGit = ({
 			history,
 			pathsByCommit = {},
 			diffFiles = [],
+			// Labels whose commit is NOT on the newest's line of history — a
+			// copy a rebase left behind on a stale branch. Empty means the
+			// ticket's commits all sit on one line, which is the healthy case.
+			strandedLabels = [],
 		}: {
 			// Newest first, as git log returns them.
 			history: {sha: string; subject: string}[];
 			pathsByCommit?: Record<string, string[]>;
 			diffFiles?: string[];
+			strandedLabels?: string[];
 		}) => {
+			const stranded = new Set(strandedLabels.map(label => sha(label)));
+
 			vi.mocked(execGit).mockImplementation(async ({args}) => {
+				if (args[0] === 'merge-base') {
+					// `--is-ancestor <candidate> <head>`: a non-zero exit is "no".
+					return stranded.has(args[2] ?? '')
+						? failed('not an ancestor')
+						: succeeded('is ancestor', {
+								stdout: '',
+								stderr: '',
+								exitCode: 0,
+						  });
+				}
+
+				if (args[0] === 'rev-parse') {
+					return succeeded('rev-parse', {
+						stdout: `${sha('a-parent')}\n`,
+						stderr: '',
+						exitCode: 0,
+					});
+				}
+
 				if (args[0] === 'log' && !args.includes('--raw')) {
 					return succeeded('git log', {
 						stdout: history
@@ -1191,6 +1218,7 @@ describe('epiq-time-travel', () => {
 					{sha: sha('newer'), subject: '5S52AC8 second'},
 					{sha: sha('older'), subject: '5S52AC8 first'},
 				],
+				pathsByCommit: {newer: ['source/a.ts'], older: ['source/a.ts']},
 				diffFiles: ['source/a.ts'],
 			});
 
@@ -1208,12 +1236,13 @@ describe('epiq-time-travel', () => {
 
 		// A contiguous run is exactly what the ticket did, so there is nothing
 		// to narrow and no second walk to pay for.
-		it('asks git nothing extra when the commits are a contiguous run', async () => {
+		it('narrows nothing when the commits are a contiguous run', async () => {
 			mockGit({
 				history: [
 					{sha: sha('newer'), subject: '5S52AC8 second'},
 					{sha: sha('older'), subject: '5S52AC8 first'},
 				],
+				pathsByCommit: {newer: ['source/a.ts'], older: ['source/a.ts']},
 				diffFiles: ['source/a.ts'],
 			});
 
@@ -1224,6 +1253,85 @@ describe('epiq-time-travel', () => {
 			expect(result.value.contiguous).toBe(true);
 			expect(result.value.overlappingPaths).toEqual([]);
 			expect(lastDiffArgs()).not.toContain('--');
+		});
+
+		// The reason the endpoints are not simply the first and last match: a
+		// ref matches across every branch, and a rebase leaves the pre-rebase
+		// copy reachable from the stale one. Diffing from that copy compares
+		// across the divergence and returns everything the two branches ever
+		// differed by.
+		it('ignores a rebase copy stranded on another branch', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 second'},
+					{sha: sha('older'), subject: '5S52AC8 first'},
+					{sha: sha('stale'), subject: '5S52AC8 first'},
+				],
+				strandedLabels: ['stale'],
+				pathsByCommit: {newer: ['source/a.ts'], older: ['source/a.ts']},
+				diffFiles: ['source/a.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			// The stale copy is neither an endpoint nor counted as a commit of
+			// its own: it is the same work, left behind.
+			expect(result.value.from).toBe(`${sha('older')}~1`);
+			expect(result.value.commits).toBe(2);
+			expect(result.value.contiguous).toBe(true);
+		});
+
+		// Adjacency in the cross-branch listing is not adjacency in history —
+		// two copies of one commit sort next to each other. The range walk is
+		// what says whether anything else is really in between.
+		it('reads contiguity off the range rather than off the listing', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 second'},
+					{sha: sha('older'), subject: '5S52AC8 first'},
+				],
+				pathsByCommit: {
+					newer: ['source/a.ts'],
+					other: ['source/b.ts'],
+					older: ['source/a.ts'],
+				},
+				diffFiles: ['source/a.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.contiguous).toBe(false);
+		});
+
+		// A ticket whose first commit is the repository's own first commit has
+		// no parent to diff against; git's empty tree is what that diff is.
+		it('diffs a root commit against the empty tree', async () => {
+			mockGit({
+				history: [{sha: sha('only'), subject: '5S52AC8 the very first'}],
+				pathsByCommit: {only: ['source/a.ts']},
+				diffFiles: ['source/a.ts'],
+			});
+
+			vi.mocked(execGit).mockImplementation(
+				(
+					previous => async (call: {args: string[]}) =>
+						call.args[0] === 'rev-parse'
+							? failed('unknown revision')
+							: previous(call as never)
+				)(vi.mocked(execGit).getMockImplementation()!),
+			);
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.from).toBe(
+				'4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+			);
 		});
 
 		// The whole reason this is not just `git diff oldest~1 newest`: another
@@ -1313,6 +1421,7 @@ describe('epiq-time-travel', () => {
 					{sha: sha('newer'), subject: '5S52AC8 and back out again'},
 					{sha: sha('older'), subject: '5S52AC8 add a thing'},
 				],
+				pathsByCommit: {newer: ['source/a.ts'], older: ['source/a.ts']},
 				diffFiles: [],
 			});
 
