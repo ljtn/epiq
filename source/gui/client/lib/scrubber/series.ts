@@ -155,8 +155,9 @@ export const categoryOf = (action: string): EventCategory =>
 	CATEGORY_BY_ACTION[action] ?? 'tickets';
 
 // The identity a view colours by, or null where the event has none — an
-// assigning view over a `create.contributor`, say.
-export const identityOf = (
+// assigning view over a `create.contributor`, say. Selects one already built;
+// `identityOf` in `lib/model/identity.ts` is what builds them.
+const identityForView = (
 	entry: GuiEventTimelineEntry,
 	view: BoardView,
 ): GuiEventIdentity | null => {
@@ -315,7 +316,7 @@ export const isShown = (
 	const category = viewCategory(view);
 	if (category !== null && categoryOf(entry.action) !== category) return false;
 
-	const identity = identityOf(entry, view);
+	const identity = identityForView(entry, view);
 
 	return identity === null || !hiddenIds.has(identity.id);
 };
@@ -333,7 +334,7 @@ export const buildEventDots = (
 			if (!isShown(entry, view, hiddenIds, keptIssues)) return [];
 
 			const category = categoryOf(entry.action);
-			const identity = identityOf(entry, view);
+			const identity = identityForView(entry, view);
 
 			return [
 				{
