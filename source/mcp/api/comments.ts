@@ -1,6 +1,6 @@
 import {ulid} from 'ulid';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {AppEvent} from '../../lib/event/event.model.js';
+import {actorOf, AppEvent} from '../../lib/event/event.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {MAX_COMMENT_LENGTH} from '../../lib/utils/text.limits.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
@@ -50,7 +50,7 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'add.issue.comment',
 		payload: {
 			id: commentId,
@@ -116,7 +116,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'delete.issue.comment',
 		payload: {
 			id: input.commentId,
@@ -186,7 +186,7 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'edit.issue.comment',
 		payload: {
 			id: input.commentId,

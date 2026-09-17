@@ -128,10 +128,9 @@ export function materializeAndPersistAll<const T extends AppEvent[]>(
 	return batched.value ?? failed('Materialize and persist produced nothing');
 }
 
-// Also where a rename reaches the board. The log file name is a sanitized
-// storage key and cannot carry a display name, so the registry only learns a
-// new one from an event, and this is the hook every write already passes
-// through.
+// Also where a rename reaches the board. Nothing on disk carries a display
+// name — not the log's file name, not the event — so the registry only learns
+// one from an event, and this is the hook every write already passes through.
 export const ensureContributorCurrent = (
 	event: AppEvent,
 	rootDir: string,
@@ -160,6 +159,7 @@ export const ensureContributorCurrent = (
 	if (!userName || configuredId !== event.userId) {
 		return succeeded('Not this actor own write', undefined);
 	}
+
 	const contributor = nodeRepo.getContributor(event.userId);
 
 	const actorEvent: AppEvent<'create.contributor' | 'rename.contributor'> = {

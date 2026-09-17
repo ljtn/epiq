@@ -11,6 +11,7 @@ import {nodeRepo} from '../../repository/node-repo.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
 import {EditModifiers} from '../command-modifiers.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const editCommand = async (cmdState: CommandLineInput) => {
 	const {contextNode, selectedIndex} = getState();
@@ -46,7 +47,7 @@ export const editCommand = async (cmdState: CommandLineInput) => {
 					id: ulid(),
 					action: 'edit.title',
 					payload: {id: node.id, name: newName},
-					...userRes.value,
+					...actorOf(userRes.value),
 				},
 			],
 			persistRootResult.value,
@@ -118,7 +119,7 @@ const editSelectedComment = async (cmdState: CommandLineInput) => {
 					issue: issueNode.id,
 					md,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRoot,
@@ -174,7 +175,7 @@ export const editInEditor = async () => {
 					id: issueNode.id,
 					md: updatedValue,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRoot,

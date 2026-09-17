@@ -5,7 +5,7 @@ import {ulidTimeMs} from '../../lib/event/date-utils.js';
 import {bootStateFromEventLog} from '../../lib/event/event-boot.js';
 import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {AppEvent, MovePosition} from '../../lib/event/event.model.js';
+import {actorOf, AppEvent, MovePosition} from '../../lib/event/event.model.js';
 import {resolveReopenParentFromLog} from '../../lib/event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
 import {isTicketNode, Ticket} from '../../lib/model/context.model.js';
@@ -312,7 +312,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 	if (description) {
 		events.push({
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'edit.description',
 			payload: {id: issueId, md: description},
 		} satisfies AppEvent<'edit.description'>);
@@ -332,7 +332,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 		if (!existingTag) {
 			events.push({
 				id: ulid(),
-				...actorResult.value,
+				...actorOf(actorResult.value),
 				action: 'create.tag',
 				payload: {id: tagId, name: tagName},
 			} satisfies AppEvent<'create.tag'>);
@@ -340,7 +340,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 		events.push({
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'add.issue.tag',
 			payload: {id: issueId, tag: tagId},
 		} satisfies AppEvent<'add.issue.tag'>);
@@ -370,7 +370,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 		if (!existingAssignee) {
 			events.push({
 				id: ulid(),
-				...actorResult.value,
+				...actorOf(actorResult.value),
 				action: 'create.contributor',
 				payload: {id: assigneeId, name: assigneeName},
 			} satisfies AppEvent<'create.contributor'>);
@@ -378,7 +378,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 		events.push({
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'add.issue.assignee',
 			payload: {id: issueId, assignee: assigneeId},
 		} satisfies AppEvent<'add.issue.assignee'>);
@@ -418,7 +418,7 @@ const closeOne = (id: string, actor: Actor, stateBranchRoot: string) => {
 
 	const event = {
 		id: ulid(),
-		...actor,
+		...actorOf(actor),
 		action: 'close.issue',
 		payload: {
 			id,
@@ -502,7 +502,7 @@ export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'reopen.issue',
 		payload: {
 			id: issue.id,
@@ -548,7 +548,7 @@ const moveOne = (
 
 	const event = {
 		id: ulid(),
-		...actor,
+		...actorOf(actor),
 		action: 'move.node',
 		payload: {
 			id,
@@ -685,7 +685,7 @@ export const editIssueDescription = async (
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'edit.description',
 		payload: {
 			id: input.issueId,
@@ -740,7 +740,7 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'edit.title',
 		payload: {
 			id: input.issueId,

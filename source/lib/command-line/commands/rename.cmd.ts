@@ -5,6 +5,7 @@ import {failed, isFail} from '../../model/result-types.js';
 import {getCmdArg} from '../../state/cmd.state.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const renameCommand = async () => {
 	const userRes = resolveActorId();
@@ -27,7 +28,7 @@ export const renameCommand = async () => {
 				id: ulid(),
 				action: 'edit.title',
 				payload: {id: node.id, name: newName},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRootResult.value,

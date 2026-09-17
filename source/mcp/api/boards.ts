@@ -3,7 +3,7 @@ import {getStateBranchRoot} from '../../git/git-storage.js';
 import {bootStateFromEventLog} from '../../lib/event/event-boot.js';
 import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {AppEvent, MovePosition} from '../../lib/event/event.model.js';
+import {actorOf, AppEvent, MovePosition} from '../../lib/event/event.model.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
 import {isBoardNode} from '../../lib/model/context.model.js';
 import {
@@ -120,7 +120,7 @@ export const createBoard = async (input: CreateBoardInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'add.board',
 		payload: {
 			id: boardId,
@@ -185,7 +185,7 @@ export const editBoardTitle = async (input: EditBoardTitleInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'edit.title',
 		payload: {
 			id: input.boardId,
@@ -264,7 +264,7 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'add.swimlane',
 		payload: {
 			id: swimlaneId,
@@ -318,7 +318,7 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'edit.title',
 		payload: {
 			id: input.swimlaneId,
@@ -383,7 +383,7 @@ export const moveSwimlane = async (
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'move.node',
 		payload: {
 			id: input.swimlaneId,
@@ -420,7 +420,7 @@ export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'delete.node',
 		payload: {
 			id: input.swimlaneId,

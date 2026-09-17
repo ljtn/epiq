@@ -8,6 +8,7 @@ import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
 import {getAssignableContributors} from './assignable-contributors.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const unassignUserCommand = async () => {
 	const userRes = resolveActorId();
@@ -32,12 +33,12 @@ export const unassignUserCommand = async () => {
 
 	const isSelf = name.toLowerCase() === 'me';
 
-	// Resolved against this issue's assignees, not the whole registry, so a
-	// Resolved before the lookup, which needs it for the names a pre-ZFZFW9D
-	// log file name carries.
+	// Ahead of the lookup, which needs the root for the names only a
+	// pre-ZFZFW9D log file name carries.
 	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
+	// Resolved against this issue's assignees, not the whole registry, so a
 	// shared name is only ambiguous when both people are assigned here.
 	const matches = isSelf
 		? assignees.filter(id => id === userRes.value.userId)
@@ -72,7 +73,7 @@ export const unassignUserCommand = async () => {
 					id: ticket.id,
 					assignee: contributorId,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRootResult.value,

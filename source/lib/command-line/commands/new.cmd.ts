@@ -3,7 +3,7 @@ import {navigationUtils} from '../../actions/default/navigation-action-utils.js'
 import {createIssueEvents} from '../../event/common-events.js';
 import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../../event/event-persist.js';
-import {AppEvent} from '../../event/event.model.js';
+import {actorOf, AppEvent} from '../../event/event.model.js';
 import {CommandLineActionEntry} from '../../model/action-map.model.js';
 import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
@@ -77,7 +77,7 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 				parent: workspace.id,
 				rank: rankResult.value,
 			},
-			...userRes.value,
+			...actorOf(userRes.value),
 		});
 	}
 
@@ -103,7 +103,7 @@ export const newCommand: CommandLineActionEntry['action'] = async (
 				parent: boardResult.value.id,
 				rank: rankResult.value,
 			},
-			...userRes.value,
+			...actorOf(userRes.value),
 		});
 	}
 

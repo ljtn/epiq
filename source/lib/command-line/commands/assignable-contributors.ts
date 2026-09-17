@@ -14,13 +14,19 @@ export const getAssignableContributors = (
 }[] => {
 	// May run before boot has populated the log.
 	const {eventLog = [], contributors} = getState();
-	const byId = new Map<string, string>(loadActorNames(stateBranchRoot));
+	const byId = new Map<string, string>();
 	const authorIds = new Set<string>();
+
+	// Looked up per author rather than merged in whole: a log file name says
+	// nothing about whether its author is in the log this is offering from, so
+	// seeding from it would offer people the board has never seen — and during
+	// time travel, people it has not seen *yet*.
+	const fileNames = loadActorNames(stateBranchRoot);
 
 	for (const event of eventLog) {
 		if (!event.userId) continue;
 
-		if (!byId.has(event.userId)) byId.set(event.userId, '');
+		byId.set(event.userId, fileNames.get(event.userId) ?? '');
 		authorIds.add(event.userId);
 	}
 

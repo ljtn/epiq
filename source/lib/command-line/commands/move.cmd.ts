@@ -9,7 +9,7 @@ import {
 } from '../../actions/move/move-actions-utils.js';
 import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
 import {resolveActorId} from '../../event/event-persist.js';
-import {MovePosition} from '../../event/event.model.js';
+import {actorOf, MovePosition} from '../../event/event.model.js';
 import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getOrderedChildren} from '../../repository/rank.js';
@@ -104,7 +104,7 @@ export const moveCommand = async (): Promise<Result> => {
 				parent: targetNode.parentNodeId,
 				rank: rankResult.value.rank,
 			},
-			...userRes.value,
+			...actorOf(userRes.value),
 		});
 
 		patchState({mode: Mode.MOVE});

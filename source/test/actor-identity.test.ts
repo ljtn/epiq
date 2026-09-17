@@ -8,10 +8,11 @@ import {
 	getPersistFileName,
 	ownEventFileNames,
 } from '../lib/event/event-persist.js';
-import {AppEvent} from '../lib/event/event.model.js';
+import {createRebalanceChildrenEvent} from '../lib/event/create-rebalance-children-event.js';
+import {actorOf, AppEvent} from '../lib/event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
-import {patchSettingsState} from '../lib/state/settings.state.js';
+import {patchSettingsState, User} from '../lib/state/settings.state.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {bigIntToHex} from '../lib/utils/rank.js';
@@ -257,6 +258,40 @@ describe('the logs a sync stages for this actor', () => {
 	it('still names the current log when the directory is missing', () => {
 		expect(ownEventFileNames(path.join(root, 'nowhere'), current())).toEqual([
 			current(),
+		]);
+	});
+});
+
+// The compiler cannot hold this line on its own: TypeScript excess-checks the
+// properties written in an object literal, not the ones a spread brings, so
+// `{...user}` puts the configured display name back on an event and typechecks
+// clean. `stripActor` keeps it off disk either way, which is what makes the
+// slip silent — the event a write applies in place would carry a name the same
+// event decoded from the log does not.
+describe('what an event records about its author', () => {
+	// A `User`, the way every write path holds one: the id the event needs and
+	// the display name it must not take.
+	const configured: User = {userId: ALICE, userName: 'alice'};
+
+	it('is the id, and nothing the configured identity carries beside it', () => {
+		expect(actorOf(configured)).toEqual({userId: ALICE});
+	});
+
+	// Built from the configured identity, so it is where the slip would land if
+	// it came back.
+	it('holds for an event a write path builds from the configured identity', () => {
+		initWorkspaceState(nodes.workspace(ROOT, 'Identity Root', rank()));
+
+		const event = createRebalanceChildrenEvent(ROOT, configured);
+
+		expect(isFail(event)).toBe(false);
+		if (isFail(event)) return;
+
+		expect(Object.keys(event.value).sort()).toEqual([
+			'action',
+			'id',
+			'payload',
+			'userId',
 		]);
 	});
 });

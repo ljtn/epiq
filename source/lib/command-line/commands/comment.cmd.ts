@@ -9,6 +9,7 @@ import {getState} from '../../state/state.js';
 import {MAX_COMMENT_LENGTH} from '../../utils/text.limits.js';
 import {getPersistRoot} from '../../storage/paths.js';
 import {CommandLineInput} from '../../model/action-map.model.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const commentCommand = async (cmdState: CommandLineInput) => {
 	const md = cmdState.inputString.trim();
@@ -56,7 +57,7 @@ export const commentCommand = async (cmdState: CommandLineInput) => {
 					author: userRes.value.userId,
 					md,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRootResult.value,

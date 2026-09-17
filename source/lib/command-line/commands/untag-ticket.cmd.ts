@@ -7,6 +7,7 @@ import {failed, isFail} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const untagTicketCommand = async () => {
 	const userRes = resolveActorId();
@@ -48,7 +49,7 @@ export const untagTicketCommand = async () => {
 					id: ticket.id,
 					tag: existingTag.id,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRootResult.value,

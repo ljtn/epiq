@@ -7,6 +7,7 @@ import {failed, isFail} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const tagTicketCommand = async () => {
 	const userRes = resolveActorId();
@@ -51,7 +52,7 @@ export const tagTicketCommand = async () => {
 								id: tagId,
 								name,
 							},
-							...userRes.value,
+							...actorOf(userRes.value),
 						},
 				  ]),
 			{
@@ -61,7 +62,7 @@ export const tagTicketCommand = async () => {
 					id: ticket.id,
 					tag: tagId,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRootResult.value,

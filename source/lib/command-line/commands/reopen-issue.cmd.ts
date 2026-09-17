@@ -9,6 +9,7 @@ import {findAncestor} from '../../repository/node-repo.js';
 import {resolveAndPersistRankForMove} from '../../repository/rank.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const reopenIssueCommand = async () => {
 	const userRes = resolveActorId();
@@ -74,7 +75,7 @@ export const reopenIssueCommand = async () => {
 					parent: previousParent.id,
 					rank: rankResult.value,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRoot,
