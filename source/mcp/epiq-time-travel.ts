@@ -718,10 +718,6 @@ const getChangedFileBlobs = async (
 			};
 		});
 
-	if (entries.length === 0) {
-		return failed('No changed files found between these revisions');
-	}
-
 	return succeeded('Listed changed files with blob hashes', entries);
 };
 
@@ -785,6 +781,13 @@ export const getCommitDiff = async (
 		input.sha,
 	);
 	if (isFail(entriesResult)) return failed(entriesResult.message);
+
+	// A commit that changed nothing is a commit the reader was pointed at in
+	// error, so it is said rather than drawn as an empty list. A ticket whose
+	// commits cancel out is a different matter — see getSquashedDiffForRef.
+	if (entriesResult.value.length === 0) {
+		return failed('No changed files found for this commit');
+	}
 
 	const filesResult = await readDiffFiles(repoRoot, entriesResult.value);
 	if (isFail(filesResult)) return failed(filesResult.message);
@@ -902,6 +905,21 @@ export const getSquashedDiffForRef = async (
 	const oldest = commits[commits.length - 1]!.sha;
 	const from = `${oldest}~1`;
 
+	const answer = (
+		files: CommitDiffFile[],
+		contiguous: boolean,
+		overlappingPaths: string[],
+	): Result<SquashedDiff> =>
+		succeeded('Loaded squashed diff', {
+			ref: input.ref.trim().toUpperCase(),
+			from,
+			to: newest,
+			commits: commits.length,
+			files,
+			contiguous,
+			overlappingPaths,
+		});
+
 	// Every commit but the oldest knows whether the commit before it in real
 	// history was also this ticket's. All of them saying yes is the definition
 	// of a contiguous run, and it costs nothing to ask.
@@ -933,17 +951,7 @@ export const getSquashedDiffForRef = async (
 		// `git diff A B --` with no pathspec is a full diff, not an empty one, so
 		// a ticket whose commits touched nothing git reports (an empty commit, a
 		// merge) has to be answered here rather than by narrowing to nothing.
-		if (ours.size === 0) {
-			return succeeded('Loaded squashed diff', {
-				ref: input.ref.trim().toUpperCase(),
-				from,
-				to: newest,
-				commits: commits.length,
-				files: [],
-				contiguous,
-				overlappingPaths: [],
-			});
-		}
+		if (ours.size === 0) return answer([], contiguous, []);
 
 		paths = [...ours];
 		overlappingPaths = [...ours].filter(path => theirs.has(path)).sort();
@@ -960,15 +968,7 @@ export const getSquashedDiffForRef = async (
 	const filesResult = await readDiffFiles(repoRoot, entriesResult.value);
 	if (isFail(filesResult)) return failed(filesResult.message);
 
-	return succeeded('Loaded squashed diff', {
-		ref: input.ref.trim().toUpperCase(),
-		from,
-		to: newest,
-		commits: commits.length,
-		files: filesResult.value,
-		contiguous,
-		overlappingPaths,
-	});
+	return answer(filesResult.value, contiguous, overlappingPaths);
 };
 
 // Takes NO lock: its callers already run inside `runExclusive`, which is not
