@@ -4,6 +4,8 @@ import {
 	actorColumnWidth,
 	buildLogEntries,
 	daysToOpen,
+	dayRowsShown,
+	LOG_DAY_ROWS,
 	MAX_ACTOR_CHARS,
 	groupByDay,
 	isDayOpen,
@@ -72,11 +74,21 @@ describe('logEntriesUpTo', () => {
 		]);
 	});
 
-	// The cap is on the document as much as on the reading: rows above it have
-	// scrolled out of the fade, and keeping them would grow the panel by a node
-	// per event for as long as it is open.
-	it('never holds more lines than the panel can show', () => {
+	// The chart beside it draws every event in the window, so a log that stopped
+	// short of the chart's left edge could not be scrolled back to meet it.
+	// What is mounted is bounded by the day fold and by `dayRowsShown`, not here.
+	it('covers the whole window when nothing is playing', () => {
 		const entries = logEntriesUpTo(events, Infinity);
+
+		expect(entries).toHaveLength(events.length);
+		expect(entries[0]!.id).toBe(events[0]!.id);
+		expect(entries[entries.length - 1]!.id).toBe(events[events.length - 1]!.id);
+	});
+
+	// A movie re-slices every animation frame against a 16.7ms budget, already
+	// paying for a checkout per event and the board's own re-render.
+	it('holds no more than the panel can show while playing', () => {
+		const entries = logEntriesUpTo(events, Infinity, true);
 
 		expect(entries).toHaveLength(LOG_LINES);
 		expect(entries[entries.length - 1]!.id).toBe(events[events.length - 1]!.id);
@@ -310,6 +322,47 @@ describe('groupByDay', () => {
 		const days = groupByDay([row('a', on(1, 23)), row('b', on(1, 23) + DAY)]);
 
 		expect(days).toHaveLength(2);
+	});
+});
+
+describe('dayRowsShown', () => {
+	const dayOf = (count: number) => ({
+		key: 'd1',
+		label: 'Mon',
+		entries: Array.from({length: count}, (_, index) =>
+			row(`e${index}`, on(1, 9)),
+		),
+	});
+
+	it('shows a day whole while it fits', () => {
+		const day = dayOf(LOG_DAY_ROWS);
+
+		expect(dayRowsShown(day, false)).toEqual({
+			shown: day.entries,
+			hidden: 0,
+		});
+	});
+
+	// The day fold bounds the document across days; nothing bounded it within
+	// one, and `daysToOpen` always opens the newest day whole.
+	it('holds back the oldest rows of a day past the bound', () => {
+		const day = dayOf(LOG_DAY_ROWS + 25);
+		const {shown, hidden} = dayRowsShown(day, false);
+
+		expect(hidden).toBe(25);
+		expect(shown).toHaveLength(LOG_DAY_ROWS);
+		// The newest, since the log is read from the bottom.
+		expect(shown[shown.length - 1]!.id).toBe(`e${LOG_DAY_ROWS + 24}`);
+		expect(shown[0]!.id).toBe('e25');
+	});
+
+	it('shows the day whole once the reader has asked for it', () => {
+		const day = dayOf(LOG_DAY_ROWS + 25);
+
+		expect(dayRowsShown(day, true)).toEqual({
+			shown: day.entries,
+			hidden: 0,
+		});
 	});
 });
 

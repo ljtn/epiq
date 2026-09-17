@@ -152,7 +152,10 @@ export const useEventLog = ({
 	// Sliced when the moment moves rather than on every render: a movie renders
 	// the board on every animation frame but reaches a new event a few times a
 	// second, and the panel only wants a new list for the latter.
-	const entries = useMemo(() => logEntriesUpTo(rows, moment), [rows, moment]);
+	const entries = useMemo(
+		() => logEntriesUpTo(rows, moment, playing),
+		[rows, moment, playing],
+	);
 
 	return useMemo(() => ({entries, moment}), [entries, moment]);
 };
