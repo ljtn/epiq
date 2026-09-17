@@ -222,6 +222,23 @@ describe('flushing pending logs', () => {
 		expect(linesOf('02aaa~pending.bo.jsonl')).toEqual(['bo-2']);
 	});
 
+	// ZFZFW9D moved the tracked log from `<id>.<name>.jsonl` to `<id>.jsonl`.
+	// A machine upgraded with lines still pending against the older name would
+	// otherwise fold them nowhere: in no tracked log, so in no commit and no
+	// peer's clone, while `hasPendingLines` reported unpublished work for good.
+	it("folds this actor's pending log written under an older tracked name", () => {
+		write('01hzz.jsonl', ['new-1']);
+		write('01hzz~pending.ana.jsonl', ['old-2']);
+		write('01hzz~pending.jsonl', ['new-2']);
+
+		unwrap(flushPendingLogs(root, '01hzz.jsonl'));
+		unwrap(flushPendingLogs(root, '01hzz.jsonl'));
+
+		expect(linesOf('01hzz.jsonl').sort()).toEqual(['new-1', 'new-2', 'old-2']);
+		expect(namesIn()).toEqual(['01hzz.jsonl']);
+		expect(hasPendingLines(root)).toBe(false);
+	});
+
 	// A line that is not newline-terminated is a write still in flight on the
 	// first pass. By the file's last pass it is a remnant, and it goes in
 	// terminated rather than being joined to the tracked log's next append —

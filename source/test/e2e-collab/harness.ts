@@ -9,7 +9,7 @@ import {ulid} from 'ulid';
 import {execGit} from '../../git/git-utils.js';
 import {deriveActorId} from '../../lib/config/actor-env.js';
 import {isFail} from '../../lib/model/result-types.js';
-import {sanitizeFilePart} from '../../lib/utils/file-part.js';
+import {getPersistFileName} from '../../lib/event/event-persist.js';
 import type {ActorAction, ActorJob, ActorReport} from './protocol.js';
 
 const STATE_BRANCH = 'epiq/state';
@@ -296,7 +296,7 @@ export const ownLogPathFor = (actor: Actor, fileName: string): string =>
 
 /** The log file this actor writes, named the way `persist` names it. */
 export const logFileNameFor = (actor: Actor): string =>
-	`${sanitizeFilePart(actor.userId)}.${sanitizeFilePart(actor.userName)}.jsonl`;
+	getPersistFileName({userId: actor.userId});
 
 /** Event ids currently in this actor's own log, straight off disk. */
 export const idsInOwnLog = (actor: Actor): string[] => {

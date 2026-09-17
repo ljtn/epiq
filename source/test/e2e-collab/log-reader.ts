@@ -3,7 +3,7 @@
 // Losing one is data loss whether or not we can read it.
 import fs from 'node:fs';
 import path from 'node:path';
-import {trackedFileNameFor} from '../../lib/event/pending-log.js';
+import {actorSegmentOf} from '../../lib/event/pending-log.js';
 
 const eventsDir = (stateBranchRoot: string): string =>
 	path.join(stateBranchRoot, '.epiq', 'events');
@@ -50,6 +50,10 @@ const idsInFile = (filePath: string): string[] => {
  * published", which is a different question and reads as nothing at all for
  * somebody working offline. Every pending file of the actor's counts — live,
  * rotated or folded — since a flush part-way through leaves lines in any of them.
+ *
+ * Matched by actor id, so a log this actor wrote under its pre-ZFZFW9D name
+ * still counts as theirs. Reading it as somebody else's would report a line
+ * missing that is sitting right there.
  */
 export const readOwnEventIds = (
 	stateBranchRoot: string,
@@ -60,7 +64,11 @@ export const readOwnEventIds = (
 
 	return fs
 		.readdirSync(dir)
-		.filter(name => name === fileName || trackedFileNameFor(name) === fileName)
+		.filter(
+			name =>
+				name.endsWith('.jsonl') &&
+				actorSegmentOf(name) === actorSegmentOf(fileName),
+		)
 		.flatMap(name => idsInFile(path.join(dir, name)));
 };
 

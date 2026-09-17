@@ -21,6 +21,7 @@ import {
 	type Actor,
 	type Collaboration,
 } from './harness.js';
+import {getPersistFileName} from '../../lib/event/event-persist.js';
 import {readEventIds} from './log-reader.js';
 
 const TIMEOUT_MS = 240_000;
@@ -32,10 +33,11 @@ afterAll(() => {
 	for (const collab of running) cleanUp(collab);
 });
 
-// The actor writes `<sanitized id>.<sanitized name>.jsonl`; the harness gives
-// every actor a plain lowercase name and a ULID id, so this matches.
+// The log the actor writes now, so the hostile bytes land where a real peer's
+// would. `upgrade.test.ts` owns the case where they are in a log named the way
+// the build before ZFZFW9D named it.
 const logFileFor = (actor: Actor): string =>
-	`${actor.userId.toLowerCase()}.${actor.name}.jsonl`;
+	getPersistFileName({userId: actor.userId});
 
 const line = (id: string, ref: string | null, payload: object): string =>
 	JSON.stringify({v: 1, id: [id, ref], ...payload});

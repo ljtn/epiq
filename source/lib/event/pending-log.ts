@@ -83,6 +83,16 @@ export const stripPendingMarker = (idSegment: string): string =>
 export const isPendingFileName = (fileName: string): boolean =>
 	fileName.endsWith('.jsonl') && trackedFileNameFor(fileName) !== null;
 
+/**
+ * The actor a log file name belongs to: its id segment, marker stripped.
+ *
+ * The one part of a log's name that ZFZFW9D did not move. A log written before
+ * it carries a name segment after the id and one written since carries none,
+ * so two files an actor owns share this and nothing else.
+ */
+export const actorSegmentOf = (fileName: string): string =>
+	stripPendingMarker(splitName(fileName)[0]);
+
 /** How many leading bytes of a folded file are already in the tracked log. */
 export const foldedBytesOf = (fileName: string): number | null => {
 	const [idSegment] = splitName(fileName);
@@ -247,7 +257,7 @@ const foldLines = (
 };
 
 /**
- * Folds one actor's pending file(s) into the tracked log they belong to.
+ * Folds one actor's pending file(s) into the log they write now.
  *
  * Only the syncing actor's own. A sync commits only its own file, so folding
  * somebody else's pending lines would leave them dirty in a tracked file for
@@ -288,9 +298,17 @@ export const flushPendingLogs = (
 	if (!fs.existsSync(dir)) return succeeded('No events directory', 0);
 
 	try {
+		// Matched by actor, not by the whole tracked name. A machine upgraded
+		// across ZFZFW9D can still hold `<id>~pending.<name>.jsonl`, whose
+		// tracked name is the old `<id>.<name>.jsonl` — matching on that left
+		// its lines in no tracked log, so in no commit and in no peer's clone,
+		// while `hasPendingLines` reported unpublished work for good. They fold
+		// into the log this actor writes now, and the old name is gone with
+		// them.
+		const own = actorSegmentOf(ownFileName);
 		const pending = fs
 			.readdirSync(dir)
-			.filter(name => trackedFileNameFor(name) === ownFileName);
+			.filter(name => isPendingFileName(name) && actorSegmentOf(name) === own);
 
 		const trackedPath = path.join(dir, ownFileName);
 		let folded = 0;
