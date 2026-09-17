@@ -428,11 +428,9 @@ export const App = () => {
 		false,
 	);
 
-	// The route wins where it names a view: a link is somebody saying which of
-	// the two they meant, and arriving in the other one makes the link a worse
-	// version of no link at all. Where it names none, the reader's own last
-	// choice stands — so following one link does not quietly re-set how every
-	// ticket opens from then on.
+	// The route wins where it names a view; where it names none the reader's
+	// own last choice stands, so following one link does not re-set how every
+	// ticket opens from then on. Same bargain the board's own axes strike.
 	const linkedDiffView = readDiffViewParam(searchParams);
 	const compactedDiffPreferred = linkedDiffView
 		? linkedDiffView === 'compacted'
@@ -459,12 +457,12 @@ export const App = () => {
 		);
 	};
 
-	// A link is only as good as the address bar it is copied from, so opening
-	// the tab writes which view is showing rather than waiting for the switch
-	// to be touched. Without this the common case — read a ticket, copy the
-	// URL — still sends a link that lands the reader in whichever view they
-	// last used. What gets written is the reader's own choice, not the one a
-	// commit deep link is currently forcing, so the link says what was meant.
+	// A link is only as good as the address bar it was copied from, so opening
+	// the tab writes the view down rather than waiting for the switch to be
+	// touched — otherwise the ordinary way a link gets made, read a ticket and
+	// copy the URL, still sends one that lands wherever the reader was last.
+	// What gets written is their own choice, not the one a commit deep link is
+	// currently forcing, so the link carries what was meant.
 	useEffect(() => {
 		if (selectedTab !== 'code' || !selectedIssue) return;
 		if (readDiffViewParam(searchParams)) return;

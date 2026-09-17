@@ -77,14 +77,14 @@ export type FileTicketParams = {
 /**
  * Which of the Diff tab's two views a link names.
  *
- * In the URL rather than only in the reader's own stored choice, for the same
- * reason the spot below is: a link has to arrive showing what the person who
- * sent it was looking at. `epiq.diffTab.compacted` cannot do that — it is per
- * browser, so `?tab=code` alone hands the reader whichever view they last
- * used, which need not be the one being talked about.
+ * Follows the rule `use-board-selection` already states for the board's own
+ * axes: the URL wins when it says anything, a link that says nothing falls
+ * back to what was last used here, and what is on screen gets written into the
+ * address bar so copying it hands over what the sender was looking at.
  *
- * Named rather than a boolean in the URL: `?diff=compacted` says what it means
- * where `?compacted=1` says it only to whoever wrote it.
+ * `diff` rather than `view`, which the board selection has taken. Named rather
+ * than a boolean, because `?diff=compacted` says what it means where
+ * `?compacted=1` says it only to whoever wrote it.
  */
 export const DIFF_VIEW_PARAM = 'diff';
 
