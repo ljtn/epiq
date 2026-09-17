@@ -1,5 +1,6 @@
 import {ApiState} from '../../../mcp/api-state.model.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
+import {plainExcerpt} from '../../../lib/utils/excerpt.js';
 
 // The board draws titles, refs, tags, assignees and a comment count. It never
 // draws a description or a comment body — yet those are ~70% of the payload,
@@ -45,6 +46,12 @@ export const slimStateResult = (result: Result<ApiState>): Result<ApiState> =>
 		? result
 		: succeeded(result.message, slimStateForBoard(result.value));
 
+const findIssue = (state: ApiState, issueId: string) =>
+	(state.boards ?? [])
+		.flatMap(board => board.swimlanes ?? [])
+		.flatMap(swimlane => swimlane.issues ?? [])
+		.find(candidate => candidate.id === issueId);
+
 // What the slimmed state leaves out, for the one ticket whose details are open.
 export const issueDetail = (
 	state: ApiState,
@@ -54,10 +61,7 @@ export const issueDetail = (
 	description: string;
 	comments: ApiState['commentsByIssueId'][string];
 } => {
-	const issue = (state.boards ?? [])
-		.flatMap(board => board.swimlanes ?? [])
-		.flatMap(swimlane => swimlane.issues ?? [])
-		.find(candidate => candidate.id === issueId);
+	const issue = findIssue(state, issueId);
 
 	return {
 		issueId,
@@ -65,3 +69,24 @@ export const issueDetail = (
 		comments: state.commentsByIssueId?.[issueId] ?? [],
 	};
 };
+
+// Long enough for the sentence that says what a ticket is, short enough that
+// the card stays a hint rather than becoming the ticket.
+const EXCERPT_LENGTH = 280;
+
+// The one field a hover preview needs and the board's state does not carry.
+// Everything else on the card — title, lane, tags, assignees, comment count —
+// the client already has, so only this crosses the wire.
+//
+// Deliberately not `issue:get`: the client keeps a single detail slot for the
+// ticket that is open, and a hover would evict it.
+export const issuePreview = (
+	state: ApiState,
+	issueId: string,
+): {issueId: string; excerpt: string} => ({
+	issueId,
+	excerpt: plainExcerpt(
+		findIssue(state, issueId)?.description ?? '',
+		EXCERPT_LENGTH,
+	),
+});

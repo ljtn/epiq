@@ -94,6 +94,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 		z.object({issueId: id, commentId: id, body: z.string()}),
 	),
 	message('issue:get', z.object({issueId: id})),
+	message('issue:preview:get', z.object({issueId: id})),
 	z.object({
 		type: z.literal('timeline:get'),
 		payload: z
