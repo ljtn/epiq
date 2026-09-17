@@ -81,12 +81,9 @@ const EXCERPT_LENGTH = 280;
 // Deliberately not `issue:get`: the client keeps a single detail slot for the
 // ticket that is open, and a hover would evict it.
 export const issuePreview = (
-	state: ApiState,
 	issueId: string,
+	description: string,
 ): {issueId: string; excerpt: string} => ({
 	issueId,
-	excerpt: plainExcerpt(
-		findIssue(state, issueId)?.description ?? '',
-		EXCERPT_LENGTH,
-	),
+	excerpt: plainExcerpt(description, EXCERPT_LENGTH),
 });

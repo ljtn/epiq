@@ -1,4 +1,10 @@
-export {sync, getEpiqState, deriveGuiState, getGuiState} from './api/state.js';
+export {
+	sync,
+	getEpiqState,
+	deriveGuiState,
+	getGuiState,
+	getIssueDescription,
+} from './api/state.js';
 export {
 	getIssue,
 	listIssues,

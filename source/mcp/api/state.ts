@@ -70,6 +70,29 @@ export const getEpiqState = async (input: ToolInput = {}) => {
 // every load.
 const CLOSED_TICKET_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 
+/**
+ * One ticket's description, read straight off the node.
+ *
+ * `deriveGuiState` would answer this too, but it projects every board, lane,
+ * ticket and comment to do it — and the ref hover preview asks on every
+ * `mouseover`, so sweeping a pointer across a paragraph of refs would rebuild
+ * the whole board once per ref. A ticket that is missing or deleted has no
+ * description, which is not an error: the ref simply names nothing to show.
+ */
+export const getIssueDescription = (issueId: string): Result<string> => {
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const node = stateResult.value.nodes[issueId];
+
+	return succeeded(
+		'Issue description',
+		node && isTicketNode(node) && !node.isDeleted
+			? node.props.description ?? ''
+			: '',
+	);
+};
+
 // Reads whatever is currently materialized, live or a historical checkout. Must
 // never boot: booting discards an active time-travel checkout.
 export const deriveGuiState = (): Result<ApiState> => {

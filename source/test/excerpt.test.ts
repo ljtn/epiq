@@ -49,6 +49,20 @@ describe('plainExcerpt', () => {
 		);
 	});
 
+	// These descriptions are about code, so an identifier has to come through
+	// spelled the way it is written, and a shell pipeline has to keep its pipe.
+	it('leaves an identifier and a shell pipe alone', () => {
+		expect(
+			plainExcerpt('rename snake_case_name, then run a | wc -l', 100),
+		).toBe('rename snake_case_name, then run a | wc -l');
+	});
+
+	it('still drops an underscore used as emphasis', () => {
+		expect(plainExcerpt('this is _important_ work', 100)).toBe(
+			'this is important work',
+		);
+	});
+
 	it('drops a thematic break', () => {
 		expect(plainExcerpt('Above\n\n---\n\nBelow', 100)).toBe('Above Below');
 	});
