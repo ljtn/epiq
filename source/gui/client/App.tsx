@@ -25,6 +25,7 @@ import {IssueDetails} from './components/IssueDetails';
 import {
 	FileTicketParams,
 	clearDiffLocationParams,
+	clearDiffViewParam,
 	DiffLocation,
 	readCommitFocusParam,
 	readDiffLocationParams,
@@ -466,6 +467,11 @@ export const App = () => {
 	useEffect(() => {
 		if (selectedTab !== 'code' || !selectedIssue) return;
 		if (readDiffViewParam(searchParams)) return;
+		// While a commit link holds the tab on the commits, the reader cannot
+		// choose a view — the switch is disabled — so there is no choice of
+		// theirs to write down. Writing one anyway would put a view in the
+		// address bar that the sender never saw and could not have picked.
+		if (diffFocus) return;
 
 		setSearchParams(
 			prev => {
@@ -476,7 +482,13 @@ export const App = () => {
 			},
 			{replace: true},
 		);
-	}, [selectedTab, selectedIssue?.id, searchParams, compactedDiffPreferred]);
+	}, [
+		selectedTab,
+		selectedIssue?.id,
+		searchParams,
+		compactedDiffPreferred,
+		diffFocus,
+	]);
 
 	// Costs the same git walk the stats do, and on the same signature, so it is
 	// asked for when the view is opened rather than with the ticket.
@@ -1084,6 +1096,12 @@ export const App = () => {
 				// on the URL after a deliberate tab change would drag the reader
 				// back to it the moment they returned.
 				clearDiffLocationParams(next);
+				// The view a link named goes with it. It is a pin on one visit to
+				// one tab, not a setting: keeping it would have a link somebody
+				// followed once quietly decide how the Diff tab opens for the rest
+				// of the session, and would hang it off URLs copied from the other
+				// tabs, which have no view to name.
+				clearDiffViewParam(next);
 				return next;
 			},
 			{replace: true},
