@@ -7,10 +7,13 @@ import {
 } from '../event/event-envelope.js';
 import {createEventLog} from '../event/event-log.js';
 import {MaterializeResults as MaterializeResultsOf} from '../event/event-materialize.js';
-import {Result} from '../model/result-types.js';
+import {isFail, Result} from '../model/result-types.js';
 import {parseEventPayload} from './board-events.schema.js';
 import {getState} from '../state/state.js';
-import {ensureContributorCurrent} from './board-contributor.js';
+import {
+	ensureContributorCurrent,
+	ensureEmailLinked,
+} from './board-contributor.js';
 import {
 	AppEvent,
 	AppEventMap,
@@ -40,7 +43,14 @@ export const boardCatalog: EventCatalog<AppEventMap> = {
 						'Cannot change the board while time travelling'
 				: null;
 		},
-		beforeWrite: ensureContributorCurrent,
+		// Both run before every write, in this order: the name has to reach the
+		// registry before a link can name the contributor it creates.
+		beforeWrite: (event, writeOne) => {
+			const named = ensureContributorCurrent(event, writeOne);
+			if (isFail(named)) return named;
+
+			return ensureEmailLinked(event, writeOne);
+		},
 	},
 };
 

@@ -42,6 +42,9 @@ vi.mock('../../git/git.js', () => ({
 
 vi.mock('../../git/git-utils.js', () => ({
 	execGit: vi.fn(() => succeeded('Pulled', '')),
+	// A boot reads git user.email. Non-zero: this repository has none, so
+	// nothing is auto-linked and these tests see the board they always did.
+	execGitAllowFail: vi.fn(async () => ({stdout: '', stderr: '', exitCode: 1})),
 }));
 
 vi.mock('../../git/git-constants.js', () => ({

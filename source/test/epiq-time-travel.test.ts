@@ -34,6 +34,7 @@ vi.mock('../lib/state/state.js', () => ({
 
 vi.mock('../git/git-utils.js', () => ({
 	execGit: vi.fn(),
+	execGitAllowFail: vi.fn(async () => ({stdout: '', stderr: '', exitCode: 1})),
 	readGitBlobsBatch: vi.fn(),
 }));
 
@@ -757,9 +758,9 @@ describe('epiq-time-travel', () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
 					stdout:
-						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}fix bug\n` +
+						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}fix bug\n` +
 						` 2 files changed, 45 insertions(+), 12 deletions(-)\n` +
-						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}add feature\n`,
+						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}add feature\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -775,6 +776,7 @@ describe('epiq-time-travel', () => {
 					sha: 'aaa111',
 					time: 1_700_000_000_000,
 					author: 'Ada',
+					authorEmail: 'ada@example.com',
 					subject: 'fix bug',
 					linesChanged: 57,
 					insertions: 45,
@@ -784,6 +786,7 @@ describe('epiq-time-travel', () => {
 					sha: 'bbb222',
 					time: 1_700_000_100_000,
 					author: 'Grace',
+					authorEmail: 'grace@example.com',
 					subject: 'add feature',
 					linesChanged: 0,
 					insertions: 0,
@@ -835,8 +838,8 @@ describe('epiq-time-travel', () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
 					stdout:
-						`${REC}aaa111${SEP}1700000050${SEP}Ada${SEP}inside the window\n` +
-						`${REC}bbb222${SEP}1600000000${SEP}Grace${SEP}rebased from long ago\n`,
+						`${REC}aaa111${SEP}1700000050${SEP}Ada${SEP}ada@example.com${SEP}inside the window\n` +
+						`${REC}bbb222${SEP}1600000000${SEP}Grace${SEP}grace@example.com${SEP}rebased from long ago\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -880,7 +883,7 @@ describe('epiq-time-travel', () => {
 		it('reuses the unwindowed scan instead of re-invoking git log within the TTL', async () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
-					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}fix bug\n`,
+					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}fix bug\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -972,8 +975,8 @@ describe('epiq-time-travel', () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
 					stdout:
-						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 add the tool\n` +
-						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}unrelated commit\n`,
+						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 add the tool\n` +
+						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}unrelated commit\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -989,7 +992,7 @@ describe('epiq-time-travel', () => {
 		it('requires a space after the ref, not just a text prefix', async () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
-					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC89 similar but longer ref\n`,
+					stdout: `${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC89 similar but longer ref\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -1006,8 +1009,8 @@ describe('epiq-time-travel', () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
 					stdout:
-						`${REC}newer111${SEP}1700000100${SEP}Ada${SEP}5S52AC8 second\n` +
-						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 first\n`,
+						`${REC}newer111${SEP}1700000100${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 second\n` +
+						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 first\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -1029,9 +1032,9 @@ describe('epiq-time-travel', () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
 					stdout:
-						`${REC}newer111${SEP}1700000200${SEP}Ada${SEP}5S52AC8 second\n` +
-						`${REC}between${SEP}1700000100${SEP}Grace${SEP}unrelated commit\n` +
-						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 first\n`,
+						`${REC}newer111${SEP}1700000200${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 second\n` +
+						`${REC}between${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}unrelated commit\n` +
+						`${REC}older111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 first\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
@@ -1071,8 +1074,8 @@ describe('epiq-time-travel', () => {
 			vi.mocked(execGit).mockResolvedValue(
 				succeeded('git log', {
 					stdout:
-						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}5S52AC8 add the tool\n` +
-						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}QG9544B add the tab\n`,
+						`${REC}aaa111${SEP}1700000000${SEP}Ada${SEP}ada@example.com${SEP}5S52AC8 add the tool\n` +
+						`${REC}bbb222${SEP}1700000100${SEP}Grace${SEP}grace@example.com${SEP}QG9544B add the tab\n`,
 					stderr: '',
 					exitCode: 0,
 				}),
