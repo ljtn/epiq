@@ -8,13 +8,23 @@ import {sanitizeInlineText} from './string.utils.js';
 // rest becomes the words it was written as.
 
 // Dropped whole, contents and all. A code block in a two-line card is the
-// two lines spent on something unreadable at that size.
-const FENCED_BLOCK = /^```[^\n]*\n[\s\S]*?\n```[ \t]*$/gm;
+// two lines spent on something unreadable at that size. Both fence characters
+// markdown allows, since a description is as likely to carry one as the other.
+const FENCED_BLOCK = /^(```|~~~)[^\n]*\n[\s\S]*?\n\1[ \t]*$/gm;
 
 // A description still being written can hold a fence that was opened and not
 // yet closed; everything after it is inside a code block that has no end, so
 // it goes the same way as a closed one.
-const UNCLOSED_FENCE = /^```[\s\S]*$/m;
+const UNCLOSED_FENCE = /^(?:```|~~~)[\s\S]*$/m;
+
+// A table's ruling row carries nothing but the shape of the table.
+const TABLE_RULE =
+	/^[ \t]*\|?[ \t]*:?-{2,}:?[ \t]*(?:\|[ \t]*:?-{2,}:?[ \t]*)*\|?[ \t]*$/gm;
+
+// What is left of a table once its rule is gone: cells, and the bars that laid
+// them out. The bars become the spaces between the words, which is what a row
+// of a table reads as on one line.
+const TABLE_BARS = /\|/g;
 
 // Before the link rule below, which would otherwise keep an image's alt text
 // as if it were prose.
@@ -44,6 +54,10 @@ const flatten = (markdown: string): string =>
 			.replace(IMAGE, ' ')
 			.replace(LINK, '$1')
 			.replace(THEMATIC_BREAK, ' ')
+			// Before ROW_PREFIX, whose bullet rule would otherwise read a rule
+			// row's leading dashes as a list marker and leave the rest behind.
+			.replace(TABLE_RULE, ' ')
+			.replace(TABLE_BARS, ' ')
 			.replace(ROW_PREFIX, '')
 			.replace(INLINE_MARKS, ''),
 	);

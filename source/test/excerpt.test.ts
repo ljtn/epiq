@@ -36,6 +36,19 @@ describe('plainExcerpt', () => {
 		).toBe('Plan do this then that and this');
 	});
 
+	it('drops a tilde fence the same way as a backtick one', () => {
+		expect(plainExcerpt('A\n\n~~~\nsecret\n~~~\n\nB', 100)).toBe('A B');
+	});
+
+	// A table laid out over several rows is one row of words here: the ruling
+	// row says nothing without the layout, and the bars are what the spaces
+	// between the cells already are.
+	it('reads a table as its cells', () => {
+		expect(plainExcerpt('| a | b |\n|---|---|\n| 1 | 2 |', 100)).toBe(
+			'a b 1 2',
+		);
+	});
+
 	it('drops a thematic break', () => {
 		expect(plainExcerpt('Above\n\n---\n\nBelow', 100)).toBe('Above Below');
 	});
