@@ -56,6 +56,9 @@ export const TooltipLayer = () => {
 	// The element whose `title` is currently parked, so it can always be given
 	// back — including when the pointer leaves by way of a click or a scroll.
 	const stashed = useRef<HTMLElement | null>(null);
+	// The element this tooltip is about, shown or still waiting out its delay.
+	// What tells a scroll whether it is one that moved this tooltip.
+	const subject = useRef<HTMLElement | null>(null);
 
 	const [shown, setShown] = useState<Shown | null>(null);
 	const [placement, setPlacement] = useState<Placement | null>(null);
@@ -82,6 +85,7 @@ export const TooltipLayer = () => {
 		const hide = () => {
 			cancel();
 			restore();
+			subject.current = null;
 			setShown(null);
 		};
 
@@ -97,6 +101,7 @@ export const TooltipLayer = () => {
 
 		const open = (trigger: HTMLElement, label: string) => {
 			cancel();
+			subject.current = trigger;
 
 			timer.current = setTimeout(() => {
 				park(trigger, label);
@@ -126,10 +131,13 @@ export const TooltipLayer = () => {
 			const label = trigger?.getAttribute('title');
 
 			hide();
-			if (trigger && label) setShown({label, trigger});
+			if (trigger && label) {
+				subject.current = trigger;
+				setShown({label, trigger});
+			}
 		};
 
-		const stopDismiss = onHoverDismiss(hide);
+		const stopDismiss = onHoverDismiss(hide, () => subject.current);
 
 		document.addEventListener('mouseover', onOver);
 		document.addEventListener('focusin', onFocus);

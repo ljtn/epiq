@@ -40,22 +40,58 @@ export const placeHoverCard = (trigger: DOMRect, card: DOMRect): Placement => {
 };
 
 /**
+ * Whether a scroll is one that ends the hover in flight.
+ *
+ * The listener below is capturing, so it hears every scrollable box in the
+ * app — and a swimlane easing a card into view scrolls for about a second,
+ * which is longer than the delay a hover waits out. Dismissing on any scroll
+ * therefore meant that on a board with enough tickets to scroll, no hint
+ * opened at all. Only a scroll of something the trigger is *inside* moves the
+ * trigger, and only that is this hint's business.
+ *
+ * The document contains everything, so a page scroll still counts; anything
+ * that cannot answer `contains` is treated as though it does, since the reason
+ * to dismiss is doubt about where the trigger now is.
+ */
+export const scrollEndsHover = (
+	scrolled: {contains?: (other: unknown) => boolean} | null,
+	trigger: unknown,
+): boolean => {
+	// Nothing shown and nothing waiting: there is nothing to dismiss.
+	if (!trigger) return false;
+
+	return typeof scrolled?.contains === 'function'
+		? scrolled.contains(trigger)
+		: true;
+};
+
+/**
  * Everything that means "whatever is floating should stop floating": a click,
- * a scroll anywhere (capturing, so a scroll inside a column counts and not
- * just the window's), a resize, a keystroke, the window losing focus.
+ * a scroll that moves what is being hovered, a resize, a keystroke, the window
+ * losing focus.
+ *
+ * `trigger` gives the element the hint belongs to, or null when there is none
+ * in flight.
  *
  * Returns the teardown.
  */
-export const onHoverDismiss = (hide: () => void): (() => void) => {
+export const onHoverDismiss = (
+	hide: () => void,
+	trigger: () => HTMLElement | null,
+): (() => void) => {
+	const onScroll = (event: Event) => {
+		if (scrollEndsHover(event.target as never, trigger())) hide();
+	};
+
 	document.addEventListener('mousedown', hide);
-	window.addEventListener('scroll', hide, true);
+	window.addEventListener('scroll', onScroll, true);
 	window.addEventListener('resize', hide);
 	window.addEventListener('keydown', hide);
 	window.addEventListener('blur', hide);
 
 	return () => {
 		document.removeEventListener('mousedown', hide);
-		window.removeEventListener('scroll', hide, true);
+		window.removeEventListener('scroll', onScroll, true);
 		window.removeEventListener('resize', hide);
 		window.removeEventListener('keydown', hide);
 		window.removeEventListener('blur', hide);

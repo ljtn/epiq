@@ -125,6 +125,7 @@ const LOG_REFRESH_QUIET_MS = 400;
 const LOG_STORAGE_KEY = 'epiq.timeScrubber.showLog';
 const SHOW_ISSUES_STORAGE_KEY = 'epiq.timeScrubber.showIssues';
 const SHOW_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.showCommits';
+const COMPACTED_DIFF_STORAGE_KEY = 'epiq.diffTab.compacted';
 const LINKED_COMMITS_STORAGE_KEY = 'epiq.timeScrubber.linkedCommitsOnly';
 
 // What the chrome around the board wears while a movie plays. Faded rather than
@@ -377,6 +378,8 @@ export const App = () => {
 		loadCommitDiff: loadIssueCommitDiff,
 		stats: issueStats,
 		loadStats: loadIssueStats,
+		squashed: issueSquashedDiff,
+		loadSquashedDiff: loadIssueSquashedDiff,
 		updateComments: updateDetailComments,
 		onMessage: onIssueDetailMessage,
 	} = useIssueDetail({
@@ -414,6 +417,33 @@ export const App = () => {
 
 		loadIssueStats(selectedIssue.id, statsSignature);
 	}, [selectedTab, selectedIssue?.id, statsSignature, loadIssueStats]);
+
+	// Which of the Diff tab's two views the reader last chose. Remembered
+	// rather than reset per ticket: it is a way of reading, not a fact about
+	// any one ticket.
+	const [compactedDiffPreferred, setCompactedDiffPreferred] = usePersistedFlag(
+		COMPACTED_DIFF_STORAGE_KEY,
+		false,
+	);
+
+	// A deep link points at a line of one commit, which the compacted view has
+	// no way to show — so following one holds the tab on the commits, without
+	// forgetting what the reader chose.
+	const compactedDiff = compactedDiffPreferred && !diffFocus;
+
+	// Costs the same git walk the stats do, and on the same signature, so it is
+	// asked for when the view is opened rather than with the ticket.
+	useEffect(() => {
+		if (selectedTab !== 'code' || !compactedDiff || !selectedIssue) return;
+
+		loadIssueSquashedDiff(selectedIssue.id, statsSignature);
+	}, [
+		selectedTab,
+		compactedDiff,
+		selectedIssue?.id,
+		statsSignature,
+		loadIssueSquashedDiff,
+	]);
 
 	// The board's own half of the Stats tab, derived here because this is where
 	// the lanes are: "backwards" is a fact about their order, and the panel
@@ -1941,6 +1971,24 @@ export const App = () => {
 								}
 								commitDiffsBySha={issueCommitDiffs}
 								onLoadCommitDiff={loadIssueCommitDiff}
+								diffView={{
+									compacted: compactedDiff,
+									onChangeCompacted: setCompactedDiffPreferred,
+									squashed:
+										issueSquashedDiff?.issueId === selectedIssue.id
+											? issueSquashedDiff.diff
+											: null,
+									// No entry for this ticket yet means its fetch is about to
+									// be sent, not that it has nothing.
+									loading:
+										issueSquashedDiff?.issueId === selectedIssue.id
+											? issueSquashedDiff.loading
+											: true,
+									error:
+										issueSquashedDiff?.issueId === selectedIssue.id
+											? issueSquashedDiff.error
+											: null,
+								}}
 								stats={
 									issueStats?.issueId === selectedIssue.id
 										? issueStats.stats
