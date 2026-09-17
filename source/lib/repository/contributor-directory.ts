@@ -1,6 +1,6 @@
 import {AppEvent} from '../board/board-events.model.js';
 import {Contributor} from '../model/app-state.model.js';
-import {EmailLink, emailOwnerIndex} from '../model/email-link.js';
+import {normalizeEmail} from '../model/email-link.js';
 import {Identity, identityOf} from '../model/identity.js';
 
 export type DirectoryEntry = {
@@ -83,15 +83,21 @@ export const contributorDirectory = ({
 export const commitAuthorIdentity = ({
 	authorName,
 	authorEmail,
-	links,
+	owners,
 	registry,
 }: {
 	authorName: string;
 	authorEmail: string;
-	links: Readonly<Record<string, EmailLink>>;
+	/**
+	 * Address to sole owner, from `emailOwnerIndex`. Taken already built rather
+	 * than derived from the links here: this runs once per commit, and building
+	 * it inside would walk every link on the board for every commit drawn.
+	 */
+	owners: ReadonlyMap<string, string>;
 	registry: Record<string, Contributor>;
 }): Identity => {
-	const owner = emailOwnerIndex(links).get(authorEmail.trim().toLowerCase());
+	const email = normalizeEmail(authorEmail);
+	const owner = owners.get(email);
 	const contributor = owner ? registry[owner] : undefined;
 
 	// A claimed address whose contributor the registry has lost still resolves to
@@ -101,5 +107,5 @@ export const commitAuthorIdentity = ({
 	// Not `identityOf(undefined, name)`, which would use the name as the id and
 	// merge two committers who happen to share one. An unmatched author is not a
 	// board identity at all, so the address stands in as its id.
-	return identityOf(authorEmail.trim().toLowerCase() || authorName, authorName);
+	return identityOf(email || authorName, authorName);
 };

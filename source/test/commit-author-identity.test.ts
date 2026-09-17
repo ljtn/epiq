@@ -1,6 +1,10 @@
 import {describe, expect, it} from 'vitest';
 import {commitAuthorIdentity} from '../lib/repository/contributor-directory.js';
-import {EmailLink, emailLinkKey} from '../lib/model/email-link.js';
+import {
+	EmailLink,
+	emailLinkKey,
+	emailOwnerIndex,
+} from '../lib/model/email-link.js';
 import {Contributor} from '../lib/model/app-state.model.js';
 
 const ALICE = '01J00000000000000000ALICE';
@@ -20,7 +24,13 @@ const resolve = (
 	authorName: string,
 	authorEmail: string,
 	links: Record<string, EmailLink> = {},
-) => commitAuthorIdentity({authorName, authorEmail, links, registry});
+) =>
+	commitAuthorIdentity({
+		authorName,
+		authorEmail,
+		owners: emailOwnerIndex(links),
+		registry,
+	});
 
 describe('commitAuthorIdentity', () => {
 	it('names the contributor whose address it is', () => {
@@ -110,6 +120,6 @@ const resolveColourOf = (name: string) =>
 	commitAuthorIdentity({
 		authorName: name,
 		authorEmail: '',
-		links: {},
+		owners: new Map(),
 		registry: {},
 	}).color;

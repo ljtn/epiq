@@ -16,6 +16,16 @@ export type ContributorEmails = {
 	emails: EmailClaim[];
 	/** The addresses the viewer holds, so the panel can say which are theirs. */
 	mine: string[];
+	/**
+	 * This repository's own git address and what has become of it. Null where
+	 * git has none configured.
+	 */
+	git: {
+		email: string;
+		linkedToMe: boolean;
+		/** Anybody else claiming it, which is why it may not have linked itself. */
+		heldByOthers: GuiIdentity[];
+	} | null;
 };
 
 export type ContributorEmailsState = {

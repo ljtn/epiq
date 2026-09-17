@@ -155,26 +155,60 @@ export const listContributorEmails = async (input: ToolInput = {}) => {
 	if (isFail(stateResult)) return stateResult;
 
 	const {emailLinks, contributors} = stateResult.value;
-	const byEmail = new Map<string, string[]>();
+
+	// One pass. Asking `claimantsOf` per link would walk every link once per
+	// link, which is the shape that only bites on a board large enough to care.
+	const byEmail = new Map<string, Set<string>>();
 
 	for (const link of Object.values(emailLinks)) {
 		if (link.tombstoned) continue;
-		byEmail.set(link.email, claimantsOf(emailLinks, link.email));
+
+		const claimants = byEmail.get(link.email) ?? new Set<string>();
+		claimants.add(link.contributor);
+		byEmail.set(link.email, claimants);
 	}
 
-	const rows = [...byEmail.entries()].map(([email, claimants]) => ({
-		email,
-		contested: claimants.length > 1,
-		claimants: claimants.map(id => identityOf(id, contributors[id]?.name)),
-	}));
+	const rows = [...byEmail.entries()]
+		.map(([email, claimants]) => ({
+			email,
+			contested: claimants.size > 1,
+			claimants: [...claimants].map(id =>
+				identityOf(id, contributors[id]?.name),
+			),
+		}))
+		.sort((a, b) => a.email.localeCompare(b.email));
 
 	const actorResult = getActor();
+	const mine = isFail(actorResult)
+		? []
+		: emailsOf(emailLinks, actorResult.value.userId);
+
+	// The address this repository's git is configured with, and who holds it.
+	//
+	// Without this, somebody whose own address another contributor claimed sees
+	// an empty list and nothing else: the auto-link refuses to take a claimed
+	// address, so it stays quiet, and the board goes on attributing their
+	// commits to somebody else with no way to find out why. Naming it is the
+	// whole diagnosis.
+	const gitEmail = getSettingsState().gitEmail;
+	const heldBy = gitEmail
+		? claimantsOf(emailLinks, gitEmail).filter(
+				id => isFail(actorResult) || id !== actorResult.value.userId,
+		  )
+		: [];
 
 	return succeeded('Listed contributor emails', {
-		emails: rows.sort((a, b) => a.email.localeCompare(b.email)),
-		mine: isFail(actorResult)
-			? []
-			: emailsOf(emailLinks, actorResult.value.userId),
+		emails: rows,
+		mine,
+		git: gitEmail
+			? {
+					email: gitEmail,
+					linkedToMe: mine.includes(gitEmail),
+					heldByOthers: heldBy.map(id =>
+						identityOf(id, contributors[id]?.name),
+					),
+			  }
+			: null,
 	});
 };
 
