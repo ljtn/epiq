@@ -434,7 +434,11 @@ export const App = () => {
 	// Costs the same git walk the stats do, and on the same signature, so it is
 	// asked for when the view is opened rather than with the ticket.
 	useEffect(() => {
+		// An empty signature is a ticket with no commits, or one whose commit
+		// list has not landed yet. Either way there is nothing to compact, and
+		// the effect runs again when the list arrives and the signature changes.
 		if (selectedTab !== 'code' || !compactedDiff || !selectedIssue) return;
+		if (!statsSignature) return;
 
 		loadIssueSquashedDiff(selectedIssue.id, statsSignature);
 	}, [
