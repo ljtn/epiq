@@ -16,6 +16,7 @@ import {
 } from '../../lib/model/result-types.js';
 import {nodeRepo} from '../../lib/repository/node-repo.js';
 import {recordRecentProject} from '../../lib/config/recent-projects.js';
+import {identityOf} from '../../lib/model/identity.js';
 import {getStringColor} from '../../lib/utils/color.js';
 import {laneEntryTime} from '../../lib/utils/lane-dwell.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
@@ -144,17 +145,11 @@ export const deriveGuiState = (): Result<ApiState> => {
 					id: comment.id,
 					issueId: comment.issue,
 					body: comment.md,
-					author: {
-						id: comment.authorId,
-						name: contributor?.name ?? 'Unknown',
-						// The author is optional in the log by design — the payload
-						// schema leaves it unconstrained so an event already written
-						// without one is not thrown away. So it can be missing here,
-						// and a colour is not worth taking the whole board down for.
-						color: getStringColor(
-							contributor?.name ?? comment.authorId ?? 'Unknown',
-						),
-					},
+					// The author is optional in the log by design — the payload schema
+					// leaves it unconstrained so an event already written without one
+					// is not thrown away — so fall all the way through to a
+					// placeholder rather than taking the board down for a colour.
+					author: identityOf(comment.authorId || 'Unknown', contributor?.name),
 					createdAt: ulidTimeMs(comment.id),
 				};
 			},
@@ -227,17 +222,17 @@ export const deriveGuiState = (): Result<ApiState> => {
 							} satisfies ApiSwimlane),
 					),
 			})),
-		tags: nodeRepo.getTags().map(x => ({
-			...x,
-			color: getStringColor(x.name),
-		})),
+		tags: nodeRepo.getTags().map(x => ({...x, ...identityOf(x.id, x.name)})),
 		contributors: Object.values(stateResult.value.contributors).map(x => ({
 			...x,
-			color: getStringColor(x.name),
+			...identityOf(x.id, x.name),
 		})),
+		// Not `identityOf`: this name is the config's, not the registry's, and
+		// an unconfigured one is a state the header draws as blank rather than a
+		// missing name to fall back from — an id here would read as an initial.
 		user: {
-			name: settingsRes.value.userName ?? '',
 			id: settingsRes.value.userId ?? '',
+			name: settingsRes.value.userName ?? '',
 			color: getStringColor(settingsRes.value.userName ?? ''),
 		},
 		commentsByIssueId,

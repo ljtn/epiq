@@ -1,10 +1,7 @@
+import {Identity} from '../lib/model/identity.js';
 export type ApiTag = {id: string; name: string; color: string};
 
-export type ApiAssignee = {
-	id: string;
-	name: string;
-	color: string;
-};
+export type ApiAssignee = Identity;
 
 export type ApiComment = {
 	id: string;

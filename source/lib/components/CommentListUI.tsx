@@ -41,7 +41,6 @@ const getCommentItems = (ticket: Ticket): CommentItem[] =>
 			id: comment.id,
 			issue: comment.issue,
 			authorId: comment.authorId,
-			authorName: comment.authorName,
 			md: comment.md,
 		}));
 

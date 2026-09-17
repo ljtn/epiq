@@ -827,7 +827,6 @@ const materializeHandlers: MaterializeHandlers = {
 			id,
 			issue,
 			authorId: author,
-			authorName: nodeRepo.getContributor(author)?.name ?? 'Unknown',
 			md,
 			deleted: false,
 		});

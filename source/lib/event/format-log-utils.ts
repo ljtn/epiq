@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {ulidTimeMs} from './date-utils.js';
 import {isFail} from '../model/result-types.js';
+import {nameOf} from '../model/identity.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getSafeState, getState} from '../state/state.js';
 import {getStringColor} from '../utils/color.js';
@@ -181,8 +182,7 @@ const formatUser = (userName: string): string => {
 };
 
 // By id, from the registry: an event carries no name, and a rename has to show
-// on the lines written before it as well as after. The id is a poorer label
-// than a name but a truer one than a guess.
+// on the lines written before it as well as after.
 //
 // Read through `getSafeState` because formatting a line is a display concern
 // that can run before a board is booted — a log line is not worth throwing
@@ -191,7 +191,7 @@ const actorName = (userId: string): string => {
 	const state = getSafeState();
 	if (isFail(state)) return userId;
 
-	return state.value.contributors[userId]?.name ?? userId;
+	return nameOf(userId, state.value.contributors[userId]?.name);
 };
 
 // Plain-text (no ANSI) version of an event's detail, suitable for ellipsising.

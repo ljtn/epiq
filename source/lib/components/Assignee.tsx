@@ -1,7 +1,6 @@
 import {Text} from 'ink';
 import React from 'react';
-import {TagColor, TAGS_DEFAULT, TagsDefault} from '../static/default-tags.js';
-import {stringToHslHexColor} from '../utils/color.js';
+import {getStringColor} from '../utils/color.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {hasAuthoredEvents} from '../utils/contributor.utils.js';
 import {truncateWithEllipsis} from '../utils/string.utils.js';
@@ -10,17 +9,6 @@ type Props = {
 	id: string;
 	isSelected?: boolean;
 	maxWidth?: number;
-};
-
-const normalizeName = (value: string): string => value.toLowerCase().trim();
-
-export const getStringColor = (
-	id: string,
-	config: TagsDefault = TAGS_DEFAULT,
-): TagColor => {
-	const normalized = normalizeName(id);
-	if (config[normalized]) return config[normalized];
-	return stringToHslHexColor(normalized);
 };
 
 export const AssigneeUI: React.FC<Props> = ({id, isSelected, maxWidth}) => {

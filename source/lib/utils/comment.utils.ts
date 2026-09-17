@@ -49,5 +49,4 @@ export type CommentItem = {
 	issue: string;
 	md: string;
 	authorId: string;
-	authorName: string;
 };
