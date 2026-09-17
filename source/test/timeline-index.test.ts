@@ -230,6 +230,52 @@ describe('timeline-index', () => {
 			expect(entry!.actor?.name).toBe('Renamed');
 		});
 
+		// 2BPYNWE. The timeline used to index only `create.contributor`, so a
+		// rename never reached it and a name read as whatever its owner was
+		// called the day they were created — on every line, before and after.
+		it('carries a rename onto lines written before it', () => {
+			const [first, , last] = buildTimelineEntries([
+				event(1, {userId: 'u-9'}),
+				{
+					id: ulid(baseTime + 10),
+					action: 'create.contributor',
+					payload: {id: 'u-9', name: 'alice'},
+					userId: 'u-9',
+				},
+				{
+					id: ulid(baseTime + 20),
+					action: 'rename.contributor',
+					payload: {id: 'u-9', name: 'Alice Cooper'},
+					userId: 'u-9',
+				},
+			] as never);
+
+			expect(first!.actor?.name).toBe('Alice Cooper');
+			expect(last!.actor?.name).toBe('Alice Cooper');
+		});
+
+		// The worse half of the same bug: a name cleared on request stayed on
+		// every line in the timeline, which is the one place it is most read.
+		it('clears a name a tombstone removed', () => {
+			const [first] = buildTimelineEntries([
+				event(1, {userId: 'u-9'}),
+				{
+					id: ulid(baseTime + 10),
+					action: 'create.contributor',
+					payload: {id: 'u-9', name: 'alice'},
+					userId: 'u-9',
+				},
+				{
+					id: ulid(baseTime + 20),
+					action: 'tombstone.contributor',
+					payload: {id: 'u-9'},
+					userId: 'u-9',
+				},
+			] as never);
+
+			expect(first!.actor?.name).toBe('removed');
+		});
+
 		// Resolved once at build time so a request can narrow to its own board
 		// over the window rather than walking the log again.
 		it('carries the board each event belongs to', () => {
