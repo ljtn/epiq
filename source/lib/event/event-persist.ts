@@ -10,6 +10,7 @@ import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
 import {sanitizeFilePart} from '../utils/file-part.js';
 import {MAX_ULID_AHEAD_MS} from './date-utils.js';
 import {
+	actorSegmentOf,
 	appendPendingLine,
 	getPendingLogPath,
 	isPendingFileName,
@@ -215,23 +216,16 @@ export const ownEventFileNames = (
 		return [current];
 	}
 
-	// The id segment of the log we write to now, which is what identifies the
-	// owner whichever naming the file uses.
-	const currentBase = current.slice(0, -'.jsonl'.length);
-	const currentSeparator = currentBase.indexOf('.');
-	const wanted =
-		currentSeparator === -1
-			? currentBase
-			: currentBase.slice(0, currentSeparator);
+	// The owner is the id segment, which is what a log's name carries whichever
+	// naming it uses — the same question `flushPendingLogs` asks of a pending
+	// file, answered in the one place.
+	const wanted = actorSegmentOf(current);
 
 	const legacy = entries.filter(name => {
 		if (!name.endsWith('.jsonl') || name === current) return false;
 		if (isPendingFileName(name)) return false;
 
-		const separatorIndex = name.indexOf('.');
-		if (separatorIndex === -1) return false;
-
-		return name.slice(0, separatorIndex) === wanted;
+		return actorSegmentOf(name) === wanted;
 	});
 
 	return [...legacy.sort(), current];
