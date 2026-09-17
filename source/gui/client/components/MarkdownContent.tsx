@@ -10,6 +10,7 @@ import {
 	remarkTicketRefs,
 	TICKET_REF_URL_PREFIX,
 } from '../lib/remark-ticket-refs';
+import {TICKET_REF_ATTRIBUTE} from './TicketPreviewLayer';
 
 // react-markdown wraps a fenced block in <pre><code>, and only sets a
 // className on the <code> when the fence names a language — so keying
@@ -76,7 +77,11 @@ const buildComponents = (
 			return (
 				<button
 					type="button"
-					title={`Open ${ref}`}
+					// No `title`: the hint this ref carries is TicketPreviewLayer's
+					// card, which this attribute is what summons. Both at once would
+					// be two boxes saying different things about the same word.
+					{...{[TICKET_REF_ATTRIBUTE]: ref}}
+					aria-label={`Open ${ref}`}
 					onClick={() => onOpenTicketRef?.(ref)}
 					style={{
 						padding: 0,

@@ -39,6 +39,7 @@ import {BulkDetails} from './components/BulkDetails';
 import {SwimlaneColumn} from './components/SwimlaneColumn';
 import {SwimlaneStats} from './components/SwimlaneStats';
 import {GlobalScrollbarStyles} from './components/GlobalScrollbarStyles';
+import {TicketPreviewLayer} from './components/TicketPreviewLayer';
 import {TooltipLayer} from './components/TooltipLayer';
 import {TicketRefLinksProvider} from './components/MarkdownContent';
 import {ErrorToast} from './components/ErrorToast';
@@ -94,6 +95,7 @@ import {isolateOnly, withNarrowing} from './lib/board-selection';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
+import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useBoardEditing} from './lib/use-board-editing';
@@ -388,6 +390,14 @@ export const App = () => {
 	const {stats: swimlaneStats, onMessage: onSwimlaneStatsMessage} =
 		useSwimlaneStats({swimlaneId: statsSwimlaneId, sendRaw});
 
+	// The card a linkified ticket ref shows on hover. Most of it is already in
+	// `state`; only the description excerpt is fetched.
+	const {
+		previewFor: ticketPreviewFor,
+		requestPreview: requestTicketPreview,
+		onMessage: onTicketPreviewMessage,
+	} = useTicketPreviews({state, sendRaw});
+
 	// The one view that costs a git scan of every commit a ticket owns, so it
 	// is asked for when it is opened rather than with the rest of the ticket.
 	//
@@ -645,6 +655,7 @@ export const App = () => {
 		// scrubber's own commit dot opens.
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
+		onTicketPreviewMessage(message);
 
 		if (message.type === 'state' && !socket.holdsState()) {
 			const nextState = getResultValue<GuiState>(message.payload);
@@ -1479,6 +1490,10 @@ export const App = () => {
 			>
 				<GlobalScrollbarStyles />
 				<TooltipLayer />
+				<TicketPreviewLayer
+					previewFor={ticketPreviewFor}
+					onHover={requestTicketPreview}
+				/>
 
 				{removeError && (
 					<ErrorToast

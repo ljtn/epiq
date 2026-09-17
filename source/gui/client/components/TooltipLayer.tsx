@@ -2,6 +2,14 @@ import {useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {CODE_FONT} from '../lib/code-text.style';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {
+	HOVER_DELAY_MS,
+	Placement,
+	placeHoverCard,
+	onHoverDismiss,
+	TRIGGER_ALIVE_POLL_MS,
+} from '../lib/hover-card';
+import {TICKET_REF_ATTRIBUTE} from './TicketPreviewLayer';
 
 // The app's own tooltip, in place of the browser's, for every `title` in the
 // GUI at once.
@@ -17,17 +25,6 @@ import {GUI_THEME, TEXT} from '../lib/gui-theme';
 // to remove — and it fires dozens of times an hour, which is where a charming
 // effect turns into something you wait through.
 
-// Half the second or so the browser makes you wait: quick enough to feel like
-// part of the app, slow enough not to fire on a pointer merely crossing a row
-// of controls on its way somewhere else.
-const DELAY_MS = 500;
-
-// Clear of the trigger, close enough to read as belonging to it.
-const GAP = 8;
-
-// Kept off the window's own edges when a trigger sits near one.
-const MARGIN = 6;
-
 // Where the title text is parked while the attribute is off the element. It
 // has to leave: there is no way to keep `title` and suppress the native bubble,
 // and both showing at once is worse than either.
@@ -35,33 +32,17 @@ const STASH = 'epiqTip';
 
 type Shown = {label: string; trigger: HTMLElement};
 
-type Placement = {left: number; top: number};
-
-const place = (trigger: DOMRect, tip: DOMRect): Placement => {
-	// Above by default, below only when there is no room, so a tooltip does not
-	// change sides as the pointer travels along a row of controls.
-	const above = trigger.top - tip.height - GAP >= MARGIN;
-	const top = above ? trigger.top - tip.height - GAP : trigger.bottom + GAP;
-
-	const centred = trigger.left + trigger.width / 2 - tip.width / 2;
-
-	return {
-		left: Math.min(
-			Math.max(MARGIN, centred),
-			window.innerWidth - tip.width - MARGIN,
-		),
-		top: Math.max(
-			MARGIN,
-			Math.min(top, window.innerHeight - tip.height - MARGIN),
-		),
-	};
-};
-
 /** The element under the pointer that owns a tooltip, if any. */
 const triggerFor = (target: EventTarget | null): HTMLElement | null => {
 	if (!(target instanceof Element)) return null;
 
 	const owner = target.closest<HTMLElement>(`[title], [data-${'epiq-tip'}]`);
+
+	// A linkified ticket ref has a hint of its own — TicketPreviewLayer's card.
+	// Without this, an enclosing element's plain `title` would open beside it,
+	// two boxes describing the same word.
+	const refOwner = target.closest(`[${TICKET_REF_ATTRIBUTE}]`);
+	if (refOwner && (!owner || owner.contains(refOwner))) return null;
 
 	// An SVG `title` is a child element, not a hover hint, and `<title>` in the
 	// document head is neither.
@@ -120,7 +101,7 @@ export const TooltipLayer = () => {
 			timer.current = setTimeout(() => {
 				park(trigger, label);
 				setShown({label, trigger});
-			}, DELAY_MS);
+			}, HOVER_DELAY_MS);
 		};
 
 		const onOver = (event: MouseEvent) => {
@@ -148,26 +129,18 @@ export const TooltipLayer = () => {
 			if (trigger && label) setShown({label, trigger});
 		};
 
+		const stopDismiss = onHoverDismiss(hide);
+
 		document.addEventListener('mouseover', onOver);
-		document.addEventListener('mousedown', hide);
 		document.addEventListener('focusin', onFocus);
 		document.addEventListener('focusout', hide);
-		// Capturing, so a scroll inside a column counts and not just the window's.
-		window.addEventListener('scroll', hide, true);
-		window.addEventListener('resize', hide);
-		window.addEventListener('keydown', hide);
-		window.addEventListener('blur', hide);
 
 		return () => {
 			hide();
+			stopDismiss();
 			document.removeEventListener('mouseover', onOver);
-			document.removeEventListener('mousedown', hide);
 			document.removeEventListener('focusin', onFocus);
 			document.removeEventListener('focusout', hide);
-			window.removeEventListener('scroll', hide, true);
-			window.removeEventListener('resize', hide);
-			window.removeEventListener('keydown', hide);
-			window.removeEventListener('blur', hide);
 		};
 	}, []);
 
@@ -181,21 +154,19 @@ export const TooltipLayer = () => {
 		if (!node) return;
 
 		setPlacement(
-			place(
+			placeHoverCard(
 				shown.trigger.getBoundingClientRect(),
 				node.getBoundingClientRect(),
 			),
 		);
 	}, [shown]);
 
-	// A trigger that leaves while its tooltip is up — a card re-rendered under
-	// the pointer, a panel closing — takes the tooltip with it.
 	useEffect(() => {
 		if (!shown) return;
 
 		const check = setInterval(() => {
 			if (!shown.trigger.isConnected) setShown(null);
-		}, 250);
+		}, TRIGGER_ALIVE_POLL_MS);
 
 		return () => clearInterval(check);
 	}, [shown]);
