@@ -62,6 +62,25 @@ export const IdentityPanel = ({
 				{me ? actorDisplay(me.name).label : 'Not configured'}
 			</div>
 
+			{state.data?.git && !state.data.git.linkedToMe && (
+				<>
+					<div style={{...label, marginTop: 12, color: GUI_THEME.amber}}>
+						This repository signs your commits as
+					</div>
+					<div style={{...row, display: 'block'}}>
+						<div>{state.data.git.email}</div>
+						<div style={{color: GUI_THEME.dim, marginTop: 2}}>
+							{state.data.git.heldByOthers.length > 0
+								? `Already claimed by ${state.data.git.heldByOthers
+										.map(person => actorDisplay(person.name).label)
+										.join(' and ')}, so it was not linked to you. Your commits
+										show as theirs.`
+								: 'Not linked to you yet. It links itself on your next change to the board.'}
+						</div>
+					</div>
+				</>
+			)}
+
 			<div style={{...label, marginTop: 12}}>Your git addresses</div>
 			{mine.size === 0 ? (
 				<div style={{...row, color: GUI_THEME.dim}}>
