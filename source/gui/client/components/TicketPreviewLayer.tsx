@@ -221,6 +221,15 @@ export const TicketPreviewLayer = ({
 	// Measured once it is in the document, so the first painted frame is
 	// already in the right place — and re-measured when the excerpt lands and
 	// makes the card taller.
+	//
+	// `Boolean(preview)` is in the deps, not `preview` itself, which is rebuilt
+	// on every render: a ref whose ticket is momentarily absent from the board
+	// state (mid-scrub, or a board that left the broadcast) draws no card, so
+	// this runs against no node — and without something to re-run on, the card
+	// would mount at opacity 0 when the ticket came back and stay there until
+	// the pointer left and returned.
+	const hasPreview = Boolean(preview);
+
 	useEffect(() => {
 		if (!shown) return setPlacement(null);
 
@@ -233,7 +242,7 @@ export const TicketPreviewLayer = ({
 				node.getBoundingClientRect(),
 			),
 		);
-	}, [shown, preview?.excerpt]);
+	}, [shown, hasPreview, preview?.excerpt]);
 
 	useEffect(() => {
 		if (!shown) return;
