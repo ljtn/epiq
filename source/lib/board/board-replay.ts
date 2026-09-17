@@ -103,6 +103,8 @@ export const getAffectedNodeIds = (event: AppEvent): string[] => {
 		case 'create.contributor':
 		case 'rename.contributor':
 		case 'link.contributor.user':
+		case 'link.contributor.email':
+		case 'unlink.contributor.email':
 		default:
 			return [];
 	}

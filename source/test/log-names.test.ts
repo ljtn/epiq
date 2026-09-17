@@ -84,6 +84,17 @@ const log = (): AppEvent[] => [
 	at('create.contributor', {id: ALICE, name: 'alice'}),
 	at('rename.contributor', {id: ALICE, name: 'Alice Cooper'}),
 	at('link.contributor.user', {contributor: ALICE}),
+	// Neither names anybody, so both sides must leave the registry alone. The
+	// unlink retracts the link above it, which is the pair a replay has to land
+	// on the same way whichever order it sees them in.
+	at('link.contributor.email', {
+		contributor: ALICE,
+		email: 'alice@example.com',
+	}),
+	at('unlink.contributor.email', {
+		contributor: ALICE,
+		email: 'alice@example.com',
+	}),
 
 	at('create.contributor', {id: BOB, name: 'bob'}),
 	at('tombstone.contributor', {id: BOB}),

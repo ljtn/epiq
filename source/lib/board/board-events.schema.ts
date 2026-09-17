@@ -69,6 +69,13 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'restore.contributor': z.looseObject({id, name}),
 	'link.contributor.user': z.looseObject({contributor: id}),
 
+	// `email` is only shape-checked here. The stored form is whatever
+	// `normalizeEmail` returns, and the handler normalizes rather than trusting
+	// the writer to have done it — an un-normalized address in the log would
+	// simply never match.
+	'link.contributor.email': z.looseObject({contributor: id, email: id}),
+	'unlink.contributor.email': z.looseObject({contributor: id, email: id}),
+
 	'add.issue.assignee': z.looseObject({id, assignee: id}),
 	'remove.issue.assignee': z.looseObject({id, assignee: id}),
 	'add.issue.tag': z.looseObject({id, tag: id}),
