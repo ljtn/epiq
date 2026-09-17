@@ -184,6 +184,9 @@ const formatUser = (userName: string): string => {
 // By id, from the registry: an event carries no name, and a rename has to show
 // on the lines written before it as well as after.
 //
+// The registry or the id: a display function in `lib/` has no state branch root
+// to read log file names with. `loadActorNames` has the rule.
+//
 // Read through `getSafeState` because formatting a line is a display concern
 // that can run before a board is booted — a log line is not worth throwing
 // over.

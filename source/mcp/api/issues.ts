@@ -634,6 +634,8 @@ export const getIssueHistory = (
 				: {}),
 			// By id from the registry, never from the event: an event carries no
 			// name at all since ZFZFW9D, and only the registry knows who an id is.
+			// The registry or the id: not booting is the point of this, so it
+			// never loads the log. `loadActorNames` has the rule.
 			actor: identityOf(
 				event.userId,
 				stateResult.value.contributors[event.userId]?.name,
