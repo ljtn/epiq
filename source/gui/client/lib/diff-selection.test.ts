@@ -6,7 +6,9 @@ import {
 	extractSnippet,
 	findDiffCommentsForFile,
 	readDiffLocationParams,
+	readDiffViewParam,
 	writeDiffLocationParams,
+	writeDiffViewParam,
 } from './diff-selection';
 import {
 	encodeDiffCommentMarker,
@@ -464,5 +466,54 @@ describe('extractCommentLead', () => {
 	it('keeps a caption-shaped line that is part of the text', () => {
 		const body = ['see `source/b.ts` too', '', marker, ...tail].join('\n');
 		expect(extractCommentLead(body)).toBe('see `source/b.ts` too');
+	});
+});
+
+describe('the Diff tab view in the route', () => {
+	const params = (query: string) => new URLSearchParams(query);
+
+	it('reads the view a link names', () => {
+		expect(readDiffViewParam(params('tab=code&diff=compacted'))).toBe(
+			'compacted',
+		);
+		expect(readDiffViewParam(params('tab=code&diff=commits'))).toBe('commits');
+	});
+
+	// Absent is "the reader's own choice stands", and so is a value no view
+	// answers to — a typo must not silently pick one.
+	it('names no view when the param is absent or unrecognised', () => {
+		expect(readDiffViewParam(params('tab=code'))).toBeNull();
+		expect(readDiffViewParam(params('tab=code&diff='))).toBeNull();
+		expect(readDiffViewParam(params('tab=code&diff=squashed'))).toBeNull();
+	});
+
+	it('writes a view a link can carry', () => {
+		const written = params('tab=code');
+		writeDiffViewParam(written, true);
+		expect(written.get('diff')).toBe('compacted');
+
+		writeDiffViewParam(written, false);
+		expect(written.get('diff')).toBe('commits');
+	});
+
+	it('round-trips', () => {
+		for (const compacted of [true, false]) {
+			const written = params('');
+			writeDiffViewParam(written, compacted);
+			expect(readDiffViewParam(written)).toBe(
+				compacted ? 'compacted' : 'commits',
+			);
+		}
+	});
+
+	// The two live side by side in one URL: a link can name a spot in a commit
+	// and the view it belongs to without either clearing the other.
+	it('leaves a commit deep link alone', () => {
+		const written = params('commit=abc123&file=source/a.ts');
+		writeDiffViewParam(written, true);
+
+		expect(written.get('commit')).toBe('abc123');
+		expect(written.get('file')).toBe('source/a.ts');
+		expect(readDiffViewParam(written)).toBe('compacted');
 	});
 });

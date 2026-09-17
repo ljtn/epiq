@@ -74,6 +74,42 @@ export type FileTicketParams = {
 	note: string;
 };
 
+/**
+ * Which of the Diff tab's two views a link names.
+ *
+ * In the URL rather than only in the reader's own stored choice, for the same
+ * reason the spot below is: a link has to arrive showing what the person who
+ * sent it was looking at. `epiq.diffTab.compacted` cannot do that — it is per
+ * browser, so `?tab=code` alone hands the reader whichever view they last
+ * used, which need not be the one being talked about.
+ *
+ * Named rather than a boolean in the URL: `?diff=compacted` says what it means
+ * where `?compacted=1` says it only to whoever wrote it.
+ */
+export const DIFF_VIEW_PARAM = 'diff';
+
+export type DiffViewName = 'commits' | 'compacted';
+
+const DIFF_VIEW_NAMES: DiffViewName[] = ['commits', 'compacted'];
+
+/** Null for absent *and* for unrecognised: a view nobody offers is no request
+ * at all, so the reader's own choice stands rather than being overridden by a
+ * typo. */
+export const readDiffViewParam = (
+	params: URLSearchParams,
+): DiffViewName | null => {
+	const value = params.get(DIFF_VIEW_PARAM);
+
+	return DIFF_VIEW_NAMES.find(name => name === value) ?? null;
+};
+
+export const writeDiffViewParam = (
+	params: URLSearchParams,
+	compacted: boolean,
+): void => {
+	params.set(DIFF_VIEW_PARAM, compacted ? 'compacted' : 'commits');
+};
+
 // A spot in a ticket's Diff tab, deep-linkable from a comment. Lives in the
 // URL rather than in transient state so the link survives a reload and can be
 // handed to someone else.

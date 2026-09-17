@@ -28,7 +28,9 @@ import {
 	DiffLocation,
 	readCommitFocusParam,
 	readDiffLocationParams,
+	readDiffViewParam,
 	writeDiffLocationParams,
+	writeDiffViewParam,
 	writeFileFocusParams,
 } from './lib/diff-selection';
 import {
@@ -421,15 +423,62 @@ export const App = () => {
 	// Which of the Diff tab's two views the reader last chose. Remembered
 	// rather than reset per ticket: it is a way of reading, not a fact about
 	// any one ticket.
-	const [compactedDiffPreferred, setCompactedDiffPreferred] = usePersistedFlag(
+	const [compactedDiffStored, setCompactedDiffStored] = usePersistedFlag(
 		COMPACTED_DIFF_STORAGE_KEY,
 		false,
 	);
+
+	// The route wins where it names a view: a link is somebody saying which of
+	// the two they meant, and arriving in the other one makes the link a worse
+	// version of no link at all. Where it names none, the reader's own last
+	// choice stands — so following one link does not quietly re-set how every
+	// ticket opens from then on.
+	const linkedDiffView = readDiffViewParam(searchParams);
+	const compactedDiffPreferred = linkedDiffView
+		? linkedDiffView === 'compacted'
+		: compactedDiffStored;
 
 	// A deep link points at a line of one commit, which the compacted view has
 	// no way to show — so following one holds the tab on the commits, without
 	// forgetting what the reader chose.
 	const compactedDiff = compactedDiffPreferred && !diffFocus;
+
+	// Both, so the switch is at once a link somebody can copy and a habit this
+	// browser keeps. Replaced rather than pushed: flipping a view is not a
+	// place to come back to, and the tab change beside it does the same.
+	const chooseDiffView = (next: boolean) => {
+		setCompactedDiffStored(next);
+		setSearchParams(
+			prev => {
+				const params = new URLSearchParams(prev);
+				writeDiffViewParam(params, next);
+
+				return params;
+			},
+			{replace: true},
+		);
+	};
+
+	// A link is only as good as the address bar it is copied from, so opening
+	// the tab writes which view is showing rather than waiting for the switch
+	// to be touched. Without this the common case — read a ticket, copy the
+	// URL — still sends a link that lands the reader in whichever view they
+	// last used. What gets written is the reader's own choice, not the one a
+	// commit deep link is currently forcing, so the link says what was meant.
+	useEffect(() => {
+		if (selectedTab !== 'code' || !selectedIssue) return;
+		if (readDiffViewParam(searchParams)) return;
+
+		setSearchParams(
+			prev => {
+				const params = new URLSearchParams(prev);
+				writeDiffViewParam(params, compactedDiffPreferred);
+
+				return params;
+			},
+			{replace: true},
+		);
+	}, [selectedTab, selectedIssue?.id, searchParams, compactedDiffPreferred]);
 
 	// Costs the same git walk the stats do, and on the same signature, so it is
 	// asked for when the view is opened rather than with the ticket.
@@ -1977,7 +2026,7 @@ export const App = () => {
 								onLoadCommitDiff={loadIssueCommitDiff}
 								diffView={{
 									compacted: compactedDiff,
-									onChangeCompacted: setCompactedDiffPreferred,
+									onChangeCompacted: chooseDiffView,
 									squashed:
 										issueSquashedDiff?.issueId === selectedIssue.id
 											? issueSquashedDiff.diff
