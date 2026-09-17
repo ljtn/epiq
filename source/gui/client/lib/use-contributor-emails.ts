@@ -58,26 +58,59 @@ export const useContributorEmails = ({
 	}, [open, sendRaw]);
 
 	const onMessage = useCallback((message: any) => {
+		// The server's guard on mutating messages answers `failed` — while
+		// scrubbing history, for instance. Ignoring it left the Link button doing
+		// nothing at all with nothing said.
+		if (message.type === 'failed') {
+			setState(prev => ({
+				...prev,
+				loading: false,
+				lastAction: {ok: false, message: String(message.payload)},
+			}));
+			return;
+		}
+
 		if (message.type !== 'emails') return;
 
 		const value = getResultValue<ContributorEmails>(message.payload);
 
+		// A failed read is not an empty board. Without this the panel showed its
+		// cheerful "none linked yet" for what was actually an error.
+		if (!value) {
+			setState(prev => ({
+				loading: false,
+				data: prev.data,
+				lastAction: {
+					ok: false,
+					message:
+						message.payload?.message ?? 'Could not read linked addresses',
+				},
+			}));
+			return;
+		}
+
 		setState({
 			loading: false,
-			data: value ?? null,
+			data: value,
 			lastAction: message.lastAction ?? null,
 		});
 	}, []);
 
+	// Both clear `lastAction` and raise `loading`, so the panel shows the round
+	// trip rather than the previous answer until the reply lands.
 	const link = useCallback(
-		(email: string, contributorId?: string) =>
-			sendRaw({type: 'email:link', payload: {email, contributorId}}),
+		(email: string, contributorId?: string) => {
+			setState(prev => ({...prev, loading: true, lastAction: null}));
+			sendRaw({type: 'email:link', payload: {email, contributorId}});
+		},
 		[sendRaw],
 	);
 
 	const unlink = useCallback(
-		(email: string, contributorId?: string) =>
-			sendRaw({type: 'email:unlink', payload: {email, contributorId}}),
+		(email: string, contributorId?: string) => {
+			setState(prev => ({...prev, loading: true, lastAction: null}));
+			sendRaw({type: 'email:unlink', payload: {email, contributorId}});
+		},
 		[sendRaw],
 	);
 

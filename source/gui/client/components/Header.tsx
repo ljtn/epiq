@@ -1,4 +1,5 @@
 import {GuiState} from '../lib/gui-state.model';
+import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {GUI_THEME} from '../lib/gui-theme';
 import {SyncStatus} from '../lib/gui-sync-statusmodel';
 import {Button} from './Button';
@@ -19,6 +20,7 @@ type HeaderProps = {
 	identity: {
 		open: boolean;
 		onToggle: () => void;
+		onDismiss: () => void;
 		panel: React.ReactNode;
 	};
 };
@@ -32,6 +34,11 @@ export const Header = ({
 	onOpenCommands,
 	identity,
 }: HeaderProps) => {
+	const identityRef = useDismissOnOutsideClick(
+		identity.open,
+		identity.onDismiss,
+	);
+
 	const syncColor =
 		syncStatus.status === 'synced'
 			? GUI_THEME.green
@@ -185,10 +192,10 @@ export const Header = ({
 						// The avatar was the only thing in the GUI that named the viewer,
 						// and it did nothing. It is the obvious place to ask who the board
 						// thinks you are.
-						<div style={{position: 'relative'}}>
+						<div ref={identityRef} style={{position: 'relative'}}>
 							<button
 								onClick={identity.onToggle}
-								title="Who you are on this board, and which git addresses are yours"
+								aria-label="Your identity on this board"
 								style={{
 									background: 'transparent',
 									border: 'none',
@@ -197,6 +204,8 @@ export const Header = ({
 									padding: 0,
 								}}
 							>
+								{/* `User` renders its own `title`, which covers the button and
+								    wins every hover, so a title here would never be seen. */}
 								<User user={state.user} />
 							</button>
 							{identity.open && (

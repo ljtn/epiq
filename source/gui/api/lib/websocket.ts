@@ -282,17 +282,27 @@ export const setupWebsocket = (
 
 					const result = await act({repoRoot, ...message.payload});
 
-					// The list goes back on the same reply rather than making the
-					// client ask again: a link changes who every commit by that
-					// address belongs to, and the panel showing a stale list beside a
-					// changed board is the confusing half of this feature.
-					return sendSocket(socket, {
+					// The list goes back first, so the panel can report what happened
+					// and stop showing a stale answer beside a changed board.
+					sendSocket(socket, {
 						type: 'emails',
 						payload: await listContributorEmails({repoRoot}),
 						lastAction: isFail(result)
 							? {ok: false, message: result.message}
 							: {ok: true, message: result.message},
 					});
+
+					// Then the ordinary mutation path. A link decides who every commit
+					// by that address belongs to, so it has to queue a sync and push a
+					// fresh state like any other write — without this the event sits
+					// unpushed and every other client goes on showing the old names.
+					return sendMutationResult(
+						socket,
+						repoRoot,
+						onStateChanged,
+						`${type}:result`,
+						result,
+					);
 				}
 
 				if (type === 'commit:inspect') {

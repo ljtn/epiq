@@ -1,5 +1,9 @@
 import {ulid} from 'ulid';
-import {claimantsOf, normalizeEmail} from '../model/email-link.js';
+import {
+	claimantsOf,
+	normalizeEmail,
+	wasRetractedBy,
+} from '../model/email-link.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {getSettingsState} from '../state/settings.state.js';
@@ -110,7 +114,17 @@ export const ensureEmailLinked = (
 	}
 
 	const email = normalizeEmail(gitEmail);
-	const claimants = claimantsOf(nodeRepo.getEmailLinks(), email);
+	const links = nodeRepo.getEmailLinks();
+
+	// A retraction is a decision, and this runs on every write. Without this the
+	// Unlink button would be inert for the one address most people have: the
+	// panel would drop it, the next board change would put it straight back, and
+	// every cycle would append another event to a log that is never rewritten.
+	if (wasRetractedBy(links, email, configuredId)) {
+		return succeeded('Address was unlinked on purpose', undefined);
+	}
+
+	const claimants = claimantsOf(links, email);
 
 	// Already ours, or somebody else's. Re-linking our own is a no-op the
 	// materializer would absorb anyway; taking a second claim on somebody else's

@@ -3,7 +3,7 @@ import {chmod} from 'node:fs/promises';
 import path from 'node:path';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit, readGitBlobsBatch} from '../git/git-utils.js';
-import {Identity} from '../lib/model/identity.js';
+import {CommitAuthor} from '../lib/repository/contributor-directory.js';
 import {NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
 import {
 	getEditorCandidates,
@@ -233,7 +233,7 @@ export type CommitEntry = {
 	 * state is available. Absent here because reading it is not a pure function
 	 * of the repository, and this type is produced by one.
 	 */
-	authorIdentity?: Identity;
+	authorIdentity?: CommitAuthor;
 	subject: string;
 	linesChanged: number;
 	insertions: number;

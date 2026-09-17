@@ -8,6 +8,7 @@
 // the slice does not.
 
 import {formatDate, formatDayLabel} from '../../../lib/utils/date.utils.js';
+import {commitAuthorLabel} from './commit-author';
 import {actorDisplayChars} from './agent-identity';
 import {GuiCommitEntry, GuiEventTimelineEntry} from './gui-state.model';
 import {EVENT_CATEGORY_COLORS, GUI_THEME, TEXT} from './gui-theme';
@@ -68,7 +69,10 @@ export const buildLogEntries = (
 			t: commit.time,
 			label: commit.subject,
 			color: GUI_THEME.green,
-			actor: {name: commit.author},
+			// The same label the scrubber puts on this commit. Taking the raw git
+			// name here instead left one view calling somebody by their board name
+			// and the other by their git name, in the same window.
+			actor: {name: commitAuthorLabel(commit)},
 			diff: {insertions: commit.insertions, deletions: commit.deletions},
 			// A commit belongs to whichever ticket its subject is prefixed with,
 			// which the board resolves when the line is clicked — it already has to,

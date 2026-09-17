@@ -12,11 +12,11 @@ import {actorDisplay} from './agent-identity';
 export const commitAuthorLabel = (commit: GuiCommitEntry): string => {
 	const resolved = commit.authorIdentity;
 
-	// The identity always comes back populated, and falls back to the git name
-	// itself, so an unresolved author is one whose id is not a board id. Compared
-	// on the name rather than a flag because the server has already made the
-	// decision and a second flag would be a second source of truth.
-	if (!resolved || resolved.name === commit.author) return commit.author;
+	// The server made the decision and says so. Inferring it by comparing the
+	// resolved name against the git name would call somebody unresolved whenever
+	// the two happen to match — an agent committing under its own board name —
+	// and hand back the full identity where `/peter` was the point.
+	if (!resolved?.resolved) return commit.author;
 
 	return actorDisplay(resolved.name).label;
 };

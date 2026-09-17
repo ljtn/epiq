@@ -3,6 +3,15 @@ import {Contributor} from '../model/app-state.model.js';
 import {normalizeEmail} from '../model/email-link.js';
 import {Identity, identityOf} from '../model/identity.js';
 
+/**
+ * A commit's author as something to show, and whether it is a board identity at
+ * all. The flag is stated rather than inferred: a contributor whose board name
+ * happens to equal their git name is genuinely resolved, and comparing the two
+ * strings would call them unresolved and undo the very normalization the
+ * clients apply.
+ */
+export type CommitAuthor = Identity & {resolved: boolean};
+
 export type DirectoryEntry = {
 	id: string;
 	name: string;
@@ -95,17 +104,17 @@ export const commitAuthorIdentity = ({
 	 */
 	owners: ReadonlyMap<string, string>;
 	registry: Record<string, Contributor>;
-}): Identity => {
+}): CommitAuthor => {
 	const email = normalizeEmail(authorEmail);
 	const owner = owners.get(email);
 	const contributor = owner ? registry[owner] : undefined;
 
 	// A claimed address whose contributor the registry has lost still resolves to
 	// that id: `identityOf` prefers an ugly, true id over a shared placeholder.
-	if (owner) return identityOf(owner, contributor?.name);
+	if (owner) return {...identityOf(owner, contributor?.name), resolved: true};
 
 	// Not `identityOf(undefined, name)`, which would use the name as the id and
 	// merge two committers who happen to share one. An unmatched author is not a
 	// board identity at all, so the address stands in as its id.
-	return identityOf(email || authorName, authorName);
+	return {...identityOf(email || authorName, authorName), resolved: false};
 };

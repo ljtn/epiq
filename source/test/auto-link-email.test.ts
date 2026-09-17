@@ -173,6 +173,28 @@ describe('the git address links itself', () => {
 		expect(written).toEqual([]);
 	});
 
+	// The Unlink button in the panel is about the configured address more often
+	// than not, and this hook runs on every write afterwards.
+	it('never puts back the configured address after it is unlinked on purpose', () => {
+		board([
+			by(ALICE, 'link.contributor.email', {
+				contributor: ALICE,
+				email: 'alice@example.com',
+			}),
+			by(ALICE, 'unlink.contributor.email', {
+				contributor: ALICE,
+				email: 'alice@example.com',
+			}),
+		]);
+		patchSettingsState({gitEmail: 'alice@example.com'});
+
+		const {written, writeOne} = writer();
+		ensureEmailLinked(anyWrite(ALICE), writeOne);
+		ensureEmailLinked(anyWrite(ALICE), writeOne);
+
+		expect(written).toEqual([]);
+	});
+
 	it('links a second address after the first one is retracted', () => {
 		board([
 			by(ALICE, 'link.contributor.email', {

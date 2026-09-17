@@ -1641,6 +1641,7 @@ export const App = () => {
 						identity={{
 							open: identityOpen,
 							onToggle: () => setIdentityOpen(open => !open),
+							onDismiss: () => setIdentityOpen(false),
 							panel: (
 								<IdentityPanel
 									state={contributorEmails}
