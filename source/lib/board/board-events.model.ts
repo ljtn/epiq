@@ -6,6 +6,7 @@ import {
 	StoredEvent,
 } from '../event/event.model.js';
 import {AttachmentExt, Contributor, Tag} from '../model/app-state.model.js';
+import {EmailLink} from '../model/email-link.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 
@@ -276,6 +277,32 @@ export type AppEventMap = {
 		result: {parent: string};
 	};
 
+	/**
+	 * Binds a git author address to a contributor, so commits and board events
+	 * by one person read as one person.
+	 *
+	 * Names its target rather than taking the author, so somebody can link a
+	 * colleague who does not use epiq — without it their commits never resolve.
+	 * Two contributors claiming one address makes it contested and it resolves
+	 * to nobody; see `4NENX8W` for why that is preferred to refusing the second.
+	 */
+	'link.contributor.email': {
+		payload: {contributor: string; email: string};
+		result: EmailLink;
+	};
+
+	/**
+	 * Retracts a link. Forward-only, like every other removal here: the address
+	 * stops resolving and the line stays in the log.
+	 *
+	 * Allowed to the link's author and to the contributor it names, and to
+	 * nobody else — open removal would let one writer strip the whole board.
+	 */
+	'unlink.contributor.email': {
+		payload: {contributor: string; email: string};
+		result: EmailLink;
+	};
+
 	'link.contributor.user': {
 		payload: {
 			contributor: string;
@@ -326,6 +353,8 @@ export const EVENT_ACTIONS = [
 	'lock.node',
 	'rebalance.children',
 	'link.contributor.user',
+	'link.contributor.email',
+	'unlink.contributor.email',
 ] as const satisfies readonly EventAction[];
 
 // Compile-time proof that EVENT_ACTIONS covers every EventAction.

@@ -7,6 +7,7 @@ import {
 } from '../model/context.model.js';
 import {failed, isFail, succeeded} from '../model/result-types.js';
 import {FieldNames} from '../repository/fielNames.js';
+import {isValidEmail} from '../model/email-link.js';
 import {nodeRepo} from '../repository/node-repo.js';
 import {nodes} from '../state/node-builder.js';
 import {initWorkspaceState} from '../state/state.js';
@@ -680,6 +681,54 @@ export const boardHandlers: EventHandlers<AppEventMap> = {
 			result: {id, issue},
 		});
 	},
+	'link.contributor.email': event => {
+		const {contributor, email} = event.payload;
+
+		// Checked here rather than in the payload schema: a future epiq may accept
+		// an address this build would reject, and a skip leaves that event in the
+		// log for a newer reader instead of quarantining the line.
+		if (!isValidEmail(email)) {
+			return materializeSkip(`not an email address: ${email}`, event);
+		}
+
+		const result = nodeRepo.linkContributorEmail({
+			email,
+			contributor,
+			authorId: event.userId,
+		});
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to link email', event);
+		}
+
+		return succeeded('Email linked to contributor', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
+	'unlink.contributor.email': event => {
+		const {contributor, email} = event.payload;
+
+		// The permission check reads the link's own author and target, both of
+		// which are in the ordered log. Anything read off a log file name would
+		// let two replicas holding different files decide this differently.
+		const result = nodeRepo.unlinkContributorEmail(
+			email,
+			contributor,
+			event.userId,
+		);
+
+		if (isFail(result)) {
+			return materializeSkip(result.message ?? 'Unable to unlink email', event);
+		}
+
+		return succeeded('Email unlinked from contributor', {
+			action: event.action,
+			result: result.value,
+		});
+	},
+
 	'link.contributor.user': event => {
 		const {contributor} = event.payload;
 

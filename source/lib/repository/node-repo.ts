@@ -5,6 +5,12 @@ import {
 	Tag,
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../model/app-state.model.js';
+import {
+	canRemoveEmailLink,
+	EmailLink,
+	emailLinkKey,
+	normalizeEmail,
+} from '../model/email-link.js';
 import {AnyContext, isTicketNode} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {
@@ -506,6 +512,86 @@ export const nodeRepo = {
 
 		if (isFail(result)) return failed('Unable to restore contributor');
 		return succeeded('Restored contributor', restored);
+	},
+
+	/**
+	 * Binds a git address to a contributor. Idempotent: re-linking a live link
+	 * is a success that writes nothing, so a replay that sees the same event
+	 * twice lands on the same state.
+	 *
+	 * A second contributor claiming the same address is allowed, and makes it
+	 * contested rather than rejecting the write. Refusing here would make the
+	 * outcome depend on which replica saw which event first.
+	 */
+	linkContributorEmail({
+		email,
+		contributor,
+		authorId,
+	}: EmailLink): Result<EmailLink> {
+		if (!this.getContributor(contributor)) {
+			return failed('Unable to link email, missing contributor');
+		}
+
+		const link: EmailLink = {
+			email: normalizeEmail(email),
+			contributor,
+			authorId,
+		};
+		const key = emailLinkKey(link.email, contributor);
+		const existing = getState().emailLinks[key];
+
+		// A revived link keeps the author who revived it, so the permission to
+		// remove it follows the live claim rather than a retracted one.
+		if (existing && !existing.tombstoned) {
+			return succeeded('Email already linked', existing);
+		}
+
+		const result = updateState(s => ({
+			...s,
+			emailLinks: {...s.emailLinks, [key]: link},
+		}));
+
+		if (isFail(result)) return failed('Unable to link email');
+		return succeeded('Linked email to contributor', link);
+	},
+
+	/**
+	 * Retracts a link, forward-only: the record keeps its key and is flagged, so
+	 * a later re-link is an ordinary state change rather than a resurrection,
+	 * and replay never has to rewrite anything.
+	 */
+	unlinkContributorEmail(
+		email: string,
+		contributor: string,
+		actorId: string,
+	): Result<EmailLink> {
+		const key = emailLinkKey(email, contributor);
+		const existing = getState().emailLinks[key];
+
+		if (!existing) return failed('Unable to unlink, no such link');
+		if (existing.tombstoned) {
+			return succeeded('Email already unlinked', existing);
+		}
+
+		if (!canRemoveEmailLink(actorId, existing)) {
+			return failed(
+				'Only the author of a link or the contributor it names may remove it',
+			);
+		}
+
+		const tombstoned: EmailLink = {...existing, tombstoned: true};
+
+		const result = updateState(s => ({
+			...s,
+			emailLinks: {...s.emailLinks, [key]: tombstoned},
+		}));
+
+		if (isFail(result)) return failed('Unable to unlink email');
+		return succeeded('Unlinked email from contributor', tombstoned);
+	},
+
+	getEmailLinks(): Readonly<Record<string, EmailLink>> {
+		return getState().emailLinks;
 	},
 
 	createContributor(contributor: Contributor): Result<Contributor> {

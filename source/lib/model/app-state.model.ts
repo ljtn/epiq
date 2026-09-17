@@ -23,6 +23,8 @@ export type BreadCrumb =
 			NavNode<'FIELD'>,
 	  ];
 
+import {EmailLink} from './email-link.js';
+
 export type ViewMode = 'wide' | 'dense';
 
 // A tombstoned tag keeps its id and record but reads as absent everywhere, and
@@ -86,6 +88,10 @@ export type AppState = {
 	contextNode: NavNode<AnyContext>;
 	filters: Filter[];
 	contributors: Record<string, Contributor>;
+	// Git author addresses bound to contributors, keyed by `emailLinkKey`. Flat
+	// rather than nested under a contributor so that a contested address — one
+	// two people claim — is a readable state rather than a collision.
+	emailLinks: Record<string, EmailLink>;
 	tags: Record<string, Tag>;
 	mode: ModeUnion;
 	availableActions: ActionEntry[];

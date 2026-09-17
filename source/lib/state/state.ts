@@ -131,6 +131,7 @@ export function initWorkspaceState(workspace: Workspace) {
 		filters: [],
 		tags: {},
 		contributors: {},
+		emailLinks: {},
 		mode: Mode.DEFAULT,
 		nodes: {[workspace.id]: workspace},
 		rootNodeId: workspace.id,
