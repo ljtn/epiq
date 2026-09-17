@@ -1303,6 +1303,27 @@ describe('epiq-time-travel', () => {
 			expect(result.value.overlappingPaths).toEqual([]);
 		});
 
+		// A ticket that added something and took it back out again nets to
+		// nothing. That is an answer — an empty diff — not a failure, unlike a
+		// single commit that changed nothing, which is a commit nobody meant to
+		// open.
+		it('answers with an empty diff when the commits cancel out', async () => {
+			mockGit({
+				history: [
+					{sha: sha('newer'), subject: '5S52AC8 and back out again'},
+					{sha: sha('older'), subject: '5S52AC8 add a thing'},
+				],
+				diffFiles: [],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(result.value.files).toEqual([]);
+			expect(result.value.commits).toBe(2);
+		});
+
 		it('fails when no commit carries the ref', async () => {
 			mockGit({
 				history: [{sha: sha('other'), subject: 'QG9544B someone else'}],
