@@ -119,7 +119,11 @@ test('an interleaved commit is kept out of the compacted diff, and named', async
 	expect(pageErrors).toEqual([]);
 });
 
-test('the chosen view survives a reload', async ({
+// A reload would not prove this: choosing a view writes it into the route as
+// well, and the query survives a reload — so the assertion would hold on the
+// param alone with the remembered half torn out. Arriving at a URL that names
+// no view is what asks storage the question.
+test('the chosen view is remembered for a link that names none', async ({
 	page,
 	appUrl,
 	repoRoot,
@@ -135,15 +139,51 @@ test('the chosen view survives a reload', async ({
 	await page.getByRole('button', {name: 'Compacted'}).click();
 	await expect(page.getByTestId('file-row')).toHaveCount(1);
 
-	// No wait: the commit is already in the timeline this page read.
-	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
+	// Compacted rather than commits deliberately: commits is the default, so a
+	// test that ended there would pass with storage never written at all.
+	const board = new URL(page.url()).pathname;
+	await page.goto(`${appUrl}${board}?tab=code`);
 
 	await expect(page.getByRole('button', {name: 'Compacted'})).toHaveAttribute(
 		'aria-pressed',
 		'true',
 	);
 	await expect(page.getByTestId('commit-card')).toHaveCount(0);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A link pins one visit to one tab, not the session: stepping off the Diff tab
+// and back is the reader browsing on their own again.
+test('leaving the tab lets go of the view a link named', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const ref = await openDiffTab(page, appUrl, `Let go ${Date.now()}`);
+
+	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
+
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+
+	// This browser remembers commits; the link below says compacted.
+	await page.getByRole('button', {name: /^Diff/}).click();
+	await page.getByRole('button', {name: 'Commits'}).click();
+	await expect(page.getByTestId('commit-card')).toHaveCount(1);
+
+	const board = new URL(page.url()).pathname;
+	await page.goto(`${appUrl}${board}?tab=code&diff=compacted`);
+	await expect(page.getByTestId('file-row')).toHaveCount(1);
+
+	await page.getByRole('button', {name: /^Comments/}).click();
+	// The pin goes with the tab it was for, rather than riding along on a URL
+	// copied from a tab that has no view to name.
+	await expect(page).not.toHaveURL(/[?&]diff=/);
+
+	await page.getByRole('button', {name: /^Diff/}).click();
+	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	expect(pageErrors).toEqual([]);
 });
@@ -228,6 +268,48 @@ test('opening the tab puts the view in the address bar', async ({
 	await page.getByRole('button', {name: /^Diff/}).click();
 
 	await expect(page).toHaveURL(/[?&]diff=(commits|compacted)\b/);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// Two effects replace the query independently — this one and the board
+// selection's — and React Router builds each updater's input from the
+// render-time params rather than chaining them, so within a commit they do not
+// compose. They converge because both re-derive from what they own rather than
+// from the URL they read, and `selectIssue` rebuilding the query from `?tab=`
+// is where that gets exercised. Pinned here so the convergence is a checked
+// property rather than an assumption about hook declaration order.
+test('a board selection and the diff view survive each other', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const boardUrl = page.url();
+
+	const stamp = Date.now();
+
+	for (const name of [`Both a ${stamp}`, `Both b ${stamp}`]) {
+		await page.getByTitle('Add issue').first().click();
+		await page.getByPlaceholder('issue name').fill(name);
+		await page.getByPlaceholder('issue name').press('Enter');
+		await expect(page).toHaveURL(/\/issue\//);
+	}
+
+	await page.goto(boardUrl);
+	await page.getByRole('button', {name: 'Week', exact: true}).click();
+	await expect(page).toHaveURL(/scope=week/);
+
+	await page.getByText(`Both a ${stamp}`).click();
+	await page.getByRole('button', {name: /^Diff/}).click();
+	await expect(page).toHaveURL(/diff=/);
+
+	// The click that rebuilds the query from `?tab=` alone.
+	await page.getByText(`Both b ${stamp}`).click();
+
+	await expect(page).toHaveURL(/scope=week/);
+	await expect(page).toHaveURL(/diff=(commits|compacted)/);
 
 	expect(pageErrors).toEqual([]);
 });

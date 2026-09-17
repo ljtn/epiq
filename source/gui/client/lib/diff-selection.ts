@@ -110,6 +110,10 @@ export const writeDiffViewParam = (
 	params.set(DIFF_VIEW_PARAM, compacted ? 'compacted' : 'commits');
 };
 
+export const clearDiffViewParam = (params: URLSearchParams): void => {
+	params.delete(DIFF_VIEW_PARAM);
+};
+
 // A spot in a ticket's Diff tab, deep-linkable from a comment. Lives in the
 // URL rather than in transient state so the link survives a reload and can be
 // handed to someone else.
