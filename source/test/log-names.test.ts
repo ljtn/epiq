@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {ulid} from 'ulid';
 import {bootStateFromEventLog} from '../lib/event/event-boot.js';
 import {AppEvent} from '../lib/event/event.model.js';
-import {contributorNamesIn, projectLogNames} from '../lib/event/log-names.js';
+import {projectLogNames} from '../lib/event/log-names.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
 
@@ -17,6 +17,7 @@ const LANE = '01J000000000000000000LANE';
 const ALICE = '01J00000000000000000ALICE';
 const BOB = '01J0000000000000000000BOB';
 const TAG = '01J0000000000000000000TAG';
+const NAMELESS = '01J00000000000000NAMELESS';
 
 let seq = 0;
 const at = <A extends AppEvent['action']>(
@@ -49,6 +50,12 @@ const log = (): AppEvent[] => [
 	at('tombstone.tag', {id: TAG}),
 	at('restore.tag', {id: TAG, name: 'defect'}),
 
+	// `name` is any string in the payload schema, so this is a real record the
+	// registry will go on to rename — and a projection reading "exists" off the
+	// name would refuse that rename.
+	at('create.contributor', {id: NAMELESS, name: ''}),
+	at('rename.contributor', {id: NAMELESS, name: 'Found A Name'}),
+
 	at('edit.title', {id: LANE, name: 'Icebox'}),
 ];
 
@@ -62,7 +69,9 @@ const booted = () => {
 describe('names projected from the log', () => {
 	it('agrees with the contributor registry a boot builds', () => {
 		const projected = projectLogNames(log()).byId;
-		const registry = contributorNamesIn(booted().contributors);
+		const registry = new Map(
+			Object.values(booted().contributors).map(({id, name}) => [id, name]),
+		);
 
 		for (const [id, name] of registry) {
 			expect(projected.get(id), `contributor ${id}`).toBe(name);
@@ -87,6 +96,10 @@ describe('names projected from the log', () => {
 
 	it('clears a tombstoned name, and keeps it cleared through a rename', () => {
 		expect(projectLogNames(log()).byId.get(BOB)).toBe('removed');
+	});
+
+	it('renames a contributor created without a name', () => {
+		expect(projectLogNames(log()).byId.get(NAMELESS)).toBe('Found A Name');
 	});
 
 	it('carries a tag restored under a new name', () => {

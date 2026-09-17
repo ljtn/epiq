@@ -14,10 +14,7 @@ import {
 } from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {actorOf, AppEvent} from '../../lib/event/event.model.js';
-import {
-	contributorDirectory,
-	namesInDirectory,
-} from '../../lib/repository/contributor-directory.js';
+import {contributorDirectory} from '../../lib/repository/contributor-directory.js';
 import {identityOf} from '../../lib/model/identity.js';
 import {filterEventsForBoard} from '../timeline-index.js';
 import {
@@ -192,24 +189,18 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	// person saw offered. The registry alone reports log-only authors as
 	// unknown, and an unmatched name is one `createUnlinked` away from a
 	// duplicate id for somebody who already has one.
-	const candidates = namesInDirectory(
-		contributorDirectory({
-			events: stateResult.value.eventLog ?? [],
-			registry: stateResult.value.contributors,
-			logFileNames: loadActorNames(bootResult.value.stateBranchRoot),
-		}),
-	);
-
-	const matches = [...candidates.entries()].filter(
-		([, candidateName]) => candidateName === assigneeName,
-	);
+	const matches = contributorDirectory({
+		events: stateResult.value.eventLog ?? [],
+		registry: stateResult.value.contributors,
+		logFileNames: loadActorNames(bootResult.value.stateBranchRoot),
+	}).filter(candidate => candidate.name === assigneeName);
 
 	// Two people can share a display name; picking one silently assigns the
 	// wrong person half the time.
 	if (matches.length > 1) {
 		return failed(
 			`"${assigneeName}" matches ${matches.length} contributors (${matches
-				.map(([id]) => id)
+				.map(({id}) => id)
 				.join(', ')}). Assign by assigneeId to choose.`,
 		);
 	}
@@ -222,7 +213,8 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 		);
 	}
 
-	const [assigneeId = ulid(), resolvedName = assigneeName] = match ?? [];
+	const assigneeId = match?.id ?? ulid();
+	const resolvedName = match?.name ?? assigneeName;
 
 	// Keyed on the registry, not on whether a name matched: somebody found only
 	// in the event log still needs a contributor record.

@@ -144,7 +144,6 @@ vi.mock('../../lib/event/event-load.js', () => {
 		loadMergedEventsWithUnreadable,
 		loadEventActors,
 		loadActorNames,
-		UNNAMED_ACTOR: 'unknown',
 	};
 });
 
