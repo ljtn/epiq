@@ -59,7 +59,7 @@ import {
 import {GuiMessage} from './websocket.model.js';
 import {isForeignOrigin} from './origin-guard.js';
 import {parseGuiMessage} from './websocket.schema.js';
-import {issueDetail, slimStateResult} from './slim-state.js';
+import {issueDetail, issuePreview, slimStateResult} from './slim-state.js';
 
 /**
  * The ceiling on one websocket frame.
@@ -223,6 +223,28 @@ export const setupWebsocket = (
 									...issueDetail(state.value, issueId),
 									history: isFail(history) ? [] : history.value,
 							  }),
+					});
+				}
+
+				// One line of that text, for a ref being hovered rather than opened.
+				// Wrapped with the issueId like the commit and stats replies: the
+				// pointer moves on faster than a reply arrives, so more than one can
+				// be in flight and the client has to tell them apart.
+				if (type === 'issue:preview:get') {
+					const {issueId} = message.payload;
+					const state = deriveGuiState();
+
+					return sendSocket(socket, {
+						type: 'issue:preview:result',
+						payload: {
+							issueId,
+							result: isFail(state)
+								? state
+								: succeeded(
+										'Issue preview',
+										issuePreview(state.value, issueId),
+								  ),
+						},
 					});
 				}
 

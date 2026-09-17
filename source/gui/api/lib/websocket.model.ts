@@ -71,6 +71,13 @@ export type GuiMessage =
 			payload: {issueId: string};
 	  }
 	| {
+			// The description excerpt behind a ref's hover preview. Separate from
+			// `issue:get` because a hover is not an opening: the client holds one
+			// detail slot, for the ticket actually on screen.
+			type: 'issue:preview:get';
+			payload: {issueId: string};
+	  }
+	| {
 			type: 'timeline:get';
 			// Omit boardId for every board. `requestId` is echoed on the reply so
 			// the client can pair it with the matching commits reply.
