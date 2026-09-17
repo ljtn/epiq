@@ -35,7 +35,7 @@ let registered = false;
 /**
  * Idempotent, and called for its side effect: the highlighter resolves a theme
  * by name, so the name has to be known before the first diff renders. Both
- * call sites (the ticket's Commits tab and the scrubber's own diff panel) call
+ * call sites (the ticket's Diff tab and the scrubber's own diff panel) call
  * this at module load.
  */
 export const registerEpiqDiffTheme = (): void => {

@@ -144,7 +144,7 @@ export const IssueStats = ({
 	stats: Stats | null;
 	loading: boolean;
 	error: string | null;
-	// Opens a file's diff on the Commits tab. Absent on a readonly board, where
+	// Opens a file's diff on the Diff tab. Absent on a readonly board, where
 	// there is still everything to read and nowhere to click to.
 	onOpenFile?: (file: FilePointer) => void;
 	// Null while the board has yet to arrive, or for a ticket no lane holds.

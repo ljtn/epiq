@@ -999,7 +999,7 @@ export const App = () => {
 			prev => {
 				const next = new URLSearchParams(prev);
 				next.set('tab', nextTab);
-				// A deep link belongs to the Commits tab it points into; leaving it
+				// A deep link belongs to the Diff tab it points into; leaving it
 				// on the URL after a deliberate tab change would drag the reader
 				// back to it the moment they returned.
 				clearDiffLocationParams(next);
@@ -1014,7 +1014,7 @@ export const App = () => {
 	// be handed to someone else. Pushed, not replaced — this is a navigation
 	// the reader should be able to come back from.
 	const openDiffLocation = (location: DiffLocation) => {
-		// Another ticket's diff: go to that ticket's Commits tab at the spot.
+		// Another ticket's diff: go to that ticket's Diff tab at the spot.
 		if (location.issueRef && location.issueRef !== selectedIssue?.ref) {
 			if (!boardSlug) return;
 			const params = new URLSearchParams({tab: 'code'});
@@ -1194,7 +1194,7 @@ export const App = () => {
 		setPickedIssueIds([]);
 	}, [selectedBoardId]);
 
-	// A commit that links to a ticket is read on that ticket's Commits tab,
+	// A commit that links to a ticket is read on that ticket's Diff tab,
 	// next to its comments and the rest of its commits; only one that links
 	// nowhere gets the bare panel.
 	const openCommitDiff = useCallback(

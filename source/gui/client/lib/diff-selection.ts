@@ -74,7 +74,7 @@ export type FileTicketParams = {
 	note: string;
 };
 
-// A spot in a ticket's Commits tab, deep-linkable from a comment. Lives in the
+// A spot in a ticket's Diff tab, deep-linkable from a comment. Lives in the
 // URL rather than in transient state so the link survives a reload and can be
 // handed to someone else.
 export type DiffLocation = {
@@ -84,7 +84,7 @@ export type DiffLocation = {
 	end: number;
 	side: SelectionSide;
 	endSide: SelectionSide;
-	// Set when the diff lives on another ticket's Commits tab.
+	// Set when the diff lives on another ticket's Diff tab.
 	issueRef?: string;
 };
 
@@ -135,7 +135,7 @@ export const readCommitFocusParam = (
 	if (!sha) return null;
 
 	// `file` without a line range: what the Stats tab links with, since it
-	// names a file rather than a spot inside one. The Commits tab already
+	// names a file rather than a spot inside one. The Diff tab already
 	// opens `focus.filePath` when it has one.
 	const filePath = params.get('file');
 

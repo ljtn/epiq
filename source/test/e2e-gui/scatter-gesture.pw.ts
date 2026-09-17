@@ -180,7 +180,7 @@ test('a ticket opened after an unlinked commit replaces its diff', async ({
 	await page.mouse.click(dot.x, dot.y);
 
 	// The sha on the copy button is what only the diff panel carries — the
-	// ticket's own "Commits" tab would answer to anything looser.
+	// ticket's own "Diff" tab would answer to anything looser.
 	const diffPanel = page.locator(`aside button[title="Copy ${sha}"]`);
 	await expect(diffPanel).toBeVisible();
 	// No ref to follow, so this is the bare panel rather than a ticket route.
