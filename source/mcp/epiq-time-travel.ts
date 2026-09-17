@@ -870,22 +870,64 @@ const union = (sets: Iterable<Set<string>>): Set<string> => {
 	return all;
 };
 
+/** Whether `candidate` is on the line of history leading to `head`. */
+const isAncestor = async (
+	repoRoot: string,
+	candidate: string,
+	head: string,
+): Promise<boolean> => {
+	if (candidate === head) return true;
+
+	const result = await execGit({
+		cwd: repoRoot,
+		args: ['merge-base', '--is-ancestor', candidate, head],
+	});
+
+	// A non-zero exit is the answer "no", not a failure to answer.
+	return !isFail(result);
+};
+
+// git's own hash for the empty tree: what a root commit's diff is against.
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+/** `<sha>~1`, or the empty tree when `sha` is a root commit and has no parent. */
+const parentOf = async (repoRoot: string, sha: string): Promise<string> => {
+	const result = await execGit({
+		cwd: repoRoot,
+		args: ['rev-parse', '--verify', '--quiet', `${sha}^1`],
+	});
+
+	return isFail(result) ? EMPTY_TREE : `${sha}~1`;
+};
+
 /**
  * A ticket's commits as one diff — what the Diff tab's compacted view draws.
  *
- * The comparison is the oldest commit's parent against the newest, which is
- * exact whenever the ticket's commits are a contiguous run of history. They
- * usually are: a ticket is a branch, and a branch rebases onto main as a
- * block.
+ * Two things make this more than `git diff <oldest>~1 <newest>`.
  *
- * When they are not — another ticket's commit landed between two of this
- * one's — a plain range diff would quietly hand back both tickets' work as
- * this ticket's. So the range is narrowed to the paths this ticket's own
- * commits touched, and any of those paths a foreign commit also touched is
- * named in `overlappingPaths` rather than passed off as clean. Taking the
- * foreign change back out would mean replaying this ticket's commits onto a
- * tree of their own, which can conflict and is a great deal of machinery for
- * a case the workflow already makes rare.
+ * The first is that a ref matches commits across *every branch*
+ * (getCommitTimeline walks `--branches`), and this repository keeps a worktree
+ * per ticket. A rebase leaves the pre-rebase copy of a commit reachable from
+ * the stale branch, so a ticket routinely matches two or three copies of the
+ * same work on diverged lines of history. Diffing between two of them compares
+ * across the divergence and hands back everything that ever differed between
+ * those branches — measured at 51 files and +2048 lines for a ticket that
+ * touched a handful. So the endpoints are pinned to one line: the newest
+ * match, and the oldest match that is an ancestor of it.
+ *
+ * The second is that even on one line the commits need not be adjacent —
+ * another ticket's commit can sit between two of this one's. A plain range
+ * diff would then quietly hand back both tickets' work as this ticket's, so
+ * the range is narrowed to the paths this ticket's own commits touched, and
+ * any of those paths a foreign commit also touched is named in
+ * `overlappingPaths` rather than passed off as clean. Taking the foreign
+ * change back out would mean replaying this ticket's commits onto a tree of
+ * their own, which can conflict and is a great deal of machinery for a case
+ * the workflow already makes rare.
+ *
+ * Adjacency is read off the range walk rather than off `precedingSha`, which
+ * is adjacency in that same cross-branch listing and so says "contiguous" for
+ * two copies of one commit that merely sort next to each other.
  */
 export const getSquashedDiffForRef = async (
 	input: ToolInput & {ref: string},
@@ -898,60 +940,71 @@ export const getSquashedDiffForRef = async (
 	if (isFail(commitsResult)) return failed(commitsResult.message);
 
 	// Newest first, as getCommitsForRef returns them.
-	const commits = commitsResult.value;
-	if (commits.length === 0) return failed('No commits reference this ticket');
+	const matched = commitsResult.value;
+	if (matched.length === 0) return failed('No commits reference this ticket');
 
-	const newest = commits[0]!.sha;
-	const oldest = commits[commits.length - 1]!.sha;
-	const from = `${oldest}~1`;
+	const newest = matched[0]!.sha;
+
+	// From the oldest end: the first match that is on the newest's line of
+	// history is where this ticket's work begins on that line. A healthy
+	// ticket answers on the first ask; a ticket with rebase copies pays one
+	// cheap `merge-base` per copy it has to pass over.
+	let oldest = newest;
+	for (let index = matched.length - 1; index > 0; index--) {
+		const candidate = matched[index]!.sha;
+		if (await isAncestor(repoRoot, candidate, newest)) {
+			oldest = candidate;
+			break;
+		}
+	}
+
+	const from = await parentOf(repoRoot, oldest);
+
+	// Every commit in the range, ours and anybody else's, with the paths it
+	// touched. One spawn, and it answers all three questions left: which of
+	// the matches are really on this line, whether anything else is, and what
+	// to narrow to if so.
+	const walkResult = await changedPathsByCommit(repoRoot, from, newest);
+	if (isFail(walkResult)) return failed(walkResult.message);
+
+	const walk = walkResult.value;
+	const matchedShas = new Set(matched.map(commit => commit.sha));
+	const mine = [...walk.keys()].filter(sha => matchedShas.has(sha));
+
+	const contiguous = mine.length === walk.size;
 
 	const answer = (
 		files: CommitDiffFile[],
-		contiguous: boolean,
 		overlappingPaths: string[],
 	): Result<SquashedDiff> =>
 		succeeded('Loaded squashed diff', {
 			ref: input.ref.trim().toUpperCase(),
 			from,
 			to: newest,
-			commits: commits.length,
+			// The commits this diff actually covers, which is not every commit
+			// carrying the ref: a copy left behind by a rebase is not a second
+			// commit's worth of work.
+			commits: mine.length,
 			files,
 			contiguous,
 			overlappingPaths,
 		});
 
-	// Every commit but the oldest knows whether the commit before it in real
-	// history was also this ticket's. All of them saying yes is the definition
-	// of a contiguous run, and it costs nothing to ask.
-	const contiguous = commits
-		.slice(0, -1)
-		.every(commit => commit.precedingSha !== null);
-
 	let paths: string[] | undefined;
 	let overlappingPaths: string[] = [];
 
 	if (!contiguous) {
-		const walkResult = await changedPathsByCommit(repoRoot, from, newest);
-		if (isFail(walkResult)) return failed(walkResult.message);
-
-		const walk = walkResult.value;
-		const mine = new Set(commits.map(commit => commit.sha));
-
-		const ours = union(
-			[...walk.entries()]
-				.filter(([sha]) => mine.has(sha))
-				.map(([, touched]) => touched),
-		);
+		const ours = union(mine.map(sha => walk.get(sha) ?? new Set<string>()));
 		const theirs = union(
 			[...walk.entries()]
-				.filter(([sha]) => !mine.has(sha))
+				.filter(([sha]) => !matchedShas.has(sha))
 				.map(([, touched]) => touched),
 		);
 
 		// `git diff A B --` with no pathspec is a full diff, not an empty one, so
 		// a ticket whose commits touched nothing git reports (an empty commit, a
 		// merge) has to be answered here rather than by narrowing to nothing.
-		if (ours.size === 0) return answer([], contiguous, []);
+		if (ours.size === 0) return answer([], []);
 
 		paths = [...ours];
 		overlappingPaths = [...ours].filter(path => theirs.has(path)).sort();
@@ -968,7 +1021,7 @@ export const getSquashedDiffForRef = async (
 	const filesResult = await readDiffFiles(repoRoot, entriesResult.value);
 	if (isFail(filesResult)) return failed(filesResult.message);
 
-	return answer(filesResult.value, contiguous, overlappingPaths);
+	return answer(filesResult.value, overlappingPaths);
 };
 
 // Takes NO lock: its callers already run inside `runExclusive`, which is not
