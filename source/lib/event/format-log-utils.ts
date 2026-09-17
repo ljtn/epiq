@@ -1,8 +1,9 @@
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import {ulidTimeMs} from './date-utils.js';
+import {isFail} from '../model/result-types.js';
 import {nodeRepo} from '../repository/node-repo.js';
-import {getState} from '../state/state.js';
+import {getSafeState, getState} from '../state/state.js';
 import {getStringColor} from '../utils/color.js';
 import {LogEvolutionForEvent} from '../virtual-nodes/virtual-nodes.js';
 import {timeAgo} from '../utils/date.utils.js';
@@ -179,6 +180,20 @@ const formatUser = (userName: string): string => {
 	return padVisibleEnd(`${userName}`, USER_COL_WIDTH);
 };
 
+// By id, from the registry: an event carries no name, and a rename has to show
+// on the lines written before it as well as after. The id is a poorer label
+// than a name but a truer one than a guess.
+//
+// Read through `getSafeState` because formatting a line is a display concern
+// that can run before a board is booted — a log line is not worth throwing
+// over.
+const actorName = (userId: string): string => {
+	const state = getSafeState();
+	if (isFail(state)) return userId;
+
+	return state.value.contributors[userId]?.name ?? userId;
+};
+
 // Plain-text (no ANSI) version of an event's detail, suitable for ellipsising.
 const formatEventDetailsPlain = (event: AppEvent): string => {
 	switch (event.action) {
@@ -243,7 +258,7 @@ export const formatLogLine = <T extends AppEvent['action']>(
 	logEvolution: LogEvolutionForEvent<T>,
 ): string => {
 	const time = formatLogTime(event.id);
-	const user = formatUser(event.userName);
+	const user = formatUser(actorName(event.userId));
 	const bullet = chalk.dim('›');
 
 	const main =

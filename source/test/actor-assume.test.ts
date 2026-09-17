@@ -42,17 +42,14 @@ describe('assumeActor', () => {
 		expect(process.env[ACTOR_NAME_ENV]).toBe('claude/peter');
 	});
 
-	// The log file name is a lossy storage key — the slash does not survive it —
-	// so an unregistered agent would show up as `claude-peter` wherever names are
-	// resolved. Registering at assume time is what keeps the announced name and
-	// the board's name the same string.
+	// Since ZFZFW9D the log file name carries no name at all — it is the id and
+	// nothing else — so an unregistered agent would have no name anywhere for a
+	// replay to find. Registering at assume time is what keeps the announced
+	// name and the board's name the same string.
 	it('registers the name, because the log file name cannot carry it', async () => {
 		expect(
-			getPersistFileName({
-				userId: deriveActorId('claude/peter'),
-				userName: 'claude/peter',
-			}),
-		).toContain('claude-peter');
+			getPersistFileName({userId: deriveActorId('claude/peter')}),
+		).not.toContain('peter');
 
 		const {repoRoot} = await setupRepo();
 		const result = await assumeActor({repoRoot, name: 'claude/peter'});
@@ -69,7 +66,6 @@ describe('assumeActor', () => {
 		// in is what puts them in the file a replay reads.
 		const peterFile = getPersistFileName({
 			userId: deriveActorId('claude/peter'),
-			userName: 'claude/peter',
 		});
 
 		flushPendingLogs(branchRoot.value, peterFile);

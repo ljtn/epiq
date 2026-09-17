@@ -27,7 +27,11 @@ import {bigIntToHex, midRank} from '../lib/utils/rank.js';
 // nothing said so: the board looked right, and only the things addressed by
 // event id quietly stopped matching, until something else forced a reload.
 
-const actor = {userId: 'u1', userName: 'alice'};
+// The configured identity, which is what `init` records as a contributor. An
+// event carries the id alone, so `user` is what setup needs and `actor` what a
+// write spreads.
+const user = {userId: 'u1', userName: 'alice'};
+const actor = {userId: user.userId};
 
 let seq = 0;
 const placeholderId = () =>
@@ -52,7 +56,7 @@ const startBoard = () => {
 // The project as `init` leaves it: the default events on disk and a board
 // booted from them, so the live writes below start where a real one does.
 const initProject = () => {
-	const defaults = createDefaultEvents(actor);
+	const defaults = createDefaultEvents(user);
 	if (isFail(defaults)) throw new Error(defaults.message);
 
 	for (const event of defaults.value) {

@@ -6,6 +6,8 @@ import {
 	setSyncing,
 	setSyncOffline,
 } from '../lib/state/sync-state.js';
+import {ownEventFileNames} from '../lib/event/event-persist.js';
+import {getEventsDirPath} from '../lib/storage/paths.js';
 import {trace} from '../lib/utils/logger.utils.js';
 import {getStateBranch} from './git-constants.js';
 import {
@@ -182,14 +184,28 @@ const commitOwnEventFileToStateBranch = async ({
 		ownEventFileName,
 	});
 
-	const stageResult = trace(
-		'stageStateBranchOwnEventFile',
-		await stageStateBranchOwnEventFile({
-			stateBranchRoot,
-			eventFileName: ownEventFileName,
-		}),
-	);
-	if (isFail(stageResult)) return failed(stageResult.message);
+	// Every log this actor owns, not just the one they write to now. A machine
+	// upgraded across ZFZFW9D still holds its older `<id>.<name>.jsonl`, and a
+	// line flushed into that one but never committed would otherwise sit there
+	// unstaged for good. Each is checked and staged on its own; one that has
+	// not changed stages nothing.
+	const stagedOwnPaths: (string | null)[] = [];
+
+	for (const fileName of ownEventFileNames(
+		getEventsDirPath(stateBranchRoot),
+		ownEventFileName,
+	)) {
+		const stageResult = trace(
+			'stageStateBranchOwnEventFile',
+			await stageStateBranchOwnEventFile({
+				stateBranchRoot,
+				eventFileName: fileName,
+			}),
+		);
+		if (isFail(stageResult)) return failed(stageResult.message);
+
+		stagedOwnPaths.push(stageResult.value);
+	}
 
 	const stageMediaResult = trace(
 		'stageStateBranchMediaFiles',
@@ -206,7 +222,7 @@ const commitOwnEventFileToStateBranch = async ({
 	}
 
 	const pathspec = [
-		stageResult.value,
+		...stagedOwnPaths,
 		stageMediaResult.value,
 		...stageConfigResult.value,
 	].filter((entry): entry is string => entry !== null);

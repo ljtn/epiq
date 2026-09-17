@@ -90,13 +90,18 @@ describe('initProject', () => {
 			['main', result.value.stateBranch].sort(),
 		);
 
-		// The default board is authored by the user handed in.
+		// The default board is authored by the user handed in — by id, which is
+		// all an event carries. Their name reaches the board as the
+		// `create.contributor` payload below.
 		expect(
-			result.value.defaultEvents.every(
-				event =>
-					event.userId === user.userId && event.userName === user.userName,
-			),
+			result.value.defaultEvents.every(event => event.userId === user.userId),
 		).toBe(true);
+
+		expect(
+			result.value.defaultEvents.find(
+				event => event.action === 'create.contributor',
+			)?.payload,
+		).toMatchObject({id: user.userId, name: user.userName});
 	});
 
 	it('refuses a repository with uncommitted changes', async () => {

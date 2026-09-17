@@ -38,7 +38,7 @@ export const assignUserCommand = async () => {
 	const persistRootResult = await getPersistRoot();
 	if (isFail(persistRootResult)) return persistRootResult;
 
-	const candidates = getAssignableContributors();
+	const candidates = getAssignableContributors(persistRootResult.value);
 	const isSelf = !wantsExternal && name.toLowerCase() === 'me';
 
 	let contributorId: string;

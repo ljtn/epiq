@@ -217,7 +217,7 @@ export const initProject = async ({
 	// commit of a new project would fail with "nothing added to commit". Folded
 	// in here for the same reason a sync folds them in: this is the moment the
 	// tracked log is about to be handed to git.
-	const ownEventFileName = getPersistFileName({userId, userName});
+	const ownEventFileName = getPersistFileName({userId});
 
 	const flushResult = flushPendingLogs(stateBranchRoot, ownEventFileName);
 	if (isFail(flushResult)) return failAt(9, flushResult.message);

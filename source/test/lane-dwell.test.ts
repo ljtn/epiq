@@ -13,7 +13,6 @@ const at = (
 	({
 		id: ulid(time),
 		userId: 'user-1',
-		userName: 'someone',
 		action,
 		payload,
 	} as AppEvent);

@@ -26,6 +26,10 @@ vi.mock('../lib/storage/paths.js', () => ({
 		}),
 	),
 	getGlobalConfigDir: vi.fn(() => '/home/test/.epiq-global'),
+	// The assignee lookup reads the events directory listing for the names a
+	// pre-ZFZFW9D log file name carries. Pointed at nothing, so these tests
+	// exercise the registry alone.
+	getEventsDirPath: vi.fn(() => '/repo/.epiq/events-does-not-exist'),
 }));
 
 // Only the ancestor walk is stubbed; the repo itself reads the real state
@@ -402,7 +406,6 @@ describe('AssignUserToTicket command', () => {
 				{
 					id: 'e1',
 					userId: 'user-123',
-					userName: 'jonatan-lampa',
 					action: 'edit.title',
 					payload: {id: 'ticket-1', name: 'x'},
 				},
