@@ -26,7 +26,7 @@ const waitForDiffHeader = async (page: Page) => {
 };
 
 const expandDiff = async (page: Page, subject: string, fileName: string) => {
-	await page.getByRole('button', {name: /^Commits/}).click();
+	await page.getByRole('button', {name: /^Diff/}).click();
 	for (const name of [subject, fileName]) {
 		const toggle = page.getByRole('button', {name});
 		await expect(toggle).toBeVisible();

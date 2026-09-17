@@ -98,7 +98,7 @@ test('a file named on the Stats tab opens its own diff', async ({
 		.first()
 		.click();
 
-	// Landed on the Commits tab, with that file's diff open.
+	// Landed on the Diff tab, with that file's diff open.
 	await expect(page).toHaveURL(new RegExp(`tab=code.*file=parser-${ref}`));
 	await expect(
 		page.getByRole('button', {name: `parser-${ref}.ts`}),

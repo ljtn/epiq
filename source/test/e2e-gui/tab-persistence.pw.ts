@@ -40,7 +40,7 @@ test('the open tab carries across ticket selections', async ({
 	await expect(page.getByPlaceholder(/comment/i)).toBeVisible();
 
 	// Any tab, not just comments.
-	await page.getByRole('button', {name: /^Commits/}).click();
+	await page.getByRole('button', {name: /^Diff/}).click();
 	await openFromBoard(page, second);
 	await expect(page).toHaveURL(/tab=code/);
 	await expect(
@@ -51,13 +51,13 @@ test('the open tab carries across ticket selections', async ({
 });
 
 // Regression test: switching directly from one ticket to another while the
-// Commits tab is already open used to leave the pane stuck on "Loading
+// Diff tab is already open used to leave the pane stuck on "Loading
 // commits…" forever — the fetch for the new ticket was silently dropped
 // because a same-render effect (recreating the websocket, keyed off an
 // unstable `navigate` reference) nulled the socket ref between this effect's
 // setup and its own send call. Re-clicking the tab was the only way to
 // recover, since only *that* triggered a genuinely fresh effect run.
-test('switching tickets with the Commits tab already open still loads the new ticket', async ({
+test('switching tickets with the Diff tab already open still loads the new ticket', async ({
 	page,
 	pageErrors,
 }) => {
@@ -69,7 +69,7 @@ test('switching tickets with the Commits tab already open still loads the new ti
 	await addTicket(page, second);
 
 	await openFromBoard(page, first);
-	await page.getByRole('button', {name: /^Commits/}).click();
+	await page.getByRole('button', {name: /^Diff/}).click();
 	await expect(page).toHaveURL(/tab=code/);
 	// Neither ticket has any linked commits, so the tab settles on the empty
 	// state — the interesting assertion is that it settles at all, not what
@@ -88,7 +88,7 @@ test('switching tickets with the Commits tab already open still loads the new ti
 	expect(pageErrors).toEqual([]);
 });
 
-test('the Commits tab shows its count before being opened, after Comments', async ({
+test('the Diff tab shows its count before being opened, after Comments', async ({
 	page,
 	pageErrors,
 }) => {
@@ -97,11 +97,11 @@ test('the Commits tab shows its count before being opened, after Comments', asyn
 
 	const tabs = page
 		.locator('aside')
-		.getByRole('button', {name: /^(Overview|Comments|Commits)\b/});
+		.getByRole('button', {name: /^(Overview|Comments|Diff)\b/});
 	await expect(tabs).toHaveText([
 		/^Overview$/,
 		/^Comments \(0\)$/,
-		/^Commits \(0\)$/,
+		/^Diff \(0\)$/,
 	]);
 
 	expect(pageErrors).toEqual([]);

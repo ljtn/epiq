@@ -68,7 +68,8 @@ type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 export const LANE_VIEW_WIDTH = 1400;
 const LANE_GAP = 20;
 const LANE_COUNT = 3;
-// Commits holds diffs, so it takes most of the row; the other two share the rest.
+// Diff holds the patches, so it takes most of the row; the other two
+// share the rest.
 const LANE_SHARES = {
 	overview: 1,
 	comments: 1,
@@ -79,7 +80,7 @@ const LANE_KEYS = Object.keys(LANE_SHARES) as LaneKey[];
 
 // Below this the five tabs and their counts no longer fit on one line, and
 // each label wraps under its own number. Measured against the longest set the
-// panel has — Overview, Comments, Commits, Stats, Log — rather than guessed.
+// panel has — Overview, Comments, Diff, Stats, Log — rather than guessed.
 const TAB_COUNTS_WIDTH = 430;
 
 // Wide enough for the upright label and a comfortable click target.
@@ -153,6 +154,7 @@ const LaneIconButton = ({
  * would read as a tab to it.
  */
 const Lane = ({
+	laneKey,
 	title,
 	count,
 	collapsed,
@@ -160,6 +162,10 @@ const Lane = ({
 	onToggle,
 	children,
 }: {
+	// Which lane this is, as against what it is called. The test id is built
+	// from the key so that rewording a heading is a rewording and not a broken
+	// suite — the label is what a reader sees, the key is what a test means.
+	laneKey: LaneKey;
 	title: string;
 	count?: number;
 	collapsed: boolean;
@@ -168,7 +174,7 @@ const Lane = ({
 	children: React.ReactNode;
 }) => {
 	const label = `${title}${typeof count === 'number' ? ` (${count})` : ''}`;
-	const testId = `lane-${title.toLowerCase()}`;
+	const testId = `lane-${laneKey}`;
 
 	if (collapsed) {
 		return (
@@ -331,7 +337,7 @@ export const IssueDetails = ({
 		params: FileTicketParams,
 	) => void;
 	// Following a comment's permalink: the caller puts it in the URL, and
-	// hands back where it currently points so the Commits tab can open there.
+	// hands back where it currently points so the Diff tab can open there.
 	onOpenDiffLocation?: (location: DiffLocation) => void;
 	diffFocus?: CommitFocus | null;
 	attachments: GuiAttachment[];
@@ -348,7 +354,7 @@ export const IssueDetails = ({
 	stats: IssueStatsPayload | null;
 	statsLoading: boolean;
 	statsError: string | null;
-	// Following a file from the Stats tab into its diff on the Commits tab.
+	// Following a file from the Stats tab into its diff on the Diff tab.
 	onOpenStatsFile?: (file: {sha: string; path: string}) => void;
 	// The board half of the Stats tab, worked out by the caller: what counts as
 	// backwards is a fact about lane order, which lives up there.
@@ -441,7 +447,7 @@ export const IssueDetails = ({
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
-		{id: 'code', label: 'Commits', count: commitsCount},
+		{id: 'code', label: 'Diff', count: commitsCount},
 		{id: 'stats', label: 'Stats'},
 	];
 
@@ -563,7 +569,7 @@ export const IssueDetails = ({
 					' ',
 				);
 
-				// The width the Commits lane is actually given, which is what the
+				// The width the Diff lane is actually given, which is what the
 				// diff's split/unified choice has to follow.
 				const commitsWidth = laneView ? laneWidth('commits') : panelWidth;
 
@@ -1144,11 +1150,12 @@ export const IssueDetails = ({
 											[
 												['overview', 'Overview', undefined, overviewPane],
 												['comments', 'Comments', comments.length, commentsPane],
-												['commits', 'Commits', commitsCount, commitsPane],
+												['commits', 'Diff', commitsCount, commitsPane],
 											] as const
 										).map(([key, title, count, pane]) => (
 											<Lane
 												key={key}
+												laneKey={key}
 												title={title}
 												count={count}
 												collapsed={laneCollapsed[key]}
