@@ -46,6 +46,11 @@ import {
 	reopenIssue,
 	sync,
 } from './epiq-api.js';
+import {
+	linkContributorEmail,
+	listContributorEmails,
+	unlinkContributorEmail,
+} from './api/emails.js';
 import {initProjectTool} from './epiq-init.js';
 import {getIssueStats} from './epiq-issue-stats.js';
 import {installSkill} from './epiq-skill.js';
@@ -550,6 +555,44 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(assumeActor),
+	);
+
+	server.registerTool(
+		'epiq_contributor_email_link',
+		{
+			description:
+				"Bind a git author address to a contributor, so their commits and their board activity read as one person. Defaults to you; pass contributorId to link a colleague who does not use epiq, whose commits otherwise never resolve. The address the repository's git is configured with links itself on your first write, so this is for older addresses and for other people. An address two contributors claim resolves to neither, and the reply says so.",
+			inputSchema: z.object({
+				email: z.string().min(1).max(254),
+				contributorId: z.string().min(1).optional(),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(linkContributorEmail),
+	);
+
+	server.registerTool(
+		'epiq_contributor_email_unlink',
+		{
+			description:
+				'Retract a link between a git address and a contributor. Allowed only to whoever wrote the link and to the contributor it names, so nobody can strip links that are neither theirs nor about them. Forward-only: the address stops resolving and the event stays in the log.',
+			inputSchema: z.object({
+				email: z.string().min(1).max(254),
+				contributorId: z.string().min(1).optional(),
+				repoRoot: z.string().optional(),
+			}),
+		},
+		exclusiveTool(unlinkContributorEmail),
+	);
+
+	server.registerTool(
+		'epiq_contributor_email_list',
+		{
+			description:
+				'Every git address the board has bound to a contributor, and who holds it. An address with more than one claimant is flagged contested and resolves to none of them, which is the state nothing else reports.',
+			inputSchema: z.object({repoRoot: z.string().optional()}),
+		},
+		exclusiveTool(listContributorEmails),
 	);
 
 	server.registerTool(

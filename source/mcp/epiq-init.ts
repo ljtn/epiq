@@ -1,6 +1,7 @@
 import {ulid} from 'ulid';
 import {ACTOR_NAME_ENV} from '../lib/config/actor-env.js';
 import {recordRecentProject} from '../lib/config/recent-projects.js';
+import {readGitName} from '../lib/config/git-identity.js';
 import {readEpiqConfig, setConfig} from '../lib/config/user-config.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {
@@ -141,8 +142,23 @@ export const initProjectTool = async (
 			.map(field => `${field.name} (${field.question})`)
 			.join('; ');
 
+		// Named rather than used. Reading git's name and configuring it unasked
+		// would set this machine's identity without the user ever seeing it, and
+		// git config in an agent container or on a shared box is not necessarily
+		// the user — the guard above refuses an agent's own name for that very
+		// reason. Proposing it costs one turn and keeps a person in the loop.
+		const suggestion = missing.some(field => field.name === 'userName')
+			? await readGitName(input.repoRoot ?? process.cwd())
+			: null;
+
+		const proposal = suggestion
+			? ` This repository's git user.name is ${JSON.stringify(
+					suggestion,
+			  )} — offer it as the default for userName, and use it only if the user agrees.`
+			: '';
+
 		return failed(
-			`Setup incomplete. Ask the user for: ${asks}. Then call epiq_project_init again with the answers; what was given so far is saved.`,
+			`Setup incomplete. Ask the user for: ${asks}.${proposal} Then call epiq_project_init again with the answers; what was given so far is saved.`,
 		);
 	}
 

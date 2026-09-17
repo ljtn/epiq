@@ -40,6 +40,11 @@ export {
 	getBoardContributors,
 	removeIssueAssignee,
 } from './api/contributors.js';
+import {
+	linkContributorEmail,
+	listContributorEmails,
+	unlinkContributorEmail,
+} from './api/emails.js';
 export {
 	addIssueComment,
 	deleteIssueComment,
@@ -50,3 +55,5 @@ export {
 	deleteIssueAttachment,
 	getAttachmentBlob,
 } from './api/attachments.js';
+
+export {linkContributorEmail, listContributorEmails, unlinkContributorEmail};
