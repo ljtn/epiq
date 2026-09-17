@@ -464,9 +464,12 @@ export function loadEventActors(
 // ZFZFW9D is `<id>.<name>.jsonl` and yields one; a log written since is
 // `<id>.jsonl` and yields nothing, since UNNAMED_ACTOR is nobody's chosen name.
 //
-// The contributor registry is the source of record. This is the fallback that
-// keeps a board written before contributors were events from showing ids where
-// it used to show names.
+// The contributor registry is the source of record; this is the fallback for an
+// id it has never heard of, which since v1.5.0 means an author who has not
+// written since. Matching and listing take it, through `contributorDirectory`,
+// because a name that fails to match there mints a duplicate id for somebody
+// who already has one. Readers that resolve from materialized state and never
+// load the log show the id instead. `KHT69TD` settled that split.
 //
 // Reads the directory listing and nothing else. The names are *in* the file
 // names, so parsing a single line would be waste — on a board of a few hundred

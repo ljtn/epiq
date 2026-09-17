@@ -20,7 +20,8 @@ export type Identity = {id: string; name: string; color: string};
  *
  * An empty or missing name is the same as no name: `tombstone.contributor`
  * clears to a placeholder rather than to nothing, so blank here means the
- * registry has never heard of this id.
+ * registry has never heard of this id; whether a caller tries the log's file
+ * names before falling back here is `loadActorNames`'s rule.
  */
 export const nameOf = (id: string, name?: string | null): string =>
 	name?.length ? name : id;
