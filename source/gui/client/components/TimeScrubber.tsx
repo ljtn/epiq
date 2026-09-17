@@ -3,6 +3,7 @@
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {commitAuthorLabel} from '../lib/commit-author';
+import {actorDisplay} from '../lib/agent-identity';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {maxOf} from '../../../lib/utils/minmax.js';
 import {
@@ -729,9 +730,9 @@ export const TimeScrubber = ({
 				color: GUI_THEME.green,
 				opacity: 0.55,
 				// The hint labels the moment itself, so this is the rest of it.
-				title: `${commit.subject} — ${commitAuthorLabel(
-					commit,
-				)} (${commit.linesChanged.toLocaleString()} lines)`,
+				title: `${commit.subject} — ${
+					actorDisplay(commitAuthorLabel(commit)).label
+				} (${commit.linesChanged.toLocaleString()} lines)`,
 				commitSha: commit.sha,
 			})),
 		[drawnCommits, axis],
@@ -1082,9 +1083,9 @@ export const TimeScrubber = ({
 					label: formatDateTime(new Date(hoveredCommit.commit.time)),
 					rows: [
 						hoveredCommit.commit.subject,
-						`${commitAuthorLabel(
-							hoveredCommit.commit,
-						)} • ${hoveredCommit.commit.linesChanged.toLocaleString()} lines`,
+						`${
+							actorDisplay(commitAuthorLabel(hoveredCommit.commit)).label
+						} • ${hoveredCommit.commit.linesChanged.toLocaleString()} lines`,
 					],
 					fraction: hoveredCommit.fraction,
 			  }
