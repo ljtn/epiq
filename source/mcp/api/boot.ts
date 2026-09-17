@@ -8,7 +8,7 @@ import {
 } from '../../git/git.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {patchSettingsState} from '../../lib/state/settings.state.js';
-import {bootStateFromEventLog} from '../../lib/event/event-boot.js';
+import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
 import {
 	accountedSignature,
 	accountFor,
@@ -18,7 +18,7 @@ import {
 	getEpiqDirPath,
 	resolveClosestEpiqProjectRoot,
 } from '../../lib/storage/paths.js';
-import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
+import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
 import {
 	failed,
 	isFail,

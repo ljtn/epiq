@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {createDefaultEvents} from '../lib/event/event-boot.js';
-import {materializeAll} from '../lib/event/event-materialize.js';
+import {createDefaultEvents} from '../lib/board/board-boot.js';
+import {materializeAll} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getSafeState} from '../lib/state/state.js';
 

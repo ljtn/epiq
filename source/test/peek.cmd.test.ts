@@ -11,16 +11,13 @@ vi.mock('../lib/actions/default/navigation-action-utils.js', () => ({
 	},
 }));
 
-vi.mock('../lib/event/event-load.js', () => ({
+vi.mock('../lib/board/board-log.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/board/board-log.js')>(
+		'../lib/board/board-log.js',
+	)),
 	loadEffectiveEventTimes: vi.fn(),
 	loadMergedEvents: vi.fn(),
 	loadMergedEventsBefore: vi.fn(),
-}));
-
-vi.mock('../lib/event/event-materialize.js', async () => ({
-	...(await vi.importActual<typeof import('../lib/event/event-materialize.js')>(
-		'../lib/event/event-materialize.js',
-	)),
 	materializeAll: vi.fn(),
 }));
 
@@ -55,9 +52,9 @@ import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
 	loadMergedEventsBefore,
-} from '../lib/event/event-load.js';
+} from '../lib/board/board-log.js';
 
-import {materializeAll} from '../lib/event/event-materialize.js';
+import {materializeAll} from '../lib/board/board-log.js';
 
 import {findInBreadCrumb} from '../lib/model/app-state.model.js';
 

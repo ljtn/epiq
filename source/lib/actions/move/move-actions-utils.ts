@@ -1,7 +1,7 @@
 import {ulid} from 'ulid';
-import {materialize} from '../../event/event-materialize.js';
-import {resolveActorId} from '../../event/event-persist.js';
-import {AppEvent, MovePosition} from '../../event/event.model.js';
+import {materialize} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
+import {AppEvent, MovePosition} from '../../board/board-events.model.js';
 import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {

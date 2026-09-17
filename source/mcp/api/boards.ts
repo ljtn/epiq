@@ -1,10 +1,14 @@
 import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../../git/git-storage.js';
-import {bootStateFromEventLog} from '../../lib/event/event-boot.js';
-import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
-import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {actorOf, AppEvent, MovePosition} from '../../lib/event/event.model.js';
-import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
+import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
+import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
+import {materializeAndPersistAll} from '../../lib/board/board-log.js';
+import {
+	actorOf,
+	AppEvent,
+	MovePosition,
+} from '../../lib/board/board-events.model.js';
+import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
 import {isBoardNode} from '../../lib/model/context.model.js';
 import {
 	failed,

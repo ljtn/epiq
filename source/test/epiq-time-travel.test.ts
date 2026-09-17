@@ -14,17 +14,14 @@ vi.mock('../lib/storage/paths.js', () => ({
 	getEventsDirPath: vi.fn(() => '/epiq-timeline-index-no-such-dir'),
 }));
 
-vi.mock('../lib/event/event-load.js', () => ({
+vi.mock('../lib/board/board-log.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/board/board-log.js')>(
+		'../lib/board/board-log.js',
+	)),
 	loadEffectiveEventTimes: vi.fn(),
 	loadMergedEvents: vi.fn(),
 	loadMergedEventsBefore: vi.fn(),
 	loadActorNames: vi.fn(() => new Map<string, string>()),
-}));
-
-vi.mock('../lib/event/event-materialize.js', async () => ({
-	...(await vi.importActual<typeof import('../lib/event/event-materialize.js')>(
-		'../lib/event/event-materialize.js',
-	)),
 	materializeAll: vi.fn(),
 }));
 
@@ -97,8 +94,8 @@ import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
 	loadMergedEventsBefore,
-} from '../lib/event/event-load.js';
-import {materializeAll} from '../lib/event/event-materialize.js';
+} from '../lib/board/board-log.js';
+import {materializeAll} from '../lib/board/board-log.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
 import {

@@ -4,7 +4,7 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {ulid} from 'ulid';
 
-vi.mock('../lib/event/event-load.js', () => ({
+vi.mock('../lib/board/board-log.js', () => ({
 	loadMergedEvents: vi.fn(),
 	loadActorNames: vi.fn(() => new Map<string, string>()),
 }));
@@ -18,7 +18,7 @@ vi.mock('../lib/storage/paths.js', async () => ({
 	getEventsDirPath: (root: string) => path.join(root, 'events'),
 }));
 
-import {loadMergedEvents} from '../lib/event/event-load.js';
+import {loadMergedEvents} from '../lib/board/board-log.js';
 import {succeeded} from '../lib/model/result-types.js';
 import {
 	buildLaneIndex,
@@ -28,7 +28,7 @@ import {
 	getTimelineEntries,
 	lanesOpenAt,
 } from '../mcp/timeline-index.js';
-import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 
 let root = '';
 const eventsDir = () => path.join(root, 'events');

@@ -23,10 +23,10 @@ import {
 	pushStateBranch,
 	stageStateBranchOwnEventFile,
 } from '../../git/git.js';
-import {createDefaultEvents} from '../event/event-boot.js';
-import {getPersistFileName, persist} from '../event/event-persist.js';
+import {createDefaultEvents} from '../board/board-boot.js';
+import {getPersistFileName, persist} from '../board/board-log.js';
 import {flushPendingLogs} from '../event/pending-log.js';
-import {AppEvent} from '../event/event.model.js';
+import {AppEvent} from '../board/board-events.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {User} from '../state/settings.state.js';
 import {hasLocalProjectFile} from '../storage/paths.js';

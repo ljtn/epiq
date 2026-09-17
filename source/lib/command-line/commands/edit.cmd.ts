@@ -1,7 +1,7 @@
 import {ulid} from 'ulid';
 import {openEditorOnText} from '../../editor/editor.js';
-import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
+import {materializeAndPersistAll} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
 import {CommandLineInput} from '../../model/action-map.model.js';
 import {BreadCrumb, findInBreadCrumb} from '../../model/app-state.model.js';
 import {isCommentNode, isTicketNode} from '../../model/context.model.js';

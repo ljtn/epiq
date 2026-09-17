@@ -1,4 +1,4 @@
-import {AppEvent} from '../event/event.model.js';
+import {AppEvent} from '../board/board-events.model.js';
 import {Comment, Ticket} from '../model/context.model.js';
 import {nodes} from '../state/node-builder.js';
 

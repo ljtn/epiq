@@ -1,5 +1,5 @@
 import {clampUlidTime, getEventTime} from '../event/date-utils.js';
-import {AppEvent} from '../event/event.model.js';
+import {AppEvent} from '../board/board-events.model.js';
 
 // The events that can put a ticket somewhere else. Closing and reopening carry
 // a parent for the same reason a move does, so both land here.

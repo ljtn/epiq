@@ -2,7 +2,7 @@ import {ulid} from 'ulid';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getOrderedChildren} from '../repository/rank.js';
 import {evenlySpacedRanks} from '../utils/rank.js';
-import {actorOf, AppEvent, EventActor} from './event.model.js';
+import {actorOf, AppEvent, EventActor} from './board-events.model.js';
 
 export const createRebalanceChildrenEvent = (
 	parentId: string,

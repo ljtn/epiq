@@ -96,9 +96,9 @@ process.chdir(REPO);
 
 // commands.ts first: the init command sits in an import cycle with it.
 await import('../../lib/command-line/commands.js');
-const {createDefaultEvents} = await import('../../lib/event/event-boot.js');
+const {createDefaultEvents} = await import('../../lib/board/board-boot.js');
 const {materializeAll, partitionMaterializeResults} = await import(
-	'../../lib/event/event-materialize.js'
+	'../../lib/board/board-log.js'
 );
 const {patchSettingsState} = await import('../../lib/state/settings.state.js');
 const {initCommand} = await import(
@@ -188,7 +188,7 @@ console.log(
 		`${generated.closed.toLocaleString()} / ${generated.open.toLocaleString()}\n`,
 );
 
-const {loadMergedEvents} = await import('../../lib/event/event-load.js');
+const {loadMergedEvents} = await import('../../lib/board/board-log.js');
 const {getEventTimeline} = await import('../../mcp/epiq-time-travel.js');
 
 const loaded = await step('load, parse and order the log', () => {

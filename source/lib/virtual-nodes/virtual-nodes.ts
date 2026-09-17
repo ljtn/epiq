@@ -1,5 +1,5 @@
-import {AppEvent} from '../event/event.model.js';
-import {formatLogLine} from '../event/format-log-utils.js';
+import {AppEvent} from '../board/board-events.model.js';
+import {formatLogLine} from '../board/format-log-utils.js';
 import {
 	isFieldListNode,
 	isFieldNode,

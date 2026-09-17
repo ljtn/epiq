@@ -1,6 +1,6 @@
 import {ulid} from 'ulid';
-import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
+import {materializeAndPersistAll} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
 import {BreadCrumb, findInBreadCrumb} from '../../model/app-state.model.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';

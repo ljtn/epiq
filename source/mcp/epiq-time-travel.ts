@@ -14,12 +14,12 @@ import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
 	loadMergedEventsBefore,
-} from '../lib/event/event-load.js';
+} from '../lib/board/board-log.js';
 import {
 	logSkippedEvents,
 	materializeAll,
 	partitionMaterializeResults,
-} from '../lib/event/event-materialize.js';
+} from '../lib/board/board-log.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';
 import {fileManager} from '../lib/storage/file-manager.js';
@@ -31,7 +31,7 @@ import {
 	patchState,
 	resetState,
 } from '../lib/state/state.js';
-import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {
 	EventTimelineEntry,
 	getTimelineIndex,

@@ -3,9 +3,9 @@ import {
 	isConvergenceFail,
 	materialize,
 	materializeAll,
-} from '../lib/event/event-materialize.js';
-import {AppEvent} from '../lib/event/event.model.js';
-import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+} from '../lib/board/board-log.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isTicketNode} from '../lib/model/context.model.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';

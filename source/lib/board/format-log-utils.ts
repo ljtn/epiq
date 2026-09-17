@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import stringWidth from 'string-width';
-import {ulidTimeMs} from './date-utils.js';
+import {ulidTimeMs} from '../event/date-utils.js';
 import {isFail} from '../model/result-types.js';
 import {nameOf} from '../model/identity.js';
 import {nodeRepo} from '../repository/node-repo.js';
@@ -8,7 +8,7 @@ import {getSafeState, getState} from '../state/state.js';
 import {getStringColor} from '../utils/color.js';
 import {LogEvolutionForEvent} from '../virtual-nodes/virtual-nodes.js';
 import {timeAgo} from '../utils/date.utils.js';
-import {AppEvent, EventAction} from './event.model.js';
+import {AppEvent, EventAction} from './board-events.model.js';
 
 const padVisibleEnd = (value: string, width: number): string =>
 	value + ' '.repeat(Math.max(0, width - stringWidth(value)));

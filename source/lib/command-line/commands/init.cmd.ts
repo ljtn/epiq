@@ -1,6 +1,6 @@
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {getUserSetupStatus} from '../../config/setup-utils.js';
-import {materializeAll} from '../../event/event-materialize.js';
+import {materializeAll} from '../../board/board-log.js';
 import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {initProject} from '../../project-setup/init-project.js';

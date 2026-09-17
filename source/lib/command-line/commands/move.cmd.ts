@@ -7,9 +7,9 @@ import {
 	resolveRankForMove,
 	setMovePendingState,
 } from '../../actions/move/move-actions-utils.js';
-import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
-import {actorOf, MovePosition} from '../../event/event.model.js';
+import {materializeAndPersistAll} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
+import {actorOf, MovePosition} from '../../board/board-events.model.js';
 import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getOrderedChildren} from '../../repository/rank.js';

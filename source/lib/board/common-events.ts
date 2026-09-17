@@ -1,7 +1,7 @@
 import {monotonicFactory, ulid} from 'ulid';
 import {Result, succeeded} from '../model/result-types.js';
 import {User} from '../state/settings.state.js';
-import {AppEvent} from './event.model.js';
+import {AppEvent} from './board-events.model.js';
 
 const nextId = monotonicFactory();
 

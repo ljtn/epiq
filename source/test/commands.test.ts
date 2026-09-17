@@ -5,11 +5,9 @@ vi.mock('ulid', () => ({
 	ulid: vi.fn(),
 }));
 
-vi.mock('../lib/event/event-materialize-and-persist.js', () => ({
+vi.mock('../lib/board/board-log.js', async importOriginal => ({
+	...(await importOriginal<typeof import('../lib/board/board-log.js')>()),
 	materializeAndPersistAll: vi.fn(),
-}));
-
-vi.mock('../lib/event/event-persist.js', () => ({
 	resolveActorId: vi.fn(() => ({
 		status: 'success',
 		message: 'Resolved actor id',
@@ -81,7 +79,7 @@ import {ulid} from 'ulid';
 import {CmdIntent} from '../lib/command-line/command-intent.js';
 import {ConfigModifiers} from '../lib/command-line/command-modifiers.js';
 import {commands} from '../lib/command-line/commands.js';
-import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
+import {materializeAndPersistAll} from '../lib/board/board-log.js';
 import {
 	CommandLineActionEntry,
 	CommandLineInput,

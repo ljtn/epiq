@@ -1,6 +1,6 @@
 import {ulid} from 'ulid';
-import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
+import {materializeAndPersistAll} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getCmdArg} from '../../state/cmd.state.js';
 import {getRenderedChildren, getState} from '../../state/state.js';

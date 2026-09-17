@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {getWorktreesRoot} from '../git/git-storage.js';
 import {execGit} from '../git/git-utils.js';
-import {getPersistFileName} from '../lib/event/event-persist.js';
+import {getPersistFileName} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {initProject} from '../lib/project-setup/init-project.js';
 import {readProjectFile} from '../lib/project-setup/project-setup.js';

@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {ulid} from 'ulid';
-import {AppEvent, EventAction} from '../lib/event/event.model.js';
+import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
 import {laneEntryTime} from '../lib/utils/lane-dwell.js';
 
 const HOUR_MS = 60 * 60 * 1000;

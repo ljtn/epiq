@@ -13,9 +13,9 @@ import fs from 'node:fs';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
-import {createDefaultEvents} from '../../lib/event/event-boot.js';
-import {loadMergedEvents} from '../../lib/event/event-load.js';
-import {getPersistFileName, persist} from '../../lib/event/event-persist.js';
+import {createDefaultEvents} from '../../lib/board/board-boot.js';
+import {loadMergedEvents} from '../../lib/board/board-log.js';
+import {getPersistFileName, persist} from '../../lib/board/board-log.js';
 import {isFail, Result} from '../../lib/model/result-types.js';
 import {patchSettingsState} from '../../lib/state/settings.state.js';
 import {

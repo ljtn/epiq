@@ -1,12 +1,12 @@
 import {ulid} from 'ulid';
-import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
+import {materializeAndPersistAll} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {isAddCommentEvent} from '../../utils/comment.utils.js';
 import {getPersistRoot} from '../../storage/paths.js';
-import {actorOf} from '../../event/event.model.js';
+import {actorOf} from '../../board/board-events.model.js';
 
 export const deleteCommand = async () => {
 	const userRes = resolveActorId();

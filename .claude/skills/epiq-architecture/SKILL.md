@@ -41,9 +41,12 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 
 Applied on every machine, in causal order, possibly after events it did not expect. So: make it idempotent, express preconditions as `materializeSkip` rather than fatal, and reference targets by id only.
 
+Four places, all in `lib/board/`: the entry in `AppEventMap` and its name in `EVENT_ACTIONS` (`board-events.model.ts`), the payload schema that says what the handler dereferences (`board-events.schema.ts`), the handler itself (`board-materialize.ts`), and the nodes it touches in `getAffectedNodeIds` (`board-replay.ts`). Nothing in `lib/event/` changes; it reads the action list and the handlers off the catalog.
+
 ## Proving a change is safe
 
 - `source/test/replay-equivalence.test.ts` — a batched replay must land on exactly the state a per-event replay does.
+- `source/test/event-core-generic.test.ts` — the log still works for a product that is not the board.
 - `npm run test:collab` — several actors on one remote must end with the same events _and_ derive the same order from them.
 - The pre-push hook runs lint, typecheck, unit, e2e, collaboration and GUI tests. Do not bypass it.
 - Suites that shell out to git run containerised over a read-only checkout. A test that aims git at the checkout instead of a temp directory fails on the spot.
@@ -55,10 +58,12 @@ Touching ordering, merge, replay or materialization means running both.
 
 Dependencies point one way, and nothing lower reaches up.
 
-- **`source/lib/`** — the domain. The event log, the node repository, ranks, state, and the TUI that draws it. Knows nothing about MCP, HTTP or React, which is what lets the same code answer all three.
+- **`source/lib/event/`** — the log itself, and nothing about what it carries. Id minting and the edge, the causal sort, the envelope, the pending log, replay guards, and the write path. It is generic over an `EventMap`: a product hands `createEventLog` an `EventCatalog` naming its genesis action, its action list, a payload check, a handler per action and its replay/write hooks. **No board vocabulary belongs here** — no issue, swimlane, board, tag or comment, in code or in comments. `source/test/event-core-generic.test.ts` drives the whole log with a toy canvas catalog and imports no board code; keep it that way.
+- **`source/lib/board/`** — the board as one such product: its event map, payload schemas, handlers, replay bookkeeping, boot and default events. `board-log.ts` is the board's single `createEventLog` instance, and what the rest of the codebase imports (`materialize`, `loadMergedEvents`, `materializeAndPersistAll`, …). Nothing outside `lib/board/` reaches into `lib/event/` for those.
+- **the rest of `source/lib/`** — the domain around it: the node repository, ranks, state, and the TUI that draws it. Knows nothing about MCP, HTTP or React, which is what lets the same code answer all three.
 - **`source/mcp/api/`** — one function per board operation: `createBoard`, `moveIssue`, `addIssueTag`. Boots, checks its preconditions, writes events, returns a `Result`. A mutation lives here and only here.
 - **`source/mcp/server.ts` and `source/gui/api/`** — the front doors. An MCP tool and a websocket message are two ways into the *same* `mcp/api` function; neither re-implements one. A guard that exists in only one door is a bug in the other.
-- **`source/gui/client/`** — React, and nothing else. It cannot import `source/lib/event/*` or anything else Node-side; the GUI build fails on it.
+- **`source/gui/client/`** — React, and nothing else. It cannot import `source/lib/event/*`, `source/lib/board/*` or anything else Node-side; the GUI build fails on it.
 
 Two rules that hold across all of them:
 

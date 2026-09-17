@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import {getStateBranch} from '../git/git-constants.js';
 import {getStateBranchRoot} from '../git/git-storage.js';
-import {loadMergedEvents} from '../lib/event/event-load.js';
+import {loadMergedEvents} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {
 	describeIdentityMismatch,

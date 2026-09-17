@@ -3,12 +3,12 @@ import {clampUlidTime, getEventTime} from '../../event/date-utils.js';
 import {
 	loadEffectiveEventTimes,
 	loadMergedEvents,
-} from '../../event/event-load.js';
+} from '../../board/board-log.js';
 import {
 	logSkippedEvents,
 	materializeAll,
 	partitionMaterializeResults,
-} from '../../event/event-materialize.js';
+} from '../../board/board-log.js';
 import {Mode} from '../../model/action-map.model.js';
 import {findInBreadCrumb} from '../../model/app-state.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';

@@ -1,6 +1,5 @@
 import {decodeTime} from 'ulid';
 import {failed, Result, succeeded} from '../model/result-types.js';
-import {AppEvent} from './event.model.js';
 
 // Honest clock skew between machines is minutes; a decoded time further ahead
 // than this is not a fact about time. Also bounds the mint seed in event-persist.
@@ -45,7 +44,9 @@ export const safeDateFromUlid = (id: string): Result<Date> => {
 
 // Raw decode — route displays through ulidTimeMs and cross-event comparisons
 // through toEffectiveUlidTimes.
-export const getEventTime = (event: AppEvent | undefined): number | null => {
+export const getEventTime = (
+	event: {id: string} | undefined,
+): number | null => {
 	if (!event?.id) return null;
 
 	try {

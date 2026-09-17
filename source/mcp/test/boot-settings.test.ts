@@ -52,13 +52,14 @@ vi.mock('../../lib/storage/paths.js', async importOriginal => {
 	};
 });
 
-vi.mock('../../lib/event/event-load.js', () => ({
+vi.mock('../../lib/board/board-log.js', async importOriginal => ({
+	...(await importOriginal<typeof import('../../lib/board/board-log.js')>()),
 	loadMergedEventsWithUnreadable: vi.fn(() =>
 		succeeded('loaded', {events: [], unreadable: []}),
 	),
 }));
 
-vi.mock('../../lib/event/event-boot.js', () => ({
+vi.mock('../../lib/board/board-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => succeeded('booted', null)),
 }));
 

@@ -2,12 +2,9 @@ import {
 	captureNavigationAnchor,
 	restoreNavigationAnchor,
 } from '../lib/actions/default/restore-navigation.js';
-import {bootStateFromEventLog} from '../lib/event/event-boot.js';
-import {loadMergedEventsWithUnreadable} from '../lib/event/event-load.js';
-import {
-	getPersistFileName,
-	resolveActorId,
-} from '../lib/event/event-persist.js';
+import {bootStateFromEventLog} from '../lib/board/board-boot.js';
+import {loadMergedEventsWithUnreadable} from '../lib/board/board-log.js';
+import {getPersistFileName, resolveActorId} from '../lib/board/board-log.js';
 import {Mode} from '../lib/model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
 import {getState, patchState} from '../lib/state/state.js';

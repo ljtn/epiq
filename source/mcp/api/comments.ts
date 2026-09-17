@@ -1,6 +1,6 @@
 import {ulid} from 'ulid';
-import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {actorOf, AppEvent} from '../../lib/event/event.model.js';
+import {materializeAndPersistAll} from '../../lib/board/board-log.js';
+import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {MAX_COMMENT_LENGTH} from '../../lib/utils/text.limits.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';

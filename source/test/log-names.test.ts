@@ -1,13 +1,11 @@
 import {describe, expect, it} from 'vitest';
 import {ulid} from 'ulid';
-import {bootStateFromEventLog} from '../lib/event/event-boot.js';
-import {
-	materializeAll,
-	partitionMaterializeResults,
-} from '../lib/event/event-materialize.js';
-import {AppEvent, EVENT_ACTIONS} from '../lib/event/event.model.js';
-import {projectLogNames} from '../lib/event/log-names.js';
-import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {bootStateFromEventLog} from '../lib/board/board-boot.js';
+import {materializeAll} from '../lib/board/board-log.js';
+import {partitionMaterializeResults} from '../lib/event/event-materialize.js';
+import {AppEvent, EVENT_ACTIONS} from '../lib/board/board-events.model.js';
+import {projectLogNames} from '../lib/board/log-names.js';
+import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
 

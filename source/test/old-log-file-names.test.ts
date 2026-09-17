@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {bootStateFromEventLog} from '../lib/event/event-boot.js';
+import {bootStateFromEventLog} from '../lib/board/board-boot.js';
 import {
 	loadActorNames,
 	loadEventActors,
 	loadMergedEvents,
-} from '../lib/event/event-load.js';
+} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
 

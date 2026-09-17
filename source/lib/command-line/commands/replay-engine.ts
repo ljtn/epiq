@@ -1,11 +1,8 @@
 import {getEventTime, toEffectiveUlidTimes} from '../../event/date-utils.js';
-import {AppEvent} from '../../event/event.model.js';
-import {describeEvent} from '../../event/format-log-utils.js';
-import {
-	getAffectedNodeIds,
-	isConvergenceFail,
-	materialize,
-} from '../../event/event-materialize.js';
+import {AppEvent} from '../../board/board-events.model.js';
+import {describeEvent} from '../../board/format-log-utils.js';
+import {isConvergenceFail, materialize} from '../../board/board-log.js';
+import {getAffectedNodeIds} from '../../board/board-replay.js';
 import {Mode} from '../../model/action-map.model.js';
 import {isFail} from '../../model/result-types.js';
 import {buildPlaybackFractions} from '../../utils/playback-pacing.js';

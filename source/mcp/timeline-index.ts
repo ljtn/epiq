@@ -15,14 +15,14 @@
 // exists for.
 
 import {getEventTime, toEffectiveUlidTimes} from '../lib/event/date-utils.js';
-import {AppEvent, EventAction} from '../lib/event/event.model.js';
-import {loadActorNames, loadMergedEvents} from '../lib/event/event-load.js';
+import {AppEvent, EventAction} from '../lib/board/board-events.model.js';
+import {loadActorNames, loadMergedEvents} from '../lib/board/board-log.js';
 import {logSignature} from '../lib/event/log-signature.js';
-import {formatLogAction} from '../lib/event/format-log-utils.js';
+import {formatLogAction} from '../lib/board/format-log-utils.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {projectLogNames} from '../lib/event/log-names.js';
+import {projectLogNames} from '../lib/board/log-names.js';
 import {Identity, identityOf} from '../lib/model/identity.js';
-import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 
 // The same shape every surface labels somebody with, and resolved the same
 // way — see `identityOf`.

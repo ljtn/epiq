@@ -8,10 +8,10 @@ import {
 	parsePersistedEvent,
 	persist,
 	toPersistedEvent,
-} from '../lib/event/event-persist.js';
+} from '../lib/board/board-log.js';
 import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {resolveClosestEpiqRoot} from '../lib/storage/paths.js';
-import {AppEvent, StoredAppEvent} from '../lib/event/event.model.js';
+import {AppEvent, StoredAppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
 
 const makeTempDir = (): string =>

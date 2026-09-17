@@ -1,4 +1,4 @@
-import {MovePosition} from '../../../lib/event/event.model.js';
+import {MovePosition} from '../../../lib/board/board-events.model.js';
 
 export type GuiMessage =
 	| {type: 'state:get'}

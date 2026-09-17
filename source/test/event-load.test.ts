@@ -14,9 +14,9 @@ import {
 	ReconstructedEvent,
 	splitEventsAtTime,
 	UnreadableEvent,
-} from '../lib/event/event-load.js';
-import {persist} from '../lib/event/event-persist.js';
-import {AppEvent} from '../lib/event/event.model.js';
+} from '../lib/board/board-log.js';
+import {persist} from '../lib/board/board-log.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
 
 describe('getSortedEvents', () => {

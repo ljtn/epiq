@@ -1,6 +1,6 @@
-import {createRebalanceChildrenEvent} from '../event/create-rebalance-children-event.js';
-import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
-import {EventActor, MovePosition} from '../event/event.model.js';
+import {createRebalanceChildrenEvent} from '../board/create-rebalance-children-event.js';
+import {materializeAndPersistAll} from '../board/board-log.js';
+import {EventActor, MovePosition} from '../board/board-events.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';

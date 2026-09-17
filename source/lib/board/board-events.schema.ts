@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {failed, Result, succeeded} from '../model/result-types.js';
-import {EventAction} from './event.model.js';
+import {EventAction} from './board-events.model.js';
 
 /**
  * What a payload has to look like before a materializer is allowed to touch it.

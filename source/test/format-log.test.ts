@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
-import {materializeAll} from '../lib/event/event-materialize.js';
-import {AppEvent} from '../lib/event/event.model.js';
-import {describeEvent, formatLogLine} from '../lib/event/format-log-utils.js';
+import {materializeAll} from '../lib/board/board-log.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
+import {describeEvent, formatLogLine} from '../lib/board/format-log-utils.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';

@@ -5,6 +5,14 @@ import {z} from 'zod';
 import {logger} from '../../logger.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getEventsDirPath} from '../storage/paths.js';
+import {toEffectiveUlidTimes} from './date-utils.js';
+import {EventCatalog} from './event-catalog.js';
+import {
+	isSupportedSchemaVersion,
+	parsePersistedEnvelope,
+	PersistedEnvelope,
+} from './event-envelope.js';
+import {ActionOf, Actor, Event, EventMap} from './event.model.js';
 import {
 	isVanished,
 	listEventFiles,
@@ -12,19 +20,11 @@ import {
 	SCAN_ATTEMPTS,
 	signatureAfterOwnAppend,
 } from './log-signature.js';
-import {toEffectiveUlidTimes} from './date-utils.js';
-import {AppEvent, AppEventMap, isKnownEventAction} from './event.model.js';
-import {
-	isSupportedSchemaVersion,
-	parsePersistedEnvelope,
-	PersistedEnvelope,
-} from './event-persist.js';
-import {parseEventPayload} from './event-payload.schema.js';
 import {stripPendingMarker} from './pending-log.js';
 
 // What a log file name yields where it carries no name segment, which is every
-// log written since ZFZFW9D. Named so the checks below read as "nobody chose
-// this" rather than as a comparison against a bare string.
+// log written since the name left it. Named so the checks below read as
+// "nobody chose this" rather than as a comparison against a bare string.
 const UNNAMED_ACTOR = 'unknown';
 
 const EventFileNameSchema = z.object({
@@ -34,10 +34,10 @@ const EventFileNameSchema = z.object({
 
 // `v` is the version as written, not necessarily one we support: ordering and
 // ancestry run over these, so an unreadable event keeps its place.
-export type ReconstructedEvent = PersistedEnvelope & {
-	userId: string;
-	userName: string;
-};
+// Carries the file name's own `userName` beside the actor: the name is not
+// part of an event, but it is part of the older file names, and this is what
+// `loadActorNames` reads it from before `fromPersistedEvent` drops it.
+export type ReconstructedEvent = PersistedEnvelope & Actor & {userName: string};
 
 // Orderable but not interpretable — except `corrupt-line`, which has no
 // envelope to order by and is reported only so the gap is visible.
@@ -53,13 +53,14 @@ export type UnreadableEvent = {
 	targetNodeId: string | null;
 };
 
+const ENVELOPE_KEYS = new Set(['id', 'v', 'userId', 'userName']);
+
 // Best-effort, and deliberately unwilling to guess: anything ambiguous returns
-// null so the caller falls back to a board-wide lock rather than locking the
+// null so the caller falls back to a log-wide lock rather than locking the
 // wrong node.
 const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
 	const payloads = Object.entries(entry).filter(
-		([key]) =>
-			key !== 'id' && key !== 'v' && key !== 'userId' && key !== 'userName',
+		([key]) => !ENVELOPE_KEYS.has(key),
 	);
 
 	// The one-payload-key invariant `getPersistedAction` enforces is never
@@ -77,12 +78,8 @@ const getTargetNodeId = (entry: ReconstructedEvent): string | null => {
 		: null;
 };
 
-type PersistedPayloadMap = {
-	[K in keyof AppEventMap]: AppEventMap[K]['payload'];
-};
-
-// File names are lowercased on the way to disk, but contributor records keep
-// the uppercase `ulid()` id, so a lowercased userId splits one person in two.
+// File names are lowercased on the way to disk, but an id is minted by `ulid()`
+// in upper case, so reading a lowercased one back splits one actor in two.
 // Restoring the canonical casing is lossless for ULIDs; anything else is left
 // alone rather than guessed at.
 const ULID_SHAPE = /^[0-9a-hjkmnp-tv-z]{26}$/i;
@@ -112,7 +109,7 @@ const parseEventFileActor = (
 
 	const result = EventFileNameSchema.safeParse({
 		// Id only: the name segment is compared against a re-encoded (lowercased)
-		// registry name, so changing its case would break that match.
+		// name, so changing its case would break that match.
 		userId: canonicalUserId(userId),
 		userName,
 	});
@@ -128,12 +125,8 @@ const parseEventFileActor = (
 	return succeeded('Parsed event file actor', result.data);
 };
 
-export const getPersistedAction = (
-	entry: object,
-): Result<keyof PersistedPayloadMap> => {
-	const keys = Object.keys(entry).filter(
-		key => key !== 'id' && key !== 'v',
-	) as Array<keyof PersistedPayloadMap>;
+export const getPersistedAction = (entry: object): Result<string> => {
+	const keys = Object.keys(entry).filter(key => key !== 'id' && key !== 'v');
 
 	if (keys.length !== 1) {
 		return failed(
@@ -147,155 +140,10 @@ export const getPersistedAction = (
 	return succeeded('Resolved persisted action', keys[0]);
 };
 
-const hasPersistedActionPayload = <K extends keyof AppEventMap>(
+const hasPersistedActionPayload = (
 	entry: object,
-	action: K,
-): entry is Record<K, AppEventMap[K]['payload']> => action in entry;
-
-const toAppEvent = <K extends keyof AppEventMap>({
-	id,
-	action,
-	payload,
-	userId,
-}: {
-	id: string;
-	action: K;
-	payload: AppEventMap[K]['payload'];
-	userId: string;
-}): AppEvent =>
-	({
-		id,
-		action,
-		payload,
-		userId,
-	} as AppEvent);
-
-export const fromPersistedEvent = (
-	entry: ReconstructedEvent,
-): Result<AppEvent> => {
-	const {userId, userName, ...persistedEntry} = entry;
-
-	const actionResult = getPersistedAction(persistedEntry);
-	if (isFail(actionResult)) {
-		return failed(actionResult.message);
-	}
-
-	const action = actionResult.value;
-	const eventId = entry.id?.[0];
-	if (!eventId) {
-		return failed('Persisted event is missing id');
-	}
-
-	if (!hasPersistedActionPayload(persistedEntry, action)) {
-		return failed(`Persisted event is missing payload for action: ${action}`);
-	}
-
-	return succeeded<AppEvent>(
-		'Decoded persisted event',
-		// The id and not the name. `userName` is the file name's, kept on the
-		// reconstructed entry for `loadActorNames` and dropped here, so a
-		// replayed event is identical to the one the write applied in place —
-		// which is what makes skipping the reload after a write sound.
-		toAppEvent({
-			id: eventId,
-			action,
-			payload: persistedEntry[action],
-			userId,
-		}),
-	);
-};
-
-export const decodeReconstructedEvents = (
-	events: ReconstructedEvent[],
-	unreadable?: UnreadableEvent[],
-): Result<AppEvent[]> => {
-	const decoded: AppEvent[] = [];
-	const skippedActions = new Map<string, number>();
-	const skippedVersions = new Map<number, number>();
-
-	for (const entry of events) {
-		// Skipped here, after ordering and anchoring, so the event keeps its place
-		// in history. Decoding is what would fail on an unknown payload shape.
-		if (!isSupportedSchemaVersion(entry.v)) {
-			skippedVersions.set(entry.v, (skippedVersions.get(entry.v) ?? 0) + 1);
-			unreadable?.push({
-				eventId: entry.id[0],
-				reason: 'unsupported-schema-version',
-				detail: `v${entry.v}`,
-				targetNodeId: getTargetNodeId(entry),
-			});
-			continue;
-		}
-
-		const eventResult = fromPersistedEvent(entry);
-
-		// Quarantined, not fatal: `merge=union` splices any line a peer pushes
-		// into every clone, so a malformed payload that failed the load would
-		// brick the board for everyone, permanently. The envelope parsed, so the
-		// event keeps its place in the chain.
-		if (isFail(eventResult)) {
-			unreadable?.push({
-				eventId: entry.id[0],
-				reason: 'invalid-payload',
-				detail: eventResult.message,
-				targetNodeId: getTargetNodeId(entry),
-			});
-			continue;
-		}
-
-		// Events written by a newer epiq may carry actions this version does
-		// not understand. Skip them instead of failing the whole replay — the
-		// persisted logs are untouched, so upgrading restores them.
-		const action = eventResult.value.action as string;
-		if (!isKnownEventAction(action)) {
-			skippedActions.set(action, (skippedActions.get(action) ?? 0) + 1);
-			unreadable?.push({
-				eventId: entry.id[0],
-				reason: 'unknown-action',
-				detail: action,
-				targetNodeId: getTargetNodeId(entry),
-			});
-			continue;
-		}
-
-		// The action is one we know, so the payload is one we are about to
-		// dereference. Quarantined like any other unreadable line rather than
-		// handed to a materializer that assumes a well-behaved writer produced
-		// it — the same reasoning as the envelope check above, one layer in.
-		const payloadResult = parseEventPayload(action, eventResult.value.payload);
-		if (isFail(payloadResult)) {
-			unreadable?.push({
-				eventId: entry.id[0],
-				reason: 'invalid-payload',
-				detail: payloadResult.message,
-				targetNodeId: getTargetNodeId(entry),
-			});
-			continue;
-		}
-
-		decoded.push(eventResult.value);
-	}
-
-	if (skippedActions.size > 0) {
-		const summary = [...skippedActions.entries()]
-			.map(([action, count]) => `${action} (x${count})`)
-			.join(', ');
-		logger.info(
-			`Skipped events with unknown actions, likely created by a newer epiq version: ${summary}. Upgrade to apply them.`,
-		);
-	}
-
-	if (skippedVersions.size > 0) {
-		const summary = [...skippedVersions.entries()]
-			.map(([version, count]) => `v${version} (x${count})`)
-			.join(', ');
-		logger.info(
-			`Skipped events with unsupported schema versions, created by a newer epiq version: ${summary}. Upgrade to apply them.`,
-		);
-	}
-
-	return succeeded('Decoded reconstructed events', decoded);
-};
+	action: string,
+): entry is Record<string, unknown> => action in entry;
 
 /** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
 export const parsePersistedEventsFile = (
@@ -318,7 +166,7 @@ export const parsePersistedEventsFile = (
 
 	// A line whose envelope will not parse carries no id, so unlike an
 	// unreadable payload it cannot keep its place in the chain. Skipping it
-	// loses that one event; failing the load loses the whole board, for
+	// loses that one event; failing the load loses the whole state, for
 	// everyone, permanently — `merge=union` splices a half-written line into
 	// every clone that pulls, and the log is append-only.
 	const quarantine = (lineNumber: number, reason: string) => {
@@ -360,284 +208,6 @@ export const parsePersistedEventsFile = (
 	return succeeded('Parsed persisted events file', entries);
 };
 
-function loadAllPersistedEvents(
-	eventsRoot: string,
-	unreadable?: UnreadableEvent[],
-): Result<ReconstructedEvent[]> {
-	const dir = getEventsDirPath(eventsRoot);
-
-	// Before the read, never after: a line landing in the gap would otherwise be
-	// remembered under a signature that already accounts for it, and the edge
-	// would stay wrong until something else moved.
-	const signature = logSignature(eventsRoot);
-
-	if (!fs.existsSync(dir)) {
-		return succeeded('No events found', []);
-	}
-
-	// A file gone between the listing and its read is one a sync just renamed
-	// or git just rewrote; the listing is taken again so the read sees the
-	// directory as it is, not as it was. Quarantined lines are collected per
-	// attempt, or a listing that had to be repeated would report them twice.
-	let entries: ReconstructedEvent[] = [];
-	let quarantined: UnreadableEvent[] = [];
-
-	for (let attempt = 1; ; attempt++) {
-		entries = [];
-		quarantined = [];
-		let listAgain = false;
-
-		for (const file of listEventFiles(dir)) {
-			const result = parsePersistedEventsFile(
-				path.join(dir, file),
-				quarantined,
-			);
-
-			if (isFail(result)) {
-				return failed(result.message);
-			}
-
-			if (result.value === null) {
-				if (attempt < SCAN_ATTEMPTS) {
-					listAgain = true;
-					break;
-				}
-				continue;
-			}
-
-			entries.push(...result.value);
-		}
-
-		if (!listAgain) break;
-	}
-
-	unreadable?.push(...quarantined);
-
-	const sorted = getSortedEvents(entries);
-
-	// The causal order's tail, which is what the next write points at. Recorded
-	// here because this is the one place that has just paid for it.
-	edgeCache = {
-		root: eventsRoot,
-		signature,
-		edge: sorted.at(-1)?.id?.[0] ?? null,
-	};
-
-	return succeeded('All events loaded', sorted);
-}
-
-// Boot paths use this to lock where history is unreadable; readers wanting
-// only the events use `loadMergedEvents`.
-export function loadMergedEventsWithUnreadable(
-	stateBranchRoot: string,
-): Result<{events: AppEvent[]; unreadable: UnreadableEvent[]}> {
-	const unreadable: UnreadableEvent[] = [];
-
-	const allEvents = loadAllPersistedEvents(stateBranchRoot, unreadable);
-	if (isFail(allEvents)) {
-		return failed(allEvents.message);
-	}
-
-	const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
-	if (isFail(decoded)) return failed(decoded.message);
-
-	return succeeded('Loaded merged events', {events: decoded.value, unreadable});
-}
-
-// Actors come off the file name, so they survive a payload this build cannot
-// decode. Guards that ask "has this contributor ever authored anything" have to
-// read these rather than the decoded events, or an unreadable version makes
-// someone look unauthored.
-export function loadEventActors(
-	stateBranchRoot: string,
-): Result<{userId: string; userName: string}[]> {
-	const allEvents = loadAllPersistedEvents(stateBranchRoot);
-	if (isFail(allEvents)) return failed(allEvents.message);
-
-	return succeeded(
-		'Loaded event actors',
-		allEvents.value.map(({userId, userName}) => ({userId, userName})),
-	);
-}
-
-// The names the log file names carry, by author id. A log written before
-// ZFZFW9D is `<id>.<name>.jsonl` and yields one; a log written since is
-// `<id>.jsonl` and yields nothing, since UNNAMED_ACTOR is nobody's chosen name.
-//
-// The contributor registry is the source of record; this is the fallback for an
-// id it has never heard of, which since v1.5.0 means an author who has not
-// written since. Matching and listing take it, through `contributorDirectory`,
-// because a name that fails to match there mints a duplicate id for somebody
-// who already has one. Readers that resolve from materialized state and never
-// load the log show the id instead. `KHT69TD` settled that split.
-//
-// Reads the directory listing and nothing else. The names are *in* the file
-// names, so parsing a single line would be waste — on a board of a few hundred
-// thousand events that is the difference between a listing and a full parse of
-// every log, on a path a user action sits behind.
-export const loadActorNames = (
-	stateBranchRoot: string,
-): Map<string, string> => {
-	const byId = new Map<string, string>();
-	const dir = getEventsDirPath(stateBranchRoot);
-
-	let fileNames: string[];
-	try {
-		if (!fs.existsSync(dir)) return byId;
-
-		fileNames = fs.readdirSync(dir);
-	} catch {
-		// A name is a nicety; a board that cannot list its logs has a bigger
-		// problem, and it is not this function's to report.
-		return byId;
-	}
-
-	// An id named by two different files: before ZFZFW9D a rename started a new
-	// log, so one person can be `<id>.alice.jsonl` and `<id>.alice-cooper.jsonl`
-	// at once. Directory order says nothing about which is newer.
-	const ambiguous = new Set<string>();
-
-	for (const fileName of fileNames) {
-		if (!fileName.endsWith('.jsonl')) continue;
-
-		const actor = parseEventFileActor(fileName);
-		if (isFail(actor)) continue;
-
-		const {userId, userName} = actor.value;
-		if (!userId || !userName || userName === UNNAMED_ACTOR) continue;
-
-		const seen = byId.get(userId);
-		if (seen !== undefined && seen !== userName) ambiguous.add(userId);
-
-		byId.set(userId, userName);
-	}
-
-	if (ambiguous.size === 0) return byId;
-
-	// Only those ids, and only now: the log's own order is what says which name
-	// came last, and paying for a full parse to settle a rare legacy tie beats
-	// showing whichever name the filesystem happened to list second.
-	const actors = loadEventActors(stateBranchRoot);
-	if (isFail(actors)) return byId;
-
-	for (const {userId, userName} of actors.value) {
-		if (!ambiguous.has(userId)) continue;
-		if (!userName || userName === UNNAMED_ACTOR) continue;
-
-		byId.set(userId, userName);
-	}
-
-	return byId;
-};
-
-export function loadMergedEvents(stateBranchRoot: string): Result<AppEvent[]> {
-	const result = loadMergedEventsWithUnreadable(stateBranchRoot);
-	if (isFail(result)) return failed(result.message);
-
-	return succeeded('Loaded merged events', result.value.events);
-}
-
-export function loadMergedEventsBefore(
-	stateBranchRoot: string,
-	targetTime: number,
-): Result<{
-	appliedEvents: AppEvent[];
-	unappliedEvents: AppEvent[];
-}> {
-	const allEvents = loadAllPersistedEvents(stateBranchRoot);
-
-	if (isFail(allEvents)) {
-		return failed(allEvents.message);
-	}
-
-	const {appliedEvents, unappliedEvents} = splitEventsAtTime(
-		allEvents.value,
-		targetTime,
-	);
-
-	const decodedAppliedEvents = decodeReconstructedEvents(appliedEvents);
-	if (isFail(decodedAppliedEvents)) {
-		return failed(decodedAppliedEvents.message);
-	}
-
-	const decodedUnappliedEvents = decodeReconstructedEvents(unappliedEvents);
-	if (isFail(decodedUnappliedEvents)) {
-		return failed(decodedUnappliedEvents.message);
-	}
-
-	return succeeded('Loaded merged events before time', {
-		appliedEvents: decodedAppliedEvents.value,
-		unappliedEvents: decodedUnappliedEvents.value,
-	});
-}
-
-// The tail of the causal order, which every write has to point at.
-//
-// Held rather than re-derived. Reading it meant reading every line the board
-// has ever held and rebuilding the whole forest, to take one id off the end:
-// on a two-hundred-thousand-event board that was four seconds to file a single
-// ticket. `EdgeCursor` already avoids it within a batch, for the same reason;
-// a lone write had nothing to belong to.
-let edgeCache: {root: string; signature: string; edge: string | null} | null =
-	null;
-
-export function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
-	const signature = logSignature(rootDir);
-
-	if (
-		edgeCache &&
-		edgeCache.root === rootDir &&
-		edgeCache.signature === signature
-	) {
-		return succeeded('Loaded edge reference, unchanged', edgeCache.edge);
-	}
-
-	// Populates the cache on its way through, so a boot pays for this once and
-	// the writes after it do not pay at all.
-	const persisted = loadAllPersistedEvents(rootDir);
-	if (isFail(persisted)) {
-		return failed(persisted.message);
-	}
-
-	return succeeded(
-		'Loaded edge reference',
-		persisted.value.at(-1)?.id?.[0] ?? null,
-	);
-}
-
-/**
- * Moves the edge on after this actor wrote `id` to `fileName`, without reading
- * the log to confirm it.
- *
- * Safe only because of what the id is: a child of the edge it was minted
- * against, and the deepest node in the forest, so the walk that derives the
- * order ends on it.
- *
- * Any other file moving means someone else's events arrived, and the tail is
- * then theirs to decide — so the cache is dropped rather than advanced, and the
- * next read derives it properly. That is the case this has to get right; a
- * board with one writer would not need the check at all.
- */
-export function advanceEdgeRef(
-	rootDir: string,
-	fileName: string,
-	id: string,
-): void {
-	if (!edgeCache || edgeCache.root !== rootDir) return;
-
-	const next = signatureAfterOwnAppend(rootDir, edgeCache.signature, fileName);
-
-	// Null means someone else's events arrived, and the tail is theirs to
-	// decide — so the cache is dropped and the next read derives it.
-	edgeCache = next === null ? null : {root: rootDir, signature: next, edge: id};
-}
-
-// The tests drive the log through mocks, so they need the edge gone between
-// cases; a signature is no help where the files never existed.
-export function clearEdgeCache(): void {
-	edgeCache = null;
-}
-
 // Code units, not `localeCompare`: collation follows the process locale, so
 // the same ids could order differently on two machines. The relational
 // operators compare UTF-16 code units, which every runtime does the same way.
@@ -664,8 +234,13 @@ const compareEvents = (
 	return byCodeUnit(JSON.stringify(a), JSON.stringify(b));
 };
 
-export const getSortedEvents = (
+/**
+ * The causal order: a forest by `refId`, siblings by id, walked depth-first.
+ * `genesis` names the only action allowed to be a root.
+ */
+export const sortEvents = (
 	reconstructedEvents: ReconstructedEvent[],
+	genesis: string,
 ): ReconstructedEvent[] => {
 	const byEventId = new Map<string, ReconstructedEvent>();
 	const childrenByRef = new Map<string | null, ReconstructedEvent[]>();
@@ -716,11 +291,8 @@ export const getSortedEvents = (
 	// is anchored after the known history, with the orphans. Exactly one action
 	// key, or extra keys smuggle a payload past a bare `in` check.
 	const roots = (childrenByRef.get(null) ?? []).filter(event => {
-		const keys = Object.keys(event).filter(
-			key =>
-				key !== 'id' && key !== 'v' && key !== 'userId' && key !== 'userName',
-		);
-		return keys.length === 1 && keys[0] === 'init.workspace';
+		const keys = Object.keys(event).filter(key => !ENVELOPE_KEYS.has(key));
+		return keys.length === 1 && keys[0] === genesis;
 	});
 	for (const root of roots) {
 		visit(root);
@@ -768,27 +340,6 @@ export const effectiveEventTimes = (
 		}),
 	);
 
-// For callers that pick a cut time from one event (`:peek prev/next`) — the
-// values come from the same full set splitEventsAtTime will judge by.
-export function loadEffectiveEventTimes(
-	stateBranchRoot: string,
-): Result<Map<string, number | null>> {
-	const allEvents = loadAllPersistedEvents(stateBranchRoot);
-	if (isFail(allEvents)) return failed(allEvents.message);
-
-	const times = effectiveEventTimes(allEvents.value);
-
-	return succeeded(
-		'Loaded effective event times',
-		new Map(
-			allEvents.value.map((event, index) => [
-				event.id[0],
-				times[index] ?? null,
-			]),
-		),
-	);
-}
-
 export const splitEventsAtTime = (
 	events: ReconstructedEvent[],
 	targetTime: number,
@@ -823,3 +374,463 @@ export const splitEventsAtTime = (
 		unappliedEvents,
 	};
 };
+
+/**
+ * Reads the log for one catalog: which actions it knows, how a payload is
+ * checked, and which action is genesis are the only things that differ
+ * between products.
+ */
+export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
+	const knownActions: ReadonlySet<string> = new Set(catalog.actions);
+
+	const isKnownAction = (action: string): action is ActionOf<M> =>
+		knownActions.has(action);
+
+	const fromPersistedEvent = (entry: ReconstructedEvent): Result<Event<M>> => {
+		const {userId, userName, ...persistedEntry} = entry;
+
+		const actionResult = getPersistedAction(persistedEntry);
+		if (isFail(actionResult)) {
+			return failed(actionResult.message);
+		}
+
+		const action = actionResult.value;
+		const eventId = entry.id?.[0];
+		if (!eventId) {
+			return failed('Persisted event is missing id');
+		}
+
+		if (!hasPersistedActionPayload(persistedEntry, action)) {
+			return failed(`Persisted event is missing payload for action: ${action}`);
+		}
+
+		// The id and not the name: `userName` is the file name's, kept on the
+		// reconstructed entry for `loadActorNames` and destructured off here, so
+		// a replayed event is identical to the one the write applied in place —
+		// which is what makes skipping the reload after a write sound.
+		return succeeded('Decoded persisted event', {
+			id: eventId,
+			action,
+			payload: persistedEntry[action],
+			userId,
+		} as Event<M>);
+	};
+
+	const decodeReconstructedEvents = (
+		events: ReconstructedEvent[],
+		unreadable?: UnreadableEvent[],
+	): Result<Event<M>[]> => {
+		const decoded: Event<M>[] = [];
+		const skippedActions = new Map<string, number>();
+		const skippedVersions = new Map<number, number>();
+
+		for (const entry of events) {
+			// Skipped here, after ordering and anchoring, so the event keeps its
+			// place in history. Decoding is what would fail on an unknown payload
+			// shape.
+			if (!isSupportedSchemaVersion(entry.v)) {
+				skippedVersions.set(entry.v, (skippedVersions.get(entry.v) ?? 0) + 1);
+				unreadable?.push({
+					eventId: entry.id[0],
+					reason: 'unsupported-schema-version',
+					detail: `v${entry.v}`,
+					targetNodeId: getTargetNodeId(entry),
+				});
+				continue;
+			}
+
+			const eventResult = fromPersistedEvent(entry);
+
+			// Quarantined, not fatal: `merge=union` splices any line a peer pushes
+			// into every clone, so a malformed payload that failed the load would
+			// brick the state for everyone, permanently. The envelope parsed, so
+			// the event keeps its place in the chain.
+			if (isFail(eventResult)) {
+				unreadable?.push({
+					eventId: entry.id[0],
+					reason: 'invalid-payload',
+					detail: eventResult.message,
+					targetNodeId: getTargetNodeId(entry),
+				});
+				continue;
+			}
+
+			// Events written by a newer build may carry actions this version does
+			// not understand. Skip them instead of failing the whole replay — the
+			// persisted logs are untouched, so upgrading restores them.
+			const action = eventResult.value.action as string;
+			if (!isKnownAction(action)) {
+				skippedActions.set(action, (skippedActions.get(action) ?? 0) + 1);
+				unreadable?.push({
+					eventId: entry.id[0],
+					reason: 'unknown-action',
+					detail: action,
+					targetNodeId: getTargetNodeId(entry),
+				});
+				continue;
+			}
+
+			// The action is one we know, so the payload is one we are about to
+			// dereference. Quarantined like any other unreadable line rather than
+			// handed to a materializer that assumes a well-behaved writer produced
+			// it — the same reasoning as the envelope check above, one layer in.
+			const payloadResult = catalog.readPayload(
+				action,
+				eventResult.value.payload,
+			);
+			if (isFail(payloadResult)) {
+				unreadable?.push({
+					eventId: entry.id[0],
+					reason: 'invalid-payload',
+					detail: payloadResult.message,
+					targetNodeId: getTargetNodeId(entry),
+				});
+				continue;
+			}
+
+			decoded.push(eventResult.value);
+		}
+
+		if (skippedActions.size > 0) {
+			const summary = [...skippedActions.entries()]
+				.map(([action, count]) => `${action} (x${count})`)
+				.join(', ');
+			logger.info(
+				`Skipped events with unknown actions, likely created by a newer epiq version: ${summary}. Upgrade to apply them.`,
+			);
+		}
+
+		if (skippedVersions.size > 0) {
+			const summary = [...skippedVersions.entries()]
+				.map(([version, count]) => `v${version} (x${count})`)
+				.join(', ');
+			logger.info(
+				`Skipped events with unsupported schema versions, created by a newer epiq version: ${summary}. Upgrade to apply them.`,
+			);
+		}
+
+		return succeeded('Decoded reconstructed events', decoded);
+	};
+
+	// The tail of the causal order, which every write has to point at.
+	//
+	// Held rather than re-derived. Reading it meant reading every line the log
+	// has ever held and rebuilding the whole forest, to take one id off the
+	// end: at two hundred thousand events that was four seconds for a single
+	// write. `EdgeCursor` already avoids it within a batch, for the same
+	// reason; a lone write had nothing to belong to.
+	let edgeCache: {root: string; signature: string; edge: string | null} | null =
+		null;
+
+	function loadAllPersistedEvents(
+		eventsRoot: string,
+		unreadable?: UnreadableEvent[],
+	): Result<ReconstructedEvent[]> {
+		const dir = getEventsDirPath(eventsRoot);
+
+		// Before the read, never after: a line landing in the gap would otherwise
+		// be remembered under a signature that already accounts for it, and the
+		// edge would stay wrong until something else moved.
+		const signature = logSignature(eventsRoot);
+
+		if (!fs.existsSync(dir)) {
+			return succeeded('No events found', []);
+		}
+
+		// A file gone between the listing and its read is one a sync just renamed
+		// or git just rewrote; the listing is taken again so the read sees the
+		// directory as it is, not as it was. Quarantined lines are collected per
+		// attempt, or a listing that had to be repeated would report them twice.
+		let entries: ReconstructedEvent[] = [];
+		let quarantined: UnreadableEvent[] = [];
+
+		for (let attempt = 1; ; attempt++) {
+			entries = [];
+			quarantined = [];
+			let listAgain = false;
+
+			for (const file of listEventFiles(dir)) {
+				const result = parsePersistedEventsFile(
+					path.join(dir, file),
+					quarantined,
+				);
+
+				if (isFail(result)) {
+					return failed(result.message);
+				}
+
+				if (result.value === null) {
+					if (attempt < SCAN_ATTEMPTS) {
+						listAgain = true;
+						break;
+					}
+					continue;
+				}
+
+				entries.push(...result.value);
+			}
+
+			if (!listAgain) break;
+		}
+
+		unreadable?.push(...quarantined);
+
+		const sorted = sortEvents(entries, catalog.genesis);
+
+		// The causal order's tail, which is what the next write points at.
+		// Recorded here because this is the one place that has just paid for it.
+		edgeCache = {
+			root: eventsRoot,
+			signature,
+			edge: sorted.at(-1)?.id?.[0] ?? null,
+		};
+
+		return succeeded('All events loaded', sorted);
+	}
+
+	// Boot paths use this to lock where history is unreadable; readers wanting
+	// only the events use `loadMergedEvents`.
+	function loadMergedEventsWithUnreadable(
+		stateBranchRoot: string,
+	): Result<{events: Event<M>[]; unreadable: UnreadableEvent[]}> {
+		const unreadable: UnreadableEvent[] = [];
+
+		const allEvents = loadAllPersistedEvents(stateBranchRoot, unreadable);
+		if (isFail(allEvents)) {
+			return failed(allEvents.message);
+		}
+
+		const decoded = decodeReconstructedEvents(allEvents.value, unreadable);
+		if (isFail(decoded)) return failed(decoded.message);
+
+		return succeeded('Loaded merged events', {
+			events: decoded.value,
+			unreadable,
+		});
+	}
+
+	// Actors come off the file name, so they survive a payload this build cannot
+	// decode. A guard that asks "has this id ever authored anything" has to read
+	// these rather than the decoded events, or an unreadable version makes
+	// someone look unauthored.
+	function loadEventActors(
+		stateBranchRoot: string,
+	): Result<{userId: string; userName: string}[]> {
+		const allEvents = loadAllPersistedEvents(stateBranchRoot);
+		if (isFail(allEvents)) return failed(allEvents.message);
+
+		return succeeded(
+			'Loaded event actors',
+			allEvents.value.map(({userId, userName}) => ({userId, userName})),
+		);
+	}
+
+	// The names the log file names carry, by author id. A log written before the
+	// name left the file name is `<id>.<name>.jsonl` and yields one; a log
+	// written since is `<id>.jsonl` and yields nothing, since UNNAMED_ACTOR is
+	// nobody's chosen name.
+	//
+	// Whatever registry the product keeps is the source of record; this is the
+	// fallback for an id it has never heard of. Matching and listing take it,
+	// because a name that fails to match there mints a duplicate id for somebody
+	// who already has one.
+	//
+	// Reads the directory listing and nothing else. The names are *in* the file
+	// names, so parsing a single line would be waste — on a log of a few hundred
+	// thousand events that is the difference between a listing and a full parse
+	// of every file, on a path a user action sits behind.
+	function loadActorNames(stateBranchRoot: string): Map<string, string> {
+		const byId = new Map<string, string>();
+		const dir = getEventsDirPath(stateBranchRoot);
+
+		let fileNames: string[];
+		try {
+			if (!fs.existsSync(dir)) return byId;
+
+			fileNames = fs.readdirSync(dir);
+		} catch {
+			// A name is a nicety; a log that cannot list its files has a bigger
+			// problem, and it is not this function's to report.
+			return byId;
+		}
+
+		// An id named by two different files: before the rename a new name
+		// started a new log, so one person can be `<id>.alice.jsonl` and
+		// `<id>.alice-cooper.jsonl` at once. Directory order says nothing about
+		// which is newer.
+		const ambiguous = new Set<string>();
+
+		for (const fileName of fileNames) {
+			if (!fileName.endsWith('.jsonl')) continue;
+
+			const actor = parseEventFileActor(fileName);
+			if (isFail(actor)) continue;
+
+			const {userId, userName} = actor.value;
+			if (!userId || !userName || userName === UNNAMED_ACTOR) continue;
+
+			const seen = byId.get(userId);
+			if (seen !== undefined && seen !== userName) ambiguous.add(userId);
+
+			byId.set(userId, userName);
+		}
+
+		if (ambiguous.size === 0) return byId;
+
+		// Only those ids, and only now: the log's own order is what says which
+		// name came last, and paying for a full parse to settle a rare legacy tie
+		// beats showing whichever name the filesystem happened to list second.
+		const actors = loadEventActors(stateBranchRoot);
+		if (isFail(actors)) return byId;
+
+		for (const {userId, userName} of actors.value) {
+			if (!ambiguous.has(userId)) continue;
+			if (!userName || userName === UNNAMED_ACTOR) continue;
+
+			byId.set(userId, userName);
+		}
+
+		return byId;
+	}
+
+	function loadMergedEvents(stateBranchRoot: string): Result<Event<M>[]> {
+		const result = loadMergedEventsWithUnreadable(stateBranchRoot);
+		if (isFail(result)) return failed(result.message);
+
+		return succeeded('Loaded merged events', result.value.events);
+	}
+
+	function loadMergedEventsBefore(
+		stateBranchRoot: string,
+		targetTime: number,
+	): Result<{
+		appliedEvents: Event<M>[];
+		unappliedEvents: Event<M>[];
+	}> {
+		const allEvents = loadAllPersistedEvents(stateBranchRoot);
+
+		if (isFail(allEvents)) {
+			return failed(allEvents.message);
+		}
+
+		const {appliedEvents, unappliedEvents} = splitEventsAtTime(
+			allEvents.value,
+			targetTime,
+		);
+
+		const decodedAppliedEvents = decodeReconstructedEvents(appliedEvents);
+		if (isFail(decodedAppliedEvents)) {
+			return failed(decodedAppliedEvents.message);
+		}
+
+		const decodedUnappliedEvents = decodeReconstructedEvents(unappliedEvents);
+		if (isFail(decodedUnappliedEvents)) {
+			return failed(decodedUnappliedEvents.message);
+		}
+
+		return succeeded('Loaded merged events before time', {
+			appliedEvents: decodedAppliedEvents.value,
+			unappliedEvents: decodedUnappliedEvents.value,
+		});
+	}
+
+	function getEdgeRef(rootDir = process.cwd()): Result<string | null> {
+		const signature = logSignature(rootDir);
+
+		if (
+			edgeCache &&
+			edgeCache.root === rootDir &&
+			edgeCache.signature === signature
+		) {
+			return succeeded('Loaded edge reference, unchanged', edgeCache.edge);
+		}
+
+		// Populates the cache on its way through, so a boot pays for this once
+		// and the writes after it do not pay at all.
+		const persisted = loadAllPersistedEvents(rootDir);
+		if (isFail(persisted)) {
+			return failed(persisted.message);
+		}
+
+		return succeeded(
+			'Loaded edge reference',
+			persisted.value.at(-1)?.id?.[0] ?? null,
+		);
+	}
+
+	/**
+	 * Moves the edge on after this actor wrote `id` to `fileName`, without
+	 * reading the log to confirm it.
+	 *
+	 * Safe only because of what the id is: a child of the edge it was minted
+	 * against, and the deepest node in the forest, so the walk that derives the
+	 * order ends on it.
+	 *
+	 * Any other file moving means someone else's events arrived, and the tail
+	 * is then theirs to decide — so the cache is dropped rather than advanced,
+	 * and the next read derives it properly. That is the case this has to get
+	 * right; a log with one writer would not need the check at all.
+	 */
+	function advanceEdgeRef(rootDir: string, fileName: string, id: string): void {
+		if (!edgeCache || edgeCache.root !== rootDir) return;
+
+		const next = signatureAfterOwnAppend(
+			rootDir,
+			edgeCache.signature,
+			fileName,
+		);
+
+		// Null means someone else's events arrived, and the tail is theirs to
+		// decide — so the cache is dropped and the next read derives it.
+		edgeCache =
+			next === null ? null : {root: rootDir, signature: next, edge: id};
+	}
+
+	// The tests drive the log through mocks, so they need the edge gone between
+	// cases; a signature is no help where the files never existed.
+	function clearEdgeCache(): void {
+		edgeCache = null;
+	}
+
+	const getSortedEvents = (
+		reconstructedEvents: ReconstructedEvent[],
+	): ReconstructedEvent[] => sortEvents(reconstructedEvents, catalog.genesis);
+
+	// For callers that pick a cut time from one event (`:peek prev/next`) — the
+	// values come from the same full set splitEventsAtTime will judge by.
+	function loadEffectiveEventTimes(
+		stateBranchRoot: string,
+	): Result<Map<string, number | null>> {
+		const allEvents = loadAllPersistedEvents(stateBranchRoot);
+		if (isFail(allEvents)) return failed(allEvents.message);
+
+		const times = effectiveEventTimes(allEvents.value);
+
+		return succeeded(
+			'Loaded effective event times',
+			new Map(
+				allEvents.value.map((event, index) => [
+					event.id[0],
+					times[index] ?? null,
+				]),
+			),
+		);
+	}
+
+	return {
+		fromPersistedEvent,
+		decodeReconstructedEvents,
+		loadMergedEventsWithUnreadable,
+		loadEventActors,
+		loadActorNames,
+		loadMergedEvents,
+		loadMergedEventsBefore,
+		getEdgeRef,
+		advanceEdgeRef,
+		clearEdgeCache,
+		getSortedEvents,
+		loadEffectiveEventTimes,
+	};
+};
+
+export type Loader<M extends EventMap> = ReturnType<typeof createLoader<M>>;

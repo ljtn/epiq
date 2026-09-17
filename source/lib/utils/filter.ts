@@ -1,4 +1,4 @@
-import {AppEvent} from '../event/event.model.js';
+import {AppEvent} from '../board/board-events.model.js';
 import {Filter, Tag} from '../model/app-state.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {getState} from '../state/state.js';
