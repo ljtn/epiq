@@ -75,11 +75,11 @@ const EventPayloadSchemas: Record<EventAction, z.ZodType> = {
 	'remove.issue.tag': z.looseObject({id, tag: id}),
 
 	// `author` is unconstrained on both, though the type declares it. The
-	// attachment handler never reads it, and the comment handler resolves it
-	// through the registry and falls back to "Unknown" — and this board's log
-	// already holds an attachment written without one. Requiring it would have
-	// made that attachment disappear, which is the exact damage this check
-	// exists to prevent.
+	// attachment handler never reads it, the comment handler stores it as an id
+	// and resolves the name at display — and this board's log already holds an
+	// attachment written without one. Requiring it would have made that
+	// attachment disappear, which is the exact damage this check exists to
+	// prevent.
 	'add.issue.comment': z.looseObject({id, issue: id, md: z.string()}),
 	'edit.issue.comment': z.looseObject({id, issue: id, md: z.string()}),
 	'delete.issue.comment': z.looseObject({id, issue: id}),

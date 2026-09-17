@@ -4,10 +4,7 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
-import {
-	Contributor,
-	REMOVED_CONTRIBUTOR_NAME,
-} from '../../lib/model/app-state.model.js';
+import {REMOVED_CONTRIBUTOR_NAME} from '../../lib/model/app-state.model.js';
 import {ulid} from 'ulid';
 import {applyActorNameArgument} from '../../lib/config/actor-env.js';
 import {
@@ -17,8 +14,12 @@ import {
 } from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {actorOf, AppEvent} from '../../lib/event/event.model.js';
+import {
+	contributorDirectory,
+	namesInDirectory,
+} from '../../lib/repository/contributor-directory.js';
+import {identityOf} from '../../lib/model/identity.js';
 import {filterEventsForBoard} from '../timeline-index.js';
-import {getStringColor} from '../../lib/utils/color.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	tooLong,
@@ -28,24 +29,6 @@ import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
-
-// Shared so that every surface offering or matching a contributor agrees on the
-// answer; disagreement mints duplicate ids for the same person.
-const mergeRegistryNames = (
-	logNames: Map<string, string>,
-	registry: Record<string, Contributor>,
-): Map<string, string> => {
-	const byId = new Map(logNames);
-
-	// The registry always wins. The log's copy survives only for an id the
-	// registry has never seen — an author on a board written before renames
-	// were events.
-	for (const contributor of Object.values(registry)) {
-		byId.set(contributor.id, contributor.name);
-	}
-
-	return byId;
-};
 
 type AddIssueAssigneeInput = ToolInput & {
 	issueId: string;
@@ -205,11 +188,16 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	);
 	if (overLongName) return failed(overLongName);
 
-	// Registry *and* event log, so this matches the same union a picker offers;
-	// the registry alone reports log-only authors as unknown.
-	const candidates = mergeRegistryNames(
-		loadActorNames(bootResult.value.stateBranchRoot),
-		stateResult.value.contributors,
+	// The same union a picker offers, so a name typed here matches what the
+	// person saw offered. The registry alone reports log-only authors as
+	// unknown, and an unmatched name is one `createUnlinked` away from a
+	// duplicate id for somebody who already has one.
+	const candidates = namesInDirectory(
+		contributorDirectory({
+			events: stateResult.value.eventLog ?? [],
+			registry: stateResult.value.contributors,
+			logFileNames: loadActorNames(bootResult.value.stateBranchRoot),
+		}),
 	);
 
 	const matches = [...candidates.entries()].filter(
@@ -434,14 +422,10 @@ export const getBoardContributors = async (
 		? filterEventsForBoard(eventsResult.value, input.boardId)
 		: eventsResult.value;
 
-	const byId = new Map<string, string>();
-	// Board-scoped, and kept apart from the merged map so the union below cannot
-	// erase "has actually worked on this board".
-	const authorIds = new Set<string>();
-
-	// Unfiltered, unlike `authorIds`: removal is refused for anyone who has
-	// authored anywhere, so this must read the same actors that guard does —
-	// off the file names, including events this build cannot decode.
+	// Unfiltered, unlike the directory's `isExternal`: removal is refused for
+	// anyone who has authored anywhere, so this must read the same actors that
+	// guard does — off the file names, including events this build cannot
+	// decode.
 	const workspaceAuthorIds = new Set<string>();
 
 	const actorsResult = loadEventActors(bootResult.value.stateBranchRoot);
@@ -451,30 +435,18 @@ export const getBoardContributors = async (
 		if (actor.userId) workspaceAuthorIds.add(actor.userId);
 	}
 
-	// Names off the file names, which is where a pre-ZFZFW9D log keeps them —
-	// an event carries none. Looked up per author rather than merged in whole:
-	// a file name says nothing about which board its author worked on, so
-	// seeding from it would list people who have never touched this one.
-	const fileNames = loadActorNames(bootResult.value.stateBranchRoot);
-
-	for (const event of scopedEvents) {
-		if (!event.userId) continue;
-
-		byId.set(event.userId, fileNames.get(event.userId) ?? '');
-		authorIds.add(event.userId);
-	}
-
 	const registry = stateResult.value.contributors;
-	const namesById = mergeRegistryNames(byId, registry);
 
-	const contributors = [...namesById.entries()].map(([id, name]) => ({
-		id,
-		name,
-		color: getStringColor(name),
+	const contributors = contributorDirectory({
+		events: scopedEvents,
+		registry,
+		logFileNames: loadActorNames(bootResult.value.stateBranchRoot),
+	}).map(({id, name, isExternal}) => ({
+		...identityOf(id, name),
 		isSelf: id === actorResult.value.userId,
-		// Board-scoped: means "has not worked on this board", not "is not in the
-		// history". Never stored, so it self-corrects.
-		isExternal: !authorIds.has(id),
+		// Board-scoped, because the events were: means "has not worked on this
+		// board", not "is not in the history".
+		isExternal,
 		// Read off the record, not compared against the placeholder name, so
 		// somebody genuinely called "removed" is not reported as already removed.
 		isRemoved: registry[id]?.tombstoned === true,

@@ -574,6 +574,11 @@ describe('mcp tools', () => {
 
 		// The skill tells an agent to read a thread before starting; without this
 		// the only tool that carried a comment was the whole state.
+		//
+		// Named by id through the registry, so a rename reaches a thread written
+		// before it. `nobody` is an id the registry has never seen and reads as
+		// itself — the comment record used to carry a name of its own, frozen at
+		// whatever its author was called that day.
 		it('carries the comments in log order, named by their author', async () => {
 			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
 				[
@@ -581,14 +586,12 @@ describe('mcp tools', () => {
 						id: fixtureId('comment-2'),
 						issue: fixtureId('issue-1'),
 						authorId: 'nobody',
-						authorName: 'Bob',
 						md: 'Second',
 					},
 					{
 						id: fixtureId('comment-1'),
 						issue: fixtureId('issue-1'),
 						authorId: 'contributor-1',
-						authorName: 'Alice',
 						md: 'First',
 					},
 				],
@@ -610,7 +613,7 @@ describe('mcp tools', () => {
 				},
 				{
 					id: fixtureId('comment-2'),
-					author: 'Bob',
+					author: 'nobody',
 					createdAt: expect.any(Number),
 					body: 'Second',
 				},

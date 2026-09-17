@@ -122,11 +122,15 @@ export const findInBreadCrumb = <T extends BreadCrumbItem['context']>(
 		return failed('Unable to find node in breadcrumb');
 	}
 };
+// The author is an id. Their name was denormalized onto this record at
+// materialize time and so froze at whatever they were called when they
+// commented — a rename never reached it, and an author the registry did not
+// know was stored as "Unknown", a name two strangers share. Resolved by id at
+// the point of display instead, like every other name since SVYYX5A.
 export type CommentState = {
 	id: string;
 	issue: string;
 	authorId: string;
-	authorName: string;
 	md: string;
 	deleted?: boolean;
 };

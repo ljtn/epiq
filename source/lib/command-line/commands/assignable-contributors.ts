@@ -1,44 +1,25 @@
 import {loadActorNames} from '../../event/event-load.js';
+import {
+	contributorDirectory,
+	DirectoryEntry,
+} from '../../repository/contributor-directory.js';
 import {getState} from '../../state/state.js';
 
 // The registry only holds people explicitly created or assigned, so it is often
-// empty even of you; log authors are candidates too.
+// empty even of you; log authors are candidates too. The union itself is
+// `contributorDirectory`, shared with the API surface so the TUI and the GUI
+// offer the same people.
 export const getAssignableContributors = (
 	// The state branch root, for the names only a pre-ZFZFW9D log file name
 	// carries. An event no longer holds one.
 	stateBranchRoot: string,
-): {
-	id: string;
-	name: string;
-	isExternal: boolean;
-}[] => {
+): DirectoryEntry[] => {
 	// May run before boot has populated the log.
 	const {eventLog = [], contributors} = getState();
-	const byId = new Map<string, string>();
-	const authorIds = new Set<string>();
 
-	// Looked up per author rather than merged in whole: a log file name says
-	// nothing about whether its author is in the log this is offering from, so
-	// seeding from it would offer people the board has never seen — and during
-	// time travel, people it has not seen *yet*.
-	const fileNames = loadActorNames(stateBranchRoot);
-
-	for (const event of eventLog) {
-		if (!event.userId) continue;
-
-		byId.set(event.userId, fileNames.get(event.userId) ?? '');
-		authorIds.add(event.userId);
-	}
-
-	// The registry always wins; the log's sanitized copy is a fallback for an
-	// author it has never seen.
-	for (const contributor of Object.values(contributors)) {
-		byId.set(contributor.id, contributor.name);
-	}
-
-	return [...byId.entries()].map(([id, name]) => ({
-		id,
-		name,
-		isExternal: !authorIds.has(id),
-	}));
+	return contributorDirectory({
+		events: eventLog,
+		registry: contributors,
+		logFileNames: loadActorNames(stateBranchRoot),
+	});
 };

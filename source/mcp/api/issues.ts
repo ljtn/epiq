@@ -9,7 +9,7 @@ import {actorOf, AppEvent, MovePosition} from '../../lib/event/event.model.js';
 import {resolveReopenParentFromLog} from '../../lib/event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
 import {isTicketNode, Ticket} from '../../lib/model/context.model.js';
-import {Contributor} from '../../lib/model/app-state.model.js';
+import {identityOf} from '../../lib/model/identity.js';
 import {
 	failed,
 	isFail,
@@ -22,7 +22,6 @@ import {
 	resolveAndPersistRankForMove,
 } from '../../lib/repository/rank.js';
 import {describeEvent} from '../../lib/event/format-log-utils.js';
-import {getStringColor} from '../../lib/utils/color.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	MAX_ASSIGNEES_PER_CREATE,
@@ -610,18 +609,6 @@ export async function moveIssue(
 	return batchResult('Moved', forEachTarget(idsResult.value, move));
 }
 
-// Resolved by id from the registry, never from the event. An event's userName
-// comes off its log file name, which since ZFZFW9D carries no name at all — so
-// the event says `unknown` and only the registry knows who that is.
-const actorIdentity = (
-	userId: string,
-	contributors: Record<string, Contributor>,
-) => {
-	const name = contributors[userId]?.name ?? userId;
-
-	return {id: userId, name, color: getStringColor(name)};
-};
-
 /**
  * A ticket's own event log, oldest first. Reads whatever is materialized rather
  * than booting, so it stays correct mid-scrub like the state beside it.
@@ -645,7 +632,12 @@ export const getIssueHistory = (
 			...(event.action === 'move.node'
 				? {parentId: (event.payload as {parent?: string}).parent}
 				: {}),
-			actor: actorIdentity(event.userId, stateResult.value.contributors),
+			// By id from the registry, never from the event: an event carries no
+			// name at all since ZFZFW9D, and only the registry knows who an id is.
+			actor: identityOf(
+				event.userId,
+				stateResult.value.contributors[event.userId]?.name,
+			),
 		})),
 	);
 };
