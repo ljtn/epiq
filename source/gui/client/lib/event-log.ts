@@ -157,21 +157,34 @@ export const lastIndexAtOrBefore = <T>(
 	return found;
 };
 
-// The tail of `events` at or before `upTo`, oldest first, capped at what the
-// panel can show. `events` must be in clock order — the log is read in the
-// order things happened, which is not the order the log stores them in.
+// The stretch of `events` at or before `upTo`, oldest first. `events` must be
+// in clock order — the log is read in the order things happened, which is not
+// the order the log stores them in.
+//
+// `capped` is for playback and nothing else. Parked or live the log covers the
+// whole window, so what the chart draws is what the log can reach; a refresh
+// then runs a few times a second behind a 400ms debounce, where the slice costs
+// under 2ms even at the server's 20,000 ceiling. A movie re-slices every
+// animation frame against a 16.7ms budget, already paying for a checkout per
+// event and the board's own re-render, so there it stays bounded.
+//
+// What is mounted is bounded separately, by the day fold and by `dayRowsShown`
+// within a day — this bounds neither, and must not be asked to.
 //
 // Generic over the entry so the timeline's own rows and a movie's cut-down ones
 // both go through it unchanged.
 export const logEntriesUpTo = <T extends {t: number}>(
 	events: readonly T[],
 	upTo: number,
+	capped = false,
 ): T[] => {
 	const last = lastIndexAtOrBefore(events, upTo, event => event.t);
 
 	if (last < 0) return [];
 
-	return events.slice(Math.max(0, last - LOG_LINES + 1), last + 1);
+	const from = capped ? Math.max(0, last - LOG_LINES + 1) : 0;
+
+	return events.slice(from, last + 1);
 };
 
 // One day's worth of the log, which is the unit the panel folds by.
@@ -239,6 +252,32 @@ export const isDayOpen = (
 	openCount: number,
 ): boolean =>
 	overrides.get(days[index]!.key) ?? index >= days.length - openCount;
+
+// The most rows one open day mounts before the rest go behind an "N earlier"
+// row. The day fold bounds the document across days — a folded day is one row
+// however many events it holds — but nothing bounded it *within* a day, and
+// `daysToOpen` always opens the newest day whole. Twenty thousand events spread
+// over a year is 365 dividers and a few open days; twenty thousand in one busy
+// day was twenty thousand mounted rows.
+export const LOG_DAY_ROWS = 200;
+
+// What an open day shows, and how many it is holding back. Expanding is per
+// day and sticky, like the fold, so a day opened by hand stays open as the
+// slice moves under it.
+export const dayRowsShown = (
+	day: LogDay,
+	expanded: boolean,
+): {shown: LogEntry[]; hidden: number} => {
+	if (expanded || day.entries.length <= LOG_DAY_ROWS) {
+		return {shown: day.entries, hidden: 0};
+	}
+
+	// The newest rows, since the log is read from the bottom.
+	return {
+		shown: day.entries.slice(day.entries.length - LOG_DAY_ROWS),
+		hidden: day.entries.length - LOG_DAY_ROWS,
+	};
+};
 
 // A seek can replace the whole column at once. Sliding that far would be a
 // swipe rather than a crawl, so the shift is capped at what an ordinary step

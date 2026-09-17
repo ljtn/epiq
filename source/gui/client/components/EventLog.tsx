@@ -26,6 +26,7 @@ import {
 	CRAWL_TIMING,
 	DEFAULT_OPEN_DAYS,
 	daysToOpen,
+	dayRowsShown,
 	EVENT_LOG_STYLES,
 	groupByDay,
 	isDayOpen,
@@ -156,6 +157,49 @@ const DayDivider = ({
 		>
 			{count}
 		</span>
+	</button>
+);
+
+// The rows an open day is holding back. Inside the day rather than above it,
+// because what it opens is the rest of this day and not another one — and
+// wearing the folded day's own chevron, since it says the same thing about the
+// same kind of thing.
+const EarlierRow = ({
+	hidden,
+	label,
+	onExpand,
+}: {
+	hidden: number;
+	label: string;
+	onExpand: () => void;
+}) => (
+	<button
+		type="button"
+		data-testid="log-day-earlier"
+		onClick={onExpand}
+		title={`Show the ${hidden} earlier lines of ${label}`}
+		style={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 8,
+			width: '100%',
+			height: LOG_ROW_HEIGHT,
+			padding: 0,
+			background: 'transparent',
+			border: 'none',
+			color: GUI_THEME.dim2,
+			fontFamily: 'inherit',
+			fontSize: TEXT.meta,
+			cursor: 'pointer',
+		}}
+	>
+		<span
+			aria-hidden
+			style={{display: 'inline-flex', alignItems: 'center', flexShrink: 0}}
+		>
+			<IconChevronRight size={11} />
+		</span>
+		<span style={{flexShrink: 0}}>{hidden} earlier</span>
 	</button>
 );
 
@@ -367,6 +411,13 @@ const EventLogPanel = ({
 	const [foldOverrides, setFoldOverrides] = useState<
 		ReadonlyMap<string, boolean>
 	>(() => new Map());
+
+	// A day whose older rows the reader has asked for. Keyed the same way and
+	// for the same reason, and one-way: having asked for the rest of a day,
+	// nothing should take it back as lines land.
+	const [expandedDays, setExpandedDays] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	);
 
 	// Walked when the log moves, not when the board beside it repaints — which
 	// during a movie is every animation frame.
@@ -681,6 +732,10 @@ const EventLogPanel = ({
 				<div ref={columnRef} style={{marginTop: 'auto'}}>
 					{days.map((day, index) => {
 						const open = isDayOpen(days, index, foldOverrides, openCount);
+						const {shown, hidden} = dayRowsShown(
+							day,
+							expandedDays.has(day.key),
+						);
 
 						return (
 							<div key={day.key}>
@@ -701,7 +756,18 @@ const EventLogPanel = ({
 								    built for it, so what the panel costs is what is open. */}
 								{open && (
 									<div className={LOG_LANES_CLASS}>
-										{day.entries.map(entry => (
+										{hidden > 0 && (
+											<EarlierRow
+												hidden={hidden}
+												label={day.label}
+												onExpand={() =>
+													setExpandedDays(previous =>
+														new Set(previous).add(day.key),
+													)
+												}
+											/>
+										)}
+										{shown.map(entry => (
 											<EventRow
 												key={entry.id}
 												entry={entry}
