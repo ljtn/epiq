@@ -619,6 +619,33 @@ describe('mcp tools', () => {
 			]);
 		});
 
+		// `add.issue.comment` leaves `author` unconstrained on purpose — this
+		// board's log already holds an attachment written without one — so the
+		// id can be missing whatever the type says. It has to read as something
+		// a person can see; `undefined` is not a name, and the GUI beside this
+		// has always said "Unknown".
+		it('names a comment whose author the log never recorded', async () => {
+			vi.mocked(nodeRepoModule.nodeRepo.getCommentsByIssue).mockReturnValueOnce(
+				[
+					{
+						id: fixtureId('comment-3'),
+						issue: fixtureId('issue-1'),
+						authorId: undefined as unknown as string,
+						md: 'Unsigned',
+					},
+				],
+			);
+
+			const result = await tools.getIssue({
+				repoRoot: '/repo',
+				idOrRef: fixtureId('issue-1'),
+			});
+
+			expect(isFail(result)).toBe(false);
+			if (isFail(result)) return;
+			expect(result.value.comments[0]?.author).toBe('Unknown');
+		});
+
 		// The inverse of the commit-prefix convention: ref in, ticket out.
 		it('finds an issue by its ref', async () => {
 			const result = await tools.getIssue({
