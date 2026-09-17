@@ -20,12 +20,13 @@ import {loadActorNames, loadMergedEvents} from '../lib/event/event-load.js';
 import {logSignature} from '../lib/event/log-signature.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {getStringColor} from '../lib/utils/color.js';
+import {projectLogNames} from '../lib/event/log-names.js';
+import {Identity, identityOf} from '../lib/model/identity.js';
 import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
 
-// Colour resolved here rather than on the client: getStringColor pulls in
-// chalk, which the GUI bundle cannot take.
-export type EventIdentity = {id: string; name: string; color: string};
+// The same shape every surface labels somebody with, and resolved the same
+// way — see `identityOf`.
+export type EventIdentity = Identity;
 
 export type EventTimelineEntry = {
 	// The event's own id, so a client can match a dot to a ticket's log line.
@@ -50,35 +51,6 @@ export type EventTimelineEntry = {
 	// without the moves outside it.
 	lane: string | null;
 	laneBefore: string | null;
-};
-
-// Tag, contributor and swimlane names come from the log's own create events
-// rather than from the materialized state, which getEventTimeline must not
-// touch. Same technique as filterEventsForBoard: build the index as the scan
-// proceeds.
-//
-// A name renamed later reads under the one it was created with, which is what
-// the log itself says happened at the moment being described.
-const NAMING_ACTIONS = new Set<EventAction>([
-	'create.tag',
-	'create.contributor',
-	// Carries the lane's name, and is what lets a move say which lane it went
-	// to.
-	'add.swimlane',
-]);
-
-const buildNameIndex = (events: AppEvent[]): Map<string, string> => {
-	const names = new Map<string, string>();
-
-	for (const event of events) {
-		if (!NAMING_ACTIONS.has(event.action)) continue;
-
-		const payload = event.payload as {id?: string; name?: string} | undefined;
-
-		if (payload?.id && payload.name) names.set(payload.id, payload.name);
-	}
-
-	return names;
 };
 
 // Where each node sat before the move an event describes, keyed by that event's
@@ -239,7 +211,7 @@ const commentPreview = (md: string): string => {
 
 const describeTimelineEvent = (
 	event: AppEvent,
-	names: Map<string, string>,
+	names: ReadonlyMap<string, string>,
 	previousParents: Map<string, string | undefined>,
 ): string => {
 	const payload = event.payload as
@@ -283,27 +255,16 @@ const describeTimelineEvent = (
 	return [action, detail].filter(Boolean).join(' ');
 };
 
-// A referenced id with no create event in the log still gets an entry, under
-// the id itself: dropping it would silently thin the filter's list.
+// A referenced id the log never named still gets an entry, under the id
+// itself: dropping it would silently thin the filter's list.
 const identityFor = (
 	id: string | undefined,
-	names: Map<string, string>,
-	fallback?: string,
-): EventIdentity | null => {
-	if (!id) return null;
-
-	// The id where nothing names it. An event carries no display name, so the
-	// only sources are this timeline's own create events and, failing those,
-	// the id itself — which is a poorer label than a name but a truer one than
-	// a guess.
-	const name = names.get(id) ?? fallback ?? id;
-
-	return {id, name, color: getStringColor(name)};
-};
+	names: ReadonlyMap<string, string>,
+): EventIdentity | null => (id ? identityOf(id, names.get(id)) : null);
 
 const identitiesFor = (
 	event: AppEvent,
-	names: Map<string, string>,
+	names: ReadonlyMap<string, string>,
 ): Pick<EventTimelineEntry, 'actor' | 'tag' | 'assignee'> => {
 	const payload = event.payload as {assignee?: string} | undefined;
 
@@ -399,9 +360,10 @@ export const buildTimelineEntries = (
 	// this such an actor would read as their id on an old board.
 	fileNames: ReadonlyMap<string, string> = new Map(),
 ): TimelineEntry[] => {
-	// The log's own naming events win: a `create.contributor` or a rename is
-	// later truth than whatever a file name was called when it was made.
-	const names = new Map([...fileNames, ...buildNameIndex(events)]);
+	// The log's own naming events win: a `create.contributor`, a rename or a
+	// tombstone is later truth than whatever a file name was called when it was
+	// made.
+	const names = new Map([...fileNames, ...projectLogNames(events).byId]);
 	const previousParents = buildPreviousParentIndex(events);
 	const issueIndex = buildIssueIndex(events);
 	const issues = events.map(event => issueOf(event, issueIndex));
@@ -537,21 +499,8 @@ export const lanesOpenAt = (
 // Every swimlane the log ever created, under its last known name — renamed
 // where it was renamed — so a lane the board has since deleted can still be
 // named on a chart drawn from its history.
-export const buildLaneNames = (events: AppEvent[]): Record<string, string> => {
-	const lanes: Record<string, string> = {};
-
-	for (const event of events) {
-		const payload = event.payload as {id?: string; name?: string} | undefined;
-		if (!payload?.id || payload.name === undefined) continue;
-
-		if (event.action === 'add.swimlane') lanes[payload.id] = payload.name;
-		else if (event.action === 'edit.title' && payload.id in lanes) {
-			lanes[payload.id] = payload.name;
-		}
-	}
-
-	return lanes;
-};
+export const buildLaneNames = (events: AppEvent[]): Record<string, string> =>
+	projectLogNames(events).lanes;
 
 export type TimelineIndex = {
 	entries: readonly TimelineEntry[];
