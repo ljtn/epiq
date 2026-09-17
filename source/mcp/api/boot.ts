@@ -133,6 +133,20 @@ export const boot = async (
 		stateBranchRoot: stateBranchRootResult.value,
 	};
 
+	// What the TUI does on start-up and the GUI in its init: fill the settings
+	// store, so anything resolving the actor through it agrees with this
+	// process's identity.
+	//
+	// Above the skip below, not after it. The skip is about not deriving the
+	// board twice; the identity is read from config, which the board's
+	// signature says nothing about. Left below it, a process whose own writes
+	// keep the signature accounted for would never re-read config at all, and a
+	// name changed with `:config user` — which writes no event — would never
+	// reach the board from that process again, because `ensureContributorCurrent`
+	// would go on comparing the old name against itself.
+	const settings = loadSettingsFromConfig();
+	if (!isFail(settings)) patchSettingsState(settings.value);
+
 	// Before the load, never after — see log-signature for why that order is
 	// the one that stays correct when another machine writes mid-read.
 	const signature = logSignature(stateBranchRootResult.value);
@@ -164,14 +178,6 @@ export const boot = async (
 		eventsResult.value.unreadable,
 	);
 	if (isFail(bootResult)) return failed(bootResult.message);
-
-	// What the TUI does on start-up and the GUI in its init: fill the settings
-	// store, so anything resolving the actor through it agrees with this
-	// process's identity. Refreshed on every boot, which is every tool call, so
-	// an identity assumed mid-session takes effect on the next write rather
-	// than at the next restart.
-	const settings = loadSettingsFromConfig();
-	if (!isFail(settings)) patchSettingsState(settings.value);
 
 	// Recorded after the boot, so a failed one is retried rather than remembered
 	// as done. From here on a write advances this rather than invalidating it:
