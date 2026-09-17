@@ -6,12 +6,12 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {
 	bootStateFromEventLog,
 	createDefaultEvents,
-} from '../lib/event/event-boot.js';
-import {loadMergedEvents} from '../lib/event/event-load.js';
-import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
-import {getPersistFileName, persist} from '../lib/event/event-persist.js';
+} from '../lib/board/board-boot.js';
+import {loadMergedEvents} from '../lib/board/board-log.js';
+import {materializeAndPersistAll} from '../lib/board/board-log.js';
+import {getPersistFileName, persist} from '../lib/board/board-log.js';
 import {flushPendingLogs} from '../lib/event/pending-log.js';
-import {AppEvent} from '../lib/event/event.model.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';

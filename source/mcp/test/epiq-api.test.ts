@@ -83,7 +83,7 @@ vi.mock('../../lib/storage/paths.js', async importOriginal => {
 // module body and so cannot close over an ordinary binding.
 const actorNameHolder = vi.hoisted(() => ({events: [] as unknown[]}));
 
-vi.mock('../../lib/event/event-load.js', () => {
+vi.mock('../../lib/board/board-log.js', async importOriginal => {
 	const loadMergedEvents = vi.fn(() => succeeded('loaded', []));
 
 	// Delegates, so a test that overrides loadMergedEvents also steers the
@@ -140,20 +140,22 @@ vi.mock('../../lib/event/event-load.js', () => {
 	});
 
 	return {
+		...(await importOriginal<typeof import('../../lib/board/board-log.js')>()),
 		loadMergedEvents,
 		loadMergedEventsWithUnreadable,
 		loadEventActors,
 		loadActorNames,
+		materializeAndPersistAll: vi.fn(() => [succeeded('persisted', null)]),
 	};
 });
 
-const eventLoadModule = await import('../../lib/event/event-load.js');
+const eventLoadModule = await import('../../lib/board/board-log.js');
 
-vi.mock('../../lib/event/event-boot.js', () => ({
+vi.mock('../../lib/board/board-boot.js', () => ({
 	bootStateFromEventLog: vi.fn(() => succeeded('booted', null)),
 }));
 
-vi.mock('../../lib/event/log-utils.js', () => ({
+vi.mock('../../lib/board/log-utils.js', () => ({
 	resolveReopenParentFromLog: vi.fn(() => 'swimlane-1'),
 }));
 
@@ -169,10 +171,6 @@ vi.mock('../../lib/config/user-config.js', () => ({
 				},
 			} satisfies Result),
 	),
-}));
-
-vi.mock('../../lib/event/event-materialize-and-persist.js', () => ({
-	materializeAndPersistAll: vi.fn(() => [succeeded('persisted', null)]),
 }));
 
 vi.mock('../../lib/repository/rank.js', () => ({
@@ -445,7 +443,7 @@ vi.mock('../timeline-index.js', () => ({
 	),
 }));
 
-vi.mock('../../lib/event/common-events.js', () => ({
+vi.mock('../../lib/board/common-events.js', () => ({
 	createIssueEvents: vi.fn(({name, parent, user, rank}) =>
 		succeeded('Created issue events', [
 			{
@@ -465,16 +463,14 @@ vi.mock('../../lib/event/common-events.js', () => ({
 }));
 
 let tools: typeof import('../epiq-api.js');
-let persistModule: typeof import('../../lib/event/event-materialize-and-persist.js');
+let persistModule: typeof import('../../lib/board/board-log.js');
 let timeTravelModule: typeof import('../epiq-time-travel.js');
 let gitUtilsModule: typeof import('../../git/git-utils.js');
 let nodeRepoModule: typeof import('../../lib/repository/node-repo.js');
 
 beforeAll(async () => {
 	tools = await import('../epiq-api.js');
-	persistModule = await import(
-		'../../lib/event/event-materialize-and-persist.js'
-	);
+	persistModule = await import('../../lib/board/board-log.js');
 	timeTravelModule = await import('../epiq-time-travel.js');
 	gitUtilsModule = await import('../../git/git-utils.js');
 	nodeRepoModule = await import('../../lib/repository/node-repo.js');

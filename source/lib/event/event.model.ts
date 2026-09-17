@@ -1,401 +1,77 @@
 import {Result} from '../model/result-types.js';
-import {AttachmentExt, Contributor, Tag} from '../model/app-state.model.js';
-import {AnyContext} from '../model/context.model.js';
-import {NavNode} from '../model/navigation-node.model.js';
 
 /**
- * All string references in event payloads are IDs unless otherwise noted.
+ * The shape a product hands the log: one entry per action, naming what the
+ * event carries and what applying it yields. The log knows nothing else about
+ * the events it orders, stores and replays.
  */
+export type EventMap = Record<string, {payload: unknown; result: unknown}>;
 
-export type MovePosition =
-	| {at: 'start'}
-	| {at: 'end'}
-	| {at: 'before'; sibling: string}
-	| {at: 'after'; sibling: string};
-
-export type Position = {
-	parent: string;
-	rank: string;
-};
-
-export type PayloadBase = {id: string};
-
-export type AppEventMap = {
-	'init.workspace': {
-		payload: PayloadBase & {name: string; rank: string};
-		result: NavNode<'WORKSPACE'>;
-	};
-
-	'add.workspace': {
-		payload: PayloadBase & {name: string; rank: string};
-		result: NavNode<'WORKSPACE'>;
-	};
-
-	'add.board': {
-		payload: PayloadBase & {name: string} & Position;
-		result: NavNode<'BOARD'>;
-	};
-
-	'add.swimlane': {
-		payload: PayloadBase & {name: string} & Position;
-		result: NavNode<'SWIMLANE'>;
-	};
-
-	'add.issue': {
-		payload: PayloadBase & {name: string} & Position;
-		result: NavNode<'TICKET'>;
-	};
-
-	/**
-	 * Custom field definition/value node.
-	 */
-	'add.field': {
-		payload: PayloadBase &
-			Position & {
-				name: string;
-				val?: string;
-			};
-		result: NavNode<'FIELD'>;
-	};
-
-	'edit.title': {
-		payload: PayloadBase & {name: string};
-		result: NavNode<AnyContext>;
-	};
-
-	'delete.node': {
-		payload: PayloadBase;
-		result: NavNode<AnyContext>;
-	};
-
-	'create.tag': {
-		payload: PayloadBase & {name: string};
-		result: Tag;
-	};
-
-	/**
-	 * Hides a tag everywhere, keeping the id and every ticket reference. A
-	 * forward event: earlier tag events still replay unchanged.
-	 */
-	'tombstone.tag': {
-		payload: PayloadBase;
-		result: Tag;
-	};
-
-	/**
-	 * Undoes a `tombstone.tag`. Carries the name so replay never has to read
-	 * it back off earlier events.
-	 */
-	'restore.tag': {
-		payload: PayloadBase & {name: string};
-		result: Tag;
-	};
-
-	'create.contributor': {
-		payload: PayloadBase & {name: string};
-		result: Contributor;
-	};
-
-	/**
-	 * Changes a contributor's display name. The registry is the only name
-	 * source, so this is how a rename reaches anybody else; the log file name
-	 * is a sanitized storage key and cannot carry one.
-	 */
-	'rename.contributor': {
-		payload: PayloadBase & {name: string};
-		result: Contributor;
-	};
-
-	/**
-	 * Clears a contributor's display name, keeping the id and its references.
-	 * A forward event: the log is never rewritten, so earlier events still carry
-	 * the name and replay unchanged.
-	 */
-	'tombstone.contributor': {
-		payload: PayloadBase;
-		result: Contributor;
-	};
-
-	/**
-	 * Undoes a `tombstone.contributor`, which is recoverable because the guard on
-	 * removal only sees the log this machine has pulled. Carries the name
-	 * explicitly: reading it back off earlier events would make replay depend on
-	 * which of them happen to be present.
-	 */
-	'restore.contributor': {
-		payload: PayloadBase & {name: string};
-		result: Contributor;
-	};
-
-	'add.issue.assignee': {
-		payload: PayloadBase & {
-			assignee: string;
-		};
-		result: {
-			assignee: string;
-		};
-	};
-
-	'remove.issue.assignee': {
-		payload: PayloadBase & {
-			assignee: string;
-		};
-		result: {
-			assignee: string;
-		};
-	};
-
-	'add.issue.tag': {
-		payload: PayloadBase & {
-			tag: string;
-		};
-		result: {
-			tag: string;
-		};
-	};
-
-	'remove.issue.tag': {
-		payload: PayloadBase & {
-			tag: string;
-		};
-		result: {
-			tag: string;
-		};
-	};
-
-	'move.node': {
-		payload: PayloadBase & Position;
-		result: NavNode<AnyContext>;
-	};
-
-	'edit.description': {
-		payload: PayloadBase & {
-			md: string;
-		};
-		result: {md: string};
-	};
-
-	'add.issue.comment': {
-		payload: PayloadBase & {
-			issue: string;
-			author: string;
-			md: string;
-		};
-		result: {
-			id: string;
-			issue: string;
-			author: string;
-			md: string;
-		};
-	};
-
-	'edit.issue.comment': {
-		payload: PayloadBase & {
-			issue: string;
-			md: string;
-		};
-		result: {
-			id: string;
-			issue: string;
-			md: string;
-		};
-	};
-
-	'delete.issue.comment': {
-		payload: PayloadBase & {
-			issue: string;
-		};
-		result: {
-			id: string;
-			issue: string;
-		};
-	};
-
-	/**
-	 * References a content-addressed blob at `.epiq/media/<hash>.<ext>` in
-	 * the state branch worktree. The blob is written in the same commit as
-	 * this event; blobs are immutable and never deleted so peek/replay can
-	 * always render historical states.
-	 */
-	'add.issue.attachment': {
-		payload: PayloadBase & {
-			issue: string;
-			author: string;
-			hash: string;
-			ext: AttachmentExt;
-			name: string;
-			bytes: number;
-		};
-		result: {
-			id: string;
-			issue: string;
-			hash: string;
-		};
-	};
-
-	/**
-	 * Removes the attachment reference from the issue. The underlying blob
-	 * stays on disk for time travel.
-	 */
-	'delete.issue.attachment': {
-		payload: PayloadBase & {
-			issue: string;
-		};
-		result: {
-			id: string;
-			issue: string;
-		};
-	};
-
-	'close.issue': {
-		payload: PayloadBase & Position;
-		result: {id: string};
-	};
-
-	'reopen.issue': {
-		payload: PayloadBase & Position;
-		result: {id: string};
-	};
-
-	'lock.node': {
-		payload: PayloadBase;
-		result: {id: string};
-	};
-
-	'rebalance.children': {
-		payload: {
-			parent: string;
-			ranks: Record<string, string>;
-		};
-		result: {parent: string};
-	};
-
-	'link.contributor.user': {
-		payload: {
-			contributor: string;
-		};
-		result: {
-			contributor: string;
-			userId: string;
-		};
-	};
-};
-
-export type EventAction = keyof AppEventMap;
+export type ActionOf<M extends EventMap> = keyof M & string;
 
 /**
- * Runtime registry of every action this version understands. Events with
- * actions outside this list (written by a newer epiq) are skipped on load
- * instead of failing replay.
+ * Who an event is by, and the whole of what it records about them.
+ *
+ * An id, and never a display name. A name is a property of the subject, held
+ * wherever the product holds those, so that renaming reaches every line at
+ * once — including the ones written before it. Stored beside an id it would
+ * freeze at whatever its subject was called that day, and the same event
+ * applied in place and replayed from disk would disagree about it, since only
+ * the live path ever knew it.
  */
-export const EVENT_ACTIONS = [
-	'init.workspace',
-	'add.workspace',
-	'add.board',
-	'add.swimlane',
-	'add.issue',
-	'add.field',
-	'edit.title',
-	'delete.node',
-	'create.tag',
-	'tombstone.tag',
-	'restore.tag',
-	'create.contributor',
-	'rename.contributor',
-	'tombstone.contributor',
-	'restore.contributor',
-	'add.issue.assignee',
-	'remove.issue.assignee',
-	'add.issue.tag',
-	'remove.issue.tag',
-	'move.node',
-	'edit.description',
-	'add.issue.comment',
-	'edit.issue.comment',
-	'delete.issue.comment',
-	'add.issue.attachment',
-	'delete.issue.attachment',
-	'close.issue',
-	'reopen.issue',
-	'lock.node',
-	'rebalance.children',
-	'link.contributor.user',
-] as const satisfies readonly EventAction[];
-
-// Compile-time proof that EVENT_ACTIONS covers every EventAction.
-type MissingActions = Exclude<EventAction, (typeof EVENT_ACTIONS)[number]>;
-const _assertAllActionsListed: MissingActions extends never ? true : never =
-	true;
-void _assertAllActionsListed;
-
-const knownEventActions: ReadonlySet<string> = new Set(EVENT_ACTIONS);
-
-export const isKnownEventAction = (action: string): action is EventAction =>
-	knownEventActions.has(action);
-
-type StoredAppEventUnion = {
-	[A in EventAction]: {
-		action: A;
-		payload: AppEventMap[A]['payload'];
-	};
-}[EventAction];
-
-type AppEventUnion = {
-	[A in EventAction]: {
-		action: A;
-		payload: AppEventMap[A]['payload'];
-	};
-}[EventAction];
-
-export type StoredAppEvent<A extends EventAction = EventAction> = Extract<
-	StoredAppEventUnion,
-	{action: A}
->;
-
-type LogicalEvent<A extends EventAction = EventAction> = Extract<
-	AppEventUnion,
-	{action: A}
->;
-
-// An event says who, by id, and never what they are called. The name is a
-// property of the contributor, resolved from the registry that
-// `create.contributor` and `rename.contributor` build — so a rename shows
-// everywhere at once, including on events written before it.
-//
-// It carried a `userName` only because the log file name used to hold one, and
-// nothing that reads an event can do better with it: the same event applied in
-// place and replayed from disk would disagree about the name, since only the
-// live path ever knew it.
-export type AppEvent<A extends EventAction = EventAction> = LogicalEvent<A> & {
-	id: string;
-	userId: string;
-};
-
-/** Who an event is by, and the whole of what it records about them. */
-export type EventActor = {userId: string};
+export type Actor = {userId: string};
 
 /**
- * The actor of an event, taken from the configured identity, which carries a
+ * The actor of an event, taken from a configured identity that carries a
  * display name beside the id.
  *
  * Its own step because the compiler will not hold this line: TypeScript
  * excess-checks the properties written in an object literal, not the ones a
- * spread brings, so `{...user}` puts a `userName` back on the event and
- * typechecks clean. `stripActor` keeps it off disk either way, which is what
- * makes the slip silent — the event applied in place would carry a name the
- * same event decoded from the log does not.
+ * spread brings, so `{...user}` puts the name back on the event and typechecks
+ * clean. `stripActor` keeps it off disk either way, which is what makes the
+ * slip silent — the event applied in place would carry a name the same event
+ * decoded from the log does not.
  */
-export const actorOf = ({userId}: EventActor): EventActor => ({userId});
+export const actorOf = ({userId}: Actor): Actor => ({userId});
 
-export type MaterializeResult<A extends EventAction> = Result<{
+type StoredEventUnion<M extends EventMap> = {
+	[K in ActionOf<M>]: {action: K; payload: M[K]['payload']};
+}[ActionOf<M>];
+
+/**
+ * What a line in the log holds. The actor is not here: it comes off the file
+ * the line lives in, so a payload can never claim to be someone else's.
+ */
+export type StoredEvent<
+	M extends EventMap,
+	A extends ActionOf<M> = ActionOf<M>,
+> = Extract<StoredEventUnion<M>, {action: A}>;
+
+export type Event<
+	M extends EventMap,
+	A extends ActionOf<M> = ActionOf<M>,
+> = StoredEvent<M, A> & {id: string} & Actor;
+
+export type MaterializeResult<
+	M extends EventMap,
+	A extends ActionOf<M>,
+> = Result<{
 	action: A;
-	result: AppEventMap[A]['result'];
+	result: M[A]['result'];
 }>;
 
-export const stripActor = <A extends EventAction>(
-	event: AppEvent<A>,
-): StoredAppEvent<A> =>
+// Distributes over a union of events, so the action stays paired with its
+// own payload.
+type Stored<E> = E extends {action: infer A; payload: infer P}
+	? {action: A; payload: P}
+	: never;
+
+export const stripActor = <
+	E extends Actor & {id: string; action: string; payload: unknown},
+>(
+	event: E,
+): Stored<E> =>
 	({
 		action: event.action,
 		payload: event.payload,
-	} as StoredAppEvent<A>);
+	} as Stored<E>);

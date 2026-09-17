@@ -1,4 +1,4 @@
-import {AppEvent} from '../../lib/event/event.model.js';
+import {AppEvent} from '../../lib/board/board-events.model.js';
 import {AnyContext} from './context.model.js';
 
 export type EmptyProps = Record<string, never>;

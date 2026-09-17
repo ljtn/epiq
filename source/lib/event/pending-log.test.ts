@@ -70,9 +70,9 @@ describe('the pending log name', () => {
 	});
 
 	// The whole reason the marker is not a `.pending` suffix: a name may contain
-	// dots, so a contributor actually called "pending" would be unreadable from
+	// dots, so an actor actually called "pending" would be unreadable from
 	// a real pending file.
-	it('does not mistake a contributor named "pending" for a pending file', () => {
+	it('does not mistake an actor named "pending" for a pending file', () => {
 		expect(trackedFileNameFor('01hzz.pending.jsonl')).toBeNull();
 		expect(isPendingFileName('01hzz.pending.jsonl')).toBe(false);
 	});

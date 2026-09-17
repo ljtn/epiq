@@ -11,13 +11,13 @@ import {
 	patchState,
 } from '../state/state.js';
 import {rankBetween} from '../utils/rank.js';
-import {UnreadableEvent} from './event-load.js';
+import {UnreadableEvent} from '../event/event-load.js';
 import {
 	logSkippedEvents,
 	materializeAll,
 	partitionMaterializeResults,
-} from './event-materialize.js';
-import {AppEvent} from './event.model.js';
+} from './board-log.js';
+import {AppEvent} from './board-events.model.js';
 import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from './static-ids.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {AnyContext} from '../model/context.model.js';

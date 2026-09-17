@@ -2,14 +2,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
-import {ensureContributorCurrent} from '../lib/event/event-materialize-and-persist.js';
-import {loadActorNames} from '../lib/event/event-load.js';
+import {ensureContributorCurrent} from '../lib/board/board-contributor.js';
+import {loadActorNames, materialize} from '../lib/board/board-log.js';
 import {
 	getPersistFileName,
 	ownEventFileNames,
 } from '../lib/event/event-persist.js';
-import {createRebalanceChildrenEvent} from '../lib/event/create-rebalance-children-event.js';
-import {actorOf, AppEvent} from '../lib/event/event.model.js';
+import {createRebalanceChildrenEvent} from '../lib/board/create-rebalance-children-event.js';
+import {actorOf, AppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {patchSettingsState, User} from '../lib/state/settings.state.js';
@@ -180,7 +180,7 @@ describe('registering the author of a write', () => {
 	it('registers this process’s own author under the configured name', () => {
 		patchSettingsState({userId: ALICE, userName: 'Alice'});
 
-		const result = ensureContributorCurrent(writeBy(ALICE), root);
+		const result = ensureContributorCurrent(writeBy(ALICE), materialize);
 
 		expect(isFail(result)).toBe(false);
 		expect(getState().contributors[ALICE]?.name).toBe('Alice');
@@ -192,7 +192,7 @@ describe('registering the author of a write', () => {
 	it('never puts our name on somebody else’s event', () => {
 		patchSettingsState({userId: ALICE, userName: 'Alice'});
 
-		const result = ensureContributorCurrent(writeBy(BOB), root);
+		const result = ensureContributorCurrent(writeBy(BOB), materialize);
 
 		expect(isFail(result)).toBe(false);
 		expect(nodeRepo.getContributor(BOB)).toBeUndefined();
@@ -203,7 +203,7 @@ describe('registering the author of a write', () => {
 	it('registers nobody when this process has no configured name', () => {
 		patchSettingsState({userId: ALICE, userName: null});
 
-		const result = ensureContributorCurrent(writeBy(ALICE), root);
+		const result = ensureContributorCurrent(writeBy(ALICE), materialize);
 
 		expect(isFail(result)).toBe(false);
 		expect(nodeRepo.getContributor(ALICE)).toBeUndefined();

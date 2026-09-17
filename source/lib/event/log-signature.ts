@@ -1,6 +1,6 @@
 // Whether the log has moved.
 //
-// Deriving anything from the log — the board, the timeline — costs a pass over
+// Deriving anything from the log — the state, a timeline — costs a pass over
 // all of it, and between two reads it has usually not changed at all. This is
 // what lets a reader answer "is what I built still true?" without reading the
 // log to find out.
@@ -77,7 +77,7 @@ export const logSignature = (stateBranchRoot: string): string => {
 // Only when this actor's file is the one that moved. Another log growing,
 // appearing or vanishing means someone else's events arrived, which this
 // process has *not* applied, and adopting a signature that covers them would
-// leave it certain of a board it never derived.
+// leave it certain of a state it never derived.
 const entries = (signature: string): Map<string, string> =>
 	new Map(
 		signature
@@ -112,7 +112,7 @@ export const signatureAfterOwnAppend = (
 };
 
 // What this process has both read and applied. Boot sets it once it has
-// derived the board; a write advances it, because it already applied what it
+// derived the state; a write advances it, because it already applied what it
 // wrote. Anything else moving leaves it alone, and the next read derives.
 let accounted: {root: string; signature: string} | null = null;
 

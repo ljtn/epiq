@@ -11,9 +11,9 @@ import {
 	loadActorNames,
 	loadEventActors,
 	loadMergedEvents,
-} from '../../lib/event/event-load.js';
-import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {actorOf, AppEvent} from '../../lib/event/event.model.js';
+} from '../../lib/board/board-log.js';
+import {materializeAndPersistAll} from '../../lib/board/board-log.js';
+import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {contributorDirectory} from '../../lib/repository/contributor-directory.js';
 import {identityOf} from '../../lib/model/identity.js';
 import {filterEventsForBoard} from '../timeline-index.js';

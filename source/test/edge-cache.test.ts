@@ -8,7 +8,7 @@ import {
 	advanceEdgeRef,
 	clearEdgeCache,
 	getEdgeRef,
-} from '../lib/event/event-load.js';
+} from '../lib/board/board-log.js';
 
 // A real directory, because what the cache watches is the log's own files and a
 // mocked filesystem would prove nothing about a teammate's arriving in it.

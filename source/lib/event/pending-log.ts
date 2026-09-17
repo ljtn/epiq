@@ -19,8 +19,8 @@ import {getEventsDirPath} from '../storage/paths.js';
  *
  * The marker sits on the *id* segment, which is the one part of the name that
  * cannot contain a `.` — names can ("J. Lampa" becomes `<id>.j.-lampa`), so a
- * `.pending` suffix there would be indistinguishable from a contributor
- * actually called "pending". `~` survives no sanitising (`sanitizeFilePart`
+ * `.pending` suffix there would be indistinguishable from an actor actually
+ * called "pending". `~` survives no sanitising (`sanitizeFilePart`
  * maps everything outside `[a-z0-9._-]` to `-`), so no real id can end in one.
  *
  * The name still ends in `.jsonl`, which is what every reader globs for. That
@@ -75,7 +75,7 @@ export const trackedFileNameFor = (fileName: string): string | null => {
  * The id is the one thing read off a log's file name — a display name never is,
  * since the name segment is a sanitized storage key that a rename leaves stale.
  * So this has to come off before the id is used, or a pending line resolves to
- * a contributor who does not exist.
+ * an actor who does not exist.
  */
 export const stripPendingMarker = (idSegment: string): string =>
 	idSegment.replace(PENDING_SEGMENT, '');

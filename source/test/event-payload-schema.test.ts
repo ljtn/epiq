@@ -8,10 +8,10 @@
  * events this build can apply perfectly well, on every clone, permanently.
  */
 import {describe, expect, it} from 'vitest';
-import {createDefaultEvents} from '../lib/event/event-boot.js';
-import {createIssueEvents} from '../lib/event/common-events.js';
-import {EVENT_ACTIONS} from '../lib/event/event.model.js';
-import {parseEventPayload} from '../lib/event/event-payload.schema.js';
+import {createDefaultEvents} from '../lib/board/board-boot.js';
+import {createIssueEvents} from '../lib/board/common-events.js';
+import {EVENT_ACTIONS} from '../lib/board/board-events.model.js';
+import {parseEventPayload} from '../lib/board/board-events.schema.js';
 import {isFail} from '../lib/model/result-types.js';
 
 const ID = '01M1FD32E0323ZNXEKCY8YK9JR';

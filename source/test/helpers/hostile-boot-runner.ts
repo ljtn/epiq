@@ -7,8 +7,8 @@
  *
  * argv[2] is the state-branch root. Writes one JSON line to stdout.
  */
-import {bootStateFromEventLog} from '../../lib/event/event-boot.js';
-import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
+import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
+import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
 import {isFail} from '../../lib/model/result-types.js';
 import {getSafeState} from '../../lib/state/state.js';
 

@@ -11,20 +11,20 @@ vi.mock('../lib/state/state.js', () => ({
 	patchState: vi.fn(),
 }));
 
-vi.mock('../lib/event/event-materialize.js', async () => ({
-	...(await vi.importActual<typeof import('../lib/event/event-materialize.js')>(
-		'../lib/event/event-materialize.js',
+vi.mock('../lib/board/board-log.js', async () => ({
+	...(await vi.importActual<typeof import('../lib/board/board-log.js')>(
+		'../lib/board/board-log.js',
 	)),
 	materialize: vi.fn(() => ({status: 'success', message: 'ok', value: {}})),
 	getAffectedNodeIds: vi.fn(() => []),
 }));
 
-vi.mock('../lib/event/format-log-utils.js', () => ({
+vi.mock('../lib/board/format-log-utils.js', () => ({
 	describeEvent: vi.fn(() => 'Created with title "x"'),
 }));
 
 import {patchState} from '../lib/state/state.js';
-import {materialize} from '../lib/event/event-materialize.js';
+import {materialize} from '../lib/board/board-log.js';
 import {
 	cancelActiveReplay,
 	isReplayActive,

@@ -6,7 +6,7 @@ import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {getStateBranchRoot} from '../../git/git-storage.js';
 import {startGuiServer} from '../../gui/api/api-server.js';
-import {loadMergedEvents} from '../../lib/event/event-load.js';
+import {loadMergedEvents} from '../../lib/board/board-log.js';
 import {getMediaDirPath} from '../../lib/storage/paths.js';
 import {isFail} from '../../lib/model/result-types.js';
 import {readProjectFile} from '../../lib/project-setup/project-setup.js';

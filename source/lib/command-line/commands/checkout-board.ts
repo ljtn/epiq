@@ -1,11 +1,11 @@
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
-import {loadMergedEventsBefore} from '../../event/event-load.js';
-import {AppEvent} from '../../event/event.model.js';
+import {loadMergedEventsBefore} from '../../board/board-log.js';
+import {AppEvent} from '../../board/board-events.model.js';
 import {
 	logSkippedEvents,
 	materializeAll,
 	partitionMaterializeResults,
-} from '../../event/event-materialize.js';
+} from '../../board/board-log.js';
 import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {getState, patchState, resetState} from '../../state/state.js';
 

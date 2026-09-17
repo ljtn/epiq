@@ -3,9 +3,9 @@ import {
 	bootStateFromEventLog,
 	createDefaultEvents,
 	getBootNavigationTarget,
-} from '../lib/event/event-boot.js';
-import {AppEvent} from '../lib/event/event.model.js';
-import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+} from '../lib/board/board-boot.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
+import {CLOSED_BOARD_ID, CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState, patchState} from '../lib/state/state.js';
@@ -17,21 +17,18 @@ const rank = () => {
 	return result.value;
 };
 
-vi.mock('../lib/event/event-persist.js', () => ({
-	persist: vi.fn(() => ({
-		result: 'success',
-		message: 'mocked persist',
-		data: null,
-	})),
-	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
-}));
-
-vi.mock('../lib/event/event-materialize-and-persist.js', async () => {
+vi.mock('../lib/board/board-log.js', async () => {
 	const actual = await vi.importActual<
-		typeof import('../lib/event/event-materialize.js')
-	>('../lib/event/event-materialize.js');
+		typeof import('../lib/board/board-log.js')
+	>('../lib/board/board-log.js');
 
 	return {
+		...actual,
+		persist: vi.fn(() => ({
+			result: 'success',
+			message: 'mocked persist',
+			data: null,
+		})),
 		materializeAndPersistAll: vi.fn((events: readonly AppEvent[]) =>
 			actual.materializeAll(events),
 		),

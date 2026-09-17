@@ -1,5 +1,5 @@
 import {REMOVED_CONTRIBUTOR_NAME} from '../model/app-state.model.js';
-import {AppEvent} from './event.model.js';
+import {AppEvent} from './board-events.model.js';
 
 /**
  * What everything in the log is currently called, derived from the log alone.

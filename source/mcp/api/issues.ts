@@ -1,13 +1,17 @@
 import {ulid} from 'ulid';
 import {getStateBranchRoot} from '../../git/git-storage.js';
-import {createIssueEvents} from '../../lib/event/common-events.js';
+import {createIssueEvents} from '../../lib/board/common-events.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
-import {bootStateFromEventLog} from '../../lib/event/event-boot.js';
-import {loadMergedEventsWithUnreadable} from '../../lib/event/event-load.js';
-import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {actorOf, AppEvent, MovePosition} from '../../lib/event/event.model.js';
-import {resolveReopenParentFromLog} from '../../lib/event/log-utils.js';
-import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
+import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
+import {loadMergedEventsWithUnreadable} from '../../lib/board/board-log.js';
+import {materializeAndPersistAll} from '../../lib/board/board-log.js';
+import {
+	actorOf,
+	AppEvent,
+	MovePosition,
+} from '../../lib/board/board-events.model.js';
+import {resolveReopenParentFromLog} from '../../lib/board/log-utils.js';
+import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
 import {isTicketNode, Ticket} from '../../lib/model/context.model.js';
 import {identityOf} from '../../lib/model/identity.js';
 import {
@@ -21,7 +25,7 @@ import {
 	resolveAndPersistRankForCreate,
 	resolveAndPersistRankForMove,
 } from '../../lib/repository/rank.js';
-import {describeEvent} from '../../lib/event/format-log-utils.js';
+import {describeEvent} from '../../lib/board/format-log-utils.js';
 import {
 	MAX_ASSIGNEE_NAME_LENGTH,
 	MAX_ASSIGNEES_PER_CREATE,

@@ -1,4 +1,4 @@
-import {AppEvent} from '../event/event.model.js';
+import {AppEvent} from '../board/board-events.model.js';
 import {Contributor} from '../model/app-state.model.js';
 
 export type DirectoryEntry = {

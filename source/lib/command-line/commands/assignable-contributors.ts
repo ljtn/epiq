@@ -1,4 +1,4 @@
-import {loadActorNames} from '../../event/event-load.js';
+import {loadActorNames} from '../../board/board-log.js';
 import {
 	contributorDirectory,
 	DirectoryEntry,

@@ -1,7 +1,7 @@
 import {ulid} from 'ulid';
 import {nodeRepo, findAncestor} from '../../repository/node-repo.js';
-import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
+import {materializeAndPersistAll} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';

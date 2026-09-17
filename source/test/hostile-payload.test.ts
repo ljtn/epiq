@@ -18,8 +18,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {afterAll, describe, expect, it} from 'vitest';
-import {createDefaultEvents} from '../lib/event/event-boot.js';
-import {persist} from '../lib/event/event-persist.js';
+import {createDefaultEvents} from '../lib/board/board-boot.js';
+import {persist} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 
 const RUNNER = fileURLToPath(

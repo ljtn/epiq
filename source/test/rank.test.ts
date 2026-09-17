@@ -20,7 +20,7 @@ vi.mock('../lib/state/state.js', () => ({
 	isDeferringDerive: () => false,
 }));
 
-vi.mock('../lib/event/create-rebalance-children-event.js', () => ({
+vi.mock('../lib/board/create-rebalance-children-event.js', () => ({
 	createRebalanceChildrenEvent: vi.fn(() =>
 		succeeded('Created rebalance event', {
 			action: 'rebalance.children',
@@ -31,7 +31,8 @@ vi.mock('../lib/event/create-rebalance-children-event.js', () => ({
 	),
 }));
 
-vi.mock('../lib/event/event-materialize-and-persist.js', () => ({
+vi.mock('../lib/board/board-log.js', async importOriginal => ({
+	...(await importOriginal<typeof import('../lib/board/board-log.js')>()),
 	materializeAndPersistAll,
 }));
 

@@ -5,7 +5,7 @@ import {
 	getUserSetupStatus,
 	isRepositoryInitialized,
 } from '../config/setup-utils.js';
-import {CLOSED_SWIMLANE_ID} from '../event/static-ids.js';
+import {CLOSED_SWIMLANE_ID} from '../board/static-ids.js';
 import {AppState} from '../model/app-state.model.js';
 import {
 	AnyContext,

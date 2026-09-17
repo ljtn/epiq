@@ -15,7 +15,7 @@ import {
 	getPersistFileName,
 	persist,
 	resolveActorId,
-} from '../lib/event/event-persist.js';
+} from '../lib/board/board-log.js';
 import {flushPendingLogs} from '../lib/event/pending-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {patchSettingsState} from '../lib/state/settings.state.js';

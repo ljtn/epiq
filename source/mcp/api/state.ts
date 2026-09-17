@@ -1,6 +1,6 @@
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {ulidTimeMs} from '../../lib/event/date-utils.js';
-import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
+import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
 import {
 	isBoardNode,
 	isSwimlaneNode,
@@ -35,7 +35,7 @@ import {
 import {getIssueTags, getIssueAssignees} from './issue-projection.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
-import {getPersistFileName} from '../../lib/event/event-persist.js';
+import {getPersistFileName} from '../../lib/board/board-log.js';
 import {
 	setSynced,
 	setSyncFailed,

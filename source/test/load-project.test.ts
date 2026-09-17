@@ -14,10 +14,10 @@ import {
 	listRecentProjects,
 	readRecentProjects,
 } from '../lib/config/recent-projects.js';
-import {createDefaultEvents} from '../lib/event/event-boot.js';
-import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
-import {getPersistFileName} from '../lib/event/event-persist.js';
-import {AppEvent} from '../lib/event/event.model.js';
+import {createDefaultEvents} from '../lib/board/board-boot.js';
+import {materializeAndPersistAll} from '../lib/board/board-log.js';
+import {getPersistFileName} from '../lib/board/board-log.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {DEFAULT_STATE_BRANCH} from '../lib/project-setup/project-setup.js';
 import {getState} from '../lib/state/state.js';

@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {ulid} from 'ulid';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
-import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {actorOf, AppEvent} from '../../lib/event/event.model.js';
+import {materializeAndPersistAll} from '../../lib/board/board-log.js';
+import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {
 	failed,
 	isFail,

@@ -1,8 +1,8 @@
 import {describe, expect, it} from 'vitest';
 import {getStateBranchRoot} from '../git/git-storage.js';
-import {createDefaultEvents} from '../lib/event/event-boot.js';
-import {materializeAndPersistAll} from '../lib/event/event-materialize-and-persist.js';
-import {AppEvent} from '../lib/event/event.model.js';
+import {createDefaultEvents} from '../lib/board/board-boot.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
+import {materializeAndPersistAll} from '../lib/board/board-log.js';
 import {isFail, Result} from '../lib/model/result-types.js';
 import {
 	addIssueAssignee,

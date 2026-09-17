@@ -1,29 +1,10 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {AppEvent} from '../lib/event/event.model.js';
+import {beforeEach, describe, expect, it} from 'vitest';
+import {AppEvent} from '../lib/board/board-events.model.js';
 
 const persisted: AppEvent[] = [];
 
-let minted = 0;
-
-vi.mock('../lib/event/event-persist.js', () => ({
-	persist: vi.fn(({event}: {event: AppEvent}) => {
-		persisted.push(event);
-		return {status: 'success', message: 'mocked persist', value: null};
-	}),
-	// The write path identifies an event before applying it, so the board and
-	// the log agree on what it is called.
-	mintEventId: vi.fn(() => ({
-		status: 'success',
-		message: 'mocked mint',
-		value: [
-			`01H0000000000000000MINT${String(++minted).padStart(2, '0')}`,
-			null,
-		],
-	})),
-	resolveEpiqRoot: vi.fn((dir?: string) => dir ?? process.cwd()),
-}));
-
-import {ensureContributorCurrent} from '../lib/event/event-materialize-and-persist.js';
+import {ensureContributorCurrent} from '../lib/board/board-contributor.js';
+import {materialize} from '../lib/board/board-log.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {nodes} from '../lib/state/node-builder.js';
@@ -55,7 +36,11 @@ const writeAs = (userId: string, userName: string) => {
 			action: 'edit.title',
 			payload: {id: ROOT, name: 'irrelevant'},
 		} satisfies AppEvent<'edit.title'>,
-		'/tmp/unused',
+		// Applies and records, which is all the write path does that matters here.
+		event => {
+			persisted.push(event);
+			return materialize(event);
+		},
 	);
 };
 

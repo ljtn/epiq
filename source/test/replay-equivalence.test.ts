@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, it} from 'vitest';
-import {materialize, materializeAll} from '../lib/event/event-materialize.js';
-import {AppEvent} from '../lib/event/event.model.js';
-import {CLOSED_SWIMLANE_ID} from '../lib/event/static-ids.js';
+import {materialize, materializeAll} from '../lib/board/board-log.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
+import {CLOSED_SWIMLANE_ID} from '../lib/board/static-ids.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';

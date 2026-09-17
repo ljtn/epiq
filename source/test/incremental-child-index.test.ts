@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 
-import {materializeAll} from '../lib/event/event-materialize.js';
-import {AppEvent} from '../lib/event/event.model.js';
+import {materializeAll} from '../lib/board/board-log.js';
+import {AppEvent} from '../lib/board/board-events.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {groupChildrenByParent} from '../lib/repository/children.js';
 import {nodes} from '../lib/state/node-builder.js';

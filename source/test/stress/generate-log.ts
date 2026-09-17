@@ -17,9 +17,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {ulid} from 'ulid';
-import {parseEventPayload} from '../../lib/event/event-payload.schema.js';
-import {EventAction} from '../../lib/event/event.model.js';
-import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
+import {parseEventPayload} from '../../lib/board/board-events.schema.js';
+import {EventAction} from '../../lib/board/board-events.model.js';
+import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
 import {isFail} from '../../lib/model/result-types.js';
 
 export type GenerateInput = {

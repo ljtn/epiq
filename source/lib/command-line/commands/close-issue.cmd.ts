@@ -1,7 +1,7 @@
 import {ulid} from 'ulid';
-import {materializeAndPersistAll} from '../../event/event-materialize-and-persist.js';
-import {resolveActorId} from '../../event/event-persist.js';
-import {CLOSED_SWIMLANE_ID} from '../../event/static-ids.js';
+import {materializeAndPersistAll} from '../../board/board-log.js';
+import {resolveActorId} from '../../board/board-log.js';
+import {CLOSED_SWIMLANE_ID} from '../../board/static-ids.js';
 import {isTicketNode} from '../../model/context.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {resolveAndPersistRankForMove} from '../../repository/rank.js';
