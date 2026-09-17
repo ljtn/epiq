@@ -220,7 +220,7 @@ const byCodeUnit = (a: string, b: string): number =>
  * Two events can legitimately share a parent, and — through a reused id, or a
  * line that reached two logs — they can share an id too. Comparing ids alone
  * left equal ones tied, and a tie is settled by `readdirSync` order, so two
- * machines holding the same events derived different boards. Falling through
+ * machines holding the same events derived different states. Falling through
  * to the content breaks every tie the same way everywhere: the actor comes off
  * the file name and the payload off the line, both identical on every replica.
  */

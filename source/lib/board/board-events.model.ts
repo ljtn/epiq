@@ -104,8 +104,8 @@ export type AppEventMap = {
 
 	/**
 	 * Changes a contributor's display name. The registry is the only name
-	 * source, so this is how a rename reaches anybody else; the log file name
-	 * is a sanitized storage key and cannot carry one.
+	 * source, so this is how a rename reaches anybody else: nothing on disk
+	 * carries a name, and a log written before ZFZFW9D carries a stale one.
 	 */
 	'rename.contributor': {
 		payload: PayloadBase & {name: string};
