@@ -1,13 +1,15 @@
 import {GuiCommitEntry} from './gui-state.model';
-import {actorDisplay} from './agent-identity';
 
 /**
- * What to write next to a commit.
+ * Who a commit is by: the contributor's board name where their address is
+ * claimed, and the raw git name otherwise, which is what the board showed
+ * before any of this existed.
  *
- * A claimed address gives the contributor's board name, drawn the way the log
- * draws it, so an agent reads as `/peter` in both places rather than as its
- * full identity in one and its git name in the other. Anything else keeps the
- * raw git name, which is what the board showed before any of this existed.
+ * The board name in full, not `actorDisplay`'s short form. Every caller either
+ * shortens it itself or groups on it, and a pre-shortened name breaks the
+ * second: the event log keys a lane on this string, so `/peter` from a commit
+ * and `claude/peter` from a board event became two lanes under one heading.
+ * Shortening is a drawing decision and belongs where the drawing happens.
  */
 export const commitAuthorLabel = (commit: GuiCommitEntry): string => {
 	const resolved = commit.authorIdentity;
@@ -18,5 +20,5 @@ export const commitAuthorLabel = (commit: GuiCommitEntry): string => {
 	// and hand back the full identity where `/peter` was the point.
 	if (!resolved?.resolved) return commit.author;
 
-	return actorDisplay(resolved.name).label;
+	return resolved.name;
 };
