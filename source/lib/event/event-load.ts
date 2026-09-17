@@ -23,9 +23,9 @@ import {parseEventPayload} from './event-payload.schema.js';
 import {stripPendingMarker} from './pending-log.js';
 
 // What a log file name yields where it carries no name segment, which is every
-// log written since ZFZFW9D. Exported so callers can tell it apart from a name
-// somebody chose rather than matching on the string.
-export const UNNAMED_ACTOR = 'unknown';
+// log written since ZFZFW9D. Named so the checks below read as "nobody chose
+// this" rather than as a comparison against a bare string.
+const UNNAMED_ACTOR = 'unknown';
 
 const EventFileNameSchema = z.object({
 	userId: z.string().min(1).default(UNNAMED_ACTOR),

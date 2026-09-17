@@ -23,19 +23,13 @@ export type DirectoryEntry = {
  * every clone. That failure is what `ZFZFW9D` widened the blast radius of and
  * what this exists to prevent.
  *
- * `logFileNames` is the fallback for an author the registry has never heard of,
- * which since v1.5.0 means one who last wrote before it: their only name
- * anywhere is the segment of their old log's file name. `KHT69TD` asks whether
- * that fallback should exist at all; until it is answered it lives here, once.
+ * `logFileNames` names an author the registry has never heard of; see
+ * `loadActorNames` for who takes that fallback and why.
  *
- * Membership is the workspace, not the board: everyone in the registry, plus
- * everyone a log file names, plus the authors of the events given. Only
- * `isExternal` is scoped to those events. The registry was already whole — a
- * contributor who has never touched this board is in it — so narrowing the
- * file-name half alone would have been inconsistent, and it would have been
- * inconsistent in the expensive direction: a name that fails to match here is
- * one `createUnlinked` away from a second id for somebody who already has one,
- * while a name that matches too widely only ever picks an id that exists.
+ * Membership is the workspace, not the board — the registry already holds
+ * people who have never touched this one — and only `isExternal` is scoped to
+ * the events given. Matching too widely picks an id that exists; matching too
+ * narrowly mints one that should not.
  */
 export const contributorDirectory = ({
 	events,
@@ -68,8 +62,3 @@ export const contributorDirectory = ({
 		isExternal: !authorIds.has(id),
 	}));
 };
-
-/** The directory as a name lookup, for callers matching rather than listing. */
-export const namesInDirectory = (
-	entries: readonly DirectoryEntry[],
-): Map<string, string> => new Map(entries.map(({id, name}) => [id, name]));

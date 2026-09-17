@@ -1,7 +1,4 @@
-import {
-	Contributor,
-	REMOVED_CONTRIBUTOR_NAME,
-} from '../model/app-state.model.js';
+import {REMOVED_CONTRIBUTOR_NAME} from '../model/app-state.model.js';
 import {AppEvent} from './event.model.js';
 
 /**
@@ -46,6 +43,12 @@ export const projectLogNames = (events: AppEvent[]): LogNames => {
 	const byId = new Map<string, string>();
 	const lanes: Record<string, string> = {};
 
+	// A record exists, which is separate from it having a name: the payload
+	// schema takes `name` as any string, so a contributor created with an empty
+	// one is a real record the registry will rename. Reading "exists" off the
+	// name map would have refused that rename here and allowed it there.
+	const known = new Set<string>();
+
 	// Only for `rename.contributor`, which `node-repo` refuses on a tombstoned
 	// record so that a rename cannot quietly undo a removal. Nothing else needs
 	// the flag: a tag keeps its name through a tombstone, and a restore carries
@@ -64,18 +67,21 @@ export const projectLogNames = (events: AppEvent[]): LogNames => {
 		switch (event.action) {
 			case 'create.contributor':
 			case 'create.tag':
-				if (name) byId.set(id, name);
+				byId.set(id, name ?? '');
+				known.add(id);
 				break;
 
 			// Refused on a record that does not exist, and on a tombstoned one.
 			case 'rename.contributor':
-				if (name && byId.has(id) && !tombstoned.has(id)) byId.set(id, name);
+				if (name !== undefined && known.has(id) && !tombstoned.has(id)) {
+					byId.set(id, name);
+				}
 				break;
 
 			// Clears the name and keeps the record, so an assignment referencing
 			// the id still resolves — to the placeholder, deliberately.
 			case 'tombstone.contributor':
-				if (byId.has(id)) {
+				if (known.has(id)) {
 					byId.set(id, REMOVED_CONTRIBUTOR_NAME);
 					tombstoned.add(id);
 				}
@@ -83,7 +89,7 @@ export const projectLogNames = (events: AppEvent[]): LogNames => {
 
 			case 'restore.contributor':
 			case 'restore.tag':
-				if (name && byId.has(id)) {
+				if (name !== undefined && known.has(id)) {
 					byId.set(id, name);
 					tombstoned.delete(id);
 				}
@@ -92,14 +98,14 @@ export const projectLogNames = (events: AppEvent[]): LogNames => {
 			// A board is named because a swimlane moved between two of them says
 			// which, but it is not a lane and does not belong in the lane index.
 			case 'add.board':
-				if (name) {
+				if (name !== undefined) {
 					byId.set(id, name);
 					nodes.add(id);
 				}
 				break;
 
 			case 'add.swimlane':
-				if (name) {
+				if (name !== undefined) {
 					byId.set(id, name);
 					nodes.add(id);
 					lanes[id] = name;
@@ -120,13 +126,3 @@ export const projectLogNames = (events: AppEvent[]): LogNames => {
 
 	return {byId, lanes};
 };
-
-/**
- * The same projection as a contributor registry, for comparing against a booted
- * board. Only the fields this derives — a record here is a name and whether it
- * was tombstoned, never an assignment.
- */
-export const contributorNamesIn = (
-	registry: Record<string, Contributor>,
-): Map<string, string> =>
-	new Map(Object.values(registry).map(({id, name}) => [id, name]));

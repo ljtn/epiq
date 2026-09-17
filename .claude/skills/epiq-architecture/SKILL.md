@@ -12,7 +12,7 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 - **`id = [ulid, refId]`.** `refId` is the causal parent: the tail of the causal order this actor last saw (`getEdgeRef`). Concurrent writers legitimately share a parent.
 - **Order is derived, never stored.** `getSortedEvents` rebuilds the forest from `refId`, sorts concurrent siblings by ULID, walks depth-first, and dedupes by id. File line order is not load-bearing.
 - **The ULID is a hybrid logical clock**, not a timestamp: `getNextId(Math.max(Date.now(), decodeTime(edge) + 1))`. The wall clock is only a lower bound; causality forces monotonicity.
-- **Actor id comes from the file name; the display name does not.** `persist` calls `stripActor`, so the payload carries neither. The id is parsed from the log's file name; the _name_ is resolved from the contributor registry, which `create.contributor` / `rename.contributor` build. The name segment in the file name is a sanitized storage key, not a name of record.
+- **An event says who by id, and nothing else about them.** `persist` calls `stripActor`, so the payload carries no actor at all, and `AppEvent` itself has no name — spread `actorOf(user)`, never the configured identity, because TypeScript does not excess-check a spread. The id is parsed from the log's file name, `<id>.jsonl`; the _name_ is resolved from the contributor registry, which `create.contributor` / `rename.contributor` / `tombstone.contributor` / `restore.contributor` build.
 - Same event set ⇒ same order ⇒ same board. That is the whole contract.
 
 ## Invariants
@@ -33,7 +33,8 @@ There is no server and no shared clock. Every actor appends to **its own** JSONL
 - **Never abort replay on an event that merely lost.** One concurrent edit would leave a board that never opens again for whoever's build understands the most.
 - **Never assume a single writer.** Any log can gain lines from another machine between two reads, including mid-sync.
 - **Never put actor identity, or anything derivable, into the payload.**
-- **Never read a display name off a log file name.** It is sanitized and may be stale — a rename starts a new file rather than changing old ones. Resolve names through the registry, by id.
+- **Never read a display name off an event or a log file name.** Resolve it from the registry, by id, through `identityOf`. A log written before ZFZFW9D is still `<id>.<name>.jsonl`, and that segment is a sanitized storage key — lowercased, `/` and `.` mangled — kept only as a fallback for an author the registry has never heard of. `loadActorNames` records which readers take it.
+- **Never store a name beside an id.** A denormalized copy freezes at whatever its subject was called when it was written, and a rename never reaches it. That is what took `userName` off `AppEvent` and `authorName` off a comment record.
 - **Never add a payload field older clients must interpret** without a `SCHEMA_VERSION` story.
 
 ## Adding an event type
