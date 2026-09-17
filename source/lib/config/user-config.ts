@@ -178,6 +178,9 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 	process.env['EPIQ_LOG_LEVEL'] = logLevel;
 
 	return succeeded('successfully loaded settings', {
+		// Not a config value. Config knows nothing about git, so this is cleared
+		// here and filled by whoever boots, from the repository they booted in.
+		gitEmail: null,
 		logLevel: logLevel ?? 'debug',
 		preferredEditor: preferredEditor ?? '',
 		userName: actor.userName,

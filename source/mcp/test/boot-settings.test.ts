@@ -31,6 +31,9 @@ vi.mock('../../git/git.js', () => ({
 
 vi.mock('../../git/git-utils.js', () => ({
 	execGit: vi.fn(() => succeeded('Ran git', '')),
+	// A boot reads git user.email for the address to link. Non-zero, so this
+	// repository has none and nothing is linked.
+	execGitAllowFail: vi.fn(async () => ({stdout: '', stderr: '', exitCode: 1})),
 }));
 
 vi.mock('../../git/git-constants.js', () => ({

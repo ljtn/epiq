@@ -16,6 +16,11 @@ export type SettingsState = {
 	preferredEditor: string | null;
 	userName: string | null;
 	userId: string | null;
+	/**
+	 * This repository's git `user.email`, read once at boot. Here rather than
+	 * read on demand because the write path consults it on every write.
+	 */
+	gitEmail: string | null;
 	viewMode: ViewMode | null;
 };
 
@@ -27,6 +32,7 @@ let settingsState: SettingsState = {
 	preferredEditor: null,
 	userName: null,
 	userId: null,
+	gitEmail: null,
 	viewMode: null,
 };
 
