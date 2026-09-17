@@ -147,3 +147,87 @@ test('the chosen view survives a reload', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The view is in the route so a link can name it. Without that, sending
+// someone `?tab=code` hands them whichever view they last used, which need
+// not be the one being talked about.
+test('a link names the view, over whatever this browser last used', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const ref = await openDiffTab(page, appUrl, `Linked view ${Date.now()}`);
+
+	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
+
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+
+	// Leave this browser remembering the commits view, so the link below is
+	// overriding something rather than agreeing with it.
+	await page.getByRole('button', {name: /^Diff/}).click();
+	await page.getByRole('button', {name: 'Commits'}).click();
+	await expect(page.getByTestId('commit-card')).toHaveCount(1);
+
+	const board = new URL(page.url()).pathname;
+	await page.goto(`${appUrl}${board}?tab=code&diff=compacted`);
+
+	await expect(page.getByRole('button', {name: 'Compacted'})).toHaveAttribute(
+		'aria-pressed',
+		'true',
+	);
+	await expect(page.getByTestId('file-row')).toHaveCount(1);
+	await expect(page.getByTestId('commit-card')).toHaveCount(0);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// Following one link must not re-set how every ticket opens from then on.
+test('a link does not overwrite what this browser remembers', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const ref = await openDiffTab(page, appUrl, `Not sticky ${Date.now()}`);
+
+	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
+
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+	await page.getByRole('button', {name: /^Diff/}).click();
+	await page.getByRole('button', {name: 'Commits'}).click();
+	await expect(page.getByTestId('commit-card')).toHaveCount(1);
+
+	const board = new URL(page.url()).pathname;
+	await page.goto(`${appUrl}${board}?tab=code&diff=compacted`);
+	await expect(page.getByTestId('file-row')).toHaveCount(1);
+
+	// Back to a URL naming no view: the reader's own choice is still commits.
+	await page.goto(`${appUrl}${board}?tab=code`);
+	await expect(page.getByTestId('commit-card')).toHaveCount(1);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// A URL copied out of the address bar has to carry the view even when the
+// switch was never touched, which is the usual way a link gets made.
+test('opening the tab puts the view in the address bar', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const ref = await openDiffTab(page, appUrl, `Address bar ${Date.now()}`);
+
+	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
+
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+	await page.getByRole('button', {name: /^Diff/}).click();
+
+	await expect(page).toHaveURL(/[?&]diff=(commits|compacted)\b/);
+
+	expect(pageErrors).toEqual([]);
+});
