@@ -6,7 +6,7 @@
 // which is the whole reason that broadcast is affordable — so the excerpt is
 // the one thing fetched, once per ticket, and kept.
 
-import {useCallback, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getResultValue} from './gui-state-helper';
 import {GuiState, GuiTag, GuiUser} from './gui-state.model';
 
@@ -80,6 +80,14 @@ export const useTicketPreviews = ({
 	// A ref, not state: a request in flight must not redraw anything, and the
 	// only question asked of it is whether to send a second one.
 	const inFlight = useRef(new Set<string>());
+
+	// A reply that never came — the socket dropped while one was out — would
+	// otherwise leave its ticket marked as asked for good, and that card would
+	// never get its prose again. Cleared on each new state, which is also when
+	// a reconnect lands: at worst one ticket is asked about twice.
+	useEffect(() => {
+		inFlight.current.clear();
+	}, [state]);
 
 	const byRef = useMemo(() => summarise(state), [state]);
 
