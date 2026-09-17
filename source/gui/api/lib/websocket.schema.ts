@@ -119,6 +119,21 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message('time-travel:scrub', z.object({targetTime: epochMs})),
 	message('time-travel:checkout-event', z.object({eventId: z.string().min(1)})),
 	message('commit:inspect', z.object({sha: z.string()})),
+	z.object({type: z.literal('emails:get')}),
+	message(
+		'email:link',
+		z.object({
+			email: z.string().min(1).max(254),
+			contributorId: z.string().min(1).optional(),
+		}),
+	),
+	message(
+		'email:unlink',
+		z.object({
+			email: z.string().min(1).max(254),
+			contributorId: z.string().min(1).optional(),
+		}),
+	),
 	message('commit:diff:get', z.object({sha: z.string()})),
 	message('issue:commits:get', z.object({issueId: id})),
 	message('issue:squashed-diff:get', z.object({issueId: id})),

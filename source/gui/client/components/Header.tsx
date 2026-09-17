@@ -16,6 +16,11 @@ type HeaderProps = {
 	scrubbing: boolean;
 	syncStatus: SyncStatus;
 	onOpenCommands: () => void;
+	identity: {
+		open: boolean;
+		onToggle: () => void;
+		panel: React.ReactNode;
+	};
 };
 
 export const Header = ({
@@ -25,6 +30,7 @@ export const Header = ({
 	scrubbing,
 	syncStatus,
 	onOpenCommands,
+	identity,
 }: HeaderProps) => {
 	const syncColor =
 		syncStatus.status === 'synced'
@@ -175,7 +181,33 @@ export const Header = ({
 						</span>
 					</div>
 
-					{state?.user && <User user={state.user} />}
+					{state?.user && (
+						// The avatar was the only thing in the GUI that named the viewer,
+						// and it did nothing. It is the obvious place to ask who the board
+						// thinks you are.
+						<div style={{position: 'relative'}}>
+							<button
+								onClick={identity.onToggle}
+								title="Who you are on this board, and which git addresses are yours"
+								style={{
+									background: 'transparent',
+									border: 'none',
+									cursor: 'pointer',
+									display: 'flex',
+									padding: 0,
+								}}
+							>
+								<User user={state.user} />
+							</button>
+							{identity.open && (
+								<div
+									style={{position: 'absolute', right: 0, top: 26, zIndex: 20}}
+								>
+									{identity.panel}
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 			</div>
 		</Panel>

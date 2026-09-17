@@ -48,6 +48,11 @@ import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
 import {withCommitAuthors} from '../../../mcp/api/commit-authors.js';
+import {
+	linkContributorEmail,
+	listContributorEmails,
+	unlinkContributorEmail,
+} from '../../../mcp/api/emails.js';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
 import {
 	broadcastGuiMessage,
@@ -259,6 +264,34 @@ export const setupWebsocket = (
 						payload: withCommitAuthors(
 							await getCommitTimeline({repoRoot, ...query}),
 						),
+					});
+				}
+
+				if (type === 'emails:get') {
+					return sendSocket(socket, {
+						type: 'emails',
+						payload: await listContributorEmails({repoRoot}),
+					});
+				}
+
+				if (type === 'email:link' || type === 'email:unlink') {
+					const act =
+						type === 'email:link'
+							? linkContributorEmail
+							: unlinkContributorEmail;
+
+					const result = await act({repoRoot, ...message.payload});
+
+					// The list goes back on the same reply rather than making the
+					// client ask again: a link changes who every commit by that
+					// address belongs to, and the panel showing a stale list beside a
+					// changed board is the confusing half of this feature.
+					return sendSocket(socket, {
+						type: 'emails',
+						payload: await listContributorEmails({repoRoot}),
+						lastAction: isFail(result)
+							? {ok: false, message: result.message}
+							: {ok: true, message: result.message},
 					});
 				}
 

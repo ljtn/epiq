@@ -100,6 +100,8 @@ import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
+import {useContributorEmails} from './lib/use-contributor-emails';
+import {IdentityPanel} from './components/IdentityPanel';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
@@ -403,6 +405,13 @@ export const App = () => {
 		requestPreview: requestTicketPreview,
 		onMessage: onTicketPreviewMessage,
 	} = useTicketPreviews({state, sendRaw});
+
+	// Behind the header's avatar, which named the viewer and did nothing else.
+	const [identityOpen, setIdentityOpen] = useState(false);
+	const contributorEmails = useContributorEmails({
+		open: identityOpen,
+		sendRaw,
+	});
 
 	// The one view that costs a git scan of every commit a ticket owns, so it
 	// is asked for when it is opened rather than with the rest of the ticket.
@@ -866,6 +875,8 @@ export const App = () => {
 		) {
 			setRemoveError(`Couldn't delete a tag: ${message.payload.message}`);
 		}
+
+		contributorEmails.onMessage(message);
 
 		if (message.type === 'contributors') {
 			const next = getResultValue<GuiContributor[]>(message.payload);
@@ -1627,6 +1638,18 @@ export const App = () => {
 						scrubbing={state?.timeTravel?.mode === 'scrub'}
 						syncStatus={syncStatus}
 						onOpenCommands={() => commandPalette.setOpen(true)}
+						identity={{
+							open: identityOpen,
+							onToggle: () => setIdentityOpen(open => !open),
+							panel: (
+								<IdentityPanel
+									state={contributorEmails}
+									me={state?.user ?? null}
+									onLink={contributorEmails.link}
+									onUnlink={contributorEmails.unlink}
+								/>
+							),
+						}}
 					/>
 				</div>
 
