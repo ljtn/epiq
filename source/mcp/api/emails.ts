@@ -16,6 +16,9 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
+import {readGitName} from '../../lib/config/git-identity.js';
+import {getSettingsState} from '../../lib/state/settings.state.js';
+import {getCommitTimeline} from '../epiq-time-travel.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
 
 type LinkInput = ToolInput & {email: string; contributorId?: string};
@@ -173,4 +176,89 @@ export const listContributorEmails = async (input: ToolInput = {}) => {
 			? []
 			: emailsOf(emailLinks, actorResult.value.userId),
 	});
+};
+
+/**
+ * Addresses in this repository's history that look like the caller's own, for
+ * them to confirm.
+ *
+ * The auto-link only ever claims the address git is configured with now, so
+ * anybody with history behind them keeps a board of raw git names. One
+ * confirmation here fixes all of it at once, because a commit's author is
+ * resolved when it is drawn rather than stamped on it.
+ *
+ * Matching cannot be equality on the name. A short board handle beside a full
+ * git name is the ordinary case — "jola" and "Jonatan Lampa" — so equality
+ * would offer nothing to precisely the people this exists for. Any shared word
+ * counts instead, and every candidate is confirmed by a person, so a loose rule
+ * costs a glance and a tight one costs the feature.
+ */
+const words = (value: string): string[] =>
+	value
+		.toLowerCase()
+		.split(/[^a-z0-9]+/)
+		.filter(word => word.length > 2);
+
+export const suggestOwnEmails = async (input: ToolInput = {}) => {
+	const bootResult = await boot(input.repoRoot, {pull: false});
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	const commitsResult = await getCommitTimeline({repoRoot: input.repoRoot});
+	if (isFail(commitsResult)) return failed(commitsResult.message);
+
+	const {userId, userName} = actorResult.value;
+	const gitName = await readGitName(bootResult.value.repoRoot);
+	const gitEmail = getSettingsState().gitEmail;
+
+	// Anything the board already resolves is not a candidate: an address of ours
+	// needs no confirming, and one somebody else holds is theirs to keep.
+	const claimed = new Set(
+		Object.values(stateResult.value.emailLinks)
+			.filter(link => !link.tombstoned)
+			.map(link => link.email),
+	);
+
+	const mine = new Set([...words(userName), ...words(gitName ?? '')]);
+	const byEmail = new Map<string, {names: Set<string>; commits: number}>();
+
+	for (const commit of commitsResult.value) {
+		const email = normalizeEmail(commit.authorEmail);
+
+		// The configured address is linked unattended by the write path, so
+		// offering it again would ask about something already handled.
+		if (!email || email === gitEmail || claimed.has(email)) continue;
+
+		const seen = byEmail.get(email) ?? {names: new Set<string>(), commits: 0};
+		seen.names.add(commit.author);
+		seen.commits += 1;
+		byEmail.set(email, seen);
+	}
+
+	const candidates = [...byEmail.entries()]
+		.map(([email, seen]) => ({
+			email,
+			names: [...seen.names],
+			commits: seen.commits,
+			// A local part matching the address itself catches "jola@" for jola,
+			// which no commit name would.
+			looksLikeYours:
+				[...seen.names].some(name =>
+					words(name).some(word => mine.has(word)),
+				) || words(email.split('@')[0] ?? '').some(word => mine.has(word)),
+		}))
+		.filter(candidate => candidate.looksLikeYours)
+		.sort((a, b) => b.commits - a.commits);
+
+	return succeeded(
+		candidates.length === 0
+			? 'No unclaimed addresses in this history look like yours'
+			: `Found ${candidates.length} unclaimed address(es) that look like yours. Show them to the user and link only the ones they confirm; each one is a permanent event that replicates to every clone.`,
+		{contributor: userId, candidates},
+	);
 };

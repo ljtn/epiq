@@ -101,4 +101,13 @@ export type GuiMessage =
 	| {type: 'issue:commits:get'; payload: {issueId: string}}
 	| {type: 'issue:squashed-diff:get'; payload: {issueId: string}}
 	| {type: 'issue:stats:get'; payload: {issueId: string}}
-	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}};
+	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}}
+	| {type: 'emails:get'}
+	| {
+			type: 'email:link';
+			payload: {email: string; contributorId?: string};
+	  }
+	| {
+			type: 'email:unlink';
+			payload: {email: string; contributorId?: string};
+	  };

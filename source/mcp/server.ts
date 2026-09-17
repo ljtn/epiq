@@ -49,6 +49,7 @@ import {
 import {
 	linkContributorEmail,
 	listContributorEmails,
+	suggestOwnEmails,
 	unlinkContributorEmail,
 } from './api/emails.js';
 import {initProjectTool} from './epiq-init.js';
@@ -583,6 +584,16 @@ export const createMcpServer = () => {
 			}),
 		},
 		exclusiveTool(unlinkContributorEmail),
+	);
+
+	server.registerTool(
+		'epiq_contributor_email_suggest',
+		{
+			description:
+				"Addresses in this repository's history that look like yours and nobody has claimed, for the user to confirm. Run it once after this feature reaches a board with history: the address git is configured with links itself, but older ones do not, and until they are linked those commits show a raw git name. Show the list and link only what the user confirms — each link is permanent and replicates to every clone.",
+			inputSchema: z.object({repoRoot: z.string().optional()}),
+		},
+		exclusiveTool(suggestOwnEmails),
 	);
 
 	server.registerTool(

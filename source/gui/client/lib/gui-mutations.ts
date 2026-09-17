@@ -2,6 +2,8 @@
 // the client hold broadcasts until its own change has landed.
 export const MUTATING_MESSAGE_TYPES = new Set<string>([
 	'sync',
+	'email:link',
+	'email:unlink',
 	'issues:create',
 	'board:create',
 	'board:edit:title',
