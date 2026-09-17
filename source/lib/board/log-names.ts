@@ -65,10 +65,16 @@ export const projectLogNames = (events: AppEvent[]): LogNames => {
 		if (!id) continue;
 
 		switch (event.action) {
+			// `createContributor` overwrites the record wholesale, with no
+			// `tombstoned` field, so a re-created contributor is not tombstoned
+			// and does take a later rename. Two writers reach this: one removes
+			// somebody while another, whose board has not seen that record,
+			// creates them.
 			case 'create.contributor':
 			case 'create.tag':
 				byId.set(id, name ?? '');
 				known.add(id);
+				tombstoned.delete(id);
 				break;
 
 			// Refused on a record that does not exist, and on a tombstoned one.

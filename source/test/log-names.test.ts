@@ -273,3 +273,86 @@ describe('names projected from the log', () => {
 		expect(projectLogNames([]).byId.size).toBe(0);
 	});
 });
+
+// Covering every action is not covering every order, and the projection carries
+// state between events — a tombstone sets a flag a later event has to clear.
+// Each of these is the same three or four events in a different sequence,
+// compared against a board booted from the same log, because the board is the
+// answer and this is only a way of reaching it without booting one.
+//
+// `tombstone, re-create, rename` is why: `createContributor` overwrites the
+// record, so the board drops the tombstone and takes the rename, while the
+// projection went on refusing it and the timeline kept the older name.
+describe('a naming sequence, in any order', () => {
+	const SUBJECT = '01J000000000000000SUBJECT';
+
+	const orderings: [string, AppEvent[]][] = [
+		[
+			'tombstone, re-create, rename',
+			[
+				at('create.contributor', {id: SUBJECT, name: 'first'}),
+				at('tombstone.contributor', {id: SUBJECT}),
+				at('create.contributor', {id: SUBJECT, name: 'second'}),
+				at('rename.contributor', {id: SUBJECT, name: 'third'}),
+			],
+		],
+		[
+			'tombstone, re-create',
+			[
+				at('create.contributor', {id: SUBJECT, name: 'first'}),
+				at('tombstone.contributor', {id: SUBJECT}),
+				at('create.contributor', {id: SUBJECT, name: 'second'}),
+			],
+		],
+		[
+			'tombstone twice, then rename',
+			[
+				at('create.contributor', {id: SUBJECT, name: 'first'}),
+				at('tombstone.contributor', {id: SUBJECT}),
+				at('tombstone.contributor', {id: SUBJECT}),
+				at('rename.contributor', {id: SUBJECT, name: 'second'}),
+			],
+		],
+		[
+			'restore, tombstone, restore',
+			[
+				at('create.contributor', {id: SUBJECT, name: 'first'}),
+				at('tombstone.contributor', {id: SUBJECT}),
+				at('restore.contributor', {id: SUBJECT, name: 'second'}),
+				at('tombstone.contributor', {id: SUBJECT}),
+				at('restore.contributor', {id: SUBJECT, name: 'third'}),
+			],
+		],
+		[
+			'tombstone before any create, then create and rename',
+			[
+				at('tombstone.contributor', {id: SUBJECT}),
+				at('create.contributor', {id: SUBJECT, name: 'first'}),
+				at('rename.contributor', {id: SUBJECT, name: 'second'}),
+			],
+		],
+		[
+			'tag tombstoned, re-created, restored',
+			[
+				at('create.tag', {id: SUBJECT, name: 'first'}),
+				at('tombstone.tag', {id: SUBJECT}),
+				at('create.tag', {id: SUBJECT, name: 'second'}),
+				at('restore.tag', {id: SUBJECT, name: 'third'}),
+			],
+		],
+	];
+
+	for (const [order, tail] of orderings) {
+		it(`agrees with the board: ${order}`, () => {
+			const events = [...log(), ...tail];
+
+			const result = bootStateFromEventLog(events);
+			if (isFail(result)) throw new Error(result.message);
+
+			const state = getState();
+			const onBoard = state.contributors[SUBJECT] ?? state.tags[SUBJECT];
+
+			expect(projectLogNames(events).byId.get(SUBJECT)).toBe(onBoard?.name);
+		});
+	}
+});
