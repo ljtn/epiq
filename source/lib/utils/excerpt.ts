@@ -24,7 +24,11 @@ const TABLE_RULE =
 // What is left of a table once its rule is gone: cells, and the bars that laid
 // them out. The bars become the spaces between the words, which is what a row
 // of a table reads as on one line.
-const TABLE_BARS = /\|/g;
+//
+// Only on a row that opens with one, so a description showing a shell pipeline
+// keeps its pipe. A markdown table's rows do open with one; a sentence that
+// merely contains a bar does not.
+const TABLE_ROW = /^[ \t]*\|.*$/gm;
 
 // Before the link rule below, which would otherwise keep an image's alt text
 // as if it were prose.
@@ -44,7 +48,12 @@ const THEMATIC_BREAK = /^[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*$/gm;
 // rather than matched in pairs: an unbalanced one is far likelier in a
 // half-written description than a literal asterisk is, and a preview that
 // keeps the word and loses the styling is right either way.
-const INLINE_MARKS = /[*_`~]/g;
+const INLINE_MARKS = /[*`~]/g;
+
+// Underscore is the exception, because it is also how identifiers are spelled
+// and these descriptions are about code: `snake_case_name` has to survive.
+// Only an underscore against a word's outer edge is emphasis.
+const EMPHASIS_UNDERSCORE = /(?<![0-9A-Za-z])_|_(?![0-9A-Za-z])/g;
 
 const flatten = (markdown: string): string =>
 	sanitizeInlineText(
@@ -57,9 +66,10 @@ const flatten = (markdown: string): string =>
 			// Before ROW_PREFIX, whose bullet rule would otherwise read a rule
 			// row's leading dashes as a list marker and leave the rest behind.
 			.replace(TABLE_RULE, ' ')
-			.replace(TABLE_BARS, ' ')
+			.replace(TABLE_ROW, row => row.replaceAll('|', ' '))
 			.replace(ROW_PREFIX, '')
-			.replace(INLINE_MARKS, ''),
+			.replace(INLINE_MARKS, '')
+			.replace(EMPHASIS_UNDERSCORE, ''),
 	);
 
 // Back up to a word boundary, but never past half the excerpt: a description

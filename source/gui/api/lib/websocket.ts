@@ -20,6 +20,7 @@ import {
 	editSwimlaneTitle,
 	editIssueTitle,
 	getGuiState,
+	getIssueDescription,
 	getIssueHistory,
 	listIssues,
 	moveIssue,
@@ -233,17 +234,17 @@ export const setupWebsocket = (
 				// be in flight and the client has to tell them apart.
 				if (type === 'issue:preview:get') {
 					const {issueId} = message.payload;
-					const state = deriveGuiState();
+					const description = getIssueDescription(issueId);
 
 					return sendSocket(socket, {
 						type: 'issue:preview:result',
 						payload: {
 							issueId,
-							result: isFail(state)
-								? state
+							result: isFail(description)
+								? description
 								: succeeded(
 										'Issue preview',
-										issuePreview(state.value, issueId),
+										issuePreview(issueId, description.value),
 								  ),
 						},
 					});
