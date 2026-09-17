@@ -132,10 +132,21 @@ export type GuiEventTimeline = {
 	latest: number;
 };
 
+// Mirrored rather than imported: `Identity` lives beside `getStringColor`,
+// which is Node-side, and the GUI build refuses a client import of it.
+export type GuiIdentity = {id: string; name: string; color: string};
+
 export type GuiCommitEntry = {
 	sha: string;
 	time: number;
+	/** The raw git author name. Shown only where nothing has claimed the address. */
 	author: string;
+	authorEmail: string;
+	/**
+	 * Who the author is on this board. Resolved on the server, because matching
+	 * needs the event log the client cannot import.
+	 */
+	authorIdentity?: GuiIdentity;
 	subject: string;
 	linesChanged: number;
 	insertions: number;

@@ -6,6 +6,7 @@ const commit = (sha: string, subject: string): GuiCommitEntry => ({
 	sha,
 	time: 0,
 	author: 'jo',
+	authorEmail: 'someone@example.com',
 	subject,
 	linesChanged: 1,
 	insertions: 1,

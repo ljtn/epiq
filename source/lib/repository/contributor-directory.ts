@@ -1,5 +1,7 @@
 import {AppEvent} from '../board/board-events.model.js';
 import {Contributor} from '../model/app-state.model.js';
+import {EmailLink, emailOwnerIndex} from '../model/email-link.js';
+import {Identity, identityOf} from '../model/identity.js';
 
 export type DirectoryEntry = {
 	id: string;
@@ -61,4 +63,43 @@ export const contributorDirectory = ({
 		name,
 		isExternal: !authorIds.has(id),
 	}));
+};
+
+/**
+ * What to show for a commit's author: the contributor whose address it is, or
+ * the raw git name.
+ *
+ * Here rather than beside the git reader, because "who is this" is this
+ * module's question and answering it twice is the drift it exists to prevent. A
+ * matched author comes back through `identityOf`, so it carries the same name
+ * and the same colour as the same person does everywhere else on the board.
+ *
+ * Unmatched covers three cases that all render identically, and deliberately:
+ * nobody has claimed the address, the commit carries no address at all, and two
+ * contributors claim it so it resolves to neither. Falling back to the raw name
+ * is what the board does today, so nothing regresses for anyone who never links
+ * anything.
+ */
+export const commitAuthorIdentity = ({
+	authorName,
+	authorEmail,
+	links,
+	registry,
+}: {
+	authorName: string;
+	authorEmail: string;
+	links: Readonly<Record<string, EmailLink>>;
+	registry: Record<string, Contributor>;
+}): Identity => {
+	const owner = emailOwnerIndex(links).get(authorEmail.trim().toLowerCase());
+	const contributor = owner ? registry[owner] : undefined;
+
+	// A claimed address whose contributor the registry has lost still resolves to
+	// that id: `identityOf` prefers an ugly, true id over a shared placeholder.
+	if (owner) return identityOf(owner, contributor?.name);
+
+	// Not `identityOf(undefined, name)`, which would use the name as the id and
+	// merge two committers who happen to share one. An unmatched author is not a
+	// board identity at all, so the address stands in as its id.
+	return identityOf(authorEmail.trim().toLowerCase() || authorName, authorName);
 };

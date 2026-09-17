@@ -47,6 +47,7 @@ import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
+import {withCommitAuthors} from '../../../mcp/api/commit-authors.js';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
 import {
 	broadcastGuiMessage,
@@ -255,7 +256,9 @@ export const setupWebsocket = (
 					return sendSocket(socket, {
 						type: 'commits',
 						requestId,
-						payload: await getCommitTimeline({repoRoot, ...query}),
+						payload: withCommitAuthors(
+							await getCommitTimeline({repoRoot, ...query}),
+						),
 					});
 				}
 
@@ -293,10 +296,12 @@ export const setupWebsocket = (
 						type: 'issue:commits:result',
 						payload: {
 							issueId,
-							result: await getCommitsForRef({
-								repoRoot,
-								ref: nodeRef(issueId),
-							}),
+							result: withCommitAuthors(
+								await getCommitsForRef({
+									repoRoot,
+									ref: nodeRef(issueId),
+								}),
+							),
 						},
 					});
 				}
