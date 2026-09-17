@@ -1001,7 +1001,12 @@ export const IssueDetails = ({
 							onChange={diffView.onChangeCompacted}
 							pinnedToCommits={Boolean(diffFocus)}
 						/>
-						{diffView.compacted ? squashedPane : perCommitPane}
+						{/* With no commits there is nothing to compact, and both views
+						    would say so — so the per-commit one says it, because its
+						    empty state also says how to link a commit to this ticket. */}
+						{diffView.compacted && commits.length > 0
+							? squashedPane
+							: perCommitPane}
 					</div>
 				);
 
