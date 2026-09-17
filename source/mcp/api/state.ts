@@ -147,9 +147,9 @@ export const deriveGuiState = (): Result<ApiState> => {
 					body: comment.md,
 					// The author is optional in the log by design — the payload schema
 					// leaves it unconstrained so an event already written without one
-					// is not thrown away — so fall all the way through to a
-					// placeholder rather than taking the board down for a colour.
-					author: identityOf(comment.authorId || 'Unknown', contributor?.name),
+					// is not thrown away. `identityOf` owns what a missing one shows
+					// as, so this does not restate it.
+					author: identityOf(comment.authorId, contributor?.name),
 					createdAt: ulidTimeMs(comment.id),
 				};
 			},
