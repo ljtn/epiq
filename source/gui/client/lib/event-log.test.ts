@@ -134,6 +134,7 @@ const commit = (sha: string, time: number): GuiCommitEntry => ({
 	sha,
 	time,
 	author: 'jo',
+	authorEmail: 'someone@example.com',
 	subject: `commit ${sha}`,
 	linesChanged: 3,
 	insertions: 2,

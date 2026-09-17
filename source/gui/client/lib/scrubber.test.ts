@@ -51,6 +51,7 @@ const commit = (time: number, linesChanged = 1): GuiCommitEntry => ({
 	sha: `sha-${time}`,
 	time,
 	author: 'a',
+	authorEmail: 'someone@example.com',
 	subject: 's',
 	linesChanged,
 	insertions: linesChanged,

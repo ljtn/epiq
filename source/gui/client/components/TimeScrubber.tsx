@@ -2,6 +2,7 @@
 // It computes and hands the result to ScrubberLayout, which owns the markup.
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {commitAuthorLabel} from '../lib/commit-author';
 import {formatDateTime} from '../../../lib/utils/date.utils.js';
 import {maxOf} from '../../../lib/utils/minmax.js';
 import {
@@ -728,9 +729,9 @@ export const TimeScrubber = ({
 				color: GUI_THEME.green,
 				opacity: 0.55,
 				// The hint labels the moment itself, so this is the rest of it.
-				title: `${commit.subject} — ${
-					commit.author
-				} (${commit.linesChanged.toLocaleString()} lines)`,
+				title: `${commit.subject} — ${commitAuthorLabel(
+					commit,
+				)} (${commit.linesChanged.toLocaleString()} lines)`,
 				commitSha: commit.sha,
 			})),
 		[drawnCommits, axis],
@@ -1081,9 +1082,9 @@ export const TimeScrubber = ({
 					label: formatDateTime(new Date(hoveredCommit.commit.time)),
 					rows: [
 						hoveredCommit.commit.subject,
-						`${
-							hoveredCommit.commit.author
-						} • ${hoveredCommit.commit.linesChanged.toLocaleString()} lines`,
+						`${commitAuthorLabel(
+							hoveredCommit.commit,
+						)} • ${hoveredCommit.commit.linesChanged.toLocaleString()} lines`,
 					],
 					fraction: hoveredCommit.fraction,
 			  }

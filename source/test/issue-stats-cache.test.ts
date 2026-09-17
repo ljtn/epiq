@@ -29,6 +29,7 @@ const commitNamed = (sha: string) => ({
 	sha,
 	time: 1,
 	author: 'jola',
+	authorEmail: 'jola@example.com',
 	subject: `${REF} one`,
 	linesChanged: 1,
 	insertions: 1,

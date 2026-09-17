@@ -3,6 +3,7 @@ import {chmod} from 'node:fs/promises';
 import path from 'node:path';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit, readGitBlobsBatch} from '../git/git-utils.js';
+import {Identity} from '../lib/model/identity.js';
 import {NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
 import {
 	getEditorCandidates,
@@ -221,6 +222,18 @@ export type CommitEntry = {
 	sha: string;
 	time: number;
 	author: string;
+	/**
+	 * The author's git address, which is what a contributor is matched on. The
+	 * name beside it is free text and two people can share one, so it is for
+	 * showing, never for matching.
+	 */
+	authorEmail: string;
+	/**
+	 * Who the author is on this board, filled in by `withCommitAuthors` once
+	 * state is available. Absent here because reading it is not a pure function
+	 * of the repository, and this type is produced by one.
+	 */
+	authorIdentity?: Identity;
 	subject: string;
 	linesChanged: number;
 	insertions: number;
@@ -293,7 +306,7 @@ export const getCommitTimeline = async (
 				? [`--until=@${Math.floor(input.end / 1000)}`]
 				: []),
 			'--shortstat',
-			`--format=${GIT_LOG_RECORD_SEP}%H${GIT_LOG_FIELD_SEP}%at${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%s`,
+			`--format=${GIT_LOG_RECORD_SEP}%H${GIT_LOG_FIELD_SEP}%at${GIT_LOG_FIELD_SEP}%an${GIT_LOG_FIELD_SEP}%ae${GIT_LOG_FIELD_SEP}%s`,
 		],
 	});
 
@@ -304,7 +317,7 @@ export const getCommitTimeline = async (
 		.filter(record => record.trim().length > 0)
 		.map((record): CommitEntry | null => {
 			const [headerLine, ...statLines] = record.split('\n');
-			const [sha, atSeconds, author, ...subjectParts] = (
+			const [sha, atSeconds, author, authorEmail, ...subjectParts] = (
 				headerLine ?? ''
 			).split(GIT_LOG_FIELD_SEP);
 			if (!sha || !atSeconds) return null;
@@ -317,6 +330,7 @@ export const getCommitTimeline = async (
 				sha,
 				time: Number(atSeconds) * 1000,
 				author: author ?? 'unknown',
+				authorEmail: authorEmail ?? '',
 				subject: subjectParts.join(GIT_LOG_FIELD_SEP),
 				linesChanged: insertions + deletions,
 				insertions,
