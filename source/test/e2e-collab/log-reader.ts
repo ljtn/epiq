@@ -8,10 +8,25 @@ import {trackedFileNameFor} from '../../lib/event/pending-log.js';
 const eventsDir = (stateBranchRoot: string): string =>
 	path.join(stateBranchRoot, '.epiq', 'events');
 
+// A file listed a moment ago and gone by the time it is opened is a sync
+// having rebased the worktree underneath the listing — which is the very thing
+// concurrent-sync provokes, so the harness must not treat it as a failure. The
+// ids are read again after the actors settle; a file that matters is still
+// there then. Same race `K6W24FY` closed in `logSignature`.
+const readLogFile = (filePath: string): string => {
+	try {
+		return fs.readFileSync(filePath, 'utf8');
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '';
+
+		throw error;
+	}
+};
+
 const idsInFile = (filePath: string): string[] => {
 	const ids: string[] = [];
 
-	for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+	for (const line of readLogFile(filePath).split('\n')) {
 		const trimmed = line.trim();
 		if (!trimmed) continue;
 
