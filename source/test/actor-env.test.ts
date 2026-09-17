@@ -287,8 +287,10 @@ describe('loadSettingsFromConfig', () => {
 		expect(fs.readdirSync(path.join(rootDir, '.epiq', 'events'))).toEqual([
 			getPersistFileName(actor.value),
 		]);
+		// The id is the whole file name: attribution rides on it alone, and the
+		// display name is resolved from the registry.
 		expect(getPersistFileName(actor.value)).toBe(
-			`${deriveActorId('claude').toLowerCase()}.claude.jsonl`,
+			`${deriveActorId('claude').toLowerCase()}.jsonl`,
 		);
 	});
 });

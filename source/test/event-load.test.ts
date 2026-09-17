@@ -6,6 +6,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {
 	decodeReconstructedEvents,
 	getSortedEvents,
+	loadActorNames,
 	loadEventActors,
 	loadMergedEvents,
 	loadMergedEventsBefore,
@@ -747,7 +748,11 @@ describe('loadMergedEvents with foreign events on disk', () => {
 		expect(isFail(result)).toBe(false);
 		if (isFail(result)) return;
 		expect(result.value[0]?.userId).toBe('01KSAYRA4GHEKJP888WFBWBRDD');
-		expect(result.value[0]?.userName).toBe('j.-lampa');
+		// The event carries no name; the file name still does, and this is the
+		// path that reads it for a board written before ZFZFW9D.
+		expect(loadActorNames(root).get('01KSAYRA4GHEKJP888WFBWBRDD')).toBe(
+			'j.-lampa',
+		);
 
 		fs.rmSync(root, {recursive: true, force: true});
 	});
@@ -774,12 +779,16 @@ describe('loadMergedEvents with foreign events on disk', () => {
 		expect(result.value[0]?.userId).toBe('01KSAYRA4GHEKJP888WFBWBRDD');
 		// Casing is an id concern only; the name passes through as the file
 		// carries it, so it still matches a re-encoded registry name.
-		expect(result.value[0]?.userName).toBe('a.b.c-dev');
+		expect(loadActorNames(root).get('01KSAYRA4GHEKJP888WFBWBRDD')).toBe(
+			'a.b.c-dev',
+		);
 
 		fs.rmSync(root, {recursive: true, force: true});
 	});
 
-	it('falls back to an unknown user name when the file name has no dot', () => {
+	// The shape every log has carried since ZFZFW9D: the id alone. It still
+	// attributes, and offers no name for the registry fallback to pick up.
+	it('attributes a name-less file name and offers no name for it', () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-nodot-'));
 		const eventsDir = path.join(root, '.epiq', 'events');
 		fs.mkdirSync(eventsDir, {recursive: true});
@@ -798,7 +807,7 @@ describe('loadMergedEvents with foreign events on disk', () => {
 		expect(isFail(result)).toBe(false);
 		if (isFail(result)) return;
 		expect(result.value[0]?.userId).toBe('01KSAYRA4GHEKJP888WFBWBRDD');
-		expect(result.value[0]?.userName).toBe('unknown');
+		expect(loadActorNames(root).has('01KSAYRA4GHEKJP888WFBWBRDD')).toBe(false);
 
 		fs.rmSync(root, {recursive: true, force: true});
 	});

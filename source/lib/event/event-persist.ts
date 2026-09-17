@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import {decodeTime, monotonicFactory} from 'ulid';
 import {z} from 'zod';
@@ -8,7 +9,11 @@ import {getSettingsState, User} from '../state/settings.state.js';
 import {ensureEventsDir, getEventsDirPath} from '../storage/paths.js';
 import {sanitizeFilePart} from '../utils/file-part.js';
 import {MAX_ULID_AHEAD_MS} from './date-utils.js';
-import {appendPendingLine, getPendingLogPath} from './pending-log.js';
+import {
+	appendPendingLine,
+	getPendingLogPath,
+	isPendingFileName,
+} from './pending-log.js';
 import {advanceEdgeRef, getEdgeRef} from './event-load.js';
 import {noteOwnAppend} from './log-signature.js';
 import {
@@ -178,14 +183,65 @@ export const resolveActorId = (): Result<User> => {
 	});
 };
 
-export const getPersistFileName = ({userId, userName}: User): string =>
-	`${sanitizeFilePart(userId)}.${sanitizeFilePart(userName)}.jsonl`;
+// The id alone. A display name on disk is a second place a name lives, and a
+// git-tracked one: it survives `tombstone.contributor`, which can only clear
+// the registry, and a rename starts a fresh file rather than changing the old
+// ones. Names are resolved from the contributor registry by id.
+//
+// Files already carrying `<id>.<name>.jsonl` keep it and are read unchanged —
+// `parseEventFileActor` splits on the first `.` and falls through when there
+// is no separator, so both forms load. That reader shipped in v1.5.0, which
+// is what this writer waited for.
+export const getPersistFileName = ({userId}: Pick<User, 'userId'>): string =>
+	`${sanitizeFilePart(userId)}.jsonl`;
+
+// Every tracked log this actor owns, current name last. Normally that is one
+// file, `<id>.jsonl`. A machine upgraded across ZFZFW9D can still hold the
+// older `<id>.<name>.jsonl` beside it, and a line flushed into that one but
+// never committed would otherwise never be staged again — the sync stages the
+// actor's own log by name, and the name moved.
+//
+// Scoped to this actor's id, so it never reaches for anybody else's file.
+export const ownEventFileNames = (
+	eventsDir: string,
+	current: string,
+): string[] => {
+	let entries: string[];
+	try {
+		if (!fs.existsSync(eventsDir)) return [current];
+
+		entries = fs.readdirSync(eventsDir);
+	} catch {
+		return [current];
+	}
+
+	// The id segment of the log we write to now, which is what identifies the
+	// owner whichever naming the file uses.
+	const currentBase = current.slice(0, -'.jsonl'.length);
+	const currentSeparator = currentBase.indexOf('.');
+	const wanted =
+		currentSeparator === -1
+			? currentBase
+			: currentBase.slice(0, currentSeparator);
+
+	const legacy = entries.filter(name => {
+		if (!name.endsWith('.jsonl') || name === current) return false;
+		if (isPendingFileName(name)) return false;
+
+		const separatorIndex = name.indexOf('.');
+		if (separatorIndex === -1) return false;
+
+		return name.slice(0, separatorIndex) === wanted;
+	});
+
+	return [...legacy.sort(), current];
+};
 
 export const getEventLogPath = (
 	epiqRoot: string,
-	{userId, userName}: User,
+	{userId}: Pick<User, 'userId'>,
 ): Result<string> => {
-	const fileName = getPersistFileName({userId, userName});
+	const fileName = getPersistFileName({userId});
 	const isValid = /^(?!.*\.jsonl.*\.jsonl).*\.jsonl$/.test(fileName);
 	if (!isValid) return failed(`Invalid event log file name: ${fileName}`);
 
@@ -259,10 +315,7 @@ export function persist({
 		// line itself goes to the pending one beside it, which git does not
 		// track and therefore cannot reset out from under a write. A sync folds
 		// it in once git is finished with the worktree.
-		const trackedPath = getEventLogPath(rootDir, {
-			userId: event.userId,
-			userName: event.userName,
-		});
+		const trackedPath = getEventLogPath(rootDir, {userId: event.userId});
 		if (isFail(trackedPath)) return trackedPath;
 
 		const filePath = succeeded(

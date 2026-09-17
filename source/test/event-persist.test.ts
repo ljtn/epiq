@@ -21,7 +21,6 @@ const event = (overrides: Partial<AppEvent> = {}): AppEvent =>
 	({
 		id: 'event-1',
 		userId: 'u1',
-		userName: 'alice',
 		action: 'init.workspace',
 		payload: {
 			id: 'workspace-1',
@@ -131,9 +130,9 @@ describe('event persist', () => {
 
 		// An append lands in the pending log, out of reach of a sync resetting
 		// the worktree; folding it in is what puts it in the actor's own log.
-		flushPendingLogs(rootDir, 'u1.alice.jsonl');
+		flushPendingLogs(rootDir, 'u1.jsonl');
 
-		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
+		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.jsonl');
 
 		expect(fs.existsSync(filePath)).toBe(true);
 
@@ -168,9 +167,9 @@ describe('event persist', () => {
 
 		expect(isFail(second)).toBe(false);
 
-		flushPendingLogs(rootDir, 'u1.alice.jsonl');
+		flushPendingLogs(rootDir, 'u1.jsonl');
 
-		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.alice.jsonl');
+		const filePath = path.join(rootDir, '.epiq', 'events', 'u1.jsonl');
 
 		const [firstLine, secondLine] = fs
 			.readFileSync(filePath, 'utf8')
@@ -226,17 +225,17 @@ describe('event persist', () => {
 		expect(result.value.entry.id[1]).toBe(centuryOut);
 	});
 
-	// `getEventLogPath` refuses a name containing two `.jsonl`, which used to
-	// lock this person out of writing anything at all.
-	it('writes for a display name containing ".jsonl"', () => {
-		const result = persist({
-			event: event({userName: 'a.jsonl.b'}),
-			rootDir,
-		});
+	// The display name used to be a segment of the file name, where
+	// `getEventLogPath`'s two-`.jsonl` guard locked out anyone called something
+	// like `a.jsonl.b`. ZFZFW9D took the name off the path entirely — an event
+	// does not carry one — so the log is named by the id and nothing else, and
+	// no name a person chooses can reach it.
+	it('names the log by the id alone, whatever the actor is called', () => {
+		const result = persist({event: event(), rootDir});
 
 		expect(isFail(result)).toBe(false);
 		if (isFail(result)) return;
-		expect(path.basename(result.value.path)).toBe('u1~pending.a-jsonl.b.jsonl');
+		expect(path.basename(result.value.path)).toBe('u1~pending.jsonl');
 	});
 });
 

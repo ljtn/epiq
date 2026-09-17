@@ -11,7 +11,13 @@ const stripAnsi = (value: string): string =>
 	// eslint-disable-next-line no-control-regex
 	value.replace(/\x1B\[[0-9;]*m/g, '');
 
-const actor = {userId: 'u1', userName: 'alice'};
+const actor = {userId: 'u1'};
+
+const rank = (): string => {
+	const result = bigIntToHex(1n);
+	if (isFail(result)) throw new Error(result.message);
+	return result.value;
+};
 
 const event = <A extends AppEvent['action']>(
 	id: string,
@@ -40,11 +46,36 @@ describe('attachment history log entries', () => {
 		},
 	);
 
+	// The name is the registry's, by id — an event carries none. Registered
+	// here the way a real board registers an author, through the event.
 	it('formats add.issue.attachment with name and size', () => {
+		initWorkspaceState(nodes.workspace('root', 'Root', rank()));
+		const [registered] = materializeAll([
+			event('01H00000000000000000000100', 'create.contributor', {
+				id: actor.userId,
+				name: 'alice',
+			}),
+		]);
+		if (!registered || isFail(registered)) {
+			throw new Error('Could not register the contributor');
+		}
+
 		const line = stripAnsi(formatLogLine(addEvent, []));
 
 		expect(line).toContain('Attached "screenshot.png" (68 KB)');
 		expect(line).toContain('alice');
+	});
+
+	// Nobody has registered this id, so there is no name to show. The id is a
+	// poorer label than a name but a truer one than a guess — and never the
+	// file-name placeholder.
+	it('falls back to the id for an author the registry has never seen', () => {
+		initWorkspaceState(nodes.workspace('root', 'Root', rank()));
+
+		const line = stripAnsi(formatLogLine(addEvent, []));
+
+		expect(line).toContain('u1');
+		expect(line).not.toContain('unknown');
 	});
 
 	it('describes add.issue.attachment for the replay caption', () => {

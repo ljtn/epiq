@@ -22,9 +22,14 @@ import {
 import {parseEventPayload} from './event-payload.schema.js';
 import {stripPendingMarker} from './pending-log.js';
 
+// What a log file name yields where it carries no name segment, which is every
+// log written since ZFZFW9D. Exported so callers can tell it apart from a name
+// somebody chose rather than matching on the string.
+export const UNNAMED_ACTOR = 'unknown';
+
 const EventFileNameSchema = z.object({
-	userId: z.string().min(1).default('unknown'),
-	userName: z.string().min(1).default('unknown'),
+	userId: z.string().min(1).default(UNNAMED_ACTOR),
+	userName: z.string().min(1).default(UNNAMED_ACTOR),
 });
 
 // `v` is the version as written, not necessarily one we support: ordering and
@@ -152,20 +157,17 @@ const toAppEvent = <K extends keyof AppEventMap>({
 	action,
 	payload,
 	userId,
-	userName,
 }: {
 	id: string;
 	action: K;
 	payload: AppEventMap[K]['payload'];
 	userId: string;
-	userName: string;
 }): AppEvent =>
 	({
 		id,
 		action,
 		payload,
 		userId,
-		userName,
 	} as AppEvent);
 
 export const fromPersistedEvent = (
@@ -190,12 +192,15 @@ export const fromPersistedEvent = (
 
 	return succeeded<AppEvent>(
 		'Decoded persisted event',
+		// The id and not the name. `userName` is the file name's, kept on the
+		// reconstructed entry for `loadActorNames` and dropped here, so a
+		// replayed event is identical to the one the write applied in place —
+		// which is what makes skipping the reload after a write sound.
 		toAppEvent({
 			id: eventId,
 			action,
 			payload: persistedEntry[action],
 			userId,
-			userName,
 		}),
 	);
 };
@@ -454,6 +459,73 @@ export function loadEventActors(
 		allEvents.value.map(({userId, userName}) => ({userId, userName})),
 	);
 }
+
+// The names the log file names carry, by author id. A log written before
+// ZFZFW9D is `<id>.<name>.jsonl` and yields one; a log written since is
+// `<id>.jsonl` and yields nothing, since UNNAMED_ACTOR is nobody's chosen name.
+//
+// The contributor registry is the source of record. This is the fallback that
+// keeps a board written before contributors were events from showing ids where
+// it used to show names.
+//
+// Reads the directory listing and nothing else. The names are *in* the file
+// names, so parsing a single line would be waste — on a board of a few hundred
+// thousand events that is the difference between a listing and a full parse of
+// every log, on a path a user action sits behind.
+export const loadActorNames = (
+	stateBranchRoot: string,
+): Map<string, string> => {
+	const byId = new Map<string, string>();
+	const dir = getEventsDirPath(stateBranchRoot);
+
+	let fileNames: string[];
+	try {
+		if (!fs.existsSync(dir)) return byId;
+
+		fileNames = fs.readdirSync(dir);
+	} catch {
+		// A name is a nicety; a board that cannot list its logs has a bigger
+		// problem, and it is not this function's to report.
+		return byId;
+	}
+
+	// An id named by two different files: before ZFZFW9D a rename started a new
+	// log, so one person can be `<id>.alice.jsonl` and `<id>.alice-cooper.jsonl`
+	// at once. Directory order says nothing about which is newer.
+	const ambiguous = new Set<string>();
+
+	for (const fileName of fileNames) {
+		if (!fileName.endsWith('.jsonl')) continue;
+
+		const actor = parseEventFileActor(fileName);
+		if (isFail(actor)) continue;
+
+		const {userId, userName} = actor.value;
+		if (!userId || !userName || userName === UNNAMED_ACTOR) continue;
+
+		const seen = byId.get(userId);
+		if (seen !== undefined && seen !== userName) ambiguous.add(userId);
+
+		byId.set(userId, userName);
+	}
+
+	if (ambiguous.size === 0) return byId;
+
+	// Only those ids, and only now: the log's own order is what says which name
+	// came last, and paying for a full parse to settle a rare legacy tie beats
+	// showing whichever name the filesystem happened to list second.
+	const actors = loadEventActors(stateBranchRoot);
+	if (isFail(actors)) return byId;
+
+	for (const {userId, userName} of actors.value) {
+		if (!ambiguous.has(userId)) continue;
+		if (!userName || userName === UNNAMED_ACTOR) continue;
+
+		byId.set(userId, userName);
+	}
+
+	return byId;
+};
 
 export function loadMergedEvents(stateBranchRoot: string): Result<AppEvent[]> {
 	const result = loadMergedEventsWithUnreadable(stateBranchRoot);

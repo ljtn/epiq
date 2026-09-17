@@ -195,9 +195,10 @@ const appendEventToAppLog = (event: AppEvent): void => {
 
 const validateEventUser = (event: AppEvent): Result => {
 	const id = event.userId;
-	const name = event.userName;
 
-	if (!id?.length || !name?.length) {
+	// The id is the whole of an event's identity; the name is the
+	// contributor's, and absent here by design.
+	if (!id?.length) {
 		return materializeFail('Invalid user ID format', event);
 	}
 

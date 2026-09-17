@@ -110,7 +110,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'init.workspace',
 			payload: {
 				id: workspaceId,
@@ -125,7 +124,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'create.contributor',
 			payload: {
 				id: userId,
@@ -135,7 +133,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'add.board',
 			payload: {
 				id: boardId,
@@ -147,7 +144,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'add.swimlane',
 			payload: {
 				id: swimlaneId1,
@@ -159,7 +155,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'add.swimlane',
 			payload: {
 				id: swimlaneId2,
@@ -171,7 +166,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'add.swimlane',
 			payload: {
 				id: swimlaneId3,
@@ -183,7 +177,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'add.board',
 			payload: {
 				id: CLOSED_BOARD_ID,
@@ -195,7 +188,6 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'add.swimlane',
 			payload: {
 				id: CLOSED_SWIMLANE_ID,
@@ -207,14 +199,12 @@ export function createDefaultEvents({
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'lock.node',
 			payload: {id: CLOSED_BOARD_ID},
 		},
 		{
 			id: ulid(),
 			userId: userId,
-			userName: userName,
 			action: 'lock.node',
 			payload: {id: CLOSED_SWIMLANE_ID},
 		},

@@ -9,6 +9,7 @@ import {AppEvent, MovePosition} from '../../lib/event/event.model.js';
 import {resolveReopenParentFromLog} from '../../lib/event/log-utils.js';
 import {CLOSED_SWIMLANE_ID} from '../../lib/event/static-ids.js';
 import {isTicketNode, Ticket} from '../../lib/model/context.model.js';
+import {Contributor} from '../../lib/model/app-state.model.js';
 import {
 	failed,
 	isFail,
@@ -609,6 +610,18 @@ export async function moveIssue(
 	return batchResult('Moved', forEachTarget(idsResult.value, move));
 }
 
+// Resolved by id from the registry, never from the event. An event's userName
+// comes off its log file name, which since ZFZFW9D carries no name at all — so
+// the event says `unknown` and only the registry knows who that is.
+const actorIdentity = (
+	userId: string,
+	contributors: Record<string, Contributor>,
+) => {
+	const name = contributors[userId]?.name ?? userId;
+
+	return {id: userId, name, color: getStringColor(name)};
+};
+
 /**
  * A ticket's own event log, oldest first. Reads whatever is materialized rather
  * than booting, so it stays correct mid-scrub like the state beside it.
@@ -632,11 +645,7 @@ export const getIssueHistory = (
 			...(event.action === 'move.node'
 				? {parentId: (event.payload as {parent?: string}).parent}
 				: {}),
-			actor: {
-				id: event.userId,
-				name: event.userName,
-				color: getStringColor(event.userName),
-			},
+			actor: actorIdentity(event.userId, stateResult.value.contributors),
 		})),
 	);
 };

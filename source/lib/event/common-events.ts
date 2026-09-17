@@ -9,7 +9,7 @@ export const createIssueEvents = ({
 	name,
 	parent,
 	rank,
-	user: {userId, userName},
+	user: {userId},
 }: {
 	name: string;
 	parent: string;
@@ -22,7 +22,6 @@ export const createIssueEvents = ({
 		{
 			id: ulid(),
 			userId,
-			userName,
 			action: 'add.issue',
 			payload: {
 				id: issueId,

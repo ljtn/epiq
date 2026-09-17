@@ -357,10 +357,18 @@ type LogicalEvent<A extends EventAction = EventAction> = Extract<
 	{action: A}
 >;
 
+// An event says who, by id, and never what they are called. The name is a
+// property of the contributor, resolved from the registry that
+// `create.contributor` and `rename.contributor` build — so a rename shows
+// everywhere at once, including on events written before it.
+//
+// It carried a `userName` only because the log file name used to hold one, and
+// nothing that reads an event can do better with it: the same event applied in
+// place and replayed from disk would disagree about the name, since only the
+// live path ever knew it.
 export type AppEvent<A extends EventAction = EventAction> = LogicalEvent<A> & {
 	id: string;
 	userId: string;
-	userName: string;
 };
 
 export type MaterializeResult<A extends EventAction> = Result<{

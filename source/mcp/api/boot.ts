@@ -7,6 +7,7 @@ import {
 	ensureStateBranchWorktree,
 } from '../../git/git.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
+import {patchSettingsState} from '../../lib/state/settings.state.js';
 import {bootStateFromEventLog} from '../../lib/event/event-boot.js';
 import {
 	accountedSignature,
@@ -163,6 +164,14 @@ export const boot = async (
 		eventsResult.value.unreadable,
 	);
 	if (isFail(bootResult)) return failed(bootResult.message);
+
+	// What the TUI does on start-up and the GUI in its init: fill the settings
+	// store, so anything resolving the actor through it agrees with this
+	// process's identity. Refreshed on every boot, which is every tool call, so
+	// an identity assumed mid-session takes effect on the next write rather
+	// than at the next restart.
+	const settings = loadSettingsFromConfig();
+	if (!isFail(settings)) patchSettingsState(settings.value);
 
 	// Recorded after the boot, so a failed one is retried rather than remembered
 	// as done. From here on a write advances this rather than invalidating it:

@@ -1,21 +1,26 @@
+import {loadActorNames} from '../../event/event-load.js';
 import {getState} from '../../state/state.js';
 
 // The registry only holds people explicitly created or assigned, so it is often
 // empty even of you; log authors are candidates too.
-export const getAssignableContributors = (): {
+export const getAssignableContributors = (
+	// The state branch root, for the names only a pre-ZFZFW9D log file name
+	// carries. An event no longer holds one.
+	stateBranchRoot: string,
+): {
 	id: string;
 	name: string;
 	isExternal: boolean;
 }[] => {
 	// May run before boot has populated the log.
 	const {eventLog = [], contributors} = getState();
-	const byId = new Map<string, string>();
+	const byId = new Map<string, string>(loadActorNames(stateBranchRoot));
 	const authorIds = new Set<string>();
 
 	for (const event of eventLog) {
 		if (!event.userId) continue;
 
-		byId.set(event.userId, event.userName ?? '');
+		if (!byId.has(event.userId)) byId.set(event.userId, '');
 		authorIds.add(event.userId);
 	}
 

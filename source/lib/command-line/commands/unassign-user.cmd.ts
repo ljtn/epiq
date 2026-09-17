@@ -33,10 +33,15 @@ export const unassignUserCommand = async () => {
 	const isSelf = name.toLowerCase() === 'me';
 
 	// Resolved against this issue's assignees, not the whole registry, so a
+	// Resolved before the lookup, which needs it for the names a pre-ZFZFW9D
+	// log file name carries.
+	const persistRootResult = await getPersistRoot();
+	if (isFail(persistRootResult)) return persistRootResult;
+
 	// shared name is only ambiguous when both people are assigned here.
 	const matches = isSelf
 		? assignees.filter(id => id === userRes.value.userId)
-		: getAssignableContributors()
+		: getAssignableContributors(persistRootResult.value)
 				.filter(c => c.name === name && assignees.includes(c.id))
 				.map(c => c.id);
 
@@ -57,9 +62,6 @@ export const unassignUserCommand = async () => {
 				: `Issue is not assigned to "${name}"`,
 		);
 	}
-
-	const persistRootResult = await getPersistRoot();
-	if (isFail(persistRootResult)) return persistRootResult;
 
 	return materializeAndPersistAll(
 		[

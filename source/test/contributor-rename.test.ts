@@ -27,6 +27,7 @@ import {ensureContributorCurrent} from '../lib/event/event-materialize-and-persi
 import {isFail} from '../lib/model/result-types.js';
 import {nodeRepo} from '../lib/repository/node-repo.js';
 import {nodes} from '../lib/state/node-builder.js';
+import {patchSettingsState} from '../lib/state/settings.state.js';
 import {getState, initWorkspaceState} from '../lib/state/state.js';
 import {bigIntToHex} from '../lib/utils/rank.js';
 
@@ -38,19 +39,25 @@ const rank = () => {
 	return result.value;
 };
 
-// Stands in for any ordinary write. Only the actor on it matters — this is
-// the hook `materializeAndPersistAll` runs before the write itself.
-const writeAs = (userId: string, userName: string) =>
-	ensureContributorCurrent(
+// Stands in for any ordinary write. The event says who by id; the name comes
+// from what this process is configured as, which is what a real write does
+// too. This is the hook `materializeAndPersistAll` runs before the write
+// itself.
+const writeAs = (userId: string, userName: string) => {
+	// Where `ensureContributorCurrent` reads the name: an event carries none,
+	// and every surface fills this store at boot.
+	patchSettingsState({userId, userName});
+
+	return ensureContributorCurrent(
 		{
 			id: `event-${persisted.length}`,
 			userId,
-			userName,
 			action: 'edit.title',
 			payload: {id: ROOT, name: 'irrelevant'},
 		} satisfies AppEvent<'edit.title'>,
 		'/tmp/unused',
 	);
+};
 
 const actorEvents = () =>
 	persisted.filter(

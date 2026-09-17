@@ -8,6 +8,7 @@ import {getPersistFileName} from '../lib/event/event-persist.js';
 import {AppEvent} from '../lib/event/event.model.js';
 import {isFail} from '../lib/model/result-types.js';
 import {nodes} from '../lib/state/node-builder.js';
+import {patchSettingsState} from '../lib/state/settings.state.js';
 import {initWorkspaceState} from '../lib/state/state.js';
 import {midRank} from '../lib/utils/rank.js';
 
@@ -19,7 +20,7 @@ const IDS = {
 	board: '01H00000000000000000000002',
 } as const;
 
-const actor = {userId: 'u1', userName: 'alice'};
+const actor = {userId: 'u1'};
 
 let seq = 0;
 const eventId = () => `01H00000000000000000${String(++seq).padStart(6, '0')}`;
@@ -43,6 +44,11 @@ beforeEach(() => {
 	rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'epiq-batch-'));
 	fs.mkdirSync(path.join(rootDir, '.epiq'), {recursive: true});
 
+	// `ensureContributorCurrent` registers the author on their first write and
+	// takes the name from here, since an event carries none. Without it the
+	// batch is one event shorter than it should be.
+	patchSettingsState({userId: actor.userId, userName: 'alice'});
+
 	initWorkspaceState(nodes.workspace(IDS.root, 'Test Root', rank()));
 });
 
@@ -54,19 +60,11 @@ afterEach(() => {
 // Folded in first: a batch appends to the pending log, and this asks what the
 // actor's own log holds once a sync has taken it.
 const ownLogLines = (): Array<{id: [string, string | null]}> => {
-	flushPendingLogs(
-		rootDir,
-		getPersistFileName({userId: 'u1', userName: 'alice'}),
-	);
+	flushPendingLogs(rootDir, getPersistFileName({userId: 'u1'}));
 
 	return fs
 		.readFileSync(
-			path.join(
-				rootDir,
-				'.epiq',
-				'events',
-				getPersistFileName({userId: 'u1', userName: 'alice'}),
-			),
+			path.join(rootDir, '.epiq', 'events', getPersistFileName({userId: 'u1'})),
 			'utf8',
 		)
 		.trim()

@@ -45,7 +45,6 @@ const event = <A extends AppEvent['action']>(
 		action,
 		payload,
 		userId: 'u1',
-		userName: 'alice',
 	} as Extract<AppEvent, {action: A}>);
 
 const issueId = (n: number) =>

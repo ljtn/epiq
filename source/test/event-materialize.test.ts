@@ -31,7 +31,6 @@ const rank = () => {
 
 const actor = {
 	userId: 'u1',
-	userName: 'alice',
 };
 
 let eventSeq = 0;

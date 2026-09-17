@@ -16,7 +16,7 @@
 
 import {getEventTime, toEffectiveUlidTimes} from '../lib/event/date-utils.js';
 import {AppEvent, EventAction} from '../lib/event/event.model.js';
-import {loadMergedEvents} from '../lib/event/event-load.js';
+import {loadActorNames, loadMergedEvents} from '../lib/event/event-load.js';
 import {logSignature} from '../lib/event/log-signature.js';
 import {formatLogAction} from '../lib/event/format-log-utils.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
@@ -292,6 +292,10 @@ const identityFor = (
 ): EventIdentity | null => {
 	if (!id) return null;
 
+	// The id where nothing names it. An event carries no display name, so the
+	// only sources are this timeline's own create events and, failing those,
+	// the id itself — which is a poorer label than a name but a truer one than
+	// a guess.
 	const name = names.get(id) ?? fallback ?? id;
 
 	return {id, name, color: getStringColor(name)};
@@ -312,7 +316,7 @@ const identitiesFor = (
 		// hashed from whichever spelling is in hand. The file's copy is the
 		// fallback and nothing more: an id the log has no `create.contributor`
 		// for, from a board written before renames were events.
-		actor: identityFor(event.userId, names, event.userName),
+		actor: identityFor(event.userId, names),
 		tag: identityFor(tagOf(event), names),
 		assignee: identityFor(payload?.assignee, names),
 	};
@@ -388,8 +392,16 @@ export const filterEventsForBoard = (
 export type TimelineEntry = EventTimelineEntry & {board: string | null};
 
 // Every event the log holds, in effective-time order.
-export const buildTimelineEntries = (events: AppEvent[]): TimelineEntry[] => {
-	const names = buildNameIndex(events);
+export const buildTimelineEntries = (
+	events: AppEvent[],
+	// Names a pre-ZFZFW9D log carries in its file names, for an actor the log's
+	// own naming events never covered. An event carries no name, so without
+	// this such an actor would read as their id on an old board.
+	fileNames: ReadonlyMap<string, string> = new Map(),
+): TimelineEntry[] => {
+	// The log's own naming events win: a `create.contributor` or a rename is
+	// later truth than whatever a file name was called when it was made.
+	const names = new Map([...fileNames, ...buildNameIndex(events)]);
 	const previousParents = buildPreviousParentIndex(events);
 	const issueIndex = buildIssueIndex(events);
 	const issues = events.map(event => issueOf(event, issueIndex));
@@ -578,7 +590,10 @@ export const getTimelineIndex = (
 	const eventsResult = loadMergedEvents(stateBranchRoot);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
-	const entries = buildTimelineEntries(eventsResult.value);
+	const entries = buildTimelineEntries(
+		eventsResult.value,
+		loadActorNames(stateBranchRoot),
+	);
 	const index = {
 		entries,
 		lanes: buildLaneIndex(entries),

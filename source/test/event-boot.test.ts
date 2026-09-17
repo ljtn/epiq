@@ -40,7 +40,6 @@ vi.mock('../lib/event/event-materialize-and-persist.js', async () => {
 
 const actor = {
 	userId: 'u1',
-	userName: 'alice',
 };
 
 let eventSeq = 0;

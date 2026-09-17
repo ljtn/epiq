@@ -4,14 +4,17 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
-import {getSafeState} from '../../lib/state/state.js';
 import {
 	Contributor,
 	REMOVED_CONTRIBUTOR_NAME,
 } from '../../lib/model/app-state.model.js';
 import {ulid} from 'ulid';
 import {applyActorNameArgument} from '../../lib/config/actor-env.js';
-import {loadEventActors, loadMergedEvents} from '../../lib/event/event-load.js';
+import {
+	loadActorNames,
+	loadEventActors,
+	loadMergedEvents,
+} from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
 import {AppEvent} from '../../lib/event/event.model.js';
 import {filterEventsForBoard} from '../timeline-index.js';
@@ -25,20 +28,6 @@ import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
 import {ToolInput, boot, getActor, getStateResult} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
-
-// A contributor node's name is written once at create.contributor and never
-// updated; the event log carries the current one.
-const getLatestNamesFromLog = (): Map<string, string> => {
-	const stateResult = getSafeState();
-	const eventLog = isFail(stateResult) ? [] : stateResult.value.eventLog ?? [];
-	const byId = new Map<string, string>();
-
-	for (const event of eventLog) {
-		if (event.userId && event.userName) byId.set(event.userId, event.userName);
-	}
-
-	return byId;
-};
 
 // Shared so that every surface offering or matching a contributor agrees on the
 // answer; disagreement mints duplicate ids for the same person.
@@ -134,15 +123,10 @@ const findEventLogAuthor = async (
 	stateBranchRoot: string,
 	userId: string,
 ): Promise<{id: string; name: string} | undefined> => {
-	const actorsResult = loadEventActors(stateBranchRoot);
-	if (isFail(actorsResult)) return undefined;
-
-	let name: string | undefined;
-
-	// Last write wins: a display name changes over time, the id does not.
-	for (const actor of actorsResult.value) {
-		if (actor.userId === userId) name = actor.userName ?? name;
-	}
+	// `loadActorNames` has already dropped UNNAMED_ACTOR, which matters here:
+	// the caller writes what comes back into a `create.contributor`, so
+	// returning it would register somebody under it permanently.
+	const name = loadActorNames(stateBranchRoot).get(userId);
 
 	return name === undefined ? undefined : {id: userId, name};
 };
@@ -224,7 +208,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	// Registry *and* event log, so this matches the same union a picker offers;
 	// the registry alone reports log-only authors as unknown.
 	const candidates = mergeRegistryNames(
-		getLatestNamesFromLog(),
+		loadActorNames(bootResult.value.stateBranchRoot),
 		stateResult.value.contributors,
 	);
 
@@ -468,10 +452,19 @@ export const getBoardContributors = async (
 		if (actor.userId) workspaceAuthorIds.add(actor.userId);
 	}
 
+	// Names off the file names, which is where a pre-ZFZFW9D log keeps them —
+	// an event carries none. Looked up per author rather than merged in whole:
+	// a file name says nothing about which board its author worked on, so
+	// seeding from it would list people who have never touched this one.
+	const fileNames = loadActorNames(bootResult.value.stateBranchRoot);
+
 	for (const event of scopedEvents) {
 		if (!event.userId) continue;
 
-		byId.set(event.userId, event.userName ?? '');
+		if (!byId.has(event.userId)) {
+			byId.set(event.userId, fileNames.get(event.userId) ?? '');
+		}
+
 		authorIds.add(event.userId);
 	}
 

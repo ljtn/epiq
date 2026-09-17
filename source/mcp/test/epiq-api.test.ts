@@ -79,6 +79,10 @@ vi.mock('../../lib/storage/paths.js', async importOriginal => {
 	};
 });
 
+// Shared with the `loadActorNames` mock below, which is hoisted above the
+// module body and so cannot close over an ordinary binding.
+const actorNameHolder = vi.hoisted(() => ({events: [] as unknown[]}));
+
 vi.mock('../../lib/event/event-load.js', () => {
 	const loadMergedEvents = vi.fn(() => succeeded('loaded', []));
 
@@ -108,7 +112,40 @@ vi.mock('../../lib/event/event-load.js', () => {
 		);
 	});
 
-	return {loadMergedEvents, loadMergedEventsWithUnreadable, loadEventActors};
+	// In production this reads the log file names. Here the steered state log
+	// stands in for them, since that is what a test sets to say who has
+	// authored. A name of `unknown` is the file-name placeholder and is
+	// dropped, exactly as the real one drops it.
+	const loadActorNames = vi.fn(() => {
+		const byId = new Map<string, string>();
+		const merged = loadMergedEvents();
+
+		// Both sources, because a test steers whichever one its subject reads,
+		// and the real function sees every author either way — it reads the log
+		// file names, which exist for all of them. Last wins, as it does there.
+		// The default state log first, the steered merged log after, so a test
+		// that sets one explicitly wins over the fixture both share.
+		const seen = [
+			...actorNameHolder.events,
+			...(isFail(merged) ? [] : (merged.value as unknown[])),
+		] as {userId?: string; userName?: string}[];
+
+		for (const {userId, userName} of seen) {
+			if (!userId || !userName || userName === 'unknown') continue;
+
+			byId.set(userId, userName);
+		}
+
+		return byId;
+	});
+
+	return {
+		loadMergedEvents,
+		loadMergedEventsWithUnreadable,
+		loadEventActors,
+		loadActorNames,
+		UNNAMED_ACTOR: 'unknown',
+	};
 });
 
 const eventLoadModule = await import('../../lib/event/event-load.js');
@@ -325,6 +362,14 @@ const DEFAULT_STATE_EVENT_LOG = [
 
 let stateEventLog: unknown[] = [...DEFAULT_STATE_EVENT_LOG];
 
+// Set through here rather than assigned directly, so the `loadActorNames` mock
+// — whose factory is hoisted above this and cannot see the binding — stays in
+// step with what a test steered.
+const setStateEventLog = (events: unknown[]) => {
+	stateEventLog = events;
+	actorNameHolder.events = events;
+};
+
 const resetContributorFixtures = () => {
 	for (const key of Object.keys(contributorRegistry))
 		delete contributorRegistry[key];
@@ -334,7 +379,7 @@ const resetContributorFixtures = () => {
 	);
 	for (const key of Object.keys(tagRegistry)) delete tagRegistry[key];
 	Object.assign(tagRegistry, structuredClone(DEFAULT_TAG_REGISTRY));
-	stateEventLog = [...DEFAULT_STATE_EVENT_LOG];
+	setStateEventLog([...DEFAULT_STATE_EVENT_LOG]);
 };
 
 vi.mock('../../lib/state/state.js', async importOriginal => {
@@ -2105,7 +2150,7 @@ describe('mcp tools', () => {
 		};
 
 		// The competing name the log-name override would otherwise promote.
-		stateEventLog = [
+		setStateEventLog([
 			...DEFAULT_STATE_EVENT_LOG,
 			{
 				id: 'e-tombstoned',
@@ -2114,7 +2159,7 @@ describe('mcp tools', () => {
 				action: 'edit.title',
 				payload: {id: fixtureId('issue-1'), name: 'x'},
 			},
-		];
+		]);
 
 		const result = await tools.listIssues({repoRoot: '/repo'});
 
@@ -2265,7 +2310,9 @@ describe('mcp tools', () => {
 	it('adds an existing contributor as assignee without creating a duplicate', async () => {
 		// The default log author is a separate id sharing the registry's display
 		// name, which the union correctly reads as two people called Alice.
-		stateEventLog = [{...DEFAULT_STATE_EVENT_LOG[0], userId: 'contributor-1'}];
+		setStateEventLog([
+			{...DEFAULT_STATE_EVENT_LOG[0], userId: 'contributor-1'},
+		]);
 
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',
@@ -2294,7 +2341,7 @@ describe('mcp tools', () => {
 
 	// Guards against minting a second id for an author absent from the registry.
 	it('matches a name found only in the event log and reuses that id', async () => {
-		stateEventLog = [
+		setStateEventLog([
 			{
 				id: 'event-1',
 				userId: 'log-only-author',
@@ -2302,7 +2349,7 @@ describe('mcp tools', () => {
 				action: 'edit.title',
 				payload: {id: fixtureId('issue-1'), name: 'x'},
 			},
-		];
+		]);
 
 		const result = await tools.addIssueAssignee({
 			repoRoot: '/repo',

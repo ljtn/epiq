@@ -6,6 +6,7 @@ import {ulid} from 'ulid';
 
 vi.mock('../lib/event/event-load.js', () => ({
 	loadMergedEvents: vi.fn(),
+	loadActorNames: vi.fn(() => new Map<string, string>()),
 }));
 
 // A real directory: what the cache watches is the log's own files, and a mocked
@@ -202,11 +203,31 @@ describe('timeline-index', () => {
 		// An id the log has no create event for keeps the file's copy: better a
 		// lowercased name than a raw ULID.
 		it('falls back to the file’s copy for an actor the log never named', () => {
-			const [entry] = buildTimelineEntries([
-				event(1, {userId: 'u-9', userName: 'someone-else'}),
-			] as never);
+			const [entry] = buildTimelineEntries(
+				[event(1, {userId: 'u-9'})] as never,
+				new Map([['u-9', 'someone-else']]),
+			);
 
 			expect(entry!.actor?.name).toBe('someone-else');
+		});
+
+		// An old board can name somebody in a file name and later rename them
+		// with an event; the event is the newer truth.
+		it('prefers a naming event over the file’s copy', () => {
+			const [, entry] = buildTimelineEntries(
+				[
+					{
+						id: ulid(baseTime),
+						action: 'create.contributor',
+						payload: {id: 'u-9', name: 'Renamed'},
+						userId: 'u-9',
+					},
+					event(1, {userId: 'u-9'}),
+				] as never,
+				new Map([['u-9', 'someone-else']]),
+			);
+
+			expect(entry!.actor?.name).toBe('Renamed');
 		});
 
 		// Resolved once at build time so a request can narrow to its own board
