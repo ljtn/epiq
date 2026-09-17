@@ -89,10 +89,7 @@ describe('resolveAndPersistRankForMove', () => {
 			'parent',
 			'moving',
 			{at: 'before', sibling: 'child2'},
-			{
-				userId: 'user-1',
-				userName: 'Test User',
-			},
+			{userId: 'user-1'},
 			stateBranchRoot,
 		);
 

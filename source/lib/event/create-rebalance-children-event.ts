@@ -2,11 +2,11 @@ import {ulid} from 'ulid';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {getOrderedChildren} from '../repository/rank.js';
 import {evenlySpacedRanks} from '../utils/rank.js';
-import {AppEvent} from './event.model.js';
+import {actorOf, AppEvent, EventActor} from './event.model.js';
 
 export const createRebalanceChildrenEvent = (
 	parentId: string,
-	user: {userId: string; userName: string},
+	user: EventActor,
 ): Result<AppEvent<'rebalance.children'>> => {
 	const children = getOrderedChildren(parentId);
 	const ranksResult = evenlySpacedRanks(children.length);
@@ -33,6 +33,6 @@ export const createRebalanceChildrenEvent = (
 			parent: parentId,
 			ranks,
 		},
-		...user,
+		...actorOf(user),
 	});
 };

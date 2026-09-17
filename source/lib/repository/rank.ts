@@ -1,6 +1,6 @@
 import {createRebalanceChildrenEvent} from '../event/create-rebalance-children-event.js';
 import {materializeAndPersistAll} from '../event/event-materialize-and-persist.js';
-import {MovePosition} from '../event/event.model.js';
+import {EventActor, MovePosition} from '../event/event.model.js';
 import {AnyContext} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
@@ -11,11 +11,6 @@ import {rankBetween} from '../utils/rank.js';
 export type ResolveRankResult = {
 	rank: string;
 	needsRebalance: boolean;
-};
-
-type Actor = {
-	userId: string;
-	userName: string;
 };
 
 export const resolveCreateRank = (
@@ -132,7 +127,7 @@ export const resolveAndPersistRankForMove = (
 	parentId: string,
 	nodeId: string,
 	position: MovePosition,
-	user: Actor,
+	user: EventActor,
 	stateBranchRoot: string,
 ): Result<string> => {
 	const first = resolveRankForParent(nodeId, parentId, position);
@@ -163,7 +158,7 @@ export const resolveAndPersistRankForMove = (
 
 export const resolveAndPersistRankForCreate = (
 	parentId: string,
-	user: Actor,
+	user: EventActor,
 	stateBranchRoot: string,
 ): Result<string> => {
 	const first = resolveCreateRank(parentId);

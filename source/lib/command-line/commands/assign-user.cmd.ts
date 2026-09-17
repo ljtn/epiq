@@ -8,6 +8,7 @@ import {getCmdState} from '../../state/cmd.state.js';
 import {getRenderedChildren, getState} from '../../state/state.js';
 import {getAssignableContributors} from './assignable-contributors.js';
 import {getPersistRoot} from '../../storage/paths.js';
+import {actorOf} from '../../event/event.model.js';
 
 export const assignUserCommand = async () => {
 	const userRes = resolveActorId();
@@ -93,7 +94,7 @@ export const assignUserCommand = async () => {
 								id: contributorId,
 								name: contributorName,
 							},
-							...userRes.value,
+							...actorOf(userRes.value),
 						},
 				  ]),
 			{
@@ -103,7 +104,7 @@ export const assignUserCommand = async () => {
 					id: ticket.id,
 					assignee: contributorId,
 				},
-				...userRes.value,
+				...actorOf(userRes.value),
 			},
 		],
 		persistRootResult.value,

@@ -3,7 +3,7 @@ import path from 'node:path';
 import {ulid} from 'ulid';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {AppEvent} from '../../lib/event/event.model.js';
+import {actorOf, AppEvent} from '../../lib/event/event.model.js';
 import {
 	failed,
 	isFail,
@@ -100,7 +100,7 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'add.issue.attachment',
 		payload: {
 			id: attachmentId,
@@ -175,7 +175,7 @@ export const deleteIssueAttachment = async (
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'delete.issue.attachment',
 		payload: {
 			id: input.attachmentId,

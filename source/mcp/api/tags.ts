@@ -1,6 +1,6 @@
 import {ulid} from 'ulid';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {AppEvent} from '../../lib/event/event.model.js';
+import {actorOf, AppEvent} from '../../lib/event/event.model.js';
 import {
 	failed,
 	isFail,
@@ -80,7 +80,7 @@ export async function addIssueTag(
 			: [
 					{
 						id: ulid(),
-						...actorResult.value,
+						...actorOf(actorResult.value),
 						action: 'create.tag',
 						payload: {
 							id: tagId,
@@ -92,7 +92,7 @@ export async function addIssueTag(
 			({id}) =>
 				({
 					id: ulid(),
-					...actorResult.value,
+					...actorOf(actorResult.value),
 					action: 'add.issue.tag',
 					payload: {
 						id,
@@ -142,7 +142,7 @@ export const tombstoneTag = async (
 	const events = [
 		{
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'tombstone.tag',
 			payload: {id: input.tagId},
 		} satisfies AppEvent<'tombstone.tag'>,
@@ -183,7 +183,7 @@ export const restoreTag = async (
 	const events = [
 		{
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'restore.tag',
 			payload: {id: input.tagId, name: tag.name},
 		} satisfies AppEvent<'restore.tag'>,
@@ -218,7 +218,7 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'remove.issue.tag',
 		payload: {
 			id: input.issueId,

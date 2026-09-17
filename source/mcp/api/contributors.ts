@@ -16,7 +16,7 @@ import {
 	loadMergedEvents,
 } from '../../lib/event/event-load.js';
 import {materializeAndPersistAll} from '../../lib/event/event-materialize-and-persist.js';
-import {AppEvent} from '../../lib/event/event.model.js';
+import {actorOf, AppEvent} from '../../lib/event/event.model.js';
 import {filterEventsForBoard} from '../timeline-index.js';
 import {getStringColor} from '../../lib/utils/color.js';
 import {
@@ -98,7 +98,7 @@ export const assumeActor = async (
 			[
 				{
 					id: ulid(),
-					...actor,
+					...actorOf(actor),
 					action: 'create.contributor',
 					payload: {id: actor.userId, name: actor.userName},
 				} satisfies AppEvent<'create.contributor'>,
@@ -168,14 +168,14 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 				: [
 						{
 							id: ulid(),
-							...actorResult.value,
+							...actorOf(actorResult.value),
 							action: 'create.contributor',
 							payload: {id: assignee.id, name: assignee.name},
 						} satisfies AppEvent<'create.contributor'>,
 				  ]),
 			{
 				id: ulid(),
-				...actorResult.value,
+				...actorOf(actorResult.value),
 				action: 'add.issue.assignee',
 				payload: {id: input.issueId, assignee: assignee.id},
 			} satisfies AppEvent<'add.issue.assignee'>,
@@ -246,7 +246,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 			: [
 					{
 						id: ulid(),
-						...actorResult.value,
+						...actorOf(actorResult.value),
 						action: 'create.contributor',
 						payload: {
 							id: assigneeId,
@@ -256,7 +256,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 			  ]),
 		{
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'add.issue.assignee',
 			payload: {
 				id: input.issueId,
@@ -311,7 +311,7 @@ export const tombstoneContributor = async (
 	const events = [
 		{
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'tombstone.contributor',
 			payload: {id: input.contributorId},
 		} satisfies AppEvent<'tombstone.contributor'>,
@@ -387,7 +387,7 @@ export const restoreContributor = async (
 	const events = [
 		{
 			id: ulid(),
-			...actorResult.value,
+			...actorOf(actorResult.value),
 			action: 'restore.contributor',
 			payload: {id: input.contributorId, name: originalName},
 		} satisfies AppEvent<'restore.contributor'>,
@@ -434,7 +434,6 @@ export const getBoardContributors = async (
 		? filterEventsForBoard(eventsResult.value, input.boardId)
 		: eventsResult.value;
 
-	// Last write wins: events arrive in chronological order.
 	const byId = new Map<string, string>();
 	// Board-scoped, and kept apart from the merged map so the union below cannot
 	// erase "has actually worked on this board".
@@ -461,10 +460,7 @@ export const getBoardContributors = async (
 	for (const event of scopedEvents) {
 		if (!event.userId) continue;
 
-		if (!byId.has(event.userId)) {
-			byId.set(event.userId, fileNames.get(event.userId) ?? '');
-		}
-
+		byId.set(event.userId, fileNames.get(event.userId) ?? '');
 		authorIds.add(event.userId);
 	}
 
@@ -508,7 +504,7 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorResult.value,
+		...actorOf(actorResult.value),
 		action: 'remove.issue.assignee',
 		payload: {
 			id: input.issueId,

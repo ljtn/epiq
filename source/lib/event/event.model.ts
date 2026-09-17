@@ -371,6 +371,22 @@ export type AppEvent<A extends EventAction = EventAction> = LogicalEvent<A> & {
 	userId: string;
 };
 
+/** Who an event is by, and the whole of what it records about them. */
+export type EventActor = {userId: string};
+
+/**
+ * The actor of an event, taken from the configured identity, which carries a
+ * display name beside the id.
+ *
+ * Its own step because the compiler will not hold this line: TypeScript
+ * excess-checks the properties written in an object literal, not the ones a
+ * spread brings, so `{...user}` puts a `userName` back on the event and
+ * typechecks clean. `stripActor` keeps it off disk either way, which is what
+ * makes the slip silent — the event applied in place would carry a name the
+ * same event decoded from the log does not.
+ */
+export const actorOf = ({userId}: EventActor): EventActor => ({userId});
+
 export type MaterializeResult<A extends EventAction> = Result<{
 	action: A;
 	result: AppEventMap[A]['result'];

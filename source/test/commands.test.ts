@@ -176,7 +176,6 @@ describe('TagTicket command', () => {
 			[
 				{
 					id: 'add-tag-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'add.issue.tag',
 					payload: {
@@ -207,7 +206,6 @@ describe('TagTicket command', () => {
 			[
 				{
 					id: 'create-tag-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'create.tag',
 					payload: {
@@ -217,7 +215,6 @@ describe('TagTicket command', () => {
 				},
 				{
 					id: 'add-tag-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'add.issue.tag',
 					payload: {
@@ -257,7 +254,6 @@ describe('TagTicket command', () => {
 			[
 				{
 					id: 'add-tag-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'add.issue.tag',
 					payload: {
@@ -378,7 +374,6 @@ describe('AssignUserToTicket command', () => {
 			[
 				{
 					id: 'add-assignee-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'add.issue.assignee',
 					payload: {
@@ -428,7 +423,6 @@ describe('AssignUserToTicket command', () => {
 			[
 				{
 					id: 'add-assignee-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'add.issue.assignee',
 					payload: {
@@ -463,7 +457,6 @@ describe('AssignUserToTicket command', () => {
 			[
 				{
 					id: 'create-contributor-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'create.contributor',
 					payload: {
@@ -473,7 +466,6 @@ describe('AssignUserToTicket command', () => {
 				},
 				{
 					id: 'add-assignee-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'add.issue.assignee',
 					payload: {
@@ -620,7 +612,6 @@ describe('UnassignUserFromTicket command', () => {
 			[
 				{
 					id: 'remove-assignee-event-id',
-					userName: 'jola',
 					userId: '0001',
 					action: 'remove.issue.assignee',
 					payload: {id: 'ticket-1', assignee: 'user-123'},
