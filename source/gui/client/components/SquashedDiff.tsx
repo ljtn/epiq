@@ -29,9 +29,12 @@ const Notice = ({
 			marginBottom: 10,
 			padding: '6px 10px',
 			borderRadius: 6,
+			// The amber is a hex colour and takes a hex alpha; `line` is already
+			// an rgba and would become nonsense with one appended — which is what
+			// it was, so the quieter notice drew with no border at all.
 			border: `1px solid ${
-				tone === 'amber' ? GUI_THEME.amber : GUI_THEME.line
-			}33`,
+				tone === 'amber' ? `${GUI_THEME.amber}33` : GUI_THEME.line
+			}`,
 			background: GUI_THEME.panel2,
 			color: tone === 'amber' ? GUI_THEME.amber : GUI_THEME.secondary,
 			fontSize: TEXT.meta,

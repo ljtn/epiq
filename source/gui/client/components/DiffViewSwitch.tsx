@@ -21,11 +21,23 @@ export const DiffViewSwitch = ({
 		data-testid="diff-view-switch"
 		style={{display: 'flex', gap: 2, marginBottom: 10}}
 	>
+		{/* Both segments go flat while a deep link holds the view: the reader is
+		    on the commits because the link points into one, and pressing the
+		    segment they are already on must not quietly overwrite the choice
+		    this switch remembers for them. */}
 		<button
 			aria-pressed={!compacted}
-			title="Each commit and the files it changed"
+			disabled={pinnedToCommits}
+			title={
+				pinnedToCommits
+					? 'Following a link into a commit'
+					: 'Each commit and the files it changed'
+			}
 			onClick={() => onChange(false)}
-			style={segmentedButtonStyle(!compacted)}
+			style={{
+				...segmentedButtonStyle(!compacted),
+				...(pinnedToCommits ? {cursor: 'default'} : {}),
+			}}
 		>
 			Commits
 		</button>
