@@ -2,7 +2,7 @@
 // state nothing else reports: an address two people claim, which resolves to
 // neither of them.
 
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {GuiIdentity} from './gui-state.model';
 import {getResultValue} from './gui-state-helper';
 
@@ -48,6 +48,13 @@ export const useContributorEmails = ({
 		lastAction: null,
 	});
 
+	// Whether a link or unlink of ours is in flight. `failed` is a broadcast for
+	// any mutation on any socket, so without this the panel reported somebody
+	// else's error as its own — and the one failure it must not miss, the
+	// read-only gate while scrubbing, is refused before it reaches the email
+	// handler and so never produces an `emails` reply to carry the reason.
+	const pending = useRef(false);
+
 	// Asked for when the panel opens and not polled: links change when somebody
 	// makes one, and every reply to a change carries the new list with it.
 	useEffect(() => {
@@ -62,6 +69,9 @@ export const useContributorEmails = ({
 		// scrubbing history, for instance. Ignoring it left the Link button doing
 		// nothing at all with nothing said.
 		if (message.type === 'failed') {
+			if (!pending.current) return;
+
+			pending.current = false;
 			setState(prev => ({
 				...prev,
 				loading: false,
@@ -71,6 +81,8 @@ export const useContributorEmails = ({
 		}
 
 		if (message.type !== 'emails') return;
+
+		pending.current = false;
 
 		const value = getResultValue<ContributorEmails>(message.payload);
 
@@ -100,6 +112,7 @@ export const useContributorEmails = ({
 	// trip rather than the previous answer until the reply lands.
 	const link = useCallback(
 		(email: string, contributorId?: string) => {
+			pending.current = true;
 			setState(prev => ({...prev, loading: true, lastAction: null}));
 			sendRaw({type: 'email:link', payload: {email, contributorId}});
 		},
@@ -108,6 +121,7 @@ export const useContributorEmails = ({
 
 	const unlink = useCallback(
 		(email: string, contributorId?: string) => {
+			pending.current = true;
 			setState(prev => ({...prev, loading: true, lastAction: null}));
 			sendRaw({type: 'email:unlink', payload: {email, contributorId}});
 		},

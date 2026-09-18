@@ -1,6 +1,7 @@
 import {ulid} from 'ulid';
 import {
 	claimantsOf,
+	isValidEmail,
 	normalizeEmail,
 	wasRetractedBy,
 } from '../model/email-link.js';
@@ -113,6 +114,13 @@ export const ensureEmailLinked = (
 		return succeeded('Contributor not registered yet', undefined);
 	}
 
+	// Git takes any string for `user.email`, and people put things in it that
+	// are not addresses: a whole ident, a bare username, a typo. An unusable one
+	// is not this hook's problem to report — it simply has nothing to link.
+	if (!isValidEmail(gitEmail)) {
+		return succeeded('Configured git address is not an address', undefined);
+	}
+
 	const email = normalizeEmail(gitEmail);
 	const links = nodeRepo.getEmailLinks();
 
@@ -145,7 +153,17 @@ export const ensureEmailLinked = (
 		userId: configuredId,
 	} satisfies AppEvent<'link.contributor.email'>);
 
-	if (isFail(result)) return failed(result.message);
+	// Never fatal. This runs before every write, and `beforeWrite` aborts the
+	// caller's write on a failure — so propagating one would let a convenience
+	// nobody asked for take the board down, on every write, until whatever upset
+	// it was fixed. The link is an enrichment; the write the user asked for is
+	// not.
+	if (isFail(result)) {
+		return succeeded(
+			`Could not link git address: ${result.message}`,
+			undefined,
+		);
+	}
 
 	return succeeded('Git address linked', undefined);
 };

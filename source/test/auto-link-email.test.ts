@@ -3,8 +3,9 @@ import {ulid} from 'ulid';
 import {ensureEmailLinked} from '../lib/board/board-contributor.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
+import {materializeAll} from '../lib/board/board-log.js';
 import {claimantsOf, emailsOf} from '../lib/model/email-link.js';
-import {isFail, succeeded} from '../lib/model/result-types.js';
+import {failed, isFail, succeeded} from '../lib/model/result-types.js';
 import {patchSettingsState} from '../lib/state/settings.state.js';
 import {getState} from '../lib/state/state.js';
 
@@ -35,15 +36,18 @@ const board = (extra: AppEvent[] = []) => {
 	if (isFail(result)) throw new Error(result.message);
 };
 
-// A stand-in for the log's own writer: records what the hook asked to write and
-// applies it, so the assertions can read the resulting board.
+// A stand-in for the log's own writer. It runs the real materializer, so an
+// event the board would refuse is refused here too — a double that accepted
+// everything hid a bug that made every write fail, because the hook's own
+// output was never put through the rules it has to satisfy.
 const writer = () => {
 	const written: AppEvent[] = [];
 	return {
 		written,
 		writeOne: (event: AppEvent) => {
 			written.push(event);
-			return succeeded('Wrote', null);
+			const [result] = materializeAll([event]);
+			return result ?? succeeded('Wrote', null);
 		},
 	};
 };
@@ -130,6 +134,42 @@ describe('the git address links itself', () => {
 		expect(written).toEqual([]);
 	});
 
+	// Git takes any string here, and people put one in: a pasted whole ident, a
+	// bare username, a typo. Before this guard the hook wrote an event the
+	// materializer refused, `beforeWrite` turned that into a failure, and the
+	// user's own write was aborted — on every write, permanently, on all three
+	// surfaces.
+	it.each([
+		'Jonatan Lampa <jola@x.com>',
+		'root',
+		'a@b@c',
+		'no spaces @ allowed.com',
+	])('is skipped when git user.email is not an address: %s', bad => {
+		board();
+		patchSettingsState({gitEmail: bad});
+
+		const {written, writeOne} = writer();
+		const result = ensureEmailLinked(anyWrite(ALICE), writeOne);
+
+		expect(written).toEqual([]);
+		// Succeeded, not failed: a failure here aborts the write the user asked
+		// for, which is not this hook's to refuse.
+		expect(isFail(result)).toBe(false);
+	});
+
+	// Belt and braces for the same rule: whatever goes wrong downstream, the
+	// caller's write still goes through.
+	it('never fails the caller write, even when the link cannot be written', () => {
+		board();
+		patchSettingsState({gitEmail: 'alice@example.com'});
+
+		const result = ensureEmailLinked(anyWrite(ALICE), () =>
+			failed('disk is on fire'),
+		);
+
+		expect(isFail(result)).toBe(false);
+	});
+
 	it('not when the repository has no configured address', () => {
 		board();
 		patchSettingsState({gitEmail: null});
@@ -195,7 +235,7 @@ describe('the git address links itself', () => {
 		expect(written).toEqual([]);
 	});
 
-	it('links a second address after the first one is retracted', () => {
+	it('links the new address when git changes, and leaves the old one linked', () => {
 		board([
 			by(ALICE, 'link.contributor.email', {
 				contributor: ALICE,
@@ -210,8 +250,11 @@ describe('the git address links itself', () => {
 		expect(written[0]).toMatchObject({
 			payload: {contributor: ALICE, email: 'new@job.com'},
 		});
-		// The old one is untouched, so a change of address needs no migration and
-		// old commits keep resolving.
-		expect(emailsOf(getState().emailLinks, ALICE)).toEqual(['old@job.com']);
+		// Both, because links are additive: a change of address needs no
+		// migration and commits under the old one keep resolving.
+		expect(emailsOf(getState().emailLinks, ALICE).sort()).toEqual([
+			'new@job.com',
+			'old@job.com',
+		]);
 	});
 });
