@@ -39,6 +39,8 @@
 		"dev:start": "IS_LOCAL=true tsx source/Index.tsx",
 		"start": "IS_LOCAL=true tsx source/Index.tsx",
 		"start:gui": "IS_LOCAL=true tsx source/Index.tsx gui",
+		"start:scratch-board": "node source/scripts/scratch-board.mjs",
+		"start:scratch-board:gui": "node source/scripts/scratch-board.mjs gui",
 		"test": "prettier --check \"**/*.{ts,tsx}\" && vitest run --coverage --exclude \"source/test/e2e/**\" --exclude \"source/test/e2e-collab/**\"",
 		"test:containers": "sh source/scripts/test-containers.sh",
 		"stress": "sh source/scripts/stress.sh",
