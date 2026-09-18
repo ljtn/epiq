@@ -16,11 +16,25 @@ const EMPTY_AUTO_COMPLETION: AutoCompletion = {
 };
 
 export const getAutoCompletion = (
-	{inputToMatch, lastWord, isLastWordCompleted}: ParsedCommandLine,
+	{inputToMatch, lastWord, isLastWordCompleted, inputString}: ParsedCommandLine,
 	wordList: string[],
+	/**
+	 * What this command offers here, as opposed to the board's whole vocabulary.
+	 * Only these can be filled in with nothing typed, and only when there is one
+	 * of them: completing from the vocabulary would put an arbitrary ticket word
+	 * in the line the moment somebody pressed tab.
+	 */
+	contextualWordList: string[] = [],
 ): AutoCompletion => {
 	if (isLastWordCompleted || inputToMatch === '') {
-		return EMPTY_AUTO_COMPLETION;
+		const [sole] = contextualWordList;
+
+		// Nothing typed and only one thing it could be, so there is nothing to
+		// disambiguate: tab fills it rather than asking for a first letter it
+		// could only be given one way.
+		return contextualWordList.length === 1 && sole && !inputString.trim()
+			? returnAutoCompletion('', [sole])
+			: EMPTY_AUTO_COMPLETION;
 	}
 
 	const hints = autoCompletionFromWordList({

@@ -134,3 +134,52 @@ describe('matching is case-insensitive', () => {
 		expect(match).toBe('Jonatan Lampa');
 	});
 });
+
+describe('completing with nothing typed', () => {
+	const parsed = (value: string) => parseCommandLine(value);
+
+	// A first letter that could only ever be one letter is not a choice, it is
+	// an obstacle: `:config username ` with one name on offer fills it.
+	it('fills the one candidate when the argument is empty', () => {
+		const completion = getAutoCompletion(
+			parsed('view dense '),
+			['Jonatan Lampa'],
+			['Jonatan Lampa'],
+		);
+
+		expect(completion.remainder).toBe('Jonatan Lampa ');
+	});
+
+	it('leaves an ambiguous argument alone', () => {
+		const completion = getAutoCompletion(
+			parsed('tag critical '),
+			['vim', 'nano'],
+			['vim', 'nano'],
+		);
+
+		expect(completion.remainder).toBe('');
+	});
+
+	// Otherwise tab would append a second value to one already given.
+	it('does not fill an argument that already has a value', () => {
+		const completion = getAutoCompletion(
+			parsed('view dense already '),
+			['Jonatan Lampa'],
+			['Jonatan Lampa'],
+		);
+
+		expect(completion.remainder).toBe('');
+	});
+
+	// The board's whole vocabulary is in the general list; filling from it would
+	// drop an arbitrary ticket word into the line.
+	it('ignores the general word list, however small the contextual one is', () => {
+		const completion = getAutoCompletion(
+			parsed('view dense '),
+			['some-ticket-word'],
+			[],
+		);
+
+		expect(completion.remainder).toBe('');
+	});
+});
