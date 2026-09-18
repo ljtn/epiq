@@ -103,18 +103,108 @@ describe('TUI diff e2e', () => {
 				);
 
 				expect(listed).toContain('Diff (2)');
-				expect(listed).toContain('enter to open in your editor');
+				expect(listed).toContain('o to open in your editor');
 				expect(listed).not.toContain('another ticket entirely');
 
-				// Enter hands the commit to the configured editor (`vim` here, which
+				// `o` hands the commit to the configured editor (`vim` here, which
 				// this container has no terminal for). Whatever comes of that, the
 				// TUI must still be taking input — so move the cursor afterwards and
 				// wait for it to land. Waiting on text that is already on screen
 				// would pass whether or not the TUI was still alive.
-				tui.input(ENTER);
+				tui.input('o');
 				tui.input(ARROW_DOWN);
 				const afterOpen = await tui.waitFor(/❯.*the first thing/, 6_000);
 				expect(afterOpen).toContain('Diff (2)');
+			} finally {
+				await tui.destroy();
+			}
+		},
+		testTimeout,
+	);
+
+	it(
+		'reads a commit’s patch in place, and q comes back to the list',
+		async () => {
+			const tui = setupTui();
+
+			try {
+				await commonSteps.init(tui);
+
+				git(tui.cwd, 'config user.name e2e');
+				git(tui.cwd, 'config user.email e2e@example.com');
+
+				tui.input(ENTER);
+				await tui.waitFor('Todo (0)', 4_000);
+
+				await run(tui, ':new issue Patch target', 'Patch target');
+				await tui.waitFor('Todo (1)', 4_000);
+
+				const issues = await listIssues({repoRoot: tui.cwd});
+				if (isFail(issues)) throw new Error(issues.message);
+				const ref = issues.value[0]?.ref;
+
+				// A base to diff against, then a change that removes one line, adds
+				// another and leaves context around both.
+				fs.writeFileSync(
+					path.join(tui.cwd, 'thing.ts'),
+					['const keep = 1;', 'const drop = 2;', 'const also = 3;', ''].join(
+						'\n',
+					),
+				);
+				git(tui.cwd, 'add -A');
+				git(
+					tui.cwd,
+					`commit -q --no-verify -m ${JSON.stringify(`${ref} base`)}`,
+				);
+
+				fs.writeFileSync(
+					path.join(tui.cwd, 'thing.ts'),
+					['const keep = 1;', 'const fresh = 9;', 'const also = 3;', ''].join(
+						'\n',
+					),
+				);
+				git(tui.cwd, 'add -A');
+				git(
+					tui.cwd,
+					`commit -q --no-verify -m ${JSON.stringify(`${ref} the change`)}`,
+				);
+
+				tui.input(ENTER);
+				await tui.waitFor('Diff ››', 4_000);
+
+				for (const row of [
+					/❯\s+Assignees/,
+					/❯\s+Tags/,
+					/❯\s+History/,
+					/❯\s+Diff/,
+				]) {
+					tui.input(ARROW_DOWN);
+					await tui.waitFor(row, 4_000);
+				}
+
+				tui.input(ENTER);
+				await tui.waitFor(/❯.*the change/, 10_000);
+
+				// Into the newest commit's patch.
+				tui.input(ENTER);
+				const patch = await tui.waitFor('q to go back', 10_000);
+
+				expect(patch).toContain('thing.ts');
+				expect(patch).toMatch(/@@ -\d+(,\d+)? \+\d+(,\d+)? @@/);
+				expect(patch).toContain('-const drop = 2;');
+				expect(patch).toContain('+const fresh = 9;');
+				// Context is drawn without a sign, so the unchanged line is there as
+				// itself rather than as an addition.
+				expect(patch).toContain('const keep = 1;');
+				expect(patch).not.toContain('+const keep = 1;');
+
+				// `enter to read`, not `o to open in your editor` — the pager's own
+				// header carries that phrase too, so waiting on it would match the
+				// frame that is already on screen and never prove `q` did anything.
+				tui.input('q');
+				const back = await tui.waitFor('enter to read', 6_000);
+				expect(back).toContain('Diff (2)');
+				expect(back).not.toContain('q to go back');
 			} finally {
 				await tui.destroy();
 			}

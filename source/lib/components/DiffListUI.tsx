@@ -12,6 +12,7 @@ import {theme} from '../theme/themes.js';
 import {timeAgo} from '../utils/date.utils.js';
 import {nodeRef} from '../utils/node-ref.js';
 import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
+import {CommitDiffUI} from './CommitDiffUI.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 
 type Props = {
@@ -28,9 +29,12 @@ const detachCommitNodes = (commitNodes: NavNode<'FIELD'>[]) => {
 	}
 };
 
-// The sha is the node id, so the Enter handler can read it straight back off
-// the selected node — the same trick the attachment list plays with its
-// attachment ids.
+// The sha is the node id, so both the editor hand-off and the pager can read
+// it straight back off the node — the same trick the attachment list plays
+// with its attachment ids.
+//
+// Vertical, because entering one opens its patch and the rows of a patch are
+// navigated up and down.
 const createCommitNode = (
 	commit: RefCommitEntry,
 	index: number,
@@ -41,6 +45,7 @@ const createCommitNode = (
 		name: commit.subject,
 		parentNodeId,
 		rank: String(index).padStart(6, '0'),
+		childRenderAxis: 'vertical',
 		isVirtual: true,
 	});
 
@@ -116,7 +121,14 @@ export function DiffListUI({ticket, width, height}: Props) {
 		};
 	}, [ticket, commits]);
 
-	const {selectedIndex} = useAppState();
+	const {selectedIndex, contextNode} = useAppState();
+
+	// Entering a commit opens its patch. The list stays mounted underneath —
+	// unmounting it would detach the very nav node the pager is now the context
+	// of, and navigation would have nowhere to go back to.
+	const openCommit =
+		commits?.find(candidate => candidate.sha === contextNode.id) ?? null;
+
 	const padding = 4;
 	const scrollHeight = Math.max(1, height - padding);
 	const subjectWidth = Math.max(12, width - 34);
@@ -130,6 +142,17 @@ export function DiffListUI({ticket, width, height}: Props) {
 						: `Could not read commits: ${load.message}`}
 				</Text>
 			</Box>
+		);
+	}
+
+	if (openCommit) {
+		return (
+			<CommitDiffUI
+				sha={openCommit.sha}
+				subject={openCommit.subject}
+				width={width}
+				height={height}
+			/>
 		);
 	}
 
@@ -159,7 +182,7 @@ export function DiffListUI({ticket, width, height}: Props) {
 				paddingBottom={1}
 			>
 				<Text color={theme.secondary2}>
-					{`Diff (${load.commits.length}) — enter to open in your editor `}
+					{`Diff (${load.commits.length}) — enter to read, o to open in your editor `}
 				</Text>
 			</Box>
 

@@ -16,6 +16,44 @@ export type CommitDiff = {
 	files: CommitDiffFile[];
 };
 
+/**
+ * One commit as git's own unified patch.
+ *
+ * `getCommitDiff` above hands back each file's two whole revisions, which is
+ * what a renderer that computes its own hunks wants. A terminal draws the
+ * patch as git wrote it, so it asks for that instead rather than re-deriving
+ * hunks that would disagree with git about renames, binary files and the
+ * missing trailing newline.
+ *
+ * `--no-ext-diff` because a configured external diff driver would hand back
+ * something that is not a patch at all, and `--format=` leaves the commit
+ * header off — the list the reader came from already showed it.
+ */
+export const getCommitPatch = async (
+	input: RepoInput & {sha: string},
+): Promise<Result<string>> => {
+	if (!isPlausibleSha(input.sha)) return failed('Invalid commit sha');
+
+	const repoRootResult = resolveRepoRoot(input.repoRoot);
+	if (isFail(repoRootResult)) return failed(repoRootResult.message);
+
+	const showResult = await execGit({
+		cwd: repoRootResult.value,
+		args: [
+			'show',
+			'--no-ext-diff',
+			'--no-color',
+			'--patch',
+			'--find-renames',
+			'--format=',
+			input.sha,
+		],
+	});
+	if (isFail(showResult)) return failed(showResult.message);
+
+	return succeeded('Read commit patch', showResult.value.stdout);
+};
+
 // Bounds payload size for a pathological commit (a vendored dep, a lockfile
 // rewrite) rather than the editor-tab-count concern MAX_DIFF_FILES_FOR_SIDE_BY_SIDE
 // exists for — a rendered accordion tolerates far more files than open windows do.

@@ -22,11 +22,24 @@ export {
 
 export {
 	getCommitDiff,
+	getCommitPatch,
 	getSquashedDiffForRef,
 	type CommitDiff,
 	type CommitDiffFile,
 	type SquashedDiff,
 	type SquashedDiffFile,
 } from './commit-diff.js';
+
+export {
+	isFileRow,
+	parsePatch,
+	patchLineCount,
+	patchRows,
+	renamedFrom,
+	type PatchFile,
+	type PatchLine,
+	type PatchLineKind,
+	type PatchRow,
+} from './patch-parse.js';
 
 export {openCommitDiffInEditor} from './commit-editor.js';
