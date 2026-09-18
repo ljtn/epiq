@@ -17,17 +17,20 @@ import {getResultValue} from './gui-state-helper';
 // object rather than a fresh empty one on every render.
 const NONE: RefDiffStats = {};
 
-// A second ask inside this window would only land on the server's own cached
-// read of the same history. Returning to the page fires focus every time,
-// including on a click through from another window.
-const REFRESH_AFTER_MS = 10_000;
+// The server holds its history scan for FULL_TIMELINE_CACHE_TTL_MS, so an ask
+// inside this window is answered from that cache and costs nothing — and one
+// just outside it is the ask worth making, since a commit that landed in the
+// meantime is what the reader came back to see. Returning to the page fires
+// focus every time, including on a click through from another window.
+const REFRESH_AFTER_MS = 5_000;
 
 export const useRefDiffStats = ({
 	socketEpoch,
 	sendRaw,
 }: {
-	// A reconnect: the socket that would have carried an earlier answer is gone,
-	// so the question has to be put again.
+	// Counts opened sockets, so it is 0 before the first one is up and rises on
+	// every reconnect — after which the socket that would have carried an
+	// earlier answer is gone, and the question has to be put again.
 	socketEpoch: number;
 	sendRaw: (message: unknown) => void;
 }) => {
@@ -39,7 +42,13 @@ export const useRefDiffStats = ({
 		sendRaw({type: 'diff-stats:get'});
 	}, [sendRaw]);
 
+	// Not at mount, only once a socket is up. Asking at mount as well would send
+	// the same frame twice — it is queued through the connecting socket, and
+	// that socket opening is itself what raises the epoch — and the server
+	// answers both, the first of them on a cold cache.
 	useEffect(() => {
+		if (socketEpoch === 0) return;
+
 		ask();
 	}, [socketEpoch, ask]);
 

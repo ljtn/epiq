@@ -27,6 +27,7 @@ import {
 	clearDiffLocationParams,
 	clearDiffViewParam,
 	DiffLocation,
+	DiffViewName,
 	readCommitFocusParam,
 	readDiffLocationParams,
 	readDiffViewParam,
@@ -1069,19 +1070,30 @@ export const App = () => {
 		nextIssueId: string,
 		tab: IssueDetailsTab,
 		board = boardSlug,
+		// Which of the Code tab's two views to land on, where the thing being
+		// followed means one of them. Left out everywhere else, so the reader's
+		// own last choice stands.
+		diffView?: DiffViewName,
 	) => {
 		if (!board) return;
 
 		setCommitDiff(null);
 
-		void navigate(`/board/${board}/issue/${nodeRef(nextIssueId)}?tab=${tab}`);
+		const params = new URLSearchParams({tab});
+		if (diffView) writeDiffViewParam(params, diffView === 'flat');
+
+		void navigate(`/board/${board}/issue/${nodeRef(nextIssueId)}?${params}`);
 	};
 
 	const selectIssueComments = (nextIssueId: string) =>
 		openIssueTab(nextIssueId, 'comments');
 
+	// The stat on a card is a picture of the ticket's whole change, so it opens
+	// the view that draws it that way rather than the commits that made it.
+	// Named in the route for this click alone — the reader's remembered choice
+	// is left as it is, the way a deep link into a commit leaves it.
 	const selectIssueCode = (nextIssueId: string) =>
-		openIssueTab(nextIssueId, 'code');
+		openIssueTab(nextIssueId, 'code', boardSlug, 'flat');
 
 	// A log line goes where the thing it names is read: a commit to its diff, a
 	// comment among the comments, anything else to the ticket's overview. Which
