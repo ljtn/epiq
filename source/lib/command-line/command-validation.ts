@@ -300,16 +300,23 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			const wordList = suggestion ? [suggestion] : [];
 			const typed = inputString.trim();
 
+			// Nothing left to suggest once the only match has been typed out in
+			// full: the suggestion and the input would be the same words twice.
+			const remaining = wordList.filter(word => word.startsWith(typed));
+			const isComplete = remaining.length === 1 && remaining[0] === typed;
+
 			// Narrowed as it is typed, like the editor's list. Unlike the editor
 			// this is free text, so the hint has to survive a valid input rather
 			// than only appearing while one is refused — otherwise the suggestion
 			// vanishes at the first keystroke, which is when it is most wanted.
-			const hint = buildOptionsHint({
-				prefix: 'name: ',
-				wordList,
-				inputString: typed,
-				minLengthForHints: 0,
-			});
+			const hint = isComplete
+				? ''
+				: buildOptionsHint({
+						prefix: 'name: ',
+						wordList,
+						inputString: typed,
+						minLengthForHints: 0,
+				  });
 
 			if (!typed) {
 				return invalid({
