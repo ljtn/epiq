@@ -153,7 +153,15 @@ export default function SettingsUI({width, height}: Props) {
 										<Text color={theme.secondary2}>
 											{' then '}
 											<Text color={theme.accent}>tab</Text>
-											{' to auto-complete'}
+											{' to auto-complete '}
+											{/* The chip the command would become, drawn like the
+											    one beside it, so the two read as the before and
+											    after of one keystroke. Taken from the step rather
+											    than written out, so it stays true if the order
+											    of the steps ever changes. */}
+											<Text backgroundColor={theme.secondary}>
+												{` ${step.command.split(' ').pop()} `}
+											</Text>
 										</Text>
 									) : isActive ? (
 										<Text color={theme.secondary2}>
