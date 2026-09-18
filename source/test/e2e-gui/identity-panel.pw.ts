@@ -18,7 +18,14 @@ import {
 // its commits with. Neither resembles the other, which is the point: the panel
 // has to offer an address that matches nothing the viewer is called.
 const BOARD_NAME = 'claude/tester';
+// What the panel draws: a board name is shown from its last slash, so the two
+// `claude/...` sessions on a board are told apart without the prefix repeating.
+const SHOWN_NAME = '/tester';
 const COMMIT_EMAIL = 'e2e@example.com';
+
+// The scan of a repository's authors is cached for this long, so an address
+// that has just made its first commit is not offered until the walk runs again.
+const AUTHOR_SCAN_CACHE_MS = 15_500;
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTitle('Add issue').first().click();
@@ -52,7 +59,9 @@ const commitAndReload = async (page: Page, repoRoot: string, tag: string) => {
 	expect(ref).toBeTruthy();
 
 	commitLinkedFile(repoRoot, ref!, `identity ${tag}`, linkedFileName(ref!));
-	await page.waitForTimeout(COMMIT_CACHE_MS);
+	// The longer of the two: the timeline cache is what makes the commit
+	// visible, the author scan is what makes its address offerable.
+	await page.waitForTimeout(Math.max(COMMIT_CACHE_MS, AUTHOR_SCAN_CACHE_MS));
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -71,7 +80,7 @@ test('the avatar opens who you are, and Escape closes it', async ({
 	await expect(page.getByTestId('identity-panel')).toHaveCount(0);
 
 	const panel = await openPanel(page);
-	await expect(panel).toContainText(BOARD_NAME);
+	await expect(panel).toContainText(SHOWN_NAME);
 
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('identity-panel')).toHaveCount(0);
@@ -90,7 +99,7 @@ test('a click inside the panel does not dismiss it', async ({
 
 	// The heading, because it is inside the panel and does nothing when clicked:
 	// a button would prove the click landed but not that the panel survived it.
-	await panel.getByText('Git addresses').click();
+	await panel.getByText('on this board').click();
 	await expect(panel).toBeVisible();
 
 	expect(pageErrors).toEqual([]);
@@ -119,7 +128,7 @@ test('claiming an address makes its commits read as you, and unlinking undoes it
 	const more = panel.getByRole('button', {name: /more address/});
 	if (await more.count()) await more.click();
 
-	const row = panel.locator('div').filter({hasText: COMMIT_EMAIL}).last();
+	const row = panel.getByTestId(`identity-row-${COMMIT_EMAIL}`);
 	await expect(row).toContainText(COMMIT_EMAIL);
 	await row.getByRole('button', {name: 'This is me'}).click();
 
@@ -134,9 +143,7 @@ test('claiming an address makes its commits read as you, and unlinking undoes it
 	// And back: the address stops resolving, which is all unlinking promises.
 	panel = page.getByTestId('identity-panel');
 	await panel
-		.locator('div')
-		.filter({hasText: COMMIT_EMAIL})
-		.last()
+		.getByTestId(`identity-row-${COMMIT_EMAIL}`)
 		.getByRole('button', {name: 'Unclaim'})
 		.click();
 
