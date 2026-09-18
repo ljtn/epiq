@@ -254,8 +254,10 @@ describe('issue attachments', () => {
 				);
 				expect(detailsFrame).toContain('Attachments (1)');
 
-				// last row in the details tree — walk down and enter it
-				for (let i = 0; i < 5; i++) indicatorTui.input(ARROW_DOWN);
+				// Last row in the details tree — walk down and enter it. The rows
+				// below Description are Assignees, Tags, History, Diff, Comments,
+				// Attachments, so a row added between them moves this count.
+				for (let i = 0; i < 6; i++) indicatorTui.input(ARROW_DOWN);
 				indicatorTui.input(ENTER);
 				// Wait for the actual row, not just the static "enter to open"
 				// header — the header can paint a frame before the attachment

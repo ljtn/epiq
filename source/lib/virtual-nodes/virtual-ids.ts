@@ -28,6 +28,7 @@ export const virtualNodeId = (
 		| 'assignees'
 		| 'tags'
 		| 'history'
+		| 'diff'
 		| 'comments'
 		| 'attachments',
 ): string => hashToUlid(`${parentId}:virtual:${kind}`);

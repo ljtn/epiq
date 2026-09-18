@@ -29,6 +29,8 @@ const getTagsNodeId = (ticketId: string) => virtualNodeId(ticketId, 'tags');
 
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
 
+const getDiffNodeId = (ticketId: string) => virtualNodeId(ticketId, 'diff');
+
 const getAttachmentsNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'attachments');
 
@@ -169,6 +171,7 @@ export const materializeTicketVirtualNodes = (
 	const commentsRank = bigIntToHex((MAX_RANK * 7n) / 8n);
 	const attachmentsRank = bigIntToHex((MAX_RANK * 15n) / 16n);
 	const logRank = bigIntToHex((MAX_RANK * 13n) / 16n);
+	const diffRank = bigIntToHex((MAX_RANK * 27n) / 32n);
 
 	if (isFail(descriptionRank)) return descriptionRank;
 	if (isFail(assigneesRank)) return assigneesRank;
@@ -176,6 +179,7 @@ export const materializeTicketVirtualNodes = (
 	if (isFail(commentsRank)) return commentsRank;
 	if (isFail(attachmentsRank)) return attachmentsRank;
 	if (isFail(logRank)) return logRank;
+	if (isFail(diffRank)) return diffRank;
 
 	const descriptionResult = createOrUpdateVirtualField({
 		id: getDescriptionNodeId(node.id),
@@ -237,6 +241,21 @@ export const materializeTicketVirtualNodes = (
 		childRenderAxis: 'vertical',
 	});
 	if (isFail(logResult)) return logResult;
+
+	// Empty, unlike History, which carries its whole rendered log as the node's
+	// value. A ticket's commits come from git, and this runs synchronously for
+	// every ticket on every replay — so the row is a marker to navigate into,
+	// and the commits are read when somebody does.
+	const diffResult = createOrUpdateVirtualField({
+		id: getDiffNodeId(node.id),
+		name: FieldNames.DIFF,
+		parentNodeId: node.id,
+		rank: diffRank.value,
+		value: '',
+		readonly: true,
+		childRenderAxis: 'vertical',
+	});
+	if (isFail(diffResult)) return diffResult;
 
 	return succeeded('Ticket virtual nodes materialized', undefined);
 };

@@ -25,8 +25,30 @@ const CHROME_ROWS = 5;
 // A field below the editor costs its own row plus the blank one above it.
 const FIELD_ROWS = 2;
 
-// How many rows of text the box can draw. One row too many and the last of
-// them lands on the bottom border: the row list keeps the height it was given
-// while the box around it shrinks to the space that is left.
-export const inlineEditorRowCount = (height: number, fieldCount = 0): number =>
-	Math.max(1, height - CHROME_ROWS - FIELD_ROWS * fieldCount);
+// The `››` rows are one menu rather than a list of fields, so they are drawn as
+// a block: one blank line above the first, then a row each. Spacing them like
+// fields cost four rows nobody was reading, which at 20 terminal rows was the
+// whole of the editor's budget — the pane then overflowed and the box closed
+// on an empty description.
+const MENU_BLOCK_LEAD_ROWS = 1;
+
+/**
+ * How many rows of text the box can draw. One row too many and the last of
+ * them lands on the bottom border: the row list keeps the height it was given
+ * while the box around it shrinks to the space that is left.
+ *
+ * `fieldCount` is the fields spaced like fields (Assignees, Tags); `menuCount`
+ * the `››` rows below them.
+ */
+export const inlineEditorRowCount = (
+	height: number,
+	fieldCount = 0,
+	menuCount = 0,
+): number =>
+	Math.max(
+		1,
+		height -
+			CHROME_ROWS -
+			FIELD_ROWS * fieldCount -
+			(menuCount > 0 ? MENU_BLOCK_LEAD_ROWS + menuCount : 0),
+	);

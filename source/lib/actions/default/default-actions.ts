@@ -3,6 +3,7 @@ import {
 	getCmdModifiers,
 	YankModifiers,
 } from '../../command-line/command-modifiers.js';
+import {openCommitDiffInEditor} from '../../commits/commits.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
 import {succeeded} from '../../model/result-types.js';
 import {FieldNames} from '../../repository/fielNames.js';
@@ -68,6 +69,12 @@ export const DefaultActions: ActionEntry[] = [
 					: undefined;
 				if (attachment) {
 					return openAttachment(attachment);
+				}
+
+				// Commit nodes sit under the Diff field and carry their sha as the
+				// node id: enter hands the commit to the configured editor.
+				if (contextNode.title === FieldNames.DIFF && selectedNode) {
+					return openCommitDiffInEditor({sha: selectedNode.id});
 				}
 
 				if (selectedNode?.title === FieldNames.DESCRIPTION) {
