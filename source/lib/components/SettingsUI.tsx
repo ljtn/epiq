@@ -125,14 +125,6 @@ export default function SettingsUI({width, height}: Props) {
 				Remember - you can always search available commands by typing:
 				<Text color={theme.accent}> ? </Text>
 			</Text>
-			{/* Beside the `?` hint, because setup is where somebody meets the
-			    command line for the first time and every step here suggests
-			    something — an editor, an address, their own git name. */}
-			<Text color={theme.secondary2}>
-				Press
-				<Text color={theme.accent}> tab </Text>
-				to take a suggestion.
-			</Text>
 
 			{activeStep && <Text color={theme.secondary2}>{activeStep.message}</Text>}
 
