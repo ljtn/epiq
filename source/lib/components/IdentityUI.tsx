@@ -48,7 +48,7 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 	const [claimed, setClaimed] = useState<Claimed[]>([]);
 	const [offered, setOffered] = useState<EmailCandidate[]>([]);
 	const [error, setError] = useState<string | null>(null);
-	const {userName, gitEmail, userId} = getSettingsState();
+	const {userName, gitEmail, gitName, userId} = getSettingsState();
 
 	useEffect(() => {
 		let live = true;
@@ -76,7 +76,7 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 			const found = await findEmailCandidates({
 				repoRoot: repoRootResult.value,
 				stateBranch: isFail(branchResult) ? undefined : branchResult.value,
-				names: [userName, gitEmail],
+				names: [userName, gitName],
 				links,
 			});
 
@@ -100,7 +100,7 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 		return () => {
 			live = false;
 		};
-	}, [userId, userName, gitEmail]);
+	}, [userId, userName, gitName, gitEmail]);
 
 	return (
 		<Box
