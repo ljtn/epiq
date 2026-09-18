@@ -7,7 +7,11 @@ import {
 	THEATRE_FLASH_TIMING,
 } from '../lib/theatre';
 import {isSwimlaneDrag} from '../lib/gui-move-swimlane';
+// Types only, over the boundary `use-swimlane-stats` reads its own over.
+import {RefDiffStat} from '../../../lib/stats/ref-diff-stats.model.js';
+import {CARD_DIFF_GAP} from '../lib/diff-stat.style';
 import {Button} from './Button';
+import {DiffStat} from './DiffStat';
 import {DwellLevel} from '../lib/lane-dwell';
 import {formatDuration} from '../lib/gui-format.helper';
 import {CopyRef} from './CopyRef';
@@ -27,6 +31,10 @@ const CARD_INDEX_GAP = 8;
 
 /** How long this ticket has sat in its lane, and how that reads beside its peers. */
 export type CardDwell = {ms: number; level: DwellLevel};
+
+// The one thing the figures beside it do not already say.
+const diffTitle = (diff: RefDiffStat): string =>
+	`${diff.commits} commit${diff.commits === 1 ? '' : 's'}`;
 
 const DWELL_COLOR: Record<DwellLevel, string> = {
 	none: GUI_THEME.dim,
@@ -49,6 +57,7 @@ export const TicketCard = ({
 	theatre,
 	flashKey,
 	dwell,
+	diff,
 }: {
 	ticket: GuiIssue;
 	index: number;
@@ -74,6 +83,11 @@ export const TicketCard = ({
 	// Null while the board is not showing the present, where an elapsed time
 	// measured against now means nothing.
 	dwell: CardDwell | null;
+	// What the commits naming this ticket add up to, or null for a ticket no
+	// commit names — which draws nothing at all. Most of a board is tickets
+	// nobody has written code for yet, and a flat grey line on every one of
+	// them would be a column of noise saying nothing.
+	diff: RefDiffStat | null;
 }) => {
 	const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -248,11 +262,24 @@ export const TicketCard = ({
 					{ticket.ref && (
 						<div
 							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: CARD_DIFF_GAP,
 								color: GUI_THEME.dim2,
 								fontSize: 10,
 							}}
 						>
 							<CopyRef refValue={ticket.ref} />
+							{diff && (
+								<DiffStat
+									insertions={diff.insertions}
+									deletions={diff.deletions}
+									variant="card"
+									lit={isSelected || isPicked}
+									title={diffTitle(diff)}
+									testId="ticket-diff"
+								/>
+							)}
 						</div>
 					)}
 

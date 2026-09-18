@@ -38,6 +38,7 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	bare('issues:list'),
 	bare('sync'),
 	bare('time-travel:live'),
+	bare('diff-stats:get'),
 
 	message('project:open', z.object({root: z.string().min(1)})),
 	message(

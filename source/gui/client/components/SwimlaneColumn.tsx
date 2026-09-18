@@ -4,6 +4,7 @@ import {GuiComment, GuiIssue, GuiSwimlane} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {formatDuration} from '../lib/gui-format.helper';
 import {dwellLevel, dwellOf, laneDwell} from '../lib/lane-dwell';
+import {RefDiffStats} from '../../../lib/stats/ref-diff-stats.model.js';
 import {CardDwell} from './TicketCard';
 import {IconLaneStats} from './IconLaneStats';
 import {IconLock} from './IconLock';
@@ -50,6 +51,7 @@ export const SwimlaneColumn = ({
 	live,
 	statsOpen,
 	onOpenStats,
+	diffStats,
 }: {
 	swimlane: GuiSwimlane;
 	selected: boolean;
@@ -88,6 +90,13 @@ export const SwimlaneColumn = ({
 	// This lane's stats are the ones the inspector is showing.
 	statsOpen: boolean;
 	onOpenStats: (swimlaneId: string) => void;
+	// Every ref the repository has commits for, keyed by ref. Handed down whole
+	// rather than per card: it is one answer about the whole history, and the
+	// refs in it mostly belong to tickets standing in some other lane. Read only
+	// while the board is live, for the reason the dwell is: it counts commits up
+	// to now, which says nothing about a board being replayed at some other
+	// moment.
+	diffStats: RefDiffStats;
 }) => {
 	// One reading for the whole column, so the header's figures and the clocks on
 	// the cards under it are answers to the same question.
@@ -342,6 +351,7 @@ export const SwimlaneColumn = ({
 									onSelect={options => onSelectIssue(ticket.id, options)}
 									onOpenComments={onSelectIssueComments}
 									dwell={cardDwell(ticket)}
+									diff={live ? diffStats[ticket.ref] ?? null : null}
 									isolatedTagId={isolatedTagId}
 									onFilterByTag={onFilterByTag}
 									commentCount={commentsByIssueId[ticket.id]?.length ?? 0}
