@@ -1,8 +1,10 @@
 import {describe, expect, it, vi, beforeEach} from 'vitest';
 import {EmailLink, emailLinkKey} from '../lib/model/email-link.js';
+import {isFail} from '../lib/model/result-types.js';
 import {
 	findEmailCandidates,
 	offerableCandidates,
+	resetEmailScanCacheForTests,
 } from '../lib/repository/email-candidates.js';
 import {execGitAllowFail} from '../git/git-utils.js';
 
@@ -22,11 +24,21 @@ const linked = (...links: EmailLink[]): Record<string, EmailLink> =>
 		links.map(link => [emailLinkKey(link.email, link.contributor), link]),
 	);
 
-const scan = (names: (string | null)[], links = {}) =>
-	findEmailCandidates({repoRoot: '/repo', names, links});
+// Unwrapped, because every assertion here is about the candidates. The failure
+// path has a test of its own.
+const scan = async (names: (string | null)[], links = {}) => {
+	const result = await findEmailCandidates({repoRoot: '/repo', names, links});
+	if (isFail(result)) throw new Error(result.message);
+	return result.value;
+};
 
 describe('findEmailCandidates', () => {
-	beforeEach(() => vi.mocked(execGitAllowFail).mockReset());
+	beforeEach(() => {
+		vi.mocked(execGitAllowFail).mockReset();
+		// The walk is cached per repository, so without this one test's history
+		// answers the next one's scan.
+		resetEmailScanCacheForTests();
+	});
 
 	it('counts commits per address and remembers the names on them', async () => {
 		history([
@@ -88,14 +100,24 @@ describe('findEmailCandidates', () => {
 		expect(found?.claimedBy).toEqual(['alice']);
 	});
 
-	it('survives a repository git cannot read', async () => {
+	// Not an empty list: with nothing linking itself, this list is the only way
+	// to claim an address, so a scan that failed must not read as a history with
+	// nothing left to claim.
+	it('reports a repository git cannot read, rather than returning nothing', async () => {
 		vi.mocked(execGitAllowFail).mockResolvedValue({
 			stdout: '',
 			stderr: 'not a repository',
 			exitCode: 128,
 		} as never);
 
-		expect(await scan(['jola'])).toEqual([]);
+		const result = await findEmailCandidates({
+			repoRoot: '/unreadable',
+			names: ['jola'],
+			links: {},
+		});
+
+		expect(isFail(result)).toBe(true);
+		expect(isFail(result) && result.message).toContain('not a repository');
 	});
 
 	it('puts likely addresses first, then the busiest', async () => {

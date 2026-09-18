@@ -50,24 +50,6 @@ export const emailLinkKey = (email: string, contributor: string): string =>
 
 const live = (link: EmailLink): boolean => !link.tombstoned;
 
-/**
- * Who an address belongs to, or nobody.
- *
- * Nobody covers two cases that render the same way: no one has claimed it, and
- * more than one contributor has. The second is deliberate — a contested
- * address is genuinely ambiguous, and naming one of the claimants would be
- * confidently wrong rather than merely unhelpful. It is reachable without an
- * attacker, when two people share a git `user.email`, so `WABMTYY` gives it a
- * name in the UI instead of leaving it silent.
- */
-export const resolveEmailOwner = (
-	links: Readonly<Record<string, EmailLink>>,
-	email: string,
-): string | undefined => {
-	const claimants = claimantsOf(links, email);
-	return claimants.length === 1 ? claimants[0] : undefined;
-};
-
 /** Every contributor currently claiming an address, in no particular order. */
 export const claimantsOf = (
 	links: Readonly<Record<string, EmailLink>>,

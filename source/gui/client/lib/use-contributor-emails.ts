@@ -41,6 +41,12 @@ export type ContributorEmailsState = {
 	data: ContributorEmails | null;
 	/** What this repository's history offers, for claiming without typing. */
 	candidates: EmailCandidate[];
+	/**
+	 * Why the history could not be read, when it could not. Distinct from an
+	 * empty list: with nothing linking itself, this list is the only way to
+	 * claim an address, so a failed scan must not read as nothing left to claim.
+	 */
+	scanError: string | null;
 	/** What the last link or unlink said, kept so the panel can report it. */
 	lastAction: {ok: boolean; message: string} | null;
 };
@@ -56,6 +62,7 @@ export const useContributorEmails = ({
 		loading: false,
 		data: null,
 		candidates: [],
+		scanError: null,
 		lastAction: null,
 	});
 
@@ -95,9 +102,14 @@ export const useContributorEmails = ({
 
 		pending.current = false;
 
+		const suggestions = message.suggestions;
 		const suggested =
-			getResultValue<{candidates: EmailCandidate[]}>(message.suggestions)
-				?.candidates ?? [];
+			getResultValue<{candidates: EmailCandidate[]}>(suggestions)?.candidates ??
+			[];
+		const scanError =
+			suggestions?.status === 'fail'
+				? String(suggestions.message ?? 'Could not read this history')
+				: null;
 
 		const value = getResultValue<ContributorEmails>(message.payload);
 
@@ -120,6 +132,7 @@ export const useContributorEmails = ({
 			loading: false,
 			data: value,
 			candidates: suggested,
+			scanError,
 			lastAction: message.lastAction ?? null,
 		});
 	}, []);

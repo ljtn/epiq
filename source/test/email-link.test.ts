@@ -5,12 +5,12 @@ import {AppEvent} from '../lib/board/board-events.model.js';
 import {
 	canRemoveEmailLink,
 	claimantsOf,
+	EmailLink,
 	emailLinkKey,
 	emailOwnerIndex,
 	emailsOf,
 	isValidEmail,
 	normalizeEmail,
-	resolveEmailOwner,
 } from '../lib/model/email-link.js';
 import {isFail} from '../lib/model/result-types.js';
 import {getState} from '../lib/state/state.js';
@@ -39,6 +39,13 @@ const base = (): AppEvent[] => [
 	by(ALICE, 'create.contributor', {id: BOB, name: 'bob'}),
 	by(ALICE, 'create.contributor', {id: CAROL, name: 'carol'}),
 ];
+
+// Through the same index production matches commits with, so these assertions
+// cannot drift from the behaviour they describe.
+const ownerOf = (
+	links: Record<string, EmailLink>,
+	email: string,
+): string | undefined => emailOwnerIndex(links).get(normalizeEmail(email));
 
 const boot = (events: AppEvent[]) => {
 	const result = bootStateFromEventLog(events);
@@ -72,7 +79,7 @@ describe('linking', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'alice@example.com')).toBe(ALICE);
+		expect(ownerOf(links, 'alice@example.com')).toBe(ALICE);
 		expect(emailsOf(links, ALICE)).toEqual(['alice@example.com']);
 	});
 
@@ -87,8 +94,8 @@ describe('linking', () => {
 
 		// Matched by the normalized address, and by the raw one, which normalizes
 		// to the same thing on the way in.
-		expect(resolveEmailOwner(links, 'alice@example.com')).toBe(ALICE);
-		expect(resolveEmailOwner(links, 'ALICE@EXAMPLE.com')).toBe(ALICE);
+		expect(ownerOf(links, 'alice@example.com')).toBe(ALICE);
+		expect(ownerOf(links, 'ALICE@EXAMPLE.com')).toBe(ALICE);
 	});
 
 	it('holds several addresses for one contributor, so a change of address needs no migration', () => {
@@ -108,7 +115,7 @@ describe('linking', () => {
 			'1+alice@users.noreply.github.com',
 			'old@job.com',
 		]);
-		expect(resolveEmailOwner(links, 'old@job.com')).toBe(ALICE);
+		expect(ownerOf(links, 'old@job.com')).toBe(ALICE);
 	});
 
 	it('lets one person link another, so a teammate who never opens epiq still resolves', () => {
@@ -120,7 +127,7 @@ describe('linking', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'bob@example.com')).toBe(BOB);
+		expect(ownerOf(links, 'bob@example.com')).toBe(BOB);
 	});
 
 	it('is idempotent, so a replay that sees one event twice lands in the same place', () => {
@@ -136,7 +143,7 @@ describe('linking', () => {
 		]);
 
 		expect(Object.keys(links)).toHaveLength(1);
-		expect(resolveEmailOwner(links, 'alice@example.com')).toBe(ALICE);
+		expect(ownerOf(links, 'alice@example.com')).toBe(ALICE);
 	});
 
 	it('skips a link naming a contributor the board has never heard of', () => {
@@ -167,7 +174,7 @@ describe('a contested address', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'team@example.com')).toBeUndefined();
+		expect(ownerOf(links, 'team@example.com')).toBeUndefined();
 		expect(claimantsOf(links, 'team@example.com').sort()).toEqual(
 			[ALICE, BOB].sort(),
 		);
@@ -190,7 +197,7 @@ describe('a contested address', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'team@example.com')).toBe(ALICE);
+		expect(ownerOf(links, 'team@example.com')).toBe(ALICE);
 	});
 
 	it('is absent from the owner index rather than present and empty', () => {
@@ -231,7 +238,7 @@ describe('unlinking', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'bob@example.com')).toBeUndefined();
+		expect(ownerOf(links, 'bob@example.com')).toBeUndefined();
 	});
 
 	it('lets the contributor a link names disown it, though somebody else wrote it', () => {
@@ -247,7 +254,7 @@ describe('unlinking', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'bob@example.com')).toBeUndefined();
+		expect(ownerOf(links, 'bob@example.com')).toBeUndefined();
 	});
 
 	// The whole point of not mirroring the payload: open removal would let one
@@ -265,7 +272,7 @@ describe('unlinking', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'alice@example.com')).toBe(ALICE);
+		expect(ownerOf(links, 'alice@example.com')).toBe(ALICE);
 	});
 
 	it('keeps the record, so a retraction is forward-only', () => {
@@ -303,7 +310,7 @@ describe('unlinking', () => {
 			}),
 		]);
 
-		expect(resolveEmailOwner(links, 'alice@example.com')).toBe(ALICE);
+		expect(ownerOf(links, 'alice@example.com')).toBe(ALICE);
 	});
 
 	it('skips an unlink for a link that was never written', () => {

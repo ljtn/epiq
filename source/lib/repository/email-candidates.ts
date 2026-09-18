@@ -1,5 +1,6 @@
 import {execGitAllowFail} from '../../git/git-utils.js';
 import {EmailLink, normalizeEmail} from '../model/email-link.js';
+import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 
 /**
  * Addresses in a repository's history that nobody has claimed, and whether each
@@ -39,6 +40,69 @@ const words = (value: string): string[] =>
 // git and to grep, which the project lints against.
 const FIELD = '\x1f';
 
+type Seen = {names: Set<string>; commits: number};
+
+const scanCache = new Map<string, {at: number; authors: Map<string, Seen>}>();
+
+// The walk is over the whole history, and the panel asks again after every link
+// and unlink. Its answer only moves when the repository gains commits, never
+// when a link changes, so the filtering below runs fresh over a cached walk.
+const SCAN_CACHE_MS = 15_000;
+
+/** So one test's history does not answer the next one's scan. */
+export const resetEmailScanCacheForTests = (): void => scanCache.clear();
+
+/**
+ * Every author in the history, by address. Cached per repository for a few
+ * seconds, and a `Result` rather than an empty list: with nothing linking
+ * itself any more, this list is the only way to claim an address, so a scan
+ * that failed must not look like a history with nothing left in it.
+ */
+const scanAuthors = async (
+	repoRoot: string,
+	stateBranch?: string,
+): Promise<Result<Map<string, Seen>>> => {
+	const key = `${repoRoot} ${stateBranch ?? ''}`;
+	const cached = scanCache.get(key);
+	if (cached && Date.now() - cached.at < SCAN_CACHE_MS) {
+		return succeeded('Cached author scan', cached.authors);
+	}
+
+	const result = await execGitAllowFail({
+		cwd: repoRoot,
+		args: [
+			'log',
+			'--branches',
+			...(stateBranch ? ['--not', stateBranch] : []),
+			`--format=%an${FIELD}%ae`,
+		],
+	});
+
+	if (result.exitCode !== 0) {
+		return failed(
+			`Could not read this repository's history: ${
+				(result.stderr ?? '').trim() || `git exited ${result.exitCode}`
+			}`,
+		);
+	}
+
+	const authors = new Map<string, Seen>();
+
+	for (const line of (result.stdout ?? '').split('\n')) {
+		const [name, rawEmail] = line.split(FIELD);
+		const email = normalizeEmail(rawEmail ?? '');
+		if (!email) continue;
+
+		const entry = authors.get(email) ?? {names: new Set<string>(), commits: 0};
+		if (name) entry.names.add(name);
+		entry.commits += 1;
+		authors.set(email, entry);
+	}
+
+	scanCache.set(key, {at: Date.now(), authors});
+	return succeeded('Scanned repository authors', authors);
+};
+
 export const findEmailCandidates = async ({
 	repoRoot,
 	stateBranch,
@@ -51,18 +115,11 @@ export const findEmailCandidates = async ({
 	/** Whatever the asker is called: their board name, their git name. */
 	names: (string | null | undefined)[];
 	links: Readonly<Record<string, EmailLink>>;
-}): Promise<EmailCandidate[]> => {
-	const result = await execGitAllowFail({
-		cwd: repoRoot,
-		args: [
-			'log',
-			'--branches',
-			...(stateBranch ? ['--not', stateBranch] : []),
-			`--format=%an${FIELD}%ae`,
-		],
-	});
+}): Promise<Result<EmailCandidate[]>> => {
+	const scanned = await scanAuthors(repoRoot, stateBranch);
+	if (isFail(scanned)) return failed(scanned.message);
 
-	if (result.exitCode !== 0) return [];
+	const seen = scanned.value;
 
 	const claimants = new Map<string, Set<string>>();
 
@@ -73,39 +130,29 @@ export const findEmailCandidates = async ({
 		claimants.set(link.email, set);
 	}
 
-	const seen = new Map<string, {names: Set<string>; commits: number}>();
-
-	for (const line of (result.stdout ?? '').split('\n')) {
-		const [name, rawEmail] = line.split(FIELD);
-		const email = normalizeEmail(rawEmail ?? '');
-		if (!email) continue;
-
-		const entry = seen.get(email) ?? {names: new Set<string>(), commits: 0};
-		if (name) entry.names.add(name);
-		entry.commits += 1;
-		seen.set(email, entry);
-	}
-
 	const mine = new Set(names.flatMap(name => words(name ?? '')));
 
-	return [...seen.entries()]
-		.map(([email, entry]) => ({
-			email,
-			names: [...entry.names],
-			commits: entry.commits,
-			// The local part too, which catches `jola@` for jola where no commit
-			// name would.
-			looksLikeYours:
-				[...entry.names].some(name =>
-					words(name).some(word => mine.has(word)),
-				) || words(email.split('@')[0] ?? '').some(word => mine.has(word)),
-			claimedBy: [...(claimants.get(email) ?? [])],
-		}))
-		.sort((a, b) =>
-			a.looksLikeYours === b.looksLikeYours
-				? b.commits - a.commits
-				: Number(b.looksLikeYours) - Number(a.looksLikeYours),
-		);
+	return succeeded(
+		'Found candidates',
+		[...seen.entries()]
+			.map(([email, entry]) => ({
+				email,
+				names: [...entry.names],
+				commits: entry.commits,
+				// The local part too, which catches `jola@` for jola where no commit
+				// name would.
+				looksLikeYours:
+					[...entry.names].some(name =>
+						words(name).some(word => mine.has(word)),
+					) || words(email.split('@')[0] ?? '').some(word => mine.has(word)),
+				claimedBy: [...(claimants.get(email) ?? [])],
+			}))
+			.sort((a, b) =>
+				a.looksLikeYours === b.looksLikeYours
+					? b.commits - a.commits
+					: Number(b.looksLikeYours) - Number(a.looksLikeYours),
+			),
+	);
 };
 
 /**
