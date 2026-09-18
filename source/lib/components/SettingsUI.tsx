@@ -161,7 +161,7 @@ export default function SettingsUI({width, height}: Props) {
 										<Text color={theme.secondary2}>
 											{' then '}
 											<Text color={theme.accent}>tab</Text>
-											{' to finish it'}
+											{' to auto-complete'}
 										</Text>
 									) : isActive ? (
 										<Text color={theme.secondary2}>
