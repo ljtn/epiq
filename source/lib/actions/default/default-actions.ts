@@ -71,12 +71,6 @@ export const DefaultActions: ActionEntry[] = [
 					return openAttachment(attachment);
 				}
 
-				// Commit nodes sit under the Diff field and carry their sha as the
-				// node id: enter hands the commit to the configured editor.
-				if (contextNode.title === FieldNames.DIFF && selectedNode) {
-					return openCommitDiffInEditor({sha: selectedNode.id});
-				}
-
 				if (selectedNode?.title === FieldNames.DESCRIPTION) {
 					patchState({mode: Mode.COMMAND_LINE});
 					replaceCmdInput(`${CmdKeywords.EDIT} description `);
@@ -107,6 +101,31 @@ export const DefaultActions: ActionEntry[] = [
 
 			navigationUtils.enterChildNode();
 			return succeeded('Entering context', null);
+		},
+	},
+
+	{
+		intent: Intent.OpenInEditor,
+		mode: Mode.DEFAULT,
+		description: '[o] open in editor',
+		action: () => {
+			const {selectedNode, contextNode} = getState();
+
+			// A commit node carries its sha as its id, and sits under the Diff
+			// field. `o` works both from the commit list, where the commit is the
+			// selection, and from inside its patch, where it is the context.
+			const sha =
+				contextNode.title === FieldNames.DIFF
+					? selectedNode?.id
+					: contextNode.parentNodeId &&
+					  getState().nodes[contextNode.parentNodeId]?.title ===
+							FieldNames.DIFF
+					? contextNode.id
+					: undefined;
+
+			if (!sha) return succeeded('Nothing here opens in an editor', null);
+
+			return openCommitDiffInEditor({sha});
 		},
 	},
 

@@ -54,6 +54,9 @@ export const Intent = {
 	// Clipboard
 	Yank: 'yank',
 
+	// Hand something off to the editor rather than drawing it here
+	OpenInEditor: 'openInEditor',
+
 	// View
 	SetViewDense: 'SetViewDense',
 	SetViewWide: 'SetViewWide',
@@ -182,6 +185,8 @@ export function getKeyIntent(
 			return Intent.Delete;
 		case 'y':
 			return Intent.Yank;
+		case 'o':
+			return Intent.OpenInEditor;
 		case 'return':
 			return Intent.Confirm;
 		case 'space':
