@@ -50,6 +50,27 @@ export const commitLinkedFile = (
 	contents = 'alpha\nbeta\ngamma\n',
 ): string => commitLinkedFiles(repoRoot, ref, subject, {[fileName]: contents});
 
+/**
+ * A commit that names a ticket and changes no lines. `--allow-empty` is the
+ * short way to it; a pure rename reaches `--shortstat` the same way.
+ */
+export const commitLinkedNothing = (
+	repoRoot: string,
+	ref: string,
+	subject: string,
+): string => {
+	const git = (...args: string[]) =>
+		execFileSync(
+			'git',
+			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
+			{cwd: repoRoot, stdio: 'pipe'},
+		);
+
+	git('commit', '-q', '--allow-empty', '-m', `${ref} ${subject}`);
+
+	return git('rev-parse', 'HEAD').toString().trim();
+};
+
 /** A commit that names no ticket, for the linked-only narrowing to drop. */
 export const commitPlainFile = (
 	repoRoot: string,

@@ -275,7 +275,11 @@ export const TicketCard = ({
 							}}
 						>
 							<CopyRef refValue={ticket.ref} />
-							{diff && (
+							{/* Nothing at all where the commits changed no lines — an
+							    empty commit, a pure rename. The stat draws nothing there,
+							    and the button around it would be an invisible thing to
+							    hover and click. */}
+							{diff && diff.insertions + diff.deletions > 0 && (
 								<button
 									type="button"
 									data-testid="ticket-diff"
@@ -292,6 +296,12 @@ export const TicketCard = ({
 									// pulled back out again by an equal negative margin: the
 									// ground reaches past the figures without the ref's line
 									// growing under it.
+									//
+									// Deliberately not an `IconButton`, which every other
+									// control of this kind is: that one is a 24px square that
+									// lights to the accent, and both would be wrong here —
+									// this sits on the ref's own line, and what lights is the
+									// stat, in its own two colours.
 									style={{
 										display: 'flex',
 										alignItems: 'center',
