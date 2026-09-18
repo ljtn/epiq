@@ -37,14 +37,18 @@ vi.mock('../mcp/epiq-api.js', () => ({
 
 vi.mock('../mcp/epiq-time-travel.js', () => ({
 	checkoutStateAt: vi.fn(),
+	getEventTimeline: vi.fn(),
+	getTimeTravelStatus: vi.fn(() => ({mode: 'live', asOfTime: null})),
+	returnToLive: vi.fn(),
+	runExclusive: vi.fn(),
+}));
+
+vi.mock('../lib/commits/commits.js', () => ({
 	getCommitDiff: vi.fn(),
 	getCommitsForRef: vi.fn(),
 	getCommitTimeline: vi.fn(),
-	getEventTimeline: vi.fn(),
-	getTimeTravelStatus: vi.fn(() => ({mode: 'live', asOfTime: null})),
+	getSquashedDiffForRef: vi.fn(),
 	openCommitDiffInEditor: vi.fn(),
-	returnToLive: vi.fn(),
-	runExclusive: vi.fn(),
 }));
 
 import {getGuiState} from '../mcp/epiq-api.js';

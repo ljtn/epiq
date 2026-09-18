@@ -112,17 +112,19 @@ import {
 	succeeded,
 } from '../lib/model/result-types.js';
 import {
-	checkoutStateAt,
-	checkoutStateAtEvent,
 	FULL_TIMELINE_CACHE_TTL_MS,
 	getCommitDiff,
 	getCommitsForRef,
 	getCommitTimeline,
-	getEventTimeline,
 	getSquashedDiffForRef,
-	getTimeTravelStatus,
 	openCommitDiffInEditor,
 	resetCommitTimelineCacheForTests,
+} from '../lib/commits/commits.js';
+import {
+	checkoutStateAt,
+	checkoutStateAtEvent,
+	getEventTimeline,
+	getTimeTravelStatus,
 	returnToLive,
 	runExclusive,
 } from '../mcp/epiq-time-travel.js';

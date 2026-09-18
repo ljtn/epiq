@@ -16,7 +16,7 @@ vi.mock('../lib/storage/paths.js', async importOriginal => ({
 	),
 }));
 
-vi.mock('../mcp/epiq-time-travel.js', () => ({
+vi.mock('../lib/commits/commits.js', () => ({
 	getCommitsForRef: vi.fn(),
 }));
 
@@ -24,7 +24,7 @@ vi.mock('../lib/stats/issue-stats.js', () => ({
 	deriveIssueStats: vi.fn(),
 }));
 
-const {getCommitsForRef} = await import('../mcp/epiq-time-travel.js');
+const {getCommitsForRef} = await import('../lib/commits/commits.js');
 const {deriveIssueStats} = await import('../lib/stats/issue-stats.js');
 const {getIssueStats, resetIssueStatsCacheForTests} = await import(
 	'../mcp/epiq-issue-stats.js'

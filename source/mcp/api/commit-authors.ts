@@ -2,7 +2,7 @@ import {commitAuthorIdentity} from '../../lib/repository/contributor-directory.j
 import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 import {emailOwnerIndex} from '../../lib/model/email-link.js';
 import {getSafeState} from '../../lib/state/state.js';
-import {CommitEntry} from '../epiq-time-travel.js';
+import {CommitEntry} from '../../lib/commits/commits.js';
 
 /**
  * Puts a board identity on each commit, where its author's address is claimed.
