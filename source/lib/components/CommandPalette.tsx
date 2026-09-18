@@ -128,7 +128,6 @@ const createPaletteRootNode = (parentNodeId: string): NavNode<'TEXT'> =>
 		parentNodeId,
 		rank: '000000',
 		name: 'Command Palette',
-		props: {},
 		readonly: true,
 		isVirtual: true,
 	});
@@ -143,10 +142,6 @@ const createPaletteNode = (
 		parentNodeId,
 		rank: String(index).padStart(6, '0'),
 		name: command.command,
-		props: {
-			value: command.description,
-			disabled: !command.isAvailable,
-		},
 		readonly: true,
 		isVirtual: true,
 	});

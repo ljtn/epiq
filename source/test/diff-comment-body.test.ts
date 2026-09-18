@@ -1,8 +1,11 @@
 import {describe, expect, it} from 'vitest';
 
 import {
+	formatLineAnchor,
+	parseLineAnchor,
 	parsePatch,
 	patchRows,
+	selectionFromLines,
 	selectionFromRows,
 } from '../lib/commits/patch-parse.js';
 import {
@@ -118,6 +121,56 @@ describe('a diff comment written in the TUI and one written in the GUI', () => {
 			note: 'look here',
 			sha: SHA,
 		});
+	});
+});
+
+describe('the range as the command line carries it', () => {
+	it('is written the way a reader would say it', () => {
+		expect(formatLineAnchor(4, 4)).toBe('line:4');
+		expect(formatLineAnchor(4, 9)).toBe('lines:4-9');
+	});
+
+	it('reads back what it wrote, note and all', () => {
+		expect(parseLineAnchor('line:4 this looks wrong')).toEqual({
+			start: 4,
+			end: 4,
+			note: 'this looks wrong',
+		});
+
+		expect(parseLineAnchor('lines:4-9 the whole block')).toEqual({
+			start: 4,
+			end: 9,
+			note: 'the whole block',
+		});
+	});
+
+	it('takes a range typed backwards the way it was meant', () => {
+		expect(parseLineAnchor('lines:9-4 x')).toMatchObject({start: 4, end: 9});
+	});
+
+	it('accepts an anchor with no note after it', () => {
+		expect(parseLineAnchor('line:4')).toEqual({start: 4, end: 4, note: ''});
+	});
+
+	it('is not found in prose that merely mentions lines', () => {
+		expect(parseLineAnchor('lines 4-9 look wrong')).toBeNull();
+		expect(parseLineAnchor('the line: it is wrong')).toBeNull();
+		expect(parseLineAnchor('nothing to do with a diff')).toBeNull();
+	});
+
+	it('resolves to the same selection the cursor would have made', () => {
+		const byCursor = selectionFromRows(rows, rowAtNewLine(1), rowAtNewLine(3));
+		const byLines = selectionFromLines(rows, 'thing.ts', 1, 3);
+
+		expect(byLines.ok).toBe(true);
+		expect(byLines.ok && byLines.value).toEqual(byCursor.ok && byCursor.value);
+	});
+
+	it('refuses a line the new revision does not have', () => {
+		const result = selectionFromLines(rows, 'thing.ts', 1, 99);
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.reason).toMatch(/no line 99/);
 	});
 });
 

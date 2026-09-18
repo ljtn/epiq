@@ -1,5 +1,5 @@
 import {useSyncExternalStore} from 'react';
-import {PatchRow, RowSelection} from '../commits/patch-parse.js';
+import {PatchRow} from '../commits/patch-parse.js';
 import {FieldNames} from '../repository/fielNames.js';
 import {getState} from './state.js';
 
@@ -25,9 +25,6 @@ let openPatch: {sha: string; rows: PatchRow[]} | null = null;
  * otherwise anchor a comment to a line nobody is looking at.
  */
 let mark: {sha: string; row: number} | null = null;
-
-/** The range `c` captured, waiting for the note typed into the command line. */
-let pending: {sha: string; selection: RowSelection} | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -60,32 +57,6 @@ export const getDiffMark = (): {sha: string; row: number} | null => mark;
 // The mark for this commit, and nothing for one left on another.
 export const diffMarkFor = (sha: string): number | null =>
 	mark && mark.sha === sha ? mark.row : null;
-
-export const setPendingDiffComment = (
-	next: {sha: string; selection: RowSelection} | null,
-): void => {
-	pending = next;
-};
-
-/**
- * The range `c` captured, cleared as it is handed over.
- *
- * Only honoured while the cursor is still in the patch it was taken from: the
- * command line can be opened from the pager and then abandoned, and the note
- * typed into the next `:comment` somewhere else is a plain comment, not one
- * silently anchored to a diff the writer has left.
- */
-export const takePendingDiffComment = (): {
-	sha: string;
-	selection: RowSelection;
-} | null => {
-	const sha = openPagerSha();
-	const taken = pending && sha && pending.sha === sha ? pending : null;
-
-	pending = null;
-
-	return taken;
-};
 
 export const useDiffPagerState = (): {
 	mark: {sha: string; row: number} | null;

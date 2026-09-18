@@ -55,7 +55,7 @@ export const InlineEditor: React.FC<Props> = ({
 	useEffect(() => {
 		detachLineNodes(lineNodesRef.current);
 
-		lineNodesRef.current = attachLineNodes(id, rows, index =>
+		lineNodesRef.current = attachLineNodes(id, rows.length, index =>
 			toInlineLineNodeId(id, index),
 		);
 

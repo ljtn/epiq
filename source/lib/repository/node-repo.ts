@@ -130,9 +130,25 @@ export const nodeRepo = {
 	},
 
 	deleteNode(nodeId: string) {
+		nodeRepo.deleteNodes([nodeId]);
+	},
+
+	/**
+	 * Several nodes in one pass.
+	 *
+	 * Deleting copies the whole node map, so deleting one at a time copies it
+	 * once per node: leaving a view that had made a node per line of what it
+	 * drew cost seconds, growing with the square of the lines. The virtual rows
+	 * of the diff pager and the event log are both built and torn down whole,
+	 * so they are removed whole.
+	 */
+	deleteNodes(nodeIds: string[]) {
+		if (nodeIds.length === 0) return;
+
 		updateState(s => {
 			const nextNodes = {...s.nodes};
-			delete nextNodes[nodeId];
+			for (const nodeId of nodeIds) delete nextNodes[nodeId];
+
 			return {
 				...s,
 				nodes: nextNodes,
