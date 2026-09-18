@@ -163,10 +163,6 @@ export default function SettingsUI({width, height}: Props) {
 												{` ${step.command.split(' ').pop()} `}
 											</Text>
 										</Text>
-									) : isActive ? (
-										<Text color={theme.secondary2}>
-											{' — already typed, just answer it'}
-										</Text>
 									) : undefined
 								}
 							/>
