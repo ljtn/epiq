@@ -13,15 +13,28 @@ type StepRowProps = {
 	isDone: boolean;
 	command: string;
 	value?: string;
+	/**
+	 * How to reach this step, when it is the one being asked for. The first step
+	 * is typed; every one after it is already in the command line, so telling
+	 * somebody to type it again would be telling them to type over it.
+	 */
+	verb?: string;
+	hint?: React.ReactNode;
 };
 
-const StepRow: React.FC<StepRowProps> = ({isDone, command, value}) => {
+const StepRow: React.FC<StepRowProps> = ({
+	isDone,
+	command,
+	value,
+	verb = 'Type',
+	hint,
+}) => {
 	return (
 		<Box>
 			<Text color={theme.accent} dimColor={isDone}>
 				{isDone ? ' ✔ ' : '   '}
 			</Text>
-			<Text dimColor={isDone}>Type </Text>
+			<Text dimColor={isDone}>{verb} </Text>
 			<Text backgroundColor={theme.secondary} dimColor={isDone}>
 				{' ' + command + ' '}
 			</Text>
@@ -33,6 +46,7 @@ const StepRow: React.FC<StepRowProps> = ({isDone, command, value}) => {
 					</Text>
 				</>
 			)}
+			{hint}
 		</Box>
 	);
 };
@@ -128,12 +142,33 @@ export default function SettingsUI({width, height}: Props) {
 
 					if (!shouldShow) return null;
 
+					const isActive = index === activeStepIndex;
+
+					// The first step is the only one typed from scratch, so it is where
+					// the shortcut is worth showing. Every later one is already in the
+					// command line, waiting for its value.
+					const isFirstAsk = isActive && activeStepIndex === 0;
+
 					return (
 						<Box key={step.key} flexDirection="column" marginBottom={1}>
 							<StepRow
 								isDone={step.done}
-								command={step.command}
+								command={isFirstAsk ? ':config us' : step.command}
 								value={step.done ? formatValue(step.value) : undefined}
+								verb={isActive && !isFirstAsk ? 'Waiting:' : 'Type'}
+								hint={
+									isFirstAsk ? (
+										<Text color={theme.secondary2}>
+											{' then '}
+											<Text color={theme.accent}>tab</Text>
+											{' to finish it'}
+										</Text>
+									) : isActive ? (
+										<Text color={theme.secondary2}>
+											{' — already typed, just answer it'}
+										</Text>
+									) : undefined
+								}
 							/>
 							{/* The one step that asks about something in the repository
 							    rather than about a preference, so it has to show what it
