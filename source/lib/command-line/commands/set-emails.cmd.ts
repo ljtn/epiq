@@ -44,15 +44,13 @@ export const setEmailsCommand = async () => {
 		if (isFail(persisted)) return persisted;
 
 		patchSettingsState({emailSetup: 'declined'});
-		patchState({mode: Mode.DEFAULT});
-
 		return succeeded(
 			'Left unlinked. Your commits will show the name git signed them with. Run :config emails again to change that.',
 			null,
 		);
 	}
 
-	const {userId, userName, gitEmail} = getSettingsState();
+	const {userId, userName, gitName} = getSettingsState();
 	if (!userId) return failed('Set a username first with :config username');
 
 	const stateResult = getSafeState();
@@ -65,7 +63,7 @@ export const setEmailsCommand = async () => {
 	const scanned = await findEmailCandidates({
 		repoRoot: repoRootResult.value,
 		stateBranch: isFail(branchResult) ? undefined : branchResult.value,
-		names: [userName, gitEmail],
+		names: [userName, gitName],
 		links: stateResult.value.emailLinks,
 	});
 
@@ -89,8 +87,6 @@ export const setEmailsCommand = async () => {
 		if (isFail(persisted)) return persisted;
 
 		patchSettingsState({emailSetup: 'linked'});
-		patchState({mode: Mode.DEFAULT});
-
 		return succeeded('No unclaimed addresses in this history.', null);
 	}
 
@@ -153,8 +149,6 @@ export const setEmailsCommand = async () => {
 	if (isFail(persisted)) return persisted;
 
 	patchSettingsState({emailSetup: 'linked'});
-	patchState({mode: Mode.DEFAULT});
-
 	return succeeded(
 		`Claimed ${chosen
 			.map(candidate => candidate.email)

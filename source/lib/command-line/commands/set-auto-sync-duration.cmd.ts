@@ -1,10 +1,8 @@
 import z from 'zod';
 import {setConfig} from '../../config/user-config.js';
-import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {patchSettingsState} from '../../state/settings.state.js';
-import {patchState} from '../../state/state.js';
 
 export const setAutoSyncDurationCommand = () => {
 	const selectionVal = getCmdState().commandMeta.inputString;
@@ -18,7 +16,5 @@ export const setAutoSyncDurationCommand = () => {
 	if (isFail(persistResult)) return persistResult;
 
 	patchSettingsState({autoSyncIntervalMs: duration.data});
-	patchState({mode: Mode.DEFAULT});
-
 	return succeeded(`Auto sync interval set to ${duration.data}ms`, null);
 };

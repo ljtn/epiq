@@ -1,11 +1,9 @@
 import z from 'zod';
 import {setConfig} from '../../config/user-config.js';
 import {DEFAULT_ATTACHMENT_MAX_KB} from '../../media/media-store.js';
-import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {patchSettingsState} from '../../state/settings.state.js';
-import {patchState} from '../../state/state.js';
 
 export const MIN_ATTACHMENT_MAX_KB = 50;
 export const MAX_ATTACHMENT_MAX_KB = 5_000;
@@ -30,7 +28,5 @@ export const setAttachmentMaxKbCommand = () => {
 	if (isFail(persistResult)) return persistResult;
 
 	patchSettingsState({attachmentMaxKb: maxKb.data});
-	patchState({mode: Mode.DEFAULT});
-
 	return succeeded(`Attachment size cap set to ${maxKb.data} KB`, null);
 };
