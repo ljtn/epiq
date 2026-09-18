@@ -4,8 +4,16 @@ import {
 	YankModifiers,
 } from '../../command-line/command-modifiers.js';
 import {openCommitDiffInEditor} from '../../commits/commits.js';
+import {selectionFromRows} from '../../commits/patch-parse.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {succeeded} from '../../model/result-types.js';
+import {failed, succeeded} from '../../model/result-types.js';
+import {
+	diffMarkFor,
+	getOpenPatch,
+	openPagerSha,
+	setDiffMark,
+	setPendingDiffComment,
+} from '../../state/diff-pager.state.js';
 import {FieldNames} from '../../repository/fielNames.js';
 import {nodeRepo} from '../../repository/node-repo.js';
 import {getOrderedChildren} from '../../repository/rank.js';
@@ -117,15 +125,66 @@ export const DefaultActions: ActionEntry[] = [
 			const sha =
 				contextNode.title === FieldNames.DIFF
 					? selectedNode?.id
-					: contextNode.parentNodeId &&
-					  getState().nodes[contextNode.parentNodeId]?.title ===
-							FieldNames.DIFF
-					? contextNode.id
-					: undefined;
+					: openPagerSha() ?? undefined;
 
 			if (!sha) return succeeded('Nothing here opens in an editor', null);
 
 			return openCommitDiffInEditor({sha});
+		},
+	},
+
+	{
+		intent: Intent.MarkDiffLine,
+		mode: Mode.DEFAULT,
+		description: '[s] mark line',
+		action: () => {
+			const sha = openPagerSha();
+			if (!sha) return succeeded('Nothing to mark here', null);
+
+			const {selectedIndex} = getState();
+
+			// Pressing it again on the marked row clears it, so there is a way out
+			// of a range without leaving the patch.
+			const existing = diffMarkFor(sha);
+			setDiffMark(
+				existing === selectedIndex
+					? null
+					: {sha, row: Math.max(0, selectedIndex)},
+			);
+
+			return succeeded('Marked diff line', null);
+		},
+	},
+
+	{
+		intent: Intent.CommentOnDiffLine,
+		mode: Mode.DEFAULT,
+		description: '[c] comment on line',
+		action: () => {
+			const sha = openPagerSha();
+			if (!sha) return succeeded('Nothing to comment on here', null);
+
+			const patch = getOpenPatch();
+			if (!patch || patch.sha !== sha) {
+				return failed('The diff is still loading');
+			}
+
+			const {selectedIndex} = getState();
+			const cursor = Math.max(0, selectedIndex);
+
+			// No mark means the line under the cursor, which is the common case.
+			const from = diffMarkFor(sha) ?? cursor;
+
+			const selection = selectionFromRows(patch.rows, from, cursor);
+			if (!selection.ok) return failed(selection.reason);
+
+			// Held for the note the command line is about to collect.
+			setPendingDiffComment({sha, selection: selection.value});
+
+			patchState({mode: Mode.COMMAND_LINE});
+			replaceCmdInput(`${CmdKeywords.COMMENT} `);
+
+			return succeeded('Commenting on a diff line', null);
 		},
 	},
 

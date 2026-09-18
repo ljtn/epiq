@@ -7,13 +7,16 @@ import {
 	PatchRow,
 } from '../commits/commits.js';
 import {NavNode} from '../model/navigation-node.model.js';
-import {isFail, isSuccess} from '../model/result-types.js';
-import {nodeRepo} from '../repository/node-repo.js';
-import {nodes} from '../state/node-builder.js';
+import {isFail} from '../model/result-types.js';
+import {attachLineNodes, detachLineNodes} from '../repository/line-nodes.js';
+import {
+	setDiffMark,
+	setOpenPatch,
+	useDiffPagerState,
+} from '../state/diff-pager.state.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {LARGE_DIFF_LINES} from '../utils/diff-size.js';
-import {bigIntToHex} from '../utils/rank.js';
 import {truncateToWidth} from '../utils/string.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 
@@ -28,35 +31,6 @@ type Props = {
 // TUI's own up/down then scrolls the patch, and the cursor it leaves behind is
 // what a comment will later be anchored to.
 const toRowNodeId = (sha: string, index: number) => `${sha}::patch::${index}`;
-
-const detachRowNodes = (rowNodes: NavNode<'TEXT'>[]) => {
-	for (const node of rowNodes) nodeRepo.deleteNode(node.id);
-};
-
-const attachRowNodes = (sha: string, rows: PatchRow[]): NavNode<'TEXT'>[] => {
-	const created: NavNode<'TEXT'>[] = [];
-
-	rows.forEach((row, index) => {
-		const rankResult = bigIntToHex(BigInt(index + 1));
-		if (!isSuccess(rankResult)) return;
-
-		const result = nodeRepo.createNode(
-			nodes.text({
-				id: toRowNodeId(sha, index),
-				name: row.text,
-				parentNodeId: sha,
-				rank: rankResult.value,
-				props: {value: row.text},
-				readonly: true,
-				isVirtual: true,
-			}),
-		);
-
-		if (isSuccess(result)) created.push(result.value as NavNode<'TEXT'>);
-	});
-
-	return created;
-};
 
 // No syntax highlighting: added, removed, context and the hunk header is what
 // a diff is, and a terminal says it in four colours without a grammar for
@@ -143,29 +117,59 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 	const rowNodesRef = useRef<NavNode<'TEXT'>[]>([]);
 
 	useEffect(() => {
-		detachRowNodes(rowNodesRef.current);
+		detachLineNodes(rowNodesRef.current);
 
-		rowNodesRef.current = rows && !tooLarge ? attachRowNodes(sha, rows) : [];
+		rowNodesRef.current =
+			rows && !tooLarge
+				? attachLineNodes(
+						sha,
+						rows.map(row => row.text),
+						index => toRowNodeId(sha, index),
+				  )
+				: [];
 
 		return () => {
-			detachRowNodes(rowNodesRef.current);
+			detachLineNodes(rowNodesRef.current);
 			rowNodesRef.current = [];
 		};
 	}, [sha, rows, tooLarge]);
 
+	// The key handlers run outside React and need these same rows to work out
+	// what `c` selected. Cleared on the way out so a keystroke arriving after
+	// the pager closes finds nothing rather than the last patch read.
+	useEffect(() => {
+		setOpenPatch(rows ? {sha, rows} : null);
+		setDiffMark(null);
+
+		return () => {
+			setOpenPatch(null);
+			setDiffMark(null);
+		};
+	}, [sha, rows]);
+
 	const {selectedIndex} = useAppState();
+	const {mark} = useDiffPagerState();
+
+	// The rows between the mark and the cursor, so a range being built is
+	// visible while it is built.
+	const markedRow = mark && mark.sha === sha ? mark.row : null;
+	const inRange = (index: number) =>
+		markedRow !== null &&
+		index >= Math.min(markedRow, selectedIndex) &&
+		index <= Math.max(markedRow, selectedIndex);
 
 	const gutterWidth = useMemo(
 		() =>
+			// Two columns of their own before the number: the cursor and the mark.
 			rows
 				? Math.max(
-						4,
+						5,
 						rows.reduce(
 							(widest, row) => Math.max(widest, rowNumber(row).length),
 							0,
-						) + 1,
+						) + 2,
 				  )
-				: 4,
+				: 5,
 		[rows],
 	);
 
@@ -234,7 +238,11 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 
 	return (
 		<Box flexDirection="column" width={width} height={height}>
-			{header('q to go back, o to open in your editor')}
+			{header(
+				markedRow === null
+					? 'c to comment, s to start a range, o for your editor, q back'
+					: 'move to the other end, then c to comment — s clears the mark',
+			)}
 
 			<ScrollBoxUI
 				scrollByOne={true}
@@ -259,16 +267,25 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 						);
 					}
 
+					const marked = inRange(index);
+
 					return (
 						<Box key={toRowNodeId(sha, index)} paddingX={1}>
 							<Box flexShrink={0}>
-								<Text color={theme.secondary2} dimColor={!isSelected}>
-									{rowNumber(row).padStart(gutterWidth, ' ')}
+								<Text
+									color={isSelected || marked ? theme.accent : theme.secondary2}
+									dimColor={!isSelected && !marked}
+								>
+									{`${isSelected ? '❯' : ' '}${marked ? '▌' : ' '}${rowNumber(
+										row,
+									).padStart(gutterWidth - 2, ' ')}`}
 								</Text>
 							</Box>
 							<Text
 								color={isSelected ? theme.accent : color}
-								backgroundColor={isSelected ? theme.secondary : undefined}
+								backgroundColor={
+									isSelected || marked ? theme.secondary : undefined
+								}
 							>
 								{` ${rowSign(row.kind)}${truncateToWidth(row.text, textWidth)}`}
 							</Text>

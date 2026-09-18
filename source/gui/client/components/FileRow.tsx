@@ -4,7 +4,7 @@ import {GuiComment, GuiCommitDiffFile} from '../lib/gui-state.model';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {diffLineCount, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {COMMENT_CARD_STYLE} from '../lib/comment-card.style';
-import {formatSelectionLabel} from '../../../lib/utils/diff-comment.js';
+import {dedent, formatSelectionLabel} from '../../../lib/utils/diff-comment.js';
 import {timeAgo} from '../lib/gui-format.helper';
 import {Checkbox} from './Checkbox';
 import {CreateNodeModal} from './CreateNodeModal';
@@ -14,7 +14,6 @@ import {IconChevronRight} from './IconChevronRight';
 import {IconComment} from './IconComment';
 import {
 	extractSnippet,
-	dedent,
 	DiffComment,
 	findDiffCommentsForFile,
 	FileTicketParams,

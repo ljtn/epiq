@@ -1,0 +1,118 @@
+import {useSyncExternalStore} from 'react';
+import {PatchRow, RowSelection} from '../commits/patch-parse.js';
+import {FieldNames} from '../repository/fielNames.js';
+import {getState} from './state.js';
+
+// What the diff pager has open and what is selected in it — the state the key
+// handlers and the component both need, and which neither of them owns.
+
+/**
+ * The patch the pager currently has open.
+ *
+ * The pager fetches it; the key handlers, which run outside React, need the
+ * same rows to work out what a keystroke selected. Kept here rather than
+ * re-read from git on every keypress, and replaced wholesale when another
+ * commit is opened.
+ */
+let openPatch: {sha: string; rows: PatchRow[]} | null = null;
+
+/**
+ * Where a range being selected starts.
+ *
+ * A range has two ends and the terminal has one cursor, so the first is marked
+ * and held while the second is moved to. Carries its sha because the pager
+ * survives a change of commit: a mark left on another commit's patch would
+ * otherwise anchor a comment to a line nobody is looking at.
+ */
+let mark: {sha: string; row: number} | null = null;
+
+/** The range `c` captured, waiting for the note typed into the command line. */
+let pending: {sha: string; selection: RowSelection} | null = null;
+
+const listeners = new Set<() => void>();
+
+const emit = () => {
+	for (const listener of listeners) listener();
+};
+
+export const setOpenPatch = (
+	next: {sha: string; rows: PatchRow[]} | null,
+): void => {
+	openPatch = next;
+	emit();
+};
+
+export const getOpenPatch = (): {sha: string; rows: PatchRow[]} | null =>
+	openPatch;
+
+// useSyncExternalStore compares snapshots by identity, so the object handed to
+// it is rebuilt here, where the mark changes, and nowhere else.
+let snapshot: {mark: {sha: string; row: number} | null} = {mark: null};
+
+export const setDiffMark = (next: {sha: string; row: number} | null): void => {
+	mark = next;
+	snapshot = {mark: next};
+	emit();
+};
+
+export const getDiffMark = (): {sha: string; row: number} | null => mark;
+
+// The mark for this commit, and nothing for one left on another.
+export const diffMarkFor = (sha: string): number | null =>
+	mark && mark.sha === sha ? mark.row : null;
+
+export const setPendingDiffComment = (
+	next: {sha: string; selection: RowSelection} | null,
+): void => {
+	pending = next;
+};
+
+/**
+ * The range `c` captured, cleared as it is handed over.
+ *
+ * Only honoured while the cursor is still in the patch it was taken from: the
+ * command line can be opened from the pager and then abandoned, and the note
+ * typed into the next `:comment` somewhere else is a plain comment, not one
+ * silently anchored to a diff the writer has left.
+ */
+export const takePendingDiffComment = (): {
+	sha: string;
+	selection: RowSelection;
+} | null => {
+	const sha = openPagerSha();
+	const taken = pending && sha && pending.sha === sha ? pending : null;
+
+	pending = null;
+
+	return taken;
+};
+
+export const useDiffPagerState = (): {
+	mark: {sha: string; row: number} | null;
+} =>
+	useSyncExternalStore(
+		callback => {
+			listeners.add(callback);
+
+			return () => {
+				listeners.delete(callback);
+			};
+		},
+		() => snapshot,
+	);
+
+/**
+ * The commit whose patch the cursor is in, or null anywhere else.
+ *
+ * A commit node carries its sha as its id and sits under the ticket's Diff
+ * field, so being inside one is a question about the context node's parent.
+ */
+export const openPagerSha = (): string | null => {
+	const {contextNode, nodes} = getState();
+
+	const parent = contextNode.parentNodeId
+		? nodes[contextNode.parentNodeId]
+		: undefined;
+
+	return parent?.title === FieldNames.DIFF ? contextNode.id : null;
+};

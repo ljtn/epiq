@@ -136,3 +136,80 @@ export const formatDiffCaption = (meta: DiffCommentMeta): string =>
 	`${meta.issueRef ? `${meta.issueRef} · ` : ''}${
 		meta.filePath
 	} ${formatSelectionLabel(meta)}`;
+
+// A selection's start/end are the real (gutter-displayed) line numbers within
+// whichever side they belong to — 'deletions' means the old file, 'additions'
+// the new one. A range can span both sides (dragged from a removed line into
+// an added one in split view): quote both halves rather than picking one.
+//
+// Structural in its file rather than typed on the GUI's own shape: the TUI's
+// tests compare what it quotes against what the pager quotes for the same
+// range, and a Node-side test cannot import from source/gui/client.
+export const extractSnippet = (
+	file: {before: string; after: string},
+	range: SelectionRange,
+): string => {
+	const linesFor = (side: SelectionSide | undefined) =>
+		(side === 'deletions' ? file.before : file.after).split('\n');
+
+	const endSide = range.endSide ?? range.side;
+
+	if (endSide === range.side) {
+		return linesFor(range.side)
+			.slice(range.start - 1, range.end)
+			.join('\n');
+	}
+
+	const startHalf = linesFor(range.side).slice(range.start - 1);
+	const endHalf = linesFor(endSide).slice(0, range.end);
+
+	return [...startHalf, ...endHalf].join('\n');
+};
+
+// Quoted lines keep their real source indentation (often several tabs deep
+// inside nested JSX) — fine in a wide diff, unreadable in a narrow comment
+// box. Strips the whitespace every non-blank line shares, same as most
+// editors' own "copy" behavior.
+export const dedent = (snippet: string): string => {
+	const lines = snippet.split('\n');
+
+	const commonIndent = lines
+		.filter(line => line.trim() !== '')
+		.reduce<number | null>((min, line) => {
+			const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
+			return min === null ? indent : Math.min(min, indent);
+		}, null);
+
+	if (!commonIndent) return snippet;
+
+	return lines.map(line => line.slice(commonIndent)).join('\n');
+};
+
+/**
+ * The whole body of a comment made on a diff selection.
+ *
+ * Written once and used by every surface that can make one — the GUI's
+ * composer and the TUI's pager — because the two have to agree byte for byte:
+ * a body assembled differently still parses, but renders as a different
+ * comment, and the difference would only ever show up on somebody else's
+ * screen. The note is trimmed here rather than by each caller for the same
+ * reason.
+ */
+export const buildDiffCommentBody = ({
+	snippet,
+	...meta
+}: Omit<DiffCommentMeta, 'note'> & {
+	note: string;
+	snippet: string;
+}): string => {
+	const note = meta.note.trim();
+
+	return [
+		...(note ? [note, ''] : []),
+		encodeDiffCommentMarker({...meta, note}),
+		`\`${meta.filePath}\` ${formatSelectionLabel(meta)}`,
+		'```',
+		dedent(snippet),
+		'```',
+	].join('\n');
+};
