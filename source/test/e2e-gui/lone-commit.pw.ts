@@ -34,9 +34,14 @@ test('a ticket with a single commit opens it unasked', async ({
 	commitLinkedFile(repoRoot, ref!, 'add notes');
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await expect(page.getByRole('button', {name: /^Diff \(1\)/})).toBeVisible();
+	await expect(
+		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(1\)/}),
+	).toBeVisible();
 
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	const commit = page.getByRole('button', {name: 'add notes +3 -0'});
 	await expect(commit).toHaveAttribute('aria-expanded', 'true');
 	await expect(

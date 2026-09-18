@@ -90,7 +90,7 @@ export type FileTicketParams = {
 };
 
 /**
- * Which of the Diff tab's two views a link names.
+ * Which of the Code tab's two views a link names.
  *
  * Follows the rule `use-board-selection` already states for the board's own
  * axes: the URL wins when it says anything, a link that says nothing falls
@@ -103,33 +103,38 @@ export type FileTicketParams = {
  */
 export const DIFF_VIEW_PARAM = 'diff';
 
-export type DiffViewName = 'commits' | 'compacted';
+export type DiffViewName = 'commits' | 'flat';
 
-const DIFF_VIEW_NAMES: DiffViewName[] = ['commits', 'compacted'];
+// `compacted` is what the flat view was called when the param shipped. Still
+// read, never written: an unrecognised value falls back to the reader's own
+// view, so dropping the old spelling would land an already-shared link in the
+// wrong one — the failure putting the view in the route exists to prevent.
+const DIFF_VIEW_NAMES: Record<string, DiffViewName> = {
+	commits: 'commits',
+	flat: 'flat',
+	compacted: 'flat',
+};
 
 /** Null for absent *and* for unrecognised: a view nobody offers is no request
  * at all, so the reader's own choice stands rather than being overridden by a
  * typo. */
 export const readDiffViewParam = (
 	params: URLSearchParams,
-): DiffViewName | null => {
-	const value = params.get(DIFF_VIEW_PARAM);
-
-	return DIFF_VIEW_NAMES.find(name => name === value) ?? null;
-};
+): DiffViewName | null =>
+	DIFF_VIEW_NAMES[params.get(DIFF_VIEW_PARAM) ?? ''] ?? null;
 
 export const writeDiffViewParam = (
 	params: URLSearchParams,
-	compacted: boolean,
+	flat: boolean,
 ): void => {
-	params.set(DIFF_VIEW_PARAM, compacted ? 'compacted' : 'commits');
+	params.set(DIFF_VIEW_PARAM, flat ? 'flat' : 'commits');
 };
 
 export const clearDiffViewParam = (params: URLSearchParams): void => {
 	params.delete(DIFF_VIEW_PARAM);
 };
 
-// A spot in a ticket's Diff tab, deep-linkable from a comment. Lives in the
+// A spot in a ticket's Code tab, deep-linkable from a comment. Lives in the
 // URL rather than in transient state so the link survives a reload and can be
 // handed to someone else.
 export type DiffLocation = {
@@ -139,7 +144,7 @@ export type DiffLocation = {
 	end: number;
 	side: SelectionSide;
 	endSide: SelectionSide;
-	// Set when the diff lives on another ticket's Diff tab.
+	// Set when the diff lives on another ticket's Code tab.
 	issueRef?: string;
 };
 
@@ -190,7 +195,7 @@ export const readCommitFocusParam = (
 	if (!sha) return null;
 
 	// `file` without a line range: what the Stats tab links with, since it
-	// names a file rather than a spot inside one. The Diff tab already
+	// names a file rather than a spot inside one. The Code tab already
 	// opens `focus.filePath` when it has one.
 	const filePath = params.get('file');
 

@@ -65,7 +65,7 @@ import {AddImageButton} from './AddImageButton';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 
-// The Diff tab's two views and the switch between them. One object rather than
+// The Code tab's two views and the switch between them. One object rather than
 // five props: they are a single control and the thing it draws.
 export type DiffViewState = {
 	compacted: boolean;
@@ -81,7 +81,7 @@ export type DiffViewState = {
 export const LANE_VIEW_WIDTH = 1400;
 const LANE_GAP = 20;
 const LANE_COUNT = 3;
-// Diff holds the patches, so it takes most of the row; the other two
+// Code holds the patches, so it takes most of the row; the other two
 // share the rest.
 const LANE_SHARES = {
 	overview: 1,
@@ -93,7 +93,7 @@ const LANE_KEYS = Object.keys(LANE_SHARES) as LaneKey[];
 
 // Below this the five tabs and their counts no longer fit on one line, and
 // each label wraps under its own number. Measured against the longest set the
-// panel has — Overview, Comments, Diff, Stats, Log — rather than guessed.
+// panel has — Overview, Comments, Code, Stats, Log — rather than guessed.
 const TAB_COUNTS_WIDTH = 430;
 
 // Wide enough for the upright label and a comfortable click target.
@@ -351,7 +351,7 @@ export const IssueDetails = ({
 		params: FileTicketParams,
 	) => void;
 	// Following a comment's permalink: the caller puts it in the URL, and
-	// hands back where it currently points so the Diff tab can open there.
+	// hands back where it currently points so the Code tab can open there.
 	onOpenDiffLocation?: (location: DiffLocation) => void;
 	diffFocus?: CommitFocus | null;
 	attachments: GuiAttachment[];
@@ -369,7 +369,7 @@ export const IssueDetails = ({
 	stats: IssueStatsPayload | null;
 	statsLoading: boolean;
 	statsError: string | null;
-	// Following a file from the Stats tab into its diff on the Diff tab.
+	// Following a file from the Stats tab into its diff on the Code tab.
 	onOpenStatsFile?: (file: {sha: string; path: string}) => void;
 	// The board half of the Stats tab, worked out by the caller: what counts as
 	// backwards is a fact about lane order, which lives up there.
@@ -462,7 +462,7 @@ export const IssueDetails = ({
 	const tabs: TabItem<IssueDetailsTab>[] = [
 		{id: 'overview', label: 'Overview'},
 		{id: 'comments', label: 'Comments', count: comments.length},
-		{id: 'code', label: 'Diff', count: commitsCount},
+		{id: 'code', label: 'Code', count: commitsCount},
 		{id: 'stats', label: 'Stats'},
 	];
 
@@ -584,7 +584,7 @@ export const IssueDetails = ({
 					' ',
 				);
 
-				// The width the Diff lane is actually given, which is what the
+				// The width the Code lane is actually given, which is what the
 				// diff's split/unified choice has to follow.
 				const commitsWidth = laneView ? laneWidth('commits') : panelWidth;
 
@@ -1201,7 +1201,7 @@ export const IssueDetails = ({
 											[
 												['overview', 'Overview', undefined, overviewPane],
 												['comments', 'Comments', comments.length, commentsPane],
-												['commits', 'Diff', commitsCount, commitsPane],
+												['commits', 'Code', commitsCount, commitsPane],
 											] as const
 										).map(([key, title, count, pane]) => (
 											<Lane

@@ -17,7 +17,10 @@ const addTicket = async (page: Page, title: string) => {
 // link has been followed the URL keeps pointing at the spot, and the tab then
 // opens both on its own.
 const expandDiff = async (page: Page, subject: string, fileName: string) => {
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	for (const name of [subject, fileName]) {
 		const toggle = page.getByRole('button', {name});
 		await expect(toggle).toBeVisible();
@@ -63,7 +66,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await expect(page.locator('aside')).toContainText(`Composer ${stamp}`);
 
 	// A link naming only the commit (what a scrubber dot opens for a linked
-	// commit) lands on the Diff tab with it open.
+	// commit) lands on the Code tab with it open.
 	await page.goto(`${page.url().split('?')[0]}?tab=code&commit=${sha}`);
 	await expect(
 		page.getByRole('button', {name: 'add notes +3 -0'}),

@@ -36,12 +36,15 @@ test('the compacted view shows a file once, however many commits touched it', as
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 
 	// Per-commit: the file appears once per commit that touched it.
 	await expect(page.getByTestId('commit-card')).toHaveCount(2);
 
-	await page.getByRole('button', {name: 'Compacted'}).click();
+	await page.getByRole('button', {name: 'Diff', exact: true}).click();
 
 	// Compacted: no commit cards at all, and the file appears once.
 	await expect(page.getByTestId('commit-card')).toHaveCount(0);
@@ -70,8 +73,11 @@ test('a file ticked off in one view is ticked off in the other', async ({
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
-	await page.getByRole('button', {name: 'Compacted'}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
+	await page.getByRole('button', {name: 'Diff', exact: true}).click();
 
 	const tick = page.getByTestId('file-row').getByLabel('reviewed');
 	await expect(tick).toHaveCount(1);
@@ -109,8 +115,11 @@ test('a comment in the compacted view lands on the commit that touched the file'
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
-	await page.getByRole('button', {name: 'Compacted'}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
+	await page.getByRole('button', {name: 'Diff', exact: true}).click();
 
 	// Comment on the file the *newest* commit never touched.
 	const row = page.getByTestId('file-row').filter({hasText: early});
@@ -161,8 +170,11 @@ test('an interleaved commit is kept out of the compacted diff, and named', async
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
-	await page.getByRole('button', {name: 'Compacted'}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
+	await page.getByRole('button', {name: 'Diff', exact: true}).click();
 
 	await expect(page.getByTestId('file-row')).toHaveCount(1);
 	await expect(page.getByTestId('file-row')).toContainText(mine);
@@ -193,8 +205,11 @@ test('the chosen view is remembered for a link that names none', async ({
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
-	await page.getByRole('button', {name: 'Compacted'}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
+	await page.getByRole('button', {name: 'Diff', exact: true}).click();
 	await expect(page.getByTestId('file-row')).toHaveCount(1);
 
 	// Compacted rather than commits deliberately: commits is the default, so a
@@ -202,16 +217,15 @@ test('the chosen view is remembered for a link that names none', async ({
 	const board = new URL(page.url()).pathname;
 	await page.goto(`${appUrl}${board}?tab=code`);
 
-	await expect(page.getByRole('button', {name: 'Compacted'})).toHaveAttribute(
-		'aria-pressed',
-		'true',
-	);
+	await expect(
+		page.getByRole('button', {name: 'Diff', exact: true}),
+	).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByTestId('commit-card')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });
 
-// A link pins one visit to one tab, not the session: stepping off the Diff tab
+// A link pins one visit to one tab, not the session: stepping off the Code tab
 // and back is the reader browsing on their own again.
 test('leaving the tab lets go of the view a link named', async ({
 	page,
@@ -227,12 +241,15 @@ test('leaving the tab lets go of the view a link named', async ({
 	await page.reload();
 
 	// This browser remembers commits; the link below says compacted.
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	await page.getByRole('button', {name: 'Commits'}).click();
 	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	const board = new URL(page.url()).pathname;
-	await page.goto(`${appUrl}${board}?tab=code&diff=compacted`);
+	await page.goto(`${appUrl}${board}?tab=code&diff=flat`);
 	await expect(page.getByTestId('file-row')).toHaveCount(1);
 
 	await page.getByRole('button', {name: /^Comments/}).click();
@@ -240,7 +257,10 @@ test('leaving the tab lets go of the view a link named', async ({
 	// copied from a tab that has no view to name.
 	await expect(page).not.toHaveURL(/[?&]diff=/);
 
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	expect(pageErrors).toEqual([]);
@@ -264,17 +284,19 @@ test('a link names the view, over whatever this browser last used', async ({
 
 	// Leave this browser remembering the commits view, so the link below is
 	// overriding something rather than agreeing with it.
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	await page.getByRole('button', {name: 'Commits'}).click();
 	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	const board = new URL(page.url()).pathname;
-	await page.goto(`${appUrl}${board}?tab=code&diff=compacted`);
+	await page.goto(`${appUrl}${board}?tab=code&diff=flat`);
 
-	await expect(page.getByRole('button', {name: 'Compacted'})).toHaveAttribute(
-		'aria-pressed',
-		'true',
-	);
+	await expect(
+		page.getByRole('button', {name: 'Diff', exact: true}),
+	).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByTestId('file-row')).toHaveCount(1);
 	await expect(page.getByTestId('commit-card')).toHaveCount(0);
 
@@ -294,12 +316,15 @@ test('a link does not overwrite what this browser remembers', async ({
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	await page.getByRole('button', {name: 'Commits'}).click();
 	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	const board = new URL(page.url()).pathname;
-	await page.goto(`${appUrl}${board}?tab=code&diff=compacted`);
+	await page.goto(`${appUrl}${board}?tab=code&diff=flat`);
 	await expect(page.getByTestId('file-row')).toHaveCount(1);
 
 	// Back to a URL naming no view: the reader's own choice is still commits.
@@ -323,7 +348,10 @@ test('opening the tab puts the view in the address bar', async ({
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 
 	await expect(page).toHaveURL(/[?&]diff=(commits|compacted)\b/);
 
@@ -360,7 +388,10 @@ test('a board selection and the diff view survive each other', async ({
 	await expect(page).toHaveURL(/scope=week/);
 
 	await page.getByText(`Both a ${stamp}`).click();
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	await expect(page).toHaveURL(/diff=/);
 
 	// The click that rebuilds the query from `?tab=` alone.

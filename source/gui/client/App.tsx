@@ -421,7 +421,7 @@ export const App = () => {
 		loadIssueStats(selectedIssue.id, statsSignature);
 	}, [selectedTab, selectedIssue?.id, statsSignature, loadIssueStats]);
 
-	// Which of the Diff tab's two views the reader last chose. Remembered
+	// Which of the Code tab's two views the reader last chose. Remembered
 	// rather than reset per ticket: it is a way of reading, not a fact about
 	// any one ticket.
 	const [compactedDiffStored, setCompactedDiffStored] = usePersistedFlag(
@@ -434,7 +434,7 @@ export const App = () => {
 	// ticket opens from then on. Same bargain the board's own axes strike.
 	const linkedDiffView = readDiffViewParam(searchParams);
 	const compactedDiffPreferred = linkedDiffView
-		? linkedDiffView === 'compacted'
+		? linkedDiffView === 'flat'
 		: compactedDiffStored;
 
 	// A deep link points at a line of one commit, which the compacted view has
@@ -1092,13 +1092,13 @@ export const App = () => {
 			prev => {
 				const next = new URLSearchParams(prev);
 				next.set('tab', nextTab);
-				// A deep link belongs to the Diff tab it points into; leaving it
+				// A deep link belongs to the Code tab it points into; leaving it
 				// on the URL after a deliberate tab change would drag the reader
 				// back to it the moment they returned.
 				clearDiffLocationParams(next);
 				// The view a link named goes with it. It is a pin on one visit to
 				// one tab, not a setting: keeping it would have a link somebody
-				// followed once quietly decide how the Diff tab opens for the rest
+				// followed once quietly decide how the Code tab opens for the rest
 				// of the session, and would hang it off URLs copied from the other
 				// tabs, which have no view to name.
 				clearDiffViewParam(next);
@@ -1113,7 +1113,7 @@ export const App = () => {
 	// be handed to someone else. Pushed, not replaced — this is a navigation
 	// the reader should be able to come back from.
 	const openDiffLocation = (location: DiffLocation) => {
-		// Another ticket's diff: go to that ticket's Diff tab at the spot.
+		// Another ticket's diff: go to that ticket's Code tab at the spot.
 		if (location.issueRef && location.issueRef !== selectedIssue?.ref) {
 			if (!boardSlug) return;
 			const params = new URLSearchParams({tab: 'code'});
@@ -1293,7 +1293,7 @@ export const App = () => {
 		setPickedIssueIds([]);
 	}, [selectedBoardId]);
 
-	// A commit that links to a ticket is read on that ticket's Diff tab,
+	// A commit that links to a ticket is read on that ticket's Code tab,
 	// next to its comments and the rest of its commits; only one that links
 	// nowhere gets the bare panel.
 	const openCommitDiff = useCallback(

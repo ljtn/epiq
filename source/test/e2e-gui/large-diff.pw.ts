@@ -54,7 +54,10 @@ test('a commit opens the ordinary files and leaves a lockfile shut', async ({
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Lockfile ${stamp}`);
 
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 	// The ticket's only commit, so the tab opens it on its own.
 	await expect(page.getByRole('button', {name: /^bump deps/})).toHaveAttribute(
 		'aria-expanded',

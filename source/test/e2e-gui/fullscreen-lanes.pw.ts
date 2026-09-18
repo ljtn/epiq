@@ -16,7 +16,7 @@ const addTicket = async (page: Page, title: string) => {
 const tabButtons = (page: Page) =>
 	page
 		.locator('aside')
-		.getByRole('button', {name: /^(Overview|Comments|Diff)\b/});
+		.getByRole('button', {name: /^(Overview|Comments|Code)\b/});
 
 test.beforeEach(async ({page, appUrl}) => {
 	await page.goto(appUrl);
@@ -113,10 +113,15 @@ test('the lanes open every commit and file, ready to read', async ({
 	commitLinkedFile(repoRoot, ref!, 'add more', otherFile);
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
-	await expect(page.getByRole('button', {name: /^Diff \(2\)/})).toBeVisible();
+	await expect(
+		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(2\)/}),
+	).toBeVisible();
 
 	// Tabbed: collapsed, as before.
-	await page.getByRole('button', {name: /^Diff/}).click();
+	await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: /^Code/})
+		.click();
 
 	// A budget each, because these are two arrivals: the row comes with the
 	// commit, its diff stat only once git has been asked for one. Sharing a

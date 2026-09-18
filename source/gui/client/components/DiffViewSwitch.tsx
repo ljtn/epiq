@@ -1,7 +1,7 @@
 import {segmentedButtonStyle} from '../lib/segmented.style';
 
-// Which shape the Diff tab draws the ticket's change in: the commits that made
-// it, or all of them at once.
+// Which shape the Code tab draws the ticket's change in: all of it at once,
+// or the commits that made it.
 //
 // Two views of one thing rather than two tabs, because they answer the same
 // question at different grain — how did this happen, and what did it come to.
@@ -25,6 +25,24 @@ export const DiffViewSwitch = ({
 		    on the commits because the link points into one, and pressing the
 		    segment they are already on must not quietly overwrite the choice
 		    this switch remembers for them. */}
+		{/* Flat first: it is the whole change at once, and the commits are how
+		    it got there. */}
+		<button
+			aria-pressed={compacted}
+			disabled={pinnedToCommits}
+			title={
+				pinnedToCommits
+					? 'Following a link into a commit — clear it to flatten'
+					: 'Every commit as one diff'
+			}
+			onClick={() => onChange(true)}
+			style={{
+				...segmentedButtonStyle(compacted),
+				...(pinnedToCommits ? {opacity: 0.35, cursor: 'default'} : {}),
+			}}
+		>
+			Diff
+		</button>
 		<button
 			aria-pressed={!compacted}
 			disabled={pinnedToCommits}
@@ -40,22 +58,6 @@ export const DiffViewSwitch = ({
 			}}
 		>
 			Commits
-		</button>
-		<button
-			aria-pressed={compacted}
-			disabled={pinnedToCommits}
-			title={
-				pinnedToCommits
-					? 'Following a link into a commit — clear it to compact'
-					: 'Every commit as one diff'
-			}
-			onClick={() => onChange(true)}
-			style={{
-				...segmentedButtonStyle(compacted),
-				...(pinnedToCommits ? {opacity: 0.35, cursor: 'default'} : {}),
-			}}
-		>
-			Compacted
 		</button>
 	</div>
 );
