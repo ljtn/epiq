@@ -17,6 +17,7 @@ import {
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {LARGE_DIFF_LINES} from '../utils/diff-size.js';
+import {expandTabs} from '../utils/markdown-lite.js';
 import {truncateToWidth} from '../utils/string.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 
@@ -50,6 +51,11 @@ const rowColor = (kind: PatchRow['kind']): string => {
 			return theme.secondary2;
 	}
 };
+
+// Padded with a non-breaking space: ink trims a trailing ordinary one, and
+// the padding is there to carry a background colour to the edge.
+const padTo = (text: string, width: number): string =>
+	text.length >= width ? text : text + ' '.repeat(width - text.length);
 
 const rowSign = (kind: PatchRow['kind']): string => {
 	if (kind === 'added') return '+';
@@ -121,11 +127,7 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 
 		rowNodesRef.current =
 			rows && !tooLarge
-				? attachLineNodes(
-						sha,
-						rows.map(row => row.text),
-						index => toRowNodeId(sha, index),
-				  )
+				? attachLineNodes(sha, rows.length, index => toRowNodeId(sha, index))
 				: [];
 
 		return () => {
@@ -175,7 +177,21 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 
 	// Two rows of chrome above (the header and its rule), one of padding below.
 	const scrollHeight = Math.max(1, height - 4);
-	const textWidth = Math.max(8, width - gutterWidth - 4);
+
+	/**
+	 * Columns left for the line itself.
+	 *
+	 * Counted rather than estimated, because a row that overflows does not get
+	 * clipped — ink wraps it onto a second terminal line, and then every row is
+	 * two rows tall while `ScrollBoxUI` is being told each is one. The window it
+	 * computes is then wrong by however many rows happened to be long, which
+	 * reads as a pager that will not scroll to its own top.
+	 *
+	 * Spent on: the ticket pane's right padding, this row's own padding either
+	 * side, the gutter, the space and sign before the text, and the column the
+	 * scroll box keeps for its bar.
+	 */
+	const textWidth = Math.max(8, width - gutterWidth - 6);
 
 	if (load.state !== 'loaded') {
 		return (
@@ -200,11 +216,14 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 			borderStyle="single"
 			paddingBottom={1}
 		>
-			<Text color={theme.secondary2}>
-				{`${sha.slice(0, 7)} ${truncateToWidth(
-					subject,
-					Math.max(8, width - 48),
-				)} — ${note} `}
+			{/* Truncated whole rather than by its parts: cutting the subject alone
+			    left the keys after it to overflow, and a header that wraps onto a
+			    second line steals a row from the patch on every narrow terminal. */}
+			<Text color={theme.secondary2} wrap="truncate-end">
+				{truncateToWidth(
+					`${sha.slice(0, 7)} ${subject} — ${note}`,
+					Math.max(8, width - 6),
+				)}
 			</Text>
 		</Box>
 	);
@@ -240,8 +259,8 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 		<Box flexDirection="column" width={width} height={height}>
 			{header(
 				markedRow === null
-					? 'c to comment, s to start a range, o for your editor, q back'
-					: 'move to the other end, then c to comment — s clears the mark',
+					? 'enter to comment on a line, s to start a range, o editor, q back'
+					: 'move to the other end, then enter to comment — s clears the mark',
 			)}
 
 			<ScrollBoxUI
@@ -254,20 +273,32 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 					const isSelected = index === selectedIndex;
 					const color = rowColor(row.kind);
 
+					// A file reads as a bar across the pane rather than a chip around
+					// its name, which is the only thing that separates one file’s
+					// hunks from the next one’s while scrolling past.
 					if (row.kind === 'file') {
 						return (
 							<Box key={toRowNodeId(sha, index)} paddingX={1}>
 								<Text
 									backgroundColor={theme.secondary}
 									color={isSelected ? theme.accent : color}
+									bold
+									wrap="truncate-end"
 								>
-									{` ${truncateToWidth(row.text, textWidth)} `}
+									{padTo(
+										` ${truncateToWidth(expandTabs(row.text), textWidth)}`,
+										textWidth + gutterWidth,
+									)}
 								</Text>
 							</Box>
 						);
 					}
 
 					const marked = inRange(index);
+					const body = ` ${rowSign(row.kind)}${truncateToWidth(
+						expandTabs(row.text),
+						textWidth,
+					)}`;
 
 					return (
 						<Box key={toRowNodeId(sha, index)} paddingX={1}>
@@ -275,19 +306,25 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 								<Text
 									color={isSelected || marked ? theme.accent : theme.secondary2}
 									dimColor={!isSelected && !marked}
+									wrap="truncate-end"
 								>
 									{`${isSelected ? '❯' : ' '}${marked ? '▌' : ' '}${rowNumber(
 										row,
 									).padStart(gutterWidth - 2, ' ')}`}
 								</Text>
 							</Box>
+							{/* Padded out on the row the cursor is on, so its highlight is a
+							    band across the pane rather than a stub around whatever the
+							    line happened to contain — a blank added line otherwise
+							    highlights two characters and looks like damage. */}
 							<Text
 								color={isSelected ? theme.accent : color}
 								backgroundColor={
 									isSelected || marked ? theme.secondary : undefined
 								}
+								wrap="truncate-end"
 							>
-								{` ${rowSign(row.kind)}${truncateToWidth(row.text, textWidth)}`}
+								{isSelected || marked ? padTo(body, textWidth + 2) : body}
 							</Text>
 						</Box>
 					);

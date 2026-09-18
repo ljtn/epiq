@@ -282,6 +282,77 @@ const rowScopes = (rows: PatchRow[]): {file: string; hunk: number}[] => {
  * missing the unchanged lines in between, so the same range would quote fewer
  * lines here than there.
  */
+/**
+ * The lines a selection covers, written the way the command line shows them.
+ *
+ * The range travels in the typed command rather than in state the reader
+ * cannot see, so `:comment lines:4-9 ...` says what it will attach to and can
+ * be corrected before it is sent.
+ */
+export const formatLineAnchor = (start: number, end: number): string =>
+	start === end ? `line:${start}` : `lines:${start}-${end}`;
+
+const LINE_ANCHOR = /^lines?:(\d+)(?:-(\d+))?(?:\s+|$)/;
+
+/** Splits `lines:4-9 the note` into its range and the note after it. */
+export const parseLineAnchor = (
+	input: string,
+): {start: number; end: number; note: string} | null => {
+	const match = LINE_ANCHOR.exec(input);
+	if (!match) return null;
+
+	const start = Number(match[1]);
+	const end = match[2] === undefined ? start : Number(match[2]);
+
+	return {
+		start: Math.min(start, end),
+		end: Math.max(start, end),
+		note: input.slice(match[0].length),
+	};
+};
+
+/** The file a row belongs to, for a caller that has only the cursor. */
+export const fileOfRow = (rows: PatchRow[], index: number): string | null =>
+	rowScopes(rows)[index]?.file ?? null;
+
+/**
+ * The selection two *line numbers* describe, in one file of the patch.
+ *
+ * Resolved back to rows so it goes through exactly the same refusals as a
+ * range picked with the cursor — a line that is not in the new revision, or a
+ * pair that spans a hunk, is refused however it was named.
+ */
+export const selectionFromLines = (
+	rows: PatchRow[],
+	filePath: string,
+	start: number,
+	end: number,
+): {ok: true; value: RowSelection} | {ok: false; reason: string} => {
+	const scopes = rowScopes(rows);
+
+	const rowAt = (line: number) =>
+		rows.findIndex(
+			(row, index) =>
+				scopes[index]?.file === filePath &&
+				(row.kind === 'added' || row.kind === 'context') &&
+				(row as PatchLine).newLine === line,
+		);
+
+	const first = rowAt(start);
+	const last = rowAt(end);
+
+	if (first === -1 || last === -1) {
+		return {
+			ok: false,
+			reason: `${filePath} has no line ${
+				first === -1 ? start : end
+			} on the new side`,
+		};
+	}
+
+	return selectionFromRows(rows, first, last);
+};
+
 export const selectionFromRows = (
 	rows: PatchRow[],
 	from: number,

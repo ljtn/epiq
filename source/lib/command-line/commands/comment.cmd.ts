@@ -11,35 +11,74 @@ import {getPersistRoot} from '../../storage/paths.js';
 import {CommandLineInput} from '../../model/action-map.model.js';
 import {actorOf} from '../../event/event.model.js';
 import {
+	fileOfRow,
+	parseLineAnchor,
+	selectionFromLines,
+} from '../../commits/patch-parse.js';
+import {
+	getOpenPatch,
+	openPagerSha,
 	setDiffMark,
-	takePendingDiffComment,
 } from '../../state/diff-pager.state.js';
 import {buildDiffCommentBody} from '../../utils/diff-comment.js';
 
+/**
+ * The body to write, given what was typed.
+ *
+ * Inside the diff pager a leading `line:4` / `lines:4-9` names where the
+ * comment attaches, and the rest is the note. The result is the same body the
+ * GUI's composer writes, built by the same function so the two cannot drift.
+ *
+ * Only read as an anchor while the pager is open, so a comment that merely
+ * begins "lines:3-4 are wrong" stays prose everywhere else.
+ */
+const resolveBody = (
+	input: string,
+): {ok: true; md: string; anchored: boolean} | {ok: false; reason: string} => {
+	const note = input.trim();
+	const sha = openPagerSha();
+	const anchor = sha ? parseLineAnchor(note) : null;
+
+	if (!sha || !anchor) return {ok: true, md: note, anchored: false};
+
+	const patch = getOpenPatch();
+	if (!patch || patch.sha !== sha)
+		return {ok: false, reason: 'No diff is open'};
+
+	const filePath = fileOfRow(patch.rows, Math.max(0, getState().selectedIndex));
+	if (!filePath) return {ok: false, reason: 'That line is not in a file'};
+
+	const selection = selectionFromLines(
+		patch.rows,
+		filePath,
+		anchor.start,
+		anchor.end,
+	);
+	if (!selection.ok) return {ok: false, reason: selection.reason};
+
+	return {
+		ok: true,
+		anchored: true,
+		md: buildDiffCommentBody({
+			filePath: selection.value.filePath,
+			start: selection.value.start,
+			end: selection.value.end,
+			// The pager anchors to the new revision and refuses anything else, so
+			// both ends are always additions — see selectionFromRows.
+			side: 'additions',
+			endSide: 'additions',
+			note: anchor.note,
+			sha,
+			snippet: selection.value.snippet,
+		}),
+	};
+};
+
 export const commentCommand = async (cmdState: CommandLineInput) => {
-	const note = cmdState.inputString.trim();
+	const resolved = resolveBody(cmdState.inputString);
+	if (!resolved.ok) return failed(resolved.reason);
 
-	// A comment started from the diff pager carries where it was made, so it
-	// renders as the quoted lines rather than as loose prose — the same body
-	// the GUI's composer writes, built by the same function so the two cannot
-	// drift. Taken here rather than at the keystroke because the note is what
-	// the command line was opened to collect.
-	const anchored = takePendingDiffComment();
-
-	const md = anchored
-		? buildDiffCommentBody({
-				filePath: anchored.selection.filePath,
-				start: anchored.selection.start,
-				end: anchored.selection.end,
-				// The pager anchors to the new revision and refuses anything else,
-				// so both ends are always additions — see selectionFromRows.
-				side: 'additions',
-				endSide: 'additions',
-				note,
-				sha: anchored.sha,
-				snippet: anchored.selection.snippet,
-		  })
-		: note;
+	const {md, anchored} = resolved;
 
 	// An anchored comment says something without a note: the quoted lines are
 	// the point, and a bare one reads as "look at this".

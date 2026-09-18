@@ -1,4 +1,4 @@
-import {AnyContext, Comment, NavNodeCtx, Text} from '../model/context.model.js';
+import {AnyContext, Comment, NavNodeCtx} from '../model/context.model.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {nodeRef} from '../utils/node-ref.js';
 
@@ -146,7 +146,6 @@ export const nodes = {
 		name: string;
 		parentNodeId: string;
 		rank: string;
-		props?: Text['props'];
 		isVirtual?: boolean;
 		readonly?: boolean;
 	}): NavNode<'TEXT'> => ({
@@ -154,6 +153,13 @@ export const nodes = {
 		title: name,
 		rank,
 		isDeleted: false,
+		// Deliberately empty, and not a parameter: every node's `props.value` is
+		// swept into the command line's autocomplete corpus (`collectText`), so
+		// a text node carrying what it displays would put every line of an open
+		// diff, and of the event log, into the vocabulary. The three callers
+		// each render from their own list and read nothing back off the node —
+		// the argument this used to accept was dropped on the floor, which is
+		// worse than not offering it.
 		props: {},
 		context: NavNodeCtx.TEXT,
 		childRenderAxis: 'vertical',

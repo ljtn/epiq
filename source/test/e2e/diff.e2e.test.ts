@@ -187,7 +187,7 @@ describe('TUI diff e2e', () => {
 
 				// Into the newest commit's patch.
 				tui.input(ENTER);
-				const patch = await tui.waitFor('c to comment', 10_000);
+				const patch = await tui.waitFor('enter to comment', 10_000);
 
 				expect(patch).toContain('thing.ts');
 				expect(patch).toMatch(/@@ -\d+(,\d+)? \+\d+(,\d+)? @@/);
@@ -198,13 +198,13 @@ describe('TUI diff e2e', () => {
 				expect(patch).toContain('const keep = 1;');
 				expect(patch).not.toContain('+const keep = 1;');
 
-				// `enter to read`, not `o to open in your editor` — the pager's own
-				// header carries that phrase too, so waiting on it would match the
-				// frame that is already on screen and never prove `q` did anything.
+				// `enter to read` is the commit list's own wording. Waiting on a
+				// phrase the pager's header also carries would match the frame
+				// already on screen and never prove `q` did anything.
 				tui.input('q');
 				const back = await tui.waitFor('enter to read', 6_000);
 				expect(back).toContain('Diff (2)');
-				expect(back).not.toContain('c to comment');
+				expect(back).not.toContain('enter to comment');
 			} finally {
 				await tui.destroy();
 			}
@@ -273,7 +273,7 @@ describe('TUI diff e2e', () => {
 				tui.input(ENTER);
 				await tui.waitFor(/❯.*the change/, 10_000);
 				tui.input(ENTER);
-				await tui.waitFor('c to comment', 10_000);
+				await tui.waitFor('enter to comment', 10_000);
 
 				// Onto the first context line — confirmed by the cursor landing on
 				// it — then mark it.
@@ -294,8 +294,11 @@ describe('TUI diff e2e', () => {
 				expect(ranged).toMatch(/▌\s+-const drop/);
 				expect(ranged).toMatch(/▌\s+1\s+const keep/);
 
-				tui.input('c');
-				await tui.waitFor(commandLineShows('comment'), 6_000);
+				// Enter on a line opens the command line already carrying the range,
+				// so what the comment will attach to is on screen before a word of
+				// it is typed — and can be corrected there.
+				tui.input(ENTER);
+				await tui.waitFor(commandLineShows('comment lines:1-2'), 6_000);
 				await run(tui, 'reads oddly now', 'reads oddly now');
 
 				// Out of the pager and the list, then into Comments.
@@ -322,6 +325,90 @@ describe('TUI diff e2e', () => {
 				expect(comment).not.toContain('const drop = 2;');
 				// The marker itself is rendered, never shown as raw JSON.
 				expect(comment).not.toContain('epiq-diff-comment');
+			} finally {
+				await tui.destroy();
+			}
+		},
+		testTimeout,
+	);
+
+	it(
+		'draws a tab-indented or over-long line on one terminal row',
+		async () => {
+			const tui = setupTui();
+
+			try {
+				await commonSteps.init(tui);
+
+				git(tui.cwd, 'config user.name e2e');
+				git(tui.cwd, 'config user.email e2e@example.com');
+
+				tui.input(ENTER);
+				await tui.waitFor('Todo (0)', 4_000);
+
+				await run(tui, ':new issue Wide target', 'Wide target');
+				await tui.waitFor('Todo (1)', 4_000);
+
+				const issues = await listIssues({repoRoot: tui.cwd});
+				if (isFail(issues)) throw new Error(issues.message);
+				const ref = issues.value[0]?.ref;
+
+				git(tui.cwd, 'commit -q --no-verify --allow-empty -m base');
+
+				// Real code: tabs, which measure zero but render four columns wide,
+				// and one line past the width of the terminal. Both used to be
+				// wrapped by ink onto a second row, which left every row two rows
+				// tall while the scroll box was being told each was one — so the
+				// window it computed was wrong and the top became unreachable.
+				fs.writeFileSync(
+					path.join(tui.cwd, 'deep.ts'),
+					[
+						'export const outer = () => {',
+						'\tconst levelOne = 1;',
+						'\tconst levelTwo = 2;',
+						`\t\tconst levelThree = ${'9'.repeat(160)};`,
+						'\tconst levelFour = 4;',
+						'};',
+						'',
+					].join('\n'),
+				);
+				git(tui.cwd, 'add -A');
+				git(
+					tui.cwd,
+					`commit -q --no-verify -m ${JSON.stringify(`${ref} deep indent`)}`,
+				);
+
+				tui.input(ENTER);
+				await tui.waitFor('Diff ››', 4_000);
+
+				for (const row of [
+					/❯\s+Assignees/,
+					/❯\s+Tags/,
+					/❯\s+History/,
+					/❯\s+Diff/,
+				]) {
+					tui.input(ARROW_DOWN);
+					await tui.waitFor(row, 4_000);
+				}
+
+				tui.input(ENTER);
+				await tui.waitFor(/❯.*deep indent/, 10_000);
+				tui.input(ENTER);
+				await tui.waitFor('levelFour', 10_000);
+
+				const lines = tui.output().split('\n');
+				const rowOf = (needle: string) =>
+					lines.findIndex(line => line.includes(needle));
+
+				// Consecutive source lines must land on consecutive terminal rows.
+				// A wrapped row shows up here as a gap of two.
+				expect(rowOf('levelTwo') - rowOf('levelOne')).toBe(1);
+				expect(rowOf('levelThree') - rowOf('levelTwo')).toBe(1);
+				expect(rowOf('levelFour') - rowOf('levelThree')).toBe(1);
+
+				// The over-long line is cut rather than carried onto the next row.
+				expect(lines[rowOf('levelThree')]).toContain('...');
+				expect(lines[rowOf('levelFour')]).not.toContain('9999');
 			} finally {
 				await tui.destroy();
 			}

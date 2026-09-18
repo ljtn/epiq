@@ -45,7 +45,6 @@ const createHelpRootNode = (parentNodeId: string): NavNode<'TEXT'> =>
 		parentNodeId,
 		rank: '000000',
 		name: 'Help',
-		props: {},
 		isVirtual: true,
 		readonly: true,
 	});
@@ -60,9 +59,6 @@ const createHelpNode = (
 		parentNodeId,
 		rank: String(index).padStart(6, '0'),
 		name: item.keys,
-		props: {
-			value: item.action,
-		},
 		readonly: true,
 		isVirtual: true,
 	});

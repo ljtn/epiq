@@ -4,15 +4,17 @@ import {
 	YankModifiers,
 } from '../../command-line/command-modifiers.js';
 import {openCommitDiffInEditor} from '../../commits/commits.js';
-import {selectionFromRows} from '../../commits/patch-parse.js';
+import {
+	formatLineAnchor,
+	selectionFromRows,
+} from '../../commits/patch-parse.js';
 import {ActionEntry, Mode} from '../../model/action-map.model.js';
-import {failed, succeeded} from '../../model/result-types.js';
+import {failed, Result, succeeded} from '../../model/result-types.js';
 import {
 	diffMarkFor,
 	getOpenPatch,
 	openPagerSha,
 	setDiffMark,
-	setPendingDiffComment,
 } from '../../state/diff-pager.state.js';
 import {FieldNames} from '../../repository/fielNames.js';
 import {nodeRepo} from '../../repository/node-repo.js';
@@ -25,6 +27,43 @@ import {HelpActions} from '../help/help-actions.js';
 import {IdentityActions} from '../identity/identity-actions.js';
 import {PaletteActions} from '../palette/palette-actions.js';
 import {navigationUtils} from './navigation-action-utils.js';
+
+/**
+ * Opens `:comment lines:4-9 ` for whatever the cursor (and any mark) covers.
+ *
+ * The range is resolved here so an impossible one is refused where the reader
+ * is looking, rather than after they have typed a note — but it is written
+ * into the command line as text, so what will be attached is on screen and can
+ * be edited before it is sent.
+ */
+const proposeDiffComment = (): Result => {
+	const sha = openPagerSha();
+	if (!sha) return succeeded('Nothing to comment on here', null);
+
+	const patch = getOpenPatch();
+	if (!patch || patch.sha !== sha) return failed('The diff is still loading');
+
+	const {selectedIndex} = getState();
+	const cursor = Math.max(0, selectedIndex);
+
+	// No mark means the line under the cursor, which is the common case.
+	const selection = selectionFromRows(
+		patch.rows,
+		diffMarkFor(sha) ?? cursor,
+		cursor,
+	);
+	if (!selection.ok) return failed(selection.reason);
+
+	patchState({mode: Mode.COMMAND_LINE});
+	replaceCmdInput(
+		`${CmdKeywords.COMMENT} ${formatLineAnchor(
+			selection.value.start,
+			selection.value.end,
+		)} `,
+	);
+
+	return succeeded('Commenting on a diff line', null);
+};
 
 export const DefaultActions: ActionEntry[] = [
 	// First, so it leads the shortcut bar: it is the way to every command.
@@ -78,6 +117,12 @@ export const DefaultActions: ActionEntry[] = [
 				if (attachment) {
 					return openAttachment(attachment);
 				}
+
+				// A line of a patch has nothing to enter, so enter offers the one
+				// thing there is to do with it, the way it does for a description
+				// or a tag — and the range goes into the command line where it can
+				// be read and corrected rather than kept somewhere invisible.
+				if (openPagerSha()) return proposeDiffComment();
 
 				if (selectedNode?.title === FieldNames.DESCRIPTION) {
 					patchState({mode: Mode.COMMAND_LINE});
@@ -161,30 +206,9 @@ export const DefaultActions: ActionEntry[] = [
 		mode: Mode.DEFAULT,
 		description: '[c] comment on line',
 		action: () => {
-			const sha = openPagerSha();
-			if (!sha) return succeeded('Nothing to comment on here', null);
+			if (!openPagerSha()) return succeeded('Nothing to comment on here', null);
 
-			const patch = getOpenPatch();
-			if (!patch || patch.sha !== sha) {
-				return failed('The diff is still loading');
-			}
-
-			const {selectedIndex} = getState();
-			const cursor = Math.max(0, selectedIndex);
-
-			// No mark means the line under the cursor, which is the common case.
-			const from = diffMarkFor(sha) ?? cursor;
-
-			const selection = selectionFromRows(patch.rows, from, cursor);
-			if (!selection.ok) return failed(selection.reason);
-
-			// Held for the note the command line is about to collect.
-			setPendingDiffComment({sha, selection: selection.value});
-
-			patchState({mode: Mode.COMMAND_LINE});
-			replaceCmdInput(`${CmdKeywords.COMMENT} `);
-
-			return succeeded('Commenting on a diff line', null);
+			return proposeDiffComment();
 		},
 	},
 

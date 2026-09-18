@@ -1,6 +1,7 @@
 import {NavNode} from '../model/navigation-node.model.js';
-import {isSuccess} from '../model/result-types.js';
+import {isFail, isSuccess} from '../model/result-types.js';
 import {nodes} from '../state/node-builder.js';
+import {withDeferredDerive} from '../state/state.js';
 import {bigIntToHex} from '../utils/rank.js';
 import {nodeRepo} from './node-repo.js';
 
@@ -14,36 +15,45 @@ import {nodeRepo} from './node-repo.js';
  *
  * The ids are the caller's, because they are already out there: changing them
  * would move the cursor's identity for no reason.
+ *
+ * Built and torn down in one pass each. Deriving the board per node made
+ * opening a thousand-line diff cost the best part of a second, and the cost
+ * grew with the square of the lines.
  */
 export const attachLineNodes = (
 	parentId: string,
-	texts: string[],
+	lineCount: number,
 	idFor: (index: number) => string,
 ): NavNode<'TEXT'>[] => {
 	const created: NavNode<'TEXT'>[] = [];
 
-	texts.forEach((text, index) => {
-		const rankResult = bigIntToHex(BigInt(index + 1));
-		if (!isSuccess(rankResult)) return;
+	const batched = withDeferredDerive(() => {
+		for (let index = 0; index < lineCount; index++) {
+			const rankResult = bigIntToHex(BigInt(index + 1));
+			if (!isSuccess(rankResult)) continue;
 
-		const result = nodeRepo.createNode(
-			nodes.text({
-				id: idFor(index),
-				name: `Line ${index + 1}`,
-				parentNodeId: parentId,
-				rank: rankResult.value,
-				props: {value: text},
-				readonly: true,
-				isVirtual: true,
-			}),
-		);
+			const result = nodeRepo.createNode(
+				nodes.text({
+					id: idFor(index),
+					name: `Line ${index + 1}`,
+					parentNodeId: parentId,
+					rank: rankResult.value,
+					readonly: true,
+					isVirtual: true,
+				}),
+			);
 
-		if (isSuccess(result)) created.push(result.value as NavNode<'TEXT'>);
+			if (isSuccess(result)) created.push(result.value as NavNode<'TEXT'>);
+		}
 	});
+
+	// The nodes are written even where the derivation that follows them fails,
+	// so they are still the caller's to take down.
+	if (isFail(batched)) logger.error(`Line nodes: ${batched.message}`);
 
 	return created;
 };
 
 export const detachLineNodes = (lineNodes: NavNode<'TEXT'>[]): void => {
-	for (const node of lineNodes) nodeRepo.deleteNode(node.id);
+	nodeRepo.deleteNodes(lineNodes.map(node => node.id));
 };
