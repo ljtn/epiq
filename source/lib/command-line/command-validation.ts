@@ -16,7 +16,8 @@ import {
 	MIN_ATTACHMENT_MAX_KB,
 } from './commands/set-attachment-max-kb.cmd.js';
 import {DEFAULT_ATTACHMENT_MAX_KB} from '../media/media-store.js';
-import {getState} from '../state/state.js';
+import {emailsOf} from '../model/email-link.js';
+import {getSafeState, getState} from '../state/state.js';
 import {getGradientWord, getStringColor} from '../utils/color.js';
 import {MAX_COMMENT_LENGTH} from '../utils/text.limits.js';
 import {
@@ -29,7 +30,7 @@ import {
 	hintAlert,
 	hintDefault,
 } from './build-command-hint.js';
-import {getHeldEmails, getOfferedEmails} from '../state/email-offers.state.js';
+import {getOfferedEmails} from '../state/email-offers.state.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {CmdValidity, cmdValidity} from './cmd-validity.js';
 import {
@@ -92,6 +93,23 @@ type Validator = ({
 	command: CmdKeyword;
 	inputString: string;
 }) => ValidationResult;
+
+/**
+ * The addresses the viewer currently holds, straight from the board.
+ *
+ * Synchronous, unlike the scan that finds unclaimed ones, so there is nothing
+ * to cache and nothing to go stale. It was read from a list the identity screen
+ * filled, which made `:config emails-unclaim` refuse everything until that
+ * screen had been opened at least once.
+ */
+const heldEmails = (): string[] => {
+	const {userId} = getSettingsState();
+	const stateResult = getSafeState();
+
+	return !userId || isFail(stateResult)
+		? []
+		: emailsOf(stateResult.value.emailLinks, userId);
+};
 
 const valid = (
 	message: string = '',
@@ -404,8 +422,8 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			return valid(CONFIRM_MSG);
 		}
 
-		case ConfigModifiers.UNCLAIM: {
-			const held = getHeldEmails();
+		case ConfigModifiers.EMAILS_UNCLAIM: {
+			const held = heldEmails();
 			const typed = inputString.trim();
 
 			if (held.length === 0) {
