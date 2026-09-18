@@ -79,7 +79,10 @@ describe('TUI comments', () => {
 				const body = `${'a fairly long remark that keeps going '.repeat(
 					3,
 				)}${tail}`;
-				await run(tui, `:comment ${body}`, 'comment a fairly');
+				// Echoed by its tail, not its head: the command line is one row and
+				// scrolls to keep the cursor in view, so a command longer than the
+				// terminal shows its end.
+				await run(tui, `:comment ${body}`, tail);
 
 				// Into the ticket, down to its Comments field, and in. Every press is
 				// confirmed on the row it lands on before the next goes out: pressing

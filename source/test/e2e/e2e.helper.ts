@@ -113,8 +113,12 @@ export const removeTempRepo = (dir: string): void => {
 
 // An input opens with `:` or `?` and runs straight into the text or the
 // cursor; the shortcut bar's leading `?` shortcut is followed by a space.
+//
+// Or with an ellipsis: the command line is one row and scrolls to keep the
+// cursor in view, so a command longer than the terminal has its opening `:`
+// off the left. Without this a line being typed reads as an idle one.
 const isCommandInput = (content: string): boolean =>
-	/^[:?](\S|$)/.test(content);
+	/^[:?](\S|$)/.test(content) || content.startsWith('…');
 
 // The typed command as echoed in the command line, and only there: the
 // shortcut bar repeats command names (`e edit description`), so a match

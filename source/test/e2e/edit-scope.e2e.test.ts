@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import {commonSteps} from './e2e-common-steps.js';
+import {commonSteps, typeCommand} from './e2e-common-steps.js';
 import {
 	commandLineIsIdle,
 	commandLineShows,
@@ -99,9 +99,8 @@ describe('TUI edit-command scope e2e', () => {
 				// Init a fresh project in this session's own temp cwd.
 				execSync('git init', {cwd: tui.cwd, stdio: 'ignore'});
 				await tui.waitFor('Initialize project', 8_000);
-				tui.input(':init');
-				await tui.waitFor('<ENTER> to confirm', 8_000);
-				tui.input('\r');
+				await typeCommand(tui, ':init');
+				await commonSteps.declineEmails(tui);
 				await tui.waitFor('Default (0 issues)', 8_000);
 
 				tui.input(ENTER);
