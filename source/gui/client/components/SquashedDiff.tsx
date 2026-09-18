@@ -4,7 +4,7 @@ import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {GuiComment} from '../lib/gui-state.model';
-import {FileTicketParams} from '../lib/diff-selection';
+import {commentsAnchoredTo, FileTicketParams} from '../lib/diff-selection';
 import {useReviewedFiles} from '../lib/reviewed-files';
 import {Button} from './Button';
 import {Empty} from './FormPrimitives';
@@ -73,14 +73,19 @@ export const SquashedDiff = ({
 
 	// The same bargain the per-commit view strikes: the diff is what the reader
 	// came for, so files open as they arrive — except the large ones, which are
-	// what stalls this view and stay shut until asked for by name.
+	// what stalls this view, and the ones already ticked off, since what is
+	// left open should be what is left to read.
 	useEffect(() => {
 		if (!diff || openedFor.current === diff.to) return;
 
 		openedFor.current = diff.to;
 		setExpandedFiles(
 			new Set(
-				diff.files.filter(file => !isLargeDiff(file)).map(file => file.path),
+				diff.files
+					.filter(
+						file => !isLargeDiff(file) && !isReviewed(file.sha, file.path),
+					)
+					.map(file => file.path),
 			),
 		);
 	}, [diff]);
@@ -180,21 +185,32 @@ export const SquashedDiff = ({
 				</Notice>
 			)}
 
-			{diff.files.map(file => (
-				<FileRow
-					key={file.path}
-					sha={file.sha}
-					file={file}
-					expanded={expandedFiles.has(file.path)}
-					onToggle={() => toggleFile(file.path)}
-					reviewed={isReviewed(file.sha, file.path)}
-					onReviewed={next => reviewFile(file.sha, file.path, next)}
-					diffStyle={diffStyle}
-					onAddComment={onAddComment}
-					onFileTicket={onFileTicket}
-					comments={comments}
-				/>
-			))}
+			{diff.files.map(file => {
+				// A file another ticket's commit also touched shows content none of
+				// this ticket's commits left behind, so there is no revision a line
+				// here belongs to and nothing written on it could be anchored.
+				const anchorable = !diff.overlappingPaths.includes(file.path);
+
+				return (
+					<FileRow
+						key={file.path}
+						sha={file.sha}
+						file={file}
+						expanded={expandedFiles.has(file.path)}
+						onToggle={() => toggleFile(file.path)}
+						reviewed={isReviewed(file.sha, file.path)}
+						onReviewed={next => reviewFile(file.sha, file.path, next)}
+						diffStyle={diffStyle}
+						selectable={anchorable}
+						additionsOnly
+						onAddComment={anchorable ? onAddComment : undefined}
+						onFileTicket={anchorable ? onFileTicket : undefined}
+						// Only the ones written against this file's own commit: the
+						// rest name lines of a revision this view is not showing.
+						comments={commentsAnchoredTo(comments, file.sha)}
+					/>
+				);
+			})}
 		</div>
 	);
 };

@@ -77,8 +77,10 @@ test('a file ticked off in one view is ticked off in the other', async ({
 	await expect(tick).toHaveCount(1);
 	await tick.check();
 
-	// The same file, the same commit, so the same tick — one file is read
-	// once however you are looking at it.
+	// One commit touched this file, so both views key the tick the same way
+	// and it is the same tick. Where several of a ticket's commits touched a
+	// file, the compacted view's tick belongs to the last of them — the
+	// earlier commits' copies are a different diff and stay unticked.
 	await page.getByRole('button', {name: 'Commits'}).click();
 	await expect(
 		page.getByTestId('file-row').getByLabel('reviewed'),
@@ -103,7 +105,7 @@ test('a comment in the compacted view lands on the commit that touched the file'
 	const late = `late-${stamp}.txt`;
 
 	const earlySha = commitLinkedFile(repoRoot, ref, 'first', early, 'alpha\n');
-	commitLinkedFile(repoRoot, ref, 'second', late, 'beta\n');
+	const lateSha = commitLinkedFile(repoRoot, ref, 'second', late, 'beta\n');
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
@@ -122,17 +124,19 @@ test('a comment in the compacted view lands on the commit that touched the file'
 
 	await expect(page.getByText('anchored here').first()).toBeVisible();
 
-	// The permalink names the commit that actually changed this file, so the
-	// commits view opens that commit's diff rather than one without the file.
+	// Following the comment's own permalink is what says where it anchored:
+	// the commit it opens is the one recorded in the marker. Anchoring to the
+	// ticket's newest commit instead would name `second`, whose diff has no
+	// such file.
 	await page.getByRole('button', {name: /^Comments/}).click();
-	await expect(page.locator('aside')).toContainText('anchored here');
-	await expect(page.locator('aside')).toContainText(early);
+	await page
+		.locator('aside')
+		.getByTitle('Open this in the diff')
+		.first()
+		.click();
 
-	await page.getByRole('button', {name: /^Diff/}).click();
-	await page.getByRole('button', {name: 'Commits'}).click();
-	await expect(page.getByRole('button', {name: 'first +1 -0'})).toBeVisible();
-	// Anchored to the first commit, not the second.
-	expect(earlySha).toBeTruthy();
+	await expect(page).toHaveURL(new RegExp(`commit=${earlySha}`));
+	await expect(page).not.toHaveURL(new RegExp(`commit=${lateSha}`));
 
 	expect(pageErrors).toEqual([]);
 });

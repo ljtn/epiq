@@ -52,6 +52,21 @@ export const dedent = (snippet: string): string => {
 
 export type DiffComment = {comment: GuiComment; meta: DiffCommentMeta};
 
+/**
+ * The comments whose selection was made in `sha`'s diff.
+ *
+ * A line number is only a place within the revision it was read from, so a
+ * view that draws one revision can only place the comments belonging to it.
+ * The compacted diff needs this because it shows a file at the ticket's end
+ * state: a comment written against an earlier commit of the same file names
+ * lines that later commits have since moved.
+ */
+export const commentsAnchoredTo = (
+	comments: GuiComment[],
+	sha: string,
+): GuiComment[] =>
+	comments.filter(comment => parseDiffCommentMeta(comment.body)?.sha === sha);
+
 export const findDiffCommentsForFile = (
 	comments: GuiComment[],
 	filePath: string,
