@@ -16,6 +16,7 @@ import {
 	Result,
 	succeeded,
 } from '../../lib/model/result-types.js';
+import {getStateBranch} from '../../git/git-constants.js';
 import {readGitName} from '../../lib/config/git-identity.js';
 import {
 	findEmailCandidates,
@@ -235,8 +236,14 @@ export const suggestOwnEmails = async (input: ToolInput = {}) => {
 
 	const {userId, userName} = actorResult.value;
 
+	// The state branch is excluded, as it is everywhere else this scan is run.
+	// Its commits are the board writing its own log, so without this the panel
+	// offers the board's bookkeeping as work somebody did.
+	const branchResult = getStateBranch(bootResult.value.repoRoot);
+
 	const scanned = await findEmailCandidates({
 		repoRoot: bootResult.value.repoRoot,
+		stateBranch: isFail(branchResult) ? undefined : branchResult.value,
 		names: [userName, await readGitName(bootResult.value.repoRoot)],
 		links: stateResult.value.emailLinks,
 	});

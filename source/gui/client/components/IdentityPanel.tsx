@@ -183,6 +183,7 @@ const Section = ({
 			{rows.map(row => (
 				<div
 					key={row.email}
+					data-testid={`identity-row-${row.email}`}
 					style={{
 						display: 'flex',
 						alignItems: 'flex-start',
