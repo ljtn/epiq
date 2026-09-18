@@ -33,15 +33,10 @@ export const unclaimEmailCommand = () => {
 	}
 
 	if (!answer) {
-		return failed(
-			`Which one? ${held.join(', ')} — or its number, 1 to ${held.length}.`,
-		);
+		return failed(`Which one? ${held.join(', ')}.`);
 	}
 
-	// A number or the address, the same two forms claiming takes.
-	const byNumber = /^\d+$/.test(answer) ? held[Number(answer) - 1] : undefined;
-	const byEmail = held.find(email => email === normalizeEmail(answer));
-	const email = byNumber ?? byEmail;
+	const email = held.find(one => one === normalizeEmail(answer));
 
 	if (!email) {
 		return failed(`You have not claimed ${answer}. Yours: ${held.join(', ')}.`);

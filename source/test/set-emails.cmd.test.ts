@@ -109,8 +109,8 @@ describe(':config emails', () => {
 	});
 
 	describe('picking', () => {
-		it('claims the address at the number given', async () => {
-			typed('1');
+		it('claims the address given', async () => {
+			typed('jola@example.com');
 			const result = await setEmailsCommand();
 
 			expect(isFail(result)).toBe(false);
@@ -122,7 +122,7 @@ describe(':config emails', () => {
 		});
 
 		it('claims several, separated by commas or spaces', async () => {
-			typed('1, 3');
+			typed('jola@example.com, sam@example.com');
 			await setEmailsCommand();
 
 			expect(
@@ -150,17 +150,27 @@ describe(':config emails', () => {
 			});
 		});
 
-		it('mixes numbers and addresses, and claims each once', async () => {
-			typed('1, jola@example.com, 2');
+		it('claims a repeated address once', async () => {
+			typed('jola@example.com jola@example.com');
 			await setEmailsCommand();
 
 			expect(
 				written().map(one => (one.payload as {email: string}).email),
-			).toEqual(['jola@example.com', 'j.lampa@oldjob.com']);
+			).toEqual(['jola@example.com']);
+		});
+
+		// Indices were offered once and are gone: every other command here takes
+		// a value, and a list position is not one.
+		it('refuses a number, which names nothing', async () => {
+			typed('1');
+			const result = await setEmailsCommand();
+
+			expect(isFail(result)).toBe(true);
+			expect(written()).toEqual([]);
 		});
 
 		it('records that the question was answered, so the step stops asking', async () => {
-			typed('1');
+			typed('jola@example.com');
 			await setEmailsCommand();
 
 			expect(setConfig).toHaveBeenCalledWith({emailSetup: 'linked'});
@@ -201,19 +211,12 @@ describe(':config emails', () => {
 	});
 
 	describe('refusing', () => {
-		it('a number past the end of the list', async () => {
-			typed('9');
+		it('an address nothing in the history carries', async () => {
+			typed('nobody@example.com');
 			const result = await setEmailsCommand();
 
 			expect(isFail(result)).toBe(true);
 			expect(isFail(result) && result.message).toContain('Not on the list');
-			expect(written()).toEqual([]);
-		});
-
-		it('zero, which no row carries', async () => {
-			typed('0');
-
-			expect(isFail(await setEmailsCommand())).toBe(true);
 			expect(written()).toEqual([]);
 		});
 
@@ -260,19 +263,18 @@ describe(':config emails', () => {
 	describe('what it offers', () => {
 		// The numbers a person reads off the screen have to be the numbers this
 		// command counts, so both sides drop claimed addresses the same way.
-		it('skips addresses somebody already claims, so the numbering matches', async () => {
+		it('refuses an address somebody already claims', async () => {
 			board([
 				event('link.contributor.email', {
 					contributor: ALICE,
 					email: 'jola@example.com',
 				}),
 			]);
-			typed('1');
-			await setEmailsCommand();
+			typed('jola@example.com');
+			const result = await setEmailsCommand();
 
-			expect(written()[0]).toMatchObject({
-				payload: {email: 'j.lampa@oldjob.com'},
-			});
+			expect(isFail(result)).toBe(true);
+			expect(written()).toEqual([]);
 		});
 
 		it('marks the answer given even when the history has nothing left', async () => {
@@ -288,7 +290,7 @@ describe(':config emails', () => {
 	// user's own address is in the history whatever else the repository holds.
 	it('offers the address the init commit was signed with in a fresh repository', async () => {
 		history([['Jonatan Lampa', 'jola@example.com']]);
-		typed('1');
+		typed('jola@example.com');
 		await setEmailsCommand();
 
 		expect(written()[0]).toMatchObject({

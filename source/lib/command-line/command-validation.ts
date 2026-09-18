@@ -340,7 +340,13 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			// The addresses drawn on the setup screen, plus the way out. Completing
 			// on the address rather than only on its number means the list can be
 			// taken from the screen without counting rows.
-			const offered = getOfferedEmails();
+			// Whatever the screen last drew, and this repository's own git address
+			// as a floor: the scan is asynchronous, so the first keystrokes can
+			// land before it answers, and an empty list would complete nothing.
+			const gitEmail = getSettingsState().gitEmail;
+			const scanned = getOfferedEmails();
+			const offered = scanned.length > 0 || !gitEmail ? scanned : [gitEmail];
+
 			const wordList = [...offered, 'none'];
 			const typed = inputString.trim();
 
@@ -369,14 +375,8 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			const parts = typed.split(/[,\s]+/).filter(Boolean);
 			const last = parts[parts.length - 1] ?? '';
 
-			const known = (part: string): boolean => {
-				if (/^\d+$/.test(part)) {
-					const index = Number(part);
-					return index >= 1 && index <= offered.length;
-				}
-
-				return part === 'none' || offered.includes(part.toLowerCase());
-			};
+			const known = (part: string): boolean =>
+				part === 'none' || offered.includes(part.toLowerCase());
 
 			// Half-typed is not wrong. Anything the offered list still begins with
 			// is on its way to being valid, and calling it "not on the list" while
@@ -415,13 +415,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				});
 			}
 
-			if (
-				typed &&
-				(held.includes(typed.toLowerCase()) ||
-					(/^\d+$/.test(typed) &&
-						Number(typed) >= 1 &&
-						Number(typed) <= held.length))
-			) {
+			if (typed && held.includes(typed.toLowerCase())) {
 				return valid(CONFIRM_MSG);
 			}
 
