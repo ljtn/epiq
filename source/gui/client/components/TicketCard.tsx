@@ -1,4 +1,4 @@
-import {useEffect, useRef} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {GuiComment, GuiIssue} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
 import {
@@ -49,6 +49,7 @@ export const TicketCard = ({
 	isPicked,
 	commentCount,
 	onOpenComments,
+	onOpenCode,
 	onSelect,
 	isolatedTagId,
 	onFilterByTag,
@@ -68,6 +69,9 @@ export const TicketCard = ({
 	onSelect: (options: {toggle: boolean}) => void;
 	commentCount: number;
 	onOpenComments: (issueId: string) => void;
+	// The diff stat is the way into the commits behind it, the way the comment
+	// count is the way into the comments.
+	onOpenCode: (issueId: string) => void;
 	// The tag the board is narrowed to, if it is exactly one.
 	isolatedTagId: string | null;
 	onFilterByTag: (tagId: string) => void;
@@ -90,6 +94,7 @@ export const TicketCard = ({
 	diff: RefDiffStat | null;
 }) => {
 	const cardRef = useRef<HTMLDivElement | null>(null);
+	const [diffHovered, setDiffHovered] = useState(false);
 
 	// Opening the details panel takes 440px off the board, which can leave the
 	// card that was just clicked behind it.
@@ -271,14 +276,41 @@ export const TicketCard = ({
 						>
 							<CopyRef refValue={ticket.ref} />
 							{diff && (
-								<DiffStat
-									insertions={diff.insertions}
-									deletions={diff.deletions}
-									variant="card"
-									lit={isSelected || isPicked}
+								<button
+									type="button"
+									data-testid="ticket-diff"
 									title={diffTitle(diff)}
-									testId="ticket-diff"
-								/>
+									// Stopped here, or the click would also select the card
+									// — which would land on whichever tab was already open.
+									onClick={event => {
+										event.stopPropagation();
+										onOpenCode(ticket.id);
+									}}
+									onMouseEnter={() => setDiffHovered(true)}
+									onMouseLeave={() => setDiffHovered(false)}
+									// The hover ground is the button's only chrome, and it is
+									// pulled back out again by an equal negative margin: the
+									// ground reaches past the figures without the ref's line
+									// growing under it.
+									style={{
+										display: 'flex',
+										alignItems: 'center',
+										padding: '2px 4px',
+										margin: '-2px -4px',
+										borderRadius: 4,
+										background: diffHovered ? GUI_THEME.hover : 'transparent',
+										border: 'none',
+										cursor: 'pointer',
+										transition: 'background 120ms ease',
+									}}
+								>
+									<DiffStat
+										insertions={diff.insertions}
+										deletions={diff.deletions}
+										variant="card"
+										lit={diffHovered}
+									/>
+								</button>
 							)}
 						</div>
 					)}

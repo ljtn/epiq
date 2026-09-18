@@ -1080,6 +1080,9 @@ export const App = () => {
 	const selectIssueComments = (nextIssueId: string) =>
 		openIssueTab(nextIssueId, 'comments');
 
+	const selectIssueCode = (nextIssueId: string) =>
+		openIssueTab(nextIssueId, 'code');
+
 	// A log line goes where the thing it names is read: a commit to its diff, a
 	// comment among the comments, anything else to the ticket's overview. Which
 	// of those it is was decided in lib/log-destination and travelled here on
@@ -1856,6 +1859,7 @@ export const App = () => {
 										}
 										onSelectIssue={selectIssue}
 										onSelectIssueComments={selectIssueComments}
+										onSelectIssueCode={selectIssueCode}
 										isolatedTagId={isolatedTagId}
 										onFilterByTag={filterByTag}
 										onCreateIssue={openCreateIssueModal}

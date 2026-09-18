@@ -47,5 +47,14 @@ test('a card whose ticket has commits carries its diff stat, and carries none be
 	// The one thing the figures beside it do not say.
 	await expect(stat).toHaveAttribute('title', '1 commit');
 
+	// And it is the way into what it counts, the way the comment count beside
+	// it is the way into the comments: the panel opens on the Code tab rather
+	// than on whichever tab was last used.
+	await stat.click();
+	await expect(page).toHaveURL(/tab=code/);
+	await expect(
+		page.getByRole('button', {name: 'add notes +3 -0'}),
+	).toBeVisible();
+
 	expect(pageErrors).toEqual([]);
 });
