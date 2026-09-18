@@ -1154,7 +1154,7 @@ describe('epiq-time-travel', () => {
 								(commit, index) =>
 									`${REC}${commit.sha}${SEP}${
 										1700000000 + index
-									}${SEP}Ada${SEP}${commit.subject}`,
+									}${SEP}Ada${SEP}ada@example.com${SEP}${commit.subject}`,
 							)
 							.join('\n'),
 						stderr: '',
