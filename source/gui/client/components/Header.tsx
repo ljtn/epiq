@@ -254,8 +254,13 @@ export const Header = ({
 											right: anchor.right,
 											top: anchor.top,
 											zIndex: 60,
+											// The height is capped here, where the distance from
+											// the top of the window is known, but the scrolling
+											// belongs to the panel: a panel scrolled from outside
+											// loses its own bottom edge over the fold and reads as
+											// cut off rather than as a list with more in it.
 											maxHeight: `calc(100vh - ${anchor.top + 16}px)`,
-											overflowY: 'auto',
+											display: 'flex',
 										}}
 									>
 										{identity.panel}
