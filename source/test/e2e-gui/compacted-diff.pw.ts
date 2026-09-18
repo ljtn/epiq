@@ -55,30 +55,84 @@ test('the compacted view shows a file once, however many commits touched it', as
 	expect(pageErrors).toEqual([]);
 });
 
-// Decision A on TCYD699: a line in the compacted diff belongs to the ticket,
-// not to any one commit, so there is nothing for a review tick to be recorded
-// against and it is not offered.
-test('the compacted view offers no per-commit review tick', async ({
+// TCYD699 decided B: each row carries the last of the ticket's commits to
+// touch that file, so there is something for a tick to be recorded against.
+test('a file ticked off in one view is ticked off in the other', async ({
 	page,
 	appUrl,
 	repoRoot,
 	pageErrors,
 }) => {
-	const ref = await openDiffTab(page, appUrl, `No tick ${Date.now()}`);
+	const ref = await openDiffTab(page, appUrl, `Shared tick ${Date.now()}`);
+	const file = linkedFileName(ref);
 
-	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
+	commitLinkedFile(repoRoot, ref, 'only', file, 'alpha\n');
 
 	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page.getByRole('button', {name: /^Diff/}).click();
+	await page.getByRole('button', {name: 'Compacted'}).click();
 
 	const tick = page.getByTestId('file-row').getByLabel('reviewed');
 	await expect(tick).toHaveCount(1);
+	await tick.check();
 
+	// The same file, the same commit, so the same tick — one file is read
+	// once however you are looking at it.
+	await page.getByRole('button', {name: 'Commits'}).click();
+	await expect(
+		page.getByTestId('file-row').getByLabel('reviewed'),
+	).toBeChecked();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// The case literal "anchor to the newest sha" gets wrong: the ticket's newest
+// commit did not touch this file, so a comment anchored there would name a
+// commit whose diff has no such file.
+test('a comment in the compacted view lands on the commit that touched the file', async ({
+	page,
+	appUrl,
+	repoRoot,
+	pageErrors,
+}) => {
+	const stamp = Date.now();
+	const ref = await openDiffTab(page, appUrl, `Anchored ${stamp}`);
+
+	const early = linkedFileName(ref);
+	const late = `late-${stamp}.txt`;
+
+	const earlySha = commitLinkedFile(repoRoot, ref, 'first', early, 'alpha\n');
+	commitLinkedFile(repoRoot, ref, 'second', late, 'beta\n');
+
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+	await page.reload();
+	await page.getByRole('button', {name: /^Diff/}).click();
 	await page.getByRole('button', {name: 'Compacted'}).click();
 
-	await expect(page.getByTestId('file-row')).toHaveCount(1);
-	await expect(tick).toHaveCount(0);
+	// Comment on the file the *newest* commit never touched.
+	const row = page.getByTestId('file-row').filter({hasText: early});
+	await row.locator('[data-column-number]').first().click();
+
+	const composer = page.getByTestId('selection-composer');
+	await expect(composer).toBeVisible();
+	await expect(composer).toContainText(`${early} line 1`);
+	await composer.getByPlaceholder(/add a note/i).fill('anchored here');
+	await composer.getByRole('button', {name: 'Comment'}).click();
+
+	await expect(page.getByText('anchored here').first()).toBeVisible();
+
+	// The permalink names the commit that actually changed this file, so the
+	// commits view opens that commit's diff rather than one without the file.
+	await page.getByRole('button', {name: /^Comments/}).click();
+	await expect(page.locator('aside')).toContainText('anchored here');
+	await expect(page.locator('aside')).toContainText(early);
+
+	await page.getByRole('button', {name: /^Diff/}).click();
+	await page.getByRole('button', {name: 'Commits'}).click();
+	await expect(page.getByRole('button', {name: 'first +1 -0'})).toBeVisible();
+	// Anchored to the first commit, not the second.
+	expect(earlySha).toBeTruthy();
 
 	expect(pageErrors).toEqual([]);
 });

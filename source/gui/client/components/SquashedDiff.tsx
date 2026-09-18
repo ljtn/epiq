@@ -3,6 +3,9 @@ import {GuiSquashedDiff} from '../lib/gui-state.model';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {isLargeDiff} from '../../../lib/utils/diff-size.js';
+import {GuiComment} from '../lib/gui-state.model';
+import {FileTicketParams} from '../lib/diff-selection';
+import {useReviewedFiles} from '../lib/reviewed-files';
 import {Button} from './Button';
 import {Empty} from './FormPrimitives';
 import {FileRow} from './FileRow';
@@ -12,9 +15,10 @@ import {FileRow} from './FileRow';
 // than once per commit that touched it on the way.
 //
 // The same FileRow the per-commit view uses, minus the commit rail above it —
-// the grouping is the only difference. What it cannot carry is anything
-// anchored to a commit: a line here is the ticket's, not any one sha's, so
-// review ticks and diff comments stay on the Commits view (TCYD699).
+// the grouping is the only difference, and that includes the things anchored
+// to a commit. Each row carries the last of the ticket's commits to touch that
+// file, which is what a comment, a filed ticket and a review tick hang off, so
+// all three work here exactly as they do per commit (TCYD699).
 
 const Notice = ({
 	tone,
@@ -50,13 +54,20 @@ export const SquashedDiff = ({
 	loading,
 	error,
 	diffStyle,
+	onAddComment,
+	onFileTicket,
+	comments,
 }: {
 	diff: GuiSquashedDiff | null;
 	loading: boolean;
 	error: string | null;
 	diffStyle: 'split' | 'unified';
+	onAddComment?: (body: string) => void;
+	onFileTicket?: (params: FileTicketParams) => void;
+	comments: GuiComment[];
 }) => {
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+	const {isReviewed, setReviewed} = useReviewedFiles();
 	// Opened once per answer, so a file shut by hand afterwards stays shut.
 	const openedFor = useRef<string | null>(null);
 
@@ -97,6 +108,19 @@ export const SquashedDiff = ({
 
 			return next;
 		});
+
+	// Ticking a file off is also how you say you are done looking at it, so it
+	// folds; unticking it opens it back up. Same as the per-commit view.
+	const reviewFile = (sha: string, path: string, next: boolean) => {
+		setReviewed(sha, path, next);
+		setExpandedFiles(prev => {
+			const open = new Set(prev);
+			if (next) open.delete(path);
+			else open.add(path);
+
+			return open;
+		});
+	};
 
 	return (
 		<div>
@@ -159,11 +183,16 @@ export const SquashedDiff = ({
 			{diff.files.map(file => (
 				<FileRow
 					key={file.path}
+					sha={file.sha}
 					file={file}
 					expanded={expandedFiles.has(file.path)}
 					onToggle={() => toggleFile(file.path)}
+					reviewed={isReviewed(file.sha, file.path)}
+					onReviewed={next => reviewFile(file.sha, file.path, next)}
 					diffStyle={diffStyle}
-					comments={[]}
+					onAddComment={onAddComment}
+					onFileTicket={onFileTicket}
+					comments={comments}
 				/>
 			))}
 		</div>

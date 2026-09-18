@@ -797,6 +797,23 @@ export const getCommitDiff = async (
 	return succeeded('Loaded commit diff', {sha: input.sha, files});
 };
 
+/**
+ * A file in the compacted diff, and the commit a comment on it anchors to.
+ *
+ * The last of the ticket's commits to touch this file — the same pairing
+ * `FilePointer` uses to link the Stats tab into a diff. Not the ticket's
+ * newest commit, which usually touched only a fraction of its files: anchoring
+ * there would name a commit whose diff has no such file, and the permalink
+ * would open it and find nothing.
+ *
+ * Per file it is exact where it has to be. A selection's line numbers are real
+ * line numbers within the side they belong to, and `additions` is the newer
+ * file — and this file's content at the last commit to touch it is its content
+ * at the ticket's newest commit, since nothing after that touched it. So an
+ * additions-side line transfers with no arithmetic at all.
+ */
+export type SquashedDiffFile = CommitDiffFile & {sha: string};
+
 export type SquashedDiff = {
 	ref: string;
 	// The revisions compared: the oldest commit's parent, and the newest
@@ -804,7 +821,7 @@ export type SquashedDiff = {
 	from: string;
 	to: string;
 	commits: number;
-	files: CommitDiffFile[];
+	files: SquashedDiffFile[];
 	// Whether the ticket's commits are a contiguous run of real history. When
 	// they are, this diff is exactly what the ticket did and nothing else.
 	contiguous: boolean;
@@ -973,6 +990,15 @@ export const getSquashedDiffForRef = async (
 
 	const contiguous = mine.length === walk.size;
 
+	// `mine` is newest first, so the first commit found touching a path is the
+	// last one to have touched it.
+	const anchorByPath = new Map<string, string>();
+	for (const sha of mine) {
+		for (const path of walk.get(sha) ?? []) {
+			if (!anchorByPath.has(path)) anchorByPath.set(path, sha);
+		}
+	}
+
 	const answer = (
 		files: CommitDiffFile[],
 		overlappingPaths: string[],
@@ -985,7 +1011,13 @@ export const getSquashedDiffForRef = async (
 			// carrying the ref: a copy left behind by a rebase is not a second
 			// commit's worth of work.
 			commits: mine.length,
-			files,
+			// The range diff's paths are a subset of the paths its commits
+			// touched, so every file has an anchor; `newest` is a floor rather
+			// than a case, for a shape of history that would surprise us.
+			files: files.map(file => ({
+				...file,
+				sha: anchorByPath.get(file.path) ?? newest,
+			})),
 			contiguous,
 			overlappingPaths,
 		});
