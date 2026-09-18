@@ -353,7 +353,7 @@ test('opening the tab puts the view in the address bar', async ({
 		.getByRole('button', {name: /^Code/})
 		.click();
 
-	await expect(page).toHaveURL(/[?&]diff=(commits|compacted)\b/);
+	await expect(page).toHaveURL(/[?&]diff=(commits|flat)\b/);
 
 	expect(pageErrors).toEqual([]);
 });
@@ -398,7 +398,7 @@ test('a board selection and the diff view survive each other', async ({
 	await page.getByText(`Both b ${stamp}`).click();
 
 	await expect(page).toHaveURL(/scope=week/);
-	await expect(page).toHaveURL(/diff=(commits|compacted)/);
+	await expect(page).toHaveURL(/diff=(commits|flat)/);
 
 	expect(pageErrors).toEqual([]);
 });

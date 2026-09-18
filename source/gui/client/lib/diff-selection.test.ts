@@ -5,6 +5,8 @@ import {
 	diffLocationFromMeta,
 	extractSnippet,
 	findDiffCommentsForFile,
+	commentsByAnchor,
+	isAdditionsSideComment,
 	readDiffLocationParams,
 	readDiffViewParam,
 	writeDiffLocationParams,
@@ -534,5 +536,64 @@ describe('the Diff tab view in the route', () => {
 		expect(written.get('commit')).toBe('abc123');
 		expect(written.get('file')).toBe('source/a.ts');
 		expect(readDiffViewParam(written)).toBe('flat');
+	});
+});
+
+describe('what the flat view may draw', () => {
+	const comment = (meta: {
+		sha: string;
+		side: 'additions' | 'deletions';
+		endSide?: 'additions' | 'deletions';
+	}): GuiComment =>
+		({
+			id: `c-${meta.sha}-${meta.side}-${meta.endSide ?? meta.side}`,
+			body: encodeDiffCommentMarker({
+				filePath: 'source/a.ts',
+				start: 1,
+				end: 2,
+				side: meta.side,
+				endSide: meta.endSide ?? meta.side,
+				note: 'a note',
+				sha: meta.sha,
+			}),
+		} as GuiComment);
+
+	// An additions-side line is a position in the newer file, which the flat
+	// view and the anchor commit's own diff agree on. A deletions-side one is a
+	// position in whichever older file each was diffing against, and those are
+	// different files.
+	it('keeps only the comments whose lines mean the same in both', () => {
+		expect(isAdditionsSideComment(comment({sha: 'a', side: 'additions'}))).toBe(
+			true,
+		);
+		expect(isAdditionsSideComment(comment({sha: 'a', side: 'deletions'}))).toBe(
+			false,
+		);
+	});
+
+	// A range dragged across the gutter in split view is half a position in a
+	// file this view is not showing.
+	it('rejects a range that starts on the deletions side', () => {
+		expect(
+			isAdditionsSideComment(
+				comment({sha: 'a', side: 'deletions', endSide: 'additions'}),
+			),
+		).toBe(false);
+	});
+
+	it('groups by the commit each comment was written against', () => {
+		const grouped = commentsByAnchor([
+			comment({sha: 'aaa', side: 'additions'}),
+			comment({sha: 'bbb', side: 'additions'}),
+		]);
+
+		expect([...grouped.keys()].sort()).toEqual(['aaa', 'bbb']);
+		expect(grouped.get('aaa')).toHaveLength(1);
+	});
+
+	it('has no group for a comment anchored to nothing', () => {
+		const looseComment = {id: 'loose', body: 'just prose'} as GuiComment;
+
+		expect(commentsByAnchor([looseComment]).size).toBe(0);
 	});
 });
