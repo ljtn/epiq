@@ -246,3 +246,90 @@ export const patchRows = (files: PatchFile[]): PatchRow[] =>
 		},
 		...file.lines,
 	]);
+
+export type RowSelection = {
+	filePath: string;
+	/** Line numbers in the new revision, which is the only side we anchor to. */
+	start: number;
+	end: number;
+	snippet: string;
+};
+
+// Which file and which hunk each row belongs to, so a range can be refused
+// when it spans either.
+const rowScopes = (rows: PatchRow[]): {file: string; hunk: number}[] => {
+	let file = '';
+	let hunk = -1;
+
+	return rows.map(row => {
+		if (row.kind === 'file') file = (row as {file: PatchFile}).file.path;
+		if (row.kind === 'hunk') hunk++;
+
+		return {file, hunk};
+	});
+};
+
+/**
+ * The selection two rows of a patch describe, or why they describe none.
+ *
+ * Anchored to the new revision only. A new-side line number means the same
+ * thing in every view of that revision; an old-side one is a position in
+ * whichever revision this particular diff happened to be against, so a comment
+ * carrying one renders in the view that made it and nowhere else.
+ *
+ * Held to a single hunk, which is what keeps the snippet identical to the one
+ * the GUI cuts straight out of the file: across a hunk boundary the patch is
+ * missing the unchanged lines in between, so the same range would quote fewer
+ * lines here than there.
+ */
+export const selectionFromRows = (
+	rows: PatchRow[],
+	from: number,
+	to: number,
+): {ok: true; value: RowSelection} | {ok: false; reason: string} => {
+	const [first, last] = from <= to ? [from, to] : [to, from];
+
+	const head = rows[first];
+	const tail = rows[last];
+
+	if (!head || !tail)
+		return {ok: false, reason: 'That line is not in the diff'};
+
+	const anchored = (row: PatchRow) =>
+		(row.kind === 'added' || row.kind === 'context') &&
+		(row as PatchLine).newLine !== undefined;
+
+	if (!anchored(head) || !anchored(tail)) {
+		return {
+			ok: false,
+			reason:
+				'Comments anchor to the new side: pick an added or unchanged line',
+		};
+	}
+
+	const scopes = rowScopes(rows);
+	const headScope = scopes[first]!;
+	const tailScope = scopes[last]!;
+
+	if (headScope.file !== tailScope.file) {
+		return {ok: false, reason: 'A comment covers one file at a time'};
+	}
+
+	if (headScope.hunk !== tailScope.hunk) {
+		return {ok: false, reason: 'A comment covers one hunk at a time'};
+	}
+
+	const within = rows.slice(first, last + 1).filter(anchored) as (PatchLine & {
+		newLine: number;
+	})[];
+
+	return {
+		ok: true,
+		value: {
+			filePath: headScope.file,
+			start: within[0]!.newLine,
+			end: within[within.length - 1]!.newLine,
+			snippet: within.map(row => row.text).join('\n'),
+		},
+	};
+};

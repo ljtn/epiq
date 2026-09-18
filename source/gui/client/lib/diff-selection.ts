@@ -2,53 +2,13 @@ import {SelectedLineRange, SelectionSide} from '@pierre/diffs/react';
 import {GuiComment, GuiCommitDiffFile} from './gui-state.model';
 import {
 	DiffCommentMeta,
+	extractSnippet,
 	isSelectionSide,
 	parseDiffCommentMeta,
 } from '../../../lib/utils/diff-comment.js';
 
-// A selection's start/end are the real (gutter-displayed) line numbers within
-// whichever side they belong to — 'deletions' means the old file, 'additions'
-// the new one. A range can span both sides (dragged from a removed line into
-// an added one in split view): quote both halves rather than picking one.
-export const extractSnippet = (
-	file: GuiCommitDiffFile,
-	range: SelectedLineRange,
-): string => {
-	const linesFor = (side: SelectedLineRange['side']) =>
-		(side === 'deletions' ? file.before : file.after).split('\n');
-
-	const endSide = range.endSide ?? range.side;
-
-	if (endSide === range.side) {
-		return linesFor(range.side)
-			.slice(range.start - 1, range.end)
-			.join('\n');
-	}
-
-	const startHalf = linesFor(range.side).slice(range.start - 1);
-	const endHalf = linesFor(endSide).slice(0, range.end);
-
-	return [...startHalf, ...endHalf].join('\n');
-};
-
-// Quoted lines keep their real source indentation (often several tabs deep
-// inside nested JSX) — fine in the wide diff, unreadable in a narrow comment
-// box. Strips the whitespace every non-blank line shares, same as most
-// editors' own "copy" behavior.
-export const dedent = (snippet: string): string => {
-	const lines = snippet.split('\n');
-
-	const commonIndent = lines
-		.filter(line => line.trim() !== '')
-		.reduce<number | null>((min, line) => {
-			const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
-			return min === null ? indent : Math.min(min, indent);
-		}, null);
-
-	if (!commonIndent) return snippet;
-
-	return lines.map(line => line.slice(commonIndent)).join('\n');
-};
+// Re-exported so the components that quote a selection keep one import.
+export {extractSnippet};
 
 export type DiffComment = {comment: GuiComment; meta: DiffCommentMeta};
 

@@ -57,6 +57,10 @@ export const Intent = {
 	// Hand something off to the editor rather than drawing it here
 	OpenInEditor: 'openInEditor',
 
+	// Diff pager
+	MarkDiffLine: 'markDiffLine',
+	CommentOnDiffLine: 'commentOnDiffLine',
+
 	// View
 	SetViewDense: 'SetViewDense',
 	SetViewWide: 'SetViewWide',
@@ -187,6 +191,10 @@ export function getKeyIntent(
 			return Intent.Yank;
 		case 'o':
 			return Intent.OpenInEditor;
+		case 's':
+			return Intent.MarkDiffLine;
+		case 'c':
+			return Intent.CommentOnDiffLine;
 		case 'return':
 			return Intent.Confirm;
 		case 'space':

@@ -1,8 +1,7 @@
 import {Box, Text} from 'ink';
-import React, {useEffect, useMemo} from 'react';
-import {nodeRepo} from '../repository/node-repo.js';
-import {isSuccess} from '../model/result-types.js';
-import {nodes} from '../state/node-builder.js';
+import React, {useEffect, useMemo, useRef} from 'react';
+import {NavNode} from '../model/navigation-node.model.js';
+import {attachLineNodes, detachLineNodes} from '../repository/line-nodes.js';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {truncateToWidth} from '../utils/string.utils.js';
@@ -18,7 +17,6 @@ import {
 	inlineSpans,
 	RenderedLine,
 } from '../utils/markdown-lite.js';
-import {bigIntToHex} from '../utils/rank.js';
 
 type Props = {
 	id: string;
@@ -34,46 +32,6 @@ const EMPTY_ROW_FALLBACK = '\u2029';
 
 const toInlineLineNodeId = (parentId: string, index: number) =>
 	`${parentId}::inline-line::${index}`;
-
-const inlineEditorNodesByParent = new Map<string, string[]>();
-
-const detachInlineEditorNodes = (parentId: string) => {
-	const ids = inlineEditorNodesByParent.get(parentId) ?? [];
-	inlineEditorNodesByParent.delete(parentId);
-
-	for (const id of ids) {
-		nodeRepo.deleteNode(id);
-	}
-};
-
-const attachInlineEditorNodes = (parentId: string, rows: string[]) => {
-	detachInlineEditorNodes(parentId);
-
-	const createdIds: string[] = [];
-
-	rows.forEach((row, idx) => {
-		const rankResult = bigIntToHex(BigInt(idx + 1));
-		if (!isSuccess(rankResult)) return;
-
-		const result = nodeRepo.createNode(
-			nodes.text({
-				id: toInlineLineNodeId(parentId, idx),
-				name: `Line ${idx + 1}`,
-				parentNodeId: parentId,
-				rank: rankResult.value,
-				props: {value: row},
-				readonly: true,
-				isVirtual: true,
-			}),
-		);
-
-		if (isSuccess(result)) {
-			createdIds.push(result.value.id);
-		}
-	});
-
-	inlineEditorNodesByParent.set(parentId, createdIds);
-};
 
 export const InlineEditor: React.FC<Props> = ({
 	id,
@@ -92,11 +50,18 @@ export const InlineEditor: React.FC<Props> = ({
 
 	const rowKey = useMemo(() => rows.join('\u0000'), [rows]);
 
+	const lineNodesRef = useRef<NavNode<'TEXT'>[]>([]);
+
 	useEffect(() => {
-		attachInlineEditorNodes(id, rows);
+		detachLineNodes(lineNodesRef.current);
+
+		lineNodesRef.current = attachLineNodes(id, rows, index =>
+			toInlineLineNodeId(id, index),
+		);
 
 		return () => {
-			detachInlineEditorNodes(id);
+			detachLineNodes(lineNodesRef.current);
+			lineNodesRef.current = [];
 		};
 	}, [id, rowKey]);
 

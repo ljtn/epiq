@@ -2,12 +2,12 @@ import {SelectedLineRange} from '@pierre/diffs/react';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {
-	encodeDiffCommentMarker,
+	buildDiffCommentBody,
 	formatSelectionLabel,
 } from '../../../lib/utils/diff-comment.js';
 import {ActionRow, Textarea} from './FormPrimitives';
 import {Button} from './Button';
-import {extractSnippet, dedent} from '../lib/diff-selection';
+import {extractSnippet} from '../lib/diff-selection';
 
 // Rendered by MultiFileDiff right under the last selected line. One box for
 // both outcomes: write the note first, then choose whether it becomes a
@@ -32,36 +32,27 @@ export const SelectionComposer = ({
 	onFileTicket?: () => void;
 	onClear: () => void;
 }) => {
-	const snippet = dedent(extractSnippet(file, selection));
+	const snippet = extractSnippet(file, selection);
 	const selectionLabel = `${file.path} ${formatSelectionLabel(selection)}`;
 
 	const comment = () => {
-		const trimmedNote = note.trim();
 		// Matches extractSnippet's own default: a range without a reported side
 		// is expected to be a modern-git edge case at worst, not a real gap.
 		const side = selection.side ?? 'additions';
 		const endSide = selection.endSide ?? side;
 
-		const marker = encodeDiffCommentMarker({
-			filePath: file.path,
-			start: selection.start,
-			side,
-			end: selection.end,
-			endSide,
-			note: trimmedNote,
-			sha,
-		});
-
-		const body = [
-			...(trimmedNote ? [trimmedNote, ''] : []),
-			marker,
-			`\`${file.path}\` ${formatSelectionLabel(selection)}`,
-			'```',
-			snippet,
-			'```',
-		].join('\n');
-
-		onAddComment?.(body);
+		onAddComment?.(
+			buildDiffCommentBody({
+				filePath: file.path,
+				start: selection.start,
+				side,
+				end: selection.end,
+				endSide,
+				note,
+				sha,
+				snippet,
+			}),
+		);
 		onClear();
 	};
 

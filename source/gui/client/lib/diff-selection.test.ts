@@ -1,7 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {SelectedLineRange} from '@pierre/diffs/react';
 import {
-	dedent,
 	diffLocationFromMeta,
 	extractSnippet,
 	findDiffCommentsForFile,
@@ -13,6 +12,7 @@ import {
 	writeDiffViewParam,
 } from './diff-selection';
 import {
+	dedent,
 	encodeDiffCommentMarker,
 	extractCommentLead,
 	extractCommentSnippet,
