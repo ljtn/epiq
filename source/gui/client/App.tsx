@@ -98,6 +98,7 @@ import {isolateOnly, withNarrowing} from './lib/board-selection';
 import {useBoardSelection} from './lib/use-board-selection';
 import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
+import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useContributorEmails} from './lib/use-contributor-emails';
@@ -397,6 +398,12 @@ export const App = () => {
 	});
 	const {stats: swimlaneStats, onMessage: onSwimlaneStatsMessage} =
 		useSwimlaneStats({swimlaneId: statsSwimlaneId, sendRaw});
+
+	// The bar beside a card's ref. Repository-wide and asked for once, not per
+	// card and not on the board's own state: a commit is not an event the log
+	// knows about.
+	const {stats: refDiffStats, onMessage: onRefDiffStatsMessage} =
+		useRefDiffStats({socketEpoch, sendRaw});
 
 	// The card a linkified ticket ref shows on hover. Most of it is already in
 	// `state`; only the description excerpt is fetched.
@@ -757,6 +764,7 @@ export const App = () => {
 		// scrubber's own commit dot opens.
 		onIssueDetailMessage(message);
 		onSwimlaneStatsMessage(message);
+		onRefDiffStatsMessage(message);
 		onTicketPreviewMessage(message);
 
 		if (message.type === 'state' && !socket.holdsState()) {
@@ -1834,6 +1842,7 @@ export const App = () => {
 										key={swimlane.id}
 										swimlane={swimlane}
 										live={state?.timeTravel?.mode !== 'scrub'}
+										diffStats={refDiffStats}
 										statsOpen={statsSwimlaneId === swimlane.id}
 										onOpenStats={openSwimlaneStats}
 										selected={false}

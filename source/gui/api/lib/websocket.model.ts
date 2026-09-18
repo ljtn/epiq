@@ -101,6 +101,11 @@ export type GuiMessage =
 	| {type: 'issue:commits:get'; payload: {issueId: string}}
 	| {type: 'issue:squashed-diff:get'; payload: {issueId: string}}
 	| {type: 'issue:stats:get'; payload: {issueId: string}}
+	// Every ref's commit totals at once, for the bars on the cards. No payload:
+	// like `commits:get` it is repository-wide, and unlike it, unwindowed — a
+	// ticket's bar is what the ticket has come to, not what a scrubbed window
+	// happens to hold.
+	| {type: 'diff-stats:get'}
 	| {type: 'swimlane:stats:get'; payload: {swimlaneId: string}}
 	| {type: 'emails:get'}
 	| {

@@ -44,6 +44,7 @@ import {
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';
 import {getIssueStats} from '../../../mcp/epiq-issue-stats.js';
+import {getRefDiffStats} from '../../../mcp/api/ref-diff-stats.js';
 import {getSwimlaneStats} from '../../../mcp/api/swimlane-stats.js';
 import {isFail, Result, succeeded} from '../../../lib/model/result-types.js';
 import {NO_PROJECT_MESSAGE} from '../../../lib/storage/paths.js';
@@ -386,6 +387,15 @@ export const setupWebsocket = (
 								idOrRef: nodeRef(issueId),
 							}),
 						},
+					});
+				}
+
+				// Unkeyed, unlike its neighbours above: the whole board is answered
+				// in one reply, so there is no ticket for a late one to be about.
+				if (type === 'diff-stats:get') {
+					return sendSocket(socket, {
+						type: 'diff-stats',
+						payload: await getRefDiffStats({repoRoot}),
 					});
 				}
 
