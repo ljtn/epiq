@@ -253,12 +253,15 @@ export const FileRow = ({
 	);
 
 	const acceptSelection = (range: SelectedLineRange | null) => {
+		// Cleared rather than ignored: the composer for a previous selection
+		// would otherwise sit there through a drag that looks like it did
+		// something, describing lines the reader is no longer pointing at.
 		if (
 			range &&
 			additionsOnly &&
 			(range.side === 'deletions' || range.endSide === 'deletions')
 		) {
-			return;
+			return setSelection(null);
 		}
 
 		setSelection(range);

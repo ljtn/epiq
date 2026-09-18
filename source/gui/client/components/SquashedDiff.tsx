@@ -4,7 +4,11 @@ import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {GuiComment} from '../lib/gui-state.model';
-import {commentsByAnchor, FileTicketParams} from '../lib/diff-selection';
+import {
+	commentsByAnchor,
+	FileTicketParams,
+	isAdditionsSideComment,
+} from '../lib/diff-selection';
 import {useReviewedFiles} from '../lib/reviewed-files';
 import {Button} from './Button';
 import {Empty} from './FormPrimitives';
@@ -71,7 +75,16 @@ export const SquashedDiff = ({
 
 	// Grouped once rather than per file: every row would otherwise re-parse
 	// every comment's marker looking for its own.
-	const byAnchor = useMemo(() => commentsByAnchor(comments), [comments]);
+	//
+	// Additions-side only, for the reason selections here are: a deletions-side
+	// line number is a position in the anchor commit's own old file, while this
+	// view's deletions side is numbered against the oldest commit's parent. The
+	// same comment drawn here would land on an unrelated line, or on none. It
+	// is still read where it was written, on the Commits view.
+	const byAnchor = useMemo(
+		() => commentsByAnchor(comments.filter(isAdditionsSideComment)),
+		[comments],
+	);
 	// Opened once per answer, so a file shut by hand afterwards stays shut.
 	const openedFor = useRef<string | null>(null);
 
@@ -209,9 +222,11 @@ export const SquashedDiff = ({
 						additionsOnly
 						onAddComment={anchorable ? onAddComment : undefined}
 						onFileTicket={anchorable ? onFileTicket : undefined}
-						// Only the ones written against this file's own commit: the
-						// rest name lines of a revision this view is not showing.
-						comments={byAnchor.get(file.sha) ?? []}
+						// Only the ones written against this file's own commit, and
+						// only where the content drawn is what that commit left: a
+						// foreign commit having shifted it puts every line number out,
+						// so a row that cannot be selected cannot be annotated either.
+						comments={anchorable ? byAnchor.get(file.sha) ?? [] : []}
 					/>
 				);
 			})}

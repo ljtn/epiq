@@ -61,6 +61,20 @@ export type DiffComment = {comment: GuiComment; meta: DiffCommentMeta};
  * state: a comment written against an earlier commit of the same file names
  * lines that later commits have since moved.
  */
+/**
+ * Whether a comment's selection lies wholly on the additions side.
+ *
+ * An additions-side line number is a position in the newer file, which every
+ * view of that revision agrees on. A deletions-side one is a position in
+ * whichever older file the view was diffing against, and views disagree about
+ * that.
+ */
+export const isAdditionsSideComment = (comment: GuiComment): boolean => {
+	const meta = parseDiffCommentMeta(comment.body);
+
+	return meta?.side === 'additions' && meta.endSide === 'additions';
+};
+
 export const commentsByAnchor = (
 	comments: GuiComment[],
 ): Map<string, GuiComment[]> => {

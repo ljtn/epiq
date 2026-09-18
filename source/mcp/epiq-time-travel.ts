@@ -857,11 +857,14 @@ const changedPathsByCommit = async (
 			'--raw',
 			'--no-renames',
 			'--abbrev=40',
-			// A merge emits its commit line and no raw lines at all, so the paths
-			// it brought in would belong to no commit here — and a file with no
-			// commit of its own falls back on a sha whose diff may not hold it,
-			// which is the failure the anchoring exists to avoid.
-			'--diff-merges=first-parent',
+			// Merges stay silent here, deliberately. `--diff-merges=first-parent`
+			// would give them raw lines and so an anchor for the files they bring
+			// in — but this walk also builds the pathspec the non-contiguous diff
+			// is narrowed to, and a merge's first-parent diff is everything the
+			// other branch carried. A ticket whose ref reached a merge commit
+			// would then render that whole branch as its own change, or exceed
+			// the file cap and render nothing. A merge introduces no work of this
+			// ticket's, so it contributes no paths.
 			'--format=%H',
 			`${from}..${to}`,
 		],
