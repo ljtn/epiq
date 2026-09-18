@@ -1,3 +1,4 @@
+import {isValidEmail} from '../model/email-link.js';
 import {isFail, isSuccess} from '../model/result-types.js';
 import {readProjectFile} from '../project-setup/project-setup.js';
 import {getSettingsState} from '../state/settings.state.js';
@@ -101,7 +102,12 @@ export const nextSetupCommand = (): string | null => {
 		const {gitEmail} = getSettingsState();
 		const suggestion = getOfferedEmails()[0] ?? gitEmail;
 
-		return suggestion ? `config emails ${suggestion}` : 'config emails ';
+		// Checked before it is typed for somebody. A git `user.email` is
+		// whatever the machine says it is, and a seeded line is the one place
+		// a value reaches the command line without a person putting it there.
+		return suggestion && isValidEmail(suggestion)
+			? `config emails ${suggestion}`
+			: 'config emails ';
 	}
 
 	return null;

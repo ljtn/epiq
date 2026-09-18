@@ -1,5 +1,5 @@
 import {execGitAllowFail} from '../../git/git-utils.js';
-import {EmailLink, normalizeEmail} from '../model/email-link.js';
+import {EmailLink, isValidEmail, normalizeEmail} from '../model/email-link.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 
 /**
@@ -89,9 +89,16 @@ const scanAuthors = async (
 	const authors = new Map<string, Seen>();
 
 	for (const line of (result.stdout ?? '').split('\n')) {
-		const [name, rawEmail] = line.split(FIELD);
-		const email = normalizeEmail(rawEmail ?? '');
-		if (!email) continue;
+		// The last separator, not the first: git accepts a control character in
+		// an author name, so a commit whose name ends in one and an address
+		// would otherwise be read as being by that address. The name is
+		// whatever comes before, however many separators it contains.
+		const at = line.lastIndexOf(FIELD);
+		if (at === -1) continue;
+
+		const name = line.slice(0, at);
+		const email = normalizeEmail(line.slice(at + 1));
+		if (!isValidEmail(email)) continue;
 
 		const entry = authors.get(email) ?? {names: new Set<string>(), commits: 0};
 		if (name) entry.names.add(name);
