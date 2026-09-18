@@ -29,6 +29,7 @@ import {
 	hintAlert,
 	hintDefault,
 } from './build-command-hint.js';
+import {getHeldEmails, getOfferedEmails} from '../state/email-offers.state.js';
 import {CmdKeyword, CmdKeywords} from './cmd-keywords.js';
 import {CmdValidity, cmdValidity} from './cmd-validity.js';
 import {
@@ -288,21 +289,135 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 		}
 
 		case ConfigModifiers.USERNAME: {
-			if (!inputString.trim()) {
+			// Suggested, not taken: the name is the user's to choose, and a git
+			// config in a container or on a shared box is not necessarily theirs.
+			const suggestion = getSettingsState().gitName;
+			const wordList = suggestion ? [suggestion] : [];
+			const typed = inputString.trim();
+
+			// Narrowed as it is typed, like the editor's list. Unlike the editor
+			// this is free text, so the hint has to survive a valid input rather
+			// than only appearing while one is refused — otherwise the suggestion
+			// vanishes at the first keystroke, which is when it is most wanted.
+			const hint = buildOptionsHint({
+				prefix: 'name: ',
+				wordList,
+				inputString: typed,
+				minLengthForHints: 0,
+			});
+
+			if (!typed) {
 				return invalid({
 					message:
+						hint ||
 						hintAlert('Enter a user name. Saved in ') +
-						chalk.bgBlack('~/.epiq-global/config.json'),
+							chalk.bgBlack('~/.epiq-global/config.json'),
+					completionWordList: wordList,
 				});
 			}
+
+			return valid(hint ? `${hint}  ${CONFIRM_MSG}` : CONFIRM_MSG, wordList);
+		}
+
+		case ConfigModifiers.EMAILS: {
+			// The addresses drawn on the setup screen, plus the way out. Completing
+			// on the address rather than only on its number means the list can be
+			// taken from the screen without counting rows.
+			const offered = getOfferedEmails();
+			const wordList = [...offered, 'none'];
+			const typed = inputString.trim();
+
+			const options = (prefix: string, against: string) =>
+				invalid({
+					message: buildOptionsHint({
+						prefix,
+						wordList,
+						noOfHints: 3,
+						inputString: against,
+						minLengthForHints: 0,
+					}),
+					completionWordList: wordList,
+				});
+
+			// Confirmable while empty, because bare opens the screen that lists the
+			// addresses. The completions ride along, so the list is one keystroke
+			// away without having to open anything.
+			if (!typed) {
+				return valid(
+					`${CONFIRM_MSG} to see your addresses, or name one`,
+					wordList,
+				);
+			}
+
+			const parts = typed.split(/[,\s]+/).filter(Boolean);
+			const last = parts[parts.length - 1] ?? '';
+
+			const known = (part: string): boolean => {
+				if (/^\d+$/.test(part)) {
+					const index = Number(part);
+					return index >= 1 && index <= offered.length;
+				}
+
+				return part === 'none' || offered.includes(part.toLowerCase());
+			};
+
+			// Half-typed is not wrong. Anything the offered list still begins with
+			// is on its way to being valid, and calling it "not on the list" while
+			// somebody is mid-word made every keystroke read as an error.
+			const reachable = (part: string): boolean =>
+				wordList.some(word => word.startsWith(part.toLowerCase()));
+
+			const wrong = parts.filter(part => !known(part) && !reachable(part));
+
+			if (wrong.length > 0) {
+				return invalid({
+					message: hintAlert(
+						`no address here matches ${wrong.join(
+							', ',
+						)} — pick one from the list, or its number`,
+					),
+					completionWordList: wordList,
+				});
+			}
+
+			// Still being typed: offer what it could become rather than confirming
+			// a prefix that names nothing.
+			if (!known(last)) return options('', last);
 
 			return valid(CONFIRM_MSG);
 		}
 
-		case ConfigModifiers.EMAILS: {
-			// Valid with nothing after it: that form lists the addresses this
-			// history offers, which is how somebody learns what to pick.
-			return valid(CONFIRM_MSG);
+		case ConfigModifiers.UNCLAIM: {
+			const held = getHeldEmails();
+			const typed = inputString.trim();
+
+			if (held.length === 0) {
+				return invalid({
+					message: hintAlert('you have not claimed any addresses'),
+					completionWordList: [],
+				});
+			}
+
+			if (
+				typed &&
+				(held.includes(typed.toLowerCase()) ||
+					(/^\d+$/.test(typed) &&
+						Number(typed) >= 1 &&
+						Number(typed) <= held.length))
+			) {
+				return valid(CONFIRM_MSG);
+			}
+
+			return invalid({
+				message: buildOptionsHint({
+					prefix: 'give an address back ',
+					wordList: held,
+					noOfHints: 3,
+					inputString: typed,
+					minLengthForHints: 0,
+				}),
+				completionWordList: held,
+			});
 		}
 
 		case ConfigModifiers.LOG_LEVEL: {

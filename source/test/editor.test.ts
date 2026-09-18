@@ -47,6 +47,7 @@ describe('openEditorOnFileNonBlocking', () => {
 		vi.mocked(getSettingsState).mockReturnValue({
 			preferredEditor: null,
 			gitEmail: null,
+			gitName: null,
 			emailSetup: null,
 			logLevel: 'info',
 			autoSyncIntervalMs: null,
@@ -143,6 +144,7 @@ describe('openEditorOnFileNonBlocking', () => {
 		vi.mocked(getSettingsState).mockReturnValue({
 			preferredEditor: 'vim',
 			gitEmail: null,
+			gitName: null,
 			emailSetup: null,
 			logLevel: 'info',
 			autoSyncIntervalMs: null,
@@ -174,6 +176,7 @@ describe('openEditorOnFileNonBlocking', () => {
 		vi.mocked(getSettingsState).mockReturnValue({
 			preferredEditor: 'broken-editor',
 			gitEmail: null,
+			gitName: null,
 			emailSetup: null,
 			logLevel: 'info',
 			autoSyncIntervalMs: null,

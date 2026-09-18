@@ -1,6 +1,7 @@
 import {describe, expect, it, vi} from 'vitest';
 import {parseCommandLine} from '../lib/command-line/command-parser.js';
 import {getAutoCompletion} from '../lib/command-line/command-auto-complete.js';
+import {autoCompletionFromWordList} from '../lib/command-line/command-auto-complete.utils.js';
 
 vi.mock('../lib/command-line/command-meta.js', () => ({
 	isCmdKeyword: (value: string) =>
@@ -99,5 +100,37 @@ describe('getAutoCompletion (remainder)', () => {
 		expect(
 			getAutoCompletion(parsed, ['frontend', 'backend', 'critical']).remainder,
 		).toBe('tend ');
+	});
+});
+
+describe('matching is case-insensitive', () => {
+	// Every word list in the app happened to be lowercase until a person's git
+	// name became one. The index keyed on the word's own case while the lookup
+	// lowercased its input, so a capitalised word could never be matched.
+	it('completes a capitalised word from a lowercase prefix', () => {
+		expect(
+			autoCompletionFromWordList({
+				wordList: ['Jonatan Lampa'],
+				inputToMatch: 'jon',
+			}),
+		).toEqual(['Jonatan Lampa']);
+	});
+
+	it('completes it from the same case too', () => {
+		expect(
+			autoCompletionFromWordList({
+				wordList: ['Jonatan Lampa'],
+				inputToMatch: 'Jon',
+			}),
+		).toEqual(['Jonatan Lampa']);
+	});
+
+	it('gives the word back as it is written, not lowercased', () => {
+		const [match] = autoCompletionFromWordList({
+			wordList: ['Jonatan Lampa'],
+			inputToMatch: 'jonatan',
+		});
+
+		expect(match).toBe('Jonatan Lampa');
 	});
 });

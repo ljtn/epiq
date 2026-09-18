@@ -1,7 +1,6 @@
 import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
 import {getUserSetupStatus} from '../../config/setup-utils.js';
 import {materializeAll} from '../../board/board-log.js';
-import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {initProject} from '../../project-setup/init-project.js';
 import {replaceCmdInput} from '../../state/cmd.state.js';
@@ -66,10 +65,7 @@ export const initCommand = async () => {
 		selectedIndex: 0,
 	});
 
-	patchState({
-		hasProjectDefinition: true,
-		mode: Mode.DEFAULT,
-	});
+	patchState({hasProjectDefinition: true});
 
 	return succeeded(successMessage, null);
 };

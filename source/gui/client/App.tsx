@@ -1233,10 +1233,10 @@ export const App = () => {
 	// tooltips carry the same names.
 	useEffect(() => {
 		if (theatre) return;
-		if (!contributorEmails.lastAction?.ok) return;
+		if (contributorEmails.changed === 0) return;
 
 		setHistoryTick(tick => tick + 1);
-	}, [contributorEmails.lastAction, theatre]);
+	}, [contributorEmails.changed, theatre]);
 
 	const {entries: logEntries, moment: logMoment} = useEventLog({
 		open: logOpen,

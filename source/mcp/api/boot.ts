@@ -6,7 +6,7 @@ import {
 	ensureLocalStateBranch,
 	ensureStateBranchWorktree,
 } from '../../git/git.js';
-import {readGitEmail} from '../../lib/config/git-identity.js';
+import {readGitEmail, readGitName} from '../../lib/config/git-identity.js';
 import {loadSettingsFromConfig} from '../../lib/config/user-config.js';
 import {patchSettingsState} from '../../lib/state/settings.state.js';
 import {bootStateFromEventLog} from '../../lib/board/board-boot.js';
@@ -151,7 +151,10 @@ export const boot = async (
 	// After the config load, which clears it: config knows nothing about git, so
 	// the address is a fact about the repository this process booted in. Read
 	// once here because the write path compares it on every write.
-	patchSettingsState({gitEmail: await readGitEmail(repoRootResult.value)});
+	patchSettingsState({
+		gitEmail: await readGitEmail(repoRootResult.value),
+		gitName: await readGitName(repoRootResult.value),
+	});
 
 	// Before the load, never after — see log-signature for why that order is
 	// the one that stays correct when another machine writes mid-read.

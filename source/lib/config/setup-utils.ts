@@ -73,3 +73,25 @@ export const yesNoToBoolean = (
 
 	return null;
 };
+
+/**
+ * The command the setup screen is asking for next, or null once it is done.
+ *
+ * Setup is a sequence of four commands, and typing `:config ` before each of
+ * them is four keystrokes nobody chose. Answering one opens the next, so the
+ * flow is answer, answer, answer rather than type-and-answer four times.
+ *
+ * Only while setup is unfinished: afterwards `:config` is an ordinary command
+ * and chaining it would hijack the command line.
+ */
+export const nextSetupCommand = (): string | null => {
+	const status = getUserSetupStatus();
+
+	if (!status.isSetUserName) return 'config username ';
+	if (!status.isSetPreferredEditor) return 'config editor ';
+	if (!status.isSetAutoSync) return 'config autoSync ';
+	if (!isRepositoryInitialized()) return 'init';
+	if (!status.isSetEmails) return 'config emails ';
+
+	return null;
+};

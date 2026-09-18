@@ -46,6 +46,7 @@ export const autoCompletionFromWordList = ({
 	const matches = getPrefixMatches(getPrefixIndex(wordList), normalizedInput);
 
 	return matches.filter(
-		term => findOverlap(normalizedInput, term) >= overlapThreshold,
+		term =>
+			findOverlap(normalizedInput, term.toLowerCase()) >= overlapThreshold,
 	);
 };

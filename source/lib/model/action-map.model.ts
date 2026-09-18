@@ -8,6 +8,7 @@ export const Mode = {
 	HELP: 'help',
 	COMMAND_LINE: 'cmd-line',
 	PALETTE: 'palette',
+	IDENTITY: 'identity',
 } as const;
 export type ModeUnion = (typeof Mode)[keyof typeof Mode];
 
