@@ -50,6 +50,8 @@ export default function SettingsUI({width, height}: Props) {
 		preferredEditor,
 		autoSync,
 		isSetAutoSync,
+		isSetEmails,
+		emailSetup,
 	} = getUserSetupStatus();
 	const steps = [
 		{
@@ -72,6 +74,16 @@ export default function SettingsUI({width, height}: Props) {
 			command: ':config autosync',
 			value: autoSync,
 			message: 'Almost there. Configure auto sync.',
+		},
+		{
+			key: 'emails',
+			done: isSetEmails,
+			command: ':config emails',
+			value: emailSetup ?? undefined,
+			// Last, because it is the only step that needs the board: it offers the
+			// addresses this repository's own history contains.
+			message:
+				'Last one. Claim the git addresses whose commits are yours, so the board calls them by your name.',
 		},
 	];
 

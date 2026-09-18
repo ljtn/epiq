@@ -51,6 +51,7 @@ import {withCommitAuthors} from '../../../mcp/api/commit-authors.js';
 import {
 	linkContributorEmail,
 	listContributorEmails,
+	suggestOwnEmails,
 	unlinkContributorEmail,
 } from '../../../mcp/api/emails.js';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
@@ -271,6 +272,9 @@ export const setupWebsocket = (
 					return sendSocket(socket, {
 						type: 'emails',
 						payload: await listContributorEmails({repoRoot}),
+						// Alongside the list, so the panel offers addresses this
+						// history actually contains rather than a box to type one into.
+						suggestions: await suggestOwnEmails({repoRoot}),
 					});
 				}
 
@@ -287,6 +291,7 @@ export const setupWebsocket = (
 					sendSocket(socket, {
 						type: 'emails',
 						payload: await listContributorEmails({repoRoot}),
+						suggestions: await suggestOwnEmails({repoRoot}),
 						lastAction: isFail(result)
 							? {ok: false, message: result.message}
 							: {ok: true, message: result.message},

@@ -8,6 +8,8 @@ export const getUserSetupStatus = (): {
 	isSetPreferredEditor: boolean;
 	isSetUserName: boolean;
 	isSetAutoSync: boolean;
+	isSetEmails: boolean;
+	emailSetup: 'linked' | 'declined' | null;
 	userName: string | null;
 	preferredEditor: string | null;
 	autoSync: boolean | null;
@@ -17,14 +19,30 @@ export const getUserSetupStatus = (): {
 	const isSetPreferredEditor = Boolean(settings.preferredEditor?.trim());
 	const isSetAutoSync =
 		settings.autoSync === true || settings.autoSync === false;
+
+	// Asked, not answered a particular way: declining counts. Nothing links
+	// itself any more, so without a step here a person would never be told that
+	// their commits are showing a git name rather than their board name.
+	//
+	// Only once there is a project to ask about. The other three answers are
+	// facts about this machine and can be given before any board exists; this
+	// one offers the addresses in a repository's own history, so it has nothing
+	// to show until `:init` has run. It is also what makes the step appear again
+	// for somebody already set up, which is the whole prompt.
+	const isSetEmails =
+		settings.emailSetup !== null || !isRepositoryInitialized();
+
 	return {
-		isSetupDone: isSetPreferredEditor && isSetUserName && isSetAutoSync,
+		isSetupDone:
+			isSetPreferredEditor && isSetUserName && isSetAutoSync && isSetEmails,
 		isSetPreferredEditor,
 		isSetUserName,
 		userName: settings.userName,
 		preferredEditor: settings.preferredEditor,
 		autoSync: settings.autoSync === undefined ? null : settings.autoSync,
 		isSetAutoSync: isSetAutoSync,
+		isSetEmails,
+		emailSetup: settings.emailSetup,
 	};
 };
 export const isRepositoryInitialized = () => {

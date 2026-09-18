@@ -28,9 +28,19 @@ export type ContributorEmails = {
 	} | null;
 };
 
+/** An address in the history that nobody has claimed. */
+export type EmailCandidate = {
+	email: string;
+	names: string[];
+	commits: number;
+	looksLikeYours: boolean;
+};
+
 export type ContributorEmailsState = {
 	loading: boolean;
 	data: ContributorEmails | null;
+	/** What this repository's history offers, for claiming without typing. */
+	candidates: EmailCandidate[];
 	/** What the last link or unlink said, kept so the panel can report it. */
 	lastAction: {ok: boolean; message: string} | null;
 };
@@ -45,6 +55,7 @@ export const useContributorEmails = ({
 	const [state, setState] = useState<ContributorEmailsState>({
 		loading: false,
 		data: null,
+		candidates: [],
 		lastAction: null,
 	});
 
@@ -84,14 +95,18 @@ export const useContributorEmails = ({
 
 		pending.current = false;
 
+		const suggested =
+			getResultValue<{candidates: EmailCandidate[]}>(message.suggestions)
+				?.candidates ?? [];
+
 		const value = getResultValue<ContributorEmails>(message.payload);
 
 		// A failed read is not an empty board. Without this the panel showed its
 		// cheerful "none linked yet" for what was actually an error.
 		if (!value) {
 			setState(prev => ({
+				...prev,
 				loading: false,
-				data: prev.data,
 				lastAction: {
 					ok: false,
 					message:
@@ -104,6 +119,7 @@ export const useContributorEmails = ({
 		setState({
 			loading: false,
 			data: value,
+			candidates: suggested,
 			lastAction: message.lastAction ?? null,
 		});
 	}, []);

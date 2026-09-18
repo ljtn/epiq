@@ -299,6 +299,12 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			return valid(CONFIRM_MSG);
 		}
 
+		case ConfigModifiers.EMAILS: {
+			// Valid with nothing after it: that form lists the addresses this
+			// history offers, which is how somebody learns what to pick.
+			return valid(CONFIRM_MSG);
+		}
+
 		case ConfigModifiers.LOG_LEVEL: {
 			const logLevels = ['debug', 'error', 'info'] as const;
 			const logLevel = inputString.trim() as LogLevel;

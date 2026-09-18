@@ -24,6 +24,11 @@ const EpiqConfigSchema = z
 		autoSyncDebounceMs: z.number().optional(),
 		attachmentMaxKb: z.number().optional(),
 		viewMode: z.enum(['dense', 'wide']).optional(),
+		// Whether this machine has been asked about its git addresses. Records
+		// that the question was put, not the answer: the answer lives on the
+		// board as links, and a decline has to be remembered somewhere that does
+		// not replicate to everybody else's clone.
+		emailSetup: z.enum(['linked', 'declined']).optional(),
 	})
 	.partial();
 
@@ -155,6 +160,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		preferredEditor,
 		userName,
 		userId,
+		emailSetup,
 		autoSync,
 		autoSyncDebounceMs: autoSyncIntervalMs,
 		attachmentMaxKb,
@@ -181,6 +187,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		// Not a config value. Config knows nothing about git, so this is cleared
 		// here and filled by whoever boots, from the repository they booted in.
 		gitEmail: null,
+		emailSetup: emailSetup ?? null,
 		logLevel: logLevel ?? 'debug',
 		preferredEditor: preferredEditor ?? '',
 		userName: actor.userName,
