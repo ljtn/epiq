@@ -250,6 +250,16 @@ export const IdentityPanel = ({
 				borderRadius: 6,
 				padding: '16px 18px 14px',
 				width: 440,
+				// Taller than the window on any repository with a few contributors,
+				// so the rows scroll and the panel keeps its edges. The height it
+				// may take comes from the header, which knows how far down the
+				// window this sits; this only has to lay out inside it, which is
+				// what `minHeight` buys — a flex child will not shrink below its
+				// own content without it, and an unshrinkable panel still runs off
+				// the bottom however tightly it is capped.
+				display: 'flex',
+				flexDirection: 'column',
+				minHeight: 0,
 				color: GUI_THEME.primary,
 				// UI chrome, so monospace like every other label, button and tag in
 				// the GUI. Without naming one this fell back to the browser's serif
@@ -281,7 +291,19 @@ export const IdentityPanel = ({
 					{state.scanError}
 				</div>
 			) : (
-				<>
+				// The rows, and only the rows. The line saying who you are on this
+				// board is the answer the panel is open to give, so it stays put
+				// while the addresses move under it.
+				<div
+					style={{
+						overflowY: 'auto',
+						minHeight: 0,
+						// Reserved rather than taken from the cards the moment the
+						// list grows: on a platform whose scrollbar occupies layout
+						// space, a row would otherwise resize as addresses arrive.
+						scrollbarGutter: 'stable',
+					}}
+				>
 					<Section title="Claimed git addresses" rows={claimed}>
 						{row =>
 							row.mine ? (
@@ -327,7 +349,7 @@ export const IdentityPanel = ({
 							No addresses in this repository’s history yet.
 						</div>
 					)}
-				</>
+				</div>
 			)}
 		</div>
 	);

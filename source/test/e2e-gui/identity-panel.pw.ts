@@ -105,6 +105,54 @@ test('a click inside the panel does not dismiss it', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// It draws every address in the history on purpose, so on any real repository
+// the list is taller than the window. Without a cap it ran off the bottom: the
+// panel's own edge went over the fold and the rows below it were unreachable.
+//
+// The seeded history holds too few addresses to overflow anything, so this
+// pins the structure that makes overflow survivable rather than an overflowing
+// list: the panel stays inside the window, the addresses sit in a region that
+// scrolls, and the line saying who you are sits outside it.
+test('the addresses scroll inside a panel that stays in the window', async ({
+	page,
+	pageErrors,
+}) => {
+	await page.setViewportSize({width: 1280, height: 320});
+
+	await openPanel(page);
+
+	const measured = await page.evaluate<{
+		bottom: number;
+		viewport: number;
+		scrollerHoldsRows: boolean;
+		scrollerHoldsHeading: boolean;
+	}>(`
+		(() => {
+			const panel = document.querySelector('[data-testid="identity-panel"]');
+			const box = panel.getBoundingClientRect();
+			const scroller = [...panel.children].find(
+				child => getComputedStyle(child).overflowY === 'auto',
+			);
+			const row = panel.querySelector('[data-testid^="identity-row-"]');
+
+			return {
+				bottom: Math.round(box.bottom),
+				viewport: window.innerHeight,
+				scrollerHoldsRows: Boolean(scroller && row && scroller.contains(row)),
+				scrollerHoldsHeading: Boolean(
+					scroller && scroller.textContent.includes('on this board'),
+				),
+			};
+		})()
+	`);
+
+	expect(measured.bottom).toBeLessThanOrEqual(measured.viewport);
+	expect(measured.scrollerHoldsRows).toBe(true);
+	expect(measured.scrollerHoldsHeading).toBe(false);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('claiming an address makes its commits read as you, and unlinking undoes it', async ({
 	page,
 	repoRoot,
