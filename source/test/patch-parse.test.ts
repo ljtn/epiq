@@ -186,6 +186,67 @@ describe('parsePatch', () => {
 	it('is empty for a commit that changed nothing', () => {
 		expect(parsePatch('')).toEqual([]);
 	});
+
+	/**
+	 * A removed line reading `-- x` arrives in the patch as `--- x`, and an
+	 * added one reading `++ x` as `+++ x` — the same shape as the `---`/`+++`
+	 * path headers. Read as headers they were dropped from the rows and stopped
+	 * advancing the line numbers, so everything below them was numbered one too
+	 * low and a comment anchored there quoted the wrong code.
+	 *
+	 * Real enough to matter: a markdown rule, a YAML document separator, and
+	 * `-- ` in SQL all produce it.
+	 */
+	it('reads a line that looks like a path header as the line it is', () => {
+		const files = parsePatch(
+			[
+				'diff --git a/notes.md b/notes.md',
+				'--- a/notes.md',
+				'+++ b/notes.md',
+				'@@ -1,3 +1,3 @@',
+				' title',
+				'--- ',
+				'+++ ',
+				' after',
+			].join('\n'),
+		);
+
+		expect(files).toHaveLength(1);
+		expect(files[0]!.path).toBe('notes.md');
+
+		expect(
+			files[0]!.lines.map(line => [line.kind, line.oldLine, line.newLine]),
+		).toEqual([
+			['hunk', undefined, undefined],
+			['context', 1, 1],
+			['removed', 2, undefined],
+			['added', undefined, 2],
+			// The line after them keeps its real numbers, which is what a comment
+			// anchored below is resolved against.
+			['context', 3, 3],
+		]);
+	});
+
+	it('still reads a second file’s headers after the first file’s hunks', () => {
+		const files = parsePatch(
+			[
+				'diff --git a/one.md b/one.md',
+				'--- a/one.md',
+				'+++ b/one.md',
+				'@@ -1 +1 @@',
+				'--- ',
+				'+++ ',
+				'diff --git a/two.md b/two.md',
+				'--- a/two.md',
+				'+++ b/two.md',
+				'@@ -1 +1 @@',
+				'-a',
+				'+b',
+			].join('\n'),
+		);
+
+		expect(files.map(file => file.path)).toEqual(['one.md', 'two.md']);
+	});
 });
 
 describe('patchRows', () => {

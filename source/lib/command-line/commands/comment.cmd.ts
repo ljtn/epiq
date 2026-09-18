@@ -84,8 +84,17 @@ export const commentCommand = async (cmdState: CommandLineInput) => {
 	// the point, and a bare one reads as "look at this".
 	if (!md) return failed('Provide a comment');
 
-	if (md.length > MAX_COMMENT_LENGTH)
-		return failed(`Cannot exceed ${MAX_COMMENT_LENGTH} characters`);
+	// The limit is on what is stored, and an anchored comment stores the quoted
+	// lines as well as the note — so the count the command line was showing
+	// while it was typed is not the one that applies. Say which it is, or the
+	// refusal reads as a lie about a note that is plainly far shorter.
+	if (md.length > MAX_COMMENT_LENGTH) {
+		return failed(
+			anchored
+				? `The note and the ${md.length} characters of quoted lines exceed ${MAX_COMMENT_LENGTH}; comment on fewer lines`
+				: `Cannot exceed ${MAX_COMMENT_LENGTH} characters`,
+		);
+	}
 
 	const userRes = resolveActorId();
 	if (isFail(userRes)) return failed('Unable to resolve user ID');

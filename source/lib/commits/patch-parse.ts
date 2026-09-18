@@ -122,29 +122,40 @@ export const parsePatch = (patch: string): PatchFile[] => {
 
 		const current: PatchFile = file;
 
-		if (row.startsWith('--- ')) {
+		// Everything below until the first hunk is this file's header. After it,
+		// the same prefixes are content: a removed line reading "-- x" arrives as
+		// "--- x", and an added one reading "++ x" as "+++ x". Read as headers
+		// they were dropped from the rows and stopped advancing the line
+		// numbers, so every line under them was numbered one too low and a
+		// comment anchored there quoted the wrong code.
+		const inHeader = current.lines.length === 0;
+
+		if (inHeader && row.startsWith('--- ')) {
 			const path = stripPrefix(row.slice(4));
 			if (path) current.oldPath = path;
 			continue;
 		}
 
-		if (row.startsWith('+++ ')) {
+		if (inHeader && row.startsWith('+++ ')) {
 			const path = stripPrefix(row.slice(4));
 			if (path) current.path = path;
 			continue;
 		}
 
-		if (row.startsWith('rename from ')) {
+		if (inHeader && row.startsWith('rename from ')) {
 			current.oldPath = unquotePath(row.slice('rename from '.length));
 			continue;
 		}
 
-		if (row.startsWith('rename to ')) {
+		if (inHeader && row.startsWith('rename to ')) {
 			current.path = unquotePath(row.slice('rename to '.length));
 			continue;
 		}
 
-		if (row.startsWith('Binary files ') || row.startsWith('GIT binary patch')) {
+		if (
+			inHeader &&
+			(row.startsWith('Binary files ') || row.startsWith('GIT binary patch'))
+		) {
 			current.binary = true;
 			current.lines.push({kind: 'note', text: 'Binary file'});
 			continue;
@@ -158,9 +169,9 @@ export const parsePatch = (patch: string): PatchFile[] => {
 			continue;
 		}
 
-		// Before the first hunk everything is header noise (index, mode,
-		// similarity) that the rows below already say more plainly.
-		if (current.lines.length === 0) continue;
+		// The rest of the header — index, mode, similarity — says nothing the
+		// rows below do not say more plainly.
+		if (inHeader) continue;
 
 		if (row.startsWith('\\')) {
 			current.lines.push({kind: 'note', text: row.slice(1).trim()});
