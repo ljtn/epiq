@@ -14,8 +14,8 @@ export type DiffStatMetrics = {
 	gap: number;
 	fontSize: number;
 	// Held back on the board: green and red at full strength pull the eye off
-	// the titles, which are what a column of cards is read for. The card in
-	// focus is the exception — see `lit` on the component.
+	// the titles, which are what a column of cards is read for. Hovering it is
+	// the exception — see `lit` on the component.
 	opacity: number;
 };
 

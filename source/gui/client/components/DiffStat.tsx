@@ -9,8 +9,6 @@ export const DiffStat = ({
 	bar = true,
 	variant = 'stat',
 	lit = false,
-	title,
-	testId,
 }: {
 	insertions: number;
 	deletions: number;
@@ -19,11 +17,9 @@ export const DiffStat = ({
 	bar?: boolean;
 	// `card` is the board's size: the ref's own type, and a hairline bar.
 	variant?: DiffStatVariant;
-	// This one is in focus — the card it sits on is the selected one — so it
-	// comes up to full strength. Nothing on a variant that is already there.
+	// The pointer is on it, so it comes up to full strength — it is a way in to
+	// what it counts, not only a reading. Nothing on a variant already there.
 	lit?: boolean;
-	title?: string;
-	testId?: string;
 }) => {
 	if (insertions + deletions === 0) return null;
 
@@ -31,8 +27,6 @@ export const DiffStat = ({
 
 	return (
 		<div
-			data-testid={testId}
-			title={title}
 			style={{
 				display: 'flex',
 				alignItems: 'center',

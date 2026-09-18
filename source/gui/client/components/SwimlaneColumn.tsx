@@ -29,6 +29,7 @@ export const SwimlaneColumn = ({
 	selected,
 	selectedIssueId,
 	onSelectIssueComments,
+	onSelectIssueCode,
 	commentsByIssueId,
 	dragOver,
 	dropIndex,
@@ -60,6 +61,7 @@ export const SwimlaneColumn = ({
 	dragOver: boolean;
 	dropIndex: number | null;
 	onSelectIssueComments: (nextIssueId: string) => void;
+	onSelectIssueCode: (nextIssueId: string) => void;
 	onSelectIssue: (issueId: string, options: {toggle: boolean}) => void;
 	isolatedTagId: string | null;
 	onFilterByTag: (tagId: string) => void;
@@ -350,6 +352,7 @@ export const SwimlaneColumn = ({
 									isPicked={pickedIssueIds.includes(ticket.id)}
 									onSelect={options => onSelectIssue(ticket.id, options)}
 									onOpenComments={onSelectIssueComments}
+									onOpenCode={onSelectIssueCode}
 									dwell={cardDwell(ticket)}
 									diff={live ? diffStats[ticket.ref] ?? null : null}
 									isolatedTagId={isolatedTagId}
