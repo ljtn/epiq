@@ -13,6 +13,7 @@ import {getState, patchState} from '../../state/state.js';
 import {openAttachment} from '../../utils/attachment.utils.js';
 import {Intent} from '../../utils/key-intent.js';
 import {HelpActions} from '../help/help-actions.js';
+import {IdentityActions} from '../identity/identity-actions.js';
 import {PaletteActions} from '../palette/palette-actions.js';
 import {navigationUtils} from './navigation-action-utils.js';
 
@@ -29,6 +30,7 @@ export const DefaultActions: ActionEntry[] = [
 		},
 	},
 	...HelpActions,
+	...IdentityActions,
 	...PaletteActions,
 	{
 		intent: Intent.AddItem,

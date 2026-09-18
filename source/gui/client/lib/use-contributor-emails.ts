@@ -47,8 +47,17 @@ export type ContributorEmailsState = {
 	 * claim an address, so a failed scan must not read as nothing left to claim.
 	 */
 	scanError: string | null;
-	/** What the last link or unlink said, kept so the panel can report it. */
-	lastAction: {ok: boolean; message: string} | null;
+	/**
+	 * Why the last claim or unclaim failed, when it did. Only a failure: a claim
+	 * that worked shows in the list itself, and no other panel in this GUI
+	 * reports its own successes back.
+	 */
+	lastError: string | null;
+	/**
+	 * Bumped when a claim or unclaim lands. The commit track is fetched from git
+	 * rather than derived from board state, so nothing else brings it back.
+	 */
+	changed: number;
 };
 
 export const useContributorEmails = ({
@@ -63,7 +72,8 @@ export const useContributorEmails = ({
 		data: null,
 		candidates: [],
 		scanError: null,
-		lastAction: null,
+		lastError: null,
+		changed: 0,
 	});
 
 	// Whether a link or unlink of ours is in flight. `failed` is a broadcast for
@@ -93,7 +103,7 @@ export const useContributorEmails = ({
 			setState(prev => ({
 				...prev,
 				loading: false,
-				lastAction: {ok: false, message: String(message.payload)},
+				lastError: String(message.payload),
 			}));
 			return;
 		}
@@ -119,22 +129,24 @@ export const useContributorEmails = ({
 			setState(prev => ({
 				...prev,
 				loading: false,
-				lastAction: {
-					ok: false,
-					message:
-						message.payload?.message ?? 'Could not read linked addresses',
-				},
+				lastError:
+					message.payload?.message ?? 'Could not read linked addresses',
 			}));
 			return;
 		}
 
-		setState({
+		setState(prev => ({
 			loading: false,
 			data: value,
 			candidates: suggested,
 			scanError,
-			lastAction: message.lastAction ?? null,
-		});
+			lastError:
+				message.lastAction && !message.lastAction.ok
+					? String(message.lastAction.message)
+					: null,
+			changed:
+				message.lastAction?.ok === true ? prev.changed + 1 : prev.changed,
+		}));
 	}, []);
 
 	// Both clear `lastAction` and raise `loading`, so the panel shows the round
@@ -142,7 +154,7 @@ export const useContributorEmails = ({
 	const link = useCallback(
 		(email: string, contributorId?: string) => {
 			pending.current = true;
-			setState(prev => ({...prev, loading: true, lastAction: null}));
+			setState(prev => ({...prev, loading: true, lastError: null}));
 			sendRaw({type: 'email:link', payload: {email, contributorId}});
 		},
 		[sendRaw],
@@ -151,7 +163,7 @@ export const useContributorEmails = ({
 	const unlink = useCallback(
 		(email: string, contributorId?: string) => {
 			pending.current = true;
-			setState(prev => ({...prev, loading: true, lastAction: null}));
+			setState(prev => ({...prev, loading: true, lastError: null}));
 			sendRaw({type: 'email:unlink', payload: {email, contributorId}});
 		},
 		[sendRaw],

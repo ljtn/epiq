@@ -28,6 +28,7 @@ import {assignUserCommand} from './commands/assign-user.cmd.js';
 import {unassignUserCommand} from './commands/unassign-user.cmd.js';
 import {commentCommand} from './commands/comment.cmd.js';
 import {configCommand} from './commands/config.cmd.js';
+import {advanceSetup} from './setup-flow.js';
 
 export const commands: CommandLineActionEntry[] = [
 	{
@@ -113,6 +114,9 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Initialize Epiq in the current git repository',
 		mode: Mode.COMMAND_LINE,
 		action: initCommand,
+		// After `commandConfirmed`, which clears the line: a prefill written
+		// inside the command would be wiped by it.
+		onSuccess: advanceSetup,
 	},
 	{
 		intent: CmdIntent.OpenProject,
@@ -232,5 +236,8 @@ export const commands: CommandLineActionEntry[] = [
 		description: 'Update editor, username, view, autosync, or sync debounce',
 		mode: Mode.COMMAND_LINE,
 		action: (_, cmdState) => configCommand(cmdState),
+		// Mid-setup this opens the next step already typed; once setup is done
+		// it just closes the line, which is what every other command does.
+		onSuccess: advanceSetup,
 	},
 ];

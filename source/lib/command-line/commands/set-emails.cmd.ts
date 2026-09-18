@@ -3,7 +3,7 @@ import {AppEvent} from '../../board/board-events.model.js';
 import {materializeAndPersistAll} from '../../board/board-log.js';
 import {getStateBranch} from '../../../git/git-constants.js';
 import {getStateBranchRoot} from '../../../git/git-storage.js';
-import {emailsOf} from '../../model/email-link.js';
+import {normalizeEmail} from '../../model/email-link.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {Mode} from '../../model/action-map.model.js';
 import {
@@ -11,6 +11,7 @@ import {
 	offerableCandidates,
 } from '../../repository/email-candidates.js';
 import {getCmdState} from '../../state/cmd.state.js';
+import {setOfferedEmails} from '../../state/email-offers.state.js';
 import {
 	getSettingsState,
 	patchSettingsState,
@@ -30,18 +31,6 @@ import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
  * thinking about who they are. Nothing links itself: every link here has a
  * person behind it who saw the address, the name on it and its commit count.
  */
-const numbered = (
-	candidates: {email: string; names: string[]; commits: number}[],
-): string =>
-	candidates
-		.map(
-			(candidate, index) =>
-				`${index + 1}. ${candidate.email} — ${candidate.commits} commit${
-					candidate.commits === 1 ? '' : 's'
-				} as ${candidate.names.join(', ') || 'unknown'}`,
-		)
-		.join('\n');
-
 export const setEmailsCommand = async () => {
 	const answer = getCmdState().commandMeta.inputString.trim();
 
@@ -87,8 +76,13 @@ export const setEmailsCommand = async () => {
 
 	const candidates = offerableCandidates(scanned.value);
 
-	const likely = candidates.filter(candidate => candidate.looksLikeYours);
-	const offered = likely.length > 0 ? likely : candidates;
+	// Every offerable one, in the order `EmailCandidates` draws them. Filtering
+	// here to the ones that look like the user's would renumber the list against
+	// the screen they are reading it off, so `2` would claim whatever this
+	// happened to think second.
+	const offered = candidates;
+
+	setOfferedEmails(offered.map(candidate => candidate.email));
 
 	if (offered.length === 0) {
 		const persisted = setConfig({emailSetup: 'linked'});
@@ -100,45 +94,45 @@ export const setEmailsCommand = async () => {
 		return succeeded('No unclaimed addresses in this history.', null);
 	}
 
-	// No argument: show the list. The pick is a second command, so the numbers
-	// on screen are the ones being chosen from.
+	// Bare, it opens the screen that draws the list. A successful command's
+	// message is discarded by the TUI, so the list cannot be the reply — and
+	// during setup the step already draws it, where this is a no-op that leaves
+	// the numbers on screen alone.
 	if (!answer) {
-		const mine = emailsOf(stateResult.value.emailLinks, userId);
+		patchState({mode: Mode.IDENTITY});
+		return succeeded('Opened identity', null);
+	}
 
-		return succeeded(
-			[
-				mine.length > 0 ? `Already yours: ${mine.join(', ')}` : null,
-				'Addresses in this history that nobody has claimed:',
-				numbered(offered),
-				'',
-				'Claim them with :config emails 1,2 — or :config emails none to skip.',
-				'A claim is permanent and reaches every clone.',
-			]
-				.filter(entry => entry !== null)
-				.join('\n'),
-			null,
+	const parts = answer.split(/[,\s]+/).filter(Boolean);
+
+	// A number or the address itself. The completion offers addresses, so one
+	// arrives here whenever somebody takes what was suggested, and refusing it
+	// would make the suggestion a trap.
+	const chosen: typeof offered = [];
+	const unknown: string[] = [];
+
+	for (const part of parts) {
+		const byNumber = /^\d+$/.test(part) ? offered[Number(part) - 1] : undefined;
+		const byEmail = offered.find(
+			candidate => candidate.email === normalizeEmail(part),
 		);
+		const match = byNumber ?? byEmail;
+
+		if (!match) {
+			unknown.push(part);
+			continue;
+		}
+
+		if (!chosen.includes(match)) chosen.push(match);
 	}
 
-	const picked = answer
-		.split(/[,\s]+/)
-		.filter(Boolean)
-		.map(part => Number(part));
-
-	if (picked.some(index => !Number.isInteger(index))) {
-		return failed('Pick by number, e.g. :config emails 1,2');
-	}
-
-	const outOfRange = picked.filter(
-		index => index < 1 || index > offered.length,
-	);
-	if (outOfRange.length > 0) {
+	if (unknown.length > 0) {
 		return failed(
-			`No such address: ${outOfRange.join(', ')}. There are ${offered.length}.`,
+			`Not on the list: ${unknown.join(', ')}. Pick a number from 1 to ${
+				offered.length
+			}, or the address itself.`,
 		);
 	}
-
-	const chosen = picked.map(index => offered[index - 1]!);
 
 	const stateBranchRootResult = getStateBranchRoot({
 		repoRoot: repoRootResult.value,
@@ -165,7 +159,7 @@ export const setEmailsCommand = async () => {
 	patchState({mode: Mode.DEFAULT});
 
 	return succeeded(
-		`Linked ${chosen
+		`Claimed ${chosen
 			.map(candidate => candidate.email)
 			.join(', ')}. Every commit by ${
 			chosen.length === 1 ? 'that address' : 'those addresses'

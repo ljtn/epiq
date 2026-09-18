@@ -14,6 +14,7 @@ const cursors = {
 	move: ['◆ ', '◆ '],
 	'cmd-line': ['❯ '],
 	palette: ['❯ '],
+	identity: ['❯ '],
 } as const;
 
 export const CursorUI: React.FC<Props> = ({isSelected, placeholder = '  '}) => {

@@ -8,6 +8,7 @@ import {getRenderedChildren, useAppState} from '../state/state.js';
 import {CommandPalette} from './CommandPalette.js';
 import {ContextBar} from './ContextBar.js';
 import {HelpUI} from './Help.js';
+import {IdentityUI} from './IdentityUI.js';
 import {InitProjectUI} from './InitProjectUI.js';
 import SettingsUI from './SettingsUI.js';
 import {Topbar} from './Topbar.js';
@@ -30,6 +31,14 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 		return (
 			<Box flexDirection="column">
 				<HelpUI width={width} height={height} />
+			</Box>
+		);
+	}
+
+	if (state.mode === Mode.IDENTITY) {
+		return (
+			<Box flexDirection="column">
+				<IdentityUI width={width} height={height} />
 			</Box>
 		);
 	}

@@ -2,6 +2,7 @@ import {Box, Text} from 'ink';
 import React from 'react';
 import {theme} from '../theme/themes.js';
 import {getUserSetupStatus} from '../config/setup-utils.js';
+import {EmailCandidates} from './EmailCandidates.js';
 
 type Props = {
 	width: number;
@@ -110,6 +111,14 @@ export default function SettingsUI({width, height}: Props) {
 				Remember - you can always search available commands by typing:
 				<Text color={theme.accent}> ? </Text>
 			</Text>
+			{/* Beside the `?` hint, because setup is where somebody meets the
+			    command line for the first time and every step here suggests
+			    something — an editor, an address, their own git name. */}
+			<Text color={theme.secondary2}>
+				Press
+				<Text color={theme.accent}> tab </Text>
+				to take a suggestion.
+			</Text>
 
 			{activeStep && <Text color={theme.secondary2}>{activeStep.message}</Text>}
 
@@ -120,12 +129,16 @@ export default function SettingsUI({width, height}: Props) {
 					if (!shouldShow) return null;
 
 					return (
-						<Box key={step.key} marginBottom={1}>
+						<Box key={step.key} flexDirection="column" marginBottom={1}>
 							<StepRow
 								isDone={step.done}
 								command={step.command}
 								value={step.done ? formatValue(step.value) : undefined}
 							/>
+							{/* The one step that asks about something in the repository
+							    rather than about a preference, so it has to show what it
+							    found before the numbers in its command mean anything. */}
+							{step.key === 'emails' && !step.done && <EmailCandidates />}
 						</Box>
 					);
 				})}

@@ -4,6 +4,7 @@ import path from 'node:path';
 import {getStateBranchRoot} from '../git/git-storage.js';
 import {execGit, readGitBlobsBatch} from '../git/git-utils.js';
 import {CommitAuthor} from '../lib/repository/contributor-directory.js';
+import {isWorkspaceAction} from './timeline-index.js';
 import {NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
 import {
 	getEditorCandidates,
@@ -173,7 +174,14 @@ export const getEventTimeline = async (
 		.slice(from, until)
 		// The board narrowing happens here, over the window, rather than over the
 		// log: which board an event belongs to was settled when it was derived.
-		.filter(entry => !input.boardId || entry.board === input.boardId)
+		.filter(
+			entry =>
+				!input.boardId ||
+				entry.board === input.boardId ||
+				// Belongs to every board rather than none: a claim changes who the
+				// commits on all of them belong to.
+				isWorkspaceAction(entry.action),
+		)
 		.map(({board: _board, ...entry}) => entry);
 
 	const times = inWindow.map(entry => entry.t);

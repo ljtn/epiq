@@ -60,7 +60,7 @@ export const linkContributorEmail = async (
 
 	const already = claimantsOf(stateResult.value.emailLinks, email);
 	if (already.includes(contributor)) {
-		return succeeded('Email already linked', {
+		return succeeded(`${email} is already yours`, {
 			contributor,
 			email,
 			contested: already.filter(id => id !== contributor),
@@ -85,8 +85,8 @@ export const linkContributorEmail = async (
 	// the one who can tell a shared team address from a mistake.
 	return succeeded(
 		already.length > 0
-			? 'Linked, but the address is now claimed by more than one contributor and resolves to none of them'
-			: 'Linked email to contributor',
+			? `Claimed ${email}, but somebody else claims it too, so it now resolves to neither of you`
+			: `Claimed ${email}`,
 		{contributor, email, contested: already},
 	);
 };
@@ -122,7 +122,7 @@ export const unlinkContributorEmail = async (
 	// rather than watching an event be written and silently skipped.
 	if (!canRemoveEmailLink(actorResult.value.userId, link)) {
 		return failed(
-			'Only the author of a link or the contributor it names may remove it',
+			'Only whoever made a claim, or the contributor it names, may undo it',
 		);
 	}
 
@@ -140,7 +140,7 @@ export const unlinkContributorEmail = async (
 
 	if (isFail(results)) return failed(results.message);
 
-	return succeeded('Unlinked email from contributor', {contributor, email});
+	return succeeded(`Unclaimed ${email}`, {contributor, email});
 };
 
 /**

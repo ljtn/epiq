@@ -148,6 +148,9 @@ const CATEGORY_BY_ACTION: Record<string, EventCategory> = {
 	'tombstone.contributor': 'assigning',
 	'restore.contributor': 'assigning',
 	'link.contributor.user': 'assigning',
+	// Who a commit belongs to, which is the same question assigning answers.
+	'link.contributor.email': 'assigning',
+	'unlink.contributor.email': 'assigning',
 };
 
 // Everything else is a change to a ticket or to the board holding it.

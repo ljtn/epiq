@@ -215,7 +215,13 @@ const describeTimelineEvent = (
 	previousParents: Map<string, string | undefined>,
 ): string => {
 	const payload = event.payload as
-		| {name?: string; assignee?: string; md?: string; parent?: string}
+		| {
+				name?: string;
+				assignee?: string;
+				md?: string;
+				parent?: string;
+				email?: string;
+		  }
 		| undefined;
 	const tag = tagOf(event);
 
@@ -248,6 +254,11 @@ const describeTimelineEvent = (
 			? names.get(tag) ?? ''
 			: payload?.assignee !== undefined
 			? names.get(payload.assignee) ?? ''
+			: // The address a claim is about. Two claims on one address by two
+			// people is what a contested address looks like from the log, and
+			// without naming it every claim line reads identically.
+			payload?.email !== undefined
+			? payload.email
 			: payload?.name !== undefined
 			? `"${payload.name}"`
 			: '';
@@ -339,6 +350,30 @@ const boardsForEvents = (events: AppEvent[]): (string | null)[] => {
 };
 
 // Events with no board are dropped, as they always were.
+/**
+ * Actions about a person rather than about anything on a board.
+ *
+ * They resolve to no board, and the timeline's board narrowing drops anything
+ * whose board is not the one asked for — so a claim, which decides who every
+ * commit in the repository belongs to, appeared on no board at all. No board
+ * means every board for these, not none.
+ *
+ * Deliberately not applied to `filterEventsForBoard`, which answers who has
+ * worked on a board: a contributor event is not work on one.
+ */
+export const isWorkspaceAction = (action: string): boolean =>
+	WORKSPACE_ACTIONS.has(action);
+
+const WORKSPACE_ACTIONS = new Set<string>([
+	'create.contributor',
+	'rename.contributor',
+	'tombstone.contributor',
+	'restore.contributor',
+	'link.contributor.user',
+	'link.contributor.email',
+	'unlink.contributor.email',
+]);
+
 export const filterEventsForBoard = (
 	events: AppEvent[],
 	boardId: string,

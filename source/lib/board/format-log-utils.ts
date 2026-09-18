@@ -52,6 +52,8 @@ export const formatLogAction = (action: string): string => {
 		'create.contributor': 'Added contributor',
 		'rename.contributor': 'Renamed contributor',
 		'link.contributor.user': 'Linked contributor',
+		'link.contributor.email': 'Claimed',
+		'unlink.contributor.email': 'Unclaimed',
 		'tombstone.contributor': 'Removed contributor',
 		'restore.contributor': 'Restored contributor',
 		'rebalance.children': 'Rebalanced order',
@@ -154,6 +156,14 @@ const formatEventDetails = (event: AppEvent): string => {
 			return `"${'name' in event.payload ? event.payload.name : ''}"`;
 		}
 
+		// The address, because two claims on one address by different people is
+		// what a contested address looks like in the log, and without it every
+		// claim reads the same.
+		case 'link.contributor.email':
+		case 'unlink.contributor.email': {
+			return event.payload.email;
+		}
+
 		case 'add.issue.attachment': {
 			return `"${event.payload.name}" ${chalk.dim(
 				`(${formatAttachmentKb(event.payload.bytes)})`,
@@ -227,6 +237,10 @@ const formatEventDetailsPlain = (event: AppEvent): string => {
 		case 'rename.contributor':
 		case 'edit.title':
 			return 'name' in event.payload ? `"${event.payload.name}"` : '';
+
+		case 'link.contributor.email':
+		case 'unlink.contributor.email':
+			return event.payload.email;
 
 		case 'move.node': {
 			const parent = nodeRepo.getNode(event.payload.parent);

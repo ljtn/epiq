@@ -21,6 +21,8 @@ export type SettingsState = {
 	 * read on demand because the write path consults it on every write.
 	 */
 	gitEmail: string | null;
+	/** This repository's git `user.name`, for proposing a board name. */
+	gitName: string | null;
 	/** Whether this machine has been asked about its git addresses. */
 	emailSetup: 'linked' | 'declined' | null;
 	viewMode: ViewMode | null;
@@ -35,6 +37,7 @@ let settingsState: SettingsState = {
 	userName: null,
 	userId: null,
 	gitEmail: null,
+	gitName: null,
 	emailSetup: null,
 	viewMode: null,
 };

@@ -5,7 +5,7 @@ import {
 	refreshProjectInBackground,
 } from './lib/boot/load-project.js';
 import {resolveEnvActor} from './lib/config/actor-env.js';
-import {readGitEmail} from './lib/config/git-identity.js';
+import {readGitEmail, readGitName} from './lib/config/git-identity.js';
 import {loadSettingsFromConfig} from './lib/config/user-config.js';
 import {initListeners} from './lib/listeners/keypress-listener.js';
 import {
@@ -31,12 +31,14 @@ export async function bootTui(): Promise<Result<void>> {
 
 		const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
 
-		// The same fill `boot()` does for the MCP and the GUI. Without it the TUI
-		// resolves no git address at all, so a TUI-only user never links one and
-		// their commits keep showing a raw git name with nothing saying why.
-		if (isSuccess(repoRootResult)) {
-			patchSettingsState({gitEmail: await readGitEmail(repoRootResult.value)});
-		}
+		// The same fill `boot()` does for the MCP and the GUI. From the working
+		// directory rather than the project root, because the name is proposed at
+		// the very first setup step — before `:init`, when there is no project to
+		// resolve. `allowFail` covers a directory that is not a repository.
+		patchSettingsState({
+			gitEmail: await readGitEmail(process.cwd()),
+			gitName: await readGitName(process.cwd()),
+		});
 
 		const loadResult = isSuccess(repoRootResult)
 			? await loadProject(repoRootResult.value)

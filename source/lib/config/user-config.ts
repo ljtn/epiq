@@ -187,6 +187,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		// Not a config value. Config knows nothing about git, so this is cleared
 		// here and filled by whoever boots, from the repository they booted in.
 		gitEmail: null,
+		gitName: null,
 		emailSetup: emailSetup ?? null,
 		logLevel: logLevel ?? 'debug',
 		preferredEditor: preferredEditor ?? '',
