@@ -14,9 +14,11 @@ import {normalizeEmail} from '../model/email-link.js';
  * `allowFail`, because a repository with no `user.email` is ordinary and not an
  * error: nothing is linked, and commits keep showing their raw author name.
  */
-type Cached = {email: string | null; readAt: number};
+export type GitIdentity = {name: string | null; email: string | null};
 
-const emailByRepo = new Map<string, Cached>();
+type Cached = GitIdentity & {readAt: number};
+
+const byRepo = new Map<string, Cached>();
 
 // Long enough that a boot per request costs nothing, short enough that somebody
 // who has just fixed a wrong `user.email` sees it take effect without
@@ -24,39 +26,58 @@ const emailByRepo = new Map<string, Cached>();
 // thing people work around rather than report.
 const CACHE_MS = 30_000;
 
-export const readGitEmail = async (cwd: string): Promise<string | null> => {
-	// Cached per repository. `boot()` runs on every MCP call and every socket
-	// message, above the fast path that exists to avoid redundant work, so an
-	// uncached read here would spawn a git process per request to answer the
-	// same thing every time.
-	const cached = emailByRepo.get(cwd);
-	if (cached && Date.now() - cached.readAt < CACHE_MS) return cached.email;
+/**
+ * Both halves, in one read.
+ *
+ * Cached per repository, because `boot()` runs on every MCP call and every
+ * socket message, above the fast path that exists to avoid redundant work: an
+ * uncached read here spawns a git process per request to answer the same thing
+ * every time. Together, because they are always wanted together and come from
+ * the same file, so asking twice buys nothing.
+ */
+export const readGitIdentity = async (cwd: string): Promise<GitIdentity> => {
+	const cached = byRepo.get(cwd);
+	if (cached && Date.now() - cached.readAt < CACHE_MS) {
+		return {name: cached.name, email: cached.email};
+	}
 
 	const result = await execGitAllowFail({
-		args: ['config', '--get', 'user.email'],
+		args: ['config', '--get-regexp', '^user\\.(name|email)$'],
 		cwd,
 	});
 
-	const email =
-		result.exitCode === 0 ? normalizeEmail(result.stdout ?? '') : '';
-	const resolved = email.length > 0 ? email : null;
+	let name: string | null = null;
+	let email: string | null = null;
 
-	emailByRepo.set(cwd, {email: resolved, readAt: Date.now()});
-	return resolved;
+	if (result.exitCode === 0) {
+		for (const line of (result.stdout ?? '').split('\n')) {
+			const at = line.indexOf(' ');
+			if (at === -1) continue;
+
+			const key = line.slice(0, at);
+			const value = line.slice(at + 1);
+
+			// A name may hold anything but a newline, so it is trimmed and taken
+			// as written. An address is stored normalized wherever it is stored.
+			if (key === 'user.name') name = value.trim() || null;
+			if (key === 'user.email') email = normalizeEmail(value) || null;
+		}
+	}
+
+	byRepo.set(cwd, {name, email, readAt: Date.now()});
+	return {name, email};
 };
+
+export const readGitEmail = async (cwd: string): Promise<string | null> =>
+	(await readGitIdentity(cwd)).email;
 
 /**
- * The git author name, used only to propose a board name at setup. Never
- * written over one the user already has.
+ * The git author name, used to propose a board name at setup and to recognise
+ * which addresses in a history are yours. Never written over a name the user
+ * already has.
  */
-export const readGitName = async (cwd: string): Promise<string | null> => {
-	const result = await execGitAllowFail({
-		args: ['config', '--get', 'user.name'],
-		cwd,
-	});
+export const readGitName = async (cwd: string): Promise<string | null> =>
+	(await readGitIdentity(cwd)).name;
 
-	if (result.exitCode !== 0) return null;
-
-	const name = (result.stdout ?? '').trim();
-	return name.length > 0 ? name : null;
-};
+/** So one test's configuration does not answer the next one's read. */
+export const resetGitIdentityCacheForTests = (): void => byRepo.clear();
