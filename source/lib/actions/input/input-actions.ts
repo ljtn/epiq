@@ -10,12 +10,7 @@ import {
 	moveCursorPositionOfWord,
 	setCmdInput,
 } from '../../state/cmd.state.js';
-import {
-	getHeldEmails,
-	getOfferedEmails,
-} from '../../state/email-offers.state.js';
 import {getState, patchState} from '../../state/state.js';
-import {CmdKeywords} from '../../command-line/cmd-keywords.js';
 import {Intent} from '../../utils/key-intent.js';
 import {onConfirmCommandLineSequenceInput} from './on-cmd-input-confirm.js';
 
@@ -24,22 +19,14 @@ const COMMAND_INPUT_MODES = [Mode.COMMAND_LINE, Mode.PALETTE];
 /**
  * The value a completed command opens with, where there is an obvious one.
  *
- * Completion fills a half-typed word; this fills an empty argument, which is
- * the only way a whole value with a space in it can be offered at all. `edit
- * title` established it — the rest are the same idea.
+ * Only `edit title`, whose value is the ticket's current title and so is not a
+ * candidate in any list. Anything that *is* in a list goes through the
+ * completer, which fills an empty argument when there is exactly one thing it
+ * could be — one rule rather than two that disagree about which of several
+ * candidates to pick.
  */
 const prefillFor = (input: string): string => {
 	if (input === 'edit title ') return getState().selectedNode?.title ?? '';
-
-	// The likeliest address to claim, and the one to give back. Both lists are
-	// whatever was last drawn, so the value offered is the one on screen.
-	if (input === `${CmdKeywords.CONFIG} emails `) {
-		return getOfferedEmails()[0] ?? '';
-	}
-
-	if (input === `${CmdKeywords.CONFIG} unclaim `) {
-		return getHeldEmails()[0] ?? '';
-	}
 
 	return '';
 };

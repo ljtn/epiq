@@ -54,7 +54,7 @@ export const getCmdMeta = (
 		inputString: parsed.inputString,
 		infoMessage: hintMessage,
 		autoCompletion: isCursorAtEndOfLine
-			? getAutoCompletion(parsed, autoCompletionWordList)
+			? getAutoCompletion(parsed, autoCompletionWordList, contextualWordList)
 			: {hint: '', hints: [], remainder: '', overlap: 0},
 	};
 };
