@@ -1,10 +1,10 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {GuiSquashedDiff} from '../lib/gui-state.model';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
 import {isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {GuiComment} from '../lib/gui-state.model';
-import {commentsAnchoredTo, FileTicketParams} from '../lib/diff-selection';
+import {commentsByAnchor, FileTicketParams} from '../lib/diff-selection';
 import {useReviewedFiles} from '../lib/reviewed-files';
 import {Button} from './Button';
 import {Empty} from './FormPrimitives';
@@ -68,6 +68,10 @@ export const SquashedDiff = ({
 }) => {
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 	const {isReviewed, setReviewed} = useReviewedFiles();
+
+	// Grouped once rather than per file: every row would otherwise re-parse
+	// every comment's marker looking for its own.
+	const byAnchor = useMemo(() => commentsByAnchor(comments), [comments]);
 	// Opened once per answer, so a file shut by hand afterwards stays shut.
 	const openedFor = useRef<string | null>(null);
 
@@ -207,7 +211,7 @@ export const SquashedDiff = ({
 						onFileTicket={anchorable ? onFileTicket : undefined}
 						// Only the ones written against this file's own commit: the
 						// rest name lines of a revision this view is not showing.
-						comments={commentsAnchoredTo(comments, file.sha)}
+						comments={byAnchor.get(file.sha) ?? []}
 					/>
 				);
 			})}
