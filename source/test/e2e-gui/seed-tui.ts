@@ -97,7 +97,21 @@ export const seedProject = async (): Promise<string> => {
 	// ENTER is a separate write *and* waits for the prompt to ask for it. Sent
 	// any earlier it lands before the command is committed and is dropped, which
 	// hangs the seed on the next waitFor.
+	const pause = () => new Promise(resolve => setTimeout(resolve, 200));
+
+	/**
+	 * Clears whatever is in the command line, then types a command into it.
+	 *
+	 * Setup hands each step its command already typed, so writing a whole
+	 * command on top of one lands as `:config editor :config editor vim`.
+	 * Backspace rather than escape: an escape written on its own is still
+	 * pending when the next character arrives, and the two are read as one
+	 * alt-modified keypress, so the line never opens and the characters fall
+	 * through to the board's own keys — `n` there opens a new item.
+	 */
 	const command = async (value: string) => {
+		tui.input('\x7f'.repeat(60));
+		await pause();
 		tui.input(value);
 		await tui.waitFor('<ENTER> to confirm');
 		tui.input('\r');
@@ -123,9 +137,7 @@ export const seedProject = async (): Promise<string> => {
 
 	// ENTER must arrive as its own write, or it is handled before the command
 	// is committed and the confirm is dropped.
-	tui.input(':init');
-	await tui.waitFor('<ENTER> to confirm');
-	tui.input('\r');
+	await command(':init');
 
 	// The address step only exists once there is a board to offer addresses
 	// from, so it stands between `:init` and the board rather than sitting with
@@ -138,9 +150,7 @@ export const seedProject = async (): Promise<string> => {
 	await tui.waitFor('Default');
 
 	// A second board, so the switcher has somewhere to switch to.
-	tui.input(':new board QA');
-	await tui.waitFor('<ENTER> to confirm');
-	tui.input('\r');
+	await command(':new board QA');
 	// The command being typed is itself on screen, so "QA" is in the buffer
 	// before ENTER is even sent. Without forgetting it first, this wait is
 	// already satisfied and `destroy` can land before the board is written —
