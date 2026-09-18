@@ -99,10 +99,8 @@ const FileHeader = ({
 	expanded: boolean;
 	onToggle: () => void;
 	commentCount: number;
-	// Absent where a file has no one commit to be reviewed against — the
-	// compacted diff, whose rows belong to the ticket rather than to a sha.
-	reviewed?: boolean;
-	onReviewed?: (next: boolean) => void;
+	reviewed: boolean;
+	onReviewed: (next: boolean) => void;
 }) => {
 	const [lit, setLit] = useState(false);
 
@@ -187,14 +185,12 @@ const FileHeader = ({
 			<DiffStat insertions={file.insertions} deletions={file.deletions} />
 			{/* Beside the toggle rather than inside it: ticking a file off must
 			    not also fold or unfold it by accident. */}
-			{onReviewed && (
-				<Checkbox
-					label="reviewed"
-					checked={reviewed ?? false}
-					onChange={onReviewed}
-					activeColor={GUI_THEME.green}
-				/>
-			)}
+			<Checkbox
+				label="reviewed"
+				checked={reviewed}
+				onChange={onReviewed}
+				activeColor={GUI_THEME.green}
+			/>
 		</div>
 	);
 };
@@ -212,16 +208,16 @@ export const FileRow = ({
 	reviewed,
 	onReviewed,
 }: {
-	// The commit these lines belong to, and what a comment or a filed ticket
-	// anchors to. Absent in the compacted diff, where the rows are the whole
-	// ticket's and no single commit owns a line number — so selecting lines is
-	// off there rather than pointing somewhere that isn't true.
-	sha?: string;
+	// The commit these lines belong to, and what a comment, a filed ticket and
+	// a review tick anchor to. In the compacted diff it is the last of the
+	// ticket's commits to touch this file, which is the one whose diff still
+	// holds the content shown here (TCYD699).
+	sha: string;
 	file: GuiCommitDiffFile;
 	expanded: boolean;
 	onToggle: () => void;
-	reviewed?: boolean;
-	onReviewed?: (next: boolean) => void;
+	reviewed: boolean;
+	onReviewed: (next: boolean) => void;
 	diffStyle: 'split' | 'unified';
 	onAddComment?: (body: string) => void;
 	onFileTicket?: (params: FileTicketParams) => void;
@@ -254,7 +250,7 @@ export const FileRow = ({
 
 	const fileTicket = () => {
 		const title = ticketTitle?.trim();
-		if (!title || !selection || !sha) return;
+		if (!title || !selection) return;
 
 		onFileTicket?.({
 			sha,
@@ -291,7 +287,7 @@ export const FileRow = ({
 		}),
 	);
 
-	if (selection && sha) {
+	if (selection) {
 		const side = selection.endSide ?? selection.side ?? 'additions';
 
 		lineAnnotations.push({
@@ -335,7 +331,7 @@ export const FileRow = ({
 						diffStyle={diffStyle}
 						renderKey={renderKey}
 						selectedLines={hoveredRange ?? selection}
-						onSelectionEnd={sha ? setSelection : undefined}
+						onSelectionEnd={setSelection}
 						lineAnnotations={lineAnnotations}
 						renderCustomHeader={header}
 						renderAnnotation={({metadata}) =>
@@ -351,7 +347,7 @@ export const FileRow = ({
 								/>
 							) : (
 								<SelectionComposer
-									sha={sha ?? ''}
+									sha={sha}
 									file={file}
 									selection={metadata.selection}
 									note={note}
