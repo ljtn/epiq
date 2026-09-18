@@ -1,3 +1,5 @@
+import {DiffCommentMeta, parseDiffCommentMeta} from '../utils/diff-comment.js';
+
 // What a unified patch says, as rows a terminal can draw.
 //
 // The patch is git's own, not one derived here from the two revisions of each
@@ -282,6 +284,51 @@ const rowScopes = (rows: PatchRow[]): {file: string; hunk: number}[] => {
  * missing the unchanged lines in between, so the same range would quote fewer
  * lines here than there.
  */
+/**
+ * The rows of this patch that somebody has already commented on.
+ *
+ * Matched on the same commit only: a comment's line number is a position in
+ * the revision it was written against, so it means what it says here and
+ * nowhere else. A comment made on another commit that touched these lines is
+ * not placed — see the note on `24ZZPQD` for why that needs re-anchoring
+ * rather than a looser match.
+ */
+export const commentedRows = (
+	rows: PatchRow[],
+	comments: {md: string}[],
+	sha: string,
+): Set<number> => {
+	const anchors = comments
+		.map(comment => parseDiffCommentMeta(comment.md))
+		.filter(
+			(meta): meta is DiffCommentMeta =>
+				meta !== null && meta.sha === sha && meta.side === 'additions',
+		);
+
+	if (anchors.length === 0) return new Set();
+
+	const scopes = rowScopes(rows);
+	const marked = new Set<number>();
+
+	rows.forEach((row, index) => {
+		const line = (row as PatchLine).newLine;
+		if (line === undefined) return;
+
+		const file = scopes[index]?.file;
+
+		if (
+			anchors.some(
+				meta =>
+					meta.filePath === file && meta.start <= line && line <= meta.end,
+			)
+		) {
+			marked.add(index);
+		}
+	});
+
+	return marked;
+};
+
 /**
  * The lines a selection covers, written the way the command line shows them.
  *

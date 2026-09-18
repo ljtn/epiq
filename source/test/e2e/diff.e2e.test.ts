@@ -301,6 +301,12 @@ describe('TUI diff e2e', () => {
 				await tui.waitFor(commandLineShows('comment lines:1-2'), 6_000);
 				await run(tui, 'reads oddly now', 'reads oddly now');
 
+				// The margin says so straight away, on the lines it was left on and
+				// not on the one below them.
+				const marginal = await tui.waitFor(/│\s*const keep = 1;/, 6_000);
+				expect(marginal).toMatch(/│\+const fresh = 9;/);
+				expect(marginal).not.toMatch(/│\s*const also = 3;/);
+
 				// Out of the pager and the list, then into Comments.
 				tui.input('q');
 				await tui.waitFor('enter to read', 6_000);
