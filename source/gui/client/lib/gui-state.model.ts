@@ -160,13 +160,17 @@ export type GuiCommitDiff = {
 	files: GuiCommitDiffFile[];
 };
 
+// A file in the compacted diff, carrying the commit a comment on it anchors
+// to: the last of the ticket's commits to touch it. See SquashedDiffFile.
+export type GuiSquashedDiffFile = GuiCommitDiffFile & {sha: string};
+
 // The Diff tab's compacted view: every commit on the ticket as one diff.
 export type GuiSquashedDiff = {
 	ref: string;
 	from: string;
 	to: string;
 	commits: number;
-	files: GuiCommitDiffFile[];
+	files: GuiSquashedDiffFile[];
 	// False when another ticket's commit landed between two of this one's, so
 	// the range compared is not this ticket's work alone. `overlappingPaths`
 	// then names the files where that actually shows; empty means the

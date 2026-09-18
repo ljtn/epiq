@@ -989,6 +989,15 @@ export const IssueDetails = ({
 						loading={diffView.loading}
 						error={diffView.error}
 						diffStyle={commitsWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'}
+						comments={comments}
+						onAddComment={
+							disabled ? undefined : body => onAddComment?.(issue.id, body)
+						}
+						onFileTicket={
+							disabled
+								? undefined
+								: params => onFileTicket?.(issue.id, issue.ref, params)
+						}
 					/>
 				);
 

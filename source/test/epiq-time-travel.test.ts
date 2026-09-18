@@ -1433,6 +1433,43 @@ describe('epiq-time-travel', () => {
 			expect(result.value.commits).toBe(2);
 		});
 
+		// TCYD699: what a comment in the compacted view hangs off. Not the
+		// ticket's newest commit — that usually touched a fraction of its
+		// files, and a comment on any of the rest would name a commit whose
+		// diff has no such file.
+		it('anchors each file to the last of the ticket’s commits to touch it', async () => {
+			mockGit({
+				history: [
+					{sha: sha('third'), subject: '5S52AC8 third'},
+					{sha: sha('second'), subject: '5S52AC8 second'},
+					{sha: sha('first'), subject: '5S52AC8 first'},
+				],
+				pathsByCommit: {
+					third: ['source/c.ts'],
+					second: ['source/b.ts', 'source/c.ts'],
+					first: ['source/a.ts', 'source/b.ts'],
+				},
+				diffFiles: ['source/a.ts', 'source/b.ts', 'source/c.ts'],
+			});
+
+			const result = await getSquashedDiffForRef({ref: '5S52AC8'});
+
+			expect(isSuccess(result)).toBe(true);
+			if (isFail(result)) return;
+			expect(
+				Object.fromEntries(
+					result.value.files.map(file => [file.path, file.sha]),
+				),
+			).toEqual({
+				// Only the first commit touched it, so that is where it lives.
+				'source/a.ts': sha('first'),
+				// Touched twice; the later one is the one whose diff still has
+				// this file's final content.
+				'source/b.ts': sha('second'),
+				'source/c.ts': sha('third'),
+			});
+		});
+
 		it('fails when no commit carries the ref', async () => {
 			mockGit({
 				history: [{sha: sha('other'), subject: 'QG9544B someone else'}],
