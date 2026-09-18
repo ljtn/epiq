@@ -126,6 +126,15 @@ export const seedProject = async (): Promise<string> => {
 	tui.input(':init');
 	await tui.waitFor('<ENTER> to confirm');
 	tui.input('\r');
+
+	// The address step only exists once there is a board to offer addresses
+	// from, so it stands between `:init` and the board rather than sitting with
+	// the other three. Declined here: a fixture that claimed one would put a
+	// link in every seeded board and change what the commit track says for
+	// every test.
+	await tui.waitFor('Claim the git addresses');
+	await command(':config emails none');
+
 	await tui.waitFor('Default');
 
 	// A second board, so the switcher has somewhere to switch to.

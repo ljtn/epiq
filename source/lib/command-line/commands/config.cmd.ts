@@ -9,6 +9,7 @@ import {ConfigModifiers} from '../command-modifiers.js';
 import {setAutoSyncDurationCommand} from '../commands/set-auto-sync-duration.cmd.js';
 import {setAttachmentMaxKbCommand} from '../commands/set-attachment-max-kb.cmd.js';
 import {setAutoSyncCommand} from '../commands/set-auto-sync.cmd.js';
+import {setEmailsCommand} from '../commands/set-emails.cmd.js';
 import {setLogLevelCommand} from '../commands/set-log-level.cmd.js';
 
 export const configCommand = (cmdState: CommandLineInput) => {
@@ -79,6 +80,9 @@ export const configCommand = (cmdState: CommandLineInput) => {
 
 			return succeeded(`View set to "${value}"`, null);
 		}
+
+		case ConfigModifiers.EMAILS:
+			return setEmailsCommand();
 
 		case ConfigModifiers.AUTOSYNC:
 			return setAutoSyncCommand();

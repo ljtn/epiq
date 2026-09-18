@@ -1,4 +1,3 @@
-import {useState} from 'react';
 import {GUI_THEME} from '../lib/gui-theme';
 import {ContributorEmailsState} from '../lib/use-contributor-emails';
 import {actorDisplay} from '../lib/agent-identity';
@@ -33,17 +32,8 @@ export const IdentityPanel = ({
 	onLink: (email: string) => void;
 	onUnlink: (email: string) => void;
 }) => {
-	const [draft, setDraft] = useState('');
-
 	const mine = new Set(state.data?.mine ?? []);
 	const contested = (state.data?.emails ?? []).filter(claim => claim.contested);
-
-	const claim = () => {
-		const email = draft.trim();
-		if (!email) return;
-		onLink(email);
-		setDraft('');
-	};
 
 	return (
 		<div
@@ -134,42 +124,49 @@ export const IdentityPanel = ({
 				</>
 			)}
 
-			<div style={{...label, marginTop: 12}}>Claim an address</div>
-			<div style={{display: 'flex', gap: 6, paddingTop: 6}}>
-				<input
-					value={draft}
-					onChange={event => setDraft(event.target.value)}
-					onKeyDown={event => event.key === 'Enter' && claim()}
-					placeholder="you@example.com"
-					style={{
-						flex: 1,
-						background: GUI_THEME.panel2,
-						border: `1px solid ${GUI_THEME.line}`,
-						borderRadius: 4,
-						color: GUI_THEME.primary,
-						fontSize: 12,
-						padding: '4px 6px',
-					}}
-				/>
-				<button
-					onClick={claim}
-					style={{
-						background: GUI_THEME.panel2,
-						border: `1px solid ${GUI_THEME.line}`,
-						borderRadius: 4,
-						color: GUI_THEME.accent,
-						cursor: 'pointer',
-						fontSize: 12,
-						padding: '4px 10px',
-					}}
-				>
-					Link
-				</button>
+			<div style={{...label, marginTop: 12}}>
+				Unclaimed addresses in this history
 			</div>
+			{state.candidates.length === 0 ? (
+				<div style={{...row, color: GUI_THEME.dim}}>
+					Nothing left to claim here.
+				</div>
+			) : (
+				state.candidates.map(candidate => (
+					<div key={candidate.email} style={row}>
+						<div style={{flex: 1}}>
+							<div>{candidate.email}</div>
+							<div style={{color: GUI_THEME.dim, marginTop: 2}}>
+								{candidate.commits} commit
+								{candidate.commits === 1 ? '' : 's'} as{' '}
+								{candidate.names.join(', ') || 'unknown'}
+							</div>
+						</div>
+						<button
+							onClick={() => onLink(candidate.email)}
+							style={{
+								background: 'transparent',
+								border: `1px solid ${GUI_THEME.line}`,
+								borderRadius: 4,
+								color: GUI_THEME.accent,
+								cursor: 'pointer',
+								fontSize: 11,
+								padding: '2px 8px',
+							}}
+							title="Every commit by this address becomes yours, back to the first one. Permanent, and it reaches every clone."
+						>
+							This is me
+						</button>
+					</div>
+				))
+			)}
 			<div style={{color: GUI_THEME.dim, paddingTop: 6, lineHeight: 1.5}}>
-				Every commit by that address becomes yours, back to the first one. The
-				link is permanent and reaches every clone; unlinking stops it resolving
-				but leaves the record.
+				{/* No free-text box on purpose. You can only claim an address this
+				    repository's history already holds, so a typo claims nothing and
+				    there is no way to reach for one that was never yours. */}
+				Only addresses that appear in this repository's history can be claimed.
+				A claim is permanent and reaches every clone; unlinking stops it
+				resolving but leaves the record.
 			</div>
 
 			{state.lastAction && (
