@@ -23,6 +23,7 @@ import {replaceCmdInput} from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
 import {openAttachment} from '../../utils/attachment.utils.js';
 import {Intent} from '../../utils/key-intent.js';
+import {virtualNodeId} from '../../virtual-nodes/virtual-ids.js';
 import {HelpActions} from '../help/help-actions.js';
 import {IdentityActions} from '../identity/identity-actions.js';
 import {PaletteActions} from '../palette/palette-actions.js';
@@ -164,13 +165,17 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			const {selectedNode, contextNode} = getState();
 
-			// A commit node carries its sha as its id, and sits under the Diff
-			// field. `o` works both from the commit list, where the commit is the
-			// selection, and from inside its patch, where it is the context.
-			const sha =
-				contextNode.title === FieldNames.DIFF
-					? selectedNode?.id
-					: openPagerSha() ?? undefined;
+			// A commit node carries its sha as its id, and sits under the ticket's
+			// Diff field. `o` works both from the commit list, where the commit is
+			// the selection, and from inside its patch, where it is the context.
+			//
+			// The list is identified by the field's own id rather than its title,
+			// which a ticket called "Diff" would also answer to.
+			const ticketId = contextNode.parentNodeId;
+			const isCommitList =
+				!!ticketId && contextNode.id === virtualNodeId(ticketId, 'diff');
+
+			const sha = isCommitList ? selectedNode?.id : openPagerSha() ?? undefined;
 
 			if (!sha) return succeeded('Nothing here opens in an editor', null);
 

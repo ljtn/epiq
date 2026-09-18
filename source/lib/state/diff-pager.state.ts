@@ -1,6 +1,5 @@
 import {useSyncExternalStore} from 'react';
 import {PatchRow} from '../commits/patch-parse.js';
-import {FieldNames} from '../repository/fielNames.js';
 import {getState} from './state.js';
 
 // What the diff pager has open and what is selected in it — the state the key
@@ -79,11 +78,11 @@ export const useDiffPagerState = (): {
  * field, so being inside one is a question about the context node's parent.
  */
 export const openPagerSha = (): string | null => {
-	const {contextNode, nodes} = getState();
+	const {contextNode} = getState();
 
-	const parent = contextNode.parentNodeId
-		? nodes[contextNode.parentNodeId]
-		: undefined;
-
-	return parent?.title === FieldNames.DIFF ? contextNode.id : null;
+	// Asked of the patch itself rather than of the node's shape: only the
+	// mounted pager sets this, and it sets it to the commit it is showing. A
+	// ticket that happens to be *called* "Diff" would satisfy any test written
+	// against titles, and its comments would then be read for a line anchor.
+	return openPatch && openPatch.sha === contextNode.id ? contextNode.id : null;
 };
