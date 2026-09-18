@@ -35,12 +35,12 @@ export const EmailCandidates: React.FC = () => {
 			if (isFail(stateResult) || isFail(repoRootResult)) return;
 
 			const branchResult = getStateBranch(repoRootResult.value);
-			const {userName, gitEmail} = getSettingsState();
+			const {userName, gitName} = getSettingsState();
 
 			const found = await findEmailCandidates({
 				repoRoot: repoRootResult.value,
 				stateBranch: isFail(branchResult) ? undefined : branchResult.value,
-				names: [userName, gitEmail],
+				names: [userName, gitName],
 				links: stateResult.value.emailLinks,
 			});
 

@@ -5,6 +5,7 @@ import {AppEvent} from '../lib/board/board-events.model.js';
 import {emailsOf} from '../lib/model/email-link.js';
 import {isFail, succeeded} from '../lib/model/result-types.js';
 import {resetEmailScanCacheForTests} from '../lib/repository/email-candidates.js';
+import {getOfferedEmails} from '../lib/state/email-offers.state.js';
 import {patchSettingsState} from '../lib/state/settings.state.js';
 import {getState} from '../lib/state/state.js';
 
@@ -98,6 +99,7 @@ describe(':config emails', () => {
 			userId: ALICE,
 			userName: 'jola',
 			gitEmail: 'jola@example.com',
+			gitName: 'Jonatan Lampa',
 			emailSetup: null,
 		});
 		board();
@@ -105,6 +107,28 @@ describe(':config emails', () => {
 			['Jonatan Lampa', 'jola@example.com'],
 			['J. Lampa', 'j.lampa@oldjob.com'],
 			['Sam Rivers', 'sam@example.com'],
+		]);
+	});
+
+	// The scan recognises an address by the names on its commits, so it has to be
+	// given names. Handing it the git address instead tokenised into `example`
+	// and `com`, which every colleague at the same company matches and no old
+	// address of your own does — the one case the step exists for.
+	it('knows an old address of yours by the name on its commits', async () => {
+		history([
+			['Jonatan Lampa', 'jola@example.com'],
+			['J. Lampa', 'j.lampa@oldjob.com'],
+			['Sam Rivers', 'sam@example.com'],
+			['Sam Rivers', 'sam@example.com'],
+		]);
+		typed('');
+
+		await setEmailsCommand();
+
+		expect(getOfferedEmails()).toEqual([
+			'jola@example.com',
+			'j.lampa@oldjob.com',
+			'sam@example.com',
 		]);
 	});
 
