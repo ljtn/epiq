@@ -282,18 +282,28 @@ export const CommandLine: React.FC<{width: number; mode: ModeUnion}> = ({
 				borderStyle="round"
 				width={width}
 			>
-				<Box>
-					<Text>
-						{GRAY(sigil)}
-						{fullLine}
-					</Text>
-					{hint && (
-						<Text
-							wrap="truncate"
-							color={isFailureMessage ? theme.red : theme.secondary2}
-						>
-							{` ${hint} `}
+				{/*
+				 * One row, whatever is in it. The command being edited holds its
+				 * width and the hint gives way: it was the other way round, so a
+				 * long list of editors clipped the command to `:config edito` and
+				 * pushed the cursor onto a second line inside the box.
+				 */}
+				<Box height={1} flexWrap="nowrap">
+					<Box flexShrink={0}>
+						<Text wrap="truncate-start">
+							{GRAY(sigil)}
+							{fullLine}
 						</Text>
+					</Box>
+					{hint && (
+						<Box flexShrink={1} minWidth={0}>
+							<Text
+								wrap="truncate"
+								color={isFailureMessage ? theme.red : theme.secondary2}
+							>
+								{` ${hint} `}
+							</Text>
+						</Box>
 					)}
 				</Box>
 			</Box>

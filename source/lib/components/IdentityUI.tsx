@@ -154,10 +154,9 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 				{offered.length === 0 ? (
 					<Row email="Nothing left to claim here." />
 				) : (
-					offered.map((candidate, index) => (
+					offered.map(candidate => (
 						<Row
 							key={candidate.email}
-							index={index + 1}
 							email={candidate.email}
 							note={`${candidate.commits} commit${
 								candidate.commits === 1 ? '' : 's'
@@ -168,13 +167,18 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 			</Box>
 
 			<Box flexDirection="column">
+				{/* "claims, ready to edit" read as though the claim happened and
+				    could be changed afterwards. It does not: enter writes the
+				    command into the line, and nothing is claimed until it is
+				    confirmed. */}
 				<Text color={theme.secondary2}>
-					<Text color={theme.accent}>[enter]</Text> claims the first, ready to
-					edit. Or
-					<Text color={theme.accent}> :config emails 1 </Text>
-					by number or address, and
+					<Text color={theme.accent}>[enter]</Text> writes a claim for the first
+					into the command line, to confirm or change.
+				</Text>
+				<Text color={theme.secondary2}>
+					<Text color={theme.accent}>:config emails</Text> claims by address,
 					<Text color={theme.accent}> :config unclaim </Text>
-					to give one back.
+					gives one back.
 				</Text>
 				<Text color={theme.secondary2}>
 					<Text color={theme.accent}>[esc]</Text> to close

@@ -105,18 +105,15 @@ export const setEmailsCommand = async () => {
 
 	const parts = answer.split(/[,\s]+/).filter(Boolean);
 
-	// A number or the address itself. The completion offers addresses, so one
-	// arrives here whenever somebody takes what was suggested, and refusing it
-	// would make the suggestion a trap.
+	// The address itself, which is what the completion offers and what every
+	// other command here takes: a value, not an index into a list.
 	const chosen: typeof offered = [];
 	const unknown: string[] = [];
 
 	for (const part of parts) {
-		const byNumber = /^\d+$/.test(part) ? offered[Number(part) - 1] : undefined;
-		const byEmail = offered.find(
+		const match = offered.find(
 			candidate => candidate.email === normalizeEmail(part),
 		);
-		const match = byNumber ?? byEmail;
 
 		if (!match) {
 			unknown.push(part);
@@ -128,9 +125,9 @@ export const setEmailsCommand = async () => {
 
 	if (unknown.length > 0) {
 		return failed(
-			`Not on the list: ${unknown.join(', ')}. Pick a number from 1 to ${
-				offered.length
-			}, or the address itself.`,
+			`Not on the list: ${unknown.join(', ')}. Pick one of ${offered
+				.map(candidate => candidate.email)
+				.join(', ')}.`,
 		);
 	}
 

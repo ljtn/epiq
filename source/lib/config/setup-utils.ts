@@ -1,6 +1,7 @@
 import {isFail, isSuccess} from '../model/result-types.js';
 import {readProjectFile} from '../project-setup/project-setup.js';
 import {getSettingsState} from '../state/settings.state.js';
+import {getOfferedEmails} from '../state/email-offers.state.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
 
 export const getUserSetupStatus = (): {
@@ -91,7 +92,17 @@ export const nextSetupCommand = (): string | null => {
 	if (!status.isSetPreferredEditor) return 'config editor ';
 	if (!status.isSetAutoSync) return 'config autoSync ';
 	if (!isRepositoryInitialized()) return 'init';
-	if (!status.isSetEmails) return 'config emails ';
+
+	// Seeded with an address, like every other step arrives ready to answer. The
+	// one git signs this repository's commits with is the answer nearly always,
+	// and it is known at boot — the scanned list is not, since the screen that
+	// scans has not drawn yet when this runs.
+	if (!status.isSetEmails) {
+		const {gitEmail} = getSettingsState();
+		const suggestion = getOfferedEmails()[0] ?? gitEmail;
+
+		return suggestion ? `config emails ${suggestion}` : 'config emails ';
+	}
 
 	return null;
 };

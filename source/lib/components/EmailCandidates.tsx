@@ -90,9 +90,9 @@ export const EmailCandidates: React.FC = () => {
 
 	return (
 		<Box flexDirection="column" marginTop={1}>
-			{candidates.map((candidate, index) => (
+			{candidates.map(candidate => (
 				<Text key={candidate.email}>
-					<Text color={theme.accent}>{`  ${index + 1}. `}</Text>
+					<Text color={theme.accent}>{'  · '}</Text>
 					<Text>{candidate.email}</Text>
 					<Text color={theme.secondary2}>
 						{`  ${candidate.commits} commit${
@@ -103,9 +103,8 @@ export const EmailCandidates: React.FC = () => {
 			))}
 			<Box marginTop={1}>
 				<Text color={theme.secondary2}>
-					Claim yours with
-					<Text color={theme.accent}> :config emails 1,2 </Text>— or
-					<Text color={theme.accent}> :config emails none </Text>
+					Claim yours by address, or
+					<Text color={theme.accent}> none </Text>
 					to skip.
 				</Text>
 			</Box>
