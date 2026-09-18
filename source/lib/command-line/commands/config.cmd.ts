@@ -1,10 +1,9 @@
 import {ulid} from 'ulid';
 import {ACTOR_NAME_ENV} from '../../config/actor-env.js';
 import {readEpiqConfig, setConfig} from '../../config/user-config.js';
-import {CommandLineInput, Mode} from '../../model/action-map.model.js';
+import {CommandLineInput} from '../../model/action-map.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {patchSettingsState} from '../../state/settings.state.js';
-import {patchState} from '../../state/state.js';
 import {ConfigModifiers} from '../command-modifiers.js';
 import {setAutoSyncDurationCommand} from '../commands/set-auto-sync-duration.cmd.js';
 import {setAttachmentMaxKbCommand} from '../commands/set-attachment-max-kb.cmd.js';
@@ -51,8 +50,6 @@ export const configCommand = (cmdState: CommandLineInput) => {
 				userId: resolvedUserId,
 			});
 
-			patchState({mode: Mode.DEFAULT});
-
 			return succeeded(`Username set to "${resolvedUserName}"`, null);
 		}
 
@@ -63,8 +60,6 @@ export const configCommand = (cmdState: CommandLineInput) => {
 			if (isFail(persistResult)) return persistResult;
 
 			patchSettingsState({preferredEditor: value});
-			patchState({mode: Mode.DEFAULT});
-
 			return succeeded(`Editor configuration set to "${value}"`, null);
 		}
 
@@ -77,8 +72,6 @@ export const configCommand = (cmdState: CommandLineInput) => {
 			if (isFail(persistResult)) return persistResult;
 
 			patchSettingsState({viewMode: value});
-			patchState({mode: Mode.DEFAULT});
-
 			return succeeded(`View set to "${value}"`, null);
 		}
 

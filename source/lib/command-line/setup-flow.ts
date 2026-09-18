@@ -1,7 +1,7 @@
 import {nextSetupCommand} from '../config/setup-utils.js';
 import {Mode} from '../model/action-map.model.js';
 import {replaceCmdInput} from '../state/cmd.state.js';
-import {patchState} from '../state/state.js';
+import {getState, patchState} from '../state/state.js';
 
 /**
  * Where the command line goes after a setup answer lands.
@@ -16,6 +16,15 @@ import {patchState} from '../state/state.js';
  */
 export const advanceSetup = (): void => {
 	const next = nextSetupCommand();
+
+	// A command that opened a screen of its own keeps it: `:config emails`
+	// bare draws the addresses, and closing the line under it made the screen
+	// appear and vanish. The board and the command line are not screens — one
+	// is where a finished command leaves you, the other is where the next step
+	// belongs — and `:init` lands on the board by rebuilding the whole state,
+	// so treating that as a destination would end the sequence one step early.
+	const mode = getState().mode;
+	if (mode !== Mode.COMMAND_LINE && mode !== Mode.DEFAULT) return;
 
 	if (!next) {
 		patchState({mode: Mode.DEFAULT});

@@ -3,11 +3,10 @@ import {AppEvent} from '../../board/board-events.model.js';
 import {materializeAndPersistAll} from '../../board/board-log.js';
 import {getStateBranchRoot} from '../../../git/git-storage.js';
 import {emailsOf, normalizeEmail} from '../../model/email-link.js';
-import {Mode} from '../../model/action-map.model.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
 import {getSettingsState} from '../../state/settings.state.js';
-import {getSafeState, patchState} from '../../state/state.js';
+import {getSafeState} from '../../state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
 
 /**
@@ -63,8 +62,6 @@ export const unclaimEmailCommand = () => {
 	);
 
 	if (isFail(written)) return failed(written.message);
-
-	patchState({mode: Mode.DEFAULT});
 
 	return succeeded(`Unclaimed ${email}`, null);
 };
