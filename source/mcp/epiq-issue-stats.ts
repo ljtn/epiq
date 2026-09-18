@@ -8,6 +8,7 @@ import {deriveIssueStats} from '../lib/stats/issue-stats.js';
 import {IssueStats, StatsCommit} from '../lib/stats/issue-stats.model.js';
 import {nodeRef, NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
+import {withCommitAuthors} from './api/commit-authors.js';
 import {getCommitsForRef} from './epiq-time-travel.js';
 
 // A ticket's shas never change what their patches contain, so the cache is
@@ -54,13 +55,22 @@ export const getIssueStats = async (
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 	const repoRoot = repoRootResult.value;
 
-	const commitsResult = await getCommitsForRef({repoRoot, ref});
+	// Resolved, like every other commit list. `change-shape` counts distinct
+	// authors by this string, so leaving it raw made one person committing from
+	// two linked addresses read as two authors on the Stats tab while the Code
+	// tab called them one — the same split between two views that the event log
+	// and the scrubber already had.
+	const commitsResult = withCommitAuthors(
+		await getCommitsForRef({repoRoot, ref}),
+	);
 	if (isFail(commitsResult)) return failed(commitsResult.message);
 
 	const commits: StatsCommit[] = commitsResult.value.map(commit => ({
 		sha: commit.sha,
 		time: commit.time,
-		author: commit.author,
+		author: commit.authorIdentity?.resolved
+			? commit.authorIdentity.name
+			: commit.author,
 		subject: commit.subject,
 	}));
 

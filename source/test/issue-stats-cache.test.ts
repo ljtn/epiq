@@ -4,6 +4,10 @@ import {succeeded} from '../lib/model/result-types.js';
 vi.mock('../lib/storage/paths.js', () => ({
 	resolveClosestEpiqProjectRoot: vi.fn(() => succeeded('Resolved', '/repo')),
 	NO_PROJECT_MESSAGE: 'No .epiq/project.json found in any parent',
+	// Reached because resolving a commit's author reads board state, which pulls
+	// the config module in behind it.
+	getGlobalConfigDir: vi.fn(() => '/tmp/epiq-global'),
+	GLOBAL_CONFIG_DIR_NAME: '.epiq-global',
 }));
 
 vi.mock('../mcp/epiq-time-travel.js', () => ({
