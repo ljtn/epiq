@@ -19,16 +19,3 @@ export const setOfferedEmails = (emails: string[]): void => {
 };
 
 export const getOfferedEmails = (): string[] => offered;
-
-/**
- * The addresses the viewer currently holds, for completing `:config unclaim`.
- * Kept beside the offers for the same reason: the command line validates on
- * every keystroke and cannot wait for a board read.
- */
-let held: string[] = [];
-
-export const setHeldEmails = (emails: string[]): void => {
-	held = emails;
-};
-
-export const getHeldEmails = (): string[] => held;

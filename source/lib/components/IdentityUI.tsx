@@ -8,7 +8,7 @@ import {
 	findEmailCandidates,
 	offerableCandidates,
 } from '../repository/email-candidates.js';
-import {setHeldEmails, setOfferedEmails} from '../state/email-offers.state.js';
+import {setOfferedEmails} from '../state/email-offers.state.js';
 import {getSettingsState} from '../state/settings.state.js';
 import {getSafeState} from '../state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
@@ -62,7 +62,6 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 			const links = stateResult.value.emailLinks;
 
 			const mine = emailsOf(links, userId);
-			setHeldEmails(mine);
 
 			setClaimed(
 				mine.map(email => ({
@@ -177,7 +176,7 @@ export const IdentityUI: React.FC<{width: number; height: number}> = ({
 				</Text>
 				<Text color={theme.secondary2}>
 					<Text color={theme.accent}>:config emails</Text> claims by address,
-					<Text color={theme.accent}> :config unclaim </Text>
+					<Text color={theme.accent}> :config emails-unclaim </Text>
 					gives one back.
 				</Text>
 				<Text color={theme.secondary2}>

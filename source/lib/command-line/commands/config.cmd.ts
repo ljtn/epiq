@@ -85,7 +85,7 @@ export const configCommand = (cmdState: CommandLineInput) => {
 		case ConfigModifiers.EMAILS:
 			return setEmailsCommand();
 
-		case ConfigModifiers.UNCLAIM:
+		case ConfigModifiers.EMAILS_UNCLAIM:
 			return unclaimEmailCommand();
 
 		case ConfigModifiers.AUTOSYNC:
