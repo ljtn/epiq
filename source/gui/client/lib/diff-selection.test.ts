@@ -499,6 +499,15 @@ describe('the Diff tab view in the route', () => {
 		expect(readDiffViewParam(params('tab=code&diff=squashed'))).toBeNull();
 	});
 
+	// A plain object answers for everything Object.prototype has, so these came
+	// back as functions — truthy, so they overrode the reader's own view rather
+	// than falling back to it.
+	it('names no view for a key every object happens to have', () => {
+		for (const probe of ['constructor', 'toString', '__proto__', 'valueOf']) {
+			expect(readDiffViewParam(params(`diff=${probe}`))).toBeNull();
+		}
+	});
+
 	it('writes a view a link can carry', () => {
 		const written = params('tab=code');
 		writeDiffViewParam(written, true);

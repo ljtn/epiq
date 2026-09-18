@@ -61,11 +61,20 @@ export type DiffComment = {comment: GuiComment; meta: DiffCommentMeta};
  * state: a comment written against an earlier commit of the same file names
  * lines that later commits have since moved.
  */
-export const commentsAnchoredTo = (
+export const commentsByAnchor = (
 	comments: GuiComment[],
-	sha: string,
-): GuiComment[] =>
-	comments.filter(comment => parseDiffCommentMeta(comment.body)?.sha === sha);
+): Map<string, GuiComment[]> => {
+	const bySha = new Map<string, GuiComment[]>();
+
+	for (const comment of comments) {
+		const sha = parseDiffCommentMeta(comment.body)?.sha;
+		if (!sha) continue;
+
+		bySha.set(sha, [...(bySha.get(sha) ?? []), comment]);
+	}
+
+	return bySha;
+};
 
 export const findDiffCommentsForFile = (
 	comments: GuiComment[],
@@ -109,11 +118,11 @@ export type DiffViewName = 'commits' | 'flat';
 // read, never written: an unrecognised value falls back to the reader's own
 // view, so dropping the old spelling would land an already-shared link in the
 // wrong one — the failure putting the view in the route exists to prevent.
-const DIFF_VIEW_NAMES: Record<string, DiffViewName> = {
-	commits: 'commits',
-	flat: 'flat',
-	compacted: 'flat',
-};
+const DIFF_VIEW_NAMES = new Map<string, DiffViewName>([
+	['commits', 'commits'],
+	['flat', 'flat'],
+	['compacted', 'flat'],
+]);
 
 /** Null for absent *and* for unrecognised: a view nobody offers is no request
  * at all, so the reader's own choice stands rather than being overridden by a
@@ -121,7 +130,7 @@ const DIFF_VIEW_NAMES: Record<string, DiffViewName> = {
 export const readDiffViewParam = (
 	params: URLSearchParams,
 ): DiffViewName | null =>
-	DIFF_VIEW_NAMES[params.get(DIFF_VIEW_PARAM) ?? ''] ?? null;
+	DIFF_VIEW_NAMES.get(params.get(DIFF_VIEW_PARAM) ?? '') ?? null;
 
 export const writeDiffViewParam = (
 	params: URLSearchParams,
