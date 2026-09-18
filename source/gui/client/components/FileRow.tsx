@@ -207,6 +207,8 @@ export const FileRow = ({
 	focusRange,
 	reviewed,
 	onReviewed,
+	selectable = true,
+	additionsOnly = false,
 }: {
 	// The commit these lines belong to, and what a comment, a filed ticket and
 	// a review tick anchor to. In the compacted diff it is the last of the
@@ -225,6 +227,14 @@ export const FileRow = ({
 	// Set when a comment permalink points at this file: seeds the highlight
 	// and scrolls the diff into view.
 	focusRange?: SelectedLineRange | null;
+	// False where nothing written here could be anchored truthfully — a file
+	// in the compacted diff that a commit from outside the ticket also touched,
+	// so the content shown is not what any of the ticket's commits left behind.
+	selectable?: boolean;
+	// The deletions side of the compacted diff is numbered against the oldest
+	// commit's parent, which is no commit's own old side, so a selection there
+	// would record a line belonging to nothing. The additions side is exact.
+	additionsOnly?: boolean;
 }) => {
 	const [selection, setSelection] = useState<SelectedLineRange | null>(null);
 	// Held here rather than in the composer so re-dragging the range keeps
@@ -241,6 +251,18 @@ export const FileRow = ({
 	const [hoveredRange, setHoveredRange] = useState<SelectedLineRange | null>(
 		null,
 	);
+
+	const acceptSelection = (range: SelectedLineRange | null) => {
+		if (
+			range &&
+			additionsOnly &&
+			(range.side === 'deletions' || range.endSide === 'deletions')
+		) {
+			return;
+		}
+
+		setSelection(range);
+	};
 
 	const clearSelection = () => {
 		setSelection(null);
@@ -304,6 +326,8 @@ export const FileRow = ({
 	const renderKey = [
 		expanded,
 		reviewed,
+		selectable,
+		additionsOnly,
 		fileComments.length,
 		note,
 		selection ? `${selection.start}-${selection.end}` : '',
@@ -331,7 +355,7 @@ export const FileRow = ({
 						diffStyle={diffStyle}
 						renderKey={renderKey}
 						selectedLines={hoveredRange ?? selection}
-						onSelectionEnd={setSelection}
+						onSelectionEnd={selectable ? acceptSelection : undefined}
 						lineAnnotations={lineAnnotations}
 						renderCustomHeader={header}
 						renderAnnotation={({metadata}) =>

@@ -857,6 +857,11 @@ const changedPathsByCommit = async (
 			'--raw',
 			'--no-renames',
 			'--abbrev=40',
+			// A merge emits its commit line and no raw lines at all, so the paths
+			// it brought in would belong to no commit here — and a file with no
+			// commit of its own falls back on a sha whose diff may not hold it,
+			// which is the failure the anchoring exists to avoid.
+			'--diff-merges=first-parent',
 			'--format=%H',
 			`${from}..${to}`,
 		],
