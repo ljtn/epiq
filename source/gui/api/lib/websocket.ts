@@ -31,15 +31,17 @@ import {
 	sync,
 } from '../../../mcp/epiq-api.js';
 import {
-	checkoutStateAt,
-	checkoutStateAtEvent,
 	getCommitDiff,
 	getCommitsForRef,
 	getCommitTimeline,
-	getEventTimeline,
 	getSquashedDiffForRef,
-	getTimeTravelStatus,
 	openCommitDiffInEditor,
+} from '../../../lib/commits/commits.js';
+import {
+	checkoutStateAt,
+	checkoutStateAtEvent,
+	getEventTimeline,
+	getTimeTravelStatus,
 	returnToLive,
 	runExclusive,
 } from '../../../mcp/epiq-time-travel.js';

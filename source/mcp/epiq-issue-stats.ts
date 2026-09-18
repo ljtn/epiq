@@ -9,7 +9,7 @@ import {IssueStats, StatsCommit} from '../lib/stats/issue-stats.model.js';
 import {nodeRef, NODE_REF_LENGTH} from '../lib/utils/node-ref.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {withCommitAuthors} from './api/commit-authors.js';
-import {getCommitsForRef} from './epiq-time-travel.js';
+import {getCommitsForRef} from '../lib/commits/commits.js';
 
 // A ticket's shas never change what their patches contain, so the cache is
 // keyed by the shas themselves rather than aged out: a new commit on the
