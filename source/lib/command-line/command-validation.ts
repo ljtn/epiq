@@ -96,8 +96,13 @@ type Validator = ({
 const valid = (
 	message: string = '',
 	completionWordList: string[] = [],
+	// Dimmed by default, which is right for plain prose. A message that already
+	// carries its own styling — an options hint's chips — must opt out: dimming
+	// it a second time washes the chip out, so the same suggestion would look
+	// different depending on whether the input happened to be valid yet.
+	dim = true,
 ): ValidationResult => ({
-	message: hintDefault(message),
+	message: dim ? hintDefault(message) : message,
 	validity: cmdValidity.Valid,
 	completionWordList,
 });
@@ -316,7 +321,12 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				});
 			}
 
-			return valid(hint ? `${hint}  ${CONFIRM_MSG}` : CONFIRM_MSG, wordList);
+			// The chip keeps the styling `buildOptionsHint` gave it, and only the
+			// confirm text is dimmed, so the suggestion looks the same before and
+			// after the first keystroke.
+			return hint
+				? valid(`${hint}  ${hintDefault(CONFIRM_MSG)}`, wordList, false)
+				: valid(CONFIRM_MSG, wordList);
 		}
 
 		case ConfigModifiers.EMAILS: {
