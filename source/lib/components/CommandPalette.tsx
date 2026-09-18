@@ -142,6 +142,9 @@ const createPaletteNode = (
 		parentNodeId,
 		rank: String(index).padStart(6, '0'),
 		name: command.command,
+		// What `palette-actions` refuses on. It reads this off the node, so a
+		// command the palette draws as unavailable is one enter cannot run.
+		disabled: !command.isAvailable,
 		readonly: true,
 		isVirtual: true,
 	});

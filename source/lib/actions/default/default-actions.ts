@@ -161,7 +161,10 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.OpenInEditor,
 		mode: Mode.DEFAULT,
-		description: '[o] open in editor',
+		// No description, and likewise for the two below: the shortcut bar shows
+		// every described DEFAULT-mode action on every screen, and these three
+		// answer "nothing to do that to here" everywhere but the diff. The
+		// commit list and the pager name them in their own headers instead.
 		action: () => {
 			const {selectedNode, contextNode} = getState();
 
@@ -186,7 +189,6 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.MarkDiffLine,
 		mode: Mode.DEFAULT,
-		description: '[s] mark line',
 		action: () => {
 			const sha = openPagerSha();
 			if (!sha) return succeeded('Nothing to mark here', null);
@@ -209,7 +211,6 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.CommentOnDiffLine,
 		mode: Mode.DEFAULT,
-		description: '[c] comment on line',
 		action: () => {
 			if (!openPagerSha()) return succeeded('Nothing to comment on here', null);
 

@@ -141,6 +141,7 @@ export const nodes = {
 		rank,
 		readonly = true,
 		isVirtual = true,
+		disabled = false,
 	}: {
 		id: string;
 		name: string;
@@ -148,19 +149,20 @@ export const nodes = {
 		rank: string;
 		isVirtual?: boolean;
 		readonly?: boolean;
+		/** Refuses the node when it is confirmed — the palette's unavailable rows. */
+		disabled?: boolean;
 	}): NavNode<'TEXT'> => ({
 		id,
 		title: name,
 		rank,
 		isDeleted: false,
-		// Deliberately empty, and not a parameter: every node's `props.value` is
-		// swept into the command line's autocomplete corpus (`collectText`), so
-		// a text node carrying what it displays would put every line of an open
-		// diff, and of the event log, into the vocabulary. The three callers
-		// each render from their own list and read nothing back off the node —
-		// the argument this used to accept was dropped on the floor, which is
-		// worse than not offering it.
-		props: {},
+		// One flag rather than the free `props` bag this used to take. That bag
+		// was accepted and then dropped on the floor — every caller passed a
+		// `value` that was silently discarded — and it could not simply be
+		// honoured, because every node's `props.value` is swept into the command
+		// line's autocomplete corpus (`collectText`), which would have put every
+		// line of an open diff and of the event log into the vocabulary.
+		props: disabled ? {disabled: true} : {},
 		context: NavNodeCtx.TEXT,
 		childRenderAxis: 'vertical',
 		parentNodeId,

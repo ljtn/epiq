@@ -21,6 +21,7 @@ import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
 import {LARGE_DIFF_LINES} from '../utils/diff-size.js';
 import {expandTabs} from '../utils/markdown-lite.js';
+import stringWidth from 'string-width';
 import {truncateToWidth} from '../utils/string.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 
@@ -58,8 +59,16 @@ const rowColor = (kind: PatchRow['kind']): string => {
 
 // Padded with a non-breaking space: ink trims a trailing ordinary one, and
 // the padding is there to carry a background colour to the edge.
-const padTo = (text: string, width: number): string =>
-	text.length >= width ? text : text + ' '.repeat(width - text.length);
+//
+// Measured in display columns, not characters, because that is what the text
+// beside it was cut to: a line of CJK or emoji is half as many characters as
+// it is columns wide, and padding by character count would push the row past
+// the pane and have ink wrap it onto a second terminal line.
+export const padTo = (text: string, width: number): string => {
+	const used = stringWidth(text);
+
+	return used >= width ? text : text + ' '.repeat(width - used);
+};
 
 const rowSign = (kind: PatchRow['kind']): string => {
 	if (kind === 'added') return '+';

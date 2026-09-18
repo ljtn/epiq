@@ -63,7 +63,16 @@ const attachCommitNodes = (
 		.map(({value}) => value)
 		.filter(isFieldNode);
 
-	if (commits.length > 0 && getState().selectedIndex < 0) {
+	// Only when the list itself is what the reader is in. Entering a commit
+	// leaves `selectedIndex` at -1 until its patch has loaded, and this effect
+	// re-runs whenever the ticket node is replaced — any sync or write. Without
+	// the context check, one arriving in that window threw the reader out of the
+	// patch they were reading and back to the list.
+	if (
+		commits.length > 0 &&
+		getState().selectedIndex < 0 &&
+		getState().contextNode.id === rootNode.id
+	) {
 		navigationUtils.navigate({contextNode: rootNode, selectedIndex: 0});
 	}
 
