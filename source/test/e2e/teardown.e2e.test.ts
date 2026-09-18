@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {commonSteps} from './e2e-common-steps.js';
+import {commonSteps, typeCommand} from './e2e-common-steps.js';
 import {removeTempRepo, setupTui} from './e2e.helper.js';
 
 // A git stand-in the TUI resolves ahead of the real one: it holds every push,
@@ -65,9 +65,7 @@ describe('TUI e2e teardown', () => {
 		// init by hand and waits for the push to be held rather than for a frame.
 		execSync('git init', {cwd: tui.cwd, stdio: 'ignore'});
 		await tui.waitFor('This folder is not an epiq project yet.', 8_000);
-		tui.input(':init');
-		await tui.waitFor('<ENTER> to confirm', 8_000);
-		tui.input('\r');
+		await typeCommand(tui, ':init');
 		await waitForFile(path.join(holdDir, 'held'), 10_000);
 
 		await tui.destroy();
