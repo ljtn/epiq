@@ -473,10 +473,22 @@ describe('the Diff tab view in the route', () => {
 	const params = (query: string) => new URLSearchParams(query);
 
 	it('reads the view a link names', () => {
-		expect(readDiffViewParam(params('tab=code&diff=compacted'))).toBe(
-			'compacted',
-		);
+		expect(readDiffViewParam(params('tab=code&diff=flat'))).toBe('flat');
 		expect(readDiffViewParam(params('tab=code&diff=commits'))).toBe('commits');
+	});
+
+	// What the flat view was called when the param shipped. Dropping it would
+	// not fail loudly — an unknown value falls back to the reader's own view —
+	// so an already-shared link would quietly open the wrong one.
+	it('still reads the old spelling of the flat view', () => {
+		expect(readDiffViewParam(params('tab=code&diff=compacted'))).toBe('flat');
+	});
+
+	it('writes only the current spelling', () => {
+		const written = params('tab=code&diff=compacted');
+		writeDiffViewParam(written, true);
+
+		expect(written.get('diff')).toBe('flat');
 	});
 
 	// Absent is "the reader's own choice stands", and so is a value no view
@@ -490,19 +502,17 @@ describe('the Diff tab view in the route', () => {
 	it('writes a view a link can carry', () => {
 		const written = params('tab=code');
 		writeDiffViewParam(written, true);
-		expect(written.get('diff')).toBe('compacted');
+		expect(written.get('diff')).toBe('flat');
 
 		writeDiffViewParam(written, false);
 		expect(written.get('diff')).toBe('commits');
 	});
 
 	it('round-trips', () => {
-		for (const compacted of [true, false]) {
+		for (const flat of [true, false]) {
 			const written = params('');
-			writeDiffViewParam(written, compacted);
-			expect(readDiffViewParam(written)).toBe(
-				compacted ? 'compacted' : 'commits',
-			);
+			writeDiffViewParam(written, flat);
+			expect(readDiffViewParam(written)).toBe(flat ? 'flat' : 'commits');
 		}
 	});
 
@@ -514,6 +524,6 @@ describe('the Diff tab view in the route', () => {
 
 		expect(written.get('commit')).toBe('abc123');
 		expect(written.get('file')).toBe('source/a.ts');
-		expect(readDiffViewParam(written)).toBe('compacted');
+		expect(readDiffViewParam(written)).toBe('flat');
 	});
 });

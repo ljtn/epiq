@@ -149,13 +149,13 @@ test('the last open lane cannot be collapsed', async ({
 		'data-collapsed',
 		'false',
 	);
-	await expect(page.getByRole('button', {name: 'Collapse Diff'})).toHaveCount(
+	await expect(page.getByRole('button', {name: 'Collapse Code'})).toHaveCount(
 		0,
 	);
 
 	// Reopening any other lane hands the control back.
 	await page.getByRole('button', {name: 'Expand Comments'}).click();
-	await expect(page.getByRole('button', {name: 'Collapse Diff'})).toHaveCount(
+	await expect(page.getByRole('button', {name: 'Collapse Code'})).toHaveCount(
 		1,
 	);
 

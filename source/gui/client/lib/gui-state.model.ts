@@ -142,7 +142,7 @@ export type GuiCommitEntry = {
 	deletions: number;
 };
 
-// The Diff tab's shape: a matched commit whose immediate predecessor in
+// The Code tab's shape: a matched commit whose immediate predecessor in
 // the *unfiltered* history is also a matched commit (no other ticket's
 // commit sits between them) — that's what a connecting line in the rail means.
 export type GuiRefCommitEntry = GuiCommitEntry & {precedingSha: string | null};
@@ -164,7 +164,7 @@ export type GuiCommitDiff = {
 // to: the last of the ticket's commits to touch it. See SquashedDiffFile.
 export type GuiSquashedDiffFile = GuiCommitDiffFile & {sha: string};
 
-// The Diff tab's compacted view: every commit on the ticket as one diff.
+// The Code tab's compacted view: every commit on the ticket as one diff.
 export type GuiSquashedDiff = {
 	ref: string;
 	from: string;
