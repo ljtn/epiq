@@ -31,6 +31,7 @@ export {
 } from './commit-diff.js';
 
 export {
+	commentedRows,
 	isFileRow,
 	parsePatch,
 	patchLineCount,

@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 
 import {
+	commentedRows,
 	formatLineAnchor,
 	parseLineAnchor,
 	parsePatch,
@@ -171,6 +172,52 @@ describe('the range as the command line carries it', () => {
 
 		expect(result.ok).toBe(false);
 		expect(result.ok === false && result.reason).toMatch(/no line 99/);
+	});
+});
+
+describe('the lines a comment has already been left on', () => {
+	const commentOn = (start: number, end: number, sha = SHA) => ({
+		md: fromTui(start, end, 'said before'),
+		sha,
+	});
+
+	const rowsWithLines = (marked: Set<number>) =>
+		[...marked]
+			.map(index => (rows[index] as {newLine?: number}).newLine)
+			.sort((a, b) => (a ?? 0) - (b ?? 0));
+
+	it('are exactly the lines the comment covers', () => {
+		const marked = commentedRows(rows, [commentOn(1, 3)], SHA);
+
+		expect(rowsWithLines(marked)).toEqual([1, 2, 3]);
+	});
+
+	it('do not include the removed line the range spans', () => {
+		const marked = commentedRows(rows, [commentOn(1, 3)], SHA);
+
+		expect([...marked].every(index => rows[index]!.kind !== 'removed')).toBe(
+			true,
+		);
+	});
+
+	it('are none for a comment left on another commit', () => {
+		const elsewhere = {
+			md: fromTui(1, 3, 'said before').replace(SHA, 'def5678'),
+		};
+
+		expect(commentedRows(rows, [elsewhere], SHA).size).toBe(0);
+	});
+
+	it('are none for a comment that is not anchored at all', () => {
+		expect(commentedRows(rows, [{md: 'just a comment'}], SHA).size).toBe(0);
+	});
+
+	it('are none for a file this patch does not touch', () => {
+		const other = {
+			md: fromTui(1, 1, 'said before').replace('thing.ts', 'elsewhere.ts'),
+		};
+
+		expect(commentedRows(rows, [other], SHA).size).toBe(0);
 	});
 });
 

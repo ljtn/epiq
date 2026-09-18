@@ -148,6 +148,7 @@ export function DiffListUI({ticket, width, height}: Props) {
 	if (openCommit) {
 		return (
 			<CommitDiffUI
+				ticket={ticket}
 				sha={openCommit.sha}
 				subject={openCommit.subject}
 				width={width}

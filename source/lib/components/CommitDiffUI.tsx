@@ -1,11 +1,14 @@
 import {Box, Text} from 'ink';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
+	commentedRows,
 	getCommitPatch,
 	parsePatch,
 	patchRows,
 	PatchRow,
 } from '../commits/commits.js';
+import {Ticket} from '../model/context.model.js';
+import {nodeRepo} from '../repository/node-repo.js';
 import {NavNode} from '../model/navigation-node.model.js';
 import {isFail} from '../model/result-types.js';
 import {attachLineNodes, detachLineNodes} from '../repository/line-nodes.js';
@@ -22,6 +25,7 @@ import {truncateToWidth} from '../utils/string.utils.js';
 import {ScrollBoxUI} from './ScrollBox.js';
 
 type Props = {
+	ticket: Ticket;
 	sha: string;
 	subject: string;
 	width: number;
@@ -89,7 +93,7 @@ type Load =
 	| {state: 'failed'; message: string}
 	| {state: 'loaded'; rows: PatchRow[]};
 
-export function CommitDiffUI({sha, subject, width, height}: Props) {
+export function CommitDiffUI({ticket, sha, subject, width, height}: Props) {
 	const [load, setLoad] = useState<Load>({state: 'loading'});
 
 	useEffect(() => {
@@ -151,6 +155,17 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 
 	const {selectedIndex} = useAppState();
 	const {mark} = useDiffPagerState();
+
+	// Which rows already carry a comment. Derived from the ticket's own
+	// comments, which the board already holds — re-read on every render of the
+	// ticket so a comment written here shows against its line straight away.
+	const commented = useMemo(
+		() =>
+			rows
+				? commentedRows(rows, nodeRepo.getCommentsByIssue(ticket.id), sha)
+				: new Set<number>(),
+		[rows, sha, ticket],
+	);
 
 	// The rows between the mark and the cursor, so a range being built is
 	// visible while it is built.
@@ -287,7 +302,7 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 								>
 									{padTo(
 										` ${truncateToWidth(expandTabs(row.text), textWidth)}`,
-										textWidth + gutterWidth,
+										textWidth + gutterWidth + 1,
 									)}
 								</Text>
 							</Box>
@@ -295,7 +310,11 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 					}
 
 					const marked = inRange(index);
-					const body = ` ${rowSign(row.kind)}${truncateToWidth(
+
+					// The margin rule takes the column that already sat between the
+					// number and the sign, so saying a line carries a comment costs
+					// the code none of its width.
+					const body = `${rowSign(row.kind)}${truncateToWidth(
 						expandTabs(row.text),
 						textWidth,
 					)}`;
@@ -313,6 +332,13 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 									).padStart(gutterWidth - 2, ' ')}`}
 								</Text>
 							</Box>
+							{/* Its own colour, not the cursor’s: the cursor moves and this
+							    does not, so they must not read as the same thing. */}
+							<Box flexShrink={0}>
+								<Text color={theme.yellow} wrap="truncate-end">
+									{commented.has(index) ? '│' : ' '}
+								</Text>
+							</Box>
 							{/* Padded out on the row the cursor is on, so its highlight is a
 							    band across the pane rather than a stub around whatever the
 							    line happened to contain — a blank added line otherwise
@@ -324,7 +350,7 @@ export function CommitDiffUI({sha, subject, width, height}: Props) {
 								}
 								wrap="truncate-end"
 							>
-								{isSelected || marked ? padTo(body, textWidth + 2) : body}
+								{isSelected || marked ? padTo(body, textWidth + 1) : body}
 							</Text>
 						</Box>
 					);
