@@ -9,6 +9,7 @@ import {virtualNodeId} from '../virtual-nodes/virtual-ids.js';
 import {AttachmentListUI} from './AttachmentListUI.js';
 import {CommentListUI} from './CommentListUI.js';
 import {CursorUI} from './Cursor.js';
+import {DiffListUI} from './DiffListUI.js';
 import {FieldListUI} from './FieldListUI.js';
 import {InlineEditor} from './InlineEditor.js';
 import {inlineEditorRowCount} from '../utils/inline-editor-layout.js';
@@ -25,6 +26,8 @@ const getCommentsNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'comments');
 
 const getLogNodeId = (ticketId: string) => virtualNodeId(ticketId, 'history');
+
+const getDiffNodeId = (ticketId: string) => virtualNodeId(ticketId, 'diff');
 
 const getAttachmentsNodeId = (ticketId: string) =>
 	virtualNodeId(ticketId, 'attachments');
@@ -46,6 +49,8 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 
 	const logNodeId = useMemo(() => getLogNodeId(ticket.id), [ticket.id]);
 
+	const diffNodeId = useMemo(() => getDiffNodeId(ticket.id), [ticket.id]);
+
 	const attachmentsNodeId = useMemo(
 		() => getAttachmentsNodeId(ticket.id),
 		[ticket.id],
@@ -65,6 +70,9 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 	const isInsideAttachments =
 		contextNode.id === attachmentsNodeId ||
 		contextNode.parentNodeId === attachmentsNodeId;
+
+	const isInsideDiff =
+		contextNode.id === diffNodeId || contextNode.parentNodeId === diffNodeId;
 
 	const children = getRenderedChildren(ticket.id);
 
@@ -106,6 +114,23 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		);
 	}
 
+	if (isInsideDiff) {
+		const commandPromptHeight = 3;
+		const listHeight = height - commandPromptHeight;
+
+		return (
+			<Box
+				width={maxWidth}
+				flexDirection="column"
+				paddingRight={1}
+				paddingBottom={1}
+				minHeight={height}
+			>
+				<DiffListUI ticket={ticket} width={maxWidth} height={listHeight} />
+			</Box>
+		);
+	}
+
 	if (isInsideLog) {
 		const logNode = nodeRepo.getNode(logNodeId);
 		const logValue =
@@ -135,22 +160,52 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		);
 	}
 
+	// The `››` rows, in the order they are drawn. Only the first of them carries
+	// the blank line above: together they read as one menu, and spacing them
+	// apart costs rows the description box needs.
+	const menuNodeIds = [
+		logNodeId,
+		diffNodeId,
+		commentsNodeId,
+		attachmentsNodeId,
+	];
+	const isMenuNode = (id: string) => menuNodeIds.includes(id);
+
 	const fieldCount = children.reduce(
-		(count, child) =>
-			isFieldListNode(child) ||
-			child.id === commentsNodeId ||
-			child.id === attachmentsNodeId ||
-			child.id === logNodeId
-				? count + 1
-				: count,
+		(count, child) => (isFieldListNode(child) ? count + 1 : count),
 		0,
 	);
 
-	const editorRows = inlineEditorRowCount(height, fieldCount);
+	const menuCount = children.reduce(
+		(count, child) => (isMenuNode(child.id) ? count + 1 : count),
+		0,
+	);
+
+	const firstMenuIndex = children.findIndex(child => isMenuNode(child.id));
+
+	const editorRows = inlineEditorRowCount(height, fieldCount, menuCount);
+
+	const menuRow = (
+		child: ReturnType<typeof getRenderedChildren>[number],
+		index: number,
+		selected: boolean,
+		label: string,
+	) => (
+		<Box key={child.id} paddingTop={index === firstMenuIndex ? 1 : 0}>
+			<CursorUI isSelected={selected} />
+			<Text
+				backgroundColor={theme.secondary}
+				color={selected ? theme.accent : theme.primary}
+			>
+				{label}
+			</Text>
+		</Box>
+	);
 
 	const renderNode = (
 		child: ReturnType<typeof getRenderedChildren>[number],
 		selected: boolean,
+		index: number,
 	) => {
 		if (child.id === descriptionNodeId) {
 			return (
@@ -178,45 +233,27 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 		}
 
 		if (child.id === commentsNodeId) {
-			return (
-				<Box key={child.id} paddingTop={1}>
-					<CursorUI isSelected={selected} />
-					<Text
-						backgroundColor={theme.secondary}
-						color={selected ? theme.accent : theme.primary}
-					>
-						{` Comments (${commentCount}) ›› `}
-					</Text>
-				</Box>
-			);
+			return menuRow(child, index, selected, ` Comments (${commentCount}) ›› `);
 		}
 
 		if (child.id === attachmentsNodeId) {
-			return (
-				<Box key={child.id} paddingTop={1}>
-					<CursorUI isSelected={selected} />
-					<Text
-						backgroundColor={theme.secondary}
-						color={selected ? theme.accent : theme.primary}
-					>
-						{` Attachments (${attachmentCount}) ›› `}
-					</Text>
-				</Box>
+			return menuRow(
+				child,
+				index,
+				selected,
+				` Attachments (${attachmentCount}) ›› `,
 			);
 		}
 
 		if (child.id === logNodeId) {
-			return (
-				<Box key={child.id} paddingTop={1}>
-					<CursorUI isSelected={selected} />
-					<Text
-						backgroundColor={theme.secondary}
-						color={selected ? theme.accent : theme.primary}
-					>
-						{' History ›› '}
-					</Text>
-				</Box>
-			);
+			return menuRow(child, index, selected, ' History ›› ');
+		}
+
+		// No count beside it, unlike Comments and Attachments: a ticket's commits
+		// come from git, and this row is drawn during a synchronous render of
+		// every ticket. The count is inside.
+		if (child.id === diffNodeId) {
+			return menuRow(child, index, selected, ' Diff ›› ');
 		}
 
 		return null;
@@ -232,7 +269,7 @@ export const TicketUI: React.FC<Props> = ({ticket, height}) => {
 			minHeight={height}
 		>
 			{children.map((child, index) =>
-				renderNode(child, isAtTicketRoot && selectedIndex === index),
+				renderNode(child, isAtTicketRoot && selectedIndex === index, index),
 			)}
 		</Box>
 	);

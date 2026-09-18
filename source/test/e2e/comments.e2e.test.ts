@@ -96,6 +96,7 @@ describe('TUI comments', () => {
 					/❯\s+Assignees/,
 					/❯\s+Tags/,
 					/❯\s+History/,
+					/❯\s+Diff/,
 					/❯\s+Comments \(1\)/,
 				]) {
 					tui.input(ARROW_DOWN);
