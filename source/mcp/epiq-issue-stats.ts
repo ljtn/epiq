@@ -74,12 +74,20 @@ export const getIssueStats = async (
 		subject: commit.subject,
 	}));
 
-	// Everything the answer depends on is in the key: this repo, this ticket,
-	// and the exact commits it owns. Nothing here reads the working tree or
-	// HEAD any more, so nothing can go stale underneath it.
-	const key = [repoRoot, ref, commits.map(commit => commit.sha).join(',')].join(
-		' ',
-	);
+	// Everything the answer depends on is in the key: this repo, this ticket, the
+	// exact commits it owns, and who those commits resolve to. Nothing here
+	// reads the working tree or HEAD, so nothing can go stale underneath it.
+	//
+	// The authors are in the key because linking an address changes the answer
+	// without changing a single sha — `change-shape` counts distinct authors off
+	// these strings, so a cache entry made before a link kept reporting two
+	// authors for one person. Keyed on the resolved names rather than on the
+	// link log, so a link that touches none of these commits evicts nothing.
+	const key = [
+		repoRoot,
+		ref,
+		commits.map(commit => `${commit.sha}:${commit.author}`).join(','),
+	].join(' ');
 
 	const cached = cache.get(key);
 	if (cached) return succeeded('Derived issue stats', cached);

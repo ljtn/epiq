@@ -1223,6 +1223,21 @@ export const App = () => {
 		return () => window.clearTimeout(timer);
 	}, [state, theatre, selection.windowOnly, logOpen]);
 
+	// Claiming an address decides who every commit by it belongs to, and the
+	// commit track is fetched from git rather than derived from board state — so
+	// nothing above brings it back. Without this the panel says the link landed
+	// while the chart and the log go on naming the old author until something
+	// else happens to refetch.
+	//
+	// Not gated on the log being open: the scrubber's own dots and their
+	// tooltips carry the same names.
+	useEffect(() => {
+		if (theatre) return;
+		if (!contributorEmails.lastAction?.ok) return;
+
+		setHistoryTick(tick => tick + 1);
+	}, [contributorEmails.lastAction, theatre]);
+
 	const {entries: logEntries, moment: logMoment} = useEventLog({
 		open: logOpen,
 		timeline: history.timeline,

@@ -1,3 +1,5 @@
+import {useLayoutEffect, useRef, useState} from 'react';
+import {createPortal} from 'react-dom';
 import {GuiState} from '../lib/gui-state.model';
 import {useDismissOnOutsideClick} from '../lib/use-dismiss-on-outside-click';
 import {GUI_THEME} from '../lib/gui-theme';
@@ -34,10 +36,44 @@ export const Header = ({
 	onOpenCommands,
 	identity,
 }: HeaderProps) => {
+	const panelRef = useRef<HTMLDivElement | null>(null);
+	// The panel is portalled out of this header, so it is not a descendant of the
+	// trigger and has to be named as inside explicitly.
 	const identityRef = useDismissOnOutsideClick(
 		identity.open,
 		identity.onDismiss,
+		[panelRef],
 	);
+
+	// Anchored to the avatar rather than positioned inside it: `Panel` clips its
+	// children to contain its own glow, so a panel absolutely positioned in here
+	// is cut off at the header's edge.
+	const [anchor, setAnchor] = useState<{right: number; top: number} | null>(
+		null,
+	);
+
+	useLayoutEffect(() => {
+		if (!identity.open) return;
+
+		const place = () => {
+			const box = identityRef.current?.getBoundingClientRect();
+			if (!box) return;
+
+			setAnchor({
+				right: Math.max(8, window.innerWidth - box.right),
+				top: box.bottom + 8,
+			});
+		};
+
+		place();
+		window.addEventListener('resize', place);
+		window.addEventListener('scroll', place, true);
+
+		return () => {
+			window.removeEventListener('resize', place);
+			window.removeEventListener('scroll', place, true);
+		};
+	}, [identity.open, identityRef]);
 
 	const syncColor =
 		syncStatus.status === 'synced'
@@ -208,13 +244,24 @@ export const Header = ({
 								    wins every hover, so a title here would never be seen. */}
 								<User user={state.user} />
 							</button>
-							{identity.open && (
-								<div
-									style={{position: 'absolute', right: 0, top: 26, zIndex: 20}}
-								>
-									{identity.panel}
-								</div>
-							)}
+							{identity.open &&
+								anchor &&
+								createPortal(
+									<div
+										ref={panelRef}
+										style={{
+											position: 'fixed',
+											right: anchor.right,
+											top: anchor.top,
+											zIndex: 60,
+											maxHeight: `calc(100vh - ${anchor.top + 16}px)`,
+											overflowY: 'auto',
+										}}
+									>
+										{identity.panel}
+									</div>,
+									document.body,
+								)}
 						</div>
 					)}
 				</div>

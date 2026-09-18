@@ -73,14 +73,19 @@ export const setEmailsCommand = async () => {
 	if (isFail(repoRootResult)) return failed(repoRootResult.message);
 
 	const branchResult = getStateBranch(repoRootResult.value);
-	const candidates = offerableCandidates(
-		await findEmailCandidates({
-			repoRoot: repoRootResult.value,
-			stateBranch: isFail(branchResult) ? undefined : branchResult.value,
-			names: [userName, gitEmail],
-			links: stateResult.value.emailLinks,
-		}),
-	);
+	const scanned = await findEmailCandidates({
+		repoRoot: repoRootResult.value,
+		stateBranch: isFail(branchResult) ? undefined : branchResult.value,
+		names: [userName, gitEmail],
+		links: stateResult.value.emailLinks,
+	});
+
+	// Said rather than swallowed: with nothing linking itself, this list is the
+	// only way to claim an address, so a failed scan must not read as a history
+	// with nothing left in it.
+	if (isFail(scanned)) return scanned;
+
+	const candidates = offerableCandidates(scanned.value);
 
 	const likely = candidates.filter(candidate => candidate.looksLikeYours);
 	const offered = likely.length > 0 ? likely : candidates;

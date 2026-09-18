@@ -235,29 +235,30 @@ export const suggestOwnEmails = async (input: ToolInput = {}) => {
 
 	const {userId, userName} = actorResult.value;
 
-	const candidates = offerableCandidates(
-		await findEmailCandidates({
-			repoRoot: bootResult.value.repoRoot,
-			names: [userName, await readGitName(bootResult.value.repoRoot)],
-			links: stateResult.value.emailLinks,
-		}),
-	);
+	const scanned = await findEmailCandidates({
+		repoRoot: bootResult.value.repoRoot,
+		names: [userName, await readGitName(bootResult.value.repoRoot)],
+		links: stateResult.value.emailLinks,
+	});
+	if (isFail(scanned)) return scanned;
+
+	const candidates = offerableCandidates(scanned.value);
 
 	const likely = candidates.filter(candidate => candidate.looksLikeYours);
 
-	// Everything unclaimed rather than nothing, when no name matches: an empty
-	// list would be a confident "none of these are yours" about a history that
-	// may be almost entirely yours.
-	const offered = likely.length > 0 ? likely : candidates;
-
+	// Every unclaimed address, likely ones first, each carrying whether it looks
+	// like the caller's. Filtering here would decide presentation for every
+	// caller: a one-shot prompt wants the short list, but a panel somebody opened
+	// on purpose has to be able to show an old address whose name matches
+	// nothing they are called now — which is the case the whole feature is for.
 	return succeeded(
-		offered.length === 0
+		candidates.length === 0
 			? 'No unclaimed addresses in this history'
-			: `${offered.length} unclaimed address(es)${
+			: `${candidates.length} unclaimed address(es) in this history, ${
 					likely.length > 0
-						? ' that look like yours'
-						: ', none obviously yours — nothing matches your name, so these are simply everything unclaimed'
+						? `${likely.length} of which look like yours`
+						: 'none obviously yours'
 			  }. Show them to the user and link only the ones they confirm; each is a permanent event that replicates to every clone.`,
-		{contributor: userId, candidates: offered, guessed: likely.length > 0},
+		{contributor: userId, candidates, likely: likely.length},
 	);
 };
