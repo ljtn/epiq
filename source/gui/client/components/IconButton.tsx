@@ -19,6 +19,7 @@ export const IconButton = ({
 	onClick,
 	children,
 	label,
+	tone = 'quiet',
 	...rest
 }: {
 	// Read as the tooltip, and as the accessible name where nothing sets one:
@@ -34,12 +35,25 @@ export const IconButton = ({
 	// A figure after the icon — a count — which widens the square into a
 	// short pill of the same height and look.
 	label?: string;
+	/**
+	 * How loudly it wears being on.
+	 *
+	 * `quiet` is every icon control on the board: pressed, it keeps the hover
+	 * ground and takes the accent, which is enough for a switch among switches.
+	 *
+	 * `solid` fills with the accent instead and puts the panel's own near-black
+	 * on it. For the one control that has to be read from across a room rather
+	 * than found among its neighbours — the live half of the transport, which
+	 * says the board is moving on its own.
+	 */
+	tone?: 'quiet' | 'solid';
 } & Pick<
 	React.ButtonHTMLAttributes<HTMLButtonElement>,
 	'aria-label' | 'aria-haspopup' | 'aria-expanded'
 >) => {
 	const [hovered, setHovered] = useState(false);
 	const lit = pressed === true || (hovered && !disabled);
+	const filled = tone === 'solid' && pressed === true;
 
 	return (
 		<button
@@ -63,10 +77,18 @@ export const IconButton = ({
 				height: ICON_BUTTON_SIZE,
 				flexShrink: 0,
 				padding: label === undefined ? 0 : '0 6px 0 5px',
-				background: lit ? GUI_THEME.hover : 'transparent',
+				background: filled
+					? GUI_THEME.accent
+					: lit
+					? GUI_THEME.hover
+					: 'transparent',
 				border: 'none',
 				borderRadius: 4,
-				color: lit ? GUI_THEME.accent : GUI_THEME.dim,
+				color: filled
+					? GUI_THEME.panel
+					: lit
+					? GUI_THEME.accent
+					: GUI_THEME.dim,
 				cursor: disabled ? 'default' : 'pointer',
 				opacity: disabled ? 0.4 : 1,
 				fontFamily: 'inherit',
@@ -77,7 +99,14 @@ export const IconButton = ({
 		>
 			{children}
 			{label !== undefined && (
-				<span style={{fontSize: 11, fontVariantNumeric: 'tabular-nums'}}>
+				<span
+					style={{
+						fontSize: filled ? 10 : 11,
+						fontWeight: filled ? 700 : undefined,
+						letterSpacing: filled ? 0.6 : undefined,
+						fontVariantNumeric: 'tabular-nums',
+					}}
+				>
 					{label}
 				</span>
 			)}

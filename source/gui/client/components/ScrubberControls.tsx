@@ -17,7 +17,7 @@ import {AxisState} from '../lib/board-selection';
 import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
-import {ICON_BUTTON_SIZE, IconButton, ICON_SIZE} from './IconButton';
+import {IconButton, ICON_SIZE} from './IconButton';
 import {IconFunnel} from './IconFunnel';
 import {IconLive} from './IconLive';
 import {IconNow} from './IconNow';
@@ -620,53 +620,35 @@ export const LiveToggle = ({
 	title: string;
 	onChange: (next: boolean) => void;
 }) => (
-	// Its own button rather than an `IconButton` in a lit well, which is what
-	// this was and why it could not be read: a pressed `IconButton` paints its
-	// glyph in the accent, so on an accent ground the mark went to nothing.
-	// Owning the element puts one colour on the button and lets `currentColor`
-	// carry it into the glyph.
-	<button
-		type="button"
-		data-testid="live-toggle"
-		aria-label="Follow the newest event"
-		aria-pressed={following}
-		title={title}
-		disabled={disabled}
-		onClick={() => onChange(!following)}
+	// An `IconButton` in a well, exactly as the play button beside it is. This
+	// was a hand-rolled button once, for the accent fill a quiet one does not
+	// have — and paid for it three times over: it came out four pixels smaller
+	// than its neighbour, answered a pointer with no hover at all, and had to be
+	// given each of those back by hand. The fill is a tone on the shared
+	// component now, so everything else comes with it.
+	<span
 		style={{
 			...fixtureWellStyle,
-			display: 'inline-flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			gap: 6,
-			height: ICON_BUTTON_SIZE,
-			// Only while it is lit does the word appear, so an idle bar keeps the
-			// width of a button rather than of a label nobody needs yet.
-			width: following ? undefined : ICON_BUTTON_SIZE,
-			padding: following ? '0 9px 0 7px' : 0,
-			cursor: disabled ? 'default' : 'pointer',
-			opacity: disabled ? 0.4 : 1,
 			...(disabled
 				? {background: 'transparent', borderColor: 'transparent'}
-				: following
-				? {
-						background: GUI_THEME.accent,
-						borderColor: GUI_THEME.accent,
-						// The panel's own near-black on the accent: the darkest thing
-						// the theme has, against the brightest, because this is the one
-						// control that has to be read from across a room.
-						color: GUI_THEME.panel,
-				  }
-				: {color: GUI_THEME.dim}),
+				: {}),
 		}}
 	>
-		<IconLive size={ICON_SIZE} lit={following} />
-		{following && (
-			<span style={{fontSize: 10, fontWeight: 700, letterSpacing: 0.6}}>
-				LIVE
-			</span>
-		)}
-	</button>
+		<IconButton
+			testId="live-toggle"
+			title={title}
+			aria-label="Follow the newest event"
+			pressed={following}
+			disabled={disabled}
+			tone="solid"
+			// Only while it is lit does the word appear, so an idle bar keeps the
+			// width of a button rather than of a label nobody needs yet.
+			label={following ? 'LIVE' : undefined}
+			onClick={() => onChange(!following)}
+		>
+			<IconLive size={ICON_SIZE} lit={following} />
+		</IconButton>
+	</span>
 );
 
 // The transport, wherever it is put: among the controls while the bar is open,
