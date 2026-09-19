@@ -1872,9 +1872,11 @@ export const App = () => {
 							}}
 						>
 							{/* A board that moves on its own says so, in a band above the
-								    columns. In the board's own flow rather than over it: a
-								    banner that covers a lane is a banner that has to be got
-								    rid of. It names the way out, which is anything at all. */}
+							    columns. Two rules rather than a filled band: it has to be
+							    unmissable without becoming the brightest thing on screen,
+							    and the board below it is what the reader came for. In the
+							    board's own flow, since a banner that covers a lane is a
+							    banner that has to be got rid of. */}
 							{following && (
 								<div
 									data-testid="follow-banner"
@@ -1883,18 +1885,22 @@ export const App = () => {
 										alignItems: 'center',
 										justifyContent: 'center',
 										gap: 8,
-										padding: '5px 12px',
-										background: GUI_THEME.accent,
-										color: GUI_THEME.panel,
+										padding: '6px 12px',
+										borderTop: `1px solid ${GUI_THEME.accent}`,
+										borderBottom: `1px solid ${GUI_THEME.accent}`,
+										color: GUI_THEME.primary,
 										fontSize: 11,
 										letterSpacing: 0.3,
+										// The board is what is being clicked to get out of this;
+										// the band must never be what catches the click.
 										pointerEvents: 'none',
 									}}
 								>
-									<strong style={{letterSpacing: 0.6}}>LIVE</strong>
+									<strong style={{color: GUI_THEME.accent, letterSpacing: 0.6}}>
+										LIVE
+									</strong>
 									<span>
-										watching the log — the board opens each new event. Click
-										anything to take it back.
+										The board navigates on events. Click anywhere to opt out.
 									</span>
 								</div>
 							)}
