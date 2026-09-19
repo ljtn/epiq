@@ -563,7 +563,12 @@ export const ReturnToNowButton = ({
 			// The track beneath owns pointer capture and reads a press as the
 			// start of a scrub. Without this the button both returns to now and
 			// scrubs to where it sits, which is a press that undoes itself.
+			//
+			// And it reads a move as "say what is under the pointer", which put the
+			// timeline's own hint over the button instead of the button's. Both are
+			// stopped here, the way the pager arrows on this chart already do.
 			onPointerDown={event => event.stopPropagation()}
+			onMouseMove={event => event.stopPropagation()}
 			title="Put the board back at now"
 			// Named for the place, not the sentence: the tooltip carries the fuller
 			// wording, and every test that drives this button asks for "Now".
