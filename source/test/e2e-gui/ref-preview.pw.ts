@@ -23,7 +23,14 @@ const createTicket = async (
 	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page).toHaveURL(/\/issue\//);
+
+	// This ticket's own panel, not merely some `/issue/` url. Every test here
+	// creates two in a row, so on the second call the first ticket's url already
+	// satisfies a loose check — the edit below then opens on the *previous*
+	// panel, and the navigation lands a moment later and tears the editor down,
+	// leaving `getByRole('textbox')` waiting for a box that no longer exists.
+	// That is the whole of this file's place on the CI flaky list.
+	await expect(page.locator('aside')).toContainText(title);
 
 	await page.getByRole('button', {name: 'edit'}).first().click();
 	const box = page.getByRole('textbox').last();
