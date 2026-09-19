@@ -108,6 +108,14 @@ export type GuiEventTimelineEntry = {
 	// The ticket the event happened to, for the board's window filter. Null for
 	// board- and swimlane-level events.
 	issue: string | null;
+	// The board the event belongs to. Null means *every* board rather than none
+	// — a contributor claim decides who the commits on all of them belong to —
+	// so a reader filtering by board keeps the nulls.
+	//
+	// Carried because the client cannot otherwise tell a foreign line from a
+	// local one: under the All-boards toggle the window holds both, and a
+	// ticket's route is built from the board on screen.
+	board: string | null;
 	// The swimlane that ticket is in once the event has happened, and the one a
 	// move, close or reopen took it out of. Null where the event is under no
 	// ticket, and `laneBefore` null where the ticket stayed put.

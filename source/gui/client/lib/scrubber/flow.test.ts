@@ -36,6 +36,7 @@ const entry = (
 	tag: null,
 	assignee: null,
 	issue,
+	board: null,
 	lane,
 	laneBefore,
 	...extra,
