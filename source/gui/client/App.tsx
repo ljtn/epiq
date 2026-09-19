@@ -118,8 +118,10 @@ type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 // on every render.
 const EMPTY_COMMENTS: GuiState['commentsByIssueId'] = {};
 
-// The board's page margin, matching the left padding on <main>.
-const BOARD_GUTTER = 30;
+// The board's page margin: the gap before the first column and after the last.
+// One number for both, read by <main>'s padding and by the spacer that ends the
+// row, so the two edges cannot drift apart.
+const BOARD_GUTTER = 4;
 
 // How long the board has to be quiet before an open log asks for the window
 // again. A state broadcast is not a rare thing — a needle drag makes one every
@@ -1789,7 +1791,7 @@ export const App = () => {
 								setStatsSwimlaneId(null);
 							}}
 							style={{
-								padding: '0 0 0 30px',
+								padding: `0 0 0 ${BOARD_GUTTER}px`,
 								flex: 1,
 								// Beside the log it has to be able to give up the width the
 								// panel takes; a flex item's default floor is its content.
