@@ -21,7 +21,7 @@ const laneWithTickets = async (page: Page): Promise<Locator> => {
 // The suite shares one server, and a board left parked in the past never
 // finishes loading for the next test.
 const returnToLive = async (page: Page) => {
-	const resume = page.getByRole('button', {name: 'Resume', exact: true});
+	const resume = page.getByRole('button', {name: 'Now', exact: true});
 
 	if ((await resume.count()) > 0 && (await resume.isEnabled())) {
 		await resume.click();
@@ -111,7 +111,7 @@ test('no lane offers stats while the board is scrubbed', async ({
 	// assertion has to fail on an icon left behind, not on an empty board.
 	await page.mouse.click(box.x + box.width * 0.95, box.y + box.height / 2);
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 
 	await expect(

@@ -13,12 +13,15 @@
 import {useEffect} from 'react';
 import {useState} from 'react';
 
-// The two surfaces. The log is what the reader is watching; everything else is
-// the work. A click in the work says they have stopped watching — a card, a tab
-// in the ticket panel, a button in the diff panel. A click in the log, or on
-// the bar that holds the control itself, does not.
+// What a click can land on without ending the watch: the log, which is the
+// thing being watched, and the control itself, which would otherwise switch
+// following on and off in the same gesture.
+//
+// The rest of the bar is deliberately not exempt. Dragging the track or naming
+// a period takes the board somewhere, which is the reader steering — and the
+// banner promises "click anywhere", which a bar-shaped exception quietly breaks.
 const WATCHING_SURFACES =
-	'[data-testid="event-log"], [data-testid="time-scrubber"]';
+	'[data-testid="event-log"], [data-testid="live-toggle"]';
 
 export type FollowLog = {
 	following: boolean;
@@ -29,15 +32,27 @@ export type FollowLog = {
 
 export const useFollowLog = ({
 	logOpen,
+	live,
 	onOpenLog,
 }: {
 	logOpen: boolean;
+	// Whether the board is standing at the present. A checkout or a movie is
+	// somewhere else and drives the board itself.
+	live: boolean;
 	onOpenLog: () => void;
 }): FollowLog => {
 	// Not persisted, unlike the panel's field boxes. Those say what a line
 	// shows; this makes the board move on its own, and nobody would connect a
 	// board that starts navigating on open to a switch they left on yesterday.
 	const [following, setFollowingState] = useState(false);
+
+	// Leaving the present ends the watch outright, rather than leaving the flag
+	// on behind a control that has gone unavailable. Without this a scrub left
+	// the banner up and the board in the past — following nothing, and saying it
+	// was following.
+	useEffect(() => {
+		if (!live) setFollowingState(false);
+	}, [live]);
 
 	// On the document rather than on a container, because the panels are not
 	// inside the board: the ticket panel and the diff panel are siblings of

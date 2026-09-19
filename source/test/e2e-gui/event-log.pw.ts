@@ -385,7 +385,7 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 	if (!box) throw new Error('scrubber track is not on screen');
 	await page.mouse.click(box.x + box.width * 0.97, box.y + box.height / 2);
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeVisible();
 
 	await expect.poll(async () => (await scrolled()).overflow).toBeGreaterThan(0);
@@ -398,7 +398,7 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 		`document.querySelector('[data-testid="event-log-scroll"]').scrollTop = 0`,
 	);
 	await expect.poll(async () => (await scrolled()).top).toBe(0);
-	await page.getByRole('button', {name: 'Resume', exact: true}).click();
+	await page.getByRole('button', {name: 'Now', exact: true}).click();
 	await expect
 		.poll(async () => (await scrolled()).fromFoot)
 		.toBeLessThanOrEqual(1);

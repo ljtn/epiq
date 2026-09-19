@@ -9,9 +9,9 @@ import {expect} from './fixtures.js';
 // finishes loading for the next test.
 export const returnToLive = async (page: Page) => {
 	const exit = page.getByTestId('theatre-exit');
-	// The button carries the word "Resume" only while the board is in the past,
+	// The button carries the word "Now" only while the board is in the past,
 	// so its absence is what live looks like.
-	const resume = page.getByRole('button', {name: 'Resume', exact: true});
+	const resume = page.getByRole('button', {name: 'Now', exact: true});
 
 	if ((await exit.count()) > 0) await exit.click();
 

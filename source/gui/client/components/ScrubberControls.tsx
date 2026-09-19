@@ -385,49 +385,6 @@ export const ScrubberControls = ({
 			/> */}
 			</div>
 
-			{/* Present while live too, as an empty slot rather than a word: it sits
-		    at the end of the row and the transport now sits past it, so a label
-		    naming that end has nothing left to name. Held rather than unmounted
-		    so entering history never resizes the row.
-
-		    "Now" only over a window that runs up to the present, though. It sits
-		    Wearing what every other button on this row wears while it is one,
-		    and nothing at all while it is not: an empty slot with a panel and a
-		    border would read as a control that had stopped working. The width is
-		    held either way, so leaving history never shifts the row. */}
-			<button
-				onClick={onReturnToLive}
-				disabled={!isScrubbing}
-				title={isScrubbing ? 'Back to live' : undefined}
-				// Inverted while the board is in the past: bright ground, dark text.
-				// Every other control on this row is quiet chrome, and this one is
-				// the standing answer to "why is nothing I do landing?" — it has to
-				// be the thing you cannot miss.
-				style={{
-					...(isScrubbing
-						? {
-								...headerButtonStyle,
-								background: GUI_THEME.accent,
-								border: `1px solid ${GUI_THEME.accent}`,
-						  }
-						: {background: 'transparent', border: 'none'}),
-					color: isScrubbing ? GUI_THEME.bg : GUI_THEME.dim,
-					fontFamily: 'inherit',
-					fontSize: 11,
-					width: 60,
-					boxSizing: 'border-box',
-					display: 'inline-flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					padding: '2px 8px',
-					cursor: isScrubbing ? 'pointer' : 'default',
-					whiteSpace: 'nowrap',
-					flexShrink: 0,
-				}}
-			>
-				{isScrubbing ? 'Resume' : ''}
-			</button>
-
 			{/* Last on the row, past everything that draws or narrows the window:
 			    the transport is the one thing here that starts something.
 			    
@@ -437,6 +394,54 @@ export const ScrubberControls = ({
 			    the same question — the present or the past — and spacing them
 			    like two groups says they are two. */}
 			<span style={{display: 'inline-flex', alignItems: 'center', gap: 6}}>
+				{/* The third part of the transport, and it belongs with the other
+					    two: live rides the present, play walks through the past, and
+					    this is the way back from having walked. On its own further up
+					    the row it read as a narrowing, with the row's between-group gap
+					    stranding it from the controls it answers to.
+
+					    Held rather than unmounted, so entering history never resizes
+					    the row — but wearing nothing at all while it cannot be pressed,
+					    since an empty slot with a panel and a border reads as a control
+					    that has stopped working. */}
+				<button
+					onClick={onReturnToLive}
+					disabled={!isScrubbing}
+					// Deliberately not "live", which this row now spends on following.
+					// Two different things: this one puts the board back at the present,
+					// following makes it move when something happens there. A reader who
+					// pressed a second "live" expecting to start watching would be right
+					// to be annoyed.
+					title={isScrubbing ? 'Put the board back at now' : undefined}
+					// Inverted while the board is in the past: bright ground, dark text.
+					// Every other control on this row is quiet chrome, and this one is
+					// the standing answer to "why is nothing I do landing?" — it has to
+					// be the thing you cannot miss.
+					style={{
+						...(isScrubbing
+							? {
+									...headerButtonStyle,
+									background: GUI_THEME.accent,
+									border: `1px solid ${GUI_THEME.accent}`,
+							  }
+							: {background: 'transparent', border: 'none'}),
+						color: isScrubbing ? GUI_THEME.bg : GUI_THEME.dim,
+						fontFamily: 'inherit',
+						fontSize: 11,
+						width: 60,
+						boxSizing: 'border-box',
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						padding: '2px 8px',
+						cursor: isScrubbing ? 'pointer' : 'default',
+						whiteSpace: 'nowrap',
+						flexShrink: 0,
+					}}
+				>
+					{isScrubbing ? 'Now' : ''}
+				</button>
+
 				<LiveToggle
 					following={following}
 					disabled={!canFollow}

@@ -4,10 +4,10 @@ import {expect, test} from './fixtures.js';
 // The suite shares one server, and a board left parked in the past never
 // finishes loading for the next test.
 const returnToLive = async (page: Page) => {
-	const resume = page.getByRole('button', {name: 'Resume', exact: true});
+	const resume = page.getByRole('button', {name: 'Now', exact: true});
 	if ((await resume.count()) > 0 && (await resume.isEnabled())) {
 		await resume.click();
-		// Live is the absence of the Resume button: the slot holds its width but
+		// Live is the absence of the Now button: the slot holds its width but
 		// carries no word of its own.
 		await expect(resume).toHaveCount(0);
 	}
@@ -17,7 +17,7 @@ const returnToLive = async (page: Page) => {
 // has been fetched and paired, and until then the axis is a single instant —
 // a span of exactly 1, the floor buildAxis gives an empty one: a click
 // anywhere on it asks for now, which the server checks out, parking the
-// needle at the live end with Resume lit. Every test that clicks the track
+// needle at the live end with Now lit. Every test that clicks the track
 // for a moment waits for this first.
 const trackWithWindow = async (page: Page) => {
 	const track = page.getByTestId('scrubber-track');
@@ -69,7 +69,7 @@ test('a click on the track asks the server to scrub once', async ({
 
 	// Returning to live and clicking the same spot is a real request again, so
 	// the de-duplication must not outlive the scrub it belongs to.
-	const resumeButton = page.getByRole('button', {name: 'Resume', exact: true});
+	const resumeButton = page.getByRole('button', {name: 'Now', exact: true});
 	await resumeButton.click();
 	await expect(resumeButton).toHaveCount(0);
 
@@ -193,7 +193,7 @@ test('dragging the needle commits the position it ends on', async ({
 	// somewhere draggable first.
 	await page.mouse.click(box.x + box.width * 0.2, y);
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 
 	// That first scrub hands the board a new window, so the moments the track
@@ -213,7 +213,7 @@ test('dragging the needle commits the position it ends on', async ({
 	// The drag below runs rightwards from where the click parked the needle,
 	// so that is where the needle has to be before it is pressed — not merely
 	// somewhere still. Resume lighting up is not enough: the needle has been
-	// seen parked at the live end with Resume lit, and two reads of that stale
+	// seen parked at the live end with Now lit, and two reads of that stale
 	// position agreed with each other, so the press landed there and the drag
 	// ran leftwards. Pressing on yesterday's position also lands beside the
 	// grip, and a press off the needle drags out a range instead of moving it.
@@ -348,7 +348,7 @@ test('the needle is not drawn for a moment the window does not contain', async (
 	const y = box.y + box.height / 2;
 	await page.mouse.click(box.x + box.width * 0.2, y);
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 	await expect(needle).toBeVisible();
 	// And at the click, not at the live end: the zoom below is placed to the
@@ -380,7 +380,7 @@ test('the needle is not drawn for a moment the window does not contain', async (
 	// Still in history, so this is the needle standing down rather than the
 	// board quietly resuming.
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toBeEnabled();
 
 	await returnToLive(page);

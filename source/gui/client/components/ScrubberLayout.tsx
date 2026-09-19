@@ -306,7 +306,7 @@ export const ScrubberLayout = ({
 							)}
 
 							{/* Collapsed, the transport still has both halves: shutting the
-							    charts is not a reason to lose the way back to live. One
+							    charts is not a reason to lose the way back to the present. One
 							    group here too, at the same gap as the open row keeps. */}
 							<span
 								style={{display: 'inline-flex', alignItems: 'center', gap: 6}}
