@@ -82,6 +82,7 @@ export default function SettingsUI({width, height}: Props) {
 		isSetAutoSync,
 		isSetEmails,
 		claimedEmails,
+		emailSetupDeclined,
 	} = getUserSetupStatus();
 	const steps = [
 		{
@@ -113,7 +114,9 @@ export default function SettingsUI({width, height}: Props) {
 			// `on` — and this one is addresses, which run to 254 characters each
 			// and come in pairs. Unbounded it wraps the row out of the box the
 			// setup screen draws it in.
-			value: claimedAddresses(claimedEmails, width),
+			value: emailSetupDeclined
+				? 'declined'
+				: claimedAddresses(claimedEmails, width),
 			// Last, because it is the only step that needs the board: it offers the
 			// addresses this repository's own history contains.
 			message:

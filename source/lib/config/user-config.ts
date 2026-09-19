@@ -34,6 +34,13 @@ const EpiqConfigSchema = z
 		// history — declining one says nothing about the next. Here rather than
 		// on the board, because a refusal must not replicate to everybody else's
 		// clone.
+		//
+		// The `emailSetup` flag this replaces is dropped rather than migrated: it
+		// was a day old, and its two values do not carry over. A claim needs no
+		// migration because it was always on the board, and a decline was global
+		// where this is per board — mapping one to "the board you happen to be
+		// in" would silence a question nobody answered. Anybody who declined
+		// under it is asked once more, per board.
 		declinedEmailBoards: z.array(z.string()).optional(),
 	})
 	.partial();
