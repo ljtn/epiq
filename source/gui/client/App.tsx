@@ -107,6 +107,7 @@ import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useContributorEmails} from './lib/use-contributor-emails';
+import {usePersonalStats} from './lib/use-personal-stats';
 import {useSyncSettings} from './lib/use-sync-settings';
 import {IdentityPanel} from './components/IdentityPanel';
 import {useIssueMutations} from './lib/use-issue-mutations';
@@ -431,9 +432,16 @@ export const App = () => {
 		open: identityOpen,
 		sendRaw,
 	});
-	// What this machine has been asked to do on its own, fetched on opening
-	// the panel that now offers to change it.
+	// The other two things the panel answers for: what this machine has been
+	// asked to do on its own, and what the viewer has done here. Both fetched
+	// on opening it, and the totals again after a claim — which is what moves
+	// the commit figure without the board changing at all.
 	const syncSettings = useSyncSettings({open: identityOpen, sendRaw});
+	const personalStats = usePersonalStats({
+		open: identityOpen,
+		changed: contributorEmails.changed,
+		sendRaw,
+	});
 
 	// The one view that costs a git scan of every commit a ticket owns, so it
 	// is asked for when it is opened rather than with the rest of the ticket.
@@ -901,6 +909,7 @@ export const App = () => {
 
 		contributorEmails.onMessage(message);
 		syncSettings.onMessage(message);
+		personalStats.onMessage(message);
 
 		if (message.type === 'contributors') {
 			const next = getResultValue<GuiContributor[]>(message.payload);
@@ -1785,6 +1794,7 @@ export const App = () => {
 								panel: (
 									<IdentityPanel
 										state={contributorEmails}
+										stats={personalStats}
 										settings={syncSettings}
 										me={state?.user ?? null}
 										onLink={contributorEmails.link}

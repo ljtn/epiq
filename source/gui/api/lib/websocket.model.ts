@@ -116,6 +116,10 @@ export type GuiMessage =
 			type: 'email:unlink';
 			payload: {email: string; contributorId?: string};
 	  }
+	// The viewer's own totals, behind the same avatar. Asked for when the panel
+	// opens rather than ridden along on the board's state: one of the four
+	// figures is a walk over the repository's git history.
+	| {type: 'me:stats:get'}
 	// This machine's own preferences, not the board's: they live in
 	// `~/.epiq/config.json` and reach no other clone. Which is why neither is a
 	// mutating message — there is no event to refuse while history is being

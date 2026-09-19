@@ -216,6 +216,50 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 	}
 });
 
+// Four figures about the person reading, not about a ticket or a lane.
+//
+// Measured as a difference rather than against a number. The seeded board
+// carries whatever the seed and the files before this one left on it, so the
+// only honest assertion is that filing a ticket moves the figure that counts
+// tickets — which is also the one that proves the row is counting rather than
+// drawing whatever it was handed.
+const ticketsOpened = async (page: Page): Promise<number> => {
+	const row = page
+		.getByTestId('identity-stats')
+		.locator('div', {hasText: /^tickets opened/})
+		.last();
+
+	await expect(row).toBeVisible();
+
+	return Number((await row.textContent())?.replace(/\D+/g, ''));
+};
+
+test('the panel counts your own tickets, and the count follows the board', async ({
+	page,
+	pageErrors,
+}) => {
+	const panel = await openPanel(page);
+	await expect(panel.getByTestId('identity-stats')).toContainText('commits');
+	await expect(panel.getByTestId('identity-stats')).toContainText('comments');
+
+	// Somebody has been here, so the board knows when they arrived.
+	await expect(panel.getByTestId('identity-stats')).not.toContainText(
+		'joined not yet',
+	);
+
+	const before = await ticketsOpened(page);
+
+	await page.keyboard.press('Escape');
+	await addTicket(page, `Counted ${Date.now()}`);
+
+	// Re-opening is what asks again: the totals are fetched on opening the
+	// panel, not pushed with every board broadcast.
+	await openPanel(page);
+	expect(await ticketsOpened(page)).toBe(before + 1);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('claiming an address makes its commits read as you, and unlinking undoes it', async ({
 	page,
 	repoRoot,

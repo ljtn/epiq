@@ -22,6 +22,7 @@ import {
 	getGuiState,
 	getIssueDescription,
 	getIssueHistory,
+	getPersonalStats,
 	listIssues,
 	moveIssue,
 	moveSwimlane,
@@ -325,6 +326,13 @@ export const setupWebsocket = (
 						`${type}:result`,
 						result,
 					);
+				}
+
+				if (type === 'me:stats:get') {
+					return sendSocket(socket, {
+						type: 'me:stats',
+						payload: await getPersonalStats({repoRoot}),
+					});
 				}
 
 				if (type === 'settings:get') {
