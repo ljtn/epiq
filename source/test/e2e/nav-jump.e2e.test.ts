@@ -5,6 +5,8 @@ import {
 	ENTER,
 	SHIFT_ARROW_DOWN,
 	SHIFT_ARROW_UP,
+	commandLineIsIdle,
+	commandLineShows,
 	setupTui,
 } from './e2e.helper.js';
 
@@ -22,6 +24,22 @@ const itemTitle = (index: number) => `Item ${String(index).padStart(2, '0')}`;
 // which the terminal buffer does not hand back.
 const selects = (title: string) => (frame: string) =>
 	frame.includes(`▸ ${title}`);
+
+// A board this size is seeded one command at a time, and a submit can be
+// dropped when the container suite runs under load — the command then sits
+// typed in a line nothing is waiting on. Re-sending Enter is safe because it
+// only happens while that command is still on screen.
+const fileIssue = async (tui: Tui, title: string) => {
+	const command = `:new issue ${title}`;
+	await typeCommand(tui, command);
+
+	try {
+		await tui.waitFor(commandLineIsIdle, 5_000);
+	} catch {
+		if (commandLineShows(command.slice(1))(tui.output())) tui.input(ENTER);
+		await tui.waitFor(commandLineIsIdle, 20_000);
+	}
+};
 
 const press = async (tui: Tui, keys: string, lands: string) => {
 	tui.input(keys);
@@ -62,8 +80,8 @@ describe('TUI navigation jump e2e', () => {
 				await tui.waitFor('Todo (0)', 20_000);
 
 				for (let index = 1; index <= ITEM_COUNT; index++) {
-					await typeCommand(tui, `:new issue ${itemTitle(index)}`);
-					await tui.waitFor(`Todo (${index})`, 10_000);
+					await fileIssue(tui, itemTitle(index));
+					await tui.waitFor(`Todo (${index})`, 20_000);
 				}
 
 				// The last issue filed is the selected one.
@@ -106,8 +124,8 @@ describe('TUI navigation jump e2e', () => {
 				await tui.waitFor('Todo (0)', 20_000);
 
 				for (let index = 1; index <= 6; index++) {
-					await typeCommand(tui, `:new issue ${itemTitle(index)}`);
-					await tui.waitFor(`Todo (${index})`, 10_000);
+					await fileIssue(tui, itemTitle(index));
+					await tui.waitFor(`Todo (${index})`, 20_000);
 				}
 
 				await tui.waitFor(selects('Item 06'), 10_000);
