@@ -358,6 +358,8 @@ export const getCmdModifiers = (
 			'confirm',
 			'next',
 			'previous',
+			'jump-next',
+			'jump-previous',
 			'to-next',
 			'to-previous',
 			'cancel',

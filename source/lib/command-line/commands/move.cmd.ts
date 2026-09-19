@@ -1,5 +1,8 @@
 import {ulid} from 'ulid';
-import {navigationUtils} from '../../actions/default/navigation-action-utils.js';
+import {
+	NAV_JUMP_SIZE,
+	navigationUtils,
+} from '../../actions/default/navigation-action-utils.js';
 import {
 	getMovePendingState,
 	moveChildWithinParent,
@@ -117,6 +120,14 @@ export const moveCommand = async (): Promise<Result> => {
 
 	if (modifier === 'previous') {
 		return applyMovePreview(moveChildWithinParent(-1));
+	}
+
+	if (modifier === 'jump-next') {
+		return applyMovePreview(moveChildWithinParent(1, NAV_JUMP_SIZE));
+	}
+
+	if (modifier === 'jump-previous') {
+		return applyMovePreview(moveChildWithinParent(-1, NAV_JUMP_SIZE));
 	}
 
 	if (modifier === 'to-next') {

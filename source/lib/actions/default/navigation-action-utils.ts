@@ -2,6 +2,11 @@ import {AnyContext} from '../../model/context.model.js';
 import {NavNode} from '../../model/navigation-node.model.js';
 import {getRenderedChildren, getState, patchState} from '../../state/state.js';
 
+// How far a jump moves. One multiplier rather than several: the extremes are
+// reached by holding the key, since a jump stops at the end rather than
+// wrapping.
+export const NAV_JUMP_SIZE = 5;
+
 export const navigationUtils = {
 	exit() {
 		process.exit(0);
@@ -54,6 +59,9 @@ export const navigationUtils = {
 	navigateToNextItem: () => navigateByOffset(1),
 	navigateToPreviousItem: () => navigateByOffset(-1),
 
+	jumpToNextItem: () => navigateByJump(NAV_JUMP_SIZE),
+	jumpToPreviousItem: () => navigateByJump(-NAV_JUMP_SIZE),
+
 	navigateToNextContainer: () => navigateToSiblingContainer(1),
 	navigateToPreviousContainer: () => navigateToSiblingContainer(-1),
 
@@ -78,6 +86,20 @@ const navigateByOffset = (offset: number) => {
 
 	const base = Math.max(0, selectedIndex);
 	const newIndex = (base + offset + len) % len;
+
+	navigationUtils.navigate({selectedIndex: newIndex, contextNode});
+};
+
+// A jump clamps where a single step wraps: running off the bottom and landing
+// four from the top reads as a glitch, and stopping at the last item is what
+// makes holding the key a way to reach the end.
+const navigateByJump = (offset: number) => {
+	const {selectedIndex, contextNode} = getState();
+	const len = getRenderedChildren(contextNode.id).length;
+	if (len === 0) return;
+
+	const base = Math.max(0, selectedIndex);
+	const newIndex = Math.min(Math.max(base + offset, 0), len - 1);
 
 	navigationUtils.navigate({selectedIndex: newIndex, contextNode});
 };

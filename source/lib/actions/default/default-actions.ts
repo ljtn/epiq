@@ -282,7 +282,7 @@ export const DefaultActions: ActionEntry[] = [
 	{
 		intent: Intent.NavPreviousItem,
 		mode: Mode.DEFAULT,
-		description: '[arrows/hjkl] navigate',
+		description: '[arrows/hjkl] navigate (shift x5)',
 		action: () => {
 			navigationUtils.navigateToPreviousItem();
 			return succeeded('Navigating to previous item', null);
@@ -294,6 +294,22 @@ export const DefaultActions: ActionEntry[] = [
 		action: () => {
 			navigationUtils.navigateToNextItem();
 			return succeeded('Navigating to next item', null);
+		},
+	},
+	{
+		intent: Intent.NavPreviousItemJump,
+		mode: Mode.DEFAULT,
+		action: () => {
+			navigationUtils.jumpToPreviousItem();
+			return succeeded('Jumping to previous item', null);
+		},
+	},
+	{
+		intent: Intent.NavNextItemJump,
+		mode: Mode.DEFAULT,
+		action: () => {
+			navigationUtils.jumpToNextItem();
+			return succeeded('Jumping to next item', null);
 		},
 	},
 	{

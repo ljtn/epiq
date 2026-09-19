@@ -14,6 +14,9 @@ export const ARROW_DOWN = '\x1B\x5B\x42';
 export const ARROW_UP = '\x1B\x5B\x41';
 export const ARROW_RIGHT = '\x1B\x5B\x43';
 export const ARROW_LEFT = '\x1B\x5B\x44';
+// `1;2` is the shift modifier of the CSI sequence the plain arrows send.
+export const SHIFT_ARROW_DOWN = '\x1B\x5B\x31\x3B\x32\x42';
+export const SHIFT_ARROW_UP = '\x1B\x5B\x31\x3B\x32\x41';
 
 const MOVE_CURSOR_HOME = '\x1B[H';
 const CLEAR_SCREEN = '\x1B[2J';
