@@ -3,7 +3,7 @@ import {ulid} from 'ulid';
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
 import {AppEvent} from '../lib/board/board-events.model.js';
 import {emailsOf} from '../lib/model/email-link.js';
-import {isFail, succeeded} from '../lib/model/result-types.js';
+import {failed, isFail, succeeded} from '../lib/model/result-types.js';
 import {resetEmailScanCacheForTests} from '../lib/repository/email-candidates.js';
 import {getOfferedEmails} from '../lib/state/email-offers.state.js';
 import {patchSettingsState} from '../lib/state/settings.state.js';
@@ -30,15 +30,24 @@ vi.mock('../lib/storage/paths.js', async importOriginal => ({
 }));
 const BOARD = 'BOARD-UNDER-TEST';
 
+// Switched off for the case that has no board, so the "saying no always works"
+// invariant is actually exercised rather than assumed.
+let boardExists = true;
+
 vi.mock('../lib/project-setup/project-setup.js', async importOriginal => ({
 	...(await importOriginal<
 		typeof import('../lib/project-setup/project-setup.js')
 	>()),
-	readProjectId: vi.fn(() => succeeded('Read', BOARD)),
+	readProjectId: vi.fn(() =>
+		boardExists ? succeeded('Read', BOARD) : failed('No project'),
+	),
 }));
 
 vi.mock('../lib/config/user-config.js', () => ({
 	setConfig: vi.fn(() => succeeded('Wrote', null)),
+	// The decline list is rebuilt from disk rather than from this process's
+	// boot-time copy, so the command reads it back.
+	readEpiqConfig: vi.fn(() => succeeded('Read', {})),
 }));
 vi.mock('../lib/board/board-log.js', async importOriginal => ({
 	...(await importOriginal<typeof import('../lib/board/board-log.js')>()),
@@ -50,7 +59,9 @@ vi.mock('../lib/state/cmd.state.js', () => ({
 }));
 
 const {execGitAllowFail} = await import('../git/git-utils.js');
-const {setConfig} = await import('../lib/config/user-config.js');
+const {readEpiqConfig, setConfig} = await import(
+	'../lib/config/user-config.js'
+);
 const {materializeAndPersistAll} = await import('../lib/board/board-log.js');
 const {getCmdState} = await import('../lib/state/cmd.state.js');
 const {setEmailsCommand} = await import(
@@ -82,6 +93,12 @@ const board = (extra: AppEvent[] = []) => {
 	if (isFail(result)) throw new Error(result.message);
 };
 
+// A board on which ALICE already claims an address, which is what makes
+// `offerableCandidates` come back empty for a reason other than an empty
+// history.
+const claimed = (email: string) =>
+	board([event('link.contributor.email', {contributor: ALICE, email})]);
+
 const history = (rows: [string, string][]) =>
 	vi.mocked(execGitAllowFail).mockResolvedValue({
 		stdout: rows.map(([name, email]) => `${name}${FIELD}${email}`).join('\n'),
@@ -104,6 +121,8 @@ describe(':config emails', () => {
 		vi.mocked(materializeAndPersistAll).mockReturnValue(
 			succeeded('Wrote', []) as never,
 		);
+		boardExists = true;
+		vi.mocked(readEpiqConfig).mockReturnValue(succeeded('Read', {}));
 		patchSettingsState({
 			userId: ALICE,
 			userName: 'jola',
@@ -227,14 +246,20 @@ describe(':config emails', () => {
 		});
 
 		// Per board, so a refusal in one repository says nothing about the next.
-		it('keeps the boards already declined', async () => {
-			patchSettingsState({declinedEmailBoards: ['ANOTHER-BOARD']});
+		// Read back from disk, not merged into this process's copy: another epiq
+		// running in another repository may have declined since this one booted,
+		// and `setConfig` merges keys rather than the contents of the array.
+		it('keeps the boards declined by another instance since boot', async () => {
+			vi.mocked(readEpiqConfig).mockReturnValue(
+				succeeded('Read', {declinedEmailBoards: ['DECLINED-ELSEWHERE']}),
+			);
+			patchSettingsState({declinedEmailBoards: []});
 			typed('none');
 
 			await setEmailsCommand();
 
 			expect(setConfig).toHaveBeenCalledWith({
-				declinedEmailBoards: ['ANOTHER-BOARD', BOARD],
+				declinedEmailBoards: ['DECLINED-ELSEWHERE', BOARD],
 			});
 		});
 
@@ -258,6 +283,17 @@ describe(':config emails', () => {
 			expect(setConfig).toHaveBeenCalledWith({
 				declinedEmailBoards: [BOARD],
 			});
+		});
+
+		// There is nothing to key a refusal on outside a project, and nothing
+		// asking either — the step is already answered without one. Saying no
+		// must still succeed rather than report a failure at somebody.
+		it('succeeds outside a project, recording nothing', async () => {
+			boardExists = false;
+			typed('none');
+
+			expect(isFail(await setEmailsCommand())).toBe(false);
+			expect(setConfig).not.toHaveBeenCalled();
 		});
 
 		it('works when git cannot read the history', async () => {
@@ -349,6 +385,20 @@ describe(':config emails', () => {
 			expect(setConfig).toHaveBeenCalledWith({
 				declinedEmailBoards: [BOARD],
 			});
+		});
+
+		// `offerableCandidates` drops every claimed address, including the
+		// asker's own, so this path is reached by any later `:config emails`.
+		// Recording a refusal there would keep the step quiet even once they
+		// unlinked, which is the one case it exists to notice.
+		it('records nothing when the list is empty because they claimed it', async () => {
+			claimed('jola@example.com');
+			history([['Jonatan Lampa', 'jola@example.com']]);
+			typed('');
+
+			await setEmailsCommand();
+
+			expect(setConfig).not.toHaveBeenCalled();
 		});
 	});
 

@@ -16,6 +16,8 @@ export const getUserSetupStatus = (): {
 	isSetAutoSync: boolean;
 	isSetEmails: boolean;
 	claimedEmails: string[];
+	/** So the screen can tell "claimed nothing" from "refused". */
+	emailSetupDeclined: boolean;
 	userName: string | null;
 	preferredEditor: string | null;
 	autoSync: boolean | null;
@@ -40,8 +42,13 @@ export const getUserSetupStatus = (): {
 	// one offers the addresses in a repository's own history, so it has nothing
 	// to show until `:init` has run. It is also what makes the step appear again
 	// for somebody already set up, which is the whole prompt.
+	// Claims first, because it costs no disk read and is the answer for anybody
+	// already set up. The two below each read `.epiq/project.json`.
+	const claimedEmails = claimedEmailsForUser();
+	const declined = claimedEmails.length === 0 && isEmailSetupDeclined();
+
 	const isSetEmails =
-		hasClaimedAnEmail() || isEmailSetupDeclined() || !isRepositoryInitialized();
+		claimedEmails.length > 0 || declined || !isRepositoryInitialized();
 
 	return {
 		isSetupDone:
@@ -53,7 +60,8 @@ export const getUserSetupStatus = (): {
 		autoSync: settings.autoSync === undefined ? null : settings.autoSync,
 		isSetAutoSync: isSetAutoSync,
 		isSetEmails,
-		claimedEmails: claimedEmailsForUser(),
+		claimedEmails,
+		emailSetupDeclined: declined,
 	};
 };
 

@@ -17,8 +17,8 @@ import {
 	patchSettingsState,
 } from '../../state/settings.state.js';
 import {getSafeState, patchState} from '../../state/state.js';
-import {setConfig} from '../../config/user-config.js';
-import {currentBoardId} from '../../config/setup-utils.js';
+import {readEpiqConfig, setConfig} from '../../config/user-config.js';
+import {currentBoardId, hasClaimedAnEmail} from '../../config/setup-utils.js';
 import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
 
 /**
@@ -30,16 +30,30 @@ import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
  */
 const declineEmailSetup = (): Result<null> => {
 	const boardId = currentBoardId();
-	if (!boardId) return failed('No board here to answer for');
 
-	const declined = [
-		...new Set([...getSettingsState().declinedEmailBoards, boardId]),
-	];
+	// Outside a board there is nothing to record and nothing asking: without a
+	// project `isSetEmails` is already true. Saying no still succeeds, which is
+	// the invariant this command opens with — it is the answer somebody gives
+	// precisely when the rest of this is not working for them.
+	if (!boardId) return succeeded('Nothing here to decline', null);
+
+	// Read back from disk rather than added to this process's boot-time copy.
+	// Two epiq instances in two repositories both hold a list from their own
+	// boot, and merging into a stale one drops whatever the other declined
+	// since — `setConfig` merges keys, not the contents of this array.
+	const stored = readEpiqConfig();
+	const onDisk = isFail(stored) ? [] : stored.value.declinedEmailBoards ?? [];
+
+	const declined = [...new Set([...onDisk, boardId])];
 
 	const persisted = setConfig({declinedEmailBoards: declined});
 	if (isFail(persisted)) return failed(persisted.message);
 
-	patchSettingsState({declinedEmailBoards: declined});
+	patchSettingsState({
+		declinedEmailBoards: [
+			...new Set([...(getSettingsState().declinedEmailBoards ?? []), boardId]),
+		],
+	});
 
 	return succeeded('Declined', null);
 };
@@ -103,12 +117,19 @@ export const setEmailsCommand = async () => {
 
 	setOfferedEmails(offered.map(candidate => candidate.email));
 
-	// Recorded as a decline rather than left open: there is nothing here to
-	// claim, so the step has no answer to wait for, and the alternative is a
-	// git scan inside the synchronous check that draws the setup screen.
+	// Nothing here to claim, so the step has no answer to wait for and is
+	// recorded as declined — the alternative is a git scan inside the
+	// synchronous check that draws the setup screen.
+	//
+	// Only for somebody who has claimed nothing. `offerableCandidates` drops
+	// every address anyone already claims, including their own, so after a
+	// claim every later `:config emails` reaches here — and recording a refusal
+	// then would keep the step silent even once they unlinked again.
 	if (offered.length === 0) {
-		const declined = declineEmailSetup();
-		if (isFail(declined)) return declined;
+		if (!hasClaimedAnEmail()) {
+			const declined = declineEmailSetup();
+			if (isFail(declined)) return declined;
+		}
 
 		return succeeded('No unclaimed addresses in this history.', null);
 	}

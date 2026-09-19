@@ -15,15 +15,37 @@ vi.mock('../lib/state/state.js', () => ({
 	}),
 }));
 
+// A machine that has answered every setup step, including the claiming one —
+// otherwise `getAvailableBaseCommands` returns from its unfinished-setup branch
+// and every assertion below passes without reaching the `:open` gate at all.
 vi.mock('../lib/state/settings.state.js', () => ({
 	getSettingsState: () => ({
 		preferredEditor: 'vim',
 		autoSync: true,
 		userName: 'jola',
 		userId: 'USER',
-		declinedEmailBoards: [],
+		declinedEmailBoards: ['BOARD'],
 	}),
 }));
+
+vi.mock('../lib/project-setup/project-setup.js', async importOriginal => {
+	const actual = await importOriginal<
+		typeof import('../lib/project-setup/project-setup.js')
+	>();
+
+	return {
+		...actual,
+		// Only this directory's id. The `:open` completions read genuine project
+		// files out of temp directories and key them by their own ids, so every
+		// other path has to go through untouched — faking them all collapsed two
+		// recent projects into one.
+		readProjectId: vi.fn((root: string) =>
+			root === process.cwd()
+				? succeeded('Read', 'BOARD')
+				: actual.readProjectId(root),
+		),
+	};
+});
 
 let initialized = false;
 
@@ -117,7 +139,13 @@ describe(':open availability', () => {
 	it('is not offered inside a project', () => {
 		initialized = true;
 
-		expect(getCmdModifiers(CmdKeywords.NONE)).not.toContain(CmdKeywords.OPEN);
+		// Exactly empty, not merely lacking `:open`. Each branch of
+		// `getAvailableBaseCommands` returns a different list — unfinished setup
+		// gives `[help, config]`, no project gives `[help, init, open]` — and a
+		// bare `not.toContain` passes on all three, which is how this read the
+		// unfinished-setup list for a while without saying so. Empty is what the
+		// last branch gives for a state with no breadcrumb and no selection.
+		expect(getCmdModifiers(CmdKeywords.NONE)).toEqual([]);
 	});
 
 	it('maps the keyword to its intent', () => {
