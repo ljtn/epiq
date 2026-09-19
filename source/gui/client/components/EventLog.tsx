@@ -69,7 +69,6 @@ import {PANE_HEADER_INSET} from '../lib/pane-header.style';
 import {Checkbox} from './Checkbox';
 import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
-import {FollowMark, followStep, NOT_FOLLOWING} from '../lib/follow-log';
 import {
 	LogDestination,
 	linkedRowFrom,
@@ -389,7 +388,8 @@ const EventLogPanel = ({
 	bottomClearance,
 	onOpen,
 	at = null,
-	following = false,
+	followedLine = null,
+	onPinnedChange,
 	onHoverEvent,
 	layout = 'panel',
 	onPopOut,
@@ -406,9 +406,14 @@ const EventLogPanel = ({
 	// Where the reader is, so following can tell "already there" from "went
 	// there once". Null where nothing is open.
 	at?: LogDestination | null;
-	// Whether the board is being followed. Owned above: the bar draws the
-	// control and the board turns it off when the reader reaches for it.
-	following?: boolean;
+	// The line the board is standing on while following, for the mark down its
+	// row. Decided on the board's side — this panel is drawn in two places and
+	// must not be the thing that decides.
+	followedLine?: string | null;
+	// The pane is at its foot. Reported up rather than kept here, because the
+	// board is what runs the follow and a popped-out panel has to be able to
+	// post the same answer back across the window boundary.
+	onPinnedChange?: (pinned: boolean) => void;
 	// The event under the pointer, or null off the rows: what the chart lights
 	// up while a row is hovered.
 	onHoverEvent?: (eventId: string | null) => void;
@@ -488,12 +493,10 @@ const EventLogPanel = ({
 		pinnedRef.current =
 			pane.scrollHeight - pane.scrollTop - pane.clientHeight <= PINNED_SLACK_PX;
 
-		// Returning to the foot is what resumes a following the reader paused by
-		// scrolling back. The pin itself is a ref — it must not re-render the
-		// pane on every scroll event — so the moment it turns back on is
-		// published as a count the effect below can depend on. Without this,
-		// following stayed dormant until the *next* line happened to arrive.
-		if (!wasPinned && pinnedRef.current) setPinnedAgain(count => count + 1);
+		// Only the changes, not every scroll event: the board re-runs its follow
+		// on this, and returning to the foot is what resumes one the reader
+		// paused by reading back.
+		if (wasPinned !== pinnedRef.current) onPinnedChange?.(pinnedRef.current);
 	};
 
 	// Measured off the pane's own height, which does not depend on what is in it
@@ -612,69 +615,6 @@ const EventLogPanel = ({
 		// rebuilt every render: the crawl moves when the log does, not when the
 		// board beside it repaints.
 	}, [newestId, animate]);
-
-	// Bumped when the pane returns to its foot, so a following that stood down
-	// while the reader read back picks up again on the way down rather than on
-	// the next arrival.
-	const [pinnedAgain, setPinnedAgain] = useState(0);
-
-	// Which line the board was last moved by, for the mark down its lead edge.
-	// Cleared when following stops, because the mark means "this is where the
-	// board is standing" rather than "this happened recently".
-	const [followedLine, setFollowedLine] = useState<string | null>(null);
-
-	useEffect(() => {
-		if (!following) setFollowedLine(null);
-	}, [following]);
-
-	// The last line following acted on. The decision itself is `followStep`, so
-	// the cases it has to get right — a burst, a line that leads nowhere, the
-	// reader already being there — are testable without putting the panel into
-	// each of them.
-	const followedRef = useRef<FollowMark>(NOT_FOLLOWING);
-
-	// Read by the effect below but deliberately not listed as its dependencies.
-	// `onOpen` is rebuilt on every render of the board, and `entries` on every
-	// slice — depending on either would re-run the effect on renders where no
-	// line arrived, and the first such re-run that found the pane pinned would
-	// navigate with nothing new to show. The crawl effect beside this one keys
-	// on the newest line for the same reason.
-	const followSourcesRef = useRef({entries, onOpen, at});
-	followSourcesRef.current = {entries, onOpen, at};
-
-	useEffect(() => {
-		if (!following) {
-			followedRef.current = NOT_FOLLOWING;
-			return;
-		}
-
-		// Only while the board is standing at the present. A checkout re-slices
-		// the log to the window it scrubbed to and a movie grows it frame by
-		// frame, so the newest line moves wholesale in both — and neither is a
-		// line arriving.
-		if (!live) return;
-
-		const sources = followSourcesRef.current;
-
-		const step = followStep({
-			entries: sources.entries,
-			newestId,
-			mark: followedRef.current,
-			pinned: pinnedRef.current,
-			at: sources.at,
-		});
-
-		followedRef.current = step.mark;
-
-		// The line that moved the board, marked so the reader can see what they
-		// were brought here by. Set even when nothing opened, since standing
-		// still on a line already open is still standing on it.
-		if (step.mark.line !== null) setFollowedLine(step.mark.line);
-
-		// Replaced rather than pushed: an hour of following would otherwise leave
-		// Back walking the reader through somebody else's afternoon.
-		if (step.open) sources.onOpen(step.open, {replace: true});
-	}, [following, live, newestId, pinnedAgain]);
 
 	const markRow = (target: EventTarget | null) => {
 		const arrow = arrowRef.current;
@@ -888,7 +828,7 @@ const EventLogPanel = ({
 												key={entry.id}
 												entry={entry}
 												showLabel={fields.label}
-												followed={following && entry.id === followedLine}
+												followed={entry.id === followedLine}
 												lane={
 													split
 														? laneIndexOf(entry, lanes, laneIndexes)

@@ -120,3 +120,67 @@ test('a ticket filed by somebody else opens on a followed board', async ({
 		fs.writeFileSync(configPath, original);
 	}
 });
+
+// The second-monitor case: the log on a screen of its own, opening each ticket
+// on the board as it arrives. Following is decided on the board's side for
+// both panels, so popping the log out must not stop it — it did, before
+// `VC8X5Q5`, because the effect lived in whichever panel happened to be drawn.
+test('a popped-out log keeps following, and moves the board', async ({
+	page,
+	appUrl,
+	pageErrors,
+}, testInfo) => {
+	const configPath = path.join(
+		readHandoff(testInfo.parallelIndex).globalDir,
+		'config.json',
+	);
+	const original = fs.readFileSync(configPath, 'utf8');
+
+	try {
+		await page.goto(appUrl);
+		await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+		await page.getByTestId('add-issue').first().click();
+		await page.getByPlaceholder('issue name').fill('Read while popped out');
+		await page.getByPlaceholder('issue name').press('Enter');
+
+		const ticketPanel = page
+			.locator('aside')
+			.filter({hasNot: page.getByTestId('event-log-header')});
+		await expect(ticketPanel).toContainText('Read while popped out');
+
+		const live = page.getByTestId('live-toggle');
+		await live.click();
+		await expect(live).toHaveAttribute('aria-pressed', 'true');
+
+		// Out it goes. The docked panel is gone from this document entirely.
+		const opened = page.context().waitForEvent('page');
+		await page.getByTestId('log-pop-out').click();
+		const popout = await opened;
+		await expect(popout.getByTestId('event-log')).toBeVisible();
+
+		// Following survives the move: the control is still lit on the board.
+		await expect(live).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.getByTestId('follow-banner')).toBeVisible();
+
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify(
+				{...JSON.parse(original), autoSync: true, autoSyncDebounceMs: 1000},
+				null,
+				2,
+			),
+		);
+
+		const filed = `Filed while popped out ${Date.now()}`;
+		await fileFromElsewhere(page, filed);
+
+		// The board moves, though the log doing the following is elsewhere.
+		await expect(ticketPanel).toContainText(filed, {timeout: 20_000});
+
+		expect(pageErrors).toEqual([]);
+		await popout.close();
+	} finally {
+		fs.writeFileSync(configPath, original);
+	}
+});
