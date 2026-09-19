@@ -1279,11 +1279,22 @@ export const App = () => {
 		setHistoryTick(tick => tick + 1);
 	}, [contributorEmails.changed, theatre]);
 
-	// Bumped when the reader takes the board back — a pointer landing anywhere
-	// on the board or the panel beside it. Following stops for good on this,
-	// where scrolling the log back only pauses it: reading back through the log
-	// is still watching, and opening something yourself is not.
-	const [boardTouched, setBoardTouched] = useState(0);
+	// Following lives here rather than in the log panel: the bar draws the
+	// control, the panel runs the effect, and the board turns it off when the
+	// reader reaches for it. Three owners, so it belongs above all of them.
+	//
+	// Not persisted, unlike the panel's field boxes. Those say what a line
+	// shows; this makes the board move on its own, and nobody would connect a
+	// board that starts navigating on open to a switch they left on yesterday.
+	const [following, setFollowing] = useState(false);
+
+	// Following needs the log: its lines are what is followed, and the window is
+	// only refetched while the panel is open. So asking for it opens the panel
+	// rather than leaving a control that is on and inert.
+	const changeFollowing = (next: boolean) => {
+		if (next && !logOpen) setLogOpen(true);
+		setFollowing(next);
+	};
 
 	// Where the reader is, for the log's own following: a destination in the
 	// same shape a log line resolves to, so the two are compared rather than
@@ -1776,6 +1787,8 @@ export const App = () => {
 						queryIssueIds={queryIssueIds}
 						knownIdentities={knownIdentities}
 						refreshOn={historyTick}
+						following={following}
+						onChangeFollowing={changeFollowing}
 					/>
 				</div>
 
@@ -1816,7 +1829,7 @@ export const App = () => {
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 								onOpen={openLogDestination}
 								at={readerAt}
-								releasedAt={boardTouched}
+								following={following}
 								onPopOut={logWindow.popOut}
 							/>
 						)}
@@ -1825,11 +1838,18 @@ export const App = () => {
 				    this box, so anything spilling out would put a second scrollbar on
 				    the page next to the columns' own. */}
 						<main
-							// A pointer here is the reader taking the board back, which is
-							// what leaves following. Listened for on the way down so it
-							// counts even where a child stops the click, and separate from
-							// the click handler below, which is about the lane panel.
-							onPointerDownCapture={() => setBoardTouched(n => n + 1)}
+							// A click here is the reader taking the board back, which is
+							// what leaves following. Captured, so it counts even where a
+							// child stops the click, and separate from the handler below,
+							// which is about the lane panel.
+							//
+							// On the click rather than the pointer going down: the banner
+							// goes when following does, and a band that disappears between
+							// press and release moves the board out from under the press.
+							// A drag says the same thing and never reaches a click, so it
+							// is listened for too.
+							onClickCapture={() => setFollowing(false)}
+							onDragStartCapture={() => setFollowing(false)}
 							// The lane panel closes on a click past it, unlike the ticket
 							// panel beside it, which deliberately stays open (see
 							// details-close.pw.ts): a ticket holds a half-written
@@ -1851,6 +1871,33 @@ export const App = () => {
 								overflow: 'hidden',
 							}}
 						>
+							{/* A board that moves on its own says so, in a band above the
+								    columns. In the board's own flow rather than over it: a
+								    banner that covers a lane is a banner that has to be got
+								    rid of. It names the way out, which is anything at all. */}
+							{following && (
+								<div
+									data-testid="follow-banner"
+									style={{
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										gap: 8,
+										padding: '5px 12px',
+										background: GUI_THEME.accent,
+										color: GUI_THEME.panel,
+										fontSize: 11,
+										letterSpacing: 0.3,
+										pointerEvents: 'none',
+									}}
+								>
+									<strong style={{letterSpacing: 0.6}}>LIVE</strong>
+									<span>
+										watching the log — the board opens each new event. Click
+										anything to take it back.
+									</span>
+								</div>
+							)}
 							<div
 								style={{
 									// The middle of the three rows across the top of the window,

@@ -19,6 +19,7 @@ import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
 import {IconButton, ICON_SIZE} from './IconButton';
 import {IconFunnel} from './IconFunnel';
+import {IconLive} from './IconLive';
 import {IconFlow} from './IconFlow';
 import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
@@ -84,6 +85,10 @@ export const ScrubberControls = ({
 	canPlay,
 	playTitle,
 	onPlay,
+	following,
+	canFollow,
+	followTitle,
+	onChangeFollowing,
 	narrow,
 	ticketFocus,
 	textFilter,
@@ -128,6 +133,13 @@ export const ScrubberControls = ({
 	canPlay: boolean;
 	playTitle: string;
 	onPlay: () => void;
+	// The live half of the transport. Owned above this row, because the log
+	// panel reads it too and the board turns it off when the reader reaches for
+	// it — three places, so it cannot live in any one of them.
+	following: boolean;
+	canFollow: boolean;
+	followTitle: string;
+	onChangeFollowing: (next: boolean) => void;
 	// The row has no space for the scope buttons, so they fold into a select.
 	narrow: boolean;
 	// False where the window came back as counts alone, naming no tickets to
@@ -417,6 +429,13 @@ export const ScrubberControls = ({
 
 			{/* Last on the row, past everything that draws or narrows the window:
 			    it is the one control here that starts something. */}
+			<LiveToggle
+				following={following}
+				disabled={!canFollow}
+				title={followTitle}
+				onChange={onChangeFollowing}
+			/>
+
 			<ScrubberPlayButton
 				canPlay={canPlay}
 				playTitle={playTitle}
@@ -553,6 +572,74 @@ export const ScrubberHeader = ({
 			<IconTimeline size={ICON_SIZE} />
 		</IconButton>
 	</div>
+);
+
+// The live half of the transport, beside the play button that is the other
+// half: play walks through what already happened, this rides what is happening.
+// A reader asking "am I watching the present or the past" looks in one place
+// for the answer, which is the argument for the two being neighbours.
+//
+// Lit, it wears the accent and says LIVE beside the mark — a mode that moves
+// the board on its own has to be legible across a room, not inferred from a
+// pressed box.
+export const LiveToggle = ({
+	following,
+	disabled,
+	title,
+	onChange,
+}: {
+	following: boolean;
+	// Off the present there is nothing to follow: a checkout and a movie both
+	// stand somewhere else, and the board is already being driven by them.
+	disabled: boolean;
+	title: string;
+	onChange: (next: boolean) => void;
+}) => (
+	<span
+		style={{
+			...fixtureWellStyle,
+			...(disabled
+				? {background: 'transparent', borderColor: 'transparent'}
+				: following
+				? {
+						background: GUI_THEME.accent,
+						borderColor: GUI_THEME.accent,
+						color: GUI_THEME.panel,
+				  }
+				: {}),
+			display: 'inline-flex',
+			alignItems: 'center',
+			gap: 6,
+			// Only while it is lit does the word appear, so an idle bar keeps the
+			// width of a button rather than of a label nobody needs yet.
+			padding: following ? '0 8px 0 4px' : undefined,
+		}}
+	>
+		<IconButton
+			testId="live-toggle"
+			title={title}
+			aria-label="Follow the newest event"
+			pressed={following}
+			disabled={disabled}
+			onClick={() => onChange(!following)}
+		>
+			<IconLive size={ICON_SIZE} lit={following} />
+		</IconButton>
+		{following && (
+			<span
+				style={{
+					fontSize: 10,
+					fontWeight: 700,
+					letterSpacing: 0.6,
+					// The well is already the accent, so the word is the panel under
+					// it rather than a third colour on one control.
+					color: GUI_THEME.panel,
+				}}
+			>
+				LIVE
+			</span>
+		)}
+	</span>
 );
 
 // The transport, wherever it is put: among the controls while the bar is open,
