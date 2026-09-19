@@ -4,6 +4,13 @@
 # collab container mounts the checkout read-only, and nothing it runs reads
 # `dist`, which is what the e2e container rebuilds.
 #
+# Both cap their vitest workers (`test:e2e:ci`, `test:collab:ci`). A container
+# sees every core, so uncapped they take one worker each while the gate is also
+# running the unit suite and the browser suite on those same cores — and these
+# tests wait on frames painted by a real pty, so contention reads as a timeout
+# rather than as slowness. The caps are what make the gate survive a machine
+# with more than one session on it.
+#
 # Output is buffered per suite so a failure is readable rather than interleaved.
 
 set -u
