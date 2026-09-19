@@ -375,6 +375,11 @@ const linkedRow = (suffix = ''): string =>
 // is decorative: the row is the target, so nothing here takes a pointer.
 export const LOG_ARROW_CLASS = 'epiq-log-arrow';
 
+// The accent, thinned to a ground. Written out rather than derived: the theme
+// keeps colours as hex and has no mixing of its own, and one wash in one panel
+// does not earn a mechanism.
+const LOG_FOLLOWED_WASH = 'rgba(118, 212, 255, 0.1)';
+
 // Mounted with the panel, so it carries its own look rather than depending on
 // a player being up to define it.
 export const EVENT_LOG_STYLES = `
@@ -452,12 +457,18 @@ export const EVENT_LOG_STYLES = `
 	${LEAD_PROPERTY}: 0px;
 }
 /* The line the board is standing on while following: the one whose arrival
-   moved it. A rule down the lead edge rather than a ground, so it does not
-   compete with the hover a reader is moving around, and so both can be true of
-   one row at once. */
+   moved it.
+
+   A wash across the row rather than a rule down its edge. The rule landed hard
+   against the timestamp — the row's own left edge is where the time starts, not
+   the panel's — and read as a text cursor sitting in the middle of the line.
+
+   The accent at a tenth, in the same translucent idiom as the hover ground it
+   has to sit under without fighting: hover says where the pointer is, this says
+   where the board is, and a row can be both. */
 .epiq-log-line--followed {
 	color: ${GUI_THEME.primary};
-	box-shadow: inset 2px 0 0 ${GUI_THEME.accent};
+	background: ${LOG_FOLLOWED_WASH};
 }
 
 ${linkedRow()} {
