@@ -50,6 +50,7 @@ import {ErrorToast} from './components/ErrorToast';
 import {TimeScrubber} from './components/TimeScrubber';
 import {TheatrePlayer} from './components/TheatrePlayer';
 import {EventLog} from './components/EventLog';
+import {FollowBanner} from './components/FollowBanner';
 import {useAsideDock} from './lib/aside-dock';
 import {PANE_HEADER_INSET} from './lib/pane-header.style';
 import {CommandPalette} from './components/CommandPalette';
@@ -94,6 +95,7 @@ import {
 	useTheatrePlayback,
 } from './lib/theatre';
 import {useEventLog} from './lib/use-event-log';
+import {useFollowLog} from './lib/use-follow-log';
 import {useLogWindow} from './lib/log-window';
 import {LogDestination} from './lib/log-destination';
 import {isolateOnly, withNarrowing} from './lib/board-selection';
@@ -1279,61 +1281,10 @@ export const App = () => {
 		setHistoryTick(tick => tick + 1);
 	}, [contributorEmails.changed, theatre]);
 
-	// Following lives here rather than in the log panel: the bar draws the
-	// control, the panel runs the effect, and the board turns it off when the
-	// reader reaches for it. Three owners, so it belongs above all of them.
-	//
-	// Not persisted, unlike the panel's field boxes. Those say what a line
-	// shows; this makes the board move on its own, and nobody would connect a
-	// board that starts navigating on open to a switch they left on yesterday.
-	const [following, setFollowing] = useState(false);
-
-	// Leaving following is one rule over two surfaces: the log is what the
-	// reader is watching, and everything else is the work. A click in the work
-	// — a card, a tab in the ticket panel, a button in the diff panel — says
-	// they have stopped watching. A click in the log, or on the bar that holds
-	// the control itself, does not.
-	//
-	// On the document rather than on a container, because the panels are not
-	// inside the board: they are siblings of `<main>`, and a handler on either
-	// one misses the other. A tab changed in the ticket panel is the commonest
-	// way somebody stops watching and was the case that got this wrong twice.
-	//
-	// On the click rather than the pointer going down: the banner goes when
-	// following does, and a band that disappears between press and release
-	// moves the board out from under the press.
-	useEffect(() => {
-		if (!following) return;
-
-		const stillWatching = (target: EventTarget | null) =>
-			target instanceof Element &&
-			target.closest(
-				'[data-testid="event-log"], [data-testid="time-scrubber"]',
-			) !== null;
-
-		const release = (event: Event) => {
-			if (stillWatching(event.target)) return;
-			setFollowing(false);
-		};
-
-		// Captured, so it counts even where a child stops the click. A drag says
-		// the same as a click and never reaches one.
-		document.addEventListener('click', release, true);
-		document.addEventListener('dragstart', release, true);
-
-		return () => {
-			document.removeEventListener('click', release, true);
-			document.removeEventListener('dragstart', release, true);
-		};
-	}, [following]);
-
-	// Following needs the log: its lines are what is followed, and the window is
-	// only refetched while the panel is open. So asking for it opens the panel
-	// rather than leaving a control that is on and inert.
-	const changeFollowing = (next: boolean) => {
-		if (next && !logOpen) setLogOpen(true);
-		setFollowing(next);
-	};
+	const {following, setFollowing} = useFollowLog({
+		logOpen,
+		onOpenLog: () => setLogOpen(true),
+	});
 
 	// Where the reader is, for the log's own following: a destination in the
 	// same shape a log line resolves to, so the two are compared rather than
@@ -1831,7 +1782,7 @@ export const App = () => {
 							knownIdentities={knownIdentities}
 							refreshOn={historyTick}
 							following={following}
-							onChangeFollowing={changeFollowing}
+							onChangeFollowing={setFollowing}
 						/>
 					</div>
 				</div>
@@ -1903,39 +1854,7 @@ export const App = () => {
 								overflow: 'hidden',
 							}}
 						>
-							{/* A board that moves on its own says so, in a band above the
-							    columns. Two rules rather than a filled band: it has to be
-							    unmissable without becoming the brightest thing on screen,
-							    and the board below it is what the reader came for. In the
-							    board's own flow, since a banner that covers a lane is a
-							    banner that has to be got rid of. */}
-							{following && (
-								<div
-									data-testid="follow-banner"
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										justifyContent: 'center',
-										gap: 8,
-										padding: '6px 12px',
-										borderTop: `1px solid ${GUI_THEME.accent}`,
-										borderBottom: `1px solid ${GUI_THEME.accent}`,
-										color: GUI_THEME.primary,
-										fontSize: 11,
-										letterSpacing: 0.3,
-										// The board is what is being clicked to get out of this;
-										// the band must never be what catches the click.
-										pointerEvents: 'none',
-									}}
-								>
-									<strong style={{color: GUI_THEME.accent, letterSpacing: 0.6}}>
-										LIVE
-									</strong>
-									<span>
-										The board navigates on events. Click anywhere to opt out.
-									</span>
-								</div>
-							)}
+							{following && <FollowBanner />}
 							<div
 								style={{
 									// The middle of the three rows across the top of the window,
