@@ -140,6 +140,17 @@ export const GuiMessageSchema = z.discriminatedUnion('type', [
 	message('issue:squashed-diff:get', z.object({issueId: id})),
 	message('issue:stats:get', z.object({issueId: id})),
 	message('swimlane:stats:get', z.object({swimlaneId: id})),
+	bare('settings:get'),
+	message(
+		'settings:set',
+		z.object({
+			autoSync: z.boolean().optional(),
+			// The floor is not restated here — `writeAutoSyncSettings` owns it and
+			// answers with a message a person can read. This only keeps a string
+			// or a NaN from reaching it.
+			autoSyncIntervalMs: z.number().finite().optional(),
+		}),
+	),
 ]);
 
 // Proof the schema still covers the transport it validates: a message the

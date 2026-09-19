@@ -16,6 +16,7 @@ beforeEach(async () => {
 		{repoRoot: '/repo'},
 		{
 			onStateChanged: vi.fn(),
+			onSyncSettingsChanged: vi.fn(),
 			getPort: () => boundPort,
 		},
 	);

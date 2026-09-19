@@ -1,5 +1,7 @@
 import {GuiProject} from './gui-project.js';
 import {getStateBranchRoot} from '../../../git/git-storage.js';
+import {DEFAULT_AUTO_SYNC_INTERVAL_MS} from '../../../lib/config/auto-sync-interval.js';
+import {autoSyncBlockedReason} from '../../../lib/config/sync-settings.js';
 import {
 	loadSettingsFromConfig,
 	readEpiqConfig,
@@ -15,8 +17,6 @@ import {
 } from '../../../mcp/epiq-time-travel.js';
 import {broadcastGuiMessage} from '../../client/lib/gui-broadcast.js';
 import {slimStateResult} from './slim-state.js';
-
-const DEFAULT_INTERVAL_MS = 15_000;
 
 export const startGuiAutoSync = (input: {project: GuiProject}) => {
 	let timer: NodeJS.Timeout | undefined;
@@ -61,25 +61,35 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 		const settings = config();
 		if (!settings) return false;
 
-		const {autoSync, preferredEditor} = settings;
 		// Resolved, not the raw config: a machine that only has an environment
 		// actor has a user to sync as even though `config.json` names nobody.
+		// `autoSyncBlockedReason` reads the settings store this fills, and is
+		// the same answer the identity panel shows beside the toggle.
 		const resolved = loadSettingsFromConfig();
-		const userName = isFail(resolved) ? null : resolved.value.userName;
+		if (isFail(resolved)) return false;
 
-		return Boolean(autoSync && userName && preferredEditor);
+		return (
+			Boolean(settings.autoSync) &&
+			autoSyncBlockedReason(resolved.value) === null
+		);
 	};
 
 	// One cadence for both the periodic pass and the one a mutation asks for, so
 	// a burst of edits cannot sync faster than the configured interval.
 	const delayUntilNextRun = () => {
-		const intervalMs = config()?.autoSyncDebounceMs ?? DEFAULT_INTERVAL_MS;
+		const intervalMs =
+			config()?.autoSyncDebounceMs ?? DEFAULT_AUTO_SYNC_INTERVAL_MS;
 
 		return Math.max(0, intervalMs - (Date.now() - lastStartedAt));
 	};
 
 	const runSync = async (): Promise<void> => {
 		if (disposed || syncing) return;
+
+		// Re-read rather than trusted to the arming: the preference can be
+		// switched off from the identity panel while this pass is already on the
+		// clock, and `queueSync` only declines to arm the *next* one.
+		if (!isAutoSyncConfigured()) return;
 
 		syncing = true;
 		lastStartedAt = Date.now();
@@ -132,6 +142,22 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 
 	return {
 		queueSync,
+		/**
+		 * Re-arms against the interval as it now stands.
+		 *
+		 * The delay is worked out when a timer is set, so a cadence shortened
+		 * from an hour to three seconds would otherwise not be felt for an hour.
+		 * Dropping the pending timer and asking again is the whole of it — a pass
+		 * already running finishes and re-arms itself from the new value.
+		 */
+		reschedule: () => {
+			if (timer) {
+				clearTimeout(timer);
+				timer = undefined;
+			}
+
+			queueSync();
+		},
 		dispose: () => {
 			disposed = true;
 
