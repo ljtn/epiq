@@ -137,10 +137,31 @@ export const NEEDLE_PARKED_COLOR = 'rgba(118, 212, 255, 0.95)';
 // pixels wide — parked, being findable beats being exact.
 export const NEEDLE_PARKED_GLOW = '0 0 6px rgba(118, 212, 255, 0.55)';
 
-// Everything after the needle: the stretch the board has not applied. Laid over
-// the bars rather than replacing them, so the shape of the history is still
-// readable through it and the veil reads as "not yet" rather than as "gone".
-export const UNAPPLIED_VEIL_COLOR = 'rgba(8, 11, 18, 0.55)';
+/**
+ * Everything after the needle: the stretch the board has not applied.
+ *
+ * Hatched rather than dimmed. Darkening was the first attempt and it is nearly
+ * invisible here — the chart's ground is already near-black, so a dark veil
+ * over it has almost nothing to take away. A hatch adds something instead, and
+ * reads on any ground.
+ *
+ * Laid over the bars rather than replacing them, so the shape of the history is
+ * still readable through it and the stretch says "not yet" rather than "gone".
+ */
+export const UNAPPLIED_VEIL_IMAGE = `repeating-linear-gradient(
+	135deg,
+	rgba(118, 212, 255, 0.11) 0px,
+	rgba(118, 212, 255, 0.11) 1px,
+	transparent 1px,
+	transparent 7px
+)`;
+
+// A wash under the hatch, so the stretch is a shade cooler than the live one
+// even where a stripe does not fall.
+export const UNAPPLIED_VEIL_COLOR = 'rgba(12, 18, 30, 0.45)';
+
+// The needle's own edge against it: where the applied stretch ends.
+export const UNAPPLIED_EDGE_COLOR = 'rgba(118, 212, 255, 0.25)';
 
 // Ties the board's narrowing to the window doing it: the accent the checkbox
 // wears while it is on, dimmed to sit around a chart rather than in a row.

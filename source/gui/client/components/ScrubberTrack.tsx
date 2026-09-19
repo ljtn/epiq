@@ -20,7 +20,9 @@ import {
 	NEEDLE_COLOR,
 	NEEDLE_PARKED_COLOR,
 	NEEDLE_PARKED_GLOW,
+	UNAPPLIED_EDGE_COLOR,
 	UNAPPLIED_VEIL_COLOR,
+	UNAPPLIED_VEIL_IMAGE,
 	NEEDLE_GRIP_WIDTH,
 	RANGE_SELECTION_COLOR,
 	RANGE_SELECTION_EDGE,
@@ -407,7 +409,9 @@ export const ScrubberNeedle = ({
 						right: 0,
 						top: 0,
 						bottom: 0,
-						background: UNAPPLIED_VEIL_COLOR,
+						backgroundColor: UNAPPLIED_VEIL_COLOR,
+						backgroundImage: UNAPPLIED_VEIL_IMAGE,
+						borderLeft: `1px solid ${UNAPPLIED_EDGE_COLOR}`,
 						zIndex: 2,
 						pointerEvents: 'none',
 					}}
@@ -437,13 +441,19 @@ export const ScrubberNeedle = ({
 					left: `${fraction * 100}%`,
 					top: 0,
 					bottom: 0,
-					// A hairline, no glow: the needle marks an exact instant, and a
+					// A hairline while live: the needle marks an exact instant, and a
 					// soft edge blooms over bars that can be ~2px wide.
-					width: 1,
+					//
+					// Two pixels parked, and not only to be seen. One pixel has to be
+					// centred on a half-pixel, where the head above it can only be
+					// placed on whole ones — so the two disagreed by half a pixel and
+					// the head sat visibly off its own line. An even width puts both
+					// on the same grid.
+					width: parked ? 2 : 1,
 					background: color,
 					boxShadow: parked ? NEEDLE_PARKED_GLOW : undefined,
 					zIndex: 3,
-					transform: 'translateX(-0.5px)',
+					transform: `translateX(${parked ? -1 : -0.5}px)`,
 					pointerEvents: 'none',
 				}}
 			/>
@@ -452,7 +462,11 @@ export const ScrubberNeedle = ({
 				style={{
 					position: 'absolute',
 					left: `${fraction * 100}%`,
-					top: hovered ? -9 : -7,
+					// A pixel lower than its own height, so the tip overlaps the line
+					// rather than meeting it. A CSS-border triangle ends in a single
+					// point whose last row is almost transparent, which reads as a gap
+					// between the head and the stem it is supposed to sit on.
+					top: hovered ? -8 : -6,
 					width: 0,
 					height: 0,
 					borderLeft: `${hovered ? 6 : 5}px solid transparent`,
