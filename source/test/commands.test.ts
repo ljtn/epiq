@@ -70,8 +70,9 @@ vi.mock('../lib/state/settings.state.js', () => ({
 	patchSettingsState: vi.fn(),
 }));
 
+// Only the queue. The floor moved to `lib/config/auto-sync-interval.ts`, a
+// leaf with no imports, so there is nothing left to stub it away from.
 vi.mock('../git/auto-sync.js', () => ({
-	MIN_AUTOSYNC_DURATION_MS: 1000,
 	queueAutoSync: vi.fn(),
 }));
 
