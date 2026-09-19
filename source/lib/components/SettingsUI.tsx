@@ -1,6 +1,7 @@
 import {Box, Text} from 'ink';
 import React from 'react';
 import {theme} from '../theme/themes.js';
+import {truncateToWidth} from '../utils/string.utils.js';
 import {getUserSetupStatus} from '../config/setup-utils.js';
 import {EmailCandidates} from './EmailCandidates.js';
 
@@ -51,6 +52,20 @@ const StepRow: React.FC<StepRowProps> = ({
 	);
 };
 
+/**
+ * The claimed addresses as the step shows them, inside the width it has.
+ *
+ * The row it sits on spends about 28 columns on its tick, verb and command
+ * before the value starts, and the box around it has a border either side.
+ */
+export const claimedAddresses = (
+	emails: string[],
+	width: number,
+): string | undefined =>
+	emails.length === 0
+		? undefined
+		: truncateToWidth(emails.join(', '), Math.max(12, width - 34));
+
 const formatValue = (value: unknown) => {
 	if (typeof value === 'string') return value;
 	if (typeof value === 'boolean') return value ? 'on' : 'off';
@@ -94,7 +109,11 @@ export default function SettingsUI({width, height}: Props) {
 			key: 'emails',
 			done: isSetEmails,
 			command: ':config emails',
-			value: claimedEmails.length > 0 ? claimedEmails.join(', ') : undefined,
+			// Cut to fit. Every other step's value is a word — a username, `vim`,
+			// `on` — and this one is addresses, which run to 254 characters each
+			// and come in pairs. Unbounded it wraps the row out of the box the
+			// setup screen draws it in.
+			value: claimedAddresses(claimedEmails, width),
 			// Last, because it is the only step that needs the board: it offers the
 			// addresses this repository's own history contains.
 			message:
