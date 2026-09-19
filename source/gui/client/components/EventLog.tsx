@@ -272,7 +272,9 @@ const ActorName = ({name}: {name: string}) => (
 );
 
 // What each line shows, chosen at the top of the panel. Quiet when ticked:
-// four lit boxes would outshine the lines they are about.
+// four lit boxes would outshine the lines they are about. Quiet in the same
+// colour the scrubber's periods are, so the two rows of chrome over the board
+// read as one family; ticked is told by the box's fill, not by its colour.
 const LogHeader = ({
 	fields,
 	onChangeField,
@@ -318,7 +320,7 @@ const LogHeader = ({
 					label={LOG_FIELD_NAMES[field]}
 					checked={fields[field] && !spoken}
 					disabled={spoken}
-					activeColor={GUI_THEME.secondary}
+					activeColor={GUI_THEME.dim}
 					title={
 						spoken
 							? 'The lane says who'
