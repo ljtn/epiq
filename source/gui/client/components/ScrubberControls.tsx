@@ -298,10 +298,43 @@ export const ScrubberControls = ({
 						</button>
 					</div>
 				)}
+
+				{/* Beside the window it narrows to, rather than away with the series
+				    pickers: the buttons to its left say which window, and this says
+				    whether the board is held to it. Under "All" that window is every
+				    event there is, which narrows nothing, so it goes flat instead of
+				    pretending to. */}
+				<SpotlightToggle
+					title={
+						ticketFocus
+							? 'Already narrowed to a ticket'
+							: everythingInScope
+							? 'Pick a period first'
+							: !windowFilterable
+							? 'Too many events to tell tickets apart'
+							: 'Narrow board to timeline window'
+					}
+					on={windowOnly}
+					// Unlike the series pickers it asks the socket for nothing — it
+					// narrows what is already on screen — so offline it can still be
+					// let go of, just not taken up over a window that can no longer be
+					// refreshed.
+					// Flat under the ticket narrowing, which has already taken the
+					// board down to one card: there is nothing left for a window to
+					// take away, and two lit boxes would claim otherwise.
+					disabled={
+						ticketFocus ||
+						everythingInScope ||
+						!windowFilterable ||
+						(!connected && !windowOnly)
+					}
+					onChange={onChangeWindowOnly}
+				/>
 			</div>
 
-			{/* The row's slack, so the two controls that draw the chart sit at its
-			    left end and everything that narrows the board at its right. */}
+			{/* The row's slack, so what the chart is drawn from and what window it
+			    spans sit at its left end, and what is picked out of that window at
+			    its right. */}
 			<div aria-hidden style={{flex: '1 1 0', minWidth: 0}} />
 
 			<div
@@ -344,38 +377,6 @@ export const ScrubberControls = ({
 				/>
 
 				<TextFilterInput value={textFilter} onChange={onChangeTextFilter} />
-
-				{/* Last of the narrowings, past the series pickers and the query
-			    rather than off by the scope row, so they are all in one place.
-			    The window it narrows to is the one those buttons select — under
-			    "All" that is every event there is, which narrows nothing, so it
-			    goes flat instead of pretending to. */}
-				<SpotlightToggle
-					title={
-						ticketFocus
-							? 'Already narrowed to a ticket'
-							: everythingInScope
-							? 'Pick a period first'
-							: !windowFilterable
-							? 'Too many events to tell tickets apart'
-							: 'Narrow board to timeline window'
-					}
-					on={windowOnly}
-					// Unlike its neighbours it asks the socket for nothing — it
-					// narrows what is already on screen — so offline it can still be
-					// let go of, just not taken up over a window that can no longer be
-					// refreshed.
-					// Flat under the ticket narrowing, which has already taken the
-					// board down to one card: there is nothing left for a window to
-					// take away, and two lit boxes would claim otherwise.
-					disabled={
-						ticketFocus ||
-						everythingInScope ||
-						!windowFilterable ||
-						(!connected && !windowOnly)
-					}
-					onChange={onChangeWindowOnly}
-				/>
 
 				{/* <Checkbox
 				label="All boards"
