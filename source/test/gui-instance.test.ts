@@ -57,11 +57,22 @@ afterEach(async () => {
 	);
 });
 
+// Long enough that no answer below is the clock's. The production default is
+// 500ms, which is a budget for a *stalled* server and not for a loopback round
+// trip — but the unit suite shares a machine with the docker and browser suites
+// in the pre-push gate, and one round trip lost that race and reported a valid
+// body as `null`. The timeout itself is pinned by its own case at the bottom.
+//
+// It matters for the null cases too: every unhappy answer collapses to `null`,
+// so without this a timeout is indistinguishable from the rejection each of
+// them means to be checking, and they pass for the wrong reason.
+const ANSWERED = 10_000;
+
 describe('probeGuiInstance', () => {
 	it('identifies an epiq holding the port', async () => {
 		const {port} = await serve(respondWith(200, validBody));
 
-		expect(await probeGuiInstance(port)).toEqual(validBody);
+		expect(await probeGuiInstance(port, ANSWERED)).toEqual(validBody);
 	});
 
 	// Every unusable answer collapses to null, because the caller does the same
@@ -69,19 +80,19 @@ describe('probeGuiInstance', () => {
 	it('returns null for a server that is not epiq', async () => {
 		const {port} = await serve(respondWith(200, {app: 'vite', repoRoot: '/x'}));
 
-		expect(await probeGuiInstance(port)).toBeNull();
+		expect(await probeGuiInstance(port, ANSWERED)).toBeNull();
 	});
 
 	it('returns null for a body missing fields', async () => {
 		const {port} = await serve(respondWith(200, {app: 'epiq'}));
 
-		expect(await probeGuiInstance(port)).toBeNull();
+		expect(await probeGuiInstance(port, ANSWERED)).toBeNull();
 	});
 
 	it('returns null for a non-200', async () => {
 		const {port} = await serve(respondWith(500, validBody));
 
-		expect(await probeGuiInstance(port)).toBeNull();
+		expect(await probeGuiInstance(port, ANSWERED)).toBeNull();
 	});
 
 	it('returns null when nothing is listening', async () => {
@@ -89,7 +100,7 @@ describe('probeGuiInstance', () => {
 		const {port} = await serve(respondWith(200, validBody));
 		await new Promise<void>(resolve => servers[0]!.close(() => resolve()));
 
-		expect(await probeGuiInstance(port)).toBeNull();
+		expect(await probeGuiInstance(port, ANSWERED)).toBeNull();
 	});
 
 	// A server that accepts the socket and never answers would otherwise stall
