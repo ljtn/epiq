@@ -20,17 +20,23 @@ export const LOG_WINDOW_PATH = '/log';
 const LOG_WINDOW_NAME = 'epiq-log';
 const LOG_WINDOW_FEATURES = 'popup=yes,width=520,height=760';
 
-// Sent by the board.
+// Sent by the board. `followedLine` is which row to mark: following is decided
+// on the board's side for both panels, so the window is told the answer rather
+// than working one out of its own.
 export type LogLinesMessage = {
 	type: 'epiq-log:lines';
 	entries: LogEntry[];
 	moment: number;
+	followedLine: string | null;
 };
 
-// Sent by the window.
+// Sent by the window. `pinned` is the one thing the board cannot see for
+// itself — whether this pane is at its foot — and following needs it, so it
+// comes back across the same channel a click does.
 export type LogWindowMessage =
 	| {type: 'epiq-log:ready'}
-	| {type: 'epiq-log:open'; destination: LogDestination}
+	| {type: 'epiq-log:open'; destination: LogDestination; replace: boolean}
+	| {type: 'epiq-log:pinned'; pinned: boolean}
 	| {type: 'epiq-log:closed'};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -56,7 +62,16 @@ export const parseLogWindowMessage = (
 			return {type: 'epiq-log:closed'};
 		case 'epiq-log:open':
 			return isDestination(data['destination'])
-				? {type: 'epiq-log:open', destination: data['destination']}
+				? {
+						type: 'epiq-log:open',
+						destination: data['destination'],
+						// Absent from an older window, where every open was a push.
+						replace: data['replace'] === true,
+				  }
+				: null;
+		case 'epiq-log:pinned':
+			return typeof data['pinned'] === 'boolean'
+				? {type: 'epiq-log:pinned', pinned: data['pinned']}
 				: null;
 		default:
 			return null;
@@ -75,6 +90,10 @@ export const parseLogLinesMessage = (data: unknown): LogLinesMessage | null =>
 				type: 'epiq-log:lines',
 				entries: data['entries'] as LogEntry[],
 				moment: data['moment'],
+				followedLine:
+					typeof data['followedLine'] === 'string'
+						? data['followedLine']
+						: null,
 		  }
 		: null;
 
@@ -90,14 +109,21 @@ const isFrom = (event: MessageEvent, other: Window | null): boolean =>
 export const useLogWindow = ({
 	entries,
 	moment,
+	followedLine,
 	open,
 	onOpen,
+	onPinnedChange,
 }: {
 	entries: readonly LogEntry[];
 	moment: number;
+	// Which row the window should mark. Decided on this side, like the slice.
+	followedLine: string | null;
 	// The log is on at all. Turned off, the window goes with it.
 	open: boolean;
-	onOpen: (destination: LogDestination) => void;
+	onOpen: (destination: LogDestination, options: {replace: boolean}) => void;
+	// The window's pane reached, or left, its foot. The board's follow needs
+	// this and cannot see it from here.
+	onPinnedChange: (pinned: boolean) => void;
 }): {
 	// A window is up, so the panel is not drawn beside the board.
 	poppedOut: boolean;
@@ -107,18 +133,22 @@ export const useLogWindow = ({
 
 	// The latest slice, for the window's first ask: it says `ready` once its
 	// script is up, which is after the effect below has posted anything.
-	const latest = useRef({entries, moment});
-	latest.current = {entries, moment};
+	const latest = useRef({entries, moment, followedLine});
+	latest.current = {entries, moment, followedLine};
 
 	// Read by the message listener, which is registered once per window.
 	const onOpenRef = useRef(onOpen);
 	onOpenRef.current = onOpen;
+
+	const onPinnedChangeRef = useRef(onPinnedChange);
+	onPinnedChangeRef.current = onPinnedChange;
 
 	const send = useCallback((to: Window, lines: typeof latest.current) => {
 		const message: LogLinesMessage = {
 			type: 'epiq-log:lines',
 			entries: lines.entries as LogEntry[],
 			moment: lines.moment,
+			followedLine: lines.followedLine,
 		};
 
 		to.postMessage(message, window.location.origin);
@@ -145,7 +175,9 @@ export const useLogWindow = ({
 
 			if (message.type === 'epiq-log:ready') send(target, latest.current);
 			else if (message.type === 'epiq-log:open') {
-				onOpenRef.current(message.destination);
+				onOpenRef.current(message.destination, {replace: message.replace});
+			} else if (message.type === 'epiq-log:pinned') {
+				onPinnedChangeRef.current(message.pinned);
 			} else setTarget(null);
 		};
 
@@ -170,8 +202,8 @@ export const useLogWindow = ({
 	}, [target, send]);
 
 	useEffect(() => {
-		if (target) send(target, {entries, moment});
-	}, [target, entries, moment, send]);
+		if (target) send(target, {entries, moment, followedLine});
+	}, [target, entries, moment, followedLine, send]);
 
 	useEffect(() => {
 		if (open || !target) return;
@@ -187,9 +219,15 @@ export const useLogWindow = ({
 // Null lines until the first slice lands — and for good when there is no
 // board, which is what opening the route by hand gets.
 export const useLogMirror = (): {
-	lines: {entries: LogEntry[]; moment: number} | null;
+	lines: {
+		entries: LogEntry[];
+		moment: number;
+		followedLine: string | null;
+	} | null;
 	board: Window | null;
-	open: (destination: LogDestination) => void;
+	open: (destination: LogDestination, options?: {replace?: boolean}) => void;
+	// Told to the board, which is where following is decided.
+	reportPinned: (pinned: boolean) => void;
 } => {
 	const [board] = useState<Window | null>(() => window.opener ?? null);
 	const [lines, setLines] = useState<LogLinesMessage | null>(null);
@@ -220,14 +258,28 @@ export const useLogMirror = (): {
 	}, [board]);
 
 	const open = useCallback(
-		(destination: LogDestination) => {
+		(destination: LogDestination, options?: {replace?: boolean}) => {
 			board?.postMessage(
-				{type: 'epiq-log:open', destination} satisfies LogWindowMessage,
+				{
+					type: 'epiq-log:open',
+					destination,
+					replace: options?.replace === true,
+				} satisfies LogWindowMessage,
 				window.location.origin,
 			);
 		},
 		[board],
 	);
 
-	return {lines, board, open};
+	const reportPinned = useCallback(
+		(pinned: boolean) => {
+			board?.postMessage(
+				{type: 'epiq-log:pinned', pinned} satisfies LogWindowMessage,
+				window.location.origin,
+			);
+		},
+		[board],
+	);
+
+	return {lines, board, open, reportPinned};
 };

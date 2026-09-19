@@ -95,6 +95,7 @@ import {
 	useTheatrePlayback,
 } from './lib/theatre';
 import {useEventLog} from './lib/use-event-log';
+import {useFollowedLine} from './lib/use-followed-line';
 import {useFollowLog} from './lib/use-follow-log';
 import {useLogWindow} from './lib/log-window';
 import {LogDestination} from './lib/log-destination';
@@ -1313,22 +1314,41 @@ export const App = () => {
 
 	// The same slice, mirrored to a window of its own while one is up — in
 	// which case the panel is not drawn here.
-	const logWindow = useLogWindow({
-		entries: logEntries,
-		moment: logMoment,
-		open: logOpen,
-		onOpen: openLogDestination,
-	});
+	// Whichever panel is up reports whether it is at its foot: the docked one
+	// directly, the popped-out one across the window boundary. The follow reads
+	// one value either way and does not care which panel answered.
+	const [logPinned, setLogPinned] = useState(true);
 
 	const {following, setFollowing} = useFollowLog({
-		// Popped out, the panel that runs the effect is not rendered in this
-		// document at all, so following here would be lit and inert.
-		logOpen: logOpen && !logWindow.poppedOut,
+		// The panel may be beside the board or in a window of its own; either
+		// draws the log and reports its foot, and the follow runs here for both.
+		// Only a log that is shut has nothing to follow.
+		logOpen,
 		// A checkout and a movie both stand somewhere other than the present, and
 		// each already drives the board. Offline nothing arrives — and the control
 		// is disabled then, so a reader left following could not switch it off.
 		live: connected && state?.timeTravel?.mode !== 'scrub' && !theatre,
 		onOpenLog: () => setLogOpen(true),
+	});
+
+	// One follow for both panels, run here because this is the side that slices
+	// the log for both of them.
+	const {followedLine} = useFollowedLine({
+		following,
+		live: connected && state?.timeTravel?.mode !== 'scrub' && !theatre,
+		pinned: logPinned,
+		entries: logEntries,
+		at: readerAt,
+		onOpen: openLogDestination,
+	});
+
+	const logWindow = useLogWindow({
+		entries: logEntries,
+		moment: logMoment,
+		followedLine,
+		open: logOpen,
+		onOpen: openLogDestination,
+		onPinnedChange: setLogPinned,
 	});
 
 	// A movie is checked out one frame at a time over the socket, so a dropped
@@ -1825,7 +1845,8 @@ export const App = () => {
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 								onOpen={openLogDestination}
 								at={readerAt}
-								following={following}
+								followedLine={followedLine}
+								onPinnedChange={setLogPinned}
 								onPopOut={logWindow.popOut}
 							/>
 						)}

@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {parseLogLinesMessage, parseLogWindowMessage} from './log-window';
 
 describe('parseLogWindowMessage', () => {
-	it('reads the three things a window can say', () => {
+	it('reads the four things a window can say', () => {
 		expect(parseLogWindowMessage({type: 'epiq-log:ready'})).toEqual({
 			type: 'epiq-log:ready',
 		});
@@ -17,6 +17,7 @@ describe('parseLogWindowMessage', () => {
 		).toEqual({
 			type: 'epiq-log:open',
 			destination: {kind: 'commit', sha: 'abc'},
+			replace: false,
 		});
 		expect(
 			parseLogWindowMessage({
@@ -26,6 +27,7 @@ describe('parseLogWindowMessage', () => {
 		).toEqual({
 			type: 'epiq-log:open',
 			destination: {kind: 'ticket', issueId: 'i1', tab: 'comments'},
+			replace: false,
 		});
 	});
 
@@ -59,7 +61,24 @@ describe('parseLogLinesMessage', () => {
 				entries: [],
 				moment: Infinity,
 			}),
-		).toEqual({type: 'epiq-log:lines', entries: [], moment: Infinity});
+		).toEqual({
+			type: 'epiq-log:lines',
+			entries: [],
+			moment: Infinity,
+			// Absent from an older board, which followed nothing.
+			followedLine: null,
+		});
+	});
+
+	it('carries the line the board is standing on', () => {
+		expect(
+			parseLogLinesMessage({
+				type: 'epiq-log:lines',
+				entries: [],
+				moment: 1,
+				followedLine: 'event-7',
+			}),
+		).toMatchObject({followedLine: 'event-7'});
 	});
 
 	it('is null for anything else', () => {

@@ -10,7 +10,7 @@ import {EventLog} from './EventLog';
 import {GlobalScrollbarStyles} from './GlobalScrollbarStyles';
 
 export const LogWindow = () => {
-	const {lines, board, open} = useLogMirror();
+	const {lines, board, open, reportPinned} = useLogMirror();
 
 	useEffect(() => {
 		document.title = 'epiq — event log';
@@ -37,6 +37,11 @@ export const LogWindow = () => {
 					moment={lines?.moment ?? Infinity}
 					bottomClearance={0}
 					onOpen={open}
+					// Following is decided on the board's side for both panels: this
+					// one is told which row it is standing on, and tells the board
+					// whether it is at its foot.
+					followedLine={lines?.followedLine ?? null}
+					onPinnedChange={reportPinned}
 					onDock={() => window.close()}
 				/>
 			) : (
