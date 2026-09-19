@@ -93,8 +93,16 @@ describe('TUI reboot / event-log replay e2e', () => {
 					// ↑ on a fresh boot reaches back past it. The colon gets a write
 					// and a frame of its own, since keys in one chunk are handled
 					// before the mode has changed.
+					//
+					// Waited for on the topbar rather than in the command line, which
+					// cannot answer this one. An empty line is drawn as the colon
+					// followed by its completions — `:  ...  new  tag  edit` — and the
+					// idle shortcut bar opens `: write command`, so both wear a colon
+					// and a space. `commandLineShows(':')` only matches in the instant
+					// after the keystroke and before the completions paint, which is a
+					// race the gate loses under load.
 					second.input(':');
-					await second.waitFor(commandLineShows(':'));
+					await second.waitFor(output => output.includes('Mode: cmd-line'));
 
 					second.input(ARROW_UP);
 					const recalled = await second.waitFor(
