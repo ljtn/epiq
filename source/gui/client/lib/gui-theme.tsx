@@ -50,6 +50,10 @@ export const GUI_THEME = {
 	raised: 'rgba(255,255,255,0.055)',
 	raisedHover: 'rgba(255,255,255,0.1)',
 	accent: '#76d4ff',
+	// The accent laid over whatever is underneath, for the one thing a link or
+	// a follow is pointing at: the log's followed line, the comment a log line
+	// leads to. Faint on purpose — it says "this one", not "look here".
+	accentWash: 'rgba(118, 212, 255, 0.1)',
 	green: '#8ce99a',
 	// One step short of `red`, at the same pastel weight, for anything that
 	// warns before it alarms.

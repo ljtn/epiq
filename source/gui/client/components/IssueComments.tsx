@@ -1,4 +1,4 @@
-import {useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {CONTENT_FONT, GUI_THEME, TEXT} from '../lib/gui-theme';
 import {Button} from './Button';
 import {CodeSnippet} from './CodeSnippet';
@@ -6,7 +6,10 @@ import {IconComment} from './IconComment';
 import {ActionRow, Empty, Textarea} from './FormPrimitives';
 import {GuiComment, GuiUser} from '../lib/gui-state.model';
 import {timeAgo} from '../lib/gui-format.helper';
-import {COMMENT_CARD_STYLE} from '../lib/comment-card.style';
+import {
+	COMMENT_CARD_FOCUSED_STYLE,
+	COMMENT_CARD_STYLE,
+} from '../lib/comment-card.style';
 import {DiffLocation, diffLocationFromMeta} from '../lib/diff-selection';
 import {
 	extractCommentLead,
@@ -88,6 +91,10 @@ type Props = {
 	onOpenDiffLocation?: (location: DiffLocation) => void;
 	// Resolves to one markdown reference per stored file, left at the cursor.
 	onUploadImages?: (issueId: string, files: File[]) => Promise<string[]>;
+	// The one comment a link is pointing at, which is scrolled to and marked.
+	// Null arriving at the tab by any other route, where no one comment is the
+	// one meant.
+	focusedCommentId?: string | null;
 };
 
 export const IssueComments = ({
@@ -100,9 +107,18 @@ export const IssueComments = ({
 	onEditComment,
 	onOpenDiffLocation,
 	onUploadImages,
+	focusedCommentId = null,
 }: Props) => {
 	const [body, setBody] = useState('');
 	const composerRef = useRef<HTMLTextAreaElement | null>(null);
+	const focusedRef = useRef<HTMLDivElement | null>(null);
+
+	// Brought into view once the card is there to bring — a link followed from
+	// another board can land here before the comments have arrived, and the
+	// ticket the reader is on can change under the same open tab.
+	useEffect(() => {
+		focusedRef.current?.scrollIntoView({block: 'center'});
+	}, [focusedCommentId, issueId, comments]);
 
 	const composerImages = useImageInsert({
 		issueId,
@@ -158,118 +174,132 @@ export const IssueComments = ({
 				<Empty>No comments</Empty>
 			) : (
 				<div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-					{ordered.map(comment => (
-						<div key={comment.id} style={COMMENT_CARD_STYLE}>
-							{/* Only the header carries the icon; the body runs the card's
-							    full width underneath. */}
+					{ordered.map(comment => {
+						const focused = comment.id === focusedCommentId;
+
+						return (
 							<div
-								style={{
-									display: 'flex',
-									alignItems: 'center',
-									gap: 8,
-									marginBottom: 6,
-								}}
+								key={comment.id}
+								ref={focused ? focusedRef : undefined}
+								data-testid={focused ? 'comment-card-focused' : undefined}
+								style={
+									focused ? COMMENT_CARD_FOCUSED_STYLE : COMMENT_CARD_STYLE
+								}
 							>
-								<span
-									style={{
-										display: 'inline-flex',
-										color: GUI_THEME.accent,
-										flexShrink: 0,
-									}}
-								>
-									<IconComment size={12} />
-								</span>
+								{/* Only the header carries the icon; the body runs the card's
+							    full width underneath. */}
 								<div
 									style={{
-										flex: 1,
-										minWidth: 0,
-										color: GUI_THEME.secondary,
-										fontSize: TEXT.meta,
+										display: 'flex',
+										alignItems: 'center',
+										gap: 8,
+										marginBottom: 6,
 									}}
 								>
-									{comment.author.name ?? 'unknown'}
-									{comment.createdAt && (
-										<span style={{color: GUI_THEME.dim2}}>
-											{' '}
-											· {timeAgo(comment.createdAt)}
-										</span>
-									)}
+									<span
+										style={{
+											display: 'inline-flex',
+											color: GUI_THEME.accent,
+											flexShrink: 0,
+										}}
+									>
+										<IconComment size={12} />
+									</span>
+									<div
+										style={{
+											flex: 1,
+											minWidth: 0,
+											color: GUI_THEME.secondary,
+											fontSize: TEXT.meta,
+										}}
+									>
+										{comment.author.name ?? 'unknown'}
+										{comment.createdAt && (
+											<span style={{color: GUI_THEME.dim2}}>
+												{' '}
+												· {timeAgo(comment.createdAt)}
+											</span>
+										)}
+									</div>
+
+									{!readonly &&
+										comment.author.id === whoAmI.id &&
+										onEditComment &&
+										editing?.id !== comment.id && (
+											<Button
+												variant="ghost"
+												testId="edit-comment"
+												title="Edit comment"
+												onClick={() => startEditing(comment)}
+											>
+												edit
+											</Button>
+										)}
+									{!readonly &&
+										comment.author.id === whoAmI.id &&
+										onDeleteComment && (
+											<Button
+												variant="ghost"
+												testId="delete-comment"
+												title="Delete comment"
+												onClick={event => {
+													event.preventDefault();
+													event.stopPropagation();
+													onDeleteComment(issueId, comment.id);
+												}}
+											>
+												×
+											</Button>
+										)}
 								</div>
 
-								{!readonly &&
-									comment.author.id === whoAmI.id &&
-									onEditComment &&
-									editing?.id !== comment.id && (
-										<Button
-											variant="ghost"
-											testId="edit-comment"
-											title="Edit comment"
-											onClick={() => startEditing(comment)}
-										>
-											edit
-										</Button>
-									)}
-								{!readonly &&
-									comment.author.id === whoAmI.id &&
-									onDeleteComment && (
-										<Button
-											variant="ghost"
-											testId="delete-comment"
-											title="Delete comment"
-											onClick={event => {
-												event.preventDefault();
-												event.stopPropagation();
-												onDeleteComment(issueId, comment.id);
-											}}
-										>
-											×
-										</Button>
-									)}
-							</div>
-
-							{editing?.id === comment.id ? (
-								<>
-									<Textarea
-										autoFocus
-										maxLength={Number.MAX_SAFE_INTEGER}
-										value={editing.text}
-										placeholder="write a comment"
-										onChange={event =>
-											setEditing({id: comment.id, text: event.target.value})
-										}
-										onKeyDown={event => {
-											if (event.key === 'Escape') setEditing(null);
-											if (
-												(event.metaKey || event.ctrlKey) &&
-												event.key === 'Enter'
-											) {
-												saveEdit(comment);
+								{editing?.id === comment.id ? (
+									<>
+										<Textarea
+											autoFocus
+											maxLength={Number.MAX_SAFE_INTEGER}
+											value={editing.text}
+											placeholder="write a comment"
+											onChange={event =>
+												setEditing({id: comment.id, text: event.target.value})
 											}
-										}}
-										style={{
-											minHeight: 45,
-											font: 'inherit',
-											fontFamily: CONTENT_FONT,
-											fontSize: TEXT.prose,
-										}}
+											onKeyDown={event => {
+												if (event.key === 'Escape') setEditing(null);
+												if (
+													(event.metaKey || event.ctrlKey) &&
+													event.key === 'Enter'
+												) {
+													saveEdit(comment);
+												}
+											}}
+											style={{
+												minHeight: 45,
+												font: 'inherit',
+												fontFamily: CONTENT_FONT,
+												fontSize: TEXT.prose,
+											}}
+										/>
+										<ActionRow>
+											<Button variant="ghost" onClick={() => setEditing(null)}>
+												cancel
+											</Button>
+											<Button
+												variant="primary"
+												onClick={() => saveEdit(comment)}
+											>
+												save
+											</Button>
+										</ActionRow>
+									</>
+								) : (
+									<CommentBody
+										body={comment.body}
+										onOpenDiffLocation={onOpenDiffLocation}
 									/>
-									<ActionRow>
-										<Button variant="ghost" onClick={() => setEditing(null)}>
-											cancel
-										</Button>
-										<Button variant="primary" onClick={() => saveEdit(comment)}>
-											save
-										</Button>
-									</ActionRow>
-								</>
-							) : (
-								<CommentBody
-									body={comment.body}
-									onOpenDiffLocation={onOpenDiffLocation}
-								/>
-							)}
-						</div>
-					))}
+								)}
+							</div>
+						);
+					})}
 				</div>
 			)}
 

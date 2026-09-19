@@ -53,6 +53,38 @@ describe('parseLogWindowMessage', () => {
 	});
 });
 
+// WKK7PS0: a comment line clicked in the popped-out window has to reach the
+// board with the comment still on it, or the pop-out opens the tab alone.
+describe('a destination crossing the window boundary', () => {
+	it('keeps the comment a ticket destination points at', () => {
+		expect(
+			parseLogWindowMessage({
+				type: 'epiq-log:open',
+				destination: {
+					kind: 'ticket',
+					issueId: 'i1',
+					tab: 'comments',
+					comment: 'c1',
+				},
+			}),
+		).toMatchObject({destination: {comment: 'c1'}});
+	});
+
+	it('refuses a comment that is not a string', () => {
+		expect(
+			parseLogWindowMessage({
+				type: 'epiq-log:open',
+				destination: {
+					kind: 'ticket',
+					issueId: 'i1',
+					tab: 'comments',
+					comment: 7,
+				},
+			}),
+		).toBeNull();
+	});
+});
+
 describe('parseLogLinesMessage', () => {
 	it('reads a slice, moment included', () => {
 		expect(

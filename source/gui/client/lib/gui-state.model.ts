@@ -108,6 +108,9 @@ export type GuiEventTimelineEntry = {
 	// The ticket the event happened to, for the board's window filter. Null for
 	// board- and swimlane-level events.
 	issue: string | null;
+	// The comment the event happened to, where it happened to one, so a log
+	// line about a comment can lead to the comment and not just its tab.
+	target: string | null;
 	// The board the event belongs to. Null means *every* board rather than none
 	// — a contributor claim decides who the commits on all of them belong to —
 	// so a reader filtering by board keeps the nulls.

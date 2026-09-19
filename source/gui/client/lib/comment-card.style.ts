@@ -18,3 +18,15 @@ export const COMMENT_CARD_STYLE: CSSProperties = {
 	padding: '10px 14px',
 	background: GUI_THEME.tertiary,
 };
+
+/**
+ * The one comment a link points at — arrived at from a log line about it, or
+ * from a permalink. The same wash the event log lays under the line it is
+ * following, so the line and what it leads to read as one thing.
+ */
+export const COMMENT_CARD_FOCUSED_STYLE: CSSProperties = {
+	...COMMENT_CARD_STYLE,
+	border: `1px solid ${GUI_THEME.accent}`,
+	borderLeft: `2px solid ${GUI_THEME.accent}`,
+	background: `linear-gradient(${GUI_THEME.accentWash}, ${GUI_THEME.accentWash}), ${GUI_THEME.tertiary}`,
+};

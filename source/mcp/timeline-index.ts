@@ -44,6 +44,11 @@ export type EventTimelineEntry = {
 	// The ticket the event happened to, where it happened to one. Null for
 	// board- and swimlane-level events, which belong to no ticket.
 	issue: string | null;
+	// The thing inside that ticket the event happened to, where it happened to
+	// one: today a comment, which is the only part of a ticket with an id of
+	// its own. Null everywhere else, including on the ticket's own events,
+	// where `issue` already names what happened.
+	target: string | null;
 	// The swimlane that ticket sits in once this event has happened, and the
 	// one it left where this event moved it out of another — a move, a close or
 	// a reopen. Null for an event under no ticket, and `laneBefore` null for one
@@ -142,6 +147,26 @@ const issueOf = (
 	}
 
 	return null;
+};
+
+// The events about a comment rather than about the ticket holding it. All
+// three carry the comment's id as their payload id — an add mints it, an edit
+// and a delete name the one they act on.
+const COMMENT_ACTIONS = new Set<EventAction>([
+	'add.issue.comment',
+	'edit.issue.comment',
+	'delete.issue.comment',
+]);
+
+// What inside the ticket the event happened to. Read off the payload rather
+// than derived: the id is already there, and no other kind of event has a
+// target the reader could be sent to.
+const targetOf = (event: AppEvent): string | null => {
+	if (!COMMENT_ACTIONS.has(event.action)) return null;
+
+	const payload = event.payload as {id?: string} | undefined;
+
+	return payload?.id ?? null;
 };
 
 // The events that put a ticket in a swimlane. A close is a move to the closed
@@ -423,6 +448,7 @@ export const buildTimelineEntries = (
 						action: event.action,
 						label: describeTimelineEvent(event, names, previousParents),
 						issue: issues[index] ?? null,
+						target: targetOf(event),
 						...lanes[index]!,
 						board: boards[index] ?? null,
 						...identitiesFor(event, names),

@@ -359,6 +359,36 @@ describe('timeline-index', () => {
 			]);
 		});
 
+		// WKK7PS0: a comment line in the log led to the comments tab and no
+		// further, because the entry named the ticket and nothing inside it.
+		it('names the comment a comment event happened to', () => {
+			const entries = buildTimelineEntries([
+				event(1),
+				{
+					id: ulid(baseTime + 2000),
+					action: 'add.issue.comment',
+					payload: {id: 'c1', issue: 'i1', md: 'hi'},
+					userId: 'u-1',
+					userName: 'jo',
+				},
+				{
+					id: ulid(baseTime + 3000),
+					action: 'edit.issue.comment',
+					payload: {id: 'c1', issue: 'i1', md: 'hi again'},
+					userId: 'u-1',
+					userName: 'jo',
+				},
+			] as never);
+
+			expect(entries.map(entry => [entry.action, entry.target])).toEqual([
+				// The ticket's own events happened to no part of it, and `issue`
+				// already says which ticket they were.
+				['add.issue', null],
+				['add.issue.comment', 'c1'],
+				['edit.issue.comment', 'c1'],
+			]);
+		});
+
 		// What the flow chart places a ticket by: its lane after every event,
 		// and the one a change of lane took it out of — so a window can draw
 		// the ticket without the moves outside it.

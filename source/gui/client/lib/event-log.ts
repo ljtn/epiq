@@ -37,6 +37,9 @@ export type LogEntry = {
 	//
 	// A board- or swimlane-level event has no ticket and leads nowhere.
 	issue: string | null;
+	// The comment the event was about, where it was about one — see
+	// lib/log-destination, which turns it into an anchor.
+	target: string | null;
 	action: string | null;
 	sha: string | null;
 };
@@ -59,6 +62,7 @@ export const buildLogEntries = (
 			actor: event.actor ? {name: event.actor.name} : null,
 			diff: null,
 			issue: event.issue,
+			target: event.target,
 			action: event.action,
 			sha: null,
 		})),
@@ -78,6 +82,7 @@ export const buildLogEntries = (
 			// which the board resolves when the line is clicked — it already has to,
 			// for the scatter's own commit dots.
 			issue: null,
+			target: null,
 			action: null,
 			sha: commit.sha,
 		})),
@@ -378,7 +383,7 @@ export const LOG_ARROW_CLASS = 'epiq-log-arrow';
 // The accent, thinned to a ground. Written out rather than derived: the theme
 // keeps colours as hex and has no mixing of its own, and one wash in one panel
 // does not earn a mechanism.
-const LOG_FOLLOWED_WASH = 'rgba(118, 212, 255, 0.1)';
+const LOG_FOLLOWED_WASH = GUI_THEME.accentWash;
 
 // Mounted with the panel, so it carries its own look rather than depending on
 // a player being up to define it.

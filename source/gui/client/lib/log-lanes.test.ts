@@ -16,6 +16,7 @@ const line = (id: string, actor: {name: string} | null): LogEntry => ({
 	actor,
 	diff: null,
 	issue: null,
+	target: null,
 	action: null,
 	sha: null,
 });

@@ -50,7 +50,11 @@ const isDestination = (value: unknown): value is LogDestination =>
 	((value['kind'] === 'commit' && typeof value['sha'] === 'string') ||
 		(value['kind'] === 'ticket' &&
 			typeof value['issueId'] === 'string' &&
-			(value['tab'] === 'comments' || value['tab'] === 'overview')));
+			(value['tab'] === 'comments' || value['tab'] === 'overview') &&
+			// Optional: a window from an older build sends none, and the board
+			// still opens the tab.
+			(value['comment'] === undefined ||
+				typeof value['comment'] === 'string')));
 
 // What the window said, or null for anything else on the channel.
 export const parseLogWindowMessage = (

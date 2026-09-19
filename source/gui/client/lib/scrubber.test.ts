@@ -77,6 +77,7 @@ const entry = (
 	tag: null,
 	assignee: null,
 	issue: null,
+	target: null,
 	lane: null,
 	board: null,
 	laneBefore: null,
