@@ -18,6 +18,12 @@ const tabButtons = (page: Page) =>
 		.locator('aside')
 		.getByRole('button', {name: /^(Overview|Comments|Code)\b/});
 
+// By its test id, not its title: the click below leaves the pointer on the
+// button, TooltipLayer opens over it and takes the `title` away, and whether
+// this file passed was a race between that and the next locator. It lost four
+// gate runs in a row while passing on its own.
+const fullscreenToggle = (page: Page) => page.getByTestId('fullscreen-toggle');
+
 test.beforeEach(async ({page, appUrl}) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -31,7 +37,7 @@ test('a wide fullscreen panel shows every pane side by side', async ({
 	await addTicket(page, `Lanes ${Date.now()}`);
 	await expect(tabButtons(page)).toHaveCount(3);
 
-	await page.getByTitle('Fullscreen').click();
+	await fullscreenToggle(page).click();
 
 	await expect(tabButtons(page)).toHaveCount(0);
 	for (const lane of ['overview', 'comments', 'commits']) {
@@ -55,7 +61,7 @@ test('a wide fullscreen panel shows every pane side by side', async ({
 	// Nothing runs off the right edge of the window.
 	for (const target of [
 		page.getByTestId('lane-commits'),
-		page.getByTitle('Exit fullscreen'),
+		fullscreenToggle(page),
 	]) {
 		const box = await target.boundingBox();
 		expect(box).not.toBeNull();
@@ -68,7 +74,7 @@ test('a wide fullscreen panel shows every pane side by side', async ({
 	});
 
 	// Leaving fullscreen brings the tabs back.
-	await page.getByTitle('Exit fullscreen').click();
+	await fullscreenToggle(page).click();
 	await expect(tabButtons(page)).toHaveCount(3);
 	await expect(page.getByPlaceholder(/comment/i)).toBeHidden();
 
@@ -79,7 +85,7 @@ test('a narrow fullscreen panel keeps the tabs', async ({page, pageErrors}) => {
 	await page.setViewportSize({width: 1200, height: 800});
 	await addTicket(page, `Tabbed ${Date.now()}`);
 
-	await page.getByTitle('Fullscreen').click();
+	await fullscreenToggle(page).click();
 
 	await expect(tabButtons(page)).toHaveCount(3);
 	await expect(page.getByTestId('lane-overview')).toHaveCount(0);
@@ -134,7 +140,7 @@ test('the lanes open every commit and file, ready to read', async ({
 	await expect(page.locator('[data-line]')).toHaveCount(0);
 
 	// Lanes: the diffs are simply there.
-	await page.getByTitle('Fullscreen').click();
+	await fullscreenToggle(page).click();
 	await expect(page.getByTestId('lane-commits')).toBeVisible();
 	await expect(page.locator('[data-line]')).toHaveCount(6);
 	await expect(page.locator('[data-line]').first()).toHaveText('alpha');
