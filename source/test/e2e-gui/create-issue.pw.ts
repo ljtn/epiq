@@ -1,7 +1,7 @@
 import {expect, test} from './fixtures.js';
 
 const openModal = async (page: import('@playwright/test').Page) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await expect(page.getByPlaceholder('issue name')).toBeVisible();
 };
 

@@ -7,7 +7,7 @@ import {
 } from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -146,7 +146,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 	expect(snippetBackground).toBe('rgb(6, 7, 10)');
 
 	// Editing a diff comment edits its note; the link and snippet stay.
-	await page.getByTitle('Edit comment').click();
+	await page.getByTestId('edit-comment').click();
 	const editor = page.locator('aside textarea').first();
 	await expect(editor).toHaveValue('looks off');
 	await editor.fill('looks fine after all');
@@ -154,9 +154,9 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await expect(
 		page.locator('aside').getByText('looks fine after all'),
 	).toBeVisible();
-	await expect(
-		page.locator('aside').getByTitle('Open this in the diff'),
-	).toHaveText(`${fileName} line 2 (added)`);
+	await expect(page.locator('aside').getByTestId('open-in-diff')).toHaveText(
+		`${fileName} line 2 (added)`,
+	);
 	await expect(page.getByTestId('code-snippet')).toContainText('beta');
 
 	// ...and the annotation in the diff follows the edit.
@@ -167,7 +167,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 
 	// Deleting it takes the annotation away too.
 	await page.getByRole('button', {name: 'Comments (1)'}).click();
-	await page.getByTitle('Delete comment').click();
+	await page.getByTestId('delete-comment').click();
 	await expect(page.getByRole('button', {name: 'Comments (0)'})).toBeVisible();
 	await expandDiff(page, 'add notes', fileName);
 	await expect(page.getByTestId('diff-comment')).toHaveCount(0);
@@ -201,20 +201,16 @@ test('selecting lines opens one composer under them; write, then comment or file
 	await filed.click();
 	await expect(page.locator('aside')).toContainText(`Follow-up ${stamp}`);
 	await expect(page.locator('aside')).toContainText('needs a second look');
-	const snippetHeader = page
-		.locator('aside')
-		.getByTitle('Open this in the diff');
+	const snippetHeader = page.locator('aside').getByTestId('open-in-diff');
 	await expect(snippetHeader).toHaveText(`${ref} · ${fileName} line 1 (added)`);
 	await expect(page.locator('aside').getByText('alpha')).toBeVisible();
 	await page.screenshot({path: testInfo.outputPath('filed-ticket.png')});
 
 	// The header collapses the snippet and offers the commit's sha.
-	await expect(
-		page.locator('aside').getByTitle(/^Copy [0-9a-f]{40}$/),
-	).toBeVisible();
-	await page.locator('aside').getByTitle('Hide snippet').click();
+	await expect(page.locator('aside').getByTestId('copy-sha')).toBeVisible();
+	await page.locator('aside').getByTestId('snippet-toggle').click();
 	await expect(page.locator('aside').getByText('alpha')).toBeHidden();
-	await page.locator('aside').getByTitle('Show snippet').click();
+	await page.locator('aside').getByTestId('snippet-toggle').click();
 	await expect(page.locator('aside').getByText('alpha')).toBeVisible();
 
 	await snippetHeader.click();

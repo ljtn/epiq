@@ -4,7 +4,7 @@ test('the board runs flush to the details panel', async ({page, appUrl}) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Gutter ${Date.now()}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.getByRole('button', {name: 'close issue'})).toBeVisible();

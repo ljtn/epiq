@@ -11,7 +11,7 @@ test('hovering an event log row singles that event out in the scatter', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const title = `Highlight ${Date.now()}`;
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);
@@ -23,7 +23,7 @@ test('hovering an event log row singles that event out in the scatter', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	// The scatter only exists in the events layout; volume mode draws bars.
-	await page.getByTitle('Events by moment and time of day').click();
+	await page.getByRole('button', {name: 'Events', exact: true}).click();
 	const canvas = page.getByTestId('scatter-canvas');
 	await expect(canvas).toBeVisible();
 	await expect(canvas).toHaveAttribute('data-highlight', '');
@@ -49,7 +49,7 @@ test('an event with no dot on the chart leaves the scatter alone', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const title = `Filtered out ${Date.now()}`;
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);
@@ -57,7 +57,7 @@ test('an event with no dot on the chart leaves the scatter alone', async ({
 
 	await page.goto(ticketUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
-	await page.getByTitle('Events by moment and time of day').click();
+	await page.getByRole('button', {name: 'Events', exact: true}).click();
 
 	const canvas = page.getByTestId('scatter-canvas');
 	await expect(canvas).toBeVisible();

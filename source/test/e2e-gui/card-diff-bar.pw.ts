@@ -12,7 +12,7 @@ import {
 } from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string): Promise<string> => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -46,7 +46,7 @@ test('a card whose ticket has commits carries its diff stat, and carries none be
 	const ref = await addTicket(page, `Coded ${Date.now()}`);
 	const stat = statOn(page, ref);
 
-	await expect(page.getByTitle(`Copy ${ref}`).last()).toBeVisible();
+	await expect(page.getByTestId('copy-ref').last()).toBeVisible();
 	await expect(stat).toHaveCount(0);
 
 	// Three lines added and none removed — `commitLinkedFile`'s own contents.
@@ -94,7 +94,7 @@ test('a ticket whose commits changed no lines carries no stat to click', async (
 
 	// The commit is matched — the Code tab counts it — and still nothing is
 	// drawn beside the ref.
-	await expect(page.getByTitle(`Copy ${ref}`).last()).toBeVisible();
+	await expect(page.getByTestId('copy-ref').last()).toBeVisible();
 	await expect(statOn(page, ref)).toHaveCount(0);
 	await expect(
 		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(1\)/}),

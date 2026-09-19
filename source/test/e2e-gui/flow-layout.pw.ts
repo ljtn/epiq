@@ -86,9 +86,11 @@ test('the flow layout draws a moved ticket on the lane it went to', async ({
 
 	// No commits in this layout, so the Code series is not on offer — but its
 	// value is kept, for the log and for the other layouts.
-	await expect(
-		page.getByTitle('Flow draws tickets only').first(),
-	).toBeVisible();
+	const codeSeries = page.getByTestId('show-commits').first();
+	await expect(codeSeries).toBeVisible();
+	// Found by name, but still checked for the idle wording — that is what says
+	// the series is off the table in this layout rather than merely unticked.
+	await expect(codeSeries).toHaveAttribute('title', 'Flow draws tickets only');
 	await expect(page.getByTestId('commit-select')).toBeDisabled();
 	await page.getByRole('button', {name: 'Events', exact: true}).click();
 	await expect(page.getByTestId('commit-select')).toBeEnabled();

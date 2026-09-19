@@ -202,6 +202,7 @@ export const IssueComments = ({
 									editing?.id !== comment.id && (
 										<Button
 											variant="ghost"
+											testId="edit-comment"
 											title="Edit comment"
 											onClick={() => startEditing(comment)}
 										>
@@ -213,6 +214,7 @@ export const IssueComments = ({
 									onDeleteComment && (
 										<Button
 											variant="ghost"
+											testId="delete-comment"
 											title="Delete comment"
 											onClick={event => {
 												event.preventDefault();

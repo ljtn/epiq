@@ -27,6 +27,7 @@ export const CopyShaButton = ({sha}: {sha: string}) => {
 
 	return (
 		<IconButton
+			testId="copy-sha"
 			title={copied ? 'Copied!' : `Copy ${sha}`}
 			pressed={copied}
 			onClick={async event => {

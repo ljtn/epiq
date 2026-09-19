@@ -20,7 +20,7 @@ const createTicket = async (
 	title: string,
 	description: string,
 ): Promise<string> => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);

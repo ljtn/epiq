@@ -191,7 +191,7 @@ test('the log obeys the bar\u2019s own filters', async ({
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
 
 	// Commits go with the box that draws them.
-	const code = page.getByTitle('Show commits');
+	const code = page.getByTestId('show-commits');
 	const commitColour = 'rgb(140, 233, 154)';
 	const greens = async () =>
 		(
@@ -209,7 +209,7 @@ test('the log obeys the bar\u2019s own filters', async ({
 
 	// And the board series takes its own events with it.
 	// The name sits on the wrapper, not the box: the box itself is unlabelled.
-	const series = page.getByTitle('Show board events');
+	const series = page.getByTestId('show-board-events');
 	const before = await lines.count();
 	await series.click();
 	await expect.poll(async () => await lines.count()).toBeLessThan(before);
@@ -234,7 +234,7 @@ test('a line goes to where the thing it names is read', async ({
 	// The seeded board is a bare project — its log is the two setup commits and
 	// the board and swimlanes, none of which happened to a ticket. So the line
 	// worth following has to be made here.
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Followed ${Date.now()}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 
@@ -277,7 +277,7 @@ test('a line that leads somewhere says so under the pointer', async ({
 
 	// As above: the seeded board's own log is board- and swimlane-level events,
 	// so a line that leads anywhere has to be made here.
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Pointed ${Date.now()}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 
@@ -341,7 +341,7 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 	// round trip per ticket; one line in the log apiece.
 	const stamp = Date.now();
 	for (let index = 0; index < 10; index++) {
-		await page.getByTitle('Add issue').first().click();
+		await page.getByTestId('add-issue').first().click();
 		await page.getByPlaceholder('issue name').fill(`Foot ${stamp}-${index}`);
 		await page.getByPlaceholder('issue name').press('Enter');
 		await expect(page.locator('aside')).toContainText(`Foot ${stamp}-${index}`);
@@ -424,7 +424,7 @@ test('an arrow left below the fold does not hold the pane open when the log empt
 
 	const stamp = Date.now();
 	for (let index = 0; index < 10; index++) {
-		await page.getByTitle('Add issue').first().click();
+		await page.getByTestId('add-issue').first().click();
 		await page.getByPlaceholder('issue name').fill(`Arrow ${stamp}-${index}`);
 		await page.getByPlaceholder('issue name').press('Enter');
 		await expect(page.locator('aside')).toContainText(
@@ -739,7 +739,7 @@ test('the log pops out into its own window, and comes back when it closes', asyn
 	const boardUrl = page.url();
 
 	// A line worth following, as in the destination test above.
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Popped ${Date.now()}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await page.goto(boardUrl);

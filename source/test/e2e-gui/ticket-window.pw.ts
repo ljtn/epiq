@@ -35,7 +35,7 @@ const watchTimeline = async (page: Page) => {
 };
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);

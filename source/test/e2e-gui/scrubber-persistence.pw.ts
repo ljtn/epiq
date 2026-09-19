@@ -1,7 +1,9 @@
 import {expect, test} from './fixtures.js';
 
+// By accessible name, not by title: TooltipLayer takes the `title` off a
+// control while the pointer rests on it, and a click leaves the pointer here.
 const scatterPressed = (page: import('@playwright/test').Page) =>
-	page.getByTitle('Events by moment and time of day');
+	page.getByRole('button', {name: 'Events', exact: true});
 
 test('the chart layout survives a reload', async ({page, appUrl}) => {
 	await page.goto(appUrl);
@@ -18,7 +20,7 @@ test('the chart layout survives a reload', async ({page, appUrl}) => {
 	await expect(page.getByTestId('scatter-canvas')).toBeVisible();
 
 	// And back, so the stored value tracks the choice rather than sticking.
-	await page.getByTitle('Volume per period').click();
+	await page.getByRole('button', {name: 'Volume', exact: true}).click();
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(page.getByTestId('scatter-canvas')).toHaveCount(0);
@@ -38,7 +40,7 @@ test('a dragged-out zoom survives opening a ticket', async ({
 
 	// The board seeds no tickets, so there has to be a card to open.
 	const title = `Zoom target ${Date.now()}`;
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -94,7 +96,7 @@ test('a paged-back window survives opening a ticket', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const title = `Paged target ${Date.now()}`;
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -103,7 +105,7 @@ test('a paged-back window survives opening a ticket', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	await page.getByRole('button', {name: 'Week', exact: true}).click();
-	await page.getByTitle('Earlier').click();
+	await page.getByTestId('page-earlier').click();
 	await expect
 		.poll(() => new URL(page.url()).searchParams.get('offset'))
 		.toBe('1');

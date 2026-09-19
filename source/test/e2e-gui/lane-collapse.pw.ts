@@ -8,7 +8,7 @@ const openLanes = async (page: Page, appUrl: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Lanes ${Date.now()}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 

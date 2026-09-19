@@ -10,9 +10,14 @@ export const Button = ({
 	style,
 	onMouseEnter,
 	onMouseLeave,
+	testId,
 	...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
 	variant?: 'default' | 'ghost' | 'chip' | 'primary';
+	// A name that survives the pointer, as `IconButton` has. TooltipLayer takes
+	// `title` off whatever it describes while its tooltip is open, so a button
+	// found by its title is unfindable for as long as somebody rests on it.
+	testId?: string;
 	// A hex colour the button *stands for*, rather than one it is painted in: a
 	// tag's own colour. The fill and the border take a wash of it, so the name,
 	// what it sits on and what encloses it read as one object instead of three.
@@ -41,6 +46,7 @@ export const Button = ({
 
 	return (
 		<button
+			data-testid={testId}
 			{...props}
 			onMouseEnter={event => {
 				setHovered(true);

@@ -91,6 +91,7 @@ export const ManageTagsModal = ({tags, onDelete, onClose}: Props) => {
 
 								<Button
 									variant="ghost"
+									testId="delete-tag"
 									title={
 										armed
 											? `Click again to delete "${tag.name}" everywhere`

@@ -14,6 +14,10 @@ type Props = {
 	activeColor?: string;
 	disabled?: boolean;
 	title?: string;
+	// A name that survives the pointer. TooltipLayer takes `title` off whatever
+	// it is describing while its tooltip is open, so a box found by its title is
+	// unfindable for as long as somebody rests on it.
+	testId?: string;
 };
 
 // Drawn to match the buttons rather than the platform's own. The native input
@@ -26,6 +30,7 @@ export const Checkbox = ({
 	activeColor = GUI_THEME.accent,
 	disabled,
 	title,
+	testId,
 }: Props) => {
 	const partial = Boolean(mixed) && !checked;
 	const color = checked || partial ? activeColor : GUI_THEME.dim;
@@ -33,6 +38,7 @@ export const Checkbox = ({
 	return (
 		<label
 			title={title}
+			data-testid={testId}
 			style={{
 				display: 'flex',
 				alignItems: 'center',

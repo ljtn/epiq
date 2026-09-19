@@ -13,7 +13,7 @@ const palette = (page: Page) => page.getByTestId('command-palette');
 const rows = (page: Page) => palette(page).getByRole('option');
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -71,7 +71,7 @@ test('a colon typed into a field stays in the field', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	const field = page.getByPlaceholder('issue name');
 	await field.fill('Fix');
 	await field.press(':');
@@ -92,7 +92,7 @@ test('it stays out of the way while you are typing', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	const field = page.getByPlaceholder('issue name');
 	await field.fill('Typing');
 	await field.press('Control+k');
