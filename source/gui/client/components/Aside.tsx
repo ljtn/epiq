@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import {AsideDock} from '../lib/aside-dock';
 import {GUI_THEME} from '../lib/gui-theme';
+import {PANE_HEADER_INSET} from '../lib/pane-header.style';
 import {ResizeHandle} from './ResizeHandle';
 
 export const ASIDE_WIDTH = 440;
@@ -243,7 +244,9 @@ export const Aside = forwardRef<
 							boxShadow: '-10px 0 24px rgba(0, 0, 0, 0.45)',
 					  }),
 				background: GUI_THEME.panel,
-				padding: ASIDE_PADDING,
+				// Its header is one of the rows across the top of the window, so the
+				// gap above it is theirs rather than the panel's own.
+				padding: `${PANE_HEADER_INSET}px ${ASIDE_PADDING}px ${ASIDE_PADDING}px`,
 				fontSize: 12,
 				// The panel frames the scrolling, it does not do it — see the pane
 				// below. Its own overflow only has the resize handle to clip, which
