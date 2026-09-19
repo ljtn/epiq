@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 
-# The pre-push gate. Nothing here shares state, so it all runs at once: lint,
-# typecheck and the unit suite alongside one build feeding the docker suites and
-# the GUI browser suite (the container stage skips rebuilding). Output is
+# The pre-push gate. Lint, typecheck and the unit suite run at once and
+# alongside one build, which feeds the docker suites and then the GUI browser
+# suite (the container stage skips rebuilding). The two heavy suites run one
+# after the other rather than together — see `suites` below. Output is
 # buffered per job so a failure is readable rather than interleaved.
 
 set -u
@@ -54,12 +55,18 @@ suites() {
 	fi
 	echo 0 >"$log_dir/build.rc"
 
-	EPIQ_SKIP_BUILD=1 run containers npm run test:containers &
+	# One heavy suite at a time. The container tests wait on frames painted by
+	# a real pty, so they are the first thing to break when the cores are
+	# oversubscribed — and running them beside the browser suite, on a machine
+	# that often has several sessions on it, failed five of nine gate runs in
+	# files that pass alone (7VAHK6W). The minutes this costs buy a gate whose
+	# red means the branch is wrong.
+	EPIQ_SKIP_BUILD=1 run containers npm run test:containers
+
 	# Not `--no-shell`: headless Chromium runs as the headless shell, which that
 	# flag is what skips downloading. It only ever passed here because a machine
 	# that had run a plain `playwright install` already had one cached.
-	run gui sh -c 'npx playwright install chromium && npx playwright test' &
-	wait
+	run gui sh -c 'npx playwright install chromium && npx playwright test'
 }
 
 echo "${BLUE}Running lint, typecheck, unit, e2e, collaboration and GUI browser tests...${NC}"
