@@ -433,8 +433,11 @@ export const ScrubberControls = ({
 						boxSizing: 'border-box',
 						display: 'inline-flex',
 						alignItems: 'center',
-						justifyContent: 'center',
-						padding: '2px 8px',
+						// Pushed apart rather than sat together: the word is the label
+						// and the needle is the destination, and the space the button
+						// puts between them is the run the press makes.
+						justifyContent: 'space-between',
+						padding: '2px 7px',
 						cursor: isScrubbing ? 'pointer' : 'default',
 						whiteSpace: 'nowrap',
 						flexShrink: 0,
