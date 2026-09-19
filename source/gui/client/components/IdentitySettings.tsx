@@ -132,11 +132,12 @@ export const IdentitySettings = ({
 						}}
 						style={{
 							width: 52,
-							// The outline alone, like every button in this panel. Painted
-							// at `GUI_THEME.bg` it was two grounds below the card it sits
-							// on and read as a hole punched in the surface — the heaviest
-							// mark in a row whose subject is the switch beside it.
-							background: GUI_THEME.transparent,
+							// One ground under the card, which is the middle of three
+							// tries: at `GUI_THEME.bg` it was two grounds down and read
+							// as a hole punched in the card; with no fill at all it read
+							// as flat, an outline with nothing behind it. A field is a
+							// place to type, so it wants to look recessed — just barely.
+							background: GUI_THEME.panel,
 							color: outOfRange ? GUI_THEME.red : GUI_THEME.primary,
 							border: `1px solid ${
 								outOfRange ? GUI_THEME.red : GUI_THEME.line

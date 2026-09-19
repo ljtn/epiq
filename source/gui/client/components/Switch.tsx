@@ -16,10 +16,16 @@ import {GUI_THEME} from '../lib/gui-theme';
 // GUI has either, and a switch borrowed whole from somewhere else reads as a
 // component from another application.
 
-const TRACK_WIDTH = 26;
-const TRACK_HEIGHT = 14;
+// Border-box, so the border is inside these. The knob sits `GAP` in from the
+// padding box on every side, which is what makes its travel read as the same
+// distance at each end.
+const TRACK_WIDTH = 28;
+const TRACK_HEIGHT = 16;
+const BORDER = 1;
 const KNOB = 10;
-const INSET = (TRACK_HEIGHT - KNOB) / 2;
+const GAP = 2;
+
+const TRAVEL = TRACK_WIDTH - 2 * BORDER - KNOB - GAP;
 
 export const Switch = ({
 	label,
@@ -67,7 +73,12 @@ export const Switch = ({
 				// switch reads as a slot with nothing in it rather than as a
 				// second colour.
 				background: checked ? activeColor : GUI_THEME.panel,
-				border: `1px solid ${checked ? activeColor : GUI_THEME.line}`,
+				// `dim` off, not `line`. `line` is a 15% wash meant for dividing
+				// one surface — against the card it composites to about #191d28
+				// and the track all but disappeared, leaving the knob floating
+				// with nothing to say how far it could travel. A switch has to
+				// show its whole extent to read as a switch at all.
+				border: `${BORDER}px solid ${checked ? activeColor : GUI_THEME.dim}`,
 				boxSizing: 'border-box',
 				flexShrink: 0,
 				transition: 'background 120ms ease, border-color 120ms ease',
@@ -93,10 +104,10 @@ export const Switch = ({
 				aria-hidden
 				style={{
 					position: 'absolute',
-					top: INSET - 1,
-					// Measured from the same inset either side, so the knob sits
-					// the same distance from each end of its travel.
-					left: checked ? TRACK_WIDTH - KNOB - INSET - 2 : INSET,
+					// Relative to the padding box, which already starts inside the
+					// border — so `GAP` here is the gap you see.
+					top: GAP,
+					left: checked ? TRAVEL : GAP,
 					width: KNOB,
 					height: KNOB,
 					borderRadius: 999,
