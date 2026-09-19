@@ -20,7 +20,8 @@ export const LogWindow = () => {
 		<div
 			style={{
 				height: '100vh',
-				background: GUI_THEME.bg,
+				// The same ground the docked log takes: one log, in two places.
+				background: GUI_THEME.chrome,
 				color: GUI_THEME.primary,
 				fontFamily:
 					'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',

@@ -1660,82 +1660,88 @@ export const App = () => {
 					/>
 				)}
 
-				{/* Dimmed and inert with the rest of the chrome while a movie plays:
+				{/* The instrumentation, on its own ground: the bar and the timeline
+				    sit below the board rather than on it, so what recedes is the
+				    room and what stays is the work. The log takes the same ground
+				    on the other axis. */}
+				<div style={{background: GUI_THEME.chrome}}>
+					{/* Dimmed and inert with the rest of the chrome while a movie plays:
 				    the board is the picture, and everything around it is the room
 				    lights. */}
-				<div style={theatre ? DIMMED_WHILE_PLAYING : undefined}>
-					<Header
-						state={state}
-						connection={
-							connected
-								? 'connected'
-								: !offline
-								? 'connecting'
-								: reconnectExhausted
-								? 'lost'
-								: 'reconnecting'
+					<div style={theatre ? DIMMED_WHILE_PLAYING : undefined}>
+						<Header
+							state={state}
+							connection={
+								connected
+									? 'connected'
+									: !offline
+									? 'connecting'
+									: reconnectExhausted
+									? 'lost'
+									: 'reconnecting'
+							}
+							onReconnect={reconnectNow}
+							scrubbing={state?.timeTravel?.mode === 'scrub'}
+							syncStatus={syncStatus}
+							onOpenCommands={() => commandPalette.setOpen(true)}
+							identity={{
+								open: identityOpen,
+								onToggle: () => setIdentityOpen(open => !open),
+								onDismiss: () => setIdentityOpen(false),
+								panel: (
+									<IdentityPanel
+										state={contributorEmails}
+										me={state?.user ?? null}
+										onLink={contributorEmails.link}
+										onUnlink={contributorEmails.unlink}
+									/>
+								),
+							}}
+						/>
+					</div>
+
+					<TimeScrubber
+						timeline={history.timeline}
+						commits={history.commits}
+						historyId={history.requestId}
+						boardId={selectedBoardId}
+						connected={connected}
+						socketEpoch={socketEpoch}
+						onRequestHistory={requestBoardHistory}
+						onInspectCommit={openCommitDiff}
+						onOpenIssue={id => openIssueTab(id, 'overview')}
+						highlightEventId={hoveredLogEventId}
+						timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
+						onScrub={scrubToTime}
+						onReturnToLive={returnToLive}
+						onPlayTheatre={startTheatre}
+						theatreOpen={theatre !== null}
+						logOpen={logOpen}
+						onChangeLogOpen={setLogOpen}
+						showIssues={showIssues}
+						onChangeShowIssues={setShowIssues}
+						showCommits={showCommits}
+						onChangeShowCommits={setShowCommits}
+						linkedCommitsOnly={linkedCommitsOnly}
+						onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
+						issueIdByRef={issueIdByRef}
+						lanes={boardLanes}
+						laneTitles={laneTitles}
+						issueSummaryById={issueSummaryById}
+						selection={selection}
+						onChangeSelection={changeSelection}
+						selectedIssue={
+							selectedIssue
+								? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
+								: null
 						}
-						onReconnect={reconnectNow}
-						scrubbing={state?.timeTravel?.mode === 'scrub'}
-						syncStatus={syncStatus}
-						onOpenCommands={() => commandPalette.setOpen(true)}
-						identity={{
-							open: identityOpen,
-							onToggle: () => setIdentityOpen(open => !open),
-							onDismiss: () => setIdentityOpen(false),
-							panel: (
-								<IdentityPanel
-									state={contributorEmails}
-									me={state?.user ?? null}
-									onLink={contributorEmails.link}
-									onUnlink={contributorEmails.unlink}
-								/>
-							),
-						}}
+						textFilter={textFilter}
+						onChangeTextFilter={setTextFilter}
+						queryIssueIds={queryIssueIds}
+						knownIdentities={knownIdentities}
+						refreshOn={historyTick}
 					/>
 				</div>
-
-				<TimeScrubber
-					timeline={history.timeline}
-					commits={history.commits}
-					historyId={history.requestId}
-					boardId={selectedBoardId}
-					connected={connected}
-					socketEpoch={socketEpoch}
-					onRequestHistory={requestBoardHistory}
-					onInspectCommit={openCommitDiff}
-					onOpenIssue={id => openIssueTab(id, 'overview')}
-					highlightEventId={hoveredLogEventId}
-					timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
-					onScrub={scrubToTime}
-					onReturnToLive={returnToLive}
-					onPlayTheatre={startTheatre}
-					theatreOpen={theatre !== null}
-					logOpen={logOpen}
-					onChangeLogOpen={setLogOpen}
-					showIssues={showIssues}
-					onChangeShowIssues={setShowIssues}
-					showCommits={showCommits}
-					onChangeShowCommits={setShowCommits}
-					linkedCommitsOnly={linkedCommitsOnly}
-					onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
-					issueIdByRef={issueIdByRef}
-					lanes={boardLanes}
-					laneTitles={laneTitles}
-					issueSummaryById={issueSummaryById}
-					selection={selection}
-					onChangeSelection={changeSelection}
-					selectedIssue={
-						selectedIssue
-							? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
-							: null
-					}
-					textFilter={textFilter}
-					onChangeTextFilter={setTextFilter}
-					queryIssueIds={queryIssueIds}
-					knownIdentities={knownIdentities}
-					refreshOn={historyTick}
-				/>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at
 			    full strength: it carries the reason and the way back. */}

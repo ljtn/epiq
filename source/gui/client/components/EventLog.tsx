@@ -627,7 +627,7 @@ const EventLogPanel = ({
 					display: 'flex',
 					flexDirection: 'column',
 					borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.line}`,
-					background: GUI_THEME.panel,
+					background: GUI_THEME.chrome,
 					// The name column's width, for every row at once.
 					[LOG_ACTOR_WIDTH_PROPERTY]: actorColumnWidth(actorChars),
 					// How many lanes the pane divides into while it is split.
