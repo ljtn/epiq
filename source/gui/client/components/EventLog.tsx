@@ -299,7 +299,10 @@ const LogHeader = ({
 			gap: 12,
 			flexShrink: 0,
 			height: LOG_HEADER_HEIGHT,
-			padding: `${PANE_HEADER_INSET}px ${LOG_PANE_PADDING_X}px 0 30px`,
+			// The same gap under the row as over it: the rule below is the panel's
+			// only divider, and a row sitting straight on it read as a header the
+			// first line had been pushed into.
+			padding: `${PANE_HEADER_INSET}px ${LOG_PANE_PADDING_X}px ${PANE_HEADER_INSET}px 30px`,
 			borderBottom: `1px solid ${GUI_THEME.line}`,
 		}}
 	>
