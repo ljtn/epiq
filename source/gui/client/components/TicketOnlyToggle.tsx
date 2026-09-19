@@ -4,7 +4,7 @@
 // and the panel is that ticket.
 
 import {IconButton, ICON_SIZE} from './IconButton';
-import {IconTimeline} from './IconTimeline';
+import {IconFunnel} from './IconFunnel';
 
 export const TicketOnlyToggle = ({
 	narrowed,
@@ -35,6 +35,6 @@ export const TicketOnlyToggle = ({
 		}
 		onClick={() => onChange(!narrowed)}
 	>
-		<IconTimeline size={ICON_SIZE} />
+		<IconFunnel size={ICON_SIZE} />
 	</IconButton>
 );
