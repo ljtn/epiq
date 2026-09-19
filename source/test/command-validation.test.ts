@@ -337,7 +337,22 @@ describe('cmdValidation', () => {
 			);
 
 			expect(result.validity).toBe(cmdValidity.Invalid);
-			expect(result.message).toContain('provide duration above');
+			expect(result.message).toContain('provide a duration between');
+		});
+
+		// Past 2^31-1 ms `setTimeout` clamps the delay to 1ms, so a very long
+		// interval becomes a sync loop running flat out. The message names both
+		// bounds, because naming only the floor sent somebody over the ceiling
+		// looking in the wrong direction.
+		it('rejects duration above maximum, and says which end', () => {
+			const result = cmdValidation[CmdKeywords.CONFIG].validate(
+				CmdKeywords.CONFIG,
+				ConfigModifiers.SYNC_DEBOUNCE_MS,
+				'3600000000',
+			);
+
+			expect(result.validity).toBe(cmdValidity.Invalid);
+			expect(result.message).toContain('86400000ms');
 		});
 
 		it('rejects non-number duration', () => {

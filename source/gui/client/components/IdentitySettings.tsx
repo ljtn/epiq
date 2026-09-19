@@ -40,9 +40,12 @@ export const IdentitySettings = ({
 	// on the way to "15" is never sent and never refused.
 	const [draft, setDraft] = useState('');
 
+	// On every answer from the server, not only on a changed value: a refused
+	// write comes back with the setting unaltered, and the box must fall back
+	// to what is configured rather than keep the number that was turned down.
 	useEffect(() => {
 		if (settings) setDraft(secondsOf(settings.intervalMs));
-	}, [settings?.intervalMs]);
+	}, [settings?.intervalMs, state.answeredAt]);
 
 	if (!settings) {
 		return (
@@ -56,13 +59,28 @@ export const IdentitySettings = ({
 	}
 
 	const seconds = Number(draft);
+
+	// What is configured is never wrong to show, whatever it is. The bounds
+	// govern what somebody may *ask* for, and a stored value below the floor is
+	// a state the loops deliberately preserve — the suites run at 1ms and
+	// `follow-arrival.pw.ts` writes 1000 into this very file. Flagging it on
+	// sight opened the panel with a red error against a number nobody typed,
+	// and `commit` wrote the same number straight back, so it could not be
+	// cleared without changing the setting.
+	const pristine = draft === secondsOf(settings.intervalMs);
+
 	const outOfRange =
+		!pristine &&
 		draft.trim() !== '' &&
 		(!Number.isFinite(seconds) ||
 			seconds < MIN_SECONDS ||
 			seconds > MAX_SECONDS);
 
 	const commit = () => {
+		// Nothing typed, so nothing to send — and nothing to correct either,
+		// even where what is configured is out of bounds.
+		if (pristine) return;
+
 		if (outOfRange || draft.trim() === '') {
 			setDraft(secondsOf(settings.intervalMs));
 			return;
