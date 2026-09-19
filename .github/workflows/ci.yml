@@ -45,19 +45,22 @@ jobs:
   # say so by name instead of hiding behind a job called Test. Running beside
   # `test` also keeps the wall clock roughly where it was.
   gui:
-    name: GUI ${{ matrix.shard }}/2
+    name: GUI ${{ matrix.shard }}/3
     runs-on: ubuntu-latest
 
-    # Split across two runners rather than run faster on one. This job is the
-    # whole pipeline's critical path — 428s against 80s for Test and 300s for
-    # Collaboration — and nearly all of it is the browser suite itself. Playwright
-    # shards by file, so each runner gets whole files and nothing about how a
-    # test runs changes; raising `workers` instead would put more browsers on the
-    # same four vCPUs, which is what the flaky list is already made of.
+    # Split across runners rather than run faster on one. Nearly all of this
+    # job is the browser suite itself, and it is the pipeline's critical path on
+    # any run where Collaboration behaves — that one swings between 2m46 and
+    # 5m05, since it races real syncs, while this sits around 3m30.
+    #
+    # Playwright shards by file, so each runner gets whole files and nothing
+    # about how a test runs changes; three ways splits 64/66/59 of 189. Raising
+    # `workers` instead would put more browsers on the same four vCPUs, which is
+    # what the flaky list was made of.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
 
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +78,7 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run test:gui:ci -- --shard=${{ matrix.shard }}/2
+      - run: npm run test:gui:ci -- --shard=${{ matrix.shard }}/3
 
       # `trace: 'retain-on-failure'` writes one per failed test and the runner
       # then throws it away, which is why every GUI failure here has had to be
