@@ -8,9 +8,11 @@ import {
 	SECTION_LABEL,
 } from '../lib/identity-panel.style';
 import {ContributorEmailsState} from '../lib/use-contributor-emails';
+import {PersonalStatsState} from '../lib/use-personal-stats';
 import {SyncSettingsState} from '../lib/use-sync-settings';
 import {actorDisplay} from '../lib/agent-identity';
 import {IdentitySettings} from './IdentitySettings';
+import {IdentityStats} from './IdentityStats';
 
 // Where somebody goes when the board is calling their commits by the wrong
 // name, or by no name at all. Before this there was nowhere: an unresolved
@@ -192,6 +194,7 @@ const Section = ({
 
 export const IdentityPanel = ({
 	state,
+	stats,
 	settings,
 	me,
 	onLink,
@@ -199,6 +202,7 @@ export const IdentityPanel = ({
 	onChangeSettings,
 }: {
 	state: ContributorEmailsState;
+	stats: PersonalStatsState;
 	settings: SyncSettingsState;
 	me: {id: string; name: string} | null;
 	onLink: (email: string) => void;
@@ -278,6 +282,7 @@ export const IdentityPanel = ({
 					scrollbarGutter: 'stable',
 				}}
 			>
+				<IdentityStats state={stats} />
 				<IdentitySettings state={settings} onChange={onChangeSettings} />
 
 				{state.scanError ? (

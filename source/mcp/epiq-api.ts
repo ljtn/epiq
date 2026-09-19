@@ -57,3 +57,5 @@ export {
 	suggestOwnEmails,
 	unlinkContributorEmail,
 } from './api/emails.js';
+
+export {getPersonalStats} from './api/personal-stats.js';
