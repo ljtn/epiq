@@ -1,6 +1,10 @@
 import {describe, expect, it} from 'vitest';
-import {GuiEventTimelineEntry, GuiTimeTravelStatus} from './gui-state.model';
-import {momentOnScreen, onThisBoard} from './use-event-log';
+import {
+	GuiEventTimeline,
+	GuiEventTimelineEntry,
+	GuiTimeTravelStatus,
+} from './gui-state.model';
+import {eventsWentUnlisted, momentOnScreen, onThisBoard} from './use-event-log';
 
 const live: GuiTimeTravelStatus = {mode: 'live', asOfTime: null};
 const parked: GuiTimeTravelStatus = {mode: 'scrub', asOfTime: 5_000};
@@ -69,5 +73,43 @@ describe('onThisBoard', () => {
 	// nothing would empty the panel rather than leave it unfiltered.
 	it('keeps everything while no board is known', () => {
 		expect(onThisBoard(entry('BOARD_B'), null)).toBe(true);
+	});
+});
+
+const window = (capped: boolean): GuiEventTimeline => ({
+	bucketMs: 1_000,
+	buckets: [],
+	capped,
+	events: [],
+	lanesAtStart: {},
+	laneNames: {},
+	closedLane: 'CLOSED',
+	earliest: 0,
+	latest: 10_000,
+});
+
+describe('eventsWentUnlisted', () => {
+	it('says nothing about a window the server listed in full', () => {
+		expect(eventsWentUnlisted(true, true, window(false))).toBe(false);
+	});
+
+	// The whole of 8CYH2TC: past the cap the window arrives without its events,
+	// and a log of commits alone reads as a quiet stretch.
+	it('speaks up for a window too crowded to list', () => {
+		expect(eventsWentUnlisted(true, true, window(true))).toBe(true);
+	});
+
+	// Only the board series went missing, so a reader who turned it off is
+	// already seeing all they asked for.
+	it('stays quiet while the board series is off', () => {
+		expect(eventsWentUnlisted(true, false, window(true))).toBe(false);
+	});
+
+	it('stays quiet while the panel is shut', () => {
+		expect(eventsWentUnlisted(false, true, window(true))).toBe(false);
+	});
+
+	it('stays quiet before a window has arrived', () => {
+		expect(eventsWentUnlisted(true, true, null)).toBe(false);
 	});
 });

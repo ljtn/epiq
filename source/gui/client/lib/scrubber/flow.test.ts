@@ -50,6 +50,7 @@ const window = (
 	laneNames: Record<string, string> = {},
 ): GuiEventTimeline => ({
 	bucketMs: 1,
+	capped: false,
 	buckets: [],
 	events,
 	lanesAtStart,
@@ -75,6 +76,7 @@ describe('buildFlowChart', () => {
 			buildFlowChart(
 				{
 					bucketMs: 1,
+					capped: false,
 					buckets: [{t: 0, count: 5}],
 					events: [],
 					lanesAtStart: {},

@@ -1295,7 +1295,11 @@ export const App = () => {
 		  }
 		: null;
 
-	const {entries: logEntries, moment: logMoment} = useEventLog({
+	const {
+		entries: logEntries,
+		moment: logMoment,
+		eventsUnlisted,
+	} = useEventLog({
 		open: logOpen,
 		timeline: history.timeline,
 		boardId: selectedBoardId ?? null,
@@ -1352,6 +1356,7 @@ export const App = () => {
 		entries: logEntries,
 		moment: logMoment,
 		followedLine,
+		eventsUnlisted,
 		open: logOpen,
 		onOpen: openLogDestination,
 		onPinnedChange: setLogPinned,
@@ -1858,6 +1863,7 @@ export const App = () => {
 								onOpen={openLogDestination}
 								at={readerAt}
 								followedLine={followedLine}
+								eventsUnlisted={eventsUnlisted}
 								onPinnedChange={setLogPinned}
 								onPopOut={logWindow.popOut}
 							/>

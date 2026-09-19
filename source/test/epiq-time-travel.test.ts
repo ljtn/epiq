@@ -686,6 +686,7 @@ describe('epiq-time-travel', () => {
 				baseTime,
 				baseTime + 60_000,
 			]);
+			expect(result.value.capped).toBe(false);
 		});
 
 		it('drops the per-event entries past the cap, keeping the buckets', async () => {
@@ -707,6 +708,9 @@ describe('epiq-time-travel', () => {
 
 			expect(result.value.events).toEqual([]);
 			expect(result.value.buckets.length).toBeGreaterThan(0);
+			// 8CYH2TC: the caller cannot tell an empty list from a withheld one
+			// unless the window says which it is.
+			expect(result.value.capped).toBe(true);
 		});
 
 		it('scopes to an explicit start/end window, excluding events outside it', async () => {

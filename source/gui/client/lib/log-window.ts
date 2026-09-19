@@ -28,6 +28,9 @@ export type LogLinesMessage = {
 	entries: LogEntry[];
 	moment: number;
 	followedLine: string | null;
+	// The window was too big to list, so the slice is commits alone and the
+	// window has to say so, exactly as the docked panel does.
+	eventsUnlisted: boolean;
 };
 
 // Sent by the window. `pinned` is the one thing the board cannot see for
@@ -94,6 +97,7 @@ export const parseLogLinesMessage = (data: unknown): LogLinesMessage | null =>
 					typeof data['followedLine'] === 'string'
 						? data['followedLine']
 						: null,
+				eventsUnlisted: data['eventsUnlisted'] === true,
 		  }
 		: null;
 
@@ -110,6 +114,7 @@ export const useLogWindow = ({
 	entries,
 	moment,
 	followedLine,
+	eventsUnlisted,
 	open,
 	onOpen,
 	onPinnedChange,
@@ -118,6 +123,7 @@ export const useLogWindow = ({
 	moment: number;
 	// Which row the window should mark. Decided on this side, like the slice.
 	followedLine: string | null;
+	eventsUnlisted: boolean;
 	// The log is on at all. Turned off, the window goes with it.
 	open: boolean;
 	onOpen: (destination: LogDestination, options: {replace: boolean}) => void;
@@ -133,8 +139,8 @@ export const useLogWindow = ({
 
 	// The latest slice, for the window's first ask: it says `ready` once its
 	// script is up, which is after the effect below has posted anything.
-	const latest = useRef({entries, moment, followedLine});
-	latest.current = {entries, moment, followedLine};
+	const latest = useRef({entries, moment, followedLine, eventsUnlisted});
+	latest.current = {entries, moment, followedLine, eventsUnlisted};
 
 	// Read by the message listener, which is registered once per window.
 	const onOpenRef = useRef(onOpen);
@@ -149,6 +155,7 @@ export const useLogWindow = ({
 			entries: lines.entries as LogEntry[],
 			moment: lines.moment,
 			followedLine: lines.followedLine,
+			eventsUnlisted: lines.eventsUnlisted,
 		};
 
 		to.postMessage(message, window.location.origin);
@@ -202,8 +209,8 @@ export const useLogWindow = ({
 	}, [target, send]);
 
 	useEffect(() => {
-		if (target) send(target, {entries, moment, followedLine});
-	}, [target, entries, moment, followedLine, send]);
+		if (target) send(target, {entries, moment, followedLine, eventsUnlisted});
+	}, [target, entries, moment, followedLine, eventsUnlisted, send]);
 
 	useEffect(() => {
 		if (open || !target) return;
@@ -223,6 +230,7 @@ export const useLogMirror = (): {
 		entries: LogEntry[];
 		moment: number;
 		followedLine: string | null;
+		eventsUnlisted: boolean;
 	} | null;
 	board: Window | null;
 	open: (destination: LogDestination, options?: {replace?: boolean}) => void;
