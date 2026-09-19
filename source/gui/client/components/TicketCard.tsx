@@ -193,10 +193,10 @@ export const TicketCard = ({
 				// air around its title is what keeps a column of them from
 				// running together.
 				// None on the left: the index's box is the margin there.
-				padding: '16px 18px 16px 0',
+				padding: '12px 18px 12px 0',
 				minHeight: '58px',
 				borderRadius: '8px',
-				marginBottom: 8,
+				marginBottom: 12,
 				border: `1px solid ${
 					isSelected || isPicked ? GUI_THEME.accent : 'transparent'
 				}`,
