@@ -1,26 +1,23 @@
-// The way back from history: a run to the end of the track, where the needle
-// stands.
+// The timeline's needle: a filled head over a dropped line, as the chart draws
+// it. On the Now button it is the destination — the word sits at the left, this
+// at the right, and the space the button puts between them is the run.
 //
-// The end is drawn as the needle itself — the chart's own mark, a head over a
-// dropped line — rather than as a plain bar. A bar says "the end of something";
-// the needle says which thing, and it is the one the press actually moves.
-export const IconNow = ({size = 14}: {size?: number}) => (
+// The run was drawn in here once, as a chevron before the head. Two ideas in
+// sixteen pixels left both of them thin, and the pair read as a smudge rather
+// than as an arrow reaching a mark. One idea, drawn to fill the box.
+export const IconNow = ({size = 16}: {size?: number}) => (
 	<svg
 		width={size}
 		height={size}
 		viewBox="0 0 24 24"
 		fill="none"
 		stroke="currentColor"
-		strokeWidth="1.9"
+		strokeWidth="2.6"
 		strokeLinecap="round"
 		strokeLinejoin="round"
 		aria-hidden="true"
 	>
-		{/* The run up to it, stopping short so the head is not swallowed. */}
-		<path d="M2 12h8" />
-		<path d="m7 8.5 3.5 3.5L7 15.5" />
-		{/* The needle: a filled head over its line, as the chart draws it. */}
-		<path d="M14.5 4h8l-4 5z" fill="currentColor" stroke="none" />
-		<path d="M18.5 9v11" />
+		<path d="M3 3h18l-9 10z" fill="currentColor" stroke="none" />
+		<path d="M12 13v8" />
 	</svg>
 );

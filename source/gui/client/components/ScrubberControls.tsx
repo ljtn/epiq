@@ -429,7 +429,7 @@ export const ScrubberControls = ({
 						color: isScrubbing ? GUI_THEME.bg : GUI_THEME.dim,
 						fontFamily: 'inherit',
 						fontSize: 11,
-						width: 60,
+						width: 78,
 						boxSizing: 'border-box',
 						display: 'inline-flex',
 						alignItems: 'center',
