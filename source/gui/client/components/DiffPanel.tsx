@@ -225,7 +225,7 @@ const PanelFile = ({
 			>
 				{diffLineCount(file).toLocaleString()} lines
 				<Button variant="ghost" onClick={() => setShown(true)}>
-					Show diff
+					show diff
 				</Button>
 			</span>
 		</div>

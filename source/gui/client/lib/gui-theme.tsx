@@ -43,6 +43,12 @@ export const GUI_THEME = {
 	// menu items. A lift off whatever it sits on rather than a colour of its
 	// own, so it reads the same on the panel as on the board.
 	hover: 'rgba(255,255,255,0.04)',
+	// What the confirming button in a row is filled with — `hover` a step
+	// further up, and a wash rather than a colour for the same reason: it sits
+	// on the panel, on a modal and inside the diff's own composer, whose ground
+	// is the flat colour this used to be painted in.
+	raised: 'rgba(255,255,255,0.055)',
+	raisedHover: 'rgba(255,255,255,0.1)',
 	accent: '#76d4ff',
 	green: '#8ce99a',
 	// One step short of `red`, at the same pastel weight, for anything that
