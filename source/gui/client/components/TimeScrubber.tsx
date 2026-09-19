@@ -848,6 +848,28 @@ export const TimeScrubber = ({
 			? 1
 			: null;
 
+	/**
+	 * Where the unapplied stretch starts, as a fraction of the window, or null
+	 * where none of the window is unapplied.
+	 *
+	 * Not the needle's own fraction, which is null whenever the checkout falls
+	 * outside the window — zoom past it and the needle leaves the chart while
+	 * every bar on screen is still after it. Three cases, and only the last one
+	 * draws nothing:
+	 *
+	 * - the checkout is before the window: all of it is unapplied, from 0
+	 * - the checkout is in the window: unapplied from where the needle stands
+	 * - the checkout is after the window: everything in view is applied
+	 */
+	const unappliedFrom =
+		timeTravel.mode === 'scrub' && timeTravel.asOfTime !== null
+			? timeTravel.asOfTime < axis.earliest
+				? 0
+				: timeTravel.asOfTime > axis.latest
+				? null
+				: axis.fractionForTime(timeTravel.asOfTime)
+			: null;
+
 	const fractionFromClientX = (clientX: number) => {
 		const track = trackRef.current;
 		if (!track) return 0;
@@ -1265,6 +1287,9 @@ export const TimeScrubber = ({
 						: null,
 				connected,
 				thumbFraction: dragFraction ?? confirmedFraction,
+				// Follows a drag, so the stretch moves with the needle rather than
+				// waiting for the checkout the drag will ask for.
+				unappliedFrom: dragFraction ?? unappliedFrom,
 				highlightEventId,
 				trackWidthPx: trackRef.current?.clientWidth ?? 0,
 				boardHint: pickingRange ? rangeHint : boardHint,
