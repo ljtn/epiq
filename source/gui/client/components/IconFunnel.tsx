@@ -2,9 +2,10 @@
 // mouth narrowing to a stem, which is the shape of taking a lot and letting a
 // little through.
 //
-// Not IconTimeline, which this used to wear: that one says "the timeline" on
-// the scrubber's own bar, and a mark cannot mean the thing and a filter over
-// the thing on one screen.
+// Worn by both of the board's narrowings — to a ticket, in the ticket panel,
+// and to the timeline's window, on the scrubber bar. One mark for one meaning:
+// they are never on the same row, and the window one goes flat while the
+// ticket one is on, so the two can never claim to narrow at once.
 export const IconFunnel = ({size = 14}: {size?: number}) => (
 	<svg
 		width={size}

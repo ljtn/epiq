@@ -18,7 +18,7 @@ import {GuiEventIdentity} from '../lib/gui-state.model';
 import {Checkbox} from './Checkbox';
 import {IconBars} from './IconBars';
 import {IconButton, ICON_SIZE} from './IconButton';
-import {IconFlashlight} from './IconFlashlight';
+import {IconFunnel} from './IconFunnel';
 import {IconFlow} from './IconFlow';
 import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
@@ -334,7 +334,7 @@ export const ScrubberControls = ({
 
 				{/* Last of the narrowings, past the series pickers and the query
 			    rather than off by the scope row, so they are all in one place.
-			    The window it lights is the one those buttons select — under
+			    The window it narrows to is the one those buttons select — under
 			    "All" that is every event there is, which narrows nothing, so it
 			    goes flat instead of pretending to. */}
 				<SpotlightToggle
@@ -345,7 +345,7 @@ export const ScrubberControls = ({
 							? 'Pick a period first'
 							: !windowFilterable
 							? 'Too many events to tell tickets apart'
-							: 'Spotlight tickets active in this window'
+							: 'Narrow board to timeline window'
 					}
 					on={windowOnly}
 					// Unlike its neighbours it asks the socket for nothing — it
@@ -426,10 +426,11 @@ export const ScrubberControls = ({
 	);
 };
 
-// The spotlight: the board narrowed to the tickets with activity in the
-// timeline's window. A lamp that lights while it narrows, on the same button
-// as every other icon control. Drawn once, since the collapsed header puts the
-// same one up when the rest of the row is not on screen.
+// The board narrowed to the tickets with activity in the timeline's window.
+// Wears the funnel, the same mark the ticket panel's narrowing wears: both are
+// filters, they are never on one row, and this one goes flat while that one is
+// on. Drawn once, since the collapsed header puts the same one up when the
+// rest of the row is not on screen.
 export const SpotlightToggle = ({
 	on,
 	disabled = false,
@@ -444,12 +445,12 @@ export const SpotlightToggle = ({
 	<IconButton
 		testId="spotlight"
 		title={title}
-		aria-label="Spotlight"
+		aria-label="Narrow board to timeline window"
 		pressed={on}
 		disabled={disabled}
 		onClick={() => onChange(!on)}
 	>
-		<IconFlashlight size={ICON_SIZE} lit={on} />
+		<IconFunnel size={ICON_SIZE} />
 	</IconButton>
 );
 
