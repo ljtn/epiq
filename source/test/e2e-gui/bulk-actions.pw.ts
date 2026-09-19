@@ -30,7 +30,7 @@ test('bulk actions only offer what applies to the selection', async ({
 	const titles = [`${stamp}-one`, `${stamp}-two`];
 
 	for (const title of titles) {
-		await page.getByTitle('Add issue').first().click();
+		await page.getByTestId('add-issue').first().click();
 		await page.getByPlaceholder('issue name').fill(title);
 		await page.getByPlaceholder('issue name').press('Enter');
 		await expect(page.getByText(title, {exact: true}).first()).toBeVisible();

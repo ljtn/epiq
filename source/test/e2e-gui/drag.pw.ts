@@ -58,7 +58,7 @@ test('dragging a ticket to another swimlane moves it', async ({
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	const boardUrl = page.url();
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill('Alpha');
 	await page.getByRole('button', {name: 'create', exact: true}).click();
 	await page.goto(boardUrl);

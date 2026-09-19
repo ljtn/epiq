@@ -84,6 +84,7 @@ export const CodeSnippet = ({
 					}}
 				>
 					<IconButton
+						testId="snippet-toggle"
 						title={collapsed ? 'Show snippet' : 'Hide snippet'}
 						aria-expanded={!collapsed}
 						onClick={() => setCollapsed(value => !value)}
@@ -99,6 +100,7 @@ export const CodeSnippet = ({
 						<button
 							type="button"
 							onClick={onOpen}
+							data-testid="open-in-diff"
 							title="Open this in the diff"
 							style={{
 								...bareButton,

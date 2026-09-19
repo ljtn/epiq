@@ -3,7 +3,7 @@ import {expect, test} from './fixtures.js';
 import {COMMIT_CACHE_MS, commitLinkedFiles} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -61,6 +61,8 @@ test('the Stats tab measures the ticket own commits', async ({
 
 	// And drawn: the language bar carries a segment per language, each naming
 	// its own share.
+	// By title, deliberately: the share it names *is* what is being checked, and
+	// nothing here puts the pointer on the bar for TooltipLayer to strip it.
 	await expect(page.getByTitle(/^TypeScript — \d+%$/)).toBeVisible();
 
 	// One author, counted off the commits rather than off the board — the

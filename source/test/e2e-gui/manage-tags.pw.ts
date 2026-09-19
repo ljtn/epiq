@@ -1,6 +1,15 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 
+// Scoped to the tag's own row rather than found by the button's title: the
+// button is armed by the first click and retitled, and TooltipLayer takes the
+// title away entirely while the pointer rests on it.
+const deleteTag = (page: Page, name: string) =>
+	page
+		.getByTestId('manage-tag-row')
+		.filter({hasText: name})
+		.getByTestId('delete-tag');
+
 // Adding a tag closes the add row again, so each one starts by reopening it.
 const addTag = async (page: Page, name: string) => {
 	await page
@@ -28,7 +37,7 @@ test('arming a delete highlights the whole tag row', async ({
 	const first = `atag${stamp}`;
 	const second = `btag${stamp}`;
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Tags ${stamp}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(`Tags ${stamp}`);
@@ -49,7 +58,7 @@ test('arming a delete highlights the whole tag row', async ({
 	);
 	await expect(armed).toHaveCount(0);
 
-	await page.getByTitle(`Delete "${first}"`).click();
+	await deleteTag(page, first).click();
 
 	// Exactly one row is armed, it names the tag that was clicked, and it is
 	// painted rather than left to the button at the other end of the row.
@@ -58,7 +67,7 @@ test('arming a delete highlights the whole tag row', async ({
 	await expect(armed).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
 	// Arming another row moves the highlight rather than lighting a second.
-	await page.getByTitle(`Delete "${second}"`).click();
+	await deleteTag(page, second).click();
 	await expect(armed).toHaveCount(1);
 	await expect(armed).toContainText(second);
 
@@ -78,7 +87,7 @@ test("a tag chip is washed with the tag's own colour", async ({
 
 	const stamp = Date.now();
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Washed ${stamp}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(`Washed ${stamp}`);

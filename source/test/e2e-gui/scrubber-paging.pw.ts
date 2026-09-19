@@ -23,7 +23,7 @@ test('the arrows appear with the pointer over the chart and page the window', as
 	await expect(later).toHaveCount(0);
 
 	// The row above holds no pager.
-	await expect(page.getByTitle('Earlier')).toHaveCount(1);
+	await expect(page.getByTestId('page-earlier')).toHaveCount(1);
 	const header = page.getByTestId('scrubber-track').locator('..');
 	await expect(header.getByText('Last 7 days')).toHaveCount(0);
 

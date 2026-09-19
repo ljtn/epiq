@@ -5,7 +5,7 @@ const card = (page: Page, title: string) =>
 	page.locator('[draggable="true"]').filter({hasText: title});
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -193,7 +193,7 @@ test('collapsing the scrubber keeps the filter reachable', async ({
 	await page.goto(zoomed(boardUrl, now - 3 * HOUR_MS, now - 2 * HOUR_MS));
 	await expect(card(page, title)).toHaveCount(0);
 
-	await page.getByTitle('Hide time travel').click();
+	await page.getByTestId('timeline-toggle').click();
 	await expect(page.getByTestId('scrubber-track')).toHaveCount(0);
 
 	// The chart is gone but its narrowing is not, so the box has to be here.

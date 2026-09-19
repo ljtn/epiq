@@ -28,7 +28,7 @@ const COMMIT_EMAIL = 'e2e@example.com';
 const AUTHOR_SCAN_CACHE_MS = 15_500;
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);

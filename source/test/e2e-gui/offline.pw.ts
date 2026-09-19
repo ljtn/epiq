@@ -71,7 +71,11 @@ test('the board stands down while the socket is gone, and comes back', async ({
 	await expect(
 		page.getByRole('button', {name: 'Board', exact: true}),
 	).toBeDisabled();
-	await expect(page.getByTitle('Show board events')).toBeDisabled();
+	// Into the box itself: the name is on the label around it, and a label is
+	// never the thing that is disabled.
+	await expect(
+		page.getByTestId('show-board-events').getByRole('checkbox'),
+	).toBeDisabled();
 
 	// Once the automatic attempts are spent the button takes over.
 	await expect(page.getByTestId('connection-lost')).toBeVisible({

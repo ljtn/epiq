@@ -22,7 +22,7 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	const boardUrl = page.url();
 
 	const stamp = Date.now();
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Linked ${stamp}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(`Linked ${stamp}`);
@@ -97,19 +97,19 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 	expect((await track.boundingBox())!.height).toBe(withEveryCommit);
 
 	// Off is the one thing that takes the row away — for either series.
-	await page.getByTitle('Show commits').click();
+	await page.getByTestId('show-commits').click();
 	await expect
 		.poll(async () => (await track.boundingBox())!.height)
 		.toBeLessThan(withEveryCommit);
 	const withoutCommits = (await track.boundingBox())!.height;
 
-	await page.getByTitle('Show board events').click();
+	await page.getByTestId('show-board-events').click();
 	await expect
 		.poll(async () => (await track.boundingBox())!.height)
 		.toBeLessThan(withoutCommits);
 
-	await page.getByTitle('Show board events').click();
-	await page.getByTitle('Show commits').click();
+	await page.getByTestId('show-board-events').click();
+	await page.getByTestId('show-commits').click();
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All commits'}).click();
 
@@ -135,12 +135,12 @@ test('no board hint comes up over a board track folded away', async ({
 	await expect(page.getByTestId('board-hint')).toBeVisible();
 	await page.mouse.move(box.x + box.width * 0.5, box.y + box.height + 200);
 
-	await page.getByTitle('Show board events').click();
+	await page.getByTestId('show-board-events').click();
 	const folded = (await track.boundingBox())!;
 	await page.mouse.move(folded.x + folded.width * 0.5, folded.y - 2);
 	await page.waitForTimeout(300);
 	await expect(page.getByTestId('board-hint')).toHaveCount(0);
 
-	await page.getByTitle('Show board events').click();
+	await page.getByTestId('show-board-events').click();
 	expect(pageErrors).toEqual([]);
 });

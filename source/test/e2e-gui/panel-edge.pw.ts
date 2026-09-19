@@ -7,7 +7,7 @@ const openTicket = async (page: Page, appUrl: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Edge ${Date.now()}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toBeVisible();

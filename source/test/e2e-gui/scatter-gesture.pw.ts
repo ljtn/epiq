@@ -41,7 +41,7 @@ const seedCommitOnScatter = async (
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const stamp = Date.now();
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(`Scatter ${stamp}`);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(`Scatter ${stamp}`);
@@ -214,7 +214,7 @@ test('a ticket created while an unlinked commit diff is open replaces it', async
 	await expect(diffPanel).toBeVisible();
 
 	const title = `Filed under a diff ${Date.now()}`;
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 

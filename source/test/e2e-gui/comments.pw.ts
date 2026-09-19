@@ -2,7 +2,7 @@ import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -29,13 +29,13 @@ test('your own comment can be edited and deleted', async ({
 	await expect(page.getByRole('button', {name: 'Comments (1)'})).toBeVisible();
 
 	// Edit: the body is prefilled, Escape backs out untouched.
-	await page.getByTitle('Edit comment').click();
+	await page.getByTestId('edit-comment').click();
 	const editor = page.locator('aside textarea').first();
 	await expect(editor).toHaveValue('first draft');
 	await editor.press('Escape');
 	await expect(page.locator('aside').getByText('first draft')).toBeVisible();
 
-	await page.getByTitle('Edit comment').click();
+	await page.getByTestId('edit-comment').click();
 	await editor.fill('second draft');
 	await page.getByRole('button', {name: 'save'}).click();
 	await expect(page.locator('aside').getByText('second draft')).toBeVisible();
@@ -46,7 +46,7 @@ test('your own comment can be edited and deleted', async ({
 	await expect(page.locator('aside').getByText('second draft')).toBeVisible();
 
 	// Delete.
-	await page.getByTitle('Delete comment').click();
+	await page.getByTestId('delete-comment').click();
 	await expect(page.locator('aside').getByText('second draft')).toHaveCount(0);
 	await expect(page.getByRole('button', {name: 'Comments (0)'})).toBeVisible();
 	await page.reload();

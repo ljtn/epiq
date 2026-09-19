@@ -236,7 +236,7 @@ test('a swimlane dropped over a card still reorders', async ({
 	await page
 		.locator('section')
 		.filter({hasText: second})
-		.getByTitle('Add issue')
+		.getByTestId('add-issue')
 		.click();
 	await page.getByPlaceholder('issue name').fill(ticket);
 	await page.getByPlaceholder('issue name').press('Enter');

@@ -7,7 +7,7 @@ import {
 } from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page.locator('aside')).toContainText(title);
@@ -83,7 +83,7 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	// hangs a fixed distance below the bar, and with both tracks up it reaches
 	// the panel's top edge by a pixel — an overlap that any change to the bar's
 	// own height takes away, leaving the test green over nothing.
-	await page.getByTitle('Show commits').click();
+	await page.getByTestId('show-commits').click();
 
 	await page.getByRole('button', {name: 'Board', exact: true}).click();
 	await expect(

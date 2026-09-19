@@ -278,6 +278,7 @@ export const BoardSeriesGroup = ({
 				    second copy of the name would only compete with it. */}
 				<Checkbox
 					label={null}
+					testId="show-board-events"
 					title="Show board events"
 					checked={showIssues}
 					activeColor={color}
@@ -465,6 +466,7 @@ export const CommitSeriesGroup = ({
 				    names the series. */}
 				<Checkbox
 					label={null}
+					testId="show-commits"
 					title={idle ? 'Flow draws tickets only' : 'Show commits'}
 					checked={showCommits}
 					activeColor={GUI_THEME.green}

@@ -11,7 +11,7 @@ const openDiffTab = async (page: Page, appUrl: string, title: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTitle('Add issue').first().click();
+	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
 	await page.getByPlaceholder('issue name').press('Enter');
 	await expect(page).toHaveURL(/\/issue\//);
@@ -138,11 +138,7 @@ test('a comment in the compacted view lands on the commit that touched the file'
 	// ticket's newest commit instead would name `second`, whose diff has no
 	// such file.
 	await page.getByRole('button', {name: /^Comments/}).click();
-	await page
-		.locator('aside')
-		.getByTitle('Open this in the diff')
-		.first()
-		.click();
+	await page.locator('aside').getByTestId('open-in-diff').first().click();
 
 	await expect(page).toHaveURL(new RegExp(`commit=${earlySha}`));
 	await expect(page).not.toHaveURL(new RegExp(`commit=${lateSha}`));
@@ -377,7 +373,7 @@ test('a board selection and the diff view survive each other', async ({
 	const stamp = Date.now();
 
 	for (const name of [`Both a ${stamp}`, `Both b ${stamp}`]) {
-		await page.getByTitle('Add issue').first().click();
+		await page.getByTestId('add-issue').first().click();
 		await page.getByPlaceholder('issue name').fill(name);
 		await page.getByPlaceholder('issue name').press('Enter');
 		await expect(page).toHaveURL(/\/issue\//);

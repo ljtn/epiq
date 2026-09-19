@@ -293,6 +293,12 @@ export const SwimlaneColumn = ({
 				</div>
 				<div style={{display: 'flex', alignItems: 'center', gap: 2}}>
 					<IconButton
+						// Named as well as titled, like the fullscreen toggle:
+						// TooltipLayer takes the `title` away while its tooltip is
+						// open, and a click leaves the pointer here — so a locator
+						// reading the title afterwards finds the *next* lane's button
+						// rather than nothing.
+						testId="add-issue"
 						title="Add issue"
 						disabled={swimlane.readonly}
 						onClick={() => onCreateIssue(swimlane.id)}

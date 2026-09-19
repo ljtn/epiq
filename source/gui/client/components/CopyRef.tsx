@@ -23,6 +23,7 @@ export const CopyRef = ({refValue}: {refValue: string}) => {
 	return (
 		<button
 			type="button"
+			data-testid="copy-ref"
 			title={`Copy ${refValue}`}
 			onClick={async event => {
 				event.stopPropagation();
