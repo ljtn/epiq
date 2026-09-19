@@ -507,6 +507,10 @@ ${linkedRow()} {
 	   patch laid over one. */
 	background: linear-gradient(${GUI_THEME.hover}, ${GUI_THEME.hover}),
 		${GUI_THEME.panel};
+	/* Every row is positioned too, and they all come after this one in the
+	   pane, so on paint order alone the opaque ground above would sit *under*
+	   the very text it is there to cut off. */
+	z-index: 1;
 	opacity: 0;
 	pointer-events: none;
 	transition: opacity 120ms ease;
