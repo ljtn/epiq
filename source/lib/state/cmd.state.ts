@@ -10,6 +10,10 @@ const isWordBoundary = (char: string | undefined) =>
 	char === commandDelimiter || char === ':';
 
 export const commandDelimiter = ' ';
+
+/** How many commands ↑ reaches back through, in memory and on disk alike. */
+export const COMMAND_HISTORY_HORIZON = 40;
+
 export type CurrentCmdMeta = {
 	modifier: string;
 	command: CmdKeyword | null;
@@ -208,17 +212,28 @@ export const replaceCmdInput = (value: string) => {
 };
 
 export const commandConfirmed = ({addToHistory = true}) => {
-	const horizon = 40;
-
 	setState(state => ({
 		...state,
 		commandHistory: addToHistory
-			? [state.value, ...state.commandHistory].slice(0, horizon)
+			? [state.value, ...state.commandHistory].slice(0, COMMAND_HISTORY_HORIZON)
 			: state.commandHistory,
 		commandHistoryIndex: -1,
 		commandIsPending: false,
 		value: '',
 		cursorPosition: 0,
+	}));
+};
+
+/**
+ * Replaces the history with the one stored for the project being loaded, and
+ * puts ↑ back at the top of it. The line itself is left alone: boot has nothing
+ * on it, and `:open` has the command that is still running.
+ */
+export const hydrateCommandHistory = (commands: string[]) => {
+	setState(s => ({
+		...s,
+		commandHistory: commands.slice(0, COMMAND_HISTORY_HORIZON),
+		commandHistoryIndex: -1,
 	}));
 };
 
