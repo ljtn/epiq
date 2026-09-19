@@ -164,9 +164,10 @@ test('the three rows across the top of the window sit on one line', async ({
 	const logButton = await page.getByTestId('log-pop-out').boundingBox();
 	// The row between the two, which they are read against.
 	const switcher = await page.getByTestId('board-switcher').boundingBox();
-	// By its pane rather than by `aside`, which the log is one of too.
+	// By its band rather than by `aside`, which the log is one of too. The band
+	// sits outside the scrolling pane, which is what keeps the scrollbar off it.
 	const close = await page
-		.getByTestId('aside-pane')
+		.getByTestId('aside-header')
 		.getByRole('button', {name: 'Close', exact: true})
 		.boundingBox();
 

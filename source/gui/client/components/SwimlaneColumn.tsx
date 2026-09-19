@@ -14,15 +14,13 @@ import {IconButton, ICON_SIZE} from './IconButton';
 import {IconPlus} from './IconPlus';
 import {KebabMenu} from './KebabMenu';
 import {SWIMLANE_DRAG_TYPE, isSwimlaneDrag} from '../lib/gui-move-swimlane';
+import {scrollGutter} from '../lib/scroll-gutter.style';
 
 // Not GUI_THEME.accent: at that hue a large soft wash reads cyan-green rather
 // than blue, so this is desaturated toward the panel chrome's blue-grey.
 const COLUMN_GLOW_COLOR = 'rgb(140, 176, 232)';
 
-const COLUMN_PADDING = 14;
-// Half the padding, so the scrollbar sits centred in the gutter. The two have
-// to move together.
-const SCROLLBAR_GUTTER_INSET = COLUMN_PADDING / 2;
+const COLUMN_PADDING = 12;
 
 export const SwimlaneColumn = ({
 	swimlane,
@@ -330,15 +328,12 @@ export const SwimlaneColumn = ({
 				</div>
 			</header>
 
-			{/* Pulling out by half the panel padding and giving the same back centres
-			    the scrollbar in the gutter instead of leaving it flush against the
-			    cards. */}
+			{/* The same gutter the panel on the right puts its scrollbar in. */}
 			<div
 				style={{
 					overflow: 'auto',
 					paddingTop: 4,
-					marginRight: -SCROLLBAR_GUTTER_INSET,
-					paddingRight: SCROLLBAR_GUTTER_INSET,
+					...scrollGutter(COLUMN_PADDING),
 					flex: 1,
 					minHeight: 0,
 				}}

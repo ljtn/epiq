@@ -1,4 +1,5 @@
 import React, {
+	createContext,
 	forwardRef,
 	useCallback,
 	useEffect,
@@ -8,7 +9,7 @@ import React, {
 } from 'react';
 import {AsideDock} from '../lib/aside-dock';
 import {GUI_THEME} from '../lib/gui-theme';
-import {PANE_HEADER_INSET} from '../lib/pane-header.style';
+import {scrollGutter} from '../lib/scroll-gutter.style';
 import {ResizeHandle} from './ResizeHandle';
 
 export const ASIDE_WIDTH = 440;
@@ -60,6 +61,15 @@ export type AsideRenderApi = {
 	toggleFullscreen: () => void;
 };
 
+// Where a panel's header is drawn, which is not where it is written. A panel
+// builds its header from the same values as its body — the ticket's ref, the
+// lane's title, whether the panel is fullscreen — so hoisting it to a prop on
+// this component would mean computing all of that twice. Instead FormHeader
+// stays where it reads, in the panel, and lands through here in the band above
+// the pane. Null until the band is mounted, on which one render it draws in
+// place.
+export const AsideHeaderSlot = createContext<HTMLDivElement | null>(null);
+
 export const Aside = forwardRef<
 	HTMLElement,
 	{
@@ -71,6 +81,9 @@ export const Aside = forwardRef<
 	const [width, setWidth] = useState(readStoredAsideWidth);
 	const [height, setHeight] = useState(readStoredAsideHeight);
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	// A callback ref into state rather than a plain ref: the panel below it has
+	// to re-render once the band exists so its header can portal into it.
+	const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
 	// State rather than the ref below: the handle re-renders on its own hover
 	// and reads this as a prop, so a drag ending has to reach it as a render.
 	const [dragging, setDragging] = useState(false);
@@ -244,10 +257,13 @@ export const Aside = forwardRef<
 							boxShadow: '-10px 0 24px rgba(0, 0, 0, 0.45)',
 					  }),
 				background: GUI_THEME.panel,
-				// Its header is one of the rows across the top of the window, so the
-				// gap above it is theirs rather than the panel's own.
-				padding: `${PANE_HEADER_INSET}px ${ASIDE_PADDING}px ${ASIDE_PADDING}px`,
+				// None at the top: the header band below carries the inset that puts
+				// it on the line the board's and the log's headers keep.
+				padding: `0 ${ASIDE_PADDING}px ${ASIDE_PADDING}px`,
 				fontSize: 12,
+				// The band and the pane stack, and the pane takes what is left.
+				display: 'flex',
+				flexDirection: 'column',
 				// The panel frames the scrolling, it does not do it — see the pane
 				// below. Its own overflow only has the resize handle to clip, which
 				// it clipped before too.
@@ -259,16 +275,37 @@ export const Aside = forwardRef<
 				active={dragging}
 				onPointerDown={handlePointerDown}
 			/>
+			{/* Where FormHeader lands, whichever panel drew it — above the pane
+			    rather than in it, as the log's header is. A header inside the
+			    scroller would have the scrollbar running up beside it, and would
+			    need to pin itself against content passing behind. Outside, it
+			    simply stays, and the bar belongs to the body it scrolls. */}
+			<div
+				data-testid="aside-header"
+				ref={setHeaderSlot}
+				style={{flexShrink: 0}}
+			/>
+
 			{/* The pane that scrolls, inside the panel's padding rather than around
 			    it. Padding on a scroll container lies inside its scrollport, so
 			    content scrolls through it and shows in the gap above anything
 			    pinned to the top — a diff's file header included. Here the gap is
 			    the panel's, the scrolling is the pane's, and nothing can be drawn
 			    above what the pane pins. */}
-			<div data-testid="aside-pane" style={{height: '100%', overflow: 'auto'}}>
-				{typeof children === 'function'
-					? children({isFullscreen, toggleFullscreen})
-					: children}
+			<div
+				data-testid="aside-pane"
+				style={{
+					flex: 1,
+					minHeight: 0,
+					overflow: 'auto',
+					...scrollGutter(ASIDE_PADDING),
+				}}
+			>
+				<AsideHeaderSlot.Provider value={headerSlot}>
+					{typeof children === 'function'
+						? children({isFullscreen, toggleFullscreen})
+						: children}
+				</AsideHeaderSlot.Provider>
 			</div>
 		</aside>
 	);
