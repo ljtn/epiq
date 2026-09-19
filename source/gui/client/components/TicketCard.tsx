@@ -185,10 +185,13 @@ export const TicketCard = ({
 					isSelected || isPicked ? GUI_THEME.accent : GUI_THEME.primarySoft,
 				fontSize: 11,
 				cursor: ticket.readonly ? 'default' : 'grab',
+				// A selected card is a step above a resting one, not a different
+				// colour at the same weight: the two washes have to move together,
+				// or picking one stops reading as picking it up.
 				background:
 					isSelected || isPicked
-						? 'rgba(118,228,255,0.08)'
-						: 'rgba(185, 192, 255, 0.06)',
+						? 'rgba(118, 228, 255, 0.11)'
+						: 'rgba(185, 192, 255, 0.08)',
 				// Roomier than a list row: a card is read, not scanned, and the
 				// air around its title is what keeps a column of them from
 				// running together.
