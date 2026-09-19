@@ -65,7 +65,7 @@ import {
 	useLogSplit,
 } from '../lib/log-lanes';
 import {actorDisplay} from '../lib/agent-identity';
-import {ASIDE_PADDING} from './Aside';
+import {PANE_HEADER_INSET} from '../lib/pane-header.style';
 import {Checkbox} from './Checkbox';
 import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
@@ -93,9 +93,8 @@ const MIN_LOG_WIDTH = 280;
 const MAX_LOG_WIDTH = 1000;
 const MAX_LOG_RATIO = 0.6;
 const LOG_WIDTH_STORAGE_KEY = 'epiq.eventLog.width';
-// The row of buttons this pane's header keeps is the row the panel on the other
-// side of the board keeps, so the two are set on the same line: the aside's own
-// inset from the top, then the square an icon button makes.
+// The square an icon button makes, under the inset every pane's header keeps —
+// so this row and the panel's on the other side of the board are one line.
 const LOG_HEADER_HEIGHT = ICON_BUTTON_SIZE;
 
 // How near the foot counts as being at it. A couple of rows, so a pin survives
@@ -300,7 +299,7 @@ const LogHeader = ({
 			gap: 12,
 			flexShrink: 0,
 			height: LOG_HEADER_HEIGHT,
-			padding: `${ASIDE_PADDING}px ${LOG_PANE_PADDING_X}px 0 30px`,
+			padding: `${PANE_HEADER_INSET}px ${LOG_PANE_PADDING_X}px 0 30px`,
 			borderBottom: `1px solid ${GUI_THEME.line}`,
 		}}
 	>

@@ -51,6 +51,7 @@ import {TimeScrubber} from './components/TimeScrubber';
 import {TheatrePlayer} from './components/TheatrePlayer';
 import {EventLog} from './components/EventLog';
 import {useAsideDock} from './lib/aside-dock';
+import {PANE_HEADER_INSET} from './lib/pane-header.style';
 import {CommandPalette} from './components/CommandPalette';
 import {buildCommandRegistry} from './lib/commands/command-registry';
 import {useRecentCommands} from './lib/commands/command-recents';
@@ -1801,7 +1802,10 @@ export const App = () => {
 						>
 							<div
 								style={{
-									padding: '20px 10px',
+									// The middle of the three rows across the top of the window,
+									// so it takes their inset above it; below it is the board's
+									// own gap before the columns.
+									padding: `${PANE_HEADER_INSET}px 10px 20px`,
 									display: 'flex',
 									alignItems: 'center',
 									gap: 10,
