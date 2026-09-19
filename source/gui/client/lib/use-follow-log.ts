@@ -35,9 +35,14 @@ export const useFollowLog = ({
 	live,
 	onOpenLog,
 }: {
+	// Following runs in the log panel, so a log that is shut — or popped out
+	// into a window of its own, where the panel is not rendered — has nobody to
+	// run it. The flag has to go down with it rather than stay lit over nothing.
 	logOpen: boolean;
-	// Whether the board is standing at the present. A checkout or a movie is
-	// somewhere else and drives the board itself.
+	// Whether the board is standing at the present *and* can hear about it. A
+	// checkout and a movie are somewhere else and drive the board themselves; a
+	// dropped socket brings nothing to follow, and leaves the control disabled,
+	// so a reader left following would have no way to stop.
 	live: boolean;
 	onOpenLog: () => void;
 }): FollowLog => {
@@ -46,13 +51,14 @@ export const useFollowLog = ({
 	// board that starts navigating on open to a switch they left on yesterday.
 	const [following, setFollowingState] = useState(false);
 
-	// Leaving the present ends the watch outright, rather than leaving the flag
-	// on behind a control that has gone unavailable. Without this a scrub left
-	// the banner up and the board in the past — following nothing, and saying it
-	// was following.
+	// Anything that takes the effect away ends the watch outright, rather than
+	// leaving the flag on behind a control that has gone unavailable. Without
+	// this a scrub left the banner up and the board in the past — following
+	// nothing, and saying it was following — and popping the log out did the
+	// same with no way back short of docking it again.
 	useEffect(() => {
-		if (!live) setFollowingState(false);
-	}, [live]);
+		if (!live || !logOpen) setFollowingState(false);
+	}, [live, logOpen]);
 
 	// On the document rather than on a container, because the panels are not
 	// inside the board: the ticket panel and the diff panel are siblings of

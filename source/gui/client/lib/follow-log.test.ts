@@ -180,3 +180,49 @@ describe('followStep', () => {
 		expect(step.open).toEqual({kind: 'commit', sha: 'abc123'});
 	});
 });
+
+// Finding 2 from the review of this branch: the scan used to run to the start
+// of the slice, so a burst that led nowhere fell back to an older line and
+// opened a ticket nothing had happened to.
+describe('followStep, past the line it has already seen', () => {
+	it('opens nothing when everything new leads nowhere', () => {
+		const step = followStep({
+			entries: [
+				line('old', {issue: 'ISSUE_OLD'}),
+				line('new', {issue: null, action: 'rename.swimlane'}),
+			],
+			newestId: 'new',
+			mark: {line: 'old'},
+			pinned,
+			at: null,
+		});
+
+		expect(step.open).toBeNull();
+		expect(step.mark.line).toBe('new');
+	});
+
+	// The same shape as switching on next to an hour-old ticket line: the mark
+	// is seeded to it, and the next arrival leads nowhere.
+	it('does not fall back past the mark to a line already seen', () => {
+		const seeded = followStep({
+			entries: [line('a', {issue: 'ISSUE_2'})],
+			newestId: 'a',
+			mark: NOT_FOLLOWING,
+			pinned,
+			at: null,
+		});
+
+		const next = followStep({
+			entries: [
+				line('a', {issue: 'ISSUE_2'}),
+				line('b', {issue: null, action: 'add.board'}),
+			],
+			newestId: 'b',
+			mark: seeded.mark,
+			pinned,
+			at: null,
+		});
+
+		expect(next.open).toBeNull();
+	});
+});

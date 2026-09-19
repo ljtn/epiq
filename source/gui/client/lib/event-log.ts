@@ -481,6 +481,15 @@ ${linkedRow()} {
 	color: ${GUI_THEME.primary};
 	background: ${GUI_THEME.hover};
 }
+/* Both at once, since both are true: the pointer is here *and* the board is
+   standing here. Spelled out because the hover rule above outranks the wash on
+   specificity and would otherwise replace it outright — the reader would lose
+   the mark by pointing at the row it is on. */
+.epiq-log-line--followed:hover {
+	color: ${GUI_THEME.primary};
+	background: linear-gradient(${GUI_THEME.hover}, ${GUI_THEME.hover}),
+		${LOG_FOLLOWED_WASH};
+}
 .${LOG_ARROW_CLASS} {
 	position: absolute;
 	right: ${LOG_PANE_PADDING_X}px;
@@ -501,9 +510,6 @@ ${linkedRow()} {
 	opacity: 0;
 	pointer-events: none;
 	transition: opacity 120ms ease;
-}
-.${LOG_ARROW_CLASS}:hover {
-	color: ${GUI_THEME.accent};
 }
 @keyframes epiqLogLine {
 	from { opacity: 0; }

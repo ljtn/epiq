@@ -25,7 +25,6 @@ import {IconReplay} from './IconReplay';
 import {IconFlow} from './IconFlow';
 import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
-import {IconPlay} from './IconPlayback';
 import {IconScatter} from './IconScatter';
 import {segmentedButtonStyle} from '../lib/segmented.style';
 import {selectTriggerStyle} from '../lib/select-style';

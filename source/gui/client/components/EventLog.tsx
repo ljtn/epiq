@@ -484,8 +484,16 @@ const EventLogPanel = ({
 		const pane = scrollRef.current;
 		if (!pane) return;
 
+		const wasPinned = pinnedRef.current;
 		pinnedRef.current =
 			pane.scrollHeight - pane.scrollTop - pane.clientHeight <= PINNED_SLACK_PX;
+
+		// Returning to the foot is what resumes a following the reader paused by
+		// scrolling back. The pin itself is a ref — it must not re-render the
+		// pane on every scroll event — so the moment it turns back on is
+		// published as a count the effect below can depend on. Without this,
+		// following stayed dormant until the *next* line happened to arrive.
+		if (!wasPinned && pinnedRef.current) setPinnedAgain(count => count + 1);
 	};
 
 	// Measured off the pane's own height, which does not depend on what is in it
@@ -605,6 +613,11 @@ const EventLogPanel = ({
 		// board beside it repaints.
 	}, [newestId, animate]);
 
+	// Bumped when the pane returns to its foot, so a following that stood down
+	// while the reader read back picks up again on the way down rather than on
+	// the next arrival.
+	const [pinnedAgain, setPinnedAgain] = useState(0);
+
 	// Which line the board was last moved by, for the mark down its lead edge.
 	// Cleared when following stops, because the mark means "this is where the
 	// board is standing" rather than "this happened recently".
@@ -661,7 +674,7 @@ const EventLogPanel = ({
 		// Replaced rather than pushed: an hour of following would otherwise leave
 		// Back walking the reader through somebody else's afternoon.
 		if (step.open) sources.onOpen(step.open, {replace: true});
-	}, [following, live, newestId]);
+	}, [following, live, newestId, pinnedAgain]);
 
 	const markRow = (target: EventTarget | null) => {
 		const arrow = arrowRef.current;

@@ -12,40 +12,59 @@
 // wants no background git work behind it. This one case turns it on for itself
 // and puts it back: `queueSync` re-reads the config on every call and a
 // mutation is what calls it, so the flag can be flipped under a running server.
+//
+// The config is the worker's, shared with every other file assigned to it, so
+// the window it is on for is kept as short as the case allows — flipped
+// immediately before the write and restored in a `finally`. A hard worker
+// crash would skip that and leave it on for whatever runs next, which is the
+// one hole here; an assertion failure would not.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import {expect, readHandoff, test} from './fixtures.js';
 
-const filedFromElsewhere = async (page: import('@playwright/test').Page) => {
-	const title = `Filed from elsewhere ${Date.now()}`;
+// Passed as a string, not a typed callback: the root tsconfig has no DOM lib,
+// so `window` inside `page.evaluate` does not typecheck — which is why every
+// other file here that opens a socket from the page does the same.
+const FILE_FROM_ELSEWHERE = `
+new Promise(async (resolve, reject) => {
+	const socket = new WebSocket('ws://' + window.location.host + '/ws');
+	const send = body => socket.send(JSON.stringify(body));
+	const next = type => new Promise(done => {
+		const handler = event => {
+			const message = JSON.parse(event.data);
+			if (message.type !== type) return;
+			socket.removeEventListener('message', handler);
+			done(message);
+		};
+		socket.addEventListener('message', handler);
+	});
 
-	await page.evaluate(async filed => {
-		const socket = new WebSocket(`ws://${window.location.host}/ws`);
-		const send = (body: unknown) => socket.send(JSON.stringify(body));
-		const next = async (type: string) =>
-			await new Promise<any>(resolve => {
-				const handler = (event: MessageEvent) => {
-					const message = JSON.parse(event.data);
-					if (message.type !== type) return;
-					socket.removeEventListener('message', handler);
-					resolve(message);
-				};
-				socket.addEventListener('message', handler);
-			});
-
-		await new Promise(resolve => socket.addEventListener('open', resolve));
+	try {
+		await new Promise(open => socket.addEventListener('open', open));
 
 		const state = next('state');
 		send({type: 'state:get'});
 		const lane = (await state).payload?.value?.boards?.[0]?.swimlanes?.[0];
+		if (!lane) throw new Error('no swimlane to file into');
 
 		const created = next('issues:create:result');
-		send({type: 'issues:create', payload: {parentId: lane.id, title: filed}});
+		send({type: 'issues:create', payload: {parentId: lane.id, title: TITLE}});
 		await created;
-	}, title);
+		resolve(null);
+	} catch (error) {
+		reject(error);
+	}
+});
+`;
 
-	return title;
+const fileFromElsewhere = async (
+	page: import('@playwright/test').Page,
+	title: string,
+) => {
+	await page.evaluate(
+		`const TITLE = ${JSON.stringify(title)};\n${FILE_FROM_ELSEWHERE}`,
+	);
 };
 
 test('a ticket filed by somebody else opens on a followed board', async ({
@@ -60,15 +79,6 @@ test('a ticket filed by somebody else opens on a followed board', async ({
 	const original = fs.readFileSync(configPath, 'utf8');
 
 	try {
-		fs.writeFileSync(
-			configPath,
-			JSON.stringify(
-				{...JSON.parse(original), autoSync: true, autoSyncDebounceMs: 1000},
-				null,
-				2,
-			),
-		);
-
 		await page.goto(appUrl);
 		await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -88,10 +98,21 @@ test('a ticket filed by somebody else opens on a followed board', async ({
 		await live.click();
 		await expect(live).toHaveAttribute('aria-pressed', 'true');
 
-		const filed = await filedFromElsewhere(page);
+		// On as late as possible, and only for the write below.
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify(
+				{...JSON.parse(original), autoSync: true, autoSyncDebounceMs: 1000},
+				null,
+				2,
+			),
+		);
+
+		const filed = `Filed from elsewhere ${Date.now()}`;
+		await fileFromElsewhere(page, filed);
 
 		// The board follows it. Generous, because this rides a real sync pass.
-		await expect(ticketPanel).toContainText(filed, {timeout: 40_000});
+		await expect(ticketPanel).toContainText(filed, {timeout: 20_000});
 		await expect(page.getByTestId('follow-banner')).toBeVisible();
 
 		expect(pageErrors).toEqual([]);
