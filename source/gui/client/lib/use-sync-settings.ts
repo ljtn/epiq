@@ -3,7 +3,7 @@
 // reaches no other clone, so nothing here goes through the mutation gate and
 // no broadcast carries it.
 
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {getResultValue} from './gui-state-helper';
 
 export type SyncSettings = {
@@ -36,11 +36,6 @@ export const useSyncSettings = ({
 		lastError: null,
 	});
 
-	// Whether a change of ours is unanswered. `failed` is a broadcast for any
-	// refusal on any socket, so without this the panel would report somebody
-	// else's error as its own.
-	const pending = useRef(false);
-
 	// Asked for when the panel opens, and not polled: nothing changes this but
 	// somebody changing it, and every reply to a change carries the new value.
 	useEffect(() => {
@@ -50,22 +45,15 @@ export const useSyncSettings = ({
 		sendRaw({type: 'settings:get'});
 	}, [open, sendRaw]);
 
+	// Deliberately deaf to `failed`, unlike the hook beside it that reads the
+	// addresses. That frame is the read-only gate refusing a *mutating*
+	// message, and a preference on this machine is not one — so the only
+	// `failed` that could arrive here belongs to somebody else's write, and
+	// reporting it would put a board error under the auto sync toggle. A
+	// refused settings write comes back as a `settings` reply carrying its own
+	// `lastAction`.
 	const onMessage = useCallback((message: any) => {
-		if (message.type === 'failed') {
-			if (!pending.current) return;
-
-			pending.current = false;
-			setState(prev => ({
-				...prev,
-				loading: false,
-				lastError: String(message.payload),
-			}));
-			return;
-		}
-
 		if (message.type !== 'settings') return;
-
-		pending.current = false;
 
 		const value = getResultValue<SyncSettings>(message.payload);
 
@@ -90,7 +78,6 @@ export const useSyncSettings = ({
 
 	const change = useCallback(
 		(patch: {autoSync?: boolean; autoSyncIntervalMs?: number}) => {
-			pending.current = true;
 			setState(prev => ({...prev, loading: true, lastError: null}));
 			sendRaw({type: 'settings:set', payload: patch});
 		},
