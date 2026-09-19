@@ -26,15 +26,34 @@ const issueIdByRef = new Map([
 ]);
 
 describe('keptCommits', () => {
-	it('keeps every commit, as the same list, while not narrowed', () => {
-		expect(keptCommits(commits, false, issueIdByRef, new Set(['x']))).toBe(
+	it('keeps every commit, as the same list, while nothing narrows them', () => {
+		expect(keptCommits(commits, false, false, issueIdByRef, null)).toBe(
 			commits,
 		);
 	});
 
+	// A text filter leaves several tickets on screen and says nothing about
+	// commits, so with the select off it must not quietly take the repository's
+	// commits off the chart.
+	it('keeps every commit under a text filter alone', () => {
+		expect(
+			keptCommits(commits, false, false, issueIdByRef, new Set(['issue-a'])),
+		).toBe(commits);
+	});
+
+	// The ticket funnel is the narrowing that does speak for the commits: the
+	// board is down to one ticket, so the picture is that ticket's.
+	it('narrows to the open ticket with the select off', () => {
+		expect(
+			keptCommits(commits, false, true, issueIdByRef, new Set(['issue-a'])).map(
+				c => c.sha,
+			),
+		).toEqual(['a']);
+	});
+
 	it('keeps only commits leading with the ref of a ticket the board knows', () => {
 		expect(
-			keptCommits(commits, true, issueIdByRef, null).map(c => c.sha),
+			keptCommits(commits, true, false, issueIdByRef, null).map(c => c.sha),
 		).toEqual(['a', 'c']);
 	});
 
@@ -42,10 +61,12 @@ describe('keptCommits', () => {
 	// narrows the events: to the ones linked to those tickets.
 	it('narrows further to the tickets the board keeps', () => {
 		expect(
-			keptCommits(commits, true, issueIdByRef, new Set(['issue-c'])).map(
+			keptCommits(commits, true, false, issueIdByRef, new Set(['issue-c'])).map(
 				c => c.sha,
 			),
 		).toEqual(['c']);
-		expect(keptCommits(commits, true, issueIdByRef, new Set())).toEqual([]);
+		expect(keptCommits(commits, true, false, issueIdByRef, new Set())).toEqual(
+			[],
+		);
 	});
 });

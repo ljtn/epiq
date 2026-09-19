@@ -1,5 +1,11 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {
+	COMMIT_CACHE_MS,
+	commitLinkedFile,
+	commitPlainFile,
+	linkedFileName,
+} from './linked-commit.js';
 
 // The toggle sits in the ticket's panel and is controlled through the URL, so
 // its state comes back a tick later; read it off aria-pressed rather than
@@ -32,6 +38,24 @@ const watchTimeline = async (page: Page) => {
 	});
 
 	return seen;
+};
+
+// The log is an aside of its own, so the ticket's panel is the other one —
+// which matters from the moment a test opens the log.
+const panel = (page: Page) =>
+	page.locator('aside:not([data-testid="event-log"])');
+
+// The ref of the ticket the panel is showing, which is what a commit subject
+// has to lead with to count as that ticket's. Asserted rather than trusted: a
+// ref the panel has not drawn yet would name both commits `notes-undefined`,
+// and the second of them would fail inside git rather than here.
+const copiedRef = async (page: Page) => {
+	const ref = (
+		await panel(page).getByTestId('copy-ref').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+
+	return ref!;
 };
 
 const addTicket = async (page: Page, title: string) => {
@@ -284,6 +308,68 @@ test('unticking hands back the window it was turned on over', async ({
 	const after = new URL(page.url()).searchParams;
 	expect(after.get('from')).toBe(from);
 	expect(after.get('to')).toBe(to);
+
+	expect(pageErrors).toEqual([]);
+});
+
+// The narrowing widens the window to the ticket's whole life, so commits it
+// does not narrow arrive in greater number than before it was pressed — which
+// is what it looked like when it left every commit in.
+test("it takes the other tickets' commits with it, and the unlinked ones", async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	const boardUrl = page.url();
+
+	const stamp = Date.now();
+	const mine = `Commit owner ${stamp}`;
+	const other = `Commit stranger ${stamp}`;
+
+	await addTicket(page, other);
+	const otherRef = await copiedRef(page);
+	await addTicket(page, mine);
+	const mineRef = await copiedRef(page);
+
+	const mineWork = `mine work ${stamp}`;
+	const otherWork = `other work ${stamp}`;
+	const plainWork = `plain work ${stamp}`;
+	commitLinkedFile(repoRoot, mineRef, mineWork, linkedFileName(mineRef));
+	commitLinkedFile(repoRoot, otherRef, otherWork, linkedFileName(otherRef));
+	commitPlainFile(repoRoot, `plain-${stamp}.txt`, plainWork);
+	await page.waitForTimeout(COMMIT_CACHE_MS);
+
+	await page.goto(boardUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await page.getByTestId('log-toggle').click();
+
+	const lines = page.getByTestId('log-line');
+	await expect(lines.filter({hasText: mineWork})).toHaveCount(1);
+	await expect(lines.filter({hasText: otherWork})).toHaveCount(1);
+	await expect(lines.filter({hasText: plainWork})).toHaveCount(1);
+
+	await page
+		.locator('[draggable="true"]')
+		.filter({hasText: mine})
+		.first()
+		.click();
+	await expect(panel(page)).toContainText(mine);
+
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'true');
+	await expect(lines.filter({hasText: mineWork})).toHaveCount(1);
+	await expect(lines.filter({hasText: otherWork})).toHaveCount(0);
+	await expect(lines.filter({hasText: plainWork})).toHaveCount(0);
+
+	// And back: the repository's commits are the Code series' own business
+	// again once the board is not down to one ticket.
+	await ticketOnly(page).click();
+	await expect(ticketOnly(page)).toHaveAttribute('aria-pressed', 'false');
+	await expect(lines.filter({hasText: otherWork})).toHaveCount(1);
+	await expect(lines.filter({hasText: plainWork})).toHaveCount(1);
 
 	expect(pageErrors).toEqual([]);
 });

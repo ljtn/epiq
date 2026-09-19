@@ -172,7 +172,13 @@ export const useEventLog = ({
 				  )
 				: [],
 			showCommits
-				? keptCommits(commits, linkedCommitsOnly, issueIdByRef, keptIssues)
+				? keptCommits(
+						commits,
+						linkedCommitsOnly,
+						issueOnly !== null,
+						issueIdByRef,
+						keptIssues,
+				  )
 				: [],
 		);
 	}, [
@@ -182,6 +188,7 @@ export const useEventLog = ({
 		commits,
 		view,
 		only,
+		issueOnly,
 		keptIssues,
 		linkedCommitsOnly,
 		issueIdByRef,
