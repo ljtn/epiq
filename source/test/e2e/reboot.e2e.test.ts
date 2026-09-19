@@ -3,7 +3,13 @@ import os from 'node:os';
 import path from 'node:path';
 import {beforeAll, describe, expect, it} from 'vitest';
 import {commonSteps} from './e2e-common-steps.js';
-import {ENTER, removeTempRepo, setupTui} from './e2e.helper.js';
+import {
+	ARROW_UP,
+	commandLineShows,
+	ENTER,
+	removeTempRepo,
+	setupTui,
+} from './e2e.helper.js';
 
 const testTimeout = 60_000;
 
@@ -82,6 +88,25 @@ describe('TUI reboot / event-log replay e2e', () => {
 					expect(appended).toContain('Issue after reboot');
 					expect(appended).toContain('Persisted issue one');
 					expect(appended).toContain('Persisted issue two');
+
+					// The command line's own history outlived the first process too:
+					// ↑ on a fresh boot reaches back past it. The colon gets a write
+					// and a frame of its own, since keys in one chunk are handled
+					// before the mode has changed.
+					second.input(':');
+					await second.waitFor(commandLineShows(':'));
+
+					second.input(ARROW_UP);
+					const recalled = await second.waitFor(
+						commandLineShows(':new issue Issue after reboot'),
+					);
+
+					second.input(ARROW_UP);
+					await second.waitFor(
+						commandLineShows(':new issue Persisted issue two'),
+					);
+
+					expect(recalled).toContain('Issue after reboot');
 				} finally {
 					await second.destroy();
 				}

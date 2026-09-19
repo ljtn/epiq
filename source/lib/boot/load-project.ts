@@ -9,12 +9,14 @@ import {ensureStateBranchWorktree} from '../../git/git.js';
 import {reloadStateFromEventLog} from '../../git/sync-and-reload-state.js';
 import {withSyncLock} from '../../git/sync-lock.js';
 import {withEventLogsIntact} from '../../git/sync.js';
+import {readCommandHistory} from '../config/command-history.js';
 import {recordRecentProject} from '../config/recent-projects.js';
 import {bootStateFromEventLog} from '../board/board-boot.js';
 import {loadMergedEventsWithUnreadable} from '../board/board-log.js';
 import {AppEvent} from '../board/board-events.model.js';
 import {Result, failed, isFail, succeeded} from '../model/result-types.js';
 import {getProjectFileContents} from '../project-setup/project-setup.js';
+import {hydrateCommandHistory} from '../state/cmd.state.js';
 import {patchState} from '../state/state.js';
 import {
 	failSync,
@@ -111,6 +113,12 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 	// this one over.
 	const recordResult = recordRecentProject({root: repoRoot});
 	if (isFail(recordResult)) logger.info(recordResult.message);
+
+	// Same for what ↑ offers: this project's own history, whether the app is
+	// booting into it or `:open` is moving to it from another.
+	const historyResult = readCommandHistory({root: repoRoot});
+	if (isFail(historyResult)) logger.info(historyResult.message);
+	else hydrateCommandHistory(historyResult.value);
 
 	return succeeded('Loaded project', undefined);
 };

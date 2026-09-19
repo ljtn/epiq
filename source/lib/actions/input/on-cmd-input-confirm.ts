@@ -3,6 +3,7 @@ import {cmdValidity} from '../../command-line/cmd-validity.js';
 import {getCommandIntent} from '../../command-line/command-intent.js';
 import {CommandIntent} from '../../command-line/command-meta.js';
 import {commands} from '../../command-line/commands.js';
+import {writeCommandHistory} from '../../config/command-history.js';
 import {
 	failed,
 	isFail,
@@ -85,7 +86,18 @@ export const onConfirmCommandLineSequenceInput = async ({
 		return cmdResultToValidationState(commandResult);
 	}
 
-	commandConfirmed({addToHistory: !isForceExecutedBySystem});
+	const addToHistory = !isForceExecutedBySystem;
+
+	commandConfirmed({addToHistory});
+
+	// A convenience for the next boot; not worth failing a command that ran.
+	if (addToHistory) {
+		const storeResult = writeCommandHistory({
+			commands: getCmdState().commandHistory,
+		});
+		if (isFail(storeResult)) logger.info(storeResult.message);
+	}
+
 	actionMeta.onSuccess?.();
 
 	if (getSettingsState().autoSync) {
