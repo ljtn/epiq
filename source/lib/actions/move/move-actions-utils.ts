@@ -121,7 +121,10 @@ export function moveNodeToSiblingContainer(direction: -1 | 1): Result<{
 	return applyPendingMove(pendingResult.value);
 }
 
-export function moveChildWithinParent(direction: -1 | 1): Result<{
+export function moveChildWithinParent(
+	direction: -1 | 1,
+	step = 1,
+): Result<{
 	action: 'move.node';
 	result: NavNode<AnyContext>;
 }> {
@@ -131,7 +134,15 @@ export function moveChildWithinParent(direction: -1 | 1): Result<{
 	const {contextNode, selectedIndex} = getState();
 	const siblings = getOrderedChildren(contextNode.id);
 
-	const referenceNode = siblings[selectedIndex + direction];
+	// A jump past the end lands on the end rather than refusing, so the last
+	// row is reachable from anywhere by holding the key.
+	const referenceIndex = Math.min(
+		Math.max(selectedIndex + direction * step, 0),
+		siblings.length - 1,
+	);
+
+	const referenceNode =
+		referenceIndex === selectedIndex ? undefined : siblings[referenceIndex];
 	if (!referenceNode) return failed('Missing sibling node');
 
 	const pendingResult = createPendingMoveState({

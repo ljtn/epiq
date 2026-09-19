@@ -60,6 +60,26 @@ export const moveWithinParent: ActionEntry[] = [
 			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
 		},
 	},
+	{
+		intent: Intent.MovePreviousItemJump,
+		mode: Mode.MOVE,
+		action: () => {
+			if (!getMovePendingState()) return failed('No pending move');
+			patchState({mode: Mode.COMMAND_LINE});
+			replaceCmdInput(`move jump-previous`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+		},
+	},
+	{
+		intent: Intent.MoveNextItemJump,
+		mode: Mode.MOVE,
+		action: () => {
+			if (!getMovePendingState()) return failed('No pending move');
+			patchState({mode: Mode.COMMAND_LINE});
+			replaceCmdInput(`move jump-next`);
+			return onConfirmCommandLineSequenceInput({isForceExecutedBySystem: true});
+		},
+	},
 ];
 
 export const moveAcrossParents: ActionEntry[] = [

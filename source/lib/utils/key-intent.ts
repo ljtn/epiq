@@ -12,11 +12,15 @@ export const Intent = {
 	// Default
 	NavPreviousItem: 'navPreviousItem',
 	NavNextItem: 'navNextItem',
+	NavPreviousItemJump: 'navPreviousItemJump',
+	NavNextItemJump: 'navNextItemJump',
 	NavToPreviousContainer: 'navToPreviousContainer',
 	NavToNextContainer: 'navToNextContainer',
 
 	MovePreviousItem: 'movePreviousItem',
 	MoveNextItem: 'moveNextItem',
+	MovePreviousItemJump: 'movePreviousItemJump',
+	MoveNextItemJump: 'moveNextItemJump',
 	MoveToPreviousContainer: 'moveToPreviousContainer',
 	MoveToNextContainer: 'moveToNextContainer',
 
@@ -67,6 +71,20 @@ export const Intent = {
 } as const;
 
 export type IntentInferred = (typeof Intent)[keyof typeof Intent];
+
+// Shift is the only modifier a terminal reliably hands us: macOS keeps Command
+// to itself, ctrl+arrow is Mission Control's, and alt+arrow is word-jump in
+// many terminals.
+const isJumpModifier = (key: readline.Key): boolean => key.shift === true;
+
+// A jump multiplies a step between items. Moving between containers keeps its
+// single step, so shift on a sibling swimlane is the plain move.
+const JUMP_OF: Partial<Record<IntentInferred, IntentInferred>> = {
+	[Intent.NavPreviousItem]: Intent.NavPreviousItemJump,
+	[Intent.NavNextItem]: Intent.NavNextItemJump,
+	[Intent.MovePreviousItem]: Intent.MovePreviousItemJump,
+	[Intent.MoveNextItem]: Intent.MoveNextItemJump,
+};
 
 function getDefaultDir(
 	key: readline.Key,
@@ -170,7 +188,7 @@ export function getKeyIntent(
 
 	// Navigation keys
 	const dir = getDefaultDir(key) || getVimDir(key);
-	if (dir) return normalizeIntent(dir, mode);
+	if (dir) return normalizeIntent(dir, mode, isJumpModifier(key));
 
 	// Hard exit
 	if (key.ctrl && key.name === 'c') return Intent.Exit;
@@ -214,6 +232,7 @@ export function getKeyIntent(
 function normalizeIntent(
 	dir: 'up' | 'down' | 'left' | 'right',
 	mode: ModeUnion,
+	jump = false,
 ) {
 	const dirMap =
 		mode === Mode.MOVE
@@ -230,9 +249,13 @@ function normalizeIntent(
 					nextContainer: Intent.NavToNextContainer,
 			  };
 
-	return mapDirectionalIntent(
+	const intent = mapDirectionalIntent(
 		getState().contextNode.childRenderAxis,
 		dir,
 		dirMap,
 	);
+
+	if (!intent || !jump) return intent;
+
+	return JUMP_OF[intent] ?? intent;
 }

@@ -148,6 +148,7 @@ epiq gui
 ### Navigation
 
 - The second thing to know is that you can navigate with the keyboard using arrow keys or `h` `j` `k` `l`.
+- Hold `shift` to move five at a time — `shift`+arrow, or `J` / `K`. A jump stops at the first and last item rather than wrapping, so holding it takes you to the end.
 - You can enter nodes with `enter`, and navigate out of a context with `q` or `esc`
 
 ### Commands
@@ -165,7 +166,7 @@ epiq gui
 
 ### Move nodes
 
-- Move nodes by pressing `m`. This sets you in a move state, after which you can navigate as normal, navigate to the target location, then press m again to confirm new location.
+- Move nodes by pressing `m`. This sets you in a move state, after which you can navigate as normal, navigate to the target location, then press m again to confirm new location. `shift`+arrow carries the node five places at a time, and nothing is written until you confirm.
 
 ### Filtering
 

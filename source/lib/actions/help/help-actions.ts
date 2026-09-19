@@ -38,7 +38,7 @@ export const HelpActions: ActionEntry[] = [
 	{
 		intent: Intent.NavPreviousItem,
 		mode: Mode.HELP,
-		description: '[arrows/hjkl] navigate',
+		description: '[arrows/hjkl] navigate (shift x5)',
 		action: () => {
 			navigationUtils.navigateToPreviousItem();
 			return succeeded('Navigating to previous help item', null);
@@ -50,6 +50,22 @@ export const HelpActions: ActionEntry[] = [
 		action: () => {
 			navigationUtils.navigateToNextItem();
 			return succeeded('Navigating to next help item', null);
+		},
+	},
+	{
+		intent: Intent.NavPreviousItemJump,
+		mode: Mode.HELP,
+		action: () => {
+			navigationUtils.jumpToPreviousItem();
+			return succeeded('Jumping to previous help item', null);
+		},
+	},
+	{
+		intent: Intent.NavNextItemJump,
+		mode: Mode.HELP,
+		action: () => {
+			navigationUtils.jumpToNextItem();
+			return succeeded('Jumping to next help item', null);
 		},
 	},
 	{
