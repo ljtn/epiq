@@ -451,10 +451,22 @@ export const EVENT_LOG_STYLES = `
 .epiq-log--no-time.epiq-log--no-kind {
 	${LEAD_PROPERTY}: 0px;
 }
+/* The line the board is standing on while following: the one whose arrival
+   moved it. A rule down the lead edge rather than a ground, so it does not
+   compete with the hover a reader is moving around, and so both can be true of
+   one row at once. */
+.epiq-log-line--followed {
+	color: ${GUI_THEME.primary};
+	box-shadow: inset 2px 0 0 ${GUI_THEME.accent};
+}
+
 ${linkedRow()} {
 	cursor: pointer;
 }
-${linkedRow(':hover')} {
+/* Every row takes the ground under the pointer, not only the ones that lead
+   somewhere: the highlight says which line the reader is on, which is a
+   question every line answers. */
+.epiq-log-line:hover {
 	color: ${GUI_THEME.primary};
 	background: ${GUI_THEME.hover};
 }
@@ -475,6 +487,9 @@ ${linkedRow(':hover')} {
 	opacity: 0;
 	pointer-events: none;
 	transition: opacity 120ms ease;
+}
+.${LOG_ARROW_CLASS}:hover {
+	color: ${GUI_THEME.accent};
 }
 @keyframes epiqLogLine {
 	from { opacity: 0; }

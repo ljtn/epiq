@@ -7,6 +7,10 @@
 // The ring is drawn whether or not it is lit; the dot is what fills. So the
 // mark keeps its size in the row and the difference between watching and not
 // is a fill rather than a shape.
+//
+// Lit, the ring breathes — `epiqLivePulse`, defined with the bar's own
+// keyframes. Opacity only, so the mark never changes size and the button beside
+// it never moves.
 export const IconLive = ({
 	size = 14,
 	lit = false,
@@ -25,7 +29,15 @@ export const IconLive = ({
 		strokeLinejoin="round"
 		aria-hidden="true"
 	>
-		<circle cx="12" cy="12" r="9" opacity={lit ? 0.9 : 0.55} />
+		<circle
+			cx="12"
+			cy="12"
+			r="9"
+			opacity={lit ? 0.9 : 0.55}
+			style={
+				lit ? {animation: 'epiqLivePulse 2s ease-in-out infinite'} : undefined
+			}
+		/>
 		<circle cx="12" cy="12" r="4" fill={lit ? 'currentColor' : 'none'} />
 	</svg>
 );

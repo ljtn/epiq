@@ -280,6 +280,26 @@ export const SCRUBBER_PAGER_STYLES = `
 `;
 
 export const SCRUBBER_KEYFRAMES = `
+	/* The live mark's ring, while the board is following. A breath rather than
+	   a blink: it says "still running" from the corner of the eye without
+	   asking to be looked at, which a hard flash would.
+
+	   Opacity alone, so nothing on the row moves — the mark shares a group with
+	   the play button and a scaling ring would nudge it. Honoured only where
+	   motion is wanted; a reader who has asked for less gets the ring at rest. */
+	@keyframes epiqLivePulse {
+		0%, 100% { opacity: 0.35; }
+		50% { opacity: 1; }
+	}
+
+	.epiq-live-ring {
+		animation: epiqLivePulse 2s ease-in-out infinite;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.epiq-live-ring { animation: none; }
+	}
+
 	/* Must animate the standalone 'scale' property, not 'transform': the dots
 	   carry a 'transform: translate(...)' to centre themselves, and animating
 	   'transform' would replace it and fling them off position. */
