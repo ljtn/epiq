@@ -371,6 +371,41 @@ export const VolumeBars = memo(VolumeBarsImpl);
 
 // Lives on the chart wrapper rather than inside either chart, so it runs
 // unbroken through both and the gap between them.
+/**
+ * What the board has not applied: from the needle to the end of the window.
+ *
+ * Its own element rather than part of the needle, because the two do not always
+ * appear together. Zoom into a stretch that begins after the checkout and the
+ * needle is off the left of the window — there is nothing to draw it against,
+ * and yet *everything* on screen is unapplied. Drawn from the needle's fraction
+ * where it is in view, and from the left edge where it is behind us.
+ *
+ * Over the bars rather than instead of them: the shape of the history stays
+ * readable through it, and the stretch says "not yet" rather than missing.
+ * Under the needle's own layer, and inert — the track beneath is still where a
+ * scrub is aimed.
+ */
+export const UnappliedStretch = ({from}: {from: number}) => (
+	<div
+		data-testid="scrubber-unapplied"
+		style={{
+			position: 'absolute',
+			left: `${from * 100}%`,
+			right: 0,
+			top: 0,
+			bottom: 0,
+			backgroundColor: UNAPPLIED_VEIL_COLOR,
+			backgroundImage: UNAPPLIED_VEIL_IMAGE,
+			// Only where the needle is in view: at the window's own edge the line
+			// would read as a boundary the history has, rather than as where the
+			// board is standing.
+			borderLeft: from > 0 ? `1px solid ${UNAPPLIED_EDGE_COLOR}` : undefined,
+			zIndex: 2,
+			pointerEvents: 'none',
+		}}
+	/>
+);
+
 export const ScrubberNeedle = ({
 	fraction,
 	parked,
@@ -395,29 +430,6 @@ export const ScrubberNeedle = ({
 
 	return (
 		<>
-			{/* What the board has not applied, from the needle to the end of the
-			    window. Over the bars rather than instead of them: the shape of the
-			    history stays readable through it, and the stretch reads as "not
-			    yet" rather than as missing. Under the needle's own z-index, and
-			    inert — the track beneath it is still where a scrub is aimed. */}
-			{parked && (
-				<div
-					data-testid="scrubber-unapplied"
-					style={{
-						position: 'absolute',
-						left: `${fraction * 100}%`,
-						right: 0,
-						top: 0,
-						bottom: 0,
-						backgroundColor: UNAPPLIED_VEIL_COLOR,
-						backgroundImage: UNAPPLIED_VEIL_IMAGE,
-						borderLeft: `1px solid ${UNAPPLIED_EDGE_COLOR}`,
-						zIndex: 2,
-						pointerEvents: 'none',
-					}}
-				/>
-			)}
-
 			{/* A hairline is a 1px drag target. This is the same line's worth of
 			    grabbable width, invisible, centred on it. */}
 			<div

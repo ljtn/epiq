@@ -55,6 +55,7 @@ import {
 	RangeSelection,
 	ScrubberHoverHint,
 	ScrubberNeedle,
+	UnappliedStretch,
 	SegmentBoundaries,
 	SegmentHighlight,
 	SeriesLayer,
@@ -194,6 +195,10 @@ export type ScrubberChart = {
 	// Null when the moment it marks is outside the window, which is drawn as no
 	// needle at all rather than one clamped to an edge it is not at.
 	thumbFraction: number | null;
+	// Where the stretch the board has not applied begins, or null where none of
+	// the window is. Not the needle's fraction: a zoom past the checkout leaves
+	// the needle off the chart while everything on it is still unapplied.
+	unappliedFrom: number | null;
 	// The one event singled out by a hovered Log row, or null.
 	highlightEventId: string | null;
 	trackWidthPx: number;
@@ -563,6 +568,10 @@ export const ScrubberLayout = ({
 									animate={animate}
 								/>
 							</div>
+						)}
+
+						{chart.unappliedFrom !== null && (
+							<UnappliedStretch from={chart.unappliedFrom} />
 						)}
 
 						{chart.thumbFraction !== null && (
