@@ -62,6 +62,7 @@ export const getPersonalStats = async (
 
 	return succeeded('Derived personal stats', {
 		...totals,
+		scanned: !isFail(scanned),
 		commits: mine.reduce((total, candidate) => total + candidate.commits, 0),
 		claimedEmails: mine.length,
 	});

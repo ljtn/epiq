@@ -11,6 +11,16 @@
  * in behind them.
  */
 export type PersonalStats = {
+	/**
+	 * Whether the repository's history could be read at all.
+	 *
+	 * False and the two commit figures below mean nothing — they are not zero,
+	 * they are unknown. Told apart because the panel says something quite
+	 * different in each case: "no address of yours has commits" is a nudge to
+	 * claim one, and saying it to somebody who holds several because a git
+	 * call failed is simply wrong.
+	 */
+	scanned: boolean;
 	/** Commits by every git address this person claims. */
 	commits: number;
 	/** Tickets they opened. */
