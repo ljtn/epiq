@@ -146,6 +146,38 @@ test('the transport pauses and resumes, and the movie ends on a full bar', async
 	expect(pageErrors).toEqual([]);
 });
 
+// The bar stands down while a movie owns the board's position, but the stand-
+// down only dims the controls row — the chart keeps its own brightness. A
+// filled accent box left on it is the one thing still lit, and inert with it.
+test('the Now mark is off the track while a movie plays', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+
+	const now = page.getByRole('button', {name: 'Now', exact: true});
+
+	await page.getByTestId('theatre-play').click();
+	await expect(page.getByTestId('theatre-player')).toBeVisible();
+	await expect(now).toHaveCount(0);
+
+	// And back once the player is gone and the board is parked in the past,
+	// which is the case the button exists for.
+	await page.getByTestId('theatre-exit').click();
+	await expect(page.getByTestId('theatre-player')).toHaveCount(0);
+
+	const track = page.getByTestId('scrubber-track');
+	const box = await track.boundingBox();
+	if (!box) throw new Error('scrubber track is not on screen');
+	await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2);
+
+	await expect(now).toBeVisible();
+
+	await returnToLive(page);
+	expect(pageErrors).toEqual([]);
+});
+
 test('closing the player hands the board back, live and editable', async ({
 	page,
 	appUrl,
