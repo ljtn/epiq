@@ -16,10 +16,7 @@ test('filing a ticket yourself is reaching for the board, and lets following go'
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('log-toggle').click();
-	await expect(page.getByTestId('event-log')).toBeVisible();
-
-	const follow = page.getByTestId('log-follow');
+	const follow = page.getByTestId('live-toggle');
 	await follow.click();
 	await expect(follow).toHaveAttribute('aria-pressed', 'true');
 
@@ -53,10 +50,7 @@ test('touching the board leaves following', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('log-toggle').click();
-	await expect(page.getByTestId('event-log')).toBeVisible();
-
-	const follow = page.getByTestId('log-follow');
+	const follow = page.getByTestId('live-toggle');
 	await follow.click();
 	await expect(follow).toHaveAttribute('aria-pressed', 'true');
 
@@ -77,9 +71,7 @@ test('following is off until it is asked for, and lets go again', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('log-toggle').click();
-
-	const follow = page.getByTestId('log-follow');
+	const follow = page.getByTestId('live-toggle');
 	await expect(follow).toHaveAttribute('aria-pressed', 'false');
 
 	await follow.click();
@@ -87,6 +79,31 @@ test('following is off until it is asked for, and lets go again', async ({
 
 	await follow.click();
 	await expect(follow).toHaveAttribute('aria-pressed', 'false');
+
+	expect(pageErrors).toEqual([]);
+});
+
+// Following needs the log — its lines are what is followed — so asking for it
+// from the bar opens the panel rather than leaving a control that is on and
+// inert, and says so in a band the board cannot be mistaken for.
+test('asking to go live opens the log and raises the banner', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await expect(page.getByTestId('event-log')).toHaveCount(0);
+	await expect(page.getByTestId('follow-banner')).toHaveCount(0);
+
+	await page.getByTestId('live-toggle').click();
+
+	await expect(page.getByTestId('event-log')).toBeVisible();
+	await expect(page.getByTestId('follow-banner')).toContainText('LIVE');
+
+	await page.getByTestId('live-toggle').click();
+	await expect(page.getByTestId('follow-banner')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });

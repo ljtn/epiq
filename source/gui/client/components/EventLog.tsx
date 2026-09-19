@@ -282,8 +282,6 @@ const LogHeader = ({
 	split,
 	onChangeSplit,
 	canSplit,
-	following,
-	onChangeFollowing,
 	children,
 }: {
 	fields: LogFields;
@@ -293,9 +291,6 @@ const LogHeader = ({
 	onChangeSplit: (next: boolean) => void;
 	// False where the slice names nobody: there would be no lanes to draw.
 	canSplit: boolean;
-	// Opening each new line as it lands, instead of by hand.
-	following: boolean;
-	onChangeFollowing: (next: boolean) => void;
 	// Whatever else the header carries, at its far end.
 	children?: React.ReactNode;
 }) => (
@@ -363,22 +358,6 @@ const LogHeader = ({
 				<IconColumns size={ICON_SIZE} />
 			</IconButton>
 
-			{/* The mark a row wears under the pointer to say it goes somewhere.
-			    Following is that click made automatic, so it is the same mark. */}
-			<IconButton
-				testId="log-follow"
-				title={
-					following
-						? 'Stop opening each new line'
-						: 'Open each new line as it arrives'
-				}
-				aria-label="Follow the log"
-				pressed={following}
-				onClick={() => onChangeFollowing(!following)}
-			>
-				<IconArrowUpRight size={ICON_SIZE} />
-			</IconButton>
-
 			{children}
 		</span>
 	</div>
@@ -403,7 +382,7 @@ const EventLogPanel = ({
 	bottomClearance,
 	onOpen,
 	at = null,
-	releasedAt = 0,
+	following = false,
 	onHoverEvent,
 	layout = 'panel',
 	onPopOut,
@@ -420,10 +399,9 @@ const EventLogPanel = ({
 	// Where the reader is, so following can tell "already there" from "went
 	// there once". Null where nothing is open.
 	at?: LogDestination | null;
-	// Bumped when the reader takes the board back. Following stops on a change,
-	// where scrolling this panel back only pauses it: reading the log is still
-	// watching, and opening something yourself is not.
-	releasedAt?: number;
+	// Whether the board is being followed. Owned above: the bar draws the
+	// control and the board turns it off when the reader reaches for it.
+	following?: boolean;
 	// The event under the pointer, or null off the rows: what the chart lights
 	// up while a row is hovered.
 	onHoverEvent?: (eventId: string | null) => void;
@@ -536,8 +514,6 @@ const EventLogPanel = ({
 	// what a line shows, this makes the panel navigate on its own, and a board
 	// that starts moving before the reader has touched anything would be a
 	// strange way to open.
-	const [following, setFollowing] = useState(false);
-
 	// The board is standing at the present when the slice runs to the end of
 	// time — `momentOnScreen` returns Infinity only while live, and a checkout
 	// or a playhead is a finite moment.
@@ -621,27 +597,6 @@ const EventLogPanel = ({
 		// rebuilt every render: the crawl moves when the log does, not when the
 		// board beside it repaints.
 	}, [newestId, animate]);
-
-	// A pointer on the board leaves following, and the toggle goes flat with it.
-	//
-	// Measured against the count as it stood when following was switched on,
-	// not against the previous render's. Opening the log is itself a click, and
-	// the count carrying it can reach this panel after the switch rather than
-	// before — comparing with the last value seen would read that as the reader
-	// reaching for the board and turn following straight back off.
-	const followedFromRef = useRef(releasedAt);
-
-	const startFollowing = (next: boolean) => {
-		followedFromRef.current = releasedAt;
-		setFollowing(next);
-	};
-
-	useEffect(() => {
-		if (!following) return;
-		if (releasedAt <= followedFromRef.current) return;
-
-		setFollowing(false);
-	}, [following, releasedAt]);
 
 	// The last line following acted on. The decision itself is `followStep`, so
 	// the cases it has to get right — a burst, a line that leads nowhere, the
@@ -761,8 +716,6 @@ const EventLogPanel = ({
 				split={splitWanted}
 				onChangeSplit={setSplitWanted}
 				canSplit={lanes.length > 0}
-				following={following}
-				onChangeFollowing={startFollowing}
 			>
 				{onPopOut && (
 					<IconButton

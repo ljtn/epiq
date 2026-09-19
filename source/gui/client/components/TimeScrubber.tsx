@@ -127,6 +127,8 @@ export const TimeScrubber = ({
 	theatreOpen,
 	logOpen,
 	onChangeLogOpen,
+	following,
+	onChangeFollowing,
 	showIssues,
 	onChangeShowIssues,
 	showCommits,
@@ -207,6 +209,10 @@ export const TimeScrubber = ({
 	// and once the log is drawn from it, an event made since the last fetch
 	// never reaches the panel that is supposed to be listing it.
 	refreshOn: unknown;
+	// The live half of the transport. Owned by the board, which also turns it
+	// off when the reader reaches for it.
+	following: boolean;
+	onChangeFollowing: (next: boolean) => void;
 	// Opens the history player over this window.
 	onPlayTheatre: () => void;
 	// The event log panel. Owned above because the panel is in the board's row,
@@ -1158,6 +1164,20 @@ export const TimeScrubber = ({
 				scope,
 				zoomed: zoom !== null,
 				windowOnly,
+				following,
+				onChangeFollowing,
+				// Off the present there is nothing to ride: a checkout and a movie
+				// are both somewhere else, and each already drives the board.
+				canFollow: connected && !theatreOpen && timeTravel.mode !== 'scrub',
+				followTitle: !connected
+					? 'Offline — nothing is arriving'
+					: theatreOpen
+					? 'A movie is playing'
+					: timeTravel.mode === 'scrub'
+					? 'The board is in the past — go back to live first'
+					: following
+					? 'Stop following the newest event'
+					: 'Follow the newest event',
 				windowFilterable: windowNamesIssues(timeline),
 				narrow,
 				ticketFocus,

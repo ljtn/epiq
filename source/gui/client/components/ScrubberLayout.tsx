@@ -44,6 +44,7 @@ import {
 	SpotlightToggle,
 	TextFilterInput,
 	ScrubberHeader,
+	LiveToggle,
 	ScrubberPlayButton,
 } from './ScrubberControls';
 import {
@@ -303,6 +304,15 @@ export const ScrubberLayout = ({
 									onChange={controls.onChangeWindowOnly}
 								/>
 							)}
+
+							{/* Collapsed, the transport still has both halves: shutting the
+							    charts is not a reason to lose the way back to live. */}
+							<LiveToggle
+								following={controls.following}
+								disabled={!controls.canFollow}
+								title={controls.followTitle}
+								onChange={controls.onChangeFollowing}
+							/>
 
 							<ScrubberPlayButton
 								canPlay={canPlay}
