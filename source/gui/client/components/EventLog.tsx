@@ -403,6 +403,7 @@ const EventLogPanel = ({
 	bottomClearance,
 	onOpen,
 	at = null,
+	releasedAt = 0,
 	onHoverEvent,
 	layout = 'panel',
 	onPopOut,
@@ -419,6 +420,10 @@ const EventLogPanel = ({
 	// Where the reader is, so following can tell "already there" from "went
 	// there once". Null where nothing is open.
 	at?: LogDestination | null;
+	// Bumped when the reader takes the board back. Following stops on a change,
+	// where scrolling this panel back only pauses it: reading the log is still
+	// watching, and opening something yourself is not.
+	releasedAt?: number;
 	// The event under the pointer, or null off the rows: what the chart lights
 	// up while a row is hovered.
 	onHoverEvent?: (eventId: string | null) => void;
@@ -617,6 +622,27 @@ const EventLogPanel = ({
 		// board beside it repaints.
 	}, [newestId, animate]);
 
+	// A pointer on the board leaves following, and the toggle goes flat with it.
+	//
+	// Measured against the count as it stood when following was switched on,
+	// not against the previous render's. Opening the log is itself a click, and
+	// the count carrying it can reach this panel after the switch rather than
+	// before — comparing with the last value seen would read that as the reader
+	// reaching for the board and turn following straight back off.
+	const followedFromRef = useRef(releasedAt);
+
+	const startFollowing = (next: boolean) => {
+		followedFromRef.current = releasedAt;
+		setFollowing(next);
+	};
+
+	useEffect(() => {
+		if (!following) return;
+		if (releasedAt <= followedFromRef.current) return;
+
+		setFollowing(false);
+	}, [following, releasedAt]);
+
 	// The last line following acted on. The decision itself is `followStep`, so
 	// the cases it has to get right — a burst, a line that leads nowhere, the
 	// reader already being there — are testable without putting the panel into
@@ -736,7 +762,7 @@ const EventLogPanel = ({
 				onChangeSplit={setSplitWanted}
 				canSplit={lanes.length > 0}
 				following={following}
-				onChangeFollowing={setFollowing}
+				onChangeFollowing={startFollowing}
 			>
 				{onPopOut && (
 					<IconButton
