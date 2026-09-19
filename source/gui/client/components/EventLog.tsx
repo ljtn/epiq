@@ -65,6 +65,7 @@ import {
 	useLogSplit,
 } from '../lib/log-lanes';
 import {actorDisplay} from '../lib/agent-identity';
+import {ASIDE_PADDING} from './Aside';
 import {Checkbox} from './Checkbox';
 import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
@@ -79,7 +80,7 @@ import {usePrefersReducedMotion} from '../lib/scrubber';
 import {useResizableWidth} from '../lib/use-resizable-width';
 import {ResizeHandle} from './ResizeHandle';
 import {IconArrowUpRight} from './IconArrowUpRight';
-import {IconButton, ICON_SIZE} from './IconButton';
+import {IconButton, ICON_BUTTON_SIZE, ICON_SIZE} from './IconButton';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {IconLog} from './IconLog';
@@ -92,7 +93,10 @@ const MIN_LOG_WIDTH = 280;
 const MAX_LOG_WIDTH = 1000;
 const MAX_LOG_RATIO = 0.6;
 const LOG_WIDTH_STORAGE_KEY = 'epiq.eventLog.width';
-const LOG_HEADER_HEIGHT = 28;
+// The row of buttons this pane's header keeps is the row the panel on the other
+// side of the board keeps, so the two are set on the same line: the aside's own
+// inset from the top, then the square an icon button makes.
+const LOG_HEADER_HEIGHT = ICON_BUTTON_SIZE;
 
 // How near the foot counts as being at it. A couple of rows, so a pin survives
 // a sub-pixel scroll position or a rounding difference between scrollHeight and
@@ -296,7 +300,7 @@ const LogHeader = ({
 			gap: 12,
 			flexShrink: 0,
 			height: LOG_HEADER_HEIGHT,
-			padding: `0 ${LOG_PANE_PADDING_X}px 0 30px`,
+			padding: `${ASIDE_PADDING}px ${LOG_PANE_PADDING_X}px 0 30px`,
 			borderBottom: `1px solid ${GUI_THEME.line}`,
 		}}
 	>
