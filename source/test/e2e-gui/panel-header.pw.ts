@@ -147,6 +147,35 @@ test('a long title gives up what does not fit rather than growing the row', asyn
 	expect(pageErrors).toEqual([]);
 });
 
+// The log and the ticket panel flank the board, so their header rows are read
+// across it as one line. The log's used to sit flush against the top edge while
+// this one kept the panel's inset, which put the two rows of buttons thirteen
+// pixels apart.
+test('the log pane keeps its header row on the line the ticket panel keeps', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openTicket(page, appUrl, `Header ${Date.now()}`);
+
+	await page.getByTestId('log-toggle').click();
+	await expect(page.getByTestId('event-log')).toBeVisible();
+
+	const logButton = await page.getByTestId('log-pop-out').boundingBox();
+	// By its pane rather than by `aside`, which the log is one of too.
+	const close = await page
+		.getByTestId('aside-pane')
+		.getByRole('button', {name: 'Close', exact: true})
+		.boundingBox();
+
+	if (!logButton || !close) throw new Error('header buttons not found');
+
+	expect(Math.abs(logButton.y - close.y)).toBeLessThanOrEqual(1);
+	expect(Math.abs(logButton.height - close.height)).toBeLessThanOrEqual(1);
+
+	expect(pageErrors).toEqual([]);
+});
+
 // Editing still has to work from the row it now sits in.
 test('the title opens its editor from the header row', async ({
 	page,
