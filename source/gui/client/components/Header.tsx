@@ -84,12 +84,15 @@ export const Header = ({
 			? GUI_THEME.dim
 			: GUI_THEME.accent;
 
-	// Failures can carry multi-line git output — never render that in the
-	// topbar. Show a short label and keep the details in the hover tooltip.
-	const syncLabel =
-		syncStatus.status === 'failed'
-			? 'sync failed'
-			: syncStatus.msg.toLowerCase();
+	// The dot's whole account of itself, since nothing beside it says this any
+	// more. A failure keeps carrying its git output, which is the one thing
+	// here that was never going to fit in the topbar.
+	const syncTitle =
+		connection !== 'connected'
+			? 'Not connected'
+			: syncStatus.status === 'failed'
+			? `Sync failed — ${syncStatus.msg}`
+			: syncStatus.msg;
 
 	return (
 		<Panel
@@ -153,38 +156,30 @@ export const Header = ({
 							</>
 						)}
 
+						{/* The colour is the whole message, so the word beside it only
+						    repeated in text what the dot already said — and a failure's
+						    git output never fitted there anyway. The hit area is a
+						    button's rather than the dot's six pixels: the state is now
+						    only readable by hovering it. */}
 						<span
+							data-testid="sync-dot"
+							title={syncTitle}
 							style={{
-								display: 'flex',
+								display: 'inline-flex',
 								alignItems: 'center',
-								gap: 12,
-								justifyContent: 'flex-end',
+								justifyContent: 'center',
+								padding: '5px 7px',
 							}}
 						>
 							<span
-								title={
-									syncStatus.status === 'failed' ? syncStatus.msg : undefined
-								}
 								style={{
-									color: GUI_THEME.dim,
-									maxWidth: 220,
-									overflow: 'hidden',
-									textOverflow: 'ellipsis',
-									whiteSpace: 'nowrap',
-									textAlign: 'right',
+									width: 6,
+									height: 6,
+									borderRadius: 999,
+									background:
+										connection === 'connected' ? syncColor : GUI_THEME.dim,
 								}}
-							>
-								{connection === 'connected' ? syncLabel : '-'}
-							</span>
-
-							<span
-								style={{
-									color: connection === 'connected' ? syncColor : GUI_THEME.dim,
-									fontSize: 4,
-								}}
-							>
-								●
-							</span>
+							/>
 						</span>
 
 						<span style={{color: GUI_THEME.dim}}>|</span>
