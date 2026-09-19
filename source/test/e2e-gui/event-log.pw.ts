@@ -526,9 +526,36 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
 
 	const header = page.getByTestId('event-log-header');
-	for (const field of ['Time', 'Actor', 'Type', 'Diff', 'Label']) {
+	for (const field of ['Time', 'Type', 'Actor', 'Diff', 'Label']) {
 		await expect(header.getByLabel(field, {exact: true})).toBeChecked();
 	}
+
+	// The boxes are in the order a row draws what they control, so the one you
+	// reach for is the column you meant. The clock, the dot and the name are
+	// placed by the stylesheet, so their order is measured rather than
+	// declared; the stat and the label follow in the row's own content order.
+	const boxes = await header.locator('label').allInnerTexts();
+	const placed = (await page.evaluate(
+		`(() => {
+			const name = document.querySelector('.epiq-log-actor');
+			const row = name.closest('.epiq-log-line');
+			const at = pseudo => parseFloat(getComputedStyle(row, pseudo).left);
+			return [
+				{name: 'Time', at: at('::before')},
+				{name: 'Type', at: at('::after')},
+				{
+					name: 'Actor',
+					at:
+						name.getBoundingClientRect().left -
+						row.getBoundingClientRect().left,
+				},
+			];
+		})()`,
+	)) as {name: string; at: number}[];
+	expect(boxes.slice(0, 3)).toEqual(
+		[...placed].sort((a, b) => a.at - b.at).map(column => column.name),
+	);
+	expect(boxes.slice(3)).toEqual(['Diff', 'Label']);
 
 	// The clock and the dot are pseudo-elements, so what is asserted is
 	// whether the browser still draws them.
@@ -621,7 +648,7 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 
 	await page.reload();
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
-	for (const field of ['Time', 'Actor', 'Type', 'Diff', 'Label']) {
+	for (const field of ['Time', 'Type', 'Actor', 'Diff', 'Label']) {
 		await expect(header.getByLabel(field, {exact: true})).not.toBeChecked();
 	}
 	await expect(lines.first()).toHaveText('', {useInnerText: true});
