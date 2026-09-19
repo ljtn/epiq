@@ -9,7 +9,8 @@
 // cadence until something else re-read the file.
 
 import {
-	DEFAULT_AUTO_SYNC_INTERVAL_MS,
+	effectiveAutoSyncIntervalMs,
+	MAX_AUTO_SYNC_INTERVAL_MS,
 	MIN_AUTO_SYNC_INTERVAL_MS,
 	parseAutoSyncIntervalMs,
 } from './auto-sync-interval.js';
@@ -55,22 +56,31 @@ export const autoSyncBlockedReason = (identity: {
 };
 
 /**
- * Who this machine would sync as. Resolved where it can be, so an actor named
- * only by the environment counts; the raw config otherwise, which is what says
- * *which* of the two is missing.
+ * Why auto sync would not run on this machine, as the loops decide it.
+ *
+ * The resolution failing is itself a blocker, and has to be reported as one:
+ * the GUI's loop gives up outright when `loadSettingsFromConfig` fails, so a
+ * panel that fell back to the raw config would find a name and an editor
+ * there, report all-clear, and leave somebody watching a toggle that is on
+ * while nothing ever syncs — which is the exact silence this field exists to
+ * break. `EPIQ_USER_ID` exported without `EPIQ_USER_NAME` reaches it.
+ *
+ * The raw config is still consulted, but only to name the missing field, since
+ * the resolver's own message is about an actor rather than about a setting.
  */
-const identityFrom = (config: EpiqConfig) => {
+const blockedReasonFor = (config: EpiqConfig): string | null => {
 	const resolved = loadSettingsFromConfig();
 
-	return isFail(resolved)
-		? {
+	if (isFail(resolved)) {
+		return (
+			autoSyncBlockedReason({
 				userName: config.userName,
 				preferredEditor: config.preferredEditor,
-		  }
-		: {
-				userName: resolved.value.userName,
-				preferredEditor: resolved.value.preferredEditor,
-		  };
+			}) ?? resolved.message
+		);
+	}
+
+	return autoSyncBlockedReason(resolved.value);
 };
 
 export const readAutoSyncSettings = (): Result<AutoSyncSettings> => {
@@ -79,9 +89,8 @@ export const readAutoSyncSettings = (): Result<AutoSyncSettings> => {
 
 	return succeeded('Read auto sync settings', {
 		enabled: config.value.autoSync === true,
-		intervalMs:
-			config.value.autoSyncDebounceMs ?? DEFAULT_AUTO_SYNC_INTERVAL_MS,
-		blockedReason: autoSyncBlockedReason(identityFrom(config.value)),
+		intervalMs: effectiveAutoSyncIntervalMs(config.value.autoSyncDebounceMs),
+		blockedReason: blockedReasonFor(config.value),
 	});
 };
 
@@ -103,7 +112,7 @@ export const writeAutoSyncSettings = (patch: {
 
 	if (patch.intervalMs !== undefined && intervalMs === null) {
 		return failed(
-			`Auto sync interval must be a whole number of milliseconds, at least ${MIN_AUTO_SYNC_INTERVAL_MS}`,
+			`Auto sync interval must be a whole number of milliseconds between ${MIN_AUTO_SYNC_INTERVAL_MS} and ${MAX_AUTO_SYNC_INTERVAL_MS}`,
 		);
 	}
 

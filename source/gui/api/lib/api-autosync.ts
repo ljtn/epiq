@@ -1,6 +1,6 @@
 import {GuiProject} from './gui-project.js';
 import {getStateBranchRoot} from '../../../git/git-storage.js';
-import {DEFAULT_AUTO_SYNC_INTERVAL_MS} from '../../../lib/config/auto-sync-interval.js';
+import {effectiveAutoSyncIntervalMs} from '../../../lib/config/auto-sync-interval.js';
 import {autoSyncBlockedReason} from '../../../lib/config/sync-settings.js';
 import {
 	loadSettingsFromConfig,
@@ -77,8 +77,9 @@ export const startGuiAutoSync = (input: {project: GuiProject}) => {
 	// One cadence for both the periodic pass and the one a mutation asks for, so
 	// a burst of edits cannot sync faster than the configured interval.
 	const delayUntilNextRun = () => {
-		const intervalMs =
-			config()?.autoSyncDebounceMs ?? DEFAULT_AUTO_SYNC_INTERVAL_MS;
+		const intervalMs = effectiveAutoSyncIntervalMs(
+			config()?.autoSyncDebounceMs,
+		);
 
 		return Math.max(0, intervalMs - (Date.now() - lastStartedAt));
 	};
