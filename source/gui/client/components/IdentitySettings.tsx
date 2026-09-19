@@ -6,7 +6,7 @@ import {
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CARD, META, SECTION_HEADING} from '../lib/identity-panel.style';
 import {SyncSettingsState} from '../lib/use-sync-settings';
-import {Checkbox} from './Checkbox';
+import {Switch} from './Switch';
 
 // The two settings that were the TUI's alone: whether the board syncs itself,
 // and how often. They belong beside the addresses rather than in a settings
@@ -95,7 +95,7 @@ export const IdentitySettings = ({
 					gap: 12,
 				}}
 			>
-				<Checkbox
+				<Switch
 					testId="autosync-toggle"
 					label={settings.enabled ? 'on' : 'off'}
 					checked={settings.enabled}
@@ -132,7 +132,11 @@ export const IdentitySettings = ({
 						}}
 						style={{
 							width: 52,
-							background: GUI_THEME.bg,
+							// The outline alone, like every button in this panel. Painted
+							// at `GUI_THEME.bg` it was two grounds below the card it sits
+							// on and read as a hole punched in the surface — the heaviest
+							// mark in a row whose subject is the switch beside it.
+							background: GUI_THEME.transparent,
 							color: outOfRange ? GUI_THEME.red : GUI_THEME.primary,
 							border: `1px solid ${
 								outOfRange ? GUI_THEME.red : GUI_THEME.line
