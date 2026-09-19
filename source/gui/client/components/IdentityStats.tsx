@@ -36,7 +36,12 @@ export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 		<>
 			<div style={SECTION_HEADING}>Your work here</div>
 			<div data-testid="identity-stats">
-				<StatRow left="commits" right={String(stats.commits)} />
+				{/* A history that could not be read has no commit count — which
+				    is not the same as none, and must not be drawn as a zero. */}
+				<StatRow
+					left="commits"
+					right={stats.scanned ? String(stats.commits) : '—'}
+				/>
 				<StatRow left="tickets opened" right={String(stats.tickets)} />
 				<StatRow left="comments" right={String(stats.comments)} />
 				<StatRow
@@ -59,8 +64,12 @@ export const IdentityStats = ({state}: {state: PersonalStatsState}) => {
 
 			{/* The zero that is this panel's own subject. A bare 0 reads as "you
 			    have written none"; the reason is that no address resolves to you,
-			    and the fix is the list immediately below. */}
-			{stats.claimedEmails === 0 && (
+			    and the fix is the list immediately below.
+
+			    Only where the scan actually ran. Said on a failed one it would
+			    tell somebody holding several claims that they hold none, and
+			    contradict the scan error the panel shows a few rows down. */}
+			{stats.scanned && stats.claimedEmails === 0 && (
 				<div style={META}>
 					No git address is yours yet, so no commit counts as one — claim one
 					below.
