@@ -81,6 +81,52 @@ test('hovering a ticket ref previews the ticket it names', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// The card waits out a delay before it opens. Until then the ref itself is all
+// there is to say the word can be pressed, so it takes a wash of its own colour
+// the moment the pointer is on it.
+test('a ref lights under the pointer', async ({page, appUrl, pageErrors}) => {
+	const stamp = Date.now();
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const targetRef = await createTicket(
+		page,
+		`Lit target ${stamp}`,
+		'Anything at all.',
+	);
+	await createTicket(page, `Lit source ${stamp}`, `Blocked on ${targetRef}.`);
+
+	const description = page.getByTestId('description-box');
+	const refLink = description.getByRole('button', {
+		name: `Open ${targetRef}`,
+	});
+	await expect(refLink).toBeVisible();
+
+	// A string, like the suite's other DOM reads: these files are type-checked
+	// against the Node libs, which have no `getComputedStyle`.
+	const background = async () =>
+		(await page.evaluate(
+			`getComputedStyle(document.querySelector(` +
+				`'[data-testid="description-box"] [data-ticket-ref]')).backgroundColor`,
+		)) as string;
+
+	const unlit = 'rgba(0, 0, 0, 0)';
+	expect(await background()).toBe(unlit);
+
+	// The hover is retried rather than the read: a state broadcast re-lays the
+	// panel out and can move it out from under a pointer that is not moving.
+	await expect(async () => {
+		await refLink.hover();
+		expect(await background()).not.toBe(unlit);
+	}).toPass({timeout: 15_000});
+
+	await description.hover({position: {x: 5, y: 5}});
+	await expect.poll(background).toBe(unlit);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('the preview goes away when the pointer leaves the ref', async ({
 	page,
 	appUrl,
