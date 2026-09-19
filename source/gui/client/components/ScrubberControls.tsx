@@ -395,67 +395,6 @@ export const ScrubberControls = ({
 			    the same question — the present or the past — and spacing them
 			    like two groups says they are two. */}
 			<span style={{display: 'inline-flex', alignItems: 'center', gap: 6}}>
-				{/* The third part of the transport, and it belongs with the other
-					    two: live rides the present, play walks through the past, and
-					    this is the way back from having walked. On its own further up
-					    the row it read as a narrowing, with the row's between-group gap
-					    stranding it from the controls it answers to.
-
-					    Held rather than unmounted, so entering history never resizes
-					    the row — but wearing nothing at all while it cannot be pressed,
-					    since an empty slot with a panel and a border reads as a control
-					    that has stopped working. */}
-				<button
-					onClick={onReturnToLive}
-					disabled={!isScrubbing}
-					// Deliberately not "live", which this row now spends on following.
-					// Two different things: this one puts the board back at the present,
-					// following makes it move when something happens there. A reader who
-					// pressed a second "live" expecting to start watching would be right
-					// to be annoyed.
-					title={isScrubbing ? 'Put the board back at now' : undefined}
-					// Inverted while the board is in the past: bright ground, dark text.
-					// Every other control on this row is quiet chrome, and this one is
-					// the standing answer to "why is nothing I do landing?" — it has to
-					// be the thing you cannot miss.
-					style={{
-						...(isScrubbing
-							? {
-									...headerButtonStyle,
-									background: GUI_THEME.accent,
-									border: `1px solid ${GUI_THEME.accent}`,
-							  }
-							: {background: 'transparent', border: 'none'}),
-						color: isScrubbing ? GUI_THEME.bg : GUI_THEME.dim,
-						fontFamily: 'inherit',
-						fontSize: 11,
-						width: 78,
-						boxSizing: 'border-box',
-						display: 'inline-flex',
-						alignItems: 'center',
-						// Pushed apart rather than sat together: the word is the label
-						// and the needle is the destination, and the space the button
-						// puts between them is the run the press makes.
-						justifyContent: 'space-between',
-						padding: '2px 7px',
-						cursor: isScrubbing ? 'pointer' : 'default',
-						whiteSpace: 'nowrap',
-						flexShrink: 0,
-					}}
-				>
-					{/* The word first, then the mark: the label names the place and
-					    the mark shows the needle arriving there, which is the order
-					    the sentence runs in. */}
-					{isScrubbing ? (
-						<>
-							Now
-							<IconNow size={ICON_SIZE} />
-						</>
-					) : (
-						''
-					)}
-				</button>
-
 				<LiveToggle
 					following={following}
 					disabled={!canFollow}
@@ -601,6 +540,59 @@ export const ScrubberHeader = ({
 		</IconButton>
 	</div>
 );
+
+// The way back from history, standing at the end of the track — which is where
+// pressing it puts the needle. On the bar it was a button that described a
+// place; here it *is* the place, and the press reads as "put it back there"
+// rather than as a command to be taken on trust.
+//
+// Only while the board is parked. Live it would sit over the newest bars saying
+// nothing, and the needle is already at that end.
+export const ReturnToNowButton = ({
+	isScrubbing,
+	onReturnToLive,
+}: {
+	isScrubbing: boolean;
+	onReturnToLive: () => void;
+}) => {
+	if (!isScrubbing) return null;
+
+	return (
+		<button
+			onClick={onReturnToLive}
+			// The track beneath owns pointer capture and reads a press as the
+			// start of a scrub. Without this the button both returns to now and
+			// scrubs to where it sits, which is a press that undoes itself.
+			onPointerDown={event => event.stopPropagation()}
+			title="Put the board back at now"
+			// Named for the place, not the sentence: the tooltip carries the fuller
+			// wording, and every test that drives this button asks for "Now".
+			aria-label="Now"
+			style={{
+				...headerButtonStyle,
+				position: 'absolute',
+				// Sat against the end of the track, clear of its own edge by the
+				// hairline the veil draws there.
+				right: 2,
+				top: '50%',
+				transform: 'translateY(-50%)',
+				zIndex: 4,
+				background: GUI_THEME.accent,
+				border: `1px solid ${GUI_THEME.accent}`,
+				color: GUI_THEME.bg,
+				display: 'inline-flex',
+				alignItems: 'center',
+				// The mark alone. On the bar the word did the work of saying where
+				// the press led; standing at that place, it only takes width from
+				// the chart it is sitting on.
+				padding: '3px 4px',
+				cursor: 'pointer',
+			}}
+		>
+			<IconNow size={ICON_SIZE} />
+		</button>
+	);
+};
 
 // The live half of the transport, beside the play button that is the other
 // half: play walks through what already happened, this rides what is happening.
