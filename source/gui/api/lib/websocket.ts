@@ -57,6 +57,10 @@ import {
 	suggestOwnEmails,
 	unlinkContributorEmail,
 } from '../../../mcp/api/emails.js';
+import {
+	readAutoSyncSettings,
+	writeAutoSyncSettings,
+} from '../../../lib/config/sync-settings.js';
 import {nodeRef} from '../../../lib/utils/node-ref.js';
 import {
 	broadcastGuiMessage,
@@ -169,8 +173,18 @@ export const setupWebsocket = (
 	project: GuiProject,
 	{
 		onStateChanged,
+		onSyncSettingsChanged,
 		getPort,
-	}: {onStateChanged: () => void; getPort: () => number},
+	}: {
+		onStateChanged: () => void;
+		/**
+		 * The auto sync cadence changed under the loop. Distinct from
+		 * `onStateChanged`, which only asks for a pass: an armed timer is holding
+		 * the *old* interval, so it has to be dropped rather than waited out.
+		 */
+		onSyncSettingsChanged: () => void;
+		getPort: () => number;
+	},
 ) => {
 	const wss = new WebSocketServer({
 		server,
@@ -311,6 +325,35 @@ export const setupWebsocket = (
 						`${type}:result`,
 						result,
 					);
+				}
+
+				if (type === 'settings:get') {
+					return sendSocket(socket, {
+						type: 'settings',
+						payload: readAutoSyncSettings(),
+					});
+				}
+
+				if (type === 'settings:set') {
+					const result = writeAutoSyncSettings({
+						enabled: message.payload.autoSync,
+						intervalMs: message.payload.autoSyncIntervalMs,
+					});
+
+					// Only on a change that landed. Re-arming after a refusal would
+					// restart the clock on a cadence nobody altered.
+					if (!isFail(result)) onSyncSettingsChanged();
+
+					// The settings as they now are, either way, so a refused write
+					// leaves the panel showing what is actually configured rather
+					// than the value that was turned down.
+					return sendSocket(socket, {
+						type: 'settings',
+						payload: isFail(result) ? readAutoSyncSettings() : result,
+						lastAction: isFail(result)
+							? {ok: false, message: result.message}
+							: {ok: true, message: result.message},
+					});
 				}
 
 				if (type === 'commit:inspect') {

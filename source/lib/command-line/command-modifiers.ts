@@ -1,4 +1,4 @@
-import {MIN_AUTOSYNC_DURATION_MS} from '../../git/auto-sync.js';
+import {MIN_AUTO_SYNC_INTERVAL_MS} from '../config/auto-sync-interval.js';
 import {listRecentProjects} from '../config/recent-projects.js';
 import {isFail} from '../model/result-types.js';
 import {
@@ -92,7 +92,7 @@ export const getEditModifiers = (
 };
 
 export const AUTOSYNC_DEBOUNCE_HINTS = [
-	String(MIN_AUTOSYNC_DURATION_MS),
+	String(MIN_AUTO_SYNC_INTERVAL_MS),
 	'5000',
 	'15000',
 	'30000',

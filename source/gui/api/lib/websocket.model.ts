@@ -115,4 +115,16 @@ export type GuiMessage =
 	| {
 			type: 'email:unlink';
 			payload: {email: string; contributorId?: string};
+	  }
+	// This machine's own preferences, not the board's: they live in
+	// `~/.epiq/config.json` and reach no other clone. Which is why neither is a
+	// mutating message — there is no event to refuse while history is being
+	// read.
+	| {type: 'settings:get'}
+	| {
+			// Whichever of the two the panel changed. Partial because the toggle
+			// and the interval are separate controls over one file, and sending
+			// both would have each overwrite what the other just did.
+			type: 'settings:set';
+			payload: {autoSync?: boolean; autoSyncIntervalMs?: number};
 	  };

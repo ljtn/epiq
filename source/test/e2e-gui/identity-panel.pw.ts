@@ -153,6 +153,69 @@ test('the addresses scroll inside a panel that stays in the window', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// The two settings that were the TUI's alone. Nothing here asserts the value
+// it started from: a worker runs several files over its life and
+// `follow-arrival.pw.ts` writes this same config, so the test moves the
+// setting to a value of its own and puts back whatever it found.
+test('auto sync and its interval are editable, and survive a reload', async ({
+	page,
+	pageErrors,
+}) => {
+	const panel = await openPanel(page);
+	const interval = panel.getByTestId('autosync-interval');
+
+	await expect(interval).toBeVisible();
+	const before = await interval.inputValue();
+
+	try {
+		await interval.fill('37');
+		await interval.press('Enter');
+
+		// Through the server and back, not just the box: a reload refetches
+		// from `~/.epiq/config.json`, which is the only thing that outlives the
+		// page.
+		await page.reload();
+		await expect(page.getByTestId('board-switcher')).toContainText('Default');
+		await openPanel(page);
+		await expect(page.getByTestId('autosync-interval')).toHaveValue('37');
+
+		// The floor, refused in the field rather than after a round trip, and
+		// the field falls back to what is configured rather than keeping a
+		// value nothing accepted.
+		const reopened = page.getByTestId('autosync-interval');
+		await reopened.fill('1');
+		await expect(page.getByTestId('identity-panel')).toContainText(
+			'3 seconds is the shortest interval',
+		);
+		await reopened.blur();
+		await expect(reopened).toHaveValue('37');
+
+		// And the toggle, which is the setting the interval is about.
+		const was = await page
+			.getByTestId('autosync-toggle')
+			.locator('input')
+			.isChecked();
+
+		await page.getByTestId('autosync-toggle').click();
+		await expect(
+			page.getByTestId('autosync-toggle').locator('input'),
+		).toBeChecked({checked: !was});
+
+		// Back where it was found. Left on, it would arm a sync loop under
+		// every file this worker runs after this one.
+		await page.getByTestId('autosync-toggle').click();
+		await expect(
+			page.getByTestId('autosync-toggle').locator('input'),
+		).toBeChecked({checked: was});
+
+		expect(pageErrors).toEqual([]);
+	} finally {
+		const restore = page.getByTestId('autosync-interval');
+		await restore.fill(before);
+		await restore.press('Enter');
+	}
+});
+
 test('claiming an address makes its commits read as you, and unlinking undoes it', async ({
 	page,
 	repoRoot,

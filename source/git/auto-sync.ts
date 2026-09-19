@@ -1,3 +1,4 @@
+import {DEFAULT_AUTO_SYNC_INTERVAL_MS} from '../lib/config/auto-sync-interval.js';
 import {failed, isFail} from '../lib/model/result-types.js';
 import {getSettingsState} from '../lib/state/settings.state.js';
 import {
@@ -7,18 +8,6 @@ import {
 	patchState,
 } from '../lib/state/state.js';
 import {syncAndReloadState} from '../git/sync-and-reload-state.js';
-
-export const MIN_AUTOSYNC_DURATION_MS = 3_000;
-
-export const parseAutoSyncDebounceMs = (value: string) => {
-	const parsed = Number(value.trim());
-
-	if (!Number.isFinite(parsed)) return null;
-	if (!Number.isInteger(parsed)) return null;
-	if (parsed < MIN_AUTOSYNC_DURATION_MS) return null;
-
-	return parsed;
-};
 
 let lastAutoSyncStartedAt = 0;
 let queuedAutoSyncTimer: NodeJS.Timeout | undefined;
@@ -35,7 +24,8 @@ const isSyncing = () => {
 };
 
 const getAutoSyncDelay = () => {
-	const intervalMs = getSettingsState().autoSyncIntervalMs ?? 10_000;
+	const intervalMs =
+		getSettingsState().autoSyncIntervalMs ?? DEFAULT_AUTO_SYNC_INTERVAL_MS;
 	const elapsed = Date.now() - lastAutoSyncStartedAt;
 
 	return Math.max(0, intervalMs - elapsed);

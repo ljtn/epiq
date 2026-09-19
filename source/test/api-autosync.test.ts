@@ -37,7 +37,13 @@ vi.mock('../lib/config/user-config.js', () => ({
 			autoSyncDebounceMs: 1,
 		}),
 	),
-	loadSettingsFromConfig: vi.fn(() => succeeded('settings', {userName: 'Jo'})),
+	// Both fields, as the real one always returns: the pass checks that an
+	// enabled auto sync has somebody to sync as and an editor configured, and
+	// reads the pair off the resolved settings rather than the raw config so
+	// an actor named only by the environment counts.
+	loadSettingsFromConfig: vi.fn(() =>
+		succeeded('settings', {userName: 'Jo', preferredEditor: 'vim'}),
+	),
 }));
 
 vi.mock('../mcp/epiq-api.js', () => ({

@@ -107,6 +107,7 @@ import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useTicketPreviews} from './lib/use-ticket-previews';
 import {useSwimlaneStats} from './lib/use-swimlane-stats';
 import {useContributorEmails} from './lib/use-contributor-emails';
+import {useSyncSettings} from './lib/use-sync-settings';
 import {IdentityPanel} from './components/IdentityPanel';
 import {useIssueMutations} from './lib/use-issue-mutations';
 import {useBoardEditing} from './lib/use-board-editing';
@@ -430,6 +431,9 @@ export const App = () => {
 		open: identityOpen,
 		sendRaw,
 	});
+	// What this machine has been asked to do on its own, fetched on opening
+	// the panel that now offers to change it.
+	const syncSettings = useSyncSettings({open: identityOpen, sendRaw});
 
 	// The one view that costs a git scan of every commit a ticket owns, so it
 	// is asked for when it is opened rather than with the rest of the ticket.
@@ -896,6 +900,7 @@ export const App = () => {
 		}
 
 		contributorEmails.onMessage(message);
+		syncSettings.onMessage(message);
 
 		if (message.type === 'contributors') {
 			const next = getResultValue<GuiContributor[]>(message.payload);
@@ -1780,9 +1785,11 @@ export const App = () => {
 								panel: (
 									<IdentityPanel
 										state={contributorEmails}
+										settings={syncSettings}
 										me={state?.user ?? null}
 										onLink={contributorEmails.link}
 										onUnlink={contributorEmails.unlink}
+										onChangeSettings={syncSettings.change}
 									/>
 								),
 							}}

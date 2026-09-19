@@ -141,7 +141,11 @@ describe('websocket project:open', () => {
 		setupWebsocket(
 			server,
 			{repoRoot: bareRoot},
-			{onStateChanged, getPort: () => boundPort},
+			{
+				onStateChanged,
+				onSyncSettingsChanged: vi.fn(),
+				getPort: () => boundPort,
+			},
 		);
 
 		await new Promise<void>(resolve => server.listen(0, resolve));

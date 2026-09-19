@@ -1,8 +1,7 @@
 import {yesNoToBoolean} from '../../config/setup-utils.js';
-import {setConfig} from '../../config/user-config.js';
+import {writeAutoSyncSettings} from '../../config/sync-settings.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
-import {patchSettingsState} from '../../state/settings.state.js';
 
 export const setAutoSyncCommand = () => {
 	const selectionVal = getCmdState().commandMeta.inputString.trim();
@@ -12,11 +11,9 @@ export const setAutoSyncCommand = () => {
 	}
 
 	const selection = yesNoToBoolean(selectionVal);
-	const persistResult = setConfig({autoSync: selection});
+	const persistResult = writeAutoSyncSettings({enabled: selection === true});
 
 	if (isFail(persistResult)) return persistResult;
-
-	patchSettingsState({autoSync: selection});
 
 	return succeeded(`Auto sync set to "${selectionVal}"`, null);
 };

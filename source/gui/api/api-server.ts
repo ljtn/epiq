@@ -486,6 +486,7 @@ export const startGuiServer = async (input: {
 
 	setupWebsocket(server, project, {
 		onStateChanged: () => guiAutoSync.queueSync(),
+		onSyncSettingsChanged: () => guiAutoSync.reschedule(),
 		getPort: () => boundPort,
 	});
 

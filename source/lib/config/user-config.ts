@@ -1,6 +1,7 @@
 import path from 'node:path';
 import {z} from 'zod';
 import {resolveEnvActor} from './actor-env.js';
+import {DEFAULT_AUTO_SYNC_INTERVAL_MS} from './auto-sync-interval.js';
 import {GLOBAL_CONFIG_DIR_NAME, getGlobalConfigDir} from '../storage/paths.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {SettingsState} from '../state/settings.state.js';
@@ -99,7 +100,7 @@ export const readEpiqConfig = (): Result<EpiqConfig> => {
 			preferredEditor: '',
 			userId: '',
 			userName: '',
-			autoSyncIntervalMs: 10_000,
+			autoSyncIntervalMs: DEFAULT_AUTO_SYNC_INTERVAL_MS,
 		});
 	}
 
@@ -207,7 +208,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		userName: actor.userName,
 		userId: actor.userId,
 		autoSync: autoSync ?? false,
-		autoSyncIntervalMs: autoSyncIntervalMs ?? 10_000,
+		autoSyncIntervalMs: autoSyncIntervalMs ?? DEFAULT_AUTO_SYNC_INTERVAL_MS,
 		attachmentMaxKb: attachmentMaxKb ?? null,
 		viewMode: viewMode ?? 'dense',
 	});

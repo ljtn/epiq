@@ -108,6 +108,7 @@ describe('websocket post-mutation state refresh', () => {
 			{repoRoot: '/repo'},
 			{
 				onStateChanged: vi.fn(),
+				onSyncSettingsChanged: vi.fn(),
 				getPort: () => boundPort,
 			},
 		);

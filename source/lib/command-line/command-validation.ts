@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import {
-	MIN_AUTOSYNC_DURATION_MS,
-	parseAutoSyncDebounceMs,
-} from '../../git/auto-sync.js';
+	MIN_AUTO_SYNC_INTERVAL_MS,
+	parseAutoSyncIntervalMs,
+} from '../config/auto-sync-interval.js';
 import {booleanToYesNo, YesNo} from '../config/setup-utils.js';
 import {editorConfig} from '../editor/editor-config.js';
 import {safeDateFromUlid} from '../event/date-utils.js';
@@ -524,12 +524,12 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 
 		case ConfigModifiers.SYNC_DEBOUNCE_MS: {
 			const currentDuration = getSettingsState().autoSyncIntervalMs;
-			const duration = parseAutoSyncDebounceMs(inputString);
+			const duration = parseAutoSyncIntervalMs(inputString);
 
 			if (
 				!inputString.trim() ||
 				duration === null ||
-				duration < MIN_AUTOSYNC_DURATION_MS
+				duration < MIN_AUTO_SYNC_INTERVAL_MS
 			) {
 				const hint = buildOptionsHint({
 					prefix: ' examples: ',
@@ -541,7 +541,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				return invalid({
 					message:
 						hintAlert(
-							`provide duration above ${MIN_AUTOSYNC_DURATION_MS}ms. ` +
+							`provide duration above ${MIN_AUTO_SYNC_INTERVAL_MS}ms. ` +
 								`current duration: ${currentDuration}ms.`,
 						) + hint,
 					completionWordList: AUTOSYNC_DEBOUNCE_HINTS,

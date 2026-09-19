@@ -1,7 +1,16 @@
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
+import {
+	ACTION,
+	CARD,
+	META,
+	SECTION_HEADING,
+	SECTION_LABEL,
+} from '../lib/identity-panel.style';
 import {ContributorEmailsState} from '../lib/use-contributor-emails';
+import {SyncSettingsState} from '../lib/use-sync-settings';
 import {actorDisplay} from '../lib/agent-identity';
+import {IdentitySettings} from './IdentitySettings';
 
 // Where somebody goes when the board is calling their commits by the wrong
 // name, or by no name at all. Before this there was nowhere: an unresolved
@@ -26,14 +35,6 @@ type Row = {
 	names: string[];
 };
 
-// One section heading, as quiet as a heading can be and still divide.
-const label: React.CSSProperties = {
-	color: GUI_THEME.dim,
-	fontSize: TEXT.label,
-	textTransform: 'uppercase',
-	letterSpacing: 0.6,
-};
-
 // Who you are. The brightest thing here, not the biggest: everything in this
 // GUI is one size, and hierarchy is carried by how loud a thing is rather than
 // how large.
@@ -46,27 +47,6 @@ const identity: React.CSSProperties = {
 const address: React.CSSProperties = {
 	fontSize: TEXT.ui,
 	overflowWrap: 'anywhere',
-};
-
-// The note under an address: what git does with it, who else claims it, how
-// many commits it carries. Absent where there is nothing to say.
-const meta: React.CSSProperties = {
-	color: GUI_THEME.dim,
-	fontSize: TEXT.meta,
-	marginTop: 4,
-	lineHeight: 1.5,
-};
-
-// Every button in here is the same object, so the panel reads as one surface.
-const action: React.CSSProperties = {
-	background: 'transparent',
-	border: `1px solid ${GUI_THEME.line}`,
-	borderRadius: 4,
-	cursor: 'pointer',
-	fontFamily: CODE_FONT,
-	fontSize: TEXT.meta,
-	padding: '3px 8px',
-	whiteSpace: 'nowrap',
 };
 
 const name = (person: {name: string}) => actorDisplay(person.name).label;
@@ -155,7 +135,7 @@ const Note = ({row}: {row: Row}) => {
 	if (parts.length === 0) return null;
 
 	return (
-		<div style={meta}>
+		<div style={META}>
 			{parts.map((part, index) => (
 				<span key={index}>
 					{index > 0 ? ' · ' : ''}
@@ -179,22 +159,16 @@ const Section = ({
 
 	return (
 		<>
-			<div style={{...label, paddingTop: 18, paddingBottom: 8}}>{title}</div>
+			<div style={SECTION_HEADING}>{title}</div>
 			{rows.map(row => (
 				<div
 					key={row.email}
 					data-testid={`identity-row-${row.email}`}
 					style={{
+						...CARD,
 						display: 'flex',
 						alignItems: 'flex-start',
 						gap: 12,
-						// A card rather than a rule between rows. An address and its note
-						// are one object, and a line between them only says where one
-						// stops; a surface says which parts belong together.
-						background: GUI_THEME.panel2,
-						border: `1px solid ${GUI_THEME.line}`,
-						borderRadius: 6,
-						padding: '10px 12px',
 						marginBottom: 8,
 					}}
 				>
@@ -218,14 +192,21 @@ const Section = ({
 
 export const IdentityPanel = ({
 	state,
+	settings,
 	me,
 	onLink,
 	onUnlink,
+	onChangeSettings,
 }: {
 	state: ContributorEmailsState;
+	settings: SyncSettingsState;
 	me: {id: string; name: string} | null;
 	onLink: (email: string) => void;
 	onUnlink: (email: string) => void;
+	onChangeSettings: (patch: {
+		autoSync?: boolean;
+		autoSyncIntervalMs?: number;
+	}) => void;
 }) => {
 	const rows = rowsFrom(state);
 
@@ -272,85 +253,92 @@ export const IdentityPanel = ({
 				<span style={identity}>
 					{me ? actorDisplay(me.name).label : 'Not configured'}
 				</span>
-				<span style={label}>on this board</span>
+				<span style={SECTION_LABEL}>on this board</span>
 			</div>
 
 			{state.lastError && (
 				// Only a failure. A claim that worked shows in the list itself, and
 				// nothing else in this GUI reports its own successes back.
-				<div style={{...meta, paddingTop: 10, color: GUI_THEME.red}}>
+				<div style={{...META, paddingTop: 10, color: GUI_THEME.red}}>
 					{state.lastError}
 				</div>
 			)}
 
-			{state.scanError ? (
-				// Not the empty state: claiming from this list is the only way to
-				// link an address, so a history that could not be read has to say so
-				// rather than look like one with nothing left in it.
-				<div style={{...meta, paddingTop: 16, color: GUI_THEME.red}}>
-					{state.scanError}
-				</div>
-			) : (
-				// The rows, and only the rows. The line saying who you are on this
-				// board is the answer the panel is open to give, so it stays put
-				// while the addresses move under it.
-				<div
-					style={{
-						overflowY: 'auto',
-						minHeight: 0,
-						// Reserved rather than taken from the cards the moment the
-						// list grows: on a platform whose scrollbar occupies layout
-						// space, a row would otherwise resize as addresses arrive.
-						scrollbarGutter: 'stable',
-					}}
-				>
-					<Section title="Claimed git addresses" rows={claimed}>
-						{row =>
-							row.mine ? (
-								<button
-									onClick={() => onUnlink(row.email)}
-									style={{...action, color: GUI_THEME.dim2}}
-									title="Stop this address resolving to you. The record of the claim stays in the log."
-								>
-									Unclaim
-								</button>
-							) : (
-								// Offered even though somebody else holds it, and named for
-								// what it does rather than "This is me". Without it,
-								// unclaiming an address a colleague also claims was a one-way
-								// door: the row moved up here and offered nothing. It is also
-								// the only answer to somebody claiming an address of yours —
-								// co-claiming is what stops it resolving to them.
+			{/* Everything but the line above scrolls. That line is the answer the
+			    panel is open to give, so it stays put while the rest moves under
+			    it — and on a short window there would otherwise be nothing left
+			    of the addresses at all. */}
+			<div
+				style={{
+					overflowY: 'auto',
+					minHeight: 0,
+					// Reserved rather than taken from the cards the moment the
+					// list grows: on a platform whose scrollbar occupies layout
+					// space, a row would otherwise resize as addresses arrive.
+					scrollbarGutter: 'stable',
+				}}
+			>
+				<IdentitySettings state={settings} onChange={onChangeSettings} />
+
+				{state.scanError ? (
+					// Not the empty state: claiming from this list is the only way to
+					// link an address, so a history that could not be read has to say
+					// so rather than look like one with nothing left in it. Inside the
+					// scroller with the rest, because it replaces the addresses alone
+					// — the settings above it are nothing to do with a git scan.
+					<div style={{...META, paddingTop: 16, color: GUI_THEME.red}}>
+						{state.scanError}
+					</div>
+				) : (
+					<>
+						<Section title="Claimed git addresses" rows={claimed}>
+							{row =>
+								row.mine ? (
+									<button
+										onClick={() => onUnlink(row.email)}
+										style={{...ACTION, color: GUI_THEME.dim2}}
+										title="Stop this address resolving to you. The record of the claim stays in the log."
+									>
+										Unclaim
+									</button>
+								) : (
+									// Offered even though somebody else holds it, and named for
+									// what it does rather than "This is me". Without it,
+									// unclaiming an address a colleague also claims was a one-way
+									// door: the row moved up here and offered nothing. It is also
+									// the only answer to somebody claiming an address of yours —
+									// co-claiming is what stops it resolving to them.
+									<button
+										onClick={() => onLink(row.email)}
+										style={{...ACTION, color: GUI_THEME.dim2}}
+										title="Claim this address as well. While two people claim it, commits by it resolve to neither of you."
+									>
+										Claim too
+									</button>
+								)
+							}
+						</Section>
+
+						<Section title="Unclaimed" rows={unclaimed}>
+							{row => (
 								<button
 									onClick={() => onLink(row.email)}
-									style={{...action, color: GUI_THEME.dim2}}
-									title="Claim this address as well. While two people claim it, commits by it resolve to neither of you."
+									style={{...ACTION, color: GUI_THEME.accent}}
+									title="Every commit by this address becomes yours, back to the first one. Permanent, and it reaches every clone."
 								>
-									Claim too
+									This is me
 								</button>
-							)
-						}
-					</Section>
+							)}
+						</Section>
 
-					<Section title="Unclaimed" rows={unclaimed}>
-						{row => (
-							<button
-								onClick={() => onLink(row.email)}
-								style={{...action, color: GUI_THEME.accent}}
-								title="Every commit by this address becomes yours, back to the first one. Permanent, and it reaches every clone."
-							>
-								This is me
-							</button>
+						{claimed.length === 0 && unclaimed.length === 0 && (
+							<div style={{...META, paddingTop: 16}}>
+								No addresses in this repository’s history yet.
+							</div>
 						)}
-					</Section>
-
-					{claimed.length === 0 && unclaimed.length === 0 && (
-						<div style={{...meta, paddingTop: 16}}>
-							No addresses in this repository’s history yet.
-						</div>
-					)}
-				</div>
-			)}
+					</>
+				)}
+			</div>
 		</div>
 	);
 };

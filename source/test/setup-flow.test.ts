@@ -24,6 +24,10 @@ vi.mock('../lib/config/user-config.js', () => ({
 			preferredEditor: '',
 		}),
 	),
+	// What the real one does with the config above: it refuses to resolve an
+	// actor with no name. `:config autosync` reads back what it wrote, and
+	// that read asks whether auto sync could actually run.
+	loadSettingsFromConfig: vi.fn(() => failed('User name not configured')),
 }));
 
 vi.mock('../lib/project-setup/project-setup.js', async importOriginal => ({
