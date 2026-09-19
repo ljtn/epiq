@@ -584,11 +584,19 @@ export const ScrubberLayout = ({
 
 						{/* On the chart rather than on the bar, at the end the press
 						    sends the needle to. A control that stands where it takes
-						    you needs no label to explain the journey. */}
-						<ReturnToNowButton
-							isScrubbing={controls.isScrubbing}
-							onReturnToLive={controls.onReturnToLive}
-						/>
+						    you needs no label to explain the journey.
+
+						    Gone while a movie is up rather than dimmed with the rest
+						    of the bar: the stand-down does not reach the chart, so a
+						    filled accent box here would be the one thing still lit on
+						    a bar that has stood down — and inert, since the way out of
+						    a movie is the player's own. */}
+						{!standDown && (
+							<ReturnToNowButton
+								isScrubbing={controls.isScrubbing}
+								onReturnToLive={controls.onReturnToLive}
+							/>
+						)}
 
 						{chart.rangeSelection && (
 							<RangeSelection {...chart.rangeSelection} />

@@ -547,7 +547,9 @@ export const ScrubberHeader = ({
 // rather than as a command to be taken on trust.
 //
 // Only while the board is parked. Live it would sit over the newest bars saying
-// nothing, and the needle is already at that end.
+// nothing, and the needle is already at that end. The other case it stays out
+// of — a movie playing — is the layout's: it is the whole bar that stands down
+// there, not this button on its own.
 export const ReturnToNowButton = ({
 	isScrubbing,
 	onReturnToLive,
