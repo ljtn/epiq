@@ -43,12 +43,19 @@ export const getUserSetupStatus = (): {
 	// to show until `:init` has run. It is also what makes the step appear again
 	// for somebody already set up, which is the whole prompt.
 	// Claims first, because it costs no disk read and is the answer for anybody
-	// already set up. The two below each read `.epiq/project.json`.
+	// already set up.
+	//
+	// Then one read of `.epiq/project.json`, not two: this runs on every render
+	// from `EpiqApp`, and a board's id existing is the same fact as the project
+	// file parsing — `projectId` is required by its schema, so a file without
+	// one does not parse at all.
 	const claimedEmails = claimedEmailsForUser();
-	const declined = claimedEmails.length === 0 && isEmailSetupDeclined();
+	const boardId = claimedEmails.length > 0 ? null : currentBoardId();
 
-	const isSetEmails =
-		claimedEmails.length > 0 || declined || !isRepositoryInitialized();
+	const declined =
+		boardId !== null && (settings.declinedEmailBoards ?? []).includes(boardId);
+
+	const isSetEmails = claimedEmails.length > 0 || declined || boardId === null;
 
 	return {
 		isSetupDone:
