@@ -1267,6 +1267,7 @@ export const App = () => {
 	const {entries: logEntries, moment: logMoment} = useEventLog({
 		open: logOpen,
 		timeline: history.timeline,
+		boardId: selectedBoardId ?? null,
 		commits: history.commits,
 		selection,
 		selectedIssueId: selectedIssue?.id ?? null,

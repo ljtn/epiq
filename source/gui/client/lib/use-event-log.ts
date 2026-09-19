@@ -13,6 +13,7 @@ import {buildLogEntries, LogEntry, logEntriesUpTo} from './event-log';
 import {
 	GuiCommitEntry,
 	GuiEventTimeline,
+	GuiEventTimelineEntry,
 	GuiTimeTravelStatus,
 } from './gui-state.model';
 import {
@@ -27,11 +28,23 @@ import {
 // every render.
 const NONE: LogEntry[] = [];
 
+// Whether a line belongs to the board being looked at. A null board is every
+// board rather than none — a contributor claim decides who the commits on all
+// of them belong to — so it is kept whichever board is open. Mirrors the
+// server's own narrowing, which keeps the same events for the same reason.
+export const onThisBoard = (
+	entry: GuiEventTimelineEntry,
+	boardId: string | null,
+): boolean => !boardId || entry.board === null || entry.board === boardId;
+
 export type EventLogSources = {
 	// False leaves every memo below cold: a panel nobody is looking at should
 	// cost nothing, however long the window is.
 	open: boolean;
 	timeline: GuiEventTimeline | null;
+	// The board on screen, which is the one a log line's route is built from.
+	// Null before a board is known, when there is nothing to narrow to.
+	boardId: string | null;
 	commits: readonly GuiCommitEntry[];
 	// The bar's own narrowing — which kind, whose events, and whether the board
 	// is down to one ticket.
@@ -84,6 +97,7 @@ export type EventLogView = {
 export const useEventLog = ({
 	open,
 	timeline,
+	boardId,
 	commits,
 	selection,
 	selectedIssueId,
@@ -120,6 +134,13 @@ export const useEventLog = ({
 		// window.
 		// Only the axis the chart is coloured by hides events; the others narrow
 		// the board under it without taking anything out of the picture above.
+		//
+		// The board is the one exception, and deliberately so. Under All-boards
+		// the window holds other boards' events, and the chart is right to plot
+		// them — that is what the toggle was turned on for. But a line in the log
+		// is a thing to click, and a ticket's route is built from the board on
+		// screen, so a foreign line leads somewhere wrong (`S021YSM`). The log
+		// keeps what this board can act on; the picture above it keeps the lot.
 		const axis = identityAxisFor(view);
 		const hidden = hiddenIdsFor(
 			listIdentities(timeline, axis),
@@ -128,7 +149,11 @@ export const useEventLog = ({
 
 		return buildLogEntries(
 			showIssues
-				? events.filter(entry => isShown(entry, view, hidden, keptIssues))
+				? events.filter(
+						entry =>
+							onThisBoard(entry, boardId) &&
+							isShown(entry, view, hidden, keptIssues),
+				  )
 				: [],
 			showCommits
 				? keptCommits(commits, linkedCommitsOnly, issueIdByRef, keptIssues)
@@ -137,6 +162,7 @@ export const useEventLog = ({
 	}, [
 		open,
 		timeline,
+		boardId,
 		commits,
 		view,
 		only,

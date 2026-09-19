@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {GuiTimeTravelStatus} from './gui-state.model';
-import {momentOnScreen} from './use-event-log';
+import {GuiEventTimelineEntry, GuiTimeTravelStatus} from './gui-state.model';
+import {momentOnScreen, onThisBoard} from './use-event-log';
 
 const live: GuiTimeTravelStatus = {mode: 'live', asOfTime: null};
 const parked: GuiTimeTravelStatus = {mode: 'scrub', asOfTime: 5_000};
@@ -30,5 +30,44 @@ describe('momentOnScreen', () => {
 	it('prefers the playhead to the checkout it is made of', () => {
 		expect(momentOnScreen(true, 1_234, parked)).toBe(1_234);
 		expect(momentOnScreen(true, null, parked)).toBe(-Infinity);
+	});
+});
+
+const entry = (board: string | null): GuiEventTimelineEntry => ({
+	id: 'e1',
+	t: 1,
+	action: 'add.issue',
+	label: 'filed a ticket',
+	actor: null,
+	tag: null,
+	assignee: null,
+	issue: 'ISSUE_1',
+	board,
+	lane: null,
+	laneBefore: null,
+});
+
+describe('onThisBoard', () => {
+	it('keeps a line belonging to the board on screen', () => {
+		expect(onThisBoard(entry('BOARD_A'), 'BOARD_A')).toBe(true);
+	});
+
+	// The whole of S021YSM: a foreign line's route is built from the board on
+	// screen, so it leads to a ticket that board does not hold.
+	it('drops a line belonging to another board', () => {
+		expect(onThisBoard(entry('BOARD_B'), 'BOARD_A')).toBe(false);
+	});
+
+	// A contributor claim decides who the commits on every board belong to, so
+	// it resolves to no board and has to be read as belonging to all of them.
+	it('keeps a line that belongs to no board, on every board', () => {
+		expect(onThisBoard(entry(null), 'BOARD_A')).toBe(true);
+		expect(onThisBoard(entry(null), 'BOARD_B')).toBe(true);
+	});
+
+	// Before a board is known there is nothing to narrow to, and narrowing to
+	// nothing would empty the panel rather than leave it unfiltered.
+	it('keeps everything while no board is known', () => {
+		expect(onThisBoard(entry('BOARD_B'), null)).toBe(true);
 	});
 });

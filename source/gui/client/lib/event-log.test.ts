@@ -127,6 +127,7 @@ const event = (
 	assignee: null,
 	issue: null,
 	lane: null,
+	board: null,
 	laneBefore: null,
 });
 

@@ -26,6 +26,7 @@ const entry = (
 	assignee: null,
 	issue,
 	lane: null,
+	board: null,
 	laneBefore: null,
 });
 

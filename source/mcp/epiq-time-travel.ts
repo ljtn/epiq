@@ -159,8 +159,7 @@ export const getEventTimeline = async (
 				// Belongs to every board rather than none: a claim changes who the
 				// commits on all of them belong to.
 				isWorkspaceAction(entry.action),
-		)
-		.map(({board: _board, ...entry}) => entry);
+		);
 
 	const times = inWindow.map(entry => entry.t);
 
