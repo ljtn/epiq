@@ -53,6 +53,7 @@ export const moveWithinParent: ActionEntry[] = [
 	{
 		intent: Intent.MoveNextItem,
 		mode: Mode.MOVE,
+		description: '[arrows/hjkl] move (shift x5)',
 		action: () => {
 			if (!getMovePendingState()) return failed('No pending move');
 			patchState({mode: Mode.COMMAND_LINE});
