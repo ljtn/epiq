@@ -499,6 +499,15 @@ const EventLogPanel = ({
 		if (wasPinned !== pinnedRef.current) onPinnedChange?.(pinnedRef.current);
 	};
 
+	// And once on the way in, because the board's value outlives this panel.
+	// The log is drawn in two places and closes and reopens; a panel that
+	// mounted at its foot while the board still held the last one's `false`
+	// would report nothing — nothing had changed here — and following would sit
+	// dead behind a pin that belonged to a pane that is gone.
+	useEffect(() => {
+		onPinnedChange?.(pinnedRef.current);
+	}, [onPinnedChange]);
+
 	// Measured off the pane's own height, which does not depend on what is in it
 	// — so opening days to fill the pane cannot feed back into how many fit.
 	// Before paint, so the first frame is already filled rather than showing one
@@ -532,11 +541,6 @@ const EventLogPanel = ({
 	// what a line shows, this makes the panel navigate on its own, and a board
 	// that starts moving before the reader has touched anything would be a
 	// strange way to open.
-	// The board is standing at the present when the slice runs to the end of
-	// time — `momentOnScreen` returns Infinity only while live, and a checkout
-	// or a playhead is a finite moment.
-	const live = moment === Infinity;
-
 	// An absolutely positioned child extends the pane's scrollable overflow,
 	// hidden or not. So an arrow left on a row the column has since lost is a
 	// stretch of empty pane below the last line, and a snap to the foot lands in
@@ -576,9 +580,15 @@ const EventLogPanel = ({
 		if (!pane) return;
 
 		pinnedRef.current = true;
+		// Said out loud, because this pins the pane without the reader
+		// scrolling: the programmatic scroll below re-enters `onScroll` with the
+		// pin already true, so nothing there reports it. A board still holding
+		// the `false` from a reader who had read back would then never follow
+		// again, and the only way out would be scrolling up and down by hand.
+		onPinnedChange?.(true);
 		parkStrayArrow();
 		pane.scrollTop = pane.scrollHeight;
-	}, [moment]);
+	}, [moment, onPinnedChange]);
 
 	// The keys on screen before this render. The column slides by however many
 	// rows joined the bottom, which is not always one: an event that crosses
