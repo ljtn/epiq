@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useMemo} from 'react';
+import React, {createContext, useContext, useMemo, useState} from 'react';
 import ReactMarkdown, {
 	type Components,
 	defaultUrlTransform,
@@ -45,6 +45,52 @@ const urlTransform = (url: string): string =>
 const CODE_FONT =
 	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
 
+// A ticket ref, set in the prose it was written in. Under the pointer it takes
+// a wash of its own colour, as a tag chip does — the preview card is a beat
+// away, and until it opens nothing else says the word is pressable. The wash is
+// padded out and pulled back by the same amount, so lighting it does not move
+// the line it sits in.
+const TicketRefLink = ({
+	refValue,
+	onOpen,
+	children,
+}: {
+	refValue: string;
+	onOpen?: (ref: string) => void;
+	children: React.ReactNode;
+}) => {
+	const [hovered, setHovered] = useState(false);
+
+	return (
+		<button
+			type="button"
+			// No `title`: the hint this ref carries is TicketPreviewLayer's card,
+			// which this attribute is what summons. Both at once would be two
+			// boxes saying different things about the same word.
+			{...{[TICKET_REF_ATTRIBUTE]: refValue}}
+			aria-label={`Open ${refValue}`}
+			onClick={() => onOpen?.(refValue)}
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
+			style={{
+				padding: '2px 3px',
+				margin: '-2px -3px',
+				background: hovered ? `${GUI_THEME.accent}2b` : 'transparent',
+				border: 'none',
+				borderRadius: 3,
+				cursor: 'pointer',
+				font: 'inherit',
+				color: GUI_THEME.accent,
+				textDecoration: 'underline',
+				textUnderlineOffset: 2,
+				transition: 'background 120ms ease',
+			}}
+		>
+			{children}
+		</button>
+	);
+};
+
 // Built per-instance rather than at module scope: the anchor renderer has to
 // close over the ref-click handler.
 const buildComponents = (
@@ -72,30 +118,13 @@ const buildComponents = (
 		// is a control rather than an anchor — no href to leak into the address
 		// bar or the middle-click menu.
 		if (href?.startsWith(TICKET_REF_URL_PREFIX)) {
-			const ref = href.slice(TICKET_REF_URL_PREFIX.length);
-
 			return (
-				<button
-					type="button"
-					// No `title`: the hint this ref carries is TicketPreviewLayer's
-					// card, which this attribute is what summons. Both at once would
-					// be two boxes saying different things about the same word.
-					{...{[TICKET_REF_ATTRIBUTE]: ref}}
-					aria-label={`Open ${ref}`}
-					onClick={() => onOpenTicketRef?.(ref)}
-					style={{
-						padding: 0,
-						background: 'transparent',
-						border: 'none',
-						cursor: 'pointer',
-						font: 'inherit',
-						color: GUI_THEME.accent,
-						textDecoration: 'underline',
-						textUnderlineOffset: 2,
-					}}
+				<TicketRefLink
+					refValue={href.slice(TICKET_REF_URL_PREFIX.length)}
+					onOpen={onOpenTicketRef}
 				>
 					{children}
-				</button>
+				</TicketRefLink>
 			);
 		}
 
