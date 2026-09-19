@@ -4,6 +4,14 @@ on:
   push:
   workflow_dispatch:
 
+# A branch only needs an answer about its newest commit. Pushing twice in a
+# minute otherwise leaves the first run occupying three runners to report on a
+# tree nobody is waiting for any more. Never on `main`, where every commit's
+# result is a fact somebody may want later.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   test:
     name: Test
@@ -37,8 +45,19 @@ jobs:
   # say so by name instead of hiding behind a job called Test. Running beside
   # `test` also keeps the wall clock roughly where it was.
   gui:
-    name: GUI
+    name: GUI ${{ matrix.shard }}/2
     runs-on: ubuntu-latest
+
+    # Split across two runners rather than run faster on one. This job is the
+    # whole pipeline's critical path — 428s against 80s for Test and 300s for
+    # Collaboration — and nearly all of it is the browser suite itself. Playwright
+    # shards by file, so each runner gets whole files and nothing about how a
+    # test runs changes; raising `workers` instead would put more browsers on the
+    # same four vCPUs, which is what the flaky list is already made of.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
 
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +75,20 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run test:gui:ci
+      - run: npm run test:gui:ci -- --shard=${{ matrix.shard }}/2
+
+      # `trace: 'retain-on-failure'` writes one per failed test and the runner
+      # then throws it away, which is why every GUI failure here has had to be
+      # argued about from a stack line. Kept for a week: long enough to open a
+      # flake that failed on a Friday, short enough not to accumulate.
+      - name: Keep the traces of whatever failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-traces-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
 
   # Its own job for the same reasons the GUI one is, plus a sharper one: until
   # now this suite ran nowhere but the local pre-push hook. That made a failure
