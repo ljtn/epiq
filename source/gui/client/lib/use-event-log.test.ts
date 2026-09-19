@@ -46,6 +46,7 @@ const entry = (board: string | null): GuiEventTimelineEntry => ({
 	tag: null,
 	assignee: null,
 	issue: 'ISSUE_1',
+	target: null,
 	board,
 	lane: null,
 	laneBefore: null,

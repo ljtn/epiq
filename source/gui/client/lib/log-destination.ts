@@ -21,11 +21,20 @@ export type LogTicketTab = 'comments' | 'overview';
 
 export type LogDestination =
 	| {kind: 'commit'; sha: string}
-	| {kind: 'ticket'; issueId: string; tab: LogTicketTab};
+	// `comment` narrows the comments tab to one comment, which the panel scrolls
+	// to and marks. Absent on every other line, and on a comment line from a
+	// board too old to have sent one.
+	| {
+			kind: 'ticket';
+			issueId: string;
+			tab: LogTicketTab;
+			comment?: string;
+	  };
 
 const SHA_ATTRIBUTE = 'data-log-sha';
 const ISSUE_ATTRIBUTE = 'data-log-issue';
 const TAB_ATTRIBUTE = 'data-log-tab';
+const COMMENT_ATTRIBUTE = 'data-log-comment';
 
 // What a click looks for on its way up the tree. Every row that leads anywhere
 // carries it; the ones that lead nowhere do not, which is what makes them
@@ -42,7 +51,11 @@ export const destinationOf = (entry: LogEntry): LogDestination | null => {
 	// nowhere to send a reader who clicks one.
 	if (!entry.issue || !entry.action) return null;
 
-	return {kind: 'ticket', issueId: entry.issue, tab: tabFor(entry.action)};
+	const tab = tabFor(entry.action);
+
+	return tab === 'comments' && entry.target
+		? {kind: 'ticket', issueId: entry.issue, tab, comment: entry.target}
+		: {kind: 'ticket', issueId: entry.issue, tab};
 };
 
 // Spread onto the row. Undefined where the line leads nowhere, so the row is
@@ -58,6 +71,9 @@ export const rowAttributes = (
 		: {
 				[ISSUE_ATTRIBUTE]: destination.issueId,
 				[TAB_ATTRIBUTE]: destination.tab,
+				...(destination.comment
+					? {[COMMENT_ATTRIBUTE]: destination.comment}
+					: {}),
 		  };
 };
 
@@ -73,10 +89,13 @@ export const destinationFromAttributes = (
 	const issueId = get(ISSUE_ATTRIBUTE);
 	if (!issueId) return null;
 
+	const comment = get(COMMENT_ATTRIBUTE);
+
 	return {
 		kind: 'ticket',
 		issueId,
 		tab: get(TAB_ATTRIBUTE) === 'comments' ? 'comments' : 'overview',
+		...(comment ? {comment} : {}),
 	};
 };
 

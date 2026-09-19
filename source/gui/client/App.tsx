@@ -302,6 +302,10 @@ export const App = () => {
 		tabParam === 'comments' || tabParam === 'code' || tabParam === 'stats'
 			? tabParam
 			: 'overview';
+	// The one comment a link points at, where it points at one: the comments
+	// tab scrolls to it and marks it. Off the URL like the rest, so the link
+	// survives a reload.
+	const focusedCommentId = searchParams.get('comment');
 	// Where a followed comment permalink points, if any. Read straight off the
 	// URL so the deep link survives a reload rather than living in state.
 	const diffFocus =
@@ -1084,6 +1088,8 @@ export const App = () => {
 		// the reader did not make: following the log replaces, everything else
 		// pushes, because everything else was asked for.
 		replace = false,
+		// The one comment to land on, where the thing being followed names one.
+		comment?: string,
 	) => {
 		if (!board) return;
 
@@ -1091,6 +1097,7 @@ export const App = () => {
 
 		const params = new URLSearchParams({tab});
 		if (diffView) writeDiffViewParam(params, diffView === 'flat');
+		if (comment) params.set('comment', comment);
 
 		void navigate(`/board/${board}/issue/${nodeRef(nextIssueId)}?${params}`, {
 			replace,
@@ -1126,6 +1133,7 @@ export const App = () => {
 			undefined,
 			undefined,
 			options?.replace,
+			destination.comment,
 		);
 	};
 
@@ -1292,6 +1300,7 @@ export const App = () => {
 				kind: 'ticket',
 				issueId: selectedIssue.id,
 				tab: selectedTab === 'comments' ? 'comments' : 'overview',
+				...(focusedCommentId ? {comment: focusedCommentId} : {}),
 		  }
 		: null;
 
@@ -2179,6 +2188,7 @@ export const App = () => {
 								onFileTicket={fileTicketFromSelection}
 								onOpenDiffLocation={openDiffLocation}
 								diffFocus={diffFocus}
+								focusedCommentId={focusedCommentId}
 								attachments={attachmentsByIssueId[selectedIssue.id] ?? []}
 								attachmentUploadStatus={attachmentUploadStatus}
 								onUploadAttachments={uploadIssueAttachments}

@@ -10,6 +10,7 @@ const line = (id: string, over: Partial<LogEntry> = {}): LogEntry => ({
 	actor: null,
 	diff: null,
 	issue: 'ISSUE_1',
+	target: null,
 	action: 'add.issue',
 	sha: null,
 	...over,

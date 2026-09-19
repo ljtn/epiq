@@ -126,6 +126,7 @@ const event = (
 	tag: null,
 	assignee: null,
 	issue: null,
+	target: null,
 	lane: null,
 	board: null,
 	laneBefore: null,
@@ -235,6 +236,7 @@ const row = (id: string, t: number, label = id): LogEntry => ({
 	actor: null,
 	diff: null,
 	issue: null,
+	target: null,
 	action: null,
 	sha: null,
 });

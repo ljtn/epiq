@@ -14,6 +14,7 @@ const entry = (over: Partial<LogEntry>): LogEntry => ({
 	actor: null,
 	diff: null,
 	issue: null,
+	target: null,
 	action: null,
 	sha: null,
 	...over,
@@ -43,6 +44,24 @@ describe('destinationOf', () => {
 				tab: 'comments',
 			});
 		}
+	});
+
+	// WKK7PS0: the tab was as far as a comment line went, and the reader still
+	// had to find the comment among however many the ticket holds.
+	it('sends a comment line to the comment itself, where it knows which', () => {
+		expect(
+			destinationOf(
+				entry({issue: 'i1', action: 'add.issue.comment', target: 'c1'}),
+			),
+		).toEqual({kind: 'ticket', issueId: 'i1', tab: 'comments', comment: 'c1'});
+	});
+
+	// A board that predates the target reaching the wire sends a comment line
+	// with nothing on it, and the tab is still the right answer.
+	it('sends a comment line with no comment on it to the tab, as before', () => {
+		expect(
+			destinationOf(entry({issue: 'i1', action: 'add.issue.comment'})),
+		).toEqual({kind: 'ticket', issueId: 'i1', tab: 'comments'});
 	});
 
 	it('sends everything else about a ticket to its overview', () => {
@@ -92,6 +111,17 @@ describe('rowAttributes and destinationFromAttributes', () => {
 
 			expect(roundTrip(source)).toEqual(destinationOf(source));
 		}
+	});
+
+	it('carries the comment a line points at through and back', () => {
+		const source = entry({
+			issue: 'i1',
+			action: 'add.issue.comment',
+			target: 'c1',
+		});
+
+		expect(roundTrip(source)).toEqual(destinationOf(source));
+		expect(roundTrip(source)).toMatchObject({comment: 'c1'});
 	});
 
 	it('is null for a row carrying nothing', () => {

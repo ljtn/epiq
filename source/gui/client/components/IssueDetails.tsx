@@ -295,6 +295,7 @@ export const IssueDetails = ({
 	onFileTicket,
 	onOpenDiffLocation,
 	diffFocus,
+	focusedCommentId,
 	attachments,
 	attachmentUploadStatus,
 	onUploadAttachments,
@@ -354,6 +355,9 @@ export const IssueDetails = ({
 	// hands back where it currently points so the Code tab can open there.
 	onOpenDiffLocation?: (location: DiffLocation) => void;
 	diffFocus?: CommitFocus | null;
+	// The one comment a link points at, for the Comments tab to scroll to and
+	// mark. Passed straight through: the tab owns what it looks like.
+	focusedCommentId?: string | null;
 	attachments: GuiAttachment[];
 	attachmentUploadStatus: AttachmentUploadStatus;
 	// Resolves to one markdown reference per stored file, so a composer can
@@ -959,6 +963,7 @@ export const IssueDetails = ({
 						onEditComment={onEditComment}
 						onOpenDiffLocation={onOpenDiffLocation}
 						onUploadImages={issue.readonly ? undefined : onUploadAttachments}
+						focusedCommentId={focusedCommentId}
 					/>
 				);
 

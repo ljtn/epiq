@@ -824,3 +824,57 @@ test('the log pops out into its own window, and comes back when it closes', asyn
 
 	expect(pageErrors).toEqual([]);
 });
+
+// WKK7PS0. The tab was as far as a comment line went: on a ticket with a
+// dozen comments the reader arrived among them and still had to find the one
+// the line was about.
+test('a comment line leads to the comment, not just its tab', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	const boardUrl = page.url();
+
+	await page.getByTestId('add-issue').first().click();
+	await page.getByPlaceholder('issue name').fill(`Commented ${Date.now()}`);
+	await page.getByPlaceholder('issue name').press('Enter');
+
+	// Two of them, so landing on one is a different outcome from landing on
+	// the tab: with a single comment the tab and the comment are the same
+	// place, and the test would pass without the anchor.
+	await page.getByRole('button', {name: /^Comments/}).click();
+	const older = `older ${Date.now()}`;
+	const newer = `newer ${Date.now()}`;
+	for (const text of [older, newer]) {
+		await page.getByPlaceholder('write a comment').fill(text);
+		await page.getByRole('button', {name: 'comment', exact: true}).click();
+		await expect(page.locator('aside').getByText(text)).toBeVisible();
+	}
+
+	await page.goto(boardUrl);
+	await page.getByTestId('log-toggle').click();
+	await expect(page.getByTestId('event-log')).toBeVisible();
+
+	// The two comment lines, oldest first — the log runs in clock order, so the
+	// first of them is the older comment.
+	const commentLines = page.locator('[data-log-tab="comments"]');
+	await expect.poll(async () => await commentLines.count()).toBe(2);
+
+	const line = commentLines.first();
+	await expect(line).toHaveAttribute('data-log-comment', /.+/);
+	const commentId = await line.getAttribute('data-log-comment');
+	await line.click();
+
+	// Named in the URL, so the reader can hand the link on and come back to it.
+	await expect(page).toHaveURL(new RegExp(`comment=${commentId}`));
+
+	// And marked, on the older comment rather than on whichever is uppermost:
+	// the panel puts the newest first, so a mark that landed by position would
+	// be on the wrong one here.
+	const marked = page.getByTestId('comment-card-focused');
+	await expect(marked).toHaveCount(1);
+	await expect(marked).toContainText(older);
+
+	expect(pageErrors).toEqual([]);
+});
