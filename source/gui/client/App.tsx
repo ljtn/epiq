@@ -1279,6 +1279,12 @@ export const App = () => {
 		setHistoryTick(tick => tick + 1);
 	}, [contributorEmails.changed, theatre]);
 
+	// Bumped when the reader takes the board back — a pointer landing anywhere
+	// on the board or the panel beside it. Following stops for good on this,
+	// where scrolling the log back only pauses it: reading back through the log
+	// is still watching, and opening something yourself is not.
+	const [boardTouched, setBoardTouched] = useState(0);
+
 	// Where the reader is, for the log's own following: a destination in the
 	// same shape a log line resolves to, so the two are compared rather than
 	// following remembering where it last sent anybody.
@@ -1810,6 +1816,7 @@ export const App = () => {
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 								onOpen={openLogDestination}
 								at={readerAt}
+								releasedAt={boardTouched}
 								onPopOut={logWindow.popOut}
 							/>
 						)}
@@ -1818,6 +1825,11 @@ export const App = () => {
 				    this box, so anything spilling out would put a second scrollbar on
 				    the page next to the columns' own. */}
 						<main
+							// A pointer here is the reader taking the board back, which is
+							// what leaves following. Listened for on the way down so it
+							// counts even where a child stops the click, and separate from
+							// the click handler below, which is about the lane panel.
+							onPointerDownCapture={() => setBoardTouched(n => n + 1)}
 							// The lane panel closes on a click past it, unlike the ticket
 							// panel beside it, which deliberately stays open (see
 							// details-close.pw.ts): a ticket holds a half-written
