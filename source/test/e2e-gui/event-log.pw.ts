@@ -295,6 +295,11 @@ test('a line that leads somewhere says so under the pointer', async ({
 	await linking.hover();
 	await expect(arrow).toHaveCSS('opacity', '1');
 
+	// A layer of its own, or its opaque ground paints under the very text it is
+	// there to cut off: every row is positioned too, and they all come after
+	// the chip in the pane. jola saw a long title running across the word.
+	await expect(arrow).toHaveCSS('z-index', '1');
+
 	// On the hovered row, not merely somewhere in the panel: one arrow serves
 	// every row, so where it sits is the whole of what it says.
 	const rowBox = await linking.boundingBox();
