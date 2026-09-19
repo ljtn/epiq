@@ -89,6 +89,7 @@ const timeline = (
 	events: GuiEventTimelineEntry[] = [],
 ): GuiEventTimeline => ({
 	bucketMs: DAY,
+	capped: false,
 	buckets,
 	events,
 	lanesAtStart: {},

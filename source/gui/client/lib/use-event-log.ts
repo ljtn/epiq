@@ -37,6 +37,17 @@ export const onThisBoard = (
 	boardId: string | null,
 ): boolean => !boardId || entry.board === null || entry.board === boardId;
 
+// Whether the panel owes the reader a word about the events it is not showing.
+// Past the server's cap a window arrives with its buckets but no events, so a
+// log of commits alone would read as a quiet stretch rather than a crowded one.
+// Only the board series is missing, so a reader who has turned that series off
+// is already seeing everything asked for and is told nothing.
+export const eventsWentUnlisted = (
+	open: boolean,
+	showIssues: boolean,
+	timeline: GuiEventTimeline | null,
+): boolean => open && showIssues && timeline?.capped === true;
+
 export type EventLogSources = {
 	// False leaves every memo below cold: a panel nobody is looking at should
 	// cost nothing, however long the window is.
@@ -89,6 +100,11 @@ export const momentOnScreen = (
 
 export type EventLogView = {
 	entries: LogEntry[];
+	// The window holds more events than the server will list, so the lines the
+	// panel is showing are its commits alone. Only while the board series is on
+	// — with it off the log is commits-only because the reader asked, and
+	// saying events are missing would be wrong.
+	eventsUnlisted: boolean;
 	// The moment the lines were sliced against, handed out with them: the panel
 	// snaps to its foot when this moves, and not when a line merely arrives.
 	moment: number;
@@ -183,5 +199,10 @@ export const useEventLog = ({
 		[rows, moment, playing],
 	);
 
-	return useMemo(() => ({entries, moment}), [entries, moment]);
+	const eventsUnlisted = eventsWentUnlisted(open, showIssues, timeline);
+
+	return useMemo(
+		() => ({entries, moment, eventsUnlisted}),
+		[entries, moment, eventsUnlisted],
+	);
 };

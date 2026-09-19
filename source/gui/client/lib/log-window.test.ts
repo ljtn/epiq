@@ -67,7 +67,22 @@ describe('parseLogLinesMessage', () => {
 			moment: Infinity,
 			// Absent from an older board, which followed nothing.
 			followedLine: null,
+			// Likewise: an older board sent every event it had.
+			eventsUnlisted: false,
 		});
+	});
+
+	// 8CYH2TC: the window says the board series was withheld, so the popped-out
+	// panel can say so too rather than draw a stretch of commits alone.
+	it('carries word of a window too crowded to list', () => {
+		expect(
+			parseLogLinesMessage({
+				type: 'epiq-log:lines',
+				entries: [],
+				moment: Infinity,
+				eventsUnlisted: true,
+			})?.eventsUnlisted,
+		).toBe(true);
 	});
 
 	it('carries the line the board is standing on', () => {

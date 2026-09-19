@@ -126,6 +126,10 @@ export type GuiEventTimelineEntry = {
 export type GuiEventTimeline = {
 	bucketMs: number;
 	buckets: GuiEventTimelineBucket[];
+	// The window held more events than the server will list, so `events` is
+	// empty and the buckets are all there is. Distinct from a window that was
+	// simply quiet, which the empty array alone cannot say.
+	capped: boolean;
 	// Empty when the server capped the window; the scatter falls back to buckets.
 	events: GuiEventTimelineEntry[];
 	// The lane of every ticket open as the window begins, by id, so the flow

@@ -41,6 +41,7 @@ export const LogWindow = () => {
 					// one is told which row it is standing on, and tells the board
 					// whether it is at its foot.
 					followedLine={lines?.followedLine ?? null}
+					eventsUnlisted={lines?.eventsUnlisted ?? false}
 					onPinnedChange={reportPinned}
 					onDock={() => window.close()}
 				/>

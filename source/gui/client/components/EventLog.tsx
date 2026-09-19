@@ -389,6 +389,7 @@ const EventLogPanel = ({
 	onOpen,
 	at = null,
 	followedLine = null,
+	eventsUnlisted = false,
 	onPinnedChange,
 	onHoverEvent,
 	layout = 'panel',
@@ -410,6 +411,10 @@ const EventLogPanel = ({
 	// row. Decided on the board's side — this panel is drawn in two places and
 	// must not be the thing that decides.
 	followedLine?: string | null;
+	// The window holds more events than the server will list, so the lines
+	// below are commits alone and the panel has to say so rather than present
+	// a history that reads as complete.
+	eventsUnlisted?: boolean;
 	// The pane is at its foot. Reported up rather than kept here, because the
 	// board is what runs the follow and a popped-out panel has to be able to
 	// post the same answer back across the window boundary.
@@ -796,6 +801,30 @@ const EventLogPanel = ({
 				{/* Holds a short log at the foot of the panel, so the newest line is
 				    always in the same place however few of them there are. */}
 				<div ref={columnRef} style={{marginTop: 'auto'}}>
+					{/* Above the lines but inside the column they sit in, which hangs
+					    at the foot of the panel: it is a fact about the window rather
+					    than something that happened in it, and anywhere higher it would
+					    float alone in the empty stretch above a short log. */}
+					{eventsUnlisted && (
+						<div
+							data-testid="log-events-unlisted"
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: 6,
+								margin: `4px ${LOG_PANE_PADDING_X}px 8px`,
+								padding: '5px 8px',
+								borderLeft: `2px solid ${GUI_THEME.dim2}`,
+								color: GUI_THEME.dim2,
+								fontSize: TEXT.meta,
+								lineHeight: 1.4,
+							}}
+						>
+							Too many events in this window to list one by one — narrow the
+							window to read them. The chart above still counts them all.
+						</div>
+					)}
+
 					{days.map((day, index) => {
 						const open = isDayOpen(days, index, foldOverrides, openCount);
 						const {shown, hidden} = dayRowsShown(

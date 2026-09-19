@@ -74,6 +74,9 @@ export type EventTimelineBucket = {t: number; count: number};
 export type EventTimeline = {
 	bucketMs: number;
 	buckets: EventTimelineBucket[];
+	// Whether `events` was withheld for being too long. Without it an empty
+	// list reads as a window nothing happened in.
+	capped: boolean;
 	// One entry per event, for the scatter layout: it plots each dot at its own
 	// timestamp, so bucketing there only merges events that happened to land in
 	// the same slot. Empty past TIMELINE_EVENT_CAP, where the scatter falls back
@@ -134,6 +137,7 @@ export const getEventTimeline = async (
 		return succeeded('Empty time window', {
 			bucketMs: 0,
 			buckets: [],
+			capped: false,
 			events: [],
 			lanesAtStart: {},
 			laneNames: indexResult.value.laneNames,
@@ -187,10 +191,15 @@ export const getEventTimeline = async (
 		.sort(([a], [b]) => a - b)
 		.map(([t, count]) => ({t, count}));
 
+	// Too many to send one by one: the buckets still carry the shape of the
+	// window, and the flag lets the caller say so rather than draw a quiet one.
+	const capped = inWindow.length > TIMELINE_EVENT_CAP;
+
 	return succeeded('Computed event timeline', {
 		bucketMs,
 		buckets,
-		events: inWindow.length > TIMELINE_EVENT_CAP ? [] : inWindow,
+		capped,
+		events: capped ? [] : inWindow,
 		lanesAtStart: lanesOpenAt(
 			indexResult.value.lanes,
 			windowStart,

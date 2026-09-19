@@ -32,6 +32,7 @@ const entry = (
 
 const timeline = (events: GuiEventTimelineEntry[]): GuiEventTimeline => ({
 	bucketMs: 1000,
+	capped: false,
 	buckets: [],
 	events,
 	lanesAtStart: {},
