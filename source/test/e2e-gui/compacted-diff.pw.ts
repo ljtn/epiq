@@ -376,7 +376,10 @@ test('a board selection and the diff view survive each other', async ({
 		await page.getByTestId('add-issue').first().click();
 		await page.getByPlaceholder('issue name').fill(name);
 		await page.getByPlaceholder('issue name').press('Enter');
-		await expect(page).toHaveURL(/\/issue\//);
+		// This ticket's own panel: after the first pass the url is already an
+		// `/issue/` one, so a loose check passes before the second ticket exists
+		// and the board below is read without it.
+		await expect(page.locator('aside')).toContainText(name);
 	}
 
 	await page.goto(boardUrl);
