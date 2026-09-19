@@ -145,3 +145,47 @@ test('changing a tab in the ticket panel leaves following', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// Pressing LIVE has to show what it does. Before `S516GCK` the board sat still
+// until an event happened to arrive, so on a quiet board there was nothing to
+// tell a working mode from a broken one.
+test('going live opens the newest line at once', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	// Two, so the newest line leads somewhere other than where we then sit.
+	await page.getByTestId('add-issue').first().click();
+	await page.getByPlaceholder('issue name').fill('The older one');
+	await page.getByPlaceholder('issue name').press('Enter');
+
+	const ticketPanel = page
+		.locator('aside')
+		.filter({hasNot: page.getByTestId('event-log-header')});
+	await expect(ticketPanel).toContainText('The older one');
+
+	await page.getByTestId('add-issue').first().click();
+	await page.getByPlaceholder('issue name').fill('The newest one');
+	await page.getByPlaceholder('issue name').press('Enter');
+	await expect(ticketPanel).toContainText('The newest one');
+
+	// Walk away from it by hand, which also leaves following if it were on.
+	await page.getByTestId('board-switcher').click();
+	await page.keyboard.press('Escape');
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await page.getByTestId('live-toggle').click();
+
+	// Straight there, with no event having arrived.
+	await expect(ticketPanel).toContainText('The newest one');
+	await expect(page.getByTestId('live-toggle')).toHaveAttribute(
+		'aria-pressed',
+		'true',
+	);
+
+	expect(pageErrors).toEqual([]);
+});
