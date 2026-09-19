@@ -10,11 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type {Page} from '@playwright/test';
 import {expect, readHandoff, test} from './fixtures.js';
-import {
-	COMMIT_CACHE_MS,
-	commitLinkedFile,
-	linkedFileName,
-} from './linked-commit.js';
+import {commitLinkedFile, linkedFileName} from './linked-commit.js';
 
 // Whoever the seeded TUI configured, and the address `commitLinkedFile` signs
 // its commits with. Neither resembles the other, which is the point: the panel
@@ -27,8 +23,6 @@ const COMMIT_EMAIL = 'e2e@example.com';
 
 // The scan of a repository's authors is cached for this long, so an address
 // that has just made its first commit is not offered until the walk runs again.
-const AUTHOR_SCAN_CACHE_MS = 15_500;
-
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTestId('add-issue').first().click();
 	await page.getByPlaceholder('issue name').fill(title);
@@ -46,12 +40,7 @@ const openPanel = async (page: Page) => {
 	return panel;
 };
 
-/**
- * A commit by `COMMIT_EMAIL`, and a page that can see it.
- *
- * The server caches the commit timeline, so a page that already asked has to
- * outlive the cache before a reload brings the new commit back.
- */
+/** A commit by `COMMIT_EMAIL`, and a page that can see it. */
 const commitAndReload = async (page: Page, repoRoot: string, tag: string) => {
 	await addTicket(page, `Identity ${tag}`);
 
@@ -61,9 +50,6 @@ const commitAndReload = async (page: Page, repoRoot: string, tag: string) => {
 	expect(ref).toBeTruthy();
 
 	commitLinkedFile(repoRoot, ref!, `identity ${tag}`, linkedFileName(ref!));
-	// The longer of the two: the timeline cache is what makes the commit
-	// visible, the author scan is what makes its address offerable.
-	await page.waitForTimeout(Math.max(COMMIT_CACHE_MS, AUTHOR_SCAN_CACHE_MS));
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -121,7 +107,10 @@ test('the addresses scroll inside a panel that stays in the window', async ({
 }) => {
 	await page.setViewportSize({width: 1280, height: 320});
 
-	await openPanel(page);
+	const panel = await openPanel(page);
+	await expect(
+		panel.locator('[data-testid^="identity-row-"]').first(),
+	).toBeVisible();
 
 	const measured = await page.evaluate<{
 		bottom: number;
@@ -310,7 +299,7 @@ test('the panel counts your own tickets, and the count follows the board', async
 	// Re-opening is what asks again: the totals are fetched on opening the
 	// panel, not pushed with every board broadcast.
 	await openPanel(page);
-	expect(await ticketsOpened(page)).toBe(before + 1);
+	await expect.poll(() => ticketsOpened(page)).toBe(before + 1);
 
 	expect(pageErrors).toEqual([]);
 });

@@ -1,4 +1,5 @@
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {openBoard} from './live-board.js';
 
 // Files a ticket in the first lane and moves it to the second over the socket,
@@ -97,7 +98,7 @@ test('the flow layout draws a moved ticket on the lane it went to', async ({
 	await page.getByRole('button', {name: 'Flow', exact: true}).click();
 
 	// A strand per lane, the closed one last.
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	await expect(track.getByText(from, {exact: true})).toBeVisible();
 	await expect(track.getByText(to, {exact: true})).toBeVisible();
 	await expect(track.getByText('Closed', {exact: true})).toBeVisible();

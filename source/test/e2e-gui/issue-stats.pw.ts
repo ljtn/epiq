@@ -1,6 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {COMMIT_CACHE_MS, commitLinkedFiles} from './linked-commit.js';
+import {commitLinkedFiles} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTestId('add-issue').first().click();
@@ -40,7 +40,6 @@ test('the Stats tab measures the ticket own commits', async ({
 		].join('\n'),
 	});
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 
 	await page.getByRole('button', {name: /^Stats/}).click();
@@ -90,7 +89,6 @@ test('a file named on the Stats tab opens its own diff', async ({
 		[`parser-${ref}.ts`]: ['export const parse = () => 1;', ''].join('\n'),
 	});
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page.getByRole('button', {name: /^Stats/}).click();
 

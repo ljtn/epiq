@@ -1,6 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {COMMIT_CACHE_MS, commitLinkedFiles} from './linked-commit.js';
+import {commitLinkedFiles} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTestId('add-issue').first().click();
@@ -40,7 +40,6 @@ test('a file ticked off as reviewed folds, and arrives folded next time', async 
 		[files[1]!]: 'gamma\ndelta\n',
 	});
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Review ${stamp}`);
 	await page

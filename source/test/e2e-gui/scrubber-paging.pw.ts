@@ -2,6 +2,7 @@
 // and a horizontal wheel over it. The controls row carries no pager.
 
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {openBoard} from './live-board.js';
 
 const offsetParam = (url: string) => new URL(url).searchParams.get('offset');
@@ -14,7 +15,7 @@ test('the arrows appear with the pointer over the chart and page the window', as
 	await openBoard(page, appUrl);
 	await page.getByRole('button', {name: 'Week', exact: true}).click();
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const earlier = page.getByTestId('page-earlier');
 	const later = page.getByTestId('page-later');
 
@@ -65,7 +66,7 @@ test('a horizontal wheel over the chart pages it, one page per gesture', async (
 	await openBoard(page, appUrl);
 	await page.getByRole('button', {name: 'Week', exact: true}).click();
 
-	const box = (await page.getByTestId('scrubber-track').boundingBox())!;
+	const box = (await (await trackWithWindow(page)).boundingBox())!;
 	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 
 	// One swipe in a burst of small steps, the way a trackpad delivers it:

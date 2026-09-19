@@ -1,10 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {
-	COMMIT_CACHE_MS,
-	commitLinkedFile,
-	linkedFileName,
-} from './linked-commit.js';
+import {commitLinkedFile, linkedFileName} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTestId('add-issue').first().click();
@@ -68,7 +64,6 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
 			'\n',
 	);
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	// Wide enough to reach under the series popover wherever its select sits
 	// on the bar: the question here is what is on top where the two meet, and
 	// with the default width they need not meet at all.
@@ -159,7 +154,6 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
 			'\n',
 	);
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Sticky ${stamp}`);
 	await expandDiff(page, 'add notes', linkedFileName(ref!));
@@ -233,7 +227,6 @@ test('a bottom-docked panel pins the file name too', async ({
 		Array.from({length: 60}, (_, index) => `line ${index + 1}`).join('\n') +
 			'\n',
 	);
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Docked ${stamp}`);
 

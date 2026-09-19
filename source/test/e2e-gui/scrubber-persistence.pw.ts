@@ -1,4 +1,5 @@
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 
 // By accessible name, not by title: TooltipLayer takes the `title` off a
 // control while the pointer rests on it, and a click leaves the pointer here.
@@ -53,7 +54,7 @@ test('a dragged-out zoom survives opening a ticket', async ({
 	const zoom = page.getByRole('button', {name: 'Zoom'});
 	await expect(zoom).toHaveAttribute('aria-pressed', 'false');
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 

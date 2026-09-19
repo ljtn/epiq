@@ -2,6 +2,7 @@
 // boundary, not only the highlight under the pointer.
 
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 
 test('the window is cut into segments the reader can see without hovering', async ({
 	page,
@@ -17,7 +18,7 @@ test('the window is cut into segments the reader can see without hovering', asyn
 		.poll(async () => await page.getByTestId('segment-boundary').count())
 		.toBeGreaterThanOrEqual(6);
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = (await track.boundingBox())!;
 	const line = (await page
 		.getByTestId('segment-boundary')

@@ -1,7 +1,7 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {
-	COMMIT_CACHE_MS,
 	commitLinkedFile,
 	commitPlainFile,
 	linkedFileName,
@@ -278,7 +278,7 @@ test('unticking hands back the window it was turned on over', async ({
 
 	await addTicket(page, `Zoom holder ${Date.now()}`);
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 
@@ -340,7 +340,6 @@ test("it takes the other tickets' commits with it, and the unlinked ones", async
 	commitLinkedFile(repoRoot, mineRef, mineWork, linkedFileName(mineRef));
 	commitLinkedFile(repoRoot, otherRef, otherWork, linkedFileName(otherRef));
 	commitPlainFile(repoRoot, `plain-${stamp}.txt`, plainWork);
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 
 	await page.goto(boardUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');

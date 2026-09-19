@@ -2,6 +2,7 @@
 // player is used here only where the behaviour under test is the log's.
 
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {openBoard, returnToLive} from './live-board.js';
 
 // The crawl is a slice of the script, not a list grown as events land, which
@@ -385,7 +386,7 @@ test('moving the timeline takes the log to its foot, wherever it was', async ({
 	// Into the past, but only just: the board stands at an earlier moment while
 	// the log stays longer than the pane. A scrub that shortened it to fit would
 	// leave the pane at its foot with nothing to prove — so that is asserted.
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 	await page.mouse.click(box.x + box.width * 0.97, box.y + box.height / 2);

@@ -4,8 +4,8 @@
 // The log draws by the chart's rule, so it is what the test reads.
 
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {
-	COMMIT_CACHE_MS,
 	commitLinkedFile,
 	commitPlainFile,
 	linkedFileName,
@@ -36,7 +36,6 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	const plain = `plain housekeeping ${stamp}`;
 	commitLinkedFile(repoRoot, ref!, linked, linkedFileName(ref!));
 	commitPlainFile(repoRoot, `plain-${stamp}.txt`, plain);
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 
 	await page.goto(boardUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
@@ -87,7 +86,7 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const withEveryCommit = (await track.boundingBox())!.height;
 
 	await page.getByTestId('commit-select').click();
@@ -127,7 +126,7 @@ test('no board hint comes up over a board track folded away', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = (await track.boundingBox())!;
 	const aboveTheCharts = {x: box.x + box.width * 0.5, y: box.y - 2};
 

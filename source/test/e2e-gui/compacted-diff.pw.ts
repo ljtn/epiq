@@ -1,7 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 import {
-	COMMIT_CACHE_MS,
 	commitLinkedFile,
 	commitPlainFile,
 	linkedFileName,
@@ -34,7 +33,6 @@ test('the compacted view shows a file once, however many commits touched it', as
 	commitLinkedFile(repoRoot, ref, 'first', file, 'alpha\nbeta\n');
 	commitLinkedFile(repoRoot, ref, 'second', file, 'alpha\nbeta\ngamma\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page
 		.getByTestId('aside-pane')
@@ -71,7 +69,6 @@ test('a file ticked off in one view is ticked off in the other', async ({
 
 	commitLinkedFile(repoRoot, ref, 'only', file, 'alpha\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page
 		.getByTestId('aside-pane')
@@ -113,7 +110,6 @@ test('a comment in the compacted view lands on the commit that touched the file'
 	const earlySha = commitLinkedFile(repoRoot, ref, 'first', early, 'alpha\n');
 	const lateSha = commitLinkedFile(repoRoot, ref, 'second', late, 'beta\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page
 		.getByTestId('aside-pane')
@@ -164,7 +160,6 @@ test('an interleaved commit is kept out of the compacted diff, and named', async
 	commitPlainFile(repoRoot, theirs, 'somebody else entirely');
 	commitLinkedFile(repoRoot, ref, 'second', mine, 'alpha\nbeta\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page
 		.getByTestId('aside-pane')
@@ -199,7 +194,6 @@ test('the chosen view is remembered for a link that names none', async ({
 
 	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page
 		.getByTestId('aside-pane')
@@ -233,7 +227,6 @@ test('leaving the tab lets go of the view a link named', async ({
 
 	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 
 	// This browser remembers commits; the link below says compacted.
@@ -275,7 +268,6 @@ test('a link names the view, over whatever this browser last used', async ({
 
 	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 
 	// Leave this browser remembering the commits view, so the link below is
@@ -310,7 +302,6 @@ test('a link does not overwrite what this browser remembers', async ({
 
 	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page
 		.getByTestId('aside-pane')
@@ -342,7 +333,6 @@ test('opening the tab puts the view in the address bar', async ({
 
 	commitLinkedFile(repoRoot, ref, 'only', linkedFileName(ref), 'alpha\n');
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await page
 		.getByTestId('aside-pane')
