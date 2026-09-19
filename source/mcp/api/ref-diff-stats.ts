@@ -13,7 +13,7 @@ import {
 	RefDiffStats,
 } from '../../lib/stats/ref-diff-stats.model.js';
 import {NODE_REF_LENGTH} from '../../lib/utils/node-ref.js';
-import {CommitEntry, getCommitTimeline} from '../epiq-time-travel.js';
+import {CommitEntry, getCommitTimeline} from '../../lib/commits/commits.js';
 
 // Crockford base32 leaves out I, L, O and U, but this matches the same shape
 // `getCommitsForRef` does — a bare prefix of the right length, case-insensitive
