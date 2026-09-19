@@ -280,24 +280,39 @@ export const SCRUBBER_PAGER_STYLES = `
 `;
 
 export const SCRUBBER_KEYFRAMES = `
-	/* The live mark's ring, while the board is following. A breath rather than
-	   a blink: it says "still running" from the corner of the eye without
-	   asking to be looked at, which a hard flash would.
+	/* The live mark, while the board is following: a ring leaving the centre
+	   outwards and fading as it goes, replaced by the next one behind it. A
+	   broadcast rather than a blink — it reads as something still arriving,
+	   which is what following is, where a flash would read as an alert.
 
-	   Opacity alone, so nothing on the row moves — the mark shares a group with
-	   the play button and a scaling ring would nudge it. Honoured only where
-	   motion is wanted; a reader who has asked for less gets the ring at rest. */
-	@keyframes epiqLivePulse {
-		0%, 100% { opacity: 0.35; }
-		50% { opacity: 1; }
+	   Two rings half a cycle apart, so there is always one on its way out and
+	   the mark never empties. The standalone 'scale' property rather than
+	   'transform', which the dots below need too, and 'transform-box: fill-box'
+	   so an SVG circle scales about itself rather than the viewport's origin.
+
+	   A reader who has asked for less motion gets one ring, at rest. */
+	@keyframes epiqLiveRipple {
+		from { scale: 0.3; opacity: 0.9; }
+		to { scale: 1.3; opacity: 0; }
 	}
 
-	.epiq-live-ring {
-		animation: epiqLivePulse 2s ease-in-out infinite;
+	.epiq-live-ripple {
+		transform-box: fill-box;
+		transform-origin: center;
+		animation: epiqLiveRipple 2s ease-out infinite;
+	}
+
+	.epiq-live-ripple--trailing {
+		animation-delay: 1s;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.epiq-live-ring { animation: none; }
+		.epiq-live-ripple {
+			animation: none;
+			opacity: 0.55;
+			scale: 1;
+		}
+		.epiq-live-ripple--trailing { display: none; }
 	}
 
 	/* Must animate the standalone 'scale' property, not 'transform': the dots

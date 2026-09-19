@@ -16,8 +16,14 @@ export const FollowBanner = () => (
 			justifyContent: 'center',
 			gap: 8,
 			padding: '6px 12px',
-			borderTop: `1px solid ${GUI_THEME.accent}`,
-			borderBottom: `1px solid ${GUI_THEME.accent}`,
+			// One rule, at the top, where the band meets the chrome above it. Two
+			// boxed the sentence in and made it a thing in its own right; one
+			// reads as the board's own edge, which is what it is.
+			//
+			// Two pixels, not one: alone it has to carry the weight both rules
+			// carried together, and a hairline at the top of a dark board is a
+			// seam rather than a statement.
+			borderTop: `2px solid ${GUI_THEME.accent}`,
 			color: GUI_THEME.primary,
 			fontSize: 11,
 			letterSpacing: 0.3,
