@@ -1,5 +1,11 @@
 /**
- * What one person's work on a board adds up to.
+ * What one person's work in a repository adds up to.
+ *
+ * Deliberately not per board. A project's boards share one event log and one
+ * git history, and somebody's tickets do not stop being theirs when the board
+ * switcher moves — a figure that changed under the switcher would read as
+ * their work disappearing. The panel these are drawn in says "your work here",
+ * and "here" is the repository.
  *
  * Types only, so the GUI client can read them without pulling the event log
  * in behind them.

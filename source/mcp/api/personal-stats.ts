@@ -47,9 +47,18 @@ export const getPersonalStats = async (
 	// A history that could not be read costs the commit figure, not the panel.
 	// The three counted off the log are still true, and the addresses below
 	// them carry their own scan error already.
+	//
+	// A contested address counts for nobody, here as everywhere else. Two
+	// people claiming one address is the state `emailOwnerIndex` resolves to
+	// neither of them, and the panel says so a few rows below this figure —
+	// crediting both of them here would have the same surface making both
+	// claims at once.
 	const mine = isFail(scanned)
 		? []
-		: scanned.value.filter(candidate => candidate.claimedBy.includes(userId));
+		: scanned.value.filter(
+				candidate =>
+					candidate.claimedBy.length === 1 && candidate.claimedBy[0] === userId,
+		  );
 
 	return succeeded('Derived personal stats', {
 		...totals,
