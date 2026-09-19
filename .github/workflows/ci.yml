@@ -78,6 +78,21 @@ jobs:
 
       - run: npm ci
 
+      # The browsers are a 100MB download, and every shard was paying for it.
+      # `install --with-deps` below still runs: it is what installs the system
+      # libraries, and with the browsers already here it finds nothing to fetch.
+      #
+      # The key is the lockfile, so any dependency bump writes a new entry — but
+      # the prefix restores the last one, and `install` then fetches only the
+      # revision that actually moved. Without that fallback every lockfile
+      # change would cost all three shards the full download at once.
+      - name: Cache the browsers Playwright downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
       - run: npm run test:gui:ci -- --shard=${{ matrix.shard }}/3
 
       # `trace: 'retain-on-failure'` writes one per failed test and the runner
