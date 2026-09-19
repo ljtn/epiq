@@ -306,19 +306,24 @@ export const ScrubberLayout = ({
 							)}
 
 							{/* Collapsed, the transport still has both halves: shutting the
-							    charts is not a reason to lose the way back to live. */}
-							<LiveToggle
-								following={controls.following}
-								disabled={!controls.canFollow}
-								title={controls.followTitle}
-								onChange={controls.onChangeFollowing}
-							/>
+							    charts is not a reason to lose the way back to live. One
+							    group here too, at the same gap as the open row keeps. */}
+							<span
+								style={{display: 'inline-flex', alignItems: 'center', gap: 6}}
+							>
+								<LiveToggle
+									following={controls.following}
+									disabled={!controls.canFollow}
+									title={controls.followTitle}
+									onChange={controls.onChangeFollowing}
+								/>
 
-							<ScrubberPlayButton
-								canPlay={canPlay}
-								playTitle={playTitle}
-								onPlay={onPlay}
-							/>
+								<ScrubberPlayButton
+									canPlay={canPlay}
+									playTitle={playTitle}
+									onPlay={onPlay}
+								/>
+							</span>
 						</div>
 					) : (
 						<ScrubberControls

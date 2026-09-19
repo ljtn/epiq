@@ -219,6 +219,7 @@ const EventRow = ({
 	entry,
 	showLabel,
 	lane,
+	followed = false,
 }: {
 	entry: LogEntry;
 	showLabel: boolean;
@@ -226,12 +227,18 @@ const EventRow = ({
 	// line nobody signed — it spans them all — and undefined while the log is
 	// not split, which leaves the row exactly as it was.
 	lane?: number | null;
+	// True on the one line the board is standing on while following.
+	followed?: boolean;
 }) => (
 	<div
 		data-testid="log-line"
-		className={
-			lane === null ? `epiq-log-line ${LOG_LANE_ALL_CLASS}` : 'epiq-log-line'
-		}
+		className={[
+			'epiq-log-line',
+			lane === null ? LOG_LANE_ALL_CLASS : '',
+			followed ? 'epiq-log-line--followed' : '',
+		]
+			.filter(Boolean)
+			.join(' ')}
 		data-time={formatTimeOfDay(new Date(entry.t))}
 		// A row is one clipped line, so a long label is cut off with nowhere to
 		// read the rest. Only the browser knows which rows are actually clipped,
@@ -598,6 +605,15 @@ const EventLogPanel = ({
 		// board beside it repaints.
 	}, [newestId, animate]);
 
+	// Which line the board was last moved by, for the mark down its lead edge.
+	// Cleared when following stops, because the mark means "this is where the
+	// board is standing" rather than "this happened recently".
+	const [followedLine, setFollowedLine] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!following) setFollowedLine(null);
+	}, [following]);
+
 	// The last line following acted on. The decision itself is `followStep`, so
 	// the cases it has to get right — a burst, a line that leads nowhere, the
 	// reader already being there — are testable without putting the panel into
@@ -636,6 +652,11 @@ const EventLogPanel = ({
 		});
 
 		followedRef.current = step.mark;
+
+		// The line that moved the board, marked so the reader can see what they
+		// were brought here by. Set even when nothing opened, since standing
+		// still on a line already open is still standing on it.
+		if (step.mark.line !== null) setFollowedLine(step.mark.line);
 
 		// Replaced rather than pushed: an hour of following would otherwise leave
 		// Back walking the reader through somebody else's afternoon.
@@ -842,6 +863,7 @@ const EventLogPanel = ({
 												key={entry.id}
 												entry={entry}
 												showLabel={fields.label}
+												followed={following && entry.id === followedLine}
 												lane={
 													split
 														? laneIndexOf(entry, lanes, laneIndexes)

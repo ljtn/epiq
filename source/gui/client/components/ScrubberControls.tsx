@@ -20,6 +20,7 @@ import {IconBars} from './IconBars';
 import {ICON_BUTTON_SIZE, IconButton, ICON_SIZE} from './IconButton';
 import {IconFunnel} from './IconFunnel';
 import {IconLive} from './IconLive';
+import {IconReplay} from './IconReplay';
 import {IconFlow} from './IconFlow';
 import {IconLog} from './IconLog';
 import {IconTimeline} from './IconTimeline';
@@ -428,19 +429,27 @@ export const ScrubberControls = ({
 			</button>
 
 			{/* Last on the row, past everything that draws or narrows the window:
-			    it is the one control here that starts something. */}
-			<LiveToggle
-				following={following}
-				disabled={!canFollow}
-				title={followTitle}
-				onChange={onChangeFollowing}
-			/>
+			    the transport is the one thing here that starts something.
+			    
+			    Its two halves are one group and keep the narrowing group's own
+			    gap rather than the row's, which is deliberately twice that so the
+			    breaks *between* groups read as the wider ones. Live and play are
+			    the same question — the present or the past — and spacing them
+			    like two groups says they are two. */}
+			<span style={{display: 'inline-flex', alignItems: 'center', gap: 6}}>
+				<LiveToggle
+					following={following}
+					disabled={!canFollow}
+					title={followTitle}
+					onChange={onChangeFollowing}
+				/>
 
-			<ScrubberPlayButton
-				canPlay={canPlay}
-				playTitle={playTitle}
-				onPlay={onPlay}
-			/>
+				<ScrubberPlayButton
+					canPlay={canPlay}
+					playTitle={playTitle}
+					onPlay={onPlay}
+				/>
+			</span>
 		</div>
 	);
 };
@@ -682,7 +691,7 @@ export const ScrubberPlayButton = ({
 			disabled={!canPlay}
 			onClick={onPlay}
 		>
-			<IconPlay size={ICON_SIZE} />
+			<IconReplay size={ICON_SIZE} />
 		</IconButton>
 	</span>
 );
