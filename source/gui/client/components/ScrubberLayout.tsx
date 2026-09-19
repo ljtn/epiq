@@ -45,6 +45,7 @@ import {
 	TextFilterInput,
 	ScrubberHeader,
 	LiveToggle,
+	ReturnToNowButton,
 	ScrubberPlayButton,
 } from './ScrubberControls';
 import {
@@ -571,6 +572,14 @@ export const ScrubberLayout = ({
 								onGrab={on.onGrabNeedle}
 							/>
 						)}
+
+						{/* On the chart rather than on the bar, at the end the press
+						    sends the needle to. A control that stands where it takes
+						    you needs no label to explain the journey. */}
+						<ReturnToNowButton
+							isScrubbing={controls.isScrubbing}
+							onReturnToLive={controls.onReturnToLive}
+						/>
 
 						{chart.rangeSelection && (
 							<RangeSelection {...chart.rangeSelection} />
