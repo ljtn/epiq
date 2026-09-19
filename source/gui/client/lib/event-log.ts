@@ -475,8 +475,11 @@ ${linkedRow()} {
 	right: ${LOG_PANE_PADDING_X}px;
 	display: flex;
 	align-items: center;
+	/* The word and the mark read as one affordance rather than two things that
+	   happen to be adjacent. */
+	gap: 4px;
 	height: ${LOG_ROW_HEIGHT}px;
-	padding: 0 3px;
+	padding: 0 5px;
 	border-radius: 4px;
 	color: ${GUI_THEME.secondary};
 	/* Opaque, so a long line is cut off behind it rather than running under —
