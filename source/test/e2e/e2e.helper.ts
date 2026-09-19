@@ -43,7 +43,7 @@ const logFrame = (output: string) => {
 	);
 };
 
-type TuiSession = {
+export type TuiSession = {
 	cwd: string;
 	input: (...values: string[]) => void;
 	output: () => string;
@@ -146,6 +146,74 @@ export const commandLineShows =
 export const commandLineIsIdle = (frame: string): boolean => {
 	const content = commandLineContent(frame);
 	return content !== null && !isCommandInput(content);
+};
+
+const ESCAPE = '\x1B';
+
+// How long the keypress listener holds a lone `ESC` before deciding it was an
+// Escape rather than the start of a sequence — `getDataListener` in
+// `source/lib/listeners/keypress-listener.ts`. Anything sent inside that
+// window is racing a keystroke the app has not resolved yet.
+const ESCAPE_SETTLE_MS = 60;
+
+/**
+ * Steps back through the command line's history, and starts the walk over
+ * when a step loses the line.
+ *
+ * `ARROW_UP` is `ESC [ A`, and the keypress listener reads a lone `ESC` byte
+ * as Escape once 25ms pass with nothing after it — which in command-line mode
+ * closes the line (`YTPEXEF`). The sequence goes out as a single pty write, so
+ * nothing on this side tears it; the pty under load can still hand the TUI the
+ * `ESC` on its own, and then the recall lands on a closed line. Waiting longer
+ * for the rest of a sequence would make a real Escape sluggish for a person,
+ * so the harness absorbs the split rather than the app.
+ *
+ * One expectation per press, in the order they are pressed, so a walk says
+ * what it expects to find at every step rather than only at the end.
+ */
+export const recallFromHistory = async (
+	tui: TuiSession,
+	shows: readonly string[],
+	attempts = 3,
+): Promise<string[]> => {
+	const failures: string[] = [];
+
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			tui.input(':');
+			await tui.waitFor(output => output.includes('Mode: cmd-line'));
+
+			const frames: string[] = [];
+			for (const text of shows) {
+				tui.input(ARROW_UP);
+				frames.push(await tui.waitFor(commandLineShows(text)));
+			}
+
+			return frames;
+		} catch (error) {
+			failures.push(`attempt ${attempt}: ${String(error)}`);
+
+			// Back to the board before trying again: a walk cannot be resumed
+			// from halfway. Only when something is open, because the usual way a
+			// walk fails is the line having closed under it — and an Escape sent
+			// onto an already-idle board is a timer still counting when the next
+			// colon arrives, which would close the line this is reopening.
+			if (!commandLineIsIdle(tui.output())) {
+				tui.input(ESCAPE);
+				await tui.waitFor(commandLineIsIdle);
+			}
+
+			// Whatever put the line in the state above may itself have been a
+			// lone `ESC` that has not resolved yet.
+			await sleep(ESCAPE_SETTLE_MS);
+		}
+	}
+
+	throw new Error(
+		`Command history recall failed ${attempts} times.\n${failures.join(
+			'\n',
+		)}\nLast rendered frame:\n${tui.output()}`,
+	);
 };
 
 const describeWaitTarget = (

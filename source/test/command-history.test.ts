@@ -14,8 +14,10 @@ import {
 	COMMAND_HISTORY_HORIZON,
 	commandConfirmed,
 	getCmdState,
+	getPrevCmd,
 	hydrateCommandHistory,
 	replaceCmdInput,
+	resetCommandHistoryWalk,
 } from '../lib/state/cmd.state.js';
 import {nodes} from '../lib/state/node-builder.js';
 import {initWorkspaceState} from '../lib/state/state.js';
@@ -277,5 +279,23 @@ describe('what reaches the history', () => {
 		commandConfirmed({});
 
 		expect(getCmdState().commandHistory).toEqual([]);
+	});
+});
+
+// YTPEXEF: the walk's position survived the line closing, so a line reopened
+// after an interrupted walk carried on from where it had stopped — ↑ reached
+// two commands back on its first press.
+describe('the history walk and the line closing', () => {
+	it('starts at the most recent command again once the line is closed', () => {
+		hydrateCommandHistory(['newest', 'older', 'oldest']);
+
+		getPrevCmd();
+		getPrevCmd();
+		expect(getCmdState().value).toBe('older');
+
+		resetCommandHistoryWalk();
+		getPrevCmd();
+
+		expect(getCmdState().value).toBe('newest');
 	});
 });

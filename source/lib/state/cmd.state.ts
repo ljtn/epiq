@@ -259,6 +259,20 @@ export const hydrateCommandHistory = (commands: string[]) => {
 	}));
 };
 
+/**
+ * Puts ↑ back at the most recent command.
+ *
+ * A walk through the history is a position in it, and closing the line ends
+ * the walk: reopening and pressing ↑ means "the last thing I ran", not "one
+ * further back than where I stopped". Only confirming a command reset this
+ * before, so a line closed halfway through a walk reopened mid-history.
+ */
+export const resetCommandHistoryWalk = () => {
+	setState(s =>
+		s.commandHistoryIndex === -1 ? s : {...s, commandHistoryIndex: -1},
+	);
+};
+
 export const getPrevCmd = () => {
 	setState(s => {
 		const nextIndex = Math.min(

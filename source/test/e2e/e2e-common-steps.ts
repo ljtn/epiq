@@ -35,6 +35,36 @@ export const typeCommand = async (
 	tui.input('\r');
 };
 
+/**
+ * Files an issue into Todo and does not come back until the lane says so.
+ *
+ * A submit can be dropped when the suite runs under load — the command then
+ * sits typed in a line nothing is waiting on. The lane's count is what says
+ * whether it ran: the typed command is echoed in the line, and the issue's
+ * title is in that echo, so waiting on the title alone passes before Enter
+ * has been handled at all.
+ */
+export const fileIssue = async (
+	tui: {
+		input: (...values: string[]) => void;
+		waitFor: (
+			text: string | RegExp | ((output: string) => boolean),
+			timeoutMs?: number,
+		) => Promise<string>;
+	},
+	title: string,
+	count: number,
+): Promise<string> => {
+	await typeCommand(tui, `:new issue ${title}`);
+
+	try {
+		return await tui.waitFor(`Todo (${count})`, 20_000);
+	} catch {
+		tui.input('\r');
+		return await tui.waitFor(`Todo (${count})`, 20_000);
+	}
+};
+
 export const commonSteps = {
 	// `autoSync` is the one answer worth varying: a suite that only exercises
 	// the interface wants no background git work behind it.
