@@ -20,11 +20,13 @@ export const ALL_LOG_FIELDS: LogFields = {
 	label: true,
 };
 
-// In the order the row reads, which is the order the header lists them.
+// In the order the row reads, which is the order the header lists them: the
+// clock, then the dot in the gap after it, then the name, then a commit's
+// stat and the line itself. See EVENT_LOG_STYLES for where each one lands.
 export const LOG_FIELD_ORDER: readonly LogField[] = [
 	'time',
-	'actor',
 	'kind',
+	'actor',
 	'diff',
 	'label',
 ];
