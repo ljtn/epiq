@@ -107,3 +107,41 @@ test('asking to go live opens the log and raises the banner', async ({
 
 	expect(pageErrors).toEqual([]);
 });
+
+// The banner promises "click anywhere", and the ticket panel is a sibling of
+// the board rather than a child of it — so a tab changed there reached nothing
+// while the handler sat on <main>. jola hit this in a browser.
+test('changing a tab in the ticket panel leaves following', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	// Filing one opens the panel, which is the reliable way to have tabs to
+	// click — the board's own cards are not what `[draggable]` finds first.
+	await page.getByTestId('add-issue').first().click();
+	await page.getByPlaceholder('issue name').fill('A ticket with tabs');
+	await page.getByPlaceholder('issue name').press('Enter');
+
+	const ticketPanel = page
+		.locator('aside')
+		.filter({hasNot: page.getByTestId('event-log-header')});
+	await expect(ticketPanel).toContainText('A ticket with tabs');
+
+	// On the bar, so asking to go live is not itself reaching for the board.
+	const follow = page.getByTestId('live-toggle');
+	await follow.click();
+	await expect(follow).toHaveAttribute('aria-pressed', 'true');
+
+	// Scoped to the panel: the scrubber bar has a Code series button of its own,
+	// and a page-wide match would find that instead — which is on the bar, and
+	// so is deliberately not a release.
+	await ticketPanel.getByRole('button', {name: /^Comments/}).click();
+
+	await expect(follow).toHaveAttribute('aria-pressed', 'false');
+	await expect(page.getByTestId('follow-banner')).toHaveCount(0);
+
+	expect(pageErrors).toEqual([]);
+});
