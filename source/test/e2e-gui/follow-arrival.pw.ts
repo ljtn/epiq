@@ -22,6 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {expect, readHandoff, test} from './fixtures.js';
+import {returnToLive} from './live-board.js';
 
 // Passed as a string, not a typed callback: the root tsconfig has no DOM lib,
 // so `window` inside `page.evaluate` does not typecheck — which is why every
@@ -135,8 +136,14 @@ test('a popped-out log keeps following, and moves the board', async ({
 		'config.json',
 	);
 	const original = fs.readFileSync(configPath, 'utf8');
+	let popout: import('@playwright/test').Page | undefined;
 
 	try {
+		// Short, so the seeded log overflows its pane and can actually be read
+		// back through: at the default height it does not scroll at all, and the
+		// step below would be a no-op that proved nothing.
+		await page.setViewportSize({width: 1100, height: 300});
+
 		await page.goto(appUrl);
 		await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -153,10 +160,39 @@ test('a popped-out log keeps following, and moves the board', async ({
 		await live.click();
 		await expect(live).toHaveAttribute('aria-pressed', 'true');
 
+		// Read back first, which pauses following and leaves the board holding a
+		// pin that belongs to a pane about to be unmounted. The popped-out panel
+		// opens at its foot, and has to say so — from its own point of view
+		// nothing changed, so it reports on the way in or following sits dead
+		// behind the old pane's answer.
+		// The pane counts itself pinned within two rows of its foot
+		// (`PINNED_SLACK_PX` in EventLog, two 18px rows), so the room to scroll
+		// has to exceed that — or reading back changes nothing and this case
+		// quietly stops testing what it says it does.
+		const pinnedSlackPx = 36;
+
+		// As strings, for the same reason the write above is one: the root
+		// tsconfig carries no DOM lib, so a typed callback cannot touch an
+		// element's scroll geometry.
+		const PANE = `document.querySelector('[data-testid="event-log"] .epiq-log-pane')`;
+
+		await expect
+			.poll(
+				async () =>
+					(await page.evaluate(
+						`${PANE}.scrollHeight - ${PANE}.clientHeight`,
+					)) as number,
+			)
+			.toBeGreaterThan(pinnedSlackPx);
+
+		await page.evaluate(
+			`${PANE}.scrollTop = 0; ${PANE}.dispatchEvent(new Event('scroll', {bubbles: true}));`,
+		);
+
 		// Out it goes. The docked panel is gone from this document entirely.
 		const opened = page.context().waitForEvent('page');
 		await page.getByTestId('log-pop-out').click();
-		const popout = await opened;
+		popout = await opened;
 		await expect(popout.getByTestId('event-log')).toBeVisible();
 
 		// Following survives the move: the control is still lit on the board.
@@ -179,7 +215,89 @@ test('a popped-out log keeps following, and moves the board', async ({
 		await expect(ticketPanel).toContainText(filed, {timeout: 20_000});
 
 		expect(pageErrors).toEqual([]);
-		await popout.close();
+	} finally {
+		// In the finally, not after the assertions: a failure above would
+		// otherwise leak the window into the rest of the worker, where a stray
+		// `/log` page can satisfy a later `waitForEvent('page')`.
+		await popout?.close();
+		fs.writeFileSync(configPath, original);
+	}
+});
+
+// The other way a pane gets pinned without the reader scrolling: moving the
+// board's moment snaps the log to its foot. That is a programmatic scroll, so
+// `onScroll` sees the pin already true and reports nothing — and a board still
+// holding the reader's earlier `false` would never follow again.
+test('scrubbing and coming back leaves the log able to follow', async ({
+	page,
+	appUrl,
+	pageErrors,
+}, testInfo) => {
+	const configPath = path.join(
+		readHandoff(testInfo.parallelIndex).globalDir,
+		'config.json',
+	);
+	const original = fs.readFileSync(configPath, 'utf8');
+
+	try {
+		await page.setViewportSize({width: 1100, height: 300});
+		await page.goto(appUrl);
+		await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+		await page.getByTestId('add-issue').first().click();
+		await page.getByPlaceholder('issue name').fill('Still here afterwards');
+		await page.getByPlaceholder('issue name').press('Enter');
+
+		const ticketPanel = page
+			.locator('aside')
+			.filter({hasNot: page.getByTestId('event-log-header')});
+		await expect(ticketPanel).toContainText('Still here afterwards');
+
+		const live = page.getByTestId('live-toggle');
+		await live.click();
+		await expect(live).toHaveAttribute('aria-pressed', 'true');
+
+		const PANE = `document.querySelector('[data-testid="event-log"] .epiq-log-pane')`;
+		await expect
+			.poll(
+				async () =>
+					(await page.evaluate(
+						`${PANE}.scrollHeight - ${PANE}.clientHeight`,
+					)) as number,
+			)
+			.toBeGreaterThan(36);
+
+		// Read back: following pauses and the board records an unpinned pane.
+		await page.evaluate(
+			`${PANE}.scrollTop = 0; ${PANE}.dispatchEvent(new Event('scroll', {bubbles: true}));`,
+		);
+
+		// Into the past and back. Each move of the moment snaps the pane to its
+		// foot, which is the pin nobody reports unless this is right.
+		const track = page.getByTestId('scrubber-track');
+		const box = await track.boundingBox();
+		if (!box) throw new Error('scrubber track is not on screen');
+		await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2);
+		await returnToLive(page);
+
+		await live.click();
+		await expect(live).toHaveAttribute('aria-pressed', 'true');
+
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify(
+				{...JSON.parse(original), autoSync: true, autoSyncDebounceMs: 1000},
+				null,
+				2,
+			),
+		);
+
+		const filed = `Filed after a scrub ${Date.now()}`;
+		await fileFromElsewhere(page, filed);
+
+		await expect(ticketPanel).toContainText(filed, {timeout: 20_000});
+
+		expect(pageErrors).toEqual([]);
 	} finally {
 		fs.writeFileSync(configPath, original);
 	}

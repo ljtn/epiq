@@ -1319,6 +1319,12 @@ export const App = () => {
 	// one value either way and does not care which panel answered.
 	const [logPinned, setLogPinned] = useState(true);
 
+	// One definition, read twice: if these two ever drifted, `useFollowLog`
+	// could hold following true while `useFollowedLine` bailed, which is the
+	// lit-and-inert state both of them exist to prevent.
+	const boardIsLive =
+		connected && state?.timeTravel?.mode !== 'scrub' && !theatre;
+
 	const {following, setFollowing} = useFollowLog({
 		// The panel may be beside the board or in a window of its own; either
 		// draws the log and reports its foot, and the follow runs here for both.
@@ -1327,7 +1333,7 @@ export const App = () => {
 		// A checkout and a movie both stand somewhere other than the present, and
 		// each already drives the board. Offline nothing arrives — and the control
 		// is disabled then, so a reader left following could not switch it off.
-		live: connected && state?.timeTravel?.mode !== 'scrub' && !theatre,
+		live: boardIsLive,
 		onOpenLog: () => setLogOpen(true),
 	});
 
@@ -1335,7 +1341,7 @@ export const App = () => {
 	// the log for both of them.
 	const {followedLine} = useFollowedLine({
 		following,
-		live: connected && state?.timeTravel?.mode !== 'scrub' && !theatre,
+		live: boardIsLive,
 		pinned: logPinned,
 		entries: logEntries,
 		at: readerAt,

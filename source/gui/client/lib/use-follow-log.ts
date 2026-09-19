@@ -35,9 +35,10 @@ export const useFollowLog = ({
 	live,
 	onOpenLog,
 }: {
-	// Following runs in the log panel, so a log that is shut — or popped out
-	// into a window of its own, where the panel is not rendered — has nobody to
-	// run it. The flag has to go down with it rather than stay lit over nothing.
+	// The log's lines are what is followed, so a log that is shut has nothing
+	// to follow and the flag goes down with it. Popped out is *not* shut: the
+	// panel is drawn in a window of its own, the board still slices for it, and
+	// `use-followed-line` runs on this side for both.
 	logOpen: boolean;
 	// Whether the board is standing at the present *and* can hear about it. A
 	// checkout and a movie are somewhere else and drive the board themselves; a
@@ -51,11 +52,10 @@ export const useFollowLog = ({
 	// board that starts navigating on open to a switch they left on yesterday.
 	const [following, setFollowingState] = useState(false);
 
-	// Anything that takes the effect away ends the watch outright, rather than
-	// leaving the flag on behind a control that has gone unavailable. Without
-	// this a scrub left the banner up and the board in the past — following
-	// nothing, and saying it was following — and popping the log out did the
-	// same with no way back short of docking it again.
+	// Anything that leaves nothing to follow ends the watch outright, rather
+	// than leaving the flag on behind a control that has gone unavailable.
+	// Without this a scrub left the banner up and the board in the past —
+	// following nothing, and saying it was following.
 	useEffect(() => {
 		if (!live || !logOpen) setFollowingState(false);
 	}, [live, logOpen]);
