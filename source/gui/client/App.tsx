@@ -1288,6 +1288,45 @@ export const App = () => {
 	// board that starts navigating on open to a switch they left on yesterday.
 	const [following, setFollowing] = useState(false);
 
+	// Leaving following is one rule over two surfaces: the log is what the
+	// reader is watching, and everything else is the work. A click in the work
+	// — a card, a tab in the ticket panel, a button in the diff panel — says
+	// they have stopped watching. A click in the log, or on the bar that holds
+	// the control itself, does not.
+	//
+	// On the document rather than on a container, because the panels are not
+	// inside the board: they are siblings of `<main>`, and a handler on either
+	// one misses the other. A tab changed in the ticket panel is the commonest
+	// way somebody stops watching and was the case that got this wrong twice.
+	//
+	// On the click rather than the pointer going down: the banner goes when
+	// following does, and a band that disappears between press and release
+	// moves the board out from under the press.
+	useEffect(() => {
+		if (!following) return;
+
+		const stillWatching = (target: EventTarget | null) =>
+			target instanceof Element &&
+			target.closest(
+				'[data-testid="event-log"], [data-testid="time-scrubber"]',
+			) !== null;
+
+		const release = (event: Event) => {
+			if (stillWatching(event.target)) return;
+			setFollowing(false);
+		};
+
+		// Captured, so it counts even where a child stops the click. A drag says
+		// the same as a click and never reaches one.
+		document.addEventListener('click', release, true);
+		document.addEventListener('dragstart', release, true);
+
+		return () => {
+			document.removeEventListener('click', release, true);
+			document.removeEventListener('dragstart', release, true);
+		};
+	}, [following]);
+
 	// Following needs the log: its lines are what is followed, and the window is
 	// only refetched while the panel is open. So asking for it opens the panel
 	// rather than leaving a control that is on and inert.
@@ -1747,49 +1786,54 @@ export const App = () => {
 						/>
 					</div>
 
-					<TimeScrubber
-						timeline={history.timeline}
-						commits={history.commits}
-						historyId={history.requestId}
-						boardId={selectedBoardId}
-						connected={connected}
-						socketEpoch={socketEpoch}
-						onRequestHistory={requestBoardHistory}
-						onInspectCommit={openCommitDiff}
-						onOpenIssue={id => openIssueTab(id, 'overview')}
-						highlightEventId={hoveredLogEventId}
-						timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
-						onScrub={scrubToTime}
-						onReturnToLive={returnToLive}
-						onPlayTheatre={startTheatre}
-						theatreOpen={theatre !== null}
-						logOpen={logOpen}
-						onChangeLogOpen={setLogOpen}
-						showIssues={showIssues}
-						onChangeShowIssues={setShowIssues}
-						showCommits={showCommits}
-						onChangeShowCommits={setShowCommits}
-						linkedCommitsOnly={linkedCommitsOnly}
-						onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
-						issueIdByRef={issueIdByRef}
-						lanes={boardLanes}
-						laneTitles={laneTitles}
-						issueSummaryById={issueSummaryById}
-						selection={selection}
-						onChangeSelection={changeSelection}
-						selectedIssue={
-							selectedIssue
-								? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
-								: null
-						}
-						textFilter={textFilter}
-						onChangeTextFilter={setTextFilter}
-						queryIssueIds={queryIssueIds}
-						knownIdentities={knownIdentities}
-						refreshOn={historyTick}
-						following={following}
-						onChangeFollowing={changeFollowing}
-					/>
+					{/* Named so following can tell the bar from the work: a click on
+					    the bar is on the control itself or its neighbours, and must not
+					    be read as the reader reaching for the board. */}
+					<div data-testid="time-scrubber">
+						<TimeScrubber
+							timeline={history.timeline}
+							commits={history.commits}
+							historyId={history.requestId}
+							boardId={selectedBoardId}
+							connected={connected}
+							socketEpoch={socketEpoch}
+							onRequestHistory={requestBoardHistory}
+							onInspectCommit={openCommitDiff}
+							onOpenIssue={id => openIssueTab(id, 'overview')}
+							highlightEventId={hoveredLogEventId}
+							timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
+							onScrub={scrubToTime}
+							onReturnToLive={returnToLive}
+							onPlayTheatre={startTheatre}
+							theatreOpen={theatre !== null}
+							logOpen={logOpen}
+							onChangeLogOpen={setLogOpen}
+							showIssues={showIssues}
+							onChangeShowIssues={setShowIssues}
+							showCommits={showCommits}
+							onChangeShowCommits={setShowCommits}
+							linkedCommitsOnly={linkedCommitsOnly}
+							onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
+							issueIdByRef={issueIdByRef}
+							lanes={boardLanes}
+							laneTitles={laneTitles}
+							issueSummaryById={issueSummaryById}
+							selection={selection}
+							onChangeSelection={changeSelection}
+							selectedIssue={
+								selectedIssue
+									? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
+									: null
+							}
+							textFilter={textFilter}
+							onChangeTextFilter={setTextFilter}
+							queryIssueIds={queryIssueIds}
+							knownIdentities={knownIdentities}
+							refreshOn={historyTick}
+							following={following}
+							onChangeFollowing={changeFollowing}
+						/>
+					</div>
 				</div>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at
@@ -1838,18 +1882,6 @@ export const App = () => {
 				    this box, so anything spilling out would put a second scrollbar on
 				    the page next to the columns' own. */}
 						<main
-							// A click here is the reader taking the board back, which is
-							// what leaves following. Captured, so it counts even where a
-							// child stops the click, and separate from the handler below,
-							// which is about the lane panel.
-							//
-							// On the click rather than the pointer going down: the banner
-							// goes when following does, and a band that disappears between
-							// press and release moves the board out from under the press.
-							// A drag says the same thing and never reaches a click, so it
-							// is listened for too.
-							onClickCapture={() => setFollowing(false)}
-							onDragStartCapture={() => setFollowing(false)}
 							// The lane panel closes on a click past it, unlike the ticket
 							// panel beside it, which deliberately stays open (see
 							// details-close.pw.ts): a ticket holds a half-written
