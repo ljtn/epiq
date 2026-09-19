@@ -4,7 +4,7 @@ import {materializeAndPersistAll} from '../../board/board-log.js';
 import {getStateBranch} from '../../../git/git-constants.js';
 import {getStateBranchRoot} from '../../../git/git-storage.js';
 import {normalizeEmail} from '../../model/email-link.js';
-import {failed, isFail, succeeded} from '../../model/result-types.js';
+import {failed, isFail, Result, succeeded} from '../../model/result-types.js';
 import {Mode} from '../../model/action-map.model.js';
 import {
 	findEmailCandidates,
@@ -18,7 +18,31 @@ import {
 } from '../../state/settings.state.js';
 import {getSafeState, patchState} from '../../state/state.js';
 import {setConfig} from '../../config/user-config.js';
+import {currentBoardId} from '../../config/setup-utils.js';
 import {resolveClosestEpiqProjectRoot} from '../../storage/paths.js';
+
+/**
+ * Remembers that this board's question was refused, so the step stops asking.
+ *
+ * Per board and on this machine only: the addresses offered are a repository's
+ * own history, and a refusal is nobody else's business — it must not replicate
+ * to every clone the way a link does.
+ */
+const declineEmailSetup = (): Result<null> => {
+	const boardId = currentBoardId();
+	if (!boardId) return failed('No board here to answer for');
+
+	const declined = [
+		...new Set([...getSettingsState().declinedEmailBoards, boardId]),
+	];
+
+	const persisted = setConfig({declinedEmailBoards: declined});
+	if (isFail(persisted)) return failed(persisted.message);
+
+	patchSettingsState({declinedEmailBoards: declined});
+
+	return succeeded('Declined', null);
+};
 
 /**
  * Claiming the git addresses whose commits are yours.
@@ -37,13 +61,10 @@ export const setEmailsCommand = async () => {
 	// Before any lookup. Saying no must work whatever the board, the repository
 	// or git is doing — it is the answer somebody gives precisely when the rest
 	// of this is not working for them.
-	// Declining is recorded so the setup step stops asking. Per machine, because
-	// it is a fact about this person here, not about the board.
 	if (answer === 'none') {
-		const persisted = setConfig({emailSetup: 'declined'});
-		if (isFail(persisted)) return persisted;
+		const declined = declineEmailSetup();
+		if (isFail(declined)) return declined;
 
-		patchSettingsState({emailSetup: 'declined'});
 		return succeeded(
 			'Left unlinked. Your commits will show the name git signed them with. Run :config emails again to change that.',
 			null,
@@ -82,11 +103,13 @@ export const setEmailsCommand = async () => {
 
 	setOfferedEmails(offered.map(candidate => candidate.email));
 
+	// Recorded as a decline rather than left open: there is nothing here to
+	// claim, so the step has no answer to wait for, and the alternative is a
+	// git scan inside the synchronous check that draws the setup screen.
 	if (offered.length === 0) {
-		const persisted = setConfig({emailSetup: 'linked'});
-		if (isFail(persisted)) return persisted;
+		const declined = declineEmailSetup();
+		if (isFail(declined)) return declined;
 
-		patchSettingsState({emailSetup: 'linked'});
 		return succeeded('No unclaimed addresses in this history.', null);
 	}
 
@@ -145,10 +168,9 @@ export const setEmailsCommand = async () => {
 	const written = materializeAndPersistAll(events, stateBranchRootResult.value);
 	if (isFail(written)) return failed(written.message);
 
-	const persisted = setConfig({emailSetup: 'linked'});
-	if (isFail(persisted)) return persisted;
-
-	patchSettingsState({emailSetup: 'linked'});
+	// Nothing is written to config. The link is the answer, and the setup step
+	// reads it off the board — so a claim made in the GUI's identity panel ends
+	// the step just as this one does.
 	return succeeded(
 		`Claimed ${chosen
 			.map(candidate => candidate.email)

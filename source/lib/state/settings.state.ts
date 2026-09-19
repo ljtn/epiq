@@ -23,8 +23,11 @@ export type SettingsState = {
 	gitEmail: string | null;
 	/** This repository's git `user.name`, for proposing a board name. */
 	gitName: string | null;
-	/** Whether this machine has been asked about its git addresses. */
-	emailSetup: 'linked' | 'declined' | null;
+	/**
+	 * The boards this machine has declined to claim addresses on. Whether an
+	 * address *was* claimed is the board's answer, not this one's.
+	 */
+	declinedEmailBoards: string[];
 	viewMode: ViewMode | null;
 };
 
@@ -38,7 +41,7 @@ let settingsState: SettingsState = {
 	userId: null,
 	gitEmail: null,
 	gitName: null,
-	emailSetup: null,
+	declinedEmailBoards: [],
 	viewMode: null,
 };
 

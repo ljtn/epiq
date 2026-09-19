@@ -16,6 +16,8 @@ import {
 } from '../repository/children.js';
 import {buildBreadCrumb} from '../utils/nav-tree.js';
 import {buildActionIndex} from './action-helper.js';
+import {emailsOf} from '../model/email-link.js';
+import {setClaimedEmailsReader} from './email-claims.state.js';
 
 type DerivedKeys =
 	| 'availableActions'
@@ -112,6 +114,14 @@ export const getSafeState = () => {
 
 	return succeeded('Retrieved state', _appState);
 };
+
+// The setup step asks whether this person has claimed an address, and asks it
+// from a module that cannot import this one — see `email-claims.state`. Wired
+// here, where the links are, so the answer is always read from the board rather
+// than from a copy of it.
+setClaimedEmailsReader(contributor =>
+	_appState ? emailsOf(_appState.emailLinks, contributor) : [],
+);
 
 export function initWorkspaceState(workspace: Workspace) {
 	_initialWorkspace = workspace;

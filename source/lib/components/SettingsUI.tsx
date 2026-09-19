@@ -66,7 +66,7 @@ export default function SettingsUI({width, height}: Props) {
 		autoSync,
 		isSetAutoSync,
 		isSetEmails,
-		emailSetup,
+		claimedEmails,
 	} = getUserSetupStatus();
 	const steps = [
 		{
@@ -94,7 +94,7 @@ export default function SettingsUI({width, height}: Props) {
 			key: 'emails',
 			done: isSetEmails,
 			command: ':config emails',
-			value: emailSetup ?? undefined,
+			value: claimedEmails.length > 0 ? claimedEmails.join(', ') : undefined,
 			// Last, because it is the only step that needs the board: it offers the
 			// addresses this repository's own history contains.
 			message:

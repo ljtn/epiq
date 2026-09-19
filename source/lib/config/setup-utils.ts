@@ -1,7 +1,11 @@
 import {isValidEmail} from '../model/email-link.js';
 import {isFail, isSuccess} from '../model/result-types.js';
-import {readProjectFile} from '../project-setup/project-setup.js';
+import {
+	readProjectFile,
+	readProjectId,
+} from '../project-setup/project-setup.js';
 import {getSettingsState} from '../state/settings.state.js';
+import {claimedEmailsOf} from '../state/email-claims.state.js';
 import {getOfferedEmails} from '../state/email-offers.state.js';
 import {resolveClosestEpiqProjectRoot} from '../storage/paths.js';
 
@@ -11,7 +15,7 @@ export const getUserSetupStatus = (): {
 	isSetUserName: boolean;
 	isSetAutoSync: boolean;
 	isSetEmails: boolean;
-	emailSetup: 'linked' | 'declined' | null;
+	claimedEmails: string[];
 	userName: string | null;
 	preferredEditor: string | null;
 	autoSync: boolean | null;
@@ -22,9 +26,14 @@ export const getUserSetupStatus = (): {
 	const isSetAutoSync =
 		settings.autoSync === true || settings.autoSync === false;
 
-	// Asked, not answered a particular way: declining counts. Nothing links
-	// itself any more, so without a step here a person would never be told that
-	// their commits are showing a git name rather than their board name.
+	// Answered by the board, or refused on it. Nothing links itself any more, so
+	// without a step here a person would never be told that their commits are
+	// showing a git name rather than their board name.
+	//
+	// The claim is read from the log rather than from a flag, so it counts
+	// however it was made — the GUI's identity panel writes the same event as
+	// `:config emails`, and a flag only the command wrote left the step asking
+	// forever on a board where the question had been answered in the GUI.
 	//
 	// Only once there is a project to ask about. The other three answers are
 	// facts about this machine and can be given before any board exists; this
@@ -32,7 +41,7 @@ export const getUserSetupStatus = (): {
 	// to show until `:init` has run. It is also what makes the step appear again
 	// for somebody already set up, which is the whole prompt.
 	const isSetEmails =
-		settings.emailSetup !== null || !isRepositoryInitialized();
+		hasClaimedAnEmail() || isEmailSetupDeclined() || !isRepositoryInitialized();
 
 	return {
 		isSetupDone:
@@ -44,8 +53,51 @@ export const getUserSetupStatus = (): {
 		autoSync: settings.autoSync === undefined ? null : settings.autoSync,
 		isSetAutoSync: isSetAutoSync,
 		isSetEmails,
-		emailSetup: settings.emailSetup,
+		claimedEmails: claimedEmailsForUser(),
 	};
+};
+
+/** The id of the board this process is looking at, or null outside one. */
+export const currentBoardId = (): string | null => {
+	const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
+	if (isFail(repoRootResult)) return null;
+
+	const projectIdResult = readProjectId(repoRootResult.value);
+	if (isFail(projectIdResult)) return null;
+
+	// A project file without an id is not a board this can answer for, and
+	// keying a decline on `undefined` would silence every such repository at
+	// once.
+	return projectIdResult.value || null;
+};
+
+const claimedEmailsForUser = (): string[] => {
+	const {userId} = getSettingsState();
+
+	return userId ? claimedEmailsOf(userId) : [];
+};
+
+export const hasClaimedAnEmail = (): boolean =>
+	claimedEmailsForUser().length > 0;
+
+/**
+ * Whether this machine has refused the question on this board.
+ *
+ * A refusal is remembered per board, so declining in one repository says
+ * nothing about the next — the addresses offered are a repository's own
+ * history, and the answer is only about those.
+ */
+export const isEmailSetupDeclined = (): boolean => {
+	const boardId = currentBoardId();
+	if (!boardId) return false;
+
+	// Defaulted rather than assumed present. This runs on the path that decides
+	// whether to draw the setup screen at all, so throwing here is a TUI that
+	// will not boot — and a settings store assembled without this field is not
+	// hypothetical, several suites stand one in with three fields.
+	const {declinedEmailBoards} = getSettingsState();
+
+	return (declinedEmailBoards ?? []).includes(boardId);
 };
 export const isRepositoryInitialized = () => {
 	const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
