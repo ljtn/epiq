@@ -98,6 +98,11 @@ test('a ref lights under the pointer', async ({page, appUrl, pageErrors}) => {
 	await createTicket(page, `Lit source ${stamp}`, `Blocked on ${targetRef}.`);
 
 	const description = page.getByTestId('description-box');
+	// The box before what is in it: the panel is still showing the ticket
+	// before this one for a moment after the save, and a description box that
+	// holds the wrong body reads here as a ref that failed to linkify.
+	await expect(description).toContainText(targetRef);
+
 	const refLink = description.getByRole('button', {
 		name: `Open ${targetRef}`,
 	});
