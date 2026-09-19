@@ -1,7 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import type {Locator, Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {COMMIT_CACHE_MS, commitLinkedFile} from './linked-commit.js';
+import {commitLinkedFile} from './linked-commit.js';
 import {LARGE_DIFF_LINES} from '../../lib/utils/diff-size.js';
 
 // A dot is painted on a canvas, so there is no node to aim at and no
@@ -74,7 +74,6 @@ const seedCommitOnScatter = async (
 
 	// The server caches the commit timeline, so the page has to outlive that
 	// before a reload can see the commit at all.
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 
 	const url = new URL(page.url());
 	url.searchParams.set('layout', 'real');

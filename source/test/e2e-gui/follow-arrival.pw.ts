@@ -22,6 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {expect, readHandoff, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {returnToLive} from './live-board.js';
 
 // Passed as a string, not a typed callback: the root tsconfig has no DOM lib,
@@ -274,7 +275,7 @@ test('scrubbing and coming back leaves the log able to follow', async ({
 
 		// Into the past and back. Each move of the moment snaps the pane to its
 		// foot, which is the pin nobody reports unless this is right.
-		const track = page.getByTestId('scrubber-track');
+		const track = await trackWithWindow(page);
 		const box = await track.boundingBox();
 		if (!box) throw new Error('scrubber track is not on screen');
 		await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2);

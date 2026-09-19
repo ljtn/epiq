@@ -1,6 +1,7 @@
 import {execGitAllowFail} from '../../git/git-utils.js';
 import {EmailLink, isValidEmail, normalizeEmail} from '../model/email-link.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
+import {scanCacheMs} from '../utils/cache-ttl.js';
 
 /**
  * Addresses in a repository's history that nobody has claimed, and whether each
@@ -64,7 +65,7 @@ const scanAuthors = async (
 ): Promise<Result<Map<string, Seen>>> => {
 	const key = `${repoRoot} ${stateBranch ?? ''}`;
 	const cached = scanCache.get(key);
-	if (cached && Date.now() - cached.at < SCAN_CACHE_MS) {
+	if (cached && Date.now() - cached.at < scanCacheMs(SCAN_CACHE_MS)) {
 		return succeeded('Cached author scan', cached.authors);
 	}
 

@@ -3,6 +3,7 @@
 // screen is still after it.
 
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {returnToLive} from './live-board.js';
 
 test('the unapplied stretch survives the needle leaving the window', async ({
@@ -13,7 +14,7 @@ test('the unapplied stretch survives the needle leaving the window', async ({
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 

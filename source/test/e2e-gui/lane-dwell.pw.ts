@@ -1,5 +1,6 @@
 import type {Locator, Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 
 // A lane holding tickets, for the assertions that read real figures off the
 // panel: an empty column reaches the same panel but has nothing to put in it.
@@ -103,7 +104,7 @@ test('no lane offers stats while the board is scrubbed', async ({
 		(await laneWithTickets(page)).getByTestId('swimlane-stats-open'),
 	).toBeVisible();
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 

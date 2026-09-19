@@ -9,6 +9,14 @@ import {HANDOFF_PATH, type Handoff} from './handoff.js';
 // Its own `tsx` process rather than Playwright's global setup: seeding drives
 // a real pty, which Playwright's loader cannot host.
 
+// The tests commit to the repository this server is reading, and then ask it
+// what it sees. Its scans of git's own history are cached for a few seconds in
+// a real session, so every such test used to sleep the cache out before
+// reloading — two and a half minutes of the suite doing nothing. Off here: the
+// scans are over a seeded repository of a few dozen commits, so the answer costs
+// milliseconds to recompute, and the test asks for what is there now.
+process.env['EPIQ_CACHE_MS'] = '0';
+
 const servers: Array<{close: () => void}> = [];
 
 // The server reports epiq.localhost; the loopback address is what a browser can

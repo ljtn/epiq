@@ -5,7 +5,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 import {
-	COMMIT_CACHE_MS,
 	commitLinkedFile,
 	commitLinkedNothing,
 	linkedFileName,
@@ -51,7 +50,6 @@ test('a card whose ticket has commits carries its diff stat, and carries none be
 
 	// Three lines added and none removed — `commitLinkedFile`'s own contents.
 	commitLinkedFile(repoRoot, ref, 'add notes');
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
@@ -88,7 +86,6 @@ test('a ticket whose commits changed no lines carries no stat to click', async (
 	const ref = await addTicket(page, `Empty ${Date.now()}`);
 
 	commitLinkedNothing(repoRoot, ref, 'nothing to see');
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 

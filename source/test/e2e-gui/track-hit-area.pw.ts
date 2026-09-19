@@ -1,10 +1,11 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 
 // The strip is positioned outside the track's own box, so the track's bounding
 // box still stops at the charts — anything above its top is the borrowed gap.
 const aboveTheCharts = async (page: Page) => {
-	const box = await page.getByTestId('scrubber-track').boundingBox();
+	const box = await (await trackWithWindow(page)).boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 
 	return {box, y: box.y - 4};

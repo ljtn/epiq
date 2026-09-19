@@ -1,10 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {
-	COMMIT_CACHE_MS,
-	commitLinkedFile,
-	linkedFileName,
-} from './linked-commit.js';
+import {commitLinkedFile, linkedFileName} from './linked-commit.js';
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTestId('add-issue').first().click();
@@ -117,7 +113,6 @@ test('the lanes open every commit and file, ready to read', async ({
 	const otherFile = `other-${ref}.txt`;
 	commitLinkedFile(repoRoot, ref!, 'add notes');
 	commitLinkedFile(repoRoot, ref!, 'add more', otherFile);
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(
 		page.getByTestId('aside-pane').getByRole('button', {name: /^Code \(2\)/}),

@@ -1,6 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-import {COMMIT_CACHE_MS, commitLinkedFiles} from './linked-commit.js';
+import {commitLinkedFiles} from './linked-commit.js';
 import {LARGE_DIFF_LINES} from '../../lib/utils/diff-size.js';
 
 // Just past the limit, and no further: the seeded repo carries this commit for
@@ -50,7 +50,6 @@ test('a commit opens the ordinary files and leaves a lockfile shut', async ({
 		[lockFile]: lockfileContents,
 	});
 
-	await page.waitForTimeout(COMMIT_CACHE_MS);
 	await page.reload();
 	await expect(page.locator('aside')).toContainText(`Lockfile ${stamp}`);
 

@@ -1,4 +1,5 @@
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 import {openBoard, returnToLive} from './live-board.js';
 
 test('the play button opens a player over a dimmed board', async ({
@@ -35,7 +36,7 @@ test('the scrubber stands down while the player is up', async ({
 }) => {
 	await openBoard(page, appUrl);
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 
@@ -167,7 +168,7 @@ test('the Now mark is off the track while a movie plays', async ({
 	await page.getByTestId('theatre-exit').click();
 	await expect(page.getByTestId('theatre-player')).toHaveCount(0);
 
-	const track = page.getByTestId('scrubber-track');
+	const track = await trackWithWindow(page);
 	const box = await track.boundingBox();
 	if (!box) throw new Error('scrubber track is not on screen');
 	await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2);

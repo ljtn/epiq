@@ -2,6 +2,7 @@ import {execGit} from '../../git/git-utils.js';
 import {CommitAuthor} from '../repository/contributor-directory.js';
 import {failed, isFail, Result, succeeded} from '../model/result-types.js';
 import {readProjectFile} from '../project-setup/project-setup.js';
+import {scanCacheMs} from '../utils/cache-ttl.js';
 import {NODE_REF_LENGTH} from '../utils/node-ref.js';
 import {RepoInput, resolveRepoRoot} from './commit-repo.js';
 
@@ -91,7 +92,8 @@ export const getCommitTimeline = async (
 		fullTimelineCache &&
 		fullTimelineCache.repoRoot === repoRootResult.value &&
 		fullTimelineCache.stateBranch === projectResult.value.stateBranch &&
-		Date.now() - fullTimelineCache.fetchedAt < FULL_TIMELINE_CACHE_TTL_MS
+		Date.now() - fullTimelineCache.fetchedAt <
+			scanCacheMs(FULL_TIMELINE_CACHE_TTL_MS)
 	) {
 		return succeeded('Computed commit timeline', fullTimelineCache.result);
 	}

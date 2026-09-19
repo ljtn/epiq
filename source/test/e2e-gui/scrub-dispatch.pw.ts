@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {trackWithWindow} from './track.js';
 
 // The suite shares one server, and a board left parked in the past never
 // finishes loading for the next test.
@@ -11,22 +12,6 @@ const returnToLive = async (page: Page) => {
 		// carries no word of its own.
 		await expect(resume).toHaveCount(0);
 	}
-};
-
-// The chart with its window drawn. The board's name shows before the window
-// has been fetched and paired, and until then the axis is a single instant —
-// a span of exactly 1, the floor buildAxis gives an empty one: a click
-// anywhere on it asks for now, which the server checks out, parking the
-// needle at the live end with Now lit. Every test that clicks the track
-// for a moment waits for this first.
-const trackWithWindow = async (page: Page) => {
-	const track = page.getByTestId('scrubber-track');
-
-	await expect
-		.poll(async () => Number(await track.getAttribute('data-axis-span')))
-		.toBeGreaterThan(1);
-
-	return track;
 };
 
 // Every scrub makes the server check out the whole event log and answer with a

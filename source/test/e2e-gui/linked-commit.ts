@@ -3,10 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // The seeded repo has no code history: link one commit to a ticket by
-// prefixing its subject with the ref shown in the panel. The server caches the
-// commit timeline for this long, so a page that already asked once has to
-// outlive it before a reload sees the commit.
-export const COMMIT_CACHE_MS = 5_500;
+// prefixing its subject with the ref shown in the panel. A reload sees the
+// commit at once — the test server holds no scan of git's history (serve.ts),
+// so there is no cache here to outlive.
 
 /**
  * Every worker's tests share one seeded repo, so a fixed path collides: two
