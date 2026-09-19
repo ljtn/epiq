@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {collectRefDiffStats} from '../mcp/api/ref-diff-stats.js';
-import {CommitEntry} from '../mcp/epiq-time-travel.js';
+import {CommitEntry} from '../lib/commits/commits.js';
 
 const commit = (
 	subject: string,
