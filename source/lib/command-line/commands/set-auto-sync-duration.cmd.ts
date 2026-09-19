@@ -1,4 +1,8 @@
-import {parseAutoSyncIntervalMs} from '../../config/auto-sync-interval.js';
+import {
+	MAX_AUTO_SYNC_INTERVAL_MS,
+	MIN_AUTO_SYNC_INTERVAL_MS,
+	parseAutoSyncIntervalMs,
+} from '../../config/auto-sync-interval.js';
 import {writeAutoSyncSettings} from '../../config/sync-settings.js';
 import {failed, isFail, succeeded} from '../../model/result-types.js';
 import {getCmdState} from '../../state/cmd.state.js';
@@ -8,7 +12,11 @@ export const setAutoSyncDurationCommand = () => {
 
 	const duration = parseAutoSyncIntervalMs(selectionVal);
 	if (duration === null) {
-		return failed('Auto sync duration must be a number of at least 3000 ms');
+		// Both bounds, since there are now two ways to be refused and naming
+		// only the floor sends somebody over the ceiling the wrong way.
+		return failed(
+			`Auto sync duration must be a whole number of milliseconds between ${MIN_AUTO_SYNC_INTERVAL_MS} and ${MAX_AUTO_SYNC_INTERVAL_MS}`,
+		);
 	}
 
 	const persistResult = writeAutoSyncSettings({intervalMs: duration});

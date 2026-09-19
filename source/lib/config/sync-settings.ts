@@ -116,6 +116,12 @@ export const writeAutoSyncSettings = (patch: {
 		);
 	}
 
+	// Read before writing, so the answer can be assembled from the patch even
+	// if reading afterwards fails. A partial patch does not say what the other
+	// setting is, and this is the only other way to know.
+	const before = readAutoSyncSettings();
+	if (isFail(before)) return before;
+
 	const persisted = setConfig({
 		...(patch.enabled === undefined ? {} : {autoSync: patch.enabled}),
 		...(intervalMs === undefined || intervalMs === null
@@ -132,5 +138,17 @@ export const writeAutoSyncSettings = (patch: {
 			: {autoSyncIntervalMs: intervalMs}),
 	});
 
-	return readAutoSyncSettings();
+	// The write has landed by here, so a read-back that fails is not a failed
+	// write and must not be reported as one. Saying so would print a refusal
+	// for a setting already changed — and, on the GUI's side, skip the
+	// rescheduling, leaving the loop on the old cadence while the file holds
+	// the new one. That drift is the whole thing `reschedule()` exists to stop.
+	const after = readAutoSyncSettings();
+	if (!isFail(after)) return after;
+
+	return succeeded('Changed auto sync settings', {
+		...before.value,
+		...(patch.enabled === undefined ? {} : {enabled: patch.enabled}),
+		...(intervalMs === undefined || intervalMs === null ? {} : {intervalMs}),
+	});
 };

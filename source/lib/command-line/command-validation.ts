@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import {
+	MAX_AUTO_SYNC_INTERVAL_MS,
 	MIN_AUTO_SYNC_INTERVAL_MS,
 	parseAutoSyncIntervalMs,
 } from '../config/auto-sync-interval.js';
@@ -526,11 +527,7 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 			const currentDuration = getSettingsState().autoSyncIntervalMs;
 			const duration = parseAutoSyncIntervalMs(inputString);
 
-			if (
-				!inputString.trim() ||
-				duration === null ||
-				duration < MIN_AUTO_SYNC_INTERVAL_MS
-			) {
+			if (!inputString.trim() || duration === null) {
 				const hint = buildOptionsHint({
 					prefix: ' examples: ',
 					wordList: AUTOSYNC_DEBOUNCE_HINTS,
@@ -541,7 +538,8 @@ const validateConfigCommand: Validator = ({modifier, inputString}) => {
 				return invalid({
 					message:
 						hintAlert(
-							`provide duration above ${MIN_AUTO_SYNC_INTERVAL_MS}ms. ` +
+							`provide a duration between ${MIN_AUTO_SYNC_INTERVAL_MS}ms ` +
+								`and ${MAX_AUTO_SYNC_INTERVAL_MS}ms. ` +
 								`current duration: ${currentDuration}ms.`,
 						) + hint,
 					completionWordList: AUTOSYNC_DEBOUNCE_HINTS,

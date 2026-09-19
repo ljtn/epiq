@@ -6,8 +6,10 @@
 // ever comes to carry a board name — and it is the only surface that names a
 // contested address at all.
 
+import fs from 'node:fs';
+import path from 'node:path';
 import type {Page} from '@playwright/test';
-import {expect, test} from './fixtures.js';
+import {expect, readHandoff, test} from './fixtures.js';
 import {
 	COMMIT_CACHE_MS,
 	commitLinkedFile,
@@ -153,27 +155,40 @@ test('the addresses scroll inside a panel that stays in the window', async ({
 	expect(pageErrors).toEqual([]);
 });
 
-// The two settings that were the TUI's alone. Nothing here asserts the value
-// it started from: a worker runs several files over its life and
-// `follow-arrival.pw.ts` writes this same config, so the test moves the
-// setting to a value of its own and puts back whatever it found.
+// The two settings that were the TUI's alone.
+//
+// The config is restored through the filesystem rather than the panel, as
+// `follow-arrival.pw.ts` does. A worker runs several files over its life and
+// they all share this one `config.json`, so the restore has to be one that
+// cannot quietly decline: putting a sub-floor value back through the field
+// would be refused by the field, and the 37s written here would leak into
+// every later file on the worker.
 test('auto sync and its interval are editable, and survive a reload', async ({
 	page,
 	pageErrors,
-}) => {
-	const panel = await openPanel(page);
-	const interval = panel.getByTestId('autosync-interval');
-
-	await expect(interval).toBeVisible();
-	const before = await interval.inputValue();
+}, testInfo) => {
+	const configPath = path.join(
+		readHandoff(testInfo.parallelIndex).globalDir,
+		'config.json',
+	);
+	const original = fs.readFileSync(configPath, 'utf8');
 
 	try {
+		const panel = await openPanel(page);
+		const interval = panel.getByTestId('autosync-interval');
+		await expect(interval).toBeVisible();
+
 		await interval.fill('37');
 		await interval.press('Enter');
 
-		// Through the server and back, not just the box: a reload refetches
-		// from `~/.epiq/config.json`, which is the only thing that outlives the
-		// page.
+		// Reopening is what proves the server took it: the panel asks again on
+		// open, and frames on one socket are answered in order, so that reply
+		// cannot overtake the write. Reloading straight away would race it.
+		await page.keyboard.press('Escape');
+		await openPanel(page);
+		await expect(page.getByTestId('autosync-interval')).toHaveValue('37');
+
+		// And now the file, which is the only thing that outlives the page.
 		await page.reload();
 		await expect(page.getByTestId('board-switcher')).toContainText('Default');
 		await openPanel(page);
@@ -201,8 +216,6 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 			page.getByTestId('autosync-toggle').locator('input'),
 		).toBeChecked({checked: !was});
 
-		// Back where it was found. Left on, it would arm a sync loop under
-		// every file this worker runs after this one.
 		await page.getByTestId('autosync-toggle').click();
 		await expect(
 			page.getByTestId('autosync-toggle').locator('input'),
@@ -210,9 +223,51 @@ test('auto sync and its interval are editable, and survive a reload', async ({
 
 		expect(pageErrors).toEqual([]);
 	} finally {
-		const restore = page.getByTestId('autosync-interval');
-		await restore.fill(before);
-		await restore.press('Enter');
+		fs.writeFileSync(configPath, original);
+	}
+});
+
+// A stored value below the floor is a state the loops keep on purpose, and
+// the suites write one. The panel has to draw it without calling it an error:
+// flagging it on sight opened with a red message against a number nobody
+// typed, and `commit` wrote the same number back, so it could not be cleared.
+test('a configured interval under the floor is shown, not flagged', async ({
+	page,
+	pageErrors,
+}, testInfo) => {
+	const configPath = path.join(
+		readHandoff(testInfo.parallelIndex).globalDir,
+		'config.json',
+	);
+	const original = fs.readFileSync(configPath, 'utf8');
+
+	try {
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify(
+				{...JSON.parse(original), autoSyncDebounceMs: 1000},
+				null,
+				2,
+			),
+		);
+
+		await page.reload();
+		await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+		const panel = await openPanel(page);
+		await expect(panel.getByTestId('autosync-interval')).toHaveValue('1');
+		await expect(panel).not.toContainText('shortest interval');
+
+		// And it stays quiet through a blur, rather than the field rewriting
+		// its own value and raising the error again.
+		await panel.getByTestId('autosync-interval').click();
+		await panel.getByTestId('autosync-interval').blur();
+		await expect(panel.getByTestId('autosync-interval')).toHaveValue('1');
+		await expect(panel).not.toContainText('shortest interval');
+
+		expect(pageErrors).toEqual([]);
+	} finally {
+		fs.writeFileSync(configPath, original);
 	}
 });
 

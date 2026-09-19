@@ -21,6 +21,16 @@ export type SyncSettingsState = {
 	 * that landed shows in the controls themselves.
 	 */
 	lastError: string | null;
+	/**
+	 * Bumped on every answer from the server, whether it changed anything or
+	 * not.
+	 *
+	 * A refused write comes back with the settings unaltered, so a field
+	 * watching only the value would never hear about it and would sit showing
+	 * the number that was turned down. This is what says "the server has
+	 * spoken" when what it said is "no".
+	 */
+	answeredAt: number;
 };
 
 export const useSyncSettings = ({
@@ -34,6 +44,7 @@ export const useSyncSettings = ({
 		loading: false,
 		data: null,
 		lastError: null,
+		answeredAt: 0,
 	});
 
 	// Asked for when the panel opens, and not polled: nothing changes this but
@@ -62,18 +73,20 @@ export const useSyncSettings = ({
 				...prev,
 				loading: false,
 				lastError: message.payload?.message ?? 'Could not read your settings',
+				answeredAt: prev.answeredAt + 1,
 			}));
 			return;
 		}
 
-		setState({
+		setState(prev => ({
 			loading: false,
 			data: value,
 			lastError:
 				message.lastAction && !message.lastAction.ok
 					? String(message.lastAction.message)
 					: null,
-		});
+			answeredAt: prev.answeredAt + 1,
+		}));
 	}, []);
 
 	const change = useCallback(
