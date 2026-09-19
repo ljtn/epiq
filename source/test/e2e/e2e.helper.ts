@@ -23,6 +23,14 @@ const CLEAR_SCREEN = '\x1B[2J';
 const HIDE_CURSOR = '\x1B[?25l';
 const SHOW_CURSOR = '\x1B[?25h';
 
+// Every wait here is really a wait on the machine: the frames come from a real
+// pty. The container stage shares a box with the rest of the gate and with
+// whatever else is running on it, where a TUI that starts in two seconds idle
+// can take far longer — so the waits each file asks for are stretched there,
+// rather than written long everywhere and slowing down a failure on a quiet
+// machine. A wait still ends; it just ends later.
+const TIMEOUT_SCALE = Number(process.env['EPIQ_E2E_TIMEOUT_SCALE'] ?? 1);
+
 let lastLoggedOutput = '';
 
 const logFrame = (output: string) => {
@@ -290,6 +298,7 @@ export const setupTui = (
 		clear: clearOutput,
 
 		waitFor: async (text, timeoutMs = 3_000) => {
+			const deadline = timeoutMs * TIMEOUT_SCALE;
 			const startedAt = Date.now();
 			const matches = (output: string) =>
 				typeof text === 'string'
@@ -298,7 +307,7 @@ export const setupTui = (
 					? text.test(output)
 					: text(output);
 
-			while (Date.now() - startedAt < timeoutMs) {
+			while (Date.now() - startedAt < deadline) {
 				await flushOutput();
 
 				if (matches(getOutput())) {
@@ -320,7 +329,7 @@ export const setupTui = (
 			// '   …' to contain 'This folder is not…'" — which reads like a content
 			// bug in the app instead of a wait that never came true.
 			throw new Error(
-				`Timed out after ${timeoutMs}ms waiting for ${describeWaitTarget(
+				`Timed out after ${deadline}ms waiting for ${describeWaitTarget(
 					text,
 				)}.\nLast rendered frame:\n${getOutput()}`,
 			);
