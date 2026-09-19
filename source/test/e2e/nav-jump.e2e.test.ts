@@ -5,8 +5,6 @@ import {
 	ENTER,
 	SHIFT_ARROW_DOWN,
 	SHIFT_ARROW_UP,
-	commandLineIsIdle,
-	commandLineShows,
 	setupTui,
 } from './e2e.helper.js';
 
@@ -27,17 +25,18 @@ const selects = (title: string) => (frame: string) =>
 
 // A board this size is seeded one command at a time, and a submit can be
 // dropped when the container suite runs under load — the command then sits
-// typed in a line nothing is waiting on. Re-sending Enter is safe because it
-// only happens while that command is still on screen.
-const fileIssue = async (tui: Tui, title: string) => {
-	const command = `:new issue ${title}`;
-	await typeCommand(tui, command);
+// typed in a line nothing is waiting on. The lane's count is what says whether
+// it ran, so the re-send waits on that rather than on how the command line
+// reads: an idle line and a running one are told apart by the helper, and that
+// is not this file's question to answer.
+const fileIssue = async (tui: Tui, title: string, count: number) => {
+	await typeCommand(tui, `:new issue ${title}`);
 
 	try {
-		await tui.waitFor(commandLineIsIdle, 5_000);
+		await tui.waitFor(`Todo (${count})`, 20_000);
 	} catch {
-		if (commandLineShows(command.slice(1))(tui.output())) tui.input(ENTER);
-		await tui.waitFor(commandLineIsIdle, 20_000);
+		tui.input(ENTER);
+		await tui.waitFor(`Todo (${count})`, 20_000);
 	}
 };
 
@@ -80,8 +79,7 @@ describe('TUI navigation jump e2e', () => {
 				await tui.waitFor('Todo (0)', 20_000);
 
 				for (let index = 1; index <= ITEM_COUNT; index++) {
-					await fileIssue(tui, itemTitle(index));
-					await tui.waitFor(`Todo (${index})`, 20_000);
+					await fileIssue(tui, itemTitle(index), index);
 				}
 
 				// The last issue filed is the selected one.
@@ -124,8 +122,7 @@ describe('TUI navigation jump e2e', () => {
 				await tui.waitFor('Todo (0)', 20_000);
 
 				for (let index = 1; index <= 6; index++) {
-					await fileIssue(tui, itemTitle(index));
-					await tui.waitFor(`Todo (${index})`, 20_000);
+					await fileIssue(tui, itemTitle(index), index);
 				}
 
 				await tui.waitFor(selects('Item 06'), 10_000);
