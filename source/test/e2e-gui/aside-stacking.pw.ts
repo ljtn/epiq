@@ -79,16 +79,22 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 
 	await waitForDiffHeader(page);
 
-	// The commit track goes, which lifts the panel by its height: the list
-	// hangs a fixed distance below the bar, and with both tracks up it reaches
-	// the panel's top edge by a pixel — an overlap that any change to the bar's
-	// own height takes away, leaving the test green over nothing.
+	// The commit track goes, which lifts the panel by its height.
 	await page.getByTestId('show-commits').click();
 
 	await page.getByRole('button', {name: 'Board', exact: true}).click();
 	await expect(
 		page.getByRole('group', {name: 'Filter the board'}),
 	).toBeVisible();
+
+	// Then the contributors row is opened, which is what makes the list long
+	// enough to reach over the pane — and the only one of the four rows with
+	// anything under it on a fresh board. The overlap used to be a single pixel
+	// left over from the chrome's own heights, so any change to those took it
+	// away and left the test green over nothing; moving the panel's header out
+	// of the pane did exactly that, to within four pixels. The list's own length
+	// is the one lever here that the page's layout cannot quietly withdraw.
+	await page.getByTestId('filter-axis-actor').click();
 
 	// The diff renders its own file header with a z-index inside a shadow
 	// root. Scroll it under the popover and ask the browser which is on top.
@@ -103,9 +109,16 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	const pane = aside.querySelector('[data-testid="aside-pane"]');
 
 	const popoverBox = popover.getBoundingClientRect();
-	pane.scrollTop +=
-		header.getBoundingClientRect().top -
-		(popoverBox.top + popoverBox.height / 2);
+	// The middle of where the popover and the scrolling pane actually meet,
+	// not of the popover: the panel's header band sits above the pane, so the
+	// popover's own centre can be over the band, which scrolls nothing and
+	// leaves the two unable to overlap at all.
+	const paneBox = pane.getBoundingClientRect();
+	const meeting =
+		(Math.max(popoverBox.top, paneBox.top) +
+			Math.min(popoverBox.bottom, paneBox.bottom)) /
+		2;
+	pane.scrollTop += header.getBoundingClientRect().top - meeting;
 
 	const headerBox = header.getBoundingClientRect();
 	const left = Math.max(popoverBox.left, headerBox.left);

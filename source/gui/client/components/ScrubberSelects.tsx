@@ -339,6 +339,9 @@ export const BoardSeriesGroup = ({
 									/>
 									<button
 										type="button"
+										// Named, because its title is not a handle: TooltipLayer
+										// takes that away while its own tooltip is open.
+										data-testid={`filter-axis-${axis}`}
 										disabled={!showIssues || !filtered}
 										// Opening a list does not switch its axis on: reading what
 										// is under a row is not the same as filtering by it.

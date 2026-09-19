@@ -19,6 +19,7 @@ import {DiffStat} from './DiffStat';
 import {StackedBar} from './StatBars';
 import {Stat, StatRow} from './StatRow';
 import {StayTrend} from './StayTrend';
+import {FormHeader} from './FormHeader';
 import {Section} from './Section';
 
 // What a column says about itself: how long things sit in it, what feeds it,
@@ -86,16 +87,7 @@ export const SwimlaneStats = ({
 
 	return (
 		<Aside dock={dock}>
-			<div
-				data-testid="swimlane-stats"
-				style={{
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					gap: 8,
-					marginBottom: 12,
-				}}
-			>
+			<FormHeader testId="swimlane-stats">
 				<div
 					style={{
 						fontSize: 13,
@@ -113,7 +105,7 @@ export const SwimlaneStats = ({
 				<Button variant="ghost" onClick={onClose} title="Close">
 					×
 				</Button>
-			</div>
+			</FormHeader>
 
 			<Section title="Time in this lane" tone={BOARD_TONE} first>
 				{dwell ? (

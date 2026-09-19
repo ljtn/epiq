@@ -4,6 +4,7 @@ import {Aside} from './Aside';
 import {AsideDock} from '../lib/aside-dock';
 import {Button} from './Button';
 import {ChipRow, Empty, Input, AddRow} from './FormPrimitives';
+import {FormHeader} from './FormHeader';
 import {Section} from './Section';
 
 // Counted so a chip can say whether it applies to the whole selection or only
@@ -82,22 +83,14 @@ export const BulkDetails = ({
 
 	return (
 		<Aside dock={dock}>
-			<div
-				style={{
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					gap: 8,
-					marginBottom: 12,
-				}}
-			>
+			<FormHeader>
 				<div style={{fontSize: 13, fontWeight: 600, color: GUI_THEME.primary}}>
 					{total} tickets selected
 				</div>
 				<Button variant="ghost" onClick={onClear}>
 					clear
 				</Button>
-			</div>
+			</FormHeader>
 
 			<Section title="Tags">
 				<ChipRow>

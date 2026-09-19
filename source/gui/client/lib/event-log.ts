@@ -360,7 +360,7 @@ const LOG_LEAD_PX = 14;
 // The gap between the column of lines and either side of the panel. Shared
 // with the arrow below, which hangs at the end of a line rather than at the
 // edge of the panel it happens to be drawn in.
-export const LOG_PANE_PADDING_X = 14;
+export const LOG_PANE_PADDING_X = 12;
 
 // The rows that lead somewhere, and only those. The attribute names belong to
 // `log-destination` — it hands over the selector rather than the names, so

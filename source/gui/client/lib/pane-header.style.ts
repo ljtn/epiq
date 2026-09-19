@@ -9,4 +9,4 @@
  * Shallower than a pane's sides: what sits here is a row of controls read
  * against the rows beside it, not prose needing room around it.
  */
-export const PANE_HEADER_INSET = 10;
+export const PANE_HEADER_INSET = 8;
