@@ -440,10 +440,13 @@ export const ScrubberControls = ({
 						flexShrink: 0,
 					}}
 				>
+					{/* The word first, then the mark: the label names the place and
+					    the mark shows the needle arriving there, which is the order
+					    the sentence runs in. */}
 					{isScrubbing ? (
 						<>
-							<IconNow size={ICON_SIZE} />
 							Now
+							<IconNow size={ICON_SIZE} />
 						</>
 					) : (
 						''

@@ -567,6 +567,7 @@ export const ScrubberLayout = ({
 						{chart.thumbFraction !== null && (
 							<ScrubberNeedle
 								fraction={chart.thumbFraction}
+								parked={controls.isScrubbing}
 								onGrab={on.onGrabNeedle}
 							/>
 						)}

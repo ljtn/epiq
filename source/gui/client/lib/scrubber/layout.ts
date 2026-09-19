@@ -127,6 +127,21 @@ export const SEGMENT_LABEL_COLOR = 'rgba(122, 157, 214, 0.32)';
 export const BUCKET_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.06)';
 export const NEEDLE_COLOR = 'rgba(255, 255, 255, 0.62)';
 
+// The needle while the board is standing in the past. The accent, at full
+// strength, because this is no longer a marker on a chart — it is the answer to
+// "why is nothing I do landing", and it has to be the thing the eye goes to.
+export const NEEDLE_PARKED_COLOR = 'rgba(118, 212, 255, 0.95)';
+
+// The glow around it, then. Deliberately absent while live, where the needle
+// marks an exact instant and a soft edge would bloom over bars that can be two
+// pixels wide — parked, being findable beats being exact.
+export const NEEDLE_PARKED_GLOW = '0 0 6px rgba(118, 212, 255, 0.55)';
+
+// Everything after the needle: the stretch the board has not applied. Laid over
+// the bars rather than replacing them, so the shape of the history is still
+// readable through it and the veil reads as "not yet" rather than as "gone".
+export const UNAPPLIED_VEIL_COLOR = 'rgba(8, 11, 18, 0.55)';
+
 // Ties the board's narrowing to the window doing it: the accent the checkbox
 // wears while it is on, dimmed to sit around a chart rather than in a row.
 export const SCOPED_OUTLINE_COLOR = 'rgba(118, 212, 255, 0.45)';
