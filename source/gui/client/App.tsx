@@ -1077,6 +1077,10 @@ export const App = () => {
 		// followed means one of them. Left out everywhere else, so the reader's
 		// own last choice stands.
 		diffView?: DiffViewName,
+		// Standing in the reader's history rather than adding to it, for a move
+		// the reader did not make: following the log replaces, everything else
+		// pushes, because everything else was asked for.
+		replace = false,
 	) => {
 		if (!board) return;
 
@@ -1085,7 +1089,9 @@ export const App = () => {
 		const params = new URLSearchParams({tab});
 		if (diffView) writeDiffViewParam(params, diffView === 'flat');
 
-		void navigate(`/board/${board}/issue/${nodeRef(nextIssueId)}?${params}`);
+		void navigate(`/board/${board}/issue/${nodeRef(nextIssueId)}?${params}`, {
+			replace,
+		});
 	};
 
 	const selectIssueComments = (nextIssueId: string) =>
@@ -1102,13 +1108,22 @@ export const App = () => {
 	// comment among the comments, anything else to the ticket's overview. Which
 	// of those it is was decided in lib/log-destination and travelled here on
 	// the row.
-	const openLogDestination = (destination: LogDestination) => {
+	const openLogDestination = (
+		destination: LogDestination,
+		options?: {replace?: boolean},
+	) => {
 		if (destination.kind === 'commit') {
-			openCommitDiff(destination.sha);
+			openCommitDiff(destination.sha, options?.replace);
 			return;
 		}
 
-		openIssueTab(destination.issueId, destination.tab);
+		openIssueTab(
+			destination.issueId,
+			destination.tab,
+			undefined,
+			undefined,
+			options?.replace,
+		);
 	};
 
 	// Following a file from the Stats tab into its diff. Pushed, not replaced:
@@ -1350,7 +1365,7 @@ export const App = () => {
 	// next to its comments and the rest of its commits; only one that links
 	// nowhere gets the bare panel.
 	const openCommitDiff = useCallback(
-		(sha: string) => {
+		(sha: string, replace = false) => {
 			const subject =
 				history.commits.find(commit => commit.sha === sha)?.subject ?? '';
 			const ref = commitTicketRef(subject, knownTicketRefs);
@@ -1361,6 +1376,7 @@ export const App = () => {
 				setCommitDiff(null);
 				void navigate(
 					`/board/${boardSlug}/issue/${ref}?tab=code&commit=${sha}`,
+					{replace},
 				);
 				return;
 			}
