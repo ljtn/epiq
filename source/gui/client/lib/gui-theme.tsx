@@ -15,6 +15,10 @@ export const TEXT = {
 
 export const GUI_THEME = {
 	bg: '#06070a',
+	// The instrumentation around the work: the top bar, the timeline and the
+	// event log. Below the board's own ground rather than above it, so the
+	// chrome reads as the room and the board as what is lit in it.
+	chrome: '#000000',
 	bgHighlight: '#10111a65',
 	panel: '#11141b',
 	panel2: '#151a24',
