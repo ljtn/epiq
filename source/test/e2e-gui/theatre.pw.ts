@@ -160,7 +160,7 @@ test('closing the player hands the board back, live and editable', async ({
 	await expect(page.getByTestId('theatre-player')).toHaveCount(0);
 	await expect(page.getByTestId('theatre-vignette')).toHaveCount(0);
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toHaveCount(0);
 	await expect(page.getByTestId('scrubber-track')).not.toHaveCSS(
 		'pointer-events',
@@ -180,7 +180,7 @@ test('escape leaves the player', async ({page, appUrl, pageErrors}) => {
 	// Escape is the way out, and the way out hands the board back.
 	await expect(page.getByTestId('theatre-player')).toHaveCount(0);
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);

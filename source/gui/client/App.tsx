@@ -1283,6 +1283,9 @@ export const App = () => {
 
 	const {following, setFollowing} = useFollowLog({
 		logOpen,
+		// A checkout and a movie both stand somewhere other than the present, and
+		// each already drives the board.
+		live: state?.timeTravel?.mode !== 'scrub' && !theatre,
 		onOpenLog: () => setLogOpen(true),
 	});
 

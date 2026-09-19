@@ -151,7 +151,7 @@ test('the flow layout draws a moved ticket on the lane it went to', async ({
 	await page.mouse.up();
 	await expect(page).toHaveURL(new RegExp(`/issue/${ref}\\?.*tab=overview`));
 	await expect(
-		page.getByRole('button', {name: 'Resume', exact: true}),
+		page.getByRole('button', {name: 'Now', exact: true}),
 	).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);

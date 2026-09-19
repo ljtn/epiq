@@ -1174,7 +1174,7 @@ export const TimeScrubber = ({
 					: theatreOpen
 					? 'A movie is playing'
 					: timeTravel.mode === 'scrub'
-					? 'The board is in the past — go back to live first'
+					? 'The board is in the past — put it back at now first'
 					: following
 					? 'Stop following the newest event'
 					: 'Follow the newest event',
