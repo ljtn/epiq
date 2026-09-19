@@ -62,13 +62,32 @@ export const followStep = ({
 
 	if (!pinned) return {open: null, mark};
 
-	// The newest line that leads anywhere, so a burst is one move rather than a
-	// walk through it, and the board- and swimlane-level lines it passes are
-	// skipped because they lead nowhere at all.
-	const target = [...entries]
-		.reverse()
-		.map(entry => destinationOf(entry))
-		.find((destination): destination is LogDestination => destination !== null);
+	// The newest line that leads anywhere, searched back only as far as the
+	// line already seen: a burst is one move rather than a walk through it, and
+	// the board- and swimlane-level lines it passes are skipped because they
+	// lead nowhere at all.
+	//
+	// Stopping at the mark is what keeps it honest. Unbounded, a burst that
+	// leads nowhere at all — a swimlane renamed, say — would fall back to some
+	// older line still in the window and open a ticket nothing had happened to,
+	// including the one following promised not to jump to when it was switched
+	// on.
+	//
+	// A reverse loop rather than a reversed copy and a map: the window can hold
+	// twenty thousand entries and this runs on every arrival, where the answer
+	// is almost always the last one.
+	let target: LogDestination | null = null;
+
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index];
+		if (!entry || entry.id === mark.line) break;
+
+		const destination = destinationOf(entry);
+		if (destination) {
+			target = destination;
+			break;
+		}
+	}
 
 	// The line is seen either way: a burst of lines that lead nowhere must not
 	// leave following waiting to be told about them again.

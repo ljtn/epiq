@@ -1281,14 +1281,6 @@ export const App = () => {
 		setHistoryTick(tick => tick + 1);
 	}, [contributorEmails.changed, theatre]);
 
-	const {following, setFollowing} = useFollowLog({
-		logOpen,
-		// A checkout and a movie both stand somewhere other than the present, and
-		// each already drives the board.
-		live: state?.timeTravel?.mode !== 'scrub' && !theatre,
-		onOpenLog: () => setLogOpen(true),
-	});
-
 	// Where the reader is, for the log's own following: a destination in the
 	// same shape a log line resolves to, so the two are compared rather than
 	// following remembering where it last sent anybody.
@@ -1326,6 +1318,17 @@ export const App = () => {
 		moment: logMoment,
 		open: logOpen,
 		onOpen: openLogDestination,
+	});
+
+	const {following, setFollowing} = useFollowLog({
+		// Popped out, the panel that runs the effect is not rendered in this
+		// document at all, so following here would be lit and inert.
+		logOpen: logOpen && !logWindow.poppedOut,
+		// A checkout and a movie both stand somewhere other than the present, and
+		// each already drives the board. Offline nothing arrives — and the control
+		// is disabled then, so a reader left following could not switch it off.
+		live: connected && state?.timeTravel?.mode !== 'scrub' && !theatre,
+		onOpenLog: () => setLogOpen(true),
 	});
 
 	// A movie is checked out one frame at a time over the socket, so a dropped
@@ -1740,54 +1743,49 @@ export const App = () => {
 						/>
 					</div>
 
-					{/* Named so following can tell the bar from the work: a click on
-					    the bar is on the control itself or its neighbours, and must not
-					    be read as the reader reaching for the board. */}
-					<div data-testid="time-scrubber">
-						<TimeScrubber
-							timeline={history.timeline}
-							commits={history.commits}
-							historyId={history.requestId}
-							boardId={selectedBoardId}
-							connected={connected}
-							socketEpoch={socketEpoch}
-							onRequestHistory={requestBoardHistory}
-							onInspectCommit={openCommitDiff}
-							onOpenIssue={id => openIssueTab(id, 'overview')}
-							highlightEventId={hoveredLogEventId}
-							timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
-							onScrub={scrubToTime}
-							onReturnToLive={returnToLive}
-							onPlayTheatre={startTheatre}
-							theatreOpen={theatre !== null}
-							logOpen={logOpen}
-							onChangeLogOpen={setLogOpen}
-							showIssues={showIssues}
-							onChangeShowIssues={setShowIssues}
-							showCommits={showCommits}
-							onChangeShowCommits={setShowCommits}
-							linkedCommitsOnly={linkedCommitsOnly}
-							onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
-							issueIdByRef={issueIdByRef}
-							lanes={boardLanes}
-							laneTitles={laneTitles}
-							issueSummaryById={issueSummaryById}
-							selection={selection}
-							onChangeSelection={changeSelection}
-							selectedIssue={
-								selectedIssue
-									? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
-									: null
-							}
-							textFilter={textFilter}
-							onChangeTextFilter={setTextFilter}
-							queryIssueIds={queryIssueIds}
-							knownIdentities={knownIdentities}
-							refreshOn={historyTick}
-							following={following}
-							onChangeFollowing={setFollowing}
-						/>
-					</div>
+					<TimeScrubber
+						timeline={history.timeline}
+						commits={history.commits}
+						historyId={history.requestId}
+						boardId={selectedBoardId}
+						connected={connected}
+						socketEpoch={socketEpoch}
+						onRequestHistory={requestBoardHistory}
+						onInspectCommit={openCommitDiff}
+						onOpenIssue={id => openIssueTab(id, 'overview')}
+						highlightEventId={hoveredLogEventId}
+						timeTravel={state?.timeTravel ?? {mode: 'live', asOfTime: null}}
+						onScrub={scrubToTime}
+						onReturnToLive={returnToLive}
+						onPlayTheatre={startTheatre}
+						theatreOpen={theatre !== null}
+						logOpen={logOpen}
+						onChangeLogOpen={setLogOpen}
+						showIssues={showIssues}
+						onChangeShowIssues={setShowIssues}
+						showCommits={showCommits}
+						onChangeShowCommits={setShowCommits}
+						linkedCommitsOnly={linkedCommitsOnly}
+						onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
+						issueIdByRef={issueIdByRef}
+						lanes={boardLanes}
+						laneTitles={laneTitles}
+						issueSummaryById={issueSummaryById}
+						selection={selection}
+						onChangeSelection={changeSelection}
+						selectedIssue={
+							selectedIssue
+								? {id: selectedIssue.id, createdAt: selectedIssue.createdAt}
+								: null
+						}
+						textFilter={textFilter}
+						onChangeTextFilter={setTextFilter}
+						queryIssueIds={queryIssueIds}
+						knownIdentities={knownIdentities}
+						refreshOn={historyTick}
+						following={following}
+						onChangeFollowing={setFollowing}
+					/>
 				</div>
 
 				{/* Dimmed while offline so the board reads as inert. The topbar stays at
