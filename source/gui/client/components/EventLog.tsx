@@ -69,6 +69,7 @@ import {PANE_HEADER_INSET} from '../lib/pane-header.style';
 import {Checkbox} from './Checkbox';
 import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
+import {FollowMark, followStep, NOT_FOLLOWING} from '../lib/follow-log';
 import {
 	LogDestination,
 	linkedRowFrom,
@@ -281,6 +282,8 @@ const LogHeader = ({
 	split,
 	onChangeSplit,
 	canSplit,
+	following,
+	onChangeFollowing,
 	children,
 }: {
 	fields: LogFields;
@@ -290,6 +293,9 @@ const LogHeader = ({
 	onChangeSplit: (next: boolean) => void;
 	// False where the slice names nobody: there would be no lanes to draw.
 	canSplit: boolean;
+	// Opening each new line as it lands, instead of by hand.
+	following: boolean;
+	onChangeFollowing: (next: boolean) => void;
 	// Whatever else the header carries, at its far end.
 	children?: React.ReactNode;
 }) => (
@@ -357,6 +363,22 @@ const LogHeader = ({
 				<IconColumns size={ICON_SIZE} />
 			</IconButton>
 
+			{/* The mark a row wears under the pointer to say it goes somewhere.
+			    Following is that click made automatic, so it is the same mark. */}
+			<IconButton
+				testId="log-follow"
+				title={
+					following
+						? 'Stop opening each new line'
+						: 'Open each new line as it arrives'
+				}
+				aria-label="Follow the log"
+				pressed={following}
+				onClick={() => onChangeFollowing(!following)}
+			>
+				<IconArrowUpRight size={ICON_SIZE} />
+			</IconButton>
+
 			{children}
 		</span>
 	</div>
@@ -392,7 +414,7 @@ const EventLogPanel = ({
 	// Following a line. One handler on the pane rather than one per row: the
 	// rows carry where they go, and hundreds of closures would be the expensive
 	// half of a feature whose whole point is that it costs nothing until used.
-	onOpen: (destination: LogDestination) => void;
+	onOpen: (destination: LogDestination, options?: {replace?: boolean}) => void;
 	// The event under the pointer, or null off the rows: what the chart lights
 	// up while a row is hovered.
 	onHoverEvent?: (eventId: string | null) => void;
@@ -501,6 +523,12 @@ const EventLogPanel = ({
 	// at every one of them is the cost this panel is built to avoid.
 	const arrowRef = useRef<HTMLSpanElement>(null);
 
+	// Deliberately not persisted, unlike the field boxes beside it: those say
+	// what a line shows, this makes the panel navigate on its own, and a board
+	// that starts moving before the reader has touched anything would be a
+	// strange way to open.
+	const [following, setFollowing] = useState(false);
+
 	// An absolutely positioned child extends the pane's scrollable overflow,
 	// hidden or not. So an arrow left on a row the column has since lost is a
 	// stretch of empty pane below the last line, and a snap to the foot lands in
@@ -580,6 +608,32 @@ const EventLogPanel = ({
 		// board beside it repaints.
 	}, [newestId, animate]);
 
+	// What following has already seen and where it last went. The decision
+	// itself is `followStep`, so the cases it has to get right — a burst, the
+	// same ticket twice, a line that leads nowhere — are testable without
+	// putting the panel into each of them.
+	const followedRef = useRef<FollowMark>(NOT_FOLLOWING);
+
+	useEffect(() => {
+		if (!following) {
+			followedRef.current = NOT_FOLLOWING;
+			return;
+		}
+
+		const step = followStep({
+			entries,
+			newestId,
+			mark: followedRef.current,
+			pinned: pinnedRef.current,
+		});
+
+		followedRef.current = step.mark;
+
+		// Replaced rather than pushed: an hour of following would otherwise leave
+		// Back walking the reader through somebody else's afternoon.
+		if (step.open) onOpen(step.open, {replace: true});
+	}, [following, newestId, entries, onOpen]);
+
 	const markRow = (target: EventTarget | null) => {
 		const arrow = arrowRef.current;
 		if (!arrow) return;
@@ -654,6 +708,8 @@ const EventLogPanel = ({
 				split={splitWanted}
 				onChangeSplit={setSplitWanted}
 				canSplit={lanes.length > 0}
+				following={following}
+				onChangeFollowing={setFollowing}
 			>
 				{onPopOut && (
 					<IconButton
