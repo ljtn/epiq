@@ -18,6 +18,9 @@ import {
 	FADE_IN_ANIMATION,
 	HOVER_HINT_WIDTH,
 	NEEDLE_COLOR,
+	NEEDLE_PARKED_COLOR,
+	NEEDLE_PARKED_GLOW,
+	UNAPPLIED_VEIL_COLOR,
 	NEEDLE_GRIP_WIDTH,
 	RANGE_SELECTION_COLOR,
 	RANGE_SELECTION_EDGE,
@@ -368,14 +371,19 @@ export const VolumeBars = memo(VolumeBarsImpl);
 // unbroken through both and the gap between them.
 export const ScrubberNeedle = ({
 	fraction,
+	parked,
 	onGrab,
 }: {
 	fraction: number;
+	// The board is standing where this needle is, rather than at the present.
+	// Louder then, and the stretch it has not applied is veiled behind it.
+	parked: boolean;
 	// A press here is a scrub, not the start of a range drag. The event still
 	// bubbles to the track, which owns the pointer capture and the moving.
 	onGrab: () => void;
 }) => {
 	const [hovered, setHovered] = useState(false);
+	const color = parked ? NEEDLE_PARKED_COLOR : NEEDLE_COLOR;
 
 	const grip = {
 		onMouseEnter: () => setHovered(true),
@@ -385,6 +393,27 @@ export const ScrubberNeedle = ({
 
 	return (
 		<>
+			{/* What the board has not applied, from the needle to the end of the
+			    window. Over the bars rather than instead of them: the shape of the
+			    history stays readable through it, and the stretch reads as "not
+			    yet" rather than as missing. Under the needle's own z-index, and
+			    inert — the track beneath it is still where a scrub is aimed. */}
+			{parked && (
+				<div
+					data-testid="scrubber-unapplied"
+					style={{
+						position: 'absolute',
+						left: `${fraction * 100}%`,
+						right: 0,
+						top: 0,
+						bottom: 0,
+						background: UNAPPLIED_VEIL_COLOR,
+						zIndex: 2,
+						pointerEvents: 'none',
+					}}
+				/>
+			)}
+
 			{/* A hairline is a 1px drag target. This is the same line's worth of
 			    grabbable width, invisible, centred on it. */}
 			<div
@@ -411,7 +440,8 @@ export const ScrubberNeedle = ({
 					// A hairline, no glow: the needle marks an exact instant, and a
 					// soft edge blooms over bars that can be ~2px wide.
 					width: 1,
-					background: NEEDLE_COLOR,
+					background: color,
+					boxShadow: parked ? NEEDLE_PARKED_GLOW : undefined,
 					zIndex: 3,
 					transform: 'translateX(-0.5px)',
 					pointerEvents: 'none',
@@ -427,7 +457,7 @@ export const ScrubberNeedle = ({
 					height: 0,
 					borderLeft: `${hovered ? 6 : 5}px solid transparent`,
 					borderRight: `${hovered ? 6 : 5}px solid transparent`,
-					borderTop: `${hovered ? 8 : 7}px solid ${NEEDLE_COLOR}`,
+					borderTop: `${hovered ? 8 : 7}px solid ${color}`,
 					zIndex: 3,
 					transform: `translateX(${hovered ? -6 : -5}px)`,
 					pointerEvents: 'auto',

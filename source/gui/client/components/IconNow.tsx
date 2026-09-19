@@ -1,10 +1,9 @@
-// The way back from history: an arrow running to the end of the track, which is
-// where now is.
+// The way back from history: a run to the end of the track, where the needle
+// stands.
 //
-// Drawn as "skip to the end" rather than as the timeline's needle at rest. It
-// sits in the transport, where every other mark says what pressing it does —
-// play walks the past, live rides the present — and an arrow is an action where
-// a needle is a position. The end bar is the needle's home either way.
+// The end is drawn as the needle itself — the chart's own mark, a head over a
+// dropped line — rather than as a plain bar. A bar says "the end of something";
+// the needle says which thing, and it is the one the press actually moves.
 export const IconNow = ({size = 14}: {size?: number}) => (
 	<svg
 		width={size}
@@ -18,9 +17,10 @@ export const IconNow = ({size = 14}: {size?: number}) => (
 		aria-hidden="true"
 	>
 		{/* The run up to it, stopping short so the head is not swallowed. */}
-		<path d="M3 12h11" />
-		<path d="m10.5 7.5 4.5 4.5-4.5 4.5" />
-		{/* The end of the track, standing where the needle would. */}
-		<path d="M20 5.5v13" />
+		<path d="M2 12h8" />
+		<path d="m7 8.5 3.5 3.5L7 15.5" />
+		{/* The needle: a filled head over its line, as the chart draws it. */}
+		<path d="M14.5 4h8l-4 5z" fill="currentColor" stroke="none" />
+		<path d="M18.5 9v11" />
 	</svg>
 );
