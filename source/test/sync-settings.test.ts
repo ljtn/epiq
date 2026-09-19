@@ -11,6 +11,8 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {
 	DEFAULT_AUTO_SYNC_INTERVAL_MS,
+	effectiveAutoSyncIntervalMs,
+	MAX_AUTO_SYNC_INTERVAL_MS,
 	MIN_AUTO_SYNC_INTERVAL_MS,
 } from '../lib/config/auto-sync-interval.js';
 import {
@@ -59,6 +61,32 @@ describe('readAutoSyncSettings', () => {
 
 		expect(result.value.enabled).toBe(false);
 		expect(result.value.intervalMs).toBe(DEFAULT_AUTO_SYNC_INTERVAL_MS);
+		expect(result.value.blockedReason).toBeNull();
+	});
+
+	// The GUI's loop gives up outright when the identity will not resolve, so a
+	// read that fell back to the raw config would find a name and an editor
+	// there and report all-clear — leaving somebody watching a toggle that is
+	// on while nothing syncs, which is the silence this field exists to break.
+	// An id in the environment with no name beside it reaches exactly that.
+	it('is blocked when the actor will not resolve, however complete the file looks', () => {
+		const originalId = process.env['EPIQ_USER_ID'];
+		const originalName = process.env['EPIQ_USER_NAME'];
+		process.env['EPIQ_USER_ID'] = 'from-the-environment';
+		delete process.env['EPIQ_USER_NAME'];
+
+		try {
+			const result = readAutoSyncSettings();
+			if (isFail(result)) throw new Error(result.message);
+
+			expect(result.value.blockedReason).not.toBeNull();
+		} finally {
+			if (originalId === undefined) delete process.env['EPIQ_USER_ID'];
+			else process.env['EPIQ_USER_ID'] = originalId;
+			if (originalName !== undefined) {
+				process.env['EPIQ_USER_NAME'] = originalName;
+			}
+		}
 	});
 });
 
@@ -74,6 +102,28 @@ describe('writeAutoSyncSettings', () => {
 
 	it('refuses a fraction of a millisecond', () => {
 		expect(isFail(writeAutoSyncSettings({intervalMs: 3000.5}))).toBe(true);
+	});
+
+	// Past 2^31-1 ms `setTimeout` clamps the delay to 1ms, so an interval set
+	// too long turns into a sync loop running flat out. The two fields make it
+	// reachable: `:config autosync-duration` takes milliseconds and the panel
+	// takes seconds, so 3600000 pasted into the panel asks for 3.6e9 ms.
+	it('refuses an interval long enough to overflow a timer', () => {
+		expect(
+			isFail(
+				writeAutoSyncSettings({intervalMs: MAX_AUTO_SYNC_INTERVAL_MS + 1}),
+			),
+		).toBe(true);
+		expect(isFail(writeAutoSyncSettings({intervalMs: 3_600_000 * 1000}))).toBe(
+			true,
+		);
+		expect(configOnDisk().autoSyncDebounceMs).toBeUndefined();
+	});
+
+	it('takes the ceiling itself', () => {
+		expect(
+			isSuccess(writeAutoSyncSettings({intervalMs: MAX_AUTO_SYNC_INTERVAL_MS})),
+		).toBe(true);
 	});
 
 	it('takes the floor itself', () => {
@@ -115,6 +165,37 @@ describe('writeAutoSyncSettings', () => {
 			autoSync: true,
 			autoSyncIntervalMs: 20_000,
 		});
+	});
+});
+
+// The loops read the config file, which is hand-editable and predates these
+// bounds, so what they wait has to be corrected at the point of use too —
+// otherwise a value nobody could type through either door still runs.
+describe('effectiveAutoSyncIntervalMs', () => {
+	it('caps a stored value that would overflow the timer', () => {
+		expect(effectiveAutoSyncIntervalMs(3_600_000 * 1000)).toBe(
+			MAX_AUTO_SYNC_INTERVAL_MS,
+		);
+	});
+
+	it('never returns a delay that would busy-loop', () => {
+		expect(effectiveAutoSyncIntervalMs(0)).toBe(1);
+		expect(effectiveAutoSyncIntervalMs(-5)).toBe(1);
+	});
+
+	it('answers an unset value with the default', () => {
+		expect(effectiveAutoSyncIntervalMs(null)).toBe(
+			DEFAULT_AUTO_SYNC_INTERVAL_MS,
+		);
+		expect(effectiveAutoSyncIntervalMs(undefined)).toBe(
+			DEFAULT_AUTO_SYNC_INTERVAL_MS,
+		);
+	});
+
+	// Policy the two doors enforce on what a person may ask for, not a
+	// correctness bound — and the suites drive the loop fast on purpose.
+	it('leaves a sub-floor value alone', () => {
+		expect(effectiveAutoSyncIntervalMs(1)).toBe(1);
 	});
 });
 

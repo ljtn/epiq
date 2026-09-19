@@ -1,5 +1,8 @@
 import {useEffect, useState} from 'react';
-import {MIN_AUTO_SYNC_INTERVAL_MS} from '../../../lib/config/auto-sync-interval.js';
+import {
+	MAX_AUTO_SYNC_INTERVAL_MS,
+	MIN_AUTO_SYNC_INTERVAL_MS,
+} from '../../../lib/config/auto-sync-interval.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CARD, META, SECTION_HEADING} from '../lib/identity-panel.style';
 import {SyncSettingsState} from '../lib/use-sync-settings';
@@ -15,6 +18,11 @@ import {Checkbox} from './Checkbox';
 // prompt has to carry an examples list.
 
 const MIN_SECONDS = MIN_AUTO_SYNC_INTERVAL_MS / 1000;
+// A day. Past the ceiling `setTimeout` turns a very long interval into a 1ms
+// one, and this field takes seconds where the TUI's takes milliseconds — so
+// somebody carrying `3600000` over from `:config autosync-duration` is one
+// paste away from asking for it.
+const MAX_SECONDS = MAX_AUTO_SYNC_INTERVAL_MS / 1000;
 
 const secondsOf = (intervalMs: number) => String(Math.round(intervalMs / 1000));
 
@@ -48,17 +56,28 @@ export const IdentitySettings = ({
 	}
 
 	const seconds = Number(draft);
-	const tooShort =
-		draft.trim() !== '' && (!Number.isFinite(seconds) || seconds < MIN_SECONDS);
+	const outOfRange =
+		draft.trim() !== '' &&
+		(!Number.isFinite(seconds) ||
+			seconds < MIN_SECONDS ||
+			seconds > MAX_SECONDS);
 
 	const commit = () => {
-		if (tooShort || draft.trim() === '') {
+		if (outOfRange || draft.trim() === '') {
 			setDraft(secondsOf(settings.intervalMs));
 			return;
 		}
 
 		const intervalMs = Math.round(seconds) * 1000;
-		if (intervalMs === settings.intervalMs) return;
+
+		// Nothing to send, but the box may still not be showing the setting:
+		// `37.4` against a configured 37s rounds to the same interval, and
+		// without this it sits there as a number that is not what is
+		// configured and never will be.
+		if (intervalMs === settings.intervalMs) {
+			setDraft(secondsOf(settings.intervalMs));
+			return;
+		}
 
 		onChange({autoSyncIntervalMs: intervalMs});
 	};
@@ -97,6 +116,7 @@ export const IdentitySettings = ({
 						data-testid="autosync-interval"
 						type="number"
 						min={MIN_SECONDS}
+						max={MAX_SECONDS}
 						step={1}
 						value={draft}
 						onChange={event => setDraft(event.target.value)}
@@ -113,8 +133,10 @@ export const IdentitySettings = ({
 						style={{
 							width: 52,
 							background: GUI_THEME.bg,
-							color: tooShort ? GUI_THEME.red : GUI_THEME.primary,
-							border: `1px solid ${tooShort ? GUI_THEME.red : GUI_THEME.line}`,
+							color: outOfRange ? GUI_THEME.red : GUI_THEME.primary,
+							border: `1px solid ${
+								outOfRange ? GUI_THEME.red : GUI_THEME.line
+							}`,
 							borderRadius: 4,
 							padding: '3px 6px',
 							font: 'inherit',
@@ -127,12 +149,14 @@ export const IdentitySettings = ({
 				</label>
 			</div>
 
-			{/* Three states, and only ever one of them: the floor while it is
-			    being broken, the refusal that came back, and the setting that is
-			    on but cannot run. */}
-			{tooShort ? (
+			{/* Three states, and only ever one of them: a bound being broken,
+			    the refusal that came back, and the setting that is on but
+			    cannot run. */}
+			{outOfRange ? (
 				<div style={{...META, color: GUI_THEME.red}}>
-					{MIN_SECONDS} seconds is the shortest interval.
+					{seconds > MAX_SECONDS
+						? `${MAX_SECONDS} seconds — a day — is the longest interval.`
+						: `${MIN_SECONDS} seconds is the shortest interval.`}
 				</div>
 			) : state.lastError ? (
 				<div style={{...META, color: GUI_THEME.red}}>{state.lastError}</div>

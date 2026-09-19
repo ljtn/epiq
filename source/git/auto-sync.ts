@@ -1,4 +1,4 @@
-import {DEFAULT_AUTO_SYNC_INTERVAL_MS} from '../lib/config/auto-sync-interval.js';
+import {effectiveAutoSyncIntervalMs} from '../lib/config/auto-sync-interval.js';
 import {failed, isFail} from '../lib/model/result-types.js';
 import {getSettingsState} from '../lib/state/settings.state.js';
 import {
@@ -24,8 +24,9 @@ const isSyncing = () => {
 };
 
 const getAutoSyncDelay = () => {
-	const intervalMs =
-		getSettingsState().autoSyncIntervalMs ?? DEFAULT_AUTO_SYNC_INTERVAL_MS;
+	const intervalMs = effectiveAutoSyncIntervalMs(
+		getSettingsState().autoSyncIntervalMs,
+	);
 	const elapsed = Date.now() - lastAutoSyncStartedAt;
 
 	return Math.max(0, intervalMs - elapsed);
