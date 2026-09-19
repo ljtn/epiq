@@ -806,13 +806,25 @@ const EventLogPanel = ({
 				}}
 			>
 				{/* Hidden until a row that leads somewhere is under the pointer, and
-				    inert throughout — the row is what takes the click. */}
+				    inert throughout — the row is what takes the click. Worded as well
+				    as drawn: an arrow alone says "somewhere", and which rows lead
+				    anywhere is not a thing a reader should have to learn by trying. */}
 				<span
 					ref={arrowRef}
 					className={LOG_ARROW_CLASS}
 					data-testid="log-row-arrow"
 					aria-hidden="true"
 				>
+					<span
+						style={{
+							fontSize: 9,
+							fontWeight: 600,
+							letterSpacing: 0.5,
+							textTransform: 'uppercase',
+						}}
+					>
+						View
+					</span>
 					<IconArrowUpRight size={11} />
 				</span>
 
