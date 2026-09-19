@@ -1734,6 +1734,12 @@ export const App = () => {
 				    room and what stays is the work. The log takes the same ground
 				    on the other axis. */}
 				<div style={{background: GUI_THEME.chrome}}>
+					{/* First thing in the window, above the topbar: a board moving on
+				    its own is a fact about the whole app, not about the column it
+				    was drawn over. Outside the dim below for the same reason the
+				    topbar is — it carries the reason and the way out. */}
+					{following && <FollowBanner />}
+
 					{/* Dimmed and inert with the rest of the chrome while a movie plays:
 				    the board is the picture, and everything around it is the room
 				    lights. */}
@@ -1882,7 +1888,6 @@ export const App = () => {
 								overflow: 'hidden',
 							}}
 						>
-							{following && <FollowBanner />}
 							<div
 								style={{
 									// The middle of the three rows across the top of the window,
