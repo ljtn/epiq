@@ -166,6 +166,33 @@ describe('TUI navigation jump e2e', () => {
 					'Item 06',
 					'Item 01',
 				]);
+
+				// The gesture ends at the edge of the lane, which is where holding
+				// the key lands: a jump with nowhere left to go is a no-op, and the
+				// move is still under way afterwards rather than dropped for the
+				// command line. Proven by carrying on with the next jump.
+				tui.input('m');
+				await tui.waitFor('Mode: move', 10_000);
+
+				tui.input(SHIFT_ARROW_DOWN);
+				tui.input(SHIFT_ARROW_UP);
+				await tui.waitFor(frame => laneOrder(frame)[0] === 'Item 01', 10_000);
+
+				tui.input('m');
+				await tui.waitFor('Mode: default', 10_000);
+
+				const back = await tui.waitFor(
+					frame => laneOrder(frame).length === 6,
+					10_000,
+				);
+				expect(laneOrder(back)).toEqual([
+					'Item 01',
+					'Item 02',
+					'Item 03',
+					'Item 04',
+					'Item 05',
+					'Item 06',
+				]);
 			} finally {
 				await tui.destroy();
 			}

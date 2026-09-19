@@ -148,7 +148,7 @@ epiq gui
 ### Navigation
 
 - The second thing to know is that you can navigate with the keyboard using arrow keys or `h` `j` `k` `l`.
-- Hold `shift` to move five at a time — `shift`+arrow, or `J` / `K`. A jump stops at the first and last item rather than wrapping, so holding it takes you to the end.
+- Hold `shift` to move five at a time — `shift` with an arrow, or the shifted vim key (`J` / `K` down a lane, `H` / `L` across the board). A jump stops at the first and last item rather than wrapping, so holding it takes you to the end.
 - You can enter nodes with `enter`, and navigate out of a context with `q` or `esc`
 
 ### Commands

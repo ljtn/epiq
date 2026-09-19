@@ -46,7 +46,14 @@ const applyMovePreview = (
 	moveResult: Result<unknown>,
 	message = 'Moved preview',
 ): Result<null> => {
-	if (isFail(moveResult)) return moveResult;
+	if (isFail(moveResult)) {
+		// A move with nowhere left to go must not end the move: the edge of the
+		// lane is where holding the jump key lands, and dropping into the
+		// command line there would abandon a gesture that is still under way.
+		if (getMovePendingState()) patchState({mode: Mode.MOVE});
+
+		return moveResult;
+	}
 
 	const navResult = syncNavigationToPendingMove();
 	if (isFail(navResult)) return navResult;
