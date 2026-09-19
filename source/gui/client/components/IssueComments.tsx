@@ -257,7 +257,9 @@ export const IssueComments = ({
 										<Button variant="ghost" onClick={() => setEditing(null)}>
 											cancel
 										</Button>
-										<Button onClick={() => saveEdit(comment)}>save</Button>
+										<Button variant="primary" onClick={() => saveEdit(comment)}>
+											save
+										</Button>
 									</ActionRow>
 								</>
 							) : (
@@ -325,7 +327,7 @@ export const IssueComments = ({
 							</span>
 						)}
 
-						<Button disabled={tooLong} onClick={addComment}>
+						<Button variant="primary" disabled={tooLong} onClick={addComment}>
 							comment
 						</Button>
 					</ActionRow>

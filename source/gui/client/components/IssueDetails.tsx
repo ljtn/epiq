@@ -660,9 +660,11 @@ export const IssueDetails = ({
 												onInputChange={descriptionImages.onInputChange}
 											/>
 										)}
-										<Button onClick={saveDescription}>save</Button>
 										<Button variant="ghost" onClick={cancelDescription}>
 											cancel
+										</Button>
+										<Button variant="primary" onClick={saveDescription}>
+											save
 										</Button>
 									</ActionRow>
 								</>

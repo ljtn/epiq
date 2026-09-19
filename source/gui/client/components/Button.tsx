@@ -13,6 +13,9 @@ export const Button = ({
 	testId,
 	...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+	// `primary` is the button that commits a form — one per row, and the only
+	// one with a body. `ghost` is what dismisses it, and what inline controls
+	// in a header or a card row take. Everything else is `default`.
 	variant?: 'default' | 'ghost' | 'chip' | 'primary';
 	// A name that survives the pointer, as `IconButton` has. TooltipLayer takes
 	// `title` off whatever it describes while its tooltip is open, so a button
@@ -63,8 +66,8 @@ export const Button = ({
 					? `${tint}${wash}`
 					: isPrimary
 					? hovered
-						? 'rgb(41, 44, 57)'
-						: GUI_THEME.tertiary
+						? GUI_THEME.raisedHover
+						: GUI_THEME.raised
 					: hovered
 					? GUI_THEME.hover
 					: 'transparent',
@@ -78,12 +81,12 @@ export const Button = ({
 					: `1px solid ${hovered ? GUI_THEME.secondary : GUI_THEME.line}`,
 				borderRadius: variant === 'chip' ? 999 : 6,
 				cursor: props.disabled ? 'default' : 'pointer',
+				// One box for every variant that draws one, so a row mixing them
+				// reads as one set of controls rather than three.
 				padding: dense
 					? '2px 8px'
 					: variant === 'ghost'
 					? '3px 6px'
-					: isPrimary
-					? '6px 12px'
 					: '5px 9px',
 				fontFamily: 'inherit',
 				fontSize: dense ? 11 : 12,

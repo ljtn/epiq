@@ -95,16 +95,16 @@ export const SelectionComposer = ({
 
 			<ActionRow>
 				<Button variant="ghost" onClick={onClear}>
-					Cancel
+					cancel
 				</Button>
 				{onFileTicket && (
 					<Button variant="default" onClick={onFileTicket}>
-						File ticket
+						file ticket
 					</Button>
 				)}
 				{onAddComment && (
 					<Button variant="primary" onClick={comment}>
-						Comment
+						comment
 					</Button>
 				)}
 			</ActionRow>
