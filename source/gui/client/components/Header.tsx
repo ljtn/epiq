@@ -159,7 +159,7 @@ export const Header = ({
 						{/* The colour is the whole message, so the word beside it only
 						    repeated in text what the dot already said — and a failure's
 						    git output never fitted there anyway. The hit area is a
-						    button's rather than the dot's six pixels: the state is now
+						    button's rather than the dot's own, since the state is now
 						    only readable by hovering it. */}
 						<span
 							data-testid="sync-dot"
@@ -171,10 +171,15 @@ export const Header = ({
 								padding: '5px 7px',
 							}}
 						>
+							{/* Four, as the ticket that dropped the label asked for: a
+							    marker, not a light. At six it was the loudest thing in a
+							    bar of 11px grey type, which is the opposite of what
+							    dropping the word was for. What makes a dot this small
+							    usable is the hit area around it, and that is unchanged. */}
 							<span
 								style={{
-									width: 6,
-									height: 6,
+									width: 4,
+									height: 4,
 									borderRadius: 999,
 									background:
 										connection === 'connected' ? syncColor : GUI_THEME.dim,
