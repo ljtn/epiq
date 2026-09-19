@@ -1,5 +1,5 @@
 import {beforeAll, describe, expect, it} from 'vitest';
-import {commonSteps, typeCommand} from './e2e-common-steps.js';
+import {commonSteps, fileIssue} from './e2e-common-steps.js';
 import {
 	ARROW_DOWN,
 	ENTER,
@@ -22,23 +22,6 @@ const itemTitle = (index: number) => `Item ${String(index).padStart(2, '0')}`;
 // which the terminal buffer does not hand back.
 const selects = (title: string) => (frame: string) =>
 	frame.includes(`▸ ${title}`);
-
-// A board this size is seeded one command at a time, and a submit can be
-// dropped when the container suite runs under load — the command then sits
-// typed in a line nothing is waiting on. The lane's count is what says whether
-// it ran, so the re-send waits on that rather than on how the command line
-// reads: an idle line and a running one are told apart by the helper, and that
-// is not this file's question to answer.
-const fileIssue = async (tui: Tui, title: string, count: number) => {
-	await typeCommand(tui, `:new issue ${title}`);
-
-	try {
-		await tui.waitFor(`Todo (${count})`, 20_000);
-	} catch {
-		tui.input(ENTER);
-		await tui.waitFor(`Todo (${count})`, 20_000);
-	}
-};
 
 const press = async (tui: Tui, keys: string, lands: string) => {
 	tui.input(keys);

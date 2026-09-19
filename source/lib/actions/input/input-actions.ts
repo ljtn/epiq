@@ -8,6 +8,7 @@ import {
 	getPrevCmd,
 	moveCursorPosition,
 	moveCursorPositionOfWord,
+	resetCommandHistoryWalk,
 	setCmdInput,
 } from '../../state/cmd.state.js';
 import {getState, patchState} from '../../state/state.js';
@@ -129,6 +130,9 @@ export const inputActions: ActionEntry[] = [
 		intent: Intent.ExitCommandLine,
 		mode: Mode.COMMAND_LINE,
 		action: () => {
+			// The walk through the history ends with the line: the next one opens
+			// at the most recent command, as a fresh line always did.
+			resetCommandHistoryWalk();
 			patchState({mode: Mode.DEFAULT});
 			return succeeded('Exiting command line', null);
 		},
