@@ -211,23 +211,45 @@ export const replaceCmdInput = (value: string) => {
 	}));
 };
 
-export const commandConfirmed = ({addToHistory = true}) => {
-	setState(state => ({
-		...state,
-		commandHistory: addToHistory
-			? [state.value, ...state.commandHistory].slice(0, COMMAND_HISTORY_HORIZON)
-			: state.commandHistory,
-		commandHistoryIndex: -1,
-		commandIsPending: false,
-		value: '',
-		cursorPosition: 0,
-	}));
+/**
+ * Clears the line and puts what was run on the history.
+ *
+ * `line` is what the user typed, which the caller captures before the action
+ * runs: `:sync`, `:open` and `:init` clear the line themselves on their way
+ * through, so by the time they return `value` is empty and the history would
+ * grow a blank entry instead of the command.
+ */
+export const commandConfirmed = ({
+	addToHistory = true,
+	line,
+}: {
+	addToHistory?: boolean;
+	line?: string;
+}) => {
+	setState(state => {
+		const confirmed = line ?? state.value;
+
+		return {
+			...state,
+			commandHistory:
+				addToHistory && confirmed.trim()
+					? [confirmed, ...state.commandHistory].slice(
+							0,
+							COMMAND_HISTORY_HORIZON,
+					  )
+					: state.commandHistory,
+			commandHistoryIndex: -1,
+			commandIsPending: false,
+			value: '',
+			cursorPosition: 0,
+		};
+	});
 };
 
 /**
  * Replaces the history with the one stored for the project being loaded, and
- * puts ↑ back at the top of it. The line itself is left alone: boot has nothing
- * on it, and `:open` has the command that is still running.
+ * puts ↑ back at the top of it. The line itself is left alone; the command that
+ * is loading the project is put on the history when it returns, as any other.
  */
 export const hydrateCommandHistory = (commands: string[]) => {
 	setState(s => ({

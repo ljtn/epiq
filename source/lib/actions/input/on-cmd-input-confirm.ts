@@ -31,6 +31,7 @@ export const onConfirmCommandLineSequenceInput = async ({
 	isForceExecutedBySystem = false,
 }: {isForceExecutedBySystem?: boolean} = {}): Promise<Result> => {
 	const {
+		value: line,
 		commandMeta: {command, validity, modifier, inputString},
 	} = getCmdState();
 
@@ -88,7 +89,7 @@ export const onConfirmCommandLineSequenceInput = async ({
 
 	const addToHistory = !isForceExecutedBySystem;
 
-	commandConfirmed({addToHistory});
+	commandConfirmed({addToHistory, line});
 
 	// A convenience for the next boot; not worth failing a command that ran.
 	if (addToHistory) {

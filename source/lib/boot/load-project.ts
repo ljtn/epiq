@@ -115,10 +115,12 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 	if (isFail(recordResult)) logger.info(recordResult.message);
 
 	// Same for what ↑ offers: this project's own history, whether the app is
-	// booting into it or `:open` is moving to it from another.
+	// booting into it or `:open` is moving to it from another. Hydrated even
+	// when the read failed — leaving the previous project's commands on ↑ is
+	// the cross-project leak the history is keyed by project to avoid.
 	const historyResult = readCommandHistory({root: repoRoot});
 	if (isFail(historyResult)) logger.info(historyResult.message);
-	else hydrateCommandHistory(historyResult.value);
+	hydrateCommandHistory(isFail(historyResult) ? [] : historyResult.value);
 
 	return succeeded('Loaded project', undefined);
 };

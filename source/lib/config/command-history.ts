@@ -47,39 +47,75 @@ export const getCommandHistoryPath = (): Result<string> => {
 };
 
 const currentProjectRoot = (): string | null => {
-	const rootResult = resolveClosestEpiqProjectRoot(process.cwd());
+	try {
+		const rootResult = resolveClosestEpiqProjectRoot(process.cwd());
 
-	return isFail(rootResult) ? null : rootResult.value;
+		return isFail(rootResult) ? null : rootResult.value;
+	} catch {
+		// `process.cwd()` throws on a directory that has been removed under the
+		// process — a worktree pulled out from under it, say.
+		return null;
+	}
 };
 
-const readFile = (filePath: string): Result<ProjectHistory[]> => {
+/**
+ * Unparsable and unreadable are different answers. A file that makes no sense
+ * is replaced; one that cannot be read at all stops a write, because the file
+ * holds every project's history and rewriting it from nothing would drop the
+ * rest of them over a transient error.
+ */
+type StoredProjects =
+	| {state: 'read'; projects: ProjectHistory[]}
+	| {state: 'corrupt'; reason: string};
+
+const readFile = (filePath: string): Result<StoredProjects> => {
 	if (!fs.existsSync(filePath)) {
-		return succeeded('No command history recorded', []);
+		return succeeded('No command history recorded', {
+			state: 'read',
+			projects: [],
+		});
 	}
 
-	let parsed: unknown;
+	let contents: string;
 
 	try {
-		parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+		contents = fs.readFileSync(filePath, 'utf8');
 	} catch (error) {
 		return failed(
-			`Invalid ${COMMAND_HISTORY_FILE_NAME}: ${
+			`Unable to read ${COMMAND_HISTORY_FILE_NAME}: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
 	}
 
+	let parsed: unknown;
+
+	try {
+		parsed = JSON.parse(contents);
+	} catch (error) {
+		return succeeded('Unparsable command history', {
+			state: 'corrupt',
+			reason: `Invalid ${COMMAND_HISTORY_FILE_NAME}: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		});
+	}
+
 	const result = CommandHistoryFileSchema.safeParse(parsed);
 
 	if (!result.success) {
-		return failed(
-			`Invalid ${COMMAND_HISTORY_FILE_NAME} shape: ${result.error.issues
+		return succeeded('Command history in an unknown shape', {
+			state: 'corrupt',
+			reason: `Invalid ${COMMAND_HISTORY_FILE_NAME} shape: ${result.error.issues
 				.map(issue => issue.path.join('.') || issue.message)
 				.join(', ')}`,
-		);
+		});
 	}
 
-	return succeeded('Read command history', result.data.projects);
+	return succeeded('Read command history', {
+		state: 'read',
+		projects: result.data.projects,
+	});
 };
 
 /**
@@ -101,7 +137,10 @@ export const readCommandHistory = ({
 	const readResult = readFile(pathResult.value);
 	if (isFail(readResult)) return readResult;
 
-	const entry = readResult.value.find(
+	const stored = readResult.value;
+	if (stored.state === 'corrupt') return failed(stored.reason);
+
+	const entry = stored.projects.find(
 		project => project.projectId === projectIdResult.value,
 	);
 
@@ -117,8 +156,8 @@ export const readCommandHistory = ({
  *
  * The whole list is written each time, so the file holds what the command line
  * holds. Two epiqs on one project are last-write-wins, the bargain
- * `recent-projects.json` already makes, and a corrupt file is replaced rather
- * than allowed to block the command that is recording into it.
+ * `recent-projects.json` already makes, and a file that makes no sense is
+ * replaced rather than allowed to block the command recording into it.
  */
 export const writeCommandHistory = ({
 	commands,
@@ -141,7 +180,10 @@ export const writeCommandHistory = ({
 
 	const filePath = pathResult.value;
 	const readResult = readFile(filePath);
-	const existing = isFail(readResult) ? [] : readResult.value;
+	if (isFail(readResult)) return readResult;
+
+	const stored = readResult.value;
+	const existing = stored.state === 'read' ? stored.projects : [];
 
 	const projects = [
 		{
@@ -166,7 +208,12 @@ export const writeCommandHistory = ({
 		);
 		fs.renameSync(pendingPath, filePath);
 	} catch (error) {
-		fs.rmSync(pendingPath, {force: true});
+		try {
+			fs.rmSync(pendingPath, {force: true});
+		} catch {
+			// The write is already lost; a temp file left behind is the OS's to
+			// clear, and must not become a thrown error in its place.
+		}
 
 		return failed(
 			`Unable to write ${COMMAND_HISTORY_FILE_NAME}: ${

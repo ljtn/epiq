@@ -10,7 +10,15 @@ import {
 	writeCommandHistory,
 } from '../lib/config/command-history.js';
 import {isFail, isSuccess, Result} from '../lib/model/result-types.js';
-import {COMMAND_HISTORY_HORIZON} from '../lib/state/cmd.state.js';
+import {
+	COMMAND_HISTORY_HORIZON,
+	commandConfirmed,
+	getCmdState,
+	hydrateCommandHistory,
+	replaceCmdInput,
+} from '../lib/state/cmd.state.js';
+import {nodes} from '../lib/state/node-builder.js';
+import {initWorkspaceState} from '../lib/state/state.js';
 
 // A temp root of this test's own: the real one holds whatever the developer's
 // own epiq has recorded, and every worker would otherwise share one file.
@@ -194,6 +202,26 @@ describe('writeCommandHistory', () => {
 		expect(fs.existsSync(historyFile())).toBe(false);
 	});
 
+	// An I/O failure must not be mistaken for an empty file: the whole
+	// machine's history lives here, and rewriting it from nothing would drop
+	// every other project's.
+	// Skipped as root, where a mode of 0 denies nothing.
+	it.skipIf(process.getuid?.() === 0)(
+		'leaves the file alone when it cannot be read at all',
+		() => {
+			const a = makeProject('PROJECT_A');
+			const b = makeProject('PROJECT_B');
+			unwrap(writeCommandHistory({commands: [':peek KEEPME'], root: a}));
+
+			fs.chmodSync(historyFile(), 0o000);
+			const result = writeCommandHistory({commands: [':sync'], root: b});
+			fs.chmodSync(historyFile(), 0o600);
+
+			expect(isFail(result)).toBe(true);
+			expect(unwrap(readCommandHistory({root: a}))).toEqual([':peek KEEPME']);
+		},
+	);
+
 	it('falls back to the project the process stands in', () => {
 		const project = makeProject('PROJECT_A');
 		const cwd = vi.spyOn(process, 'cwd').mockReturnValue(project);
@@ -202,5 +230,52 @@ describe('writeCommandHistory', () => {
 		cwd.mockRestore();
 
 		expect(unwrap(readCommandHistory({root: project}))).toEqual([':sync']);
+	});
+
+	it('stores nothing when the process stands nowhere', () => {
+		const cwd = vi.spyOn(process, 'cwd').mockImplementation(() => {
+			throw new Error('ENOENT: no such file or directory, uv_cwd');
+		});
+
+		const result = writeCommandHistory({commands: [':sync']});
+		cwd.mockRestore();
+
+		expect(isSuccess(result)).toBe(true);
+		expect(fs.existsSync(historyFile())).toBe(false);
+	});
+});
+
+describe('what reaches the history', () => {
+	// The command line re-validates on every change, and validation asks the
+	// board what it holds.
+	beforeEach(() => {
+		initWorkspaceState(
+			nodes.workspace('01J000000000000000000WSPC', 'Test Root', 'a'),
+		);
+		hydrateCommandHistory([]);
+	});
+
+	it('is the line as typed', () => {
+		replaceCmdInput(':new issue Something');
+		commandConfirmed({line: ':new issue Something'});
+
+		expect(getCmdState().commandHistory).toEqual([':new issue Something']);
+	});
+
+	// `:sync`, `:open` and `:init` clear the line on their way through, so the
+	// line has to be captured before the action runs — otherwise ↑ offers a
+	// blank, and the blank is now stored.
+	it('is the command, not the empty line it left behind', () => {
+		replaceCmdInput('');
+		commandConfirmed({line: ':sync'});
+
+		expect(getCmdState().commandHistory).toEqual([':sync']);
+	});
+
+	it('is nothing at all when there was no line', () => {
+		replaceCmdInput('');
+		commandConfirmed({});
+
+		expect(getCmdState().commandHistory).toEqual([]);
 	});
 });
