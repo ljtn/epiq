@@ -144,3 +144,37 @@ describe('the whole setup', () => {
 		expect(getUserSetupStatus().isSetupDone).toBe(true);
 	});
 });
+
+describe('the addresses the setup screen shows', () => {
+	// Every other step's value is a word. This one is addresses, and an address
+	// runs to 254 characters — unbounded the row wraps out of the bordered box
+	// the setup screen draws it in, which is what a too-wide row always does.
+	it('never outruns the room the row leaves it', async () => {
+		const {claimedAddresses} = await import('../lib/components/SettingsUI.js');
+		const long = `${'a'.repeat(200)}@example.com`;
+
+		for (const width of [40, 80, 120, 200]) {
+			const budget = Math.max(12, width - 34);
+			const shown = claimedAddresses([long, long], width) ?? '';
+
+			expect({width, within: shown.length <= budget}).toEqual({
+				width,
+				within: true,
+			});
+		}
+	});
+
+	it('shows nothing at all when nothing is claimed', async () => {
+		const {claimedAddresses} = await import('../lib/components/SettingsUI.js');
+
+		expect(claimedAddresses([], 120)).toBeUndefined();
+	});
+
+	it('shows both addresses whole when they fit', async () => {
+		const {claimedAddresses} = await import('../lib/components/SettingsUI.js');
+
+		expect(claimedAddresses(['a@b.com', 'c@d.com'], 120)).toBe(
+			'a@b.com, c@d.com',
+		);
+	});
+});
