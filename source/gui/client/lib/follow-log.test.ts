@@ -18,14 +18,62 @@ const line = (id: string, over: Partial<LogEntry> = {}): LogEntry => ({
 const pinned = true;
 
 describe('followStep', () => {
-	// Switching on is not a request to go wherever the log is standing.
-	it('opens nothing on the first look, and remembers where the log stands', () => {
+	// Switching on shows what following does, rather than waiting for an event
+	// to prove it: a mode that announces itself by doing nothing cannot be told
+	// from one that is broken.
+	it('opens the newest line on the first look, and remembers it', () => {
 		const step = followStep({
 			entries: [line('a')],
 			newestId: 'a',
 			mark: NOT_FOLLOWING,
 			pinned,
 			at: null,
+		});
+
+		expect(step.open).toMatchObject({issueId: 'ISSUE_1'});
+		expect(step.mark).toEqual({line: 'a'});
+	});
+
+	// Unbounded on the first look, unlike every look after it: with no mark
+	// there is nothing to stop at, and the newest thing in the window is
+	// exactly what the reader is being shown.
+	it('reaches back past lines that lead nowhere to find the first one', () => {
+		const step = followStep({
+			entries: [
+				line('a', {issue: 'ISSUE_2'}),
+				line('b', {issue: null, action: 'add.swimlane'}),
+			],
+			newestId: 'b',
+			mark: NOT_FOLLOWING,
+			pinned,
+			at: null,
+		});
+
+		expect(step.open).toMatchObject({issueId: 'ISSUE_2'});
+	});
+
+	// Pressing the button is the reader asking, where an arrival is not — so
+	// the pin, which refuses arrivals while they read back, does not refuse it.
+	it('opens on the first look even while the reader has scrolled back', () => {
+		const step = followStep({
+			entries: [line('a')],
+			newestId: 'a',
+			mark: NOT_FOLLOWING,
+			pinned: false,
+			at: null,
+		});
+
+		expect(step.open).toMatchObject({issueId: 'ISSUE_1'});
+	});
+
+	// Switching on while already reading the newest thing is not a navigation.
+	it('opens nothing on the first look when the reader is already there', () => {
+		const step = followStep({
+			entries: [line('a', {issue: 'ISSUE_2'})],
+			newestId: 'a',
+			mark: NOT_FOLLOWING,
+			pinned,
+			at: {kind: 'ticket', issueId: 'ISSUE_2', tab: 'overview'},
 		});
 
 		expect(step.open).toBeNull();

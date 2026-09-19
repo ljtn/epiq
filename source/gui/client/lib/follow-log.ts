@@ -55,12 +55,29 @@ export const followStep = ({
 	pinned: boolean;
 	at: LogDestination | null;
 }): FollowStep => {
-	// First look after the switch: remember where the log stands, go nowhere.
-	if (mark.line === null) return {open: null, mark: {line: newestId}};
+	// The first look after the switch is its own rule.
+	//
+	// It opens the newest line that leads anywhere, straight away, rather than
+	// banking the mark and waiting. A mode that announces itself by doing
+	// nothing cannot be told from one that is broken: the reader presses the
+	// button, the board sits still, and nothing says whether it is watching or
+	// wedged. The jump is the demonstration.
+	//
+	// Two differences from every look after it, both deliberate:
+	//
+	// - the search is unbounded, because there is no mark to stop at. That is
+	//   the case the bound below exists to prevent — falling back to an older
+	//   line — and here it is the point: the newest thing in the window is
+	//   exactly what the reader is being shown.
+	// - the pin does not apply. Every other move is refused while the reader is
+	//   reading back through the log, because an arrival is not their doing.
+	//   Pressing the button is.
+	const first = mark.line === null;
 
-	if (newestId === null || newestId === mark.line) return {open: null, mark};
-
-	if (!pinned) return {open: null, mark};
+	if (!first) {
+		if (newestId === null || newestId === mark.line) return {open: null, mark};
+		if (!pinned) return {open: null, mark};
+	}
 
 	// The newest line that leads anywhere, searched back only as far as the
 	// line already seen: a burst is one move rather than a walk through it, and
@@ -69,9 +86,7 @@ export const followStep = ({
 	//
 	// Stopping at the mark is what keeps it honest. Unbounded, a burst that
 	// leads nowhere at all — a swimlane renamed, say — would fall back to some
-	// older line still in the window and open a ticket nothing had happened to,
-	// including the one following promised not to jump to when it was switched
-	// on.
+	// older line still in the window and open a ticket nothing had happened to.
 	//
 	// A reverse loop rather than a reversed copy and a map: the window can hold
 	// twenty thousand entries and this runs on every arrival, where the answer
@@ -80,7 +95,8 @@ export const followStep = ({
 
 	for (let index = entries.length - 1; index >= 0; index--) {
 		const entry = entries[index];
-		if (!entry || entry.id === mark.line) break;
+		if (!entry) break;
+		if (!first && entry.id === mark.line) break;
 
 		const destination = destinationOf(entry);
 		if (destination) {
@@ -95,7 +111,9 @@ export const followStep = ({
 
 	// Already there. A run of edits on the open ticket would otherwise re-open
 	// it on every one — and this asks where the reader *is*, so it stops being
-	// true the moment they click away themselves.
+	// true the moment they click away themselves. It holds on the first look
+	// too: switching on while already reading the newest thing should not be a
+	// navigation to where you are.
 	if (at && sameDestination(at, target)) {
 		return {open: null, mark: {line: newestId}};
 	}
