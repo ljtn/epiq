@@ -51,6 +51,23 @@ export const resetCommitTimelineCacheForTests = (): void => {
 	fullTimelineCache = null;
 };
 
+// Whether a commit belongs to the window it was fetched for. `--since`/`--until`
+// match on the committer date, but a commit is plotted at its author date, and a
+// rebase moves the two days apart; left in, such a commit stretches the axis to
+// reach it.
+//
+// The start is compared at its own second, which is all a commit time has: a
+// window opening mid-second would otherwise drop a commit made in that same
+// second — the second git itself was asked for. A ticket's window opens at the
+// moment the ticket was created, so the commit this loses is its very first.
+export const inCommitWindow = (
+	time: number,
+	start: number | undefined,
+	end: number | undefined,
+): boolean =>
+	(start === undefined || time >= Math.floor(start / 1000) * 1000) &&
+	(end === undefined || time <= end);
+
 // Pure read of the *code* repo's history, safe mid-scrub. `--not <stateBranch>`
 // is required: worktrees share one ref namespace, so epiq's own state commits
 // would otherwise appear mixed into real development history.
@@ -125,15 +142,7 @@ export const getCommitTimeline = async (
 			};
 		})
 		.filter((commit): commit is CommitEntry => commit !== null)
-		// `--since`/`--until` match on the committer date, but a commit is plotted
-		// at its author date, and a rebase moves the two days apart. Left in, such
-		// a commit sits outside the window it was fetched for and stretches the
-		// axis to reach it.
-		.filter(
-			commit =>
-				(input.start === undefined || commit.time >= input.start) &&
-				(input.end === undefined || commit.time <= input.end),
-		);
+		.filter(commit => inCommitWindow(commit.time, input.start, input.end));
 
 	if (cacheable) {
 		fullTimelineCache = {

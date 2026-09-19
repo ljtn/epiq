@@ -652,8 +652,14 @@ export const TimeScrubber = ({
 	// ticket narrowing of events is: toggling it must not rescale the window.
 	const drawnCommits = useMemo(
 		() =>
-			keptCommits(shown.commits, linkedCommitsOnly, issueIdByRef, keptIssues),
-		[shown.commits, linkedCommitsOnly, issueIdByRef, keptIssues],
+			keptCommits(
+				shown.commits,
+				linkedCommitsOnly,
+				ticketFocus,
+				issueIdByRef,
+				keptIssues,
+			),
+		[shown.commits, linkedCommitsOnly, ticketFocus, issueIdByRef, keptIssues],
 	);
 	const commitStats = useMemo(
 		() => bucketCommitStats(axis, drawnCommits),
