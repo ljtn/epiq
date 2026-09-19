@@ -20,6 +20,7 @@ import {IconBars} from './IconBars';
 import {ICON_BUTTON_SIZE, IconButton, ICON_SIZE} from './IconButton';
 import {IconFunnel} from './IconFunnel';
 import {IconLive} from './IconLive';
+import {IconNow} from './IconNow';
 import {IconReplay} from './IconReplay';
 import {IconFlow} from './IconFlow';
 import {IconLog} from './IconLog';
@@ -439,7 +440,14 @@ export const ScrubberControls = ({
 						flexShrink: 0,
 					}}
 				>
-					{isScrubbing ? 'Now' : ''}
+					{isScrubbing ? (
+						<>
+							<IconNow size={ICON_SIZE} />
+							Now
+						</>
+					) : (
+						''
+					)}
 				</button>
 
 				<LiveToggle
