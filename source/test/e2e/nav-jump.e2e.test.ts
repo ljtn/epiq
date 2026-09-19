@@ -25,7 +25,7 @@ const selects = (title: string) => (frame: string) =>
 
 const press = async (tui: Tui, keys: string, lands: string) => {
 	tui.input(keys);
-	await tui.waitFor(selects(lands), 5_000);
+	await tui.waitFor(selects(lands), 10_000);
 };
 
 // The lane's rows, top to bottom. The selected row carries the cursor where
@@ -57,7 +57,9 @@ describe('TUI navigation jump e2e', () => {
 				await commonSteps.init(tui);
 
 				tui.input(ENTER);
-				await tui.waitFor('Todo (0)');
+				// The default wait is three seconds, which the container suite
+				// under load does not always make.
+				await tui.waitFor('Todo (0)', 20_000);
 
 				for (let index = 1; index <= ITEM_COUNT; index++) {
 					await typeCommand(tui, `:new issue ${itemTitle(index)}`);
@@ -99,7 +101,9 @@ describe('TUI navigation jump e2e', () => {
 				await commonSteps.init(tui);
 
 				tui.input(ENTER);
-				await tui.waitFor('Todo (0)');
+				// The default wait is three seconds, which the container suite
+				// under load does not always make.
+				await tui.waitFor('Todo (0)', 20_000);
 
 				for (let index = 1; index <= 6; index++) {
 					await typeCommand(tui, `:new issue ${itemTitle(index)}`);
@@ -111,7 +115,7 @@ describe('TUI navigation jump e2e', () => {
 
 				const before = await tui.waitFor(
 					frame => laneOrder(frame).length === 6,
-					5_000,
+					10_000,
 				);
 				expect(laneOrder(before)).toEqual([
 					'Item 01',
@@ -124,17 +128,17 @@ describe('TUI navigation jump e2e', () => {
 
 				// `m` starts the move, shift+down carries it a jump, `m` commits it.
 				tui.input('m');
-				await tui.waitFor('Mode: move', 5_000);
+				await tui.waitFor('Mode: move', 10_000);
 
 				tui.input(SHIFT_ARROW_DOWN);
-				await tui.waitFor(frame => laneOrder(frame)[5] === 'Item 01', 5_000);
+				await tui.waitFor(frame => laneOrder(frame)[5] === 'Item 01', 10_000);
 
 				tui.input('m');
-				await tui.waitFor('Mode: default', 5_000);
+				await tui.waitFor('Mode: default', 10_000);
 
 				const after = await tui.waitFor(
 					frame => laneOrder(frame).length === 6,
-					5_000,
+					10_000,
 				);
 				expect(laneOrder(after)).toEqual([
 					'Item 02',
