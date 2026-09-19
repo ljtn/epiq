@@ -25,18 +25,20 @@ describe('followStep', () => {
 			newestId: 'a',
 			mark: NOT_FOLLOWING,
 			pinned,
+			at: null,
 		});
 
 		expect(step.open).toBeNull();
-		expect(step.mark).toEqual({line: 'a', went: null});
+		expect(step.mark).toEqual({line: 'a'});
 	});
 
 	it('opens the line that arrives after it', () => {
 		const step = followStep({
 			entries: [line('a'), line('b', {issue: 'ISSUE_2'})],
 			newestId: 'b',
-			mark: {line: 'a', went: null},
+			mark: {line: 'a'},
 			pinned,
+			at: null,
 		});
 
 		expect(step.open).toEqual({
@@ -55,8 +57,9 @@ describe('followStep', () => {
 				line('c', {issue: 'ISSUE_3'}),
 			],
 			newestId: 'c',
-			mark: {line: 'a', went: null},
+			mark: {line: 'a'},
 			pinned,
+			at: null,
 		});
 
 		expect(step.open).toMatchObject({issueId: 'ISSUE_3'});
@@ -68,13 +71,14 @@ describe('followStep', () => {
 		const step = followStep({
 			entries: [line('a'), line('b', {issue: 'ISSUE_2'})],
 			newestId: 'b',
-			mark: {line: 'a', went: null},
+			mark: {line: 'a'},
 			pinned: false,
+			at: null,
 		});
 
 		expect(step.open).toBeNull();
 		// And the line is not banked, so it is still followed on the way back.
-		expect(step.mark).toEqual({line: 'a', went: null});
+		expect(step.mark).toEqual({line: 'a'});
 	});
 
 	// Board- and swimlane-level lines lead nowhere by definition.
@@ -86,8 +90,9 @@ describe('followStep', () => {
 				line('c', {issue: null, action: 'add.swimlane'}),
 			],
 			newestId: 'c',
-			mark: {line: 'a', went: null},
+			mark: {line: 'a'},
 			pinned,
+			at: null,
 		});
 
 		expect(step.open).toMatchObject({issueId: 'ISSUE_2'});
@@ -98,8 +103,9 @@ describe('followStep', () => {
 		const step = followStep({
 			entries: [line('a', {issue: null, action: 'add.board'})],
 			newestId: 'a',
-			mark: {line: 'z', went: null},
+			mark: {line: 'z'},
 			pinned,
+			at: null,
 		});
 
 		expect(step.open).toBeNull();
@@ -108,28 +114,32 @@ describe('followStep', () => {
 
 	// The reader is already there; a run of edits on the open ticket would
 	// otherwise re-open it on every one.
-	it('does not open the destination it last opened', () => {
-		const first = followStep({
+	it('does not open where the reader already is', () => {
+		const step = followStep({
 			entries: [line('a'), line('b', {issue: 'ISSUE_2'})],
 			newestId: 'b',
-			mark: {line: 'a', went: null},
+			mark: {line: 'a'},
 			pinned,
+			at: {kind: 'ticket', issueId: 'ISSUE_2', tab: 'overview'},
 		});
 
-		const second = followStep({
-			entries: [
-				line('a'),
-				line('b', {issue: 'ISSUE_2'}),
-				line('c', {issue: 'ISSUE_2', action: 'edit.issue.title'}),
-			],
-			newestId: 'c',
-			mark: first.mark,
+		expect(step.open).toBeNull();
+		expect(step.mark.line).toBe('b');
+	});
+
+	// The bug this replaced a `went` mark to fix: following used to remember
+	// where *it* had sent the reader, so once they clicked away by hand it went
+	// quiet on the very ticket the log was talking about.
+	it('opens a ticket it opened before, once the reader has walked off it', () => {
+		const step = followStep({
+			entries: [line('a', {issue: 'ISSUE_2'})],
+			newestId: 'a',
+			mark: {line: 'z'},
 			pinned,
+			at: {kind: 'ticket', issueId: 'ISSUE_9', tab: 'overview'},
 		});
 
-		expect(second.open).toBeNull();
-		// Banked even so, or the next line is measured against a stale one.
-		expect(second.mark.line).toBe('c');
+		expect(step.open).toMatchObject({issueId: 'ISSUE_2'});
 	});
 
 	// A comment opens among the comments, which is a different destination on
@@ -138,26 +148,33 @@ describe('followStep', () => {
 		const step = followStep({
 			entries: [line('a', {issue: 'ISSUE_2', action: 'add.issue.comment'})],
 			newestId: 'a',
-			mark: {
-				line: 'z',
-				went: JSON.stringify({
-					kind: 'ticket',
-					issueId: 'ISSUE_2',
-					tab: 'overview',
-				}),
-			},
+			mark: {line: 'z'},
 			pinned,
+			at: {kind: 'ticket', issueId: 'ISSUE_2', tab: 'overview'},
 		});
 
 		expect(step.open).toMatchObject({tab: 'comments'});
+	});
+
+	it('does not re-open a commit diff the reader is already reading', () => {
+		const step = followStep({
+			entries: [line('a', {sha: 'abc123', issue: null, action: null})],
+			newestId: 'a',
+			mark: {line: 'z'},
+			pinned,
+			at: {kind: 'commit', sha: 'abc123'},
+		});
+
+		expect(step.open).toBeNull();
 	});
 
 	it('opens a commit line at its diff', () => {
 		const step = followStep({
 			entries: [line('a', {sha: 'abc123', issue: null, action: null})],
 			newestId: 'a',
-			mark: {line: 'z', went: null},
+			mark: {line: 'z'},
 			pinned,
+			at: null,
 		});
 
 		expect(step.open).toEqual({kind: 'commit', sha: 'abc123'});

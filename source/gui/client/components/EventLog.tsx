@@ -402,6 +402,7 @@ const EventLogPanel = ({
 	moment,
 	bottomClearance,
 	onOpen,
+	at = null,
 	onHoverEvent,
 	layout = 'panel',
 	onPopOut,
@@ -415,6 +416,9 @@ const EventLogPanel = ({
 	// rows carry where they go, and hundreds of closures would be the expensive
 	// half of a feature whose whole point is that it costs nothing until used.
 	onOpen: (destination: LogDestination, options?: {replace?: boolean}) => void;
+	// Where the reader is, so following can tell "already there" from "went
+	// there once". Null where nothing is open.
+	at?: LogDestination | null;
 	// The event under the pointer, or null off the rows: what the chart lights
 	// up while a row is hovered.
 	onHoverEvent?: (eventId: string | null) => void;
@@ -529,6 +533,11 @@ const EventLogPanel = ({
 	// strange way to open.
 	const [following, setFollowing] = useState(false);
 
+	// The board is standing at the present when the slice runs to the end of
+	// time — `momentOnScreen` returns Infinity only while live, and a checkout
+	// or a playhead is a finite moment.
+	const live = moment === Infinity;
+
 	// An absolutely positioned child extends the pane's scrollable overflow,
 	// hidden or not. So an arrow left on a row the column has since lost is a
 	// stretch of empty pane below the last line, and a snap to the foot lands in
@@ -608,11 +617,20 @@ const EventLogPanel = ({
 		// board beside it repaints.
 	}, [newestId, animate]);
 
-	// What following has already seen and where it last went. The decision
-	// itself is `followStep`, so the cases it has to get right — a burst, the
-	// same ticket twice, a line that leads nowhere — are testable without
-	// putting the panel into each of them.
+	// The last line following acted on. The decision itself is `followStep`, so
+	// the cases it has to get right — a burst, a line that leads nowhere, the
+	// reader already being there — are testable without putting the panel into
+	// each of them.
 	const followedRef = useRef<FollowMark>(NOT_FOLLOWING);
+
+	// Read by the effect below but deliberately not listed as its dependencies.
+	// `onOpen` is rebuilt on every render of the board, and `entries` on every
+	// slice — depending on either would re-run the effect on renders where no
+	// line arrived, and the first such re-run that found the pane pinned would
+	// navigate with nothing new to show. The crawl effect beside this one keys
+	// on the newest line for the same reason.
+	const followSourcesRef = useRef({entries, onOpen, at});
+	followSourcesRef.current = {entries, onOpen, at};
 
 	useEffect(() => {
 		if (!following) {
@@ -620,19 +638,28 @@ const EventLogPanel = ({
 			return;
 		}
 
+		// Only while the board is standing at the present. A checkout re-slices
+		// the log to the window it scrubbed to and a movie grows it frame by
+		// frame, so the newest line moves wholesale in both — and neither is a
+		// line arriving.
+		if (!live) return;
+
+		const sources = followSourcesRef.current;
+
 		const step = followStep({
-			entries,
+			entries: sources.entries,
 			newestId,
 			mark: followedRef.current,
 			pinned: pinnedRef.current,
+			at: sources.at,
 		});
 
 		followedRef.current = step.mark;
 
 		// Replaced rather than pushed: an hour of following would otherwise leave
 		// Back walking the reader through somebody else's afternoon.
-		if (step.open) onOpen(step.open, {replace: true});
-	}, [following, newestId, entries, onOpen]);
+		if (step.open) sources.onOpen(step.open, {replace: true});
+	}, [following, live, newestId]);
 
 	const markRow = (target: EventTarget | null) => {
 		const arrow = arrowRef.current;

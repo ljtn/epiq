@@ -7,13 +7,23 @@
 import {LogEntry} from './event-log';
 import {destinationOf, LogDestination} from './log-destination';
 
-// What following has already done: the last line it saw, and where it last
-// went. `line` null means it has not looked yet — enabling seeds this without
-// opening anything, so switching on is not a request to go wherever the log
-// happens to be standing.
-export type FollowMark = {line: string | null; went: string | null};
+// The last line following saw. Null means it has not looked yet — enabling
+// seeds this without opening anything, so switching on is not a request to go
+// wherever the log happens to be standing.
+export type FollowMark = {line: string | null};
 
-export const NOT_FOLLOWING: FollowMark = {line: null, went: null};
+export const NOT_FOLLOWING: FollowMark = {line: null};
+
+const sameDestination = (
+	left: LogDestination,
+	right: LogDestination,
+): boolean =>
+	left.kind === 'commit' || right.kind === 'commit'
+		? left.kind === right.kind &&
+		  left.kind === 'commit' &&
+		  right.kind === 'commit' &&
+		  left.sha === right.sha
+		: left.issueId === right.issueId && left.tab === right.tab;
 
 export type FollowStep =
 	// Nothing to do, but the mark may have moved on.
@@ -26,21 +36,27 @@ export type FollowStep =
  * or reading back through what is there. Following obeys it rather than adding
  * a second one: scrolled back, the pane already refuses to pull itself down,
  * and taking the board away would be the same interruption by another route.
+ *
+ * `at` is where the reader actually is, not where following last sent them.
+ * Those differ the moment the reader clicks anything themselves, and following
+ * must not go quiet on the ticket the log is talking about because it once
+ * opened it and the reader has since walked off.
  */
 export const followStep = ({
 	entries,
 	newestId,
 	mark,
 	pinned,
+	at,
 }: {
 	entries: readonly LogEntry[];
 	newestId: string | null;
 	mark: FollowMark;
 	pinned: boolean;
+	at: LogDestination | null;
 }): FollowStep => {
 	// First look after the switch: remember where the log stands, go nowhere.
-	if (mark.line === null)
-		return {open: null, mark: {line: newestId, went: null}};
+	if (mark.line === null) return {open: null, mark: {line: newestId}};
 
 	if (newestId === null || newestId === mark.line) return {open: null, mark};
 
@@ -56,12 +72,14 @@ export const followStep = ({
 
 	// The line is seen either way: a burst of lines that lead nowhere must not
 	// leave following waiting to be told about them again.
-	if (!target) return {open: null, mark: {line: newestId, went: mark.went}};
+	if (!target) return {open: null, mark: {line: newestId}};
 
-	// Where the reader already is. A run of comments on the open ticket would
-	// otherwise re-open it on every one.
-	const went = JSON.stringify(target);
-	if (went === mark.went) return {open: null, mark: {line: newestId, went}};
+	// Already there. A run of edits on the open ticket would otherwise re-open
+	// it on every one — and this asks where the reader *is*, so it stops being
+	// true the moment they click away themselves.
+	if (at && sameDestination(at, target)) {
+		return {open: null, mark: {line: newestId}};
+	}
 
-	return {open: target, mark: {line: newestId, went}};
+	return {open: target, mark: {line: newestId}};
 };

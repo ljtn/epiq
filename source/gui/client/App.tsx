@@ -1279,6 +1279,19 @@ export const App = () => {
 		setHistoryTick(tick => tick + 1);
 	}, [contributorEmails.changed, theatre]);
 
+	// Where the reader is, for the log's own following: a destination in the
+	// same shape a log line resolves to, so the two are compared rather than
+	// following remembering where it last sent anybody.
+	const readerAt: LogDestination | null = commitDiff
+		? {kind: 'commit', sha: commitDiff.sha}
+		: selectedIssue
+		? {
+				kind: 'ticket',
+				issueId: selectedIssue.id,
+				tab: selectedTab === 'comments' ? 'comments' : 'overview',
+		  }
+		: null;
+
 	const {entries: logEntries, moment: logMoment} = useEventLog({
 		open: logOpen,
 		timeline: history.timeline,
@@ -1796,6 +1809,7 @@ export const App = () => {
 								onHoverEvent={setHoveredLogEventId}
 								bottomClearance={theatre ? THEATRE_PLAYER_CLEARANCE : 0}
 								onOpen={openLogDestination}
+								at={readerAt}
 								onPopOut={logWindow.popOut}
 							/>
 						)}
