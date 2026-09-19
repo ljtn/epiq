@@ -28,6 +28,15 @@ vi.mock('../lib/storage/paths.js', async importOriginal => ({
 		succeeded('Resolved', process.cwd()),
 	),
 }));
+const BOARD = 'BOARD-UNDER-TEST';
+
+vi.mock('../lib/project-setup/project-setup.js', async importOriginal => ({
+	...(await importOriginal<
+		typeof import('../lib/project-setup/project-setup.js')
+	>()),
+	readProjectId: vi.fn(() => succeeded('Read', BOARD)),
+}));
+
 vi.mock('../lib/config/user-config.js', () => ({
 	setConfig: vi.fn(() => succeeded('Wrote', null)),
 }));
@@ -100,7 +109,7 @@ describe(':config emails', () => {
 			userName: 'jola',
 			gitEmail: 'jola@example.com',
 			gitName: 'Jonatan Lampa',
-			emailSetup: null,
+			declinedEmailBoards: [],
 		});
 		board();
 		history([
@@ -193,22 +202,49 @@ describe(':config emails', () => {
 			expect(written()).toEqual([]);
 		});
 
-		it('records that the question was answered, so the step stops asking', async () => {
+		// The claim is the answer, and it lives on the board. Writing a local
+		// flag beside it is what left the step asking on a board where the
+		// address had been claimed in the GUI instead.
+		it('writes no local record of the answer', async () => {
 			typed('jola@example.com');
 			await setEmailsCommand();
 
-			expect(setConfig).toHaveBeenCalledWith({emailSetup: 'linked'});
+			expect(setConfig).not.toHaveBeenCalled();
+			expect(written()).toHaveLength(1);
 		});
 	});
 
 	describe('declining', () => {
-		it('records the decline and writes nothing', async () => {
+		it('records the decline against this board and writes nothing', async () => {
 			typed('none');
 			const result = await setEmailsCommand();
 
 			expect(isFail(result)).toBe(false);
-			expect(setConfig).toHaveBeenCalledWith({emailSetup: 'declined'});
+			expect(setConfig).toHaveBeenCalledWith({
+				declinedEmailBoards: [BOARD],
+			});
 			expect(written()).toEqual([]);
+		});
+
+		// Per board, so a refusal in one repository says nothing about the next.
+		it('keeps the boards already declined', async () => {
+			patchSettingsState({declinedEmailBoards: ['ANOTHER-BOARD']});
+			typed('none');
+
+			await setEmailsCommand();
+
+			expect(setConfig).toHaveBeenCalledWith({
+				declinedEmailBoards: ['ANOTHER-BOARD', BOARD],
+			});
+		});
+
+		it('does not record the same board twice', async () => {
+			patchSettingsState({declinedEmailBoards: [BOARD]});
+			typed('none');
+
+			await setEmailsCommand();
+
+			expect(setConfig).toHaveBeenCalledWith({declinedEmailBoards: [BOARD]});
 		});
 
 		// Saying no is the answer somebody gives precisely when the rest of this
@@ -219,7 +255,9 @@ describe(':config emails', () => {
 			typed('none');
 
 			expect(isFail(await setEmailsCommand())).toBe(false);
-			expect(setConfig).toHaveBeenCalledWith({emailSetup: 'declined'});
+			expect(setConfig).toHaveBeenCalledWith({
+				declinedEmailBoards: [BOARD],
+			});
 		});
 
 		it('works when git cannot read the history', async () => {
@@ -301,12 +339,16 @@ describe(':config emails', () => {
 			expect(written()).toEqual([]);
 		});
 
-		it('marks the answer given even when the history has nothing left', async () => {
+		// Recorded as a decline: there is nothing to claim, so the step would
+		// otherwise wait forever on an answer that cannot be given.
+		it('settles the step when the history has nothing left to claim', async () => {
 			history([]);
 			typed('');
 			await setEmailsCommand();
 
-			expect(setConfig).toHaveBeenCalledWith({emailSetup: 'linked'});
+			expect(setConfig).toHaveBeenCalledWith({
+				declinedEmailBoards: [BOARD],
+			});
 		});
 	});
 

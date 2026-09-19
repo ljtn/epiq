@@ -1,5 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {failed, succeeded} from '../lib/model/result-types.js';
+import {emailLinkKey} from '../lib/model/email-link.js';
 
 /**
  * Where the command line goes after a setup answer lands.
@@ -83,7 +84,7 @@ beforeEach(() => {
 		userId: null,
 		preferredEditor: null,
 		autoSync: null,
-		emailSetup: null,
+		declinedEmailBoards: [],
 		gitEmail: 'jola@example.com',
 		gitName: 'Jonatan Lampa',
 	});
@@ -138,7 +139,19 @@ describe('once setup is done', () => {
 			userId: 'USER',
 			preferredEditor: 'vim',
 			autoSync: false,
-			emailSetup: 'linked',
+		});
+
+		// The claiming step is answered by the board, not by a flag — so this is
+		// what "answered" looks like, whether it was the GUI or `:config emails`
+		// that wrote it.
+		patchState({
+			emailLinks: {
+				[emailLinkKey('jola@example.com', 'USER')]: {
+					email: 'jola@example.com',
+					contributor: 'USER',
+					authorId: 'USER',
+				},
+			},
 		});
 	});
 

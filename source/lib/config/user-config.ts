@@ -24,11 +24,17 @@ const EpiqConfigSchema = z
 		autoSyncDebounceMs: z.number().optional(),
 		attachmentMaxKb: z.number().optional(),
 		viewMode: z.enum(['dense', 'wide']).optional(),
-		// Whether this machine has been asked about its git addresses. Records
-		// that the question was put, not the answer: the answer lives on the
-		// board as links, and a decline has to be remembered somewhere that does
-		// not replicate to everybody else's clone.
-		emailSetup: z.enum(['linked', 'declined']).optional(),
+		// The boards this machine was asked about its git addresses on and
+		// declined. Only the refusal is kept: whether somebody claimed an address
+		// is the board's own answer, read from its links, and caching that here
+		// was what left the step asking on a board where it had been answered
+		// from the GUI.
+		//
+		// Per board, because the addresses offered are a repository's own
+		// history — declining one says nothing about the next. Here rather than
+		// on the board, because a refusal must not replicate to everybody else's
+		// clone.
+		declinedEmailBoards: z.array(z.string()).optional(),
 	})
 	.partial();
 
@@ -160,7 +166,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		preferredEditor,
 		userName,
 		userId,
-		emailSetup,
+		declinedEmailBoards,
 		autoSync,
 		autoSyncDebounceMs: autoSyncIntervalMs,
 		attachmentMaxKb,
@@ -188,7 +194,7 @@ export const loadSettingsFromConfig = (): Result<SettingsState> => {
 		// here and filled by whoever boots, from the repository they booted in.
 		gitEmail: null,
 		gitName: null,
-		emailSetup: emailSetup ?? null,
+		declinedEmailBoards: declinedEmailBoards ?? [],
 		logLevel: logLevel ?? 'debug',
 		preferredEditor: preferredEditor ?? '',
 		userName: actor.userName,

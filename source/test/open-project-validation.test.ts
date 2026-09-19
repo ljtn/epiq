@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {failed, succeeded} from '../lib/model/result-types.js';
 
 vi.mock('../lib/state/state.js', () => ({
 	getState: () => ({
@@ -19,19 +20,38 @@ vi.mock('../lib/state/settings.state.js', () => ({
 		preferredEditor: 'vim',
 		autoSync: true,
 		userName: 'jola',
+		userId: 'USER',
+		declinedEmailBoards: [],
 	}),
 }));
 
 let initialized = false;
 
-vi.mock('../lib/config/setup-utils.js', async importOriginal => {
+// Whether *this directory* is a project, faked where both readers start rather
+// than at `setup-utils`' own export: `getUserSetupStatus` calls its
+// module-local `isRepositoryInitialized`, which a spread-over-actual mock never
+// replaces. The suite passed regardless while the gate read a flag this file's
+// settings mock left undefined, since `undefined !== null` answered it.
+//
+// Only the call about the current directory is faked. The `:open` completions
+// read real project files out of real temp directories, passing their own
+// paths, and those must go through untouched.
+vi.mock('../lib/storage/paths.js', async importOriginal => {
 	const actual = await importOriginal<
-		typeof import('../lib/config/setup-utils.js')
+		typeof import('../lib/storage/paths.js')
 	>();
 
 	return {
 		...actual,
-		isRepositoryInitialized: () => initialized,
+		resolveClosestEpiqProjectRoot: vi.fn((from?: string) => {
+			if (from !== undefined && from !== process.cwd()) {
+				return actual.resolveClosestEpiqProjectRoot(from);
+			}
+
+			return initialized
+				? succeeded('Resolved', process.cwd())
+				: failed('Not an epiq project');
+		}),
 	};
 });
 

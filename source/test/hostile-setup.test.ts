@@ -123,7 +123,7 @@ beforeEach(() => {
 		gitName: 'Jonatan Lampa',
 		preferredEditor: 'vim',
 		autoSync: false,
-		emailSetup: null,
+		declinedEmailBoards: [],
 	});
 	board();
 	history([['Jonatan Lampa', 'jola@example.com']]);
