@@ -671,8 +671,13 @@ export const setupWebsocket = (
 				}
 
 				if (type === 'contributors:get') {
+					// Echoed back, the way `timeline` echoes its request id.
+					// Answering this replays the event log, and one socket now
+					// outlives a board switch — so without it, the answer for a
+					// board the reader has left lands on the one they moved to.
 					return sendSocket(socket, {
 						type: 'contributors',
+						boardId: message.payload?.boardId ?? null,
 						payload: await getBoardContributors({
 							repoRoot,
 							...message.payload,

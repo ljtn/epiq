@@ -830,9 +830,13 @@ export const App = () => {
 
 			const created = getResultValue<{id: string}>(message.payload);
 
-			if (created && boardId) {
+			// `boardSlug`, not the route's own param: it falls back to the board
+			// on screen, which is known as soon as state arrives, while the param
+			// is empty until the redirect off `/` commits. A ticket filed in that
+			// window was created and never opened.
+			if (created && boardSlug) {
 				void navigateRef.current(
-					`/board/${boardId}/issue/${nodeRef(created.id)}?tab=overview`,
+					`/board/${boardSlug}/issue/${nodeRef(created.id)}?tab=overview`,
 				);
 			}
 
@@ -921,7 +925,14 @@ export const App = () => {
 
 		if (message.type === 'contributors') {
 			const next = getResultValue<GuiContributor[]>(message.payload);
-			if (next) setContributors(next);
+			// The list is board-scoped and the answer is slow, so a board switch
+			// can outrun it. The socket no longer dies on that switch, which is
+			// what used to drop the stale answer on the floor.
+			const answeredFor = message.boardId ?? null;
+
+			if (next && answeredFor === selectedBoardIdRef.current) {
+				setContributors(next);
+			}
 		}
 
 		if (message.type === 'commits') {

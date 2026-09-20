@@ -26,11 +26,14 @@ test('loads a board with its swimlanes', async ({page, pageErrors}) => {
 	expect(pageErrors).toEqual([]);
 });
 
-// The regression: switching boards blanked the screen. The socket URL carries
-// the board, so a switch rebuilds it, and an effect sent on the new socket
-// while it was still CONNECTING. `send` throws in that state and an uncaught
-// throw in an effect unmounts the whole tree. Only reproducible through UI
-// navigation — a refresh has an open socket before anything sends.
+// The regression: switching boards blanked the screen. An effect sent on a
+// socket that was still CONNECTING, `send` throws in that state, and an
+// uncaught throw in an effect unmounts the whole tree.
+//
+// A board switch is no longer how you get there: since `8GXKQR4` the socket
+// outlives one, so what reaches a CONNECTING socket now is a reconnect. This
+// test no longer reproduces the original crash — it holds the board switch
+// itself to drawing a board either way.
 test('switches between boards without blanking the screen', async ({
 	page,
 	pageErrors,

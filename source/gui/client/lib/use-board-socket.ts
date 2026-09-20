@@ -127,8 +127,9 @@ export const useBoardSocket = ({
 			}
 
 			// A socket this effect is replacing is not a lost connection: the next
-			// one is already opening. Reporting it would flash the whole offline
-			// treatment on every navigation, which re-runs this effect.
+			// one is already opening. That is a reconnect or an unmount now, the
+			// effect having stopped re-running on navigation — but reporting one
+			// would still flash the whole offline treatment over it.
 			if (replaced) return;
 
 			setConnected(false);
