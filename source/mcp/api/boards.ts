@@ -27,7 +27,7 @@ import {getTimeTravelStatus} from '../epiq-time-travel.js';
 import {
 	ToolInput,
 	bootLocal,
-	bootedForMutation,
+	bootedWithActorAndState,
 	getActor,
 	getStateResult,
 	resolveRepoRoot,
@@ -88,7 +88,7 @@ export const listBoards = async (input: ToolInput = {}) => {
 };
 
 export const createBoard = async (input: CreateBoardInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	// Boards hang off the workspace, and there is exactly one of those: the
@@ -145,7 +145,7 @@ export const createBoard = async (input: CreateBoardInput) => {
 };
 
 export const editBoardTitle = async (input: EditBoardTitleInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const board = ready.value.state.nodes[input.boardId];
@@ -221,7 +221,7 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 };
 
 export const createSwimlane = async (input: CreateSwimlaneInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const boardResult = findWritableBoard(input.boardId);
@@ -276,7 +276,7 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 };
 
 export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const swimlaneResult = findWritableSwimlane(input.swimlaneId);
@@ -387,7 +387,7 @@ export const moveSwimlane = async (
 };
 
 export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const swimlaneResult = findWritableSwimlane(input.swimlaneId);

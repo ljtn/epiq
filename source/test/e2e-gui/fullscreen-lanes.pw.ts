@@ -102,7 +102,7 @@ test('the lanes list the commits to scan, as the tabs do', async ({
 	await page.setViewportSize({width: 1600, height: 900});
 	await addTicket(page, `Open diffs ${Date.now()}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 

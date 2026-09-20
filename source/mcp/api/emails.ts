@@ -26,7 +26,7 @@ import {getSettingsState} from '../../lib/state/settings.state.js';
 import {
 	ToolInput,
 	bootLocal,
-	bootedForMutation,
+	bootedWithActorAndState,
 	getActor,
 	getStateResult,
 } from './boot.js';
@@ -45,7 +45,7 @@ export const linkContributorEmail = async (
 ): Promise<
 	Result<{contributor: string; email: string; contested: string[]}>
 > => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	if (!isValidEmail(input.email)) {
@@ -102,7 +102,7 @@ export const linkContributorEmail = async (
 export const unlinkContributorEmail = async (
 	input: LinkInput,
 ): Promise<Result<{contributor: string; email: string}>> => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const email = normalizeEmail(input.email);
@@ -219,7 +219,7 @@ export const listContributorEmails = async (input: ToolInput = {}) => {
  * an address becomes somebody's.
  */
 export const suggestOwnEmails = async (input: ToolInput = {}) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const {userId, userName} = ready.value.actor;

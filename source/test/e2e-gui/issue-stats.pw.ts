@@ -14,7 +14,7 @@ test('the Stats tab measures the ticket own commits', async ({
 }) => {
 	await addTicket(page, `Stats ${Date.now()}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 
@@ -74,7 +74,7 @@ test('a file named on the Stats tab opens its own diff', async ({
 }) => {
 	await addTicket(page, `Follow ${Date.now()}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 

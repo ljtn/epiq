@@ -20,7 +20,8 @@ const dockTo = async (page: Page, side: 'bottom' | 'right') => {
 // centre falls inside the other's height.
 const sharesRowWithRef = async (page: Page, title: string) => {
 	const ref = await page
-		.locator('aside button[title^="Copy "]')
+		.locator('aside')
+		.getByTestId('copy-ref')
 		.first()
 		.boundingBox();
 	const heading = await page
@@ -53,10 +54,7 @@ test('the header row reads ref, title, then age against the right edge', async (
 	await dockTo(page, 'bottom');
 
 	const aside = page.locator('aside');
-	const ref = await aside
-		.locator('button[title^="Copy "]')
-		.first()
-		.boundingBox();
+	const ref = await aside.getByTestId('copy-ref').first().boundingBox();
 	const heading = await aside.getByText(title, {exact: true}).boundingBox();
 	const age = await page.getByTestId('issue-created-at').boundingBox();
 

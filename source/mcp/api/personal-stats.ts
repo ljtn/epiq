@@ -18,12 +18,12 @@ import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 import {findEmailCandidates} from '../../lib/repository/email-candidates.js';
 import {PersonalStats} from '../../lib/stats/personal-stats.model.js';
 import {authoredTotals} from '../../lib/stats/personal-stats.js';
-import {ToolInput, bootedForMutation} from './boot.js';
+import {ToolInput, bootedWithActorAndState} from './boot.js';
 
 export const getPersonalStats = async (
 	input: ToolInput = {},
 ): Promise<Result<PersonalStats>> => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const {userId, userName} = ready.value.actor;

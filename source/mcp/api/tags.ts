@@ -12,7 +12,12 @@ import {MAX_TAG_NAME_LENGTH, tooLong} from '../../lib/utils/text.limits.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiBatchOutcome} from '../api-state.model.js';
-import {ToolInput, bootLocal, bootedForMutation, getActor} from './boot.js';
+import {
+	ToolInput,
+	bootLocal,
+	bootedWithActorAndState,
+	getActor,
+} from './boot.js';
 import {
 	IssueTargets,
 	IssueRef,
@@ -126,7 +131,7 @@ export async function addIssueTag(
 export const tombstoneTag = async (
 	input: ToolInput & {tagId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const tag = ready.value.state.tags[input.tagId];
@@ -155,7 +160,7 @@ export const tombstoneTag = async (
 export const restoreTag = async (
 	input: ToolInput & {tagId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const tag = ready.value.state.tags[input.tagId];
@@ -188,7 +193,7 @@ export const restoreTag = async (
 };
 
 export const removeIssueTag = async (input: RemoveIssueTagInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);

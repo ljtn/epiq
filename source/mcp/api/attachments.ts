@@ -19,7 +19,7 @@ import {
 	resolveAttachmentBlob,
 	writeAttachmentBlob,
 } from '../../lib/media/media-store.js';
-import {ToolInput, bootLocal, bootedForMutation} from './boot.js';
+import {ToolInput, bootLocal, bootedWithActorAndState} from './boot.js';
 
 type AddIssueAttachmentInput = ToolInput & {
 	issueId: string;
@@ -73,7 +73,7 @@ export const getAttachmentMaxKb = (): number => {
 };
 
 export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
@@ -128,7 +128,7 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 export const deleteIssueAttachment = async (
 	input: DeleteIssueAttachmentInput,
 ) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const attachmentEvent = ready.value.state.eventLog.find(

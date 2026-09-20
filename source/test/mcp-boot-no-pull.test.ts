@@ -14,7 +14,11 @@ import {describe, expect, it} from 'vitest';
 // break — rather than the thirty-seven copies of `{pull: false}` this replaced,
 // each of which had to keep saying it.
 
-const apiDir = path.join(import.meta.dirname, '..', 'mcp', 'api');
+// The whole tree, not just `mcp/api`: `boot` is exported, so a call from the
+// server, the GUI's own layer or anywhere else would defeat the rule while a
+// scan of one directory reported it kept.
+const sourceDir = path.join(import.meta.dirname, '..');
+const apiDir = path.join(sourceDir, 'mcp', 'api');
 
 const sourceFiles = (dir: string): string[] =>
 	readdirSync(dir, {withFileTypes: true}).flatMap(entry => {
@@ -27,13 +31,17 @@ const sourceFiles = (dir: string): string[] =>
 			: [];
 	});
 
-// `boot(` and not `bootLocal(` or `bootedForMutation(`, which are the door and
+// `boot(` and not `bootLocal(` or `bootedWithActorAndState(`, which are the door and
 // the prologue built on it.
 const linesMatching = (pattern: RegExp): {file: string; line: string}[] =>
-	sourceFiles(apiDir).flatMap(file =>
+	sourceFiles(sourceDir).flatMap(file =>
 		readFileSync(file, 'utf8')
 			.split('\n')
-			.filter(line => pattern.test(line) && !line.trim().startsWith('*'))
+			// Prose mentions `boot()` too; a scan that counted those would report a
+			// breach every time somebody explained the rule.
+			.map(line => line.replace(/\/\/.*$/, ''))
+			.filter(line => !line.trim().startsWith('*'))
+			.filter(line => pattern.test(line))
 			.map(line => ({file: path.basename(file), line: line.trim()})),
 	);
 
@@ -44,8 +52,10 @@ describe('the MCP never pulls on boot', () => {
 	// a tightened filter would leave nothing to check and report success. The
 	// door being used everywhere is what makes checking the door worth anything.
 	it('boots through the one door, everywhere', () => {
-		expect(linesMatching(/\bbootLocal\(/).length).toBeGreaterThan(10);
-		expect(linesMatching(/\bbootedForMutation\(/).length).toBeGreaterThan(20);
+		expect(linesMatching(/\bbootLocal\(/).length).toBeGreaterThan(4);
+		expect(linesMatching(/\bbootedWithActorAndState\(/).length).toBeGreaterThan(
+			15,
+		);
 	});
 
 	// Named rather than counted, so a failure says which file went around it.

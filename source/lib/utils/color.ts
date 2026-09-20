@@ -182,7 +182,7 @@ export const getGradientColor = (t: number): Rgb => {
 /**
  * Samples an arbitrary list of hex stops at `t` (0..1), as hex.
  *
- * `getGradientColor` below answers the same question for the one gradient the
+ * `getGradientColor` above answers the same question for the one gradient the
  * palette owns; this one is for a caller bringing its own stops — the sync
  * animations, which cycle a gradient of their own. Both components had written
  * `hexToRgb`, `rgbToHex`, a mixer and this walk out for themselves, a third
