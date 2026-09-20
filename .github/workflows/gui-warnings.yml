@@ -1,0 +1,75 @@
+name: GUI warnings
+
+# React ships two runtimes, and only the development one checks anything: a
+# style shorthand fighting a longhand, a missing key, invalid DOM nesting, a
+# controlled input turning uncontrolled. It reports them through `console.error`
+# — which is what `source/test/e2e-gui/fixtures.ts` already fails a test on, in
+# 62 of the 65 spec files. So the browser suite has always been this project's
+# net for them, without anybody writing a test for one.
+#
+# Since CC160K8 the shipped bundle is the production runtime, three times
+# smaller and faster at every render. That is the right thing to ship and the
+# right thing for the gate to run, and it compiles every one of those checks
+# out. This is where the net went.
+#
+# Nightly rather than per push, deliberately. The browser suite is CI's critical
+# path already, and a second full pass would roughly double it on every branch
+# push, forever, for a class of bug this repository has been bitten by once. A
+# night's delay costs a morning; the runners cost every push anybody makes.
+#
+# When it goes red: the failing test names the component, and the warning text
+# is in the `console.error` the fixture collected. `git log --since=yesterday --
+# source/gui/client` is the short list of candidates.
+on:
+  schedule:
+    # 03:00 UTC, which is the quiet end of this project's day.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  gui-dev-bundle:
+    name: GUI, development bundle
+    runs-on: ubuntu-latest
+    # Unsharded: one runner once a night is cheaper than three, and nothing is
+    # waiting on the answer.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # The suite seeds each project by driving the real TUI, which runs git.
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - run: npm ci
+
+      # Same cache the `gui` job fills on every push, so this run normally finds
+      # the browsers already here.
+      - name: Cache the browsers Playwright downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - run: npx playwright install --with-deps chromium
+
+      # EPIQ_GUI_DEV_BUILD=1 builds React's development runtime; the suite is
+      # the same one the gate runs. See `source/scripts/build-gui.mjs`.
+      - run: npm run test:gui:warnings
+
+      - name: Keep the traces of whatever failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-dev-bundle-traces
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
