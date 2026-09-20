@@ -72,7 +72,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // because this component re-renders on every mouse move across the track, and a
 // fresh object each render is a prop change that defeats the memo on exactly
 // that path.
-const LINE_BAR_COLORS = {top: GUI_THEME.green, bottom: GUI_THEME.red};
+const LINE_BAR_COLORS = {top: GUI_THEME.red, bottom: GUI_THEME.green};
 
 const dotAnimation = (key: string, animate: boolean, leaving: boolean) =>
 	!animate

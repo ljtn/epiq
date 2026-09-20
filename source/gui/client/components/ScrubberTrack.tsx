@@ -370,12 +370,13 @@ const VolumeBarsImpl = ({
 // themselves change only when the window or the filter does.
 export const VolumeBars = memo(VolumeBarsImpl);
 
-// The lines measure: one bar per bucket, added and removed stacked rather than
+// The lines measure: what was removed and what was added stacked rather than
 // set against each other. Hanging from the same edge the commit bars hang from
 // keeps the track's own shape and gives each bar the whole of it — drawn around
 // a centre line the two had half each, and the removals read as an afterthought.
 // The length now says how much the window churned; the colours say how it
-// divided.
+// divided, with the removals against the baseline so they can be compared from
+// bucket to bucket.
 const StackedVolumeBarsImpl = ({
 	segments,
 	bucketCount,

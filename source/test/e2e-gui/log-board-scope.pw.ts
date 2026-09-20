@@ -98,7 +98,7 @@ test('a commit linked to another board’s ticket is left out of this board’s 
 
 	const select = page.getByTestId('commit-select');
 	await select.click();
-	await page.getByRole('radio', {name: 'Linked commits'}).click();
+	await page.getByRole('radio', {name: 'Linked', exact: true}).click();
 	await expect(select).toHaveText('Commits (linked)');
 
 	const line = log.getByTestId('log-line').filter({hasText: subject});

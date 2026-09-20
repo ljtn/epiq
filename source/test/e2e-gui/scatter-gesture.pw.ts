@@ -85,7 +85,7 @@ const seedCommitOnScatter = async (
 	// not plotted until the repository is asked for.
 	if (!link) {
 		await page.getByTestId('commit-select').click();
-		await page.getByRole('radio', {name: 'All commits'}).click();
+		await page.getByRole('radio', {name: 'All', exact: true}).click();
 		await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
 	}
 

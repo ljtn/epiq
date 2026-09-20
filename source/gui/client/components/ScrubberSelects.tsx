@@ -537,17 +537,19 @@ export const CommitSeriesGroup = ({
 						style={{display: 'contents'}}
 					>
 						<Radio
-							label="All commits"
+							label="All"
 							selected={!linkedOnly}
 							color={GUI_THEME.green}
 							onSelect={() => choose(false)}
 						/>
-						{/* Linked to a ticket the client knows — on any board for the chart,
-					    on this one for the log — and, while the board is narrowed to
-					    some tickets, only to those, the same way the board events above
-					    the columns follow that narrowing. */}
+						{/* Named without the noun, because the group below supplies it:
+					    with `Lines` chosen, a row reading "All commits" over one
+					    reading "Lines" contradicts itself. What is linked is the
+					    commit — to a ticket the client knows, on any board for the
+					    chart and on this one for the log, and while the board is
+					    narrowed to some tickets, only to those. */}
 						<Radio
-							label="Linked commits"
+							label="Linked"
 							selected={linkedOnly}
 							color={GUI_THEME.green}
 							onSelect={() => choose(true)}
