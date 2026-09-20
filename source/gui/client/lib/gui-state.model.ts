@@ -43,6 +43,8 @@ export type GuiIssue = {
 	readonly: boolean;
 	tags: GuiTag[];
 	assignees: GuiUser[];
+	/** The board it was closed from, for a closed ticket: it carries no other. */
+	closedFromBoardId: string | null;
 };
 
 export type GuiSwimlane = {
@@ -52,7 +54,7 @@ export type GuiSwimlane = {
 	issues: GuiIssue[];
 };
 
-type GuiBoard = {
+export type GuiBoard = {
 	id: string;
 	ref: string;
 	title: string;

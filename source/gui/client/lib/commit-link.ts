@@ -13,15 +13,47 @@
 // which tickets a link may name.
 
 import {commitTicketRef} from '../../../lib/utils/commit-ref.js';
-import {GuiCommitEntry} from './gui-state.model';
+import {GuiBoard, GuiCommitEntry} from './gui-state.model';
+
+// The tickets a link may name, by ref, for one board or for every board. Which
+// of the two a caller wants is the same question `onThisBoard` answers for
+// events: the log narrows to the board on screen, because a commit linked to a
+// ticket the board does not carry leads nowhere it can go, and the chart keeps
+// the repository, because that is what it plots. A null board is every board,
+// as it is there.
+//
+// A closed ticket counts for both the global Closed board it sits on and the
+// board it was closed from. Closing is what most tickets end up doing, so
+// reading its board as `Closed` alone would empty a board's own log of nearly
+// every commit ever linked to it.
+export const issueIdByRefFor = (
+	boards: readonly GuiBoard[],
+	boardId: string | null,
+): ReadonlyMap<string, string> =>
+	new Map(
+		boards.flatMap(board =>
+			board.swimlanes.flatMap(swimlane =>
+				swimlane.issues
+					.filter(
+						issue =>
+							boardId === null ||
+							board.id === boardId ||
+							issue.closedFromBoardId === boardId,
+					)
+					.map(issue => [issue.ref, issue.id] as const),
+			),
+		),
+	);
 
 export const keptCommits = (
 	commits: readonly GuiCommitEntry[],
 	linkedOnly: boolean,
 	// The board is down to the open ticket — the funnel in its panel.
 	ticketOnly: boolean,
-	// Every ticket the client knows, by ref: the leading-ref rule wants the
-	// refs, and the ticket narrowing wants the ids behind them.
+	// The tickets a link may name, by ref: the leading-ref rule wants the refs,
+	// and the ticket narrowing wants the ids behind them. Which tickets those
+	// are is the caller's to say — the log hands its board's, the chart the
+	// repository's.
 	issueIdByRef: ReadonlyMap<string, string>,
 	keptIssues: ReadonlySet<string> | null,
 ): readonly GuiCommitEntry[] => {

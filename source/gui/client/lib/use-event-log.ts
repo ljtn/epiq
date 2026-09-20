@@ -64,9 +64,10 @@ export type EventLogSources = {
 	// The tickets the text query keeps, and null while there is no query.
 	queryIssueIds: ReadonlySet<string> | null;
 	// The Code series narrowed to commits linked to a ticket, and the tickets
-	// by ref that rule reads.
+	// by ref that rule reads — the board's own, not the repository's, for the
+	// reason `onThisBoard` narrows the events.
 	linkedCommitsOnly: boolean;
-	issueIdByRef: ReadonlyMap<string, string>;
+	boardIssueIdByRef: ReadonlyMap<string, string>;
 	// The two series checkboxes. A series the chart is not drawing is not one
 	// the log should be reciting either.
 	showIssues: boolean;
@@ -119,7 +120,7 @@ export const useEventLog = ({
 	selectedIssueId,
 	queryIssueIds,
 	linkedCommitsOnly,
-	issueIdByRef,
+	boardIssueIdByRef,
 	showIssues,
 	showCommits,
 	playing,
@@ -176,7 +177,7 @@ export const useEventLog = ({
 						commits,
 						linkedCommitsOnly,
 						issueOnly !== null,
-						issueIdByRef,
+						boardIssueIdByRef,
 						keptIssues,
 				  )
 				: [],
@@ -191,7 +192,7 @@ export const useEventLog = ({
 		issueOnly,
 		keptIssues,
 		linkedCommitsOnly,
-		issueIdByRef,
+		boardIssueIdByRef,
 		showIssues,
 		showCommits,
 	]);
