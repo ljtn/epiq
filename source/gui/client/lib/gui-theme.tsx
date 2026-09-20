@@ -53,8 +53,13 @@ export const GUI_THEME = {
 	chromePrimary: '#c0c5d4',
 	secondary: '#7f8aa3',
 	tertiary: 'rgb(31 33 43)',
-	dim: '#585d78',
-	dim2: 'rgb(100 107 133)',
+	// The chrome's quiet text — labels, unselected scope buttons, placeholders,
+	// the connection line. Both moved up together by a fifth, `dim` having been
+	// hard to read on the black chrome at 3.2:1; they are a ladder, and lifting
+	// one alone would have put the chrome above the panel text that sits a step
+	// over it. 4.3:1 and 5.4:1 now, against 3.2 and 4.0.
+	dim: '#6a7090',
+	dim2: 'rgb(120 128 160)',
 	// What anything the pointer is over takes on, throughout: buttons, rows,
 	// menu items. A lift off whatever it sits on rather than a colour of its
 	// own, so it reads the same on the panel as on the board.
