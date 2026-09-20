@@ -154,7 +154,15 @@ export const Dropdown = ({
 											{item.hint ? (
 												<span style={{color: GUI_THEME.dim}}>{item.hint}</span>
 											) : null}
-											{selected ? <span>✓</span> : null}
+											{/* Kept on every row, empty on all but one: a tick that
+											    takes its width only where it is shown pushes the
+											    hint beside it out of line with the rows below. */}
+											<span
+												aria-hidden={!selected}
+												style={{width: '1ch', textAlign: 'right'}}
+											>
+												{selected ? '✓' : ''}
+											</span>
 										</span>
 									</button>
 								);
