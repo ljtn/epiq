@@ -45,7 +45,6 @@ export const IssueCommits = ({
 	onFileTicket,
 	comments,
 	focus,
-	expandAll = false,
 }: {
 	issueRef: string;
 	commits: GuiRefCommitEntry[];
@@ -59,10 +58,6 @@ export const IssueCommits = ({
 	comments: GuiComment[];
 	// Where a comment permalink points, read from the URL by the caller.
 	focus?: CommitFocus | null;
-	// Open every commit as it appears — for a layout meant for reading rather
-	// than scanning. Each is opened once, so collapsing it by hand afterwards
-	// sticks.
-	expandAll?: boolean;
 }) => {
 	const [expandedShas, setExpandedShas] = useState<Set<string>>(new Set());
 	const [expandedFilesBySha, setExpandedFilesBySha] = useState<
@@ -73,11 +68,15 @@ export const IssueCommits = ({
 	const autoOpenedShas = useRef(new Set<string>());
 	const autoOpenedFiles = useRef(new Set<string>());
 
-	// The reading layout opens every commit; either layout opens the only
-	// commit, since with one there is nothing to choose between and the click
-	// that would open it is just in the way. Once each, so collapsing it by
-	// hand sticks.
-	const openCommitsOnArrival = expandAll || commits.length === 1;
+	// The only commit opens itself, since with one there is nothing to choose
+	// between and the click that would open it is just in the way. Once, so
+	// collapsing it by hand sticks.
+	//
+	// Nothing else does. This view is the list of what happened; the compacted
+	// view the same switch offers is where the change is read in one piece — so
+	// opening every commit here drew a dozen diffs nobody asked for, one
+	// segment away from a view that shows the same content as one (3RQ4QG4).
+	const openCommitsOnArrival = commits.length === 1;
 
 	useEffect(() => {
 		if (!openCommitsOnArrival) return;

@@ -975,7 +975,6 @@ export const IssueDetails = ({
 						error={commitsError}
 						diffsBySha={commitDiffsBySha}
 						onLoadDiff={onLoadCommitDiff}
-						expandAll={laneView}
 						diffStyle={commitsWidth >= STACKED_DIFF_WIDTH ? 'split' : 'unified'}
 						comments={comments}
 						onAddComment={
@@ -1015,6 +1014,9 @@ export const IssueDetails = ({
 						<DiffViewSwitch
 							compacted={diffView.compacted}
 							onChange={diffView.onChangeCompacted}
+							// The same count the tab wears, which is undefined until the
+							// commits have actually arrived.
+							commitCount={commitsCount}
 							pinnedToCommits={Boolean(diffFocus)}
 						/>
 						{/* With no commits there is nothing to compact, and both views
