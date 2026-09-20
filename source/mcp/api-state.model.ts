@@ -39,11 +39,12 @@ export type ApiIssue = {
 	parentNodeId: string;
 	isClosed: boolean;
 	/**
-	 * The board a closed ticket left, from its own log — it hangs off the global
-	 * Closed lane now, so its own board is otherwise gone from the payload. Null
-	 * for an open ticket, and for a closed one whose lane no longer exists.
+	 * Every board this ticket has lived on, its current one included, from its
+	 * own log. A board-scoped view of the past asks whether a ticket was ever
+	 * this board's, not whether it is now: closing moves it to the global Closed
+	 * board, and a move can take it to another board outright.
 	 */
-	closedFromBoardId: string | null;
+	boardIds: string[];
 };
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};

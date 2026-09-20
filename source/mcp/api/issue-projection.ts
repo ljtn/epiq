@@ -7,23 +7,40 @@ import {
 	getTicketTags,
 } from '../../lib/utils/ticket.utils.js';
 import {ApiIssue, ApiIssueComment} from '../api-state.model.js';
-import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
-import {resolveReopenParentFromLog} from '../../lib/board/log-utils.js';
 
-// The board a closed ticket left. Closing hangs it off the global Closed lane,
-// so its own board is no longer readable from where it sits — but the lane it
-// came from is still in its log, the same one a reopen would put it back in.
-// Null for an open ticket.
-//
-// A deleted lane still answers: it names the board it hung off, and deleting it
-// leaves the tickets closed out of it where they are. Reading it as no board at
-// all would take every one of them out of that board's own views.
-export const closedFromBoardIdOf = (ticket: Ticket): string | null => {
-	if (ticket.parentNodeId !== CLOSED_SWIMLANE_ID) return null;
+/**
+ * Every board the ticket has lived on, its current one included.
+ *
+ * A board-scoped view of the past asks "was this ever this board's?" rather
+ * than "is it now?". An event belongs to the board the ticket was on when it
+ * happened — `boardsForEvents` attributes them that way — and the commits
+ * linked to a ticket belong there for the same reason. Closing is one of these
+ * moves, reparenting to the global Closed lane; so is a move to another
+ * board's lane, which `moveIssue` allows.
+ *
+ * Read from the ticket's own log, which is where the lanes it has had are
+ * recorded. A deleted lane still names the board it hung off, so a board does
+ * not lose its own history when somebody tidies a column away.
+ */
+export const boardsEverOnOf = (ticket: Ticket): string[] => {
+	const lanes = new Set<string>();
 
-	const laneId = resolveReopenParentFromLog(ticket);
+	if (ticket.parentNodeId) lanes.add(ticket.parentNodeId);
 
-	return (laneId && nodeRepo.getNode(laneId)?.parentNodeId) ?? null;
+	for (const entry of ticket.log ?? []) {
+		const payload = entry.payload as {id?: string; parent?: string};
+
+		if (payload.id === ticket.id && payload.parent) lanes.add(payload.parent);
+	}
+
+	const boards = new Set<string>();
+
+	for (const laneId of lanes) {
+		const board = nodeRepo.getNode(laneId)?.parentNodeId;
+		if (board) boards.add(board);
+	}
+
+	return [...boards];
 };
 
 // The lib helpers answer which tags and assignees a ticket has; these add the

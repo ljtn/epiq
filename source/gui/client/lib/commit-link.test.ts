@@ -25,12 +25,15 @@ const issueIdByRef = new Map([
 	['XYZ9876', 'issue-c'],
 ]);
 
+// `everOn` names the boards it has lived on beyond the one it sits in now —
+// the board it was closed from, or moved off.
 const issue = (
 	ref: string,
 	id: string,
-	closedFrom: string | null = null,
+	everOn: string[] = [],
+	isClosed = false,
 ): GuiIssue => ({
-	isClosed: closedFrom !== null,
+	isClosed,
 	id,
 	ref,
 	title: ref,
@@ -40,9 +43,11 @@ const issue = (
 	readonly: false,
 	tags: [],
 	assignees: [],
-	closedFromBoardId: closedFrom,
+	boardIds: everOn,
 });
 
+// Every ticket also counts for the board it sits on, which is what the server
+// puts at the head of `boardIds`.
 const board = (id: string, issues: GuiIssue[]): GuiBoard => ({
 	id,
 	ref: id,
@@ -64,7 +69,9 @@ const boards = [
 const withClosed = [
 	board('board-work', [issue('ABC1234', 'issue-a')]),
 	board('board-roadmap', [issue('GB1V92X', 'issue-r')]),
-	board('board-closed', [issue('XYZ9876', 'issue-c', 'board-work')]),
+	board('board-closed', [
+		issue('XYZ9876', 'issue-c', ['board-closed', 'board-work'], true),
+	]),
 ];
 
 describe('issueIdByRefFor', () => {
@@ -95,6 +102,24 @@ describe('issueIdByRefFor', () => {
 	it('keeps it on the Closed board it now sits on too', () => {
 		expect([...issueIdByRefFor(withClosed, 'board-closed')]).toEqual([
 			['XYZ9876', 'issue-c'],
+		]);
+	});
+
+	// KWYX3CX: a move is the same question as a close. The board it was filed on
+	// keeps its events, and had been losing every commit made against it.
+	it('keeps a ticket moved to another board for the one it left', () => {
+		const moved = [
+			board('board-work', []),
+			board('board-roadmap', [
+				issue('ABC1234', 'issue-a', ['board-roadmap', 'board-work']),
+			]),
+		];
+
+		expect([...issueIdByRefFor(moved, 'board-work')]).toEqual([
+			['ABC1234', 'issue-a'],
+		]);
+		expect([...issueIdByRefFor(moved, 'board-roadmap')]).toEqual([
+			['ABC1234', 'issue-a'],
 		]);
 	});
 

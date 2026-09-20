@@ -22,10 +22,11 @@ import {GuiBoard, GuiCommitEntry} from './gui-state.model';
 // the repository, because that is what it plots. A null board is every board,
 // as it is there.
 //
-// A closed ticket counts for both the global Closed board it sits on and the
-// board it was closed from. Closing is what most tickets end up doing, so
-// reading its board as `Closed` alone would empty a board's own log of nearly
-// every commit ever linked to it.
+// A ticket counts for every board it has lived on, not the one it sits on now:
+// its events are attributed to where it was when they happened, and its commits
+// belong there for the same reason. Closing moves most tickets to the global
+// Closed board eventually, and a move can carry one to another board outright —
+// either would otherwise empty a board's own log of the work done on it.
 export const issueIdByRefFor = (
 	boards: readonly GuiBoard[],
 	boardId: string | null,
@@ -37,8 +38,11 @@ export const issueIdByRefFor = (
 					.filter(
 						issue =>
 							boardId === null ||
+							// The board it sits on answers even if its own lane has gone
+							// missing from the payload, which is what `boardIds` is read
+							// from.
 							board.id === boardId ||
-							issue.closedFromBoardId === boardId,
+							issue.boardIds.includes(boardId),
 					)
 					.map(issue => [issue.ref, issue.id] as const),
 			),
