@@ -12,25 +12,39 @@ name: GUI warnings
 # right thing for the gate to run, and it compiles every one of those checks
 # out. This is where the net went.
 #
-# Nightly rather than per push, deliberately. The browser suite is CI's critical
-# path already, and a second full pass would roughly double it on every branch
-# push, forever, for a class of bug this repository has been bitten by once. A
-# night's delay costs a morning; the runners cost every push anybody makes.
+# On a GUI change reaching main, and not otherwise. Not on every push: the
+# browser suite is CI's critical path already — three shards at about 3m30 — and
+# a second full pass would roughly double the most expensive leg on every branch
+# push, forever, for a class of bug this repository has been bitten by once. And
+# not on a clock: this is one person's project, worked on some days and not
+# others, so a nightly run bills for a machine on every day nobody touched the
+# code and reports a Friday regression on a Tuesday.
 #
-# When it goes red: the failing test names the component, and the warning text
-# is in the `console.error` the fixture collected. `git log --since=yesterday --
-# source/gui/client` is the short list of candidates.
+# The change is the trigger, so the cost follows the risk. One run per merge
+# that touched the GUI, against a flat history of rebase-merged commits — which
+# means a red run names one commit rather than a day's worth.
+#
+# What this deliberately misses: a warning introduced from `source/lib`, which
+# the GUI draws from but which changes on most commits. Watching it would fire
+# nearly always and be worth nothing. `workflow_dispatch` covers the case where
+# somebody knows they have done something interesting; otherwise the next GUI
+# change catches it.
 on:
-  schedule:
-    # 03:00 UTC, which is the quiet end of this project's day.
-    - cron: '0 3 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'source/gui/**'
+      # A React or renderer bump can introduce warnings with no source change
+      # of ours at all.
+      - 'package-lock.json'
+      - '.github/workflows/gui-warnings.yml'
   workflow_dispatch:
 
 jobs:
   gui-dev-bundle:
     name: GUI, development bundle
     runs-on: ubuntu-latest
-    # Unsharded: one runner once a night is cheaper than three, and nothing is
+    # Unsharded: one runner is cheaper than three, and nothing is
     # waiting on the answer.
     timeout-minutes: 45
 
