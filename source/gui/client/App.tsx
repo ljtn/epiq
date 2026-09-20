@@ -199,7 +199,6 @@ export const App = () => {
 		sendRaw,
 		requestState,
 	} = useBoardSocket({
-		boardId,
 		onMessage: (message, socket) => socketMessageRef.current(message, socket),
 	});
 
