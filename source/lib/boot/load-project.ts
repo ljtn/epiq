@@ -92,8 +92,26 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 	if (isFail(eventsResult)) return failAt(3, eventsResult.message);
 
 	if (!hasWorkspaceInit(eventsResult.value.events)) {
-		const pullResult = await pullStateBranch(repoRoot, stateBranchRoot);
+		// Under the lock, like every other pull: this one rebases the state
+		// worktree, and a rebase nobody has claimed the worktree for is a rebase
+		// another process is entitled to read as abandoned and unwind
+		// (`TATEM5B`). Held elsewhere, the boot goes on with the events already
+		// on disk — the same answer `refreshProjectFromRemote` gives.
+		const pullResult = await withSyncLock({
+			worktreeRoot: stateBranchRoot,
+			operation: 'boot pull',
+			fn: () =>
+				withEventLogsIntact(stateBranchRoot, () =>
+					pullStateBranch(repoRoot, stateBranchRoot),
+				),
+		});
+
 		if (isFail(pullResult)) logger.info(3, pullResult.message);
+		else if (pullResult.value === null) {
+			logger.info(3, 'Another process holds the state worktree, skipped pull');
+		} else if (isFail(pullResult.value)) {
+			logger.info(3, pullResult.value.message);
+		}
 
 		eventsResult = loadMergedEventsWithUnreadable(stateBranchRoot);
 		if (isFail(eventsResult)) return failAt(3, eventsResult.message);

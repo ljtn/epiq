@@ -29,7 +29,13 @@ import {logger} from '../logger.js';
  * `hostname` is recorded and a lock from elsewhere is never broken on liveness.
  */
 
-const LOCK_FILE = 'epiq-sync.lock';
+/**
+ * Exported because it is a name two processes agree on, not an implementation
+ * detail: anything sweeping this directory has to leave it alone, and renaming
+ * it would mean an old build and a new one no longer seeing each other's
+ * claims.
+ */
+export const SYNC_LOCK_FILE = 'epiq-sync.lock';
 
 /**
  * Backstop for the one case liveness cannot settle: a dead holder whose pid has
@@ -46,8 +52,17 @@ type LockHolder = {
 	operation: string;
 };
 
+/**
+ * How the lock came to be ours, which is not the same question as whether it
+ * is. `clean` is an empty file; `dead` is a holder the operating system says is
+ * gone. `stale` is the awkward one — a holder still running, whose claim was
+ * broken on age alone — and a caller about to do something irreversible to the
+ * worktree wants to know it is standing on that rather than on the other two.
+ */
+export type LockClaim = 'clean' | 'dead' | 'stale';
+
 export type LockOutcome =
-	| {acquired: true; release: () => void}
+	| {acquired: true; claim: LockClaim; release: () => void}
 	| {acquired: false; heldBy: LockHolder};
 
 const parseHolder = (raw: string): LockHolder | null => {
@@ -83,22 +98,25 @@ const isProcessAlive = (pid: number): boolean => {
 	}
 };
 
-/**
- * A lock nobody is holding any more. Unreadable counts: a truncated or
- * half-written lock file has no holder to protect, and leaving it would wedge
- * the worktree permanently.
- */
-const isAbandoned = (holder: LockHolder | null): boolean => {
-	if (!holder) return true;
+/** What claim we have over a lock somebody else wrote, if any. */
+const claimOver = (holder: LockHolder | null): LockClaim | null => {
+	// A lock that says nothing is still broken — leaving it would wedge the
+	// worktree — but it is not evidence that anybody is gone, and it must not be
+	// read as licence to unwind what they are running. A holder mid-acquisition
+	// looks exactly like this for the instant between creating the file and
+	// filling it, which `write` above now closes; a truncated one looks like it
+	// for good. `stale` is the honest answer to both: take the worktree, touch
+	// nothing in it.
+	if (!holder) return 'stale';
 
 	// Another machine's pid is not ours to interpret, so only age can settle it.
 	if (holder.hostname !== os.hostname()) {
-		return Date.now() - holder.startedAt > STALE_AFTER_MS;
+		return Date.now() - holder.startedAt > STALE_AFTER_MS ? 'stale' : null;
 	}
 
-	if (!isProcessAlive(holder.pid)) return true;
+	if (!isProcessAlive(holder.pid)) return 'dead';
 
-	return Date.now() - holder.startedAt > STALE_AFTER_MS;
+	return Date.now() - holder.startedAt > STALE_AFTER_MS ? 'stale' : null;
 };
 
 export const describeHolder = (holder: LockHolder): string =>
@@ -116,6 +134,20 @@ const readHolder = (lockPath: string): LockHolder | null => {
 	}
 };
 
+/**
+ * Writes the holder, then claims the lock with it — in that order, and as one
+ * step for anybody watching.
+ *
+ * `wx` alone creates the file and fills it in a second call, so between the two
+ * the lock exists and is empty. A process arriving in that gap reads nothing,
+ * has no holder to respect, and treats a live claim as an abandoned one. Since
+ * `TATEM5B` that is not merely a broken lock: an abandoned claim is grounds for
+ * unwinding the rebase the holder is running.
+ *
+ * `link` is the fix, because it is one syscall that both fails when the target
+ * exists and publishes a file that is already complete. The temporary name is
+ * this process's own, so two of them cannot collide over it.
+ */
 const write = (lockPath: string, operation: string): boolean => {
 	const holder: LockHolder = {
 		pid: process.pid,
@@ -124,13 +156,30 @@ const write = (lockPath: string, operation: string): boolean => {
 		operation,
 	};
 
+	// Ends in `.lock` on purpose: a process killed between the write and the
+	// link leaves this behind, and a name the sweep recognises is one that gets
+	// tidied by whoever holds the worktree next rather than one nothing ever
+	// collects.
+	//
+	// A sweep can still take this file mid-acquisition — the sweeper holds the
+	// lock, which means the link below was going to fail anyway. It fails with
+	// ENOENT instead of EEXIST, the caller reads a lock that is not there, and
+	// acquires on a `stale` claim rather than a `clean` one: a recovery skipped
+	// that could have been done, which is the safe direction to be wrong in.
+	const pending = `${lockPath}.${process.pid}.pending.lock`;
+
 	try {
-		// `wx` fails when the file exists, which is the whole acquisition: the
-		// check and the claim are one syscall, so two processes cannot both win.
-		fs.writeFileSync(lockPath, JSON.stringify(holder), {flag: 'wx'});
+		fs.writeFileSync(pending, JSON.stringify(holder));
+		fs.linkSync(pending, lockPath);
 		return true;
 	} catch {
 		return false;
+	} finally {
+		try {
+			fs.rmSync(pending, {force: true});
+		} catch {
+			// The link either happened or it did not; this is only tidying.
+		}
 	}
 };
 
@@ -151,7 +200,7 @@ export const acquireSyncLock = async ({
 	const gitDirResult = await getGitDir(worktreeRoot);
 	if (isFail(gitDirResult)) return failed(gitDirResult.message);
 
-	const lockPath = path.join(gitDirResult.value, LOCK_FILE);
+	const lockPath = path.join(gitDirResult.value, SYNC_LOCK_FILE);
 
 	const release = () => {
 		try {
@@ -166,12 +215,17 @@ export const acquireSyncLock = async ({
 	};
 
 	if (write(lockPath, operation)) {
-		return succeeded('Acquired sync lock', {acquired: true, release});
+		return succeeded('Acquired sync lock', {
+			acquired: true,
+			claim: 'clean',
+			release,
+		});
 	}
 
 	const holder = readHolder(lockPath);
+	const claim = claimOver(holder);
 
-	if (!isAbandoned(holder)) {
+	if (claim === null) {
 		return succeeded('Sync lock is held', {
 			acquired: false,
 			heldBy: holder as LockHolder,
@@ -193,6 +247,7 @@ export const acquireSyncLock = async ({
 	if (write(lockPath, operation)) {
 		return succeeded('Acquired sync lock after breaking a stale one', {
 			acquired: true,
+			claim,
 			release,
 		});
 	}
@@ -220,7 +275,7 @@ export const withSyncLock = async <T>({
 }: {
 	worktreeRoot: string;
 	operation: string;
-	fn: () => Promise<T>;
+	fn: (claim: LockClaim) => Promise<T>;
 }): Promise<Result<T | null>> => {
 	const lockResult = await acquireSyncLock({worktreeRoot, operation});
 	if (isFail(lockResult)) return failed(lockResult.message);
@@ -235,10 +290,10 @@ export const withSyncLock = async <T>({
 		return succeeded('State worktree is held by another process', null);
 	}
 
-	const {release} = lockResult.value;
+	const {claim, release} = lockResult.value;
 
 	try {
-		return succeeded('Ran under the sync lock', await fn());
+		return succeeded('Ran under the sync lock', await fn(claim));
 	} finally {
 		release();
 	}

@@ -636,6 +636,52 @@ const rebaseWithRetry = async (
 	return result;
 };
 
+/**
+ * Lock files a git that was killed never got to remove.
+ *
+ * Git takes `<file>.lock` before writing `<file>`, and removes it when it is
+ * done. A process killed in between leaves the lock behind, and every later git
+ * that wants the same file refuses — "could not lock '…/MERGE_MSG': File
+ * exists" — which is a rebase that cannot start, for good, in a worktree whose
+ * previous occupant is long gone.
+ *
+ * Only the top level of the git directory, and only the lock files: the state
+ * they guard is left exactly as it is. The caller is responsible for knowing
+ * that nobody is working in the worktree — these locks exist precisely to say
+ * "somebody is", and removing one while that is true is how two writers end up
+ * in the same file.
+ *
+ * `preserve` is for the caller's own lock, which is the one lock in this
+ * directory that is emphatically not stale: epiq's sits here too and ends in
+ * `.lock` like git's, so a sweep that did not know about it would delete the
+ * claim the sweeper is standing on and run the rest of its work unheld.
+ */
+export const clearStaleGitLocks = async (
+	cwd: string,
+	{preserve = []}: {preserve?: readonly string[]} = {},
+): Promise<Result<string[]>> => {
+	const gitDirResult = await getGitDir(cwd);
+	if (isFail(gitDirResult)) return failed(gitDirResult.message);
+
+	const gitDir = gitDirResult.value;
+	const removed: string[] = [];
+
+	for (const name of fs.readdirSync(gitDir)) {
+		if (!name.endsWith('.lock')) continue;
+		if (preserve.includes(name)) continue;
+
+		try {
+			fs.rmSync(path.join(gitDir, name), {force: true});
+			removed.push(name);
+		} catch {
+			// Somebody else got there first, or it is not ours to remove; either
+			// way the git that follows will say so in its own words.
+		}
+	}
+
+	return succeeded('Cleared stale git lock files', removed);
+};
+
 export const abortRebaseIfPresent = async (
 	cwd: string,
 ): Promise<Result<boolean>> => {
