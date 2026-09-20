@@ -43,7 +43,59 @@ export const PersistedEnvelopeSchema = z.looseObject({
 
 export type PersistedEnvelope = z.infer<typeof PersistedEnvelopeSchema>;
 
+/**
+ * The envelope check, by hand.
+ *
+ * `PersistedEnvelopeSchema` says the same thing and is the one place the shape
+ * is written down, so it stays — this is the same two fields, read rather than
+ * re-derived. Loose means zod copies the whole line through, envelope *and*
+ * the payload it is not checking, so every event on every load was allocated
+ * twice: 20.9 ms of a 100 ms load at thirty thousand events, on the path the
+ * TUI, the GUI server and the MCP server all boot through.
+ *
+ * Returns the value itself rather than a copy, which is what the caller wants
+ * — it spreads the result and reads the payload off it — and what makes this
+ * worth doing at all. `parsePersistedEnvelopeStrict` below keeps the schema
+ * honest in the tests.
+ */
 export const parsePersistedEnvelope = (
+	value: unknown,
+): Result<PersistedEnvelope> => {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+		return failed('Invalid persisted event envelope: expected an object');
+	}
+
+	const {v, id} = value as {v?: unknown; id?: unknown};
+
+	if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
+		return failed('Invalid persisted event envelope: v');
+	}
+
+	if (!Array.isArray(id) || id.length !== 2) {
+		return failed('Invalid persisted event envelope: id');
+	}
+
+	const [eventId, refId] = id as [unknown, unknown];
+
+	if (typeof eventId !== 'string' || eventId.length === 0) {
+		return failed('Invalid persisted event envelope: id.0');
+	}
+
+	if (refId !== null && (typeof refId !== 'string' || refId.length === 0)) {
+		return failed('Invalid persisted event envelope: id.1');
+	}
+
+	return succeeded(
+		'Parsed persisted event envelope',
+		value as PersistedEnvelope,
+	);
+};
+
+/**
+ * The same check through zod, for the test that pins the two together. Nothing
+ * on the load path calls it — that is the whole point of the one above.
+ */
+export const parsePersistedEnvelopeStrict = (
 	value: unknown,
 ): Result<PersistedEnvelope> => {
 	const result = PersistedEnvelopeSchema.safeParse(value);
