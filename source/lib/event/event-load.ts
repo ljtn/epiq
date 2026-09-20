@@ -163,12 +163,20 @@ const parseCache = new Map<
 >();
 
 // A board's worth, so the cache holds the log it is being asked about and not
-// a history of every log this process has seen. Insertion order, so the oldest
-// file goes first — a sync renaming a pending log leaves an entry nothing will
-// ask for again.
-const PARSE_CACHE_MAX_EVENTS = 300_000;
+// a history of every log this process has seen. Both counted, because both are
+// what a log can be made of: a log of nothing but corrupt lines produces no
+// events and a quarantine entry per line, and counting only the events would
+// let it sit here for free. A cap on entries as well, or ten thousand one-line
+// logs stay under any total and never leave.
+const PARSE_CACHE_MAX_LINES = 300_000;
+const PARSE_CACHE_MAX_FILES = 512;
 
-let parseCacheEvents = 0;
+let parseCacheLines = 0;
+
+const linesOf = (entry: {
+	entries: ReconstructedEvent[];
+	quarantined: UnreadableEvent[];
+}): number => entry.entries.length + entry.quarantined.length;
 
 const rememberParse = (
 	filePath: string,
@@ -177,36 +185,71 @@ const rememberParse = (
 	quarantined: UnreadableEvent[],
 ): void => {
 	const previous = parseCache.get(filePath);
-	if (previous) parseCacheEvents -= previous.entries.length;
+	if (previous) parseCacheLines -= linesOf(previous);
 
-	parseCache.set(filePath, {stamp, entries, quarantined});
-	parseCacheEvents += entries.length;
+	const next = {stamp, entries, quarantined};
+
+	// Deleted first, so a re-remembered file goes to the back of the insertion
+	// order rather than keeping the place it took when it was new. Otherwise the
+	// log this process writes to — the one re-parsed most — would be the first
+	// evicted.
+	parseCache.delete(filePath);
+	parseCache.set(filePath, next);
+	parseCacheLines += linesOf(next);
 
 	for (const [key, value] of parseCache) {
-		if (parseCacheEvents <= PARSE_CACHE_MAX_EVENTS) break;
+		if (
+			parseCacheLines <= PARSE_CACHE_MAX_LINES &&
+			parseCache.size <= PARSE_CACHE_MAX_FILES
+		) {
+			break;
+		}
 		if (key === filePath) continue;
 
 		parseCache.delete(key);
-		parseCacheEvents -= value.entries.length;
+		parseCacheLines -= linesOf(value);
 	}
 };
 
 /** The tests drive the log through mocks, where a stamp says nothing. */
 export const clearParseCache = (): void => {
 	parseCache.clear();
-	parseCacheEvents = 0;
+	parseCacheLines = 0;
 };
 
-// Nanoseconds, not `mtimeMs`: two writes inside one millisecond that leave the
-// file the same length are indistinguishable by the millisecond field, and
-// here that would mean serving a parse of the older one. `logSignature` reads
-// the millisecond field because a stale signature costs a re-read; a stale
-// parse would be wrong.
-const fileStamp = (filePath: string): string | null => {
+// How recently written a file may be and still be worth remembering.
+//
+// A stamp can only distinguish two writes the clock could tell apart, and the
+// clock is coarse: Linux gives mtime at exactly millisecond granularity, so
+// `mtimeNs` there carries no more than `mtimeMs` does. Two same-length writes
+// inside one tick therefore share a stamp, and a parse remembered under it
+// would be served for the wrong content. Git has the same problem with its
+// index and calls such a file racily clean.
+//
+// So a file whose mtime is within a tick of the read is not remembered at all;
+// the next read parses it again, by which time it has settled. It costs
+// nothing that matters — a file written this instant is the one about to be
+// written again — and it is what makes the stamp a fact rather than a guess.
+//
+// `mtimeNs` rather than `mtimeMs` all the same: where the filesystem does keep
+// sub-millisecond times, as APFS does, it narrows the window this guard has to
+// cover.
+const RACY_WRITE_WINDOW_MS = 2n;
+
+const MS_IN_NS = 1_000_000n;
+
+type FileStamp = {value: string; settled: boolean};
+
+const fileStamp = (filePath: string): FileStamp | null => {
 	try {
 		const {size, mtimeNs} = fs.statSync(filePath, {bigint: true});
 
-		return `${size}:${mtimeNs}`;
+		return {
+			value: `${size}:${mtimeNs}`,
+			settled:
+				BigInt(Date.now()) * MS_IN_NS - mtimeNs >
+				RACY_WRITE_WINDOW_MS * MS_IN_NS,
+		};
 	} catch {
 		return null;
 	}
@@ -221,9 +264,9 @@ export const parsePersistedEventsFile = (
 	if (isFail(actorResult)) return failed(actorResult.message);
 
 	const stamp = fileStamp(filePath);
-	const remembered = stamp === null ? undefined : parseCache.get(filePath);
+	const remembered = stamp ? parseCache.get(filePath) : undefined;
 
-	if (remembered && remembered.stamp === stamp) {
+	if (stamp && remembered && remembered.stamp === stamp.value) {
 		// Appended one at a time rather than spread: a log can hold more lines
 		// than an argument list has room for, and a corrupt one holds them here.
 		if (unreadable)
@@ -294,10 +337,13 @@ export const parsePersistedEventsFile = (
 
 	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
-	// Only a file whose stamp was readable: without one there is nothing to say
-	// the entry is still that file's, and a cache that cannot be invalidated is
-	// worse than none.
-	if (stamp !== null) rememberParse(filePath, stamp, entries, quarantined);
+	// Only a file whose stamp was readable and has settled: without a stamp
+	// there is nothing to say the entry is still that file's, and within a tick
+	// of the write there is nothing to say the next write will look different.
+	// A cache that cannot be invalidated is worse than none.
+	if (stamp?.settled) {
+		rememberParse(filePath, stamp.value, entries, quarantined);
+	}
 
 	return succeeded('Parsed persisted events file', [...entries]);
 };
@@ -661,13 +707,17 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 					continue;
 				}
 
-				entries.push(...result.value);
+				// Appended rather than spread. An argument list has room for about
+				// 125,000 entries on this runtime and then throws — out of a
+				// function whose whole contract is to return its failures, and on
+				// exactly the log large enough for any of this to matter.
+				for (const entry of result.value) entries.push(entry);
 			}
 
 			if (!listAgain) break;
 		}
 
-		unreadable?.push(...quarantined);
+		if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
 		const sorted = sortEvents(entries, catalog.genesis);
 

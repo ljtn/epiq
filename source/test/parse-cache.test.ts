@@ -50,6 +50,24 @@ const issue = (id: string, refId: string, title: string) =>
 		'add.issue': {id: ulid(), name: title, parent: LANE, rank: 'aQ'},
 	});
 
+// Puts a file's mtime far enough in the past that the loader will remember its
+// parse — a file written this instant is deliberately not remembered, since a
+// stamp cannot tell two writes apart that the clock cannot.
+//
+// Each call is a second later than the last, because that is what a clock
+// does: two calls inside one millisecond would otherwise hand two different
+// writes the same timestamp, which is the one thing reality does not do to a
+// file that has settled.
+let settledAt = 0;
+
+const settle = (filePath: string): Date => {
+	settledAt += 1_000;
+	const at = new Date(Date.now() - 600_000 + settledAt);
+	fs.utimesSync(filePath, at, at);
+
+	return at;
+};
+
 const titlesOf = (): string[] => {
 	const result = loadMergedEvents(root);
 	if (isFail(result)) throw new Error(result.message);
@@ -112,6 +130,72 @@ describe('the remembered parse of a log file', () => {
 		// Same length, so only the timestamp says anything changed — and the
 		// filesystem's own resolution may not, on a write this quick.
 		fs.utimesSync(logPath('u-1'), new Date(), new Date(Date.now() + 5_000));
+
+		expect(titlesOf()).toEqual(['bbbbb']);
+	});
+
+	// A path a file was deleted from and another written to. `merge=union` and
+	// the pending-log rotation both do this.
+	it('sees a log removed and written again at the same path', () => {
+		const {tail, text} = genesis();
+		fs.writeFileSync(
+			logPath('u-1'),
+			text + issue(ulid(1_700_000_001_000), tail, 'first'),
+		);
+		settle(logPath('u-1'));
+
+		expect(titlesOf()).toEqual(['first']);
+
+		fs.rmSync(logPath('u-1'));
+		fs.writeFileSync(
+			logPath('u-1'),
+			text + issue(ulid(1_700_000_002_000), tail, 'again'),
+		);
+		settle(logPath('u-1'));
+
+		expect(titlesOf()).toEqual(['again']);
+	});
+
+	// The cache exists or none of the above is about anything. Proved by its one
+	// side effect: a file rewritten to the same length AND forced back to the
+	// same mtime is, by construction, indistinguishable from the one remembered,
+	// so a hit is the only way the old content can come back.
+	it('answers a settled, unchanged log from what it remembered', () => {
+		const {tail, text} = genesis();
+		const id = ulid(1_700_000_001_000);
+		fs.writeFileSync(logPath('u-1'), text + issue(id, tail, 'aaaaa'));
+		const at = settle(logPath('u-1'));
+
+		expect(titlesOf()).toEqual(['aaaaa']);
+
+		fs.writeFileSync(logPath('u-1'), text + issue(id, tail, 'bbbbb'));
+		fs.utimesSync(logPath('u-1'), at, at);
+
+		expect(titlesOf()).toEqual(['aaaaa']);
+	});
+
+	// The same forced collision, on a file the clock has not left behind yet. A
+	// stamp can only tell apart two writes the clock could, so one inside that
+	// window is not remembered at all — and the stale answer above, which the
+	// identical stamp would otherwise produce, does not happen here.
+	//
+	// The mtime is put slightly ahead rather than merely at `now`, so the window
+	// covers it however long the load takes. A peer whose clock runs fast writes
+	// exactly this, and it is no more trustworthy for being in the future.
+	it('does not remember a log the clock has not left behind', () => {
+		const {tail, text} = genesis();
+		const id = ulid(1_700_000_001_000);
+		const ahead = new Date(Date.now() + 60_000);
+
+		fs.writeFileSync(logPath('u-1'), text + issue(id, tail, 'aaaaa'));
+		fs.utimesSync(logPath('u-1'), ahead, ahead);
+
+		expect(titlesOf()).toEqual(['aaaaa']);
+
+		// Same length, and forced onto the same mtime: nothing a stamp reads has
+		// changed, so only a refusal to remember can tell these apart.
+		fs.writeFileSync(logPath('u-1'), text + issue(id, tail, 'bbbbb'));
+		fs.utimesSync(logPath('u-1'), ahead, ahead);
 
 		expect(titlesOf()).toEqual(['bbbbb']);
 	});
