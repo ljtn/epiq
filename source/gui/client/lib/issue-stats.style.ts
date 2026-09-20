@@ -80,9 +80,6 @@ export const ROW: React.CSSProperties = {
 
 export const percent = (value: number): string => `${Math.round(value * 100)}%`;
 
-export const plural = (count: number, noun: string): string =>
-	`${count} ${noun}${count === 1 ? '' : 's'}`;
-
 // Whole days, and never "0": a ticket filed this morning has been open for
 // less than a day, which is a different statement from none at all.
 export const inDays = (ms: number): string => {

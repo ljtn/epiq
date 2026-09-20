@@ -1,3 +1,9 @@
+// A count and its noun, agreeing. Here rather than with the stats styles it
+// grew up in: the board switcher counts issues, and nothing about that is a
+// ticket's statistics.
+export const plural = (count: number, noun: string): string =>
+	`${count} ${noun}${count === 1 ? '' : 's'}`;
+
 const DURATION_UNITS = [
 	{label: 'y', ms: 1000 * 60 * 60 * 24 * 365},
 	{label: 'mo', ms: 1000 * 60 * 60 * 24 * 30},

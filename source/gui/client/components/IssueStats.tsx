@@ -3,10 +3,10 @@ import {
 	IssueStats as Stats,
 } from '../../../lib/stats/issue-stats.model.js';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {plural} from '../lib/gui-format.helper';
 import {
 	LINE,
 	percent,
-	plural,
 	ROW,
 	shortPath,
 	STAT_CELL,
