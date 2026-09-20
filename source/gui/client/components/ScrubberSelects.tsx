@@ -87,10 +87,10 @@ const AXIS_TITLES: Record<FilterAxis, string> = {
 // Fixed, not sized to its label: the selection changes as the thing is used,
 // and a trigger that grew with it would shove the scope buttons beside it out
 // from under the pointer. Wide enough for the labels themselves — the longest
-// being "Board (filtered)" at 16 monospace characters, plus the padding, the
+// being "Contributors (all)" at 18 monospace characters, plus the padding, the
 // chevron and some slack. A tag or a person's name long enough to overflow
 // past that is clipped, and the open list spells it out in full.
-const SELECT_TRIGGER_WIDTH = 150;
+const SELECT_TRIGGER_WIDTH = 162;
 
 const nestedListStyle: React.CSSProperties = {
 	display: 'flex',
@@ -437,8 +437,10 @@ export const BoardSeriesGroup = ({
 // names the series and then which, the way `Board (filtered)` does two controls
 // along — `Linked` on its own named the narrowing and left the series unsaid.
 // Wide enough for the longer of the two whole, and fixed there, so switching
-// between them does not resize the row under the pointer.
-const COMMIT_SELECT_WIDTH = 120;
+// between them does not resize the row under the pointer. `Code (linked)` wants
+// 86px of it and the padding and chevron take 34, so 120 fits it to the pixel
+// and the rounding then ellipsises it; the slack is what keeps the name whole.
+const COMMIT_SELECT_WIDTH = 128;
 
 export const CommitSeriesGroup = ({
 	connected,
