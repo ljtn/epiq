@@ -6,18 +6,10 @@
 
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {switchToBoard} from './board-switcher.js';
 import {commitLinkedFile} from './linked-commit.js';
 
 const QA_TICKET = 'A ticket that lives on QA';
-
-const switchToBoard = async (page: Page, name: string) => {
-	await page.getByTestId('board-switcher').click();
-	await page
-		.getByTestId('board-switcher-option')
-		.filter({hasText: name})
-		.click();
-	await expect(page.getByTestId('board-switcher')).toContainText(name);
-};
 
 const addTicket = async (page: Page, title: string) => {
 	await page.getByTestId('add-issue').first().click();

@@ -6,7 +6,7 @@
 // playhead — enough moving parts that keeping them together is the difference
 // between one rule and four that drift.
 
-import {keptCommits} from './commit-link';
+import {keptCommits, linkableIssues} from './commit-link';
 import {useMemo} from 'react';
 import {BoardSelection, hiddenIdsFor, narrowingFor} from './board-selection';
 import {buildLogEntries, LogEntry, logEntriesUpTo} from './event-log';
@@ -180,7 +180,11 @@ export const useEventLog = ({
 						commits,
 						linkedCommitsOnly,
 						issueOnly !== null,
-						issueOnly === null ? boardIssueIdByRef : issueIdByRef,
+						linkableIssues({
+							everyBoard: issueIdByRef,
+							thisBoard: boardIssueIdByRef,
+							ticketFocus: issueOnly !== null,
+						}),
 						keptIssues,
 				  )
 				: [],

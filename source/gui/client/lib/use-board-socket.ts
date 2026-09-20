@@ -38,6 +38,23 @@ export type BoardSocket = BoardSocketActions & {
 	reconnectNow: () => void;
 };
 
+/**
+ * Whether an answer that belongs to one board may still be acted on.
+ *
+ * One socket lasts the session, so a reply can arrive after the reader has
+ * moved to another board — replacing the socket on every switch is what used to
+ * throw those away, and dropping that is `8GXKQR4`. An answer naming no board
+ * belongs to none of them and is nobody's to be stale for.
+ *
+ * Whatever names the board is the caller's to choose: some answers carry the
+ * board the server answered for, others the board the reader asked from. Both
+ * are asking this.
+ */
+export const answersBoardOnScreen = (
+	answeredFor: string | undefined,
+	onScreen: string | null | undefined,
+): boolean => answeredFor === undefined || answeredFor === onScreen;
+
 export const useBoardSocket = ({
 	onMessage,
 }: {

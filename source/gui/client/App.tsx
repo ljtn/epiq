@@ -101,7 +101,11 @@ import {useLogWindow} from './lib/log-window';
 import {LogDestination} from './lib/log-destination';
 import {isolateOnly, withNarrowing} from './lib/board-selection';
 import {useBoardSelection} from './lib/use-board-selection';
-import {BoardSocketActions, useBoardSocket} from './lib/use-board-socket';
+import {
+	answersBoardOnScreen,
+	BoardSocketActions,
+	useBoardSocket,
+} from './lib/use-board-socket';
 import {useIssueDetail} from './lib/use-issue-detail';
 import {useRefDiffStats} from './lib/use-ref-diff-stats';
 import {useTicketPreviews} from './lib/use-ticket-previews';
@@ -310,6 +314,16 @@ export const App = () => {
 		originIssueId: string;
 		originRef: string;
 	} | null>(null);
+
+	// The board a creation was asked for from, kept until its own reply. One
+	// socket outlives a board switch, so a reply can arrive after the reader has
+	// moved on — and opening the new ticket would then drag them off the board
+	// they are looking at, to a ticket another board holds.
+	//
+	// Written by `createIssueOn` rather than at each call site: there are two
+	// ways to file a ticket and a reply that cannot say which board it belongs
+	// to is not obviously wrong, so the one that forgets is not caught.
+	const pendingCreateBoard = useRef<string | undefined>(undefined);
 
 	const tabParam = searchParams.get('tab');
 	const selectedTab: IssueDetailsTab =
@@ -834,11 +848,19 @@ export const App = () => {
 
 			const created = getResultValue<{id: string}>(message.payload);
 
+			const askedFrom = pendingCreateBoard.current;
+			pendingCreateBoard.current = undefined;
+
 			// `boardSlug`, not the route's own param: it falls back to the board
 			// on screen, which is known as soon as state arrives, while the param
 			// is empty until the redirect off `/` commits. A ticket filed in that
 			// window was created and never opened.
-			if (created && boardSlug) {
+			//
+			// And only while that is still the board the creation was asked for
+			// from: the ticket belongs to the board it was filed on, so opening it
+			// over a board the reader has since moved to would take them away from
+			// it, to somebody else's column.
+			if (created && boardSlug && answersBoardOnScreen(askedFrom, boardSlug)) {
 				void navigateRef.current(
 					`/board/${boardSlug}/issue/${nodeRef(created.id)}?tab=overview`,
 				);
@@ -932,9 +954,10 @@ export const App = () => {
 			// The list is board-scoped and the answer is slow, so a board switch
 			// can outrun it. The socket no longer dies on that switch, which is
 			// what used to drop the stale answer on the floor.
-			const answeredFor = message.boardId ?? null;
-
-			if (next && answeredFor === selectedBoardIdRef.current) {
+			if (
+				next &&
+				answersBoardOnScreen(message.boardId, selectedBoardIdRef.current)
+			) {
 				setContributors(next);
 			}
 		}
@@ -1527,6 +1550,19 @@ export const App = () => {
 		});
 	};
 
+	// Every `issues:create` goes through here, so the board it was asked for
+	// from is recorded with it — the reply is what opens the new ticket, and it
+	// is only the right thing to open while the reader is still on that board.
+	const createIssueOn = (payload: {
+		title: string;
+		parentId: string;
+		description?: string;
+		tagNames?: string[];
+	}) => {
+		pendingCreateBoard.current = boardSlug;
+		send('issues:create', payload);
+	};
+
 	const createIssue = () => {
 		if (!createIssueModal) return;
 
@@ -1535,10 +1571,7 @@ export const App = () => {
 
 		setCreateIssueModal(null);
 
-		send('issues:create', {
-			title,
-			parentId,
-		});
+		createIssueOn({title, parentId});
 	};
 
 	const {
@@ -1718,7 +1751,7 @@ export const App = () => {
 
 		pendingFileTicketOrigin.current = {originIssueId, originRef};
 
-		send('issues:create', {
+		createIssueOn({
 			title: params.title,
 			parentId: targetSwimlaneId,
 			description,

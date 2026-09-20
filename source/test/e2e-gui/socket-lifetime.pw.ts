@@ -10,17 +10,8 @@
 // Counting the sockets rather than racing that window: the swap is what the
 // lost reply is made of, and it is the thing that must not happen.
 
-import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-
-const switchToBoard = async (page: Page, name: string) => {
-	await page.getByTestId('board-switcher').click();
-	await page
-		.getByTestId('board-switcher-option')
-		.filter({hasText: name})
-		.click();
-	await expect(page.getByTestId('board-switcher')).toContainText(name);
-};
+import {switchToBoard} from './board-switcher.js';
 
 test('one socket survives the redirect off / and a board switch', async ({
 	page,
@@ -44,5 +35,55 @@ test('one socket survives the redirect off / and a board switch', async ({
 	await switchToBoard(page, 'Default');
 
 	expect(opened).toHaveLength(1);
+	expect(pageErrors).toEqual([]);
+});
+
+// The other half of one socket outliving a board switch: a reply that arrives
+// after the reader has moved on. `issues:create:result` is what opens a filed
+// ticket, and the ticket belongs to the board it was filed on — so obeying a
+// late one would take the reader off the board they just moved to, to a ticket
+// it does not hold. The swap used to discard it for us.
+test('a ticket filed just before a board switch does not drag the reader back', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	const HELD_MS = 1500;
+
+	// Held rather than raced: the window is the point, so the test makes one
+	// instead of hoping for it.
+	await page.routeWebSocket(/\/ws/, ws => {
+		const server = ws.connectToServer();
+
+		ws.onMessage(message => server.send(message));
+		server.onMessage(async message => {
+			if (
+				typeof message === 'string' &&
+				message.includes('"issues:create:result"')
+			) {
+				await new Promise(resolve => setTimeout(resolve, HELD_MS));
+			}
+
+			ws.send(message);
+		});
+	});
+
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	await page.getByTestId('add-issue').first().click();
+	await page
+		.getByPlaceholder('issue name')
+		.fill(`Filed then left ${Date.now()}`);
+	await page.getByPlaceholder('issue name').press('Enter');
+
+	await switchToBoard(page, 'QA');
+
+	// Long enough for the held reply to have landed and been ignored.
+	await page.waitForTimeout(HELD_MS + 500);
+
+	await expect(page.getByTestId('board-switcher')).toContainText('QA');
+	await expect(page).not.toHaveURL(/\/issue\//);
+
 	expect(pageErrors).toEqual([]);
 });
