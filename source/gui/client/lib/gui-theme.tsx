@@ -42,6 +42,10 @@ export const GUI_THEME = {
 	// stand against. Still well clear of a reading contrast: what comes off is
 	// the shout, not the legibility.
 	primarySoft: '#aeb3c2',
+	// `primary`'s brightness with a hint of the blue the bright text around it
+	// carries — `primarySoft`'s tint, not the dim chrome's, which at this
+	// weight would read as a blue label rather than as a name.
+	chromePrimary: '#c0c5d4',
 	secondary: '#7f8aa3',
 	tertiary: 'rgb(31 33 43)',
 	dim: '#585d78',
