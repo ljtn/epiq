@@ -73,10 +73,14 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: playwright-${{ runner.os }}-
 
-      - run: npx playwright install --with-deps chromium
-
       # EPIQ_GUI_DEV_BUILD=1 builds React's development runtime; the suite is
-      # the same one the gate runs. See `source/scripts/build-gui.mjs`.
+      # the same one the gate runs, and the script installs the browsers the way
+      # `test:gui:ci` does. See `source/scripts/build-gui.mjs`.
+      #
+      # It sets IS_CI too, which is what caps Playwright at two workers and
+      # allows one retry. Without it this job took the local default of six on a
+      # four-vCPU runner and reported five tests failing that pass everywhere
+      # else — the config says as much where it sets the number.
       - run: npm run test:gui:warnings
 
       - name: Keep the traces of whatever failed
