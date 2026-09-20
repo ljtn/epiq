@@ -682,6 +682,57 @@ export const clearStaleGitLocks = async (
 	return succeeded('Cleared stale git lock files', removed);
 };
 
+/**
+ * The lock git leaves on a branch ref when it is killed mid-update.
+ *
+ * Refs do not live in a linked worktree's own git directory — they are in the
+ * common one, shared with the user's repository and every other worktree — so
+ * `clearStaleGitLocks` never sees this one. A `refs/heads/<branch>.lock` left
+ * there makes every later commit on that branch fail with "cannot lock ref",
+ * which is the same permanent wedge by a narrower path.
+ *
+ * One named ref, never a walk: that directory belongs to the user as much as to
+ * epiq, and a lock on `main` is somebody's commit in progress. The branch comes
+ * from the project file, so the resolved path is checked to be inside
+ * `refs/heads/` before anything is removed — a name with a `..` in it is a
+ * corrupt project file, not a licence to delete elsewhere.
+ */
+export const clearStaleRefLock = async (
+	cwd: string,
+	branch: string,
+): Promise<Result<boolean>> => {
+	const commonResult = await execGitAllowFail({
+		cwd,
+		args: ['rev-parse', '--git-common-dir'],
+	});
+
+	if (commonResult.exitCode !== 0) {
+		return failed(`Unable to resolve the common git directory at ${cwd}`);
+	}
+
+	const commonDir = path.resolve(cwd, commonResult.stdout.trim());
+	const headsDir = path.join(commonDir, 'refs', 'heads');
+	const lockPath = path.resolve(headsDir, `${branch}.lock`);
+
+	if (!lockPath.startsWith(`${headsDir}${path.sep}`)) {
+		return failed(`Refusing to clear a ref lock outside ${headsDir}`);
+	}
+
+	if (!fs.existsSync(lockPath)) {
+		return succeeded('No ref lock to clear', false);
+	}
+
+	try {
+		fs.rmSync(lockPath, {force: true});
+	} catch {
+		// Somebody else got there first, or it is not ours to remove; the git
+		// that follows will say so in its own words.
+		return succeeded('Ref lock could not be cleared', false);
+	}
+
+	return succeeded('Cleared a stale ref lock', true);
+};
+
 export const abortRebaseIfPresent = async (
 	cwd: string,
 ): Promise<Result<boolean>> => {

@@ -4,6 +4,7 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {
 	clearStaleGitLocks,
+	clearStaleRefLock,
 	execGit,
 	execGitAllowFail,
 	getGitDir,
@@ -12,7 +13,13 @@ import {
 import {syncEpiqWithRemote} from '../git/sync.js';
 import {acquireSyncLock, SYNC_LOCK_FILE} from '../git/sync-lock.js';
 import {isFail} from '../lib/model/result-types.js';
-import {setupRepo, useTempHome, writeFile} from './helpers/git-repo.js';
+import {
+	eventLine,
+	getEventsFile,
+	setupRepo,
+	useTempHome,
+	writeFile,
+} from './helpers/git-repo.js';
 
 useTempHome();
 
@@ -416,5 +423,92 @@ describe('lock files a killed git left behind', () => {
 
 		expect(isFail(result)).toBe(false);
 		expect(fs.existsSync(path.join(gitDir.value, 'index.lock'))).toBe(false);
+	});
+});
+
+/**
+ * Refs live in the *common* git directory, not in a linked worktree's own, so
+ * nothing the sweep of the worktree gitdir does can reach them. A `git commit`
+ * killed while updating the state branch leaves `refs/heads/<branch>.lock`
+ * there, and from then on every sync fails with "cannot lock ref" — the same
+ * permanent wedge as TATEM5B, by a narrower path.
+ *
+ * That directory is shared with the user's own repository and every other
+ * worktree, so the clearing is one named ref and never a walk.
+ */
+describe('a ref lock in the common git directory', () => {
+	const headsDirOf = async (stateBranchRoot: string): Promise<string> => {
+		const common = await execGit({
+			args: ['rev-parse', '--git-common-dir'],
+			cwd: stateBranchRoot,
+		});
+		if (isFail(common)) throw new Error(common.message);
+
+		return path.join(
+			path.resolve(stateBranchRoot, common.value.stdout.trim()),
+			'refs',
+			'heads',
+		);
+	};
+
+	const plant = (lockPath: string): void => {
+		fs.mkdirSync(path.dirname(lockPath), {recursive: true});
+		fs.writeFileSync(lockPath, '');
+	};
+
+	it('no longer stops a sync from committing', async () => {
+		const {repoRoot, stateBranchRoot} = await bootstrapped();
+
+		const heads = await headsDirOf(stateBranchRoot);
+		const refLock = path.join(heads, `${STATE_BRANCH}.lock`);
+		plant(refLock);
+
+		// Something to commit, which is what needs the ref: a sync with nothing
+		// to write never asks for it and passes over the lock either way.
+		writeFile(
+			getEventsFile({root: stateBranchRoot, fileName: OWN_EVENT_FILE}),
+			eventLine('01H00000000000000000000009'),
+		);
+
+		const result = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName: OWN_EVENT_FILE,
+		});
+		if (isFail(result)) throw new Error(result.message);
+
+		expect(result.value.createdCommit).toBe(true);
+		expect(fs.existsSync(refLock)).toBe(false);
+	});
+
+	// The common directory is the user's as much as epiq's, and a lock on their
+	// branch is their commit in progress.
+	it('is never cleared for a branch that belongs to somebody else', async () => {
+		const {repoRoot, stateBranchRoot} = await bootstrapped();
+
+		const heads = await headsDirOf(stateBranchRoot);
+		const theirs = path.join(heads, 'main.lock');
+		plant(theirs);
+
+		writeFile(
+			getEventsFile({root: stateBranchRoot, fileName: OWN_EVENT_FILE}),
+			eventLine('01H0000000000000000000000A'),
+		);
+
+		const result = await syncEpiqWithRemote({
+			cwd: repoRoot,
+			ownEventFileName: OWN_EVENT_FILE,
+		});
+		if (isFail(result)) throw new Error(result.message);
+
+		expect(fs.existsSync(theirs), "somebody else's ref lock").toBe(true);
+	});
+
+	// The branch name comes out of the project file, so it is repository data.
+	it('refuses a branch name that would reach outside refs/heads', async () => {
+		const {stateBranchRoot} = await bootstrapped();
+
+		const escaped = await clearStaleRefLock(stateBranchRoot, '../../../evil');
+
+		expect(isFail(escaped)).toBe(true);
 	});
 });
