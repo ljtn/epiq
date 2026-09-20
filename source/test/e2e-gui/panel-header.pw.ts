@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 
 test.use({viewport: {width: 1600, height: 900}});
 
@@ -7,10 +8,7 @@ const openTicket = async (page: Page, appUrl: string, title: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toBeVisible();
+	await addTicket(page, title);
 };
 
 const dockTo = async (page: Page, side: 'bottom' | 'right') => {

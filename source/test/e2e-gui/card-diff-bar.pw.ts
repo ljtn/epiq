@@ -4,25 +4,12 @@
 
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicketForRef} from './ticket.js';
 import {
 	commitLinkedFile,
 	commitLinkedNothing,
 	linkedFileName,
 } from './linked-commit.js';
-
-const addTicket = async (page: Page, title: string): Promise<string> => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
-
-	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
-	)?.trim();
-	expect(ref).toBeTruthy();
-
-	return ref!;
-};
 
 // Scoped to one ticket's own card — every worker's tests share one repo and one
 // board, so other tickets on it may well have commits of their own. The row
@@ -42,7 +29,7 @@ test('a card whose ticket has commits carries its diff stat, and carries none be
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	const ref = await addTicket(page, `Coded ${Date.now()}`);
+	const ref = await addTicketForRef(page, `Coded ${Date.now()}`);
 	const stat = statOn(page, ref);
 
 	await expect(page.getByTestId('copy-ref').last()).toBeVisible();
@@ -83,7 +70,7 @@ test('a ticket whose commits changed no lines carries no stat to click', async (
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	const ref = await addTicket(page, `Empty ${Date.now()}`);
+	const ref = await addTicketForRef(page, `Empty ${Date.now()}`);
 
 	commitLinkedNothing(repoRoot, ref, 'nothing to see');
 	await page.reload();

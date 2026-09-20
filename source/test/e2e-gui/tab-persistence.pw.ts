@@ -1,17 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-
-	// Waits for this ticket's own details, not just any /issue/ url: creation
-	// navigates to the new ticket, and a url left over from the previous one
-	// would satisfy the looser check while that navigation is still in flight —
-	// landing later and resetting the tab.
-	await expect(page.locator('aside')).toContainText(title);
-};
+import {addTicket} from './ticket.js';
 
 const openFromBoard = async (page: Page, title: string) =>
 	page.locator('[draggable="true"]').filter({hasText: title}).first().click();

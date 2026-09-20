@@ -19,7 +19,7 @@ import {
 	resolveAttachmentBlob,
 	writeAttachmentBlob,
 } from '../../lib/media/media-store.js';
-import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {ToolInput, bootLocal, bootedForMutation} from './boot.js';
 
 type AddIssueAttachmentInput = ToolInput & {
 	issueId: string;
@@ -73,14 +73,8 @@ export const getAttachmentMaxKb = (): number => {
 };
 
 export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
@@ -89,7 +83,7 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 	if (isFail(bytesResult)) return bytesResult;
 
 	const written = writeAttachmentBlob(
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 		bytesResult.value.data,
 		getAttachmentMaxKb(),
 	);
@@ -100,12 +94,12 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'add.issue.attachment',
 		payload: {
 			id: attachmentId,
 			issue: input.issueId,
-			author: actorResult.value.userId,
+			author: ready.value.actor.userId,
 			hash: written.value.hash,
 			ext: written.value.ext,
 			name,
@@ -115,7 +109,7 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -134,16 +128,10 @@ export const addIssueAttachment = async (input: AddIssueAttachmentInput) => {
 export const deleteIssueAttachment = async (
 	input: DeleteIssueAttachmentInput,
 ) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const attachmentEvent = stateResult.value.eventLog.find(
+	const attachmentEvent = ready.value.state.eventLog.find(
 		(event): event is AppEvent<'add.issue.attachment'> =>
 			event.action === 'add.issue.attachment' &&
 			event.payload.id === input.attachmentId,
@@ -153,14 +141,14 @@ export const deleteIssueAttachment = async (
 		return failed('Unable to resolve attachment');
 	}
 
-	if (attachmentEvent.payload.author !== actorResult.value.userId) {
+	if (attachmentEvent.payload.author !== ready.value.actor.userId) {
 		return failed('You can only delete your own attachments');
 	}
 
 	const issueResult = findWritableIssue(attachmentEvent.payload.issue);
 	if (isFail(issueResult)) return issueResult;
 
-	const alreadyDeleted = stateResult.value.eventLog.some(
+	const alreadyDeleted = ready.value.state.eventLog.some(
 		event =>
 			event.action === 'delete.issue.attachment' &&
 			event.payload.id === input.attachmentId,
@@ -175,7 +163,7 @@ export const deleteIssueAttachment = async (
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'delete.issue.attachment',
 		payload: {
 			id: input.attachmentId,
@@ -185,7 +173,7 @@ export const deleteIssueAttachment = async (
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -201,7 +189,7 @@ export const deleteIssueAttachment = async (
  * hash, and magic-byte validation.
  */
 export const getAttachmentBlob = async (input: GetAttachmentBlobInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	return resolveAttachmentBlob(

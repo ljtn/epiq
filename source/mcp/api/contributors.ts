@@ -24,7 +24,7 @@ import {
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
-import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {ToolInput, bootedForMutation} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
 
 type AddIssueAssigneeInput = ToolInput & {
@@ -57,21 +57,15 @@ export const assumeActor = async (
 	const applied = applyActorNameArgument(input.name, 'name');
 	if (isFail(applied)) return failed(applied.message);
 
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const actor = actorResult.value;
+	const actor = ready.value.actor;
 
 	// Registered here rather than left to the first write, because the log file
 	// name is a lossy storage key — `claude/peter` sanitizes to `claude-peter`
 	// — and the registry is where display names are read from.
-	const isRegistered = Boolean(stateResult.value.contributors[actor.userId]);
+	const isRegistered = Boolean(ready.value.state.contributors[actor.userId]);
 
 	if (!isRegistered) {
 		const results = materializeAndPersistAll(
@@ -83,7 +77,7 @@ export const assumeActor = async (
 					payload: {id: actor.userId, name: actor.userName},
 				} satisfies AppEvent<'create.contributor'>,
 			],
-			bootResult.value.stateBranchRoot,
+			ready.value.boot.stateBranchRoot,
 		);
 
 		if (isFail(results)) return failed(results.message);
@@ -112,31 +106,25 @@ const findEventLogAuthor = async (
 };
 
 export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
 
-	const targetId = input.self ? actorResult.value.userId : input.assigneeId;
+	const targetId = input.self ? ready.value.actor.userId : input.assigneeId;
 
 	// An id names a specific person, so an unknown one is an error rather than
 	// an invitation to invent a contributor.
 	if (targetId) {
-		const registered = stateResult.value.contributors[targetId];
+		const registered = ready.value.state.contributors[targetId];
 
 		// A contributor node is only written when somebody is explicitly created
 		// or assigned, so an author who was never assigned is absent from the
 		// registry. Register them under the id they already author with.
 		const authored = registered
 			? undefined
-			: await findEventLogAuthor(bootResult.value.stateBranchRoot, targetId);
+			: await findEventLogAuthor(ready.value.boot.stateBranchRoot, targetId);
 
 		if (!registered && !authored) return failed('Unknown assignee id');
 
@@ -148,14 +136,14 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 				: [
 						{
 							id: ulid(),
-							...actorOf(actorResult.value),
+							...actorOf(ready.value.actor),
 							action: 'create.contributor',
 							payload: {id: assignee.id, name: assignee.name},
 						} satisfies AppEvent<'create.contributor'>,
 				  ]),
 			{
 				id: ulid(),
-				...actorOf(actorResult.value),
+				...actorOf(ready.value.actor),
 				action: 'add.issue.assignee',
 				payload: {id: input.issueId, assignee: assignee.id},
 			} satisfies AppEvent<'add.issue.assignee'>,
@@ -163,7 +151,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 		const assignResults = materializeAndPersistAll(
 			events,
-			bootResult.value.stateBranchRoot,
+			ready.value.boot.stateBranchRoot,
 		);
 
 		if (isFail(assignResults)) return failed(assignResults.message);
@@ -190,9 +178,9 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 	// unknown, and an unmatched name is one `createUnlinked` away from a
 	// duplicate id for somebody who already has one.
 	const matches = contributorDirectory({
-		events: stateResult.value.eventLog ?? [],
-		registry: stateResult.value.contributors,
-		logFileNames: loadActorNames(bootResult.value.stateBranchRoot),
+		events: ready.value.state.eventLog ?? [],
+		registry: ready.value.state.contributors,
+		logFileNames: loadActorNames(ready.value.boot.stateBranchRoot),
 	}).filter(candidate => candidate.name === assigneeName);
 
 	// Two people can share a display name; picking one silently assigns the
@@ -218,7 +206,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	// Keyed on the registry, not on whether a name matched: somebody found only
 	// in the event log still needs a contributor record.
-	const isRegistered = Boolean(stateResult.value.contributors[assigneeId]);
+	const isRegistered = Boolean(ready.value.state.contributors[assigneeId]);
 
 	const events = [
 		...(isRegistered
@@ -226,7 +214,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 			: [
 					{
 						id: ulid(),
-						...actorOf(actorResult.value),
+						...actorOf(ready.value.actor),
 						action: 'create.contributor',
 						payload: {
 							id: assigneeId,
@@ -236,7 +224,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 			  ]),
 		{
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'add.issue.assignee',
 			payload: {
 				id: input.issueId,
@@ -247,7 +235,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 
 	const results = materializeAndPersistAll(
 		events,
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -265,20 +253,14 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 export const tombstoneContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const contributor = stateResult.value.contributors[input.contributorId];
+	const contributor = ready.value.state.contributors[input.contributorId];
 	if (!contributor) return failed('Contributor not found');
 
 	const authored = await findEventLogAuthor(
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 		input.contributorId,
 	);
 
@@ -291,7 +273,7 @@ export const tombstoneContributor = async (
 	const events = [
 		{
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'tombstone.contributor',
 			payload: {id: input.contributorId},
 		} satisfies AppEvent<'tombstone.contributor'>,
@@ -299,7 +281,7 @@ export const tombstoneContributor = async (
 
 	const results = materializeAndPersistAll(
 		events,
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -337,16 +319,10 @@ const findCreatedContributorName = async (
 export const restoreContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const contributor = stateResult.value.contributors[input.contributorId];
+	const contributor = ready.value.state.contributors[input.contributorId];
 	if (!contributor) return failed('Contributor not found');
 
 	if (!contributor.tombstoned) {
@@ -354,7 +330,7 @@ export const restoreContributor = async (
 	}
 
 	const originalName = await findCreatedContributorName(
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 		input.contributorId,
 	);
 
@@ -367,7 +343,7 @@ export const restoreContributor = async (
 	const events = [
 		{
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'restore.contributor',
 			payload: {id: input.contributorId, name: originalName},
 		} satisfies AppEvent<'restore.contributor'>,
@@ -375,7 +351,7 @@ export const restoreContributor = async (
 
 	const results = materializeAndPersistAll(
 		events,
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -398,16 +374,10 @@ export const getBoardContributors = async (
 		})[]
 	>
 > => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const eventsResult = loadMergedEvents(bootResult.value.stateBranchRoot);
+	const eventsResult = loadMergedEvents(ready.value.boot.stateBranchRoot);
 	if (isFail(eventsResult)) return failed(eventsResult.message);
 
 	const scopedEvents = input.boardId
@@ -420,22 +390,22 @@ export const getBoardContributors = async (
 	// decode.
 	const workspaceAuthorIds = new Set<string>();
 
-	const actorsResult = loadEventActors(bootResult.value.stateBranchRoot);
+	const actorsResult = loadEventActors(ready.value.boot.stateBranchRoot);
 	if (isFail(actorsResult)) return failed(actorsResult.message);
 
 	for (const actor of actorsResult.value) {
 		if (actor.userId) workspaceAuthorIds.add(actor.userId);
 	}
 
-	const registry = stateResult.value.contributors;
+	const registry = ready.value.state.contributors;
 
 	const contributors = contributorDirectory({
 		events: scopedEvents,
 		registry,
-		logFileNames: loadActorNames(bootResult.value.stateBranchRoot),
+		logFileNames: loadActorNames(ready.value.boot.stateBranchRoot),
 	}).map(({id, name, isExternal}) => ({
 		...identityOf(id, name),
-		isSelf: id === actorResult.value.userId,
+		isSelf: id === ready.value.actor.userId,
 		// Board-scoped, because the events were: means "has not worked on this
 		// board", not "is not in the history".
 		isExternal,
@@ -450,25 +420,19 @@ export const getBoardContributors = async (
 };
 
 export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
 
-	if (!stateResult.value.contributors[input.assigneeId]) {
+	if (!ready.value.state.contributors[input.assigneeId]) {
 		return failed('Assignee not found');
 	}
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'remove.issue.assignee',
 		payload: {
 			id: input.issueId,
@@ -478,7 +442,7 @@ export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);

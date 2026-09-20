@@ -1,4 +1,5 @@
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 
 test.beforeEach(async ({page, appUrl}) => {
 	await page.goto(appUrl);
@@ -6,10 +7,7 @@ test.beforeEach(async ({page, appUrl}) => {
 });
 
 const openTicket = async (page: import('@playwright/test').Page) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Stay open ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page).toHaveURL(/\/issue\//);
+	await addTicket(page, `Stay open ${Date.now()}`);
 };
 
 test('clicking outside the details leaves it open', async ({

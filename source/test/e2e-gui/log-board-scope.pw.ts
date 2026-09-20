@@ -4,19 +4,12 @@
 // defaults `board = boardSlug`), so a line belonging to another board's ticket
 // leads somewhere that board does not hold.
 
-import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 import {switchToBoard} from './board-switcher.js';
 import {commitLinkedFile} from './linked-commit.js';
 
 const QA_TICKET = 'A ticket that lives on QA';
-
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
-};
 
 // The All-boards flag has no control on the bar today — its checkbox is
 // commented out — so the only way a reader holds it is a value left in this

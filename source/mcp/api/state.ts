@@ -27,10 +27,10 @@ import {ApiState, ApiSwimlane} from '../api-state.model.js';
 import {getTimeTravelStatus} from '../epiq-time-travel.js';
 import {
 	ToolInput,
-	boot,
+	bootLocal,
+	getActor,
 	getStateResult,
 	resolveRepoRoot,
-	getActor,
 } from './boot.js';
 import {
 	closedFromBoardIdOf,
@@ -47,7 +47,7 @@ import {
 } from '../../lib/state/sync-state.js';
 
 export const getEpiqState = async (input: ToolInput = {}) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -297,7 +297,7 @@ export const getGuiState = async (
 
 	// Never pull on a read: it would hang sandboxed or offline setups. Freshness
 	// is an explicit periodic sync's job.
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	rememberOpenedProject(bootResult.value.repoRoot);

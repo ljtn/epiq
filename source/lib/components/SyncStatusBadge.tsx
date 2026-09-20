@@ -1,4 +1,5 @@
 import {Box, Text} from 'ink';
+import {sampleGradient} from '../utils/color.js';
 import React, {useEffect, useMemo, useState} from 'react';
 import {useAppState} from '../state/state.js';
 import {theme} from '../theme/themes.js';
@@ -15,47 +16,6 @@ const SYNC_GRADIENT = [
 	'#9d7cd8', // magenta
 ];
 
-const hexToRgb = (hex: string) => {
-	const clean = hex.replace('#', '');
-	return {
-		r: parseInt(clean.slice(0, 2), 16),
-		g: parseInt(clean.slice(2, 4), 16),
-		b: parseInt(clean.slice(4, 6), 16),
-	};
-};
-
-const rgbToHex = ({r, g, b}: {r: number; g: number; b: number}) => {
-	const toHex = (value: number) =>
-		Math.round(Math.max(0, Math.min(255, value)))
-			.toString(16)
-			.padStart(2, '0');
-
-	return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-};
-
-const mixHex = (from: string, to: string, t: number) => {
-	const a = hexToRgb(from);
-	const b = hexToRgb(to);
-
-	return rgbToHex({
-		r: a.r + (b.r - a.r) * t,
-		g: a.g + (b.g - a.g) * t,
-		b: a.b + (b.b - a.b) * t,
-	});
-};
-
-const getGradientColor = (colors: string[], progress: number) => {
-	if (colors.length === 1) return colors[0];
-
-	const scaled = progress * (colors.length - 1);
-	const index = Math.floor(scaled);
-	const localT = scaled - index;
-
-	const from = colors[index]!;
-	const to = colors[Math.min(index + 1, colors.length - 1)]!;
-
-	return mixHex(from, to, localT);
-};
 export const SyncStatusBadge: React.FC = () => {
 	const {
 		syncStatus: {status, msg},
@@ -116,7 +76,7 @@ export const SyncStatusBadge: React.FC = () => {
 
 	const syncingBackground = useMemo(() => {
 		const progress = (Math.sin(colorTick / 10) + 1) / 2;
-		return getGradientColor(SYNC_GRADIENT, progress);
+		return sampleGradient(SYNC_GRADIENT, progress);
 	}, [colorTick]);
 
 	const backgroundColor =

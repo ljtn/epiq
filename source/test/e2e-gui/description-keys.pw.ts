@@ -1,14 +1,12 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 
 const openTicket = async (page: Page, appUrl: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Keys ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page).toHaveURL(/\/issue\//);
+	await addTicket(page, `Keys ${Date.now()}`);
 };
 
 const startEditing = async (page: Page) => {

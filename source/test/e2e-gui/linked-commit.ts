@@ -15,6 +15,17 @@ import path from 'node:path';
  * ref is a fresh ticket's, so it is unique per call — including across a
  * retry, which re-runs against the same repo.
  */
+// One identity for every commit these helpers make, and one place the cwd is
+// bound: three of them had written this out apiece.
+const gitIn =
+	(repoRoot: string) =>
+	(...args: string[]) =>
+		execFileSync(
+			'git',
+			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
+			{cwd: repoRoot, stdio: 'pipe'},
+		);
+
 export const linkedFileName = (ref: string): string => `notes-${ref}.txt`;
 
 /** One commit carrying several files, keyed by name. */
@@ -24,12 +35,7 @@ export const commitLinkedFiles = (
 	subject: string,
 	contentsByFileName: Record<string, string>,
 ): string => {
-	const git = (...args: string[]) =>
-		execFileSync(
-			'git',
-			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
-			{cwd: repoRoot, stdio: 'pipe'},
-		);
+	const git = gitIn(repoRoot);
 
 	for (const [fileName, contents] of Object.entries(contentsByFileName)) {
 		fs.writeFileSync(path.join(repoRoot, fileName), contents);
@@ -58,12 +64,7 @@ export const commitLinkedNothing = (
 	ref: string,
 	subject: string,
 ): string => {
-	const git = (...args: string[]) =>
-		execFileSync(
-			'git',
-			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
-			{cwd: repoRoot, stdio: 'pipe'},
-		);
+	const git = gitIn(repoRoot);
 
 	git('commit', '-q', '--allow-empty', '-m', `${ref} ${subject}`);
 
@@ -77,12 +78,7 @@ export const commitPlainFile = (
 	subject: string,
 	contents = 'one\ntwo\n',
 ): string => {
-	const git = (...args: string[]) =>
-		execFileSync(
-			'git',
-			['-c', 'user.name=e2e', '-c', 'user.email=e2e@example.com', ...args],
-			{cwd: repoRoot, stdio: 'pipe'},
-		);
+	const git = gitIn(repoRoot);
 
 	fs.writeFileSync(path.join(repoRoot, fileName), contents);
 	git('add', fileName);

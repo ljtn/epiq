@@ -23,7 +23,13 @@ import {
 	offerableCandidates,
 } from '../../lib/repository/email-candidates.js';
 import {getSettingsState} from '../../lib/state/settings.state.js';
-import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {
+	ToolInput,
+	bootLocal,
+	bootedForMutation,
+	getActor,
+	getStateResult,
+} from './boot.js';
 
 type LinkInput = ToolInput & {email: string; contributorId?: string};
 
@@ -39,27 +45,21 @@ export const linkContributorEmail = async (
 ): Promise<
 	Result<{contributor: string; email: string; contested: string[]}>
 > => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	if (!isValidEmail(input.email)) {
 		return failed(`Not an email address: ${input.email}`);
 	}
 
 	const email = normalizeEmail(input.email);
-	const contributor = input.contributorId ?? actorResult.value.userId;
+	const contributor = input.contributorId ?? ready.value.actor.userId;
 
-	if (!stateResult.value.contributors[contributor]) {
+	if (!ready.value.state.contributors[contributor]) {
 		return failed(`Unknown contributor: ${contributor}`);
 	}
 
-	const already = claimantsOf(stateResult.value.emailLinks, email);
+	const already = claimantsOf(ready.value.state.emailLinks, email);
 	if (already.includes(contributor)) {
 		return succeeded(`${email} is already yours`, {
 			contributor,
@@ -74,10 +74,10 @@ export const linkContributorEmail = async (
 				id: ulid(),
 				action: 'link.contributor.email',
 				payload: {contributor, email},
-				userId: actorResult.value.userId,
+				userId: ready.value.actor.userId,
 			} satisfies AppEvent<'link.contributor.email'>,
 		],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -102,18 +102,12 @@ export const linkContributorEmail = async (
 export const unlinkContributorEmail = async (
 	input: LinkInput,
 ): Promise<Result<{contributor: string; email: string}>> => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const email = normalizeEmail(input.email);
-	const contributor = input.contributorId ?? actorResult.value.userId;
-	const link = stateResult.value.emailLinks[emailLinkKey(email, contributor)];
+	const contributor = input.contributorId ?? ready.value.actor.userId;
+	const link = ready.value.state.emailLinks[emailLinkKey(email, contributor)];
 
 	if (!link || link.tombstoned) {
 		return failed(`No such link: ${email} to ${contributor}`);
@@ -121,7 +115,7 @@ export const unlinkContributorEmail = async (
 
 	// Checked at the door as well as in the handler, so the caller is told why
 	// rather than watching an event be written and silently skipped.
-	if (!canRemoveEmailLink(actorResult.value.userId, link)) {
+	if (!canRemoveEmailLink(ready.value.actor.userId, link)) {
 		return failed(
 			'Only whoever made a claim, or the contributor it names, may undo it',
 		);
@@ -133,10 +127,10 @@ export const unlinkContributorEmail = async (
 				id: ulid(),
 				action: 'unlink.contributor.email',
 				payload: {contributor, email},
-				userId: actorResult.value.userId,
+				userId: ready.value.actor.userId,
 			} satisfies AppEvent<'unlink.contributor.email'>,
 		],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -152,7 +146,7 @@ export const unlinkContributorEmail = async (
  * nothing else on the board would ever tell you about.
  */
 export const listContributorEmails = async (input: ToolInput = {}) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -225,27 +219,21 @@ export const listContributorEmails = async (input: ToolInput = {}) => {
  * an address becomes somebody's.
  */
 export const suggestOwnEmails = async (input: ToolInput = {}) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const {userId, userName} = actorResult.value;
+	const {userId, userName} = ready.value.actor;
 
 	// The state branch is excluded, as it is everywhere else this scan is run.
 	// Its commits are the board writing its own log, so without this the panel
 	// offers the board's bookkeeping as work somebody did.
-	const branchResult = getStateBranch(bootResult.value.repoRoot);
+	const branchResult = getStateBranch(ready.value.boot.repoRoot);
 
 	const scanned = await findEmailCandidates({
-		repoRoot: bootResult.value.repoRoot,
+		repoRoot: ready.value.boot.repoRoot,
 		stateBranch: isFail(branchResult) ? undefined : branchResult.value,
-		names: [userName, await readGitName(bootResult.value.repoRoot)],
-		links: stateResult.value.emailLinks,
+		names: [userName, await readGitName(ready.value.boot.repoRoot)],
+		links: ready.value.state.emailLinks,
 	});
 	if (isFail(scanned)) return scanned;
 
