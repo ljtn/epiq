@@ -13,6 +13,7 @@ import {
 	listBoards,
 	listSwimlanes,
 	moveIssue,
+	moveSwimlane,
 } from '../mcp/epiq-api.js';
 import {deriveGuiState} from '../mcp/api/state.js';
 import {setupRepo, useTempHome} from './helpers/git-repo.js';
@@ -98,5 +99,24 @@ describe('the boards a ticket has lived on', () => {
 
 		expect(boards).toContain(other.id);
 		expect(boards).toContain(home.id);
+	});
+});
+
+// The same question one level up: a lane can be moved between boards too, and
+// a ticket's history must not follow it. Resolving a lane to its board as it
+// stands today would hand board A's work to board B retroactively.
+describe('a swimlane that changes board', () => {
+	it('does not take the tickets that lived on it with it', async () => {
+		const {repoRoot, home, lane} = await seed();
+		const issue = unwrap(
+			await createIssue({repoRoot, title: 'filed on home', parentId: lane.id}),
+		);
+
+		const other = unwrap(await createBoard({repoRoot, title: 'Elsewhere'}));
+		unwrap(
+			await moveSwimlane({repoRoot, swimlaneId: lane.id, boardId: other.id}),
+		);
+
+		expect(boardsOf(issue.ref)).toContain(home.id);
 	});
 });
