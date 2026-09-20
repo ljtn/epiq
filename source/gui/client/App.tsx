@@ -1326,6 +1326,7 @@ export const App = () => {
 		queryIssueIds,
 		linkedCommitsOnly,
 		boardIssueIdByRef,
+		issueIdByRef,
 		showIssues,
 		showCommits,
 		playing: theatre !== null,

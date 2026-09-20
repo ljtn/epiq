@@ -13,14 +13,17 @@ import {resolveReopenParentFromLog} from '../../lib/board/log-utils.js';
 // The board a closed ticket left. Closing hangs it off the global Closed lane,
 // so its own board is no longer readable from where it sits — but the lane it
 // came from is still in its log, the same one a reopen would put it back in.
-// Null for an open ticket, and once that lane has been deleted.
+// Null for an open ticket.
+//
+// A deleted lane still answers: it names the board it hung off, and deleting it
+// leaves the tickets closed out of it where they are. Reading it as no board at
+// all would take every one of them out of that board's own views.
 export const closedFromBoardIdOf = (ticket: Ticket): string | null => {
 	if (ticket.parentNodeId !== CLOSED_SWIMLANE_ID) return null;
 
 	const laneId = resolveReopenParentFromLog(ticket);
-	const lane = laneId ? nodeRepo.getNode(laneId) : null;
 
-	return lane && !lane.isDeleted ? lane.parentNodeId ?? null : null;
+	return (laneId && nodeRepo.getNode(laneId)?.parentNodeId) ?? null;
 };
 
 // The lib helpers answer which tags and assignees a ticket has; these add the

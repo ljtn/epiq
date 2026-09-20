@@ -104,6 +104,34 @@ describe('issueIdByRefFor', () => {
 		]);
 	});
 
+	// Why the funnel down to one ticket reads the repository's map and not the
+	// board's: a ref link opens a ticket from another board without leaving this
+	// one, and the board's map does not carry it — so the funnel would answer
+	// with nothing for a ticket that has commits.
+	it('finds nothing for a focused ticket the board does not carry', () => {
+		const focus = new Set(['issue-a']);
+
+		expect(
+			keptCommits(
+				commits,
+				false,
+				true,
+				issueIdByRefFor(boards, 'board-roadmap'),
+				focus,
+			),
+		).toEqual([]);
+
+		expect(
+			keptCommits(
+				commits,
+				false,
+				true,
+				issueIdByRefFor(boards, null),
+				focus,
+			).map(c => c.sha),
+		).toEqual(['a']);
+	});
+
 	// What the log hands `keptCommits`: a board carrying one ticket nothing is
 	// committed against lists no commits at all, rather than the repository's.
 	it('leaves another board’s commits unlinked', () => {
