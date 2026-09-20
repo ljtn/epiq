@@ -1,4 +1,5 @@
-import {readFile} from 'node:fs/promises';
+import {readFile, stat} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import {setVirtualNodesEnabled} from '../../lib/virtual-nodes/virtual-nodes.js';
 import http from 'node:http';
 import path from 'node:path';
@@ -131,7 +132,34 @@ const getContentType = (filePath: string) => {
 	return 'application/octet-stream';
 };
 
-const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
+// A served file's identity, so a browser that already has it can be told so
+// rather than sent it again. The client bundle is over a megabyte and a reload
+// was refetching all of it every time.
+//
+// Kept by path, and only trusted while the file it was taken from has not
+// moved: appends and rebuilds both change size or mtime. Under SEA there is no
+// file to stat — the assets are fixed for the binary's lifetime — so the tag
+// stands until the process ends.
+const etagCache = new Map<string, {stamp: string; etag: string}>();
+
+const etagOf = (bytes: Buffer): string =>
+	`"${createHash('sha1').update(bytes).digest('base64url')}"`;
+
+const fileStamp = async (filePath: string): Promise<string | null> => {
+	try {
+		const {size, mtimeMs} = await stat(filePath);
+
+		return `${size}:${mtimeMs}`;
+	} catch {
+		return null;
+	}
+};
+
+const serveStatic = async (
+	urlPathname: string,
+	req: http.IncomingMessage,
+	res: http.ServerResponse,
+) => {
 	const safePath =
 		urlPathname === '/'
 			? 'index.html'
@@ -150,13 +178,37 @@ const serveStatic = async (urlPathname: string, res: http.ServerResponse) => {
 
 	const sea = await getSeaModule();
 
+	// SEA assets never move; a file on disk does, so its stamp is what says the
+	// remembered tag is still that file's.
+	const stamp = sea ? 'sea' : await fileStamp(filePath);
+	const remembered = stamp === null ? undefined : etagCache.get(relativePath);
+	const known =
+		remembered && remembered.stamp === stamp ? remembered.etag : null;
+
+	// Answered before the file is read, which is the point: an unchanged bundle
+	// costs a stat rather than a megabyte.
+	if (known && req.headers['if-none-match'] === known) {
+		res.writeHead(304, {etag: known, 'cache-control': 'no-cache'});
+
+		return res.end();
+	}
+
 	try {
 		const file = sea
 			? Buffer.from(sea.getAsset(`gui/${relativePath}`))
 			: await readFile(filePath);
 
+		const etag = known ?? etagOf(file);
+		if (stamp !== null) etagCache.set(relativePath, {stamp, etag});
+
 		res.writeHead(200, {
 			'content-type': getContentType(filePath),
+			etag,
+			// Revalidate rather than expire: `main.js` and `index.html` keep their
+			// names across builds, so anything that let a browser skip the ask
+			// would serve a stale client after an upgrade. A conditional GET over
+			// loopback costs a round trip and saves the transfer.
+			'cache-control': 'no-cache',
 		});
 
 		return res.end(file);
@@ -466,10 +518,10 @@ export const startGuiServer = async (input: {
 
 		// The client's own routes: a board, and the event log popped out of one.
 		if (url.pathname.startsWith('/board/') || url.pathname === '/log') {
-			return serveStatic('/', res);
+			return serveStatic('/', req, res);
 		}
 
-		return serveStatic(url.pathname, res);
+		return serveStatic(url.pathname, req, res);
 	});
 
 	try {
