@@ -78,6 +78,17 @@ const diffCharCount = (file: DiffSides): number =>
 	file.before.length + file.after.length;
 
 /**
+ * Whether there is a diff behind this file at all.
+ *
+ * Separate from the budget below, and asked by the views that offer "Expand
+ * all": what that button opens is every file a reader could see something in,
+ * whatever the budget decided to open unasked. The two used to agree by
+ * accident, because the only reason to refuse a file was its size; a binary
+ * file has none, so the question had to be said out loud.
+ */
+export const hasDiffToShow = (file: DiffSides): boolean => !file.isBinary;
+
+/**
  * Which files a view opens without being asked: those under the per-file
  * limits, in order, until the shared budget runs out.
  *
@@ -94,7 +105,7 @@ export const openableByDefault = (
 		// Nothing to open: a binary file has no diff to draw, and it has no size
 		// either, so left to the limits below it would be the cheapest file in
 		// the commit and go first.
-		if (file.isBinary) return false;
+		if (!hasDiffToShow(file)) return false;
 
 		if (isLargeDiff(file)) return false;
 

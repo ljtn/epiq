@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {GuiComment, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
-import {isLargeDiff} from '../../../lib/utils/diff-size.js';
+import {hasDiffToShow, isLargeDiff} from '../../../lib/utils/diff-size.js';
 import {ReviewedFiles} from '../lib/reviewed-files';
 import {Button} from './Button';
 import {CopyShaButton} from './CopyShaButton';
@@ -56,7 +56,7 @@ export const CommitRow = ({
 	// large, so the button can still collapse what was opened by hand rather
 	// than sitting there doing nothing.
 	const expandablePaths = (diff?.files ?? [])
-		.filter(file => !isLargeDiff(file))
+		.filter(file => hasDiffToShow(file) && !isLargeDiff(file))
 		.map(file => file.path);
 	const allExpandableExpanded =
 		expandablePaths.length > 0
