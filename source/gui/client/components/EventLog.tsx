@@ -714,12 +714,16 @@ const EventLogPanel = ({
 							? undefined
 							: `width ${REVEAL_MS}ms ease`,
 					// The board-facing edge, drawn as the ticket panel's is on the other
-					// side of the board: the outer `edge` rather than the `line` that
+					// side of the board: an outer edge rather than the `line` that
 					// divides sections, and a shadow cast the same way, so the pane
 					// reads as a surface in front of the board rather than as more of
 					// it. Its ground stays the chrome's, unlike the panel's — the log
-					// is instrumentation, not a second panel.
-					borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.edge}`,
+					// is instrumentation, not a second panel — which is why the edge
+					// takes half the alpha: over black it would otherwise outshine the
+					// panel's own.
+					borderRight: inWindow
+						? 'none'
+						: `1px solid ${GUI_THEME.edgeOnChrome}`,
 					boxShadow: inWindow ? undefined : '10px 0 24px rgba(0, 0, 0, 0.45)',
 					background: GUI_THEME.chrome,
 					// The name column's width, for every row at once.
