@@ -4,7 +4,7 @@
 // back to the board, which is where the ticket or the diff opens.
 
 import {useEffect} from 'react';
-import {GUI_THEME, TEXT} from '../lib/gui-theme';
+import {GUI_THEME, TEXT, UI_FONT} from '../lib/gui-theme';
 import {useLogMirror} from '../lib/log-window';
 import {EventLog} from './EventLog';
 import {GlobalScrollbarStyles} from './GlobalScrollbarStyles';
@@ -23,8 +23,7 @@ export const LogWindow = () => {
 				// The same ground the docked log takes: one log, in two places.
 				background: GUI_THEME.chrome,
 				color: GUI_THEME.primary,
-				fontFamily:
-					'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+				fontFamily: UI_FONT,
 				display: 'flex',
 			}}
 		>

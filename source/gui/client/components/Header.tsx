@@ -19,6 +19,10 @@ type HeaderProps = {
 	scrubbing: boolean;
 	syncStatus: SyncStatus;
 	onOpenCommands: () => void;
+	// The board switcher, placed here rather than over the columns: it names
+	// what everything below is showing, the timeline included, and this is the
+	// one row that outlives every panel and collapse below it.
+	board: React.ReactNode;
 	identity: {
 		open: boolean;
 		onToggle: () => void;
@@ -34,6 +38,7 @@ export const Header = ({
 	scrubbing,
 	syncStatus,
 	onOpenCommands,
+	board,
 	identity,
 }: HeaderProps) => {
 	const panelRef = useRef<HTMLDivElement | null>(null);
@@ -127,6 +132,13 @@ export const Header = ({
 					>
 						:epiq
 					</div>
+
+					{/* Read as a breadcrumb: the app, then the board it is showing. The
+					    slash is what makes the pair one phrase rather than two labels
+					    that happen to sit together. */}
+					<span style={{color: GUI_THEME.dim, fontSize: 12}}>/</span>
+
+					{board}
 
 					<CommandPaletteHint onOpen={onOpenCommands} />
 				</div>

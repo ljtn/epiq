@@ -3,6 +3,13 @@
 export const CONTENT_FONT =
 	'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+// The chrome's own face. Set once on the tree the app draws into, and again by
+// anything drawn outside it: a window of its own, the screen shown before there
+// is a board, and any popover portalled to the body, which inherits from there
+// rather than from the control it belongs to.
+export const UI_FONT =
+	'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+
 // The side panel's text sizes. Prose (descriptions, comments, notes) sits a
 // step above the mono UI text so the two fonts read at the same visual size.
 export const TEXT = {

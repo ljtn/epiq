@@ -1,6 +1,6 @@
 import {Button} from './Button';
 import {Panel} from './Panel';
-import {GUI_THEME} from '../lib/gui-theme';
+import {GUI_THEME, UI_FONT} from '../lib/gui-theme';
 
 // Mirrors the server's view of the recent-projects registry; the client cannot
 // import the Node-side module that defines it.
@@ -40,8 +40,7 @@ export const InitProjectScreen = ({
 			height: '100vh',
 			background: GUI_THEME.bg,
 			color: GUI_THEME.primary,
-			fontFamily:
-				'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+			fontFamily: UI_FONT,
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',

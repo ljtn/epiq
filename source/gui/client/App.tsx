@@ -52,7 +52,6 @@ import {TheatrePlayer} from './components/TheatrePlayer';
 import {EventLog} from './components/EventLog';
 import {FollowBanner} from './components/FollowBanner';
 import {useAsideDock} from './lib/aside-dock';
-import {PANE_HEADER_INSET} from './lib/pane-header.style';
 import {CommandPalette} from './components/CommandPalette';
 import {buildCommandRegistry} from './lib/commands/command-registry';
 import {useRecentCommands} from './lib/commands/command-recents';
@@ -116,7 +115,10 @@ import {useBoardEditing} from './lib/use-board-editing';
 import {useSwimlaneEditing} from './lib/use-swimlane-editing';
 import {createHistoryBuffer} from './lib/history-buffer';
 import {SyncStatus} from './lib/gui-sync-statusmodel';
-import {GUI_THEME} from './lib/gui-theme';
+import {GUI_THEME, UI_FONT} from './lib/gui-theme';
+import {plural} from './lib/gui-format.helper';
+import {REVEAL_MS, useReveal} from './lib/use-reveal';
+import {usePrefersReducedMotion} from './lib/scrubber';
 
 type IssueDetailsTab = 'overview' | 'comments' | 'code' | 'stats';
 
@@ -236,6 +238,12 @@ export const App = () => {
 	// The log panel is open. Owned here rather than in the scrubber: it is a
 	// panel in the board's own row, and the board moves over for it.
 	const [logOpen, setLogOpen] = usePersistedFlag(LOG_STORAGE_KEY, false);
+	// Held on screen for the length of its closing move, so the pane slides out
+	// beside the board rather than being taken off it.
+	const logReveal = useReveal(
+		logOpen,
+		usePrefersReducedMotion() ? 0 : REVEAL_MS,
+	);
 	const [showIssues, setShowIssues] = usePersistedFlag(
 		SHOW_ISSUES_STORAGE_KEY,
 		true,
@@ -1725,8 +1733,7 @@ export const App = () => {
 					height: '100vh',
 					background: GUI_THEME.bg,
 					color: GUI_THEME.primary,
-					fontFamily:
-						'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+					fontFamily: UI_FONT,
 					display: 'flex',
 					flexDirection: 'column',
 				}}
@@ -1907,8 +1914,10 @@ export const App = () => {
 							overflow: 'hidden',
 						}}
 					>
-						{logOpen && !logWindow.poppedOut && (
+						{logReveal.mounted && !logWindow.poppedOut && (
 							<EventLog
+								revealed={logReveal.shown}
+								settled={logReveal.settled}
 								entries={logEntries}
 								moment={logMoment}
 								onHoverEvent={setHoveredLogEventId}
@@ -1936,6 +1945,9 @@ export const App = () => {
 								setStatsSwimlaneId(null);
 							}}
 							style={{
+								// No inset of its own: the columns' own top edge is what lines
+								// up with the panes either side, and a lane's header carries
+								// the gap above its title itself, in the 48px row it stands in.
 								padding: `0 0 0 ${BOARD_GUTTER}px`,
 								flex: 1,
 								// Beside the log it has to be able to give up the width the
@@ -1947,39 +1959,6 @@ export const App = () => {
 								overflow: 'hidden',
 							}}
 						>
-							<div
-								style={{
-									// The middle of the three rows across the top of the window,
-									// so it takes their inset above it; below it is the board's
-									// own gap before the columns.
-									padding: `${PANE_HEADER_INSET}px 10px 20px`,
-									display: 'flex',
-									alignItems: 'center',
-									gap: 10,
-									...(theatre ? DIMMED_WHILE_PLAYING : {}),
-								}}
-							>
-								<Dropdown
-									testId="board-switcher"
-									value={
-										selectedBoard
-											? {
-													id: selectedBoard.id,
-													label: selectedBoard.title,
-											  }
-											: null
-									}
-									items={
-										state?.boards.map(board => ({
-											id: board.id,
-											label: board.title,
-										})) ?? []
-									}
-									placeholder="Loading..."
-									onSelect={selectBoard}
-								/>
-							</div>
-
 							{/* Scrolling sideways is this row's job; scrolling down is each
 					    column's. Both on one element gives a page-level vertical bar
 					    alongside each column's own. */}
