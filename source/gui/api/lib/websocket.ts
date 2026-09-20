@@ -677,7 +677,7 @@ export const setupWebsocket = (
 					// board the reader has left lands on the one they moved to.
 					return sendSocket(socket, {
 						type: 'contributors',
-						boardId: message.payload?.boardId ?? null,
+						boardId: message.payload?.boardId,
 						payload: await getBoardContributors({
 							repoRoot,
 							...message.payload,

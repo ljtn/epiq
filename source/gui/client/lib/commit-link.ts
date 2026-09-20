@@ -45,6 +45,31 @@ export const issueIdByRefFor = (
 		),
 	);
 
+/**
+ * Which of the two maps the commit rule reads.
+ *
+ * The board's own, except where the reader has deliberately reached past it:
+ * the funnel down to one open ticket, which a ref link can open from another
+ * board and whose own commits are the whole of what the funnel is for; and the
+ * chart plotting every board, which is then what it is plotting.
+ *
+ * One place rather than one per series. The log and the chart each asked this
+ * for themselves, in opposite phrasings and with different terms, which is how
+ * a third case comes to be added to one of them.
+ */
+export const linkableIssues = ({
+	everyBoard,
+	thisBoard,
+	ticketFocus,
+	everyBoardPlotted = false,
+}: {
+	everyBoard: ReadonlyMap<string, string>;
+	thisBoard: ReadonlyMap<string, string>;
+	ticketFocus: boolean;
+	everyBoardPlotted?: boolean;
+}): ReadonlyMap<string, string> =>
+	ticketFocus || everyBoardPlotted ? everyBoard : thisBoard;
+
 export const keptCommits = (
 	commits: readonly GuiCommitEntry[],
 	linkedOnly: boolean,

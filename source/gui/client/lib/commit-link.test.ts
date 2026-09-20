@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {issueIdByRefFor, keptCommits} from './commit-link';
+import {issueIdByRefFor, keptCommits, linkableIssues} from './commit-link';
 import {GuiBoard, GuiCommitEntry, GuiIssue} from './gui-state.model';
 
 const commit = (sha: string, subject: string): GuiCommitEntry => ({
@@ -190,5 +190,36 @@ describe('keptCommits', () => {
 		expect(keptCommits(commits, true, false, issueIdByRef, new Set())).toEqual(
 			[],
 		);
+	});
+});
+
+describe('linkableIssues', () => {
+	const everyBoard = issueIdByRefFor(boards, null);
+	const thisBoard = issueIdByRefFor(boards, 'board-roadmap');
+
+	it('reads the board on screen while nothing reaches past it', () => {
+		expect(linkableIssues({everyBoard, thisBoard, ticketFocus: false})).toBe(
+			thisBoard,
+		);
+	});
+
+	// A ref link opens a ticket from another board without leaving this one, so
+	// the board's own map would answer with nothing for the very ticket the
+	// funnel is pointed at.
+	it('reads the repository for the funnel down to one ticket', () => {
+		expect(linkableIssues({everyBoard, thisBoard, ticketFocus: true})).toBe(
+			everyBoard,
+		);
+	});
+
+	it('reads the repository for the chart plotting every board', () => {
+		expect(
+			linkableIssues({
+				everyBoard,
+				thisBoard,
+				ticketFocus: false,
+				everyBoardPlotted: true,
+			}),
+		).toBe(everyBoard);
 	});
 });

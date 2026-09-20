@@ -73,7 +73,7 @@ import {
 } from '../lib/scrubber';
 import {usePersistedChoice, usePersistedFlag} from '../lib/use-persisted-flag';
 import {canPlayTimeline} from '../lib/theatre';
-import {keptCommits} from '../lib/commit-link';
+import {keptCommits, linkableIssues} from '../lib/commit-link';
 import {HintContent, ScrubberLayout} from './ScrubberLayout';
 import {ScatterLayer, ScatterPoint} from './ScatterCanvas';
 import {FlowHover} from './FlowCanvas';
@@ -652,16 +652,14 @@ export const TimeScrubber = ({
 			),
 		[axis, shown, boardView, hiddenIdentityIds, keptIssues],
 	);
-	// Which tickets a link may name: the board's own, the way the window itself
-	// is asked for, so `Linked` reads the same here as in the log below.
-	//
-	// Two things reach past the board deliberately, and both take the
-	// repository's map: plotting every board, because that is then what is
-	// plotted; and the funnel down to one open ticket, which is a ticket the
-	// reader picked — a ref link opens one from another board without leaving
-	// this one, and its own commits are the whole of what the funnel is for.
-	const linkableIssues =
-		allBoards || ticketFocus ? issueIdByRef : boardIssueIdByRef;
+	// The board's own, the way the window itself is asked for, so `Linked` reads
+	// the same here as in the log below. `linkableIssues` owns the exceptions.
+	const linkedTo = linkableIssues({
+		everyBoard: issueIdByRef,
+		thisBoard: boardIssueIdByRef,
+		ticketFocus,
+		everyBoardPlotted: allBoards,
+	});
 
 	// Narrowed where commits are drawn and not where the axis is built, as the
 	// ticket narrowing of events is: toggling it must not rescale the window.
@@ -671,10 +669,10 @@ export const TimeScrubber = ({
 				shown.commits,
 				linkedCommitsOnly,
 				ticketFocus,
-				linkableIssues,
+				linkedTo,
 				keptIssues,
 			),
-		[shown.commits, linkedCommitsOnly, ticketFocus, linkableIssues, keptIssues],
+		[shown.commits, linkedCommitsOnly, ticketFocus, linkedTo, keptIssues],
 	);
 	const commitStats = useMemo(
 		() => bucketCommitStats(axis, drawnCommits),
