@@ -2,7 +2,7 @@
 // Copies the GUI's static assets into dist/gui and bundles its client code.
 // Uses Node's fs APIs rather than `mkdir -p`/`cp`, which cmd.exe doesn't have.
 
-import {mkdirSync, copyFileSync} from 'node:fs';
+import {mkdirSync, copyFileSync, rmSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, relative, resolve} from 'node:path';
 import * as esbuild from 'esbuild';
@@ -26,6 +26,12 @@ const diffsWorkerEntry = relative(
 	fileURLToPath(import.meta.resolve('@pierre/diffs/worker/worker.js')),
 );
 
+// Emptied first: every lazily-loaded chunk carries a content hash in its name,
+// so a rebuild leaves the previous build's set behind rather than replacing it,
+// and `build-sea.mjs` embeds whatever it finds in this directory. Nothing is
+// served stale — the names a browser asks for are fixed — but the blob carries
+// a dead copy of every chunk that ever changed.
+rmSync(resolve(root, 'dist/gui'), {recursive: true, force: true});
 mkdirSync(resolve(root, 'dist/gui'), {recursive: true});
 copyFileSync(
 	resolve(root, 'source/gui/index.html'),
@@ -42,11 +48,13 @@ copyFileSync(
 // pays the dev-only checks. Defining it picks the production runtime;
 // minifying takes the rest. Together: main.js 3.22mb -> 1.20mb.
 //
-// EPIQ_GUI_DEV_BUILD=1 asks for the development one back. React's warnings — a
+// EPIQ_GUI_DEV_BUILD=1 asks for the development one back — `npm run
+// test:gui:warnings` is that build plus the browser suite. React's warnings — a
 // style shorthand fighting a longhand, a missing key, invalid DOM nesting —
-// exist only there, and `source/test/e2e-gui/fixtures.ts` fails a test on any
-// console.error, so that pair is how those get caught. The production bundle is
-// what ships and what the suite runs against by default.
+// exist only in the development runtime, and `source/test/e2e-gui/fixtures.ts`
+// fails a test on any console.error, so that pair is the only thing that
+// catches them. The production bundle is what ships and what the gate runs
+// against, so the warning pass is a deliberate, separate run.
 const nodeEnv =
 	process.env['EPIQ_GUI_DEV_BUILD'] === '1' ? 'development' : 'production';
 
