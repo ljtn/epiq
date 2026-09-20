@@ -90,7 +90,11 @@ export const Button = ({
 					: '5px 9px',
 				fontFamily: 'inherit',
 				fontSize: dense ? 11 : 12,
-				fontWeight: isPrimary ? 600 : 400,
+				// One weight for every button in a row. `primary` already has a body
+				// where the others have an outline or nothing, and that is the whole
+				// difference — setting it in bold as well said the same thing twice,
+				// and at 12px read as shouting next to the two beside it.
+				fontWeight: 400,
 				lineHeight: 1,
 				transition:
 					'color 120ms ease, background 120ms ease, border-color 120ms ease',
