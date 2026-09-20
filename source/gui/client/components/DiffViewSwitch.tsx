@@ -8,6 +8,19 @@ import {segmentedButtonStyle} from '../lib/segmented.style';
 export const DiffViewSwitch = ({
 	compacted,
 	onChange,
+	// How many commits its own segment leads to. On the switch rather than
+	// inside the view, so the length of the list is legible from the segment
+	// the reader is not on — which is what that view is for, now that it lists
+	// rather than opens them (3RQ4QG4).
+	//
+	// No pair on `Diff`: the count there would be changed files, which only the
+	// compacted diff knows, and that is fetched when its view is opened rather
+	// than with the ticket. A number that appears once the reader is already
+	// looking is not one that helped them decide to look.
+	//
+	// Undefined while the commits are still being fetched: a count is a fact,
+	// and `(0)` on a ticket that has commits is a wrong one.
+	commitCount,
 	// A deep link names a commit and a line inside it, which only the
 	// per-commit view can show. The choice is held rather than taken away, so
 	// leaving the link puts the reader back where they were.
@@ -15,6 +28,7 @@ export const DiffViewSwitch = ({
 }: {
 	compacted: boolean;
 	onChange: (next: boolean) => void;
+	commitCount?: number;
 	pinnedToCommits?: boolean;
 }) => (
 	<div
@@ -57,7 +71,7 @@ export const DiffViewSwitch = ({
 				...(pinnedToCommits ? {cursor: 'default'} : {}),
 			}}
 		>
-			Commits
+			{commitCount === undefined ? 'Commits' : `Commits (${commitCount})`}
 		</button>
 	</div>
 );

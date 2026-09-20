@@ -95,7 +95,12 @@ test('a narrow fullscreen panel keeps the tabs', async ({page, pageErrors}) => {
 	expect(pageErrors).toEqual([]);
 });
 
-test('the lanes open every commit and file, ready to read', async ({
+// `ES6E62N` opened every commit and file here, "since it is for reading rather
+// than scanning" — which was true while this was the only place the whole
+// change could be read. `EEXWZN5` then gave the Code tab a compacted view that
+// shows it in one piece, and took that job. So the lanes list the commits like
+// the tabs do, and the reading happens next door (3RQ4QG4).
+test('the lanes list the commits to scan, as the tabs do', async ({
 	page,
 	pageErrors,
 	repoRoot,
@@ -134,15 +139,21 @@ test('the lanes open every commit and file, ready to read', async ({
 	await expect(commitRow).toHaveAttribute('aria-expanded', 'false');
 	await expect(page.locator('[data-line]')).toHaveCount(0);
 
-	// Lanes: the diffs are simply there.
+	// Lanes: the same list, and no diff drawn until one is asked for.
 	await fullscreenToggle(page).click();
 	await expect(page.getByTestId('lane-commits')).toBeVisible();
-	await expect(page.locator('[data-line]')).toHaveCount(6);
+	await expect(commitRow).toHaveAttribute('aria-expanded', 'false');
+	await expect(page.locator('[data-line]')).toHaveCount(0);
+
+	// And opening one by hand still opens its files with it.
+	await commitRow.click();
+	await expect(commitRow).toHaveAttribute('aria-expanded', 'true');
+	await expect(page.locator('[data-line]')).toHaveCount(3);
 	await expect(page.locator('[data-line]').first()).toHaveText('alpha');
 
-	// And collapsing by hand sticks.
+	// Collapsing the file by hand sticks.
 	await page.getByRole('button', {name: fileName}).click();
-	await expect(page.locator('[data-line]')).toHaveCount(3);
+	await expect(page.locator('[data-line]')).toHaveCount(0);
 
 	expect(pageErrors).toEqual([]);
 });
