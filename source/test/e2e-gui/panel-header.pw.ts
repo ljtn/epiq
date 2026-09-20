@@ -147,11 +147,13 @@ test('a long title gives up what does not fit rather than growing the row', asyn
 	expect(pageErrors).toEqual([]);
 });
 
-// Three rows run across the top of the window — the log's fields, the board's
-// switcher, the ticket panel's buttons — and they are read as one line. The
-// log's used to sit flush against the top edge while the other two kept a
-// twenty-pixel inset, which put it thirteen pixels above them.
-test('the three rows across the top of the window sit on one line', async ({
+// Two rows run across the top of the window — the log's fields and the ticket
+// panel's buttons — and they are read as one line. The log's used to sit flush
+// against the top edge while the other kept a twenty-pixel inset, which put it
+// thirteen pixels above it. The board between them keeps no row of its own
+// since the switcher went to the topbar: its columns start on the same top
+// edge the panes do, and each lane's header carries its own gap.
+test('the rows across the top of the window sit on one line', async ({
 	page,
 	appUrl,
 	pageErrors,
@@ -162,8 +164,6 @@ test('the three rows across the top of the window sit on one line', async ({
 	await expect(page.getByTestId('event-log')).toBeVisible();
 
 	const logButton = await page.getByTestId('log-pop-out').boundingBox();
-	// The row between the two, which they are read against.
-	const switcher = await page.getByTestId('board-switcher').boundingBox();
 	// By its band rather than by `aside`, which the log is one of too. The band
 	// sits outside the scrolling pane, which is what keeps the scrollbar off it.
 	const close = await page
@@ -171,14 +171,20 @@ test('the three rows across the top of the window sit on one line', async ({
 		.getByRole('button', {name: 'Close', exact: true})
 		.boundingBox();
 
-	if (!logButton || !switcher || !close) {
+	if (!logButton || !close) {
 		throw new Error('header rows not found');
 	}
 
-	for (const row of [switcher, close]) {
-		expect(Math.abs(logButton.y - row.y)).toBeLessThanOrEqual(1);
-		expect(Math.abs(logButton.height - row.height)).toBeLessThanOrEqual(1);
-	}
+	expect(Math.abs(logButton.y - close.y)).toBeLessThanOrEqual(1);
+	expect(Math.abs(logButton.height - close.height)).toBeLessThanOrEqual(1);
+
+	// And the board starts where the panes either side of it do.
+	const pane = await page.getByTestId('event-log').boundingBox();
+	const lane = await page.getByTestId('swimlane-handle').first().boundingBox();
+
+	if (!pane || !lane) throw new Error('board rows not found');
+
+	expect(Math.abs(pane.y - lane.y)).toBeLessThanOrEqual(2);
 
 	expect(pageErrors).toEqual([]);
 });

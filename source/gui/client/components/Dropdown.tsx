@@ -1,5 +1,6 @@
-import {useState} from 'react';
-import {GUI_THEME} from '../lib/gui-theme';
+import {useLayoutEffect, useRef, useState} from 'react';
+import {createPortal} from 'react-dom';
+import {GUI_THEME, UI_FONT} from '../lib/gui-theme';
 import {
 	popoverStyle,
 	selectLabelStyle,
@@ -11,6 +12,9 @@ import {IconChevronDown} from './IconChevronDown';
 type DropdownItem = {
 	id: string;
 	label: string;
+	// What the list says about an item beside its name, dim and to the right —
+	// the boards' issue counts. Not on the trigger, which is sized to the name.
+	hint?: string;
 };
 
 // Fixed, not sized to its label, so switching boards does not resize the
@@ -34,11 +38,41 @@ export const Dropdown = ({
 	testId?: string;
 }) => {
 	const [open, setOpen] = useState(false);
-	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
+	// The list is portalled out to the body: this sits in the topbar, and the
+	// topbar is a Panel, which clips its children to contain its own glow — a
+	// list in flow there is cut off at the bar's edge. Named as inside so a
+	// click on an option is not read as a click away.
+	const listRef = useRef<HTMLDivElement | null>(null);
+	const triggerRef = useRef<HTMLButtonElement | null>(null);
+	const ref = useDismissOnOutsideClick(open, () => setOpen(false), [listRef]);
+	const [anchor, setAnchor] = useState<{left: number; top: number} | null>(
+		null,
+	);
+
+	useLayoutEffect(() => {
+		if (!open) return;
+
+		const place = () => {
+			const box = triggerRef.current?.getBoundingClientRect();
+			if (!box) return;
+
+			setAnchor({left: box.left, top: box.bottom + 6});
+		};
+
+		place();
+		window.addEventListener('resize', place);
+		window.addEventListener('scroll', place, true);
+
+		return () => {
+			window.removeEventListener('resize', place);
+			window.removeEventListener('scroll', place, true);
+		};
+	}, [open]);
 
 	return (
 		<div ref={ref} style={{position: 'relative'}}>
 			<button
+				ref={triggerRef}
 				type="button"
 				data-testid={testId}
 				onClick={() => setOpen(value => !value)}
@@ -59,49 +93,76 @@ export const Dropdown = ({
 				</span>
 			</button>
 
-			{open && items.length > 0 ? (
-				<div
-					role="listbox"
-					style={{...popoverStyle, gap: 2, padding: 6, minWidth: TRIGGER_WIDTH}}
-				>
-					{items.map(item => {
-						const selected = item.id === value?.id;
+			{open && items.length > 0 && anchor
+				? createPortal(
+						<div
+							ref={listRef}
+							role="listbox"
+							style={{
+								...popoverStyle,
+								position: 'fixed',
+								left: anchor.left,
+								top: anchor.top,
+								marginTop: 0,
+								// Stated, not inherited: the body is what a portal inherits
+								// from, and the app's face is set on the tree below it.
+								fontFamily: UI_FONT,
+								gap: 2,
+								padding: 6,
+								minWidth: TRIGGER_WIDTH,
+							}}
+						>
+							{items.map(item => {
+								const selected = item.id === value?.id;
 
-						return (
-							<button
-								key={item.id}
-								type="button"
-								role="option"
-								aria-selected={selected}
-								data-testid={testId ? `${testId}-option` : undefined}
-								onClick={() => {
-									setOpen(false);
-									onSelect(item.id);
-								}}
-								style={{
-									width: '100%',
-									display: 'flex',
-									justifyContent: 'space-between',
-									alignItems: 'center',
-									gap: 12,
-									border: 'none',
-									background: selected ? GUI_THEME.line : 'transparent',
-									color: selected ? GUI_THEME.accent : GUI_THEME.primary,
-									fontFamily: 'inherit',
-									fontSize: 11,
-									textAlign: 'left',
-									padding: '8px 10px',
-									borderRadius: 6,
-									cursor: 'pointer',
-								}}
-							>
-								<span>{item.label}</span>
-								{selected ? <span>✓</span> : null}
-							</button>
-						);
-					})}
-				</div>
-			) : null}
+								return (
+									<button
+										key={item.id}
+										type="button"
+										role="option"
+										aria-selected={selected}
+										data-testid={testId ? `${testId}-option` : undefined}
+										onClick={() => {
+											setOpen(false);
+											onSelect(item.id);
+										}}
+										style={{
+											width: '100%',
+											display: 'flex',
+											justifyContent: 'space-between',
+											alignItems: 'center',
+											gap: 12,
+											border: 'none',
+											background: selected ? GUI_THEME.line : 'transparent',
+											color: selected ? GUI_THEME.accent : GUI_THEME.primary,
+											fontFamily: 'inherit',
+											fontSize: 11,
+											textAlign: 'left',
+											padding: '8px 10px',
+											borderRadius: 6,
+											cursor: 'pointer',
+										}}
+									>
+										<span>{item.label}</span>
+										<span
+											style={{
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: 10,
+											}}
+										>
+											{item.hint ? (
+												<span style={{color: GUI_THEME.dim}}>{item.hint}</span>
+											) : null}
+											{selected ? <span>✓</span> : null}
+										</span>
+									</button>
+								);
+							})}
+						</div>,
+						document.body,
+				  )
+				: null}
 		</div>
 	);
 };
