@@ -1,9 +1,19 @@
 // The event log panel: what it holds, when it updates, and how it folds. The
 // player is used here only where the behaviour under test is the log's.
 
+import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
 import {trackWithWindow} from './track.js';
 import {openBoard, returnToLive} from './live-board.js';
+
+// The log draws the commits the chart plots, and the chart opens on the ones
+// linked to a ticket. A test reading the seeded repository's own commits — none
+// of which name a ticket — has to ask for the repository first.
+const showEveryCommit = async (page: Page) => {
+	await page.getByTestId('commit-select').click();
+	await page.getByRole('radio', {name: 'All commits'}).click();
+	await expect(page.getByTestId('commit-select')).toHaveText('Code (all)');
+};
 
 // The crawl is a slice of the script, not a list grown as events land, which
 // is what keeps a long movie from adding a node per event to the overlay.
@@ -187,6 +197,8 @@ test('the log obeys the bar\u2019s own filters', async ({
 }) => {
 	await openBoard(page, appUrl);
 	await page.getByTestId('log-toggle').click();
+	// As above: the seed's commits are unlinked, and the chart opens narrowed.
+	await showEveryCommit(page);
 
 	const lines = page.getByTestId('log-line');
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
@@ -581,6 +593,9 @@ test('the header chooses what each line shows, and keeps the choice', async ({
 }) => {
 	await openBoard(page, appUrl);
 	await page.getByTestId('log-toggle').click();
+	// The commits this reads are the seed's own, which name no ticket, and the
+	// chart opens narrowed to the ones that do.
+	await showEveryCommit(page);
 
 	const lines = page.getByTestId('log-line');
 	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
