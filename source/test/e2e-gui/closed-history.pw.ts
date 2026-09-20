@@ -37,6 +37,16 @@ test('a closed ticket keeps its events in the log of the board they happened on'
 
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
+	// The close reached the log, so the window has been refetched since — which
+	// is what would drop the filing line if the scoping regressed. Asserting the
+	// line before this lands is asserting the state the log was already in.
+	await expect(
+		log
+			.getByTestId('log-line')
+			.filter({hasText: /closed/i})
+			.first(),
+	).toBeVisible({timeout: 30_000});
+
 	// The filing happened on this board. It still did.
 	await expect(line).toHaveCount(1);
 

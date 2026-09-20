@@ -8,19 +8,44 @@ import {
 } from '../../lib/utils/ticket.utils.js';
 import {ApiIssue, ApiIssueComment} from '../api-state.model.js';
 
+// Every board a lane has hung off, its current one included. A lane moves
+// between boards too (`moveSwimlane`), and reading only where it hangs today
+// would hand one board's history to another the moment somebody reorganises.
+const boardsEverUnder = (laneId: string): string[] => {
+	const lane = nodeRepo.getNode(laneId);
+	if (!lane) return [];
+
+	const boards = new Set<string>();
+
+	if (lane.parentNodeId) boards.add(lane.parentNodeId);
+
+	for (const entry of lane.log ?? []) {
+		const payload = entry.payload as {id?: string; parent?: string};
+
+		if (payload.id === laneId && payload.parent) boards.add(payload.parent);
+	}
+
+	return [...boards];
+};
+
 /**
  * Every board the ticket has lived on, its current one included.
  *
  * A board-scoped view of the past asks "was this ever this board's?" rather
- * than "is it now?". An event belongs to the board the ticket was on when it
- * happened — `boardsForEvents` attributes them that way — and the commits
- * linked to a ticket belong there for the same reason. Closing is one of these
- * moves, reparenting to the global Closed lane; so is a move to another
- * board's lane, which `moveIssue` allows.
+ * than "is it now?": a board must not lose the work done on it because a ticket
+ * was later closed, moved to another board, or had its whole column moved.
  *
- * Read from the ticket's own log, which is where the lanes it has had are
- * recorded. A deleted lane still names the board it hung off, so a board does
- * not lose its own history when somebody tidies a column away.
+ * Deliberately a flat set with no time in it, which is not the same rule
+ * `boardsForEvents` applies to events — that one attributes each event to the
+ * hierarchy as it stood at that moment. A commit carries no board and no
+ * position in the log, only a ref, so the honest choices are "every board the
+ * ticket has been on" or "the one it is on now". This errs towards keeping a
+ * board's history: a ticket filed on one board and moved to another has its
+ * later commits counted by both, rather than the first board losing the work
+ * that was done while it held it.
+ *
+ * Read from the logs of the ticket and its lanes, so a deleted lane still names
+ * the boards it hung off.
  */
 export const boardsEverOnOf = (ticket: Ticket): string[] => {
 	const lanes = new Set<string>();
@@ -36,8 +61,7 @@ export const boardsEverOnOf = (ticket: Ticket): string[] => {
 	const boards = new Set<string>();
 
 	for (const laneId of lanes) {
-		const board = nodeRepo.getNode(laneId)?.parentNodeId;
-		if (board) boards.add(board);
+		for (const board of boardsEverUnder(laneId)) boards.add(board);
 	}
 
 	return [...boards];
