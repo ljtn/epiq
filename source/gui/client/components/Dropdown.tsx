@@ -80,7 +80,7 @@ export const Dropdown = ({
 				aria-expanded={open}
 				title={value?.label}
 				style={{
-					...selectTriggerStyle(GUI_THEME.primary, false),
+					...selectTriggerStyle(GUI_THEME.chromePrimary, false),
 					width: TRIGGER_WIDTH,
 					// The header's size, not the scrubber's: this names the whole board.
 					fontSize: 12,
