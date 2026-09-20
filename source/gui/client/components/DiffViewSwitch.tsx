@@ -42,6 +42,7 @@ export const DiffViewSwitch = ({
 		{/* Flat first: it is the whole change at once, and the commits are how
 		    it got there. */}
 		<button
+			data-testid="diff-view-flat"
 			aria-pressed={compacted}
 			disabled={pinnedToCommits}
 			title={
@@ -57,7 +58,11 @@ export const DiffViewSwitch = ({
 		>
 			Diff
 		</button>
+		{/* Named for the tests as well as for the reader: `Commits` also reads as
+		    the name of the chart's own commit select, and a role-and-name lookup
+		    cannot tell a tab from a series. */}
 		<button
+			data-testid="diff-view-commits"
 			aria-pressed={!compacted}
 			disabled={pinnedToCommits}
 			title={

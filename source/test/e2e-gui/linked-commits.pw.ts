@@ -41,15 +41,22 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await page.getByTestId('log-toggle').click();
 
+	// The opening state, which nobody has chosen: linked commits only, so the
+	// housekeeping commit is not listed until somebody asks for the repository.
 	const lines = page.getByTestId('log-line');
+	const select = page.getByTestId('commit-select');
+	await expect(select).toHaveText('Linked commits');
 	await expect(lines.filter({hasText: linked})).toHaveCount(1);
+	await expect(lines.filter({hasText: plain})).toHaveCount(0);
+
+	await select.click();
+	await page.getByRole('radio', {name: 'All commits'}).click();
+	await expect(select).toHaveText('Code');
 	await expect(lines.filter({hasText: plain})).toHaveCount(1);
 
-	const select = page.getByTestId('commit-select');
-	await expect(select).toHaveText('Code');
 	await select.click();
 	await page.getByRole('radio', {name: 'Linked to a ticket'}).click();
-	await expect(select).toHaveText('Linked');
+	await expect(select).toHaveText('Linked commits');
 
 	await expect(lines.filter({hasText: plain})).toHaveCount(0);
 	await expect(lines.filter({hasText: linked})).toHaveCount(1);
@@ -66,7 +73,7 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 
 	// Remembered, like the series boxes beside it.
 	await page.reload();
-	await expect(page.getByTestId('commit-select')).toHaveText('Linked');
+	await expect(page.getByTestId('commit-select')).toHaveText('Linked commits');
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All commits'}).click();
 	await expect(page.getByTestId('commit-select')).toHaveText('Code');
@@ -87,19 +94,27 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const track = await trackWithWindow(page);
-	const withEveryCommit = (await track.boundingBox())!.height;
+	// The opening state is the narrow one, so the widening is what this walks:
+	// the row must be the same height either way.
+	const narrowed = (await track.boundingBox())!.height;
+
+	await page.getByTestId('commit-select').click();
+	await page.getByRole('radio', {name: 'All commits'}).click();
+	await expect(page.getByTestId('commit-select')).toHaveText('Code');
+
+	expect((await track.boundingBox())!.height).toBe(narrowed);
 
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'Linked to a ticket'}).click();
-	await expect(page.getByTestId('commit-select')).toHaveText('Linked');
+	await expect(page.getByTestId('commit-select')).toHaveText('Linked commits');
 
-	expect((await track.boundingBox())!.height).toBe(withEveryCommit);
+	expect((await track.boundingBox())!.height).toBe(narrowed);
 
 	// Off is the one thing that takes the row away — for either series.
 	await page.getByTestId('show-commits').click();
 	await expect
 		.poll(async () => (await track.boundingBox())!.height)
-		.toBeLessThan(withEveryCommit);
+		.toBeLessThan(narrowed);
 	const withoutCommits = (await track.boundingBox())!.height;
 
 	await page.getByTestId('show-board-events').click();

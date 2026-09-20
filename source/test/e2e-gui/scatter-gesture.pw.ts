@@ -81,6 +81,14 @@ const seedCommitOnScatter = async (
 	url.searchParams.set('to', String(committedAt + 60_000));
 	await page.goto(url.toString());
 
+	// The chart opens on linked commits, so a commit that names no ticket is
+	// not plotted until the repository is asked for.
+	if (!link) {
+		await page.getByTestId('commit-select').click();
+		await page.getByRole('radio', {name: 'All commits'}).click();
+		await expect(page.getByTestId('commit-select')).toHaveText('Code');
+	}
+
 	const canvas = page.getByTestId('scatter-canvas');
 	await expect(canvas).toHaveAttribute('data-entrance', 'done');
 

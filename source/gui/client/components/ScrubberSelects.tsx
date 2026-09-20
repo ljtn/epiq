@@ -427,10 +427,12 @@ export const BoardSeriesGroup = ({
 
 // The Code series' select, the shape of the board series' beside it: a box
 // for whether commits are drawn at all, and a trigger naming which — every
-// commit in the repository, or only the ones linked to a ticket. Narrower than
-// the board series' trigger, since its two names are short and the row has no
-// room to spare at a laptop's width; the open list says each in full.
-const COMMIT_SELECT_WIDTH = 76;
+// commit in the repository, or only the ones linked to a ticket. Wide enough
+// for the longer of the two names whole: `Linked` alone did not say linked to
+// what, and a name clipped to `Linked com…` says it worse. Fixed at that
+// width, so switching between the two does not resize the row under the
+// pointer.
+const COMMIT_SELECT_WIDTH = 128;
 
 export const CommitSeriesGroup = ({
 	connected,
@@ -492,7 +494,9 @@ export const CommitSeriesGroup = ({
 						...(usable ? {} : mutedStyle),
 					}}
 				>
-					<span style={selectLabelStyle}>{linkedOnly ? 'Linked' : 'Code'}</span>
+					<span style={selectLabelStyle}>
+						{linkedOnly ? 'Linked commits' : 'Code'}
+					</span>
 					<span style={{display: 'inline-flex', flexShrink: 0}}>
 						<IconChevronDown size={12} />
 					</span>
