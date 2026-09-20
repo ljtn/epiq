@@ -6,8 +6,9 @@
 // page could happen. Handed a pool, it tokenizes there and the board stays
 // responsive while the diff fills in.
 //
-// The worker body comes from `@pierre/diffs`; `client/diffs-worker.ts` is the
-// entry `build-gui.mjs` builds it under, so there is a URL to point at.
+// The worker body comes from `@pierre/diffs`. What the package cannot ship is
+// a URL the browser can fetch, so `build-gui.mjs` builds its body as a second
+// entry point beside `main.js`, under the name below.
 
 import {EPIQ_DIFF_THEME} from './diff-theme';
 
