@@ -34,6 +34,11 @@ export const GUI_THEME = {
 	// surface; this one has to hold the panel apart from the board behind it,
 	// which takes considerably more contrast.
 	edge: 'rgba(96, 116, 165, 0.55)',
+	// The same edge over the chrome's ground rather than the panel's. That
+	// ground is black, so a translucent line lands on more contrast there and
+	// reads brighter at the same value — half the alpha is what makes the two
+	// look like one edge drawn twice.
+	edgeOnChrome: 'rgba(96, 116, 165, 0.28)',
 	primary: '#c2c5d0',
 	// One step under `primary`, for text that is the content of what it sits in
 	// but repeats all the way down a column — a card's title. Thirty of those at
