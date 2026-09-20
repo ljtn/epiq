@@ -1825,6 +1825,7 @@ export const App = () => {
 						linkedCommitsOnly={linkedCommitsOnly}
 						onChangeLinkedCommitsOnly={setLinkedCommitsOnly}
 						issueIdByRef={issueIdByRef}
+						boardIssueIdByRef={boardIssueIdByRef}
 						lanes={boardLanes}
 						laneTitles={laneTitles}
 						issueSummaryById={issueSummaryById}
