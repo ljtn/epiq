@@ -18,6 +18,7 @@ import {
 import {
 	abortRebaseIfPresent,
 	clearStaleGitLocks,
+	clearStaleRefLock,
 	execGit,
 	getInProgressGitOperation,
 	hasRemote,
@@ -129,6 +130,26 @@ const ensureSyncReady = async ({
 		if (locksResult.value.length > 0) {
 			logger.info('[sync] cleared git lock files left by a dead process', {
 				removed: locksResult.value,
+				stateBranchRoot,
+			});
+		}
+
+		// And the lock git leaves in the common directory, which the sweep above
+		// cannot see: refs live there rather than in a linked worktree's own git
+		// directory, so a `git commit` killed mid-update leaves the state branch
+		// unlockable and every later sync fails with "cannot lock ref".
+		const branchResult = getStateBranch(repoRoot);
+		if (isFail(branchResult)) return failed(branchResult.message);
+
+		const refLockResult = await clearStaleRefLock(
+			stateBranchRoot,
+			branchResult.value,
+		);
+		if (isFail(refLockResult)) return failed(refLockResult.message);
+
+		if (refLockResult.value) {
+			logger.info('[sync] cleared a ref lock left by a dead process', {
+				branch: branchResult.value,
 				stateBranchRoot,
 			});
 		}
