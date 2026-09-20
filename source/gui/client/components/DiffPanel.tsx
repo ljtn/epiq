@@ -233,7 +233,12 @@ const PanelFile = ({
 			<span
 				style={{flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8}}
 			>
-				{diffLineCount(file).toLocaleString()} lines
+				{/* Its own size where that is the reason it is shut; otherwise the
+				    reason is the commit's, and a line count beside a 20-line file
+				    reads as a bug rather than an explanation. */}
+				{isLargeDiff(file)
+					? `${diffLineCount(file).toLocaleString()} lines`
+					: 'large commit'}
 				<Button variant="ghost" onClick={() => setShown(true)}>
 					show diff
 				</Button>
