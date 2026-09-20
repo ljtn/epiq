@@ -39,10 +39,8 @@ export type BoardSocket = BoardSocketActions & {
 };
 
 export const useBoardSocket = ({
-	boardId,
 	onMessage,
 }: {
-	boardId: string | undefined;
 	onMessage: (message: any, socket: BoardSocketActions) => void;
 }): BoardSocket => {
 	const socketRef = useRef<WebSocket | null>(null);
@@ -96,10 +94,16 @@ export const useBoardSocket = ({
 		setReconnectTick(tick => tick + 1);
 	}, []);
 
+	// One socket for the session, whichever board is on screen. The board was
+	// once a query parameter here, which the server has never read — its only
+	// effect was to re-run this effect and replace the socket every time the
+	// board changed, including the first time the route learns one at all. A
+	// request in flight across that swap loses its reply: the board boots at
+	// `/`, redirects to the first board a moment later, and a ticket filed in
+	// between was created but never opened, because `issues:create:result` came
+	// back to a socket that had already gone (`8GXKQR4`).
 	useEffect(() => {
-		const socket = new WebSocket(
-			`ws://${window.location.host}/ws${boardId ? `?boardId=${boardId}` : ''}`,
-		);
+		const socket = new WebSocket(`ws://${window.location.host}/ws`);
 
 		socketRef.current = socket;
 		// Distinguishes a socket the effect is tearing down from one that dropped
@@ -172,7 +176,7 @@ export const useBoardSocket = ({
 		};
 		// `reconnectTick` is what re-runs this after a drop. `gate` is stable for
 		// the life of the hook.
-	}, [boardId, reconnectTick, gate]);
+	}, [reconnectTick, gate]);
 
 	return {
 		connected,
