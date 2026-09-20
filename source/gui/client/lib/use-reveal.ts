@@ -23,6 +23,18 @@ export const useReveal = (
 	const [settled, setSettled] = useState(open);
 
 	useEffect(() => {
+		// Nothing is moving, so there is nothing to stage: a panel asked to open
+		// without a move is open now. Waiting the two frames below would draw it
+		// shut for both of them and then snap it — a flicker, handed to the one
+		// reader who asked for less motion, not more.
+		if (ms === 0) {
+			setMounted(open);
+			setShown(open);
+			setSettled(open);
+
+			return;
+		}
+
 		if (open) {
 			setMounted(true);
 

@@ -1,4 +1,4 @@
-import {useLayoutEffect, useRef, useState} from 'react';
+import {useId, useLayoutEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {GUI_THEME, UI_FONT} from '../lib/gui-theme';
 import {
@@ -38,6 +38,9 @@ export const Dropdown = ({
 	testId?: string;
 }) => {
 	const [open, setOpen] = useState(false);
+	// The list is no longer inside the trigger, so `aria-haspopup` alone leaves
+	// a reader with a control that says a list exists and no way to reach it.
+	const listId = useId();
 	// The list is portalled out to the body: this sits in the topbar, and the
 	// topbar is a Panel, which clips its children to contain its own glow — a
 	// list in flow there is cut off at the bar's edge. Named as inside so a
@@ -77,6 +80,7 @@ export const Dropdown = ({
 				data-testid={testId}
 				onClick={() => setOpen(value => !value)}
 				aria-haspopup="listbox"
+				aria-controls={open ? listId : undefined}
 				aria-expanded={open}
 				title={value?.label}
 				style={{
@@ -97,6 +101,7 @@ export const Dropdown = ({
 				? createPortal(
 						<div
 							ref={listRef}
+							id={listId}
 							role="listbox"
 							style={{
 								...popoverStyle,
