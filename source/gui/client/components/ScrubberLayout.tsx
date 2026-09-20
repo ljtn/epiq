@@ -247,6 +247,9 @@ export const ScrubberLayout = ({
 	// moved: shutting it is how somebody takes a busy timeline off the page.
 	// They are only held past the toggle for as long as the closing move.
 	const track = useReveal(!collapsed, animate ? REVEAL_MS : 0);
+	// The commit bars outlive the box being unticked by the length of the fold,
+	// and no longer: what is folded to nothing draws nothing.
+	const commits = useReveal(chart.showCommits, animate ? REVEAL_MS : 0);
 
 	return (
 		<Panel
@@ -574,9 +577,10 @@ export const ScrubberLayout = ({
 						    and the scrubber's height does not come and go with what the
 						    window happens to hold. */}
 								{layoutMode === 'even' && (
-									// Kept up with the series off and folded to nothing instead, so
-									// unticking the box slides the track away rather than taking it
-									// out from under the chart above.
+									// Folded to nothing rather than taken away, so unticking the box
+									// slides the track out instead of dropping the chart above it.
+									// The bars themselves go once the fold is over: a row of them
+									// clipped to no height is a hundred nodes drawing nothing.
 									<div
 										style={{
 											height: chart.showCommits ? TRACK_HEIGHT : 0,
@@ -587,39 +591,41 @@ export const ScrubberLayout = ({
 												: undefined,
 										}}
 									>
-										<div
-											key={`commits-${windowKey}`}
-											// Clears the board hover and stops the move reaching the
-											// wrapper, so the two hints never stack at the same spot.
-											onMouseEnter={on.onCommitTrackMouseEnter}
-											onMouseMove={on.onCommitTrackMouseMove}
-											onMouseLeave={on.onCommitTrackMouseLeave}
-											style={{
-												position: 'relative',
-												width: '100%',
-												height: TRACK_HEIGHT,
-												animation: animate ? FADE_IN_ANIMATION : undefined,
-											}}
-										>
-											<TrackBaseline color={GUI_THEME.green} anchor="top" />
+										{commits.mounted && (
+											<div
+												key={`commits-${windowKey}`}
+												// Clears the board hover and stops the move reaching the
+												// wrapper, so the two hints never stack at the same spot.
+												onMouseEnter={on.onCommitTrackMouseEnter}
+												onMouseMove={on.onCommitTrackMouseMove}
+												onMouseLeave={on.onCommitTrackMouseLeave}
+												style={{
+													position: 'relative',
+													width: '100%',
+													height: TRACK_HEIGHT,
+													animation: animate ? FADE_IN_ANIMATION : undefined,
+												}}
+											>
+												<TrackBaseline color={GUI_THEME.green} anchor="top" />
 
-											{chart.hoveredCommitBucketIndex !== null && (
-												<BucketHighlight
-													index={chart.hoveredCommitBucketIndex}
+												{chart.hoveredCommitBucketIndex !== null && (
+													<BucketHighlight
+														index={chart.hoveredCommitBucketIndex}
+														bucketCount={axis.bucketCount}
+													/>
+												)}
+
+												<VolumeBars
+													bars={chart.commitBars}
 													bucketCount={axis.bucketCount}
+													firstBar={chart.commitBarRange[0]}
+													lastBar={chart.commitBarRange[1]}
+													color={GUI_THEME.green}
+													direction="down"
+													animate={animate}
 												/>
-											)}
-
-											<VolumeBars
-												bars={chart.commitBars}
-												bucketCount={axis.bucketCount}
-												firstBar={chart.commitBarRange[0]}
-												lastBar={chart.commitBarRange[1]}
-												color={GUI_THEME.green}
-												direction="down"
-												animate={animate}
-											/>
-										</div>
+											</div>
+										)}
 									</div>
 								)}
 
