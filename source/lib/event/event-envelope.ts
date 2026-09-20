@@ -43,6 +43,31 @@ export const PersistedEnvelopeSchema = z.looseObject({
 
 export type PersistedEnvelope = z.infer<typeof PersistedEnvelopeSchema>;
 
+// `__proto__` as an ordinary own key, which `JSON.parse` produces and nothing
+// else does. Never a payload — the key would have to be an action name — but a
+// line carrying one is a line a peer can splice into every clone, so what
+// matters is that every build agrees on what to do with it.
+//
+// `looseObject` drops it from the copy it returns, so every build shipped so
+// far reads such a line as its remaining keys and applies the event. Kept
+// instead, it becomes a second key beside the action: `getPersistedAction`
+// refuses the event, `sortEvents` stops recognising a genesis line as a root,
+// and this build derives a different order from the same set than its peers.
+const hasOwnProtoKey = (value: object): boolean =>
+	Object.prototype.hasOwnProperty.call(value, '__proto__');
+
+const withoutProtoKey = (value: object): object => {
+	const copy: Record<string, unknown> = {};
+
+	for (const key of Object.keys(value)) {
+		if (key === '__proto__') continue;
+
+		copy[key] = (value as Record<string, unknown>)[key];
+	}
+
+	return copy;
+};
+
 /**
  * The envelope check, by hand.
  *
@@ -53,10 +78,15 @@ export type PersistedEnvelope = z.infer<typeof PersistedEnvelopeSchema>;
  * twice: 20.9 ms of a 100 ms load at thirty thousand events, on the path the
  * TUI, the GUI server and the MCP server all boot through.
  *
- * Returns the value itself rather than a copy, which is what the caller wants
- * — it spreads the result and reads the payload off it — and what makes this
- * worth doing at all. `parsePersistedEnvelopeStrict` below keeps the schema
- * honest in the tests.
+ * Returns the value itself rather than a copy — which is what the caller wants,
+ * since it spreads the result and reads the payload off it, and is what makes
+ * this worth doing at all. The one line that still pays for a copy is the one
+ * zod would have changed on the way through; see `withoutProtoKey`.
+ *
+ * `parsePersistedEnvelopeStrict` below is the same check through the schema,
+ * and `event-envelope-parse.test.ts` holds the two to the same answer. They
+ * have to agree exactly: a build that accepts a line its peers reject, or
+ * rejects one they accept, derives a different order from the same event set.
  */
 export const parsePersistedEnvelope = (
 	value: unknown,
@@ -67,7 +97,11 @@ export const parsePersistedEnvelope = (
 
 	const {v, id} = value as {v?: unknown; id?: unknown};
 
-	if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
+	// Safe, not merely integral: zod's `.int()` refuses anything past
+	// Number.MAX_SAFE_INTEGER, where integers stop being distinguishable, and a
+	// version this build waved through would take a place in the causal forest
+	// that its peers never gave it.
+	if (typeof v !== 'number' || !Number.isSafeInteger(v) || v <= 0) {
 		return failed('Invalid persisted event envelope: v');
 	}
 
@@ -87,7 +121,9 @@ export const parsePersistedEnvelope = (
 
 	return succeeded(
 		'Parsed persisted event envelope',
-		value as PersistedEnvelope,
+		(hasOwnProtoKey(value)
+			? withoutProtoKey(value)
+			: value) as PersistedEnvelope,
 	);
 };
 
