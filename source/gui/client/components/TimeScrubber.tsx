@@ -828,10 +828,15 @@ export const TimeScrubber = ({
 			),
 		);
 
+		// Removals first, so they are the half that touches the baseline. Only
+		// the segment on the line has one to be measured from — the other floats
+		// at whatever depth the bar before it ended — and removals are both the
+		// minority share and the one that is hard to see. What was added still
+		// reads from the bar's own length.
 		return Array.from(commitStats, ([index, stats]) => ({
 			index,
-			top: stats.insertions / max,
-			bottom: stats.deletions / max,
+			top: stats.deletions / max,
+			bottom: stats.insertions / max,
 		})).filter(bar => bar.top + bar.bottom > 0);
 	}, [commitStats]);
 

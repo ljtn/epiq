@@ -479,7 +479,7 @@ export const useExitTransition = (
 };
 
 // The shape of one stacked bar: how tall it stands, and where the colour
-// changes from what was added to what was removed.
+// changes from the half on the baseline to the half beyond it.
 //
 // `top` and `bottom` are each already a fraction of the track. The floor is
 // what keeps a minority share on the chart: a bucket that added four hundred

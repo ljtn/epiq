@@ -50,12 +50,12 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	await expect(lines.filter({hasText: plain})).toHaveCount(0);
 
 	await select.click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
 	await expect(select).toHaveText('Commits (all)');
 	await expect(lines.filter({hasText: plain})).toHaveCount(1);
 
 	await select.click();
-	await page.getByRole('radio', {name: 'Linked commits'}).click();
+	await page.getByRole('radio', {name: 'Linked', exact: true}).click();
 	await expect(select).toHaveText('Commits (linked)');
 
 	await expect(lines.filter({hasText: plain})).toHaveCount(0);
@@ -77,7 +77,7 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 		'Commits (linked)',
 	);
 	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
 	await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
 	await expect(lines.filter({hasText: plain})).toHaveCount(1);
 
@@ -101,13 +101,13 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 	const narrowed = (await track.boundingBox())!.height;
 
 	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
 	await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
 
 	expect((await track.boundingBox())!.height).toBe(narrowed);
 
 	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'Linked commits'}).click();
+	await page.getByRole('radio', {name: 'Linked', exact: true}).click();
 	await expect(page.getByTestId('commit-select')).toHaveText(
 		'Commits (linked)',
 	);
@@ -129,7 +129,7 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 	await page.getByTestId('show-board-events').click();
 	await page.getByTestId('show-commits').click();
 	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
 
 	expect(pageErrors).toEqual([]);
 });
@@ -232,7 +232,7 @@ test('the measure and the narrowing are chosen apart, and both are remembered', 
 
 	// The narrowing moves without taking the measure with it.
 	await select.click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
 	await expect(select).toHaveText('Lines (all)');
 	await expect
 		.poll(async () => await page.getByTestId('line-bar').count())

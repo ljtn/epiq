@@ -348,7 +348,7 @@ test("it takes the other tickets' commits with it, and the unlinked ones", async
 	// The unlinked commit is the point of this test, and the chart opens on
 	// linked commits — so the repository is asked for by hand.
 	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
 	await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
 
 	const lines = page.getByTestId('log-line');

@@ -11,7 +11,7 @@ import {openBoard, returnToLive} from './live-board.js';
 // of which name a ticket — has to ask for the repository first.
 const showEveryCommit = async (page: Page) => {
 	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
+	await page.getByRole('radio', {name: 'All', exact: true}).click();
 	await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
 };
 
