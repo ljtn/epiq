@@ -55,14 +55,17 @@ export const isLargeDiff = (file: DiffSides): boolean =>
 // files, 1.7 million characters, no single file large — took 5.6 s to paint
 // against 1.5 s for its first forty.
 //
-// Set above LARGE_DIFF_CHARS so a commit that fits inside one file's allowance
-// is never touched, which is nearly all of them.
-export const DIFF_BUDGET_CHARS = 300_000;
+// Comfortably above a single file's allowance, so a commit that would fit
+// inside one large file is never touched — which is nearly all of them.
+export const DIFF_BUDGET_CHARS = 500_000;
 
-// How much of a file the budget is charged for. The rendered side is the
-// larger one — a deletion draws the old text, an addition the new.
+// Both sides, unlike `isLargeDiff` above, which takes the larger of the two.
+// They answer different questions: that one asks whether *this file* is
+// outsized, where summing would call a modification of a 110KB file large
+// while an addition of the same file is not. This one is a cost, and a diff
+// costs what it has to read — both revisions, whichever way it is laid out.
 const diffCharCount = (file: DiffSides): number =>
-	Math.max(file.before.length, file.after.length);
+	file.before.length + file.after.length;
 
 /**
  * Which files a view opens without being asked: those under the per-file
@@ -82,11 +85,28 @@ export const openableByDefault = (
 
 		// Charged only for what is opened, so a file the budget refuses does not
 		// also spend it — otherwise one big file near the front would shut
-		// everything behind it.
+		// everything behind it. The file that crosses the line is opened rather
+		// than shut, so the budget is a floor on what a reader gets, not a cap
+		// on what they are shown.
 		if (spent >= DIFF_BUDGET_CHARS) return false;
 
 		spent += diffCharCount(file);
 
 		return true;
 	});
+};
+
+/**
+ * The same answer as paths, for the views that track what is open by path
+ * rather than by position.
+ *
+ * Hand it the files that are candidates at all — one that is shut for another
+ * reason, a file already reviewed, must not spend the budget on the way.
+ */
+export const pathsOpenByDefault = <T extends DiffSides & {path: string}>(
+	files: readonly T[],
+): string[] => {
+	const open = openableByDefault(files);
+
+	return files.filter((_, index) => open[index]).map(file => file.path);
 };

@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import {GuiSquashedDiff} from '../lib/gui-state.model';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
-import {isLargeDiff} from '../../../lib/utils/diff-size.js';
+import {isLargeDiff, pathsOpenByDefault} from '../../../lib/utils/diff-size.js';
 import {GuiComment} from '../lib/gui-state.model';
 import {
 	commentsByAnchor,
@@ -98,11 +98,11 @@ export const SquashedDiff = ({
 		openedFor.current = diff.to;
 		setExpandedFiles(
 			new Set(
-				diff.files
-					.filter(
-						file => !isLargeDiff(file) && !isReviewed(file.sha, file.path),
-					)
-					.map(file => file.path),
+				// Reviewed files out first, so one that is shut anyway does not
+				// spend the budget the rest share — see `pathsOpenByDefault`.
+				pathsOpenByDefault(
+					diff.files.filter(file => !isReviewed(file.sha, file.path)),
+				),
 			),
 		);
 	}, [diff]);
