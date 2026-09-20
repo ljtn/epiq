@@ -844,9 +844,14 @@ test('a comment line leads to the comment, not just its tab', async ({
 	// Two of them, so landing on one is a different outcome from landing on
 	// the tab: with a single comment the tab and the comment are the same
 	// place, and the test would pass without the anchor.
+	//
+	// Stamped, because the log they are looked for in is the whole board's and
+	// this worker's repo is shared with every other spec file that ran before
+	// this one — `comments.pw.ts` and `insert-image.pw.ts` both write some.
 	await page.getByRole('button', {name: /^Comments/}).click();
-	const older = `older ${Date.now()}`;
-	const newer = `newer ${Date.now()}`;
+	const stamp = Date.now();
+	const older = `older ${stamp}`;
+	const newer = `newer ${stamp}`;
 	for (const text of [older, newer]) {
 		await page.getByPlaceholder('write a comment').fill(text);
 		await page.getByRole('button', {name: 'comment', exact: true}).click();
@@ -857,15 +862,20 @@ test('a comment line leads to the comment, not just its tab', async ({
 	await page.getByTestId('log-toggle').click();
 	await expect(page.getByTestId('event-log')).toBeVisible();
 
-	// The two comment lines, oldest first — the log runs in clock order, so the
-	// first of them is the older comment.
+	// This ticket's two comment lines, found by what they say rather than by
+	// counting the log: a comment's line is labelled `Commented: <the comment>`,
+	// and every other spec's comments are in here too. Counting them all was
+	// the same assertion only while this file happened to run first on its
+	// worker, which is a coin toss (YAXMFDF).
 	const commentLines = page.locator('[data-log-tab="comments"]');
-	await expect.poll(async () => await commentLines.count()).toBe(2);
+	const olderLine = commentLines.filter({hasText: older});
 
-	const line = commentLines.first();
-	await expect(line).toHaveAttribute('data-log-comment', /.+/);
-	const commentId = await line.getAttribute('data-log-comment');
-	await line.click();
+	await expect(olderLine).toHaveCount(1);
+	await expect(commentLines.filter({hasText: newer})).toHaveCount(1);
+
+	await expect(olderLine).toHaveAttribute('data-log-comment', /.+/);
+	const commentId = await olderLine.getAttribute('data-log-comment');
+	await olderLine.click();
 
 	// Named in the URL, so the reader can hand the link on and come back to it.
 	await expect(page).toHaveURL(new RegExp(`comment=${commentId}`));
