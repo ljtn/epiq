@@ -47,6 +47,7 @@ export {
 	useNarrowBar,
 	usePrefersReducedMotion,
 	useExitTransition,
+	stackedBarShape,
 } from './layout';
 export type {FlowGeometry, LayoutMode, SeriesPresence} from './layout';
 export {
@@ -55,10 +56,11 @@ export {
 	isScrubbable,
 	bucketIssueCounts,
 	bucketCommitStats,
+	clampingMax,
 	populatedRange,
 	hourFractionForTime,
 } from './axis';
-export type {ScrubberAxis, VolumeBar} from './axis';
+export type {CommitBucketStats, ScrubberAxis, VolumeBar} from './axis';
 export type {SegmentBoundary} from './time';
 export {
 	BOARD_VIEWS,

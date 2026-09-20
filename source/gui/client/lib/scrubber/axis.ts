@@ -114,7 +114,14 @@ export const bucketIssueCounts = (
 	return counts;
 };
 
-export type CommitBucketStats = {count: number; linesChanged: number};
+export type CommitBucketStats = {
+	count: number;
+	linesChanged: number;
+	// Kept apart as well as summed, for the measure that draws them against
+	// each other rather than as one figure.
+	insertions: number;
+	deletions: number;
+};
 
 // Must use the same buckets as the issue histogram, or the mirrored halves stop
 // lining up. Bucketing is by containment, never nearest-neighbour: a bucket's
@@ -127,15 +134,48 @@ export const bucketCommitStats = (
 
 	for (const commit of commits) {
 		const index = axis.bucketIndexForTime(commit.time);
-		const existing = byIndex.get(index) ?? {count: 0, linesChanged: 0};
+		const existing = byIndex.get(index) ?? {
+			count: 0,
+			linesChanged: 0,
+			insertions: 0,
+			deletions: 0,
+		};
 
 		byIndex.set(index, {
 			count: existing.count + 1,
 			linesChanged: existing.linesChanged + commit.linesChanged,
+			insertions: existing.insertions + commit.insertions,
+			deletions: existing.deletions + commit.deletions,
 		});
 	}
 
 	return byIndex;
+};
+
+// How far above the middle of the data a bucket can stand and still set the
+// scale. Four is enough room for an ordinarily busy hour to draw at full height
+// while a regenerated lockfile — tens of thousands of lines against a median of
+// tens — saturates instead of flattening everything else to the axis.
+const OUTLIER_FACTOR = 4;
+
+// What a bar is measured against: the largest bucket that is not an outlier.
+// Counting commits the largest is a handful and dividing by it is honest, but
+// measured in lines one vendored directory leaves every ordinary bucket a line
+// along the axis.
+//
+// Against the middle of the data rather than a rank, because a percentile
+// cannot answer this for a small window: the 90th of ten values or fewer *is*
+// the largest, so a day holding one enormous commit would be scaled against
+// exactly the commit the scale is meant to survive.
+export const clampingMax = (values: readonly number[]): number => {
+	const populated = values.filter(value => value > 0).sort((a, b) => a - b);
+	if (populated.length === 0) return 1;
+
+	const median = populated[Math.floor((populated.length - 1) / 2)]!;
+	const within = populated.filter(value => value <= median * OUTLIER_FACTOR);
+
+	// `within` always holds the median itself, so it is never empty.
+	return Math.max(1, within[within.length - 1]!);
 };
 
 export type VolumeBar = {index: number; intensity: number};

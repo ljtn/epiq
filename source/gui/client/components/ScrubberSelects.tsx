@@ -59,8 +59,8 @@ const disclosureStyle: React.CSSProperties = {
 
 // "Board" rather than "All": as the collapsed trigger it is the only thing
 // naming the series, and a bare "All" two controls from "All boards" says
-// nothing about which is which. The commit series' trigger beside it says
-// "Code" the same way.
+// nothing about which is which. The commit series' trigger beside it names
+// what it is measuring — "Commits" or "Lines" — the same way.
 const VIEW_LABELS: Record<BoardView, string> = {
 	all: 'Board',
 	...CATEGORY_LABELS,
@@ -120,17 +120,12 @@ const Radio = ({
 	selected,
 	color,
 	disabled,
-	square,
 	onSelect,
 }: {
 	label: string;
 	selected: boolean;
 	color: string;
 	disabled?: boolean;
-	// The row that stands for the whole series rather than one kind of it. Drawn
-	// square, like the series checkbox on the bar, so it reads as the parent of
-	// the kinds indented under it — which is what the word "All" used to do.
-	square?: boolean;
 	onSelect: () => void;
 }) => (
 	<button
@@ -157,7 +152,7 @@ const Radio = ({
 			style={{
 				width: 12,
 				height: 12,
-				borderRadius: square ? 2 : '50%',
+				borderRadius: '50%',
 				border: `1px solid ${selected ? color : GUI_THEME.dim}`,
 				display: 'inline-flex',
 				alignItems: 'center',
@@ -170,7 +165,7 @@ const Radio = ({
 					style={{
 						width: 6,
 						height: 6,
-						borderRadius: square ? 1 : '50%',
+						borderRadius: '50%',
 						background: color,
 					}}
 				/>
@@ -436,11 +431,13 @@ export const BoardSeriesGroup = ({
 // commit in the repository, or only the ones linked to a ticket. The trigger
 // names the series and then which, the way `Board (filtered)` does two controls
 // along — `Linked` on its own named the narrowing and left the series unsaid.
-// Wide enough for the longer of the two whole, and fixed there, so switching
-// between them does not resize the row under the pointer. `Code (linked)` wants
-// 86px of it and the padding and chevron take 34, so 120 fits it to the pixel
-// and the rounding then ellipsises it; the slack is what keeps the name whole.
-const COMMIT_SELECT_WIDTH = 128;
+// Wide enough for the longest of the four whole, and fixed there, so switching
+// between them does not resize the row under the pointer. `Commits (linked)` is
+// the longest: 16 characters of the app's own monospace face, which the trigger
+// inherits — measured at 106px, with the padding and chevron taking 35 more. A
+// box sized to the pixel is what the rounding then ellipsises, so this carries
+// slack on purpose.
+const COMMIT_SELECT_WIDTH = 150;
 
 export const CommitSeriesGroup = ({
 	connected,
@@ -449,15 +446,22 @@ export const CommitSeriesGroup = ({
 	idle,
 	showCommits,
 	linkedOnly,
+	linesMeasure,
 	onChangeShowCommits,
 	onChangeLinkedOnly,
+	onChangeLinesMeasure,
 }: {
 	connected: boolean;
 	idle: boolean;
 	showCommits: boolean;
 	linkedOnly: boolean;
+	// What a bar measures, as against which commits it counts. Two questions,
+	// so two groups in the list rather than one row of four options: flattened,
+	// "the deletions among linked commits" could not be asked for.
+	linesMeasure: boolean;
 	onChangeShowCommits: (next: boolean) => void;
 	onChangeLinkedOnly: (next: boolean) => void;
+	onChangeLinesMeasure: (next: boolean) => void;
 }) => {
 	const [open, setOpen] = useState(false);
 	const ref = useDismissOnOutsideClick(open, () => setOpen(false));
@@ -469,6 +473,14 @@ export const CommitSeriesGroup = ({
 
 	const choose = (next: boolean) => {
 		onChangeLinkedOnly(next);
+		setOpen(false);
+	};
+
+	// Both groups close the list behind them: either row is one choice made,
+	// and a list left standing over the chart is the thing the scope select
+	// already takes care to avoid.
+	const measure = (next: boolean) => {
+		onChangeLinesMeasure(next);
 		setOpen(false);
 	};
 
@@ -503,7 +515,9 @@ export const CommitSeriesGroup = ({
 					}}
 				>
 					<span style={selectLabelStyle}>
-						{linkedOnly ? 'Code (linked)' : 'Code (all)'}
+						{`${linesMeasure ? 'Lines' : 'Commits'} (${
+							linkedOnly ? 'linked' : 'all'
+						})`}
 					</span>
 					<span style={{display: 'inline-flex', flexShrink: 0}}>
 						<IconChevronDown size={12} />
@@ -512,28 +526,60 @@ export const CommitSeriesGroup = ({
 			</div>
 
 			{open && (
-				<div
-					role="group"
-					aria-label="Which commits to plot"
-					style={{...popoverStyle, minWidth: 160}}
-				>
-					<Radio
-						label="All commits"
-						selected={!linkedOnly}
-						color={GUI_THEME.green}
-						square
-						onSelect={() => choose(false)}
-					/>
-					{/* Linked to a ticket the client knows — on any board for the chart,
+				// Two groups, each with its own label, because the list asks two
+				// questions and a reader who cannot see the divider has only the
+				// grouping to tell them apart — one `radiogroup` holding four rows
+				// with two of them checked says nothing true about either.
+				<div style={{...popoverStyle, minWidth: 160}}>
+					<div
+						role="radiogroup"
+						aria-label="Which commits to plot"
+						style={{display: 'contents'}}
+					>
+						<Radio
+							label="All commits"
+							selected={!linkedOnly}
+							color={GUI_THEME.green}
+							onSelect={() => choose(false)}
+						/>
+						{/* Linked to a ticket the client knows — on any board for the chart,
 					    on this one for the log — and, while the board is narrowed to
 					    some tickets, only to those, the same way the board events above
 					    the columns follow that narrowing. */}
-					<Radio
-						label="Linked commits"
-						selected={linkedOnly}
-						color={GUI_THEME.green}
-						onSelect={() => choose(true)}
+						<Radio
+							label="Linked commits"
+							selected={linkedOnly}
+							color={GUI_THEME.green}
+							onSelect={() => choose(true)}
+						/>
+					</div>
+
+					{/* The second question, kept apart from the first: which commits
+					    are drawn is one choice, what their bars measure is another,
+					    and either can be made without disturbing the other. */}
+					<div
+						aria-hidden
+						style={{height: 1, background: GUI_THEME.line, margin: '3px 0'}}
 					/>
+
+					<div
+						role="radiogroup"
+						aria-label="What the bars measure"
+						style={{display: 'contents'}}
+					>
+						<Radio
+							label="Commit count"
+							selected={!linesMeasure}
+							color={GUI_THEME.green}
+							onSelect={() => measure(false)}
+						/>
+						<Radio
+							label="Lines (+/-)"
+							selected={linesMeasure}
+							color={GUI_THEME.green}
+							onSelect={() => measure(true)}
+						/>
+					</div>
 				</div>
 			)}
 		</div>

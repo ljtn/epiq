@@ -28,6 +28,7 @@ import {
 } from '../lib/board-selection';
 import {
 	bucketCommitStats,
+	clampingMax,
 	bucketIssueCounts,
 	buildAxis,
 	isScrubbable,
@@ -100,6 +101,10 @@ const CATEGORIES_EXPANDED_STORAGE_KEY = 'epiq.timeScrubber.categoriesExpanded';
 // Which axis's list is open in the series popover, not whether one is: with an
 // axis per row only one is shown at a time, so the answer is a name.
 const EXPANDED_AXIS_STORAGE_KEY = 'epiq.timeScrubber.expandedAxis';
+// What the Code series' bars measure: how many commits landed, or how many
+// lines they moved. A different question from which commits are drawn, which is
+// why it is remembered separately from the narrowing.
+const LINES_MEASURE_STORAGE_KEY = 'epiq.timeScrubber.linesMeasure';
 
 export const TimeScrubber = ({
 	timeline,
@@ -282,6 +287,12 @@ export const TimeScrubber = ({
 	);
 	const [categoriesExpanded, setCategoriesExpanded] = usePersistedFlag(
 		CATEGORIES_EXPANDED_STORAGE_KEY,
+		false,
+	);
+	// Counting commits is the series' own question and stays the opening one;
+	// measuring the lines they moved is the other one, asked for.
+	const [linesMeasure, setLinesMeasure] = usePersistedFlag(
+		LINES_MEASURE_STORAGE_KEY,
 		false,
 	);
 	const [expandedAxis, setExpandedAxis] = usePersistedChoice<FilterAxis>(
@@ -803,6 +814,33 @@ export const TimeScrubber = ({
 		}));
 	}, [commitStats]);
 
+	// Both halves of the diverging pair are measured against one scale, or a
+	// window that only deletes would draw its deletions as tall as a window that
+	// only adds draws its additions, and the two pictures would not compare.
+	// Stacked, so the bucket's whole churn is what the scale is against: measure
+	// each half separately and a bucket that both added and removed a great deal
+	// would draw past the top of the track.
+	const lineBars = useMemo(() => {
+		const max = clampingMax(
+			Array.from(
+				commitStats.values(),
+				stats => stats.insertions + stats.deletions,
+			),
+		);
+
+		return Array.from(commitStats, ([index, stats]) => ({
+			index,
+			top: stats.insertions / max,
+			bottom: stats.deletions / max,
+		})).filter(bar => bar.top + bar.bottom > 0);
+	}, [commitStats]);
+
+	const lineBarRange = useMemo(
+		() =>
+			populatedRange(lineBars.map(bar => ({index: bar.index, intensity: 1}))),
+		[lineBars],
+	);
+
 	const issueBarRange = useMemo(() => populatedRange(issueBars), [issueBars]);
 	const commitBarRange = useMemo(
 		() => populatedRange(commitBars),
@@ -1120,7 +1158,12 @@ export const TimeScrubber = ({
 							`${hoveredCommitStats.count} commit${
 								hoveredCommitStats.count === 1 ? '' : 's'
 							}`,
-							`${hoveredCommitStats.linesChanged.toLocaleString()} lines changed`,
+							// The measure in hand, said the way the bars say it: one
+							// figure while they count commits, and the two the pair is
+							// drawn from while they measure lines.
+							linesMeasure
+								? `+${hoveredCommitStats.insertions.toLocaleString()} −${hoveredCommitStats.deletions.toLocaleString()}`
+								: `${hoveredCommitStats.linesChanged.toLocaleString()} lines changed`,
 						],
 						fraction: centreFraction(hoveredCommitBucketIndex!),
 				  }
@@ -1229,6 +1272,8 @@ export const TimeScrubber = ({
 				showCommits,
 				linkedCommitsOnly,
 				onChangeLinkedCommitsOnly,
+				linesMeasure,
+				onChangeLinesMeasure: setLinesMeasure,
 				allBoards,
 				onChangeScope: changeScope,
 				onChangeWindowOnly: (next: boolean) =>
@@ -1277,6 +1322,9 @@ export const TimeScrubber = ({
 				issueBarRange,
 				commitBars,
 				commitBarRange,
+				linesMeasure,
+				lineBars,
+				lineBarRange,
 				scatterLayers,
 				flowChart,
 				flowFocusIssue,

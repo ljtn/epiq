@@ -477,3 +477,30 @@ export const useExitTransition = (
 	// which repaints every dot when its layers change.
 	return useMemo(() => ({mounted, leaving}), [mounted, leaving]);
 };
+
+// The shape of one stacked bar: how tall it stands, and where the colour
+// changes from what was added to what was removed.
+//
+// `top` and `bottom` are each already a fraction of the track. The floor is
+// what keeps a minority share on the chart: a bucket that added four hundred
+// lines and removed two draws its removal at a hundredth of a three-pixel bar,
+// which rounds to nothing and says the removal never happened. A hairline
+// overstates it; a solid bar misstates it completely.
+export const stackedBarShape = (
+	top: number,
+	bottom: number,
+	trackHeight: number,
+): {height: number; share: number} => {
+	const size = top + bottom;
+	const height = Math.max(3, Math.min(1, size) * trackHeight);
+	const floor = Math.min(1 / height, 0.5);
+
+	const share =
+		size === 0 || bottom === 0
+			? 1
+			: top === 0
+			? 0
+			: Math.min(Math.max(top / size, floor), 1 - floor);
+
+	return {height, share};
+};

@@ -59,6 +59,7 @@ import {
 	SegmentBoundaries,
 	SegmentHighlight,
 	SeriesLayer,
+	StackedVolumeBars,
 	TrackBaseline,
 	VolumeBars,
 } from './ScrubberTrack';
@@ -66,6 +67,12 @@ import {Panel} from './Panel';
 import {REVEAL_MS, useReveal} from '../lib/use-reveal';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Module scope, not an object literal at the call site: the bars are memoized
+// because this component re-renders on every mouse move across the track, and a
+// fresh object each render is a prop change that defeats the memo on exactly
+// that path.
+const LINE_BAR_COLORS = {top: GUI_THEME.green, bottom: GUI_THEME.red};
 
 const dotAnimation = (key: string, animate: boolean, leaving: boolean) =>
 	!animate
@@ -162,6 +169,11 @@ export type ScrubberChart = {
 	issueBarRange: [number, number];
 	commitBars: VolumeBar[];
 	commitBarRange: [number, number];
+	// The other measure: the lines those commits moved, one entry per bucket with
+	// each half already a fraction of the track, stacked from the same edge.
+	linesMeasure: boolean;
+	lineBars: {index: number; top: number; bottom: number}[];
+	lineBarRange: [number, number];
 	// One entry per series, each animating in and out on its own.
 	scatterLayers: ScatterLayer[];
 	// The strata for the flow layout, and the one ticket singled out on it —
@@ -615,15 +627,30 @@ export const ScrubberLayout = ({
 													/>
 												)}
 
-												<VolumeBars
-													bars={chart.commitBars}
-													bucketCount={axis.bucketCount}
-													firstBar={chart.commitBarRange[0]}
-													lastBar={chart.commitBarRange[1]}
-													color={GUI_THEME.green}
-													direction="down"
-													animate={animate}
-												/>
+												{chart.linesMeasure ? (
+													// What the window churned, hanging from the same
+													// edge the commit bars hang from: the length is the
+													// whole of it and the colours divide it, so the bar
+													// keeps the track's full height either way.
+													<StackedVolumeBars
+														segments={chart.lineBars}
+														bucketCount={axis.bucketCount}
+														firstBar={chart.lineBarRange[0]}
+														lastBar={chart.lineBarRange[1]}
+														colors={LINE_BAR_COLORS}
+														animate={animate}
+													/>
+												) : (
+													<VolumeBars
+														bars={chart.commitBars}
+														bucketCount={axis.bucketCount}
+														firstBar={chart.commitBarRange[0]}
+														lastBar={chart.commitBarRange[1]}
+														color={GUI_THEME.green}
+														direction="down"
+														animate={animate}
+													/>
+												)}
 											</div>
 										)}
 									</div>

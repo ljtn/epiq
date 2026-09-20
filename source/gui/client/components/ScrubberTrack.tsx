@@ -31,6 +31,7 @@ import {
 	SEGMENT_BOUNDARY_COLOR,
 	SEGMENT_HIGHLIGHT_COLOR,
 	SEGMENT_LABEL_COLOR,
+	stackedBarShape,
 	TRACK_HEIGHT,
 	VolumeBar,
 } from '../lib/scrubber';
@@ -368,6 +369,78 @@ const VolumeBarsImpl = ({
 // Memoized because the track re-renders on every mouse move while the bars
 // themselves change only when the window or the filter does.
 export const VolumeBars = memo(VolumeBarsImpl);
+
+// The lines measure: one bar per bucket, added and removed stacked rather than
+// set against each other. Hanging from the same edge the commit bars hang from
+// keeps the track's own shape and gives each bar the whole of it — drawn around
+// a centre line the two had half each, and the removals read as an afterthought.
+// The length now says how much the window churned; the colours say how it
+// divided.
+const StackedVolumeBarsImpl = ({
+	segments,
+	bucketCount,
+	firstBar,
+	lastBar,
+	colors,
+	animate,
+}: {
+	// One entry per bucket, each half already a fraction of the track.
+	segments: {index: number; top: number; bottom: number}[];
+	bucketCount: number;
+	firstBar: number;
+	lastBar: number;
+	colors: {top: string; bottom: string};
+	animate: boolean;
+}) => {
+	const widthPercent = 100 / bucketCount;
+	const barWidth = barWidthCss(bucketCount);
+	const [fresh, setFresh] = useState(true);
+
+	useEffect(() => {
+		const timeout = setTimeout(() => setFresh(false), BAR_ENTRANCE_TOTAL_MS);
+		return () => clearTimeout(timeout);
+	}, []);
+
+	return (
+		<>
+			{segments.map(({index, top, bottom}) => {
+				const size = top + bottom;
+				const {height, share} = stackedBarShape(top, bottom, TRACK_HEIGHT);
+
+				return (
+					<div
+						key={index}
+						data-testid="line-bar"
+						data-share={share.toFixed(3)}
+						style={{
+							position: 'absolute',
+							left: `${index * widthPercent}%`,
+							top: 0,
+							width: barWidth,
+							height,
+							display: 'flex',
+							flexDirection: 'column',
+							borderRadius: '0 0 1px 1px',
+							overflow: 'hidden',
+							opacity: 0.35 + Math.min(1, size) * 0.65,
+							transformOrigin: 'top',
+							animation:
+								animate && fresh
+									? barGrowAnimation(index, firstBar, lastBar)
+									: undefined,
+							pointerEvents: 'none',
+						}}
+					>
+						<div style={{height: `${share * 100}%`, background: colors.top}} />
+						<div style={{flex: 1, background: colors.bottom}} />
+					</div>
+				);
+			})}
+		</>
+	);
+};
+
+export const StackedVolumeBars = memo(StackedVolumeBarsImpl);
 
 // Lives on the chart wrapper rather than inside either chart, so it runs
 // unbroken through both and the gap between them.
