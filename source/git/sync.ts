@@ -16,8 +16,10 @@ import {
 	getStateBranchRoot,
 } from './git-storage.js';
 import {
+	abortRebaseIfPresent,
+	clearStaleGitLocks,
 	execGit,
-	hasInProgressGitOperation,
+	getInProgressGitOperation,
 	hasRemote,
 	hasStagedChanges,
 	isAheadOfUpstream,
@@ -36,7 +38,7 @@ import {
 } from './git.js';
 import {restoreDroppedEventLines, snapshotEventLogs} from './log-integrity.js';
 import {flushPendingLogs} from '../lib/event/pending-log.js';
-import {withSyncLock} from './sync-lock.js';
+import {LockClaim, SYNC_LOCK_FILE, withSyncLock} from './sync-lock.js';
 
 type SyncSummary = {
 	repoRoot: string;
@@ -64,9 +66,13 @@ type SyncOwnFileCommitResult = {
 };
 
 const ensureSyncReady = async ({
+	claim,
 	cwd,
 	ensureUpstream,
 }: {
+	// How this process came to hold the worktree. Only `clean` and `dead` say
+	// nobody else is in it; see the recovery below.
+	claim: LockClaim;
 	cwd: string;
 	ensureUpstream: boolean;
 }): Promise<
@@ -97,6 +103,49 @@ const ensureSyncReady = async ({
 
 	logger.debug('[sync] state branch root', stateBranchRoot);
 
+	// Before anything touches the worktree, because the first thing bootstrap
+	// does is check out the state branch, and a `index.lock` left by a killed
+	// git stops that with "Another git process seems to be running" — which is
+	// how a crash used to wedge a board for good (`TATEM5B`).
+	//
+	// That nobody is running it has to be known rather than assumed, because
+	// unwinding a live rebase is the very failure `sync-lock.ts` was written to
+	// stop. Two things make it knowable: this runs under that lock, and the lock
+	// says how it was come by. `clean` or `dead` means the previous holder is
+	// gone and the operating system said so. `stale` means a live process's
+	// claim was broken on age alone — its worktree is not ours to touch, and the
+	// refusal below stands for that case exactly as it did before.
+	if (claim !== 'stale' && fs.existsSync(stateBranchRoot)) {
+		// Git takes `<file>.lock` before writing `<file>` and removes it after; a
+		// process killed in between leaves it, and every later git refuses.
+		// Every `.lock` here is a dead writer's, with one exception: our own
+		// claim over this worktree, which lives in the same directory and ends
+		// the same way.
+		const locksResult = await clearStaleGitLocks(stateBranchRoot, {
+			preserve: [SYNC_LOCK_FILE],
+		});
+		if (isFail(locksResult)) return failed(locksResult.message);
+
+		if (locksResult.value.length > 0) {
+			logger.info('[sync] cleared git lock files left by a dead process', {
+				removed: locksResult.value,
+				stateBranchRoot,
+			});
+		}
+
+		// Abort rather than `--quit` or removing the state directory: a rebase
+		// autostashes the appends made while it ran, and only abort puts them
+		// back. It returns to the pre-rebase HEAD, which still carries every
+		// local commit, so the pull further down simply starts the rebase again.
+		// A rebase that will not unwind reports its own failure, naming the
+		// worktree.
+		const abortResult = trace(
+			'abortRebaseIfPresent(stateBranchRoot)',
+			await abortRebaseIfPresent(stateBranchRoot),
+		);
+		if (isFail(abortResult)) return failed(abortResult.message);
+	}
+
 	logger.debug('[sync] bootstrapping state branch storage', {
 		repoRoot,
 		stateBranchRoot,
@@ -123,8 +172,8 @@ const ensureSyncReady = async ({
 	});
 
 	const stateOpResult = trace(
-		'hasInProgressGitOperation(stateBranchRoot)',
-		await hasInProgressGitOperation(stateBranchRoot),
+		'getInProgressGitOperation(stateBranchRoot)',
+		await getInProgressGitOperation(stateBranchRoot),
 	);
 	if (isFail(stateOpResult)) return failed(stateOpResult.message);
 
@@ -132,10 +181,17 @@ const ensureSyncReady = async ({
 		inProgress: stateOpResult.value,
 	});
 
-	if (stateOpResult.value) {
-		logger.info('[sync] state branch git operation in progress');
+	if (stateOpResult.value !== null) {
+		// Whatever is still here after the clearing above is not this process's
+		// to force: a merge, which sync never starts, so it came from outside
+		// epiq — or anything at all when the claim was `stale` and nothing was
+		// cleared. It says where, now, because the answer is a git command run
+		// in a directory the reader has no reason to know about.
+		logger.info('[sync] state branch git operation in progress', {claim});
+
 		return failed(
-			'Cannot sync while a git operation is in progress in the state branch',
+			`Cannot sync while there is a ${stateOpResult.value} in the state ` +
+				`branch at ${stateBranchRoot}`,
 		);
 	}
 
@@ -290,10 +346,10 @@ const offlineSummary = (
 	});
 };
 
-const runSync = async ({
-	cwd = process.cwd(),
-	ownEventFileName,
-}: SyncArgs): Promise<Result<SyncSummary>> => {
+const runSync = async (
+	{cwd = process.cwd(), ownEventFileName}: SyncArgs,
+	claim: LockClaim,
+): Promise<Result<SyncSummary>> => {
 	// ============================
 	// Abort-guards
 	// ============================
@@ -330,6 +386,7 @@ const runSync = async ({
 	const ready = trace(
 		'ensureSyncReady',
 		await ensureSyncReady({
+			claim,
 			cwd,
 			ensureUpstream: true,
 		}),
@@ -619,12 +676,15 @@ export const syncEpiqWithRemote = async (
 	// racing a project's very first sync is a narrower window than this lock
 	// addresses, and taking a lock inside a directory that does not exist yet
 	// would need somewhere else to put it.
-	if (!fs.existsSync(stateBranchRoot)) return runSync(args);
+	// Nothing to hold and nothing to recover: the worktree does not exist yet,
+	// so there is no lock to take and no rebase anybody could have left in it.
+	if (!fs.existsSync(stateBranchRoot)) return runSync(args, 'clean');
 
 	const lockedResult = await withSyncLock({
 		worktreeRoot: stateBranchRoot,
 		operation: 'sync',
-		fn: () => withEventLogsIntact(stateBranchRoot, () => runSync(args)),
+		fn: claim =>
+			withEventLogsIntact(stateBranchRoot, () => runSync(args, claim)),
 	});
 	if (isFail(lockedResult)) return failSync(lockedResult.message);
 
