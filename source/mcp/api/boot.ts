@@ -231,15 +231,20 @@ export const bootLocal = (repoRoot?: string) => boot(repoRoot, {pull: false});
 
 /**
  * The prologue a tool runs before it can read or write the board: the project
- * booted locally, the actor its writes will be attributed to, and the state
- * they will be applied to. Any of the three failing is the tool's own answer,
- * so this hands back the first failure untouched.
+ * booted locally, the actor to attribute anything it writes to, and the state
+ * to read or apply it to. Any of the three failing is the tool's own answer, so
+ * this hands back the first failure untouched.
+ *
+ * Named for what it fetches rather than for writing: three tools that write
+ * nothing — the contributor list, the personal stats, the email suggestions —
+ * need the actor to answer *whose*, and a name saying "mutation" would have
+ * them read as writers to anyone auditing what touches the board.
  *
  * Twenty-seven tools had this written out apiece, six lines at a time. The
  * order matters — booting is what makes an actor and a state readable at all —
  * and an order stated once cannot be got wrong in the twenty-eighth.
  */
-export const bootedForMutation = async (repoRoot?: string) => {
+export const bootedWithActorAndState = async (repoRoot?: string) => {
 	const bootResult = await bootLocal(repoRoot);
 	if (isFail(bootResult)) return bootResult;
 

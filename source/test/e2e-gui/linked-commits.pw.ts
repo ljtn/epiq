@@ -28,7 +28,7 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	await expect(page.locator('aside')).toContainText(`Linked ${stamp}`);
 
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 

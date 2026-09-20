@@ -47,7 +47,7 @@ const seedCommitOnScatter = async (
 	await expect(page.locator('aside')).toContainText(`Scatter ${stamp}`);
 
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 

@@ -16,7 +16,7 @@ test('a ticket with a single commit opens it unasked', async ({
 }) => {
 	await addTicket(page, `Lone ${Date.now()}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 

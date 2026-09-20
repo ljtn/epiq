@@ -3,7 +3,7 @@ import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {MAX_COMMENT_LENGTH} from '../../lib/utils/text.limits.js';
-import {ToolInput, bootedForMutation} from './boot.js';
+import {ToolInput, bootedWithActorAndState} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
 
 type AddIssueCommentInput = ToolInput & {
@@ -21,7 +21,7 @@ type EditIssueCommentInput = ToolInput & {
 };
 
 export const addIssueComment = async (input: AddIssueCommentInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
@@ -69,7 +69,7 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 };
 
 export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const commentEvent = ready.value.state.eventLog.find(
@@ -126,7 +126,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 };
 
 export const editIssueComment = async (input: EditIssueCommentInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const commentEvent = ready.value.state.eventLog.find(

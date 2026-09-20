@@ -3,6 +3,7 @@
 // animate. Owns its own entrance and its own hit testing.
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useCanvasSurface} from '../lib/use-canvas-surface';
 import {
 	FlowChart,
 	FlowPath,
@@ -78,7 +79,6 @@ export const FlowCanvas = ({
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const sizeRef = useRef({width: 0, height: 0});
-	const frameRef = useRef<number | null>(null);
 	const entranceStartRef = useRef<number | null>(null);
 	const hoveredRef = useRef<string | null>(null);
 	// Like the scatter's: the entrance is drawn, not animated by CSS, so this is
@@ -241,47 +241,12 @@ export const FlowCanvas = ({
 		return running || fading;
 	}, []);
 
-	const run = useCallback(() => {
-		if (frameRef.current !== null) return;
-
-		const step = () => {
-			frameRef.current = null;
-			const running = paint(performance.now());
-
-			if (running) frameRef.current = requestAnimationFrame(step);
-			else setEntrancePlaying(false);
-		};
-
-		frameRef.current = requestAnimationFrame(step);
-	}, [paint]);
-
-	// Sized in device pixels with the context scaled to match, or the lines are
-	// blurry on a retina display.
-	useEffect(() => {
-		const canvas = canvasRef.current;
-		const parent = canvas?.parentElement;
-		if (!canvas || !parent) return;
-
-		const resize = () => {
-			const ratio = window.devicePixelRatio || 1;
-			const {width, height} = parent.getBoundingClientRect();
-
-			sizeRef.current = {width, height};
-			canvas.width = Math.round(width * ratio);
-			canvas.height = Math.round(height * ratio);
-			canvas.style.width = `${width}px`;
-			canvas.style.height = `${height}px`;
-			canvas.getContext('2d')?.setTransform(ratio, 0, 0, ratio, 0, 0);
-			paint(performance.now());
-		};
-
-		resize();
-
-		const observer = new ResizeObserver(resize);
-		observer.observe(parent);
-
-		return () => observer.disconnect();
-	}, [paint]);
+	const {run} = useCanvasSurface({
+		canvasRef,
+		sizeRef,
+		paint,
+		onSettled: () => setEntrancePlaying(false),
+	});
 
 	// A new window replays the wipe. Scrubbing and hovering change the picture
 	// without changing the window, so they repaint below instead.
@@ -303,13 +268,6 @@ export const FlowCanvas = ({
 	useEffect(() => {
 		run();
 	}, [plotted, focusIssue, color, run]);
-
-	useEffect(
-		() => () => {
-			if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-		},
-		[],
-	);
 
 	const hitTest = (event: React.MouseEvent<HTMLCanvasElement>) => {
 		const rect = event.currentTarget.getBoundingClientRect();

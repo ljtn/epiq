@@ -5,7 +5,7 @@
 // leads somewhere that board does not hold.
 
 import {expect, test} from './fixtures.js';
-import {addTicket} from './ticket.js';
+import {addTicket, addTicketForRef} from './ticket.js';
 import {switchToBoard} from './board-switcher.js';
 import {commitLinkedFile} from './linked-commit.js';
 
@@ -74,12 +74,7 @@ test('a commit linked to another board’s ticket is left out of this board’s 
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
 	const stamp = Date.now();
-	await addTicket(page, `Default ticket ${stamp}`);
-
-	const ref = (
-		await page.locator('aside').getByTestId('copy-ref').first().textContent()
-	)?.trim();
-	expect(ref).toBeTruthy();
+	const ref = await addTicketForRef(page, `Default ticket ${stamp}`);
 
 	const subject = `default work ${stamp}`;
 	commitLinkedFile(repoRoot, ref!, subject);

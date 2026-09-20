@@ -45,7 +45,7 @@ test('selecting lines opens one composer under them; write, then comment or file
 	const stamp = Date.now();
 	await addTicket(page, `Composer ${stamp}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 

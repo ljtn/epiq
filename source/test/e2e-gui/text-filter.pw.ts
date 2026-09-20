@@ -26,7 +26,7 @@ test('typing in the text filter narrows the board by title or ref, and Escape cl
 	await expect(card(page, banana)).toBeVisible();
 
 	const bananaRef = (
-		await card(page, banana).locator('button[title^="Copy "]').textContent()
+		await card(page, banana).getByTestId('copy-ref').textContent()
 	)?.trim();
 	expect(bananaRef).toMatch(/^[A-Z0-9]{7}$/);
 

@@ -45,7 +45,7 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	const stamp = Date.now();
 	await addTicket(page, `Stacking ${stamp}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 
@@ -135,7 +135,7 @@ test('a diff keeps its file name in view while the panel scrolls past it', async
 	const stamp = Date.now();
 	await addTicket(page, `Sticky ${stamp}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 
@@ -209,7 +209,7 @@ test('a bottom-docked panel pins the file name too', async ({
 	const stamp = Date.now();
 	await addTicket(page, `Docked ${stamp}`);
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 

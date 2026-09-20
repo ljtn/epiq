@@ -24,7 +24,7 @@ import {
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiAssignee} from '../api-state.model.js';
-import {ToolInput, bootedForMutation} from './boot.js';
+import {ToolInput, bootedWithActorAndState} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
 
 type AddIssueAssigneeInput = ToolInput & {
@@ -57,7 +57,7 @@ export const assumeActor = async (
 	const applied = applyActorNameArgument(input.name, 'name');
 	if (isFail(applied)) return failed(applied.message);
 
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const actor = ready.value.actor;
@@ -106,7 +106,7 @@ const findEventLogAuthor = async (
 };
 
 export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
@@ -253,7 +253,7 @@ export const addIssueAssignee = async (input: AddIssueAssigneeInput) => {
 export const tombstoneContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const contributor = ready.value.state.contributors[input.contributorId];
@@ -319,7 +319,7 @@ const findCreatedContributorName = async (
 export const restoreContributor = async (
 	input: ToolInput & {contributorId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const contributor = ready.value.state.contributors[input.contributorId];
@@ -374,7 +374,7 @@ export const getBoardContributors = async (
 		})[]
 	>
 > => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const eventsResult = loadMergedEvents(ready.value.boot.stateBranchRoot);
@@ -420,7 +420,7 @@ export const getBoardContributors = async (
 };
 
 export const removeIssueAssignee = async (input: RemoveIssueAssigneeInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);

@@ -49,7 +49,7 @@ import {
 	ToolInput,
 	Actor,
 	bootLocal,
-	bootedForMutation,
+	bootedWithActorAndState,
 	getActor,
 	getStateResult,
 	resolveRepoRoot,
@@ -260,7 +260,7 @@ export async function listIssues(
 }
 
 export const createIssue = async (input: CreateIssueInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	// The other three title paths all sanitize; this one used to write the raw
@@ -459,7 +459,7 @@ export async function closeIssue(
 }
 
 export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issue = ready.value.state.nodes[input.issueId];
@@ -643,7 +643,7 @@ export const getIssueHistory = (
 export const editIssueDescription = async (
 	input: EditIssueDescriptionInput,
 ) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
@@ -692,7 +692,7 @@ export const editIssueDescription = async (
 };
 
 export const editIssueTitle = async (input: EditIssueTitleInput) => {
-	const ready = await bootedForMutation(input.repoRoot);
+	const ready = await bootedWithActorAndState(input.repoRoot);
 	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);

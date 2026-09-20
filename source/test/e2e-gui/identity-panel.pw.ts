@@ -22,8 +22,6 @@ const BOARD_NAME = 'claude/tester';
 const SHOWN_NAME = '/tester';
 const COMMIT_EMAIL = 'e2e@example.com';
 
-// The scan of a repository's authors is cached for this long, so an address
-// that has just made its first commit is not offered until the walk runs again.
 const openPanel = async (page: Page) => {
 	await page
 		.locator('button[aria-label="Your identity on this board"]')
@@ -39,7 +37,7 @@ const commitAndReload = async (page: Page, repoRoot: string, tag: string) => {
 	await addTicket(page, `Identity ${tag}`);
 
 	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
 	)?.trim();
 	expect(ref).toBeTruthy();
 
