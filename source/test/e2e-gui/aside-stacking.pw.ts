@@ -77,7 +77,7 @@ test('the scrubber filter list stays above a diff header in the panel', async ({
 	// The commit track goes, which lifts the panel by its height.
 	await page.getByTestId('show-commits').click();
 
-	await page.getByRole('button', {name: 'Board', exact: true}).click();
+	await page.getByTestId('series-select').click();
 	await expect(
 		page.getByRole('group', {name: 'Filter the board'}),
 	).toBeVisible();

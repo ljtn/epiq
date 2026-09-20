@@ -349,7 +349,7 @@ test("it takes the other tickets' commits with it, and the unlinked ones", async
 	// linked commits — so the repository is asked for by hand.
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All commits'}).click();
-	await expect(page.getByTestId('commit-select')).toHaveText('Code');
+	await expect(page.getByTestId('commit-select')).toHaveText('Code (all)');
 
 	const lines = page.getByTestId('log-line');
 	await expect(lines.filter({hasText: mineWork})).toHaveCount(1);

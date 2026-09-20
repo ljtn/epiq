@@ -45,18 +45,18 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 	// housekeeping commit is not listed until somebody asks for the repository.
 	const lines = page.getByTestId('log-line');
 	const select = page.getByTestId('commit-select');
-	await expect(select).toHaveText('Linked commits');
+	await expect(select).toHaveText('Code (linked)');
 	await expect(lines.filter({hasText: linked})).toHaveCount(1);
 	await expect(lines.filter({hasText: plain})).toHaveCount(0);
 
 	await select.click();
 	await page.getByRole('radio', {name: 'All commits'}).click();
-	await expect(select).toHaveText('Code');
+	await expect(select).toHaveText('Code (all)');
 	await expect(lines.filter({hasText: plain})).toHaveCount(1);
 
 	await select.click();
-	await page.getByRole('radio', {name: 'Linked to a ticket'}).click();
-	await expect(select).toHaveText('Linked commits');
+	await page.getByRole('radio', {name: 'Linked commits'}).click();
+	await expect(select).toHaveText('Code (linked)');
 
 	await expect(lines.filter({hasText: plain})).toHaveCount(0);
 	await expect(lines.filter({hasText: linked})).toHaveCount(1);
@@ -73,10 +73,10 @@ test('the Code series narrowed to linked commits keeps only commits linked to a 
 
 	// Remembered, like the series boxes beside it.
 	await page.reload();
-	await expect(page.getByTestId('commit-select')).toHaveText('Linked commits');
+	await expect(page.getByTestId('commit-select')).toHaveText('Code (linked)');
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All commits'}).click();
-	await expect(page.getByTestId('commit-select')).toHaveText('Code');
+	await expect(page.getByTestId('commit-select')).toHaveText('Code (all)');
 	await expect(lines.filter({hasText: plain})).toHaveCount(1);
 
 	expect(pageErrors).toEqual([]);
@@ -100,13 +100,13 @@ test('the Code track stays up, baseline and all, when the window has no commits 
 
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All commits'}).click();
-	await expect(page.getByTestId('commit-select')).toHaveText('Code');
+	await expect(page.getByTestId('commit-select')).toHaveText('Code (all)');
 
 	expect((await track.boundingBox())!.height).toBe(narrowed);
 
 	await page.getByTestId('commit-select').click();
-	await page.getByRole('radio', {name: 'Linked to a ticket'}).click();
-	await expect(page.getByTestId('commit-select')).toHaveText('Linked commits');
+	await page.getByRole('radio', {name: 'Linked commits'}).click();
+	await expect(page.getByTestId('commit-select')).toHaveText('Code (linked)');
 
 	expect((await track.boundingBox())!.height).toBe(narrowed);
 

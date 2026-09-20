@@ -28,7 +28,7 @@ test('the Contributors list narrows the board to who caused an event on a ticket
 	await page.goto(boardUrl);
 	await expect(card(page, touched)).toBeVisible();
 
-	await page.getByRole('button', {name: 'Board', exact: true}).click();
+	await page.getByTestId('series-select').click();
 	await page.getByRole('checkbox', {name: 'Contributors'}).click();
 	await page.getByRole('button', {name: 'Pick contributors'}).click();
 
@@ -64,7 +64,7 @@ test('lists a contributor under the name the board knows, not the log file', asy
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByRole('button', {name: 'Board', exact: true}).click();
+	await page.getByTestId('series-select').click();
 	await page.getByRole('button', {name: 'Pick contributors'}).click();
 
 	// The list is built from the window's events, whose author is reconstructed
