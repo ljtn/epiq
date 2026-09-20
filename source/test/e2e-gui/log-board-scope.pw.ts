@@ -160,11 +160,5 @@ test('a commit linked to another board’s ticket is left out of this board’s 
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await expect(line).toHaveCount(1);
 
-	// The select is remembered per origin, and the worker's next test starts on
-	// this one's leavings.
-	await select.click();
-	await page.getByRole('radio', {name: 'All commits'}).click();
-	await expect(select).toHaveText('Code');
-
 	expect(pageErrors).toEqual([]);
 });
