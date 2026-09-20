@@ -80,12 +80,28 @@ describe('a sync killed partway through', () => {
 				}
 
 				// Killed at a different point each round, so the window lands
-				// somewhere different in the sync every time.
-				await runActorAndKill(ana, {
+				// somewhere different in the sync every time. Measured from the
+				// sync's own start, and asserted to have landed inside it: a kill
+				// that arrives after the sync finished leaves nothing half-done to
+				// recover from, and everything below would pass without testing
+				// anything.
+				//
+				// The delay is zero, and that is the whole ramp. A sync takes
+				// 186–451ms on this machine and a small fraction of that in the
+				// container, so any fixed distance into it is past the end of it
+				// somewhere: 900ms missed on the host, 35ms missed in the
+				// container. Killed the moment the sync says it has begun, the
+				// premise holds in both.
+				const killed = await runActorAndKill(ana, {
 					actions: [],
 					sync: true,
-					killAfterMs: 900 + round * 250,
+					killAfterSyncStartMs: 0,
 				});
+
+				expect(
+					killed.diedMidSync,
+					`ana's sync was still running when it was killed in round ${round}`,
+				).toBe(true);
 
 				// Now write, into whatever the killed process left behind.
 				const titles = create(WRITES_PER_ROUND, `after-kill-r${round}`).map(

@@ -111,6 +111,10 @@ for (const action of swimlaneId === null ? [] : job.actions) {
 }
 
 if (job.sync) {
+	// Before the sync rather than after it: whoever is waiting on this is
+	// waiting to interrupt what comes next.
+	if (job.syncStartedPath) fs.writeFileSync(job.syncStartedPath, '');
+
 	const synced = await syncEpiqWithRemote({
 		cwd: job.repoRoot,
 		ownEventFileName: getPersistFileName(actor),

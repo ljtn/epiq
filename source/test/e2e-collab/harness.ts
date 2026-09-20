@@ -304,15 +304,43 @@ export const runActor = async (
  * leaves behind — a stopped rebase, a stash nobody popped — is what the next
  * process has to cope with.
  */
+/**
+ * Runs an actor and SIGKILLs it a given distance *into its sync*.
+ *
+ * Measured from the sync rather than from the spawn, and the actor says when
+ * that is (`syncStartedPath`). Counting from the spawn counted the boot as
+ * well: a kill aimed at 900ms against a 340ms sync and a 30ms boot landed after
+ * the sync had finished, so the process died with nothing half-done and the
+ * recovery this test is named for went untested while the test passed.
+ *
+ * It aims at the sync and not at the rebase inside it, deliberately. Ana has
+ * one commit of her own to replay and that replay lasts single digits of
+ * milliseconds — measured in the container, a poll every 2ms catches it about
+ * half the time, and no delay lands inside it reliably. What a kill in that
+ * window leaves behind is covered instead by `sync-recovery.test.ts`, which
+ * builds the state directly rather than racing for it. What this test is for is
+ * the part that cannot be built directly: a real process, killed while it is
+ * genuinely working, and a board that still converges afterwards.
+ *
+ * The kill goes to the process group, so the `git` the actor spawned dies with
+ * it rather than being orphaned to finish the work. `diedMidSync` reports
+ * whether the premise held: the sync had started, and the actor never reached
+ * the end of its run.
+ */
 export const runActorAndKill = async (
 	actor: Actor,
 	{
 		actions,
 		sync,
-		killAfterMs,
-	}: {actions: ActorAction[]; sync: boolean; killAfterMs: number},
-): Promise<void> => {
+		killAfterSyncStartMs,
+	}: {
+		actions: ActorAction[];
+		sync: boolean;
+		killAfterSyncStartMs: number;
+	},
+): Promise<{diedMidSync: boolean}> => {
 	const reportPath = path.join(actor.globalDir, `report-${ulid()}.json`);
+	const syncStartedPath = path.join(actor.globalDir, `syncing-${ulid()}`);
 	const job: ActorJob = {
 		repoRoot: actor.repoRoot,
 		userId: actor.userId,
@@ -320,6 +348,7 @@ export const runActorAndKill = async (
 		actions,
 		sync,
 		reportPath,
+		syncStartedPath,
 	};
 
 	await new Promise<void>(resolve => {
@@ -329,6 +358,9 @@ export const runActorAndKill = async (
 			{
 				cwd: actor.repoRoot,
 				stdio: 'ignore',
+				// Its own process group, so the kill below reaches the git it
+				// spawned rather than orphaning it to finish the work.
+				detached: true,
 				env: {
 					...process.env,
 					EPIQ_GLOBAL_DIR: actor.globalDir,
@@ -338,17 +370,36 @@ export const runActorAndKill = async (
 			},
 		);
 
-		const timer = setTimeout(() => child.kill('SIGKILL'), killAfterMs);
+		// Polled rather than watched: watching for a file that does not exist yet
+		// means watching its directory and filtering, for something that appears
+		// within a few hundred milliseconds either way.
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const poll = setInterval(() => {
+			if (!fs.existsSync(syncStartedPath)) return;
 
-		child.on('error', () => {
+			clearInterval(poll);
+			timer = setTimeout(() => {
+				try {
+					process.kill(-child.pid!, 'SIGKILL');
+				} catch {
+					// Gone already, which the close handler is about to report.
+				}
+			}, killAfterSyncStartMs);
+		}, 5);
+
+		const done = () => {
+			clearInterval(poll);
 			clearTimeout(timer);
 			resolve();
-		});
-		child.on('close', () => {
-			clearTimeout(timer);
-			resolve();
-		});
+		};
+
+		child.on('error', done);
+		child.on('close', done);
 	});
+
+	return {
+		diedMidSync: fs.existsSync(syncStartedPath) && !fs.existsSync(reportPath),
+	};
 };
 
 export const cleanUp = ({dirs}: Collaboration): void => {
