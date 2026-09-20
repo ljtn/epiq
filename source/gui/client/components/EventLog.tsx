@@ -51,7 +51,6 @@ import {
 import {
 	LogField,
 	LogFields,
-	LOG_FIELD_NAMES,
 	LOG_FIELD_ORDER,
 	logPaneClassName,
 	useLogFields,
@@ -66,7 +65,7 @@ import {
 } from '../lib/log-lanes';
 import {actorDisplay} from '../lib/agent-identity';
 import {PANE_HEADER_INSET} from '../lib/pane-header.style';
-import {Checkbox} from './Checkbox';
+import {LogFieldBox, LogFieldsMenu} from './LogFieldsMenu';
 import {IconColumns} from './IconColumns';
 import {DiffStat} from './DiffStat';
 import {
@@ -96,6 +95,15 @@ const LOG_WIDTH_STORAGE_KEY = 'epiq.eventLog.width';
 // The square an icon button makes, under the inset every pane's header keeps —
 // so this row and the panel's on the other side of the board are one line.
 const LOG_HEADER_HEIGHT = ICON_BUTTON_SIZE;
+
+// Under this the field boxes fold into a menu, rather than running under the
+// buttons at the far end and off the pane. A width rather than a measurement of
+// the row: what a row measures once folded is the folded row, so measuring
+// would fold and unfold it forever at the width where it just fits.
+// Measured: the five boxes end 319px in, and the buttons at the far end begin
+// 60px from the right, so they meet at 379 and the row is cramped well before
+// that. Folding at 400 leaves the gap the rest of the row keeps.
+const LOG_HEADER_FOLD_WIDTH = 400;
 
 // How near the foot counts as being at it. A couple of rows, so a pin survives
 // a sub-pixel scroll position or a rounding difference between scrollHeight and
@@ -288,6 +296,7 @@ const LogHeader = ({
 	split,
 	onChangeSplit,
 	canSplit,
+	folded,
 	children,
 }: {
 	fields: LogFields;
@@ -297,6 +306,11 @@ const LogHeader = ({
 	onChangeSplit: (next: boolean) => void;
 	// False where the slice names nobody: there would be no lanes to draw.
 	canSplit: boolean;
+	// The pane is too narrow to stand the boxes in a row, so they go behind one
+	// control instead. Nothing shrinks or wraps on the way: this row is read
+	// against the rows beside it, and a header that reflowed to two lines would
+	// push the panel's first line down out of that reading.
+	folded: boolean;
 	// Whatever else the header carries, at its far end.
 	children?: React.ReactNode;
 }) => (
@@ -315,30 +329,26 @@ const LogHeader = ({
 			borderBottom: `1px solid ${GUI_THEME.line}`,
 		}}
 	>
-		{LOG_FIELD_ORDER.map(field => {
-			// The name column is folded away while the log is split — the lane it
-			// is in says who — so its box stands down rather than claiming to show
-			// a column that is not there.
-			const spoken = field === 'actor' && split && canSplit;
-
-			return (
-				<Checkbox
+		{/* The name column is folded away while the log is split — the lane it is
+		    in says who — so its box stands down rather than claiming to show a
+		    column that is not there. */}
+		{folded ? (
+			<LogFieldsMenu
+				fields={fields}
+				onChangeField={onChangeField}
+				spokenField={split && canSplit ? 'actor' : null}
+			/>
+		) : (
+			LOG_FIELD_ORDER.map(field => (
+				<LogFieldBox
 					key={field}
-					label={LOG_FIELD_NAMES[field]}
-					checked={fields[field] && !spoken}
-					disabled={spoken}
-					activeColor={GUI_THEME.dim}
-					title={
-						spoken
-							? 'The lane says who'
-							: `${fields[field] ? 'Hide' : 'Show'} the ${LOG_FIELD_NAMES[
-									field
-							  ].toLowerCase()} on each line`
-					}
-					onChange={on => onChangeField(field, on)}
+					field={field}
+					fields={fields}
+					spoken={field === 'actor' && split && canSplit}
+					onChangeField={onChangeField}
 				/>
-			);
-		})}
+			))
+		)}
 		{/* Not one of the fields, so it is not worn as a box and does not stand
 		    among them: those say what a line shows, this says where the line is
 		    put. It sits with the panel's own buttons at the far end. */}
@@ -699,187 +709,205 @@ const EventLogPanel = ({
 				/>
 			)}
 
-			<LogHeader
-				fields={fields}
-				onChangeField={setField}
-				split={splitWanted}
-				onChangeSplit={setSplitWanted}
-				canSplit={lanes.length > 0}
-			>
-				{onPopOut && (
-					<IconButton
-						testId="log-pop-out"
-						title="Open the log in its own window"
-						onClick={onPopOut}
-					>
-						<IconPopOut size={ICON_SIZE} />
-					</IconButton>
-				)}
-				{onDock && (
-					<IconButton
-						testId="log-dock"
-						title="Put the log back beside the board"
-						onClick={onDock}
-					>
-						<IconLog size={ICON_SIZE} />
-					</IconButton>
-				)}
-			</LogHeader>
-
+			{/* Holds the open width while the pane either side of it moves, so the
+			    lines and the header row are the same shape on the way out as they
+			    were on the way in, rather than being reflowed at every width
+			    between here and nothing. */}
 			<div
-				ref={scrollRef}
-				className={`epiq-log-pane ${logPaneClassName(fields)} ${
-					split ? LOG_SPLIT_CLASS : ''
-				}`
-					.replace(/\s+/g, ' ')
-					.trim()}
-				onScroll={onScroll}
-				onClick={event => {
-					const destination = readDestination(event.target);
-					if (destination) onOpen(destination);
-				}}
-				// One pair of handlers for the pane, like the click above: the rows
-				// say where they go, and hundreds of listeners would be the costly
-				// half of a panel whose lines are one node each.
-				onMouseOver={event => {
-					markRow(event.target);
-					onHoverEvent?.(
-						(event.target as Element)
-							.closest('[data-event-id]')
-							?.getAttribute('data-event-id') ?? null,
-					);
-				}}
-				onMouseLeave={() => {
-					markRow(null);
-					onHoverEvent?.(null);
-				}}
-				data-testid="event-log-scroll"
 				style={{
+					width: inWindow ? '100%' : resize.width,
 					flex: 1,
 					minHeight: 0,
-					overflowY: 'auto',
-					overflowX: 'hidden',
-					// The arrow is placed against this, in the column's own
-					// coordinates rather than the window's.
-					position: 'relative',
-					// A column, so the block below can push itself down with an auto
-					// margin. `justify-content: flex-end` would do the same until the
-					// content overflowed, at which point it puts the overflow above the
-					// scrollable area, where it cannot be reached.
 					display: 'flex',
 					flexDirection: 'column',
-					padding: `0 ${LOG_PANE_PADDING_X}px ${
-						bottomClearance + LOG_ROW_HEIGHT * 2
-					}px 30px`,
 				}}
 			>
-				{/* Hidden until a row that leads somewhere is under the pointer, and
+				<LogHeader
+					fields={fields}
+					onChangeField={setField}
+					split={splitWanted}
+					onChangeSplit={setSplitWanted}
+					canSplit={lanes.length > 0}
+					// Unmeasured until the observer first fires, and the wide row is the
+					// common case — so nothing folds on the first paint and unfolds a
+					// frame later.
+					folded={paneWidth > 0 && paneWidth < LOG_HEADER_FOLD_WIDTH}
+				>
+					{onPopOut && (
+						<IconButton
+							testId="log-pop-out"
+							title="Open the log in its own window"
+							onClick={onPopOut}
+						>
+							<IconPopOut size={ICON_SIZE} />
+						</IconButton>
+					)}
+					{onDock && (
+						<IconButton
+							testId="log-dock"
+							title="Put the log back beside the board"
+							onClick={onDock}
+						>
+							<IconLog size={ICON_SIZE} />
+						</IconButton>
+					)}
+				</LogHeader>
+
+				<div
+					ref={scrollRef}
+					className={`epiq-log-pane ${logPaneClassName(fields)} ${
+						split ? LOG_SPLIT_CLASS : ''
+					}`
+						.replace(/\s+/g, ' ')
+						.trim()}
+					onScroll={onScroll}
+					onClick={event => {
+						const destination = readDestination(event.target);
+						if (destination) onOpen(destination);
+					}}
+					// One pair of handlers for the pane, like the click above: the rows
+					// say where they go, and hundreds of listeners would be the costly
+					// half of a panel whose lines are one node each.
+					onMouseOver={event => {
+						markRow(event.target);
+						onHoverEvent?.(
+							(event.target as Element)
+								.closest('[data-event-id]')
+								?.getAttribute('data-event-id') ?? null,
+						);
+					}}
+					onMouseLeave={() => {
+						markRow(null);
+						onHoverEvent?.(null);
+					}}
+					data-testid="event-log-scroll"
+					style={{
+						flex: 1,
+						minHeight: 0,
+						overflowY: 'auto',
+						overflowX: 'hidden',
+						// The arrow is placed against this, in the column's own
+						// coordinates rather than the window's.
+						position: 'relative',
+						// A column, so the block below can push itself down with an auto
+						// margin. `justify-content: flex-end` would do the same until the
+						// content overflowed, at which point it puts the overflow above the
+						// scrollable area, where it cannot be reached.
+						display: 'flex',
+						flexDirection: 'column',
+						padding: `0 ${LOG_PANE_PADDING_X}px ${
+							bottomClearance + LOG_ROW_HEIGHT * 2
+						}px 30px`,
+					}}
+				>
+					{/* Hidden until a row that leads somewhere is under the pointer, and
 				    inert throughout — the row is what takes the click. Worded as well
 				    as drawn: an arrow alone says "somewhere", and which rows lead
 				    anywhere is not a thing a reader should have to learn by trying. */}
-				<span
-					ref={arrowRef}
-					className={LOG_ARROW_CLASS}
-					data-testid="log-row-arrow"
-					aria-hidden="true"
-				>
 					<span
-						style={{
-							fontSize: 9,
-							fontWeight: 600,
-							letterSpacing: 0.5,
-							textTransform: 'uppercase',
-						}}
+						ref={arrowRef}
+						className={LOG_ARROW_CLASS}
+						data-testid="log-row-arrow"
+						aria-hidden="true"
 					>
-						View
+						<span
+							style={{
+								fontSize: 9,
+								fontWeight: 600,
+								letterSpacing: 0.5,
+								textTransform: 'uppercase',
+							}}
+						>
+							View
+						</span>
+						<IconArrowUpRight size={11} />
 					</span>
-					<IconArrowUpRight size={11} />
-				</span>
 
-				{split && <LaneHeadings lanes={lanes} />}
+					{split && <LaneHeadings lanes={lanes} />}
 
-				{/* Holds a short log at the foot of the panel, so the newest line is
+					{/* Holds a short log at the foot of the panel, so the newest line is
 				    always in the same place however few of them there are. */}
-				<div ref={columnRef} style={{marginTop: 'auto'}}>
-					{/* Above the lines but inside the column they sit in, which hangs
+					<div ref={columnRef} style={{marginTop: 'auto'}}>
+						{/* Above the lines but inside the column they sit in, which hangs
 					    at the foot of the panel: it is a fact about the window rather
 					    than something that happened in it, and anywhere higher it would
 					    float alone in the empty stretch above a short log. */}
-					{eventsUnlisted && (
-						<div
-							data-testid="log-events-unlisted"
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								gap: 6,
-								margin: `4px ${LOG_PANE_PADDING_X}px 8px`,
-								padding: '5px 8px',
-								borderLeft: `2px solid ${GUI_THEME.dim2}`,
-								color: GUI_THEME.dim2,
-								fontSize: TEXT.meta,
-								lineHeight: 1.4,
-							}}
-						>
-							Too many events in this window to list one by one — narrow the
-							window to read them. The chart above still counts them all.
-						</div>
-					)}
-
-					{days.map((day, index) => {
-						const open = isDayOpen(days, index, foldOverrides, openCount);
-						const {shown, hidden} = dayRowsShown(
-							day,
-							expandedDays.has(day.key),
-						);
-
-						return (
-							<div key={day.key}>
-								<DayDivider
-									label={day.label}
-									count={day.entries.length}
-									open={open}
-									onToggle={() =>
-										setFoldOverrides(previous => {
-											const next = new Map(previous);
-											next.set(day.key, !open);
-											return next;
-										})
-									}
-								/>
-
-								{/* A folded day is its divider and nothing else: no rows are
-								    built for it, so what the panel costs is what is open. */}
-								{open && (
-									<div className={LOG_LANES_CLASS}>
-										{hidden > 0 && (
-											<EarlierRow
-												hidden={hidden}
-												label={day.label}
-												onExpand={() =>
-													setExpandedDays(previous =>
-														new Set(previous).add(day.key),
-													)
-												}
-											/>
-										)}
-										{shown.map(entry => (
-											<EventRow
-												key={entry.id}
-												entry={entry}
-												showLabel={fields.label}
-												followed={entry.id === followedLine}
-												lane={
-													split
-														? laneIndexOf(entry, lanes, laneIndexes)
-														: undefined
-												}
-											/>
-										))}
-									</div>
-								)}
+						{eventsUnlisted && (
+							<div
+								data-testid="log-events-unlisted"
+								style={{
+									display: 'flex',
+									alignItems: 'center',
+									gap: 6,
+									margin: `4px ${LOG_PANE_PADDING_X}px 8px`,
+									padding: '5px 8px',
+									borderLeft: `2px solid ${GUI_THEME.dim2}`,
+									color: GUI_THEME.dim2,
+									fontSize: TEXT.meta,
+									lineHeight: 1.4,
+								}}
+							>
+								Too many events in this window to list one by one — narrow the
+								window to read them. The chart above still counts them all.
 							</div>
-						);
-					})}
+						)}
+
+						{days.map((day, index) => {
+							const open = isDayOpen(days, index, foldOverrides, openCount);
+							const {shown, hidden} = dayRowsShown(
+								day,
+								expandedDays.has(day.key),
+							);
+
+							return (
+								<div key={day.key}>
+									<DayDivider
+										label={day.label}
+										count={day.entries.length}
+										open={open}
+										onToggle={() =>
+											setFoldOverrides(previous => {
+												const next = new Map(previous);
+												next.set(day.key, !open);
+												return next;
+											})
+										}
+									/>
+
+									{/* A folded day is its divider and nothing else: no rows are
+								    built for it, so what the panel costs is what is open. */}
+									{open && (
+										<div className={LOG_LANES_CLASS}>
+											{hidden > 0 && (
+												<EarlierRow
+													hidden={hidden}
+													label={day.label}
+													onExpand={() =>
+														setExpandedDays(previous =>
+															new Set(previous).add(day.key),
+														)
+													}
+												/>
+											)}
+											{shown.map(entry => (
+												<EventRow
+													key={entry.id}
+													entry={entry}
+													showLabel={fields.label}
+													followed={entry.id === followedLine}
+													lane={
+														split
+															? laneIndexOf(entry, lanes, laneIndexes)
+															: undefined
+													}
+												/>
+											))}
+										</div>
+									)}
+								</div>
+							);
+						})}
+					</div>
 				</div>
 			</div>
 		</aside>

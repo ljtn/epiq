@@ -517,6 +517,56 @@ test('the log is dragged to size, and keeps its width', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+// Dragged narrow, the five boxes used to run under the buttons at the far end
+// and off the pane with them. They fold into one control instead — the same
+// boxes, still reaching the rows.
+test('the field boxes fold into a menu when the pane is too narrow', async ({
+	page,
+	appUrl,
+	pageErrors,
+}) => {
+	await openBoard(page, appUrl);
+	await page.getByTestId('log-toggle').click();
+
+	const log = page.getByTestId('event-log');
+	await expect(log).toBeVisible();
+	await expect(log).toHaveAttribute('data-settled', 'true');
+	const header = page.getByTestId('event-log-header');
+	await expect(header.getByLabel('Label', {exact: true})).toBeVisible();
+	await expect(page.getByTestId('log-fields-menu')).toHaveCount(0);
+
+	const handle = (await page.getByTestId('event-log-resize').boundingBox())!;
+	const x = handle.x + handle.width / 2;
+	const y = handle.y + handle.height / 2;
+	await page.mouse.move(x, y);
+	await page.mouse.down();
+	await page.mouse.move(x - 120, y, {steps: 8});
+	await page.mouse.up();
+
+	const menu = page.getByTestId('log-fields-menu');
+	await expect(menu).toBeVisible();
+	await expect(header.getByLabel('Label', {exact: true})).toHaveCount(0);
+
+	// The symptom itself: every control the header carries is inside the pane.
+	const pane = (await log.boundingBox())!;
+	for (const id of ['log-fields-menu', 'log-split', 'log-pop-out']) {
+		const box = (await page.getByTestId(id).boundingBox())!;
+		expect(box.x).toBeGreaterThanOrEqual(pane.x);
+		expect(box.x + box.width).toBeLessThanOrEqual(pane.x + pane.width);
+	}
+
+	// Folded, a box still takes its column away.
+	const lines = page.getByTestId('log-line');
+	await expect.poll(async () => await lines.count()).toBeGreaterThan(0);
+	await menu.click();
+	await header.getByLabel('Time', {exact: true}).click();
+	await expect(page.locator('.epiq-log-pane').first()).toHaveClass(
+		/epiq-log--no-time/,
+	);
+
+	expect(pageErrors).toEqual([]);
+});
+
 // Each line is its clock, who did it, the dot for its kind, and the line
 // itself. The header at the top of the panel takes any of them away, all four
 // are on until then, and the choice outlives the page.
