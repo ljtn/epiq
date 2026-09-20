@@ -193,6 +193,44 @@ export const FileDiffView = memo(FileDiffViewInner, (previous, next) => {
 //
 // `open` is the whole commit's answer, not this file's: a hundred ordinary
 // files are as much work as one enormous one, and only the caller can see them
+/**
+ * What stands in for a file there is no diff to draw.
+ *
+ * Shaped like the notice a large file gets, minus the way out of it: a large
+ * file is one the reader may still ask for, and a binary one is not — both
+ * sides arrive empty, because git will not diff it and the server does not
+ * read it. Saying so is the whole of what a view can do.
+ */
+export const BinaryFileNotice = ({path}: {path: string}) => (
+	<div
+		data-testid="binary-file-notice"
+		style={{
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'space-between',
+			gap: 12,
+			marginBottom: 16,
+			padding: '10px 12px',
+			border: `1px solid ${GUI_THEME.line}`,
+			borderRadius: 8,
+			color: GUI_THEME.dim,
+			fontSize: 12,
+		}}
+	>
+		<span
+			style={{
+				fontFamily: CODE_FONT,
+				overflow: 'hidden',
+				textOverflow: 'ellipsis',
+				whiteSpace: 'nowrap',
+			}}
+		>
+			{path}
+		</span>
+		<span style={{flexShrink: 0}}>binary file</span>
+	</div>
+);
+
 // all. See `openableByDefault`.
 const PanelFile = ({
 	file,
@@ -204,6 +242,10 @@ const PanelFile = ({
 	open: boolean;
 }) => {
 	const [shown, setShown] = useState(false);
+
+	// Before the open/shut question, which does not apply: there is no diff
+	// behind this one to reveal.
+	if (file.isBinary) return <BinaryFileNotice path={file.path} />;
 
 	if (shown || open) {
 		return <FileDiffView file={file} diffStyle={diffStyle} />;

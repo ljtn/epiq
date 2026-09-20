@@ -8,7 +8,7 @@ import {dedent, formatSelectionLabel} from '../../../lib/utils/diff-comment.js';
 import {timeAgo} from '../lib/gui-format.helper';
 import {Checkbox} from './Checkbox';
 import {CreateNodeModal} from './CreateNodeModal';
-import {DIFF_BOX_STYLE, FileDiffView} from './DiffPanel';
+import {BinaryFileNotice, DIFF_BOX_STYLE, FileDiffView} from './DiffPanel';
 import {IconChevronDown} from './IconChevronDown';
 import {IconChevronRight} from './IconChevronRight';
 import {IconComment} from './IconComment';
@@ -347,6 +347,19 @@ export const FileRow = ({
 			onReviewed={onReviewed}
 		/>
 	);
+
+	// A file git will not diff keeps its header — the name, the count, the tick
+	// that says it has been looked at — and says what it is where the diff
+	// would be. Expanding it is still allowed, because the row reads the same
+	// as every other one; there is simply nothing underneath.
+	if (file.isBinary) {
+		return (
+			<div ref={rowRef} data-testid="file-row">
+				<div style={DIFF_BOX_STYLE}>{header()}</div>
+				{expanded ? <BinaryFileNotice path={file.path} /> : null}
+			</div>
+		);
+	}
 
 	return (
 		<div ref={rowRef} data-testid="file-row">

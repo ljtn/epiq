@@ -9,6 +9,11 @@ export type CommitDiffFile = {
 	after: string;
 	insertions: number;
 	deletions: number;
+	// Git's own answer, not a guess from the bytes: a file it will not diff,
+	// because it holds a NUL early on or `.gitattributes` says `-diff`. Both
+	// sides are empty for one of these — the content is never read, since the
+	// only thing anything could do with it is decline to draw it.
+	isBinary: boolean;
 };
 
 export type CommitDiff = {
@@ -82,6 +87,7 @@ type ChangedFileBlobs = {
 	afterBlob: string | null;
 	insertions: number;
 	deletions: number;
+	isBinary: boolean;
 };
 
 // Blob hashes straight from git's own diff, rather than getChangedFilePaths'
@@ -136,10 +142,17 @@ const getChangedFileBlobs = async (
 		);
 	}
 
-	// A binary file's `-` counts as nothing changed line-wise, which is true.
+	// A binary file's `-` counts as nothing changed line-wise, which is true —
+	// and the dash itself is the answer to a second question, which is whether
+	// git will diff this file at all. Both dashes together is how it says no,
+	// so that is read here rather than flattened to a pair of zeroes and lost.
+	//
+	// Only where the line was there to say it: a path with no numstat line at
+	// all falls through to the defaults below, and "git said nothing" is not
+	// "git said binary".
 	const countsByPath = new Map<
 		string,
-		{insertions: number; deletions: number}
+		{insertions: number; deletions: number; isBinary: boolean}
 	>();
 	for (const line of lines) {
 		const match = NUMSTAT_LINE.exec(line);
@@ -148,6 +161,7 @@ const getChangedFileBlobs = async (
 		countsByPath.set(match[3] ?? '', {
 			insertions: match[1] === '-' ? 0 : Number(match[1]),
 			deletions: match[2] === '-' ? 0 : Number(match[2]),
+			isBinary: match[1] === '-' && match[2] === '-',
 		});
 	}
 
@@ -163,7 +177,11 @@ const getChangedFileBlobs = async (
 				path,
 				beforeBlob: isZeroBlob(beforeBlob) ? null : beforeBlob,
 				afterBlob: isZeroBlob(afterBlob) ? null : afterBlob,
-				...(countsByPath.get(path) ?? {insertions: 0, deletions: 0}),
+				...(countsByPath.get(path) ?? {
+					insertions: 0,
+					deletions: 0,
+					isBinary: false,
+				}),
 			};
 		});
 
@@ -184,10 +202,16 @@ const readDiffFiles = async (
 		);
 	}
 
+	// A binary file's blobs are not read at all. Nothing downstream can do
+	// anything with the bytes but decline to draw them, and reading them means
+	// an image or a video crossing the websocket in full, per file, per commit,
+	// to be decoded as UTF-8 at the other end.
 	const blobHashes = entries.flatMap(entry =>
-		[entry.beforeBlob, entry.afterBlob].filter(
-			(hash): hash is string => hash !== null,
-		),
+		entry.isBinary
+			? []
+			: [entry.beforeBlob, entry.afterBlob].filter(
+					(hash): hash is string => hash !== null,
+			  ),
 	);
 
 	const blobsResult = await readGitBlobsBatch(blobHashes, repoRoot);
@@ -199,10 +223,17 @@ const readDiffFiles = async (
 		'Read changed file contents',
 		entries.map(entry => ({
 			path: entry.path,
-			before: entry.beforeBlob ? blobs.get(entry.beforeBlob) ?? '' : '',
-			after: entry.afterBlob ? blobs.get(entry.afterBlob) ?? '' : '',
+			before:
+				entry.isBinary || !entry.beforeBlob
+					? ''
+					: blobs.get(entry.beforeBlob) ?? '',
+			after:
+				entry.isBinary || !entry.afterBlob
+					? ''
+					: blobs.get(entry.afterBlob) ?? '',
 			insertions: entry.insertions,
 			deletions: entry.deletions,
+			isBinary: entry.isBinary,
 		})),
 	);
 };
