@@ -32,7 +32,11 @@ import {
 	resolveRepoRoot,
 	getActor,
 } from './boot.js';
-import {getIssueTags, getIssueAssignees} from './issue-projection.js';
+import {
+	closedFromBoardIdOf,
+	getIssueTags,
+	getIssueAssignees,
+} from './issue-projection.js';
 import {getAttachmentMaxKb} from './attachments.js';
 import {syncEpiqWithRemote} from '../../git/sync.js';
 import {getPersistFileName} from '../../lib/board/board-log.js';
@@ -240,6 +244,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										assignees: getIssueAssignees(issue),
 										parentNodeId: issue.parentNodeId!,
 										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
+										closedFromBoardId: closedFromBoardIdOf(issue),
 									})),
 								parentNodeId: swimlane.parentNodeId!,
 							} satisfies ApiSwimlane),

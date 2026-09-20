@@ -54,6 +54,7 @@ import {
 	getStateResult,
 } from './boot.js';
 import {
+	closedFromBoardIdOf,
 	getIssueTags,
 	getIssueComments,
 	getIssueAssignees,
@@ -159,6 +160,7 @@ export const getIssue = async (input: GetIssueInput) => {
 		enteredLaneAt: laneEntryTime(issue.log ?? [], ulidTimeMs(issue.id)),
 		parentNodeId: issue.parentNodeId!,
 		isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
+		closedFromBoardId: closedFromBoardIdOf(issue),
 		readonly: Boolean(issue.readonly),
 		tags: getIssueTags(issue),
 		assignees: getIssueAssignees(issue),
@@ -247,6 +249,7 @@ export async function listIssues(
 					enteredLaneAt: laneEntryTime(n.log ?? [], ulidTimeMs(n.id)),
 					parentNodeId: n.parentNodeId!,
 					isClosed: n.parentNodeId === CLOSED_SWIMLANE_ID,
+					closedFromBoardId: closedFromBoardIdOf(n),
 					readonly: Boolean(n.readonly),
 					tags: getIssueTags(n),
 					assignees: getIssueAssignees(n),

@@ -94,6 +94,7 @@ import {
 	TheatrePlan,
 	useTheatrePlayback,
 } from './lib/theatre';
+import {issueIdByRefFor} from './lib/commit-link';
 import {useEventLog} from './lib/use-event-log';
 import {useFollowedLine} from './lib/use-followed-line';
 import {useFollowLog} from './lib/use-follow-log';
@@ -657,18 +658,18 @@ export const App = () => {
 		} satisfies Record<FilterAxis, GuiEventIdentity[]>;
 	}, [state?.tags, state?.contributors, contributors]);
 
-	// Every ticket on every board by its ref, for the commits linked to one:
-	// commits are repository-wide, so a link can name a ticket on any board.
+	// Every ticket on every board by its ref, for the chart: it plots the
+	// repository, so a link there can name a ticket on any board.
 	const issueIdByRef = useMemo(
-		() =>
-			new Map(
-				(state?.boards ?? []).flatMap(board =>
-					board.swimlanes.flatMap(swimlane =>
-						swimlane.issues.map(issue => [issue.ref, issue.id] as const),
-					),
-				),
-			),
+		() => issueIdByRefFor(state?.boards ?? [], null),
 		[state?.boards],
+	);
+
+	// The log's own, down to the board on screen — the rule `onThisBoard`
+	// already applies to its events.
+	const boardIssueIdByRef = useMemo(
+		() => issueIdByRefFor(state?.boards ?? [], selectedBoardId),
+		[state?.boards, selectedBoardId],
 	);
 
 	// What the flow layout draws from: this board's lanes as the columns stand,
@@ -1061,15 +1062,8 @@ export const App = () => {
 	// these are linkified: a ref's 7-character shape is indistinguishable from
 	// an ordinary uppercase word, so resolving is what makes it safe.
 	const knownTicketRefs = useMemo(
-		() =>
-			new Set(
-				(state?.boards ?? []).flatMap(board =>
-					board.swimlanes.flatMap(swimlane =>
-						swimlane.issues.map(issue => issue.ref),
-					),
-				),
-			),
-		[state],
+		() => new Set(issueIdByRef.keys()),
+		[issueIdByRef],
 	);
 
 	const ticketRefLinks = useMemo(
@@ -1331,7 +1325,7 @@ export const App = () => {
 		selectedIssueId: selectedIssue?.id ?? null,
 		queryIssueIds,
 		linkedCommitsOnly,
-		issueIdByRef,
+		boardIssueIdByRef,
 		showIssues,
 		showCommits,
 		playing: theatre !== null,

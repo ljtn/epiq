@@ -6,6 +6,7 @@
 
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {commitLinkedFile} from './linked-commit.js';
 
 const QA_TICKET = 'A ticket that lives on QA';
 
@@ -70,6 +71,100 @@ test('a ticket filed on another board is left out of this board’s log', async 
 	// The panel is listing this board's own lines, so the absence above is a
 	// filter doing its job rather than an empty log.
 	await expect(log.getByText(/filed|added|created/i).first()).toBeVisible();
+
+	expect(pageErrors).toEqual([]);
+});
+
+// 89HF7NW: the Code series' lines answer to the same rule. A commit's line is
+// linked to a ticket, and a ticket on another board leads the same way nowhere
+// — so under `Linked` a board lists the commits naming its own tickets, not the
+// repository's.
+test('a commit linked to another board’s ticket is left out of this board’s log', async ({
+	page,
+	appUrl,
+	pageErrors,
+	repoRoot,
+}) => {
+	await page.goto(appUrl);
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+
+	const stamp = Date.now();
+	await addTicket(page, `Default ticket ${stamp}`);
+
+	const ref = (
+		await page.locator('aside').getByTestId('copy-ref').first().textContent()
+	)?.trim();
+	expect(ref).toBeTruthy();
+
+	const subject = `default work ${stamp}`;
+	commitLinkedFile(repoRoot, ref!, subject);
+
+	await page.reload();
+	await page.getByTestId('log-toggle').click();
+	const log = page.getByTestId('event-log');
+	await expect(log).toBeVisible();
+
+	const select = page.getByTestId('commit-select');
+	await select.click();
+	await page.getByRole('radio', {name: 'Linked to a ticket'}).click();
+	await expect(select).toHaveText('Linked');
+
+	const line = log.getByTestId('log-line').filter({hasText: subject});
+	await expect(line).toHaveCount(1);
+
+	await switchToBoard(page, 'QA');
+	await expect(line).toHaveCount(0);
+
+	// Back where the ticket lives it returns, so the absence above is this
+	// board's narrowing and not a commit the log had lost.
+	await switchToBoard(page, 'Default');
+	await expect(line).toHaveCount(1);
+
+	// Closing takes the ticket to the global Closed board, which is every
+	// board's. The work was still this board's, and a board whose finished
+	// tickets took their commits with them would list almost none.
+	//
+	// The card rather than the log line below it, which carries the same title.
+	await page
+		.locator('div[draggable="true"]')
+		.filter({hasText: `Default ticket ${stamp}`})
+		.first()
+		.click();
+	// This ticket and no other: the palette closes whichever one is open, and
+	// every card on the board carries a `copy-ref` of its own.
+	await expect(page).toHaveURL(new RegExp(`/issue/${ref}`));
+	await page.keyboard.press('Control+k');
+	await expect(page.getByTestId('command-palette')).toBeVisible();
+	await page.keyboard.type('close ticket');
+
+	const closeRow = page
+		.getByTestId('command-palette')
+		.getByRole('option')
+		.first();
+	await expect(closeRow).toContainText('Close ticket');
+	// A command it cannot run yet is listed with its reason rather than hidden,
+	// and Enter on one does nothing at all — so wait for the ticket just opened
+	// to reach the palette's context rather than typing into the gap.
+	await expect(closeRow).not.toHaveAttribute('aria-disabled', 'true');
+	await page.keyboard.press('Enter');
+	await expect(page.getByTestId('command-palette')).toBeHidden();
+
+	// The card has left this board's columns, so the close really landed — the
+	// assertion below would pass on an unclosed ticket otherwise.
+	await expect(
+		page
+			.locator('div[draggable="true"]')
+			.filter({hasText: `Default ticket ${stamp}`}),
+	).toHaveCount(0, {timeout: 30_000});
+
+	await expect(page.getByTestId('board-switcher')).toContainText('Default');
+	await expect(line).toHaveCount(1);
+
+	// The select is remembered per origin, and the worker's next test starts on
+	// this one's leavings.
+	await select.click();
+	await page.getByRole('radio', {name: 'All commits'}).click();
+	await expect(select).toHaveText('Code');
 
 	expect(pageErrors).toEqual([]);
 });

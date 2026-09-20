@@ -7,6 +7,21 @@ import {
 	getTicketTags,
 } from '../../lib/utils/ticket.utils.js';
 import {ApiIssue, ApiIssueComment} from '../api-state.model.js';
+import {CLOSED_SWIMLANE_ID} from '../../lib/board/static-ids.js';
+import {resolveReopenParentFromLog} from '../../lib/board/log-utils.js';
+
+// The board a closed ticket left. Closing hangs it off the global Closed lane,
+// so its own board is no longer readable from where it sits — but the lane it
+// came from is still in its log, the same one a reopen would put it back in.
+// Null for an open ticket, and once that lane has been deleted.
+export const closedFromBoardIdOf = (ticket: Ticket): string | null => {
+	if (ticket.parentNodeId !== CLOSED_SWIMLANE_ID) return null;
+
+	const laneId = resolveReopenParentFromLog(ticket);
+	const lane = laneId ? nodeRepo.getNode(laneId) : null;
+
+	return lane && !lane.isDeleted ? lane.parentNodeId ?? null : null;
+};
 
 // The lib helpers answer which tags and assignees a ticket has; these add the
 // colour the API surface carries and nothing else.

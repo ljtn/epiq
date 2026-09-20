@@ -38,6 +38,12 @@ export type ApiIssue = {
 	assignees: ApiAssignee[];
 	parentNodeId: string;
 	isClosed: boolean;
+	/**
+	 * The board a closed ticket left, from its own log — it hangs off the global
+	 * Closed lane now, so its own board is otherwise gone from the payload. Null
+	 * for an open ticket, and for a closed one whose lane no longer exists.
+	 */
+	closedFromBoardId: string | null;
 };
 
 export type ApiIssueDetail = ApiIssue & {comments: ApiIssueComment[]};

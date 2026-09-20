@@ -512,9 +512,10 @@ export const CommitSeriesGroup = ({
 						square
 						onSelect={() => choose(false)}
 					/>
-					{/* Linked to a ticket the client knows, on any board — and, while the board is
-					    narrowed to some tickets, only to those, the same way the
-					    board events above the columns follow that narrowing. */}
+					{/* Linked to a ticket the client knows — on any board for the chart,
+					    on this one for the log — and, while the board is narrowed to
+					    some tickets, only to those, the same way the board events above
+					    the columns follow that narrowing. */}
 					<Radio
 						label="Linked to a ticket"
 						selected={linkedOnly}
