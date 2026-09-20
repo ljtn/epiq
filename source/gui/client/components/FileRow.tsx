@@ -352,11 +352,28 @@ export const FileRow = ({
 	// that says it has been looked at — and says what it is where the diff
 	// would be. Expanding it is still allowed, because the row reads the same
 	// as every other one; there is simply nothing underneath.
+	//
+	// Its comments come with it. They are anchored to lines this view no longer
+	// draws, so they cannot sit beside one — but the header counts them, and a
+	// count that leads nowhere is worse than a list. This is reachable for a
+	// text file too: `-diff` in .gitattributes is how a minified bundle or a
+	// generated file is marked, and git reports one exactly as it reports a
+	// jpeg.
 	if (file.isBinary) {
 		return (
 			<div ref={rowRef} data-testid="file-row">
-				<div style={DIFF_BOX_STYLE}>{header()}</div>
-				{expanded ? <BinaryFileNotice path={file.path} /> : null}
+				<div style={DIFF_BOX_STYLE}>
+					{header()}
+					{expanded ? <BinaryFileNotice framed={false} /> : null}
+				</div>
+				{expanded &&
+					fileComments.map(entry => (
+						<DiffCommentAnnotation
+							key={entry.comment.id}
+							entry={entry}
+							onHover={() => {}}
+						/>
+					))}
 			</div>
 		);
 	}

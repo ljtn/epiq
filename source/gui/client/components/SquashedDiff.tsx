@@ -2,7 +2,11 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import {GuiSquashedDiff} from '../lib/gui-state.model';
 import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {CODE_FONT} from '../lib/code-text.style';
-import {isLargeDiff, pathsOpenByDefault} from '../../../lib/utils/diff-size.js';
+import {
+	hasDiffToShow,
+	isLargeDiff,
+	pathsOpenByDefault,
+} from '../../../lib/utils/diff-size.js';
 import {GuiComment} from '../lib/gui-state.model';
 import {
 	commentsByAnchor,
@@ -115,7 +119,7 @@ export const SquashedDiff = ({
 	}
 
 	const expandablePaths = diff.files
-		.filter(file => !isLargeDiff(file))
+		.filter(file => hasDiffToShow(file) && !isLargeDiff(file))
 		.map(file => file.path);
 	const allExpanded =
 		expandablePaths.length > 0

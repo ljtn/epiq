@@ -186,13 +186,6 @@ export const FileDiffView = memo(FileDiffViewInner, (previous, next) => {
 	// hands it back, so callers still infer their own annotation metadata.
 }) as typeof FileDiffViewInner;
 
-// This panel has no per-file disclosure to hide behind — it opens every file
-// of a commit at once — so a lockfile here stalls the view with no action from
-// the reader at all. Collapsed until asked for, the way the commit list leaves
-// its own large files shut.
-//
-// `open` is the whole commit's answer, not this file's: a hundred ordinary
-// files are as much work as one enormous one, and only the caller can see them
 /**
  * What stands in for a file there is no diff to draw.
  *
@@ -200,37 +193,60 @@ export const FileDiffView = memo(FileDiffViewInner, (previous, next) => {
  * file is one the reader may still ask for, and a binary one is not — both
  * sides arrive empty, because git will not diff it and the server does not
  * read it. Saying so is the whole of what a view can do.
+ *
+ * `framed` off where the caller has already drawn the box and the file's name,
+ * as the ticket's Code tab has: the label alone then sits under the header
+ * rather than in a second bordered panel below it.
  */
-export const BinaryFileNotice = ({path}: {path: string}) => (
+export const BinaryFileNotice = ({
+	path,
+	framed = true,
+}: {
+	path?: string;
+	framed?: boolean;
+}) => (
 	<div
 		data-testid="binary-file-notice"
 		style={{
 			display: 'flex',
 			alignItems: 'center',
-			justifyContent: 'space-between',
+			justifyContent: framed ? 'space-between' : 'flex-start',
 			gap: 12,
-			marginBottom: 16,
 			padding: '10px 12px',
-			border: `1px solid ${GUI_THEME.line}`,
-			borderRadius: 8,
 			color: GUI_THEME.dim,
 			fontSize: 12,
+			...(framed
+				? {
+						marginBottom: 16,
+						border: `1px solid ${GUI_THEME.line}`,
+						borderRadius: 8,
+				  }
+				: {borderTop: `1px solid ${GUI_THEME.line}`}),
 		}}
 	>
-		<span
-			style={{
-				fontFamily: CODE_FONT,
-				overflow: 'hidden',
-				textOverflow: 'ellipsis',
-				whiteSpace: 'nowrap',
-			}}
-		>
-			{path}
-		</span>
+		{framed && path !== undefined && (
+			<span
+				style={{
+					fontFamily: CODE_FONT,
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
+				}}
+			>
+				{path}
+			</span>
+		)}
 		<span style={{flexShrink: 0}}>binary file</span>
 	</div>
 );
 
+// This panel has no per-file disclosure to hide behind — it opens every file
+// of a commit at once — so a lockfile here stalls the view with no action from
+// the reader at all. Collapsed until asked for, the way the commit list leaves
+// its own large files shut.
+//
+// `open` is the whole commit's answer, not this file's: a hundred ordinary
+// files are as much work as one enormous one, and only the caller can see them
 // all. See `openableByDefault`.
 const PanelFile = ({
 	file,

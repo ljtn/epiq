@@ -6,7 +6,11 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 
 import {getCommitDiff} from '../lib/commits/commit-diff.js';
 import {isFail} from '../lib/model/result-types.js';
-import {openableByDefault} from '../lib/utils/diff-size.js';
+import {
+	hasDiffToShow,
+	isLargeDiff,
+	openableByDefault,
+} from '../lib/utils/diff-size.js';
 
 // A commit that added a jpeg drew the jpeg: 156 rows of decoded bytes, syntax
 // highlighted, down the diff panel. Git had already said the file was binary —
@@ -140,5 +144,33 @@ describe('a binary file in a commit diff', () => {
 		];
 
 		expect(openableByDefault(files)).toEqual([false, true]);
+	});
+
+	// "Expand all" counts what it could open; the auto-open counts what it did.
+	// While the only reason to refuse a file was its size the two agreed by
+	// accident, and a binary file has no size — so on a commit holding one the
+	// button read "Expand all" with everything already open, and clicking it
+	// expanded the jpeg to reveal the notice.
+	it('is not something "expand all" offers to expand', () => {
+		const picture = {
+			path: 'picture.jpeg',
+			before: '',
+			after: '',
+			isBinary: true,
+		};
+		const readme = {path: 'readme.md', before: '', after: '# a\n'};
+
+		expect(hasDiffToShow(picture)).toBe(false);
+		expect(hasDiffToShow(readme)).toBe(true);
+
+		// What the two views build their expandable list from, now said once.
+		const expandable = [picture, readme].filter(
+			file => hasDiffToShow(file) && !isLargeDiff(file),
+		);
+		const opened = [picture, readme].filter(
+			(_, index) => openableByDefault([picture, readme])[index],
+		);
+
+		expect(expandable).toEqual(opened);
 	});
 });
