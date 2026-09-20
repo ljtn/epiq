@@ -33,7 +33,7 @@ import {
 	resolveRepoRoot,
 } from './boot.js';
 import {
-	closedFromBoardIdOf,
+	boardsEverOnOf,
 	getIssueTags,
 	getIssueAssignees,
 } from './issue-projection.js';
@@ -244,7 +244,7 @@ export const deriveGuiState = (): Result<ApiState> => {
 										assignees: getIssueAssignees(issue),
 										parentNodeId: issue.parentNodeId!,
 										isClosed: issue.parentNodeId === CLOSED_SWIMLANE_ID,
-										closedFromBoardId: closedFromBoardIdOf(issue),
+										boardIds: boardsEverOnOf(issue),
 									})),
 								parentNodeId: swimlane.parentNodeId!,
 							} satisfies ApiSwimlane),

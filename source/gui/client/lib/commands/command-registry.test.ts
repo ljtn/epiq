@@ -35,7 +35,7 @@ const issue = (overrides: Partial<GuiIssue> = {}): GuiIssue => ({
 	readonly: false,
 	tags: [],
 	assignees: [],
-	closedFromBoardId: null,
+	boardIds: [],
 	...overrides,
 });
 

@@ -14,7 +14,7 @@ const issue = (id: string, ref: string, title: string): GuiIssue => ({
 	isClosed: false,
 	tags: [],
 	assignees: [],
-	closedFromBoardId: null,
+	boardIds: [],
 });
 
 // Two issues deliberately share the ref AAAAAAA to simulate a collision.

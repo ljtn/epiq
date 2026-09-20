@@ -19,7 +19,7 @@ const ticket = (hoursInLane: number, overrides: Partial<GuiIssue> = {}) =>
 		isClosed: false,
 		tags: [],
 		assignees: [],
-		closedFromBoardId: null,
+		boardIds: [],
 		...overrides,
 	} satisfies GuiIssue);
 
