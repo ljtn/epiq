@@ -8,7 +8,11 @@
 
 // Structural rather than the GUI's own GuiCommitDiffFile: this lives outside
 // source/gui so the Node-side build and its tests can reach it too.
-export type DiffSides = {before: string; after: string};
+//
+// `isBinary` is git's own answer, and both sides of such a file arrive empty —
+// so without it the limits below would call an image the smallest file in the
+// commit and open it first.
+export type DiffSides = {before: string; after: string; isBinary?: boolean};
 
 // Two limits because either alone has a blind spot: a minified bundle is one
 // 2MB line, and a long file of short lines stays under any byte cap worth
@@ -87,6 +91,11 @@ export const openableByDefault = (
 	let spent = 0;
 
 	return files.map(file => {
+		// Nothing to open: a binary file has no diff to draw, and it has no size
+		// either, so left to the limits below it would be the cheapest file in
+		// the commit and go first.
+		if (file.isBinary) return false;
+
 		if (isLargeDiff(file)) return false;
 
 		// Charged only for what is opened, so a file the budget refuses does not

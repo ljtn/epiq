@@ -1865,6 +1865,7 @@ describe('epiq-time-travel', () => {
 							after: 'a after',
 							insertions: 0,
 							deletions: 0,
+							isBinary: false,
 						},
 						{
 							path: 'source/b.ts',
@@ -1872,6 +1873,7 @@ describe('epiq-time-travel', () => {
 							after: 'b after',
 							insertions: 0,
 							deletions: 0,
+							isBinary: false,
 						},
 					],
 				});
@@ -1904,6 +1906,15 @@ describe('epiq-time-travel', () => {
 					{path: 'source/a.ts', insertions: 7, deletions: 2},
 					{path: 'logo.png', insertions: 0, deletions: 0},
 				]);
+
+				// The dash says two things, and the second is that git will not diff
+				// this file at all — which is what keeps the panel from drawing its
+				// bytes, and the bytes off the wire.
+				const [text, binary] = result.value.files;
+				expect(text?.isBinary).toBe(false);
+				expect(binary?.isBinary).toBe(true);
+				expect(binary?.before).toBe('');
+				expect(binary?.after).toBe('');
 			}
 		});
 
@@ -1923,6 +1934,7 @@ describe('epiq-time-travel', () => {
 						after: 'brand new content',
 						insertions: 0,
 						deletions: 0,
+						isBinary: false,
 					},
 				]);
 			}
@@ -2039,6 +2051,7 @@ describe('epiq-time-travel', () => {
 						after: 'after',
 						insertions: 0,
 						deletions: 0,
+						isBinary: false,
 					},
 				]);
 			}

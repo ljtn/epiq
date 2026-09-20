@@ -182,6 +182,13 @@ export type GuiCommitDiffFile = {
 	after: string;
 	insertions: number;
 	deletions: number;
+	// A file git will not diff. Both sides arrive empty — see CommitDiffFile —
+	// so a view that draws this one anyway draws nothing, and a view that drew
+	// it before this field existed drew the bytes.
+	//
+	// Optional because a reply is not always this build's: the log window and a
+	// tab left open across an upgrade both read state a older server sent.
+	isBinary?: boolean;
 };
 
 export type GuiCommitDiff = {
