@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import esbuild from 'esbuild';
 import {ulid} from 'ulid';
 import {execGit} from '../../git/git-utils.js';
 import {deriveActorId} from '../../lib/config/actor-env.js';
@@ -14,11 +15,82 @@ import type {ActorAction, ActorJob, ActorReport} from './protocol.js';
 
 const STATE_BRANCH = 'epiq/state';
 const ACTOR_ENTRY = fileURLToPath(new URL('./actor.ts', import.meta.url));
-// The checkout's own tsx: actors run from a temp cwd, where `npx` would not
-// find it and would install one into the npm cache instead, racing itself.
-const TSX = fileURLToPath(
-	new URL('../../../node_modules/.bin/tsx', import.meta.url),
-);
+
+/**
+ * The actor, bundled, and plain `node` to run it.
+ *
+ * An actor is a process per action — the app's state is a module singleton, so
+ * it has to be — and under `tsx` each of those re-transpiled the 211 modules
+ * behind `actor.ts` before doing anything: 0.5s of boot against 0.03s for a
+ * bundle, and this suite spawns them in the hundreds.
+ *
+ * Built here rather than committed or cached, once per worker process and from
+ * whatever the sources say right now, so there is no stale artifact to run by
+ * mistake. It lands under `node_modules` because that is what resolves the
+ * externals (`--packages=external` leaves them as imports) and because it is
+ * the one writable place in the collab container, which mounts the checkout
+ * read-only.
+ */
+/**
+ * Clears out bundles left by processes that are gone.
+ *
+ * A worker is not always shut down politely enough to run an exit hook, so
+ * the tidying is done on the way in instead: anything named for a pid that no
+ * longer answers is nobody's. `kill(pid, 0)` sends no signal — it asks whether
+ * the process is there, and a permissions error is still a yes.
+ */
+const sweepDeadBundles = (dir: string): void => {
+	for (const name of fs.readdirSync(dir)) {
+		const pid = /^epiq-collab-actor\.(\d+)\./.exec(name)?.[1];
+		if (pid === undefined || Number(pid) === process.pid) continue;
+
+		try {
+			process.kill(Number(pid), 0);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === 'ESRCH') {
+				fs.rmSync(path.join(dir, name), {force: true});
+			}
+		}
+	}
+};
+
+const buildActor = (): string => {
+	// One per evaluation of this module, because vitest runs several workers and
+	// each of them loads it: a shared output path would have them writing the
+	// same file at the same moment, and a spawn could catch it half written. The
+	// pid alone would do under the forks pool and not under threads, where every
+	// worker shares one — hence the id beside it. The pid is still in the name,
+	// because it is what says whose file this is when it comes to sweeping.
+	const out = fileURLToPath(
+		new URL(
+			`../../../node_modules/.cache/epiq-collab-actor.${
+				process.pid
+			}.${ulid()}.mjs`,
+			import.meta.url,
+		),
+	);
+
+	fs.mkdirSync(path.dirname(out), {recursive: true});
+	sweepDeadBundles(path.dirname(out));
+	esbuild.buildSync({
+		entryPoints: [ACTOR_ENTRY],
+		bundle: true,
+		packages: 'external',
+		platform: 'node',
+		format: 'esm',
+		target: 'node18',
+		// This is the suite whose failures are hardest to read — an actor that
+		// dies reports its stderr and nothing else — and without this a stack
+		// names a five-digit line in a generated file rather than the source it
+		// came from. The spawns below run with `--enable-source-maps` to use it.
+		sourcemap: 'inline',
+		outfile: out,
+	});
+
+	return out;
+};
+
+const ACTOR_BUNDLE = buildActor();
 
 export type Actor = {
 	name: string;
@@ -189,15 +261,19 @@ export const runActor = async (
 	};
 
 	const stderr = await new Promise<string>((resolve, reject) => {
-		const child = spawn(TSX, [ACTOR_ENTRY, JSON.stringify(job)], {
-			cwd: actor.repoRoot,
-			env: {
-				...process.env,
-				EPIQ_GLOBAL_DIR: actor.globalDir,
-				IS_LOCAL: 'true',
-				...(actor.envActorName ? {EPIQ_USER_NAME: actor.envActorName} : {}),
+		const child = spawn(
+			process.execPath,
+			['--enable-source-maps', ACTOR_BUNDLE, JSON.stringify(job)],
+			{
+				cwd: actor.repoRoot,
+				env: {
+					...process.env,
+					EPIQ_GLOBAL_DIR: actor.globalDir,
+					IS_LOCAL: 'true',
+					...(actor.envActorName ? {EPIQ_USER_NAME: actor.envActorName} : {}),
+				},
 			},
-		});
+		);
 
 		let errorOutput = '';
 		child.stderr.on('data', chunk => (errorOutput += String(chunk)));
@@ -247,16 +323,20 @@ export const runActorAndKill = async (
 	};
 
 	await new Promise<void>(resolve => {
-		const child = spawn(TSX, [ACTOR_ENTRY, JSON.stringify(job)], {
-			cwd: actor.repoRoot,
-			stdio: 'ignore',
-			env: {
-				...process.env,
-				EPIQ_GLOBAL_DIR: actor.globalDir,
-				IS_LOCAL: 'true',
-				...(actor.envActorName ? {EPIQ_USER_NAME: actor.envActorName} : {}),
+		const child = spawn(
+			process.execPath,
+			['--enable-source-maps', ACTOR_BUNDLE, JSON.stringify(job)],
+			{
+				cwd: actor.repoRoot,
+				stdio: 'ignore',
+				env: {
+					...process.env,
+					EPIQ_GLOBAL_DIR: actor.globalDir,
+					IS_LOCAL: 'true',
+					...(actor.envActorName ? {EPIQ_USER_NAME: actor.envActorName} : {}),
+				},
 			},
-		});
+		);
 
 		const timer = setTimeout(() => child.kill('SIGKILL'), killAfterMs);
 
