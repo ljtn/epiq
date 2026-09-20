@@ -259,13 +259,19 @@ async function verifyGuiAssets(binary) {
 		const html = await index.text();
 		// Every asset index.html references, not just the entry bundle: the
 		// client is code-split, and the blob embeds one file per chunk.
-		const assets = [...html.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map(
+		const referenced = [...html.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map(
 			match => match[1],
 		);
 
-		if (assets.length === 0) {
+		if (referenced.length === 0) {
 			throw new Error(`index.html referenced no assets:\n${html}`);
 		}
+
+		// The diff highlighter's worker, which nothing in the HTML names — the
+		// client asks for it by URL at runtime. Missing from the blob, diffs
+		// would render blank with nothing but a line in the browser's console,
+		// which is exactly the failure this check exists to catch.
+		const assets = [...referenced, '/diffs-worker.js'];
 
 		for (const asset of assets) {
 			const response = await fetch(`${base}${asset}`);

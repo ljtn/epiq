@@ -23,6 +23,7 @@ import {FullscreenToggleButton} from './FullscreenToggleButton';
 import {PanelDockMenu} from './PanelDockMenu';
 import {AsideDock} from '../lib/aside-dock';
 import {EPIQ_DIFF_THEME} from '../lib/diff-theme';
+import {useDiffWorkersUsable} from '../lib/diffs-worker-pool';
 
 // A single dark theme: the app has no light mode to match (GUI_THEME is a
 // fixed dark palette), so there is no pair to switch between. github-dark with
@@ -98,6 +99,10 @@ const FileDiffViewInner = <LAnnotation = undefined,>({
 	<div style={DIFF_BOX_STYLE}>
 		<MultiFileDiff
 			{...toDiffFileInput(file)}
+			// Back to the main thread where the pool turned out not to be one.
+			// Slower, and the only alternative is a diff that never draws — see
+			// lib/diffs-worker-pool.
+			disableWorkerPool={!useDiffWorkersUsable()}
 			options={{
 				diffStyle,
 				theme: PIERRE_THEME,
