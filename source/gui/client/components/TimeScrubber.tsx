@@ -653,9 +653,15 @@ export const TimeScrubber = ({
 		[axis, shown, boardView, hiddenIdentityIds, keptIssues],
 	);
 	// Which tickets a link may name: the board's own, the way the window itself
-	// is asked for, so `Linked` reads the same here as in the log below. Plotting
-	// every board takes the repository's, because that is then what is plotted.
-	const linkableIssues = allBoards ? issueIdByRef : boardIssueIdByRef;
+	// is asked for, so `Linked` reads the same here as in the log below.
+	//
+	// Two things reach past the board deliberately, and both take the
+	// repository's map: plotting every board, because that is then what is
+	// plotted; and the funnel down to one open ticket, which is a ticket the
+	// reader picked — a ref link opens one from another board without leaving
+	// this one, and its own commits are the whole of what the funnel is for.
+	const linkableIssues =
+		allBoards || ticketFocus ? issueIdByRef : boardIssueIdByRef;
 
 	// Narrowed where commits are drawn and not where the axis is built, as the
 	// ticket narrowing of events is: toggling it must not rescale the window.
