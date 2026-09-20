@@ -680,16 +680,37 @@ const EventLogPanel = ({
 	return (
 		<aside
 			data-testid="event-log"
+			// The pane is at its open width and no longer moving. Said out loud
+			// because the edge is a grab target: anything aiming at it — a reader
+			// or a test — is aiming at a place that is still travelling until this
+			// turns true.
+			data-settled={settled ? 'true' : 'false'}
 			aria-live="off"
 			style={
 				{
 					position: 'relative',
-					width: inWindow ? '100%' : resize.width,
+					width: inWindow ? '100%' : revealed ? resize.width : 0,
 					flexShrink: 0,
 					minHeight: 0,
 					display: 'flex',
 					flexDirection: 'column',
-					borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.line}`,
+					// Only while it is moving: the resize handle stands on this edge
+					// and would be cut in half by a clip left on.
+					overflow: settled ? undefined : 'hidden',
+					// Not while it is being dragged to size — the pointer is already
+					// the animation, and a transition makes the edge lag behind it.
+					transition:
+						inWindow || resize.dragging || !animate
+							? undefined
+							: `width ${REVEAL_MS}ms ease`,
+					// The board-facing edge, drawn as the ticket panel's is on the other
+					// side of the board: the outer `edge` rather than the `line` that
+					// divides sections, and a shadow cast the same way, so the pane
+					// reads as a surface in front of the board rather than as more of
+					// it. Its ground stays the chrome's, unlike the panel's — the log
+					// is instrumentation, not a second panel.
+					borderRight: inWindow ? 'none' : `1px solid ${GUI_THEME.edge}`,
+					boxShadow: inWindow ? undefined : '10px 0 24px rgba(0, 0, 0, 0.45)',
 					background: GUI_THEME.chrome,
 					// The name column's width, for every row at once.
 					[LOG_ACTOR_WIDTH_PROPERTY]: actorColumnWidth(actorChars),
