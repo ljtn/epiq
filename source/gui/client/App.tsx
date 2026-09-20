@@ -1782,6 +1782,37 @@ export const App = () => {
 							scrubbing={state?.timeTravel?.mode === 'scrub'}
 							syncStatus={syncStatus}
 							onOpenCommands={() => commandPalette.setOpen(true)}
+							board={
+								<Dropdown
+									testId="board-switcher"
+									value={
+										selectedBoard
+											? {
+													id: selectedBoard.id,
+													label: selectedBoard.title,
+											  }
+											: null
+									}
+									items={
+										state?.boards.map(board => ({
+											id: board.id,
+											label: board.title,
+											// As the TUI's board list says it. Every board's lanes
+											// are in the state, not just the one on screen, so this
+											// is counted here rather than asked for.
+											hint: plural(
+												board.swimlanes.reduce(
+													(total, swimlane) => total + swimlane.issues.length,
+													0,
+												),
+												'issue',
+											),
+										})) ?? []
+									}
+									placeholder="Loading..."
+									onSelect={selectBoard}
+								/>
+							}
 							identity={{
 								open: identityOpen,
 								onToggle: () => setIdentityOpen(open => !open),

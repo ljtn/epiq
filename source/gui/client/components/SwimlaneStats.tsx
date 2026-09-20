@@ -1,16 +1,10 @@
 import {LaneFlow} from '../../../lib/stats/swimlane-stats.model.js';
 import {AsideDock} from '../lib/aside-dock';
 import {GuiSwimlane} from '../lib/gui-state.model';
-import {formatAbsolute, formatDuration} from '../lib/gui-format.helper';
+import {formatAbsolute, formatDuration, plural} from '../lib/gui-format.helper';
 import {GUI_THEME} from '../lib/gui-theme';
 import {laneDwell} from '../lib/lane-dwell';
-import {
-	percent,
-	plural,
-	ROW,
-	seriesColor,
-	statGrid,
-} from '../lib/issue-stats.style';
+import {percent, ROW, seriesColor, statGrid} from '../lib/issue-stats.style';
 import {SwimlaneStatsState} from '../lib/use-swimlane-stats';
 import {Aside} from './Aside';
 import {Button} from './Button';
