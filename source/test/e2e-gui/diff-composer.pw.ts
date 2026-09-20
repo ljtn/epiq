@@ -1,13 +1,7 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 import {commitLinkedFile, linkedFileName} from './linked-commit.js';
-
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
-};
 
 // Opens the commit and its file if they aren't open already — once a diff
 // link has been followed the URL keeps pointing at the spot, and the tab then

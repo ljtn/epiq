@@ -3,7 +3,7 @@ import {materializeAndPersistAll} from '../../lib/board/board-log.js';
 import {actorOf, AppEvent} from '../../lib/board/board-events.model.js';
 import {failed, isFail, succeeded} from '../../lib/model/result-types.js';
 import {MAX_COMMENT_LENGTH} from '../../lib/utils/text.limits.js';
-import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {ToolInput, bootedForMutation} from './boot.js';
 import {findWritableIssue} from './node-targets.js';
 
 type AddIssueCommentInput = ToolInput & {
@@ -21,14 +21,8 @@ type EditIssueCommentInput = ToolInput & {
 };
 
 export const addIssueComment = async (input: AddIssueCommentInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
@@ -50,19 +44,19 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'add.issue.comment',
 		payload: {
 			id: commentId,
 			issue: input.issueId,
 			md: body,
-			author: actorResult.value.userId,
+			author: ready.value.actor.userId,
 		},
 	} satisfies AppEvent<'add.issue.comment'>;
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -75,16 +69,10 @@ export const addIssueComment = async (input: AddIssueCommentInput) => {
 };
 
 export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const commentEvent = stateResult.value.eventLog.find(
+	const commentEvent = ready.value.state.eventLog.find(
 		(event): event is AppEvent<'add.issue.comment'> =>
 			event.action === 'add.issue.comment' &&
 			event.payload.id === input.commentId,
@@ -94,14 +82,14 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 		return failed('Unable to resolve comment');
 	}
 
-	if (commentEvent.payload.author !== actorResult.value.userId) {
+	if (commentEvent.payload.author !== ready.value.actor.userId) {
 		return failed('You can only delete your own comments');
 	}
 
 	const issueResult = findWritableIssue(commentEvent.payload.issue);
 	if (isFail(issueResult)) return issueResult;
 
-	const alreadyDeleted = stateResult.value.eventLog.some(
+	const alreadyDeleted = ready.value.state.eventLog.some(
 		event =>
 			event.action === 'delete.issue.comment' &&
 			event.payload.id === input.commentId,
@@ -116,7 +104,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'delete.issue.comment',
 		payload: {
 			id: input.commentId,
@@ -126,7 +114,7 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -138,16 +126,10 @@ export const deleteIssueComment = async (input: DeleteIssueCommentInput) => {
 };
 
 export const editIssueComment = async (input: EditIssueCommentInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const commentEvent = stateResult.value.eventLog.find(
+	const commentEvent = ready.value.state.eventLog.find(
 		(event): event is AppEvent<'add.issue.comment'> =>
 			event.action === 'add.issue.comment' &&
 			event.payload.id === input.commentId,
@@ -157,14 +139,14 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 		return failed('Unable to resolve comment');
 	}
 
-	if (commentEvent.payload.author !== actorResult.value.userId) {
+	if (commentEvent.payload.author !== ready.value.actor.userId) {
 		return failed('You can only edit your own comments');
 	}
 
 	const issueResult = findWritableIssue(commentEvent.payload.issue);
 	if (isFail(issueResult)) return issueResult;
 
-	const deleted = stateResult.value.eventLog.some(
+	const deleted = ready.value.state.eventLog.some(
 		event =>
 			event.action === 'delete.issue.comment' &&
 			event.payload.id === input.commentId,
@@ -186,7 +168,7 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'edit.issue.comment',
 		payload: {
 			id: input.commentId,
@@ -197,7 +179,7 @@ export const editIssueComment = async (input: EditIssueCommentInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);

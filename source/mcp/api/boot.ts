@@ -217,3 +217,41 @@ export const getStateResult = () => {
 
 	return stateResult;
 };
+
+/**
+ * Boots a project the way every MCP tool must: without touching the network.
+ *
+ * The option lives here and nowhere else. Thirty-seven call sites each spelling
+ * out `{pull: false}` is thirty-seven chances for one of them to stop saying
+ * it, and a tool that quietly pulled would put a network round trip — and
+ * another clone's writes — inside a call its caller believes is a local read.
+ * Syncing is `epiq_sync`'s job, and the autosync loop's; both announce it.
+ */
+export const bootLocal = (repoRoot?: string) => boot(repoRoot, {pull: false});
+
+/**
+ * The prologue a tool runs before it can read or write the board: the project
+ * booted locally, the actor its writes will be attributed to, and the state
+ * they will be applied to. Any of the three failing is the tool's own answer,
+ * so this hands back the first failure untouched.
+ *
+ * Twenty-seven tools had this written out apiece, six lines at a time. The
+ * order matters — booting is what makes an actor and a state readable at all —
+ * and an order stated once cannot be got wrong in the twenty-eighth.
+ */
+export const bootedForMutation = async (repoRoot?: string) => {
+	const bootResult = await bootLocal(repoRoot);
+	if (isFail(bootResult)) return bootResult;
+
+	const actorResult = getActor();
+	if (isFail(actorResult)) return actorResult;
+
+	const stateResult = getStateResult();
+	if (isFail(stateResult)) return stateResult;
+
+	return succeeded('Booted', {
+		boot: bootResult.value,
+		actor: actorResult.value,
+		state: stateResult.value,
+	});
+};

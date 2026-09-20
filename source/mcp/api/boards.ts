@@ -26,10 +26,11 @@ import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {getTimeTravelStatus} from '../epiq-time-travel.js';
 import {
 	ToolInput,
-	resolveRepoRoot,
-	boot,
+	bootLocal,
+	bootedForMutation,
 	getActor,
 	getStateResult,
+	resolveRepoRoot,
 } from './boot.js';
 import {findWritableBoard, findWritableSwimlane} from './node-targets.js';
 
@@ -67,7 +68,7 @@ type DeleteSwimlaneInput = ToolInput & {
 };
 
 export const listBoards = async (input: ToolInput = {}) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -87,18 +88,12 @@ export const listBoards = async (input: ToolInput = {}) => {
 };
 
 export const createBoard = async (input: CreateBoardInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	// Boards hang off the workspace, and there is exactly one of those: the
 	// caller has no parent to pass, and could not be trusted with it anyway.
-	const workspace = stateResult.value.nodes[stateResult.value.rootNodeId];
+	const workspace = ready.value.state.nodes[ready.value.state.rootNodeId];
 	if (!workspace) return failed('Workspace not found');
 
 	// The workspace carries no readonly of its own, so — as with a swimlane on a
@@ -115,8 +110,8 @@ export const createBoard = async (input: CreateBoardInput) => {
 
 	const rankResult = resolveAndPersistRankForCreate(
 		workspace.id,
-		actorResult.value,
-		bootResult.value.stateBranchRoot,
+		ready.value.actor,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(rankResult)) return rankResult;
 
@@ -124,7 +119,7 @@ export const createBoard = async (input: CreateBoardInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'add.board',
 		payload: {
 			id: boardId,
@@ -136,7 +131,7 @@ export const createBoard = async (input: CreateBoardInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
 
@@ -150,16 +145,10 @@ export const createBoard = async (input: CreateBoardInput) => {
 };
 
 export const editBoardTitle = async (input: EditBoardTitleInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const board = stateResult.value.nodes[input.boardId];
+	const board = ready.value.state.nodes[input.boardId];
 
 	// A tombstoned board is one listBoards no longer shows, and one this must
 	// not touch either.
@@ -189,7 +178,7 @@ export const editBoardTitle = async (input: EditBoardTitleInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'edit.title',
 		payload: {
 			id: input.boardId,
@@ -199,7 +188,7 @@ export const editBoardTitle = async (input: EditBoardTitleInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
 
@@ -211,7 +200,7 @@ export const editBoardTitle = async (input: EditBoardTitleInput) => {
 };
 
 export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -232,14 +221,8 @@ export const listSwimlanes = async (input: ListSwimlanesInput = {}) => {
 };
 
 export const createSwimlane = async (input: CreateSwimlaneInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const boardResult = findWritableBoard(input.boardId);
 	if (isFail(boardResult)) return boardResult;
@@ -259,8 +242,8 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 
 	const rankResult = resolveAndPersistRankForCreate(
 		input.boardId,
-		actorResult.value,
-		bootResult.value.stateBranchRoot,
+		ready.value.actor,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(rankResult)) return rankResult;
 
@@ -268,7 +251,7 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'add.swimlane',
 		payload: {
 			id: swimlaneId,
@@ -280,7 +263,7 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
 
@@ -293,14 +276,8 @@ export const createSwimlane = async (input: CreateSwimlaneInput) => {
 };
 
 export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const swimlaneResult = findWritableSwimlane(input.swimlaneId);
 	if (isFail(swimlaneResult)) return swimlaneResult;
@@ -322,7 +299,7 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'edit.title',
 		payload: {
 			id: input.swimlaneId,
@@ -332,7 +309,7 @@ export const editSwimlaneTitle = async (input: EditSwimlaneTitleInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
 
@@ -410,21 +387,15 @@ export const moveSwimlane = async (
 };
 
 export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const swimlaneResult = findWritableSwimlane(input.swimlaneId);
 	if (isFail(swimlaneResult)) return swimlaneResult;
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'delete.node',
 		payload: {
 			id: input.swimlaneId,
@@ -433,7 +404,7 @@ export const deleteSwimlane = async (input: DeleteSwimlaneInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
 

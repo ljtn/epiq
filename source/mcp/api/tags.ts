@@ -12,7 +12,7 @@ import {MAX_TAG_NAME_LENGTH, tooLong} from '../../lib/utils/text.limits.js';
 import {nodeRef} from '../../lib/utils/node-ref.js';
 import {sanitizeInlineText} from '../../lib/utils/string.utils.js';
 import {ApiBatchOutcome} from '../api-state.model.js';
-import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {ToolInput, bootLocal, bootedForMutation, getActor} from './boot.js';
 import {
 	IssueTargets,
 	IssueRef,
@@ -43,7 +43,7 @@ export function addIssueTag(
 export async function addIssueTag(
 	input: AddIssueTagInput,
 ): Promise<Result<(ApiBatchOutcome & TagRef) | (IssueRef & TagRef)>> {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -126,23 +126,17 @@ export async function addIssueTag(
 export const tombstoneTag = async (
 	input: ToolInput & {tagId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const tag = stateResult.value.tags[input.tagId];
+	const tag = ready.value.state.tags[input.tagId];
 	if (!tag) return failed('Tag not found');
 	if (tag.tombstoned) return failed('Tag is already deleted');
 
 	const events = [
 		{
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'tombstone.tag',
 			payload: {id: input.tagId},
 		} satisfies AppEvent<'tombstone.tag'>,
@@ -150,7 +144,7 @@ export const tombstoneTag = async (
 
 	const results = materializeAndPersistAll(
 		events,
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -161,16 +155,10 @@ export const tombstoneTag = async (
 export const restoreTag = async (
 	input: ToolInput & {tagId: string},
 ): Promise<Result<{id: string; name: string}>> => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const tag = stateResult.value.tags[input.tagId];
+	const tag = ready.value.state.tags[input.tagId];
 	if (!tag) return failed('Tag not found');
 	if (!tag.tombstoned) return failed('Tag is not deleted');
 
@@ -183,7 +171,7 @@ export const restoreTag = async (
 	const events = [
 		{
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'restore.tag',
 			payload: {id: input.tagId, name: tag.name},
 		} satisfies AppEvent<'restore.tag'>,
@@ -191,7 +179,7 @@ export const restoreTag = async (
 
 	const results = materializeAndPersistAll(
 		events,
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -200,25 +188,19 @@ export const restoreTag = async (
 };
 
 export const removeIssueTag = async (input: RemoveIssueTagInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
 
-	if (!stateResult.value.tags[input.tagId]) {
+	if (!ready.value.state.tags[input.tagId]) {
 		return failed('Tag not found');
 	}
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'remove.issue.tag',
 		payload: {
 			id: input.issueId,
@@ -228,7 +210,7 @@ export const removeIssueTag = async (input: RemoveIssueTagInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);

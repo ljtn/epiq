@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 
 // Wide enough that a bottom dock earns the lanes without fullscreen.
 test.use({viewport: {width: 1600, height: 900}});
@@ -8,10 +9,7 @@ const openTicket = async (page: Page, appUrl: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Dock ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toBeVisible();
+	await addTicket(page, `Dock ${Date.now()}`);
 };
 
 const dockTo = async (page: Page, side: 'bottom' | 'right') => {

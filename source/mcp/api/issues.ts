@@ -48,10 +48,11 @@ import {
 import {
 	ToolInput,
 	Actor,
-	resolveRepoRoot,
-	boot,
+	bootLocal,
+	bootedForMutation,
 	getActor,
 	getStateResult,
+	resolveRepoRoot,
 } from './boot.js';
 import {
 	closedFromBoardIdOf,
@@ -116,7 +117,7 @@ type GetIssueInput = ToolInput & {
  * age that response is large enough to be unusable for reading one field.
  */
 export const getIssue = async (input: GetIssueInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -178,7 +179,7 @@ export function listIssues(input: ListIssuesInput): Promise<Result<ApiIssue[]>>;
 export async function listIssues(
 	input: ListIssuesInput,
 ): Promise<Result<ApiIssue[] | ApiIssueBrief[]>> {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const stateResult = getStateResult();
@@ -259,14 +260,8 @@ export async function listIssues(
 }
 
 export const createIssue = async (input: CreateIssueInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	// The other three title paths all sanitize; this one used to write the raw
 	// input, so a newline or a control character landed in the log for good.
@@ -298,15 +293,15 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 	const rankResult = resolveAndPersistRankForCreate(
 		input.parentId,
-		actorResult.value,
-		bootResult.value.stateBranchRoot,
+		ready.value.actor,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(rankResult)) return rankResult;
 
 	const issueEventsResult = createIssueEvents({
 		name: title,
 		parent: input.parentId,
-		user: actorResult.value,
+		user: ready.value.actor,
 		rank: rankResult.value,
 	});
 	if (isFail(issueEventsResult)) return issueEventsResult;
@@ -318,7 +313,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 	if (description) {
 		events.push({
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'edit.description',
 			payload: {id: issueId, md: description},
 		} satisfies AppEvent<'edit.description'>);
@@ -338,7 +333,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 		if (!existingTag) {
 			events.push({
 				id: ulid(),
-				...actorOf(actorResult.value),
+				...actorOf(ready.value.actor),
 				action: 'create.tag',
 				payload: {id: tagId, name: tagName},
 			} satisfies AppEvent<'create.tag'>);
@@ -346,7 +341,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 		events.push({
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'add.issue.tag',
 			payload: {id: issueId, tag: tagId},
 		} satisfies AppEvent<'add.issue.tag'>);
@@ -368,7 +363,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 		);
 		if (overLongName) return failed(overLongName);
 
-		const existingAssignee = Object.values(stateResult.value.contributors).find(
+		const existingAssignee = Object.values(ready.value.state.contributors).find(
 			contributor => contributor.name === assigneeName,
 		);
 		const assigneeId = existingAssignee?.id ?? ulid();
@@ -376,7 +371,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 		if (!existingAssignee) {
 			events.push({
 				id: ulid(),
-				...actorOf(actorResult.value),
+				...actorOf(ready.value.actor),
 				action: 'create.contributor',
 				payload: {id: assigneeId, name: assigneeName},
 			} satisfies AppEvent<'create.contributor'>);
@@ -384,7 +379,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 		events.push({
 			id: ulid(),
-			...actorOf(actorResult.value),
+			...actorOf(ready.value.actor),
 			action: 'add.issue.assignee',
 			payload: {id: issueId, assignee: assigneeId},
 		} satisfies AppEvent<'add.issue.assignee'>);
@@ -394,7 +389,7 @@ export const createIssue = async (input: CreateIssueInput) => {
 
 	const results = materializeAndPersistAll(
 		events,
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 	if (isFail(results)) return failed(results.message);
 
@@ -446,7 +441,7 @@ export function closeIssue(input: CloseIssueInput): Promise<Result<IssueRef>>;
 export async function closeIssue(
 	input: CloseIssueInput,
 ): Promise<Result<ApiBatchOutcome | IssueRef>> {
-	const bootResult = await boot(input.repoRoot, {pull: false});
+	const bootResult = await bootLocal(input.repoRoot);
 	if (isFail(bootResult)) return bootResult;
 
 	const actorResult = getActor();
@@ -464,16 +459,10 @@ export async function closeIssue(
 }
 
 export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const issue = stateResult.value.nodes[input.issueId];
+	const issue = ready.value.state.nodes[input.issueId];
 
 	if (!issue || issue.isDeleted) return failed('Issue not found');
 	if (!isTicketNode(issue)) return failed('Target must be an issue');
@@ -500,15 +489,15 @@ export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
 		previousParent.id,
 		issue.id,
 		{at: 'end'},
-		actorResult.value,
-		bootResult.value.stateBranchRoot,
+		ready.value.actor,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(rankResult)) return rankResult;
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'reopen.issue',
 		payload: {
 			id: issue.id,
@@ -519,7 +508,7 @@ export const reopenIssue = async (input: ToolInput & {issueId: string}) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -654,14 +643,8 @@ export const getIssueHistory = (
 export const editIssueDescription = async (
 	input: EditIssueDescriptionInput,
 ) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
@@ -686,7 +669,7 @@ export const editIssueDescription = async (
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'edit.description',
 		payload: {
 			id: input.issueId,
@@ -696,7 +679,7 @@ export const editIssueDescription = async (
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);
@@ -709,14 +692,8 @@ export const editIssueDescription = async (
 };
 
 export const editIssueTitle = async (input: EditIssueTitleInput) => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
-
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
-
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
 	const issueResult = findWritableIssue(input.issueId);
 	if (isFail(issueResult)) return issueResult;
@@ -741,7 +718,7 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 
 	const event = {
 		id: ulid(),
-		...actorOf(actorResult.value),
+		...actorOf(ready.value.actor),
 		action: 'edit.title',
 		payload: {
 			id: input.issueId,
@@ -751,7 +728,7 @@ export const editIssueTitle = async (input: EditIssueTitleInput) => {
 
 	const results = materializeAndPersistAll(
 		[event],
-		bootResult.value.stateBranchRoot,
+		ready.value.boot.stateBranchRoot,
 	);
 
 	if (isFail(results)) return failed(results.message);

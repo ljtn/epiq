@@ -179,6 +179,32 @@ export const getGradientColor = (t: number): Rgb => {
 	return interpolateColor(stops[index]!, stops[index + 1]!, localT);
 };
 
+/**
+ * Samples an arbitrary list of hex stops at `t` (0..1), as hex.
+ *
+ * `getGradientColor` below answers the same question for the one gradient the
+ * palette owns; this one is for a caller bringing its own stops — the sync
+ * animations, which cycle a gradient of their own. Both components had written
+ * `hexToRgb`, `rgbToHex`, a mixer and this walk out for themselves, a third
+ * copy of primitives this module already had.
+ */
+export const sampleGradient = (stops: readonly string[], t: number): string => {
+	if (stops.length === 0) return '#000000';
+	if (stops.length === 1) return stops[0]!;
+
+	const segments = stops.length - 1;
+	const scaled = clamp(t, 0, 1) * segments;
+	const index = Math.min(Math.floor(scaled), segments - 1);
+
+	return rgbToHex(
+		mixRgb(
+			hexToRgb(stops[index]!),
+			hexToRgb(stops[index + 1]!),
+			scaled - index,
+		),
+	);
+};
+
 // Sample the shared lavender -> blue -> cyan gradient at position `t` (0..1) as a
 // hex string, for places that need a CSS-style color (e.g. Ink's `color` prop).
 export const getGradientHexColor = (t: number): string =>

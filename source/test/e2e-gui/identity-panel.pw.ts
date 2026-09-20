@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type {Page} from '@playwright/test';
 import {expect, readHandoff, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 import {commitLinkedFile, linkedFileName} from './linked-commit.js';
 
 // Whoever the seeded TUI configured, and the address `commitLinkedFile` signs
@@ -23,13 +24,6 @@ const COMMIT_EMAIL = 'e2e@example.com';
 
 // The scan of a repository's authors is cached for this long, so an address
 // that has just made its first commit is not offered until the walk runs again.
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
-};
-
 const openPanel = async (page: Page) => {
 	await page
 		.locator('button[aria-label="Your identity on this board"]')

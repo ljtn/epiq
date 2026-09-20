@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 import {trackWithWindow} from './track.js';
 import {
 	commitLinkedFile,
@@ -56,13 +57,6 @@ const copiedRef = async (page: Page) => {
 	expect(ref).toBeTruthy();
 
 	return ref!;
-};
-
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
 };
 
 // The narrowing needs a ticket for both halves of what it does, and lives in

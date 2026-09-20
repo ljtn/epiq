@@ -1,12 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
-
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
-};
+import {addTicket} from './ticket.js';
 
 const postComment = async (page: Page, text: string) => {
 	await page.getByPlaceholder('write a comment').fill(text);

@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 import {commitLinkedFiles} from './linked-commit.js';
 import {LARGE_DIFF_LINES} from '../../lib/utils/diff-size.js';
 
@@ -9,13 +10,6 @@ const lockfileContents = `${Array.from(
 	{length: LARGE_DIFF_LINES + 1},
 	(_, index) => `    "package-${index}": "1.0.0",`,
 ).join('\n')}\n`;
-
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
-};
 
 const refOf = async (page: Page): Promise<string> => {
 	const ref = (

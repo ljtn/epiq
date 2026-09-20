@@ -18,30 +18,24 @@ import {isFail, Result, succeeded} from '../../lib/model/result-types.js';
 import {findEmailCandidates} from '../../lib/repository/email-candidates.js';
 import {PersonalStats} from '../../lib/stats/personal-stats.model.js';
 import {authoredTotals} from '../../lib/stats/personal-stats.js';
-import {ToolInput, boot, getActor, getStateResult} from './boot.js';
+import {ToolInput, bootedForMutation} from './boot.js';
 
 export const getPersonalStats = async (
 	input: ToolInput = {},
 ): Promise<Result<PersonalStats>> => {
-	const bootResult = await boot(input.repoRoot, {pull: false});
-	if (isFail(bootResult)) return bootResult;
+	const ready = await bootedForMutation(input.repoRoot);
+	if (isFail(ready)) return ready;
 
-	const actorResult = getActor();
-	if (isFail(actorResult)) return actorResult;
+	const {userId, userName} = ready.value.actor;
+	const totals = authoredTotals(ready.value.state.eventLog, userId);
 
-	const stateResult = getStateResult();
-	if (isFail(stateResult)) return stateResult;
-
-	const {userId, userName} = actorResult.value;
-	const totals = authoredTotals(stateResult.value.eventLog, userId);
-
-	const branchResult = getStateBranch(bootResult.value.repoRoot);
+	const branchResult = getStateBranch(ready.value.boot.repoRoot);
 
 	const scanned = await findEmailCandidates({
-		repoRoot: bootResult.value.repoRoot,
+		repoRoot: ready.value.boot.repoRoot,
 		stateBranch: isFail(branchResult) ? undefined : branchResult.value,
-		names: [userName, await readGitName(bootResult.value.repoRoot)],
-		links: stateResult.value.emailLinks,
+		names: [userName, await readGitName(ready.value.boot.repoRoot)],
+		links: ready.value.state.emailLinks,
 	});
 
 	// A history that could not be read costs the commit figure, not the panel.

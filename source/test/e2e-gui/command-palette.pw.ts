@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 
 // Ctrl rather than Meta: the handler takes either, and Ctrl is the one a
 // headless Chromium fires the same way on every platform.
@@ -11,13 +12,6 @@ const openPalette = async (page: Page) => {
 const palette = (page: Page) => page.getByTestId('command-palette');
 
 const rows = (page: Page) => palette(page).getByRole('option');
-
-const addTicket = async (page: Page, title: string) => {
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(title);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(title);
-};
 
 test('it opens on the chord and leaves on escape', async ({
 	page,

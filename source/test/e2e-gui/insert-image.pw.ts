@@ -1,5 +1,6 @@
 import type {Page} from '@playwright/test';
 import {expect, test} from './fixtures.js';
+import {addTicket} from './ticket.js';
 
 // A real 64x64 PNG. The store sniffs magic bytes rather than trusting the
 // name, so this has to be a genuine one — and it has to have real dimensions,
@@ -17,10 +18,7 @@ const openTicket = async (page: Page, appUrl: string, label: string) => {
 	await page.goto(appUrl);
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`${label} ${Date.now()}`);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page).toHaveURL(/\/issue\//);
+	await addTicket(page, `${label} ${Date.now()}`);
 };
 
 // The reference the server hands back, which is what has to reach the body.
