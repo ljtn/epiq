@@ -1,4 +1,4 @@
-import React, {memo, useState} from 'react';
+import React, {memo, useMemo, useState} from 'react';
 import {
 	DiffFileInput,
 	DiffLineAnnotation,
@@ -10,7 +10,11 @@ import {
 import {GUI_THEME} from '../lib/gui-theme';
 import {CODE_FONT, CODE_TEXT_VARS} from '../lib/code-text.style';
 import {GuiCommitDiffFile} from '../lib/gui-state.model';
-import {diffLineCount, isLargeDiff} from '../../../lib/utils/diff-size.js';
+import {
+	diffLineCount,
+	isLargeDiff,
+	openableByDefault,
+} from '../../../lib/utils/diff-size.js';
 import {Button} from './Button';
 import {CopyShaButton} from './CopyShaButton';
 import {Empty} from './FormPrimitives';
@@ -181,16 +185,22 @@ export const FileDiffView = memo(FileDiffViewInner, (previous, next) => {
 // of a commit at once — so a lockfile here stalls the view with no action from
 // the reader at all. Collapsed until asked for, the way the commit list leaves
 // its own large files shut.
+//
+// `open` is the whole commit's answer, not this file's: a hundred ordinary
+// files are as much work as one enormous one, and only the caller can see them
+// all. See `openableByDefault`.
 const PanelFile = ({
 	file,
 	diffStyle,
+	open,
 }: {
 	file: GuiCommitDiffFile;
 	diffStyle: 'split' | 'unified';
+	open: boolean;
 }) => {
 	const [shown, setShown] = useState(false);
 
-	if (shown || !isLargeDiff(file)) {
+	if (shown || open) {
 		return <FileDiffView file={file} diffStyle={diffStyle} />;
 	}
 
@@ -229,6 +239,31 @@ const PanelFile = ({
 				</Button>
 			</span>
 		</div>
+	);
+};
+
+// One decision for the whole commit, taken once: which files are cheap enough
+// to open unasked, given the ones already open above them.
+const PanelFiles = ({
+	files,
+	diffStyle,
+}: {
+	files: GuiCommitDiffFile[];
+	diffStyle: 'split' | 'unified';
+}) => {
+	const open = useMemo(() => openableByDefault(files), [files]);
+
+	return (
+		<>
+			{files.map((file, index) => (
+				<PanelFile
+					key={file.path}
+					file={file}
+					diffStyle={diffStyle}
+					open={open[index] ?? false}
+				/>
+			))}
+		</>
 	);
 };
 
@@ -285,10 +320,8 @@ export const DiffPanel = ({
 		{!loading && error && <Empty>{error}</Empty>}
 		{!loading && !error && files?.length === 0 && <Empty>No changes.</Empty>}
 
-		{!loading &&
-			!error &&
-			files?.map(file => (
-				<PanelFile key={file.path} file={file} diffStyle={diffStyle} />
-			))}
+		{!loading && !error && files && (
+			<PanelFiles files={files} diffStyle={diffStyle} />
+		)}
 	</>
 );

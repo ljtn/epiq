@@ -1,10 +1,12 @@
 import {describe, expect, it} from 'vitest';
 import {
+	DIFF_BUDGET_CHARS,
 	LARGE_DIFF_CHARS,
 	LARGE_DIFF_LINES,
 	diffLineCount,
 	isLargeDiff,
 	lineCount,
+	openableByDefault,
 } from '../lib/utils/diff-size.js';
 
 const file = (before: string, after: string) => ({
@@ -75,5 +77,61 @@ describe('isLargeDiff', () => {
 	it('leaves a file exactly at the limits alone', () => {
 		expect(isLargeDiff(file('', lines(LARGE_DIFF_LINES)))).toBe(false);
 		expect(isLargeDiff(file('', 'x'.repeat(LARGE_DIFF_CHARS)))).toBe(false);
+	});
+});
+
+describe('openableByDefault', () => {
+	const sized = (chars: number, path: string) => ({
+		path,
+		before: '',
+		after: 'x'.repeat(chars),
+	});
+
+	// The ordinary commit, which is nearly all of them: nothing changes.
+	it('opens every file of a commit that fits inside the budget', () => {
+		const files = [sized(1_000, 'a.ts'), sized(2_000, 'b.ts')];
+
+		expect(openableByDefault(files)).toEqual([true, true]);
+	});
+
+	// The reported case: a hundred ordinary files is as much work for the
+	// highlighter as one enormous one, and no per-file limit sees it.
+	it('shuts the files past the budget, though each one is small', () => {
+		const quarter = Math.ceil(DIFF_BUDGET_CHARS / 4);
+		const files = Array.from({length: 10}, (_, index) =>
+			sized(quarter, `f${index}.ts`),
+		);
+
+		const open = openableByDefault(files);
+
+		// Four fill the budget; the rest are asked to spend past it.
+		expect(open.slice(0, 4)).toEqual([true, true, true, true]);
+		expect(open.slice(4).some(Boolean)).toBe(false);
+	});
+
+	// A file the per-file limit already refuses must not also spend the budget,
+	// or one lockfile near the front shuts everything behind it.
+	it('does not charge the budget for a file it refuses anyway', () => {
+		const files = [
+			sized(LARGE_DIFF_CHARS + 1, 'package-lock.json'),
+			sized(1_000, 'a.ts'),
+			sized(1_000, 'b.ts'),
+		];
+
+		expect(openableByDefault(files)).toEqual([false, true, true]);
+	});
+
+	it('still refuses a single file past the per-file limit', () => {
+		expect(openableByDefault([sized(LARGE_DIFF_CHARS + 1, 'big.ts')])).toEqual([
+			false,
+		]);
+	});
+
+	it('has an answer for every file it was given, in order', () => {
+		const files = Array.from({length: 40}, (_, index) =>
+			sized(20_000, `f${index}.ts`),
+		);
+
+		expect(openableByDefault(files)).toHaveLength(40);
 	});
 });
