@@ -71,7 +71,7 @@ test('an event with no dot on the chart leaves the scatter alone', async ({
 	// else — the ticket-creation dot goes, and so does its row, since the log
 	// draws by the chart's own rule. Nothing left to point at, so nothing is
 	// lit and nothing is dimmed.
-	await page.getByRole('button', {name: 'Board', exact: true}).click();
+	await page.getByTestId('series-select').click();
 	await page.getByRole('checkbox', {name: 'Tags'}).click();
 	await page.waitForTimeout(800);
 

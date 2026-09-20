@@ -86,7 +86,7 @@ const seedCommitOnScatter = async (
 	if (!link) {
 		await page.getByTestId('commit-select').click();
 		await page.getByRole('radio', {name: 'All commits'}).click();
-		await expect(page.getByTestId('commit-select')).toHaveText('Code');
+		await expect(page.getByTestId('commit-select')).toHaveText('Code (all)');
 	}
 
 	const canvas = page.getByTestId('scatter-canvas');

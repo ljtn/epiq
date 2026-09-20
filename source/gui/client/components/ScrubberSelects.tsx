@@ -251,13 +251,16 @@ export const BoardSeriesGroup = ({
 	// this row accounts for the missing tickets.
 	const elsewhere = filtered && narrowed && !partial && sole === null;
 
+	// The series, then what of it, in every state — `(all)` included, so the
+	// unnarrowed trigger says so rather than leaving it to be inferred from the
+	// absence of a note. The commit select beside it reads the same way.
 	const label = sole
 		? `${VIEW_LABELS[view]}: ${sole.name}`
 		: partial
 		? `${VIEW_LABELS[view]} (multi)`
 		: elsewhere
 		? `${VIEW_LABELS[view]} (filtered)`
-		: VIEW_LABELS[view];
+		: `${VIEW_LABELS[view]} (all)`;
 
 	const color =
 		sole?.color ??
@@ -285,8 +288,11 @@ export const BoardSeriesGroup = ({
 					disabled={!connected}
 					onChange={onChangeShowIssues}
 				/>
+				{/* A handle of its own: its label carries the series *and* what of it
+				    is plotted, so the text is not a name anything can be found by. */}
 				<button
 					type="button"
+					data-testid="series-select"
 					onClick={onToggleExpanded}
 					disabled={!showIssues || !connected}
 					title={
@@ -427,12 +433,12 @@ export const BoardSeriesGroup = ({
 
 // The Code series' select, the shape of the board series' beside it: a box
 // for whether commits are drawn at all, and a trigger naming which — every
-// commit in the repository, or only the ones linked to a ticket. Wide enough
-// for the longer of the two names whole: `Linked` alone did not say linked to
-// what, and a name clipped to `Linked com…` says it worse. Fixed at that
-// width, so switching between the two does not resize the row under the
-// pointer.
-const COMMIT_SELECT_WIDTH = 128;
+// commit in the repository, or only the ones linked to a ticket. The trigger
+// names the series and then which, the way `Board (filtered)` does two controls
+// along — `Linked` on its own named the narrowing and left the series unsaid.
+// Wide enough for the longer of the two whole, and fixed there, so switching
+// between them does not resize the row under the pointer.
+const COMMIT_SELECT_WIDTH = 120;
 
 export const CommitSeriesGroup = ({
 	connected,
@@ -495,7 +501,7 @@ export const CommitSeriesGroup = ({
 					}}
 				>
 					<span style={selectLabelStyle}>
-						{linkedOnly ? 'Linked commits' : 'Code'}
+						{linkedOnly ? 'Code (linked)' : 'Code (all)'}
 					</span>
 					<span style={{display: 'inline-flex', flexShrink: 0}}>
 						<IconChevronDown size={12} />
@@ -521,7 +527,7 @@ export const CommitSeriesGroup = ({
 					    some tickets, only to those, the same way the board events above
 					    the columns follow that narrowing. */}
 					<Radio
-						label="Linked to a ticket"
+						label="Linked commits"
 						selected={linkedOnly}
 						color={GUI_THEME.green}
 						onSelect={() => choose(true)}
