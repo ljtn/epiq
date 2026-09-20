@@ -84,7 +84,7 @@ test('a file ticked off in one view is ticked off in the other', async ({
 	// and it is the same tick. Where several of a ticket's commits touched a
 	// file, the compacted view's tick belongs to the last of them — the
 	// earlier commits' copies are a different diff and stay unticked.
-	await page.getByRole('button', {name: 'Commits'}).click();
+	await page.getByTestId('diff-view-commits').click();
 	await expect(
 		page.getByTestId('file-row').getByLabel('reviewed'),
 	).toBeChecked();
@@ -234,7 +234,7 @@ test('leaving the tab lets go of the view a link named', async ({
 		.getByTestId('aside-pane')
 		.getByRole('button', {name: /^Code/})
 		.click();
-	await page.getByRole('button', {name: 'Commits'}).click();
+	await page.getByTestId('diff-view-commits').click();
 	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	const board = new URL(page.url()).pathname;
@@ -276,7 +276,7 @@ test('a link names the view, over whatever this browser last used', async ({
 		.getByTestId('aside-pane')
 		.getByRole('button', {name: /^Code/})
 		.click();
-	await page.getByRole('button', {name: 'Commits'}).click();
+	await page.getByTestId('diff-view-commits').click();
 	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	const board = new URL(page.url()).pathname;
@@ -307,7 +307,7 @@ test('a link does not overwrite what this browser remembers', async ({
 		.getByTestId('aside-pane')
 		.getByRole('button', {name: /^Code/})
 		.click();
-	await page.getByRole('button', {name: 'Commits'}).click();
+	await page.getByTestId('diff-view-commits').click();
 	await expect(page.getByTestId('commit-card')).toHaveCount(1);
 
 	const board = new URL(page.url()).pathname;

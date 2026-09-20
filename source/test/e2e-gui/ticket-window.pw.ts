@@ -345,6 +345,12 @@ test("it takes the other tickets' commits with it, and the unlinked ones", async
 	await expect(page.getByTestId('board-switcher')).toContainText('Default');
 	await page.getByTestId('log-toggle').click();
 
+	// The unlinked commit is the point of this test, and the chart opens on
+	// linked commits — so the repository is asked for by hand.
+	await page.getByTestId('commit-select').click();
+	await page.getByRole('radio', {name: 'All commits'}).click();
+	await expect(page.getByTestId('commit-select')).toHaveText('Code');
+
 	const lines = page.getByTestId('log-line');
 	await expect(lines.filter({hasText: mineWork})).toHaveCount(1);
 	await expect(lines.filter({hasText: otherWork})).toHaveCount(1);
