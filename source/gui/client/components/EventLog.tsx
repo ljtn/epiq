@@ -78,6 +78,7 @@ import {GUI_THEME, TEXT} from '../lib/gui-theme';
 import {usePrefersReducedMotion} from '../lib/scrubber';
 import {useResizableWidth} from '../lib/use-resizable-width';
 import {ResizeHandle} from './ResizeHandle';
+import {REVEAL_MS} from '../lib/use-reveal';
 import {IconArrowUpRight} from './IconArrowUpRight';
 import {IconButton, ICON_BUTTON_SIZE, ICON_SIZE} from './IconButton';
 import {IconChevronDown} from './IconChevronDown';
@@ -403,9 +404,18 @@ const EventLogPanel = ({
 	onPinnedChange,
 	onHoverEvent,
 	layout = 'panel',
+	revealed = true,
+	settled = true,
 	onPopOut,
 	onDock,
 }: {
+	// The pane's width on the board: false is shut, and the width moves between
+	// the two. What is drawn inside keeps the open width throughout and is
+	// clipped, so nothing reflows on the way in or out — the header's own fold
+	// would otherwise trip on every close. Both default to open, for the window,
+	// which has no board to arrive on.
+	revealed?: boolean;
+	settled?: boolean;
 	entries: readonly LogEntry[];
 	// The moment the lines were sliced against. Moving it is moving the
 	// timeline, and the pane snaps to its foot for that — see below.

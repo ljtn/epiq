@@ -63,6 +63,7 @@ import {
 	VolumeBars,
 } from './ScrubberTrack';
 import {Panel} from './Panel';
+import {REVEAL_MS, useReveal} from '../lib/use-reveal';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -242,6 +243,10 @@ export const ScrubberLayout = ({
 }) => {
 	const {axis, layoutMode, animate, windowKey, on} = chart;
 	const flowGeo = flowGeometry(chart.flowChart.strands);
+	// The charts are unmounted while the bar is shut, as they were before they
+	// moved: shutting it is how somebody takes a busy timeline off the page.
+	// They are only held past the toggle for as long as the closing move.
+	const track = useReveal(!collapsed, animate ? REVEAL_MS : 0);
 
 	return (
 		<Panel
@@ -341,42 +346,70 @@ export const ScrubberLayout = ({
 					)}
 				</div>
 
-				{!collapsed && (
-					// Wraps both charts so the period highlight can be one tall block
-					// spanning them and the gap between. Pointer handlers belong here
-					// rather than on either chart, so a drag or hover anywhere across
-					// the pair — the gap included — counts as one timeline.
+				{track.mounted && (
+					// The fold, in a grid because a row given `0fr` and `1fr` moves
+					// between them without anybody having to know how tall the charts
+					// are — which depends on the layout and on which series are up.
+					// The clip is let go of once the bar is open: the needle's grip,
+					// the pager's arrows and the scope's outline all draw past the
+					// track's own edges.
 					<div
-						data-testid="scrubber-track"
-						// The stretch the chart is drawing, for anything that has to know
-						// whether it is drawing one yet: with no window the axis is a
-						// single instant, and a press on it asks for now.
-						data-axis-span={Math.round(axis.span)}
-						ref={chart.pageRef}
-						className={PAGED_TRACK_CLASS}
-						onPointerDown={on.onPointerDown}
-						onPointerMove={on.onPointerMove}
-						onPointerUp={on.onPointerEnd}
-						onPointerCancel={on.onPointerEnd}
-						onMouseMove={on.onTrackMouseMove}
-						onMouseLeave={on.onTrackMouseLeave}
 						style={{
-							position: 'relative',
-							display: 'flex',
-							flexDirection: 'column',
-							// No gap under a board track folded away with its series off:
-							// the fold is to nothing, not to a blank band.
-							gap: layoutMode === 'even' && !chart.showIssues ? 0 : 8,
-							// Crosshair, not a hand: a press picks a moment but a drag picks
-							// out a range, and the pointer has to say the second is on offer.
-							cursor: chart.connected ? 'crosshair' : 'default',
-							// A drag must never turn into a native text selection or a drag
-							// of the axis labels underneath the pointer.
-							userSelect: 'none',
-							WebkitUserSelect: 'none',
+							display: 'grid',
+							gridTemplateRows: track.shown ? '1fr' : '0fr',
+							transition: animate
+								? `grid-template-rows ${REVEAL_MS}ms ease`
+								: undefined,
 						}}
 					>
-						{/* The box that says the board is showing this window and
+						<div
+							style={{
+								overflow: track.settled ? 'visible' : 'hidden',
+								minHeight: 0,
+							}}
+						>
+							{/* Wraps both charts so the period highlight can be one tall block
+					    spanning them and the gap between. Pointer handlers belong here
+					    rather than on either chart, so a drag or hover anywhere across
+					    the pair — the gap included — counts as one timeline. */}
+							<div
+								data-testid="scrubber-track"
+								// The stretch the chart is drawing, for anything that has to know
+								// whether it is drawing one yet: with no window the axis is a
+								// single instant, and a press on it asks for now.
+								data-axis-span={Math.round(axis.span)}
+								ref={chart.pageRef}
+								className={PAGED_TRACK_CLASS}
+								onPointerDown={on.onPointerDown}
+								onPointerMove={on.onPointerMove}
+								onPointerUp={on.onPointerEnd}
+								onPointerCancel={on.onPointerEnd}
+								onMouseMove={on.onTrackMouseMove}
+								onMouseLeave={on.onTrackMouseLeave}
+								style={{
+									position: 'relative',
+									display: 'flex',
+									flexDirection: 'column',
+									// No gap either side of a track folded away with its series
+									// off: the fold is to nothing, not to a blank band. It closes
+									// over the same moment the track does rather than snapping shut
+									// at the start of it.
+									gap:
+										layoutMode === 'even' &&
+										!(chart.showIssues && chart.showCommits)
+											? 0
+											: 8,
+									transition: animate ? `gap ${REVEAL_MS}ms ease` : undefined,
+									// Crosshair, not a hand: a press picks a moment but a drag picks
+									// out a range, and the pointer has to say the second is on offer.
+									cursor: chart.connected ? 'crosshair' : 'default',
+									// A drag must never turn into a native text selection or a drag
+									// of the axis labels underneath the pointer.
+									userSelect: 'none',
+									WebkitUserSelect: 'none',
+								}}
+							>
+								{/* The box that says the board is showing this window and
 					    nothing else. Positioned rather than an outline: it takes up
 					    no space either way, so narrowing cannot reflow the charts
 					    under the pointer that just clicked, but insets can differ
@@ -384,205 +417,225 @@ export const ScrubberLayout = ({
 					    at the sides than above — the needle's grip overhangs the
 					    live end by half its width — and less above, where the
 					    controls are only TRACK_HIT_PADDING away. */}
-						{chart.scoped && (
-							<div
-								aria-hidden
-								data-testid="scrubber-scoped"
-								style={{
-									position: 'absolute',
-									inset: `${-SCOPED_OUTLINE_INSET_Y}px ${-SCOPED_OUTLINE_INSET_X}px`,
-									border: `1px solid ${SCOPED_OUTLINE_COLOR}`,
-									// Cornered like the row's buttons, not like a card: this is
-									// chrome around the chart, and 4px read as a pill on a line
-									// this thin.
-									borderRadius: 2,
-									pointerEvents: 'none',
-								}}
-							/>
-						)}
+								{chart.scoped && (
+									<div
+										aria-hidden
+										data-testid="scrubber-scoped"
+										style={{
+											position: 'absolute',
+											inset: `${-SCOPED_OUTLINE_INSET_Y}px ${-SCOPED_OUTLINE_INSET_X}px`,
+											border: `1px solid ${SCOPED_OUTLINE_COLOR}`,
+											// Cornered like the row's buttons, not like a card: this is
+											// chrome around the chart, and 4px read as a pill on a line
+											// this thin.
+											borderRadius: 2,
+											pointerEvents: 'none',
+										}}
+									/>
+								)}
 
-						{/* The gap above the charts, made part of the track for the
+								{/* The gap above the charts, made part of the track for the
 					    pointer and nothing else. Absolutely positioned so it draws
 					    nothing and takes no room. */}
-						<div
-							aria-hidden
-							style={{
-								position: 'absolute',
-								left: 0,
-								right: 0,
-								top: -TRACK_HIT_PADDING,
-								height: TRACK_HIT_PADDING,
-							}}
-						/>
+								<div
+									aria-hidden
+									style={{
+										position: 'absolute',
+										left: 0,
+										right: 0,
+										top: -TRACK_HIT_PADDING,
+										height: TRACK_HIT_PADDING,
+									}}
+								/>
 
-						<SegmentBoundaries
-							boundaries={chart.segmentBoundaries}
-							hovered={chart.hoveredGrain}
-							fractionForTime={axis.fractionForTime}
-						/>
+								<SegmentBoundaries
+									boundaries={chart.segmentBoundaries}
+									hovered={chart.hoveredGrain}
+									fractionForTime={axis.fractionForTime}
+								/>
 
-						{chart.hoveredSegment && (
-							<SegmentHighlight
-								segment={chart.hoveredSegment}
-								fractionForTime={axis.fractionForTime}
-							/>
-						)}
+								{chart.hoveredSegment && (
+									<SegmentHighlight
+										segment={chart.hoveredSegment}
+										fractionForTime={axis.fractionForTime}
+									/>
+								)}
 
-						{/* Kept mounted with the series off — the pointer geometry is
+								{/* Kept mounted with the series off — the pointer geometry is
 						    measured off it — but folded to nothing in volume layout, the
 						    way the commit track below goes when its box is unticked: a
 						    series switched off leaves no row, baseline or otherwise. In
 						    the scatter both series share this one box, so it stays. */}
-						<div
-							ref={chart.trackRef}
-							style={{
-								position: 'relative',
-								width: '100%',
-								height:
-									layoutMode === 'real'
-										? EVENTS_SCATTER_HEIGHT
-										: layoutMode === 'flow'
-										? flowGeo.height
-										: chart.showIssues
-										? TRACK_HEIGHT
-										: 0,
-								paddingTop:
-									layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
-								paddingBottom:
-									layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
-								boxSizing: 'content-box',
-								display: 'flex',
-								alignItems: 'center',
-							}}
-						>
-							{(layoutMode === 'real' ||
-								(layoutMode === 'even' && chart.showIssues)) && (
-								<TrackBaseline
-									color={chart.issueSeriesColor}
-									anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
-								/>
-							)}
-
-							{/* The axis reads 00:00 / 12:00 / 24:00, which is a lie once the
-							    window is shorter than a day — every dot sits in one band. */}
-							{layoutMode === 'real' && axis.span >= DAY_MS && (
-								<HourAxisLabels />
-							)}
-
-							{chart.showIssues && layoutMode === 'even' && (
-								<>
-									{/* Before the bars, so it stays underneath them. */}
-									{chart.hoveredBucketIndex !== null && (
-										<BucketHighlight
-											index={chart.hoveredBucketIndex}
-											bucketCount={axis.bucketCount}
+								<div
+									ref={chart.trackRef}
+									style={{
+										position: 'relative',
+										width: '100%',
+										height:
+											layoutMode === 'real'
+												? EVENTS_SCATTER_HEIGHT
+												: layoutMode === 'flow'
+												? flowGeo.height
+												: chart.showIssues
+												? TRACK_HEIGHT
+												: 0,
+										paddingTop:
+											layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
+										paddingBottom:
+											layoutMode === 'real' ? EVENTS_MODE_VERTICAL_PADDING : 0,
+										boxSizing: 'content-box',
+										display: 'flex',
+										alignItems: 'center',
+										transition: animate
+											? `height ${REVEAL_MS}ms ease`
+											: undefined,
+									}}
+								>
+									{(layoutMode === 'real' ||
+										(layoutMode === 'even' && chart.showIssues)) && (
+										<TrackBaseline
+											color={chart.issueSeriesColor}
+											anchor={layoutMode === 'even' ? 'bottom' : 'centre'}
 										/>
 									)}
 
-									<SeriesLayer key={`issues-${windowKey}`} animate={animate}>
-										<VolumeBars
-											bars={chart.issueBars}
-											bucketCount={axis.bucketCount}
-											firstBar={chart.issueBarRange[0]}
-											lastBar={chart.issueBarRange[1]}
-											color={chart.issueSeriesColor}
-											direction="up"
-											animate={animate}
-										/>
-									</SeriesLayer>
-								</>
-							)}
+									{/* The axis reads 00:00 / 12:00 / 24:00, which is a lie once the
+							    window is shorter than a day — every dot sits in one band. */}
+									{layoutMode === 'real' && axis.span >= DAY_MS && (
+										<HourAxisLabels />
+									)}
 
-							{/* Both series share one canvas: they are drawn against the
+									{chart.showIssues && layoutMode === 'even' && (
+										<>
+											{/* Before the bars, so it stays underneath them. */}
+											{chart.hoveredBucketIndex !== null && (
+												<BucketHighlight
+													index={chart.hoveredBucketIndex}
+													bucketCount={axis.bucketCount}
+												/>
+											)}
+
+											<SeriesLayer
+												key={`issues-${windowKey}`}
+												animate={animate}
+											>
+												<VolumeBars
+													bars={chart.issueBars}
+													bucketCount={axis.bucketCount}
+													firstBar={chart.issueBarRange[0]}
+													lastBar={chart.issueBarRange[1]}
+													color={chart.issueSeriesColor}
+													direction="up"
+													animate={animate}
+												/>
+											</SeriesLayer>
+										</>
+									)}
+
+									{/* Both series share one canvas: they are drawn against the
 						    same axes, and one node replaces thousands. */}
-							{layoutMode === 'real' && (
-								<ScatterCanvas
-									layers={chart.scatterLayers}
-									animate={animate}
-									highlightId={chart.highlightEventId}
-									onPointEnter={on.onScatterPointEnter}
-									onPointLeave={on.onScatterPointLeave}
-									onPressCommit={on.onPressCommit}
-								/>
-							)}
+									{layoutMode === 'real' && (
+										<ScatterCanvas
+											layers={chart.scatterLayers}
+											animate={animate}
+											highlightId={chart.highlightEventId}
+											onPointEnter={on.onScatterPointEnter}
+											onPointLeave={on.onScatterPointLeave}
+											onPressCommit={on.onPressCommit}
+										/>
+									)}
 
-							{/* The strands draw their own baselines: one per lane. The
+									{/* The strands draw their own baselines: one per lane. The
 							    labels come after the canvas so they sit over the lines. */}
-							{layoutMode === 'flow' && (
-								<>
-									<FlowCanvas
-										chart={chart.flowChart}
-										fractionForTime={axis.fractionForTime}
-										fractionToTime={axis.fractionToTime}
-										color={chart.issueSeriesColor}
-										animate={animate}
-										generation={windowKey}
-										focusIssue={chart.flowFocusIssue}
-										onPathEnter={on.onFlowPathEnter}
-										onPathLeave={on.onFlowPathLeave}
-										onPressPath={on.onPressFlowPath}
-									/>
-									<FlowStrandLabels
-										strands={chart.flowChart.strands}
-										geometry={flowGeo}
-									/>
-								</>
-							)}
-						</div>
+									{layoutMode === 'flow' && (
+										<>
+											<FlowCanvas
+												chart={chart.flowChart}
+												fractionForTime={axis.fractionForTime}
+												fractionToTime={axis.fractionToTime}
+												color={chart.issueSeriesColor}
+												animate={animate}
+												generation={windowKey}
+												focusIssue={chart.flowFocusIssue}
+												onPathEnter={on.onFlowPathEnter}
+												onPathLeave={on.onFlowPathLeave}
+												onPressPath={on.onPressFlowPath}
+											/>
+											<FlowStrandLabels
+												strands={chart.flowChart.strands}
+												geometry={flowGeo}
+											/>
+										</>
+									)}
+								</div>
 
-						{/* Up whenever the series is, commits or none: an empty window
+								{/* Up whenever the series is, commits or none: an empty window
 						    keeps its baseline the way the board track above keeps its,
 						    and the scrubber's height does not come and go with what the
 						    window happens to hold. */}
-						{chart.showCommits && layoutMode === 'even' && (
-							<div
-								key={`commits-${windowKey}`}
-								// Clears the board hover and stops the move reaching the
-								// wrapper, so the two hints never stack at the same spot.
-								onMouseEnter={on.onCommitTrackMouseEnter}
-								onMouseMove={on.onCommitTrackMouseMove}
-								onMouseLeave={on.onCommitTrackMouseLeave}
-								style={{
-									position: 'relative',
-									width: '100%',
-									height: TRACK_HEIGHT,
-									animation: animate ? FADE_IN_ANIMATION : undefined,
-								}}
-							>
-								<TrackBaseline color={GUI_THEME.green} anchor="top" />
+								{layoutMode === 'even' && (
+									// Kept up with the series off and folded to nothing instead, so
+									// unticking the box slides the track away rather than taking it
+									// out from under the chart above.
+									<div
+										style={{
+											height: chart.showCommits ? TRACK_HEIGHT : 0,
+											overflow: 'hidden',
+											flexShrink: 0,
+											transition: animate
+												? `height ${REVEAL_MS}ms ease`
+												: undefined,
+										}}
+									>
+										<div
+											key={`commits-${windowKey}`}
+											// Clears the board hover and stops the move reaching the
+											// wrapper, so the two hints never stack at the same spot.
+											onMouseEnter={on.onCommitTrackMouseEnter}
+											onMouseMove={on.onCommitTrackMouseMove}
+											onMouseLeave={on.onCommitTrackMouseLeave}
+											style={{
+												position: 'relative',
+												width: '100%',
+												height: TRACK_HEIGHT,
+												animation: animate ? FADE_IN_ANIMATION : undefined,
+											}}
+										>
+											<TrackBaseline color={GUI_THEME.green} anchor="top" />
 
-								{chart.hoveredCommitBucketIndex !== null && (
-									<BucketHighlight
-										index={chart.hoveredCommitBucketIndex}
-										bucketCount={axis.bucketCount}
+											{chart.hoveredCommitBucketIndex !== null && (
+												<BucketHighlight
+													index={chart.hoveredCommitBucketIndex}
+													bucketCount={axis.bucketCount}
+												/>
+											)}
+
+											<VolumeBars
+												bars={chart.commitBars}
+												bucketCount={axis.bucketCount}
+												firstBar={chart.commitBarRange[0]}
+												lastBar={chart.commitBarRange[1]}
+												color={GUI_THEME.green}
+												direction="down"
+												animate={animate}
+											/>
+										</div>
+									</div>
+								)}
+
+								{chart.unappliedFrom !== null && (
+									<UnappliedStretch from={chart.unappliedFrom} />
+								)}
+
+								{chart.thumbFraction !== null && (
+									<ScrubberNeedle
+										fraction={chart.thumbFraction}
+										parked={controls.isScrubbing}
+										onGrab={on.onGrabNeedle}
 									/>
 								)}
 
-								<VolumeBars
-									bars={chart.commitBars}
-									bucketCount={axis.bucketCount}
-									firstBar={chart.commitBarRange[0]}
-									lastBar={chart.commitBarRange[1]}
-									color={GUI_THEME.green}
-									direction="down"
-									animate={animate}
-								/>
-							</div>
-						)}
-
-						{chart.unappliedFrom !== null && (
-							<UnappliedStretch from={chart.unappliedFrom} />
-						)}
-
-						{chart.thumbFraction !== null && (
-							<ScrubberNeedle
-								fraction={chart.thumbFraction}
-								parked={controls.isScrubbing}
-								onGrab={on.onGrabNeedle}
-							/>
-						)}
-
-						{/* On the chart rather than on the bar, at the end the press
+								{/* On the chart rather than on the bar, at the end the press
 						    sends the needle to. A control that stands where it takes
 						    you needs no label to explain the journey.
 
@@ -591,71 +644,73 @@ export const ScrubberLayout = ({
 						    filled accent box here would be the one thing still lit on
 						    a bar that has stood down — and inert, since the way out of
 						    a movie is the player's own. */}
-						{!standDown && (
-							<ReturnToNowButton
-								isScrubbing={controls.isScrubbing}
-								onReturnToLive={controls.onReturnToLive}
-							/>
-						)}
+								{!standDown && (
+									<ReturnToNowButton
+										isScrubbing={controls.isScrubbing}
+										onReturnToLive={controls.onReturnToLive}
+									/>
+								)}
 
-						{chart.rangeSelection && (
-							<RangeSelection {...chart.rangeSelection} />
-						)}
+								{chart.rangeSelection && (
+									<RangeSelection {...chart.rangeSelection} />
+								)}
 
-						{/* Both hints belong on the wrapper so they hang below the whole
+								{/* Both hints belong on the wrapper so they hang below the whole
 						    scrubber rather than on top of the commit chart. */}
-						{chart.boardHint && (
-							<ScrubberHoverHint
-								{...chart.boardHint}
-								testId="board-hint"
-								segmentLabel={chart.hoveredSegment?.label}
-								stripeColor={chart.issueSeriesColor}
-								trackWidthPx={chart.trackWidthPx}
-							/>
-						)}
+								{chart.boardHint && (
+									<ScrubberHoverHint
+										{...chart.boardHint}
+										testId="board-hint"
+										segmentLabel={chart.hoveredSegment?.label}
+										stripeColor={chart.issueSeriesColor}
+										trackWidthPx={chart.trackWidthPx}
+									/>
+								)}
 
-						{chart.commitHint && (
-							<ScrubberHoverHint
-								{...chart.commitHint}
-								segmentLabel={chart.hoveredSegment?.label}
-								stripeColor={GUI_THEME.green}
-								trackWidthPx={chart.trackWidthPx}
-							/>
-						)}
+								{chart.commitHint && (
+									<ScrubberHoverHint
+										{...chart.commitHint}
+										segmentLabel={chart.hoveredSegment?.label}
+										stripeColor={GUI_THEME.green}
+										trackWidthPx={chart.trackWidthPx}
+									/>
+								)}
 
-						{/* The pager, off either end of the track in the panel's own
+								{/* The pager, off either end of the track in the panel's own
 						    margin, so it covers no data. Shown while the chart is
 						    hovered — see SCRUBBER_PAGER_STYLES — and only the way the
 						    window can actually go. */}
-						{chart.paging.earlier && (
-							<PageArrow side="earlier" onPage={on.onPageEarlier} />
-						)}
-						{chart.paging.later && (
-							<PageArrow side="later" onPage={on.onPageLater} />
-						)}
+								{chart.paging.earlier && (
+									<PageArrow side="earlier" onPage={on.onPageEarlier} />
+								)}
+								{chart.paging.later && (
+									<PageArrow side="later" onPage={on.onPageLater} />
+								)}
 
-						{/* What the window is, where no scope button says: a stretch
+								{/* What the window is, where no scope button says: a stretch
 						    paged back to, dragged out, or cut to a ticket. Tucked into
 						    the track's top corner over whatever grain label lands there. */}
-						{chart.paging.label !== null && (
-							<span
-								data-testid="scrubber-window-label"
-								style={{
-									position: 'absolute',
-									top: 1,
-									right: 0,
-									padding: '0 0 0 4px',
-									fontSize: 8,
-									lineHeight: 1,
-									color: GUI_THEME.dim,
-									background: GUI_THEME.panel,
-									whiteSpace: 'nowrap',
-									pointerEvents: 'none',
-								}}
-							>
-								{chart.paging.label}
-							</span>
-						)}
+								{chart.paging.label !== null && (
+									<span
+										data-testid="scrubber-window-label"
+										style={{
+											position: 'absolute',
+											top: 1,
+											right: 0,
+											padding: '0 0 0 4px',
+											fontSize: 8,
+											lineHeight: 1,
+											color: GUI_THEME.dim,
+											background: GUI_THEME.panel,
+											whiteSpace: 'nowrap',
+											pointerEvents: 'none',
+										}}
+									>
+										{chart.paging.label}
+									</span>
+								)}
+							</div>
+						</div>
 					</div>
 				)}
 			</div>

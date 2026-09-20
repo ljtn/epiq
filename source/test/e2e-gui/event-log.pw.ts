@@ -488,6 +488,10 @@ test('the log is dragged to size, and keeps its width', async ({
 
 	const log = page.getByTestId('event-log');
 	await expect(log).toBeVisible();
+	// The pane arrives on the board rather than appearing on it, and its edge
+	// is what this grabs: measured mid-arrival, the handle is at a place it has
+	// already left by the time the pointer gets there.
+	await expect(log).toHaveAttribute('data-settled', 'true');
 	const before = (await log.boundingBox())!;
 
 	const handle = (await page.getByTestId('event-log-resize').boundingBox())!;
