@@ -4,11 +4,27 @@
 
 import {mkdirSync, copyFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {dirname, resolve} from 'node:path';
+import {dirname, relative, resolve} from 'node:path';
 import * as esbuild from 'esbuild';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
+
+// The diff highlighter's worker body, as the package's own exports map gives
+// it — `@pierre/diffs` ships the body but cannot ship a URL the browser can
+// fetch, since that depends on how the app is bundled. Resolved rather than
+// spelled out, so a move inside the package is the package's business.
+//
+// An entry point rather than a module of ours importing it: the package
+// declares itself side-effect-free, so a bare `import '…/worker.js'` is
+// tree-shaken to nothing. An entry point never is.
+//
+// `import.meta.resolve`, not `createRequire().resolve` — the subpath is
+// exported under `import` only, which a require resolution does not see.
+const diffsWorkerEntry = relative(
+	root,
+	fileURLToPath(import.meta.resolve('@pierre/diffs/worker/worker.js')),
+);
 
 mkdirSync(resolve(root, 'dist/gui'), {recursive: true});
 copyFileSync(
@@ -38,7 +54,14 @@ const nodeEnv =
 // carries quotes that a Windows shell would eat before esbuild saw them.
 await esbuild.build({
 	absWorkingDir: root,
-	entryPoints: ['source/gui/client/main.tsx'],
+	// The worker is built beside the client rather than in a run of its own, so
+	// the Shiki grammars both of them load on demand are one set of chunks
+	// rather than two. `lib/diffs-worker-pool` points a `new Worker()` at the
+	// name given here.
+	entryPoints: [
+		{in: 'source/gui/client/main.tsx', out: 'main'},
+		{in: diffsWorkerEntry, out: 'diffs-worker'},
+	],
 	bundle: true,
 	// Splitting rather than a single outfile: @pierre/diffs pulls in Shiki's
 	// full bundled-language and theme set, which a single-file bundle inlines
