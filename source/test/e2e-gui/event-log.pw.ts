@@ -12,7 +12,7 @@ import {openBoard, returnToLive} from './live-board.js';
 const showEveryCommit = async (page: Page) => {
 	await page.getByTestId('commit-select').click();
 	await page.getByRole('radio', {name: 'All commits'}).click();
-	await expect(page.getByTestId('commit-select')).toHaveText('Code (all)');
+	await expect(page.getByTestId('commit-select')).toHaveText('Commits (all)');
 };
 
 // The crawl is a slice of the script, not a list grown as events land, which

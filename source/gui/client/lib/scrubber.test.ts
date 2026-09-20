@@ -8,6 +8,7 @@ import {
 import {
 	actorIdsByIssue,
 	bucketCommitStats,
+	clampingMax,
 	bucketCountForSpan,
 	bucketIssueCounts,
 	buildAxis,
@@ -23,6 +24,7 @@ import {
 	listIdentitiesByAxis,
 	plottedView,
 	soleVisibleIdentity,
+	stackedBarShape,
 	chooseGrainUnit,
 	chooseSegmentUnit,
 	dotAppearAnimation,
@@ -47,15 +49,19 @@ import {
 
 const DAY = 24 * 60 * 60 * 1000;
 
-const commit = (time: number, linesChanged = 1): GuiCommitEntry => ({
+const commit = (
+	time: number,
+	linesChanged = 1,
+	deletions = 0,
+): GuiCommitEntry => ({
 	sha: `sha-${time}`,
 	time,
 	author: 'a',
 	authorEmail: 'someone@example.com',
 	subject: 's',
 	linesChanged,
-	insertions: linesChanged,
-	deletions: 0,
+	insertions: linesChanged - deletions,
+	deletions,
 });
 
 const person = (name: string): GuiEventIdentity => ({
@@ -314,11 +320,69 @@ describe('bucketCommitStats', () => {
 		const axis = buildAxis(null, entries, 10 * DAY);
 		const stats = bucketCommitStats(axis, entries);
 
-		expect(stats.get(0)).toEqual({count: 2, linesChanged: 15});
+		expect(stats.get(0)).toEqual({
+			count: 2,
+			linesChanged: 15,
+			insertions: 15,
+			deletions: 0,
+		});
 		expect(stats.get(axis.bucketCount - 1)).toEqual({
 			count: 1,
 			linesChanged: 1,
+			insertions: 1,
+			deletions: 0,
 		});
+	});
+
+	// The two sides are summed apart as well as together: the stacked measure
+	// draws them against one another, and a bucket's total says nothing about
+	// which way its work went.
+	it('keeps what was added and what was removed apart', () => {
+		const entries = [commit(0, 10, 4), commit(0, 6, 6)];
+		const axis = buildAxis(null, entries, 10 * DAY);
+		const stats = bucketCommitStats(axis, entries);
+
+		expect(stats.get(0)).toEqual({
+			count: 2,
+			linesChanged: 16,
+			insertions: 6 + 0,
+			deletions: 10,
+		});
+	});
+});
+
+describe('clampingMax', () => {
+	// The case it exists for, and the one a percentile cannot answer: a handful
+	// of populated buckets, one of them enormous. The 90th percentile of five
+	// values is the fifth of them — the outlier itself.
+	it('stops below the outlier even when few buckets are populated', () => {
+		expect(clampingMax([10, 12, 9, 11, 50_000])).toBe(12);
+	});
+
+	it('leaves an ordinary spread alone, outlier or not', () => {
+		// Nothing here stands four times above the middle, so the scale is the
+		// largest bucket and every bar is drawn at its true share.
+		expect(clampingMax([9, 10, 11, 12])).toBe(12);
+	});
+
+	it('takes the body of a long tail rather than its end', () => {
+		const buckets = [...Array.from({length: 19}, (_, at) => at + 1), 50_000];
+
+		// The median of the twenty is 10, so the scale is the largest bucket at
+		// or under 40.
+		expect(clampingMax(buckets)).toBe(19);
+	});
+
+	it('ignores empty buckets and never returns zero', () => {
+		expect(clampingMax([0, 0, 0])).toBe(1);
+		expect(clampingMax([])).toBe(1);
+	});
+
+	it('is that bucket when only one has anything at all', () => {
+		expect(clampingMax([0, 7, 0])).toBe(7);
+		// Even an enormous one: with nothing to be an outlier against, it is the
+		// whole of what the window holds.
+		expect(clampingMax([50_000])).toBe(50_000);
 	});
 });
 
@@ -1328,5 +1392,52 @@ describe('hour scope', () => {
 			'year',
 			'all',
 		]);
+	});
+});
+
+describe('stackedBarShape', () => {
+	const TRACK = 24;
+
+	it('gives the bar the share of the track its bucket is worth', () => {
+		expect(stackedBarShape(0.5, 0.5, TRACK).height).toBe(TRACK);
+		expect(stackedBarShape(0.25, 0.25, TRACK).height).toBe(TRACK / 2);
+	});
+
+	it('never draws a populated bucket thinner than the floor', () => {
+		expect(stackedBarShape(0.001, 0, TRACK).height).toBe(3);
+	});
+
+	it('saturates rather than overflowing a bucket past the scale', () => {
+		expect(stackedBarShape(2, 1, TRACK).height).toBe(TRACK);
+	});
+
+	it('splits the bar where the two halves meet', () => {
+		expect(stackedBarShape(0.75, 0.25, TRACK).share).toBeCloseTo(0.75, 5);
+	});
+
+	// The case the floor exists for: four hundred lines added against two
+	// removed is a hundredth of the bar, which rounds to nothing drawn. The
+	// slack is float error — the floor is exactly one pixel of a height the
+	// division has already been through, so it lands a few ulps under.
+	const A_PIXEL = 1 - 1e-9;
+
+	it('keeps a pixel for a share too small to survive rounding', () => {
+		const {height, share} = stackedBarShape(0.995, 0.005, TRACK);
+
+		expect(height * (1 - share)).toBeGreaterThanOrEqual(A_PIXEL);
+	});
+
+	it('keeps that pixel for the other half too', () => {
+		const {height, share} = stackedBarShape(0.005, 0.995, TRACK);
+
+		expect(height * share).toBeGreaterThanOrEqual(A_PIXEL);
+	});
+
+	// A bucket that only added, or only removed, is one colour: the floor must
+	// not invent a sliver of the other.
+	it('draws one colour where there is only one', () => {
+		expect(stackedBarShape(1, 0, TRACK).share).toBe(1);
+		expect(stackedBarShape(0, 1, TRACK).share).toBe(0);
+		expect(stackedBarShape(0, 0, TRACK).share).toBe(1);
 	});
 });

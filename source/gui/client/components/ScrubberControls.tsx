@@ -99,6 +99,8 @@ export const ScrubberControls = ({
 	showCommits,
 	linkedCommitsOnly,
 	onChangeLinkedCommitsOnly,
+	linesMeasure,
+	onChangeLinesMeasure,
 	allBoards,
 	boardView,
 	identitiesByAxis,
@@ -158,6 +160,9 @@ export const ScrubberControls = ({
 	// The Code series down to commits linked to a ticket.
 	linkedCommitsOnly: boolean;
 	onChangeLinkedCommitsOnly: (next: boolean) => void;
+	// What the Code series' bars measure, as against which commits they count.
+	linesMeasure: boolean;
+	onChangeLinesMeasure: (next: boolean) => void;
 	allBoards: boolean;
 	boardView: BoardView;
 	// A legend per filter axis, and what is unticked on each: every axis narrows
@@ -354,8 +359,10 @@ export const ScrubberControls = ({
 					idle={layoutMode === 'flow'}
 					showCommits={showCommits}
 					linkedOnly={linkedCommitsOnly}
+					linesMeasure={linesMeasure}
 					onChangeShowCommits={onChangeShowCommits}
 					onChangeLinkedOnly={onChangeLinkedCommitsOnly}
+					onChangeLinesMeasure={onChangeLinesMeasure}
 				/>
 				<BoardSeriesGroup
 					connected={connected}
