@@ -7,6 +7,7 @@ import {
 	isLargeDiff,
 	lineCount,
 	openableByDefault,
+	pathsOpenByDefault,
 } from '../lib/utils/diff-size.js';
 
 const file = (before: string, after: string) => ({
@@ -133,5 +134,68 @@ describe('openableByDefault', () => {
 		);
 
 		expect(openableByDefault(files)).toHaveLength(40);
+	});
+
+	// Unlike isLargeDiff, which takes the larger side: that asks whether one
+	// file is outsized, this asks what a diff costs, and a diff reads both
+	// revisions. A modification therefore spends twice what its size suggests.
+	it('charges both sides of a file, not the larger one', () => {
+		// Under the per-file limit on each side, so these are refused by the
+		// budget or not at all.
+		const side = Math.floor(LARGE_DIFF_CHARS * 0.9);
+		const modified = (path: string) => ({
+			path,
+			before: 'x'.repeat(side),
+			after: 'y'.repeat(side),
+		});
+
+		const files = ['a.ts', 'b.ts', 'c.ts', 'd.ts'].map(modified);
+
+		// 360k each. Charged at the larger side alone they would all fit; charged
+		// at both, the second exhausts the budget for the rest.
+		expect(side).toBeLessThan(LARGE_DIFF_CHARS);
+		expect(side * 4).toBeLessThan(DIFF_BUDGET_CHARS * 2);
+		expect(openableByDefault(files)).toEqual([true, true, false, false]);
+	});
+});
+
+describe('pathsOpenByDefault', () => {
+	const sized = (chars: number, path: string) => ({
+		path,
+		before: '',
+		after: 'x'.repeat(chars),
+	});
+
+	it('names the files openableByDefault agreed to, and only those', () => {
+		const files = [
+			sized(1_000, 'a.ts'),
+			sized(LARGE_DIFF_CHARS + 1, 'package-lock.json'),
+			sized(1_000, 'b.ts'),
+		];
+
+		expect(pathsOpenByDefault(files)).toEqual(['a.ts', 'b.ts']);
+	});
+
+	it('has nothing to say about no files', () => {
+		expect(pathsOpenByDefault([])).toEqual([]);
+	});
+
+	// The two views that track what is open by path filter their reviewed files
+	// out before calling this, so the budget is spent on what is actually drawn.
+	it('spends the budget only on the files it was handed', () => {
+		const third = Math.ceil(DIFF_BUDGET_CHARS / 3);
+		const files = [
+			sized(third, 'reviewed.ts'),
+			sized(third, 'a.ts'),
+			sized(third, 'b.ts'),
+			sized(third, 'c.ts'),
+		];
+
+		// All four would not fit; the three left after one is filtered out do.
+		expect(pathsOpenByDefault(files.slice(1))).toEqual([
+			'a.ts',
+			'b.ts',
+			'c.ts',
+		]);
 	});
 });

@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {GuiComment, GuiRefCommitEntry} from '../lib/gui-state.model';
 import {GUI_THEME} from '../lib/gui-theme';
-import {isLargeDiff} from '../../../lib/utils/diff-size.js';
+import {pathsOpenByDefault} from '../../../lib/utils/diff-size.js';
 import {useReviewedFiles} from '../lib/reviewed-files';
 import {CopyRef} from './CopyRef';
 import {Empty} from './FormPrimitives';
@@ -113,15 +113,16 @@ export const IssueCommits = ({
 				...prev,
 				[commit.sha]: new Set([
 					...(prev[commit.sha] ?? []),
-					// A lockfile opened unasked is what stalls this view, so the
-					// large ones stay shut until they are asked for by name. A file
-					// already reviewed stays shut too: what is left open is what is
-					// left to read.
-					...files
-						.filter(
-							file => !isLargeDiff(file) && !isReviewed(commit.sha, file.path),
-						)
-						.map(file => file.path),
+					// A file already reviewed stays shut: what is left open is what is
+					// left to read. Filtered out before the budget rather than by it,
+					// so a reviewed file does not spend what it is not using.
+					//
+					// What survives that is `pathsOpenByDefault`'s to decide — a
+					// lockfile opened unasked is what stalls this view, and so is a
+					// commit of a hundred ordinary files.
+					...pathsOpenByDefault(
+						files.filter(file => !isReviewed(commit.sha, file.path)),
+					),
 				]),
 			}));
 		}
