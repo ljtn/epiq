@@ -4,6 +4,7 @@
 // The log draws by the chart's rule, so it is what the test reads.
 
 import {expect, test} from './fixtures.js';
+import {addTicketForRef} from './ticket.js';
 import {trackWithWindow} from './track.js';
 import {
 	commitLinkedFile,
@@ -178,15 +179,7 @@ test('the measure and the narrowing are chosen apart, and both are remembered', 
 	const boardUrl = page.url();
 
 	const stamp = Date.now();
-	await page.getByTestId('add-issue').first().click();
-	await page.getByPlaceholder('issue name').fill(`Measured ${stamp}`);
-	await page.getByPlaceholder('issue name').press('Enter');
-	await expect(page.locator('aside')).toContainText(`Measured ${stamp}`);
-
-	const ref = (
-		await page.locator('aside button[title^="Copy "]').first().textContent()
-	)?.trim();
-	expect(ref).toBeTruthy();
+	const ref = await addTicketForRef(page, `Measured ${stamp}`);
 
 	// The second commit rewrites the first, so its bucket both adds and removes
 	// and the bar drawn for it has two parts rather than one.
