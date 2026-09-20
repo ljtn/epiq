@@ -155,15 +155,34 @@ const fileStamp = async (filePath: string): Promise<string | null> => {
 	}
 };
 
+// A path with a stray `%` in it — `decodeURIComponent` throws `URIError` on
+// `/%`, and the request handler is an unwrapped async function, so the throw
+// became an unhandled rejection and node ended the process. One curl and the
+// board server is gone. A malformed path is a 404, like any other path that
+// names nothing.
+export const decodePath = (urlPathname: string): string | null => {
+	try {
+		return decodeURIComponent(urlPathname);
+	} catch {
+		return null;
+	}
+};
+
 const serveStatic = async (
 	urlPathname: string,
 	req: http.IncomingMessage,
 	res: http.ServerResponse,
 ) => {
-	const safePath =
-		urlPathname === '/'
-			? 'index.html'
-			: decodeURIComponent(urlPathname).replace(/^\/+/, '');
+	const decoded = urlPathname === '/' ? '/index.html' : decodePath(urlPathname);
+
+	if (decoded === null) {
+		return sendJson(res, 404, {
+			isError: true,
+			message: 'Not found',
+		});
+	}
+
+	const safePath = decoded.replace(/^\/+/, '');
 
 	const resolvedGuiRoot = path.resolve(guiRoot);
 	const filePath = path.resolve(resolvedGuiRoot, safePath);
@@ -274,7 +293,31 @@ export const startGuiServer = async (input: {
 	// Read at each request rather than captured: `project:open` moves it.
 	const project: GuiProject = {repoRoot: input.repoRoot};
 
-	const server = http.createServer(async (req, res) => {
+	const server = http.createServer((req, res) => {
+		// Nothing below may end the process. The handler is async, so a throw in
+		// it is an unhandled rejection, which node answers by exiting — and every
+		// request here is one a browser on this machine can send. A malformed
+		// percent-escape in a path did exactly that.
+		void handleRequest(req, res).catch(error => {
+			logger.error(
+				`[gui] ${req.method} ${req.url}: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+
+			if (res.headersSent) return res.end();
+
+			return sendJson(res, 500, {
+				isError: true,
+				message: 'Internal error',
+			});
+		});
+	});
+
+	async function handleRequest(
+		req: http.IncomingMessage,
+		res: http.ServerResponse,
+	) {
 		const url = new URL(req.url ?? '/', 'http://127.0.0.1');
 
 		const refusal = refuseCrossSiteRequest(
@@ -522,7 +565,7 @@ export const startGuiServer = async (input: {
 		}
 
 		return serveStatic(url.pathname, req, res);
-	});
+	}
 
 	try {
 		boundPort = await listen(server);
