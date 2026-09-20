@@ -197,11 +197,16 @@ export const clearParseCache = (): void => {
 	parseCacheEvents = 0;
 };
 
+// Nanoseconds, not `mtimeMs`: two writes inside one millisecond that leave the
+// file the same length are indistinguishable by the millisecond field, and
+// here that would mean serving a parse of the older one. `logSignature` reads
+// the millisecond field because a stale signature costs a re-read; a stale
+// parse would be wrong.
 const fileStamp = (filePath: string): string | null => {
 	try {
-		const {size, mtimeMs} = fs.statSync(filePath);
+		const {size, mtimeNs} = fs.statSync(filePath, {bigint: true});
 
-		return `${size}:${mtimeMs}`;
+		return `${size}:${mtimeNs}`;
 	} catch {
 		return null;
 	}
@@ -219,7 +224,12 @@ export const parsePersistedEventsFile = (
 	const remembered = stamp === null ? undefined : parseCache.get(filePath);
 
 	if (remembered && remembered.stamp === stamp) {
-		unreadable?.push(...remembered.quarantined);
+		// Appended one at a time rather than spread: a log can hold more lines
+		// than an argument list has room for, and a corrupt one holds them here.
+		if (unreadable)
+			for (const entry of remembered.quarantined) {
+				unreadable.push(entry);
+			}
 
 		// A copy of the list, not of the events: the caller concatenates and
 		// sorts, and nothing reads an event by mutating it — but a caller that
@@ -282,7 +292,7 @@ export const parsePersistedEventsFile = (
 		});
 	}
 
-	unreadable?.push(...quarantined);
+	if (unreadable) for (const entry of quarantined) unreadable.push(entry);
 
 	// Only a file whose stamp was readable: without one there is nothing to say
 	// the entry is still that file's, and a cache that cannot be invalidated is
