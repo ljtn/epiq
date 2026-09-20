@@ -131,7 +131,7 @@ export const SwimlaneColumn = ({
 			glowColor={COLUMN_GLOW_COLOR}
 			glowOpacity={0.41}
 			glowRadius={370}
-			proximityReach={200}
+			proximityReach={250}
 			style={{
 				zIndex: 0,
 				width: 360,
