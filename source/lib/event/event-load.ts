@@ -145,6 +145,68 @@ const hasPersistedActionPayload = (
 	action: string,
 ): entry is Record<string, unknown> => action in entry;
 
+// What one log file parsed to, while it is still that file.
+//
+// A read of the log parses every line of every file, and most reads happen
+// over a log that has not moved: a scrub asks for a cut every 120 ms, and each
+// one re-read and re-parsed the lot — 88 ms at thirty thousand events, again
+// and again for an answer that could not have changed.
+//
+// The stamp is taken BEFORE the read, never after. Taken after, a line landing
+// in the gap would be remembered under a stamp that already accounts for it,
+// and the stale parse would be served forever. Taken before, a write in the
+// gap means the entry is remembered under the older stamp and simply missed
+// next time — the same rule, and for the same reason, as `logSignature`.
+const parseCache = new Map<
+	string,
+	{stamp: string; entries: ReconstructedEvent[]; quarantined: UnreadableEvent[]}
+>();
+
+// A board's worth, so the cache holds the log it is being asked about and not
+// a history of every log this process has seen. Insertion order, so the oldest
+// file goes first — a sync renaming a pending log leaves an entry nothing will
+// ask for again.
+const PARSE_CACHE_MAX_EVENTS = 300_000;
+
+let parseCacheEvents = 0;
+
+const rememberParse = (
+	filePath: string,
+	stamp: string,
+	entries: ReconstructedEvent[],
+	quarantined: UnreadableEvent[],
+): void => {
+	const previous = parseCache.get(filePath);
+	if (previous) parseCacheEvents -= previous.entries.length;
+
+	parseCache.set(filePath, {stamp, entries, quarantined});
+	parseCacheEvents += entries.length;
+
+	for (const [key, value] of parseCache) {
+		if (parseCacheEvents <= PARSE_CACHE_MAX_EVENTS) break;
+		if (key === filePath) continue;
+
+		parseCache.delete(key);
+		parseCacheEvents -= value.entries.length;
+	}
+};
+
+/** The tests drive the log through mocks, where a stamp says nothing. */
+export const clearParseCache = (): void => {
+	parseCache.clear();
+	parseCacheEvents = 0;
+};
+
+const fileStamp = (filePath: string): string | null => {
+	try {
+		const {size, mtimeMs} = fs.statSync(filePath);
+
+		return `${size}:${mtimeMs}`;
+	} catch {
+		return null;
+	}
+};
+
 /** Null when the file is not there — listed a moment ago, perhaps, and gone now. */
 export const parsePersistedEventsFile = (
 	filePath: string,
@@ -152,6 +214,18 @@ export const parsePersistedEventsFile = (
 ): Result<ReconstructedEvent[] | null> => {
 	const actorResult = parseEventFileActor(filePath);
 	if (isFail(actorResult)) return failed(actorResult.message);
+
+	const stamp = fileStamp(filePath);
+	const remembered = stamp === null ? undefined : parseCache.get(filePath);
+
+	if (remembered && remembered.stamp === stamp) {
+		unreadable?.push(...remembered.quarantined);
+
+		// A copy of the list, not of the events: the caller concatenates and
+		// sorts, and nothing reads an event by mutating it — but a caller that
+		// sorted the array it was handed would reorder the cache with it.
+		return succeeded('Parsed persisted events file', [...remembered.entries]);
+	}
 
 	let content: string;
 	try {
@@ -163,6 +237,9 @@ export const parsePersistedEventsFile = (
 
 	const entries: ReconstructedEvent[] = [];
 	const fileName = path.basename(filePath);
+	// Collected separately from the caller's list so the entry can be remembered
+	// with the events it belongs to, and replayed on a hit.
+	const quarantined: UnreadableEvent[] = [];
 
 	// A line whose envelope will not parse carries no id, so unlike an
 	// unreadable payload it cannot keep its place in the chain. Skipping it
@@ -170,7 +247,7 @@ export const parsePersistedEventsFile = (
 	// everyone, permanently — `merge=union` splices a half-written line into
 	// every clone that pulls, and the log is append-only.
 	const quarantine = (lineNumber: number, reason: string) => {
-		unreadable?.push({
+		quarantined.push({
 			eventId: null,
 			reason: 'corrupt-line',
 			detail: `${fileName}:${lineNumber} (${reason})`,
@@ -205,7 +282,14 @@ export const parsePersistedEventsFile = (
 		});
 	}
 
-	return succeeded('Parsed persisted events file', entries);
+	unreadable?.push(...quarantined);
+
+	// Only a file whose stamp was readable: without one there is nothing to say
+	// the entry is still that file's, and a cache that cannot be invalidated is
+	// worse than none.
+	if (stamp !== null) rememberParse(filePath, stamp, entries, quarantined);
+
+	return succeeded('Parsed persisted events file', [...entries]);
 };
 
 // Code units, not `localeCompare`: collation follows the process locale, so
@@ -787,9 +871,13 @@ export const createLoader = <M extends EventMap>(catalog: EventCatalog<M>) => {
 	}
 
 	// The tests drive the log through mocks, so they need the edge gone between
-	// cases; a signature is no help where the files never existed.
+	// cases; a signature is no help where the files never existed. The parsed
+	// files go with it, for the same reason and in the same breath — a mocked
+	// `statSync` is as unreliable a stamp as a mocked `readdirSync` is a
+	// signature, and a caller clearing one and not the other would be surprised.
 	function clearEdgeCache(): void {
 		edgeCache = null;
+		clearParseCache();
 	}
 
 	const getSortedEvents = (
