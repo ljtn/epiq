@@ -136,6 +136,7 @@ export const TimeScrubber = ({
 	linkedCommitsOnly,
 	onChangeLinkedCommitsOnly,
 	issueIdByRef,
+	boardIssueIdByRef,
 	lanes,
 	laneTitles,
 	issueSummaryById,
@@ -184,10 +185,13 @@ export const TimeScrubber = ({
 	// plots the tickets the columns show.
 	queryIssueIds: ReadonlySet<string> | null;
 	// The Code series down to commits linked to a ticket, remembered with the
-	// series flags above; and every ticket by ref, which that rule reads.
+	// series flags above; and the tickets by ref that rule reads. Two maps,
+	// because the flag below decides which: the board's own, or — plotting every
+	// board — the repository's.
 	linkedCommitsOnly: boolean;
 	onChangeLinkedCommitsOnly: (next: boolean) => void;
 	issueIdByRef: ReadonlyMap<string, string>;
+	boardIssueIdByRef: ReadonlyMap<string, string>;
 	// What the flow layout draws its strands from: this board's lanes in column
 	// order, and every lane's title for one the window names off this board.
 	lanes: readonly FlowLane[];
@@ -648,6 +652,11 @@ export const TimeScrubber = ({
 			),
 		[axis, shown, boardView, hiddenIdentityIds, keptIssues],
 	);
+	// Which tickets a link may name: the board's own, the way the window itself
+	// is asked for, so `Linked` reads the same here as in the log below. Plotting
+	// every board takes the repository's, because that is then what is plotted.
+	const linkableIssues = allBoards ? issueIdByRef : boardIssueIdByRef;
+
 	// Narrowed where commits are drawn and not where the axis is built, as the
 	// ticket narrowing of events is: toggling it must not rescale the window.
 	const drawnCommits = useMemo(
@@ -656,10 +665,10 @@ export const TimeScrubber = ({
 				shown.commits,
 				linkedCommitsOnly,
 				ticketFocus,
-				issueIdByRef,
+				linkableIssues,
 				keptIssues,
 			),
-		[shown.commits, linkedCommitsOnly, ticketFocus, issueIdByRef, keptIssues],
+		[shown.commits, linkedCommitsOnly, ticketFocus, linkableIssues, keptIssues],
 	);
 	const commitStats = useMemo(
 		() => bucketCommitStats(axis, drawnCommits),
