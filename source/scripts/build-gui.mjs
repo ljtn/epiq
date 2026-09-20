@@ -46,7 +46,9 @@ copyFileSync(
 // Nothing defined it, so esbuild left the expression alone and the bundle got
 // the development one — bigger, and slower at every render, because each one
 // pays the dev-only checks. Defining it picks the production runtime;
-// minifying takes the rest. Together: main.js 3.22mb -> 1.20mb.
+// minifying takes the rest. Together they take main.js from 3.22mb to 1.20mb,
+// and the worker entry below takes it to 0.98mb by moving the highlighter into
+// a chunk the two of them share.
 //
 // EPIQ_GUI_DEV_BUILD=1 asks for the development one back — `npm run
 // test:gui:warnings` is that build plus the browser suite. React's warnings — a

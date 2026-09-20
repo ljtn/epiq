@@ -55,6 +55,12 @@ export const isLargeDiff = (file: DiffSides): boolean =>
 // files, 1.7 million characters, no single file large — took 5.6 s to paint
 // against 1.5 s for its first forty.
 //
+// Most of that gap is gone: the highlighter runs in a worker pool now (see
+// `gui/client/lib/diffs-worker-pool`) and the same commit paints in under a
+// second either way. What is left is the part no pool can move — a component
+// tree and its DOM per file, on the one thread that draws — so this stays as
+// the only bound on how many of those mount unasked.
+//
 // Comfortably above a single file's allowance, so a commit that would fit
 // inside one large file is never touched — which is nearly all of them.
 export const DIFF_BUDGET_CHARS = 500_000;
