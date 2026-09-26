@@ -204,13 +204,15 @@ The reliable way to register the server is with the `claude mcp add` command —
 
 ```bash
 # Available everywhere (recommended)
-claude mcp add --scope user epiq -- npx -y -p epiq epiq-mcp
+claude mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp
 
 # Or only in the current project
-claude mcp add epiq -- npx -y -p epiq epiq-mcp
+claude mcp add epiq -- npx -y --package=epiq epiq-mcp
 ```
 
 Use `--scope user` to make Epiq available in every directory; omit it to register Epiq only for the current project. Verify the connection with `claude mcp list` (it should report `epiq … ✔ Connected`). MCP servers are loaded at startup, so **restart Claude Code** after adding the server before its tools become available.
+
+The long `--package=epiq` form matters: some Claude Code versions read a bare `-p` as their own print flag even after `--`, and run a prompt instead of adding the server. Running `epiq-mcp` by hand prints nothing and waits — it is a stdio server waiting for a client, not hung.
 
 ### Setting up a board from an agent
 
@@ -233,7 +235,7 @@ Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workfl
 Every process — your TUI, your GUI, each agent's MCP server — writes as the user in `~/.epiq-global/config.json`, so by default the board cannot tell one agent from another. Name an agent's server and it gets its own identity:
 
 ```bash
-claude mcp add --scope user epiq -- npx -y -p epiq epiq-mcp claude
+claude mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp claude
 ```
 
 Or, in a hand-written config, as the argument after the command:
