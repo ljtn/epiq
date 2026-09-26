@@ -6,7 +6,7 @@ _Issue tracking as code. Open source, distributed, local-first, and code-native.
 
 Epiq provides issue tracking as a portable, integrated part of the development environment, with access to all the powerful tooling developers are used to.
 
-> Manage your projects in a visual kanban board — in your terminal or in your browser — while keeping all state local, Git-backed, and versioned.
+> Kanban to review workflows in your terminal or in your browser - while keeping all state local, Git-backed, and versioned.
 
 With great attention to user ergonomics and developer experience, epiq strives to make project management painless and friction free.
 
@@ -41,36 +41,19 @@ Epiq originated from the command line and offers a first-class terminal experien
 
 ## What is epiq?
 
-Epiq is a self hosted, vim-inspired issue tracker that brings developer experience to project management. It renders either as ASCII, or as a web GUI, and persists state as an immutable distributed event log, versioned and synchronized through Git.
-
-## Why Epiq?
+Epiq is a self hosted issue tracker that allows you to review workflows in real time or after the fact via replay. It persists state as an immutable event log, versioned and synchronized via Git.
 
 Most issue trackers live outside your workflow. Instead of a centralized, managed service, Epiq keeps project state alongside your repository, where it travels with your code.
 
-These design choices result in a system that is:
+These design choices result in a system that offers:
 
+- **Workflow replay**, - inspect what happened while you were away, as if it happens now
 - **Simple setup** — no accounts, SaaS, or external services required
 - **Repo-native** — your issues can live where your code lives
 - **Offline-friendly** — works anywhere, with eventual consistency
-- **Speed** — local first, and eventual consistency makes Epiq edits instant
-- **Portable** — run on your local machine, on a remote Linux server or your grandma’s connected toaster
+- **Fast** — local first, and eventual consistency makes Epiq edits instant
+- **Portable** — runs on your local machine, on a remote Linux server or your grandma’s connected toaster
 - **Command driven** — scriptable and automation-friendly, ready for the agentic era
-- **Versioned** — changes are tracked and recoverable through Git
-
-## A Features
-
-- Issue tracking — track work in tickets with name, description, tags, assignees, history log, etc.
-- Ergonomics — fast keyboard-driven UX, command line with history, syntax highlighting etc.
-- Command palette — press `?` to open a scrollable overview of all available commands and descriptions
-- Time travel — inspect the board as it was 1h, 1 week or 1 year ago, or replay its history as an animation
-- Linked commits — prefix commits with a ticket ref to browse their diffs from the ticket, quote lines into comments, and see them on the timeline
-- Filtering — query issues by description, tags, assignees, etc.
-- Autocompletion — minimize typing, stay in flow, reuse previous commands
-- Multi-user — collaborative synchronization via Git
-- Traceable event log — state is a full history of every change ever made
-- Export — write the current board layout to markdown
-- Browser GUI — graphical interface powered by the same Git-backed state
-- MCP integration — Model Context Protocol support for agent interaction
 
 ---
 
@@ -137,59 +120,6 @@ epiq gui
 >   Epiq manages a dedicated Git state branch and worktree automatically as the source of truth for synchronization.
 > - A local debug log at `.epiq/log/epiq.log` — check it first if sync, boot, or a Git operation is misbehaving.
 
-## Usage Guide (TUI)
-
-### Help
-
-- The first thing to know is that you always can access help with `:help`.
-- Press `?` anytime to open the command palette with all available commands and descriptions.
-
-### Navigation
-
-- The second thing to know is that you can navigate with the keyboard using arrow keys or `h` `j` `k` `l`.
-- Hold `shift` to move five at a time — `shift` with an arrow, or the shifted vim key (`J` / `K` down a lane, `H` / `L` across the board). A jump stops at the first and last item rather than wrapping, so holding it takes you to the end.
-- You can enter nodes with `enter`, and navigate out of a context with `q` or `esc`
-
-### Commands
-
-- If you type `:` you are put in command line mode and can now insert commands.
-- Commands are context-aware, so for instance `:close` only exists for issues.
-
-### Create nodes: issue | swimlane | board
-
-- Create nodes with `:new issue|swimlane|board <Name of new node>`.
-
-### Comment
-
-- Comment on issues with `:comment <your-input>`. Comments can be edited or deleted with the regular ':edit ...' or ':delete' commands.
-
-### Move nodes
-
-- Move nodes by pressing `m`. This sets you in a move state, after which you can navigate as normal, navigate to the target location, then press m again to confirm new location. `shift`+arrow carries the node five places at a time, and nothing is written until you confirm.
-
-### Filtering
-
-- Apply filters with the `filter` command followed by a target, and a qualifier. So in order to filter all issues with a `prio` tag you can write `:filter tag prio` and hit `enter`. You can build a combination of filters by running several filter commands in succession.
-
-Clear all filters with `:filter clear`
-
-### Time travel
-
-- Inspect the board as it was with `:peek <offset>`, where offset is `<n>h`, `d`, `w`, `mo` or `y` — so `:peek 3d` is the board three days ago. An absolute `YYYY-MM-DD` date works too. Step with `:peek prev|next`, and return with `:peek now`.
-- Where `:peek` shows a frozen snapshot, `:replay 1mo` plays history forward from that point as an animation. An optional second argument sets the playback duration, e.g. `:replay 1mo 30s`.
-- While peeking or replaying, the board is read-only.
-
-### Close issue
-
-- Close issues with `:close`. This moves the issue to a special board named `Closed` which you can find if you navigate up (press `q`) a few times.
-
-### Reopen
-
-- You can reopen a task by visiting the `Closed` board, selecting an issue and typing command `:reopen`. This will restore the issue to its last previous location.
-
-### Reuse command
-
-- Pro tip: just like in any terminal - if you need to do repeating tasks over and over again, you can just put yourself in the command mode, and then press arrow up, in order to access the last executed command. This helps a lot when you create tasks with similar names, or add the same tag to many tickets and so on.
 
 ---
 
@@ -209,21 +139,7 @@ claude mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp
 claude mcp add epiq -- npx -y --package=epiq epiq-mcp
 ```
 
-Use `--scope user` to make Epiq available in every directory; omit it to register Epiq only for the current project. Verify the connection with `claude mcp list` (it should report `epiq … ✔ Connected`). MCP servers are loaded at startup, so **restart Claude Code** after adding the server before its tools become available.
-
-The long `--package=epiq` form matters: some Claude Code versions read a bare `-p` as their own print flag even after `--`, and run a prompt instead of adding the server. Running `epiq-mcp` by hand prints nothing and waits — it is a stdio server waiting for a client, not hung.
-
-### Setting up a board from an agent
-
-An agent can initialize a repository without anyone opening the TUI. `epiq_project_init` runs the same steps as `:init` — state branch, default board, `.epiq/project.json` — in the repository at `repoRoot` (default: the current directory), which must have no uncommitted changes. It tries to push both branches and reports a push that fails as a warning rather than an error, so a repository without a remote still works.
-
-On a machine with no `~/.epiq-global/config.json` yet, the tool also records the user's setup. Called without the answers it fails, naming what it still needs, so the agent asks the user and calls again:
-
-- `userName` — how the user wants to appear on the board
-- `preferredEditor` — the command that opens a file, e.g. `vim` or `code --wait`
-- `autoSync` — whether the TUI and GUI sync with the remote on their own
-
-Whatever was given is kept between calls. On a machine that is already set up the tool fills in nothing and changes nothing: a different answer is refused, since renaming the configured user would rename them on every board. The name recorded is the user's, not the agent's: an agent running under its own identity (see below) is refused if it passes that name here.
+Verify the connection with `claude mcp list` (it should report `epiq … ✔ Connected`). MCP servers are loaded at startup, so **restart Claude Code** after adding the server before its tools become available.
 
 ### Skills
 
@@ -231,49 +147,9 @@ Find skill at `.claude/skills/epiq/SKILL.md` that documents a recommended workfl
 
 ### Agent identity
 
-Every process — your TUI, your GUI, each agent's MCP server — writes as the user in `~/.epiq-global/config.json`, so by default the board cannot tell one agent from another. Name an agent's server and it gets its own identity:
+Every process — your TUI, your GUI, each agent's MCP server - writes as your user, so by default the board cannot tell one agent from another. The MCP allows agents to assume an identity, so at the start of a session, tell your agent which name it should assume.
 
-```bash
-claude mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp claude
-```
-
-Or, in a hand-written config, as the argument after the command:
-
-```json
-{
-	"mcpServers": {
-		"epiq": {
-			"command": "npx",
-			"args": ["-y", "-p", "epiq", "epiq-mcp", "claude"]
-		}
-	}
-}
-```
-
-That agent then shows up in the contributor list, assigns itself rather than you, and authors its own events. The id is derived from the name, so one name is one contributor on every machine — reuse names instead of inventing one per session, or the registry fills with single-run identities. Naming yourself changes nothing.
-
-`EPIQ_USER_NAME` does the same thing through the environment, for a client whose config sets variables more readily than arguments:
-
-```json
-{
-	"mcpServers": {
-		"epiq": {
-			"command": "npx",
-			"args": ["-y", "-p", "epiq", "epiq-mcp"],
-			"env": {"EPIQ_USER_NAME": "claude"}
-		}
-	}
-}
-```
-
-Setting both is an error unless they agree, rather than one quietly winning. `EPIQ_USER_ID` pins the id explicitly (26 characters of Crockford base32) if you would rather choose it, and stays environment-only.
-
-The TUI and GUI take the same name as `--as`, since their first argument is already the command:
-
-```bash
-epiq --as claude
-epiq gui --as claude
-```
+That agent then shows up in the contributor list, assigns itself rather than you, and authors its own events. This can be useful when tracing many agents at the same time. Consider reusing names instead of inventing one per session, or the registry fills with single-run identities.
 
 ### Other MCP clients
 
@@ -294,9 +170,7 @@ Once registered, agents can interact with your local Epiq instance through the M
 
 ### Sandboxed or network-restricted environments
 
-`npx -y -p epiq epiq-mcp` resolves the package against the npm registry **every time it starts**, even if it's already cached locally. In agent sandboxes with restricted network access, this can make the MCP server appear to hang — `npx` retries DNS resolution instead of failing fast, and there's no MCP-level error to explain why.
-
-If you're running Epiq's MCP server in such an environment, install it globally once and point your MCP config at the resolved executable directly, bypassing `npx` (and the registry lookup) entirely on every subsequent start:
+`npx -y -p epiq epiq-mcp` resolves the package against the npm registry **every time it starts**, even if it's already cached locally. In agent sandboxes with restricted network access, this can make the MCP server appear to hang. If you're running Epiq's MCP server in such an environment, install it globally once and point your MCP config at the resolved executable directly, bypassing `npx` (and the registry lookup) entirely on every subsequent start:
 
 ```bash
 npm install --global epiq
