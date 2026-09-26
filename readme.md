@@ -18,21 +18,20 @@ Agents now run whole sprints unattended. Because state is a full event log, you 
 
 ## Code, linked to tickets
 
-Prefix a commit's subject with the ticket's ref and the two are linked:
+Prefix a commit's subject with the ticket's ref to link the two:
 
 ```
-git commit -m "1YRTG8T document the commit-to-ticket link in the readme"
+git commit -m "1YRTG8T ...<some message>"
 ```
 
-That commit now shows up in the ticket's **Commits** tab with its diffstat, and expands into a per-file diff right inside the ticket. Drag across diff lines to quote them into a comment on the ticket, or file a new ticket straight from the selection — the quote links back to the exact lines. The scrubber plots commits alongside board events; click a commit dot to open its diff in the ticket it belongs to.
+Linking makes a commit show up in the ticket code-diff tab. You can comment on selected lines, and also file a new ticket straight from the selection. The MCP exploses this reference as a `ref` property agents can refer to.
 
 ![A ticket's Commits tab, showing the diff of a linked commit](https://raw.githubusercontent.com/ljtn/epiq/main/source/assets/code-diff.jpeg)
 
-The link is nothing more than the commit subject: Epiq matches commits whose subject starts with `<REF> ` (case-insensitive) and stores nothing else. That makes it robust — no hooks, no database — but it means your merge strategy has to keep those subjects on the branch you inspect:
+Preserve the linking post-merge via conventions:
 
-- **Prefix every commit** with the ref of the ticket it belongs to. Agents get it from the `ref` field on `epiq_issue_list` and `epiq_board_list` responses.
-- **Rebase-merge** (`gh pr merge --rebase`) so the ref-prefixed commits land on `main` as they are. A merge commit adds a subject carrying no ref; a squash merge folds every commit into one whose subject GitHub invents from the PR title, and the link is gone.
-- Squashing _within_ one ticket's commits is fine as long as the result keeps the prefix. Never squash commits carrying different refs into one.
+- **Rebase-merge** It is advised to rebase-merge so the ref-prefixed commits land on `main` as they are, preserving linking post-merge.
+- Squashing _within_ one ticket's commits is fine as long as the result keeps the prefix. Do not squash commits carrying different refs into one.
 
 ## Terminal + Browser
 
