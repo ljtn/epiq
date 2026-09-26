@@ -793,14 +793,21 @@
 						<pre
 							class="code"
 						><code><span class="c"># available everywhere (recommended)</span>
-<span class="g">claude</span> mcp add --scope user epiq -- npx -y -p epiq epiq-mcp
+<span class="g">claude</span> mcp add --scope user epiq -- npx -y --package=epiq epiq-mcp
 
 <span class="c"># or only in the current project</span>
-<span class="g">claude</span> mcp add epiq -- npx -y -p epiq epiq-mcp</code></pre>
+<span class="g">claude</span> mcp add epiq -- npx -y --package=epiq epiq-mcp</code></pre>
 						<p>
 							Verify with <code>claude mcp list</code> (it should report
 							<code>epiq … ✔ Connected</code>). MCP servers load at startup, so
 							<strong>restart Claude Code</strong> after adding the server.
+						</p>
+						<p>
+							Keep the long <code>--package=epiq</code> form: some Claude Code
+							versions read a bare <code>-p</code> as their own print flag even
+							after <code>--</code>, and run a prompt instead of adding the
+							server. Running <code>epiq-mcp</code> by hand prints nothing and
+							waits — it is a stdio server waiting for a client, not hung.
 						</p>
 
 						<h3>The Epiq skill</h3>
