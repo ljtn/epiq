@@ -13,6 +13,7 @@ import {readCommandHistory} from '../config/command-history.js';
 import {recordRecentProject} from '../config/recent-projects.js';
 import {bootStateFromEventLog} from '../board/board-boot.js';
 import {loadMergedEventsWithUnreadable} from '../board/board-log.js';
+import {accountFor, logSignature} from '../event/log-signature.js';
 import {AppEvent} from '../board/board-events.model.js';
 import {Result, failed, isFail, succeeded} from '../model/result-types.js';
 import {getProjectFileContents} from '../project-setup/project-setup.js';
@@ -88,6 +89,11 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 		return failAt(3, ensureWorktreeResult.message);
 	}
 
+	// Taken before each read, never after: a line landing in the gap is missed
+	// by this materialisation and caught by the next check, rather than
+	// accounted for without ever having been applied. See log-signature.
+	let signature = logSignature(stateBranchRoot);
+
 	let eventsResult = loadMergedEventsWithUnreadable(stateBranchRoot);
 	if (isFail(eventsResult)) return failAt(3, eventsResult.message);
 
@@ -113,6 +119,7 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 			logger.info(3, pullResult.value.message);
 		}
 
+		signature = logSignature(stateBranchRoot);
 		eventsResult = loadMergedEventsWithUnreadable(stateBranchRoot);
 		if (isFail(eventsResult)) return failAt(3, eventsResult.message);
 	}
@@ -121,6 +128,11 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 
 	const bootStateResult = bootStateFromEventLog(events, unreadable);
 	if (isFail(bootStateResult)) return failAt(4, bootStateResult.message);
+
+	// What this process has applied, so the watch can tell the log moved
+	// without re-deriving it — and `noteOwnAppend` can keep it current over
+	// this process's own writes.
+	accountFor(stateBranchRoot, signature);
 
 	patchState({
 		hasProjectDefinition: true,

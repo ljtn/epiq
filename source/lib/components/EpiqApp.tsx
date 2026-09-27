@@ -14,6 +14,7 @@ import SettingsUI from './SettingsUI.js';
 import {Topbar} from './Topbar.js';
 import {WorkspaceUI} from './WorkspaceUI.js';
 import {AutoSyncController} from './AutoSyncController.js';
+import {EventLogWatchController} from './EventLogWatchController.js';
 import {useSettingsState} from '../state/settings.state.js';
 
 type EpiqAppProps = {
@@ -113,6 +114,7 @@ export default function EpiqApp({width, height}: EpiqAppProps) {
 	return (
 		<Box flexDirection="column">
 			<AutoSyncController autoSync={autoSync}></AutoSyncController>
+			<EventLogWatchController></EventLogWatchController>
 			<Box flexDirection="column">
 				<Topbar filters={filters} />
 
