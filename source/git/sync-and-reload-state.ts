@@ -5,9 +5,10 @@ import {
 import {bootStateFromEventLog} from '../lib/board/board-boot.js';
 import {loadMergedEventsWithUnreadable} from '../lib/board/board-log.js';
 import {getPersistFileName, resolveActorId} from '../lib/board/board-log.js';
+import {accountFor, logSignature} from '../lib/event/log-signature.js';
 import {Mode} from '../lib/model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
-import {getState, patchState} from '../lib/state/state.js';
+import {getSafeState, getState, patchState} from '../lib/state/state.js';
 import {failSync} from '../lib/state/sync-state.js';
 import {trace} from '../lib/utils/logger.utils.js';
 import {syncEpiqWithRemote} from './sync.js';
@@ -60,8 +61,21 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 			error,
 		});
 
-		if (syncAndReloadPromise) {
-			return syncAndReloadPromise;
+		// A sync that ends here never reached whatever would have moved the
+		// pill off 'syncing', and `isSyncing()` keys on it — left as it was,
+		// every later auto-sync and :sync is refused for the rest of the
+		// process's life.
+		const stateResult = getSafeState();
+		if (
+			!isFail(stateResult) &&
+			stateResult.value.syncStatus?.status === 'syncing'
+		) {
+			patchState({
+				syncStatus: {
+					msg: message,
+					status: 'failed',
+				},
+			});
 		}
 
 		return failed(message);
@@ -189,6 +203,11 @@ export const reloadStateFromEventLog = (
 		stateBranchRoot,
 	});
 
+	// Before the read, never after — a line landing in the gap is then simply
+	// missed by this materialisation and caught by the next check, rather than
+	// accounted for without ever having been applied.
+	const signature = logSignature(stateBranchRoot);
+
 	const allLoadedEventsResult = trace(
 		'loadMergedEvents',
 		loadMergedEventsWithUnreadable(stateBranchRoot),
@@ -253,6 +272,13 @@ export const reloadStateFromEventLog = (
 			eventCount: allLoadedEventsResult.value.events.length,
 		});
 
+		// The same check `bootStateFromEventLog` makes, read off the same
+		// synchronous state: a 'succeeded' that skipped for a historical
+		// checkout materialised nothing, and must not mark the log applied.
+		const liveState = getSafeState();
+		const materialisingLive =
+			!isFail(liveState) && liveState.value.timeMode === 'live';
+
 		const bootResult = trace(
 			'bootStateFromEventLog',
 			bootStateFromEventLog(
@@ -280,6 +306,10 @@ export const reloadStateFromEventLog = (
 
 			return failed(`Unable to boot synced state. ${bootResult.message}`);
 		}
+
+		// What this process has applied, for whatever next asks whether the
+		// log has moved — see log-signature.
+		if (materialisingLive) accountFor(stateBranchRoot, signature);
 	} else {
 		logger.debug('[sync] skipped bootStateFromEventLog for virtual node', {
 			selectedNodeIsVirtual: getState().selectedNode?.isVirtual,
