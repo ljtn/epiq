@@ -29,30 +29,32 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 
 	logger.debug('[sync] syncAndReloadState creating promise');
 
-	syncAndReloadPromise = syncAndReloadStateUnsafe();
+	syncAndReloadPromise = settleSyncAndReload().finally(() => {
+		logger.debug('[sync] syncAndReloadState clearing promise', {
+			statusBeforeClear: getState().syncStatus?.status,
+			statusMessageBeforeClear: getState().syncStatus?.msg,
+		});
+
+		syncAndReloadPromise = null;
+	});
+
+	return syncAndReloadPromise;
+};
+
+// Callers that join an in-flight sync share this promise, so it resolves to a
+// Result even when the sync throws.
+const settleSyncAndReload = async (): Promise<Result<boolean>> => {
+	let result: Result<boolean>;
 
 	try {
-		const result = await syncAndReloadPromise;
+		result = await syncAndReloadStateUnsafe();
 
 		logger.debug('[sync] syncAndReloadState promise resolved', {
 			success: !isFail(result),
-			message: isFail(result) ? result.message : result.message,
+			message: result.message,
 			statusAfterResolve: getState().syncStatus?.status,
 			statusMessageAfterResolve: getState().syncStatus?.msg,
 		});
-
-		if (isFail(result) && getState().syncStatus?.status === 'syncing') {
-			logger.debug('[sync] syncAndReloadState correcting stale syncing status');
-
-			patchState({
-				syncStatus: {
-					msg: result.message,
-					status: 'failed',
-				},
-			});
-		}
-
-		return result;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 
@@ -61,32 +63,28 @@ export const syncAndReloadState = async (): Promise<Result<boolean>> => {
 			error,
 		});
 
-		// A sync that ends here never reached whatever would have moved the
-		// pill off 'syncing', and `isSyncing()` keys on it — left as it was,
-		// every later auto-sync and :sync is refused for the rest of the
-		// process's life.
-		const stateResult = getSafeState();
-		if (
-			!isFail(stateResult) &&
-			stateResult.value.syncStatus?.status === 'syncing'
-		) {
-			patchState({
-				syncStatus: {
-					msg: message,
-					status: 'failed',
-				},
-			});
-		}
-
-		return failed(message);
-	} finally {
-		logger.debug('[sync] syncAndReloadState clearing promise', {
-			statusBeforeClear: getState().syncStatus?.status,
-			statusMessageBeforeClear: getState().syncStatus?.msg,
-		});
-
-		syncAndReloadPromise = null;
+		result = failed(message);
 	}
+
+	// `isSyncing()` keys on the pill, so a failure left at 'syncing' would
+	// refuse every later sync.
+	const stateResult = getSafeState();
+	if (
+		isFail(result) &&
+		!isFail(stateResult) &&
+		stateResult.value.syncStatus?.status === 'syncing'
+	) {
+		logger.debug('[sync] syncAndReloadState correcting stale syncing status');
+
+		patchState({
+			syncStatus: {
+				msg: result.message,
+				status: 'failed',
+			},
+		});
+	}
+
+	return result;
 };
 
 const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
@@ -104,10 +102,6 @@ const syncAndReloadStateUnsafe = async (): Promise<Result<boolean>> => {
 		});
 
 		return modeFail;
-	}
-
-	if (syncAndReloadPromise) {
-		return syncAndReloadPromise;
 	}
 
 	logger.debug('[sync] syncAndReloadState:start');
