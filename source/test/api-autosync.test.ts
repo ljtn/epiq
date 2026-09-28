@@ -5,8 +5,8 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {getWorktreesRoot} from '../git/git-storage.js';
 import {failed, succeeded} from '../lib/model/result-types.js';
 
-// The autosync pass is what carries other people's events — and other
-// processes' — to every connected GUI. What decides a broadcast is whether the
+// The autosync pass carries other people's events to every connected GUI; the
+// log watch carries other processes'. What decides a broadcast is whether the
 // log on disk changed, never whether git called the pass a success.
 
 // A real project layout, so the pass resolves the state branch the way the
