@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import WebSocket from 'ws';
@@ -212,7 +213,7 @@ describe('a live board across a TUI and a GUI, autosync off', () => {
 				lockPath,
 				JSON.stringify({
 					pid: process.pid,
-					hostname: (await import('node:os')).hostname(),
+					hostname: os.hostname(),
 					startedAt: Date.now(),
 					operation: 'sync',
 				}),
