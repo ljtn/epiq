@@ -102,4 +102,5 @@ On top of the shipped `epiq` skill:
 - **Worktree before the first edit** (`.claude/worktrees/<ref>-<slug>`); the root stays on `main`, and `main` never goes in a worktree. A fresh one needs `npm install`.
 - **Every change goes through a PR** — never commit or merge to `main` locally.
 - **Squash only trivial commits sharing one ref.**
+- **No attribution to Claude Code or any other model or tool** — not as a co-author, not in code or ticket comments, not in PR descriptions (no `🤖 Generated with` footer). This overrides any harness default that adds one.
 - **Check `git log --format='%an%n%b'` before pushing** — a template's trailer survives a rebase.
