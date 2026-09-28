@@ -6,8 +6,7 @@ import {getSafeState, isStateInitialized} from '../lib/state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {logger} from '../logger.js';
 import {getStateBranchRoot} from './git-storage.js';
-import {getGitDir} from './git-utils.js';
-import {isSyncLockHeld} from './sync-lock.js';
+import {isSyncLockHeldAt} from './sync-lock.js';
 import {reloadStateFromEventLog} from './sync-and-reload-state.js';
 
 const resolveStateBranchRoot = (): Result<string | null> => {
@@ -15,30 +14,6 @@ const resolveStateBranchRoot = (): Result<string | null> => {
 	if (isFail(repoRootResult)) return succeeded('No project here', null);
 
 	return getStateBranchRoot({repoRoot: repoRootResult.value});
-};
-
-// `rev-parse` is a subprocess, too slow to spawn every tick, and a worktree's
-// gitdir does not move. Null when git could not say, which skips the lock check
-// for this pass; only an answer is kept, since the worktree may not exist yet.
-const gitDirs = new Map<string, Promise<string | null>>();
-
-const gitDirOf = (stateBranchRoot: string): Promise<string | null> => {
-	const cached = gitDirs.get(stateBranchRoot);
-	if (cached) return cached;
-
-	const gitDir = getGitDir(stateBranchRoot).then(
-		result => (isFail(result) ? null : result.value),
-		() => null,
-	);
-	gitDirs.set(stateBranchRoot, gitDir);
-
-	void gitDir.then(value => {
-		if (value === null && gitDirs.get(stateBranchRoot) === gitDir) {
-			gitDirs.delete(stateBranchRoot);
-		}
-	});
-
-	return gitDir;
 };
 
 /**
@@ -55,7 +30,7 @@ export const reloadIfEventLogMoved = async (): Promise<Result<null>> => {
 	if (rootResult.value === null) return succeeded('No project here', null);
 
 	const stateBranchRoot = rootResult.value;
-	const gitDir = await gitDirOf(stateBranchRoot);
+	const syncLocked = await isSyncLockHeldAt(stateBranchRoot);
 
 	// Everything below is synchronous, so nothing can change between these
 	// checks and the reload.
@@ -92,7 +67,7 @@ export const reloadIfEventLogMoved = async (): Promise<Result<null>> => {
 
 	// Git may have lines off the logs until `withEventLogsIntact` restores them.
 	// Not held during the read: sibling syncs never wait, so they would skip.
-	if (gitDir && isSyncLockHeld(gitDir)) {
+	if (syncLocked) {
 		return succeeded('Worktree held by a sync', null);
 	}
 

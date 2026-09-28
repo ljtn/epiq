@@ -28,6 +28,7 @@ import {
 	PREFERRED_GUI_PORT,
 } from './instance.js';
 import {startGuiAutoSync} from './lib/api-autosync.js';
+import {createLogPublisher, startGuiLogWatch} from './lib/api-log-watch.js';
 import {refuseCrossSiteRequest} from './lib/origin-guard.js';
 import {GuiProject} from './lib/gui-project.js';
 import {setupWebsocket} from './lib/websocket.js';
@@ -577,7 +578,9 @@ export const startGuiServer = async (input: {
 		);
 	}
 
-	const guiAutoSync = startGuiAutoSync({project});
+	const publisher = createLogPublisher({project});
+	const guiAutoSync = startGuiAutoSync({project, publisher});
+	const stopLogWatch = startGuiLogWatch(publisher);
 
 	setupWebsocket(server, project, {
 		onStateChanged: () => guiAutoSync.queueSync(),
@@ -585,7 +588,10 @@ export const startGuiServer = async (input: {
 		getPort: () => boundPort,
 	});
 
-	server.on('close', guiAutoSync.dispose);
+	server.on('close', () => {
+		guiAutoSync.dispose();
+		stopLogWatch();
+	});
 
 	const address = server.address();
 	if (!address || typeof address === 'string') {

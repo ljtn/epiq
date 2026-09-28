@@ -64,7 +64,12 @@ vi.mock('../gui/api/lib/slim-state.js', () => ({
 	slimStateResult: (result: unknown) => result,
 }));
 
+vi.mock('../git/sync-lock.js', () => ({
+	isSyncLockHeldAt: async () => false,
+}));
+
 const {startGuiAutoSync} = await import('../gui/api/lib/api-autosync.js');
+const {createLogPublisher} = await import('../gui/api/lib/api-log-watch.js');
 
 const quietSummary = succeeded('Synced', {
 	repoRoot,
@@ -82,8 +87,14 @@ const appendEvent = (file = 'jo.jsonl') =>
 // A few passes of the loop: the timer fires after the 1ms debounce.
 const tick = () => new Promise(resolve => setTimeout(resolve, 40));
 
-const start = (root = repoRoot) =>
-	startGuiAutoSync({project: {repoRoot: root} as never});
+const start = (root = repoRoot) => {
+	const project = {repoRoot: root};
+
+	return startGuiAutoSync({
+		project,
+		publisher: createLogPublisher({project}),
+	});
+};
 
 let loop: {dispose: () => void} | null = null;
 
