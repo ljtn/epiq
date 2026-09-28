@@ -64,12 +64,15 @@ vi.mock('../gui/api/lib/slim-state.js', () => ({
 	slimStateResult: (result: unknown) => result,
 }));
 
+let syncLocked = false;
+
 vi.mock('../git/sync-lock.js', () => ({
-	isSyncLockHeldAt: async () => false,
+	isSyncLockHeldAt: async () => syncLocked,
 }));
 
 const {startGuiAutoSync} = await import('../gui/api/lib/api-autosync.js');
 const {createLogPublisher} = await import('../gui/api/lib/api-log-watch.js');
+type LogPublisher = ReturnType<typeof createLogPublisher>;
 
 const quietSummary = succeeded('Synced', {
 	repoRoot,
@@ -87,12 +90,12 @@ const appendEvent = (file = 'jo.jsonl') =>
 // A few passes of the loop: the timer fires after the 1ms debounce.
 const tick = () => new Promise(resolve => setTimeout(resolve, 40));
 
-const start = (root = repoRoot) => {
+const start = (root = repoRoot, publisher?: LogPublisher) => {
 	const project = {repoRoot: root};
 
 	return startGuiAutoSync({
 		project,
-		publisher: createLogPublisher({project}),
+		publisher: publisher ?? createLogPublisher({project}),
 	});
 };
 
@@ -107,6 +110,7 @@ beforeEach(() => {
 	getGuiStateMock.mockReset();
 	getGuiStateMock.mockResolvedValue(succeeded('state', {boards: []}));
 	broadcastMock.mockReset();
+	syncLocked = false;
 });
 
 afterEach(() => {
@@ -189,6 +193,39 @@ describe('GUI autosync broadcast', () => {
 		await tick();
 
 		expect(getGuiStateMock).toHaveBeenCalledTimes(2);
+		expect(broadcastMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not publish while another process holds the worktree', async () => {
+		// That sync may have lines off the logs; the next pass publishes.
+		syncLocked = true;
+		loop = start();
+		appendEvent('teammate.jsonl');
+		await tick();
+
+		expect(syncMock).toHaveBeenCalled();
+		expect(getGuiStateMock).not.toHaveBeenCalled();
+
+		syncLocked = false;
+
+		await vi.waitFor(() => expect(broadcastMock).toHaveBeenCalledTimes(1));
+	});
+
+	it('does not publish again what the log watch already sent', async () => {
+		// Both running before the change, so a record of its own would still
+		// hold the old log and publish the change a second time.
+		const publisher = createLogPublisher({project: {repoRoot}});
+		loop = start(repoRoot, publisher);
+		await tick();
+
+		appendEvent('teammate.jsonl');
+		await publisher.publishIfLogMoved();
+		expect(broadcastMock).toHaveBeenCalledTimes(1);
+
+		await tick();
+		await tick();
+
+		expect(syncMock.mock.calls.length).toBeGreaterThan(1);
 		expect(broadcastMock).toHaveBeenCalledTimes(1);
 	});
 });
