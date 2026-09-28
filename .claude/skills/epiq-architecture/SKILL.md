@@ -103,10 +103,10 @@ Rules for this repository, on top of the shipped `epiq` skill.
 - **Never test against the real board** — use a throwaway project, and stop dev servers when done.
 - **First line:** `Assuming claude/<name> — please /rename claude/<name> so this window carries the name.`
 - **Session's MCP never connected?** Run your own `npx -y -p epiq@latest epiq-mcp` over stdio; never borrow another session's. Kill it, and its `epiq-mcp` child, when done.
-- **Folding a follow-up into a ticket:** back to Ongoing, commits take its ref, add a `Solution:` comment.
-- **Done:** comment starting `Solution:`, move to Done, don't close — the release does.
-- **Tags:** `fork` for a change of approach (and update the description), `human-input-needed` for a decision that is the user's, `from-review` for review findings (name the PR).
+- **Folding a follow-up into a ticket:** back to Ongoing, and its commits take that ticket's ref.
+- **A merged ticket moves to Done and stays open** — the release closes it.
+- **Review findings get their own tickets**, tagged `from-review`, naming the PR.
 - **Worktree before the first edit** (`.claude/worktrees/<ref>-<slug>`); the root checkout stays on `main`, and `main` never goes in a worktree. A fresh one needs `npm install`.
 - **Every change goes through a PR** — never commit or merge to `main` locally.
-- **Rebase onto the target, merge with `gh pr merge --rebase`.** Squash only trivial commits sharing one ref.
-- **The git user is the sole author:** no `Co-Authored-By`, `Claude-Session` or `Generated with` lines. Check `git log --format='%an%n%b'` before pushing.
+- **Squash only trivial commits sharing one ref.**
+- **Check `git log --format='%an%n%b'` before pushing** — a template's trailer survives a rebase.
