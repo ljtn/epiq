@@ -1,112 +1,105 @@
 ---
 name: epiq-architecture
-description: How epiq is built — the distributed rules its event log obeys (causal ordering by last-known edge, logical clocks, tombstones, total replay), the layers the code is arranged in, and the workflow for working on epiq itself. Read before any change to this repository, and in particular before touching events, ordering, merge, replay, materialization or sync, before adding an event type or a websocket message, and before adding a module, a hook or a capability that crosses layers.
+description: How epiq is built — the event log's distributed rules (causal ordering, logical clocks, tombstones, total replay), the code's layers, and the workflow for this repository. Read before any change here, especially to events, ordering, merge, replay, materialization or sync, a new event type or websocket message, or anything that crosses layers.
 ---
 
 # The event log is a CRDT
 
-There is no server and no shared clock. Every actor appends to **its own** JSONL log on the state branch, git merges them, and each machine derives the same board from the same set. Everything below exists to keep that derivation a pure function of the event _set_.
+No server, no shared clock. Each actor appends to **its own** JSONL log on the state branch, git merges them, and every machine derives the same board from the same set. Everything below keeps that derivation a pure function of the event _set_.
 
 ## The model
 
-- **`id = [ulid, refId]`.** `refId` is the causal parent: the tail of the causal order this actor last saw (`getEdgeRef`). Concurrent writers legitimately share a parent.
-- **Order is derived, never stored.** `getSortedEvents` rebuilds the forest from `refId`, sorts concurrent siblings by ULID, walks depth-first, and dedupes by id. File line order is not load-bearing.
-- **The ULID is a hybrid logical clock**, not a timestamp: `getNextId(Math.max(Date.now(), decodeTime(edge) + 1))`. The wall clock is only a lower bound; causality forces monotonicity.
-- **An event says who by id, and nothing else about them.** `persist` calls `stripActor`, so the payload carries no actor at all, and `AppEvent` itself has no name — spread `actorOf(user)`, never the configured identity, because TypeScript does not excess-check a spread. The id is parsed from the log's file name, `<id>.jsonl`; the _name_ is resolved from the contributor registry, which `create.contributor` / `rename.contributor` / `tombstone.contributor` / `restore.contributor` build.
-- Same event set ⇒ same order ⇒ same board. That is the whole contract.
+- **`id = [ulid, refId]`.** `refId` is the causal parent: the tail of the order this actor last saw (`getEdgeRef`). Concurrent writers may share a parent.
+- **Order is derived, never stored.** `getSortedEvents` builds the forest from `refId`, sorts siblings by ULID, walks depth-first, dedupes by id. File line order means nothing.
+- **The ULID is a hybrid logical clock:** `getNextId(Math.max(Date.now(), decodeTime(edge) + 1))`. Wall clock is only a lower bound.
+- **An event names its actor by id only.** `persist` calls `stripActor`; `AppEvent` has no name. Spread `actorOf(user)`, never the configured identity — TypeScript does not excess-check a spread. The id comes from the log file name `<id>.jsonl`; the name from the contributor registry, built by `create.contributor` / `rename.contributor` / `tombstone.contributor` / `restore.contributor`.
+- Same event set ⇒ same order ⇒ same board.
 
 ## Invariants
 
-- **Derive order from `refId` plus the ULID tiebreak.** Nothing else.
-- **Ids are permanent.** Tombstone instead: `tombstoneNode` marks the node _and its descendants_ `isDeleted`; `tombstoneContributor` clears the display name but keeps the record so assignments referencing the id still resolve.
-- **Replay is total.** An event that lost a race or names state this replay never applied is a `materializeSkip` (`ConvergenceFail`) and is skipped. The _same_ precondition on a live write is a genuine failure — there the precondition is the answer the caller asked for.
-- **Unreadable stays ordered.** The envelope (`v`, `id`) parses even when the payload cannot, so an event from a newer build keeps its place in the chain.
-- **Append only.** One id always means one byte sequence. This is what makes `*.jsonl merge=union` safe.
-- **Time travel cuts causally.** `splitEventsAtTime` marks a child unapplied when its parent is unapplied, whatever its own timestamp says.
+- **Order = `refId` + ULID tiebreak.** Nothing else.
+- **Ids are permanent; tombstone instead.** `tombstoneNode` marks the node and its descendants `isDeleted`; `tombstoneContributor` clears the name but keeps the record so assignments still resolve.
+- **Replay is total.** An event that lost a race, or names state this replay never applied, is a `materializeSkip` (`ConvergenceFail`) and skipped. The same precondition on a live write is a real failure — there it is the answer the caller asked for.
+- **Unreadable stays ordered.** The envelope (`v`, `id`) parses even when the payload doesn't, so a newer build's event keeps its place.
+- **Append only.** One id, one byte sequence — what makes `*.jsonl merge=union` safe.
+- **Time travel cuts causally.** `splitEventsAtTime` leaves a child unapplied when its parent is, whatever its timestamp.
 
 ## Never
 
-- **Never break a client that is already out there.** The format grows by *adding* — a new event type, a field nothing older has to interpret — never by changing or repurposing what an older build already reads. Most of the rules below are what that one comes to in practice. A version marker is not the mechanism and does not help retroactively: an older build cannot be taught to check something it was shipped without.
-- **Never change the log file name's grammar without a release between the reader and the writer.** It is the one part of the format with no additive shape — every client reads every *other* client's logs, so there is no second name to add one under, and an older build does not fail on a name it cannot parse, it misreads it. The move from `<id>.<name>.jsonl` to `<id>.jsonl` was only safe because the reader had shipped a release earlier and everyone had upgraded past it. `old-log-file-names.test.ts` pins both forms so neither can be tidied away.
-- **Never order, compare or resolve conflicts by wall clock.** No "latest write wins by timestamp". `Date.now()` is a lower bound for id generation and a display value; it is not a fact about ordering.
-- **Never mint an id without seeding past the current edge.** An id that sorts before its own parent corrupts the DAG. Exception: an edge that is itself damage — undecodable, at ULID's ceiling, or more than a day ahead of the wall clock — seeds from the wall clock instead (`seedFromEdgeRef`); ordering survives because it comes from `refId`, not the timestamp.
-- **Never hard-delete** a node, contributor, tag or event, and never reuse or rewrite an id. Replay would then reach a reference that no longer exists.
-- **Never rewrite, reorder or de-duplicate existing log lines.** Rewriting breaks the identity that union merge depends on.
-- **Never abort replay on an event that merely lost.** One concurrent edit would leave a board that never opens again for whoever's build understands the most.
-- **Never assume a single writer.** Any log can gain lines from another machine between two reads, including mid-sync.
-- **Never put actor identity, or anything derivable, into the payload.**
-- **Never read a display name off an event or a log file name.** Resolve it from the registry, by id, through `identityOf`. A log written under the old naming is still `<id>.<name>.jsonl`, and that segment is a sanitized storage key — lowercased, `/` and `.` mangled — kept only as a fallback for an author the registry has never heard of. `loadActorNames` records which readers take it.
-- **Never store a name beside an id.** A denormalized copy freezes at whatever its subject was called when it was written, and a rename never reaches it. That is what took `userName` off `AppEvent` and `authorName` off a comment record.
-- **Never add a payload field older clients must interpret** without a `SCHEMA_VERSION` story.
+- **Break a client already out there.** The format grows by adding (new event type, field nothing older must read), never by changing or repurposing what an older build reads. Most rules below follow from this one. A version marker can't help retroactively: an older build can't check for something it shipped without.
+- **Change the log file name grammar without a release between reader and writer.** It has no additive form — every client reads every other client's logs, so there is no second name to add — and an old build misreads a name rather than failing. The `<id>.<name>.jsonl` → `<id>.jsonl` move was safe only because the reader shipped a release earlier. `old-log-file-names.test.ts` pins both `<id>.<name>.jsonl` and `<id>.jsonl`.
+- **Order or resolve conflicts by wall clock.** `Date.now()` is an id lower bound and a display value only.
+- **Mint an id without seeding past the current edge** — it would sort before its parent. Exception: a damaged edge (undecodable, at ULID's ceiling, or over a day ahead) seeds from the wall clock (`seedFromEdgeRef`); order still comes from `refId`.
+- **Hard-delete** a node, contributor, tag or event, or reuse or rewrite an id — replay would reach a reference that no longer exists.
+- **Rewrite, reorder or de-duplicate log lines** — union merge depends on their identity.
+- **Abort replay on an event that merely lost** — one concurrent edit would leave a board that never opens again for whoever's build understands the most.
+- **Assume a single writer.** Any log can gain lines between two reads, even mid-sync.
+- **Put actor identity, or anything derivable, in the payload.**
+- **Read a display name off an event or a log file name.** Resolve it by id through `identityOf`. The name segment in an old `<id>.<name>.jsonl` is a sanitized storage key — lowercased, `/` and `.` mangled — only a fallback for authors the registry lacks (`loadActorNames`).
+- **Store a name beside an id** — a copy freezes at the old name and never sees a rename. That is why `userName` left `AppEvent` and `authorName` left comments.
+- **Add a payload field older clients must interpret** without a `SCHEMA_VERSION` story.
 
 ## Adding an event type
 
-Applied on every machine, in causal order, possibly after events it did not expect. So: make it idempotent, express preconditions as `materializeSkip` rather than fatal, and reference targets by id only.
-
-Four places, all in `lib/board/`: the entry in `AppEventMap` and its name in `EVENT_ACTIONS` (`board-events.model.ts`), the payload schema that says what the handler dereferences (`board-events.schema.ts`), the handler itself (`board-materialize.ts`), and the nodes it touches in `getAffectedNodeIds` (`board-replay.ts`). Nothing in `lib/event/` changes; it reads the action list and the handlers off the catalog.
+It is applied on every machine, in causal order, possibly after events it didn't expect: make it idempotent, express preconditions as `materializeSkip` rather than fatal, and reference targets by id only. Four places in `lib/board/`: `AppEventMap` + `EVENT_ACTIONS` (`board-events.model.ts`), the payload schema (`board-events.schema.ts`), the handler (`board-materialize.ts`), and `getAffectedNodeIds` (`board-replay.ts`). `lib/event/` doesn't change; it reads the action list and handlers off the catalog.
 
 ## Proving a change is safe
 
-- `source/test/replay-equivalence.test.ts` — a batched replay must land on exactly the state a per-event replay does.
-- `source/test/event-core-generic.test.ts` — the log still works for a product that is not the board.
-- `npm run test:collab` — several actors on one remote must end with the same events _and_ derive the same order from them.
+- `source/test/replay-equivalence.test.ts` — batched replay equals per-event replay.
+- `source/test/event-core-generic.test.ts` — the log still works for a non-board product.
+- `npm run test:collab` — several actors on one remote end with the same events and order.
+- Touching ordering, merge, replay or materialization means running all three.
 - The pre-push hook runs lint, typecheck, unit, e2e, collaboration and GUI tests. Do not bypass it.
-- Suites that shell out to git run containerised over a read-only checkout. A test that aims git at the checkout instead of a temp directory fails on the spot.
-
-Touching ordering, merge, replay or materialization means running both.
-
+- Git-driving suites run containerised over a read-only checkout; a test that aims git at the checkout instead of a temp dir fails.
 
 ## The layers
 
-Dependencies point one way, and nothing lower reaches up.
+Dependencies point down only.
 
-- **`source/lib/event/`** — the log itself, and nothing about what it carries. Id minting and the edge, the causal sort, the envelope, the pending log, replay guards, and the write path. It is generic over an `EventMap`: a product hands `createEventLog` an `EventCatalog` naming its genesis action, its action list, a payload check, a handler per action and its replay/write hooks. **No board vocabulary belongs here** — no issue, swimlane, board, tag or comment, in code or in comments. `source/test/event-core-generic.test.ts` drives the whole log with a toy canvas catalog and imports no board code; keep it that way.
-- **`source/lib/board/`** — the board as one such product: its event map, payload schemas, handlers, replay bookkeeping, boot and default events. `board-log.ts` is the board's single `createEventLog` instance, and what the rest of the codebase imports (`materialize`, `loadMergedEvents`, `materializeAndPersistAll`, …). Nothing outside `lib/board/` reaches into `lib/event/` for those.
-- **the rest of `source/lib/`** — the domain around it: the node repository, ranks, state, and the TUI that draws it. Knows nothing about MCP, HTTP or React, which is what lets the same code answer all three.
-- **`source/mcp/api/`** — one function per board operation: `createBoard`, `moveIssue`, `addIssueTag`. Boots, checks its preconditions, writes events, returns a `Result`. A mutation lives here and only here.
-- **`source/mcp/server.ts` and `source/gui/api/`** — the front doors. An MCP tool and a websocket message are two ways into the *same* `mcp/api` function; neither re-implements one. A guard that exists in only one door is a bug in the other.
-- **`source/gui/client/`** — React, and nothing else. It cannot import `source/lib/event/*`, `source/lib/board/*` or anything else Node-side; the GUI build fails on it.
+- **`source/lib/event/`** — the log, generic over an `EventMap`: ids and edge, causal sort, envelope, pending log, replay guards, write path. A product passes `createEventLog` an `EventCatalog`: its genesis action, action list, payload check, a handler per action, and replay/write hooks. **No board vocabulary here**, in code or comments; `event-core-generic.test.ts` imports no board code.
+- **`source/lib/board/`** — the board as that product: event map, schemas, handlers, replay, boot. `board-log.ts` is its one `createEventLog` instance and what everything else imports (`materialize`, `loadMergedEvents`, `materializeAndPersistAll`, …); nothing outside `lib/board/` reaches into `lib/event/`.
+- **Rest of `source/lib/`** — node repository, ranks, state, the TUI. No MCP, HTTP or React — which is what lets the same code serve all three.
+- **`source/mcp/api/`** — one function per board operation (`createBoard`, `moveIssue`, `addIssueTag`): boots, checks preconditions, writes events, returns a `Result`. Mutations live here only.
+- **`source/mcp/server.ts`, `source/gui/api/`** — front doors into the same `mcp/api` functions. A guard in only one door is a bug in the other.
+- **`source/gui/client/`** — React only; importing Node-side code (`lib/event`, `lib/board`, …) breaks the GUI build.
 
-Two rules that hold across all of them:
+Across all layers:
 
-- **Errors are returned, never thrown** — `failed()` / `succeeded()` and `isFail`, up to the front door, which turns the `Result` into a tool response or a socket frame.
-- **A change in `lib/` lands in the TUI, the MCP and the GUI at once.** Check all three before calling it done.
+- **Errors are returned, never thrown** — `failed()` / `succeeded()` / `isFail` up to the front door.
+- **A `lib/` change lands in TUI, MCP and GUI at once**; check all three.
+- The one upward reach, `lib/state/sync-state.ts` → `gui/client/lib/gui-broadcast.js`, is a wart, not a pattern.
 
-The one inversion is `lib/state/sync-state.ts` reaching up into `gui/client/lib/gui-broadcast.js` to push a sync status. It is a wart to work around, not a pattern to copy.
+## One module per concept
 
-## Modular per concept, not per fragment
+- **A capability is a vertical slice**, not a shortcut: GUI board creation is `createBoard` in `mcp/api/boards.ts`, a `board:create` message, a hook, a palette entry.
+- **Name a module after its concept** (`use-swimlane-editing.ts`, `use-board-creation.ts`, `commands/command-registry.ts`).
+- **State lives where it is drawn**; a module answers its question for every caller (`needsWrite` in the command registry).
+- **A few domain modules of a few hundred lines**, not a file per fragment; the entry file stays an overview.
+- **Keep the domain a value, not a React tree** — the command registry takes injected handlers and tests without a DOM.
 
-The layering above is what exists; following it is the cheapest thing you can do for the next reader. What gets *added* has to keep it legible, and that means one module owning one high-level concept — a domain, a question, a screen's worth of state — rather than a slice of several.
-
-- **A capability is a vertical slice through the layers, never a shortcut across them.** Creating a board from the GUI is `createBoard` in `mcp/api/boards.ts`, a `board:create` message, a hook, and a palette entry: four small additions in four layers, not one socket handler that writes an event itself.
-- **Name a module after its concept, so somebody can guess the file.** `use-swimlane-editing.ts` owns the column editors, `use-board-creation.ts` the new-board modal, `commands/command-registry.ts` what the palette offers.
-- **State lives where it is drawn**, and a module that owns a question answers it for every caller — reuse the rule rather than restating it. `needsWrite` in the command registry is written once and used by every command that mutates.
-- **A few domain modules of a few hundred lines beat a file per fragment.** The entry file stays a brief overview of the flow.
-- **Keep the domain a value, not a React tree.** The command registry is built from injected handlers, so a test constructs the whole thing with no DOM.
-
-What the rule prevents has already happened here: App.tsx at 1900 lines, handing 27 hook return values down as props, and the same nine-line boot/actor/state preamble repeated at 21 `mcp/api` call sites. Both are what adding to a layer without giving the addition a home costs later.
+What this prevents has happened here: App.tsx at 1900 lines passing 27 hook return values down as props, and one nine-line boot/actor/state preamble repeated at 21 `mcp/api` call sites.
 
 ### Adding a websocket message
 
-Five places. Miss one and it fails quietly rather than loudly:
+Five places; a missed one fails quietly:
 
 - `gui/api/lib/websocket.model.ts` — the type
-- `gui/api/lib/websocket.schema.ts` — the zod shape; an unlisted message is refused at the door
-- `gui/client/lib/gui-mutations.ts` — if it mutates, so the client holds broadcasts until its own reply lands
-- `gui/api/lib/websocket.ts` — the handler, which calls `mcp/api` and does nothing else
-- `mcp/epiq-api.ts` — the export, when the function is new
+- `gui/api/lib/websocket.schema.ts` — the zod shape; unlisted messages are refused
+- `gui/client/lib/gui-mutations.ts` — if it mutates, so the client holds broadcasts until its reply lands
+- `gui/api/lib/websocket.ts` — the handler; calls `mcp/api`, nothing else
+- `mcp/epiq-api.ts` — the export, for a new function
 
 ## Working on epiq
 
-Rules for this repository, on top of the shipped `epiq` skill.
+On top of the shipped `epiq` skill:
 
-- **Never test against the real board** — use a throwaway project, and stop dev servers when done.
+- **Never test against the real board** — use a throwaway project; stop dev servers when done.
 - **First line:** `Assuming claude/<name> — please /rename claude/<name> so this window carries the name.`
-- **Session's MCP never connected?** Run your own `npx -y -p epiq@latest epiq-mcp` over stdio; never borrow another session's. Kill it, and its `epiq-mcp` child, when done.
-- **Folding a follow-up into a ticket:** back to Ongoing, and its commits take that ticket's ref.
+- **Session's MCP never connected?** Run your own `npx -y -p epiq@latest epiq-mcp` over stdio; never borrow another session's. Kill it and its `epiq-mcp` child when done.
+- **Folding a follow-up into a ticket:** back to Ongoing; its commits take that ticket's ref.
 - **A merged ticket moves to Done and stays open** — the release closes it.
 - **Review findings get their own tickets**, tagged `from-review`, naming the PR.
-- **Worktree before the first edit** (`.claude/worktrees/<ref>-<slug>`); the root checkout stays on `main`, and `main` never goes in a worktree. A fresh one needs `npm install`.
+- **Worktree before the first edit** (`.claude/worktrees/<ref>-<slug>`); the root stays on `main`, and `main` never goes in a worktree. A fresh one needs `npm install`.
 - **Every change goes through a PR** — never commit or merge to `main` locally.
 - **Squash only trivial commits sharing one ref.**
 - **Check `git log --format='%an%n%b'` before pushing** — a template's trailer survives a rebase.
