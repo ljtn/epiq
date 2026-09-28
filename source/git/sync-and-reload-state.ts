@@ -197,9 +197,7 @@ export const reloadStateFromEventLog = (
 		stateBranchRoot,
 	});
 
-	// Before the read, never after — a line landing in the gap is then simply
-	// missed by this materialisation and caught by the next check, rather than
-	// accounted for without ever having been applied.
+	// Before the read, never after — see log-signature.
 	const signature = logSignature(stateBranchRoot);
 
 	const allLoadedEventsResult = trace(
@@ -301,8 +299,6 @@ export const reloadStateFromEventLog = (
 			return failed(`Unable to boot synced state. ${bootResult.message}`);
 		}
 
-		// What this process has applied, for whatever next asks whether the
-		// log has moved — see log-signature.
 		if (materialisingLive) accountFor(stateBranchRoot, signature);
 	} else {
 		logger.debug('[sync] skipped bootStateFromEventLog for virtual node', {
