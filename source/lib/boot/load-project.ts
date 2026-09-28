@@ -60,6 +60,12 @@ const isCurrentProject = (stateBranchRoot: string): boolean => {
 	return !isFail(currentResult) && currentResult.value === stateBranchRoot;
 };
 
+let loadingProject = false;
+
+// For readers of the worktree that must not see a project mid-load: `:open`
+// moves cwd first, and the load may pull.
+export const isLoadingProject = (): boolean => loadingProject;
+
 /**
  * Boots the app state from the project at `repoRoot`: ensures its state
  * worktree and materialises the event log. Shared by the initial TUI boot and
@@ -72,6 +78,16 @@ const isCurrentProject = (stateBranchRoot: string): boolean => {
  * prompt over a board that already exists.
  */
 export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
+	loadingProject = true;
+
+	try {
+		return await loadProjectFrom(repoRoot);
+	} finally {
+		loadingProject = false;
+	}
+};
+
+const loadProjectFrom = async (repoRoot: string): Promise<Result<void>> => {
 	const stateBranchRootResult = getStateBranchRoot({repoRoot});
 	if (isFail(stateBranchRootResult)) {
 		return failAt(3, stateBranchRootResult.message);
@@ -89,9 +105,7 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 		return failAt(3, ensureWorktreeResult.message);
 	}
 
-	// Taken before each read, never after: a line landing in the gap is missed
-	// by this materialisation and caught by the next check, rather than
-	// accounted for without ever having been applied. See log-signature.
+	// Before each read, never after — see log-signature.
 	let signature = logSignature(stateBranchRoot);
 
 	let eventsResult = loadMergedEventsWithUnreadable(stateBranchRoot);
@@ -129,9 +143,6 @@ export const loadProject = async (repoRoot: string): Promise<Result<void>> => {
 	const bootStateResult = bootStateFromEventLog(events, unreadable);
 	if (isFail(bootStateResult)) return failAt(4, bootStateResult.message);
 
-	// What this process has applied, so the watch can tell the log moved
-	// without re-deriving it — and `noteOwnAppend` can keep it current over
-	// this process's own writes.
 	accountFor(stateBranchRoot, signature);
 
 	patchState({

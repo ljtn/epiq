@@ -119,6 +119,18 @@ const claimOver = (holder: LockHolder | null): LockClaim | null => {
 	return Date.now() - holder.startedAt > STALE_AFTER_MS ? 'stale' : null;
 };
 
+/**
+ * Whether a live process holds the worktree right now, for a reader that must
+ * not see the logs while git has them. A lock `acquireSyncLock` would break
+ * counts as free.
+ */
+export const isSyncLockHeld = (gitDir: string): boolean => {
+	const lockPath = path.join(gitDir, SYNC_LOCK_FILE);
+	if (!fs.existsSync(lockPath)) return false;
+
+	return claimOver(readHolder(lockPath)) === null;
+};
+
 export const describeHolder = (holder: LockHolder): string =>
 	`${holder.operation} (pid ${holder.pid} on ${
 		holder.hostname

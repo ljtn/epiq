@@ -1,3 +1,4 @@
+import {isLoadingProject} from '../lib/boot/load-project.js';
 import {accountedSignature, logSignature} from '../lib/event/log-signature.js';
 import {Mode} from '../lib/model/action-map.model.js';
 import {failed, isFail, Result, succeeded} from '../lib/model/result-types.js';
@@ -5,53 +6,95 @@ import {getSafeState, isStateInitialized} from '../lib/state/state.js';
 import {resolveClosestEpiqProjectRoot} from '../lib/storage/paths.js';
 import {logger} from '../logger.js';
 import {getStateBranchRoot} from './git-storage.js';
+import {getGitDir} from './git-utils.js';
+import {isSyncLockHeld} from './sync-lock.js';
 import {reloadStateFromEventLog} from './sync-and-reload-state.js';
 
+const resolveStateBranchRoot = (): Result<string | null> => {
+	const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
+	if (isFail(repoRootResult)) return succeeded('No project here', null);
+
+	return getStateBranchRoot({repoRoot: repoRootResult.value});
+};
+
+// `rev-parse` is a subprocess, too slow to spawn every tick, and a worktree's
+// gitdir does not move. Null when git could not say, which skips the lock check
+// for this pass; only an answer is kept, since the worktree may not exist yet.
+const gitDirs = new Map<string, Promise<string | null>>();
+
+const gitDirOf = (stateBranchRoot: string): Promise<string | null> => {
+	const cached = gitDirs.get(stateBranchRoot);
+	if (cached) return cached;
+
+	const gitDir = getGitDir(stateBranchRoot).then(
+		result => (isFail(result) ? null : result.value),
+		() => null,
+	);
+	gitDirs.set(stateBranchRoot, gitDir);
+
+	void gitDir.then(value => {
+		if (value === null && gitDirs.get(stateBranchRoot) === gitDir) {
+			gitDirs.delete(stateBranchRoot);
+		}
+	});
+
+	return gitDir;
+};
+
 /**
- * Whether the board on screen still matches the log on disk — and a
- * re-materialise when it does not.
+ * Re-materialises the board when the log on disk has moved past what this
+ * process applied. Other processes on this machine (an MCP server, the GUI, a
+ * second TUI) append to the same worktree without telling anyone.
  *
- * A sync is not the only thing that moves the log: an MCP server, a GUI
- * autosync or a second TUI on this machine appends to the same worktree
- * without telling anybody, and a pull commits somebody else's lines into it.
- * Those events reach this board only when somebody notices the directory
- * moved — which is what `logSignature` exists to answer: a listing and a
- * stat per file, cheap enough to ask every second.
- *
- * The comparison is against `accountedSignature` — what this process has both
- * read and applied — so its own writes do not count: `persist` calls
- * `noteOwnAppend` and keeps the accounted signature current without a reload.
+ * Compared against `accountedSignature`, so this process's own writes, which
+ * `noteOwnAppend` accounts for, never trigger a reload.
  */
-export const reloadIfEventLogMoved = (): Result<null> => {
+export const reloadIfEventLogMoved = async (): Promise<Result<null>> => {
+	const rootResult = resolveStateBranchRoot();
+	if (isFail(rootResult)) return failed(rootResult.message);
+	if (rootResult.value === null) return succeeded('No project here', null);
+
+	const stateBranchRoot = rootResult.value;
+	const gitDir = await gitDirOf(stateBranchRoot);
+
+	// Everything below is synchronous, so nothing can change between these
+	// checks and the reload.
 	if (!isStateInitialized()) return succeeded('State not initialized', null);
 
 	const stateResult = getSafeState();
 	if (isFail(stateResult)) return succeeded('State not initialized', null);
 
-	const {mode, readOnly, timeMode, syncStatus} = stateResult.value;
+	const {mode, readOnly, timeMode, syncStatus, selectedNode, contextNode} =
+		stateResult.value;
 
-	// Editing and time travel refuse a re-materialise rather than lose what
-	// they are holding; nothing is accounted for, so the next pass asks again.
+	if (isLoadingProject()) return succeeded('Project loading', null);
+
+	const currentRoot = resolveStateBranchRoot();
+	if (isFail(currentRoot) || currentRoot.value !== stateBranchRoot) {
+		return succeeded('Project changed', null);
+	}
+
+	// Nothing is accounted for while skipped, so the next pass asks again.
 	if (mode !== Mode.DEFAULT || readOnly || timeMode !== 'live') {
 		return succeeded('Skipped while not on the live board', null);
 	}
 
-	// A sync's own reload accounts for what it reads; running a second one
-	// over a worktree it is mid-flight on only doubles the work.
+	// The reload reads the log but will not replay onto a virtual node, so
+	// checking here saves a full read per tick until the cursor moves.
+	if (selectedNode?.isVirtual || contextNode?.isVirtual) {
+		return succeeded('Skipped on a virtual node', null);
+	}
+
+	// The sync reloads when it finishes.
 	if (syncStatus?.status === 'syncing') {
 		return succeeded('Sync in progress', null);
 	}
 
-	const repoRootResult = resolveClosestEpiqProjectRoot(process.cwd());
-	if (isFail(repoRootResult)) return succeeded('No project here', null);
-
-	const stateBranchRootResult = getStateBranchRoot({
-		repoRoot: repoRootResult.value,
-	});
-	if (isFail(stateBranchRootResult))
-		return failed(stateBranchRootResult.message);
-
-	const stateBranchRoot = stateBranchRootResult.value;
+	// Git may have lines off the logs until `withEventLogsIntact` restores them.
+	// Not held during the read: sibling syncs never wait, so they would skip.
+	if (gitDir && isSyncLockHeld(gitDir)) {
+		return succeeded('Worktree held by a sync', null);
+	}
 
 	if (logSignature(stateBranchRoot) === accountedSignature(stateBranchRoot)) {
 		return succeeded('Log unchanged', null);
