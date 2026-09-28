@@ -23,7 +23,7 @@
 	"use strict";
 
 	var PROVIDER = "goatcounter"; // "goatcounter" | "plausible" | "cloudflare"
-	var SITE = ""; // ← paste your site id here to switch stats on
+	var SITE = "epiq";
 
 	if (!SITE) return;
 
