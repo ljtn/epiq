@@ -35,6 +35,14 @@ const OUT_DIR = join(DOCS, "blog");
 const BASE_URL = "https://ljtn.github.io/epiq";
 const AUTHOR = "Jonatan Lampa";
 
+/* Comments are GitHub Discussions in the Announcements category, via giscus. */
+const GISCUS = {
+	repo: "ljtn/epiq",
+	repoId: "R_kgDOPAGkNw",
+	category: "Announcements",
+	categoryId: "DIC_kwDOPAGkN84C_cIj",
+};
+
 /* The nav version is stamped onto the hand-written pages by
  * scripts/stamp-version.sh on pre-push. Generated pages read it back from
  * index.html so that rebuilding never reverts that stamp. */
@@ -349,6 +357,29 @@ ${cards}
 	});
 }
 
+function comments(post) {
+	if (post.draft) return "";
+	return `
+				<section class="comments" aria-label="Comments">
+					<script src="https://giscus.app/client.js"
+						data-repo="${GISCUS.repo}"
+						data-repo-id="${GISCUS.repoId}"
+						data-category="${GISCUS.category}"
+						data-category-id="${GISCUS.categoryId}"
+						data-mapping="specific"
+						data-term="${esc(post.slug)}"
+						data-strict="1"
+						data-reactions-enabled="1"
+						data-emit-metadata="0"
+						data-input-position="top"
+						data-theme="transparent_dark"
+						data-lang="en"
+						data-loading="lazy"
+						crossorigin="anonymous"
+						async></script>
+				</section>`;
+}
+
 function renderPost(post, older, newer) {
 	const article = md.render(post.body, {
 		heading: 2,
@@ -420,6 +451,7 @@ ${source}
 						${nav}
 					</div>
 				</footer>
+${comments(post)}
 			</article>
 		</main>`,
 	});
