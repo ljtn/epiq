@@ -13,7 +13,7 @@ While Git solves this for code, issue trackers essentially lacks this capability
 
 ## Workflow audits
 
-When I set off to build [Epiq](https://ljtn.github.io/epiq/), this was not a concern on my radar. Agentic coding was something I had heard distant rumors of, and in fact I was just [pursuing the ideal developer experience](https://dev.to/ljtn/in-pursuit-of-the-ideal-developer-experience-2gp8). This pursuit did however result in an issue tracker with some uncommon properties. One of these is the ability to inspect historical state by time-traveling, and replay historical board states.
+When I set off to build [Epiq](https://ljtn.github.io/epiq/), this was not a concern on my radar. Agentic coding was something I had heard distant rumors of, and in fact I was just [pursuing the ideal developer experience](./ideal-developer-experience.html). This pursuit did however result in an issue tracker with some uncommon properties. One of these is the ability to inspect historical state by time-traveling, and replay historical board states.
 
 
 Initially I thought of it as a gimmick feature, imagining the wow-factor of replaying board layout the past 2 weeks as a little movie. I thought it would help out with retros and reflection of how much (or little) work had been accomplished. Not until I set out to run my first fully autonomous agent workflow did I notice how board time-travel was going to be an essential feature for anyone serious about staying in control.
